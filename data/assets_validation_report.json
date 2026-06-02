@@ -1,0 +1,821 @@
+{
+  "checked_manifest": "/home/alexqfmm/workPlace/pokemonAbout/data/assets.json",
+  "missing_files": [],
+  "invalid_entries": [],
+  "resolution_samples": [
+    {
+      "kind": "pokemon",
+      "id": 1,
+      "name": {
+        "en": "Bulbasaur",
+        "zh_cn": "妙蛙种子"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 2,
+      "name": {
+        "en": "Ivysaur",
+        "zh_cn": "妙蛙草"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 3,
+      "name": {
+        "en": "Venusaur",
+        "zh_cn": "妙蛙花"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 4,
+      "name": {
+        "en": "Charmander",
+        "zh_cn": "小火龙"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 5,
+      "name": {
+        "en": "Charmeleon",
+        "zh_cn": "火恐龙"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 6,
+      "name": {
+        "en": "Charizard",
+        "zh_cn": "喷火龙"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 7,
+      "name": {
+        "en": "Squirtle",
+        "zh_cn": "杰尼龟"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 8,
+      "name": {
+        "en": "Wartortle",
+        "zh_cn": "卡咪龟"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 9,
+      "name": {
+        "en": "Blastoise",
+        "zh_cn": "水箭龟"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 10,
+      "name": {
+        "en": "Caterpie",
+        "zh_cn": "绿毛虫"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 11,
+      "name": {
+        "en": "Metapod",
+        "zh_cn": "铁甲蛹"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "pokemon",
+      "id": 12,
+      "name": {
+        "en": "Butterfree",
+        "zh_cn": "巴大蝶"
+      },
+      "resolved_key": "placeholder:pokemon",
+      "variant": "placeholder",
+      "path": "assets/placeholders/pokemon.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 1,
+      "name": {
+        "en": "Master Ball",
+        "zh_cn": "大师球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 2,
+      "name": {
+        "en": "Ultra Ball",
+        "zh_cn": "高级球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 3,
+      "name": {
+        "en": "Great Ball",
+        "zh_cn": "超级球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 4,
+      "name": {
+        "en": "Poké Ball",
+        "zh_cn": "精灵球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 5,
+      "name": {
+        "en": "Safari Ball",
+        "zh_cn": "狩猎球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 6,
+      "name": {
+        "en": "Net Ball",
+        "zh_cn": "捕网球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 7,
+      "name": {
+        "en": "Dive Ball",
+        "zh_cn": "潜水球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 8,
+      "name": {
+        "en": "Nest Ball",
+        "zh_cn": "巢穴球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 9,
+      "name": {
+        "en": "Repeat Ball",
+        "zh_cn": "重复球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 10,
+      "name": {
+        "en": "Timer Ball",
+        "zh_cn": "计时球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 11,
+      "name": {
+        "en": "Luxury Ball",
+        "zh_cn": "豪华球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "item",
+      "id": 12,
+      "name": {
+        "en": "Premier Ball",
+        "zh_cn": "纪念球"
+      },
+      "resolved_key": "placeholder:item",
+      "variant": "placeholder",
+      "path": "assets/placeholders/item.png",
+      "fallback": true
+    },
+    {
+      "kind": "type",
+      "id": 1,
+      "name": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "resolved_key": "type:1",
+      "variant": "icon",
+      "path": "assets/types/1.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 2,
+      "name": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "resolved_key": "type:2",
+      "variant": "icon",
+      "path": "assets/types/2.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 3,
+      "name": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "resolved_key": "type:3",
+      "variant": "icon",
+      "path": "assets/types/3.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 4,
+      "name": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "resolved_key": "type:4",
+      "variant": "icon",
+      "path": "assets/types/4.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 5,
+      "name": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "resolved_key": "type:5",
+      "variant": "icon",
+      "path": "assets/types/5.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 6,
+      "name": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "resolved_key": "type:6",
+      "variant": "icon",
+      "path": "assets/types/6.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 7,
+      "name": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "resolved_key": "type:7",
+      "variant": "icon",
+      "path": "assets/types/7.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 8,
+      "name": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "resolved_key": "type:8",
+      "variant": "icon",
+      "path": "assets/types/8.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 9,
+      "name": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "resolved_key": "type:9",
+      "variant": "icon",
+      "path": "assets/types/9.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 10,
+      "name": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "resolved_key": "type:10",
+      "variant": "icon",
+      "path": "assets/types/10.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 11,
+      "name": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "resolved_key": "type:11",
+      "variant": "icon",
+      "path": "assets/types/11.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 12,
+      "name": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "resolved_key": "type:12",
+      "variant": "icon",
+      "path": "assets/types/12.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 13,
+      "name": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "resolved_key": "type:13",
+      "variant": "icon",
+      "path": "assets/types/13.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 14,
+      "name": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "resolved_key": "type:14",
+      "variant": "icon",
+      "path": "assets/types/14.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 15,
+      "name": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "resolved_key": "type:15",
+      "variant": "icon",
+      "path": "assets/types/15.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 16,
+      "name": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "resolved_key": "type:16",
+      "variant": "icon",
+      "path": "assets/types/16.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 17,
+      "name": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "resolved_key": "type:17",
+      "variant": "icon",
+      "path": "assets/types/17.png",
+      "fallback": false
+    },
+    {
+      "kind": "type",
+      "id": 18,
+      "name": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "resolved_key": "type:18",
+      "variant": "icon",
+      "path": "assets/types/18.png",
+      "fallback": false
+    },
+    {
+      "kind": "move",
+      "id": 1,
+      "name": {
+        "en": "Pound",
+        "zh_cn": "拍击"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 2,
+      "name": {
+        "en": "Karate Chop",
+        "zh_cn": "空手劈"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 3,
+      "name": {
+        "en": "Double Slap",
+        "zh_cn": "连环巴掌"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 4,
+      "name": {
+        "en": "Comet Punch",
+        "zh_cn": "连续拳"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 5,
+      "name": {
+        "en": "Mega Punch",
+        "zh_cn": "百万吨重拳"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 6,
+      "name": {
+        "en": "Pay Day",
+        "zh_cn": "聚宝功"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 7,
+      "name": {
+        "en": "Fire Punch",
+        "zh_cn": "火焰拳"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 8,
+      "name": {
+        "en": "Ice Punch",
+        "zh_cn": "冰冻拳"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 9,
+      "name": {
+        "en": "Thunder Punch",
+        "zh_cn": "雷电拳"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 10,
+      "name": {
+        "en": "Scratch",
+        "zh_cn": "抓"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 11,
+      "name": {
+        "en": "Vice Grip",
+        "zh_cn": "夹住"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "move",
+      "id": 12,
+      "name": {
+        "en": "Guillotine",
+        "zh_cn": "断头钳"
+      },
+      "resolved_key": "placeholder:move",
+      "variant": "placeholder",
+      "path": "assets/placeholders/move.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 1,
+      "name": {
+        "en": "Stench",
+        "zh_cn": "恶臭"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 2,
+      "name": {
+        "en": "Drizzle",
+        "zh_cn": "降雨"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 3,
+      "name": {
+        "en": "Speed Boost",
+        "zh_cn": "加速"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 4,
+      "name": {
+        "en": "Battle Armor",
+        "zh_cn": "战斗盔甲"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 5,
+      "name": {
+        "en": "Sturdy",
+        "zh_cn": "结实"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 6,
+      "name": {
+        "en": "Damp",
+        "zh_cn": "湿气"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 7,
+      "name": {
+        "en": "Limber",
+        "zh_cn": "柔软"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 8,
+      "name": {
+        "en": "Sand Veil",
+        "zh_cn": "沙隐"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 9,
+      "name": {
+        "en": "Static",
+        "zh_cn": "静电"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 10,
+      "name": {
+        "en": "Volt Absorb",
+        "zh_cn": "蓄电"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 11,
+      "name": {
+        "en": "Water Absorb",
+        "zh_cn": "储水"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    },
+    {
+      "kind": "ability",
+      "id": 12,
+      "name": {
+        "en": "Oblivious",
+        "zh_cn": "迟钝"
+      },
+      "resolved_key": "placeholder:ability",
+      "variant": "placeholder",
+      "path": "assets/placeholders/ability.png",
+      "fallback": true
+    }
+  ],
+  "resolution_counts": {
+    "pokemon": {
+      "sampled": 12,
+      "fallback": 12
+    },
+    "item": {
+      "sampled": 12,
+      "fallback": 12
+    },
+    "type": {
+      "sampled": 18,
+      "fallback": 0
+    },
+    "move": {
+      "sampled": 12,
+      "fallback": 12
+    },
+    "ability": {
+      "sampled": 12,
+      "fallback": 12
+    }
+  }
+}

@@ -1,0 +1,1179 @@
+{
+  "types": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      }
+    },
+    "8": {
+      "id": 8,
+      "name": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      }
+    },
+    "9": {
+      "id": 9,
+      "name": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      }
+    },
+    "10": {
+      "id": 10,
+      "name": {
+        "en": "Fire",
+        "zh_cn": "火"
+      }
+    },
+    "11": {
+      "id": 11,
+      "name": {
+        "en": "Water",
+        "zh_cn": "水"
+      }
+    },
+    "12": {
+      "id": 12,
+      "name": {
+        "en": "Grass",
+        "zh_cn": "草"
+      }
+    },
+    "13": {
+      "id": 13,
+      "name": {
+        "en": "Electric",
+        "zh_cn": "电"
+      }
+    },
+    "14": {
+      "id": 14,
+      "name": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      }
+    },
+    "15": {
+      "id": 15,
+      "name": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      }
+    },
+    "16": {
+      "id": 16,
+      "name": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      }
+    },
+    "17": {
+      "id": 17,
+      "name": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      }
+    },
+    "18": {
+      "id": 18,
+      "name": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      }
+    }
+  },
+  "move_categories": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    }
+  },
+  "games": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Red",
+        "zh_cn": "红"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Green",
+        "zh_cn": "绿"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Blue",
+        "zh_cn": "蓝"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Yellow",
+        "zh_cn": "皮卡丘"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "Gold",
+        "zh_cn": "金"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Silver",
+        "zh_cn": "银"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "Crystal",
+        "zh_cn": "水晶版"
+      }
+    },
+    "8": {
+      "id": 8,
+      "name": {
+        "en": "Ruby",
+        "zh_cn": "红宝石"
+      }
+    },
+    "9": {
+      "id": 9,
+      "name": {
+        "en": "Sapphire",
+        "zh_cn": "蓝宝石"
+      }
+    },
+    "10": {
+      "id": 10,
+      "name": {
+        "en": "Emerald",
+        "zh_cn": "绿宝石"
+      }
+    },
+    "11": {
+      "id": 11,
+      "name": {
+        "en": "FireRed",
+        "zh_cn": "火红"
+      }
+    },
+    "12": {
+      "id": 12,
+      "name": {
+        "en": "LeafGreen",
+        "zh_cn": "叶绿"
+      }
+    },
+    "13": {
+      "id": 13,
+      "name": {
+        "en": "Diamond",
+        "zh_cn": "钻石"
+      }
+    },
+    "14": {
+      "id": 14,
+      "name": {
+        "en": "Pearl",
+        "zh_cn": "珍珠"
+      }
+    },
+    "15": {
+      "id": 15,
+      "name": {
+        "en": "Platinum",
+        "zh_cn": "白金"
+      }
+    },
+    "16": {
+      "id": 16,
+      "name": {
+        "en": "HeartGold",
+        "zh_cn": "心金"
+      }
+    },
+    "17": {
+      "id": 17,
+      "name": {
+        "en": "SoulSilver",
+        "zh_cn": "魂银"
+      }
+    },
+    "18": {
+      "id": 18,
+      "name": {
+        "en": "Black",
+        "zh_cn": "黑"
+      }
+    },
+    "19": {
+      "id": 19,
+      "name": {
+        "en": "White",
+        "zh_cn": "白"
+      }
+    },
+    "20": {
+      "id": 20,
+      "name": {
+        "en": "Black 2",
+        "zh_cn": "黑 2"
+      }
+    },
+    "21": {
+      "id": 21,
+      "name": {
+        "en": "White 2",
+        "zh_cn": "白 2"
+      }
+    },
+    "22": {
+      "id": 22,
+      "name": {
+        "en": "X",
+        "zh_cn": "Ｘ"
+      }
+    },
+    "23": {
+      "id": 23,
+      "name": {
+        "en": "Y",
+        "zh_cn": "Ｙ"
+      }
+    },
+    "24": {
+      "id": 24,
+      "name": {
+        "en": "Omega Ruby",
+        "zh_cn": "欧米伽红宝石"
+      }
+    },
+    "25": {
+      "id": 25,
+      "name": {
+        "en": "Alpha Sapphire",
+        "zh_cn": "阿尔法蓝宝石"
+      }
+    },
+    "26": {
+      "id": 26,
+      "name": {
+        "en": "Sun",
+        "zh_cn": "太阳"
+      }
+    },
+    "27": {
+      "id": 27,
+      "name": {
+        "en": "Moon",
+        "zh_cn": "月亮"
+      }
+    },
+    "28": {
+      "id": 28,
+      "name": {
+        "en": "Ultra Sun",
+        "zh_cn": "究极之日"
+      }
+    },
+    "29": {
+      "id": 29,
+      "name": {
+        "en": "Ultra Moon",
+        "zh_cn": "究极之月"
+      }
+    }
+  },
+  "generations": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "1st Gen",
+        "zh_cn": "第一世代"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "2nd Gen",
+        "zh_cn": "第二世代"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "3rd Gen",
+        "zh_cn": "第三世代"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "4th Gen",
+        "zh_cn": "第四世代"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "5th Gen",
+        "zh_cn": "第五世代"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "6th Gen",
+        "zh_cn": "第六世代"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "7th Gen",
+        "zh_cn": "第七世代"
+      }
+    }
+  },
+  "natures": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Hardy",
+        "zh_cn": "勤奋"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Lonely",
+        "zh_cn": "怕寂寞"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Brave",
+        "zh_cn": "勇敢"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Adamant",
+        "zh_cn": "固执"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "Naughty",
+        "zh_cn": "顽皮"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Bold",
+        "zh_cn": "大胆"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "Docile",
+        "zh_cn": "坦率"
+      }
+    },
+    "8": {
+      "id": 8,
+      "name": {
+        "en": "Relaxed",
+        "zh_cn": "悠闲"
+      }
+    },
+    "9": {
+      "id": 9,
+      "name": {
+        "en": "Impish",
+        "zh_cn": "淘气"
+      }
+    },
+    "10": {
+      "id": 10,
+      "name": {
+        "en": "Lax",
+        "zh_cn": "乐天"
+      }
+    },
+    "11": {
+      "id": 11,
+      "name": {
+        "en": "Timid",
+        "zh_cn": "胆小"
+      }
+    },
+    "12": {
+      "id": 12,
+      "name": {
+        "en": "Hasty",
+        "zh_cn": "急躁"
+      }
+    },
+    "13": {
+      "id": 13,
+      "name": {
+        "en": "Serious",
+        "zh_cn": "认真"
+      }
+    },
+    "14": {
+      "id": 14,
+      "name": {
+        "en": "Jolly",
+        "zh_cn": "爽朗"
+      }
+    },
+    "15": {
+      "id": 15,
+      "name": {
+        "en": "Naive",
+        "zh_cn": "天真"
+      }
+    },
+    "16": {
+      "id": 16,
+      "name": {
+        "en": "Modest",
+        "zh_cn": "内敛"
+      }
+    },
+    "17": {
+      "id": 17,
+      "name": {
+        "en": "Mild",
+        "zh_cn": "慢吞吞"
+      }
+    },
+    "18": {
+      "id": 18,
+      "name": {
+        "en": "Quiet",
+        "zh_cn": "冷静"
+      }
+    },
+    "19": {
+      "id": 19,
+      "name": {
+        "en": "Bashful",
+        "zh_cn": "害羞"
+      }
+    },
+    "20": {
+      "id": 20,
+      "name": {
+        "en": "Rash",
+        "zh_cn": "马虎"
+      }
+    },
+    "21": {
+      "id": 21,
+      "name": {
+        "en": "Calm",
+        "zh_cn": "温和"
+      }
+    },
+    "22": {
+      "id": 22,
+      "name": {
+        "en": "Gentle",
+        "zh_cn": "温顺"
+      }
+    },
+    "23": {
+      "id": 23,
+      "name": {
+        "en": "Sassy",
+        "zh_cn": "自大"
+      }
+    },
+    "24": {
+      "id": 24,
+      "name": {
+        "en": "Careful",
+        "zh_cn": "慎重"
+      }
+    },
+    "25": {
+      "id": 25,
+      "name": {
+        "en": "Quirky",
+        "zh_cn": "浮躁"
+      }
+    }
+  },
+  "egg_groups": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Monster",
+        "zh_cn": "怪兽"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Water 1",
+        "zh_cn": "水中1"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "Field",
+        "zh_cn": "陆上"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "Grass",
+        "zh_cn": "植物"
+      }
+    },
+    "8": {
+      "id": 8,
+      "name": {
+        "en": "Human-Like",
+        "zh_cn": "人型"
+      }
+    },
+    "9": {
+      "id": 9,
+      "name": {
+        "en": "Water 3",
+        "zh_cn": "水中3"
+      }
+    },
+    "10": {
+      "id": 10,
+      "name": {
+        "en": "Mineral",
+        "zh_cn": "矿物"
+      }
+    },
+    "11": {
+      "id": 11,
+      "name": {
+        "en": "Amorphous",
+        "zh_cn": "不定形"
+      }
+    },
+    "12": {
+      "id": 12,
+      "name": {
+        "en": "Water 2",
+        "zh_cn": "水中2"
+      }
+    },
+    "13": {
+      "id": 13,
+      "name": {
+        "en": "Ditto",
+        "zh_cn": "百变怪"
+      }
+    },
+    "14": {
+      "id": 14,
+      "name": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      }
+    },
+    "15": {
+      "id": 15,
+      "name": {
+        "en": "Undiscovered",
+        "zh_cn": "未发现"
+      }
+    }
+  },
+  "evolution_types": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Level up",
+        "zh_cn": "升级进化"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Trade",
+        "zh_cn": "通信进化"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Use item",
+        "zh_cn": "使用道具进化"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Happiness",
+        "zh_cn": "亲密度进化"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "Happiness (Day)",
+        "zh_cn": "白天亲密度进化"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Happiness (Night)",
+        "zh_cn": "夜晚亲密度进化"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "Trade while holding item",
+        "zh_cn": "携带道具通信进化"
+      }
+    },
+    "8": {
+      "id": 8,
+      "name": {
+        "en": "Level up when ATK > DEF",
+        "zh_cn": "攻大于防时升级进化"
+      }
+    },
+    "9": {
+      "id": 9,
+      "name": {
+        "en": "Level up when ATK = DEF",
+        "zh_cn": "攻等于防时升级进化"
+      }
+    },
+    "10": {
+      "id": 10,
+      "name": {
+        "en": "Level up when ATK < DEF",
+        "zh_cn": "攻小于防时升级进化"
+      }
+    },
+    "11": {
+      "id": 11,
+      "name": {
+        "en": "Level up while last digit of PV# ≥5",
+        "zh_cn": "性格值尾数≥5时升级进化"
+      }
+    },
+    "12": {
+      "id": 12,
+      "name": {
+        "en": "Level up while last digit of PV# <5",
+        "zh_cn": "性格值尾数<5时升级进化"
+      }
+    },
+    "13": {
+      "id": 13,
+      "name": {
+        "en": "Level up with max Beauty",
+        "zh_cn": "美丽度进化"
+      }
+    },
+    "14": {
+      "id": 14,
+      "name": {
+        "en": "Level up to Body",
+        "zh_cn": "升级进化成本体"
+      }
+    },
+    "15": {
+      "id": 15,
+      "name": {
+        "en": "Level up to Shell",
+        "zh_cn": "升级进化成“壳”"
+      }
+    },
+    "16": {
+      "id": 16,
+      "name": {
+        "en": "Level up (Male)",
+        "zh_cn": "雄性升级进化"
+      }
+    },
+    "17": {
+      "id": 17,
+      "name": {
+        "en": "Level up (Female)",
+        "zh_cn": "雌性升级进化"
+      }
+    },
+    "18": {
+      "id": 18,
+      "name": {
+        "en": "Use item (Male)",
+        "zh_cn": "雄性使用道具进化"
+      }
+    },
+    "19": {
+      "id": 19,
+      "name": {
+        "en": "Use item (Female)",
+        "zh_cn": "雌性使用道具进化"
+      }
+    },
+    "20": {
+      "id": 20,
+      "name": {
+        "en": "Level up while holding item (Day)",
+        "zh_cn": "白天持有道具升级进化"
+      }
+    },
+    "21": {
+      "id": 21,
+      "name": {
+        "en": "Level up while holding item (Night)",
+        "zh_cn": "夜晚持有道具升级进化"
+      }
+    },
+    "22": {
+      "id": 22,
+      "name": {
+        "en": "Level up while knowing a certain move",
+        "zh_cn": "习得特定招式进化"
+      }
+    },
+    "23": {
+      "id": 23,
+      "name": {
+        "en": "Level up with certain Pokémon in party",
+        "zh_cn": "队伍里有特定宝可梦进化"
+      }
+    },
+    "24": {
+      "id": 24,
+      "name": {
+        "en": "Level up near strong magnetic field",
+        "zh_cn": "强磁场区域升级进化"
+      }
+    },
+    "25": {
+      "id": 25,
+      "name": {
+        "en": "Level up near Moss Rock",
+        "zh_cn": "苔藓石附近升级进化"
+      }
+    },
+    "26": {
+      "id": 26,
+      "name": {
+        "en": "Level up near Ice Rock",
+        "zh_cn": "冰雪石附近升级进化"
+      }
+    },
+    "27": {
+      "id": 27,
+      "name": {
+        "en": "Trade for a certain Pokémon",
+        "zh_cn": "与特定宝可梦通信交换进化"
+      }
+    },
+    "28": {
+      "id": 28,
+      "name": {
+        "en": "Use Mega stone in battle",
+        "zh_cn": "战斗中使用超级石"
+      }
+    },
+    "29": {
+      "id": 29,
+      "name": {
+        "en": "Level up with a Dark-type in the party",
+        "zh_cn": "升级时队伍中有恶属性宝可梦"
+      }
+    },
+    "30": {
+      "id": 30,
+      "name": {
+        "en": "Level up while holding 3DS upside down",
+        "zh_cn": "升级时把3DS反过来"
+      }
+    },
+    "31": {
+      "id": 31,
+      "name": {
+        "en": "Level up (Day)",
+        "zh_cn": "白天升级进化"
+      }
+    },
+    "32": {
+      "id": 32,
+      "name": {
+        "en": "Level up (Night)",
+        "zh_cn": "夜晚升级进化"
+      }
+    },
+    "33": {
+      "id": 33,
+      "name": {
+        "en": "Level up with 2 Affection and a Fairy-type move",
+        "zh_cn": "羁绊值2心+有妖精招式时升级进化"
+      }
+    },
+    "34": {
+      "id": 34,
+      "name": {
+        "en": "Level up while raining",
+        "zh_cn": "下雨时升级进化"
+      }
+    },
+    "35": {
+      "id": 35,
+      "name": {
+        "en": "Level up (Sun)",
+        "zh_cn": "在太阳中升级进化"
+      }
+    },
+    "36": {
+      "id": 36,
+      "name": {
+        "en": "Level up (Moon)",
+        "zh_cn": "在月亮中升级进化"
+      }
+    },
+    "37": {
+      "id": 37,
+      "name": {
+        "en": "Level up (Day) (Sun)",
+        "zh_cn": "在太阳中白天升级进化"
+      }
+    },
+    "38": {
+      "id": 38,
+      "name": {
+        "en": "Level up (Night) (Moon)",
+        "zh_cn": "在月亮中夜晚升级进化"
+      }
+    },
+    "39": {
+      "id": 39,
+      "name": {
+        "en": "Level up at Mt Lanakila",
+        "zh_cn": "在拉纳基拉山升级进化"
+      }
+    },
+    "40": {
+      "id": 40,
+      "name": {
+        "en": "Level up (Dusk)",
+        "zh_cn": "黄昏升级进化"
+      }
+    }
+  },
+  "evolution_stages": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "1st Stage",
+        "zh_cn": "第一阶段"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "2nd Stage",
+        "zh_cn": "第二阶段"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "3rd Stage",
+        "zh_cn": "第三阶段"
+      }
+    }
+  },
+  "ability_triggers": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Appears",
+        "zh_cn": "出场时"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Attack",
+        "zh_cn": "攻击时"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Defense",
+        "zh_cn": "防御时"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Switch",
+        "zh_cn": "替换时"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "In Battle",
+        "zh_cn": "战斗中"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Faint",
+        "zh_cn": "濒死时"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "End Turn",
+        "zh_cn": "回合结束"
+      }
+    },
+    "8": {
+      "id": 8,
+      "name": {
+        "en": "In Pinch",
+        "zh_cn": "危机时"
+      }
+    },
+    "9": {
+      "id": 9,
+      "name": {
+        "en": "Full HP",
+        "zh_cn": "满HP时"
+      }
+    },
+    "10": {
+      "id": 10,
+      "name": {
+        "en": "By Weather",
+        "zh_cn": "天气下"
+      }
+    },
+    "11": {
+      "id": 11,
+      "name": {
+        "en": "Ailment",
+        "zh_cn": "异常时"
+      }
+    },
+    "12": {
+      "id": 12,
+      "name": {
+        "en": "In Field",
+        "zh_cn": "野外时"
+      }
+    }
+  },
+  "ability_targets": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Self",
+        "zh_cn": "自身"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Ally",
+        "zh_cn": "队友"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Self + Ally",
+        "zh_cn": "自身+队友"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Foe",
+        "zh_cn": "敌方"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "All",
+        "zh_cn": "全场"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Other",
+        "zh_cn": "其他"
+      }
+    }
+  },
+  "ability_effect_on": {
+    "1": {
+      "id": 1,
+      "name": {
+        "en": "Stat",
+        "zh_cn": "能力"
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": {
+        "en": "Item",
+        "zh_cn": "道具"
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": {
+        "en": "Move",
+        "zh_cn": "技能"
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": {
+        "en": "Ability",
+        "zh_cn": "特性"
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": {
+        "en": "Type",
+        "zh_cn": "属性"
+      }
+    },
+    "6": {
+      "id": 6,
+      "name": {
+        "en": "Weather",
+        "zh_cn": "天气"
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": {
+        "en": "Other",
+        "zh_cn": "其他"
+      }
+    }
+  }
+}

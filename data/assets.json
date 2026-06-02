@@ -1,0 +1,347 @@
+{
+  "version": 1,
+  "generated_at": "2026-06-02T10:26:18.053442+00:00",
+  "base_path": ".",
+  "lookup": {
+    "key_format": "kind:id",
+    "pokemon_primary": "pokemon:{pokemon_id}",
+    "pokemon_fallback": "pokemon_dex:{national_dex_id}",
+    "default_variant": "icon",
+    "supported_kinds": [
+      "pokemon",
+      "item",
+      "type",
+      "move",
+      "ability"
+    ],
+    "supported_variants": [
+      "icon",
+      "sprite_front",
+      "sprite_back",
+      "card",
+      "placeholder"
+    ]
+  },
+  "placeholders": {
+    "pokemon": {
+      "path": "assets/placeholders/pokemon.png",
+      "source": "generated",
+      "license_note": "Generated placeholder image; safe to replace.",
+      "credit": "local-generator"
+    },
+    "item": {
+      "path": "assets/placeholders/item.png",
+      "source": "generated",
+      "license_note": "Generated placeholder image; safe to replace.",
+      "credit": "local-generator"
+    },
+    "type": {
+      "path": "assets/placeholders/type.png",
+      "source": "generated",
+      "license_note": "Generated placeholder image; safe to replace.",
+      "credit": "local-generator"
+    },
+    "move": {
+      "path": "assets/placeholders/move.png",
+      "source": "generated",
+      "license_note": "Generated placeholder image; safe to replace.",
+      "credit": "local-generator"
+    },
+    "ability": {
+      "path": "assets/placeholders/ability.png",
+      "source": "generated",
+      "license_note": "Generated placeholder image; safe to replace.",
+      "credit": "local-generator"
+    }
+  },
+  "entries": {
+    "type:1": {
+      "kind": "type",
+      "id": 1,
+      "name": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/1.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:2": {
+      "kind": "type",
+      "id": 2,
+      "name": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/2.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:3": {
+      "kind": "type",
+      "id": 3,
+      "name": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/3.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:4": {
+      "kind": "type",
+      "id": 4,
+      "name": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/4.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:5": {
+      "kind": "type",
+      "id": 5,
+      "name": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/5.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:6": {
+      "kind": "type",
+      "id": 6,
+      "name": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/6.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:7": {
+      "kind": "type",
+      "id": 7,
+      "name": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/7.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:8": {
+      "kind": "type",
+      "id": 8,
+      "name": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/8.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:9": {
+      "kind": "type",
+      "id": 9,
+      "name": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/9.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:10": {
+      "kind": "type",
+      "id": 10,
+      "name": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/10.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:11": {
+      "kind": "type",
+      "id": 11,
+      "name": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/11.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:12": {
+      "kind": "type",
+      "id": 12,
+      "name": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/12.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:13": {
+      "kind": "type",
+      "id": 13,
+      "name": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/13.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:14": {
+      "kind": "type",
+      "id": 14,
+      "name": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/14.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:15": {
+      "kind": "type",
+      "id": 15,
+      "name": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/15.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:16": {
+      "kind": "type",
+      "id": 16,
+      "name": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/16.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:17": {
+      "kind": "type",
+      "id": 17,
+      "name": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/17.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    },
+    "type:18": {
+      "kind": "type",
+      "id": 18,
+      "name": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "assets": {
+        "icon": {
+          "path": "assets/types/18.png",
+          "source": "generated",
+          "license_note": "Generated solid-color type badge placeholder; safe to replace.",
+          "credit": "local-generator"
+        }
+      }
+    }
+  }
+}
