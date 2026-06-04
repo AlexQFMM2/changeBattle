@@ -22,7 +22,16 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function findProjectRoot(): string {
-  const candidates = [process.env.CHANGEBATTLE_PROJECT_ROOT, process.cwd(), path.resolve(process.cwd(), "../.."), path.resolve(__dirname, "../../.."), path.resolve(__dirname, "../../../..")].filter(Boolean) as string[];
+  const resourcePath = process.resourcesPath;
+  const candidates = [
+    process.env.CHANGEBATTLE_PROJECT_ROOT,
+    resourcePath,
+    resourcePath ? path.resolve(resourcePath, "..") : "",
+    process.cwd(),
+    path.resolve(process.cwd(), "../.."),
+    path.resolve(__dirname, "../../.."),
+    path.resolve(__dirname, "../../../.."),
+  ].filter(Boolean) as string[];
   for (const candidate of candidates) {
     if (existsSync(path.join(candidate, "data", "sprite_index_map.json"))) return candidate;
   }
@@ -30,7 +39,17 @@ function findProjectRoot(): string {
 }
 
 const projectRoot = findProjectRoot();
-const gameService = new GameService({projectRoot});
+
+function findShowdownRoot(): string | undefined {
+  const candidates = [
+    process.env.SHOWDOWN_PATH,
+    path.join(projectRoot, "vendor", "pokemon-showdown"),
+    path.join(projectRoot, "resources", "vendor", "pokemon-showdown"),
+  ].filter(Boolean) as string[];
+  return candidates.find(candidate => existsSync(path.join(candidate, "dist", "sim", "index.js")));
+}
+
+const gameService = new GameService({projectRoot, showdownPath: findShowdownRoot()});
 let saveStore: SaveStore | null = null;
 let pendingCandidates: GeneratedTeam | null = null;
 let activeBattle: BattleSession | null = null;

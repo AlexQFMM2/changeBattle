@@ -1,10 +1,12 @@
 {
   "name": "change-battle",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "desktop:dev": "pnpm --filter @changebattle/desktop dev",
     "desktop:build": "pnpm --filter @changebattle/desktop build",
+    "desktop:release:win": "python3 tools/package_desktop_release.py",
     "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {

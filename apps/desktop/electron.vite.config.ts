@@ -6,7 +6,7 @@ const projectRoot = resolve(__dirname, "../..");
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({exclude: ["@changebattle/game-service", "@changebattle/shared"]})],
     resolve: {
       alias: {
         "@changebattle/shared": resolve(projectRoot, "packages/shared/src"),
@@ -20,7 +20,7 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({exclude: ["@changebattle/shared"]})],
     resolve: {
       alias: {
         "@changebattle/shared": resolve(projectRoot, "packages/shared/src"),
