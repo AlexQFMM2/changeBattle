@@ -2,6 +2,7 @@
 "use strict";
 
 const readline = require("node:readline");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
@@ -21,9 +22,21 @@ let ended = false;
 let winner = null;
 let sideTeams = { p1: [], p2: [] };
 let sideSlotKeys = { p1: [], p2: [] };
+let spriteMap = null;
 
 function toId(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function loadSpriteMap() {
+  if (spriteMap) return spriteMap;
+  const mapPath = path.join(PROJECT_ROOT, "data", "sprite_index_map.json");
+  try {
+    spriteMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
+  } catch {
+    spriteMap = { entries: {} };
+  }
+  return spriteMap;
 }
 
 function shortIdent(raw) {
@@ -143,6 +156,7 @@ function describeSet(set) {
     nature_plus: nature.plus,
     nature_minus: nature.minus,
     role: set.role || "",
+    sprite: loadSpriteMap().entries[species.id],
   };
 }
 

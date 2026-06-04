@@ -20,6 +20,7 @@ export type SpriteMapEntry = {
   forme: string;
   confidence: "national-dex-direct" | "base-species-fallback" | string;
   source: string;
+  sprite_id?: string;
   paths: Record<SpriteVariant, string>;
 };
 

@@ -320,6 +320,7 @@ export class GameService {
   private hasUsableSprite(pokemon: RentalPokemon): boolean {
     const spritePath = pokemon.sprite?.paths.front_normal;
     if (!spritePath || pokemon.sprite?.sprite_index === 0) return false;
+    if (/^https?:\/\//i.test(spritePath)) return true;
     return existsSync(path.join(this.projectRoot, spritePath));
   }
 

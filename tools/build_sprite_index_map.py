@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Build a Showdown species -> green.gba sprite index map.
+"""Build a Showdown species -> sprite manifest.
 
-The editable source of truth is data/sprite_index_map.csv.  The JSON file is a
-runtime manifest generated from that CSV, so bad sprite matches can be fixed by
-editing one visible row instead of changing code.
+The editable CSV is kept for the extracted green.gba sprite audit trail, but the
+runtime manifest uses Pokemon Showdown sprite ids as the primary image source.
 """
 from __future__ import annotations
 
@@ -17,6 +16,8 @@ from pathlib import Path
 
 DEFAULT_SHOWDOWN_PATH = Path('/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown')
 DEFAULT_ASSET_BASE = 'assets/pokemon-green/pokemon'
+DEFAULT_SHOWDOWN_ASSET_BASE = 'assets/pokemon-showdown'
+DEFAULT_SHOWDOWN_SPRITE_BASE = 'https://play.pokemonshowdown.com/sprites'
 DEFAULT_CSV = Path('data/sprite_index_map.csv')
 
 
@@ -26,13 +27,15 @@ const {Dex} = require(process.argv[1] + '/dist/sim');
 const out = [];
 for (const [id, species] of Object.entries(Dex.data.Pokedex)) {
   if (!species || species.exists === false || !species.name || !species.num || species.num <= 0) continue;
+  const fullSpecies = Dex.species.get(id || species.name);
   out.push({
-    id,
-    name: species.name,
-    num: species.num,
-    baseSpecies: species.baseSpecies || '',
-    forme: species.forme || '',
-    types: species.types || [],
+    id: fullSpecies.id || id,
+    name: fullSpecies.name || species.name,
+    num: fullSpecies.num || species.num,
+    baseSpecies: fullSpecies.baseSpecies || species.baseSpecies || '',
+    forme: fullSpecies.forme || species.forme || '',
+    types: fullSpecies.types || species.types || [],
+    spriteid: fullSpecies.spriteid || species.spriteid || '',
   });
 }
 out.sort((a, b) => (a.num - b.num) || a.id.localeCompare(b.id));
@@ -56,6 +59,18 @@ def sprite_paths(asset_base: str, sprite_index: int) -> dict[str, str]:
         'back_shiny': f'{folder}/back_shiny.png',
         'front_normal_full': f'{folder}/front_normal_full.png',
         'front_shiny_full': f'{folder}/front_shiny_full.png',
+    }
+
+
+def showdown_sprite_paths(sprite_base: str, sprite_id: str) -> dict[str, str]:
+    base = sprite_base.rstrip('/')
+    return {
+        'front_normal': f'{base}/gen5/{sprite_id}.png',
+        'back_normal': f'{base}/gen5-back/{sprite_id}.png',
+        'front_shiny': f'{base}/gen5-shiny/{sprite_id}.png',
+        'back_shiny': f'{base}/gen5-back-shiny/{sprite_id}.png',
+        'front_normal_full': f'{base}/gen5/{sprite_id}.png',
+        'front_shiny_full': f'{base}/gen5-shiny/{sprite_id}.png',
     }
 
 
@@ -137,6 +152,10 @@ def main() -> int:
     parser.add_argument('--csv', type=Path, default=DEFAULT_CSV)
     parser.add_argument('--write-csv', action='store_true', help='rewrite the editable CSV mapping from current heuristics')
     parser.add_argument('--asset-base', default=DEFAULT_ASSET_BASE)
+    parser.add_argument('--showdown-asset-base', default=DEFAULT_SHOWDOWN_ASSET_BASE)
+    parser.add_argument('--sprite-base-url', default=DEFAULT_SHOWDOWN_SPRITE_BASE)
+    parser.add_argument('--source', choices=['showdown', 'green-gba'], default='showdown')
+    parser.add_argument('--sprite-location', choices=['local', 'remote'], default='local')
     parser.add_argument('--max-index', type=int, default=1199)
     args = parser.parse_args()
 
@@ -157,7 +176,7 @@ def main() -> int:
         sprite_index = int(row.get('sprite_index') or parse_index_from_image(image) or default_sprite_index(num))
         if not image:
             image = image_for_index(args.asset_base, sprite_index)
-        if not (1 <= sprite_index <= args.max_index):
+        if args.source == 'green-gba' and not (1 <= sprite_index <= args.max_index):
             skipped.append({
                 'species_id': species['id'],
                 'name': species['name'],
@@ -166,12 +185,19 @@ def main() -> int:
                 'reason': 'sprite index outside extracted sprite range',
             })
             continue
-        is_forme = bool(species.get('forme')) or bool(species.get('baseSpecies'))
-        confidence = row.get('confidence') or ('base-species-fallback' if is_forme else 'emerald-internal-index')
+        is_forme = bool(species.get('forme')) or (
+            bool(species.get('baseSpecies')) and species.get('baseSpecies') != species.get('name')
+        )
+        confidence = (
+            'showdown-spriteid'
+            if args.source == 'showdown'
+            else row.get('confidence') or ('base-species-fallback' if is_forme else 'emerald-internal-index')
+        )
         if is_forme:
             fallback_count += 1
         else:
             csv_count += 1
+        showdown_base = args.showdown_asset_base if args.sprite_location == 'local' else args.sprite_base_url
         entries[species['id']] = {
             'species_id': species['id'],
             'name': species['name'],
@@ -180,9 +206,12 @@ def main() -> int:
             'base_species': species.get('baseSpecies') or species['name'],
             'forme': species.get('forme') or '',
             'confidence': confidence,
-            'source': f'{args.csv}',
+            'source': 'pokemon-showdown:spriteid' if args.source == 'showdown' else f'{args.csv}',
+            'sprite_id': species.get('spriteid') or species['id'],
             'note': row.get('note') or '',
-            'paths': sprite_paths_from_image(args.asset_base, sprite_index, image),
+            'paths': showdown_sprite_paths(showdown_base, species.get('spriteid') or species['id'])
+                if args.source == 'showdown'
+                else sprite_paths_from_image(args.asset_base, sprite_index, image),
         }
 
     payload = {
@@ -190,12 +219,16 @@ def main() -> int:
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'showdown_path': str(args.showdown_path),
         'asset_base': args.asset_base,
+        'showdown_asset_base': args.showdown_asset_base,
+        'sprite_base_url': args.sprite_base_url,
         'csv': str(args.csv),
         'strategy': {
-            'source_of_truth': 'data/sprite_index_map.csv maps Showdown species_id to explicit image path',
+            'source_of_truth': 'Pokemon Showdown Dex species.spriteid is used for runtime sprite URLs; data/sprite_index_map.csv remains a green.gba audit source',
             'default_index': '1-251 direct, 252-386 national dex + 25, 387+ national dex + 53 before CSV edits',
-            'forme': 'alternate formes can be given explicit CSV rows; otherwise they use the generated fallback row',
+            'forme': 'alternate formes use Showdown sprite ids such as charizard-megax, ninetales-alola, and rotom-wash',
             'index_zero': 'green.gba index 0000 is an unknown/question placeholder and is not assigned to a Showdown species',
+            'runtime_source': args.source,
+            'sprite_location': args.sprite_location,
         },
         'counts': {
             'entries': len(entries),

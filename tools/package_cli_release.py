@@ -21,6 +21,7 @@ PROJECT_PATHS = [
     "changeBattle-cli",
     "core",
     "data",
+    "assets",
     "showdown-adapter",
     "README.md",
     "rule.md",

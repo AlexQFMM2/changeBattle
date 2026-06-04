@@ -89,7 +89,9 @@ function cueFromEntry(entry: BattleEffectEntry | undefined, event: BattleTimelin
 }
 
 function assetUrl(path?: string): string | undefined {
-  return path ? window.changeBattle?.assetUrl(path) : undefined;
+  if (!path) return undefined;
+  if (/^https?:\/\//i.test(path)) return path;
+  return window.changeBattle?.assetUrl(path);
 }
 
 function pokemonImageUrl(pokemon?: {sprite?: SpriteMapEntry}, variant: "front_normal" | "back_normal" = "front_normal"): string | undefined {

@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("changeBattle", {
     return ipcRenderer.invoke("game:generateCandidates", seed);
   },
   assetUrl(relativePath: string): string {
+    if (/^https?:\/\//i.test(relativePath)) return relativePath;
     const safePath = relativePath.split("/").map(part => encodeURIComponent(part)).join("/");
     return `changebattle-asset://local/${safePath}`;
   },
