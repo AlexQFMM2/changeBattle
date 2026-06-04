@@ -580,6 +580,11 @@ def reset_set_win_streak(save: dict[str, Any]) -> None:
     refresh_stats(stats)
 
 
+def abort_current_run(save: dict[str, Any]) -> None:
+    reset_set_win_streak(save)
+    save["current_run"] = None
+
+
 def default_rest_status() -> dict[str, Any]:
     return {
         "exchanges": 0,
@@ -1895,6 +1900,40 @@ def print_rest_header(save: dict[str, Any], run: dict[str, Any]) -> None:
         print("本局背包：" + "，".join(f"{zh('items', item_id)}x{count}" for item_id, count in sorted(bag.items())))
 
 
+def bp_cost_text(cost: int) -> str:
+    return "免费" if int(cost or 0) <= 0 else f"{int(cost)}BP"
+
+
+def spend_text(cost: int) -> str:
+    return "免费" if int(cost or 0) <= 0 else f"花费 {int(cost)}BP"
+
+
+def state_needs_hp_restore(state: dict[str, Any]) -> bool:
+    return int(state.get("hp") or 0) < int(state.get("maxhp") or 0)
+
+
+def state_needs_pp_restore(state: dict[str, Any]) -> bool:
+    return any(int(move.get("pp") or 0) < int(move.get("maxpp") or 0) for move in state.get("moves") or [])
+
+
+def state_needs_status_restore(state: dict[str, Any]) -> bool:
+    return bool(state.get("status"))
+
+
+def current_restore_cost_text(run: dict[str, Any], prefix: str, defaults: dict[int, int]) -> str:
+    states = normalize_player_state(run)
+    if prefix == "restore_hp":
+        count = sum(1 for state in states if state_needs_hp_restore(state))
+    elif prefix == "restore_pp":
+        count = sum(1 for state in states if state_needs_pp_restore(state))
+    else:
+        count = sum(1 for state in states if state_needs_status_restore(state))
+    if count <= 0:
+        return "无需恢复"
+    cost = service_cost(f"{prefix}_{count}", defaults.get(count, count))
+    return bp_cost_text(cost)
+
+
 def parse_rest_slots(raw: str, max_slots: int = 3) -> list[int]:
     parts = raw.replace(",", " ").split()
     slots: list[int] = []
@@ -1926,7 +1965,7 @@ def rest_restore_hp(save: dict[str, Any], run: dict[str, Any]) -> None:
     for slot in slots:
         restore_state_hp(states[slot - 1])
     run["player_state"] = states
-    print(f"已恢复 HP，花费 {cost}BP。")
+    print(f"已恢复 HP，{spend_text(cost)}。")
     input("回车继续。")
 
 
@@ -1948,7 +1987,7 @@ def rest_restore_pp(save: dict[str, Any], run: dict[str, Any]) -> None:
     for slot in slots:
         restore_state_pp(states[slot - 1])
     run["player_state"] = states
-    print(f"已恢复 PP，花费 {cost}BP。")
+    print(f"已恢复 PP，{spend_text(cost)}。")
     input("回车继续。")
 
 
@@ -1970,7 +2009,7 @@ def rest_restore_status(save: dict[str, Any], run: dict[str, Any]) -> None:
     for slot in slots:
         restore_state_status(states[slot - 1])
     run["player_state"] = states
-    print(f"已恢复异常状态，花费 {cost}BP。")
+    print(f"已恢复异常状态，{spend_text(cost)}。")
     input("回车继续。")
 
 
@@ -1985,7 +2024,7 @@ def rest_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
     print_team("敌方队伍:", run.get("enemy_display") or [])
     fallback_cost = REST_EXCHANGE_COSTS[exchanges] if exchanges < len(REST_EXCHANGE_COSTS) else REST_EXCHANGE_COSTS[-1]
     cost = service_cost(f"exchange_{exchanges + 1}", fallback_cost)
-    raw = input(f"\n交换费用：{cost}BP。输入 玩家编号 敌方编号，例如 2 1；回车返回 > ").strip()
+    raw = input(f"\n交换费用：{bp_cost_text(cost)}。输入 玩家编号 敌方编号，例如 2 1；回车返回 > ").strip()
     if not raw:
         return
     parts = raw.replace(",", " ").split()
@@ -2031,7 +2070,7 @@ def rest_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
     rest_status.setdefault("taken_enemy_slots", []).append(foe)
     refund_text = f"，返还 {total_refund}BP" if total_refund else ""
     item_text = f"，原道具 {zh('items', held_before)} 已放入背包" if held_before else ""
-    print(f"已交换：位置 {own} -> {display_name(run['player_display'][own - 1])}，花费 {cost}BP{refund_text}{item_text}。")
+    print(f"已交换：位置 {own} -> {display_name(run['player_display'][own - 1])}，{spend_text(cost)}{refund_text}{item_text}。")
     input("回车继续。")
 
 
@@ -2065,7 +2104,7 @@ def item_rows(items: list[dict[str, Any]]) -> list[list[object]]:
             index,
             zh("items", name),
             name,
-            goods_cost("item", item_id, 5),
+            bp_cost_text(goods_cost("item", item_id, 5)),
             desc,
         ])
     return rows
@@ -2202,7 +2241,7 @@ def rest_buy_items(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
             input("回车继续。")
             continue
         add_bag_item(run, item_id, 1)
-        print(f"已购买 {zh('items', item.get('name') or item_id)}，花费 {cost}BP，已放入本局背包。")
+        print(f"已购买 {zh('items', item.get('name') or item_id)}，{spend_text(cost)}，已放入本局背包。")
         input("回车继续。")
 
 
@@ -2218,7 +2257,7 @@ def move_rows(moves: list[dict[str, Any]]) -> list[list[object]]:
             zh_plain("types", move.get("type")) or move.get("type") or "?",
             move_power_text(move),
             move.get("pp") or "?",
-            move_goods_cost(move),
+            bp_cost_text(move_goods_cost(move)),
             desc,
         ])
     return rows
@@ -2324,7 +2363,7 @@ def rest_adjust_moves(save: dict[str, Any], run: dict[str, Any], client: Showdow
         move_investments[slot - 1][move_slot - 1] = cost
         run["move_investments"] = move_investments
         refund_text = f"，旧技能返还 {refund}BP" if refund else ""
-        print(f"已学习 {zh('moves', selected.get('name') or selected.get('id'))}，花费 {cost}BP{refund_text}。")
+        print(f"已学习 {zh('moves', selected.get('name') or selected.get('id'))}，{spend_text(cost)}{refund_text}。")
         input("回车继续。")
         return
 
@@ -2534,7 +2573,7 @@ def describe_candidate(client: ShowdownClient, raw_set: dict[str, Any], fallback
 def print_adjust_preview(display: dict[str, Any], raw_set: dict[str, Any], save: dict[str, Any], cost: int) -> None:
     clear_screen()
     print("=" * 112)
-    print(f"调整能力值  |  费用 {cost}BP  |  当前 BP {current_bp(save)}")
+    print(f"调整能力值  |  费用 {bp_cost_text(cost)}  |  当前 BP {current_bp(save)}")
     print("=" * 112)
     print(f"{display_name(display)}  Lv{display.get('level', 50)}")
     print(f"特性：{zh('abilities', raw_set.get('ability') or display.get('ability'), fallback='无特性')}")
@@ -2584,7 +2623,7 @@ def rest_adjust_stats(save: dict[str, Any], run: dict[str, Any], client: Showdow
         print("2. 特性")
         print("3. 性格")
         print("4. 努力值")
-        print(f"5. 保存并扣除 {cost}BP")
+        print(f"5. 保存并扣除 {bp_cost_text(cost)}")
         print("b. 放弃返回")
         choice = input("> ").strip().lower()
         if choice in {"b", "back", "返回"}:
@@ -2622,7 +2661,7 @@ def rest_adjust_stats(save: dict[str, Any], run: dict[str, Any], client: Showdow
                 investments.append(0)
             investments[slot - 1] = int(investments[slot - 1] or 0) + cost
             run["bp_investments"] = investments
-            print(f"已保存调整，花费 {cost}BP。")
+            print(f"已保存调整，{spend_text(cost)}。")
             input("回车继续。")
             return
         else:
@@ -2661,12 +2700,13 @@ def rest_menu(save: dict[str, Any], auto: bool, persistent: bool, client: Showdo
         print("1. 下一场")
         print("2. 保存")
         print("3. 交换宝可梦")
-        print("4. 恢复HP")
-        print("5. 恢复PP")
-        print("6. 恢复异常状态")
+        print(f"4. 恢复HP（{current_restore_cost_text(run, 'restore_hp', REST_HP_COSTS)}）")
+        print(f"5. 恢复PP（{current_restore_cost_text(run, 'restore_pp', REST_PP_COSTS)}）")
+        print(f"6. 恢复异常状态（{current_restore_cost_text(run, 'restore_status', REST_STATUS_COSTS)}）")
         print("7. 购买/装备道具")
         print("8. 调整技能")
-        print(f"9. 调整能力值（{service_cost('adjust_stats', ADJUST_STATS_COST)}BP）")
+        print(f"9. 调整能力值（{bp_cost_text(service_cost('adjust_stats', ADJUST_STATS_COST))}）")
+        print("0. 中断挑战")
         print("q. 返回主界面")
         raw = input("> ").strip().lower()
         if raw in {"1", "next", "下一场"}:
@@ -2698,11 +2738,21 @@ def rest_menu(save: dict[str, Any], auto: bool, persistent: bool, client: Showdo
         elif raw in {"9", "adjust", "能力", "调整能力", "调整能力值"}:
             rest_adjust_stats(save, run, client)
             save_if_needed(save, persistent)
+        elif raw in {"0", "abort", "中断", "中断挑战"}:
+            confirm = input("确认中断本局挑战？当前连胜将归零，历史最高连胜保留。输入“中断”确认 > ").strip()
+            if confirm == "中断":
+                abort_current_run(save)
+                save_if_needed(save, persistent)
+                print("本局挑战已中断，当前连胜已归零。")
+                input("回车继续。")
+                return
+            print("已取消中断。")
+            input("回车继续。")
         elif raw in {"q", "back", "返回"}:
             save_if_needed(save, persistent)
             return
         else:
-            print("请选择 1-9 或 q。")
+            print("请选择 0-9 或 q。")
             input("回车继续。")
 
 

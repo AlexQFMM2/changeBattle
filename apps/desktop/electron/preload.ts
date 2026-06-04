@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TrainerProfile} from "@changebattle/shared";
 
 contextBridge.exposeInMainWorld("changeBattle", {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -32,6 +32,18 @@ contextBridge.exposeInMainWorld("changeBattle", {
   },
   exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:exchange", ownIndex, enemyIndex);
+  },
+  restAction(action: RestAction): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:restAction", action);
+  },
+  shopItems(query?: string): Promise<ShopItem[]> {
+    return ipcRenderer.invoke("shop:items", query);
+  },
+  learnableMoves(slot: number, query?: string): Promise<PricedMove[]> {
+    return ipcRenderer.invoke("pokemon:learnableMoves", slot, query);
+  },
+  editOptions(slot: number): Promise<PokemonEditOptions> {
+    return ipcRenderer.invoke("pokemon:editOptions", slot);
   },
   getBattleState(): Promise<BattleState | null> {
     return ipcRenderer.invoke("run:getBattleState");

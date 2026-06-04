@@ -8,8 +8,12 @@ import type {
   BattleTimelineEvent,
   BattleTracker,
   GeneratedTeam,
+  PokemonEditOptions,
   PokemonSet,
+  PricedMove,
   RentalPokemon,
+  PlayerPokemonState,
+  ShopItem,
   SpriteIndexMap,
   SpriteMapEntry,
 } from "@changebattle/shared";
@@ -33,6 +37,7 @@ type DetailData = Record<string, Record<string, any>>;
 type SideId = "p1" | "p2";
 type Message = {type: string; data: string};
 type ParsedTimelineEvent = Omit<BattleTimelineEvent, "id">;
+type SlotKeySpec = {slot: number; keys: Set<string>};
 
 export type GameServiceOptions = {
   projectRoot: string;
@@ -44,6 +49,7 @@ export type StartBattleOptions = {
   enemyTeam: PokemonSet[];
   playerDisplay: RentalPokemon[];
   enemyDisplay: RentalPokemon[];
+  playerState?: PlayerPokemonState[];
   seed: number | number[];
 };
 
@@ -96,6 +102,85 @@ export class GameService {
     return this.normalizeTeam(team).map(set => this.describeSet(set));
   }
 
+  speciesDisplay(rawSpecies: string): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry} {
+    const species = this.loadShowdown().Dex.species.get(rawSpecies);
+    const speciesId = species.id || this.toId(rawSpecies);
+    const name = species.name || rawSpecies;
+    return {
+      species_id: speciesId,
+      name,
+      name_zh: this.zh("species", name),
+      sprite: this.spriteMap?.entries[speciesId],
+    };
+  }
+
+  async itemOptions(): Promise<ShopItem[]> {
+    await this.loadDisplayData();
+    const sim = this.loadShowdown();
+    return sim.Dex.items.all()
+      .filter((item: any) => item.exists && !item.isNonstandard)
+      .map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        name_zh: this.zh("items", item.name),
+        cost: 5,
+        desc: item.desc || item.shortDesc || "",
+        desc_zh: this.detailDescription("items", item.name),
+      }));
+  }
+
+  async learnableMoves(set: PokemonSet): Promise<PricedMove[]> {
+    await this.loadDisplayData();
+    const dex = this.loadShowdown().Dex.mod("gen7");
+    const species = dex.species.get(set.species || set.name);
+    if (!species.exists) return [];
+    const seen = new Set<string>();
+    const moves: PricedMove[] = [];
+    for (const entry of dex.species.getFullLearnset(species.id) || []) {
+      for (const moveId of Object.keys(entry.learnset || {})) {
+        const move = dex.moves.get(moveId);
+        if (!move.exists || !move.id || seen.has(move.id)) continue;
+        if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+        seen.add(move.id);
+        const summary = this.moveDetails(move.id, dex);
+        moves.push({...summary, cost: this.defaultMoveCost(summary.power)});
+      }
+    }
+    return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name));
+  }
+
+  async editOptions(set: PokemonSet): Promise<PokemonEditOptions> {
+    await this.loadDisplayData();
+    const dex = this.loadShowdown().Dex.mod("gen7");
+    const species = dex.species.get(set.species || set.name);
+    const seen = new Set<string>();
+    const abilities = [];
+    for (const abilityName of Object.values(species.abilities || {})) {
+      const ability = dex.abilities.get(abilityName as string);
+      const name = ability.exists ? ability.name : String(abilityName || "");
+      const id = ability.exists ? ability.id : this.toId(name);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      abilities.push({
+        id,
+        name,
+        name_zh: this.zh("abilities", name),
+        desc: ability.exists ? (ability.desc || ability.shortDesc || "") : "",
+        desc_zh: this.detailDescription("abilities", name),
+      });
+    }
+    const natures = dex.natures.all().map((nature: any) => ({
+      id: nature.id,
+      name: nature.name,
+      name_zh: this.zh("natures", nature.name),
+      plus: nature.plus || "",
+      minus: nature.minus || "",
+      plus_zh: this.zh("stats", nature.plus || ""),
+      minus_zh: this.zh("stats", nature.minus || ""),
+    }));
+    return {abilities, natures};
+  }
+
   async getSpriteForSpecies(speciesId: string): Promise<SpriteMapEntry | undefined> {
     const spriteMap = await this.loadSpriteMap();
     return spriteMap.entries[speciesId];
@@ -143,6 +228,16 @@ export class GameService {
       if (translated !== value) return translated;
     }
     return value;
+  }
+
+  abilityDescription(rawAbility: string | undefined): string {
+    const value = String(rawAbility || "").replace("ability: ", "");
+    return this.detailDescription("abilities", value);
+  }
+
+  itemDescription(rawItem: string | undefined): string {
+    const value = String(rawItem || "").replace("item: ", "");
+    return this.detailDescription("items", value);
   }
 
   conditionText(condition: string | undefined): string {
@@ -228,8 +323,8 @@ export class GameService {
     return existsSync(path.join(this.projectRoot, spritePath));
   }
 
-  private moveDetails(moveId: string) {
-    const move = this.loadShowdown().Dex.moves.get(moveId);
+  private moveDetails(moveId: string, dex = this.loadShowdown().Dex) {
+    const move = dex.moves.get(moveId);
     const detail = this.detail("moves", move.name || moveId);
     return {
       id: move.id || moveId,
@@ -253,6 +348,15 @@ export class GameService {
   private natureModifiers(natureName: string) {
     const nature = this.loadShowdown().Dex.natures.get(natureName || "Serious");
     return {name: nature.name || "Serious", plus: nature.plus || "", minus: nature.minus || ""};
+  }
+
+  private defaultMoveCost(power: number | undefined): number {
+    const value = Number(power || 0);
+    if (value >= 120) return 5;
+    if (value > 90) return 4;
+    if (value > 60) return 3;
+    if (value > 30) return 2;
+    return 1;
   }
 
   private calculatedStats(baseStats: Record<string, number>, ivs: Record<string, number>, evs: Record<string, number>, level: number, nature: {plus: string; minus: string}): Record<string, number> {
@@ -337,6 +441,9 @@ export class BattleSession {
   private readonly enemyTeam: PokemonSet[];
   private readonly playerDisplay: RentalPokemon[];
   private readonly enemyDisplay: RentalPokemon[];
+  private readonly initialPlayerState?: PlayerPokemonState[];
+  private readonly playerSlotKeys: SlotKeySpec[];
+  private readonly enemySlotKeys: SlotKeySpec[];
   private readonly seed: number | number[];
   private stream: any = null;
   private pendingMessages: Message[] = [];
@@ -356,6 +463,9 @@ export class BattleSession {
     this.enemyTeam = options.enemyTeam;
     this.playerDisplay = options.playerDisplay;
     this.enemyDisplay = options.enemyDisplay;
+    this.initialPlayerState = options.playerState;
+    this.playerSlotKeys = buildSideSlotKeys(options.playerTeam, options.playerDisplay, options.playerState, "p1");
+    this.enemySlotKeys = buildSideSlotKeys(options.enemyTeam, options.enemyDisplay, undefined, "p2");
     this.seed = options.seed;
     const seedValue = Array.isArray(options.seed) ? options.seed.reduce((acc, value) => acc ^ value, 0) : Number(options.seed);
     this.rngState = seedValue >>> 0;
@@ -381,6 +491,7 @@ export class BattleSession {
     await this.waitForMessages();
     this.consumePending();
     await this.chooseTeamPreview();
+    if (this.initialPlayerState?.length) this.syncSideState("p1", this.initialPlayerState);
     return this.getState();
   }
 
@@ -417,6 +528,10 @@ export class BattleSession {
       enemy_team: this.enemyTeam,
       enemy_display: this.enemyDisplay,
     };
+  }
+
+  getPlayerState(): PlayerPokemonState[] {
+    return this.currentSideState("p1");
   }
 
   private async chooseTeamPreview(): Promise<void> {
@@ -529,6 +644,79 @@ export class BattleSession {
     this.tracker.pp[activeName] = Object.fromEntries(activeMoves.map(move => [move.id || move.move, {name: move.move || move.id, pp: move.pp, maxpp: move.maxpp}]));
   }
 
+  private currentSideState(side: SideId): PlayerPokemonState[] {
+    if (!this.stream?.battle) return [];
+    const battleSide = this.stream.battle.sides[side === "p2" ? 1 : 0];
+    const states = battleSide.pokemon.map((pokemon: any, index: number) => pokemonStateFromBattle(pokemon, battleSide, index));
+    return alignStatesToSlots(states, this.slotKeysForSide(side));
+  }
+
+  private syncSideState(side: SideId, states: PlayerPokemonState[]): void {
+    if (!this.stream?.battle) return;
+    const battleSide = this.stream.battle.sides[side === "p2" ? 1 : 0];
+    const stateBySlot = new Map(states.map(state => [Number(state.slot), state]));
+    const slotKeys = this.slotKeysForSide(side);
+    const usedSlots = new Set<number>();
+    for (let index = 0; index < battleSide.pokemon.length; index += 1) {
+      const pokemon = battleSide.pokemon[index];
+      const current = pokemonStateFromBattle(pokemon, battleSide, index);
+      const slot = resolveStateSlot(current, slotKeys, usedSlots);
+      const state = stateBySlot.get(slot);
+      usedSlots.add(slot);
+      if (!state) continue;
+      const hp = Math.max(0, Math.min(Number(state.hp ?? pokemon.maxhp) || 0, pokemon.maxhp));
+      pokemon.hp = hp;
+      pokemon.fainted = hp <= 0;
+      pokemon.faintQueued = false;
+      pokemon.subFainted = null;
+      const status = toId(state.status || "");
+      pokemon.status = "";
+      pokemon.statusState = {};
+      if (status && hp > 0) pokemon.setStatus(status, pokemon, null, true);
+      const ppById = new Map<string, number>();
+      const ppBySlot = new Map<number, number>();
+      for (const move of state.moves || []) {
+        ppById.set(toId(move.id || move.move), Number(move.pp));
+        ppBySlot.set(Number(move.slot), Number(move.pp));
+      }
+      for (let moveIndex = 0; moveIndex < pokemon.moveSlots.length; moveIndex += 1) {
+        const moveSlot = pokemon.moveSlots[moveIndex];
+        const nextPp = ppById.has(moveSlot.id) ? ppById.get(moveSlot.id) : ppBySlot.get(moveIndex + 1);
+        if (Number.isFinite(nextPp)) moveSlot.pp = Math.max(0, Math.min(Number(nextPp), moveSlot.maxpp));
+      }
+    }
+    battleSide.pokemonLeft = battleSide.pokemon.filter((pokemon: any) => !pokemon.fainted && pokemon.hp > 0).length;
+    this.refreshRequests();
+    this.updatePpMemory(this.latestRequests.p1);
+    this.applyPlayerStateToTracker(this.currentSideState(side));
+  }
+
+  private slotKeysForSide(side: SideId): SlotKeySpec[] {
+    return side === "p2" ? this.enemySlotKeys : this.playerSlotKeys;
+  }
+
+  private refreshRequests(): void {
+    if (!this.stream?.battle?.requestState) return;
+    const requests = this.stream.battle.getRequests(this.stream.battle.requestState);
+    this.latestRequests.p1 = requests[0];
+    this.latestRequests.p2 = requests[1];
+    for (let index = 0; index < this.stream.battle.sides.length; index += 1) {
+      const side = this.stream.battle.sides[index];
+      side.activeRequest = requests[index];
+      side.emitRequest(requests[index], true);
+    }
+  }
+
+  private applyPlayerStateToTracker(states: PlayerPokemonState[]): void {
+    if (!states.length) return;
+    const active = states.find(state => state.active) || states[0];
+    this.tracker.active.p1 = {
+      name: shortIdent(active.ident || "") || active.species || active.details || "",
+      condition: active.condition || stateCondition(active),
+      status: active.status || "",
+    };
+  }
+
   private captureRequestHeals(side: SideId, previous: BattleRequestView | undefined, next: BattleRequestView): void {
     if (!previous?.side?.pokemon?.length || !next?.side?.pokemon?.length) return;
     const previousByIdent = new Map(previous.side.pokemon.map(pokemon => [pokemon.ident, pokemon]));
@@ -580,6 +768,23 @@ function createBattleTracker(): BattleTracker {
   };
 }
 
+function activeDisplay(service: GameService, rawSpecies: string | undefined): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry} {
+  return service.speciesDisplay(shortIdent(rawSpecies || "").split(",", 1)[0].trim());
+}
+
+function setActiveDisplay(tracker: BattleTracker, service: GameService, side: SideId, rawSpecies: string | undefined, condition?: string, clearSubstitute = false): void {
+  const display = activeDisplay(service, rawSpecies);
+  tracker.active[side] = {
+    ...tracker.active[side],
+    name: display.name,
+    display_name: display.name_zh,
+    species_id: display.species_id,
+    sprite: display.sprite,
+    condition: condition || tracker.active[side]?.condition,
+    ...(clearSubstitute ? {substitute: false} : {}),
+  };
+}
+
 function legalSwitchIndexes(request: BattleRequestView): number[] {
   return (request.side?.pokemon || [])
     .map((pokemon, index) => ({pokemon, index: index + 1}))
@@ -626,6 +831,132 @@ function toId(value: string): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+function pokemonCondition(pokemon: any): string {
+  if (!pokemon) return "?";
+  if (!pokemon.hp || pokemon.fainted) return "0 fnt";
+  return `${pokemon.hp}/${pokemon.maxhp}${pokemon.status ? ` ${pokemon.status}` : ""}`;
+}
+
+function pokemonStateFromBattle(pokemon: any, battleSide: any, index: number): PlayerPokemonState {
+  return {
+    slot: index + 1,
+    ident: pokemon.fullname,
+    details: pokemon.details,
+    species: pokemon.species?.name || pokemon.set?.species || pokemon.name,
+    condition: pokemonCondition(pokemon),
+    hp: pokemon.hp || 0,
+    maxhp: pokemon.maxhp || 0,
+    status: pokemon.status || "",
+    fainted: Boolean(pokemon.fainted || !pokemon.hp),
+    active: battleSide.active.includes(pokemon),
+    item: pokemon.item || "",
+    moves: (pokemon.moveSlots || []).map((moveSlot: any, moveIndex: number) => ({
+      slot: moveIndex + 1,
+      id: moveSlot.id,
+      move: moveSlot.move,
+      pp: moveSlot.pp,
+      maxpp: moveSlot.maxpp,
+    })),
+  };
+}
+
+function stateCondition(state: PlayerPokemonState): string {
+  if (!state.hp || state.fainted) return "0 fnt";
+  return `${state.hp}/${state.maxhp}${state.status ? ` ${state.status}` : ""}`;
+}
+
+function addSlotKey(keys: Set<string>, prefix: string, value: unknown): void {
+  const normalized = toId(String(value || ""));
+  if (normalized) keys.add(`${prefix}:${normalized}`);
+}
+
+function addSpeciesLikeKeys(keys: Set<string>, value: unknown): void {
+  const raw = String(value || "").trim();
+  if (!raw) return;
+  addSlotKey(keys, "species", raw);
+  addSlotKey(keys, "details_species", raw.split(",", 1)[0]);
+}
+
+function addMoveSignatureKey(keys: Set<string>, species: unknown, moves: unknown): void {
+  const speciesId = toId(String(species || ""));
+  if (!speciesId || !Array.isArray(moves)) return;
+  const moveIds = moves.map((move: any) => toId(move?.id || move?.move || move?.name || move)).filter(Boolean).sort();
+  if (moveIds.length) keys.add(`species_moves:${speciesId}:${moveIds.join(",")}`);
+}
+
+function keysForState(state: Partial<PlayerPokemonState>): Set<string> {
+  const keys = new Set<string>();
+  const short = shortIdent(state.ident || "");
+  addSlotKey(keys, "ident", short);
+  addSpeciesLikeKeys(keys, state.details);
+  addSpeciesLikeKeys(keys, state.species);
+  addSlotKey(keys, "item", state.item);
+  addMoveSignatureKey(keys, state.species || state.details || short, state.moves || []);
+  return keys;
+}
+
+function keysForSet(set: Partial<PokemonSet> | undefined): Set<string> {
+  const keys = new Set<string>();
+  if (!set) return keys;
+  addSlotKey(keys, "ident", set.name || set.species);
+  addSpeciesLikeKeys(keys, set.species || set.name);
+  addSlotKey(keys, "ability", set.ability);
+  addSlotKey(keys, "item", set.item);
+  addMoveSignatureKey(keys, set.species || set.name, set.moves || []);
+  return keys;
+}
+
+function keysForDisplay(pokemon: Partial<RentalPokemon> | undefined): Set<string> {
+  const keys = new Set<string>();
+  if (!pokemon) return keys;
+  addSlotKey(keys, "ident", pokemon.name || pokemon.species || pokemon.species_id);
+  addSpeciesLikeKeys(keys, pokemon.species || pokemon.name || pokemon.species_id);
+  addSlotKey(keys, "species_id", pokemon.species_id);
+  addSlotKey(keys, "ability", pokemon.ability_id || pokemon.ability);
+  addSlotKey(keys, "item", pokemon.item_id || pokemon.item);
+  addMoveSignatureKey(keys, pokemon.species || pokemon.name || pokemon.species_id, pokemon.moves || []);
+  return keys;
+}
+
+function buildSideSlotKeys(team: PokemonSet[], display: RentalPokemon[], states: PlayerPokemonState[] | undefined, side: SideId): SlotKeySpec[] {
+  const maxLength = Math.max(team.length, display.length, states?.length || 0);
+  return Array.from({length: maxLength}, (_, index) => {
+    const slot = index + 1;
+    const keys = new Set<string>();
+    for (const key of keysForSet(team[index])) keys.add(key);
+    for (const key of keysForDisplay(display[index])) keys.add(key);
+    for (const key of keysForState(states?.[index] || {})) keys.add(key);
+    const fallbackName = display[index]?.species || display[index]?.name || team[index]?.species || team[index]?.name || states?.[index]?.species || states?.[index]?.details || slot;
+    addSlotKey(keys, "ident", `${side}: ${fallbackName}`);
+    keys.add(`slot:${slot}`);
+    return {slot, keys};
+  });
+}
+
+function resolveStateSlot(state: PlayerPokemonState, slotKeys: SlotKeySpec[], usedSlots: Set<number>): number {
+  if (!slotKeys.length) return Number(state.slot) || 1;
+  const keys = keysForState(state);
+  for (const key of keys) {
+    const match = slotKeys.find(spec => !usedSlots.has(spec.slot) && spec.keys.has(key));
+    if (match) return match.slot;
+  }
+  const fallbackSlot = Number(state.slot);
+  if (fallbackSlot && slotKeys.some(spec => spec.slot === fallbackSlot) && !usedSlots.has(fallbackSlot)) return fallbackSlot;
+  return slotKeys.find(spec => !usedSlots.has(spec.slot))?.slot || fallbackSlot || 1;
+}
+
+function alignStatesToSlots(states: PlayerPokemonState[], slotKeys: SlotKeySpec[]): PlayerPokemonState[] {
+  if (!slotKeys.length) return states;
+  const usedSlots = new Set<number>();
+  return states
+    .map(state => {
+      const slot = resolveStateSlot(state, slotKeys, usedSlots);
+      usedSlots.add(slot);
+      return {...state, slot};
+    })
+    .sort((a, b) => a.slot - b.slot);
+}
+
 function findRentalByRuntime(team: RentalPokemon[], ident: string): RentalPokemon | undefined {
   const key = toId(shortIdent(ident));
   return team.find(pokemon => toId(pokemon.species) === key || toId(pokemon.name) === key || pokemon.species_id === key);
@@ -654,6 +985,7 @@ type ProtocolSource = {
   kind: "item" | "ability" | "move" | "effect" | "";
   name: string;
   label: string;
+  raw: string;
   ownerIdent: string;
   ownerName: string;
 };
@@ -661,22 +993,22 @@ type ProtocolSource = {
 function sourceLabel(raw: string, service: GameService): Omit<ProtocolSource, "ownerIdent" | "ownerName"> {
   if (raw.startsWith("item: ")) {
     const name = service.plain("items", raw.replace("item: ", ""));
-    return {kind: "item", name, label: `道具${name}`};
+    return {kind: "item", name, label: `道具${name}`, raw};
   }
   if (raw.startsWith("ability: ")) {
     const name = service.plain("abilities", raw.replace("ability: ", ""));
-    return {kind: "ability", name, label: `特性${name}`};
+    return {kind: "ability", name, label: `特性${name}`, raw};
   }
   if (raw.startsWith("move: ")) {
     const name = service.plain("moves", raw.replace("move: ", ""));
-    return {kind: "move", name, label: `招式${name}`};
+    return {kind: "move", name, label: `招式${name}`, raw};
   }
   const name = service.effectName(raw);
-  return {kind: "effect", name, label: name};
+  return {kind: "effect", name, label: name, raw};
 }
 
 function protocolSource(parts: string[], service: GameService, start = 4): ProtocolSource {
-  let source: Omit<ProtocolSource, "ownerIdent" | "ownerName"> = {kind: "", name: "", label: ""};
+  let source: Omit<ProtocolSource, "ownerIdent" | "ownerName"> = {kind: "", name: "", label: "", raw: ""};
   let ownerIdent = "";
   for (const part of parts.slice(start)) {
     if (part.startsWith("[from] ")) source = sourceLabel(part.replace("[from] ", ""), service);
@@ -707,6 +1039,33 @@ function sourceActivationText(source: ProtocolSource, fallbackOwner: string, suf
   if (!source.name) return suffix;
   if (source.name === "吸取效果") return `吸取效果${suffix}`;
   return suffix ? `${owner} 的${source.label}发动，${suffix}` : `${owner} 的${source.label}发动。`;
+}
+
+function appendDescription(text: string, description: string): string {
+  const clean = description.trim();
+  return clean ? `${text}${clean}` : text;
+}
+
+function abilityNotice(service: GameService, target: string, rawAbility: string, fallbackAbility: string): Pick<ParsedTimelineEvent, "notice_title" | "notice_detail"> {
+  const ability = service.plain("abilities", rawAbility.replace("ability: ", "")) || fallbackAbility;
+  return {
+    notice_title: `${target}的${ability}`,
+    notice_detail: service.abilityDescription(rawAbility),
+  };
+}
+
+function itemNotice(service: GameService, target: string, rawItem: string, fallbackItem: string, action = ""): Pick<ParsedTimelineEvent, "notice_title" | "notice_detail"> {
+  const item = service.plain("items", rawItem.replace("item: ", "")) || fallbackItem;
+  return {
+    notice_title: `${target}使用了${item}`,
+    notice_detail: action || service.itemDescription(rawItem),
+  };
+}
+
+function sourceNotice(service: GameService, target: string, source: ProtocolSource, action = ""): Pick<ParsedTimelineEvent, "notice_title" | "notice_detail"> {
+  if (source.kind === "ability") return abilityNotice(service, target, source.raw, source.name);
+  if (source.kind === "item") return itemNotice(service, target, source.raw, source.name, action);
+  return {};
 }
 
 function hasTag(parts: string[], tag: string): boolean {
@@ -807,19 +1166,21 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       continue;
     } else if (["switch", "drag", "replace", "detailschange", "-formechange"].includes(tag) && parts[2]) {
       const side = sideFromIdent(parts[2]);
-      const oldName = translatedSpecies(service, parts[2]);
+      const oldName = side ? tracker.active[side]?.display_name || translatedSpecies(service, parts[2]) : translatedSpecies(service, parts[2]);
       const nextDetails = parts[3] || parts[2];
-      const nextName = tag === "switch" || tag === "drag" || tag === "replace" ? oldName : service.plain("species", shortIdent(nextDetails));
-      const targetId = tag === "switch" || tag === "drag" || tag === "replace" ? shortIdent(parts[2]) : shortIdent(nextDetails);
+      const nextDisplay = activeDisplay(service, nextDetails);
+      const nextName = nextDisplay.name_zh;
+      const targetId = nextDisplay.name;
       const condition = parts[4] || tracker.active[side || "p1"]?.condition || "?";
       if (side) {
-        tracker.active[side] = {name: targetId, condition, status: ""};
+        setActiveDisplay(tracker, service, side, nextDetails, condition, tag === "switch" || tag === "drag");
+        tracker.active[side].status = "";
         if (tag === "switch" || tag === "drag") tracker.boosts[side] = {};
       }
       text = tag === "detailschange" || tag === "-formechange"
         ? `${oldName} ${pokemonActionLabel(tag)}为 ${nextName}。`
         : `${nextName} ${pokemonActionLabel(tag)}。`;
-      timelineEvent = {type: "switch", text, side: side || undefined, targetSide: side || undefined, target: nextName, target_id: targetId, condition, hp: parseConditionHp(condition)};
+      timelineEvent = {type: tag === "detailschange" || tag === "-formechange" ? "form" : "switch", text, side: side || undefined, targetSide: side || undefined, target: nextName, target_id: targetId, target_species_id: nextDisplay.species_id, sprite: nextDisplay.sprite, condition, hp: parseConditionHp(condition)};
     } else if (tag === "move" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
       const source = translatedSpecies(service, parts[2]);
@@ -836,16 +1197,18 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
     } else if (tag === "-transform" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
       const source = translatedSpecies(service, parts[2]);
-      const target = service.plain("species", shortIdent(parts[3]));
+      const targetDisplay = activeDisplay(service, parts[3]);
+      const target = targetDisplay.name_zh;
       const protocol = protocolSource(parts, service);
+      if (side) setActiveDisplay(tracker, service, side, parts[3], tracker.active[side]?.condition);
       text = protocol.name ? sourceActivationText(protocol, source, `变身为 ${target}。`) : `${source} 变身为 ${target}。`;
-      timelineEvent = {type: protocol.name ? sourceEventType(protocol) : "message", text, side: side || undefined, targetSide: side || undefined, source, source_id: shortIdent(parts[2]), target, target_id: shortIdent(parts[3]), effect: protocol.name || "变身"};
+      timelineEvent = {type: "form", text, side: side || undefined, targetSide: side || undefined, source, source_id: shortIdent(parts[2]), target, target_id: targetDisplay.name, target_species_id: targetDisplay.species_id, sprite: targetDisplay.sprite, effect: protocol.name || "变身"};
     } else if ((tag === "-damage" || tag === "-heal") && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
       const targetId = shortIdent(parts[2]);
       if (side) {
-        tracker.active[side] = {...tracker.active[side], name: shortIdent(parts[2]), condition: parts[3]};
+        tracker.active[side] = {...tracker.active[side], condition: parts[3]};
       }
       const protocol = protocolSource(parts, service);
       if (protocol.name && protocol.name !== "吸取效果") {
@@ -855,7 +1218,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       } else {
         text = tag === "-heal" ? `${target} 回复到 ${service.conditionText(parts[3])}` : `${target} HP: ${service.conditionText(parts[3])}`;
       }
-      timelineEvent = {type: tag === "-heal" ? "heal" : "damage", text, targetSide: side || undefined, target, target_id: targetId, effect: protocol.label || protocol.name || undefined, condition: parts[3], hp: parseConditionHp(parts[3])};
+      timelineEvent = {type: tag === "-heal" ? "heal" : "damage", text, targetSide: side || undefined, target, target_id: targetId, effect: protocol.label || protocol.name || undefined, condition: parts[3], hp: parseConditionHp(parts[3]), ...sourceNotice(service, target, protocol, tag === "-heal" ? "恢复了血量。" : "受到了伤害。")};
       if (tag === "-damage" && pendingEffectiveness.length) {
         afterEvents = pendingEffectiveness;
         pendingEffectiveness = [];
@@ -891,15 +1254,29 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       text = `${target} 治愈了队伍的异常状态。`;
       timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2])};
     } else if (tag === "-start" && parts[2] && parts[3]) {
+      const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
       const effect = service.effectName(parts[3]);
-      text = `${target} 获得状态：${effect}`;
-      timelineEvent = {type: "status", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect};
+      if (toId(parts[3]) === "substitute") {
+        if (side) tracker.active[side] = {...tracker.active[side], substitute: true};
+        text = `${target} 制造了替身。`;
+        timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: true};
+      } else {
+        text = `${target} 获得状态：${effect}`;
+        timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect};
+      }
     } else if (tag === "-end" && parts[2] && parts[3]) {
+      const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
       const effect = service.effectName(parts[3]);
-      text = `${target} 的 ${effect} 结束了。`;
-      timelineEvent = {type: "status", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect};
+      if (toId(parts[3]) === "substitute") {
+        if (side) tracker.active[side] = {...tracker.active[side], substitute: false};
+        text = `${target} 的替身消失了。`;
+        timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: false};
+      } else {
+        text = `${target} 的 ${effect} 结束了。`;
+        timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect};
+      }
     } else if ((tag === "-boost" || tag === "-unboost") && parts[2] && parts[3] && parts[4]) {
       const side = sideFromIdent(parts[2]);
       const amount = Number(parts[4]) * (tag === "-boost" ? 1 : -1);
@@ -992,7 +1369,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
     }
     else if (tag === "faint" && parts[2]) {
       const side = sideFromIdent(parts[2]);
-      if (side) tracker.active[side] = {...tracker.active[side], condition: "0 濒死"};
+      if (side) tracker.active[side] = {...tracker.active[side], condition: "0 濒死", substitute: false};
       const target = translatedSpecies(service, parts[2]);
       text = `${target} 倒下了。`;
       timelineEvent = {type: "faint", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), condition: "0 fnt", hp: {current: 0, max: 1, text: "0/0"}};
@@ -1031,20 +1408,21 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const item = service.plain("items", parts[3].replace("item: ", ""));
       const protocol = protocolSource(parts, service);
       text = protocol.name ? sourceActivationText(protocol, target, `${target} 的道具显现：${item}`) : `${target} 的道具显现：${item}`;
-      timelineEvent = {type: "item", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: item};
+      timelineEvent = {type: "item", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: item, ...itemNotice(service, target, parts[3], item, "道具显现了。")};
     } else if (tag === "-enditem" && parts[2] && parts[3]) {
       const target = translatedSpecies(service, parts[2]);
       const item = service.plain("items", parts[3].replace("item: ", ""));
       const protocol = protocolSource(parts, service);
       const suffix = hasTag(parts, "[eat]") ? `${target} 吃掉了 ${item}。` : `${target} 消耗/失去道具：${item}`;
       text = protocol.name ? sourceActivationText(protocol, target, suffix) : suffix;
-      timelineEvent = {type: "item", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: item};
+      timelineEvent = {type: "item", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: item, ...itemNotice(service, target, parts[3], item, hasTag(parts, "[eat]") ? "吃掉了道具。" : "道具被消耗或失去。")};
     } else if (tag === "-ability" && parts[2] && parts[3]) {
       const target = translatedSpecies(service, parts[2]);
       const ability = service.plain("abilities", parts[3].replace("ability: ", ""));
+      const abilityDescription = service.abilityDescription(parts[3]);
       const source = eventSource(parts, parts[2], service);
-      text = source ? `${target} 的特性变为 ${ability}（${source}）。` : `${target} 的特性${ability}发动。`;
-      timelineEvent = {type: "ability", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: ability};
+      text = appendDescription(source ? `${target} 的特性变为 ${ability}（${source}）。` : `${target} 的特性${ability}发动。`, abilityDescription);
+      timelineEvent = {type: "ability", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: ability, ...abilityNotice(service, target, parts[3], ability)};
     } else if (tag === "-endability" && parts[2]) {
       const target = translatedSpecies(service, parts[2]);
       text = `${target} 的特性被抑制了。`;
@@ -1058,12 +1436,17 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const protocol = sourceLabel(rawEffect, service);
       const fullSource: ProtocolSource = {...protocol, ownerIdent: targetIdent, ownerName: target};
       text = target ? sourceActivationText(fullSource, target, "") || `${target} 触发效果：${effect}` : `触发效果：${effect}`;
-      timelineEvent = {type: sourceEventType(fullSource), text, targetSide: sideFromIdent(targetIdent) || undefined, target, target_id: targetIdent ? shortIdent(targetIdent) : undefined, effect};
+      if (protocol.kind === "ability") text = appendDescription(text, service.abilityDescription(rawEffect));
+      timelineEvent = {type: sourceEventType(fullSource), text, targetSide: sideFromIdent(targetIdent) || undefined, target, target_id: targetIdent ? shortIdent(targetIdent) : undefined, effect, ...sourceNotice(service, target, fullSource)};
     } else if (tag === "-mega" && parts[2] && parts[3]) {
+      const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
-      const item = service.plain("items", parts[3]);
+      const nextDisplay = activeDisplay(service, parts[3]);
+      const item = service.plain("items", parts[4] || "");
+      if (side && nextDisplay.species_id.includes("mega")) setActiveDisplay(tracker, service, side, parts[3], tracker.active[side]?.condition);
+      const active = side ? tracker.active[side] : undefined;
       text = `${target} 用 ${item} 进行了超级进化！`;
-      timelineEvent = {type: "item", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: item};
+      timelineEvent = {type: "form", text, targetSide: side || undefined, target: active?.display_name || nextDisplay.name_zh, target_id: active?.name || nextDisplay.name, target_species_id: active?.species_id || nextDisplay.species_id, sprite: active?.sprite || nextDisplay.sprite, effect: item || "超级进化"};
     } else if (tag === "-primal" && parts[2]) {
       const target = translatedSpecies(service, parts[2]);
       text = `${target} 进行了原始回归！`;

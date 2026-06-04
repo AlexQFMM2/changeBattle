@@ -3,22 +3,22 @@ bulbasaur,Bulbasaur,1,1,assets/pokemon-green/pokemon/0001/front_normal.png,emera
 ivysaur,Ivysaur,2,2,assets/pokemon-green/pokemon/0002/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 venusaur,Venusaur,3,3,assets/pokemon-green/pokemon/0003/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 venusaurgmax,Venusaur-Gmax,3,3,assets/pokemon-green/pokemon/0003/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
-venusaurmega,Venusaur-Mega,3,3,assets/pokemon-green/pokemon/0003/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+venusaurmega,Venusaur-Mega,3,254,assets/pokemon-green/pokemon/0254/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 charmander,Charmander,4,4,assets/pokemon-green/pokemon/0004/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 charmeleon,Charmeleon,5,5,assets/pokemon-green/pokemon/0005/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 charizard,Charizard,6,6,assets/pokemon-green/pokemon/0006/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-charizardgmax,Charizard-Gmax,6,6,assets/pokemon-green/pokemon/0006/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
-charizardmegax,Charizard-Mega-X,6,6,assets/pokemon-green/pokemon/0006/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+charizardgmax,Charizard-Gmax,6,252,assets/pokemon-green/pokemon/0252/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
+charizardmegax,Charizard-Mega-X,6,1079,assets/pokemon-green/pokemon/1079/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 charizardmegay,Charizard-Mega-Y,6,6,assets/pokemon-green/pokemon/0006/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 squirtle,Squirtle,7,7,assets/pokemon-green/pokemon/0007/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 wartortle,Wartortle,8,8,assets/pokemon-green/pokemon/0008/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 blastoise,Blastoise,9,9,assets/pokemon-green/pokemon/0009/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 blastoisegmax,Blastoise-Gmax,9,9,assets/pokemon-green/pokemon/0009/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
-blastoisemega,Blastoise-Mega,9,9,assets/pokemon-green/pokemon/0009/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+blastoisemega,Blastoise-Mega,9,253,assets/pokemon-green/pokemon/0253/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 caterpie,Caterpie,10,10,assets/pokemon-green/pokemon/0010/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 metapod,Metapod,11,11,assets/pokemon-green/pokemon/0011/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 butterfree,Butterfree,12,12,assets/pokemon-green/pokemon/0012/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-butterfreegmax,Butterfree-Gmax,12,12,assets/pokemon-green/pokemon/0012/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+butterfreegmax,Butterfree-Gmax,12,259,assets/pokemon-green/pokemon/0259/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 weedle,Weedle,13,13,assets/pokemon-green/pokemon/0013/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 kakuna,Kakuna,14,14,assets/pokemon-green/pokemon/0014/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 beedrill,Beedrill,15,15,assets/pokemon-green/pokemon/0015/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -30,7 +30,7 @@ pidgeotmega,Pidgeot-Mega,18,18,assets/pokemon-green/pokemon/0018/front_normal.pn
 rattata,Rattata,19,19,assets/pokemon-green/pokemon/0019/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 rattataalola,Rattata-Alola,19,19,assets/pokemon-green/pokemon/0019/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 raticate,Raticate,20,20,assets/pokemon-green/pokemon/0020/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-raticatealola,Raticate-Alola,20,20,assets/pokemon-green/pokemon/0020/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+raticatealola,Raticate-Alola,20,261,assets/pokemon-green/pokemon/0261/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 raticatealolatotem,Raticate-Alola-Totem,20,20,assets/pokemon-green/pokemon/0020/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 spearow,Spearow,21,21,assets/pokemon-green/pokemon/0021/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 fearow,Fearow,22,22,assets/pokemon-green/pokemon/0022/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -94,7 +94,7 @@ meowthalola,Meowth-Alola,52,52,assets/pokemon-green/pokemon/0052/front_normal.pn
 meowthgalar,Meowth-Galar,52,52,assets/pokemon-green/pokemon/0052/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 meowthgmax,Meowth-Gmax,52,52,assets/pokemon-green/pokemon/0052/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 persian,Persian,53,53,assets/pokemon-green/pokemon/0053/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-persianalola,Persian-Alola,53,53,assets/pokemon-green/pokemon/0053/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+persianalola,Persian-Alola,53,260,assets/pokemon-green/pokemon/0260/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 psyduck,Psyduck,54,54,assets/pokemon-green/pokemon/0054/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 golduck,Golduck,55,55,assets/pokemon-green/pokemon/0055/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 mankey,Mankey,56,56,assets/pokemon-green/pokemon/0056/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -113,7 +113,7 @@ alakazammega,Alakazam-Mega,65,65,assets/pokemon-green/pokemon/0065/front_normal.
 machop,Machop,66,66,assets/pokemon-green/pokemon/0066/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 machoke,Machoke,67,67,assets/pokemon-green/pokemon/0067/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 machamp,Machamp,68,68,assets/pokemon-green/pokemon/0068/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-machampgmax,Machamp-Gmax,68,68,assets/pokemon-green/pokemon/0068/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+machampgmax,Machamp-Gmax,68,256,assets/pokemon-green/pokemon/0256/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 bellsprout,Bellsprout,69,69,assets/pokemon-green/pokemon/0069/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 weepinbell,Weepinbell,70,70,assets/pokemon-green/pokemon/0070/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 victreebel,Victreebel,71,71,assets/pokemon-green/pokemon/0071/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -152,14 +152,14 @@ cloyster,Cloyster,91,91,assets/pokemon-green/pokemon/0091/front_normal.png,emera
 gastly,Gastly,92,92,assets/pokemon-green/pokemon/0092/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 haunter,Haunter,93,93,assets/pokemon-green/pokemon/0093/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 gengar,Gengar,94,94,assets/pokemon-green/pokemon/0094/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-gengargmax,Gengar-Gmax,94,94,assets/pokemon-green/pokemon/0094/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+gengargmax,Gengar-Gmax,94,263,assets/pokemon-green/pokemon/0263/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 gengarmega,Gengar-Mega,94,94,assets/pokemon-green/pokemon/0094/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 onix,Onix,95,95,assets/pokemon-green/pokemon/0095/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 drowzee,Drowzee,96,96,assets/pokemon-green/pokemon/0096/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 hypno,Hypno,97,97,assets/pokemon-green/pokemon/0097/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 krabby,Krabby,98,98,assets/pokemon-green/pokemon/0098/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 kingler,Kingler,99,99,assets/pokemon-green/pokemon/0099/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-kinglergmax,Kingler-Gmax,99,99,assets/pokemon-green/pokemon/0099/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+kinglergmax,Kingler-Gmax,99,257,assets/pokemon-green/pokemon/0257/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 voltorb,Voltorb,100,100,assets/pokemon-green/pokemon/0100/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 voltorbhisui,Voltorb-Hisui,100,100,assets/pokemon-green/pokemon/0100/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 electrode,Electrode,101,101,assets/pokemon-green/pokemon/0101/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -206,7 +206,7 @@ magikarp,Magikarp,129,129,assets/pokemon-green/pokemon/0129/front_normal.png,eme
 gyarados,Gyarados,130,130,assets/pokemon-green/pokemon/0130/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 gyaradosmega,Gyarados-Mega,130,130,assets/pokemon-green/pokemon/0130/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 lapras,Lapras,131,131,assets/pokemon-green/pokemon/0131/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-laprasgmax,Lapras-Gmax,131,131,assets/pokemon-green/pokemon/0131/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+laprasgmax,Lapras-Gmax,131,258,assets/pokemon-green/pokemon/0258/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 ditto,Ditto,132,132,assets/pokemon-green/pokemon/0132/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 eevee,Eevee,133,133,assets/pokemon-green/pokemon/0133/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 eeveegmax,Eevee-Gmax,133,133,assets/pokemon-green/pokemon/0133/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
@@ -222,7 +222,7 @@ kabutops,Kabutops,141,141,assets/pokemon-green/pokemon/0141/front_normal.png,eme
 aerodactyl,Aerodactyl,142,142,assets/pokemon-green/pokemon/0142/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 aerodactylmega,Aerodactyl-Mega,142,142,assets/pokemon-green/pokemon/0142/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 snorlax,Snorlax,143,143,assets/pokemon-green/pokemon/0143/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-snorlaxgmax,Snorlax-Gmax,143,143,assets/pokemon-green/pokemon/0143/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+snorlaxgmax,Snorlax-Gmax,143,262,assets/pokemon-green/pokemon/0262/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 articuno,Articuno,144,144,assets/pokemon-green/pokemon/0144/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 articunogalar,Articuno-Galar,144,144,assets/pokemon-green/pokemon/0144/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 zapdos,Zapdos,145,145,assets/pokemon-green/pokemon/0145/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -409,8 +409,8 @@ azurill,Azurill,298,323,assets/pokemon-green/pokemon/0323/front_normal.png,emera
 nosepass,Nosepass,299,324,assets/pokemon-green/pokemon/0324/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 skitty,Skitty,300,325,assets/pokemon-green/pokemon/0325/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 delcatty,Delcatty,301,326,assets/pokemon-green/pokemon/0326/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-sableye,Sableye,302,327,assets/pokemon-green/pokemon/0327/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-sableyemega,Sableye-Mega,302,327,assets/pokemon-green/pokemon/0327/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+sableye,Sableye,302,322,assets/pokemon-green/pokemon/0322/front_normal.png,manual-verified,edit this row if the sprite is wrong
+sableyemega,Sableye-Mega,302,322,assets/pokemon-green/pokemon/0322/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 mawile,Mawile,303,328,assets/pokemon-green/pokemon/0328/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 mawilemega,Mawile-Mega,303,328,assets/pokemon-green/pokemon/0328/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 aron,Aron,304,329,assets/pokemon-green/pokemon/0329/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -1096,7 +1096,7 @@ zeraora,Zeraora,807,860,assets/pokemon-green/pokemon/0860/front_normal.png,emera
 zeraoramega,Zeraora-Mega,807,860,assets/pokemon-green/pokemon/0860/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 meltan,Meltan,808,861,assets/pokemon-green/pokemon/0861/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 melmetal,Melmetal,809,862,assets/pokemon-green/pokemon/0862/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-melmetalgmax,Melmetal-Gmax,809,862,assets/pokemon-green/pokemon/0862/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+melmetalgmax,Melmetal-Gmax,809,271,assets/pokemon-green/pokemon/0271/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 grookey,Grookey,810,863,assets/pokemon-green/pokemon/0863/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 thwackey,Thwackey,811,864,assets/pokemon-green/pokemon/0864/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 rillaboom,Rillaboom,812,865,assets/pokemon-green/pokemon/0865/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -1114,11 +1114,11 @@ greedent,Greedent,820,873,assets/pokemon-green/pokemon/0873/front_normal.png,eme
 rookidee,Rookidee,821,874,assets/pokemon-green/pokemon/0874/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 corvisquire,Corvisquire,822,875,assets/pokemon-green/pokemon/0875/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 corviknight,Corviknight,823,876,assets/pokemon-green/pokemon/0876/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-corviknightgmax,Corviknight-Gmax,823,876,assets/pokemon-green/pokemon/0876/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+corviknightgmax,Corviknight-Gmax,823,265,assets/pokemon-green/pokemon/0265/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 blipbug,Blipbug,824,877,assets/pokemon-green/pokemon/0877/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 dottler,Dottler,825,878,assets/pokemon-green/pokemon/0878/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 orbeetle,Orbeetle,826,879,assets/pokemon-green/pokemon/0879/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-orbeetlegmax,Orbeetle-Gmax,826,879,assets/pokemon-green/pokemon/0879/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+orbeetlegmax,Orbeetle-Gmax,826,264,assets/pokemon-green/pokemon/0264/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 nickit,Nickit,827,880,assets/pokemon-green/pokemon/0880/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 thievul,Thievul,828,881,assets/pokemon-green/pokemon/0881/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 gossifleur,Gossifleur,829,882,assets/pokemon-green/pokemon/0882/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -1127,21 +1127,21 @@ wooloo,Wooloo,831,884,assets/pokemon-green/pokemon/0884/front_normal.png,emerald
 dubwool,Dubwool,832,885,assets/pokemon-green/pokemon/0885/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 chewtle,Chewtle,833,886,assets/pokemon-green/pokemon/0886/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 drednaw,Drednaw,834,887,assets/pokemon-green/pokemon/0887/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-drednawgmax,Drednaw-Gmax,834,887,assets/pokemon-green/pokemon/0887/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+drednawgmax,Drednaw-Gmax,834,273,assets/pokemon-green/pokemon/0273/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 yamper,Yamper,835,888,assets/pokemon-green/pokemon/0888/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 boltund,Boltund,836,889,assets/pokemon-green/pokemon/0889/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 rolycoly,Rolycoly,837,890,assets/pokemon-green/pokemon/0890/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 carkol,Carkol,838,891,assets/pokemon-green/pokemon/0891/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 coalossal,Coalossal,839,892,assets/pokemon-green/pokemon/0892/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-coalossalgmax,Coalossal-Gmax,839,892,assets/pokemon-green/pokemon/0892/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+coalossalgmax,Coalossal-Gmax,839,266,assets/pokemon-green/pokemon/0266/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 applin,Applin,840,893,assets/pokemon-green/pokemon/0893/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 flapple,Flapple,841,894,assets/pokemon-green/pokemon/0894/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-flapplegmax,Flapple-Gmax,841,894,assets/pokemon-green/pokemon/0894/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+flapplegmax,Flapple-Gmax,841,269,assets/pokemon-green/pokemon/0269/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 appletun,Appletun,842,895,assets/pokemon-green/pokemon/0895/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-appletungmax,Appletun-Gmax,842,895,assets/pokemon-green/pokemon/0895/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+appletungmax,Appletun-Gmax,842,270,assets/pokemon-green/pokemon/0270/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 silicobra,Silicobra,843,896,assets/pokemon-green/pokemon/0896/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 sandaconda,Sandaconda,844,897,assets/pokemon-green/pokemon/0897/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-sandacondagmax,Sandaconda-Gmax,844,897,assets/pokemon-green/pokemon/0897/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+sandacondagmax,Sandaconda-Gmax,844,272,assets/pokemon-green/pokemon/0272/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 cramorant,Cramorant,845,898,assets/pokemon-green/pokemon/0898/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 cramorantgorging,Cramorant-Gorging,845,898,assets/pokemon-green/pokemon/0898/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 cramorantgulping,Cramorant-Gulping,845,898,assets/pokemon-green/pokemon/0898/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
@@ -1149,9 +1149,9 @@ arrokuda,Arrokuda,846,899,assets/pokemon-green/pokemon/0899/front_normal.png,eme
 barraskewda,Barraskewda,847,900,assets/pokemon-green/pokemon/0900/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 toxel,Toxel,848,901,assets/pokemon-green/pokemon/0901/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 toxtricity,Toxtricity,849,902,assets/pokemon-green/pokemon/0902/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-toxtricitygmax,Toxtricity-Gmax,849,902,assets/pokemon-green/pokemon/0902/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+toxtricitygmax,Toxtricity-Gmax,849,275,assets/pokemon-green/pokemon/0275/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 toxtricitylowkey,Toxtricity-Low-Key,849,902,assets/pokemon-green/pokemon/0902/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
-toxtricitylowkeygmax,Toxtricity-Low-Key-Gmax,849,902,assets/pokemon-green/pokemon/0902/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+toxtricitylowkeygmax,Toxtricity-Low-Key-Gmax,849,276,assets/pokemon-green/pokemon/0276/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 sizzlipede,Sizzlipede,850,903,assets/pokemon-green/pokemon/0903/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 centiskorch,Centiskorch,851,904,assets/pokemon-green/pokemon/0904/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 centiskorchgmax,Centiskorch-Gmax,851,904,assets/pokemon-green/pokemon/0904/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
@@ -1164,11 +1164,11 @@ polteageistantique,Polteageist-Antique,855,908,assets/pokemon-green/pokemon/0908
 hatenna,Hatenna,856,909,assets/pokemon-green/pokemon/0909/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 hattrem,Hattrem,857,910,assets/pokemon-green/pokemon/0910/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 hatterene,Hatterene,858,911,assets/pokemon-green/pokemon/0911/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-hatterenegmax,Hatterene-Gmax,858,911,assets/pokemon-green/pokemon/0911/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+hatterenegmax,Hatterene-Gmax,858,267,assets/pokemon-green/pokemon/0267/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 impidimp,Impidimp,859,912,assets/pokemon-green/pokemon/0912/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 morgrem,Morgrem,860,913,assets/pokemon-green/pokemon/0913/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 grimmsnarl,Grimmsnarl,861,914,assets/pokemon-green/pokemon/0914/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-grimmsnarlgmax,Grimmsnarl-Gmax,861,914,assets/pokemon-green/pokemon/0914/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+grimmsnarlgmax,Grimmsnarl-Gmax,861,268,assets/pokemon-green/pokemon/0268/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 obstagoon,Obstagoon,862,915,assets/pokemon-green/pokemon/0915/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 perrserker,Perrserker,863,916,assets/pokemon-green/pokemon/0916/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 cursola,Cursola,864,917,assets/pokemon-green/pokemon/0917/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
@@ -1198,7 +1198,7 @@ arctozolt,Arctozolt,881,934,assets/pokemon-green/pokemon/0934/front_normal.png,e
 dracovish,Dracovish,882,935,assets/pokemon-green/pokemon/0935/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 arctovish,Arctovish,883,936,assets/pokemon-green/pokemon/0936/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 duraludon,Duraludon,884,937,assets/pokemon-green/pokemon/0937/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-duraludongmax,Duraludon-Gmax,884,937,assets/pokemon-green/pokemon/0937/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+duraludongmax,Duraludon-Gmax,884,274,assets/pokemon-green/pokemon/0274/front_normal.png,manual-verified,manual contact-sheet match; edit this row if the sprite is wrong
 dreepy,Dreepy,885,938,assets/pokemon-green/pokemon/0938/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 drakloak,Drakloak,886,939,assets/pokemon-green/pokemon/0939/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 dragapult,Dragapult,887,940,assets/pokemon-green/pokemon/0940/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong

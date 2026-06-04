@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TrainerProfile} from "@changebattle/shared";
 
 declare global {
   interface Window {
@@ -15,6 +15,10 @@ declare global {
       continueRun(): Promise<DesktopGameState>;
       battleChoice(choice: string): Promise<DesktopGameState>;
       exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState>;
+      restAction(action: RestAction): Promise<DesktopGameState>;
+      shopItems(query?: string): Promise<ShopItem[]>;
+      learnableMoves(slot: number, query?: string): Promise<PricedMove[]>;
+      editOptions(slot: number): Promise<PokemonEditOptions>;
       getBattleState(): Promise<BattleState | null>;
     };
   }

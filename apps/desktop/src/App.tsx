@@ -1,7 +1,7 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import type {CSSProperties} from "react";
-import type {AppStatus, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, LocalSave, MoveSummary, RentalPokemon, RuntimePokemon, TrainerGender} from "@changebattle/shared";
+import type {AppStatus, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, LocalSave, MoveSummary, PokemonEditOptions, PricedMove, RentalPokemon, RestAction, RuntimePokemon, ShopItem, SpriteMapEntry, TrainerGender} from "@changebattle/shared";
 import battleEffectAssets from "../../../data/battle_effect_assets.json";
 import "./styles.css";
 
@@ -58,6 +58,7 @@ const STATUS_ID_BY_ZH: Record<string, string> = {
   冰冻: "frz",
   混乱: "confusion",
 };
+const SUBSTITUTE_DOLL_PATH = "assets/battle/substitute-doll.png";
 
 function toId(value: string | undefined): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -91,7 +92,7 @@ function assetUrl(path?: string): string | undefined {
   return path ? window.changeBattle?.assetUrl(path) : undefined;
 }
 
-function pokemonImageUrl(pokemon?: RentalPokemon, variant: "front_normal" | "back_normal" = "front_normal"): string | undefined {
+function pokemonImageUrl(pokemon?: {sprite?: SpriteMapEntry}, variant: "front_normal" | "back_normal" = "front_normal"): string | undefined {
   return assetUrl(pokemon?.sprite?.paths[variant] || pokemon?.sprite?.paths.front_normal);
 }
 
@@ -123,6 +124,16 @@ function statusLabel(code: string): string {
   return {brn: "灼伤", par: "麻痹", psn: "中毒", tox: "剧毒", slp: "睡眠", frz: "冰冻", fnt: "濒死"}[code] || "";
 }
 
+function bpCostLabel(cost: number | null | undefined): string {
+  if (cost === null || cost === undefined) return "-";
+  return Number(cost || 0) <= 0 ? "免费" : `${cost}BP`;
+}
+
+function restoreCostSuffix(costs: Record<1 | 2 | 3, number>, selectedCount: number, currentCount: number): string {
+  const count = selectedCount || currentCount;
+  return count > 0 ? `（${bpCostLabel(costs[Math.min(3, count) as 1 | 2 | 3])}）` : "（无需恢复）";
+}
+
 function timelineFaintedState(events: BattleTimelineEvent[], fallback: {p1: boolean; p2: boolean}): {p1: boolean; p2: boolean} {
   const next = {...fallback};
   for (const event of events) {
@@ -145,13 +156,55 @@ function findDisplay(team: RentalPokemon[], name?: string): RentalPokemon | unde
   return team.find(pokemon => toId(pokemon.species) === key || toId(pokemon.name) === key || pokemon.species_id === key);
 }
 
-function activePokemon(battle: BattleState | null | undefined, side: "p1" | "p2"): {runtime?: RuntimePokemon; display?: RentalPokemon} {
+type ActiveTrackerDisplay = BattleState["tracker"]["active"]["p1"];
+
+function displayFromActive(active: ActiveTrackerDisplay | undefined, base?: RentalPokemon): RentalPokemon | undefined {
+  if (!active?.sprite && !active?.display_name && !active?.species_id) return base;
+  const species = active?.name || active?.display_name || base?.species || "Unknown";
+  return {
+    name: species,
+    species,
+    species_zh: active?.display_name || base?.species_zh || species,
+    species_id: active?.species_id || base?.species_id || toId(species),
+    level: base?.level || 50,
+    gender: base?.gender || "",
+    types: base?.types || [],
+    types_zh: base?.types_zh || [],
+    ability: base?.ability || "",
+    ability_zh: base?.ability_zh || "",
+    ability_id: base?.ability_id || "",
+    ability_desc: base?.ability_desc || "",
+    ability_desc_zh: base?.ability_desc_zh || "",
+    item: base?.item || "",
+    item_zh: base?.item_zh || "",
+    item_id: base?.item_id || "",
+    item_desc: base?.item_desc || "",
+    item_desc_zh: base?.item_desc_zh || "",
+    moves: base?.moves || [],
+    base_stats: base?.base_stats || {},
+    stats: base?.stats || {},
+    evs: base?.evs || {},
+    ivs: base?.ivs || {},
+    nature: base?.nature || "",
+    nature_zh: base?.nature_zh || "",
+    nature_plus: base?.nature_plus || "",
+    nature_minus: base?.nature_minus || "",
+    role: base?.role || "",
+    role_zh: base?.role_zh || "",
+    sprite: active?.sprite || base?.sprite,
+  };
+}
+
+function activePokemon(battle: BattleState | null | undefined, side: "p1" | "p2"): {runtime?: RuntimePokemon; display?: RentalPokemon; active?: ActiveTrackerDisplay} {
   const runtime = side === "p1"
     ? battle?.request?.side?.pokemon?.find(pokemon => pokemon.active)
     : undefined;
-  const activeName = side === "p1" ? runtimeName(runtime) : battle?.tracker.active.p2.name;
+  const active = battle?.tracker.active[side];
+  const activeName = active?.species_id || active?.name || (side === "p1" ? runtimeName(runtime) : "");
   const team = side === "p1" ? battle?.player_display || [] : battle?.enemy_display || [];
-  return {runtime, display: findDisplay(team, activeName)};
+  const allDisplays = [...(battle?.player_display || []), ...(battle?.enemy_display || [])];
+  const base = findDisplay(team, activeName) || findDisplay(allDisplays, activeName) || findDisplay(team, runtimeName(runtime));
+  return {runtime, active, display: displayFromActive(active, base)};
 }
 
 function statLine(pokemon: RentalPokemon, stat: string): string {
@@ -222,6 +275,10 @@ function installBrowserAutomationBridge() {
     continueRun: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试对局"}),
     battleChoice: async () => ({screen: "battleMain", save, battle: debugBattle(true), message: "自动测试胜利", pending_transition: {screen: "result", save, battle: debugBattle(true), message: "自动测试结算"}}),
     exchange: async () => ({screen: "result", save, message: "自动测试交换"}),
+    restAction: async () => ({screen: "mainMenu", save, message: "自动测试休整"}),
+    shopItems: async () => [],
+    learnableMoves: async () => [],
+    editOptions: async () => ({abilities: [], natures: []}),
     getBattleState: async () => debugBattle(false),
   };
 }
@@ -239,6 +296,7 @@ function App() {
   const [focusIndex, setFocusIndex] = useState(0);
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [exchange, setExchange] = useState<DesktopGameState["exchange"]>(null);
+  const [rest, setRest] = useState<DesktopGameState["rest"]>(null);
   const [pendingTransition, setPendingTransition] = useState<DesktopGameState | null>(null);
   const [message, setMessage] = useState("欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
   const [loading, setLoading] = useState(false);
@@ -263,6 +321,7 @@ function App() {
     }
     setBattle(state.battle || null);
     setExchange(state.exchange || null);
+    setRest(state.rest || null);
     setPendingTransition(state.pending_transition || null);
     setScreen(state.screen);
     setMessage(state.message || "");
@@ -326,6 +385,10 @@ function App() {
     await runAction(() => window.changeBattle!.exchange(ownIndex, enemyIndex));
   }
 
+  async function restAction(action: RestAction) {
+    await runAction(() => window.changeBattle!.restAction(action));
+  }
+
   const content = useMemo(() => {
     if (screen === "title") return <TitleScreen save={save} onLoad={loadGame} onNew={() => setScreen("newGame")} />;
     if (screen === "newGame") return <NewGameScreen name={trainerName} gender={trainerGender} setName={setTrainerName} setGender={setTrainerGender} onCreate={createNewGame} onBack={() => setScreen("title")} />;
@@ -334,19 +397,21 @@ function App() {
     if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} />;
     if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} mode={screen} setMode={setScreen} onChoice={battleChoice} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
+    if (screen === "rest") return <RestView rest={rest} message={message} onAction={restAction} />;
     if (screen === "result") return <ResultView message={message} onBack={() => setScreen("mainMenu")} />;
     return null;
-  }, [screen, save, trainerName, trainerGender, candidates, selected, focusIndex, battle, exchange, pendingTransition, message]);
+  }, [screen, save, trainerName, trainerGender, candidates, selected, focusIndex, battle, exchange, rest, pendingTransition, message]);
 
   const isBattleScreen = ["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen);
+  const hideTextBox = !error && (isBattleScreen || screen === "rest");
 
   return (
-    <main className={`game-shell ${isBattleScreen && !error ? "battle-shell" : ""}`}>
+    <main className={`game-shell ${hideTextBox ? "battle-shell" : ""}`}>
       <section className="game-screen">
         {content}
         {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
       </section>
-      {isBattleScreen && !error ? null : <TextBox message={error || message} danger={Boolean(error)} />}
+      {hideTextBox ? null : <TextBox message={error || message} danger={Boolean(error)} />}
     </main>
   );
 }
@@ -438,33 +503,56 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
     p2: battle?.tracker.active.p2.condition || "",
   };
   const finalActiveNames = {
-    p1: runtimeName(player.runtime) || battle?.tracker.active.p1.name || "",
+    p1: battle?.tracker.active.p1.name || runtimeName(player.runtime) || "",
     p2: battle?.tracker.active.p2.name || "",
+  };
+  const finalSubstitutes = {
+    p1: Boolean(battle?.tracker.active.p1.substitute),
+    p2: Boolean(battle?.tracker.active.p2.substitute),
   };
   const finalFaintedSides = {
     p1: statusCode(finalConditions.p1) === "fnt",
     p2: statusCode(finalConditions.p2) === "fnt",
   };
+  const recentEvents = battle?.recent_events.filter(event => event && !event.startsWith("--- 第")) || [];
   const turnEvents = battle ? lastEvents(battle, 14) : [];
   const timelineEvents = battle?.timeline_events || [];
   const timelineKey = timelineEvents.map(event => `${event.id}:${event.text}`).join("\n");
+  const recentKey = recentEvents.join("\n");
   const [shownEvents, setShownEvents] = useState(turnEvents);
   const [currentTimelineEvent, setCurrentTimelineEvent] = useState<BattleTimelineEvent | null>(null);
   const [currentVisualCue, setCurrentVisualCue] = useState<BattleVisualCue | null>(null);
   const [playbackActive, setPlaybackActive] = useState(false);
   const [displayConditions, setDisplayConditions] = useState(finalConditions);
   const [displayedActiveNames, setDisplayedActiveNames] = useState(finalActiveNames);
+  const [displayedSubstitutes, setDisplayedSubstitutes] = useState(finalSubstitutes);
   const [hpTransitionMs, setHpTransitionMs] = useState({p1: 1400, p2: 1400});
   const [faintedSides, setFaintedSides] = useState({p1: false, p2: false});
+  const [introActive, setIntroActive] = useState(false);
   const previousTimelineKeys = useRef<string[]>([]);
+  const previousRecentEvents = useRef<string[]>([]);
   const displayConditionsRef = useRef(displayConditions);
   const displayedActiveNamesRef = useRef(displayedActiveNames);
+  const displayedSubstitutesRef = useRef(displayedSubstitutes);
+  const previousBattlePresent = useRef(false);
   const eventTimers = useRef<number[]>([]);
   const playbackRun = useRef(0);
   const finishRequested = useRef(false);
 
   useEffect(() => { displayConditionsRef.current = displayConditions; }, [displayConditions]);
   useEffect(() => { displayedActiveNamesRef.current = displayedActiveNames; }, [displayedActiveNames]);
+  useEffect(() => { displayedSubstitutesRef.current = displayedSubstitutes; }, [displayedSubstitutes]);
+  useEffect(() => {
+    const battlePresent = Boolean(battle);
+    if (battlePresent && !previousBattlePresent.current) {
+      setIntroActive(true);
+      const timer = window.setTimeout(() => setIntroActive(false), 1180);
+      previousBattlePresent.current = true;
+      return () => window.clearTimeout(timer);
+    }
+    previousBattlePresent.current = battlePresent;
+    if (!battlePresent) setIntroActive(false);
+  }, [Boolean(battle)]);
 
   useEffect(() => {
     playbackRun.current += 1;
@@ -482,16 +570,30 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
       setCurrentVisualCue(null);
       setPlaybackActive(false);
       setDisplayedActiveNames(finalActiveNames);
+      setDisplayedSubstitutes(finalSubstitutes);
       setDisplayConditions(finalConditions);
       setFaintedSides(finalFaintedSides);
+      previousRecentEvents.current = [];
       return;
     }
     if (!battle.ended) finishRequested.current = false;
 
     const keys = timelineEvents.map(event => `${event.id}:${event.text}`);
     const known = new Set(previousTimelineKeys.current);
-    const added = timelineEvents.filter((event, index) => !known.has(keys[index]));
+    const addedTimeline = timelineEvents.filter((event, index) => !known.has(keys[index]));
     previousTimelineKeys.current = keys;
+    const addedTexts = addedRecentEventTexts(previousRecentEvents.current, recentEvents);
+    previousRecentEvents.current = recentEvents;
+    const timelinePool = [...addedTimeline];
+    const addedFromRecent = addedTexts.map((text, index) => {
+      const timelineIndex = timelinePool.findIndex(event => event.text === text);
+      if (timelineIndex >= 0) {
+        const [event] = timelinePool.splice(timelineIndex, 1);
+        return event;
+      }
+      return {id: `recent-${playbackRun.current}-${index}`, type: "message", text} as BattleTimelineEvent;
+    });
+    const added = addedFromRecent.length ? [...addedFromRecent, ...timelinePool] : addedTimeline;
 
     if (!added.length) {
       setShownEvents(turnEvents);
@@ -499,6 +601,7 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
       setCurrentVisualCue(null);
       setPlaybackActive(false);
       setFaintedSides(timelineFaintedState(timelineEvents, finalFaintedSides));
+      setDisplayedSubstitutes(finalSubstitutes);
       if (battle.ended && pendingTransition && !finishRequested.current) {
         finishRequested.current = true;
         onBattleAnimationDone(pendingTransition);
@@ -509,6 +612,10 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
     const activeBattle = battle;
     async function playQueue() {
       setPlaybackActive(true);
+      if (introActive) {
+        await wait(920);
+        if (playbackRun.current !== runId) return;
+      }
       for (const event of added) {
         if (playbackRun.current !== runId) return;
         const duration = timelineDuration(event, displayConditionsRef.current[event.targetSide || "p1"]);
@@ -523,8 +630,21 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
           const nextNames = {...displayedActiveNamesRef.current, [event.targetSide]: event.target_id};
           displayedActiveNamesRef.current = nextNames;
           setDisplayedActiveNames(nextNames);
+          const nextSubstitutes = {...displayedSubstitutesRef.current, [event.targetSide]: false};
+          displayedSubstitutesRef.current = nextSubstitutes;
+          setDisplayedSubstitutes(nextSubstitutes);
           setFaintedSides(current => ({...current, [event.targetSide!]: false}));
           setCurrentVisualCue(cueFromEntry(battleEffectEntry("battle_action:switch_in"), event, "switch-in", event.targetSide, event.targetSide));
+        }
+        if (event.type === "form" && event.targetSide && event.target_id) {
+          const nextNames = {...displayedActiveNamesRef.current, [event.targetSide]: event.target_id};
+          displayedActiveNamesRef.current = nextNames;
+          setDisplayedActiveNames(nextNames);
+        }
+        if (event.type === "substitute" && event.targetSide) {
+          const nextSubstitutes = {...displayedSubstitutesRef.current, [event.targetSide]: Boolean(event.substitute)};
+          displayedSubstitutesRef.current = nextSubstitutes;
+          setDisplayedSubstitutes(nextSubstitutes);
         }
         if (event.type !== "switch") {
           setCurrentVisualCue(visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current));
@@ -554,8 +674,10 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
       setShownEvents(lastEvents(activeBattle, 14));
       displayConditionsRef.current = finalConditions;
       displayedActiveNamesRef.current = finalActiveNames;
+      displayedSubstitutesRef.current = finalSubstitutes;
       setDisplayConditions(finalConditions);
       setDisplayedActiveNames(finalActiveNames);
+      setDisplayedSubstitutes(finalSubstitutes);
       setFaintedSides(timelineFaintedState(timelineEvents, finalFaintedSides));
       if (activeBattle.ended && pendingTransition && !finishRequested.current) {
         finishRequested.current = true;
@@ -568,19 +690,23 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
       eventTimers.current.forEach(timer => window.clearTimeout(timer));
       eventTimers.current = [];
     };
-  }, [timelineKey]);
+  }, [timelineKey, recentKey]);
 
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
   const controlsDisabled = playbackActive;
   const displayPlayer = findDisplay(battle.player_display, displayedActiveNames.p1) || player.display;
   const displayEnemy = findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display;
-  return <div className="battle-layout"><section className={`battle-field ${battleAnimationClass(currentTimelineEvent)}`}><FieldEffectsOverlay battle={battle} /><BattleEffectLayer cue={currentVisualCue} /><div className="turn-badge">第 {battle.tracker.turn} 回合</div><div className="battle-corner-actions"><button disabled={controlsDisabled} onClick={() => setMode("statusMenu")}>状态</button><button className="danger-button" disabled={controlsDisabled} onClick={() => onChoice("forfeit")}>认输</button></div><FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} transitionMs={hpTransitionMs.p2} /><div className="battle-sprites"><img className={`back-sprite ${faintedSides.p1 ? "sprite-fainted" : ""}`} src={pokemonImageUrl(displayPlayer, "back_normal")} /><img className={`front-sprite ${faintedSides.p2 ? "sprite-fainted" : ""}`} src={pokemonImageUrl(displayEnemy, "front_normal")} /></div><FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} transitionMs={hpTransitionMs.p1} />{currentTimelineEvent ? <div className="battle-message-pop">{currentTimelineEvent.text}</div> : null}</section><section className="battle-bottom"><div className="battle-log"><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div><div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : mode === "teamMenu" ? <TeamMenu battle={battle} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} />}</div></section>{mode === "statusMenu" ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}</div>;
+  const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : pokemonImageUrl(displayPlayer, "back_normal");
+  const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : pokemonImageUrl(displayEnemy, "front_normal");
+  const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"]) : 1600;
+  const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
+  return <div className="battle-layout"><section className={`battle-field ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}><FieldEffectsOverlay battle={battle} /><BattleEffectLayer cue={currentVisualCue} /><div className="turn-badge">第 {battle.tracker.turn} 回合</div><div className="battle-corner-actions"><button disabled={controlsDisabled} onClick={() => setMode("statusMenu")}>状态</button><button className="danger-button" disabled={controlsDisabled} onClick={() => onChoice("forfeit")}>认输</button></div><FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} /><div className="battle-sprites"><img className={`back-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""}`} src={playerSprite} /><img className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""}`} src={enemySprite} /></div><FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} />{currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}</section><section className="battle-bottom"><div className="battle-log"><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div><div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : mode === "teamMenu" ? <TeamMenu battle={battle} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} />}</div></section>{mode === "statusMenu" ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}</div>;
 }
 
-function FighterPanel({pokemon, condition, status, side, transitionMs}: {pokemon?: RentalPokemon; condition?: string; status?: string; side: "player" | "enemy"; transitionMs?: number}) {
+function FighterPanel({pokemon, condition, status, side, substitute, transitionMs}: {pokemon?: RentalPokemon; condition?: string; status?: string; side: "player" | "enemy"; substitute?: boolean; transitionMs?: number}) {
   const hp = parseHp(condition);
   const code = statusCode(condition, status);
-  return <div className={`fighter-panel ${side}`}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}<div className="hp-line"><i style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
+  return <div className={`fighter-panel ${side}`}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}<div className="hp-line"><i style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
 }
 
 function FieldEffectsOverlay({battle}: {battle: BattleState}) {
@@ -668,18 +794,33 @@ function lastEvents(battle: BattleState, limit = 5): string[] {
   return battle.recent_events.filter(event => event && !event.startsWith("--- 第")).slice(-limit);
 }
 
+function addedRecentEventTexts(previous: string[], current: string[]): string[] {
+  let overlap = 0;
+  const maxOverlap = Math.min(previous.length, current.length);
+  for (let size = maxOverlap; size > 0; size -= 1) {
+    const previousTail = previous.slice(previous.length - size);
+    const currentHead = current.slice(0, size);
+    if (previousTail.every((text, index) => text === currentHead[index])) {
+      overlap = size;
+      break;
+    }
+  }
+  return current.slice(overlap);
+}
+
 function timelineDuration(event: BattleTimelineEvent, previousCondition?: string): number {
+  const faster = (ms: number) => Math.max(500, ms - 500);
   if (event.type === "damage" || event.type === "heal") {
     const previous = parseHp(previousCondition);
     const next = event.hp || parseHp(event.condition);
     const ratio = previous && next && previous.max > 0 ? Math.abs(previous.current - next.current) / previous.max : 0.25;
-    return Math.round(Math.max(1000, Math.min(5000, 1000 + ratio * 4000)));
+    return faster(Math.round(Math.max(1000, Math.min(5000, 1000 + ratio * 4000))));
   }
-  if (event.type === "move") return 2600;
-  if (event.type === "faint") return 2600;
-  if (event.type === "switch") return 2300;
-  if (event.type === "win") return 2600;
-  return 2100;
+  if (event.type === "move") return faster(2600);
+  if (event.type === "faint") return faster(2600);
+  if (event.type === "switch") return faster(2300);
+  if (event.type === "win") return faster(2600);
+  return faster(2100);
 }
 
 function battleAnimationClass(event: BattleTimelineEvent | null): string {
@@ -707,6 +848,212 @@ function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameStat
   const [enemy, setEnemy] = useState(0);
   if (!exchange) return null;
   return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
+}
+
+function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; message?: string; onAction: (action: RestAction) => void | Promise<void>}) {
+  const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
+  const [own, setOwn] = useState(0);
+  const [enemy, setEnemy] = useState(0);
+  const [bagItem, setBagItem] = useState("");
+  const [shopQuery, setShopQuery] = useState("");
+  const [shopItems, setShopItems] = useState<ShopItem[]>([]);
+  const [shopLoading, setShopLoading] = useState(false);
+  const [shopError, setShopError] = useState("");
+  const [shopOpen, setShopOpen] = useState(false);
+  const [moveEditorOpen, setMoveEditorOpen] = useState(false);
+  const [statsEditorOpen, setStatsEditorOpen] = useState(false);
+  const [abortConfirmOpen, setAbortConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!shopOpen) return;
+    let cancelled = false;
+    setShopLoading(true);
+    setShopError("");
+    void window.changeBattle!.shopItems(shopQuery).then(items => {
+      if (!cancelled) setShopItems(items);
+    }).catch(err => {
+      if (!cancelled) {
+        setShopItems([]);
+        setShopError(err instanceof Error ? err.message : String(err));
+      }
+    }).finally(() => {
+      if (!cancelled) setShopLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [shopQuery, shopOpen]);
+
+  if (!rest) return <div className="loading-panel"><strong>正在整理队伍...</strong></div>;
+  const selectedOneBased = selectedSlots.map(index => index + 1);
+  const bagEntries = Object.entries(rest.bag_items || {}).filter(([, count]) => count > 0);
+  const canExchange = rest.costs.exchange !== null && rest.enemy_display.length > 0 && !rest.taken_enemy_slots.includes(enemy + 1);
+  const hpRestoreCount = rest.player_state.filter(state => Number(state.hp || 0) < Number(state.maxhp || 0)).length;
+  const ppRestoreCount = rest.player_state.filter(state => (state.moves || []).some(move => Number(move.pp || 0) < Number(move.maxpp || 0))).length;
+  const statusRestoreCount = rest.player_state.filter(state => Boolean(state.status)).length;
+
+  function toggleSlot(index: number) {
+    setSelectedSlots(current => current.includes(index) ? current.filter(value => value !== index) : [...current, index].sort());
+  }
+
+  return (
+    <div className="rest-page">
+      <header className="rest-header">
+        <div>
+          <h2>休整菜单</h2>
+          <p>第 {rest.battle_no}/{rest.battles} 场后　连胜 {rest.wins}　BP {rest.battle_points}</p>
+          {message ? <p className="rest-message">{message}</p> : null}
+        </div>
+        <div className="rest-header-actions">
+          <button className="danger-button" onClick={() => setAbortConfirmOpen(true)}>中断挑战</button>
+          <button onClick={() => onAction({type: "next"})}>下一场</button>
+        </div>
+      </header>
+      <section className="rest-team-panel">
+        <h3>你的队伍</h3>
+        <div className="rest-team-list">
+          {rest.player_display.map((pokemon, index) => {
+            const state = rest.player_state[index];
+            const selected = selectedSlots.includes(index);
+            const status = statusCode(state?.condition, state?.status);
+            return <button className={`rest-team-card ${selected ? "selected" : ""}`} onClick={() => toggleSlot(index)} key={`${pokemon.species_id}-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
+          })}
+        </div>
+        <div className="rest-actions">
+          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "restore_hp", slots: selectedOneBased})}>恢复HP{restoreCostSuffix(rest.costs.restore_hp, selectedSlots.length, hpRestoreCount)}</button>
+          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "restore_pp", slots: selectedOneBased})}>恢复PP{restoreCostSuffix(rest.costs.restore_pp, selectedSlots.length, ppRestoreCount)}</button>
+          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "restore_status", slots: selectedOneBased})}>恢复异常{restoreCostSuffix(rest.costs.restore_status, selectedSlots.length, statusRestoreCount)}</button>
+          <button onClick={() => setMoveEditorOpen(true)}>调整技能</button>
+          <button onClick={() => setStatsEditorOpen(true)}>调整能力值 {bpCostLabel(rest.costs.adjust_stats)}</button>
+        </div>
+      </section>
+      <section className="rest-exchange-panel">
+        <h3>交换宝可梦</h3>
+        <div className="rest-exchange-grid">
+          <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`${pokemon.species_id}-own-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
+          <div>{rest.enemy_display.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} disabled={rest.taken_enemy_slots.includes(index + 1)} onClick={() => setEnemy(index)} key={`${pokemon.species_id}-enemy-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span>{rest.taken_enemy_slots.includes(index + 1) ? <small>已交换</small> : null}</button>)}</div>
+        </div>
+        <button disabled={!canExchange} onClick={() => onAction({type: "exchange", ownIndex: own, enemyIndex: enemy})}>交换</button>
+      </section>
+      <section className="rest-bag-panel">
+        <div className="rest-bag-head"><h3>本局背包</h3><button onClick={() => setShopOpen(true)}>购买道具</button></div>
+        <div className="bag-list">
+          {bagEntries.length ? bagEntries.map(([itemId, count]) => <button className={bagItem === itemId ? "selected" : ""} onClick={() => setBagItem(itemId)} key={itemId}>{itemId} x{count}</button>) : <span>空</span>}
+        </div>
+        <div className="rest-actions">
+          {rest.player_display.map((pokemon, index) => <button disabled={!bagItem} onClick={() => onAction({type: "equip_item", itemId: bagItem, slot: index})} key={`equip-${pokemon.species_id}-${index}`}>给 {displayName(pokemon)} 装备</button>)}
+          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "unequip_item", slot: selectedSlots[0]})}>卸下选中道具</button>
+        </div>
+      </section>
+      {shopOpen ? <ShopModal query={shopQuery} setQuery={setShopQuery} items={shopItems} loading={shopLoading} error={shopError} onClose={() => setShopOpen(false)} onBuy={async itemId => { await onAction({type: "buy_item", itemId}); setShopOpen(false); }} /> : null}
+      {moveEditorOpen ? <MoveAdjustModal rest={rest} onClose={() => setMoveEditorOpen(false)} onAction={onAction} /> : null}
+      {statsEditorOpen ? <StatsAdjustModal rest={rest} onClose={() => setStatsEditorOpen(false)} onAction={onAction} /> : null}
+      {abortConfirmOpen ? (
+        <div className="modal-layer">
+          <section className="confirm-modal">
+            <h2>中断挑战</h2>
+            <p>确认后将直接结束本局挑战，当前连胜归零，历史最高连胜保留。</p>
+            <div className="command-row">
+              <button className="danger-button" onClick={() => { setAbortConfirmOpen(false); onAction({type: "abort"}); }}>确认中断</button>
+              <button onClick={() => setAbortConfirmOpen(false)}>取消</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ShopModal({query, setQuery, items, loading, error, onClose, onBuy}: {query: string; setQuery: (value: string) => void; items: ShopItem[]; loading: boolean; error: string; onClose: () => void; onBuy: (itemId: string) => void | Promise<void>}) {
+  return (
+    <div className="modal-layer">
+      <section className="shop-modal">
+        <header>
+          <h2>购买道具</h2>
+          <button onClick={onClose}>关闭</button>
+        </header>
+        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索道具中文/英文/ID" />
+        {error ? <p className="editor-warning">{error}</p> : loading ? <p>正在读取道具...</p> : null}
+        <div className="shop-list">
+          {items.length ? items.map(item => (
+            <button onClick={() => onBuy(item.id)} key={item.id}>
+              <strong>{item.name_zh || item.name}</strong>
+              <span>{bpCostLabel(item.cost)}</span>
+              <small>{item.desc_zh || item.desc || item.name}</small>
+            </button>
+          )) : !loading && !error ? <p>没有匹配的道具。</p> : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MoveAdjustModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  const [slot, setSlot] = useState(0);
+  const [moveSlot, setMoveSlot] = useState(0);
+  const [query, setQuery] = useState("");
+  const [moves, setMoves] = useState<PricedMove[]>([]);
+  const [moveError, setMoveError] = useState("");
+  const [movesLoading, setMovesLoading] = useState(false);
+  const playerDisplay = rest.player_display || [];
+  const pokemon = playerDisplay[slot] || playerDisplay[0];
+  const pokemonMoves = pokemon?.moves || [];
+  const currentMove = pokemonMoves[moveSlot];
+  const knownMoveIds = new Set(pokemonMoves.map(move => toId(move.id || move.name || move.name_zh)));
+
+  useEffect(() => {
+    let cancelled = false;
+    setMovesLoading(true);
+    setMoveError("");
+    void window.changeBattle!.learnableMoves(slot, query).then(next => {
+      if (!cancelled) setMoves(next);
+    }).catch(err => {
+      if (!cancelled) {
+        setMoves([]);
+        setMoveError(err instanceof Error ? err.message : String(err));
+      }
+    }).finally(() => {
+      if (!cancelled) setMovesLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [slot, query]);
+
+  return <div className="modal-layer"><section className="rest-edit-modal"><header><h2>调整技能</h2><button onClick={onClose}>关闭</button></header><div className="editor-layout"><aside className="editor-side-list">{playerDisplay.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => { setSlot(index); setMoveSlot(0); }} key={`${entry.species_id}-move-editor-${index}`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside><section className="editor-main"><h3>{displayName(pokemon)}：替换 {currentMove?.name_zh || "选择招式格"}</h3><div className="move-slot-row">{pokemonMoves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} onClick={() => setMoveSlot(index)} key={`${move.id}-${index}`}>{index + 1}. {move.name_zh}</button>)}</div><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索新技能中文/英文/ID" />{moveError ? <p className="editor-warning">{moveError}</p> : movesLoading ? <p>正在读取可学习招式...</p> : null}<div className="learnable-list">{moves.length ? moves.map(move => {
+    const known = knownMoveIds.has(toId(move.id || move.name || move.name_zh));
+    return <button className={known ? "already-known" : ""} disabled={known} onClick={() => { onAction({type: "adjust_move", slot, moveSlot, moveId: move.id}); onClose(); }} key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {move.pp}　{bpCostLabel(move.cost)}{known ? "　已掌握" : ""}</span><small>{move.desc_zh || move.desc || "暂无说明"}</small></button>;
+  }) : !movesLoading && !moveError ? <p>没有匹配的可学习招式。</p> : null}</div></section></div></section></div>;
+}
+
+function StatsAdjustModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void}) {
+  const [slot, setSlot] = useState(0);
+  const pokemon = rest.player_display[slot];
+  const [ivs, setIvs] = useState<Record<string, number>>(() => ({...rest.player_display[0].ivs}));
+  const [evs, setEvs] = useState<Record<string, number>>(() => ({...rest.player_display[0].evs}));
+  const [ability, setAbility] = useState(rest.player_display[0].ability);
+  const [nature, setNature] = useState(rest.player_display[0].nature || "Serious");
+  const [options, setOptions] = useState<PokemonEditOptions>({abilities: [], natures: []});
+
+  useEffect(() => {
+    const next = rest.player_display[slot];
+    setIvs({...next.ivs});
+    setEvs({...next.evs});
+    setAbility(next.ability);
+    setNature(next.nature || "Serious");
+    let cancelled = false;
+    void window.changeBattle!.editOptions(slot).then(nextOptions => {
+      if (!cancelled) setOptions(nextOptions);
+    }).catch(() => {
+      if (!cancelled) setOptions({abilities: [], natures: []});
+    });
+    return () => { cancelled = true; };
+  }, [slot, rest.player_display]);
+
+  function setStat(target: "ivs" | "evs", stat: string, value: string) {
+    const parsed = Number(value);
+    const setter = target === "ivs" ? setIvs : setEvs;
+    setter(current => ({...current, [stat]: Number.isFinite(parsed) ? parsed : 0}));
+  }
+
+  const evTotal = STAT_ROWS.reduce((sum, [stat]) => sum + Number(evs[stat] || 0), 0);
+  return <div className="modal-layer"><section className="rest-edit-modal stats-editor"><header><h2>调整能力值</h2><button onClick={onClose}>关闭</button></header><div className="editor-layout"><aside className="editor-side-list">{rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-stats-editor`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside><section className="editor-main"><h3>{displayName(pokemon)}　费用 {bpCostLabel(rest.costs.adjust_stats)}</h3><div className="stats-editor-controls"><label>特性<select value={ability} onChange={event => setAbility(event.target.value)}>{options.abilities.map(option => <option value={option.name} key={option.id}>{option.name_zh}</option>)}</select></label><label>性格<select value={nature} onChange={event => setNature(event.target.value)}>{options.natures.map(option => <option value={option.name} key={option.id}>{option.name_zh} {option.plus ? `${option.plus_zh}↑ / ${option.minus_zh}↓` : "无修正"}</option>)}</select></label></div><div className="stat-edit-grid"><strong>能力</strong><strong>个体值</strong><strong>努力值</strong><strong>当前</strong>{STAT_ROWS.map(([stat, label]) => <Fragment key={stat}><span>{label}</span><input type="number" min={0} max={31} value={ivs[stat] ?? 31} onChange={event => setStat("ivs", stat, event.target.value)} /><input type="number" min={0} max={255} value={evs[stat] ?? 0} onChange={event => setStat("evs", stat, event.target.value)} /><span>{pokemon.stats[stat]}</span></Fragment>)}</div><p className={evTotal > 510 ? "editor-warning" : ""}>努力值合计：{evTotal}/510</p><div className="command-row"><button onClick={() => { onAction({type: "adjust_stats", slot, ivs, evs, ability, nature}); onClose(); }}>保存调整 {bpCostLabel(rest.costs.adjust_stats)}</button><button onClick={onClose}>放弃</button></div></section></div></section></div>;
 }
 
 function ResultView({message, onBack}: {message: string; onBack: () => void}) {

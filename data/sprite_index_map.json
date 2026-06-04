@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-03T11:01:42.128134+00:00",
+  "generated_at": "2026-06-04T11:11:17.530341+00:00",
   "showdown_path": "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown",
   "asset_base": "assets/pokemon-green/pokemon",
   "csv": "data/sprite_index_map.csv",
@@ -97,19 +97,19 @@
       "species_id": "venusaurmega",
       "name": "Venusaur-Mega",
       "national_dex": 3,
-      "sprite_index": 3,
+      "sprite_index": 254,
       "base_species": "Venusaur",
       "forme": "Mega",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0003/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0003/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0003/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0003/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0003/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0003/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0254/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0254/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0254/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0254/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0254/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0254/front_shiny_full.png"
       }
     },
     "charmander": {
@@ -173,38 +173,38 @@
       "species_id": "charizardgmax",
       "name": "Charizard-Gmax",
       "national_dex": 6,
-      "sprite_index": 6,
+      "sprite_index": 252,
       "base_species": "Charizard",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0006/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0006/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0006/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0006/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0006/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0006/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0252/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0252/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0252/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0252/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0252/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0252/front_shiny_full.png"
       }
     },
     "charizardmegax": {
       "species_id": "charizardmegax",
       "name": "Charizard-Mega-X",
       "national_dex": 6,
-      "sprite_index": 6,
+      "sprite_index": 1079,
       "base_species": "Charizard",
       "forme": "Mega-X",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0006/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0006/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0006/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0006/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0006/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0006/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/1079/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/1079/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/1079/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/1079/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/1079/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/1079/front_shiny_full.png"
       }
     },
     "charizardmegay": {
@@ -306,19 +306,19 @@
       "species_id": "blastoisemega",
       "name": "Blastoise-Mega",
       "national_dex": 9,
-      "sprite_index": 9,
+      "sprite_index": 253,
       "base_species": "Blastoise",
       "forme": "Mega",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0009/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0009/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0009/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0009/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0009/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0009/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0253/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0253/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0253/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0253/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0253/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0253/front_shiny_full.png"
       }
     },
     "caterpie": {
@@ -382,19 +382,19 @@
       "species_id": "butterfreegmax",
       "name": "Butterfree-Gmax",
       "national_dex": 12,
-      "sprite_index": 12,
+      "sprite_index": 259,
       "base_species": "Butterfree",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0012/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0012/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0012/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0012/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0012/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0012/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0259/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0259/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0259/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0259/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0259/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0259/front_shiny_full.png"
       }
     },
     "weedle": {
@@ -610,19 +610,19 @@
       "species_id": "raticatealola",
       "name": "Raticate-Alola",
       "national_dex": 20,
-      "sprite_index": 20,
+      "sprite_index": 261,
       "base_species": "Raticate",
       "forme": "Alola",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0020/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0020/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0020/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0020/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0020/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0020/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0261/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0261/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0261/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0261/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0261/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0261/front_shiny_full.png"
       }
     },
     "raticatealolatotem": {
@@ -1826,19 +1826,19 @@
       "species_id": "persianalola",
       "name": "Persian-Alola",
       "national_dex": 53,
-      "sprite_index": 53,
+      "sprite_index": 260,
       "base_species": "Persian",
       "forme": "Alola",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0053/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0053/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0053/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0053/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0053/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0053/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0260/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0260/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0260/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0260/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0260/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0260/front_shiny_full.png"
       }
     },
     "psyduck": {
@@ -2187,19 +2187,19 @@
       "species_id": "machampgmax",
       "name": "Machamp-Gmax",
       "national_dex": 68,
-      "sprite_index": 68,
+      "sprite_index": 256,
       "base_species": "Machamp",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0068/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0068/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0068/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0068/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0068/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0068/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0256/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0256/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0256/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0256/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0256/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0256/front_shiny_full.png"
       }
     },
     "bellsprout": {
@@ -2928,19 +2928,19 @@
       "species_id": "gengargmax",
       "name": "Gengar-Gmax",
       "national_dex": 94,
-      "sprite_index": 94,
+      "sprite_index": 263,
       "base_species": "Gengar",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0094/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0094/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0094/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0094/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0094/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0094/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0263/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0263/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0263/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0263/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0263/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0263/front_shiny_full.png"
       }
     },
     "gengarmega": {
@@ -3061,19 +3061,19 @@
       "species_id": "kinglergmax",
       "name": "Kingler-Gmax",
       "national_dex": 99,
-      "sprite_index": 99,
+      "sprite_index": 257,
       "base_species": "Kingler",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0099/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0099/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0099/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0099/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0099/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0099/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0257/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0257/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0257/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0257/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0257/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0257/front_shiny_full.png"
       }
     },
     "voltorb": {
@@ -3954,19 +3954,19 @@
       "species_id": "laprasgmax",
       "name": "Lapras-Gmax",
       "national_dex": 131,
-      "sprite_index": 131,
+      "sprite_index": 258,
       "base_species": "Lapras",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0131/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0131/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0131/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0131/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0131/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0131/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0258/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0258/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0258/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0258/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0258/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0258/front_shiny_full.png"
       }
     },
     "ditto": {
@@ -4258,19 +4258,19 @@
       "species_id": "snorlaxgmax",
       "name": "Snorlax-Gmax",
       "national_dex": 143,
-      "sprite_index": 143,
+      "sprite_index": 262,
       "base_species": "Snorlax",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0143/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0143/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0143/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0143/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0143/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0143/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0262/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0262/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0262/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0262/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0262/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0262/front_shiny_full.png"
       }
     },
     "articuno": {
@@ -7811,38 +7811,38 @@
       "species_id": "sableye",
       "name": "Sableye",
       "national_dex": 302,
-      "sprite_index": 327,
+      "sprite_index": 322,
       "base_species": "Sableye",
       "forme": "",
-      "confidence": "emerald-internal-index",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
       "note": "edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0327/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0327/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0327/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0327/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0327/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0327/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0322/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0322/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0322/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0322/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0322/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0322/front_shiny_full.png"
       }
     },
     "sableyemega": {
       "species_id": "sableyemega",
       "name": "Sableye-Mega",
       "national_dex": 302,
-      "sprite_index": 327,
+      "sprite_index": 322,
       "base_species": "Sableye",
       "forme": "Mega",
       "confidence": "base-species-fallback",
       "source": "data/sprite_index_map.csv",
       "note": "edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0327/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0327/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0327/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0327/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0327/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0327/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0322/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0322/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0322/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0322/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0322/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0322/front_shiny_full.png"
       }
     },
     "mawile": {
@@ -20864,19 +20864,19 @@
       "species_id": "melmetalgmax",
       "name": "Melmetal-Gmax",
       "national_dex": 809,
-      "sprite_index": 862,
+      "sprite_index": 271,
       "base_species": "Melmetal",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0862/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0862/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0862/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0862/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0862/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0862/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0271/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0271/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0271/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0271/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0271/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0271/front_shiny_full.png"
       }
     },
     "grookey": {
@@ -21206,19 +21206,19 @@
       "species_id": "corviknightgmax",
       "name": "Corviknight-Gmax",
       "national_dex": 823,
-      "sprite_index": 876,
+      "sprite_index": 265,
       "base_species": "Corviknight",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0876/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0876/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0876/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0876/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0876/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0876/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0265/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0265/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0265/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0265/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0265/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0265/front_shiny_full.png"
       }
     },
     "blipbug": {
@@ -21282,19 +21282,19 @@
       "species_id": "orbeetlegmax",
       "name": "Orbeetle-Gmax",
       "national_dex": 826,
-      "sprite_index": 879,
+      "sprite_index": 264,
       "base_species": "Orbeetle",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0879/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0879/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0879/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0879/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0879/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0879/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0264/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0264/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0264/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0264/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0264/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0264/front_shiny_full.png"
       }
     },
     "nickit": {
@@ -21453,19 +21453,19 @@
       "species_id": "drednawgmax",
       "name": "Drednaw-Gmax",
       "national_dex": 834,
-      "sprite_index": 887,
+      "sprite_index": 273,
       "base_species": "Drednaw",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0887/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0887/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0887/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0887/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0887/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0887/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0273/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0273/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0273/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0273/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0273/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0273/front_shiny_full.png"
       }
     },
     "yamper": {
@@ -21567,19 +21567,19 @@
       "species_id": "coalossalgmax",
       "name": "Coalossal-Gmax",
       "national_dex": 839,
-      "sprite_index": 892,
+      "sprite_index": 266,
       "base_species": "Coalossal",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0892/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0892/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0892/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0892/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0892/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0892/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0266/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0266/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0266/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0266/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0266/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0266/front_shiny_full.png"
       }
     },
     "applin": {
@@ -21624,19 +21624,19 @@
       "species_id": "flapplegmax",
       "name": "Flapple-Gmax",
       "national_dex": 841,
-      "sprite_index": 894,
+      "sprite_index": 269,
       "base_species": "Flapple",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0894/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0894/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0894/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0894/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0894/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0894/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0269/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0269/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0269/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0269/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0269/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0269/front_shiny_full.png"
       }
     },
     "appletun": {
@@ -21662,19 +21662,19 @@
       "species_id": "appletungmax",
       "name": "Appletun-Gmax",
       "national_dex": 842,
-      "sprite_index": 895,
+      "sprite_index": 270,
       "base_species": "Appletun",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0895/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0895/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0895/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0895/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0895/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0895/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0270/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0270/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0270/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0270/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0270/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0270/front_shiny_full.png"
       }
     },
     "silicobra": {
@@ -21719,19 +21719,19 @@
       "species_id": "sandacondagmax",
       "name": "Sandaconda-Gmax",
       "national_dex": 844,
-      "sprite_index": 897,
+      "sprite_index": 272,
       "base_species": "Sandaconda",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0897/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0897/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0897/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0897/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0897/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0897/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0272/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0272/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0272/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0272/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0272/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0272/front_shiny_full.png"
       }
     },
     "cramorant": {
@@ -21871,19 +21871,19 @@
       "species_id": "toxtricitygmax",
       "name": "Toxtricity-Gmax",
       "national_dex": 849,
-      "sprite_index": 902,
+      "sprite_index": 275,
       "base_species": "Toxtricity",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0902/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0902/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0902/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0902/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0902/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0902/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0275/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0275/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0275/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0275/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0275/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0275/front_shiny_full.png"
       }
     },
     "toxtricitylowkey": {
@@ -21909,19 +21909,19 @@
       "species_id": "toxtricitylowkeygmax",
       "name": "Toxtricity-Low-Key-Gmax",
       "national_dex": 849,
-      "sprite_index": 902,
+      "sprite_index": 276,
       "base_species": "Toxtricity",
       "forme": "Low-Key-Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0902/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0902/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0902/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0902/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0902/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0902/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0276/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0276/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0276/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0276/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0276/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0276/front_shiny_full.png"
       }
     },
     "sizzlipede": {
@@ -22156,19 +22156,19 @@
       "species_id": "hatterenegmax",
       "name": "Hatterene-Gmax",
       "national_dex": 858,
-      "sprite_index": 911,
+      "sprite_index": 267,
       "base_species": "Hatterene",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0911/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0911/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0911/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0911/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0911/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0911/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0267/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0267/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0267/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0267/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0267/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0267/front_shiny_full.png"
       }
     },
     "impidimp": {
@@ -22232,19 +22232,19 @@
       "species_id": "grimmsnarlgmax",
       "name": "Grimmsnarl-Gmax",
       "national_dex": 861,
-      "sprite_index": 914,
+      "sprite_index": 268,
       "base_species": "Grimmsnarl",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0914/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0914/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0914/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0914/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0914/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0914/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0268/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0268/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0268/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0268/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0268/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0268/front_shiny_full.png"
       }
     },
     "obstagoon": {
@@ -22802,19 +22802,19 @@
       "species_id": "duraludongmax",
       "name": "Duraludon-Gmax",
       "national_dex": 884,
-      "sprite_index": 937,
+      "sprite_index": 274,
       "base_species": "Duraludon",
       "forme": "Gmax",
-      "confidence": "base-species-fallback",
+      "confidence": "manual-verified",
       "source": "data/sprite_index_map.csv",
-      "note": "edit this row if the sprite is wrong",
+      "note": "manual contact-sheet match; edit this row if the sprite is wrong",
       "paths": {
-        "front_normal": "assets/pokemon-green/pokemon/0937/front_normal.png",
-        "back_normal": "assets/pokemon-green/pokemon/0937/back_normal.png",
-        "front_shiny": "assets/pokemon-green/pokemon/0937/front_shiny.png",
-        "back_shiny": "assets/pokemon-green/pokemon/0937/back_shiny.png",
-        "front_normal_full": "assets/pokemon-green/pokemon/0937/front_normal_full.png",
-        "front_shiny_full": "assets/pokemon-green/pokemon/0937/front_shiny_full.png"
+        "front_normal": "assets/pokemon-green/pokemon/0274/front_normal.png",
+        "back_normal": "assets/pokemon-green/pokemon/0274/back_normal.png",
+        "front_shiny": "assets/pokemon-green/pokemon/0274/front_shiny.png",
+        "back_shiny": "assets/pokemon-green/pokemon/0274/back_shiny.png",
+        "front_normal_full": "assets/pokemon-green/pokemon/0274/front_normal_full.png",
+        "front_shiny_full": "assets/pokemon-green/pokemon/0274/front_shiny_full.png"
       }
     },
     "dreepy": {

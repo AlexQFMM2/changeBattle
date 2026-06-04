@@ -19,9 +19,17 @@ let pendingMessages = [];
 let latestRequests = {};
 let ended = false;
 let winner = null;
+let sideTeams = { p1: [], p2: [] };
+let sideSlotKeys = { p1: [], p2: [] };
 
 function toId(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function shortIdent(raw) {
+  let value = String(raw || "").split("|")[0].trim();
+  if (value.includes(":")) value = value.split(":", 2)[1].trim();
+  return value;
 }
 
 function seedArray(seed) {
@@ -318,10 +326,8 @@ function pokemonCondition(pokemon) {
   return `${pokemon.hp}/${pokemon.maxhp}${suffix}`;
 }
 
-function currentSideState(side = "p1") {
-  if (!stream || !stream.battle) throw new Error("battle has not started");
-  const battleSide = stream.battle.sides[sideIndex(side)];
-  return battleSide.pokemon.map((pokemon, index) => ({
+function pokemonStateFromBattle(pokemon, battleSide, index) {
+  return {
     slot: index + 1,
     ident: pokemon.fullname,
     details: pokemon.details,
@@ -340,7 +346,94 @@ function currentSideState(side = "p1") {
       pp: moveSlot.pp,
       maxpp: moveSlot.maxpp,
     })),
-  }));
+  };
+}
+
+function addSlotKey(keys, prefix, value) {
+  const normalized = toId(String(value || ""));
+  if (normalized) keys.add(`${prefix}:${normalized}`);
+}
+
+function addSpeciesLikeKeys(keys, value) {
+  const raw = String(value || "").trim();
+  if (!raw) return;
+  addSlotKey(keys, "species", raw);
+  addSlotKey(keys, "details_species", raw.split(",", 1)[0]);
+}
+
+function addMoveSignatureKey(keys, species, moves) {
+  const speciesId = toId(String(species || ""));
+  if (!speciesId || !Array.isArray(moves)) return;
+  const moveIds = moves
+    .map(move => toId(move?.id || move?.move || move?.name || move))
+    .filter(Boolean)
+    .sort();
+  if (moveIds.length) keys.add(`species_moves:${speciesId}:${moveIds.join(",")}`);
+}
+
+function keysForState(state = {}) {
+  const keys = new Set();
+  const short = shortIdent(state.ident || "");
+  addSlotKey(keys, "ident", short);
+  addSpeciesLikeKeys(keys, state.details);
+  addSpeciesLikeKeys(keys, state.species);
+  addSlotKey(keys, "item", state.item);
+  addMoveSignatureKey(keys, state.species || state.details || short, state.moves || []);
+  return keys;
+}
+
+function keysForSet(set = {}) {
+  const keys = new Set();
+  addSlotKey(keys, "ident", set.name || set.species);
+  addSpeciesLikeKeys(keys, set.species || set.name);
+  addSlotKey(keys, "ability", set.ability);
+  addSlotKey(keys, "item", set.item);
+  addMoveSignatureKey(keys, set.species || set.name, set.moves || []);
+  return keys;
+}
+
+function buildSideSlotKeys(team = [], states = [], side = "p1") {
+  const maxLength = Math.max(team.length, states.length);
+  return Array.from({ length: maxLength }, (_, index) => {
+    const slot = index + 1;
+    const keys = new Set();
+    for (const key of keysForSet(team[index] || {})) keys.add(key);
+    for (const key of keysForState(states[index] || {})) keys.add(key);
+    const fallbackName = team[index]?.species || team[index]?.name || states[index]?.species || states[index]?.details || slot;
+    addSlotKey(keys, "ident", `${side}: ${fallbackName}`);
+    keys.add(`slot:${slot}`);
+    return { slot, keys };
+  });
+}
+
+function resolveStateSlot(state, slotKeys, usedSlots) {
+  if (!slotKeys.length) return Number(state.slot) || 1;
+  for (const key of keysForState(state)) {
+    const match = slotKeys.find(spec => !usedSlots.has(spec.slot) && spec.keys.has(key));
+    if (match) return match.slot;
+  }
+  const fallbackSlot = Number(state.slot);
+  if (fallbackSlot && slotKeys.some(spec => spec.slot === fallbackSlot) && !usedSlots.has(fallbackSlot)) return fallbackSlot;
+  return slotKeys.find(spec => !usedSlots.has(spec.slot))?.slot || fallbackSlot || 1;
+}
+
+function alignStatesToSlots(states, slotKeys) {
+  if (!slotKeys.length) return states;
+  const usedSlots = new Set();
+  return states
+    .map(state => {
+      const slot = resolveStateSlot(state, slotKeys, usedSlots);
+      usedSlots.add(slot);
+      return { ...state, slot };
+    })
+    .sort((a, b) => a.slot - b.slot);
+}
+
+function currentSideState(side = "p1") {
+  if (!stream || !stream.battle) throw new Error("battle has not started");
+  const battleSide = stream.battle.sides[sideIndex(side)];
+  const states = battleSide.pokemon.map((pokemon, index) => pokemonStateFromBattle(pokemon, battleSide, index));
+  return alignStatesToSlots(states, sideSlotKeys[side] || []);
 }
 
 function refreshRequests() {
@@ -357,9 +450,14 @@ function syncSideState(side = "p1", states = []) {
   if (!stream || !stream.battle) throw new Error("battle has not started");
   const battleSide = stream.battle.sides[sideIndex(side)];
   const stateBySlot = new Map(states.map(state => [Number(state.slot), state]));
+  sideSlotKeys[side] = buildSideSlotKeys(sideTeams[side] || [], states, side);
+  const usedSlots = new Set();
   for (let index = 0; index < battleSide.pokemon.length; index++) {
     const pokemon = battleSide.pokemon[index];
-    const state = stateBySlot.get(index + 1);
+    const current = pokemonStateFromBattle(pokemon, battleSide, index);
+    const slot = resolveStateSlot(current, sideSlotKeys[side] || [], usedSlots);
+    const state = stateBySlot.get(slot);
+    usedSlots.add(slot);
     if (!state) continue;
 
     const hp = Math.max(0, Math.min(Number(state.hp ?? pokemon.maxhp) || 0, pokemon.maxhp));
@@ -452,6 +550,11 @@ async function handleStart(command) {
 
   const p1Team = command.p1Team || [];
   const p2Team = command.p2Team || [];
+  sideTeams = { p1: p1Team, p2: p2Team };
+  sideSlotKeys = {
+    p1: buildSideSlotKeys(p1Team, [], "p1"),
+    p2: buildSideSlotKeys(p2Team, [], "p2"),
+  };
   const init = [
     `>start ${JSON.stringify({ formatid: command.formatid || "gen7customgame", seed: seedArray(command.seed) })}`,
     `>player p1 ${JSON.stringify({ name: command.p1Name || "Player", team: Sim.Teams.pack(p1Team) })}`,

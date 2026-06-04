@@ -120,7 +120,7 @@ export type BattleRequestView = {
 
 export type BattleTracker = {
   turn: number;
-  active: Record<"p1" | "p2", {name?: string; condition?: string; status?: string}>;
+  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; condition?: string; status?: string; substitute?: boolean}>;
   boosts: Record<"p1" | "p2", Record<string, number>>;
   side_conditions: Record<"p1" | "p2", string[]>;
   weather: string;
@@ -141,6 +141,8 @@ export type BattleTimelineEventType =
   | "item"
   | "ability"
   | "switch"
+  | "form"
+  | "substitute"
   | "faint"
   | "weather"
   | "field"
@@ -157,9 +159,14 @@ export type BattleTimelineEvent = {
   source_id?: string;
   target?: string;
   target_id?: string;
+  target_species_id?: string;
+  notice_title?: string;
+  notice_detail?: string;
   move?: string;
   effect?: string;
   condition?: string;
+  sprite?: SpriteMapEntry;
+  substitute?: boolean;
   hp?: {current: number; max: number; text: string} | null;
 };
 
@@ -183,8 +190,98 @@ export type ExchangeState = {
   enemy_display: RentalPokemon[];
 };
 
+export type PlayerPokemonState = {
+  slot: number;
+  ident: string;
+  details: string;
+  species: string;
+  hp: number;
+  maxhp: number;
+  status: string;
+  fainted: boolean;
+  active: boolean;
+  item: string;
+  condition: string;
+  moves: Array<{
+    slot: number;
+    id: string;
+    move: string;
+    pp: number;
+    maxpp: number;
+  }>;
+};
+
+export type RestState = {
+  battle_no: number;
+  battles: number;
+  wins: number;
+  battle_points: number;
+  player_display: RentalPokemon[];
+  enemy_display: RentalPokemon[];
+  player_state: PlayerPokemonState[];
+  bag_items: Record<string, number>;
+  taken_enemy_slots: number[];
+  exchange_count: number;
+  costs: {
+    exchange: number | null;
+    restore_hp: Record<1 | 2 | 3, number>;
+    restore_pp: Record<1 | 2 | 3, number>;
+    restore_status: Record<1 | 2 | 3, number>;
+    adjust_stats: number;
+  };
+};
+
+export type RestAction =
+  | {type: "next"}
+  | {type: "abort"}
+  | {type: "restore_hp"; slots: number[]}
+  | {type: "restore_pp"; slots: number[]}
+  | {type: "restore_status"; slots: number[]}
+  | {type: "exchange"; ownIndex: number; enemyIndex: number}
+  | {type: "buy_item"; itemId: string}
+  | {type: "equip_item"; itemId: string; slot: number}
+  | {type: "unequip_item"; slot: number}
+  | {type: "adjust_move"; slot: number; moveSlot: number; moveId: string}
+  | {type: "adjust_stats"; slot: number; ivs: Record<string, number>; evs: Record<string, number>; ability: string; nature: string};
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  name_zh: string;
+  cost: number;
+  desc: string;
+  desc_zh: string;
+};
+
+export type PricedMove = MoveSummary & {
+  cost: number;
+};
+
+export type AbilityOption = {
+  id: string;
+  name: string;
+  name_zh: string;
+  desc: string;
+  desc_zh: string;
+};
+
+export type NatureOption = {
+  id: string;
+  name: string;
+  name_zh: string;
+  plus: string;
+  minus: string;
+  plus_zh: string;
+  minus_zh: string;
+};
+
+export type PokemonEditOptions = {
+  abilities: AbilityOption[];
+  natures: NatureOption[];
+};
+
 export type CurrentRunData = {
-  status: "ready" | "awaiting_exchange";
+  status: "ready" | "awaiting_rest" | "awaiting_exchange";
   seed: number;
   battles: number;
   next_battle?: number;
@@ -192,8 +289,17 @@ export type CurrentRunData = {
   wins: number;
   player_team: PokemonSet[];
   player_display: RentalPokemon[];
+  player_state?: PlayerPokemonState[];
   enemy_raw?: PokemonSet[];
   enemy_display?: RentalPokemon[];
+  bp_earned_this_run?: number;
+  bp_investments?: number[];
+  move_investments?: number[][];
+  bag_items?: Record<string, number>;
+  rest_status?: {
+    exchanges?: number;
+    taken_enemy_slots?: number[];
+  };
 };
 
 
@@ -209,6 +315,9 @@ export type TrainerStats = {
   battles: number;
   wins: number;
   losses: number;
+  win_rate?: number;
+  set_win_streak?: number;
+  best_set_win_streak?: number;
   rank_status: string;
 };
 
@@ -225,6 +334,7 @@ export type AppStatus =
   | "teamMenu"
   | "statusMenu"
   | "exchange"
+  | "rest"
   | "result";
 
 export type DesktopGameState = {
@@ -234,6 +344,7 @@ export type DesktopGameState = {
   selected_indexes?: number[];
   battle?: BattleState | null;
   exchange?: ExchangeState | null;
+  rest?: RestState | null;
   message?: string;
   pending_transition?: DesktopGameState | null;
 };
