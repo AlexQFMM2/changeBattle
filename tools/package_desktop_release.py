@@ -145,16 +145,17 @@ if ($nodeMajor -lt 20) {
   }
 }
 
-corepack enable
-corepack prepare pnpm@10.33.0 --activate
+function Invoke-Pnpm {
+  & npx --yes pnpm@10.33.0 @args
+}
 
 if (-not (Test-Path "apps\desktop\node_modules\electron")) {
-  pnpm install
+  Invoke-Pnpm install
 }
 
 $env:CHANGEBATTLE_PROJECT_ROOT = $AppDir
 $env:SHOWDOWN_PATH = Join-Path $AppDir "vendor\pokemon-showdown"
-pnpm --dir "apps\desktop" exec electron .
+Invoke-Pnpm --dir "apps\desktop" exec electron .
 """
     write_text(stage_dir / "ChangeBattle-Desk.cmd", cmd, newline="\r\n")
     write_text(stage_dir / "ChangeBattle-Desk.ps1", ps1, newline="\r\n")
@@ -170,7 +171,7 @@ Version: {package_version()}
 1. Unzip this package.
 2. Double-click `ChangeBattle-Desk.cmd`.
 3. If Node.js 20+ is missing, allow the script to install Node.js LTS with `winget`.
-4. The first launch runs `pnpm install`; later launches reuse the installed dependencies.
+4. The first launch runs `npx pnpm@10.33.0 install`; later launches reuse the installed dependencies.
 
 ## Runtime Requirements
 
@@ -182,6 +183,7 @@ Version: {package_version()}
 ## Notes
 
 - This is the first desktop Windows source-runtime release, not a fully self-contained `.exe` installer.
+- The launcher avoids `corepack enable`, so it does not need write permission in the Node.js install directory.
 - Saves are stored by Electron under the app user-data directory.
 - If startup fails after moving the folder, delete `node_modules` and run `ChangeBattle-Desk.cmd` again.
 
