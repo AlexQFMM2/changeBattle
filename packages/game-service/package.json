@@ -1,0 +1,17 @@
+{
+  "name": "@changebattle/game-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@changebattle/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0"
+  }
+}

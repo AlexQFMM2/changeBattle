@@ -56,6 +56,21 @@ class ShowdownClient:
     def generate(self, seed: int | list[int], format_id: str = "gen7randombattle") -> dict[str, Any]:
         return self.command({"cmd": "generate", "format": format_id, "seed": seed})
 
+    def describe(self, set_data: dict[str, Any]) -> dict[str, Any]:
+        return self.command({"cmd": "describe", "set": set_data})
+
+    def options(self, set_data: dict[str, Any]) -> dict[str, Any]:
+        return self.command({"cmd": "options", "set": set_data})
+
+    def learnable_moves(self, set_data: dict[str, Any]) -> dict[str, Any]:
+        return self.command({"cmd": "learnableMoves", "set": set_data})
+
+    def item_options(self) -> dict[str, Any]:
+        return self.command({"cmd": "itemOptions"})
+
+    def goods_defaults(self) -> dict[str, Any]:
+        return self.command({"cmd": "goodsDefaults"})
+
     def start(self, p1_team: list[dict[str, Any]], p2_team: list[dict[str, Any]], seed: int | list[int]) -> dict[str, Any]:
         return self.command({
             "cmd": "start",
@@ -69,6 +84,15 @@ class ShowdownClient:
 
     def choose(self, side: str, choice: str) -> dict[str, Any]:
         return self.command({"cmd": "choose", "side": side, "choice": choice})
+
+    def forfeit(self, side: str) -> dict[str, Any]:
+        return self.command({"cmd": "forfeit", "side": side})
+
+    def state(self) -> dict[str, Any]:
+        return self.command({"cmd": "state"})
+
+    def sync_state(self, side: str, states: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.command({"cmd": "syncState", "side": side, "states": states})
 
 
 def main() -> int:

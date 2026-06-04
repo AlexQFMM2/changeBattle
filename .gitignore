@@ -4,5 +4,12 @@ __pycache__/
 .DS_Store
 
 dump/
+debug/
 work/
 release/
+saves/
+assets/pokemon-green/
+node_modules/
+apps/desktop/out/
+apps/desktop/dist/
+apps/desktop/dist-electron/

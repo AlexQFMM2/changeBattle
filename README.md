@@ -36,7 +36,7 @@ ChangeBattle     = 租赁、选择、交换、连战、中文 CLI、未来 UI/�
 进入项目目录：
 
 ```bash
-cd /home/alexqfmm/workPlace/pokemon/pokemonAbout
+cd /home/alexqfmm/workPlace/pokemon/changeBattle
 ```
 
 启动文字版：
@@ -63,6 +63,22 @@ cd /home/alexqfmm/workPlace/pokemon/pokemonAbout
 ./start_game_cli --seed 123 --battles 1 --auto
 ```
 
+## 桌面版开发入口
+
+Electron + React 桌面版正在搭建中，目前已经能打开基础候选页，并接入本地桌面存档读写。它不会影响上面的 CLI，文字版仍然是当前最完整的可玩入口。
+
+安装依赖后启动桌面开发版：
+
+```bash
+./start_game_desk
+```
+
+构建桌面端前端产物：
+
+```bash
+pnpm desktop:build
+```
+
 ## Showdown 依赖
 
 Pokemon Showdown 不提交进本仓库，它是外部引擎依赖。默认路径是：
@@ -85,6 +101,45 @@ SHOWDOWN_PATH/dist/sim/index.js
 ```
 
 如果找不到，会给出明确错误提示。
+
+Showdown 回合协议的解析和桌面演出规则记录在：
+
+```text
+docs/showdown-battle-log.md
+```
+
+## CLI Windows Release
+
+文字版可以打成 Windows 友好的 zip，包内会带上精简后的 `vendor/pokemon-showdown` 构建产物：
+
+```bash
+python3 tools/package_cli_release.py
+```
+
+输出文件：
+
+```text
+release/changeBattle-cli-win.zip
+```
+
+Windows 侧使用方式：
+
+1. 解压 `changeBattle-cli-win.zip`。
+2. 双击 `ChangeBattle.cmd`。
+   - 已有 Python 3.10+ / Node.js 20+ 时会直接启动。
+   - 缺依赖时会询问是否通过 `winget` 安装。
+   - 安装/检查完成后会自动启动游戏。
+
+也可以手动分步执行：
+
+1. 双击 `install_windows.cmd`。
+2. 双击 `start_game_cli.cmd`。
+
+PowerShell 也可以运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start_game_cli.ps1
+```
 
 ## 操作说明
 
@@ -175,18 +230,59 @@ b        返回主菜单
 - 双方当前宝可梦。
 - 最近战报。
 
+## 图片资源
+
+当前已支持从本地 `green.gba` 抽取宝可梦像素图。这个 ROM 是 Emerald 改版，内含大量宝可梦正面、背面、普通色和闪光色资源。
+
+已整理的本地资源目录：
+
+```text
+assets/pokemon-green/pokemon/{index}/front_normal.png
+assets/pokemon-green/pokemon/{index}/back_normal.png
+assets/pokemon-green/pokemon/{index}/front_shiny.png
+assets/pokemon-green/pokemon/{index}/back_shiny.png
+```
+
+`assets/pokemon-green/` 是本地资源目录，已被 `.gitignore` 忽略，不随仓库发布。Showdown species 到图片的可校对源映射在：
+
+```text
+data/sprite_index_map.csv
+```
+
+运行时读取的 manifest 由 CSV 生成：
+
+```text
+data/sprite_index_map.json
+```
+
+发现错图时改 CSV 的 `species_id,image`，再运行 `python3 tools/build_sprite_index_map.py` 重建 JSON。桌面 UI 按 `species_id -> sprite_index_map.json -> image path` 查图；找不到时回退 `assets/placeholders/pokemon.png`。详细导出和映射说明见 [docs/green-gba-assets.md](docs/green-gba-assets.md)。
+
+桌面战斗特效已经有第一版通用表现层：
+
+```text
+data/battle_effect_assets.json
+```
+
+当前先用 CSS fallback 覆盖属性招式、异常、天气、场地、撒钉、出场/收回、倒下、回血、强化、道具和特性触发。后续可以用新脚本继续从 `green.gba` 摸索真实战斗特效候选：
+
+```bash
+python3 tools/extract_green_gba_battle_effects.py \
+  /home/alexqfmm/workPlace/pokemon/green.gba \
+  --out-dir dump/green-gba-battle-effects
+```
+
 ## 项目结构
 
 ```text
-pokemonAbout/
+changeBattle/
   start_game_cli       一键启动文字版
   changeBattle-cli/    CLI 游戏入口
   core/                Showdown 路径配置、Python 客户端、中文显示层
   showdown-adapter/    Node 侧 Showdown Teams/BattleStream 适配器
   data/                中文覆盖表、描述表、资源 manifest
   assets/              占位图、属性色块和未来 UI 图片资源
-  docs/                Showdown 集成说明
-  tools/               资源校验脚本
+  docs/                Showdown 集成、green.gba 图片资源说明
+  tools/               资源校验、green.gba 抽图、sprite 映射脚本
   plan.md              当前阶段计划与完成情况
   rule.md              基础规则设定
 ```
@@ -229,7 +325,7 @@ ChangeBattle 负责：
 - 敌方行动目前是随机合法行动，还没有 AI 策略。
 - 中文词库已经覆盖大量内容，但仍可能有翻译缺失或显示不够自然。
 - 终端 UI 仍是第一版，后续可以继续压缩排版、增强战报层级。
-- 图片资源系统只有 manifest 和占位约定，暂未接入正式游戏画面。
+- green.gba 宝可梦图片已完成本地抽取和映射，但尚未接入 CLI/桌面 UI；形态图仍需要后续手工校正。
 
 ## 下一步
 
@@ -243,8 +339,8 @@ ChangeBattle 负责：
 
 中长期方向：
 
-- 图形化版本。
-- 宝可梦、道具、属性图片资源索引。
+- Electron 图形化版本。
+- 将 `data/sprite_index_map.json` 接入 UI，实现 Showdown species 自动查图。
+- 继续逆道具图标、招式特效等非宝可梦资源。
 - 更接近原版对战工厂的难度曲线和 Boss 局。
 - 未来再考虑 Showdown server / Docker / 联机玩法。
-

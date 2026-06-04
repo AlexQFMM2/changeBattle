@@ -4,9 +4,12 @@
 const readline = require("node:readline");
 const path = require("node:path");
 
-const DEFAULT_SHOWDOWN_PATH = "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown";
+const PROJECT_ROOT = path.resolve(__dirname, "..");
+const VENDORED_SHOWDOWN_PATH = path.join(PROJECT_ROOT, "vendor", "pokemon-showdown");
+const DEFAULT_SHOWDOWN_PATH = VENDORED_SHOWDOWN_PATH;
 const SHOWDOWN_PATH = process.env.SHOWDOWN_PATH || DEFAULT_SHOWDOWN_PATH;
 const Sim = require(path.join(SHOWDOWN_PATH, "dist", "sim"));
+const GEN7 = Sim.Dex.mod("gen7");
 
 const FIXED_LEVEL = 50;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"];
@@ -16,6 +19,10 @@ let pendingMessages = [];
 let latestRequests = {};
 let ended = false;
 let winner = null;
+
+function toId(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
 
 function seedArray(seed) {
   if (Array.isArray(seed) && seed.length === 4) return seed.map(n => Number(n) & 0xffff);
@@ -66,8 +73,8 @@ function calculatedStats(species, ivs, evs, level, nature) {
   return stats;
 }
 
-function moveDetails(moveId) {
-  const move = Sim.Dex.moves.get(moveId);
+function moveDetails(moveId, dex = GEN7) {
+  const move = dex.moves.get(moveId);
   return {
     id: move.id || moveId,
     name: move.name || moveId,
@@ -83,8 +90,20 @@ function moveDetails(moveId) {
   };
 }
 
+function itemDetails(itemId, dex = GEN7) {
+  const item = dex.items.get(itemId);
+  return {
+    id: item.id || itemId,
+    name: item.name || itemId,
+    desc: item.desc || item.shortDesc || "",
+    short_desc: item.shortDesc || "",
+    gen: item.gen || 0,
+    isNonstandard: item.isNonstandard || null,
+  };
+}
+
 function describeSet(set) {
-  const moves = (set.moves || []).map(moveDetails);
+  const moves = (set.moves || []).map(move => moveDetails(move));
   const species = Sim.Dex.species.get(set.species || set.name);
   const ability = Sim.Dex.abilities.get(set.ability);
   const item = set.item ? Sim.Dex.items.get(set.item) : null;
@@ -126,6 +145,122 @@ function normalizeTeam(team) {
     nature: set.nature || "Serious",
     moves: [...(set.moves || [])],
   }));
+}
+
+function legalAbilities(set) {
+  const species = GEN7.species.get(set.species || set.name);
+  const seen = new Set();
+  const result = [];
+  for (const abilityName of Object.values(species.abilities || {})) {
+    const ability = Sim.Dex.abilities.get(abilityName);
+    const name = ability.exists ? ability.name : abilityName;
+    const id = ability.exists ? ability.id : toId(name);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    result.push({
+      id,
+      name,
+      desc: ability.exists ? (ability.desc || ability.shortDesc || "") : "",
+      short_desc: ability.exists ? (ability.shortDesc || "") : "",
+    });
+  }
+  return result;
+}
+
+function natureOptions() {
+  return Sim.Dex.natures.all().map(nature => ({
+    id: nature.id,
+    name: nature.name,
+    plus: nature.plus || "",
+    minus: nature.minus || "",
+  }));
+}
+
+function legalLearnsetMoveIds(set) {
+  const species = GEN7.species.get(set.species || set.name);
+  if (!species.exists) return [];
+  const fullLearnset = GEN7.species.getFullLearnset(species.id);
+  const seen = new Set();
+  for (const entry of fullLearnset || []) {
+    for (const moveId of Object.keys(entry.learnset || {})) {
+      const move = GEN7.moves.get(moveId);
+      if (!move.exists || !move.id || seen.has(move.id)) continue;
+      if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+      seen.add(move.id);
+    }
+  }
+  return [...seen];
+}
+
+function learnableMoves(set) {
+  return legalLearnsetMoveIds(set)
+    .map(moveId => moveDetails(moveId, GEN7))
+    .sort((a, b) => {
+      if ((b.power || 0) !== (a.power || 0)) return (b.power || 0) - (a.power || 0);
+      return a.name.localeCompare(b.name);
+    });
+}
+
+function itemOptions() {
+  return GEN7.items.all()
+    .filter(item => item.exists && item.id && (!item.isNonstandard || item.isNonstandard === "Past"))
+    .map(item => itemDetails(item.id, GEN7))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function defaultMoveCost(move) {
+  const power = Number(move.basePower || move.power || 0);
+  if (power >= 120) return 5;
+  if (power > 90) return 4;
+  if (power > 60) return 3;
+  if (power > 30) return 2;
+  return 1;
+}
+
+function goodsDefaults() {
+  const rows = [];
+  for (const move of GEN7.moves.all()) {
+    if (!move.exists || !move.id) continue;
+    if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+    rows.push({
+      item_id: move.id,
+      item_type: "skill",
+      item_name: move.name,
+      item_cost: defaultMoveCost(move),
+      power: move.basePower || 0,
+    });
+  }
+  for (const item of itemOptions()) {
+    rows.push({
+      item_id: item.id,
+      item_type: "item",
+      item_name: item.name,
+      item_cost: 5,
+    });
+  }
+  for (const service of [
+    ["exchange_1", "service", "交换宝可梦第1只", 0],
+    ["exchange_2", "service", "交换宝可梦第2只", 1],
+    ["exchange_3", "service", "交换宝可梦第3只", 2],
+    ["restore_hp_1", "service", "恢复HP 1只", 1],
+    ["restore_hp_2", "service", "恢复HP 2只", 2],
+    ["restore_hp_3", "service", "恢复HP 3只", 3],
+    ["restore_pp_1", "service", "恢复PP 1只", 0],
+    ["restore_pp_2", "service", "恢复PP 2只", 1],
+    ["restore_pp_3", "service", "恢复PP 3只", 2],
+    ["restore_status_1", "service", "恢复异常 1只", 0],
+    ["restore_status_2", "service", "恢复异常 2只", 0],
+    ["restore_status_3", "service", "恢复异常 3只", 1],
+    ["adjust_stats", "service", "调整能力值", 10],
+  ]) {
+    rows.push({
+      item_id: service[0],
+      item_type: service[1],
+      item_name: service[2],
+      item_cost: service[3],
+    });
+  }
+  return { rows };
 }
 
 function parseChunk(chunk) {
@@ -171,6 +306,92 @@ function drain() {
   };
 }
 
+function sideIndex(side) {
+  if (side === "p2" || side === 2) return 1;
+  return 0;
+}
+
+function pokemonCondition(pokemon) {
+  if (!pokemon) return "?";
+  if (!pokemon.hp || pokemon.fainted) return "0 fnt";
+  const suffix = pokemon.status ? ` ${pokemon.status}` : "";
+  return `${pokemon.hp}/${pokemon.maxhp}${suffix}`;
+}
+
+function currentSideState(side = "p1") {
+  if (!stream || !stream.battle) throw new Error("battle has not started");
+  const battleSide = stream.battle.sides[sideIndex(side)];
+  return battleSide.pokemon.map((pokemon, index) => ({
+    slot: index + 1,
+    ident: pokemon.fullname,
+    details: pokemon.details,
+    species: pokemon.species?.name || pokemon.set?.species || pokemon.name,
+    condition: pokemonCondition(pokemon),
+    hp: pokemon.hp || 0,
+    maxhp: pokemon.maxhp || 0,
+    status: pokemon.status || "",
+    fainted: Boolean(pokemon.fainted || !pokemon.hp),
+    active: battleSide.active.includes(pokemon),
+    item: pokemon.item || "",
+    moves: pokemon.moveSlots.map((moveSlot, moveIndex) => ({
+      slot: moveIndex + 1,
+      id: moveSlot.id,
+      move: moveSlot.move,
+      pp: moveSlot.pp,
+      maxpp: moveSlot.maxpp,
+    })),
+  }));
+}
+
+function refreshRequests() {
+  if (!stream || !stream.battle || !stream.battle.requestState) return;
+  const requests = stream.battle.getRequests(stream.battle.requestState);
+  for (let index = 0; index < stream.battle.sides.length; index++) {
+    const side = stream.battle.sides[index];
+    side.activeRequest = requests[index];
+    side.emitRequest(requests[index], true);
+  }
+}
+
+function syncSideState(side = "p1", states = []) {
+  if (!stream || !stream.battle) throw new Error("battle has not started");
+  const battleSide = stream.battle.sides[sideIndex(side)];
+  const stateBySlot = new Map(states.map(state => [Number(state.slot), state]));
+  for (let index = 0; index < battleSide.pokemon.length; index++) {
+    const pokemon = battleSide.pokemon[index];
+    const state = stateBySlot.get(index + 1);
+    if (!state) continue;
+
+    const hp = Math.max(0, Math.min(Number(state.hp ?? pokemon.maxhp) || 0, pokemon.maxhp));
+    pokemon.hp = hp;
+    pokemon.fainted = hp <= 0;
+    pokemon.faintQueued = false;
+    pokemon.subFainted = null;
+
+    const status = toId(state.status || "");
+    pokemon.status = "";
+    pokemon.statusState = {};
+    if (status && hp > 0) pokemon.setStatus(status, pokemon, null, true);
+
+    const ppById = new Map();
+    const ppBySlot = new Map();
+    for (const move of state.moves || []) {
+      ppById.set(toId(move.id || move.move), Number(move.pp));
+      ppBySlot.set(Number(move.slot), Number(move.pp));
+    }
+    for (let moveIndex = 0; moveIndex < pokemon.moveSlots.length; moveIndex++) {
+      const moveSlot = pokemon.moveSlots[moveIndex];
+      const nextPp = ppById.has(moveSlot.id) ? ppById.get(moveSlot.id) : ppBySlot.get(moveIndex + 1);
+      if (Number.isFinite(nextPp)) {
+        moveSlot.pp = Math.max(0, Math.min(Number(nextPp), moveSlot.maxpp));
+      }
+    }
+  }
+  battleSide.pokemonLeft = battleSide.pokemon.filter(pokemon => !pokemon.fainted && pokemon.hp > 0).length;
+  pendingMessages = [];
+  refreshRequests();
+}
+
 function startReader() {
   (async () => {
     for await (const chunk of stream) {
@@ -190,6 +411,34 @@ async function handleGenerate(command) {
     team,
     display: team.map(describeSet),
     packed: Sim.Teams.pack(team),
+  };
+}
+
+async function handleDescribe(command) {
+  const set = normalizeTeam([command.set || {}])[0];
+  return {
+    set,
+    display: describeSet(set),
+  };
+}
+
+async function handleOptions(command) {
+  const set = command.set || {};
+  return {
+    abilities: legalAbilities(set),
+    natures: natureOptions(),
+  };
+}
+
+async function handleLearnableMoves(command) {
+  return {
+    moves: learnableMoves(command.set || {}),
+  };
+}
+
+async function handleItemOptions() {
+  return {
+    items: itemOptions(),
   };
 }
 
@@ -222,8 +471,35 @@ async function handleChoose(command) {
   return drain();
 }
 
+async function handleForfeit(command) {
+  if (!stream) throw new Error("battle has not started");
+  const side = command.side || "p1";
+  await stream.write(`>forcelose ${side}`);
+  await waitForMessages();
+  return drain();
+}
+
 async function handleRequest() {
   return drain();
+}
+
+async function handleState(command) {
+  return {
+    p1: currentSideState("p1"),
+    p2: currentSideState("p2"),
+  };
+}
+
+async function handleSyncState(command) {
+  syncSideState(command.side || "p1", command.states || []);
+  await waitForMessages();
+  return {
+    messages: pendingMessages.splice(0),
+    requests: latestRequests,
+    ended,
+    winner,
+    state: currentSideState(command.side || "p1"),
+  };
 }
 
 async function dispatch(command) {
@@ -232,12 +508,28 @@ async function dispatch(command) {
     return { pong: true, showdownPath: SHOWDOWN_PATH };
   case "generate":
     return handleGenerate(command);
+  case "describe":
+    return handleDescribe(command);
+  case "options":
+    return handleOptions(command);
+  case "learnableMoves":
+    return handleLearnableMoves(command);
+  case "itemOptions":
+    return handleItemOptions(command);
+  case "goodsDefaults":
+    return goodsDefaults();
   case "start":
     return handleStart(command);
   case "choose":
     return handleChoose(command);
+  case "forfeit":
+    return handleForfeit(command);
   case "drain":
     return handleRequest();
+  case "state":
+    return handleState(command);
+  case "syncState":
+    return handleSyncState(command);
   default:
     throw new Error(`unknown command: ${command.cmd}`);
   }

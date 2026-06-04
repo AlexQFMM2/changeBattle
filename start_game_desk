@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "找不到 pnpm，请先安装 Node/pnpm 依赖环境。" >&2
+  exit 1
+fi
+
+if [[ ! -d node_modules ]]; then
+  echo "找不到 node_modules，请先执行：" >&2
+  echo "  pnpm install" >&2
+  exit 1
+fi
+
+# Some shells can inherit Electron debug envs that make Electron run as Node.
+unset ELECTRON_RUN_AS_NODE
+unset ELECTRON_NO_ATTACH_CONSOLE
+
+exec pnpm desktop:dev "$@"

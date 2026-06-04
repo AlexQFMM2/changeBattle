@@ -1,0 +1,51 @@
+import {resolve} from "node:path";
+import {defineConfig, externalizeDepsPlugin} from "electron-vite";
+import react from "@vitejs/plugin-react";
+
+const projectRoot = resolve(__dirname, "../..");
+
+export default defineConfig({
+  main: {
+    plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        "@changebattle/shared": resolve(projectRoot, "packages/shared/src"),
+        "@changebattle/game-service": resolve(projectRoot, "packages/game-service/src"),
+      },
+    },
+    build: {
+      rollupOptions: {
+        input: resolve(__dirname, "electron/main.ts"),
+      },
+    },
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        "@changebattle/shared": resolve(projectRoot, "packages/shared/src"),
+      },
+    },
+    build: {
+      rollupOptions: {
+        input: resolve(__dirname, "electron/preload.ts"),
+      },
+    },
+  },
+  renderer: {
+    root: __dirname,
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@changebattle/shared": resolve(projectRoot, "packages/shared/src"),
+      },
+    },
+    build: {
+      outDir: "out/renderer",
+      emptyOutDir: true,
+      rollupOptions: {
+        input: resolve(__dirname, "index.html"),
+      },
+    },
+  },
+});

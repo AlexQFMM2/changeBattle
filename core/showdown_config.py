@@ -7,19 +7,24 @@ import subprocess
 from pathlib import Path
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SHOWDOWN_PATH = Path("/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown")
+VENDORED_SHOWDOWN_PATH = PROJECT_ROOT / "vendor" / "pokemon-showdown"
 
 
 def showdown_path() -> Path:
-    return Path(os.environ.get("SHOWDOWN_PATH", DEFAULT_SHOWDOWN_PATH)).expanduser().resolve()
+    env_path = os.environ.get("SHOWDOWN_PATH")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+    if (VENDORED_SHOWDOWN_PATH / "dist" / "sim" / "index.js").exists():
+        return VENDORED_SHOWDOWN_PATH.resolve()
+    return DEFAULT_SHOWDOWN_PATH.resolve()
 
 
 def validate_showdown_path(path: Path | None = None) -> Path:
     root = path or showdown_path()
     if not root.exists():
         raise RuntimeError(f"Pokemon Showdown path does not exist: {root}")
-    if not (root / "pokemon-showdown").exists():
-        raise RuntimeError(f"Pokemon Showdown executable not found: {root / 'pokemon-showdown'}")
     if not (root / "dist" / "sim" / "index.js").exists():
         raise RuntimeError(
             "Pokemon Showdown is not built. Run: "

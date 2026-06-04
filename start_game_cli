@@ -5,7 +5,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 if [[ -z "${SHOWDOWN_PATH:-}" ]]; then
-  export SHOWDOWN_PATH="/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown"
+  if [[ -f "$ROOT_DIR/vendor/pokemon-showdown/dist/sim/index.js" ]]; then
+    export SHOWDOWN_PATH="$ROOT_DIR/vendor/pokemon-showdown"
+  else
+    export SHOWDOWN_PATH="/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown"
+  fi
 fi
 
 if [[ ! -f "$SHOWDOWN_PATH/dist/sim/index.js" ]]; then
