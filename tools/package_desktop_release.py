@@ -134,6 +134,23 @@ function Get-NodeMajor {
   return [int]($version.Split(".")[0])
 }
 
+function Remove-InstallState {
+  foreach ($path in @("node_modules", "apps\desktop\node_modules", "packages\game-service\node_modules", "packages\shared\node_modules")) {
+    if (Test-Path $path) {
+      Remove-Item $path -Recurse -Force
+    }
+  }
+}
+
+function Test-ElectronInstall {
+  try {
+    $electronPath = (& node -e "try { const electron = require('./apps/desktop/node_modules/electron'); if (typeof electron !== 'string' || !electron) process.exit(2); console.log(electron); } catch (error) { process.exit(1); }")
+    return ($LASTEXITCODE -eq 0 -and $electronPath -and (Test-Path $electronPath.Trim()))
+  } catch {
+    return $false
+  }
+}
+
 $nodeMajor = Get-NodeMajor
 if ($nodeMajor -lt 20) {
   Write-Host "ChangeBattle Desk needs Node.js 20+." -ForegroundColor Yellow
@@ -143,14 +160,22 @@ if ($nodeMajor -lt 20) {
   } else {
     throw "Node.js 20+ is required."
   }
+  $nodeMajor = Get-NodeMajor
+  if ($nodeMajor -lt 20) {
+    throw "Node.js 20+ was not found in this terminal. Close this window and run ChangeBattle-Desk.cmd again, or put Node.js 20+ before older Node versions in PATH."
+  }
 }
 
 function Invoke-Pnpm {
   & npx --yes pnpm@10.33.0 @args
 }
 
-if (-not (Test-Path "apps\desktop\node_modules\electron")) {
+if (-not (Test-ElectronInstall)) {
+  Remove-InstallState
   Invoke-Pnpm install
+}
+if (-not (Test-ElectronInstall)) {
+  throw "Electron did not install correctly. Please check network access to npm/electron downloads, then run ChangeBattle-Desk.cmd again."
 }
 
 $env:CHANGEBATTLE_PROJECT_ROOT = $AppDir
@@ -171,7 +196,8 @@ Version: {package_version()}
 1. Unzip this package.
 2. Double-click `ChangeBattle-Desk.cmd`.
 3. If Node.js 20+ is missing, allow the script to install Node.js LTS with `winget`.
-4. The first launch runs `npx pnpm@10.33.0 install`; later launches reuse the installed dependencies.
+4. If an old/broken `node_modules` exists, the launcher removes it and reinstalls.
+5. The first launch runs `npx pnpm@10.33.0 install`; later launches reuse the installed dependencies.
 
 ## Runtime Requirements
 
@@ -184,6 +210,7 @@ Version: {package_version()}
 
 - This is the first desktop Windows source-runtime release, not a fully self-contained `.exe` installer.
 - The launcher avoids `corepack enable`, so it does not need write permission in the Node.js install directory.
+- Node.js 20+ must be the `node` found in PATH. If winget installs Node but this window still shows Node 18, close the window and start again.
 - Saves are stored by Electron under the app user-data directory.
 - If startup fails after moving the folder, delete `node_modules` and run `ChangeBattle-Desk.cmd` again.
 
