@@ -141,7 +141,7 @@ export class GameService {
   }
 
   speciesDisplay(rawSpecies: string): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry} {
-    const species = this.loadShowdown().Dex.species.get(rawSpecies);
+    const species = this.dataDex().species.get(rawSpecies);
     const speciesId = species.id || this.toId(rawSpecies);
     const name = species.name || rawSpecies;
     return {
@@ -154,9 +154,9 @@ export class GameService {
 
   async itemOptions(): Promise<ShopItem[]> {
     await this.loadDisplayData();
-    const sim = this.loadShowdown();
-    return sim.Dex.items.all()
-      .filter((item: any) => item.exists && !item.isNonstandard)
+    const dex = this.dataDex();
+    return dex.items.all()
+      .filter((item: any) => item.exists && this.includeDataEntry(item))
       .map((item: any) => ({
         id: item.id,
         name: item.name,
@@ -169,7 +169,7 @@ export class GameService {
 
   async dexSearch(category: DesktopDexCategory, query = "", offset = 0, limit = 8): Promise<DesktopDexSearchResult> {
     await this.loadDisplayData();
-    const dex = this.loadShowdown().Dex.mod("gen7");
+    const dex = this.dataDex();
     const normalizedCategory: DesktopDexCategory = ["pokemon", "abilities", "moves", "items"].includes(category) ? category : "pokemon";
     const cappedLimit = Math.max(1, Math.min(120, Number(limit || 80)));
     const normalizedOffset = Math.max(0, Number(offset || 0));
@@ -178,13 +178,14 @@ export class GameService {
     const matches = (entry: DesktopDexEntry) => {
       if (!needle && !needleId) return true;
       const text = [entry.id, entry.name, entry.name_zh, entry.desc, entry.desc_zh, ...(entry.tags || [])].filter(Boolean).join(" ").toLowerCase();
-      return text.includes(needle) || this.toId(text).includes(needleId);
+      const textId = this.toId(text);
+      return Boolean((needle && text.includes(needle)) || (needleId && textId.includes(needleId)));
     };
     let entries: DesktopDexEntry[] = [];
 
     if (normalizedCategory === "pokemon") {
       entries = dex.species.all()
-        .filter((species: any) => species.exists && species.num > 0 && !species.isNonstandard)
+        .filter((species: any) => species.exists && species.num > 0 && this.includeDataEntry(species))
         .map((species: any) => ({
           id: species.id,
           name: species.name,
@@ -200,7 +201,7 @@ export class GameService {
         .sort((a: DesktopDexEntry, b: DesktopDexEntry) => Number(a.sprite?.national_dex || 9999) - Number(b.sprite?.national_dex || 9999) || a.name.localeCompare(b.name));
     } else if (normalizedCategory === "abilities") {
       entries = dex.abilities.all()
-        .filter((ability: any) => ability.exists && !ability.isNonstandard)
+        .filter((ability: any) => ability.exists && this.includeDataEntry(ability))
         .map((ability: any) => ({
           id: ability.id,
           name: ability.name,
@@ -214,7 +215,7 @@ export class GameService {
         .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
     } else if (normalizedCategory === "moves") {
       entries = dex.moves.all()
-        .filter((move: any) => move.exists && !move.isNonstandard)
+        .filter((move: any) => move.exists && this.includeDataEntry(move))
         .map((move: any) => {
           const detail = this.detail("moves", move.name);
           return {
@@ -239,7 +240,7 @@ export class GameService {
         .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
     } else {
       entries = dex.items.all()
-        .filter((item: any) => item.exists && !item.isNonstandard)
+        .filter((item: any) => item.exists && this.includeDataEntry(item))
         .map((item: any) => ({
           id: item.id,
           name: item.name,
@@ -268,7 +269,7 @@ export class GameService {
 
   async learnableMoves(set: PokemonSet): Promise<PricedMove[]> {
     await this.loadDisplayData();
-    const dex = this.loadShowdown().Dex.mod("gen7");
+    const dex = this.dataDex();
     const species = dex.species.get(set.species || set.name);
     if (!species.exists) return [];
     const seen = new Set<string>();
@@ -288,7 +289,7 @@ export class GameService {
 
   async editOptions(set: PokemonSet): Promise<PokemonEditOptions> {
     await this.loadDisplayData();
-    const dex = this.loadShowdown().Dex.mod("gen7");
+    const dex = this.dataDex();
     const species = dex.species.get(set.species || set.name);
     const seen = new Set<string>();
     const abilities = [];
@@ -348,6 +349,14 @@ export class GameService {
       this.sim = require(path.join(this.showdownPath, "dist", "sim")) as ShowdownModule;
     }
     return this.sim;
+  }
+
+  private dataDex(): any {
+    return this.loadShowdown().Dex.mod("gen9");
+  }
+
+  private includeDataEntry(entry: any): boolean {
+    return !entry.isNonstandard || entry.isNonstandard === "Past";
   }
 
   seedArray(seed: number | number[]): number[] {
@@ -423,10 +432,10 @@ export class GameService {
   }
 
   private describeSet(set: PokemonSet): RentalPokemon {
-    const sim = this.loadShowdown();
-    const species = sim.Dex.species.get(set.species || set.name);
-    const ability = sim.Dex.abilities.get(set.ability);
-    const item = set.item ? sim.Dex.items.get(set.item) : null;
+    const dex = this.dataDex();
+    const species = dex.species.get(set.species || set.name);
+    const ability = dex.abilities.get(set.ability);
+    const item = set.item ? dex.items.get(set.item) : null;
     const level = Math.max(1, Number(set.level || 50));
     const nature = this.natureModifiers(set.nature || "Serious");
     const ivs = this.fullStats(set.ivs || {}, 31);
@@ -453,7 +462,7 @@ export class GameService {
       item_id: item?.exists ? item.id : "",
       item_desc: item?.exists ? (item.desc || item.shortDesc || "") : "",
       item_desc_zh: this.detailDescription("items", item?.exists ? item.name : set.item),
-      moves: (set.moves || []).map((moveId: string) => this.moveDetails(moveId)),
+      moves: (set.moves || []).map((moveId: string) => this.moveDetails(moveId, dex)),
       base_stats: baseStats,
       stats: this.calculatedStats(baseStats, ivs, evs, level, nature),
       evs,
@@ -500,7 +509,7 @@ export class GameService {
   }
 
   private randomMovesForSet(set: PokemonSet, rng: () => number): string[] {
-    const dex = this.loadShowdown().Dex.mod("gen7");
+    const dex = this.dataDex();
     const species = dex.species.get(set.species || set.name);
     const pool: string[] = [];
     const seen = new Set<string>();
@@ -519,7 +528,7 @@ export class GameService {
   }
 
   randomizeRentalSet(baseSet: PokemonSet, rng: () => number): PokemonSet {
-    const dex = this.loadShowdown().Dex.mod("gen7");
+    const dex = this.dataDex();
     const natures = dex.natures.all();
     const nature = natures[this.randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || baseSet.nature || "Serious";
     return {
@@ -579,7 +588,7 @@ export class GameService {
   }
 
   private baseSetForSpecies(speciesId: string, generator: any, rng: () => number): PokemonSet {
-    const dex = this.loadShowdown().Dex.mod("gen7");
+    const dex = this.dataDex();
     const species = dex.species.get(speciesId);
     if (generator?.randomSet && species.exists) {
       try {
@@ -606,7 +615,7 @@ export class GameService {
   private applyGenerationProfile(baseSet: PokemonSet, profile: GenerationProfile, rng: () => number): PokemonSet {
     const normalizedProfile = profile === "champion" ? "champion" : profile;
     const stageTier = normalizedProfile === "champion" ? 4 : Number(normalizedProfile.replace("tier", "")) as StageTier;
-    const dex = this.loadShowdown().Dex.mod("gen7");
+    const dex = this.dataDex();
     const natures = dex.natures.all();
     const randomNature = () => natures[this.randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || "Serious";
     const heldItem = baseSet.item || FALLBACK_HELD_ITEMS[this.randomInt(rng, 0, FALLBACK_HELD_ITEMS.length - 1)];
@@ -698,7 +707,7 @@ export class GameService {
     return existsSync(path.join(this.projectRoot, spritePath));
   }
 
-  private moveDetails(moveId: string, dex = this.loadShowdown().Dex) {
+  private moveDetails(moveId: string, dex = this.dataDex()) {
     const move = dex.moves.get(moveId);
     const detail = this.detail("moves", move.name || moveId);
     return {
@@ -721,7 +730,7 @@ export class GameService {
   }
 
   private natureModifiers(natureName: string) {
-    const nature = this.loadShowdown().Dex.natures.get(natureName || "Serious");
+    const nature = this.dataDex().natures.get(natureName || "Serious");
     return {name: nature.name || "Serious", plus: nature.plus || "", minus: nature.minus || ""};
   }
 
@@ -734,7 +743,7 @@ export class GameService {
     return 100;
   }
 
-  private speciesLearnset(speciesId: string, dex = this.loadShowdown().Dex.mod("gen7"), limit = 96) {
+  private speciesLearnset(speciesId: string, dex = this.dataDex(), limit = 96) {
     const species = dex.species.get(speciesId);
     if (!species.exists) return [];
     const seen = new Set<string>();

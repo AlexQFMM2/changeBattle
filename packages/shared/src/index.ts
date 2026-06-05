@@ -286,6 +286,11 @@ export type RestState = {
   restore_status_used?: boolean;
   exchange_box?: RentalPokemon[];
   all_in_used?: boolean;
+  all_in_pending_next?: boolean;
+  all_in_result?: {
+    old_name: string;
+    new_name: string;
+  } | null;
   taken_enemy_slots: number[];
   exchange_count: number;
   costs: {
@@ -500,6 +505,11 @@ export type CurrentRunData = {
     restore_hp_used?: boolean;
     restore_pp_used?: boolean;
     restore_status_used?: boolean;
+    all_in_pending_next?: boolean;
+    all_in_result?: {
+      old_name: string;
+      new_name: string;
+    } | null;
   };
 };
 

@@ -84,7 +84,7 @@ SHOP_OFFER_COUNT = 3
 SHOP_OFFER_COUNT_GAMBLER = 4
 STARTER_ITEM_OFFER_COUNT = 5
 STARTER_ITEM_REROLL_COST = 1 * BP_SCALE
-SHOP_ROLL_COST_FIRST = 150
+SHOP_ROLL_COST_FIRST = 0
 SHOP_ROLL_COST_NEXT = 150
 SHOP_ROLL_COST_GAMBLER_PAID = 195
 SHOP_BUCKET_WEIGHTS = {"healing": 5, "berry": 3, "pp": 2, "tm": 5, "held": 5}
@@ -142,8 +142,8 @@ TALENTS = [
     {"id": "gambler_free_stat_reset", "name": "时也命也", "category": "赌徒", "cost": 10 * BP_SCALE, "desc": "重置数值时 60% 概率免费、30% 概率双倍消耗、10% 概率正常消耗。"},
     {"id": "gambler_random_cost_1", "name": "座上贵宾", "category": "赌徒", "cost": 20 * BP_SCALE, "desc": "每次休整获得一次免费商店抽奖；本次休整后续商店抽奖消耗为基础费用的 1.3 倍，免费次数不结转。"},
     {"id": "gambler_streak_bp_risk", "name": "压上杠杆", "category": "赌徒", "cost": 50 * BP_SCALE, "desc": "每场胜利有概率把本场基础 BP 变为 1.4/1.6/1.8/2.0/2.5 倍；失败时 BP 回到本局开始前。"},
-    {"id": "gambler_all_in_exchange", "name": "孤注一掷", "category": "赌徒", "cost": 50 * BP_SCALE, "desc": "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
-    {"id": "prophet_first_mover", "name": "上帝之眼", "category": "先知", "cost": 5 * BP_SCALE, "desc": "对战时可以看到哪些技能克制当前对手，并允许在对战时查看图鉴。"},
+    {"id": "gambler_all_in_exchange", "name": "孤注一掷", "category": "赌徒", "cost": 50 * BP_SCALE, "desc": "每局比赛限一次，生成一只三阶宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
+    {"id": "prophet_first_mover", "name": "上帝之眼", "category": "先知", "cost": 5 * BP_SCALE, "desc": "对战时可以预测每个技能大概能打对方多少 HP，并允许在对战时查看图鉴。"},
     {"id": "prophet_next_scout", "name": "未卜先知", "category": "先知", "cost": 10 * BP_SCALE, "desc": "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
     {"id": "prophet_history_review", "name": "温故知新", "category": "先知", "cost": 15 * BP_SCALE, "desc": "休整页允许查看上一轮对手的宝可梦详情。"},
     {"id": "prophet_direct_move", "name": "运筹帷幄", "category": "先知", "cost": 20 * BP_SCALE, "desc": "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
@@ -448,7 +448,7 @@ def refresh_stats(stats: dict[str, Any]) -> None:
 
 def create_save(name: str, gender: str) -> dict[str, Any]:
     stats = default_stats()
-    stats["battle_points"] = 1000
+    stats["battle_points"] = 3000
     save = {
         "version": SAVE_VERSION,
         "bp_scale": BP_SCALE,
@@ -1275,11 +1275,9 @@ def select_three(candidates: list[dict[str, Any]], auto: bool) -> list[int]:
             if current in selected:
                 selected.remove(current)
             elif len(selected) >= 3:
-                print("已经选满 3 只了。要换人请先取消一个。")
+                selected[-1] = current
             else:
                 selected.append(current)
-                if len(selected) == 3:
-                    return selected
             continue
         if raw.isdigit():
             index = int(raw) - 1
@@ -1293,7 +1291,7 @@ def select_three(candidates: list[dict[str, Any]], auto: bool) -> list[int]:
                 return selected
             print(f"还需要选择 {3 - len(selected)} 只。")
             continue
-        print("请输入 n/p/t/1-6/ok/q。")
+        print("请输入 n/p/t/1-6/ok/q。选满后按 t 可用当前候选替换第 3 只。")
 
 
 def raw_log_lines(messages: list[dict[str, Any]]) -> list[str]:
@@ -2403,7 +2401,7 @@ def route_boss_for_battle(set_streak: int, battle_no: int) -> tuple[str, str]:
 
 def starter_profiles_for_streak(set_streak: int, count: int) -> list[str]:
     if set_streak <= 0:
-        base = ["tier1", "tier1", "tier1", "tier1", "tier2", "tier2"]
+        base = ["tier1", "tier1", "tier1", "tier2", "tier2", "tier2"]
     elif set_streak == 1:
         base = ["tier1", "tier1", "tier1", "tier2", "tier2", "tier3"]
     else:
@@ -4259,8 +4257,7 @@ def rest_all_in_exchange(save: dict[str, Any], run: dict[str, Any], client: Show
         return False
     own = int(raw) - 1
     next_battle_no = int(run.get("next_battle") or (int(run.get("battle_no") or 0) + 1) or 1)
-    profiles = normal_enemy_profiles_for_battle(int((save.get("stats") or {}).get("set_win_streak") or 0), next_battle_no)
-    generated = client.generate(seed_for(int(run.get("seed") or 1), 0xA111 + next_battle_no * 17 + own), count=1, profiles=[profiles[-1] if profiles else "tier2"])
+    generated = client.generate(seed_for(int(run.get("seed") or 1), 0xA111 + next_battle_no * 17 + own), count=1, profiles=["tier3"])
     next_raw = (generated.get("team") or [None])[0]
     next_display = (generated.get("display") or [None])[0]
     if not next_raw or not next_display:
@@ -4268,6 +4265,7 @@ def rest_all_in_exchange(save: dict[str, Any], run: dict[str, Any], client: Show
         input("回车继续。")
         return False
     states = normalize_player_state(run)
+    old_name = display_name(run["player_display"][own])
     add_to_exchange_box(run, [run["player_team"][own]], [run["player_display"][own]], [states[own]])
     run["player_team"][own] = next_raw
     run["player_display"][own] = next_display
@@ -4284,7 +4282,7 @@ def rest_all_in_exchange(save: dict[str, Any], run: dict[str, Any], client: Show
         refresh_state_condition(state)
     run["player_state"] = states
     run["all_in_exchange_used"] = True
-    print(f"孤注一掷发动！{display_name(run['player_display'][own])} 加入队伍，另外两只半血并陷入睡眠。")
+    print(f"孤注一掷发动！{old_name} 被替换成了 {display_name(run['player_display'][own])}。另外两只半血并陷入睡眠，即将结束休整。")
     input("回车继续。")
     return finish_rest_for_next_battle(run)
 

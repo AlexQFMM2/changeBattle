@@ -42,7 +42,7 @@ export class SaveStore {
         avatar_asset: trainer.avatar_asset,
       },
       stats: {
-        battle_points: 1000,
+        battle_points: 3000,
         battles: 0,
         wins: 0,
         losses: 0,

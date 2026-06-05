@@ -851,7 +851,7 @@ function routeBossForBattle(setStreak: number, battleNo: number): BossRoute {
 
 function starterProfilesForStreak(setStreak: number, count: number): GenerationProfile[] {
   const base: GenerationProfile[] = setStreak <= 0
-    ? ["tier1", "tier1", "tier1", "tier1", "tier2", "tier2"]
+    ? ["tier1", "tier1", "tier1", "tier2", "tier2", "tier2"]
     : setStreak === 1
       ? ["tier1", "tier1", "tier1", "tier2", "tier2", "tier3"]
       : ["tier1", "tier2", "tier2", "tier3", "tier3", "tier3"];
@@ -1121,6 +1121,8 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     restore_hp_used: Boolean(run.rest_status?.restore_hp_used),
     restore_pp_used: Boolean(run.rest_status?.restore_pp_used),
     restore_status_used: Boolean(run.rest_status?.restore_status_used),
+    all_in_pending_next: Boolean(run.rest_status?.all_in_pending_next),
+    all_in_result: run.rest_status?.all_in_result || null,
   };
   normalizePlayerState(run);
   return run;
@@ -1179,6 +1181,8 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     restore_status_used: Boolean(run.rest_status?.restore_status_used),
     exchange_box: run.exchange_box?.display || [],
     all_in_used: Boolean(run.all_in_exchange_used),
+    all_in_pending_next: Boolean(run.rest_status?.all_in_pending_next),
+    all_in_result: run.rest_status?.all_in_result || null,
     taken_enemy_slots: run.rest_status?.taken_enemy_slots || [],
     exchange_count: exchangeCount,
     costs: {
@@ -1699,6 +1703,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const next = await persist(save);
     return gameState({screen: "result", save: next, message: `本局挑战已中断，当前连胜已归零。历史最高连胜已保留。${settled.refundGained ? `背包返还 ${settled.refundGained}BP。` : ""}${settled.paidBack ? `临时BP扣回 ${settled.paidBack}BP。` : ""}`});
   }
+  if (run.rest_status?.all_in_pending_next) throw new Error("孤注一掷已发动，本次休整即将结束。");
 
   const states = normalizePlayerState(run);
   if (action.type === "restore_hp" || action.type === "restore_pp" || action.type === "restore_status") {
@@ -1833,11 +1838,11 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const own = Number(action.ownIndex);
     if (own < 0 || own >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
     const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
-    const profiles = normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), nextBattleNo);
-    const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xa111 + nextBattleNo * 17 + own), "gen7randombattle", 1, {profiles: [profiles[profiles.length - 1] || "tier2"], purpose: "normal"});
+    const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xa111 + nextBattleNo * 17 + own), "gen7randombattle", 1, {profiles: ["tier3"], purpose: "normal"});
     const nextRaw = generated.team[0];
     const nextDisplay = generated.display[0];
     if (!nextRaw || !nextDisplay) throw new Error("孤注一掷生成失败。");
+    const oldName = run.player_display[own]?.species_zh || run.player_display[own]?.species || `第 ${own + 1} 只`;
     addToExchangeBox(run, [run.player_team[own]], [run.player_display[own]], [states[own]]);
     run.player_team[own] = hasTalent(run.talents, "business_shiny_collector") ? {...nextRaw, shiny: true} : nextRaw;
     run.player_display[own] = hasTalent(run.talents, "business_shiny_collector") ? shinyPokemon(nextDisplay) : nextDisplay;
@@ -1850,9 +1855,21 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
       state.status = "slp";
       refreshStateCondition(state);
     }
+    const investments = run.bp_investments || [0, 0, 0];
+    const moveInvestments = run.move_investments || [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    investments[own] = 0;
+    moveInvestments[own] = [0, 0, 0, 0];
+    run.bp_investments = investments;
+    run.move_investments = moveInvestments;
     run.all_in_exchange_used = true;
+    const newName = run.player_display[own]?.species_zh || run.player_display[own]?.species || "未知宝可梦";
+    run.rest_status = {
+      ...(run.rest_status || {}),
+      all_in_pending_next: true,
+      all_in_result: {old_name: oldName, new_name: newName},
+    };
     const next = await persist(save);
-    return await finishRestForNextBattle(next, next.current_run as CurrentRunData);
+    return await restState(next, next.current_run as CurrentRunData, `孤注一掷发动：${oldName} 被替换成了 ${newName}。另外两只宝可梦已变为半血并陷入睡眠，即将结束休整。`);
   }
 
   if (action.type === "buy_item") {

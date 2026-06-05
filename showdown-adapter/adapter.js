@@ -10,7 +10,7 @@ const VENDORED_SHOWDOWN_PATH = path.join(PROJECT_ROOT, "vendor", "pokemon-showdo
 const DEFAULT_SHOWDOWN_PATH = VENDORED_SHOWDOWN_PATH;
 const SHOWDOWN_PATH = process.env.SHOWDOWN_PATH || DEFAULT_SHOWDOWN_PATH;
 const Sim = require(path.join(SHOWDOWN_PATH, "dist", "sim"));
-const GEN7 = Sim.Dex.mod("gen7");
+const DATA_DEX = Sim.Dex.mod("gen9");
 
 const MIN_RENTAL_LEVEL = 45;
 const MAX_RENTAL_LEVEL = 55;
@@ -61,7 +61,7 @@ function seedArray(seed) {
 }
 
 function natureModifiers(natureName) {
-  const nature = Sim.Dex.natures.get(natureName || "Serious");
+  const nature = DATA_DEX.natures.get(natureName || "Serious");
   return {
     name: nature.name || "Serious",
     plus: nature.plus || "",
@@ -143,7 +143,11 @@ function calculatedStats(species, ivs, evs, level, nature) {
   return stats;
 }
 
-function moveDetails(moveId, dex = GEN7) {
+function includeDataEntry(entry) {
+  return !entry.isNonstandard || entry.isNonstandard === "Past";
+}
+
+function moveDetails(moveId, dex = DATA_DEX) {
   const move = dex.moves.get(moveId);
   return {
     id: move.id || moveId,
@@ -160,7 +164,7 @@ function moveDetails(moveId, dex = GEN7) {
   };
 }
 
-function itemDetails(itemId, dex = GEN7) {
+function itemDetails(itemId, dex = DATA_DEX) {
   const item = dex.items.get(itemId);
   return {
     id: item.id || itemId,
@@ -174,9 +178,9 @@ function itemDetails(itemId, dex = GEN7) {
 
 function describeSet(set) {
   const moves = (set.moves || []).map(move => moveDetails(move));
-  const species = Sim.Dex.species.get(set.species || set.name);
-  const ability = Sim.Dex.abilities.get(set.ability);
-  const item = set.item ? Sim.Dex.items.get(set.item) : null;
+  const species = DATA_DEX.species.get(set.species || set.name);
+  const ability = DATA_DEX.abilities.get(set.ability);
+  const item = set.item ? DATA_DEX.items.get(set.item) : null;
   const level = Math.max(1, Number(set.level || 50));
   const ivs = fullIvs(set.ivs || {});
   const evs = fullEvs(set.evs || {});
@@ -223,7 +227,7 @@ function normalizeTeam(team) {
 
 function randomMovesForSet(set, rng) {
   const pool = legalLearnsetMoveIds(set)
-    .map(moveId => GEN7.moves.get(moveId))
+    .map(moveId => DATA_DEX.moves.get(moveId))
     .filter(move => move.exists && move.id)
     .map(move => move.name || move.id);
   const shuffled = [...pool].sort(() => rng() - 0.5);
@@ -232,7 +236,7 @@ function randomMovesForSet(set, rng) {
 }
 
 function randomizeRentalSet(set, rng) {
-  const natures = GEN7.natures.all();
+  const natures = DATA_DEX.natures.all();
   const nature = natures[randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || set.nature || "Serious";
   return {
     ...set,
@@ -315,7 +319,7 @@ function randomGenerator(format, seed) {
 }
 
 function baseSetForSpecies(speciesId, generator, rng) {
-  const species = GEN7.species.get(speciesId);
+  const species = DATA_DEX.species.get(speciesId);
   if (generator && generator.randomSet && species.exists) {
     try {
       return normalizeTeam([generator.randomSet(species)])[0];
@@ -341,7 +345,7 @@ function baseSetForSpecies(speciesId, generator, rng) {
 function applyGenerationProfile(baseSet, profile, rng) {
   const normalizedProfile = profile === "champion" ? "champion" : String(profile || "tier1");
   const stageTier = normalizedProfile === "champion" ? 4 : Number(normalizedProfile.replace("tier", "")) || 1;
-  const natures = GEN7.natures.all();
+  const natures = DATA_DEX.natures.all();
   const randomNature = () => natures[randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || "Serious";
   const heldItem = baseSet.item || FALLBACK_HELD_ITEMS[randomInt(rng, 0, FALLBACK_HELD_ITEMS.length - 1)];
   const set = { ...baseSet, moves: [...(baseSet.moves || [])], shiny: randomInt(rng, 1, SHINY_RATE) === 1 };
@@ -379,11 +383,11 @@ function generateProfiledCandidates(command, seed, format, targetCount) {
 }
 
 function legalAbilities(set) {
-  const species = GEN7.species.get(set.species || set.name);
+  const species = DATA_DEX.species.get(set.species || set.name);
   const seen = new Set();
   const result = [];
   for (const abilityName of Object.values(species.abilities || {})) {
-    const ability = Sim.Dex.abilities.get(abilityName);
+    const ability = DATA_DEX.abilities.get(abilityName);
     const name = ability.exists ? ability.name : abilityName;
     const id = ability.exists ? ability.id : toId(name);
     if (!id || seen.has(id)) continue;
@@ -399,7 +403,7 @@ function legalAbilities(set) {
 }
 
 function natureOptions() {
-  return Sim.Dex.natures.all().map(nature => ({
+  return DATA_DEX.natures.all().map(nature => ({
     id: nature.id,
     name: nature.name,
     plus: nature.plus || "",
@@ -408,13 +412,13 @@ function natureOptions() {
 }
 
 function legalLearnsetMoveIds(set) {
-  const species = GEN7.species.get(set.species || set.name);
+  const species = DATA_DEX.species.get(set.species || set.name);
   if (!species.exists) return [];
-  const fullLearnset = GEN7.species.getFullLearnset(species.id);
+  const fullLearnset = DATA_DEX.species.getFullLearnset(species.id);
   const seen = new Set();
   for (const entry of fullLearnset || []) {
     for (const moveId of Object.keys(entry.learnset || {})) {
-      const move = GEN7.moves.get(moveId);
+      const move = DATA_DEX.moves.get(moveId);
       if (!move.exists || !move.id || seen.has(move.id)) continue;
       if (move.isNonstandard && move.isNonstandard !== "Past") continue;
       seen.add(move.id);
@@ -425,7 +429,7 @@ function legalLearnsetMoveIds(set) {
 
 function learnableMoves(set) {
   return legalLearnsetMoveIds(set)
-    .map(moveId => moveDetails(moveId, GEN7))
+    .map(moveId => moveDetails(moveId, DATA_DEX))
     .sort((a, b) => {
       if ((b.power || 0) !== (a.power || 0)) return (b.power || 0) - (a.power || 0);
       return a.name.localeCompare(b.name);
@@ -433,9 +437,9 @@ function learnableMoves(set) {
 }
 
 function itemOptions() {
-  return GEN7.items.all()
-    .filter(item => item.exists && item.id && (!item.isNonstandard || item.isNonstandard === "Past"))
-    .map(item => itemDetails(item.id, GEN7))
+  return DATA_DEX.items.all()
+    .filter(item => item.exists && item.id && includeDataEntry(item))
+    .map(item => itemDetails(item.id, DATA_DEX))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -450,9 +454,9 @@ function defaultMoveCost(move) {
 
 function goodsDefaults() {
   const rows = [];
-  for (const move of GEN7.moves.all()) {
+  for (const move of DATA_DEX.moves.all()) {
     if (!move.exists || !move.id) continue;
-    if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+    if (!includeDataEntry(move)) continue;
     rows.push({
       item_id: move.id,
       item_type: "skill",

@@ -10,7 +10,7 @@ const simPath = fs.existsSync(path.join(showdownPath, "dist", "sim"))
   ? showdownPath
   : fallbackShowdownPath;
 const Sim = require(path.join(simPath, "dist", "sim"));
-const GEN7 = Sim.Dex.mod("gen7");
+const DATA_DEX = Sim.Dex.mod("gen9");
 
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"];
 const trainerCsvPath = path.join(root, "data", "npc_trainers.csv");
@@ -90,17 +90,28 @@ function hasUsableSprite(spriteMap, species) {
   return /^https?:\/\//i.test(spritePath) || fs.existsSync(path.join(root, spritePath));
 }
 
+function isSpecialBattleForm(species) {
+  const text = `${species.id || ""} ${species.name || ""} ${species.forme || ""}`.toLowerCase();
+  if (species.isMega || species.battleOnly) return true;
+  if (/\b(gmax|mega|tera|terastal|stellar)\b/.test(text)) return true;
+  if (/(gmax|mega|tera|terastal|stellar)$/.test(species.id || "")) return true;
+  return false;
+}
+
+function isPoolSpecies(species, spriteMap) {
+  if (!species.exists || !species.id || species.num <= 0) return false;
+  if (species.isNonstandard && species.isNonstandard !== "Past") return false;
+  if (isSpecialBattleForm(species)) return false;
+  if (species.requiredItem && !species.requiredMove) return false;
+  return hasUsableSprite(spriteMap, species);
+}
+
 function speciesRows() {
   const spriteMap = JSON.parse(fs.readFileSync(spriteMapPath, "utf8"));
   const randomLevels = loadRandomLevels();
   const candidates = [];
-  for (const species of GEN7.species.all()) {
-    if (!species.exists || !species.id || species.num <= 0) continue;
-    if (species.gen > 7) continue;
-    if (species.isNonstandard && species.isNonstandard !== "Past") continue;
-    if (species.isMega || species.battleOnly) continue;
-    if (species.requiredItem && !species.requiredMove) continue;
-    if (!hasUsableSprite(spriteMap, species)) continue;
+  for (const species of DATA_DEX.species.all()) {
+    if (!isPoolSpecies(species, spriteMap)) continue;
     const bst = baseStatTotal(species);
     const nfePenalty = species.nfe ? -45 : 45;
     const legendaryBonus = species.legendary || species.mythical ? 90 : 0;
@@ -137,13 +148,13 @@ function reverseSpeciesNames() {
   const speciesNames = overrides.species || {};
   const result = new Map();
   for (const [english, zh] of Object.entries(speciesNames)) {
-    const species = GEN7.species.get(english);
-    if (!species.exists || species.gen > 7 || species.isMega || species.battleOnly) continue;
+    const species = DATA_DEX.species.get(english);
+    if (!species.exists || isSpecialBattleForm(species)) continue;
     result.set(String(zh), species.id);
     result.set(String(zh).replace(/^超级/, ""), species.id);
     result.set(species.name, species.id);
   }
-  for (const species of GEN7.species.all()) {
+  for (const species of DATA_DEX.species.all()) {
     if (species.exists && species.id) {
       result.set(species.name, species.id);
       if (species.num > 0 && !result.has(String(species.num))) result.set(String(species.num), species.id);
@@ -267,7 +278,7 @@ function extractRepresentatives(trainers, nameToSpecies) {
     if (!manualEntry) continue;
     const [, speciesIds] = manualEntry;
     for (const speciesId of speciesIds) {
-      const species = GEN7.species.get(speciesId);
+      const species = DATA_DEX.species.get(speciesId);
       if (!species.exists || !species.id) continue;
       const key = trainer.id;
       if (!reps.has(key)) reps.set(key, new Map());
@@ -282,7 +293,7 @@ function extractRepresentatives(trainers, nameToSpecies) {
   for (const trainer of bossRows) {
     const bucket = reps.get(trainer.id) || new Map();
     for (const [speciesId, data] of bucket.entries()) {
-      const species = GEN7.species.get(speciesId);
+      const species = DATA_DEX.species.get(speciesId);
       rows.push({
         trainer_id: trainer.id,
         trainer_name_zh: trainer.name_zh,
@@ -333,7 +344,7 @@ function makeBossPools(trainers, reps, tierRows) {
   for (const trainer of bossRows) {
     const distribution = stageDistributionForTrainer(trainer);
     const repIds = [...new Set(repsByTrainer.get(trainer.id) || [])];
-    const preferredTypes = new Set(repIds.flatMap(id => GEN7.species.get(id).types || []));
+    const preferredTypes = new Set(repIds.flatMap(id => DATA_DEX.species.get(id).types || []));
     const poolId = trainer.team_pool_ids || `${trainer.type}:${trainer.tier}:${trainer.name_zh}`;
     for (let teamIndex = 1; teamIndex <= 4; teamIndex += 1) {
       const used = new Set();
@@ -343,7 +354,7 @@ function makeBossPools(trainers, reps, tierRows) {
         const anyRep = repIds.find(id => !used.has(id));
         const themed = (speciesByTier.get(stageTier) || []).find(id => {
           if (used.has(id)) return false;
-          const types = GEN7.species.get(id).types || [];
+          const types = DATA_DEX.species.get(id).types || [];
           return types.some(type => preferredTypes.has(type));
         });
         const fallbackPool = speciesByTier.get(stageTier) || [];
@@ -357,7 +368,7 @@ function makeBossPools(trainers, reps, tierRows) {
           team_index: teamIndex,
           slot: slotIndex + 1,
           species_id: speciesId,
-          species: GEN7.species.get(speciesId).name || speciesId,
+          species: DATA_DEX.species.get(speciesId).name || speciesId,
           stage_tier: stageTier,
           generation_profile: profile,
           source: exactRep ? "representative-exact-tier" : anyRep ? "representative-any-tier" : themed ? "theme-fill" : "tier-fill",

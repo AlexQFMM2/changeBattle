@@ -34,6 +34,8 @@ CSV_FILES = [
     "move_names.csv",
     "items.csv",
     "item_names.csv",
+    "abilities.csv",
+    "ability_names.csv",
 ]
 
 FORM_LABELS = {
@@ -41,6 +43,13 @@ FORM_LABELS = {
     "Mega-X": "超级X",
     "Mega-Y": "超级Y",
     "Gmax": "超极巨化",
+    "Ruby-Cream": "红宝石奶油",
+    "Matcha-Cream": "抹茶奶油",
+    "Mint-Cream": "薄荷奶油",
+    "Lemon-Cream": "柠檬奶油",
+    "Ruby-Swirl": "红宝石综合",
+    "Caramel-Swirl": "焦糖综合",
+    "Rainbow-Swirl": "彩虹综合",
     "Alola": "阿罗拉的样子",
     "Galar": "伽勒尔的样子",
     "Hisui": "洗翠的样子",
@@ -122,6 +131,44 @@ FORM_LABELS = {
     "Totem": "霸主",
 }
 
+MANUAL_ABILITY_NAMES = {
+    "Anger Shell": "愤怒甲壳",
+    "Armor Tail": "尾甲",
+    "Beads of Ruin": "灾祸之玉",
+    "Commander": "发号施令",
+    "Costar": "同台共演",
+    "Cud Chew": "反刍",
+    "Earth Eater": "食土",
+    "Electromorphosis": "电力转换",
+    "Embody Aspect (Cornerstone)": "面影辉映（础石）",
+    "Embody Aspect (Hearthflame)": "面影辉映（火灶）",
+    "Embody Aspect (Teal)": "面影辉映（碧草）",
+    "Embody Aspect (Wellspring)": "面影辉映（水井）",
+    "Good as Gold": "黄金之躯",
+    "Guard Dog": "看门犬",
+    "Hadron Engine": "强子引擎",
+    "Lingering Aroma": "甩不掉的气味",
+    "Mycelium Might": "菌丝之力",
+    "Opportunist": "跟风",
+    "Orichalcum Pulse": "绯红脉动",
+    "Protosynthesis": "古代活性",
+    "Purifying Salt": "洁净之盐",
+    "Quark Drive": "夸克充能",
+    "Rocky Payload": "搬岩",
+    "Seed Sower": "掉出种子",
+    "Sharpness": "锋锐",
+    "Supreme Overlord": "大将",
+    "Sword of Ruin": "灾祸之剑",
+    "Tablets of Ruin": "灾祸之简",
+    "Thermal Exchange": "热交换",
+    "Toxic Debris": "毒满地",
+    "Vessel of Ruin": "灾祸之鼎",
+    "Well-Baked Body": "焦香之躯",
+    "Wind Power": "风力发电",
+    "Wind Rider": "乘风",
+    "Zero to Hero": "全能变身",
+}
+
 
 def normalize_id(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
@@ -187,19 +234,24 @@ def load_pokeapi_names(cache_dir: Path, entity_file: str, names_file: str, forei
 def load_showdown(showdown_path: Path) -> dict[str, list[dict[str, str]]]:
     script = """
 const {Dex} = require(process.argv[1] + '/dist/sim');
+const includeDataEntry = entry => !entry.isNonstandard || entry.isNonstandard === 'Past';
 const species = [];
 for (const [id, raw] of Object.entries(Dex.data.Pokedex)) {
   if (!raw || raw.exists === false || !raw.name || !raw.num || raw.num <= 0) continue;
   const s = Dex.species.get(id || raw.name);
+  if (!includeDataEntry(s)) continue;
   species.push({id: s.id, name: s.name, num: s.num, baseSpecies: s.baseSpecies || '', forme: s.forme || ''});
 }
 const moves = Dex.moves.all()
-  .filter(m => m.exists && m.id)
+  .filter(m => m.exists && m.id && includeDataEntry(m))
   .map(m => ({id: m.id, name: m.name}));
 const items = Dex.items.all()
-  .filter(i => i.exists && i.id)
+  .filter(i => i.exists && i.id && includeDataEntry(i))
   .map(i => ({id: i.id, name: i.name}));
-console.log(JSON.stringify({species, moves, items}));
+const abilities = Dex.abilities.all()
+  .filter(a => a.exists && a.id && includeDataEntry(a))
+  .map(a => ({id: a.id, name: a.name}));
+console.log(JSON.stringify({species, moves, items, abilities}));
 """
     result = subprocess.run(
         ["node", "-e", script, str(showdown_path)],
@@ -252,13 +304,15 @@ def main() -> int:
     pokeapi_species = load_pokeapi_names(args.cache_dir, "pokemon_species.csv", "pokemon_species_names.csv", "pokemon_species_id")
     pokeapi_moves = load_pokeapi_names(args.cache_dir, "moves.csv", "move_names.csv", "move_id")
     pokeapi_items = load_pokeapi_names(args.cache_dir, "items.csv", "item_names.csv", "item_id")
+    pokeapi_abilities = load_pokeapi_names(args.cache_dir, "abilities.csv", "ability_names.csv", "ability_id")
     showdown = load_showdown(args.showdown_path)
     translations = json.loads(args.translations.read_text(encoding="utf-8"))
 
-    added = {"species": 0, "moves": 0, "items": 0}
+    added = {"species": 0, "moves": 0, "items": 0, "abilities": 0}
     species_map = translations.setdefault("species", {})
     moves_map = translations.setdefault("moves", {})
     items_map = translations.setdefault("items", {})
+    abilities_map = translations.setdefault("abilities", {})
 
     species_by_id = {normalize_id(row["name"]): row for row in showdown["species"]}
     existing_species = {normalize_id(key): value for key, value in species_map.items()}
@@ -302,16 +356,31 @@ def main() -> int:
             existing_items[normalize_id(row["name"])] = zh_name
             added["items"] += 1
 
-    for section in ["species", "moves", "items"]:
+    existing_abilities = {normalize_id(key): value for key, value in abilities_map.items()}
+    for row in showdown["abilities"]:
+        if existing_abilities.get(normalize_id(row["name"])):
+            continue
+        zh_name = (
+            MANUAL_ABILITY_NAMES.get(row["name"])
+            or pokeapi_abilities.get(normalize_id(row["id"]))
+            or pokeapi_abilities.get(normalize_id(row["name"]))
+        )
+        if zh_name:
+            abilities_map[row["name"]] = zh_name
+            existing_abilities[normalize_id(row["name"])] = zh_name
+            added["abilities"] += 1
+
+    for section in ["species", "moves", "items", "abilities"]:
         translations[section] = dict(sorted(translations.get(section, {}).items(), key=lambda item: normalize_id(item[0])))
 
     report = {
         "added": added,
-        "counts": {section: len(translations.get(section, {})) for section in ["species", "moves", "items"]},
+        "counts": {section: len(translations.get(section, {})) for section in ["species", "moves", "items", "abilities"]},
         "missing": {
             "species": missing_names(showdown["species"], translations.get("species", {})),
             "moves": missing_names(showdown["moves"], translations.get("moves", {})),
             "items": missing_names(showdown["items"], translations.get("items", {})),
+            "abilities": missing_names(showdown["abilities"], translations.get("abilities", {})),
         },
     }
     report["missing_counts"] = {key: len(value) for key, value in report["missing"].items()}

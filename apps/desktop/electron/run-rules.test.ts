@@ -10,7 +10,9 @@ import {
   SCOUT_BASIC_COST,
   SCOUT_ONE_COST,
   SECOND_TEAM_ROAR_COST,
+  SHOP_ROLL_COST_FIRST,
   SHOP_ROLL_COST_GAMBLER_PAID,
+  SHOP_ROLL_COST_NEXT,
   TALENTS,
   TALENT_EQUIP_LIMIT,
   WIN_BP_REWARD,
@@ -143,8 +145,8 @@ function testGamblerTalents(): void {
   assert.equal(statResetCost(run(["gambler_free_stat_reset"]), RANDOMIZE_PART_COST, "ivs", 0.7), RANDOMIZE_PART_COST * 2);
   assert.equal(statResetCost(run(["gambler_free_stat_reset"]), RANDOMIZE_PART_COST, "ivs", 0.95), RANDOMIZE_PART_COST);
 
-  assert.equal(shopNextRollCost(run()), 150);
-  assert.equal(shopNextRollCost(run([], {shop_roll_count: 1})), 150);
+  assert.equal(shopNextRollCost(run()), SHOP_ROLL_COST_FIRST);
+  assert.equal(shopNextRollCost(run([], {shop_roll_count: 1})), SHOP_ROLL_COST_NEXT);
   assert.equal(moveDrawCost(run()), MOVE_DRAW_COST);
   const lowStake = run(["gambler_random_cost_1"], {shop_roll_count: 0});
   assert.equal(shopNextRollCost(lowStake), 0);

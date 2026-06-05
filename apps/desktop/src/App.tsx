@@ -75,10 +75,10 @@ const GAMBLER_TALENTS: TalentView[] = [
   {id: "gambler_free_stat_reset", name: "时也命也", category: "赌徒", cost: 10 * BP_SCALE, desc: "重置数值时 60% 概率免费、30% 概率双倍消耗、10% 概率正常消耗。"},
   {id: "gambler_random_cost_1", name: "座上贵宾", category: "赌徒", cost: 20 * BP_SCALE, desc: "每次休整获得一次免费商店抽奖；本次休整后续商店抽奖消耗为基础费用的 1.3 倍，免费次数不结转。"},
   {id: "gambler_streak_bp_risk", name: "压上杠杆", category: "赌徒", cost: 50 * BP_SCALE, desc: "每场胜利有概率把本场基础 BP 变为 1.4/1.6/1.8/2.0/2.5 倍；失败时不获得背包返还，并将 BP 回到本局开始前。"},
-  {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
+  {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局比赛限一次，生成一只三阶宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
 ];
 const PROPHET_TALENTS: TalentView[] = [
-  {id: "prophet_first_mover", name: "上帝之眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以看到哪些技能克制当前对手，并允许在对战时查看图鉴。"},
+  {id: "prophet_first_mover", name: "上帝之眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以预测每个技能大概能打对方多少 HP，并允许在对战时查看图鉴。"},
   {id: "prophet_next_scout", name: "未卜先知", category: "先知", cost: 10 * BP_SCALE, desc: "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
   {id: "prophet_history_review", name: "温故知新", category: "先知", cost: 15 * BP_SCALE, desc: "休整页允许查看上一轮对手的宝可梦详情。"},
   {id: "prophet_direct_move", name: "运筹帷幄", category: "先知", cost: 20 * BP_SCALE, desc: "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
@@ -129,8 +129,27 @@ function assetUrl(path?: string): string | undefined {
   return window.changeBattle?.assetUrl(path);
 }
 
-function pokemonImageUrl(pokemon?: {sprite?: SpriteMapEntry}, variant: "front_normal" | "back_normal" = "front_normal"): string | undefined {
-  return assetUrl(pokemon?.sprite?.paths[variant] || pokemon?.sprite?.paths.front_normal);
+function pokemonImageUrl(pokemon?: {sprite?: SpriteMapEntry; shiny?: boolean}, variant: "front_normal" | "back_normal" = "front_normal"): string | undefined {
+  const paths = pokemon?.sprite?.paths;
+  if (!paths) return undefined;
+  const shinyVariant = variant === "back_normal" ? "back_shiny" : "front_shiny";
+  const normalFullVariant = variant === "front_normal" ? "front_normal_full" : "front_normal";
+  const shinyFullVariant = variant === "front_normal" ? "front_shiny_full" : shinyVariant;
+  const path = pokemon?.shiny
+    ? paths[shinyVariant] || paths[shinyFullVariant] || paths[variant] || paths[normalFullVariant] || paths.front_normal
+    : paths[variant] || paths[normalFullVariant] || paths.front_normal;
+  return assetUrl(path);
+}
+
+function PokemonSprite({pokemon, src, alt, variant = "front_normal", className = "", badge = "short", entrance = false, onClick}: {pokemon?: {sprite?: SpriteMapEntry; shiny?: boolean}; src?: string; alt: string; variant?: "front_normal" | "back_normal"; className?: string; badge?: "short" | "full" | false; entrance?: boolean; onClick?: () => void}) {
+  const shiny = Boolean(pokemon?.shiny);
+  const badgeText = badge === "full" ? "闪光" : "闪";
+  return (
+    <span className={`pokemon-sprite ${className} ${shiny ? "is-shiny" : ""} ${shiny && entrance ? "shiny-entrance" : ""} ${onClick ? "clickable-sprite" : ""}`} onClick={onClick}>
+      <img src={src || pokemonImageUrl(pokemon, variant)} alt={alt} />
+      {shiny && badge ? <i className={`shiny-badge ${badge === "full" ? "full" : ""}`}>{badgeText}</i> : null}
+    </span>
+  );
 }
 
 function itemImageUrl(item?: {icon_asset?: string}): string {
@@ -519,8 +538,9 @@ function App() {
 
   function toggleCandidate(index: number) {
     setSelected(current => {
-      const next = current.includes(index) ? current.filter(value => value !== index) : current.length < 3 ? [...current, index] : current;
-      return next;
+      if (current.includes(index)) return current.filter(value => value !== index);
+      if (current.length < 3) return [...current, index];
+      return [...current.slice(0, 2), index];
     });
   }
 
@@ -1002,11 +1022,13 @@ function StarterItemsView({starter, save, onChoose, onBack}: {starter: DesktopGa
 function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void; onStart: () => void | Promise<void>; onBack?: () => void | Promise<void>}) {
   const pokemon = candidates[focusIndex];
   if (!pokemon) return <div className="loading-panel"><strong>正在生成租赁候选...</strong></div>;
-  return <div className="dex-layout"><PokemonProfile pokemon={pokemon} selected={selected.includes(focusIndex)} /><div className="dex-actions"><span>候选 {focusIndex + 1}/{candidates.length}</span><span>已选择：{selected.map(index => displayName(candidates[index])).join(" / ") || "无"}</span><div className="command-row">{onBack ? <button onClick={onBack}>返回开局道具</button> : null}<button onClick={() => setFocusIndex((focusIndex + candidates.length - 1) % candidates.length)}>上一只</button><button onClick={() => setFocusIndex((focusIndex + 1) % candidates.length)}>下一只</button><button onClick={() => onToggle(focusIndex)}>{selected.includes(focusIndex) ? "取消选中" : "选中"}</button><button disabled={selected.length !== 3} onClick={onStart}>开始挑战</button></div></div></div>;
+  const focusedSelected = selected.includes(focusIndex);
+  const selectLabel = focusedSelected ? "取消选中" : selected.length >= 3 ? "替换第3只" : "选中";
+  return <div className="dex-layout"><PokemonProfile pokemon={pokemon} selected={focusedSelected} /><div className="dex-actions"><span>候选 {focusIndex + 1}/{candidates.length}</span><span>已选择：{selected.map(index => displayName(candidates[index])).join(" / ") || "无"}</span><div className="command-row">{onBack ? <button onClick={onBack}>返回开局道具</button> : null}<button onClick={() => setFocusIndex((focusIndex + candidates.length - 1) % candidates.length)}>上一只</button><button onClick={() => setFocusIndex((focusIndex + 1) % candidates.length)}>下一只</button><button onClick={() => onToggle(focusIndex)}>{selectLabel}</button><button disabled={selected.length !== 3} onClick={onStart}>开始挑战</button></div></div></div>;
 }
 
 function PokemonProfile({pokemon, selected = false, runtime, compact = false}: {pokemon: RentalPokemon; selected?: boolean; runtime?: RuntimePokemon; compact?: boolean}) {
-  return <div className={`pokemon-profile ${compact ? "compact" : ""}`}><aside className="profile-card"><span>No.{pokemon.sprite?.national_dex || "?"}</span><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><h2>{displayName(pokemon)}</h2><p>{pokemon.species}</p><p>Lv{pokemon.level} {pokemon.gender}</p>{selected ? <strong>已选中</strong> : null}</aside><section className="profile-info"><h3>{pokemon.types_zh.join(" / ")}　{pokemon.nature_zh}</h3><div className="info-strip"><span>特性</span><strong>{pokemon.ability_zh}</strong><span>道具</span><strong>{pokemon.item_zh || "无"}</strong><span>HP</span><strong>{runtime ? conditionText(runtime.condition) : pokemon.stats.hp}</strong></div><div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat)}</strong></div>)}</div><div className="moves-panel">{pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><p>{move.desc_zh || move.desc || "暂无说明"}</p></div>)}</div></section></div>;
+  return <div className={`pokemon-profile ${compact ? "compact" : ""}`}><aside className="profile-card"><span>No.{pokemon.sprite?.national_dex || "?"}</span><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} badge="full" /><h2>{displayName(pokemon)}</h2><p>{pokemon.species}</p><p>Lv{pokemon.level} {pokemon.gender}</p>{selected ? <strong>已选中</strong> : null}</aside><section className="profile-info"><h3>{pokemon.types_zh.join(" / ")}　{pokemon.nature_zh}</h3><div className="info-strip"><span>特性</span><strong>{pokemon.ability_zh}</strong><span>道具</span><strong>{pokemon.item_zh || "无"}</strong><span>HP</span><strong>{runtime ? conditionText(runtime.condition) : pokemon.stats.hp}</strong></div><div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat)}</strong></div>)}</div><div className="moves-panel">{pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><p>{move.desc_zh || move.desc || "暂无说明"}</p></div>)}</div></section></div>;
 }
 
 function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}): BattleVisualCue | null {
@@ -1271,14 +1293,14 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, pendingTransiti
   const controlsDisabled = playbackActive || introActive || trainerIntroActive;
   const displayPlayer = findDisplay(battle.player_display, displayedActiveNames.p1) || player.display;
   const displayEnemy = findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display;
-  const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : pokemonImageUrl(displayPlayer, "back_normal");
-  const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : pokemonImageUrl(displayEnemy, "front_normal");
+  const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
+  const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
   const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"]) : 1600;
   const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
   const detailOpen = detailIndex !== null || mode === "teamMenu";
   const detailInitialIndex = detailIndex ?? activePlayerIndex;
-  return <div className="battle-layout"><section className={`battle-field ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}><FieldEffectsOverlay battle={battle} /><BattleEffectLayer cue={currentVisualCue} />{trainerIntroActive ? <TrainerIntroOverlay battle={battle} /> : null}<div className="turn-badge">第 {battle.tracker.turn} 回合</div><div className="battle-corner-actions"><button disabled={controlsDisabled} onClick={() => setMode("statusMenu")}>状态</button><button className="danger-button" disabled={controlsDisabled} onClick={() => onChoice("forfeit")}>认输</button></div><FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} /><div className="battle-sprites"><img className={`back-sprite clickable-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""}`} src={playerSprite} alt={displayPlayer ? displayName(displayPlayer) : "我方宝可梦"} onClick={() => setDetailIndex(activePlayerIndex)} /><img className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""}`} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} /></div><FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} onClick={() => setDetailIndex(activePlayerIndex)} />{currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}</section><section className="battle-bottom"><div className="battle-log"><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div><div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} />}</div></section>{mode === "statusMenu" ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}{detailOpen ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { setDetailIndex(null); if (mode === "teamMenu") setMode("battleMain"); }} /> : null}{battleItemOpen ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} onClose={() => setBattleItemOpen(false)} onUse={(itemId, target, moveSlot) => { setBattleItemOpen(false); onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`); }} /> : null}</div>;
+  return <div className="battle-layout"><section className={`battle-field ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}><FieldEffectsOverlay battle={battle} /><BattleEffectLayer cue={currentVisualCue} />{trainerIntroActive ? <TrainerIntroOverlay battle={battle} /> : null}<div className="turn-badge">第 {battle.tracker.turn} 回合</div><div className="battle-corner-actions"><button disabled={controlsDisabled} onClick={() => setMode("statusMenu")}>状态</button><button className="danger-button" disabled={controlsDisabled} onClick={() => onChoice("forfeit")}>认输</button></div><FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} /><div className="battle-sprites"><PokemonSprite className={`back-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""}`} pokemon={displayedSubstitutes.p1 ? undefined : displayPlayer} src={playerSprite} variant="back_normal" alt={displayPlayer ? displayName(displayPlayer) : "我方宝可梦"} entrance={!displayedSubstitutes.p1 && introActive} onClick={() => setDetailIndex(activePlayerIndex)} /><PokemonSprite className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""}`} pokemon={displayedSubstitutes.p2 ? undefined : displayEnemy} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} entrance={!displayedSubstitutes.p2 && introActive} /></div><FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} onClick={() => setDetailIndex(activePlayerIndex)} />{currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}</section><section className="battle-bottom"><div className="battle-log"><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div><div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} />}</div></section>{mode === "statusMenu" ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}{detailOpen ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { setDetailIndex(null); if (mode === "teamMenu") setMode("battleMain"); }} /> : null}{battleItemOpen ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} onClose={() => setBattleItemOpen(false)} onUse={(itemId, target, moveSlot) => { setBattleItemOpen(false); onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`); }} /> : null}</div>;
 }
 
 function TrainerIntroOverlay({battle}: {battle: BattleState}) {
@@ -1362,6 +1384,35 @@ function moveEffectiveness(summary: MoveSummary | undefined, target: RentalPokem
   return uniqueTypes.reduce((multiplier, defenseType) => multiplier * (TYPE_CHART[attackType]?.[defenseType] ?? 1), 1);
 }
 
+function boostedStat(value: number | undefined, stage: number | undefined): number {
+  const base = Math.max(1, Number(value || 1));
+  const boost = Math.max(-6, Math.min(6, Number(stage || 0)));
+  return boost >= 0 ? base * (2 + boost) / 2 : base * 2 / (2 - boost);
+}
+
+function moveDamageRangeLabel(summary: MoveSummary | undefined, attacker: RentalPokemon | undefined, target: RentalPokemon | undefined, battle: BattleState): string | null {
+  if (!battle.show_move_effectiveness) return null;
+  if (!summary || !attacker || !target) return "--";
+  if (!Number(summary.power || 0) || /status/i.test(summary.category || "") || summary.category_zh === "变化") return "--";
+  const category = /special/i.test(summary.category || "") || summary.category_zh === "特殊" ? "special" : "physical";
+  const attackStat = category === "special" ? "spa" : "atk";
+  const defenseStat = category === "special" ? "spd" : "def";
+  const attack = boostedStat(attacker.stats?.[attackStat], battle.tracker.boosts.p1?.[attackStat]);
+  const defense = boostedStat(target.stats?.[defenseStat], battle.tracker.boosts.p2?.[defenseStat]);
+  const level = Number(attacker.level || 50);
+  const baseDamage = Math.floor(Math.floor(Math.floor((2 * level / 5 + 2) * Number(summary.power) * attack / Math.max(1, defense)) / 50) + 2);
+  const attackType = typeId(summary.type || summary.type_zh);
+  const stab = attackType && [...(attacker.types || []), ...(attacker.types_zh || [])].map(typeId).includes(attackType) ? 1.5 : 1;
+  const effectiveness = moveEffectiveness(summary, target);
+  const maxHp = parseHp(battle.tracker.active.p2?.condition)?.max || Number(target.stats?.hp || 1);
+  if (effectiveness <= 0) return "0%";
+  const maxDamage = Math.floor(baseDamage * stab * effectiveness);
+  const minDamage = Math.floor(maxDamage * 0.85);
+  const minPercent = Math.max(0, Math.floor(minDamage / Math.max(1, maxHp) * 100));
+  const maxPercent = Math.max(minPercent, Math.ceil(maxDamage / Math.max(1, maxHp) * 100));
+  return `${minPercent}%~${maxPercent}%`;
+}
+
 function MainBattleCommands({forceSwitch, disabled, setMode, onBag}: {forceSwitch: boolean; disabled?: boolean; setMode: (mode: AppStatus) => void; onBag: () => void}) {
   return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled={disabled || forceSwitch} onClick={onBag}>背包</button></div>;
 }
@@ -1370,7 +1421,7 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
   const moves = battle.request?.active?.[0]?.moves || [];
   const active = activePokemon(battle, "p1").display;
   const target = activePokemon(battle, "p2").display;
-  return <div className="move-menu">{moves.map((move, index) => { const summary = moveSummaryFor(active, move); const multiplier = moveEffectiveness(summary, target); const superEffective = Boolean(battle.show_move_effectiveness && multiplier > 1); return <button className={`move-choice ${moveTypeClass(summary)} ${superEffective ? "move-super-effective" : ""}`} key={move.id || index} disabled={disabled || move.disabled} onClick={() => onMove(index + 1)}><strong>{summary?.name_zh || move.move}{superEffective ? <i>克制</i> : null}</strong><span><b>{moveTypeLabel(summary)}</b> PP {move.pp}/{move.maxpp}{superEffective ? ` x${multiplier}` : ""}</span></button>; })}<button className="menu-back" disabled={disabled} onClick={onBack}>返回</button></div>;
+  return <div className="move-menu">{moves.map((move, index) => { const summary = moveSummaryFor(active, move); const multiplier = moveEffectiveness(summary, target); const superEffective = Boolean(battle.show_move_effectiveness && multiplier > 1); const damageRange = moveDamageRangeLabel(summary, active, target, battle); return <button className={`move-choice ${moveTypeClass(summary)} ${superEffective ? "move-super-effective" : ""}`} key={move.id || index} disabled={disabled || move.disabled} onClick={() => onMove(index + 1)}><strong>{summary?.name_zh || move.move}{superEffective ? <i>克制</i> : null}</strong><span><b>{moveTypeLabel(summary)}</b> PP {move.pp}/{move.maxpp}{superEffective ? ` x${multiplier}` : ""}</span>{damageRange ? <small className="damage-range">[{damageRange}]</small> : null}</button>; })}<button className="menu-back" disabled={disabled} onClick={onBack}>返回</button></div>;
 }
 
 function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; disabled?: boolean; onSwitch: (index: number) => void; onBack: () => void}) {
@@ -1411,7 +1462,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
             const code = statusCode(entry.condition);
             return (
               <button className={selectedIndex === index ? "selected" : ""} onClick={() => setSelectedIndex(index)} key={`${entry.ident}-${index}`}>
-                <img src={pokemonImageUrl(display)} alt={display ? displayName(display) : runtimeName(entry)} />
+                <PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} />
                 <span>{entry.active ? "▶ " : ""}{display ? displayName(display) : runtimeName(entry)}</span>
                 {code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}
                 <small>{conditionText(entry.condition)}</small>
@@ -1435,7 +1486,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
               <div className="detail-basic">
                 <div className="detail-portrait">
                   <span>No.{pokemon.sprite?.national_dex || "?"}</span>
-                  <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                  <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} badge="full" />
                   <strong>{pokemon.types_zh.join(" / ") || pokemon.types.join(" / ")}</strong>
                 </div>
                 <div className="detail-info">
@@ -1493,7 +1544,7 @@ function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: 
               <div className="detail-team-list compact-targets">
                 {rows.map((entry, index) => {
                   const display = findDisplay(battle.player_display, runtimeName(entry)) || battle.player_display[index];
-                  return <button className={target === index ? "selected" : ""} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${entry.ident}-item-target`}><img src={pokemonImageUrl(display)} alt={display ? displayName(display) : runtimeName(entry)} /><span>{display ? displayName(display) : runtimeName(entry)}</span><small>{conditionText(entry.condition)}</small></button>;
+                  return <button className={target === index ? "selected" : ""} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${entry.ident}-item-target`}><PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} /><span>{display ? displayName(display) : runtimeName(entry)}</span><small>{conditionText(entry.condition)}</small></button>;
                 })}
               </div>
               {activeMoves.length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}><option value={0}>不指定技能</option>{activeMoves.map((move, index) => <option value={index + 1} key={`${move.id}-${index}`}>{move.move} PP {move.pp}/{move.maxpp}</option>)}</select> : null}
@@ -1568,7 +1619,7 @@ function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameStat
   const [own, setOwn] = useState(0);
   const [enemy, setEnemy] = useState(0);
   if (!exchange) return null;
-  return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
+  return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
 }
 
 function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; message?: string; onAction: (action: RestAction) => void | Promise<void>}) {
@@ -1628,7 +1679,7 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
           {rest.player_display.map((pokemon, index) => {
             const state = rest.player_state[index];
             const status = statusCode(state?.condition, state?.status);
-            return <button className="rest-team-card" onClick={() => setPokemonModalSlot(index)} key={`${pokemon.species_id}-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
+            return <button className="rest-team-card" onClick={() => setPokemonModalSlot(index)} key={`${pokemon.species_id}-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
           })}
         </div>
       </section>
@@ -1661,6 +1712,18 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
           </section>
         </div>
       ) : null}
+      {rest.all_in_pending_next ? (
+        <div className="modal-layer">
+          <section className="confirm-modal all-in-result-modal">
+            <h2>孤注一掷</h2>
+            <p>{rest.all_in_result ? `${rest.all_in_result.old_name} 被替换成了 ${rest.all_in_result.new_name}。` : "替换已经完成。"}</p>
+            <p>队伍内另外两只宝可梦已陷入半血睡眠状态，即将结束休整。</p>
+            <div className="command-row">
+              <button onClick={() => onAction({type: "next"})}>进入下一场</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1683,7 +1746,7 @@ function RestPokemonModal({rest, initialSlot, onClose, onMove, onUnequip, onStat
     <div className="modal-layer">
       <section className="rest-pokemon-modal">
         <aside className="detail-team-list">
-          {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-rest-detail`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span><small>{conditionText(rest.player_state[index]?.condition)}</small></button>)}
+          {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-rest-detail`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span><small>{conditionText(rest.player_state[index]?.condition)}</small></button>)}
         </aside>
         <main className="rest-pokemon-detail">
           <header>
@@ -1726,7 +1789,7 @@ function RestoreModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameS
       <section className="rest-edit-modal restore-modal">
         <header><h2>恢复</h2><button onClick={onClose}>关闭</button></header>
         <div className="restore-target-list">
-          {rest.player_display.map((pokemon, index) => <button className={selected === index ? "selected" : ""} onClick={() => setSelected(index)} key={`${pokemon.species_id}-restore`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><strong>{displayName(pokemon)}</strong><span>{conditionText(rest.player_state[index]?.condition)}</span><small>{(rest.player_state[index]?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>)}
+          {rest.player_display.map((pokemon, index) => <button className={selected === index ? "selected" : ""} onClick={() => setSelected(index)} key={`${pokemon.species_id}-restore`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><strong>{displayName(pokemon)}</strong><span>{conditionText(rest.player_state[index]?.condition)}</span><small>{(rest.player_state[index]?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>)}
         </div>
         {targetState?.moves?.length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}>{targetState.moves.map(move => <option value={move.slot} key={`${move.id}-restore-pp-${move.slot}`}>{move.move} PP {move.pp}/{move.maxpp}</option>)}</select> : null}
         <div className="command-row">
@@ -1752,13 +1815,13 @@ function RestExchangeModal({rest, onClose, onAction}: {rest: NonNullable<Desktop
       <section className="rest-edit-modal exchange-rest-modal">
         <header><div><h2>交换宝可梦</h2><p>本次费用：{bpCostLabel(rest.costs.exchange)}　已交换 {rest.exchange_count}/3</p></div><button onClick={onClose}>关闭</button></header>
         <div className="rest-exchange-grid">
-          <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`${pokemon.species_id}-own-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
-          <div>{rest.enemy_display.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} disabled={rest.taken_enemy_slots.includes(index + 1)} onClick={() => setEnemy(index)} key={`${pokemon.species_id}-enemy-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span>{rest.taken_enemy_slots.includes(index + 1) ? <small>已交换</small> : null}</button>)}</div>
+          <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`${pokemon.species_id}-own-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
+          <div>{rest.enemy_display.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} disabled={rest.taken_enemy_slots.includes(index + 1)} onClick={() => setEnemy(index)} key={`${pokemon.species_id}-enemy-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span>{rest.taken_enemy_slots.includes(index + 1) ? <small>已交换</small> : null}</button>)}</div>
         </div>
         {hasRunTalent(rest, "exchange_safe_box") ? <div className="safe-box-panel">
           <h3>无损交易盒</h3>
           <div className="safe-box-list">
-            {box.length ? box.map((pokemon, index) => <button className={`mini-pokemon-card ${boxIndex === index ? "selected" : ""}`} onClick={() => setBoxIndex(index)} key={`${pokemon.species_id}-box-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>) : <p>击败对手后，遇到的宝可梦会进入盒子。</p>}
+            {box.length ? box.map((pokemon, index) => <button className={`mini-pokemon-card ${boxIndex === index ? "selected" : ""}`} onClick={() => setBoxIndex(index)} key={`${pokemon.species_id}-box-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>) : <p>击败对手后，遇到的宝可梦会进入盒子。</p>}
           </div>
         </div> : null}
         <div className="command-row">
@@ -1867,7 +1930,7 @@ function BagManageModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
               <div className="detail-team-list compact-targets">
                 {rest.player_display.map((pokemon, index) => {
                   const disabled = isTm && !tmLoading && !targetCanLearn(index);
-                  return <button className={target === index ? "selected" : ""} disabled={disabled} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${pokemon.species_id}-bag-target-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{targetHint(index)}</small></button>;
+                  return <button className={target === index ? "selected" : ""} disabled={disabled} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${pokemon.species_id}-bag-target-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{targetHint(index)}</small></button>;
                 })}
               </div>
               {isTm && targetPokemon ? <div className="move-slot-row">{targetPokemon.moves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} disabled={!targetCanLearn(target)} onClick={() => setMoveSlot(index)} key={`${move.id}-tm-slot-${index}`}>{index + 1}. {move.name_zh}</button>)}</div> : null}
@@ -1914,7 +1977,7 @@ function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
           <div className="talent-target-row compact">
             {rest.player_display.map((pokemon, index) => (
               <button className={allInSlot === index ? "selected" : ""} disabled={Boolean(rest.all_in_used)} onClick={() => setAllInSlot(index)} key={`${pokemon.species_id}-all-in-${index}`}>
-                <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
                 <span>{index + 1}. {displayName(pokemon)}</span>
               </button>
             ))}
@@ -1929,7 +1992,7 @@ function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
           <div className="talent-target-row compact">
             {rest.player_display.map((pokemon, index) => (
               <button className={boxOwnSlot === index ? "selected" : ""} disabled={!canBoxExchange} onClick={() => setBoxOwnSlot(index)} key={`${pokemon.species_id}-box-own-${index}`}>
-                <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
                 <span>{index + 1}. {displayName(pokemon)}</span>
               </button>
             ))}
@@ -1937,7 +2000,7 @@ function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
           <div className="talent-target-row compact">
             {box.length ? box.map((pokemon, index) => (
               <button className={boxSlot === index ? "selected" : ""} onClick={() => setBoxSlot(index)} key={`${pokemon.species_id}-box-talent-${index}`}>
-                <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
                 <span>{displayName(pokemon)}</span>
               </button>
             )) : <p>盒子为空，击败对手后遇到的宝可梦会先进入盒子。</p>}
@@ -1964,8 +2027,8 @@ function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
           )) : <p>当前无天赋。</p>}
         </div>
         {rest.scout ? <div className="rest-scout-box"><strong>{rest.scout.title}</strong><span>{rest.scout.summary}</span>{rest.scout.enemies.map(enemy => <small key={`${enemy.species_id}-scout`}>{displayName(enemy)}</small>)}</div> : null}
-        {rest.future_boss?.enemies?.length ? <div className="review-list">{rest.future_boss.enemies.map(enemy => <article key={`${enemy.species_id}-future`}><img src={pokemonImageUrl(enemy)} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
-        {rest.review?.enemies?.length ? <div className="review-list">{rest.review.enemies.map(enemy => <article key={`${enemy.species_id}-review`}><img src={pokemonImageUrl(enemy)} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
+        {rest.future_boss?.enemies?.length ? <div className="review-list">{rest.future_boss.enemies.map(enemy => <article key={`${enemy.species_id}-future`}><PokemonSprite pokemon={enemy} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
+        {rest.review?.enemies?.length ? <div className="review-list">{rest.review.enemies.map(enemy => <article key={`${enemy.species_id}-review`}><PokemonSprite pokemon={enemy} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
       </section>
     </div>
   );
@@ -2072,7 +2135,7 @@ function MoveAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: NonN
       <section className="rest-edit-modal move-editor-modal">
         <header><h2>更换技能</h2><button onClick={onClose}>关闭</button></header>
         <div className="editor-layout">
-          <aside className="editor-side-list">{playerDisplay.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => { setSlot(index); setMoveSlot(0); }} key={`${entry.species_id}-move-editor-${index}`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
+          <aside className="editor-side-list">{playerDisplay.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => { setSlot(index); setMoveSlot(0); }} key={`${entry.species_id}-move-editor-${index}`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
           <section className="editor-main">
             <h3>{displayName(pokemon)}：替换 {currentMove?.name_zh || "选择招式格"}</h3>
             <div className="move-slot-row">{pokemonMoves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} onClick={() => setMoveSlot(index)} key={`${move.id}-${index}`}>{index + 1}. {move.name_zh}</button>)}</div>
@@ -2105,7 +2168,7 @@ function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: Non
       <section className="rest-edit-modal stats-editor">
         <header><h2>重置数值</h2><button onClick={onClose}>关闭</button></header>
         <div className="editor-layout">
-          <aside className="editor-side-list">{rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-stats-editor`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
+          <aside className="editor-side-list">{rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-stats-editor`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
           <section className="editor-main stats-editor-main">
             <header className="stats-editor-title">
               <h3>{displayName(pokemon)}</h3>
