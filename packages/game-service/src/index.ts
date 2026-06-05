@@ -1,4 +1,4 @@
-import {existsSync} from "node:fs";
+import {existsSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import path from "node:path";
@@ -20,11 +20,14 @@ import type {
 
 const require = createRequire(import.meta.url);
 const DEFAULT_SHOWDOWN_PATH = "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown";
-const FIXED_LEVEL = 50;
+const MIN_RENTAL_LEVEL = 45;
+const MAX_RENTAL_LEVEL = 55;
+const SHINY_RATE = 30;
 const RENTAL_CANDIDATE_COUNT = 6;
 const MAX_GENERATION_ATTEMPTS = 40;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const SIDE_NAMES = {p1: "玩家", p2: "对手"} as const;
+const FALLBACK_HELD_ITEMS = ["Leftovers", "Sitrus Berry", "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Assault Vest", "Focus Sash", "Expert Belt"];
 
 type ShowdownModule = {
   Dex: any;
@@ -38,6 +41,25 @@ type SideId = "p1" | "p2";
 type Message = {type: string; data: string};
 type ParsedTimelineEvent = Omit<BattleTimelineEvent, "id">;
 type SlotKeySpec = {slot: number; keys: Set<string>};
+type GenerationProfile = "tier1" | "tier2" | "tier3" | "tier4" | "champion";
+type StageTier = 1 | 2 | 3 | 4;
+type TierRow = {species_id: string; species: string; tier: StageTier; override_tier?: string};
+type ConsumableItemEffect = {
+  id: string;
+  hp: string;
+  revive: "" | "half" | "full";
+  pp: string;
+  pp_scope: "" | "one" | "all";
+  status: string;
+  notes?: string;
+};
+
+export type GenerateRentalOptions = {
+  profiles?: GenerationProfile[];
+  stages?: StageTier[];
+  speciesIds?: string[];
+  purpose?: "starter" | "normal" | "boss" | "rescue";
+};
 
 export type GameServiceOptions = {
   projectRoot: string;
@@ -62,25 +84,38 @@ export class GameService {
   private translationNormalized: TranslationData | null = null;
   private details: DetailData | null = null;
   private detailsNormalized: DetailData | null = null;
+  private tierRows: TierRow[] | null = null;
+  private consumableEffects: Map<string, ConsumableItemEffect> | null = null;
 
   constructor(options: GameServiceOptions) {
     this.projectRoot = options.projectRoot;
     this.showdownPath = options.showdownPath || process.env.SHOWDOWN_PATH || DEFAULT_SHOWDOWN_PATH;
   }
 
-  async generateRentalCandidates(seed: number | number[] = Date.now(), format = "gen7randombattle"): Promise<GeneratedTeam> {
+  async generateRentalCandidates(seed: number | number[] = Date.now(), format: string | GenerateRentalOptions = "gen7randombattle", count = RENTAL_CANDIDATE_COUNT, options: GenerateRentalOptions = {}): Promise<GeneratedTeam> {
+    if (typeof format === "object") {
+      options = format;
+      format = "gen7randombattle";
+      count = options.profiles?.length || options.stages?.length || options.speciesIds?.length || count;
+    }
     const sim = this.loadShowdown();
     const seedArray = this.seedArray(seed);
     await this.loadDisplayData();
+    if (options.profiles?.length || options.stages?.length || options.speciesIds?.length) {
+      return this.generateProfiledCandidates(seedArray, format, count, options);
+    }
     const team: PokemonSet[] = [];
     const display: RentalPokemon[] = [];
     const seenSpecies = new Set<string>();
 
-    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS && team.length < RENTAL_CANDIDATE_COUNT; attempt += 1) {
+    const targetCount = Math.max(1, Math.min(24, Number(count || RENTAL_CANDIDATE_COUNT)));
+    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS && team.length < targetCount; attempt += 1) {
       const attemptSeed = this.bumpSeed(seedArray, attempt);
       const generated = this.normalizeTeam(sim.Teams.generate(format, {seed: attemptSeed}));
-      for (const set of generated) {
-        if (team.length >= RENTAL_CANDIDATE_COUNT) break;
+      const rng = this.createRngFromSeed(attemptSeed, attempt + 1);
+      for (const baseSet of generated) {
+        if (team.length >= targetCount) break;
+        const set = this.randomizeRentalSet(baseSet, rng);
         const described = this.describeSet(set);
         if (seenSpecies.has(described.species_id)) continue;
         if (!this.hasUsableSprite(described)) continue;
@@ -90,8 +125,8 @@ export class GameService {
       }
     }
 
-    if (team.length < RENTAL_CANDIDATE_COUNT) {
-      throw new Error(`可用图片的租赁候选不足：${team.length}/${RENTAL_CANDIDATE_COUNT}`);
+    if (team.length < targetCount) {
+      throw new Error(`可用图片的租赁候选不足：${team.length}/${targetCount}`);
     }
 
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
@@ -123,7 +158,7 @@ export class GameService {
         id: item.id,
         name: item.name,
         name_zh: this.zh("items", item.name),
-        cost: 5,
+        cost: 500,
         desc: item.desc || item.shortDesc || "",
         desc_zh: this.detailDescription("items", item.name),
       }));
@@ -186,11 +221,24 @@ export class GameService {
     return spriteMap.entries[speciesId];
   }
 
-  async createBattleSession(options: StartBattleOptions): Promise<BattleSession> {
+  async createBattleSession(options: StartBattleOptions): Promise<TrainerItemBattleSession> {
     await this.loadDisplayData();
-    const session = new BattleSession(this, this.loadShowdown(), options);
+    const session = new TrainerItemBattleSession(this, this.loadShowdown(), options);
     await session.start();
     return session;
+  }
+
+  async hasConsumableItemEffect(itemId: string): Promise<boolean> {
+    return Boolean((await this.loadConsumableItemEffects()).get(toId(itemId)));
+  }
+
+  async applyConsumableItemEffectToState(itemId: string, state: PlayerPokemonState, moveSlot?: number): Promise<string> {
+    await this.loadDisplayData();
+    const effect = (await this.loadConsumableItemEffects()).get(toId(itemId));
+    if (!effect) throw new Error("这个道具不能作为消耗道具使用。");
+    const itemName = this.plain("items", itemId);
+    const result = applyConsumableEffectToMutableState(effect, state, itemName, moveSlot);
+    return result.message;
   }
 
   loadShowdown(): ShowdownModule {
@@ -269,7 +317,7 @@ export class GameService {
   }
 
   private normalizeTeam(team: PokemonSet[]): PokemonSet[] {
-    return team.map(set => ({...set, level: FIXED_LEVEL, nature: set.nature || "Serious", moves: [...(set.moves || [])]}));
+    return team.map(set => ({...set, level: Number(set.level || 50), nature: set.nature || "Serious", moves: [...(set.moves || [])]}));
   }
 
   private describeSet(set: PokemonSet): RentalPokemon {
@@ -277,6 +325,7 @@ export class GameService {
     const species = sim.Dex.species.get(set.species || set.name);
     const ability = sim.Dex.abilities.get(set.ability);
     const item = set.item ? sim.Dex.items.get(set.item) : null;
+    const level = Math.max(1, Number(set.level || 50));
     const nature = this.natureModifiers(set.nature || "Serious");
     const ivs = this.fullStats(set.ivs || {}, 31);
     const evs = this.fullStats(set.evs || {}, 0);
@@ -288,7 +337,7 @@ export class GameService {
       species: set.species,
       species_zh: this.zh("species", species.name || set.species),
       species_id: speciesId,
-      level: FIXED_LEVEL,
+      level,
       gender: set.gender || "",
       types: species.types || [],
       types_zh: (species.types || []).map((typeName: string) => this.zh("types", typeName)),
@@ -304,7 +353,7 @@ export class GameService {
       item_desc_zh: this.detailDescription("items", item?.exists ? item.name : set.item),
       moves: (set.moves || []).map((moveId: string) => this.moveDetails(moveId)),
       base_stats: baseStats,
-      stats: this.calculatedStats(baseStats, ivs, evs, FIXED_LEVEL, nature),
+      stats: this.calculatedStats(baseStats, ivs, evs, level, nature),
       evs,
       ivs,
       nature: nature.name,
@@ -313,8 +362,231 @@ export class GameService {
       nature_minus: nature.minus,
       role: set.role || "",
       role_zh: this.zh("roles", set.role || ""),
+      shiny: Boolean(set.shiny),
+      stage_tier: set.stage_tier,
+      generation_profile: set.generation_profile,
       sprite,
     };
+  }
+
+  private createRngFromSeed(seed: number[], salt = 0): () => number {
+    let state = seed.reduce((acc, value, index) => (acc ^ ((Number(value) & 0xffff) << ((index % 2) * 16))) >>> 0, 0x9e3779b9 ^ salt);
+    return () => {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 0x100000000;
+    };
+  }
+
+  private randomInt(rng: () => number, min: number, max: number): number {
+    return min + Math.floor(rng() * (max - min + 1));
+  }
+
+  private randomIvs(rng: () => number): Record<string, number> {
+    return Object.fromEntries(STAT_IDS.map(stat => [stat, this.randomInt(rng, 0, 31)]));
+  }
+
+  private randomEvs(rng: () => number): Record<string, number> {
+    const evs = Object.fromEntries(STAT_IDS.map(stat => [stat, 0])) as Record<string, number>;
+    let remaining = 510;
+    const order = [...STAT_IDS].sort(() => rng() - 0.5);
+    for (const stat of order) {
+      const value = this.randomInt(rng, 0, Math.min(255, remaining));
+      evs[stat] = value;
+      remaining -= value;
+    }
+    return evs;
+  }
+
+  private randomMovesForSet(set: PokemonSet, rng: () => number): string[] {
+    const dex = this.loadShowdown().Dex.mod("gen7");
+    const species = dex.species.get(set.species || set.name);
+    const pool: string[] = [];
+    const seen = new Set<string>();
+    for (const entry of dex.species.getFullLearnset(species.id) || []) {
+      for (const moveId of Object.keys(entry.learnset || {})) {
+        const move = dex.moves.get(moveId);
+        if (!move.exists || !move.id || seen.has(move.id)) continue;
+        if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+        seen.add(move.id);
+        pool.push(move.name || move.id);
+      }
+    }
+    const shuffled = [...pool].sort(() => rng() - 0.5);
+    const selected = shuffled.slice(0, 4);
+    return selected.length >= 4 ? selected : [...(set.moves || [])].slice(0, 4);
+  }
+
+  randomizeRentalSet(baseSet: PokemonSet, rng: () => number): PokemonSet {
+    const dex = this.loadShowdown().Dex.mod("gen7");
+    const natures = dex.natures.all();
+    const nature = natures[this.randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || baseSet.nature || "Serious";
+    return {
+      ...baseSet,
+      level: this.randomInt(rng, MIN_RENTAL_LEVEL, MAX_RENTAL_LEVEL),
+      item: "",
+      ivs: this.randomIvs(rng),
+      evs: this.randomEvs(rng),
+      nature,
+      moves: this.randomMovesForSet(baseSet, rng),
+      shiny: this.randomInt(rng, 1, SHINY_RATE) === 1,
+    };
+  }
+
+  private generateProfiledCandidates(seedArray: number[], format: string, count: number, options: GenerateRentalOptions): GeneratedTeam {
+    const sim = this.loadShowdown();
+    const targetCount = Math.max(1, Math.min(24, Number(count || RENTAL_CANDIDATE_COUNT)));
+    const requestedProfiles = this.requestedProfiles(options, targetCount);
+    const speciesIds = (options.speciesIds || []).map(id => this.toId(id));
+    const team: PokemonSet[] = [];
+    const display: RentalPokemon[] = [];
+    const seenSpecies = new Set<string>();
+    const rng = this.createRngFromSeed(seedArray, 4100 + targetCount);
+    const generator = this.randomGenerator(format, seedArray);
+
+    for (let index = 0; index < targetCount; index += 1) {
+      const profile = requestedProfiles[index] || requestedProfiles[requestedProfiles.length - 1] || "tier1";
+      const speciesId = speciesIds[index] || this.pickSpeciesForProfile(profile, rng, seenSpecies);
+      const baseSet = this.baseSetForSpecies(speciesId, generator, rng);
+      const set = this.applyGenerationProfile(baseSet, profile, rng);
+      const described = this.describeSet(set);
+      if (seenSpecies.has(described.species_id) && !speciesIds[index]) continue;
+      if (!this.hasUsableSprite(described) && !speciesIds[index]) {
+        index -= 1;
+        continue;
+      }
+      seenSpecies.add(described.species_id);
+      team.push(set);
+      display.push(described);
+    }
+    if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
+    return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
+  }
+
+  private requestedProfiles(options: GenerateRentalOptions, count: number): GenerationProfile[] {
+    if (options.profiles?.length) return options.profiles.slice(0, count);
+    if (options.stages?.length) return options.stages.slice(0, count).map(stage => `tier${stage}` as GenerationProfile);
+    return Array.from({length: count}, () => "tier1" as GenerationProfile);
+  }
+
+  private randomGenerator(format: string, seedArray: number[]): any {
+    try {
+      return this.loadShowdown().Teams.getGenerator(format || "gen7randombattle", seedArray);
+    } catch {
+      return null;
+    }
+  }
+
+  private baseSetForSpecies(speciesId: string, generator: any, rng: () => number): PokemonSet {
+    const dex = this.loadShowdown().Dex.mod("gen7");
+    const species = dex.species.get(speciesId);
+    if (generator?.randomSet && species.exists) {
+      try {
+        return this.normalizeTeam([generator.randomSet(species)])[0];
+      } catch {
+        // Fall through to the local legal-set fallback.
+      }
+    }
+    const abilities = Object.values(species.abilities || {}).filter(Boolean) as string[];
+    const ability = abilities[this.randomInt(rng, 0, Math.max(0, abilities.length - 1))] || "";
+    return {
+      name: species.name || speciesId,
+      species: species.name || speciesId,
+      ability,
+      item: "",
+      moves: this.randomMovesForSet({species: species.name || speciesId, moves: []}, rng),
+      nature: "Serious",
+      evs: this.fullStats({}, 0),
+      ivs: this.fullStats({}, 31),
+      level: 50,
+    };
+  }
+
+  private applyGenerationProfile(baseSet: PokemonSet, profile: GenerationProfile, rng: () => number): PokemonSet {
+    const normalizedProfile = profile === "champion" ? "champion" : profile;
+    const stageTier = normalizedProfile === "champion" ? 4 : Number(normalizedProfile.replace("tier", "")) as StageTier;
+    const dex = this.loadShowdown().Dex.mod("gen7");
+    const natures = dex.natures.all();
+    const randomNature = () => natures[this.randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || "Serious";
+    const heldItem = baseSet.item || FALLBACK_HELD_ITEMS[this.randomInt(rng, 0, FALLBACK_HELD_ITEMS.length - 1)];
+    const set = {...baseSet, moves: [...(baseSet.moves || [])], shiny: this.randomInt(rng, 1, SHINY_RATE) === 1};
+    if (normalizedProfile === "tier1") {
+      return {...set, level: this.randomInt(rng, 45, 50), item: "", ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 0, 90), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 0, 200), 255), nature: "Serious", stage_tier: stageTier, generation_profile: normalizedProfile};
+    }
+    if (normalizedProfile === "tier2") {
+      return {...set, level: this.randomInt(rng, 45, 50), item: heldItem, ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 60, 120), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 180, 300), 255), nature: randomNature(), stage_tier: stageTier, generation_profile: normalizedProfile};
+    }
+    if (normalizedProfile === "tier3") {
+      return {...set, level: this.randomInt(rng, 50, 54), item: heldItem, ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 90, 150), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 270, 450), 255), nature: baseSet.nature || randomNature(), stage_tier: stageTier, generation_profile: normalizedProfile};
+    }
+    const level = normalizedProfile === "champion" ? this.randomInt(rng, 58, 60) : 55;
+    return {...set, level, item: heldItem, ivs: this.fullStats({}, 31), evs: this.randomStatsWithTotal(rng, 510, 255), nature: baseSet.nature || randomNature(), stage_tier: 4, generation_profile: normalizedProfile};
+  }
+
+  private randomStatsWithTotal(rng: () => number, total: number, maxPerStat: number): Record<string, number> {
+    const cappedTotal = Math.max(0, Math.min(total, maxPerStat * STAT_IDS.length));
+    const values = Object.fromEntries(STAT_IDS.map(stat => [stat, 0])) as Record<string, number>;
+    let remaining = cappedTotal;
+    const order = [...STAT_IDS].sort(() => rng() - 0.5);
+    for (let index = 0; index < order.length; index += 1) {
+      const stat = order[index];
+      const slotsLeft = order.length - index - 1;
+      const min = Math.max(0, remaining - maxPerStat * slotsLeft);
+      const max = Math.min(maxPerStat, remaining);
+      const value = index === order.length - 1 ? remaining : this.randomInt(rng, min, max);
+      values[stat] = value;
+      remaining -= value;
+    }
+    return values;
+  }
+
+  private pickSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>): string {
+    const tier = profile === "champion" ? 4 : Number(profile.replace("tier", "")) as StageTier;
+    const pool = this.loadTierRows().filter(row => row.tier === tier && !seenSpecies.has(row.species_id));
+    const fallback = this.loadTierRows().filter(row => row.tier === tier);
+    const selectedPool = pool.length ? pool : fallback;
+    return selectedPool[this.randomInt(rng, 0, Math.max(0, selectedPool.length - 1))]?.species_id || "pikachu";
+  }
+
+  private loadTierRows(): TierRow[] {
+    if (this.tierRows) return this.tierRows;
+    const filePath = path.join(this.projectRoot, "data", "pokemon_tiers.csv");
+    if (!existsSync(filePath)) {
+      this.tierRows = [];
+      return this.tierRows;
+    }
+    const lines = readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean);
+    const header = this.parseCsvLine(lines[0] || "");
+    this.tierRows = lines.slice(1).map(line => {
+      const values = this.parseCsvLine(line);
+      const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""])) as Record<string, string>;
+      return {
+        species_id: row.species_id,
+        species: row.species,
+        tier: Number(row.override_tier || row.tier || 1) as StageTier,
+        override_tier: row.override_tier,
+      };
+    }).filter(row => row.species_id && row.tier >= 1 && row.tier <= 4);
+    return this.tierRows;
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const cells: string[] = [];
+    let cell = "";
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if (char === "\"") {
+        if (quoted && line[index + 1] === "\"") {
+          cell += "\"";
+          index += 1;
+        } else quoted = !quoted;
+      } else if (char === "," && !quoted) {
+        cells.push(cell);
+        cell = "";
+      } else cell += char;
+    }
+    cells.push(cell);
+    return cells;
   }
 
   private hasUsableSprite(pokemon: RentalPokemon): boolean {
@@ -353,11 +625,11 @@ export class GameService {
 
   private defaultMoveCost(power: number | undefined): number {
     const value = Number(power || 0);
-    if (value >= 120) return 5;
-    if (value > 90) return 4;
-    if (value > 60) return 3;
-    if (value > 30) return 2;
-    return 1;
+    if (value >= 120) return 500;
+    if (value > 90) return 400;
+    if (value > 60) return 300;
+    if (value > 30) return 200;
+    return 100;
   }
 
   private calculatedStats(baseStats: Record<string, number>, ivs: Record<string, number>, evs: Record<string, number>, level: number, nature: {plus: string; minus: string}): Record<string, number> {
@@ -381,6 +653,33 @@ export class GameService {
     const result: Record<string, number> = {};
     for (const stat of STAT_IDS) result[stat] = input[stat] === undefined ? defaultValue : Number(input[stat]);
     return result;
+  }
+
+  async loadConsumableItemEffects(): Promise<Map<string, ConsumableItemEffect>> {
+    if (this.consumableEffects) return this.consumableEffects;
+    const effects = new Map<string, ConsumableItemEffect>();
+    const filePath = path.join(this.projectRoot, "data", "consumable_item_effects.csv");
+    if (existsSync(filePath)) {
+      const lines = (await readFile(filePath, "utf8")).split(/\r?\n/).filter(line => line.trim());
+      const header = parseCsvLine(lines[0] || "");
+      for (const line of lines.slice(1)) {
+        const values = parseCsvLine(line);
+        const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""]));
+        const id = toId(row.id);
+        if (!id) continue;
+        effects.set(id, {
+          id,
+          hp: String(row.hp || ""),
+          revive: row.revive === "half" || row.revive === "full" ? row.revive : "",
+          pp: String(row.pp || ""),
+          pp_scope: row.pp_scope === "one" || row.pp_scope === "all" ? row.pp_scope : "",
+          status: String(row.status || "none"),
+          notes: row.notes || "",
+        });
+      }
+    }
+    this.consumableEffects = effects;
+    return effects;
   }
 
   private toId(value: string): string {
@@ -436,7 +735,7 @@ export class GameService {
 }
 
 export class BattleSession {
-  private readonly service: GameService;
+  protected readonly service: GameService;
   private readonly sim: ShowdownModule;
   private readonly playerTeam: PokemonSet[];
   private readonly enemyTeam: PokemonSet[];
@@ -446,10 +745,10 @@ export class BattleSession {
   private readonly playerSlotKeys: SlotKeySpec[];
   private readonly enemySlotKeys: SlotKeySpec[];
   private readonly seed: number | number[];
-  private stream: any = null;
+  protected stream: any = null;
   private pendingMessages: Message[] = [];
-  private latestRequests: Record<string, BattleRequestView> = {};
-  private ended = false;
+  protected latestRequests: Record<string, BattleRequestView> = {};
+  protected ended = false;
   private winner: string | null = null;
   private tracker = createBattleTracker();
   private recentEvents: string[] = [];
@@ -535,6 +834,11 @@ export class BattleSession {
     return this.currentSideState("p1");
   }
 
+  syncPlayerState(states: PlayerPokemonState[]): BattleState {
+    this.syncSideState("p1", states);
+    return this.getState();
+  }
+
   private async chooseTeamPreview(): Promise<void> {
     const p1 = this.latestRequests.p1;
     const p2 = this.latestRequests.p2;
@@ -558,7 +862,7 @@ export class BattleSession {
     }
   }
 
-  private async chooseSide(side: SideId, choice: string): Promise<void> {
+  protected async chooseSide(side: SideId, choice: string): Promise<void> {
     await this.stream.write(`>${side} ${choice}`);
     await this.waitForMessages();
     this.consumePending();
@@ -615,7 +919,7 @@ export class BattleSession {
     return new Promise(resolve => setTimeout(resolve, 25));
   }
 
-  private randomChoice(request: BattleRequestView | null | undefined): string {
+  protected randomChoice(request: BattleRequestView | null | undefined): string {
     if (!request) return "default";
     if (request.teamPreview) {
       const indexes = Array.from({length: request.side?.pokemon?.length || 0}, (_, index) => index + 1);
@@ -757,6 +1061,61 @@ export class BattleSession {
   }
 }
 
+export class TrainerItemBattleSession extends BattleSession {
+  private trainerItemPatchInstalled = false;
+
+  async chooseTrainerItem(itemId: string, targetSlot: number, moveSlot?: number): Promise<BattleState> {
+    if (!this.stream || this.ended) return this.getState();
+    const battle = this.stream.battle;
+    if (!battle) throw new Error("当前对战尚未开始。");
+    const request = this.latestRequests.p1;
+    if (!request || request.wait) throw new Error("现在不能使用道具。");
+    if (request.forceSwitch) throw new Error("当前必须换人，不能使用战斗道具。");
+    if (!request.active?.length) throw new Error("当前不是出招阶段，不能使用战斗道具。");
+    const side = battle.sides[0];
+    const active = side.active[0];
+    if (!active || active.fainted || active.hp <= 0) throw new Error("当前宝可梦无法行动，不能使用战斗道具。");
+    const targetIndex = Math.max(0, Number(targetSlot || 0));
+    const target = side.pokemon[targetIndex];
+    if (!target) throw new Error("道具目标不存在。");
+    const effect = (await this.service.loadConsumableItemEffects()).get(toId(itemId));
+    if (!effect) throw new Error("这个道具不能在战斗中主动使用。");
+    const itemName = this.service.plain("items", itemId) || itemId;
+    assertConsumableEffectCanApplyToBattlePokemon(effect, target, moveSlot);
+    this.installTrainerItemAction();
+    side.clearChoice();
+    side.choice.actions.push({
+      choice: "trainerItem",
+      pokemon: active,
+      target,
+      itemId: toId(itemId),
+      itemName,
+      effect,
+      moveSlot,
+      order: 102,
+      priority: 0,
+      speed: 1,
+    });
+    const enemyRequest = this.latestRequests.p2;
+    if (enemyRequest && !enemyRequest.wait) await this.chooseSide("p2", this.randomChoice(enemyRequest));
+    else await this.chooseSide("p2", "default");
+    return this.getState();
+  }
+
+  private installTrainerItemAction(): void {
+    if (this.trainerItemPatchInstalled || !this.stream?.battle) return;
+    const battle = this.stream.battle;
+    const originalRunAction = battle.runAction.bind(battle);
+    battle.runAction = (action: any) => {
+      if (action?.choice !== "trainerItem") return originalRunAction(action);
+      battle.add('-message', `${battlePokemonName(action.target)} 使用了 ${action.itemName}。`);
+      applyConsumableEffectToBattlePokemon(battle, action.effect, action.target, action.itemId, action.itemName, action.moveSlot);
+      return undefined;
+    };
+    this.trainerItemPatchInstalled = true;
+  }
+}
+
 function createBattleTracker(): BattleTracker {
   return {
     turn: 1,
@@ -830,6 +1189,202 @@ function shortIdent(raw: string): string {
 
 function toId(value: string): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === "\"") {
+      if (quoted && line[index + 1] === "\"") {
+        cell += "\"";
+        index += 1;
+      } else quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(cell);
+      cell = "";
+    } else cell += char;
+  }
+  cells.push(cell);
+  return cells;
+}
+
+function computeHpAmount(raw: string, maxhp: number): number {
+  const value = String(raw || "").trim();
+  if (!value) return 0;
+  if (value === "full") return maxhp;
+  if (value.endsWith("%")) return Math.max(1, Math.floor(maxhp * Number(value.slice(0, -1)) / 100));
+  return Math.max(0, Number(value || 0));
+}
+
+function computePpAmount(raw: string, maxpp: number): number {
+  const value = String(raw || "").trim();
+  if (!value) return 0;
+  if (value === "full") return maxpp;
+  return Math.max(0, Number(value || 0));
+}
+
+function statusCanBeCured(effect: ConsumableItemEffect, status: string): boolean {
+  const current = toId(status);
+  if (!current || effect.status === "none") return false;
+  if (effect.status === "all") return true;
+  return effect.status.split("|").map(toId).includes(current);
+}
+
+function normalizeMoveSlot(moveSlot?: number): number {
+  return Math.max(0, Number(moveSlot || 0));
+}
+
+function stateDisplayName(state: PlayerPokemonState): string {
+  return state.species || shortIdent(state.ident || "") || state.details || "宝可梦";
+}
+
+function refreshMutablePlayerState(state: PlayerPokemonState): void {
+  state.hp = Math.max(0, Math.min(Number(state.hp || 0), Number(state.maxhp || 1)));
+  state.fainted = state.hp <= 0;
+  if (state.fainted) state.status = "";
+  state.condition = stateCondition(state);
+}
+
+function applyConsumableEffectToMutableState(effect: ConsumableItemEffect, state: PlayerPokemonState, itemName: string, moveSlot?: number): {message: string; details: string[]} {
+  const details: string[] = [];
+  const beforeHp = Number(state.hp || 0);
+  const wasFainted = state.fainted || beforeHp <= 0;
+  if (effect.revive) {
+    if (!wasFainted) throw new Error("目标没有濒死，不能使用这个复活道具。");
+    state.hp = effect.revive === "full" ? state.maxhp : Math.max(1, Math.floor(state.maxhp / 2));
+    state.fainted = false;
+    state.status = "";
+    details.push(`恢复到 ${state.hp}/${state.maxhp}`);
+  } else if (wasFainted) {
+    throw new Error("目标已经濒死，不能使用这个道具。");
+  }
+
+  const hpAmount = computeHpAmount(effect.hp, state.maxhp);
+  if (hpAmount > 0 && !state.fainted && state.hp < state.maxhp) {
+    const previous = state.hp;
+    state.hp = Math.min(state.maxhp, state.hp + hpAmount);
+    details.push(`恢复了 ${state.hp - previous} 点生命值`);
+  }
+
+  if (effect.pp_scope) {
+    const moves = state.moves || [];
+    const slot = normalizeMoveSlot(moveSlot);
+    const targets = effect.pp_scope === "all"
+      ? moves
+      : slot ? moves.filter(move => move.slot === slot) : moves.filter(move => move.pp < move.maxpp).slice(0, 1);
+    if (!targets.length) throw new Error("请选择需要恢复 PP 的技能。");
+    let restored = 0;
+    for (const move of targets) {
+      if (move.pp >= move.maxpp) continue;
+      const amount = computePpAmount(effect.pp, move.maxpp);
+      const previous = move.pp;
+      move.pp = Math.min(move.maxpp, move.pp + amount);
+      restored += move.pp - previous;
+    }
+    if (restored > 0) details.push(`恢复了 ${restored} 点 PP`);
+  }
+
+  if (statusCanBeCured(effect, state.status)) {
+    const status = state.status;
+    state.status = "";
+    details.push(`解除了 ${status}`);
+  }
+
+  refreshMutablePlayerState(state);
+  if (!details.length) throw new Error("目标不需要这个道具。");
+  const name = stateDisplayName(state);
+  return {message: `${name} 使用了 ${itemName}。${details.join("，")}。`, details};
+}
+
+function battlePokemonName(pokemon: any): string {
+  return pokemon?.name || pokemon?.species?.name || "宝可梦";
+}
+
+function battleHealthText(pokemon: any): string {
+  return `${Math.max(0, Number(pokemon.hp || 0))}/${Math.max(1, Number(pokemon.maxhp || 1))}`;
+}
+
+function assertConsumableEffectCanApplyToBattlePokemon(effect: ConsumableItemEffect, target: any, moveSlot?: number): void {
+  const wasFainted = Boolean(target.fainted || target.hp <= 0);
+  let canApply = false;
+  if (effect.revive) {
+    if (!wasFainted) throw new Error("目标没有濒死，不能使用这个复活道具。");
+    canApply = true;
+  } else if (wasFainted) {
+    throw new Error("目标已经濒死，不能使用这个道具。");
+  }
+  const hpAmount = computeHpAmount(effect.hp, target.maxhp);
+  if (hpAmount > 0 && !wasFainted && target.hp < target.maxhp) canApply = true;
+  if (effect.pp_scope) {
+    const moves = target.moveSlots || [];
+    const slot = normalizeMoveSlot(moveSlot);
+    const targets = effect.pp_scope === "all"
+      ? moves
+      : slot ? moves.filter((move: any, index: number) => index + 1 === slot) : moves.filter((move: any) => move.pp < move.maxpp).slice(0, 1);
+    if (!targets.length) throw new Error("请选择需要恢复 PP 的技能。");
+    if (targets.some((move: any) => move.pp < move.maxpp)) canApply = true;
+  }
+  if (statusCanBeCured(effect, target.status)) canApply = true;
+  if (!canApply) throw new Error("目标不需要这个道具。");
+}
+
+function applyConsumableEffectToBattlePokemon(battle: any, effect: ConsumableItemEffect, target: any, itemId: string, itemName: string, moveSlot?: number): string[] {
+  const details: string[] = [];
+  const wasFainted = Boolean(target.fainted || target.hp <= 0);
+  if (effect.revive) {
+    if (!wasFainted) throw new Error("目标没有濒死，不能使用这个复活道具。");
+    target.hp = effect.revive === "full" ? target.maxhp : Math.max(1, Math.floor(target.maxhp / 2));
+    target.fainted = false;
+    target.faintQueued = false;
+    target.status = "";
+    target.statusState = {};
+    target.side.pokemonLeft = Math.max(Number(target.side.pokemonLeft || 0), target.side.pokemon.filter((pokemon: any) => !pokemon.fainted && pokemon.hp > 0).length);
+    battle.add('-heal', target, battleHealthText(target), '[from] item: ' + itemId);
+    details.push(`恢复到 ${battleHealthText(target)}`);
+  } else if (wasFainted) {
+    throw new Error("目标已经濒死，不能使用这个道具。");
+  }
+
+  const hpAmount = computeHpAmount(effect.hp, target.maxhp);
+  if (hpAmount > 0 && !target.fainted && target.hp < target.maxhp) {
+    const previous = target.hp;
+    target.hp = Math.min(target.maxhp, target.hp + hpAmount);
+    battle.add('-heal', target, battleHealthText(target), '[from] item: ' + itemId);
+    details.push(`恢复了 ${target.hp - previous} 点生命值`);
+  }
+
+  if (effect.pp_scope) {
+    const moves = target.moveSlots || [];
+    const slot = normalizeMoveSlot(moveSlot);
+    const targets = effect.pp_scope === "all"
+      ? moves
+      : slot ? moves.filter((move: any, index: number) => index + 1 === slot) : moves.filter((move: any) => move.pp < move.maxpp).slice(0, 1);
+    if (!targets.length) throw new Error("请选择需要恢复 PP 的技能。");
+    let restored = 0;
+    for (const move of targets) {
+      if (move.pp >= move.maxpp) continue;
+      const amount = computePpAmount(effect.pp, move.maxpp);
+      const previous = move.pp;
+      move.pp = Math.min(move.maxpp, move.pp + amount);
+      restored += move.pp - previous;
+    }
+    if (restored > 0) {
+      battle.add('-message', `${battlePokemonName(target)} 恢复了 ${restored} 点 PP。`);
+      details.push(`恢复了 ${restored} 点 PP`);
+    }
+  }
+
+  if (statusCanBeCured(effect, target.status)) {
+    const before = target.status;
+    target.cureStatus();
+    details.push(`解除了 ${before}`);
+  }
+
+  if (!details.length) throw new Error("目标不需要这个道具。");
+  return details;
 }
 
 function pokemonCondition(pokemon: any): string {
@@ -1095,6 +1650,7 @@ function isIgnoredProtocolTag(tag: string): boolean {
     "t:",
     "inactive",
     "inactiveoff",
+    "debug",
     "-center",
   ].includes(tag);
 }

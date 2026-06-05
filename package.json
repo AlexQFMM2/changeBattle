@@ -6,6 +6,8 @@
   "scripts": {
     "desktop:dev": "pnpm --filter @changebattle/desktop dev",
     "desktop:build": "pnpm --filter @changebattle/desktop build",
+    "desktop:test:talents": "pnpm --filter @changebattle/desktop test:talents",
+    "game:test:trainer-items": "pnpm --filter @changebattle/game-service test:trainer-items",
     "desktop:release:win": "python3 tools/package_desktop_release.py",
     "typecheck": "pnpm -r --if-present typecheck"
   },

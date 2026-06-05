@@ -53,8 +53,22 @@ class ShowdownClient:
     def ping(self) -> dict[str, Any]:
         return self.command({"cmd": "ping"})
 
-    def generate(self, seed: int | list[int], format_id: str = "gen7randombattle") -> dict[str, Any]:
-        return self.command({"cmd": "generate", "format": format_id, "seed": seed})
+    def generate(
+        self,
+        seed: int | list[int],
+        format_id: str = "gen7randombattle",
+        count: int = 6,
+        profiles: list[str] | None = None,
+        species_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"cmd": "generate", "format": format_id, "seed": seed, "count": count}
+        if profiles:
+            payload["profiles"] = profiles
+            payload["count"] = len(profiles)
+        if species_ids:
+            payload["species_ids"] = species_ids
+            payload["count"] = len(species_ids)
+        return self.command(payload)
 
     def describe(self, set_data: dict[str, Any]) -> dict[str, Any]:
         return self.command({"cmd": "describe", "set": set_data})

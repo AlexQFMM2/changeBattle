@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 contextBridge.exposeInMainWorld("changeBattle", {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -19,8 +19,26 @@ contextBridge.exposeInMainWorld("changeBattle", {
   updateTrainer(trainer: TrainerProfile): Promise<LocalSave> {
     return ipcRenderer.invoke("save:updateTrainer", trainer);
   },
+  trainerCatalog(): Promise<TrainerCatalogState> {
+    return ipcRenderer.invoke("trainer:catalog");
+  },
   prepareCandidates(seed?: number): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:prepareCandidates", seed);
+  },
+  prepareStarterItems(seed?: number): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:prepareStarterItems", seed);
+  },
+  chooseStarterItem(offerId?: string | null): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:chooseStarterItem", offerId || null);
+  },
+  getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("talents:get");
+  },
+  unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("talents:unlock", id);
+  },
+  configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("talents:configure", ids);
   },
   beginChallenge(selectedIndexes: number[], seed: number, battles?: number): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:beginChallenge", selectedIndexes, seed, battles);
@@ -30,6 +48,9 @@ contextBridge.exposeInMainWorld("changeBattle", {
   },
   battleChoice(choice: string): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:battleChoice", choice);
+  },
+  secondTeamRoar(useRescue: boolean): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:secondTeamRoar", useRescue);
   },
   exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:exchange", ownIndex, enemyIndex);

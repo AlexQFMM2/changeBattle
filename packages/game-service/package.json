@@ -6,7 +6,8 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:trainer-items": "tsx src/trainer-item.test.ts"
   },
   "dependencies": {
     "@changebattle/shared": "workspace:*"

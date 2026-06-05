@@ -1,7 +1,7 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import type {CSSProperties} from "react";
-import type {AppStatus, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, LocalSave, MoveSummary, PokemonEditOptions, PricedMove, RentalPokemon, RestAction, RuntimePokemon, ShopItem, SpriteMapEntry, TrainerGender} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, LocalSave, MoveSummary, PokemonEditOptions, PricedMove, RentalPokemon, RestAction, RuntimePokemon, ShopItem, ShopOffer, SpriteMapEntry, TalentView, TrainerCatalogState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import battleEffectAssets from "../../../data/battle_effect_assets.json";
 import "./styles.css";
 
@@ -59,6 +59,41 @@ const STATUS_ID_BY_ZH: Record<string, string> = {
   混乱: "confusion",
 };
 const SUBSTITUTE_DOLL_PATH = "assets/battle/substitute-doll.png";
+const BP_SCALE = 100;
+const TALENT_EQUIP_LIMIT = 5;
+const EXCHANGE_TALENTS: TalentView[] = [
+  {id: "exchange_lossless", name: "爱护有加", category: "交换", cost: 2 * BP_SCALE, desc: "交换获得的宝可梦会恢复到 3/4 HP 和 3/4 PP。"},
+  {id: "exchange_pickpocket", name: "顺手牵羊", category: "交换", cost: 3 * BP_SCALE, desc: "交换时如果目标携带道具，会一并拿过来。"},
+  {id: "exchange_gym_recognition", name: "馆主认可", category: "交换", cost: 15 * BP_SCALE, desc: "馆主和四天王宝可梦不再受默认只能交换 1 只的限制。"},
+  {id: "exchange_factory_freedom", name: "工厂自由", category: "交换", cost: 30 * BP_SCALE, desc: "所有交换免费。"},
+  {id: "exchange_second_team_roar", name: "二队的怒吼", category: "交换", cost: 50 * BP_SCALE, desc: "三只都阵亡后，可选择损失 1000BP 重新 6 选 3 并重打当前场次；一局一次。"},
+  {id: "exchange_safe_box", name: "无损交易", category: "交换", cost: 50 * BP_SCALE, desc: "拥有一个特殊宝可梦盒子，本局遇到的宝可梦会寄存在其中，后续可再次交换回来。"},
+];
+const GAMBLER_TALENTS: TalentView[] = [
+  {id: "gambler_move_draw_4", name: "灵感爆棚", category: "赌徒", cost: 5 * BP_SCALE, desc: "技能随机时候选数量从 2 个提升到 3 个。"},
+  {id: "gambler_shop_offer_5", name: "大手一挥", category: "赌徒", cost: 5 * BP_SCALE, desc: "商店老虎机格子数量从 3 个提升到 4 个。"},
+  {id: "gambler_free_stat_reset", name: "时也命也", category: "赌徒", cost: 10 * BP_SCALE, desc: "重置数值时 60% 概率免费、30% 概率双倍消耗、10% 概率正常消耗。"},
+  {id: "gambler_random_cost_1", name: "座上贵宾", category: "赌徒", cost: 20 * BP_SCALE, desc: "每次休整获得一次免费商店抽奖；本次休整后续商店抽奖消耗为基础费用的 1.3 倍，免费次数不结转。"},
+  {id: "gambler_streak_bp_risk", name: "压上杠杆", category: "赌徒", cost: 50 * BP_SCALE, desc: "每场胜利有概率把本场基础 BP 变为 1.4/1.6/1.8/2.0/2.5 倍；失败时不获得背包返还，并将 BP 回到本局开始前。"},
+  {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
+];
+const PROPHET_TALENTS: TalentView[] = [
+  {id: "prophet_first_mover", name: "上帝只眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以看到哪些技能克制当前对手。"},
+  {id: "prophet_next_scout", name: "未卜先知", category: "先知", cost: 10 * BP_SCALE, desc: "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
+  {id: "prophet_history_review", name: "温故知新", category: "先知", cost: 15 * BP_SCALE, desc: "休整页允许查看上一轮对手的宝可梦详情。"},
+  {id: "prophet_direct_move", name: "运筹帷幄", category: "先知", cost: 20 * BP_SCALE, desc: "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
+  {id: "prophet_candidate_12", name: "慧眼识珠", category: "先知", cost: 50 * BP_SCALE, desc: "开局从 12 只候选宝可梦中选择，而不是 6 只。"},
+  {id: "prophet_future_boss", name: "预知未来", category: "先知", cost: 50 * BP_SCALE, desc: "可以直接看到本局关底训练师的详细阵容。"},
+];
+const BUSINESS_TALENTS: TalentView[] = [
+  {id: "business_starter_3", name: "有备无患", category: "经营", cost: 5 * BP_SCALE, desc: "开局可以选择 3 个起始道具。"},
+  {id: "business_discount_70", name: "贵客专享", category: "经营", cost: 15 * BP_SCALE, desc: "购买道具时专享 70% 折扣，向下取整。"},
+  {id: "business_refund_70", name: "精打细算", category: "经营", cost: 20 * BP_SCALE, desc: "背包返还时返还 70%，而不是 50%。"},
+  {id: "business_sell_full", name: "奇货可居", category: "经营", cost: 30 * BP_SCALE, desc: "卖出道具时能原价出售。"},
+  {id: "business_amulet_coin", name: "护符金币", category: "经营", cost: 50 * BP_SCALE, desc: "所有 BP 正向结算时按 1.5 倍结算。"},
+  {id: "business_shiny_collector", name: "闪光收藏家", category: "经营", cost: 50 * BP_SCALE, desc: "任意交换获得的宝可梦均为闪光，且闪光带来的 BP 加成变为 1.3 倍。"},
+];
+const TALENT_CATALOG = [...EXCHANGE_TALENTS, ...GAMBLER_TALENTS, ...PROPHET_TALENTS, ...BUSINESS_TALENTS];
 
 function toId(value: string | undefined): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -98,6 +133,35 @@ function pokemonImageUrl(pokemon?: {sprite?: SpriteMapEntry}, variant: "front_no
   return assetUrl(pokemon?.sprite?.paths[variant] || pokemon?.sprite?.paths.front_normal);
 }
 
+function itemImageUrl(item?: {icon_asset?: string}): string {
+  return assetUrl(item?.icon_asset || "assets/placeholders/item.png") || "";
+}
+
+function ItemIcon({item}: {item?: {id?: string; icon_asset?: string; name?: string; name_zh?: string}}) {
+  const isTm = /^tm:/i.test(String(item?.id || ""));
+  if (isTm) return <span className="item-icon tm-icon">TM</span>;
+  return <img className="item-icon" src={itemImageUrl(item)} alt={item?.name_zh || item?.name || "道具"} />;
+}
+
+function trainerImageUrl(trainer?: Pick<TrainerNpcView, "front_asset" | "front_gif_asset" | "back_asset" | "avatar_asset">, slot: "front" | "frontGif" | "back" | "avatar" = "front"): string | undefined {
+  if (slot === "frontGif") return assetUrl(trainer?.front_gif_asset || trainer?.front_asset);
+  if (slot === "back") return assetUrl(trainer?.back_asset || trainer?.front_asset);
+  if (slot === "avatar") return assetUrl(trainer?.avatar_asset || trainer?.front_asset);
+  return assetUrl(trainer?.front_asset);
+}
+
+function profileFromSelection(name: string, player?: TrainerNpcView, avatarAsset?: string): TrainerProfile {
+  return {
+    name: name.trim() || "训练师",
+    gender: "other",
+    player_npc_id: player?.id,
+    front_asset: player?.front_asset,
+    front_gif_asset: player?.front_gif_asset,
+    back_asset: player?.back_asset,
+    avatar_asset: avatarAsset || player?.avatar_asset,
+  };
+}
+
 function displayName(pokemon?: RentalPokemon): string {
   return pokemon?.species_zh || pokemon?.species || "未知";
 }
@@ -111,6 +175,14 @@ function parseHp(condition?: string): {current: number; max: number; text: strin
   const match = String(condition || "").match(/(\d+)\/(\d+)/);
   if (!match) return null;
   return {current: Number(match[1]), max: Number(match[2]), text: `${match[1]}/${match[2]}`};
+}
+
+function hpTone(hp: {current: number; max: number} | null): "high" | "mid" | "low" {
+  if (!hp || hp.max <= 0) return "low";
+  const ratio = hp.current / hp.max;
+  if (ratio > 0.5) return "high";
+  if (ratio > 0.3) return "mid";
+  return "low";
 }
 
 function statusCode(condition?: string, explicit?: string): string {
@@ -129,6 +201,17 @@ function statusLabel(code: string): string {
 function bpCostLabel(cost: number | null | undefined): string {
   if (cost === null || cost === undefined) return "-";
   return Number(cost || 0) <= 0 ? "免费" : `${cost}BP`;
+}
+
+function itemCategoryLabel(category?: string): string {
+  if (category === "consumable") return "消耗道具";
+  if (category === "tm") return "技能机器";
+  return "携带道具";
+}
+
+function starterDiscountLabel(discount?: number): string {
+  if (!discount || discount >= 1) return "原价";
+  return `-${Math.round(discount * 100)}%`;
 }
 
 function restoreCostSuffix(costs: Record<1 | 2 | 3, number>, selectedCount: number, currentCount: number): string {
@@ -214,6 +297,10 @@ function statLine(pokemon: RentalPokemon, stat: string): string {
   return `${pokemon.stats[stat] ?? "?"} (${pokemon.base_stats[stat] ?? "?"} | ${pokemon.ivs[stat] ?? 31} | ${pokemon.evs[stat] ?? 0})${marker}`;
 }
 
+function statMarker(pokemon: RentalPokemon, stat: string): string {
+  return pokemon.nature_plus === stat ? "↑" : pokemon.nature_minus === stat ? "↓" : "";
+}
+
 function moveSummaryFor(pokemon: RentalPokemon | undefined, requestMove: BattleMoveRequest): MoveSummary | undefined {
   const key = toId(requestMove.id || requestMove.move);
   return pokemon?.moves.find(move => move.id === key || toId(move.name) === key || toId(move.name_zh) === key);
@@ -258,13 +345,15 @@ function debugBattle(ended = false): BattleState {
       {id: "d7", type: "win", text: "胜者：玩家", side: "p1"},
     ] as BattleTimelineEvent[] : [],
     player_team: [{species: "PlayerMon"}], player_display: [player], enemy_team: [{species: "EnemyMon"}], enemy_display: [enemy],
+    player_trainer: {id: "player:debug", type: "player", name_zh: "自动测试", back_asset: "assets/npc/player-back/斗也-bw_touya_back.png", front_asset: "assets/npc/player-front/斗也-bw_black.png"},
+    enemy_trainer: {id: "normal:debug", type: "normal", name_zh: "测试训练师", front_asset: "assets/npc/normal/dp_battle_girl-2-dp_battle_girl.png"},
   };
   return {ended, winner: ended ? "Player" : null, ...base} as BattleState;
 }
 
 function installBrowserAutomationBridge() {
   if (!import.meta.env.DEV || !new URLSearchParams(location.search).has("automated") || window.changeBattle) return;
-  const save: LocalSave = {version: 1, trainer: {name: "自动测试", gender: "other"}, stats: {battle_points: 0, battles: 0, wins: 0, losses: 0, rank_status: "未开放"}, current_run: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString()};
+  const save: LocalSave = {version: 1, bp_scale: BP_SCALE, trainer: {name: "自动测试", gender: "other"}, stats: {battle_points: 9900, battles: 0, wins: 0, losses: 0, rank_status: "未开放"}, talent_unlocks: [], talent_equipped: [], current_run: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString()};
   const candidates = Array.from({length: 6}, (_, index) => debugPokemon(`Candidate${index + 1}`, `候选${index + 1}`));
   window.changeBattle = {
     generateCandidates: async () => ({seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}),
@@ -272,10 +361,20 @@ function installBrowserAutomationBridge() {
     loadSave: async () => save,
     createNewSave: async trainer => ({...save, trainer}),
     updateTrainer: async trainer => ({...save, trainer}),
+    trainerCatalog: async () => ({
+      players: [{id: "player:debug", type: "player", name_zh: "斗也", front_asset: "assets/npc/player-front/斗也-bw_black.png", back_asset: "assets/npc/player-back/斗也-bw_touya_back.png", avatar_asset: "assets/npc/avatars/斗也-blackchallenge.png"}],
+      avatars: [{id: "avatar:debug", type: "avatar", name_zh: "斗也", avatar_asset: "assets/npc/avatars/斗也-blackchallenge.png"}],
+    }),
+    prepareStarterItems: async () => ({screen: "starterItems", save, starter: {seed: 1, offers: [], purchased: null}, message: "自动测试开局道具"}),
+    chooseStarterItem: async () => ({screen: "rentalSelect", save, candidates: {seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}, selected_indexes: [], message: "自动测试候选"}),
+    getTalentConfig: async () => ({catalog: TALENT_CATALOG, unlocked: TALENT_CATALOG.slice(0, 1), equipped: []}),
+    unlockTalent: async id => ({catalog: TALENT_CATALOG, unlocked: TALENT_CATALOG.filter(talent => talent.id === id), equipped: [], save}),
+    configureTalents: async ids => ({catalog: TALENT_CATALOG, unlocked: TALENT_CATALOG, equipped: TALENT_CATALOG.filter(talent => ids.includes(talent.id)), save}),
     prepareCandidates: async () => ({screen: "rentalSelect", save, candidates: {seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}, selected_indexes: [], message: "自动测试候选"}),
     beginChallenge: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试对局"}),
     continueRun: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试对局"}),
     battleChoice: async () => ({screen: "battleMain", save, battle: debugBattle(true), message: "自动测试胜利", pending_transition: {screen: "result", save, battle: debugBattle(true), message: "自动测试结算"}}),
+    secondTeamRoar: async () => ({screen: "rentalSelect", save, candidates: {seed: [1, 2, 3, 4], team: [], display: [], packed: ""}, selected_indexes: [], message: "自动测试二队"}),
     exchange: async () => ({screen: "result", save, message: "自动测试交换"}),
     restAction: async () => ({screen: "mainMenu", save, message: "自动测试休整"}),
     shopItems: async () => [],
@@ -291,14 +390,19 @@ function App() {
   const [screen, setScreen] = useState<AppStatus>("title");
   const [save, setSave] = useState<LocalSave | null>(null);
   const [trainerName, setTrainerName] = useState("训练师");
-  const [trainerGender, setTrainerGender] = useState<TrainerGender>("other");
+  const [trainerCatalog, setTrainerCatalog] = useState<TrainerCatalogState>({players: [], avatars: []});
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [selectedAvatarAsset, setSelectedAvatarAsset] = useState("");
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
   const [candidates, setCandidates] = useState<RentalPokemon[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [focusIndex, setFocusIndex] = useState(0);
   const [battle, setBattle] = useState<BattleState | null>(null);
+  const [starter, setStarter] = useState<DesktopGameState["starter"]>(null);
+  const [battleBag, setBattleBag] = useState<BagCategoryView | null>(null);
   const [exchange, setExchange] = useState<DesktopGameState["exchange"]>(null);
   const [rest, setRest] = useState<DesktopGameState["rest"]>(null);
+  const [rescue, setRescue] = useState<DesktopGameState["rescue"]>(null);
   const [pendingTransition, setPendingTransition] = useState<DesktopGameState | null>(null);
   const [message, setMessage] = useState("欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
   const [loading, setLoading] = useState(false);
@@ -309,8 +413,17 @@ function App() {
       setSave(loaded);
       if (loaded) {
         setTrainerName(loaded.trainer.name);
-        setTrainerGender(loaded.trainer.gender);
+        setSelectedPlayerId(loaded.trainer.player_npc_id || "");
+        setSelectedAvatarAsset(loaded.trainer.avatar_asset || "");
       }
+    });
+  }, []);
+
+  useEffect(() => {
+    void window.changeBattle?.trainerCatalog().then(catalog => {
+      setTrainerCatalog(catalog);
+      setSelectedPlayerId(current => current || catalog.players[0]?.id || "");
+      setSelectedAvatarAsset(current => current || catalog.players[0]?.avatar_asset || catalog.avatars[0]?.avatar_asset || "");
     });
   }, []);
 
@@ -321,16 +434,19 @@ function App() {
       setSelected(state.selected_indexes || []);
       setFocusIndex(0);
     }
+    setStarter(state.starter || null);
     setBattle(state.battle || null);
+    setBattleBag(state.battle_bag || null);
     setExchange(state.exchange || null);
     setRest(state.rest || null);
+    setRescue(state.rescue || null);
     setPendingTransition(state.pending_transition || null);
     setScreen(state.screen);
     setMessage(state.message || "");
   }
 
-  async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus) {
-    setLoading(true);
+  async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus, showLoading = true) {
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const result = await action();
@@ -340,7 +456,7 @@ function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }
 
@@ -349,7 +465,8 @@ function App() {
       const loaded = await window.changeBattle!.loadSave();
       if (!loaded) throw new Error("没有找到桌面端存档。请选择新游戏。");
       setTrainerName(loaded.trainer.name);
-      setTrainerGender(loaded.trainer.gender);
+      setSelectedPlayerId(loaded.trainer.player_npc_id || "");
+      setSelectedAvatarAsset(loaded.trainer.avatar_asset || "");
       setSave(loaded);
       if (loaded.current_run) return window.changeBattle!.continueRun();
       return {screen: "mainMenu", save: loaded, message: `欢迎回来，${loaded.trainer.name}。`};
@@ -358,17 +475,24 @@ function App() {
 
   async function createNewGame() {
     await runAction(async () => {
-      const created = await window.changeBattle!.createNewSave({name: trainerName, gender: trainerGender});
+      const player = trainerCatalog.players.find(entry => entry.id === selectedPlayerId) || trainerCatalog.players[0];
+      const created = await window.changeBattle!.createNewSave(profileFromSelection(trainerName, player, selectedAvatarAsset));
       return {screen: "mainMenu", save: created, message: `新存档已创建：${created.trainer.name}`};
     });
   }
 
   async function prepareChallenge() {
-    await runAction(() => window.changeBattle!.prepareCandidates(seed));
+    const nextSeed = Math.floor(Math.random() * 0xffffffff);
+    setSeed(nextSeed);
+    await runAction(() => window.changeBattle!.prepareStarterItems(nextSeed));
   }
 
-  async function beginChallenge(nextSelected = selected) {
-    await runAction(() => window.changeBattle!.beginChallenge(nextSelected, seed, 7));
+  async function chooseStarterItem(offerId: string | null) {
+    await runAction(() => window.changeBattle!.chooseStarterItem(offerId));
+  }
+
+  async function beginChallenge(nextSelected = selected, runSeed = seed) {
+    await runAction(() => window.changeBattle!.beginChallenge(nextSelected, runSeed, 7));
   }
 
   function toggleCandidate(index: number) {
@@ -380,7 +504,11 @@ function App() {
   }
 
   async function battleChoice(choice: string) {
-    await runAction(() => window.changeBattle!.battleChoice(choice));
+    await runAction(() => window.changeBattle!.battleChoice(choice), undefined, false);
+  }
+
+  async function secondTeamRoar(useRescue: boolean) {
+    await runAction(() => window.changeBattle!.secondTeamRoar(useRescue));
   }
 
   async function finishExchange(ownIndex: number | null, enemyIndex: number | null) {
@@ -388,62 +516,270 @@ function App() {
   }
 
   async function restAction(action: RestAction) {
-    await runAction(() => window.changeBattle!.restAction(action));
+    await runAction(() => window.changeBattle!.restAction(action), undefined, !["roll_shop", "buy_shop_offer"].includes(action.type));
   }
 
   const content = useMemo(() => {
     if (screen === "title") return <TitleScreen save={save} onLoad={loadGame} onNew={() => setScreen("newGame")} />;
-    if (screen === "newGame") return <NewGameScreen name={trainerName} gender={trainerGender} setName={setTrainerName} setGender={setTrainerGender} onCreate={createNewGame} onBack={() => setScreen("title")} />;
-    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onInfo={() => setScreen("userInfo")} onTitle={() => setScreen("title")} />;
-    if (screen === "userInfo") return <UserInfo save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
+    if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => setScreen("title")} saveLabel="创建存档" />;
+    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => setScreen("talentConfig")} onInfo={() => setScreen("userInfo")} onTitle={() => setScreen("title")} />;
+    if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => setScreen("mainMenu")} saveLabel="保存设置" />;
+    if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
+    if (screen === "starterItems") return <StarterItemsView starter={starter} save={save} onChoose={chooseStarterItem} />;
     if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} />;
-    if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} mode={screen} setMode={setScreen} onChoice={battleChoice} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
+    if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={setScreen} onChoice={battleChoice} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
+    if (screen === "secondTeamRoar") return <SecondTeamRoarView rescue={rescue} message={message} onChoose={secondTeamRoar} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
     if (screen === "rest") return <RestView rest={rest} message={message} onAction={restAction} />;
     if (screen === "result") return <ResultView message={message} onBack={() => setScreen("mainMenu")} />;
     return null;
-  }, [screen, save, trainerName, trainerGender, candidates, selected, focusIndex, battle, exchange, rest, pendingTransition, message]);
+  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, battle, battleBag, exchange, rest, rescue, pendingTransition, message]);
 
   const isBattleScreen = ["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen);
-  const hideTextBox = !error && (isBattleScreen || screen === "rest");
+  const transientMessage = error || (!isBattleScreen && screen !== "rest" ? message : "");
 
   return (
-    <main className={`game-shell ${hideTextBox ? "battle-shell" : ""}`}>
+    <main className="game-shell">
       <section className="game-screen">
         {content}
         {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
+        {transientMessage ? <div className={`screen-toast ${error ? "danger" : ""}`}>{transientMessage}</div> : null}
       </section>
-      {hideTextBox ? null : <TextBox message={error || message} danger={Boolean(error)} />}
     </main>
   );
-}
-
-function TextBox({message, danger = false}: {message?: string; danger?: boolean}) {
-  return <section className={`text-box ${danger ? "danger" : ""}`}>{message || "请选择。"}</section>;
 }
 
 function TitleScreen({save, onLoad, onNew}: {save: LocalSave | null; onLoad: () => void; onNew: () => void}) {
   return <div className="title-screen"><h1>ChangeBattle</h1><p>宝可梦对战工厂</p><div className="command-menu"><button onClick={onLoad}>读取存档</button><button onClick={onNew}>开始新游戏</button><button onClick={() => window.close()}>退出</button></div>{save ? <span className="save-hint">检测到存档：{save.trainer.name}</span> : <span className="save-hint">未读取存档</span>}</div>;
 }
 
-function NewGameScreen({name, gender, setName, setGender, onCreate, onBack}: {name: string; gender: TrainerGender; setName: (value: string) => void; setGender: (value: TrainerGender) => void; onCreate: () => void; onBack: () => void}) {
-  return <div className="panel-page"><h2>训练师登记</h2><label>姓名<input value={name} onChange={event => setName(event.target.value)} /></label><label>性别<select value={gender} onChange={event => setGender(event.target.value as TrainerGender)}><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></label><div className="command-row"><button onClick={onCreate}>创建存档</button><button onClick={onBack}>返回</button></div></div>;
+function MainMenu({save, onStart, onTalent, onInfo, onTitle}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onInfo: () => void; onTitle: () => void}) {
+  return <div className="title-screen small"><h1>{save?.trainer.name || "训练师"}</h1><p>Rank：{save?.stats.rank_status || "未开放"}　BP：{save?.stats.battle_points || 0}</p><div className="command-menu"><button onClick={onStart}>{save?.current_run ? "继续对局" : "开始对局"}</button><button onClick={onTalent}>天赋配置</button><button onClick={onInfo}>玩家设置</button><button onClick={onTitle}>返回标题</button></div></div>;
 }
 
-function MainMenu({save, onStart, onInfo, onTitle}: {save: LocalSave | null; onStart: () => void; onInfo: () => void; onTitle: () => void}) {
-  return <div className="title-screen small"><h1>{save?.trainer.name || "训练师"}</h1><p>Rank：{save?.stats.rank_status || "未开放"}　BP：{save?.stats.battle_points || 0}</p><div className="command-menu"><button onClick={onStart}>{save?.current_run ? "继续对局" : "开始对局"}</button><button onClick={onInfo}>用户信息</button><button onClick={onTitle}>返回标题</button></div></div>;
-}
-
-function UserInfo({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
-  const [name, setName] = useState(save?.trainer.name || "训练师");
-  const [gender, setGender] = useState<TrainerGender>(save?.trainer.gender || "other");
+function PlayerSettings({title, save, name, setName, catalog, selectedPlayerId, setSelectedPlayerId, selectedAvatarAsset, setSelectedAvatarAsset, onSave, onSaved, onBack, saveLabel}: {title: string; save?: LocalSave | null; name: string; setName?: (value: string) => void; catalog: TrainerCatalogState; selectedPlayerId?: string; setSelectedPlayerId?: (value: string) => void; selectedAvatarAsset?: string; setSelectedAvatarAsset?: (value: string) => void; onSave?: () => void | Promise<void>; onSaved?: (save: LocalSave) => void; onBack: () => void; saveLabel: string}) {
+  const [localName, setLocalName] = useState(name || "训练师");
+  const [localPlayerId, setLocalPlayerId] = useState(selectedPlayerId || save?.trainer.player_npc_id || catalog.players[0]?.id || "");
+  const [localAvatar, setLocalAvatar] = useState(selectedAvatarAsset || save?.trainer.avatar_asset || catalog.players[0]?.avatar_asset || catalog.avatars[0]?.avatar_asset || "");
+  const currentName = setName ? name : localName;
+  const currentPlayerId = setSelectedPlayerId ? selectedPlayerId || localPlayerId : localPlayerId;
+  const currentAvatar = setSelectedAvatarAsset ? selectedAvatarAsset || localAvatar : localAvatar;
+  const player = catalog.players.find(entry => entry.id === currentPlayerId) || catalog.players[0];
   const stats = save?.stats;
   const winRate = stats?.battles ? Math.round((stats.wins / stats.battles) * 1000) / 10 : 0;
-  async function saveTrainer() {
-    const next = await window.changeBattle!.updateTrainer({name, gender});
-    onSaved(next);
+
+  useEffect(() => {
+    setLocalName(name || "训练师");
+    setLocalPlayerId(selectedPlayerId || save?.trainer.player_npc_id || catalog.players[0]?.id || "");
+    setLocalAvatar(selectedAvatarAsset || save?.trainer.avatar_asset || catalog.players[0]?.avatar_asset || catalog.avatars[0]?.avatar_asset || "");
+  }, [name, selectedPlayerId, selectedAvatarAsset, save?.trainer.player_npc_id, save?.trainer.avatar_asset, catalog.players, catalog.avatars]);
+
+  function updateName(value: string) {
+    setLocalName(value);
+    setName?.(value);
   }
-  return <div className="panel-page"><h2>用户信息</h2><table className="info-table"><tbody><tr><th>训练师</th><td><input value={name} onChange={event => setName(event.target.value)} /></td></tr><tr><th>性别</th><td><select value={gender} onChange={event => setGender(event.target.value as TrainerGender)}><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></td></tr><tr><th>Rank</th><td>{stats?.rank_status || "未开放"}</td></tr><tr><th>对战点数</th><td>{stats?.battle_points || 0}</td></tr><tr><th>总对局数</th><td>{stats?.battles || 0}</td></tr><tr><th>胜场/败场</th><td>{stats?.wins || 0} / {stats?.losses || 0}</td></tr><tr><th>胜率</th><td>{winRate}%</td></tr></tbody></table><div className="command-row"><button onClick={saveTrainer}>保存信息</button><button onClick={onBack}>返回</button></div></div>;
+
+  function updatePlayer(id: string) {
+    const next = catalog.players.find(entry => entry.id === id);
+    setLocalPlayerId(id);
+    setSelectedPlayerId?.(id);
+    const nextAvatar = currentAvatar || next?.avatar_asset || catalog.avatars[0]?.avatar_asset || "";
+    setLocalAvatar(nextAvatar);
+    setSelectedAvatarAsset?.(nextAvatar);
+  }
+
+  function updateAvatar(asset: string) {
+    setLocalAvatar(asset);
+    setSelectedAvatarAsset?.(asset);
+  }
+
+  async function saveSettings() {
+    if (onSave) {
+      await onSave();
+      return;
+    }
+    const next = await window.changeBattle!.updateTrainer(profileFromSelection(currentName, player, currentAvatar));
+    onSaved?.(next);
+    onBack();
+  }
+
+  return (
+    <div className="player-settings-page">
+      <header className="settings-header">
+        <h2>{title}</h2>
+        {save ? <span>BP {save.stats.battle_points}　胜率 {winRate}%</span> : <span>选择你的训练师形象</span>}
+      </header>
+      <section className="player-settings-layout">
+        <aside className="player-name-panel">
+          <label>昵称<input value={currentName} onChange={event => updateName(event.target.value)} /></label>
+          <div className="selected-trainer-preview">
+            {player ? <img src={trainerImageUrl(player, "frontGif")} alt={player.name_zh} /> : null}
+            <strong>{currentName || "训练师"}</strong>
+            <small>{player?.name_zh || "请选择角色"}</small>
+          </div>
+        </aside>
+        <section className="player-picker">
+          <h3>玩家角色</h3>
+          <div className="player-character-grid">
+            {catalog.players.length ? catalog.players.map(entry => {
+              const active = entry.id === currentPlayerId;
+              return <button className={active ? "selected" : ""} onClick={() => updatePlayer(entry.id)} key={entry.id}><img src={trainerImageUrl(entry, active ? "frontGif" : "front")} alt={entry.name_zh} /><span>{entry.name_zh}</span></button>;
+            }) : <p>没有找到玩家角色资源。</p>}
+          </div>
+        </section>
+        <section className="avatar-picker">
+          <h3>头像</h3>
+          <div className="avatar-grid">
+            {catalog.avatars.length ? catalog.avatars.map(entry => {
+              const asset = entry.avatar_asset || "";
+              return <button className={asset === currentAvatar ? "selected" : ""} onClick={() => updateAvatar(asset)} key={entry.id}><img src={trainerImageUrl(entry, "avatar")} alt={entry.name_zh} /></button>;
+            }) : <p>没有找到头像资源。</p>}
+          </div>
+        </section>
+      </section>
+      <div className="command-row"><button disabled={!player} onClick={saveSettings}>{saveLabel}</button><button onClick={onBack}>返回</button></div>
+    </div>
+  );
+}
+
+function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
+  const [catalog, setCatalog] = useState<TalentView[]>(TALENT_CATALOG);
+  const [selectedId, setSelectedId] = useState(TALENT_CATALOG[0]?.id || "");
+  const [unlocked, setUnlocked] = useState<Set<string>>(() => new Set());
+  const [equipped, setEquipped] = useState<string[]>([]);
+  const selected = catalog.find(talent => talent.id === selectedId) || catalog[0];
+  const selectedUnlocked = selected ? unlocked.has(selected.id) : false;
+  const selectedEquipped = selected ? equipped.includes(selected.id) : false;
+  const selectedAffordable = selected ? (save?.stats.battle_points || 0) >= (selected.cost || 0) : false;
+  const gridSlots = Array.from({length: 20}, (_, index) => catalog[index] || null);
+  const equippedSlots = Array.from({length: TALENT_EQUIP_LIMIT}, (_, index) => catalog.find(talent => talent.id === equipped[index]) || null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.changeBattle?.getTalentConfig().then(config => {
+      if (cancelled) return;
+      const unlockedIds = (config.unlocked || []).map(talent => talent.id);
+      const equippedIds = (config.equipped || []).map(talent => talent.id);
+      const nextCatalog = config.catalog?.length ? config.catalog : TALENT_CATALOG;
+      setCatalog(nextCatalog);
+      setEquipped(equippedIds);
+      setUnlocked(new Set([...unlockedIds, ...equippedIds]));
+      if (config.save) onSaved(config.save);
+      if (equippedIds[0]) setSelectedId(equippedIds[0]);
+      else if (nextCatalog[0]) setSelectedId(nextCatalog[0].id);
+    });
+    return () => { cancelled = true; };
+  }, [onSaved]);
+
+  function talentClass(talent: TalentView | null): string {
+    if (!talent) return "empty";
+    return `${talent.category === "交换" ? "exchange" : talent.category === "赌徒" ? "gambler" : talent.category === "先知" ? "prophet" : "business"} ${selectedId === talent.id ? "selected" : ""} ${unlocked.has(talent.id) ? "unlocked" : "locked"} ${equipped.includes(talent.id) ? "equipped" : ""}`;
+  }
+
+  async function unlockSelected() {
+    if (!selected || selectedUnlocked || !selectedAffordable) return;
+    const config = await window.changeBattle?.unlockTalent(selected.id);
+    if (!config) return;
+    setUnlocked(new Set((config.unlocked || []).map(talent => talent.id)));
+    setEquipped((config.equipped || []).map(talent => talent.id));
+    if (config.save) onSaved(config.save);
+  }
+
+  async function equipSelected() {
+    if (!selected || !selectedUnlocked || selectedEquipped || equipped.length >= TALENT_EQUIP_LIMIT) return;
+    const nextIds = [...equipped, selected.id];
+    const config = await window.changeBattle?.configureTalents(nextIds);
+    setEquipped((config?.equipped || []).map(talent => talent.id));
+    if (config?.save) onSaved(config.save);
+  }
+
+  async function unequipSelected() {
+    if (!selected) return;
+    const nextIds = equipped.filter(id => id !== selected.id);
+    const config = await window.changeBattle?.configureTalents(nextIds);
+    setEquipped((config?.equipped || []).map(talent => talent.id));
+    if (config?.save) onSaved(config.save);
+  }
+
+  return (
+    <div className="talent-page">
+      <section className="talent-board">
+        <header className="talent-title-row">
+          <h2>天赋配置</h2>
+          <span>BP {save?.stats.battle_points || 0}</span>
+        </header>
+        <section className="equipped-talent-panel">
+          <header>
+            <strong>已装备天赋</strong>
+            <span>{equipped.length}/{TALENT_EQUIP_LIMIT}</span>
+          </header>
+          <div className="equipped-talents">
+            {equippedSlots.map((talent, index) => (
+              <button className={`talent-slot ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && setSelectedId(talent.id)} key={`equipped-${index}`}>
+                {talent ? <><span>{talent.category}</span><strong>{talent.name}</strong></> : <><span>空</span><strong>空槽</strong></>}
+              </button>
+            ))}
+          </div>
+        </section>
+        <div className="talent-grid">
+          {gridSlots.map((talent, index) => (
+            <button className={`talent-node ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && setSelectedId(talent.id)} key={talent?.id || `empty-${index}`}>
+              {talent ? <><span>{talent.category}</span><strong>{talent.name}</strong><small>{unlocked.has(talent.id) ? bpCostLabel(talent.cost || 0) : `锁定 ${bpCostLabel(talent.cost || 0)}`}</small></> : <span />}
+            </button>
+          ))}
+        </div>
+        <footer className="talent-footer-note">为你的后续挑战选择祝福和风险。</footer>
+      </section>
+      <section className="talent-detail-panel">
+        {selected ? (
+          <div className="talent-detail-copy">
+            <span>{selected.category}</span>
+            <h3>{selected.name}</h3>
+            <strong>{bpCostLabel(selected.cost || 0)} 需要</strong>
+            <p>{selected.desc}</p>
+            <small>{selectedEquipped ? "已携带" : selectedUnlocked ? "已解锁" : selectedAffordable ? "可解锁" : "BP 不足"}</small>
+          </div>
+        ) : null}
+        <div className="talent-actions">
+          <button disabled={!selected || selectedUnlocked || !selectedAffordable} onClick={unlockSelected}>解锁</button>
+          <button disabled={!selected || !selectedUnlocked || selectedEquipped || equipped.length >= TALENT_EQUIP_LIMIT} onClick={equipSelected}>装备</button>
+          <button disabled={!selectedEquipped} onClick={unequipSelected}>卸下</button>
+          <button onClick={onBack}>返回</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function StarterItemsView({starter, save, onChoose}: {starter: DesktopGameState["starter"]; save: LocalSave | null; onChoose: (offerId: string | null) => void | Promise<void>}) {
+  const offers = starter?.offers || [];
+  const purchasedOffers = starter?.purchased_list || (starter?.purchased ? [starter.purchased] : []);
+  const purchasedIds = new Set(purchasedOffers.map(offer => offer.offer_id));
+  const maxPurchases = starter?.max_purchases || 1;
+  return (
+    <div className="starter-page">
+      <header>
+        <div>
+          <h2>开局道具</h2>
+          <p>BP {save?.stats.battle_points || 0}　随机种子 {starter?.seed ?? "--"}　已购买 {purchasedOffers.length}/{maxPurchases}</p>
+        </div>
+        <div className="starter-actions">
+          <button disabled={Boolean(purchasedOffers.length)} onClick={() => onChoose("__reroll__")}>重新随机（100BP）</button>
+          <button onClick={() => onChoose(null)}>跳过</button>
+        </div>
+      </header>
+      <section className="starter-offers">
+        {offers.length ? offers.map(offer => (
+          <button className={`starter-offer ${purchasedIds.has(offer.offer_id) ? "selected" : ""}`} disabled={purchasedIds.has(offer.offer_id) || purchasedOffers.length >= maxPurchases} onClick={() => onChoose(offer.offer_id)} key={offer.offer_id}>
+            <ItemIcon item={offer} />
+            <strong>{offer.name_zh || offer.name}</strong>
+            <span><b className={offer.discount && offer.discount < 1 ? "discount-badge" : "price-badge"}>{starterDiscountLabel(offer.discount)}</b><i>{bpCostLabel(offer.cost)}{purchasedIds.has(offer.offer_id) ? "　已购买" : ""}</i></span>
+            <small>{itemCategoryLabel(offer.category)}　{offer.desc_zh || offer.desc || offer.name}</small>
+          </button>
+        )) : <p>正在抽取开局道具...</p>}
+      </section>
+    </div>
+  );
 }
 
 function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void}) {
@@ -497,7 +833,7 @@ function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
   return <div className={`battle-effect-layer anchor-${cue.anchor} side-${cue.side || "none"} target-${cue.targetSide || "none"}`} style={{"--cue-duration": `${cue.durationMs}ms`} as CSSProperties}><div className={`battle-effect effect-${cue.visual}`}><i /><i /><i /><i /><i /><i /></div></div>;
 }
 
-function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattleAnimationDone}: {battle: BattleState | null; mode: AppStatus; setMode: (mode: AppStatus) => void; onChoice: (choice: string) => void; pendingTransition: DesktopGameState | null; onBattleAnimationDone: (state: DesktopGameState) => void}) {
+function BattleView({battle, battleBag, mode, setMode, onChoice, pendingTransition, onBattleAnimationDone}: {battle: BattleState | null; battleBag: BagCategoryView | null; mode: AppStatus; setMode: (mode: AppStatus) => void; onChoice: (choice: string) => void; pendingTransition: DesktopGameState | null; onBattleAnimationDone: (state: DesktopGameState) => void}) {
   const player = activePokemon(battle, "p1");
   const enemy = activePokemon(battle, "p2");
   const finalConditions = {
@@ -531,6 +867,10 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
   const [hpTransitionMs, setHpTransitionMs] = useState({p1: 1400, p2: 1400});
   const [faintedSides, setFaintedSides] = useState({p1: false, p2: false});
   const [introActive, setIntroActive] = useState(false);
+  const [trainerIntroActive, setTrainerIntroActive] = useState(false);
+  const [detailIndex, setDetailIndex] = useState<number | null>(null);
+  const [itemTargetIndex, setItemTargetIndex] = useState(0);
+  const [battleItemOpen, setBattleItemOpen] = useState(false);
   const previousTimelineKeys = useRef<string[]>([]);
   const previousRecentEvents = useRef<string[]>([]);
   const displayConditionsRef = useRef(displayConditions);
@@ -547,13 +887,24 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
   useEffect(() => {
     const battlePresent = Boolean(battle);
     if (battlePresent && !previousBattlePresent.current) {
-      setIntroActive(true);
-      const timer = window.setTimeout(() => setIntroActive(false), 1180);
+      setTrainerIntroActive(true);
+      setIntroActive(false);
+      const trainerTimer = window.setTimeout(() => {
+        setTrainerIntroActive(false);
+        setIntroActive(true);
+      }, 1750);
+      const pokemonTimer = window.setTimeout(() => setIntroActive(false), 2950);
       previousBattlePresent.current = true;
-      return () => window.clearTimeout(timer);
+      return () => {
+        window.clearTimeout(trainerTimer);
+        window.clearTimeout(pokemonTimer);
+      };
     }
     previousBattlePresent.current = battlePresent;
-    if (!battlePresent) setIntroActive(false);
+    if (!battlePresent) {
+      setIntroActive(false);
+      setTrainerIntroActive(false);
+    }
   }, [Boolean(battle)]);
 
   useEffect(() => {
@@ -571,6 +922,7 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
       setCurrentTimelineEvent(null);
       setCurrentVisualCue(null);
       setPlaybackActive(false);
+      setTrainerIntroActive(false);
       setDisplayedActiveNames(finalActiveNames);
       setDisplayedSubstitutes(finalSubstitutes);
       setDisplayConditions(finalConditions);
@@ -614,6 +966,10 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
     const activeBattle = battle;
     async function playQueue() {
       setPlaybackActive(true);
+      if (trainerIntroActive) {
+        await wait(1750);
+        if (playbackRun.current !== runId) return;
+      }
       if (introActive) {
         await wait(920);
         if (playbackRun.current !== runId) return;
@@ -695,20 +1051,39 @@ function BattleView({battle, mode, setMode, onChoice, pendingTransition, onBattl
   }, [timelineKey, recentKey]);
 
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
-  const controlsDisabled = playbackActive;
+  const controlsDisabled = playbackActive || introActive || trainerIntroActive;
   const displayPlayer = findDisplay(battle.player_display, displayedActiveNames.p1) || player.display;
   const displayEnemy = findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display;
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : pokemonImageUrl(displayPlayer, "back_normal");
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : pokemonImageUrl(displayEnemy, "front_normal");
+  const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
   const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"]) : 1600;
   const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
-  return <div className="battle-layout"><section className={`battle-field ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}><FieldEffectsOverlay battle={battle} /><BattleEffectLayer cue={currentVisualCue} /><div className="turn-badge">第 {battle.tracker.turn} 回合</div><div className="battle-corner-actions"><button disabled={controlsDisabled} onClick={() => setMode("statusMenu")}>状态</button><button className="danger-button" disabled={controlsDisabled} onClick={() => onChoice("forfeit")}>认输</button></div><FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} /><div className="battle-sprites"><img className={`back-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""}`} src={playerSprite} /><img className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""}`} src={enemySprite} /></div><FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} />{currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}</section><section className="battle-bottom"><div className="battle-log"><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div><div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : mode === "teamMenu" ? <TeamMenu battle={battle} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} />}</div></section>{mode === "statusMenu" ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}</div>;
+  const detailOpen = detailIndex !== null || mode === "teamMenu";
+  const detailInitialIndex = detailIndex ?? activePlayerIndex;
+  return <div className="battle-layout"><section className={`battle-field ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}><FieldEffectsOverlay battle={battle} /><BattleEffectLayer cue={currentVisualCue} />{trainerIntroActive ? <TrainerIntroOverlay battle={battle} /> : null}<div className="turn-badge">第 {battle.tracker.turn} 回合</div><div className="battle-corner-actions"><button disabled={controlsDisabled} onClick={() => setMode("statusMenu")}>状态</button><button className="danger-button" disabled={controlsDisabled} onClick={() => onChoice("forfeit")}>认输</button></div><FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} /><div className="battle-sprites"><img className={`back-sprite clickable-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""}`} src={playerSprite} alt={displayPlayer ? displayName(displayPlayer) : "我方宝可梦"} onClick={() => setDetailIndex(activePlayerIndex)} /><img className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""}`} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} /></div><FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} onClick={() => setDetailIndex(activePlayerIndex)} />{currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}</section><section className="battle-bottom"><div className="battle-log"><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div><div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} />}</div></section>{mode === "statusMenu" ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}{detailOpen ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { setDetailIndex(null); if (mode === "teamMenu") setMode("battleMain"); }} /> : null}{battleItemOpen ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} onClose={() => setBattleItemOpen(false)} onUse={(itemId, target, moveSlot) => { setBattleItemOpen(false); onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`); }} /> : null}</div>;
 }
 
-function FighterPanel({pokemon, condition, status, side, substitute, transitionMs}: {pokemon?: RentalPokemon; condition?: string; status?: string; side: "player" | "enemy"; substitute?: boolean; transitionMs?: number}) {
+function TrainerIntroOverlay({battle}: {battle: BattleState}) {
+  const player = battle.player_trainer;
+  const enemy = battle.enemy_trainer;
+  const enemyName = enemy?.name_zh || "训练师";
+  const playerImage = trainerImageUrl(player, "back");
+  const enemyImage = trainerImageUrl(enemy, "frontGif");
+  return (
+    <div className="trainer-intro-layer">
+      {playerImage ? <img className="trainer-sprite trainer-player" src={playerImage} alt={player?.name_zh || "玩家"} /> : null}
+      {enemyImage ? <img className="trainer-sprite trainer-enemy" src={enemyImage} alt={enemyName} /> : null}
+      <div className="trainer-intro-message"><strong>{enemyName} 前来挑战了</strong></div>
+    </div>
+  );
+}
+
+function FighterPanel({pokemon, condition, status, side, substitute, transitionMs, onClick}: {pokemon?: RentalPokemon; condition?: string; status?: string; side: "player" | "enemy"; substitute?: boolean; transitionMs?: number; onClick?: () => void}) {
   const hp = parseHp(condition);
   const code = statusCode(condition, status);
-  return <div className={`fighter-panel ${side}`}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}<div className="hp-line"><i style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
+  const tone = hpTone(hp);
+  return <div className={`fighter-panel ${side} ${onClick ? "clickable-panel" : ""}`} onClick={onClick}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}<div className="hp-line"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
 }
 
 function FieldEffectsOverlay({battle}: {battle: BattleState}) {
@@ -732,30 +1107,29 @@ function effectIcon(effect: string): string {
   return "*";
 }
 
+const TYPE_CHART: Record<string, Record<string, number>> = {
+  normal: {rock: 0.5, ghost: 0, steel: 0.5},
+  fire: {fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2},
+  water: {fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5},
+  electric: {water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5},
+  grass: {fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5, steel: 0.5},
+  ice: {fire: 0.5, water: 0.5, grass: 2, ice: 0.5, ground: 2, flying: 2, dragon: 2, steel: 0.5},
+  fighting: {normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dark: 2, steel: 2, fairy: 0.5},
+  poison: {grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0, fairy: 2},
+  ground: {fire: 2, electric: 2, grass: 0.5, poison: 2, flying: 0, bug: 0.5, rock: 2, steel: 2},
+  flying: {electric: 0.5, grass: 2, fighting: 2, bug: 2, rock: 0.5, steel: 0.5},
+  psychic: {fighting: 2, poison: 2, psychic: 0.5, dark: 0, steel: 0.5},
+  bug: {fire: 0.5, grass: 2, fighting: 0.5, poison: 0.5, flying: 0.5, psychic: 2, ghost: 0.5, dark: 2, steel: 0.5, fairy: 0.5},
+  rock: {fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2, steel: 0.5},
+  ghost: {normal: 0, psychic: 2, ghost: 2, dark: 0.5},
+  dragon: {dragon: 2, steel: 0.5, fairy: 0},
+  dark: {fighting: 0.5, psychic: 2, ghost: 2, dark: 0.5, fairy: 0.5},
+  steel: {fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2},
+  fairy: {fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5},
+};
+
 function moveTypeClass(summary: MoveSummary | undefined): string {
-  const raw = summary?.type || summary?.type_zh || "";
-  const typeId = toId(raw);
-  const zhMap: Record<string, string> = {
-    一般: "normal",
-    火: "fire",
-    水: "water",
-    电: "electric",
-    草: "grass",
-    冰: "ice",
-    格斗: "fighting",
-    毒: "poison",
-    地面: "ground",
-    飞行: "flying",
-    超能力: "psychic",
-    虫: "bug",
-    岩石: "rock",
-    幽灵: "ghost",
-    龙: "dragon",
-    恶: "dark",
-    钢: "steel",
-    妖精: "fairy",
-  };
-  return `move-type-${zhMap[raw] || typeId || "normal"}`;
+  return `move-type-${typeId(summary?.type || summary?.type_zh) || "normal"}`;
 }
 
 function moveTypeLabel(summary: MoveSummary | undefined): string {
@@ -763,29 +1137,157 @@ function moveTypeLabel(summary: MoveSummary | undefined): string {
   return raw === "超能力" ? "超" : raw === "一般" ? "普" : raw;
 }
 
-function MainBattleCommands({forceSwitch, disabled, setMode}: {forceSwitch: boolean; disabled?: boolean; setMode: (mode: AppStatus) => void}) {
-  return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled>背包</button></div>;
+function moveEffectiveness(summary: MoveSummary | undefined, target: RentalPokemon | undefined): number {
+  const attackType = typeId(summary?.type || summary?.type_zh);
+  if (!attackType || !target) return 1;
+  const targetTypes = [...(target.types || []), ...(target.types_zh || [])].map(typeId).filter(Boolean);
+  const uniqueTypes = [...new Set(targetTypes)];
+  return uniqueTypes.reduce((multiplier, defenseType) => multiplier * (TYPE_CHART[attackType]?.[defenseType] ?? 1), 1);
+}
+
+function MainBattleCommands({forceSwitch, disabled, setMode, onBag}: {forceSwitch: boolean; disabled?: boolean; setMode: (mode: AppStatus) => void; onBag: () => void}) {
+  return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled={disabled || forceSwitch} onClick={onBag}>背包</button></div>;
 }
 
 function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number) => void; onBack: () => void}) {
   const moves = battle.request?.active?.[0]?.moves || [];
   const active = activePokemon(battle, "p1").display;
-  return <div className="move-menu">{moves.map((move, index) => { const summary = moveSummaryFor(active, move); return <button className={`move-choice ${moveTypeClass(summary)}`} key={move.id || index} disabled={disabled || move.disabled} onClick={() => onMove(index + 1)}><strong>{summary?.name_zh || move.move}</strong><span><b>{moveTypeLabel(summary)}</b> PP {move.pp}/{move.maxpp}</span></button>; })}<button className="menu-back" disabled={disabled} onClick={onBack}>返回</button></div>;
+  const target = activePokemon(battle, "p2").display;
+  return <div className="move-menu">{moves.map((move, index) => { const summary = moveSummaryFor(active, move); const multiplier = moveEffectiveness(summary, target); const superEffective = Boolean(battle.show_move_effectiveness && multiplier > 1); return <button className={`move-choice ${moveTypeClass(summary)} ${superEffective ? "move-super-effective" : ""}`} key={move.id || index} disabled={disabled || move.disabled} onClick={() => onMove(index + 1)}><strong>{summary?.name_zh || move.move}{superEffective ? <i>克制</i> : null}</strong><span><b>{moveTypeLabel(summary)}</b> PP {move.pp}/{move.maxpp}{superEffective ? ` x${multiplier}` : ""}</span></button>; })}<button className="menu-back" disabled={disabled} onClick={onBack}>返回</button></div>;
 }
 
 function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; disabled?: boolean; onSwitch: (index: number) => void; onBack: () => void}) {
   const rows = battle.request?.side?.pokemon || [];
   const [focus, setFocus] = useState(0);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
-  const focusedRuntime = rows[focus];
-  const focusedDisplay = findDisplay(battle.player_display, runtimeName(focusedRuntime));
-  const detailRuntime = detailIndex === null ? undefined : rows[detailIndex];
-  const detailPokemon = detailIndex === null ? undefined : findDisplay(battle.player_display, runtimeName(detailRuntime));
-  return <div className="team-menu"><div className="team-list">{rows.map((runtime, index) => { const display = findDisplay(battle.player_display, runtimeName(runtime)); const canSwitch = !runtime.active && !String(runtime.condition).endsWith(" fnt"); const status = statusCode(runtime.condition); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={runtime.ident}><div className="team-summary" onClick={() => setFocus(index)}><span>{runtime.active ? "▶" : `${index + 1}.`}</span><strong>{display ? displayName(display) : runtimeName(runtime)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(runtime.condition)}　{runtime.item || ""}</small></div><button disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}>详情</button><button disabled={disabled || !canSwitch} onClick={() => onSwitch(index + 1)}>换上</button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div><div className="team-preview">{focusedDisplay ? <><img src={pokemonImageUrl(focusedDisplay)} alt={displayName(focusedDisplay)} /><strong>{displayName(focusedDisplay)}</strong><small>{conditionText(focusedRuntime?.condition)}　{focusedDisplay.item_zh || "无道具"}</small></> : <p>选择宝可梦。</p>}</div>{detailPokemon ? <PokemonDetailModal pokemon={detailPokemon} runtime={detailRuntime} onClose={() => setDetailIndex(null)} /> : null}</div>;
+  return <div className="team-menu"><div className="team-list">{rows.map((runtime, index) => { const display = findDisplay(battle.player_display, runtimeName(runtime)); const status = statusCode(runtime.condition); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={runtime.ident}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{runtime.active ? "▶" : `${index + 1}.`}</span><strong>{display ? displayName(display) : runtimeName(runtime)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(runtime.condition)}　{runtime.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div>;
 }
 
-function PokemonDetailModal({pokemon, runtime, onClose}: {pokemon: RentalPokemon; runtime?: RuntimePokemon; onClose: () => void}) {
-  return <div className="modal-layer"><section className="pokemon-detail-modal"><header><h2>{displayName(pokemon)}</h2><button onClick={onClose}>关闭</button></header><PokemonProfile pokemon={pokemon} runtime={runtime} /></section></div>;
+function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}: {battle: BattleState; initialIndex: number; disabled?: boolean; onSwitch: (index: number) => void; onClose: () => void}) {
+  const rows = battle.request?.side?.pokemon || [];
+  const [selectedIndex, setSelectedIndex] = useState(() => Math.max(0, Math.min(initialIndex, Math.max(0, rows.length - 1))));
+  const [tab, setTab] = useState<"basic" | "moves">("basic");
+  const runtime = rows[selectedIndex] || rows[0];
+  const pokemon = findDisplay(battle.player_display, runtimeName(runtime)) || battle.player_display[selectedIndex] || battle.player_display[0];
+  const status = statusCode(runtime?.condition);
+  const canSwitch = Boolean(runtime) && !runtime.active && status !== "fnt";
+  const activeMoves = runtime?.active ? battle.request?.active?.[0]?.moves || [] : [];
+
+  useEffect(() => {
+    setSelectedIndex(Math.max(0, Math.min(initialIndex, Math.max(0, rows.length - 1))));
+  }, [initialIndex, rows.length]);
+
+  if (!pokemon) return null;
+
+  function ppText(move: MoveSummary): string {
+    const runtimeMove = activeMoves.find(entry => toId(entry.id || entry.move) === toId(move.id || move.name));
+    if (!runtimeMove) return `PP ${move.pp}`;
+    return `PP ${runtimeMove.pp ?? move.pp}/${runtimeMove.maxpp ?? move.pp}`;
+  }
+
+  return (
+    <div className="modal-layer">
+      <section className="pokemon-detail-modal">
+        <aside className="detail-team-list">
+          {rows.map((entry, index) => {
+            const display = findDisplay(battle.player_display, runtimeName(entry)) || battle.player_display[index];
+            const code = statusCode(entry.condition);
+            return (
+              <button className={selectedIndex === index ? "selected" : ""} onClick={() => setSelectedIndex(index)} key={`${entry.ident}-${index}`}>
+                <img src={pokemonImageUrl(display)} alt={display ? displayName(display) : runtimeName(entry)} />
+                <span>{entry.active ? "▶ " : ""}{display ? displayName(display) : runtimeName(entry)}</span>
+                {code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}
+                <small>{conditionText(entry.condition)}</small>
+              </button>
+            );
+          })}
+        </aside>
+        <section className="detail-main">
+          <header>
+            <div>
+              <h2>{displayName(pokemon)}</h2>
+              <p>{pokemon.species}　Lv{pokemon.level} {pokemon.gender}</p>
+            </div>
+            <div className="detail-tabs">
+              <button className={tab === "basic" ? "selected" : ""} onClick={() => setTab("basic")}>基础信息</button>
+              <button className={tab === "moves" ? "selected" : ""} onClick={() => setTab("moves")}>技能</button>
+            </div>
+          </header>
+          <div className="detail-content">
+            {tab === "basic" ? (
+              <div className="detail-basic">
+                <div className="detail-portrait">
+                  <span>No.{pokemon.sprite?.national_dex || "?"}</span>
+                  <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                  <strong>{pokemon.types_zh.join(" / ") || pokemon.types.join(" / ")}</strong>
+                </div>
+                <div className="detail-info">
+                  <div className="info-strip">
+                    <span>性格</span><strong>{pokemon.nature_zh || pokemon.nature || "未知"}</strong>
+                    <span>特性</span><strong>{pokemon.ability_zh || pokemon.ability || "未知"}</strong>
+                    <span>HP</span><strong>{conditionText(runtime?.condition)}</strong>
+                    <span>道具</span><strong>{pokemon.item_zh || runtime?.item || "无"}</strong>
+                    <span>定位</span><strong>{pokemon.role_zh || pokemon.role || "未标注"}</strong>
+                  </div>
+                  <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat)}</strong></div>)}</div>
+                  <p><b>特性说明：</b>{pokemon.ability_desc_zh || pokemon.ability_desc || "暂无说明"}</p>
+                  <p><b>道具说明：</b>{pokemon.item_desc_zh || pokemon.item_desc || "无道具"}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="detail-moves">
+                {pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><span>{ppText(move)}</span><p>{move.desc_zh || move.desc || "暂无说明"}</p></div>)}
+              </div>
+            )}
+          </div>
+          <footer>
+            <button disabled={disabled || !canSwitch} onClick={() => { onSwitch(selectedIndex + 1); onClose(); }}>换人</button>
+            <button onClick={onClose}>关闭</button>
+          </footer>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: BattleState; bag: BagCategoryView | null; initialTarget: number; onClose: () => void; onUse: (itemId: string, target: number, moveSlot?: number) => void}) {
+  const [target, setTarget] = useState(Math.max(0, initialTarget));
+  const [moveSlot, setMoveSlot] = useState(0);
+  const [itemId, setItemId] = useState("");
+  const items = bag?.consumable || [];
+  const selected = items.find(item => item.id === itemId) || items[0];
+  const rows = battle.request?.side?.pokemon || [];
+  const targetRuntime = rows[target] || rows[0];
+  const targetDisplay = findDisplay(battle.player_display, runtimeName(targetRuntime)) || battle.player_display[target] || battle.player_display[0];
+  const activeMoves = targetRuntime?.active ? battle.request?.active?.[0]?.moves || [] : [];
+
+  return (
+    <div className="modal-layer">
+      <section className="shop-modal bag-manage-modal battle-bag-modal">
+        <header><div><h2>战斗背包</h2><p>战斗中只能使用消耗类道具。</p></div><button onClick={onClose}>关闭</button></header>
+        <div className="bag-manage-layout">
+          <div className="shop-list bag-item-list">
+            {items.length ? items.map(item => <button className={selected?.id === item.id ? "selected" : ""} onClick={() => setItemId(item.id)} key={item.id}><ItemIcon item={item} /><strong>{item.name_zh || item.name}</strong><span>x{item.count}　{itemCategoryLabel(item.category)}</span><small>{item.desc_zh || item.desc || item.name}</small></button>) : <p>当前没有可在战斗中使用的消耗道具。</p>}
+          </div>
+          <section className="bag-action-panel">
+            {selected ? <>
+              <h3>{selected.name_zh || selected.name}</h3>
+              <p>{itemCategoryLabel(selected.category)}　x{selected.count}</p>
+              <div className="detail-team-list compact-targets">
+                {rows.map((entry, index) => {
+                  const display = findDisplay(battle.player_display, runtimeName(entry)) || battle.player_display[index];
+                  return <button className={target === index ? "selected" : ""} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${entry.ident}-item-target`}><img src={pokemonImageUrl(display)} alt={display ? displayName(display) : runtimeName(entry)} /><span>{display ? displayName(display) : runtimeName(entry)}</span><small>{conditionText(entry.condition)}</small></button>;
+                })}
+              </div>
+              {activeMoves.length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}><option value={0}>不指定技能</option>{activeMoves.map((move, index) => <option value={index + 1} key={`${move.id}-${index}`}>{move.move} PP {move.pp}/{move.maxpp}</option>)}</select> : null}
+              <p>{targetDisplay ? `目标：${displayName(targetDisplay)}` : "选择目标宝可梦"}</p>
+              <div className="command-row"><button onClick={() => onUse(selected.id, target, moveSlot || undefined)}>使用</button></div>
+            </> : <p>当前没有可在战斗中使用的消耗道具。</p>}
+          </section>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function StatusModal({battle, onBack}: {battle: BattleState; onBack: () => void}) {
@@ -853,48 +1355,22 @@ function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameStat
 }
 
 function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; message?: string; onAction: (action: RestAction) => void | Promise<void>}) {
-  const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
-  const [own, setOwn] = useState(0);
-  const [enemy, setEnemy] = useState(0);
-  const [bagItem, setBagItem] = useState("");
-  const [shopQuery, setShopQuery] = useState("");
-  const [shopItems, setShopItems] = useState<ShopItem[]>([]);
-  const [shopLoading, setShopLoading] = useState(false);
-  const [shopError, setShopError] = useState("");
+  const [pokemonModalSlot, setPokemonModalSlot] = useState<number | null>(null);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
+  const [bagOpen, setBagOpen] = useState(false);
+  const [talentOpen, setTalentOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
-  const [moveEditorOpen, setMoveEditorOpen] = useState(false);
-  const [statsEditorOpen, setStatsEditorOpen] = useState(false);
+  const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);
+  const [statsEditorSlot, setStatsEditorSlot] = useState<number | null>(null);
   const [abortConfirmOpen, setAbortConfirmOpen] = useState(false);
 
-  useEffect(() => {
-    if (!shopOpen) return;
-    let cancelled = false;
-    setShopLoading(true);
-    setShopError("");
-    void window.changeBattle!.shopItems(shopQuery).then(items => {
-      if (!cancelled) setShopItems(items);
-    }).catch(err => {
-      if (!cancelled) {
-        setShopItems([]);
-        setShopError(err instanceof Error ? err.message : String(err));
-      }
-    }).finally(() => {
-      if (!cancelled) setShopLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [shopQuery, shopOpen]);
-
   if (!rest) return <div className="loading-panel"><strong>正在整理队伍...</strong></div>;
-  const selectedOneBased = selectedSlots.map(index => index + 1);
-  const bagEntries = Object.entries(rest.bag_items || {}).filter(([, count]) => count > 0);
-  const canExchange = rest.costs.exchange !== null && rest.enemy_display.length > 0 && !rest.taken_enemy_slots.includes(enemy + 1);
-  const hpRestoreCount = rest.player_state.filter(state => Number(state.hp || 0) < Number(state.maxhp || 0)).length;
-  const ppRestoreCount = rest.player_state.filter(state => (state.moves || []).some(move => Number(move.pp || 0) < Number(move.maxpp || 0))).length;
-  const statusRestoreCount = rest.player_state.filter(state => Boolean(state.status)).length;
-
-  function toggleSlot(index: number) {
-    setSelectedSlots(current => current.includes(index) ? current.filter(value => value !== index) : [...current, index].sort());
-  }
+  const allBagItems = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
+  const hasScoutTalent = hasRunTalent(rest, "prophet_next_scout");
+  const hasReviewTalent = hasRunTalent(rest, "prophet_history_review");
+  const showScoutInsight = hasScoutTalent || Boolean(rest.scout);
+  const showReviewInsight = hasReviewTalent || Boolean(rest.review?.enemies?.length);
 
   return (
     <div className="rest-page">
@@ -902,9 +1378,29 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
         <div>
           <h2>休整菜单</h2>
           <p>第 {rest.battle_no}/{rest.battles} 场后　连胜 {rest.wins}　BP {rest.battle_points}</p>
+          <button className="talent-inline-button" onClick={() => setTalentOpen(true)}>本局天赋：{rest.talents?.length ? rest.talents.map(talent => `${talent.name}（${talent.category}）`).join(" / ") : "当前无天赋"}</button>
           {message ? <p className="rest-message">{message}</p> : null}
         </div>
+        <div className="rest-header-insights">
+          {showScoutInsight ? (
+            <button className="rest-scout-box compact" onClick={() => setTalentOpen(true)}>
+              <strong>{rest.scout?.title || "尚未侦查下一场"}</strong>
+              <span>{rest.scout?.summary || "使用未卜先知查看下一场对手。"}</span>
+              {rest.scout?.enemies?.length ? <div>{rest.scout.enemies.map(enemy => <small key={enemy.species_id}>{displayName(enemy)}</small>)}</div> : null}
+            </button>
+          ) : null}
+          {showReviewInsight ? (
+            <button className="rest-scout-box compact" onClick={() => setTalentOpen(true)}>
+              <strong>上一场回顾</strong>
+              <span>{rest.review?.enemies?.length ? rest.review.enemies.map(enemy => displayName(enemy)).join(" / ") : "使用温故知新查看上一场对手详情。"}</span>
+            </button>
+          ) : null}
+        </div>
         <div className="rest-header-actions">
+          <button onClick={() => setRestoreOpen(true)}>恢复</button>
+          <button onClick={() => setExchangeOpen(true)}>交换</button>
+          <button onClick={() => setBagOpen(true)}>背包/出售</button>
+          <button onClick={() => setShopOpen(true)}>购买道具</button>
           <button className="danger-button" onClick={() => setAbortConfirmOpen(true)}>中断挑战</button>
           <button onClick={() => onAction({type: "next"})}>下一场</button>
         </div>
@@ -914,40 +1410,28 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
         <div className="rest-team-list">
           {rest.player_display.map((pokemon, index) => {
             const state = rest.player_state[index];
-            const selected = selectedSlots.includes(index);
             const status = statusCode(state?.condition, state?.status);
-            return <button className={`rest-team-card ${selected ? "selected" : ""}`} onClick={() => toggleSlot(index)} key={`${pokemon.species_id}-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
+            return <button className="rest-team-card" onClick={() => setPokemonModalSlot(index)} key={`${pokemon.species_id}-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
           })}
         </div>
-        <div className="rest-actions">
-          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "restore_hp", slots: selectedOneBased})}>恢复HP{restoreCostSuffix(rest.costs.restore_hp, selectedSlots.length, hpRestoreCount)}</button>
-          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "restore_pp", slots: selectedOneBased})}>恢复PP{restoreCostSuffix(rest.costs.restore_pp, selectedSlots.length, ppRestoreCount)}</button>
-          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "restore_status", slots: selectedOneBased})}>恢复异常{restoreCostSuffix(rest.costs.restore_status, selectedSlots.length, statusRestoreCount)}</button>
-          <button onClick={() => setMoveEditorOpen(true)}>调整技能</button>
-          <button onClick={() => setStatsEditorOpen(true)}>调整能力值 {bpCostLabel(rest.costs.adjust_stats)}</button>
+      </section>
+      <section className="rest-summary-panel">
+        <h3>局内资源</h3>
+        <div className="rest-summary-grid">
+          <button onClick={() => setBagOpen(true)}><strong>{allBagItems.reduce((sum, item) => sum + Number(item.count || 0), 0)}</strong><span>背包道具</span></button>
+          <button onClick={() => setShopOpen(true)}><strong>{rest.shop?.offers?.length || 0}</strong><span>商店商品</span></button>
+          <button onClick={() => setExchangeOpen(true)}><strong>{rest.exchange_count}/3</strong><span>已交换</span></button>
+          <button onClick={() => setTalentOpen(true)}><strong>{rest.talents?.length || 0}/{TALENT_EQUIP_LIMIT}</strong><span>携带天赋</span></button>
         </div>
       </section>
-      <section className="rest-exchange-panel">
-        <h3>交换宝可梦</h3>
-        <div className="rest-exchange-grid">
-          <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`${pokemon.species_id}-own-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
-          <div>{rest.enemy_display.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} disabled={rest.taken_enemy_slots.includes(index + 1)} onClick={() => setEnemy(index)} key={`${pokemon.species_id}-enemy-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span>{rest.taken_enemy_slots.includes(index + 1) ? <small>已交换</small> : null}</button>)}</div>
-        </div>
-        <button disabled={!canExchange} onClick={() => onAction({type: "exchange", ownIndex: own, enemyIndex: enemy})}>交换</button>
-      </section>
-      <section className="rest-bag-panel">
-        <div className="rest-bag-head"><h3>本局背包</h3><button onClick={() => setShopOpen(true)}>购买道具</button></div>
-        <div className="bag-list">
-          {bagEntries.length ? bagEntries.map(([itemId, count]) => <button className={bagItem === itemId ? "selected" : ""} onClick={() => setBagItem(itemId)} key={itemId}>{itemId} x{count}</button>) : <span>空</span>}
-        </div>
-        <div className="rest-actions">
-          {rest.player_display.map((pokemon, index) => <button disabled={!bagItem} onClick={() => onAction({type: "equip_item", itemId: bagItem, slot: index})} key={`equip-${pokemon.species_id}-${index}`}>给 {displayName(pokemon)} 装备</button>)}
-          <button disabled={!selectedSlots.length} onClick={() => onAction({type: "unequip_item", slot: selectedSlots[0]})}>卸下选中道具</button>
-        </div>
-      </section>
-      {shopOpen ? <ShopModal query={shopQuery} setQuery={setShopQuery} items={shopItems} loading={shopLoading} error={shopError} onClose={() => setShopOpen(false)} onBuy={async itemId => { await onAction({type: "buy_item", itemId}); setShopOpen(false); }} /> : null}
-      {moveEditorOpen ? <MoveAdjustModal rest={rest} onClose={() => setMoveEditorOpen(false)} onAction={onAction} /> : null}
-      {statsEditorOpen ? <StatsAdjustModal rest={rest} onClose={() => setStatsEditorOpen(false)} onAction={onAction} /> : null}
+      {pokemonModalSlot !== null ? <RestPokemonModal rest={rest} initialSlot={pokemonModalSlot} onClose={() => setPokemonModalSlot(null)} onMove={slot => { setPokemonModalSlot(null); setMoveEditorSlot(slot); }} onUnequip={slot => { setPokemonModalSlot(null); onAction({type: "unequip_item", slot}); }} onStats={slot => { setPokemonModalSlot(null); setStatsEditorSlot(slot); }} /> : null}
+      {restoreOpen ? <RestoreModal rest={rest} onClose={() => setRestoreOpen(false)} onAction={onAction} /> : null}
+      {exchangeOpen ? <RestExchangeModal rest={rest} onClose={() => setExchangeOpen(false)} onAction={onAction} /> : null}
+      {bagOpen ? <BagManageModal rest={rest} onClose={() => setBagOpen(false)} onAction={onAction} /> : null}
+      {talentOpen ? <RunTalentModal rest={rest} onClose={() => setTalentOpen(false)} onAction={onAction} /> : null}
+      {shopOpen ? <ShopModal shop={rest.shop} onClose={() => setShopOpen(false)} onRoll={() => onAction({type: "roll_shop"})} onBuy={offerId => onAction({type: "buy_shop_offer", offerId})} /> : null}
+      {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} onClose={() => setMoveEditorSlot(null)} onAction={onAction} /> : null}
+      {statsEditorSlot !== null ? <StatsAdjustModal rest={rest} initialSlot={statsEditorSlot} onClose={() => setStatsEditorSlot(null)} onAction={onAction} /> : null}
       {abortConfirmOpen ? (
         <div className="modal-layer">
           <section className="confirm-modal">
@@ -964,98 +1448,416 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
   );
 }
 
-function ShopModal({query, setQuery, items, loading, error, onClose, onBuy}: {query: string; setQuery: (value: string) => void; items: ShopItem[]; loading: boolean; error: string; onClose: () => void; onBuy: (itemId: string) => void | Promise<void>}) {
+function hasRunTalent(rest: NonNullable<DesktopGameState["rest"]>, id: string): boolean {
+  return Boolean(rest.talents?.some(talent => talent.id === id));
+}
+
+function RestPokemonModal({rest, initialSlot, onClose, onMove, onUnequip, onStats}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot: number; onClose: () => void; onMove: (slot: number) => void; onUnequip: (slot: number) => void; onStats: (slot: number) => void}) {
+  const [slot, setSlot] = useState(initialSlot);
+  const [tab, setTab] = useState<"info" | "moves" | "stats" | "items">("info");
+  const pokemon = rest.player_display[slot] || rest.player_display[0];
+  const state = rest.player_state[slot] || rest.player_state[0];
+  if (!pokemon) return null;
   return (
     <div className="modal-layer">
-      <section className="shop-modal">
-        <header>
-          <h2>购买道具</h2>
-          <button onClick={onClose}>关闭</button>
-        </header>
-        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索道具中文/英文/ID" />
-        {error ? <p className="editor-warning">{error}</p> : loading ? <p>正在读取道具...</p> : null}
-        <div className="shop-list">
-          {items.length ? items.map(item => (
-            <button onClick={() => onBuy(item.id)} key={item.id}>
-              <strong>{item.name_zh || item.name}</strong>
-              <span>{bpCostLabel(item.cost)}</span>
-              <small>{item.desc_zh || item.desc || item.name}</small>
-            </button>
-          )) : !loading && !error ? <p>没有匹配的道具。</p> : null}
+      <section className="rest-pokemon-modal">
+        <aside className="detail-team-list">
+          {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-rest-detail`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span><small>{conditionText(rest.player_state[index]?.condition)}</small></button>)}
+        </aside>
+        <main className="rest-pokemon-detail">
+          <header>
+            <div><h2>{displayName(pokemon)}</h2><p>Lv{pokemon.level}　{pokemon.types_zh?.join(" / ") || pokemon.types.join(" / ")}　{pokemon.item_zh || "无道具"}</p></div>
+            <button onClick={onClose}>关闭</button>
+          </header>
+          <div className="detail-tabs">
+            <button className={tab === "info" ? "selected" : ""} onClick={() => setTab("info")}>基础信息</button>
+            <button className={tab === "moves" ? "selected" : ""} onClick={() => setTab("moves")}>技能</button>
+            <button className={tab === "stats" ? "selected" : ""} onClick={() => setTab("stats")}>数值</button>
+            <button className={tab === "items" ? "selected" : ""} onClick={() => setTab("items")}>道具</button>
+          </div>
+          <section className="detail-tab-panel">
+            {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>性别：{pokemon.gender || "未知"}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p>闪光：{pokemon.shiny ? "是" : "否"}</p><p>职责：{pokemon.role_zh || pokemon.role || "无"}</p><p className="wide">{pokemon.ability_desc_zh || pokemon.ability_desc || "暂无特性说明"}</p></div> : null}
+            {tab === "moves" ? <div className="detail-move-list">{pokemon.moves.map((move, index) => <article key={`${move.id}-${index}`}><strong>{index + 1}. {move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {state?.moves?.[index]?.pp ?? move.pp}/{state?.moves?.[index]?.maxpp ?? move.pp}</span><small>{move.desc_zh || move.desc || move.short_desc_zh || move.short_desc}</small></article>)}</div> : null}
+            {tab === "stats" ? <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat)}</strong></div>)}</div> : null}
+            {tab === "items" ? <div className="detail-info-grid"><p>当前携带：{pokemon.item_zh || "无道具"}</p><p className="wide">{pokemon.item_desc_zh || pokemon.item_desc || "暂无道具说明"}</p><p>背包携带道具：{rest.bag_categories?.held?.length || 0}</p><p>技能机器：{rest.bag_categories?.tm?.length || 0}</p></div> : null}
+          </section>
+          <footer className="command-row">
+            <button onClick={() => onMove(slot)}>更换技能</button>
+            {pokemon.item_id ? <button onClick={() => onUnequip(slot)}>卸下道具</button> : null}
+            <button onClick={() => onStats(slot)}>重置数值</button>
+            <button onClick={onClose}>关闭</button>
+          </footer>
+        </main>
+      </section>
+    </div>
+  );
+}
+
+function RestoreModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  const [selected, setSelected] = useState(0);
+  const [moveSlot, setMoveSlot] = useState(1);
+  const targetState = rest.player_state[selected] || rest.player_state[0];
+  useEffect(() => {
+    setMoveSlot(targetState?.moves?.[0]?.slot || 1);
+  }, [selected]);
+  return (
+    <div className="modal-layer">
+      <section className="rest-edit-modal restore-modal">
+        <header><h2>恢复</h2><button onClick={onClose}>关闭</button></header>
+        <div className="restore-target-list">
+          {rest.player_display.map((pokemon, index) => <button className={selected === index ? "selected" : ""} onClick={() => setSelected(index)} key={`${pokemon.species_id}-restore`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><strong>{displayName(pokemon)}</strong><span>{conditionText(rest.player_state[index]?.condition)}</span><small>{(rest.player_state[index]?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>)}
+        </div>
+        {targetState?.moves?.length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}>{targetState.moves.map(move => <option value={move.slot} key={`${move.id}-restore-pp-${move.slot}`}>{move.move} PP {move.pp}/{move.maxpp}</option>)}</select> : null}
+        <div className="command-row">
+          <button disabled={Boolean(rest.restore_hp_used)} onClick={() => onAction({type: "restore_hp", slots: [selected + 1]})}>{rest.restore_hp_used ? "恢复HP已使用" : "恢复HP（免费）"}</button>
+          <button disabled={Boolean(rest.restore_pp_used)} onClick={() => onAction({type: "restore_pp", slots: [selected + 1], moveSlot})}>{rest.restore_pp_used ? "恢复PP已使用" : "恢复PP+10（免费）"}</button>
+          <button disabled={Boolean(rest.restore_status_used)} onClick={() => onAction({type: "restore_status", slots: [selected + 1]})}>{rest.restore_status_used ? "恢复异常已使用" : "恢复异常（免费）"}</button>
         </div>
       </section>
     </div>
   );
 }
 
-function MoveAdjustModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
-  const [slot, setSlot] = useState(0);
+function RestExchangeModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  const [own, setOwn] = useState(0);
+  const [enemy, setEnemy] = useState(0);
+  const [boxIndex, setBoxIndex] = useState(0);
+  const canExchange = rest.costs.exchange !== null && rest.enemy_display.length > 0 && !rest.taken_enemy_slots.includes(enemy + 1);
+  const box = rest.exchange_box || [];
+  const canBoxExchange = hasRunTalent(rest, "exchange_safe_box") && box.length > 0;
+  const canAllIn = hasRunTalent(rest, "gambler_all_in_exchange") && !rest.all_in_used;
+  return (
+    <div className="modal-layer">
+      <section className="rest-edit-modal exchange-rest-modal">
+        <header><div><h2>交换宝可梦</h2><p>本次费用：{bpCostLabel(rest.costs.exchange)}　已交换 {rest.exchange_count}/3</p></div><button onClick={onClose}>关闭</button></header>
+        <div className="rest-exchange-grid">
+          <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`${pokemon.species_id}-own-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
+          <div>{rest.enemy_display.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} disabled={rest.taken_enemy_slots.includes(index + 1)} onClick={() => setEnemy(index)} key={`${pokemon.species_id}-enemy-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span>{rest.taken_enemy_slots.includes(index + 1) ? <small>已交换</small> : null}</button>)}</div>
+        </div>
+        {hasRunTalent(rest, "exchange_safe_box") ? <div className="safe-box-panel">
+          <h3>无损交易盒</h3>
+          <div className="safe-box-list">
+            {box.length ? box.map((pokemon, index) => <button className={`mini-pokemon-card ${boxIndex === index ? "selected" : ""}`} onClick={() => setBoxIndex(index)} key={`${pokemon.species_id}-box-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>) : <p>击败对手后，遇到的宝可梦会进入盒子。</p>}
+          </div>
+        </div> : null}
+        <div className="command-row">
+          <button disabled={!canExchange} onClick={() => onAction({type: "exchange", ownIndex: own, enemyIndex: enemy})}>确认交换</button>
+          {hasRunTalent(rest, "exchange_safe_box") ? <button disabled={!canBoxExchange} onClick={() => onAction({type: "box_exchange", ownIndex: own, boxIndex})}>从盒子交换</button> : null}
+          {hasRunTalent(rest, "gambler_all_in_exchange") ? <button disabled={!canAllIn} onClick={() => onAction({type: "all_in_exchange", ownIndex: own})}>{rest.all_in_used ? "孤注一掷已用" : "孤注一掷"}</button> : null}
+          <button onClick={onClose}>关闭</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function tmMoveId(item?: BagItemView): string {
+  if (!item) return "";
+  if (item.move_id) return toId(item.move_id);
+  return item.id.startsWith("tm:") ? toId(item.id.slice(3)) : "";
+}
+
+function BagManageModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
+  const [itemId, setItemId] = useState(items[0]?.id || "");
+  const [target, setTarget] = useState(0);
   const [moveSlot, setMoveSlot] = useState(0);
-  const [query, setQuery] = useState("");
-  const [moves, setMoves] = useState<PricedMove[]>([]);
-  const [moveError, setMoveError] = useState("");
-  const [movesLoading, setMovesLoading] = useState(false);
+  const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
+  const [tmLoading, setTmLoading] = useState(false);
+  const selected = items.find(item => item.id === itemId) || items[0];
+  const targetPokemon = rest.player_display[target] || rest.player_display[0];
+  const targetState = rest.player_state[target] || rest.player_state[0];
+  const selectedMoveId = tmMoveId(selected);
+  const isTm = selected?.category === "tm";
+  const isConsumable = selected?.category === "consumable";
+  const isHeld = selected?.category === "held";
+
+  useEffect(() => {
+    if (items.length && !items.some(item => item.id === itemId)) setItemId(items[0].id);
+  }, [items, itemId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMoveSlot(0);
+    setTmLegalBySlot({});
+    if (!isTm || !selectedMoveId) return () => { cancelled = true; };
+    setTmLoading(true);
+    void Promise.all(rest.player_display.map((_pokemon, index) => window.changeBattle!.learnableMoves(index).then(moves => [index, moves.map(move => toId(move.id || move.name))] as const))).then(entries => {
+      if (cancelled) return;
+      setTmLegalBySlot(Object.fromEntries(entries));
+    }).finally(() => {
+      if (!cancelled) setTmLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [isTm, selectedMoveId, rest.player_display]);
+
+  function targetAlreadyKnows(slot: number): boolean {
+    const pokemon = rest.player_display[slot];
+    return Boolean(selectedMoveId && pokemon?.moves.some(move => toId(move.id || move.name) === selectedMoveId));
+  }
+
+  function targetCanLearn(slot: number): boolean {
+    if (!isTm) return true;
+    if (!selectedMoveId || targetAlreadyKnows(slot)) return false;
+    return Boolean(tmLegalBySlot[slot]?.includes(selectedMoveId));
+  }
+
+  function targetHint(slot: number): string {
+    if (!isTm) return conditionText(rest.player_state[slot]?.condition);
+    if (tmLoading) return "读取可学习技能...";
+    if (targetAlreadyKnows(slot)) return "已学会";
+    return targetCanLearn(slot) ? "可以学习" : "不能学习";
+  }
+
+  function useSelectedItem() {
+    if (!selected) return;
+    if (isConsumable) {
+      onAction({type: "use_item", itemId: selected.id, slot: target, moveSlot: moveSlot || undefined, context: "rest"});
+      onClose();
+    } else if (isTm) {
+      if (!targetCanLearn(target)) return;
+      onAction({type: "use_tm", itemId: selected.id, slot: target, moveSlot});
+      onClose();
+    } else if (isHeld) {
+      onAction({type: "equip_item", itemId: selected.id, slot: target});
+      onClose();
+    }
+  }
+
+  function actionLabel(): string {
+    if (!selected) return "选择道具";
+    if (isConsumable) return "使用";
+    if (isTm) return targetCanLearn(target) ? "学习" : "不能学习";
+    return targetPokemon?.item_id ? "交换携带道具" : "携带";
+  }
+
+  return (
+    <div className="modal-layer">
+      <section className="shop-modal bag-manage-modal">
+        <header><div><h2>本局背包</h2><p>选择道具后，再选择目标宝可梦。</p></div><button onClick={onClose}>关闭</button></header>
+        <div className="bag-manage-layout">
+          <div className="shop-list bag-item-list">
+            {items.length ? items.map(item => <button className={selected?.id === item.id ? "selected" : ""} onClick={() => setItemId(item.id)} key={item.id}><ItemIcon item={item} /><strong>{item.name_zh || item.name}</strong><span>x{item.count}　{itemCategoryLabel(item.category)}</span><small>售价 {bpCostLabel(item.sell_price)}　{item.desc_zh || item.desc || item.name}</small></button>) : <p>背包为空。</p>}
+          </div>
+          <section className="bag-action-panel">
+            {selected ? <>
+              <h3>{selected.name_zh || selected.name}</h3>
+              <p>{itemCategoryLabel(selected.category)}　x{selected.count}</p>
+              <div className="detail-team-list compact-targets">
+                {rest.player_display.map((pokemon, index) => {
+                  const disabled = isTm && !tmLoading && !targetCanLearn(index);
+                  return <button className={target === index ? "selected" : ""} disabled={disabled} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${pokemon.species_id}-bag-target-${index}`}><img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{targetHint(index)}</small></button>;
+                })}
+              </div>
+              {isTm && targetPokemon ? <div className="move-slot-row">{targetPokemon.moves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} disabled={!targetCanLearn(target)} onClick={() => setMoveSlot(index)} key={`${move.id}-tm-slot-${index}`}>{index + 1}. {move.name_zh}</button>)}</div> : null}
+              {isConsumable && (targetState?.moves || []).length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}><option value={0}>不指定技能</option>{(targetState.moves || []).map(move => <option value={move.slot} key={`${move.id}-${move.slot}-bag`}>{move.move} PP {move.pp}/{move.maxpp}</option>)}</select> : null}
+              {isHeld && targetPokemon?.item_id ? <p className="item-return-hint">当前携带 {targetPokemon.item_zh || targetPokemon.item}，装备后旧道具会回到背包。</p> : null}
+              <div className="command-row">
+                <button disabled={!selected || (isTm && (tmLoading || !targetCanLearn(target)))} onClick={useSelectedItem}>{actionLabel()}</button>
+                <button onClick={() => selected && onAction({type: "sell_item", itemId: selected.id})}>出售（{bpCostLabel(selected.sell_price)}）</button>
+              </div>
+            </> : <p>背包为空。</p>}
+          </section>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  return (
+    <div className="modal-layer">
+      <section className="shop-modal talent-run-modal">
+        <header><div><h2>本局天赋</h2><p>{rest.talents?.length ? "当前天赋效果会影响休整与结算。" : "当前无天赋。"}</p></div><button onClick={onClose}>关闭</button></header>
+        <div className="talent-run-list">
+          {rest.talents?.length ? rest.talents.map(talent => <article key={talent.id}><strong>{talent.name}</strong><span>{talent.category}</span><p>{talent.desc}</p></article>) : <p>当前无天赋。</p>}
+        </div>
+        {hasRunTalent(rest, "prophet_next_scout") || hasRunTalent(rest, "prophet_history_review") || hasRunTalent(rest, "prophet_future_boss") ? (
+          <div className="command-row">
+            {hasRunTalent(rest, "prophet_next_scout") ? <>
+              <button disabled={Boolean(rest.free_scout_used)} onClick={() => onAction({type: "scout_next", level: "one"})}>{rest.free_scout_used ? "本次免费侦查已用" : "免费侦查1只"}（{bpCostLabel(rest.costs.scout_one)}）</button>
+              <button onClick={() => onAction({type: "scout_next", level: "all"})}>侦查全部（{bpCostLabel(rest.costs.scout_all)}）</button>
+            </> : null}
+            {hasRunTalent(rest, "prophet_history_review") ? <button disabled={!rest.enemy_display.length} onClick={() => onAction({type: "review_previous"})}>回顾上一场（{bpCostLabel(rest.costs.review_previous)}）</button> : null}
+            {hasRunTalent(rest, "prophet_future_boss") ? <button onClick={() => onAction({type: "scout_final_boss"})}>预知关底</button> : null}
+          </div>
+        ) : null}
+        {rest.scout ? <div className="rest-scout-box"><strong>{rest.scout.title}</strong><span>{rest.scout.summary}</span>{rest.scout.enemies.map(enemy => <small key={`${enemy.species_id}-scout`}>{displayName(enemy)}</small>)}</div> : null}
+        {rest.future_boss?.enemies?.length ? <div className="review-list">{rest.future_boss.enemies.map(enemy => <article key={`${enemy.species_id}-future`}><img src={pokemonImageUrl(enemy)} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
+        {rest.review?.enemies?.length ? <div className="review-list">{rest.review.enemies.map(enemy => <article key={`${enemy.species_id}-review`}><img src={pokemonImageUrl(enemy)} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
+      </section>
+    </div>
+  );
+}
+
+function ShopModal({shop, onClose, onRoll, onBuy}: {shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: () => void | Promise<void>; onBuy: (offerId: string) => void | Promise<void>}) {
+  const offers = shop?.offers || [];
+  const slotCount = shop?.slot_count || offers.length || 3;
+  const [rolling, setRolling] = useState(false);
+  const [revealed, setRevealed] = useState(Boolean(offers.length));
+  const purchased = Boolean(shop?.purchased_offer_id);
+  const bonus = shop?.last_roll_bonus || null;
+
+  useEffect(() => {
+    if (!offers.length) setRevealed(false);
+    else if (!rolling) setRevealed(true);
+  }, [offers.length, rolling]);
+
+  async function roll() {
+    setRolling(true);
+    setRevealed(false);
+    await onRoll();
+    window.setTimeout(() => {
+      setRolling(false);
+      setRevealed(true);
+    }, 1300);
+  }
+
+  async function buy(offerId: string) {
+    await onBuy(offerId);
+    onClose();
+  }
+
+  return (
+    <div className="modal-layer">
+      <section className="shop-modal slot-shop-modal">
+        <header>
+          <div>
+            <h2>随机商店</h2>
+            <p>抽奖次数 {shop?.roll_count || 0}　下次抽奖 {bpCostLabel(shop?.next_roll_cost)}　{slotCount} 格</p>
+          </div>
+          <button onClick={onClose}>关闭</button>
+        </header>
+        <div className="command-row"><button disabled={rolling} onClick={roll}>抽奖（{bpCostLabel(shop?.next_roll_cost)}）</button><button onClick={onClose}>跳过</button></div>
+        <div className={`slot-reels ${rolling ? "rolling" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
+          {Array.from({length: slotCount}, (_, index) => {
+            const offer = offers[index % Math.max(1, offers.length)];
+            return <div className="slot-reel" key={`slot-${index}`}><ItemIcon item={offer} /><span>{rolling ? "抽取中" : offer ? offer.name_zh || offer.name : "?"}</span></div>;
+          })}
+        </div>
+        {bonus && revealed ? <div className="slot-bonus-pop"><strong>抽到 {bonus.match_count} 连！</strong><span>免费获得 {bonus.count} 个 {bonus.name_zh || bonus.name}</span></div> : null}
+        {revealed && offers.length ? <div className="shop-card-grid" style={{"--slot-count": slotCount} as CSSProperties}>
+          {offers.map(item => {
+            const isPurchased = shop?.purchased_offer_id === item.offer_id;
+            const isBonus = bonus?.item_id === toId(item.id || item.name);
+            return (
+              <article className={`shop-card ${isPurchased ? "purchased" : ""} ${isBonus ? "bonus" : ""}`} key={item.offer_id}>
+                <ItemIcon item={item} />
+                <strong>{item.name_zh || item.name}</strong>
+                <span>{itemCategoryLabel(item.category)}　{bpCostLabel(item.cost)}</span>
+                <small>{item.desc_zh || item.desc || item.name}</small>
+                {isBonus ? <b>{bonus?.match_count} 连奖励</b> : null}
+                <button disabled={purchased} onClick={() => buy(item.offer_id)}>{isPurchased ? "已购买" : "购买这张"}</button>
+              </article>
+            );
+          })}
+        </div> : !rolling ? <p className="slot-empty">还没有商品。点击抽奖，本局第一次免费。</p> : null}
+      </section>
+    </div>
+  );
+}
+
+function MoveAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  const [slot, setSlot] = useState(initialSlot);
+  const [moveSlot, setMoveSlot] = useState(0);
+  const [directMoves, setDirectMoves] = useState<MoveSummary[]>([]);
+  const [loadingDirect, setLoadingDirect] = useState(false);
   const playerDisplay = rest.player_display || [];
   const pokemon = playerDisplay[slot] || playerDisplay[0];
   const pokemonMoves = pokemon?.moves || [];
   const currentMove = pokemonMoves[moveSlot];
-  const knownMoveIds = new Set(pokemonMoves.map(move => toId(move.id || move.name || move.name_zh)));
+  const draws = rest.move_draws?.[`${slot}:${moveSlot}`] || [];
+  const tmItems = rest.bag_categories?.tm || [];
+  const directEnabled = hasRunTalent(rest, "prophet_direct_move");
+  const moveColumnCount = 1 + (directEnabled ? 1 : 0) + (tmItems.length ? 1 : 0);
 
   useEffect(() => {
     let cancelled = false;
-    setMovesLoading(true);
-    setMoveError("");
-    void window.changeBattle!.learnableMoves(slot, query).then(next => {
-      if (!cancelled) setMoves(next);
-    }).catch(err => {
-      if (!cancelled) {
-        setMoves([]);
-        setMoveError(err instanceof Error ? err.message : String(err));
-      }
+    if (!directEnabled) {
+      setDirectMoves([]);
+      return () => { cancelled = true; };
+    }
+    setLoadingDirect(true);
+    void window.changeBattle?.learnableMoves(slot).then(moves => {
+      if (!cancelled) setDirectMoves(moves || []);
     }).finally(() => {
-      if (!cancelled) setMovesLoading(false);
+      if (!cancelled) setLoadingDirect(false);
     });
     return () => { cancelled = true; };
-  }, [slot, query]);
+  }, [slot, directEnabled]);
 
-  return <div className="modal-layer"><section className="rest-edit-modal"><header><h2>调整技能</h2><button onClick={onClose}>关闭</button></header><div className="editor-layout"><aside className="editor-side-list">{playerDisplay.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => { setSlot(index); setMoveSlot(0); }} key={`${entry.species_id}-move-editor-${index}`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside><section className="editor-main"><h3>{displayName(pokemon)}：替换 {currentMove?.name_zh || "选择招式格"}</h3><div className="move-slot-row">{pokemonMoves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} onClick={() => setMoveSlot(index)} key={`${move.id}-${index}`}>{index + 1}. {move.name_zh}</button>)}</div><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索新技能中文/英文/ID" />{moveError ? <p className="editor-warning">{moveError}</p> : movesLoading ? <p>正在读取可学习招式...</p> : null}<div className="learnable-list">{moves.length ? moves.map(move => {
-    const known = knownMoveIds.has(toId(move.id || move.name || move.name_zh));
-    return <button className={known ? "already-known" : ""} disabled={known} onClick={() => { onAction({type: "adjust_move", slot, moveSlot, moveId: move.id}); onClose(); }} key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {move.pp}　{bpCostLabel(move.cost)}{known ? "　已掌握" : ""}</span><small>{move.desc_zh || move.desc || "暂无说明"}</small></button>;
-  }) : !movesLoading && !moveError ? <p>没有匹配的可学习招式。</p> : null}</div></section></div></section></div>;
+  return (
+    <div className="modal-layer">
+      <section className="rest-edit-modal move-editor-modal">
+        <header><h2>更换技能</h2><button onClick={onClose}>关闭</button></header>
+        <div className="editor-layout">
+          <aside className="editor-side-list">{playerDisplay.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => { setSlot(index); setMoveSlot(0); }} key={`${entry.species_id}-move-editor-${index}`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
+          <section className="editor-main">
+            <h3>{displayName(pokemon)}：替换 {currentMove?.name_zh || "选择招式格"}</h3>
+            <div className="move-slot-row">{pokemonMoves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} onClick={() => setMoveSlot(index)} key={`${move.id}-${index}`}>{index + 1}. {move.name_zh}</button>)}</div>
+            <div className="move-editor-columns" style={{"--move-column-count": moveColumnCount} as CSSProperties}>
+              <section>
+                <div className="command-row"><button onClick={() => onAction({type: "draw_moves", slot, moveSlot})}>抽取候选（{bpCostLabel(rest.costs.move_draw)}）</button></div>
+                <div className="learnable-list">{draws.length ? draws.map(move => <button onClick={() => { onAction({type: "apply_drawn_move", slot, moveSlot, moveId: move.id}); onClose(); }} key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {move.pp}</span><small>{move.desc_zh || move.desc || "暂无说明"}</small></button>) : <p>先抽取候选技能，再选择一个替换当前招式。</p>}</div>
+              </section>
+              {directEnabled ? <section>
+                <h4>直接选择</h4>
+                <div className="learnable-list">{loadingDirect ? <p>正在读取可学习技能...</p> : directMoves.map(move => <button onClick={() => { onAction({type: "apply_direct_move", slot, moveSlot, moveId: move.id}); onClose(); }} key={`direct-${move.id}`}><strong>{move.name_zh || move.name}</strong><span>{bpCostLabel(rest.costs.direct_move)}　{move.type_zh}/{move.category_zh}</span><small>{move.desc_zh || move.desc || "暂无说明"}</small></button>)}</div>
+              </section> : null}
+              {tmItems.length ? <section>
+                <h4>技能机器</h4>
+                <div className="learnable-list">{tmItems.map(item => <button onClick={() => { onAction({type: "use_tm", itemId: item.id, slot, moveSlot}); onClose(); }} key={item.id}><strong>{item.name_zh || item.name}</strong><span>x{item.count}</span><small>{item.desc_zh || item.desc || item.name}</small></button>)}</div>
+              </section> : null}
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+  );
 }
 
-function StatsAdjustModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void}) {
-  const [slot, setSlot] = useState(0);
+function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; onClose: () => void; onAction: (action: RestAction) => void}) {
+  const [slot, setSlot] = useState(initialSlot);
   const pokemon = rest.player_display[slot];
-  const [ivs, setIvs] = useState<Record<string, number>>(() => ({...rest.player_display[0].ivs}));
-  const [evs, setEvs] = useState<Record<string, number>>(() => ({...rest.player_display[0].evs}));
-  const [ability, setAbility] = useState(rest.player_display[0].ability);
-  const [nature, setNature] = useState(rest.player_display[0].nature || "Serious");
-  const [options, setOptions] = useState<PokemonEditOptions>({abilities: [], natures: []});
+  return (
+    <div className="modal-layer">
+      <section className="rest-edit-modal stats-editor">
+        <header><h2>重置数值</h2><button onClick={onClose}>关闭</button></header>
+        <div className="editor-layout">
+          <aside className="editor-side-list">{rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-stats-editor`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
+          <section className="editor-main stats-editor-main">
+            <header className="stats-editor-title">
+              <h3>{displayName(pokemon)}</h3>
+              <button className="dice-button" onClick={() => onAction({type: "randomize_all_stats", slot})}>🎲（{bpCostLabel(rest.costs.randomize_all)}）</button>
+            </header>
+            <div className="stats-meta-grid">
+              <div><span>性格</span><strong>{pokemon.nature_zh || pokemon.nature || "未知"}</strong><button className="dice-button small" onClick={() => onAction({type: "randomize_stat_part", slot, part: "nature"})}>🎲（{bpCostLabel(rest.costs.randomize_part)}）</button></div>
+              <div><span>特性</span><strong>{pokemon.ability_zh || pokemon.ability || "未知"}</strong><button className="dice-button small" onClick={() => onAction({type: "randomize_stat_part", slot, part: "ability"})}>🎲（{bpCostLabel(rest.costs.randomize_part)}）</button></div>
+            </div>
+            <div className="stat-reset-table">
+              <div className="stat-reset-head"><span /><span>能力值</span><span><button className="dice-button small" onClick={() => onAction({type: "randomize_stat_part", slot, part: "ivs"})}>个体 🎲（{bpCostLabel(rest.costs.randomize_part)}）</button></span><span><button className="dice-button small" onClick={() => onAction({type: "randomize_stat_part", slot, part: "evs"})}>努力值 🎲（{bpCostLabel(rest.costs.randomize_part)}）</button></span></div>
+              {STAT_ROWS.map(([stat, label]) => <div className="stat-reset-row" key={stat}><span>{label}<b>{statMarker(pokemon, stat)}</b></span><strong>{pokemon.stats[stat] ?? "?"}</strong><strong>{pokemon.ivs[stat] ?? "?"}</strong><strong>{pokemon.evs[stat] ?? "?"}</strong></div>)}
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    const next = rest.player_display[slot];
-    setIvs({...next.ivs});
-    setEvs({...next.evs});
-    setAbility(next.ability);
-    setNature(next.nature || "Serious");
-    let cancelled = false;
-    void window.changeBattle!.editOptions(slot).then(nextOptions => {
-      if (!cancelled) setOptions(nextOptions);
-    }).catch(() => {
-      if (!cancelled) setOptions({abilities: [], natures: []});
-    });
-    return () => { cancelled = true; };
-  }, [slot, rest.player_display]);
-
-  function setStat(target: "ivs" | "evs", stat: string, value: string) {
-    const parsed = Number(value);
-    const setter = target === "ivs" ? setIvs : setEvs;
-    setter(current => ({...current, [stat]: Number.isFinite(parsed) ? parsed : 0}));
-  }
-
-  const evTotal = STAT_ROWS.reduce((sum, [stat]) => sum + Number(evs[stat] || 0), 0);
-  return <div className="modal-layer"><section className="rest-edit-modal stats-editor"><header><h2>调整能力值</h2><button onClick={onClose}>关闭</button></header><div className="editor-layout"><aside className="editor-side-list">{rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-stats-editor`}><img src={pokemonImageUrl(entry)} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside><section className="editor-main"><h3>{displayName(pokemon)}　费用 {bpCostLabel(rest.costs.adjust_stats)}</h3><div className="stats-editor-controls"><label>特性<select value={ability} onChange={event => setAbility(event.target.value)}>{options.abilities.map(option => <option value={option.name} key={option.id}>{option.name_zh}</option>)}</select></label><label>性格<select value={nature} onChange={event => setNature(event.target.value)}>{options.natures.map(option => <option value={option.name} key={option.id}>{option.name_zh} {option.plus ? `${option.plus_zh}↑ / ${option.minus_zh}↓` : "无修正"}</option>)}</select></label></div><div className="stat-edit-grid"><strong>能力</strong><strong>个体值</strong><strong>努力值</strong><strong>当前</strong>{STAT_ROWS.map(([stat, label]) => <Fragment key={stat}><span>{label}</span><input type="number" min={0} max={31} value={ivs[stat] ?? 31} onChange={event => setStat("ivs", stat, event.target.value)} /><input type="number" min={0} max={255} value={evs[stat] ?? 0} onChange={event => setStat("evs", stat, event.target.value)} /><span>{pokemon.stats[stat]}</span></Fragment>)}</div><p className={evTotal > 510 ? "editor-warning" : ""}>努力值合计：{evTotal}/510</p><div className="command-row"><button onClick={() => { onAction({type: "adjust_stats", slot, ivs, evs, ability, nature}); onClose(); }}>保存调整 {bpCostLabel(rest.costs.adjust_stats)}</button><button onClick={onClose}>放弃</button></div></section></div></section></div>;
+function SecondTeamRoarView({rescue, message, onChoose}: {rescue: DesktopGameState["rescue"]; message?: string; onChoose: (useRescue: boolean) => void | Promise<void>}) {
+  return (
+    <div className="title-screen small second-team-page">
+      <h1>二队的怒吼</h1>
+      <p>{message || "队伍已经全灭，可以选择是否支付 BP 触发二队救援。"}</p>
+      <p>第 {rescue?.battle_no || "--"} 场　费用 {bpCostLabel(rescue?.cost || 0)}</p>
+      {!rescue?.can_pay ? <strong className="danger-copy">当前 BP 不足，无法发动。</strong> : null}
+      <div className="command-row">
+        <button disabled={!rescue?.can_pay} onClick={() => onChoose(true)}>使用二队的怒吼</button>
+        <button className="danger-button" onClick={() => onChoose(false)}>放弃救援</button>
+      </div>
+    </div>
+  );
 }
 
 function ResultView({message, onBack}: {message: string; onBack: () => void}) {

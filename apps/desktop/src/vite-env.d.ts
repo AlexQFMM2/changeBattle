@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 declare global {
   interface Window {
@@ -10,10 +10,17 @@ declare global {
       loadSave(): Promise<LocalSave | null>;
       createNewSave(trainer: TrainerProfile): Promise<LocalSave>;
       updateTrainer(trainer: TrainerProfile): Promise<LocalSave>;
+      trainerCatalog(): Promise<TrainerCatalogState>;
       prepareCandidates(seed?: number): Promise<DesktopGameState>;
+      prepareStarterItems(seed?: number): Promise<DesktopGameState>;
+      chooseStarterItem(offerId?: string | null): Promise<DesktopGameState>;
+      getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
+      unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
+      configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
       beginChallenge(selectedIndexes: number[], seed: number, battles?: number): Promise<DesktopGameState>;
       continueRun(): Promise<DesktopGameState>;
       battleChoice(choice: string): Promise<DesktopGameState>;
+      secondTeamRoar(useRescue: boolean): Promise<DesktopGameState>;
       exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState>;
       restAction(action: RestAction): Promise<DesktopGameState>;
       shopItems(query?: string): Promise<ShopItem[]>;

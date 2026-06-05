@@ -64,19 +64,30 @@ class ShowdownDebugLogger:
 
 DEFAULT_BATTLES = 7
 SAVE_VERSION = 1
+BP_SCALE = 100
+MAX_BP = 9999 * BP_SCALE
 SAVE_DIR = APP_ROOT / "saves"
 SAVE_FILE = SAVE_DIR / "save.json"
 DEBUG_DIR = APP_ROOT / "debug"
 GOODS_FILE = PROJECT_ROOT / "data" / "goods.csv"
+BOSS_TEAM_POOL_FILE = PROJECT_ROOT / "data" / "boss_team_pools.csv"
 DEBUG_LOGGER: ShowdownDebugLogger | None = None
 GOODS_CACHE: dict[tuple[str, str], dict[str, Any]] | None = None
 EVENT_DELAY = 0.85
-WIN_BP_REWARD = 5
-REST_EXCHANGE_COSTS = [0, 1, 2]
-REST_HP_COSTS = {1: 1, 2: 2, 3: 3}
-REST_PP_COSTS = {1: 0, 2: 1, 3: 2}
-REST_STATUS_COSTS = {1: 0, 2: 0, 3: 1}
-ADJUST_STATS_COST = 10
+WIN_BP_REWARD = 5 * BP_SCALE
+SHOP_OFFER_COUNT = 3
+SHOP_ROLL_COST = 150
+SHOP_ROLL_COST_GAMBLER_PAID = 195
+MOVE_DRAW_COST = 2 * BP_SCALE
+MOVE_DRAW_COUNT = 2
+RANDOMIZE_PART_COST = 1 * BP_SCALE
+RANDOMIZE_ALL_COST = 2 * BP_SCALE
+REST_EXCHANGE_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE]
+BOSS_EXCHANGE_COST = 2 * BP_SCALE
+REST_HP_COSTS = {1: 0, 2: 0, 3: 0}
+REST_PP_COSTS = {1: 0, 2: 0, 3: 0}
+REST_STATUS_COSTS = {1: 0, 2: 0, 3: 0}
+ADJUST_STATS_COST = 10 * BP_SCALE
 STAT_ROWS = [
     ("hp", "HP"),
     ("atk", "攻击"),
@@ -86,6 +97,32 @@ STAT_ROWS = [
     ("spe", "速度"),
 ]
 SIDE_NAMES = {"p1": "玩家", "p2": "对手"}
+TALENTS = [
+    {"id": "exchange_lossless", "name": "爱护有加", "category": "交换", "cost": 2 * BP_SCALE, "desc": "交换获得的宝可梦会恢复到 3/4 HP 和 3/4 PP。"},
+    {"id": "exchange_pickpocket", "name": "顺手牵羊", "category": "交换", "cost": 3 * BP_SCALE, "desc": "交换时如果目标携带道具，会一并拿过来。"},
+    {"id": "exchange_gym_recognition", "name": "馆主认可", "category": "交换", "cost": 15 * BP_SCALE, "desc": "馆主和四天王宝可梦不再受默认只能交换 1 只的限制。"},
+    {"id": "exchange_factory_freedom", "name": "工厂自由", "category": "交换", "cost": 30 * BP_SCALE, "desc": "所有交换免费。"},
+    {"id": "exchange_second_team_roar", "name": "二队的怒吼", "category": "交换", "cost": 50 * BP_SCALE, "desc": "三只宝可梦都阵亡后，可选择损失 1000BP 重新 6 选 3 并重打当前场次；每局一次。"},
+    {"id": "exchange_safe_box", "name": "无损交易", "category": "交换", "cost": 50 * BP_SCALE, "desc": "拥有一个特殊宝可梦盒子，本局遇到的宝可梦会寄存在其中，后续可再次交换回来。"},
+    {"id": "gambler_move_draw_4", "name": "灵感爆棚", "category": "赌徒", "cost": 5 * BP_SCALE, "desc": "技能随机时候选数量从 2 个提升到 3 个。"},
+    {"id": "gambler_shop_offer_5", "name": "大手一挥", "category": "赌徒", "cost": 5 * BP_SCALE, "desc": "商店老虎机格子数量从 3 个提升到 4 个。"},
+    {"id": "gambler_free_stat_reset", "name": "时也命也", "category": "赌徒", "cost": 10 * BP_SCALE, "desc": "重置数值时 60% 概率免费、30% 概率双倍消耗、10% 概率正常消耗。"},
+    {"id": "gambler_random_cost_1", "name": "座上贵宾", "category": "赌徒", "cost": 20 * BP_SCALE, "desc": "每次休整获得一次免费商店抽奖；本次休整后续商店抽奖消耗为基础费用的 1.3 倍，免费次数不结转。"},
+    {"id": "gambler_streak_bp_risk", "name": "压上杠杆", "category": "赌徒", "cost": 50 * BP_SCALE, "desc": "每场胜利有概率把本场基础 BP 变为 1.4/1.6/1.8/2.0/2.5 倍；失败时 BP 回到本局开始前。"},
+    {"id": "gambler_all_in_exchange", "name": "孤注一掷", "category": "赌徒", "cost": 50 * BP_SCALE, "desc": "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
+    {"id": "prophet_first_mover", "name": "上帝只眼", "category": "先知", "cost": 5 * BP_SCALE, "desc": "对战时可以看到哪些技能克制当前对手。"},
+    {"id": "prophet_next_scout", "name": "未卜先知", "category": "先知", "cost": 10 * BP_SCALE, "desc": "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
+    {"id": "prophet_history_review", "name": "温故知新", "category": "先知", "cost": 15 * BP_SCALE, "desc": "休整页允许查看上一轮对手的宝可梦详情。"},
+    {"id": "prophet_direct_move", "name": "运筹帷幄", "category": "先知", "cost": 20 * BP_SCALE, "desc": "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
+    {"id": "prophet_candidate_12", "name": "慧眼识珠", "category": "先知", "cost": 50 * BP_SCALE, "desc": "开局从 12 只候选宝可梦中选择，而不是 6 只。"},
+    {"id": "prophet_future_boss", "name": "预知未来", "category": "先知", "cost": 50 * BP_SCALE, "desc": "可以直接看到本局关底训练师的详细阵容。"},
+    {"id": "business_starter_3", "name": "有备无患", "category": "经营", "cost": 5 * BP_SCALE, "desc": "开局可以选择 3 个起始道具。"},
+    {"id": "business_discount_70", "name": "贵客专享", "category": "经营", "cost": 15 * BP_SCALE, "desc": "购买道具时享受 70% 价格，向下取整。"},
+    {"id": "business_refund_70", "name": "精打细算", "category": "经营", "cost": 20 * BP_SCALE, "desc": "背包返还时返还 70%，而不是 50%。"},
+    {"id": "business_sell_full", "name": "奇货可居", "category": "经营", "cost": 30 * BP_SCALE, "desc": "卖出道具时能原价出售。"},
+    {"id": "business_amulet_coin", "name": "护符金币", "category": "经营", "cost": 50 * BP_SCALE, "desc": "所有 BP 正向结算按 1.5 倍结算。"},
+    {"id": "business_shiny_collector", "name": "闪光收藏家", "category": "经营", "cost": 50 * BP_SCALE, "desc": "任意交换获得的宝可梦均为闪光，且闪光带来的 BP 加成变为 1.3 倍。"},
+]
 
 
 def load_goods() -> dict[tuple[str, str], dict[str, Any]]:
@@ -121,14 +158,14 @@ def goods_entry(item_type: str, item_id: str) -> dict[str, Any] | None:
 def default_move_cost(power: int | None) -> int:
     value = int(power or 0)
     if value >= 120:
-        return 5
+        return 5 * BP_SCALE
     if value > 90:
-        return 4
+        return 4 * BP_SCALE
     if value > 60:
-        return 3
+        return 3 * BP_SCALE
     if value > 30:
-        return 2
-    return 1
+        return 2 * BP_SCALE
+    return 1 * BP_SCALE
 
 
 def goods_cost(item_type: str, item_id: str, default: int = 0) -> int:
@@ -264,10 +301,41 @@ def default_stats() -> dict[str, Any]:
     }
 
 
+def scale_bp_value(value: Any, factor: int) -> int:
+    return max(0, int(int(value or 0) * factor))
+
+
+def scale_bp_rows(rows: Any, factor: int) -> list[list[int]]:
+    if not isinstance(rows, list):
+        return []
+    return [[scale_bp_value(value, factor) for value in row] for row in rows if isinstance(row, list)]
+
+
+def migrate_run_bp_scale(run: dict[str, Any], factor: int) -> None:
+    run["bp_earned_this_run"] = scale_bp_value(run.get("bp_earned_this_run"), factor)
+    run["run_start_bp"] = scale_bp_value(run.get("run_start_bp"), factor)
+    run["temporary_bp_debt"] = scale_bp_value(run.get("temporary_bp_debt"), factor)
+    if isinstance(run.get("bp_investments"), list):
+        run["bp_investments"] = [scale_bp_value(value, factor) for value in run.get("bp_investments") or []]
+    run["move_investments"] = scale_bp_rows(run.get("move_investments"), factor)
+
+
+def migrate_save_bp_scale(save: dict[str, Any]) -> None:
+    previous_scale = int(save.get("bp_scale") or 1)
+    if previous_scale == BP_SCALE:
+        return
+    factor = BP_SCALE // max(1, previous_scale)
+    save.setdefault("stats", default_stats())
+    save["stats"]["battle_points"] = scale_bp_value(save["stats"].get("battle_points"), factor)
+    if save.get("current_run"):
+        migrate_run_bp_scale(save["current_run"], factor)
+    save["bp_scale"] = BP_SCALE
+
+
 def refresh_stats(stats: dict[str, Any]) -> None:
     battles = int(stats.get("battles") or 0)
     wins = int(stats.get("wins") or 0)
-    stats["battle_points"] = int(stats.get("battle_points") or 0)
+    stats["battle_points"] = max(0, min(MAX_BP, int(stats.get("battle_points") or 0)))
     stats["battles"] = battles
     stats["wins"] = wins
     stats["losses"] = int(stats.get("losses") or 0)
@@ -281,10 +349,13 @@ def refresh_stats(stats: dict[str, Any]) -> None:
 
 
 def create_save(name: str, gender: str) -> dict[str, Any]:
+    stats = default_stats()
+    stats["battle_points"] = 1000
     save = {
         "version": SAVE_VERSION,
+        "bp_scale": BP_SCALE,
         "trainer": {"name": name, "gender": gender},
-        "stats": default_stats(),
+        "stats": stats,
         "current_run": None,
     }
     refresh_stats(save["stats"])
@@ -293,6 +364,7 @@ def create_save(name: str, gender: str) -> dict[str, Any]:
 
 def normalize_save(save: dict[str, Any]) -> dict[str, Any]:
     save.setdefault("version", SAVE_VERSION)
+    migrate_save_bp_scale(save)
     save.setdefault("trainer", {})
     save["trainer"].setdefault("name", "训练师")
     save["trainer"].setdefault("gender", "未设置")
@@ -487,6 +559,23 @@ def full_state_for_pokemon(pokemon: dict[str, Any], slot: int) -> dict[str, Any]
     }
 
 
+def half_state_for_pokemon(pokemon: dict[str, Any], slot: int) -> dict[str, Any]:
+    state = full_state_for_pokemon(pokemon, slot)
+    state["hp"] = max(1, int(state.get("maxhp") or 1) // 2)
+    for move in state.get("moves") or []:
+        move["pp"] = max(1, int(move.get("maxpp") or 1) // 2)
+    return refresh_state_condition(state)
+
+
+def partial_state_for_pokemon(pokemon: dict[str, Any], slot: int, ratio: float) -> dict[str, Any]:
+    state = full_state_for_pokemon(pokemon, slot)
+    normalized_ratio = max(0.0, min(1.0, float(ratio or 0)))
+    state["hp"] = int(state.get("maxhp") or 1) if normalized_ratio >= 1 else max(1, int(int(state.get("maxhp") or 1) * normalized_ratio))
+    for move in state.get("moves") or []:
+        move["pp"] = int(move.get("maxpp") or 1) if normalized_ratio >= 1 else max(1, int(int(move.get("maxpp") or 1) * normalized_ratio))
+    return refresh_state_condition(state)
+
+
 def normalize_player_state(run: dict[str, Any]) -> list[dict[str, Any]]:
     display = run.get("player_display") or []
     existing = list(run.get("player_state") or [])
@@ -570,7 +659,7 @@ def spend_bp(save: dict[str, Any], cost: int) -> bool:
 
 def add_bp(save: dict[str, Any], amount: int) -> None:
     stats = save.setdefault("stats", default_stats())
-    stats["battle_points"] = min(9999, int(stats.get("battle_points") or 0) + max(0, amount))
+    stats["battle_points"] = min(MAX_BP, int(stats.get("battle_points") or 0) + max(0, amount))
     refresh_stats(stats)
 
 
@@ -589,6 +678,9 @@ def default_rest_status() -> dict[str, Any]:
     return {
         "exchanges": 0,
         "taken_enemy_slots": [],
+        "restore_hp_used": False,
+        "restore_pp_used": False,
+        "restore_status_used": False,
     }
 
 
@@ -692,10 +784,15 @@ def normalize_current_run(run: dict[str, Any]) -> dict[str, Any]:
     run.setdefault("bp_investments", [0, 0, 0])
     run.setdefault("bag_items", {})
     run.setdefault("move_investments", [])
+    run.setdefault("talents", [])
+    run["second_team_roar_used"] = bool(run.get("second_team_roar_used"))
     if not isinstance(run.get("rest_status"), dict):
         run["rest_status"] = default_rest_status()
     run["rest_status"].setdefault("exchanges", 0)
     run["rest_status"].setdefault("taken_enemy_slots", [])
+    run["rest_status"].setdefault("restore_hp_used", False)
+    run["rest_status"].setdefault("restore_pp_used", False)
+    run["rest_status"].setdefault("restore_status_used", False)
     investments = [int(value or 0) for value in list(run.get("bp_investments") or [])]
     target_len = len(run.get("player_display") or investments or [0, 0, 0])
     while len(investments) < target_len:
@@ -1425,7 +1522,7 @@ def render_main_menu(request: dict[str, Any], tracker: dict[str, Any]) -> None:
         return
     print("请选择行动：")
     print("1. 技能")
-    print("2. 道具（暂未开放）")
+    print("2. 道具")
     print("3. 队伍 / 换人")
     print("4. 对局状态")
     print("5. 认输")
@@ -1544,7 +1641,7 @@ def render_battle_screen(request: dict[str, Any], tracker: dict[str, Any], recen
         return
     print("请选择行动：")
     print("1. 技能")
-    print("2. 道具（暂未开放）")
+    print("2. 道具")
     print("3. 队伍 / 换人")
     print("4. 对局状态")
     print("5. 认输")
@@ -1697,7 +1794,7 @@ def player_choice(
                 return choice
             continue
         if raw in {"2", "item", "items", "道具"}:
-            print("道具功能暂未开放。")
+            print("战斗内道具菜单正在迁移到新背包规则；请先在休整页使用消耗道具。")
             input("回车返回。")
             render_battle_screen(request, tracker, recent_events)
             continue
@@ -1894,6 +1991,8 @@ def print_rest_header(save: dict[str, Any], run: dict[str, Any]) -> None:
     print("=" * 128)
     print(f"休整菜单  |  第 {battle_no}/{battles} 小场胜利后  |  当前小场连胜 {run.get('wins', 0)}  |  BP {stats.get('battle_points', 0)}")
     print("=" * 128)
+    talents = run.get("talents") or []
+    print("本局天赋：" + (" / ".join(f"{talent.get('name')}（{talent.get('category')}）" for talent in talents) if talents else "当前无天赋"))
     print_table(["#", "你的队伍", "HP/状态", "道具", "PP"], rest_team_rows(run), [3, 28, 18, 18, 52], compact=True)
     bag = normalize_bag_items(run)
     if bag:
@@ -1906,6 +2005,217 @@ def bp_cost_text(cost: int) -> str:
 
 def spend_text(cost: int) -> str:
     return "免费" if int(cost or 0) <= 0 else f"花费 {int(cost)}BP"
+
+
+def has_talent(run: dict[str, Any] | None, talent_id: str) -> bool:
+    return any(talent.get("id") == talent_id for talent in (run or {}).get("talents") or [])
+
+
+def candidate_count_for_talents(talents: list[dict[str, Any]] | None) -> int:
+    return 12 if any(talent.get("id") == "prophet_candidate_12" for talent in talents or []) else 6
+
+
+def ensure_starter_shiny(generated: dict[str, Any], run_seed: int) -> dict[str, Any]:
+    display = generated.get("display") or []
+    team = generated.get("team") or []
+    if not display or any(pokemon.get("shiny") for pokemon in display):
+        return generated
+    index = random.Random(seed_for(run_seed, 0x51F1E)).randrange(len(display))
+    display[index]["shiny"] = True
+    if index < len(team):
+        team[index]["shiny"] = True
+    return generated
+
+
+def apply_prophet_first_mover(save: dict[str, Any], talents: list[dict[str, Any]] | None) -> int:
+    if not any(talent.get("id") == "prophet_first_mover" for talent in talents or []):
+        return 0
+    if current_bp(save) < 10 * BP_SCALE:
+        return 0
+    add_bp(save, 10 * BP_SCALE)
+    return 10 * BP_SCALE
+
+
+def settle_prophet_first_mover(save: dict[str, Any], run: dict[str, Any] | None) -> int:
+    amount = max(0, int((run or {}).get("temporary_bp_debt") or 0))
+    if amount <= 0:
+        return 0
+    cost = min(amount, current_bp(save))
+    if cost:
+        spend_bp(save, cost)
+    return amount
+
+
+def gained_bp(run: dict[str, Any] | None, amount: int) -> int:
+    total = float(max(0, int(amount or 0)))
+    shiny_count = sum(1 for pokemon in (run or {}).get("player_display") or [] if pokemon.get("shiny"))
+    if shiny_count:
+        total *= (1.3 if has_talent(run, "business_shiny_collector") else 1.1) ** shiny_count
+    if has_talent(run, "business_amulet_coin"):
+        total *= 1.5
+    return int(total)
+
+
+def add_run_bp(save: dict[str, Any], run: dict[str, Any] | None, amount: int) -> int:
+    gained = gained_bp(run, amount)
+    add_bp(save, gained)
+    return gained
+
+
+def gambler_streak_roll(run: dict[str, Any], battle_no: int) -> tuple[float, int] | None:
+    if not has_talent(run, "gambler_streak_bp_risk"):
+        return None
+    rng = random.Random(seed_for(int(run.get("seed") or 1), 0xA117 + battle_no * 131 + int(run.get("wins") or 0) * 17))
+    roll = rng.random()
+    if roll < 0.6:
+        multiplier = 1.4
+    elif roll < 0.9:
+        multiplier = 1.6
+    elif roll < 0.95:
+        multiplier = 1.8
+    elif roll < 0.98:
+        multiplier = 2.0
+    else:
+        multiplier = 2.5
+    return multiplier, int(WIN_BP_REWARD * (multiplier - 1))
+
+
+def exchange_cost_for(run: dict[str, Any], exchanges: int) -> int:
+    if has_talent(run, "exchange_factory_freedom"):
+        return 0
+    boss_type = run.get("boss_type") or "normal"
+    if boss_type in {"gym", "elite4"} and not has_talent(run, "exchange_gym_recognition"):
+        return service_cost("boss_exchange", BOSS_EXCHANGE_COST)
+    return service_cost(f"exchange_{exchanges + 1}", REST_EXCHANGE_COSTS[exchanges] if exchanges < len(REST_EXCHANGE_COSTS) else REST_EXCHANGE_COSTS[-1])
+
+
+def can_exchange_boss(run: dict[str, Any], exchanges: int) -> bool:
+    boss_type = run.get("boss_type") or "normal"
+    if boss_type == "normal":
+        return True
+    if boss_type == "champion":
+        return False
+    if boss_type in {"gym", "elite4"}:
+        return has_talent(run, "exchange_gym_recognition") or exchanges == 0
+    return False
+
+
+def exchange_keeps_item(run: dict[str, Any]) -> bool:
+    return has_talent(run, "exchange_pickpocket")
+
+
+def exchange_full_state(run: dict[str, Any]) -> bool:
+    return False
+
+
+def exchange_state_ratio(run: dict[str, Any]) -> float:
+    if exchange_full_state(run):
+        return 1.0
+    return 0.75 if has_talent(run, "exchange_lossless") else 0.5
+
+
+def route_boss_for_battle(set_streak: int, battle_no: int) -> tuple[str, str]:
+    if battle_no == 3:
+        if set_streak <= 0:
+            return "gym", "tier1"
+        if set_streak == 1:
+            return "gym", "tier2"
+        return "mixed", "tier3"
+    if battle_no == 7:
+        if set_streak <= 0:
+            return "gym", "tier2"
+        if set_streak == 1:
+            return "mixed", "tier3"
+        return "champion", "champion"
+    return "normal", "normal"
+
+
+def starter_profiles_for_streak(set_streak: int, count: int) -> list[str]:
+    if set_streak <= 0:
+        base = ["tier1", "tier1", "tier1", "tier1", "tier2", "tier2"]
+    elif set_streak == 1:
+        base = ["tier1", "tier1", "tier1", "tier2", "tier2", "tier3"]
+    else:
+        base = ["tier1", "tier2", "tier2", "tier3", "tier3", "tier3"]
+    return [base[index % len(base)] for index in range(max(1, count))]
+
+
+def profiles_for_route(boss_type: str, boss_stage: str) -> list[str]:
+    if boss_type == "champion":
+        return ["champion", "champion", "champion"]
+    if boss_type == "elite4" or boss_stage == "tier3":
+        return ["tier3", "tier4", "tier4"]
+    if boss_stage == "tier2":
+        return ["tier2", "tier3", "tier3"]
+    if boss_stage == "tier1":
+        return ["tier1", "tier2", "tier2"]
+    return ["tier1", "tier1", "tier2"]
+
+
+def normal_enemy_profiles_for_battle(set_streak: int, battle_no: int) -> list[str]:
+    next_boss_type, next_boss_stage = route_boss_for_battle(set_streak, 3 if battle_no < 3 else 7)
+    if next_boss_type == "champion" or next_boss_stage == "tier3":
+        return ["tier3", "tier3", "tier4"]
+    if next_boss_stage == "tier2":
+        return ["tier2", "tier2", "tier3"]
+    return ["tier1", "tier1", "tier2"]
+
+
+def boss_team_pool_for_route(boss_type: str, boss_stage: str, run_seed: int, battle_no: int) -> tuple[list[str], list[str]] | None:
+    if not BOSS_TEAM_POOL_FILE.exists():
+        return None
+    if boss_type == "champion":
+        prefix = "champion:champion:"
+    elif boss_type == "elite4":
+        prefix = "elite4:elite4:"
+    elif boss_stage in {"tier1", "tier2", "tier3"}:
+        prefix = f"gym:{boss_stage}:"
+    else:
+        return None
+    rows: list[dict[str, Any]] = []
+    with BOSS_TEAM_POOL_FILE.open("r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if (row.get("pool_id") or "").startswith(prefix):
+                rows.append(row)
+    if not rows:
+        return None
+    pool_ids = sorted({row.get("pool_id") or "" for row in rows})
+    pool_id = pool_ids[random.Random(seed_for(run_seed, 6500 + battle_no)).randrange(len(pool_ids))]
+    rows = [row for row in rows if row.get("pool_id") == pool_id]
+    team_indexes = sorted({int(row.get("team_index") or 0) for row in rows if row.get("team_index")})
+    if not team_indexes:
+        return None
+    team_index = team_indexes[random.Random(seed_for(run_seed, 7000 + battle_no + len(pool_id))).randrange(len(team_indexes))]
+    selected = sorted([row for row in rows if int(row.get("team_index") or 0) == team_index], key=lambda row: int(row.get("slot") or 0))[:3]
+    if len(selected) < 3:
+        return None
+    return [row["species_id"] for row in selected], [row.get("generation_profile") or "tier1" for row in selected]
+
+
+def random_ivs() -> dict[str, int]:
+    return {stat: random.randint(0, 31) for stat, _label in STAT_ROWS}
+
+
+def random_evs() -> dict[str, int]:
+    evs = {stat: 0 for stat, _label in STAT_ROWS}
+    remaining = 510
+    stats = [stat for stat, _label in STAT_ROWS]
+    random.shuffle(stats)
+    for stat in stats:
+        value = random.randint(0, min(255, remaining))
+        evs[stat] = value
+        remaining -= value
+    return evs
+
+
+def stat_reset_cost(run: dict[str, Any], base_cost: int) -> int:
+    if has_talent(run, "gambler_free_stat_reset"):
+        roll = random.random()
+        if roll < 0.6:
+            return 0
+        if roll < 0.9:
+            return base_cost * 2
+    return base_cost
 
 
 def state_needs_hp_restore(state: dict[str, Any]) -> bool:
@@ -1921,6 +2231,10 @@ def state_needs_status_restore(state: dict[str, Any]) -> bool:
 
 
 def current_restore_cost_text(run: dict[str, Any], prefix: str, defaults: dict[int, int]) -> str:
+    rest_status = run.setdefault("rest_status", default_rest_status())
+    used_key = f"{prefix}_used"
+    if rest_status.get(used_key):
+        return "已使用"
     states = normalize_player_state(run)
     if prefix == "restore_hp":
         count = sum(1 for state in states if state_needs_hp_restore(state))
@@ -1930,8 +2244,7 @@ def current_restore_cost_text(run: dict[str, Any], prefix: str, defaults: dict[i
         count = sum(1 for state in states if state_needs_status_restore(state))
     if count <= 0:
         return "无需恢复"
-    cost = service_cost(f"{prefix}_{count}", defaults.get(count, count))
-    return bp_cost_text(cost)
+    return "免费"
 
 
 def parse_rest_slots(raw: str, max_slots: int = 3) -> list[int]:
@@ -1949,67 +2262,96 @@ def parse_rest_slots(raw: str, max_slots: int = 3) -> list[int]:
 
 def rest_restore_hp(save: dict[str, Any], run: dict[str, Any]) -> None:
     states = normalize_player_state(run)
-    raw = input("恢复哪些宝可梦 HP？输入编号，例如 1 或 1 2 3，回车返回 > ").strip()
+    rest_status = run.setdefault("rest_status", default_rest_status())
+    if rest_status.get("restore_hp_used"):
+        print("本次休整已经使用过恢复 HP。")
+        input("回车继续。")
+        return
+    raw = input("恢复哪只宝可梦 HP？输入编号 1-3，回车返回 > ").strip()
     if not raw:
         return
     slots = parse_rest_slots(raw)
-    if not slots:
+    if len(slots) != 1:
         print("请输入 1-3 的编号。")
         input("回车继续。")
         return
-    cost = service_cost(f"restore_hp_{len(slots)}", REST_HP_COSTS.get(len(slots), len(slots)))
-    if not spend_bp(save, cost):
-        print(f"BP 不足，需要 {cost}BP。")
+    state = states[slots[0] - 1]
+    if not state_needs_hp_restore(state):
+        print("这只宝可梦不需要恢复 HP。")
         input("回车继续。")
         return
-    for slot in slots:
-        restore_state_hp(states[slot - 1])
+    restore_state_hp(state)
+    rest_status["restore_hp_used"] = True
     run["player_state"] = states
-    print(f"已恢复 HP，{spend_text(cost)}。")
+    print("已恢复满 HP，本次休整的免费恢复 HP 已使用。")
     input("回车继续。")
 
 
 def rest_restore_pp(save: dict[str, Any], run: dict[str, Any]) -> None:
     states = normalize_player_state(run)
-    raw = input("恢复哪些宝可梦全部 PP？输入编号，例如 1 或 1 2，回车返回 > ").strip()
+    rest_status = run.setdefault("rest_status", default_rest_status())
+    if rest_status.get("restore_pp_used"):
+        print("本次休整已经使用过恢复 PP。")
+        input("回车继续。")
+        return
+    raw = input("恢复哪只宝可梦的单个技能 PP？输入编号 1-3，回车返回 > ").strip()
     if not raw:
         return
     slots = parse_rest_slots(raw)
-    if not slots:
+    if len(slots) != 1:
         print("请输入 1-3 的编号。")
         input("回车继续。")
         return
-    cost = service_cost(f"restore_pp_{len(slots)}", REST_PP_COSTS.get(len(slots), len(slots)))
-    if not spend_bp(save, cost):
-        print(f"BP 不足，需要 {cost}BP。")
+    state = states[slots[0] - 1]
+    moves = state.get("moves") or []
+    if not any(int(move.get("pp") or 0) < int(move.get("maxpp") or 0) for move in moves):
+        print("这只宝可梦不需要恢复 PP。")
         input("回车继续。")
         return
-    for slot in slots:
-        restore_state_pp(states[slot - 1])
+    for move in moves:
+        print(f"{move.get('slot')}. {zh('moves', move.get('move') or move.get('id'))} PP {move.get('pp')}/{move.get('maxpp')}")
+    move_raw = input("选择要恢复的技能编号，回车自动选择第一个缺 PP 技能 > ").strip()
+    move = None
+    if move_raw:
+        move = next((entry for entry in moves if int(entry.get("slot") or 0) == int(move_raw or 0)), None) if move_raw.isdigit() else None
+    if move is None:
+        move = next((entry for entry in moves if int(entry.get("pp") or 0) < int(entry.get("maxpp") or 0)), None)
+    if not move or int(move.get("pp") or 0) >= int(move.get("maxpp") or 0):
+        print("这个技能不需要恢复 PP。")
+        input("回车继续。")
+        return
+    move["pp"] = min(int(move.get("maxpp") or 0), int(move.get("pp") or 0) + 10)
+    rest_status["restore_pp_used"] = True
+    refresh_state_condition(state)
     run["player_state"] = states
-    print(f"已恢复 PP，{spend_text(cost)}。")
+    print("已恢复单个技能 10 点 PP，本次休整的免费恢复 PP 已使用。")
     input("回车继续。")
 
 
 def rest_restore_status(save: dict[str, Any], run: dict[str, Any]) -> None:
     states = normalize_player_state(run)
-    raw = input("恢复哪些宝可梦异常状态？输入编号，例如 1 或 1 2 3，回车返回 > ").strip()
+    rest_status = run.setdefault("rest_status", default_rest_status())
+    if rest_status.get("restore_status_used"):
+        print("本次休整已经使用过恢复异常。")
+        input("回车继续。")
+        return
+    raw = input("恢复哪只宝可梦异常状态？输入编号 1-3，回车返回 > ").strip()
     if not raw:
         return
     slots = parse_rest_slots(raw)
-    if not slots:
+    if len(slots) != 1:
         print("请输入 1-3 的编号。")
         input("回车继续。")
         return
-    cost = service_cost(f"restore_status_{len(slots)}", REST_STATUS_COSTS.get(len(slots), len(slots)))
-    if not spend_bp(save, cost):
-        print(f"BP 不足，需要 {cost}BP。")
+    state = states[slots[0] - 1]
+    if not state_needs_status_restore(state):
+        print("这只宝可梦没有异常状态。")
         input("回车继续。")
         return
-    for slot in slots:
-        restore_state_status(states[slot - 1])
+    restore_state_status(state)
+    rest_status["restore_status_used"] = True
     run["player_state"] = states
-    print(f"已恢复异常状态，{spend_text(cost)}。")
+    print("已解除异常状态，本次休整的免费恢复异常已使用。")
     input("回车继续。")
 
 
@@ -2017,13 +2359,19 @@ def rest_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
     normalize_current_run(run)
     rest_status = run.setdefault("rest_status", default_rest_status())
     exchanges = int(rest_status.get("exchanges") or 0)
+    if not can_exchange_boss(run, exchanges):
+        if (run.get("boss_type") or "normal") == "champion":
+            print("冠军的宝可梦暂时不能交换。")
+        else:
+            print("馆主/四天王宝可梦默认只能交换 1 只；携带馆主认可后可继续交换。")
+        input("回车继续。")
+        return
     if exchanges >= 3:
         print("本次休整最多交换 3 只。")
         input("回车继续。")
         return
     print_team("敌方队伍:", run.get("enemy_display") or [])
-    fallback_cost = REST_EXCHANGE_COSTS[exchanges] if exchanges < len(REST_EXCHANGE_COSTS) else REST_EXCHANGE_COSTS[-1]
-    cost = service_cost(f"exchange_{exchanges + 1}", fallback_cost)
+    cost = exchange_cost_for(run, exchanges)
     raw = input(f"\n交换费用：{bp_cost_text(cost)}。输入 玩家编号 敌方编号，例如 2 1；回车返回 > ").strip()
     if not raw:
         return
@@ -2047,17 +2395,23 @@ def rest_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
         input("回车继续。")
         return
     investments = list(run.get("bp_investments") or [0, 0, 0])
-    refund = int(investments[own - 1] or 0) // 2 if own - 1 < len(investments) else 0
     move_investments = normalize_move_investments(run)
-    move_refund = sum(int(value or 0) for value in move_investments[own - 1]) // 2 if own - 1 < len(move_investments) else 0
     held_before = unequip_slot_to_bag(run, own)
-    total_refund = refund + move_refund
-    if total_refund:
-        add_bp(save, total_refund)
-    run["player_team"][own - 1] = run["enemy_raw"][foe - 1]
-    run["player_display"][own - 1] = run["enemy_display"][foe - 1]
+    keep_item = exchange_keeps_item(run)
+    run["player_team"][own - 1] = json.loads(json.dumps(run["enemy_raw"][foe - 1]))
+    run["player_display"][own - 1] = json.loads(json.dumps(run["enemy_display"][foe - 1]))
+    if has_talent(run, "business_shiny_collector"):
+        run["player_team"][own - 1]["shiny"] = True
+        run["player_display"][own - 1]["shiny"] = True
+    if not keep_item:
+        run["player_team"][own - 1]["item"] = ""
+        run["player_display"][own - 1]["item"] = ""
+        run["player_display"][own - 1]["item_id"] = ""
+        run["player_display"][own - 1]["item_desc"] = ""
+        run["player_display"][own - 1]["item_short_desc"] = ""
     states = normalize_player_state(run)
-    states[own - 1] = full_state_for_pokemon(run["player_display"][own - 1], own)
+    ratio = exchange_state_ratio(run)
+    states[own - 1] = partial_state_for_pokemon(run["player_display"][own - 1], own, ratio)
     run["player_state"] = states
     while len(investments) < len(run["player_display"]):
         investments.append(0)
@@ -2068,9 +2422,10 @@ def rest_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
     run["move_investments"] = move_investments
     rest_status["exchanges"] = exchanges + 1
     rest_status.setdefault("taken_enemy_slots", []).append(foe)
-    refund_text = f"，返还 {total_refund}BP" if total_refund else ""
     item_text = f"，原道具 {zh('items', held_before)} 已放入背包" if held_before else ""
-    print(f"已交换：位置 {own} -> {display_name(run['player_display'][own - 1])}，{spend_text(cost)}{refund_text}{item_text}。")
+    state_text = "满 HP/满 PP" if ratio >= 1 else "3/4 HP/3/4 PP" if ratio >= 0.75 else "半 HP/半 PP"
+    target_item_text = "保留目标携带道具" if keep_item else "不携带道具"
+    print(f"已交换：位置 {own} -> {display_name(run['player_display'][own - 1])}，{spend_text(cost)}{item_text}，新宝可梦以{state_text}加入，且{target_item_text}。")
     input("回车继续。")
 
 
@@ -2669,12 +3024,62 @@ def rest_adjust_stats(save: dict[str, Any], run: dict[str, Any], client: Showdow
             input("回车继续。")
 
 
+def rest_randomize_stats(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
+    normalize_current_run(run)
+    raw = input("重置哪只宝可梦？输入 1-3，回车返回 > ").strip()
+    if not raw:
+        return
+    if not raw.isdigit() or not 1 <= int(raw) <= len(run.get("player_team") or []):
+        print("请输入 1-3 的编号。")
+        input("回车继续。")
+        return
+    slot = int(raw)
+    print(f"1. 随机特性（{bp_cost_text(RANDOMIZE_PART_COST)}）")
+    print(f"2. 随机性格（{bp_cost_text(RANDOMIZE_PART_COST)}）")
+    print(f"3. 随机个体值（{bp_cost_text(RANDOMIZE_PART_COST)}）")
+    print(f"4. 随机努力值（{bp_cost_text(RANDOMIZE_PART_COST)}）")
+    print(f"5. 整体重置（{bp_cost_text(RANDOMIZE_ALL_COST)}）")
+    choice = input("> ").strip().lower()
+    mapping = {"1": "ability", "2": "nature", "3": "ivs", "4": "evs", "5": "all"}
+    part = mapping.get(choice)
+    if not part:
+        return
+    base_cost = RANDOMIZE_ALL_COST if part == "all" else RANDOMIZE_PART_COST
+    cost = stat_reset_cost(run, base_cost)
+    if not spend_bp(save, cost):
+        print(f"BP 不足，需要 {cost}BP。")
+        input("回车继续。")
+        return
+    raw_set = json.loads(json.dumps(run["player_team"][slot - 1]))
+    options = client.options(raw_set)
+    if part in {"ability", "all"} and options.get("abilities"):
+        ability = random.choice(options["abilities"])
+        raw_set["ability"] = ability.get("name") or ability.get("id")
+    if part in {"nature", "all"} and options.get("natures"):
+        nature = random.choice(options["natures"])
+        raw_set["nature"] = nature.get("name") or "Serious"
+    if part in {"ivs", "all"}:
+        raw_set["ivs"] = random_ivs()
+    if part in {"evs", "all"}:
+        raw_set["evs"] = random_evs()
+    described = client.describe(raw_set)
+    next_raw = described.get("set") or raw_set
+    next_display = described.get("display") or run["player_display"][slot - 1]
+    states = normalize_player_state(run)
+    states[slot - 1] = adjusted_state_after_edit(states[slot - 1], next_display, slot)
+    run["player_team"][slot - 1] = next_raw
+    run["player_display"][slot - 1] = next_display
+    run["player_state"] = states
+    print(f"已随机重置，{spend_text(cost)}。")
+    input("回车继续。")
+
+
 def finish_rest_for_next_battle(run: dict[str, Any]) -> bool:
     if not rotate_first_usable(run):
         print("队伍没有可出战宝可梦，请先恢复 HP。")
         input("回车继续。")
         return False
-    battle_no = int(run.get("battle_no") or 1)
+    battle_no = int(run["battle_no"]) if "battle_no" in run else 1
     run.update({
         "status": "ready",
         "next_battle": battle_no + 1,
@@ -2705,7 +3110,7 @@ def rest_menu(save: dict[str, Any], auto: bool, persistent: bool, client: Showdo
         print(f"6. 恢复异常状态（{current_restore_cost_text(run, 'restore_status', REST_STATUS_COSTS)}）")
         print("7. 购买/装备道具")
         print("8. 调整技能")
-        print(f"9. 调整能力值（{bp_cost_text(service_cost('adjust_stats', ADJUST_STATS_COST))}）")
+        print(f"9. 重置数值（单项 {bp_cost_text(RANDOMIZE_PART_COST)} / 整体 {bp_cost_text(RANDOMIZE_ALL_COST)}）")
         print("0. 中断挑战")
         print("q. 返回主界面")
         raw = input("> ").strip().lower()
@@ -2735,8 +3140,8 @@ def rest_menu(save: dict[str, Any], auto: bool, persistent: bool, client: Showdo
         elif raw in {"8", "move", "skill", "技能", "调整技能"}:
             rest_adjust_moves(save, run, client)
             save_if_needed(save, persistent)
-        elif raw in {"9", "adjust", "能力", "调整能力", "调整能力值"}:
-            rest_adjust_stats(save, run, client)
+        elif raw in {"9", "adjust", "能力", "调整能力", "调整能力值", "重置", "重置数值"}:
+            rest_randomize_stats(save, run, client)
             save_if_needed(save, persistent)
         elif raw in {"0", "abort", "中断", "中断挑战"}:
             confirm = input("确认中断本局挑战？当前连胜将归零，历史最高连胜保留。输入“中断”确认 > ").strip()
@@ -2761,24 +3166,26 @@ def save_if_needed(save: dict[str, Any], persistent: bool) -> None:
         write_save(save)
 
 
-def record_battle_result(save: dict[str, Any], winner: str) -> None:
+def record_battle_result(save: dict[str, Any], winner: str, run: dict[str, Any] | None = None) -> int:
     stats = save.setdefault("stats", default_stats())
     stats["battles"] = int(stats.get("battles") or 0) + 1
+    gained = 0
     if winner == "Player":
         stats["wins"] = int(stats.get("wins") or 0) + 1
-        add_bp(save, WIN_BP_REWARD)
+        gained = add_run_bp(save, run, WIN_BP_REWARD)
     else:
         stats["losses"] = int(stats.get("losses") or 0) + 1
         stats["set_win_streak"] = 0
     refresh_stats(stats)
+    return gained
 
 
-def add_clear_bonus(save: dict[str, Any]) -> tuple[int, int]:
+def add_clear_bonus(save: dict[str, Any], run: dict[str, Any] | None = None) -> tuple[int, int]:
     stats = save.setdefault("stats", default_stats())
     set_streak = int(stats.get("set_win_streak") or 0) + 1
     stats["set_win_streak"] = set_streak
     stats["best_set_win_streak"] = max(int(stats.get("best_set_win_streak") or 0), set_streak)
-    bonus = set_streak * 2 + 7
+    bonus = gained_bp(run, (set_streak * 2 + 7) * BP_SCALE)
     add_bp(save, bonus)
     return set_streak, bonus
 
@@ -2805,19 +3212,28 @@ def create_ready_run(
     auto: bool,
 ) -> None:
     print(f"随机种子: {run_seed}")
-    generated = client.generate(seed_for(run_seed, 1))
+    talents: list[dict[str, Any]] = []
+    candidate_count = candidate_count_for_talents(talents)
+    profiles = starter_profiles_for_streak(int((save.get("stats") or {}).get("set_win_streak") or 0), candidate_count)
+    generated = ensure_starter_shiny(client.generate(seed_for(run_seed, 1), count=candidate_count, profiles=profiles), run_seed)
     candidates = generated["display"]
     raw_candidates = generated["team"]
     selected_indexes = select_three(candidates, auto)
     player_team = [raw_candidates[index] for index in selected_indexes]
     player_display = [candidates[index] for index in selected_indexes]
     print_team("你的初始队伍:", player_display)
+    temporary_bp = apply_prophet_first_mover(save, talents)
     save["current_run"] = {
-        "status": "ready",
+        "status": "awaiting_rest",
         "seed": run_seed,
         "battles": battles,
         "next_battle": 1,
+        "battle_no": 0,
         "wins": 0,
+        "talents": talents,
+        "run_start_bp": current_bp(save) - temporary_bp,
+        "temporary_bp_debt": temporary_bp,
+        "second_team_roar_used": False,
         "player_team": player_team,
         "player_display": player_display,
         "player_state": [full_state_for_pokemon(pokemon, index) for index, pokemon in enumerate(player_display, start=1)],
@@ -2852,18 +3268,34 @@ def run_current_challenge(
 
         battle_no = int(run.get("next_battle") or 1)
         if battle_no > battles:
-            set_streak, bonus = add_clear_bonus(save)
+            set_streak, bonus = add_clear_bonus(save, run)
             save["current_run"] = None
             save_if_needed(save, persistent)
             print(f"\n通关！完成 {run.get('wins', battles)} 小场，当前连胜 {set_streak} 局，额外获得 {bonus}BP。")
             return
 
-        enemy_generated = client.generate(seed_for(run_seed, 100 + battle_no))
+        boss_type, boss_stage = route_boss_for_battle(int((save.get("stats") or {}).get("set_win_streak") or 0), battle_no)
+        if boss_type == "mixed":
+            boss_type = "elite4" if random.Random(seed_for(run_seed, 6100 + battle_no)).random() < 0.5 else "gym"
+        route_salt = 100 if boss_type == "normal" else 700 if boss_type == "champion" else 603 if boss_stage == "tier3" else 602 if boss_stage == "tier2" else 601
+        if boss_type == "normal":
+            profiles = normal_enemy_profiles_for_battle(int((save.get("stats") or {}).get("set_win_streak") or 0), battle_no)
+            enemy_generated = client.generate(seed_for(run_seed, route_salt + battle_no), count=len(profiles), profiles=profiles)
+        else:
+            pooled = boss_team_pool_for_route(boss_type, boss_stage, run_seed, battle_no)
+            if pooled:
+                species_ids, profiles = pooled
+                enemy_generated = client.generate(seed_for(run_seed, route_salt + battle_no), count=len(profiles), profiles=profiles, species_ids=species_ids)
+            else:
+                profiles = profiles_for_route(boss_type, boss_stage)
+                enemy_generated = client.generate(seed_for(run_seed, route_salt + battle_no), count=len(profiles), profiles=profiles)
         enemy_raw = enemy_generated["team"][:3]
         enemy_display = enemy_generated["display"][:3]
         print(f"\n========== 第 {battle_no}/{battles} 场 ==========")
         print("本场对手：未知。进入对战后只显示已上场信息。")
         normalize_current_run(run)
+        run["boss_type"] = boss_type
+        run["boss_stage"] = boss_stage
         if not rotate_first_usable(run):
             reset_set_win_streak(save)
             save["current_run"] = None
@@ -2881,22 +3313,50 @@ def run_current_challenge(
             auto,
         )
         run["player_state"] = player_state
-        record_battle_result(save, winner)
+        if winner != "Player" and has_talent(run, "exchange_second_team_roar") and not run.get("second_team_roar_used"):
+            candidate_count = candidate_count_for_talents(run.get("talents") or [])
+            profiles = starter_profiles_for_streak(int((save.get("stats") or {}).get("set_win_streak") or 0), candidate_count)
+            generated = client.generate(seed_for(run_seed, 8800 + battle_no), count=candidate_count, profiles=profiles)
+            indexes = select_three(generated["display"], auto)
+            player_team = [generated["team"][index] for index in indexes]
+            player_display = [generated["display"][index] for index in indexes]
+            run.update({
+                "status": "ready",
+                "next_battle": battle_no,
+                "player_team": player_team,
+                "player_display": player_display,
+                "player_state": [full_state_for_pokemon(pokemon, index) for index, pokemon in enumerate(player_display, start=1)],
+                "second_team_roar_used": True,
+            })
+            save_if_needed(save, persistent)
+            print("\n二队的怒吼触发！重新选择 3 只宝可梦，重打当前场次。")
+            continue
+        win_bp = record_battle_result(save, winner, run)
         if winner != "Player":
             wins = int(run.get("wins") or 0)
+            if has_talent(run, "gambler_streak_bp_risk"):
+                save.setdefault("stats", default_stats())["battle_points"] = max(0, int(run.get("run_start_bp") or 0))
+                refresh_stats(save["stats"])
+            else:
+                settle_prophet_first_mover(save, run)
             save["current_run"] = None
             save_if_needed(save, persistent)
             print(f"\n挑战结束。小场连胜：{wins}，大局连胜已归零。")
             return
 
         wins = int(run.get("wins") or 0) + 1
-        print(f"\n本小场胜利！当前小场连胜：{wins}")
+        gambler_roll = gambler_streak_roll(run, battle_no)
+        streak_bonus = gambler_roll[1] if gambler_roll else 0
+        gained_streak_bonus = add_run_bp(save, run, streak_bonus) if streak_bonus else 0
+        gambler_text = f"，压上杠杆 {gambler_roll[0]:.1f}倍，额外 {gained_streak_bonus}BP" if gambler_roll and gained_streak_bonus else ""
+        print(f"\n本小场胜利！获得 {win_bp}BP{gambler_text}。当前小场连胜：{wins}")
         if battle_no >= battles:
             run["wins"] = wins
-            set_streak, bonus = add_clear_bonus(save)
+            paid_back = settle_prophet_first_mover(save, run)
+            set_streak, bonus = add_clear_bonus(save, run)
             save["current_run"] = None
             save_if_needed(save, persistent)
-            print(f"\n通关！完成 {wins} 小场，当前连胜 {set_streak} 局，额外获得 {bonus}BP。")
+            print(f"\n通关！完成 {wins} 小场，当前连胜 {set_streak} 局，额外获得 {bonus}BP{f'，临时BP扣回 {paid_back}BP' if paid_back else ''}。")
             return
 
         save["current_run"] = {
@@ -2908,7 +3368,7 @@ def run_current_challenge(
             "enemy_display": enemy_display,
             "player_state": player_state,
             "rest_status": default_rest_status(),
-            "bp_earned_this_run": int(run.get("bp_earned_this_run") or 0) + WIN_BP_REWARD,
+            "bp_earned_this_run": int(run.get("bp_earned_this_run") or 0) + win_bp + gained_streak_bonus,
         }
         save_if_needed(save, persistent)
         rest_menu(save, auto, persistent, client)

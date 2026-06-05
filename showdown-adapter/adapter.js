@@ -12,8 +12,11 @@ const SHOWDOWN_PATH = process.env.SHOWDOWN_PATH || DEFAULT_SHOWDOWN_PATH;
 const Sim = require(path.join(SHOWDOWN_PATH, "dist", "sim"));
 const GEN7 = Sim.Dex.mod("gen7");
 
-const FIXED_LEVEL = 50;
+const MIN_RENTAL_LEVEL = 45;
+const MAX_RENTAL_LEVEL = 55;
+const SHINY_RATE = 30;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"];
+const FALLBACK_HELD_ITEMS = ["Leftovers", "Sitrus Berry", "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Assault Vest", "Focus Sash", "Expert Belt"];
 
 let stream = null;
 let pendingMessages = [];
@@ -23,6 +26,7 @@ let winner = null;
 let sideTeams = { p1: [], p2: [] };
 let sideSlotKeys = { p1: [], p2: [] };
 let spriteMap = null;
+let tierRows = null;
 
 function toId(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -77,6 +81,51 @@ function fullEvs(evs) {
   return result;
 }
 
+function rngFromSeed(seed, salt = 0) {
+  let state = seed.reduce((acc, value, index) => (acc ^ ((Number(value) & 0xffff) << ((index % 2) * 16))) >>> 0, (0x9e3779b9 ^ salt) >>> 0);
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function randomInt(rng, min, max) {
+  return min + Math.floor(rng() * (max - min + 1));
+}
+
+function randomIvs(rng) {
+  return Object.fromEntries(STAT_IDS.map(stat => [stat, randomInt(rng, 0, 31)]));
+}
+
+function randomEvs(rng) {
+  const evs = Object.fromEntries(STAT_IDS.map(stat => [stat, 0]));
+  let remaining = 510;
+  const order = [...STAT_IDS].sort(() => rng() - 0.5);
+  for (const stat of order) {
+    const value = randomInt(rng, 0, Math.min(255, remaining));
+    evs[stat] = value;
+    remaining -= value;
+  }
+  return evs;
+}
+
+function randomStatsWithTotal(rng, total, maxPerStat) {
+  const cappedTotal = Math.max(0, Math.min(Number(total) || 0, maxPerStat * STAT_IDS.length));
+  const values = Object.fromEntries(STAT_IDS.map(stat => [stat, 0]));
+  let remaining = cappedTotal;
+  const order = [...STAT_IDS].sort(() => rng() - 0.5);
+  for (let index = 0; index < order.length; index++) {
+    const stat = order[index];
+    const slotsLeft = order.length - index - 1;
+    const min = Math.max(0, remaining - maxPerStat * slotsLeft);
+    const max = Math.min(maxPerStat, remaining);
+    const value = index === order.length - 1 ? remaining : randomInt(rng, min, max);
+    values[stat] = value;
+    remaining -= value;
+  }
+  return values;
+}
+
 function statValue(base, iv, ev, level, stat, nature) {
   const baseValue = Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100);
   if (stat === "hp") return baseValue + level + 10;
@@ -128,7 +177,7 @@ function describeSet(set) {
   const species = Sim.Dex.species.get(set.species || set.name);
   const ability = Sim.Dex.abilities.get(set.ability);
   const item = set.item ? Sim.Dex.items.get(set.item) : null;
-  const level = FIXED_LEVEL;
+  const level = Math.max(1, Number(set.level || 50));
   const ivs = fullIvs(set.ivs || {});
   const evs = fullEvs(set.evs || {});
   const nature = natureModifiers(set.nature || "Serious");
@@ -156,6 +205,9 @@ function describeSet(set) {
     nature_plus: nature.plus,
     nature_minus: nature.minus,
     role: set.role || "",
+    shiny: Boolean(set.shiny),
+    stage_tier: set.stage_tier,
+    generation_profile: set.generation_profile,
     sprite: loadSpriteMap().entries[species.id],
   };
 }
@@ -163,10 +215,167 @@ function describeSet(set) {
 function normalizeTeam(team) {
   return team.map(set => ({
     ...set,
-    level: FIXED_LEVEL,
+    level: Number(set.level || 50),
     nature: set.nature || "Serious",
     moves: [...(set.moves || [])],
   }));
+}
+
+function randomMovesForSet(set, rng) {
+  const pool = legalLearnsetMoveIds(set)
+    .map(moveId => GEN7.moves.get(moveId))
+    .filter(move => move.exists && move.id)
+    .map(move => move.name || move.id);
+  const shuffled = [...pool].sort(() => rng() - 0.5);
+  const selected = shuffled.slice(0, 4);
+  return selected.length >= 4 ? selected : [...(set.moves || [])].slice(0, 4);
+}
+
+function randomizeRentalSet(set, rng) {
+  const natures = GEN7.natures.all();
+  const nature = natures[randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || set.nature || "Serious";
+  return {
+    ...set,
+    level: randomInt(rng, MIN_RENTAL_LEVEL, MAX_RENTAL_LEVEL),
+    item: "",
+    ivs: randomIvs(rng),
+    evs: randomEvs(rng),
+    nature,
+    moves: randomMovesForSet(set, rng),
+    shiny: randomInt(rng, 1, SHINY_RATE) === 1,
+  };
+}
+
+function parseCsvLine(line) {
+  const cells = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index];
+    if (char === "\"") {
+      if (quoted && line[index + 1] === "\"") {
+        cell += "\"";
+        index++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      cells.push(cell);
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  cells.push(cell);
+  return cells;
+}
+
+function loadTierRows() {
+  if (tierRows) return tierRows;
+  const filePath = path.join(PROJECT_ROOT, "data", "pokemon_tiers.csv");
+  if (!fs.existsSync(filePath)) {
+    tierRows = [];
+    return tierRows;
+  }
+  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean);
+  const header = parseCsvLine(lines[0] || "");
+  tierRows = lines.slice(1).map(line => {
+    const values = parseCsvLine(line);
+    const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""]));
+    return {
+      species_id: row.species_id,
+      species: row.species,
+      tier: Number(row.override_tier || row.tier || 1),
+    };
+  }).filter(row => row.species_id && row.tier >= 1 && row.tier <= 4);
+  return tierRows;
+}
+
+function requestedProfiles(command, targetCount) {
+  if (Array.isArray(command.profiles) && command.profiles.length) return command.profiles.slice(0, targetCount);
+  if (Array.isArray(command.stages) && command.stages.length) return command.stages.slice(0, targetCount).map(stage => `tier${stage}`);
+  return Array.from({ length: targetCount }, () => "tier1");
+}
+
+function pickSpeciesForProfile(profile, rng, seenSpecies) {
+  const tier = profile === "champion" ? 4 : Number(String(profile).replace("tier", "")) || 1;
+  const rows = loadTierRows();
+  const pool = rows.filter(row => row.tier === tier && !seenSpecies.has(row.species_id));
+  const fallback = rows.filter(row => row.tier === tier);
+  const selectedPool = pool.length ? pool : fallback;
+  return selectedPool[randomInt(rng, 0, Math.max(0, selectedPool.length - 1))]?.species_id || "pikachu";
+}
+
+function randomGenerator(format, seed) {
+  try {
+    return Sim.Teams.getGenerator(format || "gen7randombattle", seed);
+  } catch {
+    return null;
+  }
+}
+
+function baseSetForSpecies(speciesId, generator, rng) {
+  const species = GEN7.species.get(speciesId);
+  if (generator && generator.randomSet && species.exists) {
+    try {
+      return normalizeTeam([generator.randomSet(species)])[0];
+    } catch {
+      // Fall through.
+    }
+  }
+  const abilities = Object.values(species.abilities || {}).filter(Boolean);
+  const ability = abilities[randomInt(rng, 0, Math.max(0, abilities.length - 1))] || "";
+  return {
+    name: species.name || speciesId,
+    species: species.name || speciesId,
+    ability,
+    item: "",
+    moves: randomMovesForSet({ species: species.name || speciesId, moves: [] }, rng),
+    nature: "Serious",
+    evs: Object.fromEntries(STAT_IDS.map(stat => [stat, 0])),
+    ivs: Object.fromEntries(STAT_IDS.map(stat => [stat, 31])),
+    level: 50,
+  };
+}
+
+function applyGenerationProfile(baseSet, profile, rng) {
+  const normalizedProfile = profile === "champion" ? "champion" : String(profile || "tier1");
+  const stageTier = normalizedProfile === "champion" ? 4 : Number(normalizedProfile.replace("tier", "")) || 1;
+  const natures = GEN7.natures.all();
+  const randomNature = () => natures[randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || "Serious";
+  const heldItem = baseSet.item || FALLBACK_HELD_ITEMS[randomInt(rng, 0, FALLBACK_HELD_ITEMS.length - 1)];
+  const set = { ...baseSet, moves: [...(baseSet.moves || [])], shiny: randomInt(rng, 1, SHINY_RATE) === 1 };
+  if (normalizedProfile === "tier1") {
+    return { ...set, level: randomInt(rng, 45, 50), item: "", ivs: randomStatsWithTotal(rng, randomInt(rng, 0, 90), 31), evs: randomStatsWithTotal(rng, randomInt(rng, 0, 200), 255), nature: "Serious", stage_tier: stageTier, generation_profile: normalizedProfile };
+  }
+  if (normalizedProfile === "tier2") {
+    return { ...set, level: randomInt(rng, 45, 50), item: heldItem, ivs: randomStatsWithTotal(rng, randomInt(rng, 60, 120), 31), evs: randomStatsWithTotal(rng, randomInt(rng, 180, 300), 255), nature: randomNature(), stage_tier: stageTier, generation_profile: normalizedProfile };
+  }
+  if (normalizedProfile === "tier3") {
+    return { ...set, level: randomInt(rng, 50, 54), item: heldItem, ivs: randomStatsWithTotal(rng, randomInt(rng, 90, 150), 31), evs: randomStatsWithTotal(rng, randomInt(rng, 270, 450), 255), nature: baseSet.nature || randomNature(), stage_tier: stageTier, generation_profile: normalizedProfile };
+  }
+  const level = normalizedProfile === "champion" ? randomInt(rng, 58, 60) : 55;
+  return { ...set, level, item: heldItem, ivs: Object.fromEntries(STAT_IDS.map(stat => [stat, 31])), evs: randomStatsWithTotal(rng, 510, 255), nature: baseSet.nature || randomNature(), stage_tier: 4, generation_profile: normalizedProfile };
+}
+
+function generateProfiledCandidates(command, seed, format, targetCount) {
+  const profiles = requestedProfiles(command, targetCount);
+  const speciesIds = (command.speciesIds || command.species_ids || []).map(toId);
+  const seenSpecies = new Set();
+  const team = [];
+  const rng = rngFromSeed(seed, 4100 + targetCount);
+  const generator = randomGenerator(format, seed);
+  for (let index = 0; index < targetCount; index++) {
+    const profile = profiles[index] || profiles[profiles.length - 1] || "tier1";
+    const speciesId = speciesIds[index] || pickSpeciesForProfile(profile, rng, seenSpecies);
+    const set = applyGenerationProfile(baseSetForSpecies(speciesId, generator, rng), profile, rng);
+    const speciesKey = toId(set.species || set.name);
+    if (seenSpecies.has(speciesKey) && !speciesIds[index]) continue;
+    seenSpecies.add(speciesKey);
+    team.push(set);
+  }
+  if (team.length < targetCount) throw new Error(`profiled rental candidates not enough: ${team.length}/${targetCount}`);
+  return { seed, team, display: team.map(describeSet), packed: Sim.Teams.pack(team) };
 }
 
 function legalAbilities(set) {
@@ -232,11 +441,11 @@ function itemOptions() {
 
 function defaultMoveCost(move) {
   const power = Number(move.basePower || move.power || 0);
-  if (power >= 120) return 5;
-  if (power > 90) return 4;
-  if (power > 60) return 3;
-  if (power > 30) return 2;
-  return 1;
+  if (power >= 120) return 500;
+  if (power > 90) return 400;
+  if (power > 60) return 300;
+  if (power > 30) return 200;
+  return 100;
 }
 
 function goodsDefaults() {
@@ -257,23 +466,23 @@ function goodsDefaults() {
       item_id: item.id,
       item_type: "item",
       item_name: item.name,
-      item_cost: 5,
+      item_cost: 500,
     });
   }
   for (const service of [
     ["exchange_1", "service", "交换宝可梦第1只", 0],
-    ["exchange_2", "service", "交换宝可梦第2只", 1],
-    ["exchange_3", "service", "交换宝可梦第3只", 2],
-    ["restore_hp_1", "service", "恢复HP 1只", 1],
-    ["restore_hp_2", "service", "恢复HP 2只", 2],
-    ["restore_hp_3", "service", "恢复HP 3只", 3],
+    ["exchange_2", "service", "交换宝可梦第2只", 100],
+    ["exchange_3", "service", "交换宝可梦第3只", 200],
+    ["restore_hp_1", "service", "恢复HP 1只", 100],
+    ["restore_hp_2", "service", "恢复HP 2只", 200],
+    ["restore_hp_3", "service", "恢复HP 3只", 300],
     ["restore_pp_1", "service", "恢复PP 1只", 0],
-    ["restore_pp_2", "service", "恢复PP 2只", 1],
-    ["restore_pp_3", "service", "恢复PP 3只", 2],
+    ["restore_pp_2", "service", "恢复PP 2只", 100],
+    ["restore_pp_3", "service", "恢复PP 3只", 200],
     ["restore_status_1", "service", "恢复异常 1只", 0],
     ["restore_status_2", "service", "恢复异常 2只", 0],
-    ["restore_status_3", "service", "恢复异常 3只", 1],
-    ["adjust_stats", "service", "调整能力值", 10],
+    ["restore_status_3", "service", "恢复异常 3只", 100],
+    ["adjust_stats", "service", "调整能力值", 1000],
   ]) {
     rows.push({
       item_id: service[0],
@@ -517,7 +726,25 @@ function startReader() {
 async function handleGenerate(command) {
   const format = command.format || "gen7randombattle";
   const seed = seedArray(command.seed);
-  const team = normalizeTeam(Sim.Teams.generate(format, { seed }));
+  const targetCount = Math.max(1, Math.min(24, Number(command.count || 6)));
+  if ((Array.isArray(command.profiles) && command.profiles.length) || (Array.isArray(command.stages) && command.stages.length) || (Array.isArray(command.speciesIds) && command.speciesIds.length) || (Array.isArray(command.species_ids) && command.species_ids.length)) {
+    return generateProfiledCandidates(command, seed, format, targetCount);
+  }
+  const seenSpecies = new Set();
+  const team = [];
+  for (let attempt = 0; attempt < 40 && team.length < targetCount; attempt++) {
+    const attemptSeed = seedArray(seed.reduce((acc, value) => ((acc * 1664525 + Number(value)) >>> 0), attempt + 1));
+    const rng = rngFromSeed(attemptSeed, attempt + 1);
+    for (const baseSet of normalizeTeam(Sim.Teams.generate(format, { seed: attemptSeed }))) {
+      if (team.length >= targetCount) break;
+      const set = randomizeRentalSet(baseSet, rng);
+      const speciesId = toId(set.species || set.name);
+      if (seenSpecies.has(speciesId)) continue;
+      seenSpecies.add(speciesId);
+      team.push(set);
+    }
+  }
+  if (team.length < targetCount) throw new Error(`rental candidates not enough: ${team.length}/${targetCount}`);
   return {
     seed,
     team,

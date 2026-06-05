@@ -4,6 +4,7 @@ import path from "node:path";
 import type {LocalSave, TrainerGender, TrainerProfile} from "@changebattle/shared";
 
 const SAVE_VERSION = 1 as const;
+const BP_SCALE = 100;
 
 export class SaveStore {
   private readonly savePath: string;
@@ -30,12 +31,18 @@ export class SaveStore {
     const now = new Date().toISOString();
     const save: LocalSave = {
       version: SAVE_VERSION,
+      bp_scale: BP_SCALE,
       trainer: {
         name: trainer.name.trim() || "训练师",
         gender: normalizeGender(trainer.gender),
+        player_npc_id: trainer.player_npc_id,
+        front_asset: trainer.front_asset,
+        front_gif_asset: trainer.front_gif_asset,
+        back_asset: trainer.back_asset,
+        avatar_asset: trainer.avatar_asset,
       },
       stats: {
-        battle_points: 0,
+        battle_points: 1000,
         battles: 0,
         wins: 0,
         losses: 0,
@@ -44,6 +51,8 @@ export class SaveStore {
         best_set_win_streak: 0,
         rank_status: "未开放",
       },
+      talent_unlocks: [],
+      talent_equipped: [],
       current_run: null,
       created_at: now,
       updated_at: now,
@@ -59,6 +68,11 @@ export class SaveStore {
       trainer: {
         name: trainer.name.trim() || save.trainer.name || "训练师",
         gender: normalizeGender(trainer.gender),
+        player_npc_id: trainer.player_npc_id || save.trainer.player_npc_id,
+        front_asset: trainer.front_asset || save.trainer.front_asset,
+        front_gif_asset: trainer.front_gif_asset || save.trainer.front_gif_asset,
+        back_asset: trainer.back_asset || save.trainer.back_asset,
+        avatar_asset: trainer.avatar_asset || save.trainer.avatar_asset,
       },
       updated_at: new Date().toISOString(),
     };
@@ -78,7 +92,7 @@ export class SaveStore {
   }
 }
 
-function normalizeGender(gender: string): TrainerGender {
+function normalizeGender(gender?: string): TrainerGender {
   if (gender === "male" || gender === "female" || gender === "other") return gender;
   return "other";
 }
