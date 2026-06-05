@@ -67,6 +67,258 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   background: rgb(105 12 18 / 72%);
 }
 
+.floating-dex-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 28;
+  min-width: 76px;
+  min-height: 44px;
+  border-color: #1e4f5f;
+  background: #d8f3f0;
+  box-shadow: 0 6px 14px #0004;
+}
+
+.dex-modal {
+  width: min(1080px, calc(100vw - 56px));
+  height: min(720px, calc(100vh - 56px));
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 10px;
+  border: 4px solid #25332b;
+  border-radius: 8px;
+  background: #eef4e5;
+  padding: 14px;
+  box-shadow: 0 16px 38px #0008;
+}
+
+.dex-modal > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dex-modal h2,
+.dex-modal p,
+.dex-entry-detail h3,
+.dex-learnset-panel h4 {
+  margin: 0;
+}
+
+.dex-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dex-tabs button {
+  min-width: 78px;
+  min-height: 36px;
+  padding: 6px 12px;
+}
+
+.dex-tabs button.selected {
+  border-color: #247267;
+  background: #b6e3b5;
+}
+
+.dex-search-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.dex-modal-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(300px, .8fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.dex-result-list,
+.dex-entry-detail {
+  min-height: 0;
+  overflow: auto;
+  border: 3px solid #25332b;
+  border-radius: 8px;
+  background: #fffdf5;
+  padding: 10px;
+}
+
+.dex-result-list {
+  display: grid;
+  grid-auto-rows: minmax(72px, auto);
+  align-content: start;
+  gap: 8px;
+}
+
+.dex-result-list button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 8px;
+  text-align: left;
+  padding: 7px 10px;
+}
+
+.dex-result-list button.selected {
+  border-color: #d66b37;
+  background: #fff2dd;
+}
+
+.dex-result-list img {
+  grid-row: 1 / 3;
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.dex-result-list strong,
+.dex-result-list span,
+.dex-result-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dex-result-list span {
+  color: #596052;
+}
+
+.dex-result-list small {
+  grid-column: 2 / -1;
+  color: #596052;
+}
+
+.dex-pager {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.dex-pager button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 6px 10px;
+}
+
+.dex-pager span {
+  min-width: 64px;
+  text-align: center;
+  font-weight: 900;
+  color: #35453a;
+}
+
+.dex-entry-detail {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  align-content: start;
+  gap: 10px;
+}
+
+.dex-entry-detail.empty {
+  place-content: center;
+}
+
+.dex-entry-detail > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.dex-entry-detail > header img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border: 2px solid #7aa982;
+  background: #edf5e8;
+}
+
+.dex-entry-detail h3 {
+  font-size: 28px;
+}
+
+.dex-type-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dex-type-row span {
+  border: 2px solid #247267;
+  border-radius: 6px;
+  background: #d8f3f0;
+  padding: 5px 10px;
+  font-weight: 900;
+}
+
+.dex-stat-grid,
+.dex-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dex-stat-grid div,
+.dex-fact-grid p,
+.dex-description {
+  margin: 0;
+  border: 2px solid #cfd8bd;
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 8px 10px;
+}
+
+.dex-stat-grid div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dex-learnset-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.dex-learnset-panel > div {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.dex-learnset-panel article {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  border: 2px solid #cfd8bd;
+  border-radius: 8px;
+  background: #fffdf5;
+  padding: 8px;
+}
+
+.dex-learnset-panel strong,
+.dex-learnset-panel span,
+.dex-learnset-panel small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .title-screen {
   height: 100%;
   display: grid;
@@ -2246,7 +2498,7 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 }
 
 .talent-run-modal {
-  grid-template-rows: auto minmax(0, .8fr) auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
 }
 
 .talent-run-list {
@@ -2272,10 +2524,79 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   gap: 4px 8px;
 }
 
+.talent-run-list article.active-talent-card {
+  border-width: 4px;
+  border-color: #d66b37;
+  background: linear-gradient(180deg, #fff5df, #ffe7bd);
+  box-shadow: inset 0 0 0 2px #fffaf0, 0 8px 16px #7c3b1d24;
+}
+
 .talent-run-list p {
   grid-column: 1 / -1;
   margin: 0;
   color: #596052;
+}
+
+.talent-card-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.talent-card-actions > button {
+  min-height: 38px;
+}
+
+.talent-target-row {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.talent-target-row.compact {
+  min-height: 0;
+  grid-auto-rows: minmax(48px, auto);
+}
+
+.talent-target-row button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.talent-target-row button.selected {
+  outline: 3px solid #4f7ea8;
+}
+
+.talent-target-row img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.talent-target-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 900;
+}
+
+.talent-target-row p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 8px 10px;
+  border: 2px dashed #c99362;
+  border-radius: 8px;
+  color: #6d5c47;
+  background: #fffaf0;
 }
 
 .review-list {
@@ -2597,8 +2918,8 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 
 .talent-board {
   display: grid;
-  grid-template-rows: auto 116px minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-rows: auto 116px auto minmax(0, 1fr) auto auto;
+  gap: 10px;
   padding: 16px;
   animation: enter-left .42s cubic-bezier(.2, .82, .2, 1) both;
 }
@@ -2666,10 +2987,44 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .equipped-talents {
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(90px, 150px));
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
   align-items: stretch;
   justify-content: center;
+}
+
+.talent-tabs,
+.talent-pager {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.talent-tabs button,
+.talent-pager button {
+  min-width: 72px;
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 2px solid #334352;
+  border-radius: 7px;
+  background: #0c1118;
+  color: #efe9d4;
+  font-weight: 900;
+}
+
+.talent-tabs button.selected {
+  border-color: #e0c36f;
+  background: #202a37;
+  color: #f2e2a2;
+}
+
+.talent-pager span {
+  min-width: 54px;
+  text-align: center;
+  color: #e9d28b;
+  font-weight: 900;
 }
 
 .talent-slot,
@@ -2726,12 +3081,12 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 }
 
 .talent-slot {
-  min-height: 0;
+  min-height: 62px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: center;
   gap: 6px;
-  padding: 10px;
+  padding: 9px 10px;
   text-align: center;
 }
 
@@ -2743,6 +3098,7 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 14px;
+  line-height: 1.25;
 }
 
 .talent-slot span,
@@ -2811,7 +3167,7 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 }
 
 .talent-footer-note {
-  min-height: 34px;
+  min-height: 30px;
   display: grid;
   place-items: center;
   border-top: 2px solid #223244;

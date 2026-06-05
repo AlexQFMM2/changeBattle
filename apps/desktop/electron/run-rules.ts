@@ -45,7 +45,7 @@ export const TALENTS: TalentView[] = [
   {id: "gambler_random_cost_1", name: "座上贵宾", category: "赌徒", cost: 20 * BP_SCALE, desc: "每次休整获得一次免费商店抽奖；本次休整后续商店抽奖消耗为基础费用的 1.3 倍，免费次数不结转。"},
   {id: "gambler_streak_bp_risk", name: "压上杠杆", category: "赌徒", cost: 50 * BP_SCALE, desc: "每场胜利有概率把本场基础 BP 变为 1.4/1.6/1.8/2.0/2.5 倍；如果失败，不获得背包返还，并将 BP 回到本局开始前。"},
   {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
-  {id: "prophet_first_mover", name: "上帝只眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以看到哪些技能克制当前对手。"},
+  {id: "prophet_first_mover", name: "上帝之眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以看到哪些技能克制当前对手，并允许在对战时查看图鉴。"},
   {id: "prophet_next_scout", name: "未卜先知", category: "先知", cost: 10 * BP_SCALE, desc: "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
   {id: "prophet_history_review", name: "温故知新", category: "先知", cost: 15 * BP_SCALE, desc: "休整页允许查看上一轮对手的宝可梦详情。"},
   {id: "prophet_direct_move", name: "运筹帷幄", category: "先知", cost: 20 * BP_SCALE, desc: "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},

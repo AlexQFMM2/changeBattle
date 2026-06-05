@@ -71,17 +71,50 @@ SAVE_FILE = SAVE_DIR / "save.json"
 DEBUG_DIR = APP_ROOT / "debug"
 GOODS_FILE = PROJECT_ROOT / "data" / "goods.csv"
 BOSS_TEAM_POOL_FILE = PROJECT_ROOT / "data" / "boss_team_pools.csv"
+SHOP_POOL_FILE = PROJECT_ROOT / "data" / "shop_pool.csv"
+CONSUMABLE_EFFECTS_FILE = PROJECT_ROOT / "data" / "consumable_item_effects.csv"
 DEBUG_LOGGER: ShowdownDebugLogger | None = None
 GOODS_CACHE: dict[tuple[str, str], dict[str, Any]] | None = None
+SHOP_POOL_CACHE: list[dict[str, Any]] | None = None
+CONSUMABLE_EFFECTS_CACHE: dict[str, dict[str, Any]] | None = None
 EVENT_DELAY = 0.85
 WIN_BP_REWARD = 5 * BP_SCALE
+TALENT_EQUIP_LIMIT = 5
 SHOP_OFFER_COUNT = 3
-SHOP_ROLL_COST = 150
+SHOP_OFFER_COUNT_GAMBLER = 4
+STARTER_ITEM_OFFER_COUNT = 5
+STARTER_ITEM_REROLL_COST = 1 * BP_SCALE
+SHOP_ROLL_COST_FIRST = 150
+SHOP_ROLL_COST_NEXT = 150
 SHOP_ROLL_COST_GAMBLER_PAID = 195
+SHOP_BUCKET_WEIGHTS = {"healing": 5, "berry": 3, "pp": 2, "tm": 5, "held": 5}
+GUARANTEED_SHOP_ITEMS = [
+    {"id": "potion", "cost": 50},
+    {"id": "superpotion", "cost": 50},
+    {"id": "hyperpotion", "cost": 100},
+    {"id": "maxpotion", "cost": 150},
+    {"id": "fullrestore", "cost": 100},
+    {"id": "revive", "cost": 100},
+    {"id": "maxrevive", "cost": 200},
+    {"id": "revivalherb", "cost": 200},
+    {"id": "fullheal", "cost": 50},
+    {"id": "healpowder", "cost": 50},
+    {"id": "antidote", "cost": 50},
+    {"id": "burnheal", "cost": 50},
+    {"id": "iceheal", "cost": 50},
+    {"id": "awakening", "cost": 50},
+    {"id": "paralyzeheal", "cost": 50},
+]
 MOVE_DRAW_COST = 2 * BP_SCALE
 MOVE_DRAW_COUNT = 2
+MOVE_DRAW_COUNT_GAMBLER = 3
+DIRECT_MOVE_COST = 3 * BP_SCALE
 RANDOMIZE_PART_COST = 1 * BP_SCALE
 RANDOMIZE_ALL_COST = 2 * BP_SCALE
+SCOUT_ONE_COST = 0
+SCOUT_ALL_COST = 3 * BP_SCALE
+REVIEW_PREVIOUS_COST = 1 * BP_SCALE
+SECOND_TEAM_ROAR_COST = 10 * BP_SCALE
 REST_EXCHANGE_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE]
 BOSS_EXCHANGE_COST = 2 * BP_SCALE
 REST_HP_COSTS = {1: 0, 2: 0, 3: 0}
@@ -110,7 +143,7 @@ TALENTS = [
     {"id": "gambler_random_cost_1", "name": "座上贵宾", "category": "赌徒", "cost": 20 * BP_SCALE, "desc": "每次休整获得一次免费商店抽奖；本次休整后续商店抽奖消耗为基础费用的 1.3 倍，免费次数不结转。"},
     {"id": "gambler_streak_bp_risk", "name": "压上杠杆", "category": "赌徒", "cost": 50 * BP_SCALE, "desc": "每场胜利有概率把本场基础 BP 变为 1.4/1.6/1.8/2.0/2.5 倍；失败时 BP 回到本局开始前。"},
     {"id": "gambler_all_in_exchange", "name": "孤注一掷", "category": "赌徒", "cost": 50 * BP_SCALE, "desc": "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
-    {"id": "prophet_first_mover", "name": "上帝只眼", "category": "先知", "cost": 5 * BP_SCALE, "desc": "对战时可以看到哪些技能克制当前对手。"},
+    {"id": "prophet_first_mover", "name": "上帝之眼", "category": "先知", "cost": 5 * BP_SCALE, "desc": "对战时可以看到哪些技能克制当前对手，并允许在对战时查看图鉴。"},
     {"id": "prophet_next_scout", "name": "未卜先知", "category": "先知", "cost": 10 * BP_SCALE, "desc": "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
     {"id": "prophet_history_review", "name": "温故知新", "category": "先知", "cost": 15 * BP_SCALE, "desc": "休整页允许查看上一轮对手的宝可梦详情。"},
     {"id": "prophet_direct_move", "name": "运筹帷幄", "category": "先知", "cost": 20 * BP_SCALE, "desc": "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
@@ -151,6 +184,25 @@ def load_goods() -> dict[tuple[str, str], dict[str, Any]]:
     return goods
 
 
+def item_key(value: str | None) -> str:
+    raw = str(value or "").strip()
+    if raw.lower().startswith("tm:"):
+        return "tm:" + normalize_id(raw[3:])
+    return normalize_id(raw)
+
+
+def is_tm_item_id(item_id: str | None) -> bool:
+    return str(item_id or "").lower().startswith("tm:")
+
+
+def tm_item_id(move_id: str | None) -> str:
+    return "tm:" + normalize_id(str(move_id or ""))
+
+
+def seeded_rng(base: int | None, salt: int = 0) -> random.Random:
+    return random.Random(seed_for(base, salt))
+
+
 def goods_entry(item_type: str, item_id: str) -> dict[str, Any] | None:
     return load_goods().get((normalize_id(item_type), normalize_id(item_id)))
 
@@ -182,6 +234,52 @@ def service_cost(item_id: str, default: int = 0) -> int:
 def move_goods_cost(move: dict[str, Any]) -> int:
     move_id = str(move.get("id") or move.get("name") or "")
     return goods_cost("skill", move_id, default_move_cost(move.get("power")))
+
+
+def priced_for_shop(run_or_talents: dict[str, Any] | list[dict[str, Any]] | None, base_cost: int) -> int:
+    talents = run_or_talents if isinstance(run_or_talents, list) else (run_or_talents or {}).get("talents") or []
+    cost = max(0, int(base_cost or 0))
+    if any(talent.get("id") == "business_discount_70" for talent in talents or []):
+        return int(cost * 0.7)
+    return cost
+
+
+def talent_by_id(talent_id: str) -> dict[str, Any] | None:
+    return next((talent for talent in TALENTS if talent.get("id") == talent_id), None)
+
+
+def talents_for_ids(ids: list[str] | None) -> list[dict[str, Any]]:
+    wanted = set(ids or [])
+    return [talent for talent in TALENTS if talent.get("id") in wanted]
+
+
+def equipped_talents(save: dict[str, Any]) -> list[dict[str, Any]]:
+    unlocked = set(save.get("talent_unlocks") or [])
+    ids = [talent_id for talent_id in save.get("talent_equipped") or [] if talent_id in unlocked]
+    return talents_for_ids(ids[:TALENT_EQUIP_LIMIT])
+
+
+def starter_purchase_limit(talents: list[dict[str, Any]] | None) -> int:
+    return 3 if any(talent.get("id") == "business_starter_3" for talent in talents or []) else 1
+
+
+def shop_offer_count(run: dict[str, Any]) -> int:
+    return SHOP_OFFER_COUNT_GAMBLER if has_talent(run, "gambler_shop_offer_5") else SHOP_OFFER_COUNT
+
+
+def shop_next_roll_cost(run: dict[str, Any]) -> int:
+    if has_talent(run, "gambler_random_cost_1"):
+        return SHOP_ROLL_COST_GAMBLER_PAID if (run.get("rest_status") or {}).get("free_shop_roll_used") else 0
+    return SHOP_ROLL_COST_FIRST if int(run.get("shop_roll_count") or 0) <= 0 else SHOP_ROLL_COST_NEXT
+
+
+def move_draw_count(run: dict[str, Any]) -> int:
+    return MOVE_DRAW_COUNT_GAMBLER if has_talent(run, "gambler_move_draw_4") else MOVE_DRAW_COUNT
+
+
+def sell_price_for_item(run: dict[str, Any], item: dict[str, Any]) -> int:
+    base = max(0, int(item.get("cost") or 0))
+    return base if has_talent(run, "business_sell_full") else base // 2
 
 
 def seed_for(base: int | None, salt: int) -> int:
@@ -356,6 +454,8 @@ def create_save(name: str, gender: str) -> dict[str, Any]:
         "bp_scale": BP_SCALE,
         "trainer": {"name": name, "gender": gender},
         "stats": stats,
+        "talent_unlocks": [],
+        "talent_equipped": [],
         "current_run": None,
     }
     refresh_stats(save["stats"])
@@ -368,6 +468,16 @@ def normalize_save(save: dict[str, Any]) -> dict[str, Any]:
     save.setdefault("trainer", {})
     save["trainer"].setdefault("name", "训练师")
     save["trainer"].setdefault("gender", "未设置")
+    save.setdefault("talent_unlocks", [])
+    save.setdefault("talent_equipped", [])
+    unlocked = {talent.get("id") for talent in TALENTS}
+    save["talent_unlocks"] = [talent_id for talent_id in save.get("talent_unlocks") or [] if talent_id in unlocked]
+    unlocked_ids = set(save["talent_unlocks"])
+    save["talent_equipped"] = [
+        talent_id
+        for talent_id in save.get("talent_equipped") or []
+        if talent_id in unlocked_ids
+    ][:TALENT_EQUIP_LIMIT]
     save.setdefault("stats", default_stats())
     save.setdefault("current_run", None)
     refresh_stats(save["stats"])
@@ -462,6 +572,83 @@ def show_user_info(save: dict[str, Any]) -> None:
             input("回车继续。")
             continue
         print("请输入 e 或直接回车。")
+
+
+def talent_rows(save: dict[str, Any]) -> list[list[object]]:
+    unlocked = set(save.get("talent_unlocks") or [])
+    equipped = set(save.get("talent_equipped") or [])
+    rows = []
+    for index, talent in enumerate(TALENTS, start=1):
+        status = "已装备" if talent["id"] in equipped else "已解锁" if talent["id"] in unlocked else "锁定"
+        rows.append([index, talent["category"], talent["name"], bp_cost_text(talent["cost"]), status, talent["desc"]])
+    return rows
+
+
+def show_talent_config(save: dict[str, Any]) -> None:
+    while True:
+        clear_screen()
+        normalize_save(save)
+        equipped = equipped_talents(save)
+        print("=" * 118)
+        print(f"天赋配置  |  BP {current_bp(save)}  |  已装备 {len(equipped)}/{TALENT_EQUIP_LIMIT}")
+        print("=" * 118)
+        print("已装备：" + (" / ".join(f"{talent['name']}（{talent['category']}）" for talent in equipped) if equipped else "无"))
+        print_table(["#", "类别", "天赋", "费用", "状态", "说明"], talent_rows(save), [4, 8, 16, 10, 8, 62], compact=True)
+        raw = input("输入 u 编号 解锁，e 编号 装备/卸下，c 清空，b 返回 > ").strip().lower()
+        if raw in {"b", "back", "返回", ""}:
+            write_save(save)
+            return
+        if raw in {"c", "clear", "清空"}:
+            save["talent_equipped"] = []
+            write_save(save)
+            continue
+        parts = raw.replace(",", " ").split()
+        if len(parts) != 2 or not parts[1].isdigit():
+            print("请输入类似：u 3 或 e 3。")
+            input("回车继续。")
+            continue
+        action, index_text = parts
+        index = int(index_text) - 1
+        if not 0 <= index < len(TALENTS):
+            print("没有这个天赋编号。")
+            input("回车继续。")
+            continue
+        talent = TALENTS[index]
+        unlocked = set(save.get("talent_unlocks") or [])
+        equipped_ids = list(save.get("talent_equipped") or [])
+        if action in {"u", "unlock", "解锁"}:
+            if talent["id"] in unlocked:
+                print("这个天赋已经解锁。")
+                input("回车继续。")
+                continue
+            if not spend_bp(save, int(talent["cost"])):
+                print(f"BP 不足，需要 {talent['cost']}BP。")
+                input("回车继续。")
+                continue
+            save.setdefault("talent_unlocks", []).append(talent["id"])
+            write_save(save)
+            print(f"已解锁 {talent['name']}。")
+            input("回车继续。")
+            continue
+        if action in {"e", "equip", "装备", "卸下"}:
+            if talent["id"] not in unlocked:
+                print("请先解锁这个天赋。")
+                input("回车继续。")
+                continue
+            if talent["id"] in equipped_ids:
+                save["talent_equipped"] = [talent_id for talent_id in equipped_ids if talent_id != talent["id"]]
+                write_save(save)
+                continue
+            if len(equipped_ids) >= TALENT_EQUIP_LIMIT:
+                print(f"最多装备 {TALENT_EQUIP_LIMIT} 个天赋，请先卸下一个。")
+                input("回车继续。")
+                continue
+            equipped_ids.append(talent["id"])
+            save["talent_equipped"] = equipped_ids
+            write_save(save)
+            continue
+        print("操作只支持 u/e/c/b。")
+        input("回车继续。")
 
 
 def stat_display(pokemon: dict[str, Any], stat: str) -> str:
@@ -669,15 +856,20 @@ def reset_set_win_streak(save: dict[str, Any]) -> None:
     refresh_stats(stats)
 
 
-def abort_current_run(save: dict[str, Any]) -> None:
+def abort_current_run(save: dict[str, Any]) -> tuple[int, int]:
+    run = save.get("current_run")
     reset_set_win_streak(save)
+    settled = settle_run_end(save, run) if run else (0, 0)
     save["current_run"] = None
+    return settled
 
 
 def default_rest_status() -> dict[str, Any]:
     return {
         "exchanges": 0,
         "taken_enemy_slots": [],
+        "free_shop_roll_used": False,
+        "free_scout_used": False,
         "restore_hp_used": False,
         "restore_pp_used": False,
         "restore_status_used": False,
@@ -692,7 +884,7 @@ def normalize_bag_items(run: dict[str, Any]) -> dict[str, int]:
     else:
         iterator = []
     for item_id, count in iterator:
-        normalized = normalize_id(str(item_id))
+        normalized = item_key(str(item_id))
         amount = int(count or 0)
         if normalized and amount > 0:
             bag[normalized] = bag.get(normalized, 0) + amount
@@ -701,7 +893,7 @@ def normalize_bag_items(run: dict[str, Any]) -> dict[str, int]:
 
 
 def add_bag_item(run: dict[str, Any], item_id: str, count: int = 1) -> None:
-    normalized = normalize_id(item_id)
+    normalized = item_key(item_id)
     if not normalized or count <= 0:
         return
     bag = normalize_bag_items(run)
@@ -710,7 +902,7 @@ def add_bag_item(run: dict[str, Any], item_id: str, count: int = 1) -> None:
 
 
 def remove_bag_item(run: dict[str, Any], item_id: str, count: int = 1) -> bool:
-    normalized = normalize_id(item_id)
+    normalized = item_key(item_id)
     bag = normalize_bag_items(run)
     current = int(bag.get(normalized) or 0)
     if not normalized or current < count:
@@ -783,13 +975,24 @@ def normalize_current_run(run: dict[str, Any]) -> dict[str, Any]:
     run.setdefault("rest_status", default_rest_status())
     run.setdefault("bp_investments", [0, 0, 0])
     run.setdefault("bag_items", {})
+    run.setdefault("non_refundable_bag_items", {})
+    run.setdefault("bag_item_meta", {})
     run.setdefault("move_investments", [])
     run.setdefault("talents", [])
+    run.setdefault("shop_roll_count", 0)
+    run.setdefault("shop_offers", [])
+    run.setdefault("shop_purchased_offer_id", None)
+    run.setdefault("starter_item_offers", [])
+    run.setdefault("starter_item_purchased", [])
+    run.setdefault("exchange_box", {"team": [], "display": [], "state": []})
+    run["all_in_exchange_used"] = bool(run.get("all_in_exchange_used"))
     run["second_team_roar_used"] = bool(run.get("second_team_roar_used"))
     if not isinstance(run.get("rest_status"), dict):
         run["rest_status"] = default_rest_status()
     run["rest_status"].setdefault("exchanges", 0)
     run["rest_status"].setdefault("taken_enemy_slots", [])
+    run["rest_status"].setdefault("free_shop_roll_used", False)
+    run["rest_status"].setdefault("free_scout_used", False)
     run["rest_status"].setdefault("restore_hp_used", False)
     run["rest_status"].setdefault("restore_pp_used", False)
     run["rest_status"].setdefault("restore_status_used", False)
@@ -799,6 +1002,22 @@ def normalize_current_run(run: dict[str, Any]) -> dict[str, Any]:
         investments.append(0)
     run["bp_investments"] = investments[:target_len]
     normalize_bag_items(run)
+    run["non_refundable_bag_items"] = {
+        item_key(item_id): max(0, int(count or 0))
+        for item_id, count in (run.get("non_refundable_bag_items") or {}).items()
+        if item_key(item_id) and int(count or 0) > 0
+    }
+    run["bag_item_meta"] = {
+        item_key(item_id): {**meta, "id": item_key((meta or {}).get("id") or item_id)}
+        for item_id, meta in (run.get("bag_item_meta") or {}).items()
+        if item_key(item_id) and isinstance(meta, dict)
+    }
+    box = run.get("exchange_box") or {}
+    run["exchange_box"] = {
+        "team": [pokemon for pokemon in box.get("team") or [] if pokemon],
+        "display": [pokemon for pokemon in box.get("display") or [] if pokemon],
+        "state": [state for state in box.get("state") or [] if state],
+    }
     normalize_move_investments(run)
     if run.get("status") == "awaiting_exchange":
         run["status"] = "awaiting_rest"
@@ -2062,6 +2281,39 @@ def add_run_bp(save: dict[str, Any], run: dict[str, Any] | None, amount: int) ->
     return gained
 
 
+def item_refund_cost(item_id: str, meta: dict[str, Any] | None = None) -> int:
+    normalized = item_key(item_id)
+    if meta and meta.get("cost") is not None:
+        return max(0, int(meta.get("cost") or 0))
+    if is_tm_item_id(normalized):
+        return goods_cost("skill", normalized[3:], 2 * BP_SCALE)
+    return goods_cost("item", normalized, 5 * BP_SCALE)
+
+
+def refundable_bag_base_bp(run: dict[str, Any]) -> int:
+    normalize_current_run(run)
+    rate = 0.7 if has_talent(run, "business_refund_70") else 0.5
+    total = 0
+    for item_id, count in (run.get("bag_items") or {}).items():
+        locked = int((run.get("non_refundable_bag_items") or {}).get(item_key(item_id)) or 0)
+        refundable = max(0, int(count or 0) - locked)
+        if refundable <= 0:
+            continue
+        total += item_refund_cost(item_id, (run.get("bag_item_meta") or {}).get(item_key(item_id))) * refundable
+    return int(total * rate)
+
+
+def settle_run_end(save: dict[str, Any], run: dict[str, Any], *, refund_bag: bool = True, gambler_failure: bool = False) -> tuple[int, int]:
+    if gambler_failure:
+        save.setdefault("stats", default_stats())["battle_points"] = max(0, int(run.get("run_start_bp") or 0))
+        refresh_stats(save["stats"])
+        return 0, 0
+    paid_back = settle_prophet_first_mover(save, run)
+    refund_base = refundable_bag_base_bp(run) if refund_bag else 0
+    refund_gained = add_run_bp(save, run, refund_base) if refund_base else 0
+    return paid_back, refund_gained
+
+
 def gambler_streak_roll(run: dict[str, Any], battle_no: int) -> tuple[float, int] | None:
     if not has_talent(run, "gambler_streak_bp_risk"):
         return None
@@ -2112,6 +2364,25 @@ def exchange_state_ratio(run: dict[str, Any]) -> float:
     if exchange_full_state(run):
         return 1.0
     return 0.75 if has_talent(run, "exchange_lossless") else 0.5
+
+
+def add_to_exchange_box(
+    run: dict[str, Any],
+    team: list[dict[str, Any]],
+    display: list[dict[str, Any]],
+    states: list[dict[str, Any]] | None = None,
+) -> None:
+    if not has_talent(run, "exchange_safe_box"):
+        return
+    box = run.setdefault("exchange_box", {"team": [], "display": [], "state": []})
+    for index, shown in enumerate(display):
+        raw_set = team[index] if index < len(team) else None
+        if not raw_set or not shown:
+            continue
+        box.setdefault("team", []).append(json.loads(json.dumps(raw_set)))
+        box.setdefault("display", []).append(json.loads(json.dumps(shown)))
+        source_state = states[index] if states and index < len(states) else full_state_for_pokemon(shown, len(box.get("state") or []) + 1)
+        box.setdefault("state", []).append(json.loads(json.dumps(source_state)))
 
 
 def route_boss_for_battle(set_streak: int, battle_no: int) -> tuple[str, str]:
@@ -2396,6 +2667,9 @@ def rest_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
         return
     investments = list(run.get("bp_investments") or [0, 0, 0])
     move_investments = normalize_move_investments(run)
+    old_raw = json.loads(json.dumps(run["player_team"][own - 1]))
+    old_display = json.loads(json.dumps(run["player_display"][own - 1]))
+    old_state = json.loads(json.dumps(normalize_player_state(run)[own - 1]))
     held_before = unequip_slot_to_bag(run, own)
     keep_item = exchange_keeps_item(run)
     run["player_team"][own - 1] = json.loads(json.dumps(run["enemy_raw"][foe - 1]))
@@ -2413,6 +2687,7 @@ def rest_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
     ratio = exchange_state_ratio(run)
     states[own - 1] = partial_state_for_pokemon(run["player_display"][own - 1], own, ratio)
     run["player_state"] = states
+    add_to_exchange_box(run, [old_raw], [old_display], [old_state])
     while len(investments) < len(run["player_display"]):
         investments.append(0)
     investments[own - 1] = 0
@@ -2433,6 +2708,538 @@ def current_bp(save: dict[str, Any]) -> int:
     return int((save.get("stats") or {}).get("battle_points") or 0)
 
 
+def load_shop_pool() -> list[dict[str, Any]]:
+    global SHOP_POOL_CACHE
+    if SHOP_POOL_CACHE is not None:
+        return SHOP_POOL_CACHE
+    entries: list[dict[str, Any]] = []
+    if SHOP_POOL_FILE.exists():
+        with SHOP_POOL_FILE.open("r", encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                kind = "tm" if normalize_id(row.get("kind") or "") == "tm" else "item"
+                raw_id = (row.get("id") or "").strip()
+                entry_id = "*" if kind == "tm" and raw_id == "*" else item_key(raw_id)
+                if not entry_id:
+                    continue
+                try:
+                    weight = float(row.get("weight") or 1)
+                except ValueError:
+                    weight = 1
+                enabled = str(row.get("enabled") if row.get("enabled") is not None else "1").strip() != "0"
+                if not enabled or weight <= 0:
+                    continue
+                category = normalize_id(row.get("category") or "")
+                entries.append({
+                    "id": entry_id,
+                    "kind": kind,
+                    "category": "tm" if kind == "tm" else "consumable" if category == "consumable" else "held",
+                    "cost": max(0, int(float(row.get("cost") or 0))),
+                    "weight": weight,
+                    "notes": row.get("notes") or "",
+                })
+    SHOP_POOL_CACHE = entries
+    return entries
+
+
+def load_consumable_effects() -> dict[str, dict[str, Any]]:
+    global CONSUMABLE_EFFECTS_CACHE
+    if CONSUMABLE_EFFECTS_CACHE is not None:
+        return CONSUMABLE_EFFECTS_CACHE
+    effects: dict[str, dict[str, Any]] = {}
+    if CONSUMABLE_EFFECTS_FILE.exists():
+        with CONSUMABLE_EFFECTS_FILE.open("r", encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                effect_id = item_key(row.get("id") or "")
+                if effect_id:
+                    effects[effect_id] = row
+    CONSUMABLE_EFFECTS_CACHE = effects
+    return effects
+
+
+def item_category(item: dict[str, Any]) -> str:
+    if is_tm_item_id(item.get("id")):
+        return "tm"
+    text = " ".join(str(item.get(key) or "") for key in ["id", "name", "desc", "description", "short_desc"]).lower()
+    if any(token in text for token in ["potion", "restore", "heal", "revive", "ether", "elixir", "berry", "herb"]):
+        return "consumable"
+    if item_key(item.get("id") or item.get("name")) in load_consumable_effects():
+        return "consumable"
+    return "held"
+
+
+def shop_pool_bucket(entry: dict[str, Any]) -> str | None:
+    if entry.get("kind") == "tm":
+        return "tm"
+    entry_id = item_key(entry.get("id") or "")
+    text = f"{entry_id} {entry.get('notes') or ''}".lower()
+    if entry_id.endswith("berry") or "berry" in text:
+        return "berry"
+    if "ether" in entry_id or "elixir" in entry_id or " pp" in f" {text}":
+        return "pp"
+    if entry.get("category") == "consumable":
+        return "healing"
+    if entry.get("category") == "held":
+        return "held"
+    return None
+
+
+def weighted_pick(values: list[dict[str, Any]], rng: random.Random) -> dict[str, Any] | None:
+    if not values:
+        return None
+    total = sum(max(0.0, float(value.get("weight") or 1)) for value in values)
+    if total <= 0:
+        return values[0]
+    cursor = rng.random() * total
+    for value in values:
+        cursor -= max(0.0, float(value.get("weight") or 1))
+        if cursor <= 0:
+            return value
+    return values[-1]
+
+
+def weighted_shop_bucket(buckets: dict[str, list[dict[str, Any]]], rng: random.Random) -> str | None:
+    available = [
+        {"bucket": bucket, "weight": SHOP_BUCKET_WEIGHTS[bucket]}
+        for bucket in SHOP_BUCKET_WEIGHTS
+        if buckets.get(bucket)
+    ]
+    picked = weighted_pick(available, rng)
+    return picked.get("bucket") if picked else None
+
+
+def item_details_by_id(client: ShowdownClient, item_id: str, *, offer: dict[str, Any] | None = None) -> dict[str, Any]:
+    normalized = item_key(item_id)
+    if is_tm_item_id(normalized):
+        move_id = normalized[3:]
+        meta = offer or {}
+        return {
+            "id": normalized,
+            "name": meta.get("name") or f"TM {move_id}",
+            "name_zh": meta.get("name_zh") or f"技能机器 {meta.get('move_name_zh') or move_id}",
+            "cost": int(meta.get("cost") or goods_cost("skill", move_id, 2 * BP_SCALE)),
+            "desc": meta.get("desc") or f"Teaches {move_id}.",
+            "desc_zh": meta.get("desc_zh") or f"让宝可梦学会 {meta.get('move_name_zh') or move_id}。",
+            "category": "tm",
+            "move_id": meta.get("move_id") or move_id,
+            "move_name": meta.get("move_name") or move_id,
+            "move_name_zh": meta.get("move_name_zh") or meta.get("move_name") or move_id,
+        }
+    for item in client.item_options().get("items") or []:
+        if item_key(item.get("id") or item.get("name")) == normalized:
+            detail = zh_detail("items", item.get("name") or normalized)
+            cost = int(offer.get("cost")) if offer and offer.get("cost") is not None else goods_cost("item", normalized, 5 * BP_SCALE)
+            return {
+                **item,
+                "id": normalized,
+                "name": item.get("name") or normalized,
+                "name_zh": zh_plain("items", item.get("name") or normalized),
+                "cost": cost,
+                "desc": item.get("desc") or item.get("short_desc") or "",
+                "desc_zh": detail.get("description") or item.get("short_desc") or item.get("desc") or "",
+                "category": offer.get("category") if offer else item_category(item),
+            }
+    cost = int(offer.get("cost")) if offer and offer.get("cost") is not None else goods_cost("item", normalized, 5 * BP_SCALE)
+    return {
+        "id": normalized,
+        "name": offer.get("name") if offer else normalized,
+        "name_zh": offer.get("name_zh") if offer else zh_plain("items", normalized),
+        "cost": cost,
+        "desc": offer.get("desc") if offer else "",
+        "desc_zh": offer.get("desc_zh") if offer else zh_detail("items", normalized).get("description", ""),
+        "category": offer.get("category") if offer else ("consumable" if normalized in load_consumable_effects() else "held"),
+    }
+
+
+def remember_bag_item_meta(run: dict[str, Any], offer: dict[str, Any]) -> None:
+    normalized = item_key(offer.get("id") or offer.get("name"))
+    if not normalized:
+        return
+    run.setdefault("bag_item_meta", {})[normalized] = {
+        "id": normalized,
+        "name": offer.get("name"),
+        "name_zh": offer.get("name_zh"),
+        "desc": offer.get("desc"),
+        "desc_zh": offer.get("desc_zh"),
+        "category": offer.get("category") or item_category(offer),
+        "move_id": offer.get("move_id"),
+        "move_name": offer.get("move_name"),
+        "move_name_zh": offer.get("move_name_zh"),
+        "cost": offer.get("cost"),
+    }
+
+
+def remove_non_refundable_item(run: dict[str, Any], item_id: str, count: int = 1) -> None:
+    normalized = item_key(item_id)
+    locked = int((run.get("non_refundable_bag_items") or {}).get(normalized) or 0)
+    if locked <= 0:
+        return
+    next_count = max(0, locked - count)
+    if next_count:
+        run.setdefault("non_refundable_bag_items", {})[normalized] = next_count
+    else:
+        run.setdefault("non_refundable_bag_items", {}).pop(normalized, None)
+
+
+def tm_offer_from_move(move: dict[str, Any], index: int, source: str, talents: list[dict[str, Any]], discount: float = 1.0) -> dict[str, Any]:
+    move_id = normalize_id(str(move.get("id") or move.get("name") or ""))
+    base_cost = int(move_goods_cost(move) * discount)
+    return {
+        "id": tm_item_id(move_id),
+        "name": f"TM {move.get('name') or move_id}",
+        "name_zh": f"技能机器 {zh_plain('moves', move.get('name') or move_id)}",
+        "cost": priced_for_shop(talents, base_cost),
+        "desc": f"Teaches {move.get('name') or move_id}.",
+        "desc_zh": f"让宝可梦学会 {zh_plain('moves', move.get('name') or move_id)}。",
+        "offer_id": f"{source}-tm-{index}-{move_id}",
+        "category": "tm",
+        "source": source,
+        "move_id": move_id,
+        "move_name": move.get("name") or move_id,
+        "move_name_zh": zh_plain("moves", move.get("name") or move_id),
+        "discount": discount,
+    }
+
+
+def tm_options_for_run(client: ShowdownClient, run: dict[str, Any], source: str, limit: int = 24) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    moves: list[dict[str, Any]] = []
+    for raw_set in run.get("player_team") or []:
+        for move in client.learnable_moves(raw_set).get("moves") or []:
+            move_id = normalize_id(str(move.get("id") or move.get("name") or ""))
+            if move_id and move_id not in seen:
+                seen.add(move_id)
+                moves.append(move)
+    rng = seeded_rng(int(run.get("seed") or 1), 0x7A11 + int(run.get("battle_no") or run.get("next_battle") or 0))
+    rng.shuffle(moves)
+    return [tm_offer_from_move(move, index, source, run.get("talents") or []) for index, move in enumerate(moves[:limit])]
+
+
+def starter_tm_options(client: ShowdownClient, run_seed: int, talents: list[dict[str, Any]], limit: int = 24) -> list[dict[str, Any]]:
+    generated = client.generate(seed_for(run_seed, 77), count=6)
+    seen: set[str] = set()
+    moves: list[dict[str, Any]] = []
+    for pokemon in generated.get("display") or []:
+        for move in pokemon.get("moves") or []:
+            move_id = normalize_id(str(move.get("id") or move.get("name") or ""))
+            if move_id and move_id not in seen:
+                seen.add(move_id)
+                moves.append(move)
+    rng = seeded_rng(run_seed, 0x5A77)
+    rng.shuffle(moves)
+    return [tm_offer_from_move(move, index, "starter", talents) for index, move in enumerate(moves[:limit])]
+
+
+def shop_offer_from_pool_entry(client: ShowdownClient, entry: dict[str, Any], index: int, talents: list[dict[str, Any]], source: str = "shop") -> dict[str, Any] | None:
+    if entry.get("kind") == "tm":
+        return None
+    item_id = item_key(entry.get("id") or "")
+    if not item_id:
+        return None
+    detail = item_details_by_id(client, item_id)
+    cost = int(entry.get("cost") or detail.get("cost") or 5 * BP_SCALE)
+    return {
+        **detail,
+        "id": item_id,
+        "cost": priced_for_shop(talents, cost),
+        "offer_id": f"{source}-pool-{index}-{item_id}",
+        "category": entry.get("category") or item_category(detail),
+        "source": source,
+        "weight": float(entry.get("weight") or 1),
+    }
+
+
+def guaranteed_shop_offer(client: ShowdownClient, index: int, run: dict[str, Any], rng: random.Random) -> dict[str, Any] | None:
+    guaranteed = rng.choice(GUARANTEED_SHOP_ITEMS)
+    entry = {"id": guaranteed["id"], "kind": "item", "category": "consumable", "cost": guaranteed["cost"], "weight": 1}
+    offer = shop_offer_from_pool_entry(client, entry, index, run.get("talents") or [])
+    if offer:
+        offer["offer_id"] = f"{int(run.get('shop_roll_count') or 0)}-{index}-guaranteed-{guaranteed['id']}"
+    return offer
+
+
+def roll_shop_offers(client: ShowdownClient, run: dict[str, Any]) -> list[dict[str, Any]]:
+    pool = load_shop_pool()
+    item_entries = [entry for entry in pool if entry.get("kind") == "item"]
+    item_offers = [
+        offer
+        for index, entry in enumerate(item_entries)
+        for offer in [shop_offer_from_pool_entry(client, entry, index, run.get("talents") or [])]
+        if offer
+    ]
+    tm_offers = tm_options_for_run(client, run, "shop") if any(entry.get("kind") == "tm" and entry.get("id") == "*" for entry in pool) else []
+    for offer in tm_offers:
+        offer["weight"] = 1
+    buckets: dict[str, list[dict[str, Any]]] = {"healing": [], "berry": [], "pp": [], "tm": tm_offers, "held": []}
+    for offer in item_offers:
+        entry = next((pool_entry for pool_entry in item_entries if pool_entry.get("id") == item_key(offer.get("id") or offer.get("name"))), None)
+        bucket = shop_pool_bucket(entry or {})
+        if bucket and bucket != "tm":
+            buckets[bucket].append(offer)
+    rng = seeded_rng(int(run.get("seed") or 1), 0x5100 + int(run.get("shop_roll_count") or 0) * 97 + int(run.get("battle_no") or run.get("next_battle") or 0))
+    result: list[dict[str, Any]] = []
+    for index in range(shop_offer_count(run)):
+        bucket = weighted_shop_bucket(buckets, rng)
+        selected = weighted_pick(buckets.get(bucket or "", []), rng) if bucket else None
+        if not selected:
+            break
+        offer = dict(selected)
+        offer.pop("weight", None)
+        offer["offer_id"] = f"{int(run.get('shop_roll_count') or 0)}-{index}-{item_key(offer.get('id') or offer.get('name'))}"
+        result.append(offer)
+    if not any(item_key(offer.get("id") or offer.get("name")) in {item["id"] for item in GUARANTEED_SHOP_ITEMS} for offer in result):
+        guaranteed = guaranteed_shop_offer(client, 0, run, rng)
+        if guaranteed:
+            if result:
+                result[0] = guaranteed
+            else:
+                result.append(guaranteed)
+    return result
+
+
+def shop_duplicate_bonus_for_offers(offers: list[dict[str, Any]]) -> dict[str, Any] | None:
+    groups: dict[str, list[int]] = {}
+    by_id: dict[str, dict[str, Any]] = {}
+    for index, offer in enumerate(offers):
+        key = item_key(offer.get("id") or offer.get("name"))
+        if not key:
+            continue
+        groups.setdefault(key, []).append(index)
+        by_id[key] = offer
+    best_key = None
+    best_indexes: list[int] = []
+    for key, indexes in groups.items():
+        if len(indexes) >= 2 and (len(indexes) > len(best_indexes) or (len(indexes) == len(best_indexes) and indexes[0] < (best_indexes[0] if best_indexes else 999))):
+            best_key = key
+            best_indexes = indexes
+    if not best_key:
+        return None
+    offer = by_id[best_key]
+    match_count = min(5, len(best_indexes))
+    return {
+        "item_id": best_key,
+        "name": offer.get("name"),
+        "name_zh": offer.get("name_zh"),
+        "count": match_count - 1,
+        "match_count": match_count,
+    }
+
+
+def starter_item_offers(client: ShowdownClient, run_seed: int, talents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    pool = load_shop_pool()
+    item_entries = [entry for entry in pool if entry.get("kind") == "item"]
+    base_items = [
+        offer
+        for index, entry in enumerate(item_entries)
+        for offer in [shop_offer_from_pool_entry(client, entry, index, talents, "starter")]
+        if offer
+    ]
+    tm_offers = starter_tm_options(client, run_seed, talents) if any(entry.get("kind") == "tm" and entry.get("id") == "*" for entry in pool) else []
+    for offer in tm_offers:
+        offer["weight"] = 1
+    buckets: dict[str, list[dict[str, Any]]] = {"healing": [], "berry": [], "pp": [], "tm": tm_offers, "held": []}
+    for offer in base_items:
+        entry = next((pool_entry for pool_entry in item_entries if pool_entry.get("id") == item_key(offer.get("id") or offer.get("name"))), None)
+        bucket = shop_pool_bucket(entry or {})
+        if bucket and bucket != "tm":
+            buckets[bucket].append(offer)
+    rng = seeded_rng(run_seed, 0x57A27)
+    selected: list[dict[str, Any]] = []
+    used: set[str] = set()
+    while len(selected) < STARTER_ITEM_OFFER_COUNT:
+        bucket = weighted_shop_bucket(buckets, rng)
+        pool_for_bucket = [offer for offer in buckets.get(bucket or "", []) if item_key(offer.get("id") or offer.get("name")) not in used]
+        if not pool_for_bucket:
+            pool_for_bucket = [
+                offer
+                for offers in buckets.values()
+                for offer in offers
+                if item_key(offer.get("id") or offer.get("name")) not in used
+            ]
+        picked = weighted_pick(pool_for_bucket, rng)
+        if not picked:
+            break
+        offer = dict(picked)
+        offer.pop("weight", None)
+        used.add(item_key(offer.get("id") or offer.get("name")))
+        selected.append(offer)
+    result = []
+    for index, offer in enumerate(selected):
+        discount = 0.7 if index == 0 else 0.5 if index == 1 else 0.3 if index == 2 else 1.0
+        base_cost = int(int(offer.get("cost") or 5 * BP_SCALE) * discount)
+        result.append({
+            **offer,
+            "cost": priced_for_shop(talents, base_cost),
+            "offer_id": f"starter-{index}-{item_key(offer.get('id') or offer.get('name'))}",
+            "category": offer.get("category") or item_category(offer),
+            "discount": discount,
+            "source": "starter",
+        })
+    return result
+
+
+def offer_rows(offers: list[dict[str, Any]]) -> list[list[object]]:
+    rows = []
+    for index, offer in enumerate(offers, start=1):
+        rows.append([
+            index,
+            offer.get("name_zh") or zh("items", offer.get("name") or offer.get("id")),
+            offer.get("id") or offer.get("name"),
+            bp_cost_text(int(offer.get("cost") or 0)),
+            offer.get("category") or "",
+            offer.get("desc_zh") or offer.get("desc") or "",
+        ])
+    return rows
+
+
+def choose_starter_items(client: ShowdownClient, save: dict[str, Any], run_seed: int, talents: list[dict[str, Any]], auto: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
+    if auto:
+        return [], starter_item_offers(client, run_seed, talents), run_seed
+    offers = starter_item_offers(client, run_seed, talents)
+    purchased: list[dict[str, Any]] = []
+    active_seed = run_seed
+    while True:
+        clear_screen()
+        limit = starter_purchase_limit(talents)
+        print("=" * 110)
+        print(f"开局道具  |  BP {current_bp(save)}  |  可选 {len(purchased)}/{limit}  |  种子 {active_seed}")
+        print("=" * 110)
+        if purchased:
+            print("已购买：" + "，".join(str(offer.get("name_zh") or offer.get("name") or offer.get("id")) for offer in purchased))
+        print_table(["#", "道具", "ID", "费用", "类型", "说明"], offer_rows(offers), [4, 24, 24, 10, 10, 44], compact=True)
+        raw = input(f"输入编号购买；r 重随（{bp_cost_text(STARTER_ITEM_REROLL_COST)}）；s 跳过/进入选队 > ").strip().lower()
+        if raw in {"s", "skip", "start", "下一步", "跳过", ""}:
+            return purchased, offers, active_seed
+        if raw in {"r", "reroll", "重随", "重新"}:
+            if purchased:
+                print("已经购买开局道具后不能重新随机。")
+                input("回车继续。")
+                continue
+            if not spend_bp(save, STARTER_ITEM_REROLL_COST):
+                print(f"BP 不足，需要 {STARTER_ITEM_REROLL_COST}BP。")
+                input("回车继续。")
+                continue
+            active_seed = random.SystemRandom().randrange(1, 2**32)
+            offers = starter_item_offers(client, active_seed, talents)
+            write_save(save)
+            continue
+        if not raw.isdigit() or not 1 <= int(raw) <= len(offers):
+            print("请输入有效编号。")
+            input("回车继续。")
+            continue
+        offer = offers[int(raw) - 1]
+        if any(item.get("offer_id") == offer.get("offer_id") for item in purchased):
+            print("这个开局道具已经购买过了。")
+            input("回车继续。")
+            continue
+        if len(purchased) >= limit:
+            print(f"本局最多选择 {limit} 个开局道具。")
+            input("回车继续。")
+            continue
+        cost = int(offer.get("cost") or 0)
+        if not spend_bp(save, cost):
+            print(f"BP 不足，需要 {cost}BP。")
+            input("回车继续。")
+            continue
+        purchased.append(offer)
+        write_save(save)
+        if len(purchased) >= limit:
+            return purchased, offers, active_seed
+
+
+def add_starter_items_to_run(run: dict[str, Any], purchased: list[dict[str, Any]]) -> None:
+    for offer in purchased:
+        item_id = item_key(offer.get("id") or offer.get("name"))
+        add_bag_item(run, item_id, 1)
+        run.setdefault("non_refundable_bag_items", {})[item_id] = int((run.get("non_refundable_bag_items") or {}).get(item_id) or 0) + 1
+        remember_bag_item_meta(run, offer)
+
+
+def hp_amount(raw: str | None, maxhp: int) -> int:
+    value = str(raw or "").strip().lower()
+    if not value:
+        return 0
+    if value == "full":
+        return maxhp
+    if value.endswith("%"):
+        return max(1, int(maxhp * float(value[:-1]) / 100))
+    return max(0, int(float(value)))
+
+
+def pp_amount(raw: str | None, maxpp: int) -> int:
+    value = str(raw or "").strip().lower()
+    if not value:
+        return 0
+    if value == "full":
+        return maxpp
+    return max(0, int(float(value)))
+
+
+def status_can_be_cured(effect_status: str | None, status: str | None) -> bool:
+    current = normalize_id(str(status or ""))
+    wanted = str(effect_status or "none").strip().lower()
+    if not current or wanted in {"", "none"}:
+        return False
+    return wanted == "all" or current in {normalize_id(part) for part in wanted.split("|")}
+
+
+def apply_consumable_item_effect(run: dict[str, Any], item_id: str, slot: int, move_slot: int | None = None) -> str:
+    normalized = item_key(item_id)
+    effect = load_consumable_effects().get(normalized)
+    if not effect:
+        raise ValueError("这个道具不能作为消耗道具使用。")
+    states = normalize_player_state(run)
+    if not 1 <= slot <= len(states):
+        raise ValueError("宝可梦编号需要在 1-3 之间。")
+    state = states[slot - 1]
+    details: list[str] = []
+    was_fainted = state_is_fainted(state)
+    revive = str(effect.get("revive") or "").strip().lower()
+    if revive:
+        if not was_fainted:
+            raise ValueError("目标没有濒死，不能使用这个复活道具。")
+        state["hp"] = int(state.get("maxhp") or 1) if revive == "full" else max(1, int(state.get("maxhp") or 1) // 2)
+        state["fainted"] = False
+        state["status"] = ""
+        details.append(f"恢复到 {state['hp']}/{state.get('maxhp')}")
+    elif was_fainted:
+        raise ValueError("目标已经濒死，不能使用这个道具。")
+    amount = hp_amount(effect.get("hp"), int(state.get("maxhp") or 1))
+    if amount > 0 and not state_is_fainted(state) and int(state.get("hp") or 0) < int(state.get("maxhp") or 1):
+        previous = int(state.get("hp") or 0)
+        state["hp"] = min(int(state.get("maxhp") or 1), previous + amount)
+        details.append(f"恢复了 {state['hp'] - previous} 点 HP")
+    pp_scope = str(effect.get("pp_scope") or "").strip().lower()
+    if pp_scope:
+        moves = state.get("moves") or []
+        if pp_scope == "all":
+            targets = moves
+        elif move_slot:
+            targets = [move for move in moves if int(move.get("slot") or 0) == move_slot]
+        else:
+            targets = [move for move in moves if int(move.get("pp") or 0) < int(move.get("maxpp") or 0)][:1]
+        if not targets:
+            raise ValueError("请选择需要恢复 PP 的技能。")
+        restored = 0
+        for move in targets:
+            if int(move.get("pp") or 0) >= int(move.get("maxpp") or 0):
+                continue
+            amount = pp_amount(effect.get("pp"), int(move.get("maxpp") or 1))
+            previous = int(move.get("pp") or 0)
+            move["pp"] = min(int(move.get("maxpp") or 1), previous + amount)
+            restored += int(move.get("pp") or 0) - previous
+        if restored:
+            details.append(f"恢复了 {restored} 点 PP")
+    if status_can_be_cured(effect.get("status"), state.get("status")):
+        status = state.get("status")
+        state["status"] = ""
+        details.append(f"解除 {zh_plain('statuses', status)}")
+    refresh_state_condition(state)
+    run["player_state"] = states
+    if not details:
+        raise ValueError("目标不需要这个道具。")
+    return f"{display_name(run['player_display'][slot - 1])} 使用了 {zh('items', normalized)}：" + "，".join(details)
+
+
 def option_matches(option: dict[str, Any], keyword: str, kind: str) -> bool:
     if not keyword:
         return True
@@ -2449,17 +3256,20 @@ def option_matches(option: dict[str, Any], keyword: str, kind: str) -> bool:
     return needle in haystack
 
 
-def item_rows(items: list[dict[str, Any]]) -> list[list[object]]:
+def item_rows(items: list[dict[str, Any]], run: dict[str, Any] | None = None) -> list[list[object]]:
     rows = []
     for index, item in enumerate(items, start=1):
         item_id = item.get("id") or item.get("name") or ""
         name = item.get("name") or item_id
         desc = zh_detail("items", name).get("description") or item.get("short_desc") or item.get("desc") or ""
+        cost = goods_cost("item", item_id, 5)
+        if run is not None:
+            cost = priced_for_shop(run, cost)
         rows.append([
             index,
             zh("items", name),
             name,
-            bp_cost_text(goods_cost("item", item_id, 5)),
+            bp_cost_text(cost),
             desc,
         ])
     return rows
@@ -2468,7 +3278,8 @@ def item_rows(items: list[dict[str, Any]]) -> list[list[object]]:
 def bag_rows(run: dict[str, Any]) -> list[list[object]]:
     rows = []
     for index, (item_id, count) in enumerate(sorted(normalize_bag_items(run).items()), start=1):
-        rows.append([index, zh("items", item_id), item_id, count])
+        meta = (run.get("bag_item_meta") or {}).get(item_id) or {}
+        rows.append([index, meta.get("name_zh") or zh("items", item_id), item_id, count, meta.get("category") or ("tm" if is_tm_item_id(item_id) else "")])
     return rows
 
 
@@ -2496,7 +3307,7 @@ def equip_bag_item(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
         print("=" * 86)
         print("本局背包 / 装备道具")
         print("=" * 86)
-        print_table(["#", "道具", "ID", "数量"], bag_rows(run), [4, 28, 24, 8], compact=True)
+        print_table(["#", "道具", "ID", "数量", "类型"], bag_rows(run), [4, 28, 24, 8, 10], compact=True)
         print("\n当前队伍：")
         print_table(["#", "宝可梦", "当前道具"], [
             [
@@ -2532,6 +3343,10 @@ def equip_bag_item(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
             input("回车继续。")
             continue
         item_id = bag_items[item_index - 1][0]
+        if is_tm_item_id(item_id):
+            print("技能机器不能装备，请使用“使用道具/TM”。")
+            input("回车继续。")
+            continue
         item = item_options.get(item_id) or {"id": item_id, "name": item_id}
         old_item = unequip_slot_to_bag(run, slot)
         if not remove_bag_item(run, item_id, 1):
@@ -2548,6 +3363,213 @@ def equip_bag_item(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
         return
 
 
+def use_bag_item(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
+    normalize_current_run(run)
+    bag_items = sorted(normalize_bag_items(run).items())
+    if not bag_items:
+        print("背包是空的。")
+        input("回车继续。")
+        return
+    print_table(["#", "道具", "ID", "数量", "类型"], bag_rows(run), [4, 28, 24, 8, 10], compact=True)
+    raw = input("输入 道具编号 宝可梦编号；PP 道具可加技能编号，例如 1 2 3；回车返回 > ").strip()
+    if not raw:
+        return
+    parts = raw.replace(",", " ").split()
+    if len(parts) not in {2, 3} or not all(part.isdigit() for part in parts):
+        print("请输入 道具编号 宝可梦编号 [技能编号]。")
+        input("回车继续。")
+        return
+    item_index, slot = int(parts[0]), int(parts[1])
+    move_slot = int(parts[2]) if len(parts) == 3 else None
+    if not 1 <= item_index <= len(bag_items):
+        print("没有这个道具编号。")
+        input("回车继续。")
+        return
+    item_id = bag_items[item_index - 1][0]
+    if is_tm_item_id(item_id):
+        use_tm_item(save, run, client, item_id, slot - 1, (move_slot or 1) - 1)
+        return
+    try:
+        message = apply_consumable_item_effect(run, item_id, slot, move_slot)
+    except ValueError as exc:
+        print(str(exc))
+        input("回车继续。")
+        return
+    if not remove_bag_item(run, item_id, 1):
+        print("背包数量不足。")
+        input("回车继续。")
+        return
+    remove_non_refundable_item(run, item_id, 1)
+    print(message)
+    input("回车继续。")
+
+
+def sell_bag_item(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
+    normalize_current_run(run)
+    bag_items = sorted(normalize_bag_items(run).items())
+    if not bag_items:
+        print("背包是空的。")
+        input("回车继续。")
+        return
+    print_table(["#", "道具", "ID", "数量", "类型"], bag_rows(run), [4, 28, 24, 8, 10], compact=True)
+    raw = input("输入要出售的道具编号，回车返回 > ").strip()
+    if not raw:
+        return
+    if not raw.isdigit() or not 1 <= int(raw) <= len(bag_items):
+        print("请输入有效编号。")
+        input("回车继续。")
+        return
+    item_id = bag_items[int(raw) - 1][0]
+    meta = (run.get("bag_item_meta") or {}).get(item_id) or {}
+    item = item_details_by_id(client, item_id, offer=meta)
+    price = sell_price_for_item(run, item)
+    if not remove_bag_item(run, item_id, 1):
+        print("背包数量不足。")
+        input("回车继续。")
+        return
+    remove_non_refundable_item(run, item_id, 1)
+    gained = add_run_bp(save, run, price)
+    print(f"已出售 {item.get('name_zh') or zh('items', item_id)}，获得 {gained}BP。")
+    input("回车继续。")
+
+
+def roll_shop(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
+    normalize_current_run(run)
+    cost = shop_next_roll_cost(run)
+    if not spend_bp(save, cost):
+        print(f"BP 不足，需要 {cost}BP。")
+        input("回车继续。")
+        return
+    if has_talent(run, "gambler_random_cost_1"):
+        run["rest_status"]["free_shop_roll_used"] = True
+    run["shop_roll_count"] = int(run.get("shop_roll_count") or 0) + 1
+    offers = roll_shop_offers(client, run)
+    run["shop_offers"] = offers
+    run["shop_purchased_offer_id"] = None
+    bonus = shop_duplicate_bonus_for_offers(offers)
+    run["shop_last_roll_bonus"] = bonus
+    if bonus and int(bonus.get("count") or 0) > 0:
+        item_id = item_key(bonus.get("item_id"))
+        add_bag_item(run, item_id, int(bonus["count"]))
+        offer = next((entry for entry in offers if item_key(entry.get("id") or entry.get("name")) == item_id), None)
+        if offer:
+            remember_bag_item_meta(run, offer)
+    print(f"商店抽奖完成，{spend_text(cost)}。")
+    if bonus and bonus.get("count"):
+        print(f"抽到 {bonus.get('match_count')} 连，免费获得 {bonus.get('count')} 个 {bonus.get('name_zh') or bonus.get('name') or bonus.get('item_id')}。")
+    input("回车继续。")
+
+
+def buy_shop_offer(save: dict[str, Any], run: dict[str, Any]) -> None:
+    offers = run.get("shop_offers") or []
+    if not offers:
+        print("请先抽取商店商品。")
+        input("回车继续。")
+        return
+    if run.get("shop_purchased_offer_id"):
+        print("本次抽奖已经购买过商品，请重新抽奖。")
+        input("回车继续。")
+        return
+    print_table(["#", "商品", "ID", "费用", "类型", "说明"], offer_rows(offers), [4, 24, 24, 10, 10, 44], compact=True)
+    raw = input("输入编号购买，回车返回 > ").strip()
+    if not raw:
+        return
+    if not raw.isdigit() or not 1 <= int(raw) <= len(offers):
+        print("请输入有效编号。")
+        input("回车继续。")
+        return
+    offer = offers[int(raw) - 1]
+    cost = int(offer.get("cost") or 0)
+    if not spend_bp(save, cost):
+        print(f"BP 不足，需要 {cost}BP。")
+        input("回车继续。")
+        return
+    item_id = item_key(offer.get("id") or offer.get("name"))
+    add_bag_item(run, item_id, 1)
+    remember_bag_item_meta(run, offer)
+    run["shop_purchased_offer_id"] = offer.get("offer_id")
+    print(f"已购买 {offer.get('name_zh') or offer.get('name') or item_id}，{spend_text(cost)}。")
+    input("回车继续。")
+
+
+def rest_shop_roll_menu(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
+    while True:
+        clear_screen()
+        normalize_current_run(run)
+        print("=" * 110)
+        print(f"商店老虎机  |  BP {current_bp(save)}  |  格子 {shop_offer_count(run)}  |  下次抽奖 {bp_cost_text(shop_next_roll_cost(run))}")
+        print("=" * 110)
+        offers = run.get("shop_offers") or []
+        if offers:
+            print_table(["#", "商品", "ID", "费用", "类型", "说明"], offer_rows(offers), [4, 24, 24, 10, 10, 44], compact=True)
+            if run.get("shop_purchased_offer_id"):
+                print("本次抽奖已购买过商品。")
+        else:
+            print("当前没有商品，请先抽奖。")
+        print("1. 抽奖/刷新")
+        print("2. 购买本次商品")
+        print("b. 返回")
+        choice = input("> ").strip().lower()
+        if choice in {"b", "back", "返回", ""}:
+            return
+        if choice in {"1", "roll", "抽奖", "刷新"}:
+            roll_shop(save, run, client)
+        elif choice in {"2", "buy", "购买"}:
+            buy_shop_offer(save, run)
+        else:
+            print("请选择 1、2 或 b。")
+            input("回车继续。")
+
+
+def apply_move_to_slot(run: dict[str, Any], slot_index: int, move_slot_index: int, move_id: str, client: ShowdownClient) -> dict[str, Any]:
+    if not 0 <= slot_index < len(run.get("player_team") or []):
+        raise ValueError("宝可梦编号需要在 1-3 之间。")
+    raw_set = json.loads(json.dumps(run["player_team"][slot_index]))
+    current_moves = list(raw_set.get("moves") or [])
+    if not 0 <= move_slot_index < len(current_moves):
+        raise ValueError("技能位置无效。")
+    legal_moves = client.learnable_moves(raw_set).get("moves") or []
+    selected = next((move for move in legal_moves if normalize_id(move.get("id") or move.get("name") or "") == normalize_id(move_id)), None)
+    if not selected:
+        raise ValueError("这不是该宝可梦的合法可学招式。")
+    other_moves = {normalize_id(move) for index, move in enumerate(current_moves) if index != move_slot_index}
+    if normalize_id(selected.get("id") or selected.get("name") or "") in other_moves:
+        raise ValueError("不能重复学习同一个招式。")
+    current_moves[move_slot_index] = selected.get("name") or selected.get("id")
+    raw_set["moves"] = current_moves
+    described = client.describe(raw_set)
+    next_raw = described.get("set") or raw_set
+    next_display = described.get("display") or run["player_display"][slot_index]
+    states = normalize_player_state(run)
+    states[slot_index] = adjusted_state_after_edit(states[slot_index], next_display, slot_index + 1)
+    run["player_team"][slot_index] = next_raw
+    run["player_display"][slot_index] = next_display
+    run["player_state"] = states
+    return selected
+
+
+def use_tm_item(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient, item_id: str, slot_index: int, move_slot_index: int) -> None:
+    normalized = item_key(item_id)
+    if not is_tm_item_id(normalized):
+        print("请选择技能机器。")
+        input("回车继续。")
+        return
+    if int((run.get("bag_items") or {}).get(normalized) or 0) <= 0:
+        print("背包里没有这个技能机器。")
+        input("回车继续。")
+        return
+    try:
+        selected = apply_move_to_slot(run, slot_index, move_slot_index, normalized[3:], client)
+    except ValueError as exc:
+        print(str(exc))
+        input("回车继续。")
+        return
+    remove_bag_item(run, normalized, 1)
+    remove_non_refundable_item(run, normalized, 1)
+    print(f"已使用技能机器，学习 {zh('moves', selected.get('name') or selected.get('id'))}。")
+    input("回车继续。")
+
+
 def rest_buy_items(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
     normalize_current_run(run)
     options = client.item_options().get("items") or []
@@ -2562,6 +3584,9 @@ def rest_buy_items(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
         print(f"本局背包：{bag_text}")
         print("1. 购买道具")
         print("2. 装备/卸下道具")
+        print("3. 使用道具/TM")
+        print("4. 出售道具")
+        print(f"5. 商店老虎机（下次 {bp_cost_text(shop_next_roll_cost(run))}，{shop_offer_count(run)} 格）")
         print("b. 返回")
         choice = input("> ").strip().lower()
         if choice in {"b", "back", "返回", ""}:
@@ -2569,8 +3594,17 @@ def rest_buy_items(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
         if choice in {"2", "equip", "装备", "卸下"}:
             equip_bag_item(save, run, client, item_options)
             continue
+        if choice in {"3", "use", "使用", "tm"}:
+            use_bag_item(save, run, client)
+            continue
+        if choice in {"4", "sell", "出售", "卖"}:
+            sell_bag_item(save, run, client)
+            continue
+        if choice in {"5", "shop", "roll", "老虎机", "抽奖"}:
+            rest_shop_roll_menu(save, run, client)
+            continue
         if choice not in {"1", "buy", "购买"}:
-            print("请选择 1、2 或 b。")
+            print("请选择 1-5 或 b。")
             input("回车继续。")
             continue
         keyword = input("搜索道具中文/英文/ID，回车显示前 30 个 > ").strip()
@@ -2580,7 +3614,7 @@ def rest_buy_items(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
             print("没有匹配的道具。")
             input("回车继续。")
             continue
-        print_table(["#", "道具", "英文", "费用", "说明"], item_rows(matches), [4, 24, 24, 8, 56], compact=True)
+        print_table(["#", "道具", "英文", "费用", "说明"], item_rows(matches, run), [4, 24, 24, 8, 56], compact=True)
         raw = input("输入编号购买 1 个，b 返回 > ").strip().lower()
         if raw in {"b", "back", "返回", ""}:
             continue
@@ -2589,13 +3623,14 @@ def rest_buy_items(save: dict[str, Any], run: dict[str, Any], client: ShowdownCl
             input("回车继续。")
             continue
         item = matches[int(raw) - 1]
-        item_id = normalize_id(item.get("id") or item.get("name") or "")
-        cost = goods_cost("item", item_id, 5)
+        item_id = item_key(item.get("id") or item.get("name") or "")
+        cost = priced_for_shop(run, goods_cost("item", item_id, 5))
         if not spend_bp(save, cost):
             print(f"BP 不足，需要 {cost}BP。")
             input("回车继续。")
             continue
         add_bag_item(run, item_id, 1)
+        remember_bag_item_meta(run, {**item, "id": item_id, "cost": cost, "category": item_category(item)})
         print(f"已购买 {zh('items', item.get('name') or item_id)}，{spend_text(cost)}，已放入本局背包。")
         input("回车继续。")
 
@@ -3074,6 +4109,186 @@ def rest_randomize_stats(save: dict[str, Any], run: dict[str, Any], client: Show
     input("回车继续。")
 
 
+def opponent_preview(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient, battle_no: int) -> tuple[str, list[dict[str, Any]]]:
+    run_seed = int(run.get("seed") or 1)
+    boss_type, boss_stage = route_boss_for_battle(int((save.get("stats") or {}).get("set_win_streak") or 0), battle_no)
+    if boss_type == "mixed":
+        boss_type = "elite4" if random.Random(seed_for(run_seed, 6100 + battle_no)).random() < 0.5 else "gym"
+    route_salt = 100 if boss_type == "normal" else 700 if boss_type == "champion" else 603 if boss_stage == "tier3" else 602 if boss_stage == "tier2" else 601
+    if boss_type == "normal":
+        profiles = normal_enemy_profiles_for_battle(int((save.get("stats") or {}).get("set_win_streak") or 0), battle_no)
+        generated = client.generate(seed_for(run_seed, route_salt + battle_no), count=len(profiles), profiles=profiles)
+    else:
+        pooled = boss_team_pool_for_route(boss_type, boss_stage, run_seed, battle_no)
+        if pooled:
+            species_ids, profiles = pooled
+            generated = client.generate(seed_for(run_seed, route_salt + battle_no), count=len(profiles), profiles=profiles, species_ids=species_ids)
+        else:
+            profiles = profiles_for_route(boss_type, boss_stage)
+            generated = client.generate(seed_for(run_seed, route_salt + battle_no), count=len(profiles), profiles=profiles)
+    label = "普通 NPC" if boss_type == "normal" else "冠军" if boss_type == "champion" else "四天王" if boss_type == "elite4" else f"{boss_stage.replace('tier', '')}档馆主"
+    return label, (generated.get("display") or [])[:3]
+
+
+def rest_scout_next(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
+    if not has_talent(run, "prophet_next_scout"):
+        print("需要天赋「未卜先知」。")
+        input("回车继续。")
+        return
+    level = input(f"侦查下一场：1 随机1只（{bp_cost_text(SCOUT_ONE_COST)}） / a 全部（{bp_cost_text(SCOUT_ALL_COST)}），回车返回 > ").strip().lower()
+    if not level:
+        return
+    all_mode = level in {"a", "all", "全部"}
+    if not all_mode and (run.get("rest_status") or {}).get("free_scout_used"):
+        print("本次休整已经使用过免费侦查。")
+        input("回车继续。")
+        return
+    cost = SCOUT_ALL_COST if all_mode else SCOUT_ONE_COST
+    if not spend_bp(save, cost):
+        print(f"BP 不足，需要 {cost}BP。")
+        input("回车继续。")
+        return
+    next_battle_no = int(run.get("next_battle") or (int(run.get("battle_no") or 0) + 1) or 1)
+    label, enemies = opponent_preview(save, run, client, next_battle_no)
+    if not all_mode:
+        rng = seeded_rng(int(run.get("seed") or 1), 0x5C07 + next_battle_no * 19)
+        enemies = [rng.choice(enemies)] if enemies else []
+        run["rest_status"]["free_scout_used"] = True
+    run["scout"] = {"level": "all" if all_mode else "one", "title": f"第 {next_battle_no}/{run.get('battles')} 场：{label}", "enemies": enemies}
+    print_team(run["scout"]["title"], enemies)
+    print(f"已侦查，{spend_text(cost)}。")
+    input("回车继续。")
+
+
+def rest_scout_final_boss(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> None:
+    if not has_talent(run, "prophet_future_boss"):
+        print("需要天赋「预知未来」。")
+        input("回车继续。")
+        return
+    battle_no = int(run.get("battles") or DEFAULT_BATTLES)
+    label, enemies = opponent_preview(save, run, client, battle_no)
+    run["future_boss"] = {"title": f"关底预知：第 {battle_no}/{battle_no} 场 {label}", "enemies": enemies}
+    print_team(run["future_boss"]["title"], enemies)
+    input("回车继续。")
+
+
+def rest_review_previous(save: dict[str, Any], run: dict[str, Any]) -> None:
+    if not has_talent(run, "prophet_history_review"):
+        print("需要天赋「温故知新」。")
+        input("回车继续。")
+        return
+    enemies = run.get("enemy_display") or []
+    if not enemies:
+        print("暂无上一场对手信息。")
+        input("回车继续。")
+        return
+    if not spend_bp(save, REVIEW_PREVIOUS_COST):
+        print(f"BP 不足，需要 {REVIEW_PREVIOUS_COST}BP。")
+        input("回车继续。")
+        return
+    run["review"] = {"enemies": enemies}
+    print_team("上一场对手:", enemies)
+    print(f"已回顾上一场，{spend_text(REVIEW_PREVIOUS_COST)}。")
+    input("回车继续。")
+
+
+def rest_box_exchange(save: dict[str, Any], run: dict[str, Any]) -> None:
+    if not has_talent(run, "exchange_safe_box"):
+        print("需要天赋「无损交易」。")
+        input("回车继续。")
+        return
+    box = run.get("exchange_box") or {"team": [], "display": [], "state": []}
+    if not box.get("display"):
+        print("无损交易盒目前为空。")
+        input("回车继续。")
+        return
+    print_team("无损交易盒:", box.get("display") or [])
+    raw = input("输入 玩家编号 盒子编号，例如 2 1；回车返回 > ").strip()
+    if not raw:
+        return
+    parts = raw.replace(",", " ").split()
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
+        print("请输入两个编号。")
+        input("回车继续。")
+        return
+    own, box_index = int(parts[0]) - 1, int(parts[1]) - 1
+    if not 0 <= own < len(run.get("player_team") or []) or not 0 <= box_index < len(box.get("display") or []):
+        print("编号超出范围。")
+        input("回车继续。")
+        return
+    current_raw = json.loads(json.dumps(run["player_team"][own]))
+    current_display = json.loads(json.dumps(run["player_display"][own]))
+    current_state = json.loads(json.dumps(normalize_player_state(run)[own]))
+    boxed_raw = json.loads(json.dumps(box["team"][box_index]))
+    boxed_display = json.loads(json.dumps(box["display"][box_index]))
+    run["player_team"][own] = boxed_raw
+    run["player_display"][own] = boxed_display
+    if has_talent(run, "business_shiny_collector"):
+        run["player_team"][own]["shiny"] = True
+        run["player_display"][own]["shiny"] = True
+    states = normalize_player_state(run)
+    boxed_state = json.loads(json.dumps((box.get("state") or [])[box_index] if box_index < len(box.get("state") or []) else full_state_for_pokemon(boxed_display, own + 1)))
+    boxed_state["slot"] = own + 1
+    states[own] = refresh_state_condition(boxed_state)
+    run["player_state"] = states
+    box["team"][box_index] = current_raw
+    box["display"][box_index] = current_display
+    while len(box.setdefault("state", [])) <= box_index:
+        box["state"].append({})
+    box["state"][box_index] = current_state
+    run["exchange_box"] = box
+    print(f"已从无损交易盒换回 {display_name(run['player_display'][own])}。")
+    input("回车继续。")
+
+
+def rest_all_in_exchange(save: dict[str, Any], run: dict[str, Any], client: ShowdownClient) -> bool:
+    if not has_talent(run, "gambler_all_in_exchange"):
+        print("需要天赋「孤注一掷」。")
+        input("回车继续。")
+        return False
+    if run.get("all_in_exchange_used"):
+        print("本局已经使用过孤注一掷。")
+        input("回车继续。")
+        return False
+    raw = input("指定替换哪只宝可梦？输入 1-3，回车返回 > ").strip()
+    if not raw:
+        return False
+    if not raw.isdigit() or not 1 <= int(raw) <= len(run.get("player_team") or []):
+        print("请输入 1-3 的编号。")
+        input("回车继续。")
+        return False
+    own = int(raw) - 1
+    next_battle_no = int(run.get("next_battle") or (int(run.get("battle_no") or 0) + 1) or 1)
+    profiles = normal_enemy_profiles_for_battle(int((save.get("stats") or {}).get("set_win_streak") or 0), next_battle_no)
+    generated = client.generate(seed_for(int(run.get("seed") or 1), 0xA111 + next_battle_no * 17 + own), count=1, profiles=[profiles[-1] if profiles else "tier2"])
+    next_raw = (generated.get("team") or [None])[0]
+    next_display = (generated.get("display") or [None])[0]
+    if not next_raw or not next_display:
+        print("孤注一掷生成失败。")
+        input("回车继续。")
+        return False
+    states = normalize_player_state(run)
+    add_to_exchange_box(run, [run["player_team"][own]], [run["player_display"][own]], [states[own]])
+    run["player_team"][own] = next_raw
+    run["player_display"][own] = next_display
+    if has_talent(run, "business_shiny_collector"):
+        run["player_team"][own]["shiny"] = True
+        run["player_display"][own]["shiny"] = True
+    states = normalize_player_state(run)
+    states[own] = full_state_for_pokemon(run["player_display"][own], own + 1)
+    for index, state in enumerate(states):
+        if index == own:
+            continue
+        state["hp"] = max(1, int(state.get("maxhp") or 1) // 2)
+        state["status"] = "slp"
+        refresh_state_condition(state)
+    run["player_state"] = states
+    run["all_in_exchange_used"] = True
+    print(f"孤注一掷发动！{display_name(run['player_display'][own])} 加入队伍，另外两只半血并陷入睡眠。")
+    input("回车继续。")
+    return finish_rest_for_next_battle(run)
+
+
 def finish_rest_for_next_battle(run: dict[str, Any]) -> bool:
     if not rotate_first_usable(run):
         print("队伍没有可出战宝可梦，请先恢复 HP。")
@@ -3111,6 +4326,12 @@ def rest_menu(save: dict[str, Any], auto: bool, persistent: bool, client: Showdo
         print("7. 购买/装备道具")
         print("8. 调整技能")
         print(f"9. 重置数值（单项 {bp_cost_text(RANDOMIZE_PART_COST)} / 整体 {bp_cost_text(RANDOMIZE_ALL_COST)}）")
+        if has_talent(run, "prophet_next_scout") or has_talent(run, "prophet_future_boss") or has_talent(run, "prophet_history_review"):
+            print("s. 先知侦查/回顾")
+        if has_talent(run, "exchange_safe_box"):
+            print("b. 无损交易盒")
+        if has_talent(run, "gambler_all_in_exchange"):
+            print("a. 孤注一掷")
         print("0. 中断挑战")
         print("q. 返回主界面")
         raw = input("> ").strip().lower()
@@ -3143,12 +4364,34 @@ def rest_menu(save: dict[str, Any], auto: bool, persistent: bool, client: Showdo
         elif raw in {"9", "adjust", "能力", "调整能力", "调整能力值", "重置", "重置数值"}:
             rest_randomize_stats(save, run, client)
             save_if_needed(save, persistent)
+        elif raw in {"s", "scout", "侦查", "回顾", "先知"}:
+            print("1. 侦查下一场")
+            print("2. 预知关底")
+            print("3. 回顾上一场")
+            sub = input("> ").strip().lower()
+            if sub in {"1", "next", "下一场", "侦查"}:
+                rest_scout_next(save, run, client)
+            elif sub in {"2", "boss", "关底", "预知"}:
+                rest_scout_final_boss(save, run, client)
+            elif sub in {"3", "review", "回顾", "上一场"}:
+                rest_review_previous(save, run)
+            save_if_needed(save, persistent)
+        elif raw in {"b", "box", "盒子", "无损交易盒"}:
+            rest_box_exchange(save, run)
+            save_if_needed(save, persistent)
+        elif raw in {"a", "allin", "all-in", "孤注一掷"}:
+            if rest_all_in_exchange(save, run, client):
+                save_if_needed(save, persistent)
+                return
+            save_if_needed(save, persistent)
         elif raw in {"0", "abort", "中断", "中断挑战"}:
             confirm = input("确认中断本局挑战？当前连胜将归零，历史最高连胜保留。输入“中断”确认 > ").strip()
             if confirm == "中断":
-                abort_current_run(save)
+                paid_back, refund_gained = abort_current_run(save)
                 save_if_needed(save, persistent)
-                print("本局挑战已中断，当前连胜已归零。")
+                extra = f"，背包返还 {refund_gained}BP" if refund_gained else ""
+                debt = f"，临时BP扣回 {paid_back}BP" if paid_back else ""
+                print(f"本局挑战已中断，当前连胜已归零{extra}{debt}。")
                 input("回车继续。")
                 return
             print("已取消中断。")
@@ -3212,7 +4455,9 @@ def create_ready_run(
     auto: bool,
 ) -> None:
     print(f"随机种子: {run_seed}")
-    talents: list[dict[str, Any]] = []
+    talents = equipped_talents(save)
+    purchased_items, starter_offers, effective_seed = choose_starter_items(client, save, run_seed, talents, auto)
+    run_seed = effective_seed
     candidate_count = candidate_count_for_talents(talents)
     profiles = starter_profiles_for_streak(int((save.get("stats") or {}).get("set_win_streak") or 0), candidate_count)
     generated = ensure_starter_shiny(client.generate(seed_for(run_seed, 1), count=candidate_count, profiles=profiles), run_seed)
@@ -3231,9 +4476,18 @@ def create_ready_run(
         "battle_no": 0,
         "wins": 0,
         "talents": talents,
+        "shop_roll_count": 0,
+        "shop_offers": [],
+        "shop_purchased_offer_id": None,
+        "starter_item_offers": starter_offers,
+        "starter_item_purchased": [offer.get("offer_id") for offer in purchased_items],
+        "non_refundable_bag_items": {},
+        "bag_item_meta": {},
         "run_start_bp": current_bp(save) - temporary_bp,
         "temporary_bp_debt": temporary_bp,
         "second_team_roar_used": False,
+        "all_in_exchange_used": False,
+        "exchange_box": {"team": [], "display": [], "state": []},
         "player_team": player_team,
         "player_display": player_display,
         "player_state": [full_state_for_pokemon(pokemon, index) for index, pokemon in enumerate(player_display, start=1)],
@@ -3243,6 +4497,7 @@ def create_ready_run(
         "bag_items": {},
         "rest_status": default_rest_status(),
     }
+    add_starter_items_to_run(save["current_run"], purchased_items)
 
 
 def run_current_challenge(
@@ -3314,34 +4569,36 @@ def run_current_challenge(
         )
         run["player_state"] = player_state
         if winner != "Player" and has_talent(run, "exchange_second_team_roar") and not run.get("second_team_roar_used"):
-            candidate_count = candidate_count_for_talents(run.get("talents") or [])
-            profiles = starter_profiles_for_streak(int((save.get("stats") or {}).get("set_win_streak") or 0), candidate_count)
-            generated = client.generate(seed_for(run_seed, 8800 + battle_no), count=candidate_count, profiles=profiles)
-            indexes = select_three(generated["display"], auto)
-            player_team = [generated["team"][index] for index in indexes]
-            player_display = [generated["display"][index] for index in indexes]
-            run.update({
-                "status": "ready",
-                "next_battle": battle_no,
-                "player_team": player_team,
-                "player_display": player_display,
-                "player_state": [full_state_for_pokemon(pokemon, index) for index, pokemon in enumerate(player_display, start=1)],
-                "second_team_roar_used": True,
-            })
-            save_if_needed(save, persistent)
-            print("\n二队的怒吼触发！重新选择 3 只宝可梦，重打当前场次。")
-            continue
+            if not spend_bp(save, SECOND_TEAM_ROAR_COST):
+                print(f"\n二队的怒吼可触发，但 BP 不足，需要 {SECOND_TEAM_ROAR_COST}BP。")
+            else:
+                candidate_count = candidate_count_for_talents(run.get("talents") or [])
+                profiles = starter_profiles_for_streak(int((save.get("stats") or {}).get("set_win_streak") or 0), candidate_count)
+                generated = client.generate(seed_for(run_seed, 8800 + battle_no), count=candidate_count, profiles=profiles)
+                indexes = select_three(generated["display"], auto)
+                player_team = [generated["team"][index] for index in indexes]
+                player_display = [generated["display"][index] for index in indexes]
+                run.update({
+                    "status": "ready",
+                    "next_battle": battle_no,
+                    "player_team": player_team,
+                    "player_display": player_display,
+                    "player_state": [full_state_for_pokemon(pokemon, index) for index, pokemon in enumerate(player_display, start=1)],
+                    "second_team_roar_used": True,
+                })
+                save_if_needed(save, persistent)
+                print(f"\n二队的怒吼触发！损失 {SECOND_TEAM_ROAR_COST}BP，重新选择 3 只宝可梦，重打当前场次。")
+                continue
         win_bp = record_battle_result(save, winner, run)
         if winner != "Player":
             wins = int(run.get("wins") or 0)
-            if has_talent(run, "gambler_streak_bp_risk"):
-                save.setdefault("stats", default_stats())["battle_points"] = max(0, int(run.get("run_start_bp") or 0))
-                refresh_stats(save["stats"])
-            else:
-                settle_prophet_first_mover(save, run)
+            paid_back, refund_gained = settle_run_end(save, run, gambler_failure=has_talent(run, "gambler_streak_bp_risk"))
             save["current_run"] = None
             save_if_needed(save, persistent)
-            print(f"\n挑战结束。小场连胜：{wins}，大局连胜已归零。")
+            if has_talent(run, "gambler_streak_bp_risk"):
+                print(f"\n挑战结束。小场连胜：{wins}，压上杠杆触发，BP 回到本局开始前。")
+            else:
+                print(f"\n挑战结束。小场连胜：{wins}，大局连胜已归零{f'，背包返还 {refund_gained}BP' if refund_gained else ''}{f'，临时BP扣回 {paid_back}BP' if paid_back else ''}。")
             return
 
         wins = int(run.get("wins") or 0) + 1
@@ -3352,11 +4609,11 @@ def run_current_challenge(
         print(f"\n本小场胜利！获得 {win_bp}BP{gambler_text}。当前小场连胜：{wins}")
         if battle_no >= battles:
             run["wins"] = wins
-            paid_back = settle_prophet_first_mover(save, run)
+            paid_back, refund_gained = settle_run_end(save, run)
             set_streak, bonus = add_clear_bonus(save, run)
             save["current_run"] = None
             save_if_needed(save, persistent)
-            print(f"\n通关！完成 {wins} 小场，当前连胜 {set_streak} 局，额外获得 {bonus}BP{f'，临时BP扣回 {paid_back}BP' if paid_back else ''}。")
+            print(f"\n通关！完成 {wins} 小场，当前连胜 {set_streak} 局，额外获得 {bonus}BP{f'，背包返还 {refund_gained}BP' if refund_gained else ''}{f'，临时BP扣回 {paid_back}BP' if paid_back else ''}。")
             return
 
         save["current_run"] = {
@@ -3384,8 +4641,9 @@ def start_new_challenge(
     persistent: bool,
 ) -> None:
     run_seed = args.seed if args.seed is not None else random.SystemRandom().randrange(1, 2**32)
-    rng = random.Random(run_seed)
     create_ready_run(client, save, run_seed, args.battles, auto)
+    run_seed = int((save.get("current_run") or {}).get("seed") or run_seed)
+    rng = random.Random(run_seed)
     save_if_needed(save, persistent)
     run_current_challenge(client, save, rng, auto, persistent)
 
@@ -3449,7 +4707,8 @@ def game_main_menu(
         print(f"当前挑战：{current_run_label(save)}")
         print("1. 开始对局")
         print("2. 用户信息")
-        print("3. 退出游戏")
+        print("3. 天赋配置")
+        print("4. 退出游戏")
         raw = input("> ").strip().lower()
         if raw == "1":
             if save.get("current_run"):
@@ -3462,10 +4721,13 @@ def game_main_menu(
             show_user_info(save)
             continue
         if raw == "3":
+            show_talent_config(save)
+            continue
+        if raw == "4":
             write_save(save)
             print("游戏已保存。")
             return 0
-        print("请选择 1、2 或 3。")
+        print("请选择 1、2、3 或 4。")
 
 
 def main() -> int:

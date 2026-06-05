@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 contextBridge.exposeInMainWorld("changeBattle", {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld("changeBattle", {
   },
   chooseStarterItem(offerId?: string | null): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:chooseStarterItem", offerId || null);
+  },
+  cancelPreparation(): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:cancelPreparation");
   },
   getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
     return ipcRenderer.invoke("talents:get");
@@ -66,6 +69,9 @@ contextBridge.exposeInMainWorld("changeBattle", {
   },
   editOptions(slot: number): Promise<PokemonEditOptions> {
     return ipcRenderer.invoke("pokemon:editOptions", slot);
+  },
+  dexSearch(category: DesktopDexCategory, query?: string, offset?: number, limit?: number): Promise<DesktopDexSearchResult> {
+    return ipcRenderer.invoke("dex:search", category, query || "", offset || 0, limit || 8);
   },
   getBattleState(): Promise<BattleState | null> {
     return ipcRenderer.invoke("run:getBattleState");

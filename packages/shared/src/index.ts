@@ -91,6 +91,41 @@ export type GeneratedTeam = {
   packed: string;
 };
 
+export type DesktopDexCategory = "pokemon" | "abilities" | "moves" | "items";
+
+export type DesktopDexEntry = {
+  id: string;
+  name: string;
+  name_zh: string;
+  category: DesktopDexCategory;
+  desc?: string;
+  desc_zh?: string;
+  tags?: string[];
+  sprite?: SpriteMapEntry;
+  types?: string[];
+  types_zh?: string[];
+  base_stats?: Record<string, number>;
+  learnset?: MoveSummary[];
+  type?: string;
+  type_zh?: string;
+  move_category?: string;
+  move_category_zh?: string;
+  power?: number;
+  accuracy?: number | null;
+  pp?: number;
+  priority?: number;
+};
+
+export type DesktopDexSearchResult = {
+  category: DesktopDexCategory;
+  query: string;
+  offset: number;
+  limit: number;
+  total: number;
+  has_more: boolean;
+  entries: DesktopDexEntry[];
+};
+
 export type StarterChoiceState = {
   seed: number;
   offers: ShopOffer[];

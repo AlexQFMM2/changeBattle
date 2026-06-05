@@ -7,6 +7,9 @@ import type {
   BattleState,
   BattleTimelineEvent,
   BattleTracker,
+  DesktopDexCategory,
+  DesktopDexEntry,
+  DesktopDexSearchResult,
   GeneratedTeam,
   PokemonEditOptions,
   PokemonSet,
@@ -162,6 +165,105 @@ export class GameService {
         desc: item.desc || item.shortDesc || "",
         desc_zh: this.detailDescription("items", item.name),
       }));
+  }
+
+  async dexSearch(category: DesktopDexCategory, query = "", offset = 0, limit = 8): Promise<DesktopDexSearchResult> {
+    await this.loadDisplayData();
+    const dex = this.loadShowdown().Dex.mod("gen7");
+    const normalizedCategory: DesktopDexCategory = ["pokemon", "abilities", "moves", "items"].includes(category) ? category : "pokemon";
+    const cappedLimit = Math.max(1, Math.min(120, Number(limit || 80)));
+    const normalizedOffset = Math.max(0, Number(offset || 0));
+    const needle = String(query || "").trim().toLowerCase();
+    const needleId = this.toId(needle);
+    const matches = (entry: DesktopDexEntry) => {
+      if (!needle && !needleId) return true;
+      const text = [entry.id, entry.name, entry.name_zh, entry.desc, entry.desc_zh, ...(entry.tags || [])].filter(Boolean).join(" ").toLowerCase();
+      return text.includes(needle) || this.toId(text).includes(needleId);
+    };
+    let entries: DesktopDexEntry[] = [];
+
+    if (normalizedCategory === "pokemon") {
+      entries = dex.species.all()
+        .filter((species: any) => species.exists && species.num > 0 && !species.isNonstandard)
+        .map((species: any) => ({
+          id: species.id,
+          name: species.name,
+          name_zh: this.zh("species", species.name),
+          category: "pokemon" as const,
+          tags: [species.id, String(species.num || ""), ...(species.types || []).map((typeName: string) => this.zh("types", typeName))],
+          sprite: this.spriteMap?.entries[species.id],
+          types: species.types || [],
+          types_zh: (species.types || []).map((typeName: string) => this.zh("types", typeName)),
+          base_stats: this.fullStats(species.baseStats || {}, 0),
+        }))
+        .filter(matches)
+        .sort((a: DesktopDexEntry, b: DesktopDexEntry) => Number(a.sprite?.national_dex || 9999) - Number(b.sprite?.national_dex || 9999) || a.name.localeCompare(b.name));
+    } else if (normalizedCategory === "abilities") {
+      entries = dex.abilities.all()
+        .filter((ability: any) => ability.exists && !ability.isNonstandard)
+        .map((ability: any) => ({
+          id: ability.id,
+          name: ability.name,
+          name_zh: this.zh("abilities", ability.name),
+          category: "abilities" as const,
+          desc: ability.desc || ability.shortDesc || "",
+          desc_zh: this.detailDescription("abilities", ability.name),
+          tags: [ability.id],
+        }))
+        .filter(matches)
+        .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
+    } else if (normalizedCategory === "moves") {
+      entries = dex.moves.all()
+        .filter((move: any) => move.exists && !move.isNonstandard)
+        .map((move: any) => {
+          const detail = this.detail("moves", move.name);
+          return {
+            id: move.id,
+            name: move.name,
+            name_zh: this.zh("moves", move.name),
+            category: "moves" as const,
+            desc: move.desc || move.shortDesc || "",
+            desc_zh: detail?.description || "",
+            tags: [move.id, move.type, move.category, this.zh("types", move.type), this.zh("categories", move.category)],
+            type: move.type || "",
+            type_zh: detail?.type?.zh_cn || this.zh("types", move.type || ""),
+            move_category: move.category || "",
+            move_category_zh: detail?.category?.zh_cn || this.zh("categories", move.category || ""),
+            power: move.basePower || 0,
+            accuracy: move.accuracy === true ? null : move.accuracy,
+            pp: move.pp || 0,
+            priority: move.priority || 0,
+          };
+        })
+        .filter(matches)
+        .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
+    } else {
+      entries = dex.items.all()
+        .filter((item: any) => item.exists && !item.isNonstandard)
+        .map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          name_zh: this.zh("items", item.name),
+          category: "items" as const,
+          desc: item.desc || item.shortDesc || "",
+          desc_zh: this.detailDescription("items", item.name),
+          tags: [item.id],
+        }))
+        .filter(matches)
+        .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
+    }
+
+    const total = entries.length;
+    const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit).map(entry => entry.category === "pokemon" ? {...entry, learnset: this.speciesLearnset(entry.id, dex, 96)} : entry);
+    return {
+      category: normalizedCategory,
+      query: String(query || ""),
+      offset: normalizedOffset,
+      limit: cappedLimit,
+      total,
+      has_more: normalizedOffset + page.length < total,
+      entries: page,
+    };
   }
 
   async learnableMoves(set: PokemonSet): Promise<PricedMove[]> {
@@ -630,6 +732,23 @@ export class GameService {
     if (value > 60) return 300;
     if (value > 30) return 200;
     return 100;
+  }
+
+  private speciesLearnset(speciesId: string, dex = this.loadShowdown().Dex.mod("gen7"), limit = 96) {
+    const species = dex.species.get(speciesId);
+    if (!species.exists) return [];
+    const seen = new Set<string>();
+    const moves = [];
+    for (const entry of dex.species.getFullLearnset(species.id) || []) {
+      for (const moveId of Object.keys(entry.learnset || {})) {
+        const move = dex.moves.get(moveId);
+        if (!move.exists || !move.id || seen.has(move.id)) continue;
+        if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+        seen.add(move.id);
+        moves.push(this.moveDetails(move.id, dex));
+      }
+    }
+    return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name)).slice(0, limit);
   }
 
   private calculatedStats(baseStats: Record<string, number>, ivs: Record<string, number>, evs: Record<string, number>, level: number, nature: {plus: string; minus: string}): Record<string, number> {

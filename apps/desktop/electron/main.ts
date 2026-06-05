@@ -3,7 +3,7 @@ import {existsSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleState, CurrentRunData, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ShopItem, ShopOffer, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleState, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ShopItem, ShopOffer, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
   BP_SCALE,
@@ -99,7 +99,7 @@ function findShowdownRoot(): string | undefined {
 const gameService = new GameService({projectRoot, showdownPath: findShowdownRoot()});
 let saveStore: SaveStore | null = null;
 let pendingCandidates: GeneratedTeam | null = null;
-let pendingStarter: {seed: number; offers: ShopOffer[]; purchased: ShopOffer[]; talents: TalentView[]} | null = null;
+let pendingStarter: {seed: number; offers: ShopOffer[]; purchased: ShopOffer[]; talents: TalentView[]; spentBp: number} | null = null;
 let pendingRescue: {seed: number; battleNo: number; candidates: GeneratedTeam} | null = null;
 let configuredTalents: TalentView[] = [];
 let activeBattle: TrainerItemBattleSession | null = null;
@@ -1215,7 +1215,7 @@ async function prepareStarterItems(seed?: number): Promise<DesktopGameState> {
   const talents: TalentView[] = talentsForIds(save.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
   configuredTalents = talents;
   const offers = await starterItemOffers(runSeed, talents);
-  pendingStarter = {seed: runSeed, offers, purchased: [], talents};
+  pendingStarter = {seed: runSeed, offers, purchased: [], talents, spentBp: 0};
   pendingCandidates = null;
   return gameState({screen: "starterItems", save, starter: {seed: runSeed, offers, purchased: null, purchased_list: [], max_purchases: starterPurchaseLimit(talents)}, message: "选择一个开局道具，或跳过。"});
 }
@@ -1263,13 +1263,13 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
   if (!pendingStarter) {
     const seed = Math.floor(Math.random() * 0xffffffff);
     const talents: TalentView[] = [];
-    pendingStarter = {seed, offers: await starterItemOffers(seed, talents), purchased: [], talents};
+    pendingStarter = {seed, offers: await starterItemOffers(seed, talents), purchased: [], talents, spentBp: 0};
   }
   if (offerId === "__reroll__") {
     if (pendingStarter.purchased.length) throw new Error("已购买开局道具后不能重新随机。");
     spendBp(save, STARTER_ITEM_REROLL_COST);
     const nextSeed = Math.floor(Math.random() * 0xffffffff);
-    pendingStarter = {...pendingStarter, seed: nextSeed, offers: await starterItemOffers(nextSeed, pendingStarter.talents), purchased: []};
+    pendingStarter = {...pendingStarter, seed: nextSeed, offers: await starterItemOffers(nextSeed, pendingStarter.talents), purchased: [], spentBp: Number(pendingStarter.spentBp || 0) + STARTER_ITEM_REROLL_COST};
     pendingCandidates = null;
     const nextSave = await persist(save);
     return gameState({
@@ -1287,6 +1287,7 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
     if (pendingStarter.purchased.length >= limit) throw new Error(`本局最多选择 ${limit} 个开局道具。`);
     spendBp(save, Number(offer.cost || 0));
     pendingStarter.purchased.push(offer);
+    pendingStarter.spentBp = Number(pendingStarter.spentBp || 0) + Number(offer.cost || 0);
     await persist(save);
     const nextSave = await loadSave();
     if (pendingStarter.purchased.length < starterPurchaseLimit(pendingStarter.talents)) {
@@ -1301,6 +1302,17 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
   const count = candidateCountForTalents(pendingStarter.talents);
   pendingCandidates = ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(pendingStarter.seed, 1), "gen7randombattle", count, {profiles: starterProfilesForStreak(Number(save.stats?.set_win_streak || 0), count), purpose: "starter"}), pendingStarter.seed);
   return gameState({screen: "rentalSelect", save: await loadSave(), starter: {seed: pendingStarter.seed, offers: pendingStarter.offers, purchased: pendingStarter.purchased[pendingStarter.purchased.length - 1] || null, purchased_list: pendingStarter.purchased, max_purchases: starterPurchaseLimit(pendingStarter.talents)}, candidates: pendingCandidates, selected_indexes: [], message: `随机种子：${pendingStarter.seed}`});
+}
+
+async function cancelPreparation(): Promise<DesktopGameState> {
+  const save = await loadSave();
+  if (!save) throw new Error("请先创建或读取存档。");
+  const refund = Math.max(0, Number(pendingStarter?.spentBp || 0));
+  if (refund) addBp(save, refund);
+  pendingStarter = null;
+  pendingCandidates = null;
+  const next = refund ? await persist(save) : save;
+  return gameState({screen: "mainMenu", save: next, message: refund ? `已返回主菜单，本次准备花费 ${refund}BP 已退回。` : "已返回主菜单。"});
 }
 
 async function beginChallenge(selectedIndexes: number[], runSeed: number, battles = DEFAULT_BATTLES): Promise<DesktopGameState> {
@@ -2115,6 +2127,10 @@ async function editOptions(slot: number): Promise<PokemonEditOptions> {
   return gameService.editOptions(run.player_team[slot]);
 }
 
+async function dexSearch(category: DesktopDexCategory, query = "", offset = 0, limit = 8): Promise<DesktopDexSearchResult> {
+  return gameService.dexSearch(category, query, offset, limit);
+}
+
 app.whenReady().then(() => {
   installChineseMenu();
   saveStore = new SaveStore(app.getPath("userData"));
@@ -2138,6 +2154,7 @@ app.whenReady().then(() => {
   ipcMain.handle("game:generateCandidates", async (_event, seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));
   ipcMain.handle("run:prepareStarterItems", async (_event, seed?: number) => prepareStarterItems(seed));
   ipcMain.handle("run:chooseStarterItem", async (_event, offerId?: string | null) => chooseStarterItem(offerId || null));
+  ipcMain.handle("run:cancelPreparation", async () => cancelPreparation());
   ipcMain.handle("talents:get", async () => talentConfig());
   ipcMain.handle("talents:unlock", async (_event, id: string) => unlockTalent(id));
   ipcMain.handle("talents:configure", async (_event, ids: string[]) => configureTalents(ids));
@@ -2154,6 +2171,7 @@ app.whenReady().then(() => {
   ipcMain.handle("shop:items", async (_event, query?: string) => shopItems(query || ""));
   ipcMain.handle("pokemon:learnableMoves", async (_event, slot: number, query?: string) => learnableMoves(slot, query || ""));
   ipcMain.handle("pokemon:editOptions", async (_event, slot: number) => editOptions(slot));
+  ipcMain.handle("dex:search", async (_event, category: DesktopDexCategory, query?: string, offset?: number, limit?: number) => dexSearch(category, query || "", offset || 0, limit || 8));
   ipcMain.handle("run:getBattleState", async () => {
     const save = await loadSave();
     return activeBattle ? decorateBattleState(activeBattle.getState(), save?.current_run as CurrentRunData | null) : null;

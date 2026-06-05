@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {BattleState, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 declare global {
   interface Window {
@@ -14,6 +14,7 @@ declare global {
       prepareCandidates(seed?: number): Promise<DesktopGameState>;
       prepareStarterItems(seed?: number): Promise<DesktopGameState>;
       chooseStarterItem(offerId?: string | null): Promise<DesktopGameState>;
+      cancelPreparation(): Promise<DesktopGameState>;
       getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
       unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
       configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
@@ -26,6 +27,7 @@ declare global {
       shopItems(query?: string): Promise<ShopItem[]>;
       learnableMoves(slot: number, query?: string): Promise<PricedMove[]>;
       editOptions(slot: number): Promise<PokemonEditOptions>;
+      dexSearch(category: DesktopDexCategory, query?: string, offset?: number, limit?: number): Promise<DesktopDexSearchResult>;
       getBattleState(): Promise<BattleState | null>;
     };
   }

@@ -1,7 +1,7 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BagItemView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, LocalSave, MoveSummary, PokemonEditOptions, PricedMove, RentalPokemon, RestAction, RuntimePokemon, ShopItem, ShopOffer, SpriteMapEntry, TalentView, TrainerCatalogState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, LocalSave, MoveSummary, PokemonEditOptions, PricedMove, RentalPokemon, RestAction, RuntimePokemon, ShopItem, ShopOffer, SpriteMapEntry, TalentView, TrainerCatalogState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import battleEffectAssets from "../../../data/battle_effect_assets.json";
 import "./styles.css";
 
@@ -78,7 +78,7 @@ const GAMBLER_TALENTS: TalentView[] = [
   {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
 ];
 const PROPHET_TALENTS: TalentView[] = [
-  {id: "prophet_first_mover", name: "上帝只眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以看到哪些技能克制当前对手。"},
+  {id: "prophet_first_mover", name: "上帝之眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以看到哪些技能克制当前对手，并允许在对战时查看图鉴。"},
   {id: "prophet_next_scout", name: "未卜先知", category: "先知", cost: 10 * BP_SCALE, desc: "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
   {id: "prophet_history_review", name: "温故知新", category: "先知", cost: 15 * BP_SCALE, desc: "休整页允许查看上一轮对手的宝可梦详情。"},
   {id: "prophet_direct_move", name: "运筹帷幄", category: "先知", cost: 20 * BP_SCALE, desc: "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
@@ -367,6 +367,7 @@ function installBrowserAutomationBridge() {
     }),
     prepareStarterItems: async () => ({screen: "starterItems", save, starter: {seed: 1, offers: [], purchased: null}, message: "自动测试开局道具"}),
     chooseStarterItem: async () => ({screen: "rentalSelect", save, candidates: {seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}, selected_indexes: [], message: "自动测试候选"}),
+    cancelPreparation: async () => ({screen: "mainMenu", save, message: "自动测试返回主菜单"}),
     getTalentConfig: async () => ({catalog: TALENT_CATALOG, unlocked: TALENT_CATALOG.slice(0, 1), equipped: []}),
     unlockTalent: async id => ({catalog: TALENT_CATALOG, unlocked: TALENT_CATALOG.filter(talent => talent.id === id), equipped: [], save}),
     configureTalents: async ids => ({catalog: TALENT_CATALOG, unlocked: TALENT_CATALOG, equipped: TALENT_CATALOG.filter(talent => ids.includes(talent.id)), save}),
@@ -380,6 +381,15 @@ function installBrowserAutomationBridge() {
     shopItems: async () => [],
     learnableMoves: async () => [],
     editOptions: async () => ({abilities: [], natures: []}),
+    dexSearch: async (category, query = "", offset = 0, limit = 8) => ({
+      category,
+      query,
+      offset,
+      limit,
+      total: 1,
+      has_more: false,
+      entries: [{id: "debug", name: "Debug", name_zh: "调试条目", category, desc_zh: "自动测试图鉴条目。"}],
+    }),
     getBattleState: async () => debugBattle(false),
   };
 }
@@ -404,6 +414,7 @@ function App() {
   const [rest, setRest] = useState<DesktopGameState["rest"]>(null);
   const [rescue, setRescue] = useState<DesktopGameState["rescue"]>(null);
   const [pendingTransition, setPendingTransition] = useState<DesktopGameState | null>(null);
+  const [dexOpen, setDexOpen] = useState(false);
   const [message, setMessage] = useState("欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -491,6 +502,17 @@ function App() {
     await runAction(() => window.changeBattle!.chooseStarterItem(offerId));
   }
 
+  async function cancelPreparation() {
+    await runAction(() => window.changeBattle!.cancelPreparation());
+  }
+
+  function backToStarterItems() {
+    setSelected([]);
+    setFocusIndex(0);
+    setScreen("starterItems");
+    setMessage("已返回开局道具。");
+  }
+
   async function beginChallenge(nextSelected = selected, runSeed = seed) {
     await runAction(() => window.changeBattle!.beginChallenge(nextSelected, runSeed, 7));
   }
@@ -498,7 +520,6 @@ function App() {
   function toggleCandidate(index: number) {
     setSelected(current => {
       const next = current.includes(index) ? current.filter(value => value !== index) : current.length < 3 ? [...current, index] : current;
-      if (next.length === 3) void beginChallenge(next);
       return next;
     });
   }
@@ -519,14 +540,25 @@ function App() {
     await runAction(() => window.changeBattle!.restAction(action), undefined, !["roll_shop", "buy_shop_offer"].includes(action.type));
   }
 
+  function openDex() {
+    const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "prophet_first_mover"));
+    const canOpenDex = screen === "mainMenu" || (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen) && battleHasDexTalent);
+    if (!canOpenDex) {
+      setError("当前页面不能打开图鉴。");
+      return;
+    }
+    setError(null);
+    setDexOpen(true);
+  }
+
   const content = useMemo(() => {
     if (screen === "title") return <TitleScreen save={save} onLoad={loadGame} onNew={() => setScreen("newGame")} />;
     if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => setScreen("title")} saveLabel="创建存档" />;
     if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => setScreen("talentConfig")} onInfo={() => setScreen("userInfo")} onTitle={() => setScreen("title")} />;
     if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => setScreen("mainMenu")} saveLabel="保存设置" />;
     if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
-    if (screen === "starterItems") return <StarterItemsView starter={starter} save={save} onChoose={chooseStarterItem} />;
-    if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} />;
+    if (screen === "starterItems") return <StarterItemsView starter={starter} save={save} onChoose={chooseStarterItem} onBack={cancelPreparation} />;
+    if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={starter ? backToStarterItems : undefined} />;
     if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={setScreen} onChoice={battleChoice} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
     if (screen === "secondTeamRoar") return <SecondTeamRoarView rescue={rescue} message={message} onChoose={secondTeamRoar} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
@@ -537,11 +569,19 @@ function App() {
 
   const isBattleScreen = ["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen);
   const transientMessage = error || (!isBattleScreen && screen !== "rest" ? message : "");
+  const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "prophet_first_mover"));
+  const showDexButton = screen === "mainMenu" || (isBattleScreen && battleHasDexTalent);
+
+  useEffect(() => {
+    if (!showDexButton && dexOpen) setDexOpen(false);
+  }, [showDexButton, dexOpen]);
 
   return (
     <main className="game-shell">
       <section className="game-screen">
         {content}
+        {showDexButton ? <button className="floating-dex-button" title="打开图鉴" onClick={openDex}>图鉴</button> : null}
+        {dexOpen ? <DexModal onClose={() => setDexOpen(false)} /> : null}
         {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
         {transientMessage ? <div className={`screen-toast ${error ? "danger" : ""}`}>{transientMessage}</div> : null}
       </section>
@@ -555,6 +595,149 @@ function TitleScreen({save, onLoad, onNew}: {save: LocalSave | null; onLoad: () 
 
 function MainMenu({save, onStart, onTalent, onInfo, onTitle}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onInfo: () => void; onTitle: () => void}) {
   return <div className="title-screen small"><h1>{save?.trainer.name || "训练师"}</h1><p>Rank：{save?.stats.rank_status || "未开放"}　BP：{save?.stats.battle_points || 0}</p><div className="command-menu"><button onClick={onStart}>{save?.current_run ? "继续对局" : "开始对局"}</button><button onClick={onTalent}>天赋配置</button><button onClick={onInfo}>玩家设置</button><button onClick={onTitle}>返回标题</button></div></div>;
+}
+
+const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
+  {id: "pokemon", label: "宝可梦"},
+  {id: "abilities", label: "特性"},
+  {id: "moves", label: "技能"},
+  {id: "items", label: "道具"},
+];
+const DEX_PAGE_SIZE = 8;
+
+function dexEntryText(entry: DesktopDexEntry): string {
+  if (entry.category === "pokemon") return `${entry.types_zh?.join(" / ") || entry.types?.join(" / ") || "未知属性"}　No.${entry.sprite?.national_dex || "--"}`;
+  if (entry.category === "moves") return `${entry.type_zh || entry.type || "未知"} / ${entry.move_category_zh || entry.move_category || "变化"}　威力 ${entry.power || "--"}　命中 ${entry.accuracy ?? "必中"}　PP ${entry.pp || "--"}`;
+  return entry.desc_zh || entry.desc || entry.id;
+}
+
+function dexSpriteUrl(entry: DesktopDexEntry): string {
+  const path = String(entry.sprite?.paths.front_normal || entry.sprite?.paths.front_normal_full || "");
+  return path ? assetUrl(path) || "" : "";
+}
+
+function DexModal({onClose}: {onClose: () => void}) {
+  const [category, setCategory] = useState<DesktopDexCategory>("pokemon");
+  const [query, setQuery] = useState("");
+  const [entries, setEntries] = useState<DesktopDexEntry[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const selected = entries.find(entry => entry.id === selectedId) || entries[0] || null;
+  const pageCount = Math.max(1, Math.ceil(total / DEX_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    const timer = window.setTimeout(() => {
+      void window.changeBattle!.dexSearch(category, query, currentPage * DEX_PAGE_SIZE, DEX_PAGE_SIZE).then(result => {
+        if (cancelled) return;
+        setEntries(result.entries || []);
+        setTotal(result.total || 0);
+        setSelectedId(current => result.entries.some(entry => entry.id === current) ? current : result.entries[0]?.id || "");
+      }).catch(err => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : String(err));
+        setEntries([]);
+        setTotal(0);
+        setSelectedId("");
+      }).finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    }, 120);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [category, query, currentPage]);
+
+  return (
+    <div className="modal-layer">
+      <section className="dex-modal">
+        <header>
+          <div>
+            <h2>图鉴</h2>
+            <p>{entries.length}/{total} 个结果</p>
+          </div>
+          <button onClick={onClose}>关闭</button>
+        </header>
+        <nav className="dex-tabs">
+          {DEX_TABS.map(tab => <button className={category === tab.id ? "selected" : ""} onClick={() => { setCategory(tab.id); setSelectedId(""); setPage(0); }} key={tab.id}>{tab.label}</button>)}
+        </nav>
+        <input className="dex-search-input" value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} placeholder="搜索名称、英文、属性、说明" />
+        <div className="dex-modal-body">
+          <div className="dex-result-list">
+            {loading ? <p>读取本地图鉴...</p> : null}
+            {error ? <p>{error}</p> : null}
+            {!loading && !error && entries.length === 0 ? <p>没有匹配结果。</p> : null}
+            {entries.map(entry => (
+              <button className={selected?.id === entry.id ? "selected" : ""} onClick={() => setSelectedId(entry.id)} key={`${entry.category}-${entry.id}`}>
+                {entry.category === "pokemon" && dexSpriteUrl(entry) ? <img src={dexSpriteUrl(entry)} alt={entry.name_zh || entry.name} /> : null}
+                <strong>{entry.name_zh || entry.name}</strong>
+                <span>{entry.name}</span>
+                <small>{dexEntryText(entry)}</small>
+              </button>
+            ))}
+            <nav className="dex-pager">
+              <button disabled={loading || currentPage <= 0} onClick={() => setPage(value => Math.max(0, value - 1))}>上一页</button>
+              <span>{currentPage + 1}/{pageCount}</span>
+              <button disabled={loading || currentPage >= pageCount - 1} onClick={() => setPage(value => Math.min(pageCount - 1, value + 1))}>下一页</button>
+            </nav>
+          </div>
+          <DexEntryDetail entry={selected} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
+  if (!entry) return <section className="dex-entry-detail empty"><p>选择一个条目。</p></section>;
+  const sprite = dexSpriteUrl(entry);
+  return (
+    <section className="dex-entry-detail">
+      <header>
+        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : null}
+        <div>
+          <h3>{entry.name_zh || entry.name}</h3>
+          <p>{entry.name}　{entry.id}</p>
+        </div>
+      </header>
+      {entry.category === "pokemon" ? (
+        <>
+          <div className="dex-type-row">{(entry.types_zh || entry.types || []).map(type => <span key={type}>{type}</span>)}</div>
+          {entry.base_stats ? <div className="dex-stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{entry.base_stats?.[stat] || 0}</strong></div>)}</div> : null}
+          <div className="dex-learnset-panel">
+            <h4>技能池</h4>
+            <div>
+              {entry.learnset?.length ? entry.learnset.map(move => (
+                <article key={`${entry.id}-${move.id}`}>
+                  <strong>{move.name_zh || move.name}</strong>
+                  <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
+                  <small>威力 {move.power || "--"}　命中 {move.accuracy ?? "必中"}　PP {move.pp || "--"}</small>
+                </article>
+              )) : <p>暂无技能池数据。</p>}
+            </div>
+          </div>
+        </>
+      ) : null}
+      {entry.category === "moves" ? (
+        <div className="dex-fact-grid">
+          <p>属性：{entry.type_zh || entry.type || "--"}</p>
+          <p>分类：{entry.move_category_zh || entry.move_category || "--"}</p>
+          <p>威力：{entry.power || "--"}</p>
+          <p>命中：{entry.accuracy ?? "必中"}</p>
+          <p>PP：{entry.pp || "--"}</p>
+          <p>优先度：{entry.priority || 0}</p>
+        </div>
+      ) : null}
+      {entry.category !== "pokemon" ? <p className="dex-description">{entry.desc_zh || entry.desc || "暂无说明。"}</p> : null}
+    </section>
+  );
 }
 
 function PlayerSettings({title, save, name, setName, catalog, selectedPlayerId, setSelectedPlayerId, selectedAvatarAsset, setSelectedAvatarAsset, onSave, onSaved, onBack, saveLabel}: {title: string; save?: LocalSave | null; name: string; setName?: (value: string) => void; catalog: TrainerCatalogState; selectedPlayerId?: string; setSelectedPlayerId?: (value: string) => void; selectedAvatarAsset?: string; setSelectedAvatarAsset?: (value: string) => void; onSave?: () => void | Promise<void>; onSaved?: (save: LocalSave) => void; onBack: () => void; saveLabel: string}) {
@@ -643,15 +826,24 @@ function PlayerSettings({title, save, name, setName, catalog, selectedPlayerId, 
 }
 
 function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
+  const talentPageSize = 20;
   const [catalog, setCatalog] = useState<TalentView[]>(TALENT_CATALOG);
   const [selectedId, setSelectedId] = useState(TALENT_CATALOG[0]?.id || "");
   const [unlocked, setUnlocked] = useState<Set<string>>(() => new Set());
   const [equipped, setEquipped] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState("全部");
+  const [talentPage, setTalentPage] = useState(0);
   const selected = catalog.find(talent => talent.id === selectedId) || catalog[0];
   const selectedUnlocked = selected ? unlocked.has(selected.id) : false;
   const selectedEquipped = selected ? equipped.includes(selected.id) : false;
   const selectedAffordable = selected ? (save?.stats.battle_points || 0) >= (selected.cost || 0) : false;
-  const gridSlots = Array.from({length: 20}, (_, index) => catalog[index] || null);
+  const categories = ["全部", ...new Set(catalog.map(talent => talent.category))];
+  const visibleCategory = categories.includes(activeCategory) ? activeCategory : categories[0] || activeCategory;
+  const visibleTalents = visibleCategory === "全部" ? catalog : catalog.filter(talent => talent.category === visibleCategory);
+  const pageCount = Math.max(1, Math.ceil(visibleTalents.length / talentPageSize));
+  const currentPage = Math.min(talentPage, pageCount - 1);
+  const pagedTalents = visibleTalents.slice(currentPage * talentPageSize, (currentPage + 1) * talentPageSize);
+  const gridSlots = Array.from({length: talentPageSize}, (_, index) => pagedTalents[index] || null);
   const equippedSlots = Array.from({length: TALENT_EQUIP_LIMIT}, (_, index) => catalog.find(talent => talent.id === equipped[index]) || null);
 
   useEffect(() => {
@@ -665,11 +857,23 @@ function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | null; onSa
       setEquipped(equippedIds);
       setUnlocked(new Set([...unlockedIds, ...equippedIds]));
       if (config.save) onSaved(config.save);
-      if (equippedIds[0]) setSelectedId(equippedIds[0]);
-      else if (nextCatalog[0]) setSelectedId(nextCatalog[0].id);
+      const nextSelected = nextCatalog.find(talent => talent.id === equippedIds[0]) || nextCatalog[0];
+      if (nextSelected) {
+        setSelectedId(nextSelected.id);
+      }
     });
     return () => { cancelled = true; };
   }, [onSaved]);
+
+  function selectTalent(talent: TalentView) {
+    setSelectedId(talent.id);
+    if (visibleCategory !== "全部" && visibleCategory !== talent.category) setActiveCategory(talent.category);
+  }
+
+  function switchTalentCategory(category: string) {
+    setActiveCategory(category);
+    setTalentPage(0);
+  }
 
   function talentClass(talent: TalentView | null): string {
     if (!talent) return "empty";
@@ -715,19 +919,31 @@ function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | null; onSa
           </header>
           <div className="equipped-talents">
             {equippedSlots.map((talent, index) => (
-              <button className={`talent-slot ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && setSelectedId(talent.id)} key={`equipped-${index}`}>
+              <button className={`talent-slot ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && selectTalent(talent)} key={`equipped-${index}`}>
                 {talent ? <><span>{talent.category}</span><strong>{talent.name}</strong></> : <><span>空</span><strong>空槽</strong></>}
               </button>
             ))}
           </div>
         </section>
+        <nav className="talent-tabs">
+          {categories.map(category => (
+            <button className={visibleCategory === category ? "selected" : ""} onClick={() => switchTalentCategory(category)} key={category}>
+              {category}
+            </button>
+          ))}
+        </nav>
         <div className="talent-grid">
           {gridSlots.map((talent, index) => (
-            <button className={`talent-node ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && setSelectedId(talent.id)} key={talent?.id || `empty-${index}`}>
+            <button className={`talent-node ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && selectTalent(talent)} key={talent?.id || `${visibleCategory}-empty-${index}`}>
               {talent ? <><span>{talent.category}</span><strong>{talent.name}</strong><small>{unlocked.has(talent.id) ? bpCostLabel(talent.cost || 0) : `锁定 ${bpCostLabel(talent.cost || 0)}`}</small></> : <span />}
             </button>
           ))}
         </div>
+        <nav className="talent-pager">
+          <button disabled={currentPage <= 0} onClick={() => setTalentPage(page => Math.max(0, page - 1))}>上一页</button>
+          <span>{currentPage + 1}/{pageCount}</span>
+          <button disabled={currentPage >= pageCount - 1} onClick={() => setTalentPage(page => Math.min(pageCount - 1, page + 1))}>下一页</button>
+        </nav>
         <footer className="talent-footer-note">为你的后续挑战选择祝福和风险。</footer>
       </section>
       <section className="talent-detail-panel">
@@ -751,7 +967,7 @@ function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | null; onSa
   );
 }
 
-function StarterItemsView({starter, save, onChoose}: {starter: DesktopGameState["starter"]; save: LocalSave | null; onChoose: (offerId: string | null) => void | Promise<void>}) {
+function StarterItemsView({starter, save, onChoose, onBack}: {starter: DesktopGameState["starter"]; save: LocalSave | null; onChoose: (offerId: string | null) => void | Promise<void>; onBack: () => void | Promise<void>}) {
   const offers = starter?.offers || [];
   const purchasedOffers = starter?.purchased_list || (starter?.purchased ? [starter.purchased] : []);
   const purchasedIds = new Set(purchasedOffers.map(offer => offer.offer_id));
@@ -766,6 +982,7 @@ function StarterItemsView({starter, save, onChoose}: {starter: DesktopGameState[
         <div className="starter-actions">
           <button disabled={Boolean(purchasedOffers.length)} onClick={() => onChoose("__reroll__")}>重新随机（100BP）</button>
           <button onClick={() => onChoose(null)}>跳过</button>
+          <button onClick={onBack}>返回</button>
         </div>
       </header>
       <section className="starter-offers">
@@ -782,10 +999,10 @@ function StarterItemsView({starter, save, onChoose}: {starter: DesktopGameState[
   );
 }
 
-function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void}) {
+function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void; onStart: () => void | Promise<void>; onBack?: () => void | Promise<void>}) {
   const pokemon = candidates[focusIndex];
   if (!pokemon) return <div className="loading-panel"><strong>正在生成租赁候选...</strong></div>;
-  return <div className="dex-layout"><PokemonProfile pokemon={pokemon} selected={selected.includes(focusIndex)} /><div className="dex-actions"><span>候选 {focusIndex + 1}/{candidates.length}</span><span>已选择：{selected.map(index => displayName(candidates[index])).join(" / ") || "无"}</span><div className="command-row"><button onClick={() => setFocusIndex((focusIndex + candidates.length - 1) % candidates.length)}>上一只</button><button onClick={() => setFocusIndex((focusIndex + 1) % candidates.length)}>下一只</button><button onClick={() => onToggle(focusIndex)}>{selected.includes(focusIndex) ? "取消选中" : "选中"}</button></div></div></div>;
+  return <div className="dex-layout"><PokemonProfile pokemon={pokemon} selected={selected.includes(focusIndex)} /><div className="dex-actions"><span>候选 {focusIndex + 1}/{candidates.length}</span><span>已选择：{selected.map(index => displayName(candidates[index])).join(" / ") || "无"}</span><div className="command-row">{onBack ? <button onClick={onBack}>返回开局道具</button> : null}<button onClick={() => setFocusIndex((focusIndex + candidates.length - 1) % candidates.length)}>上一只</button><button onClick={() => setFocusIndex((focusIndex + 1) % candidates.length)}>下一只</button><button onClick={() => onToggle(focusIndex)}>{selected.includes(focusIndex) ? "取消选中" : "选中"}</button><button disabled={selected.length !== 3} onClick={onStart}>开始挑战</button></div></div></div>;
 }
 
 function PokemonProfile({pokemon, selected = false, runtime, compact = false}: {pokemon: RentalPokemon; selected?: boolean; runtime?: RuntimePokemon; compact?: boolean}) {
@@ -1452,6 +1669,10 @@ function hasRunTalent(rest: NonNullable<DesktopGameState["rest"]>, id: string): 
   return Boolean(rest.talents?.some(talent => talent.id === id));
 }
 
+function isActiveRunTalent(id: string): boolean {
+  return ["exchange_safe_box", "gambler_all_in_exchange", "prophet_next_scout", "prophet_history_review", "prophet_future_boss"].includes(id);
+}
+
 function RestPokemonModal({rest, initialSlot, onClose, onMove, onUnequip, onStats}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot: number; onClose: () => void; onMove: (slot: number) => void; onUnequip: (slot: number) => void; onStats: (slot: number) => void}) {
   const [slot, setSlot] = useState(initialSlot);
   const [tab, setTab] = useState<"info" | "moves" | "stats" | "items">("info");
@@ -1665,23 +1886,83 @@ function BagManageModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
 }
 
 function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  const [allInSlot, setAllInSlot] = useState(0);
+  const [boxOwnSlot, setBoxOwnSlot] = useState(0);
+  const [boxSlot, setBoxSlot] = useState(0);
+  const canAllIn = hasRunTalent(rest, "gambler_all_in_exchange") && !rest.all_in_used;
+  const box = rest.exchange_box || [];
+  const canBoxExchange = hasRunTalent(rest, "exchange_safe_box") && box.length > 0;
+
+  function talentActionPanel(talent: TalentView) {
+    if (talent.id === "prophet_next_scout") {
+      return (
+        <div className="talent-card-actions">
+          <button disabled={Boolean(rest.free_scout_used)} onClick={() => onAction({type: "scout_next", level: "one"})}>{rest.free_scout_used ? "免费侦查已用" : `免费侦查1只（${bpCostLabel(rest.costs.scout_one)}）`}</button>
+          <button onClick={() => onAction({type: "scout_next", level: "all"})}>侦查全部（{bpCostLabel(rest.costs.scout_all)}）</button>
+        </div>
+      );
+    }
+    if (talent.id === "prophet_history_review") {
+      return <div className="talent-card-actions"><button disabled={!rest.enemy_display.length} onClick={() => onAction({type: "review_previous"})}>回顾上一场（{bpCostLabel(rest.costs.review_previous)}）</button></div>;
+    }
+    if (talent.id === "prophet_future_boss") {
+      return <div className="talent-card-actions"><button onClick={() => onAction({type: "scout_final_boss"})}>预知关底</button></div>;
+    }
+    if (talent.id === "gambler_all_in_exchange") {
+      return (
+        <div className="talent-card-actions">
+          <div className="talent-target-row compact">
+            {rest.player_display.map((pokemon, index) => (
+              <button className={allInSlot === index ? "selected" : ""} disabled={Boolean(rest.all_in_used)} onClick={() => setAllInSlot(index)} key={`${pokemon.species_id}-all-in-${index}`}>
+                <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                <span>{index + 1}. {displayName(pokemon)}</span>
+              </button>
+            ))}
+          </div>
+          <button disabled={!canAllIn} onClick={() => onAction({type: "all_in_exchange", ownIndex: allInSlot})}>{rest.all_in_used ? "孤注一掷已用" : `孤注一掷：${displayName(rest.player_display[allInSlot])}`}</button>
+        </div>
+      );
+    }
+    if (talent.id === "exchange_safe_box") {
+      return (
+        <div className="talent-card-actions">
+          <div className="talent-target-row compact">
+            {rest.player_display.map((pokemon, index) => (
+              <button className={boxOwnSlot === index ? "selected" : ""} disabled={!canBoxExchange} onClick={() => setBoxOwnSlot(index)} key={`${pokemon.species_id}-box-own-${index}`}>
+                <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                <span>{index + 1}. {displayName(pokemon)}</span>
+              </button>
+            ))}
+          </div>
+          <div className="talent-target-row compact">
+            {box.length ? box.map((pokemon, index) => (
+              <button className={boxSlot === index ? "selected" : ""} onClick={() => setBoxSlot(index)} key={`${pokemon.species_id}-box-talent-${index}`}>
+                <img src={pokemonImageUrl(pokemon)} alt={displayName(pokemon)} />
+                <span>{displayName(pokemon)}</span>
+              </button>
+            )) : <p>盒子为空，击败对手后遇到的宝可梦会先进入盒子。</p>}
+          </div>
+          <button disabled={!canBoxExchange} onClick={() => onAction({type: "box_exchange", ownIndex: boxOwnSlot, boxIndex: boxSlot})}>从盒子交换</button>
+        </div>
+      );
+    }
+    return null;
+  }
+
   return (
     <div className="modal-layer">
       <section className="shop-modal talent-run-modal">
         <header><div><h2>本局天赋</h2><p>{rest.talents?.length ? "当前天赋效果会影响休整与结算。" : "当前无天赋。"}</p></div><button onClick={onClose}>关闭</button></header>
         <div className="talent-run-list">
-          {rest.talents?.length ? rest.talents.map(talent => <article key={talent.id}><strong>{talent.name}</strong><span>{talent.category}</span><p>{talent.desc}</p></article>) : <p>当前无天赋。</p>}
+          {rest.talents?.length ? rest.talents.map(talent => (
+            <article className={isActiveRunTalent(talent.id) ? "active-talent-card" : ""} key={talent.id}>
+              <strong>{talent.name}</strong>
+              <span>{talent.category}</span>
+              <p>{talent.desc}</p>
+              {talentActionPanel(talent)}
+            </article>
+          )) : <p>当前无天赋。</p>}
         </div>
-        {hasRunTalent(rest, "prophet_next_scout") || hasRunTalent(rest, "prophet_history_review") || hasRunTalent(rest, "prophet_future_boss") ? (
-          <div className="command-row">
-            {hasRunTalent(rest, "prophet_next_scout") ? <>
-              <button disabled={Boolean(rest.free_scout_used)} onClick={() => onAction({type: "scout_next", level: "one"})}>{rest.free_scout_used ? "本次免费侦查已用" : "免费侦查1只"}（{bpCostLabel(rest.costs.scout_one)}）</button>
-              <button onClick={() => onAction({type: "scout_next", level: "all"})}>侦查全部（{bpCostLabel(rest.costs.scout_all)}）</button>
-            </> : null}
-            {hasRunTalent(rest, "prophet_history_review") ? <button disabled={!rest.enemy_display.length} onClick={() => onAction({type: "review_previous"})}>回顾上一场（{bpCostLabel(rest.costs.review_previous)}）</button> : null}
-            {hasRunTalent(rest, "prophet_future_boss") ? <button onClick={() => onAction({type: "scout_final_boss"})}>预知关底</button> : null}
-          </div>
-        ) : null}
         {rest.scout ? <div className="rest-scout-box"><strong>{rest.scout.title}</strong><span>{rest.scout.summary}</span>{rest.scout.enemies.map(enemy => <small key={`${enemy.species_id}-scout`}>{displayName(enemy)}</small>)}</div> : null}
         {rest.future_boss?.enemies?.length ? <div className="review-list">{rest.future_boss.enemies.map(enemy => <article key={`${enemy.species_id}-future`}><img src={pokemonImageUrl(enemy)} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
         {rest.review?.enemies?.length ? <div className="review-list">{rest.review.enemies.map(enemy => <article key={`${enemy.species_id}-review`}><img src={pokemonImageUrl(enemy)} alt={displayName(enemy)} /><strong>{displayName(enemy)}</strong><small>{enemy.ability_zh || enemy.ability} / {enemy.nature_zh || enemy.nature}</small><small>{enemy.item_zh || "无道具"}</small><small>{enemy.moves.map(move => move.name_zh || move.name).join(" / ")}</small></article>)}</div> : null}
