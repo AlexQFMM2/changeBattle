@@ -6,7 +6,7 @@ import type {PokemonSet, PlayerPokemonState} from "@changebattle/shared";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(here, "../../..");
-const showdownPath = path.resolve(projectRoot, "../pokemonShowdowm/pokemon-showdown");
+const showdownPath = process.env.SHOWDOWN_PATH || path.resolve(projectRoot, "../pokemonShowdowm/pokemon-showdown");
 
 const baseStats = {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
 const zeroStats = {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};

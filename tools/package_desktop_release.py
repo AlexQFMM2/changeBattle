@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Build a Windows-friendly desktop release zip.
+"""Build a portable Windows desktop release zip.
 
-This package is a source-runtime desktop release: it bundles the built Electron
-app, data/assets, and Pokemon Showdown, then uses Windows scripts to install
-Node/pnpm if needed and launch Electron.
+The release bundles the Windows Electron runtime, the built app, data/assets,
+and Pokemon Showdown. Users can unzip and run ChangeBattle-Desk.cmd without
+Node, npm, pnpm, or Python installed on the target machine.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import subprocess
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -20,22 +21,15 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SHOWDOWN = Path("/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown")
 RELEASE_DIR = PROJECT_ROOT / "release"
-STAGE_DIR = RELEASE_DIR / "changeBattle-desk-win"
-ZIP_PATH = RELEASE_DIR / "changeBattle-desk-win.zip"
+ELECTRON_CACHE_DIR = RELEASE_DIR / "electron-cache"
+ELECTRON_PLATFORM = "win32"
+ELECTRON_ARCH = "x64"
 
 PROJECT_PATHS = [
     "apps/desktop/out",
     "apps/desktop/package.json",
-    "apps/desktop/index.html",
-    "apps/desktop/electron.vite.config.ts",
-    "apps/desktop/scripts",
-    "packages",
     "data",
     "assets",
-    "package.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    "tsconfig.json",
     "README.md",
     "rule.md",
     "plan.md",
@@ -65,6 +59,11 @@ def ignore_showdown_dist(_dir: str, names: list[str]) -> set[str]:
 def copy_path(src: Path, dst: Path) -> None:
     if not src.exists():
         return
+    if dst.exists():
+        if dst.is_dir():
+            shutil.rmtree(dst)
+        else:
+            dst.unlink()
     if src.is_dir():
         shutil.copytree(src, dst, ignore=ignore_runtime_dirs)
     else:
@@ -100,7 +99,24 @@ def package_version() -> str:
     return str(data.get("version") or "0.0.0")
 
 
+def electron_version() -> str:
+    package_json = PROJECT_ROOT / "apps" / "desktop" / "node_modules" / "electron" / "package.json"
+    if package_json.exists():
+        data = json.loads(package_json.read_text(encoding="utf-8"))
+        return str(data["version"])
+    output = subprocess.check_output(
+        ["pnpm", "--filter", "@changebattle/desktop", "exec", "node", "-p", "require('electron/package.json').version"],
+        cwd=PROJECT_ROOT,
+        text=True,
+    ).strip()
+    return output
+
+
 def git_commit(path: Path) -> str:
+    if path == PROJECT_ROOT and os.environ.get("CHANGEBATTLE_COMMIT"):
+        return os.environ["CHANGEBATTLE_COMMIT"]
+    if path != PROJECT_ROOT and os.environ.get("SHOWDOWN_COMMIT"):
+        return os.environ["SHOWDOWN_COMMIT"]
     try:
         return subprocess.check_output(
             ["git", "-C", str(path), "rev-parse", "--short", "HEAD"],
@@ -116,77 +132,82 @@ def write_text(path: Path, text: str, newline: str = "\n") -> None:
     path.write_text(text.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8", newline=newline)
 
 
+def electron_zip_name(version: str) -> str:
+    return f"electron-v{version}-{ELECTRON_PLATFORM}-{ELECTRON_ARCH}.zip"
+
+
+def electron_download_url(version: str) -> str:
+    mirror = os.environ.get("ELECTRON_MIRROR", "https://github.com/electron/electron/releases/download/")
+    if not mirror.endswith("/"):
+        mirror += "/"
+    return f"{mirror}v{version}/{electron_zip_name(version)}"
+
+
+def ensure_electron_zip(version: str) -> Path:
+    ELECTRON_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    zip_path = ELECTRON_CACHE_DIR / electron_zip_name(version)
+    if zip_path.exists() and zip_path.stat().st_size > 0:
+        return zip_path
+    url = electron_download_url(version)
+    print(f"downloading {url}")
+    with urllib.request.urlopen(url) as response, zip_path.open("wb") as out:
+        shutil.copyfileobj(response, out)
+    return zip_path
+
+
+def extract_electron_runtime(version: str, runtime_dir: Path) -> None:
+    runtime_override = os.environ.get("ELECTRON_RUNTIME_PATH")
+    if runtime_override:
+        override_path = Path(runtime_override).expanduser().resolve()
+        if not (override_path / "electron.exe").exists():
+            raise RuntimeError(f"Electron runtime override is missing electron.exe: {override_path}")
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        for path in override_path.iterdir():
+            copy_path(path, runtime_dir / path.name)
+        return
+
+    local_dist = PROJECT_ROOT / "apps" / "desktop" / "node_modules" / "electron" / "dist"
+    if (local_dist / "electron.exe").exists():
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        for path in local_dist.iterdir():
+            copy_path(path, runtime_dir / path.name)
+        return
+
+    electron_zip = ensure_electron_zip(version)
+    with zipfile.ZipFile(electron_zip) as zf:
+        zf.extractall(runtime_dir)
+    electron_exe = runtime_dir / "electron.exe"
+    if not electron_exe.exists():
+        raise RuntimeError(f"Electron runtime is missing electron.exe in {electron_zip}")
+
+
 def write_windows_scripts(stage_dir: Path) -> None:
     cmd = r"""@echo off
 setlocal
 set "APP_DIR=%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%ChangeBattle-Desk.ps1"
-pause
-"""
-    ps1 = r"""$ErrorActionPreference = "Stop"
-$AppDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $AppDir
-
-function Get-NodeMajor {
-  $node = Get-Command node -ErrorAction SilentlyContinue
-  if (-not $node) { return 0 }
-  $version = (& node -v).TrimStart("v")
-  return [int]($version.Split(".")[0])
-}
-
-function Remove-InstallState {
-  foreach ($path in @("node_modules", "apps\desktop\node_modules", "packages\game-service\node_modules", "packages\shared\node_modules")) {
-    if (Test-Path $path) {
-      Remove-Item $path -Recurse -Force
-    }
-  }
-}
-
-function Test-ElectronInstall {
-  try {
-    $electronPath = (& node -e "try { const electron = require('./apps/desktop/node_modules/electron'); if (typeof electron !== 'string' || !electron) process.exit(2); console.log(electron); } catch (error) { process.exit(1); }")
-    return ($LASTEXITCODE -eq 0 -and $electronPath -and (Test-Path $electronPath.Trim()))
-  } catch {
-    return $false
-  }
-}
-
-$nodeMajor = Get-NodeMajor
-if ($nodeMajor -lt 20) {
-  Write-Host "ChangeBattle Desk needs Node.js 20+." -ForegroundColor Yellow
-  $answer = Read-Host "Install Node.js LTS with winget now? (Y/N)"
-  if ($answer -match "^[Yy]") {
-    winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements
-  } else {
-    throw "Node.js 20+ is required."
-  }
-  $nodeMajor = Get-NodeMajor
-  if ($nodeMajor -lt 20) {
-    throw "Node.js 20+ was not found in this terminal. Close this window and run ChangeBattle-Desk.cmd again, or put Node.js 20+ before older Node versions in PATH."
-  }
-}
-
-function Invoke-Pnpm {
-  & npx --yes pnpm@10.33.0 @args
-}
-
-if (-not (Test-ElectronInstall)) {
-  Remove-InstallState
-  Invoke-Pnpm install
-}
-if (-not (Test-ElectronInstall)) {
-  throw "Electron did not install correctly. Please check network access to npm/electron downloads, then run ChangeBattle-Desk.cmd again."
-}
-
-$env:CHANGEBATTLE_PROJECT_ROOT = $AppDir
-$env:SHOWDOWN_PATH = Join-Path $AppDir "vendor\pokemon-showdown"
-Invoke-Pnpm --dir "apps\desktop" exec electron .
+set "APP_ROOT=%APP_DIR:~0,-1%"
+set "ELECTRON_EXE=%APP_ROOT%\runtime\electron\electron.exe"
+set "DESKTOP_APP=%APP_ROOT%\apps\desktop"
+if not exist "%ELECTRON_EXE%" (
+  echo Electron runtime is missing: %ELECTRON_EXE%
+  echo Please use the complete ChangeBattle Desk portable package.
+  pause
+  exit /b 1
+)
+if not exist "%DESKTOP_APP%\out\main\main.js" (
+  echo Desktop app build is missing: %DESKTOP_APP%\out\main\main.js
+  echo Please use the complete ChangeBattle Desk portable package.
+  pause
+  exit /b 1
+)
+set "CHANGEBATTLE_PROJECT_ROOT=%APP_ROOT%"
+set "SHOWDOWN_PATH=%APP_ROOT%\vendor\pokemon-showdown"
+start "ChangeBattle Desk" "%ELECTRON_EXE%" "%DESKTOP_APP%"
 """
     write_text(stage_dir / "ChangeBattle-Desk.cmd", cmd, newline="\r\n")
-    write_text(stage_dir / "ChangeBattle-Desk.ps1", ps1, newline="\r\n")
 
 
-def write_release_notes(stage_dir: Path, showdown_root: Path) -> None:
+def write_release_notes(stage_dir: Path, showdown_root: Path, electron_runtime_version: str) -> None:
     text = f"""# ChangeBattle Desk Windows Release
 
 Version: {package_version()}
@@ -195,29 +216,24 @@ Version: {package_version()}
 
 1. Unzip this package.
 2. Double-click `ChangeBattle-Desk.cmd`.
-3. If Node.js 20+ is missing, allow the script to install Node.js LTS with `winget`.
-4. If an old/broken `node_modules` exists, the launcher removes it and reinstalls.
-5. The first launch runs `npx pnpm@10.33.0 install`; later launches reuse the installed dependencies.
 
 ## Runtime Requirements
 
 - Windows 10/11 x64.
-- Node.js 20+.
-- No Python is required.
+- No Node.js, npm, pnpm, or Python is required.
 - Pokemon Showdown is bundled in `vendor/pokemon-showdown`.
+- Electron is bundled in `runtime/electron`.
 
 ## Notes
 
-- This is the first desktop Windows source-runtime release, not a fully self-contained `.exe` installer.
-- The launcher avoids `corepack enable`, so it does not need write permission in the Node.js install directory.
-- Node.js 20+ must be the `node` found in PATH. If winget installs Node but this window still shows Node 18, close the window and start again.
+- This is a portable Electron desktop release, not an installer.
 - Saves are stored by Electron under the app user-data directory.
-- If startup fails after moving the folder, delete `node_modules` and run `ChangeBattle-Desk.cmd` again.
 
 ## Build Info
 
 - ChangeBattle commit: `{git_commit(PROJECT_ROOT)}`
 - Pokemon Showdown commit: `{git_commit(showdown_root)}`
+- Electron runtime: `{electron_runtime_version}-{ELECTRON_PLATFORM}-{ELECTRON_ARCH}`
 """
     write_text(stage_dir / "RELEASE-README.md", text)
 
@@ -238,22 +254,26 @@ def main() -> int:
     args = parser.parse_args()
 
     showdown_root = Path(args.showdown_path).expanduser().resolve()
-    if STAGE_DIR.exists():
-        shutil.rmtree(STAGE_DIR)
-    STAGE_DIR.mkdir(parents=True, exist_ok=True)
+    runtime_version = electron_version()
+    stage_dir = RELEASE_DIR / f"ChangeBattle-Desk-portable-v{package_version()}"
+    zip_path = RELEASE_DIR / f"ChangeBattle-Desk-portable-v{package_version()}.zip"
+    if stage_dir.exists():
+        shutil.rmtree(stage_dir)
+    stage_dir.mkdir(parents=True, exist_ok=True)
 
     for relative in PROJECT_PATHS:
-        copy_path(PROJECT_ROOT / relative, STAGE_DIR / relative)
-    copy_showdown(showdown_root, STAGE_DIR / "vendor" / "pokemon-showdown")
-    write_windows_scripts(STAGE_DIR)
-    write_release_notes(STAGE_DIR, showdown_root)
-    zip_dir(STAGE_DIR, ZIP_PATH)
+        copy_path(PROJECT_ROOT / relative, stage_dir / relative)
+    copy_showdown(showdown_root, stage_dir / "vendor" / "pokemon-showdown")
+    extract_electron_runtime(runtime_version, stage_dir / "runtime" / "electron")
+    write_windows_scripts(stage_dir)
+    write_release_notes(stage_dir, showdown_root, runtime_version)
+    zip_dir(stage_dir, zip_path)
 
-    size_mb = ZIP_PATH.stat().st_size / 1024 / 1024
-    print(f"wrote {ZIP_PATH}")
+    size_mb = zip_path.stat().st_size / 1024 / 1024
+    print(f"wrote {zip_path}")
     print(f"size: {size_mb:.1f} MiB")
     if not args.keep_stage:
-        shutil.rmtree(STAGE_DIR)
+        shutil.rmtree(stage_dir)
     return 0
 
 

@@ -15,7 +15,7 @@ if (command === 'dev' && process.platform === 'linux') {
 const child = spawn(pnpm, args, {
   stdio: 'inherit',
   env,
-  shell: false,
+  shell: process.platform === 'win32',
 });
 
 child.on('exit', (code, signal) => {
