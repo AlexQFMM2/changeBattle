@@ -49,6 +49,7 @@ export type MoveSummary = {
 };
 
 export type RentalPokemon = {
+  run_member_id?: string;
   name: string;
   species: string;
   species_zh: string;
@@ -307,6 +308,7 @@ export type ExchangeState = {
 };
 
 export type PlayerPokemonState = {
+  run_member_id?: string;
   slot: number;
   ident: string;
   details: string;

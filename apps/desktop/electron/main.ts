@@ -1,4 +1,5 @@
 import {app, BrowserWindow, Menu, ipcMain, protocol} from "electron";
+import {randomUUID} from "node:crypto";
 import {existsSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
@@ -285,7 +286,7 @@ async function grantVictoryRewards(run: CurrentRunData, isBoss: boolean, battleN
   }
   const rng = seededRng(Number(run.seed || 1), 0x711c70 + battleNo * 73 + Number(run.wins || 0) * 17);
   items.push(await grantBagItem(run, rng() < 0.3 ? "fullheal" : "leppaberry", 2));
-  items.push(await grantBagItem(run, rng() < 0.7 ? "hyperpotion" : "revive", 1));
+  items.push(await grantBagItem(run, rng() < 0.55 ? "revive" : "hyperpotion", 1));
   items.push(await grantBagItem(run, "fullrestore", 1));
   return {items, restBonus: {recycler_available: recyclerAvailable}};
 }
@@ -439,6 +440,13 @@ async function loadSave(): Promise<LocalSave | null> {
 async function persist(save: LocalSave): Promise<LocalSave> {
   if (!saveStore) throw new Error("SaveStore 尚未初始化");
   return saveStore.save(normalizeSave(save));
+}
+
+async function enableTestMode(): Promise<LocalSave> {
+  const save = await loadSave();
+  if (!save) throw new Error("请先创建或读取存档。");
+  save.stats = {...emptyStats(), ...(save.stats || {}), battle_points: 99999};
+  return persist(save);
 }
 
 function gameState(partial: Partial<DesktopGameState>): DesktopGameState {
@@ -649,7 +657,7 @@ function recordBattleResult(save: LocalSave, winner: string | null, run?: Curren
 
 async function refundableBagBaseBp(run: CurrentRunData): Promise<number> {
   normalizeCurrentRun(run);
-  const rate = hasTalent(run.talents, "economy_premium_guest") ? 0.75 : 0.5;
+  const rate = hasTalent(run.talents, "economy_premium_guest") ? 0.5 : 0.25;
   let total = 0;
   for (const [id, rawCount] of Object.entries(run.bag_items || {})) {
     const count = Math.max(0, Number(rawCount || 0));
@@ -1396,8 +1404,11 @@ async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, bat
   const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(trainer, run, battleNo);
   const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
   const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
+  const enemyDisplay = generated.display.slice(0, 3);
+  const battleSeed = gameService.deriveSeed(Number(run.seed), 200 + battleNo);
+  const orderedEnemies = gameService.enemyTeamPreviewOrder(run.player_display || [], enemyDisplay, battleSeed).map(index => enemyDisplay[index]).filter(Boolean);
   const label = route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : "馆主";
-  return {route, trainer, enemies: generated.display.slice(0, 3), label};
+  return {route, trainer, enemies: orderedEnemies, label};
 }
 
 async function buildNightSkyState(save: LocalSave, run: CurrentRunData): Promise<CurrentRunData["night_sky"] | undefined> {
@@ -1477,9 +1488,107 @@ function refreshStateCondition(state: PlayerPokemonState): PlayerPokemonState {
   return state;
 }
 
+function runMemberId(value: unknown): string {
+  return String((value as {run_member_id?: unknown} | undefined)?.run_member_id || "").trim();
+}
+
+function createRunMemberId(): string {
+  return `rpm_${randomUUID()}`;
+}
+
+function ensureTeamRunMemberIds(team: PokemonSet[] = [], display: RentalPokemon[] = []): void {
+  const length = Math.max(team.length, display.length);
+  for (let index = 0; index < length; index += 1) {
+    const raw = team[index] as PokemonSet | undefined;
+    const shown = display[index] as RentalPokemon | undefined;
+    const id = runMemberId(raw) || runMemberId(shown) || createRunMemberId();
+    if (raw) raw.run_member_id = id;
+    if (shown) shown.run_member_id = id;
+  }
+}
+
+function shortStateIdent(ident: unknown): string {
+  return String(ident || "").replace(/^p[12]:\s*/, "").trim();
+}
+
+function addIdentityKey(keys: Set<string>, prefix: string, value: unknown): void {
+  const normalized = toId(String(value || ""));
+  if (normalized) keys.add(`${prefix}:${normalized}`);
+}
+
+function addSpeciesIdentityKeys(keys: Set<string>, value: unknown): void {
+  const raw = String(value || "").trim();
+  if (!raw) return;
+  addIdentityKey(keys, "species", raw);
+  addIdentityKey(keys, "details_species", raw.split(",", 1)[0]);
+}
+
+function addMoveIdentityKey(keys: Set<string>, species: unknown, moves: unknown): void {
+  const speciesId = toId(String(species || ""));
+  if (!speciesId || !Array.isArray(moves)) return;
+  const moveIds = moves.map((move: any) => toId(move?.id || move?.move || move?.name || move)).filter(Boolean).sort();
+  if (moveIds.length) keys.add(`species_moves:${speciesId}:${moveIds.join(",")}`);
+}
+
+function stateIdentityKeys(state: Partial<PlayerPokemonState>): Set<string> {
+  const keys = new Set<string>();
+  addIdentityKey(keys, "run_member", runMemberId(state));
+  const short = shortStateIdent(state.ident);
+  addIdentityKey(keys, "ident", short);
+  addSpeciesIdentityKeys(keys, state.details);
+  addSpeciesIdentityKeys(keys, state.species);
+  addMoveIdentityKey(keys, state.species || state.details || short, state.moves || []);
+  return keys;
+}
+
+function pokemonIdentityKeys(raw: PokemonSet | undefined, pokemon: RentalPokemon | undefined): Set<string> {
+  const keys = new Set<string>();
+  addIdentityKey(keys, "run_member", runMemberId(raw) || runMemberId(pokemon));
+  addIdentityKey(keys, "ident", raw?.name || raw?.species);
+  addIdentityKey(keys, "ident", pokemon?.name || pokemon?.species || pokemon?.species_id);
+  addSpeciesIdentityKeys(keys, raw?.species || raw?.name);
+  addSpeciesIdentityKeys(keys, pokemon?.species || pokemon?.name || pokemon?.species_id);
+  addIdentityKey(keys, "species_id", pokemon?.species_id);
+  addMoveIdentityKey(keys, raw?.species || raw?.name || pokemon?.species || pokemon?.name || pokemon?.species_id, raw?.moves || pokemon?.moves || []);
+  return keys;
+}
+
+function findExistingStateForPokemon(existing: PlayerPokemonState[], raw: PokemonSet | undefined, pokemon: RentalPokemon | undefined, used: Set<number>): PlayerPokemonState | undefined {
+  const wantedId = runMemberId(raw) || runMemberId(pokemon);
+  if (wantedId) {
+    const index = existing.findIndex((state, stateIndex) => !used.has(stateIndex) && runMemberId(state) === wantedId);
+    if (index >= 0) {
+      used.add(index);
+      return existing[index];
+    }
+  }
+  const keys = pokemonIdentityKeys(raw, pokemon);
+  let bestIndex = -1;
+  let bestScore = 0;
+  for (let index = 0; index < existing.length; index += 1) {
+    if (used.has(index)) continue;
+    const stateKeys = stateIdentityKeys(existing[index]);
+    let score = 0;
+    for (const key of keys) {
+      if (!stateKeys.has(key)) continue;
+      if (key.startsWith("species_moves:")) score += 20;
+      else if (key.startsWith("ident:") || key.startsWith("species:") || key.startsWith("details_species:") || key.startsWith("species_id:")) score += 10;
+      else if (key.startsWith("run_member:")) score += 100;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+  if (bestIndex < 0 || bestScore <= 0) return undefined;
+  used.add(bestIndex);
+  return existing[bestIndex];
+}
+
 function fullStateForPokemon(pokemon: RentalPokemon, slot: number): PlayerPokemonState {
   const maxhp = Math.max(1, Number(pokemon.stats?.hp || 1));
   return {
+    run_member_id: runMemberId(pokemon) || undefined,
     slot,
     ident: `p1: ${pokemon.species || pokemon.name || slot}`,
     details: pokemon.species || pokemon.name || "",
@@ -1602,23 +1711,38 @@ function adjustedStateAfterEdit(oldState: PlayerPokemonState, newDisplay: Rental
 }
 
 function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
+  ensureTeamRunMemberIds(run.player_team || [], run.player_display || []);
   const existing = [...(run.player_state || [])];
+  const usedExisting = new Set<number>();
   const states = (run.player_display || []).map((pokemon, index) => {
     const full = fullStateForPokemon(pokemon, index + 1);
-    const state = {...full, ...(existing[index] || {})};
+    const matched = findExistingStateForPokemon(existing, run.player_team?.[index], pokemon, usedExisting);
+    const state = {...full};
+    if (matched) {
+      const oldMax = Math.max(1, Number(matched.maxhp || full.maxhp || 1));
+      const oldHp = Math.max(0, Number(matched.hp ?? full.hp));
+      if (oldHp <= 0 || matched.fainted) state.hp = 0;
+      else if (oldHp >= oldMax) state.hp = full.maxhp;
+      else state.hp = Math.max(1, Math.min(full.maxhp, Math.round(oldHp * full.maxhp / oldMax)));
+      state.status = matched.status || "";
+      state.item = matched.item || full.item;
+      const currentMoves = new Map((matched.moves || []).map(move => [toId(move.id || move.move), move]));
+      state.moves = full.moves.map(move => {
+        const current = currentMoves.get(move.id);
+        return {...move, pp: Math.max(0, Math.min(Number(current?.pp ?? move.pp), move.maxpp))};
+      });
+    }
+    state.run_member_id = runMemberId(run.player_team?.[index]) || runMemberId(pokemon) || full.run_member_id || createRunMemberId();
+    if (run.player_team?.[index]) run.player_team[index].run_member_id = state.run_member_id;
+    if (run.player_display?.[index]) run.player_display[index].run_member_id = state.run_member_id;
     state.slot = index + 1;
-    state.ident = state.ident || full.ident;
-    state.details = state.details || full.details;
-    state.species = state.species || full.species;
-    state.maxhp = Number(state.maxhp || full.maxhp);
+    state.ident = full.ident;
+    state.details = full.details;
+    state.species = full.species;
+    state.maxhp = full.maxhp;
     state.hp = Number(state.hp ?? full.hp);
     state.status = state.status || "";
-    state.item = state.item || full.item;
-    const currentMoves = new Map((state.moves || []).map(move => [toId(move.id || move.move), move]));
-    state.moves = full.moves.map(move => {
-      const current = currentMoves.get(move.id);
-      return {...move, pp: Math.max(0, Math.min(Number(current?.pp ?? move.pp), move.maxpp))};
-    });
+    state.active = index === 0;
     return refreshStateCondition(state);
   });
   run.player_state = states;
@@ -2076,6 +2200,7 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   run.generation_stage = profiles.join("|");
   run.player_trainer = trainerFromProfile(save.trainer);
   run.enemy_trainer = enemyTrainer;
+  delete run.enemy_boss_record;
   run.enemy_raw = enemyTeam;
   run.enemy_display = enemyDisplay;
   activeBattleNo = battleNo;
@@ -2827,6 +2952,7 @@ app.whenReady().then(() => {
   ipcMain.handle("save:load", async () => loadSave());
   ipcMain.handle("save:createNew", async (_event, trainer: TrainerProfile) => saveStore!.createNew(normalizeTrainerProfile(trainer)));
   ipcMain.handle("save:updateTrainer", async (_event, trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
+  ipcMain.handle("save:testMode", async () => enableTestMode());
   ipcMain.handle("trainer:catalog", async () => trainerCatalogState());
   ipcMain.handle("game:generateCandidates", async (_event, seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));
   ipcMain.handle("run:prepareStarterItems", async (_event, seed?: number) => prepareStarterItems(seed));

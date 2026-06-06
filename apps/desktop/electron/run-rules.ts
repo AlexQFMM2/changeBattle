@@ -3,7 +3,7 @@ import type {CurrentRunData, ItemCategory, LocalSave, ShopItem, ShopOffer, ShopS
 export const DEFAULT_BATTLES = 7;
 export const COINS_PER_BP = 100;
 export const BP_SCALE = COINS_PER_BP;
-export const MAX_BP = 9999;
+export const MAX_BP = 99999;
 export const TALENT_EQUIP_LIMIT = 5;
 export const WIN_BP_REWARD = 5 * BP_SCALE;
 export const STARTER_ANGEL_FUND_COINS = 1000;
@@ -20,8 +20,8 @@ export const SHOP_ROLL_COST_GAMBLER_PAID = Math.floor(SHOP_ROLL_COST_NEXT * 1.5)
 export const SHOP_GUEST_FREE_ROLLS = 3;
 export const SHOP_PREFERRED_ROLL_COST = 1 * BP_SCALE;
 export const MOVE_DRAW_COST = 2 * BP_SCALE;
-export const MOVE_DRAW_COUNT = 2;
-export const MOVE_DRAW_COUNT_GAMBLER = 4;
+export const MOVE_DRAW_COUNT = 8;
+export const MOVE_DRAW_COUNT_GAMBLER = 16;
 export const RANDOMIZE_PART_COST = 1 * BP_SCALE;
 export const RANDOMIZE_ALL_COST = 2 * BP_SCALE;
 export const SCOUT_BASIC_COST = 0;
@@ -87,7 +87,7 @@ const TALENT_DEFINITIONS: TalentView[] = [
   {id: "economy_amulet_coin", name: "护符金币", category: "经济运营", cost: 35, desc: "所有正向金币入账获得 1.35 倍收益。"},
   {id: "economy_shiny_collector", name: "闪光收藏家", category: "经济运营", cost: 40, desc: "交换获得的宝可梦均为闪光，且闪光带来的金币加成提高。"},
   {id: "economy_bargainer", name: "讲价高手", category: "经济运营", cost: 20, desc: "道具回收商出现时，出售道具获得 75% 原价。"},
-  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具，并将可返还道具结算效率从 50% 提高到 75%。"},
+  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具，并将可返还道具结算效率从 25% 提高到 50%。"},
 ];
 
 export const TALENTS: TalentView[] = TALENT_DEFINITIONS;
@@ -463,7 +463,7 @@ export function portfolioBonus(run: CurrentRunData): {types: string[]; bonus: nu
 }
 
 export function refundableBagBaseBpFromCosts(run: CurrentRunData, itemCosts: Record<string, number>): number {
-  const rate = hasTalent(run.talents, "economy_premium_guest") ? 0.75 : 0.5;
+  const rate = hasTalent(run.talents, "economy_premium_guest") ? 0.5 : 0.25;
   let total = 0;
   for (const [id, rawCount] of Object.entries(run.bag_items || {})) {
     const count = Math.max(0, Number(rawCount || 0));

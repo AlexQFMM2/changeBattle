@@ -88,7 +88,7 @@ const TALENT_CATALOG: TalentView[] = [
   {id: "economy_amulet_coin", name: "护符金币", category: "经济运营", cost: 35, desc: "所有正向金币入账获得 1.35 倍收益。"},
   {id: "economy_shiny_collector", name: "闪光收藏家", category: "经济运营", cost: 40, desc: "交换获得的宝可梦均为闪光，且闪光带来的金币加成提高。"},
   {id: "economy_bargainer", name: "讲价高手", category: "经济运营", cost: 20, desc: "道具回收商出现时，出售道具获得 75% 原价。"},
-  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具，并将可返还道具结算效率从 50% 提高到 75%。"},
+  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具，并将可返还道具结算效率从 25% 提高到 50%。"},
 ];
 
 type TrainerDialogueMoment = "intro" | "defeat" | "victory";
@@ -559,6 +559,86 @@ function displayForRuntime(team: RentalPokemon[], runtime: RuntimePokemon | unde
   return findDisplay(team, runtimeName(runtime)) || team[index];
 }
 
+function findDisplayIndex(team: RentalPokemon[], name?: string): number {
+  const keys = runtimeMatchKeys(name);
+  if (!keys.size) return -1;
+  return team.findIndex(pokemon => {
+    const pokemonKeys = displayMatchKeys(pokemon);
+    for (const key of keys) if (pokemonKeys.has(key)) return true;
+    return false;
+  });
+}
+
+function enemyDisplayIndex(team: RentalPokemon[], event: BattleTimelineEvent): number {
+  if (event.target_species_id) {
+    const index = team.findIndex(pokemon => pokemon.species_id === event.target_species_id);
+    if (index >= 0) return index;
+  }
+  return findDisplayIndex(team, event.target_id || event.source_id || event.target || event.source);
+}
+
+type PartyStatusSlot = {
+  key: string;
+  label: string;
+  display?: RentalPokemon;
+  condition?: string;
+  status?: string;
+  active?: boolean;
+  revealed?: boolean;
+  onClick?: () => void;
+};
+
+function playerPartySlots(battle: BattleState, activeIndex: number, activeCondition: string, activeStatus: string, onSelect: (index: number) => void): PartyStatusSlot[] {
+  const runtimes = battle.request?.side?.pokemon || [];
+  return Array.from({length: Math.max(3, battle.player_display.length || runtimes.length)}, (_value, index) => {
+    const runtime = runtimes[index];
+    const active = Boolean(runtime?.active || index === activeIndex);
+    const display = displayForRuntime(battle.player_display, runtime, index) || battle.player_display[index];
+    return {
+      key: runtime?.ident || display?.run_member_id || `player-${index}`,
+      label: String(index + 1),
+      display,
+      condition: active ? activeCondition : runtime?.condition,
+      status: active ? activeStatus : undefined,
+      active,
+      revealed: true,
+      onClick: display || runtime ? () => onSelect(index) : undefined,
+    };
+  }).slice(0, 3);
+}
+
+function enemyPartySlots(battle: BattleState, activeName: string, activeCondition: string, activeStatus: string): PartyStatusSlot[] {
+  const team = battle.enemy_display.slice(0, 3);
+  const seen = new Map<number, {condition?: string; status?: string; active?: boolean}>();
+  for (const event of battle.timeline_events || []) {
+    if (event.targetSide !== "p2" && event.side !== "p2") continue;
+    const index = enemyDisplayIndex(team, event);
+    if (index < 0) continue;
+    const previous = seen.get(index) || {};
+    seen.set(index, {
+      ...previous,
+      condition: event.condition || previous.condition,
+      status: event.condition ? undefined : previous.status,
+    });
+  }
+  const activeIndex = findDisplayIndex(team, activeName);
+  if (activeIndex >= 0) {
+    seen.set(activeIndex, {...(seen.get(activeIndex) || {}), condition: activeCondition, status: activeStatus, active: true});
+  }
+  return Array.from({length: 3}, (_value, index) => {
+    const visible = seen.get(index);
+    return {
+      key: team[index]?.run_member_id || team[index]?.species_id || `enemy-${index}`,
+      label: String(index + 1),
+      display: visible ? team[index] : undefined,
+      condition: visible?.condition,
+      status: visible?.status,
+      active: visible?.active,
+      revealed: Boolean(visible),
+    };
+  });
+}
+
 function statLine(pokemon: RentalPokemon, stat: string, revealTraining = false): string {
   const marker = pokemon.nature_plus === stat ? " ↑" : pokemon.nature_minus === stat ? " ↓" : "";
   return revealTraining
@@ -642,11 +722,13 @@ function debugBattle(ended = false): BattleState {
 
 function mergeBattleSnapshot(current: BattleState | null, next: BattleState | null | undefined): BattleState | null {
   if (!next) return current;
+  const enemyTrainer = next.enemy_trainer || current?.enemy_trainer;
+  const enemyBossRecord = next.enemy_boss_record || (enemyTrainer?.id && enemyTrainer.id === current?.enemy_trainer?.id ? current?.enemy_boss_record : undefined);
   return {
     ...next,
     player_trainer: next.player_trainer || current?.player_trainer,
-    enemy_trainer: next.enemy_trainer || current?.enemy_trainer,
-    enemy_boss_record: next.enemy_boss_record || current?.enemy_boss_record,
+    enemy_trainer: enemyTrainer,
+    enemy_boss_record: enemyBossRecord,
   };
 }
 
@@ -660,6 +742,7 @@ function installBrowserAutomationBridge() {
     loadSave: async () => save,
     createNewSave: async trainer => ({...save, trainer}),
     updateTrainer: async trainer => ({...save, trainer}),
+    enableTestMode: async () => ({...save, stats: {...save.stats, battle_points: 99999}}),
     trainerCatalog: async () => ({
       players: [{id: "player:debug", type: "player", name_zh: "斗也", front_asset: "assets/npc/player-front/斗也-bw_black.png", back_asset: "assets/npc/player-back/斗也-bw_touya_back.png", avatar_asset: "assets/npc/avatars/斗也-blackchallenge.png"}],
       avatars: [{id: "avatar:debug", type: "avatar", name_zh: "斗也", avatar_asset: "assets/npc/avatars/斗也-blackchallenge.png"}],
@@ -805,6 +888,13 @@ function App() {
     });
   }
 
+  async function enableTestMode() {
+    await runAction(async () => {
+      const next = await window.changeBattle!.enableTestMode();
+      return {screen: "mainMenu", save: next, message: "测试模式已开启：BP 调整为 99999。"};
+    });
+  }
+
   async function prepareChallenge() {
     const nextSeed = Math.floor(Math.random() * 0xffffffff);
     setSeed(nextSeed);
@@ -903,7 +993,7 @@ function App() {
   const content = useMemo(() => {
     if (screen === "title") return <TitleScreen save={save} onLoad={loadGame} onNew={() => setScreen("newGame")} />;
     if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => setScreen("title")} saveLabel="创建存档" />;
-    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => setScreen("talentConfig")} onStarterUpgrade={openStarterUpgrade} onInfo={() => setScreen("userInfo")} onTitle={() => setScreen("title")} />;
+    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => setScreen("talentConfig")} onStarterUpgrade={openStarterUpgrade} onInfo={() => setScreen("userInfo")} onTitle={() => setScreen("title")} onTestMode={enableTestMode} />;
     if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => setScreen("mainMenu")} saveLabel="保存设置" />;
     if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
     if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
@@ -942,8 +1032,8 @@ function TitleScreen({save, onLoad, onNew}: {save: LocalSave | null; onLoad: () 
   return <div className="title-screen"><h1>ChangeBattle</h1><p>宝可梦对战工厂</p><div className="command-menu"><button onClick={onLoad}>读取存档</button><button onClick={onNew}>开始新游戏</button><button onClick={() => window.close()}>退出</button></div>{save ? <span className="save-hint">检测到存档：{save.trainer.name}</span> : <span className="save-hint">未读取存档</span>}</div>;
 }
 
-function MainMenu({save, onStart, onTalent, onStarterUpgrade, onInfo, onTitle}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onStarterUpgrade: () => void; onInfo: () => void; onTitle: () => void}) {
-  return <div className="title-screen small"><h1>{save?.trainer.name || "训练师"}</h1><p>Rank：{save?.stats.rank_status || "未开放"}　BP：{save?.stats.battle_points || 0}</p><div className="command-menu"><button onClick={onStart}>{save?.current_run ? "继续对局" : "开始对局"}</button><button onClick={onTalent}>天赋配置</button><button onClick={onStarterUpgrade}>开局筹备</button><button onClick={onInfo}>玩家设置</button><button onClick={onTitle}>返回标题</button></div></div>;
+function MainMenu({save, onStart, onTalent, onStarterUpgrade, onInfo, onTitle, onTestMode}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onStarterUpgrade: () => void; onInfo: () => void; onTitle: () => void; onTestMode: () => void}) {
+  return <div className="title-screen small"><h1>{save?.trainer.name || "训练师"}</h1><p>Rank：{save?.stats.rank_status || "未开放"}　BP：{save?.stats.battle_points || 0}</p><div className="command-menu"><button onClick={onStart}>{save?.current_run ? "继续对局" : "开始对局"}</button><button onClick={onTalent}>天赋配置</button><button onClick={onStarterUpgrade}>开局筹备</button><button onClick={onTestMode}>测试模式</button><button onClick={onInfo}>玩家设置</button><button onClick={onTitle}>返回标题</button></div></div>;
 }
 
 const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
@@ -1749,6 +1839,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   const lastBattleTrainers = useRef<{player?: TrainerNpcView; enemy?: TrainerNpcView; bossRecord?: BossDexRecord}>({});
   const pokemonIntroTimer = useRef<number | null>(null);
   const eventTimers = useRef<number[]>([]);
+  const battleLogRef = useRef<HTMLDivElement | null>(null);
   const playbackRun = useRef(0);
   const finishRequested = useRef(false);
 
@@ -1764,25 +1855,46 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
     return bossDialogueSelection.current.index;
   }
 
+  function sameTrainer(left?: TrainerNpcView, right?: TrainerNpcView): boolean {
+    return Boolean(left?.id && right?.id && left.id === right.id);
+  }
+
   function rememberBattleTrainers(activeBattle: BattleState | null | undefined) {
     if (!activeBattle) return;
     if (activeBattle.player_trainer) lastBattleTrainers.current.player = activeBattle.player_trainer;
-    if (activeBattle.enemy_trainer) lastBattleTrainers.current.enemy = activeBattle.enemy_trainer;
-    if (activeBattle.enemy_boss_record) lastBattleTrainers.current.bossRecord = activeBattle.enemy_boss_record;
+    if (activeBattle.enemy_trainer) {
+      if (!sameTrainer(activeBattle.enemy_trainer, lastBattleTrainers.current.enemy)) lastBattleTrainers.current.bossRecord = undefined;
+      lastBattleTrainers.current.enemy = activeBattle.enemy_trainer;
+    }
+    if (activeBattle.enemy_boss_record && activeBattle.enemy_trainer?.type !== "normal") lastBattleTrainers.current.bossRecord = activeBattle.enemy_boss_record;
   }
 
   function battleWithRememberedTrainers(activeBattle: BattleState, fallback?: BattleState | null, activeDialogue?: TrainerDialogueState | null): BattleState {
+    const playerTrainer = activeBattle.player_trainer || activeDialogue?.playerTrainer || fallback?.player_trainer || lastBattleTrainers.current.player;
+    const enemyTrainer = activeBattle.enemy_trainer || activeDialogue?.trainer || fallback?.enemy_trainer || lastBattleTrainers.current.enemy;
+    const bossRecord = activeBattle.enemy_boss_record
+      || (sameTrainer(enemyTrainer, activeDialogue?.trainer) ? activeDialogue?.bossRecord : undefined)
+      || (sameTrainer(enemyTrainer, fallback?.enemy_trainer) ? fallback?.enemy_boss_record : undefined)
+      || (sameTrainer(enemyTrainer, lastBattleTrainers.current.enemy) ? lastBattleTrainers.current.bossRecord : undefined);
     return {
       ...activeBattle,
-      player_trainer: activeBattle.player_trainer || activeDialogue?.playerTrainer || fallback?.player_trainer || lastBattleTrainers.current.player,
-      enemy_trainer: activeBattle.enemy_trainer || activeDialogue?.trainer || fallback?.enemy_trainer || lastBattleTrainers.current.enemy,
-      enemy_boss_record: activeBattle.enemy_boss_record || activeDialogue?.bossRecord || fallback?.enemy_boss_record || lastBattleTrainers.current.bossRecord,
+      player_trainer: playerTrainer,
+      enemy_trainer: enemyTrainer,
+      enemy_boss_record: enemyTrainer?.type === "normal" ? undefined : bossRecord,
     };
   }
 
   useEffect(() => { displayConditionsRef.current = displayConditions; }, [displayConditions]);
   useEffect(() => { displayedActiveNamesRef.current = displayedActiveNames; }, [displayedActiveNames]);
   useEffect(() => { displayedSubstitutesRef.current = displayedSubstitutes; }, [displayedSubstitutes]);
+  useEffect(() => {
+    const log = battleLogRef.current;
+    if (!log) return;
+    const frame = window.requestAnimationFrame(() => {
+      log.scrollTop = log.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [shownEvents.length, shownEvents[shownEvents.length - 1], currentTimelineEvent?.id]);
   useEffect(() => {
     const battlePresent = Boolean(battle);
     if (battlePresent && !previousBattlePresent.current) {
@@ -2027,6 +2139,8 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
+  const playerParty = playerPartySlots(battle, activePlayerIndex, displayConditions.p1, battle.tracker.active.p1.status || "", setDetailIndex);
+  const enemyParty = enemyPartySlots(battle, displayedActiveNames.p2 || battle.tracker.active.p2.species_id || battle.tracker.active.p2.name || "", displayConditions.p2, battle.tracker.active.p2.status || "");
   const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"]) : 1600;
   const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
   const detailOpen = detailIndex !== null || mode === "teamMenu";
@@ -2060,7 +2174,8 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
           <BattleDialogueBox dialogue={dialogue} />
         ) : (
           <>
-            <div className="battle-log"><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
+            <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} />
+            <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
             <div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} />}</div>
           </>
         )}
@@ -2070,6 +2185,57 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
       {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} onClose={() => setBattleItemOpen(false)} onUse={(itemId, target, moveSlot) => { setBattleItemOpen(false); onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`); }} /> : null}
     </div>
   );
+}
+
+function BattlePartyBoard({battle, playerSlots, enemySlots}: {battle: BattleState; playerSlots: PartyStatusSlot[]; enemySlots: PartyStatusSlot[]}) {
+  const weather = battle.tracker.weather && battle.tracker.weather !== "无" ? battle.tracker.weather : "无";
+  const field = battle.tracker.field.join(" / ") || "无";
+  const enemyLeft = enemySlots.filter(slot => !statusCode(slot.condition, slot.status).includes("fnt")).length;
+  return (
+    <div className="battle-party-board">
+      <PartyStatusColumn side="player" title="我方" slots={playerSlots} />
+      <div className="battle-center-status">
+        <strong>第 {battle.tracker.turn} 回合</strong>
+        <span>天气 {weather}</span>
+        <span>场地 {field}</span>
+        <small>对手剩余 {enemyLeft}/3</small>
+      </div>
+      <PartyStatusColumn side="enemy" title="对手" slots={enemySlots} />
+    </div>
+  );
+}
+
+function PartyStatusColumn({side, title, slots}: {side: "player" | "enemy"; title: string; slots: PartyStatusSlot[]}) {
+  return (
+    <div className={`party-status-column ${side}`}>
+      <strong>{title}</strong>
+      <div className="party-status-slots">
+        {slots.map(slot => <PartyStatusChip slot={slot} side={side} key={slot.key} />)}
+      </div>
+    </div>
+  );
+}
+
+function PartyStatusChip({slot, side}: {slot: PartyStatusSlot; side: "player" | "enemy"}) {
+  const hp = parseHp(slot.condition);
+  const code = statusCode(slot.condition, slot.status);
+  const tone = hpTone(hp);
+  const revealed = side === "player" || slot.revealed;
+  const body = (
+    <>
+      <span className="party-chip-label">{slot.active ? "▶" : slot.label}</span>
+      <span className={`party-chip-sprite ${revealed ? "" : "unknown"}`}>
+        {revealed && slot.display ? <PokemonSprite pokemon={slot.display} alt={displayName(slot.display)} badge={false} /> : <i>?</i>}
+      </span>
+      <span className="party-chip-info">
+        <b>{revealed && slot.display ? displayName(slot.display) : "未登场"}</b>
+        <small>{hp?.text || (revealed ? conditionText(slot.condition) : "未知")}</small>
+        <span className="party-chip-hp"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : revealed ? 0 : 100}%`} as CSSProperties} /></span>
+      </span>
+      {code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}
+    </>
+  );
+  return slot.onClick ? <button className={`party-status-chip ${slot.active ? "active" : ""}`} onClick={slot.onClick}>{body}</button> : <div className={`party-status-chip ${slot.active ? "active" : ""}`}>{body}</div>;
 }
 
 function TrainerIntroOverlay({battle}: {battle: BattleState}) {
@@ -2898,10 +3064,9 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<Desk
           </div>
         ) : null}
         <div className="command-row"><button disabled={rolling} onClick={roll}>抽奖（{coinCostLabel(shop?.next_roll_cost)}）</button><button onClick={onClose}>跳过</button></div>
-        <div className={`slot-reels ${rolling ? "rolling" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
+        <div className={`slot-reels ${rolling ? "rolling" : ""} ${revealed && offers.length ? "settled" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
           {Array.from({length: slotCount}, (_, index) => {
-            const offer = offers[index % Math.max(1, offers.length)];
-            return <div className="slot-reel" key={`slot-${index}`}><ItemIcon item={offer} /><span>{rolling ? "抽取中" : offer ? offer.name_zh || offer.name : "?"}</span></div>;
+            return <div className="slot-reel" key={`slot-${index}`}><ItemIcon item={undefined} /><span>{rolling ? "抽取中" : revealed && offers.length ? "已揭晓" : "待抽取"}</span></div>;
           })}
         </div>
         {bonus && revealed ? <div className="slot-bonus-pop"><strong>抽到 {bonus.match_count} 连！</strong><span>免费获得 {bonus.count} 个 {bonus.name_zh || bonus.name}</span></div> : null}

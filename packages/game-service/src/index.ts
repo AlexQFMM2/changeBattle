@@ -224,6 +224,64 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, numeric));
 }
 
+function createBattleSeedRng(seed: number | number[]): () => number {
+  const seedValue = Array.isArray(seed) ? seed.reduce((acc, value) => acc ^ Number(value), 0) : Number(seed);
+  let state = (Number.isFinite(seedValue) ? seedValue : 1) >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function enemyPreviewOrder(enemyDisplay: RentalPokemon[], playerLead: RentalPokemon | undefined, random: () => number, dex: any): number[] {
+  const indexes = Array.from({length: enemyDisplay.length}, (_value, index) => index);
+  if (!indexes.length) return [];
+  const scored = indexes.map(index => {
+    const display = enemyDisplay[index];
+    const pressure = display && playerLead ? previewBestMovePressure(display, playerLead, dex) : 0;
+    return {index, score: pressure + random() * 8};
+  }).sort((a, b) => b.score - a.score);
+  const ordered = scored.map(entry => entry.index);
+  for (const index of indexes) if (!ordered.includes(index)) ordered.push(index);
+  return ordered;
+}
+
+function previewBestMovePressure(attacker: RentalPokemon, target: RentalPokemon, dex: any): number {
+  const moves = attacker.moves || [];
+  if (!moves.length) return 0;
+  return Math.max(...moves.map(move => {
+    const dexMove = dex.moves.get(move.id || move.name);
+    return dexMove?.exists ? previewEstimatedMoveDamage(dexMove, attacker, target, dex) : 0;
+  }));
+}
+
+function previewEstimatedMoveDamage(move: any, attacker: RentalPokemon | undefined, target: RentalPokemon | undefined, dex: any): number {
+  if (!attacker || !target) return Number(move.basePower || move.damage || 35);
+  if (!previewCanHit(move.type, target, dex)) return 0;
+  const power = Number(move.basePower || move.damage || 50);
+  const level = Number(attacker.level || 50);
+  const category = move.category === "Special" ? "Special" : "Physical";
+  const offensiveStat = category === "Special" ? "spa" : "atk";
+  const defensiveStat = category === "Special" ? "spd" : "def";
+  const attack = Math.max(1, Number(attacker.stats?.[offensiveStat] || attacker.base_stats?.[offensiveStat] || 70));
+  const defense = Math.max(1, Number(target.stats?.[defensiveStat] || target.base_stats?.[defensiveStat] || 70));
+  const stab = attacker.types?.includes(move.type) ? 1.5 : 1;
+  const type = previewTypeMultiplier(move.type, target, dex);
+  return (((2 * level / 5 + 2) * power * attack / defense) / 50 + 2) * stab * type;
+}
+
+function previewTypeMultiplier(moveType: string, target: RentalPokemon | undefined, dex: any): number {
+  if (!moveType || !target) return 1;
+  const species = dex.species.get(target.species_id || target.species || target.name);
+  const typeTarget = species?.exists ? species : {types: target.types || []};
+  if (!dex.getImmunity(moveType, typeTarget)) return 0;
+  return 2 ** dex.getEffectiveness(moveType, typeTarget);
+}
+
+function previewCanHit(moveType: string, target: RentalPokemon | undefined, dex: any): boolean {
+  return previewTypeMultiplier(moveType, target, dex) > 0;
+}
+
 export class GameService {
   readonly projectRoot: string;
   private readonly showdownPath: string;
@@ -511,6 +569,11 @@ export class GameService {
     const session = new TrainerItemBattleSession(this, this.loadShowdown(), options);
     await session.start();
     return session;
+  }
+
+  enemyTeamPreviewOrder(playerDisplay: RentalPokemon[] = [], enemyDisplay: RentalPokemon[] = [], seed: number | number[] = Date.now()): number[] {
+    const rng = createBattleSeedRng(seed);
+    return enemyPreviewOrder(enemyDisplay, playerDisplay[0], rng, this.loadShowdown().Dex.mod("gen7"));
   }
 
   async hasConsumableItemEffect(itemId: string): Promise<boolean> {
@@ -1681,12 +1744,7 @@ export class BattleSession {
     const indexes = Array.from({length: request.side?.pokemon?.length || 0}, (_value, index) => index + 1);
     if (!indexes.length) return "default";
     const playerLead = this.activeDisplay("p1");
-    const scored = indexes.map(index => {
-      const display = this.enemyDisplay[index - 1];
-      const pressure = display && playerLead ? this.bestMovePressure(display, playerLead) : 0;
-      return {choice: index, score: pressure + this.nextRandom() * 8};
-    }).sort((a, b) => b.score - a.score);
-    const ordered = scored.map(entry => entry.choice);
+    const ordered = enemyPreviewOrder(this.enemyDisplay.slice(0, indexes.length), playerLead, () => this.nextRandom(), this.sim.Dex.mod("gen7")).map(index => index + 1);
     for (const index of indexes) if (!ordered.includes(index)) ordered.push(index);
     return "team " + ordered.join("");
   }
@@ -2400,6 +2458,7 @@ function addMoveSignatureKey(keys: Set<string>, species: unknown, moves: unknown
 
 function keysForState(state: Partial<PlayerPokemonState>): Set<string> {
   const keys = new Set<string>();
+  addSlotKey(keys, "run_member", (state as PlayerPokemonState & {run_member_id?: string}).run_member_id);
   const short = shortIdent(state.ident || "");
   addSlotKey(keys, "ident", short);
   addSpeciesLikeKeys(keys, state.details);
@@ -2412,6 +2471,7 @@ function keysForState(state: Partial<PlayerPokemonState>): Set<string> {
 function keysForSet(set: Partial<PokemonSet> | undefined): Set<string> {
   const keys = new Set<string>();
   if (!set) return keys;
+  addSlotKey(keys, "run_member", set.run_member_id);
   addSlotKey(keys, "ident", set.name || set.species);
   addSpeciesLikeKeys(keys, set.species || set.name);
   addSlotKey(keys, "ability", set.ability);
@@ -2423,6 +2483,7 @@ function keysForSet(set: Partial<PokemonSet> | undefined): Set<string> {
 function keysForDisplay(pokemon: Partial<RentalPokemon> | undefined): Set<string> {
   const keys = new Set<string>();
   if (!pokemon) return keys;
+  addSlotKey(keys, "run_member", pokemon.run_member_id);
   addSlotKey(keys, "ident", pokemon.name || pokemon.species || pokemon.species_id);
   addSpeciesLikeKeys(keys, pokemon.species || pokemon.name || pokemon.species_id);
   addSlotKey(keys, "species_id", pokemon.species_id);

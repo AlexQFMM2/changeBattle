@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld("changeBattle", {
   updateTrainer(trainer: TrainerProfile): Promise<LocalSave> {
     return ipcRenderer.invoke("save:updateTrainer", trainer);
   },
+  enableTestMode(): Promise<LocalSave> {
+    return ipcRenderer.invoke("save:testMode");
+  },
   trainerCatalog(): Promise<TrainerCatalogState> {
     return ipcRenderer.invoke("trainer:catalog");
   },

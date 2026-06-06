@@ -8,7 +8,7 @@ moomoomilk,item,consumable,100,4,1,hp heal drink
 hyperpotion,item,consumable,120,5,1,hp heal
 maxpotion,item,consumable,160,3,1,full hp heal
 fullrestore,item,consumable,200,2,1,full hp and status
-revive,item,consumable,120,4,1,revive
+revive,item,consumable,120,9,1,revive
 maxrevive,item,consumable,200,1,1,full revive
 revivalherb,item,consumable,160,1,1,full revive herb
 energypowder,item,consumable,50,3,1,hp heal herb

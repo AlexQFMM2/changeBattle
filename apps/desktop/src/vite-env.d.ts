@@ -10,6 +10,7 @@ declare global {
       loadSave(): Promise<LocalSave | null>;
       createNewSave(trainer: TrainerProfile): Promise<LocalSave>;
       updateTrainer(trainer: TrainerProfile): Promise<LocalSave>;
+      enableTestMode(): Promise<LocalSave>;
       trainerCatalog(): Promise<TrainerCatalogState>;
       prepareCandidates(seed?: number): Promise<DesktopGameState>;
       prepareStarterItems(seed?: number): Promise<DesktopGameState>;
