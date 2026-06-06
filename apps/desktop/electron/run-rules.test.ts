@@ -5,7 +5,6 @@ import {
   DIRECT_MOVE_COST,
   MOVE_DRAW_COST,
   RANDOMIZE_PART_COST,
-  REVIEW_PREVIOUS_COST,
   SCOUT_ALL_COST,
   SCOUT_BASIC_COST,
   SCOUT_ONE_COST,
@@ -15,12 +14,10 @@ import {
   SHOP_ROLL_COST_NEXT,
   TALENTS,
   TALENT_EQUIP_LIMIT,
-  WIN_BP_REWARD,
   addRunBp,
   applyProphetFirstMover,
   canDirectMove,
   canExchangeBoss,
-  canReviewPrevious,
   canScoutNext,
   canSecondTeamRoar,
   candidateCountForTalents,
@@ -30,8 +27,6 @@ import {
   exchangeFullState,
   exchangeKeepsItem,
   exchangeStateRatio,
-  gamblerFailureBp,
-  gamblerStreakRoll,
   gainedBp,
   hasTalent,
   itemCategory,
@@ -43,6 +38,7 @@ import {
   sellPriceForItem,
   settleProphetFirstMover,
   shopDuplicateBonusForOffers,
+  shopCandidateCount,
   shopNextRollCost,
   shopOfferCount,
   spendBp,
@@ -109,9 +105,10 @@ function testExchangeTalents(): void {
   assert.equal(exchangeCost(plainElite4, 0), 2 * BP_SCALE);
   assert.equal(canExchangeBoss(run([], {boss_type: "normal"}), 2), true);
 
-  assert.equal(exchangeFullState(run(["exchange_lossless"])), false);
-  assert.equal(exchangeStateRatio(run(["exchange_lossless"])), 0.75);
-  assert.equal(exchangeKeepsItem(run(["exchange_pickpocket"])), true);
+  assert.equal(exchangeFullState(run(["exchange_lossless"])), true);
+  assert.equal(exchangeStateRatio(run(["exchange_lossless"])), 1);
+  assert.equal(exchangeKeepsItem(run(["exchange_lossless"])), true);
+  assert.equal(exchangeKeepsItem(run(["exchange_pickpocket"])), false);
 
   const gymRecognized = run(["exchange_gym_recognition"], {boss_type: "gym"});
   assert.equal(canExchangeBoss(gymRecognized, 0), true);
@@ -136,9 +133,12 @@ function testExchangeTalents(): void {
 
 function testGamblerTalents(): void {
   assert.equal(moveDrawCount(run()), 2);
-  assert.equal(moveDrawCount(run(["gambler_move_draw_4"])), 3);
+  assert.equal(moveDrawCount(run(["gambler_move_draw_4"])), 2);
+  assert.equal(moveDrawCount(run(["gambler_shop_offer_5"])), 4);
   assert.equal(shopOfferCount(run()), 3);
   assert.equal(shopOfferCount(run(["gambler_shop_offer_5"])), 4);
+  assert.equal(shopCandidateCount(run()), 4);
+  assert.equal(shopCandidateCount(run(["gambler_shop_offer_5"])), 8);
 
   assert.equal(statResetCost(run(), RANDOMIZE_PART_COST, "ivs", 0.2), RANDOMIZE_PART_COST);
   assert.equal(statResetCost(run(["gambler_free_stat_reset"]), RANDOMIZE_PART_COST, "ivs", 0.2), 0);
@@ -151,14 +151,10 @@ function testGamblerTalents(): void {
   const lowStake = run(["gambler_random_cost_1"], {shop_roll_count: 0});
   assert.equal(shopNextRollCost(lowStake), 0);
   assert.equal(shopNextRollCost(run(["gambler_random_cost_1"], {shop_roll_count: 5, rest_status: {exchanges: 0, taken_enemy_slots: [], free_shop_roll_used: true}})), SHOP_ROLL_COST_GAMBLER_PAID);
+  assert.equal(shopNextRollCost(run(["gambler_random_cost_1"], {shop_roll_count: 5, rest_status: {exchanges: 0, taken_enemy_slots: [], free_shop_rolls_remaining: 1}})), 0);
   assert.equal(moveDrawCost(lowStake), MOVE_DRAW_COST);
 
-  assert.equal(gamblerStreakRoll(run(), 1), null);
-  const streak = gamblerStreakRoll(run(["gambler_streak_bp_risk"]), 3);
-  assert.ok(streak);
-  assert.ok([1.4, 1.6, 1.8, 2.0, 2.5].includes(streak.multiplier));
-  assert.equal(streak.extra, Math.floor(WIN_BP_REWARD * (streak.multiplier - 1)));
-  assert.equal(gamblerFailureBp(run(["gambler_streak_bp_risk"], {run_start_bp: 1234})), 1234);
+  assert.equal(hasTalent(run(["gambler_streak_bp_risk"]).talents, "gambler_streak_bp_risk"), true);
 }
 
 function testProphetTalents(): void {
@@ -185,9 +181,6 @@ function testProphetTalents(): void {
   assert.equal(scoutCost("all"), SCOUT_ALL_COST);
   assert.equal(SCOUT_ONE_COST, 0);
   assert.equal(SCOUT_ALL_COST, 3 * BP_SCALE);
-  assert.equal(canReviewPrevious(run()), false);
-  assert.equal(canReviewPrevious(run(["prophet_history_review"])), true);
-  assert.equal(REVIEW_PREVIOUS_COST, 1 * BP_SCALE);
   assert.equal(canDirectMove(run()), false);
   assert.equal(canDirectMove(run(["prophet_direct_move"])), true);
   assert.equal(DIRECT_MOVE_COST, 3 * BP_SCALE);
@@ -204,7 +197,7 @@ function testBusinessTalents(): void {
 
   const bagRun = run([], {bag_items: {potion: 2, berry: 1}, non_refundable_bag_items: {potion: 1}});
   assert.equal(refundableBagBaseBpFromCosts(bagRun, {potion: 200, berry: 300}), 250);
-  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["business_refund_70"])}, {potion: 200, berry: 300}), 350);
+  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["business_refund_70"])}, {potion: 200, berry: 300}), 500);
   assert.equal(gainedBp(run(), 101), 101);
   assert.equal(gainedBp(run(["business_amulet_coin"]), 101), 151);
   assert.equal(gainedBp(run([], {player_display: [{shiny: true} as any]}), 100), 110);
@@ -231,10 +224,10 @@ function testCombinationsAndDefaults(): void {
   assert.equal(candidateCountForTalents(plain.talents), 6);
   assert.equal(gainedBp(plain, 100), 100);
   assert.equal(TALENT_EQUIP_LIMIT, 5);
-  assert.equal(TALENTS.length, 24);
-  assert.equal(talent("gambler_streak_bp_risk").name, "压上杠杆");
+  assert.equal(TALENTS.length, 23);
+  assert.equal(talent("gambler_streak_bp_risk").name, "好运连连");
   assert.equal(talent("gambler_all_in_exchange").name, "孤注一掷");
-  for (const id of ["exchange_safe_box", "prophet_future_boss", "business_shiny_collector"]) {
+  for (const id of ["exchange_safe_box", "prophet_next_scout", "business_shiny_collector"]) {
     assert.ok(talent(id));
   }
 

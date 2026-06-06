@@ -2,8 +2,8 @@ import {app, BrowserWindow, Menu, ipcMain, protocol} from "electron";
 import {existsSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
-import {GameService, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleState, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ShopItem, ShopOffer, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
+import type {BagCategoryView, BattleState, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ShopItem, ShopOffer, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
   BP_SCALE,
@@ -15,11 +15,12 @@ import {
   REST_HP_COSTS,
   REST_PP_COSTS,
   REST_STATUS_COSTS,
-  REVIEW_PREVIOUS_COST,
   SCOUT_ALL_COST,
   SCOUT_BASIC_COST,
   SCOUT_ONE_COST,
   SECOND_TEAM_ROAR_COST,
+  SHOP_GUEST_FREE_ROLLS,
+  SHOP_PREFERRED_ROLL_COST,
   STARTER_ITEM_OFFER_COUNT,
   STARTER_ITEM_REROLL_COST,
   TALENTS,
@@ -37,19 +38,19 @@ import {
   exchangeCost,
   exchangeKeepsItem,
   exchangeStateRatio,
-  gamblerFailureBp,
-  gamblerStreakRoll,
   hasTalent,
   isTmItemId,
   itemCategory,
   itemKey,
   moveDrawCost,
   moveDrawCount,
+  pricedForRun,
   pricedForShop,
   refreshStats,
   sellPriceForItem,
   settleProphetFirstMover,
   shopDuplicateBonusForOffers,
+  shopCandidateCount,
   shopNextRollCost,
   shopOfferCount,
   spendBp,
@@ -104,6 +105,7 @@ let pendingRescue: {seed: number; battleNo: number; candidates: GeneratedTeam} |
 let configuredTalents: TalentView[] = [];
 let activeBattle: TrainerItemBattleSession | null = null;
 let activeBattleNo = 0;
+let battleChoiceInFlight = false;
 let goodsCache: Map<string, {item_type: string; item_id: string; item_cost: number}> | null = null;
 let shopPoolCache: ShopPoolEntry[] | null = null;
 let bossTeamPoolCache: BossTeamPoolRow[] | null = null;
@@ -121,7 +123,7 @@ type ShopPoolEntry = {
   enabled: boolean;
   notes?: string;
 };
-type BossTeamPoolRow = {pool_id: string; trainer_id: string; team_index: number; slot: number; species_id: string; generation_profile: GenerationProfile};
+type BossTeamPoolRow = {pool_id: string; trainer_id: string; team_index: number; slot: number; species_id: string; species?: string; generation_profile: GenerationProfile};
 
 const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
   healing: 65,
@@ -133,13 +135,13 @@ const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
 
 const GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
   {id: "potion", cost: 50},
-  {id: "superpotion", cost: 50},
-  {id: "hyperpotion", cost: 100},
-  {id: "maxpotion", cost: 150},
-  {id: "fullrestore", cost: 100},
-  {id: "revive", cost: 100},
-  {id: "maxrevive", cost: 200},
-  {id: "revivalherb", cost: 200},
+  {id: "superpotion", cost: 100},
+  {id: "hyperpotion", cost: 200},
+  {id: "maxpotion", cost: 250},
+  {id: "fullrestore", cost: 300},
+  {id: "revive", cost: 200},
+  {id: "maxrevive", cost: 300},
+  {id: "revivalherb", cost: 300},
   {id: "fullheal", cost: 50},
   {id: "healpowder", cost: 50},
   {id: "antidote", cost: 50},
@@ -150,9 +152,9 @@ const GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
 ];
 
 const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: string; desc_zh: string}> = {
-  potion: {name: "Potion", name_zh: "伤药", desc: "Restores 20 HP.", desc_zh: "恢复 20 点 HP。"},
+  potion: {name: "Potion", name_zh: "回复药", desc: "Restores 20 HP.", desc_zh: "恢复 20 点 HP。"},
   superpotion: {name: "Super Potion", name_zh: "好伤药", desc: "Restores 60 HP.", desc_zh: "恢复 60 点 HP。"},
-  hyperpotion: {name: "Hyper Potion", name_zh: "厉害伤药", desc: "Restores 120 HP.", desc_zh: "恢复 120 点 HP。"},
+  hyperpotion: {name: "Hyper Potion", name_zh: "绝好伤药", desc: "Restores 120 HP.", desc_zh: "恢复 120 点 HP。"},
   maxpotion: {name: "Max Potion", name_zh: "全满药", desc: "Fully restores HP.", desc_zh: "恢复全部 HP。"},
   fullrestore: {name: "Full Restore", name_zh: "全复药", desc: "Fully restores HP and cures status.", desc_zh: "恢复全部 HP，并解除异常状态。"},
   freshwater: {name: "Fresh Water", name_zh: "美味之水", desc: "Restores 30 HP.", desc_zh: "恢复 30 点 HP。"},
@@ -160,7 +162,7 @@ const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: s
   lemonade: {name: "Lemonade", name_zh: "果汁牛奶", desc: "Restores 70 HP.", desc_zh: "恢复 70 点 HP。"},
   moomoomilk: {name: "Moomoo Milk", name_zh: "哞哞鲜奶", desc: "Restores 100 HP.", desc_zh: "恢复 100 点 HP。"},
   revive: {name: "Revive", name_zh: "活力碎片", desc: "Revives a fainted Pokemon with half HP.", desc_zh: "让濒死宝可梦复活，并恢复一半 HP。"},
-  maxrevive: {name: "Max Revive", name_zh: "元气药块", desc: "Revives a fainted Pokemon with full HP.", desc_zh: "让濒死宝可梦复活，并恢复全部 HP。"},
+  maxrevive: {name: "Max Revive", name_zh: "活力块", desc: "Revives a fainted Pokemon with full HP.", desc_zh: "让濒死宝可梦复活，并恢复全部 HP。"},
   revivalherb: {name: "Revival Herb", name_zh: "复活草", desc: "Revives a fainted Pokemon with full HP.", desc_zh: "让濒死宝可梦复活，并恢复全部 HP。"},
   energypowder: {name: "Energy Powder", name_zh: "元气粉", desc: "Restores 60 HP.", desc_zh: "恢复 60 点 HP。"},
   energyroot: {name: "Energy Root", name_zh: "元气根", desc: "Restores 120 HP.", desc_zh: "恢复 120 点 HP。"},
@@ -176,6 +178,76 @@ const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: s
   elixir: {name: "Elixir", name_zh: "PP 多项小补剂", desc: "Restores 10 PP to all moves.", desc_zh: "让所有招式恢复 10 点 PP。"},
   maxelixir: {name: "Max Elixir", name_zh: "PP 多项全补剂", desc: "Fully restores PP to all moves.", desc_zh: "让所有招式恢复全部 PP。"},
 };
+
+function freshRestStatus(talents: TalentView[] | undefined, extra: CurrentRunData["rest_status"] = {}): CurrentRunData["rest_status"] {
+  const baseFreeRolls = hasTalent(talents, "gambler_random_cost_1") ? SHOP_GUEST_FREE_ROLLS : 0;
+  const extraFreeRolls = Number(extra.free_shop_rolls_remaining || 0);
+  return {
+    exchanges: 0,
+    taken_enemy_slots: [],
+    ...extra,
+    free_shop_rolls_remaining: Math.max(0, baseFreeRolls + extraFreeRolls),
+  };
+}
+
+function bpRiskRoll(run: CurrentRunData, label: string): number {
+  return seededRng(Number(run.seed || 1), 0xbad500 + Number(run.battle_no || run.next_battle || 0) * 97 + toId(label).length * 31 + Date.now())();
+}
+
+function spendRunBp(save: LocalSave, run: CurrentRunData, cost: number, label: string, options: {alreadyPriced?: boolean} = {}): {paid: number; message: string} {
+  const baseCost = options.alreadyPriced ? Math.max(0, Math.floor(Number(cost || 0))) : pricedForRun(run, cost);
+  if (baseCost <= 0) return {paid: 0, message: "免费"};
+  if (!hasTalent(run.talents, "gambler_move_draw_4")) {
+    spendBp(save, baseCost);
+    return {paid: baseCost, message: spendText(baseCost)};
+  }
+  const roll = bpRiskRoll(run, label);
+  if (roll < 0.4) {
+    return {paid: 0, message: `铤而走险触发：本次花费为 0（原价 ${baseCost}BP）`};
+  }
+  if (roll < 0.6) {
+    const paid = Math.ceil(baseCost * 1.5);
+    spendBp(save, paid);
+    return {paid, message: `铤而走险触发：消耗增加 1.5 倍，花费 ${paid}BP`};
+  }
+  if (roll < 0.7) {
+    addBp(save, baseCost);
+    return {paid: 0, message: `铤而走险触发：本次免费，并额外获得 ${baseCost}BP`};
+  }
+  spendBp(save, baseCost);
+  return {paid: baseCost, message: spendText(baseCost)};
+}
+
+function adjustBagItem(run: CurrentRunData, itemId: string, delta: number): void {
+  const id = itemKey(itemId);
+  const nextCount = Math.max(0, Number(run.bag_items?.[id] || 0) + delta);
+  run.bag_items = {...(run.bag_items || {}), [id]: nextCount};
+  if (!nextCount) {
+    delete run.bag_items[id];
+    if (run.bag_item_meta) delete run.bag_item_meta[id];
+  }
+}
+
+async function grantBagItem(run: CurrentRunData, itemId: string, count: number): Promise<string> {
+  const item = await itemDetailsById(itemId);
+  adjustBagItem(run, item.id, Math.max(0, count));
+  rememberBagItemMeta(run, item);
+  return `${item.name_zh || item.name} x${count}`;
+}
+
+async function grantVictoryRewards(run: CurrentRunData, isBoss: boolean, battleNo: number): Promise<{items: string[]; restBonus: CurrentRunData["rest_status"]}> {
+  const items: string[] = [];
+  if (isBoss) {
+    items.push(await grantBagItem(run, "fullrestore", 2));
+    items.push(await grantBagItem(run, "maxelixir", 2));
+    return {items, restBonus: {free_shop_rolls_remaining: 1, shop_slot_discounts: [0.3, 0.5, 0.7, 0.3]}};
+  }
+  const rng = seededRng(Number(run.seed || 1), 0x711c70 + battleNo * 73 + Number(run.wins || 0) * 17);
+  items.push(await grantBagItem(run, rng() < 0.3 ? "fullheal" : "leppaberry", 2));
+  items.push(await grantBagItem(run, rng() < 0.7 ? "hyperpotion" : "revive", 1));
+  items.push(await grantBagItem(run, "fullrestore", 1));
+  return {items, restBonus: {}};
+}
 
 const npcCatalog = loadNpcCatalog();
 
@@ -194,9 +266,33 @@ function contentTypeFor(filePath: string): string {
     case ".png": return "image/png";
     case ".jpg":
     case ".jpeg": return "image/jpeg";
+    case ".gif": return "image/gif";
     case ".webp": return "image/webp";
     case ".svg": return "image/svg+xml";
     default: return "application/octet-stream";
+  }
+}
+
+function cp936MojibakePath(relativePath: string): string | null {
+  try {
+    const converted = new TextDecoder("gbk").decode(Buffer.from(relativePath, "utf8"));
+    return converted && converted !== relativePath ? converted : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readAssetFile(relativePath: string): Promise<{filePath: string; bytes: Buffer}> {
+  const filePath = path.resolve(projectRoot, relativePath);
+  if (!filePath.startsWith(projectRoot + path.sep)) throw Object.assign(new Error("Forbidden"), {status: 403});
+  try {
+    return {filePath, bytes: await readFile(filePath)};
+  } catch (error) {
+    const fallbackPath = cp936MojibakePath(relativePath);
+    if (!fallbackPath) throw error;
+    const fallbackFilePath = path.resolve(projectRoot, fallbackPath);
+    if (!fallbackFilePath.startsWith(projectRoot + path.sep)) throw Object.assign(new Error("Forbidden"), {status: 403});
+    return {filePath: fallbackFilePath, bytes: await readFile(fallbackFilePath)};
   }
 }
 
@@ -243,12 +339,44 @@ function migrateSaveBpScale(save: LocalSave): void {
   save.bp_scale = BP_SCALE;
 }
 
+function emptyBossDexRecord(): BossDexRecord {
+  return {
+    encounters: 0,
+    completed: 0,
+    wins: 0,
+    losses: 0,
+    last_result: null,
+    seen_pool_slots: [],
+    seen_pokemon: {},
+  };
+}
+
+function normalizeBossDexRecord(record?: Partial<BossDexRecord> | null): BossDexRecord {
+  const seenPokemon = Object.fromEntries(Object.entries(record?.seen_pokemon || {}).filter(([, value]) => Boolean(value?.pokemon))) as Record<string, BossDexSeenPokemon>;
+  return {
+    ...emptyBossDexRecord(),
+    ...record,
+    encounters: Math.max(0, Number(record?.encounters || 0)),
+    completed: Math.max(0, Number(record?.completed || 0)),
+    wins: Math.max(0, Number(record?.wins || 0)),
+    losses: Math.max(0, Number(record?.losses || 0)),
+    last_result: record?.last_result === "win" || record?.last_result === "loss" ? record.last_result : null,
+    seen_pool_slots: Array.from(new Set((record?.seen_pool_slots || []).filter(Boolean))),
+    seen_pokemon: seenPokemon,
+  };
+}
+
+function normalizeBossDex(dex?: Record<string, BossDexRecord> | null): Record<string, BossDexRecord> {
+  return Object.fromEntries(Object.entries(dex || {}).map(([id, record]) => [id, normalizeBossDexRecord(record)]));
+}
+
 function normalizeSave(save: LocalSave): LocalSave {
   migrateSaveBpScale(save);
   save.stats = {...emptyStats(), ...(save.stats || {})};
   save.trainer = normalizeTrainerProfile(save.trainer);
   save.talent_unlocks = Array.from(new Set((save.talent_unlocks || []).filter(id => TALENTS.some(talent => talent.id === id))));
   save.talent_equipped = (save.talent_equipped || []).filter(id => save.talent_unlocks!.includes(id)).slice(0, TALENT_EQUIP_LIMIT);
+  save.boss_dex = normalizeBossDex(save.boss_dex);
   save.current_run = save.current_run || null;
   refreshStats(save);
   if (save.current_run) normalizeCurrentRun(save.current_run);
@@ -401,6 +529,7 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     ...state,
     player_trainer: run.player_trainer,
     enemy_trainer: run.enemy_trainer,
+    enemy_boss_record: run.enemy_boss_record,
     player_talents: playerTalents,
     show_move_effectiveness: hasTalent(playerTalents, "prophet_first_mover"),
   };
@@ -420,12 +549,13 @@ function recordBattleResult(save: LocalSave, winner: string | null, run?: Curren
     save.stats = stats;
     refreshStats(save);
   }
+  if (run) recordBossBattleResult(save, run, winner);
   return gained;
 }
 
 async function refundableBagBaseBp(run: CurrentRunData): Promise<number> {
   normalizeCurrentRun(run);
-  const rate = hasTalent(run.talents, "business_refund_70") ? 0.7 : 0.5;
+  const rate = hasTalent(run.talents, "business_refund_70") ? 1 : 0.5;
   let total = 0;
   for (const [id, rawCount] of Object.entries(run.bag_items || {})) {
     const count = Math.max(0, Number(rawCount || 0));
@@ -438,12 +568,7 @@ async function refundableBagBaseBp(run: CurrentRunData): Promise<number> {
   return Math.floor(total * rate);
 }
 
-async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refundBag?: boolean; gamblerFailure?: boolean} = {}): Promise<{paidBack: number; refundBase: number; refundGained: number}> {
-  if (options.gamblerFailure) {
-    save.stats.battle_points = gamblerFailureBp(run);
-    refreshStats(save);
-    return {paidBack: 0, refundBase: 0, refundGained: 0};
-  }
+async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refundBag?: boolean} = {}): Promise<{paidBack: number; refundBase: number; refundGained: number}> {
   const paidBack = settleProphetFirstMover(save, run);
   const refundBase = options.refundBag === false ? 0 : await refundableBagBaseBp(run);
   const refundGained = refundBase ? addRunBp(save, run, refundBase) : 0;
@@ -728,7 +853,19 @@ async function guaranteedShopOffer(index: number, run: CurrentRunData, rng: () =
   return offer ? {...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-guaranteed-${guaranteed.id}`} : null;
 }
 
-async function rollShopOffers(run: CurrentRunData): Promise<ShopOffer[]> {
+type ShopPreferredCategory = "healing" | "pp" | "berry" | "battle" | "tm";
+
+function preferredShopBuckets(preferredCategory?: ShopPreferredCategory): ShopPoolBucket[] | null {
+  if (!preferredCategory) return null;
+  if (preferredCategory === "healing") return ["healing"];
+  if (preferredCategory === "pp") return ["pp"];
+  if (preferredCategory === "berry") return ["berry"];
+  if (preferredCategory === "battle") return ["held"];
+  if (preferredCategory === "tm") return ["tm"];
+  return null;
+}
+
+async function rollShopOffers(run: CurrentRunData, preferredCategory?: ShopPreferredCategory): Promise<ShopOffer[]> {
   const pool = await loadShopPool();
   const itemEntries = pool.filter(entry => entry.kind === "item");
   const tmEnabled = pool.some(entry => entry.kind === "tm" && entry.id === "*");
@@ -754,12 +891,17 @@ async function rollShopOffers(run: CurrentRunData): Promise<ShopOffer[]> {
   const rng = seededRng(Number(run.seed || 1), 0x5100 + Number(run.shop_roll_count || 0) * 97 + Number(run.battle_no || run.next_battle || 0));
   const count = shopOfferCount(run);
   const result: ShopOffer[] = [];
+  const forcedBuckets = preferredShopBuckets(preferredCategory);
+  const candidateLimit = shopCandidateCount(run);
   for (let index = 0; index < count; index += 1) {
-    const bucket = weightedShopBucket(buckets, rng);
-    const selected = bucket ? weightedPick(buckets[bucket] || [], rng) : null;
+    const bucket = forcedBuckets ? weightedPick(forcedBuckets.filter(entry => (buckets[entry] || []).length > 0).map(entry => ({bucket: entry, weight: SHOP_BUCKET_WEIGHTS[entry]})), rng)?.bucket : weightedShopBucket(buckets, rng);
+    const bucketPool = bucket ? shuffleByRng(buckets[bucket] || [], rng).slice(0, Math.max(1, candidateLimit)) : [];
+    const selected = bucket ? weightedPick(bucketPool, rng) : null;
     if (!selected) break;
     const {weight: _weight, ...offer} = selected as ShopOffer & {weight?: number};
-    result.push({...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-${itemKey(offer.id || offer.name)}`});
+    const slotDiscount = Number(run.rest_status?.shop_slot_discounts?.[index] || 0);
+    const cost = slotDiscount > 0 ? Math.floor(Number(offer.cost || 0) * slotDiscount) : Number(offer.cost || 0);
+    result.push({...offer, cost, discount: slotDiscount || offer.discount, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-${itemKey(offer.id || offer.name)}`});
   }
   const hasGuaranteed = result.some(offer => GUARANTEED_SHOP_ITEMS.some(item => item.id === itemKey(offer.id || offer.name)));
   if (!hasGuaranteed) {
@@ -824,9 +966,10 @@ async function starterItemOffers(runSeed: number, talents: TalentView[] = []): P
     const discountedCost = Math.floor(Number(item.cost || 5 * BP_SCALE) * discount);
     const baseOffer = {...item, cost: discountedCost};
     const category = itemCategory(item);
+    const cost = hasTalent(talents, "business_starter_3") ? 0 : pricedForShop(baseOffer, talents);
     return {
       ...item,
-      cost: pricedForShop(baseOffer, talents),
+      cost,
       offer_id: `starter-${index}-${itemKey(item.id || item.name)}`,
       category,
       discount,
@@ -849,8 +992,15 @@ function routeBossForBattle(setStreak: number, battleNo: number): BossRoute {
   return {type: "normal", stage: "normal", route: "normal", pool: [{type: "normal"}]};
 }
 
-function starterProfilesForStreak(setStreak: number, count: number): GenerationProfile[] {
-  const base: GenerationProfile[] = setStreak <= 0
+function starterProfilesForStreak(setStreak: number, count: number, talents: TalentView[] = []): GenerationProfile[] {
+  const lucky = hasTalent(talents, "gambler_streak_bp_risk");
+  const base: GenerationProfile[] = lucky
+    ? setStreak <= 0
+      ? ["tier1", "tier1", "tier2", "tier2", "tier2", "tier3"]
+      : setStreak === 1
+        ? ["tier2", "tier2", "tier2", "tier3", "tier3", "tier3"]
+        : ["tier2", "tier3", "tier3", "tier3", "tier3", "tier4"]
+    : setStreak <= 0
     ? ["tier1", "tier1", "tier1", "tier2", "tier2", "tier2"]
     : setStreak === 1
       ? ["tier1", "tier1", "tier1", "tier2", "tier2", "tier3"]
@@ -864,6 +1014,32 @@ function profilesForRoute(route: BossRoute): GenerationProfile[] {
   if (route.stage === "tier2") return ["tier2", "tier3", "tier3"];
   if (route.stage === "tier1") return ["tier1", "tier2", "tier2"];
   return ["tier1", "tier1", "tier2"];
+}
+
+function championPersonalityForTrainer(trainer?: TrainerNpcView): BattleAiPersonality {
+  const text = [trainer?.id, trainer?.name_zh, trainer?.name_en, trainer?.notes].filter(Boolean).join("|").toLowerCase();
+  if (/赤红|red/.test(text)) return "aggressive";
+  if (/小茂|青绿|blue|green/.test(text)) return "adaptive";
+  if (/阿渡|lance/.test(text)) return "aggressive";
+  if (/大吾|steven/.test(text)) return "defensive";
+  if (/米可利|wallace/.test(text)) return "status";
+  if (/竹兰|cynthia|shirona/.test(text)) return "adaptive";
+  if (/阿戴克|alder|adeku/.test(text)) return "aggressive";
+  if (/艾莉丝|iris/.test(text)) return "setup";
+  if (/卡露妮|diantha|karune/.test(text)) return "setup";
+  if (/库库伊|kukui/.test(text)) return "aggressive";
+  if (/丹帝|leon/.test(text)) return "aggressive";
+  if (/也慈|geeta/.test(text)) return "defensive";
+  if (/妮莫|nemona/.test(text)) return "aggressive";
+  return "balanced";
+}
+
+function enemyAiForRoute(route: BossRoute, trainer?: TrainerNpcView): BattleAiProfileInput {
+  if (route.type === "champion") return {level: "champion", personality: championPersonalityForTrainer(trainer)};
+  if (route.type === "elite4") return "elite4";
+  if (route.type === "gym" && route.stage.includes("tier3")) return "gym_high";
+  if (route.type === "gym") return "gym_low";
+  return "normal";
 }
 
 function normalEnemyProfilesForRoute(route: BossRoute): GenerationProfile[] {
@@ -898,13 +1074,14 @@ function loadBossTeamPools(): BossTeamPoolRow[] {
       team_index: Number(row.team_index || 0),
       slot: Number(row.slot || 0),
       species_id: row.species_id,
+      species: row.species || undefined,
       generation_profile: (row.generation_profile || "tier1") as GenerationProfile,
     };
   }).filter(row => row.pool_id && row.species_id && row.team_index && row.slot);
   return bossTeamPoolCache;
 }
 
-function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): {speciesIds: string[]; profiles: GenerationProfile[]} | null {
+function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): {teamIndex: number; rows: BossTeamPoolRow[]; speciesIds: string[]; profiles: GenerationProfile[]} | null {
   const poolId = trainer.team_pool_id || trainer.team_pool_ids?.[0];
   if (!poolId) return null;
   const rows = loadBossTeamPools().filter(row => row.pool_id === poolId);
@@ -913,7 +1090,162 @@ function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battle
   const teamIndex = pickStable(teamIndexes, run.seed || 0, battleNo, trainer.id, poolId) || teamIndexes[0];
   const selected = rows.filter(row => row.team_index === teamIndex).sort((a, b) => a.slot - b.slot).slice(0, 3);
   if (selected.length < 3) return null;
-  return {speciesIds: selected.map(row => row.species_id), profiles: selected.map(row => row.generation_profile)};
+  return {teamIndex, rows: selected, speciesIds: selected.map(row => row.species_id), profiles: selected.map(row => row.generation_profile)};
+}
+
+function bossPoolSlotKey(poolId: string | undefined, teamIndex: number, slot: number, speciesId: string): string {
+  return `${poolId || "pool"}:${teamIndex}:${slot}:${speciesId}`;
+}
+
+function isBossTrainer(trainer?: TrainerNpcView): boolean {
+  return Boolean(trainer && ["gym", "elite4", "champion"].includes(trainer.type));
+}
+
+function recordBossEncounter(save: LocalSave, run: CurrentRunData, trainer: TrainerNpcView, bossTeam: ReturnType<typeof bossTeamForTrainer>, display: RentalPokemon[]): BossDexRecord | undefined {
+  if (!isBossTrainer(trainer) || !bossTeam) return undefined;
+  const now = new Date().toISOString();
+  save.boss_dex = normalizeBossDex(save.boss_dex);
+  const previous = normalizeBossDexRecord(save.boss_dex[trainer.id]);
+  const poolId = trainer.team_pool_id || trainer.team_pool_ids?.[0];
+  const seenPokemon = {...previous.seen_pokemon};
+  const seenPoolSlots = new Set(previous.seen_pool_slots);
+  for (const row of bossTeam.rows) {
+    const key = bossPoolSlotKey(poolId, row.team_index, row.slot, row.species_id);
+    const pokemon = display[row.slot - 1];
+    seenPoolSlots.add(key);
+    if (pokemon) {
+      seenPokemon[key] = {
+        key,
+        team_index: row.team_index,
+        slot: row.slot,
+        species_id: row.species_id,
+        pokemon,
+      };
+    }
+  }
+  const next = normalizeBossDexRecord({
+    ...previous,
+    encounters: previous.encounters + 1,
+    first_seen_at: previous.first_seen_at || now,
+    last_seen_at: now,
+    seen_pool_slots: Array.from(seenPoolSlots),
+    seen_pokemon: seenPokemon,
+  });
+  save.boss_dex[trainer.id] = next;
+  run.enemy_boss_record = next;
+  return next;
+}
+
+function recordBossBattleResult(save: LocalSave, run: CurrentRunData, winner: string | null): void {
+  const trainer = run.enemy_trainer;
+  if (!isBossTrainer(trainer)) return;
+  save.boss_dex = normalizeBossDex(save.boss_dex);
+  const previous = normalizeBossDexRecord(save.boss_dex[trainer!.id]);
+  const playerWon = winner === "Player";
+  const next = normalizeBossDexRecord({
+    ...previous,
+    completed: previous.completed + 1,
+    wins: previous.wins + (playerWon ? 1 : 0),
+    losses: previous.losses + (playerWon ? 0 : 1),
+    last_result: playerWon ? "win" : "loss",
+    last_battled_at: new Date().toISOString(),
+  });
+  save.boss_dex![trainer!.id] = next;
+  run.enemy_boss_record = next;
+}
+
+function trainerDexTypeLabel(type: TrainerNpcType): string {
+  if (type === "champion") return "冠军";
+  if (type === "elite4") return "四天王";
+  if (type === "gym") return "馆主";
+  return "训练师";
+}
+
+function bossPoolRowsForDex(trainer: TrainerNpcView, record: BossDexRecord | undefined): BossDexPoolRow[] {
+  const poolIds = trainer.team_pool_ids?.length ? trainer.team_pool_ids : trainer.team_pool_id ? [trainer.team_pool_id] : [];
+  const rows = loadBossTeamPools().filter(row => poolIds.includes(row.pool_id)).sort((a, b) => a.team_index - b.team_index || a.slot - b.slot);
+  const byTeam = new Map<number, BossTeamPoolRow[]>();
+  for (const row of rows) {
+    const list = byTeam.get(row.team_index) || [];
+    list.push(row);
+    byTeam.set(row.team_index, list);
+  }
+  return [...byTeam.entries()].map(([teamIndex, teamRows]) => ({
+    team_index: teamIndex,
+    slots: teamRows.sort((a, b) => a.slot - b.slot).slice(0, 3).map(row => {
+      const key = bossPoolSlotKey(row.pool_id, row.team_index, row.slot, row.species_id);
+      const seen = record?.seen_pokemon?.[key];
+      return {
+        key,
+        team_index: row.team_index,
+        slot: row.slot,
+        species_id: row.species_id,
+        species: row.species,
+        generation_profile: row.generation_profile,
+        unlocked: Boolean(seen),
+        pokemon: seen?.pokemon,
+      };
+    }),
+  }));
+}
+
+function bossSummary(record?: BossDexRecord): string {
+  if (!record?.encounters) return "尚未遭遇";
+  const last = record.last_result === "win" ? "上次胜利" : record.last_result === "loss" ? "上次失败" : "尚未结算";
+  return `交手 ${record.completed || 0} 次　胜 ${record.wins || 0} / 负 ${record.losses || 0}　${last}`;
+}
+
+function trainerDexSearch(save: LocalSave | null, query = "", offset = 0, limit = 8): DesktopDexSearchResult {
+  const normalizedOffset = Math.max(0, Number(offset || 0));
+  const cappedLimit = Math.max(1, Math.min(120, Number(limit || 8)));
+  const typeMatch = String(query || "").match(/\btype:(gym|elite4|champion)\b/i);
+  const typeFilter = typeMatch?.[1] as TrainerNpcType | undefined;
+  const cleanQuery = String(query || "").replace(/\btype:(gym|elite4|champion)\b/ig, "").trim().toLowerCase();
+  const cleanId = toId(cleanQuery);
+  const bossDex = normalizeBossDex(save?.boss_dex);
+  const bosses = npcCatalog.filter(entry => isBossTrainer(entry) && entry.front_asset && (!typeFilter || entry.type === typeFilter));
+  const entries: DesktopDexEntry[] = bosses.map((trainer, index) => {
+    const record = bossDex[trainer.id];
+    const unlocked = Boolean(record?.encounters);
+    const typeLabel = trainerDexTypeLabel(trainer.type);
+    const hiddenName = `${trainer.region || "未知地区"}${typeLabel} #${index + 1}`;
+    const nameZh = unlocked ? trainer.name_zh : "？？？";
+    const name = unlocked ? (trainer.name_en || trainer.name_zh) : "???";
+    return {
+      id: trainer.id,
+      name,
+      name_zh: nameZh,
+      category: "trainers" as const,
+      desc_zh: unlocked ? `${trainer.region || "未知地区"}${typeLabel}` : hiddenName,
+      tags: unlocked
+        ? [trainer.id, trainer.name_zh, trainer.name_en || "", trainer.region || "", trainer.role || "", trainerDexTypeLabel(trainer.type), trainer.notes || ""]
+        : [trainer.region || "", trainer.role || "", trainerDexTypeLabel(trainer.type), hiddenName],
+      trainer: unlocked ? trainer : {...trainer, name_zh: "？？？", name_en: "???", front_asset: undefined, front_gif_asset: undefined, avatar_asset: undefined},
+      unlocked,
+      boss_record: record,
+      boss_pool_rows: bossPoolRowsForDex(trainer, record),
+      boss_summary: bossSummary(record),
+    };
+  }).filter(entry => {
+    if (!cleanQuery && !cleanId) return true;
+    const rawParts = entry.unlocked ? [entry.id, entry.name, entry.name_zh, entry.desc_zh, ...(entry.tags || [])] : [entry.desc_zh, ...(entry.tags || [])];
+    const parts = rawParts.filter(Boolean).map(value => String(value).toLowerCase());
+    const ids = parts.map(value => toId(value));
+    return parts.some(value => value.includes(cleanQuery)) || ids.some(value => value.includes(cleanId));
+  }).sort((a, b) => {
+    const typeOrder = {gym: 0, elite4: 1, champion: 2} as Record<string, number>;
+    return (typeOrder[a.trainer?.type || ""] ?? 9) - (typeOrder[b.trainer?.type || ""] ?? 9) || String(a.trainer?.region || "").localeCompare(String(b.trainer?.region || "")) || a.id.localeCompare(b.id);
+  });
+  const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit);
+  return {
+    category: "trainers",
+    query: String(query || ""),
+    offset: normalizedOffset,
+    limit: cappedLimit,
+    total: entries.length,
+    has_more: normalizedOffset + page.length < entries.length,
+    entries: page,
+  };
 }
 
 async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<{route: BossRoute; trainer: TrainerNpcView; enemies: RentalPokemon[]; label: string}> {
@@ -923,8 +1255,30 @@ async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, bat
   const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(trainer, run, battleNo);
   const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
   const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
-  const label = route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : `${route.stage.replace("tier", "")}档馆主`;
+  const label = route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : "馆主";
   return {route, trainer, enemies: generated.display.slice(0, 3), label};
+}
+
+async function buildNightSkyState(save: LocalSave, run: CurrentRunData): Promise<CurrentRunData["night_sky"] | undefined> {
+  if (!hasTalent(run.talents, "prophet_next_scout")) return undefined;
+  const previousRows = run.night_sky?.rows || [];
+  const rows = [];
+  const battles = Math.max(1, Number(run.battles || DEFAULT_BATTLES));
+  for (let battleNo = 1; battleNo <= battles; battleNo += 1) {
+    const previous = previousRows.find(row => Number(row.battle_no) === battleNo);
+    const preview = await generateOpponentPreview(save, run, battleNo);
+    const revealed = Math.max(0, Math.min(3, previous?.unlocked ? 3 : Number(previous?.revealed || 0)));
+    rows.push({
+      battle_no: battleNo,
+      label: preview.label,
+      trainer: preview.trainer,
+      revealed,
+      unlocked: Boolean(previous?.unlocked || revealed >= 3),
+      enemies: preview.enemies.slice(0, 3).map((enemy, index) => index < revealed ? enemy : null),
+    });
+  }
+  run.night_sky = {rows};
+  return run.night_sky;
 }
 
 function spendText(cost: number): string {
@@ -1007,10 +1361,15 @@ function shinyPokemon(pokemon: RentalPokemon): RentalPokemon {
   return {...pokemon, shiny: true};
 }
 
-function ensureStarterShiny(generated: GeneratedTeam, seed: number): GeneratedTeam {
+function ensureStarterShiny(generated: GeneratedTeam, seed: number, talents: TalentView[], setStreak: number): GeneratedTeam {
+  if (!hasTalent(talents, "gambler_streak_bp_risk")) return generated;
   if (generated.display.some(pokemon => pokemon.shiny)) return generated;
   const count = Math.max(1, generated.display.length);
-  const index = Math.floor(seededRng(seed, 0x51f1e)() * count);
+  const rng = seededRng(seed, 0x51f1e + Math.max(0, setStreak) * 97);
+  if (setStreak <= 0 && rng() >= count / 15) return generated;
+  const tier3Indexes = generated.display.map((pokemon, index) => Number(pokemon.stage_tier || 0) === 3 ? index : -1).filter(index => index >= 0);
+  const pool = setStreak >= 2 && tier3Indexes.length ? tier3Indexes : Array.from({length: count}, (_value, index) => index);
+  const index = pool[Math.floor(rng() * pool.length)] ?? 0;
   generated.team[index] = {...generated.team[index], shiny: true};
   generated.display[index] = shinyPokemon(generated.display[index]);
   return generated;
@@ -1117,6 +1476,9 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     exchanges: Number(run.rest_status?.exchanges || 0),
     taken_enemy_slots: (run.rest_status?.taken_enemy_slots || []).map(Number).filter(slot => slot >= 1 && slot <= 3),
     free_shop_roll_used: Boolean(run.rest_status?.free_shop_roll_used),
+    free_shop_rolls_remaining: Math.max(0, Number(run.rest_status?.free_shop_rolls_remaining || 0)),
+    shop_slot_discounts: (run.rest_status?.shop_slot_discounts || []).map(Number).filter(value => value > 0 && value <= 1),
+    shop_preferred_roll_used: Boolean(run.rest_status?.shop_preferred_roll_used),
     free_scout_used: Boolean(run.rest_status?.free_scout_used),
     restore_hp_used: Boolean(run.rest_status?.restore_hp_used),
     restore_pp_used: Boolean(run.rest_status?.restore_pp_used),
@@ -1146,6 +1508,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
   normalizeCurrentRun(run);
   const exchangeCount = Number(run.rest_status?.exchanges || 0);
   const restExchangeCost = exchangeCount >= 3 ? null : exchangeCost(run, exchangeCount);
+  const nightSky = await buildNightSkyState(save, run);
   const rest: RestState = {
     battle_no: Number(run.battle_no || Math.max(1, Number(run.next_battle || 1) - 1)),
     battles: Number(run.battles || DEFAULT_BATTLES),
@@ -1161,6 +1524,9 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       roll_count: Number(run.shop_roll_count || 0),
       next_roll_cost: shopNextRollCost(run),
       slot_count: shopOfferCount(run),
+      free_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0),
+      preferred_roll_cost: hasTalent(run.talents, "business_shop_strategy") ? SHOP_PREFERRED_ROLL_COST : undefined,
+      slot_discounts: run.rest_status?.shop_slot_discounts || [],
       offers: run.shop_offers || [],
       purchased_offer_id: run.shop_purchased_offer_id || null,
       last_roll_bonus: run.shop_last_roll_bonus || null,
@@ -1172,8 +1538,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     },
     move_draws: run.move_draws || {},
     scout: run.scout,
-    review: run.review,
-    future_boss: run.future_boss,
+    night_sky: nightSky,
     free_scout_used: Boolean(run.rest_status?.free_scout_used),
     free_shop_roll_used: Boolean(run.rest_status?.free_shop_roll_used),
     restore_hp_used: Boolean(run.rest_status?.restore_hp_used),
@@ -1198,7 +1563,6 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       scout_basic: SCOUT_BASIC_COST,
       scout_one: SCOUT_ONE_COST,
       scout_all: SCOUT_ALL_COST,
-      review_previous: REVIEW_PREVIOUS_COST,
     },
   };
   return gameState({screen: "rest", save, rest, message});
@@ -1207,9 +1571,19 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
 async function prepareCandidates(seed?: number): Promise<DesktopGameState> {
   const save = await loadSave();
   const runSeed = seed || Math.floor(Math.random() * 0xffffffff);
-  const count = candidateCountForTalents(talentsForIds(save?.talent_equipped).slice(0, TALENT_EQUIP_LIMIT));
-  pendingCandidates = ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(runSeed, 1), "gen7randombattle", count, {profiles: starterProfilesForStreak(Number(save?.stats?.set_win_streak || 0), count), purpose: "starter"}), runSeed);
-  return gameState({screen: "rentalSelect", save, candidates: pendingCandidates, selected_indexes: [], message: `随机种子：${runSeed}`});
+  const talents = pendingStarter?.talents || talentsForIds(save?.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const setStreak = Number(save?.stats?.set_win_streak || 0);
+  const count = candidateCountForTalents(talents);
+  if (pendingStarter) pendingStarter = {...pendingStarter, seed: runSeed};
+  pendingCandidates = ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(runSeed, 1), "gen7randombattle", count, {profiles: starterProfilesForStreak(setStreak, count, talents), purpose: "starter"}), runSeed, talents, setStreak);
+  return gameState({
+    screen: "rentalSelect",
+    save,
+    starter: pendingStarter ? {seed: pendingStarter.seed, offers: pendingStarter.offers, purchased: pendingStarter.purchased[pendingStarter.purchased.length - 1] || null, purchased_list: pendingStarter.purchased, max_purchases: starterPurchaseLimit(pendingStarter.talents)} : undefined,
+    candidates: pendingCandidates,
+    selected_indexes: [],
+    message: `随机种子：${runSeed}`,
+  });
 }
 
 async function prepareStarterItems(seed?: number): Promise<DesktopGameState> {
@@ -1289,9 +1663,10 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
     if (pendingStarter.purchased.some(item => item.offer_id === offer.offer_id)) throw new Error("这个开局道具已经购买过了。");
     const limit = starterPurchaseLimit(pendingStarter.talents);
     if (pendingStarter.purchased.length >= limit) throw new Error(`本局最多选择 ${limit} 个开局道具。`);
-    spendBp(save, Number(offer.cost || 0));
+    const cost = hasTalent(pendingStarter.talents, "business_starter_3") ? 0 : Number(offer.cost || 0);
+    spendBp(save, cost);
     pendingStarter.purchased.push(offer);
-    pendingStarter.spentBp = Number(pendingStarter.spentBp || 0) + Number(offer.cost || 0);
+    pendingStarter.spentBp = Number(pendingStarter.spentBp || 0) + cost;
     await persist(save);
     const nextSave = await loadSave();
     if (pendingStarter.purchased.length < starterPurchaseLimit(pendingStarter.talents)) {
@@ -1304,7 +1679,8 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
     }
   }
   const count = candidateCountForTalents(pendingStarter.talents);
-  pendingCandidates = ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(pendingStarter.seed, 1), "gen7randombattle", count, {profiles: starterProfilesForStreak(Number(save.stats?.set_win_streak || 0), count), purpose: "starter"}), pendingStarter.seed);
+  const setStreak = Number(save.stats?.set_win_streak || 0);
+  pendingCandidates = ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(pendingStarter.seed, 1), "gen7randombattle", count, {profiles: starterProfilesForStreak(setStreak, count, pendingStarter.talents), purpose: "starter"}), pendingStarter.seed, pendingStarter.talents, setStreak);
   return gameState({screen: "rentalSelect", save: await loadSave(), starter: {seed: pendingStarter.seed, offers: pendingStarter.offers, purchased: pendingStarter.purchased[pendingStarter.purchased.length - 1] || null, purchased_list: pendingStarter.purchased, max_purchases: starterPurchaseLimit(pendingStarter.talents)}, candidates: pendingCandidates, selected_indexes: [], message: `随机种子：${pendingStarter.seed}`});
 }
 
@@ -1343,7 +1719,9 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
   const effectiveSeed = pendingStarter?.seed || runSeed;
   if (!pendingCandidates) {
     const count = candidateCountForTalents(pendingStarter?.talents || []);
-    pendingCandidates = ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(effectiveSeed, 1), "gen7randombattle", count, {profiles: starterProfilesForStreak(Number(save.stats?.set_win_streak || 0), count), purpose: "starter"}), effectiveSeed);
+    const talents = pendingStarter?.talents || [];
+    const setStreak = Number(save.stats?.set_win_streak || 0);
+    pendingCandidates = ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(effectiveSeed, 1), "gen7randombattle", count, {profiles: starterProfilesForStreak(setStreak, count, talents), purpose: "starter"}), effectiveSeed, talents, setStreak);
   }
   if (selectedIndexes.length !== 3) throw new Error("需要选择 3 只宝可梦。");
   const playerTeam = selectedIndexes.map(index => pendingCandidates!.team[index]);
@@ -1394,7 +1772,7 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
     bp_investments: [0, 0, 0],
     move_investments: [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
     bag_items: starterBagItems,
-    rest_status: {exchanges: 0, taken_enemy_slots: []},
+    rest_status: freshRestStatus(runTalents),
   };
   pendingStarter = null;
   const next = await persist(save);
@@ -1445,38 +1823,45 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     enemyDisplay,
     playerState: normalizePlayerState(run),
     seed: gameService.deriveSeed(Number(run.seed), 200 + battleNo),
+    enemyAi: enemyAiForRoute(route, enemyTrainer),
   });
-  const label = run.boss_type === "normal" ? "普通 NPC" : run.boss_type === "champion" ? "冠军" : run.boss_type === "elite4" ? "四天王" : `${route.stage.startsWith("tier") ? route.stage.replace("tier", "") : "高"}档馆主`;
-  return gameState({screen: "battleMain", save, battle: decorateBattleState(activeBattle.getState(), run), battle_bag: await bagCategories(run), message: `第 ${battleNo}/${run.battles} 场：${label} ${enemyTrainer.name_zh}`});
+  const encounteredBoss = recordBossEncounter(save, run, enemyTrainer, bossTeam, enemyDisplay);
+  const stateSave = encounteredBoss ? await persist(save) : save;
+  const stateRun = stateSave.current_run as CurrentRunData;
+  const label = run.boss_type === "normal" ? "普通 NPC" : run.boss_type === "champion" ? "冠军" : run.boss_type === "elite4" ? "四天王" : "馆主";
+  return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: `第 ${battleNo}/${run.battles} 场：${label} ${enemyTrainer.name_zh}`});
 }
 
 async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
-  const save = await loadSave();
-  if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
-  let state: BattleState;
-  let shouldPersist = false;
-  if (choice.startsWith("item ")) {
-    const [, itemId, slotRaw, moveSlotRaw] = choice.split(/\s+/);
+  if (battleChoiceInFlight) throw new Error("上一条战斗指令仍在处理，请稍等。");
+  battleChoiceInFlight = true;
+  try {
+    const save = await loadSave();
+    if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+    let state: BattleState;
+    let shouldPersist = false;
+    if (choice.startsWith("item ")) {
+      const [, itemId, slotRaw, moveSlotRaw] = choice.split(/\s+/);
+      const run = save.current_run as CurrentRunData;
+      const slot = Math.max(0, Number(slotRaw || 1) - 1);
+      const states = activeBattle.getPlayerState();
+      if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+      const normalizedItem = itemKey(itemId);
+      if (Number(run.bag_items?.[normalizedItem] || 0) <= 0) throw new Error("背包里没有这个道具。");
+      if (!(await gameService.hasConsumableItemEffect(normalizedItem))) throw new Error("这个道具不能在战斗中主动使用。");
+      state = await activeBattle.chooseTrainerItem(normalizedItem, slot, moveSlotRaw ? Number(moveSlotRaw) : undefined);
+      await consumeBagItem(run, normalizedItem);
+      run.player_state = activeBattle.getPlayerState();
+      shouldPersist = true;
+    } else {
+      state = choice === "forfeit" ? activeBattle.forfeit() : await activeBattle.choose(choice);
+    }
+    if (!state.ended) {
+      const next = shouldPersist ? await persist(save) : save;
+      return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await bagCategories(next.current_run as CurrentRunData)});
+    }
     const run = save.current_run as CurrentRunData;
-    const slot = Math.max(0, Number(slotRaw || 1) - 1);
-    const states = activeBattle.getPlayerState();
-    if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
-    const normalizedItem = itemKey(itemId);
-    if (Number(run.bag_items?.[normalizedItem] || 0) <= 0) throw new Error("背包里没有这个道具。");
-    if (!(await gameService.hasConsumableItemEffect(normalizedItem))) throw new Error("这个道具不能在战斗中主动使用。");
-    state = await activeBattle.chooseTrainerItem(normalizedItem, slot, moveSlotRaw ? Number(moveSlotRaw) : undefined);
-    await consumeBagItem(run, normalizedItem);
-    run.player_state = activeBattle.getPlayerState();
-    shouldPersist = true;
-  } else {
-    state = choice === "forfeit" ? activeBattle.forfeit() : await activeBattle.choose(choice);
-  }
-  if (!state.ended) {
-    const next = shouldPersist ? await persist(save) : save;
-    return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await bagCategories(next.current_run as CurrentRunData)});
-  }
-  const run = save.current_run as CurrentRunData;
-  if (state.winner !== "Player" && canSecondTeamRoar(run)) {
+    if (state.winner !== "Player" && canSecondTeamRoar(run)) {
     run.player_state = activeBattle.getPlayerState();
     const next = await persist(save);
     const transition = gameState({
@@ -1491,16 +1876,14 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   run.player_state = activeBattle.getPlayerState();
   if (state.winner !== "Player") {
     const wins = Number(run.wins || 0);
-    const settled = await settleRunEnd(save, run, {gamblerFailure: hasTalent(run.talents, "gambler_streak_bp_risk")});
+    const settled = await settleRunEnd(save, run);
     save.current_run = null;
     const next = await persist(save);
-    const lossMessage = hasTalent(run.talents, "gambler_streak_bp_risk") ? `挑战结束。连胜：${wins}。压上杠杆触发，BP 回到本局开始前。` : `挑战结束。连胜：${wins}${settled.refundGained ? `，背包返还 ${settled.refundGained}BP` : ""}${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+    const lossMessage = `挑战结束。连胜：${wins}${settled.refundGained ? `，背包返还 ${settled.refundGained}BP` : ""}${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
     const transition = gameState({screen: "result", save: next, battle: decorateBattleState(state, run), message: lossMessage});
     return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
   }
   const wins = Number(run.wins || 0) + 1;
-  const gamblerRoll = gamblerStreakRoll(run, activeBattleNo);
-  const gainedStreakBonus = gamblerRoll?.extra ? addRunBp(save, run, gamblerRoll.extra) : 0;
   addToExchangeBox(run, state.enemy_team || run.enemy_raw || [], state.enemy_display || run.enemy_display || []);
   if (activeBattleNo >= Number(run.battles || DEFAULT_BATTLES)) {
     run.wins = wins;
@@ -1508,10 +1891,11 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     const {setStreak, bonus} = clearBonus(save, run);
     save.current_run = null;
     const next = await persist(save);
-    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}BP${gainedStreakBonus ? `，压上杠杆 ${gamblerRoll?.multiplier.toFixed(1)}倍，额外 ${gainedStreakBonus}BP` : ""}${settled.refundGained ? `，背包返还 ${settled.refundGained}BP` : ""}${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
+    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}BP${settled.refundGained ? `，背包返还 ${settled.refundGained}BP` : ""}${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     const transition = gameState({screen: "result", save: next, battle: decorateBattleState(state, run), message});
     return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(run), message, pending_transition: transition});
   }
+  const victoryRewards = await grantVictoryRewards(run, run.boss_type !== "normal", activeBattleNo);
   save.current_run = {
     ...run,
     status: "awaiting_rest",
@@ -1519,13 +1903,16 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     wins,
     enemy_raw: state.enemy_team,
     enemy_display: state.enemy_display,
-    bp_earned_this_run: Number(run.bp_earned_this_run || 0) + winBp + gainedStreakBonus,
-    rest_status: {exchanges: 0, taken_enemy_slots: []},
+    bp_earned_this_run: Number(run.bp_earned_this_run || 0) + winBp,
+    rest_status: freshRestStatus(run.talents, victoryRewards.restBonus),
   };
   const next = await persist(save);
-  const rewardText = `本场胜利！获得 ${winBp}BP${gainedStreakBonus ? `，压上杠杆 ${gamblerRoll?.multiplier.toFixed(1)}倍，额外 ${gainedStreakBonus}BP` : ""}。当前连胜：${wins}`;
+  const rewardText = `本场胜利！获得 ${winBp}BP。奖励：${victoryRewards.items.join(" / ")}${victoryRewards.restBonus?.shop_slot_discounts?.length ? "；boss 商店奖励已生效" : ""}。当前连胜：${wins}`;
   const transition = await restState(next, next.current_run as CurrentRunData, rewardText);
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
+  } finally {
+    battleChoiceInFlight = false;
+  }
 }
 
 async function chooseSecondTeamRoar(useRescue: boolean): Promise<DesktopGameState> {
@@ -1535,14 +1922,14 @@ async function chooseSecondTeamRoar(useRescue: boolean): Promise<DesktopGameStat
   const state = activeBattle.getState();
   if (!state.ended || state.winner === "Player" || !canSecondTeamRoar(run)) throw new Error("当前不能触发二队的怒吼。");
   if (useRescue) {
-    spendBp(save, SECOND_TEAM_ROAR_COST);
+    const spent = spendRunBp(save, run, SECOND_TEAM_ROAR_COST, "second-team-roar");
     run.second_team_roar_used = true;
     run.player_state = activeBattle.getPlayerState();
     const count = candidateCountForTalents(run.talents);
     pendingRescue = {
       seed: gameService.deriveSeed(Number(run.seed || Date.now()), 8800 + activeBattleNo),
       battleNo: activeBattleNo,
-      candidates: await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed || Date.now()), 8800 + activeBattleNo), "gen7randombattle", count, {profiles: starterProfilesForStreak(Number(save.stats?.set_win_streak || 0), count), purpose: "rescue"}),
+      candidates: await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed || Date.now()), 8800 + activeBattleNo), "gen7randombattle", count, {profiles: starterProfilesForStreak(Number(save.stats?.set_win_streak || 0), count, run.talents), purpose: "rescue"}),
     };
     activeBattle = null;
     const next = await persist(save);
@@ -1551,20 +1938,18 @@ async function chooseSecondTeamRoar(useRescue: boolean): Promise<DesktopGameStat
       save: next,
       candidates: pendingRescue.candidates,
       selected_indexes: [],
-      message: `二队的怒吼已发动，损失 ${SECOND_TEAM_ROAR_COST}BP。重新选择 3 只宝可梦，重打当前场次。`,
+      message: `二队的怒吼已发动，${spent.message}。重新选择 3 只宝可梦，重打当前场次。`,
     });
   }
   const wins = Number(run.wins || 0);
   recordBattleResult(save, state.winner, run);
   run.player_state = activeBattle.getPlayerState();
-  const settled = await settleRunEnd(save, run, {gamblerFailure: hasTalent(run.talents, "gambler_streak_bp_risk")});
+  const settled = await settleRunEnd(save, run);
   save.current_run = null;
   activeBattle = null;
   activeBattleNo = 0;
   const next = await persist(save);
-  const lossMessage = hasTalent(run.talents, "gambler_streak_bp_risk")
-    ? `挑战结束。连胜：${wins}。压上杠杆触发，BP 回到本局开始前。`
-    : `挑战结束。连胜：${wins}${settled.refundGained ? `，背包返还 ${settled.refundGained}BP` : ""}${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+  const lossMessage = `挑战结束。连胜：${wins}${settled.refundGained ? `，背包返还 ${settled.refundGained}BP` : ""}${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
   return gameState({screen: "result", save: next, battle: decorateBattleState(state, run), message: lossMessage});
 }
 
@@ -1707,44 +2092,36 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   const states = normalizePlayerState(run);
   if (action.type === "restore_hp" || action.type === "restore_pp" || action.type === "restore_status") {
-    const slots = [...new Set(action.slots)].filter(slot => slot >= 1 && slot <= states.length);
-    if (!slots.length) throw new Error("请选择要恢复的宝可梦。");
-    const slot = slots[0];
-    const state = states[slot - 1];
-    if (action.type === "restore_hp") {
-      if (run.rest_status?.restore_hp_used) throw new Error("本次休整已经使用过恢复 HP。");
-      if (state.hp >= state.maxhp && !state.fainted) throw new Error("这只宝可梦不需要恢复 HP。");
-      state.hp = state.maxhp;
-      state.fainted = false;
-      run.rest_status = {...(run.rest_status || {}), restore_hp_used: true};
-    } else if (action.type === "restore_pp") {
-      if (run.rest_status?.restore_pp_used) throw new Error("本次休整已经使用过恢复 PP。");
-      const wantedSlot = Number(action.moveSlot || 0);
-      const move = state.moves.find(entry => entry.slot === wantedSlot) || state.moves.find(entry => entry.pp < entry.maxpp);
-      if (!move) throw new Error("这只宝可梦不需要恢复 PP。");
-      if (move.pp >= move.maxpp) throw new Error("这个技能不需要恢复 PP。");
-      move.pp = Math.min(move.maxpp, move.pp + 10);
-      run.rest_status = {...(run.rest_status || {}), restore_pp_used: true};
-    } else {
-      if (run.rest_status?.restore_status_used) throw new Error("本次休整已经使用过恢复异常。");
-      if (!state.status) throw new Error("这只宝可梦没有异常状态。");
-      state.status = "";
-      run.rest_status = {...(run.rest_status || {}), restore_status_used: true};
-    }
-    refreshStateCondition(state);
-    run.player_state = states;
-    const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, "已使用本次免费恢复。");
+    throw new Error("休整免费恢复已移除，请使用背包中的恢复道具。");
   }
 
   if (action.type === "use_item") {
     const slot = Number(action.slot);
     if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
-    const item = await consumeBagItem(run, action.itemId);
+    const normalizedItem = itemKey(action.itemId);
+    let riskText = "";
+    let consumeItem = true;
+    if (hasTalent(run.talents, "gambler_move_draw_4")) {
+      const roll = bpRiskRoll(run, `use-item:${normalizedItem}:${slot}`);
+      if (roll < 0.1) {
+        consumeItem = false;
+        adjustBagItem(run, normalizedItem, 1);
+        rememberBagItemMeta(run, await itemDetailsById(normalizedItem));
+        riskText = "铤而走险触发：本次未消耗道具，并额外获得同款道具。";
+      } else if (roll < 0.4) {
+        consumeItem = false;
+        riskText = "铤而走险触发：本次未消耗道具。";
+      } else if (roll < 0.6) {
+        await consumeBagItem(run, normalizedItem);
+        const next = await persist(save);
+        return await restState(next, next.current_run as CurrentRunData, "铤而走险触发：道具使用失败，并失去了该道具。");
+      }
+    }
+    const item = consumeItem ? await consumeBagItem(run, normalizedItem) : await itemDetailsById(normalizedItem);
     const text = await gameService.applyConsumableItemEffectToState(item.id, states[slot], action.moveSlot);
     run.player_state = states;
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, text);
+    return await restState(next, next.current_run as CurrentRunData, riskText ? `${riskText}${text ? ` ${text}` : ""}` : text);
   }
 
   if (action.type === "sell_item") {
@@ -1779,7 +2156,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (exchanges >= 3) throw new Error("本次休整最多交换 3 只。");
     if ((restStatus.taken_enemy_slots || []).includes(foe)) throw new Error("这只敌方宝可梦已经被交换过了。");
     const cost = exchangeCost(run, exchanges);
-    spendBp(save, cost);
+    const spent = spendRunBp(save, run, cost, "exchange");
     const investments = run.bp_investments || [0, 0, 0];
     const moveInvestments = run.move_investments || [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
     const oldItem = itemKey(run.player_display[action.ownIndex]?.item_id || run.player_team[action.ownIndex]?.item);
@@ -1788,8 +2165,18 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const oldRaw = JSON.parse(JSON.stringify(run.player_team[action.ownIndex]));
     const oldDisplay = JSON.parse(JSON.stringify(run.player_display[action.ownIndex]));
     const oldState = JSON.parse(JSON.stringify(states[action.ownIndex]));
-    const nextRaw = {...run.enemy_raw[action.enemyIndex], item: keepItem ? run.enemy_raw[action.enemyIndex].item : ""};
-    const nextDisplayBase = keepItem ? {...run.enemy_display[action.enemyIndex]} : {...run.enemy_display[action.enemyIndex], item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
+    let nextRaw: PokemonSet = {...run.enemy_raw[action.enemyIndex], item: keepItem ? run.enemy_raw[action.enemyIndex].item : ""};
+    let nextDisplayBase: RentalPokemon = keepItem ? {...run.enemy_display[action.enemyIndex]} : {...run.enemy_display[action.enemyIndex], item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
+    if (hasTalent(run.talents, "exchange_pickpocket")) {
+      const currentTier = Math.max(1, Math.min(4, Number(nextDisplayBase.stage_tier || nextRaw.stage_tier || 1)));
+      const profile = `tier${Math.min(4, currentTier + 1)}` as GenerationProfile;
+      const speciesId = nextDisplayBase.species_id || nextRaw.species;
+      const upgraded = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xe300 + own * 41 + foe * 97 + exchanges), "gen7randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "normal"});
+      if (upgraded.team[0] && upgraded.display[0]) {
+        nextRaw = {...upgraded.team[0], item: keepItem ? upgraded.team[0].item : ""};
+        nextDisplayBase = keepItem ? {...upgraded.display[0]} : {...upgraded.display[0], item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
+      }
+    }
     run.player_team[action.ownIndex] = hasTalent(run.talents, "business_shiny_collector") ? {...nextRaw, shiny: true} : nextRaw;
     run.player_display[action.ownIndex] = hasTalent(run.talents, "business_shiny_collector") ? shinyPokemon(nextDisplayBase) : nextDisplayBase;
     run.player_state = normalizePlayerState(run);
@@ -1804,7 +2191,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const next = await persist(save);
     const stateText = ratio >= 1 ? "满 HP/满 PP" : ratio >= 0.75 ? "3/4 HP/3/4 PP" : "半 HP/半 PP";
     const itemText = keepItem ? "保留目标携带道具" : "不携带道具";
-    return await restState(next, next.current_run as CurrentRunData, `已交换，${spendText(cost)}。新宝可梦以${stateText}加入，且${itemText}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已交换，${spent.message}。新宝可梦以${stateText}加入，且${itemText}${hasTalent(run.talents, "exchange_pickpocket") ? "；英才教育已提升品质" : ""}。`);
   }
 
   if (action.type === "box_exchange") {
@@ -1875,21 +2262,24 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (action.type === "buy_item") {
     const itemId = itemKey(action.itemId);
     const cost = await goodsCost("item", itemId, 5 * BP_SCALE);
-    spendBp(save, cost);
+    const spent = spendRunBp(save, run, cost, `buy-item:${itemId}`);
     run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + 1};
     rememberBagItemMeta(run, await itemDetailsById(itemId));
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已购买道具，${spendText(cost)}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已购买道具，${spent.message}。`);
   }
 
   if (action.type === "roll_shop") {
+    if (action.preferredCategory && !hasTalent(run.talents, "business_shop_strategy")) throw new Error("需要天赋「神机妙算」。");
+    const preferCost = action.preferredCategory ? spendRunBp(save, run, SHOP_PREFERRED_ROLL_COST, `shop-prefer:${action.preferredCategory}`) : null;
     const cost = shopNextRollCost(run);
-    spendBp(save, cost);
-    if (hasTalent(run.talents, "gambler_random_cost_1")) {
-      run.rest_status = {...(run.rest_status || {}), free_shop_roll_used: true};
+    const spent = spendRunBp(save, run, cost, "shop-roll");
+    if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0 && cost <= 0) {
+      run.rest_status = {...(run.rest_status || {}), free_shop_rolls_remaining: Math.max(0, Number(run.rest_status?.free_shop_rolls_remaining || 0) - 1)};
     }
+    run.rest_status = {...(run.rest_status || {}), free_shop_roll_used: true, shop_preferred_roll_used: Boolean(action.preferredCategory)};
     run.shop_roll_count = Number(run.shop_roll_count || 0) + 1;
-    run.shop_offers = await rollShopOffers(run);
+    run.shop_offers = await rollShopOffers(run, action.preferredCategory);
     run.shop_purchased_offer_id = null;
     run.shop_last_roll_bonus = shopDuplicateBonusForOffers(run.shop_offers || []);
     if (run.shop_last_roll_bonus?.count) {
@@ -1900,7 +2290,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     }
     const next = await persist(save);
     const bonusText = run.shop_last_roll_bonus?.count ? `抽到 ${run.shop_last_roll_bonus.match_count} 连，免费获得 ${run.shop_last_roll_bonus.count} 个 ${run.shop_last_roll_bonus.name_zh || run.shop_last_roll_bonus.name}！` : "商店抽奖完成。";
-    return await restState(next, next.current_run as CurrentRunData, `${bonusText}${cost ? ` ${spendText(cost)}。` : ""}`);
+    return await restState(next, next.current_run as CurrentRunData, `${bonusText}${preferCost ? ` 神机妙算：${preferCost.message}。` : ""}${spent.paid || cost ? ` 抽奖${spent.message}。` : ""}`);
   }
 
   if (action.type === "buy_shop_offer") {
@@ -1908,12 +2298,12 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const offer = (run.shop_offers || []).find(item => item.offer_id === action.offerId);
     if (!offer) throw new Error("商品不存在，请先刷新商店。");
     const itemId = itemKey(offer.id || offer.name);
-    spendBp(save, Number(offer.cost || 0));
+    const spent = spendRunBp(save, run, Number(offer.cost || 0), `shop-buy:${itemId}`, {alreadyPriced: true});
     run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + 1};
     rememberBagItemMeta(run, offer);
     run.shop_purchased_offer_id = offer.offer_id;
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已购买 ${offer.name_zh || offer.name}，${spendText(offer.cost)}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已购买 ${offer.name_zh || offer.name}，${spent.message}。`);
   }
 
   if (action.type === "use_tm") {
@@ -1941,7 +2331,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const slot = action.slot;
     if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
     const cost = moveDrawCost(run);
-    spendBp(save, cost);
+    const spent = spendRunBp(save, run, cost, "draw-moves");
     const rawSet = run.player_team[slot];
     const currentMoves = new Set((rawSet.moves || []).map((move: string) => toId(move)));
     const legalMoves = (await gameService.learnableMoves(rawSet)).filter(move => !currentMoves.has(toId(move.id || move.name)));
@@ -1949,7 +2339,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const draws = shuffleByRng(legalMoves, rng).slice(0, moveDrawCount(run));
     run.move_draws = {...(run.move_draws || {}), [`${slot}:${action.moveSlot}`]: draws};
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已抽取 ${draws.length} 个候选技能，${spendText(cost)}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已抽取 ${draws.length} 个候选技能，${spent.message}。`);
   }
 
   if (action.type === "apply_drawn_move") {
@@ -1966,19 +2356,18 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "apply_direct_move") {
     if (!hasTalent(run.talents, "prophet_direct_move")) throw new Error("需要天赋「运筹帷幄」。");
-    if (currentBp(save) < DIRECT_MOVE_COST) throw new Error(`BP 不足，需要 ${DIRECT_MOVE_COST}BP。`);
     await applyMoveToSlot(run, action.slot, action.moveSlot, action.moveId);
-    spendBp(save, DIRECT_MOVE_COST);
+    const spent = spendRunBp(save, run, DIRECT_MOVE_COST, "direct-move");
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已直接学习技能，${spendText(DIRECT_MOVE_COST)}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已直接学习技能，${spent.message}。`);
   }
 
   if (action.type === "scout_next") {
-    if (!hasTalent(run.talents, "prophet_next_scout")) throw new Error("需要天赋「未卜先知」。");
+    if (!hasTalent(run.talents, "prophet_next_scout")) throw new Error("需要天赋「夜观天象」。");
     const level = action.level === "all" ? "all" : "one";
     if (level === "one" && run.rest_status?.free_scout_used) throw new Error("本次休整已经使用过免费侦查。");
     const cost = level === "all" ? SCOUT_ALL_COST : SCOUT_ONE_COST;
-    spendBp(save, cost);
+    const spent = spendRunBp(save, run, cost, "scout-next");
     const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
     const preview = await generateOpponentPreview(save, run, nextBattleNo);
     const enemyPool = preview.enemies;
@@ -1986,28 +2375,27 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.scout = {level, title: `第 ${nextBattleNo}/${run.battles} 场：${preview.label}`, summary: `下一场对手是 ${preview.trainer.name_zh}。`, enemies};
     if (level === "one") run.rest_status = {...(run.rest_status || {}), free_scout_used: true};
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已侦查下一场，${spendText(cost)}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已侦查下一场，${spent.message}。`);
   }
 
-  if (action.type === "scout_final_boss") {
-    if (!hasTalent(run.talents, "prophet_future_boss")) throw new Error("需要天赋「预知未来」。");
-    const preview = await generateOpponentPreview(save, run, Number(run.battles || DEFAULT_BATTLES));
-    run.future_boss = {
-      title: `关底预知：${preview.label} ${preview.trainer.name_zh}`,
-      summary: `第 ${run.battles}/${run.battles} 场的训练师阵容。`,
-      enemies: preview.enemies,
-    };
+  if (action.type === "night_sky_scout") {
+    if (!hasTalent(run.talents, "prophet_next_scout")) throw new Error("需要天赋「夜观天象」。");
+    const battleNo = Math.max(1, Math.min(Number(run.battles || DEFAULT_BATTLES), Number(action.battleNo || 1)));
+    await buildNightSkyState(save, run);
+    const rows = run.night_sky?.rows || [];
+    const row = rows.find(entry => Number(entry.battle_no) === battleNo);
+    if (!row) throw new Error("没有找到这场训练师信息。");
+    if (action.level === "one") {
+      if (Number(row.revealed || 0) >= 1) throw new Error("这一行已经免费查看过。");
+      row.revealed = 1;
+      row.unlocked = false;
+    } else {
+      if (!row.unlocked) spendRunBp(save, run, SCOUT_ALL_COST, `night-sky:${battleNo}`);
+      row.revealed = 3;
+      row.unlocked = true;
+    }
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, "已看见本局关底训练师阵容。");
-  }
-
-  if (action.type === "review_previous") {
-    if (!hasTalent(run.talents, "prophet_history_review")) throw new Error("需要天赋「温故知新」。");
-    if (!run.enemy_display?.length) throw new Error("暂无上一场对手信息。");
-    spendBp(save, REVIEW_PREVIOUS_COST);
-    run.review = {enemies: run.enemy_display};
-    const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已回顾上一场对手，${spendText(REVIEW_PREVIOUS_COST)}。`);
+    return await restState(next, next.current_run as CurrentRunData, action.level === "one" ? "夜观天象：已揭示一只宝可梦。" : "夜观天象：已解锁这一场完整阵容。");
   }
 
   if (action.type === "randomize_stat_part" || action.type === "randomize_all_stats") {
@@ -2015,10 +2403,10 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
     const baseCost = action.type === "randomize_all_stats" ? RANDOMIZE_ALL_COST : RANDOMIZE_PART_COST;
     const cost = statResetCost(run, baseCost, action.type === "randomize_all_stats" ? "all" : action.part);
-    spendBp(save, cost);
+    const spent = spendRunBp(save, run, cost, "randomize-stats");
     await applyRandomizedStats(run, slot, action.type === "randomize_all_stats" ? "all" : action.part);
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已随机重置，${spendText(cost)}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已随机重置，${spent.message}。`);
   }
 
   if (action.type === "equip_item" || action.type === "unequip_item") {
@@ -2066,22 +2454,22 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const moveInvestments = run.move_investments || [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
     const oldInvestment = Number(moveInvestments[slot]?.[moveSlot] || 0);
     const refund = Math.floor(oldInvestment / 2);
-    if (currentBp(save) + refund < cost) throw new Error(`BP 不足，需要 ${cost}BP；旧技能可返还 ${refund}BP。`);
+    if (currentBp(save) + refund < pricedForRun(run, cost)) throw new Error(`BP 不足，需要 ${pricedForRun(run, cost)}BP；旧技能可返还 ${refund}BP。`);
     currentMoves[moveSlot] = selected.name || selected.id;
     rawSet.moves = currentMoves;
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
     if (refund) addBp(save, refund);
-    spendBp(save, cost);
+    const spent = spendRunBp(save, run, cost, "adjust-move");
     run.player_team[slot] = rawSet;
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
     nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
     run.player_state = nextStates;
     moveInvestments[slot] = moveInvestments[slot] || [0, 0, 0, 0];
-    moveInvestments[slot][moveSlot] = cost;
+    moveInvestments[slot][moveSlot] = spent.paid;
     run.move_investments = moveInvestments;
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已学习 ${selected.name_zh}，${spendText(cost)}${refund ? `，返还 ${refund}BP` : ""}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已学习 ${selected.name_zh}，${spent.message}${refund ? `，返还 ${refund}BP` : ""}。`);
   }
 
   if (action.type === "adjust_stats") {
@@ -2095,7 +2483,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const options = await gameService.editOptions(rawSet);
     validateStatAdjustments(rawSet, options);
     const cost = await goodsCost("service", "adjust_stats", ADJUST_STATS_COST);
-    spendBp(save, cost);
+    const spent = spendRunBp(save, run, cost, "adjust-stats");
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
     run.player_team[slot] = rawSet;
     run.player_display[slot] = nextDisplay || run.player_display[slot];
@@ -2103,10 +2491,10 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
     run.player_state = nextStates;
     const investments = run.bp_investments || [0, 0, 0];
-    investments[slot] = Number(investments[slot] || 0) + cost;
+    investments[slot] = Number(investments[slot] || 0) + spent.paid;
     run.bp_investments = investments;
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `已保存能力值调整，${spendText(cost)}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已保存能力值调整，${spent.message}。`);
   }
 
   return await restState(save, run);
@@ -2145,6 +2533,7 @@ async function editOptions(slot: number): Promise<PokemonEditOptions> {
 }
 
 async function dexSearch(category: DesktopDexCategory, query = "", offset = 0, limit = 8): Promise<DesktopDexSearchResult> {
+  if (category === "trainers") return trainerDexSearch(await loadSave(), query, offset, limit);
   return gameService.dexSearch(category, query, offset, limit);
 }
 
@@ -2154,13 +2543,12 @@ app.whenReady().then(() => {
   protocol.handle("changebattle-asset", async request => {
     const url = new URL(request.url);
     const rawPath = decodeURIComponent(url.pathname.replace(/^\//, ""));
-    const filePath = path.resolve(projectRoot, rawPath);
-    if (!filePath.startsWith(projectRoot + path.sep)) return new Response("Forbidden", {status: 403});
     try {
-      const bytes = await readFile(filePath);
-      return new Response(bytes, {headers: {"content-type": contentTypeFor(filePath)}});
-    } catch {
-      return new Response("Not found", {status: 404});
+      const {filePath, bytes} = await readAssetFile(rawPath);
+      return new Response(new Uint8Array(bytes), {headers: {"content-type": contentTypeFor(filePath)}});
+    } catch (error) {
+      const status = typeof error === "object" && error && "status" in error ? Number((error as {status?: number}).status) : 404;
+      return new Response(status === 403 ? "Forbidden" : "Not found", {status});
     }
   });
 

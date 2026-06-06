@@ -8,21 +8,24 @@ export const WIN_BP_REWARD = 5 * BP_SCALE;
 export const REROLL_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE] as const;
 export const SHOP_OFFER_COUNT = 3;
 export const SHOP_OFFER_COUNT_GAMBLER = 4;
+export const SHOP_CANDIDATE_COUNT = 4;
+export const SHOP_CANDIDATE_COUNT_GAMBLER = 8;
 export const STARTER_ITEM_OFFER_COUNT = 5;
 export const STARTER_ITEM_REROLL_COST = 1 * BP_SCALE;
 export const SHOP_ROLL_COST_FIRST = 0;
 export const SHOP_ROLL_COST_NEXT = 150;
-export const SHOP_ROLL_COST_GAMBLER_PAID = 195;
+export const SHOP_ROLL_COST_GAMBLER_PAID = Math.floor(SHOP_ROLL_COST_NEXT * 1.5);
+export const SHOP_GUEST_FREE_ROLLS = 3;
+export const SHOP_PREFERRED_ROLL_COST = 1 * BP_SCALE;
 export const MOVE_DRAW_COST = 2 * BP_SCALE;
 export const MOVE_DRAW_COUNT = 2;
-export const MOVE_DRAW_COUNT_GAMBLER = 3;
+export const MOVE_DRAW_COUNT_GAMBLER = 4;
 export const DIRECT_MOVE_COST = 3 * BP_SCALE;
 export const RANDOMIZE_PART_COST = 1 * BP_SCALE;
 export const RANDOMIZE_ALL_COST = 2 * BP_SCALE;
 export const SCOUT_BASIC_COST = 0;
 export const SCOUT_ONE_COST = 0;
 export const SCOUT_ALL_COST = 3 * BP_SCALE;
-export const REVIEW_PREVIOUS_COST = 1 * BP_SCALE;
 export const SECOND_TEAM_ROAR_COST = 10 * BP_SCALE;
 export const EXCHANGE_CAREFUL_RATIO = 0.75;
 export const BOSS_EXCHANGE_COST = 2 * BP_SCALE;
@@ -33,30 +36,29 @@ export const REST_STATUS_COSTS = {1: 0, 2: 0, 3: 0} as const;
 export const ADJUST_STATS_COST = 10 * BP_SCALE;
 
 export const TALENTS: TalentView[] = [
-  {id: "exchange_lossless", name: "爱护有加", category: "交换", cost: 2 * BP_SCALE, desc: "交换获得的宝可梦会恢复到 3/4 HP 和 3/4 PP。"},
-  {id: "exchange_pickpocket", name: "顺手牵羊", category: "交换", cost: 3 * BP_SCALE, desc: "交换时如果目标携带道具，会一并拿过来。"},
+  {id: "exchange_lossless", name: "爱护有加", category: "交换", cost: 2 * BP_SCALE, desc: "交换获得的宝可梦满 HP/满 PP 加入，并获取目标身上的道具。"},
+  {id: "exchange_pickpocket", name: "英才教育", category: "交换", cost: 3 * BP_SCALE, desc: "交换来的宝可梦品质更高；只改变阶级数值，不改变技能、特性和道具。"},
   {id: "exchange_gym_recognition", name: "馆主认可", category: "交换", cost: 15 * BP_SCALE, desc: "馆主和四天王宝可梦不再受默认只能交换 1 只的限制。"},
   {id: "exchange_factory_freedom", name: "工厂自由", category: "交换", cost: 30 * BP_SCALE, desc: "所有交换免费。"},
   {id: "exchange_second_team_roar", name: "二队的怒吼", category: "交换", cost: 50 * BP_SCALE, desc: "三只宝可梦都阵亡后，可选择损失 1000BP 重新 6 选 3 并重打当前场次；每局一次。"},
   {id: "exchange_safe_box", name: "无损交易", category: "交换", cost: 50 * BP_SCALE, desc: "拥有一个特殊宝可梦盒子，本局遇到的宝可梦会寄存在其中，后续可再次交换回来。"},
-  {id: "gambler_move_draw_4", name: "灵感爆棚", category: "赌徒", cost: 5 * BP_SCALE, desc: "技能随机时候选数量从 2 个提升到 3 个。"},
-  {id: "gambler_shop_offer_5", name: "大手一挥", category: "赌徒", cost: 5 * BP_SCALE, desc: "商店老虎机格子数量从 3 个提升到 4 个。"},
-  {id: "gambler_free_stat_reset", name: "时也命也", category: "赌徒", cost: 10 * BP_SCALE, desc: "重置数值时 60% 概率免费、30% 概率双倍消耗、10% 概率正常消耗。"},
-  {id: "gambler_random_cost_1", name: "座上贵宾", category: "赌徒", cost: 20 * BP_SCALE, desc: "每次休整获得一次免费商店抽奖；本次休整后续商店抽奖消耗为基础费用的 1.3 倍，免费次数不结转。"},
-  {id: "gambler_streak_bp_risk", name: "压上杠杆", category: "赌徒", cost: 50 * BP_SCALE, desc: "每场胜利有概率把本场基础 BP 变为 1.4/1.6/1.8/2.0/2.5 倍；如果失败，不获得背包返还，并将 BP 回到本局开始前。"},
-  {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局限一次，指定生成一只宝可梦用于交换；交换后另外两只宝可梦半血并陷入睡眠，且立即结束本次休整。"},
-  {id: "prophet_first_mover", name: "上帝之眼", category: "先知", cost: 5 * BP_SCALE, desc: "对战时可以看到哪些技能克制当前对手，并允许在对战时查看图鉴。"},
-  {id: "prophet_next_scout", name: "未卜先知", category: "先知", cost: 10 * BP_SCALE, desc: "每次休整可免费查看下一场随机 1 只对手宝可梦的图片和名字；花费 300BP 可查看全部。"},
-  {id: "prophet_history_review", name: "温故知新", category: "先知", cost: 15 * BP_SCALE, desc: "休整页允许查看上一轮对手的宝可梦详情。"},
+  {id: "gambler_move_draw_4", name: "铤而走险", category: "赌徒", cost: 10 * BP_SCALE, desc: "对局中 BP 花费和休整页消耗道具可能出现更好或更坏的结果。"},
+  {id: "gambler_shop_offer_5", name: "顺手牵羊", category: "赌徒", cost: 5 * BP_SCALE, desc: "商店老虎机格子数量从 3 个提升到 4 个，候选池从 4 个提升到 8 个，技能随机候选从 2 个提升到 4 个。"},
+  {id: "gambler_free_stat_reset", name: "时也命也", category: "赌徒", cost: 10 * BP_SCALE, desc: "重置数值时可能免费，也可能付出更高代价。"},
+  {id: "gambler_random_cost_1", name: "座上贵宾", category: "赌徒", cost: 20 * BP_SCALE, desc: "每次休整获得额外免费商店抽奖机会；本次休整后续商店抽奖消耗提高。"},
+  {id: "gambler_streak_bp_risk", name: "好运连连", category: "赌徒", cost: 10 * BP_SCALE, desc: "开局更容易遇到强力宝可梦，并按连胜提高初始候选品质和闪光出现机会。"},
+  {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局限一次，生成一只强力宝可梦用于交换；交换后另外两只半血并陷入睡眠，且立即结束本次休整。"},
+  {id: "prophet_first_mover", name: "上帝之眼", category: "先知", cost: 2 * BP_SCALE, desc: "对战时显示技能打击效果，允许在对战时查看图鉴，并显示个体值和努力值。"},
+  {id: "prophet_next_scout", name: "夜观天象", category: "先知", cost: 50 * BP_SCALE, desc: "休整时可查看本局训练师顺序，并逐步揭示他们的阵容。"},
   {id: "prophet_direct_move", name: "运筹帷幄", category: "先知", cost: 20 * BP_SCALE, desc: "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
   {id: "prophet_candidate_12", name: "慧眼识珠", category: "先知", cost: 50 * BP_SCALE, desc: "开局从 12 只候选宝可梦中选择，而不是 6 只。"},
-  {id: "prophet_future_boss", name: "预知未来", category: "先知", cost: 50 * BP_SCALE, desc: "可以直接看到本局关底训练师的详细阵容。"},
-  {id: "business_starter_3", name: "有备无患", category: "经营", cost: 5 * BP_SCALE, desc: "开局可以选择 3 个起始道具。"},
-  {id: "business_discount_70", name: "贵客专享", category: "经营", cost: 15 * BP_SCALE, desc: "购买道具时享受 70% 价格，向下取整。"},
-  {id: "business_refund_70", name: "精打细算", category: "经营", cost: 20 * BP_SCALE, desc: "背包返还时返还 70%，而不是 50%。"},
+  {id: "business_starter_3", name: "有备无患", category: "经营", cost: 10 * BP_SCALE, desc: "开局可以选择 3 个免费起始道具。"},
+  {id: "business_discount_70", name: "贵客专享", category: "经营", cost: 15 * BP_SCALE, desc: "对局中所有 BP 花费享受专享折扣，向下取整。"},
+  {id: "business_refund_70", name: "精打细算", category: "经营", cost: 20 * BP_SCALE, desc: "背包返还时返还更多。"},
   {id: "business_sell_full", name: "奇货可居", category: "经营", cost: 30 * BP_SCALE, desc: "卖出道具时能原价出售。"},
-  {id: "business_amulet_coin", name: "护符金币", category: "经营", cost: 50 * BP_SCALE, desc: "所有 BP 正向结算按 1.5 倍结算。"},
-  {id: "business_shiny_collector", name: "闪光收藏家", category: "经营", cost: 50 * BP_SCALE, desc: "任意交换获得的宝可梦均为闪光，且闪光带来的 BP 加成变为 1.3 倍。"},
+  {id: "business_amulet_coin", name: "护符金币", category: "经营", cost: 50 * BP_SCALE, desc: "所有 BP 正向结算获得额外收益。"},
+  {id: "business_shiny_collector", name: "闪光收藏家", category: "经营", cost: 50 * BP_SCALE, desc: "任意交换获得的宝可梦均为闪光，且闪光带来的 BP 加成提高。"},
+  {id: "business_shop_strategy", name: "神机妙算", category: "经营", cost: 20 * BP_SCALE, desc: "商店抽奖前可额外花费 100BP 指定恢复药、PP 药、树果、战斗道具或技能机器。"},
 ];
 
 export function emptyStats() {
@@ -147,12 +149,11 @@ export function canExchangeBoss(run: CurrentRunData, exchangeCount: number): boo
 }
 
 export function exchangeKeepsItem(run: CurrentRunData): boolean {
-  return hasTalent(run.talents, "exchange_pickpocket");
+  return hasTalent(run.talents, "exchange_lossless");
 }
 
 export function exchangeFullState(run: CurrentRunData): boolean {
-  void run;
-  return false;
+  return hasTalent(run.talents, "exchange_lossless");
 }
 
 export function exchangeStateRatio(run: CurrentRunData): number {
@@ -196,13 +197,23 @@ export function pricedForShop(item: ShopItem, talents: TalentView[] | undefined)
   return hasTalent(talents, "business_discount_70") ? Math.floor(baseCost * 0.7) : baseCost;
 }
 
+export function pricedForRun(run: CurrentRunData | null | undefined, cost: number): number {
+  const baseCost = Math.max(0, Math.floor(Number(cost || 0)));
+  return hasTalent(run?.talents, "business_discount_70") ? Math.floor(baseCost * 0.7) : baseCost;
+}
+
 export function shopOfferCount(run: CurrentRunData): number {
   return hasTalent(run.talents, "gambler_shop_offer_5") ? SHOP_OFFER_COUNT_GAMBLER : SHOP_OFFER_COUNT;
 }
 
+export function shopCandidateCount(run: CurrentRunData): number {
+  return hasTalent(run.talents, "gambler_shop_offer_5") ? SHOP_CANDIDATE_COUNT_GAMBLER : SHOP_CANDIDATE_COUNT;
+}
+
 export function shopNextRollCost(run: CurrentRunData): number {
+  if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0) return 0;
   if (hasTalent(run.talents, "gambler_random_cost_1")) {
-    return run.rest_status?.free_shop_roll_used ? SHOP_ROLL_COST_GAMBLER_PAID : 0;
+    return Number(run.shop_roll_count || 0) <= 0 ? SHOP_ROLL_COST_FIRST : SHOP_ROLL_COST_GAMBLER_PAID;
   }
   return Number(run.shop_roll_count || 0) <= 0 ? SHOP_ROLL_COST_FIRST : SHOP_ROLL_COST_NEXT;
 }
@@ -234,7 +245,7 @@ export function shopDuplicateBonusForOffers(offers: ShopOffer[]): ShopState["las
 }
 
 export function moveDrawCount(run: CurrentRunData): number {
-  return hasTalent(run.talents, "gambler_move_draw_4") ? MOVE_DRAW_COUNT_GAMBLER : MOVE_DRAW_COUNT;
+  return hasTalent(run.talents, "gambler_shop_offer_5") ? MOVE_DRAW_COUNT_GAMBLER : MOVE_DRAW_COUNT;
 }
 
 export function moveDrawCost(run: CurrentRunData): number {
@@ -249,21 +260,13 @@ export function statResetCost(run: CurrentRunData, baseCost: number, part: strin
   return baseCost;
 }
 
-export function gamblerStreakRoll(run: CurrentRunData, battleNo: number): {multiplier: number; extra: number} | null {
-  if (!hasTalent(run.talents, "gambler_streak_bp_risk")) return null;
-  const rng = seededRng(Number(run.seed || 1), 0xa11e7 + battleNo * 131 + Number(run.wins || 0) * 17);
-  const roll = rng();
-  const multiplier = roll < 0.6 ? 1.4 : roll < 0.9 ? 1.6 : roll < 0.95 ? 1.8 : roll < 0.98 ? 2.0 : 2.5;
-  return {multiplier, extra: Math.floor(WIN_BP_REWARD * (multiplier - 1))};
-}
-
 export function sellPriceForItem(item: Pick<ShopItem, "cost">, run: CurrentRunData): number {
   const base = Math.max(0, Number(item.cost || 0));
   return hasTalent(run.talents, "business_sell_full") ? base : Math.floor(base / 2);
 }
 
 export function refundableBagBaseBpFromCosts(run: CurrentRunData, itemCosts: Record<string, number>): number {
-  const rate = hasTalent(run.talents, "business_refund_70") ? 0.7 : 0.5;
+  const rate = hasTalent(run.talents, "business_refund_70") ? 1 : 0.5;
   let total = 0;
   for (const [id, rawCount] of Object.entries(run.bag_items || {})) {
     const count = Math.max(0, Number(rawCount || 0));
@@ -283,16 +286,8 @@ export function scoutCost(level: "basic" | "one" | "all"): number {
   return level === "all" ? SCOUT_ALL_COST : level === "one" ? SCOUT_ONE_COST : SCOUT_BASIC_COST;
 }
 
-export function canReviewPrevious(run: CurrentRunData): boolean {
-  return hasTalent(run.talents, "prophet_history_review");
-}
-
 export function canDirectMove(run: CurrentRunData): boolean {
   return hasTalent(run.talents, "prophet_direct_move");
-}
-
-export function gamblerFailureBp(run: CurrentRunData): number {
-  return Math.max(0, Number(run.run_start_bp || 0));
 }
 
 export function itemKey(value: string | undefined): string {

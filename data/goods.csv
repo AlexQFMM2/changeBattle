@@ -1,4 +1,14 @@
 item_id,item_type,item_name,item_cost
+elixir,item,Elixir,200
+fullrestore,item,Full Restore,300
+hyperpotion,item,Hyper Potion,200
+maxelixir,item,Max Elixir,300
+maxpotion,item,Max Potion,250
+maxrevive,item,Max Revive,300
+potion,item,Potion,50
+revivalherb,item,Revival Herb,300
+revive,item,Revive,200
+superpotion,item,Super Potion,100
 abomasite,item,Abomasite,500
 absolite,item,Absolite,500
 absorbbulb,item,Absorb Bulb,500
@@ -166,7 +176,7 @@ latiosite,item,Latiosite,500
 laxincense,item,Lax Incense,500
 leafstone,item,Leaf Stone,500
 leftovers,item,Leftovers,500
-leppaberry,item,Leppa Berry,500
+leppaberry,item,Leppa Berry,100
 levelball,item,Level Ball,500
 liechiberry,item,Liechi Berry,500
 lifeorb,item,Life Orb,500

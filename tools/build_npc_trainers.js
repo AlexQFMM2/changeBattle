@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const crypto = require("node:crypto");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
@@ -18,6 +19,24 @@ function slug(raw) {
     .toLowerCase() || "npc";
 }
 
+function asciiSlug(raw) {
+  return String(raw || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "";
+}
+
+function shortHash(raw) {
+  return crypto.createHash("sha1").update(String(raw || "")).digest("hex").slice(0, 8);
+}
+
+function englishAlias(group, fallback = "") {
+  const aliases = group?.aliases || [];
+  return aliases.find(alias => /^[A-Za-z0-9]/.test(String(alias || ""))) || fallback;
+}
+
 function csvCell(value) {
   const text = String(value ?? "");
   if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
@@ -29,7 +48,9 @@ function copyAsset(asset, bucket, prefix) {
   const source = path.join(root, "work", asset.file);
   if (!fs.existsSync(source)) return "";
   const ext = path.extname(source) || ".png";
-  const name = `${slug(prefix)}-${slug(asset.name || path.basename(source, ext))}${ext.toLowerCase()}`;
+  const prefixSlug = asciiSlug(prefix) || "npc";
+  const assetSlug = asciiSlug(asset.name || path.basename(source, ext)) || "asset";
+  const name = `${prefixSlug}-${assetSlug}-${shortHash(asset.file)}${ext.toLowerCase()}`;
   const relative = path.posix.join("assets", "npc", bucket, name);
   const target = path.join(root, relative);
   if (!copied.has(relative)) {
@@ -68,6 +89,8 @@ function pushRow(row) {
   });
 }
 
+fs.rmSync(assetRoot, {recursive: true, force: true});
+
 for (const group of manifest.player_character_groups || []) {
   if (["阿渡", "黑连", "小银", "阿驯"].includes(group.name)) continue;
   const front = firstAsset(group, asset => asset.kind === "pixel-front" && !String(asset.file || "").endsWith(".gif")) || group.default_asset;
@@ -81,10 +104,10 @@ for (const group of manifest.player_character_groups || []) {
     role: "玩家",
     name_zh: group.name,
     name_en: (group.aliases || []).find(alias => /^[A-Za-z]/.test(alias)) || "",
-    front_asset: copyAsset(front, "player-front", group.name),
-    front_gif_asset: copyAsset(gif, "player-front", `${group.name}-gif`),
-    back_asset: copyAsset(back, "player-back", group.name),
-    avatar_asset: copyAsset(avatar, "avatars", group.name),
+    front_asset: copyAsset(front, "player-front", englishAlias(group, group.name)),
+    front_gif_asset: copyAsset(gif, "player-front", `${englishAlias(group, group.name)}-gif`),
+    back_asset: copyAsset(back, "player-back", englishAlias(group, group.name)),
+    avatar_asset: copyAsset(avatar, "avatars", englishAlias(group, group.name)),
     notes: (group.aliases || []).join("|"),
   });
 }
@@ -116,9 +139,9 @@ for (const region of manifest.important_npc_regions || []) {
         tier,
         name_zh: member.name,
         name_en: (group.aliases || []).find(alias => /^[A-Za-z]/.test(alias)) || "",
-        front_asset: copyAsset(battle, type === "normal" ? "normal" : "boss", member.name),
-        front_gif_asset: copyAsset(gif, "boss", `${member.name}-gif`),
-        avatar_asset: copyAsset(avatar, "avatars", member.name),
+        front_asset: copyAsset(battle, type === "normal" ? "normal" : "boss", englishAlias(group, member.name)),
+        front_gif_asset: copyAsset(gif, "boss", `${englishAlias(group, member.name)}-gif`),
+        avatar_asset: copyAsset(avatar, "avatars", englishAlias(group, member.name)),
         team_pool_ids: type === "normal" ? "" : `${type}:${tier}:${slug(member.name)}`,
         notes: `${region.region}|${role}|${(group.aliases || []).join("|")}`,
       });

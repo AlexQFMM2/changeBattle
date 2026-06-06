@@ -44,6 +44,36 @@
         "zh_cn": "物理"
       }
     },
+    "Aqua Step": {
+      "description": "以轻盈的步伐戏弄对手并造成伤害。攻击后会提高自己的速度。"
+    },
+    "Chilly Reception": {
+      "description": "讲冷笑话后退回同行宝可梦身边，并使天气变为雪。"
+    },
+    "Fillet Away": {
+      "description": "削减自己的 HP，大幅提高攻击、特攻和速度。"
+    },
+    "Flip Turn": {
+      "description": "攻击后返回，和后备宝可梦进行替换。"
+    },
+    "Make It Rain": {
+      "description": "用大量硬币攻击对手。战斗后可以获得金钱，使用后会降低自己的特攻。"
+    },
+    "Mortal Spin": {
+      "description": "旋转攻击对手，并清除束缚、寄生种子和场地上的撒菱等效果。会让对手陷入中毒状态。"
+    },
+    "Rage Fist": {
+      "description": "将愤怒化为力量攻击对手。受到攻击的次数越多，威力越高。"
+    },
+    "Scale Shot": {
+      "description": "连续发射鳞片攻击对手。攻击后会提高自己的速度，并降低自己的防御。"
+    },
+    "Tera Blast": {
+      "description": "释放太晶的能量进行攻击。太晶化时会根据太晶属性改变招式属性，并使用更高的攻击或特攻造成伤害。"
+    },
+    "Wave Crash": {
+      "description": "让全身缠绕水流后撞向对手。自己也会受到反作用力伤害。"
+    },
     "Acid": {
       "description": "将强酸泼向对手进行攻击。有时会降低对手的特防。",
       "power": 40,
@@ -10128,6 +10158,3453 @@
       "category": {
         "en": "Physical",
         "zh_cn": "物理"
+      }
+    },
+    "Alluring Voice": {
+      "description": "用引人入胜的声音攻击对手。若对手本回合能力提高，则必定使其混乱。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Apple Acid": {
+      "description": "用酸液攻击对手。必定降低对手的特防。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Aqua Cutter": {
+      "description": "用水之刀刃切开对手。容易击中要害。",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Armor Cannon": {
+      "description": "用盔甲化作的炮弹猛烈攻击。使用后自己的防御和特防会降低。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Astral Barrage": {
+      "description": "用幽灵般的冲击攻击相邻的对手。没有追加效果。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Aura Wheel": {
+      "description": "莫鲁贝可满腹花纹时为电属性，空腹花纹时为恶属性。攻击后必定提高自己的速度。",
+      "power": 110,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Axe Kick": {
+      "description": "用斧头般的踢击攻击对手。有时使对手混乱；如果攻击落空，自己会损失最大 HP 的一半。",
+      "power": 120,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Barb Barrage": {
+      "description": "用有毒倒刺攻击对手。有时使对手中毒；若对手已中毒，威力会变成 2 倍。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Behemoth Bash": {
+      "description": "用巨兽般的冲撞攻击对手。没有追加效果。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Behemoth Blade": {
+      "description": "用巨兽般的利刃斩击对手。没有追加效果。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Bitter Blade": {
+      "description": "用苦涩的火刃劈开对手。可以回复给予对手伤害的一半 HP。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Bitter Malice": {
+      "description": "用怨念攻击对手。必定降低对手的攻击。",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Bleakwind Storm": {
+      "description": "用冷冽暴风攻击对手。有时降低对手的速度；下雨时必定命中。",
+      "power": 100,
+      "accuracy": 80,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Blood Moon": {
+      "description": "释放血月般的光芒攻击对手。使用后的下一回合无法选择此招式。",
+      "power": 140,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Body Press": {
+      "description": "用身体压向对手。伤害计算时会用自己的防御代替攻击。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Branch Poke": {
+      "description": "用尖锐树枝戳刺对手。没有追加效果。",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 40,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Breaking Swipe": {
+      "description": "用强力扫击攻击对手。必定降低对手的攻击。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Burning Bulwark": {
+      "description": "防住对手的攻击。若对手使用接触类招式，会让其陷入灼伤状态。",
+      "power": 0,
+      "pp": 10,
+      "priority": 4,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Burning Jealousy": {
+      "description": "用嫉妒的火焰攻击对手。若对手本回合能力提高，则必定使其灼伤。",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Ceaseless Edge": {
+      "description": "用连绵不断的利刃攻击对手，并在对方场地撒下一层撒菱。",
+      "power": 65,
+      "accuracy": 90,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Chilling Water": {
+      "description": "用冰冷的水攻击对手。必定降低对手的攻击。",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Chloroblast": {
+      "description": "释放叶绿素能量猛烈攻击。使用后自己会损失最大 HP 的一半。",
+      "power": 150,
+      "accuracy": 95,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Clangorous Soul": {
+      "description": "削减自己最大 HP 的三分之一，让所有能力提高 1 级。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Coaching": {
+      "description": "指导同伴作战，提高同伴的攻击和防御。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Collision Course": {
+      "description": "以全力撞击对手。击中效果绝佳时，伤害会进一步提高。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Comeuppance": {
+      "description": "若本回合受到攻击，会返还所受伤害 1.5 倍的伤害。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Court Change": {
+      "description": "互换己方和对方场地上的场地效果。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Decorate": {
+      "description": "装饰目标，大幅提高目标的攻击和特攻。",
+      "power": 0,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Dire Claw": {
+      "description": "用凶险利爪攻击对手。有时让对手陷入睡眠、中毒或麻痹状态。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Doodle": {
+      "description": "模仿目标的特性，让自己和同伴的特性变成目标的特性。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Double Shock": {
+      "description": "放出体内的全部电力攻击。使用者必须是电属性，使用后会失去电属性。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Dragon Cheer": {
+      "description": "鼓舞同伴，提高同伴的击中要害率；若同伴是龙属性，提升效果更强。",
+      "power": 0,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Dragon Darts": {
+      "description": "发射多龙梅西亚进行 2 次攻击。双打时会尝试分别攻击两个对手。",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Dragon Energy": {
+      "description": "将生命力转化为龙之能量攻击对手。自己的 HP 越少，威力越低。",
+      "power": 150,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Drum Beating": {
+      "description": "用鼓点般的节奏攻击对手。必定降低对手的速度。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Dual Wingbeat": {
+      "description": "用双翼连续攻击对手。1 回合内攻击 2 次。",
+      "power": 40,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Dynamax Cannon": {
+      "description": "发射极巨化能量炮攻击对手。没有追加效果。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Eerie Spell": {
+      "description": "用诡异咒语攻击对手，并减少对手最后使用招式的 3 点 PP。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Electro Drift": {
+      "description": "以电力漂移撞向对手。击中效果绝佳时，伤害会进一步提高。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Electro Shot": {
+      "description": "第 1 回合提高自己的特攻并蓄电，第 2 回合攻击。下雨时无需蓄力。",
+      "power": 130,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Esper Wing": {
+      "description": "用意念之翼攻击对手。必定提高自己的速度，也容易击中要害。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Expanding Force": {
+      "description": "用扩散的精神力量攻击。在精神场地上威力提高，并会攻击多个对手。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "False Surrender": {
+      "description": "假装认输后发动突袭。攻击必定命中。",
+      "power": 80,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Fickle Beam": {
+      "description": "发射变化不定的光束攻击。有时威力会变成 2 倍。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Fiery Wrath": {
+      "description": "用燃烧般的愤怒攻击对手。有时使对手畏缩。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Flower Trick": {
+      "description": "用花束机关攻击对手。攻击必定命中，并且必定击中要害。",
+      "power": 70,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Freezing Glare": {
+      "description": "用冰冷的视线攻击对手。有时让对手陷入冰冻状态。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Gigaton Hammer": {
+      "description": "挥动巨大的锤子攻击。使用后的下一回合无法选择此招式。",
+      "power": 160,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Glacial Lance": {
+      "description": "用冰之长枪攻击相邻的对手。没有追加效果。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Glaive Rush": {
+      "description": "不顾一切地突击对手。直到自己下回合行动前，受到的攻击必定命中且伤害变成 2 倍。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Grassy Glide": {
+      "description": "在草地上滑行攻击。处于青草场地时，优先度提高。",
+      "power": 55,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Grav Apple": {
+      "description": "让苹果从上方砸向对手。必定降低对手的防御；重力状态下威力提高。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Hard Press": {
+      "description": "用沉重压力攻击对手。对手剩余 HP 越多，威力越高。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Headlong Rush": {
+      "description": "头也不回地猛冲攻击。使用后自己的防御和特防会降低。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Hydro Steam": {
+      "description": "喷出高温水蒸气攻击。大晴天时威力不会减半，反而会提高。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hyper Drill": {
+      "description": "用高速钻头攻击。可以穿过守住等防护效果。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Ice Spinner": {
+      "description": "旋转身体用冰攻击对手，并清除场地效果。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Infernal Parade": {
+      "description": "用鬼火队列攻击对手。有时使对手灼伤；若对手已有异常状态，威力会变成 2 倍。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Ivy Cudgel": {
+      "description": "用藤蔓棍棒攻击对手。容易击中要害，属性会根据使用者的样子改变。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Jaw Lock": {
+      "description": "咬住对手锁定战局，使自己和对手都无法替换。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Jet Punch": {
+      "description": "用喷射般的拳头攻击。通常能够先制攻击。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 1,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Jungle Healing": {
+      "description": "用丛林的治愈力量回复自己和同伴最大 HP 的四分之一，并治愈异常状态。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Kowtow Cleave": {
+      "description": "低头行礼后劈向对手。攻击必定命中。",
+      "power": 85,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Lash Out": {
+      "description": "发泄怒火攻击。若本回合自己的能力被降低，威力会变成 2 倍。",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Last Respects": {
+      "description": "怀着对倒下同伴的敬意攻击。每有 1 次同伴濒死，威力都会提高。",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Life Dew": {
+      "description": "洒下生命水滴，回复自己和同伴最大 HP 的四分之一。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Lumina Crash": {
+      "description": "用精神光芒冲击对手。必定大幅降低对手的特防。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Lunar Blessing": {
+      "description": "用月光祝福自己和同伴，回复最大 HP 的四分之一并治愈异常状态。",
+      "power": 0,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Magic Powder": {
+      "description": "撒出魔法粉末，将对手的属性变为超能力属性。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Malignant Chain": {
+      "description": "用恶意锁链攻击对手。有时让对手陷入剧毒状态。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Matcha Gotcha": {
+      "description": "泼洒抹茶攻击对手。有时使对手灼伤，并回复给予伤害的一半 HP；还能解除对手冰冻。",
+      "power": 80,
+      "accuracy": 90,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Meteor Beam": {
+      "description": "第 1 回合提高自己的特攻并聚集宇宙力量，第 2 回合发射光束攻击。",
+      "power": 120,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Mighty Cleave": {
+      "description": "用强力斩击攻击。可以穿过守住等防护效果。",
+      "power": 95,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Misty Explosion": {
+      "description": "引发薄雾爆炸攻击。使用后自己会濒死；在薄雾场地上威力提高。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Mountain Gale": {
+      "description": "用山岳般的寒风攻击对手。有时使对手畏缩。",
+      "power": 100,
+      "accuracy": 85,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Mystical Power": {
+      "description": "用神秘力量攻击对手。必定提高自己的特攻。",
+      "power": 70,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "No Retreat": {
+      "description": "背水一战，提高除命中和闪避外的所有能力，但自己无法替换。",
+      "power": 0,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Order Up": {
+      "description": "发号施令攻击对手。根据吃下的米立龙样子，提高攻击、防御或速度。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Overdrive": {
+      "description": "用轰鸣电音攻击对手。会攻击多个对手，没有追加效果。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Poltergeist": {
+      "description": "操纵对手的道具攻击。若对手没有携带道具，则招式会失败。",
+      "power": 110,
+      "accuracy": 90,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Population Bomb": {
+      "description": "伙伴们连续撞击对手。最多攻击 10 次，每次攻击都可能落空。",
+      "power": 20,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Pounce": {
+      "description": "扑向对手进行攻击。必定降低对手的速度。",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Psyblade": {
+      "description": "用精神利刃斩击对手。处于电气场地时威力提高。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Psychic Noise": {
+      "description": "用精神噪音攻击对手。2 回合内阻止对手回复 HP。",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Psyshield Bash": {
+      "description": "用精神护盾撞击对手。必定提高自己的防御。",
+      "power": 70,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Pyro Ball": {
+      "description": "踢出燃烧的球攻击对手。有时使对手灼伤，并解除自己的冰冻。",
+      "power": 120,
+      "accuracy": 90,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Raging Bull": {
+      "description": "像愤怒的牛一样冲撞。会破坏光墙、反射壁等，属性会根据使用者的样子改变。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Raging Fury": {
+      "description": "狂怒地连续攻击 2～3 回合。之后自己会陷入混乱。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Revival Blessing": {
+      "description": "送上复苏的祝福，让 1 只濒死的同行宝可梦以一半 HP 复活。",
+      "power": 0,
+      "pp": 1,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Rising Voltage": {
+      "description": "释放升腾的电压攻击。若对手接地且处于电气场地，威力会变成 2 倍。",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Ruination": {
+      "description": "以灾祸之力攻击，造成相当于对手当前 HP 一半的伤害。",
+      "power": 0,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Salt Cure": {
+      "description": "用盐腌制对手。每回合削减 HP；对钢属性和水属性效果更强。",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Sandsear Storm": {
+      "description": "用灼热沙暴攻击对手。有时使对手灼伤；下雨时必定命中。",
+      "power": 100,
+      "accuracy": 80,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Scorching Sands": {
+      "description": "用滚烫沙子攻击对手。有时使对手灼伤，并解除目标冰冻。",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Shed Tail": {
+      "description": "削减自己最大 HP 的一半制造替身，并将替身交给换上的同伴。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Shell Side Arm": {
+      "description": "用贝壳武装攻击对手。有时使对手中毒；若物理攻击更有效，会改为接触类物理攻击。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Shelter": {
+      "description": "让自己缩入壳中，大幅提高自己的防御。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Silk Trap": {
+      "description": "用丝设置陷阱防住攻击。若对手使用接触类招式，会降低其速度。",
+      "power": 0,
+      "pp": 10,
+      "priority": 4,
+      "type": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Skitter Smack": {
+      "description": "迅速拍打对手。必定降低对手的特攻。",
+      "power": 70,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Snipe Shot": {
+      "description": "瞄准对手射击。容易击中要害，且不会被其他宝可梦吸引目标。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Snowscape": {
+      "description": "让雪连续下 5 回合。雪中冰属性宝可梦的防御会提高。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Spicy Extract": {
+      "description": "用辛辣精华刺激目标。大幅提高目标攻击，但大幅降低目标防御。",
+      "power": 0,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Spin Out": {
+      "description": "高速旋转攻击对手。使用后自己的速度会大幅降低。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Spirit Break": {
+      "description": "用破坏精神的力量攻击对手。必定降低对手的特攻。",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Springtide Storm": {
+      "description": "用春潮般的风暴攻击对手。有时降低对手的攻击。",
+      "power": 100,
+      "accuracy": 80,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Steel Beam": {
+      "description": "发射钢铁光束攻击。使用后自己会损失最大 HP 的一半。",
+      "power": 140,
+      "accuracy": 95,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Steel Roller": {
+      "description": "用钢铁滚轮碾压。若没有场地效果则失败，使用后会清除场地效果。",
+      "power": 130,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Stone Axe": {
+      "description": "用石斧攻击对手，并在对方场地布下隐形岩。",
+      "power": 65,
+      "accuracy": 90,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Strange Steam": {
+      "description": "喷出奇妙蒸汽攻击对手。有时使对手混乱。",
+      "power": 90,
+      "accuracy": 95,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Stuff Cheeks": {
+      "description": "吃掉自己携带的树果，并大幅提高自己的防御。没有树果时无法使用。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Supercell Slam": {
+      "description": "用超强电流猛撞对手。如果攻击落空，自己会损失最大 HP 的一半。",
+      "power": 100,
+      "accuracy": 95,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Surging Strikes": {
+      "description": "连续打出水流连击。攻击 3 次，并且每次都必定击中要害。",
+      "power": 25,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Syrup Bomb": {
+      "description": "用糖浆炸弹攻击对手。接下来 3 回合内，每回合降低对手的速度。",
+      "power": 60,
+      "accuracy": 85,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Tachyon Cutter": {
+      "description": "发射超高速粒子切割对手。攻击 2 次，并且必定命中。",
+      "power": 50,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Take Heart": {
+      "description": "鼓起勇气，治愈自己的异常状态，并提高特攻和特防。",
+      "power": 0,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Tar Shot": {
+      "description": "向对手泼洒焦油，降低其速度，并使其更怕火属性招式。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Teatime": {
+      "description": "开茶会，让场上所有宝可梦吃掉自己携带的树果。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Temper Flare": {
+      "description": "因受挫而燃起怒火攻击。若自己上一次招式失败，威力会变成 2 倍。",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Tera Starstorm": {
+      "description": "释放太晶星暴攻击。太乐巴戈斯为星晶形态时变为星晶属性，并攻击两个对手。",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Terrain Pulse": {
+      "description": "借助场地力量攻击。处于场地效果中时，威力变成 2 倍，属性也会改变。",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Thunder Cage": {
+      "description": "用电牢笼困住对手，在 4～5 回合内持续造成伤害。",
+      "power": 80,
+      "accuracy": 90,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Thunderclap": {
+      "description": "用迅雷般的电击先制攻击。若目标没有选择攻击招式，则招式会失败。",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 1,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Thunderous Kick": {
+      "description": "用雷鸣般的踢击攻击对手。必定降低对手的防御。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Tidy Up": {
+      "description": "整理战场，提高自己的攻击和速度，并清除替身、撒菱等场地障碍。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Torch Song": {
+      "description": "唱出燃烧的歌声攻击对手。必定提高自己的特攻。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Trailblaze": {
+      "description": "开辟道路般地攻击对手。必定提高自己的速度。",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Triple Arrows": {
+      "description": "射出三支箭攻击。容易击中要害，有时降低对手防御或使其畏缩。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Triple Axel": {
+      "description": "连续旋转踢攻击 3 次。每次都可能落空，命中时威力逐渐提高。",
+      "power": 20,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Triple Dive": {
+      "description": "连续潜水攻击对手。1 回合内攻击 3 次。",
+      "power": 30,
+      "accuracy": 95,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Twin Beam": {
+      "description": "发射双重光束攻击对手。1 回合内攻击 2 次。",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Upper Hand": {
+      "description": "抢先压制对手。若对手正要使用先制招式，会使其畏缩；否则失败。",
+      "power": 65,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 3,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Victory Dance": {
+      "description": "跳起胜利之舞，提高自己的攻击、防御和速度。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Vise Grip": {
+      "description": "用钳子或爪子夹住对手进行攻击。没有追加效果。",
+      "power": 55,
+      "accuracy": 100,
+      "pp": 30,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Wicked Blow": {
+      "description": "用恶意一击攻击对手。必定击中要害。",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Wildbolt Storm": {
+      "description": "用狂暴电击风暴攻击对手。有时使对手麻痹；下雨时必定命中。",
+      "power": 100,
+      "accuracy": 80,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Baddy Bad": {
+      "description": "用恶属性的力量攻击对手。",
+      "power": 80,
+      "accuracy": 95,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Blazing Torque": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Bolt Beak": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 85,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Bouncy Bubble": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Buzzy Buzz": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Combat Torque": {
+      "description": "用格斗属性的力量攻击对手。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Corrosive Gas": {
+      "description": "使出腐蚀气体，产生对应的战斗效果。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 40,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Double Iron Bash": {
+      "description": "用钢属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Eternabeam": {
+      "description": "用龙属性的力量攻击对手。",
+      "power": 160,
+      "accuracy": 90,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Fishious Rend": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 85,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Floaty Fall": {
+      "description": "用飞行属性的力量攻击对手。",
+      "power": 90,
+      "accuracy": 95,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Freezy Frost": {
+      "description": "用冰属性的力量攻击对手。",
+      "power": 100,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Glitzy Glow": {
+      "description": "用超能力属性的力量攻击对手。",
+      "power": 80,
+      "accuracy": 95,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "G-Max Befuddle": {
+      "description": "用虫属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Cannonade": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Centiferno": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Chi Strike": {
+      "description": "用格斗属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Cuddle": {
+      "description": "用一般属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Depletion": {
+      "description": "用龙属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Drum Solo": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 160,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Finale": {
+      "description": "用妖精属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Fireball": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 160,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Foam Burst": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Gold Rush": {
+      "description": "用一般属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Gravitas": {
+      "description": "用超能力属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Hydrosnipe": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 160,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Malodor": {
+      "description": "用毒属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Meltdown": {
+      "description": "用钢属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max One Blow": {
+      "description": "用恶属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Rapid Flow": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Replenish": {
+      "description": "用一般属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Resonance": {
+      "description": "用冰属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Sandblast": {
+      "description": "用地面属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Smite": {
+      "description": "用妖精属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Snooze": {
+      "description": "用恶属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Steelsurge": {
+      "description": "用钢属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Stonesurge": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 10,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Stun Shock": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Sweetness": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Tartness": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Terror": {
+      "description": "用幽灵属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Vine Lash": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Volcalith": {
+      "description": "用岩石属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Volt Crash": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Wildfire": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "G-Max Wind Rage": {
+      "description": "用飞行属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Hidden Power Bug": {
+      "description": "用虫属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Dark": {
+      "description": "用恶属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Dragon": {
+      "description": "用龙属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Electric": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Fighting": {
+      "description": "用格斗属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Fire": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Flying": {
+      "description": "用飞行属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Ghost": {
+      "description": "用幽灵属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Grass": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Ground": {
+      "description": "用地面属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Ice": {
+      "description": "用冰属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Poison": {
+      "description": "用毒属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Psychic": {
+      "description": "用超能力属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Rock": {
+      "description": "用岩石属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Steel": {
+      "description": "用钢属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Hidden Power Water": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Magical Torque": {
+      "description": "用妖精属性的力量攻击对手。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Airstream": {
+      "description": "用飞行属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Flying",
+        "zh_cn": "飞行"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Darkness": {
+      "description": "用恶属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Flare": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Flutterby": {
+      "description": "用虫属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Bug",
+        "zh_cn": "虫"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Geyser": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Guard": {
+      "description": "使出极巨防壁，产生对应的战斗效果。",
+      "power": 0,
+      "pp": 10,
+      "priority": 4,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Max Hailstorm": {
+      "description": "用冰属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ice",
+        "zh_cn": "冰"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Knuckle": {
+      "description": "用格斗属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Lightning": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Mindstorm": {
+      "description": "用超能力属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Psychic",
+        "zh_cn": "超能力"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Ooze": {
+      "description": "用毒属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Overgrowth": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Phantasm": {
+      "description": "用幽灵属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Quake": {
+      "description": "用地面属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ground",
+        "zh_cn": "地面"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Rockfall": {
+      "description": "用岩石属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Starfall": {
+      "description": "用妖精属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Steelspike": {
+      "description": "用钢属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Steel",
+        "zh_cn": "钢"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Strike": {
+      "description": "用一般属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Max Wyrmwind": {
+      "description": "用龙属性的力量攻击对手。",
+      "power": 10,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Meteor Assault": {
+      "description": "用格斗属性的力量攻击对手。",
+      "power": 150,
+      "accuracy": 100,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Nihil Light": {
+      "description": "用龙属性的力量攻击对手。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dragon",
+        "zh_cn": "龙"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Noxious Torque": {
+      "description": "用毒属性的力量攻击对手。",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Poison",
+        "zh_cn": "毒"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Obstruct": {
+      "description": "使出拦堵，产生对应的战斗效果。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 4,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Octolock": {
+      "description": "使出蛸固，产生对应的战斗效果。",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Fighting",
+        "zh_cn": "格斗"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Pika Papow": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 0,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Power Shift": {
+      "description": "使出力量转换，产生对应的战斗效果。",
+      "power": 0,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Status",
+        "zh_cn": "变化"
+      }
+    },
+    "Sappy Seed": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 100,
+      "accuracy": 90,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Sizzly Slide": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Snap Trap": {
+      "description": "用草属性的力量攻击对手。",
+      "power": 35,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Grass",
+        "zh_cn": "草"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Sparkly Swirl": {
+      "description": "用妖精属性的力量攻击对手。",
+      "power": 120,
+      "accuracy": 85,
+      "pp": 5,
+      "priority": 0,
+      "type": {
+        "en": "Fairy",
+        "zh_cn": "妖精"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Splishy Splash": {
+      "description": "用水属性的力量攻击对手。",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Water",
+        "zh_cn": "水"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Veevee Volley": {
+      "description": "用一般属性的力量攻击对手。",
+      "power": 0,
+      "pp": 20,
+      "priority": 0,
+      "type": {
+        "en": "Normal",
+        "zh_cn": "一般"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Wicked Torque": {
+      "description": "用恶属性的力量攻击对手。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Dark",
+        "zh_cn": "恶"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Zippy Zap": {
+      "description": "用电属性的力量攻击对手。",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 2,
+      "type": {
+        "en": "Electric",
+        "zh_cn": "电"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Paleo Wave": {
+      "description": "用岩石属性的力量攻击对手。",
+      "power": 85,
+      "accuracy": 100,
+      "pp": 15,
+      "priority": 0,
+      "type": {
+        "en": "Rock",
+        "zh_cn": "岩石"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
+      }
+    },
+    "Shadow Strike": {
+      "description": "用幽灵属性的力量攻击对手。",
+      "power": 80,
+      "accuracy": 95,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Ghost",
+        "zh_cn": "幽灵"
+      },
+      "category": {
+        "en": "Physical",
+        "zh_cn": "物理"
+      }
+    },
+    "Polar Flare": {
+      "description": "用火属性的力量攻击对手。",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 10,
+      "priority": 0,
+      "type": {
+        "en": "Fire",
+        "zh_cn": "火"
+      },
+      "category": {
+        "en": "Special",
+        "zh_cn": "特殊"
       }
     }
   },

@@ -9,6 +9,7 @@ Node, npm, pnpm, or Python installed on the target machine.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import shutil
@@ -34,6 +35,8 @@ PROJECT_PATHS = [
     "rule.md",
     "plan.md",
 ]
+
+NPC_ASSET_FIELDS = ["front_asset", "front_gif_asset", "back_asset", "avatar_asset"]
 
 SHOWDOWN_DIST_DIRS = [
     "sim",
@@ -69,6 +72,27 @@ def copy_path(src: Path, dst: Path) -> None:
     else:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
+
+
+def validate_npc_asset_paths(stage_dir: Path) -> None:
+    csv_path = stage_dir / "data" / "npc_trainers.csv"
+    if not csv_path.exists():
+        return
+    problems: list[str] = []
+    with csv_path.open("r", encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            for field in NPC_ASSET_FIELDS:
+                relative = (row.get(field) or "").strip()
+                if not relative:
+                    continue
+                if not relative.isascii():
+                    problems.append(f"non-ASCII NPC asset path: {relative}")
+                elif not (stage_dir / Path(relative)).exists():
+                    problems.append(f"missing NPC asset: {relative}")
+    if problems:
+        sample = "\n".join(problems[:20])
+        extra = "" if len(problems) <= 20 else f"\n... and {len(problems) - 20} more"
+        raise RuntimeError(f"NPC asset validation failed:\n{sample}{extra}")
 
 
 def copy_showdown(showdown_root: Path, dst_root: Path) -> None:
@@ -263,6 +287,7 @@ def main() -> int:
 
     for relative in PROJECT_PATHS:
         copy_path(PROJECT_ROOT / relative, stage_dir / relative)
+    validate_npc_asset_paths(stage_dir)
     copy_showdown(showdown_root, stage_dir / "vendor" / "pokemon-showdown")
     extract_electron_runtime(runtime_version, stage_dir / "runtime" / "electron")
     write_windows_scripts(stage_dir)

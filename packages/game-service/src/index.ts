@@ -4,6 +4,7 @@ import {createRequire} from "node:module";
 import path from "node:path";
 import type {
   BattleRequestView,
+  BattleMoveRequest,
   BattleState,
   BattleTimelineEvent,
   BattleTracker,
@@ -15,6 +16,7 @@ import type {
   PokemonSet,
   PricedMove,
   RentalPokemon,
+  RuntimePokemon,
   PlayerPokemonState,
   ShopItem,
   SpriteIndexMap,
@@ -46,7 +48,34 @@ type ParsedTimelineEvent = Omit<BattleTimelineEvent, "id">;
 type SlotKeySpec = {slot: number; keys: Set<string>};
 type GenerationProfile = "tier1" | "tier2" | "tier3" | "tier4" | "champion";
 type StageTier = 1 | 2 | 3 | 4;
-type TierRow = {species_id: string; species: string; tier: StageTier; override_tier?: string};
+type TierRow = {species_id: string; species: string; tier: StageTier; override_tier?: string; notes?: string};
+type SpeciesTierRule = {tier: StageTier; weight: number; preferNonNfe?: boolean};
+type SpeciesPick = {speciesId: string; speciesTier: StageTier};
+export type BattleAiKnowledge = "active_only" | "party_species" | "party_sets" | "omniscient";
+export type BattleAiPersonality = "balanced" | "aggressive" | "defensive" | "status" | "setup" | "adaptive";
+export type BattleAiProfile = {
+  level: "normal" | "gym_low" | "gym_high" | "elite4" | "champion";
+  knowledge: BattleAiKnowledge;
+  personality: BattleAiPersonality;
+  depth: 0 | 1 | 2 | 3;
+  randomness: number;
+  allowSwitch: boolean;
+  prediction: number;
+  statusAwareness: number;
+  setupAwareness: number;
+  switchAwareness: number;
+  candidateMoves: number;
+  candidateSwitches: number;
+  opponentCandidates: number;
+  timeBudgetMs: number;
+};
+export type BattleAiProfileInput = BattleAiProfile["level"] | Partial<BattleAiProfile>;
+type PlannedEnemyChoice = {key: string; choice?: string; promise: Promise<string>; startedAt: number};
+type AiActionKind = "move" | "switch";
+type AiCandidate = {side: SideId; kind: AiActionKind; choice: string; score: number; move?: any; moveRequest?: BattleMoveRequest; switchSlot?: number; pokemon?: RentalPokemon};
+type AiPokemonState = {display: RentalPokemon; hp: number; maxHp: number; slot: number; active?: boolean};
+type AiSearchState = {p1: AiPokemonState[]; p2: AiPokemonState[]; active: Record<SideId, number>};
+type BattleAiPersonalityWeights = {damage: number; ko: number; status: number; setup: number; switch: number; defense: number; riskPenalty: number};
 type ConsumableItemEffect = {
   id: string;
   hp: string;
@@ -76,7 +105,124 @@ export type StartBattleOptions = {
   enemyDisplay: RentalPokemon[];
   playerState?: PlayerPokemonState[];
   seed: number | number[];
+  enemyAi?: BattleAiProfileInput;
 };
+
+const BATTLE_AI_PRESETS: Record<BattleAiProfile["level"], BattleAiProfile> = {
+  normal: {
+    level: "normal",
+    knowledge: "party_species",
+    personality: "balanced",
+    depth: 0,
+    randomness: 0.28,
+    allowSwitch: true,
+    prediction: 0.15,
+    statusAwareness: 0.35,
+    setupAwareness: 0.2,
+    switchAwareness: 0.25,
+    candidateMoves: 2,
+    candidateSwitches: 1,
+    opponentCandidates: 1,
+    timeBudgetMs: 25,
+  },
+  gym_low: {
+    level: "gym_low",
+    knowledge: "party_species",
+    personality: "balanced",
+    depth: 1,
+    randomness: 0.18,
+    allowSwitch: true,
+    prediction: 0.45,
+    statusAwareness: 0.55,
+    setupAwareness: 0.4,
+    switchAwareness: 0.45,
+    candidateMoves: 3,
+    candidateSwitches: 1,
+    opponentCandidates: 2,
+    timeBudgetMs: 120,
+  },
+  gym_high: {
+    level: "gym_high",
+    knowledge: "party_sets",
+    personality: "balanced",
+    depth: 2,
+    randomness: 0.12,
+    allowSwitch: true,
+    prediction: 0.65,
+    statusAwareness: 0.72,
+    setupAwareness: 0.58,
+    switchAwareness: 0.68,
+    candidateMoves: 3,
+    candidateSwitches: 2,
+    opponentCandidates: 3,
+    timeBudgetMs: 280,
+  },
+  elite4: {
+    level: "elite4",
+    knowledge: "party_sets",
+    personality: "balanced",
+    depth: 2,
+    randomness: 0.08,
+    allowSwitch: true,
+    prediction: 0.78,
+    statusAwareness: 0.85,
+    setupAwareness: 0.72,
+    switchAwareness: 0.82,
+    candidateMoves: 4,
+    candidateSwitches: 2,
+    opponentCandidates: 3,
+    timeBudgetMs: 450,
+  },
+  champion: {
+    level: "champion",
+    knowledge: "omniscient",
+    personality: "balanced",
+    depth: 3,
+    randomness: 0.05,
+    allowSwitch: true,
+    prediction: 0.9,
+    statusAwareness: 0.95,
+    setupAwareness: 0.88,
+    switchAwareness: 0.9,
+    candidateMoves: 4,
+    candidateSwitches: 2,
+    opponentCandidates: 4,
+    timeBudgetMs: 900,
+  },
+};
+
+const BATTLE_AI_PERSONALITY_WEIGHTS: Record<BattleAiPersonality, BattleAiPersonalityWeights> = {
+  balanced: {damage: 1, ko: 1, status: 1, setup: 1, switch: 1, defense: 1, riskPenalty: 1},
+  aggressive: {damage: 1.16, ko: 1.22, status: 0.86, setup: 1.04, switch: 0.82, defense: 0.86, riskPenalty: 0.72},
+  defensive: {damage: 0.92, ko: 1.02, status: 1.04, setup: 0.94, switch: 1.22, defense: 1.24, riskPenalty: 1.18},
+  status: {damage: 0.9, ko: 0.95, status: 1.32, setup: 0.96, switch: 1.08, defense: 1.12, riskPenalty: 1.05},
+  setup: {damage: 0.98, ko: 1.06, status: 0.92, setup: 1.34, switch: 0.95, defense: 0.95, riskPenalty: 1},
+  adaptive: {damage: 1.04, ko: 1.08, status: 1.08, setup: 1.08, switch: 1.1, defense: 1.08, riskPenalty: 0.95},
+};
+
+function battleAiProfile(input?: BattleAiProfileInput): BattleAiProfile {
+  const base = typeof input === "string" ? BATTLE_AI_PRESETS[input] : BATTLE_AI_PRESETS[input?.level || "normal"];
+  const merged = {...base, ...(typeof input === "object" ? input : {})};
+  return {
+    ...merged,
+    personality: BATTLE_AI_PERSONALITY_WEIGHTS[merged.personality as BattleAiPersonality] ? merged.personality : "balanced",
+    randomness: clampNumber(merged.randomness, 0, 1),
+    prediction: clampNumber(merged.prediction, 0, 1),
+    statusAwareness: clampNumber(merged.statusAwareness, 0, 1),
+    setupAwareness: clampNumber(merged.setupAwareness, 0, 1),
+    switchAwareness: clampNumber(merged.switchAwareness, 0, 1),
+    candidateMoves: Math.max(1, Math.min(4, Math.floor(Number(merged.candidateMoves) || base.candidateMoves))),
+    candidateSwitches: Math.max(0, Math.min(2, Math.floor(Number(merged.candidateSwitches) || base.candidateSwitches))),
+    opponentCandidates: Math.max(1, Math.min(4, Math.floor(Number(merged.opponentCandidates) || base.opponentCandidates))),
+    timeBudgetMs: Math.max(1, Math.min(1500, Number(merged.timeBudgetMs) || base.timeBudgetMs)),
+  };
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return min;
+  return Math.max(min, Math.min(max, numeric));
+}
 
 export class GameService {
   readonly projectRoot: string;
@@ -175,34 +321,69 @@ export class GameService {
     const normalizedOffset = Math.max(0, Number(offset || 0));
     const needle = String(query || "").trim().toLowerCase();
     const needleId = this.toId(needle);
-    const matches = (entry: DesktopDexEntry) => {
-      if (!needle && !needleId) return true;
-      const text = [entry.id, entry.name, entry.name_zh, entry.desc, entry.desc_zh, ...(entry.tags || [])].filter(Boolean).join(" ").toLowerCase();
-      const textId = this.toId(text);
-      return Boolean((needle && text.includes(needle)) || (needleId && textId.includes(needleId)));
+    type RankedDexEntry = DesktopDexEntry & {search_rank?: number};
+    const searchRank = (entry: DesktopDexEntry, extraParts: string[] = []) => {
+      if (!needle && !needleId) return 0;
+      const names = [entry.id, entry.name, entry.name_zh].filter(Boolean).map(value => String(value).toLowerCase());
+      const nameIds = names.map(value => this.toId(value));
+      if (needle && names.some(value => value === needle)) return 0;
+      if (needleId && nameIds.some(value => value === needleId)) return 0;
+      if (needle && names.some(value => value.startsWith(needle))) return 1;
+      if (needleId && nameIds.some(value => value.startsWith(needleId))) return 1;
+
+      const tags = (entry.tags || []).filter(Boolean).map(value => String(value).toLowerCase());
+      const tagIds = tags.map(value => this.toId(value));
+      if (needle && tags.some(value => value === needle || value.startsWith(needle))) return 2;
+      if (needleId && tagIds.some(value => value === needleId || value.startsWith(needleId))) return 2;
+      if (needle && names.some(value => value.includes(needle))) return 3;
+      if (needleId && nameIds.some(value => value.includes(needleId))) return 3;
+      if (needle && tags.some(value => value.includes(needle))) return 4;
+      if (needleId && tagIds.some(value => value.includes(needleId))) return 4;
+
+      const descriptions = [entry.desc, entry.desc_zh].filter(Boolean).map(value => String(value).toLowerCase());
+      const descriptionIds = descriptions.map(value => this.toId(value));
+      if (needle && descriptions.some(value => value.includes(needle))) return 5;
+      if (needleId && descriptionIds.some(value => value.includes(needleId))) return 5;
+
+      const extras = extraParts.filter(Boolean).map(value => String(value).toLowerCase());
+      const extraIds = extras.map(value => this.toId(value));
+      if (needle && extras.some(value => value === needle || value.startsWith(needle) || value.includes(needle))) return 6;
+      if (needleId && extraIds.some(value => value === needleId || value.startsWith(needleId) || value.includes(needleId))) return 6;
+      return null;
     };
-    let entries: DesktopDexEntry[] = [];
+    const includeRank = (entry: DesktopDexEntry, extraParts: string[] = []): RankedDexEntry | null => {
+      const rank = searchRank(entry, extraParts);
+      return rank === null ? null : {...entry, search_rank: rank};
+    };
+    const byRankThenName = (a: RankedDexEntry, b: RankedDexEntry) => Number(a.search_rank || 0) - Number(b.search_rank || 0) || a.name.localeCompare(b.name);
+    const byRankThenDex = (a: RankedDexEntry, b: RankedDexEntry) => Number(a.search_rank || 0) - Number(b.search_rank || 0) || Number(a.sprite?.national_dex || 9999) - Number(b.sprite?.national_dex || 9999) || a.name.localeCompare(b.name);
+    let entries: RankedDexEntry[] = [];
+    const shouldSearchLearnset = [...needle].length >= 2 || needleId.length >= 3;
 
     if (normalizedCategory === "pokemon") {
       entries = dex.species.all()
         .filter((species: any) => species.exists && species.num > 0 && this.includeDataEntry(species))
-        .map((species: any) => ({
-          id: species.id,
-          name: species.name,
-          name_zh: this.zh("species", species.name),
-          category: "pokemon" as const,
-          tags: [species.id, String(species.num || ""), ...(species.types || []).map((typeName: string) => this.zh("types", typeName))],
-          sprite: this.spriteMap?.entries[species.id],
-          types: species.types || [],
-          types_zh: (species.types || []).map((typeName: string) => this.zh("types", typeName)),
-          base_stats: this.fullStats(species.baseStats || {}, 0),
-        }))
-        .filter(matches)
+        .map((species: any) => {
+          const entry = {
+            id: species.id,
+            name: species.name,
+            name_zh: this.zh("species", species.name),
+            category: "pokemon" as const,
+            tags: [species.id, String(species.num || ""), ...(species.types || []).map((typeName: string) => this.zh("types", typeName))],
+            sprite: this.spriteMap?.entries[species.id],
+            types: species.types || [],
+            types_zh: (species.types || []).map((typeName: string) => this.zh("types", typeName)),
+            base_stats: this.fullStats(species.baseStats || {}, 0),
+          };
+          return includeRank(entry, shouldSearchLearnset ? this.speciesLearnsetSearchParts(species.id, dex) : []);
+        })
+        .filter(Boolean)
         .sort((a: DesktopDexEntry, b: DesktopDexEntry) => Number(a.sprite?.national_dex || 9999) - Number(b.sprite?.national_dex || 9999) || a.name.localeCompare(b.name));
+      if (needle || needleId) entries.sort(byRankThenDex);
     } else if (normalizedCategory === "abilities") {
       entries = dex.abilities.all()
         .filter((ability: any) => ability.exists && this.includeDataEntry(ability))
-        .map((ability: any) => ({
+        .map((ability: any) => includeRank({
           id: ability.id,
           name: ability.name,
           name_zh: this.zh("abilities", ability.name),
@@ -211,8 +392,8 @@ export class GameService {
           desc_zh: this.detailDescription("abilities", ability.name),
           tags: [ability.id],
         }))
-        .filter(matches)
-        .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
+        .filter(Boolean)
+        .sort(byRankThenName);
     } else if (normalizedCategory === "moves") {
       entries = dex.moves.all()
         .filter((move: any) => move.exists && this.includeDataEntry(move))
@@ -236,12 +417,13 @@ export class GameService {
             priority: move.priority || 0,
           };
         })
-        .filter(matches)
-        .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
+        .map((entry: DesktopDexEntry) => includeRank(entry))
+        .filter(Boolean)
+        .sort(byRankThenName);
     } else {
       entries = dex.items.all()
         .filter((item: any) => item.exists && this.includeDataEntry(item))
-        .map((item: any) => ({
+        .map((item: any) => includeRank({
           id: item.id,
           name: item.name,
           name_zh: this.zh("items", item.name),
@@ -250,12 +432,12 @@ export class GameService {
           desc_zh: this.detailDescription("items", item.name),
           tags: [item.id],
         }))
-        .filter(matches)
-        .sort((a: DesktopDexEntry, b: DesktopDexEntry) => a.name.localeCompare(b.name));
+        .filter(Boolean)
+        .sort(byRankThenName);
     }
 
     const total = entries.length;
-    const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit).map(entry => entry.category === "pokemon" ? {...entry, learnset: this.speciesLearnset(entry.id, dex, 96)} : entry);
+    const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit).map(({search_rank, ...entry}) => entry.category === "pokemon" ? {...entry, learnset: this.speciesLearnset(entry.id, dex, 96)} : entry);
     return {
       category: normalizedCategory,
       query: String(query || ""),
@@ -379,9 +561,12 @@ export class GameService {
   }
 
   effectName(raw: string): string {
-    const value = raw.replace("[from] ", "").replace("[of] ", "")
+    const cleaned = raw.replace("[from] ", "").replace("[of] ", "");
+    const hasMovePrefix = cleaned.startsWith("move: ");
+    const value = cleaned
       .replace("move: ", "").replace("item: ", "").replace("ability: ", "");
     if (value === "drain") return "吸取效果";
+    if (!hasMovePrefix && toId(value) === "confusion") return this.zh("statuses", "confusion") || "混乱";
     for (const section of ["moves", "items", "abilities", "statuses"]) {
       const translated = this.zh(section, value);
       if (translated !== value) return translated;
@@ -475,6 +660,7 @@ export class GameService {
       role_zh: this.zh("roles", set.role || ""),
       shiny: Boolean(set.shiny),
       stage_tier: set.stage_tier,
+      species_tier: set.species_tier,
       generation_profile: set.generation_profile,
       sprite,
     };
@@ -556,9 +742,11 @@ export class GameService {
 
     for (let index = 0; index < targetCount; index += 1) {
       const profile = requestedProfiles[index] || requestedProfiles[requestedProfiles.length - 1] || "tier1";
-      const speciesId = speciesIds[index] || this.pickSpeciesForProfile(profile, rng, seenSpecies);
-      const baseSet = this.baseSetForSpecies(speciesId, generator, rng);
-      const set = this.applyGenerationProfile(baseSet, profile, rng);
+      const speciesPick = speciesIds[index]
+        ? {speciesId: speciesIds[index], speciesTier: this.tierForSpecies(speciesIds[index]) || this.profileStageTier(profile)}
+        : this.pickSpeciesForProfile(profile, rng, seenSpecies);
+      const baseSet = this.baseSetForSpecies(speciesPick.speciesId, generator, rng);
+      const set = this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier);
       const described = this.describeSet(set);
       if (seenSpecies.has(described.species_id) && !speciesIds[index]) continue;
       if (!this.hasUsableSprite(described) && !speciesIds[index]) {
@@ -612,25 +800,26 @@ export class GameService {
     };
   }
 
-  private applyGenerationProfile(baseSet: PokemonSet, profile: GenerationProfile, rng: () => number): PokemonSet {
+  private applyGenerationProfile(baseSet: PokemonSet, profile: GenerationProfile, rng: () => number, speciesTier?: StageTier): PokemonSet {
     const normalizedProfile = profile === "champion" ? "champion" : profile;
-    const stageTier = normalizedProfile === "champion" ? 4 : Number(normalizedProfile.replace("tier", "")) as StageTier;
+    const stageTier = this.profileStageTier(profile);
     const dex = this.dataDex();
     const natures = dex.natures.all();
     const randomNature = () => natures[this.randomInt(rng, 0, Math.max(0, natures.length - 1))]?.name || "Serious";
     const heldItem = baseSet.item || FALLBACK_HELD_ITEMS[this.randomInt(rng, 0, FALLBACK_HELD_ITEMS.length - 1)];
     const set = {...baseSet, moves: [...(baseSet.moves || [])], shiny: this.randomInt(rng, 1, SHINY_RATE) === 1};
+    const speciesStageTier = speciesTier || stageTier;
     if (normalizedProfile === "tier1") {
-      return {...set, level: this.randomInt(rng, 45, 50), item: "", ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 0, 90), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 0, 200), 255), nature: "Serious", stage_tier: stageTier, generation_profile: normalizedProfile};
+      return {...set, level: this.randomInt(rng, 45, 50), item: "", ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 0, 90), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 0, 200), 255), nature: "Serious", stage_tier: stageTier, species_tier: speciesStageTier, generation_profile: normalizedProfile};
     }
     if (normalizedProfile === "tier2") {
-      return {...set, level: this.randomInt(rng, 45, 50), item: heldItem, ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 60, 120), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 180, 300), 255), nature: randomNature(), stage_tier: stageTier, generation_profile: normalizedProfile};
+      return {...set, level: this.randomInt(rng, 45, 50), item: heldItem, ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 60, 120), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 180, 300), 255), nature: randomNature(), stage_tier: stageTier, species_tier: speciesStageTier, generation_profile: normalizedProfile};
     }
     if (normalizedProfile === "tier3") {
-      return {...set, level: this.randomInt(rng, 50, 54), item: heldItem, ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 90, 150), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 270, 450), 255), nature: baseSet.nature || randomNature(), stage_tier: stageTier, generation_profile: normalizedProfile};
+      return {...set, level: this.randomInt(rng, 50, 54), item: heldItem, ivs: this.randomStatsWithTotal(rng, this.randomInt(rng, 90, 150), 31), evs: this.randomStatsWithTotal(rng, this.randomInt(rng, 270, 450), 255), nature: baseSet.nature || randomNature(), stage_tier: stageTier, species_tier: speciesStageTier, generation_profile: normalizedProfile};
     }
     const level = normalizedProfile === "champion" ? this.randomInt(rng, 58, 60) : 55;
-    return {...set, level, item: heldItem, ivs: this.fullStats({}, 31), evs: this.randomStatsWithTotal(rng, 510, 255), nature: baseSet.nature || randomNature(), stage_tier: 4, generation_profile: normalizedProfile};
+    return {...set, level, item: heldItem, ivs: this.fullStats({}, 31), evs: this.randomStatsWithTotal(rng, 510, 255), nature: baseSet.nature || randomNature(), stage_tier: 4, species_tier: speciesStageTier, generation_profile: normalizedProfile};
   }
 
   private randomStatsWithTotal(rng: () => number, total: number, maxPerStat: number): Record<string, number> {
@@ -650,12 +839,73 @@ export class GameService {
     return values;
   }
 
-  private pickSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>): string {
-    const tier = profile === "champion" ? 4 : Number(profile.replace("tier", "")) as StageTier;
-    const pool = this.loadTierRows().filter(row => row.tier === tier && !seenSpecies.has(row.species_id));
-    const fallback = this.loadTierRows().filter(row => row.tier === tier);
-    const selectedPool = pool.length ? pool : fallback;
-    return selectedPool[this.randomInt(rng, 0, Math.max(0, selectedPool.length - 1))]?.species_id || "pikachu";
+  private pickSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>): SpeciesPick {
+    const rule = this.pickSpeciesTierRule(profile, rng);
+    const tierRows = this.loadTierRows();
+    const tierPool = tierRows.filter(row => row.tier === rule.tier);
+    const uniquePool = tierPool.filter(row => !seenSpecies.has(row.species_id));
+    const selectedPool = this.preferredSpeciesPool(uniquePool.length ? uniquePool : tierPool, rule);
+    const dex = this.dataDex();
+    const generationFor = (speciesId: string) => Math.max(1, Math.min(9, Number(dex.species.get(speciesId)?.gen || 1)));
+    const seenGenerations = [...seenSpecies].map(generationFor);
+    const generationCounts = new Map<number, number>();
+    for (let gen = 1; gen <= 9; gen += 1) generationCounts.set(gen, seenGenerations.filter(value => value === gen).length);
+    const availableGenerations = [...new Set(selectedPool.map(row => generationFor(row.species_id)))].sort((a, b) => (generationCounts.get(a) || 0) - (generationCounts.get(b) || 0) || a - b);
+    const targetGenerations = availableGenerations.filter(gen => (generationCounts.get(gen) || 0) === (generationCounts.get(availableGenerations[0]) || 0));
+    const targetGen = targetGenerations[this.randomInt(rng, 0, Math.max(0, targetGenerations.length - 1))] || availableGenerations[0];
+    const genPool = selectedPool.filter(row => generationFor(row.species_id) === targetGen);
+    const finalPool = genPool.length ? genPool : selectedPool;
+    const selected = finalPool[this.randomInt(rng, 0, Math.max(0, finalPool.length - 1))];
+    return {speciesId: selected?.species_id || "pikachu", speciesTier: selected?.tier || rule.tier};
+  }
+
+  private profileStageTier(profile: GenerationProfile): StageTier {
+    if (profile === "champion") return 4;
+    return Math.max(1, Math.min(4, Number(profile.replace("tier", "")) || 1)) as StageTier;
+  }
+
+  private pickSpeciesTierRule(profile: GenerationProfile, rng: () => number): SpeciesTierRule {
+    const rules = this.speciesTierRulesForProfile(profile);
+    const total = rules.reduce((sum, rule) => sum + Math.max(0, rule.weight), 0);
+    let roll = rng() * total;
+    for (const rule of rules) {
+      roll -= Math.max(0, rule.weight);
+      if (roll <= 0) return rule;
+    }
+    return rules[rules.length - 1] || {tier: this.profileStageTier(profile), weight: 1};
+  }
+
+  private speciesTierRulesForProfile(profile: GenerationProfile): SpeciesTierRule[] {
+    if (profile === "tier1") {
+      return [
+        {tier: 1, weight: 2},
+        {tier: 2, weight: 3},
+        {tier: 2, weight: 3, preferNonNfe: true},
+        {tier: 3, weight: 2, preferNonNfe: true},
+      ];
+    }
+    if (profile === "tier2") {
+      return [
+        {tier: 2, weight: 3},
+        {tier: 3, weight: 7, preferNonNfe: true},
+      ];
+    }
+    return [{tier: this.profileStageTier(profile), weight: 1, preferNonNfe: true}];
+  }
+
+  private preferredSpeciesPool(pool: TierRow[], rule: SpeciesTierRule): TierRow[] {
+    if (!rule.preferNonNfe) return pool;
+    const nonNfe = pool.filter(row => !this.isNfeTierRow(row));
+    return nonNfe.length ? nonNfe : pool;
+  }
+
+  private isNfeTierRow(row: TierRow): boolean {
+    return (row.notes || "").split("|").map(note => note.trim().toLowerCase()).includes("nfe");
+  }
+
+  private tierForSpecies(speciesId: string): StageTier | null {
+    const id = this.toId(speciesId);
+    return this.loadTierRows().find(row => row.species_id === id)?.tier || null;
   }
 
   private loadTierRows(): TierRow[] {
@@ -675,6 +925,7 @@ export class GameService {
         species: row.species,
         tier: Number(row.override_tier || row.tier || 1) as StageTier,
         override_tier: row.override_tier,
+        notes: row.notes,
       };
     }).filter(row => row.species_id && row.tier >= 1 && row.tier <= 4);
     return this.tierRows;
@@ -758,6 +1009,24 @@ export class GameService {
       }
     }
     return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name)).slice(0, limit);
+  }
+
+  private speciesLearnsetSearchParts(speciesId: string, dex = this.dataDex()): string[] {
+    const species = dex.species.get(speciesId);
+    if (!species.exists) return [];
+    const seen = new Set<string>();
+    const parts: string[] = [];
+    for (const entry of dex.species.getFullLearnset(species.id) || []) {
+      for (const moveId of Object.keys(entry.learnset || {})) {
+        if (seen.has(moveId)) continue;
+        const move = dex.moves.get(moveId);
+        if (!move.exists || !move.id) continue;
+        if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+        seen.add(moveId);
+        parts.push(move.id, move.name, this.zh("moves", move.name || move.id));
+      }
+    }
+    return parts;
   }
 
   private calculatedStats(baseStats: Record<string, number>, ivs: Record<string, number>, evs: Record<string, number>, level: number, nature: {plus: string; minus: string}): Record<string, number> {
@@ -872,10 +1141,12 @@ export class BattleSession {
   private readonly initialPlayerState?: PlayerPokemonState[];
   private readonly playerSlotKeys: SlotKeySpec[];
   private readonly enemySlotKeys: SlotKeySpec[];
+  private readonly enemyAi: BattleAiProfile;
   private readonly seed: number | number[];
   protected stream: any = null;
   private pendingMessages: Message[] = [];
   protected latestRequests: Record<string, BattleRequestView> = {};
+  private plannedEnemyChoice: PlannedEnemyChoice | null = null;
   protected ended = false;
   private winner: string | null = null;
   private tracker = createBattleTracker();
@@ -894,6 +1165,7 @@ export class BattleSession {
     this.initialPlayerState = options.playerState;
     this.playerSlotKeys = buildSideSlotKeys(options.playerTeam, options.playerDisplay, options.playerState, "p1");
     this.enemySlotKeys = buildSideSlotKeys(options.enemyTeam, options.enemyDisplay, undefined, "p2");
+    this.enemyAi = battleAiProfile(options.enemyAi);
     this.seed = options.seed;
     const seedValue = Array.isArray(options.seed) ? options.seed.reduce((acc, value) => acc ^ value, 0) : Number(options.seed);
     this.rngState = seedValue >>> 0;
@@ -920,6 +1192,7 @@ export class BattleSession {
     this.consumePending();
     await this.chooseTeamPreview();
     if (this.initialPlayerState?.length) this.syncSideState("p1", this.initialPlayerState);
+    this.prepareEnemyChoice();
     return this.getState();
   }
 
@@ -927,6 +1200,7 @@ export class BattleSession {
     if (!this.stream || this.ended) return this.getState();
     await this.chooseSide("p1", choice);
     await this.resolveEnemyIfNeeded();
+    this.prepareEnemyChoice();
     return this.getState();
   }
 
@@ -964,6 +1238,7 @@ export class BattleSession {
 
   syncPlayerState(states: PlayerPokemonState[]): BattleState {
     this.syncSideState("p1", states);
+    this.prepareEnemyChoice();
     return this.getState();
   }
 
@@ -971,7 +1246,7 @@ export class BattleSession {
     const p1 = this.latestRequests.p1;
     const p2 = this.latestRequests.p2;
     if (p1?.teamPreview) await this.chooseSide("p1", "team 123");
-    if (p2?.teamPreview) await this.chooseSide("p2", this.randomChoice(p2));
+    if (p2?.teamPreview) await this.chooseSide("p2", this.enemyChoice(p2));
     this.updatePpMemory(this.latestRequests.p1);
   }
 
@@ -980,7 +1255,7 @@ export class BattleSession {
       const p1 = this.latestRequests.p1;
       const p2 = this.latestRequests.p2;
       if (p2 && !p2.wait) {
-        await this.chooseSide("p2", this.randomChoice(p2));
+        await this.chooseSide("p2", await this.consumeEnemyChoice(p2));
         continue;
       }
       if (!p1 || !p1.wait) break;
@@ -995,6 +1270,66 @@ export class BattleSession {
     await this.waitForMessages();
     this.consumePending();
     this.updatePpMemory(this.latestRequests.p1);
+    if (side === "p2") this.prepareEnemyChoice();
+  }
+
+  protected async consumeEnemyChoice(request: BattleRequestView | null | undefined): Promise<string> {
+    if (!request) return "default";
+    const key = this.enemyRequestKey(request);
+    if (this.plannedEnemyChoice?.key === key) {
+      const choice = this.plannedEnemyChoice.choice || await this.plannedEnemyChoice.promise;
+      this.plannedEnemyChoice = null;
+      return choice;
+    }
+    return this.enemyChoice(request);
+  }
+
+  protected prepareEnemyChoice(): void {
+    const request = this.latestRequests.p2;
+    if (!request || request.wait || this.ended) {
+      this.plannedEnemyChoice = null;
+      return;
+    }
+    const key = this.enemyRequestKey(request);
+    if (this.plannedEnemyChoice?.key === key) return;
+    const snapshot = cloneBattleRequests(this.latestRequests);
+    const rngState = this.rngState;
+    const planned: PlannedEnemyChoice = {
+      key,
+      startedAt: Date.now(),
+      promise: new Promise(resolve => {
+        setTimeout(() => {
+          const previousRequests = this.latestRequests;
+          const previousRng = this.rngState;
+          try {
+            this.latestRequests = snapshot;
+            this.rngState = rngState;
+            const choice = this.enemyChoice(snapshot.p2);
+            const elapsed = Date.now() - planned.startedAt;
+            if (elapsed > this.enemyAi.timeBudgetMs && protocolDebugEnabled()) {
+              this.recentEvents.push(`AI 计算超时：${elapsed}ms / ${this.enemyAi.timeBudgetMs}ms`);
+            }
+            this.rngState = this.rngState === rngState ? previousRng : this.rngState;
+            resolve(choice);
+          } catch {
+            this.rngState = previousRng;
+            resolve(this.randomChoice(snapshot.p2));
+          } finally {
+            this.latestRequests = previousRequests;
+          }
+        }, 0);
+      }),
+    };
+    planned.promise.then(choice => {
+      if (this.plannedEnemyChoice?.key === key) this.plannedEnemyChoice.choice = choice;
+    }).catch(() => undefined);
+    this.plannedEnemyChoice = planned;
+  }
+
+  private enemyRequestKey(request: BattleRequestView): string {
+    const activeMoves = (request.active?.[0]?.moves || []).map(move => `${move.id || move.move}:${move.pp}:${move.disabled ? 1 : 0}`).join(",");
+    const sideState = (request.side?.pokemon || []).map(pokemon => `${pokemon.ident}:${pokemon.condition}:${pokemon.active ? 1 : 0}`).join("|");
+    return [this.tracker.turn, request.teamPreview ? "team" : "", request.forceSwitch?.join(",") || "", activeMoves, sideState].join("#");
   }
 
   private startReader(): void {
@@ -1065,6 +1400,496 @@ export class BattleSession {
     if (moves.length) return `move ${this.pick(moves)}`;
     const switches = legalSwitchIndexes(request);
     return switches.length ? `switch ${this.pick(switches)}` : "default";
+  }
+
+  protected enemyChoice(request: BattleRequestView | null | undefined): string {
+    if (!request) return "default";
+    if (request.teamPreview) return this.enemyTeamPreviewChoice(request);
+    if (request.forceSwitch) return this.enemySwitchChoice(request);
+    const searched = this.enemySearchChoice(request);
+    if (searched) return searched;
+    const switchChoice = this.enemyVoluntarySwitchChoice(request);
+    if (switchChoice) return switchChoice;
+    const moves = this.scoredEnemyMoves(request);
+    if (moves.length) return this.pickScoredChoice(moves);
+    return this.randomChoice(request);
+  }
+
+  private enemySearchChoice(request: BattleRequestView): string | null {
+    if (this.enemyAi.depth <= 0) return null;
+    const state = this.initialAiSearchState();
+    if (!state) return null;
+    const deadline = Date.now() + this.enemyAi.timeBudgetMs;
+    const enemyCandidates = this.aiActionCandidates("p2", state, request, this.enemyAi.candidateMoves, this.enemyAi.candidateSwitches);
+    const playerCandidates = this.aiActionCandidates("p1", state, this.latestRequests.p1, this.enemyAi.opponentCandidates, 1, this.enemyAi.opponentCandidates);
+    if (!enemyCandidates.length || !playerCandidates.length) return null;
+    const scored: Array<{choice: string; score: number}> = [];
+    for (const candidate of enemyCandidates) {
+      if (Date.now() > deadline) break;
+      scored.push({
+        choice: candidate.choice,
+        score: this.scoreSearchCandidate(state, candidate, playerCandidates, this.enemyAi.depth, deadline),
+      });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.length ? this.pickScoredChoice(scored) : null;
+  }
+
+  private scoreSearchCandidate(state: AiSearchState, enemyAction: AiCandidate, playerCandidates: AiCandidate[], depth: number, deadline: number): number {
+    const outcomes: number[] = [];
+    for (const playerAction of playerCandidates) {
+      if (Date.now() > deadline) break;
+      const next = this.simulateAiTurn(state, enemyAction, playerAction);
+      const value = depth > 1 ? this.aiSearchValue(next, depth - 1, deadline) : this.evaluateAiState(next);
+      outcomes.push(value + enemyAction.score * 0.04 - playerAction.score * 0.015);
+    }
+    if (!outcomes.length) return this.evaluateAiState(state) + enemyAction.score * 0.04;
+    const average = outcomes.reduce((sum, value) => sum + value, 0) / outcomes.length;
+    const worst = Math.min(...outcomes);
+    return worst * this.enemyAi.prediction + average * (1 - this.enemyAi.prediction);
+  }
+
+  private aiSearchValue(state: AiSearchState, depth: number, deadline: number): number {
+    if (depth <= 0 || Date.now() > deadline) return this.evaluateAiState(state);
+    const searchedDepth = Math.max(0, this.enemyAi.depth - depth);
+    const enemyMoveLimit = Math.max(2, this.enemyAi.candidateMoves - searchedDepth);
+    const enemySwitchLimit = Math.max(0, Math.min(this.enemyAi.candidateSwitches, depth > 1 ? 1 : 0));
+    const opponentLimit = Math.max(1, this.enemyAi.opponentCandidates - searchedDepth);
+    const enemyCandidates = this.aiActionCandidates("p2", state, undefined, enemyMoveLimit, enemySwitchLimit, enemyMoveLimit + enemySwitchLimit);
+    const playerCandidates = this.aiActionCandidates("p1", state, undefined, opponentLimit, 1, opponentLimit);
+    if (!enemyCandidates.length || !playerCandidates.length) return this.evaluateAiState(state);
+    let best = -Infinity;
+    for (const enemyAction of enemyCandidates) {
+      const score = this.scoreSearchCandidate(state, enemyAction, playerCandidates, depth, deadline);
+      if (score > best) best = score;
+      if (Date.now() > deadline) break;
+    }
+    return Number.isFinite(best) ? best : this.evaluateAiState(state);
+  }
+
+  private initialAiSearchState(): AiSearchState | null {
+    const p1 = this.aiSideState("p1", this.playerDisplay, this.latestRequests.p1);
+    const p2 = this.aiSideState("p2", this.enemyDisplay, this.latestRequests.p2);
+    if (!p1.pokemon.length || !p2.pokemon.length) return null;
+    return {p1: p1.pokemon, p2: p2.pokemon, active: {p1: p1.active, p2: p2.active}};
+  }
+
+  private aiSideState(side: SideId, display: RentalPokemon[], request: BattleRequestView | undefined): {pokemon: AiPokemonState[]; active: number} {
+    let active = 0;
+    const pokemon = display.map((entry, index) => {
+      const runtime = request?.side?.pokemon?.find(candidate => {
+        const runtimeDisplay = side === "p1" ? findRentalByRuntime(this.playerDisplay, candidate.ident) : findRentalByRuntime(this.enemyDisplay, candidate.ident);
+        return runtimeDisplay?.species_id === entry.species_id;
+      });
+      const hp = parseConditionHp(runtime?.condition);
+      if (runtime?.active) active = index;
+      const maxHp = Number(hp?.max || entry.stats?.hp || entry.base_stats?.hp || 1);
+      const currentHp = String(runtime?.condition || "").endsWith(" fnt") ? 0 : Number(hp?.current ?? maxHp);
+      return {display: entry, hp: Math.max(0, Math.min(maxHp, currentHp)), maxHp, slot: index + 1, active: Boolean(runtime?.active)};
+    });
+    return {pokemon, active};
+  }
+
+  private aiActionCandidates(side: SideId, state: AiSearchState, request: BattleRequestView | undefined, moveLimit: number, switchLimit: number, totalLimit = moveLimit + switchLimit): AiCandidate[] {
+    const sideState = state[side];
+    const activeIndex = state.active[side];
+    const active = sideState[activeIndex];
+    const opponent = this.aiActive(state, side === "p1" ? "p2" : "p1");
+    if (!active || active.hp <= 0 || !opponent) return [];
+    const moves = this.aiMoveCandidates(side, active, opponent, request).slice(0, moveLimit);
+    const switches = this.aiSwitchCandidates(side, state, switchLimit);
+    const combined = [...moves, ...switches].sort((a, b) => b.score - a.score).slice(0, Math.max(1, totalLimit));
+    return combined.length ? combined : [{side, kind: "move", choice: "default", score: this.evaluateAiState(state)}];
+  }
+
+  private aiMoveCandidates(side: SideId, active: AiPokemonState, opponent: AiPokemonState, request: BattleRequestView | undefined): AiCandidate[] {
+    const dex = this.sim.Dex.mod("gen7");
+    const exactMovesAllowed = side === "p2" || this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
+    if (exactMovesAllowed && request?.active?.[0]?.moves?.length) {
+      return request.active[0].moves
+        .map((moveRequest, index) => ({moveRequest, index: index + 1, move: dex.moves.get(moveRequest.id || moveRequest.move)}))
+        .filter(entry => !entry.moveRequest.disabled && Number(entry.moveRequest.pp ?? 1) > 0 && entry.move?.exists)
+        .map(entry => ({
+          side,
+          kind: "move" as const,
+          choice: `move ${entry.index}`,
+          move: entry.move,
+          moveRequest: entry.moveRequest,
+          score: this.scoreAiMove(side, entry.move, active, opponent),
+        }))
+        .sort((a, b) => b.score - a.score);
+    }
+    const sourceMoves = exactMovesAllowed
+      ? (active.display.moves || []).map((move, index) => ({move: dex.moves.get(move.id || move.name), index: index + 1}))
+      : this.predictedTypeMoves(active.display).map((move, index) => ({move, index: index + 1}));
+    return sourceMoves
+      .filter(entry => entry.move?.exists !== false)
+      .map(entry => ({
+        side,
+        kind: "move" as const,
+        choice: `move ${entry.index}`,
+        move: entry.move,
+        score: this.scoreAiMove(side, entry.move, active, opponent),
+      }))
+      .sort((a, b) => b.score - a.score);
+  }
+
+  private predictedTypeMoves(pokemon: RentalPokemon): any[] {
+    const category = this.preferredAttackCategory(pokemon);
+    return (pokemon.types?.length ? pokemon.types : ["Normal"]).map(type => ({
+      exists: true,
+      id: `predicted${toId(type)}`,
+      name: `${type} attack`,
+      type,
+      category,
+      basePower: 70,
+      accuracy: 100,
+      priority: 0,
+    }));
+  }
+
+  private aiSwitchCandidates(side: SideId, state: AiSearchState, limit: number): AiCandidate[] {
+    if (!this.enemyAi.allowSwitch || limit <= 0) return [];
+    const opponent = this.aiActive(state, side === "p1" ? "p2" : "p1");
+    if (!opponent) return [];
+    const activeIndex = state.active[side];
+    return state[side]
+      .map((pokemon, index) => ({pokemon, index}))
+      .filter(entry => entry.index !== activeIndex && entry.pokemon.hp > 0)
+      .map(entry => {
+        const personality = side === "p2" ? this.personalityWeights() : BATTLE_AI_PERSONALITY_WEIGHTS.balanced;
+        const pressure = this.bestMovePressure(entry.pokemon.display, opponent.display);
+        const incoming = this.aiIncomingDamage(side, entry.pokemon, state);
+        const hpRatio = entry.pokemon.maxHp ? entry.pokemon.hp / entry.pokemon.maxHp : 1;
+        const score = pressure * 0.8 * personality.damage - incoming * 0.55 * personality.defense + hpRatio * 28 * personality.switch + this.nextRandom() * 4;
+        return {side, kind: "switch" as const, choice: `switch ${entry.pokemon.slot}`, switchSlot: entry.pokemon.slot, pokemon: entry.pokemon.display, score};
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+  }
+
+  private scoreAiMove(side: SideId, move: any, attacker: AiPokemonState, target: AiPokemonState): number {
+    const accuracy = typeof move.accuracy === "number" ? move.accuracy / 100 : 1;
+    const personality = side === "p2" ? this.personalityWeights() : BATTLE_AI_PERSONALITY_WEIGHTS.balanced;
+    if (move.category === "Status" || !Number(move.basePower || move.damage)) {
+      const statusBase = move.status ? 44 * this.enemyAi.statusAwareness * personality.status : 14;
+      const setupBase = (move.boosts || move.self?.boosts) ? 38 * this.enemyAi.setupAwareness * personality.setup : 0;
+      return (statusBase + setupBase) * accuracy;
+    }
+    const damage = this.estimatedMoveDamage(move, attacker.display, target.display) * accuracy;
+    const effectiveness = this.typeMultiplier(move.type, target.display);
+    let score = damage * personality.damage;
+    if (effectiveness <= 0) score -= 120;
+    else if (effectiveness >= 4) score += 48;
+    else if (effectiveness >= 2) score += 26;
+    else if (effectiveness < 1) score -= 18;
+    if (attacker.display.types?.includes(move.type)) score += 12;
+    if (damage >= target.hp && target.hp > 0) score += (side === "p2" ? 110 : 95) * personality.ko;
+    if (move.recoil || move.hasCrashDamage) score -= 10 * personality.riskPenalty;
+    if (move.selfdestruct) score -= (attacker.hp / Math.max(1, attacker.maxHp) > 0.25 ? 80 : 15) * personality.riskPenalty;
+    return score;
+  }
+
+  private simulateAiTurn(state: AiSearchState, enemyAction: AiCandidate, playerAction: AiCandidate): AiSearchState {
+    const next = this.cloneAiState(state);
+    this.applyAiSwitch(next, playerAction);
+    this.applyAiSwitch(next, enemyAction);
+    const actions = [playerAction, enemyAction]
+      .filter(action => action.kind === "move")
+      .sort((a, b) => this.aiActionOrder(next, b) - this.aiActionOrder(next, a));
+    for (const action of actions) this.applyAiMove(next, action);
+    this.promoteFaintedAiActive(next, "p1");
+    this.promoteFaintedAiActive(next, "p2");
+    return next;
+  }
+
+  private cloneAiState(state: AiSearchState): AiSearchState {
+    return {
+      p1: state.p1.map(pokemon => ({...pokemon})),
+      p2: state.p2.map(pokemon => ({...pokemon})),
+      active: {...state.active},
+    };
+  }
+
+  private applyAiSwitch(state: AiSearchState, action: AiCandidate): void {
+    if (action.kind !== "switch" || !action.switchSlot) return;
+    const index = state[action.side].findIndex(pokemon => pokemon.slot === action.switchSlot && pokemon.hp > 0);
+    if (index >= 0) state.active[action.side] = index;
+  }
+
+  private applyAiMove(state: AiSearchState, action: AiCandidate): void {
+    const attacker = this.aiActive(state, action.side);
+    const targetSide = action.side === "p1" ? "p2" : "p1";
+    const target = this.aiActive(state, targetSide);
+    if (!attacker || !target || attacker.hp <= 0 || target.hp <= 0 || !action.move) return;
+    if (action.move.category === "Status" || !Number(action.move.basePower || action.move.damage)) return;
+    const accuracy = typeof action.move.accuracy === "number" ? action.move.accuracy / 100 : 1;
+    const damage = this.estimatedMoveDamage(action.move, attacker.display, target.display) * accuracy;
+    target.hp = Math.max(0, target.hp - damage);
+    if (action.move.selfdestruct) attacker.hp = 0;
+    if (action.move.recoil && damage > 0) attacker.hp = Math.max(0, attacker.hp - damage * 0.25);
+  }
+
+  private aiActionOrder(state: AiSearchState, action: AiCandidate): number {
+    const active = this.aiActive(state, action.side);
+    const priority = Number(action.move?.priority || 0);
+    const speed = Number(active?.display.stats?.spe || active?.display.base_stats?.spe || 0);
+    return priority * 10000 + speed;
+  }
+
+  private promoteFaintedAiActive(state: AiSearchState, side: SideId): void {
+    const active = this.aiActive(state, side);
+    if (active && active.hp > 0) return;
+    const nextIndex = state[side].findIndex(pokemon => pokemon.hp > 0);
+    if (nextIndex >= 0) state.active[side] = nextIndex;
+  }
+
+  private evaluateAiState(state: AiSearchState): number {
+    const personality = this.personalityWeights();
+    const enemyAlive = state.p2.filter(pokemon => pokemon.hp > 0);
+    const playerAlive = state.p1.filter(pokemon => pokemon.hp > 0);
+    if (!playerAlive.length) return 100000;
+    if (!enemyAlive.length) return -100000;
+    const enemyHp = enemyAlive.reduce((sum, pokemon) => sum + pokemon.hp / Math.max(1, pokemon.maxHp), 0);
+    const playerHp = playerAlive.reduce((sum, pokemon) => sum + pokemon.hp / Math.max(1, pokemon.maxHp), 0);
+    const enemyActive = this.aiActive(state, "p2");
+    const playerActive = this.aiActive(state, "p1");
+    const pressure = enemyActive && playerActive ? this.bestMovePressure(enemyActive.display, playerActive.display) - this.aiIncomingDamage("p2", enemyActive, state) : 0;
+    return enemyHp * 120 * personality.defense - playerHp * 120 * personality.damage + (enemyAlive.length - playerAlive.length) * 180 + pressure * 0.35 * personality.damage;
+  }
+
+  private aiIncomingDamage(side: SideId, defender: AiPokemonState, state: AiSearchState): number {
+    const attacker = this.aiActive(state, side === "p1" ? "p2" : "p1");
+    if (!attacker) return 0;
+    const exact = side === "p1" || this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
+    const moves = exact
+      ? (attacker.display.moves || []).map(move => this.sim.Dex.mod("gen7").moves.get(move.id || move.name)).filter((move: any) => move?.exists)
+      : this.predictedTypeMoves(attacker.display);
+    if (!moves.length) return 0;
+    return Math.max(...moves.map((move: any) => this.estimatedMoveDamage(move, attacker.display, defender.display)));
+  }
+
+  private aiActive(state: AiSearchState, side: SideId): AiPokemonState | undefined {
+    return state[side][state.active[side]];
+  }
+
+  private personalityWeights(): BattleAiPersonalityWeights {
+    return BATTLE_AI_PERSONALITY_WEIGHTS[this.enemyAi.personality] || BATTLE_AI_PERSONALITY_WEIGHTS.balanced;
+  }
+
+  private enemyTeamPreviewChoice(request: BattleRequestView): string {
+    const indexes = Array.from({length: request.side?.pokemon?.length || 0}, (_value, index) => index + 1);
+    if (!indexes.length) return "default";
+    const playerLead = this.activeDisplay("p1");
+    const scored = indexes.map(index => {
+      const display = this.enemyDisplay[index - 1];
+      const pressure = display && playerLead ? this.bestMovePressure(display, playerLead) : 0;
+      return {choice: index, score: pressure + this.nextRandom() * 8};
+    }).sort((a, b) => b.score - a.score);
+    const ordered = scored.map(entry => entry.choice);
+    for (const index of indexes) if (!ordered.includes(index)) ordered.push(index);
+    return "team " + ordered.join("");
+  }
+
+  private enemySwitchChoice(request: BattleRequestView): string {
+    const switches = this.scoredEnemySwitches(request);
+    if (switches.length) return this.pickScoredChoice(switches);
+    return this.randomChoice(request);
+  }
+
+  private enemyVoluntarySwitchChoice(request: BattleRequestView): string | null {
+    if (!this.enemyAi.allowSwitch || this.enemyAi.switchAwareness <= 0) return null;
+    const switches = this.scoredEnemySwitches(request);
+    if (!switches.length) return null;
+    const active = this.activeDisplay("p2");
+    const player = this.activeDisplay("p1");
+    if (!active || !player) return null;
+    const hp = this.activeHpFraction("p2");
+    const currentPressure = this.bestMovePressure(active, player);
+    const incomingRisk = this.estimatedIncomingDamage(active);
+    const bestSwitch = switches[0];
+    const danger = incomingRisk > this.activeHpValue("p2") * 0.85 || hp < 0.28 || currentPressure < 24;
+    const enoughGain = bestSwitch.score > currentPressure + 18;
+    const switchChance = this.enemyAi.switchAwareness * (danger ? 0.75 : 0.22) * (enoughGain ? 1 : 0.45);
+    return this.nextRandom() < switchChance ? bestSwitch.choice : null;
+  }
+
+  private scoredEnemyMoves(request: BattleRequestView): Array<{choice: string; score: number}> {
+    const moves = (request.active?.[0]?.moves || [])
+      .map((move, index) => ({move, index: index + 1}))
+      .filter(entry => !entry.move.disabled && Number(entry.move.pp ?? 1) > 0);
+    const active = this.activeDisplay("p2");
+    const target = this.activeDisplay("p1");
+    return moves
+      .map(entry => ({choice: `move ${entry.index}`, score: this.scoreEnemyMove(entry.move, active, target)}))
+      .sort((a, b) => b.score - a.score);
+  }
+
+  private scoredEnemySwitches(request: BattleRequestView): Array<{choice: string; score: number}> {
+    const player = this.activeDisplay("p1");
+    return legalSwitchIndexes(request)
+      .map(index => {
+        const display = this.enemyDisplay[index - 1];
+        const score = display && player ? this.scoreSwitchTarget(display, player) : 0;
+        return {choice: `switch ${index}`, score};
+      })
+      .sort((a, b) => b.score - a.score);
+  }
+
+  private pickScoredChoice(entries: Array<{choice: string; score: number}>): string {
+    if (!entries.length) return "default";
+    if (this.nextRandom() < this.enemyAi.randomness) return this.pick(entries).choice;
+    const fuzz = Math.max(4, 18 * this.enemyAi.randomness);
+    const ranked = entries
+      .map(entry => ({...entry, score: entry.score + (this.nextRandom() * 2 - 1) * fuzz}))
+      .sort((a, b) => b.score - a.score);
+    return ranked[0].choice;
+  }
+
+  private scoreEnemyMove(requestMove: BattleMoveRequest, attacker: RentalPokemon | undefined, target: RentalPokemon | undefined): number {
+    const dex = this.sim.Dex.mod("gen7");
+    const move = dex.moves.get(requestMove.id || requestMove.move);
+    if (!move?.exists) return 10;
+    const personality = this.personalityWeights();
+    const accuracy = typeof move.accuracy === "number" ? move.accuracy / 100 : 1;
+    const targetHp = this.activeHpValue("p1");
+    if (move.category === "Status" || !Number(move.basePower || move.damage)) {
+      return this.scoreStatusMove(move, target) * accuracy;
+    }
+    const damage = this.estimatedMoveDamage(move, attacker, target);
+    let score = damage * accuracy * personality.damage;
+    const effectiveness = this.typeMultiplier(move.type, target);
+    if (effectiveness <= 0) score -= 120;
+    else if (effectiveness >= 4) score += 48;
+    else if (effectiveness >= 2) score += 26;
+    else if (effectiveness < 1) score -= 18;
+    if (attacker?.types?.includes(move.type)) score += 12;
+    if (Number(move.priority || 0) > 0 && this.activeHpFraction("p2") < 0.35) score += 16;
+    if (targetHp > 0 && damage >= targetHp) score += (90 + this.enemyAi.prediction * 35) * personality.ko;
+    if (this.enemyAi.depth > 0) {
+      const incoming = this.estimatedIncomingDamage(attacker);
+      if (incoming >= this.activeHpValue("p2") && damage < targetHp) score -= 24 * this.enemyAi.prediction;
+      if (damage >= targetHp && incoming >= this.activeHpValue("p2")) score += 35 * this.enemyAi.prediction;
+    }
+    if (move.recoil || move.hasCrashDamage) score -= 10 * personality.riskPenalty;
+    if (move.selfdestruct) score -= (this.activeHpFraction("p2") > 0.25 ? 80 : 15) * personality.riskPenalty;
+    return score;
+  }
+
+  private scoreStatusMove(move: any, target: RentalPokemon | undefined): number {
+    const enemyHp = this.activeHpFraction("p2");
+    const targetStatus = toId(this.activeRuntime("p1")?.condition?.split(" ").slice(1).join(" ") || "");
+    const personality = this.personalityWeights();
+    let score = 14;
+    if (move.status && !targetStatus) score += 52 * this.enemyAi.statusAwareness * personality.status;
+    if (move.volatileStatus) score += 24 * this.enemyAi.statusAwareness * personality.status;
+    if (move.boosts || move.self?.boosts) score += (enemyHp > 0.45 ? 44 : 18) * this.enemyAi.setupAwareness * personality.setup;
+    if (move.sideCondition || move.pseudoWeather || move.weather || move.terrain) score += 28 * Math.max(this.enemyAi.statusAwareness, this.enemyAi.setupAwareness);
+    if (move.forceSwitch || move.selfSwitch) score += 10 * this.enemyAi.prediction;
+    if (this.typeMultiplier(move.type, target) <= 0 && !move.status && !move.boosts && !move.self?.boosts) score -= 50;
+    if (enemyHp < 0.22 && !move.priority) score -= 22;
+    return score;
+  }
+
+  private scoreSwitchTarget(candidate: RentalPokemon, player: RentalPokemon): number {
+    const personality = this.personalityWeights();
+    const incoming = this.estimatedIncomingDamage(candidate);
+    const pressure = this.bestMovePressure(candidate, player);
+    const hp = Math.max(0.1, this.runtimeHpFraction(this.runtimeForDisplay("p2", candidate)));
+    return pressure * 0.8 * personality.damage - incoming * 0.55 * personality.defense + hp * 24 * personality.switch + this.nextRandom() * 6;
+  }
+
+  private bestMovePressure(attacker: RentalPokemon, target: RentalPokemon): number {
+    const moves = attacker.moves || [];
+    if (!moves.length) return 0;
+    return Math.max(...moves.map(move => {
+      const dexMove = this.sim.Dex.mod("gen7").moves.get(move.id || move.name);
+      return dexMove?.exists ? this.estimatedMoveDamage(dexMove, attacker, target) : 0;
+    }));
+  }
+
+  private estimatedIncomingDamage(defender: RentalPokemon | undefined): number {
+    const player = this.activeDisplay("p1");
+    if (!player || !defender) return 0;
+    const canUseExactMoves = this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
+    if (canUseExactMoves) {
+      const requestMoves = this.latestRequests.p1?.active?.[0]?.moves || [];
+      const moveIds = requestMoves.length ? requestMoves.map(move => move.id || move.move) : (player.moves || []).map(move => move.id || move.name);
+      if (!moveIds.length) return 0;
+      return Math.max(...moveIds.map(moveId => {
+        const move = this.sim.Dex.mod("gen7").moves.get(moveId);
+        return move?.exists ? this.estimatedMoveDamage(move, player, defender) : 0;
+      }));
+    }
+    const likelyTypes = player.types?.length ? player.types : ["Normal"];
+    return Math.max(...likelyTypes.map(type => this.estimatedMoveDamage({type, basePower: 70, category: this.preferredAttackCategory(player)}, player, defender)));
+  }
+
+  private preferredAttackCategory(pokemon: RentalPokemon): "Physical" | "Special" {
+    return Number(pokemon.stats?.spa || pokemon.base_stats?.spa || 0) > Number(pokemon.stats?.atk || pokemon.base_stats?.atk || 0) ? "Special" : "Physical";
+  }
+
+  private estimatedMoveDamage(move: any, attacker: RentalPokemon | undefined, target: RentalPokemon | undefined): number {
+    if (!attacker || !target) return Number(move.basePower || move.damage || 35);
+    if (!this.canHit(move.type, target)) return 0;
+    const power = Number(move.basePower || move.damage || 50);
+    const level = Number(attacker.level || 50);
+    const category = move.category === "Special" ? "Special" : "Physical";
+    const offensiveStat = category === "Special" ? "spa" : "atk";
+    const defensiveStat = category === "Special" ? "spd" : "def";
+    const attack = Math.max(1, Number(attacker.stats?.[offensiveStat] || attacker.base_stats?.[offensiveStat] || 70));
+    const defense = Math.max(1, Number(target.stats?.[defensiveStat] || target.base_stats?.[defensiveStat] || 70));
+    const stab = attacker.types?.includes(move.type) ? 1.5 : 1;
+    const type = this.typeMultiplier(move.type, target);
+    return (((2 * level / 5 + 2) * power * attack / defense) / 50 + 2) * stab * type;
+  }
+
+  private typeMultiplier(moveType: string, target: RentalPokemon | undefined): number {
+    if (!moveType || !target) return 1;
+    const dex = this.sim.Dex.mod("gen7");
+    const species = dex.species.get(target.species_id || target.species || target.name);
+    const typeTarget = species?.exists ? species : {types: target.types || []};
+    if (!dex.getImmunity(moveType, typeTarget)) return 0;
+    return 2 ** dex.getEffectiveness(moveType, typeTarget);
+  }
+
+  private canHit(moveType: string, target: RentalPokemon | undefined): boolean {
+    return this.typeMultiplier(moveType, target) > 0;
+  }
+
+  private activeDisplay(side: SideId): RentalPokemon | undefined {
+    const runtime = this.activeRuntime(side);
+    if (!runtime) return undefined;
+    return side === "p1" ? findRentalByRuntime(this.playerDisplay, runtime.ident) : findRentalByRuntime(this.enemyDisplay, runtime.ident);
+  }
+
+  private activeRuntime(side: SideId): RuntimePokemon | undefined {
+    return this.latestRequests[side]?.side?.pokemon?.find(pokemon => pokemon.active) || this.latestRequests[side]?.side?.pokemon?.[0];
+  }
+
+  private runtimeForDisplay(side: SideId, display: RentalPokemon): RuntimePokemon | undefined {
+    const request = this.latestRequests[side];
+    return request?.side?.pokemon?.find(pokemon => {
+      const runtimeDisplay = side === "p1" ? findRentalByRuntime(this.playerDisplay, pokemon.ident) : findRentalByRuntime(this.enemyDisplay, pokemon.ident);
+      return runtimeDisplay?.species_id === display.species_id;
+    });
+  }
+
+  private activeHpValue(side: SideId): number {
+    const hp = parseConditionHp(this.activeRuntime(side)?.condition);
+    if (hp?.current !== undefined) return hp.current;
+    const display = this.activeDisplay(side);
+    return Number(display?.stats?.hp || display?.base_stats?.hp || 1);
+  }
+
+  private activeHpFraction(side: SideId): number {
+    return this.runtimeHpFraction(this.activeRuntime(side));
+  }
+
+  private runtimeHpFraction(runtime: RuntimePokemon | undefined): number {
+    const hp = parseConditionHp(runtime?.condition);
+    if (!hp?.max) return String(runtime?.condition || "").endsWith(" fnt") ? 0 : 1;
+    return Math.max(0, Math.min(1, hp.current / hp.max));
   }
 
   private updatePpMemory(request: BattleRequestView | null | undefined): void {
@@ -1225,8 +2050,9 @@ export class TrainerItemBattleSession extends BattleSession {
       speed: 1,
     });
     const enemyRequest = this.latestRequests.p2;
-    if (enemyRequest && !enemyRequest.wait) await this.chooseSide("p2", this.randomChoice(enemyRequest));
+    if (enemyRequest && !enemyRequest.wait) await this.chooseSide("p2", await this.consumeEnemyChoice(enemyRequest));
     else await this.chooseSide("p2", "default");
+    this.prepareEnemyChoice();
     return this.getState();
   }
 
@@ -1278,6 +2104,10 @@ function legalSwitchIndexes(request: BattleRequestView): number[] {
     .map((pokemon, index) => ({pokemon, index: index + 1}))
     .filter(({pokemon}) => !pokemon.active && !String(pokemon.condition || "").endsWith(" fnt"))
     .map(({index}) => index);
+}
+
+function cloneBattleRequests(requests: Record<string, BattleRequestView>): Record<string, BattleRequestView> {
+  return JSON.parse(JSON.stringify(requests || {})) as Record<string, BattleRequestView>;
 }
 
 function splitLogLines(messages: Message[]): string[] {
@@ -1942,10 +2772,14 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
       const effect = service.effectName(parts[3]);
-      if (toId(parts[3]) === "substitute") {
+      const effectId = toId(parts[3]);
+      if (effectId === "substitute") {
         if (side) tracker.active[side] = {...tracker.active[side], substitute: true};
         text = `${target} 制造了替身。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: true};
+      } else if (effectId === "confusion") {
+        text = `${target} 陷入混乱。`;
+        timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: "confusion"};
       } else {
         text = `${target} 获得状态：${effect}`;
         timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect};
@@ -1954,10 +2788,14 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
       const effect = service.effectName(parts[3]);
-      if (toId(parts[3]) === "substitute") {
+      const effectId = toId(parts[3]);
+      if (effectId === "substitute") {
         if (side) tracker.active[side] = {...tracker.active[side], substitute: false};
         text = `${target} 的替身消失了。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: false};
+      } else if (effectId === "confusion") {
+        text = `${target} 的混乱结束了。`;
+        timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: "confusion"};
       } else {
         text = `${target} 的 ${effect} 结束了。`;
         timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect};

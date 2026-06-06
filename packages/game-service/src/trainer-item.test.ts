@@ -15,7 +15,7 @@ function pokemon(species: string, moves: string[]): PokemonSet {
   return {
     name: species,
     species,
-    ability: species === "Bulbasaur" ? "Overgrow" : "Static",
+    ability: species === "Bulbasaur" ? "Overgrow" : species === "Charmander" ? "Blaze" : "Static",
     item: "",
     moves,
     nature: "Serious",
@@ -76,7 +76,26 @@ async function testInvalidItemDoesNotAdvanceTurn(): Promise<void> {
   assert.equal(session.getState().tracker.turn, before);
 }
 
+async function testEnemyAiPrefersEffectiveDamage(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const playerTeam = [pokemon("Bulbasaur", ["Tackle"])];
+  const enemyTeam = [pokemon("Charmander", ["Scratch", "Ember"])];
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay: await service.describeTeam(playerTeam),
+    enemyDisplay: await service.describeTeam(enemyTeam),
+    seed: [5, 6, 7, 8],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+  const state = await session.choose("move 1");
+  const events = state.recent_events.join("\n");
+  assert.match(events, /火花|Ember/, events);
+  assert.doesNotMatch(events, /抓|Scratch/, events);
+}
+
 await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
+await testEnemyAiPrefersEffectiveDamage();
 console.log("Trainer item battle tests passed.");

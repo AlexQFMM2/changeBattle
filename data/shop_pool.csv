@@ -1,16 +1,16 @@
 id,kind,category,cost,weight,enabled,notes
-potion,item,consumable,200,8,1,hp heal
+potion,item,consumable,50,8,1,hp heal
 freshwater,item,consumable,200,7,1,hp heal drink
 sodapop,item,consumable,250,6,1,hp heal drink
-superpotion,item,consumable,300,7,1,hp heal
+superpotion,item,consumable,100,7,1,hp heal
 lemonade,item,consumable,350,5,1,hp heal drink
 moomoomilk,item,consumable,450,4,1,hp heal drink
-hyperpotion,item,consumable,500,5,1,hp heal
-maxpotion,item,consumable,800,3,1,full hp heal
-fullrestore,item,consumable,1000,2,1,full hp and status
-revive,item,consumable,700,4,1,revive
-maxrevive,item,consumable,1200,1,1,full revive
-revivalherb,item,consumable,1000,1,1,full revive herb
+hyperpotion,item,consumable,200,5,1,hp heal
+maxpotion,item,consumable,250,3,1,full hp heal
+fullrestore,item,consumable,300,2,1,full hp and status
+revive,item,consumable,200,4,1,revive
+maxrevive,item,consumable,300,1,1,full revive
+revivalherb,item,consumable,300,1,1,full revive herb
 energypowder,item,consumable,300,3,1,hp heal herb
 energyroot,item,consumable,600,2,1,hp heal herb
 healpowder,item,consumable,300,3,1,status heal herb
