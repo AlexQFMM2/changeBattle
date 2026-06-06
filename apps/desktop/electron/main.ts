@@ -2127,7 +2127,8 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     const settled = await settleRunEnd(save, run);
     save.current_run = null;
     const next = await persist(save);
-    const lossMessage = `挑战结束。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+    const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "对手训练师";
+    const lossMessage = `挑战结束。败给 ${enemyName}。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
     const transition = gameState({screen: "result", save: next, battle: decorateBattleState(state, run), message: lossMessage});
     return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
   }

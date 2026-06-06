@@ -835,7 +835,7 @@ function App() {
     if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={setScreen} onChoice={battleChoice} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
     if (screen === "rest") return <RestView rest={rest} message={message} onAction={restAction} />;
-    if (screen === "result") return <ResultView message={message} onBack={() => setScreen("mainMenu")} />;
+    if (screen === "result") return <ResultView message={message} battle={battle} onBack={() => setScreen("mainMenu")} />;
     return null;
   }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, battleBag, battleChoicePending, exchange, rest, pendingTransition, message]);
 
@@ -1728,7 +1728,8 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   function beginBattleOutro(activeBattle: BattleState, transition: DesktopGameState | null) {
     if (!transition || finishRequested.current) return;
     finishRequested.current = true;
-    const enemy = activeBattle.enemy_trainer;
+    const enemy = activeBattle.enemy_trainer || transition.battle?.enemy_trainer;
+    const dialogueBattle = enemy && !activeBattle.enemy_trainer ? {...activeBattle, enemy_trainer: enemy, enemy_boss_record: activeBattle.enemy_boss_record || transition.battle?.enemy_boss_record} : activeBattle;
     const moment: TrainerDialogueMoment = playerWonBattle(activeBattle) ? "defeat" : "victory";
     setDetailIndex(null);
     setBattleItemOpen(false);
@@ -1739,7 +1740,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
       kind: "outro",
       speaker: trainerDisplayName(enemy),
       title: trainerDialogueTitle(enemy),
-      lines: trainerDialogueLines(enemy, moment, selectedDialogueGroupIndex(activeBattle), bossDialogueVariant(activeBattle.enemy_boss_record)),
+      lines: trainerDialogueLines(enemy, moment, selectedDialogueGroupIndex(dialogueBattle), bossDialogueVariant(dialogueBattle.enemy_boss_record)),
       index: 0,
     });
   }
@@ -2884,8 +2885,35 @@ function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: Non
   );
 }
 
-function ResultView({message, onBack}: {message: string; onBack: () => void}) {
-  return <div className="title-screen small"><h1>结算</h1><p>{message}</p><button onClick={onBack}>返回主界面</button></div>;
+function ResultView({message, battle, onBack}: {message: string; battle: BattleState | null; onBack: () => void}) {
+  const enemy = battle?.enemy_trainer;
+  const image = trainerImageUrl(enemy, "frontGif") || trainerImageUrl(enemy, "front");
+  const playerWon = battle ? playerWonBattleResult(battle) : false;
+  return (
+    <div className="result-screen">
+      <section className="result-panel">
+        <div className="result-copy">
+          <span>{playerWon ? "挑战完成" : enemy ? "击败你的训练师" : "结算"}</span>
+          <h1>{playerWon ? "胜利结算" : enemy ? trainerDisplayName(enemy) : "结算"}</h1>
+          <p>{message}</p>
+          <button onClick={onBack}>返回主界面</button>
+        </div>
+        {enemy ? (
+          <aside className="result-trainer-card">
+            {image ? <img src={image} alt={trainerDisplayName(enemy)} /> : <i className="shadow-orb large">?</i>}
+            <strong>{trainerDisplayName(enemy)}</strong>
+            <span>{trainerDialogueTitle(enemy)}</span>
+          </aside>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function playerWonBattleResult(battle: BattleState): boolean {
+  const winner = String(battle.winner || "").toLowerCase();
+  if (!winner || winner === "tie") return false;
+  return !["enemy", "opponent", "对手"].includes(winner);
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

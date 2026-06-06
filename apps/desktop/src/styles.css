@@ -500,6 +500,81 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .title-screen.small h1 { font-size: 42px; }
 .save-hint { color: #53604f; }
 
+.result-screen {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.result-panel {
+  width: min(960px, 100%);
+  min-height: min(560px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: center;
+  gap: 28px;
+  border: 4px solid #25332b;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fffdf5, #f3ead5);
+  box-shadow: 0 18px 36px #00000024;
+  padding: 28px;
+}
+
+.result-copy {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.result-copy span,
+.result-trainer-card span {
+  color: #596052;
+  font-weight: 900;
+}
+
+.result-copy h1 {
+  margin: 0;
+  font-size: 46px;
+}
+
+.result-copy p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.result-copy button {
+  width: fit-content;
+  min-width: 160px;
+}
+
+.result-trainer-card {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  border: 3px solid #25332b;
+  border-radius: 8px;
+  background: #f7f2e4;
+  padding: 16px;
+}
+
+.result-trainer-card img {
+  width: min(220px, 100%);
+  height: 280px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.result-trainer-card strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 22px;
+}
+
 .player-settings-page {
   height: 100%;
   display: grid;
