@@ -930,6 +930,14 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 
 .battle-layout { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) 230px; position: relative; }
 .battle-field {
+  --battle-mon-size: clamp(116px, min(17vw, 23vh), 176px);
+  --battle-substitute-size: clamp(86px, min(12vw, 17vh), 128px);
+  --battle-player-bottom: clamp(10px, 3vh, 20px);
+  --battle-enemy-top: clamp(24px, 7vh, 48px);
+  --battle-trainer-width: clamp(130px, min(24vw, 28vh), 220px);
+  --battle-trainer-height: clamp(160px, min(30vw, 34vh), 260px);
+  --battle-platform-width: calc(var(--battle-mon-size) * 2.05);
+  --battle-platform-height: calc(var(--battle-mon-size) * .58);
   position: relative;
   overflow: hidden;
   background:
@@ -940,20 +948,49 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse at 78% 52%, rgba(133, 156, 111, .22) 0 10%, transparent 11%),
-    radial-gradient(ellipse at 28% 78%, rgba(171, 184, 142, .34) 0 18%, transparent 19%),
-    linear-gradient(90deg, transparent, rgba(255,255,255,.58), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.58), transparent);
   pointer-events: none;
 }
+.battle-platforms {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.battle-platform {
+  position: absolute;
+  width: var(--battle-platform-width);
+  height: var(--battle-platform-height);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse, rgba(154, 174, 119, .34) 0 38%, rgba(164, 184, 127, .2) 58%, transparent 72%),
+    linear-gradient(180deg, rgba(255,255,255,.32), transparent);
+  filter: blur(.2px);
+}
+.player-platform {
+  left: calc(17% + var(--battle-mon-size) * .8);
+  bottom: calc(var(--battle-player-bottom) + var(--battle-mon-size) * .18);
+  translate: -50% 50%;
+}
+.enemy-platform {
+  right: calc(15% + var(--battle-mon-size) * .675);
+  top: calc(var(--battle-enemy-top) + var(--battle-mon-size) * .675);
+  translate: 50% -50%;
+  width: calc(var(--battle-platform-width) * .68);
+  height: calc(var(--battle-platform-height) * .66);
+  opacity: .78;
+}
+.battle-field.trainer-intro .battle-platforms {
+  opacity: 0;
+}
 .battle-sprites { position: absolute; inset: 0; z-index: 2; }
-.battle-sprites .pokemon-sprite { position: absolute; width: 176px; height: 176px; }
+.battle-sprites .pokemon-sprite { position: absolute; width: var(--battle-mon-size); height: var(--battle-mon-size); }
 .battle-sprites .pokemon-sprite.clickable-sprite { cursor: pointer; }
-.back-sprite { left: 17%; bottom: 20px; transform: scale(1.6); transform-origin: bottom center; }
-.front-sprite { right: 15%; top: 48px; transform: scale(1.35); transform-origin: center; }
-.battle-sprites .pokemon-sprite.substitute-sprite { width: 128px; height: 128px; }
-.back-sprite.substitute-sprite { left: 22%; bottom: 38px; transform: scale(1.45); }
-.front-sprite.substitute-sprite { right: 19%; top: 78px; transform: scale(1.25); }
+.back-sprite { left: 17%; bottom: var(--battle-player-bottom); transform: scale(1.6); transform-origin: bottom center; }
+.front-sprite { right: 15%; top: var(--battle-enemy-top); transform: scale(1.35); transform-origin: center; }
+.battle-sprites .pokemon-sprite.substitute-sprite { width: var(--battle-substitute-size); height: var(--battle-substitute-size); }
+.back-sprite.substitute-sprite { left: 22%; bottom: clamp(20px, 5vh, 38px); transform: scale(1.45); }
+.front-sprite.substitute-sprite { right: 19%; top: clamp(42px, 10vh, 78px); transform: scale(1.25); }
 
 .battle-sprites .pokemon-sprite.shiny-entrance::before,
 .battle-sprites .pokemon-sprite.shiny-entrance::after {
@@ -1647,22 +1684,44 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   pointer-events: none;
 }
 
-.trainer-sprite {
+.trainer-stand {
   position: absolute;
-  width: min(24vw, 220px);
-  height: min(30vw, 260px);
+  display: block;
+  width: var(--battle-trainer-width);
+  height: var(--battle-trainer-height);
+}
+
+.trainer-stand > i {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  z-index: 0;
+  width: min(112%, var(--battle-platform-width));
+  height: min(34%, var(--battle-platform-height));
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse, rgba(154, 174, 119, .36) 0 40%, rgba(164, 184, 127, .22) 58%, transparent 74%),
+    linear-gradient(180deg, rgba(255,255,255,.34), transparent);
+  translate: -50% 50%;
+}
+
+.trainer-sprite {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 8px 0 rgb(0 0 0 / 18%));
 }
 
-.trainer-player {
+.trainer-player-stand {
   left: 14%;
   bottom: 18%;
   animation: trainer-player-in 1.55s cubic-bezier(.16, .86, .2, 1) both;
 }
 
-.trainer-enemy {
+.trainer-enemy-stand {
   right: 12%;
   top: 11%;
   animation: trainer-enemy-in 1.55s cubic-bezier(.16, .86, .2, 1) both;

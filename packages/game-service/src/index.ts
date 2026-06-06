@@ -3007,7 +3007,12 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
     } else if ((tag === "-singlemove" || tag === "-singleturn") && parts[2] && parts[3]) {
       const target = translatedSpecies(service, parts[2]);
       const effect = service.effectName(parts[3]);
-      text = `${target} 准备了 ${effect}。`;
+      const effectId = toId(parts[3]);
+      text = effectId === "moveroost"
+        ? `${target} 暂时落地了。`
+        : tag === "-singleturn"
+          ? `${target} 进入了 ${effect} 状态。`
+          : `${target} 保持着 ${effect}。`;
       timelineEvent = {type: "status", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect};
     } else if (tag === "-message" && parts[2]) {
       text = parts.slice(2).join(" ");

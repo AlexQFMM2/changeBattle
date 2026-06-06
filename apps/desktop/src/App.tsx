@@ -1684,6 +1684,10 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   return (
     <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
       <section className={`battle-field ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}>
+        <div className="battle-platforms" aria-hidden="true">
+          <i className="battle-platform player-platform" />
+          <i className="battle-platform enemy-platform" />
+        </div>
         <FieldEffectsOverlay battle={battle} />
         <BattleEffectLayer cue={currentVisualCue} />
         {trainerIntroActive ? <TrainerIntroOverlay battle={battle} /> : null}
@@ -1725,8 +1729,8 @@ function TrainerIntroOverlay({battle}: {battle: BattleState}) {
   const enemyImage = trainerImageUrl(enemy, "frontGif");
   return (
     <div className="trainer-intro-layer">
-      {playerImage ? <img className="trainer-sprite trainer-player" src={playerImage} alt={player?.name_zh || "玩家"} /> : null}
-      {enemyImage ? <img className="trainer-sprite trainer-enemy" src={enemyImage} alt={enemyName} /> : null}
+      {playerImage ? <span className="trainer-stand trainer-player-stand"><i /><img className="trainer-sprite trainer-player" src={playerImage} alt={player?.name_zh || "玩家"} /></span> : null}
+      {enemyImage ? <span className="trainer-stand trainer-enemy-stand"><i /><img className="trainer-sprite trainer-enemy" src={enemyImage} alt={enemyName} /></span> : null}
     </div>
   );
 }
