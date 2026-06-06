@@ -98,6 +98,9 @@ type TrainerDialogueState = {
   title: string;
   lines: string[];
   index: number;
+  trainer?: TrainerNpcView;
+  playerTrainer?: TrainerNpcView;
+  bossRecord?: BossDexRecord;
 };
 
 type TrainerDialogueSet = Record<TrainerDialogueMoment, string[]>;
@@ -308,9 +311,10 @@ function pokemonImageUrl(pokemon?: {sprite?: SpriteMapEntry; shiny?: boolean}, v
 function PokemonSprite({pokemon, src, alt, variant = "front_normal", className = "", badge = "short", entrance = false, onClick}: {pokemon?: {sprite?: SpriteMapEntry; shiny?: boolean}; src?: string; alt: string; variant?: "front_normal" | "back_normal"; className?: string; badge?: "short" | "full" | false; entrance?: boolean; onClick?: () => void}) {
   const shiny = Boolean(pokemon?.shiny);
   const badgeText = badge === "full" ? "闪光" : "闪";
+  const image = src || pokemonImageUrl(pokemon, variant);
   return (
     <span className={`pokemon-sprite ${className} ${shiny ? "is-shiny" : ""} ${shiny && entrance ? "shiny-entrance" : ""} ${onClick ? "clickable-sprite" : ""}`} onClick={onClick}>
-      <img src={src || pokemonImageUrl(pokemon, variant)} alt={alt} />
+      {image ? <img src={image} alt={alt} /> : <i className="shadow-orb">?</i>}
       {shiny && badge ? <i className={`shiny-badge ${badge === "full" ? "full" : ""}`}>{badgeText}</i> : null}
     </span>
   );
@@ -347,6 +351,41 @@ function profileFromSelection(name: string, player?: TrainerNpcView, avatarAsset
 
 function displayName(pokemon?: RentalPokemon): string {
   return pokemon?.species_zh || pokemon?.species || "未知";
+}
+
+function textKey(value: string | undefined): string {
+  return String(value || "").toLowerCase().replace(/[\s()[\]{}（）【】《》〈〉·'’.,，。:：_-]+/g, "");
+}
+
+function baseFormKey(value: string | undefined): string {
+  return textKey(String(value || "").replace(/[-(（].*$/, ""));
+}
+
+function displayMatchKeys(pokemon: RentalPokemon | undefined): Set<string> {
+  const keys = new Set<string>();
+  if (!pokemon) return keys;
+  for (const value of [pokemon.species_id, pokemon.species, pokemon.name, pokemon.species_zh]) {
+    const id = toId(value);
+    const text = textKey(value);
+    const base = baseFormKey(value);
+    if (id) keys.add(id);
+    if (text) keys.add(text);
+    if (base) keys.add(base);
+  }
+  const spriteName = pokemon.sprite?.name;
+  if (spriteName) keys.add(toId(spriteName));
+  return keys;
+}
+
+function runtimeMatchKeys(name?: string): Set<string> {
+  const keys = new Set<string>();
+  const id = toId(name);
+  const text = textKey(name);
+  const base = baseFormKey(name);
+  if (id) keys.add(id);
+  if (text) keys.add(text);
+  if (base) keys.add(base);
+  return keys;
 }
 
 function conditionText(condition?: string): string {
@@ -456,8 +495,13 @@ function runtimeName(runtime?: RuntimePokemon): string {
 }
 
 function findDisplay(team: RentalPokemon[], name?: string): RentalPokemon | undefined {
-  const key = toId(name);
-  return team.find(pokemon => toId(pokemon.species) === key || toId(pokemon.name) === key || pokemon.species_id === key);
+  const keys = runtimeMatchKeys(name);
+  if (!keys.size) return undefined;
+  return team.find(pokemon => {
+    const pokemonKeys = displayMatchKeys(pokemon);
+    for (const key of keys) if (pokemonKeys.has(key)) return true;
+    return false;
+  });
 }
 
 type ActiveTrackerDisplay = BattleState["tracker"]["active"]["p1"];
@@ -500,15 +544,19 @@ function displayFromActive(active: ActiveTrackerDisplay | undefined, base?: Rent
 }
 
 function activePokemon(battle: BattleState | null | undefined, side: "p1" | "p2"): {runtime?: RuntimePokemon; display?: RentalPokemon; active?: ActiveTrackerDisplay} {
-  const runtime = side === "p1"
-    ? battle?.request?.side?.pokemon?.find(pokemon => pokemon.active)
-    : undefined;
+  const rows = side === "p1" ? battle?.request?.side?.pokemon || [] : [];
+  const runtimeIndex = side === "p1" ? rows.findIndex(pokemon => pokemon.active) : -1;
+  const runtime = runtimeIndex >= 0 ? rows[runtimeIndex] : undefined;
   const active = battle?.tracker.active[side];
   const activeName = active?.species_id || active?.name || (side === "p1" ? runtimeName(runtime) : "");
   const team = side === "p1" ? battle?.player_display || [] : battle?.enemy_display || [];
   const allDisplays = [...(battle?.player_display || []), ...(battle?.enemy_display || [])];
-  const base = findDisplay(team, activeName) || findDisplay(allDisplays, activeName) || findDisplay(team, runtimeName(runtime));
+  const base = findDisplay(team, activeName) || findDisplay(allDisplays, activeName) || findDisplay(team, runtimeName(runtime)) || (runtimeIndex >= 0 ? team[runtimeIndex] : undefined) || (side === "p2" ? team[0] : undefined);
   return {runtime, active, display: displayFromActive(active, base)};
+}
+
+function displayForRuntime(team: RentalPokemon[], runtime: RuntimePokemon | undefined, index: number): RentalPokemon | undefined {
+  return findDisplay(team, runtimeName(runtime)) || team[index];
 }
 
 function statLine(pokemon: RentalPokemon, stat: string, revealTraining = false): string {
@@ -520,6 +568,22 @@ function statLine(pokemon: RentalPokemon, stat: string, revealTraining = false):
 
 function moveDescription(move: MoveSummary): string {
   return move.desc_zh || move.short_desc_zh || "暂无中文说明。";
+}
+
+const ABILITY_DESC_FALLBACK_ZH: Record<string, string> = {
+  mimicry: "宝可梦会根据当前场地改变自己的属性。电气场地时变为电属性，青草场地时变为草属性，薄雾场地时变为妖精属性，精神场地时变为超能力属性；没有场地时恢复原本属性。",
+};
+
+function hasCjk(value: string | undefined): boolean {
+  return /[\u3400-\u9fff]/.test(String(value || ""));
+}
+
+function abilityDescription(pokemon: RentalPokemon): string {
+  if (pokemon.ability_desc_zh) return pokemon.ability_desc_zh;
+  const fallback = ABILITY_DESC_FALLBACK_ZH[toId(pokemon.ability_id || pokemon.ability)];
+  if (fallback) return fallback;
+  if (hasCjk(pokemon.ability_desc)) return pokemon.ability_desc;
+  return "暂无中文特性说明。";
 }
 
 function statMarker(pokemon: RentalPokemon, stat: string): string {
@@ -574,6 +638,16 @@ function debugBattle(ended = false): BattleState {
     enemy_trainer: {id: "normal:debug", type: "normal", name_zh: "测试训练师", front_asset: "assets/npc/normal/dp_battle_girl-2-dp_battle_girl.png"},
   };
   return {ended, winner: ended ? "Player" : null, ...base} as BattleState;
+}
+
+function mergeBattleSnapshot(current: BattleState | null, next: BattleState | null | undefined): BattleState | null {
+  if (!next) return current;
+  return {
+    ...next,
+    player_trainer: next.player_trainer || current?.player_trainer,
+    enemy_trainer: next.enemy_trainer || current?.enemy_trainer,
+    enemy_boss_record: next.enemy_boss_record || current?.enemy_boss_record,
+  };
 }
 
 function installBrowserAutomationBridge() {
@@ -642,6 +716,7 @@ function App() {
   const [inspectedIndexes, setInspectedIndexes] = useState<Set<number>>(() => new Set());
   const [inspectRemaining, setInspectRemaining] = useState(0);
   const [battle, setBattle] = useState<BattleState | null>(null);
+  const [lastBattleSnapshot, setLastBattleSnapshot] = useState<BattleState | null>(null);
   const [starter, setStarter] = useState<DesktopGameState["starter"]>(null);
   const [battleBag, setBattleBag] = useState<BagCategoryView | null>(null);
   const [exchange, setExchange] = useState<DesktopGameState["exchange"]>(null);
@@ -674,6 +749,7 @@ function App() {
   }, []);
 
   function applyState(state: DesktopGameState) {
+    const nextBattle = state.battle || null;
     setSave(state.save || null);
     if (state.candidates?.display) {
       setCandidates(state.candidates.display);
@@ -683,7 +759,8 @@ function App() {
       setInspectRemaining(state.starter?.inspect_count ?? 0);
     }
     setStarter(state.starter || null);
-    setBattle(state.battle || null);
+    setLastBattleSnapshot(current => mergeBattleSnapshot(current, state.pending_transition?.battle || nextBattle));
+    setBattle(nextBattle);
     setBattleBag(state.battle_bag || null);
     setExchange(state.exchange || null);
     setRest(state.rest || null);
@@ -835,9 +912,9 @@ function App() {
     if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={setScreen} onChoice={battleChoice} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
     if (screen === "rest") return <RestView rest={rest} message={message} onAction={restAction} />;
-    if (screen === "result") return <ResultView message={message} battle={battle} onBack={() => setScreen("mainMenu")} />;
+    if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} onBack={() => setScreen("mainMenu")} />;
     return null;
-  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, battleBag, battleChoicePending, exchange, rest, pendingTransition, message]);
+  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, lastBattleSnapshot, battleBag, battleChoicePending, exchange, rest, pendingTransition, message]);
 
   const isBattleScreen = ["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen);
   const transientMessage = error || (!isBattleScreen && screen !== "rest" ? message : "");
@@ -1669,6 +1746,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   const previousBattlePresent = useRef(false);
   const introDialoguePending = useRef(false);
   const bossDialogueSelection = useRef<{key: string; index: number} | null>(null);
+  const lastBattleTrainers = useRef<{player?: TrainerNpcView; enemy?: TrainerNpcView; bossRecord?: BossDexRecord}>({});
   const pokemonIntroTimer = useRef<number | null>(null);
   const eventTimers = useRef<number[]>([]);
   const playbackRun = useRef(0);
@@ -1686,27 +1764,50 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
     return bossDialogueSelection.current.index;
   }
 
+  function rememberBattleTrainers(activeBattle: BattleState | null | undefined) {
+    if (!activeBattle) return;
+    if (activeBattle.player_trainer) lastBattleTrainers.current.player = activeBattle.player_trainer;
+    if (activeBattle.enemy_trainer) lastBattleTrainers.current.enemy = activeBattle.enemy_trainer;
+    if (activeBattle.enemy_boss_record) lastBattleTrainers.current.bossRecord = activeBattle.enemy_boss_record;
+  }
+
+  function battleWithRememberedTrainers(activeBattle: BattleState, fallback?: BattleState | null, activeDialogue?: TrainerDialogueState | null): BattleState {
+    return {
+      ...activeBattle,
+      player_trainer: activeBattle.player_trainer || activeDialogue?.playerTrainer || fallback?.player_trainer || lastBattleTrainers.current.player,
+      enemy_trainer: activeBattle.enemy_trainer || activeDialogue?.trainer || fallback?.enemy_trainer || lastBattleTrainers.current.enemy,
+      enemy_boss_record: activeBattle.enemy_boss_record || activeDialogue?.bossRecord || fallback?.enemy_boss_record || lastBattleTrainers.current.bossRecord,
+    };
+  }
+
   useEffect(() => { displayConditionsRef.current = displayConditions; }, [displayConditions]);
   useEffect(() => { displayedActiveNamesRef.current = displayedActiveNames; }, [displayedActiveNames]);
   useEffect(() => { displayedSubstitutesRef.current = displayedSubstitutes; }, [displayedSubstitutes]);
   useEffect(() => {
     const battlePresent = Boolean(battle);
     if (battlePresent && !previousBattlePresent.current) {
-      const enemy = battle?.enemy_trainer;
+      rememberBattleTrainers(battle);
+      const dialogueBattle = battle ? battleWithRememberedTrainers(battle, pendingTransition?.battle) : battle;
+      const enemy = dialogueBattle?.enemy_trainer;
       introDialoguePending.current = true;
       setDialogue({
         kind: "intro",
         speaker: trainerDisplayName(enemy),
         title: trainerDialogueTitle(enemy),
-        lines: trainerDialogueLines(enemy, "intro", selectedDialogueGroupIndex(battle), bossDialogueVariant(battle?.enemy_boss_record)),
+        lines: trainerDialogueLines(enemy, "intro", selectedDialogueGroupIndex(dialogueBattle), bossDialogueVariant(dialogueBattle?.enemy_boss_record)),
         index: 0,
+        trainer: enemy,
+        playerTrainer: dialogueBattle?.player_trainer,
+        bossRecord: dialogueBattle?.enemy_boss_record,
       });
       setTrainerIntroActive(true);
       setIntroActive(false);
       previousBattlePresent.current = true;
     }
+    if (battlePresent) rememberBattleTrainers(battle);
     previousBattlePresent.current = battlePresent;
     if (!battlePresent) {
+      lastBattleTrainers.current = {};
       introDialoguePending.current = false;
       bossDialogueSelection.current = null;
       setIntroActive(false);
@@ -1728,8 +1829,10 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   function beginBattleOutro(activeBattle: BattleState, transition: DesktopGameState | null) {
     if (!transition || finishRequested.current) return;
     finishRequested.current = true;
-    const enemy = activeBattle.enemy_trainer || transition.battle?.enemy_trainer;
-    const dialogueBattle = enemy && !activeBattle.enemy_trainer ? {...activeBattle, enemy_trainer: enemy, enemy_boss_record: activeBattle.enemy_boss_record || transition.battle?.enemy_boss_record} : activeBattle;
+    rememberBattleTrainers(activeBattle);
+    rememberBattleTrainers(transition.battle);
+    const dialogueBattle = battleWithRememberedTrainers(activeBattle, transition.battle);
+    const enemy = dialogueBattle.enemy_trainer;
     const moment: TrainerDialogueMoment = playerWonBattle(activeBattle) ? "defeat" : "victory";
     setDetailIndex(null);
     setBattleItemOpen(false);
@@ -1742,6 +1845,9 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
       title: trainerDialogueTitle(enemy),
       lines: trainerDialogueLines(enemy, moment, selectedDialogueGroupIndex(dialogueBattle), bossDialogueVariant(dialogueBattle.enemy_boss_record)),
       index: 0,
+      trainer: enemy,
+      playerTrainer: dialogueBattle.player_trainer,
+      bossRecord: dialogueBattle.enemy_boss_record,
     });
   }
 
@@ -1925,6 +2031,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
   const detailOpen = detailIndex !== null || mode === "teamMenu";
   const detailInitialIndex = detailIndex ?? activePlayerIndex;
+  const trainerOverlayBattle = dialogue ? battleWithRememberedTrainers(battle, pendingTransition?.battle, dialogue) : battleWithRememberedTrainers(battle, pendingTransition?.battle);
   return (
     <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
       <section className={`battle-field ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}>
@@ -1934,7 +2041,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
         </div>
         <FieldEffectsOverlay battle={battle} />
         <BattleEffectLayer cue={currentVisualCue} />
-        {trainerIntroActive ? <TrainerIntroOverlay battle={battle} /> : null}
+        {trainerIntroActive ? <TrainerIntroOverlay battle={trainerOverlayBattle} /> : null}
         <div className="turn-badge">第 {battle.tracker.turn} 回合</div>
         <div className="battle-corner-actions">
           <button disabled={controlsDisabled} onClick={() => setMode("statusMenu")}>状态</button>
@@ -2110,7 +2217,7 @@ function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; di
   const rows = battle.request?.side?.pokemon || [];
   const [focus, setFocus] = useState(0);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
-  return <div className="team-menu"><div className="team-list">{rows.map((runtime, index) => { const display = findDisplay(battle.player_display, runtimeName(runtime)); const status = statusCode(runtime.condition); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={runtime.ident}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{runtime.active ? "▶" : `${index + 1}.`}</span><strong>{display ? displayName(display) : runtimeName(runtime)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(runtime.condition)}　{runtime.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div>;
+  return <div className="team-menu"><div className="team-list">{rows.map((runtime, index) => { const display = displayForRuntime(battle.player_display, runtime, index); const status = statusCode(runtime.condition); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={runtime.ident}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{runtime.active ? "▶" : `${index + 1}.`}</span><strong>{display ? displayName(display) : runtimeName(runtime)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(runtime.condition)}　{runtime.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div>;
 }
 
 function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}: {battle: BattleState; initialIndex: number; disabled?: boolean; onSwitch: (index: number) => void; onClose: () => void}) {
@@ -2118,7 +2225,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
   const [selectedIndex, setSelectedIndex] = useState(() => Math.max(0, Math.min(initialIndex, Math.max(0, rows.length - 1))));
   const [tab, setTab] = useState<"basic" | "moves">("basic");
   const runtime = rows[selectedIndex] || rows[0];
-  const pokemon = findDisplay(battle.player_display, runtimeName(runtime)) || battle.player_display[selectedIndex] || battle.player_display[0];
+  const pokemon = displayForRuntime(battle.player_display, runtime, selectedIndex) || battle.player_display[0];
   const status = statusCode(runtime?.condition);
   const canSwitch = Boolean(runtime) && !runtime.active && status !== "fnt";
   const activeMoves = runtime?.active ? battle.request?.active?.[0]?.moves || [] : [];
@@ -2141,7 +2248,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
       <section className="pokemon-detail-modal">
         <aside className="detail-team-list">
           {rows.map((entry, index) => {
-            const display = findDisplay(battle.player_display, runtimeName(entry)) || battle.player_display[index];
+            const display = displayForRuntime(battle.player_display, entry, index);
             const code = statusCode(entry.condition);
             return (
               <button className={selectedIndex === index ? "selected" : ""} onClick={() => setSelectedIndex(index)} key={`${entry.ident}-${index}`}>
@@ -2181,7 +2288,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
                     <span>定位</span><strong>{pokemon.role_zh || pokemon.role || "未标注"}</strong>
                   </div>
                   <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div>
-                  <p><b>特性说明：</b>{pokemon.ability_desc_zh || pokemon.ability_desc || "暂无说明"}</p>
+                  <p><b>特性说明：</b>{abilityDescription(pokemon)}</p>
                   <p><b>道具说明：</b>{pokemon.item_desc_zh || pokemon.item_desc || "无道具"}</p>
                 </div>
               </div>
@@ -2209,7 +2316,7 @@ function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: 
   const selected = items.find(item => item.id === itemId) || items[0];
   const rows = battle.request?.side?.pokemon || [];
   const targetRuntime = rows[target] || rows[0];
-  const targetDisplay = findDisplay(battle.player_display, runtimeName(targetRuntime)) || battle.player_display[target] || battle.player_display[0];
+  const targetDisplay = displayForRuntime(battle.player_display, targetRuntime, target) || battle.player_display[0];
   const activeMoves = targetRuntime?.active ? battle.request?.active?.[0]?.moves || [] : [];
 
   return (
@@ -2226,11 +2333,11 @@ function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: 
               <p>{itemCategoryLabel(selected.category)}　x{selected.count}</p>
               <div className="detail-team-list compact-targets">
                 {rows.map((entry, index) => {
-                  const display = findDisplay(battle.player_display, runtimeName(entry)) || battle.player_display[index];
+                  const display = displayForRuntime(battle.player_display, entry, index);
                   return <button className={target === index ? "selected" : ""} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${entry.ident}-item-target`}><PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} /><span>{display ? displayName(display) : runtimeName(entry)}</span><small>{conditionText(entry.condition)}</small></button>;
                 })}
               </div>
-              {activeMoves.length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}><option value={0}>不指定技能</option>{activeMoves.map((move, index) => <option value={index + 1} key={`${move.id}-${index}`}>{move.move} PP {move.pp}/{move.maxpp}</option>)}</select> : null}
+              {activeMoves.length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}><option value={0}>不指定技能</option>{activeMoves.map((move, index) => { const summary = moveSummaryFor(targetDisplay, move); return <option value={index + 1} key={`${move.id}-${index}`}>{summary?.name_zh || move.move} PP {move.pp}/{move.maxpp}</option>; })}</select> : null}
               <p>{targetDisplay ? `目标：${displayName(targetDisplay)}` : "选择目标宝可梦"}</p>
               <div className="command-row"><button onClick={() => onUse(selected.id, target, moveSlot || undefined)}>使用</button></div>
             </> : <p>当前没有可在战斗中使用的消耗道具。</p>}
@@ -2436,7 +2543,7 @@ function RestPokemonModal({rest, initialSlot, onClose, onMove, onUnequip, onStat
             <button className={tab === "items" ? "selected" : ""} onClick={() => setTab("items")}>道具</button>
           </div>
           <section className="detail-tab-panel">
-            {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>性别：{pokemon.gender || "未知"}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p>闪光：{pokemon.shiny ? "是" : "否"}</p><p>职责：{pokemon.role_zh || pokemon.role || "无"}</p><p className="wide">{pokemon.ability_desc_zh || pokemon.ability_desc || "暂无特性说明"}</p></div> : null}
+            {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>性别：{pokemon.gender || "未知"}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p>闪光：{pokemon.shiny ? "是" : "否"}</p><p>职责：{pokemon.role_zh || pokemon.role || "无"}</p><p className="wide">{abilityDescription(pokemon)}</p></div> : null}
             {tab === "moves" ? <div className="detail-move-list">{pokemon.moves.map((move, index) => <article key={`${move.id}-${index}`}><strong>{index + 1}. {move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {state?.moves?.[index]?.pp ?? move.pp}/{state?.moves?.[index]?.maxpp ?? move.pp}</span><small>{moveDescription(move)}</small></article>)}</div> : null}
             {tab === "stats" ? <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div> : null}
             {tab === "items" ? <div className="detail-info-grid"><p>当前携带：{pokemon.item_zh || "无道具"}</p><p className="wide">{pokemon.item_desc_zh || pokemon.item_desc || "暂无道具说明"}</p><p>背包携带道具：{rest.bag_categories?.held?.length || 0}</p><p>技能机器：{rest.bag_categories?.tm?.length || 0}</p></div> : null}
