@@ -1,14 +1,14 @@
 item_id,item_type,item_name,item_cost
-elixir,item,Elixir,200
-fullrestore,item,Full Restore,300
-hyperpotion,item,Hyper Potion,200
-maxelixir,item,Max Elixir,300
-maxpotion,item,Max Potion,250
-maxrevive,item,Max Revive,300
-potion,item,Potion,50
-revivalherb,item,Revival Herb,300
-revive,item,Revive,200
-superpotion,item,Super Potion,100
+elixir,item,Elixir,150
+fullrestore,item,Full Restore,200
+hyperpotion,item,Hyper Potion,120
+maxelixir,item,Max Elixir,200
+maxpotion,item,Max Potion,160
+maxrevive,item,Max Revive,200
+potion,item,Potion,20
+revivalherb,item,Revival Herb,160
+revive,item,Revive,120
+superpotion,item,Super Potion,50
 abomasite,item,Abomasite,500
 absolite,item,Absolite,500
 absorbbulb,item,Absorb Bulb,500
@@ -16,60 +16,60 @@ adamantorb,item,Adamant Orb,500
 adrenalineorb,item,Adrenaline Orb,500
 aerodactylite,item,Aerodactylite,500
 aggronite,item,Aggronite,500
-aguavberry,item,Aguav Berry,500
+aguavberry,item,Aguav Berry,20
 airballoon,item,Air Balloon,500
 alakazite,item,Alakazite,500
 aloraichiumz,item,Aloraichium Z,500
 altarianite,item,Altarianite,500
 ampharosite,item,Ampharosite,500
-apicotberry,item,Apicot Berry,500
+apicotberry,item,Apicot Berry,30
 armorfossil,item,Armor Fossil,500
-aspearberry,item,Aspear Berry,500
-assaultvest,item,Assault Vest,500
+aspearberry,item,Aspear Berry,10
+assaultvest,item,Assault Vest,800
 audinite,item,Audinite,500
-babiriberry,item,Babiri Berry,500
+babiriberry,item,Babiri Berry,10
 banettite,item,Banettite,500
 beastball,item,Beast Ball,500
 beedrillite,item,Beedrillite,500
-berry,item,Berry,500
-berryjuice,item,Berry Juice,500
+berry,item,Berry,10
+berryjuice,item,Berry Juice,10
 berserkgene,item,Berserk Gene,500
 bignugget,item,Big Nugget,500
 bigroot,item,Big Root,500
 bindingband,item,Binding Band,500
-bitterberry,item,Bitter Berry,500
+bitterberry,item,Bitter Berry,10
 blackbelt,item,Black Belt,500
 blackglasses,item,Black Glasses,500
-blacksludge,item,Black Sludge,500
+blacksludge,item,Black Sludge,700
 blastoisinite,item,Blastoisinite,500
 blazikenite,item,Blazikenite,500
 blueorb,item,Blue Orb,500
-blukberry,item,Bluk Berry,500
+blukberry,item,Bluk Berry,10
 bottlecap,item,Bottle Cap,500
 brightpowder,item,Bright Powder,500
 buginiumz,item,Buginium Z,500
 bugmemory,item,Bug Memory,500
 burndrive,item,Burn Drive,500
-burntberry,item,Burnt Berry,500
+burntberry,item,Burnt Berry,10
 cameruptite,item,Cameruptite,500
 cellbattery,item,Cell Battery,500
 charcoal,item,Charcoal,500
 charizarditex,item,Charizardite X,500
 charizarditey,item,Charizardite Y,500
-chartiberry,item,Charti Berry,500
-cheriberry,item,Cheri Berry,500
-chestoberry,item,Chesto Berry,500
-chilanberry,item,Chilan Berry,500
+chartiberry,item,Charti Berry,10
+cheriberry,item,Cheri Berry,10
+chestoberry,item,Chesto Berry,10
+chilanberry,item,Chilan Berry,10
 chilldrive,item,Chill Drive,500
-choiceband,item,Choice Band,500
-choicescarf,item,Choice Scarf,500
-choicespecs,item,Choice Specs,500
-chopleberry,item,Chople Berry,500
+choiceband,item,Choice Band,900
+choicescarf,item,Choice Scarf,900
+choicespecs,item,Choice Specs,900
+chopleberry,item,Chople Berry,10
 clawfossil,item,Claw Fossil,500
-cobaberry,item,Coba Berry,500
-colburberry,item,Colbur Berry,500
+cobaberry,item,Coba Berry,10
+colburberry,item,Colbur Berry,10
 coverfossil,item,Cover Fossil,500
-custapberry,item,Custap Berry,500
+custapberry,item,Custap Berry,30
 damprock,item,Damp Rock,500
 darkiniumz,item,Darkinium Z,500
 darkmemory,item,Dark Memory,500
@@ -98,15 +98,15 @@ electirizer,item,Electirizer,500
 electricmemory,item,Electric Memory,500
 electricseed,item,Electric Seed,500
 electriumz,item,Electrium Z,500
-enigmaberry,item,Enigma Berry,500
-eviolite,item,Eviolite,500
+enigmaberry,item,Enigma Berry,20
+eviolite,item,Eviolite,800
 expertbelt,item,Expert Belt,500
 fairiumz,item,Fairium Z,500
 fairymemory,item,Fairy Memory,500
 fastball,item,Fast Ball,500
 fightingmemory,item,Fighting Memory,500
 fightiniumz,item,Fightinium Z,500
-figyberry,item,Figy Berry,500
+figyberry,item,Figy Berry,20
 firememory,item,Fire Memory,500
 firestone,item,Fire Stone,500
 firiumz,item,Firium Z,500
@@ -116,41 +116,41 @@ flameplate,item,Flame Plate,500
 floatstone,item,Float Stone,500
 flyingmemory,item,Flying Memory,500
 flyiniumz,item,Flyinium Z,500
-focusband,item,Focus Band,500
-focussash,item,Focus Sash,500
+focusband,item,Focus Band,600
+focussash,item,Focus Sash,800
 friendball,item,Friend Ball,500
 fullincense,item,Full Incense,500
 galladite,item,Galladite,500
-ganlonberry,item,Ganlon Berry,500
+ganlonberry,item,Ganlon Berry,30
 garchompite,item,Garchompite,500
 gardevoirite,item,Gardevoirite,500
 gengarite,item,Gengarite,500
 ghostiumz,item,Ghostium Z,500
 ghostmemory,item,Ghost Memory,500
 glalitite,item,Glalitite,500
-goldberry,item,Gold Berry,500
+goldberry,item,Gold Berry,10
 goldbottlecap,item,Gold Bottle Cap,500
 grassiumz,item,Grassium Z,500
 grassmemory,item,Grass Memory,500
 grassyseed,item,Grassy Seed,500
 greatball,item,Great Ball,500
-grepaberry,item,Grepa Berry,500
+grepaberry,item,Grepa Berry,10
 gripclaw,item,Grip Claw,500
 griseousorb,item,Griseous Orb,500
 groundiumz,item,Groundium Z,500
 groundmemory,item,Ground Memory,500
 gyaradosite,item,Gyaradosite,500
-habanberry,item,Haban Berry,500
+habanberry,item,Haban Berry,10
 hardstone,item,Hard Stone,500
 healball,item,Heal Ball,500
 heatrock,item,Heat Rock,500
 heavyball,item,Heavy Ball,500
 helixfossil,item,Helix Fossil,500
 heracronite,item,Heracronite,500
-hondewberry,item,Hondew Berry,500
+hondewberry,item,Hondew Berry,10
 houndoominite,item,Houndoominite,500
-iapapaberry,item,Iapapa Berry,500
-iceberry,item,Ice Berry,500
+iapapaberry,item,Iapapa Berry,20
+iceberry,item,Ice Berry,10
 icememory,item,Ice Memory,500
 icestone,item,Ice Stone,500
 icicleplate,item,Icicle Plate,500
@@ -160,33 +160,33 @@ inciniumz,item,Incinium Z,500
 insectplate,item,Insect Plate,500
 ironball,item,Iron Ball,500
 ironplate,item,Iron Plate,500
-jabocaberry,item,Jaboca Berry,500
+jabocaberry,item,Jaboca Berry,30
 jawfossil,item,Jaw Fossil,500
 kangaskhanite,item,Kangaskhanite,500
-kasibberry,item,Kasib Berry,500
-kebiaberry,item,Kebia Berry,500
-keeberry,item,Kee Berry,500
-kelpsyberry,item,Kelpsy Berry,500
+kasibberry,item,Kasib Berry,10
+kebiaberry,item,Kebia Berry,10
+keeberry,item,Kee Berry,30
+kelpsyberry,item,Kelpsy Berry,10
 kingsrock,item,King's Rock,500
 kommoniumz,item,Kommonium Z,500
 laggingtail,item,Lagging Tail,500
-lansatberry,item,Lansat Berry,500
+lansatberry,item,Lansat Berry,30
 latiasite,item,Latiasite,500
 latiosite,item,Latiosite,500
 laxincense,item,Lax Incense,500
 leafstone,item,Leaf Stone,500
-leftovers,item,Leftovers,500
-leppaberry,item,Leppa Berry,100
+leftovers,item,Leftovers,800
+leppaberry,item,Leppa Berry,20
 levelball,item,Level Ball,500
-liechiberry,item,Liechi Berry,500
-lifeorb,item,Life Orb,500
+liechiberry,item,Liechi Berry,30
+lifeorb,item,Life Orb,900
 lightball,item,Light Ball,500
 lightclay,item,Light Clay,500
 lopunnite,item,Lopunnite,500
 loveball,item,Love Ball,500
 lucarionite,item,Lucarionite,500
 luckypunch,item,Lucky Punch,500
-lumberry,item,Lum Berry,500
+lumberry,item,Lum Berry,30
 luminousmoss,item,Luminous Moss,500
 lunaliumz,item,Lunalium Z,500
 lureball,item,Lure Ball,500
@@ -195,9 +195,9 @@ luxuryball,item,Luxury Ball,500
 lycaniumz,item,Lycanium Z,500
 magmarizer,item,Magmarizer,500
 magnet,item,Magnet,500
-magoberry,item,Mago Berry,500
+magoberry,item,Mago Berry,20
 manectite,item,Manectite,500
-marangaberry,item,Maranga Berry,500
+marangaberry,item,Maranga Berry,30
 marshadiumz,item,Marshadium Z,500
 masterball,item,Master Ball,500
 mawilite,item,Mawilite,500
@@ -211,37 +211,37 @@ metronome,item,Metronome,500
 mewniumz,item,Mewnium Z,500
 mewtwonitex,item,Mewtwonite X,500
 mewtwonitey,item,Mewtwonite Y,500
-micleberry,item,Micle Berry,500
+micleberry,item,Micle Berry,30
 mimikiumz,item,Mimikium Z,500
 mindplate,item,Mind Plate,500
-mintberry,item,Mint Berry,500
-miracleberry,item,Miracle Berry,500
+mintberry,item,Mint Berry,10
+miracleberry,item,Miracle Berry,10
 miracleseed,item,Miracle Seed,500
 mistyseed,item,Misty Seed,500
 moonball,item,Moon Ball,500
 moonstone,item,Moon Stone,500
 muscleband,item,Muscle Band,500
-mysteryberry,item,Mystery Berry,500
+mysteryberry,item,Mystery Berry,10
 mysticwater,item,Mystic Water,500
 nestball,item,Nest Ball,500
 netball,item,Net Ball,500
 nevermeltice,item,Never-Melt Ice,500
 normalgem,item,Normal Gem,500
 normaliumz,item,Normalium Z,500
-occaberry,item,Occa Berry,500
+occaberry,item,Occa Berry,10
 oddincense,item,Odd Incense,500
 oldamber,item,Old Amber,500
-oranberry,item,Oran Berry,500
+oranberry,item,Oran Berry,10
 ovalstone,item,Oval Stone,500
-passhoberry,item,Passho Berry,500
-payapaberry,item,Payapa Berry,500
-pechaberry,item,Pecha Berry,500
-persimberry,item,Persim Berry,500
-petayaberry,item,Petaya Berry,500
+passhoberry,item,Passho Berry,10
+payapaberry,item,Payapa Berry,10
+pechaberry,item,Pecha Berry,10
+persimberry,item,Persim Berry,20
+petayaberry,item,Petaya Berry,30
 pidgeotite,item,Pidgeotite,500
 pikaniumz,item,Pikanium Z,500
 pikashuniumz,item,Pikashunium Z,500
-pinapberry,item,Pinap Berry,500
+pinapberry,item,Pinap Berry,10
 pinkbow,item,Pink Bow,500
 pinsirite,item,Pinsirite,500
 pixieplate,item,Pixie Plate,500
@@ -251,7 +251,7 @@ poisoniumz,item,Poisonium Z,500
 poisonmemory,item,Poison Memory,500
 pokeball,item,Poke Ball,500
 polkadotbow,item,Polkadot Bow,500
-pomegberry,item,Pomeg Berry,500
+pomegberry,item,Pomeg Berry,10
 poweranklet,item,Power Anklet,500
 powerband,item,Power Band,500
 powerbelt,item,Power Belt,500
@@ -265,38 +265,38 @@ primariumz,item,Primarium Z,500
 prismscale,item,Prism Scale,500
 protectivepads,item,Protective Pads,500
 protector,item,Protector,500
-przcureberry,item,PRZ Cure Berry,500
-psncureberry,item,PSN Cure Berry,500
+przcureberry,item,PRZ Cure Berry,10
+psncureberry,item,PSN Cure Berry,10
 psychicmemory,item,Psychic Memory,500
 psychicseed,item,Psychic Seed,500
 psychiumz,item,Psychium Z,500
-qualotberry,item,Qualot Berry,500
+qualotberry,item,Qualot Berry,10
 quickball,item,Quick Ball,500
 quickclaw,item,Quick Claw,500
 quickpowder,item,Quick Powder,500
 rarebone,item,Rare Bone,500
-rawstberry,item,Rawst Berry,500
+rawstberry,item,Rawst Berry,10
 razorclaw,item,Razor Claw,500
 razorfang,item,Razor Fang,500
 reapercloth,item,Reaper Cloth,500
 redcard,item,Red Card,500
 redorb,item,Red Orb,500
 repeatball,item,Repeat Ball,500
-rindoberry,item,Rindo Berry,500
+rindoberry,item,Rindo Berry,10
 ringtarget,item,Ring Target,500
 rockincense,item,Rock Incense,500
 rockiumz,item,Rockium Z,500
 rockmemory,item,Rock Memory,500
-rockyhelmet,item,Rocky Helmet,500
+rockyhelmet,item,Rocky Helmet,800
 rootfossil,item,Root Fossil,500
 roseincense,item,Rose Incense,500
-roseliberry,item,Roseli Berry,500
-rowapberry,item,Rowap Berry,500
+roseliberry,item,Roseli Berry,10
+rowapberry,item,Rowap Berry,30
 sablenite,item,Sablenite,500
 sachet,item,Sachet,500
 safetygoggles,item,Safety Goggles,500
 sailfossil,item,Sail Fossil,500
-salacberry,item,Salac Berry,500
+salacberry,item,Salac Berry,30
 salamencite,item,Salamencite,500
 sceptilite,item,Sceptilite,500
 scizorite,item,Scizorite,500
@@ -308,10 +308,10 @@ shedshell,item,Shed Shell,500
 shellbell,item,Shell Bell,500
 shinystone,item,Shiny Stone,500
 shockdrive,item,Shock Drive,500
-shucaberry,item,Shuca Berry,500
+shucaberry,item,Shuca Berry,10
 silkscarf,item,Silk Scarf,500
 silverpowder,item,Silver Powder,500
-sitrusberry,item,Sitrus Berry,500
+sitrusberry,item,Sitrus Berry,20
 skullfossil,item,Skull Fossil,500
 skyplate,item,Sky Plate,500
 slowbronite,item,Slowbronite,500
@@ -324,7 +324,7 @@ souldew,item,Soul Dew,500
 spelltag,item,Spell Tag,500
 splashplate,item,Splash Plate,500
 spookyplate,item,Spooky Plate,500
-starfberry,item,Starf Berry,500
+starfberry,item,Starf Berry,30
 steeliumz,item,Steelium Z,500
 steelixite,item,Steelixite,500
 steelmemory,item,Steel Memory,500
@@ -333,8 +333,8 @@ stickybarb,item,Sticky Barb,500
 stoneplate,item,Stone Plate,500
 sunstone,item,Sun Stone,500
 swampertite,item,Swampertite,500
-tamatoberry,item,Tamato Berry,500
-tangaberry,item,Tanga Berry,500
+tamatoberry,item,Tamato Berry,10
+tangaberry,item,Tanga Berry,10
 tapuniumz,item,Tapunium Z,500
 terrainextender,item,Terrain Extender,500
 thickclub,item,Thick Club,500
@@ -348,18 +348,18 @@ ultraball,item,Ultra Ball,500
 ultranecroziumz,item,Ultranecrozium Z,500
 upgrade,item,Up-Grade,500
 venusaurite,item,Venusaurite,500
-wacanberry,item,Wacan Berry,500
+wacanberry,item,Wacan Berry,10
 wateriumz,item,Waterium Z,500
 watermemory,item,Water Memory,500
 waterstone,item,Water Stone,500
 waveincense,item,Wave Incense,500
-weaknesspolicy,item,Weakness Policy,500
+weaknesspolicy,item,Weakness Policy,1000
 whippeddream,item,Whipped Dream,500
 whiteherb,item,White Herb,500
 widelens,item,Wide Lens,500
-wikiberry,item,Wiki Berry,500
+wikiberry,item,Wiki Berry,20
 wiseglasses,item,Wise Glasses,500
-yacheberry,item,Yache Berry,500
+yacheberry,item,Yache Berry,10
 zapplate,item,Zap Plate,500
 zoomlens,item,Zoom Lens,500
 adjust_stats,service,调整能力值,1000
@@ -375,712 +375,712 @@ restore_pp_3,service,恢复PP 3只,200
 restore_status_1,service,恢复异常 1只,0
 restore_status_2,service,恢复异常 2只,0
 restore_status_3,service,恢复异常 3只,100
-10000000voltthunderbolt,skill,"10,000,000 Volt Thunderbolt",500
-absorb,skill,Absorb,100
-accelerock,skill,Accelerock,200
-acid,skill,Acid,200
-acidarmor,skill,Acid Armor,100
-aciddownpour,skill,Acid Downpour,100
-acidspray,skill,Acid Spray,200
-acrobatics,skill,Acrobatics,200
-acupressure,skill,Acupressure,100
-aerialace,skill,Aerial Ace,200
-aeroblast,skill,Aeroblast,400
-afteryou,skill,After You,100
-agility,skill,Agility,100
-aircutter,skill,Air Cutter,200
-airslash,skill,Air Slash,300
-alloutpummeling,skill,All-Out Pummeling,100
-allyswitch,skill,Ally Switch,100
-amnesia,skill,Amnesia,100
-anchorshot,skill,Anchor Shot,300
-ancientpower,skill,Ancient Power,200
-aquajet,skill,Aqua Jet,200
-aquaring,skill,Aqua Ring,100
-aquatail,skill,Aqua Tail,300
-armthrust,skill,Arm Thrust,100
-aromatherapy,skill,Aromatherapy,100
-aromaticmist,skill,Aromatic Mist,100
-assist,skill,Assist,100
-assurance,skill,Assurance,200
-astonish,skill,Astonish,100
-attackorder,skill,Attack Order,300
-attract,skill,Attract,100
-aurasphere,skill,Aura Sphere,300
-aurorabeam,skill,Aurora Beam,300
-auroraveil,skill,Aurora Veil,100
-autotomize,skill,Autotomize,100
-avalanche,skill,Avalanche,200
-babydolleyes,skill,Baby-Doll Eyes,100
-banefulbunker,skill,Baneful Bunker,100
-barrage,skill,Barrage,100
-barrier,skill,Barrier,100
-batonpass,skill,Baton Pass,100
-beakblast,skill,Beak Blast,400
-beatup,skill,Beat Up,100
-belch,skill,Belch,500
-bellydrum,skill,Belly Drum,100
-bestow,skill,Bestow,100
-bide,skill,Bide,100
-bind,skill,Bind,100
-bite,skill,Bite,200
-blackholeeclipse,skill,Black Hole Eclipse,100
-blastburn,skill,Blast Burn,500
-blazekick,skill,Blaze Kick,300
-blizzard,skill,Blizzard,400
-block,skill,Block,100
-bloomdoom,skill,Bloom Doom,100
-blueflare,skill,Blue Flare,500
-bodyslam,skill,Body Slam,300
-boltstrike,skill,Bolt Strike,500
-boneclub,skill,Bone Club,300
-bonemerang,skill,Bonemerang,200
-bonerush,skill,Bone Rush,100
-boomburst,skill,Boomburst,500
-bounce,skill,Bounce,300
-bravebird,skill,Brave Bird,500
-breakneckblitz,skill,Breakneck Blitz,100
-brickbreak,skill,Brick Break,300
-brine,skill,Brine,300
-brutalswing,skill,Brutal Swing,200
-bubble,skill,Bubble,200
-bubblebeam,skill,Bubble Beam,300
-bugbite,skill,Bug Bite,200
-bugbuzz,skill,Bug Buzz,300
-bulkup,skill,Bulk Up,100
-bulldoze,skill,Bulldoze,200
-bulletpunch,skill,Bullet Punch,200
-bulletseed,skill,Bullet Seed,100
-burnup,skill,Burn Up,500
-calmmind,skill,Calm Mind,100
-camouflage,skill,Camouflage,100
-captivate,skill,Captivate,100
-catastropika,skill,Catastropika,500
-celebrate,skill,Celebrate,100
-charge,skill,Charge,100
-chargebeam,skill,Charge Beam,200
-charm,skill,Charm,100
-chatter,skill,Chatter,300
-chipaway,skill,Chip Away,300
-circlethrow,skill,Circle Throw,200
-clamp,skill,Clamp,200
-clangingscales,skill,Clanging Scales,400
-clangoroussoulblaze,skill,Clangorous Soulblaze,500
-clearsmog,skill,Clear Smog,200
-closecombat,skill,Close Combat,500
-coil,skill,Coil,100
-cometpunch,skill,Comet Punch,100
-confide,skill,Confide,100
-confuseray,skill,Confuse Ray,100
-confusion,skill,Confusion,200
-constrict,skill,Constrict,100
-continentalcrush,skill,Continental Crush,100
-conversion,skill,Conversion,100
-conversion2,skill,Conversion 2,100
-copycat,skill,Copycat,100
-coreenforcer,skill,Core Enforcer,400
-corkscrewcrash,skill,Corkscrew Crash,100
-cosmicpower,skill,Cosmic Power,100
-cottonguard,skill,Cotton Guard,100
-cottonspore,skill,Cotton Spore,100
-counter,skill,Counter,100
-covet,skill,Covet,200
-crabhammer,skill,Crabhammer,400
-craftyshield,skill,Crafty Shield,100
-crosschop,skill,Cross Chop,400
-crosspoison,skill,Cross Poison,300
-crunch,skill,Crunch,300
-crushclaw,skill,Crush Claw,300
-crushgrip,skill,Crush Grip,100
-curse,skill,Curse,100
-cut,skill,Cut,200
-darkestlariat,skill,Darkest Lariat,300
-darkpulse,skill,Dark Pulse,300
-darkvoid,skill,Dark Void,100
-dazzlinggleam,skill,Dazzling Gleam,300
-defendorder,skill,Defend Order,100
-defensecurl,skill,Defense Curl,100
-defog,skill,Defog,100
-destinybond,skill,Destiny Bond,100
-detect,skill,Detect,100
-devastatingdrake,skill,Devastating Drake,100
-diamondstorm,skill,Diamond Storm,400
-dig,skill,Dig,300
-disable,skill,Disable,100
-disarmingvoice,skill,Disarming Voice,200
-discharge,skill,Discharge,300
-dive,skill,Dive,300
-dizzypunch,skill,Dizzy Punch,300
-doomdesire,skill,Doom Desire,500
-doubleedge,skill,Double-Edge,500
-doublehit,skill,Double Hit,200
-doublekick,skill,Double Kick,100
-doubleslap,skill,Double Slap,100
-doubleteam,skill,Double Team,100
-dracometeor,skill,Draco Meteor,500
-dragonascent,skill,Dragon Ascent,500
-dragonbreath,skill,Dragon Breath,200
-dragonclaw,skill,Dragon Claw,300
-dragondance,skill,Dragon Dance,100
-dragonhammer,skill,Dragon Hammer,300
-dragonpulse,skill,Dragon Pulse,300
-dragonrage,skill,Dragon Rage,100
-dragonrush,skill,Dragon Rush,400
-dragontail,skill,Dragon Tail,200
-drainingkiss,skill,Draining Kiss,200
-drainpunch,skill,Drain Punch,300
-dreameater,skill,Dream Eater,400
-drillpeck,skill,Drill Peck,300
-drillrun,skill,Drill Run,300
-dualchop,skill,Dual Chop,200
-dynamicpunch,skill,Dynamic Punch,400
-earthpower,skill,Earth Power,300
-earthquake,skill,Earthquake,400
-echoedvoice,skill,Echoed Voice,200
-eerieimpulse,skill,Eerie Impulse,100
-eggbomb,skill,Egg Bomb,400
-electricterrain,skill,Electric Terrain,100
-electrify,skill,Electrify,100
-electroball,skill,Electro Ball,100
-electroweb,skill,Electroweb,200
-embargo,skill,Embargo,100
-ember,skill,Ember,200
-encore,skill,Encore,100
-endeavor,skill,Endeavor,100
-endure,skill,Endure,100
-energyball,skill,Energy Ball,300
-entrainment,skill,Entrainment,100
-eruption,skill,Eruption,500
-explosion,skill,Explosion,500
-extrasensory,skill,Extrasensory,300
-extremeevoboost,skill,Extreme Evoboost,100
-extremespeed,skill,Extreme Speed,300
-facade,skill,Facade,300
-fairylock,skill,Fairy Lock,100
-fairywind,skill,Fairy Wind,200
-fakeout,skill,Fake Out,200
-faketears,skill,Fake Tears,100
-falseswipe,skill,False Swipe,200
-featherdance,skill,Feather Dance,100
-feint,skill,Feint,100
-feintattack,skill,Feint Attack,200
-fellstinger,skill,Fell Stinger,200
-fierydance,skill,Fiery Dance,300
-finalgambit,skill,Final Gambit,100
-fireblast,skill,Fire Blast,400
-firefang,skill,Fire Fang,300
-firelash,skill,Fire Lash,300
-firepledge,skill,Fire Pledge,300
-firepunch,skill,Fire Punch,300
-firespin,skill,Fire Spin,200
-firstimpression,skill,First Impression,300
-fissure,skill,Fissure,100
-flail,skill,Flail,100
-flameburst,skill,Flame Burst,300
-flamecharge,skill,Flame Charge,200
-flamethrower,skill,Flamethrower,300
-flamewheel,skill,Flame Wheel,200
-flareblitz,skill,Flare Blitz,500
-flash,skill,Flash,100
-flashcannon,skill,Flash Cannon,300
-flatter,skill,Flatter,100
-fleurcannon,skill,Fleur Cannon,500
-fling,skill,Fling,100
-floralhealing,skill,Floral Healing,100
-flowershield,skill,Flower Shield,100
-fly,skill,Fly,300
-flyingpress,skill,Flying Press,400
-focusblast,skill,Focus Blast,500
-focusenergy,skill,Focus Energy,100
-focuspunch,skill,Focus Punch,500
-followme,skill,Follow Me,100
-forcepalm,skill,Force Palm,200
-foresight,skill,Foresight,100
-forestscurse,skill,Forest's Curse,100
-foulplay,skill,Foul Play,400
-freezedry,skill,Freeze-Dry,300
-freezeshock,skill,Freeze Shock,500
-frenzyplant,skill,Frenzy Plant,500
-frostbreath,skill,Frost Breath,200
-frustration,skill,Frustration,100
-furyattack,skill,Fury Attack,100
-furycutter,skill,Fury Cutter,200
-furyswipes,skill,Fury Swipes,100
-fusionbolt,skill,Fusion Bolt,400
-fusionflare,skill,Fusion Flare,400
-futuresight,skill,Future Sight,500
-gastroacid,skill,Gastro Acid,100
-geargrind,skill,Gear Grind,200
-gearup,skill,Gear Up,100
-genesissupernova,skill,Genesis Supernova,500
-geomancy,skill,Geomancy,100
-gigadrain,skill,Giga Drain,300
-gigaimpact,skill,Giga Impact,500
-gigavolthavoc,skill,Gigavolt Havoc,100
-glaciate,skill,Glaciate,300
-glare,skill,Glare,100
-grassknot,skill,Grass Knot,100
-grasspledge,skill,Grass Pledge,300
-grasswhistle,skill,Grass Whistle,100
-grassyterrain,skill,Grassy Terrain,100
-gravity,skill,Gravity,100
-growl,skill,Growl,100
-growth,skill,Growth,100
-grudge,skill,Grudge,100
-guardianofalola,skill,Guardian of Alola,100
-guardsplit,skill,Guard Split,100
-guardswap,skill,Guard Swap,100
-guillotine,skill,Guillotine,100
-gunkshot,skill,Gunk Shot,500
-gust,skill,Gust,200
-gyroball,skill,Gyro Ball,100
-hail,skill,Hail,100
-hammerarm,skill,Hammer Arm,400
-happyhour,skill,Happy Hour,100
-harden,skill,Harden,100
-haze,skill,Haze,100
-headbutt,skill,Headbutt,300
-headcharge,skill,Head Charge,500
-headsmash,skill,Head Smash,500
-healbell,skill,Heal Bell,100
-healblock,skill,Heal Block,100
-healingwish,skill,Healing Wish,100
-healorder,skill,Heal Order,100
-healpulse,skill,Heal Pulse,100
-heartstamp,skill,Heart Stamp,200
-heartswap,skill,Heart Swap,100
-heatcrash,skill,Heat Crash,100
-heatwave,skill,Heat Wave,400
-heavyslam,skill,Heavy Slam,100
-helpinghand,skill,Helping Hand,100
-hex,skill,Hex,300
-hiddenpower,skill,Hidden Power,200
-highhorsepower,skill,High Horsepower,400
-highjumpkick,skill,High Jump Kick,500
-holdback,skill,Hold Back,200
-holdhands,skill,Hold Hands,100
-honeclaws,skill,Hone Claws,100
-hornattack,skill,Horn Attack,300
-horndrill,skill,Horn Drill,100
-hornleech,skill,Horn Leech,300
-howl,skill,Howl,100
-hurricane,skill,Hurricane,400
-hydrocannon,skill,Hydro Cannon,500
-hydropump,skill,Hydro Pump,400
-hydrovortex,skill,Hydro Vortex,100
-hyperbeam,skill,Hyper Beam,500
-hyperfang,skill,Hyper Fang,300
-hyperspacefury,skill,Hyperspace Fury,400
-hyperspacehole,skill,Hyperspace Hole,300
-hypervoice,skill,Hyper Voice,300
-hypnosis,skill,Hypnosis,100
-iceball,skill,Ice Ball,100
-icebeam,skill,Ice Beam,300
-iceburn,skill,Ice Burn,500
-icefang,skill,Ice Fang,300
-icehammer,skill,Ice Hammer,400
-icepunch,skill,Ice Punch,300
-iceshard,skill,Ice Shard,200
-iciclecrash,skill,Icicle Crash,300
-iciclespear,skill,Icicle Spear,100
-icywind,skill,Icy Wind,200
-imprison,skill,Imprison,100
-incinerate,skill,Incinerate,200
-inferno,skill,Inferno,400
-infernooverdrive,skill,Inferno Overdrive,100
-infestation,skill,Infestation,100
-ingrain,skill,Ingrain,100
-instruct,skill,Instruct,100
-iondeluge,skill,Ion Deluge,100
-irondefense,skill,Iron Defense,100
-ironhead,skill,Iron Head,300
-irontail,skill,Iron Tail,400
-judgment,skill,Judgment,400
-jumpkick,skill,Jump Kick,400
-karatechop,skill,Karate Chop,200
-kinesis,skill,Kinesis,100
-kingsshield,skill,King's Shield,100
-knockoff,skill,Knock Off,300
-landswrath,skill,Land's Wrath,300
-laserfocus,skill,Laser Focus,100
-lastresort,skill,Last Resort,500
-lavaplume,skill,Lava Plume,300
-leafage,skill,Leafage,200
-leafblade,skill,Leaf Blade,300
-leafstorm,skill,Leaf Storm,500
-leaftornado,skill,Leaf Tornado,300
-leechlife,skill,Leech Life,300
-leechseed,skill,Leech Seed,100
-leer,skill,Leer,100
-letssnuggleforever,skill,Let's Snuggle Forever,500
-lick,skill,Lick,100
-lightscreen,skill,Light Screen,100
-lightthatburnsthesky,skill,Light That Burns the Sky,500
-liquidation,skill,Liquidation,300
-lockon,skill,Lock-On,100
-lovelykiss,skill,Lovely Kiss,100
-lowkick,skill,Low Kick,100
-lowsweep,skill,Low Sweep,300
-luckychant,skill,Lucky Chant,100
-lunardance,skill,Lunar Dance,100
-lunge,skill,Lunge,300
-lusterpurge,skill,Luster Purge,300
-machpunch,skill,Mach Punch,200
-magicalleaf,skill,Magical Leaf,200
-magiccoat,skill,Magic Coat,100
-magicroom,skill,Magic Room,100
-magmastorm,skill,Magma Storm,400
-magnetbomb,skill,Magnet Bomb,200
-magneticflux,skill,Magnetic Flux,100
-magnetrise,skill,Magnet Rise,100
-magnitude,skill,Magnitude,100
-maliciousmoonsault,skill,Malicious Moonsault,500
-matblock,skill,Mat Block,100
-meanlook,skill,Mean Look,100
-meditate,skill,Meditate,100
-mefirst,skill,Me First,100
-megadrain,skill,Mega Drain,200
-megahorn,skill,Megahorn,500
-megakick,skill,Mega Kick,500
-megapunch,skill,Mega Punch,300
-memento,skill,Memento,100
-menacingmoonrazemaelstrom,skill,Menacing Moonraze Maelstrom,500
-metalburst,skill,Metal Burst,100
-metalclaw,skill,Metal Claw,200
-metalsound,skill,Metal Sound,100
-meteormash,skill,Meteor Mash,300
-metronome,skill,Metronome,100
-milkdrink,skill,Milk Drink,100
-mimic,skill,Mimic,100
-mindblown,skill,Mind Blown,500
-mindreader,skill,Mind Reader,100
-minimize,skill,Minimize,100
-miracleeye,skill,Miracle Eye,100
-mirrorcoat,skill,Mirror Coat,100
-mirrormove,skill,Mirror Move,100
-mirrorshot,skill,Mirror Shot,300
-mist,skill,Mist,100
-mistball,skill,Mist Ball,300
-mistyterrain,skill,Misty Terrain,100
-moonblast,skill,Moonblast,400
-moongeistbeam,skill,Moongeist Beam,400
-moonlight,skill,Moonlight,100
-morningsun,skill,Morning Sun,100
-mudbomb,skill,Mud Bomb,300
-muddywater,skill,Muddy Water,300
-mudshot,skill,Mud Shot,200
-mudslap,skill,Mud-Slap,100
-mudsport,skill,Mud Sport,100
-multiattack,skill,Multi-Attack,300
-mysticalfire,skill,Mystical Fire,300
-nastyplot,skill,Nasty Plot,100
-naturalgift,skill,Natural Gift,100
-naturepower,skill,Nature Power,100
-naturesmadness,skill,Nature's Madness,100
-needlearm,skill,Needle Arm,200
-neverendingnightmare,skill,Never-Ending Nightmare,100
-nightdaze,skill,Night Daze,300
-nightmare,skill,Nightmare,100
-nightshade,skill,Night Shade,100
-nightslash,skill,Night Slash,300
-nobleroar,skill,Noble Roar,100
-nuzzle,skill,Nuzzle,100
-oblivionwing,skill,Oblivion Wing,300
-oceanicoperetta,skill,Oceanic Operetta,500
-octazooka,skill,Octazooka,300
-odorsleuth,skill,Odor Sleuth,100
-ominouswind,skill,Ominous Wind,200
-originpulse,skill,Origin Pulse,400
-outrage,skill,Outrage,500
-overheat,skill,Overheat,500
-painsplit,skill,Pain Split,100
-paraboliccharge,skill,Parabolic Charge,300
-partingshot,skill,Parting Shot,100
-payback,skill,Payback,200
-payday,skill,Pay Day,200
-peck,skill,Peck,200
-perishsong,skill,Perish Song,100
-petalblizzard,skill,Petal Blizzard,300
-petaldance,skill,Petal Dance,500
-phantomforce,skill,Phantom Force,300
-photongeyser,skill,Photon Geyser,400
-pinmissile,skill,Pin Missile,100
-plasmafists,skill,Plasma Fists,400
-playnice,skill,Play Nice,100
-playrough,skill,Play Rough,300
-pluck,skill,Pluck,200
-poisonfang,skill,Poison Fang,200
-poisongas,skill,Poison Gas,100
-poisonjab,skill,Poison Jab,300
-poisonpowder,skill,Poison Powder,100
-poisonsting,skill,Poison Sting,100
-poisontail,skill,Poison Tail,200
-pollenpuff,skill,Pollen Puff,300
-pound,skill,Pound,200
-powder,skill,Powder,100
-powdersnow,skill,Powder Snow,200
-powergem,skill,Power Gem,300
-powersplit,skill,Power Split,100
-powerswap,skill,Power Swap,100
-powertrick,skill,Power Trick,100
-powertrip,skill,Power Trip,100
-poweruppunch,skill,Power-Up Punch,200
-powerwhip,skill,Power Whip,500
-precipiceblades,skill,Precipice Blades,500
-present,skill,Present,100
-prismaticlaser,skill,Prismatic Laser,500
-protect,skill,Protect,100
-psybeam,skill,Psybeam,300
-psychic,skill,Psychic,300
-psychicfangs,skill,Psychic Fangs,300
-psychicterrain,skill,Psychic Terrain,100
-psychoboost,skill,Psycho Boost,500
-psychocut,skill,Psycho Cut,300
-psychoshift,skill,Psycho Shift,100
-psychup,skill,Psych Up,100
-psyshock,skill,Psyshock,300
-psystrike,skill,Psystrike,400
-psywave,skill,Psywave,100
-pulverizingpancake,skill,Pulverizing Pancake,500
-punishment,skill,Punishment,100
-purify,skill,Purify,100
-pursuit,skill,Pursuit,200
-quash,skill,Quash,100
-quickattack,skill,Quick Attack,200
-quickguard,skill,Quick Guard,100
-quiverdance,skill,Quiver Dance,100
-rage,skill,Rage,100
-ragepowder,skill,Rage Powder,100
-raindance,skill,Rain Dance,100
-rapidspin,skill,Rapid Spin,100
-razorleaf,skill,Razor Leaf,200
-razorshell,skill,Razor Shell,300
-razorwind,skill,Razor Wind,300
-recover,skill,Recover,100
-recycle,skill,Recycle,100
-reflect,skill,Reflect,100
-reflecttype,skill,Reflect Type,100
-refresh,skill,Refresh,100
-relicsong,skill,Relic Song,300
-rest,skill,Rest,100
-retaliate,skill,Retaliate,300
-return,skill,Return,100
-revelationdance,skill,Revelation Dance,300
-revenge,skill,Revenge,200
-reversal,skill,Reversal,100
-roar,skill,Roar,100
-roaroftime,skill,Roar of Time,500
-rockblast,skill,Rock Blast,100
-rockclimb,skill,Rock Climb,300
-rockpolish,skill,Rock Polish,100
-rockslide,skill,Rock Slide,300
-rocksmash,skill,Rock Smash,200
-rockthrow,skill,Rock Throw,200
-rocktomb,skill,Rock Tomb,200
-rockwrecker,skill,Rock Wrecker,500
-roleplay,skill,Role Play,100
-rollingkick,skill,Rolling Kick,200
-rollout,skill,Rollout,100
-roost,skill,Roost,100
-rototiller,skill,Rototiller,100
-round,skill,Round,200
-sacredfire,skill,Sacred Fire,400
-sacredsword,skill,Sacred Sword,300
-safeguard,skill,Safeguard,100
-sandattack,skill,Sand Attack,100
-sandstorm,skill,Sandstorm,100
-sandtomb,skill,Sand Tomb,200
-savagespinout,skill,Savage Spin-Out,100
-scald,skill,Scald,300
-scaryface,skill,Scary Face,100
-scratch,skill,Scratch,200
-screech,skill,Screech,100
-searingshot,skill,Searing Shot,400
-searingsunrazesmash,skill,Searing Sunraze Smash,500
-secretpower,skill,Secret Power,300
-secretsword,skill,Secret Sword,300
-seedbomb,skill,Seed Bomb,300
-seedflare,skill,Seed Flare,500
-seismictoss,skill,Seismic Toss,100
-selfdestruct,skill,Self-Destruct,500
-shadowball,skill,Shadow Ball,300
-shadowbone,skill,Shadow Bone,300
-shadowclaw,skill,Shadow Claw,300
-shadowforce,skill,Shadow Force,500
-shadowpunch,skill,Shadow Punch,200
-shadowsneak,skill,Shadow Sneak,200
-sharpen,skill,Sharpen,100
-shatteredpsyche,skill,Shattered Psyche,100
-sheercold,skill,Sheer Cold,100
-shellsmash,skill,Shell Smash,100
-shelltrap,skill,Shell Trap,500
-shiftgear,skill,Shift Gear,100
-shockwave,skill,Shock Wave,200
-shoreup,skill,Shore Up,100
-signalbeam,skill,Signal Beam,300
-silverwind,skill,Silver Wind,200
-simplebeam,skill,Simple Beam,100
-sing,skill,Sing,100
-sinisterarrowraid,skill,Sinister Arrow Raid,500
-sketch,skill,Sketch,100
-skillswap,skill,Skill Swap,100
-skullbash,skill,Skull Bash,500
-skyattack,skill,Sky Attack,500
-skydrop,skill,Sky Drop,200
-skyuppercut,skill,Sky Uppercut,300
-slackoff,skill,Slack Off,100
-slam,skill,Slam,300
-slash,skill,Slash,300
-sleeppowder,skill,Sleep Powder,100
-sleeptalk,skill,Sleep Talk,100
-sludge,skill,Sludge,300
-sludgebomb,skill,Sludge Bomb,300
-sludgewave,skill,Sludge Wave,400
-smackdown,skill,Smack Down,200
-smartstrike,skill,Smart Strike,300
-smellingsalts,skill,Smelling Salts,300
-smog,skill,Smog,100
-smokescreen,skill,Smokescreen,100
-snarl,skill,Snarl,200
-snatch,skill,Snatch,100
-snore,skill,Snore,200
-soak,skill,Soak,100
-softboiled,skill,Soft-Boiled,100
-solarbeam,skill,Solar Beam,500
-solarblade,skill,Solar Blade,500
-sonicboom,skill,Sonic Boom,100
-soulstealing7starstrike,skill,Soul-Stealing 7-Star Strike,500
-spacialrend,skill,Spacial Rend,400
-spark,skill,Spark,300
-sparklingaria,skill,Sparkling Aria,300
-spectralthief,skill,Spectral Thief,300
-speedswap,skill,Speed Swap,100
-spiderweb,skill,Spider Web,100
-spikecannon,skill,Spike Cannon,100
-spikes,skill,Spikes,100
-spikyshield,skill,Spiky Shield,100
-spiritshackle,skill,Spirit Shackle,300
-spite,skill,Spite,100
-spitup,skill,Spit Up,100
-splash,skill,Splash,100
-splinteredstormshards,skill,Splintered Stormshards,500
-spore,skill,Spore,100
-spotlight,skill,Spotlight,100
-stealthrock,skill,Stealth Rock,100
-steameruption,skill,Steam Eruption,400
-steamroller,skill,Steamroller,300
-steelwing,skill,Steel Wing,300
-stickyweb,skill,Sticky Web,100
-stockpile,skill,Stockpile,100
-stokedsparksurfer,skill,Stoked Sparksurfer,500
-stomp,skill,Stomp,300
-stompingtantrum,skill,Stomping Tantrum,300
-stoneedge,skill,Stone Edge,400
-storedpower,skill,Stored Power,100
-stormthrow,skill,Storm Throw,200
-strength,skill,Strength,300
-strengthsap,skill,Strength Sap,100
-stringshot,skill,String Shot,100
-struggle,skill,Struggle,200
-strugglebug,skill,Struggle Bug,200
-stunspore,skill,Stun Spore,100
-submission,skill,Submission,300
-substitute,skill,Substitute,100
-subzeroslammer,skill,Subzero Slammer,100
-suckerpunch,skill,Sucker Punch,300
-sunnyday,skill,Sunny Day,100
-sunsteelstrike,skill,Sunsteel Strike,400
-superfang,skill,Super Fang,100
-superpower,skill,Superpower,500
-supersonic,skill,Supersonic,100
-supersonicskystrike,skill,Supersonic Skystrike,100
-surf,skill,Surf,300
-swagger,skill,Swagger,100
-swallow,skill,Swallow,100
-sweetkiss,skill,Sweet Kiss,100
-sweetscent,skill,Sweet Scent,100
-swift,skill,Swift,200
-switcheroo,skill,Switcheroo,100
-swordsdance,skill,Swords Dance,100
-synchronoise,skill,Synchronoise,500
-synthesis,skill,Synthesis,100
-tackle,skill,Tackle,200
-tailglow,skill,Tail Glow,100
-tailslap,skill,Tail Slap,100
-tailwhip,skill,Tail Whip,100
-tailwind,skill,Tailwind,100
-takedown,skill,Take Down,300
-taunt,skill,Taunt,100
-tearfullook,skill,Tearful Look,100
-technoblast,skill,Techno Blast,500
-tectonicrage,skill,Tectonic Rage,100
-teeterdance,skill,Teeter Dance,100
-telekinesis,skill,Telekinesis,100
-teleport,skill,Teleport,100
-thief,skill,Thief,200
-thousandarrows,skill,Thousand Arrows,300
-thousandwaves,skill,Thousand Waves,300
-thrash,skill,Thrash,500
-throatchop,skill,Throat Chop,300
-thunder,skill,Thunder,400
-thunderbolt,skill,Thunderbolt,300
-thunderfang,skill,Thunder Fang,300
-thunderpunch,skill,Thunder Punch,300
-thundershock,skill,Thunder Shock,200
-thunderwave,skill,Thunder Wave,100
-tickle,skill,Tickle,100
-topsyturvy,skill,Topsy-Turvy,100
-torment,skill,Torment,100
-toxic,skill,Toxic,100
-toxicspikes,skill,Toxic Spikes,100
-toxicthread,skill,Toxic Thread,100
-transform,skill,Transform,100
-triattack,skill,Tri Attack,300
-trick,skill,Trick,100
-trickortreat,skill,Trick-or-Treat,100
-trickroom,skill,Trick Room,100
-triplekick,skill,Triple Kick,100
-tropkick,skill,Trop Kick,300
-trumpcard,skill,Trump Card,100
-twineedle,skill,Twineedle,100
-twinkletackle,skill,Twinkle Tackle,100
-twister,skill,Twister,200
-uproar,skill,Uproar,300
-uturn,skill,U-turn,300
-vacuumwave,skill,Vacuum Wave,200
-vcreate,skill,V-create,500
-venomdrench,skill,Venom Drench,100
-venoshock,skill,Venoshock,300
-vinewhip,skill,Vine Whip,200
-visegrip,skill,Vise Grip,200
-vitalthrow,skill,Vital Throw,300
-voltswitch,skill,Volt Switch,300
-volttackle,skill,Volt Tackle,500
-wakeupslap,skill,Wake-Up Slap,300
-waterfall,skill,Waterfall,300
-watergun,skill,Water Gun,200
-waterpledge,skill,Water Pledge,300
-waterpulse,skill,Water Pulse,200
-watershuriken,skill,Water Shuriken,100
-watersport,skill,Water Sport,100
-waterspout,skill,Water Spout,500
-weatherball,skill,Weather Ball,200
-whirlpool,skill,Whirlpool,200
-whirlwind,skill,Whirlwind,100
-wideguard,skill,Wide Guard,100
-wildcharge,skill,Wild Charge,300
-willowisp,skill,Will-O-Wisp,100
-wingattack,skill,Wing Attack,200
-wish,skill,Wish,100
-withdraw,skill,Withdraw,100
-wonderroom,skill,Wonder Room,100
-woodhammer,skill,Wood Hammer,500
-workup,skill,Work Up,100
-worryseed,skill,Worry Seed,100
-wrap,skill,Wrap,100
-wringout,skill,Wring Out,100
-xscissor,skill,X-Scissor,300
-yawn,skill,Yawn,100
-zapcannon,skill,Zap Cannon,500
-zenheadbutt,skill,Zen Headbutt,300
-zingzap,skill,Zing Zap,300
+10000000voltthunderbolt,skill,"10,000,000 Volt Thunderbolt",800
+absorb,skill,Absorb,300
+accelerock,skill,Accelerock,400
+acid,skill,Acid,400
+acidarmor,skill,Acid Armor,300
+aciddownpour,skill,Acid Downpour,300
+acidspray,skill,Acid Spray,400
+acrobatics,skill,Acrobatics,400
+acupressure,skill,Acupressure,300
+aerialace,skill,Aerial Ace,400
+aeroblast,skill,Aeroblast,650
+afteryou,skill,After You,300
+agility,skill,Agility,300
+aircutter,skill,Air Cutter,400
+airslash,skill,Air Slash,500
+alloutpummeling,skill,All-Out Pummeling,300
+allyswitch,skill,Ally Switch,300
+amnesia,skill,Amnesia,300
+anchorshot,skill,Anchor Shot,500
+ancientpower,skill,Ancient Power,400
+aquajet,skill,Aqua Jet,400
+aquaring,skill,Aqua Ring,300
+aquatail,skill,Aqua Tail,500
+armthrust,skill,Arm Thrust,300
+aromatherapy,skill,Aromatherapy,300
+aromaticmist,skill,Aromatic Mist,300
+assist,skill,Assist,300
+assurance,skill,Assurance,400
+astonish,skill,Astonish,300
+attackorder,skill,Attack Order,500
+attract,skill,Attract,300
+aurasphere,skill,Aura Sphere,500
+aurorabeam,skill,Aurora Beam,500
+auroraveil,skill,Aurora Veil,300
+autotomize,skill,Autotomize,300
+avalanche,skill,Avalanche,400
+babydolleyes,skill,Baby-Doll Eyes,300
+banefulbunker,skill,Baneful Bunker,300
+barrage,skill,Barrage,300
+barrier,skill,Barrier,300
+batonpass,skill,Baton Pass,300
+beakblast,skill,Beak Blast,650
+beatup,skill,Beat Up,300
+belch,skill,Belch,800
+bellydrum,skill,Belly Drum,300
+bestow,skill,Bestow,300
+bide,skill,Bide,300
+bind,skill,Bind,300
+bite,skill,Bite,400
+blackholeeclipse,skill,Black Hole Eclipse,300
+blastburn,skill,Blast Burn,800
+blazekick,skill,Blaze Kick,500
+blizzard,skill,Blizzard,650
+block,skill,Block,300
+bloomdoom,skill,Bloom Doom,300
+blueflare,skill,Blue Flare,800
+bodyslam,skill,Body Slam,500
+boltstrike,skill,Bolt Strike,800
+boneclub,skill,Bone Club,500
+bonemerang,skill,Bonemerang,400
+bonerush,skill,Bone Rush,300
+boomburst,skill,Boomburst,800
+bounce,skill,Bounce,500
+bravebird,skill,Brave Bird,800
+breakneckblitz,skill,Breakneck Blitz,300
+brickbreak,skill,Brick Break,500
+brine,skill,Brine,500
+brutalswing,skill,Brutal Swing,400
+bubble,skill,Bubble,400
+bubblebeam,skill,Bubble Beam,500
+bugbite,skill,Bug Bite,400
+bugbuzz,skill,Bug Buzz,500
+bulkup,skill,Bulk Up,300
+bulldoze,skill,Bulldoze,400
+bulletpunch,skill,Bullet Punch,400
+bulletseed,skill,Bullet Seed,300
+burnup,skill,Burn Up,800
+calmmind,skill,Calm Mind,300
+camouflage,skill,Camouflage,300
+captivate,skill,Captivate,300
+catastropika,skill,Catastropika,800
+celebrate,skill,Celebrate,300
+charge,skill,Charge,300
+chargebeam,skill,Charge Beam,400
+charm,skill,Charm,300
+chatter,skill,Chatter,500
+chipaway,skill,Chip Away,500
+circlethrow,skill,Circle Throw,400
+clamp,skill,Clamp,400
+clangingscales,skill,Clanging Scales,650
+clangoroussoulblaze,skill,Clangorous Soulblaze,800
+clearsmog,skill,Clear Smog,400
+closecombat,skill,Close Combat,800
+coil,skill,Coil,300
+cometpunch,skill,Comet Punch,300
+confide,skill,Confide,300
+confuseray,skill,Confuse Ray,300
+confusion,skill,Confusion,400
+constrict,skill,Constrict,300
+continentalcrush,skill,Continental Crush,300
+conversion,skill,Conversion,300
+conversion2,skill,Conversion 2,300
+copycat,skill,Copycat,300
+coreenforcer,skill,Core Enforcer,650
+corkscrewcrash,skill,Corkscrew Crash,300
+cosmicpower,skill,Cosmic Power,300
+cottonguard,skill,Cotton Guard,300
+cottonspore,skill,Cotton Spore,300
+counter,skill,Counter,300
+covet,skill,Covet,400
+crabhammer,skill,Crabhammer,650
+craftyshield,skill,Crafty Shield,300
+crosschop,skill,Cross Chop,650
+crosspoison,skill,Cross Poison,500
+crunch,skill,Crunch,500
+crushclaw,skill,Crush Claw,500
+crushgrip,skill,Crush Grip,300
+curse,skill,Curse,300
+cut,skill,Cut,400
+darkestlariat,skill,Darkest Lariat,500
+darkpulse,skill,Dark Pulse,500
+darkvoid,skill,Dark Void,300
+dazzlinggleam,skill,Dazzling Gleam,500
+defendorder,skill,Defend Order,300
+defensecurl,skill,Defense Curl,300
+defog,skill,Defog,300
+destinybond,skill,Destiny Bond,300
+detect,skill,Detect,300
+devastatingdrake,skill,Devastating Drake,300
+diamondstorm,skill,Diamond Storm,650
+dig,skill,Dig,500
+disable,skill,Disable,300
+disarmingvoice,skill,Disarming Voice,400
+discharge,skill,Discharge,500
+dive,skill,Dive,500
+dizzypunch,skill,Dizzy Punch,500
+doomdesire,skill,Doom Desire,800
+doubleedge,skill,Double-Edge,800
+doublehit,skill,Double Hit,400
+doublekick,skill,Double Kick,300
+doubleslap,skill,Double Slap,300
+doubleteam,skill,Double Team,300
+dracometeor,skill,Draco Meteor,800
+dragonascent,skill,Dragon Ascent,800
+dragonbreath,skill,Dragon Breath,400
+dragonclaw,skill,Dragon Claw,500
+dragondance,skill,Dragon Dance,300
+dragonhammer,skill,Dragon Hammer,500
+dragonpulse,skill,Dragon Pulse,500
+dragonrage,skill,Dragon Rage,300
+dragonrush,skill,Dragon Rush,650
+dragontail,skill,Dragon Tail,400
+drainingkiss,skill,Draining Kiss,400
+drainpunch,skill,Drain Punch,500
+dreameater,skill,Dream Eater,650
+drillpeck,skill,Drill Peck,500
+drillrun,skill,Drill Run,500
+dualchop,skill,Dual Chop,400
+dynamicpunch,skill,Dynamic Punch,650
+earthpower,skill,Earth Power,500
+earthquake,skill,Earthquake,650
+echoedvoice,skill,Echoed Voice,400
+eerieimpulse,skill,Eerie Impulse,300
+eggbomb,skill,Egg Bomb,650
+electricterrain,skill,Electric Terrain,300
+electrify,skill,Electrify,300
+electroball,skill,Electro Ball,300
+electroweb,skill,Electroweb,400
+embargo,skill,Embargo,300
+ember,skill,Ember,400
+encore,skill,Encore,300
+endeavor,skill,Endeavor,300
+endure,skill,Endure,300
+energyball,skill,Energy Ball,500
+entrainment,skill,Entrainment,300
+eruption,skill,Eruption,800
+explosion,skill,Explosion,800
+extrasensory,skill,Extrasensory,500
+extremeevoboost,skill,Extreme Evoboost,300
+extremespeed,skill,Extreme Speed,500
+facade,skill,Facade,500
+fairylock,skill,Fairy Lock,300
+fairywind,skill,Fairy Wind,400
+fakeout,skill,Fake Out,400
+faketears,skill,Fake Tears,300
+falseswipe,skill,False Swipe,400
+featherdance,skill,Feather Dance,300
+feint,skill,Feint,300
+feintattack,skill,Feint Attack,400
+fellstinger,skill,Fell Stinger,400
+fierydance,skill,Fiery Dance,500
+finalgambit,skill,Final Gambit,300
+fireblast,skill,Fire Blast,650
+firefang,skill,Fire Fang,500
+firelash,skill,Fire Lash,500
+firepledge,skill,Fire Pledge,500
+firepunch,skill,Fire Punch,500
+firespin,skill,Fire Spin,400
+firstimpression,skill,First Impression,500
+fissure,skill,Fissure,300
+flail,skill,Flail,300
+flameburst,skill,Flame Burst,500
+flamecharge,skill,Flame Charge,400
+flamethrower,skill,Flamethrower,500
+flamewheel,skill,Flame Wheel,400
+flareblitz,skill,Flare Blitz,800
+flash,skill,Flash,300
+flashcannon,skill,Flash Cannon,500
+flatter,skill,Flatter,300
+fleurcannon,skill,Fleur Cannon,800
+fling,skill,Fling,300
+floralhealing,skill,Floral Healing,300
+flowershield,skill,Flower Shield,300
+fly,skill,Fly,500
+flyingpress,skill,Flying Press,650
+focusblast,skill,Focus Blast,800
+focusenergy,skill,Focus Energy,300
+focuspunch,skill,Focus Punch,800
+followme,skill,Follow Me,300
+forcepalm,skill,Force Palm,400
+foresight,skill,Foresight,300
+forestscurse,skill,Forest's Curse,300
+foulplay,skill,Foul Play,650
+freezedry,skill,Freeze-Dry,500
+freezeshock,skill,Freeze Shock,800
+frenzyplant,skill,Frenzy Plant,800
+frostbreath,skill,Frost Breath,400
+frustration,skill,Frustration,300
+furyattack,skill,Fury Attack,300
+furycutter,skill,Fury Cutter,400
+furyswipes,skill,Fury Swipes,300
+fusionbolt,skill,Fusion Bolt,650
+fusionflare,skill,Fusion Flare,650
+futuresight,skill,Future Sight,800
+gastroacid,skill,Gastro Acid,300
+geargrind,skill,Gear Grind,400
+gearup,skill,Gear Up,300
+genesissupernova,skill,Genesis Supernova,800
+geomancy,skill,Geomancy,300
+gigadrain,skill,Giga Drain,500
+gigaimpact,skill,Giga Impact,800
+gigavolthavoc,skill,Gigavolt Havoc,300
+glaciate,skill,Glaciate,500
+glare,skill,Glare,300
+grassknot,skill,Grass Knot,300
+grasspledge,skill,Grass Pledge,500
+grasswhistle,skill,Grass Whistle,300
+grassyterrain,skill,Grassy Terrain,300
+gravity,skill,Gravity,300
+growl,skill,Growl,300
+growth,skill,Growth,300
+grudge,skill,Grudge,300
+guardianofalola,skill,Guardian of Alola,300
+guardsplit,skill,Guard Split,300
+guardswap,skill,Guard Swap,300
+guillotine,skill,Guillotine,300
+gunkshot,skill,Gunk Shot,800
+gust,skill,Gust,400
+gyroball,skill,Gyro Ball,300
+hail,skill,Hail,300
+hammerarm,skill,Hammer Arm,650
+happyhour,skill,Happy Hour,300
+harden,skill,Harden,300
+haze,skill,Haze,300
+headbutt,skill,Headbutt,500
+headcharge,skill,Head Charge,800
+headsmash,skill,Head Smash,800
+healbell,skill,Heal Bell,300
+healblock,skill,Heal Block,300
+healingwish,skill,Healing Wish,300
+healorder,skill,Heal Order,300
+healpulse,skill,Heal Pulse,300
+heartstamp,skill,Heart Stamp,400
+heartswap,skill,Heart Swap,300
+heatcrash,skill,Heat Crash,300
+heatwave,skill,Heat Wave,650
+heavyslam,skill,Heavy Slam,300
+helpinghand,skill,Helping Hand,300
+hex,skill,Hex,500
+hiddenpower,skill,Hidden Power,400
+highhorsepower,skill,High Horsepower,650
+highjumpkick,skill,High Jump Kick,800
+holdback,skill,Hold Back,400
+holdhands,skill,Hold Hands,300
+honeclaws,skill,Hone Claws,300
+hornattack,skill,Horn Attack,500
+horndrill,skill,Horn Drill,300
+hornleech,skill,Horn Leech,500
+howl,skill,Howl,300
+hurricane,skill,Hurricane,650
+hydrocannon,skill,Hydro Cannon,800
+hydropump,skill,Hydro Pump,650
+hydrovortex,skill,Hydro Vortex,300
+hyperbeam,skill,Hyper Beam,800
+hyperfang,skill,Hyper Fang,500
+hyperspacefury,skill,Hyperspace Fury,650
+hyperspacehole,skill,Hyperspace Hole,500
+hypervoice,skill,Hyper Voice,500
+hypnosis,skill,Hypnosis,300
+iceball,skill,Ice Ball,300
+icebeam,skill,Ice Beam,500
+iceburn,skill,Ice Burn,800
+icefang,skill,Ice Fang,500
+icehammer,skill,Ice Hammer,650
+icepunch,skill,Ice Punch,500
+iceshard,skill,Ice Shard,400
+iciclecrash,skill,Icicle Crash,500
+iciclespear,skill,Icicle Spear,300
+icywind,skill,Icy Wind,400
+imprison,skill,Imprison,300
+incinerate,skill,Incinerate,400
+inferno,skill,Inferno,650
+infernooverdrive,skill,Inferno Overdrive,300
+infestation,skill,Infestation,300
+ingrain,skill,Ingrain,300
+instruct,skill,Instruct,300
+iondeluge,skill,Ion Deluge,300
+irondefense,skill,Iron Defense,300
+ironhead,skill,Iron Head,500
+irontail,skill,Iron Tail,650
+judgment,skill,Judgment,650
+jumpkick,skill,Jump Kick,650
+karatechop,skill,Karate Chop,400
+kinesis,skill,Kinesis,300
+kingsshield,skill,King's Shield,300
+knockoff,skill,Knock Off,500
+landswrath,skill,Land's Wrath,500
+laserfocus,skill,Laser Focus,300
+lastresort,skill,Last Resort,800
+lavaplume,skill,Lava Plume,500
+leafage,skill,Leafage,400
+leafblade,skill,Leaf Blade,500
+leafstorm,skill,Leaf Storm,800
+leaftornado,skill,Leaf Tornado,500
+leechlife,skill,Leech Life,500
+leechseed,skill,Leech Seed,300
+leer,skill,Leer,300
+letssnuggleforever,skill,Let's Snuggle Forever,800
+lick,skill,Lick,300
+lightscreen,skill,Light Screen,300
+lightthatburnsthesky,skill,Light That Burns the Sky,800
+liquidation,skill,Liquidation,500
+lockon,skill,Lock-On,300
+lovelykiss,skill,Lovely Kiss,300
+lowkick,skill,Low Kick,300
+lowsweep,skill,Low Sweep,500
+luckychant,skill,Lucky Chant,300
+lunardance,skill,Lunar Dance,300
+lunge,skill,Lunge,500
+lusterpurge,skill,Luster Purge,500
+machpunch,skill,Mach Punch,400
+magicalleaf,skill,Magical Leaf,400
+magiccoat,skill,Magic Coat,300
+magicroom,skill,Magic Room,300
+magmastorm,skill,Magma Storm,650
+magnetbomb,skill,Magnet Bomb,400
+magneticflux,skill,Magnetic Flux,300
+magnetrise,skill,Magnet Rise,300
+magnitude,skill,Magnitude,300
+maliciousmoonsault,skill,Malicious Moonsault,800
+matblock,skill,Mat Block,300
+meanlook,skill,Mean Look,300
+meditate,skill,Meditate,300
+mefirst,skill,Me First,300
+megadrain,skill,Mega Drain,400
+megahorn,skill,Megahorn,800
+megakick,skill,Mega Kick,800
+megapunch,skill,Mega Punch,500
+memento,skill,Memento,300
+menacingmoonrazemaelstrom,skill,Menacing Moonraze Maelstrom,800
+metalburst,skill,Metal Burst,300
+metalclaw,skill,Metal Claw,400
+metalsound,skill,Metal Sound,300
+meteormash,skill,Meteor Mash,500
+metronome,skill,Metronome,300
+milkdrink,skill,Milk Drink,300
+mimic,skill,Mimic,300
+mindblown,skill,Mind Blown,800
+mindreader,skill,Mind Reader,300
+minimize,skill,Minimize,300
+miracleeye,skill,Miracle Eye,300
+mirrorcoat,skill,Mirror Coat,300
+mirrormove,skill,Mirror Move,300
+mirrorshot,skill,Mirror Shot,500
+mist,skill,Mist,300
+mistball,skill,Mist Ball,500
+mistyterrain,skill,Misty Terrain,300
+moonblast,skill,Moonblast,650
+moongeistbeam,skill,Moongeist Beam,650
+moonlight,skill,Moonlight,300
+morningsun,skill,Morning Sun,300
+mudbomb,skill,Mud Bomb,500
+muddywater,skill,Muddy Water,500
+mudshot,skill,Mud Shot,400
+mudslap,skill,Mud-Slap,300
+mudsport,skill,Mud Sport,300
+multiattack,skill,Multi-Attack,500
+mysticalfire,skill,Mystical Fire,500
+nastyplot,skill,Nasty Plot,300
+naturalgift,skill,Natural Gift,300
+naturepower,skill,Nature Power,300
+naturesmadness,skill,Nature's Madness,300
+needlearm,skill,Needle Arm,400
+neverendingnightmare,skill,Never-Ending Nightmare,300
+nightdaze,skill,Night Daze,500
+nightmare,skill,Nightmare,300
+nightshade,skill,Night Shade,300
+nightslash,skill,Night Slash,500
+nobleroar,skill,Noble Roar,300
+nuzzle,skill,Nuzzle,300
+oblivionwing,skill,Oblivion Wing,500
+oceanicoperetta,skill,Oceanic Operetta,800
+octazooka,skill,Octazooka,500
+odorsleuth,skill,Odor Sleuth,300
+ominouswind,skill,Ominous Wind,400
+originpulse,skill,Origin Pulse,650
+outrage,skill,Outrage,800
+overheat,skill,Overheat,800
+painsplit,skill,Pain Split,300
+paraboliccharge,skill,Parabolic Charge,500
+partingshot,skill,Parting Shot,300
+payback,skill,Payback,400
+payday,skill,Pay Day,400
+peck,skill,Peck,400
+perishsong,skill,Perish Song,300
+petalblizzard,skill,Petal Blizzard,500
+petaldance,skill,Petal Dance,800
+phantomforce,skill,Phantom Force,500
+photongeyser,skill,Photon Geyser,650
+pinmissile,skill,Pin Missile,300
+plasmafists,skill,Plasma Fists,650
+playnice,skill,Play Nice,300
+playrough,skill,Play Rough,500
+pluck,skill,Pluck,400
+poisonfang,skill,Poison Fang,400
+poisongas,skill,Poison Gas,300
+poisonjab,skill,Poison Jab,500
+poisonpowder,skill,Poison Powder,300
+poisonsting,skill,Poison Sting,300
+poisontail,skill,Poison Tail,400
+pollenpuff,skill,Pollen Puff,500
+pound,skill,Pound,400
+powder,skill,Powder,300
+powdersnow,skill,Powder Snow,400
+powergem,skill,Power Gem,500
+powersplit,skill,Power Split,300
+powerswap,skill,Power Swap,300
+powertrick,skill,Power Trick,300
+powertrip,skill,Power Trip,300
+poweruppunch,skill,Power-Up Punch,400
+powerwhip,skill,Power Whip,800
+precipiceblades,skill,Precipice Blades,800
+present,skill,Present,300
+prismaticlaser,skill,Prismatic Laser,800
+protect,skill,Protect,300
+psybeam,skill,Psybeam,500
+psychic,skill,Psychic,500
+psychicfangs,skill,Psychic Fangs,500
+psychicterrain,skill,Psychic Terrain,300
+psychoboost,skill,Psycho Boost,800
+psychocut,skill,Psycho Cut,500
+psychoshift,skill,Psycho Shift,300
+psychup,skill,Psych Up,300
+psyshock,skill,Psyshock,500
+psystrike,skill,Psystrike,650
+psywave,skill,Psywave,300
+pulverizingpancake,skill,Pulverizing Pancake,800
+punishment,skill,Punishment,300
+purify,skill,Purify,300
+pursuit,skill,Pursuit,400
+quash,skill,Quash,300
+quickattack,skill,Quick Attack,400
+quickguard,skill,Quick Guard,300
+quiverdance,skill,Quiver Dance,300
+rage,skill,Rage,300
+ragepowder,skill,Rage Powder,300
+raindance,skill,Rain Dance,300
+rapidspin,skill,Rapid Spin,300
+razorleaf,skill,Razor Leaf,400
+razorshell,skill,Razor Shell,500
+razorwind,skill,Razor Wind,500
+recover,skill,Recover,300
+recycle,skill,Recycle,300
+reflect,skill,Reflect,300
+reflecttype,skill,Reflect Type,300
+refresh,skill,Refresh,300
+relicsong,skill,Relic Song,500
+rest,skill,Rest,300
+retaliate,skill,Retaliate,500
+return,skill,Return,300
+revelationdance,skill,Revelation Dance,500
+revenge,skill,Revenge,400
+reversal,skill,Reversal,300
+roar,skill,Roar,300
+roaroftime,skill,Roar of Time,800
+rockblast,skill,Rock Blast,300
+rockclimb,skill,Rock Climb,500
+rockpolish,skill,Rock Polish,300
+rockslide,skill,Rock Slide,500
+rocksmash,skill,Rock Smash,400
+rockthrow,skill,Rock Throw,400
+rocktomb,skill,Rock Tomb,400
+rockwrecker,skill,Rock Wrecker,800
+roleplay,skill,Role Play,300
+rollingkick,skill,Rolling Kick,400
+rollout,skill,Rollout,300
+roost,skill,Roost,300
+rototiller,skill,Rototiller,300
+round,skill,Round,400
+sacredfire,skill,Sacred Fire,650
+sacredsword,skill,Sacred Sword,500
+safeguard,skill,Safeguard,300
+sandattack,skill,Sand Attack,300
+sandstorm,skill,Sandstorm,300
+sandtomb,skill,Sand Tomb,400
+savagespinout,skill,Savage Spin-Out,300
+scald,skill,Scald,500
+scaryface,skill,Scary Face,300
+scratch,skill,Scratch,400
+screech,skill,Screech,300
+searingshot,skill,Searing Shot,650
+searingsunrazesmash,skill,Searing Sunraze Smash,800
+secretpower,skill,Secret Power,500
+secretsword,skill,Secret Sword,500
+seedbomb,skill,Seed Bomb,500
+seedflare,skill,Seed Flare,800
+seismictoss,skill,Seismic Toss,300
+selfdestruct,skill,Self-Destruct,800
+shadowball,skill,Shadow Ball,500
+shadowbone,skill,Shadow Bone,500
+shadowclaw,skill,Shadow Claw,500
+shadowforce,skill,Shadow Force,800
+shadowpunch,skill,Shadow Punch,400
+shadowsneak,skill,Shadow Sneak,400
+sharpen,skill,Sharpen,300
+shatteredpsyche,skill,Shattered Psyche,300
+sheercold,skill,Sheer Cold,300
+shellsmash,skill,Shell Smash,300
+shelltrap,skill,Shell Trap,800
+shiftgear,skill,Shift Gear,300
+shockwave,skill,Shock Wave,400
+shoreup,skill,Shore Up,300
+signalbeam,skill,Signal Beam,500
+silverwind,skill,Silver Wind,400
+simplebeam,skill,Simple Beam,300
+sing,skill,Sing,300
+sinisterarrowraid,skill,Sinister Arrow Raid,800
+sketch,skill,Sketch,300
+skillswap,skill,Skill Swap,300
+skullbash,skill,Skull Bash,800
+skyattack,skill,Sky Attack,800
+skydrop,skill,Sky Drop,400
+skyuppercut,skill,Sky Uppercut,500
+slackoff,skill,Slack Off,300
+slam,skill,Slam,500
+slash,skill,Slash,500
+sleeppowder,skill,Sleep Powder,300
+sleeptalk,skill,Sleep Talk,300
+sludge,skill,Sludge,500
+sludgebomb,skill,Sludge Bomb,500
+sludgewave,skill,Sludge Wave,650
+smackdown,skill,Smack Down,400
+smartstrike,skill,Smart Strike,500
+smellingsalts,skill,Smelling Salts,500
+smog,skill,Smog,300
+smokescreen,skill,Smokescreen,300
+snarl,skill,Snarl,400
+snatch,skill,Snatch,300
+snore,skill,Snore,400
+soak,skill,Soak,300
+softboiled,skill,Soft-Boiled,300
+solarbeam,skill,Solar Beam,800
+solarblade,skill,Solar Blade,800
+sonicboom,skill,Sonic Boom,300
+soulstealing7starstrike,skill,Soul-Stealing 7-Star Strike,800
+spacialrend,skill,Spacial Rend,650
+spark,skill,Spark,500
+sparklingaria,skill,Sparkling Aria,500
+spectralthief,skill,Spectral Thief,500
+speedswap,skill,Speed Swap,300
+spiderweb,skill,Spider Web,300
+spikecannon,skill,Spike Cannon,300
+spikes,skill,Spikes,300
+spikyshield,skill,Spiky Shield,300
+spiritshackle,skill,Spirit Shackle,500
+spite,skill,Spite,300
+spitup,skill,Spit Up,300
+splash,skill,Splash,300
+splinteredstormshards,skill,Splintered Stormshards,800
+spore,skill,Spore,300
+spotlight,skill,Spotlight,300
+stealthrock,skill,Stealth Rock,300
+steameruption,skill,Steam Eruption,650
+steamroller,skill,Steamroller,500
+steelwing,skill,Steel Wing,500
+stickyweb,skill,Sticky Web,300
+stockpile,skill,Stockpile,300
+stokedsparksurfer,skill,Stoked Sparksurfer,800
+stomp,skill,Stomp,500
+stompingtantrum,skill,Stomping Tantrum,500
+stoneedge,skill,Stone Edge,650
+storedpower,skill,Stored Power,300
+stormthrow,skill,Storm Throw,400
+strength,skill,Strength,500
+strengthsap,skill,Strength Sap,300
+stringshot,skill,String Shot,300
+struggle,skill,Struggle,400
+strugglebug,skill,Struggle Bug,400
+stunspore,skill,Stun Spore,300
+submission,skill,Submission,500
+substitute,skill,Substitute,300
+subzeroslammer,skill,Subzero Slammer,300
+suckerpunch,skill,Sucker Punch,500
+sunnyday,skill,Sunny Day,300
+sunsteelstrike,skill,Sunsteel Strike,650
+superfang,skill,Super Fang,300
+superpower,skill,Superpower,800
+supersonic,skill,Supersonic,300
+supersonicskystrike,skill,Supersonic Skystrike,300
+surf,skill,Surf,500
+swagger,skill,Swagger,300
+swallow,skill,Swallow,300
+sweetkiss,skill,Sweet Kiss,300
+sweetscent,skill,Sweet Scent,300
+swift,skill,Swift,400
+switcheroo,skill,Switcheroo,300
+swordsdance,skill,Swords Dance,300
+synchronoise,skill,Synchronoise,800
+synthesis,skill,Synthesis,300
+tackle,skill,Tackle,400
+tailglow,skill,Tail Glow,300
+tailslap,skill,Tail Slap,300
+tailwhip,skill,Tail Whip,300
+tailwind,skill,Tailwind,300
+takedown,skill,Take Down,500
+taunt,skill,Taunt,300
+tearfullook,skill,Tearful Look,300
+technoblast,skill,Techno Blast,800
+tectonicrage,skill,Tectonic Rage,300
+teeterdance,skill,Teeter Dance,300
+telekinesis,skill,Telekinesis,300
+teleport,skill,Teleport,300
+thief,skill,Thief,400
+thousandarrows,skill,Thousand Arrows,500
+thousandwaves,skill,Thousand Waves,500
+thrash,skill,Thrash,800
+throatchop,skill,Throat Chop,500
+thunder,skill,Thunder,650
+thunderbolt,skill,Thunderbolt,500
+thunderfang,skill,Thunder Fang,500
+thunderpunch,skill,Thunder Punch,500
+thundershock,skill,Thunder Shock,400
+thunderwave,skill,Thunder Wave,300
+tickle,skill,Tickle,300
+topsyturvy,skill,Topsy-Turvy,300
+torment,skill,Torment,300
+toxic,skill,Toxic,300
+toxicspikes,skill,Toxic Spikes,300
+toxicthread,skill,Toxic Thread,300
+transform,skill,Transform,300
+triattack,skill,Tri Attack,500
+trick,skill,Trick,300
+trickortreat,skill,Trick-or-Treat,300
+trickroom,skill,Trick Room,300
+triplekick,skill,Triple Kick,300
+tropkick,skill,Trop Kick,500
+trumpcard,skill,Trump Card,300
+twineedle,skill,Twineedle,300
+twinkletackle,skill,Twinkle Tackle,300
+twister,skill,Twister,400
+uproar,skill,Uproar,500
+uturn,skill,U-turn,500
+vacuumwave,skill,Vacuum Wave,400
+vcreate,skill,V-create,800
+venomdrench,skill,Venom Drench,300
+venoshock,skill,Venoshock,500
+vinewhip,skill,Vine Whip,400
+visegrip,skill,Vise Grip,400
+vitalthrow,skill,Vital Throw,500
+voltswitch,skill,Volt Switch,500
+volttackle,skill,Volt Tackle,800
+wakeupslap,skill,Wake-Up Slap,500
+waterfall,skill,Waterfall,500
+watergun,skill,Water Gun,400
+waterpledge,skill,Water Pledge,500
+waterpulse,skill,Water Pulse,400
+watershuriken,skill,Water Shuriken,300
+watersport,skill,Water Sport,300
+waterspout,skill,Water Spout,800
+weatherball,skill,Weather Ball,400
+whirlpool,skill,Whirlpool,400
+whirlwind,skill,Whirlwind,300
+wideguard,skill,Wide Guard,300
+wildcharge,skill,Wild Charge,500
+willowisp,skill,Will-O-Wisp,300
+wingattack,skill,Wing Attack,400
+wish,skill,Wish,300
+withdraw,skill,Withdraw,300
+wonderroom,skill,Wonder Room,300
+woodhammer,skill,Wood Hammer,800
+workup,skill,Work Up,300
+worryseed,skill,Worry Seed,300
+wrap,skill,Wrap,300
+wringout,skill,Wring Out,300
+xscissor,skill,X-Scissor,500
+yawn,skill,Yawn,300
+zapcannon,skill,Zap Cannon,800
+zenheadbutt,skill,Zen Headbutt,500
+zingzap,skill,Zing Zap,500

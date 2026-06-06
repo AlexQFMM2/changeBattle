@@ -62,7 +62,7 @@ const STATUS_ID_BY_ZH: Record<string, string> = {
 const SUBSTITUTE_DOLL_PATH = "assets/battle/substitute-doll.png";
 const TALENT_EQUIP_LIMIT = 5;
 const TALENT_CATALOG: TalentView[] = [
-  {id: "starter_angel_fund", name: "天使基金", category: "开局筹备", cost: 20, desc: "开局获得 1000 金币，提前获得第一轮运营空间。"},
+  {id: "starter_angel_fund", name: "天使基金", category: "开局筹备", cost: 20, desc: "开局获得 1000 金币，提前获得第一轮运营空间；剩余启动资金不会在结算时折算为 BP。"},
   {id: "starter_mentor_eye", name: "伯乐本乐", category: "开局筹备", cost: 25, desc: "开局选中的每只宝可梦有 33% 概率升 1 阶，仅限数值模板，最高 4 阶。"},
   {id: "starter_bag_expansion", name: "扩容背包", category: "开局筹备", cost: 20, desc: "开局道具每一类最多可以选择 2 个。"},
   {id: "starter_soulmate", name: "灵魂伴侣", category: "开局筹备", cost: 30, desc: "从上一局队伍和最后敌方队伍中追加回忆候选。"},
@@ -404,7 +404,7 @@ function restoreCostSuffix(costs: Record<1 | 2 | 3, number>, selectedCount: numb
 
 function talentShortText(talent: TalentView): string {
   const cleanCopy: Record<string, string> = {
-    starter_angel_fund: "开局获得 1000 金币。",
+    starter_angel_fund: "开局获得 1000 金币，剩余启动资金不参与结算折算。",
     starter_mentor_eye: "选中的开局宝可梦有概率只提升数值模板。",
     starter_bag_expansion: "每类开局道具最多可以带走 2 个。",
     starter_soulmate: "开局追加上一局记忆候选，最多选择 1 只。",

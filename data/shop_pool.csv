@@ -1,49 +1,49 @@
 id,kind,category,cost,weight,enabled,notes
-potion,item,consumable,50,8,1,hp heal
-freshwater,item,consumable,200,7,1,hp heal drink
-sodapop,item,consumable,250,6,1,hp heal drink
-superpotion,item,consumable,100,7,1,hp heal
-lemonade,item,consumable,350,5,1,hp heal drink
-moomoomilk,item,consumable,450,4,1,hp heal drink
-hyperpotion,item,consumable,200,5,1,hp heal
-maxpotion,item,consumable,250,3,1,full hp heal
-fullrestore,item,consumable,300,2,1,full hp and status
-revive,item,consumable,200,4,1,revive
-maxrevive,item,consumable,300,1,1,full revive
-revivalherb,item,consumable,300,1,1,full revive herb
-energypowder,item,consumable,300,3,1,hp heal herb
-energyroot,item,consumable,600,2,1,hp heal herb
-healpowder,item,consumable,300,3,1,status heal herb
-ether,item,consumable,300,5,1,pp heal
-maxether,item,consumable,500,3,1,full pp move heal
-elixir,item,consumable,700,2,1,all pp heal
-maxelixir,item,consumable,1000,1,1,full all pp heal
-fullheal,item,consumable,300,5,1,status heal
-antidote,item,consumable,150,4,1,poison heal
-burnheal,item,consumable,150,4,1,burn heal
-iceheal,item,consumable,150,4,1,freeze heal
-awakening,item,consumable,150,4,1,sleep heal
-paralyzeheal,item,consumable,150,4,1,paralysis heal
-oranberry,item,consumable,200,6,1,hp berry
-sitrusberry,item,consumable,500,6,1,hp berry
-leppaberry,item,consumable,400,5,1,pp berry
-lumberry,item,consumable,500,5,1,status berry
-cheriberry,item,consumable,200,4,1,paralysis berry
-chestoberry,item,consumable,200,4,1,sleep berry
-pechaberry,item,consumable,200,4,1,poison berry
-rawstberry,item,consumable,200,4,1,burn berry
-aspearberry,item,consumable,200,4,1,freeze berry
-figyberry,item,consumable,400,4,1,pinch heal berry
-wikiberry,item,consumable,400,4,1,pinch heal berry
-magoberry,item,consumable,400,4,1,pinch heal berry
-aguavberry,item,consumable,400,4,1,pinch heal berry
-iapapaberry,item,consumable,400,4,1,pinch heal berry
-liechiberry,item,consumable,500,2,1,pinch attack berry
-ganlonberry,item,consumable,500,2,1,pinch defense berry
-salacberry,item,consumable,500,2,1,pinch speed berry
-petayaberry,item,consumable,500,2,1,pinch special attack berry
-apicotberry,item,consumable,500,2,1,pinch special defense berry
-custapberry,item,consumable,600,1,1,pinch priority berry
+potion,item,consumable,20,8,1,hp heal
+freshwater,item,consumable,30,7,1,hp heal drink
+sodapop,item,consumable,50,6,1,hp heal drink
+superpotion,item,consumable,50,7,1,hp heal
+lemonade,item,consumable,70,5,1,hp heal drink
+moomoomilk,item,consumable,100,4,1,hp heal drink
+hyperpotion,item,consumable,120,5,1,hp heal
+maxpotion,item,consumable,160,3,1,full hp heal
+fullrestore,item,consumable,200,2,1,full hp and status
+revive,item,consumable,120,4,1,revive
+maxrevive,item,consumable,200,1,1,full revive
+revivalherb,item,consumable,160,1,1,full revive herb
+energypowder,item,consumable,50,3,1,hp heal herb
+energyroot,item,consumable,120,2,1,hp heal herb
+healpowder,item,consumable,20,3,1,status heal herb
+ether,item,consumable,60,5,1,pp heal
+maxether,item,consumable,120,3,1,full pp move heal
+elixir,item,consumable,150,2,1,all pp heal
+maxelixir,item,consumable,200,1,1,full all pp heal
+fullheal,item,consumable,30,5,1,status heal
+antidote,item,consumable,10,4,1,poison heal
+burnheal,item,consumable,10,4,1,burn heal
+iceheal,item,consumable,10,4,1,freeze heal
+awakening,item,consumable,10,4,1,sleep heal
+paralyzeheal,item,consumable,10,4,1,paralysis heal
+oranberry,item,consumable,10,6,1,hp berry
+sitrusberry,item,consumable,20,6,1,hp berry
+leppaberry,item,consumable,20,5,1,pp berry
+lumberry,item,consumable,30,5,1,status berry
+cheriberry,item,consumable,10,4,1,paralysis berry
+chestoberry,item,consumable,10,4,1,sleep berry
+pechaberry,item,consumable,10,4,1,poison berry
+rawstberry,item,consumable,10,4,1,burn berry
+aspearberry,item,consumable,10,4,1,freeze berry
+figyberry,item,consumable,20,4,1,pinch heal berry
+wikiberry,item,consumable,20,4,1,pinch heal berry
+magoberry,item,consumable,20,4,1,pinch heal berry
+aguavberry,item,consumable,20,4,1,pinch heal berry
+iapapaberry,item,consumable,20,4,1,pinch heal berry
+liechiberry,item,consumable,30,2,1,pinch attack berry
+ganlonberry,item,consumable,30,2,1,pinch defense berry
+salacberry,item,consumable,30,2,1,pinch speed berry
+petayaberry,item,consumable,30,2,1,pinch special attack berry
+apicotberry,item,consumable,30,2,1,pinch special defense berry
+custapberry,item,consumable,30,1,1,pinch priority berry
 leftovers,item,held,800,5,1,recover each turn
 blacksludge,item,held,700,3,1,poison recovery
 lifeorb,item,held,900,4,1,damage boost
@@ -53,11 +53,11 @@ choicescarf,item,held,900,3,1,speed choice boost
 assaultvest,item,held,800,3,1,special defense boost
 focussash,item,held,800,3,1,survive from full
 focusband,item,held,600,2,1,chance survive
-weaknesspolicy,item,held,900,2,1,boost after super effective hit
+weaknesspolicy,item,held,1000,2,1,boost after super effective hit
 eviolite,item,held,800,3,1,not fully evolved bulk
-rockyhelmet,item,held,700,3,1,contact damage
-airballoon,item,held,600,2,1,ground immunity
-expertbelt,item,held,600,3,1,super effective boost
+rockyhelmet,item,held,800,3,1,contact damage
+airballoon,item,held,500,2,1,ground immunity
+expertbelt,item,held,500,3,1,super effective boost
 muscleband,item,held,500,3,1,physical boost
 wiseglasses,item,held,500,3,1,special boost
 lightclay,item,held,500,2,1,screen duration
@@ -69,4 +69,4 @@ scope lens,item,held,500,2,0,disabled example with space id
 scopelens,item,held,500,2,1,critical hit boost
 shellbell,item,held,500,2,1,damage recovery
 metronome,item,held,500,2,1,repeated move boost
-*,tm,tm,200,7,1,current team learnable tm pool
+*,tm,tm,500,7,1,current team learnable tm pool

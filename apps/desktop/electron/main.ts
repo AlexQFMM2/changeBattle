@@ -34,6 +34,7 @@ import {
   candidateCountForTalents,
   clearBonus,
   coinsToBp,
+  convertibleCoinsForSettlement,
   currentBp,
   currentCoins,
   emptyStats,
@@ -61,6 +62,7 @@ import {
   spendBp,
   spendCoins,
   starterCoinsForSeed,
+  starterNonConvertibleCoinsForTalents,
   starterUpgradeCatalog,
   starterUpgradeCost,
   starterUpgradeLevel,
@@ -160,21 +162,21 @@ const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
 };
 
 const GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
-  {id: "potion", cost: 50},
-  {id: "superpotion", cost: 100},
-  {id: "hyperpotion", cost: 200},
-  {id: "maxpotion", cost: 250},
-  {id: "fullrestore", cost: 300},
-  {id: "revive", cost: 200},
-  {id: "maxrevive", cost: 300},
-  {id: "revivalherb", cost: 300},
-  {id: "fullheal", cost: 50},
-  {id: "healpowder", cost: 50},
-  {id: "antidote", cost: 50},
-  {id: "burnheal", cost: 50},
-  {id: "iceheal", cost: 50},
-  {id: "awakening", cost: 50},
-  {id: "paralyzeheal", cost: 50},
+  {id: "potion", cost: 20},
+  {id: "superpotion", cost: 50},
+  {id: "hyperpotion", cost: 120},
+  {id: "maxpotion", cost: 160},
+  {id: "fullrestore", cost: 200},
+  {id: "revive", cost: 120},
+  {id: "maxrevive", cost: 200},
+  {id: "revivalherb", cost: 160},
+  {id: "fullheal", cost: 30},
+  {id: "healpowder", cost: 20},
+  {id: "antidote", cost: 10},
+  {id: "burnheal", cost: 10},
+  {id: "iceheal", cost: 10},
+  {id: "awakening", cost: 10},
+  {id: "paralyzeheal", cost: 10},
 ];
 
 const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: string; desc_zh: string}> = {
@@ -660,7 +662,7 @@ async function refundableBagBaseBp(run: CurrentRunData): Promise<number> {
   return Math.floor(total * rate);
 }
 
-async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refundBag?: boolean; completed?: boolean} = {}): Promise<{paidBack: number; refundBase: number; refundGained: number; receiptBonus: number; portfolioBonus: number; portfolioTypes: string[]; convertedCoins: number; convertedBp: number}> {
+async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refundBag?: boolean; completed?: boolean} = {}): Promise<{paidBack: number; refundBase: number; refundGained: number; receiptBonus: number; portfolioBonus: number; portfolioTypes: string[]; convertedCoins: number; excludedCoins: number; convertedBp: number}> {
   const paidBack = settleProphetFirstMover(save, run);
   const refundBase = options.refundBag === false ? 0 : await refundableBagBaseBp(run);
   const refundGained = refundBase ? addRunBp(save, run, refundBase) : 0;
@@ -668,15 +670,16 @@ async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refu
   const receiptBonus = hasTalent(run.talents, "economy_recycle_receipt") && receiptBase > 0 ? addRunBp(save, run, Math.floor(receiptBase * RECYCLE_RECEIPT_RATE)) : 0;
   const portfolio = portfolioBonus(run);
   const portfolioGained = options.completed && portfolio.bonus > 0 ? addRunBp(save, run, portfolio.bonus) : 0;
-  const convertedCoins = currentCoins(run);
+  const {convertibleCoins: convertedCoins, excludedCoins} = convertibleCoinsForSettlement(run);
   const convertedBp = coinsToBp(convertedCoins);
   if (convertedBp > 0) addBp(save, convertedBp);
   run.coins = 0;
-  return {paidBack, refundBase, refundGained, receiptBonus, portfolioBonus: portfolioGained, portfolioTypes: portfolio.types, convertedCoins, convertedBp};
+  run.non_convertible_coins = 0;
+  return {paidBack, refundBase, refundGained, receiptBonus, portfolioBonus: portfolioGained, portfolioTypes: portfolio.types, convertedCoins, excludedCoins, convertedBp};
 }
 
 function settlementText(settled: Awaited<ReturnType<typeof settleRunEnd>>): string {
-  return `${settled.refundGained ? `，背包返还 ${settled.refundGained}金币` : ""}${settled.receiptBonus ? `，回收票据 +${settled.receiptBonus}金币` : ""}${settled.portfolioBonus ? `，投资组合 +${settled.portfolioBonus}金币（${settled.portfolioTypes.join(" / ")}）` : ""}`;
+  return `${settled.refundGained ? `，背包返还 ${settled.refundGained}金币` : ""}${settled.receiptBonus ? `，回收票据 +${settled.receiptBonus}金币` : ""}${settled.portfolioBonus ? `，投资组合 +${settled.portfolioBonus}金币（${settled.portfolioTypes.join(" / ")}）` : ""}${settled.excludedCoins ? `，天使基金剩余 ${settled.excludedCoins}金币不折算` : ""}`;
 }
 
 function tmItemId(moveId: string | undefined): string {
@@ -1425,11 +1428,11 @@ function spendText(cost: number): string {
 
 function defaultMoveCost(power: number | undefined): number {
   const value = Number(power || 0);
-  if (value >= 120) return 5 * BP_SCALE;
-  if (value > 90) return 4 * BP_SCALE;
-  if (value > 60) return 3 * BP_SCALE;
-  if (value > 30) return 2 * BP_SCALE;
-  return 1 * BP_SCALE;
+  if (value >= 120) return 800;
+  if (value > 90) return 650;
+  if (value > 60) return 500;
+  if (value > 30) return 400;
+  return 300;
 }
 
 async function moveGoodsCost(move: MoveSummary): Promise<number> {
@@ -1625,6 +1628,7 @@ function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
 function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   if (run.status === "awaiting_exchange") run.status = "awaiting_rest";
   run.coins = currentCoins(run);
+  run.non_convertible_coins = Math.max(0, Math.min(run.coins, Math.floor(Number(run.non_convertible_coins || 0))));
   run.coins_earned_this_run = Number(run.coins_earned_this_run || 0);
   run.bp_earned_this_run = Number(run.bp_earned_this_run || 0);
   run.bp_investments = Array.from({length: run.player_display?.length || 3}, (_, index) => Number(run.bp_investments?.[index] || 0));
@@ -2024,7 +2028,8 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
     player_display: playerDisplay,
     player_state: playerDisplay.map((pokemon, index) => fullStateForPokemon(pokemon, index + 1)),
     coins: pendingStarter?.coins ?? starterCoinsForSeed(effectiveSeed, runTalents),
-    coins_earned_this_run: pendingStarter?.coins ?? starterCoinsForSeed(effectiveSeed, runTalents),
+    non_convertible_coins: starterNonConvertibleCoinsForTalents(runTalents),
+    coins_earned_this_run: 0,
     bp_earned_this_run: 0,
     bp_investments: [0, 0, 0],
     move_investments: [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],

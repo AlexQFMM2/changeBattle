@@ -6,6 +6,7 @@ export const BP_SCALE = COINS_PER_BP;
 export const MAX_BP = 9999;
 export const TALENT_EQUIP_LIMIT = 5;
 export const WIN_BP_REWARD = 5 * BP_SCALE;
+export const STARTER_ANGEL_FUND_COINS = 1000;
 export const SHOP_OFFER_COUNT = 3;
 export const SHOP_OFFER_COUNT_GAMBLER = 4;
 export const SHOP_CANDIDATE_COUNT = 4;
@@ -60,7 +61,7 @@ export const STARTER_UPGRADE_IDS = [
 ] as const;
 
 const TALENT_DEFINITIONS: TalentView[] = [
-  {id: "starter_angel_fund", name: "天使基金", category: "开局筹备", cost: 20, desc: "开局获得 1000 金币，提前获得第一轮运营空间。"},
+  {id: "starter_angel_fund", name: "天使基金", category: "开局筹备", cost: 20, desc: "开局获得 1000 金币，提前获得第一轮运营空间；剩余启动资金不会在结算时折算为 BP。"},
   {id: "starter_mentor_eye", name: "伯乐本乐", category: "开局筹备", cost: 25, desc: "开局选中的每只宝可梦有 33% 概率升 1 阶，仅限数值模板，最高 4 阶。"},
   {id: "starter_bag_expansion", name: "扩容背包", category: "开局筹备", cost: 20, desc: "开局道具每一类最多可以选择 2 个。"},
   {id: "starter_soulmate", name: "灵魂伴侣", category: "开局筹备", cost: 30, desc: "后续用于从上一局队伍和最后一场敌方队伍中追加回忆候选。"},
@@ -137,6 +138,8 @@ export function addCoins(run: CurrentRunData, amount: number): number {
 export function spendCoins(run: CurrentRunData, cost: number): void {
   const normalizedCost = Math.max(0, Math.floor(Number(cost || 0)));
   if (currentCoins(run) < normalizedCost) throw new Error(`金币不足，需要 ${normalizedCost}金币。`);
+  const locked = Math.max(0, Math.floor(Number(run.non_convertible_coins || 0)));
+  run.non_convertible_coins = Math.max(0, locked - normalizedCost);
   run.coins = currentCoins(run) - normalizedCost;
 }
 
@@ -146,7 +149,17 @@ export function coinsToBp(coins: number): number {
 
 export function starterCoinsForSeed(seed: number, talents: TalentView[] = []): number {
   void seed;
-  return STARTER_COINS_DEFAULT + (hasTalent(talents, "starter_angel_fund") ? 1000 : 0);
+  return STARTER_COINS_DEFAULT + starterNonConvertibleCoinsForTalents(talents);
+}
+
+export function starterNonConvertibleCoinsForTalents(talents: TalentView[] = []): number {
+  return hasTalent(talents, "starter_angel_fund") ? STARTER_ANGEL_FUND_COINS : 0;
+}
+
+export function convertibleCoinsForSettlement(run: CurrentRunData): {convertibleCoins: number; excludedCoins: number} {
+  const coins = currentCoins(run);
+  const excludedCoins = Math.min(coins, Math.max(0, Math.floor(Number(run.non_convertible_coins || 0))));
+  return {convertibleCoins: Math.max(0, coins - excludedCoins), excludedCoins};
 }
 
 export function normalizeStarterUpgrades(upgrades?: StarterUpgradeState | null): StarterUpgradeState {

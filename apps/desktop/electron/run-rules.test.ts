@@ -18,7 +18,9 @@ import {
   canScoutNext,
   candidateCountForTalents,
   clearBonus,
+  convertibleCoinsForSettlement,
   currentBp,
+  currentCoins,
   exchangeCost,
   exchangeFullState,
   exchangeKeepsItem,
@@ -40,7 +42,9 @@ import {
   shopNextRollCost,
   shopOfferCount,
   spendBp,
+  spendCoins,
   starterCoinsForSeed,
+  starterNonConvertibleCoinsForTalents,
   statResetCost,
   talent,
 } from "./run-rules.js";
@@ -93,6 +97,7 @@ function testStarterTalents(): void {
   assert.equal(candidateCountForTalents([]), 6);
   assert.equal(starterCoinsForSeed(1), 0);
   assert.equal(starterCoinsForSeed(1, talents(["starter_angel_fund"])), 1000);
+  assert.equal(starterNonConvertibleCoinsForTalents(talents(["starter_angel_fund"])), 1000);
 }
 
 function testExchangeTalents(): void {
@@ -183,6 +188,16 @@ function testEconomyTalents(): void {
   recordPortfolioSpend(portfolioRun, "shop-roll", 50);
   recordPortfolioSpend(portfolioRun, "exchange", 100);
   assert.deepEqual(portfolioBonus(portfolioRun), {types: ["商店", "交换"], bonus: 400});
+
+  const angelRun = run(["starter_angel_fund"], {coins: 1000, non_convertible_coins: 1000});
+  assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 0, excludedCoins: 1000});
+  spendCoins(angelRun, 600);
+  assert.equal(currentCoins(angelRun), 400);
+  assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 0, excludedCoins: 400});
+  addRunBp(save(0), angelRun, 500);
+  assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 500, excludedCoins: 400});
+  spendCoins(angelRun, 400);
+  assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 500, excludedCoins: 0});
 }
 
 function testDefaultsAndHelpers(): void {

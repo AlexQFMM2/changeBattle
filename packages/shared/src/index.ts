@@ -605,6 +605,7 @@ export type CurrentRunData = {
   run_start_bp?: number;
   temporary_bp_debt?: number;
   coins?: number;
+  non_convertible_coins?: number;
   coins_earned_this_run?: number;
   second_team_roar_used?: boolean;
   all_in_exchange_used?: boolean;
