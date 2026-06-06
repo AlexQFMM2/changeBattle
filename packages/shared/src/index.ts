@@ -173,10 +173,29 @@ export type DesktopDexSearchResult = {
 
 export type StarterChoiceState = {
   seed: number;
+  coins?: number;
   offers: ShopOffer[];
   purchased?: ShopOffer | null;
   purchased_list?: ShopOffer[];
   max_purchases?: number;
+  item_groups?: StarterItemGroupState[];
+  whole_rerolls_remaining?: number;
+  single_rerolls_remaining?: number;
+  inspect_count?: number;
+};
+
+export type StarterItemGroup = "battle" | "recovery" | "berry" | "tm";
+
+export type StarterItemGroupState = {
+  id: StarterItemGroup;
+  name: string;
+  quality_level: number;
+  quantity_level: number;
+  max_quality_level: number;
+  max_quantity_level: number;
+  offers: ShopOffer[];
+  purchased_offer_id?: string | null;
+  purchased_offer_ids?: string[];
 };
 
 export type PokemonSet = Record<string, any>;
@@ -313,6 +332,7 @@ export type RestState = {
   battles: number;
   wins: number;
   battle_points: number;
+  coins: number;
   player_display: RentalPokemon[];
   enemy_display: RentalPokemon[];
   player_state: PlayerPokemonState[];
@@ -325,8 +345,20 @@ export type RestState = {
   scout?: ScoutState;
   night_sky?: NightSkyState;
   review?: ReviewState;
+  next_opponent_preview?: {
+    battle_no: number;
+    label: string;
+    trainer: TrainerNpcView;
+  };
+  reroute_used?: number;
+  reroute_limit?: number;
+  recycler_available?: boolean;
+  recycle_receipt_value?: number;
+  portfolio_types?: string[];
   free_scout_used?: boolean;
   free_shop_roll_used?: boolean;
+  trust_level_used?: boolean;
+  lead_change_used?: boolean;
   restore_hp_used?: boolean;
   restore_pp_used?: boolean;
   restore_status_used?: boolean;
@@ -348,7 +380,6 @@ export type RestState = {
     randomize_part?: number;
     randomize_all?: number;
     move_draw?: number;
-    direct_move?: number;
     scout_basic?: number;
     scout_one?: number;
     scout_all?: number;
@@ -381,6 +412,25 @@ export type TalentView = {
   category: string;
   desc: string;
   cost?: number;
+  disabled?: boolean;
+};
+
+export type StarterUpgradeState = {
+  item_quality?: Partial<Record<StarterItemGroup, number>>;
+  item_quantity?: Partial<Record<StarterItemGroup, number>>;
+  pokemon_reroll?: number;
+  pokemon_inspect?: number;
+  pokemon_single_reroll?: number;
+};
+
+export type StarterUpgradeView = {
+  id: string;
+  name: string;
+  group: "开局道具" | "开局选牌";
+  desc: string;
+  level: number;
+  max_level: number;
+  cost?: number | null;
 };
 
 export type ShopOffer = ShopItem & {
@@ -388,7 +438,11 @@ export type ShopOffer = ShopItem & {
   category: ItemCategory;
   icon_asset?: string;
   discount?: number;
+  discountable?: boolean;
   source?: "shop" | "starter";
+  starter_group?: StarterItemGroup;
+  starter_group_label?: string;
+  item_tier?: number;
   move_id?: string;
   move_name?: string;
   move_name_zh?: string;
@@ -454,6 +508,10 @@ export type RestAction =
   | {type: "exchange"; ownIndex: number; enemyIndex: number}
   | {type: "box_exchange"; ownIndex: number; boxIndex: number}
   | {type: "all_in_exchange"; ownIndex: number}
+  | {type: "trust_level"; slot: number}
+  | {type: "set_lead"; slot: number}
+  | {type: "bp_to_coins"; bp: number}
+  | {type: "reroute_next"}
   | {type: "buy_item"; itemId: string}
   | {type: "roll_shop"; preferredCategory?: "healing" | "pp" | "berry" | "battle" | "tm"}
   | {type: "buy_shop_offer"; offerId: string}
@@ -466,7 +524,6 @@ export type RestAction =
   | {type: "use_tm"; itemId: string; slot: number; moveSlot: number}
   | {type: "draw_moves"; slot: number; moveSlot: number}
   | {type: "apply_drawn_move"; slot: number; moveSlot: number; moveId: string}
-  | {type: "apply_direct_move"; slot: number; moveSlot: number; moveId: string}
   | {type: "scout_next"; level: "basic" | "one" | "all"}
   | {type: "night_sky_scout"; battleNo: number; level: "one" | "all"}
   | {type: "randomize_stat_part"; slot: number; part: "ability" | "nature" | "ivs" | "evs"}
@@ -531,6 +588,11 @@ export type CurrentRunData = {
   scout?: ScoutState;
   night_sky?: NightSkyState;
   review?: ReviewState;
+  reroute_used?: number;
+  forced_trainer_ids?: Record<string, string>;
+  named_champion_id?: string | null;
+  recycle_receipt_value?: number;
+  economy_spend_types?: string[];
   talents?: TalentView[];
   boss_type?: "normal" | "gym" | "champion" | "elite4";
   boss_stage?: string;
@@ -542,6 +604,8 @@ export type CurrentRunData = {
   enemy_boss_record?: BossDexRecord;
   run_start_bp?: number;
   temporary_bp_debt?: number;
+  coins?: number;
+  coins_earned_this_run?: number;
   second_team_roar_used?: boolean;
   all_in_exchange_used?: boolean;
   exchange_box?: {
@@ -563,6 +627,8 @@ export type CurrentRunData = {
     taken_enemy_slots?: number[];
     free_shop_roll_used?: boolean;
     free_shop_rolls_remaining?: number;
+    trust_level_used?: boolean;
+    lead_change_used?: boolean;
     shop_slot_discounts?: number[];
     shop_preferred_roll_used?: boolean;
     free_scout_used?: boolean;
@@ -570,6 +636,7 @@ export type CurrentRunData = {
     restore_pp_used?: boolean;
     restore_status_used?: boolean;
     all_in_pending_next?: boolean;
+    recycler_available?: boolean;
     all_in_result?: {
       old_name: string;
       new_name: string;
@@ -602,6 +669,7 @@ export type TrainerNpcView = {
 export type TrainerCatalogState = {
   players: TrainerNpcView[];
   avatars: TrainerNpcView[];
+  champions?: TrainerNpcView[];
 };
 
 export type TrainerProfile = {
@@ -633,22 +701,16 @@ export type AppStatus =
   | "mainMenu"
   | "userInfo"
   | "talentConfig"
+  | "starterUpgrade"
   | "starterItems"
   | "rentalSelect"
   | "battleMain"
   | "moveMenu"
   | "teamMenu"
   | "statusMenu"
-  | "secondTeamRoar"
   | "exchange"
   | "rest"
   | "result";
-
-export type SecondTeamRoarState = {
-  cost: number;
-  battle_no: number;
-  can_pay: boolean;
-};
 
 export type DesktopGameState = {
   screen: AppStatus;
@@ -660,7 +722,6 @@ export type DesktopGameState = {
   battle_bag?: BagCategoryView | null;
   exchange?: ExchangeState | null;
   rest?: RestState | null;
-  rescue?: SecondTeamRoarState | null;
   message?: string;
   pending_transition?: DesktopGameState | null;
 };
@@ -672,7 +733,13 @@ export type LocalSave = {
   stats: TrainerStats;
   talent_unlocks?: string[];
   talent_equipped?: string[];
+  starter_upgrades?: StarterUpgradeState;
+  named_champion_id?: string | null;
   boss_dex?: Record<string, BossDexRecord>;
+  run_memory?: {
+    player_species_ids?: string[];
+    enemy_species_ids?: string[];
+  };
   current_run: CurrentRunSave;
   created_at: string;
   updated_at: string;

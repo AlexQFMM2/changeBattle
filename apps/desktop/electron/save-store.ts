@@ -4,7 +4,7 @@ import path from "node:path";
 import type {LocalSave, TrainerGender, TrainerProfile} from "@changebattle/shared";
 
 const SAVE_VERSION = 1 as const;
-const BP_SCALE = 100;
+const BP_SCALE = 1;
 
 export class SaveStore {
   private readonly savePath: string;
@@ -42,7 +42,7 @@ export class SaveStore {
         avatar_asset: trainer.avatar_asset,
       },
       stats: {
-        battle_points: 3000,
+        battle_points: 50,
         battles: 0,
         wins: 0,
         losses: 0,
@@ -53,6 +53,14 @@ export class SaveStore {
       },
       talent_unlocks: [],
       talent_equipped: [],
+      named_champion_id: null,
+      starter_upgrades: {
+        item_quality: {battle: 1, recovery: 1, berry: 1, tm: 1},
+        item_quantity: {battle: 0, recovery: 0, berry: 0, tm: 0},
+        pokemon_reroll: 0,
+        pokemon_inspect: 0,
+        pokemon_single_reroll: 0,
+      },
       current_run: null,
       created_at: now,
       updated_at: now,

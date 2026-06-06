@@ -1,17 +1,18 @@
-import type {CurrentRunData, ItemCategory, LocalSave, ShopItem, ShopOffer, ShopState, TalentView} from "@changebattle/shared";
+import type {CurrentRunData, ItemCategory, LocalSave, ShopItem, ShopOffer, ShopState, StarterItemGroup, StarterUpgradeState, StarterUpgradeView, TalentView} from "@changebattle/shared";
 
 export const DEFAULT_BATTLES = 7;
-export const BP_SCALE = 100;
-export const MAX_BP = 9999 * BP_SCALE;
+export const COINS_PER_BP = 100;
+export const BP_SCALE = COINS_PER_BP;
+export const MAX_BP = 9999;
 export const TALENT_EQUIP_LIMIT = 5;
 export const WIN_BP_REWARD = 5 * BP_SCALE;
-export const REROLL_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE] as const;
 export const SHOP_OFFER_COUNT = 3;
 export const SHOP_OFFER_COUNT_GAMBLER = 4;
 export const SHOP_CANDIDATE_COUNT = 4;
 export const SHOP_CANDIDATE_COUNT_GAMBLER = 8;
-export const STARTER_ITEM_OFFER_COUNT = 5;
-export const STARTER_ITEM_REROLL_COST = 1 * BP_SCALE;
+export const STARTER_COINS_DEFAULT = 0;
+export const STARTER_ITEM_MAX_LEVEL = 4;
+export const STARTER_POKEMON_INSPECT_MAX_LEVEL = 6;
 export const SHOP_ROLL_COST_FIRST = 0;
 export const SHOP_ROLL_COST_NEXT = 150;
 export const SHOP_ROLL_COST_GAMBLER_PAID = Math.floor(SHOP_ROLL_COST_NEXT * 1.5);
@@ -20,13 +21,15 @@ export const SHOP_PREFERRED_ROLL_COST = 1 * BP_SCALE;
 export const MOVE_DRAW_COST = 2 * BP_SCALE;
 export const MOVE_DRAW_COUNT = 2;
 export const MOVE_DRAW_COUNT_GAMBLER = 4;
-export const DIRECT_MOVE_COST = 3 * BP_SCALE;
 export const RANDOMIZE_PART_COST = 1 * BP_SCALE;
 export const RANDOMIZE_ALL_COST = 2 * BP_SCALE;
 export const SCOUT_BASIC_COST = 0;
 export const SCOUT_ONE_COST = 0;
 export const SCOUT_ALL_COST = 3 * BP_SCALE;
-export const SECOND_TEAM_ROAR_COST = 10 * BP_SCALE;
+export const REROUTE_LIMIT = 3;
+export const RECYCLER_EVENT_CHANCE = 0.35;
+export const RECYCLE_RECEIPT_RATE = 0.15;
+export const PORTFOLIO_BONUS_PER_TYPE = 200;
 export const EXCHANGE_CAREFUL_RATIO = 0.75;
 export const BOSS_EXCHANGE_COST = 2 * BP_SCALE;
 export const REST_EXCHANGE_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE] as const;
@@ -35,31 +38,58 @@ export const REST_PP_COSTS = {1: 0, 2: 0, 3: 0} as const;
 export const REST_STATUS_COSTS = {1: 0, 2: 0, 3: 0} as const;
 export const ADJUST_STATS_COST = 10 * BP_SCALE;
 
-export const TALENTS: TalentView[] = [
-  {id: "exchange_lossless", name: "爱护有加", category: "交换", cost: 2 * BP_SCALE, desc: "交换获得的宝可梦满 HP/满 PP 加入，并获取目标身上的道具。"},
-  {id: "exchange_pickpocket", name: "英才教育", category: "交换", cost: 3 * BP_SCALE, desc: "交换来的宝可梦品质更高；只改变阶级数值，不改变技能、特性和道具。"},
-  {id: "exchange_gym_recognition", name: "馆主认可", category: "交换", cost: 15 * BP_SCALE, desc: "馆主和四天王宝可梦不再受默认只能交换 1 只的限制。"},
-  {id: "exchange_factory_freedom", name: "工厂自由", category: "交换", cost: 30 * BP_SCALE, desc: "所有交换免费。"},
-  {id: "exchange_second_team_roar", name: "二队的怒吼", category: "交换", cost: 50 * BP_SCALE, desc: "三只宝可梦都阵亡后，可选择损失 1000BP 重新 6 选 3 并重打当前场次；每局一次。"},
-  {id: "exchange_safe_box", name: "无损交易", category: "交换", cost: 50 * BP_SCALE, desc: "拥有一个特殊宝可梦盒子，本局遇到的宝可梦会寄存在其中，后续可再次交换回来。"},
-  {id: "gambler_move_draw_4", name: "铤而走险", category: "赌徒", cost: 10 * BP_SCALE, desc: "对局中 BP 花费和休整页消耗道具可能出现更好或更坏的结果。"},
-  {id: "gambler_shop_offer_5", name: "顺手牵羊", category: "赌徒", cost: 5 * BP_SCALE, desc: "商店老虎机格子数量从 3 个提升到 4 个，候选池从 4 个提升到 8 个，技能随机候选从 2 个提升到 4 个。"},
-  {id: "gambler_free_stat_reset", name: "时也命也", category: "赌徒", cost: 10 * BP_SCALE, desc: "重置数值时可能免费，也可能付出更高代价。"},
-  {id: "gambler_random_cost_1", name: "座上贵宾", category: "赌徒", cost: 20 * BP_SCALE, desc: "每次休整获得额外免费商店抽奖机会；本次休整后续商店抽奖消耗提高。"},
-  {id: "gambler_streak_bp_risk", name: "好运连连", category: "赌徒", cost: 10 * BP_SCALE, desc: "开局更容易遇到强力宝可梦，并按连胜提高初始候选品质和闪光出现机会。"},
-  {id: "gambler_all_in_exchange", name: "孤注一掷", category: "赌徒", cost: 50 * BP_SCALE, desc: "每局限一次，生成一只强力宝可梦用于交换；交换后另外两只半血并陷入睡眠，且立即结束本次休整。"},
-  {id: "prophet_first_mover", name: "上帝之眼", category: "先知", cost: 2 * BP_SCALE, desc: "对战时显示技能打击效果，允许在对战时查看图鉴，并显示个体值和努力值。"},
-  {id: "prophet_next_scout", name: "夜观天象", category: "先知", cost: 50 * BP_SCALE, desc: "休整时可查看本局训练师顺序，并逐步揭示他们的阵容。"},
-  {id: "prophet_direct_move", name: "运筹帷幄", category: "先知", cost: 20 * BP_SCALE, desc: "调整技能时不再随机，可直接从可学习技能池选择一个技能替换，每次 300BP。"},
-  {id: "prophet_candidate_12", name: "慧眼识珠", category: "先知", cost: 50 * BP_SCALE, desc: "开局从 12 只候选宝可梦中选择，而不是 6 只。"},
-  {id: "business_starter_3", name: "有备无患", category: "经营", cost: 10 * BP_SCALE, desc: "开局可以选择 3 个免费起始道具。"},
-  {id: "business_discount_70", name: "贵客专享", category: "经营", cost: 15 * BP_SCALE, desc: "对局中所有 BP 花费享受专享折扣，向下取整。"},
-  {id: "business_refund_70", name: "精打细算", category: "经营", cost: 20 * BP_SCALE, desc: "背包返还时返还更多。"},
-  {id: "business_sell_full", name: "奇货可居", category: "经营", cost: 30 * BP_SCALE, desc: "卖出道具时能原价出售。"},
-  {id: "business_amulet_coin", name: "护符金币", category: "经营", cost: 50 * BP_SCALE, desc: "所有 BP 正向结算获得额外收益。"},
-  {id: "business_shiny_collector", name: "闪光收藏家", category: "经营", cost: 50 * BP_SCALE, desc: "任意交换获得的宝可梦均为闪光，且闪光带来的 BP 加成提高。"},
-  {id: "business_shop_strategy", name: "神机妙算", category: "经营", cost: 20 * BP_SCALE, desc: "商店抽奖前可额外花费 100BP 指定恢复药、PP 药、树果、战斗道具或技能机器。"},
+export const STARTER_ITEM_GROUPS: Array<{id: StarterItemGroup; name: string}> = [
+  {id: "battle", name: "战斗道具"},
+  {id: "recovery", name: "恢复道具"},
+  {id: "berry", name: "树果"},
+  {id: "tm", name: "技能机器"},
 ];
+
+const STARTER_ITEM_UPGRADE_NAMES: Record<StarterItemGroup, {quality: string; quantity: string}> = {
+  battle: {quality: "器械鉴定", quantity: "战术货架"},
+  recovery: {quality: "良药甄选", quantity: "急救药箱"},
+  berry: {quality: "果香识货", quantity: "丰收果篮"},
+  tm: {quality: "招式精读", quantity: "备课讲义"},
+};
+
+export const STARTER_UPGRADE_IDS = [
+  ...STARTER_ITEM_GROUPS.flatMap(group => [`item_quality:${group.id}`, `item_quantity:${group.id}`]),
+  "pokemon_reroll",
+  "pokemon_inspect",
+  "pokemon_single_reroll",
+] as const;
+
+const TALENT_DEFINITIONS: TalentView[] = [
+  {id: "starter_angel_fund", name: "天使基金", category: "开局筹备", cost: 20, desc: "开局获得 1000 金币，提前获得第一轮运营空间。"},
+  {id: "starter_mentor_eye", name: "伯乐本乐", category: "开局筹备", cost: 25, desc: "开局选中的每只宝可梦有 33% 概率升 1 阶，仅限数值模板，最高 4 阶。"},
+  {id: "starter_bag_expansion", name: "扩容背包", category: "开局筹备", cost: 20, desc: "开局道具每一类最多可以选择 2 个。"},
+  {id: "starter_soulmate", name: "灵魂伴侣", category: "开局筹备", cost: 30, desc: "后续用于从上一局队伍和最后一场敌方队伍中追加回忆候选。"},
+  {id: "exchange_trust", name: "不负信赖", category: "交换筑队", cost: 20, desc: "每场结束后可选择队内 1 只宝可梦提升 2 级，最高 55 级；溢出等级转为金币。"},
+  {id: "exchange_gym_recognition", name: "馆主认可", category: "交换筑队", cost: 15, desc: "馆主和四天王宝可梦不再受默认只能交换 1 只的限制。"},
+  {id: "exchange_careful", name: "爱护有加", category: "交换筑队", cost: 8, desc: "交换获得的宝可梦满 HP、满 PP 加入，并获取目标身上的道具。"},
+  {id: "exchange_elite_training", name: "英才教育", category: "交换筑队", cost: 12, desc: "交换来的宝可梦品质更高；只改变阶级数值，不改变技能、特性和道具。"},
+  {id: "exchange_factory_freedom", name: "工厂自由", category: "交换筑队", cost: 40, desc: "所有交换免费，但不解除 Boss 交换次数限制。"},
+  {id: "intel_rumor", name: "小道消息", category: "情报规划", cost: 30, desc: "休整时可查看本局训练师顺序，并逐步揭示他们的阵容。"},
+  {id: "intel_god_eye", name: "上帝之眼", category: "情报规划", cost: 8, desc: "对战时显示技能打击效果，允许查看图鉴，并显示个体值和努力值。"},
+  {id: "intel_shop_strategy", name: "神机妙算", category: "情报规划", cost: 18, desc: "商店抽奖前可额外花费金币指定道具方向。"},
+  {id: "intel_reroute", name: "公子驾到", category: "情报规划", cost: 25, desc: "休整时可强行更换下一场同等级对手，每局最多 3 次；冠军战不可改道。"},
+  {id: "intel_named_challenge", name: "指名挑战", category: "情报规划", cost: 25, desc: "开局前指定本局冠军路线的最终 Boss；只在最终战为冠军时生效。"},
+  {id: "growth_risky", name: "铤而走险", category: "养成改造", cost: 12, desc: "局内金币花费和休整页消耗道具可能出现更好或更坏的结果。"},
+  {id: "growth_more_choices", name: "顺手牵羊", category: "养成改造", cost: 10, desc: "商店老虎机、商店候选池和技能随机候选给出更多选择。"},
+  {id: "growth_fate", name: "时也命也", category: "养成改造", cost: 12, desc: "重置数值时可能免费，也可能付出更高代价。"},
+  {id: "growth_vip_guest", name: "座上贵宾", category: "养成改造", cost: 20, desc: "每次休整获得额外免费商店抽奖机会，后续付费抽奖变贵。"},
+  {id: "growth_all_in", name: "孤注一掷", category: "养成改造", cost: 50, desc: "每局限一次，生成一只 4 阶宝可梦用于交换；胜利后触发金币翻倍奖励。"},
+  {id: "growth_lead_change", name: "临阵换将", category: "养成改造", cost: 8, desc: "允许在休整页更换首发宝可梦。"},
+  {id: "economy_bp_exchange", name: "有借有换", category: "经济运营", cost: 10, desc: "对局中可按 1BP => 50金币兑换救急资金。"},
+  {id: "economy_recycle_receipt", name: "回收票据", category: "经济运营", cost: 15, desc: "挑战结束时，根据道具出售与背包返还经营额追加 15% 金币收益。"},
+  {id: "economy_portfolio", name: "投资组合", category: "经济运营", cost: 20, desc: "通关结算时，按本局金币消费覆盖类型返利；每类 200 金币。"},
+  {id: "economy_amulet_coin", name: "护符金币", category: "经济运营", cost: 35, desc: "所有正向金币入账获得 1.35 倍收益。"},
+  {id: "economy_shiny_collector", name: "闪光收藏家", category: "经济运营", cost: 40, desc: "交换获得的宝可梦均为闪光，且闪光带来的金币加成提高。"},
+  {id: "economy_bargainer", name: "讲价高手", category: "经济运营", cost: 20, desc: "道具回收商出现时，出售道具获得 75% 原价。"},
+  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具，并将可返还道具结算效率从 50% 提高到 75%。"},
+];
+
+export const TALENTS: TalentView[] = TALENT_DEFINITIONS;
 
 export function emptyStats() {
   return {battle_points: 0, battles: 0, wins: 0, losses: 0, win_rate: 0, set_win_streak: 0, best_set_win_streak: 0, rank_status: "未开放"};
@@ -94,6 +124,141 @@ export function spendBp(save: LocalSave, cost: number): void {
   refreshStats(save);
 }
 
+export function currentCoins(run: CurrentRunData | null | undefined): number {
+  return Math.max(0, Math.floor(Number(run?.coins || 0)));
+}
+
+export function addCoins(run: CurrentRunData, amount: number): number {
+  const gained = Math.max(0, Math.floor(Number(amount || 0)));
+  run.coins = currentCoins(run) + gained;
+  return gained;
+}
+
+export function spendCoins(run: CurrentRunData, cost: number): void {
+  const normalizedCost = Math.max(0, Math.floor(Number(cost || 0)));
+  if (currentCoins(run) < normalizedCost) throw new Error(`金币不足，需要 ${normalizedCost}金币。`);
+  run.coins = currentCoins(run) - normalizedCost;
+}
+
+export function coinsToBp(coins: number): number {
+  return Math.floor(Math.max(0, Number(coins || 0)) / COINS_PER_BP);
+}
+
+export function starterCoinsForSeed(seed: number, talents: TalentView[] = []): number {
+  void seed;
+  return STARTER_COINS_DEFAULT + (hasTalent(talents, "starter_angel_fund") ? 1000 : 0);
+}
+
+export function normalizeStarterUpgrades(upgrades?: StarterUpgradeState | null): StarterUpgradeState {
+  const itemQuality: Partial<Record<StarterItemGroup, number>> = {};
+  const itemQuantity: Partial<Record<StarterItemGroup, number>> = {};
+  for (const group of STARTER_ITEM_GROUPS) {
+    itemQuality[group.id] = Math.max(1, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quality?.[group.id] || 1))));
+    itemQuantity[group.id] = Math.max(0, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quantity?.[group.id] || 0))));
+  }
+  return {
+    item_quality: itemQuality,
+    item_quantity: itemQuantity,
+    pokemon_reroll: Math.max(0, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.pokemon_reroll || 0)))),
+    pokemon_inspect: Math.max(0, Math.min(STARTER_POKEMON_INSPECT_MAX_LEVEL, Math.floor(Number(upgrades?.pokemon_inspect || 0)))),
+    pokemon_single_reroll: Math.max(0, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.pokemon_single_reroll || 0)))),
+  };
+}
+
+export function starterUpgradeLevel(upgrades: StarterUpgradeState | undefined | null, id: string): number {
+  const normalized = normalizeStarterUpgrades(upgrades);
+  const [kind, groupRaw] = id.split(":");
+  const group = groupRaw as StarterItemGroup | undefined;
+  if (kind === "item_quality" && group) return Number(normalized.item_quality?.[group] || 1);
+  if (kind === "item_quantity" && group) return Number(normalized.item_quantity?.[group] || 0);
+  if (id === "pokemon_reroll") return Number(normalized.pokemon_reroll || 0);
+  if (id === "pokemon_inspect") return Number(normalized.pokemon_inspect || 0);
+  if (id === "pokemon_single_reroll") return Number(normalized.pokemon_single_reroll || 0);
+  return 0;
+}
+
+export function starterUpgradeMaxLevel(id: string): number {
+  if (id === "pokemon_inspect") return STARTER_POKEMON_INSPECT_MAX_LEVEL;
+  return STARTER_ITEM_MAX_LEVEL;
+}
+
+export function starterUpgradeCost(id: string, currentLevel: number): number | null {
+  const maxLevel = starterUpgradeMaxLevel(id);
+  const level = Math.max(0, Math.floor(Number(currentLevel || 0)));
+  if (level >= maxLevel) return null;
+  if (id.startsWith("item_quality:")) return [0, 5, 10, 20][level] ?? 20;
+  if (id.startsWith("item_quantity:")) return [5, 10, 20, 35][level] ?? 35;
+  if (id === "pokemon_reroll") return [3, 6, 10, 15][level] ?? 15;
+  if (id === "pokemon_inspect") return [2, 3, 5, 8, 12, 18][level] ?? 18;
+  if (id === "pokemon_single_reroll") return [5, 10, 20, 35][level] ?? 35;
+  return null;
+}
+
+export function starterUpgradeCatalog(upgrades?: StarterUpgradeState | null): StarterUpgradeView[] {
+  const normalized = normalizeStarterUpgrades(upgrades);
+  const itemRows = STARTER_ITEM_GROUPS.flatMap(group => {
+    const qualityId = `item_quality:${group.id}`;
+    const quantityId = `item_quantity:${group.id}`;
+    const qualityLevel = starterUpgradeLevel(normalized, qualityId);
+    const quantityLevel = starterUpgradeLevel(normalized, quantityId);
+    const rows: StarterUpgradeView[] = [
+      {
+        id: quantityId,
+        name: STARTER_ITEM_UPGRADE_NAMES[group.id].quantity,
+        group: "开局道具" as const,
+        desc: `每级增加 1 个${group.name}候选；每类最多免费带走 1 个。`,
+        level: quantityLevel,
+        max_level: STARTER_ITEM_MAX_LEVEL,
+        cost: starterUpgradeCost(quantityId, quantityLevel),
+      },
+    ];
+    if (quantityLevel > 0) {
+      rows.push(
+        {
+          id: qualityId,
+          name: STARTER_ITEM_UPGRADE_NAMES[group.id].quality,
+          group: "开局道具" as const,
+          desc: `限制并提高${group.name}的可出现等级。当前最高可出 ${qualityLevel} 级。`,
+          level: qualityLevel,
+          max_level: STARTER_ITEM_MAX_LEVEL,
+          cost: starterUpgradeCost(qualityId, qualityLevel),
+        },
+      );
+    }
+    return rows;
+  });
+  const pokemonRows: StarterUpgradeView[] = [
+    {
+      id: "pokemon_reroll",
+      name: "牌有问题",
+      group: "开局选牌",
+      desc: "增加整体重换开局候选宝可梦的次数。",
+      level: starterUpgradeLevel(normalized, "pokemon_reroll"),
+      max_level: STARTER_ITEM_MAX_LEVEL,
+      cost: starterUpgradeCost("pokemon_reroll", starterUpgradeLevel(normalized, "pokemon_reroll")),
+    },
+    {
+      id: "pokemon_inspect",
+      name: "我要验牌",
+      group: "开局选牌",
+      desc: "增加查看开局宝可梦个体值和努力值的次数。",
+      level: starterUpgradeLevel(normalized, "pokemon_inspect"),
+      max_level: STARTER_POKEMON_INSPECT_MAX_LEVEL,
+      cost: starterUpgradeCost("pokemon_inspect", starterUpgradeLevel(normalized, "pokemon_inspect")),
+    },
+    {
+      id: "pokemon_single_reroll",
+      name: "我要发功",
+      group: "开局选牌",
+      desc: "增加单独重随一只开局宝可梦的次数。",
+      level: starterUpgradeLevel(normalized, "pokemon_single_reroll"),
+      max_level: STARTER_ITEM_MAX_LEVEL,
+      cost: starterUpgradeCost("pokemon_single_reroll", starterUpgradeLevel(normalized, "pokemon_single_reroll")),
+    },
+  ];
+  return [...itemRows, ...pokemonRows];
+}
+
 export function hasTalent(talents: TalentView[] | undefined, id: string): boolean {
   return Boolean((talents || []).some(talent => talent.id === id));
 }
@@ -112,14 +277,15 @@ export function talentsForIds(ids: string[] = []): TalentView[] {
 export function gainedBp(run: CurrentRunData | null | undefined, amount: number): number {
   let total = Math.max(0, Number(amount || 0));
   const shinyCount = (run?.player_display || []).filter(pokemon => pokemon.shiny).length;
-  if (shinyCount > 0) total *= Math.pow(hasTalent(run?.talents, "business_shiny_collector") ? 1.3 : 1.1, shinyCount);
-  if (hasTalent(run?.talents, "business_amulet_coin")) total *= 1.5;
+  if (shinyCount > 0) total *= Math.pow(hasTalent(run?.talents, "economy_shiny_collector") ? 1.3 : 1.1, shinyCount);
+  if (hasTalent(run?.talents, "economy_amulet_coin")) total *= 1.35;
   return Math.floor(total);
 }
 
 export function addRunBp(save: LocalSave, run: CurrentRunData | null | undefined, amount: number): number {
+  void save;
   const gained = gainedBp(run, amount);
-  addBp(save, gained);
+  if (run) addCoins(run, gained);
   return gained;
 }
 
@@ -129,7 +295,7 @@ export function clearBonus(save: LocalSave, run?: CurrentRunData): {setStreak: n
   save.stats.set_win_streak = setStreak;
   save.stats.best_set_win_streak = Math.max(Number(save.stats.best_set_win_streak || 0), setStreak);
   const bonus = gainedBp(run, (setStreak * 2 + 7) * BP_SCALE);
-  addBp(save, bonus);
+  if (run) addCoins(run, bonus);
   return {setStreak, bonus};
 }
 
@@ -149,24 +315,21 @@ export function canExchangeBoss(run: CurrentRunData, exchangeCount: number): boo
 }
 
 export function exchangeKeepsItem(run: CurrentRunData): boolean {
-  return hasTalent(run.talents, "exchange_lossless");
+  return hasTalent(run.talents, "exchange_careful");
 }
 
 export function exchangeFullState(run: CurrentRunData): boolean {
-  return hasTalent(run.talents, "exchange_lossless");
+  return hasTalent(run.talents, "exchange_careful");
 }
 
 export function exchangeStateRatio(run: CurrentRunData): number {
   if (exchangeFullState(run)) return 1;
-  return hasTalent(run.talents, "exchange_lossless") ? EXCHANGE_CAREFUL_RATIO : 0.5;
-}
-
-export function canSecondTeamRoar(run: CurrentRunData): boolean {
-  return hasTalent(run.talents, "exchange_second_team_roar") && !run.second_team_roar_used;
+  return hasTalent(run.talents, "exchange_careful") ? EXCHANGE_CAREFUL_RATIO : 0.5;
 }
 
 export function candidateCountForTalents(talents: TalentView[] | undefined): number {
-  return hasTalent(talents, "prophet_candidate_12") ? 12 : 6;
+  void talents;
+  return 6;
 }
 
 export function applyProphetFirstMover(save: LocalSave, talents: TalentView[]): {active: boolean; amount: number} {
@@ -188,31 +351,29 @@ export function settleLegacyProphetDebt(save: LocalSave, run?: CurrentRunData | 
   return amount;
 }
 
-export function starterPurchaseLimit(talents: TalentView[] | undefined): number {
-  return hasTalent(talents, "business_starter_3") ? 3 : 1;
-}
-
 export function pricedForShop(item: ShopItem, talents: TalentView[] | undefined): number {
   const baseCost = Math.max(0, Number(item.cost || 5 * BP_SCALE));
-  return hasTalent(talents, "business_discount_70") ? Math.floor(baseCost * 0.7) : baseCost;
+  void talents;
+  return baseCost;
 }
 
 export function pricedForRun(run: CurrentRunData | null | undefined, cost: number): number {
   const baseCost = Math.max(0, Math.floor(Number(cost || 0)));
-  return hasTalent(run?.talents, "business_discount_70") ? Math.floor(baseCost * 0.7) : baseCost;
+  void run;
+  return baseCost;
 }
 
 export function shopOfferCount(run: CurrentRunData): number {
-  return hasTalent(run.talents, "gambler_shop_offer_5") ? SHOP_OFFER_COUNT_GAMBLER : SHOP_OFFER_COUNT;
+  return hasTalent(run.talents, "growth_more_choices") ? SHOP_OFFER_COUNT_GAMBLER : SHOP_OFFER_COUNT;
 }
 
 export function shopCandidateCount(run: CurrentRunData): number {
-  return hasTalent(run.talents, "gambler_shop_offer_5") ? SHOP_CANDIDATE_COUNT_GAMBLER : SHOP_CANDIDATE_COUNT;
+  return hasTalent(run.talents, "growth_more_choices") ? SHOP_CANDIDATE_COUNT_GAMBLER : SHOP_CANDIDATE_COUNT;
 }
 
 export function shopNextRollCost(run: CurrentRunData): number {
   if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0) return 0;
-  if (hasTalent(run.talents, "gambler_random_cost_1")) {
+  if (hasTalent(run.talents, "growth_vip_guest")) {
     return Number(run.shop_roll_count || 0) <= 0 ? SHOP_ROLL_COST_FIRST : SHOP_ROLL_COST_GAMBLER_PAID;
   }
   return Number(run.shop_roll_count || 0) <= 0 ? SHOP_ROLL_COST_FIRST : SHOP_ROLL_COST_NEXT;
@@ -245,7 +406,7 @@ export function shopDuplicateBonusForOffers(offers: ShopOffer[]): ShopState["las
 }
 
 export function moveDrawCount(run: CurrentRunData): number {
-  return hasTalent(run.talents, "gambler_shop_offer_5") ? MOVE_DRAW_COUNT_GAMBLER : MOVE_DRAW_COUNT;
+  return hasTalent(run.talents, "growth_more_choices") ? MOVE_DRAW_COUNT_GAMBLER : MOVE_DRAW_COUNT;
 }
 
 export function moveDrawCost(run: CurrentRunData): number {
@@ -253,7 +414,7 @@ export function moveDrawCost(run: CurrentRunData): number {
 }
 
 export function statResetCost(run: CurrentRunData, baseCost: number, part: string, roll?: number): number {
-  if (!hasTalent(run.talents, "gambler_free_stat_reset")) return baseCost;
+  if (!hasTalent(run.talents, "growth_fate")) return baseCost;
   const chance = roll ?? seededRng(Number(run.seed || 1), 0xf3ee + Number(run.battle_no || run.next_battle || 0) * 41 + toId(part).length * 67 + Date.now())();
   if (chance < 0.6) return 0;
   if (chance < 0.9) return baseCost * 2;
@@ -262,11 +423,34 @@ export function statResetCost(run: CurrentRunData, baseCost: number, part: strin
 
 export function sellPriceForItem(item: Pick<ShopItem, "cost">, run: CurrentRunData): number {
   const base = Math.max(0, Number(item.cost || 0));
-  return hasTalent(run.talents, "business_sell_full") ? base : Math.floor(base / 2);
+  if (hasTalent(run.talents, "economy_bargainer")) return Math.floor(base * 0.75);
+  return Math.floor(base / 2);
+}
+
+export function portfolioSpendTypeForLabel(label: string): string | null {
+  const key = toId(label);
+  if (key.startsWith("exchange")) return "交换";
+  if (key.startsWith("shop") || key.startsWith("buyitem")) return "商店";
+  if (key.startsWith("drawmoves") || key.startsWith("adjustmove")) return "技能";
+  if (key.startsWith("randomizestats") || key.startsWith("adjuststats")) return "数值";
+  if (key.startsWith("scoutnext") || key.startsWith("nightsky")) return "情报";
+  return null;
+}
+
+export function recordPortfolioSpend(run: CurrentRunData, label: string, paid: number): void {
+  if (!hasTalent(run.talents, "economy_portfolio") || paid <= 0) return;
+  const type = portfolioSpendTypeForLabel(label);
+  if (!type) return;
+  run.economy_spend_types = Array.from(new Set([...(run.economy_spend_types || []), type]));
+}
+
+export function portfolioBonus(run: CurrentRunData): {types: string[]; bonus: number} {
+  const types = Array.from(new Set((run.economy_spend_types || []).filter(Boolean)));
+  return {types, bonus: hasTalent(run.talents, "economy_portfolio") ? types.length * PORTFOLIO_BONUS_PER_TYPE : 0};
 }
 
 export function refundableBagBaseBpFromCosts(run: CurrentRunData, itemCosts: Record<string, number>): number {
-  const rate = hasTalent(run.talents, "business_refund_70") ? 1 : 0.5;
+  const rate = hasTalent(run.talents, "economy_premium_guest") ? 0.75 : 0.5;
   let total = 0;
   for (const [id, rawCount] of Object.entries(run.bag_items || {})) {
     const count = Math.max(0, Number(rawCount || 0));
@@ -279,7 +463,7 @@ export function refundableBagBaseBpFromCosts(run: CurrentRunData, itemCosts: Rec
 }
 
 export function canScoutNext(run: CurrentRunData): boolean {
-  return hasTalent(run.talents, "prophet_next_scout");
+  return hasTalent(run.talents, "intel_rumor");
 }
 
 export function scoutCost(level: "basic" | "one" | "all"): number {
@@ -287,7 +471,8 @@ export function scoutCost(level: "basic" | "one" | "all"): number {
 }
 
 export function canDirectMove(run: CurrentRunData): boolean {
-  return hasTalent(run.talents, "prophet_direct_move");
+  void run;
+  return false;
 }
 
 export function itemKey(value: string | undefined): string {

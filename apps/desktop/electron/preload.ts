@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 contextBridge.exposeInMainWorld("changeBattle", {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -43,6 +43,18 @@ contextBridge.exposeInMainWorld("changeBattle", {
   configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
     return ipcRenderer.invoke("talents:configure", ids);
   },
+  setNamedChallenge(trainerId: string | null): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("talents:setNamedChallenge", trainerId);
+  },
+  getStarterUpgrades(): Promise<{catalog: StarterUpgradeView[]; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("starterUpgrades:get");
+  },
+  upgradeStarter(id: string): Promise<{catalog: StarterUpgradeView[]; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("starterUpgrades:upgrade", id);
+  },
+  rerollStarterCandidate(index: number): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:rerollStarterCandidate", index);
+  },
   beginChallenge(selectedIndexes: number[], seed: number, battles?: number): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:beginChallenge", selectedIndexes, seed, battles);
   },
@@ -51,9 +63,6 @@ contextBridge.exposeInMainWorld("changeBattle", {
   },
   battleChoice(choice: string): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:battleChoice", choice);
-  },
-  secondTeamRoar(useRescue: boolean): Promise<DesktopGameState> {
-    return ipcRenderer.invoke("run:secondTeamRoar", useRescue);
   },
   exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:exchange", ownIndex, enemyIndex);

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 declare global {
   interface Window {
@@ -18,10 +18,13 @@ declare global {
       getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
       unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
       configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
+      setNamedChallenge(trainerId: string | null): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
+      getStarterUpgrades(): Promise<{catalog: StarterUpgradeView[]; save?: LocalSave | null}>;
+      upgradeStarter(id: string): Promise<{catalog: StarterUpgradeView[]; save?: LocalSave | null}>;
+      rerollStarterCandidate(index: number): Promise<DesktopGameState>;
       beginChallenge(selectedIndexes: number[], seed: number, battles?: number): Promise<DesktopGameState>;
       continueRun(): Promise<DesktopGameState>;
       battleChoice(choice: string): Promise<DesktopGameState>;
-      secondTeamRoar(useRescue: boolean): Promise<DesktopGameState>;
       exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState>;
       restAction(action: RestAction): Promise<DesktopGameState>;
       shopItems(query?: string): Promise<ShopItem[]>;

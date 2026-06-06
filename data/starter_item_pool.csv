@@ -1,0 +1,35 @@
+id,kind,category,starter_group,tier,coin_cost,weight,enabled,discountable,notes
+potion,item,consumable,recovery,1,50,8,1,1,hp heal
+superpotion,item,consumable,recovery,2,100,7,1,1,hp heal
+hyperpotion,item,consumable,recovery,3,200,5,1,1,hp heal
+maxpotion,item,consumable,recovery,4,250,3,1,1,full hp heal
+fullrestore,item,consumable,recovery,4,300,2,1,1,full hp and status
+revive,item,consumable,recovery,3,200,4,1,1,revive
+maxrevive,item,consumable,recovery,4,300,1,1,1,full revive
+revivalherb,item,consumable,recovery,4,300,1,1,1,full revive herb
+fullheal,item,consumable,recovery,2,100,5,1,1,status heal
+ether,item,consumable,recovery,2,200,5,1,1,pp heal
+maxether,item,consumable,recovery,3,300,3,1,1,full pp move heal
+elixir,item,consumable,recovery,3,400,2,1,1,all pp heal
+maxelixir,item,consumable,recovery,4,500,1,1,1,full all pp heal
+oranberry,item,consumable,berry,1,100,6,1,1,hp berry
+sitrusberry,item,consumable,berry,2,200,6,1,1,hp berry
+leppaberry,item,consumable,berry,2,200,5,1,1,pp berry
+lumberry,item,consumable,berry,3,300,5,1,1,status berry
+cheriberry,item,consumable,berry,1,100,4,1,1,paralysis berry
+chestoberry,item,consumable,berry,1,100,4,1,1,sleep berry
+pechaberry,item,consumable,berry,1,100,4,1,1,poison berry
+rawstberry,item,consumable,berry,1,100,4,1,1,burn berry
+aspearberry,item,consumable,berry,1,100,4,1,1,freeze berry
+leftovers,item,held,battle,4,500,4,1,0,recover each turn
+lifeorb,item,held,battle,4,500,3,1,0,damage boost
+choiceband,item,held,battle,4,500,2,1,0,attack choice boost
+choicespecs,item,held,battle,4,500,2,1,0,special attack choice boost
+choicescarf,item,held,battle,4,500,2,1,0,speed choice boost
+assaultvest,item,held,battle,3,400,2,1,0,special defense boost
+focussash,item,held,battle,3,400,2,1,0,survive from full
+eviolite,item,held,battle,3,400,2,1,0,not fully evolved bulk
+rockyhelmet,item,held,battle,3,400,2,1,0,contact damage
+airballoon,item,held,battle,2,300,2,1,0,ground immunity
+expertbelt,item,held,battle,2,300,2,1,0,super effective boost
+*,tm,tm,tm,1,300,5,1,1,current team learnable starter tm pool
