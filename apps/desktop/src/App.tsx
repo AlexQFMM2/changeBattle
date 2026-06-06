@@ -1736,11 +1736,11 @@ function BattleDialogueBox({dialogue}: {dialogue: TrainerDialogueState}) {
   return (
     <div className="battle-dialogue-box">
       <div className="battle-dialogue-name">
-        <span>{dialogue.title}</span>
         <strong>{dialogue.speaker}</strong>
+        <span>{dialogue.title}</span>
       </div>
       <p>{line}</p>
-      <i>{dialogue.index + 1}/{dialogue.lines.length}</i>
+      <i aria-hidden="true">▼</i>
     </div>
   );
 }

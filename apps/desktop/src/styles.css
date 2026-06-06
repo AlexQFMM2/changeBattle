@@ -1497,40 +1497,41 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 }
 
 .battle-dialogue-box {
+  position: relative;
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(150px, .22fr) minmax(0, 1fr) 54px;
-  align-items: center;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: start;
+  align-content: start;
+  gap: 12px;
   border: 4px solid #25332b;
   border-radius: 8px;
   background:
     linear-gradient(180deg, #fffdf8, #f5f0df 58%, #e8dec3),
     repeating-linear-gradient(0deg, transparent 0 5px, rgb(37 51 43 / 5%) 5px 10px);
   box-shadow: inset 0 0 0 3px #fff8, 0 5px 0 #25332b;
-  padding: 18px 22px;
+  padding: 18px 26px 22px;
   color: #20281f;
   animation: enter-up .28s cubic-bezier(.2, .82, .2, 1) both;
 }
 
 .battle-dialogue-name {
   min-width: 0;
-  display: grid;
-  gap: 5px;
-  align-content: center;
-  border-right: 2px solid rgb(37 51 43 / 22%);
-  padding-right: 16px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .battle-dialogue-name span {
-  width: max-content;
-  max-width: 100%;
-  border-radius: 999px;
-  background: #2f5d68;
-  color: #fffdf5;
-  padding: 3px 9px;
-  font-size: 14px;
+  min-width: 0;
+  max-width: 28ch;
+  border-left: 2px solid rgb(37 51 43 / 26%);
+  color: #53604f;
+  padding-left: 10px;
+  font-size: 13px;
   font-weight: 900;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1539,28 +1540,44 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 
 .battle-dialogue-name strong {
   min-width: 0;
+  max-width: min(42ch, 70%);
+  border-radius: 999px;
+  background: #2f5d68;
+  color: #fffdf5;
+  box-shadow: 0 2px 0 #25332b;
+  padding: 4px 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.1;
 }
 
 .battle-dialogue-box p {
   min-width: 0;
   margin: 0;
+  padding: 6px 44px 0 18px;
   font-size: 28px;
   font-weight: 900;
   line-height: 1.35;
 }
 
 .battle-dialogue-box i {
-  justify-self: end;
-  align-self: end;
-  color: #4b574c;
-  font-size: 14px;
+  position: absolute;
+  right: 22px;
+  bottom: 16px;
+  color: #d6a528;
+  text-shadow: 0 2px 0 #25332b;
+  font-size: 20px;
   font-style: normal;
   font-weight: 900;
+  line-height: 1;
+  animation: dialogue-cue .9s ease-in-out infinite alternate;
+}
+
+@keyframes dialogue-cue {
+  from { transform: translateY(-1px); opacity: .72; }
+  to { transform: translateY(3px); opacity: 1; }
 }
 
 .battle-message-pop {
@@ -2319,6 +2336,10 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   align-self: stretch;
+}
+
+.rest-header-insights:empty {
+  display: none;
 }
 
 .rest-header-actions {
@@ -3952,11 +3973,11 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   .battle-bottom { grid-template-columns: minmax(220px, 0.5fr) minmax(0, 1fr); grid-template-rows: none; gap: 8px; padding: 8px; }
   .battle-bottom.dialogue-bottom-active { grid-template-columns: minmax(0, 1fr); }
   .battle-log { font-size: 13px; padding: 7px 8px; }
-  .battle-dialogue-box { grid-template-columns: minmax(0, 1fr) 44px; grid-template-rows: auto minmax(0, 1fr); gap: 8px 10px; padding: 12px 14px; }
-  .battle-dialogue-name { grid-column: 1 / -1; grid-template-columns: auto minmax(0, 1fr); align-items: center; border-right: 0; border-bottom: 2px solid rgb(37 51 43 / 18%); padding: 0 0 7px; }
-  .battle-dialogue-name span { font-size: 12px; }
-  .battle-dialogue-name strong { font-size: 18px; }
-  .battle-dialogue-box p { font-size: 22px; }
+  .battle-dialogue-box { gap: 9px; padding: 12px 14px 18px; }
+  .battle-dialogue-name { gap: 7px; }
+  .battle-dialogue-name span { max-width: 22ch; padding-left: 7px; font-size: 12px; }
+  .battle-dialogue-name strong { max-width: 70%; font-size: 18px; }
+  .battle-dialogue-box p { padding: 2px 34px 0 10px; font-size: 22px; }
   .move-menu { gap: 5px 8px; padding: 6px; grid-template-rows: 50px 50px 28px; }
   .move-choice { padding: 4px; }
   .move-choice:nth-child(odd) { border-radius: 9px 999px 999px 9px; }
@@ -3968,8 +3989,10 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   .battle-system-row { gap: 5px; }
   .battle-system-row button { min-width: 56px; min-height: 22px; font-size: 10px; }
   .battle-message-pop { left: 22px; bottom: 136px; min-width: 260px; font-size: 20px; }
-  .rest-page { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr) minmax(240px, .8fr); }
+  .rest-page { grid-template-columns: 1fr; grid-template-rows: auto auto auto; align-content: start; overflow: auto; }
   .rest-header { grid-column: 1; align-items: stretch; flex-direction: column; }
+  .rest-header > :first-child { flex: 0 1 auto; }
+  .rest-header-insights { flex: 0 1 auto; grid-template-columns: 1fr; }
   .rest-team-list { grid-auto-rows: minmax(74px, auto); }
   .rest-team-card { min-height: 74px; grid-template-columns: 58px minmax(0, 1fr) auto; }
   .rest-team-card .pokemon-sprite { width: 52px; height: 52px; }
