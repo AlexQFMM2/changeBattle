@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld("changeBattle", {
   createNewSave(trainer: TrainerProfile): Promise<LocalSave> {
     return ipcRenderer.invoke("save:createNew", trainer);
   },
+  deleteSave(): Promise<void> {
+    return ipcRenderer.invoke("save:delete");
+  },
   updateTrainer(trainer: TrainerProfile): Promise<LocalSave> {
     return ipcRenderer.invoke("save:updateTrainer", trainer);
   },

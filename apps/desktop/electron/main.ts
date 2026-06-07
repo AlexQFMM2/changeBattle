@@ -3091,6 +3091,7 @@ app.whenReady().then(() => {
 
   handleIpc("save:load", async () => loadSave());
   handleIpc("save:createNew", async (trainer: TrainerProfile) => saveStore!.createNew(normalizeTrainerProfile(trainer)));
+  handleIpc("save:delete", async () => saveStore!.delete());
   handleIpc("save:updateTrainer", async (trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
   handleIpc("save:testMode", async () => enableTestMode());
   handleIpc("trainer:catalog", async () => trainerCatalogState());

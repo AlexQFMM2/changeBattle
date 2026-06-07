@@ -2480,6 +2480,33 @@ function toId(value: string): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+const MAJOR_STATUS_IDS = new Set(["brn", "par", "psn", "tox", "slp", "frz", "fnt"]);
+
+function statusTokenList(raw: string | undefined): string[] {
+  const seen = new Set<string>();
+  return String(raw || "").split(/[\s,;/]+/).map(toId).filter(token => {
+    if (!token || seen.has(token)) return false;
+    seen.add(token);
+    return true;
+  });
+}
+
+function withStatusToken(raw: string | undefined, token: string, enabled: boolean): string {
+  const id = toId(token);
+  const tokens = statusTokenList(raw).filter(value => value !== id);
+  if (enabled && id) tokens.push(id);
+  return tokens.join(" ");
+}
+
+function withoutMajorStatusTokens(raw: string | undefined): string {
+  return statusTokenList(raw).filter(token => !MAJOR_STATUS_IDS.has(token)).join(" ");
+}
+
+function updateActiveStatusToken(tracker: BattleTracker, side: SideId | null, rawIdent: string | undefined, token: string, enabled: boolean): void {
+  if (!side || !isActiveIdent(tracker, side, rawIdent)) return;
+  tracker.active[side] = {...tracker.active[side], status: withStatusToken(tracker.active[side]?.status, token, enabled)};
+}
+
 function parseCsvLine(line: string): string[] {
   const cells: string[] = [];
   let cell = "";
@@ -3125,7 +3152,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       timelineEvent = {type: eventType, text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), condition, hp: parseConditionHp(condition)};
     } else if (tag === "-status" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
-      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], status: parts[3]};
+      updateActiveStatusToken(tracker, side, parts[2], parts[3], true);
       const target = translatedSpecies(service, parts[2]);
       const status = service.plain("statuses", parts[3]);
       const protocol = protocolSource(parts, service);
@@ -3133,14 +3160,14 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       timelineEvent = {type: protocol.kind === "item" || protocol.kind === "ability" ? sourceEventType(protocol) : "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: protocol.name || status};
     } else if (tag === "-curestatus" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
-      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], status: ""};
+      updateActiveStatusToken(tracker, side, parts[2], parts[3], false);
       const target = translatedSpecies(service, parts[2]);
       text = `${target} 解除 ${service.plain("statuses", parts[3])}`;
       timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: service.plain("statuses", parts[3])};
     } else if (tag === "-cureteam" && parts[2]) {
       const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
-      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], status: ""};
+      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], status: withoutMajorStatusTokens(tracker.active[side]?.status)};
       text = `${target} 治愈了队伍的异常状态。`;
       timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2])};
     } else if (tag === "-start" && parts[2] && parts[3]) {
@@ -3153,6 +3180,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
         text = `${target} 制造了替身。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: true};
       } else if (effectId === "confusion") {
+        updateActiveStatusToken(tracker, side, parts[2], "confusion", true);
         text = `${target} 陷入混乱。`;
         timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: "confusion"};
       } else {
@@ -3169,6 +3197,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
         text = `${target} 的替身消失了。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: false};
       } else if (effectId === "confusion") {
+        updateActiveStatusToken(tracker, side, parts[2], "confusion", false);
         text = `${target} 的混乱结束了。`;
         timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: "confusion"};
       } else {

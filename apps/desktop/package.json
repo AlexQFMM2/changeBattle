@@ -14,10 +14,11 @@
     "@changebattle/game-service": "workspace:*",
     "@changebattle/shared": "workspace:*",
     "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.0.0",
+    "electron": "^38.0.0",
+    "motion": "^12.40.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "electron": "^38.0.0"
+    "vite": "^7.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

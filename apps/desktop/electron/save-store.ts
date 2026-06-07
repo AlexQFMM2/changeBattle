@@ -1,4 +1,4 @@
-import {mkdir, readFile, writeFile} from "node:fs/promises";
+import {mkdir, readFile, unlink, writeFile} from "node:fs/promises";
 import {existsSync} from "node:fs";
 import path from "node:path";
 import type {LocalSave, TrainerGender, TrainerProfile} from "@changebattle/shared";
@@ -92,6 +92,11 @@ export class SaveStore {
     const next = {...save, updated_at: new Date().toISOString()};
     await this.write(next);
     return next;
+  }
+
+  async delete(): Promise<void> {
+    if (!existsSync(this.savePath)) return;
+    await unlink(this.savePath);
   }
 
   private async write(save: LocalSave): Promise<void> {

@@ -9,6 +9,7 @@ declare global {
       assetUrl(relativePath: string): string;
       loadSave(): Promise<LocalSave | null>;
       createNewSave(trainer: TrainerProfile): Promise<LocalSave>;
+      deleteSave(): Promise<void>;
       updateTrainer(trainer: TrainerProfile): Promise<LocalSave>;
       enableTestMode(): Promise<LocalSave>;
       trainerCatalog(): Promise<TrainerCatalogState>;

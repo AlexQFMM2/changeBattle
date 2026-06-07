@@ -8,6 +8,7 @@ debug/
 work/
 release/
 saves/
+logs/
 assets/pokemon-green/
 node_modules/
 apps/desktop/out/
