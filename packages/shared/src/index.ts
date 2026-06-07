@@ -369,9 +369,13 @@ export type RestState = {
   shop?: ShopState;
   starter_items?: StarterItemState;
   move_draws?: Record<string, PricedMove[]>;
+  move_draw_rolls?: Record<string, number>;
   scout?: ScoutState;
   night_sky?: NightSkyState;
   review?: ReviewState;
+  champion_options?: TrainerNpcView[];
+  named_champion_id?: string | null;
+  named_challenge_decided?: boolean;
   next_opponent_preview?: {
     battle_no: number;
     label: string;
@@ -484,6 +488,7 @@ export type ShopState = {
   slot_discounts?: number[];
   offers: ShopOffer[];
   purchased_offer_id?: string | null;
+  purchased_offer_counts?: Record<string, number>;
   last_roll_bonus?: {
     item_id: string;
     name: string;
@@ -505,6 +510,10 @@ export type NightSkyRow = {
   battle_no: number;
   label: string;
   trainer: TrainerNpcView;
+  route_type?: TrainerNpcType;
+  trainer_visible?: boolean;
+  encountered?: boolean;
+  named_visible?: boolean;
   revealed: number;
   unlocked?: boolean;
   enemies: Array<RentalPokemon | null>;
@@ -538,7 +547,8 @@ export type RestAction =
   | {type: "trust_level"; slot: number}
   | {type: "set_lead"; slot: number}
   | {type: "bp_to_coins"; bp: number}
-  | {type: "reroute_next"}
+  | {type: "reroute_next"; battleNo?: number}
+  | {type: "set_named_champion"; trainerId: string | null}
   | {type: "buy_item"; itemId: string}
   | {type: "roll_shop"; preferredCategory?: "healing" | "pp" | "berry" | "battle" | "tm"}
   | {type: "buy_shop_offer"; offerId: string}
@@ -564,11 +574,33 @@ export type ResultSummaryRow = {
   detail?: string;
 };
 
+export type ResultPokemonSummary = {
+  pokemon: RentalPokemon;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage_dealt: number;
+  damage_taken: number;
+};
+
+export type ResultProgressRow = {
+  battle_no: number;
+  label: string;
+  outcome?: "win" | "loss" | "abort" | "pending";
+  trainer?: TrainerNpcView;
+  trainer_visible?: boolean;
+};
+
 export type ResultSummaryState = {
   outcome: "win" | "loss" | "abort";
   headline: string;
   subtitle?: string;
   rows: ResultSummaryRow[];
+  coin_rows?: ResultSummaryRow[];
+  bp_rows?: ResultSummaryRow[];
+  talents?: TalentView[];
+  used_pokemon?: ResultPokemonSummary[];
+  progress?: ResultProgressRow[];
   player_team?: RentalPokemon[];
   enemy_team?: RentalPokemon[];
   enemy_trainer?: TrainerNpcView;
@@ -622,21 +654,26 @@ export type CurrentRunData = {
   shop_roll_count?: number;
   shop_offers?: ShopOffer[];
   shop_purchased_offer_id?: string | null;
+  shop_purchased_offer_counts?: Record<string, number>;
   shop_last_roll_bonus?: ShopState["last_roll_bonus"];
   starter_item_offers?: ShopOffer[];
   starter_item_purchased?: string[];
   non_refundable_bag_items?: Record<string, number>;
   bag_item_meta?: Record<string, Partial<ShopOffer>>;
   move_draws?: Record<string, PricedMove[]>;
+  move_draw_rolls?: Record<string, number>;
   scout?: ScoutState;
   night_sky?: NightSkyState;
   review?: ReviewState;
   reroute_used?: number;
   forced_trainer_ids?: Record<string, string>;
+  reroute_history?: Record<string, string[]>;
   named_champion_id?: string | null;
   recycle_receipt_value?: number;
   economy_spend_types?: string[];
   talents?: TalentView[];
+  used_pokemon_display?: RentalPokemon[];
+  used_pokemon_stats?: Record<string, Omit<ResultPokemonSummary, "pokemon">>;
   boss_type?: "normal" | "gym" | "champion" | "elite4";
   boss_stage?: string;
   boss_route?: string;
@@ -685,6 +722,7 @@ export type CurrentRunData = {
       old_name: string;
       new_name: string;
     } | null;
+    named_challenge_decided?: boolean;
   };
 };
 

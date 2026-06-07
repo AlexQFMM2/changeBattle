@@ -3,8 +3,8 @@ import {createRoot} from "react-dom/client";
 import type {AppStatus, BagCategoryView, BattleState, DesktopGameState, LocalSave, RentalPokemon, RestAction, ResultSummaryState, TrainerCatalogState} from "@changebattle/shared";
 import {useResponsiveCanvas} from "./hooks/useResponsiveCanvas";
 import "./styles.css";
-import {ErrorDialog} from "./components/feedback/ErrorDialog";
-import {DexModal} from "./pages/dex/DexModal";
+import {ScreenToast} from "./components/feedback/ScreenToast";
+import {QuickDexModal} from "./pages/dex/QuickDexModal";
 import {PlayerSettings} from "./pages/player/PlayerSettings";
 import {ResultView} from "./pages/result/ResultView";
 import {ExchangeView, RestView} from "./pages/rest/RestView";
@@ -91,9 +91,13 @@ function App() {
   const [dexOpen, setDexOpen] = useState(false);
   const [message, setMessage] = useState("欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [appToast, setAppToast] = useState<{id: number; message: string} | null>(null);
   const [battleChoicePending, setBattleChoicePending] = useState(false);
   const battleChoicePendingRef = useRef(false);
+
+  function showAppToast(message: string) {
+    setAppToast({id: Date.now(), message});
+  }
 
   useEffect(() => {
     void window.changeBattle?.loadSave().then(loaded => {
@@ -138,7 +142,6 @@ function App() {
 
   async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus, showLoading = true): Promise<boolean> {
     if (showLoading) setLoading(true);
-    setError(null);
     try {
       const result = await action();
       if (result && "screen" in result) applyState(result);
@@ -146,7 +149,7 @@ function App() {
       if (fallbackScreen) setScreen(fallbackScreen);
       return true;
     } catch (err) {
-      setError(userFacingError(err));
+      showAppToast(userFacingError(err));
       return false;
     } finally {
       if (showLoading) setLoading(false);
@@ -175,7 +178,6 @@ function App() {
   }
 
   async function createTitleSave(name: string, playerId: string, avatarAsset: string): Promise<LocalSave | null> {
-    setError(null);
     const player = trainerCatalog.players.find(entry => entry.id === playerId) || trainerCatalog.players[0];
     const created = await window.changeBattle!.createNewSave(profileFromSelection(name, player, avatarAsset));
     setSave(created);
@@ -270,11 +272,10 @@ function App() {
       const origin = (candidates[index] as RentalPokemon & {starter_origin?: string} | undefined)?.starter_origin || "current";
       const memorySelected = current.filter(value => ((candidates[value] as RentalPokemon & {starter_origin?: string} | undefined)?.starter_origin || "current") === "memory").length;
       if (origin === "memory" && memorySelected >= 1) {
-        setError("灵魂伴侣最多选择 1 只回忆候选。");
+        showAppToast("灵魂伴侣最多选择 1 只回忆候选。");
         return current;
       }
       const next = current.length < 3 ? [...current, index] : [...current.slice(0, 2), index];
-      setError(null);
       return next;
     });
   }
@@ -303,10 +304,9 @@ function App() {
     const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
     const canOpenDex = screen === "mainMenu" || (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen) && battleHasDexTalent);
     if (!canOpenDex) {
-      setError("当前页面不能打开图鉴。");
+      showAppToast("当前页面不能打开图鉴。");
       return;
     }
-    setError(null);
     setDexOpen(true);
   }
 
@@ -328,7 +328,7 @@ function App() {
 
   const isBattleScreen = ["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen);
   const hideTransientMessage = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "rentalSelect"].includes(screen);
-  const transientMessage = !error && !isBattleScreen && !hideTransientMessage ? message : "";
+  const transientMessage = !isBattleScreen && !hideTransientMessage ? message : "";
   const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
   const showDexButton = isBattleScreen && battleHasDexTalent;
 
@@ -342,10 +342,10 @@ function App() {
         <div className="game-viewport">
           {content}
           {showDexButton ? <button className="floating-dex-button" title="打开图鉴" onClick={openDex}>图鉴</button> : null}
-          {dexOpen ? <DexModal onClose={() => setDexOpen(false)} /> : null}
+          {dexOpen ? <QuickDexModal onClose={() => setDexOpen(false)} /> : null}
           {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
-          {transientMessage ? <div className="screen-toast">{transientMessage}</div> : null}
-          {error ? <ErrorDialog message={error} onClose={() => setError(null)} /> : null}
+          {transientMessage ? <ScreenToast message={transientMessage} /> : null}
+          {appToast ? <ScreenToast key={appToast.id} message={appToast.message} durationMs={1400} onDone={() => setAppToast(null)} /> : null}
         </div>
       </section>
     </main>

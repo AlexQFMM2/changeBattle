@@ -340,6 +340,7 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
         </div>
         <div className="starter-actions">
           <button onClick={onBack}>返回</button>
+          <button onClick={nextStep}>{isLastPage ? "开始" : "下一步"}</button>
         </div>
       </header>
       <section className="starter-wizard">
@@ -371,13 +372,6 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
             })}
           </div>
         </div>
-        <footer className="starter-wizard-footer">
-          <div>
-            <strong>{selectedOffer ? selectedOffer.name_zh || selectedOffer.name : "本页未选择"}</strong>
-            <span>{selectedOffer ? "点击下一步后锁定本页选择。" : "不选择也可以继续，离开后本页就算跳过。"}</span>
-          </div>
-          <button onClick={nextStep}>{isLastPage ? "开始" : "下一步"}</button>
-        </footer>
       </section>
       {skipConfirmOpen ? (
         <div className="starter-skip-confirm" role="dialog" aria-modal="true">

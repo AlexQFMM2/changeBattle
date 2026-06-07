@@ -2,7 +2,8 @@ import {useEffect, useMemo, useState} from "react";
 import type {DesktopDexCategory, DesktopDexEntry, MoveSummary} from "@changebattle/shared";
 import {AnimatePresence, motion, type Variants} from "motion/react";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
-import {STAT_ROWS, assetUrl, typeId} from "../../lib/ui";
+import {MoveCard} from "../move/MoveCard";
+import {STAT_ROWS, assetUrl} from "../../lib/ui";
 
 export type QuickDexCategory = Exclude<DesktopDexCategory, "trainers">;
 
@@ -226,25 +227,20 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
                   {!loading && !error && entries.length === 0 ? <p className="quick-dex-message">没有匹配结果。</p> : null}
                   {entries.map((entry, index) => (
                     entry.category === "moves" ? (
-                      <motion.button
-                        className={`move-choice quick-dex-move-card quick-dex-result-move-card move-type-${typeId(entry.type || entry.type_zh)} ${selected?.id === entry.id ? "selected" : ""}`}
+                      <MoveCard
+                        size="dex"
+                        className="quick-dex-move-card quick-dex-result-move-card"
+                        selected={selected?.id === entry.id}
+                        name={entry.name_zh || entry.name}
+                        moveType={entry.type || entry.type_zh}
+                        typeLabel={entry.type_zh || entry.type || "一般"}
+                        category={entry.move_category_zh || entry.move_category || "变化"}
+                        pp={entry.pp || "--"}
+                        power={entry.power || "--"}
+                        accuracy={entry.accuracy ?? "必中"}
                         onClick={() => setSelectedId(entry.id)}
-                        initial={{opacity: 0, y: 8}}
-                        animate={{opacity: 1, y: 0}}
-                        transition={{delay: index * 0.025, type: "spring", stiffness: 360, damping: 30}}
                         key={`${entry.category}-${entry.id}`}
-                      >
-                        <span className="move-name-row">
-                          <strong>{entry.name_zh || entry.name}</strong>
-                          <i>{entry.move_category_zh || entry.move_category || "变化"}</i>
-                        </span>
-                        <span className="move-meta-row">
-                          <b>{entry.type_zh || entry.type || "一般"}</b>
-                          <em>PP {entry.pp || "--"}</em>
-                          <em>威力 {entry.power || "--"}</em>
-                          <em>命中 {entry.accuracy ?? "必中"}</em>
-                        </span>
-                      </motion.button>
+                      />
                     ) : (
                       <motion.button
                         className={selected?.id === entry.id ? "selected" : ""}
@@ -294,18 +290,19 @@ function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; o
           {entry.base_stats ? <div className="quick-dex-stat-grid">{STAT_ROWS.map(([stat, label]) => <p key={stat}><span>{label}</span><strong>{entry.base_stats?.[stat] || 0}</strong></p>)}</div> : null}
           <div className="quick-dex-learnset">
             {(entry.learnset || []).map(move => (
-              <button className={`move-choice quick-dex-move-card move-type-${typeId(move.type || move.type_zh)}`} onClick={() => onMoveSelect(move)} key={move.id}>
-                <span className="move-name-row">
-                  <strong>{move.name_zh || move.name}</strong>
-                  <i>{move.category_zh || move.category || "变化"}</i>
-                </span>
-                <span className="move-meta-row">
-                  <b>{move.type_zh || move.type || "一般"}</b>
-                  <em>PP {move.pp || "--"}</em>
-                  <em>威力 {move.power || "--"}</em>
-                  <em>命中 {move.accuracy ?? "必中"}</em>
-                </span>
-              </button>
+              <MoveCard
+                size="dex"
+                className="quick-dex-move-card"
+                name={move.name_zh || move.name}
+                moveType={move.type || move.type_zh}
+                typeLabel={move.type_zh || move.type || "一般"}
+                category={move.category_zh || move.category || "变化"}
+                pp={move.pp || "--"}
+                power={move.power || "--"}
+                accuracy={move.accuracy ?? "必中"}
+                onClick={() => onMoveSelect(move)}
+                key={move.id}
+              />
             ))}
             {!entry.learnset?.length ? <small>暂无技能池数据。</small> : null}
           </div>

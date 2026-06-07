@@ -3,6 +3,7 @@ import type {CSSProperties} from "react";
 import type {AppStatus, BagCategoryView, BattleMoveRequest, BattleState, BattleTimelineEvent, BossDexRecord, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon, TrainerNpcView} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
+import {MoveCard} from "../move/MoveCard";
 
 function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}): BattleVisualCue | null {
   if (event.type === "move") {
@@ -611,10 +612,6 @@ const TYPE_CHART: Record<string, Record<string, number>> = {
   fairy: {fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5},
 };
 
-function moveTypeClass(summary: MoveSummary | undefined): string {
-  return `move-type-${typeId(summary?.type || summary?.type_zh) || "normal"}`;
-}
-
 function moveTypeLabel(summary: MoveSummary | undefined): string {
   const raw = summary?.type_zh || summary?.type || "?";
   return raw === "超能力" ? "超" : raw === "一般" ? "普" : raw;
@@ -672,7 +669,30 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
   const moves = battle.request?.active?.[0]?.moves || [];
   const active = activePokemon(battle, "p1").display;
   const target = activePokemon(battle, "p2").display;
-  return <div className="move-menu">{moves.map((move, index) => { const summary = moveSummaryFor(active, move); const multiplier = moveEffectiveness(summary, target); const showEffect = Boolean(battle.show_move_effectiveness); const superEffective = Boolean(showEffect && multiplier > 1); const damageRange = moveDamageRangeLabel(summary, active, target, battle); return <button className={`move-choice ${moveTypeClass(summary)} ${superEffective ? "move-super-effective" : ""}`} key={move.id || index} disabled={disabled || move.disabled} onClick={() => onMove(index + 1)}><span className="move-name-row"><strong>{summary?.name_zh || move.move}</strong>{showEffect ? <i>{effectivenessLabel(multiplier)}</i> : null}{damageRange ? <small className="damage-range">{damageRange}</small> : null}</span><span className="move-meta-row"><b>{moveTypeLabel(summary)}</b><em>PP {move.pp}/{move.maxpp}</em><em>威力 {summary?.power || "--"}</em></span></button>; })}<div className="move-footer"><button className="menu-back" disabled={disabled} onClick={onBack}>返回</button><div className="battle-system-row"><button disabled title="后续系统槽">Mega</button><button disabled title="后续系统槽">Z</button><button disabled title="后续系统槽">极巨化</button><button disabled title="后续系统槽">太晶化</button></div></div></div>;
+  return <div className="move-menu">{moves.map((move, index) => {
+    const summary = moveSummaryFor(active, move);
+    const multiplier = moveEffectiveness(summary, target);
+    const showEffect = Boolean(battle.show_move_effectiveness);
+    const superEffective = Boolean(showEffect && multiplier > 1);
+    const damageRange = moveDamageRangeLabel(summary, active, target, battle);
+    return (
+      <MoveCard
+        size="battle"
+        className={superEffective ? "move-super-effective" : ""}
+        name={summary?.name_zh || move.move}
+        moveType={summary?.type || summary?.type_zh}
+        typeLabel={moveTypeLabel(summary)}
+        badge={showEffect ? effectivenessLabel(multiplier) : null}
+        damageRange={damageRange}
+        pp={move.pp}
+        maxPp={move.maxpp}
+        power={summary?.power || "--"}
+        disabled={disabled || move.disabled}
+        onClick={() => onMove(index + 1)}
+        key={move.id || index}
+      />
+    );
+  })}<div className="move-footer"><button className="menu-back" disabled={disabled} onClick={onBack}>返回</button><div className="battle-system-row"><button disabled title="后续系统槽">Mega</button><button disabled title="后续系统槽">Z</button><button disabled title="后续系统槽">极巨化</button><button disabled title="后续系统槽">太晶化</button></div></div></div>;
 }
 
 function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; disabled?: boolean; onSwitch: (index: number) => void; onBack: () => void}) {

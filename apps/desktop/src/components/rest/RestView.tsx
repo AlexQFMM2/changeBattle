@@ -1,7 +1,11 @@
-import {useEffect, useState} from "react";
-import type {CSSProperties} from "react";
-import type {BagItemView, DesktopGameState, MoveSummary, RentalPokemon, RestAction, TalentView} from "@changebattle/shared";
-import {ItemIcon, PokemonSprite, abilityDescription, coinCostLabel, conditionText, displayName, itemCategoryLabel, moveDescription, runtimeMoveLabel, statLine, statMarker, statusCode, statusLabel, talentShortText, toId, trainerImageUrl} from "../../lib/ui";
+import {useEffect, useRef, useState} from "react";
+import type {CSSProperties, ReactElement} from "react";
+import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, TalentView} from "@changebattle/shared";
+import {AnimatePresence, motion, Reorder} from "motion/react";
+import {ScreenToast} from "../feedback/ScreenToast";
+import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
+import {MoveCard, MoveCardContent, moveCardClassName} from "../move/MoveCard";
+import {ItemIcon, PokemonSprite, abilityDescription, coinCostLabel, conditionText, displayName, hpTone, itemCategoryLabel, moveDescription, parseHp, runtimeMoveLabel, statLine, statMarker, statusCode, statusLabel, talentShortText, toId, trainerImageUrl, typeId} from "../../lib/ui";
 import {STAT_ROWS} from "../../lib/ui";
 
 export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameState["exchange"]; onSkip: () => void; onExchange: (ownIndex: number, enemyIndex: number) => void}) {
@@ -13,78 +17,128 @@ export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopG
 
 export function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; message?: string; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
   const [pokemonModalSlot, setPokemonModalSlot] = useState<number | null>(null);
-  const [exchangeOpen, setExchangeOpen] = useState(false);
-  const [bagOpen, setBagOpen] = useState(false);
-  const [recyclerOpen, setRecyclerOpen] = useState(false);
-  const [talentOpen, setTalentOpen] = useState(false);
-  const [talentActionId, setTalentActionId] = useState<string | null>(null);
-  const [nightSkyOpen, setNightSkyOpen] = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<RestWorkspacePanel>("nightSky");
   const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);
+  const [moveEditorMoveSlot, setMoveEditorMoveSlot] = useState(0);
   const [statsEditorSlot, setStatsEditorSlot] = useState<number | null>(null);
+  const [bagTargetSlot, setBagTargetSlot] = useState(0);
+  const [talentActionId, setTalentActionId] = useState<string | null>(null);
   const [abortConfirmOpen, setAbortConfirmOpen] = useState(false);
+  const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
 
   if (!rest) return <div className="loading-panel"><strong>正在整理队伍...</strong></div>;
-  const hasScoutTalent = hasRunTalent(rest, "intel_rumor");
   const nightSkyRows = rest.night_sky?.rows || [];
   const revealedSkyCount = nightSkyRows.reduce((sum, row) => sum + Math.min(3, Number(row.revealed || 0)), 0);
   const manualTalents = (rest.talents || []).filter(talent => isManualRunTalent(talent.id));
-  const activeTalent = rest.talents?.find(talent => talent.id === talentActionId) || null;
-  const fireAction = (action: RestAction) => {
-    void onAction(action);
+  const activeTalentAction = manualTalents.find(talent => talent.id === talentActionId) || null;
+  const showToast = (message: string, tone: "normal" | "danger" = "normal") => {
+    setToast({id: Date.now(), message, tone});
   };
+  const successMessageForAction = (action: RestAction): string | undefined => {
+    if (action.type === "exchange" || action.type === "all_in_exchange") return "宝可梦已交换";
+    if (action.type === "randomize_all_stats" || action.type === "randomize_stat_part") return "数值已重置";
+    if (action.type === "adjust_stats") return "数值已保存";
+    if (action.type === "apply_drawn_move") return "技能已更换";
+    return undefined;
+  };
+  const runRestAction = async (action: RestAction, successMessage = successMessageForAction(action)) => {
+    const ok = await Promise.resolve(onAction(action));
+    if (ok !== false && successMessage) showToast(successMessage);
+    return ok;
+  };
+  const fireAction = (action: RestAction) => {
+    void runRestAction(action);
+  };
+  const workspaceKey = activePanel === "pokemon" ? `pokemon-${pokemonModalSlot ?? 0}` : activePanel === "bag" ? `bag-${bagTargetSlot}` : activePanel === "statsEditor" ? `stats-${statsEditorSlot ?? 0}` : activePanel === "talentAction" ? `talent-${talentActionId || "none"}` : activePanel || "empty";
+  const shouldPromptNamedChallenge = hasRunTalent(rest, "intel_named_challenge") && Number(rest.battle_no || 0) <= 0 && !rest.named_challenge_decided;
+
+  function openManualTalent(talent: TalentView) {
+    if (runTalentActionUsed(rest as NonNullable<DesktopGameState["rest"]>, talent.id)) return;
+    setTalentActionId(talent.id);
+    setActivePanel(talent.id === "intel_reroute" ? "nightSky" : "talentAction");
+  }
+
+  function openPokemonPanel(slot: number) {
+    setPokemonModalSlot(slot);
+    setActivePanel("pokemon");
+  }
+
+  function unequipItem(slot: number) {
+    const itemName = rest?.player_display[slot]?.item_zh || "道具";
+    void runRestAction({type: "unequip_item", slot}, `${itemName} 已放回背包`).then(ok => {
+      if (ok === false) return;
+    });
+  }
 
   return (
     <div className="rest-page">
       <header className="rest-header">
-        <div>
+        <div className="rest-header-copy">
           <h2>休整菜单</h2>
-          <p>第 {rest.battle_no}/{rest.battles} 场后　连胜 {rest.wins}　金币 {rest.coins ?? 0}</p>
-          <button className="talent-inline-button" onClick={() => setTalentOpen(true)}>本局天赋：{rest.talents?.length ? rest.talents.map(talent => `${talent.name}（${talent.category}）`).join(" / ") : "当前无天赋"}</button>
-          {message ? <p className="rest-message">{message}</p> : null}
+          <div className="rest-run-stats" aria-label="本局状态">
+            <span>第 {rest.battle_no}/{rest.battles} 场后</span>
+            <span>连胜 {rest.wins}</span>
+            <span>金币 {rest.coins ?? 0}</span>
+          </div>
         </div>
-        <div className="rest-header-actions">
-          <button onClick={() => setExchangeOpen(true)}>交换</button>
-          <button onClick={() => setBagOpen(true)}>背包</button>
-          {rest.recycler_available ? <button className="event-button" onClick={() => setRecyclerOpen(true)}>道具回收商</button> : null}
-          <button onClick={() => setShopOpen(true)}>购买道具</button>
+        <div className="rest-team-strip" aria-label="当前队伍">
+          {rest.player_display.slice(0, 3).map((pokemon, index) => {
+            const state = rest.player_state[index];
+            const status = statusCode(state?.condition, state?.status);
+            return (
+              <button className={activePanel === "pokemon" && pokemonModalSlot === index ? "selected" : ""} onClick={() => openPokemonPanel(index)} key={`${pokemon.species_id}-rest-strip-${index}`}>
+                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+                <span>{index + 1}</span>
+                {status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}
+              </button>
+            );
+          })}
+        </div>
+        <div className="rest-top-actions">
           <button className="danger-button" onClick={() => setAbortConfirmOpen(true)}>中断挑战</button>
           <button onClick={() => onAction({type: "next"})}>下一场</button>
         </div>
       </header>
-      <section className="rest-talent-action-row">
-        <button onClick={() => setTalentOpen(true)}>携带天赋</button>
-        {hasScoutTalent ? <button onClick={() => setNightSkyOpen(true)}>小道消息 <small>{revealedSkyCount}/{(nightSkyRows.length || rest.battles) * 3}</small></button> : null}
+      <section className="rest-talent-action-row rest-tab-row">
+        <button className={activePanel === "exchange" ? "selected" : ""} onClick={() => setActivePanel("exchange")}>交换</button>
+        <button className={activePanel === "bag" ? "selected" : ""} onClick={() => { setBagTargetSlot(0); setActivePanel("bag"); }}>背包</button>
+        <button className={activePanel === "shop" ? "selected" : ""} onClick={() => setActivePanel("shop")}>购买道具</button>
+        <button className={activePanel === "talents" ? "selected" : ""} onClick={() => setActivePanel("talents")}>携带天赋</button>
+        {rest.recycler_available ? <button className={`event-button ${activePanel === "recycler" ? "selected" : ""}`} onClick={() => setActivePanel("recycler")}>道具回收商</button> : null}
+        <button className={activePanel === "nightSky" ? "selected" : ""} onClick={() => setActivePanel("nightSky")}>进度图 <small>{revealedSkyCount}/{(nightSkyRows.length || rest.battles) * 3}</small></button>
         {manualTalents.map(talent => {
           const used = runTalentActionUsed(rest, talent.id);
-          return <button className={used ? "used" : ""} disabled={used} onClick={() => setTalentActionId(talent.id)} key={`manual-${talent.id}`}>{talent.name}{used ? <small>已用</small> : null}</button>;
+          const selected = talent.id === "intel_reroute" ? activePanel === "nightSky" && talentActionId === talent.id : activePanel === "talentAction" && talentActionId === talent.id;
+          return (
+            <button className={`manual-talent-button ${selected ? "selected" : ""} ${used ? "used" : ""}`} disabled={used} onClick={() => openManualTalent(talent)} key={`manual-talent-${talent.id}`}>
+              {talent.name}
+              {used ? <small>已用</small> : null}
+            </button>
+          );
         })}
+        <span className="rest-tab-spacer" />
       </section>
-      <section className="rest-team-panel">
-        <h3>你的队伍</h3>
-        <div className="rest-team-list">
-          {rest.player_display.map((pokemon, index) => {
-            const state = rest.player_state[index];
-            const status = statusCode(state?.condition, state?.status);
-            return <button className="rest-team-card" onClick={() => setPokemonModalSlot(index)} key={`${pokemon.species_id}-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map((move, moveIndex) => `${runtimeMoveLabel(pokemon, move, moveIndex)} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
-          })}
-        </div>
+      <section className="rest-workspace" aria-label="休整工作区">
+        <AnimatePresence mode="wait">
+          <motion.div className="rest-workspace-panel" initial={{opacity: 0, y: 12, scale: 0.985}} animate={{opacity: 1, y: 0, scale: 1}} exit={{opacity: 0, y: -10, scale: 0.985}} transition={{duration: 0.22, ease: [0.2, 0.8, 0.2, 1]}} key={workspaceKey}>
+            {!activePanel ? <div className="rest-workspace-empty" /> : null}
+            {activePanel === "exchange" ? <RestExchangeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
+            {activePanel === "bag" ? <BagManageModal embedded rest={rest} initialTarget={bagTargetSlot} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "recycler" ? <ItemRecyclerModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
+            {activePanel === "talents" ? <RunTalentModal embedded rest={rest} /> : null}
+            {activePanel === "talentAction" && activeTalentAction ? <RunTalentActionModal embedded talent={activeTalentAction} rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
+            {activePanel === "nightSky" ? <NightSkyModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
+            {activePanel === "shop" ? <ShopModal embedded rest={rest} shop={rest.shop} onClose={() => setActivePanel(null)} onRoll={preferredCategory => onAction({type: "roll_shop", preferredCategory})} onBuy={offerId => runRestAction({type: "buy_shop_offer", offerId}, "道具已购买")} /> : null}
+            {activePanel === "pokemon" && pokemonModalSlot !== null ? <RestPokemonModal embedded rest={rest} initialSlot={pokemonModalSlot} onClose={() => setActivePanel(null)} onMove={(slot, moveSlot) => { setMoveEditorSlot(slot); setMoveEditorMoveSlot(moveSlot ?? 0); }} onUseItem={slot => { setPokemonModalSlot(null); setBagTargetSlot(slot); setActivePanel("bag"); }} onUnequip={unequipItem} onStats={slot => { setPokemonModalSlot(null); setStatsEditorSlot(slot); setActivePanel("statsEditor"); }} onAction={fireAction} /> : null}
+            {activePanel === "statsEditor" && statsEditorSlot !== null ? <StatsAdjustModal embedded rest={rest} initialSlot={statsEditorSlot} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
+          </motion.div>
+        </AnimatePresence>
       </section>
-      {pokemonModalSlot !== null ? <RestPokemonModal rest={rest} initialSlot={pokemonModalSlot} onClose={() => setPokemonModalSlot(null)} onMove={slot => { setPokemonModalSlot(null); setMoveEditorSlot(slot); }} onUnequip={slot => { setPokemonModalSlot(null); onAction({type: "unequip_item", slot}); }} onStats={slot => { setPokemonModalSlot(null); setStatsEditorSlot(slot); }} /> : null}
-      {exchangeOpen ? <RestExchangeModal rest={rest} onClose={() => setExchangeOpen(false)} onAction={fireAction} /> : null}
-      {bagOpen ? <BagManageModal rest={rest} onClose={() => setBagOpen(false)} onAction={fireAction} /> : null}
-      {recyclerOpen ? <ItemRecyclerModal rest={rest} onClose={() => setRecyclerOpen(false)} onAction={fireAction} /> : null}
-      {talentOpen ? <RunTalentModal rest={rest} onClose={() => setTalentOpen(false)} onAction={fireAction} /> : null}
-      {nightSkyOpen ? <NightSkyModal rest={rest} onClose={() => setNightSkyOpen(false)} onAction={fireAction} /> : null}
-      {activeTalent ? <RunTalentActionModal talent={activeTalent} rest={rest} onClose={() => setTalentActionId(null)} onAction={fireAction} /> : null}
-      {shopOpen ? <ShopModal rest={rest} shop={rest.shop} onClose={() => setShopOpen(false)} onRoll={preferredCategory => onAction({type: "roll_shop", preferredCategory})} onBuy={offerId => fireAction({type: "buy_shop_offer", offerId})} /> : null}
-      {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} onClose={() => setMoveEditorSlot(null)} onAction={fireAction} /> : null}
-      {statsEditorSlot !== null ? <StatsAdjustModal rest={rest} initialSlot={statsEditorSlot} onClose={() => setStatsEditorSlot(null)} onAction={fireAction} /> : null}
       {abortConfirmOpen ? (
         <div className="modal-layer">
           <section className="confirm-modal">
             <h2>中断挑战</h2>
-            <p>确认后将直接结束本局挑战，当前连胜归零，历史最高连胜保留。</p>
+            <p>确认后将直接结束本局挑战，并中断当前连胜。历史最高连胜仍会保留。</p>
             <div className="command-row">
               <button className="danger-button" onClick={() => { setAbortConfirmOpen(false); onAction({type: "abort"}); }}>确认中断</button>
               <button onClick={() => setAbortConfirmOpen(false)}>取消</button>
@@ -104,7 +158,61 @@ export function RestView({rest, message, onAction}: {rest: DesktopGameState["res
           </section>
         </div>
       ) : null}
+      {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={1000} onDone={() => setToast(null)} /> : null}
+      {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
+      {shouldPromptNamedChallenge ? <NamedChallengePrompt rest={rest} onAction={runRestAction} /> : null}
     </div>
+  );
+}
+
+type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "talents" | "talentAction" | "nightSky" | "shop" | "pokemon" | "moveEditor" | "statsEditor" | null;
+
+function EmbeddedOrModal({embedded, children}: {embedded?: boolean; children: ReactElement}) {
+  return embedded ? children : <div className="modal-layer">{children}</div>;
+}
+
+function NamedChallengePrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>}) {
+  const [busy, setBusy] = useState(false);
+  const champions = rest.champion_options || [];
+
+  async function choose(trainerId: string | null) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const champion = trainerId ? champions.find(entry => entry.id === trainerId) : null;
+      await Promise.resolve(onAction({type: "set_named_champion", trainerId}, trainerId ? `最终 Boss：${champion?.name_zh || "已指定"}` : "本局不发动指名挑战"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <PokopiaModal className="named-challenge-modal" closeDisabled labelledBy="named-challenge-title" onClose={() => undefined}>
+      {() => (
+        <motion.section className="named-challenge-content" variants={pokopiaItemVariants}>
+          <header>
+            <div>
+              <h2 id="named-challenge-title">指名挑战</h2>
+              <p>第一场前选择本局最终 Boss，或本局不发动。</p>
+            </div>
+          </header>
+          <div className="named-champion-grid">
+            {champions.map(champion => {
+              const image = trainerImageUrl(champion, "avatar") || trainerImageUrl(champion, "front");
+              return (
+                <button disabled={busy} onClick={() => void choose(champion.id)} key={`named-champion-${champion.id}`}>
+                  {image ? <img src={image} alt="" /> : <span>?</span>}
+                  <strong>{champion.name_zh}</strong>
+                </button>
+              );
+            })}
+          </div>
+          <footer>
+            <button disabled={busy} onClick={() => void choose(null)}>不发动</button>
+          </footer>
+        </motion.section>
+      )}
+    </PokopiaModal>
   );
 }
 
@@ -128,69 +236,137 @@ function runTalentActionUsed(rest: NonNullable<DesktopGameState["rest"]>, id: st
   return false;
 }
 
-function RestPokemonModal({rest, initialSlot, onClose, onMove, onUnequip, onStats}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot: number; onClose: () => void; onMove: (slot: number) => void; onUnequip: (slot: number) => void; onStats: (slot: number) => void}) {
+function RestPokemonModal({rest, initialSlot, onClose, onMove, onUseItem, onUnequip, onStats, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot: number; onClose: () => void; onMove: (slot: number, moveSlot?: number) => void; onUseItem?: (slot: number) => void; onUnequip: (slot: number) => void; onStats: (slot: number) => void; onAction?: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
   const [slot, setSlot] = useState(initialSlot);
-  const [tab, setTab] = useState<"info" | "moves" | "stats" | "items">("info");
+  const [tab, setTab] = useState<"info" | "moves" | "stats">("info");
+  const [sheetFocus, setSheetFocus] = useState<{type: "nature" | "ability" | "item" | "move"; moveIndex?: number}>({type: "ability"});
   const pokemon = rest.player_display[slot] || rest.player_display[0];
   const state = rest.player_state[slot] || rest.player_state[0];
   const revealTraining = hasRunTalent(rest, "intel_god_eye");
+  const hp = parseHp(state?.condition);
+  const hpWidth = hp && hp.max > 0 ? Math.max(0, Math.min(100, (hp.current / hp.max) * 100)) : 0;
+  useEffect(() => {
+    setSheetFocus({type: "ability"});
+  }, [slot]);
   if (!pokemon) return null;
+  const focusedMove = sheetFocus.type === "move" ? pokemon.moves[sheetFocus.moveIndex ?? 0] : null;
+  const sheetInfoTitle = focusedMove ? (focusedMove.name_zh || focusedMove.name) : sheetFocus.type === "item" ? (pokemon.item_zh || "无道具") : sheetFocus.type === "nature" ? (pokemon.nature_zh || pokemon.nature || "性格") : (pokemon.ability_zh || pokemon.ability || "特性");
+  const sheetInfoBody = focusedMove ? moveDescription(focusedMove) : sheetFocus.type === "item" ? (pokemon.item_desc_zh || pokemon.item_desc || "当前没有携带道具。") : sheetFocus.type === "nature" ? "性格会影响能力倾向。可以在中间面板使用随机功能重新抽取。" : abilityDescription(pokemon);
   return (
-    <div className="modal-layer">
-      <section className="rest-pokemon-modal">
-        <aside className="detail-team-list">
+    <EmbeddedOrModal embedded={embedded}>
+      <section className={`rest-pokemon-modal ${embedded ? "embedded-single" : ""}`}>
+        {!embedded ? <aside className="detail-team-list">
           {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-rest-detail`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span><small>{conditionText(rest.player_state[index]?.condition)}</small></button>)}
-        </aside>
+        </aside> : null}
         <main className="rest-pokemon-detail">
-          <header>
-            <div><h2>{displayName(pokemon)}</h2><p>Lv{pokemon.level}　{pokemon.types_zh?.join(" / ") || pokemon.types.join(" / ")}　{pokemon.item_zh || "无道具"}</p></div>
-            <button onClick={onClose}>关闭</button>
-          </header>
-          <div className="detail-tabs">
-            <button className={tab === "info" ? "selected" : ""} onClick={() => setTab("info")}>基础信息</button>
-            <button className={tab === "moves" ? "selected" : ""} onClick={() => setTab("moves")}>技能</button>
-            <button className={tab === "stats" ? "selected" : ""} onClick={() => setTab("stats")}>数值</button>
-            <button className={tab === "items" ? "selected" : ""} onClick={() => setTab("items")}>道具</button>
-          </div>
-          <section className="detail-tab-panel">
-            {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>性别：{pokemon.gender || "未知"}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p>闪光：{pokemon.shiny ? "是" : "否"}</p><p>职责：{pokemon.role_zh || pokemon.role || "无"}</p><p className="wide">{abilityDescription(pokemon)}</p></div> : null}
-            {tab === "moves" ? <div className="detail-move-list">{pokemon.moves.map((move, index) => <article key={`${move.id}-${index}`}><strong>{index + 1}. {move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {state?.moves?.[index]?.pp ?? move.pp}/{state?.moves?.[index]?.maxpp ?? move.pp}</span><small>{moveDescription(move)}</small></article>)}</div> : null}
-            {tab === "stats" ? <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div> : null}
-            {tab === "items" ? <div className="detail-info-grid"><p>当前携带：{pokemon.item_zh || "无道具"}</p><p className="wide">{pokemon.item_desc_zh || pokemon.item_desc || "暂无道具说明"}</p><p>背包携带道具：{rest.bag_categories?.held?.length || 0}</p><p>技能机器：{rest.bag_categories?.tm?.length || 0}</p></div> : null}
-          </section>
-          <footer className="command-row">
+          {!embedded ? <header>
+            <div className="rest-pokemon-title">
+              <div><h2>{displayName(pokemon)}{pokemon.shiny ? <span className="shiny-name-tag">闪光</span> : null}</h2><p>Lv{pokemon.level}　{pokemon.types_zh?.join(" / ") || pokemon.types.join(" / ")}　{pokemon.item_zh || "无道具"}</p></div>
+            </div>
+            <div className="rest-pokemon-actions">
+              <button onClick={() => onMove(slot)}>技能随机</button>
+              {onUseItem ? <button onClick={() => onUseItem(slot)}>使用道具</button> : null}
+              {pokemon.item_id ? <button onClick={() => onUnequip(slot)}>卸下道具</button> : null}
+              <button onClick={() => onStats(slot)}>重置数值</button>
+              <button onClick={onClose}>关闭</button>
+            </div>
+          </header> : null}
+          {embedded ? <section className="rest-pokemon-sheet">
+            <aside className="rest-sheet-profile">
+              <div className="rest-sheet-identity">
+                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} badge={false} />
+                <div>
+                  <h2>{displayName(pokemon)}{pokemon.shiny ? <span className="shiny-name-tag">闪光</span> : null}</h2>
+                  <button className={sheetFocus.type === "nature" ? "selected" : ""} onClick={() => setSheetFocus({type: "nature"})}><span>性格</span><strong>{pokemon.nature_zh || pokemon.nature || "未知"}</strong></button>
+                  <button className={sheetFocus.type === "ability" ? "selected" : ""} onClick={() => setSheetFocus({type: "ability"})}><span>特性</span><strong>{pokemon.ability_zh || pokemon.ability}</strong></button>
+                  <button className={sheetFocus.type === "item" ? "selected" : ""} onClick={() => setSheetFocus({type: "item"})}><span>道具</span><strong>{pokemon.item_zh || "无"}</strong></button>
+                </div>
+              </div>
+              <div className="rest-sheet-battle-block">
+                <div className="rest-sheet-hp"><span>HP</span><strong>{hp?.text || conditionText(state?.condition)}</strong><i className={`hp-${hpTone(hp)}`} style={{width: `${hpWidth}%`} as CSSProperties} /></div>
+                <div className="rest-sheet-moves">
+                  {pokemon.moves.map((move, index) => (
+                    <MoveCard
+                      size="sheet"
+                      className="rest-sheet-move-card"
+                      selected={sheetFocus.type === "move" && sheetFocus.moveIndex === index}
+                      name={runtimeMoveLabel(pokemon, state?.moves?.[index], index)}
+                      moveType={move.type || move.type_zh}
+                      typeLabel={move.type_zh || move.type || "一般"}
+                      category={move.category_zh || move.category || "变化"}
+                      pp={state?.moves?.[index]?.pp ?? move.pp}
+                      maxPp={state?.moves?.[index]?.maxpp ?? move.pp}
+                      onClick={() => setSheetFocus({type: "move", moveIndex: index})}
+                      key={`${move.id}-sheet-${index}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </aside>
+            <section className="rest-sheet-stats">
+              <div className="rest-sheet-reroll-grid">
+                <button onClick={() => onAction?.({type: "randomize_all_stats", slot})}>全部随机 <strong>{coinCostLabel(rest.costs.randomize_all)}</strong></button>
+                <button onClick={() => onAction?.({type: "randomize_stat_part", slot, part: "nature"})}>性格 <strong>{coinCostLabel(rest.costs.randomize_part)}</strong></button>
+                <button onClick={() => onAction?.({type: "randomize_stat_part", slot, part: "ability"})}>特性 <strong>{coinCostLabel(rest.costs.randomize_part)}</strong></button>
+                <button onClick={() => onAction?.({type: "randomize_stat_part", slot, part: "ivs"})}>个体 <strong>{coinCostLabel(rest.costs.randomize_part)}</strong></button>
+                <button onClick={() => onAction?.({type: "randomize_stat_part", slot, part: "evs"})}>努力 <strong>{coinCostLabel(rest.costs.randomize_part)}</strong></button>
+              </div>
+              <div className="detail-stat-list rest-sheet-stat-list">{STAT_ROWS.map(([stat, label]) => <p key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></p>)}</div>
+            </section>
+            <section className="rest-sheet-description">
+              {sheetFocus.type === "item" && pokemon.item_id ? <button className="rest-sheet-floating-action" onClick={() => onUnequip(slot)}>卸下道具</button> : null}
+              {sheetFocus.type === "move" ? <button className="rest-sheet-floating-action" onClick={() => onMove(slot, sheetFocus.moveIndex ?? 0)}>更换该技能</button> : null}
+              <h3>{sheetInfoTitle}</h3>
+              <p>{sheetInfoBody}</p>
+            </section>
+          </section> : <>
+            <div className="detail-tabs">
+              <button className={tab === "info" ? "selected" : ""} onClick={() => setTab("info")}>基础信息</button>
+              <button className={tab === "moves" ? "selected" : ""} onClick={() => setTab("moves")}>技能</button>
+              <button className={tab === "stats" ? "selected" : ""} onClick={() => setTab("stats")}>数值</button>
+            </div>
+            <section className="detail-tab-panel">
+              {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>性别：{pokemon.gender || "未知"}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p className="wide">{abilityDescription(pokemon)}</p></div> : null}
+              {tab === "moves" ? <div className="detail-move-list">{pokemon.moves.map((move, index) => <article key={`${move.id}-${index}`}><strong>{index + 1}. {move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {state?.moves?.[index]?.pp ?? move.pp}/{state?.moves?.[index]?.maxpp ?? move.pp}</span><small>{moveDescription(move)}</small></article>)}</div> : null}
+              {tab === "stats" ? <div className="detail-stat-panel">
+                <div className="detail-hp-row"><span>HP</span><strong>{statLine(pokemon, "hp", revealTraining)}</strong><i /></div>
+                <div className="detail-stat-list">{STAT_ROWS.filter(([stat]) => stat !== "hp").map(([stat, label]) => <p key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></p>)}</div>
+              </div> : null}
+            </section>
+          </>}
+          {!embedded ? <footer className="command-row">
             <button onClick={() => onMove(slot)}>更换技能</button>
             {pokemon.item_id ? <button onClick={() => onUnequip(slot)}>卸下道具</button> : null}
             <button onClick={() => onStats(slot)}>重置数值</button>
             <button onClick={onClose}>关闭</button>
-          </footer>
+          </footer> : null}
         </main>
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }
 
-function RestExchangeModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+function RestExchangeModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
   const [own, setOwn] = useState(0);
   const [enemy, setEnemy] = useState(0);
   const canExchange = rest.costs.exchange !== null && rest.enemy_display.length > 0 && !rest.taken_enemy_slots.includes(enemy + 1);
   const canAllIn = hasRunTalent(rest, "growth_all_in") && !rest.all_in_used;
+  const exchangeCostLabel = coinCostLabel(rest.costs.exchange);
   return (
-    <div className="modal-layer">
+    <EmbeddedOrModal embedded={embedded}>
       <section className="rest-edit-modal exchange-rest-modal">
-        <header><div><h2>交换宝可梦</h2><p>本次费用：{coinCostLabel(rest.costs.exchange)}　已交换 {rest.exchange_count}/3</p></div><button onClick={onClose}>关闭</button></header>
-        <div className="rest-exchange-grid">
+        <header><div><h2>交换宝可梦</h2><p>本次费用：{coinCostLabel(rest.costs.exchange)}　已交换 {rest.exchange_count}/3</p></div></header>
+        <div className={`rest-exchange-grid ${embedded ? "embedded-horizontal" : ""}`}>
           <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`${pokemon.species_id}-own-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
           <div className="exchange-center-label" aria-hidden="true"><span>交换</span></div>
           <div>{rest.enemy_display.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} disabled={rest.taken_enemy_slots.includes(index + 1)} onClick={() => setEnemy(index)} key={`${pokemon.species_id}-enemy-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span>{rest.taken_enemy_slots.includes(index + 1) ? <small>已交换</small> : null}</button>)}</div>
         </div>
         <div className="command-row">
-          <button disabled={!canExchange} onClick={() => onAction({type: "exchange", ownIndex: own, enemyIndex: enemy})}>确认交换</button>
+          <button disabled={!canExchange} onClick={() => onAction({type: "exchange", ownIndex: own, enemyIndex: enemy})}>立即交换（{exchangeCostLabel}）</button>
           {hasRunTalent(rest, "growth_all_in") ? <button disabled={!canAllIn} onClick={() => onAction({type: "all_in_exchange", ownIndex: own})}>{rest.all_in_used ? "孤注一掷已用" : "孤注一掷"}</button> : null}
-          <button onClick={onClose}>关闭</button>
         </div>
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }
 
@@ -200,116 +376,137 @@ function tmMoveId(item?: BagItemView): string {
   return item.id.startsWith("tm:") ? toId(item.id.slice(3)) : "";
 }
 
-function BagManageModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+function BagManageModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean; initialTarget?: number}) {
   const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
-  const [itemId, setItemId] = useState(items[0]?.id || "");
-  const [target, setTarget] = useState(0);
-  const [moveSlot, setMoveSlot] = useState(0);
-  const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
-  const [tmLoading, setTmLoading] = useState(false);
-  const selected = items.find(item => item.id === itemId) || items[0];
-  const targetPokemon = rest.player_display[target] || rest.player_display[0];
-  const targetState = rest.player_state[target] || rest.player_state[0];
-  const selectedMoveId = tmMoveId(selected);
-  const isTm = selected?.category === "tm";
-  const isConsumable = selected?.category === "consumable";
-  const isHeld = selected?.category === "held";
+  const [itemId, setItemId] = useState("");
+  const selected = items.find(item => item.id === itemId) || null;
 
   useEffect(() => {
-    if (items.length && !items.some(item => item.id === itemId)) setItemId(items[0].id);
-  }, [items, itemId]);
+    if (itemId && !items.some(item => item.id === itemId)) setItemId("");
+  }, [itemId, items]);
+
+  return (
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal bag-manage-modal bag-flat-modal">
+        <div className="bag-flat-grid">
+          {items.length ? items.map(item => (
+            <button className={`bag-flat-item ${selected?.id === item.id ? "selected" : ""}`} onClick={() => setItemId(item.id)} key={item.id}>
+              <ItemIcon item={item} />
+              <span>
+                <strong>{item.name_zh || item.name}</strong>
+                <small>{item.desc_zh || item.desc || item.name}</small>
+              </span>
+              <b>x{item.count}</b>
+            </button>
+          )) : <p className="bag-empty">背包为空。</p>}
+        </div>
+        {selected ? <BagItemTargetModal item={selected} rest={rest} onAction={onAction} onClose={() => setItemId("")} /> : null}
+      </section>
+    </EmbeddedOrModal>
+  );
+}
+
+function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>}) {
+  const [busySlot, setBusySlot] = useState<number | null>(null);
+  const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
+  const [tmLoading, setTmLoading] = useState(false);
+  const selectedMoveId = tmMoveId(item);
+  const isTm = item.category === "tm";
+  const isConsumable = item.category === "consumable";
+  const isHeld = item.category === "held";
+
+  useEffect(() => {
+    if (item.count <= 0) onClose();
+  }, [item.count, onClose]);
 
   useEffect(() => {
     let cancelled = false;
-    setMoveSlot(0);
     setTmLegalBySlot({});
     if (!isTm || !selectedMoveId) return () => { cancelled = true; };
     setTmLoading(true);
     void Promise.all(rest.player_display.map((_pokemon, index) => window.changeBattle!.learnableMoves(index).then(moves => [index, moves.map(move => toId(move.id || move.name))] as const))).then(entries => {
-      if (cancelled) return;
-      setTmLegalBySlot(Object.fromEntries(entries));
+      if (!cancelled) setTmLegalBySlot(Object.fromEntries(entries));
     }).finally(() => {
       if (!cancelled) setTmLoading(false);
     });
     return () => { cancelled = true; };
   }, [isTm, selectedMoveId, rest.player_display]);
 
-  function targetAlreadyKnows(slot: number): boolean {
+  function alreadyKnows(slot: number): boolean {
     const pokemon = rest.player_display[slot];
     return Boolean(selectedMoveId && pokemon?.moves.some(move => toId(move.id || move.name) === selectedMoveId));
   }
 
-  function targetCanLearn(slot: number): boolean {
-    if (!isTm) return true;
-    if (!selectedMoveId || targetAlreadyKnows(slot)) return false;
+  function canUseOn(slot: number): boolean {
+    if (!isTm) return item.count > 0;
+    if (!selectedMoveId || alreadyKnows(slot)) return false;
     return Boolean(tmLegalBySlot[slot]?.includes(selectedMoveId));
   }
 
-  function targetHint(slot: number): string {
-    if (!isTm) return conditionText(rest.player_state[slot]?.condition);
-    if (tmLoading) return "读取可学习技能...";
-    if (targetAlreadyKnows(slot)) return "已学会";
-    return targetCanLearn(slot) ? "可以学习" : "不能学习";
+  function targetText(slot: number): string {
+    if (isHeld) {
+      const held = rest.player_display[slot]?.item_zh || rest.player_display[slot]?.item;
+      return held ? `替换 ${held}` : "携带";
+    }
+    if (isTm) {
+      if (tmLoading) return "读取中";
+      if (alreadyKnows(slot)) return "已学会";
+      return canUseOn(slot) ? "学习" : "不能学";
+    }
+    return "使用";
   }
 
-  function useSelectedItem() {
-    if (!selected) return;
-    if (isConsumable) {
-      onAction({type: "use_item", itemId: selected.id, slot: target, moveSlot: moveSlot || undefined, context: "rest"});
-      onClose();
-    } else if (isTm) {
-      if (!targetCanLearn(target)) return;
-      onAction({type: "use_tm", itemId: selected.id, slot: target, moveSlot});
-      onClose();
-    } else if (isHeld) {
-      onAction({type: "equip_item", itemId: selected.id, slot: target});
-      onClose();
+  async function applyTo(slot: number) {
+    if (busySlot !== null || !canUseOn(slot)) return;
+    setBusySlot(slot);
+    try {
+      const ok = isHeld
+        ? await Promise.resolve(onAction({type: "equip_item", itemId: item.id, slot}, "道具已携带"))
+        : isTm
+          ? await Promise.resolve(onAction({type: "use_tm", itemId: item.id, slot, moveSlot: 0}, "技能机器已使用"))
+          : await Promise.resolve(onAction({type: "use_item", itemId: item.id, slot, context: "rest"}, "道具已使用"));
+      if (ok === false) return;
+    } finally {
+      setBusySlot(null);
     }
   }
 
-  function actionLabel(): string {
-    if (!selected) return "选择道具";
-    if (isConsumable) return "使用";
-    if (isTm) return targetCanLearn(target) ? "学习" : "不能学习";
-    return targetPokemon?.item_id ? "交换携带道具" : "携带";
-  }
-
   return (
-    <div className="modal-layer">
-      <section className="shop-modal bag-manage-modal">
-        <header><div><h2>本局背包</h2><p>选择道具后，再选择目标宝可梦。</p></div><button onClick={onClose}>关闭</button></header>
-        <div className="bag-manage-layout">
-          <div className="shop-list bag-item-list">
-            {items.length ? items.map(item => <button className={selected?.id === item.id ? "selected" : ""} onClick={() => setItemId(item.id)} key={item.id}><ItemIcon item={item} /><strong>{item.name_zh || item.name}</strong><span>x{item.count}　{itemCategoryLabel(item.category)}</span><small>{item.desc_zh || item.desc || item.name}</small></button>) : <p>背包为空。</p>}
+    <PokopiaModal className="bag-target-modal" labelledBy="bag-target-title" onClose={onClose}>
+      {requestClose => (
+        <motion.section className="bag-target-content" variants={pokopiaItemVariants}>
+          <header>
+            <div>
+              <h2 id="bag-target-title">{item.name_zh || item.name}</h2>
+              <p>{itemCategoryLabel(item.category)}　剩余 x{item.count}</p>
+            </div>
+            <button onClick={() => requestClose()}>关闭</button>
+          </header>
+          <div className="bag-target-team">
+            {rest.player_display.map((pokemon, index) => {
+              const disabled = busySlot !== null || !canUseOn(index);
+              const status = statusCode(rest.player_state[index]?.condition, rest.player_state[index]?.status);
+              return (
+                <button disabled={disabled} onClick={() => void applyTo(index)} key={`${pokemon.species_id}-bag-use-${index}`}>
+                  <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+                  <strong>{displayName(pokemon)}</strong>
+                  <span>{conditionText(rest.player_state[index]?.condition)}</span>
+                  {status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}
+                  <b>{busySlot === index ? "处理中" : targetText(index)}</b>
+                </button>
+              );
+            })}
           </div>
-          <section className="bag-action-panel">
-            {selected ? <>
-              <h3>{selected.name_zh || selected.name}</h3>
-              <p>{itemCategoryLabel(selected.category)}　x{selected.count}</p>
-              <div className="detail-team-list compact-targets">
-                {rest.player_display.map((pokemon, index) => {
-                  const disabled = isTm && !tmLoading && !targetCanLearn(index);
-                  return <button className={target === index ? "selected" : ""} disabled={disabled} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${pokemon.species_id}-bag-target-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{targetHint(index)}</small></button>;
-                })}
-              </div>
-              {isTm && targetPokemon ? <div className="move-slot-row">{targetPokemon.moves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} disabled={!targetCanLearn(target)} onClick={() => setMoveSlot(index)} key={`${move.id}-tm-slot-${index}`}>{index + 1}. {move.name_zh}</button>)}</div> : null}
-              {isConsumable && (targetState?.moves || []).length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}><option value={0}>不指定技能</option>{(targetState.moves || []).map(move => <option value={move.slot} key={`${move.id}-${move.slot}-bag`}>{move.move} PP {move.pp}/{move.maxpp}</option>)}</select> : null}
-              {isHeld && targetPokemon?.item_id ? <p className="item-return-hint">当前携带 {targetPokemon.item_zh || targetPokemon.item}，装备后旧道具会回到背包。</p> : null}
-              <div className="command-row">
-                <button disabled={!selected || (isTm && (tmLoading || !targetCanLearn(target)))} onClick={useSelectedItem}>{actionLabel()}</button>
-              </div>
-            </> : <p>背包为空。</p>}
-          </section>
-        </div>
-      </section>
-    </div>
+        </motion.section>
+      )}
+    </PokopiaModal>
   );
 }
 
-function ItemRecyclerModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+function ItemRecyclerModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
   const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
   return (
-    <div className="modal-layer">
+    <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal bag-manage-modal recycler-modal">
         <header>
           <div>
@@ -329,150 +526,253 @@ function ItemRecyclerModal({rest, onClose, onAction}: {rest: NonNullable<Desktop
           )) : <p>背包为空。</p>}
         </div>
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }
 
-function NightSkyModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
   const rows = rest.night_sky?.rows || [];
+  const nextBattleNo = Math.max(1, Math.min(Number(rest.battles || rows.length || 1), Number(rest.battle_no || 0) + 1));
+  const [selectedBattleNo, setSelectedBattleNo] = useState(() => rows.find(row => row.battle_no === nextBattleNo)?.battle_no || rows[0]?.battle_no || 0);
+  useEffect(() => {
+    if (!rows.length) {
+      setSelectedBattleNo(0);
+      return;
+    }
+    if (!rows.some(row => row.battle_no === selectedBattleNo)) setSelectedBattleNo(rows.find(row => row.battle_no === nextBattleNo)?.battle_no || rows[0].battle_no);
+  }, [nextBattleNo, rows, selectedBattleNo]);
+  const selectedIndex = Math.max(0, rows.findIndex(row => row.battle_no === selectedBattleNo));
+  const selectedRow = rows[selectedIndex] || rows[0] || null;
+  const hasScoutTalent = hasRunTalent(rest, "intel_rumor");
+  const hasRerouteTalent = hasRunTalent(rest, "intel_reroute");
+  const currentBattleNo = Number(rest.battle_no || 0);
+  const selectedTrainerVisible = selectedRow ? selectedRow.trainer_visible !== false : false;
+  const selectedTrainerImage = selectedRow && selectedTrainerVisible ? trainerImageUrl(selectedRow.trainer, "front") || trainerImageUrl(selectedRow.trainer, "avatar") : "";
+  const selectedFuture = selectedRow ? Number(selectedRow.battle_no) > currentBattleNo : false;
+  const rerouteUsed = Number(rest.reroute_used || 0);
+  const rerouteLimit = Number(rest.reroute_limit || 3);
+  const canRerouteSelected = Boolean(hasRerouteTalent && selectedRow && selectedFuture && rerouteUsed < rerouteLimit);
+  const canScoutOne = Boolean(hasScoutTalent && selectedRow && selectedFuture && Number(selectedRow.revealed || 0) < 1);
+  const canScoutAll = Boolean(hasScoutTalent && selectedRow && selectedFuture && !selectedRow.unlocked);
   return (
-    <div className="modal-layer">
-      <section className="shop-modal night-sky-modal">
-        <header><div><h2>小道消息</h2><p>按照实际出场顺序查看本局训练师与阵容。</p></div><button onClick={onClose}>关闭</button></header>
-        <div className="night-sky-board">{rows.length ? rows.map(row => {
-          const trainerImage = trainerImageUrl(row.trainer, "avatar") || trainerImageUrl(row.trainer, "front");
-          return (
-            <article className="night-sky-row" key={`night-sky-${row.battle_no}`}>
-              <div className="night-sky-trainer">{trainerImage ? <img src={trainerImage} alt={row.trainer.name_zh} /> : null}<span>第 {row.battle_no} 场</span><strong>{row.trainer.name_zh || row.trainer.id}</strong><small>{row.label}</small></div>
-              <div className="night-sky-slots">{row.enemies.map((enemy, index) => enemy ? <div className="night-sky-pokemon" key={`${row.battle_no}-${enemy.species_id}-${index}`}><PokemonSprite pokemon={enemy} alt={displayName(enemy)} /><span>{displayName(enemy)}</span></div> : <div className="night-sky-pokemon night-sky-unknown" key={`${row.battle_no}-unknown-${index}`}><i>?</i><span>未查看</span></div>)}</div>
-              <div className="night-sky-actions"><button disabled={Number(row.revealed || 0) >= 1} onClick={() => onAction({type: "night_sky_scout", battleNo: row.battle_no, level: "one"})}>免费查看一只</button><button disabled={Boolean(row.unlocked)} onClick={() => onAction({type: "night_sky_scout", battleNo: row.battle_no, level: "all"})}>300金币 解锁三只</button></div>
-            </article>
-          );
-        }) : <p>小道消息尚未展开。</p>}</div>
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal night-sky-modal night-sky-gallery-modal">
+        {selectedRow ? (
+          <div className="night-sky-gallery">
+            <div className="night-sky-gallery-main">
+              <AnimatePresence mode="wait">
+                <motion.div className={`night-sky-gallery-stage ${selectedTrainerVisible ? "" : "unknown"}`} initial={{opacity: 0, x: 16, scale: .98}} animate={{opacity: 1, x: 0, scale: 1}} exit={{opacity: 0, x: -16, scale: .98}} transition={{type: "spring", stiffness: 330, damping: 30}} key={`night-sky-stage-${selectedRow.battle_no}`}>
+                  {selectedTrainerImage ? <img src={selectedTrainerImage} alt="" /> : <i>?</i>}
+                  <small>{selectedTrainerVisible ? selectedRow.trainer.name_zh : "???"}</small>
+                </motion.div>
+              </AnimatePresence>
+              <AnimatePresence mode="wait">
+                <motion.article className="night-sky-selected-detail" initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -8}} transition={{duration: .18}} key={`night-sky-detail-${selectedRow.battle_no}`}>
+                  <div className="night-sky-selected-copy">
+                    <strong>{selectedRow.battle_no === nextBattleNo ? "下一场" : selectedRow.encountered ? "已挑战" : `第 ${selectedRow.battle_no} 场`}</strong>
+                    <span>{selectedTrainerVisible ? selectedRow.label : "未知对手"}</span>
+                  </div>
+                  <div className="night-sky-selected-enemies">
+                    {selectedRow.enemies.map((enemy, index) => enemy ? (
+                      <div className="night-sky-pokemon" key={`${selectedRow.battle_no}-${enemy.species_id}-${index}`}>
+                        <PokemonSprite pokemon={enemy} alt={displayName(enemy)} />
+                        <span>{displayName(enemy)}</span>
+                      </div>
+                    ) : (
+                      <div className="night-sky-pokemon night-sky-unknown" key={`${selectedRow.battle_no}-unknown-${index}`}>
+                        <i>?</i>
+                        <span>未查看</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="night-sky-actions">
+                    <button disabled={!canScoutOne} onClick={() => onAction({type: "night_sky_scout", battleNo: selectedRow.battle_no, level: "one"})}>{hasScoutTalent ? "免费解锁一只" : "需要小道消息"}</button>
+                    <button disabled={!canScoutAll} onClick={() => onAction({type: "night_sky_scout", battleNo: selectedRow.battle_no, level: "all"})}>{hasScoutTalent ? `金币解锁三只 ${coinCostLabel(rest.costs.scout_all)}` : "需要小道消息"}</button>
+                    <button disabled={!canRerouteSelected} onClick={() => onAction({type: "reroute_next", battleNo: selectedRow.battle_no})}>{hasRerouteTalent ? `更换对手 ${rerouteUsed}/${rerouteLimit}` : "需要公子驾到"}</button>
+                  </div>
+                </motion.article>
+              </AnimatePresence>
+            </div>
+            <nav className="night-sky-thumbnail-nav" aria-label="小道消息节点">
+              {rows.map(row => {
+                const trainerVisible = row.trainer_visible !== false;
+                const trainerImage = trainerVisible ? trainerImageUrl(row.trainer, "avatar") || trainerImageUrl(row.trainer, "front") : "";
+                const selected = row.battle_no === selectedRow.battle_no;
+                return (
+                  <motion.button
+                    className={`night-sky-thumbnail ${selected ? "active" : ""} ${trainerVisible ? "" : "unknown"} ${row.encountered ? "encountered" : ""}`}
+                    aria-label={`选择小道消息节点 ${row.battle_no}`}
+                    onClick={() => setSelectedBattleNo(row.battle_no)}
+                    initial={false}
+                    animate={{opacity: selected ? 1 : 0.62, y: selected ? -2 : 0}}
+                    whileHover={{scale: 1.05, opacity: 1}}
+                    whileTap={{scale: 0.96}}
+                    key={`night-sky-thumb-${row.battle_no}`}
+                  >
+                    {selected ? <motion.i layoutId="night-sky-thumbnail-active" transition={{type: "spring", stiffness: 420, damping: 32}} /> : null}
+                    {trainerImage ? <img src={trainerImage} alt="" /> : <span>?</span>}
+                  </motion.button>
+                );
+              })}
+            </nav>
+          </div>
+        ) : <p className="night-sky-empty">小道消息尚未展开。</p>}
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }
 
-function RunTalentActionModal({talent, rest, onClose, onAction}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+function RunTalentActionContent({talent, rest, onAction}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onAction: (action: RestAction) => void | Promise<void>}) {
   const [allInSlot, setAllInSlot] = useState(0);
   const [trustSlot, setTrustSlot] = useState(0);
   const [leadSlot, setLeadSlot] = useState(0);
   const [bpAmount, setBpAmount] = useState(1);
   const canAllIn = hasRunTalent(rest, "growth_all_in") && !rest.all_in_used;
 
-  function actionPanel() {
-    if (talent.id === "growth_all_in") {
-      return (
-        <div className="talent-card-actions">
-          <div className="talent-target-row compact">
-            {rest.player_display.map((pokemon, index) => (
-              <button className={`${allInSlot === index ? "selected" : ""} ${rest.all_in_used ? "used" : ""}`} disabled={Boolean(rest.all_in_used)} onClick={() => setAllInSlot(index)} key={`${pokemon.species_id}-all-in-${index}`}>
-                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
-                <span>{index + 1}. {displayName(pokemon)}</span>
-                {rest.all_in_used ? <small>已用</small> : null}
-              </button>
-            ))}
-          </div>
-          <button disabled={!canAllIn} onClick={() => onAction({type: "all_in_exchange", ownIndex: allInSlot})}>{rest.all_in_used ? "孤注一掷已用" : `孤注一掷：${displayName(rest.player_display[allInSlot])}`}</button>
+  if (talent.id === "growth_all_in") {
+    return (
+      <div className="talent-card-actions">
+        <div className="talent-target-row compact">
+          {rest.player_display.map((pokemon, index) => (
+            <button className={`${allInSlot === index ? "selected" : ""} ${rest.all_in_used ? "used" : ""}`} disabled={Boolean(rest.all_in_used)} onClick={() => setAllInSlot(index)} key={`${pokemon.species_id}-all-in-${index}`}>
+              <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+              <span>{index + 1}. {displayName(pokemon)}</span>
+              {rest.all_in_used ? <small>已用</small> : null}
+            </button>
+          ))}
         </div>
-      );
-    }
-    if (talent.id === "intel_reroute") {
-      const preview = rest.next_opponent_preview;
-      const used = rest.reroute_used || 0;
-      const limit = rest.reroute_limit || 3;
-      return (
-        <div className="talent-card-actions">
-          <div className="talent-run-mini">
-            <strong>{preview ? `第 ${preview.battle_no} 场：${preview.trainer.name_zh}` : "没有可改道的下一场"}</strong>
-            <span>{preview?.label || "本局已接近结束"}　{used}/{limit}</span>
-          </div>
-          <button className={used >= limit ? "used" : ""} disabled={!preview || used >= limit || preview.trainer.type === "champion"} onClick={() => onAction({type: "reroute_next"})}>{used >= limit ? "次数已用尽" : "更换下一场对手"}</button>
-        </div>
-      );
-    }
-    if (talent.id === "exchange_trust") {
-      return (
-        <div className="talent-card-actions">
-          <div className="talent-target-row compact">
-            {rest.player_display.map((pokemon, index) => (
-              <button className={`${trustSlot === index ? "selected" : ""} ${rest.trust_level_used ? "used" : ""}`} disabled={Boolean(rest.trust_level_used)} onClick={() => setTrustSlot(index)} key={`${pokemon.species_id}-trust-${index}`}>
-                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
-                <span>{index + 1}. {displayName(pokemon)} Lv{pokemon.level}</span>
-                {rest.trust_level_used ? <small>已用</small> : null}
-              </button>
-            ))}
-          </div>
-          <button disabled={Boolean(rest.trust_level_used)} onClick={() => onAction({type: "trust_level", slot: trustSlot})}>{rest.trust_level_used ? "本次已培养" : "培养信赖"}</button>
-        </div>
-      );
-    }
-    if (talent.id === "growth_lead_change") {
-      return (
-        <div className="talent-card-actions">
-          <div className="talent-target-row compact">
-            {rest.player_display.map((pokemon, index) => (
-              <button className={`${leadSlot === index ? "selected" : ""} ${rest.lead_change_used ? "used" : ""}`} disabled={Boolean(rest.lead_change_used) || Boolean(rest.player_state[index]?.fainted)} onClick={() => setLeadSlot(index)} key={`${pokemon.species_id}-lead-${index}`}>
-                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
-                <span>{index + 1}. {displayName(pokemon)}</span>
-                {rest.lead_change_used ? <small>已用</small> : null}
-              </button>
-            ))}
-          </div>
-          <button disabled={Boolean(rest.lead_change_used) || leadSlot === 0} onClick={() => onAction({type: "set_lead", slot: leadSlot})}>{rest.lead_change_used ? "本次已调整" : "设为首发"}</button>
-        </div>
-      );
-    }
-    if (talent.id === "economy_bp_exchange") {
-      return (
-        <div className="talent-card-actions bp-exchange-actions">
-          <input type="number" min={1} max={99} value={bpAmount} onChange={event => setBpAmount(Math.max(1, Math.floor(Number(event.target.value || 1))))} />
-          <button onClick={() => onAction({type: "bp_to_coins", bp: bpAmount})}>兑换 {bpAmount * 50} 金币</button>
-        </div>
-      );
-    }
-    return <p className="talent-action-empty">这个天赋不需要在休整页手动发动。</p>;
+        <button disabled={!canAllIn} onClick={() => onAction({type: "all_in_exchange", ownIndex: allInSlot})}>{rest.all_in_used ? "孤注一掷已用" : `孤注一掷：${displayName(rest.player_display[allInSlot])}`}</button>
+      </div>
+    );
   }
+  if (talent.id === "intel_reroute") {
+    const preview = rest.next_opponent_preview;
+    const used = rest.reroute_used || 0;
+    const limit = rest.reroute_limit || 3;
+    return (
+      <div className="talent-card-actions">
+        <div className="talent-run-mini">
+          <strong>{preview ? `第 ${preview.battle_no} 场：${preview.trainer.name_zh}` : "没有可改道的下一场"}</strong>
+          <span>{preview?.label || "本局已接近结束"}　{used}/{limit}</span>
+        </div>
+        <button className={used >= limit ? "used" : ""} disabled={!preview || used >= limit} onClick={() => onAction({type: "reroute_next"})}>{used >= limit ? "次数已用尽" : "更换下一场对手"}</button>
+      </div>
+    );
+  }
+  if (talent.id === "exchange_trust") {
+    return (
+      <div className="talent-card-actions">
+        <div className="talent-target-row compact">
+          {rest.player_display.map((pokemon, index) => (
+            <button className={`${trustSlot === index ? "selected" : ""} ${rest.trust_level_used ? "used" : ""}`} disabled={Boolean(rest.trust_level_used)} onClick={() => setTrustSlot(index)} key={`${pokemon.species_id}-trust-${index}`}>
+              <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+              <span>{index + 1}. {displayName(pokemon)} Lv{pokemon.level}</span>
+              {rest.trust_level_used ? <small>已用</small> : null}
+            </button>
+          ))}
+        </div>
+        <button disabled={Boolean(rest.trust_level_used)} onClick={() => onAction({type: "trust_level", slot: trustSlot})}>{rest.trust_level_used ? "本次已培养" : "培养信赖"}</button>
+      </div>
+    );
+  }
+  if (talent.id === "growth_lead_change") {
+    return (
+      <div className="talent-card-actions">
+        <div className="talent-target-row compact">
+          {rest.player_display.map((pokemon, index) => (
+            <button className={`${leadSlot === index ? "selected" : ""} ${rest.lead_change_used ? "used" : ""}`} disabled={Boolean(rest.lead_change_used) || Boolean(rest.player_state[index]?.fainted)} onClick={() => setLeadSlot(index)} key={`${pokemon.species_id}-lead-${index}`}>
+              <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+              <span>{index + 1}. {displayName(pokemon)}</span>
+              {rest.lead_change_used ? <small>已用</small> : null}
+            </button>
+          ))}
+        </div>
+        <button disabled={Boolean(rest.lead_change_used) || leadSlot === 0} onClick={() => onAction({type: "set_lead", slot: leadSlot})}>{rest.lead_change_used ? "本次已调整" : "设为首发"}</button>
+      </div>
+    );
+  }
+  if (talent.id === "economy_bp_exchange") {
+    return (
+      <div className="talent-card-actions bp-exchange-actions">
+        <input type="number" min={1} max={99} value={bpAmount} onChange={event => setBpAmount(Math.max(1, Math.floor(Number(event.target.value || 1))))} />
+        <button onClick={() => onAction({type: "bp_to_coins", bp: bpAmount})}>兑换 {bpAmount * 50} 金币</button>
+      </div>
+    );
+  }
+  return <p className="talent-action-empty">这个天赋不需要在休整页手动发动。</p>;
+}
 
+function RunTalentActionModal({talent, rest, onClose, onAction, embedded = false}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
   return (
-    <div className="modal-layer">
+    <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal talent-action-modal">
         <header><div><h2>{talent.name}</h2><p>{talentShortText(talent)}</p></div><button onClick={onClose}>关闭</button></header>
-        {actionPanel()}
+        <RunTalentActionContent talent={talent} rest={rest} onAction={onAction} />
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }
 
-function RunTalentModal({rest, onClose}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+function RunTalentModal({rest, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; embedded?: boolean}) {
+  const talents = rest.talents || [];
+  const [selectedTalentId, setSelectedTalentId] = useState(() => talents[0]?.id || "");
+  const selectedTalent = talents.find(talent => talent.id === selectedTalentId) || talents[0] || null;
+
+  useEffect(() => {
+    if (!talents.length) {
+      setSelectedTalentId("");
+      return;
+    }
+    if (!talents.some(talent => talent.id === selectedTalentId)) setSelectedTalentId(talents[0].id);
+  }, [selectedTalentId, talents]);
+
   return (
-    <div className="modal-layer">
-      <section className="shop-modal talent-run-modal">
-        <header><div><h2>本局天赋</h2><p>{rest.talents?.length ? "当前天赋效果会影响休整与结算。" : "当前无天赋。"}</p></div><button onClick={onClose}>关闭</button></header>
-        <div className="talent-run-list">
-          {rest.talents?.length ? rest.talents.map(talent => (
-            <article className={isActiveRunTalent(talent.id) ? "active-talent-card" : ""} key={talent.id}>
-              <strong>{talent.name}</strong>
-              <span>{talent.category}</span>
-              <p>{talentShortText(talent)}</p>
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal talent-run-modal talent-run-browser">
+        {talents.length ? (
+          <div className="talent-run-browser-body">
+            <aside className="talent-run-side-list" aria-label="本局天赋列表">
+              {talents.map(talent => {
+                const used = runTalentActionUsed(rest, talent.id);
+                return (
+                  <button className={`${selectedTalent?.id === talent.id ? "selected" : ""} ${used ? "used" : ""}`} onClick={() => setSelectedTalentId(talent.id)} key={talent.id}>
+                    <strong>{talent.name}</strong>
+                    <span>{talent.category}</span>
+                    {used ? <small>已用</small> : null}
+                  </button>
+                );
+              })}
+            </aside>
+            <article className={`talent-run-detail ${selectedTalent && isActiveRunTalent(selectedTalent.id) ? "active-talent-card" : ""}`}>
+              {selectedTalent ? (
+                <>
+                  <div className="talent-run-detail-title">
+                    <div>
+                      <h3>{selectedTalent.name}</h3>
+                      <span>{selectedTalent.category}</span>
+                    </div>
+                    <b>{runTalentActionUsed(rest, selectedTalent.id) ? "已使用" : isManualRunTalent(selectedTalent.id) ? "可手动" : "常驻"}</b>
+                  </div>
+                  <p>{talentShortText(selectedTalent)}</p>
+                </>
+              ) : null}
             </article>
-          )) : <p>当前无天赋。</p>}
-        </div>
+          </div>
+        ) : <p className="talent-run-empty">当前无天赋。</p>}
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }
 
 type ShopPreferredCategory = "healing" | "pp" | "berry" | "battle" | "tm";
 
-function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (preferredCategory?: ShopPreferredCategory) => boolean | void | Promise<boolean | void>; onBuy: (offerId: string) => void | Promise<void>}) {
+function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (preferredCategory?: ShopPreferredCategory) => boolean | void | Promise<boolean | void>; onBuy: (offerId: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
   const offers = shop?.offers || [];
   const slotCount = shop?.slot_count || offers.length || 3;
   const [rolling, setRolling] = useState(false);
   const [revealed, setRevealed] = useState(Boolean(offers.length));
   const [preferredCategory, setPreferredCategory] = useState<"" | ShopPreferredCategory>("");
-  const purchased = Boolean(shop?.purchased_offer_id);
+  const [buyingOfferId, setBuyingOfferId] = useState("");
   const bonus = shop?.last_roll_bonus || null;
   const canChooseCategory = hasRunTalent(rest, "intel_shop_strategy");
   const rollCost = Number(shop?.next_roll_cost || 0) + (preferredCategory ? Number(shop?.preferred_roll_cost || 100) : 0);
@@ -500,20 +800,18 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<Desk
   }
 
   async function buy(offerId: string) {
-    await onBuy(offerId);
-    onClose();
+    if (buyingOfferId) return;
+    setBuyingOfferId(offerId);
+    try {
+      await onBuy(offerId);
+    } finally {
+      setBuyingOfferId("");
+    }
   }
 
   return (
-    <div className="modal-layer">
+    <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal slot-shop-modal">
-        <header>
-          <div>
-            <h2>随机商店</h2>
-            <p>抽奖次数 {shop?.roll_count || 0}　下次抽奖 {coinCostLabel(shop?.next_roll_cost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　额外免费 ${shop.free_rolls_remaining}` : ""}</p>
-          </div>
-          <button onClick={onClose}>关闭</button>
-        </header>
         {canChooseCategory ? (
           <div className="segmented-row">
             <button className={!preferredCategory ? "selected" : ""} onClick={() => setPreferredCategory("")}>随机</button>
@@ -525,76 +823,196 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<Desk
             <span>{preferredCategory ? `指定加收 ${coinCostLabel(shop?.preferred_roll_cost || 100)}` : "不指定类型"}</span>
           </div>
         ) : null}
-        <div className="command-row"><button disabled={rolling || !canAffordRoll} onClick={roll}>抽奖（{coinCostLabel(shop?.next_roll_cost)}）</button><button onClick={onClose}>跳过</button></div>
-        <div className={`slot-reels ${rolling ? "rolling" : ""} ${revealed && offers.length ? "settled" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
-          {Array.from({length: slotCount}, (_, index) => {
-            return <div className="slot-reel" key={`slot-${index}`}><ItemIcon item={undefined} /><span>{rolling ? "抽取中" : revealed && offers.length ? "已揭晓" : "待抽取"}</span></div>;
-          })}
+        <div className="shop-control-row">
+          <span>抽奖 {coinCostLabel(shop?.next_roll_cost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　免费 ${shop.free_rolls_remaining}` : ""}</span>
+          <button disabled={rolling || !canAffordRoll} onClick={roll}>{rolling ? "抽取中" : `抽奖`}</button>
+          <button onClick={onClose}>跳过</button>
         </div>
         {bonus && revealed ? <div className="slot-bonus-pop"><strong>抽到 {bonus.match_count} 连！</strong><span>免费获得 {bonus.count} 个 {bonus.name_zh || bonus.name}</span></div> : null}
-        {revealed && offers.length ? <div className="shop-card-grid" style={{"--slot-count": slotCount} as CSSProperties}>
-          {offers.map(item => {
-            const isPurchased = shop?.purchased_offer_id === item.offer_id;
+        <div className={`shop-slot-grid ${rolling ? "rolling" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
+          {rolling ? Array.from({length: slotCount}, (_, index) => (
+            <article className="shop-slot-card placeholder" key={`rolling-shop-${index}`}>
+              <ItemIcon item={undefined} />
+              <div>
+                <strong>抽取中</strong>
+                <small>正在刷新商品</small>
+                <span>价格待定</span>
+              </div>
+              <button disabled>等待</button>
+            </article>
+          )) : revealed && offers.length ? offers.map(item => {
+            const purchaseCount = Number(shop?.purchased_offer_counts?.[item.offer_id] || (shop?.purchased_offer_id === item.offer_id ? 1 : 0));
             const isBonus = bonus?.item_id === toId(item.id || item.name);
+            const itemCost = Number(item.cost || 0);
+            const canAffordItem = Number(rest.coins || 0) >= itemCost;
+            const isBuying = buyingOfferId === item.offer_id;
             return (
-              <article className={`shop-card ${isPurchased ? "purchased" : ""} ${isBonus ? "bonus" : ""}`} key={item.offer_id}>
+              <article className={`shop-slot-card ${purchaseCount ? "bought" : ""} ${isBonus ? "bonus" : ""}`} key={item.offer_id}>
                 <ItemIcon item={item} />
-                <strong>{item.name_zh || item.name}</strong>
-                <span>{itemCategoryLabel(item.category)}　{coinCostLabel(item.cost)}</span>
-                <small>{item.desc_zh || item.desc || item.name}</small>
-                {isBonus ? <b>{bonus?.match_count} 连奖励</b> : null}
-                <button disabled={purchased} onClick={() => buy(item.offer_id)}>{isPurchased ? "已购买" : "购买这张"}</button>
+                <div>
+                  <strong>{item.name_zh || item.name}</strong>
+                  <small>{item.desc_zh || item.desc || item.name}</small>
+                  <span><em>{itemCategoryLabel(item.category)}</em><b>{coinCostLabel(item.cost)}</b>{isBonus ? <i>{bonus?.match_count} 连</i> : null}{purchaseCount ? <i>已买 x{purchaseCount}</i> : null}</span>
+                </div>
+                <button disabled={Boolean(buyingOfferId) || !canAffordItem} onClick={() => buy(item.offer_id)}>{isBuying ? "购买中" : purchaseCount ? "再买" : "购买"}</button>
               </article>
             );
-          })}
-        </div> : !rolling ? <p className="slot-empty">还没有商品。点击抽奖，本局第一次免费。</p> : null}
-      </section>
-    </div>
-  );
-}
-
-function MoveAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
-  const [slot, setSlot] = useState(initialSlot);
-  const [moveSlot, setMoveSlot] = useState(0);
-  const playerDisplay = rest.player_display || [];
-  const pokemon = playerDisplay[slot] || playerDisplay[0];
-  const pokemonMoves = pokemon?.moves || [];
-  const currentMove = pokemonMoves[moveSlot];
-  const draws = rest.move_draws?.[`${slot}:${moveSlot}`] || [];
-  const tmItems = rest.bag_categories?.tm || [];
-  const moveColumnCount = 1 + (tmItems.length ? 1 : 0);
-
-  return (
-    <div className="modal-layer">
-      <section className="rest-edit-modal move-editor-modal">
-        <header><h2>更换技能</h2><button onClick={onClose}>关闭</button></header>
-        <div className="editor-layout">
-          <aside className="editor-side-list">{playerDisplay.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => { setSlot(index); setMoveSlot(0); }} key={`${entry.species_id}-move-editor-${index}`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
-          <section className="editor-main">
-            <h3>{displayName(pokemon)}：替换 {currentMove?.name_zh || "选择招式格"}</h3>
-            <div className="move-slot-row">{pokemonMoves.map((move, index) => <button className={moveSlot === index ? "selected" : ""} onClick={() => setMoveSlot(index)} key={`${move.id}-${index}`}>{index + 1}. {move.name_zh}</button>)}</div>
-            <div className="move-editor-columns" style={{"--move-column-count": moveColumnCount} as CSSProperties}>
-              <section>
-                <div className="command-row"><button onClick={() => onAction({type: "draw_moves", slot, moveSlot})}>抽取候选（{coinCostLabel(rest.costs.move_draw)}）</button></div>
-                <div className="learnable-list">{draws.length ? draws.map(move => <button onClick={() => { onAction({type: "apply_drawn_move", slot, moveSlot, moveId: move.id}); onClose(); }} key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {move.pp}</span><small>{moveDescription(move)}</small></button>) : <p>先抽取候选技能，再选择一个替换当前招式。</p>}</div>
-              </section>
-              {tmItems.length ? <section>
-                <h4>技能机器</h4>
-                <div className="learnable-list">{tmItems.map(item => <button onClick={() => { onAction({type: "use_tm", itemId: item.id, slot, moveSlot}); onClose(); }} key={item.id}><strong>{item.name_zh || item.name}</strong><span>x{item.count}</span><small>{item.desc_zh || item.desc || item.name}</small></button>)}</div>
-              </section> : null}
-            </div>
-          </section>
+          }) : Array.from({length: slotCount}, (_, index) => (
+            <article className="shop-slot-card placeholder" key={`empty-shop-${index}`}>
+              <ItemIcon item={undefined} />
+              <div>
+                <strong>待抽取</strong>
+                <small>点击抽奖刷新商品。</small>
+                <span>价格待定</span>
+              </div>
+              <button disabled>购买</button>
+            </article>
+          ))}
         </div>
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }
 
-function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; onClose: () => void; onAction: (action: RestAction) => void}) {
+const MOVE_DRAW_FLIP_BACK_MS = 420;
+const MOVE_DRAW_SHUFFLE_STEP_MS = 520;
+const MOVE_DRAW_FINAL_HOLD_MS = 460;
+const MOVE_DRAW_RESULT_WAIT_MS = 2000;
+const moveDrawLayoutTransition = {duration: 0.46, ease: [0.2, 0.82, 0.2, 1] as const};
+
+function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; initialMoveSlot?: number; onClose: () => void; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
+  const slot = initialSlot;
+  const moveSlot = initialMoveSlot;
+  const pokemon = rest.player_display[slot] || rest.player_display[0];
+  const currentMove = pokemon?.moves[moveSlot];
+  const drawKey = `${slot}:${moveSlot}`;
+  const serverDraws = rest.move_draws?.[drawKey] || [];
+  const serverRoll = Number(rest.move_draw_rolls?.[drawKey] || 0);
+  const cardCount = hasRunTalent(rest, "growth_more_choices") ? 16 : 8;
+  const [order, setOrder] = useState(() => Array.from({length: cardCount}, (_, index) => `card-${index}`));
+  const [phase, setPhase] = useState<"idle" | "shuffle" | "reveal">("idle");
+  const [selectedMoveId, setSelectedMoveId] = useState("");
+  const [drawing, setDrawing] = useState(false);
+  const [revealedMoves, setRevealedMoves] = useState<PricedMove[]>([]);
+  const latestDrawRef = useRef({drawKey, roll: serverRoll, draws: serverDraws});
+  latestDrawRef.current = {drawKey, roll: serverRoll, draws: serverDraws};
+  const revealOrder = revealedMoves.map((move, index) => `${move.id || move.name}-${index}`);
+
+  useEffect(() => {
+    setOrder(Array.from({length: cardCount}, (_, index) => `card-${index}`));
+    setPhase("idle");
+    setSelectedMoveId("");
+    setDrawing(false);
+    setRevealedMoves([]);
+  }, [slot, moveSlot, cardCount]);
+
+  async function drawCandidates() {
+    if (drawing) return;
+    const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
+    const waitForDraws = async (startRoll: number) => {
+      const startedAt = Date.now();
+      let fallbackDraws: PricedMove[] | null = null;
+      while (Date.now() - startedAt < MOVE_DRAW_RESULT_WAIT_MS) {
+        const latest = latestDrawRef.current;
+        if (latest.drawKey === drawKey && latest.draws.length) {
+          fallbackDraws = latest.draws;
+          if (latest.roll > startRoll) return latest.draws;
+        }
+        await wait(80);
+      }
+      return fallbackDraws;
+    };
+    const orderSeed = Date.now();
+    const nextOrder = Array.from({length: cardCount}, (_, index) => `card-${orderSeed}-${index}`);
+    const startRoll = serverRoll;
+    setDrawing(true);
+    setSelectedMoveId("");
+    setRevealedMoves([]);
+    setPhase("idle");
+    setOrder(nextOrder);
+    const drawPromise = Promise.resolve(onAction({type: "draw_moves", slot, moveSlot}));
+    await wait(MOVE_DRAW_FLIP_BACK_MS);
+    setPhase("shuffle");
+    await wait(80);
+    for (let step = 0; step < 3; step += 1) {
+      setOrder(current => shuffleOrder(current, step));
+      await wait(MOVE_DRAW_SHUFFLE_STEP_MS);
+    }
+    const ok = await drawPromise;
+    if (ok === false) {
+      setDrawing(false);
+      setPhase("idle");
+      return;
+    }
+    await wait(MOVE_DRAW_FINAL_HOLD_MS);
+    const nextDraws = await waitForDraws(startRoll);
+    if (!nextDraws?.length) {
+      setDrawing(false);
+      setPhase("idle");
+      return;
+    }
+    setRevealedMoves(nextDraws.slice(0, cardCount));
+    setSelectedMoveId("");
+    setPhase("reveal");
+    setDrawing(false);
+  }
+
+  async function confirm() {
+    if (!selectedMoveId) return;
+    const ok = await Promise.resolve(onAction({type: "apply_drawn_move", slot, moveSlot, moveId: selectedMoveId}));
+    if (ok !== false) onClose();
+  }
+
+  return (
+    <PokopiaModal className="move-draw-modal" labelledBy="move-draw-title" onClose={onClose}>
+      {requestClose => (
+        <motion.section className="move-draw-content" variants={pokopiaItemVariants}>
+          <header>
+            <div>
+              <h2 id="move-draw-title">更换技能</h2>
+              <p>{displayName(pokemon)}：替换 {currentMove?.name_zh || currentMove?.name || `第 ${moveSlot + 1} 个技能`}</p>
+            </div>
+            <span>{coinCostLabel(rest.costs.move_draw)}</span>
+          </header>
+          <Reorder.Group as="div" axis="y" values={phase === "reveal" ? revealOrder : order} onReorder={phase === "reveal" ? () => undefined : setOrder} className={`move-draw-card-grid ${cardCount > 8 ? "large" : ""} ${phase === "reveal" ? "revealed" : "shuffling"}`}>
+            {phase === "reveal" ? revealedMoves.map((move, index) => {
+              const moveId = move.id || move.name;
+              return (
+                <Reorder.Item as="button" value={`${moveId}-${index}`} drag={false} transition={moveDrawLayoutTransition} className={moveCardClassName({moveType: move.type || move.type_zh, size: "draw", selected: selectedMoveId === moveId, className: "quick-dex-move-card move-draw-choice"})} onClick={() => setSelectedMoveId(moveId)} key={`${moveId}-${index}`}>
+                  <MoveCardContent name={move.name_zh || move.name} moveType={move.type || move.type_zh} typeLabel={move.type_zh || move.type || "一般"} category={move.category_zh || move.category || "变化"} pp={move.pp || "--"} power={move.power || "--"} />
+                </Reorder.Item>
+              );
+            }) : order.map(id => (
+              <Reorder.Item as="div" value={id} drag={false} transition={moveDrawLayoutTransition} className="move-draw-card-back" key={id}>
+                <i>TM</i>
+              </Reorder.Item>
+            ))}
+          </Reorder.Group>
+          <footer>
+            <button disabled={drawing} onClick={drawCandidates}>{phase === "reveal" ? `继续抽奖（${coinCostLabel(rest.costs.move_draw)}）` : drawing ? "抽奖中" : `开始抽奖（${coinCostLabel(rest.costs.move_draw)}）`}</button>
+            {phase === "reveal" ? <button disabled={!selectedMoveId} onClick={confirm}>确认更换</button> : null}
+            <button onClick={() => requestClose()}>取消更换</button>
+          </footer>
+        </motion.section>
+      )}
+    </PokopiaModal>
+  );
+}
+
+function shuffleOrder(order: string[], step: number): string[] {
+  const next = [...order];
+  for (let index = 0; index < next.length; index += 1) {
+    const swapIndex = (index * 5 + step * 3 + 1) % next.length;
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
+function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; onClose: () => void; onAction: (action: RestAction) => void; embedded?: boolean}) {
   const [slot, setSlot] = useState(initialSlot);
   const pokemon = rest.player_display[slot];
   return (
-    <div className="modal-layer">
+    <EmbeddedOrModal embedded={embedded}>
       <section className="rest-edit-modal stats-editor">
         <header><h2>重置数值</h2><button onClick={onClose}>关闭</button></header>
         <div className="editor-layout">
@@ -615,6 +1033,6 @@ function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: Non
           </section>
         </div>
       </section>
-    </div>
+    </EmbeddedOrModal>
   );
 }

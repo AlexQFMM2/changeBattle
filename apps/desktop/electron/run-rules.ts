@@ -15,7 +15,7 @@ export const STARTER_COINS_DEFAULT = 0;
 export const STARTER_ITEM_MAX_LEVEL = 4;
 export const STARTER_POKEMON_INSPECT_MAX_LEVEL = 6;
 export const SHOP_ROLL_COST_FIRST = 0;
-export const SHOP_ROLL_COST_NEXT = 150;
+export const SHOP_ROLL_COST_NEXT = 75;
 export const SHOP_ROLL_COST_GAMBLER_PAID = Math.floor(SHOP_ROLL_COST_NEXT * 1.5);
 export const SHOP_GUEST_FREE_ROLLS = 3;
 export const SHOP_PREFERRED_ROLL_COST = 1 * BP_SCALE;
@@ -77,7 +77,7 @@ const TALENT_DEFINITIONS: TalentView[] = [
   {id: "intel_rumor", name: "小道消息", category: "情报规划", cost: 30, desc: "休整时可查看本局训练师顺序，并逐步揭示他们的阵容。"},
   {id: "intel_god_eye", name: "上帝之眼", category: "情报规划", cost: 8, desc: "对战时显示技能打击效果，允许查看图鉴，并显示个体值和努力值。"},
   {id: "intel_shop_strategy", name: "神机妙算", category: "情报规划", cost: 18, desc: "商店抽奖前可额外花费金币指定道具方向。"},
-  {id: "intel_reroute", name: "公子驾到", category: "情报规划", cost: 25, desc: "休整时可强行更换下一场同等级对手，每局最多 3 次；冠军战不可改道。"},
+  {id: "intel_reroute", name: "公子驾到", category: "情报规划", cost: 25, desc: "休整时可强行更换一个未挑战的同等级对手，每局最多 3 次。"},
   {id: "intel_named_challenge", name: "指名挑战", category: "情报规划", cost: 25, desc: "开局前指定本局冠军路线的最终 Boss；只在最终战为冠军时生效。"},
   {id: "growth_risky", name: "铤而走险", category: "养成改造", cost: 12, desc: "局内金币花费和休整页消耗道具可能出现更好或更坏的结果。"},
   {id: "growth_more_choices", name: "顺手牵羊", category: "养成改造", cost: 10, desc: "商店老虎机、商店候选池和技能随机候选给出更多选择。"},
