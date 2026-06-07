@@ -67,6 +67,44 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   background: rgb(105 12 18 / 72%);
 }
 
+.error-modal-layer {
+  z-index: 160;
+}
+
+.error-modal {
+  width: min(520px, calc(100vw - 36px));
+  border: 4px solid #67262c;
+  border-radius: 8px;
+  background: #fff8ee;
+  color: #241f1c;
+  box-shadow: 0 16px 36px #0008;
+  animation: modal-pop .18s cubic-bezier(.2, .82, .2, 1) both;
+}
+
+.error-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 3px solid #67262c;
+  padding: 14px 16px;
+  background: #f5d7d2;
+}
+
+.error-modal h2 {
+  margin: 0;
+  color: #7d2029;
+  font-size: 24px;
+}
+
+.error-modal p {
+  margin: 0;
+  padding: 18px 18px 20px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .floating-dex-button {
   position: absolute;
   top: 16px;
@@ -508,23 +546,28 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 
 .result-panel {
-  width: min(960px, 100%);
-  min-height: min(560px, 100%);
+  width: min(1180px, 100%);
+  max-height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
-  align-items: center;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: stretch;
   gap: 28px;
   border: 4px solid #25332b;
   border-radius: 8px;
   background: linear-gradient(180deg, #fffdf5, #f3ead5);
   box-shadow: 0 18px 36px #00000024;
   padding: 28px;
+  overflow: hidden;
 }
 
 .result-copy {
   min-width: 0;
+  min-height: 0;
   display: grid;
-  gap: 16px;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: 12px;
+  overflow: hidden;
 }
 
 .result-copy span,
@@ -541,7 +584,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .result-copy p {
   margin: 0;
   font-size: 18px;
-  line-height: 1.7;
+  line-height: 1.45;
 }
 
 .result-copy button {
@@ -551,8 +594,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 
 .result-trainer-card {
   min-width: 0;
+  min-height: 0;
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 8px;
   border: 3px solid #25332b;
   border-radius: 8px;
@@ -573,6 +618,100 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 22px;
+}
+
+.result-row-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.result-row-list article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(140px, .42fr) minmax(0, .58fr);
+  gap: 2px 12px;
+  align-items: center;
+  border: 2px solid #cfd8bd;
+  border-radius: 8px;
+  background: #fffdf5;
+  padding: 8px 10px;
+}
+
+.result-row-list strong,
+.result-row-list b,
+.result-row-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-row-list b {
+  color: #25332b;
+  text-align: right;
+}
+
+.result-row-list small {
+  grid-column: 1 / -1;
+  color: #596052;
+}
+
+.result-team-board {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.result-team-list {
+  min-width: 0;
+  border: 3px solid #25332b;
+  border-radius: 8px;
+  background: #fffdf5;
+  padding: 10px;
+}
+
+.result-team-list h3,
+.result-team-list p {
+  margin: 0;
+}
+
+.result-team-list > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.result-team-list article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 2px 7px;
+  align-items: center;
+  border: 2px solid #cfd8bd;
+  border-radius: 7px;
+  background: #f6f1e4;
+  padding: 5px 7px;
+}
+
+.result-team-list .pokemon-sprite {
+  grid-row: span 2;
+  width: 44px;
+  height: 44px;
+}
+
+.result-team-list strong,
+.result-team-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-settings-page {
@@ -1127,6 +1266,157 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .battle-effect-layer.anchor-side.target-p1 .battle-effect { left: 31%; top: 73%; width: 360px; height: 90px; }
 .battle-effect-layer.anchor-side.target-p2 .battle-effect { left: 71%; top: 23%; width: 360px; height: 90px; }
 
+.battle-image-effect {
+  filter: drop-shadow(0 8px 10px #0a466066);
+}
+
+.effect-substitute {
+  filter: drop-shadow(0 7px 8px #2d6d4d66);
+}
+
+.battle-image-effect span {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-image: var(--effect-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+  animation-name: image-effect-pop;
+  animation-duration: var(--cue-duration);
+  animation-timing-function: cubic-bezier(.18, .8, .22, 1);
+  animation-fill-mode: both;
+}
+
+.battle-spritesheet-effect {
+  width: var(--sheet-frame-width);
+  height: var(--sheet-frame-height);
+  filter: drop-shadow(0 0 12px #90a8ff99);
+  scale: var(--sheet-scale);
+}
+
+.battle-spritesheet-effect span {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: var(--sheet-frame-width);
+  height: var(--sheet-frame-height);
+  background-image: var(--effect-image);
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: auto 100%;
+  animation-name: effect-spritesheet-play, effect-spritesheet-fade;
+  animation-duration: var(--cue-duration), var(--cue-duration);
+  animation-timing-function: steps(var(--sheet-steps), end), ease-out;
+  animation-fill-mode: both, both;
+}
+
+.effect-electric-burst,
+.effect-electric-thunder,
+.effect-water-splash,
+.effect-fire-burst,
+.effect-ice-crystal,
+.effect-poison-bubbles {
+  mix-blend-mode: screen;
+}
+
+.effect-electric-thunder { filter: drop-shadow(0 0 12px #8fa8ff99); }
+.effect-water-splash { filter: drop-shadow(0 0 9px #70dbff88); }
+.effect-fire-burst { filter: drop-shadow(0 0 10px #ff8a2c88); }
+.effect-ice-crystal { filter: drop-shadow(0 0 10px #7eeaff88); }
+.effect-poison-bubbles { filter: drop-shadow(0 0 9px #8bd35f99); }
+
+.effect-surf {
+  overflow: hidden;
+  filter: none;
+}
+
+.effect-surf::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 8px, #dbfbff28 8px 11px, transparent 11px 18px),
+    linear-gradient(180deg, #d9fbff00 0 18%, #76d8ff66 48%, #1d83c088 72%, #d9fbff00 100%);
+  mix-blend-mode: screen;
+  animation: surf-field-wash var(--cue-duration) ease-out both;
+}
+
+.effect-surf i {
+  left: auto;
+  top: auto;
+  right: -22%;
+  bottom: 12%;
+  width: 82%;
+  height: 18%;
+  translate: 0 0;
+  border-radius: 44% 46% 18% 18%;
+  background:
+    radial-gradient(ellipse at 18% 15%, #e9ffff 0 10%, transparent 11%),
+    radial-gradient(ellipse at 36% 0, #b8efff 0 18%, transparent 19%),
+    radial-gradient(ellipse at 60% 10%, #e6ffff 0 12%, transparent 13%),
+    linear-gradient(180deg, #d8fbff 0 18%, #71d2fb 22% 46%, #2185c4 52% 72%, #085392 100%);
+  box-shadow: inset 0 7px 0 #ffffff99, inset 0 -8px 0 #064b8599, 0 8px 14px #034a6d55;
+  opacity: 0;
+  animation-name: surf-wave-sweep;
+}
+
+.effect-surf i:nth-child(2) { bottom: 23%; animation-delay: 80ms; scale: .86 1.05; filter: brightness(1.12); }
+.effect-surf i:nth-child(3) { bottom: 33%; animation-delay: 160ms; scale: .72 .95; opacity: 0; }
+.effect-surf i:nth-child(4) { bottom: 43%; animation-delay: 240ms; scale: .58 .8; opacity: 0; }
+.effect-surf i:nth-child(5),
+.effect-surf i:nth-child(6) { display: none; }
+
+.effect-surf::after {
+  content: "";
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: 8%;
+  height: 18%;
+  background:
+    radial-gradient(ellipse at 12% 48%, #f2ffffcc 0 8%, transparent 9%),
+    radial-gradient(ellipse at 28% 58%, #d8fbffcc 0 6%, transparent 7%),
+    radial-gradient(ellipse at 47% 44%, #f2ffffcc 0 9%, transparent 10%),
+    radial-gradient(ellipse at 66% 56%, #d8fbffcc 0 7%, transparent 8%),
+    radial-gradient(ellipse at 82% 48%, #f2ffffcc 0 8%, transparent 9%);
+  opacity: 0;
+  animation: surf-foam-follow var(--cue-duration) cubic-bezier(.18, .8, .22, 1) both;
+}
+
+.effect-rain {
+  overflow: hidden;
+  filter: none;
+}
+
+.effect-rain::before,
+.effect-rain::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.effect-rain::before {
+  background:
+    repeating-linear-gradient(104deg, transparent 0 14px, #dbf7ff82 14px 16px, transparent 16px 30px),
+    repeating-linear-gradient(104deg, transparent 0 28px, #87d8ff5c 28px 31px, transparent 31px 54px),
+    repeating-linear-gradient(104deg, transparent 0 45px, #ffffff4d 45px 47px, transparent 47px 82px);
+  filter: blur(.15px);
+  animation: rain-sheet var(--cue-duration) linear both;
+}
+
+.effect-rain::after {
+  inset: 0;
+  background:
+    linear-gradient(180deg, #122c5c33 0%, #4ea5d022 45%, #0b254033 100%),
+    repeating-linear-gradient(180deg, transparent 0 18px, #d7f5ff1c 18px 20px, transparent 20px 34px);
+  mix-blend-mode: multiply;
+  animation: rain-wash var(--cue-duration) ease-out both;
+}
+
 .battle-effect i {
   position: absolute;
   display: block;
@@ -1153,6 +1443,28 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .effect-normal-hit i:nth-child(3), .effect-impact i:nth-child(3) { animation-delay: 140ms; translate: 20% -35%; scale: .72; }
 .effect-normal-hit i:nth-child(4), .effect-impact i:nth-child(4) { animation-delay: 220ms; translate: -45% 20%; scale: .8; }
 
+.effect-miss i {
+  width: 112px;
+  height: 28px;
+  border: 5px solid #f8ffff;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  background: transparent;
+  animation-name: miss-slip;
+}
+.effect-crit i,
+.effect-effectiveness i,
+.effect-flinch i {
+  width: 60px;
+  height: 60px;
+  background: #fff7b0;
+  border: 5px solid #dd5f41;
+  clip-path: polygon(50% 0, 59% 32%, 94% 18%, 71% 48%, 100% 64%, 64% 68%, 72% 100%, 50% 76%, 28% 100%, 36% 68%, 0 64%, 29% 48%, 6% 18%, 41% 32%);
+  animation-name: burst-pop;
+}
+.effect-effectiveness i { border-color: #72b966; background: #fffdf5; }
+.effect-flinch i { border-color: #8d8d8d; background: #f4f1e6; }
+
 .effect-fire i,
 .effect-burn i {
   width: 26px;
@@ -1176,6 +1488,22 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .effect-water i:nth-child(2), .effect-rain i:nth-child(2) { left: 36%; animation-delay: 120ms; }
 .effect-water i:nth-child(3), .effect-rain i:nth-child(3) { left: 64%; animation-delay: 210ms; }
 .effect-water i:nth-child(4), .effect-rain i:nth-child(4) { top: 65%; animation-delay: 280ms; scale: .8; }
+
+.effect-rain i {
+  top: -12%;
+  width: 2px;
+  height: 38%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, #e8fbffcc 22%, #69cfff88 72%, transparent);
+  rotate: 14deg;
+  animation-name: rain-foreground-drop;
+}
+.effect-rain i:nth-child(1) { left: 16%; animation-delay: 0ms; scale: .72 1; }
+.effect-rain i:nth-child(2) { left: 34%; animation-delay: 120ms; scale: .55 .86; }
+.effect-rain i:nth-child(3) { left: 50%; animation-delay: 220ms; scale: .82 1.12; }
+.effect-rain i:nth-child(4) { left: 66%; top: -12%; animation-delay: 80ms; scale: .62 .9; }
+.effect-rain i:nth-child(5) { left: 78%; animation-delay: 180ms; scale: .74 1.04; }
+.effect-rain i:nth-child(6) { left: 24%; animation-delay: 260ms; scale: .48 .76; }
 
 .effect-electric i {
   width: 92px;
@@ -1222,6 +1550,15 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .effect-poison i:nth-child(2) { left: 37%; top: 58%; animation-delay: 120ms; scale: .75; }
 .effect-poison i:nth-child(3) { left: 64%; top: 40%; animation-delay: 220ms; scale: .65; }
 
+.effect-toxic i {
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle, #efb0ff, #6a258f 70%);
+  animation-name: bubble-drift;
+}
+.effect-toxic i:nth-child(2) { left: 36%; top: 60%; animation-delay: 110ms; scale: .72; }
+.effect-toxic i:nth-child(3) { left: 66%; top: 42%; animation-delay: 210ms; scale: .64; }
+
 .effect-ground i,
 .effect-rock i,
 .effect-hazard-rock i {
@@ -1251,7 +1588,23 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .effect-dragon i,
 .effect-fairy i,
 .effect-ability i,
-.effect-field i {
+.effect-field i,
+.effect-confusion i,
+.effect-volatile i,
+.effect-taunt i,
+.effect-encore i,
+.effect-disable i,
+.effect-attract i,
+.effect-curse i,
+.effect-imprison i,
+.effect-healblock i,
+.effect-trick-room i,
+.effect-terrain-electric i,
+.effect-terrain-grassy i,
+.effect-terrain-misty i,
+.effect-terrain-psychic i,
+.effect-field-clear i,
+.effect-weather-clear i {
   width: 96px;
   height: 96px;
   border: 6px solid #f2d5ff;
@@ -1261,7 +1614,19 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .effect-ghost i { border-color: #a897ff; background: radial-gradient(circle, #fff8 0 20%, #614dbe88 45%, transparent 72%); }
 .effect-dragon i { border-color: #8ea0ff; background: radial-gradient(circle, #fff8 0 20%, #5554d688 45%, transparent 72%); }
 .effect-fairy i { border-color: #ffc2e4; background: radial-gradient(circle, #fff8 0 20%, #ec7eb988 45%, transparent 72%); }
-.effect-psychic i:nth-child(2), .effect-ghost i:nth-child(2), .effect-dragon i:nth-child(2), .effect-fairy i:nth-child(2), .effect-ability i:nth-child(2), .effect-field i:nth-child(2) { animation-delay: 180ms; scale: .65; }
+.effect-confusion i { border-color: #e8c3ff; background: conic-gradient(from 0deg, transparent, #d86cff99, transparent, #72e4ff99, transparent); animation-name: confusion-spin; }
+.effect-taunt i { border-color: #e65a60; background: radial-gradient(circle, #fff8 0 18%, #d84a6888 45%, transparent 72%); }
+.effect-encore i { border-color: #ffd66a; background: radial-gradient(circle, #fff8 0 18%, #f0b44188 45%, transparent 72%); }
+.effect-disable i, .effect-healblock i { border-color: #7f8794; background: radial-gradient(circle, #fff8 0 18%, #65708388 45%, transparent 72%); }
+.effect-attract i { border-color: #ff9bcf; background: radial-gradient(circle, #fff8 0 18%, #ef6baa88 45%, transparent 72%); }
+.effect-curse i, .effect-imprison i { border-color: #8b75d6; background: radial-gradient(circle, #fff8 0 18%, #3e315f99 45%, transparent 72%); }
+.effect-trick-room i { border-color: #b783ff; background: conic-gradient(from 45deg, #8c5ee244, transparent, #e6d5ff66, transparent, #8c5ee244); }
+.effect-terrain-electric i { border-color: #ffe76a; background: radial-gradient(circle, #fff8 0 18%, #ffe76a77 45%, transparent 72%); }
+.effect-terrain-grassy i { border-color: #86dd6d; background: radial-gradient(circle, #fff8 0 18%, #62c45c77 45%, transparent 72%); }
+.effect-terrain-misty i { border-color: #bcecff; background: radial-gradient(circle, #fff8 0 18%, #a0d8ff77 45%, transparent 72%); }
+.effect-terrain-psychic i { border-color: #ff9bd8; background: radial-gradient(circle, #fff8 0 18%, #d86cff77 45%, transparent 72%); }
+.effect-field-clear i, .effect-weather-clear i { border-color: #ffffffaa; background: radial-gradient(circle, #ffffff77 0 16%, #8ea0aa44 45%, transparent 72%); }
+.effect-psychic i:nth-child(2), .effect-ghost i:nth-child(2), .effect-dragon i:nth-child(2), .effect-fairy i:nth-child(2), .effect-ability i:nth-child(2), .effect-field i:nth-child(2), .effect-confusion i:nth-child(2), .effect-volatile i:nth-child(2), .effect-taunt i:nth-child(2), .effect-encore i:nth-child(2), .effect-disable i:nth-child(2), .effect-attract i:nth-child(2), .effect-curse i:nth-child(2), .effect-imprison i:nth-child(2), .effect-healblock i:nth-child(2), .effect-trick-room i:nth-child(2), .effect-terrain-electric i:nth-child(2), .effect-terrain-grassy i:nth-child(2), .effect-terrain-misty i:nth-child(2), .effect-terrain-psychic i:nth-child(2), .effect-field-clear i:nth-child(2), .effect-weather-clear i:nth-child(2) { animation-delay: 180ms; scale: .65; }
 
 .effect-dark i {
   width: 120px;
@@ -1290,6 +1655,7 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 .effect-heal i:nth-child(3) { animation-delay: 340ms; scale: .5; }
 
 .effect-boost i,
+.effect-boost-up i,
 .effect-item i {
   width: 36px;
   height: 80px;
@@ -1297,9 +1663,24 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   background: linear-gradient(#fff8a6, #55d676);
   animation-name: boost-rise;
 }
+.effect-boost-down i {
+  width: 38px;
+  height: 74px;
+  border-radius: 999px;
+  background: linear-gradient(#d7d2e2, #6f6487);
+  animation-name: boost-fall;
+}
+.effect-boost-clear i,
+.effect-boost-swap i {
+  width: 104px;
+  height: 104px;
+  border: 6px solid #f4f1e6;
+  background: transparent;
+  animation-name: aura-ring;
+}
 .effect-item i { background: linear-gradient(#fff8a6, #69a8ff); }
-.effect-boost i:nth-child(2), .effect-item i:nth-child(2) { left: 38%; animation-delay: 120ms; scale: .7; }
-.effect-boost i:nth-child(3), .effect-item i:nth-child(3) { left: 63%; animation-delay: 220ms; scale: .8; }
+.effect-boost i:nth-child(2), .effect-boost-up i:nth-child(2), .effect-boost-down i:nth-child(2), .effect-item i:nth-child(2) { left: 38%; animation-delay: 120ms; scale: .7; }
+.effect-boost i:nth-child(3), .effect-boost-up i:nth-child(3), .effect-boost-down i:nth-child(3), .effect-item i:nth-child(3) { left: 63%; animation-delay: 220ms; scale: .8; }
 
 .effect-switch-in i,
 .effect-switch-out i {
@@ -1320,11 +1701,17 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 
 .effect-sun i,
 .effect-sand i,
+.effect-snow i,
 .effect-hazard-spikes i,
 .effect-hazard-toxic i,
+.effect-hazard-web i,
+.effect-tailwind i,
 .effect-barrier i,
+.effect-aurora-barrier i,
 .effect-sleep i,
-.effect-status i {
+.effect-status i,
+.effect-leech-seed i,
+.effect-trapped i {
   width: 48px;
   height: 48px;
   background: #fff;
@@ -1332,12 +1719,415 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 }
 .effect-sun i { width: 150px; height: 150px; background: radial-gradient(circle, #fff8b1 0 18%, #ffc33d88 42%, transparent 70%); }
 .effect-sand i { width: 120%; height: 18px; background: linear-gradient(90deg, transparent, #caa766aa, transparent); animation-name: sand-sweep; }
+.effect-snow i { width: 56px; height: 56px; border: 4px solid #d8fbff; background: #ffffffcc; clip-path: polygon(50% 0, 58% 36%, 100% 50%, 58% 64%, 50% 100%, 42% 64%, 0 50%, 42% 36%); }
 .effect-hazard-spikes i, .effect-hazard-toxic i { width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-bottom: 46px solid #6d655a; background: transparent; border-radius: 0; animation-name: hazard-pop; }
 .effect-hazard-toxic i { border-bottom-color: #9650b8; }
 .effect-barrier i { width: 220px; height: 92px; border: 5px solid #8eeaff; background: #c8f5ff44; border-radius: 10px; animation-name: barrier-flash; }
+.effect-aurora-barrier i { width: 230px; height: 100px; border: 5px solid #ffc2e4; background: linear-gradient(90deg, #8eeaff33, #ffc2e433, #fff7a833); border-radius: 10px; animation-name: barrier-flash; }
+.effect-hazard-web i { width: 96px; height: 48px; border: 4px solid #f8ffffaa; background: repeating-conic-gradient(from 0deg, transparent 0 18deg, #f8ffff88 18deg 22deg); animation-name: hazard-pop; }
+.effect-tailwind i { width: 160px; height: 32px; border: 6px solid #f8ffff; border-left-color: transparent; border-bottom-color: transparent; background: transparent; animation-name: wind-slice; }
 .effect-sleep i { background: transparent; color: #627787; animation-name: sleep-float; }
 .effect-sleep i::before { content: "Z"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 42px; font-weight: 900; }
 .effect-status i { background: radial-gradient(circle, #fff 0 16%, #8d8d8d 66%, transparent 70%); animation-name: aura-ring; }
+.effect-leech-seed i { width: 36px; height: 46px; border-radius: 50% 50% 42% 42%; background: linear-gradient(#e8ffd8, #5bbf48); animation-name: seed-sprout; }
+.effect-trapped i { width: 120px; height: 64px; border: 5px solid #8b7660; background: transparent; border-radius: 50%; animation-name: trapped-ring; }
+
+.effect-rain::before {
+  background:
+    repeating-linear-gradient(104deg, transparent 0 7px, #f2ffff9c 7px 9px, transparent 9px 15px),
+    repeating-linear-gradient(104deg, transparent 0 16px, #8bdcff76 16px 19px, transparent 19px 31px),
+    repeating-linear-gradient(104deg, transparent 0 27px, #ffffff58 27px 29px, transparent 29px 48px),
+    linear-gradient(180deg, #0a2c5a18, #3e9ed02a 46%, #09274428);
+  animation-name: rain-sheet-heavy;
+}
+
+.effect-rain::after {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 11px, #e6fbff28 11px 13px, transparent 13px 21px),
+    linear-gradient(180deg, #10264f44 0%, #54aede24 46%, #071a303d 100%);
+  animation-name: rain-wash-heavy;
+}
+
+.effect-rain i {
+  width: 3px;
+  height: 46%;
+  background: linear-gradient(180deg, transparent, #f2ffffe0 18%, #6ed8ff9e 70%, transparent);
+  animation-name: rain-foreground-drop-heavy;
+}
+
+.effect-normal-physical-hit i,
+.effect-fighting-physical-combo i {
+  width: 54px;
+  height: 54px;
+  background: #fffdf5;
+  border: 5px solid #30342e;
+  clip-path: polygon(50% 0, 61% 34%, 98% 20%, 70% 50%, 98% 80%, 61% 66%, 50% 100%, 39% 66%, 2% 80%, 30% 50%, 2% 20%, 39% 34%);
+  animation-name: physical-impact-snap;
+}
+.effect-normal-physical-hit i:nth-child(2), .effect-fighting-physical-combo i:nth-child(2) { left: 38%; top: 42%; animation-delay: 70ms; scale: .72; }
+.effect-normal-physical-hit i:nth-child(3), .effect-fighting-physical-combo i:nth-child(3) { left: 64%; top: 60%; animation-delay: 140ms; scale: .84; }
+
+.effect-normal-special-pulse i,
+.effect-fighting-special-aura i,
+.effect-psychic-special-ring i,
+.effect-fairy-special-glow i {
+  width: 96px;
+  height: 96px;
+  border: 6px solid #f8f1ff;
+  background: radial-gradient(circle, #ffffffaa 0 18%, #86b7ff66 42%, transparent 70%);
+  animation-name: aura-ring;
+}
+.effect-fighting-special-aura i { border-color: #ffd27d; background: radial-gradient(circle, #fff8 0 18%, #f0a4417a 42%, transparent 72%); }
+.effect-psychic-special-ring i { border-color: #f0b7ff; background: radial-gradient(circle, #fff8 0 18%, #d46cff7a 42%, transparent 72%); }
+.effect-fairy-special-glow i { border-color: #ffc8e8; background: radial-gradient(circle, #fff8 0 18%, #ff8fcb7a 42%, transparent 72%); }
+
+.effect-fire-physical-flare i,
+.effect-burn-wisp i {
+  width: 30px;
+  height: 58px;
+  border-radius: 62% 62% 42% 42%;
+  background: radial-gradient(circle at 50% 74%, #fff5a8 0 18%, #ff8c2f 42%, #c82c20 72%, transparent 74%);
+  animation-name: flame-rise;
+}
+.effect-burn-wisp i {
+  background: radial-gradient(circle at 45% 72%, #fff7b8 0 16%, #b081ff 32%, #5c55df 56%, #ff742f 74%, transparent 76%);
+  animation-name: wisp-burn-rise;
+}
+.effect-fire-special-stream i,
+.effect-water-special-jet i,
+.effect-grass-special-beam i,
+.effect-ice-special-crystal i,
+.effect-steel-special-flash i {
+  width: 142px;
+  height: 34px;
+  border-radius: 999px;
+  animation-name: elemental-beam-sweep;
+}
+.effect-fire-special-stream i { background: linear-gradient(90deg, transparent, #fff3a5, #ff8c2f, #df3225, transparent); }
+.effect-water-special-jet i { background: linear-gradient(90deg, transparent, #eaffff, #60cfff, #2378c4, transparent); }
+.effect-grass-special-beam i { background: linear-gradient(90deg, transparent, #f2ffd5, #77d85a, #2c9d4b, transparent); }
+.effect-ice-special-crystal i { background: linear-gradient(90deg, transparent, #ffffff, #8deaff, #6cb6ff, transparent); }
+.effect-steel-special-flash i { background: linear-gradient(90deg, transparent, #ffffff, #aebdcc, #596575, transparent); }
+
+.effect-water-physical-crash i {
+  width: 72px;
+  height: 54px;
+  border-radius: 50% 50% 18% 18%;
+  background:
+    radial-gradient(ellipse at 24% 12%, #fff 0 10%, transparent 11%),
+    linear-gradient(#d9fbff, #57bef6 48%, #0d67aa);
+  animation-name: splash-crash;
+}
+.effect-electric-physical-jolt i,
+.effect-electric-special-thunder i,
+.effect-paralyze-wave i {
+  width: 74px;
+  height: 92px;
+  border-radius: 0;
+  background: #ffe65e;
+  clip-path: polygon(48% 0, 68% 0, 54% 35%, 84% 35%, 28% 100%, 42% 54%, 17% 54%);
+  animation-name: flash-jolt;
+}
+.effect-electric-special-thunder i { width: 102px; height: 118px; filter: drop-shadow(0 0 14px #fff06aaa); }
+.effect-paralyze-wave i {
+  width: 108px;
+  height: 108px;
+  clip-path: none;
+  border-radius: 50%;
+  border: 5px solid #ffe65e;
+  background: repeating-radial-gradient(circle, transparent 0 13px, #ffe65e99 13px 17px, transparent 17px 25px);
+  animation-name: paralyze-ring;
+}
+
+.effect-grass-physical-leaf i,
+.effect-bug-physical-sting i {
+  width: 58px;
+  height: 22px;
+  border-radius: 90% 10% 90% 10%;
+  background: linear-gradient(135deg, #eaffd2, #54be43 70%);
+  animation-name: leaf-slash;
+}
+.effect-bug-physical-sting i { background: linear-gradient(135deg, #f1ffd2, #9dcf3a 70%); clip-path: polygon(0 50%, 78% 0, 100% 50%, 78% 100%); }
+.effect-ice-physical-shard i,
+.effect-rock-special-gem i {
+  width: 48px;
+  height: 62px;
+  border-radius: 10px;
+  border: 4px solid #e9fdff;
+  background: linear-gradient(145deg, #ffffffdd, #8fe9ffbb 58%, #6cb2ff88);
+  clip-path: polygon(50% 0, 92% 32%, 74% 100%, 26% 100%, 8% 32%);
+  animation-name: ice-crack;
+}
+.effect-rock-special-gem i { border-color: #fff5c6; background: linear-gradient(145deg, #fff9cb, #cfa957 58%, #756239); }
+
+.effect-poison-physical-sting i {
+  width: 86px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #e6b0ff 16%, #8c35a6 72%, #f5d7ff);
+  clip-path: polygon(0 42%, 78% 42%, 78% 18%, 100% 50%, 78% 82%, 78% 58%, 0 58%);
+  animation-name: sting-dash;
+}
+.effect-poison-special-cloud i,
+.effect-poison-cloud i,
+.effect-toxic-cloud i {
+  width: 62px;
+  height: 46px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 38% 36%, #f0c3ff 0 20%, #8845a9 58%, transparent 72%);
+  animation-name: poison-cloud-rise;
+}
+.effect-toxic-cloud i { background: radial-gradient(circle at 38% 36%, #f0b6ff 0 18%, #64207e 58%, #321044 78%); filter: drop-shadow(0 0 10px #8231a8aa); }
+
+.effect-ground-physical-quake i,
+.effect-ground-special-earthpower i {
+  width: 150px;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #c6975d, #775633, transparent);
+  animation-name: quake-ripple;
+}
+.effect-ground-special-earthpower i { height: 72px; width: 34px; background: linear-gradient(#ffe0a0, #b97836 48%, transparent); animation-name: earthpower-rise; }
+.effect-flying-physical-wing i,
+.effect-flying-special-gale i,
+.effect-psychic-physical-cut i,
+.effect-steel-physical-slash i,
+.effect-dragon-physical-claw i,
+.effect-ghost-physical-claw i {
+  width: 134px;
+  height: 34px;
+  border: 6px solid #f8ffff;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  background: transparent;
+  animation-name: wind-slice;
+}
+.effect-flying-special-gale i { width: 160px; border-color: #dbfbff; border-left-color: transparent; border-bottom-color: transparent; }
+.effect-psychic-physical-cut i { border-color: #f0b7ff; border-left-color: transparent; border-bottom-color: transparent; }
+.effect-steel-physical-slash i { border-color: #edf5ff; border-left-color: transparent; border-bottom-color: transparent; filter: drop-shadow(0 0 7px #9fb2c8); }
+.effect-dragon-physical-claw i { border-color: #96a7ff; border-left-color: transparent; border-bottom-color: transparent; }
+.effect-ghost-physical-claw i { border-color: #b19cff; border-left-color: transparent; border-bottom-color: transparent; }
+
+.effect-bug-special-signal i,
+.effect-ghost-special-wisp i,
+.effect-dragon-special-pulse i,
+.effect-dark-special-pulse i,
+.effect-confusion-rings i {
+  width: 108px;
+  height: 108px;
+  border: 6px solid #e6d5ff;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, #c66cff99, transparent, #72e4ff99, transparent);
+  animation-name: confusion-spin;
+}
+.effect-bug-special-signal i { border-color: #c8ee72; background: conic-gradient(from 0deg, transparent, #b6ef5a99, transparent, #fbffbc99, transparent); }
+.effect-ghost-special-wisp i { border-color: #ad9bff; background: radial-gradient(circle, #ffffff55 0 18%, #6d4edb77 48%, transparent 72%); animation-name: ghost-wisp-drift; }
+.effect-dragon-special-pulse i { border-color: #91a4ff; background: radial-gradient(circle, #ffffff66 0 18%, #5a6dff88 48%, transparent 72%); animation-name: aura-ring; }
+.effect-dark-special-pulse i { border-color: #5a5268; background: radial-gradient(circle, #2c2236 0 28%, #000a 58%, transparent 72%); animation-name: dark-pulse; }
+
+.effect-rock-physical-smash i {
+  width: 52px;
+  height: 40px;
+  border-radius: 24% 38% 22% 42%;
+  background: linear-gradient(#d8ba78, #755936);
+  animation-name: rock-burst;
+}
+.effect-dark-physical-bite i {
+  width: 92px;
+  height: 58px;
+  background: linear-gradient(135deg, #2e2539, #07070b);
+  clip-path: polygon(0 12%, 42% 12%, 50% 0, 58% 12%, 100% 12%, 74% 50%, 100% 88%, 58% 88%, 50% 100%, 42% 88%, 0 88%, 26% 50%);
+  animation-name: bite-snap;
+}
+.effect-steel-special-flash i { filter: drop-shadow(0 0 9px #d7e5ff); }
+.effect-fairy-physical-sparkle i {
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle, #fff 0 18%, #ffb4df 42%, transparent 72%);
+  clip-path: polygon(50% 0, 60% 35%, 100% 50%, 60% 65%, 50% 100%, 40% 65%, 0 50%, 40% 35%);
+  animation-name: sparkle-pop;
+}
+
+.effect-sleep-drift i,
+.effect-sleep-hypnosis i {
+  background: transparent;
+  color: #60788c;
+  animation-name: sleep-float;
+}
+.effect-sleep-drift i::before { content: "Z"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 42px; font-weight: 900; }
+.effect-sleep-hypnosis i {
+  width: 94px;
+  height: 94px;
+  border: 5px solid #96c8ff;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #ffffff88, #86bfff44, transparent, #ffffff88);
+  color: transparent;
+  animation-name: hypnosis-swirl;
+}
+
+.effect-boost-swords i,
+.effect-boost-dragon i,
+.effect-boost-mind i,
+.effect-boost-power i,
+.effect-boost-iron i,
+.effect-boost-speed i,
+.effect-boost-nasty i,
+.effect-boost-growth i,
+.effect-boost-focus i,
+.effect-boost-belly i {
+  animation-name: boost-rise;
+}
+.effect-boost-swords i { width: 24px; height: 96px; border-radius: 12px 12px 2px 2px; background: linear-gradient(#ffffff, #b9c7dc 58%, #6d7890); clip-path: polygon(50% 0, 72% 28%, 62% 100%, 38% 100%, 28% 28%); }
+.effect-boost-dragon i { width: 118px; height: 118px; border: 6px solid #8ea0ff; border-radius: 50%; background: conic-gradient(from 45deg, transparent, #5f76ff88, transparent, #93ffcb88, transparent); animation-name: dragon-spiral; }
+.effect-boost-mind i { width: 104px; height: 104px; border: 6px solid #e4b8ff; border-radius: 50%; background: radial-gradient(circle, #ffffffaa 0 16%, #b66cff66 48%, transparent 70%); animation-name: calm-mind-pulse; }
+.effect-boost-power i, .effect-boost-belly i { width: 46px; height: 92px; border-radius: 999px; background: linear-gradient(#fff4a8, #e08a3d 58%, #b8422a); }
+.effect-boost-iron i { width: 92px; height: 92px; border-radius: 14px; background: linear-gradient(135deg, #f8fbff, #8798aa 58%, #485364); animation-name: steel-shine; }
+.effect-boost-speed i { width: 150px; height: 28px; border: 5px solid #f8ffff; border-left-color: transparent; border-bottom-color: transparent; background: transparent; animation-name: wind-slice; }
+.effect-boost-nasty i { width: 92px; height: 92px; border-radius: 50%; background: radial-gradient(circle, #ffffff66 0 16%, #5f407799 48%, transparent 72%); animation-name: dark-pulse; }
+.effect-boost-growth i { width: 36px; height: 74px; border-radius: 50% 50% 42% 42%; background: linear-gradient(#eaffd2, #55bf49); animation-name: seed-sprout; }
+.effect-boost-focus i { width: 86px; height: 86px; border: 6px solid #fff2a6; border-radius: 50%; background: radial-gradient(circle, #fff8 0 14%, #e85d4f88 46%, transparent 72%); animation-name: focus-lock; }
+
+.effect-debuff-sound i,
+.effect-debuff-glare i,
+.effect-debuff-tears i,
+.effect-debuff-feathers i,
+.effect-debuff-charm i {
+  animation-name: boost-fall;
+}
+.effect-debuff-sound i { width: 122px; height: 32px; border: 5px solid #b7afc8; border-left-color: transparent; border-bottom-color: transparent; background: transparent; }
+.effect-debuff-glare i { width: 108px; height: 54px; border: 5px solid #8f84a8; border-radius: 50%; background: radial-gradient(ellipse, #fff8 0 12%, #6a5b8288 48%, transparent 72%); }
+.effect-debuff-tears i { width: 22px; height: 46px; border-radius: 50% 50% 60% 60%; background: linear-gradient(#e8fbff, #69bdf0); }
+.effect-debuff-feathers i { width: 56px; height: 22px; border-radius: 90% 10% 90% 10%; background: linear-gradient(135deg, #ffffff, #b7bfca); }
+.effect-debuff-charm i { width: 70px; height: 62px; background: radial-gradient(circle at 30% 30%, #fff, #ff9bd0 55%, transparent 72%); clip-path: polygon(50% 100%, 8% 42%, 22% 8%, 50% 22%, 78% 8%, 92% 42%); }
+
+.effect-boost i,
+.effect-boost-up i,
+.effect-boost-swords i,
+.effect-boost-dragon i,
+.effect-boost-mind i,
+.effect-boost-power i,
+.effect-boost-iron i,
+.effect-boost-speed i,
+.effect-boost-nasty i,
+.effect-boost-growth i,
+.effect-boost-focus i,
+.effect-boost-belly i {
+  width: 62px;
+  height: 76px;
+  border: 0;
+  border-radius: 0;
+  clip-path: none;
+  background: transparent;
+  color: #2fbf55;
+  filter: drop-shadow(0 3px 0 #f8fff0) drop-shadow(0 8px 8px #1e8c3c77);
+  animation-name: stat-arrow-up;
+}
+.effect-boost-down i,
+.effect-debuff-sound i,
+.effect-debuff-glare i,
+.effect-debuff-tears i,
+.effect-debuff-feathers i,
+.effect-debuff-charm i {
+  width: 62px;
+  height: 76px;
+  border: 0;
+  border-radius: 0;
+  clip-path: none;
+  background: transparent;
+  color: #7c6a91;
+  filter: drop-shadow(0 3px 0 #f8f2ff) drop-shadow(0 8px 8px #4b3b5f66);
+  animation-name: stat-arrow-down;
+}
+.effect-boost i::before,
+.effect-boost-up i::before,
+.effect-boost-swords i::before,
+.effect-boost-dragon i::before,
+.effect-boost-mind i::before,
+.effect-boost-power i::before,
+.effect-boost-iron i::before,
+.effect-boost-speed i::before,
+.effect-boost-nasty i::before,
+.effect-boost-growth i::before,
+.effect-boost-focus i::before,
+.effect-boost-belly i::before,
+.effect-boost-down i::before,
+.effect-debuff-sound i::before,
+.effect-debuff-glare i::before,
+.effect-debuff-tears i::before,
+.effect-debuff-feathers i::before,
+.effect-debuff-charm i::before {
+  content: "↑";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 72px;
+  font-weight: 1000;
+  line-height: 1;
+}
+.effect-boost-down i::before,
+.effect-debuff-sound i::before,
+.effect-debuff-glare i::before,
+.effect-debuff-tears i::before,
+.effect-debuff-feathers i::before,
+.effect-debuff-charm i::before {
+  content: "↓";
+}
+.effect-boost i:nth-child(1), .effect-boost-up i:nth-child(1), .effect-boost-down i:nth-child(1) { left: 50%; animation-delay: 0ms; scale: 1.1; }
+.effect-boost i:nth-child(2), .effect-boost-up i:nth-child(2), .effect-boost-down i:nth-child(2) { left: 33%; top: 58%; animation-delay: 90ms; scale: .82; }
+.effect-boost i:nth-child(3), .effect-boost-up i:nth-child(3), .effect-boost-down i:nth-child(3) { left: 67%; top: 58%; animation-delay: 150ms; scale: .9; }
+.effect-boost i:nth-child(4), .effect-boost-up i:nth-child(4), .effect-boost-down i:nth-child(4) { left: 43%; top: 42%; animation-delay: 230ms; scale: .72; }
+.effect-boost i:nth-child(5), .effect-boost-up i:nth-child(5), .effect-boost-down i:nth-child(5) { left: 58%; top: 40%; animation-delay: 300ms; scale: .76; }
+.effect-boost i:nth-child(6), .effect-boost-up i:nth-child(6), .effect-boost-down i:nth-child(6) { left: 50%; top: 64%; animation-delay: 360ms; scale: .64; }
+:is(.effect-boost-swords, .effect-boost-dragon, .effect-boost-mind, .effect-boost-power, .effect-boost-iron, .effect-boost-speed, .effect-boost-nasty, .effect-boost-growth, .effect-boost-focus, .effect-boost-belly, .effect-debuff-sound, .effect-debuff-glare, .effect-debuff-tears, .effect-debuff-feathers, .effect-debuff-charm) i:nth-child(1) { left: 50%; animation-delay: 0ms; scale: 1.1; }
+:is(.effect-boost-swords, .effect-boost-dragon, .effect-boost-mind, .effect-boost-power, .effect-boost-iron, .effect-boost-speed, .effect-boost-nasty, .effect-boost-growth, .effect-boost-focus, .effect-boost-belly, .effect-debuff-sound, .effect-debuff-glare, .effect-debuff-tears, .effect-debuff-feathers, .effect-debuff-charm) i:nth-child(2) { left: 34%; top: 58%; animation-delay: 90ms; scale: .82; }
+:is(.effect-boost-swords, .effect-boost-dragon, .effect-boost-mind, .effect-boost-power, .effect-boost-iron, .effect-boost-speed, .effect-boost-nasty, .effect-boost-growth, .effect-boost-focus, .effect-boost-belly, .effect-debuff-sound, .effect-debuff-glare, .effect-debuff-tears, .effect-debuff-feathers, .effect-debuff-charm) i:nth-child(3) { left: 66%; top: 58%; animation-delay: 150ms; scale: .9; }
+:is(.effect-boost-swords, .effect-boost-dragon, .effect-boost-mind, .effect-boost-power, .effect-boost-iron, .effect-boost-speed, .effect-boost-nasty, .effect-boost-growth, .effect-boost-focus, .effect-boost-belly, .effect-debuff-sound, .effect-debuff-glare, .effect-debuff-tears, .effect-debuff-feathers, .effect-debuff-charm) i:nth-child(4) { left: 43%; top: 42%; animation-delay: 230ms; scale: .72; }
+:is(.effect-boost-swords, .effect-boost-dragon, .effect-boost-mind, .effect-boost-power, .effect-boost-iron, .effect-boost-speed, .effect-boost-nasty, .effect-boost-growth, .effect-boost-focus, .effect-boost-belly, .effect-debuff-sound, .effect-debuff-glare, .effect-debuff-tears, .effect-debuff-feathers, .effect-debuff-charm) i:nth-child(5) { left: 58%; top: 40%; animation-delay: 300ms; scale: .76; }
+:is(.effect-boost-swords, .effect-boost-dragon, .effect-boost-mind, .effect-boost-power, .effect-boost-iron, .effect-boost-speed, .effect-boost-nasty, .effect-boost-growth, .effect-boost-focus, .effect-boost-belly, .effect-debuff-sound, .effect-debuff-glare, .effect-debuff-tears, .effect-debuff-feathers, .effect-debuff-charm) i:nth-child(6) { left: 50%; top: 64%; animation-delay: 360ms; scale: .64; }
+
+.effect-light-screen i,
+.effect-safeguard i {
+  width: 230px;
+  height: 96px;
+  border: 5px solid #f4e8ff;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #d8b8ff33, #f8ffff50, #b8f5ff33);
+  animation-name: barrier-flash;
+}
+.effect-safeguard i { border-color: #fff6ad; background: linear-gradient(90deg, #fff6ad2e, #ffffff4f, #a8ffcf2e); }
+
+.effect-sun::before,
+.effect-sand::before,
+.effect-snow::before {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  opacity: 0;
+  pointer-events: none;
+}
+.effect-sun::before {
+  background:
+    radial-gradient(circle at 72% 18%, #fff3a866 0 9%, transparent 20%),
+    linear-gradient(180deg, #fff0a72c, #ffb84f24 55%, transparent);
+  animation: weather-field-wash var(--cue-duration) ease-out both;
+}
+.effect-sand::before {
+  background:
+    repeating-linear-gradient(164deg, transparent 0 18px, #d4b07160 18px 22px, transparent 22px 42px),
+    linear-gradient(180deg, #b88b4824, #d1a96126, #8a6d3d22);
+  animation: sand-field-sweep var(--cue-duration) linear both;
+}
+.effect-snow::before {
+  background:
+    radial-gradient(circle at 14% 10%, #ffffffcc 0 3px, transparent 4px),
+    radial-gradient(circle at 32% 2%, #dff8ffbb 0 3px, transparent 4px),
+    radial-gradient(circle at 56% 12%, #ffffffcc 0 4px, transparent 5px),
+    radial-gradient(circle at 78% 4%, #dff8ffbb 0 3px, transparent 4px),
+    linear-gradient(180deg, #dff8ff22, #ffffff16);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, auto;
+  animation: snow-field-fall var(--cue-duration) linear both;
+}
 
 @keyframes burst-pop {
   0% { opacity: 0; scale: .2; rotate: 0deg; }
@@ -1357,9 +2147,74 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   100% { opacity: 0; translate: -50% 42px; scale: 1.1; }
 }
 
+@keyframes rain-sheet {
+  0% { opacity: 0; transform: translate3d(-9%, -15%, 0); }
+  12% { opacity: .88; }
+  82% { opacity: .86; }
+  100% { opacity: 0; transform: translate3d(8%, 16%, 0); }
+}
+
+@keyframes rain-wash {
+  0% { opacity: 0; }
+  14% { opacity: .85; }
+  78% { opacity: .78; }
+  100% { opacity: 0; }
+}
+
+@keyframes rain-foreground-drop {
+  0% { opacity: 0; translate: -50% -42%; }
+  16% { opacity: .86; }
+  78% { opacity: .7; }
+  100% { opacity: 0; translate: -50% 260%; }
+}
+
+@keyframes image-effect-pop {
+  0% { opacity: 0; scale: .55; }
+  24% { opacity: .95; scale: 1.04; }
+  100% { opacity: 0; scale: .86; }
+}
+
+@keyframes effect-spritesheet-play {
+  0% { background-position: 0 0; }
+  100% { background-position: calc(-1 * var(--sheet-shift)) 0; }
+}
+
+@keyframes effect-spritesheet-fade {
+  0% { opacity: 0; transform: scale(.84); }
+  12% { opacity: .96; }
+  76% { opacity: .96; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(1.16); }
+}
+
+@keyframes surf-field-wash {
+  0% { opacity: 0; translate: 0 18%; }
+  20% { opacity: .88; }
+  62% { opacity: .72; }
+  100% { opacity: 0; translate: 0 -8%; }
+}
+
+@keyframes surf-wave-sweep {
+  0% { opacity: 0; translate: 78% 36%; scale: 1.05; }
+  18% { opacity: 1; }
+  64% { opacity: 1; translate: -34% -10%; scale: 1.38; }
+  100% { opacity: 0; translate: -52% -22%; scale: 1.5; }
+}
+
+@keyframes surf-foam-follow {
+  0%, 18% { opacity: 0; translate: 42% 18%; }
+  42% { opacity: .8; }
+  100% { opacity: 0; translate: -36% -8%; }
+}
+
 @keyframes flash-jolt {
   0%, 100% { opacity: 0; scale: .4; filter: brightness(1); }
   20%, 58% { opacity: 1; scale: 1.05; filter: brightness(1.6); }
+}
+
+@keyframes miss-slip {
+  0% { opacity: 0; translate: -120px -50%; }
+  28% { opacity: .9; }
+  100% { opacity: 0; translate: 78px -50%; }
 }
 
 @keyframes leaf-whirl {
@@ -1398,6 +2253,12 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   100% { opacity: 0; scale: 1.65; rotate: 90deg; }
 }
 
+@keyframes confusion-spin {
+  0% { opacity: 0; scale: .35; rotate: 0deg; }
+  38% { opacity: .88; scale: 1.02; }
+  100% { opacity: 0; scale: 1.25; rotate: 260deg; }
+}
+
 @keyframes dark-pulse {
   0% { opacity: 0; scale: .2; }
   45% { opacity: 1; scale: .95; }
@@ -1420,6 +2281,26 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   0% { opacity: 0; translate: -50% 58px; scale: .35; }
   35% { opacity: .95; }
   100% { opacity: 0; translate: -50% -70px; scale: .85; }
+}
+
+@keyframes boost-fall {
+  0% { opacity: 0; translate: -50% -66px; scale: .35; }
+  35% { opacity: .88; }
+  100% { opacity: 0; translate: -50% 62px; scale: .85; }
+}
+
+@keyframes stat-arrow-up {
+  0% { opacity: 0; translate: -50% 44px; scale: .58; }
+  24% { opacity: 1; scale: 1.18; }
+  72% { opacity: .96; }
+  100% { opacity: 0; translate: -50% -84px; scale: .92; }
+}
+
+@keyframes stat-arrow-down {
+  0% { opacity: 0; translate: -50% -76px; scale: .58; }
+  24% { opacity: 1; scale: 1.18; }
+  72% { opacity: .9; }
+  100% { opacity: 0; translate: -50% 72px; scale: .92; }
 }
 
 @keyframes switch-flash {
@@ -1458,6 +2339,18 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   100% { opacity: 0; translate: -50% -8px; scale: .85; }
 }
 
+@keyframes seed-sprout {
+  0% { opacity: 0; translate: -50% 30px; scale: .3; }
+  38% { opacity: .95; }
+  100% { opacity: 0; translate: -50% -44px; scale: 1.08; }
+}
+
+@keyframes trapped-ring {
+  0% { opacity: 0; scale: .55; rotate: 0deg; }
+  38% { opacity: .8; }
+  100% { opacity: 0; scale: 1.1; rotate: 16deg; }
+}
+
 @keyframes barrier-flash {
   0% { opacity: 0; scale: .75; }
   35% { opacity: .9; scale: 1; }
@@ -1468,6 +2361,150 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
   0% { opacity: 0; translate: -50% 30px; scale: .45; }
   35% { opacity: .95; }
   100% { opacity: 0; translate: -50% -70px; scale: 1.2; }
+}
+
+@keyframes rain-sheet-heavy {
+  0% { opacity: 0; transform: translate3d(-13%, -18%, 0); }
+  10% { opacity: .96; }
+  84% { opacity: .9; }
+  100% { opacity: 0; transform: translate3d(12%, 20%, 0); }
+}
+
+@keyframes rain-wash-heavy {
+  0% { opacity: 0; }
+  12% { opacity: .9; }
+  82% { opacity: .82; }
+  100% { opacity: 0; }
+}
+
+@keyframes rain-foreground-drop-heavy {
+  0% { opacity: 0; translate: -50% -52%; }
+  14% { opacity: .95; }
+  76% { opacity: .82; }
+  100% { opacity: 0; translate: -50% 285%; }
+}
+
+@keyframes physical-impact-snap {
+  0% { opacity: 0; scale: .18; rotate: -12deg; }
+  28% { opacity: 1; scale: 1.22; }
+  100% { opacity: 0; scale: .62; rotate: 34deg; }
+}
+
+@keyframes wisp-burn-rise {
+  0% { opacity: 0; translate: -80% 30px; scale: .42; filter: hue-rotate(30deg); }
+  38% { opacity: .98; translate: -50% -8px; scale: 1; }
+  100% { opacity: 0; translate: -18% -72px; scale: 1.22; filter: hue-rotate(-36deg); }
+}
+
+@keyframes elemental-beam-sweep {
+  0% { opacity: 0; translate: -138px -50%; scale: .66 1; }
+  24% { opacity: .98; }
+  100% { opacity: 0; translate: 100px -50%; scale: 1.08 .82; }
+}
+
+@keyframes splash-crash {
+  0% { opacity: 0; translate: -92px -16px; rotate: -18deg; scale: .55; }
+  34% { opacity: 1; scale: 1.08; }
+  100% { opacity: 0; translate: 48px 44px; rotate: 18deg; scale: 1.25; }
+}
+
+@keyframes paralyze-ring {
+  0% { opacity: 0; scale: .35; rotate: 0deg; }
+  30% { opacity: .95; scale: 1.04; }
+  100% { opacity: 0; scale: 1.2; rotate: 90deg; }
+}
+
+@keyframes leaf-slash {
+  0% { opacity: 0; translate: -126px 48px; rotate: -26deg; scale: .42; }
+  30% { opacity: 1; }
+  100% { opacity: 0; translate: 98px -72px; rotate: 30deg; scale: 1.05; }
+}
+
+@keyframes sting-dash {
+  0% { opacity: 0; translate: -128px -50%; scale: .7; }
+  25% { opacity: 1; }
+  100% { opacity: 0; translate: 84px -50%; scale: .92; }
+}
+
+@keyframes poison-cloud-rise {
+  0% { opacity: 0; translate: -50% 46px; scale: .38; filter: blur(0); }
+  36% { opacity: .9; }
+  100% { opacity: 0; translate: -50% -52px; scale: 1.42; filter: blur(1px); }
+}
+
+@keyframes quake-ripple {
+  0% { opacity: 0; translate: -50% 34px; scale: .38 1; }
+  26% { opacity: .96; }
+  100% { opacity: 0; translate: -50% -12px; scale: 1.45 .78; }
+}
+
+@keyframes earthpower-rise {
+  0% { opacity: 0; translate: -50% 56px; scale: .45 0; }
+  34% { opacity: .95; scale: .9 1; }
+  100% { opacity: 0; translate: -50% -44px; scale: 1.12 1.18; }
+}
+
+@keyframes ghost-wisp-drift {
+  0% { opacity: 0; translate: -78px 28px; scale: .35; }
+  38% { opacity: .86; }
+  100% { opacity: 0; translate: 62px -50px; scale: 1.18; }
+}
+
+@keyframes bite-snap {
+  0% { opacity: 0; scale: 1.38 .2; }
+  32% { opacity: .95; scale: .92 1; }
+  100% { opacity: 0; scale: .72 .52; }
+}
+
+@keyframes sparkle-pop {
+  0% { opacity: 0; scale: .2; rotate: 0deg; }
+  34% { opacity: .98; scale: 1.15; }
+  100% { opacity: 0; scale: .62; rotate: 80deg; }
+}
+
+@keyframes hypnosis-swirl {
+  0% { opacity: 0; scale: .32; rotate: 0deg; }
+  36% { opacity: .9; scale: 1.04; }
+  100% { opacity: 0; scale: 1.18; rotate: 240deg; }
+}
+
+@keyframes dragon-spiral {
+  0% { opacity: 0; scale: .32; rotate: 0deg; }
+  34% { opacity: .92; scale: 1; }
+  100% { opacity: 0; scale: 1.32; rotate: 220deg; }
+}
+
+@keyframes calm-mind-pulse {
+  0% { opacity: 0; scale: .22; }
+  38% { opacity: .88; scale: .92; }
+  100% { opacity: 0; scale: 1.48; }
+}
+
+@keyframes focus-lock {
+  0% { opacity: 0; scale: .28; rotate: 0deg; }
+  30% { opacity: .95; scale: .94; }
+  100% { opacity: 0; scale: .7; rotate: 180deg; }
+}
+
+@keyframes weather-field-wash {
+  0% { opacity: 0; filter: brightness(1); }
+  24% { opacity: .92; filter: brightness(1.1); }
+  82% { opacity: .74; }
+  100% { opacity: 0; filter: brightness(1); }
+}
+
+@keyframes sand-field-sweep {
+  0% { opacity: 0; transform: translate3d(18%, -6%, 0); }
+  18% { opacity: .82; }
+  82% { opacity: .72; }
+  100% { opacity: 0; transform: translate3d(-18%, 6%, 0); }
+}
+
+@keyframes snow-field-fall {
+  0% { opacity: 0; transform: translate3d(0, -12%, 0); }
+  18% { opacity: .86; }
+  82% { opacity: .78; }
+  100% { opacity: 0; transform: translate3d(-4%, 18%, 0); }
 }
 
 .turn-badge {
@@ -1595,7 +2632,8 @@ input, select { min-height: 42px; min-width: 220px; padding: 8px 12px; border: 3
 }
 
 .battle-bottom { min-height: 0; display: grid; grid-template-columns: minmax(280px, 0.55fr) minmax(0, 1fr); grid-template-rows: 74px minmax(0, 1fr); gap: 10px 12px; padding: 12px; background: #6ea8a1; border-top: 2px solid #25332b; }
-.battle-bottom.dialogue-bottom-active { grid-template-columns: minmax(0, 1fr); }
+.battle-bottom.move-bottom-active { grid-template-columns: minmax(0, .6fr) minmax(380px, .4fr); }
+.battle-bottom.dialogue-bottom-active { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .battle-party-board {
   grid-column: 1 / -1;
   min-width: 0;
@@ -1764,6 +2802,10 @@ button.party-status-chip {
   cursor: pointer;
 }
 
+.battle-dialogue-active .battle-message-pop {
+  display: none;
+}
+
 .battle-dialogue-box {
   position: relative;
   height: 100%;
@@ -1783,6 +2825,10 @@ button.party-status-chip {
   padding: 18px 26px 22px;
   color: #20281f;
   animation: enter-up .28s cubic-bezier(.2, .82, .2, 1) both;
+}
+
+.dialogue-bottom-active .battle-dialogue-box {
+  align-content: stretch;
 }
 
 .battle-dialogue-name {
@@ -1828,6 +2874,13 @@ button.party-status-chip {
   font-size: 28px;
   font-weight: 900;
   line-height: 1.35;
+}
+
+.dialogue-bottom-active .battle-dialogue-box p {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 0;
 }
 
 .battle-dialogue-box i {
@@ -2099,6 +3152,9 @@ button.party-status-chip {
   overflow: hidden;
 }
 .move-menu button { min-height: 0; }
+.move-action-panel {
+  min-width: 0;
+}
 .move-choice {
   --move-main: #b7b2a8;
   --move-dark: #665f57;
@@ -2571,12 +3627,34 @@ button.party-status-chip {
 .exchange-page { height: 100%; padding: 22px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 18px; }
 .exchange-page h2 { text-align: center; font-size: 34px; margin: 0; }
 .exchange-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.exchange-columns > div { min-height: 0; display: grid; grid-template-rows: auto repeat(3, minmax(0, 1fr)); gap: 10px; border: 4px solid #25332b; border-radius: 8px; background: #fffdf5; padding: 14px; }
+.exchange-columns.exchange-columns-with-label { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
+.exchange-columns > div:not(.exchange-center-label) { min-height: 0; display: grid; grid-template-rows: auto repeat(3, minmax(0, 1fr)); gap: 10px; border: 4px solid #25332b; border-radius: 8px; background: #fffdf5; padding: 14px; }
 .exchange-page h2,
 .exchange-page > .command-row { animation: enter-up .42s cubic-bezier(.2, .82, .2, 1) both; }
 .exchange-page > .command-row { animation-delay: .12s; }
 .exchange-columns > div:first-child { animation: enter-left .44s cubic-bezier(.2, .82, .2, 1) .04s both; }
 .exchange-columns > div:last-child { animation: enter-right .44s cubic-bezier(.2, .82, .2, 1) .04s both; }
+
+.exchange-center-label {
+  min-width: 86px;
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+}
+
+.exchange-center-label span {
+  display: grid;
+  place-items: center;
+  min-width: 72px;
+  min-height: 72px;
+  border: 4px solid #25332b;
+  border-radius: 999px;
+  background: #ffe071;
+  color: #25332b;
+  font-size: 18px;
+  font-weight: 1000;
+  box-shadow: inset 0 0 0 2px #fff5b8, 0 8px 18px #0002;
+}
 .exchange-card { display: grid; grid-template-columns: 80px minmax(0, 1fr); grid-template-rows: 1fr 1fr; align-items: center; gap: 2px 10px; text-align: left; }
 .exchange-card .pokemon-sprite { grid-row: 1 / span 2; width: 72px; height: 72px; }
 .exchange-card span { font-size: 20px; }
@@ -2587,7 +3665,7 @@ button.party-status-chip {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
-  grid-template-rows: auto minmax(0, 1fr) minmax(180px, .72fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 12px;
   padding: 14px;
   overflow: hidden;
@@ -2719,6 +3797,7 @@ button.party-status-chip {
 
 .rest-team-card small {
   grid-column: 2 / span 2;
+  max-width: min(64ch, 100%);
   color: #596052;
   font-size: 13px;
 }
@@ -2737,6 +3816,34 @@ button.party-status-chip {
 .rest-header-actions .event-button {
   border-color: #d66b37;
   background: linear-gradient(180deg, #fff1d4, #f5bb70);
+}
+
+.rest-talent-action-row {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border: 3px solid #25332b;
+  border-radius: 8px;
+  background: #f3f6ea;
+  padding: 8px 10px;
+  animation: enter-up .42s cubic-bezier(.2, .82, .2, 1) .03s both;
+}
+
+.rest-talent-action-row:empty {
+  display: none;
+}
+
+.rest-talent-action-row button {
+  min-height: 36px;
+  padding: 5px 12px;
+}
+
+.rest-talent-action-row small {
+  margin-left: 6px;
+  color: #596052;
 }
 
 .rest-summary-panel {
@@ -2806,11 +3913,12 @@ button.party-status-chip {
 .rest-exchange-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
   gap: 8px;
 }
 
-.rest-exchange-grid > div {
+.rest-exchange-grid > div:not(.exchange-center-label) {
   min-height: 0;
   display: grid;
   grid-auto-rows: minmax(58px, auto);
@@ -3312,13 +4420,28 @@ button.party-status-chip {
 }
 
 .talent-run-modal {
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.talent-action-modal,
+.night-sky-modal {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.talent-action-modal {
+  width: min(760px, calc(100% - 44px));
+}
+
+.night-sky-modal {
+  width: min(1120px, calc(100% - 44px));
 }
 
 .talent-run-list {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(108px, auto);
+  align-content: start;
   gap: 8px;
   overflow: auto;
 }
@@ -3335,6 +4458,7 @@ button.party-status-chip {
 .talent-run-list article {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
   gap: 4px 8px;
 }
 
@@ -3343,10 +4467,6 @@ button.party-status-chip {
   border-color: #d66b37;
   background: linear-gradient(180deg, #fff5df, #ffe7bd);
   box-shadow: inset 0 0 0 2px #fffaf0, 0 8px 16px #7c3b1d24;
-}
-
-.talent-run-list article.night-sky-card {
-  grid-column: 1 / -1;
 }
 
 .talent-run-list p {
@@ -3364,6 +4484,11 @@ button.party-status-chip {
 
 .talent-card-actions > button {
   min-height: 38px;
+}
+
+.talent-action-empty {
+  margin: 0;
+  color: #596052;
 }
 
 .talent-run-mini {
@@ -3385,8 +4510,12 @@ button.party-status-chip {
 }
 
 .night-sky-board {
+  min-height: 0;
   display: grid;
+  align-content: start;
   gap: 8px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .night-sky-row {
@@ -4494,6 +5623,10 @@ button.party-status-chip {
 
 .starter-wizard-card .starter-group-offers {
   min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  align-content: stretch;
+  gap: 10px;
   overflow: auto;
   padding-right: 4px;
 }
@@ -4671,6 +5804,12 @@ button.party-status-chip {
   gap: 10px;
 }
 
+.starter-offer-placeholder {
+  min-width: 0;
+  min-height: 0;
+  border: 2px dashed transparent;
+}
+
 .starter-offer {
   min-width: 0;
   min-height: 0;
@@ -4800,7 +5939,7 @@ button.party-status-chip {
   .battle-system-row { gap: 5px; }
   .battle-system-row button { min-width: 56px; min-height: 22px; font-size: 10px; }
   .battle-message-pop { left: 22px; bottom: 136px; min-width: 260px; font-size: 20px; }
-  .rest-page { grid-template-columns: 1fr; grid-template-rows: auto auto auto; align-content: start; overflow: auto; }
+  .rest-page { grid-template-columns: 1fr; grid-template-rows: auto auto auto auto; align-content: start; overflow: auto; }
   .rest-header { grid-column: 1; align-items: stretch; flex-direction: column; }
   .rest-header > :first-child { flex: 0 1 auto; }
   .rest-header-insights { flex: 0 1 auto; grid-template-columns: 1fr; }

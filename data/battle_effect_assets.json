@@ -1,9 +1,10 @@
 {
-  "version": 1,
-  "generated_at": "2026-06-03T00:00:00+08:00",
+  "version": 2,
+  "generated_at": "2026-06-07T00:00:00+08:00",
   "source": {
     "rom": "/home/alexqfmm/workPlace/pokemon/green.gba",
-    "notes": "First-pass battle effect index. Entries use CSS fallbacks until GBA effect frames are manually mapped from dump/green-gba-battle-effects."
+    "reference": "https://wiki.52poke.com/wiki/${招式名}（招式）#招式动画",
+    "notes": "Event-wide battle effect coverage. Specific move entries override type entries; unmatched moves fall back to their move_type entry. Visuals are CSS fallbacks modeled from 52poke move-animation references."
   },
   "defaults": {
     "duration_ms": 1200,
@@ -12,57 +13,1483 @@
     "confidence": "css-fallback"
   },
   "entries": {
-    "battle_action:switch_in": {"kind": "battle_action", "id": "switch_in", "visual": "switch-in", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback", "notes": "Generic Pokeball-style entry flash."},
-    "battle_action:switch_out": {"kind": "battle_action", "id": "switch_out", "visual": "switch-out", "duration_ms": 1000, "anchor": "target", "confidence": "css-fallback", "notes": "Generic withdraw flash."},
-    "battle_action:faint": {"kind": "battle_action", "id": "faint", "visual": "faint", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "battle_action:damage": {"kind": "battle_action", "id": "damage", "visual": "impact", "duration_ms": 1000, "anchor": "target", "confidence": "css-fallback"},
-    "battle_action:heal": {"kind": "battle_action", "id": "heal", "visual": "heal", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "battle_action:boost": {"kind": "battle_action", "id": "boost", "visual": "boost", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "battle_action:item": {"kind": "battle_action", "id": "item", "visual": "item", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "battle_action:ability": {"kind": "battle_action", "id": "ability", "visual": "ability", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-
-    "move_type:normal": {"kind": "move_type", "id": "normal", "visual": "normal-hit", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:fire": {"kind": "move_type", "id": "fire", "visual": "fire", "duration_ms": 1400, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:water": {"kind": "move_type", "id": "water", "visual": "water", "duration_ms": 1400, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:electric": {"kind": "move_type", "id": "electric", "visual": "electric", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:grass": {"kind": "move_type", "id": "grass", "visual": "grass", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:ice": {"kind": "move_type", "id": "ice", "visual": "ice", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:fighting": {"kind": "move_type", "id": "fighting", "visual": "impact", "duration_ms": 1000, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:poison": {"kind": "move_type", "id": "poison", "visual": "poison", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:ground": {"kind": "move_type", "id": "ground", "visual": "ground", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:flying": {"kind": "move_type", "id": "flying", "visual": "wind", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:psychic": {"kind": "move_type", "id": "psychic", "visual": "psychic", "duration_ms": 1400, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:bug": {"kind": "move_type", "id": "bug", "visual": "bug", "duration_ms": 1100, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:rock": {"kind": "move_type", "id": "rock", "visual": "rock", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:ghost": {"kind": "move_type", "id": "ghost", "visual": "ghost", "duration_ms": 1400, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:dragon": {"kind": "move_type", "id": "dragon", "visual": "dragon", "duration_ms": 1400, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:dark": {"kind": "move_type", "id": "dark", "visual": "dark", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:steel": {"kind": "move_type", "id": "steel", "visual": "steel", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "move_type:fairy": {"kind": "move_type", "id": "fairy", "visual": "fairy", "duration_ms": 1400, "anchor": "target", "confidence": "css-fallback"},
-
-    "status:brn": {"kind": "status", "id": "brn", "visual": "burn", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "status:par": {"kind": "status", "id": "par", "visual": "electric", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "status:psn": {"kind": "status", "id": "psn", "visual": "poison", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "status:tox": {"kind": "status", "id": "tox", "visual": "poison", "duration_ms": 1200, "anchor": "target", "confidence": "css-fallback"},
-    "status:slp": {"kind": "status", "id": "slp", "visual": "sleep", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "status:frz": {"kind": "status", "id": "frz", "visual": "ice", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-    "status:confusion": {"kind": "status", "id": "confusion", "visual": "psychic", "duration_ms": 1300, "anchor": "target", "confidence": "css-fallback"},
-
-    "weather:rain": {"kind": "weather", "id": "rain", "visual": "rain", "duration_ms": 1600, "anchor": "field", "confidence": "css-fallback"},
-    "weather:sun": {"kind": "weather", "id": "sun", "visual": "sun", "duration_ms": 1500, "anchor": "field", "confidence": "css-fallback"},
-    "weather:sand": {"kind": "weather", "id": "sand", "visual": "sand", "duration_ms": 1500, "anchor": "field", "confidence": "css-fallback"},
-    "weather:hail": {"kind": "weather", "id": "hail", "visual": "hail", "duration_ms": 1500, "anchor": "field", "confidence": "css-fallback"},
-
-    "side_condition:spikes": {"kind": "side_condition", "id": "spikes", "visual": "hazard-spikes", "duration_ms": 1200, "anchor": "side", "confidence": "css-fallback"},
-    "side_condition:stealthrock": {"kind": "side_condition", "id": "stealthrock", "visual": "hazard-rock", "duration_ms": 1200, "anchor": "side", "confidence": "css-fallback"},
-    "side_condition:toxicspikes": {"kind": "side_condition", "id": "toxicspikes", "visual": "hazard-toxic", "duration_ms": 1200, "anchor": "side", "confidence": "css-fallback"},
-    "side_condition:reflect": {"kind": "side_condition", "id": "reflect", "visual": "barrier", "duration_ms": 1200, "anchor": "side", "confidence": "css-fallback"},
-    "side_condition:lightscreen": {"kind": "side_condition", "id": "lightscreen", "visual": "barrier", "duration_ms": 1200, "anchor": "side", "confidence": "css-fallback"},
-
-    "field:trickroom": {"kind": "field", "id": "trickroom", "visual": "psychic", "duration_ms": 1500, "anchor": "field", "confidence": "css-fallback"},
-    "field:electricterrain": {"kind": "field", "id": "electricterrain", "visual": "electric", "duration_ms": 1400, "anchor": "field", "confidence": "css-fallback"},
-    "field:grassyterrain": {"kind": "field", "id": "grassyterrain", "visual": "grass", "duration_ms": 1400, "anchor": "field", "confidence": "css-fallback"},
-    "field:mistyterrain": {"kind": "field", "id": "mistyterrain", "visual": "fairy", "duration_ms": 1400, "anchor": "field", "confidence": "css-fallback"},
-    "field:psychicterrain": {"kind": "field", "id": "psychicterrain", "visual": "psychic", "duration_ms": 1400, "anchor": "field", "confidence": "css-fallback"}
+    "battle_action:switch_in": {
+      "kind": "battle_action",
+      "id": "switch_in",
+      "visual": "switch-in",
+      "duration_ms": 1300,
+      "anchor": "target",
+      "confidence": "css-fallback",
+      "notes": "Generic Pokeball-style entry flash."
+    },
+    "battle_action:switch_out": {
+      "kind": "battle_action",
+      "id": "switch_out",
+      "visual": "switch-out",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-fallback",
+      "notes": "Generic withdraw flash."
+    },
+    "battle_action:faint": {
+      "kind": "battle_action",
+      "id": "faint",
+      "visual": "faint",
+      "duration_ms": 1300,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:damage": {
+      "kind": "battle_action",
+      "id": "damage",
+      "visual": "impact",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:heal": {
+      "kind": "battle_action",
+      "id": "heal",
+      "visual": "heal",
+      "duration_ms": 1300,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:boost": {
+      "kind": "battle_action",
+      "id": "boost",
+      "visual": "boost",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:item": {
+      "kind": "battle_action",
+      "id": "item",
+      "visual": "item",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:ability": {
+      "kind": "battle_action",
+      "id": "ability",
+      "visual": "ability",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:form": {
+      "kind": "battle_action",
+      "id": "form",
+      "visual": "ability",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:miss": {
+      "kind": "battle_action",
+      "id": "miss",
+      "visual": "miss",
+      "duration_ms": 900,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:crit": {
+      "kind": "battle_action",
+      "id": "crit",
+      "visual": "crit",
+      "duration_ms": 900,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "battle_action:effectiveness": {
+      "kind": "battle_action",
+      "id": "effectiveness",
+      "visual": "effectiveness",
+      "duration_ms": 900,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move:surf": {
+      "kind": "move",
+      "id": "surf",
+      "visual": "surf",
+      "renderer": "css",
+      "duration_ms": 1800,
+      "anchor": "field",
+      "confidence": "emerald-us-visual-task-inspired",
+      "notes": "Surf in Emerald uses a visual task rather than loadspritegfx; this validation effect mimics the field-wide scanline wave instead of using loose graphic candidates."
+    },
+    "move:thunderbolt": {
+      "kind": "move",
+      "id": "thunderbolt",
+      "visual": "electric-thunder",
+      "renderer": "css",
+      "duration_ms": 850,
+      "anchor": "target",
+      "confidence": "css-reference-target",
+      "notes": "CSS imitation target: 52poke 招式动画 reference."
+    },
+    "move_type:normal": {
+      "kind": "move_type",
+      "id": "normal",
+      "visual": "normal-hit",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:fire": {
+      "kind": "move_type",
+      "id": "fire",
+      "visual": "fire-burst",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "move_type:water": {
+      "kind": "move_type",
+      "id": "water",
+      "visual": "water-splash",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "move_type:electric": {
+      "kind": "move_type",
+      "id": "electric",
+      "visual": "electric-thunder",
+      "renderer": "css",
+      "duration_ms": 850,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "move_type:grass": {
+      "kind": "move_type",
+      "id": "grass",
+      "visual": "grass",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:ice": {
+      "kind": "move_type",
+      "id": "ice",
+      "visual": "ice-crystal",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "move_type:fighting": {
+      "kind": "move_type",
+      "id": "fighting",
+      "visual": "impact",
+      "duration_ms": 950,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:poison": {
+      "kind": "move_type",
+      "id": "poison",
+      "visual": "poison-bubbles",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "move_type:ground": {
+      "kind": "move_type",
+      "id": "ground",
+      "visual": "ground",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:flying": {
+      "kind": "move_type",
+      "id": "flying",
+      "visual": "wind",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:psychic": {
+      "kind": "move_type",
+      "id": "psychic",
+      "visual": "psychic",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:bug": {
+      "kind": "move_type",
+      "id": "bug",
+      "visual": "bug",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:rock": {
+      "kind": "move_type",
+      "id": "rock",
+      "visual": "rock",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:ghost": {
+      "kind": "move_type",
+      "id": "ghost",
+      "visual": "ghost",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:dragon": {
+      "kind": "move_type",
+      "id": "dragon",
+      "visual": "dragon",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:dark": {
+      "kind": "move_type",
+      "id": "dark",
+      "visual": "dark",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:steel": {
+      "kind": "move_type",
+      "id": "steel",
+      "visual": "steel",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:fairy": {
+      "kind": "move_type",
+      "id": "fairy",
+      "visual": "fairy",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:brn": {
+      "kind": "status",
+      "id": "brn",
+      "visual": "burn-wisp",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-target",
+      "notes": "Burn status uses Will-O-Wisp inspired blue-purple primer into flame."
+    },
+    "status:par": {
+      "kind": "status",
+      "id": "par",
+      "visual": "paralyze-wave",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "status:psn": {
+      "kind": "status",
+      "id": "psn",
+      "visual": "poison-cloud",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "status:tox": {
+      "kind": "status",
+      "id": "tox",
+      "visual": "toxic-cloud",
+      "duration_ms": 1300,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:slp": {
+      "kind": "status",
+      "id": "slp",
+      "visual": "sleep-drift",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:frz": {
+      "kind": "status",
+      "id": "frz",
+      "visual": "ice-crystal",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-target"
+    },
+    "status:confusion": {
+      "kind": "status",
+      "id": "confusion",
+      "visual": "confusion-rings",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:substitute": {
+      "kind": "status",
+      "id": "substitute",
+      "visual": "substitute",
+      "renderer": "image",
+      "asset": "assets/battle/substitute-doll.png",
+      "duration_ms": 900,
+      "anchor": "target",
+      "confidence": "local-asset"
+    },
+    "status:leechseed": {
+      "kind": "status",
+      "id": "leechseed",
+      "visual": "leech-seed",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:flinch": {
+      "kind": "status",
+      "id": "flinch",
+      "visual": "flinch",
+      "duration_ms": 850,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:trapped": {
+      "kind": "status",
+      "id": "trapped",
+      "visual": "trapped",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:taunt": {
+      "kind": "status",
+      "id": "taunt",
+      "visual": "taunt",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:encore": {
+      "kind": "status",
+      "id": "encore",
+      "visual": "encore",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:disable": {
+      "kind": "status",
+      "id": "disable",
+      "visual": "disable",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:attract": {
+      "kind": "status",
+      "id": "attract",
+      "visual": "attract",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:curse": {
+      "kind": "status",
+      "id": "curse",
+      "visual": "curse",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:imprison": {
+      "kind": "status",
+      "id": "imprison",
+      "visual": "imprison",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:healblock": {
+      "kind": "status",
+      "id": "healblock",
+      "visual": "healblock",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:volatile": {
+      "kind": "status",
+      "id": "volatile",
+      "visual": "volatile",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "status:generic": {
+      "kind": "status",
+      "id": "generic",
+      "visual": "status",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "boost:up": {
+      "kind": "boost",
+      "id": "up",
+      "visual": "boost-up",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "boost:down": {
+      "kind": "boost",
+      "id": "down",
+      "visual": "boost-down",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "boost:clear": {
+      "kind": "boost",
+      "id": "clear",
+      "visual": "boost-clear",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "boost:swap": {
+      "kind": "boost",
+      "id": "swap",
+      "visual": "boost-swap",
+      "duration_ms": 1100,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "boost:copy": {
+      "kind": "boost",
+      "id": "copy",
+      "visual": "boost-up",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "boost:invert": {
+      "kind": "boost",
+      "id": "invert",
+      "visual": "boost-swap",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "boost:generic": {
+      "kind": "boost",
+      "id": "generic",
+      "visual": "boost",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "weather:rain": {
+      "kind": "weather",
+      "id": "rain",
+      "visual": "rain",
+      "duration_ms": 1900,
+      "anchor": "field",
+      "confidence": "css-reference-inspired",
+      "notes": "Dense full-field rain sheet inspired by 52poke Rain Dance and AniMove240.gif density."
+    },
+    "weather:sun": {
+      "kind": "weather",
+      "id": "sun",
+      "visual": "sun",
+      "duration_ms": 1600,
+      "anchor": "field",
+      "confidence": "css-fallback",
+      "notes": "Full-field warm wash inspired by Sunny Day."
+    },
+    "weather:sand": {
+      "kind": "weather",
+      "id": "sand",
+      "visual": "sand",
+      "duration_ms": 1600,
+      "anchor": "field",
+      "confidence": "css-fallback",
+      "notes": "Full-field sand bands inspired by Sandstorm."
+    },
+    "weather:hail": {
+      "kind": "weather",
+      "id": "hail",
+      "visual": "snow",
+      "duration_ms": 1600,
+      "anchor": "field",
+      "confidence": "css-fallback",
+      "notes": "Full-field ice pellet drift inspired by Hail."
+    },
+    "weather:snow": {
+      "kind": "weather",
+      "id": "snow",
+      "visual": "snow",
+      "duration_ms": 1600,
+      "anchor": "field",
+      "confidence": "css-fallback",
+      "notes": "Full-field snow drift."
+    },
+    "weather:none": {
+      "kind": "weather",
+      "id": "none",
+      "visual": "weather-clear",
+      "duration_ms": 900,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "weather:generic": {
+      "kind": "weather",
+      "id": "generic",
+      "visual": "field",
+      "duration_ms": 1000,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "side_condition:spikes": {
+      "kind": "side_condition",
+      "id": "spikes",
+      "visual": "hazard-spikes",
+      "duration_ms": 1100,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "side_condition:stealthrock": {
+      "kind": "side_condition",
+      "id": "stealthrock",
+      "visual": "hazard-rock",
+      "duration_ms": 1100,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "side_condition:toxicspikes": {
+      "kind": "side_condition",
+      "id": "toxicspikes",
+      "visual": "hazard-toxic",
+      "duration_ms": 1100,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "side_condition:stickyweb": {
+      "kind": "side_condition",
+      "id": "stickyweb",
+      "visual": "hazard-web",
+      "duration_ms": 1100,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "side_condition:reflect": {
+      "kind": "side_condition",
+      "id": "reflect",
+      "visual": "barrier",
+      "duration_ms": 1100,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "side_condition:lightscreen": {
+      "kind": "side_condition",
+      "id": "lightscreen",
+      "visual": "light-screen",
+      "duration_ms": 1100,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "side_condition:auroraveil": {
+      "kind": "side_condition",
+      "id": "auroraveil",
+      "visual": "aurora-barrier",
+      "duration_ms": 1200,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "side_condition:tailwind": {
+      "kind": "side_condition",
+      "id": "tailwind",
+      "visual": "tailwind",
+      "duration_ms": 1100,
+      "anchor": "side",
+      "confidence": "css-fallback"
+    },
+    "field:trickroom": {
+      "kind": "field",
+      "id": "trickroom",
+      "visual": "trick-room",
+      "duration_ms": 1300,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "field:electricterrain": {
+      "kind": "field",
+      "id": "electricterrain",
+      "visual": "terrain-electric",
+      "duration_ms": 1300,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "field:grassyterrain": {
+      "kind": "field",
+      "id": "grassyterrain",
+      "visual": "terrain-grassy",
+      "duration_ms": 1300,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "field:mistyterrain": {
+      "kind": "field",
+      "id": "mistyterrain",
+      "visual": "terrain-misty",
+      "duration_ms": 1300,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "field:psychicterrain": {
+      "kind": "field",
+      "id": "psychicterrain",
+      "visual": "terrain-psychic",
+      "duration_ms": 1300,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "field:generic": {
+      "kind": "field",
+      "id": "generic",
+      "visual": "field",
+      "duration_ms": 1100,
+      "anchor": "field",
+      "confidence": "css-fallback"
+    },
+    "move_type:normal:physical": {
+      "kind": "move_type",
+      "id": "normal",
+      "category": "physical",
+      "visual": "normal-physical-hit",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:normal:special": {
+      "kind": "move_type",
+      "id": "normal",
+      "category": "special",
+      "visual": "normal-special-pulse",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:fire:physical": {
+      "kind": "move_type",
+      "id": "fire",
+      "category": "physical",
+      "visual": "fire-physical-flare",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:fire:special": {
+      "kind": "move_type",
+      "id": "fire",
+      "category": "special",
+      "visual": "fire-special-stream",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:water:physical": {
+      "kind": "move_type",
+      "id": "water",
+      "category": "physical",
+      "visual": "water-physical-crash",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:water:special": {
+      "kind": "move_type",
+      "id": "water",
+      "category": "special",
+      "visual": "water-special-jet",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:electric:physical": {
+      "kind": "move_type",
+      "id": "electric",
+      "category": "physical",
+      "visual": "electric-physical-jolt",
+      "renderer": "css",
+      "duration_ms": 900,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:electric:special": {
+      "kind": "move_type",
+      "id": "electric",
+      "category": "special",
+      "visual": "electric-special-thunder",
+      "renderer": "css",
+      "duration_ms": 950,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:grass:physical": {
+      "kind": "move_type",
+      "id": "grass",
+      "category": "physical",
+      "visual": "grass-physical-leaf",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:grass:special": {
+      "kind": "move_type",
+      "id": "grass",
+      "category": "special",
+      "visual": "grass-special-beam",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:ice:physical": {
+      "kind": "move_type",
+      "id": "ice",
+      "category": "physical",
+      "visual": "ice-physical-shard",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:ice:special": {
+      "kind": "move_type",
+      "id": "ice",
+      "category": "special",
+      "visual": "ice-special-crystal",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:fighting:physical": {
+      "kind": "move_type",
+      "id": "fighting",
+      "category": "physical",
+      "visual": "fighting-physical-combo",
+      "renderer": "css",
+      "duration_ms": 950,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:fighting:special": {
+      "kind": "move_type",
+      "id": "fighting",
+      "category": "special",
+      "visual": "fighting-special-aura",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:poison:physical": {
+      "kind": "move_type",
+      "id": "poison",
+      "category": "physical",
+      "visual": "poison-physical-sting",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:poison:special": {
+      "kind": "move_type",
+      "id": "poison",
+      "category": "special",
+      "visual": "poison-special-cloud",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:ground:physical": {
+      "kind": "move_type",
+      "id": "ground",
+      "category": "physical",
+      "visual": "ground-physical-quake",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:ground:special": {
+      "kind": "move_type",
+      "id": "ground",
+      "category": "special",
+      "visual": "ground-special-earthpower",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:flying:physical": {
+      "kind": "move_type",
+      "id": "flying",
+      "category": "physical",
+      "visual": "flying-physical-wing",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:flying:special": {
+      "kind": "move_type",
+      "id": "flying",
+      "category": "special",
+      "visual": "flying-special-gale",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:psychic:physical": {
+      "kind": "move_type",
+      "id": "psychic",
+      "category": "physical",
+      "visual": "psychic-physical-cut",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:psychic:special": {
+      "kind": "move_type",
+      "id": "psychic",
+      "category": "special",
+      "visual": "psychic-special-ring",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:bug:physical": {
+      "kind": "move_type",
+      "id": "bug",
+      "category": "physical",
+      "visual": "bug-physical-sting",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:bug:special": {
+      "kind": "move_type",
+      "id": "bug",
+      "category": "special",
+      "visual": "bug-special-signal",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:rock:physical": {
+      "kind": "move_type",
+      "id": "rock",
+      "category": "physical",
+      "visual": "rock-physical-smash",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:rock:special": {
+      "kind": "move_type",
+      "id": "rock",
+      "category": "special",
+      "visual": "rock-special-gem",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:ghost:physical": {
+      "kind": "move_type",
+      "id": "ghost",
+      "category": "physical",
+      "visual": "ghost-physical-claw",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:ghost:special": {
+      "kind": "move_type",
+      "id": "ghost",
+      "category": "special",
+      "visual": "ghost-special-wisp",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:dragon:physical": {
+      "kind": "move_type",
+      "id": "dragon",
+      "category": "physical",
+      "visual": "dragon-physical-claw",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:dragon:special": {
+      "kind": "move_type",
+      "id": "dragon",
+      "category": "special",
+      "visual": "dragon-special-pulse",
+      "renderer": "css",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:dark:physical": {
+      "kind": "move_type",
+      "id": "dark",
+      "category": "physical",
+      "visual": "dark-physical-bite",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:dark:special": {
+      "kind": "move_type",
+      "id": "dark",
+      "category": "special",
+      "visual": "dark-special-pulse",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:steel:physical": {
+      "kind": "move_type",
+      "id": "steel",
+      "category": "physical",
+      "visual": "steel-physical-slash",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:steel:special": {
+      "kind": "move_type",
+      "id": "steel",
+      "category": "special",
+      "visual": "steel-special-flash",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "move_type:fairy:physical": {
+      "kind": "move_type",
+      "id": "fairy",
+      "category": "physical",
+      "visual": "fairy-physical-sparkle",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move_type:fairy:special": {
+      "kind": "move_type",
+      "id": "fairy",
+      "category": "special",
+      "visual": "fairy-special-glow",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-fallback"
+    },
+    "move:raindance": {
+      "kind": "move",
+      "id": "raindance",
+      "visual": "rain",
+      "renderer": "css",
+      "duration_ms": 1900,
+      "anchor": "field",
+      "confidence": "css-reference-inspired",
+      "notes": "weather move visual shared with weather:rain"
+    },
+    "move:sunnyday": {
+      "kind": "move",
+      "id": "sunnyday",
+      "visual": "sun",
+      "renderer": "css",
+      "duration_ms": 1600,
+      "anchor": "field",
+      "confidence": "css-reference-inspired",
+      "notes": "weather move visual shared with weather:sun"
+    },
+    "move:sandstorm": {
+      "kind": "move",
+      "id": "sandstorm",
+      "visual": "sand",
+      "renderer": "css",
+      "duration_ms": 1600,
+      "anchor": "field",
+      "confidence": "css-reference-inspired",
+      "notes": "weather move visual shared with weather:sand"
+    },
+    "move:hail": {
+      "kind": "move",
+      "id": "hail",
+      "visual": "snow",
+      "renderer": "css",
+      "duration_ms": 1600,
+      "anchor": "field",
+      "confidence": "css-reference-inspired",
+      "notes": "weather move visual shared with weather:hail"
+    },
+    "move:willowisp": {
+      "kind": "move",
+      "id": "willowisp",
+      "visual": "burn-wisp",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "Will-O-Wisp burn primer",
+      "target": "opponent"
+    },
+    "move:thunderwave": {
+      "kind": "move",
+      "id": "thunderwave",
+      "visual": "paralyze-wave",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "Thunder Wave paralysis primer",
+      "target": "opponent"
+    },
+    "move:toxic": {
+      "kind": "move",
+      "id": "toxic",
+      "visual": "toxic-cloud",
+      "renderer": "css",
+      "duration_ms": 1300,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "bad poison primer",
+      "target": "opponent"
+    },
+    "move:poisonpowder": {
+      "kind": "move",
+      "id": "poisonpowder",
+      "visual": "poison-cloud",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "poison powder primer",
+      "target": "opponent"
+    },
+    "move:sleeppowder": {
+      "kind": "move",
+      "id": "sleeppowder",
+      "visual": "sleep-drift",
+      "renderer": "css",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "sleep powder primer",
+      "target": "opponent"
+    },
+    "move:hypnosis": {
+      "kind": "move",
+      "id": "hypnosis",
+      "visual": "sleep-hypnosis",
+      "renderer": "css",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "hypnosis primer",
+      "target": "opponent"
+    },
+    "move:confuseray": {
+      "kind": "move",
+      "id": "confuseray",
+      "visual": "confusion-rings",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "confusion primer",
+      "target": "opponent"
+    },
+    "move:swordsdance": {
+      "kind": "move",
+      "id": "swordsdance",
+      "visual": "boost-swords",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "attack boost primer",
+      "target": "source"
+    },
+    "move:dragondance": {
+      "kind": "move",
+      "id": "dragondance",
+      "visual": "boost-dragon",
+      "renderer": "css",
+      "duration_ms": 1300,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "dragon dance primer",
+      "target": "source"
+    },
+    "move:calmmind": {
+      "kind": "move",
+      "id": "calmmind",
+      "visual": "boost-mind",
+      "renderer": "css",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "special boost primer",
+      "target": "source"
+    },
+    "move:bulkup": {
+      "kind": "move",
+      "id": "bulkup",
+      "visual": "boost-power",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "physical bulk boost primer",
+      "target": "source"
+    },
+    "move:irondefense": {
+      "kind": "move",
+      "id": "irondefense",
+      "visual": "boost-iron",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "defense boost primer",
+      "target": "source"
+    },
+    "move:agility": {
+      "kind": "move",
+      "id": "agility",
+      "visual": "boost-speed",
+      "renderer": "css",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "speed boost primer",
+      "target": "source"
+    },
+    "move:nastyplot": {
+      "kind": "move",
+      "id": "nastyplot",
+      "visual": "boost-nasty",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "dark special boost primer",
+      "target": "source"
+    },
+    "move:growth": {
+      "kind": "move",
+      "id": "growth",
+      "visual": "boost-growth",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "growth boost primer",
+      "target": "source"
+    },
+    "move:focusenergy": {
+      "kind": "move",
+      "id": "focusenergy",
+      "visual": "boost-focus",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "critical focus primer",
+      "target": "source"
+    },
+    "move:bellydrum": {
+      "kind": "move",
+      "id": "bellydrum",
+      "visual": "boost-belly",
+      "renderer": "css",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "max attack boost primer",
+      "target": "source"
+    },
+    "move:growl": {
+      "kind": "move",
+      "id": "growl",
+      "visual": "debuff-sound",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "attack down primer",
+      "target": "opponent"
+    },
+    "move:leer": {
+      "kind": "move",
+      "id": "leer",
+      "visual": "debuff-glare",
+      "renderer": "css",
+      "duration_ms": 1000,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "defense down primer",
+      "target": "opponent"
+    },
+    "move:scaryface": {
+      "kind": "move",
+      "id": "scaryface",
+      "visual": "debuff-glare",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "speed down primer",
+      "target": "opponent"
+    },
+    "move:screech": {
+      "kind": "move",
+      "id": "screech",
+      "visual": "debuff-sound",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "defense down sound primer",
+      "target": "opponent"
+    },
+    "move:faketears": {
+      "kind": "move",
+      "id": "faketears",
+      "visual": "debuff-tears",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "special defense down primer",
+      "target": "opponent"
+    },
+    "move:featherdance": {
+      "kind": "move",
+      "id": "featherdance",
+      "visual": "debuff-feathers",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "attack harshly down primer",
+      "target": "opponent"
+    },
+    "move:charm": {
+      "kind": "move",
+      "id": "charm",
+      "visual": "debuff-charm",
+      "renderer": "css",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired",
+      "notes": "attack down charm primer",
+      "target": "opponent"
+    },
+    "move:reflect": {
+      "kind": "move",
+      "id": "reflect",
+      "visual": "barrier",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "side",
+      "confidence": "css-reference-inspired",
+      "notes": "side condition primer",
+      "target": "source"
+    },
+    "move:lightscreen": {
+      "kind": "move",
+      "id": "lightscreen",
+      "visual": "light-screen",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "side",
+      "confidence": "css-reference-inspired",
+      "notes": "side condition primer",
+      "target": "source"
+    },
+    "move:safeguard": {
+      "kind": "move",
+      "id": "safeguard",
+      "visual": "safeguard",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "side",
+      "confidence": "css-reference-inspired",
+      "notes": "side condition primer",
+      "target": "source"
+    },
+    "move:tailwind": {
+      "kind": "move",
+      "id": "tailwind",
+      "visual": "tailwind",
+      "renderer": "css",
+      "duration_ms": 1200,
+      "anchor": "side",
+      "confidence": "css-reference-inspired",
+      "notes": "side condition primer",
+      "target": "source"
+    },
+    "move:trickroom": {
+      "kind": "move",
+      "id": "trickroom",
+      "visual": "trick-room",
+      "renderer": "css",
+      "duration_ms": 1350,
+      "anchor": "field",
+      "confidence": "css-reference-inspired",
+      "notes": "field condition primer"
+    },
+    "move:spikes": {
+      "kind": "move",
+      "id": "spikes",
+      "visual": "hazard-spikes",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "side",
+      "confidence": "css-reference-inspired",
+      "notes": "hazard primer",
+      "target": "opponent"
+    },
+    "move:toxicspikes": {
+      "kind": "move",
+      "id": "toxicspikes",
+      "visual": "hazard-toxic",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "side",
+      "confidence": "css-reference-inspired",
+      "notes": "hazard primer",
+      "target": "opponent"
+    },
+    "move:stealthrock": {
+      "kind": "move",
+      "id": "stealthrock",
+      "visual": "hazard-rock",
+      "renderer": "css",
+      "duration_ms": 1150,
+      "anchor": "side",
+      "confidence": "css-reference-inspired",
+      "notes": "hazard primer",
+      "target": "opponent"
+    },
+    "boost:atk-up": {
+      "kind": "boost",
+      "id": "atk-up",
+      "visual": "boost-swords",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "boost:def-up": {
+      "kind": "boost",
+      "id": "def-up",
+      "visual": "boost-iron",
+      "duration_ms": 1200,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "boost:spa-up": {
+      "kind": "boost",
+      "id": "spa-up",
+      "visual": "boost-mind",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "boost:spd-up": {
+      "kind": "boost",
+      "id": "spd-up",
+      "visual": "boost-mind",
+      "duration_ms": 1250,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "boost:spe-up": {
+      "kind": "boost",
+      "id": "spe-up",
+      "visual": "boost-speed",
+      "duration_ms": 1050,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "boost:atk-down": {
+      "kind": "boost",
+      "id": "atk-down",
+      "visual": "debuff-sound",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "boost:def-down": {
+      "kind": "boost",
+      "id": "def-down",
+      "visual": "debuff-glare",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    },
+    "boost:spe-down": {
+      "kind": "boost",
+      "id": "spe-down",
+      "visual": "debuff-glare",
+      "duration_ms": 1100,
+      "anchor": "target",
+      "confidence": "css-reference-inspired"
+    }
   }
 }

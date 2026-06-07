@@ -6,11 +6,26 @@ ChangeBattle treats Pokemon Showdown as the authoritative battle engine. The UI 
 
 - Do not deduplicate protocol messages by text. If Showdown emits two heal events, both are real events and both should be shown.
 - Do not collapse item, ability, move, drain, weather, hazard, and status messages into one generic result.
+- Do not use Showdown `ident`, Pokemon name, species name, or localized display name as a stable Pokemon identity. They are presentation labels and can collide.
 - `turn`, `upkeep`, `request`, and timestamp messages update UI state only. They should not block the animation queue.
 - Damage and heal animations are driven only by `-damage`, `-heal`, and `-sethp` events. The final request state must not make HP jump early.
 - Faint state starts at `faint` and remains visible until the side receives a real `switch`, `drag`, `replace`, `detailschange`, or `-formechange` event.
 - The raw order from Showdown is preserved. The only presentation exception is type effectiveness: `-supereffective` and `-resisted` are shown after the related damage event, matching the in-game feel.
 - Unknown protocol tags must be visible in debug text instead of silently disappearing.
+
+## Pokemon Identity
+
+ChangeBattle local team objects use `showdown_id` as the stable battle identity. This field follows the Pokemon object through lead changes, team rotation, exchange, battle state saveback, and UI playback. It is not a cosmetic Poke Ball choice.
+
+Pokemon Showdown does not provide a unique per-Pokemon id in protocol lines. Its `ident` is name/species-like text and is not reliable when two Pokemon share a name or species. To bridge that gap, ChangeBattle writes each local `showdown_id` into the packed Showdown set as the legal Showdown `pokeball` value. Showdown preserves that value in request side state, so request diffs and UI tracker state can recover `side + showdown_id`.
+
+Keep these meanings separate:
+
+- `showdown_id`: ChangeBattle identity field. Use this for state sync, request diff matching, animation gating, HP/status updates, and battle-end saveback.
+- `PokemonSet.pokeball`: Showdown transport field. ChangeBattle sets it to `showdown_id` immediately before packing teams.
+- Future cosmetic ball data: use a separate field such as `pokeball` or a display-specific field, but do not use it for identity.
+
+Timeline events should carry `source_showdown_id` and/or `target_showdown_id` whenever the parser can infer them. The renderer must prefer these fields over names. If an event has a `target_showdown_id` but it does not match the currently displayed active Pokemon for that side, the UI should skip the active HP/status/animation mutation instead of guessing.
 
 ## Display Mapping
 

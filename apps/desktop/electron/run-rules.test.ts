@@ -167,6 +167,8 @@ function testEconomyTalents(): void {
   const bagRun = run([], {bag_items: {potion: 2, berry: 1}, non_refundable_bag_items: {potion: 1}});
   assert.equal(refundableBagBaseBpFromCosts(bagRun, {potion: 200, berry: 300}), 125);
   assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["economy_premium_guest"])}, {potion: 200, berry: 300}), 250);
+  assert.equal(refundableBagBaseBpFromCosts(bagRun, {potion: 200, berry: 300}, "loss"), 50);
+  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["economy_premium_guest"])}, {potion: 200, berry: 300}, "loss"), 100);
 
   assert.equal(gainedBp(run(), 100), 100);
   assert.equal(gainedBp(run(["economy_amulet_coin"]), 100), 135);

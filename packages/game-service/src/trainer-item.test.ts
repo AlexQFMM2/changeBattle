@@ -11,11 +11,11 @@ const showdownPath = process.env.SHOWDOWN_PATH || path.resolve(projectRoot, "../
 const baseStats = {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
 const zeroStats = {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
 
-function pokemon(species: string, moves: string[]): PokemonSet {
+function pokemon(species: string, moves: string[], ability?: string): PokemonSet {
   return {
     name: species,
     species,
-    ability: species === "Bulbasaur" ? "Overgrow" : species === "Charmander" ? "Blaze" : "Static",
+    ability: ability || (species === "Bulbasaur" ? "Overgrow" : species === "Charmander" ? "Blaze" : "Static"),
     item: "",
     moves,
     nature: "Serious",
@@ -94,8 +94,40 @@ async function testEnemyAiPrefersEffectiveDamage(): Promise<void> {
   assert.doesNotMatch(events, /抓|Scratch/, events);
 }
 
+async function testRegeneratorUsesShowdownIdWithDuplicateIdent(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const playerTeam = [
+    pokemon("Tangela", ["Tackle"], "Regenerator"),
+    pokemon("Tangela", ["Tackle"], "Chlorophyll"),
+  ];
+  const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay: await service.describeTeam(playerTeam),
+    enemyDisplay: await service.describeTeam(enemyTeam),
+    seed: [9, 10, 11, 12],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+  const initial = session.getPlayerState();
+  const activeId = initial[0]?.showdown_id;
+  const incomingId = initial[1]?.showdown_id;
+  assert.ok(activeId && incomingId && activeId !== incomingId, `expected distinct showdown ids, got ${activeId}/${incomingId}`);
+  session.syncPlayerState(initial.map((state, index) => index === 0 ? {...state, hp: 60, condition: `60/${state.maxhp}`} : state));
+  const state = await session.choose("switch 2");
+  const playerState = session.getPlayerState();
+  const healed = playerState.find(pokemonState => pokemonState.showdown_id === activeId);
+  const incoming = playerState.find(pokemonState => pokemonState.showdown_id === incomingId);
+  assert.ok(healed && incoming, JSON.stringify(playerState, null, 2));
+  assert.ok(healed.hp > 60, `expected switched-out Tangela to heal, got ${healed.hp}`);
+  assert.equal(incoming.active, true, `expected second Tangela active: ${JSON.stringify(playerState, null, 2)}`);
+  const healEvent = state.timeline_events.find(event => event.type === "heal" && event.target_showdown_id === activeId);
+  assert.ok(healEvent, JSON.stringify(state.timeline_events, null, 2));
+}
+
 await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
 await testEnemyAiPrefersEffectiveDamage();
+await testRegeneratorUsesShowdownIdWithDuplicateIdent();
 console.log("Trainer item battle tests passed.");

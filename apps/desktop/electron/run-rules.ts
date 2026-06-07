@@ -31,6 +31,10 @@ export const REROUTE_LIMIT = 3;
 export const RECYCLER_EVENT_CHANCE = 0.35;
 export const RECYCLE_RECEIPT_RATE = 0.15;
 export const PORTFOLIO_BONUS_PER_TYPE = 200;
+export const BAG_REFUND_RATE = 0.25;
+export const BAG_REFUND_RATE_PREMIUM = 0.5;
+export const BAG_REFUND_RATE_LOSS = 0.1;
+export const BAG_REFUND_RATE_LOSS_PREMIUM = 0.2;
 export const EXCHANGE_CAREFUL_RATIO = 0.75;
 export const BOSS_EXCHANGE_COST = 2 * BP_SCALE;
 export const REST_EXCHANGE_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE] as const;
@@ -87,7 +91,7 @@ const TALENT_DEFINITIONS: TalentView[] = [
   {id: "economy_amulet_coin", name: "护符金币", category: "经济运营", cost: 35, desc: "所有正向金币入账获得 1.35 倍收益。"},
   {id: "economy_shiny_collector", name: "闪光收藏家", category: "经济运营", cost: 40, desc: "交换获得的宝可梦均为闪光，且闪光带来的金币加成提高。"},
   {id: "economy_bargainer", name: "讲价高手", category: "经济运营", cost: 20, desc: "道具回收商出现时，出售道具获得 75% 原价。"},
-  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具，并将可返还道具结算效率从 25% 提高到 50%。"},
+  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具；通关或中断返还效率从 25% 提高到 50%，失败时从 10% 提高到 20%。"},
 ];
 
 export const TALENTS: TalentView[] = TALENT_DEFINITIONS;
@@ -462,8 +466,8 @@ export function portfolioBonus(run: CurrentRunData): {types: string[]; bonus: nu
   return {types, bonus: hasTalent(run.talents, "economy_portfolio") ? types.length * PORTFOLIO_BONUS_PER_TYPE : 0};
 }
 
-export function refundableBagBaseBpFromCosts(run: CurrentRunData, itemCosts: Record<string, number>): number {
-  const rate = hasTalent(run.talents, "economy_premium_guest") ? 0.5 : 0.25;
+export function refundableBagBaseBpFromCosts(run: CurrentRunData, itemCosts: Record<string, number>, outcome: "normal" | "loss" = "normal"): number {
+  const rate = bagRefundRate(run, outcome);
   let total = 0;
   for (const [id, rawCount] of Object.entries(run.bag_items || {})) {
     const count = Math.max(0, Number(rawCount || 0));
@@ -473,6 +477,12 @@ export function refundableBagBaseBpFromCosts(run: CurrentRunData, itemCosts: Rec
     total += Math.max(0, Number(itemCosts[itemKey(id)] || 0)) * refundable;
   }
   return Math.floor(total * rate);
+}
+
+export function bagRefundRate(run: CurrentRunData, outcome: "normal" | "loss" = "normal"): number {
+  const premium = hasTalent(run.talents, "economy_premium_guest");
+  if (outcome === "loss") return premium ? BAG_REFUND_RATE_LOSS_PREMIUM : BAG_REFUND_RATE_LOSS;
+  return premium ? BAG_REFUND_RATE_PREMIUM : BAG_REFUND_RATE;
 }
 
 export function canScoutNext(run: CurrentRunData): boolean {

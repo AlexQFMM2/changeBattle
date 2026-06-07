@@ -65,6 +65,15 @@ http://127.0.0.1:9222
 node tools/fetch_boss_dialogues.mjs
 ```
 
+招式动画参考抓取也复用同一套 ChromeAutomation/DevTools 方式：
+
+```bash
+pnpm moves:fetch-animations -- 冲浪 十万伏特
+pnpm moves:observe-animations
+```
+
+详细流程见 [move_animation_references.md](./move_animation_references.md)。
+
 脚本内：
 
 ```js

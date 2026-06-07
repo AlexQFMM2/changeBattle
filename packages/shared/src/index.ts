@@ -50,6 +50,7 @@ export type MoveSummary = {
 
 export type RentalPokemon = {
   run_member_id?: string;
+  showdown_id?: string;
   name: string;
   species: string;
   species_zh: string;
@@ -201,12 +202,32 @@ export type StarterItemGroupState = {
 
 export type PokemonSet = Record<string, any>;
 
+export const SHOWDOWN_SLOT_IDS = {
+  p1: ["pokeball", "greatball", "ultraball", "masterball", "premierball", "luxuryball"],
+  p2: ["premierball", "luxuryball", "duskball", "healball", "quickball", "timerball"],
+} as const;
+
+export type BattleSideId = keyof typeof SHOWDOWN_SLOT_IDS;
+
+export function battleSlotShowdownId(side: BattleSideId, slot: number): string {
+  const balls = SHOWDOWN_SLOT_IDS[side];
+  return balls[Math.max(0, Number(slot || 1) - 1)] || balls[0];
+}
+
+export function battleSlotForShowdownId(side: BattleSideId, showdownId: string | undefined): number | null {
+  const id = String(showdownId || "").trim().toLowerCase();
+  if (!id) return null;
+  const index = (SHOWDOWN_SLOT_IDS[side] as readonly string[]).indexOf(id);
+  return index >= 0 ? index + 1 : null;
+}
+
 export type RuntimePokemon = {
   ident: string;
   details?: string;
   condition: string;
   active?: boolean;
   item?: string;
+  pokeball?: string;
 };
 
 export type BattleMoveRequest = {
@@ -232,7 +253,7 @@ export type BattleRequestView = {
 
 export type BattleTracker = {
   turn: number;
-  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; condition?: string; status?: string; substitute?: boolean}>;
+  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; condition?: string; status?: string; substitute?: boolean; showdown_id?: string}>;
   boosts: Record<"p1" | "p2", Record<string, number>>;
   side_conditions: Record<"p1" | "p2", string[]>;
   weather: string;
@@ -269,13 +290,16 @@ export type BattleTimelineEvent = {
   targetSide?: "p1" | "p2";
   source?: string;
   source_id?: string;
+  source_showdown_id?: string;
   target?: string;
   target_id?: string;
+  target_showdown_id?: string;
   target_species_id?: string;
   notice_title?: string;
   notice_detail?: string;
   move?: string;
   effect?: string;
+  boost_amount?: number;
   condition?: string;
   sprite?: SpriteMapEntry;
   substitute?: boolean;
@@ -309,6 +333,7 @@ export type ExchangeState = {
 
 export type PlayerPokemonState = {
   run_member_id?: string;
+  showdown_id?: string;
   slot: number;
   ident: string;
   details: string;
@@ -533,6 +558,22 @@ export type RestAction =
   | {type: "adjust_move"; slot: number; moveSlot: number; moveId: string}
   | {type: "adjust_stats"; slot: number; ivs: Record<string, number>; evs: Record<string, number>; ability: string; nature: string};
 
+export type ResultSummaryRow = {
+  label: string;
+  value: string;
+  detail?: string;
+};
+
+export type ResultSummaryState = {
+  outcome: "win" | "loss" | "abort";
+  headline: string;
+  subtitle?: string;
+  rows: ResultSummaryRow[];
+  player_team?: RentalPokemon[];
+  enemy_team?: RentalPokemon[];
+  enemy_trainer?: TrainerNpcView;
+};
+
 export type ShopItem = {
   id: string;
   name: string;
@@ -726,6 +767,7 @@ export type DesktopGameState = {
   exchange?: ExchangeState | null;
   rest?: RestState | null;
   message?: string;
+  result_summary?: ResultSummaryState | null;
   pending_transition?: DesktopGameState | null;
 };
 

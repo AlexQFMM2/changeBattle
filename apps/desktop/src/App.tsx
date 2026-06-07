@@ -1,7 +1,7 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BagItemView, BattleMoveRequest, BattleState, BattleTimelineEvent, BossDexRecord, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, LocalSave, MoveSummary, PokemonEditOptions, PricedMove, RentalPokemon, RestAction, RuntimePokemon, ShopItem, ShopOffer, SpriteMapEntry, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleMoveRequest, BattleState, BattleTimelineEvent, BossDexRecord, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, LocalSave, MoveSummary, PokemonEditOptions, PricedMove, RentalPokemon, RestAction, ResultSummaryState, RuntimePokemon, ShopItem, ShopOffer, SpriteMapEntry, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import battleEffectAssets from "../../../data/battle_effect_assets.json";
 import bossDialogueAssets from "../../../data/boss_dialogues.json";
 import "./styles.css";
@@ -17,12 +17,25 @@ const STAT_ROWS = [
 
 type BattleEffectEntry = {
   visual: string;
+  renderer?: "css" | "image" | "spritesheet";
+  asset?: string;
+  frames?: number;
+  frame_width?: number;
+  frame_height?: number;
+  scale?: number;
   duration_ms?: number;
   anchor?: "target" | "field" | "side";
+  target?: "source" | "opponent";
 };
 
 type BattleVisualCue = {
   visual: string;
+  renderer?: "css" | "image" | "spritesheet";
+  asset?: string;
+  frames?: number;
+  frame_width?: number;
+  frame_height?: number;
+  scale?: number;
   side?: "p1" | "p2";
   targetSide?: "p1" | "p2";
   anchor: "target" | "field" | "side";
@@ -58,7 +71,46 @@ const STATUS_ID_BY_ZH: Record<string, string> = {
   睡眠: "slp",
   冰冻: "frz",
   混乱: "confusion",
+  替身: "substitute",
+  寄生种子: "leechseed",
+  畏缩: "flinch",
+  束缚: "trapped",
+  挑衅: "taunt",
+  再来一次: "encore",
+  定身法: "disable",
+  着迷: "attract",
+  诅咒: "curse",
+  封印: "imprison",
 };
+const STATUS_ID_ALIASES: Record<string, string> = {
+  burn: "brn",
+  burned: "brn",
+  paralysis: "par",
+  paralyzed: "par",
+  poison: "psn",
+  poisoned: "psn",
+  toxic: "tox",
+  badlypoisoned: "tox",
+  sleep: "slp",
+  asleep: "slp",
+  freeze: "frz",
+  frozen: "frz",
+  substitute: "substitute",
+  leechseed: "leechseed",
+  flinch: "flinch",
+  trapped: "trapped",
+  partiallytrapped: "trapped",
+  taunt: "taunt",
+  encore: "encore",
+  disable: "disable",
+  attract: "attract",
+  curse: "curse",
+  confusion: "confusion",
+  confused: "confusion",
+  imprison: "imprison",
+  healblock: "healblock",
+};
+const VOLATILE_STATUS_IDS = new Set(["substitute", "leechseed", "flinch", "trapped", "taunt", "encore", "disable", "attract", "curse", "imprison", "healblock"]);
 const SUBSTITUTE_DOLL_PATH = "assets/battle/substitute-doll.png";
 const TALENT_EQUIP_LIMIT = 5;
 const TALENT_CATALOG: TalentView[] = [
@@ -88,7 +140,7 @@ const TALENT_CATALOG: TalentView[] = [
   {id: "economy_amulet_coin", name: "护符金币", category: "经济运营", cost: 35, desc: "所有正向金币入账获得 1.35 倍收益。"},
   {id: "economy_shiny_collector", name: "闪光收藏家", category: "经济运营", cost: 40, desc: "交换获得的宝可梦均为闪光，且闪光带来的金币加成提高。"},
   {id: "economy_bargainer", name: "讲价高手", category: "经济运营", cost: 20, desc: "道具回收商出现时，出售道具获得 75% 原价。"},
-  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具，并将可返还道具结算效率从 25% 提高到 50%。"},
+  {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具；通关或中断返还效率从 25% 提高到 50%，失败时从 10% 提高到 20%。"},
 ];
 
 type TrainerDialogueMoment = "intro" | "defeat" | "victory";
@@ -203,6 +255,8 @@ function trainerDisplayName(trainer?: TrainerNpcView): string {
   if (!trainer) return "训练师";
   const zh = String(trainer.name_zh || "").trim();
   if (zh && !/^[A-Z0-9_ -]+$/.test(zh)) return zh;
+  const raw = `${trainer.id || ""} ${trainer.name_en || ""} ${zh}`.toLowerCase();
+  if (raw.includes("plasma") && raw.includes("grunt")) return "等离子团团员";
   const en = String(trainer.name_en || zh || trainer.id || "").replace(/^DP[_-]|^HGSS[_-]|^SPR[_-](?:BW|B2W2)?[_-]/i, "");
   return en.replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()).trim() || "训练师";
 }
@@ -271,18 +325,134 @@ function typeId(value: string | undefined): string {
   return TYPE_ID_BY_ZH[raw] || toId(raw) || "normal";
 }
 
+function moveCategoryId(category: string | undefined, categoryZh: string | undefined): "physical" | "special" | "status" | "" {
+  const raw = `${category || ""} ${categoryZh || ""}`;
+  const id = toId(raw);
+  if (id.includes("physical") || raw.includes("物理")) return "physical";
+  if (id.includes("special") || raw.includes("特殊")) return "special";
+  if (id.includes("status") || id.includes("non" + "damage") || raw.includes("变化")) return "status";
+  return "";
+}
+
 function statusEffectId(value: string | undefined): string {
   const raw = String(value || "");
-  return STATUS_ID_BY_ZH[raw] || toId(raw);
+  const id = STATUS_ID_BY_ZH[raw] || toId(raw);
+  return STATUS_ID_ALIASES[id] || id;
+}
+
+function userFacingError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error || "发生未知错误。");
+  const remoteMatch = raw.match(/Error invoking remote method '[^']+': Error:\s*(.+)$/);
+  return (remoteMatch?.[1] || raw).replace(/^Error:\s*/, "").trim() || "发生未知错误。";
 }
 
 function battleEffectEntry(key: string): BattleEffectEntry | undefined {
   return BATTLE_EFFECTS.entries[key];
 }
 
+function firstBattleEffectEntry(keys: string[]): BattleEffectEntry | undefined {
+  for (const key of keys) {
+    const entry = battleEffectEntry(key);
+    if (entry) return entry;
+  }
+  return undefined;
+}
+
+function moveEffectKeys(moveId: string, typeIdValue: string, categoryId: string): string[] {
+  return [
+    moveId ? `move:${moveId}` : "",
+    categoryId ? `move_type:${typeIdValue}:${categoryId}` : "",
+    `move_type:${typeIdValue}`,
+    categoryId ? `move_type:normal:${categoryId}` : "",
+    "move_type:normal",
+  ].filter(Boolean);
+}
+
+function moveCueTargetSide(entry: BattleEffectEntry | undefined, actingSide: "p1" | "p2", eventTargetSide: "p1" | "p2" | undefined): "p1" | "p2" {
+  const opponentSide = actingSide === "p1" ? "p2" : "p1";
+  if (entry?.target === "source") return actingSide;
+  if (entry?.target === "opponent") return opponentSide;
+  return eventTargetSide || opponentSide;
+}
+
+function eventTargetsDisplayedActive(event: BattleTimelineEvent, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}): boolean {
+  if (!event.targetSide) return true;
+  const eventShowdownId = String(event.target_showdown_id || "").trim();
+  const activeShowdownId = String(displayedShowdownIds?.[event.targetSide] || "").trim();
+  if (eventShowdownId) return Boolean(activeShowdownId) && eventShowdownId === activeShowdownId;
+  if (!event.target_id) return true;
+  const activeRaw = String(displayedNames[event.targetSide] || "").trim();
+  const targetRaw = String(event.target_id || "").trim();
+  if (activeRaw && targetRaw && activeRaw === targetRaw) return true;
+  const activeId = toId(activeRaw);
+  const targetId = toId(targetRaw);
+  if (activeId && targetId) return activeId === targetId;
+  return true;
+}
+
+function statusEffectKeys(effect: string | undefined, fallback = "generic"): string[] {
+  const id = statusEffectId(effect);
+  const keys = id ? [`status:${id}`] : [];
+  if (VOLATILE_STATUS_IDS.has(id)) keys.push("status:volatile");
+  keys.push(`status:${fallback}`, "status:generic");
+  return keys;
+}
+
+function boostEffectKeys(event: BattleTimelineEvent): string[] {
+  const effect = toId(event.effect);
+  if (effect.includes("clear")) return ["boost:clear", "boost:generic", "battle_action:boost"];
+  if (effect === "swap" || effect === "copy" || effect === "invert") return [`boost:${effect}`, "boost:generic", "battle_action:boost"];
+  if (typeof event.boost_amount === "number") {
+    if (event.boost_amount > 0) return [`boost:${effect}-up`, "boost:up", "boost:generic", "battle_action:boost"];
+    if (event.boost_amount < 0) return [`boost:${effect}-down`, "boost:down", "boost:generic", "battle_action:boost"];
+  }
+  if (event.text.includes("下降") || event.text.includes("降低")) return ["boost:down", "boost:generic", "battle_action:boost"];
+  if (event.text.includes("提高") || event.text.includes("上升")) return ["boost:up", "boost:generic", "battle_action:boost"];
+  return ["boost:generic", "battle_action:boost"];
+}
+
+function weatherEffectKeys(event: BattleTimelineEvent): string[] {
+  const raw = `${event.effect || ""} ${event.text || ""}`;
+  const id = toId(raw);
+  if (id.includes("none") || raw.includes("恢复正常") || raw.includes("无")) return ["weather:none", "weather:generic"];
+  if (id.includes("rain") || raw.includes("雨")) return ["weather:rain", "weather:generic"];
+  if (id.includes("sun") || id.includes("harshsunlight") || raw.includes("晴") || raw.includes("日照")) return ["weather:sun", "weather:generic"];
+  if (id.includes("sand") || raw.includes("沙暴")) return ["weather:sand", "weather:generic"];
+  if (id.includes("snow") || raw.includes("雪")) return ["weather:snow", "weather:hail", "weather:generic"];
+  if (id.includes("hail") || raw.includes("冰雹")) return ["weather:hail", "weather:snow", "weather:generic"];
+  return ["weather:generic"];
+}
+
+function fieldEffectKeys(event: BattleTimelineEvent): string[] {
+  const raw = `${event.effect || ""} ${event.text || ""}`;
+  const id = toId(raw);
+  const sideKeys: string[] = [];
+  if (id.includes("auroraveil") || raw.includes("极光幕")) sideKeys.push("side_condition:auroraveil");
+  if (id.includes("reflect") || raw.includes("反射壁")) sideKeys.push("side_condition:reflect");
+  if (id.includes("lightscreen") || raw.includes("光墙")) sideKeys.push("side_condition:lightscreen");
+  if (id.includes("stickyweb") || raw.includes("黏黏网")) sideKeys.push("side_condition:stickyweb");
+  if (id.includes("stealthrock") || raw.includes("隐形岩")) sideKeys.push("side_condition:stealthrock");
+  if (id.includes("toxicspikes") || raw.includes("毒菱")) sideKeys.push("side_condition:toxicspikes");
+  if (id.includes("spikes") || raw.includes("撒菱")) sideKeys.push("side_condition:spikes");
+  if (id.includes("tailwind") || raw.includes("顺风")) sideKeys.push("side_condition:tailwind");
+  const fieldKeys: string[] = [];
+  if (id.includes("trickroom") || raw.includes("戏法空间")) fieldKeys.push("field:trickroom");
+  if (id.includes("electricterrain") || raw.includes("电气场地") || raw.includes("电气")) fieldKeys.push("field:electricterrain");
+  if (id.includes("grassyterrain") || raw.includes("青草场地") || raw.includes("青草")) fieldKeys.push("field:grassyterrain");
+  if (id.includes("mistyterrain") || raw.includes("薄雾场地") || raw.includes("薄雾")) fieldKeys.push("field:mistyterrain");
+  if (id.includes("psychicterrain") || raw.includes("精神场地") || raw.includes("精神")) fieldKeys.push("field:psychicterrain");
+  return [...sideKeys, ...fieldKeys, "field:generic"];
+}
+
 function cueFromEntry(entry: BattleEffectEntry | undefined, event: BattleTimelineEvent, fallbackVisual: string, side?: "p1" | "p2", targetSide?: "p1" | "p2"): BattleVisualCue {
   return {
     visual: entry?.visual || fallbackVisual,
+    renderer: entry?.renderer || "css",
+    asset: entry?.asset,
+    frames: entry?.frames,
+    frame_width: entry?.frame_width,
+    frame_height: entry?.frame_height,
+    scale: entry?.scale,
     side: side || event.side,
     targetSide: targetSide || event.targetSide,
     anchor: entry?.anchor || BATTLE_EFFECTS.defaults.anchor,
@@ -504,6 +674,11 @@ function findDisplay(team: RentalPokemon[], name?: string): RentalPokemon | unde
   });
 }
 
+function findDisplayByShowdownId(team: RentalPokemon[], showdownId?: string): RentalPokemon | undefined {
+  const id = String(showdownId || "").trim().toLowerCase();
+  return id ? team.find(pokemon => String(pokemon.showdown_id || "").trim().toLowerCase() === id) : undefined;
+}
+
 type ActiveTrackerDisplay = BattleState["tracker"]["active"]["p1"];
 
 function displayFromActive(active: ActiveTrackerDisplay | undefined, base?: RentalPokemon): RentalPokemon | undefined {
@@ -551,12 +726,12 @@ function activePokemon(battle: BattleState | null | undefined, side: "p1" | "p2"
   const activeName = active?.species_id || active?.name || (side === "p1" ? runtimeName(runtime) : "");
   const team = side === "p1" ? battle?.player_display || [] : battle?.enemy_display || [];
   const allDisplays = [...(battle?.player_display || []), ...(battle?.enemy_display || [])];
-  const base = findDisplay(team, activeName) || findDisplay(allDisplays, activeName) || findDisplay(team, runtimeName(runtime)) || (runtimeIndex >= 0 ? team[runtimeIndex] : undefined) || (side === "p2" ? team[0] : undefined);
+  const base = findDisplayByShowdownId(team, active?.showdown_id || runtime?.pokeball) || findDisplay(team, activeName) || findDisplay(allDisplays, activeName) || findDisplay(team, runtimeName(runtime)) || (runtimeIndex >= 0 ? team[runtimeIndex] : undefined) || (side === "p2" ? team[0] : undefined);
   return {runtime, active, display: displayFromActive(active, base)};
 }
 
 function displayForRuntime(team: RentalPokemon[], runtime: RuntimePokemon | undefined, index: number): RentalPokemon | undefined {
-  return findDisplay(team, runtimeName(runtime)) || team[index];
+  return findDisplayByShowdownId(team, runtime?.pokeball) || findDisplay(team, runtimeName(runtime)) || team[index];
 }
 
 function findDisplayIndex(team: RentalPokemon[], name?: string): number {
@@ -570,6 +745,11 @@ function findDisplayIndex(team: RentalPokemon[], name?: string): number {
 }
 
 function enemyDisplayIndex(team: RentalPokemon[], event: BattleTimelineEvent): number {
+  if (event.target_showdown_id || event.source_showdown_id) {
+    const id = String(event.target_showdown_id || event.source_showdown_id || "").trim().toLowerCase();
+    const index = team.findIndex(pokemon => String(pokemon.showdown_id || "").trim().toLowerCase() === id);
+    if (index >= 0) return index;
+  }
   if (event.target_species_id) {
     const index = team.findIndex(pokemon => pokemon.species_id === event.target_species_id);
     if (index >= 0) return index;
@@ -666,6 +846,10 @@ function abilityDescription(pokemon: RentalPokemon): string {
   return "暂无中文特性说明。";
 }
 
+function hasStarterItemChoices(starter: DesktopGameState["starter"]): boolean {
+  return Boolean(starter?.item_groups?.some(group => group.offers.length > 0) || starter?.offers?.length);
+}
+
 function statMarker(pokemon: RentalPokemon, stat: string): string {
   return pokemon.nature_plus === stat ? "↑" : pokemon.nature_minus === stat ? "↓" : "";
 }
@@ -676,8 +860,18 @@ function moveSummaryFor(pokemon: RentalPokemon | undefined, requestMove: BattleM
 }
 
 function moveSummaryByName(pokemon: RentalPokemon | undefined, moveName: string | undefined): MoveSummary | undefined {
-  const key = toId(moveName);
-  return pokemon?.moves.find(move => move.id === key || toId(move.name) === key || toId(move.name_zh) === key);
+  const raw = String(moveName || "").trim();
+  if (!raw) return undefined;
+  const exact = pokemon?.moves.find(move => move.id === raw || move.name === raw || move.name_zh === raw);
+  if (exact) return exact;
+  const key = toId(raw);
+  return key ? pokemon?.moves.find(move => move.id === key || toId(move.name) === key || toId(move.name_zh) === key) : undefined;
+}
+
+function runtimeMoveLabel(pokemon: RentalPokemon | undefined, move: {id?: string; move?: string} | undefined, index: number): string {
+  if (!move) return "";
+  const summary = moveSummaryByName(pokemon, move.id || move.move) || pokemon?.moves[index];
+  return summary?.name_zh || summary?.name || move.move || "";
 }
 
 function debugMove(id: string, name: string, type = "Fire"): MoveSummary {
@@ -804,6 +998,7 @@ function App() {
   const [battleBag, setBattleBag] = useState<BagCategoryView | null>(null);
   const [exchange, setExchange] = useState<DesktopGameState["exchange"]>(null);
   const [rest, setRest] = useState<DesktopGameState["rest"]>(null);
+  const [resultSummary, setResultSummary] = useState<ResultSummaryState | null>(null);
   const [pendingTransition, setPendingTransition] = useState<DesktopGameState | null>(null);
   const [dexOpen, setDexOpen] = useState(false);
   const [message, setMessage] = useState("欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
@@ -847,12 +1042,13 @@ function App() {
     setBattleBag(state.battle_bag || null);
     setExchange(state.exchange || null);
     setRest(state.rest || null);
+    setResultSummary(state.result_summary || null);
     setPendingTransition(state.pending_transition || null);
     setScreen(state.screen);
     setMessage(state.message || "");
   }
 
-  async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus, showLoading = true) {
+  async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus, showLoading = true): Promise<boolean> {
     if (showLoading) setLoading(true);
     setError(null);
     try {
@@ -860,8 +1056,10 @@ function App() {
       if (result && "screen" in result) applyState(result);
       else if (result && "trainer" in result) setSave(result);
       if (fallbackScreen) setScreen(fallbackScreen);
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(userFacingError(err));
+      return false;
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -914,8 +1112,17 @@ function App() {
   }
 
   async function rerollFocusedCandidate() {
-    setSelected(current => current.filter(index => index !== focusIndex));
-    await runAction(() => window.changeBattle!.rerollStarterCandidate(focusIndex));
+    const slot = focusIndex;
+    const nextSelected = selected.filter(index => index !== slot);
+    const nextInspected = new Set([...inspectedIndexes].filter(index => index !== slot));
+    const nextInspectRemaining = inspectRemaining;
+    await runAction(async () => {
+      const state = await window.changeBattle!.rerollStarterCandidate(slot);
+      return {...state, selected_indexes: nextSelected};
+    });
+    setFocusIndex(slot);
+    setInspectedIndexes(nextInspected);
+    setInspectRemaining(nextInspectRemaining);
   }
 
   function inspectFocusedCandidate() {
@@ -933,6 +1140,10 @@ function App() {
   }
 
   function backToStarterItems() {
+    if (!hasStarterItemChoices(starter)) {
+      setMessage("本次没有可返回的开局道具。");
+      return;
+    }
     setSelected([]);
     setFocusIndex(0);
     setInspectedIndexes(new Set());
@@ -975,8 +1186,8 @@ function App() {
     await runAction(() => window.changeBattle!.exchange(ownIndex, enemyIndex));
   }
 
-  async function restAction(action: RestAction) {
-    await runAction(() => window.changeBattle!.restAction(action), undefined, !["roll_shop", "buy_shop_offer"].includes(action.type));
+  async function restAction(action: RestAction): Promise<boolean> {
+    return runAction(() => window.changeBattle!.restAction(action), undefined, !["roll_shop", "buy_shop_offer"].includes(action.type));
   }
 
   function openDex() {
@@ -998,16 +1209,16 @@ function App() {
     if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
     if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
     if (screen === "starterItems") return <StarterItemsView starter={starter} onChoose={chooseStarterItem} onBack={cancelPreparation} />;
-    if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={starter ? backToStarterItems : undefined} onReroll={rerollCandidates} onSingleReroll={rerollFocusedCandidate} onInspect={inspectFocusedCandidate} wholeRerollsRemaining={starter?.whole_rerolls_remaining ?? 0} singleRerollsRemaining={starter?.single_rerolls_remaining ?? 0} inspectRemaining={inspectRemaining} revealTraining={Boolean(save?.talent_equipped?.includes("intel_god_eye")) || inspectedIndexes.has(focusIndex)} inspected={inspectedIndexes.has(focusIndex)} />;
+    if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={hasStarterItemChoices(starter) ? backToStarterItems : undefined} onReroll={rerollCandidates} onSingleReroll={rerollFocusedCandidate} onInspect={inspectFocusedCandidate} wholeRerollsRemaining={starter?.whole_rerolls_remaining ?? 0} singleRerollsRemaining={starter?.single_rerolls_remaining ?? 0} inspectRemaining={inspectRemaining} revealTraining={Boolean(save?.talent_equipped?.includes("intel_god_eye")) || inspectedIndexes.has(focusIndex)} inspected={inspectedIndexes.has(focusIndex)} />;
     if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={setScreen} onChoice={battleChoice} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
     if (screen === "rest") return <RestView rest={rest} message={message} onAction={restAction} />;
-    if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} onBack={() => setScreen("mainMenu")} />;
+    if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} summary={resultSummary} onBack={() => setScreen("mainMenu")} />;
     return null;
-  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, lastBattleSnapshot, battleBag, battleChoicePending, exchange, rest, pendingTransition, message]);
+  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, lastBattleSnapshot, battleBag, battleChoicePending, exchange, rest, resultSummary, pendingTransition, message]);
 
   const isBattleScreen = ["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen);
-  const transientMessage = error || (!isBattleScreen && screen !== "rest" ? message : "");
+  const transientMessage = !error && !isBattleScreen && screen !== "rest" ? message : "";
   const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
   const showDexButton = screen === "mainMenu" || (isBattleScreen && battleHasDexTalent);
 
@@ -1022,9 +1233,24 @@ function App() {
         {showDexButton ? <button className="floating-dex-button" title="打开图鉴" onClick={openDex}>图鉴</button> : null}
         {dexOpen ? <DexModal onClose={() => setDexOpen(false)} /> : null}
         {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
-        {transientMessage ? <div className={`screen-toast ${error ? "danger" : ""}`}>{transientMessage}</div> : null}
+        {transientMessage ? <div className="screen-toast">{transientMessage}</div> : null}
+        {error ? <ErrorDialog message={error} onClose={() => setError(null)} /> : null}
       </section>
     </main>
+  );
+}
+
+function ErrorDialog({message, onClose}: {message: string; onClose: () => void}) {
+  return (
+    <div className="modal-layer error-modal-layer" role="presentation" onClick={onClose}>
+      <section className="error-modal" role="alertdialog" aria-modal="true" aria-labelledby="error-title" onClick={event => event.stopPropagation()}>
+        <header>
+          <h2 id="error-title">操作失败</h2>
+          <button onClick={onClose}>关闭</button>
+        </header>
+        <p>{message}</p>
+      </section>
+    </div>
   );
 }
 
@@ -1616,6 +1842,8 @@ function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopGameStat
   const groupLocked = currentPurchasedIds.length >= groupLimit;
   const selectedOfferId = stagedOfferId;
   const selectedOffer = currentGroup?.offers.find(offer => offer.offer_id === selectedOfferId) || null;
+  const stagedCount = selectedOffer && !currentPurchasedIds.includes(selectedOffer.offer_id) ? 1 : 0;
+  const selectedCount = Math.min(groupLimit, currentPurchasedIds.length + stagedCount);
   const isLastPage = currentIndex >= groups.length - 1;
   const progress = groups.length ? `${currentIndex + 1}/${groups.length}` : "0/0";
 
@@ -1690,10 +1918,12 @@ function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopGameStat
         <div className="starter-group starter-wizard-card">
           <header>
             <strong>{currentGroup.name}（质量 Lv{currentGroup.quality_level} / 数量 Lv{currentGroup.quantity_level}）</strong>
-            <span>{currentPurchasedIds.length}/{groupLimit}　{groupLocked ? "已锁定" : selectedOffer ? "待锁定" : "可跳过"}</span>
+            <span>{selectedCount}/{groupLimit}　{groupLocked ? "已锁定" : selectedOffer ? "待锁定" : "可跳过"}</span>
           </header>
           <div className="starter-group-offers">
-            {currentGroup.offers.map(offer => {
+            {Array.from({length: 4}, (_value, slotIndex) => {
+              const offer = currentGroup.offers[slotIndex];
+              if (!offer) return <div className="starter-offer-placeholder" key={`empty-${currentGroup.id}-${slotIndex}`} />;
               const selected = selectedOfferId === offer.offer_id;
               const purchased = currentPurchasedIds.includes(offer.offer_id);
               const locked = groupLocked || purchased;
@@ -1701,7 +1931,7 @@ function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopGameStat
                 <button className={`starter-offer ${selected ? "selected" : ""}`} disabled={locked} onClick={() => setStagedOfferId(current => current === offer.offer_id ? null : offer.offer_id)} key={offer.offer_id}>
                   <ItemIcon item={offer} />
                   <strong>{offer.name_zh || offer.name}</strong>
-                  <span><b className="price-badge">Lv{offer.item_tier || 1}</b><i>{purchasedIds.has(offer.offer_id) ? "已选择" : selected ? "待选" : "免费"}</i></span>
+                  <span><b className="price-badge">Lv{offer.item_tier || 1}</b><i>{purchasedIds.has(offer.offer_id) ? "已选择" : selected ? "已选中" : "免费"}</i></span>
                   <small>{itemCategoryLabel(offer.category)}　{offer.desc_zh || offer.desc || offer.name}</small>
                 </button>
               );
@@ -1745,40 +1975,48 @@ function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle
 }
 
 function PokemonProfile({pokemon, selected = false, runtime, compact = false, revealTraining = false}: {pokemon: RentalPokemon; selected?: boolean; runtime?: RuntimePokemon; compact?: boolean; revealTraining?: boolean}) {
-  return <div className={`pokemon-profile ${compact ? "compact" : ""}`}><aside className="profile-card"><span>No.{pokemon.sprite?.national_dex || "?"}</span><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} badge="full" /><h2>{displayName(pokemon)}</h2><p>{pokemon.species}</p><p>Lv{pokemon.level} {pokemon.gender}</p>{selected ? <strong>已选中</strong> : null}</aside><section className="profile-info"><h3>{pokemon.types_zh.join(" / ")}　{pokemon.nature_zh}</h3><div className="info-strip"><span>特性</span><strong>{pokemon.ability_zh}</strong><span>道具</span><strong>{pokemon.item_zh || "无"}</strong><span>HP</span><strong>{runtime ? conditionText(runtime.condition) : pokemon.stats.hp}</strong></div><div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div><div className="moves-panel">{pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><p>{moveDescription(move)}</p></div>)}</div></section></div>;
+  return <div className={`pokemon-profile ${compact ? "compact" : ""}`}><aside className="profile-card"><span>No.{pokemon.sprite?.national_dex || "?"}</span><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} badge="full" /><h2>{displayName(pokemon)}</h2><p>{pokemon.species}</p><p>Lv{pokemon.level} {pokemon.gender}</p>{selected ? <strong>已选中</strong> : null}</aside><section className="profile-info"><h3>{pokemon.types_zh.join(" / ")}　{pokemon.nature_zh}</h3><div className="info-strip"><span>特性</span><strong>{pokemon.ability_zh}</strong><span>道具</span><strong>{pokemon.item_zh || "无"}</strong><span>HP</span><strong>{runtime ? conditionText(runtime.condition) : pokemon.stats.hp}</strong></div><div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div><div className="moves-panel">{pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><p>{revealTraining ? moveDescription(move) : "？？？"}</p></div>)}</div></section></div>;
 }
 
-function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}): BattleVisualCue | null {
+function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}): BattleVisualCue | null {
   if (event.type === "move") {
     const actingSide = event.side || "p1";
     const team = actingSide === "p1" ? battle.player_display : battle.enemy_display;
-    const pokemon = findDisplay(team, event.source_id || displayedNames[actingSide]);
+    const pokemon = findDisplayByShowdownId(team, event.source_showdown_id || displayedShowdownIds?.[actingSide]) || findDisplay(team, event.source_id || displayedNames[actingSide]);
     const summary = moveSummaryByName(pokemon, event.move);
-    const moveKey = event.move ? `move:${toId(event.move)}` : "";
-    const typeKey = `move_type:${typeId(summary?.type || summary?.type_zh)}`;
-    const entry = battleEffectEntry(moveKey) || battleEffectEntry(typeKey) || battleEffectEntry("move_type:normal");
-    return cueFromEntry(entry, event, entry?.visual || "normal-hit", actingSide, event.targetSide || (actingSide === "p1" ? "p2" : "p1"));
+    const moveId = summary?.id ? toId(summary.id) : toId(event.move);
+    const entry = firstBattleEffectEntry(moveEffectKeys(moveId, typeId(summary?.type || summary?.type_zh), moveCategoryId(summary?.category, summary?.category_zh)));
+    return cueFromEntry(entry, event, entry?.visual || "normal-hit", actingSide, moveCueTargetSide(entry, actingSide, event.targetSide));
   }
+  if ((event.type === "damage" || event.type === "heal") && !eventTargetsDisplayedActive(event, displayedNames, displayedShowdownIds)) return null;
   if (event.type === "damage") return cueFromEntry(battleEffectEntry("battle_action:damage"), event, "impact");
   if (event.type === "heal") return cueFromEntry(battleEffectEntry("battle_action:heal"), event, "heal");
   if (event.type === "faint") return cueFromEntry(battleEffectEntry("battle_action:faint"), event, "faint");
-  if (event.type === "boost") return cueFromEntry(battleEffectEntry("battle_action:boost"), event, "boost");
+  if (event.type === "miss") return cueFromEntry(battleEffectEntry("battle_action:miss"), event, "miss");
+  if (event.type === "crit") return cueFromEntry(battleEffectEntry("battle_action:crit"), event, "crit");
+  if (event.type === "effectiveness") return cueFromEntry(battleEffectEntry("battle_action:effectiveness"), event, "effectiveness");
+  if (event.type === "switch") return cueFromEntry(battleEffectEntry("battle_action:switch_in"), event, "switch-in", event.side || event.targetSide, event.targetSide || event.side);
+  if (event.type === "form") return cueFromEntry(battleEffectEntry("battle_action:form"), event, "ability", event.side, event.targetSide || event.side);
+  if (event.type === "substitute") {
+    const entry = firstBattleEffectEntry(statusEffectKeys("substitute", "volatile"));
+    return cueFromEntry(entry, event, entry?.visual || "substitute", event.side, event.targetSide);
+  }
+  if (event.type === "boost") {
+    const entry = firstBattleEffectEntry(boostEffectKeys(event));
+    return cueFromEntry(entry, event, entry?.visual || "boost");
+  }
   if (event.type === "item") return cueFromEntry(battleEffectEntry("battle_action:item"), event, "item");
   if (event.type === "ability") return cueFromEntry(battleEffectEntry("battle_action:ability"), event, "ability");
   if (event.type === "status") {
-    const key = event.effect ? `status:${statusEffectId(event.effect)}` : "";
-    return cueFromEntry(battleEffectEntry(key) || battleEffectEntry("status:confusion"), event, "status");
+    const entry = firstBattleEffectEntry(statusEffectKeys(event.effect));
+    return cueFromEntry(entry, event, entry?.visual || "status");
   }
   if (event.type === "weather") {
-    const effect = toId(event.effect || event.text);
-    const key = effect.includes("rain") || event.text.includes("雨") ? "weather:rain" : effect.includes("sun") || event.text.includes("晴") ? "weather:sun" : effect.includes("hail") || event.text.includes("雪") || event.text.includes("冰雹") ? "weather:hail" : effect.includes("sand") || event.text.includes("沙暴") ? "weather:sand" : "";
-    return cueFromEntry(battleEffectEntry(key), event, key ? key.replace("weather:", "") : "field");
+    const entry = firstBattleEffectEntry(weatherEffectKeys(event));
+    return cueFromEntry(entry, event, entry?.visual || "field");
   }
   if (event.type === "field") {
-    const effect = toId(event.effect || event.text);
-    const sideKey = effect.includes("stealthrock") || event.text.includes("隐形岩") ? "side_condition:stealthrock" : effect.includes("toxicspikes") || event.text.includes("毒菱") ? "side_condition:toxicspikes" : effect.includes("spikes") || event.text.includes("撒菱") ? "side_condition:spikes" : effect.includes("reflect") || event.text.includes("反射壁") ? "side_condition:reflect" : effect.includes("lightscreen") || event.text.includes("光墙") ? "side_condition:lightscreen" : "";
-    const fieldKey = effect.includes("trickroom") || event.text.includes("戏法空间") ? "field:trickroom" : effect.includes("electricterrain") || event.text.includes("电气") ? "field:electricterrain" : effect.includes("grassyterrain") || event.text.includes("青草") ? "field:grassyterrain" : effect.includes("mistyterrain") || event.text.includes("薄雾") ? "field:mistyterrain" : effect.includes("psychicterrain") || event.text.includes("精神") ? "field:psychicterrain" : "";
-    const entry = battleEffectEntry(sideKey) || battleEffectEntry(fieldKey);
+    const entry = firstBattleEffectEntry(fieldEffectKeys(event));
     return cueFromEntry(entry, event, entry?.visual || "field");
   }
   return null;
@@ -1786,7 +2024,24 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
 
 function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
   if (!cue) return null;
-  return <div className={`battle-effect-layer anchor-${cue.anchor} side-${cue.side || "none"} target-${cue.targetSide || "none"}`} style={{"--cue-duration": `${cue.durationMs}ms`} as CSSProperties}><div className={`battle-effect effect-${cue.visual}`}><i /><i /><i /><i /><i /><i /></div></div>;
+  const sheetFrameWidth = cue.frame_width || 192;
+  const sheetFrameHeight = cue.frame_height || 192;
+  const sheetFrames = Math.max(1, cue.frames || 1);
+  const style = {
+    "--cue-duration": `${cue.durationMs}ms`,
+    "--effect-image": cue.asset ? `url("${assetUrl(cue.asset)}")` : undefined,
+    "--sheet-frame-width": `${sheetFrameWidth}px`,
+    "--sheet-frame-height": `${sheetFrameHeight}px`,
+    "--sheet-shift": `${Math.max(0, sheetFrames - 1) * sheetFrameWidth}px`,
+    "--sheet-steps": Math.max(1, sheetFrames - 1),
+    "--sheet-scale": cue.scale || 1,
+  } as CSSProperties;
+  const content = cue.renderer === "image" && cue.asset
+    ? <div className={`battle-effect battle-image-effect effect-${cue.visual}`}><span /></div>
+    : cue.renderer === "spritesheet" && cue.asset
+      ? <div className={`battle-effect battle-spritesheet-effect effect-${cue.visual}`}><span /></div>
+      : <div className={`battle-effect effect-${cue.visual}`}><i /><i /><i /><i /><i /><i /></div>;
+  return <div className={`battle-effect-layer anchor-${cue.anchor} side-${cue.side || "none"} target-${cue.targetSide || "none"}`} style={style}>{content}</div>;
 }
 
 function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, pendingTransition, onBattleAnimationDone}: {battle: BattleState | null; battleBag: BagCategoryView | null; mode: AppStatus; setMode: (mode: AppStatus) => void; onChoice: (choice: string) => void; choicePending?: boolean; pendingTransition: DesktopGameState | null; onBattleAnimationDone: (state: DesktopGameState) => void}) {
@@ -1799,6 +2054,10 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   const finalActiveNames = {
     p1: battle?.tracker.active.p1.name || runtimeName(player.runtime) || "",
     p2: battle?.tracker.active.p2.name || "",
+  };
+  const finalActiveShowdownIds = {
+    p1: battle?.tracker.active.p1.showdown_id || player.runtime?.pokeball || "",
+    p2: battle?.tracker.active.p2.showdown_id || "",
   };
   const finalSubstitutes = {
     p1: Boolean(battle?.tracker.active.p1.substitute),
@@ -1819,6 +2078,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   const [playbackActive, setPlaybackActive] = useState(false);
   const [displayConditions, setDisplayConditions] = useState(finalConditions);
   const [displayedActiveNames, setDisplayedActiveNames] = useState(finalActiveNames);
+  const [displayedActiveShowdownIds, setDisplayedActiveShowdownIds] = useState(finalActiveShowdownIds);
   const [displayedSubstitutes, setDisplayedSubstitutes] = useState(finalSubstitutes);
   const [hpTransitionMs, setHpTransitionMs] = useState({p1: 1400, p2: 1400});
   const [faintedSides, setFaintedSides] = useState({p1: false, p2: false});
@@ -1832,6 +2092,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   const previousRecentEvents = useRef<string[]>([]);
   const displayConditionsRef = useRef(displayConditions);
   const displayedActiveNamesRef = useRef(displayedActiveNames);
+  const displayedActiveShowdownIdsRef = useRef(displayedActiveShowdownIds);
   const displayedSubstitutesRef = useRef(displayedSubstitutes);
   const previousBattlePresent = useRef(false);
   const introDialoguePending = useRef(false);
@@ -1870,10 +2131,10 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   }
 
   function battleWithRememberedTrainers(activeBattle: BattleState, fallback?: BattleState | null, activeDialogue?: TrainerDialogueState | null): BattleState {
-    const playerTrainer = activeBattle.player_trainer || activeDialogue?.playerTrainer || fallback?.player_trainer || lastBattleTrainers.current.player;
-    const enemyTrainer = activeBattle.enemy_trainer || activeDialogue?.trainer || fallback?.enemy_trainer || lastBattleTrainers.current.enemy;
-    const bossRecord = activeBattle.enemy_boss_record
-      || (sameTrainer(enemyTrainer, activeDialogue?.trainer) ? activeDialogue?.bossRecord : undefined)
+    const playerTrainer = activeDialogue?.playerTrainer || activeBattle.player_trainer || fallback?.player_trainer || lastBattleTrainers.current.player;
+    const enemyTrainer = activeDialogue?.trainer || activeBattle.enemy_trainer || fallback?.enemy_trainer || lastBattleTrainers.current.enemy;
+    const bossRecord = (sameTrainer(enemyTrainer, activeDialogue?.trainer) ? activeDialogue?.bossRecord : undefined)
+      || (sameTrainer(enemyTrainer, activeBattle.enemy_trainer) ? activeBattle.enemy_boss_record : undefined)
       || (sameTrainer(enemyTrainer, fallback?.enemy_trainer) ? fallback?.enemy_boss_record : undefined)
       || (sameTrainer(enemyTrainer, lastBattleTrainers.current.enemy) ? lastBattleTrainers.current.bossRecord : undefined);
     return {
@@ -1886,6 +2147,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
 
   useEffect(() => { displayConditionsRef.current = displayConditions; }, [displayConditions]);
   useEffect(() => { displayedActiveNamesRef.current = displayedActiveNames; }, [displayedActiveNames]);
+  useEffect(() => { displayedActiveShowdownIdsRef.current = displayedActiveShowdownIds; }, [displayedActiveShowdownIds]);
   useEffect(() => { displayedSubstitutesRef.current = displayedSubstitutes; }, [displayedSubstitutes]);
   useEffect(() => {
     const log = battleLogRef.current;
@@ -1942,7 +2204,6 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
     if (!transition || finishRequested.current) return;
     finishRequested.current = true;
     rememberBattleTrainers(activeBattle);
-    rememberBattleTrainers(transition.battle);
     const dialogueBattle = battleWithRememberedTrainers(activeBattle, transition.battle);
     const enemy = dialogueBattle.enemy_trainer;
     const moment: TrainerDialogueMoment = playerWonBattle(activeBattle) ? "defeat" : "victory";
@@ -2059,6 +2320,7 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
       for (const event of added) {
         if (playbackRun.current !== runId) return;
         const duration = timelineDuration(event, displayConditionsRef.current[event.targetSide || "p1"]);
+        const targetIsDisplayedActive = eventTargetsDisplayedActive(event, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current);
         setCurrentTimelineEvent(event);
         setShownEvents(events => [...events, event.text].slice(-14));
         if (event.type === "switch" && event.targetSide && event.target_id) {
@@ -2070,6 +2332,9 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
           const nextNames = {...displayedActiveNamesRef.current, [event.targetSide]: event.target_id};
           displayedActiveNamesRef.current = nextNames;
           setDisplayedActiveNames(nextNames);
+          const nextShowdownIds = {...displayedActiveShowdownIdsRef.current, [event.targetSide]: event.target_showdown_id || ""};
+          displayedActiveShowdownIdsRef.current = nextShowdownIds;
+          setDisplayedActiveShowdownIds(nextShowdownIds);
           const nextSubstitutes = {...displayedSubstitutesRef.current, [event.targetSide]: false};
           displayedSubstitutesRef.current = nextSubstitutes;
           setDisplayedSubstitutes(nextSubstitutes);
@@ -2080,6 +2345,11 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
           const nextNames = {...displayedActiveNamesRef.current, [event.targetSide]: event.target_id};
           displayedActiveNamesRef.current = nextNames;
           setDisplayedActiveNames(nextNames);
+          if (event.target_showdown_id) {
+            const nextShowdownIds = {...displayedActiveShowdownIdsRef.current, [event.targetSide]: event.target_showdown_id};
+            displayedActiveShowdownIdsRef.current = nextShowdownIds;
+            setDisplayedActiveShowdownIds(nextShowdownIds);
+          }
         }
         if (event.type === "substitute" && event.targetSide) {
           const nextSubstitutes = {...displayedSubstitutesRef.current, [event.targetSide]: Boolean(event.substitute)};
@@ -2087,14 +2357,14 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
           setDisplayedSubstitutes(nextSubstitutes);
         }
         if (event.type !== "switch") {
-          setCurrentVisualCue(visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current));
+          setCurrentVisualCue(targetIsDisplayedActive ? visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current) : null);
         }
-        if (["damage", "heal"].includes(event.type) && event.targetSide) {
+        if (["damage", "heal"].includes(event.type) && event.targetSide && targetIsDisplayedActive) {
           await wait(Math.min(520, Math.max(260, duration * 0.22)));
           if (playbackRun.current !== runId) return;
           setHpTransitionMs(current => ({...current, [event.targetSide!]: duration}));
         }
-        if (event.targetSide && event.condition && ["damage", "heal", "switch", "faint"].includes(event.type)) {
+        if (event.targetSide && event.condition && ["damage", "heal", "switch", "faint"].includes(event.type) && (event.type === "switch" || event.type === "faint" || targetIsDisplayedActive)) {
           const nextConditions = {...displayConditionsRef.current, [event.targetSide]: event.condition};
           displayConditionsRef.current = nextConditions;
           setDisplayConditions(nextConditions);
@@ -2114,9 +2384,11 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
       setShownEvents(lastEvents(activeBattle, 14));
       displayConditionsRef.current = finalConditions;
       displayedActiveNamesRef.current = finalActiveNames;
+      displayedActiveShowdownIdsRef.current = finalActiveShowdownIds;
       displayedSubstitutesRef.current = finalSubstitutes;
       setDisplayConditions(finalConditions);
       setDisplayedActiveNames(finalActiveNames);
+      setDisplayedActiveShowdownIds(finalActiveShowdownIds);
       setDisplayedSubstitutes(finalSubstitutes);
       setFaintedSides(timelineFaintedState(timelineEvents, finalFaintedSides));
       if (activeBattle.ended && pendingTransition && !finishRequested.current) {
@@ -2134,8 +2406,8 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
   const hasQueuedPlayback = timelineEvents.some((event, index) => !previousTimelineKeys.current.includes(`${event.id}:${event.text}`)) || addedRecentEventTexts(previousRecentEvents.current, recentEvents).length > 0;
   const controlsDisabled = Boolean(choicePending) || playbackActive || hasQueuedPlayback || introActive || trainerIntroActive || Boolean(dialogue);
-  const displayPlayer = findDisplay(battle.player_display, displayedActiveNames.p1) || player.display;
-  const displayEnemy = findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display;
+  const displayPlayer = findDisplayByShowdownId(battle.player_display, displayedActiveShowdownIds.p1) || findDisplay(battle.player_display, displayedActiveNames.p1) || player.display;
+  const displayEnemy = findDisplayByShowdownId(battle.enemy_display, displayedActiveShowdownIds.p2) || findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display;
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
@@ -2169,14 +2441,14 @@ function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, 
         <FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} onClick={() => setDetailIndex(activePlayerIndex)} />
         {currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}
       </section>
-      <section className={`battle-bottom ${dialogue ? "dialogue-bottom-active" : ""}`}>
+      <section className={`battle-bottom ${dialogue ? "dialogue-bottom-active" : ""} ${mode === "moveMenu" && !dialogue ? "move-bottom-active" : ""}`}>
         {dialogue ? (
           <BattleDialogueBox dialogue={dialogue} />
         ) : (
           <>
             <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} />
             <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
-            <div className={`battle-action-panel ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} />}</div>
+            <div className={`battle-action-panel ${mode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} />}</div>
           </>
         )}
       </section>
@@ -2396,6 +2668,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
   const canSwitch = Boolean(runtime) && !runtime.active && status !== "fnt";
   const activeMoves = runtime?.active ? battle.request?.active?.[0]?.moves || [] : [];
   const revealTraining = Boolean(battle.player_talents?.some(talent => talent.id === "intel_god_eye"));
+  const detailLockedText = "？？？";
 
   useEffect(() => {
     setSelectedIndex(Math.max(0, Math.min(initialIndex, Math.max(0, rows.length - 1))));
@@ -2454,13 +2727,13 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
                     <span>定位</span><strong>{pokemon.role_zh || pokemon.role || "未标注"}</strong>
                   </div>
                   <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div>
-                  <p><b>特性说明：</b>{abilityDescription(pokemon)}</p>
-                  <p><b>道具说明：</b>{pokemon.item_desc_zh || pokemon.item_desc || "无道具"}</p>
+                  <p><b>特性说明：</b>{revealTraining ? abilityDescription(pokemon) : detailLockedText}</p>
+                  <p><b>道具说明：</b>{revealTraining ? pokemon.item_desc_zh || pokemon.item_desc || "无道具" : detailLockedText}</p>
                 </div>
               </div>
             ) : (
               <div className="detail-moves">
-                {pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><span>{ppText(move)}</span><p>{moveDescription(move)}</p></div>)}
+                {pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><span>{ppText(move)}</span><p>{revealTraining ? moveDescription(move) : detailLockedText}</p></div>)}
               </div>
             )}
           </div>
@@ -2484,6 +2757,7 @@ function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: 
   const targetRuntime = rows[target] || rows[0];
   const targetDisplay = displayForRuntime(battle.player_display, targetRuntime, target) || battle.player_display[0];
   const activeMoves = targetRuntime?.active ? battle.request?.active?.[0]?.moves || [] : [];
+  const revealItemDetails = Boolean(battle.player_talents?.some(talent => talent.id === "intel_god_eye"));
 
   return (
     <div className="modal-layer">
@@ -2491,7 +2765,7 @@ function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: 
         <header><div><h2>战斗背包</h2><p>战斗中只能使用消耗类道具。</p></div><button onClick={onClose}>关闭</button></header>
         <div className="bag-manage-layout">
           <div className="shop-list bag-item-list">
-            {items.length ? items.map(item => <button className={selected?.id === item.id ? "selected" : ""} onClick={() => setItemId(item.id)} key={item.id}><ItemIcon item={item} /><strong>{item.name_zh || item.name}</strong><span>x{item.count}　{itemCategoryLabel(item.category)}</span><small>{item.desc_zh || item.desc || item.name}</small></button>) : <p>当前没有可在战斗中使用的消耗道具。</p>}
+            {items.length ? items.map(item => <button className={selected?.id === item.id ? "selected" : ""} onClick={() => setItemId(item.id)} key={item.id}><ItemIcon item={item} /><strong>{item.name_zh || item.name}</strong><span>x{item.count}　{itemCategoryLabel(item.category)}</span><small>{revealItemDetails ? item.desc_zh || item.desc || item.name : "？？？"}</small></button>) : <p>当前没有可在战斗中使用的消耗道具。</p>}
           </div>
           <section className="bag-action-panel">
             {selected ? <>
@@ -2575,15 +2849,17 @@ function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameStat
   const [own, setOwn] = useState(0);
   const [enemy, setEnemy] = useState(0);
   if (!exchange) return null;
-  return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
+  return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns exchange-columns-with-label"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div className="exchange-center-label" aria-hidden="true"><span>交换</span></div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
 }
 
-function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; message?: string; onAction: (action: RestAction) => void | Promise<void>}) {
+function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; message?: string; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
   const [pokemonModalSlot, setPokemonModalSlot] = useState<number | null>(null);
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
   const [recyclerOpen, setRecyclerOpen] = useState(false);
   const [talentOpen, setTalentOpen] = useState(false);
+  const [talentActionId, setTalentActionId] = useState<string | null>(null);
+  const [nightSkyOpen, setNightSkyOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);
   const [statsEditorSlot, setStatsEditorSlot] = useState<number | null>(null);
@@ -2594,6 +2870,11 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
   const hasScoutTalent = hasRunTalent(rest, "intel_rumor");
   const nightSkyRows = rest.night_sky?.rows || [];
   const revealedSkyCount = nightSkyRows.reduce((sum, row) => sum + Math.min(3, Number(row.revealed || 0)), 0);
+  const manualTalents = (rest.talents || []).filter(talent => isManualRunTalent(talent.id));
+  const activeTalent = rest.talents?.find(talent => talent.id === talentActionId) || null;
+  const fireAction = (action: RestAction) => {
+    void onAction(action);
+  };
 
   return (
     <div className="rest-page">
@@ -2604,14 +2885,6 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
           <button className="talent-inline-button" onClick={() => setTalentOpen(true)}>本局天赋：{rest.talents?.length ? rest.talents.map(talent => `${talent.name}（${talent.category}）`).join(" / ") : "当前无天赋"}</button>
           {message ? <p className="rest-message">{message}</p> : null}
         </div>
-        <div className="rest-header-insights">
-          {hasScoutTalent ? (
-            <button className="rest-scout-box compact" onClick={() => setTalentOpen(true)}>
-              <strong>小道消息</strong>
-              <span>本局训练师 {nightSkyRows.length || rest.battles} 行，已揭示 {revealedSkyCount} 只。</span>
-            </button>
-          ) : null}
-        </div>
         <div className="rest-header-actions">
           <button onClick={() => setExchangeOpen(true)}>交换</button>
           <button onClick={() => setBagOpen(true)}>背包</button>
@@ -2621,13 +2894,18 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
           <button onClick={() => onAction({type: "next"})}>下一场</button>
         </div>
       </header>
+      <section className="rest-talent-action-row">
+        <button onClick={() => setTalentOpen(true)}>携带天赋</button>
+        {hasScoutTalent ? <button onClick={() => setNightSkyOpen(true)}>小道消息 <small>{revealedSkyCount}/{(nightSkyRows.length || rest.battles) * 3}</small></button> : null}
+        {manualTalents.map(talent => <button onClick={() => setTalentActionId(talent.id)} key={`manual-${talent.id}`}>{talent.name}</button>)}
+      </section>
       <section className="rest-team-panel">
         <h3>你的队伍</h3>
         <div className="rest-team-list">
           {rest.player_display.map((pokemon, index) => {
             const state = rest.player_state[index];
             const status = statusCode(state?.condition, state?.status);
-            return <button className="rest-team-card" onClick={() => setPokemonModalSlot(index)} key={`${pokemon.species_id}-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map(move => `${move.move} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
+            return <button className="rest-team-card" onClick={() => setPokemonModalSlot(index)} key={`${pokemon.species_id}-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><strong>{index + 1}. {displayName(pokemon)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<span>{conditionText(state?.condition)}</span><small>{pokemon.item_zh || "无道具"}　{(state?.moves || []).map((move, moveIndex) => `${runtimeMoveLabel(pokemon, move, moveIndex)} ${move.pp}/${move.maxpp}`).join(" / ")}</small></button>;
           })}
         </div>
       </section>
@@ -2641,13 +2919,15 @@ function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; me
         </div>
       </section>
       {pokemonModalSlot !== null ? <RestPokemonModal rest={rest} initialSlot={pokemonModalSlot} onClose={() => setPokemonModalSlot(null)} onMove={slot => { setPokemonModalSlot(null); setMoveEditorSlot(slot); }} onUnequip={slot => { setPokemonModalSlot(null); onAction({type: "unequip_item", slot}); }} onStats={slot => { setPokemonModalSlot(null); setStatsEditorSlot(slot); }} /> : null}
-      {exchangeOpen ? <RestExchangeModal rest={rest} onClose={() => setExchangeOpen(false)} onAction={onAction} /> : null}
-      {bagOpen ? <BagManageModal rest={rest} onClose={() => setBagOpen(false)} onAction={onAction} /> : null}
-      {recyclerOpen ? <ItemRecyclerModal rest={rest} onClose={() => setRecyclerOpen(false)} onAction={onAction} /> : null}
-      {talentOpen ? <RunTalentModal rest={rest} onClose={() => setTalentOpen(false)} onAction={onAction} /> : null}
-      {shopOpen ? <ShopModal rest={rest} shop={rest.shop} onClose={() => setShopOpen(false)} onRoll={preferredCategory => onAction({type: "roll_shop", preferredCategory})} onBuy={offerId => onAction({type: "buy_shop_offer", offerId})} /> : null}
-      {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} onClose={() => setMoveEditorSlot(null)} onAction={onAction} /> : null}
-      {statsEditorSlot !== null ? <StatsAdjustModal rest={rest} initialSlot={statsEditorSlot} onClose={() => setStatsEditorSlot(null)} onAction={onAction} /> : null}
+      {exchangeOpen ? <RestExchangeModal rest={rest} onClose={() => setExchangeOpen(false)} onAction={fireAction} /> : null}
+      {bagOpen ? <BagManageModal rest={rest} onClose={() => setBagOpen(false)} onAction={fireAction} /> : null}
+      {recyclerOpen ? <ItemRecyclerModal rest={rest} onClose={() => setRecyclerOpen(false)} onAction={fireAction} /> : null}
+      {talentOpen ? <RunTalentModal rest={rest} onClose={() => setTalentOpen(false)} onAction={fireAction} /> : null}
+      {nightSkyOpen ? <NightSkyModal rest={rest} onClose={() => setNightSkyOpen(false)} onAction={fireAction} /> : null}
+      {activeTalent ? <RunTalentActionModal talent={activeTalent} rest={rest} onClose={() => setTalentActionId(null)} onAction={fireAction} /> : null}
+      {shopOpen ? <ShopModal rest={rest} shop={rest.shop} onClose={() => setShopOpen(false)} onRoll={preferredCategory => onAction({type: "roll_shop", preferredCategory})} onBuy={offerId => fireAction({type: "buy_shop_offer", offerId})} /> : null}
+      {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} onClose={() => setMoveEditorSlot(null)} onAction={fireAction} /> : null}
+      {statsEditorSlot !== null ? <StatsAdjustModal rest={rest} initialSlot={statsEditorSlot} onClose={() => setStatsEditorSlot(null)} onAction={fireAction} /> : null}
       {abortConfirmOpen ? (
         <div className="modal-layer">
           <section className="confirm-modal">
@@ -2682,6 +2962,10 @@ function hasRunTalent(rest: NonNullable<DesktopGameState["rest"]>, id: string): 
 
 function isActiveRunTalent(id: string): boolean {
   return ["growth_all_in", "intel_rumor", "intel_shop_strategy", "intel_reroute", "exchange_trust", "growth_lead_change", "economy_bp_exchange", "economy_recycle_receipt", "economy_portfolio", "economy_bargainer"].includes(id);
+}
+
+function isManualRunTalent(id: string): boolean {
+  return ["growth_all_in", "intel_reroute", "exchange_trust", "growth_lead_change", "economy_bp_exchange"].includes(id);
 }
 
 function RestPokemonModal({rest, initialSlot, onClose, onMove, onUnequip, onStats}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot: number; onClose: () => void; onMove: (slot: number) => void; onUnequip: (slot: number) => void; onStats: (slot: number) => void}) {
@@ -2737,6 +3021,7 @@ function RestExchangeModal({rest, onClose, onAction}: {rest: NonNullable<Desktop
         <header><div><h2>交换宝可梦</h2><p>本次费用：{coinCostLabel(rest.costs.exchange)}　已交换 {rest.exchange_count}/3</p></div><button onClick={onClose}>关闭</button></header>
         <div className="rest-exchange-grid">
           <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`${pokemon.species_id}-own-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
+          <div className="exchange-center-label" aria-hidden="true"><span>交换</span></div>
           <div>{rest.enemy_display.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} disabled={rest.taken_enemy_slots.includes(index + 1)} onClick={() => setEnemy(index)} key={`${pokemon.species_id}-enemy-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span>{rest.taken_enemy_slots.includes(index + 1) ? <small>已交换</small> : null}</button>)}</div>
         </div>
         <div className="command-row">
@@ -2888,27 +3173,35 @@ function ItemRecyclerModal({rest, onClose, onAction}: {rest: NonNullable<Desktop
   );
 }
 
-function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+function NightSkyModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
+  const rows = rest.night_sky?.rows || [];
+  return (
+    <div className="modal-layer">
+      <section className="shop-modal night-sky-modal">
+        <header><div><h2>小道消息</h2><p>按照实际出场顺序查看本局训练师与阵容。</p></div><button onClick={onClose}>关闭</button></header>
+        <div className="night-sky-board">{rows.length ? rows.map(row => {
+          const trainerImage = trainerImageUrl(row.trainer, "avatar") || trainerImageUrl(row.trainer, "front");
+          return (
+            <article className="night-sky-row" key={`night-sky-${row.battle_no}`}>
+              <div className="night-sky-trainer">{trainerImage ? <img src={trainerImage} alt={row.trainer.name_zh} /> : null}<span>第 {row.battle_no} 场</span><strong>{row.trainer.name_zh || row.trainer.id}</strong><small>{row.label}</small></div>
+              <div className="night-sky-slots">{row.enemies.map((enemy, index) => enemy ? <div className="night-sky-pokemon" key={`${row.battle_no}-${enemy.species_id}-${index}`}><PokemonSprite pokemon={enemy} alt={displayName(enemy)} /><span>{displayName(enemy)}</span></div> : <div className="night-sky-pokemon night-sky-unknown" key={`${row.battle_no}-unknown-${index}`}><i>?</i><span>未查看</span></div>)}</div>
+              <div className="night-sky-actions"><button disabled={Number(row.revealed || 0) >= 1} onClick={() => onAction({type: "night_sky_scout", battleNo: row.battle_no, level: "one"})}>免费查看一只</button><button disabled={Boolean(row.unlocked)} onClick={() => onAction({type: "night_sky_scout", battleNo: row.battle_no, level: "all"})}>300金币 解锁三只</button></div>
+            </article>
+          );
+        }) : <p>小道消息尚未展开。</p>}</div>
+      </section>
+    </div>
+  );
+}
+
+function RunTalentActionModal({talent, rest, onClose, onAction}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
   const [allInSlot, setAllInSlot] = useState(0);
   const [trustSlot, setTrustSlot] = useState(0);
   const [leadSlot, setLeadSlot] = useState(0);
   const [bpAmount, setBpAmount] = useState(1);
   const canAllIn = hasRunTalent(rest, "growth_all_in") && !rest.all_in_used;
 
-  function talentActionPanel(talent: TalentView) {
-    if (talent.id === "intel_rumor") {
-      const rows = rest.night_sky?.rows || [];
-      return <div className="night-sky-board">{rows.length ? rows.map(row => {
-        const trainerImage = trainerImageUrl(row.trainer, "avatar") || trainerImageUrl(row.trainer, "front");
-        return (
-          <article className="night-sky-row" key={`night-sky-${row.battle_no}`}>
-            <div className="night-sky-trainer">{trainerImage ? <img src={trainerImage} alt={row.trainer.name_zh} /> : null}<span>第 {row.battle_no} 场</span><strong>{row.trainer.name_zh || row.trainer.id}</strong><small>{row.label}</small></div>
-            <div className="night-sky-slots">{row.enemies.map((enemy, index) => enemy ? <div className="night-sky-pokemon" key={`${row.battle_no}-${enemy.species_id}-${index}`}><PokemonSprite pokemon={enemy} alt={displayName(enemy)} /><span>{displayName(enemy)}</span></div> : <div className="night-sky-pokemon night-sky-unknown" key={`${row.battle_no}-unknown-${index}`}><i>?</i><span>未查看</span></div>)}</div>
-            <div className="night-sky-actions"><button disabled={Number(row.revealed || 0) >= 1} onClick={() => onAction({type: "night_sky_scout", battleNo: row.battle_no, level: "one"})}>免费查看一只</button><button disabled={Boolean(row.unlocked)} onClick={() => onAction({type: "night_sky_scout", battleNo: row.battle_no, level: "all"})}>300金币 解锁三只</button></div>
-          </article>
-        );
-      }) : <p>小道消息尚未展开。</p>}</div>;
-    }
+  function actionPanel() {
     if (talent.id === "growth_all_in") {
       return (
         <div className="talent-card-actions">
@@ -2976,32 +3269,30 @@ function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
         </div>
       );
     }
-    if (talent.id === "economy_recycle_receipt" || talent.id === "economy_portfolio" || talent.id === "economy_bargainer") {
-      const primary = talent.id === "economy_portfolio" ? (rest.portfolio_types?.join(" / ") || "暂无覆盖") : talent.id === "economy_recycle_receipt" ? coinCostLabel(rest.recycle_receipt_value || 0) : rest.recycler_available ? "回收商已出现" : "等待回收商";
-      const secondary = talent.id === "economy_portfolio" ? "本局消费覆盖类型" : talent.id === "economy_recycle_receipt" ? "本局回收票据流水" : "回收商事件状态";
-      return (
-        <div className="talent-card-actions">
-          <div className="talent-run-mini">
-            <strong>{primary}</strong>
-            <span>{secondary}</span>
-          </div>
-        </div>
-      );
-    }
-    return null;
+    return <p className="talent-action-empty">这个天赋不需要在休整页手动发动。</p>;
   }
 
+  return (
+    <div className="modal-layer">
+      <section className="shop-modal talent-action-modal">
+        <header><div><h2>{talent.name}</h2><p>{talentShortText(talent)}</p></div><button onClick={onClose}>关闭</button></header>
+        {actionPanel()}
+      </section>
+    </div>
+  );
+}
+
+function RunTalentModal({rest, onClose}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>}) {
   return (
     <div className="modal-layer">
       <section className="shop-modal talent-run-modal">
         <header><div><h2>本局天赋</h2><p>{rest.talents?.length ? "当前天赋效果会影响休整与结算。" : "当前无天赋。"}</p></div><button onClick={onClose}>关闭</button></header>
         <div className="talent-run-list">
           {rest.talents?.length ? rest.talents.map(talent => (
-            <article className={`${isActiveRunTalent(talent.id) ? "active-talent-card" : ""} ${talent.id === "intel_rumor" ? "night-sky-card" : ""}`} key={talent.id}>
+            <article className={isActiveRunTalent(talent.id) ? "active-talent-card" : ""} key={talent.id}>
               <strong>{talent.name}</strong>
               <span>{talent.category}</span>
               <p>{talentShortText(talent)}</p>
-              {talentActionPanel(talent)}
             </article>
           )) : <p>当前无天赋。</p>}
         </div>
@@ -3012,7 +3303,7 @@ function RunTalentModal({rest, onClose, onAction}: {rest: NonNullable<DesktopGam
 
 type ShopPreferredCategory = "healing" | "pp" | "berry" | "battle" | "tm";
 
-function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (preferredCategory?: ShopPreferredCategory) => void | Promise<void>; onBuy: (offerId: string) => void | Promise<void>}) {
+function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (preferredCategory?: ShopPreferredCategory) => boolean | void | Promise<boolean | void>; onBuy: (offerId: string) => void | Promise<void>}) {
   const offers = shop?.offers || [];
   const slotCount = shop?.slot_count || offers.length || 3;
   const [rolling, setRolling] = useState(false);
@@ -3021,6 +3312,8 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<Desk
   const purchased = Boolean(shop?.purchased_offer_id);
   const bonus = shop?.last_roll_bonus || null;
   const canChooseCategory = hasRunTalent(rest, "intel_shop_strategy");
+  const rollCost = Number(shop?.next_roll_cost || 0) + (preferredCategory ? Number(shop?.preferred_roll_cost || 100) : 0);
+  const canAffordRoll = Number(rest.coins || 0) >= rollCost;
 
   useEffect(() => {
     if (!offers.length) setRevealed(false);
@@ -3028,9 +3321,15 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<Desk
   }, [offers.length, rolling]);
 
   async function roll() {
+    if (rolling || !canAffordRoll) return;
     setRolling(true);
     setRevealed(false);
-    await onRoll(preferredCategory || undefined);
+    const ok = await onRoll(preferredCategory || undefined);
+    if (ok === false) {
+      setRolling(false);
+      setRevealed(Boolean(offers.length));
+      return;
+    }
     window.setTimeout(() => {
       setRolling(false);
       setRevealed(true);
@@ -3063,7 +3362,7 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy}: {rest: NonNullable<Desk
             <span>{preferredCategory ? `指定加收 ${coinCostLabel(shop?.preferred_roll_cost || 100)}` : "不指定类型"}</span>
           </div>
         ) : null}
-        <div className="command-row"><button disabled={rolling} onClick={roll}>抽奖（{coinCostLabel(shop?.next_roll_cost)}）</button><button onClick={onClose}>跳过</button></div>
+        <div className="command-row"><button disabled={rolling || !canAffordRoll} onClick={roll}>抽奖（{coinCostLabel(shop?.next_roll_cost)}）</button><button onClick={onClose}>跳过</button></div>
         <div className={`slot-reels ${rolling ? "rolling" : ""} ${revealed && offers.length ? "settled" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
           {Array.from({length: slotCount}, (_, index) => {
             return <div className="slot-reel" key={`slot-${index}`}><ItemIcon item={undefined} /><span>{rolling ? "抽取中" : revealed && offers.length ? "已揭晓" : "待抽取"}</span></div>;
@@ -3157,17 +3456,30 @@ function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction}: {rest: Non
   );
 }
 
-function ResultView({message, battle, onBack}: {message: string; battle: BattleState | null; onBack: () => void}) {
-  const enemy = battle?.enemy_trainer;
+function ResultView({message, battle, summary, onBack}: {message: string; battle: BattleState | null; summary: ResultSummaryState | null; onBack: () => void}) {
+  const enemy = summary?.enemy_trainer || battle?.enemy_trainer;
   const image = trainerImageUrl(enemy, "frontGif") || trainerImageUrl(enemy, "front");
-  const playerWon = battle ? playerWonBattleResult(battle) : false;
+  const playerWon = summary ? summary.outcome === "win" : battle ? playerWonBattleResult(battle) : false;
+  const outcome = summary?.outcome || (playerWon ? "win" : "loss");
+  const playerTeam = summary?.player_team?.length ? summary.player_team : battle?.player_display || [];
+  const enemyTeam = summary?.enemy_team?.length ? summary.enemy_team : battle?.enemy_display || [];
+  const rows = summary?.rows?.length ? summary.rows : [{label: "结算说明", value: message}];
   return (
-    <div className="result-screen">
+    <div className={`result-screen result-${outcome}`}>
       <section className="result-panel">
         <div className="result-copy">
-          <span>{playerWon ? "挑战完成" : enemy ? "击败你的训练师" : "结算"}</span>
-          <h1>{playerWon ? "胜利结算" : enemy ? trainerDisplayName(enemy) : "结算"}</h1>
-          <p>{message}</p>
+          <span>{outcome === "win" ? "WIN" : outcome === "loss" ? "LOST" : "ABORT"}</span>
+          <h1>{summary?.headline || (playerWon ? "胜利结算" : enemy ? trainerDisplayName(enemy) : "结算")}</h1>
+          {summary?.subtitle ? <p>{summary.subtitle}</p> : message ? <p>{message}</p> : null}
+          <div className="result-row-list">
+            {rows.map((row, index) => (
+              <article key={`${row.label}-${index}`}>
+                <strong>{row.label}</strong>
+                <b>{row.value}</b>
+                {row.detail ? <small>{row.detail}</small> : null}
+              </article>
+            ))}
+          </div>
           <button onClick={onBack}>返回主界面</button>
         </div>
         {enemy ? (
@@ -3177,8 +3489,29 @@ function ResultView({message, battle, onBack}: {message: string; battle: BattleS
             <span>{trainerDialogueTitle(enemy)}</span>
           </aside>
         ) : null}
+        <div className="result-team-board">
+          <ResultTeamList title="玩家最后队伍" team={playerTeam} />
+          <ResultTeamList title="对手最后队伍" team={enemyTeam} />
+        </div>
       </section>
     </div>
+  );
+}
+
+function ResultTeamList({title, team}: {title: string; team: RentalPokemon[]}) {
+  return (
+    <section className="result-team-list">
+      <h3>{title}</h3>
+      <div>
+        {team.length ? team.slice(0, 3).map((pokemon, index) => (
+          <article key={`${title}-${pokemon.species_id}-${index}`}>
+            <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+            <strong>{index + 1}. {displayName(pokemon)}</strong>
+            <span>Lv{pokemon.level}　{pokemon.item_zh || "无道具"}</span>
+          </article>
+        )) : <p>暂无队伍记录。</p>}
+      </div>
+    </section>
   );
 }
 

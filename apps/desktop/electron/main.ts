@@ -1,10 +1,11 @@
 import {app, BrowserWindow, Menu, ipcMain, protocol} from "electron";
 import {randomUUID} from "node:crypto";
-import {existsSync, readFileSync} from "node:fs";
+import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleState, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleState, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import {battleSlotShowdownId} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
   BP_SCALE,
@@ -31,6 +32,7 @@ import {
   addRunBp,
   addCoins,
   applyProphetFirstMover,
+  bagRefundRate,
   canExchangeBoss,
   candidateCountForTalents,
   clearBonus,
@@ -99,6 +101,49 @@ function findProjectRoot(): string {
 }
 
 const projectRoot = findProjectRoot();
+const desktopLogEnabled = process.env.CHANGEBATTLE_DISABLE_LOG !== "1";
+const desktopLogDir = process.env.CHANGEBATTLE_LOG_DIR || path.join(projectRoot, "logs");
+const desktopLogStamp = new Date().toISOString().replace(/[:.]/g, "-");
+const desktopLogFile = process.env.CHANGEBATTLE_LOG_FILE || path.join(desktopLogDir, `desktop-debug-${desktopLogStamp}.jsonl`);
+const battleLogFile = process.env.CHANGEBATTLE_BATTLE_LOG_FILE || path.join(desktopLogDir, `battle-${desktopLogStamp}.json`);
+const desktopDebugLogEnabled = process.env.CHANGEBATTLE_DESKTOP_DEBUG_LOG === "1";
+if (desktopLogEnabled) {
+  process.env.CHANGEBATTLE_LOG_FILE = desktopLogFile;
+  process.env.CHANGEBATTLE_BATTLE_LOG_FILE = battleLogFile;
+  process.env.CHANGEBATTLE_DEBUG_SHOWDOWN ||= "0";
+}
+
+function logJson(value: unknown): string {
+  return JSON.stringify(value, (_key, entry) => entry instanceof Error ? {name: entry.name, message: entry.message, stack: entry.stack} : entry);
+}
+
+function logLine(scope: string, message: string, data?: unknown): void {
+  if (!desktopLogEnabled || !desktopDebugLogEnabled) return;
+  try {
+    mkdirSync(path.dirname(desktopLogFile), {recursive: true});
+    appendFileSync(desktopLogFile, `${logJson({ts: new Date().toISOString(), scope, event: message, data})}\n`, "utf8");
+  } catch {
+    // Logging must never break the game loop.
+  }
+}
+
+function handleIpc(channel: string, handler: (...args: any[]) => Promise<unknown> | unknown): void {
+  ipcMain.handle(channel, async (_event, ...args) => {
+    logLine("ipc", `${channel}:start`, {args});
+    try {
+      const result = await handler(...args);
+      logLine("ipc", `${channel}:ok`);
+      return result;
+    } catch (error) {
+      logLine("ipc", `${channel}:error`, error);
+      throw error;
+    }
+  });
+}
+
+logLine("desktop", "startup", {argv: process.argv, projectRoot, logFile: desktopLogFile, battleLogFile, showdownDebug: process.env.CHANGEBATTLE_DEBUG_SHOWDOWN});
+process.on("uncaughtException", error => logLine("process", "uncaughtException", error));
+process.on("unhandledRejection", error => logLine("process", "unhandledRejection", error));
 
 function findShowdownRoot(): string | undefined {
   const candidates = [
@@ -655,9 +700,9 @@ function recordBattleResult(save: LocalSave, winner: string | null, run?: Curren
   return gained;
 }
 
-async function refundableBagBaseBp(run: CurrentRunData): Promise<number> {
+async function refundableBagBaseBp(run: CurrentRunData, outcome: "normal" | "loss" = "normal"): Promise<number> {
   normalizeCurrentRun(run);
-  const rate = hasTalent(run.talents, "economy_premium_guest") ? 0.5 : 0.25;
+  const rate = bagRefundRate(run, outcome);
   let total = 0;
   for (const [id, rawCount] of Object.entries(run.bag_items || {})) {
     const count = Math.max(0, Number(rawCount || 0));
@@ -670,9 +715,9 @@ async function refundableBagBaseBp(run: CurrentRunData): Promise<number> {
   return Math.floor(total * rate);
 }
 
-async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refundBag?: boolean; completed?: boolean} = {}): Promise<{paidBack: number; refundBase: number; refundGained: number; receiptBonus: number; portfolioBonus: number; portfolioTypes: string[]; convertedCoins: number; excludedCoins: number; convertedBp: number}> {
+async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refundBag?: boolean; completed?: boolean; outcome?: "normal" | "loss"} = {}): Promise<{paidBack: number; refundBase: number; refundGained: number; receiptBonus: number; portfolioBonus: number; portfolioTypes: string[]; convertedCoins: number; excludedCoins: number; convertedBp: number}> {
   const paidBack = settleProphetFirstMover(save, run);
-  const refundBase = options.refundBag === false ? 0 : await refundableBagBaseBp(run);
+  const refundBase = options.refundBag === false ? 0 : await refundableBagBaseBp(run, options.outcome || "normal");
   const refundGained = refundBase ? addRunBp(save, run, refundBase) : 0;
   const receiptBase = Number(run.recycle_receipt_value || 0) + refundBase;
   const receiptBonus = hasTalent(run.talents, "economy_recycle_receipt") && receiptBase > 0 ? addRunBp(save, run, Math.floor(receiptBase * RECYCLE_RECEIPT_RATE)) : 0;
@@ -688,6 +733,47 @@ async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refu
 
 function settlementText(settled: Awaited<ReturnType<typeof settleRunEnd>>): string {
   return `${settled.refundGained ? `，背包返还 ${settled.refundGained}金币` : ""}${settled.receiptBonus ? `，回收票据 +${settled.receiptBonus}金币` : ""}${settled.portfolioBonus ? `，投资组合 +${settled.portfolioBonus}金币（${settled.portfolioTypes.join(" / ")}）` : ""}${settled.excludedCoins ? `，天使基金剩余 ${settled.excludedCoins}金币不折算` : ""}`;
+}
+
+type SettledRunEnd = Awaited<ReturnType<typeof settleRunEnd>>;
+
+function buildResultSummary(options: {
+  outcome: ResultSummaryState["outcome"];
+  headline: string;
+  subtitle?: string;
+  wins: number;
+  settled: SettledRunEnd;
+  battle?: BattleState | null;
+  run?: CurrentRunData | null;
+  battleReward?: number;
+  clearBonus?: number;
+  allInBonus?: number;
+}): ResultSummaryState {
+  const settled = options.settled;
+  const rows: ResultSummaryState["rows"] = [
+    {label: "结果", value: options.outcome === "win" ? "WIN" : options.outcome === "loss" ? "LOST" : "ABORT", detail: options.headline},
+    {label: "连胜", value: `${options.wins}`},
+  ];
+  if (options.battleReward !== undefined) rows.push({label: "本场胜利奖励", value: `${options.battleReward}金币`, detail: "击败本场训练师获得"});
+  if (options.clearBonus !== undefined) rows.push({label: "连续通关奖励", value: `${options.clearBonus}金币`, detail: "完成整轮挑战获得"});
+  if (options.allInBonus) rows.push({label: "孤注一掷翻倍", value: `${options.allInBonus}金币`, detail: "获胜后按当前金币翻倍"});
+  rows.push(
+    {label: "道具卖出总计", value: `${settled.refundGained}金币`, detail: "结算时按当前背包返还比例折算"},
+    {label: "回收票据", value: `${settled.receiptBonus}金币`, detail: "按本局回收流水追加"},
+    {label: "投资组合", value: `${settled.portfolioBonus}金币`, detail: settled.portfolioTypes.length ? settled.portfolioTypes.join(" / ") : "本局未触发"},
+    {label: "天使基金不折算", value: `${settled.excludedCoins}金币`, detail: "开局基金剩余部分不进入 BP 折算"},
+    {label: "金币折算 BP", value: `${settled.convertedCoins}金币 -> ${settled.convertedBp}BP`, detail: "结算时向下取整"},
+  );
+  if (settled.paidBack) rows.push({label: "临时 BP 扣回", value: `${settled.paidBack}BP`, detail: "先手预言等临时 BP 在结算时扣回"});
+  return {
+    outcome: options.outcome,
+    headline: options.headline,
+    subtitle: options.subtitle,
+    rows,
+    player_team: options.battle?.player_display || options.run?.player_display || [],
+    enemy_team: options.battle?.enemy_display || options.run?.enemy_display || [],
+    enemy_trainer: options.battle?.enemy_trainer || options.run?.enemy_trainer,
+  };
 }
 
 function tmItemId(moveId: string | undefined): string {
@@ -1492,6 +1578,10 @@ function runMemberId(value: unknown): string {
   return String((value as {run_member_id?: unknown} | undefined)?.run_member_id || "").trim();
 }
 
+function normalizeShowdownId(value: unknown): string {
+  return String(value || "").trim().toLowerCase();
+}
+
 function createRunMemberId(): string {
   return `rpm_${randomUUID()}`;
 }
@@ -1504,6 +1594,29 @@ function ensureTeamRunMemberIds(team: PokemonSet[] = [], display: RentalPokemon[
     const id = runMemberId(raw) || runMemberId(shown) || createRunMemberId();
     if (raw) raw.run_member_id = id;
     if (shown) shown.run_member_id = id;
+  }
+}
+
+function ensureTeamShowdownIds(team: PokemonSet[] = [], display: RentalPokemon[] = [], states: PlayerPokemonState[] | undefined, side: "p1" | "p2" = "p1"): void {
+  const length = Math.max(team.length, display.length, states?.length || 0);
+  const used = new Set<string>();
+  const nextUnused = (slot: number): string => {
+    for (let offset = 0; offset < 6; offset += 1) {
+      const candidate = battleSlotShowdownId(side, slot + offset);
+      if (!used.has(candidate)) return candidate;
+    }
+    return battleSlotShowdownId(side, slot);
+  };
+  for (let index = 0; index < length; index += 1) {
+    const existing = normalizeShowdownId(team[index]?.showdown_id || display[index]?.showdown_id || states?.[index]?.showdown_id);
+    const id = existing && !used.has(existing) ? existing : nextUnused(index + 1);
+    used.add(id);
+    if (team[index]) {
+      team[index].showdown_id = id;
+      team[index].pokeball = id;
+    }
+    if (display[index]) display[index].showdown_id = id;
+    if (states?.[index]) states[index].showdown_id = id;
   }
 }
 
@@ -1532,6 +1645,7 @@ function addMoveIdentityKey(keys: Set<string>, species: unknown, moves: unknown)
 
 function stateIdentityKeys(state: Partial<PlayerPokemonState>): Set<string> {
   const keys = new Set<string>();
+  addIdentityKey(keys, "showdown_id", state.showdown_id);
   addIdentityKey(keys, "run_member", runMemberId(state));
   const short = shortStateIdent(state.ident);
   addIdentityKey(keys, "ident", short);
@@ -1543,6 +1657,7 @@ function stateIdentityKeys(state: Partial<PlayerPokemonState>): Set<string> {
 
 function pokemonIdentityKeys(raw: PokemonSet | undefined, pokemon: RentalPokemon | undefined): Set<string> {
   const keys = new Set<string>();
+  addIdentityKey(keys, "showdown_id", raw?.showdown_id || pokemon?.showdown_id);
   addIdentityKey(keys, "run_member", runMemberId(raw) || runMemberId(pokemon));
   addIdentityKey(keys, "ident", raw?.name || raw?.species);
   addIdentityKey(keys, "ident", pokemon?.name || pokemon?.species || pokemon?.species_id);
@@ -1572,6 +1687,7 @@ function findExistingStateForPokemon(existing: PlayerPokemonState[], raw: Pokemo
     for (const key of keys) {
       if (!stateKeys.has(key)) continue;
       if (key.startsWith("species_moves:")) score += 20;
+      else if (key.startsWith("showdown_id:")) score += 120;
       else if (key.startsWith("ident:") || key.startsWith("species:") || key.startsWith("details_species:") || key.startsWith("species_id:")) score += 10;
       else if (key.startsWith("run_member:")) score += 100;
     }
@@ -1589,6 +1705,7 @@ function fullStateForPokemon(pokemon: RentalPokemon, slot: number): PlayerPokemo
   const maxhp = Math.max(1, Number(pokemon.stats?.hp || 1));
   return {
     run_member_id: runMemberId(pokemon) || undefined,
+    showdown_id: normalizeShowdownId(pokemon.showdown_id) || battleSlotShowdownId("p1", slot),
     slot,
     ident: `p1: ${pokemon.species || pokemon.name || slot}`,
     details: pokemon.species || pokemon.name || "",
@@ -1712,6 +1829,7 @@ function adjustedStateAfterEdit(oldState: PlayerPokemonState, newDisplay: Rental
 
 function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
   ensureTeamRunMemberIds(run.player_team || [], run.player_display || []);
+  ensureTeamShowdownIds(run.player_team || [], run.player_display || [], run.player_state, "p1");
   const existing = [...(run.player_state || [])];
   const usedExisting = new Set<number>();
   const states = (run.player_display || []).map((pokemon, index) => {
@@ -1735,6 +1853,13 @@ function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
     state.run_member_id = runMemberId(run.player_team?.[index]) || runMemberId(pokemon) || full.run_member_id || createRunMemberId();
     if (run.player_team?.[index]) run.player_team[index].run_member_id = state.run_member_id;
     if (run.player_display?.[index]) run.player_display[index].run_member_id = state.run_member_id;
+    const showdownId = normalizeShowdownId(run.player_team?.[index]?.showdown_id || pokemon.showdown_id || matched?.showdown_id || full.showdown_id) || battleSlotShowdownId("p1", index + 1);
+    state.showdown_id = showdownId;
+    if (run.player_team?.[index]) {
+      run.player_team[index].showdown_id = showdownId;
+      run.player_team[index].pokeball = showdownId;
+    }
+    if (run.player_display?.[index]) run.player_display[index].showdown_id = showdownId;
     state.slot = index + 1;
     state.ident = full.ident;
     state.details = full.details;
@@ -2183,7 +2308,8 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
-    return gameState({screen: "result", save: next, message: `通关！完成 ${run.wins || run.battles} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`});
+    const message = `通关！完成 ${run.wins || run.battles} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
+    return gameState({screen: "result", save: next, message, result_summary: buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${run.wins || run.battles} 连胜`, wins: Number(run.wins || run.battles || 0), settled, run, clearBonus: bonus})});
   }
   const route = routeBossForBattle(Number(save.stats?.set_win_streak || 0), battleNo);
   const enemyTrainer = chooseTrainerForRoute(route, run, battleNo);
@@ -2193,6 +2319,8 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   const enemyGenerated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
   const enemyTeam = enemyGenerated.team.slice(0, 3);
   const enemyDisplay = enemyGenerated.display.slice(0, 3);
+  ensureTeamRunMemberIds(enemyTeam, enemyDisplay);
+  ensureTeamShowdownIds(enemyTeam, enemyDisplay, undefined, "p2");
   run.boss_type = enemyTrainer.type === "elite4" ? "elite4" : enemyTrainer.type === "champion" ? "champion" : enemyTrainer.type === "gym" ? "gym" : "normal";
   run.boss_stage = route.stage;
   run.boss_route = route.route;
@@ -2254,13 +2382,14 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   if (state.winner !== "Player") {
     const wins = Number(run.wins || 0);
     rememberRunForSoulmate(save, run);
-    const settled = await settleRunEnd(save, run);
+    const settled = await settleRunEnd(save, run, {outcome: "loss"});
     save.current_run = null;
     const next = await persist(save);
     const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "对手训练师";
     const lossMessage = `挑战结束。败给 ${enemyName}。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
-    const transition = gameState({screen: "result", save: next, battle: decorateBattleState(state, run), message: lossMessage});
-    return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
+    const resultBattle = decorateBattleState(state, run);
+    const transition = gameState({screen: "result", save: next, battle: resultBattle, message: lossMessage, result_summary: buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `败给 ${enemyName}`, wins, settled, battle: resultBattle, run})});
+    return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
   }
   const wins = Number(run.wins || 0) + 1;
   addToExchangeBox(run, state.enemy_team || run.enemy_raw || [], state.enemy_display || run.enemy_display || []);
@@ -2274,8 +2403,9 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     save.current_run = null;
     const next = await persist(save);
     const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
-    const transition = gameState({screen: "result", save: next, battle: decorateBattleState(state, run), message});
-    return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(run), message, pending_transition: transition});
+    const resultBattle = decorateBattleState(state, run);
+    const transition = gameState({screen: "result", save: next, battle: resultBattle, message, result_summary: buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus})});
+    return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message, pending_transition: transition});
   }
   const victoryRewards = await grantVictoryRewards(run, run.boss_type !== "normal", activeBattleNo);
   save.current_run = {
@@ -2435,7 +2565,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     activeBattle = null;
     activeBattleNo = 0;
     const next = await persist(save);
-    return gameState({screen: "result", save: next, message: `本局挑战已中断，当前连胜已归零。历史最高连胜已保留。${settlementText(settled).replace(/^，/, "")}${settled.refundGained || settled.receiptBonus || settled.portfolioBonus ? "。" : ""}本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP。${settled.paidBack ? `临时BP扣回 ${settled.paidBack}BP。` : ""}`});
+    const message = `本局挑战已中断，当前连胜已归零。历史最高连胜已保留。${settlementText(settled).replace(/^，/, "")}${settled.refundGained || settled.receiptBonus || settled.portfolioBonus ? "。" : ""}本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP。${settled.paidBack ? `临时BP扣回 ${settled.paidBack}BP。` : ""}`;
+    return gameState({screen: "result", save: next, message, result_summary: buildResultSummary({outcome: "abort", headline: "挑战中断", subtitle: "当前连胜归零，历史最高连胜保留", wins: Number(run.wins || 0), settled, run})});
   }
   if (run.rest_status?.all_in_pending_next) throw new Error("孤注一掷已发动，本次休整即将结束。");
 
@@ -2675,27 +2806,36 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   }
 
   if (action.type === "roll_shop") {
-    if (action.preferredCategory && !hasTalent(run.talents, "intel_shop_strategy")) throw new Error("需要天赋「神机妙算」。");
-    const preferCost = action.preferredCategory ? spendRunBp(save, run, SHOP_PREFERRED_ROLL_COST, `shop-prefer:${action.preferredCategory}`) : null;
-    const cost = shopNextRollCost(run);
-    const spent = spendRunBp(save, run, cost, "shop-roll");
-    if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0 && cost <= 0) {
-      run.rest_status = {...(run.rest_status || {}), free_shop_rolls_remaining: Math.max(0, Number(run.rest_status?.free_shop_rolls_remaining || 0) - 1)};
+    const snapshot = JSON.parse(JSON.stringify(run)) as CurrentRunData;
+    try {
+      if (action.preferredCategory && !hasTalent(run.talents, "intel_shop_strategy")) throw new Error("需要天赋「神机妙算」。");
+      const cost = shopNextRollCost(run);
+      const preferredCost = action.preferredCategory ? SHOP_PREFERRED_ROLL_COST : 0;
+      if (currentCoins(run) < cost + preferredCost) throw new Error(`金币不足，需要 ${cost + preferredCost}金币。`);
+      const preferCost = action.preferredCategory ? spendRunBp(save, run, SHOP_PREFERRED_ROLL_COST, `shop-prefer:${action.preferredCategory}`) : null;
+      const spent = spendRunBp(save, run, cost, "shop-roll");
+      if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0 && cost <= 0) {
+        run.rest_status = {...(run.rest_status || {}), free_shop_rolls_remaining: Math.max(0, Number(run.rest_status?.free_shop_rolls_remaining || 0) - 1)};
+      }
+      run.rest_status = {...(run.rest_status || {}), free_shop_roll_used: true, shop_preferred_roll_used: Boolean(action.preferredCategory)};
+      run.shop_roll_count = Number(run.shop_roll_count || 0) + 1;
+      run.shop_offers = await rollShopOffers(run, action.preferredCategory);
+      run.shop_purchased_offer_id = null;
+      run.shop_last_roll_bonus = shopDuplicateBonusForOffers(run.shop_offers || []);
+      if (run.shop_last_roll_bonus?.count) {
+        const itemId = itemKey(run.shop_last_roll_bonus.item_id);
+        run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + run.shop_last_roll_bonus.count};
+        const bonusOffer = (run.shop_offers || []).find(offer => itemKey(offer.id || offer.name) === itemId);
+        if (bonusOffer) rememberBagItemMeta(run, bonusOffer);
+      }
+      const next = await persist(save);
+      const bonusText = run.shop_last_roll_bonus?.count ? `抽到 ${run.shop_last_roll_bonus.match_count} 连，免费获得 ${run.shop_last_roll_bonus.count} 个 ${run.shop_last_roll_bonus.name_zh || run.shop_last_roll_bonus.name}！` : "商店抽奖完成。";
+      return await restState(next, next.current_run as CurrentRunData, `${bonusText}${preferCost ? ` 神机妙算：${preferCost.message}。` : ""}${spent.paid || cost ? ` 抽奖${spent.message}。` : ""}`);
+    } catch (error) {
+      for (const key of Object.keys(run)) delete (run as any)[key];
+      Object.assign(run, snapshot);
+      throw error;
     }
-    run.rest_status = {...(run.rest_status || {}), free_shop_roll_used: true, shop_preferred_roll_used: Boolean(action.preferredCategory)};
-    run.shop_roll_count = Number(run.shop_roll_count || 0) + 1;
-    run.shop_offers = await rollShopOffers(run, action.preferredCategory);
-    run.shop_purchased_offer_id = null;
-    run.shop_last_roll_bonus = shopDuplicateBonusForOffers(run.shop_offers || []);
-    if (run.shop_last_roll_bonus?.count) {
-      const itemId = itemKey(run.shop_last_roll_bonus.item_id);
-      run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + run.shop_last_roll_bonus.count};
-      const bonusOffer = (run.shop_offers || []).find(offer => itemKey(offer.id || offer.name) === itemId);
-      if (bonusOffer) rememberBagItemMeta(run, bonusOffer);
-    }
-    const next = await persist(save);
-    const bonusText = run.shop_last_roll_bonus?.count ? `抽到 ${run.shop_last_roll_bonus.match_count} 连，免费获得 ${run.shop_last_roll_bonus.count} 个 ${run.shop_last_roll_bonus.name_zh || run.shop_last_roll_bonus.name}！` : "商店抽奖完成。";
-    return await restState(next, next.current_run as CurrentRunData, `${bonusText}${preferCost ? ` 神机妙算：${preferCost.message}。` : ""}${spent.paid || cost ? ` 抽奖${spent.message}。` : ""}`);
   }
 
   if (action.type === "buy_shop_offer") {
@@ -2949,36 +3089,36 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("save:load", async () => loadSave());
-  ipcMain.handle("save:createNew", async (_event, trainer: TrainerProfile) => saveStore!.createNew(normalizeTrainerProfile(trainer)));
-  ipcMain.handle("save:updateTrainer", async (_event, trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
-  ipcMain.handle("save:testMode", async () => enableTestMode());
-  ipcMain.handle("trainer:catalog", async () => trainerCatalogState());
-  ipcMain.handle("game:generateCandidates", async (_event, seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));
-  ipcMain.handle("run:prepareStarterItems", async (_event, seed?: number) => prepareStarterItems(seed));
-  ipcMain.handle("run:chooseStarterItem", async (_event, offerId?: string | null) => chooseStarterItem(offerId || null));
-  ipcMain.handle("run:cancelPreparation", async () => cancelPreparation());
-  ipcMain.handle("talents:get", async () => talentConfig());
-  ipcMain.handle("talents:unlock", async (_event, id: string) => unlockTalent(id));
-  ipcMain.handle("talents:configure", async (_event, ids: string[]) => configureTalents(ids));
-  ipcMain.handle("talents:setNamedChallenge", async (_event, trainerId: string | null) => setNamedChallenge(trainerId));
-  ipcMain.handle("starterUpgrades:get", async () => starterUpgradeConfig());
-  ipcMain.handle("starterUpgrades:upgrade", async (_event, id: string) => upgradeStarter(id));
-  ipcMain.handle("run:prepareCandidates", async (_event, seed?: number) => prepareCandidates(seed));
-  ipcMain.handle("run:rerollStarterCandidate", async (_event, index: number) => rerollStarterCandidate(index));
-  ipcMain.handle("run:beginChallenge", async (_event, selectedIndexes: number[], seed: number, battles?: number) => beginChallenge(selectedIndexes, seed, battles));
-  ipcMain.handle("run:continue", async () => continueRun());
-  ipcMain.handle("run:battleChoice", async (_event, choice: string) => submitBattleChoice(choice));
-  ipcMain.handle("run:exchange", async (_event, ownIndex: number | null, enemyIndex: number | null) => {
+  handleIpc("save:load", async () => loadSave());
+  handleIpc("save:createNew", async (trainer: TrainerProfile) => saveStore!.createNew(normalizeTrainerProfile(trainer)));
+  handleIpc("save:updateTrainer", async (trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
+  handleIpc("save:testMode", async () => enableTestMode());
+  handleIpc("trainer:catalog", async () => trainerCatalogState());
+  handleIpc("game:generateCandidates", async (seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));
+  handleIpc("run:prepareStarterItems", async (seed?: number) => prepareStarterItems(seed));
+  handleIpc("run:chooseStarterItem", async (offerId?: string | null) => chooseStarterItem(offerId || null));
+  handleIpc("run:cancelPreparation", async () => cancelPreparation());
+  handleIpc("talents:get", async () => talentConfig());
+  handleIpc("talents:unlock", async (id: string) => unlockTalent(id));
+  handleIpc("talents:configure", async (ids: string[]) => configureTalents(ids));
+  handleIpc("talents:setNamedChallenge", async (trainerId: string | null) => setNamedChallenge(trainerId));
+  handleIpc("starterUpgrades:get", async () => starterUpgradeConfig());
+  handleIpc("starterUpgrades:upgrade", async (id: string) => upgradeStarter(id));
+  handleIpc("run:prepareCandidates", async (seed?: number) => prepareCandidates(seed));
+  handleIpc("run:rerollStarterCandidate", async (index: number) => rerollStarterCandidate(index));
+  handleIpc("run:beginChallenge", async (selectedIndexes: number[], seed: number, battles?: number) => beginChallenge(selectedIndexes, seed, battles));
+  handleIpc("run:continue", async () => continueRun());
+  handleIpc("run:battleChoice", async (choice: string) => submitBattleChoice(choice));
+  handleIpc("run:exchange", async (ownIndex: number | null, enemyIndex: number | null) => {
     if (ownIndex === null || enemyIndex === null) return handleRestAction({type: "next"});
     return handleRestAction({type: "exchange", ownIndex, enemyIndex});
   });
-  ipcMain.handle("run:restAction", async (_event, action: RestAction) => handleRestAction(action));
-  ipcMain.handle("shop:items", async (_event, query?: string) => shopItems(query || ""));
-  ipcMain.handle("pokemon:learnableMoves", async (_event, slot: number, query?: string) => learnableMoves(slot, query || ""));
-  ipcMain.handle("pokemon:editOptions", async (_event, slot: number) => editOptions(slot));
-  ipcMain.handle("dex:search", async (_event, category: DesktopDexCategory, query?: string, offset?: number, limit?: number) => dexSearch(category, query || "", offset || 0, limit || 8));
-  ipcMain.handle("run:getBattleState", async () => {
+  handleIpc("run:restAction", async (action: RestAction) => handleRestAction(action));
+  handleIpc("shop:items", async (query?: string) => shopItems(query || ""));
+  handleIpc("pokemon:learnableMoves", async (slot: number, query?: string) => learnableMoves(slot, query || ""));
+  handleIpc("pokemon:editOptions", async (slot: number) => editOptions(slot));
+  handleIpc("dex:search", async (category: DesktopDexCategory, query?: string, offset?: number, limit?: number) => dexSearch(category, query || "", offset || 0, limit || 8));
+  handleIpc("run:getBattleState", async () => {
     const save = await loadSave();
     return activeBattle ? decorateBattleState(activeBattle.getState(), save?.current_run as CurrentRunData | null) : null;
   });

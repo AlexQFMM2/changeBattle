@@ -1,5 +1,6 @@
-import {existsSync, readFileSync} from "node:fs";
+import {appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
+import {randomUUID} from "node:crypto";
 import {createRequire} from "node:module";
 import path from "node:path";
 import type {
@@ -22,6 +23,7 @@ import type {
   SpriteIndexMap,
   SpriteMapEntry,
 } from "@changebattle/shared";
+import {battleSlotShowdownId} from "@changebattle/shared";
 
 const require = createRequire(import.meta.url);
 const DEFAULT_SHOWDOWN_PATH = "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown";
@@ -34,6 +36,33 @@ const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const SIDE_NAMES = {p1: "玩家", p2: "对手"} as const;
 const FALLBACK_HELD_ITEMS = ["Leftovers", "Sitrus Berry", "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Assault Vest", "Focus Sash", "Expert Belt"];
 
+function battleLogLine(scope: string, message: string, data?: unknown): void {
+  if (process.env.CHANGEBATTLE_DEBUG_DETAIL_LOG !== "1") return;
+  const logFile = process.env.CHANGEBATTLE_DEBUG_LOG_FILE || process.env.CHANGEBATTLE_LOG_FILE;
+  if (!logFile) return;
+  try {
+    mkdirSync(path.dirname(logFile), {recursive: true});
+    const line = JSON.stringify({ts: new Date().toISOString(), scope, event: message, data}, (_key, value) => value instanceof Error ? {name: value.name, message: value.message, stack: value.stack} : value);
+    appendFileSync(logFile, `${line}\n`, "utf8");
+  } catch {
+    // Diagnostics must not affect battle simulation.
+  }
+}
+
+function battleTurnLogLine(entry: BattleTurnLogEntry): void {
+  const logFile = process.env.CHANGEBATTLE_BATTLE_LOG_FILE;
+  if (!logFile) return;
+  try {
+    mkdirSync(path.dirname(logFile), {recursive: true});
+    const current = existsSync(logFile) ? JSON.parse(readFileSync(logFile, "utf8") || "[]") : [];
+    const entries = Array.isArray(current) ? current : [];
+    entries.push(entry);
+    writeFileSync(logFile, `${JSON.stringify(entries, null, 2)}\n`, "utf8");
+  } catch {
+    // Diagnostics must not affect battle simulation.
+  }
+}
+
 type ShowdownModule = {
   Dex: any;
   Teams: any;
@@ -44,7 +73,35 @@ type TranslationData = Record<string, Record<string, string>>;
 type DetailData = Record<string, Record<string, any>>;
 type SideId = "p1" | "p2";
 type Message = {type: string; data: string};
+type LogMessage = Message & {lines: string[]};
 type ParsedTimelineEvent = Omit<BattleTimelineEvent, "id">;
+type RequestDiffLog = {
+  kind: "heal";
+  side: SideId;
+  ident: string;
+  showdown_id?: string;
+  before: string;
+  after: string;
+  source: "request-diff";
+  ability?: string;
+  injected: boolean;
+  skipped_reason?: string;
+};
+type BattleTurnLogEntry = {
+  id: string;
+  create: string;
+  name: string;
+  showdownDATA: LogMessage[];
+  reduceData: {
+    before_turn: number;
+    after_turn: number;
+    protocol_lines: string[];
+    request_diffs: RequestDiffLog[];
+    events: string[];
+    timeline: BattleTimelineEvent[];
+    tracker: BattleTracker;
+  };
+};
 type SlotKeySpec = {slot: number; keys: Set<string>};
 type GenerationProfile = "tier1" | "tier2" | "tier3" | "tier4" | "champion";
 type StageTier = 1 | 2 | 3 | 4;
@@ -1208,6 +1265,9 @@ export class BattleSession {
   private readonly seed: number | number[];
   protected stream: any = null;
   private pendingMessages: Message[] = [];
+  private pendingRawMessages: Message[] = [];
+  private pendingRequestDiffs: RequestDiffLog[] = [];
+  private pendingLineShowdownIds = new Map<string, string>();
   protected latestRequests: Record<string, BattleRequestView> = {};
   private plannedEnemyChoice: PlannedEnemyChoice | null = null;
   protected ended = false;
@@ -1216,18 +1276,20 @@ export class BattleSession {
   private recentEvents: string[] = [];
   private timelineEvents: BattleTimelineEvent[] = [];
   private timelineSeq = 0;
+  private turnLogSeq = 0;
+  private readonly battleLogId = randomUUID();
   private rngState: number;
 
   constructor(service: GameService, sim: ShowdownModule, options: StartBattleOptions) {
     this.service = service;
     this.sim = sim;
-    this.playerTeam = options.playerTeam;
-    this.enemyTeam = options.enemyTeam;
-    this.playerDisplay = options.playerDisplay;
-    this.enemyDisplay = options.enemyDisplay;
-    this.initialPlayerState = options.playerState;
-    this.playerSlotKeys = buildSideSlotKeys(options.playerTeam, options.playerDisplay, options.playerState, "p1");
-    this.enemySlotKeys = buildSideSlotKeys(options.enemyTeam, options.enemyDisplay, undefined, "p2");
+    this.playerTeam = withShowdownSlotIds(options.playerTeam, "p1");
+    this.enemyTeam = withShowdownSlotIds(options.enemyTeam, "p2");
+    this.playerDisplay = withDisplayShowdownIds(options.playerDisplay, "p1");
+    this.enemyDisplay = withDisplayShowdownIds(options.enemyDisplay, "p2");
+    this.initialPlayerState = options.playerState ? withStateShowdownIds(options.playerState, "p1") : undefined;
+    this.playerSlotKeys = buildSideSlotKeys(this.playerTeam, this.playerDisplay, this.initialPlayerState, "p1");
+    this.enemySlotKeys = buildSideSlotKeys(this.enemyTeam, this.enemyDisplay, undefined, "p2");
     this.enemyAi = battleAiProfile(options.enemyAi);
     this.seed = options.seed;
     const seedValue = Array.isArray(options.seed) ? options.seed.reduce((acc, value) => acc ^ value, 0) : Number(options.seed);
@@ -1237,12 +1299,16 @@ export class BattleSession {
   async start(): Promise<BattleState> {
     this.latestRequests = {};
     this.pendingMessages = [];
+    this.pendingRawMessages = [];
+    this.pendingRequestDiffs = [];
+    this.pendingLineShowdownIds = new Map();
     this.ended = false;
     this.winner = null;
     this.tracker = createBattleTracker();
     this.recentEvents = [];
     this.timelineEvents = [];
     this.timelineSeq = 0;
+    this.turnLogSeq = 0;
     this.stream = new this.sim.BattleStream({keepAlive: true});
     this.startReader();
     const init = [
@@ -1399,7 +1465,9 @@ export class BattleSession {
     (async () => {
       for await (const chunk of this.stream) this.parseChunk(String(chunk));
     })().catch((error: Error) => {
-      this.pendingMessages.push({type: "error", data: error.stack || String(error)});
+      const data = error.stack || String(error);
+      this.pendingMessages.push({type: "error", data});
+      this.pendingRawMessages.push({type: "error", data});
     });
   }
 
@@ -1407,7 +1475,9 @@ export class BattleSession {
     const lines = chunk.split("\n");
     const type = lines.shift() || "";
     const data = lines.join("\n");
+    if (protocolDebugEnabled()) battleLogLine("showdown", "chunk", {type, data, lines: data.split("\n")});
     this.pendingMessages.push({type, data});
+    this.pendingRawMessages.push({type, data});
     if (type === "sideupdate") {
       const side = lines[0];
       for (const line of lines.slice(1)) {
@@ -1433,12 +1503,43 @@ export class BattleSession {
   }
 
   private consumePending(): void {
-    const {events, timeline} = consumeLog(this.pendingMessages, this.tracker, this.service);
+    if (!this.pendingMessages.length && !this.pendingRawMessages.length) return;
+    const showdownDATA = logMessages(this.pendingRawMessages);
+    const beforeTurn = this.tracker.turn;
+    const protocolLines = splitLogLines(this.pendingMessages);
+    const requestDiffs = this.pendingRequestDiffs.slice();
+    const {events, timeline} = consumeLog(this.pendingMessages, this.tracker, this.service, this.latestRequests, this.pendingLineShowdownIds);
+    const afterTurn = this.tracker.turn;
+    const timelineWithIds = timeline.map(event => this.withTimelineId(event));
+    this.logTurnSummary(beforeTurn, afterTurn, showdownDATA, protocolLines, requestDiffs, events, timelineWithIds);
     this.pendingMessages = [];
+    this.pendingRawMessages = [];
+    this.pendingRequestDiffs = [];
+    this.pendingLineShowdownIds = new Map();
     this.recentEvents.push(...events);
     this.recentEvents = this.recentEvents.slice(-40);
-    this.timelineEvents.push(...timeline.map(event => this.withTimelineId(event)));
+    this.timelineEvents.push(...timelineWithIds);
     this.timelineEvents = this.timelineEvents.slice(-140);
+  }
+
+  private logTurnSummary(beforeTurn: number, afterTurn: number, showdownDATA: LogMessage[], protocolLines: string[], requestDiffs: RequestDiffLog[], events: string[], timeline: BattleTimelineEvent[]): void {
+    this.turnLogSeq += 1;
+    const turn = afterTurn || beforeTurn || 0;
+    battleTurnLogLine({
+      id: `${this.battleLogId}:${this.turnLogSeq}`,
+      create: new Date().toISOString(),
+      name: turn > 0 ? `第 ${turn} 回合协议汇总 #${this.turnLogSeq}` : `战斗开局协议汇总 #${this.turnLogSeq}`,
+      showdownDATA,
+      reduceData: {
+        before_turn: beforeTurn,
+        after_turn: afterTurn,
+        protocol_lines: protocolLines,
+        request_diffs: requestDiffs,
+        events,
+        timeline,
+        tracker: JSON.parse(JSON.stringify(this.tracker)) as BattleTracker,
+      },
+    });
   }
 
   private waitForMessages(): Promise<void> {
@@ -1918,7 +2019,7 @@ export class BattleSession {
   private activeDisplay(side: SideId): RentalPokemon | undefined {
     const runtime = this.activeRuntime(side);
     if (!runtime) return undefined;
-    return side === "p1" ? findRentalByRuntime(this.playerDisplay, runtime.ident) : findRentalByRuntime(this.enemyDisplay, runtime.ident);
+    return side === "p1" ? findRentalByRuntime(this.playerDisplay, runtime) : findRentalByRuntime(this.enemyDisplay, runtime);
   }
 
   private activeRuntime(side: SideId): RuntimePokemon | undefined {
@@ -1928,7 +2029,7 @@ export class BattleSession {
   private runtimeForDisplay(side: SideId, display: RentalPokemon): RuntimePokemon | undefined {
     const request = this.latestRequests[side];
     return request?.side?.pokemon?.find(pokemon => {
-      const runtimeDisplay = side === "p1" ? findRentalByRuntime(this.playerDisplay, pokemon.ident) : findRentalByRuntime(this.enemyDisplay, pokemon.ident);
+      const runtimeDisplay = side === "p1" ? findRentalByRuntime(this.playerDisplay, pokemon) : findRentalByRuntime(this.enemyDisplay, pokemon);
       return runtimeDisplay?.species_id === display.species_id;
     });
   }
@@ -1970,14 +2071,20 @@ export class BattleSession {
   private syncSideState(side: SideId, states: PlayerPokemonState[]): void {
     if (!this.stream?.battle) return;
     const battleSide = this.stream.battle.sides[side === "p2" ? 1 : 0];
-    const stateBySlot = new Map(states.map(state => [Number(state.slot), state]));
+    const normalizedStates = withStateShowdownIds(states, side);
+    const stateByShowdownId = new Map<string, PlayerPokemonState>();
+    for (const state of normalizedStates) {
+      const id = normalizeShowdownId(state.showdown_id);
+      if (id) stateByShowdownId.set(id, state);
+    }
+    const stateBySlot = new Map(normalizedStates.map(state => [Number(state.slot), state]));
     const slotKeys = this.slotKeysForSide(side);
     const usedSlots = new Set<number>();
     for (let index = 0; index < battleSide.pokemon.length; index += 1) {
       const pokemon = battleSide.pokemon[index];
       const current = pokemonStateFromBattle(pokemon, battleSide, index);
       const slot = resolveStateSlot(current, slotKeys, usedSlots);
-      const state = stateBySlot.get(slot);
+      const state = (current.showdown_id ? stateByShowdownId.get(normalizeShowdownId(current.showdown_id)) : undefined) || stateBySlot.get(slot);
       usedSlots.add(slot);
       if (!state) continue;
       const hp = Math.max(0, Math.min(Number(state.hp ?? pokemon.maxhp) || 0, pokemon.maxhp));
@@ -1988,7 +2095,7 @@ export class BattleSession {
       const status = toId(state.status || "");
       pokemon.status = "";
       pokemon.statusState = {};
-      if (status && hp > 0) pokemon.setStatus(status, pokemon, null, true);
+      if (status && hp > 0) silentlySetPokemonStatus(this.stream.battle, pokemon, status);
       const ppById = new Map<string, number>();
       const ppBySlot = new Map<number, number>();
       for (const move of state.moves || []) {
@@ -2030,23 +2137,52 @@ export class BattleSession {
       name: shortIdent(active.ident || "") || active.species || active.details || "",
       condition: active.condition || stateCondition(active),
       status: active.status || "",
+      showdown_id: normalizeShowdownId(active.showdown_id),
     };
   }
 
   private captureRequestHeals(side: SideId, previous: BattleRequestView | undefined, next: BattleRequestView): void {
     if (!previous?.side?.pokemon?.length || !next?.side?.pokemon?.length) return;
+    const ambiguousIdents = duplicateRuntimeIdents(previous.side.pokemon, next.side.pokemon);
+    const previousByShowdownId = new Map<string, RuntimePokemon>();
+    for (const pokemon of previous.side.pokemon) {
+      const id = normalizeShowdownId(pokemon.pokeball);
+      if (id) previousByShowdownId.set(id, pokemon);
+    }
     const previousByIdent = new Map(previous.side.pokemon.map(pokemon => [pokemon.ident, pokemon]));
     for (const pokemon of next.side.pokemon) {
-      const before = previousByIdent.get(pokemon.ident);
+      const showdownId = normalizeShowdownId(pokemon.pokeball);
+      const before = (showdownId ? previousByShowdownId.get(showdownId) : undefined) || previousByIdent.get(pokemon.ident);
       if (!before || before.condition === pokemon.condition) continue;
       const oldHp = parseConditionHp(before.condition);
       const newHp = parseConditionHp(pokemon.condition);
       if (!oldHp || !newHp || newHp.current <= oldHp.current) continue;
-      const display = side === "p1" ? findRentalByRuntime(this.playerDisplay, pokemon.ident) : findRentalByRuntime(this.enemyDisplay, pokemon.ident);
-      const ability = display?.ability_id === "regenerator" || display?.ability === "Regenerator" ? "Regenerator" : "";
+      const ability = runtimeAbility(pokemon);
       if (!ability) continue;
-      if (hasPendingRealHeal(this.pendingMessages, pokemon.ident, pokemon.condition)) continue;
-      this.pendingMessages.push({type: "update", data: `|-heal|${pokemon.ident}|${pokemon.condition}|[from] ability: Regenerator`});
+      const diff: RequestDiffLog = {kind: "heal", side, ident: pokemon.ident, showdown_id: showdownId || undefined, before: before.condition, after: pokemon.condition, source: "request-diff", ability, injected: false};
+      if (!showdownId && ambiguousIdents.has(pokemon.ident)) {
+        diff.skipped_reason = "ambiguous-ident";
+        this.pendingRequestDiffs.push(diff);
+        continue;
+      }
+      if (hasPendingRealHeal(this.pendingMessages, pokemon.ident, pokemon.condition)) {
+        diff.skipped_reason = "real-heal-already-present";
+        this.pendingRequestDiffs.push(diff);
+        continue;
+      }
+      battleLogLine("battle", "capture-request-heal", {side, ident: pokemon.ident, before: before.condition, after: pokemon.condition, ability});
+      const line = `|-heal|${pokemon.ident}|${pokemon.condition}|[from] ability: Regenerator`;
+      if (showdownId) this.pendingLineShowdownIds.set(line, showdownId);
+      if (insertLineBeforeSideSwitch(this.pendingMessages, side, line)) {
+        diff.injected = true;
+        battleLogLine("battle", "inject-request-heal-before-switch", {side, ident: pokemon.ident, condition: pokemon.condition, ability});
+      } else {
+        diff.injected = true;
+        diff.skipped_reason = "no-side-switch-anchor";
+        battleLogLine("battle", "inject-request-heal-fallback", {side, ident: pokemon.ident, condition: pokemon.condition, ability});
+        this.pendingMessages.push({type: "update", data: line});
+      }
+      this.pendingRequestDiffs.push(diff);
     }
   }
 
@@ -2140,11 +2276,68 @@ function createBattleTracker(): BattleTracker {
   };
 }
 
+function normalizeShowdownId(value: unknown): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+function withShowdownSlotIds(team: PokemonSet[] = [], side: SideId): PokemonSet[] {
+  const used = new Set<string>();
+  const nextUnused = (slot: number): string => {
+    for (let offset = 0; offset < 6; offset += 1) {
+      const candidate = battleSlotShowdownId(side, slot + offset);
+      if (!used.has(candidate)) return candidate;
+    }
+    return battleSlotShowdownId(side, slot);
+  };
+  return team.map((pokemon, index) => {
+    const existing = normalizeShowdownId(pokemon?.showdown_id);
+    const showdown_id = existing && !used.has(existing) ? existing : nextUnused(index + 1);
+    used.add(showdown_id);
+    return {...pokemon, showdown_id, pokeball: showdown_id};
+  });
+}
+
+function withDisplayShowdownIds(display: RentalPokemon[] = [], side: SideId): RentalPokemon[] {
+  const used = new Set<string>();
+  const nextUnused = (slot: number): string => {
+    for (let offset = 0; offset < 6; offset += 1) {
+      const candidate = battleSlotShowdownId(side, slot + offset);
+      if (!used.has(candidate)) return candidate;
+    }
+    return battleSlotShowdownId(side, slot);
+  };
+  return display.map((pokemon, index) => {
+    const existing = normalizeShowdownId(pokemon.showdown_id);
+    const fallback = nextUnused(index + 1);
+    const showdown_id = existing && !used.has(existing) ? existing : fallback;
+    used.add(showdown_id);
+    return {...pokemon, showdown_id};
+  });
+}
+
+function withStateShowdownIds(states: PlayerPokemonState[] = [], side: SideId): PlayerPokemonState[] {
+  const used = new Set<string>();
+  const nextUnused = (slot: number): string => {
+    for (let offset = 0; offset < 6; offset += 1) {
+      const candidate = battleSlotShowdownId(side, slot + offset);
+      if (!used.has(candidate)) return candidate;
+    }
+    return battleSlotShowdownId(side, slot);
+  };
+  return states.map((state, index) => {
+    const existing = normalizeShowdownId(state.showdown_id);
+    const fallback = nextUnused(index + 1);
+    const showdown_id = existing && !used.has(existing) ? existing : fallback;
+    used.add(showdown_id);
+    return {...state, slot: index + 1, showdown_id};
+  });
+}
+
 function activeDisplay(service: GameService, rawSpecies: string | undefined): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry} {
   return service.speciesDisplay(shortIdent(rawSpecies || "").split(",", 1)[0].trim());
 }
 
-function setActiveDisplay(tracker: BattleTracker, service: GameService, side: SideId, rawSpecies: string | undefined, condition?: string, clearSubstitute = false): void {
+function setActiveDisplay(tracker: BattleTracker, service: GameService, side: SideId, rawSpecies: string | undefined, condition?: string, clearSubstitute = false, showdownId?: string): void {
   const display = activeDisplay(service, rawSpecies);
   tracker.active[side] = {
     ...tracker.active[side],
@@ -2153,6 +2346,7 @@ function setActiveDisplay(tracker: BattleTracker, service: GameService, side: Si
     species_id: display.species_id,
     sprite: display.sprite,
     condition: condition || tracker.active[side]?.condition,
+    showdown_id: normalizeShowdownId(showdownId) || tracker.active[side]?.showdown_id,
     ...(clearSubstitute ? {substitute: false} : {}),
   };
 }
@@ -2166,6 +2360,42 @@ function legalSwitchIndexes(request: BattleRequestView): number[] {
 
 function cloneBattleRequests(requests: Record<string, BattleRequestView>): Record<string, BattleRequestView> {
   return JSON.parse(JSON.stringify(requests || {})) as Record<string, BattleRequestView>;
+}
+
+function duplicateRuntimeIdents(...groups: RuntimePokemon[][]): Set<string> {
+  const duplicated = new Set<string>();
+  for (const group of groups) {
+    const counts = new Map<string, number>();
+    for (const pokemon of group) {
+      const ident = String(pokemon.ident || "");
+      if (!ident) continue;
+      counts.set(ident, Number(counts.get(ident) || 0) + 1);
+    }
+    for (const [ident, count] of counts) {
+      if (count > 1) duplicated.add(ident);
+    }
+  }
+  return duplicated;
+}
+
+function runtimeAbility(pokemon: RuntimePokemon): string {
+  const raw = (pokemon as RuntimePokemon & {ability?: string; baseAbility?: string}).ability || (pokemon as RuntimePokemon & {ability?: string; baseAbility?: string}).baseAbility || "";
+  return toId(raw) === "regenerator" ? "Regenerator" : "";
+}
+
+function silentlySetPokemonStatus(battle: any, pokemon: any, status: string): void {
+  const statusId = toId(status);
+  if (!statusId) return;
+  pokemon.status = statusId;
+  pokemon.statusState = battle?.initEffectState ? battle.initEffectState({id: statusId, target: pokemon}) : {id: statusId, target: pokemon};
+}
+
+function logMessages(messages: Message[]): LogMessage[] {
+  return messages.map(message => ({
+    type: message.type,
+    data: message.data,
+    lines: String(message.data || "").split("\n"),
+  }));
 }
 
 function splitLogLines(messages: Message[]): string[] {
@@ -2191,10 +2421,53 @@ function splitLogLines(messages: Message[]): string[] {
   return lines;
 }
 
+function isSideSwitchLine(line: string, side: SideId): boolean {
+  const parts = line.split("|");
+  return ["switch", "drag", "replace"].includes(parts[1] || "") && sideFromIdent(parts[2] || "") === side;
+}
+
+function insertLineBeforeSideSwitch(messages: Message[], side: SideId, lineToInsert: string): boolean {
+  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+    const message = messages[messageIndex];
+    if (message.type !== "update") continue;
+    const lines = String(message.data || "").split("\n");
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const line = lines[lineIndex];
+      if (line.startsWith("|split|")) {
+        const splitSide = line.split("|")[2] as SideId | undefined;
+        const secret = lines[lineIndex + 1] || "";
+        const publicLine = lines[lineIndex + 2] || "";
+        const selected = splitSide === "p1" ? secret : publicLine;
+        if (splitSide === side && isSideSwitchLine(selected, side)) {
+          lines.splice(lineIndex, 0, lineToInsert);
+          message.data = lines.join("\n");
+          return true;
+        }
+        lineIndex += 2;
+        continue;
+      }
+      if (isSideSwitchLine(line, side)) {
+        lines.splice(lineIndex, 0, lineToInsert);
+        message.data = lines.join("\n");
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function sideFromIdent(raw: string): SideId | null {
   if (raw.startsWith("p1")) return "p1";
   if (raw.startsWith("p2")) return "p2";
   return null;
+}
+
+function isActiveIdent(tracker: BattleTracker, side: SideId | null, raw: string | undefined): boolean {
+  if (!side || !raw) return false;
+  const active = tracker.active[side];
+  const target = toId(shortIdent(raw));
+  if (!target) return false;
+  return [active?.name, active?.display_name, active?.species_id].some(value => toId(String(value || "")) === target);
 }
 
 function shortIdent(raw: string): string {
@@ -2410,8 +2683,10 @@ function pokemonCondition(pokemon: any): string {
 }
 
 function pokemonStateFromBattle(pokemon: any, battleSide: any, index: number): PlayerPokemonState {
+  const showdownId = normalizeShowdownId(pokemon?.pokeball || pokemon?.set?.showdown_id || pokemon?.set?.pokeball);
   return {
     slot: index + 1,
+    showdown_id: showdownId || undefined,
     ident: pokemon.fullname,
     details: pokemon.details,
     species: pokemon.species?.name || pokemon.set?.species || pokemon.name,
@@ -2458,6 +2733,7 @@ function addMoveSignatureKey(keys: Set<string>, species: unknown, moves: unknown
 
 function keysForState(state: Partial<PlayerPokemonState>): Set<string> {
   const keys = new Set<string>();
+  addSlotKey(keys, "showdown_id", state.showdown_id);
   addSlotKey(keys, "run_member", (state as PlayerPokemonState & {run_member_id?: string}).run_member_id);
   const short = shortIdent(state.ident || "");
   addSlotKey(keys, "ident", short);
@@ -2471,6 +2747,7 @@ function keysForState(state: Partial<PlayerPokemonState>): Set<string> {
 function keysForSet(set: Partial<PokemonSet> | undefined): Set<string> {
   const keys = new Set<string>();
   if (!set) return keys;
+  addSlotKey(keys, "showdown_id", set.showdown_id);
   addSlotKey(keys, "run_member", set.run_member_id);
   addSlotKey(keys, "ident", set.name || set.species);
   addSpeciesLikeKeys(keys, set.species || set.name);
@@ -2483,6 +2760,7 @@ function keysForSet(set: Partial<PokemonSet> | undefined): Set<string> {
 function keysForDisplay(pokemon: Partial<RentalPokemon> | undefined): Set<string> {
   const keys = new Set<string>();
   if (!pokemon) return keys;
+  addSlotKey(keys, "showdown_id", pokemon.showdown_id);
   addSlotKey(keys, "run_member", pokemon.run_member_id);
   addSlotKey(keys, "ident", pokemon.name || pokemon.species || pokemon.species_id);
   addSpeciesLikeKeys(keys, pokemon.species || pokemon.name || pokemon.species_id);
@@ -2501,6 +2779,7 @@ function buildSideSlotKeys(team: PokemonSet[], display: RentalPokemon[], states:
     for (const key of keysForSet(team[index])) keys.add(key);
     for (const key of keysForDisplay(display[index])) keys.add(key);
     for (const key of keysForState(states?.[index] || {})) keys.add(key);
+    addSlotKey(keys, "showdown_id", battleSlotShowdownId(side, slot));
     const fallbackName = display[index]?.species || display[index]?.name || team[index]?.species || team[index]?.name || states?.[index]?.species || states?.[index]?.details || slot;
     addSlotKey(keys, "ident", `${side}: ${fallbackName}`);
     keys.add(`slot:${slot}`);
@@ -2532,8 +2811,13 @@ function alignStatesToSlots(states: PlayerPokemonState[], slotKeys: SlotKeySpec[
     .sort((a, b) => a.slot - b.slot);
 }
 
-function findRentalByRuntime(team: RentalPokemon[], ident: string): RentalPokemon | undefined {
-  const key = toId(shortIdent(ident));
+function findRentalByRuntime(team: RentalPokemon[], runtime: RuntimePokemon | string): RentalPokemon | undefined {
+  const showdownId = normalizeShowdownId(typeof runtime === "string" ? "" : runtime.pokeball);
+  if (showdownId) {
+    const byShowdownId = team.find(pokemon => normalizeShowdownId(pokemon.showdown_id) === showdownId);
+    if (byShowdownId) return byShowdownId;
+  }
+  const key = toId(shortIdent(typeof runtime === "string" ? runtime : runtime.ident));
   return team.find(pokemon => toId(pokemon.species) === key || toId(pokemon.name) === key || pokemon.species_id === key);
 }
 
@@ -2726,14 +3010,43 @@ function translatedSpecies(service: GameService, ident: string | undefined): str
   return service.plain("species", shortIdent(ident || ""));
 }
 
-function consumeLog(messages: Message[], tracker: BattleTracker, service: GameService): {events: string[]; timeline: ParsedTimelineEvent[]} {
+function runtimeShowdownIdForIdent(requests: Record<string, BattleRequestView> | undefined, tracker: BattleTracker, side: SideId | null, raw: string | undefined, condition?: string, explicit?: string): string | undefined {
+  const explicitId = normalizeShowdownId(explicit);
+  if (explicitId) return explicitId;
+  if (!side || !raw) return undefined;
+  if (isActiveIdent(tracker, side, raw) && tracker.active[side]?.showdown_id) return tracker.active[side].showdown_id;
+  const requestRows = requests?.[side]?.side?.pokemon || [];
+  const targetShort = toId(shortIdent(raw));
+  const matching = requestRows.filter(pokemon => {
+    if (toId(shortIdent(pokemon.ident)) !== targetShort) return false;
+    if (condition && pokemon.condition !== condition) return false;
+    return true;
+  });
+  const active = matching.find(pokemon => pokemon.active) || requestRows.find(pokemon => pokemon.active && toId(shortIdent(pokemon.ident)) === targetShort);
+  if (active?.pokeball) return normalizeShowdownId(active.pokeball);
+  const ids = Array.from(new Set(matching.map(pokemon => normalizeShowdownId(pokemon.pokeball)).filter(Boolean)));
+  return ids.length === 1 ? ids[0] : undefined;
+}
+
+function attachTimelineShowdownIds(event: ParsedTimelineEvent, line: string, tag: string, parts: string[], tracker: BattleTracker, requests: Record<string, BattleRequestView> | undefined, lineShowdownIds?: Map<string, string>): void {
+  const explicit = lineShowdownIds?.get(line);
+  if (event.targetSide && !event.target_showdown_id) {
+    const targetRaw = [parts[2], parts[3], parts[4]].find(value => sideFromIdent(value || "") === event.targetSide);
+    event.target_showdown_id = runtimeShowdownIdForIdent(requests, tracker, event.targetSide, targetRaw, event.condition, explicit);
+  }
+  if (event.side && !event.source_showdown_id) {
+    const sourceRaw = sideFromIdent(parts[2] || "") === event.side ? parts[2] : undefined;
+    event.source_showdown_id = runtimeShowdownIdForIdent(requests, tracker, event.side, sourceRaw, undefined, tag === "move" ? undefined : explicit);
+  }
+}
+
+function consumeLog(messages: Message[], tracker: BattleTracker, service: GameService, requests?: Record<string, BattleRequestView>, lineShowdownIds?: Map<string, string>): {events: string[]; timeline: ParsedTimelineEvent[]} {
   const events: string[] = [];
   const timeline: ParsedTimelineEvent[] = [];
   let pendingEffectiveness: Array<{text: string; event: ParsedTimelineEvent}> = [];
   for (const line of splitLogLines(messages)) {
     const parts = line.split("|");
     const tag = parts[1] || "";
-    if (protocolDebugEnabled()) events.push(`Showdown: ${line}`);
     let text: string | null = null;
     let timelineEvent: ParsedTimelineEvent | null = null;
     let afterEvents: Array<{text: string; event: ParsedTimelineEvent}> = [];
@@ -2748,15 +3061,16 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const nextName = nextDisplay.name_zh;
       const targetId = nextDisplay.name;
       const condition = parts[4] || tracker.active[side || "p1"]?.condition || "?";
+      const activeShowdownId = runtimeShowdownIdForIdent(requests, tracker, side, parts[2], condition, lineShowdownIds?.get(line));
       if (side) {
-        setActiveDisplay(tracker, service, side, nextDetails, condition, tag === "switch" || tag === "drag");
+        setActiveDisplay(tracker, service, side, nextDetails, condition, tag === "switch" || tag === "drag", activeShowdownId);
         tracker.active[side].status = "";
         if (tag === "switch" || tag === "drag") tracker.boosts[side] = {};
       }
       text = tag === "detailschange" || tag === "-formechange"
         ? `${oldName} ${pokemonActionLabel(tag)}为 ${nextName}。`
         : `${nextName} ${pokemonActionLabel(tag)}。`;
-      timelineEvent = {type: tag === "detailschange" || tag === "-formechange" ? "form" : "switch", text, side: side || undefined, targetSide: side || undefined, target: nextName, target_id: targetId, target_species_id: nextDisplay.species_id, sprite: nextDisplay.sprite, condition, hp: parseConditionHp(condition)};
+      timelineEvent = {type: tag === "detailschange" || tag === "-formechange" ? "form" : "switch", text, side: side || undefined, targetSide: side || undefined, target: nextName, target_id: targetId, target_showdown_id: activeShowdownId, target_species_id: nextDisplay.species_id, sprite: nextDisplay.sprite, condition, hp: parseConditionHp(condition)};
     } else if (tag === "move" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
       const source = translatedSpecies(service, parts[2]);
@@ -2783,7 +3097,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
       const targetId = shortIdent(parts[2]);
-      if (side) {
+      if (side && isActiveIdent(tracker, side, parts[2])) {
         tracker.active[side] = {...tracker.active[side], condition: parts[3]};
       }
       const protocol = protocolSource(parts, service);
@@ -2805,13 +3119,13 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const before = side ? parseConditionHp(tracker.active[side].condition) : null;
       const current = Number(parts[3]);
       const condition = before ? `${current}/${before.max}` : parts[3];
-      if (side) tracker.active[side] = {...tracker.active[side], name: shortIdent(parts[2]), condition};
+      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], condition};
       const eventType = before && current > before.current ? "heal" : "damage";
       text = `${target} HP 变为 ${condition}`;
       timelineEvent = {type: eventType, text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), condition, hp: parseConditionHp(condition)};
     } else if (tag === "-status" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
-      if (side) tracker.active[side] = {...tracker.active[side], status: parts[3]};
+      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], status: parts[3]};
       const target = translatedSpecies(service, parts[2]);
       const status = service.plain("statuses", parts[3]);
       const protocol = protocolSource(parts, service);
@@ -2819,14 +3133,14 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       timelineEvent = {type: protocol.kind === "item" || protocol.kind === "ability" ? sourceEventType(protocol) : "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: protocol.name || status};
     } else if (tag === "-curestatus" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
-      if (side) tracker.active[side] = {...tracker.active[side], status: ""};
+      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], status: ""};
       const target = translatedSpecies(service, parts[2]);
       text = `${target} 解除 ${service.plain("statuses", parts[3])}`;
       timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: service.plain("statuses", parts[3])};
     } else if (tag === "-cureteam" && parts[2]) {
       const side = sideFromIdent(parts[2]);
       const target = translatedSpecies(service, parts[2]);
-      if (side) tracker.active[side] = {...tracker.active[side], status: ""};
+      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], status: ""};
       text = `${target} 治愈了队伍的异常状态。`;
       timelineEvent = {type: "status", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2])};
     } else if (tag === "-start" && parts[2] && parts[3]) {
@@ -2835,7 +3149,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const effect = service.effectName(parts[3]);
       const effectId = toId(parts[3]);
       if (effectId === "substitute") {
-        if (side) tracker.active[side] = {...tracker.active[side], substitute: true};
+        if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], substitute: true};
         text = `${target} 制造了替身。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: true};
       } else if (effectId === "confusion") {
@@ -2851,7 +3165,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const effect = service.effectName(parts[3]);
       const effectId = toId(parts[3]);
       if (effectId === "substitute") {
-        if (side) tracker.active[side] = {...tracker.active[side], substitute: false};
+        if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], substitute: false};
         text = `${target} 的替身消失了。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: false};
       } else if (effectId === "confusion") {
@@ -2867,13 +3181,15 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       addBoostValue(tracker, side, parts[3], amount);
       const target = translatedSpecies(service, parts[2]);
       text = `${target} ${boostText(service, parts[3], String(amount))}`;
-      timelineEvent = {type: "boost", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: parts[3]};
+      timelineEvent = {type: "boost", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: parts[3], boost_amount: amount};
     } else if (tag === "-setboost" && parts[2] && parts[3] && parts[4]) {
       const side = sideFromIdent(parts[2]);
-      setBoostValue(tracker, side, parts[3], Number(parts[4]));
+      const previous = side ? Number(tracker.boosts[side][parts[3]] || 0) : 0;
+      const next = Number(parts[4]);
+      setBoostValue(tracker, side, parts[3], next);
       const target = translatedSpecies(service, parts[2]);
-      text = `${target} ${service.plain("stats", parts[3])}变为 ${Number(parts[4]) >= 0 ? "+" : ""}${parts[4]}`;
-      timelineEvent = {type: "boost", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: parts[3]};
+      text = `${target} ${service.plain("stats", parts[3])}变为 ${next >= 0 ? "+" : ""}${parts[4]}`;
+      timelineEvent = {type: "boost", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: parts[3], boost_amount: next - previous};
     } else if (tag === "-swapboost" && parts[2] && parts[3]) {
       const sourceSide = sideFromIdent(parts[2]);
       const targetSide = sideFromIdent(parts[3]);
@@ -2886,41 +3202,43 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
         }
       }
       text = `${translatedSpecies(service, parts[2])} 和 ${translatedSpecies(service, parts[3])} 交换了能力变化。`;
-      timelineEvent = {type: "boost", text, side: sourceSide || undefined, targetSide: targetSide || undefined};
+      timelineEvent = {type: "boost", text, side: sourceSide || undefined, targetSide: targetSide || undefined, effect: "swap"};
     } else if (tag === "-invertboost" && parts[2]) {
       const side = sideFromIdent(parts[2]);
       if (side) {
         for (const stat of Object.keys(tracker.boosts[side])) tracker.boosts[side][stat] = -tracker.boosts[side][stat];
       }
       text = `${translatedSpecies(service, parts[2])} 的能力变化反转了。`;
-      timelineEvent = {type: "boost", text, targetSide: side || undefined, target: translatedSpecies(service, parts[2]), target_id: shortIdent(parts[2])};
+      timelineEvent = {type: "boost", text, targetSide: side || undefined, target: translatedSpecies(service, parts[2]), target_id: shortIdent(parts[2]), effect: "invert"};
     } else if (tag === "-clearboost" || tag === "-clearallboost") {
       if (tag === "-clearallboost") tracker.boosts = {p1: {}, p2: {}};
       else clearBoostValue(tracker, sideFromIdent(parts[2] || ""));
       text = tag === "-clearallboost" ? "双方能力变化被清除了。" : `${translatedSpecies(service, parts[2])} 的能力变化被清除了。`;
-      timelineEvent = {type: "boost", text, targetSide: sideFromIdent(parts[2] || "") || undefined};
+      timelineEvent = {type: "boost", text, targetSide: sideFromIdent(parts[2] || "") || undefined, effect: "clear", boost_amount: 0};
     } else if (tag === "-clearpositiveboost" && parts[2]) {
       clearBoostValue(tracker, sideFromIdent(parts[2]), true);
       text = `${translatedSpecies(service, parts[2])} 的正向能力变化被清除了。`;
-      timelineEvent = {type: "boost", text, targetSide: sideFromIdent(parts[2]) || undefined};
+      timelineEvent = {type: "boost", text, targetSide: sideFromIdent(parts[2]) || undefined, effect: "clearpositive", boost_amount: 0};
     } else if (tag === "-clearnegativeboost" && parts[2]) {
       clearBoostValue(tracker, sideFromIdent(parts[2]), false);
       text = `${translatedSpecies(service, parts[2])} 的负向能力变化被清除了。`;
-      timelineEvent = {type: "boost", text, targetSide: sideFromIdent(parts[2]) || undefined};
+      timelineEvent = {type: "boost", text, targetSide: sideFromIdent(parts[2]) || undefined, effect: "clearnegative", boost_amount: 0};
     } else if (tag === "-copyboost" && parts[2] && parts[3]) {
       const sourceSide = sideFromIdent(parts[2]);
       const targetSide = sideFromIdent(parts[3]);
       if (sourceSide && targetSide) tracker.boosts[targetSide] = {...tracker.boosts[sourceSide]};
       text = `${translatedSpecies(service, parts[3])} 复制了 ${translatedSpecies(service, parts[2])} 的能力变化。`;
-      timelineEvent = {type: "boost", text, side: sourceSide || undefined, targetSide: targetSide || undefined};
+      timelineEvent = {type: "boost", text, side: sourceSide || undefined, targetSide: targetSide || undefined, effect: "copy"};
     } else if (tag === "-supereffective") {
       text = "效果拔群！";
       timelineEvent = {type: "effectiveness", text, targetSide: sideFromIdent(parts[2] || "") || undefined};
+      attachTimelineShowdownIds(timelineEvent, line, tag, parts, tracker, requests, lineShowdownIds);
       pendingEffectiveness.push({text, event: timelineEvent});
       continue;
     } else if (tag === "-resisted") {
       text = "效果不理想。";
       timelineEvent = {type: "effectiveness", text, targetSide: sideFromIdent(parts[2] || "") || undefined};
+      attachTimelineShowdownIds(timelineEvent, line, tag, parts, tracker, requests, lineShowdownIds);
       pendingEffectiveness.push({text, event: timelineEvent});
       continue;
     } else if (tag === "-immune" && parts[2]) {
@@ -2953,7 +3271,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
     }
     else if (tag === "faint" && parts[2]) {
       const side = sideFromIdent(parts[2]);
-      if (side) tracker.active[side] = {...tracker.active[side], condition: "0 濒死", substitute: false};
+      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], condition: "0 濒死", substitute: false};
       const target = translatedSpecies(service, parts[2]);
       text = `${target} 倒下了。`;
       timelineEvent = {type: "faint", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), condition: "0 fnt", hp: {current: 0, max: 1, text: "0/0"}};
@@ -3093,6 +3411,10 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
     }
 
     if (text !== null) {
+      if (timelineEvent) attachTimelineShowdownIds(timelineEvent, line, tag, parts, tracker, requests, lineShowdownIds);
+      if (protocolDebugEnabled() && timelineEvent && ["switch", "drag", "-heal", "-damage"].includes(tag)) {
+        battleLogLine("timeline", tag || "event", {line, text, timelineEvent, active: tracker.active});
+      }
       events.push(text);
       if (timelineEvent) timeline.push(timelineEvent);
     }
