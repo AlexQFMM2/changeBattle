@@ -4,7 +4,7 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleBackgroundView, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {battleSlotShowdownId} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
@@ -226,6 +226,7 @@ const GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
   {id: "awakening", cost: 10},
   {id: "paralyzeheal", cost: 10},
 ];
+const SHOP_REPEAT_PURCHASE_SURCHARGE = 10;
 
 const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: string; desc_zh: string}> = {
   potion: {name: "Potion", name_zh: "回复药", desc: "Restores 20 HP.", desc_zh: "恢复 20 点 HP。"},
@@ -795,36 +796,119 @@ function mergeResultPokemonStats(target: Omit<ResultPokemonSummary, "pokemon">, 
   };
 }
 
+function timelineHpKey(event: BattleTimelineEvent): string {
+  return `${event.targetSide || ""}:${event.target_showdown_id || event.target_id || event.target || ""}`;
+}
+
+function timelinePokemonKey(event: BattleTimelineEvent): string {
+  const id = toId(String(event.target_showdown_id || event.target_id || event.target || ""));
+  return event.targetSide && id ? `${event.targetSide}:${id}` : "";
+}
+
+function timelineCurrentHp(event: BattleTimelineEvent): number | null {
+  if (event.hp) return Math.max(0, Number(event.hp.current || 0));
+  if (/\bfnt\b/i.test(String(event.condition || ""))) return 0;
+  return null;
+}
+
+function rememberTimelineHp(event: BattleTimelineEvent, knownHp: Map<string, number>): void {
+  const id = timelineHpKey(event);
+  const current = timelineCurrentHp(event);
+  if (current === null || id.endsWith(":")) return;
+  knownHp.set(id, current);
+}
+
 function hpDelta(event: BattleTimelineEvent, knownHp: Map<string, number>): number {
-  const hp = event.hp;
-  const id = `${event.targetSide || ""}:${event.target_showdown_id || event.target_id || event.target || ""}`;
-  if (!hp || id.endsWith(":")) {
-    return 0;
-  }
-  const current = Math.max(0, Number(hp.current || 0));
-  const previous = knownHp.has(id) ? Number(knownHp.get(id) || 0) : Math.max(current, Number(hp.max || current || 0));
+  const id = timelineHpKey(event);
+  const current = timelineCurrentHp(event);
+  if (current === null || id.endsWith(":")) return 0;
+  const previous = knownHp.has(id) ? Number(knownHp.get(id) || 0) : Math.max(current, Number(event.hp?.max || current || 0));
   knownHp.set(id, current);
   return Math.max(0, previous - current);
 }
 
-function collectBattlePokemonStats(battle: BattleState): Record<string, Omit<ResultPokemonSummary, "pokemon">> {
+function statEventToStats(event: ResultPokemonStatEvent): Partial<Omit<ResultPokemonSummary, "pokemon">> {
+  if (event.kind === "kill") return {kills: event.value};
+  if (event.kind === "death") return {deaths: event.value};
+  if (event.kind === "assist") return {assists: event.value};
+  if (event.kind === "damage_dealt") return {damage_dealt: event.value};
+  if (event.kind === "damage_taken") return {damage_taken: event.value};
+  return {};
+}
+
+function aggregatePokemonStatEvents(events: ResultPokemonStatEvent[] | undefined): Record<string, Omit<ResultPokemonSummary, "pokemon">> {
+  const stats: Record<string, Omit<ResultPokemonSummary, "pokemon">> = {};
+  for (const event of events || []) {
+    const key = String(event.pokemon_key || "");
+    const value = Math.max(0, Number(event.value || 0));
+    if (!key || !value) continue;
+    stats[key] = mergeResultPokemonStats(stats[key] || emptyResultPokemonStats(), statEventToStats({...event, value}));
+  }
+  return stats;
+}
+
+function statEventSource(event: BattleTimelineEvent): ResultPokemonStatEvent["source"] {
+  const effect = toId(event.effect || "");
+  if (!effect) return event.type === "damage" ? "move" : "unknown";
+  if (["spikes", "stealthrock", "toxicspikes", "stickyweb"].includes(effect)) return "field";
+  if (["brn", "psn", "tox", "confusion", "leechseed", "curse", "nightmare"].includes(effect)) return "status";
+  if (event.type === "item") return "item";
+  if (event.type === "ability") return "ability";
+  return "unknown";
+}
+
+function collectBattlePokemonStatEvents(run: CurrentRunData, battle: BattleState): ResultPokemonStatEvent[] {
   const byShowdownId = new Map<string, string>();
+  const byIdent = new Map<string, string>();
+  const duplicateIdents = new Set<string>();
+  const addIdent = (value: unknown, key: string): void => {
+    const id = toId(String(value || ""));
+    if (!id) return;
+    const existing = byIdent.get(id);
+    if (existing && existing !== key) {
+      duplicateIdents.add(id);
+      byIdent.delete(id);
+    } else if (!duplicateIdents.has(id)) {
+      byIdent.set(id, key);
+    }
+  };
   battle.player_display.forEach((pokemon, index) => {
     const key = resultPokemonKey(pokemon);
     byShowdownId.set(pokemon.showdown_id || battleSlotShowdownId("p1", index + 1), key);
     byShowdownId.set(battleSlotShowdownId("p1", index + 1), key);
+    addIdent(pokemon.species_id, key);
+    addIdent(pokemon.species, key);
+    addIdent(pokemon.name, key);
   });
-  const stats: Record<string, Omit<ResultPokemonSummary, "pokemon">> = {};
+  const battleNo = Math.max(1, Number(run.battle_no || run.next_battle || 0));
+  const statEvents: ResultPokemonStatEvent[] = [];
+  const pushStatEvent = (pokemonKey: string, timelineEvent: BattleTimelineEvent, kind: ResultPokemonStatEvent["kind"], value: number, targetKey = "", source: ResultPokemonStatEvent["source"] = "unknown"): void => {
+    const normalizedValue = Math.max(0, Math.floor(Number(value || 0)));
+    if (!pokemonKey || !normalizedValue) return;
+    statEvents.push({
+      battle_no: battleNo,
+      turn: Math.max(1, Number(timelineEvent.turn || battle.tracker?.turn || 1)),
+      pokemon_key: pokemonKey,
+      target_key: targetKey || undefined,
+      kind,
+      value: normalizedValue,
+      source,
+    });
+  };
+  const contributorsByEnemy = new Map<string, Set<string>>();
   const knownHp = new Map<string, number>();
   let lastPlayerAttackerKey = "";
   for (const event of battle.timeline_events || []) {
+    if (event.type === "switch") {
+      rememberTimelineHp(event, knownHp);
+      continue;
+    }
     if (event.type === "heal" && event.hp) {
-      const id = `${event.targetSide || ""}:${event.target_showdown_id || event.target_id || event.target || ""}`;
-      if (!id.endsWith(":")) knownHp.set(id, Math.max(0, Number(event.hp.current || 0)));
+      rememberTimelineHp(event, knownHp);
       continue;
     }
     if (event.type === "move" && event.side === "p1") {
-      const key = byShowdownId.get(event.source_showdown_id || "");
+      const key = byShowdownId.get(event.source_showdown_id || "") || byIdent.get(toId(event.source_id || event.source || ""));
       if (key) lastPlayerAttackerKey = key;
       continue;
     }
@@ -832,32 +916,40 @@ function collectBattlePokemonStats(battle: BattleState): Record<string, Omit<Res
       const delta = hpDelta(event, knownHp);
       if (delta <= 0) continue;
       if (event.targetSide === "p2" && lastPlayerAttackerKey) {
-        stats[lastPlayerAttackerKey] = mergeResultPokemonStats(stats[lastPlayerAttackerKey] || emptyResultPokemonStats(), {damage_dealt: delta});
+        const targetKey = timelinePokemonKey(event);
+        pushStatEvent(lastPlayerAttackerKey, event, "damage_dealt", delta, targetKey, statEventSource(event));
+        if (targetKey) {
+          const contributors = contributorsByEnemy.get(targetKey) || new Set<string>();
+          contributors.add(lastPlayerAttackerKey);
+          contributorsByEnemy.set(targetKey, contributors);
+        }
       } else if (event.targetSide === "p1") {
-        const key = byShowdownId.get(event.target_showdown_id || "");
-        if (key) stats[key] = mergeResultPokemonStats(stats[key] || emptyResultPokemonStats(), {damage_taken: delta});
+        const key = byShowdownId.get(event.target_showdown_id || "") || byIdent.get(toId(event.target_id || event.target || ""));
+        if (key) pushStatEvent(key, event, "damage_taken", delta, timelinePokemonKey(event), statEventSource(event));
       }
       continue;
     }
     if (event.type === "faint") {
       if (event.targetSide === "p2" && lastPlayerAttackerKey) {
-        stats[lastPlayerAttackerKey] = mergeResultPokemonStats(stats[lastPlayerAttackerKey] || emptyResultPokemonStats(), {kills: 1});
+        const targetKey = timelinePokemonKey(event);
+        pushStatEvent(lastPlayerAttackerKey, event, "kill", 1, targetKey, "unknown");
+        for (const contributorKey of contributorsByEnemy.get(targetKey) || []) {
+          if (contributorKey !== lastPlayerAttackerKey) pushStatEvent(contributorKey, event, "assist", 1, targetKey, "unknown");
+        }
+        if (targetKey) contributorsByEnemy.delete(targetKey);
       } else if (event.targetSide === "p1") {
-        const key = byShowdownId.get(event.target_showdown_id || "");
-        if (key) stats[key] = mergeResultPokemonStats(stats[key] || emptyResultPokemonStats(), {deaths: 1});
+        const key = byShowdownId.get(event.target_showdown_id || "") || byIdent.get(toId(event.target_id || event.target || ""));
+        if (key) pushStatEvent(key, event, "death", 1, timelinePokemonKey(event), "unknown");
       }
     }
   }
-  return stats;
+  return statEvents;
 }
 
 function recordRunBattleStats(run: CurrentRunData, battle: BattleState): void {
   rememberRunPokemonAppearances(run, battle.player_display);
-  const next = {...(run.used_pokemon_stats || {})};
-  for (const [key, stats] of Object.entries(collectBattlePokemonStats(battle))) {
-    next[key] = mergeResultPokemonStats(next[key] || emptyResultPokemonStats(), stats);
-  }
-  run.used_pokemon_stats = next;
+  const statEvents = collectBattlePokemonStatEvents(run, battle);
+  run.used_pokemon_stat_events = [...(run.used_pokemon_stat_events || []), ...statEvents];
 }
 
 function resultUsedPokemon(run: CurrentRunData | null | undefined, fallbackTeam: RentalPokemon[]): ResultPokemonSummary[] {
@@ -865,9 +957,10 @@ function resultUsedPokemon(run: CurrentRunData | null | undefined, fallbackTeam:
   for (const pokemon of [...(run?.used_pokemon_display || []), ...(run?.player_display || []), ...(run?.exchange_box?.display || []), ...fallbackTeam]) {
     seen.set(resultPokemonKey(pokemon), pokemon);
   }
+  const eventStats = aggregatePokemonStatEvents(run?.used_pokemon_stat_events);
   return Array.from(seen.entries()).map(([key, pokemon]) => ({
     pokemon,
-    ...(run?.used_pokemon_stats?.[key] || emptyResultPokemonStats()),
+    ...mergeResultPokemonStats(run?.used_pokemon_stats?.[key] || emptyResultPokemonStats(), eventStats[key] || emptyResultPokemonStats()),
   }));
 }
 
@@ -1253,6 +1346,21 @@ function rememberBagItemMeta(run: CurrentRunData, offer: Partial<ShopOffer> | Sh
   };
 }
 
+function shopItemPurchaseCount(run: CurrentRunData, itemId: string): number {
+  return Math.max(0, Math.floor(Number(run.shop_purchased_item_counts?.[itemKey(itemId)] || 0)));
+}
+
+function pricedShopOfferForRun(run: CurrentRunData, offer: ShopOffer, extraPurchases = 0): ShopOffer {
+  const itemId = itemKey(offer.id || offer.name);
+  const purchased = shopItemPurchaseCount(run, itemId) + Math.max(0, Math.floor(Number(extraPurchases || 0)));
+  const surcharge = purchased * SHOP_REPEAT_PURCHASE_SURCHARGE;
+  return {...offer, cost: Math.max(0, Math.floor(Number(offer.cost || 0))) + surcharge};
+}
+
+function pricedShopOffersForRun(run: CurrentRunData): ShopOffer[] {
+  return (run.shop_offers || []).map(offer => pricedShopOfferForRun(run, offer));
+}
+
 async function tmOfferFromMove(move: MoveSummary, index: number, source: "shop" | "starter", discount = 1, talents: TalentView[] = []): Promise<ShopOffer> {
   const moveId = toId(move.id || move.name);
   const baseCost = Math.floor((await moveGoodsCost(move)) * discount);
@@ -1494,6 +1602,15 @@ function starterProfilesForStreak(setStreak: number, count: number, talents: Tal
     : setStreak === 1
       ? ["tier1", "tier1", "tier1", "tier2", "tier2", "tier3"]
       : ["tier1", "tier2", "tier2", "tier3", "tier3", "tier3"];
+  return Array.from({length: Math.max(1, count)}, (_value, index) => base[index % base.length]);
+}
+
+function starterSpeciesTiersForStreak(setStreak: number, count: number): Array<1 | 2 | 3 | 4> {
+  const base: Array<1 | 2 | 3 | 4> = setStreak <= 0
+    ? [1, 2, 2, 3, 3, 3]
+    : setStreak === 1
+      ? [2, 2, 3, 3, 3, 4]
+      : [2, 3, 3, 4, 4, 4];
   return Array.from({length: Math.max(1, count)}, (_value, index) => base[index % base.length]);
 }
 
@@ -1859,18 +1976,8 @@ function ensureTeamRunMemberIds(team: PokemonSet[] = [], display: RentalPokemon[
 
 function ensureTeamShowdownIds(team: PokemonSet[] = [], display: RentalPokemon[] = [], states: PlayerPokemonState[] | undefined, side: "p1" | "p2" = "p1"): void {
   const length = Math.max(team.length, display.length, states?.length || 0);
-  const used = new Set<string>();
-  const nextUnused = (slot: number): string => {
-    for (let offset = 0; offset < 6; offset += 1) {
-      const candidate = battleSlotShowdownId(side, slot + offset);
-      if (!used.has(candidate)) return candidate;
-    }
-    return battleSlotShowdownId(side, slot);
-  };
   for (let index = 0; index < length; index += 1) {
-    const existing = normalizeShowdownId(team[index]?.showdown_id || display[index]?.showdown_id || states?.[index]?.showdown_id);
-    const id = existing && !used.has(existing) ? existing : nextUnused(index + 1);
-    used.add(id);
+    const id = battleSlotShowdownId(side, index + 1);
     if (team[index]) {
       team[index].showdown_id = id;
       team[index].pokeball = id;
@@ -1947,7 +2054,7 @@ function findExistingStateForPokemon(existing: PlayerPokemonState[], raw: Pokemo
     for (const key of keys) {
       if (!stateKeys.has(key)) continue;
       if (key.startsWith("species_moves:")) score += 20;
-      else if (key.startsWith("showdown_id:")) score += 120;
+      else if (key.startsWith("showdown_id:")) score += 2;
       else if (key.startsWith("ident:") || key.startsWith("species:") || key.startsWith("details_species:") || key.startsWith("species_id:")) score += 10;
       else if (key.startsWith("run_member:")) score += 100;
     }
@@ -1965,7 +2072,7 @@ function fullStateForPokemon(pokemon: RentalPokemon, slot: number): PlayerPokemo
   const maxhp = Math.max(1, Number(pokemon.stats?.hp || 1));
   return {
     run_member_id: runMemberId(pokemon) || undefined,
-    showdown_id: normalizeShowdownId(pokemon.showdown_id) || battleSlotShowdownId("p1", slot),
+    showdown_id: battleSlotShowdownId("p1", slot),
     slot,
     ident: `p1: ${pokemon.species || pokemon.name || slot}`,
     details: pokemon.species || pokemon.name || "",
@@ -2006,7 +2113,8 @@ function markStarterOrigin(generated: GeneratedTeam, origin: "current" | "memory
 async function generateStarterCandidatesForSave(save: LocalSave, seed: number, talents: TalentView[], count: number): Promise<GeneratedTeam> {
   const setStreak = Number(save.stats?.set_win_streak || 0);
   const profiles = starterProfilesForStreak(setStreak, count, talents);
-  const current = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 1), "gen7randombattle", count, {profiles, purpose: "starter"}), seed, talents, setStreak), "current");
+  const speciesTiers = starterSpeciesTiersForStreak(setStreak, count);
+  const current = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 1), "gen7randombattle", count, {profiles, speciesTiers, purpose: "starter"}), seed, talents, setStreak), "current");
   if (!hasTalent(talents, "starter_soulmate")) return current;
   const memorySpecies = Array.from(new Set([...(save.run_memory?.player_species_ids || []), ...(save.run_memory?.enemy_species_ids || [])].map(toId).filter(Boolean))).slice(0, 12);
   if (!memorySpecies.length) return current;
@@ -2089,8 +2197,8 @@ function adjustedStateAfterEdit(oldState: PlayerPokemonState, newDisplay: Rental
 
 function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
   ensureTeamRunMemberIds(run.player_team || [], run.player_display || []);
-  ensureTeamShowdownIds(run.player_team || [], run.player_display || [], run.player_state, "p1");
   const existing = [...(run.player_state || [])];
+  ensureTeamShowdownIds(run.player_team || [], run.player_display || [], undefined, "p1");
   const usedExisting = new Set<number>();
   const states = (run.player_display || []).map((pokemon, index) => {
     const full = fullStateForPokemon(pokemon, index + 1);
@@ -2113,7 +2221,7 @@ function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
     state.run_member_id = runMemberId(run.player_team?.[index]) || runMemberId(pokemon) || full.run_member_id || createRunMemberId();
     if (run.player_team?.[index]) run.player_team[index].run_member_id = state.run_member_id;
     if (run.player_display?.[index]) run.player_display[index].run_member_id = state.run_member_id;
-    const showdownId = normalizeShowdownId(run.player_team?.[index]?.showdown_id || pokemon.showdown_id || matched?.showdown_id || full.showdown_id) || battleSlotShowdownId("p1", index + 1);
+    const showdownId = battleSlotShowdownId("p1", index + 1);
     state.showdown_id = showdownId;
     if (run.player_team?.[index]) {
       run.player_team[index].showdown_id = showdownId;
@@ -2172,6 +2280,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.shop_offers = (run.shop_offers || []).map(offer => ({...offer, category: offer.category || itemCategory(offer)}));
   run.shop_purchased_offer_id = run.shop_purchased_offer_id || null;
   run.shop_purchased_offer_counts = Object.fromEntries(Object.entries(run.shop_purchased_offer_counts || {}).map(([offerId, count]) => [offerId, Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([, count]) => count > 0));
+  run.shop_purchased_item_counts = Object.fromEntries(Object.entries(run.shop_purchased_item_counts || {}).map(([itemId, count]) => [itemKey(itemId), Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([itemId, count]) => itemId && count > 0));
   run.shop_last_roll_bonus = run.shop_last_roll_bonus || null;
   run.starter_item_offers = (run.starter_item_offers || []).map(offer => ({...offer, category: offer.category || itemCategory(offer), source: "starter"}));
   run.starter_item_purchased = run.starter_item_purchased || [];
@@ -2193,6 +2302,17 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     damage_dealt: Math.max(0, Number(stats.damage_dealt || 0)),
     damage_taken: Math.max(0, Number(stats.damage_taken || 0)),
   }]));
+  const statKinds = new Set<ResultPokemonStatEvent["kind"]>(["kill", "death", "assist", "damage_dealt", "damage_taken"]);
+  const statSources = new Set<ResultPokemonStatEvent["source"]>(["move", "status", "item", "ability", "field", "unknown"]);
+  run.used_pokemon_stat_events = (run.used_pokemon_stat_events || []).map(event => ({
+    battle_no: Math.max(1, Math.floor(Number(event.battle_no || 1))),
+    turn: Math.max(1, Math.floor(Number(event.turn || 1))),
+    pokemon_key: String(event.pokemon_key || ""),
+    target_key: String(event.target_key || "") || undefined,
+    kind: statKinds.has(event.kind) ? event.kind : "damage_dealt",
+    value: Math.max(0, Math.floor(Number(event.value || 0))),
+    source: statSources.has(event.source) ? event.source : "unknown",
+  })).filter(event => event.pokemon_key && event.value > 0);
   run.temporary_bp_debt = Math.max(0, Number(run.temporary_bp_debt || 0));
   run.second_team_roar_used = Boolean(run.second_team_roar_used);
   run.all_in_exchange_used = Boolean(run.all_in_exchange_used);
@@ -2265,9 +2385,10 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       free_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0),
       preferred_roll_cost: hasTalent(run.talents, "intel_shop_strategy") ? SHOP_PREFERRED_ROLL_COST : undefined,
       slot_discounts: run.rest_status?.shop_slot_discounts || [],
-      offers: run.shop_offers || [],
+      offers: pricedShopOffersForRun(run),
       purchased_offer_id: run.shop_purchased_offer_id || null,
       purchased_offer_counts: run.shop_purchased_offer_counts || {},
+      purchased_item_counts: run.shop_purchased_item_counts || {},
       last_roll_bonus: run.shop_last_roll_bonus || null,
     },
     starter_items: {
@@ -2352,8 +2473,9 @@ async function rerollStarterCandidate(index: number): Promise<DesktopGameState> 
   const count = candidateCountForTalents(pendingStarter.talents);
   const setStreak = Number(save.stats?.set_win_streak || 0);
   const profiles = starterProfilesForStreak(setStreak, count, pendingStarter.talents);
+  const speciesTiers = starterSpeciesTiersForStreak(setStreak, count);
   const nextSeed = gameService.deriveSeed(pendingStarter.seed, 5000 + pendingStarter.singleRerollsUsed * 97 + slot);
-  const generated = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(nextSeed, "gen7randombattle", 1, {profiles: [profiles[slot % profiles.length] || "tier1"], purpose: "starter"}), nextSeed, pendingStarter.talents, setStreak), "current");
+  const generated = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(nextSeed, "gen7randombattle", 1, {profiles: [profiles[slot % profiles.length] || "tier1"], speciesTiers: [speciesTiers[slot % speciesTiers.length] || 2], purpose: "starter"}), nextSeed, pendingStarter.talents, setStreak), "current");
   pendingCandidates.team[slot] = generated.team[0];
   pendingCandidates.display[slot] = generated.display[0];
   pendingStarter = {...pendingStarter, singleRerollsUsed: pendingStarter.singleRerollsUsed + 1};
@@ -3203,10 +3325,12 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const offer = (run.shop_offers || []).find(item => item.offer_id === action.offerId);
     if (!offer) throw new Error("商品不存在，请先刷新商店。");
     const itemId = itemKey(offer.id || offer.name);
-    const spent = spendRunBp(save, run, Number(offer.cost || 0), `shop-buy:${itemId}`, {alreadyPriced: true});
+    const pricedOffer = pricedShopOfferForRun(run, offer);
+    const spent = spendRunBp(save, run, Number(pricedOffer.cost || 0), `shop-buy:${itemId}`, {alreadyPriced: true});
     run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + 1};
     rememberBagItemMeta(run, offer);
     run.shop_purchased_offer_counts = {...(run.shop_purchased_offer_counts || {}), [offer.offer_id]: Number(run.shop_purchased_offer_counts?.[offer.offer_id] || 0) + 1};
+    run.shop_purchased_item_counts = {...(run.shop_purchased_item_counts || {}), [itemId]: shopItemPurchaseCount(run, itemId) + 1};
     run.shop_purchased_offer_id = offer.offer_id;
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, `已购买 ${offer.name_zh || offer.name}，${spent.message}。`);

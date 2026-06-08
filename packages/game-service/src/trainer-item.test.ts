@@ -125,9 +125,106 @@ async function testRegeneratorUsesShowdownIdWithDuplicateIdent(): Promise<void> 
   assert.ok(healEvent, JSON.stringify(state.timeline_events, null, 2));
 }
 
+async function testShowdownIdsFollowCurrentSlots(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const playerTeam = [
+    {...pokemon("Exploud", ["Tackle"], "Soundproof"), run_member_id: "member-exploud", showdown_id: "greatball", pokeball: "greatball"},
+    {...pokemon("Cacturne", ["Tackle"], "Sand Veil"), run_member_id: "member-cacturne", showdown_id: "pokeball", pokeball: "pokeball"},
+  ];
+  const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
+  const playerDisplay = await service.describeTeam(playerTeam);
+  playerDisplay[0].run_member_id = "member-exploud";
+  playerDisplay[0].showdown_id = "greatball";
+  playerDisplay[1].run_member_id = "member-cacturne";
+  playerDisplay[1].showdown_id = "pokeball";
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay,
+    enemyDisplay: await service.describeTeam(enemyTeam),
+    playerState: [
+      {run_member_id: "member-exploud", slot: 1, showdown_id: "greatball", ident: "p1: Exploud", details: "Exploud", species: "Exploud", hp: 100, maxhp: 100, status: "", fainted: false, active: true, item: "", condition: "100/100", moves: []},
+      {run_member_id: "member-cacturne", slot: 2, showdown_id: "pokeball", ident: "p1: Cacturne", details: "Cacturne", species: "Cacturne", hp: 100, maxhp: 100, status: "", fainted: false, active: false, item: "", condition: "100/100", moves: []},
+    ],
+    seed: [13, 14, 15, 16],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+
+  const state = session.getState();
+  assert.deepEqual(state.player_team.map(pokemonSet => pokemonSet.showdown_id), ["pokeball", "greatball"]);
+  assert.deepEqual(state.player_team.map(pokemonSet => pokemonSet.pokeball), ["pokeball", "greatball"]);
+  assert.deepEqual(state.player_display.map(pokemonView => pokemonView.showdown_id), ["pokeball", "greatball"]);
+
+  const current = session.getPlayerState();
+  assert.deepEqual(current.map(pokemonState => pokemonState.showdown_id), ["pokeball", "greatball"]);
+  assert.deepEqual(current.map(pokemonState => pokemonState.run_member_id), ["member-exploud", "member-cacturne"]);
+
+  session.syncPlayerState(current.map((pokemonState, index) => index === 0 ? {...pokemonState, status: "psn", condition: `${pokemonState.hp}/${pokemonState.maxhp} psn`} : pokemonState));
+  const synced = session.getPlayerState();
+  assert.equal(synced[0].run_member_id, "member-exploud");
+  assert.equal(synced[0].status, "psn");
+  assert.equal(synced[1].run_member_id, "member-cacturne");
+  assert.equal(synced[1].status, "");
+}
+
+async function testPainSplitSetHpHasFiniteTimeline(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const playerTeam = [pokemon("Rotom", ["Pain Split"], "Levitate")];
+  const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay: await service.describeTeam(playerTeam),
+    enemyDisplay: await service.describeTeam(enemyTeam),
+    seed: [17, 18, 19, 20],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+  const initial = session.getPlayerState();
+  session.syncPlayerState(initial.map((state, index) => index === 0 ? {...state, hp: 20, condition: `20/${state.maxhp}`} : state));
+  const state = await session.choose("move 1");
+  const text = [...state.recent_events, ...state.timeline_events.map(event => event.text), ...session.getPlayerState().map(pokemonState => pokemonState.condition)].join("\n");
+  assert.doesNotMatch(text, /NaN/i, text);
+  const setHpEvents = state.timeline_events.filter(event => /HP 变为/.test(event.text));
+  assert.ok(setHpEvents.length >= 2, JSON.stringify(state.timeline_events, null, 2));
+  assert.ok(setHpEvents.every(event => event.hp && Number.isFinite(event.hp.current) && Number.isFinite(event.hp.max)), JSON.stringify(setHpEvents, null, 2));
+}
+
+async function testSkyAttackAnimationProtocolIsHidden(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const playerTeam = [pokemon("Hawlucha", ["Sky Attack"], "Unburden")];
+  const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay: await service.describeTeam(playerTeam),
+    enemyDisplay: await service.describeTeam(enemyTeam),
+    seed: [21, 22, 23, 24],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+  await session.choose("move 1");
+  const state = await session.choose("move 1");
+  const text = [...state.recent_events, ...state.timeline_events.map(event => event.text)].join("\n");
+  assert.doesNotMatch(text, /Showdown事件|\|-anim\|/, text);
+}
+
+async function testSpeciesTierCanOverrideGenerationProfile(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const generated = await service.generateRentalCandidates([31, 32, 33, 34], "gen7randombattle", 3, {
+    profiles: ["tier1", "tier1", "tier1"],
+    speciesTiers: [2, 3, 4],
+    purpose: "starter",
+  });
+  assert.deepEqual(generated.display.map(pokemon => pokemon.generation_profile), ["tier1", "tier1", "tier1"]);
+  assert.deepEqual(generated.display.map(pokemon => pokemon.species_tier), [2, 3, 4]);
+}
+
 await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
 await testEnemyAiPrefersEffectiveDamage();
 await testRegeneratorUsesShowdownIdWithDuplicateIdent();
+await testShowdownIdsFollowCurrentSlots();
+await testPainSplitSetHpHasFiniteTimeline();
+await testSkyAttackAnimationProtocolIsHidden();
+await testSpeciesTierCanOverrideGenerationProfile();
 console.log("Trainer item battle tests passed.");

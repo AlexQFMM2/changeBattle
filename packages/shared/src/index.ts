@@ -291,6 +291,7 @@ export type BattleTimelineEvent = {
   id: string;
   type: BattleTimelineEventType;
   text: string;
+  turn?: number;
   side?: "p1" | "p2";
   targetSide?: "p1" | "p2";
   source?: string;
@@ -502,6 +503,7 @@ export type ShopState = {
   offers: ShopOffer[];
   purchased_offer_id?: string | null;
   purchased_offer_counts?: Record<string, number>;
+  purchased_item_counts?: Record<string, number>;
   last_roll_bonus?: {
     item_id: string;
     name: string;
@@ -596,6 +598,16 @@ export type ResultPokemonSummary = {
   damage_taken: number;
 };
 
+export type ResultPokemonStatEvent = {
+  battle_no: number;
+  turn: number;
+  pokemon_key: string;
+  target_key?: string;
+  kind: "kill" | "death" | "assist" | "damage_dealt" | "damage_taken";
+  value: number;
+  source?: "move" | "status" | "item" | "ability" | "field" | "unknown";
+};
+
 export type ResultProgressRow = {
   battle_no: number;
   label: string;
@@ -668,6 +680,7 @@ export type CurrentRunData = {
   shop_offers?: ShopOffer[];
   shop_purchased_offer_id?: string | null;
   shop_purchased_offer_counts?: Record<string, number>;
+  shop_purchased_item_counts?: Record<string, number>;
   shop_last_roll_bonus?: ShopState["last_roll_bonus"];
   starter_item_offers?: ShopOffer[];
   starter_item_purchased?: string[];
@@ -687,6 +700,7 @@ export type CurrentRunData = {
   talents?: TalentView[];
   used_pokemon_display?: RentalPokemon[];
   used_pokemon_stats?: Record<string, Omit<ResultPokemonSummary, "pokemon">>;
+  used_pokemon_stat_events?: ResultPokemonStatEvent[];
   boss_type?: "normal" | "gym" | "champion" | "elite4";
   boss_stage?: string;
   boss_route?: string;

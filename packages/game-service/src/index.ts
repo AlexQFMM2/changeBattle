@@ -227,6 +227,7 @@ type ConsumableItemEffect = {
 export type GenerateRentalOptions = {
   profiles?: GenerationProfile[];
   stages?: StageTier[];
+  speciesTiers?: StageTier[];
   speciesIds?: string[];
   purpose?: "starter" | "normal" | "boss" | "rescue";
 };
@@ -441,12 +442,12 @@ export class GameService {
     if (typeof format === "object") {
       options = format;
       format = "gen7randombattle";
-      count = options.profiles?.length || options.stages?.length || options.speciesIds?.length || count;
+      count = options.profiles?.length || options.stages?.length || options.speciesTiers?.length || options.speciesIds?.length || count;
     }
     const sim = this.loadShowdown();
     const seedArray = this.seedArray(seed);
     await this.loadDisplayData();
-    if (options.profiles?.length || options.stages?.length || options.speciesIds?.length) {
+    if (options.profiles?.length || options.stages?.length || options.speciesTiers?.length || options.speciesIds?.length) {
       return this.generateProfiledCandidates(seedArray, format, count, options);
     }
     const team: PokemonSet[] = [];
@@ -1035,6 +1036,7 @@ export class GameService {
     const sim = this.loadShowdown();
     const targetCount = Math.max(1, Math.min(24, Number(count || RENTAL_CANDIDATE_COUNT)));
     const requestedProfiles = this.requestedProfiles(options, targetCount);
+    const requestedSpeciesTiers = this.requestedSpeciesTiers(options, targetCount);
     const speciesIds = (options.speciesIds || []).map(id => this.toId(id));
     const team: PokemonSet[] = [];
     const display: RentalPokemon[] = [];
@@ -1046,7 +1048,9 @@ export class GameService {
       const profile = requestedProfiles[index] || requestedProfiles[requestedProfiles.length - 1] || "tier1";
       const speciesPick = speciesIds[index]
         ? {speciesId: speciesIds[index], speciesTier: this.tierForSpecies(speciesIds[index]) || this.profileStageTier(profile)}
-        : this.pickSpeciesForProfile(profile, rng, seenSpecies);
+        : requestedSpeciesTiers[index]
+          ? this.pickSpeciesForTier(requestedSpeciesTiers[index], rng, seenSpecies)
+          : this.pickSpeciesForProfile(profile, rng, seenSpecies);
       const baseSet = this.baseSetForSpecies(speciesPick.speciesId, generator, rng);
       const set = this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier);
       const described = this.describeSet(set);
@@ -1067,6 +1071,10 @@ export class GameService {
     if (options.profiles?.length) return options.profiles.slice(0, count);
     if (options.stages?.length) return options.stages.slice(0, count).map(stage => `tier${stage}` as GenerationProfile);
     return Array.from({length: count}, () => "tier1" as GenerationProfile);
+  }
+
+  private requestedSpeciesTiers(options: GenerateRentalOptions, count: number): StageTier[] {
+    return (options.speciesTiers || []).slice(0, count).map(tier => Math.max(1, Math.min(4, Number(tier || 1))) as StageTier);
   }
 
   private randomGenerator(format: string, seedArray: number[]): any {
@@ -1143,6 +1151,14 @@ export class GameService {
 
   private pickSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>): SpeciesPick {
     const rule = this.pickSpeciesTierRule(profile, rng);
+    return this.pickSpeciesByRule(rule, rng, seenSpecies);
+  }
+
+  private pickSpeciesForTier(tier: StageTier, rng: () => number, seenSpecies: Set<string>): SpeciesPick {
+    return this.pickSpeciesByRule({tier, weight: 1, preferNonNfe: true}, rng, seenSpecies);
+  }
+
+  private pickSpeciesByRule(rule: SpeciesTierRule, rng: () => number, seenSpecies: Set<string>): SpeciesPick {
     const tierRows = this.loadTierRows();
     const tierPool = tierRows.filter(row => row.tier === rule.tier);
     const uniquePool = tierPool.filter(row => !seenSpecies.has(row.species_id));
@@ -2258,7 +2274,16 @@ export class BattleSession {
   private currentSideState(side: SideId): PlayerPokemonState[] {
     if (!this.stream?.battle) return [];
     const battleSide = this.stream.battle.sides[side === "p2" ? 1 : 0];
-    const states = battleSide.pokemon.map((pokemon: any, index: number) => pokemonStateFromBattle(pokemon, battleSide, index));
+    const sourceTeam = side === "p2" ? this.enemyTeam : this.playerTeam;
+    const sourceDisplay = side === "p2" ? this.enemyDisplay : this.playerDisplay;
+    const sourceStates = side === "p2" ? undefined : this.initialPlayerState;
+    const states = battleSide.pokemon.map((pokemon: any, index: number) => {
+      const state = pokemonStateFromBattle(pokemon, battleSide, index);
+      state.run_member_id = state.run_member_id
+        || String(sourceTeam[index]?.run_member_id || sourceDisplay[index]?.run_member_id || sourceStates?.[index]?.run_member_id || "").trim()
+        || undefined;
+      return state;
+    });
     return alignStatesToSlots(states, this.slotKeysForSide(side));
   }
 
@@ -2404,6 +2429,8 @@ export class BattleSession {
 
 export class TrainerItemBattleSession extends BattleSession {
   private trainerItemPatchInstalled = false;
+  private trainerItemActionSeq = 0;
+  private lastTrainerItemActionSeq = 0;
 
   async chooseTrainerItem(itemId: string, targetSlot: number, moveSlot?: number): Promise<BattleState> {
     if (!this.stream || this.ended) return this.getState();
@@ -2424,6 +2451,7 @@ export class TrainerItemBattleSession extends BattleSession {
     const itemName = this.service.plain("items", itemId) || itemId;
     assertConsumableEffectCanApplyToBattlePokemon(effect, target, moveSlot);
     this.installTrainerItemAction();
+    const actionSeq = ++this.trainerItemActionSeq;
     side.clearChoice();
     side.choice.actions.push({
       choice: "trainerItem",
@@ -2433,6 +2461,7 @@ export class TrainerItemBattleSession extends BattleSession {
       itemName,
       effect,
       moveSlot,
+      trainerItemActionSeq: actionSeq,
       order: 102,
       priority: 0,
       speed: 1,
@@ -2440,6 +2469,7 @@ export class TrainerItemBattleSession extends BattleSession {
     const enemyRequest = this.latestRequests.p2;
     if (enemyRequest && !enemyRequest.wait) await this.chooseSide("p2", await this.consumeEnemyChoice(enemyRequest));
     else await this.chooseSide("p2", "default");
+    if (this.lastTrainerItemActionSeq !== actionSeq) throw new Error("战斗道具没有成功生效，请重试。");
     this.prepareEnemyChoice();
     return this.getState();
   }
@@ -2452,6 +2482,7 @@ export class TrainerItemBattleSession extends BattleSession {
       if (action?.choice !== "trainerItem") return originalRunAction(action);
       battle.add('-message', `${battlePokemonName(action.target)} 使用了 ${action.itemName}。`);
       applyConsumableEffectToBattlePokemon(battle, action.effect, action.target, action.itemId, action.itemName, action.moveSlot);
+      this.lastTrainerItemActionSeq = Number(action.trainerItemActionSeq || 0);
       return undefined;
     };
     this.trainerItemPatchInstalled = true;
@@ -2475,54 +2506,22 @@ function normalizeShowdownId(value: unknown): string {
 }
 
 function withShowdownSlotIds(team: PokemonSet[] = [], side: SideId): PokemonSet[] {
-  const used = new Set<string>();
-  const nextUnused = (slot: number): string => {
-    for (let offset = 0; offset < 6; offset += 1) {
-      const candidate = battleSlotShowdownId(side, slot + offset);
-      if (!used.has(candidate)) return candidate;
-    }
-    return battleSlotShowdownId(side, slot);
-  };
   return team.map((pokemon, index) => {
-    const existing = normalizeShowdownId(pokemon?.showdown_id);
-    const showdown_id = existing && !used.has(existing) ? existing : nextUnused(index + 1);
-    used.add(showdown_id);
+    const showdown_id = battleSlotShowdownId(side, index + 1);
     return {...pokemon, showdown_id, pokeball: showdown_id};
   });
 }
 
 function withDisplayShowdownIds(display: RentalPokemon[] = [], side: SideId): RentalPokemon[] {
-  const used = new Set<string>();
-  const nextUnused = (slot: number): string => {
-    for (let offset = 0; offset < 6; offset += 1) {
-      const candidate = battleSlotShowdownId(side, slot + offset);
-      if (!used.has(candidate)) return candidate;
-    }
-    return battleSlotShowdownId(side, slot);
-  };
   return display.map((pokemon, index) => {
-    const existing = normalizeShowdownId(pokemon.showdown_id);
-    const fallback = nextUnused(index + 1);
-    const showdown_id = existing && !used.has(existing) ? existing : fallback;
-    used.add(showdown_id);
+    const showdown_id = battleSlotShowdownId(side, index + 1);
     return {...pokemon, showdown_id};
   });
 }
 
 function withStateShowdownIds(states: PlayerPokemonState[] = [], side: SideId): PlayerPokemonState[] {
-  const used = new Set<string>();
-  const nextUnused = (slot: number): string => {
-    for (let offset = 0; offset < 6; offset += 1) {
-      const candidate = battleSlotShowdownId(side, slot + offset);
-      if (!used.has(candidate)) return candidate;
-    }
-    return battleSlotShowdownId(side, slot);
-  };
   return states.map((state, index) => {
-    const existing = normalizeShowdownId(state.showdown_id);
-    const fallback = nextUnused(index + 1);
-    const showdown_id = existing && !used.has(existing) ? existing : fallback;
-    used.add(showdown_id);
+    const showdown_id = battleSlotShowdownId(side, index + 1);
     return {...state, slot: index + 1, showdown_id};
   });
 }
@@ -2906,6 +2905,7 @@ function pokemonCondition(pokemon: any): string {
 function pokemonStateFromBattle(pokemon: any, battleSide: any, index: number): PlayerPokemonState {
   const showdownId = normalizeShowdownId(pokemon?.pokeball || pokemon?.set?.showdown_id || pokemon?.set?.pokeball);
   return {
+    run_member_id: String(pokemon?.set?.run_member_id || "").trim() || undefined,
     slot: index + 1,
     showdown_id: showdownId || undefined,
     ident: pokemon.fullname,
@@ -3176,6 +3176,7 @@ function isIgnoredProtocolTag(tag: string): boolean {
     "inactiveoff",
     "debug",
     "-center",
+    "-anim",
   ].includes(tag);
 }
 
@@ -3225,6 +3226,15 @@ function parseConditionHp(condition: string | undefined): BattleTimelineEvent["h
   const match = String(condition || "").match(/(\d+)\/(\d+)/);
   if (!match) return null;
   return {current: Number(match[1]), max: Number(match[2]), text: `${match[1]}/${match[2]}`};
+}
+
+function setHpCondition(raw: string | undefined, before: BattleTimelineEvent["hp"]): string {
+  const value = String(raw || "");
+  if (!value) return "";
+  if (parseConditionHp(value) || /\bfnt\b/i.test(value)) return value;
+  const current = Number(value);
+  if (Number.isFinite(current) && before?.max) return `${Math.max(0, current)}/${before.max}`;
+  return value;
 }
 
 function translatedSpecies(service: GameService, ident: string | undefined): string {
@@ -3335,15 +3345,39 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
         pendingEffectiveness = [];
       }
     } else if (tag === "-sethp" && parts[2] && parts[3]) {
-      const side = sideFromIdent(parts[2]);
-      const target = translatedSpecies(service, parts[2]);
-      const before = side ? parseConditionHp(tracker.active[side].condition) : null;
-      const current = Number(parts[3]);
-      const condition = before ? `${current}/${before.max}` : parts[3];
-      if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], condition};
-      const eventType = before && current > before.current ? "heal" : "damage";
-      text = `${target} HP 变为 ${condition}`;
-      timelineEvent = {type: eventType, text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), condition, hp: parseConditionHp(condition)};
+      const setHpEvents: Array<{text: string; event: ParsedTimelineEvent}> = [];
+      for (let partIndex = 2; partIndex + 1 < parts.length; partIndex += 2) {
+        const rawTarget = parts[partIndex];
+        const rawHp = parts[partIndex + 1];
+        const side = sideFromIdent(rawTarget);
+        if (!side || !rawHp || rawHp.startsWith("[")) break;
+        const target = translatedSpecies(service, rawTarget);
+        const before = parseConditionHp(tracker.active[side].condition);
+        const condition = setHpCondition(rawHp, before);
+        const hp = parseConditionHp(condition);
+        if (isActiveIdent(tracker, side, rawTarget)) tracker.active[side] = {...tracker.active[side], condition};
+        const eventType = before && hp && hp.current > before.current ? "heal" : "damage";
+        const eventText = `${target} HP 变为 ${service.conditionText(condition)}`;
+        setHpEvents.push({
+          text: eventText,
+          event: {
+            type: eventType,
+            text: eventText,
+            turn: tracker.turn,
+            targetSide: side,
+            target,
+            target_id: shortIdent(rawTarget),
+            target_showdown_id: runtimeShowdownIdForIdent(requests, tracker, side, rawTarget, condition, lineShowdownIds?.get(line)),
+            condition,
+            hp,
+          },
+        });
+      }
+      if (setHpEvents.length) {
+        text = setHpEvents[0].text;
+        timelineEvent = setHpEvents[0].event;
+        afterEvents = setHpEvents.slice(1);
+      }
     } else if (tag === "-status" && parts[2] && parts[3]) {
       const side = sideFromIdent(parts[2]);
       updateActiveStatusToken(tracker, side, parts[2], parts[3], true);
@@ -3634,6 +3668,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
     }
 
     if (text !== null) {
+      if (timelineEvent) timelineEvent.turn = tracker.turn;
       if (timelineEvent) attachTimelineShowdownIds(timelineEvent, line, tag, parts, tracker, requests, lineShowdownIds);
       if (protocolDebugEnabled() && timelineEvent && ["switch", "drag", "-heal", "-damage"].includes(tag)) {
         battleLogLine("timeline", tag || "event", {line, text, timelineEvent, active: tracker.active});

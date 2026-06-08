@@ -9,6 +9,7 @@ import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgr
 
 const BATTLE_BACKGROUNDS = parseBattleBackgroundCsv(battleBackgroundCsv);
 const FALLBACK_BATTLE_BACKGROUND = BATTLE_BACKGROUNDS.find(background => background.id === "mountain-route") || BATTLE_BACKGROUNDS[0];
+const BATTLE_PANEL_MODES = new Set<AppStatus>(["battleMain", "moveMenu", "teamMenu", "statusMenu"]);
 
 function parseBattleBackgroundCsv(csv: string): BattleBackgroundView[] {
   return csv.trim().split(/\r?\n/).slice(1).map(line => {
@@ -87,7 +88,7 @@ function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
   return <div className={`battle-effect-layer anchor-${cue.anchor} side-${cue.side || "none"} target-${cue.targetSide || "none"}`} style={style}>{content}</div>;
 }
 
-export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePending, pendingTransition, onBattleAnimationDone}: {battle: BattleState | null; battleBag: BagCategoryView | null; mode: AppStatus; setMode: (mode: AppStatus) => void; onChoice: (choice: string) => void; choicePending?: boolean; pendingTransition: DesktopGameState | null; onBattleAnimationDone: (state: DesktopGameState) => void}) {
+export function BattleView({battle, battleBag, mode, onChoice, choicePending, pendingTransition, onBattleAnimationDone}: {battle: BattleState | null; battleBag: BagCategoryView | null; mode: AppStatus; setMode: (mode: AppStatus) => void; onChoice: (choice: string) => Promise<boolean> | boolean | void; choicePending?: boolean; pendingTransition: DesktopGameState | null; onBattleAnimationDone: (state: DesktopGameState) => void}) {
   const player = activePokemon(battle, "p1");
   const enemy = activePokemon(battle, "p2");
   const finalConditions = {
@@ -132,6 +133,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const [itemTargetIndex, setItemTargetIndex] = useState(0);
   const [battleItemOpen, setBattleItemOpen] = useState(false);
   const [battleItemToast, setBattleItemToast] = useState<{id: number; message: string} | null>(null);
+  const [panelMode, setPanelMode] = useState<AppStatus>(BATTLE_PANEL_MODES.has(mode) ? mode : "battleMain");
   const previousTimelineKeys = useRef<string[]>([]);
   const previousRecentEvents = useRef<string[]>([]);
   const displayConditionsRef = useRef(displayConditions);
@@ -146,6 +148,10 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const battleLogRef = useRef<HTMLDivElement | null>(null);
   const playbackRun = useRef(0);
   const finishRequested = useRef(false);
+
+  function selectPanelMode(nextMode: AppStatus) {
+    setPanelMode(BATTLE_PANEL_MODES.has(nextMode) ? nextMode : "battleMain");
+  }
 
   function selectedDialogueGroupIndex(activeBattle: BattleState | null): number | undefined {
     if (!activeBattle) return undefined;
@@ -205,6 +211,15 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
     }
   }, [Boolean(battle)]);
 
+  useEffect(() => {
+    if (mode !== "battleMain" && BATTLE_PANEL_MODES.has(mode)) setPanelMode(mode);
+  }, [mode]);
+
+  useEffect(() => {
+    const hasMoves = Boolean(battle?.request?.active?.[0]?.moves?.length);
+    if (battle?.request?.forceSwitch || (panelMode === "moveMenu" && !hasMoves)) setPanelMode("battleMain");
+  }, [battle?.request?.forceSwitch, battle?.request?.active?.[0]?.moves?.length, panelMode]);
+
   function playerWonBattle(activeBattle: BattleState): boolean {
     const winner = String(activeBattle.winner || "").toLowerCase();
     if (!winner || winner === "tie") return false;
@@ -219,7 +234,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
     const moment: TrainerDialogueMoment = playerWonBattle(activeBattle) ? "defeat" : "victory";
     setDetailIndex(null);
     setBattleItemOpen(false);
-    setMode("battleMain");
+    selectPanelMode("battleMain");
     setIntroActive(false);
     setTrainerIntroActive(true);
     setDialogue({
@@ -425,7 +440,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const enemyParty = enemyPartySlots(battle, displayedActiveNames.p2 || battle.tracker.active.p2.species_id || battle.tracker.active.p2.name || "", displayConditions.p2, battle.tracker.active.p2.status || "");
   const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"]) : 1600;
   const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
-  const detailOpen = detailIndex !== null || mode === "teamMenu";
+  const detailOpen = detailIndex !== null || panelMode === "teamMenu";
   const detailInitialIndex = detailIndex ?? activePlayerIndex;
   const trainerOverlayBattle = dialogue ? {...battle, player_trainer: dialogue.playerTrainer || battle.player_trainer, enemy_trainer: dialogue.trainer || battle.enemy_trainer, enemy_boss_record: dialogue.bossRecord || battle.enemy_boss_record} : battle;
   const battleBackground = battleBackgroundFor(battle);
@@ -433,7 +448,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const battleFieldStyle = battleBackgroundUrl ? {"--battle-background-image": `url("${battleBackgroundUrl}")`} as CSSProperties : undefined;
   return (
     <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
-      {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => setMode("statusMenu")} /> : null}
+      {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => selectPanelMode("statusMenu")} /> : null}
       <section className={`battle-field ${battleBackgroundUrl ? "has-battle-background" : ""} ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`} style={battleFieldStyle}>
         <div className="battle-platforms" aria-hidden="true">
           <i className="battle-platform player-platform" />
@@ -451,19 +466,26 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
         <FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} onClick={() => setDetailIndex(activePlayerIndex)} />
         {currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}
       </section>
-      <section className={`battle-bottom ${dialogue ? "dialogue-bottom-active" : ""} ${mode === "moveMenu" && !dialogue ? "move-bottom-active" : ""}`}>
+      <section className={`battle-bottom ${dialogue ? "dialogue-bottom-active" : ""} ${panelMode === "moveMenu" && !dialogue ? "move-bottom-active" : ""}`}>
         {dialogue ? (
           <BattleDialogueBox dialogue={dialogue} />
         ) : (
           <>
             <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
-            <div className={`battle-action-panel ${mode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{mode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => setMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={setMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onForfeit={() => onChoice("forfeit")} />}</div>
+            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onForfeit={() => onChoice("forfeit")} />}</div>
           </>
         )}
       </section>
-      {mode === "statusMenu" && !dialogue ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}
-      {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { setDetailIndex(null); if (mode === "teamMenu") setMode("battleMain"); }} /> : null}
-      {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} disabled={controlsDisabled} onClose={() => setBattleItemOpen(false)} onUse={(itemId, target, moveSlot, notice) => { setBattleItemOpen(false); if (notice) setBattleItemToast({id: Date.now(), message: notice}); onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`); }} /> : null}
+      {panelMode === "statusMenu" && !dialogue ? <StatusModal battle={battle} onBack={() => selectPanelMode("battleMain")} /> : null}
+      {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { setDetailIndex(null); if (panelMode === "teamMenu") selectPanelMode("battleMain"); }} /> : null}
+      {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} disabled={controlsDisabled} onClose={() => setBattleItemOpen(false)} onUse={async (itemId, target, moveSlot, notice) => {
+        const ok = await onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`);
+        if (ok) {
+          setBattleItemOpen(false);
+          if (notice) setBattleItemToast({id: Date.now(), message: notice});
+        }
+        return Boolean(ok);
+      }} /> : null}
       {battleItemToast ? <ScreenToast key={battleItemToast.id} message={battleItemToast.message} durationMs={1200} onDone={() => setBattleItemToast(null)} /> : null}
     </div>
   );
@@ -817,10 +839,11 @@ function ppMoveOptionsFor(display: RentalPokemon | undefined, activeMoves: Battl
   }));
 }
 
-function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}: {battle: BattleState; bag: BagCategoryView | null; initialTarget: number; disabled?: boolean; onClose: () => void; onUse: (itemId: string, target: number, moveSlot?: number, notice?: string) => void}) {
+function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}: {battle: BattleState; bag: BagCategoryView | null; initialTarget: number; disabled?: boolean; onClose: () => void; onUse: (itemId: string, target: number, moveSlot?: number, notice?: string) => Promise<boolean> | boolean | void}) {
   const [target, setTarget] = useState(Math.max(0, initialTarget));
   const [itemId, setItemId] = useState("");
   const [ppPicker, setPpPicker] = useState<{item: BagItemView; target: number} | null>(null);
+  const [usingItem, setUsingItem] = useState(false);
   const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
   const items = bag?.consumable || [];
   const selected = items.find(item => item.id === itemId) || items[0];
@@ -836,8 +859,8 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
     setToast({id: Date.now(), message, tone});
   }
 
-  function submitSelectedItem() {
-    if (!selected) return;
+  async function submitSelectedItem() {
+    if (!selected || usingItem) return;
     if (selectedNeedsMove) {
       if (!ppMoveOptions.length) {
         showToast("这个目标没有可选择的技能。", "danger");
@@ -846,22 +869,34 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
       setPpPicker({item: selected, target});
       return;
     }
-    onUse(selected.id, target);
+    setUsingItem(true);
+    try {
+      const ok = await onUse(selected.id, target);
+      if (ok === false) showToast("道具没有成功使用。", "danger");
+    } finally {
+      setUsingItem(false);
+    }
   }
 
-  function submitPpMove(move: BattlePpMoveOption) {
-    if (!ppPicker) return;
-    onUse(ppPicker.item.id, ppPicker.target, move.slot, `${move.name} 已恢复`);
+  async function submitPpMove(move: BattlePpMoveOption) {
+    if (!ppPicker || usingItem) return;
+    setUsingItem(true);
+    try {
+      const ok = await onUse(ppPicker.item.id, ppPicker.target, move.slot, `${move.name} 已恢复`);
+      if (ok === false) showToast("道具没有成功使用。", "danger");
+    } finally {
+      setUsingItem(false);
+    }
   }
 
   return (
     <div className="modal-layer">
       <section className="shop-modal bag-manage-modal bag-flat-modal battle-bag-modal">
-        <header><div><h2>战斗背包</h2><p>战斗中只能使用消耗类道具。</p></div><button onClick={onClose}>关闭</button></header>
+        <header><div><h2>战斗背包</h2><p>战斗中只能使用消耗类道具。</p></div><button disabled={usingItem} onClick={onClose}>关闭</button></header>
         <div className="bag-manage-layout battle-bag-layout">
           <div className="bag-flat-grid battle-bag-item-grid">
             {items.length ? items.map(item => (
-              <button className={`bag-flat-item battle-bag-item ${selected?.id === item.id ? "selected" : ""}`} onClick={() => setItemId(item.id)} key={item.id}>
+              <button className={`bag-flat-item battle-bag-item ${selected?.id === item.id ? "selected" : ""}`} disabled={usingItem} onClick={() => setItemId(item.id)} key={item.id}>
                 <ItemIcon item={item} />
                 <span>
                   <strong>{item.name_zh || item.name}</strong>
@@ -879,7 +914,7 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
                 {rows.map((entry, index) => {
                   const display = displayForRuntime(battle.player_display, entry, index);
                   return (
-                    <button className={target === index ? "selected" : ""} onClick={() => setTarget(index)} key={`${entry.ident}-item-target`}>
+                    <button className={target === index ? "selected" : ""} disabled={usingItem} onClick={() => setTarget(index)} key={`${entry.ident}-item-target`}>
                       <PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} />
                       <span>{display ? displayName(display) : runtimeName(entry)}</span>
                       <small>{conditionText(entry.condition)}</small>
@@ -888,7 +923,7 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
                 })}
               </div>
               <p className="battle-bag-target-summary">{targetDisplay ? `目标：${displayName(targetDisplay)}` : "选择目标宝可梦"}{selectedNeedsMove ? "　使用后选择技能" : ""}</p>
-              <div className="command-row"><button disabled={disabled} onClick={submitSelectedItem}>{selectedNeedsMove ? "选择技能" : "使用道具"}</button></div>
+              <div className="command-row"><button disabled={disabled || usingItem} onClick={submitSelectedItem}>{usingItem ? "使用中..." : selectedNeedsMove ? "选择技能" : "使用道具"}</button></div>
             </> : <p>当前没有可在战斗中使用的消耗道具。</p>}
           </section>
         </div>
@@ -900,14 +935,14 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
                   <h3>选择恢复的技能</h3>
                   <p>{targetDisplay ? displayName(targetDisplay) : "目标宝可梦"} / {ppPicker.item.name_zh || ppPicker.item.name}</p>
                 </div>
-                <button onClick={() => setPpPicker(null)}>关闭</button>
+                <button disabled={usingItem} onClick={() => setPpPicker(null)}>关闭</button>
               </header>
               <div className="battle-pp-picker-grid">
                 {ppMoveOptions.map(move => {
                   const ppKnown = typeof move.pp === "number" && typeof move.maxpp === "number";
                   const isFull = ppKnown && move.pp! >= move.maxpp!;
                   return (
-                    <button className="battle-pp-skill-card" disabled={disabled || isFull} onClick={() => submitPpMove(move)} key={move.key}>
+                    <button className="battle-pp-skill-card" disabled={disabled || usingItem || isFull} onClick={() => submitPpMove(move)} key={move.key}>
                       <strong>{move.name}</strong>
                       <span>{move.typeLabel || "技能"}</span>
                       <small>{ppKnown ? `PP ${move.pp}/${move.maxpp}` : `PP --/${move.maxpp ?? "?"}`}</small>

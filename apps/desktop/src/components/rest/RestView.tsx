@@ -844,6 +844,7 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
             </article>
           )) : revealed && offers.length ? offers.map(item => {
             const purchaseCount = Number(shop?.purchased_offer_counts?.[item.offer_id] || (shop?.purchased_offer_id === item.offer_id ? 1 : 0));
+            const itemPurchaseCount = Number(shop?.purchased_item_counts?.[toId(item.id || item.name)] || 0);
             const isBonus = bonus?.item_id === toId(item.id || item.name);
             const itemCost = Number(item.cost || 0);
             const canAffordItem = Number(rest.coins || 0) >= itemCost;
@@ -854,7 +855,7 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
                 <div>
                   <strong>{item.name_zh || item.name}</strong>
                   <small>{item.desc_zh || item.desc || item.name}</small>
-                  <span><em>{itemCategoryLabel(item.category)}</em><b>{coinCostLabel(item.cost)}</b>{isBonus ? <i>{bonus?.match_count} 连</i> : null}{purchaseCount ? <i>已买 x{purchaseCount}</i> : null}</span>
+                  <span><em>{itemCategoryLabel(item.category)}</em><b>{coinCostLabel(item.cost)}</b>{isBonus ? <i>{bonus?.match_count} 连</i> : null}{purchaseCount ? <i>已买 x{purchaseCount}</i> : itemPurchaseCount ? <i>同道具 x{itemPurchaseCount}</i> : null}</span>
                 </div>
                 <button disabled={Boolean(buyingOfferId) || !canAffordItem} onClick={() => buy(item.offer_id)}>{isBuying ? "购买中" : purchaseCount ? "再买" : "购买"}</button>
               </article>

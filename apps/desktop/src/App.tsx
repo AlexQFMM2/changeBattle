@@ -406,12 +406,12 @@ function RoutedApp() {
     });
   }
 
-  async function battleChoice(choice: string) {
-    if (battleChoicePendingRef.current) return;
+  async function battleChoice(choice: string): Promise<boolean> {
+    if (battleChoicePendingRef.current) return false;
     battleChoicePendingRef.current = true;
     setBattleChoicePending(true);
     try {
-      await runAction(() => window.changeBattle!.battleChoice(choice), undefined, false);
+      return await runAction(() => window.changeBattle!.battleChoice(choice), undefined, false);
     } finally {
       battleChoicePendingRef.current = false;
       setBattleChoicePending(false);

@@ -6,13 +6,13 @@
 
 ## 目前的随机规则
 
-生成一只宝可梦时会先决定它的数值分级，也就是 `generation_profile` / `stage_tier`，再根据这个 profile 去抽物种分级 `species_tier`。最终强度大概是：
+生成一只宝可梦时会先决定它的数值分级，也就是 `generation_profile` / `stage_tier`；部分场景还会单独指定物种分级 `species_tier`。最终强度大概是：
 
 ```text
 最终强度 = 数值分级强度 × 物种分级强度 × Showdown randomSet 招式/特性/道具质量
 ```
 
-开局候选按当前连胜数分配数值分级：
+开局候选按当前连续通关数分配数值分级：
 
 ```text
 0 连胜:
@@ -23,6 +23,19 @@
 
 2+ 连胜:
   tier1, tier2, tier2, tier3, tier3, tier3
+```
+
+开局候选的物种分级现在和数值分级分开指定，避免高周目仍大量抽到低档物种：
+
+```text
+0 连胜:
+  species tier1, tier2, tier2, tier3, tier3, tier3
+
+1 连胜:
+  species tier2, tier2, tier3, tier3, tier3, tier4
+
+2+ 连胜:
+  species tier2, tier3, tier3, tier4, tier4, tier4
 ```
 
 普通敌人按下一场 Boss 阶段分配数值分级：
@@ -54,7 +67,7 @@ Boss 按路线分配数值分级。馆主、四天王、冠军这类 Boss 角色
   champion, champion, champion
 ```
 
-开局候选和普通敌人在没有指定固定物种时，数值分级不一定只抽同档物种。当前 profile 到物种分级的抽取权重是：
+普通敌人在没有指定固定物种、也没有显式指定物种分级时，数值分级不一定只抽同档物种。当前 profile 到物种分级的抽取权重是：
 
 ```text
 profile tier1:
