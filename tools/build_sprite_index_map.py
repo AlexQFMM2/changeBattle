@@ -19,6 +19,7 @@ DEFAULT_ASSET_BASE = 'assets/pokemon-green/pokemon'
 DEFAULT_SHOWDOWN_ASSET_BASE = 'assets/pokemon-showdown'
 DEFAULT_SHOWDOWN_SPRITE_BASE = 'https://play.pokemonshowdown.com/sprites'
 DEFAULT_CSV = Path('data/sprite_index_map.csv')
+DEFAULT_POKEMON_PACK_MANIFEST = Path('data/pokemon_pack_manifest.json')
 
 
 def load_showdown_species(showdown_path: Path) -> list[dict]:
@@ -145,6 +146,12 @@ def read_csv_map(csv_path: Path) -> dict[str, dict[str, str]]:
         return {row['species_id']: row for row in csv.DictReader(f) if row.get('species_id')}
 
 
+def read_pokemon_pack_manifest(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description='Build sprite_index_map.json from Showdown species data')
     parser.add_argument('--showdown-path', type=Path, default=DEFAULT_SHOWDOWN_PATH)
@@ -156,6 +163,7 @@ def main() -> int:
     parser.add_argument('--sprite-base-url', default=DEFAULT_SHOWDOWN_SPRITE_BASE)
     parser.add_argument('--source', choices=['showdown', 'green-gba'], default='showdown')
     parser.add_argument('--sprite-location', choices=['local', 'remote'], default='local')
+    parser.add_argument('--pokemon-pack-manifest', type=Path, default=DEFAULT_POKEMON_PACK_MANIFEST)
     parser.add_argument('--max-index', type=int, default=1199)
     args = parser.parse_args()
 
@@ -164,9 +172,12 @@ def main() -> int:
         write_csv_template(args.csv, species_rows, args.asset_base)
         print(f'wrote {args.csv}')
     csv_map = read_csv_map(args.csv)
+    pack_manifest = read_pokemon_pack_manifest(args.pokemon_pack_manifest)
+    pack_species = pack_manifest.get('species') or {}
     entries: dict[str, dict] = {}
     csv_count = 0
     fallback_count = 0
+    pack_override_count = 0
     skipped: list[dict] = []
 
     for species in species_rows:
@@ -198,6 +209,24 @@ def main() -> int:
         else:
             csv_count += 1
         showdown_base = args.showdown_asset_base if args.sprite_location == 'local' else args.sprite_base_url
+        base_paths = showdown_sprite_paths(showdown_base, species.get('spriteid') or species['id']) \
+            if args.source == 'showdown' \
+            else sprite_paths_from_image(args.asset_base, sprite_index, image)
+        pack_entry = pack_species.get(species['id']) or {}
+        pack_paths = pack_entry.get('paths') or {}
+        paths = dict(base_paths)
+        used_pack = False
+        for variant in ['front_normal', 'back_normal', 'front_shiny', 'back_shiny', 'front_normal_full', 'front_shiny_full']:
+            source_variant = variant
+            if variant == 'front_normal_full':
+                source_variant = 'front_normal'
+            elif variant == 'front_shiny_full':
+                source_variant = 'front_shiny'
+            if pack_paths.get(source_variant):
+                paths[variant] = pack_paths[source_variant]
+                used_pack = True
+        if used_pack:
+            pack_override_count += 1
         entries[species['id']] = {
             'species_id': species['id'],
             'name': species['name'],
@@ -205,14 +234,20 @@ def main() -> int:
             'sprite_index': sprite_index,
             'base_species': species.get('baseSpecies') or species['name'],
             'forme': species.get('forme') or '',
-            'confidence': confidence,
-            'source': 'pokemon-showdown:spriteid' if args.source == 'showdown' else f'{args.csv}',
+            'confidence': f'pokemon-pack:{pack_entry.get("confidence")}' if used_pack else confidence,
+            'source': 'pokemon-pack+pokemon-showdown:fallback' if used_pack and args.source == 'showdown' else ('pokemon-showdown:spriteid' if args.source == 'showdown' else f'{args.csv}'),
             'sprite_id': species.get('spriteid') or species['id'],
             'note': row.get('note') or '',
-            'paths': showdown_sprite_paths(showdown_base, species.get('spriteid') or species['id'])
-                if args.source == 'showdown'
-                else sprite_paths_from_image(args.asset_base, sprite_index, image),
+            'paths': paths,
         }
+        if used_pack:
+            entries[species['id']]['fallback_paths'] = base_paths
+            if pack_paths.get('icon'):
+                entries[species['id']]['icon_asset'] = pack_paths['icon']
+            if pack_paths.get('icon_shiny'):
+                entries[species['id']]['icon_shiny_asset'] = pack_paths['icon_shiny']
+            if pack_entry.get('cry_asset'):
+                entries[species['id']]['cry_asset'] = pack_entry['cry_asset']
 
     payload = {
         'version': 1,
@@ -234,6 +269,7 @@ def main() -> int:
             'entries': len(entries),
             'csv_or_generated_base': csv_count,
             'base_species_fallback': fallback_count,
+            'pokemon_pack_overrides': pack_override_count,
             'skipped': len(skipped),
         },
         'entries': entries,

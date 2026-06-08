@@ -85,9 +85,10 @@ function save(bp: number): LocalSave {
 
 function testTalentCatalog(): void {
   assert.equal(TALENT_EQUIP_LIMIT, 5);
-  assert.equal(TALENTS.length, 27);
+  assert.equal(TALENTS.length, 28);
   assert.deepEqual(TALENTS.filter(entry => entry.disabled).map(entry => entry.id), []);
   assert.equal(talent("starter_angel_fund").name, "天使基金");
+  assert.equal(talent("exchange_stalwart").cost, 20);
   assert.equal(talent("growth_all_in").name, "孤注一掷");
   assert.throws(() => talent("exchange_safe_box"));
   assert.throws(() => talent("prophet_next_scout"));

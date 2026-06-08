@@ -1,1189 +1,1189 @@
-species_id,species,base_species,types,bst,random_battle_level,score,tier,override_tier,source,notes
-wishiwashi,Wishiwashi,Wishiwashi,Water,175,89,253,1,,showdown-randbats+auto-score,
-blipbug,Blipbug,Blipbug,Bug,180,,135,1,,auto-score,nfe
-sunkern,Sunkern,Sunkern,Grass,180,,135,1,,auto-score,nfe
-snom,Snom,Snom,Ice|Bug,185,,140,1,,auto-score,nfe
-azurill,Azurill,Azurill,Normal|Fairy,190,,145,1,,auto-score,nfe
-kricketot,Kricketot,Kricketot,Bug,194,,149,1,,auto-score,nfe
-caterpie,Caterpie,Caterpie,Bug,195,,150,1,,auto-score,nfe
-weedle,Weedle,Weedle,Bug|Poison,195,,150,1,,auto-score,nfe
-wurmple,Wurmple,Wurmple,Bug,195,,150,1,,auto-score,nfe
-ralts,Ralts,Ralts,Psychic|Fairy,198,,153,1,,auto-score,nfe
-cosmog,Cosmog,Cosmog,Psychic,200,,155,1,,auto-score,nfe
-feebas,Feebas,Feebas,Water,200,,155,1,,auto-score,nfe
-magikarp,Magikarp,Magikarp,Water,200,,155,1,,auto-score,nfe
-scatterbug,Scatterbug,Scatterbug,Bug,200,,155,1,,auto-score,nfe
-cascoon,Cascoon,Cascoon,Bug,205,,160,1,,auto-score,nfe
-kakuna,Kakuna,Kakuna,Bug|Poison,205,,160,1,,auto-score,nfe
-metapod,Metapod,Metapod,Bug,205,,160,1,,auto-score,nfe
-pichu,Pichu,Pichu,Electric,205,,160,1,,auto-score,nfe
-pichuspikyeared,Pichu-Spiky-eared,Pichu,Electric,205,,250,1,,auto-score,
-silcoon,Silcoon,Silcoon,Bug,205,,160,1,,auto-score,nfe
-bounsweet,Bounsweet,Bounsweet,Grass,210,,165,1,,auto-score,nfe
-igglybuff,Igglybuff,Igglybuff,Normal|Fairy,210,,165,1,,auto-score,nfe
-nymble,Nymble,Nymble,Bug,210,,165,1,,auto-score,nfe
-tarountula,Tarountula,Tarountula,Bug,210,,165,1,,auto-score,nfe
-tyrogue,Tyrogue,Tyrogue,Fighting,210,,165,1,,auto-score,nfe
-wooper,Wooper,Wooper,Water|Ground,210,,165,1,,auto-score,nfe
-wooperpaldea,Wooper-Paldea,Wooper,Poison|Ground,210,,165,1,,auto-score,nfe
-spewpa,Spewpa,Spewpa,Bug,213,,168,1,,auto-score,nfe
-sentret,Sentret,Sentret,Normal,215,,170,1,,auto-score,nfe
-cleffa,Cleffa,Cleffa,Fairy,218,,173,1,,auto-score,nfe
-happiny,Happiny,Happiny,Normal,220,,175,1,,auto-score,nfe
-lotad,Lotad,Lotad,Water|Grass,220,,175,1,,auto-score,nfe
-poochyena,Poochyena,Poochyena,Dark,220,,175,1,,auto-score,nfe
-seedot,Seedot,Seedot,Grass,220,,175,1,,auto-score,nfe
-burmy,Burmy,Burmy,Bug,224,,179,1,,auto-score,nfe
-wimpod,Wimpod,Wimpod,Bug|Water,230,,185,1,,auto-score,nfe
-bunnelby,Bunnelby,Bunnelby,Normal,237,,192,1,,auto-score,nfe
-makuhita,Makuhita,Makuhita,Fighting,237,,192,1,,auto-score,nfe
-pawmi,Pawmi,Pawmi,Electric,240,,195,1,,auto-score,nfe
-rolycoly,Rolycoly,Rolycoly,Rock,240,,195,1,,auto-score,nfe
-whismur,Whismur,Whismur,Normal,240,,195,1,,auto-score,nfe
-zigzagoon,Zigzagoon,Zigzagoon,Normal,240,,195,1,,auto-score,nfe
-zigzagoongalar,Zigzagoon-Galar,Zigzagoon,Dark|Normal,240,,195,1,,auto-score,nfe
-toxel,Toxel,Toxel,Electric|Poison,242,,197,1,,auto-score,nfe
-combee,Combee,Combee,Bug|Flying,244,,199,1,,auto-score,nfe
-nickit,Nickit,Nickit,Dark,245,,200,1,,auto-score,nfe
-noibat,Noibat,Noibat,Flying|Dragon,245,,200,1,,auto-score,nfe
-rookidee,Rookidee,Rookidee,Flying,245,,200,1,,auto-score,nfe
-starly,Starly,Starly,Normal|Flying,245,,200,1,,auto-score,nfe
-togepi,Togepi,Togepi,Fairy,245,,200,1,,auto-score,nfe
-wiglett,Wiglett,Wiglett,Water,245,,200,1,,auto-score,nfe
-zubat,Zubat,Zubat,Poison|Flying,245,,200,1,,auto-score,nfe
-bidoof,Bidoof,Bidoof,Normal,250,,205,1,,auto-score,nfe
-fomantis,Fomantis,Fomantis,Grass,250,,205,1,,auto-score,nfe
-gossifleur,Gossifleur,Gossifleur,Grass,250,,205,1,,auto-score,nfe
-hoppip,Hoppip,Hoppip,Grass|Flying,250,,205,1,,auto-score,nfe
-marill,Marill,Marill,Water|Fairy,250,,205,1,,auto-score,nfe
-slugma,Slugma,Slugma,Fire,250,,205,1,,auto-score,nfe
-spinarak,Spinarak,Spinarak,Bug|Poison,250,,205,1,,auto-score,nfe
-swinub,Swinub,Swinub,Ice|Ground,250,,205,1,,auto-score,nfe
-pidgey,Pidgey,Pidgey,Normal|Flying,251,,206,1,,auto-score,nfe
-rattata,Rattata,Rattata,Normal,253,,208,1,,auto-score,nfe
-rattataalola,Rattata-Alola,Rattata,Dark|Normal,253,,208,1,,auto-score,nfe
-yungoos,Yungoos,Yungoos,Normal,253,,208,1,,auto-score,nfe
-lechonk,Lechonk,Lechonk,Normal,254,,209,1,,auto-score,nfe
-charcadet,Charcadet,Charcadet,Fire,255,,210,1,,auto-score,nfe
-flittle,Flittle,Flittle,Psychic,255,,210,1,,auto-score,nfe
-patrat,Patrat,Patrat,Normal,255,,210,1,,auto-score,nfe
-applin,Applin,Applin,Grass|Dragon,260,,215,1,,auto-score,nfe
-skitty,Skitty,Skitty,Normal,260,,215,1,,auto-score,nfe
-smoliv,Smoliv,Smoliv,Grass|Normal,260,,215,1,,auto-score,nfe
-venipede,Venipede,Venipede,Bug|Poison,260,,215,1,,auto-score,nfe
-wynaut,Wynaut,Wynaut,Psychic,260,,215,1,,auto-score,nfe
-hoothoot,Hoothoot,Hoothoot,Normal|Flying,262,,217,1,,auto-score,nfe
-spearow,Spearow,Spearow,Normal|Flying,262,,217,1,,auto-score,nfe
-shinx,Shinx,Shinx,Electric,263,,218,1,,auto-score,nfe
-pidove,Pidove,Pidove,Normal|Flying,264,,219,1,,auto-score,nfe
-diglett,Diglett,Diglett,Ground,265,,220,1,,auto-score,nfe
-diglettalola,Diglett-Alola,Diglett,Ground|Steel,265,,220,1,,auto-score,nfe
-hatenna,Hatenna,Hatenna,Psychic,265,,220,1,,auto-score,nfe
-impidimp,Impidimp,Impidimp,Dark|Fairy,265,,220,1,,auto-score,nfe
-ledyba,Ledyba,Ledyba,Bug|Flying,265,,220,1,,auto-score,nfe
-pikipek,Pikipek,Pikipek,Normal|Flying,265,,220,1,,auto-score,nfe
-nincada,Nincada,Nincada,Bug|Ground,266,,221,1,,auto-score,nfe
-dewpider,Dewpider,Dewpider,Water|Bug,269,,224,1,,auto-score,nfe
-surskit,Surskit,Surskit,Bug|Water,269,,224,1,,auto-score,nfe
-dreepy,Dreepy,Dreepy,Dragon|Ghost,270,,225,1,,auto-score,nfe
-jigglypuff,Jigglypuff,Jigglypuff,Normal|Fairy,270,,225,1,,auto-score,nfe
-milcery,Milcery,Milcery,Fairy,270,,225,1,,auto-score,nfe
-rellor,Rellor,Rellor,Bug,270,,225,1,,auto-score,nfe
-taillow,Taillow,Taillow,Normal|Flying,270,,225,1,,auto-score,nfe
-wingull,Wingull,Wingull,Water|Flying,270,,225,1,,auto-score,nfe
-wooloo,Wooloo,Wooloo,Normal,270,,225,1,,auto-score,nfe
-yamper,Yamper,Yamper,Electric,270,,225,1,,auto-score,nfe
-tadbulb,Tadbulb,Tadbulb,Electric,272,,227,1,,auto-score,nfe
-nidoranm,Nidoran-M,Nidoran-M,Poison,273,,228,1,,auto-score,nfe
-bramblin,Bramblin,Bramblin,Grass|Ghost,275,,230,1,,auto-score,nfe
-cherubi,Cherubi,Cherubi,Grass,275,,230,1,,auto-score,nfe
-lillipup,Lillipup,Lillipup,Normal,275,,230,1,,auto-score,nfe
-litwick,Litwick,Litwick,Ghost|Fire,275,,230,1,,auto-score,nfe
-nidoranf,Nidoran-F,Nidoran-F,Poison,275,,230,1,,auto-score,nfe
-skwovet,Skwovet,Skwovet,Normal,275,,230,1,,auto-score,nfe
-tynamo,Tynamo,Tynamo,Electric,275,,230,1,,auto-score,nfe
-fletchling,Fletchling,Fletchling,Normal|Flying,278,,233,1,,auto-score,nfe
-kirlia,Kirlia,Kirlia,Psychic|Fairy,278,,233,1,,auto-score,nfe
-arrokuda,Arrokuda,Arrokuda,Water,280,,235,1,,auto-score,nfe
-budew,Budew,Budew,Grass|Poison,280,,235,1,,auto-score,nfe
-cottonee,Cottonee,Cottonee,Grass|Fairy,280,,235,1,,auto-score,nfe
-mareep,Mareep,Mareep,Electric,280,,235,1,,auto-score,nfe
-meditite,Meditite,Meditite,Fighting|Psychic,280,,235,1,,auto-score,nfe
-nacli,Nacli,Nacli,Rock,280,,235,1,,auto-score,nfe
-petilil,Petilil,Petilil,Grass,280,,235,1,,auto-score,nfe
-rockruff,Rockruff,Rockruff,Rock,280,,235,1,,auto-score,nfe
-rockruffdusk,Rockruff-Dusk,Rockruff,Rock,280,,235,1,,auto-score,nfe
-roggenrola,Roggenrola,Roggenrola,Rock,280,,235,1,,auto-score,nfe
-slakoth,Slakoth,Slakoth,Normal,280,,235,1,,auto-score,nfe
-wattrel,Wattrel,Wattrel,Electric|Flying,280,,235,1,,auto-score,nfe
-purrloin,Purrloin,Purrloin,Dark,281,,236,1,,auto-score,nfe
-chewtle,Chewtle,Chewtle,Water,284,,239,1,,auto-score,nfe
-chingling,Chingling,Chingling,Psychic,285,,240,1,,auto-score,nfe
-morelull,Morelull,Morelull,Grass|Fairy,285,,240,1,,auto-score,nfe
-paras,Paras,Paras,Bug|Grass,285,,240,1,,auto-score,nfe
-riolu,Riolu,Riolu,Fighting,285,,240,1,,auto-score,nfe
-barboach,Barboach,Barboach,Water|Ground,288,,243,1,,auto-score,nfe
-ekans,Ekans,Ekans,Poison,288,,243,1,,auto-score,nfe
-inkay,Inkay,Inkay,Dark|Psychic,288,,243,1,,auto-score,nfe
-helioptile,Helioptile,Helioptile,Electric|Normal,289,,244,1,,auto-score,nfe
-bonsly,Bonsly,Bonsly,Rock,290,,245,1,,auto-score,nfe
-gothita,Gothita,Gothita,Psychic,290,,245,1,,auto-score,nfe
-greavard,Greavard,Greavard,Ghost,290,,245,1,,auto-score,nfe
-meowth,Meowth,Meowth,Normal,290,,245,1,,auto-score,nfe
-meowthalola,Meowth-Alola,Meowth,Dark,290,,245,1,,auto-score,nfe
-meowthgalar,Meowth-Galar,Meowth,Steel,290,,245,1,,auto-score,nfe
-pineco,Pineco,Pineco,Bug,290,,245,1,,auto-score,nfe
-shroodle,Shroodle,Shroodle,Poison|Normal,290,,245,1,,auto-score,nfe
-solosis,Solosis,Solosis,Psychic,290,,245,1,,auto-score,nfe
-spheal,Spheal,Spheal,Ice|Water,290,,245,1,,auto-score,nfe
-steenee,Steenee,Steenee,Grass,290,,245,1,,auto-score,nfe
-trapinch,Trapinch,Trapinch,Ground,290,,245,1,,auto-score,nfe
-munna,Munna,Munna,Psychic,292,,247,1,,auto-score,nfe
-sandile,Sandile,Sandile,Ground|Dark,292,,247,1,,auto-score,nfe
-foongus,Foongus,Foongus,Grass|Poison,294,,249,1,,auto-score,nfe
-tympole,Tympole,Tympole,Water,294,,249,1,,auto-score,nfe
-blitzle,Blitzle,Blitzle,Electric,295,,250,1,,auto-score,nfe
-duskull,Duskull,Duskull,Ghost,295,,250,1,,auto-score,nfe
-electrike,Electrike,Electrike,Electric,295,,250,1,,auto-score,nfe
-horsea,Horsea,Horsea,Water,295,,250,1,,auto-score,nfe
-shroomish,Shroomish,Shroomish,Grass,295,,250,1,,auto-score,nfe
-shuppet,Shuppet,Shuppet,Ghost,295,,250,1,,auto-score,nfe
-tinkatink,Tinkatink,Tinkatink,Fairy|Steel,297,,252,1,,auto-score,nfe
-vulpix,Vulpix,Vulpix,Fire,299,,254,1,,auto-score,nfe
-vulpixalola,Vulpix-Alola,Vulpix,Ice,299,,254,1,,auto-score,nfe
-bagon,Bagon,Bagon,Dragon,300,,255,1,,auto-score,nfe
-baltoy,Baltoy,Baltoy,Ground|Psychic,300,,255,1,,auto-score,nfe
-beldum,Beldum,Beldum,Steel|Psychic,300,,255,1,,auto-score,nfe
-bellsprout,Bellsprout,Bellsprout,Grass|Poison,300,,255,1,,auto-score,nfe
-bronzor,Bronzor,Bronzor,Steel|Psychic,300,,255,1,,auto-score,nfe
-croagunk,Croagunk,Croagunk,Poison|Fighting,300,,255,1,,auto-score,nfe
-deino,Deino,Deino,Dark|Dragon,300,,255,1,,auto-score,nfe
-dratini,Dratini,Dratini,Dragon,300,,255,1,,auto-score,nfe
-geodude,Geodude,Geodude,Rock|Ground,300,,255,1,,auto-score,nfe
-geodudealola,Geodude-Alola,Geodude,Rock|Electric,300,,255,1,,auto-score,nfe
-gible,Gible,Gible,Dragon|Ground,300,,255,1,,auto-score,nfe
-gimmighoul,Gimmighoul,Gimmighoul,Ghost,300,,255,1,,auto-score,nfe
-gimmighoulroaming,Gimmighoul-Roaming,Gimmighoul,Ghost,300,,255,1,,auto-score,nfe
-goomy,Goomy,Goomy,Dragon,300,,255,1,,auto-score,nfe
-grubbin,Grubbin,Grubbin,Bug,300,,255,1,,auto-score,nfe
-jangmoo,Jangmo-o,Jangmo-o,Dragon,300,,255,1,,auto-score,nfe
-klink,Klink,Klink,Steel,300,,255,1,,auto-score,nfe
-larvitar,Larvitar,Larvitar,Rock|Ground,300,,255,1,,auto-score,nfe
-minccino,Minccino,Minccino,Normal,300,,255,1,,auto-score,nfe
-poliwag,Poliwag,Poliwag,Water,300,,255,1,,auto-score,nfe
-remoraid,Remoraid,Remoraid,Water,300,,255,1,,auto-score,nfe
-sandshrew,Sandshrew,Sandshrew,Ground,300,,255,1,,auto-score,nfe
-sandshrewalola,Sandshrew-Alola,Sandshrew,Ice|Steel,300,,255,1,,auto-score,nfe
-snorunt,Snorunt,Snorunt,Ice,300,,255,1,,auto-score,nfe
-snubbull,Snubbull,Snubbull,Fairy,300,,255,1,,auto-score,nfe
-varoom,Varoom,Varoom,Steel|Poison,300,,255,1,,auto-score,nfe
-gulpin,Gulpin,Gulpin,Poison,302,,257,1,,auto-score,nfe
-flabebe,Flabébé,Flabébé,Fairy,303,,258,1,,auto-score,nfe
-golett,Golett,Golett,Ground|Ghost,303,,258,1,,auto-score,nfe
-yamask,Yamask,Yamask,Ghost,303,,258,1,,auto-score,nfe
-yamaskgalar,Yamask-Galar,Yamask,Ground|Ghost,303,,258,1,,auto-score,nfe
-bergmite,Bergmite,Bergmite,Ice,304,,259,1,,auto-score,nfe
-capsakid,Capsakid,Capsakid,Grass,304,,259,1,,auto-score,nfe
-cutiefly,Cutiefly,Cutiefly,Bug|Fairy,304,,259,1,,auto-score,nfe
-carvanha,Carvanha,Carvanha,Water|Dark,305,,260,1,,auto-score,nfe
-cubchoo,Cubchoo,Cubchoo,Ice,305,,260,1,,auto-score,nfe
-ducklett,Ducklett,Ducklett,Water|Flying,305,,260,1,,auto-score,nfe
-ferroseed,Ferroseed,Ferroseed,Grass|Steel,305,,260,1,,auto-score,nfe
-machop,Machop,Machop,Fighting,305,,260,1,,auto-score,nfe
-mankey,Mankey,Mankey,Fighting,305,,260,1,,auto-score,nfe
-mareanie,Mareanie,Mareanie,Poison|Water,305,,260,1,,auto-score,nfe
-numel,Numel,Numel,Fire|Ground,305,,260,1,,auto-score,nfe
-shellder,Shellder,Shellder,Water,305,,260,1,,auto-score,nfe
-shelmet,Shelmet,Shelmet,Bug,305,,260,1,,auto-score,nfe
-sizzlipede,Sizzlipede,Sizzlipede,Fire|Bug,305,,260,1,,auto-score,nfe
-smoochum,Smoochum,Smoochum,Ice|Psychic,305,,260,1,,auto-score,nfe
-tandemaus,Tandemaus,Tandemaus,Normal,305,,260,1,,auto-score,nfe
-timburr,Timburr,Timburr,Fighting,305,,260,1,,auto-score,nfe
-vanillite,Vanillite,Vanillite,Ice,305,,260,1,,auto-score,nfe
-venonat,Venonat,Venonat,Bug|Poison,305,,260,1,,auto-score,nfe
-binacle,Binacle,Binacle,Rock|Water,306,,261,1,,auto-score,nfe
-fennekin,Fennekin,Fennekin,Fire,307,,262,1,,auto-score,nfe
-corphish,Corphish,Corphish,Water,308,,263,1,,auto-score,nfe
-oshawott,Oshawott,Oshawott,Water,308,,263,1,,auto-score,nfe
-poltchageist,Poltchageist,Poltchageist,Grass|Ghost,308,,263,1,,auto-score,nfe
-poltchageistartisan,Poltchageist-Artisan,Poltchageist,Grass|Ghost,308,,263,1,,auto-score,nfe
-sinistea,Sinistea,Sinistea,Ghost,308,,263,1,,auto-score,nfe
-sinisteaantique,Sinistea-Antique,Sinistea,Ghost,308,,263,1,,auto-score,nfe
-snivy,Snivy,Snivy,Grass,308,,263,1,,auto-score,nfe
-tepig,Tepig,Tepig,Fire,308,,263,1,,auto-score,nfe
-charmander,Charmander,Charmander,Fire,309,,264,1,,auto-score,nfe
-chimchar,Chimchar,Chimchar,Fire,309,,264,1,,auto-score,nfe
-cyndaquil,Cyndaquil,Cyndaquil,Fire,309,,264,1,,auto-score,nfe
-phantump,Phantump,Phantump,Ghost|Grass,309,,264,1,,auto-score,nfe
-abra,Abra,Abra,Psychic,310,,265,1,,auto-score,nfe
-clobbopus,Clobbopus,Clobbopus,Fighting,310,,265,1,,auto-score,nfe
-doduo,Doduo,Doduo,Normal|Flying,310,,265,1,,auto-score,nfe
-fuecoco,Fuecoco,Fuecoco,Fire,310,,265,1,,auto-score,nfe
-gastly,Gastly,Gastly,Ghost|Poison,310,,265,1,,auto-score,nfe
-glameow,Glameow,Glameow,Normal,310,,265,1,,auto-score,nfe
-grookey,Grookey,Grookey,Grass,310,,265,1,,auto-score,nfe
-mimejr,Mime Jr.,Mime Jr.,Psychic|Fairy,310,,265,1,,auto-score,nfe
-mudkip,Mudkip,Mudkip,Water,310,,265,1,,auto-score,nfe
-quaxly,Quaxly,Quaxly,Water,310,,265,1,,auto-score,nfe
-scorbunny,Scorbunny,Scorbunny,Fire,310,,265,1,,auto-score,nfe
-sewaddle,Sewaddle,Sewaddle,Bug|Grass,310,,265,1,,auto-score,nfe
-sobble,Sobble,Sobble,Water,310,,265,1,,auto-score,nfe
-sprigatito,Sprigatito,Sprigatito,Grass,310,,265,1,,auto-score,nfe
-swablu,Swablu,Swablu,Normal|Flying,310,,265,1,,auto-score,nfe
-torchic,Torchic,Torchic,Fire,310,,265,1,,auto-score,nfe
-treecko,Treecko,Treecko,Grass,310,,265,1,,auto-score,nfe
-fidough,Fidough,Fidough,Fairy,312,,267,1,,auto-score,nfe
-chespin,Chespin,Chespin,Grass,313,,268,1,,auto-score,nfe
-froakie,Froakie,Froakie,Water,314,,269,1,,auto-score,nfe
-piplup,Piplup,Piplup,Water,314,,269,1,,auto-score,nfe
-squirtle,Squirtle,Squirtle,Water,314,,269,1,,auto-score,nfe
-totodile,Totodile,Totodile,Water,314,,269,1,,auto-score,nfe
-darumaka,Darumaka,Darumaka,Fire,315,,270,1,,auto-score,nfe
-darumakagalar,Darumaka-Galar,Darumaka,Ice,315,,270,1,,auto-score,nfe
-finizen,Finizen,Finizen,Water,315,,270,1,,auto-score,nfe
-karrablast,Karrablast,Karrablast,Bug,315,,270,1,,auto-score,nfe
-silicobra,Silicobra,Silicobra,Ground,315,,270,1,,auto-score,nfe
-slowpoke,Slowpoke,Slowpoke,Water|Psychic,315,,270,1,,auto-score,nfe
-slowpokegalar,Slowpoke-Galar,Slowpoke,Psychic,315,,270,1,,auto-score,nfe
-panpour,Panpour,Panpour,Water,316,,271,1,,auto-score,nfe
-pansage,Pansage,Pansage,Grass,316,,271,1,,auto-score,nfe
-pansear,Pansear,Pansear,Fire,316,,271,1,,auto-score,nfe
-bulbasaur,Bulbasaur,Bulbasaur,Grass|Poison,318,,273,1,,auto-score,nfe
-chikorita,Chikorita,Chikorita,Grass,318,,273,1,,auto-score,nfe
-turtwig,Turtwig,Turtwig,Grass,318,,273,1,,auto-score,nfe
-joltik,Joltik,Joltik,Bug|Electric,319,,274,1,,auto-score,nfe
-axew,Axew,Axew,Dragon,320,,275,1,,auto-score,nfe
-cubone,Cubone,Cubone,Ground,320,,275,1,,auto-score,nfe
-frigibax,Frigibax,Frigibax,Dragon|Ice,320,,275,1,,auto-score,nfe
-goldeen,Goldeen,Goldeen,Water,320,,275,1,,auto-score,nfe
-litten,Litten,Litten,Fire,320,,275,1,,auto-score,nfe
-natu,Natu,Natu,Psychic|Flying,320,,275,1,,auto-score,nfe
-oddish,Oddish,Oddish,Grass|Poison,320,,275,1,,auto-score,nfe
-popplio,Popplio,Popplio,Water,320,,275,1,,auto-score,nfe
-psyduck,Psyduck,Psyduck,Water,320,,275,1,,auto-score,nfe
-rowlet,Rowlet,Rowlet,Grass|Flying,320,,275,1,,auto-score,nfe
-salandit,Salandit,Salandit,Poison|Fire,320,,275,1,,auto-score,nfe
-sandygast,Sandygast,Sandygast,Ghost|Ground,320,,275,1,,auto-score,nfe
-skrelp,Skrelp,Skrelp,Poison|Water,320,,275,1,,auto-score,nfe
-clefairy,Clefairy,Clefairy,Fairy,323,,278,1,,auto-score,nfe
-woobat,Woobat,Woobat,Psychic|Flying,323,,278,1,,auto-score,nfe
-dwebble,Dwebble,Dwebble,Bug|Rock,325,,280,1,,auto-score,nfe
-eevee,Eevee,Eevee,Normal,325,,280,1,,auto-score,nfe
-exeggcute,Exeggcute,Exeggcute,Grass|Psychic,325,,280,1,,auto-score,nfe
-grimer,Grimer,Grimer,Poison,325,,280,1,,auto-score,nfe
-grimeralola,Grimer-Alola,Grimer,Poison|Dark,325,,280,1,,auto-score,nfe
-honedge,Honedge,Honedge,Steel|Ghost,325,,280,1,,auto-score,nfe
-krabby,Krabby,Krabby,Water,325,,280,1,,auto-score,nfe
-magnemite,Magnemite,Magnemite,Electric|Steel,325,,280,1,,auto-score,nfe
-seel,Seel,Seel,Water,325,,280,1,,auto-score,nfe
-shellos,Shellos,Shellos,Water,325,,280,1,,auto-score,nfe
-drilbur,Drilbur,Drilbur,Ground,328,,283,1,,auto-score,nfe
-drowzee,Drowzee,Drowzee,Psychic,328,,283,1,,auto-score,nfe
-stunky,Stunky,Stunky,Poison|Dark,329,,284,1,,auto-score,nfe
-trubbish,Trubbish,Trubbish,Poison,329,,284,1,,auto-score,nfe
-aron,Aron,Aron,Steel|Rock,330,,285,1,,auto-score,nfe
-buizel,Buizel,Buizel,Water,330,,285,1,,auto-score,nfe
-chinchou,Chinchou,Chinchou,Water|Electric,330,,285,1,,auto-score,nfe
-clauncher,Clauncher,Clauncher,Water,330,,285,1,,auto-score,nfe
-finneon,Finneon,Finneon,Water,330,,285,1,,auto-score,nfe
-hippopotas,Hippopotas,Hippopotas,Ground,330,,285,1,,auto-score,nfe
-houndour,Houndour,Houndour,Dark|Fire,330,,285,1,,auto-score,nfe
-phanpy,Phanpy,Phanpy,Ground,330,,285,1,,auto-score,nfe
-skorupi,Skorupi,Skorupi,Poison|Bug,330,,285,1,,auto-score,nfe
-spoink,Spoink,Spoink,Psychic,330,,285,1,,auto-score,nfe
-teddiursa,Teddiursa,Teddiursa,Normal,330,,285,1,,auto-score,nfe
-voltorb,Voltorb,Voltorb,Electric,330,,285,1,,auto-score,nfe
-voltorbhisui,Voltorb-Hisui,Voltorb,Electric|Grass,330,,285,1,,auto-score,nfe
-zorua,Zorua,Zorua,Dark,330,,285,1,,auto-score,nfe
-zoruahisui,Zorua-Hisui,Zorua,Normal|Ghost,330,,285,1,,auto-score,nfe
-shedinja,Shedinja,Shedinja,Bug|Ghost,236,97,290,2,,showdown-randbats+auto-score,
-smeargle,Smeargle,Smeargle,Normal,250,88,331,2,,showdown-randbats+auto-score,
-ditto,Ditto,Ditto,Normal,288,83,384,2,,showdown-randbats+auto-score,
-meltan,Meltan,Meltan,Steel,300,,345,2,,auto-score,
-pikachu,Pikachu,Pikachu,Electric,320,93,296,2,,showdown-randbats+auto-score,nfe
-pikachualola,Pikachu-Alola,Pikachu,Electric,320,,365,2,,auto-score,
-pikachubelle,Pikachu-Belle,Pikachu,Electric,320,,365,2,,auto-score,
-pikachucosplay,Pikachu-Cosplay,Pikachu,Electric,320,,365,2,,auto-score,
-pikachuhoenn,Pikachu-Hoenn,Pikachu,Electric,320,,365,2,,auto-score,
-pikachukalos,Pikachu-Kalos,Pikachu,Electric,320,,365,2,,auto-score,
-pikachulibre,Pikachu-Libre,Pikachu,Electric,320,,365,2,,auto-score,
-pikachuoriginal,Pikachu-Original,Pikachu,Electric,320,,365,2,,auto-score,
-pikachupartner,Pikachu-Partner,Pikachu,Electric,320,,365,2,,auto-score,
-pikachuphd,Pikachu-PhD,Pikachu,Electric,320,,365,2,,auto-score,
-pikachupopstar,Pikachu-Pop-Star,Pikachu,Electric,320,,365,2,,auto-score,
-pikachurockstar,Pikachu-Rock-Star,Pikachu,Electric,320,,365,2,,auto-score,
-pikachusinnoh,Pikachu-Sinnoh,Pikachu,Electric,320,,365,2,,auto-score,
-pikachuunova,Pikachu-Unova,Pikachu,Electric,320,,365,2,,auto-score,
-pikachuworld,Pikachu-World,Pikachu,Electric,320,,365,2,,auto-score,
-cufant,Cufant,Cufant,Steel,330,,285,2,,auto-score,nfe
-delibird,Delibird,Delibird,Ice|Flying,330,100,375,2,,showdown-randbats+auto-score,
-luvdisc,Luvdisc,Luvdisc,Water,330,100,375,2,,showdown-randbats+auto-score,
-cetoddle,Cetoddle,Cetoddle,Ice,334,,289,2,,auto-score,nfe
-snover,Snover,Snover,Grass|Ice,334,,289,2,,auto-score,nfe
-cacnea,Cacnea,Cacnea,Grass,335,,290,2,,auto-score,nfe
-deerling,Deerling,Deerling,Normal|Grass,335,,290,2,,auto-score,nfe
-dottler,Dottler,Dottler,Bug|Psychic,335,,290,2,,auto-score,nfe
-elgyem,Elgyem,Elgyem,Psychic,335,,290,2,,auto-score,nfe
-frillish,Frillish,Frillish,Water|Ghost,335,,290,2,,auto-score,nfe
-pumpkaboo,Pumpkaboo,Pumpkaboo,Ghost|Grass,335,,290,2,,auto-score,nfe
-pumpkaboolarge,Pumpkaboo-Large,Pumpkaboo,Ghost|Grass,335,,290,2,,auto-score,nfe
-pumpkaboosmall,Pumpkaboo-Small,Pumpkaboo,Ghost|Grass,335,,290,2,,auto-score,nfe
-pumpkaboosuper,Pumpkaboo-Super,Pumpkaboo,Ghost|Grass,335,,290,2,,auto-score,nfe
-tentacool,Tentacool,Tentacool,Water|Poison,335,,290,2,,auto-score,nfe
-toedscool,Toedscool,Toedscool,Ground|Grass,335,,290,2,,auto-score,nfe
-unown,Unown,Unown,Psychic,336,100,381,2,,showdown-randbats+auto-score,
-crabrawler,Crabrawler,Crabrawler,Fighting,338,,293,2,,auto-score,nfe
-koffing,Koffing,Koffing,Poison,340,,295,2,,auto-score,nfe
-lombre,Lombre,Lombre,Water|Grass,340,,295,2,,auto-score,nfe
-maschiff,Maschiff,Maschiff,Dark,340,,295,2,,auto-score,nfe
-nuzleaf,Nuzleaf,Nuzleaf,Grass|Dark,340,,295,2,,auto-score,nfe
-pawniard,Pawniard,Pawniard,Dark|Steel,340,,295,2,,auto-score,nfe
-skiploom,Skiploom,Skiploom,Grass|Flying,340,,295,2,,auto-score,nfe
-staravia,Staravia,Staravia,Normal|Flying,340,,295,2,,auto-score,nfe
-staryu,Staryu,Staryu,Water,340,,295,2,,auto-score,nfe
-stufful,Stufful,Stufful,Normal|Fighting,340,,295,2,,auto-score,nfe
-vibrava,Vibrava,Vibrava,Ground|Dragon,340,,295,2,,auto-score,nfe
-spritzee,Spritzee,Spritzee,Fairy,341,,296,2,,auto-score,nfe
-swirlix,Swirlix,Swirlix,Fairy,341,,296,2,,auto-score,nfe
-clamperl,Clamperl,Clamperl,Water,345,,300,2,,auto-score,nfe
-mantyke,Mantyke,Mantyke,Water|Flying,345,,300,2,,auto-score,nfe
-rhyhorn,Rhyhorn,Rhyhorn,Ground|Rock,345,,300,2,,auto-score,nfe
-drifloon,Drifloon,Drifloon,Ghost|Flying,348,,303,2,,auto-score,nfe
-pancham,Pancham,Pancham,Fighting,348,,303,2,,auto-score,nfe
-scraggy,Scraggy,Scraggy,Dark|Fighting,348,,303,2,,auto-score,nfe
-pidgeotto,Pidgeotto,Pidgeotto,Normal|Flying,349,,304,2,,auto-score,nfe
-buneary,Buneary,Buneary,Normal,350,,305,2,,auto-score,nfe
-cranidos,Cranidos,Cranidos,Rock,350,,305,2,,auto-score,nfe
-glimmet,Glimmet,Glimmet,Rock|Poison,350,,305,2,,auto-score,nfe
-growlithe,Growlithe,Growlithe,Fire,350,,305,2,,auto-score,nfe
-growlithehisui,Growlithe-Hisui,Growlithe,Fire|Rock,350,,305,2,,auto-score,nfe
-mienfoo,Mienfoo,Mienfoo,Fighting,350,,305,2,,auto-score,nfe
-pawmo,Pawmo,Pawmo,Electric|Fighting,350,,305,2,,auto-score,nfe
-rufflet,Rufflet,Rufflet,Normal|Flying,350,,305,2,,auto-score,nfe
-shieldon,Shieldon,Shieldon,Rock|Steel,350,,305,2,,auto-score,nfe
-skiddo,Skiddo,Skiddo,Grass,350,,305,2,,auto-score,nfe
-krokorok,Krokorok,Krokorok,Ground|Dark,351,,306,2,,auto-score,nfe
-dolliv,Dolliv,Dolliv,Grass|Normal,354,,309,2,,auto-score,nfe
-anorith,Anorith,Anorith,Rock|Bug,355,,310,2,,auto-score,nfe
-espurr,Espurr,Espurr,Psychic,355,,310,2,,auto-score,nfe
-kabuto,Kabuto,Kabuto,Rock|Water,355,,310,2,,auto-score,nfe
-lileep,Lileep,Lileep,Rock|Grass,355,,310,2,,auto-score,nfe
-naclstack,Naclstack,Naclstack,Rock,355,,310,2,,auto-score,nfe
-omanyte,Omanyte,Omanyte,Rock|Water,355,,310,2,,auto-score,nfe
-tirtouga,Tirtouga,Tirtouga,Water|Rock,355,,310,2,,auto-score,nfe
-trumbeak,Trumbeak,Trumbeak,Normal|Flying,355,,310,2,,auto-score,nfe
-tranquill,Tranquill,Tranquill,Normal|Flying,358,,313,2,,auto-score,nfe
-aipom,Aipom,Aipom,Normal,360,,315,2,,auto-score,nfe
-elekid,Elekid,Elekid,Electric,360,,315,2,,auto-score,nfe
-larvesta,Larvesta,Larvesta,Bug|Fire,360,,315,2,,auto-score,nfe
-loudred,Loudred,Loudred,Normal,360,,315,2,,auto-score,nfe
-spinda,Spinda,Spinda,Normal,360,99,408,2,,showdown-randbats+auto-score,
-whirlipede,Whirlipede,Whirlipede,Bug|Poison,360,,315,2,,auto-score,nfe
-amaura,Amaura,Amaura,Rock|Ice,362,,317,2,,auto-score,nfe
-tyrunt,Tyrunt,Tyrunt,Rock|Dragon,362,,317,2,,auto-score,nfe
-luxio,Luxio,Luxio,Electric,363,,318,2,,auto-score,nfe
-corvisquire,Corvisquire,Corvisquire,Flying,365,,320,2,,auto-score,nfe
-flaaffy,Flaaffy,Flaaffy,Electric,365,,320,2,,auto-score,nfe
-magby,Magby,Magby,Fire,365,,320,2,,auto-score,nfe
-nidorina,Nidorina,Nidorina,Poison,365,,320,2,,auto-score,nfe
-nidorino,Nidorino,Nidorino,Poison,365,,320,2,,auto-score,nfe
-litleo,Litleo,Litleo,Fire|Normal,369,,324,2,,auto-score,nfe
-duosion,Duosion,Duosion,Psychic,370,,325,2,,auto-score,nfe
-hattrem,Hattrem,Hattrem,Psychic,370,,325,2,,auto-score,nfe
-herdier,Herdier,Herdier,Normal,370,,325,2,,auto-score,nfe
-lampent,Lampent,Lampent,Ghost|Fire,370,,325,2,,auto-score,nfe
-morgrem,Morgrem,Morgrem,Dark|Fairy,370,,325,2,,auto-score,nfe
-vullaby,Vullaby,Vullaby,Dark|Flying,370,,325,2,,auto-score,nfe
-floette,Floette,Floette,Fairy,371,,326,2,,auto-score,nfe
-nosepass,Nosepass,Nosepass,Rock,375,,330,2,,auto-score,nfe
-farfetchd,Farfetch’d,Farfetch’d,Normal|Flying,377,100,422,2,,showdown-randbats+auto-score,
-farfetchdgalar,Farfetch’d-Galar,Farfetch’d,Fighting,377,,332,2,,auto-score,nfe
-mawile,Mawile,Mawile,Steel|Fairy,380,90,455,2,,showdown-randbats+auto-score,
-sableye,Sableye,Sableye,Dark|Ghost,380,93,446,2,,showdown-randbats+auto-score,
-swadloon,Swadloon,Swadloon,Bug|Grass,380,,335,2,,auto-score,nfe
-tinkatuff,Tinkatuff,Tinkatuff,Fairy|Steel,380,,335,2,,auto-score,nfe
-fletchinder,Fletchinder,Fletchinder,Fire|Flying,382,,337,2,,auto-score,nfe
-kricketune,Kricketune,Kricketune,Bug,384,97,438,2,,showdown-randbats+auto-score,
-palpitoad,Palpitoad,Palpitoad,Water|Ground,384,,339,2,,auto-score,nfe
-dustox,Dustox,Dustox,Bug|Poison,385,96,442,2,,showdown-randbats+auto-score,
-kubfu,Kubfu,Kubfu,Fighting,385,,340,2,,auto-score,nfe
-lickitung,Lickitung,Lickitung,Normal,385,,340,2,,auto-score,nfe
-mudbray,Mudbray,Mudbray,Ground,385,,340,2,,auto-score,nfe
-onix,Onix,Onix,Rock|Ground,385,,340,2,,auto-score,nfe
-poliwhirl,Poliwhirl,Poliwhirl,Water,385,,340,2,,auto-score,nfe
-boldore,Boldore,Boldore,Rock,390,,345,2,,auto-score,nfe
-gothorita,Gothorita,Gothorita,Psychic,390,,345,2,,auto-score,nfe
-graveler,Graveler,Graveler,Rock|Ground,390,,345,2,,auto-score,nfe
-graveleralola,Graveler-Alola,Graveler,Rock|Electric,390,,345,2,,auto-score,nfe
-ledian,Ledian,Ledian,Bug|Flying,390,100,435,2,,showdown-randbats+auto-score,
-munchlax,Munchlax,Munchlax,Normal,390,,345,2,,auto-score,nfe
-weepinbell,Weepinbell,Weepinbell,Grass|Poison,390,,345,2,,auto-score,nfe
-yanma,Yanma,Yanma,Bug|Flying,390,,345,2,,auto-score,nfe
-beautifly,Beautifly,Beautifly,Bug|Flying,395,98,446,2,,showdown-randbats+auto-score,
-beedrill,Beedrill,Beedrill,Bug|Poison,395,94,458,2,,showdown-randbats+auto-score,
-butterfree,Butterfree,Butterfree,Bug|Flying,395,90,470,2,,showdown-randbats+auto-score,
-gloom,Gloom,Gloom,Grass|Poison,395,,350,2,,auto-score,nfe
-porygon,Porygon,Porygon,Normal,395,,350,2,,auto-score,nfe
-vanillish,Vanillish,Vanillish,Ice,395,,350,2,,auto-score,nfe
-ariados,Ariados,Ariados,Bug|Poison,400,92,469,2,,showdown-randbats+auto-score,
-charjabug,Charjabug,Charjabug,Bug|Electric,400,,355,2,,auto-score,nfe
-cosmoem,Cosmoem,Cosmoem,Psychic,400,,355,2,,auto-score,nfe
-delcatty,Delcatty,Delcatty,Normal,400,99,448,2,,showdown-randbats+auto-score,
-kadabra,Kadabra,Kadabra,Psychic,400,,355,2,,auto-score,nfe
-roselia,Roselia,Roselia,Grass|Poison,400,,355,2,,auto-score,nfe
-wailmer,Wailmer,Wailmer,Water,400,,355,2,,auto-score,nfe
-archen,Archen,Archen,Rock|Flying,401,,356,2,,auto-score,nfe
-spidops,Spidops,Spidops,Bug,404,,449,2,,auto-score,
-bayleef,Bayleef,Bayleef,Grass,405,,360,2,,auto-score,nfe
-charmeleon,Charmeleon,Charmeleon,Fire,405,,360,2,,auto-score,nfe
-combusken,Combusken,Combusken,Fire|Fighting,405,,360,2,,auto-score,nfe
-croconaw,Croconaw,Croconaw,Water,405,,360,2,,auto-score,nfe
-eelektrik,Eelektrik,Eelektrik,Electric,405,,360,2,,auto-score,nfe
-frogadier,Frogadier,Frogadier,Water,405,,360,2,,auto-score,nfe
-grotle,Grotle,Grotle,Grass,405,,360,2,,auto-score,nfe
-grovyle,Grovyle,Grovyle,Grass,405,,360,2,,auto-score,nfe
-gurdurr,Gurdurr,Gurdurr,Fighting,405,87,399,2,,showdown-randbats+auto-score,nfe
-haunter,Haunter,Haunter,Ghost|Poison,405,,360,2,,auto-score,nfe
-ivysaur,Ivysaur,Ivysaur,Grass|Poison,405,,360,2,,auto-score,nfe
-machoke,Machoke,Machoke,Fighting,405,,360,2,,auto-score,nfe
-marshtomp,Marshtomp,Marshtomp,Water|Ground,405,,360,2,,auto-score,nfe
-minun,Minun,Minun,Electric,405,95,465,2,,showdown-randbats+auto-score,
-monferno,Monferno,Monferno,Fire|Fighting,405,,360,2,,auto-score,nfe
-murkrow,Murkrow,Murkrow,Dark|Flying,405,,360,2,,auto-score,nfe
-pachirisu,Pachirisu,Pachirisu,Electric,405,96,462,2,,showdown-randbats+auto-score,
-parasect,Parasect,Parasect,Bug|Grass,405,99,453,2,,showdown-randbats+auto-score,
-plusle,Plusle,Plusle,Electric,405,95,465,2,,showdown-randbats+auto-score,
-prinplup,Prinplup,Prinplup,Water,405,,360,2,,auto-score,nfe
-quilava,Quilava,Quilava,Fire,405,,360,2,,auto-score,nfe
-quilladin,Quilladin,Quilladin,Grass,405,,360,2,,auto-score,nfe
-shiinotic,Shiinotic,Shiinotic,Grass|Fairy,405,91,477,2,,showdown-randbats+auto-score,
-togetic,Togetic,Togetic,Fairy|Flying,405,,360,2,,auto-score,nfe
-wartortle,Wartortle,Wartortle,Water,405,,360,2,,auto-score,nfe
-wobbuffet,Wobbuffet,Wobbuffet,Psychic,405,95,465,2,,showdown-randbats+auto-score,
-braixen,Braixen,Braixen,Fire,409,,364,2,,auto-score,nfe
-bibarel,Bibarel,Bibarel,Normal|Water,410,90,485,2,,showdown-randbats+auto-score,
-carkol,Carkol,Carkol,Rock|Fire,410,,365,2,,auto-score,nfe
-corsola,Corsola,Corsola,Water|Rock,410,96,467,2,,showdown-randbats+auto-score,
-corsolagalar,Corsola-Galar,Corsola,Ghost,410,,365,2,,auto-score,nfe
-drakloak,Drakloak,Drakloak,Dragon|Ghost,410,,365,2,,auto-score,nfe
-floragato,Floragato,Floragato,Grass,410,,365,2,,auto-score,nfe
-fraxure,Fraxure,Fraxure,Dragon,410,,365,2,,auto-score,nfe
-gabite,Gabite,Gabite,Dragon|Ground,410,,365,2,,auto-score,nfe
-medicham,Medicham,Medicham,Fighting|Psychic,410,85,500,2,,showdown-randbats+auto-score,
-ponyta,Ponyta,Ponyta,Fire,410,,365,2,,auto-score,nfe
-ponytagalar,Ponyta-Galar,Ponyta,Psychic,410,,365,2,,auto-score,nfe
-pupitar,Pupitar,Pupitar,Rock|Ground,410,,365,2,,auto-score,nfe
-pyukumuku,Pyukumuku,Pyukumuku,Water,410,92,479,2,,showdown-randbats+auto-score,
-quaxwell,Quaxwell,Quaxwell,Water,410,,365,2,,auto-score,nfe
-sealeo,Sealeo,Sealeo,Ice|Water,410,,365,2,,auto-score,nfe
-sudowoodo,Sudowoodo,Sudowoodo,Rock,410,93,476,2,,showdown-randbats+auto-score,
-chatot,Chatot,Chatot,Normal|Flying,411,89,489,2,,showdown-randbats+auto-score,
-crocalor,Crocalor,Crocalor,Fire,411,,366,2,,auto-score,nfe
-vivillon,Vivillon,Vivillon,Bug|Flying,411,85,501,2,,showdown-randbats+auto-score,
-vivillonfancy,Vivillon-Fancy,Vivillon,Bug|Flying,411,,456,2,,auto-score,
-vivillonpokeball,Vivillon-Pokeball,Vivillon,Bug|Flying,411,,456,2,,auto-score,
-dewott,Dewott,Dewott,Water,413,,368,2,,auto-score,nfe
-raticate,Raticate,Raticate,Normal,413,88,494,2,,showdown-randbats+auto-score,
-raticatealola,Raticate-Alola,Raticate,Dark|Normal,413,89,491,2,,showdown-randbats+auto-score,
-raticatealolatotem,Raticate-Alola-Totem,Raticate,Dark|Normal,413,,458,2,,auto-score,
-servine,Servine,Servine,Grass,413,,368,2,,auto-score,nfe
-dunsparce,Dunsparce,Dunsparce,Normal,415,95,385,2,,showdown-randbats+auto-score,nfe
-furret,Furret,Furret,Normal,415,94,478,2,,showdown-randbats+auto-score,
-squawkabilly,Squawkabilly,Squawkabilly,Normal|Flying,417,,462,2,,auto-score,
-squawkabillyblue,Squawkabilly-Blue,Squawkabilly,Normal|Flying,417,,462,2,,auto-score,
-squawkabillywhite,Squawkabilly-White,Squawkabilly,Normal|Flying,417,,462,2,,auto-score,
-squawkabillyyellow,Squawkabilly-Yellow,Squawkabilly,Normal|Flying,417,,462,2,,auto-score,
-gumshoos,Gumshoos,Gumshoos,Normal,418,94,481,2,,showdown-randbats+auto-score,
-gumshoostotem,Gumshoos-Totem,Gumshoos,Normal,418,,463,2,,auto-score,
-pignite,Pignite,Pignite,Fire|Fighting,418,,373,2,,auto-score,nfe
-brionne,Brionne,Brionne,Water,420,,375,2,,auto-score,nfe
-castform,Castform,Castform,Normal,420,99,468,2,,showdown-randbats+auto-score,
-dartrix,Dartrix,Dartrix,Grass|Flying,420,,375,2,,auto-score,nfe
-dragonair,Dragonair,Dragonair,Dragon,420,,375,2,,auto-score,nfe
-drizzile,Drizzile,Drizzile,Water,420,,375,2,,auto-score,nfe
-hakamoo,Hakamo-o,Hakamo-o,Dragon|Fighting,420,,375,2,,auto-score,nfe
-linoonegalar,Linoone-Galar,Linoone,Dark|Normal,420,,375,2,,auto-score,nfe
-metang,Metang,Metang,Steel|Psychic,420,,375,2,,auto-score,nfe
-mightyena,Mightyena,Mightyena,Dark,420,94,483,2,,showdown-randbats+auto-score,
-poipole,Poipole,Poipole,Poison,420,,375,2,,auto-score,nfe
-raboot,Raboot,Raboot,Fire,420,,375,2,,auto-score,nfe
-shelgon,Shelgon,Shelgon,Dragon,420,,375,2,,auto-score,nfe
-thwackey,Thwackey,Thwackey,Grass,420,,375,2,,auto-score,nfe
-torracat,Torracat,Torracat,Fire,420,,375,2,,auto-score,nfe
-watchog,Watchog,Watchog,Normal,420,96,477,2,,showdown-randbats+auto-score,
-zweilous,Zweilous,Zweilous,Dark|Dragon,420,,375,2,,auto-score,nfe
-arctibax,Arctibax,Arctibax,Dragon|Ice,423,,378,2,,auto-score,nfe
-mothim,Mothim,Mothim,Bug|Flying,424,93,490,2,,showdown-randbats+auto-score,
-wormadam,Wormadam,Wormadam,Bug|Grass,424,100,469,2,,showdown-randbats+auto-score,
-wormadamsandy,Wormadam-Sandy,Wormadam,Bug|Ground,424,91,496,2,,showdown-randbats+auto-score,
-wormadamtrash,Wormadam-Trash,Wormadam,Bug|Steel,424,86,511,2,,showdown-randbats+auto-score,
-dugtrio,Dugtrio,Dugtrio,Ground,425,84,518,2,,showdown-randbats+auto-score,
-marowak,Marowak,Marowak,Ground,425,89,503,2,,showdown-randbats+auto-score,
-marowakalola,Marowak-Alola,Marowak,Fire|Ghost,425,86,512,2,,showdown-randbats+auto-score,
-marowakalolatotem,Marowak-Alola-Totem,Marowak,Fire|Ghost,425,,470,2,,auto-score,
-sunflora,Sunflora,Sunflora,Grass,425,100,470,2,,showdown-randbats+auto-score,
-swoobat,Swoobat,Swoobat,Psychic|Flying,425,88,506,2,,showdown-randbats+auto-score,
-wugtrio,Wugtrio,Wugtrio,Water,425,,470,2,,auto-score,
-emolga,Emolga,Emolga,Electric|Flying,428,90,503,2,,showdown-randbats+auto-score,
-clodsire,Clodsire,Clodsire,Poison|Ground,430,,475,2,,auto-score,
-gligar,Gligar,Gligar,Ground|Flying,430,82,439,2,,showdown-randbats+auto-score,nfe
-illumise,Illumise,Illumise,Bug,430,92,499,2,,showdown-randbats+auto-score,
-lairon,Lairon,Lairon,Steel|Rock,430,,385,2,,auto-score,nfe
-magcargo,Magcargo,Magcargo,Fire|Rock,430,96,487,2,,showdown-randbats+auto-score,
-quagsire,Quagsire,Quagsire,Water|Ground,430,87,514,2,,showdown-randbats+auto-score,
-sneasel,Sneasel,Sneasel,Dark|Ice,430,,385,2,,auto-score,nfe
-sneaselhisui,Sneasel-Hisui,Sneasel,Fighting|Poison,430,,385,2,,auto-score,nfe
-volbeat,Volbeat,Volbeat,Bug,430,91,502,2,,showdown-randbats+auto-score,
-dedenne,Dedenne,Dedenne,Electric|Fairy,431,91,503,2,,showdown-randbats+auto-score,
-misdreavus,Misdreavus,Misdreavus,Ghost,435,,390,2,,auto-score,nfe
-pincurchin,Pincurchin,Pincurchin,Electric,435,,480,2,,auto-score,
-tangela,Tangela,Tangela,Grass,435,,390,2,,auto-score,nfe
-togedemarutotem,Togedemaru-Totem,Togedemaru,Electric|Steel,435,,480,2,,auto-score,
-wigglytuff,Wigglytuff,Wigglytuff,Normal|Fairy,435,95,495,2,,showdown-randbats+auto-score,
-morpeko,Morpeko,Morpeko,Electric|Dark,436,,481,2,,auto-score,
-kecleon,Kecleon,Kecleon,Normal,440,90,515,2,,showdown-randbats+auto-score,
-klang,Klang,Klang,Steel,440,,395,2,,auto-score,nfe
-perrserker,Perrserker,Perrserker,Steel,440,,485,2,,auto-score,
-persian,Persian,Persian,Normal,440,93,506,2,,showdown-randbats+auto-score,
-qwilfishhisui,Qwilfish-Hisui,Qwilfish,Dark|Poison,440,,395,2,,auto-score,nfe
-seadra,Seadra,Seadra,Water,440,,395,2,,auto-score,nfe
-vigoroth,Vigoroth,Vigoroth,Normal,440,88,431,2,,showdown-randbats+auto-score,nfe
-audino,Audino,Audino,Normal,445,91,517,2,,showdown-randbats+auto-score,
-doublade,Doublade,Doublade,Steel|Ghost,448,85,448,2,,showdown-randbats+auto-score,nfe
-chansey,Chansey,Chansey,Normal,450,85,450,2,,showdown-randbats+auto-score,nfe
-cherrim,Cherrim,Cherrim,Grass,450,99,498,2,,showdown-randbats+auto-score,
-klawf,Klawf,Klawf,Rock,450,,495,2,,auto-score,
-lokix,Lokix,Lokix,Bug|Dark,450,,495,2,,auto-score,
-piloswine,Piloswine,Piloswine,Ice|Ground,450,,405,2,,auto-score,nfe
-seaking,Seaking,Seaking,Water,450,95,510,2,,showdown-randbats+auto-score,
-terapagos,Terapagos,Terapagos,Normal,450,,495,2,,auto-score,
-noctowl,Noctowl,Noctowl,Normal|Flying,452,94,515,2,,showdown-randbats+auto-score,
-sliggoo,Sliggoo,Sliggoo,Dragon,452,,407,2,,auto-score,nfe
-sliggoohisui,Sliggoo-Hisui,Sliggoo,Steel|Dragon,452,,407,2,,auto-score,nfe
-araquanidtotem,Araquanid-Totem,Araquanid,Water|Bug,454,,499,2,,auto-score,
-carnivine,Carnivine,Carnivine,Grass,454,100,499,2,,showdown-randbats+auto-score,
-chimecho,Chimecho,Chimecho,Psychic,455,95,515,2,,showdown-randbats+auto-score,
-dusclops,Dusclops,Dusclops,Ghost,455,,410,2,,auto-score,nfe
-girafarig,Girafarig,Girafarig,Normal|Psychic,455,95,425,2,,showdown-randbats+auto-score,nfe
-golbat,Golbat,Golbat,Poison|Flying,455,,410,2,,auto-score,nfe
-primeape,Primeape,Primeape,Fighting,455,89,443,2,,showdown-randbats+auto-score,nfe
-thievul,Thievul,Thievul,Dark,455,,500,2,,auto-score,
-palafin,Palafin,Palafin,Water,457,,502,2,,auto-score,
-basculinbluestriped,Basculin-Blue-Striped,Basculin,Water,460,,505,2,,auto-score,
-basculinwhitestriped,Basculin-White-Striped,Basculin,Water,460,,415,2,,auto-score,nfe
-eldegoss,Eldegoss,Eldegoss,Grass,460,,505,2,,auto-score,
-greedent,Greedent,Greedent,Normal,460,,505,2,,auto-score,
-mrmimegalar,Mr. Mime-Galar,Mr. Mime,Ice|Psychic,460,,415,2,,auto-score,nfe
-maractus,Maractus,Maractus,Grass,461,100,506,2,,showdown-randbats+auto-score,
-ribombeetotem,Ribombee-Totem,Ribombee,Bug|Fairy,464,,509,2,,auto-score,
-magneton,Magneton,Magneton,Electric|Steel,465,,420,2,,auto-score,nfe
-stantler,Stantler,Stantler,Normal,465,92,444,2,,showdown-randbats+auto-score,nfe
-eiscue,Eiscue,Eiscue,Ice,470,,515,2,,auto-score,
-falinks,Falinks,Falinks,Fighting,470,,515,2,,auto-score,
-maushold,Maushold,Maushold,Normal,470,,515,2,,auto-score,
-mausholdfour,Maushold-Four,Maushold,Normal,470,,515,2,,auto-score,
-rabsca,Rabsca,Rabsca,Bug|Psychic,470,,515,2,,auto-score,
-stonjourner,Stonjourner,Stonjourner,Rock,470,,515,2,,auto-score,
-stunfiskgalar,Stunfisk-Galar,Stunfisk,Ground|Steel,471,,516,2,,auto-score,
-dipplin,Dipplin,Dipplin,Grass|Dragon,485,,440,2,,auto-score,nfe
-rhydon,Rhydon,Rhydon,Ground|Rock,485,85,485,2,,showdown-randbats+auto-score,nfe
-bisharp,Bisharp,Bisharp,Dark|Steel,490,81,502,2,,showdown-randbats+auto-score,nfe
-electabuzz,Electabuzz,Electabuzz,Electric,490,,445,2,,auto-score,nfe
-magmar,Magmar,Magmar,Fire,495,,450,2,,auto-score,nfe
-scyther,Scyther,Scyther,Bug|Flying,500,82,509,2,,showdown-randbats+auto-score,nfe
-ursaring,Ursaring,Ursaring,Normal,500,85,500,2,,showdown-randbats+auto-score,nfe
-duraludon,Duraludon,Duraludon,Steel|Dragon,535,,490,2,,auto-score,nfe
-azumarill,Azumarill,Azumarill,Water|Fairy,420,81,522,3,,showdown-randbats+auto-score,
-linoone,Linoone,Linoone,Normal,420,81,522,3,,showdown-randbats+auto-score,
-diggersby,Diggersby,Diggersby,Normal|Ground,423,82,522,3,,showdown-randbats+auto-score,
-dugtrioalola,Dugtrio-Alola,Dugtrio,Ground|Steel,425,84,518,3,,showdown-randbats+auto-score,
-togedemaru,Togedemaru,Togedemaru,Electric|Steel,435,86,522,3,,showdown-randbats+auto-score,
-pelipper,Pelipper,Pelipper,Water|Flying,440,87,524,3,,showdown-randbats+auto-score,
-persianalola,Persian-Alola,Persian,Dark,440,84,533,3,,showdown-randbats+auto-score,
-qwilfish,Qwilfish,Qwilfish,Water|Poison,440,86,527,3,,showdown-randbats+auto-score,
-rotom,Rotom,Rotom,Electric|Ghost,440,88,521,3,,showdown-randbats+auto-score,
-fearow,Fearow,Fearow,Normal|Flying,442,88,523,3,,showdown-randbats+auto-score,
-liepard,Liepard,Liepard,Dark,446,91,518,3,,showdown-randbats+auto-score,
-arbok,Arbok,Arbok,Poison,448,90,523,3,,showdown-randbats+auto-score,
-granbull,Granbull,Granbull,Fairy,450,89,528,3,,showdown-randbats+auto-score,
-sandslash,Sandslash,Sandslash,Ground,450,90,525,3,,showdown-randbats+auto-score,
-sandslashalola,Sandslash-Alola,Sandslash,Ice|Steel,450,91,522,3,,showdown-randbats+auto-score,
-venomoth,Venomoth,Venomoth,Bug|Poison,450,82,549,3,,showdown-randbats+auto-score,
-purugly,Purugly,Purugly,Normal,452,89,530,3,,showdown-randbats+auto-score,
-araquanid,Araquanid,Araquanid,Water|Bug,454,81,556,3,,showdown-randbats+auto-score,
-masquerain,Masquerain,Masquerain,Bug|Flying,454,87,538,3,,showdown-randbats+auto-score,
-banette,Banette,Banette,Ghost,455,93,521,3,,showdown-randbats+auto-score,
-hitmonchan,Hitmonchan,Hitmonchan,Fighting,455,87,539,3,,showdown-randbats+auto-score,
-hitmonlee,Hitmonlee,Hitmonlee,Fighting,455,86,542,3,,showdown-randbats+auto-score,
-hitmontop,Hitmontop,Hitmontop,Fighting,455,90,530,3,,showdown-randbats+auto-score,
-jynx,Jynx,Jynx,Ice|Psychic,455,89,533,3,,showdown-randbats+auto-score,
-swellow,Swellow,Swellow,Normal|Flying,455,82,554,3,,showdown-randbats+auto-score,
-ninjask,Ninjask,Ninjask,Bug|Flying,456,88,537,3,,showdown-randbats+auto-score,
-seviper,Seviper,Seviper,Poison,458,94,521,3,,showdown-randbats+auto-score,
-zangoose,Zangoose,Zangoose,Normal,458,86,545,3,,showdown-randbats+auto-score,
-basculin,Basculin,Basculin,Water,460,86,547,3,,showdown-randbats+auto-score,
-breloom,Breloom,Breloom,Grass|Fighting,460,84,553,3,,showdown-randbats+auto-score,
-camerupt,Camerupt,Camerupt,Fire|Ground,460,91,532,3,,showdown-randbats+auto-score,
-jumpluff,Jumpluff,Jumpluff,Grass|Flying,460,89,538,3,,showdown-randbats+auto-score,
-lanturn,Lanturn,Lanturn,Water|Electric,460,89,538,3,,showdown-randbats+auto-score,
-lumineon,Lumineon,Lumineon,Water,460,93,526,3,,showdown-randbats+auto-score,
-lunatone,Lunatone,Lunatone,Rock|Psychic,460,93,526,3,,showdown-randbats+auto-score,
-mrmime,Mr. Mime,Mr. Mime,Psychic|Fairy,460,90,535,3,,showdown-randbats+auto-score,
-sharpedo,Sharpedo,Sharpedo,Water|Dark,460,84,553,3,,showdown-randbats+auto-score,
-solrock,Solrock,Solrock,Rock|Psychic,460,90,535,3,,showdown-randbats+auto-score,
-tropius,Tropius,Tropius,Grass|Flying,460,94,523,3,,showdown-randbats+auto-score,
-aromatisse,Aromatisse,Aromatisse,Fairy,462,91,534,3,,showdown-randbats+auto-score,
-amoonguss,Amoonguss,Amoonguss,Grass|Poison,464,83,560,3,,showdown-randbats+auto-score,
-ribombee,Ribombee,Ribombee,Bug|Fairy,464,84,557,3,,showdown-randbats+auto-score,
-absol,Absol,Absol,Dark,465,86,552,3,,showdown-randbats+auto-score,
-forretress,Forretress,Forretress,Bug|Steel,465,81,567,3,,showdown-randbats+auto-score,
-sawk,Sawk,Sawk,Fighting,465,86,552,3,,showdown-randbats+auto-score,
-skarmory,Skarmory,Skarmory,Steel|Flying,465,75,585,3,,showdown-randbats+auto-score,
-throh,Throh,Throh,Fighting,465,89,543,3,,showdown-randbats+auto-score,
-meowstic,Meowstic,Meowstic,Psychic,466,91,538,3,,showdown-randbats+auto-score,
-meowsticf,Meowstic-F,Meowstic,Psychic,466,91,538,3,,showdown-randbats+auto-score,
-swalot,Swalot,Swalot,Poison,467,91,539,3,,showdown-randbats+auto-score,
-crawdaunt,Crawdaunt,Crawdaunt,Water|Dark,468,85,558,3,,showdown-randbats+auto-score,
-whiscash,Whiscash,Whiscash,Water|Ground,468,89,546,3,,showdown-randbats+auto-score,
-alomomola,Alomomola,Alomomola,Water,470,87,554,3,,showdown-randbats+auto-score,
-cinccino,Cinccino,Cinccino,Normal,470,84,563,3,,showdown-randbats+auto-score,
-dodrio,Dodrio,Dodrio,Normal|Flying,470,82,569,3,,showdown-randbats+auto-score,
-grumpig,Grumpig,Grumpig,Psychic,470,93,536,3,,showdown-randbats+auto-score,
-klefki,Klefki,Klefki,Steel|Fairy,470,83,566,3,,showdown-randbats+auto-score,
-torkoal,Torkoal,Torkoal,Fire,470,84,563,3,,showdown-randbats+auto-score,
-xatu,Xatu,Xatu,Psychic|Flying,470,89,548,3,,showdown-randbats+auto-score,
-stunfisk,Stunfisk,Stunfisk,Ground|Electric,471,88,552,3,,showdown-randbats+auto-score,
-furfrou,Furfrou,Furfrou,Normal,472,87,556,3,,showdown-randbats+auto-score,
-galvantula,Galvantula,Galvantula,Bug|Electric,472,80,577,3,,showdown-randbats+auto-score,
-swanna,Swanna,Swanna,Water|Flying,473,88,554,3,,showdown-randbats+auto-score,
-garbodor,Garbodor,Garbodor,Poison,474,88,555,3,,showdown-randbats+auto-score,
-hariyama,Hariyama,Hariyama,Fighting,474,87,558,3,,showdown-randbats+auto-score,
-trevenant,Trevenant,Trevenant,Ghost|Grass,474,91,546,3,,showdown-randbats+auto-score,
-vespiquen,Vespiquen,Vespiquen,Bug|Flying,474,100,519,3,,showdown-randbats+auto-score,
-bruxish,Bruxish,Bruxish,Water|Psychic,475,85,565,3,,showdown-randbats+auto-score,
-cacturne,Cacturne,Cacturne,Grass|Dark,475,93,541,3,,showdown-randbats+auto-score,
-cramorant,Cramorant,Cramorant,Flying|Water,475,,520,3,,auto-score,
-dewgong,Dewgong,Dewgong,Water|Ice,475,96,532,3,,showdown-randbats+auto-score,
-frosmoth,Frosmoth,Frosmoth,Ice|Bug,475,,520,3,,auto-score,
-gastrodon,Gastrodon,Gastrodon,Water|Ground,475,88,556,3,,showdown-randbats+auto-score,
-indeedee,Indeedee,Indeedee,Psychic|Normal,475,,520,3,,auto-score,
-indeedeef,Indeedee-F,Indeedee,Psychic|Normal,475,,520,3,,auto-score,
-kingler,Kingler,Kingler,Water,475,88,556,3,,showdown-randbats+auto-score,
-manectric,Manectric,Manectric,Electric,475,84,568,3,,showdown-randbats+auto-score,
-sawsbuck,Sawsbuck,Sawsbuck,Normal|Grass,475,88,556,3,,showdown-randbats+auto-score,
-tatsugiri,Tatsugiri,Tatsugiri,Dragon|Water,475,,520,3,,auto-score,
-tatsugiridroopy,Tatsugiri-Droopy,Tatsugiri,Dragon|Water,475,,520,3,,auto-score,
-tatsugiristretchy,Tatsugiri-Stretchy,Tatsugiri,Dragon|Water,475,,520,3,,auto-score,
-mimikyutotem,Mimikyu-Totem,Mimikyu,Ghost|Fairy,476,,521,3,,auto-score,
-oricorio,Oricorio,Oricorio,Fire|Flying,476,90,551,3,,showdown-randbats+auto-score,
-oricoriopau,Oricorio-Pa'u,Oricorio,Psychic|Flying,476,91,548,3,,showdown-randbats+auto-score,
-oricoriopompom,Oricorio-Pom-Pom,Oricorio,Electric|Flying,476,86,563,3,,showdown-randbats+auto-score,
-oricoriosensu,Oricorio-Sensu,Oricorio,Ghost|Flying,476,89,554,3,,showdown-randbats+auto-score,
-dachsbun,Dachsbun,Dachsbun,Fairy,477,,522,3,,auto-score,
-crabominable,Crabominable,Crabominable,Fighting|Ice,478,91,550,3,,showdown-randbats+auto-score,
-veluza,Veluza,Veluza,Water|Psychic,478,,523,3,,auto-score,
-pidgeot,Pidgeot,Pidgeot,Normal|Flying,479,90,554,3,,showdown-randbats+auto-score,
-skuntank,Skuntank,Skuntank,Poison|Dark,479,87,563,3,,showdown-randbats+auto-score,
-brambleghast,Brambleghast,Brambleghast,Grass|Ghost,480,,525,3,,auto-score,
-darmanitan,Darmanitan,Darmanitan,Fire,480,82,579,3,,showdown-randbats+auto-score,
-darmanitangalar,Darmanitan-Galar,Darmanitan,Ice,480,,525,3,,auto-score,
-froslass,Froslass,Froslass,Ice|Ghost,480,87,564,3,,showdown-randbats+auto-score,
-glalie,Glalie,Glalie,Ice,480,92,549,3,,showdown-randbats+auto-score,
-grapploct,Grapploct,Grapploct,Fighting,480,,525,3,,auto-score,
-jellicent,Jellicent,Jellicent,Water|Ghost,480,88,561,3,,showdown-randbats+auto-score,
-komala,Komala,Komala,Normal,480,88,561,3,,showdown-randbats+auto-score,
-lilligant,Lilligant,Lilligant,Grass,480,87,564,3,,showdown-randbats+auto-score,
-lilliganthisui,Lilligant-Hisui,Lilligant,Grass|Fighting,480,,525,3,,auto-score,
-lopunny,Lopunny,Lopunny,Normal,480,87,564,3,,showdown-randbats+auto-score,
-ludicolo,Ludicolo,Ludicolo,Water|Grass,480,89,558,3,,showdown-randbats+auto-score,
-lurantis,Lurantis,Lurantis,Grass,480,90,555,3,,showdown-randbats+auto-score,
-lurantistotem,Lurantis-Totem,Lurantis,Grass,480,,525,3,,auto-score,
-octillery,Octillery,Octillery,Water,480,96,537,3,,showdown-randbats+auto-score,
-orthworm,Orthworm,Orthworm,Steel,480,,525,3,,auto-score,
-palossand,Palossand,Palossand,Ghost|Ground,480,89,558,3,,showdown-randbats+auto-score,
-phione,Phione,Phione,Water,480,93,546,3,,showdown-randbats+auto-score,
-salazzle,Salazzle,Salazzle,Poison|Fire,480,84,573,3,,showdown-randbats+auto-score,
-salazzletotem,Salazzle-Totem,Salazzle,Poison|Fire,480,,525,3,,auto-score,
-shiftry,Shiftry,Shiftry,Grass|Dark,480,90,555,3,,showdown-randbats+auto-score,
-slurpuff,Slurpuff,Slurpuff,Fairy,480,79,588,3,,showdown-randbats+auto-score,
-whimsicott,Whimsicott,Whimsicott,Grass|Fairy,480,87,564,3,,showdown-randbats+auto-score,
-espathra,Espathra,Espathra,Psychic,481,,526,3,,auto-score,
-heliolisk,Heliolisk,Heliolisk,Electric|Normal,481,85,571,3,,showdown-randbats+auto-score,
-ambipom,Ambipom,Ambipom,Normal,482,84,575,3,,showdown-randbats+auto-score,
-malamar,Malamar,Malamar,Dark|Psychic,482,80,587,3,,showdown-randbats+auto-score,
-clefable,Clefable,Clefable,Fairy,483,83,579,3,,showdown-randbats+auto-score,
-cofagrigus,Cofagrigus,Cofagrigus,Ghost,483,89,561,3,,showdown-randbats+auto-score,
-golurk,Golurk,Golurk,Ground|Ghost,483,87,567,3,,showdown-randbats+auto-score,
-hypno,Hypno,Hypno,Psychic,483,97,537,3,,showdown-randbats+auto-score,
-runerigus,Runerigus,Runerigus,Ground|Ghost,483,,528,3,,auto-score,
-durant,Durant,Durant,Bug|Steel,484,80,589,3,,showdown-randbats+auto-score,
-heatmor,Heatmor,Heatmor,Fire,484,93,550,3,,showdown-randbats+auto-score,
-appletun,Appletun,Appletun,Grass|Dragon,485,,530,3,,auto-score,
-beheeyem,Beheeyem,Beheeyem,Psychic,485,93,551,3,,showdown-randbats+auto-score,
-bombirdier,Bombirdier,Bombirdier,Flying|Dark,485,,530,3,,auto-score,
-comfey,Comfey,Comfey,Fairy,485,88,566,3,,showdown-randbats+auto-score,
-crustle,Crustle,Crustle,Bug|Rock,485,82,584,3,,showdown-randbats+auto-score,
-drampa,Drampa,Drampa,Normal|Dragon,485,91,557,3,,showdown-randbats+auto-score,
-drednaw,Drednaw,Drednaw,Water|Rock,485,,530,3,,auto-score,
-druddigon,Druddigon,Druddigon,Dragon,485,86,572,3,,showdown-randbats+auto-score,
-flapple,Flapple,Flapple,Grass|Dragon,485,,530,3,,auto-score,
-gorebyss,Gorebyss,Gorebyss,Water,485,85,575,3,,showdown-randbats+auto-score,
-grafaiai,Grafaiai,Grafaiai,Poison|Normal,485,,530,3,,auto-score,
-huntail,Huntail,Huntail,Water,485,85,575,3,,showdown-randbats+auto-score,
-mantine,Mantine,Mantine,Water|Flying,485,87,569,3,,showdown-randbats+auto-score,
-raichu,Raichu,Raichu,Electric,485,88,566,3,,showdown-randbats+auto-score,
-raichualola,Raichu-Alola,Raichu,Electric|Psychic,485,86,572,3,,showdown-randbats+auto-score,
-relicanth,Relicanth,Relicanth,Water|Rock,485,88,566,3,,showdown-randbats+auto-score,
-scolipede,Scolipede,Scolipede,Bug|Poison,485,80,590,3,,showdown-randbats+auto-score,
-spiritomb,Spiritomb,Spiritomb,Ghost|Dark,485,91,557,3,,showdown-randbats+auto-score,
-staraptor,Staraptor,Staraptor,Normal|Flying,485,80,590,3,,showdown-randbats+auto-score,
-toucannon,Toucannon,Toucannon,Normal|Flying,485,88,566,3,,showdown-randbats+auto-score,
-turtonator,Turtonator,Turtonator,Fire|Dragon,485,88,566,3,,showdown-randbats+auto-score,
-scovillain,Scovillain,Scovillain,Grass|Fire,486,,531,3,,auto-score,
-zygarde10,Zygarde-10%,Zygarde,Dragon|Ground,486,81,588,3,,showdown-randbats+auto-score,
-lycanroc,Lycanroc,Lycanroc,Rock,487,85,577,3,,showdown-randbats+auto-score,
-lycanrocdusk,Lycanroc-Dusk,Lycanroc,Rock,487,83,583,3,,showdown-randbats+auto-score,
-lycanrocmidnight,Lycanroc-Midnight,Lycanroc,Rock,487,86,574,3,,showdown-randbats+auto-score,
-musharna,Musharna,Musharna,Psychic,487,89,565,3,,showdown-randbats+auto-score,
-houndstone,Houndstone,Houndstone,Ghost,488,,533,3,,auto-score,
-scrafty,Scrafty,Scrafty,Dark|Fighting,488,84,581,3,,showdown-randbats+auto-score,
-unfezant,Unfezant,Unfezant,Normal|Flying,488,88,569,3,,showdown-randbats+auto-score,
-oinkologne,Oinkologne,Oinkologne,Normal,489,,534,3,,auto-score,
-oinkolognef,Oinkologne-F,Oinkologne,Normal,489,,534,3,,auto-score,
-altaria,Altaria,Altaria,Dragon|Flying,490,92,559,3,,showdown-randbats+auto-score,
-barraskewda,Barraskewda,Barraskewda,Water,490,,535,3,,auto-score,
-bellossom,Bellossom,Bellossom,Grass,490,88,571,3,,showdown-randbats+auto-score,
-boltund,Boltund,Boltund,Electric,490,,535,3,,auto-score,
-bouffalant,Bouffalant,Bouffalant,Normal,490,87,574,3,,showdown-randbats+auto-score,
-dubwool,Dubwool,Dubwool,Normal,490,,535,3,,auto-score,
-electrode,Electrode,Electrode,Electric,490,89,568,3,,showdown-randbats+auto-score,
-electrodehisui,Electrode-Hisui,Electrode,Electric|Grass,490,,535,3,,auto-score,
-exploud,Exploud,Exploud,Normal,490,86,577,3,,showdown-randbats+auto-score,
-gothitelle,Gothitelle,Gothitelle,Psychic,490,91,562,3,,showdown-randbats+auto-score,
-kangaskhan,Kangaskhan,Kangaskhan,Normal,490,88,571,3,,showdown-randbats+auto-score,
-kilowattrel,Kilowattrel,Kilowattrel,Electric|Flying,490,,535,3,,auto-score,
-miltank,Miltank,Miltank,Normal,490,85,580,3,,showdown-randbats+auto-score,
-oranguru,Oranguru,Oranguru,Normal|Psychic,490,93,556,3,,showdown-randbats+auto-score,
-passimian,Passimian,Passimian,Fighting,490,84,583,3,,showdown-randbats+auto-score,
-pawmot,Pawmot,Pawmot,Electric|Fighting,490,,535,3,,auto-score,
-reuniclus,Reuniclus,Reuniclus,Psychic,490,87,574,3,,showdown-randbats+auto-score,
-sigilyph,Sigilyph,Sigilyph,Psychic|Flying,490,85,580,3,,showdown-randbats+auto-score,
-slowbro,Slowbro,Slowbro,Water|Psychic,490,85,580,3,,showdown-randbats+auto-score,
-slowbrogalar,Slowbro-Galar,Slowbro,Poison|Psychic,490,,535,3,,auto-score,
-slowking,Slowking,Slowking,Water|Psychic,490,89,568,3,,showdown-randbats+auto-score,
-slowkinggalar,Slowking-Galar,Slowking,Poison|Psychic,490,,535,3,,auto-score,
-tauros,Tauros,Tauros,Normal,490,84,583,3,,showdown-randbats+auto-score,
-taurospaldeaaqua,Tauros-Paldea-Aqua,Tauros,Fighting|Water,490,,535,3,,auto-score,
-taurospaldeablaze,Tauros-Paldea-Blaze,Tauros,Fighting|Fire,490,,535,3,,auto-score,
-taurospaldeacombat,Tauros-Paldea-Combat,Tauros,Fighting,490,,535,3,,auto-score,
-toxicroak,Toxicroak,Toxicroak,Poison|Fighting,490,84,583,3,,showdown-randbats+auto-score,
-victreebel,Victreebel,Victreebel,Grass|Poison,490,90,565,3,,showdown-randbats+auto-score,
-vileplume,Vileplume,Vileplume,Grass|Poison,490,87,574,3,,showdown-randbats+auto-score,
-weezing,Weezing,Weezing,Poison,490,87,574,3,,showdown-randbats+auto-score,
-weezinggalar,Weezing-Galar,Weezing,Poison|Fairy,490,,535,3,,auto-score,
-abomasnow,Abomasnow,Abomasnow,Grass|Ice,494,87,578,3,,showdown-randbats+auto-score,
-dragalge,Dragalge,Dragalge,Poison|Dragon,494,87,578,3,,showdown-randbats+auto-score,
-gourgeist,Gourgeist,Gourgeist,Ghost|Grass,494,91,566,3,,showdown-randbats+auto-score,
-gourgeistlarge,Gourgeist-Large,Gourgeist,Ghost|Grass,494,91,566,3,,showdown-randbats+auto-score,
-gourgeistsmall,Gourgeist-Small,Gourgeist,Ghost|Grass,494,91,566,3,,showdown-randbats+auto-score,
-gourgeistsuper,Gourgeist-Super,Gourgeist,Ghost|Grass,494,89,572,3,,showdown-randbats+auto-score,
-accelgor,Accelgor,Accelgor,Bug,495,90,570,3,,showdown-randbats+auto-score,
-alcremie,Alcremie,Alcremie,Fairy,495,,540,3,,auto-score,
-armaldo,Armaldo,Armaldo,Rock|Bug,495,89,573,3,,showdown-randbats+auto-score,
-bastiodon,Bastiodon,Bastiodon,Rock|Steel,495,93,561,3,,showdown-randbats+auto-score,
-bellibolt,Bellibolt,Bellibolt,Electric,495,,540,3,,auto-score,
-carracosta,Carracosta,Carracosta,Water|Rock,495,88,576,3,,showdown-randbats+auto-score,
-corviknight,Corviknight,Corviknight,Flying|Steel,495,,540,3,,auto-score,
-cradily,Cradily,Cradily,Rock|Grass,495,89,573,3,,showdown-randbats+auto-score,
-escavalier,Escavalier,Escavalier,Bug|Steel,495,85,585,3,,showdown-randbats+auto-score,
-floatzel,Floatzel,Floatzel,Water,495,86,582,3,,showdown-randbats+auto-score,
-golem,Golem,Golem,Rock|Ground,495,86,582,3,,showdown-randbats+auto-score,
-golemalola,Golem-Alola,Golem,Rock|Electric,495,90,570,3,,showdown-randbats+auto-score,
-kabutops,Kabutops,Kabutops,Rock|Water,495,87,579,3,,showdown-randbats+auto-score,
-mismagius,Mismagius,Mismagius,Ghost,495,87,579,3,,showdown-randbats+auto-score,
-omastar,Omastar,Omastar,Rock|Water,495,84,588,3,,showdown-randbats+auto-score,
-pangoro,Pangoro,Pangoro,Fighting|Dark,495,86,582,3,,showdown-randbats+auto-score,
-rampardos,Rampardos,Rampardos,Rock,495,88,576,3,,showdown-randbats+auto-score,
-zebstrika,Zebstrika,Zebstrika,Electric,497,88,578,3,,showdown-randbats+auto-score,
-drifblim,Drifblim,Drifblim,Ghost|Flying,498,85,588,3,,showdown-randbats+auto-score,
-simipour,Simipour,Simipour,Water,498,88,579,3,,showdown-randbats+auto-score,
-simisage,Simisage,Simisage,Grass,498,89,576,3,,showdown-randbats+auto-score,
-simisear,Simisear,Simisear,Fire,498,89,576,3,,showdown-randbats+auto-score,
-bronzong,Bronzong,Bronzong,Steel|Psychic,500,86,587,3,,showdown-randbats+auto-score,
-calyrex,Calyrex,Calyrex,Psychic|Grass,500,,545,3,,auto-score,
-carbink,Carbink,Carbink,Rock|Fairy,500,92,569,3,,showdown-randbats+auto-score,
-clawitzer,Clawitzer,Clawitzer,Water,500,87,584,3,,showdown-randbats+auto-score,
-claydol,Claydol,Claydol,Ground|Psychic,500,89,578,3,,showdown-randbats+auto-score,
-copperajah,Copperajah,Copperajah,Steel,500,,545,3,,auto-score,
-flamigo,Flamigo,Flamigo,Flying|Fighting,500,,545,3,,auto-score,
-garganacl,Garganacl,Garganacl,Rock,500,,545,3,,auto-score,
-golduck,Golduck,Golduck,Water,500,92,569,3,,showdown-randbats+auto-score,
-houndoom,Houndoom,Houndoom,Dark|Fire,500,87,584,3,,showdown-randbats+auto-score,
-kleavor,Kleavor,Kleavor,Bug|Rock,500,,545,3,,auto-score,
-leavanny,Leavanny,Leavanny,Bug|Grass,500,87,584,3,,showdown-randbats+auto-score,
-muk,Muk,Muk,Poison,500,88,581,3,,showdown-randbats+auto-score,
-pinsir,Pinsir,Pinsir,Bug,500,85,590,3,,showdown-randbats+auto-score,
-politoed,Politoed,Politoed,Water,500,88,581,3,,showdown-randbats+auto-score,
-rapidash,Rapidash,Rapidash,Fire,500,87,584,3,,showdown-randbats+auto-score,
-rapidashgalar,Rapidash-Galar,Rapidash,Psychic|Fairy,500,,545,3,,auto-score,
-revavroom,Revavroom,Revavroom,Steel|Poison,500,,545,3,,auto-score,
-stoutland,Stoutland,Stoutland,Normal,500,86,587,3,,showdown-randbats+auto-score,
-vikavolt,Vikavolt,Vikavolt,Bug|Electric,500,86,587,3,,showdown-randbats+auto-score,
-vikavolttotem,Vikavolt-Totem,Vikavolt,Bug|Electric,500,,545,3,,auto-score,
-wailord,Wailord,Wailord,Water,500,94,563,3,,showdown-randbats+auto-score,
-cyclizar,Cyclizar,Cyclizar,Dragon|Normal,501,,546,3,,auto-score,
-toxtricity,Toxtricity,Toxtricity,Electric|Poison,502,,547,3,,auto-score,
-toxtricitylowkey,Toxtricity-Low-Key,Toxtricity,Electric|Poison,502,,547,3,,auto-score,
-arctovish,Arctovish,Arctovish,Water|Ice,505,,550,3,,auto-score,
-arctozolt,Arctozolt,Arctozolt,Electric|Ice,505,,550,3,,auto-score,
-beartic,Beartic,Beartic,Ice,505,92,574,3,,showdown-randbats+auto-score,
-dracovish,Dracovish,Dracovish,Water|Dragon,505,,550,3,,auto-score,
-dracozolt,Dracozolt,Dracozolt,Electric|Dragon,505,,550,3,,auto-score,
-mabosstiff,Mabosstiff,Mabosstiff,Dark,505,,550,3,,auto-score,
-orbeetle,Orbeetle,Orbeetle,Bug|Psychic,505,,550,3,,auto-score,
-tinkaton,Tinkaton,Tinkaton,Fairy|Steel,506,,551,3,,auto-score,
-pyroar,Pyroar,Pyroar,Fire|Normal,507,88,588,3,,showdown-randbats+auto-score,
-sirfetchd,Sirfetch’d,Sirfetch’d,Fighting,507,,552,3,,auto-score,
-polteageist,Polteageist,Polteageist,Ghost,508,,553,3,,auto-score,
-polteageistantique,Polteageist-Antique,Polteageist,Ghost,508,,553,3,,auto-score,
-sinistcha,Sinistcha,Sinistcha,Grass|Ghost,508,,553,3,,auto-score,
-sinistchamasterpiece,Sinistcha-Masterpiece,Sinistcha,Grass|Ghost,508,,553,3,,auto-score,
-arboliva,Arboliva,Arboliva,Grass|Normal,510,,555,3,,auto-score,
-braviaryhisui,Braviary-Hisui,Braviary,Psychic|Flying,510,,555,3,,auto-score,
-coalossal,Coalossal,Coalossal,Rock|Fire,510,,555,3,,auto-score,
-cursola,Cursola,Cursola,Ghost,510,,555,3,,auto-score,
-grimmsnarl,Grimmsnarl,Grimmsnarl,Dark|Fairy,510,,555,3,,auto-score,
-hatterene,Hatterene,Hatterene,Psychic|Fairy,510,,555,3,,auto-score,
-overqwil,Overqwil,Overqwil,Dark|Poison,510,,555,3,,auto-score,
-poliwrath,Poliwrath,Poliwrath,Water|Fighting,510,91,582,3,,showdown-randbats+auto-score,
-sandaconda,Sandaconda,Sandaconda,Ground,510,,555,3,,auto-score,
-sneasler,Sneasler,Sneasler,Fighting|Poison,510,,555,3,,auto-score,
-zoroarkhisui,Zoroark-Hisui,Zoroark,Normal|Ghost,510,,555,3,,auto-score,
-avalugg,Avalugg,Avalugg,Ice,514,90,589,3,,showdown-randbats+auto-score,
-avalugghisui,Avalugg-Hisui,Avalugg,Ice|Rock,514,,559,3,,auto-score,
-porygon2,Porygon2,Porygon2,Normal,515,82,524,3,,showdown-randbats+auto-score,nfe
-toedscruel,Toedscruel,Toedscruel,Ground|Grass,515,,560,3,,auto-score,
-dhelmise,Dhelmise,Dhelmise,Ghost|Grass,517,91,589,3,,showdown-randbats+auto-score,
-dudunsparce,Dudunsparce,Dudunsparce,Normal,520,,565,3,,auto-score,
-dudunsparcethreesegment,Dudunsparce-Three-Segment,Dudunsparce,Normal,520,,565,3,,auto-score,
-farigiraf,Farigiraf,Farigiraf,Normal|Psychic,520,,565,3,,auto-score,
-mrrime,Mr. Rime,Mr. Rime,Ice|Psychic,520,,565,3,,auto-score,
-obstagoon,Obstagoon,Obstagoon,Dark|Normal,520,,565,3,,auto-score,
-cetitan,Cetitan,Cetitan,Ice,521,,566,3,,auto-score,
-armarouge,Armarouge,Armarouge,Fire|Psychic,525,,570,3,,auto-score,
-centiskorch,Centiskorch,Centiskorch,Fire|Bug,525,,570,3,,auto-score,
-ceruledge,Ceruledge,Ceruledge,Fire|Ghost,525,,570,3,,auto-score,
-glimmora,Glimmora,Glimmora,Rock|Poison,525,,570,3,,auto-score,
-wyrdeer,Wyrdeer,Wyrdeer,Normal|Psychic,525,,570,3,,auto-score,
-samurotthisui,Samurott-Hisui,Samurott,Water|Dark,528,,573,3,,auto-score,
-basculegion,Basculegion,Basculegion,Water|Ghost,530,,575,3,,auto-score,
-basculegionf,Basculegion-F,Basculegion,Water|Ghost,530,,575,3,,auto-score,
-cinderace,Cinderace,Cinderace,Fire,530,,575,3,,auto-score,
-decidueyehisui,Decidueye-Hisui,Decidueye,Grass|Fighting,530,,575,3,,auto-score,
-dondozo,Dondozo,Dondozo,Water,530,,575,3,,auto-score,
-inteleon,Inteleon,Inteleon,Water,530,,575,3,,auto-score,
-meowscarada,Meowscarada,Meowscarada,Grass|Dark,530,,575,3,,auto-score,
-quaquaval,Quaquaval,Quaquaval,Water|Fighting,530,,575,3,,auto-score,
-rillaboom,Rillaboom,Rillaboom,Grass,530,,575,3,,auto-score,
-skeledirge,Skeledirge,Skeledirge,Fire|Ghost,530,,575,3,,auto-score,
-typenull,Type: Null,Type: Null,Normal,534,85,534,3,,showdown-randbats+auto-score,nfe
-typhlosionhisui,Typhlosion-Hisui,Typhlosion,Fire|Ghost,534,,579,3,,auto-score,
-annihilape,Annihilape,Annihilape,Fighting|Ghost,535,,580,3,,auto-score,
-hydrapple,Hydrapple,Hydrapple,Grass|Dragon,540,,585,3,,auto-score,
-mimikyu,Mimikyu,Mimikyu,Ghost|Fairy,476,73,602,4,,showdown-randbats+auto-score,
-ferrothorn,Ferrothorn,Ferrothorn,Grass|Steel,489,72,618,4,,showdown-randbats+auto-score,
-toxapex,Toxapex,Toxapex,Poison|Water,495,80,600,4,,showdown-randbats+auto-score,
-talonflame,Talonflame,Talonflame,Fire|Flying,499,82,598,4,,showdown-randbats+auto-score,
-aegislash,Aegislash,Aegislash,Steel|Ghost,500,77,614,4,,showdown-randbats+auto-score,
-alakazam,Alakazam,Alakazam,Psychic,500,81,602,4,,showdown-randbats+auto-score,
-barbaracle,Barbaracle,Barbaracle,Rock|Water,500,81,602,4,,showdown-randbats+auto-score,
-bewear,Bewear,Bewear,Normal|Fighting,500,84,593,4,,showdown-randbats+auto-score,
-donphan,Donphan,Donphan,Ground,500,84,593,4,,showdown-randbats+auto-score,
-drapion,Drapion,Drapion,Poison|Dark,500,83,596,4,,showdown-randbats+auto-score,
-gengar,Gengar,Gengar,Ghost|Poison,500,82,599,4,,showdown-randbats+auto-score,
-hawlucha,Hawlucha,Hawlucha,Fighting|Flying,500,78,611,4,,showdown-randbats+auto-score,
-heracross,Heracross,Heracross,Bug|Fighting,500,82,599,4,,showdown-randbats+auto-score,
-minior,Minior,Minior,Rock|Flying,500,79,608,4,,showdown-randbats+auto-score,
-mudsdale,Mudsdale,Mudsdale,Ground,500,83,596,4,,showdown-randbats+auto-score,
-mukalola,Muk-Alola,Muk,Poison|Dark,500,80,605,4,,showdown-randbats+auto-score,
-scizor,Scizor,Scizor,Bug|Steel,500,80,605,4,,showdown-randbats+auto-score,
-conkeldurr,Conkeldurr,Conkeldurr,Fighting,505,81,607,4,,showdown-randbats+auto-score,
-honchkrow,Honchkrow,Honchkrow,Dark|Flying,505,83,601,4,,showdown-randbats+auto-score,
-machamp,Machamp,Machamp,Fighting,505,84,598,4,,showdown-randbats+auto-score,
-nidoking,Nidoking,Nidoking,Poison|Ground,505,82,604,4,,showdown-randbats+auto-score,
-nidoqueen,Nidoqueen,Nidoqueen,Poison|Ground,505,83,601,4,,showdown-randbats+auto-score,
-ninetales,Ninetales,Ninetales,Fire,505,84,598,4,,showdown-randbats+auto-score,
-ninetalesalola,Ninetales-Alola,Ninetales,Ice|Fairy,505,78,616,4,,showdown-randbats+auto-score,
-shuckle,Shuckle,Shuckle,Bug|Rock,505,86,592,4,,showdown-randbats+auto-score,
-excadrill,Excadrill,Excadrill,Ground|Steel,508,81,610,4,,showdown-randbats+auto-score,
-seismitoad,Seismitoad,Seismitoad,Water|Ground,509,85,599,4,,showdown-randbats+auto-score,
-ampharos,Ampharos,Ampharos,Electric,510,88,591,4,,showdown-randbats+auto-score,
-braviary,Braviary,Braviary,Normal|Flying,510,83,606,4,,showdown-randbats+auto-score,
-gliscor,Gliscor,Gliscor,Ground|Flying,510,78,621,4,,showdown-randbats+auto-score,
-mandibuzz,Mandibuzz,Mandibuzz,Dark|Flying,510,84,603,4,,showdown-randbats+auto-score,
-mienshao,Mienshao,Mienshao,Fighting,510,83,606,4,,showdown-randbats+auto-score,
-steelix,Steelix,Steelix,Steel|Ground,510,82,609,4,,showdown-randbats+auto-score,
-tsareena,Tsareena,Tsareena,Grass,510,87,594,4,,showdown-randbats+auto-score,
-weavile,Weavile,Weavile,Dark|Ice,510,79,618,4,,showdown-randbats+auto-score,
-zoroark,Zoroark,Zoroark,Dark,510,84,603,4,,showdown-randbats+auto-score,
-aerodactyl,Aerodactyl,Aerodactyl,Rock|Flying,515,81,617,4,,showdown-randbats+auto-score,
-cryogonal,Cryogonal,Cryogonal,Ice,515,87,599,4,,showdown-randbats+auto-score,
-eelektross,Eelektross,Eelektross,Electric,515,88,596,4,,showdown-randbats+auto-score,
-gigalith,Gigalith,Gigalith,Rock,515,82,614,4,,showdown-randbats+auto-score,
-lickilicky,Lickilicky,Lickilicky,Normal,515,89,593,4,,showdown-randbats+auto-score,
-roserade,Roserade,Roserade,Grass|Poison,515,84,608,4,,showdown-randbats+auto-score,
-tentacruel,Tentacruel,Tentacruel,Water|Poison,515,83,611,4,,showdown-randbats+auto-score,
-gallade,Gallade,Gallade,Psychic|Fighting,518,84,611,4,,showdown-randbats+auto-score,
-gardevoir,Gardevoir,Gardevoir,Psychic|Fairy,518,83,614,4,,showdown-randbats+auto-score,
-krookodile,Krookodile,Krookodile,Ground|Dark,519,79,627,4,,showdown-randbats+auto-score,
-chandelure,Chandelure,Chandelure,Ghost|Fire,520,84,613,4,,showdown-randbats+auto-score,
-flygon,Flygon,Flygon,Ground|Dragon,520,82,619,4,,showdown-randbats+auto-score,
-klinklang,Klinklang,Klinklang,Steel,520,87,604,4,,showdown-randbats+auto-score,
-rotomfan,Rotom-Fan,Rotom,Electric|Flying,520,84,613,4,,showdown-randbats+auto-score,
-rotomfrost,Rotom-Frost,Rotom,Electric|Ice,520,85,610,4,,showdown-randbats+auto-score,
-rotomheat,Rotom-Heat,Rotom,Electric|Fire,520,84,613,4,,showdown-randbats+auto-score,
-rotommow,Rotom-Mow,Rotom,Electric|Grass,520,86,607,4,,showdown-randbats+auto-score,
-rotomwash,Rotom-Wash,Rotom,Electric|Water,520,83,616,4,,showdown-randbats+auto-score,
-starmie,Starmie,Starmie,Water|Psychic,520,84,613,4,,showdown-randbats+auto-score,
-aurorus,Aurorus,Aurorus,Rock|Ice,521,88,602,4,,showdown-randbats+auto-score,
-tyrantrum,Tyrantrum,Tyrantrum,Rock|Dragon,521,80,626,4,,showdown-randbats+auto-score,
-luxray,Luxray,Luxray,Electric,523,88,604,4,,showdown-randbats+auto-score,
-cloyster,Cloyster,Cloyster,Water|Ice,525,80,630,4,,showdown-randbats+auto-score,
-dusknoir,Dusknoir,Dusknoir,Ghost,525,89,603,4,,showdown-randbats+auto-score,
-espeon,Espeon,Espeon,Psychic,525,83,621,4,,showdown-randbats+auto-score,
-flareon,Flareon,Flareon,Fire,525,88,606,4,,showdown-randbats+auto-score,
-glaceon,Glaceon,Glaceon,Ice,525,90,600,4,,showdown-randbats+auto-score,
-hippowdon,Hippowdon,Hippowdon,Ground,525,82,624,4,,showdown-randbats+auto-score,
-jolteon,Jolteon,Jolteon,Electric,525,81,627,4,,showdown-randbats+auto-score,
-leafeon,Leafeon,Leafeon,Grass,525,88,606,4,,showdown-randbats+auto-score,
-lucario,Lucario,Lucario,Fighting|Steel,525,82,624,4,,showdown-randbats+auto-score,
-meganium,Meganium,Meganium,Grass,525,92,594,4,,showdown-randbats+auto-score,
-probopass,Probopass,Probopass,Rock|Steel,525,92,594,4,,showdown-randbats+auto-score,
-sylveon,Sylveon,Sylveon,Fairy,525,85,615,4,,showdown-randbats+auto-score,
-torterra,Torterra,Torterra,Grass|Ground,525,88,606,4,,showdown-randbats+auto-score,
-umbreon,Umbreon,Umbreon,Dark,525,84,618,4,,showdown-randbats+auto-score,
-vaporeon,Vaporeon,Vaporeon,Water,525,86,612,4,,showdown-randbats+auto-score,
-venusaur,Venusaur,Venusaur,Grass|Poison,525,84,618,4,,showdown-randbats+auto-score,
-emboar,Emboar,Emboar,Fire|Fighting,528,85,618,4,,showdown-randbats+auto-score,
-samurott,Samurott,Samurott,Water,528,88,609,4,,showdown-randbats+auto-score,
-serperior,Serperior,Serperior,Grass,528,80,633,4,,showdown-randbats+auto-score,
-aggron,Aggron,Aggron,Steel|Rock,530,87,614,4,,showdown-randbats+auto-score,
-blastoise,Blastoise,Blastoise,Water,530,86,617,4,,showdown-randbats+auto-score,
-blaziken,Blaziken,Blaziken,Fire|Fighting,530,78,641,4,,showdown-randbats+auto-score,
-chesnaught,Chesnaught,Chesnaught,Grass|Fighting,530,89,608,4,,showdown-randbats+auto-score,
-decidueye,Decidueye,Decidueye,Grass|Ghost,530,87,614,4,,showdown-randbats+auto-score,
-empoleon,Empoleon,Empoleon,Water|Steel,530,83,626,4,,showdown-randbats+auto-score,
-exeggutor,Exeggutor,Exeggutor,Grass|Psychic,530,90,605,4,,showdown-randbats+auto-score,
-exeggutoralola,Exeggutor-Alola,Exeggutor,Grass|Dragon,530,91,602,4,,showdown-randbats+auto-score,
-feraligatr,Feraligatr,Feraligatr,Water,530,79,638,4,,showdown-randbats+auto-score,
-golisopod,Golisopod,Golisopod,Bug|Water,530,84,623,4,,showdown-randbats+auto-score,
-greninja,Greninja,Greninja,Water|Dark,530,79,638,4,,showdown-randbats+auto-score,
-greninjabond,Greninja-Bond,Greninja,Water|Dark,530,79,638,4,,showdown-randbats+auto-score,
-incineroar,Incineroar,Incineroar,Fire|Dark,530,82,629,4,,showdown-randbats+auto-score,
-mamoswine,Mamoswine,Mamoswine,Ice|Ground,530,79,638,4,,showdown-randbats+auto-score,
-primarina,Primarina,Primarina,Water|Fairy,530,83,626,4,,showdown-randbats+auto-score,
-sceptile,Sceptile,Sceptile,Grass,530,87,614,4,,showdown-randbats+auto-score,
-walrein,Walrein,Walrein,Ice|Water,530,90,605,4,,showdown-randbats+auto-score,
-gogoat,Gogoat,Gogoat,Grass,531,91,603,4,,showdown-randbats+auto-score,
-charizard,Charizard,Charizard,Fire|Flying,534,83,630,4,,showdown-randbats+auto-score,
-delphox,Delphox,Delphox,Fire|Psychic,534,86,621,4,,showdown-randbats+auto-score,
-infernape,Infernape,Infernape,Fire|Fighting,534,81,636,4,,showdown-randbats+auto-score,
-typhlosion,Typhlosion,Typhlosion,Fire,534,85,624,4,,showdown-randbats+auto-score,
-crobat,Crobat,Crobat,Poison|Flying,535,82,634,4,,showdown-randbats+auto-score,
-lapras,Lapras,Lapras,Water|Ice,535,88,616,4,,showdown-randbats+auto-score,
-magnezone,Magnezone,Magnezone,Electric|Steel,535,84,628,4,,showdown-randbats+auto-score,
-noivern,Noivern,Noivern,Flying|Dragon,535,83,631,4,,showdown-randbats+auto-score,
-porygonz,Porygon-Z,Porygon-Z,Normal,535,80,640,4,,showdown-randbats+auto-score,
-rhyperior,Rhyperior,Rhyperior,Ground|Rock,535,84,628,4,,showdown-randbats+auto-score,
-swampert,Swampert,Swampert,Water|Ground,535,82,634,4,,showdown-randbats+auto-score,
-tangrowth,Tangrowth,Tangrowth,Grass,535,89,613,4,,showdown-randbats+auto-score,
-vanilluxe,Vanilluxe,Vanilluxe,Ice,535,86,622,4,,showdown-randbats+auto-score,
-blissey,Blissey,Blissey,Normal,540,85,630,4,,showdown-randbats+auto-score,
-electivire,Electivire,Electivire,Electric,540,86,627,4,,showdown-randbats+auto-score,
-gyarados,Gyarados,Gyarados,Water|Flying,540,73,666,4,,showdown-randbats+auto-score,
-haxorus,Haxorus,Haxorus,Dragon,540,75,660,4,,showdown-randbats+auto-score,
-kingdra,Kingdra,Kingdra,Water|Dragon,540,85,630,4,,showdown-randbats+auto-score,
-magmortar,Magmortar,Magmortar,Fire,540,88,621,4,,showdown-randbats+auto-score,
-milotic,Milotic,Milotic,Water,540,84,633,4,,showdown-randbats+auto-score,
-naganadel,Naganadel,Naganadel,Poison|Dragon,540,74,663,4,,showdown-randbats+auto-score,
-snorlax,Snorlax,Snorlax,Normal,540,83,636,4,,showdown-randbats+auto-score,
-togekiss,Togekiss,Togekiss,Fairy|Flying,545,81,647,4,,showdown-randbats+auto-score,
-gholdengo,Gholdengo,Gholdengo,Steel|Ghost,550,,595,4,,auto-score,
-kingambit,Kingambit,Kingambit,Dark|Steel,550,,595,4,,auto-score,
-ogerpon,Ogerpon,Ogerpon,Grass,550,,595,4,,auto-score,
-ursaluna,Ursaluna,Ursaluna,Ground|Normal,550,,595,4,,auto-score,
-urshifu,Urshifu,Urshifu,Fighting|Dark,550,,595,4,,auto-score,
-urshifurapidstrike,Urshifu-Rapid-Strike,Urshifu,Fighting|Water,550,,595,4,,auto-score,
-volcarona,Volcarona,Volcarona,Bug|Fire,550,76,667,4,,showdown-randbats+auto-score,
-floetteeternal,Floette-Eternal,Floette,Fairy,551,83,647,4,,showdown-randbats+auto-score,
-florges,Florges,Florges,Fairy,552,85,642,4,,showdown-randbats+auto-score,
-arcanine,Arcanine,Arcanine,Fire,555,84,648,4,,showdown-randbats+auto-score,
-arcaninehisui,Arcanine-Hisui,Arcanine,Fire|Rock,555,,600,4,,auto-score,
-fezandipiti,Fezandipiti,Fezandipiti,Poison|Fairy,555,,600,4,,auto-score,
-munkidori,Munkidori,Munkidori,Poison|Psychic,555,,600,4,,auto-score,
-okidogi,Okidogi,Okidogi,Poison|Fighting,555,,600,4,,auto-score,
-ursalunabloodmoon,Ursaluna-Bloodmoon,Ursaluna,Ground|Normal,555,,600,4,,auto-score,
-archeops,Archeops,Archeops,Rock|Flying,567,82,666,4,,showdown-randbats+auto-score,
-blacephalon,Blacephalon,Blacephalon,Fire|Ghost,570,80,675,4,,showdown-randbats+auto-score,
-brutebonnet,Brute Bonnet,Brute Bonnet,Grass|Dark,570,,615,4,,auto-score,
-buzzwole,Buzzwole,Buzzwole,Bug|Fighting,570,79,678,4,,showdown-randbats+auto-score,
-celesteela,Celesteela,Celesteela,Steel|Flying,570,78,681,4,,showdown-randbats+auto-score,
-chiyu,Chi-Yu,Chi-Yu,Dark|Fire,570,,615,4,,auto-score,
-chienpao,Chien-Pao,Chien-Pao,Dark|Ice,570,,615,4,,auto-score,
-fluttermane,Flutter Mane,Flutter Mane,Ghost|Fairy,570,,615,4,,auto-score,
-greattusk,Great Tusk,Great Tusk,Ground|Fighting,570,,615,4,,auto-score,
-guzzlord,Guzzlord,Guzzlord,Dark|Dragon,570,86,657,4,,showdown-randbats+auto-score,
-ironbundle,Iron Bundle,Iron Bundle,Ice|Water,570,,615,4,,auto-score,
-ironhands,Iron Hands,Iron Hands,Fighting|Electric,570,,615,4,,auto-score,
-ironjugulis,Iron Jugulis,Iron Jugulis,Dark|Flying,570,,615,4,,auto-score,
-ironmoth,Iron Moth,Iron Moth,Fire|Poison,570,,615,4,,auto-score,
-ironthorns,Iron Thorns,Iron Thorns,Rock|Electric,570,,615,4,,auto-score,
-irontreads,Iron Treads,Iron Treads,Ground|Steel,570,,615,4,,auto-score,
-kartana,Kartana,Kartana,Grass|Steel,570,74,693,4,,showdown-randbats+auto-score,
-nihilego,Nihilego,Nihilego,Rock|Poison,570,79,678,4,,showdown-randbats+auto-score,
-pheromosa,Pheromosa,Pheromosa,Bug|Fighting,570,75,690,4,,showdown-randbats+auto-score,
-sandyshocks,Sandy Shocks,Sandy Shocks,Electric|Ground,570,,615,4,,auto-score,
-screamtail,Scream Tail,Scream Tail,Fairy|Psychic,570,,615,4,,auto-score,
-silvally,Silvally,Silvally,Normal,570,87,654,4,,showdown-randbats+auto-score,
-slitherwing,Slither Wing,Slither Wing,Bug|Fighting,570,,615,4,,auto-score,
-stakataka,Stakataka,Stakataka,Rock|Steel,570,83,666,4,,showdown-randbats+auto-score,
-tapubulu,Tapu Bulu,Tapu Bulu,Grass|Fairy,570,82,669,4,,showdown-randbats+auto-score,
-tapufini,Tapu Fini,Tapu Fini,Water|Fairy,570,80,675,4,,showdown-randbats+auto-score,
-tapukoko,Tapu Koko,Tapu Koko,Electric|Fairy,570,77,684,4,,showdown-randbats+auto-score,
-tapulele,Tapu Lele,Tapu Lele,Psychic|Fairy,570,77,684,4,,showdown-randbats+auto-score,
-tinglu,Ting-Lu,Ting-Lu,Dark|Ground,570,,615,4,,auto-score,
-wochien,Wo-Chien,Wo-Chien,Dark|Grass,570,,615,4,,auto-score,
-xurkitree,Xurkitree,Xurkitree,Electric,570,80,675,4,,showdown-randbats+auto-score,
-articuno,Articuno,Articuno,Ice|Flying,580,85,670,4,,showdown-randbats+auto-score,
-articunogalar,Articuno-Galar,Articuno,Psychic|Flying,580,,625,4,,auto-score,
-azelf,Azelf,Azelf,Psychic,580,82,679,4,,showdown-randbats+auto-score,
-cobalion,Cobalion,Cobalion,Steel|Fighting,580,78,691,4,,showdown-randbats+auto-score,
-cresselia,Cresselia,Cresselia,Psychic,580,82,679,4,,showdown-randbats+auto-score,
-enamorus,Enamorus,Enamorus,Fairy|Flying,580,,625,4,,auto-score,
-enamorustherian,Enamorus-Therian,Enamorus,Fairy|Flying,580,,625,4,,auto-score,
-entei,Entei,Entei,Fire,580,78,691,4,,showdown-randbats+auto-score,
-glastrier,Glastrier,Glastrier,Ice,580,,625,4,,auto-score,
-keldeo,Keldeo,Keldeo,Water|Fighting,580,80,685,4,,showdown-randbats+auto-score,
-keldeoresolute,Keldeo-Resolute,Keldeo,Water|Fighting,580,,625,4,,auto-score,
-mesprit,Mesprit,Mesprit,Psychic,580,86,667,4,,showdown-randbats+auto-score,
-moltres,Moltres,Moltres,Fire|Flying,580,82,679,4,,showdown-randbats+auto-score,
-moltresgalar,Moltres-Galar,Moltres,Dark|Flying,580,,625,4,,auto-score,
-raikou,Raikou,Raikou,Electric,580,81,682,4,,showdown-randbats+auto-score,
-regice,Regice,Regice,Ice,580,87,664,4,,showdown-randbats+auto-score,
-regidrago,Regidrago,Regidrago,Dragon,580,,625,4,,auto-score,
-regieleki,Regieleki,Regieleki,Electric,580,,625,4,,auto-score,
-regirock,Regirock,Regirock,Rock,580,87,664,4,,showdown-randbats+auto-score,
-registeel,Registeel,Registeel,Steel,580,83,676,4,,showdown-randbats+auto-score,
-spectrier,Spectrier,Spectrier,Ghost,580,,625,4,,auto-score,
-suicune,Suicune,Suicune,Water,580,82,679,4,,showdown-randbats+auto-score,
-terrakion,Terrakion,Terrakion,Rock|Fighting,580,78,691,4,,showdown-randbats+auto-score,
-thundurus,Thundurus,Thundurus,Electric|Flying,580,81,682,4,,showdown-randbats+auto-score,
-thundurustherian,Thundurus-Therian,Thundurus,Electric|Flying,580,80,685,4,,showdown-randbats+auto-score,
-tornadus,Tornadus,Tornadus,Flying,580,82,679,4,,showdown-randbats+auto-score,
-tornadustherian,Tornadus-Therian,Tornadus,Flying,580,80,685,4,,showdown-randbats+auto-score,
-uxie,Uxie,Uxie,Psychic,580,82,679,4,,showdown-randbats+auto-score,
-virizion,Virizion,Virizion,Grass|Fighting,580,81,682,4,,showdown-randbats+auto-score,
-zapdos,Zapdos,Zapdos,Electric|Flying,580,79,688,4,,showdown-randbats+auto-score,
-zapdosgalar,Zapdos-Galar,Zapdos,Fighting|Flying,580,,625,4,,auto-score,
-gougingfire,Gouging Fire,Gouging Fire,Fire|Dragon,590,,635,4,,auto-score,
-ironboulder,Iron Boulder,Iron Boulder,Rock|Psychic,590,,635,4,,auto-score,
-ironcrown,Iron Crown,Iron Crown,Steel|Psychic,590,,635,4,,auto-score,
-ironleaves,Iron Leaves,Iron Leaves,Grass|Psychic,590,,635,4,,auto-score,
-ironvaliant,Iron Valiant,Iron Valiant,Fairy|Fighting,590,,635,4,,auto-score,
-ragingbolt,Raging Bolt,Raging Bolt,Electric|Dragon,590,,635,4,,auto-score,
-roaringmoon,Roaring Moon,Roaring Moon,Dragon|Dark,590,,635,4,,auto-score,
-walkingwake,Walking Wake,Walking Wake,Water|Dragon,590,,635,4,,auto-score,
-archaludon,Archaludon,Archaludon,Steel|Dragon,600,,645,4,,auto-score,
-baxcalibur,Baxcalibur,Baxcalibur,Dragon|Ice,600,,645,4,,auto-score,
-celebi,Celebi,Celebi,Psychic|Grass,600,82,699,4,,showdown-randbats+auto-score,
-darkrai,Darkrai,Darkrai,Dark,600,75,720,4,,showdown-randbats+auto-score,
-deoxys,Deoxys,Deoxys,Psychic,600,75,720,4,,showdown-randbats+auto-score,
-deoxysattack,Deoxys-Attack,Deoxys,Psychic,600,72,729,4,,showdown-randbats+auto-score,
-deoxysdefense,Deoxys-Defense,Deoxys,Psychic,600,85,690,4,,showdown-randbats+auto-score,
-deoxysspeed,Deoxys-Speed,Deoxys,Psychic,600,81,702,4,,showdown-randbats+auto-score,
-diancie,Diancie,Diancie,Rock|Fairy,600,81,702,4,,showdown-randbats+auto-score,
-dragapult,Dragapult,Dragapult,Dragon|Ghost,600,,645,4,,auto-score,
-dragonite,Dragonite,Dragonite,Dragon|Flying,600,72,729,4,,showdown-randbats+auto-score,
-garchomp,Garchomp,Garchomp,Dragon|Ground,600,75,720,4,,showdown-randbats+auto-score,
-genesect,Genesect,Genesect,Bug|Steel,600,73,726,4,,showdown-randbats+auto-score,
-goodra,Goodra,Goodra,Dragon,600,85,690,4,,showdown-randbats+auto-score,
-goodrahisui,Goodra-Hisui,Goodra,Steel|Dragon,600,,645,4,,auto-score,
-heatran,Heatran,Heatran,Fire|Steel,600,80,705,4,,showdown-randbats+auto-score,
-hoopa,Hoopa,Hoopa,Psychic|Ghost,600,86,687,4,,showdown-randbats+auto-score,
-hydreigon,Hydreigon,Hydreigon,Dark|Dragon,600,82,699,4,,showdown-randbats+auto-score,
-jirachi,Jirachi,Jirachi,Steel|Psychic,600,76,717,4,,showdown-randbats+auto-score,
-kommoo,Kommo-o,Kommo-o,Dragon|Fighting,600,74,723,4,,showdown-randbats+auto-score,
-kommoototem,Kommo-o-Totem,Kommo-o,Dragon|Fighting,600,,645,4,,auto-score,
-landorus,Landorus,Landorus,Ground|Flying,600,77,714,4,,showdown-randbats+auto-score,
-landorustherian,Landorus-Therian,Landorus,Ground|Flying,600,74,723,4,,showdown-randbats+auto-score,
-latias,Latias,Latias,Dragon|Psychic,600,79,708,4,,showdown-randbats+auto-score,
-latios,Latios,Latios,Dragon|Psychic,600,78,711,4,,showdown-randbats+auto-score,
-magearna,Magearna,Magearna,Steel|Fairy,600,77,714,4,,showdown-randbats+auto-score,
-magearnaoriginal,Magearna-Original,Magearna,Steel|Fairy,600,,645,4,,auto-score,
-manaphy,Manaphy,Manaphy,Water,600,77,714,4,,showdown-randbats+auto-score,
-marshadow,Marshadow,Marshadow,Fighting|Ghost,600,69,738,4,,showdown-randbats+auto-score,
-melmetal,Melmetal,Melmetal,Steel,600,,645,4,,auto-score,
-meloetta,Meloetta,Meloetta,Normal|Psychic,600,81,702,4,,showdown-randbats+auto-score,
-metagross,Metagross,Metagross,Steel|Psychic,600,79,708,4,,showdown-randbats+auto-score,
-mew,Mew,Mew,Psychic,600,80,705,4,,showdown-randbats+auto-score,
-necrozma,Necrozma,Necrozma,Psychic,600,81,702,4,,showdown-randbats+auto-score,
-pecharunt,Pecharunt,Pecharunt,Poison|Ghost,600,,645,4,,auto-score,
-salamence,Salamence,Salamence,Dragon|Flying,600,72,729,4,,showdown-randbats+auto-score,
-shaymin,Shaymin,Shaymin,Grass,600,84,693,4,,showdown-randbats+auto-score,
-shayminsky,Shaymin-Sky,Shaymin,Grass|Flying,600,73,726,4,,showdown-randbats+auto-score,
-tyranitar,Tyranitar,Tyranitar,Rock|Dark,600,80,705,4,,showdown-randbats+auto-score,
-victini,Victini,Victini,Psychic|Fire,600,76,717,4,,showdown-randbats+auto-score,
-volcanion,Volcanion,Volcanion,Fire|Water,600,81,702,4,,showdown-randbats+auto-score,
-zarude,Zarude,Zarude,Dark|Grass,600,,645,4,,auto-score,
-zarudedada,Zarude-Dada,Zarude,Dark|Grass,600,,645,4,,auto-score,
-zeraora,Zeraora,Zeraora,Electric,600,77,714,4,,showdown-randbats+auto-score,
-zygarde,Zygarde,Zygarde,Dragon|Ground,600,73,726,4,,showdown-randbats+auto-score,
-kyurem,Kyurem,Kyurem,Dragon|Ice,660,79,768,4,,showdown-randbats+auto-score,
-zacian,Zacian,Zacian,Fairy,660,,705,4,,auto-score,
-zamazenta,Zamazenta,Zamazenta,Fighting,660,,705,4,,auto-score,
-groudon,Groudon,Groudon,Ground,670,74,793,4,,showdown-randbats+auto-score,
-koraidon,Koraidon,Koraidon,Fighting|Dragon,670,,715,4,,auto-score,
-kyogre,Kyogre,Kyogre,Water,670,69,808,4,,showdown-randbats+auto-score,
-miraidon,Miraidon,Miraidon,Electric|Dragon,670,,715,4,,auto-score,
-regigigas,Regigigas,Regigigas,Normal,670,86,757,4,,showdown-randbats+auto-score,
-slaking,Slaking,Slaking,Normal,670,84,763,4,,showdown-randbats+auto-score,
-calyrexice,Calyrex-Ice,Calyrex,Psychic|Ice,680,,725,4,,auto-score,
-calyrexshadow,Calyrex-Shadow,Calyrex,Psychic|Ghost,680,,725,4,,auto-score,
-dialga,Dialga,Dialga,Steel|Dragon,680,74,803,4,,showdown-randbats+auto-score,
-giratina,Giratina,Giratina,Ghost|Dragon,680,76,797,4,,showdown-randbats+auto-score,
-hooh,Ho-Oh,Ho-Oh,Fire|Flying,680,72,809,4,,showdown-randbats+auto-score,
-hoopaunbound,Hoopa-Unbound,Hoopa,Psychic|Dark,680,81,782,4,,showdown-randbats+auto-score,
-lugia,Lugia,Lugia,Psychic|Flying,680,71,812,4,,showdown-randbats+auto-score,
-lunala,Lunala,Lunala,Psychic|Ghost,680,72,809,4,,showdown-randbats+auto-score,
-mewtwo,Mewtwo,Mewtwo,Psychic,680,72,809,4,,showdown-randbats+auto-score,
-necrozmadawnwings,Necrozma-Dawn-Wings,Necrozma,Psychic|Ghost,680,71,812,4,,showdown-randbats+auto-score,
-necrozmaduskmane,Necrozma-Dusk-Mane,Necrozma,Psychic|Steel,680,69,818,4,,showdown-randbats+auto-score,
-palkia,Palkia,Palkia,Water|Dragon,680,75,800,4,,showdown-randbats+auto-score,
-rayquaza,Rayquaza,Rayquaza,Dragon|Flying,680,69,818,4,,showdown-randbats+auto-score,
-reshiram,Reshiram,Reshiram,Dragon|Fire,680,75,800,4,,showdown-randbats+auto-score,
-solgaleo,Solgaleo,Solgaleo,Psychic|Steel,680,73,806,4,,showdown-randbats+auto-score,
-xerneas,Xerneas,Xerneas,Fairy,680,65,830,4,,showdown-randbats+auto-score,
-yveltal,Yveltal,Yveltal,Dark|Flying,680,70,815,4,,showdown-randbats+auto-score,
-zekrom,Zekrom,Zekrom,Dragon|Electric,680,75,800,4,,showdown-randbats+auto-score,
-eternatus,Eternatus,Eternatus,Poison|Dragon,690,,735,4,,auto-score,
-kyuremblack,Kyurem-Black,Kyurem,Dragon|Ice,700,77,814,4,,showdown-randbats+auto-score,
-kyuremwhite,Kyurem-White,Kyurem,Dragon|Ice,700,75,820,4,,showdown-randbats+auto-score,
-arceus,Arceus,Arceus,Normal,720,72,849,4,,showdown-randbats+auto-score,
-arceusbug,Arceus-Bug,Arceus,Bug,720,72,849,4,,showdown-randbats+auto-score,
-arceusdark,Arceus-Dark,Arceus,Dark,720,72,849,4,,showdown-randbats+auto-score,
-arceusdragon,Arceus-Dragon,Arceus,Dragon,720,72,849,4,,showdown-randbats+auto-score,
-arceuselectric,Arceus-Electric,Arceus,Electric,720,72,849,4,,showdown-randbats+auto-score,
-arceusfairy,Arceus-Fairy,Arceus,Fairy,720,72,849,4,,showdown-randbats+auto-score,
-arceusfighting,Arceus-Fighting,Arceus,Fighting,720,72,849,4,,showdown-randbats+auto-score,
-arceusfire,Arceus-Fire,Arceus,Fire,720,72,849,4,,showdown-randbats+auto-score,
-arceusflying,Arceus-Flying,Arceus,Flying,720,72,849,4,,showdown-randbats+auto-score,
-arceusghost,Arceus-Ghost,Arceus,Ghost,720,72,849,4,,showdown-randbats+auto-score,
-arceusgrass,Arceus-Grass,Arceus,Grass,720,72,849,4,,showdown-randbats+auto-score,
-arceusground,Arceus-Ground,Arceus,Ground,720,72,849,4,,showdown-randbats+auto-score,
-arceusice,Arceus-Ice,Arceus,Ice,720,72,849,4,,showdown-randbats+auto-score,
-arceuspoison,Arceus-Poison,Arceus,Poison,720,72,849,4,,showdown-randbats+auto-score,
-arceuspsychic,Arceus-Psychic,Arceus,Psychic,720,72,849,4,,showdown-randbats+auto-score,
-arceusrock,Arceus-Rock,Arceus,Rock,720,72,849,4,,showdown-randbats+auto-score,
-arceussteel,Arceus-Steel,Arceus,Steel,720,72,849,4,,showdown-randbats+auto-score,
-arceuswater,Arceus-Water,Arceus,Water,720,72,849,4,,showdown-randbats+auto-score,
-eternatuseternamax,Eternatus-Eternamax,Eternatus,Poison|Dragon,1125,,1170,4,,auto-score,
+species_id,species,base_species,types,bst,bulk_score,random_battle_level,eviolite_bulk_bonus,random_set_item,random_set_eviolite_bonus,score,tier,override_tier,source,notes
+wishiwashi,Wishiwashi,Wishiwashi,Water,175,90,89,0,Leftovers,0,253,1,,showdown-randbats+auto-score,
+blipbug,Blipbug,Blipbug,Bug,180,90,,0,,0,135,1,,auto-score,nfe
+sunkern,Sunkern,Sunkern,Grass,180,90,,0,,0,135,1,,auto-score,nfe
+snom,Snom,Snom,Ice|Bug,185,95,,0,,0,140,1,,auto-score,nfe
+azurill,Azurill,Azurill,Normal|Fairy,190,130,,0,,0,145,1,,auto-score,nfe
+kricketot,Kricketot,Kricketot,Bug,194,119,,0,,0,149,1,,auto-score,nfe
+caterpie,Caterpie,Caterpie,Bug,195,100,,0,,0,150,1,,auto-score,nfe
+weedle,Weedle,Weedle,Bug|Poison,195,90,,0,,0,150,1,,auto-score,nfe
+wurmple,Wurmple,Wurmple,Bug,195,110,,0,,0,150,1,,auto-score,nfe
+ralts,Ralts,Ralts,Psychic|Fairy,198,88,,0,,0,153,1,,auto-score,nfe
+cosmog,Cosmog,Cosmog,Psychic,200,105,,0,,0,155,1,,auto-score,nfe
+feebas,Feebas,Feebas,Water,200,95,,0,,0,155,1,,auto-score,nfe
+magikarp,Magikarp,Magikarp,Water,200,95,,0,,0,155,1,,auto-score,nfe
+scatterbug,Scatterbug,Scatterbug,Bug,200,103,,0,,0,155,1,,auto-score,nfe
+cascoon,Cascoon,Cascoon,Bug,205,130,,0,,0,160,1,,auto-score,nfe
+kakuna,Kakuna,Kakuna,Bug|Poison,205,120,,0,,0,160,1,,auto-score,nfe
+metapod,Metapod,Metapod,Bug,205,130,,0,,0,160,1,,auto-score,nfe
+pichu,Pichu,Pichu,Electric,205,70,,0,,0,160,1,,auto-score,nfe
+pichuspikyeared,Pichu-Spiky-eared,Pichu,Electric,205,70,,0,,0,250,1,,auto-score,
+silcoon,Silcoon,Silcoon,Bug,205,130,,0,,0,160,1,,auto-score,nfe
+bounsweet,Bounsweet,Bounsweet,Grass,210,118,,0,,0,165,1,,auto-score,nfe
+igglybuff,Igglybuff,Igglybuff,Normal|Fairy,210,125,,0,,0,165,1,,auto-score,nfe
+nymble,Nymble,Nymble,Bug,210,98,,0,,0,165,1,,auto-score,nfe
+tarountula,Tarountula,Tarountula,Bug,210,120,,0,,0,165,1,,auto-score,nfe
+tyrogue,Tyrogue,Tyrogue,Fighting,210,105,,0,,0,165,1,,auto-score,nfe
+wooper,Wooper,Wooper,Water|Ground,210,125,,0,,0,165,1,,auto-score,nfe
+wooperpaldea,Wooper-Paldea,Wooper,Poison|Ground,210,125,,0,,0,165,1,,auto-score,nfe
+spewpa,Spewpa,Spewpa,Bug,213,135,,0,,0,168,1,,auto-score,nfe
+sentret,Sentret,Sentret,Normal,215,114,,0,,0,170,1,,auto-score,nfe
+cleffa,Cleffa,Cleffa,Fairy,218,133,,0,,0,173,1,,auto-score,nfe
+happiny,Happiny,Happiny,Normal,220,170,,0,,0,175,1,,auto-score,nfe
+lotad,Lotad,Lotad,Water|Grass,220,120,,0,,0,175,1,,auto-score,nfe
+poochyena,Poochyena,Poochyena,Dark,220,100,,0,,0,175,1,,auto-score,nfe
+seedot,Seedot,Seedot,Grass,220,120,,0,,0,175,1,,auto-score,nfe
+burmy,Burmy,Burmy,Bug,224,130,,0,,0,179,1,,auto-score,nfe
+wimpod,Wimpod,Wimpod,Bug|Water,230,95,,0,,0,185,1,,auto-score,nfe
+bunnelby,Bunnelby,Bunnelby,Normal,237,112,,0,,0,192,1,,auto-score,nfe
+makuhita,Makuhita,Makuhita,Fighting,237,132,,0,,0,192,1,,auto-score,nfe
+pawmi,Pawmi,Pawmi,Electric,240,90,,0,,0,195,1,,auto-score,nfe
+rolycoly,Rolycoly,Rolycoly,Rock,240,130,,0,,0,195,1,,auto-score,nfe
+whismur,Whismur,Whismur,Normal,240,110,,0,,0,195,1,,auto-score,nfe
+zigzagoon,Zigzagoon,Zigzagoon,Normal,240,120,,0,,0,195,1,,auto-score,nfe
+zigzagoongalar,Zigzagoon-Galar,Zigzagoon,Dark|Normal,240,120,,0,,0,195,1,,auto-score,nfe
+toxel,Toxel,Toxel,Electric|Poison,242,110,,0,,0,197,1,,auto-score,nfe
+combee,Combee,Combee,Bug|Flying,244,114,,0,,0,199,1,,auto-score,nfe
+nickit,Nickit,Nickit,Dark,245,120,,0,,0,200,1,,auto-score,nfe
+noibat,Noibat,Noibat,Flying|Dragon,245,115,,0,,0,200,1,,auto-score,nfe
+rookidee,Rookidee,Rookidee,Flying,245,108,,0,,0,200,1,,auto-score,nfe
+starly,Starly,Starly,Normal|Flying,245,100,,0,,0,200,1,,auto-score,nfe
+togepi,Togepi,Togepi,Fairy,245,165,,0,,0,200,1,,auto-score,nfe
+wiglett,Wiglett,Wiglett,Water,245,60,,0,,0,200,1,,auto-score,nfe
+zubat,Zubat,Zubat,Poison|Flying,245,115,,0,,0,200,1,,auto-score,nfe
+bidoof,Bidoof,Bidoof,Normal,250,139,,0,,0,205,1,,auto-score,nfe
+fomantis,Fomantis,Fomantis,Grass,250,110,,0,,0,205,1,,auto-score,nfe
+gossifleur,Gossifleur,Gossifleur,Grass,250,160,,0,,0,205,1,,auto-score,nfe
+hoppip,Hoppip,Hoppip,Grass|Flying,250,130,,0,,0,205,1,,auto-score,nfe
+marill,Marill,Marill,Water|Fairy,250,170,,0,,0,205,1,,auto-score,nfe
+slugma,Slugma,Slugma,Fire,250,120,,0,,0,205,1,,auto-score,nfe
+spinarak,Spinarak,Spinarak,Bug|Poison,250,120,,0,,0,205,1,,auto-score,nfe
+swinub,Swinub,Swinub,Ice|Ground,250,120,,0,,0,205,1,,auto-score,nfe
+pidgey,Pidgey,Pidgey,Normal|Flying,251,115,,0,,0,206,1,,auto-score,nfe
+rattata,Rattata,Rattata,Normal,253,100,,0,,0,208,1,,auto-score,nfe
+rattataalola,Rattata-Alola,Rattata,Dark|Normal,253,100,,0,,0,208,1,,auto-score,nfe
+yungoos,Yungoos,Yungoos,Normal,253,108,,0,,0,208,1,,auto-score,nfe
+lechonk,Lechonk,Lechonk,Normal,254,139,,0,,0,209,1,,auto-score,nfe
+charcadet,Charcadet,Charcadet,Fire,255,120,,0,,0,210,1,,auto-score,nfe
+flittle,Flittle,Flittle,Psychic,255,90,,0,,0,210,1,,auto-score,nfe
+patrat,Patrat,Patrat,Normal,255,123,,0,,0,210,1,,auto-score,nfe
+applin,Applin,Applin,Grass|Dragon,260,160,,0,,0,215,1,,auto-score,nfe
+skitty,Skitty,Skitty,Normal,260,130,,0,,0,215,1,,auto-score,nfe
+smoliv,Smoliv,Smoliv,Grass|Normal,260,137,,0,,0,215,1,,auto-score,nfe
+venipede,Venipede,Venipede,Bug|Poison,260,128,,0,,0,215,1,,auto-score,nfe
+wynaut,Wynaut,Wynaut,Psychic,260,191,,0,,0,215,1,,auto-score,nfe
+hoothoot,Hoothoot,Hoothoot,Normal|Flying,262,146,,0,,0,217,1,,auto-score,nfe
+spearow,Spearow,Spearow,Normal|Flying,262,101,,0,,0,217,1,,auto-score,nfe
+shinx,Shinx,Shinx,Electric,263,113,,0,,0,218,1,,auto-score,nfe
+pidove,Pidove,Pidove,Normal|Flying,264,130,,0,,0,219,1,,auto-score,nfe
+diglett,Diglett,Diglett,Ground,265,80,,0,,0,220,1,,auto-score,nfe
+diglettalola,Diglett-Alola,Diglett,Ground|Steel,265,85,,0,,0,220,1,,auto-score,nfe
+hatenna,Hatenna,Hatenna,Psychic,265,140,,0,,0,220,1,,auto-score,nfe
+impidimp,Impidimp,Impidimp,Dark|Fairy,265,115,,0,,0,220,1,,auto-score,nfe
+ledyba,Ledyba,Ledyba,Bug|Flying,265,150,,0,,0,220,1,,auto-score,nfe
+pikipek,Pikipek,Pikipek,Normal|Flying,265,95,,0,,0,220,1,,auto-score,nfe
+nincada,Nincada,Nincada,Bug|Ground,266,151,,0,,0,221,1,,auto-score,nfe
+dewpider,Dewpider,Dewpider,Water|Bug,269,162,,0,,0,224,1,,auto-score,nfe
+surskit,Surskit,Surskit,Bug|Water,269,124,,0,,0,224,1,,auto-score,nfe
+dreepy,Dreepy,Dreepy,Dragon|Ghost,270,88,,0,,0,225,1,,auto-score,nfe
+jigglypuff,Jigglypuff,Jigglypuff,Normal|Fairy,270,160,,0,,0,225,1,,auto-score,nfe
+milcery,Milcery,Milcery,Fairy,270,146,,0,,0,225,1,,auto-score,nfe
+rellor,Rellor,Rellor,Bug,270,159,,0,,0,225,1,,auto-score,nfe
+taillow,Taillow,Taillow,Normal|Flying,270,100,,0,,0,225,1,,auto-score,nfe
+wingull,Wingull,Wingull,Water|Flying,270,100,,0,,0,225,1,,auto-score,nfe
+wooloo,Wooloo,Wooloo,Normal,270,142,,0,,0,225,1,,auto-score,nfe
+yamper,Yamper,Yamper,Electric,270,159,,0,,0,225,1,,auto-score,nfe
+tadbulb,Tadbulb,Tadbulb,Electric,272,137,,0,,0,227,1,,auto-score,nfe
+nidoranm,Nidoran-M,Nidoran-M,Poison,273,126,,0,,0,228,1,,auto-score,nfe
+bramblin,Bramblin,Bramblin,Grass|Ghost,275,105,,0,,0,230,1,,auto-score,nfe
+cherubi,Cherubi,Cherubi,Grass,275,143,,0,,0,230,1,,auto-score,nfe
+lillipup,Lillipup,Lillipup,Normal,275,135,,0,,0,230,1,,auto-score,nfe
+litwick,Litwick,Litwick,Ghost|Fire,275,160,,0,,0,230,1,,auto-score,nfe
+nidoranf,Nidoran-F,Nidoran-F,Poison,275,147,,0,,0,230,1,,auto-score,nfe
+skwovet,Skwovet,Skwovet,Normal,275,160,,0,,0,230,1,,auto-score,nfe
+tynamo,Tynamo,Tynamo,Electric,275,115,,0,,0,230,1,,auto-score,nfe
+fletchling,Fletchling,Fletchling,Normal|Flying,278,126,,0,,0,233,1,,auto-score,nfe
+kirlia,Kirlia,Kirlia,Psychic|Fairy,278,128,,0,,0,233,1,,auto-score,nfe
+arrokuda,Arrokuda,Arrokuda,Water,280,111,,0,,0,235,1,,auto-score,nfe
+budew,Budew,Budew,Grass|Poison,280,145,,0,,0,235,1,,auto-score,nfe
+cottonee,Cottonee,Cottonee,Grass|Fairy,280,150,,0,,0,235,1,,auto-score,nfe
+mareep,Mareep,Mareep,Electric,280,140,,0,,0,235,1,,auto-score,nfe
+meditite,Meditite,Meditite,Fighting|Psychic,280,140,,0,,0,235,1,,auto-score,nfe
+nacli,Nacli,Nacli,Rock,280,165,,0,,0,235,1,,auto-score,nfe
+petilil,Petilil,Petilil,Grass,280,145,,0,,0,235,1,,auto-score,nfe
+rockruff,Rockruff,Rockruff,Rock,280,125,,0,,0,235,1,,auto-score,nfe
+rockruffdusk,Rockruff-Dusk,Rockruff,Rock,280,125,,0,,0,235,1,,auto-score,nfe
+roggenrola,Roggenrola,Roggenrola,Rock,280,165,,0,,0,235,1,,auto-score,nfe
+slakoth,Slakoth,Slakoth,Normal,280,155,,0,,0,235,1,,auto-score,nfe
+wattrel,Wattrel,Wattrel,Electric|Flying,280,115,,0,,0,235,1,,auto-score,nfe
+purrloin,Purrloin,Purrloin,Dark,281,115,,0,,0,236,1,,auto-score,nfe
+chewtle,Chewtle,Chewtle,Water,284,138,,0,,0,239,1,,auto-score,nfe
+chingling,Chingling,Chingling,Psychic,285,145,,0,,0,240,1,,auto-score,nfe
+morelull,Morelull,Morelull,Grass|Fairy,285,170,,0,,0,240,1,,auto-score,nfe
+paras,Paras,Paras,Bug|Grass,285,145,,0,,0,240,1,,auto-score,nfe
+riolu,Riolu,Riolu,Fighting,285,120,,0,,0,240,1,,auto-score,nfe
+barboach,Barboach,Barboach,Water|Ground,288,134,,0,,0,243,1,,auto-score,nfe
+ekans,Ekans,Ekans,Poison,288,133,,0,,0,243,1,,auto-score,nfe
+inkay,Inkay,Inkay,Dark|Psychic,288,152,,0,,0,243,1,,auto-score,nfe
+helioptile,Helioptile,Helioptile,Electric|Normal,289,120,,0,,0,244,1,,auto-score,nfe
+bonsly,Bonsly,Bonsly,Rock,290,190,,0,,0,245,1,,auto-score,nfe
+gothita,Gothita,Gothita,Psychic,290,160,,0,,0,245,1,,auto-score,nfe
+greavard,Greavard,Greavard,Ghost,290,165,,0,,0,245,1,,auto-score,nfe
+meowth,Meowth,Meowth,Normal,290,115,,0,,0,245,1,,auto-score,nfe
+meowthalola,Meowth-Alola,Meowth,Dark,290,115,,0,,0,245,1,,auto-score,nfe
+meowthgalar,Meowth-Galar,Meowth,Steel,290,145,,0,,0,245,1,,auto-score,nfe
+pineco,Pineco,Pineco,Bug,290,175,,0,,0,245,1,,auto-score,nfe
+shroodle,Shroodle,Shroodle,Poison|Normal,290,110,,0,,0,245,1,,auto-score,nfe
+solosis,Solosis,Solosis,Psychic,290,135,,0,,0,245,1,,auto-score,nfe
+spheal,Spheal,Spheal,Ice|Water,290,170,,0,,0,245,1,,auto-score,nfe
+steenee,Steenee,Steenee,Grass,290,148,,0,,0,245,1,,auto-score,nfe
+trapinch,Trapinch,Trapinch,Ground,290,135,,0,,0,245,1,,auto-score,nfe
+munna,Munna,Munna,Psychic,292,176,,0,,0,247,1,,auto-score,nfe
+sandile,Sandile,Sandile,Ground|Dark,292,120,,0,,0,247,1,,auto-score,nfe
+foongus,Foongus,Foongus,Grass|Poison,294,169,,0,,0,249,1,,auto-score,nfe
+tympole,Tympole,Tympole,Water,294,130,,0,,0,249,1,,auto-score,nfe
+blitzle,Blitzle,Blitzle,Electric,295,109,,0,,0,250,1,,auto-score,nfe
+duskull,Duskull,Duskull,Ghost,295,200,,0,,0,250,1,,auto-score,nfe
+electrike,Electrike,Electrike,Electric,295,120,,0,,0,250,1,,auto-score,nfe
+horsea,Horsea,Horsea,Water,295,125,,0,,0,250,1,,auto-score,nfe
+shroomish,Shroomish,Shroomish,Grass,295,180,,0,,0,250,1,,auto-score,nfe
+shuppet,Shuppet,Shuppet,Ghost,295,112,,0,,0,250,1,,auto-score,nfe
+tinkatink,Tinkatink,Tinkatink,Fairy|Steel,297,159,,0,,0,252,1,,auto-score,nfe
+vulpix,Vulpix,Vulpix,Fire,299,143,,0,,0,254,1,,auto-score,nfe
+vulpixalola,Vulpix-Alola,Vulpix,Ice,299,143,,0,,0,254,1,,auto-score,nfe
+bagon,Bagon,Bagon,Dragon,300,135,,0,,0,255,1,,auto-score,nfe
+baltoy,Baltoy,Baltoy,Ground|Psychic,300,165,,0,,0,255,1,,auto-score,nfe
+beldum,Beldum,Beldum,Steel|Psychic,300,180,,0,,0,255,1,,auto-score,nfe
+bellsprout,Bellsprout,Bellsprout,Grass|Poison,300,115,,0,,0,255,1,,auto-score,nfe
+bronzor,Bronzor,Bronzor,Steel|Psychic,300,229,,5,,0,260,1,,auto-score,nfe|eviolite-bulk+5
+croagunk,Croagunk,Croagunk,Poison|Fighting,300,128,,0,,0,255,1,,auto-score,nfe
+deino,Deino,Deino,Dark|Dragon,300,152,,0,,0,255,1,,auto-score,nfe
+dratini,Dratini,Dratini,Dragon,300,136,,0,,0,255,1,,auto-score,nfe
+geodude,Geodude,Geodude,Rock|Ground,300,170,,0,,0,255,1,,auto-score,nfe
+geodudealola,Geodude-Alola,Geodude,Rock|Electric,300,170,,0,,0,255,1,,auto-score,nfe
+gible,Gible,Gible,Dragon|Ground,300,148,,0,,0,255,1,,auto-score,nfe
+gimmighoul,Gimmighoul,Gimmighoul,Ghost,300,185,,0,,0,255,1,,auto-score,nfe
+gimmighoulroaming,Gimmighoul-Roaming,Gimmighoul,Ghost,300,115,,0,,0,255,1,,auto-score,nfe
+goomy,Goomy,Goomy,Dragon,300,155,,0,,0,255,1,,auto-score,nfe
+grubbin,Grubbin,Grubbin,Bug,300,137,,0,,0,255,1,,auto-score,nfe
+jangmoo,Jangmo-o,Jangmo-o,Dragon,300,155,,0,,0,255,1,,auto-score,nfe
+klink,Klink,Klink,Steel,300,170,,0,,0,255,1,,auto-score,nfe
+larvitar,Larvitar,Larvitar,Rock|Ground,300,150,,0,,0,255,1,,auto-score,nfe
+minccino,Minccino,Minccino,Normal,300,135,,0,,0,255,1,,auto-score,nfe
+poliwag,Poliwag,Poliwag,Water,300,120,,0,,0,255,1,,auto-score,nfe
+remoraid,Remoraid,Remoraid,Water,300,105,,0,,0,255,1,,auto-score,nfe
+sandshrew,Sandshrew,Sandshrew,Ground,300,165,,0,,0,255,1,,auto-score,nfe
+sandshrewalola,Sandshrew-Alola,Sandshrew,Ice|Steel,300,175,,0,,0,255,1,,auto-score,nfe
+snorunt,Snorunt,Snorunt,Ice,300,150,,0,,0,255,1,,auto-score,nfe
+snubbull,Snubbull,Snubbull,Fairy,300,150,,0,,0,255,1,,auto-score,nfe
+varoom,Varoom,Varoom,Steel|Poison,300,153,,0,,0,255,1,,auto-score,nfe
+gulpin,Gulpin,Gulpin,Poison,302,176,,0,,0,257,1,,auto-score,nfe
+flabebe,Flabébé,Flabébé,Fairy,303,162,,0,,0,258,1,,auto-score,nfe
+golett,Golett,Golett,Ground|Ghost,303,159,,0,,0,258,1,,auto-score,nfe
+yamask,Yamask,Yamask,Ghost,303,188,,0,,0,258,1,,auto-score,nfe
+yamaskgalar,Yamask-Galar,Yamask,Ground|Ghost,303,188,,0,,0,258,1,,auto-score,nfe
+bergmite,Bergmite,Bergmite,Ice,304,175,,0,,0,259,1,,auto-score,nfe
+capsakid,Capsakid,Capsakid,Grass,304,130,,0,,0,259,1,,auto-score,nfe
+cutiefly,Cutiefly,Cutiefly,Bug|Fairy,304,120,,0,,0,259,1,,auto-score,nfe
+carvanha,Carvanha,Carvanha,Water|Dark,305,85,,0,,0,260,1,,auto-score,nfe
+cubchoo,Cubchoo,Cubchoo,Ice,305,135,,0,,0,260,1,,auto-score,nfe
+ducklett,Ducklett,Ducklett,Water|Flying,305,162,,0,,0,260,1,,auto-score,nfe
+ferroseed,Ferroseed,Ferroseed,Grass|Steel,305,221,,1,,0,261,1,,auto-score,nfe|eviolite-bulk+1
+machop,Machop,Machop,Fighting,305,155,,0,,0,260,1,,auto-score,nfe
+mankey,Mankey,Mankey,Fighting,305,120,,0,,0,260,1,,auto-score,nfe
+mareanie,Mareanie,Mareanie,Poison|Water,305,164,,0,,0,260,1,,auto-score,nfe
+numel,Numel,Numel,Fire|Ground,305,145,,0,,0,260,1,,auto-score,nfe
+shellder,Shellder,Shellder,Water,305,155,,0,,0,260,1,,auto-score,nfe
+shelmet,Shelmet,Shelmet,Bug,305,200,,0,,0,260,1,,auto-score,nfe
+sizzlipede,Sizzlipede,Sizzlipede,Fire|Bug,305,145,,0,,0,260,1,,auto-score,nfe
+smoochum,Smoochum,Smoochum,Ice|Psychic,305,125,,0,,0,260,1,,auto-score,nfe
+tandemaus,Tandemaus,Tandemaus,Normal,305,140,,0,,0,260,1,,auto-score,nfe
+timburr,Timburr,Timburr,Fighting,305,165,,0,,0,260,1,,auto-score,nfe
+vanillite,Vanillite,Vanillite,Ice,305,146,,0,,0,260,1,,auto-score,nfe
+venonat,Venonat,Venonat,Bug|Poison,305,165,,0,,0,260,1,,auto-score,nfe
+binacle,Binacle,Binacle,Rock|Water,306,165,,0,,0,261,1,,auto-score,nfe
+fennekin,Fennekin,Fennekin,Fire,307,140,,0,,0,262,1,,auto-score,nfe
+corphish,Corphish,Corphish,Water,308,143,,0,,0,263,1,,auto-score,nfe
+oshawott,Oshawott,Oshawott,Water,308,145,,0,,0,263,1,,auto-score,nfe
+poltchageist,Poltchageist,Poltchageist,Grass|Ghost,308,139,,0,,0,263,1,,auto-score,nfe
+poltchageistartisan,Poltchageist-Artisan,Poltchageist,Grass|Ghost,308,139,,0,,0,263,1,,auto-score,nfe
+sinistea,Sinistea,Sinistea,Ghost,308,139,,0,,0,263,1,,auto-score,nfe
+sinisteaantique,Sinistea-Antique,Sinistea,Ghost,308,139,,0,,0,263,1,,auto-score,nfe
+snivy,Snivy,Snivy,Grass,308,155,,0,,0,263,1,,auto-score,nfe
+tepig,Tepig,Tepig,Fire,308,155,,0,,0,263,1,,auto-score,nfe
+charmander,Charmander,Charmander,Fire,309,132,,0,,0,264,1,,auto-score,nfe
+chimchar,Chimchar,Chimchar,Fire,309,132,,0,,0,264,1,,auto-score,nfe
+cyndaquil,Cyndaquil,Cyndaquil,Fire,309,132,,0,,0,264,1,,auto-score,nfe
+phantump,Phantump,Phantump,Ghost|Grass,309,151,,0,,0,264,1,,auto-score,nfe
+abra,Abra,Abra,Psychic,310,95,,0,,0,265,1,,auto-score,nfe
+clobbopus,Clobbopus,Clobbopus,Fighting,310,160,,0,,0,265,1,,auto-score,nfe
+doduo,Doduo,Doduo,Normal|Flying,310,115,,0,,0,265,1,,auto-score,nfe
+fuecoco,Fuecoco,Fuecoco,Fire,310,166,,0,,0,265,1,,auto-score,nfe
+gastly,Gastly,Gastly,Ghost|Poison,310,95,,0,,0,265,1,,auto-score,nfe
+glameow,Glameow,Glameow,Normal,310,128,,0,,0,265,1,,auto-score,nfe
+grookey,Grookey,Grookey,Grass,310,140,,0,,0,265,1,,auto-score,nfe
+mimejr,Mime Jr.,Mime Jr.,Psychic|Fairy,310,155,,0,,0,265,1,,auto-score,nfe
+mudkip,Mudkip,Mudkip,Water,310,150,,0,,0,265,1,,auto-score,nfe
+quaxly,Quaxly,Quaxly,Water,310,145,,0,,0,265,1,,auto-score,nfe
+scorbunny,Scorbunny,Scorbunny,Fire,310,130,,0,,0,265,1,,auto-score,nfe
+sewaddle,Sewaddle,Sewaddle,Bug|Grass,310,175,,0,,0,265,1,,auto-score,nfe
+sobble,Sobble,Sobble,Water,310,130,,0,,0,265,1,,auto-score,nfe
+sprigatito,Sprigatito,Sprigatito,Grass,310,139,,0,,0,265,1,,auto-score,nfe
+swablu,Swablu,Swablu,Normal|Flying,310,180,,0,,0,265,1,,auto-score,nfe
+torchic,Torchic,Torchic,Fire,310,135,,0,,0,265,1,,auto-score,nfe
+treecko,Treecko,Treecko,Grass,310,130,,0,,0,265,1,,auto-score,nfe
+fidough,Fidough,Fidough,Fairy,312,162,,0,,0,267,1,,auto-score,nfe
+chespin,Chespin,Chespin,Grass,313,166,,0,,0,268,1,,auto-score,nfe
+froakie,Froakie,Froakie,Water,314,125,,0,,0,269,1,,auto-score,nfe
+piplup,Piplup,Piplup,Water,314,162,,0,,0,269,1,,auto-score,nfe
+squirtle,Squirtle,Squirtle,Water,314,173,,0,,0,269,1,,auto-score,nfe
+totodile,Totodile,Totodile,Water,314,162,,0,,0,269,1,,auto-score,nfe
+darumaka,Darumaka,Darumaka,Fire,315,160,,0,,0,270,1,,auto-score,nfe
+darumakagalar,Darumaka-Galar,Darumaka,Ice,315,160,,0,,0,270,1,,auto-score,nfe
+finizen,Finizen,Finizen,Water,315,150,,0,,0,270,1,,auto-score,nfe
+karrablast,Karrablast,Karrablast,Bug,315,140,,0,,0,270,1,,auto-score,nfe
+silicobra,Silicobra,Silicobra,Ground,315,177,,0,,0,270,1,,auto-score,nfe
+slowpoke,Slowpoke,Slowpoke,Water|Psychic,315,195,,0,,0,270,1,,auto-score,nfe
+slowpokegalar,Slowpoke-Galar,Slowpoke,Psychic,315,195,,0,,0,270,1,,auto-score,nfe
+panpour,Panpour,Panpour,Water,316,146,,0,,0,271,1,,auto-score,nfe
+pansage,Pansage,Pansage,Grass,316,146,,0,,0,271,1,,auto-score,nfe
+pansear,Pansear,Pansear,Fire,316,146,,0,,0,271,1,,auto-score,nfe
+bulbasaur,Bulbasaur,Bulbasaur,Grass|Poison,318,159,,0,,0,273,1,,auto-score,nfe
+chikorita,Chikorita,Chikorita,Grass,318,175,,0,,0,273,1,,auto-score,nfe
+turtwig,Turtwig,Turtwig,Grass,318,174,,0,,0,273,1,,auto-score,nfe
+joltik,Joltik,Joltik,Bug|Electric,319,150,,0,,0,274,1,,auto-score,nfe
+axew,Axew,Axew,Dragon,320,146,,0,,0,275,1,,auto-score,nfe
+cubone,Cubone,Cubone,Ground,320,195,,0,,0,275,1,,auto-score,nfe
+frigibax,Frigibax,Frigibax,Dragon|Ice,320,155,,0,,0,275,1,,auto-score,nfe
+goldeen,Goldeen,Goldeen,Water,320,155,,0,,0,275,1,,auto-score,nfe
+litten,Litten,Litten,Fire,320,125,,0,,0,275,1,,auto-score,nfe
+natu,Natu,Natu,Psychic|Flying,320,130,,0,,0,275,1,,auto-score,nfe
+oddish,Oddish,Oddish,Grass|Poison,320,165,,0,,0,275,1,,auto-score,nfe
+popplio,Popplio,Popplio,Water,320,160,,0,,0,275,1,,auto-score,nfe
+psyduck,Psyduck,Psyduck,Water,320,148,,0,,0,275,1,,auto-score,nfe
+rowlet,Rowlet,Rowlet,Grass|Flying,320,173,,0,,0,275,1,,auto-score,nfe
+salandit,Salandit,Salandit,Poison|Fire,320,128,,0,,0,275,1,,auto-score,nfe
+sandygast,Sandygast,Sandygast,Ghost|Ground,320,180,,0,,0,275,1,,auto-score,nfe
+skrelp,Skrelp,Skrelp,Poison|Water,320,170,,0,,0,275,1,,auto-score,nfe
+clefairy,Clefairy,Clefairy,Fairy,323,183,,0,,0,278,1,,auto-score,nfe
+woobat,Woobat,Woobat,Psychic|Flying,323,151,,0,,0,278,1,,auto-score,nfe
+dwebble,Dwebble,Dwebble,Bug|Rock,325,170,,0,,0,280,1,,auto-score,nfe
+eevee,Eevee,Eevee,Normal,325,170,,0,,0,280,1,,auto-score,nfe
+exeggcute,Exeggcute,Exeggcute,Grass|Psychic,325,185,,0,,0,280,1,,auto-score,nfe
+grimer,Grimer,Grimer,Poison,325,180,,0,,0,280,1,,auto-score,nfe
+grimeralola,Grimer-Alola,Grimer,Poison|Dark,325,180,,0,,0,280,1,,auto-score,nfe
+honedge,Honedge,Honedge,Steel|Ghost,325,182,,0,,0,280,1,,auto-score,nfe
+krabby,Krabby,Krabby,Water,325,145,,0,,0,280,1,,auto-score,nfe
+magnemite,Magnemite,Magnemite,Electric|Steel,325,150,,0,,0,280,1,,auto-score,nfe
+seel,Seel,Seel,Water,325,190,,0,,0,280,1,,auto-score,nfe
+shellos,Shellos,Shellos,Water,325,186,,0,,0,280,1,,auto-score,nfe
+drilbur,Drilbur,Drilbur,Ground,328,145,,0,,0,283,1,,auto-score,nfe
+drowzee,Drowzee,Drowzee,Psychic,328,195,,0,,0,283,1,,auto-score,nfe
+stunky,Stunky,Stunky,Poison|Dark,329,151,,0,,0,284,1,,auto-score,nfe
+trubbish,Trubbish,Trubbish,Poison,329,174,,0,,0,284,1,,auto-score,nfe
+aron,Aron,Aron,Steel|Rock,330,190,,0,,0,285,1,,auto-score,nfe
+buizel,Buizel,Buizel,Water,330,120,,0,,0,285,1,,auto-score,nfe
+chinchou,Chinchou,Chinchou,Water|Electric,330,169,,0,,0,285,1,,auto-score,nfe
+clauncher,Clauncher,Clauncher,Water,330,175,,0,,0,285,1,,auto-score,nfe
+finneon,Finneon,Finneon,Water,330,166,,0,,0,285,1,,auto-score,nfe
+hippopotas,Hippopotas,Hippopotas,Ground,330,188,,0,,0,285,1,,auto-score,nfe
+houndour,Houndour,Houndour,Dark|Fire,330,125,,0,,0,285,1,,auto-score,nfe
+phanpy,Phanpy,Phanpy,Ground,330,190,,0,,0,285,1,,auto-score,nfe
+skorupi,Skorupi,Skorupi,Poison|Bug,330,185,,0,,0,285,1,,auto-score,nfe
+spoink,Spoink,Spoink,Psychic,330,175,,0,,0,285,1,,auto-score,nfe
+teddiursa,Teddiursa,Teddiursa,Normal,330,160,,0,,0,285,1,,auto-score,nfe
+voltorb,Voltorb,Voltorb,Electric,330,145,,0,,0,285,1,,auto-score,nfe
+voltorbhisui,Voltorb-Hisui,Voltorb,Electric|Grass,330,145,,0,,0,285,1,,auto-score,nfe
+zorua,Zorua,Zorua,Dark,330,120,,0,,0,285,1,,auto-score,nfe
+zoruahisui,Zorua-Hisui,Zorua,Normal|Ghost,330,115,,0,,0,285,1,,auto-score,nfe
+shedinja,Shedinja,Shedinja,Bug|Ghost,236,76,97,0,Focus Sash,0,290,2,,showdown-randbats+auto-score,
+smeargle,Smeargle,Smeargle,Normal,250,135,88,0,Focus Sash,0,331,2,,showdown-randbats+auto-score,
+ditto,Ditto,Ditto,Normal,288,144,83,0,Choice Scarf,0,384,2,,showdown-randbats+auto-score,
+meltan,Meltan,Meltan,Steel,300,146,,0,,0,345,2,,auto-score,
+pikachu,Pikachu,Pikachu,Electric,320,125,93,0,Light Ball,0,296,2,,showdown-randbats+auto-score,nfe
+pikachualola,Pikachu-Alola,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachubelle,Pikachu-Belle,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachucosplay,Pikachu-Cosplay,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachuhoenn,Pikachu-Hoenn,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachukalos,Pikachu-Kalos,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachulibre,Pikachu-Libre,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachuoriginal,Pikachu-Original,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachupartner,Pikachu-Partner,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachuphd,Pikachu-PhD,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachupopstar,Pikachu-Pop-Star,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachurockstar,Pikachu-Rock-Star,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachusinnoh,Pikachu-Sinnoh,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachuunova,Pikachu-Unova,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+pikachuworld,Pikachu-World,Pikachu,Electric,320,125,,0,,0,365,2,,auto-score,
+cufant,Cufant,Cufant,Steel,330,170,,0,,0,285,2,,auto-score,nfe
+delibird,Delibird,Delibird,Ice|Flying,330,135,100,0,Leftovers,0,375,2,,showdown-randbats+auto-score,
+luvdisc,Luvdisc,Luvdisc,Water,330,163,100,0,Leftovers,0,375,2,,showdown-randbats+auto-score,
+cetoddle,Cetoddle,Cetoddle,Ice,334,193,,0,,0,289,2,,auto-score,nfe
+snover,Snover,Snover,Grass|Ice,334,170,,0,,0,289,2,,auto-score,nfe
+cacnea,Cacnea,Cacnea,Grass,335,130,,0,,0,290,2,,auto-score,nfe
+deerling,Deerling,Deerling,Normal|Grass,335,160,,0,,0,290,2,,auto-score,nfe
+dottler,Dottler,Dottler,Bug|Psychic,335,220,,0,,0,290,2,,auto-score,nfe
+elgyem,Elgyem,Elgyem,Psychic,335,165,,0,,0,290,2,,auto-score,nfe
+frillish,Frillish,Frillish,Water|Ghost,335,190,,0,,0,290,2,,auto-score,nfe
+pumpkaboo,Pumpkaboo,Pumpkaboo,Ghost|Grass,335,174,,0,,0,290,2,,auto-score,nfe
+pumpkaboolarge,Pumpkaboo-Large,Pumpkaboo,Ghost|Grass,335,179,,0,,0,290,2,,auto-score,nfe
+pumpkaboosmall,Pumpkaboo-Small,Pumpkaboo,Ghost|Grass,335,169,,0,,0,290,2,,auto-score,nfe
+pumpkaboosuper,Pumpkaboo-Super,Pumpkaboo,Ghost|Grass,335,184,,0,,0,290,2,,auto-score,nfe
+tentacool,Tentacool,Tentacool,Water|Poison,335,175,,0,,0,290,2,,auto-score,nfe
+toedscool,Toedscool,Toedscool,Ground|Grass,335,175,,0,,0,290,2,,auto-score,nfe
+unown,Unown,Unown,Psychic,336,144,100,0,Choice Specs,0,381,2,,showdown-randbats+auto-score,
+crabrawler,Crabrawler,Crabrawler,Fighting,338,151,,0,,0,293,2,,auto-score,nfe
+koffing,Koffing,Koffing,Poison,340,180,,0,,0,295,2,,auto-score,nfe
+lombre,Lombre,Lombre,Water|Grass,340,180,,0,,0,295,2,,auto-score,nfe
+maschiff,Maschiff,Maschiff,Dark,340,171,,0,,0,295,2,,auto-score,nfe
+nuzleaf,Nuzleaf,Nuzleaf,Grass|Dark,340,150,,0,,0,295,2,,auto-score,nfe
+pawniard,Pawniard,Pawniard,Dark|Steel,340,155,,0,,0,295,2,,auto-score,nfe
+skiploom,Skiploom,Skiploom,Grass|Flying,340,170,,0,,0,295,2,,auto-score,nfe
+staravia,Staravia,Staravia,Normal|Flying,340,145,,0,,0,295,2,,auto-score,nfe
+staryu,Staryu,Staryu,Water,340,140,,0,,0,295,2,,auto-score,nfe
+stufful,Stufful,Stufful,Normal|Fighting,340,170,,0,,0,295,2,,auto-score,nfe
+vibrava,Vibrava,Vibrava,Ground|Dragon,340,150,,0,,0,295,2,,auto-score,nfe
+spritzee,Spritzee,Spritzee,Fairy,341,203,,0,,0,296,2,,auto-score,nfe
+swirlix,Swirlix,Swirlix,Fairy,341,185,,0,,0,296,2,,auto-score,nfe
+clamperl,Clamperl,Clamperl,Water,345,175,,0,,0,300,2,,auto-score,nfe
+mantyke,Mantyke,Mantyke,Water|Flying,345,215,,0,,0,300,2,,auto-score,nfe
+rhyhorn,Rhyhorn,Rhyhorn,Ground|Rock,345,205,,0,,0,300,2,,auto-score,nfe
+drifloon,Drifloon,Drifloon,Ghost|Flying,348,168,,0,,0,303,2,,auto-score,nfe
+pancham,Pancham,Pancham,Fighting,348,177,,0,,0,303,2,,auto-score,nfe
+scraggy,Scraggy,Scraggy,Dark|Fighting,348,190,,0,,0,303,2,,auto-score,nfe
+pidgeotto,Pidgeotto,Pidgeotto,Normal|Flying,349,168,,0,,0,304,2,,auto-score,nfe
+buneary,Buneary,Buneary,Normal,350,155,,0,,0,305,2,,auto-score,nfe
+cranidos,Cranidos,Cranidos,Rock,350,137,,0,,0,305,2,,auto-score,nfe
+glimmet,Glimmet,Glimmet,Rock|Poison,350,150,,0,,0,305,2,,auto-score,nfe
+growlithe,Growlithe,Growlithe,Fire,350,150,,0,,0,305,2,,auto-score,nfe
+growlithehisui,Growlithe-Hisui,Growlithe,Fire|Rock,350,155,,0,,0,305,2,,auto-score,nfe
+mienfoo,Mienfoo,Mienfoo,Fighting,350,145,,0,,0,305,2,,auto-score,nfe
+pawmo,Pawmo,Pawmo,Electric|Fighting,350,140,,0,,0,305,2,,auto-score,nfe
+rufflet,Rufflet,Rufflet,Normal|Flying,350,170,,0,,0,305,2,,auto-score,nfe
+shieldon,Shieldon,Shieldon,Rock|Steel,350,236,,8,,0,313,2,,auto-score,nfe|eviolite-bulk+8
+skiddo,Skiddo,Skiddo,Grass,350,171,,0,,0,305,2,,auto-score,nfe
+krokorok,Krokorok,Krokorok,Ground|Dark,351,150,,0,,0,306,2,,auto-score,nfe
+dolliv,Dolliv,Dolliv,Grass|Normal,354,190,,0,,0,309,2,,auto-score,nfe
+anorith,Anorith,Anorith,Rock|Bug,355,145,,0,,0,310,2,,auto-score,nfe
+espurr,Espurr,Espurr,Psychic,355,176,,0,,0,310,2,,auto-score,nfe
+kabuto,Kabuto,Kabuto,Rock|Water,355,165,,0,,0,310,2,,auto-score,nfe
+lileep,Lileep,Lileep,Rock|Grass,355,230,,5,,0,315,2,,auto-score,nfe|eviolite-bulk+5
+naclstack,Naclstack,Naclstack,Rock,355,225,,3,,0,313,2,,auto-score,nfe|eviolite-bulk+3
+omanyte,Omanyte,Omanyte,Rock|Water,355,190,,0,,0,310,2,,auto-score,nfe
+tirtouga,Tirtouga,Tirtouga,Water|Rock,355,202,,0,,0,310,2,,auto-score,nfe
+trumbeak,Trumbeak,Trumbeak,Normal|Flying,355,155,,0,,0,310,2,,auto-score,nfe
+tranquill,Tranquill,Tranquill,Normal|Flying,358,166,,0,,0,313,2,,auto-score,nfe
+aipom,Aipom,Aipom,Normal,360,165,,0,,0,315,2,,auto-score,nfe
+elekid,Elekid,Elekid,Electric,360,137,,0,,0,315,2,,auto-score,nfe
+larvesta,Larvesta,Larvesta,Bug|Fire,360,165,,0,,0,315,2,,auto-score,nfe
+loudred,Loudred,Loudred,Normal,360,170,,0,,0,315,2,,auto-score,nfe
+spinda,Spinda,Spinda,Normal,360,180,99,0,Leftovers,0,408,2,,showdown-randbats+auto-score,
+whirlipede,Whirlipede,Whirlipede,Bug|Poison,360,218,,0,,0,315,2,,auto-score,nfe
+amaura,Amaura,Amaura,Rock|Ice,362,190,,0,,0,317,2,,auto-score,nfe
+tyrunt,Tyrunt,Tyrunt,Rock|Dragon,362,180,,0,,0,317,2,,auto-score,nfe
+luxio,Luxio,Luxio,Electric,363,158,,0,,0,318,2,,auto-score,nfe
+corvisquire,Corvisquire,Corvisquire,Flying,365,178,,0,,0,320,2,,auto-score,nfe
+flaaffy,Flaaffy,Flaaffy,Electric,365,185,,0,,0,320,2,,auto-score,nfe
+magby,Magby,Magby,Fire,365,137,,0,,0,320,2,,auto-score,nfe
+nidorina,Nidorina,Nidorina,Poison,365,192,,0,,0,320,2,,auto-score,nfe
+nidorino,Nidorino,Nidorino,Poison,365,173,,0,,0,320,2,,auto-score,nfe
+litleo,Litleo,Litleo,Fire|Normal,369,174,,0,,0,324,2,,auto-score,nfe
+duosion,Duosion,Duosion,Psychic,370,175,,0,,0,325,2,,auto-score,nfe
+hattrem,Hattrem,Hattrem,Psychic,370,195,,0,,0,325,2,,auto-score,nfe
+herdier,Herdier,Herdier,Normal,370,195,,0,,0,325,2,,auto-score,nfe
+lampent,Lampent,Lampent,Ghost|Fire,370,180,,0,,0,325,2,,auto-score,nfe
+morgrem,Morgrem,Morgrem,Dark|Fairy,370,165,,0,,0,325,2,,auto-score,nfe
+vullaby,Vullaby,Vullaby,Dark|Flying,370,210,,0,,0,325,2,,auto-score,nfe
+floette,Floette,Floette,Fairy,371,199,,0,,0,326,2,,auto-score,nfe
+nosepass,Nosepass,Nosepass,Rock,375,255,,18,,0,348,2,,auto-score,nfe|eviolite-bulk+18
+farfetchd,Farfetch’d,Farfetch’d,Normal|Flying,377,169,100,0,Stick,0,422,2,,showdown-randbats+auto-score,
+farfetchdgalar,Farfetch’d-Galar,Farfetch’d,Fighting,377,169,,0,,0,332,2,,auto-score,nfe
+mawile,Mawile,Mawile,Steel|Fairy,380,190,90,0,Leftovers,0,455,2,,showdown-randbats+auto-score,
+sableye,Sableye,Sableye,Dark|Ghost,380,190,93,0,Leftovers,0,446,2,,showdown-randbats+auto-score,
+swadloon,Swadloon,Swadloon,Bug|Grass,380,225,,3,,0,338,2,,auto-score,nfe|eviolite-bulk+3
+tinkatuff,Tinkatuff,Tinkatuff,Fairy|Steel,380,202,,0,,0,335,2,,auto-score,nfe
+fletchinder,Fletchinder,Fletchinder,Fire|Flying,382,169,,0,,0,337,2,,auto-score,nfe
+kricketune,Kricketune,Kricketune,Bug,384,179,97,0,Leftovers,0,438,2,,showdown-randbats+auto-score,
+palpitoad,Palpitoad,Palpitoad,Water|Ground,384,185,,0,,0,339,2,,auto-score,nfe
+dustox,Dustox,Dustox,Bug|Poison,385,220,96,0,Black Sludge,0,442,2,,showdown-randbats+auto-score,
+kubfu,Kubfu,Kubfu,Fighting,385,170,,0,,0,340,2,,auto-score,nfe
+lickitung,Lickitung,Lickitung,Normal,385,240,,10,,0,350,2,,auto-score,nfe|eviolite-bulk+10
+mudbray,Mudbray,Mudbray,Ground,385,195,,0,,0,340,2,,auto-score,nfe
+onix,Onix,Onix,Rock|Ground,385,240,,10,,0,350,2,,auto-score,nfe|eviolite-bulk+10
+poliwhirl,Poliwhirl,Poliwhirl,Water,385,180,,0,,0,340,2,,auto-score,nfe
+boldore,Boldore,Boldore,Rock,390,215,,0,,0,345,2,,auto-score,nfe
+gothorita,Gothorita,Gothorita,Psychic,390,215,,0,,0,345,2,,auto-score,nfe
+graveler,Graveler,Graveler,Rock|Ground,390,215,,0,,0,345,2,,auto-score,nfe
+graveleralola,Graveler-Alola,Graveler,Rock|Electric,390,215,,0,,0,345,2,,auto-score,nfe
+ledian,Ledian,Ledian,Bug|Flying,390,215,100,0,Leftovers,0,435,2,,showdown-randbats+auto-score,
+munchlax,Munchlax,Munchlax,Normal,390,260,,20,,0,365,2,,auto-score,nfe|eviolite-bulk+20
+weepinbell,Weepinbell,Weepinbell,Grass|Poison,390,160,,0,,0,345,2,,auto-score,nfe
+yanma,Yanma,Yanma,Bug|Flying,390,155,,0,,0,345,2,,auto-score,nfe
+beautifly,Beautifly,Beautifly,Bug|Flying,395,160,98,0,Buginium Z,0,446,2,,showdown-randbats+auto-score,
+beedrill,Beedrill,Beedrill,Bug|Poison,395,185,94,0,Black Sludge,0,458,2,,showdown-randbats+auto-score,
+butterfree,Butterfree,Butterfree,Bug|Flying,395,190,90,0,Buginium Z,0,470,2,,showdown-randbats+auto-score,
+gloom,Gloom,Gloom,Grass|Poison,395,205,,0,,0,350,2,,auto-score,nfe
+porygon,Porygon,Porygon,Normal,395,210,,0,,0,350,2,,auto-score,nfe
+vanillish,Vanillish,Vanillish,Ice,395,191,,0,,0,350,2,,auto-score,nfe
+ariados,Ariados,Ariados,Bug|Poison,400,210,92,0,Black Sludge,0,469,2,,showdown-randbats+auto-score,
+charjabug,Charjabug,Charjabug,Bug|Electric,400,227,,4,,0,359,2,,auto-score,nfe|eviolite-bulk+4
+cosmoem,Cosmoem,Cosmoem,Psychic,400,305,,43,,0,398,2,,auto-score,nfe|eviolite-bulk+43
+delcatty,Delcatty,Delcatty,Normal,400,190,99,0,Silk Scarf,0,448,2,,showdown-randbats+auto-score,
+kadabra,Kadabra,Kadabra,Psychic,400,140,,0,,0,355,2,,auto-score,nfe
+roselia,Roselia,Roselia,Grass|Poison,400,175,,0,,0,355,2,,auto-score,nfe
+wailmer,Wailmer,Wailmer,Water,400,200,,0,,0,355,2,,auto-score,nfe
+archen,Archen,Archen,Rock|Flying,401,145,,0,,0,356,2,,auto-score,nfe
+spidops,Spidops,Spidops,Bug,404,238,,0,,0,449,2,,auto-score,
+bayleef,Bayleef,Bayleef,Grass,405,220,,0,,0,360,2,,auto-score,nfe
+charmeleon,Charmeleon,Charmeleon,Fire,405,181,,0,,0,360,2,,auto-score,nfe
+combusken,Combusken,Combusken,Fire|Fighting,405,180,,0,,0,360,2,,auto-score,nfe
+croconaw,Croconaw,Croconaw,Water,405,208,,0,,0,360,2,,auto-score,nfe
+eelektrik,Eelektrik,Eelektrik,Electric,405,205,,0,,0,360,2,,auto-score,nfe
+frogadier,Frogadier,Frogadier,Water,405,162,,0,,0,360,2,,auto-score,nfe
+grotle,Grotle,Grotle,Grass,405,225,,3,,0,363,2,,auto-score,nfe|eviolite-bulk+3
+grovyle,Grovyle,Grovyle,Grass,405,160,,0,,0,360,2,,auto-score,nfe
+gurdurr,Gurdurr,Gurdurr,Fighting,405,220,87,0,Eviolite,40,439,2,,showdown-randbats+auto-score,nfe|eviolite-randset
+haunter,Haunter,Haunter,Ghost|Poison,405,145,,0,,0,360,2,,auto-score,nfe
+ivysaur,Ivysaur,Ivysaur,Grass|Poison,405,203,,0,,0,360,2,,auto-score,nfe
+machoke,Machoke,Machoke,Fighting,405,210,,0,,0,360,2,,auto-score,nfe
+marshtomp,Marshtomp,Marshtomp,Water|Ground,405,210,,0,,0,360,2,,auto-score,nfe
+minun,Minun,Minun,Electric,405,195,95,0,Leftovers,0,465,2,,showdown-randbats+auto-score,
+monferno,Monferno,Monferno,Fire|Fighting,405,168,,0,,0,360,2,,auto-score,nfe
+murkrow,Murkrow,Murkrow,Dark|Flying,405,144,,0,,0,360,2,,auto-score,nfe
+pachirisu,Pachirisu,Pachirisu,Electric,405,220,96,0,Assault Vest,0,462,2,,showdown-randbats+auto-score,
+parasect,Parasect,Parasect,Bug|Grass,405,220,99,0,Leftovers,0,453,2,,showdown-randbats+auto-score,
+plusle,Plusle,Plusle,Electric,405,175,95,0,Life Orb,0,465,2,,showdown-randbats+auto-score,
+prinplup,Prinplup,Prinplup,Water,405,208,,0,,0,360,2,,auto-score,nfe
+quilava,Quilava,Quilava,Fire,405,181,,0,,0,360,2,,auto-score,nfe
+quilladin,Quilladin,Quilladin,Grass,405,214,,0,,0,360,2,,auto-score,nfe
+shiinotic,Shiinotic,Shiinotic,Grass|Fairy,405,240,91,0,Leftovers,0,477,2,,showdown-randbats+auto-score,
+togetic,Togetic,Togetic,Fairy|Flying,405,245,,13,,0,373,2,,auto-score,nfe|eviolite-bulk+13
+wartortle,Wartortle,Wartortle,Water,405,219,,0,,0,360,2,,auto-score,nfe
+wobbuffet,Wobbuffet,Wobbuffet,Psychic,405,306,95,0,Custap Berry,0,465,2,,showdown-randbats+auto-score,
+braixen,Braixen,Braixen,Fire,409,187,,0,,0,364,2,,auto-score,nfe
+bibarel,Bibarel,Bibarel,Normal|Water,410,199,90,0,Life Orb,0,485,2,,showdown-randbats+auto-score,
+carkol,Carkol,Carkol,Rock|Fire,410,240,,10,,0,375,2,,auto-score,nfe|eviolite-bulk+10
+corsola,Corsola,Corsola,Water|Rock,410,255,96,0,Leftovers,0,467,2,,showdown-randbats+auto-score,
+corsolagalar,Corsola-Galar,Corsola,Ghost,410,260,,20,,0,385,2,,auto-score,nfe|eviolite-bulk+20
+drakloak,Drakloak,Drakloak,Dragon|Ghost,410,168,,0,,0,365,2,,auto-score,nfe
+floragato,Floragato,Floragato,Grass,410,187,,0,,0,365,2,,auto-score,nfe
+fraxure,Fraxure,Fraxure,Dragon,410,186,,0,,0,365,2,,auto-score,nfe
+gabite,Gabite,Gabite,Dragon|Ground,410,188,,0,,0,365,2,,auto-score,nfe
+medicham,Medicham,Medicham,Fighting|Psychic,410,210,85,0,Choice Band,0,500,2,,showdown-randbats+auto-score,
+ponyta,Ponyta,Ponyta,Fire,410,170,,0,,0,365,2,,auto-score,nfe
+ponytagalar,Ponyta-Galar,Ponyta,Psychic,410,170,,0,,0,365,2,,auto-score,nfe
+pupitar,Pupitar,Pupitar,Rock|Ground,410,210,,0,,0,365,2,,auto-score,nfe
+pyukumuku,Pyukumuku,Pyukumuku,Water,410,315,92,0,Leftovers,0,479,2,,showdown-randbats+auto-score,
+quaxwell,Quaxwell,Quaxwell,Water,410,195,,0,,0,365,2,,auto-score,nfe
+sealeo,Sealeo,Sealeo,Ice|Water,410,230,,5,,0,370,2,,auto-score,nfe|eviolite-bulk+5
+sudowoodo,Sudowoodo,Sudowoodo,Rock,410,250,93,0,Choice Band,0,476,2,,showdown-randbats+auto-score,
+chatot,Chatot,Chatot,Normal|Flying,411,163,89,0,Choice Specs,0,489,2,,showdown-randbats+auto-score,
+crocalor,Crocalor,Crocalor,Fire,411,217,,0,,0,366,2,,auto-score,nfe
+vivillon,Vivillon,Vivillon,Bug|Flying,411,180,85,0,Leftovers,0,501,2,,showdown-randbats+auto-score,
+vivillonfancy,Vivillon-Fancy,Vivillon,Bug|Flying,411,180,,0,,0,456,2,,auto-score,
+vivillonpokeball,Vivillon-Pokeball,Vivillon,Bug|Flying,411,180,,0,,0,456,2,,auto-score,
+dewott,Dewott,Dewott,Water,413,195,,0,,0,368,2,,auto-score,nfe
+raticate,Raticate,Raticate,Normal,413,185,88,0,Flame Orb,0,494,2,,showdown-randbats+auto-score,
+raticatealola,Raticate-Alola,Raticate,Dark|Normal,413,225,89,0,Life Orb,0,491,2,,showdown-randbats+auto-score,
+raticatealolatotem,Raticate-Alola-Totem,Raticate,Dark|Normal,413,225,,0,,0,458,2,,auto-score,
+servine,Servine,Servine,Grass,413,210,,0,,0,368,2,,auto-score,nfe
+dunsparce,Dunsparce,Dunsparce,Normal,415,235,95,8,Eviolite,40,433,2,,showdown-randbats+auto-score,nfe|eviolite-bulk+8|eviolite-randset
+furret,Furret,Furret,Normal,415,204,94,0,Leftovers,0,478,2,,showdown-randbats+auto-score,
+squawkabilly,Squawkabilly,Squawkabilly,Normal|Flying,417,184,,0,,0,462,2,,auto-score,
+squawkabillyblue,Squawkabilly-Blue,Squawkabilly,Normal|Flying,417,184,,0,,0,462,2,,auto-score,
+squawkabillywhite,Squawkabilly-White,Squawkabilly,Normal|Flying,417,184,,0,,0,462,2,,auto-score,
+squawkabillyyellow,Squawkabilly-Yellow,Squawkabilly,Normal|Flying,417,184,,0,,0,462,2,,auto-score,
+gumshoos,Gumshoos,Gumshoos,Normal,418,208,94,0,Choice Band,0,481,2,,showdown-randbats+auto-score,
+gumshoostotem,Gumshoos-Totem,Gumshoos,Normal,418,208,,0,,0,463,2,,auto-score,
+pignite,Pignite,Pignite,Fire|Fighting,418,200,,0,,0,373,2,,auto-score,nfe
+brionne,Brionne,Brionne,Water,420,210,,0,,0,375,2,,auto-score,nfe
+castform,Castform,Castform,Normal,420,210,99,0,Leftovers,0,468,2,,showdown-randbats+auto-score,
+dartrix,Dartrix,Dartrix,Grass|Flying,420,223,,2,,0,377,2,,auto-score,nfe|eviolite-bulk+2
+dragonair,Dragonair,Dragonair,Dragon,420,196,,0,,0,375,2,,auto-score,nfe
+drizzile,Drizzile,Drizzile,Water,420,175,,0,,0,375,2,,auto-score,nfe
+hakamoo,Hakamo-o,Hakamo-o,Dragon|Fighting,420,215,,0,,0,375,2,,auto-score,nfe
+linoonegalar,Linoone-Galar,Linoone,Dark|Normal,420,200,,0,,0,375,2,,auto-score,nfe
+metang,Metang,Metang,Steel|Psychic,420,240,,10,,0,385,2,,auto-score,nfe|eviolite-bulk+10
+mightyena,Mightyena,Mightyena,Dark,420,200,94,0,Life Orb,0,483,2,,showdown-randbats+auto-score,
+poipole,Poipole,Poipole,Poison,420,201,,0,,0,375,2,,auto-score,nfe
+raboot,Raboot,Raboot,Fire,420,185,,0,,0,375,2,,auto-score,nfe
+shelgon,Shelgon,Shelgon,Dragon,420,215,,0,,0,375,2,,auto-score,nfe
+thwackey,Thwackey,Thwackey,Grass,420,200,,0,,0,375,2,,auto-score,nfe
+torracat,Torracat,Torracat,Fire,420,165,,0,,0,375,2,,auto-score,nfe
+watchog,Watchog,Watchog,Normal,420,198,96,0,Life Orb,0,477,2,,showdown-randbats+auto-score,
+zweilous,Zweilous,Zweilous,Dark|Dragon,420,212,,0,,0,375,2,,auto-score,nfe
+arctibax,Arctibax,Arctibax,Dragon|Ice,423,221,,1,,0,379,2,,auto-score,nfe|eviolite-bulk+1
+mothim,Mothim,Mothim,Bug|Flying,424,170,93,0,Buginium Z,0,490,2,,showdown-randbats+auto-score,
+wormadam,Wormadam,Wormadam,Bug|Grass,424,250,100,0,Leftovers,0,469,2,,showdown-randbats+auto-score,
+wormadamsandy,Wormadam-Sandy,Wormadam,Bug|Ground,424,250,91,0,Leftovers,0,496,2,,showdown-randbats+auto-score,
+wormadamtrash,Wormadam-Trash,Wormadam,Bug|Steel,424,250,86,0,Leftovers,0,511,2,,showdown-randbats+auto-score,
+dugtrio,Dugtrio,Dugtrio,Ground,425,155,84,0,Life Orb,0,518,2,,showdown-randbats+auto-score,
+dugtrioalola,Dugtrio-Alola,Dugtrio,Ground|Steel,425,165,84,0,Life Orb,0,518,2,,showdown-randbats+auto-score,
+marowak,Marowak,Marowak,Ground,425,250,89,0,Thick Club,0,503,2,,showdown-randbats+auto-score,
+marowakalola,Marowak-Alola,Marowak,Fire|Ghost,425,250,86,0,Thick Club,0,512,2,,showdown-randbats+auto-score,
+marowakalolatotem,Marowak-Alola-Totem,Marowak,Fire|Ghost,425,250,,0,,0,470,2,,auto-score,
+sunflora,Sunflora,Sunflora,Grass,425,215,100,0,Choice Specs,0,470,2,,showdown-randbats+auto-score,
+swoobat,Swoobat,Swoobat,Psychic|Flying,425,177,88,0,Leftovers,0,506,2,,showdown-randbats+auto-score,
+wugtrio,Wugtrio,Wugtrio,Water,425,155,,0,,0,470,2,,auto-score,
+emolga,Emolga,Emolga,Electric|Flying,428,175,90,0,,0,503,2,,showdown-randbats+auto-score,
+clodsire,Clodsire,Clodsire,Poison|Ground,430,290,,0,,0,475,2,,auto-score,
+gligar,Gligar,Gligar,Ground|Flying,430,235,82,8,Eviolite,40,487,2,,showdown-randbats+auto-score,nfe|eviolite-bulk+8|eviolite-randset
+illumise,Illumise,Illumise,Bug,430,225,92,0,Leftovers,0,499,2,,showdown-randbats+auto-score,
+lairon,Lairon,Lairon,Steel|Rock,430,250,,15,,0,400,2,,auto-score,nfe|eviolite-bulk+15
+magcargo,Magcargo,Magcargo,Fire|Rock,430,260,96,0,Leftovers,0,487,2,,showdown-randbats+auto-score,
+quagsire,Quagsire,Quagsire,Water|Ground,430,245,87,0,Leftovers,0,514,2,,showdown-randbats+auto-score,
+sneasel,Sneasel,Sneasel,Dark|Ice,430,185,,0,,0,385,2,,auto-score,nfe
+sneaselhisui,Sneasel-Hisui,Sneasel,Fighting|Poison,430,185,,0,,0,385,2,,auto-score,nfe
+volbeat,Volbeat,Volbeat,Bug,430,225,91,0,Leftovers,0,502,2,,showdown-randbats+auto-score,
+dedenne,Dedenne,Dedenne,Electric|Fairy,431,191,91,0,Sitrus Berry,0,503,2,,showdown-randbats+auto-score,
+misdreavus,Misdreavus,Misdreavus,Ghost,435,205,,0,,0,390,2,,auto-score,nfe
+pincurchin,Pincurchin,Pincurchin,Electric,435,228,,0,,0,480,2,,auto-score,
+tangela,Tangela,Tangela,Grass,435,220,,0,,0,390,2,,auto-score,nfe
+togedemarutotem,Togedemaru-Totem,Togedemaru,Electric|Steel,435,201,,0,,0,480,2,,auto-score,
+wigglytuff,Wigglytuff,Wigglytuff,Normal|Fairy,435,235,95,0,Leftovers,0,495,2,,showdown-randbats+auto-score,
+morpeko,Morpeko,Morpeko,Electric|Dark,436,174,,0,,0,481,2,,auto-score,
+kecleon,Kecleon,Kecleon,Normal,440,250,90,0,Leftovers,0,515,2,,showdown-randbats+auto-score,
+klang,Klang,Klang,Steel,440,240,,10,,0,405,2,,auto-score,nfe|eviolite-bulk+10
+perrserker,Perrserker,Perrserker,Steel,440,230,,0,,0,485,2,,auto-score,
+persian,Persian,Persian,Normal,440,190,93,0,Choice Band,0,506,2,,showdown-randbats+auto-score,
+qwilfishhisui,Qwilfish-Hisui,Qwilfish,Dark|Poison,440,205,,0,,0,395,2,,auto-score,nfe
+seadra,Seadra,Seadra,Water,440,195,,0,,0,395,2,,auto-score,nfe
+vigoroth,Vigoroth,Vigoroth,Normal,440,215,88,0,Eviolite,40,471,2,,showdown-randbats+auto-score,nfe|eviolite-randset
+audino,Audino,Audino,Normal,445,275,91,0,Rocky Helmet,0,517,2,,showdown-randbats+auto-score,
+liepard,Liepard,Liepard,Dark,446,164,91,0,Leftovers,0,518,2,,showdown-randbats+auto-score,
+doublade,Doublade,Doublade,Steel|Ghost,448,258,85,19,Eviolite,40,507,2,,showdown-randbats+auto-score,nfe|eviolite-bulk+19|eviolite-randset
+cherrim,Cherrim,Cherrim,Grass,450,218,99,0,Leftovers,0,498,2,,showdown-randbats+auto-score,
+klawf,Klawf,Klawf,Rock,450,240,,0,,0,495,2,,auto-score,
+lokix,Lokix,Lokix,Bug|Dark,450,204,,0,,0,495,2,,auto-score,
+piloswine,Piloswine,Piloswine,Ice|Ground,450,240,,10,,0,415,2,,auto-score,nfe|eviolite-bulk+10
+seaking,Seaking,Seaking,Water,450,225,95,0,Life Orb,0,510,2,,showdown-randbats+auto-score,
+terapagos,Terapagos,Terapagos,Normal,450,260,,0,,0,495,2,,auto-score,
+noctowl,Noctowl,Noctowl,Normal|Flying,452,246,94,0,Leftovers,0,515,2,,showdown-randbats+auto-score,
+sliggoo,Sliggoo,Sliggoo,Dragon,452,234,,7,,0,414,2,,auto-score,nfe|eviolite-bulk+7
+sliggoohisui,Sliggoo-Hisui,Sliggoo,Steel|Dragon,452,254,,17,,0,424,2,,auto-score,nfe|eviolite-bulk+17
+araquanidtotem,Araquanid-Totem,Araquanid,Water|Bug,454,292,,0,,0,499,2,,auto-score,
+carnivine,Carnivine,Carnivine,Grass,454,218,100,0,Leftovers,0,499,2,,showdown-randbats+auto-score,
+chimecho,Chimecho,Chimecho,Psychic,455,245,95,0,Leftovers,0,515,2,,showdown-randbats+auto-score,
+dusclops,Dusclops,Dusclops,Ghost,455,300,,40,,0,450,2,,auto-score,nfe|eviolite-bulk+40
+girafarig,Girafarig,Girafarig,Normal|Psychic,455,200,95,0,Eviolite,40,465,2,,showdown-randbats+auto-score,nfe|eviolite-randset
+golbat,Golbat,Golbat,Poison|Flying,455,220,,0,,0,410,2,,auto-score,nfe
+primeape,Primeape,Primeape,Fighting,455,195,89,0,Eviolite,40,483,2,,showdown-randbats+auto-score,nfe|eviolite-randset
+thievul,Thievul,Thievul,Dark,455,220,,0,,0,500,2,,auto-score,
+palafin,Palafin,Palafin,Water,457,234,,0,,0,502,2,,auto-score,
+basculinbluestriped,Basculin-Blue-Striped,Basculin,Water,460,190,,0,,0,505,2,,auto-score,
+basculinwhitestriped,Basculin-White-Striped,Basculin,Water,460,190,,0,,0,415,2,,auto-score,nfe
+eldegoss,Eldegoss,Eldegoss,Grass,460,270,,0,,0,505,2,,auto-score,
+greedent,Greedent,Greedent,Normal,460,290,,0,,0,505,2,,auto-score,
+mrmimegalar,Mr. Mime-Galar,Mr. Mime,Ice|Psychic,460,205,,0,,0,415,2,,auto-score,nfe
+maractus,Maractus,Maractus,Grass,461,209,100,0,Leftovers,0,506,2,,showdown-randbats+auto-score,
+ribombeetotem,Ribombee-Totem,Ribombee,Bug|Fairy,464,190,,0,,0,509,2,,auto-score,
+magneton,Magneton,Magneton,Electric|Steel,465,215,,0,,0,420,2,,auto-score,nfe
+stantler,Stantler,Stantler,Normal,465,200,92,0,Eviolite,40,484,2,,showdown-randbats+auto-score,nfe|eviolite-randset
+eiscue,Eiscue,Eiscue,Ice,470,275,,0,,0,515,2,,auto-score,
+falinks,Falinks,Falinks,Fighting,470,225,,0,,0,515,2,,auto-score,
+maushold,Maushold,Maushold,Normal,470,219,,0,,0,515,2,,auto-score,
+mausholdfour,Maushold-Four,Maushold,Normal,470,219,,0,,0,515,2,,auto-score,
+rabsca,Rabsca,Rabsca,Bug|Psychic,470,260,,0,,0,515,2,,auto-score,
+stonjourner,Stonjourner,Stonjourner,Rock,470,255,,0,,0,515,2,,auto-score,
+stunfiskgalar,Stunfisk-Galar,Stunfisk,Ground|Steel,471,292,,0,,0,516,2,,auto-score,
+vespiquen,Vespiquen,Vespiquen,Bug|Flying,474,274,100,0,Leftovers,0,519,2,,showdown-randbats+auto-score,
+cramorant,Cramorant,Cramorant,Flying|Water,475,220,,0,,0,520,2,,auto-score,
+frosmoth,Frosmoth,Frosmoth,Ice|Bug,475,220,,0,,0,520,2,,auto-score,
+dipplin,Dipplin,Dipplin,Grass|Dragon,485,270,,25,,0,465,2,,auto-score,nfe|eviolite-bulk+25
+electabuzz,Electabuzz,Electabuzz,Electric,490,207,,0,,0,445,2,,auto-score,nfe
+magmar,Magmar,Magmar,Fire,495,207,,0,,0,450,2,,auto-score,nfe
+duraludon,Duraludon,Duraludon,Steel|Dragon,535,235,,8,,0,498,2,,auto-score,nfe|eviolite-bulk+8
+azumarill,Azumarill,Azumarill,Water|Fairy,420,260,81,0,Choice Band,0,522,3,,showdown-randbats+auto-score,
+linoone,Linoone,Linoone,Normal,420,200,81,0,Aguav Berry,0,522,3,,showdown-randbats+auto-score,
+diggersby,Diggersby,Diggersby,Normal|Ground,423,239,82,0,Life Orb,0,522,3,,showdown-randbats+auto-score,
+togedemaru,Togedemaru,Togedemaru,Electric|Steel,435,201,86,0,Assault Vest,0,522,3,,showdown-randbats+auto-score,
+pelipper,Pelipper,Pelipper,Water|Flying,440,230,87,0,Leftovers,0,524,3,,showdown-randbats+auto-score,
+persianalola,Persian-Alola,Persian,Dark,440,190,84,0,Darkinium Z,0,533,3,,showdown-randbats+auto-score,
+qwilfish,Qwilfish,Qwilfish,Water|Poison,440,205,86,0,Black Sludge,0,527,3,,showdown-randbats+auto-score,
+rotom,Rotom,Rotom,Electric|Ghost,440,204,88,0,Choice Scarf,0,521,3,,showdown-randbats+auto-score,
+fearow,Fearow,Fearow,Normal|Flying,442,191,88,0,Choice Band,0,523,3,,showdown-randbats+auto-score,
+arbok,Arbok,Arbok,Poison,448,208,90,0,Life Orb,0,523,3,,showdown-randbats+auto-score,
+chansey,Chansey,Chansey,Normal,450,360,85,70,Eviolite,40,560,3,,showdown-randbats+auto-score,nfe|eviolite-bulk+70|eviolite-randset
+granbull,Granbull,Granbull,Fairy,450,225,89,0,Leftovers,0,528,3,,showdown-randbats+auto-score,
+sandslash,Sandslash,Sandslash,Ground,450,240,90,0,Assault Vest,0,525,3,,showdown-randbats+auto-score,
+sandslashalola,Sandslash-Alola,Sandslash,Ice|Steel,450,260,91,0,Leftovers,0,522,3,,showdown-randbats+auto-score,
+venomoth,Venomoth,Venomoth,Bug|Poison,450,205,82,0,Buginium Z,0,549,3,,showdown-randbats+auto-score,
+purugly,Purugly,Purugly,Normal,452,194,89,0,Silk Scarf,0,530,3,,showdown-randbats+auto-score,
+araquanid,Araquanid,Araquanid,Water|Bug,454,292,81,0,Leftovers,0,556,3,,showdown-randbats+auto-score,
+masquerain,Masquerain,Masquerain,Bug|Flying,454,214,87,0,Leftovers,0,538,3,,showdown-randbats+auto-score,
+banette,Banette,Banette,Ghost,455,192,93,0,Life Orb,0,521,3,,showdown-randbats+auto-score,
+hitmonchan,Hitmonchan,Hitmonchan,Fighting,455,239,87,0,Choice Band,0,539,3,,showdown-randbats+auto-score,
+hitmonlee,Hitmonlee,Hitmonlee,Fighting,455,213,86,0,Assault Vest,0,542,3,,showdown-randbats+auto-score,
+hitmontop,Hitmontop,Hitmontop,Fighting,455,255,90,0,Leftovers,0,530,3,,showdown-randbats+auto-score,
+jynx,Jynx,Jynx,Ice|Psychic,455,195,89,0,Choice Scarf,0,533,3,,showdown-randbats+auto-score,
+swellow,Swellow,Swellow,Normal|Flying,455,170,82,0,Flame Orb,0,554,3,,showdown-randbats+auto-score,
+ninjask,Ninjask,Ninjask,Bug|Flying,456,156,88,0,Choice Band,0,537,3,,showdown-randbats+auto-score,
+seviper,Seviper,Seviper,Poison,458,193,94,0,Life Orb,0,521,3,,showdown-randbats+auto-score,
+zangoose,Zangoose,Zangoose,Normal,458,193,86,0,Toxic Orb,0,545,3,,showdown-randbats+auto-score,
+basculin,Basculin,Basculin,Water,460,190,86,0,Choice Band,0,547,3,,showdown-randbats+auto-score,
+breloom,Breloom,Breloom,Grass|Fighting,460,200,84,0,Life Orb,0,553,3,,showdown-randbats+auto-score,
+camerupt,Camerupt,Camerupt,Fire|Ground,460,215,91,0,Leftovers,0,532,3,,showdown-randbats+auto-score,
+jumpluff,Jumpluff,Jumpluff,Grass|Flying,460,240,89,0,,0,538,3,,showdown-randbats+auto-score,
+lanturn,Lanturn,Lanturn,Water|Electric,460,259,89,0,Leftovers,0,538,3,,showdown-randbats+auto-score,
+lumineon,Lumineon,Lumineon,Water,460,231,93,0,Leftovers,0,526,3,,showdown-randbats+auto-score,
+lunatone,Lunatone,Lunatone,Rock|Psychic,460,240,93,0,Choice Specs,0,526,3,,showdown-randbats+auto-score,
+mrmime,Mr. Mime,Mr. Mime,Psychic|Fairy,460,225,90,0,Choice Specs,0,535,3,,showdown-randbats+auto-score,
+sharpedo,Sharpedo,Sharpedo,Water|Dark,460,150,84,0,Life Orb,0,553,3,,showdown-randbats+auto-score,
+solrock,Solrock,Solrock,Rock|Psychic,460,240,90,0,Leftovers,0,535,3,,showdown-randbats+auto-score,
+tropius,Tropius,Tropius,Grass|Flying,460,269,94,0,Sitrus Berry,0,523,3,,showdown-randbats+auto-score,
+aromatisse,Aromatisse,Aromatisse,Fairy,462,262,91,0,Leftovers,0,534,3,,showdown-randbats+auto-score,
+amoonguss,Amoonguss,Amoonguss,Grass|Poison,464,264,83,0,Rocky Helmet,0,560,3,,showdown-randbats+auto-score,
+ribombee,Ribombee,Ribombee,Bug|Fairy,464,190,84,0,Life Orb,0,557,3,,showdown-randbats+auto-score,
+absol,Absol,Absol,Dark,465,185,86,0,Choice Band,0,552,3,,showdown-randbats+auto-score,
+forretress,Forretress,Forretress,Bug|Steel,465,275,81,0,Leftovers,0,567,3,,showdown-randbats+auto-score,
+sawk,Sawk,Sawk,Fighting,465,225,86,0,Life Orb,0,552,3,,showdown-randbats+auto-score,
+skarmory,Skarmory,Skarmory,Steel|Flying,465,275,75,0,Rocky Helmet,0,585,3,,showdown-randbats+auto-score,
+throh,Throh,Throh,Fighting,465,290,89,0,Flame Orb,0,543,3,,showdown-randbats+auto-score,
+meowstic,Meowstic,Meowstic,Psychic,466,231,91,0,Light Clay,0,538,3,,showdown-randbats+auto-score,
+meowsticf,Meowstic-F,Meowstic,Psychic,466,231,91,0,Life Orb,0,538,3,,showdown-randbats+auto-score,
+swalot,Swalot,Swalot,Poison,467,266,91,0,Black Sludge,0,539,3,,showdown-randbats+auto-score,
+crawdaunt,Crawdaunt,Crawdaunt,Water|Dark,468,203,85,0,Choice Band,0,558,3,,showdown-randbats+auto-score,
+whiscash,Whiscash,Whiscash,Water|Ground,468,254,89,0,Leftovers,0,546,3,,showdown-randbats+auto-score,
+alomomola,Alomomola,Alomomola,Water,470,290,87,0,Rocky Helmet,0,554,3,,showdown-randbats+auto-score,
+cinccino,Cinccino,Cinccino,Normal,470,195,84,0,Choice Band,0,563,3,,showdown-randbats+auto-score,
+dodrio,Dodrio,Dodrio,Normal|Flying,470,190,82,0,Choice Band,0,569,3,,showdown-randbats+auto-score,
+grumpig,Grumpig,Grumpig,Psychic,470,255,93,0,Wiki Berry,0,536,3,,showdown-randbats+auto-score,
+klefki,Klefki,Klefki,Steel|Fairy,470,235,83,0,Leftovers,0,566,3,,showdown-randbats+auto-score,
+torkoal,Torkoal,Torkoal,Fire,470,280,84,0,Leftovers,0,563,3,,showdown-randbats+auto-score,
+xatu,Xatu,Xatu,Psychic|Flying,470,205,89,0,Leftovers,0,548,3,,showdown-randbats+auto-score,
+stunfisk,Stunfisk,Stunfisk,Ground|Electric,471,292,88,0,Leftovers,0,552,3,,showdown-randbats+auto-score,
+furfrou,Furfrou,Furfrou,Normal,472,225,87,0,Leftovers,0,556,3,,showdown-randbats+auto-score,
+galvantula,Galvantula,Galvantula,Bug|Electric,472,190,80,0,Life Orb,0,577,3,,showdown-randbats+auto-score,
+swanna,Swanna,Swanna,Water|Flying,473,201,88,0,Leftovers,0,554,3,,showdown-randbats+auto-score,
+garbodor,Garbodor,Garbodor,Poison,474,244,88,0,Black Sludge,0,555,3,,showdown-randbats+auto-score,
+hariyama,Hariyama,Hariyama,Fighting,474,264,87,0,Assault Vest,0,558,3,,showdown-randbats+auto-score,
+trevenant,Trevenant,Trevenant,Ghost|Grass,474,243,91,0,Sitrus Berry,0,546,3,,showdown-randbats+auto-score,
+bruxish,Bruxish,Bruxish,Water|Psychic,475,208,85,0,Choice Band,0,565,3,,showdown-randbats+auto-score,
+cacturne,Cacturne,Cacturne,Grass|Dark,475,190,93,0,Life Orb,0,541,3,,showdown-randbats+auto-score,
+dewgong,Dewgong,Dewgong,Water|Ice,475,265,96,0,Leftovers,0,532,3,,showdown-randbats+auto-score,
+gastrodon,Gastrodon,Gastrodon,Water|Ground,475,261,88,0,Leftovers,0,556,3,,showdown-randbats+auto-score,
+indeedee,Indeedee,Indeedee,Psychic|Normal,475,210,,0,,0,520,3,,auto-score,
+indeedeef,Indeedee-F,Indeedee,Psychic|Normal,475,240,,0,,0,520,3,,auto-score,
+kingler,Kingler,Kingler,Water,475,220,88,0,Life Orb,0,556,3,,showdown-randbats+auto-score,
+manectric,Manectric,Manectric,Electric,475,190,84,0,Choice Specs,0,568,3,,showdown-randbats+auto-score,
+sawsbuck,Sawsbuck,Sawsbuck,Normal|Grass,475,220,88,0,Life Orb,0,556,3,,showdown-randbats+auto-score,
+tatsugiri,Tatsugiri,Tatsugiri,Dragon|Water,475,223,,0,,0,520,3,,auto-score,
+tatsugiridroopy,Tatsugiri-Droopy,Tatsugiri,Dragon|Water,475,223,,0,,0,520,3,,auto-score,
+tatsugiristretchy,Tatsugiri-Stretchy,Tatsugiri,Dragon|Water,475,223,,0,,0,520,3,,auto-score,
+mimikyutotem,Mimikyu-Totem,Mimikyu,Ghost|Fairy,476,240,,0,,0,521,3,,auto-score,
+oricorio,Oricorio,Oricorio,Fire|Flying,476,215,90,0,Leftovers,0,551,3,,showdown-randbats+auto-score,
+oricoriopau,Oricorio-Pa'u,Oricorio,Psychic|Flying,476,215,91,0,Leftovers,0,548,3,,showdown-randbats+auto-score,
+oricoriopompom,Oricorio-Pom-Pom,Oricorio,Electric|Flying,476,215,86,0,Leftovers,0,563,3,,showdown-randbats+auto-score,
+oricoriosensu,Oricorio-Sensu,Oricorio,Ghost|Flying,476,215,89,0,Leftovers,0,554,3,,showdown-randbats+auto-score,
+dachsbun,Dachsbun,Dachsbun,Fairy,477,252,,0,,0,522,3,,auto-score,
+crabominable,Crabominable,Crabominable,Fighting|Ice,478,241,91,0,Assault Vest,0,550,3,,showdown-randbats+auto-score,
+veluza,Veluza,Veluza,Water|Psychic,478,228,,0,,0,523,3,,auto-score,
+pidgeot,Pidgeot,Pidgeot,Normal|Flying,479,228,90,0,Leftovers,0,554,3,,showdown-randbats+auto-score,
+skuntank,Skuntank,Skuntank,Poison|Dark,479,231,87,0,Black Sludge,0,563,3,,showdown-randbats+auto-score,
+brambleghast,Brambleghast,Brambleghast,Grass|Ghost,480,195,,0,,0,525,3,,auto-score,
+darmanitan,Darmanitan,Darmanitan,Fire,480,215,82,0,Life Orb,0,579,3,,showdown-randbats+auto-score,
+darmanitangalar,Darmanitan-Galar,Darmanitan,Ice,480,215,,0,,0,525,3,,auto-score,
+froslass,Froslass,Froslass,Ice|Ghost,480,210,87,0,Leftovers,0,564,3,,showdown-randbats+auto-score,
+glalie,Glalie,Glalie,Ice,480,240,92,0,Leftovers,0,549,3,,showdown-randbats+auto-score,
+grapploct,Grapploct,Grapploct,Fighting,480,250,,0,,0,525,3,,auto-score,
+jellicent,Jellicent,Jellicent,Water|Ghost,480,275,88,0,Leftovers,0,561,3,,showdown-randbats+auto-score,
+komala,Komala,Komala,Normal,480,225,88,0,Assault Vest,0,561,3,,showdown-randbats+auto-score,
+lilligant,Lilligant,Lilligant,Grass,480,220,87,0,Grassium Z,0,564,3,,showdown-randbats+auto-score,
+lilliganthisui,Lilligant-Hisui,Lilligant,Grass|Fighting,480,220,,0,,0,525,3,,auto-score,
+lopunny,Lopunny,Lopunny,Normal,480,245,87,0,Normalium Z,0,564,3,,showdown-randbats+auto-score,
+ludicolo,Ludicolo,Ludicolo,Water|Grass,480,250,89,0,Choice Specs,0,558,3,,showdown-randbats+auto-score,
+lurantis,Lurantis,Lurantis,Grass,480,250,90,0,Leftovers,0,555,3,,showdown-randbats+auto-score,
+lurantistotem,Lurantis-Totem,Lurantis,Grass,480,250,,0,,0,525,3,,auto-score,
+octillery,Octillery,Octillery,Water,480,225,96,0,Assault Vest,0,537,3,,showdown-randbats+auto-score,
+orthworm,Orthworm,Orthworm,Steel,480,270,,0,,0,525,3,,auto-score,
+palossand,Palossand,Palossand,Ghost|Ground,480,270,89,0,Leftovers,0,558,3,,showdown-randbats+auto-score,
+phione,Phione,Phione,Water,480,240,93,0,Leftovers,0,546,3,,showdown-randbats+auto-score,
+salazzle,Salazzle,Salazzle,Poison|Fire,480,188,84,0,Black Sludge,0,573,3,,showdown-randbats+auto-score,
+salazzletotem,Salazzle-Totem,Salazzle,Poison|Fire,480,188,,0,,0,525,3,,auto-score,
+shiftry,Shiftry,Shiftry,Grass|Dark,480,210,90,0,Life Orb,0,555,3,,showdown-randbats+auto-score,
+slurpuff,Slurpuff,Slurpuff,Fairy,480,243,79,0,Sitrus Berry,0,588,3,,showdown-randbats+auto-score,
+whimsicott,Whimsicott,Whimsicott,Grass|Fairy,480,220,87,0,Leftovers,0,564,3,,showdown-randbats+auto-score,
+espathra,Espathra,Espathra,Psychic,481,215,,0,,0,526,3,,auto-score,
+heliolisk,Heliolisk,Heliolisk,Electric|Normal,481,208,85,0,Life Orb,0,571,3,,showdown-randbats+auto-score,
+ambipom,Ambipom,Ambipom,Normal,482,207,84,0,Silk Scarf,0,575,3,,showdown-randbats+auto-score,
+malamar,Malamar,Malamar,Dark|Psychic,482,249,80,0,Normalium Z,0,587,3,,showdown-randbats+auto-score,
+clefable,Clefable,Clefable,Fairy,483,258,83,0,Life Orb,0,579,3,,showdown-randbats+auto-score,
+cofagrigus,Cofagrigus,Cofagrigus,Ghost,483,308,89,0,Leftovers,0,561,3,,showdown-randbats+auto-score,
+golurk,Golurk,Golurk,Ground|Ghost,483,249,87,0,Life Orb,0,567,3,,showdown-randbats+auto-score,
+hypno,Hypno,Hypno,Psychic,483,270,97,0,Leftovers,0,537,3,,showdown-randbats+auto-score,
+runerigus,Runerigus,Runerigus,Ground|Ghost,483,308,,0,,0,528,3,,auto-score,
+durant,Durant,Durant,Bug|Steel,484,218,80,0,Life Orb,0,589,3,,showdown-randbats+auto-score,
+heatmor,Heatmor,Heatmor,Fire,484,217,93,0,Life Orb,0,550,3,,showdown-randbats+auto-score,
+appletun,Appletun,Appletun,Grass|Dragon,485,270,,0,,0,530,3,,auto-score,
+beheeyem,Beheeyem,Beheeyem,Psychic,485,245,93,0,Life Orb,0,551,3,,showdown-randbats+auto-score,
+bombirdier,Bombirdier,Bombirdier,Flying|Dark,485,240,,0,,0,530,3,,auto-score,
+comfey,Comfey,Comfey,Fairy,485,251,88,0,Leftovers,0,566,3,,showdown-randbats+auto-score,
+crustle,Crustle,Crustle,Bug|Rock,485,270,82,0,White Herb,0,584,3,,showdown-randbats+auto-score,
+drampa,Drampa,Drampa,Normal|Dragon,485,254,91,0,Leftovers,0,557,3,,showdown-randbats+auto-score,
+drednaw,Drednaw,Drednaw,Water|Rock,485,248,,0,,0,530,3,,auto-score,
+druddigon,Druddigon,Druddigon,Dragon,485,257,86,0,Life Orb,0,572,3,,showdown-randbats+auto-score,
+flapple,Flapple,Flapple,Grass|Dragon,485,210,,0,,0,530,3,,auto-score,
+gorebyss,Gorebyss,Gorebyss,Water,485,235,85,0,White Herb,0,575,3,,showdown-randbats+auto-score,
+grafaiai,Grafaiai,Grafaiai,Poison|Normal,485,200,,0,,0,530,3,,auto-score,
+huntail,Huntail,Huntail,Water,485,235,85,0,White Herb,0,575,3,,showdown-randbats+auto-score,
+mantine,Mantine,Mantine,Water|Flying,485,295,87,0,Leftovers,0,569,3,,showdown-randbats+auto-score,
+raichu,Raichu,Raichu,Electric,485,195,88,0,Leftovers,0,566,3,,showdown-randbats+auto-score,
+raichualola,Raichu-Alola,Raichu,Electric|Psychic,485,195,86,0,Aloraichium Z,0,572,3,,showdown-randbats+auto-score,
+relicanth,Relicanth,Relicanth,Water|Rock,485,295,88,0,Leftovers,0,566,3,,showdown-randbats+auto-score,
+rhydon,Rhydon,Rhydon,Ground|Rock,485,270,85,25,Eviolite,40,550,3,,showdown-randbats+auto-score,nfe|eviolite-bulk+25|eviolite-randset
+scolipede,Scolipede,Scolipede,Bug|Poison,485,218,80,0,Life Orb,0,590,3,,showdown-randbats+auto-score,
+spiritomb,Spiritomb,Spiritomb,Ghost|Dark,485,266,91,0,Leftovers,0,557,3,,showdown-randbats+auto-score,
+staraptor,Staraptor,Staraptor,Normal|Flying,485,215,80,0,Choice Band,0,590,3,,showdown-randbats+auto-score,
+toucannon,Toucannon,Toucannon,Normal|Flying,485,230,88,0,Choice Band,0,566,3,,showdown-randbats+auto-score,
+turtonator,Turtonator,Turtonator,Fire|Dragon,485,280,88,0,White Herb,0,566,3,,showdown-randbats+auto-score,
+scovillain,Scovillain,Scovillain,Grass|Fire,486,195,,0,,0,531,3,,auto-score,
+zygarde10,Zygarde-10%,Zygarde,Dragon|Ground,486,210,81,0,Choice Band,0,588,3,,showdown-randbats+auto-score,
+lycanroc,Lycanroc,Lycanroc,Rock,487,205,85,0,Life Orb,0,577,3,,showdown-randbats+auto-score,
+lycanrocdusk,Lycanroc-Dusk,Lycanroc,Rock,487,205,83,0,Choice Band,0,583,3,,showdown-randbats+auto-score,
+lycanrocmidnight,Lycanroc-Midnight,Lycanroc,Rock,487,235,86,0,Life Orb,0,574,3,,showdown-randbats+auto-score,
+musharna,Musharna,Musharna,Psychic,487,296,89,0,Leftovers,0,565,3,,showdown-randbats+auto-score,
+houndstone,Houndstone,Houndstone,Ghost,488,269,,0,,0,533,3,,auto-score,
+scrafty,Scrafty,Scrafty,Dark|Fighting,488,295,84,0,Leftovers,0,581,3,,showdown-randbats+auto-score,
+unfezant,Unfezant,Unfezant,Normal|Flying,488,215,88,0,Scope Lens,0,569,3,,showdown-randbats+auto-score,
+oinkologne,Oinkologne,Oinkologne,Normal,489,265,,0,,0,534,3,,auto-score,
+oinkolognef,Oinkologne-F,Oinkologne,Normal,489,275,,0,,0,534,3,,auto-score,
+altaria,Altaria,Altaria,Dragon|Flying,490,270,92,0,Lum Berry,0,559,3,,showdown-randbats+auto-score,
+barraskewda,Barraskewda,Barraskewda,Water,490,171,,0,,0,535,3,,auto-score,
+bellossom,Bellossom,Bellossom,Grass,490,270,88,0,Leftovers,0,571,3,,showdown-randbats+auto-score,
+bisharp,Bisharp,Bisharp,Dark|Steel,490,235,81,8,Eviolite,40,550,3,,showdown-randbats+auto-score,nfe|eviolite-bulk+8|eviolite-randset
+boltund,Boltund,Boltund,Electric,490,189,,0,,0,535,3,,auto-score,
+bouffalant,Bouffalant,Bouffalant,Normal,490,285,87,0,Leftovers,0,574,3,,showdown-randbats+auto-score,
+dubwool,Dubwool,Dubwool,Normal,490,262,,0,,0,535,3,,auto-score,
+electrode,Electrode,Electrode,Electric,490,210,89,0,Life Orb,0,568,3,,showdown-randbats+auto-score,
+electrodehisui,Electrode-Hisui,Electrode,Electric|Grass,490,210,,0,,0,535,3,,auto-score,
+exploud,Exploud,Exploud,Normal,490,240,86,0,Choice Scarf,0,577,3,,showdown-randbats+auto-score,
+gothitelle,Gothitelle,Gothitelle,Psychic,490,275,91,0,Leftovers,0,562,3,,showdown-randbats+auto-score,
+kangaskhan,Kangaskhan,Kangaskhan,Normal,490,265,88,0,Choice Band,0,571,3,,showdown-randbats+auto-score,
+kilowattrel,Kilowattrel,Kilowattrel,Electric|Flying,490,190,,0,,0,535,3,,auto-score,
+miltank,Miltank,Miltank,Normal,490,270,85,0,Leftovers,0,580,3,,showdown-randbats+auto-score,
+oranguru,Oranguru,Oranguru,Normal|Psychic,490,280,93,0,Life Orb,0,556,3,,showdown-randbats+auto-score,
+passimian,Passimian,Passimian,Fighting,490,250,84,0,Choice Band,0,583,3,,showdown-randbats+auto-score,
+pawmot,Pawmot,Pawmot,Electric|Fighting,490,200,,0,,0,535,3,,auto-score,
+reuniclus,Reuniclus,Reuniclus,Psychic,490,270,87,0,Life Orb,0,574,3,,showdown-randbats+auto-score,
+sigilyph,Sigilyph,Sigilyph,Psychic|Flying,490,232,85,0,Life Orb,0,580,3,,showdown-randbats+auto-score,
+slowbro,Slowbro,Slowbro,Water|Psychic,490,285,85,0,Rocky Helmet,0,580,3,,showdown-randbats+auto-score,
+slowbrogalar,Slowbro-Galar,Slowbro,Poison|Psychic,490,260,,0,,0,535,3,,auto-score,
+slowking,Slowking,Slowking,Water|Psychic,490,285,89,0,Leftovers,0,568,3,,showdown-randbats+auto-score,
+slowkinggalar,Slowking-Galar,Slowking,Poison|Psychic,490,285,,0,,0,535,3,,auto-score,
+tauros,Tauros,Tauros,Normal,490,240,84,0,Life Orb,0,583,3,,showdown-randbats+auto-score,
+taurospaldeaaqua,Tauros-Paldea-Aqua,Tauros,Fighting|Water,490,250,,0,,0,535,3,,auto-score,
+taurospaldeablaze,Tauros-Paldea-Blaze,Tauros,Fighting|Fire,490,250,,0,,0,535,3,,auto-score,
+taurospaldeacombat,Tauros-Paldea-Combat,Tauros,Fighting,490,250,,0,,0,535,3,,auto-score,
+toxicroak,Toxicroak,Toxicroak,Poison|Fighting,490,213,84,0,Black Sludge,0,583,3,,showdown-randbats+auto-score,
+victreebel,Victreebel,Victreebel,Grass|Poison,490,215,90,0,Life Orb,0,565,3,,showdown-randbats+auto-score,
+vileplume,Vileplume,Vileplume,Grass|Poison,490,250,87,0,Black Sludge,0,574,3,,showdown-randbats+auto-score,
+weezing,Weezing,Weezing,Poison,490,255,87,0,Black Sludge,0,574,3,,showdown-randbats+auto-score,
+weezinggalar,Weezing-Galar,Weezing,Poison|Fairy,490,255,,0,,0,535,3,,auto-score,
+abomasnow,Abomasnow,Abomasnow,Grass|Ice,494,250,87,0,Assault Vest,0,578,3,,showdown-randbats+auto-score,
+dragalge,Dragalge,Dragalge,Poison|Dragon,494,278,87,0,Assault Vest,0,578,3,,showdown-randbats+auto-score,
+gourgeist,Gourgeist,Gourgeist,Ghost|Grass,494,262,91,0,Leftovers,0,566,3,,showdown-randbats+auto-score,
+gourgeistlarge,Gourgeist-Large,Gourgeist,Ghost|Grass,494,272,91,0,Leftovers,0,566,3,,showdown-randbats+auto-score,
+gourgeistsmall,Gourgeist-Small,Gourgeist,Ghost|Grass,494,252,91,0,Leftovers,0,566,3,,showdown-randbats+auto-score,
+gourgeistsuper,Gourgeist-Super,Gourgeist,Ghost|Grass,494,282,89,0,Rocky Helmet,0,572,3,,showdown-randbats+auto-score,
+accelgor,Accelgor,Accelgor,Bug,495,180,90,0,Life Orb,0,570,3,,showdown-randbats+auto-score,
+alcremie,Alcremie,Alcremie,Fairy,495,261,,0,,0,540,3,,auto-score,
+armaldo,Armaldo,Armaldo,Rock|Bug,495,255,89,0,Choice Band,0,573,3,,showdown-randbats+auto-score,
+bastiodon,Bastiodon,Bastiodon,Rock|Steel,495,366,93,0,Leftovers,0,561,3,,showdown-randbats+auto-score,
+bellibolt,Bellibolt,Bellibolt,Electric,495,283,,0,,0,540,3,,auto-score,
+carracosta,Carracosta,Carracosta,Water|Rock,495,272,88,0,White Herb,0,576,3,,showdown-randbats+auto-score,
+corviknight,Corviknight,Corviknight,Flying|Steel,495,288,,0,,0,540,3,,auto-score,
+cradily,Cradily,Cradily,Rock|Grass,495,290,89,0,Leftovers,0,573,3,,showdown-randbats+auto-score,
+escavalier,Escavalier,Escavalier,Bug|Steel,495,280,85,0,Leftovers,0,585,3,,showdown-randbats+auto-score,
+floatzel,Floatzel,Floatzel,Water,495,190,86,0,Choice Band,0,582,3,,showdown-randbats+auto-score,
+golem,Golem,Golem,Rock|Ground,495,275,86,0,Weakness Policy,0,582,3,,showdown-randbats+auto-score,
+golemalola,Golem-Alola,Golem,Rock|Electric,495,275,90,0,Choice Band,0,570,3,,showdown-randbats+auto-score,
+kabutops,Kabutops,Kabutops,Rock|Water,495,235,87,0,Assault Vest,0,579,3,,showdown-randbats+auto-score,
+mismagius,Mismagius,Mismagius,Ghost,495,225,87,0,Leftovers,0,579,3,,showdown-randbats+auto-score,
+omastar,Omastar,Omastar,Rock|Water,495,265,84,0,White Herb,0,588,3,,showdown-randbats+auto-score,
+pangoro,Pangoro,Pangoro,Fighting|Dark,495,244,86,0,Choice Band,0,582,3,,showdown-randbats+auto-score,
+rampardos,Rampardos,Rampardos,Rock,495,207,88,0,Choice Scarf,0,576,3,,showdown-randbats+auto-score,
+zebstrika,Zebstrika,Zebstrika,Electric,497,201,88,0,Choice Specs,0,578,3,,showdown-randbats+auto-score,
+drifblim,Drifblim,Drifblim,Ghost|Flying,498,248,85,0,Sitrus Berry,0,588,3,,showdown-randbats+auto-score,
+simipour,Simipour,Simipour,Water,498,201,88,0,Life Orb,0,579,3,,showdown-randbats+auto-score,
+simisage,Simisage,Simisage,Grass,498,201,89,0,Life Orb,0,576,3,,showdown-randbats+auto-score,
+simisear,Simisear,Simisear,Fire,498,201,89,0,Life Orb,0,576,3,,showdown-randbats+auto-score,
+bronzong,Bronzong,Bronzong,Steel|Psychic,500,299,86,0,Leftovers,0,587,3,,showdown-randbats+auto-score,
+calyrex,Calyrex,Calyrex,Psychic|Grass,500,260,,0,,0,545,3,,auto-score,
+carbink,Carbink,Carbink,Rock|Fairy,500,350,92,0,Light Clay,0,569,3,,showdown-randbats+auto-score,
+clawitzer,Clawitzer,Clawitzer,Water,500,248,87,0,Choice Specs,0,584,3,,showdown-randbats+auto-score,
+claydol,Claydol,Claydol,Ground|Psychic,500,285,89,0,Leftovers,0,578,3,,showdown-randbats+auto-score,
+copperajah,Copperajah,Copperajah,Steel,500,260,,0,,0,545,3,,auto-score,
+flamigo,Flamigo,Flamigo,Flying|Fighting,500,220,,0,,0,545,3,,auto-score,
+garganacl,Garganacl,Garganacl,Rock,500,320,,0,,0,545,3,,auto-score,
+golduck,Golduck,Golduck,Water,500,238,92,0,Leftovers,0,569,3,,showdown-randbats+auto-score,
+houndoom,Houndoom,Houndoom,Dark|Fire,500,205,87,0,Life Orb,0,584,3,,showdown-randbats+auto-score,
+kleavor,Kleavor,Kleavor,Bug|Rock,500,235,,0,,0,545,3,,auto-score,
+leavanny,Leavanny,Leavanny,Bug|Grass,500,235,87,0,Leftovers,0,584,3,,showdown-randbats+auto-score,
+muk,Muk,Muk,Poison,500,280,88,0,Black Sludge,0,581,3,,showdown-randbats+auto-score,
+pinsir,Pinsir,Pinsir,Bug,500,235,85,0,Choice Band,0,590,3,,showdown-randbats+auto-score,
+politoed,Politoed,Politoed,Water,500,265,88,0,Leftovers,0,581,3,,showdown-randbats+auto-score,
+rapidash,Rapidash,Rapidash,Fire,500,215,87,0,Life Orb,0,584,3,,showdown-randbats+auto-score,
+rapidashgalar,Rapidash-Galar,Rapidash,Psychic|Fairy,500,215,,0,,0,545,3,,auto-score,
+revavroom,Revavroom,Revavroom,Steel|Poison,500,237,,0,,0,545,3,,auto-score,
+scyther,Scyther,Scyther,Bug|Flying,500,230,82,5,Eviolite,40,554,3,,showdown-randbats+auto-score,nfe|eviolite-bulk+5|eviolite-randset
+stoutland,Stoutland,Stoutland,Normal,500,265,86,0,Choice Scarf,0,587,3,,showdown-randbats+auto-score,
+ursaring,Ursaring,Ursaring,Normal,500,240,85,10,Eviolite,40,550,3,,showdown-randbats+auto-score,nfe|eviolite-bulk+10|eviolite-randset
+vikavolt,Vikavolt,Vikavolt,Bug|Electric,500,242,86,0,Choice Specs,0,587,3,,showdown-randbats+auto-score,
+vikavolttotem,Vikavolt-Totem,Vikavolt,Bug|Electric,500,242,,0,,0,545,3,,auto-score,
+wailord,Wailord,Wailord,Water,500,260,94,0,Choice Scarf,0,563,3,,showdown-randbats+auto-score,
+cyclizar,Cyclizar,Cyclizar,Dragon|Normal,501,200,,0,,0,546,3,,auto-score,
+toxtricity,Toxtricity,Toxtricity,Electric|Poison,502,215,,0,,0,547,3,,auto-score,
+toxtricitylowkey,Toxtricity-Low-Key,Toxtricity,Electric|Poison,502,215,,0,,0,547,3,,auto-score,
+arctovish,Arctovish,Arctovish,Water|Ice,505,280,,0,,0,550,3,,auto-score,
+arctozolt,Arctozolt,Arctozolt,Electric|Ice,505,260,,0,,0,550,3,,auto-score,
+beartic,Beartic,Beartic,Ice,505,255,92,0,Life Orb,0,574,3,,showdown-randbats+auto-score,
+dracovish,Dracovish,Dracovish,Water|Dragon,505,270,,0,,0,550,3,,auto-score,
+dracozolt,Dracozolt,Dracozolt,Electric|Dragon,505,250,,0,,0,550,3,,auto-score,
+mabosstiff,Mabosstiff,Mabosstiff,Dark,505,240,,0,,0,550,3,,auto-score,
+orbeetle,Orbeetle,Orbeetle,Bug|Psychic,505,290,,0,,0,550,3,,auto-score,
+tinkaton,Tinkaton,Tinkaton,Fairy|Steel,506,267,,0,,0,551,3,,auto-score,
+pyroar,Pyroar,Pyroar,Fire|Normal,507,224,88,0,Life Orb,0,588,3,,showdown-randbats+auto-score,
+sirfetchd,Sirfetch’d,Sirfetch’d,Fighting,507,239,,0,,0,552,3,,auto-score,
+polteageist,Polteageist,Polteageist,Ghost,508,239,,0,,0,553,3,,auto-score,
+polteageistantique,Polteageist-Antique,Polteageist,Ghost,508,239,,0,,0,553,3,,auto-score,
+sinistcha,Sinistcha,Sinistcha,Grass|Ghost,508,257,,0,,0,553,3,,auto-score,
+sinistchamasterpiece,Sinistcha-Masterpiece,Sinistcha,Grass|Ghost,508,257,,0,,0,553,3,,auto-score,
+ampharos,Ampharos,Ampharos,Electric,510,265,88,0,Leftovers,0,591,3,,showdown-randbats+auto-score,
+arboliva,Arboliva,Arboliva,Grass|Normal,510,277,,0,,0,555,3,,auto-score,
+braviaryhisui,Braviary-Hisui,Braviary,Psychic|Flying,510,250,,0,,0,555,3,,auto-score,
+coalossal,Coalossal,Coalossal,Rock|Fire,510,320,,0,,0,555,3,,auto-score,
+cursola,Cursola,Cursola,Ghost,510,240,,0,,0,555,3,,auto-score,
+grimmsnarl,Grimmsnarl,Grimmsnarl,Dark|Fairy,510,235,,0,,0,555,3,,auto-score,
+hatterene,Hatterene,Hatterene,Psychic|Fairy,510,255,,0,,0,555,3,,auto-score,
+overqwil,Overqwil,Overqwil,Dark|Poison,510,245,,0,,0,555,3,,auto-score,
+poliwrath,Poliwrath,Poliwrath,Water|Fighting,510,275,91,0,Life Orb,0,582,3,,showdown-randbats+auto-score,
+sandaconda,Sandaconda,Sandaconda,Ground,510,267,,0,,0,555,3,,auto-score,
+sneasler,Sneasler,Sneasler,Fighting|Poison,510,220,,0,,0,555,3,,auto-score,
+zoroarkhisui,Zoroark-Hisui,Zoroark,Normal|Ghost,510,175,,0,,0,555,3,,auto-score,
+avalugg,Avalugg,Avalugg,Ice,514,325,90,0,Leftovers,0,589,3,,showdown-randbats+auto-score,
+avalugghisui,Avalugg-Hisui,Avalugg,Ice|Rock,514,315,,0,,0,559,3,,auto-score,
+porygon2,Porygon2,Porygon2,Normal,515,270,82,25,Eviolite,40,589,3,,showdown-randbats+auto-score,nfe|eviolite-bulk+25|eviolite-randset
+toedscruel,Toedscruel,Toedscruel,Ground|Grass,515,265,,0,,0,560,3,,auto-score,
+dhelmise,Dhelmise,Dhelmise,Ghost|Grass,517,260,91,0,Assault Vest,0,589,3,,showdown-randbats+auto-score,
+dudunsparce,Dudunsparce,Dudunsparce,Normal,520,280,,0,,0,565,3,,auto-score,
+dudunsparcethreesegment,Dudunsparce-Three-Segment,Dudunsparce,Normal,520,280,,0,,0,565,3,,auto-score,
+farigiraf,Farigiraf,Farigiraf,Normal|Psychic,520,260,,0,,0,565,3,,auto-score,
+mrrime,Mr. Rime,Mr. Rime,Ice|Psychic,520,255,,0,,0,565,3,,auto-score,
+obstagoon,Obstagoon,Obstagoon,Dark|Normal,520,275,,0,,0,565,3,,auto-score,
+cetitan,Cetitan,Cetitan,Ice,521,290,,0,,0,566,3,,auto-score,
+armarouge,Armarouge,Armarouge,Fire|Psychic,525,265,,0,,0,570,3,,auto-score,
+centiskorch,Centiskorch,Centiskorch,Fire|Bug,525,255,,0,,0,570,3,,auto-score,
+ceruledge,Ceruledge,Ceruledge,Fire|Ghost,525,255,,0,,0,570,3,,auto-score,
+glimmora,Glimmora,Glimmora,Rock|Poison,525,254,,0,,0,570,3,,auto-score,
+wyrdeer,Wyrdeer,Wyrdeer,Normal|Psychic,525,250,,0,,0,570,3,,auto-score,
+samurotthisui,Samurott-Hisui,Samurott,Water|Dark,528,235,,0,,0,573,3,,auto-score,
+basculegion,Basculegion,Basculegion,Water|Ghost,530,260,,0,,0,575,3,,auto-score,
+basculegionf,Basculegion-F,Basculegion,Water|Ghost,530,260,,0,,0,575,3,,auto-score,
+cinderace,Cinderace,Cinderace,Fire,530,230,,0,,0,575,3,,auto-score,
+decidueyehisui,Decidueye-Hisui,Decidueye,Grass|Fighting,530,263,,0,,0,575,3,,auto-score,
+dondozo,Dondozo,Dondozo,Water,530,330,,0,,0,575,3,,auto-score,
+inteleon,Inteleon,Inteleon,Water,530,200,,0,,0,575,3,,auto-score,
+meowscarada,Meowscarada,Meowscarada,Grass|Dark,530,216,,0,,0,575,3,,auto-score,
+quaquaval,Quaquaval,Quaquaval,Water|Fighting,530,240,,0,,0,575,3,,auto-score,
+rillaboom,Rillaboom,Rillaboom,Grass,530,260,,0,,0,575,3,,auto-score,
+skeledirge,Skeledirge,Skeledirge,Fire|Ghost,530,279,,0,,0,575,3,,auto-score,
+typhlosionhisui,Typhlosion-Hisui,Typhlosion,Fire|Ghost,534,236,,0,,0,579,3,,auto-score,
+annihilape,Annihilape,Annihilape,Fighting|Ghost,535,280,,0,,0,580,3,,auto-score,
+hydrapple,Hydrapple,Hydrapple,Grass|Dragon,540,296,,0,,0,585,3,,auto-score,
+mimikyu,Mimikyu,Mimikyu,Ghost|Fairy,476,240,73,0,Mimikium Z,0,602,4,,showdown-randbats+auto-score,
+ferrothorn,Ferrothorn,Ferrothorn,Grass|Steel,489,321,72,0,Leftovers,0,618,4,,showdown-randbats+auto-score,
+toxapex,Toxapex,Toxapex,Poison|Water,495,344,80,0,Rocky Helmet,0,600,4,,showdown-randbats+auto-score,
+talonflame,Talonflame,Talonflame,Fire|Flying,499,218,82,0,Leftovers,0,598,4,,showdown-randbats+auto-score,
+aegislash,Aegislash,Aegislash,Steel|Ghost,500,340,77,0,Life Orb,0,614,4,,showdown-randbats+auto-score,
+alakazam,Alakazam,Alakazam,Psychic,500,195,81,0,Life Orb,0,602,4,,showdown-randbats+auto-score,
+barbaracle,Barbaracle,Barbaracle,Rock|Water,500,273,81,0,White Herb,0,602,4,,showdown-randbats+auto-score,
+bewear,Bewear,Bewear,Normal|Fighting,500,260,84,0,Choice Scarf,0,593,4,,showdown-randbats+auto-score,
+donphan,Donphan,Donphan,Ground,500,270,84,0,Leftovers,0,593,4,,showdown-randbats+auto-score,
+drapion,Drapion,Drapion,Poison|Dark,500,255,83,0,Choice Band,0,596,4,,showdown-randbats+auto-score,
+gengar,Gengar,Gengar,Ghost|Poison,500,195,82,0,Black Sludge,0,599,4,,showdown-randbats+auto-score,
+hawlucha,Hawlucha,Hawlucha,Fighting|Flying,500,216,78,0,Sitrus Berry,0,611,4,,showdown-randbats+auto-score,
+heracross,Heracross,Heracross,Bug|Fighting,500,250,82,0,Flame Orb,0,599,4,,showdown-randbats+auto-score,
+minior,Minior,Minior,Rock|Flying,500,180,79,0,White Herb,0,608,4,,showdown-randbats+auto-score,
+mudsdale,Mudsdale,Mudsdale,Ground,500,285,83,0,Leftovers,0,596,4,,showdown-randbats+auto-score,
+mukalola,Muk-Alola,Muk,Poison|Dark,500,280,80,0,Iapapa Berry,0,605,4,,showdown-randbats+auto-score,
+scizor,Scizor,Scizor,Bug|Steel,500,250,80,0,Choice Band,0,605,4,,showdown-randbats+auto-score,
+conkeldurr,Conkeldurr,Conkeldurr,Fighting,505,265,81,0,Flame Orb,0,607,4,,showdown-randbats+auto-score,
+honchkrow,Honchkrow,Honchkrow,Dark|Flying,505,204,83,0,Life Orb,0,601,4,,showdown-randbats+auto-score,
+machamp,Machamp,Machamp,Fighting,505,255,84,0,Assault Vest,0,598,4,,showdown-randbats+auto-score,
+nidoking,Nidoking,Nidoking,Poison|Ground,505,233,82,0,Life Orb,0,604,4,,showdown-randbats+auto-score,
+nidoqueen,Nidoqueen,Nidoqueen,Poison|Ground,505,262,83,0,Life Orb,0,601,4,,showdown-randbats+auto-score,
+ninetales,Ninetales,Ninetales,Fire,505,248,84,0,Life Orb,0,598,4,,showdown-randbats+auto-score,
+ninetalesalola,Ninetales-Alola,Ninetales,Ice|Fairy,505,248,78,0,Light Clay,0,616,4,,showdown-randbats+auto-score,
+shuckle,Shuckle,Shuckle,Bug|Rock,505,480,86,0,Mental Herb,0,592,4,,showdown-randbats+auto-score,
+excadrill,Excadrill,Excadrill,Ground|Steel,508,235,81,0,Assault Vest,0,610,4,,showdown-randbats+auto-score,
+seismitoad,Seismitoad,Seismitoad,Water|Ground,509,255,85,0,Leftovers,0,599,4,,showdown-randbats+auto-score,
+braviary,Braviary,Braviary,Normal|Flying,510,250,83,0,Choice Scarf,0,606,4,,showdown-randbats+auto-score,
+gliscor,Gliscor,Gliscor,Ground|Flying,510,275,78,0,Toxic Orb,0,621,4,,showdown-randbats+auto-score,
+mandibuzz,Mandibuzz,Mandibuzz,Dark|Flying,510,310,84,0,Rocky Helmet,0,603,4,,showdown-randbats+auto-score,
+mienshao,Mienshao,Mienshao,Fighting,510,185,83,0,Assault Vest,0,606,4,,showdown-randbats+auto-score,
+steelix,Steelix,Steelix,Steel|Ground,510,340,82,0,Leftovers,0,609,4,,showdown-randbats+auto-score,
+tsareena,Tsareena,Tsareena,Grass,510,268,87,0,Leftovers,0,594,4,,showdown-randbats+auto-score,
+weavile,Weavile,Weavile,Dark|Ice,510,220,79,0,Life Orb,0,618,4,,showdown-randbats+auto-score,
+zoroark,Zoroark,Zoroark,Dark,510,180,84,0,Life Orb,0,603,4,,showdown-randbats+auto-score,
+aerodactyl,Aerodactyl,Aerodactyl,Rock|Flying,515,220,81,0,Leftovers,0,617,4,,showdown-randbats+auto-score,
+cryogonal,Cryogonal,Cryogonal,Ice,515,265,87,0,Leftovers,0,599,4,,showdown-randbats+auto-score,
+eelektross,Eelektross,Eelektross,Electric,515,245,88,0,Assault Vest,0,596,4,,showdown-randbats+auto-score,
+gigalith,Gigalith,Gigalith,Rock,515,295,82,0,Leftovers,0,614,4,,showdown-randbats+auto-score,
+lickilicky,Lickilicky,Lickilicky,Normal,515,300,89,0,Leftovers,0,593,4,,showdown-randbats+auto-score,
+roserade,Roserade,Roserade,Grass|Poison,515,230,84,0,Black Sludge,0,608,4,,showdown-randbats+auto-score,
+tentacruel,Tentacruel,Tentacruel,Water|Poison,515,265,83,0,Black Sludge,0,611,4,,showdown-randbats+auto-score,
+gallade,Gallade,Gallade,Psychic|Fighting,518,248,84,0,Life Orb,0,611,4,,showdown-randbats+auto-score,
+gardevoir,Gardevoir,Gardevoir,Psychic|Fairy,518,248,83,0,Leftovers,0,614,4,,showdown-randbats+auto-score,
+krookodile,Krookodile,Krookodile,Ground|Dark,519,245,79,0,Choice Band,0,627,4,,showdown-randbats+auto-score,
+chandelure,Chandelure,Chandelure,Ghost|Fire,520,240,84,0,Choice Scarf,0,613,4,,showdown-randbats+auto-score,
+flygon,Flygon,Flygon,Ground|Dragon,520,240,82,0,Lum Berry,0,619,4,,showdown-randbats+auto-score,
+klinklang,Klinklang,Klinklang,Steel,520,260,87,0,Electrium Z,0,604,4,,showdown-randbats+auto-score,
+rotomfan,Rotom-Fan,Rotom,Electric|Flying,520,264,84,0,Leftovers,0,613,4,,showdown-randbats+auto-score,
+rotomfrost,Rotom-Frost,Rotom,Electric|Ice,520,264,85,0,Icium Z,0,610,4,,showdown-randbats+auto-score,
+rotomheat,Rotom-Heat,Rotom,Electric|Fire,520,264,84,0,Leftovers,0,613,4,,showdown-randbats+auto-score,
+rotommow,Rotom-Mow,Rotom,Electric|Grass,520,264,86,0,Leftovers,0,607,4,,showdown-randbats+auto-score,
+rotomwash,Rotom-Wash,Rotom,Electric|Water,520,264,83,0,Choice Scarf,0,616,4,,showdown-randbats+auto-score,
+starmie,Starmie,Starmie,Water|Psychic,520,230,84,0,Leftovers,0,613,4,,showdown-randbats+auto-score,
+aurorus,Aurorus,Aurorus,Rock|Ice,521,287,88,0,Leftovers,0,602,4,,showdown-randbats+auto-score,
+tyrantrum,Tyrantrum,Tyrantrum,Rock|Dragon,521,260,80,0,Dragonium Z,0,626,4,,showdown-randbats+auto-score,
+luxray,Luxray,Luxray,Electric,523,238,88,0,Assault Vest,0,604,4,,showdown-randbats+auto-score,
+cloyster,Cloyster,Cloyster,Water|Ice,525,275,80,0,White Herb,0,630,4,,showdown-randbats+auto-score,
+dusknoir,Dusknoir,Dusknoir,Ghost,525,315,89,0,Leftovers,0,603,4,,showdown-randbats+auto-score,
+espeon,Espeon,Espeon,Psychic,525,220,83,0,Life Orb,0,621,4,,showdown-randbats+auto-score,
+flareon,Flareon,Flareon,Fire,525,235,88,0,Toxic Orb,0,606,4,,showdown-randbats+auto-score,
+glaceon,Glaceon,Glaceon,Ice,525,270,90,0,Leftovers,0,600,4,,showdown-randbats+auto-score,
+hippowdon,Hippowdon,Hippowdon,Ground,525,298,82,0,Leftovers,0,624,4,,showdown-randbats+auto-score,
+jolteon,Jolteon,Jolteon,Electric,525,220,81,0,Choice Specs,0,627,4,,showdown-randbats+auto-score,
+leafeon,Leafeon,Leafeon,Grass,525,260,88,0,Life Orb,0,606,4,,showdown-randbats+auto-score,
+lucario,Lucario,Lucario,Fighting|Steel,525,210,82,0,Life Orb,0,624,4,,showdown-randbats+auto-score,
+meganium,Meganium,Meganium,Grass,525,280,92,0,Leftovers,0,594,4,,showdown-randbats+auto-score,
+probopass,Probopass,Probopass,Rock|Steel,525,355,92,0,Leftovers,0,594,4,,showdown-randbats+auto-score,
+sylveon,Sylveon,Sylveon,Fairy,525,290,85,0,Leftovers,0,615,4,,showdown-randbats+auto-score,
+torterra,Torterra,Torterra,Grass|Ground,525,285,88,0,Leftovers,0,606,4,,showdown-randbats+auto-score,
+umbreon,Umbreon,Umbreon,Dark,525,335,84,0,Leftovers,0,618,4,,showdown-randbats+auto-score,
+vaporeon,Vaporeon,Vaporeon,Water,525,285,86,0,Leftovers,0,612,4,,showdown-randbats+auto-score,
+venusaur,Venusaur,Venusaur,Grass|Poison,525,263,84,0,Black Sludge,0,618,4,,showdown-randbats+auto-score,
+emboar,Emboar,Emboar,Fire|Fighting,528,240,85,0,Assault Vest,0,618,4,,showdown-randbats+auto-score,
+samurott,Samurott,Samurott,Water,528,250,88,0,Assault Vest,0,609,4,,showdown-randbats+auto-score,
+serperior,Serperior,Serperior,Grass,528,265,80,0,Leftovers,0,633,4,,showdown-randbats+auto-score,
+aggron,Aggron,Aggron,Steel|Rock,530,310,87,0,Life Orb,0,614,4,,showdown-randbats+auto-score,
+blastoise,Blastoise,Blastoise,Water,530,284,86,0,Leftovers,0,617,4,,showdown-randbats+auto-score,
+blaziken,Blaziken,Blaziken,Fire|Fighting,530,220,78,0,Life Orb,0,641,4,,showdown-randbats+auto-score,
+chesnaught,Chesnaught,Chesnaught,Grass|Fighting,530,285,89,0,Leftovers,0,608,4,,showdown-randbats+auto-score,
+decidueye,Decidueye,Decidueye,Grass|Ghost,530,253,87,0,Leftovers,0,614,4,,showdown-randbats+auto-score,
+empoleon,Empoleon,Empoleon,Water|Steel,530,273,83,0,Leftovers,0,626,4,,showdown-randbats+auto-score,
+exeggutor,Exeggutor,Exeggutor,Grass|Psychic,530,255,90,0,Sitrus Berry,0,605,4,,showdown-randbats+auto-score,
+exeggutoralola,Exeggutor-Alola,Exeggutor,Grass|Dragon,530,255,91,0,Choice Specs,0,602,4,,showdown-randbats+auto-score,
+feraligatr,Feraligatr,Feraligatr,Water,530,268,79,0,Life Orb,0,638,4,,showdown-randbats+auto-score,
+golisopod,Golisopod,Golisopod,Bug|Water,530,305,84,0,Sitrus Berry,0,623,4,,showdown-randbats+auto-score,
+greninja,Greninja,Greninja,Water|Dark,530,210,79,0,Life Orb,0,638,4,,showdown-randbats+auto-score,
+greninjabond,Greninja-Bond,Greninja,Water|Dark,530,210,79,0,Choice Specs,0,638,4,,showdown-randbats+auto-score,
+incineroar,Incineroar,Incineroar,Fire|Dark,530,275,82,0,Assault Vest,0,629,4,,showdown-randbats+auto-score,
+mamoswine,Mamoswine,Mamoswine,Ice|Ground,530,250,79,0,Choice Band,0,638,4,,showdown-randbats+auto-score,
+primarina,Primarina,Primarina,Water|Fairy,530,270,83,0,Leftovers,0,626,4,,showdown-randbats+auto-score,
+sceptile,Sceptile,Sceptile,Grass,530,220,87,0,Life Orb,0,614,4,,showdown-randbats+auto-score,
+walrein,Walrein,Walrein,Ice|Water,530,290,90,0,Leftovers,0,605,4,,showdown-randbats+auto-score,
+gogoat,Gogoat,Gogoat,Grass,531,266,91,0,Leftovers,0,603,4,,showdown-randbats+auto-score,
+charizard,Charizard,Charizard,Fire|Flying,534,241,83,0,Leftovers,0,630,4,,showdown-randbats+auto-score,
+delphox,Delphox,Delphox,Fire|Psychic,534,247,86,0,Choice Scarf,0,621,4,,showdown-randbats+auto-score,
+infernape,Infernape,Infernape,Fire|Fighting,534,218,81,0,Choice Band,0,636,4,,showdown-randbats+auto-score,
+typenull,Type: Null,Type: Null,Normal,534,285,85,33,Eviolite,40,607,4,,showdown-randbats+auto-score,nfe|eviolite-bulk+33|eviolite-randset
+typhlosion,Typhlosion,Typhlosion,Fire,534,241,85,0,Choice Specs,0,624,4,,showdown-randbats+auto-score,
+crobat,Crobat,Crobat,Poison|Flying,535,245,82,0,Black Sludge,0,634,4,,showdown-randbats+auto-score,
+lapras,Lapras,Lapras,Water|Ice,535,305,88,0,Leftovers,0,616,4,,showdown-randbats+auto-score,
+magnezone,Magnezone,Magnezone,Electric|Steel,535,275,84,0,Leftovers,0,628,4,,showdown-randbats+auto-score,
+noivern,Noivern,Noivern,Flying|Dragon,535,245,83,0,Life Orb,0,631,4,,showdown-randbats+auto-score,
+porygonz,Porygon-Z,Porygon-Z,Normal,535,230,80,0,Choice Scarf,0,640,4,,showdown-randbats+auto-score,
+rhyperior,Rhyperior,Rhyperior,Ground|Rock,535,300,84,0,Weakness Policy,0,628,4,,showdown-randbats+auto-score,
+swampert,Swampert,Swampert,Water|Ground,535,280,82,0,Leftovers,0,634,4,,showdown-randbats+auto-score,
+tangrowth,Tangrowth,Tangrowth,Grass,535,275,89,0,Leftovers,0,613,4,,showdown-randbats+auto-score,
+vanilluxe,Vanilluxe,Vanilluxe,Ice,535,251,86,0,Life Orb,0,622,4,,showdown-randbats+auto-score,
+blissey,Blissey,Blissey,Normal,540,400,85,0,Leftovers,0,630,4,,showdown-randbats+auto-score,
+electivire,Electivire,Electivire,Electric,540,227,86,0,Choice Scarf,0,627,4,,showdown-randbats+auto-score,
+gyarados,Gyarados,Gyarados,Water|Flying,540,274,73,0,Flyinium Z,0,666,4,,showdown-randbats+auto-score,
+haxorus,Haxorus,Haxorus,Dragon,540,236,75,0,Dragonium Z,0,660,4,,showdown-randbats+auto-score,
+kingdra,Kingdra,Kingdra,Water|Dragon,540,265,85,0,Lum Berry,0,630,4,,showdown-randbats+auto-score,
+magmortar,Magmortar,Magmortar,Fire,540,237,88,0,Assault Vest,0,621,4,,showdown-randbats+auto-score,
+milotic,Milotic,Milotic,Water,540,299,84,0,Leftovers,0,633,4,,showdown-randbats+auto-score,
+naganadel,Naganadel,Naganadel,Poison|Dragon,540,219,74,0,Dragonium Z,0,663,4,,showdown-randbats+auto-score,
+snorlax,Snorlax,Snorlax,Normal,540,335,83,0,Leftovers,0,636,4,,showdown-randbats+auto-score,
+togekiss,Togekiss,Togekiss,Fairy|Flying,545,295,81,0,Leftovers,0,647,4,,showdown-randbats+auto-score,
+gholdengo,Gholdengo,Gholdengo,Steel|Ghost,550,273,,0,,0,595,4,,auto-score,
+kingambit,Kingambit,Kingambit,Dark|Steel,550,305,,0,,0,595,4,,auto-score,
+ogerpon,Ogerpon,Ogerpon,Grass,550,260,,0,,0,595,4,,auto-score,
+ursaluna,Ursaluna,Ursaluna,Ground|Normal,550,315,,0,,0,595,4,,auto-score,
+urshifu,Urshifu,Urshifu,Fighting|Dark,550,260,,0,,0,595,4,,auto-score,
+urshifurapidstrike,Urshifu-Rapid-Strike,Urshifu,Fighting|Water,550,260,,0,,0,595,4,,auto-score,
+volcarona,Volcarona,Volcarona,Bug|Fire,550,255,76,0,Firium Z,0,667,4,,showdown-randbats+auto-score,
+floetteeternal,Floette-Eternal,Floette,Fairy,551,269,83,0,Choice Scarf,0,647,4,,showdown-randbats+auto-score,
+florges,Florges,Florges,Fairy,552,300,85,0,Leftovers,0,642,4,,showdown-randbats+auto-score,
+arcanine,Arcanine,Arcanine,Fire,555,250,84,0,Leftovers,0,648,4,,showdown-randbats+auto-score,
+arcaninehisui,Arcanine-Hisui,Arcanine,Fire|Rock,555,255,,0,,0,600,4,,auto-score,
+fezandipiti,Fezandipiti,Fezandipiti,Poison|Fairy,555,295,,0,,0,600,4,,auto-score,
+munkidori,Munkidori,Munkidori,Poison|Psychic,555,244,,0,,0,600,4,,auto-score,
+okidogi,Okidogi,Okidogi,Poison|Fighting,555,289,,0,,0,600,4,,auto-score,
+ursalunabloodmoon,Ursaluna-Bloodmoon,Ursaluna,Ground|Normal,555,298,,0,,0,600,4,,auto-score,
+archeops,Archeops,Archeops,Rock|Flying,567,205,82,0,,0,666,4,,showdown-randbats+auto-score,
+blacephalon,Blacephalon,Blacephalon,Fire|Ghost,570,185,80,0,Firium Z,0,675,4,,showdown-randbats+auto-score,
+brutebonnet,Brute Bonnet,Brute Bonnet,Grass|Dark,570,309,,0,,0,615,4,,auto-score,
+buzzwole,Buzzwole,Buzzwole,Bug|Fighting,570,299,79,0,Rocky Helmet,0,678,4,,showdown-randbats+auto-score,
+celesteela,Celesteela,Celesteela,Steel|Flying,570,301,78,0,Weakness Policy,0,681,4,,showdown-randbats+auto-score,
+chiyu,Chi-Yu,Chi-Yu,Dark|Fire,570,255,,0,,0,615,4,,auto-score,
+chienpao,Chien-Pao,Chien-Pao,Dark|Ice,570,225,,0,,0,615,4,,auto-score,
+fluttermane,Flutter Mane,Flutter Mane,Ghost|Fairy,570,245,,0,,0,615,4,,auto-score,
+greattusk,Great Tusk,Great Tusk,Ground|Fighting,570,299,,0,,0,615,4,,auto-score,
+guzzlord,Guzzlord,Guzzlord,Dark|Dragon,570,329,86,0,Assault Vest,0,657,4,,showdown-randbats+auto-score,
+ironbundle,Iron Bundle,Iron Bundle,Ice|Water,570,230,,0,,0,615,4,,auto-score,
+ironhands,Iron Hands,Iron Hands,Fighting|Electric,570,330,,0,,0,615,4,,auto-score,
+ironjugulis,Iron Jugulis,Iron Jugulis,Dark|Flying,570,260,,0,,0,615,4,,auto-score,
+ironmoth,Iron Moth,Iron Moth,Fire|Poison,570,250,,0,,0,615,4,,auto-score,
+ironthorns,Iron Thorns,Iron Thorns,Rock|Electric,570,294,,0,,0,615,4,,auto-score,
+irontreads,Iron Treads,Iron Treads,Ground|Steel,570,280,,0,,0,615,4,,auto-score,
+kartana,Kartana,Kartana,Grass|Steel,570,221,74,0,Steelium Z,0,693,4,,showdown-randbats+auto-score,
+nihilego,Nihilego,Nihilego,Rock|Poison,570,287,79,0,Choice Scarf,0,678,4,,showdown-randbats+auto-score,
+pheromosa,Pheromosa,Pheromosa,Bug|Fighting,570,145,75,0,Life Orb,0,690,4,,showdown-randbats+auto-score,
+sandyshocks,Sandy Shocks,Sandy Shocks,Electric|Ground,570,267,,0,,0,615,4,,auto-score,
+screamtail,Scream Tail,Scream Tail,Fairy|Psychic,570,329,,0,,0,615,4,,auto-score,
+silvally,Silvally,Silvally,Normal,570,285,87,0,Life Orb,0,654,4,,showdown-randbats+auto-score,
+slitherwing,Slither Wing,Slither Wing,Bug|Fighting,570,269,,0,,0,615,4,,auto-score,
+stakataka,Stakataka,Stakataka,Rock|Steel,570,373,83,0,Choice Band,0,666,4,,showdown-randbats+auto-score,
+tapubulu,Tapu Bulu,Tapu Bulu,Grass|Fairy,570,280,82,0,Leftovers,0,669,4,,showdown-randbats+auto-score,
+tapufini,Tapu Fini,Tapu Fini,Water|Fairy,570,315,80,0,Leftovers,0,675,4,,showdown-randbats+auto-score,
+tapukoko,Tapu Koko,Tapu Koko,Electric|Fairy,570,230,77,0,Leftovers,0,684,4,,showdown-randbats+auto-score,
+tapulele,Tapu Lele,Tapu Lele,Psychic|Fairy,570,260,77,0,Choice Specs,0,684,4,,showdown-randbats+auto-score,
+tinglu,Ting-Lu,Ting-Lu,Dark|Ground,570,360,,0,,0,615,4,,auto-score,
+wochien,Wo-Chien,Wo-Chien,Dark|Grass,570,320,,0,,0,615,4,,auto-score,
+xurkitree,Xurkitree,Xurkitree,Electric,570,225,80,0,Life Orb,0,675,4,,showdown-randbats+auto-score,
+articuno,Articuno,Articuno,Ice|Flying,580,315,85,0,Leftovers,0,670,4,,showdown-randbats+auto-score,
+articunogalar,Articuno-Galar,Articuno,Psychic|Flying,580,275,,0,,0,625,4,,auto-score,
+azelf,Azelf,Azelf,Psychic,580,215,82,0,Life Orb,0,679,4,,showdown-randbats+auto-score,
+cobalion,Cobalion,Cobalion,Steel|Fighting,580,292,78,0,Fightinium Z,0,691,4,,showdown-randbats+auto-score,
+cresselia,Cresselia,Cresselia,Psychic,580,350,82,0,Leftovers,0,679,4,,showdown-randbats+auto-score,
+enamorus,Enamorus,Enamorus,Fairy|Flying,580,224,,0,,0,625,4,,auto-score,
+enamorustherian,Enamorus-Therian,Enamorus,Fairy|Flying,580,284,,0,,0,625,4,,auto-score,
+entei,Entei,Entei,Fire,580,275,78,0,Choice Band,0,691,4,,showdown-randbats+auto-score,
+glastrier,Glastrier,Glastrier,Ice,580,340,,0,,0,625,4,,auto-score,
+keldeo,Keldeo,Keldeo,Water|Fighting,580,271,80,0,Leftovers,0,685,4,,showdown-randbats+auto-score,
+keldeoresolute,Keldeo-Resolute,Keldeo,Water|Fighting,580,271,,0,,0,625,4,,auto-score,
+mesprit,Mesprit,Mesprit,Psychic,580,290,86,0,Choice Scarf,0,667,4,,showdown-randbats+auto-score,
+moltres,Moltres,Moltres,Fire|Flying,580,265,82,0,Leftovers,0,679,4,,showdown-randbats+auto-score,
+moltresgalar,Moltres-Galar,Moltres,Dark|Flying,580,305,,0,,0,625,4,,auto-score,
+raikou,Raikou,Raikou,Electric,580,265,81,0,Leftovers,0,682,4,,showdown-randbats+auto-score,
+regice,Regice,Regice,Ice,580,380,87,0,Weakness Policy,0,664,4,,showdown-randbats+auto-score,
+regidrago,Regidrago,Regidrago,Dragon,580,300,,0,,0,625,4,,auto-score,
+regieleki,Regieleki,Regieleki,Electric,580,180,,0,,0,625,4,,auto-score,
+regirock,Regirock,Regirock,Rock,580,380,87,0,Leftovers,0,664,4,,showdown-randbats+auto-score,
+registeel,Registeel,Registeel,Steel,580,380,83,0,Leftovers,0,676,4,,showdown-randbats+auto-score,
+spectrier,Spectrier,Spectrier,Ghost,580,240,,0,,0,625,4,,auto-score,
+suicune,Suicune,Suicune,Water,580,330,82,0,Leftovers,0,679,4,,showdown-randbats+auto-score,
+terrakion,Terrakion,Terrakion,Rock|Fighting,580,271,78,0,Fightinium Z,0,691,4,,showdown-randbats+auto-score,
+thundurus,Thundurus,Thundurus,Electric|Flying,580,229,81,0,Life Orb,0,682,4,,showdown-randbats+auto-score,
+thundurustherian,Thundurus-Therian,Thundurus,Electric|Flying,580,229,80,0,Choice Scarf,0,685,4,,showdown-randbats+auto-score,
+tornadus,Tornadus,Tornadus,Flying,580,229,82,0,Leftovers,0,679,4,,showdown-randbats+auto-score,
+tornadustherian,Tornadus-Therian,Tornadus,Flying,580,249,80,0,Leftovers,0,685,4,,showdown-randbats+auto-score,
+uxie,Uxie,Uxie,Psychic,580,335,82,0,Leftovers,0,679,4,,showdown-randbats+auto-score,
+virizion,Virizion,Virizion,Grass|Fighting,580,292,81,0,Life Orb,0,682,4,,showdown-randbats+auto-score,
+zapdos,Zapdos,Zapdos,Electric|Flying,580,265,79,0,Leftovers,0,688,4,,showdown-randbats+auto-score,
+zapdosgalar,Zapdos-Galar,Zapdos,Fighting|Flying,580,270,,0,,0,625,4,,auto-score,
+gougingfire,Gouging Fire,Gouging Fire,Fire|Dragon,590,319,,0,,0,635,4,,auto-score,
+ironboulder,Iron Boulder,Iron Boulder,Rock|Psychic,590,278,,0,,0,635,4,,auto-score,
+ironcrown,Iron Crown,Iron Crown,Steel|Psychic,590,298,,0,,0,635,4,,auto-score,
+ironleaves,Iron Leaves,Iron Leaves,Grass|Psychic,590,286,,0,,0,635,4,,auto-score,
+ironvaliant,Iron Valiant,Iron Valiant,Fairy|Fighting,590,224,,0,,0,635,4,,auto-score,
+ragingbolt,Raging Bolt,Raging Bolt,Electric|Dragon,590,305,,0,,0,635,4,,auto-score,
+roaringmoon,Roaring Moon,Roaring Moon,Dragon|Dark,590,277,,0,,0,635,4,,auto-score,
+walkingwake,Walking Wake,Walking Wake,Water|Dragon,590,273,,0,,0,635,4,,auto-score,
+archaludon,Archaludon,Archaludon,Steel|Dragon,600,285,,0,,0,645,4,,auto-score,
+baxcalibur,Baxcalibur,Baxcalibur,Dragon|Ice,600,293,,0,,0,645,4,,auto-score,
+celebi,Celebi,Celebi,Psychic|Grass,600,300,82,0,Leftovers,0,699,4,,showdown-randbats+auto-score,
+darkrai,Darkrai,Darkrai,Dark,600,250,75,0,Darkinium Z,0,720,4,,showdown-randbats+auto-score,
+deoxys,Deoxys,Deoxys,Psychic,600,150,75,0,Life Orb,0,720,4,,showdown-randbats+auto-score,
+deoxysattack,Deoxys-Attack,Deoxys,Psychic,600,90,72,0,Life Orb,0,729,4,,showdown-randbats+auto-score,
+deoxysdefense,Deoxys-Defense,Deoxys,Psychic,600,370,85,0,Rocky Helmet,0,690,4,,showdown-randbats+auto-score,
+deoxysspeed,Deoxys-Speed,Deoxys,Psychic,600,230,81,0,Psychium Z,0,702,4,,showdown-randbats+auto-score,
+diancie,Diancie,Diancie,Rock|Fairy,600,350,81,0,Leftovers,0,702,4,,showdown-randbats+auto-score,
+dragapult,Dragapult,Dragapult,Dragon|Ghost,600,238,,0,,0,645,4,,auto-score,
+dragonite,Dragonite,Dragonite,Dragon|Flying,600,286,72,0,Flyinium Z,0,729,4,,showdown-randbats+auto-score,
+garchomp,Garchomp,Garchomp,Dragon|Ground,600,288,75,0,Dragonium Z,0,720,4,,showdown-randbats+auto-score,
+genesect,Genesect,Genesect,Bug|Steel,600,261,73,0,Choice Specs,0,726,4,,showdown-randbats+auto-score,
+goodra,Goodra,Goodra,Dragon,600,310,85,0,Assault Vest,0,690,4,,showdown-randbats+auto-score,
+goodrahisui,Goodra-Hisui,Goodra,Steel|Dragon,600,330,,0,,0,645,4,,auto-score,
+heatran,Heatran,Heatran,Fire|Steel,600,303,80,0,Leftovers,0,705,4,,showdown-randbats+auto-score,
+hoopa,Hoopa,Hoopa,Psychic|Ghost,600,270,86,0,Choice Scarf,0,687,4,,showdown-randbats+auto-score,
+hydreigon,Hydreigon,Hydreigon,Dark|Dragon,600,272,82,0,Leftovers,0,699,4,,showdown-randbats+auto-score,
+jirachi,Jirachi,Jirachi,Steel|Psychic,600,300,76,0,Normalium Z,0,717,4,,showdown-randbats+auto-score,
+kommoo,Kommo-o,Kommo-o,Dragon|Fighting,600,305,74,0,Kommonium Z,0,723,4,,showdown-randbats+auto-score,
+kommoototem,Kommo-o-Totem,Kommo-o,Dragon|Fighting,600,305,,0,,0,645,4,,auto-score,
+landorus,Landorus,Landorus,Ground|Flying,600,259,77,0,Life Orb,0,714,4,,showdown-randbats+auto-score,
+landorustherian,Landorus-Therian,Landorus,Ground|Flying,600,259,74,0,Flyinium Z,0,723,4,,showdown-randbats+auto-score,
+latias,Latias,Latias,Dragon|Psychic,600,300,79,0,Dragonium Z,0,708,4,,showdown-randbats+auto-score,
+latios,Latios,Latios,Dragon|Psychic,600,270,78,0,Dragonium Z,0,711,4,,showdown-randbats+auto-score,
+magearna,Magearna,Magearna,Steel|Fairy,600,310,77,0,Leftovers,0,714,4,,showdown-randbats+auto-score,
+magearnaoriginal,Magearna-Original,Magearna,Steel|Fairy,600,310,,0,,0,645,4,,auto-score,
+manaphy,Manaphy,Manaphy,Water,600,300,77,0,Waterium Z,0,714,4,,showdown-randbats+auto-score,
+marshadow,Marshadow,Marshadow,Fighting|Ghost,600,260,69,0,Marshadium Z,0,738,4,,showdown-randbats+auto-score,
+melmetal,Melmetal,Melmetal,Steel,600,343,,0,,0,645,4,,auto-score,
+meloetta,Meloetta,Meloetta,Normal|Psychic,600,305,81,0,Life Orb,0,702,4,,showdown-randbats+auto-score,
+metagross,Metagross,Metagross,Steel|Psychic,600,300,79,0,Weakness Policy,0,708,4,,showdown-randbats+auto-score,
+mew,Mew,Mew,Psychic,600,300,80,0,Mewnium Z,0,705,4,,showdown-randbats+auto-score,
+necrozma,Necrozma,Necrozma,Psychic,600,287,81,0,Psychium Z,0,702,4,,showdown-randbats+auto-score,
+pecharunt,Pecharunt,Pecharunt,Poison|Ghost,600,336,,0,,0,645,4,,auto-score,
+salamence,Salamence,Salamence,Dragon|Flying,600,255,72,0,Flyinium Z,0,729,4,,showdown-randbats+auto-score,
+shaymin,Shaymin,Shaymin,Grass,600,300,84,0,Life Orb,0,693,4,,showdown-randbats+auto-score,
+shayminsky,Shaymin-Sky,Shaymin,Grass|Flying,600,250,73,0,Choice Specs,0,726,4,,showdown-randbats+auto-score,
+tyranitar,Tyranitar,Tyranitar,Rock|Dark,600,310,80,0,Leftovers,0,705,4,,showdown-randbats+auto-score,
+victini,Victini,Victini,Psychic|Fire,600,300,76,0,Assault Vest,0,717,4,,showdown-randbats+auto-score,
+volcanion,Volcanion,Volcanion,Fire|Water,600,290,81,0,Leftovers,0,702,4,,showdown-randbats+auto-score,
+zarude,Zarude,Zarude,Dark|Grass,600,305,,0,,0,645,4,,auto-score,
+zarudedada,Zarude-Dada,Zarude,Dark|Grass,600,305,,0,,0,645,4,,auto-score,
+zeraora,Zeraora,Zeraora,Electric,600,243,77,0,Life Orb,0,714,4,,showdown-randbats+auto-score,
+zygarde,Zygarde,Zygarde,Dragon|Ground,600,324,73,0,Leftovers,0,726,4,,showdown-randbats+auto-score,
+kyurem,Kyurem,Kyurem,Dragon|Ice,660,305,79,0,Leftovers,0,768,4,,showdown-randbats+auto-score,
+zacian,Zacian,Zacian,Fairy,660,322,,0,,0,705,4,,auto-score,
+zamazenta,Zamazenta,Zamazenta,Fighting,660,322,,0,,0,705,4,,auto-score,
+groudon,Groudon,Groudon,Ground,670,330,74,0,Leftovers,0,793,4,,showdown-randbats+auto-score,
+koraidon,Koraidon,Koraidon,Fighting|Dragon,670,315,,0,,0,715,4,,auto-score,
+kyogre,Kyogre,Kyogre,Water,670,330,69,0,Choice Scarf,0,808,4,,showdown-randbats+auto-score,
+miraidon,Miraidon,Miraidon,Electric|Dragon,670,315,,0,,0,715,4,,auto-score,
+regigigas,Regigigas,Regigigas,Normal,670,330,86,0,Leftovers,0,757,4,,showdown-randbats+auto-score,
+slaking,Slaking,Slaking,Normal,670,315,84,0,Choice Scarf,0,763,4,,showdown-randbats+auto-score,
+calyrexice,Calyrex-Ice,Calyrex,Psychic|Ice,680,380,,0,,0,725,4,,auto-score,
+calyrexshadow,Calyrex-Shadow,Calyrex,Psychic|Ghost,680,280,,0,,0,725,4,,auto-score,
+dialga,Dialga,Dialga,Steel|Dragon,680,320,74,0,Assault Vest,0,803,4,,showdown-randbats+auto-score,
+giratina,Giratina,Giratina,Ghost|Dragon,680,390,76,0,Chesto Berry,0,797,4,,showdown-randbats+auto-score,
+hooh,Ho-Oh,Ho-Oh,Fire|Flying,680,350,72,0,Leftovers,0,809,4,,showdown-randbats+auto-score,
+hoopaunbound,Hoopa-Unbound,Hoopa,Psychic|Dark,680,270,81,0,Choice Band,0,782,4,,showdown-randbats+auto-score,
+lugia,Lugia,Lugia,Psychic|Flying,680,390,71,0,Leftovers,0,812,4,,showdown-randbats+auto-score,
+lunala,Lunala,Lunala,Psychic|Ghost,680,333,72,0,Leftovers,0,809,4,,showdown-randbats+auto-score,
+mewtwo,Mewtwo,Mewtwo,Psychic,680,286,72,0,Choice Specs,0,809,4,,showdown-randbats+auto-score,
+necrozmadawnwings,Necrozma-Dawn-Wings,Necrozma,Psychic|Ghost,680,333,71,0,Lunalium Z,0,812,4,,showdown-randbats+auto-score,
+necrozmaduskmane,Necrozma-Dusk-Mane,Necrozma,Psychic|Steel,680,333,69,0,Solganium Z,0,818,4,,showdown-randbats+auto-score,
+palkia,Palkia,Palkia,Water|Dragon,680,310,75,0,Lustrous Orb,0,800,4,,showdown-randbats+auto-score,
+rayquaza,Rayquaza,Rayquaza,Dragon|Flying,680,285,69,0,Flyinium Z,0,818,4,,showdown-randbats+auto-score,
+reshiram,Reshiram,Reshiram,Dragon|Fire,680,320,75,0,Leftovers,0,800,4,,showdown-randbats+auto-score,
+solgaleo,Solgaleo,Solgaleo,Psychic|Steel,680,333,73,0,Choice Scarf,0,806,4,,showdown-randbats+auto-score,
+xerneas,Xerneas,Xerneas,Fairy,680,319,65,0,Power Herb,0,830,4,,showdown-randbats+auto-score,
+yveltal,Yveltal,Yveltal,Dark|Flying,680,319,70,0,Leftovers,0,815,4,,showdown-randbats+auto-score,
+zekrom,Zekrom,Zekrom,Dragon|Electric,680,320,75,0,Assault Vest,0,800,4,,showdown-randbats+auto-score,
+eternatus,Eternatus,Eternatus,Poison|Dragon,690,330,,0,,0,735,4,,auto-score,
+kyuremblack,Kyurem-Black,Kyurem,Dragon|Ice,700,315,77,0,Icium Z,0,814,4,,showdown-randbats+auto-score,
+kyuremwhite,Kyurem-White,Kyurem,Dragon|Ice,700,315,75,0,Choice Specs,0,820,4,,showdown-randbats+auto-score,
+arceus,Arceus,Arceus,Normal,720,360,72,0,Life Orb,0,849,4,,showdown-randbats+auto-score,
+arceusbug,Arceus-Bug,Arceus,Bug,720,360,72,0,Insect Plate,0,849,4,,showdown-randbats+auto-score,
+arceusdark,Arceus-Dark,Arceus,Dark,720,360,72,0,Dread Plate,0,849,4,,showdown-randbats+auto-score,
+arceusdragon,Arceus-Dragon,Arceus,Dragon,720,360,72,0,Draco Plate,0,849,4,,showdown-randbats+auto-score,
+arceuselectric,Arceus-Electric,Arceus,Electric,720,360,72,0,Zap Plate,0,849,4,,showdown-randbats+auto-score,
+arceusfairy,Arceus-Fairy,Arceus,Fairy,720,360,72,0,Pixie Plate,0,849,4,,showdown-randbats+auto-score,
+arceusfighting,Arceus-Fighting,Arceus,Fighting,720,360,72,0,Fist Plate,0,849,4,,showdown-randbats+auto-score,
+arceusfire,Arceus-Fire,Arceus,Fire,720,360,72,0,Firium Z,0,849,4,,showdown-randbats+auto-score,
+arceusflying,Arceus-Flying,Arceus,Flying,720,360,72,0,Sky Plate,0,849,4,,showdown-randbats+auto-score,
+arceusghost,Arceus-Ghost,Arceus,Ghost,720,360,72,0,Ghostium Z,0,849,4,,showdown-randbats+auto-score,
+arceusgrass,Arceus-Grass,Arceus,Grass,720,360,72,0,Meadow Plate,0,849,4,,showdown-randbats+auto-score,
+arceusground,Arceus-Ground,Arceus,Ground,720,360,72,0,Groundium Z,0,849,4,,showdown-randbats+auto-score,
+arceusice,Arceus-Ice,Arceus,Ice,720,360,72,0,Icicle Plate,0,849,4,,showdown-randbats+auto-score,
+arceuspoison,Arceus-Poison,Arceus,Poison,720,360,72,0,Poisonium Z,0,849,4,,showdown-randbats+auto-score,
+arceuspsychic,Arceus-Psychic,Arceus,Psychic,720,360,72,0,Mind Plate,0,849,4,,showdown-randbats+auto-score,
+arceusrock,Arceus-Rock,Arceus,Rock,720,360,72,0,Stone Plate,0,849,4,,showdown-randbats+auto-score,
+arceussteel,Arceus-Steel,Arceus,Steel,720,360,72,0,Iron Plate,0,849,4,,showdown-randbats+auto-score,
+arceuswater,Arceus-Water,Arceus,Water,720,360,72,0,Splash Plate,0,849,4,,showdown-randbats+auto-score,
+eternatuseternamax,Eternatus-Eternamax,Eternatus,Poison|Dragon,1125,755,,0,,0,1170,4,,auto-score,

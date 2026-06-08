@@ -15,7 +15,7 @@ export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopG
   return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns exchange-columns-with-label"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div className="exchange-center-label" aria-hidden="true"><span>交换</span></div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
 }
 
-export function RestView({rest, message, onAction}: {rest: DesktopGameState["rest"]; message?: string; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
+export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
   const [pokemonModalSlot, setPokemonModalSlot] = useState<number | null>(null);
   const [activePanel, setActivePanel] = useState<RestWorkspacePanel>("nightSky");
   const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);

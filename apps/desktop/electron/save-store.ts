@@ -56,7 +56,7 @@ export class SaveStore {
       named_champion_id: null,
       starter_upgrades: {
         item_quality: {battle: 1, recovery: 1, berry: 1, tm: 1},
-        item_quantity: {battle: 0, recovery: 0, berry: 0, tm: 0},
+        item_quantity: {battle: 2, recovery: 2, berry: 2, tm: 2},
         pokemon_reroll: 0,
         pokemon_inspect: 0,
         pokemon_single_reroll: 0,

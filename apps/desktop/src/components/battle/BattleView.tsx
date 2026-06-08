@@ -1,8 +1,9 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BattleMoveRequest, BattleState, BattleTimelineEvent, BossDexRecord, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon, TrainerNpcView} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
+import {ScreenToast} from "../feedback/ScreenToast";
 import {MoveCard} from "../move/MoveCard";
 
 function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}): BattleVisualCue | null {
@@ -115,6 +116,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const [itemTargetIndex, setItemTargetIndex] = useState(0);
   const [battleItemOpen, setBattleItemOpen] = useState(false);
+  const [battleItemToast, setBattleItemToast] = useState<{id: number; message: string} | null>(null);
   const previousTimelineKeys = useRef<string[]>([]);
   const previousRecentEvents = useRef<string[]>([]);
   const displayConditionsRef = useRef(displayConditions);
@@ -124,7 +126,6 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const previousBattlePresent = useRef(false);
   const introDialoguePending = useRef(false);
   const bossDialogueSelection = useRef<{key: string; index: number} | null>(null);
-  const lastBattleTrainers = useRef<{player?: TrainerNpcView; enemy?: TrainerNpcView; bossRecord?: BossDexRecord}>({});
   const pokemonIntroTimer = useRef<number | null>(null);
   const eventTimers = useRef<number[]>([]);
   const battleLogRef = useRef<HTMLDivElement | null>(null);
@@ -143,35 +144,6 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
     return bossDialogueSelection.current.index;
   }
 
-  function sameTrainer(left?: TrainerNpcView, right?: TrainerNpcView): boolean {
-    return Boolean(left?.id && right?.id && left.id === right.id);
-  }
-
-  function rememberBattleTrainers(activeBattle: BattleState | null | undefined) {
-    if (!activeBattle) return;
-    if (activeBattle.player_trainer) lastBattleTrainers.current.player = activeBattle.player_trainer;
-    if (activeBattle.enemy_trainer) {
-      if (!sameTrainer(activeBattle.enemy_trainer, lastBattleTrainers.current.enemy)) lastBattleTrainers.current.bossRecord = undefined;
-      lastBattleTrainers.current.enemy = activeBattle.enemy_trainer;
-    }
-    if (activeBattle.enemy_boss_record && activeBattle.enemy_trainer?.type !== "normal") lastBattleTrainers.current.bossRecord = activeBattle.enemy_boss_record;
-  }
-
-  function battleWithRememberedTrainers(activeBattle: BattleState, fallback?: BattleState | null, activeDialogue?: TrainerDialogueState | null): BattleState {
-    const playerTrainer = activeDialogue?.playerTrainer || activeBattle.player_trainer || fallback?.player_trainer || lastBattleTrainers.current.player;
-    const enemyTrainer = activeDialogue?.trainer || activeBattle.enemy_trainer || fallback?.enemy_trainer || lastBattleTrainers.current.enemy;
-    const bossRecord = (sameTrainer(enemyTrainer, activeDialogue?.trainer) ? activeDialogue?.bossRecord : undefined)
-      || (sameTrainer(enemyTrainer, activeBattle.enemy_trainer) ? activeBattle.enemy_boss_record : undefined)
-      || (sameTrainer(enemyTrainer, fallback?.enemy_trainer) ? fallback?.enemy_boss_record : undefined)
-      || (sameTrainer(enemyTrainer, lastBattleTrainers.current.enemy) ? lastBattleTrainers.current.bossRecord : undefined);
-    return {
-      ...activeBattle,
-      player_trainer: playerTrainer,
-      enemy_trainer: enemyTrainer,
-      enemy_boss_record: enemyTrainer?.type === "normal" ? undefined : bossRecord,
-    };
-  }
-
   useEffect(() => { displayConditionsRef.current = displayConditions; }, [displayConditions]);
   useEffect(() => { displayedActiveNamesRef.current = displayedActiveNames; }, [displayedActiveNames]);
   useEffect(() => { displayedActiveShowdownIdsRef.current = displayedActiveShowdownIds; }, [displayedActiveShowdownIds]);
@@ -187,8 +159,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   useEffect(() => {
     const battlePresent = Boolean(battle);
     if (battlePresent && !previousBattlePresent.current) {
-      rememberBattleTrainers(battle);
-      const dialogueBattle = battle ? battleWithRememberedTrainers(battle, pendingTransition?.battle) : battle;
+      const dialogueBattle = battle;
       const enemy = dialogueBattle?.enemy_trainer;
       introDialoguePending.current = true;
       setDialogue({
@@ -205,10 +176,8 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
       setIntroActive(false);
       previousBattlePresent.current = true;
     }
-    if (battlePresent) rememberBattleTrainers(battle);
     previousBattlePresent.current = battlePresent;
     if (!battlePresent) {
-      lastBattleTrainers.current = {};
       introDialoguePending.current = false;
       bossDialogueSelection.current = null;
       setIntroActive(false);
@@ -230,8 +199,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   function beginBattleOutro(activeBattle: BattleState, transition: DesktopGameState | null) {
     if (!transition || finishRequested.current) return;
     finishRequested.current = true;
-    rememberBattleTrainers(activeBattle);
-    const dialogueBattle = battleWithRememberedTrainers(activeBattle, transition.battle);
+    const dialogueBattle = transition.battle || activeBattle;
     const enemy = dialogueBattle.enemy_trainer;
     const moment: TrainerDialogueMoment = playerWonBattle(activeBattle) ? "defeat" : "victory";
     setDetailIndex(null);
@@ -444,7 +412,7 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
   const detailOpen = detailIndex !== null || mode === "teamMenu";
   const detailInitialIndex = detailIndex ?? activePlayerIndex;
-  const trainerOverlayBattle = dialogue ? battleWithRememberedTrainers(battle, pendingTransition?.battle, dialogue) : battleWithRememberedTrainers(battle, pendingTransition?.battle);
+  const trainerOverlayBattle = dialogue ? {...battle, player_trainer: dialogue.playerTrainer || battle.player_trainer, enemy_trainer: dialogue.trainer || battle.enemy_trainer, enemy_boss_record: dialogue.bossRecord || battle.enemy_boss_record} : battle;
   return (
     <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
       {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => setMode("statusMenu")} /> : null}
@@ -477,7 +445,8 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
       </section>
       {mode === "statusMenu" && !dialogue ? <StatusModal battle={battle} onBack={() => setMode("battleMain")} /> : null}
       {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { setDetailIndex(null); if (mode === "teamMenu") setMode("battleMain"); }} /> : null}
-      {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} onClose={() => setBattleItemOpen(false)} onUse={(itemId, target, moveSlot) => { setBattleItemOpen(false); onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`); }} /> : null}
+      {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} disabled={controlsDisabled} onClose={() => setBattleItemOpen(false)} onUse={(itemId, target, moveSlot, notice) => { setBattleItemOpen(false); if (notice) setBattleItemToast({id: Date.now(), message: notice}); onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`); }} /> : null}
+      {battleItemToast ? <ScreenToast key={battleItemToast.id} message={battleItemToast.message} durationMs={1200} onDone={() => setBattleItemToast(null)} /> : null}
     </div>
   );
 }
@@ -791,10 +760,50 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
   );
 }
 
-function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: BattleState; bag: BagCategoryView | null; initialTarget: number; onClose: () => void; onUse: (itemId: string, target: number, moveSlot?: number) => void}) {
+type BattlePpMoveOption = {
+  slot: number;
+  key: string;
+  name: string;
+  typeLabel?: string;
+  pp?: number;
+  maxpp?: number;
+};
+
+const SINGLE_MOVE_PP_ITEMS = new Set(["ether", "maxether", "leppaberry"]);
+
+function isSingleMovePpItem(item: BagItemView | undefined): boolean {
+  return SINGLE_MOVE_PP_ITEMS.has(toId(item?.id || item?.name || ""));
+}
+
+function ppMoveOptionsFor(display: RentalPokemon | undefined, activeMoves: BattleMoveRequest[]): BattlePpMoveOption[] {
+  if (activeMoves.length) {
+    return activeMoves.map((move, index) => {
+      const summary = moveSummaryFor(display, move);
+      return {
+        slot: index + 1,
+        key: `${move.id || move.move}-${index}`,
+        name: summary?.name_zh || move.move,
+        typeLabel: moveTypeLabel(summary),
+        pp: move.pp,
+        maxpp: move.maxpp,
+      };
+    });
+  }
+  return (display?.moves || []).map((move, index) => ({
+    slot: index + 1,
+    key: `${move.id || move.name}-${index}`,
+    name: move.name_zh || move.name,
+    typeLabel: moveTypeLabel(move),
+    pp: undefined,
+    maxpp: move.pp,
+  }));
+}
+
+function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}: {battle: BattleState; bag: BagCategoryView | null; initialTarget: number; disabled?: boolean; onClose: () => void; onUse: (itemId: string, target: number, moveSlot?: number, notice?: string) => void}) {
   const [target, setTarget] = useState(Math.max(0, initialTarget));
-  const [moveSlot, setMoveSlot] = useState(0);
   const [itemId, setItemId] = useState("");
+  const [ppPicker, setPpPicker] = useState<{item: BagItemView; target: number} | null>(null);
+  const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
   const items = bag?.consumable || [];
   const selected = items.find(item => item.id === itemId) || items[0];
   const rows = battle.request?.side?.pokemon || [];
@@ -802,32 +811,97 @@ function BattleItemModal({battle, bag, initialTarget, onClose, onUse}: {battle: 
   const targetDisplay = displayForRuntime(battle.player_display, targetRuntime, target) || battle.player_display[0];
   const activeMoves = targetRuntime?.active ? battle.request?.active?.[0]?.moves || [] : [];
   const revealItemDetails = Boolean(battle.player_talents?.some(talent => talent.id === "intel_god_eye"));
+  const ppMoveOptions = ppMoveOptionsFor(targetDisplay, activeMoves);
+  const selectedNeedsMove = isSingleMovePpItem(selected);
+
+  function showToast(message: string, tone: "normal" | "danger" = "normal") {
+    setToast({id: Date.now(), message, tone});
+  }
+
+  function submitSelectedItem() {
+    if (!selected) return;
+    if (selectedNeedsMove) {
+      if (!ppMoveOptions.length) {
+        showToast("这个目标没有可选择的技能。", "danger");
+        return;
+      }
+      setPpPicker({item: selected, target});
+      return;
+    }
+    onUse(selected.id, target);
+  }
+
+  function submitPpMove(move: BattlePpMoveOption) {
+    if (!ppPicker) return;
+    onUse(ppPicker.item.id, ppPicker.target, move.slot, `${move.name} 已恢复`);
+  }
 
   return (
     <div className="modal-layer">
-      <section className="shop-modal bag-manage-modal battle-bag-modal">
+      <section className="shop-modal bag-manage-modal bag-flat-modal battle-bag-modal">
         <header><div><h2>战斗背包</h2><p>战斗中只能使用消耗类道具。</p></div><button onClick={onClose}>关闭</button></header>
-        <div className="bag-manage-layout">
-          <div className="shop-list bag-item-list">
-            {items.length ? items.map(item => <button className={selected?.id === item.id ? "selected" : ""} onClick={() => setItemId(item.id)} key={item.id}><ItemIcon item={item} /><strong>{item.name_zh || item.name}</strong><span>x{item.count}　{itemCategoryLabel(item.category)}</span><small>{revealItemDetails ? item.desc_zh || item.desc || item.name : "？？？"}</small></button>) : <p>当前没有可在战斗中使用的消耗道具。</p>}
+        <div className="bag-manage-layout battle-bag-layout">
+          <div className="bag-flat-grid battle-bag-item-grid">
+            {items.length ? items.map(item => (
+              <button className={`bag-flat-item battle-bag-item ${selected?.id === item.id ? "selected" : ""}`} onClick={() => setItemId(item.id)} key={item.id}>
+                <ItemIcon item={item} />
+                <span>
+                  <strong>{item.name_zh || item.name}</strong>
+                  <small>{revealItemDetails ? item.desc_zh || item.desc || item.name : "？？？"}</small>
+                </span>
+                <b>x{item.count}</b>
+              </button>
+            )) : <p className="bag-empty">当前没有可在战斗中使用的消耗道具。</p>}
           </div>
-          <section className="bag-action-panel">
+          <section className="bag-action-panel battle-bag-action">
             {selected ? <>
               <h3>{selected.name_zh || selected.name}</h3>
               <p>{itemCategoryLabel(selected.category)}　x{selected.count}</p>
-              <div className="detail-team-list compact-targets">
+              <div className="battle-target-list">
                 {rows.map((entry, index) => {
                   const display = displayForRuntime(battle.player_display, entry, index);
-                  return <button className={target === index ? "selected" : ""} onClick={() => { setTarget(index); setMoveSlot(0); }} key={`${entry.ident}-item-target`}><PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} /><span>{display ? displayName(display) : runtimeName(entry)}</span><small>{conditionText(entry.condition)}</small></button>;
+                  return (
+                    <button className={target === index ? "selected" : ""} onClick={() => setTarget(index)} key={`${entry.ident}-item-target`}>
+                      <PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} />
+                      <span>{display ? displayName(display) : runtimeName(entry)}</span>
+                      <small>{conditionText(entry.condition)}</small>
+                    </button>
+                  );
                 })}
               </div>
-              {activeMoves.length ? <select value={moveSlot} onChange={event => setMoveSlot(Number(event.target.value))}><option value={0}>不指定技能</option>{activeMoves.map((move, index) => { const summary = moveSummaryFor(targetDisplay, move); return <option value={index + 1} key={`${move.id}-${index}`}>{summary?.name_zh || move.move} PP {move.pp}/{move.maxpp}</option>; })}</select> : null}
-              <p>{targetDisplay ? `目标：${displayName(targetDisplay)}` : "选择目标宝可梦"}</p>
-              <div className="command-row"><button onClick={() => onUse(selected.id, target, moveSlot || undefined)}>使用</button></div>
+              <p className="battle-bag-target-summary">{targetDisplay ? `目标：${displayName(targetDisplay)}` : "选择目标宝可梦"}{selectedNeedsMove ? "　使用后选择技能" : ""}</p>
+              <div className="command-row"><button disabled={disabled} onClick={submitSelectedItem}>{selectedNeedsMove ? "选择技能" : "使用道具"}</button></div>
             </> : <p>当前没有可在战斗中使用的消耗道具。</p>}
           </section>
         </div>
+        {ppPicker ? (
+          <div className="battle-pp-picker-layer">
+            <section className="battle-pp-picker-modal">
+              <header>
+                <div>
+                  <h3>选择恢复的技能</h3>
+                  <p>{targetDisplay ? displayName(targetDisplay) : "目标宝可梦"} / {ppPicker.item.name_zh || ppPicker.item.name}</p>
+                </div>
+                <button onClick={() => setPpPicker(null)}>关闭</button>
+              </header>
+              <div className="battle-pp-picker-grid">
+                {ppMoveOptions.map(move => {
+                  const ppKnown = typeof move.pp === "number" && typeof move.maxpp === "number";
+                  const isFull = ppKnown && move.pp! >= move.maxpp!;
+                  return (
+                    <button className="battle-pp-skill-card" disabled={disabled || isFull} onClick={() => submitPpMove(move)} key={move.key}>
+                      <strong>{move.name}</strong>
+                      <span>{move.typeLabel || "技能"}</span>
+                      <small>{ppKnown ? `PP ${move.pp}/${move.maxpp}` : `PP --/${move.maxpp ?? "?"}`}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        ) : null}
       </section>
+      {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={1200} onDone={() => setToast(null)} /> : null}
     </div>
   );
 }

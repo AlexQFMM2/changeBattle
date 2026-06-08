@@ -21,7 +21,8 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
   const selectedAffordable = selected && !talentDisabled ? (save?.stats.battle_points || 0) >= (selected.cost || 0) : false;
   const categories = ["全部", ...new Set(catalog.map(talent => talent.category))];
   const visibleCategory = categories.includes(activeCategory) ? activeCategory : categories[0] || activeCategory;
-  const visibleTalents = visibleCategory === "全部" ? catalog : catalog.filter(talent => talent.category === visibleCategory);
+  const sortTalents = (talents: TalentView[]) => [...talents].sort((a, b) => Number(a.cost || 0) - Number(b.cost || 0) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+  const visibleTalents = sortTalents(visibleCategory === "全部" ? catalog : catalog.filter(talent => talent.category === visibleCategory));
   const pageCount = Math.max(1, Math.ceil(visibleTalents.length / talentPageSize));
   const currentPage = Math.min(talentPage, pageCount - 1);
   const pagedTalents = visibleTalents.slice(currentPage * talentPageSize, (currentPage + 1) * talentPageSize);
@@ -175,11 +176,11 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
 export function StarterUpgradePage({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
   const [catalog, setCatalog] = useState<StarterUpgradeView[]>([]);
   const [selectedId, setSelectedId] = useState("");
-  const [activeGroup, setActiveGroup] = useState("开局道具");
-  const selected = catalog.find(entry => entry.id === selectedId) || catalog[0];
-  const selectedAffordable = selected ? (save?.stats.battle_points || 0) >= (selected.cost || 0) : false;
-  const groups = [{id: "开局道具", label: "初始道具"}, {id: "开局选牌", label: "初始随机"}];
+  const [activeGroup, setActiveGroup] = useState("道具数量");
+  const groups = [{id: "道具数量", label: "道具数量"}, {id: "道具质量", label: "道具质量"}, {id: "开局选牌", label: "开局选牌"}];
   const visible = catalog.filter(entry => entry.group === activeGroup);
+  const selected = visible.find(entry => entry.id === selectedId) || visible[0] || catalog[0];
+  const selectedAffordable = selected ? (save?.stats.battle_points || 0) >= (selected.cost || 0) : false;
 
   useEffect(() => {
     let cancelled = false;
@@ -188,7 +189,7 @@ export function StarterUpgradePage({save, onSaved, onBack}: {save: LocalSave | n
       const nextCatalog = config.catalog || [];
       setCatalog(nextCatalog);
       if (config.save) onSaved(config.save);
-      setSelectedId(current => current && nextCatalog.some(entry => entry.id === current) ? current : nextCatalog[0]?.id || "");
+      setSelectedId(current => current && nextCatalog.some(entry => entry.id === current) ? current : nextCatalog.find(entry => entry.group === activeGroup)?.id || nextCatalog[0]?.id || "");
     });
     return () => { cancelled = true; };
   }, [onSaved]);

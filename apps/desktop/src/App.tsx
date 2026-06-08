@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
+import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "react-router";
 import type {AppStatus, BagCategoryView, BattleState, DesktopGameState, LocalSave, RentalPokemon, RestAction, ResultSummaryState, TrainerCatalogState} from "@changebattle/shared";
 import {useResponsiveCanvas} from "./hooks/useResponsiveCanvas";
 import "./styles.css";
@@ -9,6 +10,7 @@ import {PlayerSettings} from "./pages/player/PlayerSettings";
 import {ResultView} from "./pages/result/ResultView";
 import {ExchangeView, RestView} from "./pages/rest/RestView";
 import {MainMenu, TitleScreen} from "./pages/shell/ShellScreens";
+import {RouteTransitionPage, routeTransitionCopy, type RouteTransitionCopy, type RouteTransitionReason} from "./pages/shell/RouteTransitionPage";
 import {RentalSelect, StarterItemsView, StarterUpgradePage, TalentConfigView} from "./pages/setup/SetupPages";
 import {BattleView} from "./pages/battle/BattleView";
 import {TALENT_CATALOG, debugBattle, debugPokemon, hasStarterItemChoices, mergeBattleSnapshot, profileFromSelection, userFacingError} from "./lib/ui";
@@ -66,9 +68,62 @@ function installBrowserAutomationBridge() {
 
 installBrowserAutomationBridge();
 
+const TRANSITION_ROUTE = "/transition";
+const BATTLE_SCREENS: AppStatus[] = ["battleMain", "moveMenu", "teamMenu", "statusMenu"];
+const HIDDEN_MESSAGE_SCREENS: AppStatus[] = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "rentalSelect"];
+const SCREEN_ROUTES: Record<AppStatus, string> = {
+  title: "/",
+  newGame: "/new",
+  mainMenu: "/main",
+  userInfo: "/user",
+  talentConfig: "/talents",
+  starterUpgrade: "/starter-upgrades",
+  starterItems: "/starter-items",
+  rentalSelect: "/rentals",
+  battleMain: "/battle",
+  moveMenu: "/battle/moves",
+  teamMenu: "/battle/team",
+  statusMenu: "/battle/status",
+  exchange: "/exchange",
+  rest: "/rest",
+  result: "/result",
+};
+const ROUTE_SCREENS = Object.entries(SCREEN_ROUTES).map(([screen, route]) => ({screen: screen as AppStatus, route}));
+
+function normalizeRoute(pathname: string) {
+  const path = pathname || "/";
+  if (path === "/") return path;
+  return path.replace(/\/+$/, "");
+}
+
+function routeForScreen(screen: AppStatus) {
+  return SCREEN_ROUTES[screen];
+}
+
+function screenForRoute(pathname: string): AppStatus | null {
+  const path = normalizeRoute(pathname);
+  return ROUTE_SCREENS.find(entry => entry.route === path)?.screen || null;
+}
+
+function fallbackScreenForSave(save: LocalSave | null): AppStatus {
+  return save ? "mainMenu" : "title";
+}
+
 function App() {
+  return (
+    <HashRouter>
+      <RoutedApp />
+    </HashRouter>
+  );
+}
+
+function RoutedApp() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const responsiveCanvas = useResponsiveCanvas();
-  const [screen, setScreen] = useState<AppStatus>("title");
+  const routePath = normalizeRoute(location.pathname);
+  const routedScreen = screenForRoute(routePath);
+  const screen = routedScreen || "title";
   const [save, setSave] = useState<LocalSave | null>(null);
   const [trainerName, setTrainerName] = useState("训练师");
   const [trainerCatalog, setTrainerCatalog] = useState<TrainerCatalogState>({players: [], avatars: []});
@@ -91,13 +146,29 @@ function App() {
   const [dexOpen, setDexOpen] = useState(false);
   const [message, setMessage] = useState("欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
   const [loading, setLoading] = useState(false);
-  const [appToast, setAppToast] = useState<{id: number; message: string} | null>(null);
+  const [appToast, setAppToast] = useState<{id: number; message: string; durationMs?: number} | null>(null);
+  const [routeTransition, setRouteTransition] = useState<(RouteTransitionCopy & {id: number}) | null>(null);
   const [battleChoicePending, setBattleChoicePending] = useState(false);
   const battleChoicePendingRef = useRef(false);
+  const routeTransitionTimerRef = useRef<number | null>(null);
+  const routeTransitionIdRef = useRef(0);
 
-  function showAppToast(message: string) {
-    setAppToast({id: Date.now(), message});
+  function showAppToast(message: string, durationMs = 1400) {
+    setAppToast({id: Date.now(), message, durationMs});
   }
+
+  function navigateToScreen(nextScreen: AppStatus, options: {replace?: boolean} = {}) {
+    navigate(routeForScreen(nextScreen), {replace: options.replace});
+  }
+
+  function clearRouteTransitionTimer() {
+    if (routeTransitionTimerRef.current !== null) {
+      window.clearTimeout(routeTransitionTimerRef.current);
+      routeTransitionTimerRef.current = null;
+    }
+  }
+
+  useEffect(() => clearRouteTransitionTimer, []);
 
   useEffect(() => {
     void window.changeBattle?.loadSave().then(loaded => {
@@ -136,17 +207,60 @@ function App() {
     setRest(state.rest || null);
     setResultSummary(state.result_summary || null);
     setPendingTransition(state.pending_transition || null);
-    setScreen(state.screen);
+    navigateToScreen(state.screen);
     setMessage(state.message || "");
+    if (state.toast_message) showAppToast(state.toast_message, 2400);
   }
 
-  async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus, showLoading = true): Promise<boolean> {
+  function transitionToState(state: DesktopGameState, reason: RouteTransitionReason) {
+    clearRouteTransitionTimer();
+    setDexOpen(false);
+    const copy = routeTransitionCopy(state.screen, reason);
+    setRouteTransition({...copy, id: ++routeTransitionIdRef.current});
+    navigate(TRANSITION_ROUTE);
+    routeTransitionTimerRef.current = window.setTimeout(() => {
+      routeTransitionTimerRef.current = null;
+      setRouteTransition(null);
+      applyState(state);
+    }, copy.durationMs);
+  }
+
+  function transitionToScreen(nextScreen: AppStatus, reason: RouteTransitionReason) {
+    clearRouteTransitionTimer();
+    setDexOpen(false);
+    const copy = routeTransitionCopy(nextScreen, reason);
+    setRouteTransition({...copy, id: ++routeTransitionIdRef.current});
+    navigate(TRANSITION_ROUTE);
+    routeTransitionTimerRef.current = window.setTimeout(() => {
+      routeTransitionTimerRef.current = null;
+      setRouteTransition(null);
+      navigateToScreen(nextScreen);
+    }, copy.durationMs);
+  }
+
+  function shouldUseRouteTransition(nextScreen: AppStatus, reason?: RouteTransitionReason) {
+    if (!reason || routeTransition) return false;
+    if (reason === "prepare") return ["starterItems", "battleMain", "rest", "result"].includes(nextScreen);
+    if (reason === "starterReady") return nextScreen === "rentalSelect";
+    if (reason === "battleStart") return nextScreen === "battleMain" || nextScreen === "result";
+    if (reason === "battleComplete") return nextScreen === "rest" || nextScreen === "result";
+    if (reason === "loadSave") return nextScreen === "battleMain" || nextScreen === "rest" || nextScreen === "result";
+    if (reason === "settlement") return nextScreen === "result";
+    if (reason === "returnHome") return nextScreen === "mainMenu";
+    return false;
+  }
+
+  async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus, showLoading = true, transitionReason?: RouteTransitionReason): Promise<boolean> {
     if (showLoading) setLoading(true);
     try {
       const result = await action();
-      if (result && "screen" in result) applyState(result);
+      if (result && "screen" in result) {
+        if (showLoading) setLoading(false);
+        if (shouldUseRouteTransition(result.screen, transitionReason)) transitionToState(result, transitionReason!);
+        else applyState(result);
+      }
       else if (result && "trainer" in result) setSave(result);
-      if (fallbackScreen) setScreen(fallbackScreen);
+      if (fallbackScreen) navigateToScreen(fallbackScreen);
       return true;
     } catch (err) {
       showAppToast(userFacingError(err));
@@ -166,7 +280,7 @@ function App() {
       setSave(loaded);
       if (loaded.current_run) return window.changeBattle!.continueRun();
       return {screen: "mainMenu", save: loaded, message: `欢迎回来，${loaded.trainer.name}。`};
-    });
+    }, undefined, true, "loadSave");
   }
 
   async function createNewGame() {
@@ -184,7 +298,7 @@ function App() {
     setTrainerName(created.trainer.name);
     setSelectedPlayerId(created.trainer.player_npc_id || player?.id || "");
     setSelectedAvatarAsset(created.trainer.avatar_asset || avatarAsset || "");
-    setScreen("title");
+    navigateToScreen("title");
     setMessage(`新存档已创建：${created.trainer.name}`);
     return created;
   }
@@ -205,13 +319,17 @@ function App() {
   }
 
   async function prepareChallenge() {
+    if (save?.current_run) {
+      await runAction(() => window.changeBattle!.continueRun(), undefined, true, "prepare");
+      return;
+    }
     const nextSeed = Math.floor(Math.random() * 0xffffffff);
     setSeed(nextSeed);
-    await runAction(() => window.changeBattle!.prepareStarterItems(nextSeed));
+    await runAction(() => window.changeBattle!.prepareStarterItems(nextSeed), undefined, true, "prepare");
   }
 
   async function chooseStarterItem(offerId: string | null) {
-    await runAction(() => window.changeBattle!.chooseStarterItem(offerId));
+    await runAction(() => window.changeBattle!.chooseStarterItem(offerId), undefined, true, "starterReady");
   }
 
   async function rerollCandidates() {
@@ -243,7 +361,7 @@ function App() {
   }
 
   function openStarterUpgrade() {
-    setScreen("starterUpgrade");
+    navigateToScreen("starterUpgrade");
   }
 
   async function cancelPreparation() {
@@ -258,12 +376,12 @@ function App() {
     setSelected([]);
     setFocusIndex(0);
     setInspectedIndexes(new Set());
-    setScreen("starterItems");
+    navigateToScreen("starterItems");
     setMessage("已返回开局道具。");
   }
 
   async function beginChallenge(nextSelected = selected, runSeed = seed) {
-    await runAction(() => window.changeBattle!.beginChallenge(nextSelected, runSeed, 7));
+    await runAction(() => window.changeBattle!.beginChallenge(nextSelected, runSeed, 7), undefined, true, "battleStart");
   }
 
   function toggleCandidate(index: number) {
@@ -297,12 +415,13 @@ function App() {
   }
 
   async function restAction(action: RestAction): Promise<boolean> {
-    return runAction(() => window.changeBattle!.restAction(action), undefined, !["roll_shop", "buy_shop_offer"].includes(action.type));
+    const transitionReason = action.type === "next" ? "battleStart" : action.type === "abort" ? "settlement" : undefined;
+    return runAction(() => window.changeBattle!.restAction(action), undefined, !["roll_shop", "buy_shop_offer"].includes(action.type), transitionReason);
   }
 
   function openDex() {
     const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
-    const canOpenDex = screen === "mainMenu" || (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen) && battleHasDexTalent);
+    const canOpenDex = screen === "mainMenu" || (BATTLE_SCREENS.includes(screen) && battleHasDexTalent);
     if (!canOpenDex) {
       showAppToast("当前页面不能打开图鉴。");
       return;
@@ -310,24 +429,42 @@ function App() {
     setDexOpen(true);
   }
 
+  function guardedRedirectForScreen(currentScreen: AppStatus): AppStatus | null {
+    if (currentScreen === "starterItems" && !starter) return fallbackScreenForSave(save);
+    if (currentScreen === "rentalSelect" && candidates.length === 0) return fallbackScreenForSave(save);
+    if (BATTLE_SCREENS.includes(currentScreen) && !battle) return fallbackScreenForSave(save);
+    if (currentScreen === "exchange" && !exchange) return fallbackScreenForSave(save);
+    if (currentScreen === "rest" && !rest) return fallbackScreenForSave(save);
+    if (currentScreen === "result" && !resultSummary && !battle && !lastBattleSnapshot) return fallbackScreenForSave(save);
+    return null;
+  }
+
+  const guardedRedirect = routedScreen ? guardedRedirectForScreen(routedScreen) : null;
+
+  useEffect(() => {
+    if (!guardedRedirect) return;
+    showAppToast("当前页面状态已失效，已返回可用页面。");
+    navigateToScreen(guardedRedirect, {replace: true});
+  }, [guardedRedirect]);
+
   const content = useMemo(() => {
     if (screen === "title") return <TitleScreen save={save} catalog={trainerCatalog} defaultAvatarAsset={trainerCatalog.players[0]?.avatar_asset || trainerCatalog.avatars[0]?.avatar_asset} onLoad={loadGame} onNew={() => { setTrainerName("训练师"); }} onCreate={createTitleSave} onDelete={deleteSave} />;
-    if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => setScreen("title")} saveLabel="创建存档" />;
-    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => setScreen("talentConfig")} onStarterUpgrade={openStarterUpgrade} onTitle={() => setScreen("title")} onTestMode={enableTestMode} />;
-    if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => setScreen("mainMenu")} saveLabel="保存设置" />;
-    if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
-    if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => setScreen("mainMenu")} />;
+    if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => navigateToScreen("title")} saveLabel="创建存档" />;
+    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => navigateToScreen("talentConfig")} onStarterUpgrade={openStarterUpgrade} onTitle={() => navigateToScreen("title")} onTestMode={enableTestMode} />;
+    if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} saveLabel="保存设置" />;
+    if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
+    if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
     if (screen === "starterItems") return <StarterItemsView starter={starter} onChoose={chooseStarterItem} onBack={cancelPreparation} />;
     if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={hasStarterItemChoices(starter) ? backToStarterItems : undefined} onReroll={rerollCandidates} onSingleReroll={rerollFocusedCandidate} onInspect={inspectFocusedCandidate} runSeed={seed} wholeRerollsRemaining={starter?.whole_rerolls_remaining ?? 0} singleRerollsRemaining={starter?.single_rerolls_remaining ?? 0} inspectRemaining={inspectRemaining} revealTraining={Boolean(save?.talent_equipped?.includes("intel_god_eye")) || inspectedIndexes.has(focusIndex)} inspected={inspectedIndexes.has(focusIndex)} />;
-    if (["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={setScreen} onChoice={battleChoice} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={applyState} />;
+    if (BATTLE_SCREENS.includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={navigateToScreen} onChoice={battleChoice} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={state => transitionToState(state, "battleComplete")} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
-    if (screen === "rest") return <RestView rest={rest} message={message} onAction={restAction} />;
-    if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} summary={resultSummary} onBack={() => setScreen("mainMenu")} />;
+    if (screen === "rest") return <RestView rest={rest} onAction={restAction} />;
+    if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} summary={resultSummary} onBack={() => transitionToScreen("mainMenu", "returnHome")} />;
     return null;
   }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, lastBattleSnapshot, battleBag, battleChoicePending, exchange, rest, resultSummary, pendingTransition, message]);
 
-  const isBattleScreen = ["battleMain", "moveMenu", "teamMenu", "statusMenu"].includes(screen);
-  const hideTransientMessage = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "rentalSelect"].includes(screen);
+  const isBattleScreen = BATTLE_SCREENS.includes(screen);
+  const hideTransientMessage = HIDDEN_MESSAGE_SCREENS.includes(screen);
   const transientMessage = !isBattleScreen && !hideTransientMessage ? message : "";
   const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
   const showDexButton = isBattleScreen && battleHasDexTalent;
@@ -336,19 +473,37 @@ function App() {
     if (!showDexButton && dexOpen) setDexOpen(false);
   }, [showDexButton, dexOpen]);
 
-  return (
+  const gamePage = (
     <main className="game-shell">
       <section className="game-screen" ref={responsiveCanvas.ref} style={responsiveCanvas.style}>
         <div className="game-viewport">
-          {content}
+          {guardedRedirect ? null : content}
           {showDexButton ? <button className="floating-dex-button" title="打开图鉴" onClick={openDex}>图鉴</button> : null}
           {dexOpen ? <QuickDexModal onClose={() => setDexOpen(false)} /> : null}
           {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
           {transientMessage ? <ScreenToast message={transientMessage} /> : null}
-          {appToast ? <ScreenToast key={appToast.id} message={appToast.message} durationMs={1400} onDone={() => setAppToast(null)} /> : null}
+          {appToast ? <ScreenToast key={appToast.id} message={appToast.message} durationMs={appToast.durationMs ?? 1400} onDone={() => setAppToast(null)} /> : null}
         </div>
       </section>
     </main>
+  );
+
+  const transitionPage = routeTransition ? (
+    <main className="game-shell">
+      <section className="game-screen" ref={responsiveCanvas.ref} style={responsiveCanvas.style}>
+        <div className="game-viewport route-transition-viewport">
+          <RouteTransitionPage key={routeTransition.id} title={routeTransition.title} detail={routeTransition.detail} tip={routeTransition.tip} durationMs={routeTransition.durationMs} />
+        </div>
+      </section>
+    </main>
+  ) : <Navigate to={routeForScreen(fallbackScreenForSave(save))} replace />;
+
+  return (
+    <Routes>
+      <Route path={TRANSITION_ROUTE} element={transitionPage} />
+      {ROUTE_SCREENS.map(entry => <Route path={entry.route} element={routeTransition ? <Navigate to={TRANSITION_ROUTE} replace /> : gamePage} key={entry.route} />)}
+      <Route path="*" element={<Navigate to={routeForScreen("title")} replace />} />
+    </Routes>
   );
 }
 

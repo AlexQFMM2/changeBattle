@@ -88,7 +88,7 @@ vendor
 ChangeBattle-Desk.cmd
 README.md
 RELEASE-README.md
-rule.md
+docs
 plan.md
 ```
 
@@ -113,7 +113,7 @@ cd /home/alexqfmm/workPlace/pokemon/changeBattle
 git status --short
 ```
 
-注意：不要把无关本地修改误提交，比如用户临时改的 `rule.md`。除非这次 release 明确要包含它。
+注意：不要把无关本地修改误提交，比如用户临时改的 `docs/rule.md`。除非这次 release 明确要包含它。
 
 发版前需要把这些版本号改成目标版本：
 

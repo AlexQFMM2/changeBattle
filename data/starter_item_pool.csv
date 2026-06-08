@@ -21,6 +21,51 @@ chestoberry,item,consumable,berry,1,10,4,1,1,sleep berry
 pechaberry,item,consumable,berry,1,10,4,1,1,poison berry
 rawstberry,item,consumable,berry,1,10,4,1,1,burn berry
 aspearberry,item,consumable,berry,1,10,4,1,1,freeze berry
+figyberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
+wikiberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
+magoberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
+aguavberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
+iapapaberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
+occaberry,item,consumable,berry,3,10,3,1,1,fire resist berry
+passhoberry,item,consumable,berry,3,10,3,1,1,water resist berry
+wacanberry,item,consumable,berry,3,10,3,1,1,electric resist berry
+rindoberry,item,consumable,berry,3,10,3,1,1,grass resist berry
+yacheberry,item,consumable,berry,3,10,3,1,1,ice resist berry
+chopleberry,item,consumable,berry,3,10,3,1,1,fighting resist berry
+kebiaberry,item,consumable,berry,3,10,3,1,1,poison resist berry
+shucaberry,item,consumable,berry,3,10,3,1,1,ground resist berry
+cobaberry,item,consumable,berry,3,10,3,1,1,flying resist berry
+payapaberry,item,consumable,berry,3,10,3,1,1,psychic resist berry
+tangaberry,item,consumable,berry,3,10,3,1,1,bug resist berry
+chartiberry,item,consumable,berry,3,10,3,1,1,rock resist berry
+kasibberry,item,consumable,berry,3,10,3,1,1,ghost resist berry
+habanberry,item,consumable,berry,3,10,3,1,1,dragon resist berry
+colburberry,item,consumable,berry,3,10,3,1,1,dark resist berry
+babiriberry,item,consumable,berry,3,10,3,1,1,steel resist berry
+chilanberry,item,consumable,berry,3,10,3,1,1,normal resist berry
+roseliberry,item,consumable,berry,3,10,3,1,1,fairy resist berry
+liechiberry,item,consumable,berry,4,30,2,1,1,pinch attack berry
+ganlonberry,item,consumable,berry,4,30,2,1,1,pinch defense berry
+salacberry,item,consumable,berry,4,30,2,1,1,pinch speed berry
+petayaberry,item,consumable,berry,4,30,2,1,1,pinch special attack berry
+apicotberry,item,consumable,berry,4,30,2,1,1,pinch special defense berry
+custapberry,item,consumable,berry,4,30,1,1,1,pinch priority berry
+keeberry,item,consumable,berry,4,30,1,1,1,physical hit defense berry
+marangaberry,item,consumable,berry,4,30,1,1,1,special hit special defense berry
+lansatberry,item,consumable,berry,4,30,1,1,1,pinch critical berry
+starfberry,item,consumable,berry,4,30,1,1,1,pinch random stat berry
+micleberry,item,consumable,berry,4,30,1,1,1,pinch accuracy berry
+muscleband,item,held,battle,1,500,3,1,0,physical boost
+wiseglasses,item,held,battle,1,500,3,1,0,special boost
+shellbell,item,held,battle,1,500,2,1,0,damage recovery
+metronome,item,held,battle,1,500,2,1,0,repeated move boost
+focusband,item,held,battle,1,600,1,1,0,chance survive
+lightclay,item,held,battle,2,500,2,1,0,screen duration
+whiteherb,item,held,battle,2,500,2,1,0,stat drop cure
+powerherb,item,held,battle,2,500,2,1,0,charge move skip
+mentalherb,item,held,battle,2,500,2,1,0,mental status cure
+safetygoggles,item,held,battle,2,500,2,1,0,powder and weather immunity
+scopelens,item,held,battle,2,500,2,1,0,critical hit boost
 leftovers,item,held,battle,4,800,4,1,0,recover each turn
 lifeorb,item,held,battle,4,900,3,1,0,damage boost
 choiceband,item,held,battle,4,900,2,1,0,attack choice boost
@@ -30,6 +75,8 @@ assaultvest,item,held,battle,3,800,2,1,0,special defense boost
 focussash,item,held,battle,3,800,2,1,0,survive from full
 eviolite,item,held,battle,3,800,2,1,0,not fully evolved bulk
 rockyhelmet,item,held,battle,3,800,2,1,0,contact damage
+blacksludge,item,held,battle,3,700,2,1,0,poison recovery
+weaknesspolicy,item,held,battle,3,1000,1,1,0,boost after super effective hit
 airballoon,item,held,battle,2,500,2,1,0,ground immunity
 expertbelt,item,held,battle,2,500,2,1,0,super effective boost
 *,tm,tm,tm,1,500,5,1,1,current team learnable starter tm pool

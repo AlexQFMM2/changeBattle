@@ -13,6 +13,8 @@ export const SHOP_CANDIDATE_COUNT = 4;
 export const SHOP_CANDIDATE_COUNT_GAMBLER = 8;
 export const STARTER_COINS_DEFAULT = 0;
 export const STARTER_ITEM_MAX_LEVEL = 4;
+export const STARTER_ITEM_DEFAULT_QUALITY_LEVEL = 1;
+export const STARTER_ITEM_DEFAULT_QUANTITY_LEVEL = 2;
 export const STARTER_POKEMON_INSPECT_MAX_LEVEL = 6;
 export const SHOP_ROLL_COST_FIRST = 0;
 export const SHOP_ROLL_COST_NEXT = 75;
@@ -73,6 +75,7 @@ const TALENT_DEFINITIONS: TalentView[] = [
   {id: "exchange_gym_recognition", name: "馆主认可", category: "交换筑队", cost: 15, desc: "馆主和四天王宝可梦不再受默认只能交换 1 只的限制。"},
   {id: "exchange_careful", name: "爱护有加", category: "交换筑队", cost: 8, desc: "交换获得的宝可梦满 HP、满 PP 加入，并获取目标身上的道具。"},
   {id: "exchange_elite_training", name: "英才教育", category: "交换筑队", cost: 12, desc: "交换来的宝可梦品质更高；只改变阶级数值，不改变技能、特性和道具。"},
+  {id: "exchange_stalwart", name: "坚毅不倒", category: "交换筑队", cost: 20, desc: "每场胜利后，队内存活宝可梦恢复一半最大 HP，濒死宝可梦恢复到 1/4 最大 HP。"},
   {id: "exchange_factory_freedom", name: "工厂自由", category: "交换筑队", cost: 40, desc: "所有交换免费，但不解除 Boss 交换次数限制。"},
   {id: "intel_rumor", name: "小道消息", category: "情报规划", cost: 30, desc: "休整时可查看本局训练师顺序，并逐步揭示他们的阵容。"},
   {id: "intel_god_eye", name: "上帝之眼", category: "情报规划", cost: 8, desc: "对战时显示技能打击效果，允许查看图鉴，并显示个体值和努力值。"},
@@ -170,8 +173,8 @@ export function normalizeStarterUpgrades(upgrades?: StarterUpgradeState | null):
   const itemQuality: Partial<Record<StarterItemGroup, number>> = {};
   const itemQuantity: Partial<Record<StarterItemGroup, number>> = {};
   for (const group of STARTER_ITEM_GROUPS) {
-    itemQuality[group.id] = Math.max(1, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quality?.[group.id] || 1))));
-    itemQuantity[group.id] = Math.max(0, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quantity?.[group.id] || 0))));
+    itemQuality[group.id] = Math.max(1, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quality?.[group.id] ?? STARTER_ITEM_DEFAULT_QUALITY_LEVEL))));
+    itemQuantity[group.id] = Math.max(0, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quantity?.[group.id] ?? STARTER_ITEM_DEFAULT_QUANTITY_LEVEL))));
   }
   return {
     item_quality: itemQuality,
@@ -222,7 +225,7 @@ export function starterUpgradeCatalog(upgrades?: StarterUpgradeState | null): St
       {
         id: quantityId,
         name: STARTER_ITEM_UPGRADE_NAMES[group.id].quantity,
-        group: "开局道具" as const,
+        group: "道具数量" as const,
         desc: `每级增加 1 个${group.name}候选；每类最多免费带走 1 个。`,
         level: quantityLevel,
         max_level: STARTER_ITEM_MAX_LEVEL,
@@ -234,7 +237,7 @@ export function starterUpgradeCatalog(upgrades?: StarterUpgradeState | null): St
         {
           id: qualityId,
           name: STARTER_ITEM_UPGRADE_NAMES[group.id].quality,
-          group: "开局道具" as const,
+          group: "道具质量" as const,
           desc: `限制并提高${group.name}的可出现等级。当前最高可出 ${qualityLevel} 级。`,
           level: qualityLevel,
           max_level: STARTER_ITEM_MAX_LEVEL,

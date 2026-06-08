@@ -76,10 +76,32 @@ function baseStatTotal(species) {
   return STAT_IDS.reduce((sum, stat) => sum + Number(species.baseStats?.[stat] || 0), 0);
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function bulkScore(species) {
+  return ["hp", "def", "spd"].reduce((sum, stat) => sum + Number(species.baseStats?.[stat] || 0), 0);
+}
+
+function seedArrayForText(text) {
+  const seed = seededNumber(text);
+  return [seed & 0xffff, (seed >>> 16) & 0xffff, (seed * 1103515245) & 0xffff, (seed * 2654435761) & 0xffff];
+}
+
 function loadRandomLevels() {
   const setsPath = path.join(simPath, "dist", "data", "random-battles", "gen7", "sets.json");
   const sets = fs.existsSync(setsPath) ? JSON.parse(fs.readFileSync(setsPath, "utf8")) : {};
   return Object.fromEntries(Object.entries(sets).map(([id, data]) => [id, Number(data.level || 100)]));
+}
+
+function randomSetItem(species) {
+  try {
+    const generator = Sim.Teams.getGenerator("gen7randombattle", seedArrayForText(`tier-item:${species.id}`));
+    return String(generator.randomSet(species)?.item || "");
+  } catch {
+    return "";
+  }
 }
 
 function hasUsableSprite(spriteMap, species) {
@@ -113,23 +135,38 @@ function speciesRows() {
   for (const species of DATA_DEX.species.all()) {
     if (!isPoolSpecies(species, spriteMap)) continue;
     const bst = baseStatTotal(species);
+    const defensiveBulk = bulkScore(species);
     const nfePenalty = species.nfe ? -45 : 45;
     const legendaryBonus = species.legendary || species.mythical ? 90 : 0;
     const randomLevel = randomLevels[species.id] || "";
     const randomLevelScore = randomLevel ? Math.max(0, 100 - Number(randomLevel)) * 3 : 0;
-    const score = bst + nfePenalty + legendaryBonus + randomLevelScore;
+    const nfeEvioliteBulkBonus = species.nfe ? Math.round(clamp((defensiveBulk - 220) / 2, 0, 80)) : 0;
+    const randbatItem = randomSetItem(species);
+    const randomSetEvioliteBonus = toId(randbatItem) === "eviolite" ? 40 : 0;
+    const score = bst + nfePenalty + legendaryBonus + randomLevelScore + nfeEvioliteBulkBonus + randomSetEvioliteBonus;
+    const notes = [
+      species.nfe ? "nfe" : "",
+      species.legendary ? "legendary" : "",
+      species.mythical ? "mythical" : "",
+      nfeEvioliteBulkBonus ? `eviolite-bulk+${nfeEvioliteBulkBonus}` : "",
+      randomSetEvioliteBonus ? "eviolite-randset" : "",
+    ].filter(Boolean).join("|");
     candidates.push({
       species_id: species.id,
       species: species.name,
       base_species: species.baseSpecies || species.name,
       types: (species.types || []).join("|"),
       bst,
+      bulk_score: defensiveBulk,
       random_battle_level: randomLevel,
+      eviolite_bulk_bonus: nfeEvioliteBulkBonus,
+      random_set_item: randbatItem,
+      random_set_eviolite_bonus: randomSetEvioliteBonus,
       score,
       tier: 1,
       override_tier: "",
-      source: randomLevel ? "showdown-randbats+auto-score" : "auto-score",
-      notes: species.nfe ? "nfe" : species.legendary ? "legendary" : species.mythical ? "mythical" : "",
+      source: randomLevel || randbatItem ? "showdown-randbats+auto-score" : "auto-score",
+      notes,
     });
   }
   const sorted = [...candidates].sort((a, b) => a.score - b.score);
@@ -382,7 +419,7 @@ function makeBossPools(trainers, reps, tierRows) {
 const tierRows = speciesRows();
 writeCsv(
   pokemonTiersPath,
-  ["species_id", "species", "base_species", "types", "bst", "random_battle_level", "score", "tier", "override_tier", "source", "notes"],
+  ["species_id", "species", "base_species", "types", "bst", "bulk_score", "random_battle_level", "eviolite_bulk_bonus", "random_set_item", "random_set_eviolite_bonus", "score", "tier", "override_tier", "source", "notes"],
   tierRows,
 );
 

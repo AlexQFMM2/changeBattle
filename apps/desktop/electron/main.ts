@@ -357,6 +357,10 @@ function contentTypeFor(filePath: string): string {
     case ".gif": return "image/gif";
     case ".webp": return "image/webp";
     case ".svg": return "image/svg+xml";
+    case ".ogg": return "audio/ogg";
+    case ".mp3": return "audio/mpeg";
+    case ".wav": return "audio/wav";
+    case ".m4a": return "audio/mp4";
     default: return "application/octet-stream";
   }
 }
@@ -945,6 +949,8 @@ async function goodsCost(itemType: string, itemId: string, fallback = 0): Promis
 function itemIconAsset(itemId: string, fallback = "assets/placeholders/item.png"): string {
   const normalized = itemKey(itemId);
   if (!normalized) return fallback;
+  const packIconPath = path.join(projectRoot, "assets", "items-pack", `${normalized}.png`);
+  if (existsSync(packIconPath)) return `assets/items-pack/${normalized}.png`;
   const iconPath = path.join(projectRoot, "assets", "items", `${normalized}.png`);
   return existsSync(iconPath) ? `assets/items/${normalized}.png` : fallback;
 }
@@ -2030,6 +2036,27 @@ function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
   return states;
 }
 
+function applyStalwartRecovery(run: CurrentRunData): boolean {
+  if (!hasTalent(run.talents, "exchange_stalwart")) return false;
+  const states = normalizePlayerState(run);
+  let changed = false;
+  for (const state of states) {
+    const maxhp = Math.max(1, Number(state.maxhp || 1));
+    const hp = Math.max(0, Number(state.hp || 0));
+    const targetHp = hp > 0 && !state.fainted
+      ? Math.max(hp, Math.ceil(maxhp / 2))
+      : Math.max(1, Math.ceil(maxhp / 4));
+    if (targetHp !== hp || state.fainted) {
+      state.hp = Math.min(maxhp, targetHp);
+      state.fainted = false;
+      changed = true;
+    }
+    refreshStateCondition(state);
+  }
+  run.player_state = states;
+  return changed;
+}
+
 function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   if (run.status === "awaiting_exchange") run.status = "awaiting_rest";
   run.coins = currentCoins(run);
@@ -2466,8 +2493,26 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
 async function continueRun(): Promise<DesktopGameState> {
   const save = await loadSave();
   if (!save?.current_run) return gameState({screen: "mainMenu", save, message: "当前没有进行中的挑战。"});
+  if (save.current_run.status === "in_battle") return await settleInterruptedBattle(save, save.current_run);
   if (save.current_run.status === "awaiting_exchange" || save.current_run.status === "awaiting_rest") return await restState(save, save.current_run);
   return startNextBattle(save);
+}
+
+async function settleInterruptedBattle(save: LocalSave, run: CurrentRunData): Promise<DesktopGameState> {
+  normalizeCurrentRun(run);
+  const battleNo = Number(run.battle_no || run.next_battle || 1);
+  run.battle_no = battleNo;
+  const wins = Number(run.wins || 0);
+  recordBattleResult(save, "interrupted", run);
+  rememberRunForSoulmate(save, run);
+  const settled = await settleRunEnd(save, run, {outcome: "loss"});
+  save.current_run = null;
+  activeBattle = null;
+  activeBattleNo = 0;
+  const next = await persist(save);
+  const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "本场对手";
+  const message = `读档时发现第 ${battleNo} 场战斗未完成，判定挑战失败。对手：${enemyName}。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+  return gameState({screen: "result", save: next, message, result_summary: buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `第 ${battleNo} 场战斗中断，已按失败结算`, wins, settled, run})});
 }
 
 async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
@@ -2501,21 +2546,26 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   run.generation_stage = profiles.join("|");
   run.player_trainer = trainerFromProfile(save.trainer);
   run.enemy_trainer = enemyTrainer;
+  run.status = "in_battle";
+  run.battle_no = battleNo;
+  run.next_battle = battleNo;
   delete run.enemy_boss_record;
   run.enemy_raw = enemyTeam;
   run.enemy_display = enemyDisplay;
+  const battleStartSave = await persist(save);
+  const battleStartRun = battleStartSave.current_run as CurrentRunData;
   activeBattleNo = battleNo;
   activeBattle = await gameService.createBattleSession({
-    playerTeam: run.player_team,
+    playerTeam: battleStartRun.player_team,
     enemyTeam,
-    playerDisplay: run.player_display,
+    playerDisplay: battleStartRun.player_display,
     enemyDisplay,
-    playerState: normalizePlayerState(run),
+    playerState: normalizePlayerState(battleStartRun),
     seed: gameService.deriveSeed(Number(run.seed), 200 + battleNo),
     enemyAi: enemyAiForRoute(route, enemyTrainer),
   });
-  const encounteredBoss = recordBossEncounter(save, run, enemyTrainer, bossTeam, enemyDisplay);
-  const stateSave = encounteredBoss ? await persist(save) : save;
+  const encounteredBoss = recordBossEncounter(battleStartSave, battleStartRun, enemyTrainer, bossTeam, enemyDisplay);
+  const stateSave = encounteredBoss ? await persist(battleStartSave) : battleStartSave;
   const stateRun = stateSave.current_run as CurrentRunData;
   const label = run.boss_type === "normal" ? "普通 NPC" : run.boss_type === "champion" ? "冠军" : run.boss_type === "elite4" ? "四天王" : "馆主";
   return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: `第 ${battleNo}/${run.battles} 场：${label} ${enemyTrainer.name_zh}`});
@@ -2567,6 +2617,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   }
   const wins = Number(run.wins || 0) + 1;
   addToExchangeBox(run, state.enemy_team || run.enemy_raw || [], state.enemy_display || run.enemy_display || []);
+  const stalwartRecovered = applyStalwartRecovery(run);
   const allInBonus = run.rest_status?.all_in_pending_next ? addCoins(run, currentCoins(run)) : 0;
   if (run.rest_status?.all_in_pending_next) run.rest_status = {...run.rest_status, all_in_pending_next: false};
   if (activeBattleNo >= Number(run.battles || DEFAULT_BATTLES)) {
@@ -2576,7 +2627,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
-    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
+    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     const resultBattle = decorateBattleState(state, run);
     const transition = gameState({screen: "result", save: next, battle: resultBattle, message, result_summary: buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus})});
     return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message, pending_transition: transition});
@@ -2586,6 +2637,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     ...run,
     status: "awaiting_rest",
     battle_no: activeBattleNo,
+    next_battle: activeBattleNo + 1,
     wins,
     enemy_raw: state.enemy_team,
     enemy_display: state.enemy_display,
@@ -2594,8 +2646,8 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     rest_status: freshRestStatus(run.talents, victoryRewards.restBonus),
   };
   const next = await persist(save);
-  const rewardText = `本场胜利！获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}。奖励：${victoryRewards.items.join(" / ")}${victoryRewards.restBonus?.shop_slot_discounts?.length ? "；boss 商店奖励已生效" : ""}${victoryRewards.restBonus?.recycler_available ? "；道具回收商出现了" : ""}。当前连胜：${wins}`;
-  const transition = await restState(next, next.current_run as CurrentRunData, rewardText);
+  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。奖励：${victoryRewards.items.join(" / ")}${victoryRewards.restBonus?.shop_slot_discounts?.length ? "；boss 商店奖励已生效" : ""}${victoryRewards.restBonus?.recycler_available ? "；道具回收商出现了" : ""}。当前连胜：${wins}`;
+  const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
   } finally {
     battleChoiceInFlight = false;

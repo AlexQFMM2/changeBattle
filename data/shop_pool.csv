@@ -14,36 +14,59 @@ revivalherb,item,consumable,160,1,1,full revive herb
 energypowder,item,consumable,50,3,1,hp heal herb
 energyroot,item,consumable,120,2,1,hp heal herb
 healpowder,item,consumable,20,3,1,status heal herb
-ether,item,consumable,60,5,1,pp heal
-maxether,item,consumable,120,3,1,full pp move heal
-elixir,item,consumable,150,2,1,all pp heal
-maxelixir,item,consumable,200,1,1,full all pp heal
+ether,item,consumable,15,5,1,pp heal
+maxether,item,consumable,30,3,1,full pp move heal
+elixir,item,consumable,40,2,1,all pp heal
+maxelixir,item,consumable,50,1,1,full all pp heal
 fullheal,item,consumable,30,5,1,status heal
 antidote,item,consumable,10,4,1,poison heal
 burnheal,item,consumable,10,4,1,burn heal
 iceheal,item,consumable,10,4,1,freeze heal
 awakening,item,consumable,10,4,1,sleep heal
 paralyzeheal,item,consumable,10,4,1,paralysis heal
-oranberry,item,consumable,10,6,1,hp berry
-sitrusberry,item,consumable,20,6,1,hp berry
-leppaberry,item,consumable,20,5,1,pp berry
-lumberry,item,consumable,30,5,1,status berry
-cheriberry,item,consumable,10,4,1,paralysis berry
-chestoberry,item,consumable,10,4,1,sleep berry
-pechaberry,item,consumable,10,4,1,poison berry
-rawstberry,item,consumable,10,4,1,burn berry
-aspearberry,item,consumable,10,4,1,freeze berry
-figyberry,item,consumable,20,4,1,pinch heal berry
-wikiberry,item,consumable,20,4,1,pinch heal berry
-magoberry,item,consumable,20,4,1,pinch heal berry
-aguavberry,item,consumable,20,4,1,pinch heal berry
-iapapaberry,item,consumable,20,4,1,pinch heal berry
-liechiberry,item,consumable,30,2,1,pinch attack berry
-ganlonberry,item,consumable,30,2,1,pinch defense berry
-salacberry,item,consumable,30,2,1,pinch speed berry
-petayaberry,item,consumable,30,2,1,pinch special attack berry
-apicotberry,item,consumable,30,2,1,pinch special defense berry
-custapberry,item,consumable,30,1,1,pinch priority berry
+oranberry,item,consumable,5,6,1,hp berry
+sitrusberry,item,consumable,10,6,1,hp berry
+leppaberry,item,consumable,10,5,1,pp berry
+lumberry,item,consumable,15,5,1,status berry
+cheriberry,item,consumable,5,4,1,paralysis berry
+chestoberry,item,consumable,5,4,1,sleep berry
+pechaberry,item,consumable,5,4,1,poison berry
+rawstberry,item,consumable,5,4,1,burn berry
+aspearberry,item,consumable,5,4,1,freeze berry
+figyberry,item,consumable,10,4,1,pinch heal berry
+wikiberry,item,consumable,10,4,1,pinch heal berry
+magoberry,item,consumable,10,4,1,pinch heal berry
+aguavberry,item,consumable,10,4,1,pinch heal berry
+iapapaberry,item,consumable,10,4,1,pinch heal berry
+occaberry,item,consumable,5,3,1,fire resist berry
+passhoberry,item,consumable,5,3,1,water resist berry
+wacanberry,item,consumable,5,3,1,electric resist berry
+rindoberry,item,consumable,5,3,1,grass resist berry
+yacheberry,item,consumable,5,3,1,ice resist berry
+chopleberry,item,consumable,5,3,1,fighting resist berry
+kebiaberry,item,consumable,5,3,1,poison resist berry
+shucaberry,item,consumable,5,3,1,ground resist berry
+cobaberry,item,consumable,5,3,1,flying resist berry
+payapaberry,item,consumable,5,3,1,psychic resist berry
+tangaberry,item,consumable,5,3,1,bug resist berry
+chartiberry,item,consumable,5,3,1,rock resist berry
+kasibberry,item,consumable,5,3,1,ghost resist berry
+habanberry,item,consumable,5,3,1,dragon resist berry
+colburberry,item,consumable,5,3,1,dark resist berry
+babiriberry,item,consumable,5,3,1,steel resist berry
+chilanberry,item,consumable,5,3,1,normal resist berry
+roseliberry,item,consumable,5,3,1,fairy resist berry
+liechiberry,item,consumable,15,2,1,pinch attack berry
+ganlonberry,item,consumable,15,2,1,pinch defense berry
+salacberry,item,consumable,15,2,1,pinch speed berry
+petayaberry,item,consumable,15,2,1,pinch special attack berry
+apicotberry,item,consumable,15,2,1,pinch special defense berry
+custapberry,item,consumable,15,1,1,pinch priority berry
+keeberry,item,consumable,15,1,1,physical hit defense berry
+marangaberry,item,consumable,15,1,1,special hit special defense berry
+lansatberry,item,consumable,15,1,1,pinch critical berry
+starfberry,item,consumable,15,1,1,pinch random stat berry
+micleberry,item,consumable,15,1,1,pinch accuracy berry
 leftovers,item,held,800,5,1,recover each turn
 blacksludge,item,held,700,3,1,poison recovery
 lifeorb,item,held,900,4,1,damage boost

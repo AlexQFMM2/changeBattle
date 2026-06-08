@@ -22,6 +22,10 @@ export type SpriteMapEntry = {
   source: string;
   sprite_id?: string;
   paths: Record<SpriteVariant, string>;
+  fallback_paths?: Record<SpriteVariant, string>;
+  icon_asset?: string;
+  icon_shiny_asset?: string;
+  cry_asset?: string;
 };
 
 export type SpriteIndexMap = {
@@ -457,7 +461,7 @@ export type StarterUpgradeState = {
 export type StarterUpgradeView = {
   id: string;
   name: string;
-  group: "开局道具" | "开局选牌";
+  group: "道具数量" | "道具质量" | "开局选牌";
   desc: string;
   level: number;
   max_level: number;
@@ -644,7 +648,7 @@ export type PokemonEditOptions = {
 };
 
 export type CurrentRunData = {
-  status: "ready" | "awaiting_rest" | "awaiting_exchange";
+  status: "ready" | "in_battle" | "awaiting_rest" | "awaiting_exchange";
   seed: number;
   battles: number;
   next_battle?: number;
@@ -805,6 +809,7 @@ export type DesktopGameState = {
   exchange?: ExchangeState | null;
   rest?: RestState | null;
   message?: string;
+  toast_message?: string;
   result_summary?: ResultSummaryState | null;
   pending_transition?: DesktopGameState | null;
 };

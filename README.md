@@ -281,10 +281,9 @@ changeBattle/
   showdown-adapter/    Node 侧 Showdown Teams/BattleStream 适配器
   data/                中文覆盖表、描述表、资源 manifest
   assets/              占位图、属性色块和未来 UI 图片资源
-  docs/                Showdown 集成、green.gba 图片资源说明
+  docs/                规则文档、随机规则、Showdown 集成、green.gba 图片资源说明
   tools/               资源校验、green.gba 抽图、sprite 映射脚本
   plan.md              当前阶段计划与完成情况
-  rule.md              基础规则设定
 ```
 
 ## 当前架构

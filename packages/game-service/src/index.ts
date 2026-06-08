@@ -998,16 +998,31 @@ export class GameService {
   private speciesTierRulesForProfile(profile: GenerationProfile): SpeciesTierRule[] {
     if (profile === "tier1") {
       return [
-        {tier: 1, weight: 2},
-        {tier: 2, weight: 3},
+        {tier: 1, weight: 1},
+        {tier: 2, weight: 2},
         {tier: 2, weight: 3, preferNonNfe: true},
-        {tier: 3, weight: 2, preferNonNfe: true},
+        {tier: 3, weight: 4, preferNonNfe: true},
       ];
     }
     if (profile === "tier2") {
       return [
         {tier: 2, weight: 3},
-        {tier: 3, weight: 7, preferNonNfe: true},
+        {tier: 3, weight: 5, preferNonNfe: true},
+        {tier: 4, weight: 2, preferNonNfe: true},
+      ];
+    }
+    if (profile === "tier3") {
+      return [
+        {tier: 2, weight: 2, preferNonNfe: true},
+        {tier: 3, weight: 5, preferNonNfe: true},
+        {tier: 4, weight: 3, preferNonNfe: true},
+      ];
+    }
+    if (profile === "tier4") {
+      return [
+        {tier: 2, weight: 1, preferNonNfe: true},
+        {tier: 3, weight: 2, preferNonNfe: true},
+        {tier: 4, weight: 7, preferNonNfe: true},
       ];
     }
     return [{tier: this.profileStageTier(profile), weight: 1, preferNonNfe: true}];
