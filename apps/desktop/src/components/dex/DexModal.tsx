@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState} from "react";
 import type {DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, RentalPokemon} from "@changebattle/shared";
 import {AnimatedModalLayer, AnimatedPanel} from "../motion/Animated";
 import {PokemonProfile} from "../pokemon/PokemonProfile";
-import {PokemonSprite, STAT_ROWS, assetUrl, displayName, trainerImageUrl} from "../../lib/ui";
+import {ItemIcon, PokemonSprite, STAT_ROWS, assetUrl, displayName, trainerImageUrl} from "../../lib/ui";
 
 const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
   {id: "pokemon", label: "宝可梦"},
@@ -23,7 +23,7 @@ function dexEntryText(entry: DesktopDexEntry): string {
   if (entry.category === "trainers") return entry.boss_summary || entry.desc_zh || "尚未遭遇";
   if (entry.category === "pokemon") return `${entry.types_zh?.join(" / ") || entry.types?.join(" / ") || "未知属性"}　No.${entry.sprite?.national_dex || "--"}`;
   if (entry.category === "moves") return `${entry.type_zh || entry.type || "未知"} / ${entry.move_category_zh || entry.move_category || "变化"}　威力 ${entry.power || "--"}　命中 ${entry.accuracy ?? "必中"}　PP ${entry.pp || "--"}`;
-  return entry.desc_zh || entry.desc || entry.id;
+  return entry.desc_zh || "暂无中文说明。";
 }
 
 function dexSpriteUrl(entry: DesktopDexEntry): string {
@@ -101,6 +101,7 @@ export function DexModal({onClose}: {onClose: () => void}) {
             {entries.map(entry => (
               <button className={`${selected?.id === entry.id ? "selected" : ""} ${entry.category === "trainers" && !entry.unlocked ? "locked" : ""}`} onClick={() => setSelectedId(entry.id)} key={`${entry.category}-${entry.id}`}>
                 {entry.category === "pokemon" && dexSpriteUrl(entry) ? <img src={dexSpriteUrl(entry)} alt={entry.name_zh || entry.name} /> : null}
+                {entry.category === "items" ? <ItemIcon item={entry} /> : null}
                 {entry.category === "trainers" ? <TrainerDexAvatar entry={entry} /> : null}
                 <strong>{entry.name_zh || entry.name}</strong>
                 <span>{entry.name}</span>
@@ -133,7 +134,7 @@ function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
   return (
     <section className="dex-entry-detail">
       <header>
-        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : null}
+        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : null}
         <div>
           <h3>{entry.name_zh || entry.name}</h3>
           <p>{entry.name}　{entry.id}</p>
@@ -167,7 +168,7 @@ function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
           <p>优先度：{entry.priority || 0}</p>
         </div>
       ) : null}
-      {entry.category !== "pokemon" ? <p className="dex-description">{entry.desc_zh || entry.desc || "暂无说明。"}</p> : null}
+      {entry.category !== "pokemon" ? <p className="dex-description">{entry.desc_zh || "暂无中文说明。"}</p> : null}
     </section>
   );
 }

@@ -16625,3 +16625,17 @@ button.party-status-chip {
     line-height: 1.25;
   }
 }
+
+.battle-field.has-battle-background {
+  background: var(--battle-background-image) center / cover no-repeat;
+}
+
+.battle-field.has-battle-background::before {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 10%), transparent 34%, rgb(0 0 0 / 8%) 100%),
+    linear-gradient(90deg, rgb(255 255 255 / 8%), transparent 38%, rgb(0 0 0 / 10%));
+}
+
+.battle-field.has-battle-background .battle-platforms {
+  display: none;
+}

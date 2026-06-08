@@ -16856,6 +16856,492 @@
     },
     "Zygarde Cube": {
       "description": "用于收集宝可梦基格尔德的核心和细胞的道具。还可以教基格尔德招式。"
+    },
+    "Ability Shield": {
+      "description": "携带后，特性不会被任何效果改变、压制或无视。"
+    },
+    "Adamant Crystal": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Auspicious Armor": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Berry Sweet": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Berserk Gene": {
+      "description": "第二世代道具。登场时攻击大幅提高，但会陷入混乱。一次性使用。"
+    },
+    "Bitter Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Blunder Policy": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Booster Energy": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Burnt Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Chipped Pot": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Clear Amulet": {
+      "description": "携带后，会在战斗中发动对应效果。"
+    },
+    "Clover Sweet": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Cornerstone Mask": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Covert Cloak": {
+      "description": "携带后，会在战斗中发动对应效果。"
+    },
+    "Cracked Pot": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Eject Pack": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Fairy Feather": {
+      "description": "可用它来制造用于对战的妖精属性Ｚ招式。"
+    },
+    "Flower Sweet": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Fossilized Bird": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Fossilized Dino": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Fossilized Drake": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Fossilized Fish": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Galarica Cuff": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Galarica Wreath": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Gold Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Griseous Core": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Hearthflame Mask": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Heavy-Duty Boots": {
+      "description": "携带后，会在战斗中发动对应效果。"
+    },
+    "Ice Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Leek": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Loaded Dice": {
+      "description": "携带后，会在战斗中发动对应效果。"
+    },
+    "Love Sweet": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Lustrous Globe": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Mail": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Malicious Armor": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Masterpiece Teacup": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Metal Alloy": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Mint Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Miracle Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Mirror Herb": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Mystery Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Pink Bow": {
+      "description": "可用它来制造用于对战的一般属性Ｚ招式。"
+    },
+    "Poke Ball": {
+      "description": "用于捕捉野生宝可梦的球，采用胶囊式设计。"
+    },
+    "Polkadot Bow": {
+      "description": "可用它来制造用于对战的一般属性Ｚ招式。"
+    },
+    "Pretty Feather": {
+      "description": "具有特殊效果的道具。"
+    },
+    "PRZ Cure Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "PSN Cure Berry": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Punching Glove": {
+      "description": "携带后，会在战斗中发动对应效果。"
+    },
+    "Ribbon Sweet": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Room Service": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "Rusted Shield": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Rusted Sword": {
+      "description": "具有特殊效果的道具。"
+    },
+    "Star Sweet": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Strawberry Sweet": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Sweet Apple": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Syrupy Apple": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Tart Apple": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Throat Spray": {
+      "description": "一次性使用的道具，会在满足条件时发动效果。"
+    },
+    "TR00": {
+      "description": "一次性使用。让宝可梦学会剑舞。"
+    },
+    "TR01": {
+      "description": "一次性使用。让宝可梦学会泰山压顶。"
+    },
+    "TR02": {
+      "description": "一次性使用。让宝可梦学会喷射火焰。"
+    },
+    "TR03": {
+      "description": "一次性使用。让宝可梦学会水炮。"
+    },
+    "TR04": {
+      "description": "一次性使用。让宝可梦学会冲浪。"
+    },
+    "TR05": {
+      "description": "一次性使用。让宝可梦学会冰冻光束。"
+    },
+    "TR06": {
+      "description": "一次性使用。让宝可梦学会暴风雪。"
+    },
+    "TR07": {
+      "description": "一次性使用。让宝可梦学会踢倒。"
+    },
+    "TR08": {
+      "description": "一次性使用。让宝可梦学会十万伏特。"
+    },
+    "TR09": {
+      "description": "一次性使用。让宝可梦学会打雷。"
+    },
+    "TR10": {
+      "description": "一次性使用。让宝可梦学会地震。"
+    },
+    "TR11": {
+      "description": "一次性使用。让宝可梦学会精神强念。"
+    },
+    "TR12": {
+      "description": "一次性使用。让宝可梦学会高速移动。"
+    },
+    "TR13": {
+      "description": "一次性使用。让宝可梦学会聚气。"
+    },
+    "TR14": {
+      "description": "一次性使用。让宝可梦学会挥指。"
+    },
+    "TR15": {
+      "description": "一次性使用。让宝可梦学会大字爆炎。"
+    },
+    "TR16": {
+      "description": "一次性使用。让宝可梦学会攀瀑。"
+    },
+    "TR17": {
+      "description": "一次性使用。让宝可梦学会瞬间失忆。"
+    },
+    "TR18": {
+      "description": "一次性使用。让宝可梦学会吸血。"
+    },
+    "TR19": {
+      "description": "一次性使用。让宝可梦学会三重攻击。"
+    },
+    "TR20": {
+      "description": "一次性使用。让宝可梦学会替身。"
+    },
+    "TR21": {
+      "description": "一次性使用。让宝可梦学会起死回生。"
+    },
+    "TR22": {
+      "description": "一次性使用。让宝可梦学会污泥炸弹。"
+    },
+    "TR23": {
+      "description": "一次性使用。让宝可梦学会撒菱。"
+    },
+    "TR24": {
+      "description": "一次性使用。让宝可梦学会逆鳞。"
+    },
+    "TR25": {
+      "description": "一次性使用。让宝可梦学会精神冲击。"
+    },
+    "TR26": {
+      "description": "一次性使用。让宝可梦学会挺住。"
+    },
+    "TR27": {
+      "description": "一次性使用。让宝可梦学会梦话。"
+    },
+    "TR28": {
+      "description": "一次性使用。让宝可梦学会超级角击。"
+    },
+    "TR29": {
+      "description": "一次性使用。让宝可梦学会接棒。"
+    },
+    "TR30": {
+      "description": "一次性使用。让宝可梦学会再来一次。"
+    },
+    "TR31": {
+      "description": "一次性使用。让宝可梦学会铁尾。"
+    },
+    "TR32": {
+      "description": "一次性使用。让宝可梦学会咬碎。"
+    },
+    "TR33": {
+      "description": "一次性使用。让宝可梦学会暗影球。"
+    },
+    "TR34": {
+      "description": "一次性使用。让宝可梦学会预知未来。"
+    },
+    "TR35": {
+      "description": "一次性使用。让宝可梦学会吵闹。"
+    },
+    "TR36": {
+      "description": "一次性使用。让宝可梦学会热风。"
+    },
+    "TR37": {
+      "description": "一次性使用。让宝可梦学会挑衅。"
+    },
+    "TR38": {
+      "description": "一次性使用。让宝可梦学会戏法。"
+    },
+    "TR39": {
+      "description": "一次性使用。让宝可梦学会蛮力。"
+    },
+    "TR40": {
+      "description": "一次性使用。让宝可梦学会特性互换。"
+    },
+    "TR41": {
+      "description": "一次性使用。让宝可梦学会火焰踢。"
+    },
+    "TR42": {
+      "description": "一次性使用。让宝可梦学会巨声。"
+    },
+    "TR43": {
+      "description": "一次性使用。让宝可梦学会过热。"
+    },
+    "TR44": {
+      "description": "一次性使用。让宝可梦学会宇宙力量。"
+    },
+    "TR45": {
+      "description": "一次性使用。让宝可梦学会浊流。"
+    },
+    "TR46": {
+      "description": "一次性使用。让宝可梦学会铁壁。"
+    },
+    "TR47": {
+      "description": "一次性使用。让宝可梦学会龙爪。"
+    },
+    "TR48": {
+      "description": "一次性使用。让宝可梦学会健美。"
+    },
+    "TR49": {
+      "description": "一次性使用。让宝可梦学会冥想。"
+    },
+    "TR50": {
+      "description": "一次性使用。让宝可梦学会叶刃。"
+    },
+    "TR51": {
+      "description": "一次性使用。让宝可梦学会龙之舞。"
+    },
+    "TR52": {
+      "description": "一次性使用。让宝可梦学会陀螺球。"
+    },
+    "TR53": {
+      "description": "一次性使用。让宝可梦学会近身战。"
+    },
+    "TR54": {
+      "description": "一次性使用。让宝可梦学会毒菱。"
+    },
+    "TR55": {
+      "description": "一次性使用。让宝可梦学会闪焰冲锋。"
+    },
+    "TR56": {
+      "description": "一次性使用。让宝可梦学会波导弹。"
+    },
+    "TR57": {
+      "description": "一次性使用。让宝可梦学会毒击。"
+    },
+    "TR58": {
+      "description": "一次性使用。让宝可梦学会恶之波动。"
+    },
+    "TR59": {
+      "description": "一次性使用。让宝可梦学会种子炸弹。"
+    },
+    "TR60": {
+      "description": "一次性使用。让宝可梦学会十字剪。"
+    },
+    "TR61": {
+      "description": "一次性使用。让宝可梦学会虫鸣。"
+    },
+    "TR62": {
+      "description": "一次性使用。让宝可梦学会龙之波动。"
+    },
+    "TR63": {
+      "description": "一次性使用。让宝可梦学会力量宝石。"
+    },
+    "TR64": {
+      "description": "一次性使用。让宝可梦学会真气弹。"
+    },
+    "TR65": {
+      "description": "一次性使用。让宝可梦学会能量球。"
+    },
+    "TR66": {
+      "description": "一次性使用。让宝可梦学会勇鸟猛攻。"
+    },
+    "TR67": {
+      "description": "一次性使用。让宝可梦学会大地之力。"
+    },
+    "TR68": {
+      "description": "一次性使用。让宝可梦学会诡计。"
+    },
+    "TR69": {
+      "description": "一次性使用。让宝可梦学会意念头锤。"
+    },
+    "TR70": {
+      "description": "一次性使用。让宝可梦学会加农光炮。"
+    },
+    "TR71": {
+      "description": "一次性使用。让宝可梦学会飞叶风暴。"
+    },
+    "TR72": {
+      "description": "一次性使用。让宝可梦学会强力鞭打。"
+    },
+    "TR73": {
+      "description": "一次性使用。让宝可梦学会垃圾射击。"
+    },
+    "TR74": {
+      "description": "一次性使用。让宝可梦学会铁头。"
+    },
+    "TR75": {
+      "description": "一次性使用。让宝可梦学会尖石攻击。"
+    },
+    "TR76": {
+      "description": "一次性使用。让宝可梦学会隐形岩。"
+    },
+    "TR77": {
+      "description": "一次性使用。让宝可梦学会打草结。"
+    },
+    "TR78": {
+      "description": "一次性使用。让宝可梦学会污泥波。"
+    },
+    "TR79": {
+      "description": "一次性使用。让宝可梦学会重磅冲撞。"
+    },
+    "TR80": {
+      "description": "一次性使用。让宝可梦学会电球。"
+    },
+    "TR81": {
+      "description": "一次性使用。让宝可梦学会欺诈。"
+    },
+    "TR82": {
+      "description": "一次性使用。让宝可梦学会辅助力量。"
+    },
+    "TR83": {
+      "description": "一次性使用。让宝可梦学会交换场地。"
+    },
+    "TR84": {
+      "description": "一次性使用。让宝可梦学会热水。"
+    },
+    "TR85": {
+      "description": "一次性使用。让宝可梦学会自我激励。"
+    },
+    "TR86": {
+      "description": "一次性使用。让宝可梦学会疯狂伏特。"
+    },
+    "TR87": {
+      "description": "一次性使用。让宝可梦学会直冲钻。"
+    },
+    "TR88": {
+      "description": "一次性使用。让宝可梦学会高温重压。"
+    },
+    "TR89": {
+      "description": "一次性使用。让宝可梦学会暴风。"
+    },
+    "TR90": {
+      "description": "一次性使用。让宝可梦学会嬉闹。"
+    },
+    "TR91": {
+      "description": "一次性使用。让宝可梦学会毒液陷阱。"
+    },
+    "TR92": {
+      "description": "一次性使用。让宝可梦学会魔法闪耀。"
+    },
+    "TR93": {
+      "description": "一次性使用。让宝可梦学会ＤＤ金勾臂。"
+    },
+    "TR94": {
+      "description": "一次性使用。让宝可梦学会十万马力。"
+    },
+    "TR95": {
+      "description": "一次性使用。让宝可梦学会地狱突刺。"
+    },
+    "TR96": {
+      "description": "一次性使用。让宝可梦学会花粉团。"
+    },
+    "TR97": {
+      "description": "一次性使用。让宝可梦学会精神之牙。"
+    },
+    "TR98": {
+      "description": "一次性使用。让宝可梦学会水流裂破。"
+    },
+    "TR99": {
+      "description": "一次性使用。让宝可梦学会扑击。"
+    },
+    "Unremarkable Teacup": {
+      "description": "用于让特定宝可梦进化的道具。"
+    },
+    "Utility Umbrella": {
+      "description": "携带后，会在战斗中发动对应效果。"
+    },
+    "Wellspring Mask": {
+      "description": "具有特殊效果的道具。"
     }
   }
 }

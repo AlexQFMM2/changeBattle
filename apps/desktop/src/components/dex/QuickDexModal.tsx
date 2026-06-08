@@ -3,7 +3,7 @@ import type {DesktopDexCategory, DesktopDexEntry, MoveSummary} from "@changebatt
 import {AnimatePresence, motion, type Variants} from "motion/react";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard} from "../move/MoveCard";
-import {STAT_ROWS, assetUrl} from "../../lib/ui";
+import {ItemIcon, STAT_ROWS, assetUrl} from "../../lib/ui";
 
 export type QuickDexCategory = Exclude<DesktopDexCategory, "trainers">;
 
@@ -59,7 +59,7 @@ function dexSpriteUrl(entry: DesktopDexEntry): string {
 function entrySummary(entry: DesktopDexEntry): string {
   if (entry.category === "pokemon") return `${entry.types_zh?.join(" / ") || entry.types?.join(" / ") || "未知属性"}  No.${entry.sprite?.national_dex || "--"}`;
   if (entry.category === "moves") return `${entry.type_zh || entry.type || "未知"} / ${entry.move_category_zh || entry.move_category || "变化"}  威力 ${entry.power || "--"}  命中 ${entry.accuracy ?? "必中"}`;
-  return entry.desc_zh || entry.desc || entry.id;
+  return entry.desc_zh || "暂无中文说明。";
 }
 
 function categoryIndex(category: QuickDexCategory): number {
@@ -250,7 +250,7 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
                         transition={{delay: index * 0.025, type: "spring", stiffness: 360, damping: 30}}
                         key={`${entry.category}-${entry.id}`}
                       >
-                        {entry.category === "pokemon" && dexSpriteUrl(entry) ? <img src={dexSpriteUrl(entry)} alt={entry.name_zh || entry.name} /> : <span>{entry.category === "abilities" ? "特" : "道"}</span>}
+                        {entry.category === "pokemon" && dexSpriteUrl(entry) ? <img src={dexSpriteUrl(entry)} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : <span>特</span>}
                         <strong>{entry.name_zh || entry.name}</strong>
                         <small>{entrySummary(entry)}</small>
                       </motion.button>
@@ -278,7 +278,7 @@ function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; o
   return (
     <section className="quick-dex-detail">
       <header>
-        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : <span>{entry.category === "moves" ? "技" : entry.category === "abilities" ? "特" : "道"}</span>}
+        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : <span>{entry.category === "moves" ? "技" : "特"}</span>}
         <div>
           <h3>{entry.name_zh || entry.name}</h3>
           <p>{entry.name} / {entry.id}</p>
@@ -318,7 +318,7 @@ function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; o
           <p>优先度 <strong>{entry.priority || 0}</strong></p>
         </div>
       ) : null}
-      {entry.category !== "pokemon" ? <p className="quick-dex-description">{entry.desc_zh || entry.desc || "暂无说明。"}</p> : null}
+      {entry.category !== "pokemon" ? <p className="quick-dex-description">{entry.desc_zh || "暂无中文说明。"}</p> : null}
     </section>
   );
 }

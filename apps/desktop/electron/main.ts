@@ -4,7 +4,7 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {battleSlotShowdownId} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
@@ -78,6 +78,8 @@ import {SaveStore} from "./save-store.js";
 declare const __dirname: string;
 
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
+const CHAMPION_BACKGROUND_ID = "champion-stage";
+const FALLBACK_BATTLE_BACKGROUND: BattleBackgroundView = {id: "mountain-route", name: "山地", src: "assets/battle-backgrounds/mountain-route.png"};
 
 protocol.registerSchemesAsPrivileged([
   {scheme: "changebattle-asset", privileges: {standard: true, secure: true, supportFetchAPI: true, stream: true}},
@@ -523,6 +525,29 @@ function parseCsvLine(line: string): string[] {
   return cells;
 }
 
+function loadBattleBackgroundCatalog(): BattleBackgroundView[] {
+  const csvPath = path.join(projectRoot, "assets", "battle-backgrounds", "backgrounds.csv");
+  if (!existsSync(csvPath)) return [FALLBACK_BATTLE_BACKGROUND];
+  const lines = readFileSync(csvPath, "utf8").split(/\r?\n/).filter(Boolean);
+  const header = parseCsvLine(lines[0] || "");
+  const rows = lines.slice(1).map(line => {
+    const values = parseCsvLine(line);
+    const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""])) as Record<string, string>;
+    return row.id && row.src ? row as BattleBackgroundView : null;
+  }).filter((entry): entry is BattleBackgroundView => Boolean(entry));
+  return rows.length ? rows : [FALLBACK_BATTLE_BACKGROUND];
+}
+
+function battleBackgroundForRun(run: CurrentRunData, trainer: TrainerNpcView, battleNo: number): BattleBackgroundView {
+  const catalog = loadBattleBackgroundCatalog();
+  const champion = catalog.find(entry => entry.id === CHAMPION_BACKGROUND_ID);
+  if (trainer.type === "champion" && champion) return champion;
+  const pool = catalog.filter(entry => entry.id !== CHAMPION_BACKGROUND_ID);
+  const candidates = pool.length ? pool : catalog;
+  const picked = pickStable(candidates, run.seed || 0, battleNo, trainer.id, trainer.team_pool_id || "", run.boss_route || "");
+  return picked || FALLBACK_BATTLE_BACKGROUND;
+}
+
 function normalizeNpcRow(row: Record<string, string>): TrainerNpcView | null {
   if (row.enabled === "0") return null;
   const type = row.type as TrainerNpcType;
@@ -653,6 +678,7 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     player_trainer: run.player_trainer,
     enemy_trainer: run.enemy_trainer,
     enemy_boss_record: run.enemy_boss_record,
+    battle_background: run.battle_background,
     player_talents: playerTalents,
     show_move_effectiveness: hasTalent(playerTalents, "intel_god_eye"),
   };
@@ -946,13 +972,86 @@ async function goodsCost(itemType: string, itemId: string, fallback = 0): Promis
   return goods.get(`${toId(itemType)}:${toId(itemId)}`)?.item_cost ?? Math.max(0, Number(fallback || 0));
 }
 
-function itemIconAsset(itemId: string, fallback = "assets/placeholders/item.png"): string {
-  const normalized = itemKey(itemId);
-  if (!normalized) return fallback;
+const ITEM_ICON_ALIASES: Record<string, string> = {
+  berry: "oranberry",
+  berserkgene: "mentalherb",
+  bitterberry: "persimberry",
+  burntberry: "aspearberry",
+  goldberry: "sitrusberry",
+  iceberry: "aspearberry",
+  mail: "airmail",
+  mintberry: "chestoberry",
+  miracleberry: "lumberry",
+  mysteryberry: "leppaberry",
+  pinkbow: "silkscarf",
+  polkadotbow: "silkscarf",
+  przcureberry: "cheriberry",
+  psncureberry: "pechaberry",
+};
+
+const Z_CRYSTAL_ICON_TYPES: Record<string, string> = {
+  aloraichiumz: "electric",
+  buginiumz: "bug",
+  darkiniumz: "dark",
+  decidiumz: "ghost",
+  dragoniumz: "dragon",
+  eeviumz: "normal",
+  electriumz: "electric",
+  fairiumz: "fairy",
+  fightiniumz: "fighting",
+  firiumz: "fire",
+  flyiniumz: "flying",
+  ghostiumz: "ghost",
+  grassiumz: "grass",
+  groundiumz: "ground",
+  iciumz: "ice",
+  inciniumz: "dark",
+  kommoniumz: "dragon",
+  lunaliumz: "ghost",
+  lycaniumz: "rock",
+  marshadiumz: "ghost",
+  mewniumz: "psychic",
+  mimikiumz: "fairy",
+  normaliumz: "normal",
+  pikaniumz: "electric",
+  pikashuniumz: "electric",
+  poisoniumz: "poison",
+  primariumz: "water",
+  psychiumz: "psychic",
+  rockiumz: "rock",
+  snorliumz: "normal",
+  solganiumz: "steel",
+  steeliumz: "steel",
+  tapuniumz: "fairy",
+  ultranecroziumz: "psychic",
+  wateriumz: "water",
+};
+
+function itemIconAssetByAssetId(assetId: string): string | null {
+  const normalized = itemKey(assetId);
+  if (!normalized) return null;
   const packIconPath = path.join(projectRoot, "assets", "items-pack", `${normalized}.png`);
   if (existsSync(packIconPath)) return `assets/items-pack/${normalized}.png`;
   const iconPath = path.join(projectRoot, "assets", "items", `${normalized}.png`);
-  return existsSync(iconPath) ? `assets/items/${normalized}.png` : fallback;
+  return existsSync(iconPath) ? `assets/items/${normalized}.png` : null;
+}
+
+function itemIconAsset(itemId: string, fallback = "assets/placeholders/item.png"): string {
+  const normalized = itemKey(itemId);
+  if (!normalized) return fallback;
+  const direct = itemIconAssetByAssetId(normalized);
+  if (direct) return direct;
+  const alias = ITEM_ICON_ALIASES[normalized];
+  if (alias) {
+    const aliasAsset = itemIconAssetByAssetId(alias);
+    if (aliasAsset) return aliasAsset;
+  }
+  const zType = Z_CRYSTAL_ICON_TYPES[normalized];
+  if (zType) {
+    const zAsset = itemIconAssetByAssetId(`${zType}gem`) || itemIconAssetByAssetId(`${zType}memory`);
+    if (zAsset) return zAsset;
+  }
+  return fallback;
 }
 
 function tmIconAsset(): string {
@@ -1086,7 +1185,7 @@ async function itemDetailsById(itemId: string): Promise<ShopItem> {
   const localItem = LOCAL_ITEM_DETAILS[normalized];
   const fallbackName = itemId || normalized;
   const cost = await goodsCost("item", normalized, 5 * BP_SCALE);
-  const icon_asset = itemIconAsset(normalized);
+  const icon_asset = item?.icon_asset || itemIconAsset(normalized);
   return item
     ? {...item, id: normalized, cost, icon_asset}
     : localItem
@@ -1214,13 +1313,14 @@ async function shopOfferFromPoolEntry(entry: ShopPoolEntry, index: number, talen
   const item = (await gameService.itemOptions()).find(option => itemKey(option.id || option.name) === entry.id);
   const localItem = LOCAL_ITEM_DETAILS[entry.id];
   if (!item && !localItem) return null;
-  const detail = item || {id: entry.id, ...localItem, cost: entry.cost || 5 * BP_SCALE, icon_asset: itemIconAsset(entry.id)};
-  const base = {...detail, id: entry.id, cost: entry.cost || detail.cost || 5 * BP_SCALE, icon_asset: itemIconAsset(entry.id)};
+  const icon_asset = item?.icon_asset || itemIconAsset(entry.id);
+  const detail = item || {id: entry.id, ...localItem, cost: entry.cost || 5 * BP_SCALE, icon_asset};
+  const base = {...detail, id: entry.id, cost: entry.cost || detail.cost || 5 * BP_SCALE, icon_asset};
   return {
     ...detail,
     id: entry.id,
     cost: pricedForShop(base, talents),
-    icon_asset: itemIconAsset(entry.id),
+    icon_asset,
     offer_id: `shop-pool-${index}-${entry.id}`,
     category: entry.category,
     source: "shop",
@@ -2546,6 +2646,7 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   run.generation_stage = profiles.join("|");
   run.player_trainer = trainerFromProfile(save.trainer);
   run.enemy_trainer = enemyTrainer;
+  run.battle_background = battleBackgroundForRun(run, enemyTrainer, battleNo);
   run.status = "in_battle";
   run.battle_no = battleNo;
   run.next_battle = battleNo;
@@ -2681,6 +2782,7 @@ async function finishExchange(ownIndex: number | null, enemyIndex: number | null
   delete nextRun.enemy_display;
   delete nextRun.enemy_trainer;
   delete nextRun.enemy_boss_record;
+  delete nextRun.battle_background;
   delete nextRun.boss_type;
   delete nextRun.boss_stage;
   delete nextRun.boss_route;
@@ -2706,6 +2808,7 @@ async function finishRestForNextBattle(save: LocalSave, run: CurrentRunData): Pr
   delete save.current_run.battle_no;
   delete save.current_run.enemy_raw;
   delete save.current_run.enemy_display;
+  delete save.current_run.battle_background;
   const next = await persist(save);
   return startNextBattle(next);
 }

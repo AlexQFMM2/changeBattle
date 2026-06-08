@@ -146,6 +146,7 @@ export type DesktopDexEntry = {
   category: DesktopDexCategory;
   desc?: string;
   desc_zh?: string;
+  icon_asset?: string;
   tags?: string[];
   sprite?: SpriteMapEntry;
   types?: string[];
@@ -310,6 +311,13 @@ export type BattleTimelineEvent = {
   hp?: {current: number; max: number; text: string} | null;
 };
 
+export type BattleBackgroundView = {
+  id: string;
+  name: string;
+  src: string;
+  [key: string]: string | undefined;
+};
+
 export type BattleState = {
   ended: boolean;
   winner: string | null;
@@ -326,6 +334,7 @@ export type BattleState = {
   player_talents?: TalentView[];
   show_move_effectiveness?: boolean;
   enemy_boss_record?: BossDexRecord;
+  battle_background?: BattleBackgroundView;
 };
 
 export type ExchangeState = {
@@ -686,6 +695,7 @@ export type CurrentRunData = {
   player_trainer?: TrainerNpcView;
   enemy_trainer?: TrainerNpcView;
   enemy_boss_record?: BossDexRecord;
+  battle_background?: BattleBackgroundView;
   run_start_bp?: number;
   temporary_bp_debt?: number;
   coins?: number;

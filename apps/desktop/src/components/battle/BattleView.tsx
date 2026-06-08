@@ -1,10 +1,25 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BagItemView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {MoveCard} from "../move/MoveCard";
+import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgrounds.csv?raw";
+
+const BATTLE_BACKGROUNDS = parseBattleBackgroundCsv(battleBackgroundCsv);
+const FALLBACK_BATTLE_BACKGROUND = BATTLE_BACKGROUNDS.find(background => background.id === "mountain-route") || BATTLE_BACKGROUNDS[0];
+
+function parseBattleBackgroundCsv(csv: string): BattleBackgroundView[] {
+  return csv.trim().split(/\r?\n/).slice(1).map(line => {
+    const [id = "", name = "", src = ""] = line.split(",");
+    return {id: id.trim(), name: name.trim(), src: src.trim()};
+  }).filter(entry => entry.id && entry.src);
+}
+
+function battleBackgroundFor(battle: BattleState | null): BattleBackgroundView | null {
+  return battle?.battle_background || FALLBACK_BATTLE_BACKGROUND || null;
+}
 
 function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}): BattleVisualCue | null {
   if (event.type === "move") {
@@ -413,10 +428,13 @@ export function BattleView({battle, battleBag, mode, setMode, onChoice, choicePe
   const detailOpen = detailIndex !== null || mode === "teamMenu";
   const detailInitialIndex = detailIndex ?? activePlayerIndex;
   const trainerOverlayBattle = dialogue ? {...battle, player_trainer: dialogue.playerTrainer || battle.player_trainer, enemy_trainer: dialogue.trainer || battle.enemy_trainer, enemy_boss_record: dialogue.bossRecord || battle.enemy_boss_record} : battle;
+  const battleBackground = battleBackgroundFor(battle);
+  const battleBackgroundUrl = assetUrl(battleBackground?.src);
+  const battleFieldStyle = battleBackgroundUrl ? {"--battle-background-image": `url("${battleBackgroundUrl}")`} as CSSProperties : undefined;
   return (
     <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
       {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => setMode("statusMenu")} /> : null}
-      <section className={`battle-field ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}>
+      <section className={`battle-field ${battleBackgroundUrl ? "has-battle-background" : ""} ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`} style={battleFieldStyle}>
         <div className="battle-platforms" aria-hidden="true">
           <i className="battle-platform player-platform" />
           <i className="battle-platform enemy-platform" />

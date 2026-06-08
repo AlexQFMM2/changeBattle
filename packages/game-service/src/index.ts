@@ -35,6 +35,87 @@ const MAX_GENERATION_ATTEMPTS = 40;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const SIDE_NAMES = {p1: "玩家", p2: "对手"} as const;
 const FALLBACK_HELD_ITEMS = ["Leftovers", "Sitrus Berry", "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Assault Vest", "Focus Sash", "Expert Belt"];
+const ITEM_ICON_FALLBACK = "assets/placeholders/item.png";
+const LOCAL_DEX_ITEMS = [
+  {id: "potion", name: "Potion", name_zh: "回复药", desc: "Restores 20 HP.", desc_zh: "恢复 20 点 HP。"},
+  {id: "freshwater", name: "Fresh Water", name_zh: "美味之水", desc: "Restores 30 HP.", desc_zh: "恢复 30 点 HP。"},
+  {id: "sodapop", name: "Soda Pop", name_zh: "劲爽汽水", desc: "Restores 50 HP.", desc_zh: "恢复 50 点 HP。"},
+  {id: "superpotion", name: "Super Potion", name_zh: "好伤药", desc: "Restores 60 HP.", desc_zh: "恢复 60 点 HP。"},
+  {id: "lemonade", name: "Lemonade", name_zh: "果汁牛奶", desc: "Restores 70 HP.", desc_zh: "恢复 70 点 HP。"},
+  {id: "moomoomilk", name: "Moomoo Milk", name_zh: "哞哞鲜奶", desc: "Restores 100 HP.", desc_zh: "恢复 100 点 HP。"},
+  {id: "hyperpotion", name: "Hyper Potion", name_zh: "绝好伤药", desc: "Restores 120 HP.", desc_zh: "恢复 120 点 HP。"},
+  {id: "maxpotion", name: "Max Potion", name_zh: "全满药", desc: "Fully restores HP.", desc_zh: "恢复全部 HP。"},
+  {id: "fullrestore", name: "Full Restore", name_zh: "全复药", desc: "Fully restores HP and cures status.", desc_zh: "恢复全部 HP，并解除异常状态。"},
+  {id: "revive", name: "Revive", name_zh: "活力碎片", desc: "Revives a fainted Pokemon with half HP.", desc_zh: "让濒死宝可梦复活，并恢复一半 HP。"},
+  {id: "maxrevive", name: "Max Revive", name_zh: "活力块", desc: "Revives a fainted Pokemon with full HP.", desc_zh: "让濒死宝可梦复活，并恢复全部 HP。"},
+  {id: "revivalherb", name: "Revival Herb", name_zh: "复活草", desc: "Revives a fainted Pokemon with full HP.", desc_zh: "让濒死宝可梦复活，并恢复全部 HP。"},
+  {id: "energypowder", name: "Energy Powder", name_zh: "元气粉", desc: "Restores 60 HP.", desc_zh: "恢复 60 点 HP。"},
+  {id: "energyroot", name: "Energy Root", name_zh: "元气根", desc: "Restores 120 HP.", desc_zh: "恢复 120 点 HP。"},
+  {id: "fullheal", name: "Full Heal", name_zh: "万灵药", desc: "Cures status conditions.", desc_zh: "解除异常状态。"},
+  {id: "healpowder", name: "Heal Powder", name_zh: "万能粉", desc: "Cures status conditions.", desc_zh: "解除异常状态。"},
+  {id: "antidote", name: "Antidote", name_zh: "解毒药", desc: "Cures poisoning.", desc_zh: "解除中毒状态。"},
+  {id: "burnheal", name: "Burn Heal", name_zh: "灼伤药", desc: "Cures a burn.", desc_zh: "解除灼伤状态。"},
+  {id: "iceheal", name: "Ice Heal", name_zh: "解冻药", desc: "Cures freezing.", desc_zh: "解除冰冻状态。"},
+  {id: "awakening", name: "Awakening", name_zh: "解眠药", desc: "Cures sleep.", desc_zh: "解除睡眠状态。"},
+  {id: "paralyzeheal", name: "Paralyze Heal", name_zh: "解麻药", desc: "Cures paralysis.", desc_zh: "解除麻痹状态。"},
+  {id: "ether", name: "Ether", name_zh: "PP 单项小补剂", desc: "Restores 10 PP to one move.", desc_zh: "让 1 个招式恢复 10 点 PP。"},
+  {id: "maxether", name: "Max Ether", name_zh: "PP 单项全补剂", desc: "Fully restores PP to one move.", desc_zh: "让 1 个招式恢复全部 PP。"},
+  {id: "elixir", name: "Elixir", name_zh: "PP 多项小补剂", desc: "Restores 10 PP to all moves.", desc_zh: "让所有招式恢复 10 点 PP。"},
+  {id: "maxelixir", name: "Max Elixir", name_zh: "PP 多项全补剂", desc: "Fully restores PP to all moves.", desc_zh: "让所有招式恢复全部 PP。"},
+].map((item, index) => ({...item, sort_order: index + 1}));
+const ITEM_ICON_ALIASES: Record<string, string> = {
+  berry: "oranberry",
+  berserkgene: "mentalherb",
+  bitterberry: "persimberry",
+  burntberry: "aspearberry",
+  goldberry: "sitrusberry",
+  iceberry: "aspearberry",
+  mail: "airmail",
+  mintberry: "chestoberry",
+  miracleberry: "lumberry",
+  mysteryberry: "leppaberry",
+  pinkbow: "silkscarf",
+  polkadotbow: "silkscarf",
+  przcureberry: "cheriberry",
+  psncureberry: "pechaberry",
+};
+const Z_CRYSTAL_TYPE_BY_ID: Record<string, string> = {
+  aloraichiumz: "electric",
+  buginiumz: "bug",
+  darkiniumz: "dark",
+  decidiumz: "ghost",
+  dragoniumz: "dragon",
+  eeviumz: "normal",
+  electriumz: "electric",
+  fairiumz: "fairy",
+  fightiniumz: "fighting",
+  firiumz: "fire",
+  flyiniumz: "flying",
+  ghostiumz: "ghost",
+  grassiumz: "grass",
+  groundiumz: "ground",
+  iciumz: "ice",
+  inciniumz: "dark",
+  kommoniumz: "dragon",
+  lunaliumz: "ghost",
+  lycaniumz: "rock",
+  marshadiumz: "ghost",
+  mewniumz: "psychic",
+  mimikiumz: "fairy",
+  normaliumz: "normal",
+  pikaniumz: "electric",
+  pikashuniumz: "electric",
+  poisoniumz: "poison",
+  primariumz: "water",
+  psychiumz: "psychic",
+  rockiumz: "rock",
+  snorliumz: "normal",
+  solganiumz: "steel",
+  steeliumz: "steel",
+  tapuniumz: "fairy",
+  ultranecroziumz: "psychic",
+  wateriumz: "water",
+};
 
 function battleLogLine(scope: string, message: string, data?: unknown): void {
   if (process.env.CHANGEBATTLE_DEBUG_DETAIL_LOG !== "1") return;
@@ -413,6 +494,84 @@ export class GameService {
     };
   }
 
+  private itemIconAsset(itemId: string | undefined, item?: {name?: string; desc?: string; shortDesc?: string}): string {
+    const normalized = this.toId(itemId || item?.name || "");
+    if (!normalized) return ITEM_ICON_FALLBACK;
+    const direct = this.resolveItemIconAsset(normalized);
+    if (direct) return direct;
+    const alias = ITEM_ICON_ALIASES[normalized];
+    if (alias) {
+      const aliasAsset = this.resolveItemIconAsset(alias);
+      if (aliasAsset) return aliasAsset;
+    }
+    const zType = Z_CRYSTAL_TYPE_BY_ID[normalized] || this.zCrystalType(item);
+    if (zType) {
+      const zAsset = this.resolveItemIconAsset(`${zType}gem`) || this.resolveItemIconAsset(`${zType}memory`);
+      if (zAsset) return zAsset;
+    }
+    const machineType = this.machineTypeForItem(normalized, item);
+    if (machineType) {
+      const prefix = normalized.startsWith("tr") ? "machinetr" : "machine";
+      const machineAsset = this.resolveItemIconAsset(`${prefix}${machineType}`) || this.resolveItemIconAsset(`machine${machineType}`);
+      if (machineAsset) return machineAsset;
+    }
+    return ITEM_ICON_FALLBACK;
+  }
+
+  private resolveItemIconAsset(assetId: string): string | null {
+    const normalized = this.toId(assetId);
+    if (!normalized) return null;
+    const packPath = path.join(this.projectRoot, "assets", "items-pack", `${normalized}.png`);
+    if (existsSync(packPath)) return `assets/items-pack/${normalized}.png`;
+    const itemPath = path.join(this.projectRoot, "assets", "items", `${normalized}.png`);
+    return existsSync(itemPath) ? `assets/items/${normalized}.png` : null;
+  }
+
+  private zCrystalType(item?: {desc?: string; shortDesc?: string}): string {
+    const text = String(item?.desc || item?.shortDesc || "").toLowerCase();
+    const match = text.match(/has an? ([a-z]+) move/) || text.match(/holder's ([a-z]+)-type/);
+    return match ? this.toId(match[1]) : "";
+  }
+
+  private machineTypeForItem(itemId: string, item?: {desc?: string; shortDesc?: string}): string {
+    if (!/^(?:tr|tm)\d+$/i.test(itemId)) return "";
+    const text = String(item?.desc || item?.shortDesc || "");
+    const moveName = text.match(/move ([^.]+)\./i)?.[1];
+    if (!moveName) return "";
+    const move = this.dataDex().moves.get(moveName);
+    return move?.exists ? this.toId(move.type) : "";
+  }
+
+  private itemDescriptionZh(item: any): string {
+    return this.detailDescription("items", item.name) || this.generatedItemDescription(item);
+  }
+
+  private generatedItemDescription(item: any): string {
+    const id = this.toId(item?.id || item?.name || "");
+    const desc = String(item?.desc || item?.shortDesc || "");
+    const moveName = desc.match(/move ([^.]+)\./i)?.[1];
+    if (/^tr\d+$/i.test(id) && moveName) {
+      const move = this.dataDex().moves.get(moveName);
+      const moveLabel = this.zh("moves", move?.exists ? move.name : moveName);
+      return `一次性使用。让宝可梦学会${moveLabel}。`;
+    }
+    const zType = Z_CRYSTAL_TYPE_BY_ID[id] || this.zCrystalType(item);
+    if (zType) return `可用它来制造用于对战的${this.zh("types", zType)}属性Ｚ招式。`;
+    const powerType = desc.match(/holder's ([a-z]+)-type attacks have 1\.2x power/i)?.[1];
+    if (powerType) return `携带后，${this.zh("types", powerType)}属性招式的威力会提高。`;
+    if (/ball$/i.test(id) || /poke ball/i.test(desc)) return "用于捕捉野生宝可梦的球。";
+    if (/evolves/i.test(desc)) return "用于让特定宝可梦进化的道具。";
+    if (/single use/i.test(desc)) return "一次性使用的道具，会在满足条件时发动效果。";
+    if (/holder/i.test(desc)) return "携带后，会在战斗中发动对应效果。";
+    return "具有特殊效果的道具。";
+  }
+
+  private itemDexSortOrder(item: any): number {
+    const num = Number(item?.num || 0);
+    if (num > 0) return 1000 + num;
+    return 900000;
+  }
+
   async itemOptions(): Promise<ShopItem[]> {
     await this.loadDisplayData();
     const dex = this.dataDex();
@@ -424,7 +583,8 @@ export class GameService {
         name_zh: this.zh("items", item.name),
         cost: 500,
         desc: item.desc || item.shortDesc || "",
-        desc_zh: this.detailDescription("items", item.name),
+        desc_zh: this.itemDescriptionZh(item),
+        icon_asset: this.itemIconAsset(item.id, item),
       }));
   }
 
@@ -436,7 +596,7 @@ export class GameService {
     const normalizedOffset = Math.max(0, Number(offset || 0));
     const needle = String(query || "").trim().toLowerCase();
     const needleId = this.toId(needle);
-    type RankedDexEntry = DesktopDexEntry & {search_rank?: number};
+    type RankedDexEntry = DesktopDexEntry & {search_rank?: number; sort_order?: number};
     const searchRank = (entry: DesktopDexEntry, extraParts: string[] = []) => {
       if (!needle && !needleId) return 0;
       const names = [entry.id, entry.name, entry.name_zh].filter(Boolean).map(value => String(value).toLowerCase());
@@ -466,11 +626,15 @@ export class GameService {
       if (needleId && extraIds.some(value => value === needleId || value.startsWith(needleId) || value.includes(needleId))) return 6;
       return null;
     };
-    const includeRank = (entry: DesktopDexEntry, extraParts: string[] = []): RankedDexEntry | null => {
+    const includeRank = (entry: RankedDexEntry, extraParts: string[] = []): RankedDexEntry | null => {
       const rank = searchRank(entry, extraParts);
       return rank === null ? null : {...entry, search_rank: rank};
     };
     const byRankThenName = (a: RankedDexEntry, b: RankedDexEntry) => Number(a.search_rank || 0) - Number(b.search_rank || 0) || a.name.localeCompare(b.name);
+    const byRankThenItemOrder = (a: RankedDexEntry, b: RankedDexEntry) => Number(a.search_rank || 0) - Number(b.search_rank || 0)
+      || Number(a.sort_order || 900000) - Number(b.sort_order || 900000)
+      || (a.name_zh || a.name).localeCompare(b.name_zh || b.name, "zh-Hans-CN")
+      || a.name.localeCompare(b.name);
     const byRankThenDex = (a: RankedDexEntry, b: RankedDexEntry) => Number(a.search_rank || 0) - Number(b.search_rank || 0) || Number(a.sprite?.national_dex || 9999) - Number(b.sprite?.national_dex || 9999) || a.name.localeCompare(b.name);
     let entries: RankedDexEntry[] = [];
     const shouldSearchLearnset = [...needle].length >= 2 || needleId.length >= 3;
@@ -536,23 +700,41 @@ export class GameService {
         .filter(Boolean)
         .sort(byRankThenName);
     } else {
-      entries = dex.items.all()
+      const localEntries = LOCAL_DEX_ITEMS.map(item => includeRank({
+        id: item.id,
+        name: item.name,
+        name_zh: item.name_zh,
+        category: "items" as const,
+        desc: item.desc,
+        desc_zh: item.desc_zh,
+        icon_asset: this.itemIconAsset(item.id, item),
+        tags: [item.id, item.name, item.name_zh],
+        sort_order: item.sort_order,
+      }));
+      const localItemIds = new Set(LOCAL_DEX_ITEMS.map(item => item.id));
+      entries = [
+        ...localEntries,
+        ...dex.items.all()
         .filter((item: any) => item.exists && this.includeDataEntry(item))
+        .filter((item: any) => !localItemIds.has(item.id))
         .map((item: any) => includeRank({
           id: item.id,
           name: item.name,
           name_zh: this.zh("items", item.name),
           category: "items" as const,
           desc: item.desc || item.shortDesc || "",
-          desc_zh: this.detailDescription("items", item.name),
+          desc_zh: this.itemDescriptionZh(item),
+          icon_asset: this.itemIconAsset(item.id, item),
           tags: [item.id],
-        }))
+          sort_order: this.itemDexSortOrder(item),
+        })),
+      ]
         .filter(Boolean)
-        .sort(byRankThenName);
+        .sort(byRankThenItemOrder);
     }
 
     const total = entries.length;
-    const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit).map(({search_rank, ...entry}) => entry.category === "pokemon" ? {...entry, learnset: this.speciesLearnset(entry.id, dex, 96)} : entry);
+    const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit).map(({search_rank, sort_order, ...entry}) => entry.category === "pokemon" ? {...entry, learnset: this.speciesLearnset(entry.id, dex, 96)} : entry);
     return {
       category: normalizedCategory,
       query: String(query || ""),

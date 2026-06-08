@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import {flushSync} from "react-dom";
 import {createRoot} from "react-dom/client";
 import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "react-router";
 import type {AppStatus, BagCategoryView, BattleState, DesktopGameState, LocalSave, RentalPokemon, RestAction, ResultSummaryState, TrainerCatalogState} from "@changebattle/shared";
@@ -189,7 +190,7 @@ function RoutedApp() {
     });
   }, []);
 
-  function applyState(state: DesktopGameState) {
+  function applyStateData(state: DesktopGameState) {
     const nextBattle = state.battle || null;
     setSave(state.save || null);
     if (state.candidates?.display) {
@@ -207,9 +208,13 @@ function RoutedApp() {
     setRest(state.rest || null);
     setResultSummary(state.result_summary || null);
     setPendingTransition(state.pending_transition || null);
-    navigateToScreen(state.screen);
     setMessage(state.message || "");
     if (state.toast_message) showAppToast(state.toast_message, 2400);
+  }
+
+  function applyState(state: DesktopGameState) {
+    flushSync(() => applyStateData(state));
+    navigateToScreen(state.screen);
   }
 
   function transitionToState(state: DesktopGameState, reason: RouteTransitionReason) {
@@ -220,8 +225,11 @@ function RoutedApp() {
     navigate(TRANSITION_ROUTE);
     routeTransitionTimerRef.current = window.setTimeout(() => {
       routeTransitionTimerRef.current = null;
-      setRouteTransition(null);
-      applyState(state);
+      flushSync(() => {
+        applyStateData(state);
+        setRouteTransition(null);
+      });
+      navigateToScreen(state.screen);
     }, copy.durationMs);
   }
 

@@ -84,6 +84,7 @@ function shopItemToDexEntry(item: ShopItem): DesktopDexEntry {
     category: "items",
     desc: item.desc,
     desc_zh: item.desc_zh,
+    icon_asset: item.icon_asset,
   };
 }
 

@@ -9,6 +9,7 @@ work/
 release/
 saves/
 logs/
+tmp/
 assets/pokemon-green/
 node_modules/
 apps/desktop/out/
