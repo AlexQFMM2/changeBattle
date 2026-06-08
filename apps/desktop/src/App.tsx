@@ -429,7 +429,8 @@ function RoutedApp() {
 
   function openDex() {
     const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
-    const canOpenDex = screen === "mainMenu" || (BATTLE_SCREENS.includes(screen) && battleHasDexTalent);
+    const restHasDexTalent = Boolean(rest?.talents?.some(talent => talent.id === "intel_god_eye"));
+    const canOpenDex = screen === "mainMenu" || (BATTLE_SCREENS.includes(screen) && battleHasDexTalent) || (screen === "rest" && restHasDexTalent);
     if (!canOpenDex) {
       showAppToast("当前页面不能打开图鉴。");
       return;
@@ -475,7 +476,8 @@ function RoutedApp() {
   const hideTransientMessage = HIDDEN_MESSAGE_SCREENS.includes(screen);
   const transientMessage = !isBattleScreen && !hideTransientMessage ? message : "";
   const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
-  const showDexButton = isBattleScreen && battleHasDexTalent;
+  const restHasDexTalent = Boolean(rest?.talents?.some(talent => talent.id === "intel_god_eye"));
+  const showDexButton = (isBattleScreen && battleHasDexTalent) || (screen === "rest" && restHasDexTalent);
 
   useEffect(() => {
     if (!showDexButton && dexOpen) setDexOpen(false);

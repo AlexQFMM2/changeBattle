@@ -1,6 +1,12 @@
 # green.gba 图片资源说明
 
-`green.gba` 是一个基于美版 Pokemon Emerald 的改版 ROM，头信息为 `POKEMON EMER / BPEE01`。当前只把它当成本地图片资源来源使用，不修改 ROM 本体。
+## 当前状态
+
+这是一份历史/低频参考文档，用来记录 `green.gba` 的导出、校对和素材研究流程；它不再代表当前桌面运行时的图片来源。
+
+当前宝可梦图片优先来自 `assets/pokemon-pack`，其次来自 `assets/pokemon-showdown`，最后才回退到占位图。`green.gba` 导出结果只作为历史校对和未来素材研究入口，不应把 `assets/pokemon-green` 当作 release 资源或当前运行时资源。
+
+`green.gba` 是一个基于美版 Pokemon Emerald 的改版 ROM，头信息为 `POKEMON EMER / BPEE01`。这份文档只说明如何读取资源，不修改 ROM 本体。
 
 ## 已确认的资源表
 
@@ -41,22 +47,25 @@ dump/green-gba-pokemon/sheets/back_normal_000.png
 
 `front_normal_full.png` / `front_shiny_full.png` 会保留 Emerald 正面动画的完整帧高度；`front_normal.png` / `front_shiny.png` 只取第一帧，适合 UI 直接展示。
 
-## 本地稳定资源目录
+## 当前运行时图片来源
 
-为了让桌面 UI 使用稳定路径，可以把导出结果复制到：
+当前桌面运行时不再读取 `assets/pokemon-green`。宝可梦图片来源顺序是：
 
 ```text
-assets/pokemon-green/pokemon/{index}/...
+assets/pokemon-pack
+assets/pokemon-showdown
+assets/placeholders/pokemon.png
 ```
 
-当前本地已经复制了一份。这个目录被 `.gitignore` 忽略，不随仓库发布。
-
-如果需要重新复制：
+如果需要重新研究 `green.gba` 图片，可以继续导出到临时目录：
 
 ```bash
-mkdir -p assets/pokemon-green
-cp -a dump/green-gba-pokemon/pokemon assets/pokemon-green/
+python3 tools/extract_green_gba_pokemon_sprites.py \
+  /home/alexqfmm/workPlace/pokemon/green.gba \
+  --out-dir dump/green-gba-pokemon
 ```
+
+导出结果保留为历史校对、错图排查或未来素材研究用；不要再复制成运行时资源目录。
 
 ## Showdown species 到图片的映射
 
@@ -93,7 +102,7 @@ CSV 是之后校图的主入口，每行至少关心这两列：
 
 ```text
 species_id,image
-ambipom,assets/pokemon-green/pokemon/0477/front_normal.png
+ambipom,assets/pokemon-pack/pokemon/0477/front_normal.png
 ```
 
 当前默认映射策略：
@@ -111,6 +120,7 @@ UI 读取流程建议：
 Showdown species id
   -> data/sprite_index_map.json entries[species_id]  # 由 CSV 生成
   -> paths.front_normal / paths.back_normal
+  -> 依次尝试 pokemon-pack / pokemon-showdown
   -> 找不到时回退 assets/placeholders/pokemon.png
 ```
 

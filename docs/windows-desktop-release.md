@@ -104,6 +104,18 @@ ChangeBattle-Desk-portable-vX.Y.Z\RELEASE-README.md
 
 `RELEASE-README.md` 里的版本必须和 zip 文件名一致。
 
+## 资产打包提醒
+
+`tools/package_desktop_release.py` 会排除旧残留素材目录，避免便携包继续膨胀：
+
+```text
+assets/pokemon-green
+assets/battle-effects-pack
+assets/battle/stage
+```
+
+当前运行时宝可梦图片主要来自 `assets/pokemon-pack`，其次来自 `assets/pokemon-showdown`；战斗背景只应来自 `assets/battle-backgrounds/backgrounds.csv` 中登记的当前背景。
+
 ## 1. 本地准备
 
 在 Linux 本地仓库：
@@ -122,6 +134,28 @@ package.json
 apps/desktop/package.json
 packages/shared/package.json
 packages/game-service/package.json
+```
+
+发版前确认 `assets/battle-backgrounds` 只保留 `backgrounds.csv` 和当前 10 张背景：
+
+```text
+backgrounds.csv
+grassland.png
+forest.png
+lakeside.png
+tropical-beach.png
+ocean-rafts.png
+ceremonial-stage.png
+snowfield.png
+neon-downtown.png
+champion-stage.png
+mountain-route.png
+```
+
+可用这个命令快速检查：
+
+```bash
+find assets/battle-backgrounds -maxdepth 1 -type f -printf '%f\n' | sort
 ```
 
 本地验证：

@@ -12935,6 +12935,14 @@ button.party-status-chip {
   white-space: nowrap;
 }
 
+.rental-skill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .rental-skill-badges {
   display: flex;
   gap: 3px;
@@ -12947,7 +12955,8 @@ button.party-status-chip {
 }
 
 .rental-start-button,
-.rental-profile-pick {
+.rental-profile-pick,
+.rental-utility-button {
   min-height: 17px;
   border: 1px solid #0f3d24;
   border-radius: 4px;
@@ -13176,6 +13185,17 @@ button.party-status-chip {
   font-weight: 1000;
   line-height: 1;
   text-shadow: none;
+}
+
+.rental-utility-button {
+  border-color: rgb(244 219 132 / 55%);
+  background: linear-gradient(180deg, #f4db84, #b37a2d);
+  color: #2b1b0d;
+}
+
+.rental-utility-button:disabled {
+  opacity: .54;
+  filter: grayscale(.35) saturate(.7);
 }
 
 .rental-thumbnail .pokemon-sprite {

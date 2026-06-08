@@ -30,6 +30,7 @@ import {
   itemCategory,
   moveDrawCost,
   moveDrawCount,
+  normalizeStarterUpgrades,
   portfolioBonus,
   portfolioSpendTypeForLabel,
   pricedForShop,
@@ -45,6 +46,7 @@ import {
   spendCoins,
   starterCoinsForSeed,
   starterNonConvertibleCoinsForTalents,
+  starterUpgradeLevel,
   statResetCost,
   talent,
 } from "./run-rules.js";
@@ -99,6 +101,12 @@ function testStarterTalents(): void {
   assert.equal(starterCoinsForSeed(1), 0);
   assert.equal(starterCoinsForSeed(1, talents(["starter_angel_fund"])), 1000);
   assert.equal(starterNonConvertibleCoinsForTalents(talents(["starter_angel_fund"])), 1000);
+  const upgrades = normalizeStarterUpgrades({item_quantity: {battle: 0, recovery: 0, berry: 0, tm: 0}});
+  assert.equal(starterUpgradeLevel(upgrades, "item_quantity:battle"), 2);
+  assert.equal(starterUpgradeLevel(upgrades, "item_quantity:recovery"), 2);
+  assert.equal(starterUpgradeLevel(upgrades, "item_quantity:berry"), 2);
+  assert.equal(starterUpgradeLevel(upgrades, "item_quantity:tm"), 2);
+  assert.equal(starterUpgradeLevel(upgrades, "item_quality:battle"), 1);
 }
 
 function testExchangeTalents(): void {

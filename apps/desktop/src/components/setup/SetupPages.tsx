@@ -391,7 +391,7 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
   );
 }
 
-export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void; onStart: () => void | Promise<void>; onBack?: () => void | Promise<void>; onReroll?: () => void | Promise<void>; onSingleReroll?: () => void | Promise<void>; onInspect?: () => void; runSeed?: number; wholeRerollsRemaining?: number; singleRerollsRemaining?: number; inspectRemaining?: number; revealTraining?: boolean; inspected?: boolean}) {
+export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack, onReroll, onSingleReroll, onInspect, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false, inspected = false}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void; onStart: () => void | Promise<void>; onBack?: () => void | Promise<void>; onReroll?: () => void | Promise<void>; onSingleReroll?: () => void | Promise<void>; onInspect?: () => void; runSeed?: number; wholeRerollsRemaining?: number; singleRerollsRemaining?: number; inspectRemaining?: number; revealTraining?: boolean; inspected?: boolean}) {
   const pokemon = candidates[focusIndex];
   if (!pokemon) return <div className="loading-panel"><strong>正在生成租赁候选...</strong></div>;
   const focusedSelected = selected.includes(focusIndex);
@@ -412,12 +412,18 @@ export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, o
             <span>{originLabel}</span>
             <span>已选 {selected.length}/3</span>
           </div>
-          {visibleSkillBadges.length ? (
-            <div className="rental-skill-badges" aria-label="可用技能">
-              {visibleSkillBadges.map(label => <span key={label}>{label}</span>)}
-            </div>
-          ) : null}
-          <button className="rental-start-button" disabled={selected.length !== 3} onClick={onStart}>开始游戏</button>
+          <div className="rental-skill-actions" aria-label="开局能力">
+            {visibleSkillBadges.length ? (
+              <div className="rental-skill-badges" aria-label="可用技能">
+                {visibleSkillBadges.map(label => <span key={label}>{label}</span>)}
+              </div>
+            ) : null}
+            {onBack ? <button className="rental-utility-button" onClick={onBack}>返回</button> : null}
+            <button className="rental-utility-button" disabled={!onReroll || wholeRerollsRemaining <= 0} onClick={() => void onReroll?.()}>换人 {wholeRerollsRemaining}</button>
+            <button className="rental-utility-button" disabled={!onSingleReroll || singleRerollsRemaining <= 0} onClick={() => void onSingleReroll?.()}>发功 {singleRerollsRemaining}</button>
+            <button className="rental-utility-button" disabled={!onInspect || inspectRemaining <= 0 || inspected} onClick={() => onInspect?.()}>{inspected ? "已验牌" : `验牌 ${inspectRemaining}`}</button>
+          </div>
+          <button className="rental-start-button" disabled={selected.length !== 3} onClick={() => void onStart()}>开始游戏</button>
         </header>
         <AnimatePresence mode="wait">
           <motion.div className="rental-profile-stage" initial={{opacity: 0, x: 16}} animate={{opacity: 1, x: 0}} exit={{opacity: 0, x: -16}} transition={{type: "spring", stiffness: 330, damping: 30}} key={pokemon.run_member_id || pokemon.species_id || focusIndex}>

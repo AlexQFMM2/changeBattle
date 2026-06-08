@@ -1744,11 +1744,9 @@ async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, bat
   const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(trainer, run, battleNo);
   const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
   const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
-  const enemyDisplay = generated.display.slice(0, 3);
-  const battleSeed = gameService.deriveSeed(Number(run.seed), 200 + battleNo);
-  const orderedEnemies = gameService.enemyTeamPreviewOrder(run.player_display || [], enemyDisplay, battleSeed).map(index => enemyDisplay[index]).filter(Boolean);
+  const enemies = generated.display.slice(0, 3);
   const label = route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : "馆主";
-  return {route, trainer, enemies: orderedEnemies, label};
+  return {route, trainer, enemies, label};
 }
 
 async function buildNightSkyState(save: LocalSave, run: CurrentRunData): Promise<CurrentRunData["night_sky"] | undefined> {
@@ -2249,7 +2247,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     ? await generateOpponentPreview(save, run, nextBattleNo)
     : null;
   const rest: RestState = {
-    battle_no: Number(run.battle_no || Math.max(1, Number(run.next_battle || 1) - 1)),
+    battle_no: Number(run.battle_no ?? Math.max(0, Number(run.next_battle || 1) - 1)),
     battles: Number(run.battles || DEFAULT_BATTLES),
     wins: Number(run.wins || 0),
     battle_points: currentBp(save),

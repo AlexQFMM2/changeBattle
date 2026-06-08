@@ -174,7 +174,7 @@ export function normalizeStarterUpgrades(upgrades?: StarterUpgradeState | null):
   const itemQuantity: Partial<Record<StarterItemGroup, number>> = {};
   for (const group of STARTER_ITEM_GROUPS) {
     itemQuality[group.id] = Math.max(1, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quality?.[group.id] ?? STARTER_ITEM_DEFAULT_QUALITY_LEVEL))));
-    itemQuantity[group.id] = Math.max(0, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quantity?.[group.id] ?? STARTER_ITEM_DEFAULT_QUANTITY_LEVEL))));
+    itemQuantity[group.id] = Math.max(STARTER_ITEM_DEFAULT_QUANTITY_LEVEL, Math.min(STARTER_ITEM_MAX_LEVEL, Math.floor(Number(upgrades?.item_quantity?.[group.id] ?? STARTER_ITEM_DEFAULT_QUANTITY_LEVEL))));
   }
   return {
     item_quality: itemQuality,

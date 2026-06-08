@@ -50,7 +50,9 @@ SHOWDOWN_NODE_MODULES = [
 
 
 def ignore_runtime_dirs(_dir: str, names: list[str]) -> set[str]:
-    ignored = {"__pycache__", ".pytest_cache", "node_modules", "dist", "dist-electron"}
+    ignored = {"__pycache__", ".pytest_cache", "node_modules", "dist", "dist-electron", "pokemon-green", "battle-effects-pack"}
+    if Path(_dir).as_posix().endswith("assets/battle"):
+        ignored.add("stage")
     ignored.update(name for name in names if name.endswith(".pyc"))
     return ignored
 

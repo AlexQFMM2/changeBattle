@@ -554,6 +554,8 @@ function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNu
   const canRerouteSelected = Boolean(hasRerouteTalent && selectedRow && selectedFuture && rerouteUsed < rerouteLimit);
   const canScoutOne = Boolean(hasScoutTalent && selectedRow && selectedFuture && Number(selectedRow.revealed || 0) < 1);
   const canScoutAll = Boolean(hasScoutTalent && selectedRow && selectedFuture && !selectedRow.unlocked);
+  const scoutOneLabel = !hasScoutTalent ? "需要小道消息" : !selectedFuture ? "已挑战" : Number(selectedRow?.revealed || 0) >= 1 ? "已揭示一只" : "免费解锁一只";
+  const scoutAllLabel = !hasScoutTalent ? "需要小道消息" : !selectedFuture ? "已挑战" : selectedRow?.unlocked ? "已解锁三只" : `金币解锁三只 ${coinCostLabel(rest.costs.scout_all)}`;
   return (
     <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal night-sky-modal night-sky-gallery-modal">
@@ -586,8 +588,8 @@ function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNu
                     ))}
                   </div>
                   <div className="night-sky-actions">
-                    <button disabled={!canScoutOne} onClick={() => onAction({type: "night_sky_scout", battleNo: selectedRow.battle_no, level: "one"})}>{hasScoutTalent ? "免费解锁一只" : "需要小道消息"}</button>
-                    <button disabled={!canScoutAll} onClick={() => onAction({type: "night_sky_scout", battleNo: selectedRow.battle_no, level: "all"})}>{hasScoutTalent ? `金币解锁三只 ${coinCostLabel(rest.costs.scout_all)}` : "需要小道消息"}</button>
+                    <button disabled={!canScoutOne} onClick={() => onAction({type: "night_sky_scout", battleNo: selectedRow.battle_no, level: "one"})}>{scoutOneLabel}</button>
+                    <button disabled={!canScoutAll} onClick={() => onAction({type: "night_sky_scout", battleNo: selectedRow.battle_no, level: "all"})}>{scoutAllLabel}</button>
                     <button disabled={!canRerouteSelected} onClick={() => onAction({type: "reroute_next", battleNo: selectedRow.battle_no})}>{hasRerouteTalent ? `更换对手 ${rerouteUsed}/${rerouteLimit}` : "需要公子驾到"}</button>
                   </div>
                 </motion.article>

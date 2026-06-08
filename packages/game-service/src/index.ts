@@ -2041,10 +2041,7 @@ export class BattleSession {
   private enemyTeamPreviewChoice(request: BattleRequestView): string {
     const indexes = Array.from({length: request.side?.pokemon?.length || 0}, (_value, index) => index + 1);
     if (!indexes.length) return "default";
-    const playerLead = this.activeDisplay("p1");
-    const ordered = enemyPreviewOrder(this.enemyDisplay.slice(0, indexes.length), playerLead, () => this.nextRandom(), this.sim.Dex.mod("gen7")).map(index => index + 1);
-    for (const index of indexes) if (!ordered.includes(index)) ordered.push(index);
-    return "team " + ordered.join("");
+    return "team " + indexes.join("");
   }
 
   private enemySwitchChoice(request: BattleRequestView): string {
