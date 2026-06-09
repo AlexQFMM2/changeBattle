@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 contextBridge.exposeInMainWorld("changeBattle", {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld("changeBattle", {
   },
   updateTrainer(trainer: TrainerProfile): Promise<LocalSave> {
     return ipcRenderer.invoke("save:updateTrainer", trainer);
+  },
+  battleRecords(): Promise<SaveBattleRecordsTable> {
+    return ipcRenderer.invoke("save:battleRecords");
   },
   enableTestMode(): Promise<LocalSave> {
     return ipcRenderer.invoke("save:testMode");

@@ -3,7 +3,7 @@ import type {DesktopDexCategory, DesktopDexEntry, MoveSummary} from "@changebatt
 import {AnimatePresence, motion, type Variants} from "motion/react";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard} from "../move/MoveCard";
-import {ItemIcon, STAT_ROWS, assetUrl} from "../../lib/ui";
+import {ItemIcon, STAT_ROWS, assetUrl, playPokemonCry} from "../../lib/ui";
 
 export type QuickDexCategory = Exclude<DesktopDexCategory, "trainers">;
 
@@ -121,6 +121,10 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
   useEffect(() => {
     setPage(0);
   }, [category, searchQuery]);
+
+  useEffect(() => {
+    if (selected?.category === "pokemon") playPokemonCry(selected, "quick-dex");
+  }, [selected?.category, selected?.id, selected?.sprite?.cry_asset]);
 
   function chooseCategory(nextCategory: QuickDexCategory) {
     if (nextCategory === category) return;

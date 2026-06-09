@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState} from "react";
 import type {DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, RentalPokemon} from "@changebattle/shared";
 import {AnimatedModalLayer, AnimatedPanel} from "../motion/Animated";
 import {PokemonProfile} from "../pokemon/PokemonProfile";
-import {ItemIcon, PokemonSprite, STAT_ROWS, assetUrl, displayName, trainerImageUrl} from "../../lib/ui";
+import {ItemIcon, PokemonSprite, STAT_ROWS, assetUrl, displayName, playPokemonCry, trainerImageUrl} from "../../lib/ui";
 
 const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
   {id: "pokemon", label: "宝可梦"},
@@ -73,6 +73,10 @@ export function DexModal({onClose}: {onClose: () => void}) {
       window.clearTimeout(timer);
     };
   }, [category, query, trainerFilter, currentPage]);
+
+  useEffect(() => {
+    if (selected?.category === "pokemon") playPokemonCry(selected, "dex");
+  }, [selected?.category, selected?.id, selected?.sprite?.cry_asset]);
 
   return (
     <AnimatedModalLayer className="modal-layer">

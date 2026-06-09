@@ -26,6 +26,7 @@ function installBrowserAutomationBridge() {
     createNewSave: async trainer => ({...save, trainer}),
     deleteSave: async () => undefined,
     updateTrainer: async trainer => ({...save, trainer}),
+    battleRecords: async () => ({version: 1, records: []}),
     enableTestMode: async () => ({...save, stats: {...save.stats, battle_points: 99999}}),
     trainerCatalog: async () => ({
       players: [{id: "player:debug", type: "player", name_zh: "斗也", front_asset: "assets/npc/player-front/斗也-bw_black.png", back_asset: "assets/npc/player-back/斗也-bw_touya_back.png", avatar_asset: "assets/npc/avatars/斗也-blackchallenge.png"}],

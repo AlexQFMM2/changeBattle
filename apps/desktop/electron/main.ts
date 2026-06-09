@@ -4,7 +4,7 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleBackgroundView, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {battleSlotShowdownId} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
@@ -946,10 +946,11 @@ function collectBattlePokemonStatEvents(run: CurrentRunData, battle: BattleState
   return statEvents;
 }
 
-function recordRunBattleStats(run: CurrentRunData, battle: BattleState): void {
+function recordRunBattleStats(run: CurrentRunData, battle: BattleState): ResultPokemonStatEvent[] {
   rememberRunPokemonAppearances(run, battle.player_display);
   const statEvents = collectBattlePokemonStatEvents(run, battle);
   run.used_pokemon_stat_events = [...(run.used_pokemon_stat_events || []), ...statEvents];
+  return statEvents;
 }
 
 function resultUsedPokemon(run: CurrentRunData | null | undefined, fallbackTeam: RentalPokemon[]): ResultPokemonSummary[] {
@@ -962,6 +963,56 @@ function resultUsedPokemon(run: CurrentRunData | null | undefined, fallbackTeam:
     pokemon,
     ...mergeResultPokemonStats(run?.used_pokemon_stats?.[key] || emptyResultPokemonStats(), eventStats[key] || emptyResultPokemonStats()),
   }));
+}
+
+function battlePokemonSummaries(run: CurrentRunData, battle: BattleState, events: ResultPokemonStatEvent[]): ResultPokemonSummary[] {
+  const eventStats = aggregatePokemonStatEvents(events);
+  return battle.player_display.map(pokemon => {
+    const key = resultPokemonKey(pokemon);
+    return {
+      pokemon,
+      ...mergeResultPokemonStats(run.used_pokemon_stats?.[key] || emptyResultPokemonStats(), eventStats[key] || emptyResultPokemonStats()),
+    };
+  });
+}
+
+function buildBattleRecord(options: {run: CurrentRunData; battle: BattleState; message: string; outcome: BattleRecordEntry["outcome"]; statEvents: ResultPokemonStatEvent[]; resultSummary?: ResultSummaryState}): BattleRecordEntry {
+  const run = options.run;
+  const battle = options.battle;
+  return {
+    id: randomUUID(),
+    created_at: new Date().toISOString(),
+    run_seed: Number(run.seed || 0),
+    battle_no: Math.max(1, Number(run.battle_no || activeBattleNo || run.next_battle || 1)),
+    total_battles: Math.max(1, Number(run.battles || DEFAULT_BATTLES)),
+    outcome: options.outcome,
+    winner: battle.winner,
+    message: options.message,
+    enemy_trainer: run.enemy_trainer,
+    player_team: battle.player_display,
+    enemy_team: battle.enemy_display || run.enemy_display || [],
+    player_pokemon: battlePokemonSummaries(run, battle, options.statEvents),
+    result_summary: options.resultSummary,
+  };
+}
+
+function buildRunRecord(options: {run: CurrentRunData; message: string; outcome: BattleRecordEntry["outcome"]; resultSummary?: ResultSummaryState}): BattleRecordEntry {
+  const run = options.run;
+  return {
+    id: randomUUID(),
+    created_at: new Date().toISOString(),
+    run_seed: Number(run.seed || 0),
+    battle_no: Math.max(1, Number(run.battle_no || run.next_battle || 1)),
+    total_battles: Math.max(1, Number(run.battles || DEFAULT_BATTLES)),
+    outcome: options.outcome,
+    winner: options.outcome === "win" ? "Player" : options.outcome,
+    message: options.message,
+    enemy_trainer: run.enemy_trainer,
+    player_team: run.player_display || [],
+    enemy_team: run.enemy_display || [],
+    player_pokemon: resultUsedPokemon(run, run.player_display || []),
+    result_summary: options.resultSummary,
+  };
 }
 
 function resultProgressRows(options: {run?: CurrentRunData | null; wins: number; outcome: ResultSummaryState["outcome"]; battle?: BattleState | null}): ResultSummaryState["progress"] {
@@ -1214,6 +1265,17 @@ async function loadStarterItemPool(): Promise<StarterItemPoolEntry[]> {
   return starterItemPoolCache;
 }
 
+async function itemBaseCostById(itemId: string, fallback = 5 * BP_SCALE): Promise<number> {
+  const normalized = itemKey(itemId);
+  const shopEntry = (await loadShopPool()).find(entry => entry.kind === "item" && entry.id === normalized);
+  if (shopEntry) return shopEntry.cost;
+  const guaranteed = GUARANTEED_SHOP_ITEMS.find(entry => entry.id === normalized);
+  if (guaranteed) return guaranteed.cost;
+  const starterEntry = (await loadStarterItemPool()).find(entry => entry.kind === "item" && entry.id === normalized);
+  if (starterEntry) return starterEntry.cost;
+  return goodsCost("item", normalized, fallback);
+}
+
 function weightedPick<T extends {weight?: number}>(values: T[], rng: () => number): T | null {
   const total = values.reduce((sum, value) => sum + Math.max(0, Number(value.weight || 1)), 0);
   if (total <= 0) return values[0] || null;
@@ -1277,7 +1339,7 @@ async function itemDetailsById(itemId: string): Promise<ShopItem> {
   const item = (await gameService.itemOptions()).find(option => itemKey(option.id || option.name) === normalized);
   const localItem = LOCAL_ITEM_DETAILS[normalized];
   const fallbackName = itemId || normalized;
-  const cost = await goodsCost("item", normalized, 5 * BP_SCALE);
+  const cost = await itemBaseCostById(normalized);
   const icon_asset = item?.icon_asset || itemIconAsset(normalized);
   return item
     ? {...item, id: normalized, cost, icon_asset}
@@ -1297,13 +1359,14 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
       ...item,
       name: meta?.name || item.name,
       name_zh: meta?.name_zh || item.name_zh,
+      cost: Math.max(0, Number(meta?.cost ?? item.cost ?? 0)),
       desc: meta?.desc || item.desc,
       desc_zh: meta?.desc_zh || item.desc_zh,
       icon_asset: meta?.icon_asset || item.icon_asset,
     };
     let category = (meta?.category as ItemCategory | undefined) || itemCategory(item);
     if (category === "consumable" && !(await gameService.hasConsumableItemEffect(normalized))) category = "held";
-    const sellPrice = sellPriceForItem(item, run);
+    const sellPrice = sellPriceForItem(displayItem, run);
     const moveId = isTmItemId(normalized) ? normalized.slice(3) : undefined;
     result[category].push({
       ...displayItem,
@@ -1337,6 +1400,7 @@ function rememberBagItemMeta(run: CurrentRunData, offer: Partial<ShopOffer> | Sh
       name_zh: offer.name_zh,
       desc: offer.desc,
       desc_zh: offer.desc_zh,
+      cost: Math.max(0, Math.floor(Number((offer as Partial<ShopOffer>).cost ?? 0))),
       icon_asset: (offer as Partial<ShopOffer>).icon_asset,
       category: (offer as Partial<ShopOffer>).category || itemCategory(categorySource),
       move_id: (offer as Partial<ShopOffer>).move_id,
@@ -2732,7 +2796,9 @@ async function settleInterruptedBattle(save: LocalSave, run: CurrentRunData): Pr
   const next = await persist(save);
   const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "本场对手";
   const message = `读档时发现第 ${battleNo} 场战斗未完成，判定挑战失败。对手：${enemyName}。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
-  return gameState({screen: "result", save: next, message, result_summary: buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `第 ${battleNo} 场战斗中断，已按失败结算`, wins, settled, run})});
+  const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `第 ${battleNo} 场战斗中断，已按失败结算`, wins, settled, run});
+  await saveStore?.appendBattleRecord(buildRunRecord({run, message, outcome: "loss", resultSummary}));
+  return gameState({screen: "result", save: next, message, result_summary: resultSummary});
 }
 
 async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
@@ -2823,7 +2889,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   const run = save.current_run as CurrentRunData;
   const winBp = recordBattleResult(save, state.winner, run);
   run.player_state = activeBattle.getPlayerState();
-  recordRunBattleStats(run, state);
+  const statEvents = recordRunBattleStats(run, state);
   if (state.winner !== "Player") {
     const wins = Number(run.wins || 0);
     rememberRunForSoulmate(save, run);
@@ -2833,7 +2899,9 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "对手训练师";
     const lossMessage = `挑战结束。败给 ${enemyName}。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
     const resultBattle = decorateBattleState(state, run);
-    const transition = gameState({screen: "result", save: next, battle: resultBattle, message: lossMessage, result_summary: buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `败给 ${enemyName}`, wins, settled, battle: resultBattle, run})});
+    const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `败给 ${enemyName}`, wins, settled, battle: resultBattle, run});
+    await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message: lossMessage, outcome: "loss", statEvents, resultSummary}));
+    const transition = gameState({screen: "result", save: next, battle: resultBattle, message: lossMessage, result_summary: resultSummary});
     return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
   }
   const wins = Number(run.wins || 0) + 1;
@@ -2850,7 +2918,9 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     const next = await persist(save);
     const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     const resultBattle = decorateBattleState(state, run);
-    const transition = gameState({screen: "result", save: next, battle: resultBattle, message, result_summary: buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus})});
+    const resultSummary = buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus});
+    await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "win", statEvents, resultSummary}));
+    const transition = gameState({screen: "result", save: next, battle: resultBattle, message, result_summary: resultSummary});
     return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message, pending_transition: transition});
   }
   const victoryRewards = await grantVictoryRewards(run, run.boss_type !== "normal", activeBattleNo);
@@ -2868,6 +2938,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   };
   const next = await persist(save);
   const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。奖励：${victoryRewards.items.join(" / ")}${victoryRewards.restBonus?.shop_slot_discounts?.length ? "；boss 商店奖励已生效" : ""}${victoryRewards.restBonus?.recycler_available ? "；道具回收商出现了" : ""}。当前连胜：${wins}`;
+  await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: decorateBattleState(state, run), message: rewardText, outcome: "win", statEvents}));
   const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
   } finally {
@@ -3028,7 +3099,9 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     activeBattleNo = 0;
     const next = await persist(save);
     const message = `本局挑战已中断，当前连胜已归零。历史最高连胜已保留。${settlementText(settled).replace(/^，/, "")}${settled.refundGained || settled.receiptBonus || settled.portfolioBonus ? "。" : ""}本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP。${settled.paidBack ? `临时BP扣回 ${settled.paidBack}BP。` : ""}`;
-    return gameState({screen: "result", save: next, message, result_summary: buildResultSummary({outcome: "abort", headline: "挑战中断", subtitle: "当前连胜归零，历史最高连胜保留", wins: Number(run.wins || 0), settled, run})});
+    const resultSummary = buildResultSummary({outcome: "abort", headline: "挑战中断", subtitle: "当前连胜归零，历史最高连胜保留", wins: Number(run.wins || 0), settled, run});
+    await saveStore?.appendBattleRecord(buildRunRecord({run, message, outcome: "abort", resultSummary}));
+    return gameState({screen: "result", save: next, message, result_summary: resultSummary});
   }
   if (run.rest_status?.all_in_pending_next) throw new Error("孤注一掷已发动，本次休整即将结束。");
 
@@ -3155,7 +3228,9 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const count = Number(run.bag_items?.[itemId] || 0);
     if (count <= 0) throw new Error("背包里没有这个道具。");
     const item = await itemDetailsById(itemId);
-    const price = sellPriceForItem(item, run);
+    const meta = run.bag_item_meta?.[itemId];
+    const displayItem = {...item, cost: Math.max(0, Number(meta?.cost ?? item.cost ?? 0))};
+    const price = sellPriceForItem(displayItem, run);
     run.bag_items = {...(run.bag_items || {}), [itemId]: count - 1};
     if (!run.bag_items[itemId]) {
       delete run.bag_items[itemId];
@@ -3279,7 +3354,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "buy_item") {
     const itemId = itemKey(action.itemId);
-    const cost = await goodsCost("item", itemId, 5 * BP_SCALE);
+    const cost = await itemBaseCostById(itemId);
     const spent = spendRunBp(save, run, cost, `buy-item:${itemId}`);
     run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + 1};
     rememberBagItemMeta(run, await itemDetailsById(itemId));
@@ -3583,6 +3658,7 @@ app.whenReady().then(() => {
   handleIpc("save:createNew", async (trainer: TrainerProfile) => saveStore!.createNew(normalizeTrainerProfile(trainer)));
   handleIpc("save:delete", async () => saveStore!.delete());
   handleIpc("save:updateTrainer", async (trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
+  handleIpc("save:battleRecords", async () => saveStore!.battleRecords());
   handleIpc("save:testMode", async () => enableTestMode());
   handleIpc("trainer:catalog", async () => trainerCatalogState());
   handleIpc("game:generateCandidates", async (seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));

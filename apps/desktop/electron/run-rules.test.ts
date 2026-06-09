@@ -86,7 +86,7 @@ function save(bp: number): LocalSave {
 }
 
 function testTalentCatalog(): void {
-  assert.equal(TALENT_EQUIP_LIMIT, 5);
+  assert.equal(TALENT_EQUIP_LIMIT, 7);
   assert.equal(TALENTS.length, 28);
   assert.deepEqual(TALENTS.filter(entry => entry.disabled).map(entry => entry.id), []);
   assert.equal(talent("starter_angel_fund").name, "天使基金");

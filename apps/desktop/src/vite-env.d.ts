@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 declare global {
   interface Window {
@@ -11,6 +11,7 @@ declare global {
       createNewSave(trainer: TrainerProfile): Promise<LocalSave>;
       deleteSave(): Promise<void>;
       updateTrainer(trainer: TrainerProfile): Promise<LocalSave>;
+      battleRecords(): Promise<SaveBattleRecordsTable>;
       enableTestMode(): Promise<LocalSave>;
       trainerCatalog(): Promise<TrainerCatalogState>;
       prepareCandidates(seed?: number): Promise<DesktopGameState>;

@@ -1,7 +1,7 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
 import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon} from "@changebattle/shared";
-import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
+import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {MoveCard} from "../move/MoveCard";
@@ -148,6 +148,8 @@ export function BattleView({battle, battleBag, mode, onChoice, choicePending, pe
   const battleLogRef = useRef<HTMLDivElement | null>(null);
   const playbackRun = useRef(0);
   const finishRequested = useRef(false);
+  const lastCryKeys = useRef({p1: "", p2: ""});
+  const lastCryScopeKey = useRef("");
 
   function selectPanelMode(nextMode: AppStatus) {
     setPanelMode(BATTLE_PANEL_MODES.has(nextMode) ? nextMode : "battleMain");
@@ -428,11 +430,58 @@ export function BattleView({battle, battleBag, mode, onChoice, choicePending, pe
     };
   }, [timelineKey, recentKey, dialogue?.kind]);
 
+  const displayPlayer = battle ? findDisplayByShowdownId(battle.player_display, displayedActiveShowdownIds.p1) || findDisplay(battle.player_display, displayedActiveNames.p1) || player.display : player.display;
+  const displayEnemy = battle ? findDisplayByShowdownId(battle.enemy_display, displayedActiveShowdownIds.p2) || findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display : enemy.display;
+  const battleCryScopeKey = battle
+    ? `${battle.enemy_trainer?.id || ""}:${battle.player_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}:${battle.enemy_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}`
+    : "";
+
+  useEffect(() => {
+    if (!battle) {
+      lastCryKeys.current = {p1: "", p2: ""};
+      lastCryScopeKey.current = "";
+      return;
+    }
+    if (lastCryScopeKey.current !== battleCryScopeKey) {
+      lastCryKeys.current = {p1: "", p2: ""};
+      lastCryScopeKey.current = battleCryScopeKey;
+    }
+    if (dialogue || trainerIntroActive) return;
+    const playerCryKey = !displayedSubstitutes.p1 && displayPlayer?.sprite?.cry_asset
+      ? `${displayPlayer.species_id || displayPlayer.sprite.species_id}:${displayPlayer.sprite.cry_asset}`
+      : "";
+    const enemyCryKey = !displayedSubstitutes.p2 && displayEnemy?.sprite?.cry_asset
+      ? `${displayEnemy.species_id || displayEnemy.sprite.species_id}:${displayEnemy.sprite.cry_asset}`
+      : "";
+    const timers: number[] = [];
+    if (playerCryKey && playerCryKey !== lastCryKeys.current.p1) {
+      playPokemonCry(displayPlayer, "battle:p1");
+    }
+    if (enemyCryKey && enemyCryKey !== lastCryKeys.current.p2) {
+      const delay = playerCryKey && playerCryKey !== lastCryKeys.current.p1 ? 180 : 0;
+      const timer = window.setTimeout(() => playPokemonCry(displayEnemy, "battle:p2"), delay);
+      timers.push(timer);
+    }
+    lastCryKeys.current = {p1: playerCryKey, p2: enemyCryKey};
+    return () => timers.forEach(timer => window.clearTimeout(timer));
+  }, [
+    Boolean(battle),
+    battleCryScopeKey,
+    dialogue,
+    trainerIntroActive,
+    displayedSubstitutes.p1,
+    displayedSubstitutes.p2,
+    displayPlayer?.species_id,
+    displayPlayer?.sprite?.species_id,
+    displayPlayer?.sprite?.cry_asset,
+    displayEnemy?.species_id,
+    displayEnemy?.sprite?.species_id,
+    displayEnemy?.sprite?.cry_asset,
+  ]);
+
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
   const hasQueuedPlayback = timelineEvents.some((event, index) => !previousTimelineKeys.current.includes(`${event.id}:${event.text}`)) || addedRecentEventTexts(previousRecentEvents.current, recentEvents).length > 0;
   const controlsDisabled = Boolean(choicePending) || playbackActive || hasQueuedPlayback || introActive || trainerIntroActive || Boolean(dialogue);
-  const displayPlayer = findDisplayByShowdownId(battle.player_display, displayedActiveShowdownIds.p1) || findDisplay(battle.player_display, displayedActiveNames.p1) || player.display;
-  const displayEnemy = findDisplayByShowdownId(battle.enemy_display, displayedActiveShowdownIds.p2) || findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display;
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);

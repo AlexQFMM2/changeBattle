@@ -631,6 +631,76 @@ export type ResultSummaryState = {
   enemy_trainer?: TrainerNpcView;
 };
 
+export type SaveManifest = {
+  version: 2;
+  slot_id: string;
+  display_name: string;
+  created_at: string;
+  updated_at: string;
+  recent_status?: string;
+};
+
+export type SaveUserTable = {
+  version: 1;
+  bp_scale?: number;
+  trainer: TrainerProfile;
+  stats: TrainerStats;
+  run_memory?: {
+    player_species_ids?: string[];
+    enemy_species_ids?: string[];
+  };
+  created_at: string;
+  updated_at: string;
+};
+
+export type SaveTalentTable = {
+  version: 1;
+  talent_unlocks: string[];
+  talent_equipped: string[];
+  named_champion_id?: string | null;
+};
+
+export type SaveStarterUpgradesTable = {
+  version: 1;
+  starter_upgrades?: StarterUpgradeState;
+};
+
+export type SaveBossDexTable = {
+  version: 1;
+  boss_dex: Record<string, BossDexRecord>;
+};
+
+export type SavePokemonRecordsTable = {
+  version: 1;
+  records: Record<string, unknown>;
+};
+
+export type SaveRunCheckpointTable = {
+  version: 1;
+  current_run: CurrentRunSave;
+};
+
+export type BattleRecordEntry = {
+  id: string;
+  created_at: string;
+  run_seed: number;
+  battle_no: number;
+  total_battles: number;
+  outcome: "win" | "loss" | "abort";
+  winner: string | null;
+  message: string;
+  enemy_trainer?: TrainerNpcView;
+  player_team: RentalPokemon[];
+  enemy_team: RentalPokemon[];
+  player_pokemon?: ResultPokemonSummary[];
+  result_summary?: ResultSummaryState;
+};
+
+export type SaveBattleRecordsTable = {
+  version: 1;
+  records: BattleRecordEntry[];
+};
+
 export type ShopItem = {
   id: string;
   name: string;

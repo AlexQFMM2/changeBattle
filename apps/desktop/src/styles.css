@@ -8558,7 +8558,7 @@ button.party-status-chip {
 .equipped-talents {
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
   align-items: stretch;
   justify-content: center;
@@ -8789,11 +8789,11 @@ button.party-status-chip {
 .talent-node {
   position: relative;
   min-width: 0;
-  border: 2px solid #334352;
+  border: 2px solid #252d36;
   border-radius: 8px;
-  background: linear-gradient(#1b222b, #090c11);
-  color: #efe9d4;
-  box-shadow: inset 0 0 0 1px #ffffff12, 0 5px 10px #0007;
+  background: linear-gradient(#090d12, #030507);
+  color: #77818b;
+  box-shadow: inset 0 0 0 1px #ffffff08, 0 5px 10px #0008;
   overflow: hidden;
 }
 
@@ -8801,7 +8801,7 @@ button.party-status-chip {
 .talent-node:hover:not(:disabled),
 .talent-slot.selected,
 .talent-node.selected {
-  background: linear-gradient(#263243, #0f141d);
+  background: linear-gradient(#121922, #070a0f);
   outline: 2px solid #e0c36f;
 }
 
@@ -8813,11 +8813,13 @@ button.party-status-chip {
 }
 
 .talent-node.locked {
-  filter: saturate(.82);
+  border-color: #1e252d;
+  background: linear-gradient(#070a0e, #020304);
+  filter: saturate(.48);
 }
 
 .talent-node.locked::before {
-  content: "锁";
+  content: "锁定";
   position: absolute;
   top: 7px;
   right: -22px;
@@ -8826,11 +8828,43 @@ button.party-status-chip {
   display: grid;
   place-items: center;
   rotate: 35deg;
-  background: rgb(0 0 0 / 34%);
+  background: linear-gradient(90deg, rgb(0 0 0 / 42%), rgb(122 138 154 / 28%), rgb(0 0 0 / 42%));
+  background-size: 200% 100%;
   color: #f1e4ae;
   font-size: 12px;
   font-weight: 900;
+  animation: talent-lock-scan 1.8s linear infinite;
   pointer-events: none;
+}
+
+.talent-node.unlocked:not(.equipped) {
+  border-color: #28313a;
+  background: linear-gradient(#080b10, #020304);
+  color: #8e979f;
+  box-shadow: inset 0 0 0 1px #ffffff08, 0 4px 10px #0009;
+}
+
+.talent-node.unlocked:not(.equipped) span,
+.talent-node.unlocked:not(.equipped) strong,
+.talent-node.unlocked:not(.equipped) small {
+  color: #9aa4ad;
+  border-color: #303943;
+}
+
+.talent-node.equipped,
+.talent-slot.equipped {
+  border-color: #e0c36f;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(242 226 162 / 22%), transparent 58%),
+    linear-gradient(#263243, #0f141d);
+  color: #f5ebbd;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 22%), 0 0 18px rgb(224 195 111 / 28%), 0 8px 16px #0008;
+  animation: talent-equipped-glow 1.9s ease-in-out infinite alternate;
+}
+
+.talent-node.equipped strong,
+.talent-slot.equipped strong {
+  color: #fff1b8;
 }
 
 .talent-node.locked strong,
@@ -8959,6 +8993,32 @@ button.party-status-chip {
 .talent-node.business span,
 .talent-slot.business span { color: #bce8b6; border-color: #557d58; }
 
+.talent-node.locked {
+  border-color: #1e252d;
+}
+
+.talent-node.unlocked:not(.equipped) {
+  border-color: #28313a;
+}
+
+.talent-node.unlocked:not(.equipped) span,
+.talent-node.unlocked:not(.equipped) strong,
+.talent-node.unlocked:not(.equipped) small {
+  color: #9aa4ad;
+  border-color: #303943;
+}
+
+.talent-node.equipped,
+.talent-slot.equipped {
+  border-color: #e0c36f;
+}
+
+.talent-node.equipped span,
+.talent-slot.equipped span {
+  color: #fff1b8;
+  border-color: #e0c36f;
+}
+
 .talent-node.equipped::after,
 .talent-slot.equipped::after {
   content: "";
@@ -8967,6 +9027,16 @@ button.party-status-chip {
   border: 2px solid #e1c56d;
   border-radius: 6px;
   pointer-events: none;
+}
+
+@keyframes talent-lock-scan {
+  from { background-position: 180% 0; }
+  to { background-position: -80% 0; }
+}
+
+@keyframes talent-equipped-glow {
+  from { box-shadow: inset 0 0 0 1px rgb(255 244 190 / 18%), 0 0 12px rgb(224 195 111 / 18%), 0 8px 16px #0008; }
+  to { box-shadow: inset 0 0 0 1px rgb(255 244 190 / 30%), 0 0 24px rgb(224 195 111 / 40%), 0 8px 16px #0008; }
 }
 
 .talent-footer-note {

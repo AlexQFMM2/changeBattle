@@ -18,6 +18,7 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
   const talentDisabled = Boolean(selected?.disabled);
   const selectedUnlocked = selected ? unlocked.has(selected.id) : false;
   const selectedEquipped = selected ? equipped.includes(selected.id) : false;
+  const equipSlotsFull = equipped.length >= TALENT_EQUIP_LIMIT;
   const selectedAffordable = selected && !talentDisabled ? (save?.stats.battle_points || 0) >= (selected.cost || 0) : false;
   const categories = ["全部", ...new Set(catalog.map(talent => talent.category))];
   const visibleCategory = categories.includes(activeCategory) ? activeCategory : categories[0] || activeCategory;
@@ -82,7 +83,7 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
   }
 
   async function equipSelected() {
-    if (!selected || talentDisabled || !selectedUnlocked || selectedEquipped || equipped.length >= TALENT_EQUIP_LIMIT) return;
+    if (!selected || talentDisabled || !selectedUnlocked || selectedEquipped || equipSlotsFull) return;
     const nextIds = [...equipped, selected.id];
     const config = await window.changeBattle?.configureTalents(nextIds);
     setEquipped((config?.equipped || []).map(talent => talent.id));
@@ -159,12 +160,12 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
                 </select>
               </div>
             ) : null}
-            <small>{talentDisabled ? "暂不可用" : selectedEquipped ? "已携带" : selectedUnlocked ? "已解锁" : selectedAffordable ? "可解锁" : "BP 不足"}</small>
+            <small>{talentDisabled ? "暂不可用" : selectedEquipped ? "已携带并点亮" : selectedUnlocked ? (equipSlotsFull ? "槽位已满" : "已解锁，未携带") : selectedAffordable ? "可解锁" : "BP 不足"}</small>
           </div>
         ) : null}
         <div className="talent-actions">
           <button disabled={!selected || talentDisabled || selectedUnlocked || !selectedAffordable} onClick={unlockSelected}>解锁</button>
-          <button disabled={!selected || talentDisabled || !selectedUnlocked || selectedEquipped || equipped.length >= TALENT_EQUIP_LIMIT} onClick={equipSelected}>装备</button>
+          <button disabled={!selected || talentDisabled || !selectedUnlocked || selectedEquipped || equipSlotsFull} onClick={equipSelected}>{equipSlotsFull && selectedUnlocked && !selectedEquipped ? "槽满" : "装备"}</button>
           <button disabled={talentDisabled || !selectedEquipped} onClick={unequipSelected}>卸下</button>
           <button onClick={onBack}>返回</button>
         </div>

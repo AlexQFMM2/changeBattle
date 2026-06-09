@@ -21,6 +21,11 @@ DEFAULT_SHOWDOWN_SPRITE_BASE = 'https://play.pokemonshowdown.com/sprites'
 DEFAULT_CSV = Path('data/sprite_index_map.csv')
 DEFAULT_POKEMON_PACK_MANIFEST = Path('data/pokemon_pack_manifest.json')
 
+CRY_KEY_ALIASES = {
+    'nidoranf': 'nidoranfe',
+    'nidoranm': 'nidoranma',
+}
+
 
 def load_showdown_species(showdown_path: Path) -> list[dict]:
     script = """
@@ -152,6 +157,28 @@ def read_pokemon_pack_manifest(path: Path) -> dict:
     return json.loads(path.read_text(encoding='utf-8'))
 
 
+def normalize_key(value: str | None) -> str:
+    return re.sub(r'[^a-z0-9]+', '', str(value or '').lower())
+
+
+def cry_asset_for_species(species: dict, pack_species: dict, pack_cries: dict) -> str | None:
+    candidates = [
+        species.get('id'),
+        species.get('name'),
+        species.get('baseSpecies'),
+    ]
+    for candidate in candidates:
+        key = normalize_key(candidate)
+        if not key:
+            continue
+        alias = CRY_KEY_ALIASES.get(key, key)
+        pack_entry = pack_species.get(alias) or {}
+        cry_asset = pack_entry.get('cry_asset') or pack_cries.get(alias)
+        if cry_asset:
+            return cry_asset
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description='Build sprite_index_map.json from Showdown species data')
     parser.add_argument('--showdown-path', type=Path, default=DEFAULT_SHOWDOWN_PATH)
@@ -174,6 +201,7 @@ def main() -> int:
     csv_map = read_csv_map(args.csv)
     pack_manifest = read_pokemon_pack_manifest(args.pokemon_pack_manifest)
     pack_species = pack_manifest.get('species') or {}
+    pack_cries = pack_manifest.get('cries') or {}
     entries: dict[str, dict] = {}
     csv_count = 0
     fallback_count = 0
@@ -246,8 +274,9 @@ def main() -> int:
                 entries[species['id']]['icon_asset'] = pack_paths['icon']
             if pack_paths.get('icon_shiny'):
                 entries[species['id']]['icon_shiny_asset'] = pack_paths['icon_shiny']
-            if pack_entry.get('cry_asset'):
-                entries[species['id']]['cry_asset'] = pack_entry['cry_asset']
+        cry_asset = cry_asset_for_species(species, pack_species, pack_cries)
+        if cry_asset:
+            entries[species['id']]['cry_asset'] = cry_asset
 
     payload = {
         'version': 1,

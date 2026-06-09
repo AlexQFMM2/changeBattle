@@ -109,7 +109,7 @@ export const STATUS_ID_ALIASES: Record<string, string> = {
 };
 export const VOLATILE_STATUS_IDS = new Set(["substitute", "leechseed", "flinch", "trapped", "taunt", "encore", "disable", "attract", "curse", "imprison", "healblock"]);
 export const SUBSTITUTE_DOLL_PATH = "assets/battle/substitute-doll.png";
-export const TALENT_EQUIP_LIMIT = 5;
+export const TALENT_EQUIP_LIMIT = 7;
 export const TALENT_CATALOG: TalentView[] = [
   {id: "starter_angel_fund", name: "天使基金", category: "开局筹备", cost: 20, desc: "开局获得 1000 金币，提前获得第一轮运营空间；剩余启动资金不会在结算时折算为 BP。"},
   {id: "starter_mentor_eye", name: "伯乐本乐", category: "开局筹备", cost: 25, desc: "开局选中的每只宝可梦有 33% 概率升 1 阶，仅限数值模板，最高 4 阶。"},
@@ -462,6 +462,31 @@ export function assetUrl(path?: string): string | undefined {
   if (!path) return undefined;
   if (/^https?:\/\//i.test(path)) return path;
   return window.changeBattle?.assetUrl(path);
+}
+
+export function pokemonCryUrl(source?: {sprite?: Pick<SpriteMapEntry, "cry_asset">} | Pick<SpriteMapEntry, "cry_asset">): string | undefined {
+  const direct = "cry_asset" in (source || {}) ? (source as Pick<SpriteMapEntry, "cry_asset">).cry_asset : undefined;
+  const path = direct || (source as {sprite?: Pick<SpriteMapEntry, "cry_asset">} | undefined)?.sprite?.cry_asset;
+  return assetUrl(path);
+}
+
+const pokemonCryAudioByChannel = new Map<string, HTMLAudioElement>();
+
+export function playPokemonCry(source?: {sprite?: Pick<SpriteMapEntry, "cry_asset">} | Pick<SpriteMapEntry, "cry_asset">, channel = "pokemon"): void {
+  const url = pokemonCryUrl(source);
+  if (!url || typeof Audio === "undefined") return;
+  try {
+    const audio = pokemonCryAudioByChannel.get(channel) || new Audio();
+    pokemonCryAudioByChannel.set(channel, audio);
+    audio.pause();
+    if (audio.src !== url) audio.src = url;
+    audio.currentTime = 0;
+    audio.volume = 0.72;
+    const playback = audio.play();
+    if (playback) void playback.catch(() => undefined);
+  } catch {
+    // Browsers may block audio until a user gesture; gameplay should continue silently.
+  }
 }
 
 export function pokemonImageUrl(pokemon?: {sprite?: SpriteMapEntry; shiny?: boolean}, variant: "front_normal" | "back_normal" = "front_normal"): string | undefined {

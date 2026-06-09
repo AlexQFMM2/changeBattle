@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-06-07T23:55:52.183666+00:00",
+  "generated_at": "2026-06-08T15:47:43.873036+00:00",
   "showdown_path": "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown",
   "asset_base": "assets/pokemon-green/pokemon",
   "showdown_asset_base": "assets/pokemon-showdown",
@@ -133,7 +133,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/venusaur-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/venusaur-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/venusaur-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/venusaur.ogg"
     },
     "venusaurmega": {
       "species_id": "venusaurmega",
@@ -153,7 +154,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/venusaur-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/venusaur-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/venusaur-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/venusaur.ogg"
     },
     "charmander": {
       "species_id": "charmander",
@@ -266,7 +268,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/charizard-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/charizard-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/charizard-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/charizard.ogg"
     },
     "charizardmegax": {
       "species_id": "charizardmegax",
@@ -286,7 +289,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/charizard-megax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/charizard-megax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/charizard-megax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/charizard.ogg"
     },
     "charizardmegay": {
       "species_id": "charizardmegay",
@@ -306,7 +310,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/charizard-megay.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/charizard-megay.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/charizard-megay.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/charizard.ogg"
     },
     "squirtle": {
       "species_id": "squirtle",
@@ -419,7 +424,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/blastoise-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/blastoise-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/blastoise-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/blastoise.ogg"
     },
     "blastoisemega": {
       "species_id": "blastoisemega",
@@ -439,7 +445,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/blastoise-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/blastoise-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/blastoise-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/blastoise.ogg"
     },
     "caterpie": {
       "species_id": "caterpie",
@@ -552,7 +559,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/butterfree-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/butterfree-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/butterfree-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/butterfree.ogg"
     },
     "weedle": {
       "species_id": "weedle",
@@ -665,7 +673,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/beedrill-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/beedrill-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/beedrill-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/beedrill.ogg"
     },
     "pidgey": {
       "species_id": "pidgey",
@@ -778,7 +787,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pidgeot-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pidgeot-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pidgeot-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pidgeot.ogg"
     },
     "rattata": {
       "species_id": "rattata",
@@ -829,7 +839,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rattata-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rattata-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rattata-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rattata.ogg"
     },
     "raticate": {
       "species_id": "raticate",
@@ -880,7 +891,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/raticate-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/raticate-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/raticate-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/raticate.ogg"
     },
     "raticatealolatotem": {
       "species_id": "raticatealolatotem",
@@ -900,7 +912,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/raticate-alolatotem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/raticate-alolatotem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/raticate-alolatotem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/raticate.ogg"
     },
     "spearow": {
       "species_id": "spearow",
@@ -1075,7 +1088,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachubelle": {
       "species_id": "pikachubelle",
@@ -1095,7 +1109,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-belle.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-belle.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-belle.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachucosplay": {
       "species_id": "pikachucosplay",
@@ -1115,7 +1130,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-cosplay.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-cosplay.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-cosplay.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachugmax": {
       "species_id": "pikachugmax",
@@ -1135,7 +1151,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachuhoenn": {
       "species_id": "pikachuhoenn",
@@ -1155,7 +1172,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-hoenn.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-hoenn.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-hoenn.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachukalos": {
       "species_id": "pikachukalos",
@@ -1175,7 +1193,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-kalos.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-kalos.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-kalos.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachulibre": {
       "species_id": "pikachulibre",
@@ -1195,7 +1214,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-libre.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-libre.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-libre.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachuoriginal": {
       "species_id": "pikachuoriginal",
@@ -1215,7 +1235,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-original.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-original.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-original.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachupartner": {
       "species_id": "pikachupartner",
@@ -1235,7 +1256,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-partner.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-partner.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-partner.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachuphd": {
       "species_id": "pikachuphd",
@@ -1255,7 +1277,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-phd.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-phd.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-phd.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachupopstar": {
       "species_id": "pikachupopstar",
@@ -1275,7 +1298,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-popstar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-popstar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-popstar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachurockstar": {
       "species_id": "pikachurockstar",
@@ -1295,7 +1319,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-rockstar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-rockstar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-rockstar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachusinnoh": {
       "species_id": "pikachusinnoh",
@@ -1315,7 +1340,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-sinnoh.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-sinnoh.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-sinnoh.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachustarter": {
       "species_id": "pikachustarter",
@@ -1335,7 +1361,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-starter.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-starter.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-starter.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachuunova": {
       "species_id": "pikachuunova",
@@ -1355,7 +1382,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-unova.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-unova.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-unova.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "pikachuworld": {
       "species_id": "pikachuworld",
@@ -1375,7 +1403,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pikachu-world.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pikachu-world.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pikachu-world.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pikachu.ogg"
     },
     "raichu": {
       "species_id": "raichu",
@@ -1426,7 +1455,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/raichu-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/raichu-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/raichu-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/raichu.ogg"
     },
     "raichumegax": {
       "species_id": "raichumegax",
@@ -1446,7 +1476,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/raichu-megax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/raichu-megax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/raichu-megax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/raichu.ogg"
     },
     "raichumegay": {
       "species_id": "raichumegay",
@@ -1466,7 +1497,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/raichu-megay.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/raichu-megay.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/raichu-megay.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/raichu.ogg"
     },
     "sandshrew": {
       "species_id": "sandshrew",
@@ -1517,7 +1549,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sandshrew-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sandshrew-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sandshrew-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sandshrew.ogg"
     },
     "sandslash": {
       "species_id": "sandslash",
@@ -1568,7 +1601,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sandslash-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sandslash-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sandslash-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sandslash.ogg"
     },
     "nidoranf": {
       "species_id": "nidoranf",
@@ -1588,7 +1622,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/nidoranf.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/nidoranf.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/nidoranf.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/nidoranfe.ogg"
     },
     "nidorina": {
       "species_id": "nidorina",
@@ -1670,7 +1705,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/nidoranm.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/nidoranm.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/nidoranm.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/nidoranma.ogg"
     },
     "nidorino": {
       "species_id": "nidorino",
@@ -1814,7 +1850,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/clefable-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/clefable-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/clefable-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/clefable.ogg"
     },
     "vulpix": {
       "species_id": "vulpix",
@@ -1865,7 +1902,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/vulpix-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/vulpix-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/vulpix-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/vulpix.ogg"
     },
     "ninetales": {
       "species_id": "ninetales",
@@ -1916,7 +1954,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ninetales-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ninetales-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ninetales-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ninetales.ogg"
     },
     "jigglypuff": {
       "species_id": "jigglypuff",
@@ -2308,7 +2347,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/diglett-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/diglett-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/diglett-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/diglett.ogg"
     },
     "dugtrio": {
       "species_id": "dugtrio",
@@ -2359,7 +2399,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/dugtrio-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/dugtrio-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/dugtrio-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/dugtrio.ogg"
     },
     "meowth": {
       "species_id": "meowth",
@@ -2410,7 +2451,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meowth-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meowth-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meowth-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meowth.ogg"
     },
     "meowthgalar": {
       "species_id": "meowthgalar",
@@ -2430,7 +2472,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meowth-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meowth-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meowth-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meowth.ogg"
     },
     "meowthgmax": {
       "species_id": "meowthgmax",
@@ -2450,7 +2493,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meowth-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meowth-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meowth-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meowth.ogg"
     },
     "persian": {
       "species_id": "persian",
@@ -2501,7 +2545,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/persian-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/persian-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/persian-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/persian.ogg"
     },
     "psyduck": {
       "species_id": "psyduck",
@@ -2676,7 +2721,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/growlithe-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/growlithe-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/growlithe-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/growlithe.ogg"
     },
     "arcanine": {
       "species_id": "arcanine",
@@ -2727,7 +2773,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arcanine-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arcanine-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arcanine-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arcanine.ogg"
     },
     "poliwag": {
       "species_id": "poliwag",
@@ -2933,7 +2980,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/alakazam-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/alakazam-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/alakazam-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/alakazam.ogg"
     },
     "machop": {
       "species_id": "machop",
@@ -3046,7 +3094,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/machamp-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/machamp-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/machamp-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/machamp.ogg"
     },
     "bellsprout": {
       "species_id": "bellsprout",
@@ -3159,7 +3208,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/victreebel-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/victreebel-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/victreebel-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/victreebel.ogg"
     },
     "tentacool": {
       "species_id": "tentacool",
@@ -3272,7 +3322,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/geodude-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/geodude-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/geodude-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/geodude.ogg"
     },
     "graveler": {
       "species_id": "graveler",
@@ -3323,7 +3374,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/graveler-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/graveler-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/graveler-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/graveler.ogg"
     },
     "golem": {
       "species_id": "golem",
@@ -3374,7 +3426,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/golem-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/golem-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/golem-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/golem.ogg"
     },
     "ponyta": {
       "species_id": "ponyta",
@@ -3425,7 +3478,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ponyta-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ponyta-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ponyta-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ponyta.ogg"
     },
     "rapidash": {
       "species_id": "rapidash",
@@ -3476,7 +3530,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rapidash-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rapidash-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rapidash-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rapidash.ogg"
     },
     "slowpoke": {
       "species_id": "slowpoke",
@@ -3527,7 +3582,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/slowpoke-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/slowpoke-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/slowpoke-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/slowpoke.ogg"
     },
     "slowbro": {
       "species_id": "slowbro",
@@ -3578,7 +3634,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/slowbro-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/slowbro-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/slowbro-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/slowbro.ogg"
     },
     "slowbromega": {
       "species_id": "slowbromega",
@@ -3598,7 +3655,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/slowbro-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/slowbro-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/slowbro-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/slowbro.ogg"
     },
     "magnemite": {
       "species_id": "magnemite",
@@ -3711,7 +3769,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/farfetchd-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/farfetchd-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/farfetchd-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/farfetchd.ogg"
     },
     "doduo": {
       "species_id": "doduo",
@@ -3886,7 +3945,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/grimer-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/grimer-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/grimer-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/grimer.ogg"
     },
     "muk": {
       "species_id": "muk",
@@ -3937,7 +3997,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/muk-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/muk-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/muk-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/muk.ogg"
     },
     "shellder": {
       "species_id": "shellder",
@@ -4112,7 +4173,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gengar-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gengar-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gengar-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gengar.ogg"
     },
     "gengarmega": {
       "species_id": "gengarmega",
@@ -4132,7 +4194,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gengar-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gengar-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gengar-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gengar.ogg"
     },
     "onix": {
       "species_id": "onix",
@@ -4307,7 +4370,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/kingler-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/kingler-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/kingler-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/kingler.ogg"
     },
     "voltorb": {
       "species_id": "voltorb",
@@ -4358,7 +4422,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/voltorb-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/voltorb-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/voltorb-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/voltorb.ogg"
     },
     "electrode": {
       "species_id": "electrode",
@@ -4409,7 +4474,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/electrode-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/electrode-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/electrode-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/electrode.ogg"
     },
     "exeggcute": {
       "species_id": "exeggcute",
@@ -4491,7 +4557,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/exeggutor-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/exeggutor-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/exeggutor-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/exeggutor.ogg"
     },
     "cubone": {
       "species_id": "cubone",
@@ -4573,7 +4640,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/marowak-alola.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/marowak-alola.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/marowak-alola.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/marowak.ogg"
     },
     "marowakalolatotem": {
       "species_id": "marowakalolatotem",
@@ -4593,7 +4661,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/marowak-alolatotem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/marowak-alolatotem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/marowak-alolatotem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/marowak.ogg"
     },
     "hitmonlee": {
       "species_id": "hitmonlee",
@@ -4768,7 +4837,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/weezing-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/weezing-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/weezing-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/weezing.ogg"
     },
     "rhyhorn": {
       "species_id": "rhyhorn",
@@ -4943,7 +5013,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/kangaskhan-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/kangaskhan-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/kangaskhan-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/kangaskhan.ogg"
     },
     "horsea": {
       "species_id": "horsea",
@@ -5149,7 +5220,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/starmie-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/starmie-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/starmie-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/starmie.ogg"
     },
     "mrmime": {
       "species_id": "mrmime",
@@ -5200,7 +5272,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/mrmime-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/mrmime-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/mrmime-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/mrmime.ogg"
     },
     "scyther": {
       "species_id": "scyther",
@@ -5375,7 +5448,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pinsir-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pinsir-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pinsir-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pinsir.ogg"
     },
     "tauros": {
       "species_id": "tauros",
@@ -5426,7 +5500,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tauros-paldeaaqua.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tauros-paldeaaqua.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tauros-paldeaaqua.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tauros.ogg"
     },
     "taurospaldeablaze": {
       "species_id": "taurospaldeablaze",
@@ -5446,7 +5521,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tauros-paldeablaze.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tauros-paldeablaze.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tauros-paldeablaze.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tauros.ogg"
     },
     "taurospaldeacombat": {
       "species_id": "taurospaldeacombat",
@@ -5466,7 +5542,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tauros-paldeacombat.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tauros-paldeacombat.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tauros-paldeacombat.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tauros.ogg"
     },
     "magikarp": {
       "species_id": "magikarp",
@@ -5548,7 +5625,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gyarados-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gyarados-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gyarados-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gyarados.ogg"
     },
     "lapras": {
       "species_id": "lapras",
@@ -5599,7 +5677,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lapras-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lapras-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lapras-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lapras.ogg"
     },
     "ditto": {
       "species_id": "ditto",
@@ -5681,7 +5760,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/eevee-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/eevee-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/eevee-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/eevee.ogg"
     },
     "eeveestarter": {
       "species_id": "eeveestarter",
@@ -5701,7 +5781,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/eevee-starter.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/eevee-starter.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/eevee-starter.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/eevee.ogg"
     },
     "vaporeon": {
       "species_id": "vaporeon",
@@ -6000,7 +6081,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/aerodactyl-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/aerodactyl-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/aerodactyl-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/aerodactyl.ogg"
     },
     "snorlax": {
       "species_id": "snorlax",
@@ -6051,7 +6133,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/snorlax-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/snorlax-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/snorlax-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/snorlax.ogg"
     },
     "articuno": {
       "species_id": "articuno",
@@ -6102,7 +6185,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/articuno-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/articuno-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/articuno-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/articuno.ogg"
     },
     "zapdos": {
       "species_id": "zapdos",
@@ -6153,7 +6237,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zapdos-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zapdos-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zapdos-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zapdos.ogg"
     },
     "moltres": {
       "species_id": "moltres",
@@ -6204,7 +6289,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/moltres-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/moltres-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/moltres-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/moltres.ogg"
     },
     "dratini": {
       "species_id": "dratini",
@@ -6317,7 +6403,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/dragonite-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/dragonite-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/dragonite-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/dragonite.ogg"
     },
     "mewtwo": {
       "species_id": "mewtwo",
@@ -6368,7 +6455,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/mewtwo-megax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/mewtwo-megax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/mewtwo-megax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/mewtwo.ogg"
     },
     "mewtwomegay": {
       "species_id": "mewtwomegay",
@@ -6388,7 +6476,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/mewtwo-megay.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/mewtwo-megay.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/mewtwo-megay.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/mewtwo.ogg"
     },
     "mew": {
       "species_id": "mew",
@@ -6532,7 +6621,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meganium-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meganium-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meganium-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meganium.ogg"
     },
     "cyndaquil": {
       "species_id": "cyndaquil",
@@ -6645,7 +6735,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/typhlosion-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/typhlosion-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/typhlosion-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/typhlosion.ogg"
     },
     "totodile": {
       "species_id": "totodile",
@@ -6758,7 +6849,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/feraligatr-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/feraligatr-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/feraligatr-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/feraligatr.ogg"
     },
     "sentret": {
       "species_id": "sentret",
@@ -7150,7 +7242,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pichu-spikyeared.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pichu-spikyeared.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pichu-spikyeared.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pichu.ogg"
     },
     "cleffa": {
       "species_id": "cleffa",
@@ -7449,7 +7542,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ampharos-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ampharos-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ampharos-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ampharos.ogg"
     },
     "bellossom": {
       "species_id": "bellossom",
@@ -7872,7 +7966,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/wooper-paldea.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/wooper-paldea.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/wooper-paldea.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/wooper.ogg"
     },
     "quagsire": {
       "species_id": "quagsire",
@@ -8047,7 +8142,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/slowking-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/slowking-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/slowking-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/slowking.ogg"
     },
     "misdreavus": {
       "species_id": "misdreavus",
@@ -8346,7 +8442,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/steelix-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/steelix-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/steelix-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/steelix.ogg"
     },
     "snubbull": {
       "species_id": "snubbull",
@@ -8459,7 +8556,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/qwilfish-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/qwilfish-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/qwilfish-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/qwilfish.ogg"
     },
     "scizor": {
       "species_id": "scizor",
@@ -8510,7 +8608,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/scizor-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/scizor-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/scizor-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/scizor.ogg"
     },
     "shuckle": {
       "species_id": "shuckle",
@@ -8592,7 +8691,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/heracross-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/heracross-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/heracross-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/heracross.ogg"
     },
     "sneasel": {
       "species_id": "sneasel",
@@ -8643,7 +8743,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sneasel-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sneasel-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sneasel-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sneasel.ogg"
     },
     "teddiursa": {
       "species_id": "teddiursa",
@@ -8880,7 +8981,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/corsola-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/corsola-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/corsola-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/corsola.ogg"
     },
     "remoraid": {
       "species_id": "remoraid",
@@ -9055,7 +9157,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/skarmory-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/skarmory-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/skarmory-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/skarmory.ogg"
     },
     "houndour": {
       "species_id": "houndour",
@@ -9137,7 +9240,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/houndoom-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/houndoom-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/houndoom-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/houndoom.ogg"
     },
     "kingdra": {
       "species_id": "kingdra",
@@ -9746,7 +9850,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tyranitar-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tyranitar-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tyranitar-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tyranitar.ogg"
     },
     "lugia": {
       "species_id": "lugia",
@@ -9952,7 +10057,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sceptile-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sceptile-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sceptile-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sceptile.ogg"
     },
     "torchic": {
       "species_id": "torchic",
@@ -10065,7 +10171,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/blaziken-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/blaziken-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/blaziken-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/blaziken.ogg"
     },
     "mudkip": {
       "species_id": "mudkip",
@@ -10178,7 +10285,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/swampert-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/swampert-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/swampert-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/swampert.ogg"
     },
     "poochyena": {
       "species_id": "poochyena",
@@ -10291,7 +10399,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zigzagoon-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zigzagoon-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zigzagoon-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zigzagoon.ogg"
     },
     "linoone": {
       "species_id": "linoone",
@@ -10342,7 +10451,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/linoone-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/linoone-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/linoone-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/linoone.ogg"
     },
     "wurmple": {
       "species_id": "wurmple",
@@ -10920,7 +11030,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gardevoir-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gardevoir-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gardevoir-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gardevoir.ogg"
     },
     "surskit": {
       "species_id": "surskit",
@@ -11560,7 +11671,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sableye-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sableye-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sableye-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sableye.ogg"
     },
     "mawile": {
       "species_id": "mawile",
@@ -11611,7 +11723,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/mawile-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/mawile-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/mawile-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/mawile.ogg"
     },
     "aron": {
       "species_id": "aron",
@@ -11724,7 +11837,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/aggron-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/aggron-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/aggron-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/aggron.ogg"
     },
     "meditite": {
       "species_id": "meditite",
@@ -11806,7 +11920,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/medicham-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/medicham-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/medicham-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/medicham.ogg"
     },
     "electrike": {
       "species_id": "electrike",
@@ -11888,7 +12003,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/manectric-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/manectric-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/manectric-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/manectric.ogg"
     },
     "plusle": {
       "species_id": "plusle",
@@ -12187,7 +12303,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sharpedo-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sharpedo-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sharpedo-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sharpedo.ogg"
     },
     "wailmer": {
       "species_id": "wailmer",
@@ -12331,7 +12448,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/camerupt-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/camerupt-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/camerupt-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/camerupt.ogg"
     },
     "torkoal": {
       "species_id": "torkoal",
@@ -12692,7 +12810,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/altaria-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/altaria-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/altaria-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/altaria.ogg"
     },
     "zangoose": {
       "species_id": "zangoose",
@@ -13239,7 +13358,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/castform-rainy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/castform-rainy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/castform-rainy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/castform.ogg"
     },
     "castformsnowy": {
       "species_id": "castformsnowy",
@@ -13259,7 +13379,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/castform-snowy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/castform-snowy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/castform-snowy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/castform.ogg"
     },
     "castformsunny": {
       "species_id": "castformsunny",
@@ -13279,7 +13400,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/castform-sunny.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/castform-sunny.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/castform-sunny.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/castform.ogg"
     },
     "kecleon": {
       "species_id": "kecleon",
@@ -13392,7 +13514,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/banette-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/banette-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/banette-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/banette.ogg"
     },
     "duskull": {
       "species_id": "duskull",
@@ -13536,7 +13659,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/chimecho-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/chimecho-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/chimecho-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/chimecho.ogg"
     },
     "absol": {
       "species_id": "absol",
@@ -13587,7 +13711,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/absol-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/absol-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/absol-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/absol.ogg"
     },
     "absolmegaz": {
       "species_id": "absolmegaz",
@@ -13607,7 +13732,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/absol-megaz.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/absol-megaz.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/absol-megaz.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/absol.ogg"
     },
     "wynaut": {
       "species_id": "wynaut",
@@ -13720,7 +13846,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/glalie-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/glalie-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/glalie-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/glalie.ogg"
     },
     "spheal": {
       "species_id": "spheal",
@@ -14081,7 +14208,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/salamence-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/salamence-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/salamence-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/salamence.ogg"
     },
     "beldum": {
       "species_id": "beldum",
@@ -14194,7 +14322,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/metagross-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/metagross-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/metagross-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/metagross.ogg"
     },
     "regirock": {
       "species_id": "regirock",
@@ -14338,7 +14467,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/latias-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/latias-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/latias-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/latias.ogg"
     },
     "latios": {
       "species_id": "latios",
@@ -14389,7 +14519,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/latios-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/latios-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/latios-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/latios.ogg"
     },
     "kyogre": {
       "species_id": "kyogre",
@@ -14440,7 +14571,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/kyogre-primal.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/kyogre-primal.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/kyogre-primal.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/kyogre.ogg"
     },
     "groudon": {
       "species_id": "groudon",
@@ -14491,7 +14623,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/groudon-primal.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/groudon-primal.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/groudon-primal.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/groudon.ogg"
     },
     "rayquaza": {
       "species_id": "rayquaza",
@@ -14542,7 +14675,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rayquaza-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rayquaza-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rayquaza-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rayquaza.ogg"
     },
     "jirachi": {
       "species_id": "jirachi",
@@ -14624,7 +14758,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/deoxys-attack.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/deoxys-attack.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/deoxys-attack.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/deoxys.ogg"
     },
     "deoxysdefense": {
       "species_id": "deoxysdefense",
@@ -14644,7 +14779,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/deoxys-defense.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/deoxys-defense.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/deoxys-defense.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/deoxys.ogg"
     },
     "deoxysspeed": {
       "species_id": "deoxysspeed",
@@ -14664,7 +14800,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/deoxys-speed.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/deoxys-speed.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/deoxys-speed.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/deoxys.ogg"
     },
     "turtwig": {
       "species_id": "turtwig",
@@ -15056,7 +15193,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/staraptor-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/staraptor-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/staraptor-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/staraptor.ogg"
     },
     "bidoof": {
       "species_id": "bidoof",
@@ -15541,7 +15679,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/wormadam-sandy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/wormadam-sandy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/wormadam-sandy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/wormadam.ogg"
     },
     "wormadamtrash": {
       "species_id": "wormadamtrash",
@@ -15561,7 +15700,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/wormadam-trash.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/wormadam-trash.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/wormadam-trash.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/wormadam.ogg"
     },
     "mothim": {
       "species_id": "mothim",
@@ -15829,7 +15969,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/cherrim-sunshine.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/cherrim-sunshine.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/cherrim-sunshine.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/cherrim.ogg"
     },
     "shellos": {
       "species_id": "shellos",
@@ -16066,7 +16207,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lopunny-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lopunny-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lopunny-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lopunny.ogg"
     },
     "mismagius": {
       "species_id": "mismagius",
@@ -16613,7 +16755,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/garchomp-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/garchomp-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/garchomp-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/garchomp.ogg"
     },
     "garchompmegaz": {
       "species_id": "garchompmegaz",
@@ -16633,7 +16776,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/garchomp-megaz.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/garchomp-megaz.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/garchomp-megaz.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/garchomp.ogg"
     },
     "munchlax": {
       "species_id": "munchlax",
@@ -16746,7 +16890,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lucario-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lucario-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lucario-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lucario.ogg"
     },
     "lucariomegaz": {
       "species_id": "lucariomegaz",
@@ -16766,7 +16911,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lucario-megaz.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lucario-megaz.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lucario-megaz.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lucario.ogg"
     },
     "hippopotas": {
       "species_id": "hippopotas",
@@ -17158,7 +17304,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/abomasnow-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/abomasnow-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/abomasnow-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/abomasnow.ogg"
     },
     "weavile": {
       "species_id": "weavile",
@@ -17643,7 +17790,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gallade-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gallade-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gallade-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gallade.ogg"
     },
     "probopass": {
       "species_id": "probopass",
@@ -17756,7 +17904,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/froslass-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/froslass-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/froslass-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/froslass.ogg"
     },
     "rotom": {
       "species_id": "rotom",
@@ -17807,7 +17956,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rotom-fan.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rotom-fan.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rotom-fan.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rotom.ogg"
     },
     "rotomfrost": {
       "species_id": "rotomfrost",
@@ -17827,7 +17977,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rotom-frost.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rotom-frost.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rotom-frost.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rotom.ogg"
     },
     "rotomheat": {
       "species_id": "rotomheat",
@@ -17847,7 +17998,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rotom-heat.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rotom-heat.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rotom-heat.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rotom.ogg"
     },
     "rotommow": {
       "species_id": "rotommow",
@@ -17867,7 +18019,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rotom-mow.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rotom-mow.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rotom-mow.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rotom.ogg"
     },
     "rotomwash": {
       "species_id": "rotomwash",
@@ -17887,7 +18040,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rotom-wash.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rotom-wash.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rotom-wash.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rotom.ogg"
     },
     "uxie": {
       "species_id": "uxie",
@@ -18031,7 +18185,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/dialga-origin.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/dialga-origin.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/dialga-origin.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/dialga.ogg"
     },
     "palkia": {
       "species_id": "palkia",
@@ -18082,7 +18237,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/palkia-origin.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/palkia-origin.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/palkia-origin.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/palkia.ogg"
     },
     "heatran": {
       "species_id": "heatran",
@@ -18133,7 +18289,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/heatran-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/heatran-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/heatran-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/heatran.ogg"
     },
     "regigigas": {
       "species_id": "regigigas",
@@ -18215,7 +18372,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/giratina-origin.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/giratina-origin.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/giratina-origin.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/giratina.ogg"
     },
     "cresselia": {
       "species_id": "cresselia",
@@ -18359,7 +18517,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/darkrai-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/darkrai-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/darkrai-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/darkrai.ogg"
     },
     "shaymin": {
       "species_id": "shaymin",
@@ -18410,7 +18569,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/shaymin-sky.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/shaymin-sky.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/shaymin-sky.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/shaymin.ogg"
     },
     "arceus": {
       "species_id": "arceus",
@@ -18461,7 +18621,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-bug.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-bug.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-bug.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusdark": {
       "species_id": "arceusdark",
@@ -18481,7 +18642,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-dark.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-dark.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-dark.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusdragon": {
       "species_id": "arceusdragon",
@@ -18501,7 +18663,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-dragon.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-dragon.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-dragon.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceuselectric": {
       "species_id": "arceuselectric",
@@ -18521,7 +18684,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-electric.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-electric.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-electric.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusfairy": {
       "species_id": "arceusfairy",
@@ -18541,7 +18705,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-fairy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-fairy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-fairy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusfighting": {
       "species_id": "arceusfighting",
@@ -18561,7 +18726,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-fighting.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-fighting.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-fighting.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusfire": {
       "species_id": "arceusfire",
@@ -18581,7 +18747,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-fire.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-fire.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-fire.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusflying": {
       "species_id": "arceusflying",
@@ -18601,7 +18768,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-flying.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-flying.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-flying.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusghost": {
       "species_id": "arceusghost",
@@ -18621,7 +18789,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-ghost.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-ghost.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-ghost.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusgrass": {
       "species_id": "arceusgrass",
@@ -18641,7 +18810,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-grass.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-grass.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-grass.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusground": {
       "species_id": "arceusground",
@@ -18661,7 +18831,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-ground.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-ground.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-ground.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusice": {
       "species_id": "arceusice",
@@ -18681,7 +18852,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-ice.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-ice.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-ice.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceuspoison": {
       "species_id": "arceuspoison",
@@ -18701,7 +18873,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-poison.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-poison.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-poison.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceuspsychic": {
       "species_id": "arceuspsychic",
@@ -18721,7 +18894,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-psychic.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-psychic.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-psychic.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceusrock": {
       "species_id": "arceusrock",
@@ -18741,7 +18915,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-rock.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-rock.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-rock.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceussteel": {
       "species_id": "arceussteel",
@@ -18761,7 +18936,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-steel.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-steel.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-steel.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "arceuswater": {
       "species_id": "arceuswater",
@@ -18781,7 +18957,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/arceus-water.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/arceus-water.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/arceus-water.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/arceus.ogg"
     },
     "victini": {
       "species_id": "victini",
@@ -19018,7 +19195,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/emboar-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/emboar-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/emboar-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/emboar.ogg"
     },
     "oshawott": {
       "species_id": "oshawott",
@@ -19131,7 +19309,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/samurott-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/samurott-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/samurott-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/samurott.ogg"
     },
     "patrat": {
       "species_id": "patrat",
@@ -19988,7 +20167,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/excadrill-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/excadrill-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/excadrill-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/excadrill.ogg"
     },
     "audino": {
       "species_id": "audino",
@@ -20039,7 +20219,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/audino-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/audino-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/audino-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/audino.ogg"
     },
     "timburr": {
       "species_id": "timburr",
@@ -20493,7 +20674,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/scolipede-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/scolipede-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/scolipede-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/scolipede.ogg"
     },
     "cottonee": {
       "species_id": "cottonee",
@@ -20637,7 +20819,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lilligant-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lilligant-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lilligant-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lilligant.ogg"
     },
     "basculin": {
       "species_id": "basculin",
@@ -20688,7 +20871,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/basculin-bluestriped.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/basculin-bluestriped.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/basculin-bluestriped.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/basculin.ogg"
     },
     "basculinwhitestriped": {
       "species_id": "basculinwhitestriped",
@@ -20708,7 +20892,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/basculin-whitestriped.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/basculin-whitestriped.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/basculin-whitestriped.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/basculin.ogg"
     },
     "sandile": {
       "species_id": "sandile",
@@ -20852,7 +21037,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/darumaka-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/darumaka-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/darumaka-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/darumaka.ogg"
     },
     "darmanitan": {
       "species_id": "darmanitan",
@@ -20903,7 +21089,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/darmanitan-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/darmanitan-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/darmanitan-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/darmanitan.ogg"
     },
     "darmanitangalarzen": {
       "species_id": "darmanitangalarzen",
@@ -20923,7 +21110,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/darmanitan-galarzen.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/darmanitan-galarzen.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/darmanitan-galarzen.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/darmanitan.ogg"
     },
     "darmanitanzen": {
       "species_id": "darmanitanzen",
@@ -20943,7 +21131,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/darmanitan-zen.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/darmanitan-zen.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/darmanitan-zen.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/darmanitan.ogg"
     },
     "maractus": {
       "species_id": "maractus",
@@ -21118,7 +21307,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/scrafty-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/scrafty-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/scrafty-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/scrafty.ogg"
     },
     "sigilyph": {
       "species_id": "sigilyph",
@@ -21200,7 +21390,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/yamask-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/yamask-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/yamask-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/yamask.ogg"
     },
     "cofagrigus": {
       "species_id": "cofagrigus",
@@ -21437,7 +21628,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/garbodor-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/garbodor-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/garbodor-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/garbodor.ogg"
     },
     "zorua": {
       "species_id": "zorua",
@@ -21488,7 +21680,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zorua-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zorua-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zorua-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zorua.ogg"
     },
     "zoroark": {
       "species_id": "zoroark",
@@ -21539,7 +21732,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zoroark-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zoroark-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zoroark-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zoroark.ogg"
     },
     "minccino": {
       "species_id": "minccino",
@@ -22582,7 +22776,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/eelektross-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/eelektross-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/eelektross-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/eelektross.ogg"
     },
     "elgyem": {
       "species_id": "elgyem",
@@ -22757,7 +22952,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/chandelure-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/chandelure-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/chandelure-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/chandelure.ogg"
     },
     "axew": {
       "species_id": "axew",
@@ -23056,7 +23252,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/stunfisk-galar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/stunfisk-galar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/stunfisk-galar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/stunfisk.ogg"
     },
     "mienfoo": {
       "species_id": "mienfoo",
@@ -23231,7 +23428,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/golurk-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/golurk-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/golurk-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/golurk.ogg"
     },
     "pawniard": {
       "species_id": "pawniard",
@@ -23406,7 +23604,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/braviary-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/braviary-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/braviary-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/braviary.ogg"
     },
     "vullaby": {
       "species_id": "vullaby",
@@ -23829,7 +24028,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tornadus-therian.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tornadus-therian.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tornadus-therian.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tornadus.ogg"
     },
     "thundurus": {
       "species_id": "thundurus",
@@ -23880,7 +24080,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/thundurus-therian.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/thundurus-therian.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/thundurus-therian.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/thundurus.ogg"
     },
     "reshiram": {
       "species_id": "reshiram",
@@ -23993,7 +24194,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/landorus-therian.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/landorus-therian.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/landorus-therian.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/landorus.ogg"
     },
     "kyurem": {
       "species_id": "kyurem",
@@ -24044,7 +24246,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/kyurem-black.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/kyurem-black.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/kyurem-black.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/kyurem.ogg"
     },
     "kyuremwhite": {
       "species_id": "kyuremwhite",
@@ -24064,7 +24267,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/kyurem-white.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/kyurem-white.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/kyurem-white.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/kyurem.ogg"
     },
     "keldeo": {
       "species_id": "keldeo",
@@ -24115,7 +24319,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/keldeo-resolute.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/keldeo-resolute.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/keldeo-resolute.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/keldeo.ogg"
     },
     "meloetta": {
       "species_id": "meloetta",
@@ -24166,7 +24371,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meloetta-pirouette.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meloetta-pirouette.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meloetta-pirouette.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meloetta.ogg"
     },
     "genesect": {
       "species_id": "genesect",
@@ -24217,7 +24423,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/genesect-burn.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/genesect-burn.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/genesect-burn.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/genesect.ogg"
     },
     "genesectchill": {
       "species_id": "genesectchill",
@@ -24237,7 +24444,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/genesect-chill.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/genesect-chill.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/genesect-chill.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/genesect.ogg"
     },
     "genesectdouse": {
       "species_id": "genesectdouse",
@@ -24257,7 +24465,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/genesect-douse.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/genesect-douse.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/genesect-douse.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/genesect.ogg"
     },
     "genesectshock": {
       "species_id": "genesectshock",
@@ -24277,7 +24486,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/genesect-shock.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/genesect-shock.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/genesect-shock.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/genesect.ogg"
     },
     "chespin": {
       "species_id": "chespin",
@@ -24390,7 +24600,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/chesnaught-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/chesnaught-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/chesnaught-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/chesnaught.ogg"
     },
     "fennekin": {
       "species_id": "fennekin",
@@ -24503,7 +24714,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/delphox-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/delphox-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/delphox-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/delphox.ogg"
     },
     "froakie": {
       "species_id": "froakie",
@@ -24616,7 +24828,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/greninja-ash.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/greninja-ash.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/greninja-ash.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/greninja.ogg"
     },
     "greninjabond": {
       "species_id": "greninjabond",
@@ -24636,7 +24849,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/greninja-bond.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/greninja-bond.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/greninja-bond.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/greninja.ogg"
     },
     "greninjamega": {
       "species_id": "greninjamega",
@@ -24656,7 +24870,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/greninja-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/greninja-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/greninja-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/greninja.ogg"
     },
     "bunnelby": {
       "species_id": "bunnelby",
@@ -24924,7 +25139,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/vivillon-fancy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/vivillon-fancy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/vivillon-fancy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/vivillon.ogg"
     },
     "vivillonpokeball": {
       "species_id": "vivillonpokeball",
@@ -24944,7 +25160,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/vivillon-pokeball.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/vivillon-pokeball.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/vivillon-pokeball.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/vivillon.ogg"
     },
     "litleo": {
       "species_id": "litleo",
@@ -25026,7 +25243,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pyroar-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pyroar-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pyroar-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pyroar.ogg"
     },
     "flabebe": {
       "species_id": "flabebe",
@@ -25108,7 +25326,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/floette-eternal.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/floette-eternal.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/floette-eternal.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/floette.ogg"
     },
     "floettemega": {
       "species_id": "floettemega",
@@ -25128,7 +25347,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/floette-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/floette-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/floette-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/floette.ogg"
     },
     "florges": {
       "species_id": "florges",
@@ -25396,7 +25616,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meowstic-f.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meowstic-f.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meowstic-f.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meowstic.ogg"
     },
     "meowsticfmega": {
       "species_id": "meowsticfmega",
@@ -25416,7 +25637,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meowstic-fmega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meowstic-fmega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meowstic-fmega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meowstic.ogg"
     },
     "meowsticmmega": {
       "species_id": "meowsticmmega",
@@ -25436,7 +25658,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/meowstic-mmega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/meowstic-mmega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/meowstic-mmega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/meowstic.ogg"
     },
     "honedge": {
       "species_id": "honedge",
@@ -25549,7 +25772,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/aegislash-blade.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/aegislash-blade.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/aegislash-blade.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/aegislash.ogg"
     },
     "spritzee": {
       "species_id": "spritzee",
@@ -25755,7 +25979,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/malamar-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/malamar-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/malamar-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/malamar.ogg"
     },
     "binacle": {
       "species_id": "binacle",
@@ -25837,7 +26062,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/barbaracle-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/barbaracle-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/barbaracle-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/barbaracle.ogg"
     },
     "skrelp": {
       "species_id": "skrelp",
@@ -25919,7 +26145,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/dragalge-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/dragalge-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/dragalge-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/dragalge.ogg"
     },
     "clauncher": {
       "species_id": "clauncher",
@@ -26249,7 +26476,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/hawlucha-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/hawlucha-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/hawlucha-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/hawlucha.ogg"
     },
     "dedenne": {
       "species_id": "dedenne",
@@ -26393,7 +26621,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sliggoo-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sliggoo-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sliggoo-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sliggoo.ogg"
     },
     "goodra": {
       "species_id": "goodra",
@@ -26444,7 +26673,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/goodra-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/goodra-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/goodra-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/goodra.ogg"
     },
     "klefki": {
       "species_id": "klefki",
@@ -26588,7 +26818,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pumpkaboo-large.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pumpkaboo-large.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pumpkaboo-large.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pumpkaboo.ogg"
     },
     "pumpkaboosmall": {
       "species_id": "pumpkaboosmall",
@@ -26608,7 +26839,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pumpkaboo-small.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pumpkaboo-small.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pumpkaboo-small.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pumpkaboo.ogg"
     },
     "pumpkaboosuper": {
       "species_id": "pumpkaboosuper",
@@ -26628,7 +26860,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/pumpkaboo-super.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/pumpkaboo-super.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/pumpkaboo-super.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/pumpkaboo.ogg"
     },
     "gourgeist": {
       "species_id": "gourgeist",
@@ -26679,7 +26912,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gourgeist-large.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gourgeist-large.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gourgeist-large.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gourgeist.ogg"
     },
     "gourgeistsmall": {
       "species_id": "gourgeistsmall",
@@ -26699,7 +26933,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gourgeist-small.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gourgeist-small.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gourgeist-small.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gourgeist.ogg"
     },
     "gourgeistsuper": {
       "species_id": "gourgeistsuper",
@@ -26719,7 +26954,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gourgeist-super.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gourgeist-super.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gourgeist-super.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gourgeist.ogg"
     },
     "bergmite": {
       "species_id": "bergmite",
@@ -26801,7 +27037,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/avalugg-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/avalugg-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/avalugg-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/avalugg.ogg"
     },
     "noibat": {
       "species_id": "noibat",
@@ -26914,7 +27151,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/xerneas-neutral.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/xerneas-neutral.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/xerneas-neutral.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/xerneas.ogg"
     },
     "yveltal": {
       "species_id": "yveltal",
@@ -26996,7 +27234,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zygarde-10.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zygarde-10.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zygarde-10.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zygarde.ogg"
     },
     "zygardecomplete": {
       "species_id": "zygardecomplete",
@@ -27016,7 +27255,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zygarde-complete.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zygarde-complete.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zygarde-complete.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zygarde.ogg"
     },
     "zygardemega": {
       "species_id": "zygardemega",
@@ -27036,7 +27276,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zygarde-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zygarde-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zygarde-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zygarde.ogg"
     },
     "diancie": {
       "species_id": "diancie",
@@ -27087,7 +27328,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/diancie-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/diancie-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/diancie-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/diancie.ogg"
     },
     "hoopa": {
       "species_id": "hoopa",
@@ -27138,7 +27380,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/hoopa-unbound.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/hoopa-unbound.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/hoopa-unbound.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/hoopa.ogg"
     },
     "volcanion": {
       "species_id": "volcanion",
@@ -27282,7 +27525,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/decidueye-hisui.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/decidueye-hisui.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/decidueye-hisui.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/decidueye.ogg"
     },
     "litten": {
       "species_id": "litten",
@@ -27643,7 +27887,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gumshoos-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gumshoos-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gumshoos-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gumshoos.ogg"
     },
     "grubbin": {
       "species_id": "grubbin",
@@ -27756,7 +28001,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/vikavolt-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/vikavolt-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/vikavolt-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/vikavolt.ogg"
     },
     "crabrawler": {
       "species_id": "crabrawler",
@@ -27838,7 +28084,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/crabominable-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/crabominable-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/crabominable-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/crabominable.ogg"
     },
     "oricorio": {
       "species_id": "oricorio",
@@ -27889,7 +28136,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/oricorio-pau.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/oricorio-pau.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/oricorio-pau.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/oricorio.ogg"
     },
     "oricoriopompom": {
       "species_id": "oricoriopompom",
@@ -27909,7 +28157,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/oricorio-pompom.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/oricorio-pompom.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/oricorio-pompom.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/oricorio.ogg"
     },
     "oricoriosensu": {
       "species_id": "oricoriosensu",
@@ -27929,7 +28178,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/oricorio-sensu.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/oricorio-sensu.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/oricorio-sensu.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/oricorio.ogg"
     },
     "cutiefly": {
       "species_id": "cutiefly",
@@ -28011,7 +28261,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ribombee-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ribombee-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ribombee-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ribombee.ogg"
     },
     "rockruff": {
       "species_id": "rockruff",
@@ -28062,7 +28313,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rockruff-dusk.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rockruff-dusk.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rockruff-dusk.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rockruff.ogg"
     },
     "lycanroc": {
       "species_id": "lycanroc",
@@ -28113,7 +28365,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lycanroc-dusk.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lycanroc-dusk.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lycanroc-dusk.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lycanroc.ogg"
     },
     "lycanrocmidnight": {
       "species_id": "lycanrocmidnight",
@@ -28133,7 +28386,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lycanroc-midnight.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lycanroc-midnight.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lycanroc-midnight.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lycanroc.ogg"
     },
     "wishiwashi": {
       "species_id": "wishiwashi",
@@ -28184,7 +28438,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/wishiwashi-school.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/wishiwashi-school.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/wishiwashi-school.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/wishiwashi.ogg"
     },
     "mareanie": {
       "species_id": "mareanie",
@@ -28390,7 +28645,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/araquanid-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/araquanid-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/araquanid-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/araquanid.ogg"
     },
     "fomantis": {
       "species_id": "fomantis",
@@ -28472,7 +28728,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/lurantis-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/lurantis-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/lurantis-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/lurantis.ogg"
     },
     "morelull": {
       "species_id": "morelull",
@@ -28616,7 +28873,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/salazzle-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/salazzle-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/salazzle-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/salazzle.ogg"
     },
     "stufful": {
       "species_id": "stufful",
@@ -28946,7 +29204,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/golisopod-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/golisopod-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/golisopod-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/golisopod.ogg"
     },
     "sandygast": {
       "species_id": "sandygast",
@@ -29121,7 +29380,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-bug.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-bug.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-bug.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallydark": {
       "species_id": "silvallydark",
@@ -29141,7 +29401,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-dark.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-dark.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-dark.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallydragon": {
       "species_id": "silvallydragon",
@@ -29161,7 +29422,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-dragon.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-dragon.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-dragon.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyelectric": {
       "species_id": "silvallyelectric",
@@ -29181,7 +29443,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-electric.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-electric.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-electric.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyfairy": {
       "species_id": "silvallyfairy",
@@ -29201,7 +29464,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-fairy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-fairy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-fairy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyfighting": {
       "species_id": "silvallyfighting",
@@ -29221,7 +29485,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-fighting.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-fighting.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-fighting.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyfire": {
       "species_id": "silvallyfire",
@@ -29241,7 +29506,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-fire.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-fire.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-fire.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyflying": {
       "species_id": "silvallyflying",
@@ -29261,7 +29527,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-flying.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-flying.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-flying.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyghost": {
       "species_id": "silvallyghost",
@@ -29281,7 +29548,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-ghost.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-ghost.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-ghost.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallygrass": {
       "species_id": "silvallygrass",
@@ -29301,7 +29569,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-grass.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-grass.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-grass.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyground": {
       "species_id": "silvallyground",
@@ -29321,7 +29590,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-ground.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-ground.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-ground.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyice": {
       "species_id": "silvallyice",
@@ -29341,7 +29611,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-ice.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-ice.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-ice.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallypoison": {
       "species_id": "silvallypoison",
@@ -29361,7 +29632,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-poison.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-poison.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-poison.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallypsychic": {
       "species_id": "silvallypsychic",
@@ -29381,7 +29653,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-psychic.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-psychic.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-psychic.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallyrock": {
       "species_id": "silvallyrock",
@@ -29401,7 +29674,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-rock.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-rock.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-rock.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallysteel": {
       "species_id": "silvallysteel",
@@ -29421,7 +29695,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-steel.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-steel.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-steel.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "silvallywater": {
       "species_id": "silvallywater",
@@ -29441,7 +29716,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/silvally-water.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/silvally-water.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/silvally-water.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/silvally.ogg"
     },
     "minior": {
       "species_id": "minior",
@@ -29492,7 +29768,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/minior-meteor.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/minior-meteor.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/minior-meteor.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/minior.ogg"
     },
     "komala": {
       "species_id": "komala",
@@ -29605,7 +29882,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/togedemaru-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/togedemaru-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/togedemaru-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/togedemaru.ogg"
     },
     "mimikyu": {
       "species_id": "mimikyu",
@@ -29656,7 +29934,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/mimikyu-busted.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/mimikyu-busted.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/mimikyu-busted.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/mimikyu.ogg"
     },
     "mimikyubustedtotem": {
       "species_id": "mimikyubustedtotem",
@@ -29676,7 +29955,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/mimikyu-bustedtotem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/mimikyu-bustedtotem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/mimikyu-bustedtotem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/mimikyu.ogg"
     },
     "mimikyutotem": {
       "species_id": "mimikyutotem",
@@ -29696,7 +29976,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/mimikyu-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/mimikyu-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/mimikyu-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/mimikyu.ogg"
     },
     "bruxish": {
       "species_id": "bruxish",
@@ -29778,7 +30059,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/drampa-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/drampa-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/drampa-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/drampa.ogg"
     },
     "dhelmise": {
       "species_id": "dhelmise",
@@ -29922,7 +30204,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/kommoo-totem.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/kommoo-totem.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/kommoo-totem.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/kommoo.ogg"
     },
     "tapukoko": {
       "species_id": "tapukoko",
@@ -30438,7 +30721,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/necrozma-dawnwings.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/necrozma-dawnwings.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/necrozma-dawnwings.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/necrozma.ogg"
     },
     "necrozmaduskmane": {
       "species_id": "necrozmaduskmane",
@@ -30458,7 +30742,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/necrozma-duskmane.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/necrozma-duskmane.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/necrozma-duskmane.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/necrozma.ogg"
     },
     "necrozmaultra": {
       "species_id": "necrozmaultra",
@@ -30478,7 +30763,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/necrozma-ultra.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/necrozma-ultra.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/necrozma-ultra.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/necrozma.ogg"
     },
     "magearna": {
       "species_id": "magearna",
@@ -30529,7 +30815,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/magearna-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/magearna-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/magearna-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/magearna.ogg"
     },
     "magearnaoriginal": {
       "species_id": "magearnaoriginal",
@@ -30549,7 +30836,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/magearna-original.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/magearna-original.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/magearna-original.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/magearna.ogg"
     },
     "magearnaoriginalmega": {
       "species_id": "magearnaoriginalmega",
@@ -30569,7 +30857,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/magearna-originalmega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/magearna-originalmega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/magearna-originalmega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/magearna.ogg"
     },
     "marshadow": {
       "species_id": "marshadow",
@@ -30775,7 +31064,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zeraora-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zeraora-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zeraora-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zeraora.ogg"
     },
     "meltan": {
       "species_id": "meltan",
@@ -30857,7 +31147,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/melmetal-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/melmetal-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/melmetal-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/melmetal.ogg"
     },
     "grookey": {
       "species_id": "grookey",
@@ -30970,7 +31261,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/rillaboom-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/rillaboom-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/rillaboom-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/rillaboom.ogg"
     },
     "scorbunny": {
       "species_id": "scorbunny",
@@ -31083,7 +31375,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/cinderace-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/cinderace-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/cinderace-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/cinderace.ogg"
     },
     "sobble": {
       "species_id": "sobble",
@@ -31196,7 +31489,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/inteleon-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/inteleon-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/inteleon-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/inteleon.ogg"
     },
     "skwovet": {
       "species_id": "skwovet",
@@ -31371,7 +31665,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/corviknight-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/corviknight-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/corviknight-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/corviknight.ogg"
     },
     "blipbug": {
       "species_id": "blipbug",
@@ -31484,7 +31779,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/orbeetle-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/orbeetle-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/orbeetle-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/orbeetle.ogg"
     },
     "nickit": {
       "species_id": "nickit",
@@ -31752,7 +32048,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/drednaw-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/drednaw-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/drednaw-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/drednaw.ogg"
     },
     "yamper": {
       "species_id": "yamper",
@@ -31927,7 +32224,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/coalossal-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/coalossal-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/coalossal-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/coalossal.ogg"
     },
     "applin": {
       "species_id": "applin",
@@ -32009,7 +32307,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/flapple-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/flapple-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/flapple-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/flapple.ogg"
     },
     "appletun": {
       "species_id": "appletun",
@@ -32060,7 +32359,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/appletun-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/appletun-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/appletun-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/appletun.ogg"
     },
     "silicobra": {
       "species_id": "silicobra",
@@ -32142,7 +32442,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sandaconda-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sandaconda-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sandaconda-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sandaconda.ogg"
     },
     "cramorant": {
       "species_id": "cramorant",
@@ -32193,7 +32494,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/cramorant-gorging.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/cramorant-gorging.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/cramorant-gorging.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/cramorant.ogg"
     },
     "cramorantgulping": {
       "species_id": "cramorantgulping",
@@ -32213,7 +32515,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/cramorant-gulping.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/cramorant-gulping.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/cramorant-gulping.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/cramorant.ogg"
     },
     "arrokuda": {
       "species_id": "arrokuda",
@@ -32357,7 +32660,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/toxtricity-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/toxtricity-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/toxtricity-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/toxtricity.ogg"
     },
     "toxtricitylowkey": {
       "species_id": "toxtricitylowkey",
@@ -32377,7 +32681,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/toxtricity-lowkey.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/toxtricity-lowkey.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/toxtricity-lowkey.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/toxtricity.ogg"
     },
     "toxtricitylowkeygmax": {
       "species_id": "toxtricitylowkeygmax",
@@ -32397,7 +32702,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/toxtricity-lowkeygmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/toxtricity-lowkeygmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/toxtricity-lowkeygmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/toxtricity.ogg"
     },
     "sizzlipede": {
       "species_id": "sizzlipede",
@@ -32479,7 +32785,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/centiskorch-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/centiskorch-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/centiskorch-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/centiskorch.ogg"
     },
     "clobbopus": {
       "species_id": "clobbopus",
@@ -32592,7 +32899,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sinistea-antique.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sinistea-antique.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sinistea-antique.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sinistea.ogg"
     },
     "polteageist": {
       "species_id": "polteageist",
@@ -32643,7 +32951,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/polteageist-antique.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/polteageist-antique.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/polteageist-antique.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/polteageist.ogg"
     },
     "hatenna": {
       "species_id": "hatenna",
@@ -32756,7 +33065,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/hatterene-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/hatterene-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/hatterene-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/hatterene.ogg"
     },
     "impidimp": {
       "species_id": "impidimp",
@@ -32869,7 +33179,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/grimmsnarl-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/grimmsnarl-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/grimmsnarl-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/grimmsnarl.ogg"
     },
     "obstagoon": {
       "species_id": "obstagoon",
@@ -33137,7 +33448,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/alcremie-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/alcremie-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/alcremie-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/alcremie.ogg"
     },
     "falinks": {
       "species_id": "falinks",
@@ -33188,7 +33500,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/falinks-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/falinks-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/falinks-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/falinks.ogg"
     },
     "pincurchin": {
       "species_id": "pincurchin",
@@ -33363,7 +33676,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/eiscue-noice.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/eiscue-noice.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/eiscue-noice.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/eiscue.ogg"
     },
     "indeedee": {
       "species_id": "indeedee",
@@ -33414,7 +33728,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/indeedee-f.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/indeedee-f.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/indeedee-f.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/indeedee.ogg"
     },
     "morpeko": {
       "species_id": "morpeko",
@@ -33465,7 +33780,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/morpeko-hangry.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/morpeko-hangry.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/morpeko-hangry.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/morpeko.ogg"
     },
     "cufant": {
       "species_id": "cufant",
@@ -33547,7 +33863,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/copperajah-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/copperajah-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/copperajah-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/copperajah.ogg"
     },
     "dracozolt": {
       "species_id": "dracozolt",
@@ -33722,7 +34039,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/duraludon-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/duraludon-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/duraludon-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/duraludon.ogg"
     },
     "dreepy": {
       "species_id": "dreepy",
@@ -33866,7 +34184,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zacian-crowned.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zacian-crowned.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zacian-crowned.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zacian.ogg"
     },
     "zamazenta": {
       "species_id": "zamazenta",
@@ -33917,7 +34236,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zamazenta-crowned.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zamazenta-crowned.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zamazenta-crowned.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zamazenta.ogg"
     },
     "eternatus": {
       "species_id": "eternatus",
@@ -33968,7 +34288,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/eternatus-eternamax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/eternatus-eternamax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/eternatus-eternamax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/eternatus.ogg"
     },
     "kubfu": {
       "species_id": "kubfu",
@@ -34050,7 +34371,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/urshifu-gmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/urshifu-gmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/urshifu-gmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/urshifu.ogg"
     },
     "urshifurapidstrike": {
       "species_id": "urshifurapidstrike",
@@ -34070,7 +34392,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/urshifu-rapidstrike.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/urshifu-rapidstrike.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/urshifu-rapidstrike.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/urshifu.ogg"
     },
     "urshifurapidstrikegmax": {
       "species_id": "urshifurapidstrikegmax",
@@ -34090,7 +34413,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/urshifu-rapidstrikegmax.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/urshifu-rapidstrikegmax.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/urshifu-rapidstrikegmax.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/urshifu.ogg"
     },
     "zarude": {
       "species_id": "zarude",
@@ -34141,7 +34465,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/zarude-dada.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/zarude-dada.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/zarude-dada.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/zarude.ogg"
     },
     "regieleki": {
       "species_id": "regieleki",
@@ -34316,7 +34641,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/calyrex-ice.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/calyrex-ice.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/calyrex-ice.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/calyrex.ogg"
     },
     "calyrexshadow": {
       "species_id": "calyrexshadow",
@@ -34336,7 +34662,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/calyrex-shadow.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/calyrex-shadow.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/calyrex-shadow.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/calyrex.ogg"
     },
     "wyrdeer": {
       "species_id": "wyrdeer",
@@ -34449,7 +34776,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ursaluna-bloodmoon.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ursaluna-bloodmoon.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ursaluna-bloodmoon.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ursaluna.ogg"
     },
     "basculegion": {
       "species_id": "basculegion",
@@ -34500,7 +34828,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/basculegion-f.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/basculegion-f.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/basculegion-f.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/basculegion.ogg"
     },
     "sneasler": {
       "species_id": "sneasler",
@@ -34613,7 +34942,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/enamorus-therian.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/enamorus-therian.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/enamorus-therian.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/enamorus.ogg"
     },
     "sprigatito": {
       "species_id": "sprigatito",
@@ -34974,7 +35304,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/oinkologne-f.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/oinkologne-f.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/oinkologne-f.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/oinkologne.ogg"
     },
     "tarountula": {
       "species_id": "tarountula",
@@ -35273,7 +35604,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/maushold-four.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/maushold-four.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/maushold-four.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/maushold.ogg"
     },
     "fidough": {
       "species_id": "fidough",
@@ -35479,7 +35811,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/squawkabilly-blue.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/squawkabilly-blue.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/squawkabilly-blue.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/squawkabilly.ogg"
     },
     "squawkabillywhite": {
       "species_id": "squawkabillywhite",
@@ -35499,7 +35832,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/squawkabilly-white.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/squawkabilly-white.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/squawkabilly-white.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/squawkabilly.ogg"
     },
     "squawkabillyyellow": {
       "species_id": "squawkabillyyellow",
@@ -35519,7 +35853,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/squawkabilly-yellow.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/squawkabilly-yellow.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/squawkabilly-yellow.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/squawkabilly.ogg"
     },
     "nacli": {
       "species_id": "nacli",
@@ -36190,7 +36525,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/scovillain-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/scovillain-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/scovillain-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/scovillain.ogg"
     },
     "rellor": {
       "species_id": "rellor",
@@ -36582,7 +36918,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/palafin-hero.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/palafin-hero.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/palafin-hero.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/palafin.ogg"
     },
     "varoom": {
       "species_id": "varoom",
@@ -36788,7 +37125,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/glimmora-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/glimmora-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/glimmora-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/glimmora.ogg"
     },
     "greavard": {
       "species_id": "greavard",
@@ -37056,7 +37394,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tatsugiri-curlymega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tatsugiri-curlymega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tatsugiri-curlymega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tatsugiri.ogg"
     },
     "tatsugiridroopy": {
       "species_id": "tatsugiridroopy",
@@ -37076,7 +37415,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tatsugiri-droopy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tatsugiri-droopy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tatsugiri-droopy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tatsugiri.ogg"
     },
     "tatsugiridroopymega": {
       "species_id": "tatsugiridroopymega",
@@ -37096,7 +37436,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tatsugiri-droopymega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tatsugiri-droopymega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tatsugiri-droopymega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tatsugiri.ogg"
     },
     "tatsugiristretchy": {
       "species_id": "tatsugiristretchy",
@@ -37116,7 +37457,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tatsugiri-stretchy.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tatsugiri-stretchy.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tatsugiri-stretchy.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tatsugiri.ogg"
     },
     "tatsugiristretchymega": {
       "species_id": "tatsugiristretchymega",
@@ -37136,7 +37478,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/tatsugiri-stretchymega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/tatsugiri-stretchymega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/tatsugiri-stretchymega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/tatsugiri.ogg"
     },
     "annihilape": {
       "species_id": "annihilape",
@@ -37280,7 +37623,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/dudunsparce-threesegment.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/dudunsparce-threesegment.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/dudunsparce-threesegment.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/dudunsparce.ogg"
     },
     "kingambit": {
       "species_id": "kingambit",
@@ -37796,7 +38140,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/baxcalibur-mega.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/baxcalibur-mega.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/baxcalibur-mega.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/baxcalibur.ogg"
     },
     "gimmighoul": {
       "species_id": "gimmighoul",
@@ -37847,7 +38192,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/gimmighoul-roaming.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/gimmighoul-roaming.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/gimmighoul-roaming.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/gimmighoul.ogg"
     },
     "gholdengo": {
       "species_id": "gholdengo",
@@ -38270,7 +38616,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/poltchageist-artisan.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/poltchageist-artisan.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/poltchageist-artisan.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/poltchageist.ogg"
     },
     "sinistcha": {
       "species_id": "sinistcha",
@@ -38321,7 +38668,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/sinistcha-masterpiece.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/sinistcha-masterpiece.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/sinistcha-masterpiece.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/sinistcha.ogg"
     },
     "okidogi": {
       "species_id": "okidogi",
@@ -38465,7 +38813,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ogerpon-cornerstone.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ogerpon-cornerstone.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ogerpon-cornerstone.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ogerpon.ogg"
     },
     "ogerponcornerstonetera": {
       "species_id": "ogerponcornerstonetera",
@@ -38485,7 +38834,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ogerpon-cornerstonetera.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ogerpon-cornerstonetera.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ogerpon-cornerstonetera.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ogerpon.ogg"
     },
     "ogerponhearthflame": {
       "species_id": "ogerponhearthflame",
@@ -38505,7 +38855,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ogerpon-hearthflame.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ogerpon-hearthflame.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ogerpon-hearthflame.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ogerpon.ogg"
     },
     "ogerponhearthflametera": {
       "species_id": "ogerponhearthflametera",
@@ -38525,7 +38876,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ogerpon-hearthflametera.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ogerpon-hearthflametera.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ogerpon-hearthflametera.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ogerpon.ogg"
     },
     "ogerpontealtera": {
       "species_id": "ogerpontealtera",
@@ -38545,7 +38897,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ogerpon-tealtera.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ogerpon-tealtera.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ogerpon-tealtera.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ogerpon.ogg"
     },
     "ogerponwellspring": {
       "species_id": "ogerponwellspring",
@@ -38565,7 +38918,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ogerpon-wellspring.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ogerpon-wellspring.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ogerpon-wellspring.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ogerpon.ogg"
     },
     "ogerponwellspringtera": {
       "species_id": "ogerponwellspringtera",
@@ -38585,7 +38939,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/ogerpon-wellspringtera.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/ogerpon-wellspringtera.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/ogerpon-wellspringtera.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/ogerpon.ogg"
     },
     "archaludon": {
       "species_id": "archaludon",
@@ -38822,7 +39177,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/terapagos-stellar.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/terapagos-stellar.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/terapagos-stellar.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/terapagos.ogg"
     },
     "terapagosterastal": {
       "species_id": "terapagosterastal",
@@ -38842,7 +39198,8 @@
         "back_shiny": "assets/pokemon-showdown/gen5-back-shiny/terapagos-terastal.png",
         "front_normal_full": "assets/pokemon-showdown/gen5/terapagos-terastal.png",
         "front_shiny_full": "assets/pokemon-showdown/gen5-shiny/terapagos-terastal.png"
-      }
+      },
+      "cry_asset": "assets/audio/pokemon-cries/terapagos.ogg"
     },
     "pecharunt": {
       "species_id": "pecharunt",
