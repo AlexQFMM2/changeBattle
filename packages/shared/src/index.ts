@@ -285,12 +285,13 @@ export type BattleRequestView = {
   active?: Array<{
     moves: BattleMoveRequest[];
     canZMove?: Array<{move: string; target?: string} | null>;
+    canMegaEvo?: boolean | string;
   }>;
 };
 
 export type BattleTracker = {
   turn: number;
-  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; condition?: string; status?: string; substitute?: boolean; showdown_id?: string}>;
+  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; types?: string[]; types_zh?: string[]; base_stats?: Record<string, number>; ability?: string; ability_zh?: string; ability_id?: string; ability_desc?: string; ability_desc_zh?: string; condition?: string; status?: string; substitute?: boolean; showdown_id?: string}>;
   boosts: Record<"p1" | "p2", Record<string, number>>;
   side_conditions: Record<"p1" | "p2", string[]>;
   weather: string;

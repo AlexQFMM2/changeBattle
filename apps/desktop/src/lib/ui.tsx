@@ -40,6 +40,7 @@ export type BattleVisualCue = {
 };
 
 export const BATTLE_EFFECTS = battleEffectAssets as {defaults: {duration_ms: number; anchor: "target" | "field" | "side"}; entries: Record<string, BattleEffectEntry>};
+const BATTLE_CSS_EFFECT_SPEEDUP_MS = 500;
 export const TYPE_ID_BY_ZH: Record<string, string> = {
   一般: "normal",
   火: "fire",
@@ -443,9 +444,11 @@ export function fieldEffectKeys(event: BattleTimelineEvent): string[] {
 }
 
 export function cueFromEntry(entry: BattleEffectEntry | undefined, event: BattleTimelineEvent, fallbackVisual: string, side?: "p1" | "p2", targetSide?: "p1" | "p2"): BattleVisualCue {
+  const renderer = entry?.renderer || "css";
+  const durationMs = entry?.duration_ms || BATTLE_EFFECTS.defaults.duration_ms;
   return {
     visual: entry?.visual || fallbackVisual,
-    renderer: entry?.renderer || "css",
+    renderer,
     asset: entry?.asset,
     frames: entry?.frames,
     frame_width: entry?.frame_width,
@@ -454,7 +457,7 @@ export function cueFromEntry(entry: BattleEffectEntry | undefined, event: Battle
     side: side || event.side,
     targetSide: targetSide || event.targetSide,
     anchor: entry?.anchor || BATTLE_EFFECTS.defaults.anchor,
-    durationMs: entry?.duration_ms || BATTLE_EFFECTS.defaults.duration_ms,
+    durationMs: renderer === "css" ? Math.max(450, durationMs - BATTLE_CSS_EFFECT_SPEEDUP_MS) : durationMs,
   };
 }
 
@@ -707,9 +710,36 @@ export function findDisplayByShowdownId(team: RentalPokemon[], showdownId?: stri
 
 export type ActiveTrackerDisplay = BattleState["tracker"]["active"]["p1"];
 
+function calculatedDisplayStats(baseStats: Record<string, number>, base?: RentalPokemon): Record<string, number> {
+  if (!base) return {};
+  const level = Number(base.level || 50);
+  const ivs = base.ivs || {};
+  const evs = base.evs || {};
+  const result: Record<string, number> = {};
+  for (const [stat] of STAT_ROWS) {
+    const baseValue = Number(baseStats[stat] || 0);
+    const iv = Number(ivs[stat] ?? 31);
+    const ev = Number(evs[stat] ?? 0);
+    const value = Math.floor(((2 * baseValue + iv + Math.floor(ev / 4)) * level) / 100);
+    if (stat === "hp") {
+      result[stat] = value + level + 10;
+      continue;
+    }
+    let adjusted = value + 5;
+    if (base.nature_plus === stat) adjusted = Math.floor(adjusted * 1.1);
+    if (base.nature_minus === stat) adjusted = Math.floor(adjusted * 0.9);
+    result[stat] = adjusted;
+  }
+  return result;
+}
+
 export function displayFromActive(active: ActiveTrackerDisplay | undefined, base?: RentalPokemon): RentalPokemon | undefined {
   if (!active?.sprite && !active?.display_name && !active?.species_id) return base;
   const species = active?.name || active?.display_name || base?.species || "Unknown";
+  const baseStats = active?.base_stats || base?.base_stats || {};
+  const stats = active?.base_stats ? calculatedDisplayStats(baseStats, base) : base?.stats || {};
+  const formChanged = Boolean(active?.species_id && base?.species_id && active.species_id !== base.species_id);
+  const useActiveAbility = formChanged || !base;
   return {
     name: species,
     species,
@@ -717,21 +747,21 @@ export function displayFromActive(active: ActiveTrackerDisplay | undefined, base
     species_id: active?.species_id || base?.species_id || toId(species),
     level: base?.level || 50,
     gender: base?.gender || "",
-    types: base?.types || [],
-    types_zh: base?.types_zh || [],
-    ability: base?.ability || "",
-    ability_zh: base?.ability_zh || "",
-    ability_id: base?.ability_id || "",
-    ability_desc: base?.ability_desc || "",
-    ability_desc_zh: base?.ability_desc_zh || "",
+    types: active?.types || base?.types || [],
+    types_zh: active?.types_zh || base?.types_zh || [],
+    ability: useActiveAbility ? active?.ability || base?.ability || "" : base?.ability || "",
+    ability_zh: useActiveAbility ? active?.ability_zh || base?.ability_zh || "" : base?.ability_zh || "",
+    ability_id: useActiveAbility ? active?.ability_id || base?.ability_id || "" : base?.ability_id || "",
+    ability_desc: useActiveAbility ? active?.ability_desc || base?.ability_desc || "" : base?.ability_desc || "",
+    ability_desc_zh: useActiveAbility ? active?.ability_desc_zh || base?.ability_desc_zh || "" : base?.ability_desc_zh || "",
     item: base?.item || "",
     item_zh: base?.item_zh || "",
     item_id: base?.item_id || "",
     item_desc: base?.item_desc || "",
     item_desc_zh: base?.item_desc_zh || "",
     moves: base?.moves || [],
-    base_stats: base?.base_stats || {},
-    stats: base?.stats || {},
+    base_stats: baseStats,
+    stats,
     evs: base?.evs || {},
     ivs: base?.ivs || {},
     nature: base?.nature || "",

@@ -3179,6 +3179,63 @@ input, select { min-height: 22px; min-width: 110px; padding: 4px 6px; border: 2p
 .effect-z-impact i:nth-child(5) { --dust-x: -22px; --dust-y: -84px; --dust-r: -8deg; animation-delay: 130ms; scale: .74; }
 .effect-z-impact i:nth-child(6) { --dust-x: 28px; --dust-y: -92px; --dust-r: 12deg; animation-delay: 165ms; scale: .7; }
 
+.effect-mega-evolve {
+  width: calc(var(--battle-mon-size) * 1.55);
+  height: calc(var(--battle-mon-size) * 1.55);
+  mix-blend-mode: screen;
+  filter:
+    drop-shadow(0 0 18px rgb(124 209 255 / 72%))
+    drop-shadow(0 0 24px rgb(255 243 186 / 58%));
+}
+
+.effect-mega-evolve::before,
+.effect-mega-evolve::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.effect-mega-evolve::before {
+  width: 48%;
+  height: 48%;
+  background: radial-gradient(circle, #ffffff 0 18%, #91deffcc 34%, #ffe87b77 52%, transparent 72%);
+  animation: mega-core var(--cue-duration) cubic-bezier(.16, .84, .18, 1) both;
+}
+
+.effect-mega-evolve::after {
+  width: 72%;
+  height: 72%;
+  border: 8px solid rgb(206 243 255 / 86%);
+  border-inline-color: rgb(255 231 123 / 82%);
+  box-shadow:
+    0 0 18px rgb(97 196 255 / 84%),
+    inset 0 0 24px rgb(255 255 255 / 68%);
+  animation: mega-ring var(--cue-duration) cubic-bezier(.14, .8, .16, 1) both;
+}
+
+.effect-mega-evolve i {
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 64%;
+  border-radius: 999px;
+  background: linear-gradient(0deg, transparent, #62cfff, #fff8b7, #ffffff, transparent);
+  box-shadow: 0 0 16px rgb(115 211 255 / 82%);
+  transform-origin: 50% 50%;
+  animation: mega-spark var(--cue-duration) ease-out both;
+}
+
+.effect-mega-evolve i:nth-child(1) { rotate: 0deg; animation-delay: 0ms; }
+.effect-mega-evolve i:nth-child(2) { rotate: 55deg; animation-delay: 60ms; scale: .82 1.08; }
+.effect-mega-evolve i:nth-child(3) { rotate: 112deg; animation-delay: 110ms; scale: .76 1; }
+.effect-mega-evolve i:nth-child(4) { rotate: 168deg; animation-delay: 160ms; scale: .92 1.12; }
+.effect-mega-evolve i:nth-child(5) { rotate: 224deg; animation-delay: 210ms; scale: .68 .92; }
+.effect-mega-evolve i:nth-child(6) { rotate: 292deg; animation-delay: 260ms; scale: .86 1.18; }
+
 .effect-switch-in i,
 .effect-switch-out i {
   width: 110px;
@@ -3684,6 +3741,27 @@ input, select { min-height: 22px; min-width: 110px; padding: 4px 6px; border: 2p
   14% { opacity: .95; }
   50% { opacity: .82; transform: translate(calc(var(--dust-x) * .68), calc(var(--dust-y) * .68)) scale(1.06) rotate(calc(var(--dust-r) * .72)); filter: blur(.5px); }
   100% { opacity: 0; transform: translate(var(--dust-x), var(--dust-y)) scale(1.42) rotate(var(--dust-r)); filter: blur(7px); }
+}
+
+@keyframes mega-core {
+  0% { opacity: 0; transform: scale(.22); filter: blur(8px) brightness(2); }
+  18% { opacity: 1; transform: scale(1.08); filter: blur(1px) brightness(1.45); }
+  42% { opacity: .92; transform: scale(.82); }
+  100% { opacity: 0; transform: scale(2.35); filter: blur(10px) brightness(1.15); }
+}
+
+@keyframes mega-ring {
+  0% { opacity: 0; transform: scale(.16) rotate(-28deg); border-width: 12px; }
+  20% { opacity: 1; transform: scale(.92) rotate(8deg); }
+  58% { opacity: .72; transform: scale(1.42) rotate(96deg); border-width: 6px; }
+  100% { opacity: 0; transform: scale(2.2) rotate(188deg); border-width: 1px; filter: blur(5px); }
+}
+
+@keyframes mega-spark {
+  0% { opacity: 0; transform: translateY(22px) scaleY(.2); }
+  16% { opacity: .95; }
+  54% { opacity: .9; transform: translateY(-8px) scaleY(1.08); }
+  100% { opacity: 0; transform: translateY(-62px) scaleY(1.42); filter: blur(5px); }
 }
 
 @keyframes rain-sheet {

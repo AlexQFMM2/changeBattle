@@ -480,7 +480,9 @@ export class GameService {
       throw new Error(`可用图片的租赁候选不足：${team.length}/${targetCount}`);
     }
 
-    this.ensureZMoveUser(team, options, this.createRngFromSeed(seedArray, 0x7a50));
+    const guaranteeRng = this.createRngFromSeed(seedArray, 0x7a50);
+    this.ensureZMoveUser(team, options, guaranteeRng);
+    this.ensureMegaUser(team, options, guaranteeRng);
     display.splice(0, display.length, ...team.map(set => this.describeSet(set)));
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
   }
@@ -490,15 +492,25 @@ export class GameService {
     return this.normalizeTeam(team).map(set => this.describeSet(set));
   }
 
-  speciesDisplay(rawSpecies: string): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry} {
+  speciesDisplay(rawSpecies: string): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry; types: string[]; types_zh: string[]; base_stats: Record<string, number>; ability: string; ability_zh: string; ability_id: string; ability_desc: string; ability_desc_zh: string} {
     const species = this.dataDex().species.get(rawSpecies);
     const speciesId = species.id || this.toId(rawSpecies);
     const name = species.name || rawSpecies;
+    const types: string[] = species.types || [];
+    const ability = String(species.abilities?.["0"] || "");
     return {
       species_id: speciesId,
       name,
       name_zh: this.zh("species", name),
       sprite: this.spriteMap?.entries[speciesId],
+      types,
+      types_zh: types.map(type => this.zh("types", type) || type),
+      base_stats: species.baseStats || {},
+      ability,
+      ability_zh: ability ? this.zh("abilities", ability) : "",
+      ability_id: this.toId(ability),
+      ability_desc: ability ? (this.dataDex().abilities.get(ability)?.desc || this.dataDex().abilities.get(ability)?.shortDesc || "") : "",
+      ability_desc_zh: ability ? this.abilityDescription(ability) : "",
     };
   }
 
@@ -565,6 +577,7 @@ export class GameService {
     }
     const zType = Z_CRYSTAL_TYPE_BY_ID[id] || this.zCrystalType(item);
     if (zType) return `可用它来制造用于对战的${this.zh("types", zType)}属性Ｚ招式。`;
+    if ((item as any)?.megaStone) return `让特定宝可梦在对战中进行超级进化的进化石。`;
     const powerType = desc.match(/holder's ([a-z]+)-type attacks have 1\.2x power/i)?.[1];
     if (powerType) return `携带后，${this.zh("types", powerType)}属性招式的威力会提高。`;
     if (/ball$/i.test(id) || /poke ball/i.test(desc)) return "用于捕捉野生宝可梦的球。";
@@ -610,6 +623,13 @@ export class GameService {
   zCrystalItemIds(): string[] {
     return this.dataDex().items.all()
       .filter((item: any) => item?.exists && this.battleSystemForItem(item.id) === "zmove")
+      .map((item: any) => item.id)
+      .sort();
+  }
+
+  megaStoneItemIds(): string[] {
+    return this.dataDex().items.all()
+      .filter((item: any) => item?.exists && this.battleSystemForItem(item.id) === "mega" && item.id !== "crucibellite")
       .map((item: any) => item.id)
       .sort();
   }
@@ -1093,6 +1113,7 @@ export class GameService {
     }
     if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
     this.ensureZMoveUser(team, options, rng);
+    this.ensureMegaUser(team, options, rng);
     display.splice(0, display.length, ...team.map(set => this.describeSet(set)));
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
   }
@@ -1216,6 +1237,7 @@ export class GameService {
     const species = this.dataDex().species.get(speciesId);
     const generation = Math.max(1, Math.min(9, Number(species?.gen || 1)));
     if (!setting.allowed_generations.includes(generation)) return false;
+    if (this.toId(speciesId) === "rayquaza" && (!setting.legendary_battle || !setting.enabled_battle_systems.includes("mega"))) return false;
     if (!setting.legendary_battle && this.isLegendarySpecies(speciesId)) return false;
     if (setting.legendary_battle && this.isLegendarySpecies(speciesId)) {
       const existingLegendaryCount = [...seenSpecies].filter(id => this.isLegendarySpecies(id)).length;
@@ -1226,7 +1248,8 @@ export class GameService {
 
   private isLegendarySpecies(speciesId: string): boolean {
     const species = this.dataDex().species.get(speciesId);
-    return Boolean(species?.isLegendary || species?.isMythical);
+    const tags = (species?.tags || []) as string[];
+    return Boolean(species?.isLegendary || species?.isMythical || tags.some(tag => /legendary|mythical/i.test(String(tag))));
   }
 
   private sanitizeSetForBattleSetting(set: PokemonSet, options: GenerateRentalOptions): PokemonSet {
@@ -1241,9 +1264,12 @@ export class GameService {
     const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
     if (!setting.enabled_battle_systems.includes("zmove")) return;
     for (const set of team) {
-      const specialItems = this.zCrystalChoicesForSet(set).special;
+      const specialItems = this.specialZCrystalChoicesForSet(set);
       if (!specialItems.length) continue;
-      set.item = this.dataDex().items.get(specialItems[0])?.name || specialItems[0];
+      const currentItemId = this.toId(set.item);
+      const picked = specialItems.find(entry => entry.itemId === currentItemId) || specialItems[0];
+      set.item = this.dataDex().items.get(picked.itemId)?.name || picked.itemId;
+      this.ensureMoveForSet(set, picked.moveName);
     }
     if (team.some(set => this.zCrystalOptionsForSet(set).some(itemId => this.toId(set.item) === itemId))) return;
     const candidates = team
@@ -1259,23 +1285,96 @@ export class GameService {
     return [...choices.special, ...choices.generic];
   }
 
-  private zCrystalChoicesForSet(set: PokemonSet): {special: string[]; generic: string[]} {
+  private ensureMoveForSet(set: PokemonSet, moveName: string): void {
+    const dex = this.dataDex();
+    const move = dex.moves.get(moveName);
+    if (!move?.exists) return;
+    const moveId = this.toId(move.id || move.name || moveName);
+    const moves = [...(set.moves || [])].filter(Boolean);
+    if (moves.some(existing => this.toId(existing) === moveId)) {
+      set.moves = moves;
+      return;
+    }
+    const moveLabel = move.name || moveName;
+    if (moves.length < 4) {
+      set.moves = [...moves, moveLabel];
+      return;
+    }
+    const replaceIndex = moves
+      .map((existing, index) => {
+        const existingMove = dex.moves.get(existing);
+        const categoryPenalty = existingMove?.category === "Status" ? 0 : 100;
+        const power = Math.max(0, Number(existingMove?.basePower || 0));
+        return {index, score: categoryPenalty + power};
+      })
+      .sort((a, b) => a.score - b.score || a.index - b.index)[0]?.index ?? 0;
+    moves[replaceIndex] = moveLabel;
+    set.moves = moves;
+  }
+
+  private ensureMegaUser(team: PokemonSet[], options: GenerateRentalOptions, rng: () => number): void {
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    if (!setting.enabled_battle_systems.includes("mega")) return;
+    if (team.some(set => this.megaStoneOptionsForSet(set).some(itemId => this.toId(set.item) === itemId))) return;
+    const candidates = team
+      .map((set, index) => ({set, index, items: this.megaStoneOptionsForSet(set)}))
+      .filter(entry => entry.items.length > 0);
+    if (!candidates.length) return;
+    const nonZCandidates = candidates.filter(entry => this.battleSystemForItem(entry.set.item) !== "zmove");
+    const pool = nonZCandidates.length ? nonZCandidates : candidates;
+    const picked = pool[this.randomInt(rng, 0, pool.length - 1)];
+    const itemId = picked.items[this.randomInt(rng, 0, picked.items.length - 1)];
+    picked.set.item = this.dataDex().items.get(itemId)?.name || itemId;
+  }
+
+  private megaStoneOptionsForSet(set: PokemonSet): string[] {
     const dex = this.dataDex();
     const species = dex.species.get(set.species || set.name);
-    const speciesNames = new Set([species?.name, species?.baseSpecies, set.species, set.name].filter(Boolean).map(value => String(value)));
+    if (this.toId(species?.id || set.species || set.name) === "rayquaza") return [];
+    const speciesIds = new Set([species?.id, species?.name, species?.baseSpecies, set.species, set.name].filter(Boolean).map(value => this.toId(String(value))));
+    if (!speciesIds.size) return [];
+    return this.megaStoneItemIds().filter(itemId => {
+      const item = dex.items.get(itemId) as any;
+      const megaEvolves = this.toId(item?.megaEvolves || "");
+      if (megaEvolves && speciesIds.has(megaEvolves)) return true;
+      if (item?.megaStone && typeof item.megaStone === "object") {
+        return Object.keys(item.megaStone).some(baseSpecies => speciesIds.has(this.toId(baseSpecies)));
+      }
+      const megaStone = this.toId(item?.megaStone || "");
+      if (!megaStone) return false;
+      const target = dex.species.get(megaStone);
+      return speciesIds.has(this.toId(target?.baseSpecies || ""));
+    });
+  }
+
+  private zCrystalChoicesForSet(set: PokemonSet): {special: string[]; generic: string[]} {
+    const dex = this.dataDex();
     const moves = (set.moves || []).map((moveName: string) => dex.moves.get(moveName)).filter((move: any) => move?.exists);
     if (!moves.length) return {special: [], generic: []};
     const zItems = this.zCrystalItemIds().map(id => dex.items.get(id)).filter((item: any) => item?.exists);
-    const special = zItems.filter((item: any) => {
-      if (!item.zMoveFrom || !moves.some((move: any) => move.name === item.zMoveFrom)) return false;
-      const users = (item.itemUser || []) as string[];
-      return !users.length || users.some(user => speciesNames.has(user));
-    }).map((item: any) => item.id);
+    const special = this.specialZCrystalChoicesForSet(set)
+      .filter(choice => moves.some((move: any) => this.toId(move.id || move.name) === this.toId(choice.moveName)))
+      .map(choice => choice.itemId);
     const generic = zItems.filter((item: any) => {
       if (item.zMove !== true || !item.zMoveType) return false;
       return moves.some((move: any) => move.type === item.zMoveType);
     }).map((item: any) => item.id);
     return {special, generic};
+  }
+
+  private specialZCrystalChoicesForSet(set: PokemonSet): Array<{itemId: string; moveName: string}> {
+    const dex = this.dataDex();
+    const species = dex.species.get(set.species || set.name);
+    const speciesNames = new Set([species?.name, species?.baseSpecies, set.species, set.name].filter(Boolean).map(value => String(value)));
+    const speciesIds = new Set([...speciesNames].map(value => this.toId(value)));
+    return this.zCrystalItemIds()
+      .map(id => dex.items.get(id))
+      .filter((item: any) => item?.exists && item.zMoveFrom)
+      .filter((item: any) => {
+        const users = (item.itemUser || []) as string[];
+        return !users.length || users.some(user => speciesNames.has(user) || speciesIds.has(this.toId(user)));
+      })
+      .map((item: any) => ({itemId: item.id, moveName: item.zMoveFrom}));
   }
 
   private profileStageTier(profile: GenerationProfile): StageTier {
@@ -1927,7 +2026,7 @@ export class BattleSession {
       .map((move, index) => ({move, index: index + 1}))
       .filter(entry => !entry.move.disabled)
       .map(entry => entry.index);
-    if (moves.length) return `move ${this.pick(moves)}`;
+    if (moves.length) return request.active?.[0]?.canMegaEvo ? `move ${this.pick(moves)} mega` : `move ${this.pick(moves)}`;
     const switches = legalSwitchIndexes(request);
     return switches.length ? `switch ${this.pick(switches)}` : "default";
   }
@@ -2037,6 +2136,7 @@ export class BattleSession {
     const exactMovesAllowed = side === "p2" || this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
     if (exactMovesAllowed && request?.active?.[0]?.moves?.length) {
       const canZMove = request.active[0].canZMove || [];
+      const canMegaEvo = Boolean(request.active[0].canMegaEvo);
       return request.active[0].moves
         .map((moveRequest, index) => ({moveRequest, index: index + 1, move: dex.moves.get(moveRequest.id || moveRequest.move)}))
         .filter(entry => !entry.moveRequest.disabled && Number(entry.moveRequest.pp ?? 1) > 0 && entry.move?.exists)
@@ -2048,10 +2148,11 @@ export class BattleSession {
             move: entry.move,
             moveRequest: entry.moveRequest,
           };
+          const candidates = canMegaEvo ? [{...base, choice: `move ${entry.index} mega`, score: score + 75}] : [];
           const zMove = canZMove[entry.index - 1];
-          return zMove
-            ? [{...base, choice: `move ${entry.index} zmove`, score: score + 80}, {...base, choice: `move ${entry.index}`, score}]
-            : [{...base, choice: `move ${entry.index}`, score}];
+          if (zMove) candidates.push({...base, choice: `move ${entry.index} zmove`, score: score + 80});
+          candidates.push({...base, choice: `move ${entry.index}`, score});
+          return candidates;
         })
         .sort((a, b) => b.score - a.score);
     }
@@ -2244,6 +2345,7 @@ export class BattleSession {
 
   private scoredEnemyMoves(request: BattleRequestView): Array<{choice: string; score: number}> {
     const canZMove = request.active?.[0]?.canZMove || [];
+    const canMegaEvo = Boolean(request.active?.[0]?.canMegaEvo);
     const moves = (request.active?.[0]?.moves || [])
       .map((move, index) => ({move, index: index + 1}))
       .filter(entry => !entry.move.disabled && Number(entry.move.pp ?? 1) > 0);
@@ -2252,9 +2354,10 @@ export class BattleSession {
     return moves.flatMap(entry => {
       const score = this.scoreEnemyMove(entry.move, active, target);
       const zMove = canZMove[entry.index - 1];
-      return zMove
-        ? [{choice: `move ${entry.index} zmove`, score: score + 80}, {choice: `move ${entry.index}`, score}]
-        : [{choice: `move ${entry.index}`, score}];
+      const candidates = canMegaEvo ? [{choice: `move ${entry.index} mega`, score: score + 75}] : [];
+      if (zMove) candidates.push({choice: `move ${entry.index} zmove`, score: score + 80});
+      candidates.push({choice: `move ${entry.index}`, score});
+      return candidates;
     })
       .sort((a, b) => b.score - a.score);
   }
@@ -2722,7 +2825,7 @@ function withStateStableShowdownIds(states: PlayerPokemonState[] = [], team: Pok
   });
 }
 
-function activeDisplay(service: GameService, rawSpecies: string | undefined): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry} {
+function activeDisplay(service: GameService, rawSpecies: string | undefined): ReturnType<GameService["speciesDisplay"]> {
   return service.speciesDisplay(shortIdent(rawSpecies || "").split(",", 1)[0].trim());
 }
 
@@ -2734,6 +2837,14 @@ function setActiveDisplay(tracker: BattleTracker, service: GameService, side: Si
     display_name: display.name_zh,
     species_id: display.species_id,
     sprite: display.sprite,
+    types: display.types,
+    types_zh: display.types_zh,
+    base_stats: display.base_stats,
+    ability: display.ability,
+    ability_zh: display.ability_zh,
+    ability_id: display.ability_id,
+    ability_desc: display.ability_desc,
+    ability_desc_zh: display.ability_desc_zh,
     condition: condition || tracker.active[side]?.condition,
     showdown_id: normalizeShowdownId(showdownId) || tracker.active[side]?.showdown_id,
     ...(clearSubstitute ? {substitute: false} : {}),
@@ -3472,6 +3583,15 @@ function isIgnoredProtocolTag(tag: string): boolean {
   ].includes(tag);
 }
 
+function isInternalProtocolMove(move: string | undefined): boolean {
+  return ["zsprite"].includes(toId(move || ""));
+}
+
+function isInternalProtocolEffect(effect: string | undefined): boolean {
+  const id = toId(String(effect || "").replace(/^(?:move|ability|item):\s*/i, ""));
+  return ["healreplacement"].includes(id);
+}
+
 function pokemonActionLabel(tag: string): string {
   return ({
     switch: "上场了",
@@ -3598,6 +3718,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
         : `${nextName} ${pokemonActionLabel(tag)}。`;
       timelineEvent = {type: tag === "detailschange" || tag === "-formechange" ? "form" : "switch", text, side: side || undefined, targetSide: side || undefined, target: nextName, target_id: targetId, target_showdown_id: activeShowdownId, target_species_id: nextDisplay.species_id, sprite: nextDisplay.sprite, condition, hp: parseConditionHp(condition)};
     } else if (tag === "move" && parts[2] && parts[3]) {
+      if (isInternalProtocolMove(parts[3])) continue;
       const side = sideFromIdent(parts[2]);
       const source = translatedSpecies(service, parts[2]);
       const sourceId = shortIdent(parts[2]);
@@ -3886,6 +4007,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const targetIdent = hasPokemonTarget ? parts[2] : effectTarget(parts, 3);
       const target = targetIdent ? translatedSpecies(service, targetIdent) : "";
       const rawEffect = hasPokemonTarget ? parts[3] : parts[2];
+      if (isInternalProtocolEffect(rawEffect)) continue;
       const effect = service.effectName(rawEffect);
       const protocol = sourceLabel(rawEffect, service);
       const fullSource: ProtocolSource = {...protocol, ownerIdent: targetIdent, ownerName: target};

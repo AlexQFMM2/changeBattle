@@ -492,6 +492,23 @@ async function testEnemyUsesZMoveWhenAvailable(): Promise<void> {
   assert.match(battleText(state), /Z 力量|超强极限爆焰弹|Inferno Overdrive/i, battleText(state));
 }
 
+async function testZMoveInternalProtocolIsHidden(): Promise<void> {
+  const session = await createCustomSession(
+    [
+      {...pokemon("Persian-Alola", ["Parting Shot"], "Fur Coat"), item: "Darkinium Z"},
+      pokemon("Blissey", ["Splash"], "Natural Cure"),
+    ],
+    [pokemon("Magikarp", ["Splash"], "Swift Swim")],
+    [131, 132, 133, 134],
+    {level: "gym_low", randomness: 0, allowSwitch: false},
+  );
+  const afterZ = await session.choose("move 1 zmove");
+  assert.doesNotMatch(battleText(afterZ), /Z-Sprite|healreplacement/i, battleText(afterZ));
+  const afterSwitch = await session.choose("switch 2");
+  assert.doesNotMatch(battleText(afterSwitch), /Z-Sprite|healreplacement/i, battleText(afterSwitch));
+  assert.match(battleText(afterSwitch), /HP:/, battleText(afterSwitch));
+}
+
 async function testZMoveGenerationGuarantee(): Promise<void> {
   const service = new GameService({projectRoot, showdownPath});
   const enabled = await service.generateRentalCandidates([107, 108, 109, 110], "gen9randombattle", 6, {
@@ -509,12 +526,85 @@ async function testZMoveGenerationGuarantee(): Promise<void> {
   assert.ok(disabled.display.every(pokemon => service.battleSystemForItem(pokemon.item_id) !== "zmove"), JSON.stringify(disabled.display.map(pokemon => ({species: pokemon.species_id, item: pokemon.item_id})), null, 2));
 }
 
+async function testMegaBattleFlow(): Promise<void> {
+  const session = await createCustomSession(
+    [{...pokemon("Charizard", ["Scratch", "Ember"], "Blaze"), item: "Charizardite X"}],
+    [{...pokemon("Blissey", ["Splash"], "Natural Cure"), level: 100}],
+    [115, 116, 117, 118],
+  );
+  const initial = session.getState();
+  assert.equal(initial.request?.active?.[0]?.canMegaEvo, true, JSON.stringify(initial.request?.active?.[0], null, 2));
+  const afterMega = await session.choose("move 1 mega");
+  assert.match(battleText(afterMega), /超级进化|Charizardite X|喷火龙进化石X/i, battleText(afterMega));
+  const active = afterMega.tracker.active[afterMega.player_side || "p1"];
+  assert.equal(active.species_id, "charizardmegax", JSON.stringify(active, null, 2));
+  assert.ok(active.sprite?.paths?.front_normal || active.sprite?.paths?.back_normal, JSON.stringify(active.sprite, null, 2));
+  assert.ok(!afterMega.request?.active?.[0]?.canMegaEvo, JSON.stringify(afterMega.request?.active?.[0], null, 2));
+}
+
+async function testEnemyUsesMegaWhenAvailable(): Promise<void> {
+  const session = await createCustomSession(
+    [pokemon("Blissey", ["Splash"], "Natural Cure")],
+    [{...pokemon("Charizard", ["Scratch", "Ember"], "Blaze"), item: "Charizardite X"}],
+    [119, 120, 121, 122],
+    {level: "gym_low", randomness: 0, allowSwitch: false},
+  );
+  const state = await session.choose("move 1");
+  const active = state.tracker.active[state.enemy_side || "p2"];
+  assert.match(battleText(state), /超级进化|Charizardite X|喷火龙进化石X/i, battleText(state));
+  assert.equal(active.species_id, "charizardmegax", JSON.stringify(active, null, 2));
+}
+
+async function testMegaGenerationGuarantee(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const enabled = await service.generateRentalCandidates([123, 124, 125, 126], "gen9randombattle", 3, {
+    speciesIds: ["charizard", "venusaur", "blastoise"],
+    purpose: "starter",
+    battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: ["mega"]},
+  });
+  assert.ok(enabled.display.some(pokemon => service.battleSystemForItem(pokemon.item_id) === "mega"), JSON.stringify(enabled.display.map(pokemon => ({species: pokemon.species_id, item: pokemon.item_id})), null, 2));
+
+  const disabled = await service.generateRentalCandidates([127, 128, 129, 130], "gen9randombattle", 3, {
+    speciesIds: ["charizard", "venusaur", "blastoise"],
+    purpose: "starter",
+    battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: []},
+  });
+  assert.ok(disabled.display.every(pokemon => service.battleSystemForItem(pokemon.item_id) !== "mega"), JSON.stringify(disabled.display.map(pokemon => ({species: pokemon.species_id, item: pokemon.item_id})), null, 2));
+}
+
+function testDedicatedMegaStoneGuarantee(): void {
+  const service = new GameService({projectRoot, showdownPath});
+  const team = [{...pokemon("Charizard", ["Scratch", "Ember"], "Blaze"), item: "Leftovers"}];
+  const megaGuarantee = (service as unknown as {ensureMegaUser: (team: PokemonSet[], options: unknown, rng: () => number) => void}).ensureMegaUser.bind(service);
+  megaGuarantee(team, {battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: ["mega"]}}, () => 0);
+  assert.match(team[0].item, /Charizardite [XY]/, JSON.stringify(team[0], null, 2));
+}
+
+function testRayquazaMegaPoolGate(): void {
+  const service = new GameService({projectRoot, showdownPath});
+  const allowed = (service as unknown as {speciesAllowedByBattleSetting: (speciesId: string, setting: typeof DEFAULT_BATTLE_SETTING, seenSpecies: Set<string>, purpose?: "starter" | "normal" | "boss" | "rescue") => boolean}).speciesAllowedByBattleSetting.bind(service);
+  assert.equal(allowed("arceus", {...DEFAULT_BATTLE_SETTING, legendary_battle: false, enabled_battle_systems: []}, new Set(), "normal"), false);
+  assert.equal(allowed("arceusfire", {...DEFAULT_BATTLE_SETTING, legendary_battle: false, enabled_battle_systems: []}, new Set(), "normal"), false);
+  assert.equal(allowed("arceusfire", {...DEFAULT_BATTLE_SETTING, legendary_battle: true, enabled_battle_systems: []}, new Set(), "normal"), true);
+  assert.equal(allowed("giratinaorigin", {...DEFAULT_BATTLE_SETTING, legendary_battle: false, enabled_battle_systems: []}, new Set(), "normal"), false);
+  assert.equal(allowed("rayquaza", {...DEFAULT_BATTLE_SETTING, legendary_battle: true, enabled_battle_systems: []}, new Set(), "normal"), false);
+  assert.equal(allowed("rayquaza", {...DEFAULT_BATTLE_SETTING, legendary_battle: false, enabled_battle_systems: ["mega"]}, new Set(), "normal"), false);
+  assert.equal(allowed("rayquaza", {...DEFAULT_BATTLE_SETTING, legendary_battle: true, enabled_battle_systems: ["mega"]}, new Set(), "normal"), true);
+  assert.equal(allowed("rayquaza", {...DEFAULT_BATTLE_SETTING, legendary_battle: false, enabled_battle_systems: []}, new Set(), "boss"), true);
+}
+
 function testDedicatedZCrystalPreferredDuringGuarantee(): void {
   const service = new GameService({projectRoot, showdownPath});
   const team = [{...pokemon("Snorlax", ["Giga Impact", "Tackle"], "Immunity"), item: "Normalium Z"}];
   const zGuarantee = (service as unknown as {ensureZMoveUser: (team: PokemonSet[], options: unknown, rng: () => number) => void}).ensureZMoveUser.bind(service);
   zGuarantee(team, {battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: ["zmove"]}}, () => 0);
   assert.equal(team[0].item, "Snorlium Z", JSON.stringify(team[0], null, 2));
+
+  const missingMoveTeam: PokemonSet[] = [{...pokemon("Snorlax", ["Defense Curl", "Tackle", "Rest", "Bite"], "Immunity"), item: "Leftovers"}];
+  zGuarantee(missingMoveTeam, {battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: ["zmove"]}}, () => 0);
+  assert.equal(missingMoveTeam[0].item, "Snorlium Z", JSON.stringify(missingMoveTeam[0], null, 2));
+  assert.ok(missingMoveTeam[0].moves.some((move: string) => move === "Giga Impact"), JSON.stringify(missingMoveTeam[0], null, 2));
+  assert.equal(missingMoveTeam[0].moves.length, 4, JSON.stringify(missingMoveTeam[0], null, 2));
 }
 
 function testBattleSystemItemClassification(): void {
@@ -523,6 +613,8 @@ function testBattleSystemItemClassification(): void {
   assert.equal(service.battleSystemForItem("firiumz"), "zmove");
   assert.equal(service.battleSystemForItem("leftovers"), null);
   assert.equal(service.zCrystalItemIds().length, 35);
+  assert.equal(service.megaStoneItemIds().length, 92);
+  assert.ok(!service.megaStoneItemIds().includes("crucibellite"));
 }
 
 await testUnknownMoveRejected();
@@ -543,7 +635,13 @@ await testClassicBattleFlowScenarios();
 await testSpeciesTierCanOverrideGenerationProfile();
 await testZMoveBattleFlow();
 await testEnemyUsesZMoveWhenAvailable();
+await testZMoveInternalProtocolIsHidden();
 await testZMoveGenerationGuarantee();
+await testMegaBattleFlow();
+await testEnemyUsesMegaWhenAvailable();
+await testMegaGenerationGuarantee();
 testDedicatedZCrystalPreferredDuringGuarantee();
+testDedicatedMegaStoneGuarantee();
+testRayquazaMegaPoolGate();
 testBattleSystemItemClassification();
 console.log("Trainer item battle tests passed.");

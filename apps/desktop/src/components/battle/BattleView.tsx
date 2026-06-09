@@ -12,7 +12,8 @@ import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgr
 const BATTLE_BACKGROUNDS = parseBattleBackgroundCsv(battleBackgroundCsv);
 const FALLBACK_BATTLE_BACKGROUND = BATTLE_BACKGROUNDS.find(background => background.id === "mountain-route") || BATTLE_BACKGROUNDS[0];
 const BATTLE_PANEL_MODES = new Set<AppStatus>(["battleMain", "moveMenu", "teamMenu", "statusMenu"]);
-const IMPLEMENTED_BATTLE_SYSTEMS = new Set(["zmove"]);
+const IMPLEMENTED_BATTLE_SYSTEMS = new Set(["mega", "zmove"]);
+const BATTLE_ANIMATION_SPEEDUP_MS = 500;
 
 function parseBattleBackgroundCsv(csv: string): BattleBackgroundView[] {
   return csv.trim().split(/\r?\n/).slice(1).map(line => {
@@ -34,6 +35,10 @@ function isForcedContinuationRequest(request: BattleState["request"]): boolean {
   return Boolean(active?.trapped) || (move.pp === undefined && move.maxpp === undefined && !move.disabled);
 }
 
+function isForceSwitchRequest(request: BattleState["request"]): boolean {
+  return Boolean(request?.forceSwitch?.some(Boolean));
+}
+
 function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}): BattleVisualCue | null {
   if (event.type === "move") {
     const actingSide = event.side || "p1";
@@ -46,7 +51,7 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
   }
   if (event.type === "item" && (event.effect === "Z招式" || /Z 力量|Z-Power|Z-Move/i.test(event.text))) {
     const side = event.side || event.targetSide || "p1";
-    return {visual: "z-aura", renderer: "css", side, targetSide: side, anchor: "target", durationMs: 1500};
+    return {visual: "z-aura", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1500)};
   }
   if ((event.type === "damage" || event.type === "heal") && !eventTargetsDisplayedActive(event, displayedNames, displayedShowdownIds)) return null;
   if (event.type === "damage") return cueFromEntry(battleEffectEntry("battle_action:damage"), event, "impact");
@@ -56,6 +61,10 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
   if (event.type === "crit") return cueFromEntry(battleEffectEntry("battle_action:crit"), event, "crit");
   if (event.type === "effectiveness") return cueFromEntry(battleEffectEntry("battle_action:effectiveness"), event, "effectiveness");
   if (event.type === "switch") return cueFromEntry(battleEffectEntry("battle_action:switch_in"), event, "switch-in", event.side || event.targetSide, event.targetSide || event.side);
+  if (event.type === "form" && /超级进化|进化石|Mega/i.test(event.text || event.effect || "")) {
+    const side = event.side || event.targetSide || "p1";
+    return {visual: "mega-evolve", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1600)};
+  }
   if (event.type === "form") return cueFromEntry(battleEffectEntry("battle_action:form"), event, "ability", event.side, event.targetSide || event.side);
   if (event.type === "substitute") {
     const entry = firstBattleEffectEntry(statusEffectKeys("substitute", "volatile"));
@@ -89,7 +98,7 @@ function zImpactCueForEvent(event: BattleTimelineEvent, sourceSide: "p1" | "p2",
     side: sourceSide,
     targetSide: event.targetSide || (sourceSide === "p1" ? "p2" : "p1"),
     anchor: "target",
-    durationMs: Math.max(1400, durationMs + 160),
+    durationMs: fasterBattleAnimationDuration(Math.max(1400, durationMs + 160)),
   };
 }
 
@@ -173,6 +182,18 @@ function zMoveDisplayLabel(text: string, pokemon?: RentalPokemon): string {
 function zMoveSpritePath(text: string): string | null {
   const fileName = zMoveSpriteFile(text);
   return fileName ? `assets/z-moves/${fileName}` : null;
+}
+
+function displayedActiveDisplay(battle: BattleState, side: "p1" | "p2", displayedName: string, displayedShowdownId: string, fallback?: RentalPokemon): RentalPokemon | undefined {
+  const team = side === (battle.player_side || "p1") ? battle.player_display : battle.enemy_display;
+  const base = findDisplayByShowdownId(team, displayedShowdownId) || findDisplay(team, displayedName) || fallback;
+  const active = battle.tracker.active[side];
+  const displayedRawKeys = [displayedName].filter(Boolean).map(value => String(value).trim().toLowerCase());
+  const displayedIdKeys = displayedRawKeys.map(toId).filter(Boolean);
+  const activeRawKeys = [active?.name, active?.display_name, active?.species_id].filter(Boolean).map(value => String(value).trim().toLowerCase());
+  const activeIdKeys = activeRawKeys.map(toId).filter(Boolean);
+  const trackerIsDisplayed = activeRawKeys.some(key => displayedRawKeys.includes(key)) || activeIdKeys.some(key => displayedIdKeys.includes(key));
+  return trackerIsDisplayed ? displayFromActive(active, base) || base : base;
 }
 
 function ZMoveNameCutIn({event}: {event: BattleTimelineEvent}) {
@@ -265,6 +286,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const displayedSubstitutesRef = useRef(displayedSubstitutes);
   const previousBattlePresent = useRef(false);
   const introDialoguePending = useRef(false);
+  const forceSwitchPanelOpen = useRef(false);
   const bossDialogueSelection = useRef<{key: string; index: number} | null>(null);
   const pokemonIntroTimer = useRef<number | null>(null);
   const eventTimers = useRef<number[]>([]);
@@ -364,7 +386,19 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
 
   useEffect(() => {
     const hasMoves = Boolean(battle?.request?.active?.[0]?.moves?.length);
-    if (battle?.request?.forceSwitch || (panelMode === "moveMenu" && !hasMoves)) setPanelMode("battleMain");
+    const forceSwitch = isForceSwitchRequest(battle?.request || null);
+    if (forceSwitch) {
+      forceSwitchPanelOpen.current = true;
+      setPanelMode("teamMenu");
+      setBattleItemOpen(false);
+      setDetailIndex(null);
+      return;
+    }
+    if (forceSwitchPanelOpen.current) {
+      forceSwitchPanelOpen.current = false;
+      if (panelMode === "teamMenu") setPanelMode("battleMain");
+    }
+    if (panelMode === "moveMenu" && !hasMoves) setPanelMode("battleMain");
   }, [battle?.request?.forceSwitch, battle?.request?.active?.[0]?.moves?.length, panelMode]);
 
   function playerWonBattle(activeBattle: BattleState): boolean {
@@ -643,8 +677,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
     };
   }, [timelineKey, recentKey, dialogue?.kind]);
 
-  const displayPlayer = battle ? findDisplayByShowdownId(battle.player_display, displayedActiveShowdownIds.p1) || findDisplay(battle.player_display, displayedActiveNames.p1) || player.display : player.display;
-  const displayEnemy = battle ? findDisplayByShowdownId(battle.enemy_display, displayedActiveShowdownIds.p2) || findDisplay(battle.enemy_display, displayedActiveNames.p2) || enemy.display : enemy.display;
+  const displayPlayer = battle ? displayedActiveDisplay(battle, "p1", displayedActiveNames.p1, displayedActiveShowdownIds.p1, player.display) : player.display;
+  const displayEnemy = battle ? displayedActiveDisplay(battle, "p2", displayedActiveNames.p2, displayedActiveShowdownIds.p2, enemy.display) : enemy.display;
   const battleCryScopeKey = battle
     ? `${battle.enemy_trainer?.id || ""}:${battle.player_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}:${battle.enemy_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}`
     : "";
@@ -695,6 +729,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
   const hasQueuedPlayback = timelineEvents.some((event, index) => !previousTimelineKeys.current.includes(`${event.id}:${event.text}`)) || addedRecentEventTexts(previousRecentEvents.current, recentEvents).length > 0;
   const requestWaiting = Boolean(battle.request?.wait) || isForcedContinuationRequest(battle.request);
+  const forceSwitch = isForceSwitchRequest(battle.request);
   const controlsDisabled = Boolean(choicePending) || autoAdvancePending || requestWaiting || playbackActive || hasQueuedPlayback || introActive || trainerIntroActive || Boolean(dialogue);
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
@@ -735,12 +770,12 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         ) : (
           <>
             <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
-            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" && !requestWaiting ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, zMove) => onChoice(`move ${index}${zMove ? " zmove" : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onForfeit={() => onChoice("forfeit")} />}</div>
+            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onForfeit={() => onChoice("forfeit")} />}</div>
           </>
         )}
       </section>
       {panelMode === "statusMenu" && !dialogue ? <StatusModal battle={battle} onBack={() => selectPanelMode("battleMain")} /> : null}
-      {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { setDetailIndex(null); if (panelMode === "teamMenu") selectPanelMode("battleMain"); }} /> : null}
+      {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} forceSwitch={forceSwitch} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { if (forceSwitch) return; setDetailIndex(null); if (panelMode === "teamMenu") selectPanelMode("battleMain"); }} /> : null}
       {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} disabled={controlsDisabled} onClose={() => setBattleItemOpen(false)} onUse={async (itemId, target, moveSlot, notice) => {
         const ok = await onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`);
         if (ok) {
@@ -938,7 +973,7 @@ function MainBattleCommands({forceSwitch, waiting, disabled, setMode, onBag, onF
   return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled={disabled || forceSwitch} onClick={onBag}>背包</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
 }
 
-function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, zMove?: boolean) => void; onBack: () => void}) {
+function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: "zmove" | "mega") => void; onBack: () => void}) {
   const activeRequest = battle.request?.active?.[0];
   const moves = activeRequest?.moves || [];
   const active = activePokemon(battle, "p1").display;
@@ -947,10 +982,15 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
   const visibleSystems = BATTLE_SYSTEM_OPTIONS.filter(option => enabledSystems.includes(option.id));
   const canZMove = activeRequest?.canZMove || [];
   const zAvailable = enabledSystems.includes("zmove") && canZMove.some(Boolean);
+  const megaAvailable = enabledSystems.includes("mega") && Boolean(activeRequest?.canMegaEvo);
   const [zMode, setZMode] = useState(false);
+  const [megaMode, setMegaMode] = useState(false);
   useEffect(() => {
     if (!zAvailable && zMode) setZMode(false);
   }, [zAvailable, zMode]);
+  useEffect(() => {
+    if (!megaAvailable && megaMode) setMegaMode(false);
+  }, [megaAvailable, megaMode]);
   return <div className="move-menu">{moves.map((move, index) => {
     const summary = moveSummaryFor(active, move);
     const zMove = canZMove[index];
@@ -972,13 +1012,19 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
         maxPp={move.maxpp}
         power={summary?.power || "--"}
         disabled={disabled || move.disabled || zMoveDisabled}
-        onClick={() => onMove(index + 1, zMode)}
+        onClick={() => onMove(index + 1, zMode ? "zmove" : megaMode ? "mega" : undefined)}
         key={move.id || index}
       />
     );
-  })}<div className="move-footer"><button className="menu-back" disabled={disabled} onClick={onBack}>返回</button>{visibleSystems.length ? <div className="battle-system-row">{visibleSystems.map(system => system.id === "zmove"
-    ? <button className={zMode ? "selected" : ""} disabled={disabled || !zAvailable} title={zAvailable ? "选择一个技能释放 Z 招式" : "当前没有可用的 Z 招式"} onClick={() => setZMode(value => !value)} key={system.id}>{zMode ? "取消 Z" : system.name}</button>
-    : <button disabled title={`${system.name} 未接入`} key={system.id}>{IMPLEMENTED_BATTLE_SYSTEMS.has(system.id) ? system.name : `${system.name} 未接入`}</button>)}</div> : null}</div></div>;
+  })}<div className="move-footer"><button className="menu-back" disabled={disabled} onClick={onBack}>返回</button>{visibleSystems.length ? <div className="battle-system-row">{visibleSystems.map(system => {
+    if (system.id === "mega") {
+      return <button className={megaMode ? "selected" : ""} disabled={disabled || !megaAvailable} title={megaAvailable ? "确认使用 Mega 石后选择技能" : "当前不能 Mega 进化"} onClick={() => { setMegaMode(value => !value); setZMode(false); }} key={system.id}>{megaMode ? "取消 Mega" : system.name}</button>;
+    }
+    if (system.id === "zmove") {
+      return <button className={zMode ? "selected" : ""} disabled={disabled || !zAvailable} title={zAvailable ? "选择一个技能释放 Z 招式" : "当前没有可用的 Z 招式"} onClick={() => { setZMode(value => !value); setMegaMode(false); }} key={system.id}>{zMode ? "取消 Z" : system.name}</button>;
+    }
+    return <button disabled title={`${system.name} 未接入`} key={system.id}>{IMPLEMENTED_BATTLE_SYSTEMS.has(system.id) ? system.name : `${system.name} 未接入`}</button>;
+  })}</div> : null}</div></div>;
 }
 
 function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; disabled?: boolean; onSwitch: (index: number) => void; onBack: () => void}) {
@@ -988,7 +1034,7 @@ function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; di
   return <div className="team-menu"><div className="team-list">{rows.map((runtime, index) => { const display = displayForRuntime(battle.player_display, runtime, index); const status = statusCode(runtime.condition); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={runtime.ident}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{runtime.active ? "▶" : `${index + 1}.`}</span><strong>{display ? displayName(display) : runtimeName(runtime)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(runtime.condition)}　{runtime.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div>;
 }
 
-function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}: {battle: BattleState; initialIndex: number; disabled?: boolean; onSwitch: (index: number) => void; onClose: () => void}) {
+function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwitch, onClose}: {battle: BattleState; initialIndex: number; disabled?: boolean; forceSwitch?: boolean; onSwitch: (index: number) => void; onClose: () => void}) {
   const rows = battle.request?.side?.pokemon || [];
   const [selectedIndex, setSelectedIndex] = useState(() => Math.max(0, Math.min(initialIndex, Math.max(0, rows.length - 1))));
   const [tab, setTab] = useState<"basic" | "moves">("basic");
@@ -1069,7 +1115,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, onSwitch, onClose}:
           </div>
           <footer>
             <button disabled={disabled || !canSwitch} onClick={() => { onSwitch(selectedIndex + 1); onClose(); }}>换人</button>
-            <button onClick={onClose}>关闭</button>
+            <button disabled={forceSwitch} title={forceSwitch ? "必须先换上可战斗的宝可梦" : undefined} onClick={onClose}>关闭</button>
           </footer>
         </section>
       </section>
@@ -1259,18 +1305,21 @@ function addedRecentEventTexts(previous: string[], current: string[]): string[] 
 }
 
 function timelineDuration(event: BattleTimelineEvent, previousCondition?: string): number {
-  const faster = (ms: number) => Math.max(500, ms - 500);
   if (event.type === "damage" || event.type === "heal") {
     const previous = parseHp(previousCondition);
     const next = event.hp || parseHp(event.condition);
     const ratio = previous && next && previous.max > 0 ? Math.abs(previous.current - next.current) / previous.max : 0.25;
-    return faster(Math.round(Math.max(1000, Math.min(5000, 1000 + ratio * 4000))));
+    return fasterBattleAnimationDuration(Math.round(Math.max(900, Math.min(3200, 900 + ratio * 2600))));
   }
-  if (event.type === "move") return faster(2600);
-  if (event.type === "faint") return faster(2600);
-  if (event.type === "switch") return faster(2300);
-  if (event.type === "win") return faster(2600);
-  return faster(2100);
+  if (event.type === "move") return fasterBattleAnimationDuration(2600);
+  if (event.type === "faint") return fasterBattleAnimationDuration(2600);
+  if (event.type === "switch") return fasterBattleAnimationDuration(2300);
+  if (event.type === "win") return fasterBattleAnimationDuration(2600);
+  return fasterBattleAnimationDuration(2100);
+}
+
+function fasterBattleAnimationDuration(ms: number): number {
+  return Math.max(450, ms - BATTLE_ANIMATION_SPEEDUP_MS);
 }
 
 function battleAnimationClass(event: BattleTimelineEvent | null): string {

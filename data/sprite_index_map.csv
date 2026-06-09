@@ -882,7 +882,7 @@ vivillonfancy,Vivillon-Fancy,666,719,assets/pokemon-green/pokemon/0719/front_nor
 vivillonpokeball,Vivillon-Pokeball,666,719,assets/pokemon-green/pokemon/0719/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
 litleo,Litleo,667,720,assets/pokemon-green/pokemon/0720/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 pyroar,Pyroar,668,721,assets/pokemon-green/pokemon/0721/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-pyroarmega,Pyroar-Mega,668,721,assets/pokemon-green/pokemon/0721/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+pyroarmega,Pyroar-Mega,668,721,assets/pokemon-showdown/gen5/pyroar-mega.png,52poke-mega-front,front-only source; reused for back if no back sprite exists
 flabebe,Flabébé,669,722,assets/pokemon-green/pokemon/0722/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 floette,Floette,670,723,assets/pokemon-green/pokemon/0723/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 floetteeternal,Floette-Eternal,670,723,assets/pokemon-green/pokemon/0723/front_normal.png,base-species-fallback,edit this row if the sprite is wrong

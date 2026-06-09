@@ -3124,6 +3124,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     const save = await loadSave();
     if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
     const zMoveMatch = choice.match(/^move\s+(\d+)\s+zmove$/i);
+    const megaMatch = choice.match(/^move\s+(\d+)\s+mega$/i);
     if (zMoveMatch) {
       const run = save.current_run as CurrentRunData;
       const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
@@ -3133,6 +3134,16 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
       const canZMove = request?.active?.[0]?.canZMove || [];
       if (!canZMove.some(Boolean)) throw new Error("当前没有可用的 Z 招式。");
       if (!canZMove[moveSlot - 1]) throw new Error("这个技能不能升级为 Z 招式。");
+    }
+    if (megaMatch) {
+      const run = save.current_run as CurrentRunData;
+      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
+      if (!setting.enabled_battle_systems.includes("mega")) throw new Error("本局未开启 Mega 系统。");
+      const moveSlot = Math.max(1, Math.floor(Number(megaMatch[1] || 0)));
+      const active = activeBattle.getState().request?.active?.[0];
+      const move = active?.moves?.[moveSlot - 1];
+      if (!active?.canMegaEvo) throw new Error("当前没有可用的 Mega 进化。");
+      if (!move || move.disabled) throw new Error("这个技能不能用于 Mega 进化回合。");
     }
     let state: BattleState;
     let shouldPersist = false;

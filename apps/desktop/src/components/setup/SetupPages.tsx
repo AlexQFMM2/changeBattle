@@ -269,7 +269,7 @@ const BATTLE_SETTING_TABS: Array<{id: BattleSettingTab; label: string}> = [
 ];
 
 const BATTLE_SYSTEM_STATE: Record<BattleSystemId, {ready: boolean; summary: string; detail: string}> = {
-  mega: {ready: false, summary: "未接入", detail: "Mega 机制还没有接入实战。当前不会开放 Mega 石，也不会在战斗中触发 Mega 进化。"},
+  mega: {ready: true, summary: "已接入", detail: "Mega 进化已接入实战。宝可梦携带对应 Mega 石后，战斗中可先确认 Mega，再选择技能；每方每场战斗只能使用一次。"},
   zmove: {ready: true, summary: "已接入", detail: "Z 招式已接入实战。宝可梦携带对应 Z 纯晶后，每场战斗每方只能使用一次；选择 Z 招式后再点可 Z 化技能释放。"},
   dynamax: {ready: false, summary: "未接入", detail: "极巨化机制还没有接入实战。当前不会开放极巨化按钮、极巨招式或相关战斗效果。"},
   terastal: {ready: false, summary: "未接入", detail: "太晶化机制还没有接入实战。当前不会开放太晶化按钮、太晶属性变化或相关战斗效果。"},
@@ -286,7 +286,7 @@ function normalizeBattleSettingForReadySystems(setting?: Partial<BattleSetting> 
 export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
   const [setting, setSetting] = useState<BattleSetting>(() => normalizeBattleSettingForReadySystems(save?.battle_setting || DEFAULT_BATTLE_SETTING));
   const [activeTab, setActiveTab] = useState<BattleSettingTab>("regions");
-  const [selectedSystemId, setSelectedSystemId] = useState<BattleSystemId>("zmove");
+  const [selectedSystemId, setSelectedSystemId] = useState<BattleSystemId>("mega");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
