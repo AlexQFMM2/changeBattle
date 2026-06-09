@@ -14,62 +14,10 @@ import {MainMenu, TitleScreen} from "./pages/shell/ShellScreens";
 import {RouteTransitionPage, routeTransitionCopy, type RouteTransitionCopy, type RouteTransitionReason} from "./pages/shell/RouteTransitionPage";
 import {RentalSelect, StarterItemsView, StarterUpgradePage, TalentConfigView} from "./pages/setup/SetupPages";
 import {BattleView} from "./pages/battle/BattleView";
-import {TALENT_CATALOG, debugBattle, debugPokemon, hasStarterItemChoices, mergeBattleSnapshot, profileFromSelection, userFacingError} from "./lib/ui";
-function installBrowserAutomationBridge() {
-  if (!import.meta.env.DEV || !new URLSearchParams(location.search).has("automated") || window.changeBattle) return;
-  const save: LocalSave = {version: 1, bp_scale: 1, trainer: {name: "自动测试", gender: "other"}, stats: {battle_points: 99, battles: 0, wins: 0, losses: 0, rank_status: "未开放"}, talent_unlocks: [], talent_equipped: [], starter_upgrades: {}, current_run: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString()};
-  const candidates = Array.from({length: 6}, (_, index) => debugPokemon(`Candidate${index + 1}`, `候选${index + 1}`));
-  window.changeBattle = {
-    generateCandidates: async () => ({seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}),
-    assetUrl: path => path,
-    loadSave: async () => save,
-    createNewSave: async trainer => ({...save, trainer}),
-    deleteSave: async () => undefined,
-    updateTrainer: async trainer => ({...save, trainer}),
-    battleRecords: async () => ({version: 1, records: []}),
-    enableTestMode: async () => ({...save, stats: {...save.stats, battle_points: 99999}}),
-    trainerCatalog: async () => ({
-      players: [{id: "player:debug", type: "player", name_zh: "斗也", front_asset: "assets/npc/player-front/斗也-bw_black.png", back_asset: "assets/npc/player-back/斗也-bw_touya_back.png", avatar_asset: "assets/npc/avatars/斗也-blackchallenge.png"}],
-      avatars: [{id: "avatar:debug", type: "avatar", name_zh: "斗也", avatar_asset: "assets/npc/avatars/斗也-blackchallenge.png"}],
-      champions: [{id: "champion:debug", type: "champion", name_zh: "调试冠军", front_asset: "assets/npc/normal/dp_battle_girl-2-dp_battle_girl.png"}],
-    }),
-    prepareStarterItems: async () => ({screen: "starterItems", save, starter: {seed: 1, coins: 0, offers: [], purchased: null}, message: "自动测试开局道具"}),
-    chooseStarterItem: async () => ({screen: "rentalSelect", save, candidates: {seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}, selected_indexes: [], message: "自动测试候选"}),
-    cancelPreparation: async () => ({screen: "mainMenu", save, message: "自动测试返回主菜单"}),
-    getTalentConfig: async () => ({catalog: TALENT_CATALOG, unlocked: [], equipped: []}),
-    unlockTalent: async () => ({catalog: TALENT_CATALOG, unlocked: [], equipped: [], save}),
-    configureTalents: async () => ({catalog: TALENT_CATALOG, unlocked: [], equipped: [], save}),
-    setNamedChallenge: async trainerId => {
-      save.named_champion_id = trainerId;
-      return {catalog: TALENT_CATALOG, unlocked: [], equipped: [], save};
-    },
-    getStarterUpgrades: async () => ({catalog: [], save}),
-    upgradeStarter: async () => ({catalog: [], save}),
-    prepareCandidates: async () => ({screen: "rentalSelect", save, candidates: {seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}, selected_indexes: [], message: "自动测试候选"}),
-    rerollStarterCandidate: async () => ({screen: "rentalSelect", save, starter: {seed: 1, coins: 0, offers: [], purchased: null, single_rerolls_remaining: 0, inspect_count: 0}, candidates: {seed: [1, 2, 3, 4], team: candidates.map(pokemon => ({species: pokemon.species})), display: candidates, packed: ""}, selected_indexes: [], message: "自动测试单只重随"}),
-    beginChallenge: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试对局"}),
-    continueRun: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试对局"}),
-    battleChoice: async () => ({screen: "battleMain", save, battle: debugBattle(true), message: "自动测试胜利", pending_transition: {screen: "result", save, battle: debugBattle(true), message: "自动测试结算"}}),
-    autoAdvanceBattle: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试推进"}),
-    exchange: async () => ({screen: "result", save, message: "自动测试交换"}),
-    restAction: async () => ({screen: "mainMenu", save, message: "自动测试休整"}),
-    shopItems: async () => [],
-    learnableMoves: async () => [],
-    editOptions: async () => ({abilities: [], natures: []}),
-    dexSearch: async (category, query = "", offset = 0, limit = 8) => ({
-      category,
-      query,
-      offset,
-      limit,
-      total: 1,
-      has_more: false,
-      entries: [{id: "debug", name: "Debug", name_zh: "调试条目", category, desc_zh: "自动测试图鉴条目。"}],
-    }),
-    getBattleState: async () => debugBattle(false),
-  };
-}
+import {hasStarterItemChoices, mergeBattleSnapshot, profileFromSelection, userFacingError} from "./lib/ui";
+import {installBrowserTestBridge} from "./web/browserTestBridge";
 
-installBrowserAutomationBridge();
+installBrowserTestBridge();
 
 const TRANSITION_ROUTE = "/transition";
 const BATTLE_SCREENS: AppStatus[] = ["battleMain", "moveMenu", "teamMenu", "statusMenu"];
@@ -125,29 +73,30 @@ function RoutedApp() {
   const navigate = useNavigate();
   const responsiveCanvas = useResponsiveCanvas();
   const routePath = normalizeRoute(location.pathname);
+  const browserInitialState = window.__changeBattleTest?.getInitialState() || null;
   const routedScreen = screenForRoute(routePath);
-  const screen = routedScreen || "title";
-  const [save, setSave] = useState<LocalSave | null>(null);
+  const screen = routePath === "/" && browserInitialState ? browserInitialState.screen : routedScreen || "title";
+  const [save, setSave] = useState<LocalSave | null>(browserInitialState?.save || null);
   const [trainerName, setTrainerName] = useState("训练师");
   const [trainerCatalog, setTrainerCatalog] = useState<TrainerCatalogState>({players: [], avatars: []});
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [selectedAvatarAsset, setSelectedAvatarAsset] = useState("");
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
-  const [candidates, setCandidates] = useState<RentalPokemon[]>([]);
-  const [selected, setSelected] = useState<number[]>([]);
+  const [candidates, setCandidates] = useState<RentalPokemon[]>(browserInitialState?.candidates?.display || []);
+  const [selected, setSelected] = useState<number[]>(browserInitialState?.selected_indexes || []);
   const [focusIndex, setFocusIndex] = useState(0);
   const [inspectedIndexes, setInspectedIndexes] = useState<Set<number>>(() => new Set());
   const [inspectRemaining, setInspectRemaining] = useState(0);
-  const [battle, setBattle] = useState<BattleState | null>(null);
-  const [lastBattleSnapshot, setLastBattleSnapshot] = useState<BattleState | null>(null);
-  const [starter, setStarter] = useState<DesktopGameState["starter"]>(null);
-  const [battleBag, setBattleBag] = useState<BagCategoryView | null>(null);
-  const [exchange, setExchange] = useState<DesktopGameState["exchange"]>(null);
-  const [rest, setRest] = useState<DesktopGameState["rest"]>(null);
-  const [resultSummary, setResultSummary] = useState<ResultSummaryState | null>(null);
-  const [pendingTransition, setPendingTransition] = useState<DesktopGameState | null>(null);
+  const [battle, setBattle] = useState<BattleState | null>(browserInitialState?.battle || null);
+  const [lastBattleSnapshot, setLastBattleSnapshot] = useState<BattleState | null>(browserInitialState?.battle || null);
+  const [starter, setStarter] = useState<DesktopGameState["starter"]>(browserInitialState?.starter || null);
+  const [battleBag, setBattleBag] = useState<BagCategoryView | null>(browserInitialState?.battle_bag || null);
+  const [exchange, setExchange] = useState<DesktopGameState["exchange"]>(browserInitialState?.exchange || null);
+  const [rest, setRest] = useState<DesktopGameState["rest"]>(browserInitialState?.rest || null);
+  const [resultSummary, setResultSummary] = useState<ResultSummaryState | null>(browserInitialState?.result_summary || null);
+  const [pendingTransition, setPendingTransition] = useState<DesktopGameState | null>(browserInitialState?.pending_transition || null);
   const [dexOpen, setDexOpen] = useState(false);
-  const [message, setMessage] = useState("欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
+  const [message, setMessage] = useState(browserInitialState?.message || "欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
   const [loading, setLoading] = useState(false);
   const [appToast, setAppToast] = useState<{id: number; message: string; durationMs?: number} | null>(null);
   const [routeTransition, setRouteTransition] = useState<(RouteTransitionCopy & {id: number}) | null>(null);

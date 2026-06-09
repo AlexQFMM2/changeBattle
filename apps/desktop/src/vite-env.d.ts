@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 
 import type {BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleDisplayStep} from "./components/battle/timelineFlow";
+import type {BrowserTestScenario} from "./web/browserTestBridge";
 
 declare global {
   interface Window {
@@ -36,6 +38,14 @@ declare global {
       editOptions(slot: number): Promise<PokemonEditOptions>;
       dexSearch(category: DesktopDexCategory, query?: string, offset?: number, limit?: number): Promise<DesktopDexSearchResult>;
       getBattleState(): Promise<BattleState | null>;
+    };
+    __changeBattleTest?: {
+      getScenario(): BrowserTestScenario;
+      getLastAction(): string;
+      getState(): DesktopGameState | null;
+      getBattle(): BattleState | null;
+      getTimelineSteps(): BattleDisplayStep[];
+      getInitialState(): DesktopGameState | null;
     };
   }
 }

@@ -17,7 +17,7 @@ export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopG
 
 export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
   const [pokemonModalSlot, setPokemonModalSlot] = useState<number | null>(null);
-  const [activePanel, setActivePanel] = useState<RestWorkspacePanel>("nightSky");
+  const [activePanel, setActivePanel] = useState<RestWorkspacePanel>(() => new URLSearchParams(location.search).get("scenario") === "rest-shop" ? "shop" : "nightSky");
   const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);
   const [moveEditorMoveSlot, setMoveEditorMoveSlot] = useState(0);
   const [statsEditorSlot, setStatsEditorSlot] = useState<number | null>(null);

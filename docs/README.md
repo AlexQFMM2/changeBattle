@@ -5,7 +5,7 @@
 ChangeBattle 当前更适合被理解为：
 
 - 一个以 Pokemon Showdown 为规则引擎的宝可梦对战工厂游戏。
-- 一个 Electron + React 桌面端、TypeScript 游戏服务层、Python CLI 并存的可玩项目。
+- 一个以 Electron + React 桌面端为核心、TypeScript 游戏服务层为规则支撑的可玩项目。
 - 一套围绕租赁、交换、连战、中文展示、战斗演出和桌面 release 的资料与工具集合。
 
 如果文档与代码冲突，以当前代码为准，并把文档视为待更新。
@@ -20,6 +20,7 @@ ChangeBattle 当前更适合被理解为：
 
 ## 任务入口
 
+- 理解平台形态、优先级和技术路线：[`platform-targets.md`](./platform-targets.md)
 - 理解当前游戏规则与体验目标：[`rule.md`](./rule.md)
 - 理解随机宝可梦生成规则：[`randomPokemonRule.md`](./randomPokemonRule.md)
 - 理解随机道具与商店规则：[`randomItemRule.md`](./randomItemRule.md)
@@ -46,7 +47,7 @@ Electron + React 桌面端。
 - React 页面、战斗视图、图鉴、菜单、过场和 UI 样式。
 - 桌面存档读写、NPC/战斗状态装饰、桌面端规则测试。
 
-这是当前主要用户体验入口。
+这是当前正式主版本和最高优先级用户体验入口。
 
 ### `packages/game-service`
 
@@ -74,7 +75,19 @@ TypeScript 游戏服务层。
 
 Python 文字版入口。
 
-它保留了 CLI 可玩闭环和部分规则/显示实现。桌面端是当前重点，但 CLI 仍可用于快速验证和回归。
+它是早期快速验证入口，已经完成最初使命。后续不再主动开发、不再同步 Desk 平衡，也不作为当前回归重点；如需了解平台取舍，读 [`platform-targets.md`](./platform-targets.md)。
+
+### `web`
+
+浏览器本地测试形态。
+
+它不作为正式发布模式，也不承担长期存档或服务器能力。后续 Web 入口主要服务 Chrome MCP / Chrome Automation 自动化测试、截图验收和指定场景 smoke；详细边界见 [`platform-targets.md`](./platform-targets.md)。
+
+### `app`
+
+未来 Android 本地自用形态。
+
+它不上架，不考虑 iOS。后续可基于 WebView/Capacitor 复用 React 前端和 `640x320` 横屏画布，接独立 mobile bridge 与本地存档；当前优先级低于 Desk 和 Web 测试入口。
 
 ### `data`
 
@@ -110,7 +123,7 @@ Python 文字版入口。
 - 生成 sprite map。
 - 抓取/观察 52poke 招式动画资料。
 - 校验战斗效果配置。
-- 生成 CLI 或 Windows desktop release。
+- 生成 Windows desktop release。
 
 ### `docs`
 
@@ -132,6 +145,22 @@ cd /home/alexqfmm/workPlace/pokemon/changeBattle
 pnpm desktop:dev
 ```
 
+Web 本地自动化测试入口：
+
+```bash
+pnpm web:dev
+```
+
+常用测试地址：
+
+```text
+http://127.0.0.1:5179/?automated#/
+http://127.0.0.1:5179/?scenario=battle-flinch#/
+http://127.0.0.1:5179/?scenario=rest-shop#/
+```
+
+Web 入口只服务 Chrome MCP / Chrome Automation 本地测试，不是正式发布模式；详细边界见 [`platform-targets.md`](./platform-targets.md)。
+
 桌面构建：
 
 ```bash
@@ -151,7 +180,7 @@ pnpm --filter @changebattle/desktop test:talents
 pnpm --filter @changebattle/game-service test:trainer-items
 ```
 
-CLI Python 语法检查：
+CLI Python 语法检查只作为历史入口检查，不是当前主回归：
 
 ```bash
 python3 -m py_compile changeBattle-cli/play.py
@@ -181,3 +210,4 @@ Pokemon Showdown 是对战规则、数据和底层 battle engine 的事实源。
 - 改资源：先看 `data/*manifest*`、`sprite_index_map.json`、`assets/*` 和 `tools/package_desktop_release.py`。
 - 改发版流程：只读 `windows-desktop-release.md`，不要顺手改 release 产物。
 - 更新文档时，保持本页做导航，专题文档做细节，不把同一套规则复制到多处。
+- 判断平台优先级或 Web/App 边界：读 `platform-targets.md`，Desk 仍是正式主版本。

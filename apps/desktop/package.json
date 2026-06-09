@@ -1,11 +1,12 @@
 {
   "name": "@changebattle/desktop",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "private": true,
   "type": "module",
   "main": "out/main/main.js",
   "scripts": {
     "dev": "node scripts/electron-vite.mjs dev",
+    "web:dev": "vite --host 127.0.0.1 --port 5179",
     "build": "tsc -p tsconfig.json --noEmit && node scripts/electron-vite.mjs build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:talents": "tsx electron/run-rules.test.ts"
