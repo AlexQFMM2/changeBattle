@@ -73,6 +73,9 @@ contextBridge.exposeInMainWorld("changeBattle", {
   battleChoice(choice: string): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:battleChoice", choice);
   },
+  autoAdvanceBattle(): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:autoAdvanceBattle");
+  },
   exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:exchange", ownIndex, enemyIndex);
   },

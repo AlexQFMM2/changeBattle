@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import type {CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
+import type {BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
+import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
 import {
   BP_SCALE,
   MOVE_DRAW_COST,
+  RANDOMIZE_ALL_COST,
   RANDOMIZE_PART_COST,
   SCOUT_ALL_COST,
   SCOUT_BASIC_COST,
@@ -144,6 +146,9 @@ function testGrowthTalents(): void {
   assert.equal(shopOfferCount(run(["growth_more_choices"])), 4);
   assert.equal(shopCandidateCount(run()), 4);
   assert.equal(shopCandidateCount(run(["growth_more_choices"])), 8);
+  assert.equal(MOVE_DRAW_COST, 100);
+  assert.equal(RANDOMIZE_PART_COST, 50);
+  assert.equal(RANDOMIZE_ALL_COST, 150);
   assert.equal(moveDrawCost(run()), MOVE_DRAW_COST);
 
   assert.equal(statResetCost(run(), RANDOMIZE_PART_COST, "ivs", 0.2), RANDOMIZE_PART_COST);
@@ -234,6 +239,20 @@ function testShopDuplicateBonus(): void {
   assert.deepEqual(shopDuplicateBonusForOffers([offer("a", 0), offer("b", 1), offer("a", 2), offer("a", 3), offer("b", 4)]), {item_id: "a", name: "a", name_zh: "a", count: 2, match_count: 3, icon_asset: undefined});
 }
 
+function testBattleTimelineEntryOrdering(): void {
+  const events: BattleTimelineEvent[] = [
+    {id: "s1", type: "switch", text: "大嘴鸥 上场了。", side: "p1", targetSide: "p1"},
+    {id: "s2", type: "switch", text: "煤炭龟 上场了。", side: "p2", targetSide: "p2"},
+    {id: "w1", type: "weather", text: "大嘴鸥 的降雨。", side: "p1", targetSide: "p1"},
+    {id: "w2", type: "weather", text: "煤炭龟 的日照。", side: "p2", targetSide: "p2"},
+  ];
+  const seen: string[] = [];
+  for (const step of buildBattleDisplaySteps(events)) {
+    if (step.event?.id && seen.at(-1) !== step.event.id) seen.push(step.event.id);
+  }
+  assert.deepEqual(seen, ["s1", "w1", "s2", "w2"]);
+}
+
 testTalentCatalog();
 testStarterTalents();
 testExchangeTalents();
@@ -242,5 +261,6 @@ testIntelTalents();
 testEconomyTalents();
 testDefaultsAndHelpers();
 testShopDuplicateBonus();
+testBattleTimelineEntryOrdering();
 
 console.log("Desk talent rule tests passed.");

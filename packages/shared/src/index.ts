@@ -207,12 +207,40 @@ export type StarterItemGroupState = {
 
 export type PokemonSet = Record<string, any>;
 
+export const SHOWDOWN_ID_POOL = [
+  "pokeball",
+  "greatball",
+  "ultraball",
+  "masterball",
+  "premierball",
+  "luxuryball",
+  "duskball",
+  "healball",
+  "quickball",
+  "timerball",
+  "repeatball",
+  "netball",
+  "nestball",
+  "diveball",
+  "cherishball",
+  "fastball",
+  "friendball",
+  "heavyball",
+  "levelball",
+  "loveball",
+  "lureball",
+  "moonball",
+  "dreamball",
+  "beastball",
+] as const;
+
 export const SHOWDOWN_SLOT_IDS = {
   p1: ["pokeball", "greatball", "ultraball", "masterball", "premierball", "luxuryball"],
   p2: ["premierball", "luxuryball", "duskball", "healball", "quickball", "timerball"],
 } as const;
 
 export type BattleSideId = keyof typeof SHOWDOWN_SLOT_IDS;
+export type ShowdownIdPoolState = {available: string[]; used: string[]};
 
 export function battleSlotShowdownId(side: BattleSideId, slot: number): string {
   const balls = SHOWDOWN_SLOT_IDS[side];
@@ -323,6 +351,8 @@ export type BattleState = {
   ended: boolean;
   winner: string | null;
   request: BattleRequestView | null;
+  player_side?: BattleSideId;
+  enemy_side?: BattleSideId;
   tracker: BattleTracker;
   recent_events: string[];
   timeline_events: BattleTimelineEvent[];
@@ -738,6 +768,19 @@ export type PokemonEditOptions = {
   natures: NatureOption[];
 };
 
+export type PlannedBattleData = {
+  battle_no: number;
+  route_type: "normal" | "gym" | "champion" | "elite4";
+  route_stage: string;
+  route_route: string;
+  generation_stage: string;
+  enemy_team_pool_id?: string;
+  enemy_trainer: TrainerNpcView;
+  enemy_raw: PokemonSet[];
+  enemy_display: RentalPokemon[];
+  battle_background?: BattleBackgroundView;
+};
+
 export type CurrentRunData = {
   status: "ready" | "in_battle" | "awaiting_rest" | "awaiting_exchange";
   seed: number;
@@ -787,6 +830,10 @@ export type CurrentRunData = {
   coins_earned_this_run?: number;
   second_team_roar_used?: boolean;
   all_in_exchange_used?: boolean;
+  showdown_id_pool?: ShowdownIdPoolState;
+  planned_battles?: PlannedBattleData[];
+  player_side?: BattleSideId;
+  enemy_side?: BattleSideId;
   exchange_box?: {
     team: PokemonSet[];
     display: RentalPokemon[];

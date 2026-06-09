@@ -4,8 +4,8 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
-import {battleSlotShowdownId} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import {SHOWDOWN_ID_POOL} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
   BP_SCALE,
@@ -872,10 +872,9 @@ function collectBattlePokemonStatEvents(run: CurrentRunData, battle: BattleState
       byIdent.set(id, key);
     }
   };
-  battle.player_display.forEach((pokemon, index) => {
+  battle.player_display.forEach(pokemon => {
     const key = resultPokemonKey(pokemon);
-    byShowdownId.set(pokemon.showdown_id || battleSlotShowdownId("p1", index + 1), key);
-    byShowdownId.set(battleSlotShowdownId("p1", index + 1), key);
+    if (pokemon.showdown_id) byShowdownId.set(pokemon.showdown_id, key);
     addIdent(pokemon.species_id, key);
     addIdent(pokemon.species, key);
     addIdent(pokemon.name, key);
@@ -1763,6 +1762,44 @@ function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battle
   return {teamIndex, rows: selected, speciesIds: selected.map(row => row.species_id), profiles: selected.map(row => row.generation_profile)};
 }
 
+async function buildPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<PlannedBattleData> {
+  const route = routeForRunBattle(save, run, battleNo);
+  const enemyTrainer = chooseTrainerForRoute(route, run, battleNo);
+  const routeSalt = route.type === "normal" ? 100 : route.type === "champion" ? 700 : route.stage.includes("tier3") ? 603 : route.stage === "tier2" ? 602 : 601;
+  const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
+  const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
+  const enemyGenerated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
+  const enemyRaw = enemyGenerated.team.slice(0, 3);
+  const enemyDisplay = enemyGenerated.display.slice(0, 3);
+  ensureTeamRunMemberIds(enemyRaw, enemyDisplay);
+  assignEnemyShowdownIds(enemyRaw, enemyDisplay);
+  return {
+    battle_no: battleNo,
+    route_type: route.type,
+    route_stage: route.stage,
+    route_route: route.route,
+    generation_stage: profiles.join("|"),
+    enemy_team_pool_id: enemyTrainer.team_pool_id,
+    enemy_trainer: enemyTrainer,
+    enemy_raw: enemyRaw,
+    enemy_display: enemyDisplay,
+    battle_background: battleBackgroundForRun({...run, boss_route: route.route}, enemyTrainer, battleNo),
+  };
+}
+
+async function buildPlannedBattles(save: LocalSave, run: CurrentRunData): Promise<PlannedBattleData[]> {
+  const total = Math.max(1, Number(run.battles || DEFAULT_BATTLES));
+  const planned: PlannedBattleData[] = [];
+  for (let battleNo = 1; battleNo <= total; battleNo += 1) planned.push(await buildPlannedBattle(save, run, battleNo));
+  return planned;
+}
+
+async function refreshPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<void> {
+  const planned = await buildPlannedBattle(save, run, battleNo);
+  run.planned_battles = [...(run.planned_battles || []).filter(entry => Number(entry.battle_no) !== battleNo), planned]
+    .sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
+}
+
 function bossPoolSlotKey(poolId: string | undefined, teamIndex: number, slot: number, speciesId: string): string {
   return `${poolId || "pool"}:${teamIndex}:${slot}:${speciesId}`;
 }
@@ -2023,6 +2060,120 @@ function normalizeShowdownId(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
 
+const SHOWDOWN_ID_SET = new Set<string>(SHOWDOWN_ID_POOL);
+
+function isValidShowdownId(value: unknown): string {
+  const id = normalizeShowdownId(value);
+  return SHOWDOWN_ID_SET.has(id) ? id : "";
+}
+
+function candidateShowdownId(...values: unknown[]): string {
+  for (const value of values) {
+    const id = isValidShowdownId(value);
+    if (id) return id;
+  }
+  return "";
+}
+
+function writePokemonShowdownId(raw: PokemonSet | undefined, display: RentalPokemon | undefined, state: PlayerPokemonState | undefined, id: string): void {
+  if (raw) {
+    raw.showdown_id = id;
+    raw.pokeball = id;
+  }
+  if (display) display.showdown_id = id;
+  if (state) state.showdown_id = id;
+}
+
+function stablePlayerSlotShowdownId(run: CurrentRunData, slot: number, ...fallbacks: unknown[]): string {
+  return candidateShowdownId(...fallbacks, run.player_team?.[slot]?.showdown_id, run.player_display?.[slot]?.showdown_id, run.player_state?.[slot]?.showdown_id, run.player_team?.[slot]?.pokeball)
+    || takeRunShowdownId(run);
+}
+
+function writePlayerSlotShowdownId(run: CurrentRunData, slot: number, states?: PlayerPokemonState[], id?: string): string {
+  const stableId = id || stablePlayerSlotShowdownId(run, slot, states?.[slot]?.showdown_id);
+  writePokemonShowdownId(run.player_team?.[slot], run.player_display?.[slot], states?.[slot], stableId);
+  return stableId;
+}
+
+function nextPoolId(queue: string[], used: Set<string>): string {
+  while (queue.length) {
+    const id = isValidShowdownId(queue.shift());
+    if (id && !used.has(id)) return id;
+  }
+  const fallback = SHOWDOWN_ID_POOL.find(id => !used.has(id));
+  if (!fallback) throw new Error("Showdown ID 池已耗尽。");
+  return fallback;
+}
+
+function normalizeRunShowdownIdPool(run: CurrentRunData): void {
+  const preferredQueue = [
+    ...(run.showdown_id_pool?.available || []),
+    ...SHOWDOWN_ID_POOL,
+  ].map(isValidShowdownId).filter(Boolean);
+  const queue = Array.from(new Set(preferredQueue));
+  const used = new Set<string>();
+  const length = Math.max(run.player_team?.length || 0, run.player_display?.length || 0, run.player_state?.length || 0);
+  for (let index = 0; index < length; index += 1) {
+    const raw = run.player_team?.[index];
+    const display = run.player_display?.[index];
+    const state = run.player_state?.[index];
+    let id = candidateShowdownId(raw?.showdown_id, display?.showdown_id, state?.showdown_id, raw?.pokeball);
+    if (!id || used.has(id)) id = nextPoolId(queue, used);
+    used.add(id);
+    writePokemonShowdownId(raw, display, state, id);
+  }
+  const available = [
+    ...queue,
+    ...SHOWDOWN_ID_POOL,
+  ].map(isValidShowdownId).filter(id => id && !used.has(id));
+  run.showdown_id_pool = {used: Array.from(used), available: Array.from(new Set(available))};
+}
+
+function takeRunShowdownId(run: CurrentRunData): string {
+  normalizeRunShowdownIdPool(run);
+  const used = new Set((run.showdown_id_pool?.used || []).map(isValidShowdownId).filter(Boolean));
+  const available = [...(run.showdown_id_pool?.available || [])].map(isValidShowdownId).filter(Boolean);
+  const id = nextPoolId(available, used);
+  used.add(id);
+  run.showdown_id_pool = {used: Array.from(used), available: available.filter(value => value !== id)};
+  return id;
+}
+
+function releaseRunShowdownId(run: CurrentRunData, id: unknown): void {
+  const released = isValidShowdownId(id);
+  if (!released) return;
+  normalizeRunShowdownIdPool(run);
+  const used = (run.showdown_id_pool?.used || []).filter(value => isValidShowdownId(value) !== released);
+  const available = (run.showdown_id_pool?.available || []).filter(value => isValidShowdownId(value) && isValidShowdownId(value) !== released);
+  available.push(released);
+  run.showdown_id_pool = {used, available};
+}
+
+function takeReplacementRunShowdownId(run: CurrentRunData, slot: number, oldId: unknown): string {
+  normalizeRunShowdownIdPool(run);
+  const released = isValidShowdownId(oldId);
+  const used = new Set<string>();
+  const length = Math.max(run.player_team?.length || 0, run.player_display?.length || 0, run.player_state?.length || 0);
+  for (let index = 0; index < length; index += 1) {
+    if (index === slot) continue;
+    const id = candidateShowdownId(run.player_team?.[index]?.showdown_id, run.player_display?.[index]?.showdown_id, run.player_state?.[index]?.showdown_id, run.player_team?.[index]?.pokeball);
+    if (id) used.add(id);
+  }
+  const available = [...(run.showdown_id_pool?.available || []), ...SHOWDOWN_ID_POOL]
+    .map(isValidShowdownId)
+    .filter(id => id && !used.has(id) && id !== released);
+  const queue = Array.from(new Set(available));
+  const id = nextPoolId(queue, used);
+  used.add(id);
+  const rest = [...queue, ...SHOWDOWN_ID_POOL]
+    .map(isValidShowdownId)
+    .filter(value => value && !used.has(value) && value !== released);
+  const uniqueRest = Array.from(new Set(rest));
+  if (released && !used.has(released)) uniqueRest.push(released);
+  run.showdown_id_pool = {used: Array.from(used), available: uniqueRest};
+  return id;
+}
+
 function createRunMemberId(): string {
   return `rpm_${randomUUID()}`;
 }
@@ -2038,17 +2189,20 @@ function ensureTeamRunMemberIds(team: PokemonSet[] = [], display: RentalPokemon[
   }
 }
 
-function ensureTeamShowdownIds(team: PokemonSet[] = [], display: RentalPokemon[] = [], states: PlayerPokemonState[] | undefined, side: "p1" | "p2" = "p1"): void {
+function ensureTeamShowdownIds(team: PokemonSet[] = [], display: RentalPokemon[] = [], states: PlayerPokemonState[] | undefined): void {
   const length = Math.max(team.length, display.length, states?.length || 0);
+  const used = new Set<string>();
+  const queue = [...SHOWDOWN_ID_POOL];
   for (let index = 0; index < length; index += 1) {
-    const id = battleSlotShowdownId(side, index + 1);
-    if (team[index]) {
-      team[index].showdown_id = id;
-      team[index].pokeball = id;
-    }
-    if (display[index]) display[index].showdown_id = id;
-    if (states?.[index]) states[index].showdown_id = id;
+    let id = candidateShowdownId(team[index]?.showdown_id, display[index]?.showdown_id, states?.[index]?.showdown_id, team[index]?.pokeball);
+    if (!id || used.has(id)) id = nextPoolId(queue, used);
+    used.add(id);
+    writePokemonShowdownId(team[index], display[index], states?.[index], id);
   }
+}
+
+function assignEnemyShowdownIds(team: PokemonSet[] = [], display: RentalPokemon[] = []): void {
+  ensureTeamShowdownIds(team, display, undefined);
 }
 
 function shortStateIdent(ident: unknown): string {
@@ -2134,9 +2288,10 @@ function findExistingStateForPokemon(existing: PlayerPokemonState[], raw: Pokemo
 
 function fullStateForPokemon(pokemon: RentalPokemon, slot: number): PlayerPokemonState {
   const maxhp = Math.max(1, Number(pokemon.stats?.hp || 1));
+  const showdownId = candidateShowdownId(pokemon.showdown_id) || SHOWDOWN_ID_POOL[Math.max(0, slot - 1)] || SHOWDOWN_ID_POOL[0];
   return {
     run_member_id: runMemberId(pokemon) || undefined,
-    showdown_id: battleSlotShowdownId("p1", slot),
+    showdown_id: showdownId,
     slot,
     ident: `p1: ${pokemon.species || pokemon.name || slot}`,
     details: pokemon.species || pokemon.name || "",
@@ -2262,7 +2417,7 @@ function adjustedStateAfterEdit(oldState: PlayerPokemonState, newDisplay: Rental
 function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
   ensureTeamRunMemberIds(run.player_team || [], run.player_display || []);
   const existing = [...(run.player_state || [])];
-  ensureTeamShowdownIds(run.player_team || [], run.player_display || [], undefined, "p1");
+  normalizeRunShowdownIdPool(run);
   const usedExisting = new Set<number>();
   const states = (run.player_display || []).map((pokemon, index) => {
     const full = fullStateForPokemon(pokemon, index + 1);
@@ -2285,7 +2440,7 @@ function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
     state.run_member_id = runMemberId(run.player_team?.[index]) || runMemberId(pokemon) || full.run_member_id || createRunMemberId();
     if (run.player_team?.[index]) run.player_team[index].run_member_id = state.run_member_id;
     if (run.player_display?.[index]) run.player_display[index].run_member_id = state.run_member_id;
-    const showdownId = battleSlotShowdownId("p1", index + 1);
+    const showdownId = candidateShowdownId(run.player_team?.[index]?.showdown_id, run.player_display?.[index]?.showdown_id, matched?.showdown_id, full.showdown_id) || takeRunShowdownId(run);
     state.showdown_id = showdownId;
     if (run.player_team?.[index]) {
       run.player_team[index].showdown_id = showdownId;
@@ -2303,6 +2458,7 @@ function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
     return refreshStateCondition(state);
   });
   run.player_state = states;
+  normalizeRunShowdownIdPool(run);
   return states;
 }
 
@@ -2380,6 +2536,8 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.temporary_bp_debt = Math.max(0, Number(run.temporary_bp_debt || 0));
   run.second_team_roar_used = Boolean(run.second_team_roar_used);
   run.all_in_exchange_used = Boolean(run.all_in_exchange_used);
+  normalizeRunShowdownIdPool(run);
+  run.planned_battles = (run.planned_battles || []).filter(Boolean).sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
   run.exchange_box = {
     team: (run.exchange_box?.team || []).filter(Boolean),
     display: (run.exchange_box?.display || []).filter(Boolean),
@@ -2759,7 +2917,7 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
     exchange_box: {team: [], display: [], state: []},
     player_team: playerTeam,
     player_display: playerDisplay,
-    player_state: playerDisplay.map((pokemon, index) => fullStateForPokemon(pokemon, index + 1)),
+    player_state: [],
     coins: pendingStarter?.coins ?? starterCoinsForSeed(effectiveSeed, runTalents),
     non_convertible_coins: starterNonConvertibleCoinsForTalents(runTalents),
     coins_earned_this_run: 0,
@@ -2769,6 +2927,9 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
     bag_items: starterBagItems,
     rest_status: freshRestStatus(runTalents),
   };
+  const run = save.current_run as CurrentRunData;
+  normalizePlayerState(run);
+  run.planned_battles = await buildPlannedBattles(save, run);
   pendingStarter = null;
   const next = await persist(save);
   return await restState(next, next.current_run as CurrentRunData, mentored.upgraded ? `伯乐本乐发动：${mentored.upgraded} 只宝可梦获得数值升阶。出发前可以先整理队伍。` : "出发前可以先整理队伍。");
@@ -2815,24 +2976,22 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     const message = `通关！完成 ${run.wins || run.battles} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     return gameState({screen: "result", save: next, message, result_summary: buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${run.wins || run.battles} 连胜`, wins: Number(run.wins || run.battles || 0), settled, run, clearBonus: bonus})});
   }
-  const route = routeForRunBattle(save, run, battleNo);
-  const enemyTrainer = chooseTrainerForRoute(route, run, battleNo);
-  const routeSalt = route.type === "normal" ? 100 : route.type === "champion" ? 700 : route.stage.includes("tier3") ? 603 : route.stage === "tier2" ? 602 : 601;
-  const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
-  const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
-  const enemyGenerated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
-  const enemyTeam = enemyGenerated.team.slice(0, 3);
-  const enemyDisplay = enemyGenerated.display.slice(0, 3);
-  ensureTeamRunMemberIds(enemyTeam, enemyDisplay);
-  ensureTeamShowdownIds(enemyTeam, enemyDisplay, undefined, "p2");
-  run.boss_type = enemyTrainer.type === "elite4" ? "elite4" : enemyTrainer.type === "champion" ? "champion" : enemyTrainer.type === "gym" ? "gym" : "normal";
-  run.boss_stage = route.stage;
-  run.boss_route = route.route;
-  run.enemy_team_pool_id = enemyTrainer.team_pool_id;
-  run.generation_stage = profiles.join("|");
+  if (!run.planned_battles?.length) run.planned_battles = await buildPlannedBattles(save, run);
+  const planned = run.planned_battles.find(entry => Number(entry.battle_no) === battleNo);
+  if (!planned) throw new Error(`缺少第 ${battleNo} 场预生成 NPC 数据。`);
+  const enemyTrainer = planned.enemy_trainer;
+  const enemyTeam = JSON.parse(JSON.stringify(planned.enemy_raw || [])) as PokemonSet[];
+  const enemyDisplay = JSON.parse(JSON.stringify(planned.enemy_display || [])) as RentalPokemon[];
+  const route = {type: planned.route_type, stage: planned.route_stage, route: planned.route_route, pool: []} as BossRoute;
+  const bossTeam = planned.route_type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
+  run.boss_type = planned.route_type;
+  run.boss_stage = planned.route_stage;
+  run.boss_route = planned.route_route;
+  run.enemy_team_pool_id = planned.enemy_team_pool_id;
+  run.generation_stage = planned.generation_stage;
   run.player_trainer = trainerFromProfile(save.trainer);
   run.enemy_trainer = enemyTrainer;
-  run.battle_background = battleBackgroundForRun(run, enemyTrainer, battleNo);
+  run.battle_background = planned.battle_background || battleBackgroundForRun(run, enemyTrainer, battleNo);
   run.status = "in_battle";
   run.battle_no = battleNo;
   run.next_battle = battleNo;
@@ -2858,34 +3017,8 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: `第 ${battleNo}/${run.battles} 场：${label} ${enemyTrainer.name_zh}`});
 }
 
-async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
-  if (battleChoiceInFlight) throw new Error("上一条战斗指令仍在处理，请稍等。");
-  battleChoiceInFlight = true;
-  try {
-    const save = await loadSave();
-    if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
-    let state: BattleState;
-    let shouldPersist = false;
-    if (choice.startsWith("item ")) {
-      const [, itemId, slotRaw, moveSlotRaw] = choice.split(/\s+/);
-      const run = save.current_run as CurrentRunData;
-      const slot = Math.max(0, Number(slotRaw || 1) - 1);
-      const states = activeBattle.getPlayerState();
-      if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
-      const normalizedItem = itemKey(itemId);
-      if (Number(run.bag_items?.[normalizedItem] || 0) <= 0) throw new Error("背包里没有这个道具。");
-      if (!(await gameService.hasConsumableItemEffect(normalizedItem))) throw new Error("这个道具不能在战斗中主动使用。");
-      state = await activeBattle.chooseTrainerItem(normalizedItem, slot, moveSlotRaw ? Number(moveSlotRaw) : undefined);
-      await consumeBagItem(run, normalizedItem);
-      run.player_state = activeBattle.getPlayerState();
-      shouldPersist = true;
-    } else {
-      state = choice === "forfeit" ? activeBattle.forfeit() : await activeBattle.choose(choice);
-    }
-    if (!state.ended) {
-      const next = shouldPersist ? await persist(save) : save;
-      return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await bagCategories(next.current_run as CurrentRunData)});
-    }
+async function finishBattleState(save: LocalSave, state: BattleState): Promise<DesktopGameState> {
+  if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
   const run = save.current_run as CurrentRunData;
   const winBp = recordBattleResult(save, state.winner, run);
   run.player_state = activeBattle.getPlayerState();
@@ -2941,6 +3074,53 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: decorateBattleState(state, run), message: rewardText, outcome: "win", statEvents}));
   const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
+}
+
+async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
+  if (battleChoiceInFlight) throw new Error("上一条战斗指令仍在处理，请稍等。");
+  battleChoiceInFlight = true;
+  try {
+    const save = await loadSave();
+    if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+    let state: BattleState;
+    let shouldPersist = false;
+    if (choice.startsWith("item ")) {
+      const [, itemId, slotRaw, moveSlotRaw] = choice.split(/\s+/);
+      const run = save.current_run as CurrentRunData;
+      const slot = Math.max(0, Number(slotRaw || 1) - 1);
+      const states = activeBattle.getPlayerState();
+      if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+      const normalizedItem = itemKey(itemId);
+      if (Number(run.bag_items?.[normalizedItem] || 0) <= 0) throw new Error("背包里没有这个道具。");
+      if (!(await gameService.hasConsumableItemEffect(normalizedItem))) throw new Error("这个道具不能在战斗中主动使用。");
+      state = await activeBattle.chooseTrainerItem(normalizedItem, slot, moveSlotRaw ? Number(moveSlotRaw) : undefined);
+      await consumeBagItem(run, normalizedItem);
+      run.player_state = activeBattle.getPlayerState();
+      shouldPersist = true;
+    } else {
+      state = choice === "forfeit" ? activeBattle.forfeit() : await activeBattle.choose(choice);
+    }
+    if (!state.ended) {
+      const next = shouldPersist ? await persist(save) : save;
+      return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await bagCategories(next.current_run as CurrentRunData)});
+    }
+    return finishBattleState(save, state);
+  } finally {
+    battleChoiceInFlight = false;
+  }
+}
+
+async function autoAdvanceBattle(): Promise<DesktopGameState> {
+  if (battleChoiceInFlight) throw new Error("上一条战斗指令仍在处理，请稍等。");
+  battleChoiceInFlight = true;
+  try {
+    const save = await loadSave();
+    if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+    const state = await activeBattle.advanceIfWaiting();
+    if (!state.ended) {
+      return gameState({screen: "battleMain", save, battle: decorateBattleState(state, save.current_run as CurrentRunData), battle_bag: await bagCategories(save.current_run as CurrentRunData)});
+    }
+    return finishBattleState(save, state);
   } finally {
     battleChoiceInFlight = false;
   }
@@ -3040,6 +3220,7 @@ function randomEvs(rng: () => number): Record<string, number> {
 
 async function applyRandomizedStats(run: CurrentRunData, slot: number, part: "ability" | "nature" | "ivs" | "evs" | "all"): Promise<void> {
   const rawSet = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
+  const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball);
   const options = await gameService.editOptions(rawSet);
   const rng = seededRng(Number(run.seed || 1), 0x9000 + Number(run.battle_no || 0) * 31 + slot * 7 + Date.now());
   if (part === "ability" || part === "all") {
@@ -3058,12 +3239,14 @@ async function applyRandomizedStats(run: CurrentRunData, slot: number, part: "ab
   run.player_team[slot] = rawSet;
   run.player_display[slot] = nextDisplay || run.player_display[slot];
   states[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+  writePlayerSlotShowdownId(run, slot, states, stableId);
   run.player_state = states;
 }
 
 async function applyMoveToSlot(run: CurrentRunData, slot: number, moveSlot: number, moveId: string): Promise<MoveSummary> {
   if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
   const rawSet = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
+  const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball);
   const currentMoves = [...(rawSet.moves || [])];
   if (moveSlot < 0 || moveSlot >= currentMoves.length) throw new Error("技能位置无效。");
   const legalMoves = await gameService.learnableMoves(rawSet);
@@ -3079,6 +3262,7 @@ async function applyMoveToSlot(run: CurrentRunData, slot: number, moveSlot: numb
   run.player_team[slot] = rawSet;
   run.player_display[slot] = nextDisplay || run.player_display[slot];
   states[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+  writePlayerSlotShowdownId(run, slot, states, stableId);
   run.player_state = states;
   return selected;
 }
@@ -3133,6 +3317,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const history = Array.from(new Set([...(run.reroute_history?.[String(battleNo)] || []), currentTrainer.id, trainer.id].filter(Boolean)));
     run.reroute_history = {...(run.reroute_history || {}), [String(battleNo)]: history};
     run.reroute_used = Number(run.reroute_used || 0) + 1;
+    await refreshPlannedBattle(save, run, battleNo);
     await buildNightSkyState(save, run);
     if (run.scout && Number(run.scout.title.match(/第\s*(\d+)/)?.[1] || 0) === battleNo) delete run.scout;
     const next = await persist(save);
@@ -3148,6 +3333,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.named_champion_id = trainerId;
     save.named_champion_id = trainerId;
     run.rest_status = {...(run.rest_status || {}), named_challenge_decided: true};
+    await refreshPlannedBattle(save, run, Number(run.battles || DEFAULT_BATTLES));
     await buildNightSkyState(save, run);
     const championName = trainerId ? npcCatalog.find(entry => entry.id === trainerId)?.name_zh || "指定 Boss" : "随机最终 Boss";
     const next = await persist(save);
@@ -3177,6 +3363,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const slot = Math.floor(Number(action.slot || 0));
     if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
     const rawSet = {...run.player_team[slot]};
+    const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
     const currentLevel = Math.max(1, Math.floor(Number(rawSet.level || run.player_display[slot]?.level || 50)));
     const nextLevel = Math.min(55, currentLevel + 2);
     const overflow = Math.max(0, currentLevel + 2 - 55);
@@ -3186,6 +3373,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
     nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
     const coinText = overflow ? `，溢出 ${overflow} 级转换为 ${addRunBp(save, run, overflow * 100)}金币` : "";
     run.rest_status = {...(run.rest_status || {}), trust_level_used: true};
@@ -3267,6 +3455,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const oldRaw = JSON.parse(JSON.stringify(run.player_team[action.ownIndex]));
     const oldDisplay = JSON.parse(JSON.stringify(run.player_display[action.ownIndex]));
     const oldState = JSON.parse(JSON.stringify(states[action.ownIndex]));
+    const oldShowdownId = oldRaw.showdown_id || oldDisplay.showdown_id || oldState.showdown_id;
+    const newShowdownId = takeReplacementRunShowdownId(run, action.ownIndex, oldShowdownId);
     let nextRaw: PokemonSet = {...run.enemy_raw[action.enemyIndex], item: keepItem ? run.enemy_raw[action.enemyIndex].item : ""};
     let nextDisplayBase: RentalPokemon = keepItem ? {...run.enemy_display[action.enemyIndex]} : {...run.enemy_display[action.enemyIndex], item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
     if (hasTalent(run.talents, "exchange_elite_training")) {
@@ -3291,8 +3481,10 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
         if (!keepItem) nextDisplayBase = {...nextDisplayBase, item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
       }
     }
+    writePokemonShowdownId(nextRaw, nextDisplayBase, undefined, newShowdownId);
     run.player_team[action.ownIndex] = hasTalent(run.talents, "economy_shiny_collector") ? {...nextRaw, shiny: true} : nextRaw;
     run.player_display[action.ownIndex] = hasTalent(run.talents, "economy_shiny_collector") ? shinyPokemon(nextDisplayBase) : nextDisplayBase;
+    writePokemonShowdownId(run.player_team[action.ownIndex], run.player_display[action.ownIndex], undefined, newShowdownId);
     run.player_state = normalizePlayerState(run);
     const ratio = exchangeStateRatio(run);
     run.player_state[action.ownIndex] = partialStateForPokemon(run.player_display[action.ownIndex], own, ratio);
@@ -3323,11 +3515,16 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const nextDisplay = generated.display[0];
     if (!nextRaw || !nextDisplay) throw new Error("孤注一掷生成失败。");
     const oldName = run.player_display[own]?.species_zh || run.player_display[own]?.species || `第 ${own + 1} 只`;
+    const oldShowdownId = run.player_team[own]?.showdown_id || run.player_display[own]?.showdown_id || states[own]?.showdown_id;
     addToExchangeBox(run, [run.player_team[own]], [run.player_display[own]], [states[own]]);
+    const newShowdownId = takeReplacementRunShowdownId(run, own, oldShowdownId);
+    writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
     run.player_team[own] = hasTalent(run.talents, "economy_shiny_collector") ? {...nextRaw, shiny: true} : nextRaw;
     run.player_display[own] = hasTalent(run.talents, "economy_shiny_collector") ? shinyPokemon(nextDisplay) : nextDisplay;
+    writePokemonShowdownId(run.player_team[own], run.player_display[own], undefined, newShowdownId);
     run.player_state = normalizePlayerState(run);
     run.player_state[own] = fullStateForPokemon(run.player_display[own], own + 1);
+    writePlayerSlotShowdownId(run, own, run.player_state, newShowdownId);
     for (let index = 0; index < run.player_state.length; index += 1) {
       if (index === own) continue;
       const state = run.player_state[index];
@@ -3379,6 +3576,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
       run.shop_offers = await rollShopOffers(run, action.preferredCategory);
       run.shop_purchased_offer_id = null;
       run.shop_purchased_offer_counts = {};
+      run.shop_purchased_item_counts = {};
       run.shop_last_roll_bonus = shopDuplicateBonusForOffers(run.shop_offers || []);
       if (run.shop_last_roll_bonus?.count) {
         const itemId = itemKey(run.shop_last_roll_bonus.item_id);
@@ -3532,6 +3730,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.player_display[action.slot] = described[0] || run.player_display[action.slot];
     run.player_state = normalizePlayerState(run);
     run.player_state[action.slot].item = toId(run.player_display[action.slot].item_id || run.player_team[action.slot].item);
+    writePlayerSlotShowdownId(run, action.slot, run.player_state);
     const next = await persist(save);
     const message = action.type === "equip_item"
       ? oldItem ? `已交换道具，${oldItemName} 回到了背包。` : "已装备道具。"
@@ -3560,12 +3759,14 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     currentMoves[moveSlot] = selected.name || selected.id;
     rawSet.moves = currentMoves;
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
+    const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
     if (refund) addCoins(run, refund);
     const spent = spendRunBp(save, run, cost, "adjust-move");
     run.player_team[slot] = rawSet;
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
     nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
     moveInvestments[slot] = moveInvestments[slot] || [0, 0, 0, 0];
     moveInvestments[slot][moveSlot] = spent.paid;
@@ -3582,6 +3783,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     rawSet.evs = normalizeStatsInput(action.evs, 0);
     rawSet.ability = action.ability || rawSet.ability || run.player_display[slot].ability;
     rawSet.nature = action.nature || rawSet.nature || run.player_display[slot].nature || "Serious";
+    const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
     const options = await gameService.editOptions(rawSet);
     validateStatAdjustments(rawSet, options);
     const cost = await goodsCost("service", "adjust_stats", ADJUST_STATS_COST);
@@ -3591,6 +3793,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
     nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
     const investments = run.bp_investments || [0, 0, 0];
     investments[slot] = Number(investments[slot] || 0) + spent.paid;
@@ -3676,6 +3879,7 @@ app.whenReady().then(() => {
   handleIpc("run:beginChallenge", async (selectedIndexes: number[], seed: number, battles?: number) => beginChallenge(selectedIndexes, seed, battles));
   handleIpc("run:continue", async () => continueRun());
   handleIpc("run:battleChoice", async (choice: string) => submitBattleChoice(choice));
+  handleIpc("run:autoAdvanceBattle", async () => autoAdvanceBattle());
   handleIpc("run:exchange", async (ownIndex: number | null, enemyIndex: number | null) => {
     if (ownIndex === null || enemyIndex === null) return handleRestAction({type: "next"});
     return handleRestAction({type: "exchange", ownIndex, enemyIndex});

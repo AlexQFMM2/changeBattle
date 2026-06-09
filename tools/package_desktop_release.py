@@ -31,7 +31,6 @@ PROJECT_PATHS = [
     "apps/desktop/package.json",
     "data",
     "assets",
-    "docs",
     "README.md",
     "plan.md",
 ]

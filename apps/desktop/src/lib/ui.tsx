@@ -745,14 +745,16 @@ export function displayFromActive(active: ActiveTrackerDisplay | undefined, base
 }
 
 export function activePokemon(battle: BattleState | null | undefined, side: "p1" | "p2"): {runtime?: RuntimePokemon; display?: RentalPokemon; active?: ActiveTrackerDisplay} {
-  const rows = side === "p1" ? battle?.request?.side?.pokemon || [] : [];
-  const runtimeIndex = side === "p1" ? rows.findIndex(pokemon => pokemon.active) : -1;
+  const playerSide = battle?.player_side || "p1";
+  const isPlayerSide = side === playerSide;
+  const rows = isPlayerSide ? battle?.request?.side?.pokemon || [] : [];
+  const runtimeIndex = isPlayerSide ? rows.findIndex(pokemon => pokemon.active) : -1;
   const runtime = runtimeIndex >= 0 ? rows[runtimeIndex] : undefined;
   const active = battle?.tracker.active[side];
-  const activeName = active?.species_id || active?.name || (side === "p1" ? runtimeName(runtime) : "");
-  const team = side === "p1" ? battle?.player_display || [] : battle?.enemy_display || [];
+  const activeName = active?.species_id || active?.name || (isPlayerSide ? runtimeName(runtime) : "");
+  const team = isPlayerSide ? battle?.player_display || [] : battle?.enemy_display || [];
   const allDisplays = [...(battle?.player_display || []), ...(battle?.enemy_display || [])];
-  const base = findDisplayByShowdownId(team, active?.showdown_id || runtime?.pokeball) || findDisplay(team, activeName) || findDisplay(allDisplays, activeName) || findDisplay(team, runtimeName(runtime)) || (runtimeIndex >= 0 ? team[runtimeIndex] : undefined) || (side === "p2" ? team[0] : undefined);
+  const base = findDisplayByShowdownId(team, active?.showdown_id || runtime?.pokeball) || findDisplay(team, activeName) || findDisplay(allDisplays, activeName) || findDisplay(team, runtimeName(runtime)) || (runtimeIndex >= 0 ? team[runtimeIndex] : undefined) || (!isPlayerSide ? team[0] : undefined);
   return {runtime, active, display: displayFromActive(active, base)};
 }
 

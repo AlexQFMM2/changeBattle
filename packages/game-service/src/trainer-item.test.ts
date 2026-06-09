@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {GameService} from "./index.js";
-import type {PokemonSet, PlayerPokemonState} from "@changebattle/shared";
+import type {BattleState, BattleTimelineEvent, PokemonSet, PlayerPokemonState} from "@changebattle/shared";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(here, "../../..");
@@ -43,6 +43,46 @@ async function createSession() {
 
 function withHp(states: PlayerPokemonState[], hp: number): PlayerPokemonState[] {
   return states.map((state, index) => index === 0 ? {...state, hp, condition: `${hp}/${state.maxhp}`} : state);
+}
+
+function battleText(state: BattleState): string {
+  return [...state.recent_events, ...state.timeline_events.map(event => event.text)].join("\n");
+}
+
+function assertTimelineOrder(state: BattleState, types: string[], label: string): void {
+  let cursor = -1;
+  for (const type of types) {
+    const index = state.timeline_events.findIndex((event, eventIndex) => eventIndex > cursor && event.type === type);
+    assert.ok(index > cursor, `${label}: expected ${type} after ${cursor}\n${JSON.stringify(state.timeline_events, null, 2)}`);
+    cursor = index;
+  }
+}
+
+async function createCustomSession(playerTeam: PokemonSet[], enemyTeam: PokemonSet[], seed: number[], enemyAi: Record<string, unknown> = {level: "gym_low", randomness: 0, allowSwitch: false}) {
+  const service = new GameService({projectRoot, showdownPath});
+  const playerDisplay = await service.describeTeam(playerTeam);
+  const enemyDisplay = await service.describeTeam(enemyTeam);
+  for (let index = 0; index < playerDisplay.length; index += 1) {
+    playerDisplay[index].run_member_id = playerTeam[index]?.run_member_id;
+    playerDisplay[index].showdown_id = playerTeam[index]?.showdown_id;
+  }
+  for (let index = 0; index < enemyDisplay.length; index += 1) {
+    enemyDisplay[index].run_member_id = enemyTeam[index]?.run_member_id;
+    enemyDisplay[index].showdown_id = enemyTeam[index]?.showdown_id;
+  }
+  return service.createBattleSession({playerTeam, enemyTeam, playerDisplay, enemyDisplay, seed, enemyAi});
+}
+
+async function findSeededState(label: string, factory: (seed: number[]) => Promise<BattleState>, predicate: (state: BattleState) => boolean, limit = 120): Promise<BattleState> {
+  for (let value = 1; value <= limit; value += 1) {
+    const state = await factory([value, value + 1000, value + 2000, value + 3000]);
+    if (predicate(state)) return state;
+  }
+  throw new Error(`${label}: no matching seed found within ${limit}`);
+}
+
+function typeCount(events: BattleTimelineEvent[], type: string): number {
+  return events.filter(event => event.type === type).length;
 }
 
 async function testUnknownMoveRejected(): Promise<void> {
@@ -125,7 +165,7 @@ async function testRegeneratorUsesShowdownIdWithDuplicateIdent(): Promise<void> 
   assert.ok(healEvent, JSON.stringify(state.timeline_events, null, 2));
 }
 
-async function testShowdownIdsFollowCurrentSlots(): Promise<void> {
+async function testShowdownIdsStayWithPokemonObjects(): Promise<void> {
   const service = new GameService({projectRoot, showdownPath});
   const playerTeam = [
     {...pokemon("Exploud", ["Tackle"], "Soundproof"), run_member_id: "member-exploud", showdown_id: "greatball", pokeball: "greatball"},
@@ -151,12 +191,14 @@ async function testShowdownIdsFollowCurrentSlots(): Promise<void> {
   });
 
   const state = session.getState();
-  assert.deepEqual(state.player_team.map(pokemonSet => pokemonSet.showdown_id), ["pokeball", "greatball"]);
-  assert.deepEqual(state.player_team.map(pokemonSet => pokemonSet.pokeball), ["pokeball", "greatball"]);
-  assert.deepEqual(state.player_display.map(pokemonView => pokemonView.showdown_id), ["pokeball", "greatball"]);
+  assert.equal(state.player_side, "p1");
+  assert.equal(state.enemy_side, "p2");
+  assert.deepEqual(state.player_team.map(pokemonSet => pokemonSet.showdown_id), ["greatball", "pokeball"]);
+  assert.deepEqual(state.player_team.map(pokemonSet => pokemonSet.pokeball), ["greatball", "pokeball"]);
+  assert.deepEqual(state.player_display.map(pokemonView => pokemonView.showdown_id), ["greatball", "pokeball"]);
 
   const current = session.getPlayerState();
-  assert.deepEqual(current.map(pokemonState => pokemonState.showdown_id), ["pokeball", "greatball"]);
+  assert.deepEqual(current.map(pokemonState => pokemonState.showdown_id), ["greatball", "pokeball"]);
   assert.deepEqual(current.map(pokemonState => pokemonState.run_member_id), ["member-exploud", "member-cacturne"]);
 
   session.syncPlayerState(current.map((pokemonState, index) => index === 0 ? {...pokemonState, status: "psn", condition: `${pokemonState.hp}/${pokemonState.maxhp} psn`} : pokemonState));
@@ -207,6 +249,198 @@ async function testSkyAttackAnimationProtocolIsHidden(): Promise<void> {
   assert.doesNotMatch(text, /Showdown事件|\|-anim\|/, text);
 }
 
+async function testBoostAndCantReasonsAreLocalized(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const boostTeam = [pokemon("Pikachu", ["Double Team"], "Static")];
+  const passiveEnemy = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
+  const boostSession = await service.createBattleSession({
+    playerTeam: boostTeam,
+    enemyTeam: passiveEnemy,
+    playerDisplay: await service.describeTeam(boostTeam),
+    enemyDisplay: await service.describeTeam(passiveEnemy),
+    seed: [25, 26, 27, 28],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+  const boostState = await boostSession.choose("move 1");
+  const boostText = [...boostState.recent_events, ...boostState.timeline_events.map(event => event.text)].join("\n");
+  assert.match(boostText, /回避\+1/, boostText);
+  assert.doesNotMatch(boostText, /evasion/i, boostText);
+
+  const flinchTeam = [pokemon("Meowth", ["Fake Out"], "Pickup")];
+  const attackEnemy = [pokemon("Bulbasaur", ["Tackle"], "Overgrow")];
+  const flinchSession = await service.createBattleSession({
+    playerTeam: flinchTeam,
+    enemyTeam: attackEnemy,
+    playerDisplay: await service.describeTeam(flinchTeam),
+    enemyDisplay: await service.describeTeam(attackEnemy),
+    seed: [29, 30, 31, 32],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+  const flinchState = await flinchSession.choose("move 1");
+  const flinchText = [...flinchState.recent_events, ...flinchState.timeline_events.map(event => event.text)].join("\n");
+  assert.match(flinchText, /畏缩/, flinchText);
+  assert.doesNotMatch(flinchText, /flinch/i, flinchText);
+}
+
+async function testAdvanceIfWaitingContinuesChargingMove(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const playerTeam = [pokemon("Charizard", ["Fly"], "Blaze")];
+  const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay: await service.describeTeam(playerTeam),
+    enemyDisplay: await service.describeTeam(enemyTeam),
+    seed: [33, 34, 35, 36],
+    enemyAi: {level: "gym_low", randomness: 0},
+  });
+  const charging = await session.choose("move 1");
+  assert.equal(charging.request?.active?.[0]?.moves?.length, 1, JSON.stringify(charging.request, null, 2));
+  const advanced = await session.advanceIfWaiting();
+  assert.notEqual(advanced.request?.wait, true, JSON.stringify(advanced.request, null, 2));
+  assert.notDeepEqual(advanced.request?.active?.[0]?.moves, charging.request?.active?.[0]?.moves, JSON.stringify(advanced.request, null, 2));
+  const text = [...advanced.recent_events, ...advanced.timeline_events.map(event => event.text)].join("\n");
+  assert.match(text, /飞翔|Fly/, text);
+}
+
+async function testDuplicateSpeciesSwitchKeepsIdentityPairs(): Promise<void> {
+  const playerTeam = [
+    {...pokemon("Eevee", ["Splash"], "Run Away"), run_member_id: "eevee-a", showdown_id: "greatball", pokeball: "greatball"},
+    {...pokemon("Eevee", ["Tackle"], "Run Away"), run_member_id: "eevee-b", showdown_id: "ultraball", pokeball: "ultraball"},
+  ];
+  const session = await createCustomSession(playerTeam, [pokemon("Magikarp", ["Splash"], "Swift Swim")], [41, 42, 43, 44]);
+  assert.deepEqual(session.getPlayerState().map(state => [state.run_member_id, state.showdown_id]), [["eevee-a", "greatball"], ["eevee-b", "ultraball"]]);
+  await session.choose("switch 2");
+  const switched = session.getPlayerState();
+  assert.deepEqual(switched.map(state => [state.run_member_id, state.showdown_id]), [["eevee-a", "greatball"], ["eevee-b", "ultraball"]], JSON.stringify(switched, null, 2));
+  assert.equal(switched.find(state => state.showdown_id === "ultraball")?.active, true, JSON.stringify(switched, null, 2));
+}
+
+async function testDuplicateSpeciesStatusDoesNotBleedIntoRestState(): Promise<void> {
+  const playerTeam = [
+    {...pokemon("Eevee", ["Splash"], "Run Away"), item: "Flame Orb", run_member_id: "eevee-a", showdown_id: "greatball", pokeball: "greatball"},
+    {...pokemon("Eevee", ["Thunderbolt"], "Run Away"), level: 80, run_member_id: "eevee-b", showdown_id: "ultraball", pokeball: "ultraball"},
+  ];
+  const enemyTeam = [{...pokemon("Magikarp", ["Splash"], "Swift Swim"), level: 1}];
+  const session = await createCustomSession(playerTeam, enemyTeam, [45, 46, 47, 48]);
+  const burnedTurn = await session.choose("move 1");
+  assert.match(battleText(burnedTurn), /灼伤|burn/i, battleText(burnedTurn));
+  let states = session.getPlayerState();
+  assert.equal(states.find(state => state.showdown_id === "greatball")?.status, "brn", JSON.stringify(states, null, 2));
+  assert.equal(states.find(state => state.showdown_id === "ultraball")?.status, "", JSON.stringify(states, null, 2));
+
+  await session.choose("switch 2");
+  states = session.getPlayerState();
+  assert.equal(states.find(state => state.showdown_id === "greatball")?.status, "brn", JSON.stringify(states, null, 2));
+  assert.equal(states.find(state => state.showdown_id === "ultraball")?.status, "", JSON.stringify(states, null, 2));
+  assert.equal(states.find(state => state.showdown_id === "ultraball")?.active, true, JSON.stringify(states, null, 2));
+
+  let state = await session.choose("move 1");
+  for (let guard = 0; guard < 6 && !state.ended; guard += 1) state = await session.choose("move 1");
+  assert.equal(state.ended, true, JSON.stringify(state.timeline_events, null, 2));
+  states = session.getPlayerState();
+  assert.equal(states.find(entry => entry.run_member_id === "eevee-a")?.showdown_id, "greatball", JSON.stringify(states, null, 2));
+  assert.equal(states.find(entry => entry.run_member_id === "eevee-a")?.status, "brn", JSON.stringify(states, null, 2));
+  assert.equal(states.find(entry => entry.run_member_id === "eevee-b")?.showdown_id, "ultraball", JSON.stringify(states, null, 2));
+  assert.equal(states.find(entry => entry.run_member_id === "eevee-b")?.status, "", JSON.stringify(states, null, 2));
+}
+
+async function testSyncPlayerStateDoesNotApplyStatusToWrongDuplicate(): Promise<void> {
+  const playerTeam = [
+    {...pokemon("Eevee", ["Tackle"], "Run Away"), run_member_id: "eevee-a", showdown_id: "greatball", pokeball: "greatball"},
+    {...pokemon("Eevee", ["Tackle"], "Run Away"), run_member_id: "eevee-b", showdown_id: "ultraball", pokeball: "ultraball"},
+  ];
+  const session = await createCustomSession(playerTeam, [pokemon("Magikarp", ["Splash"], "Swift Swim")], [49, 50, 51, 52]);
+  session.syncPlayerState(session.getPlayerState().map(state => state.showdown_id === "ultraball"
+    ? {...state, status: "psn", condition: `${state.hp}/${state.maxhp} psn`}
+    : {...state, status: "", condition: `${state.hp}/${state.maxhp}`}));
+  const states = session.getPlayerState();
+  assert.equal(states.find(state => state.showdown_id === "greatball")?.status, "", JSON.stringify(states, null, 2));
+  assert.equal(states.find(state => state.showdown_id === "ultraball")?.status, "psn", JSON.stringify(states, null, 2));
+}
+
+async function testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive(): Promise<void> {
+  const enemyTeam = [
+    {...pokemon("Magikarp", ["Splash"], "Swift Swim"), level: 1, showdown_id: "greatball", pokeball: "greatball"},
+    {...pokemon("Magikarp", ["Splash"], "Swift Swim"), level: 50, showdown_id: "ultraball", pokeball: "ultraball"},
+  ];
+  const session = await createCustomSession([{...pokemon("Rampardos", ["Head Smash"], "Mold Breaker"), level: 80}], enemyTeam, [53, 54, 55, 56]);
+  const state = await session.choose("move 1");
+  const faint = state.timeline_events.find(event => event.type === "faint" && event.targetSide === state.enemy_side);
+  const switched = state.timeline_events.filter(event => event.type === "switch" && event.targetSide === state.enemy_side && event.target_showdown_id).at(-1);
+  assert.equal(faint?.target_showdown_id, "greatball", JSON.stringify(state.timeline_events, null, 2));
+  assert.equal(switched?.target_showdown_id, "ultraball", JSON.stringify(state.timeline_events, null, 2));
+  const enemyActive = state.tracker.active[state.enemy_side || "p2"];
+  assert.equal(enemyActive.showdown_id, "ultraball", JSON.stringify(state.tracker.active, null, 2));
+  assert.notEqual(enemyActive.condition, "0 fnt", JSON.stringify(state.tracker.active, null, 2));
+}
+
+async function testClassicBattleFlowScenarios(): Promise<void> {
+  const scene1 = await (await createCustomSession(
+    [pokemon("Pikachu", ["Nuzzle"], "Static")],
+    [pokemon("Magikarp", ["Double Team"], "Swift Swim")],
+    [61, 62, 63, 64],
+  )).choose("move 1");
+  assertTimelineOrder(scene1, ["move", "damage", "status", "move", "boost"], "scene1 hit/status/boost");
+  assert.match(battleText(scene1), /回避\+1/, battleText(scene1));
+
+  const scene2 = await findSeededState("scene2 miss", async seed => {
+    const session = await createCustomSession([pokemon("Pikachu", ["Thunder"], "Static")], [pokemon("Magikarp", ["Splash"], "Swift Swim")], seed);
+    return session.choose("move 1");
+  }, state => typeCount(state.timeline_events, "miss") > 0 || /没有命中|miss/i.test(battleText(state)), 80);
+  assert.ok(!scene2.timeline_events.some(event => event.type === "damage" && event.targetSide === scene2.enemy_side), JSON.stringify(scene2.timeline_events, null, 2));
+
+  const scene3Session = await createCustomSession([pokemon("Pikachu", ["Tackle"], "Static")], [pokemon("Bulbasaur", ["Tackle"], "Overgrow")], [65, 66, 67, 68]);
+  scene3Session.syncPlayerState(withHp(scene3Session.getPlayerState(), 45));
+  const scene3 = await scene3Session.chooseTrainerItem("superpotion", 0);
+  const scene3Text = battleText(scene3);
+  assert.ok(scene3Text.indexOf("使用了 好伤药") >= 0 && scene3Text.indexOf("HP:") > scene3Text.indexOf("使用了 好伤药") && scene3Text.indexOf("妙蛙种子 使用") > scene3Text.indexOf("HP:"), scene3Text);
+
+  const scene4 = (await createCustomSession([pokemon("Pelipper", ["Splash"], "Drizzle")], [pokemon("Torkoal", ["Splash"], "Drought")], [69, 70, 71, 72])).getState();
+  assert.equal(typeCount(scene4.timeline_events, "switch"), 2, JSON.stringify(scene4.timeline_events, null, 2));
+  assert.equal(typeCount(scene4.timeline_events, "weather"), 2, JSON.stringify(scene4.timeline_events, null, 2));
+
+  const scene5 = await (await createCustomSession(
+    [{...pokemon("Garchomp", ["Earthquake"], "Sand Veil"), level: 100}],
+    [{...pokemon("Magikarp", ["Splash"], "Swift Swim"), item: "Focus Sash", level: 1}],
+    [73, 74, 75, 76],
+  )).choose("move 1");
+  assert.match(battleText(scene5), /气势披带|Focus Sash/i, battleText(scene5));
+
+  const scene6 = await (await createCustomSession(
+    [{...pokemon("Garchomp", ["Earthquake"], "Sand Veil"), level: 100}],
+    [{...pokemon("Aron", ["Splash"], "Sturdy"), level: 1}],
+    [77, 78, 79, 80],
+  )).choose("move 1");
+  assert.match(battleText(scene6), /结实|Sturdy/i, battleText(scene6));
+
+  const scene7 = await (await createCustomSession(
+    [pokemon("Cloyster", ["Icicle Spear"], "Skill Link")],
+    [pokemon("Chansey", ["Splash"], "Natural Cure")],
+    [81, 82, 83, 84],
+  )).choose("move 1");
+  assert.ok(scene7.timeline_events.filter(event => event.type === "damage" && event.targetSide === scene7.enemy_side).length >= 2, JSON.stringify(scene7.timeline_events, null, 2));
+  assert.match(battleText(scene7), /击中|hit/i, battleText(scene7));
+
+  const scene8Session = await createCustomSession(
+    [pokemon("Mienshao", ["U-turn"], "Regenerator"), pokemon("Pikachu", ["Tackle"], "Static")],
+    [pokemon("Chansey", ["Splash"], "Natural Cure")],
+    [85, 86, 87, 88],
+  );
+  const scene8Initial = scene8Session.getPlayerState();
+  scene8Session.syncPlayerState(scene8Initial.map((state, index) => index === 0 ? {...state, hp: Math.max(1, Math.floor(state.maxhp / 2)), condition: `${Math.max(1, Math.floor(state.maxhp / 2))}/${state.maxhp}`} : state));
+  const scene8 = await scene8Session.choose("move 1");
+  assert.ok(scene8.request?.forceSwitch?.some(Boolean), JSON.stringify(scene8.request, null, 2));
+  assert.match(battleText(scene8), /急速折返|U-turn|再生力|Regenerator/i, battleText(scene8));
+
+  const scene9 = await findSeededState("scene9 waterfall flinch", async seed => {
+    const session = await createCustomSession([pokemon("Jirachi", ["Waterfall"], "Serene Grace")], [pokemon("Bulbasaur", ["Tackle"], "Overgrow")], seed);
+    return session.choose("move 1");
+  }, state => /畏缩/.test(battleText(state)), 120);
+  assert.match(battleText(scene9), /畏缩/, battleText(scene9));
+  assert.doesNotMatch(battleText(scene9), /flinch/i, battleText(scene9));
+}
+
 async function testSpeciesTierCanOverrideGenerationProfile(): Promise<void> {
   const service = new GameService({projectRoot, showdownPath});
   const generated = await service.generateRentalCandidates([31, 32, 33, 34], "gen7randombattle", 3, {
@@ -223,8 +457,15 @@ await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
 await testEnemyAiPrefersEffectiveDamage();
 await testRegeneratorUsesShowdownIdWithDuplicateIdent();
-await testShowdownIdsFollowCurrentSlots();
+await testShowdownIdsStayWithPokemonObjects();
 await testPainSplitSetHpHasFiniteTimeline();
 await testSkyAttackAnimationProtocolIsHidden();
+await testBoostAndCantReasonsAreLocalized();
+await testAdvanceIfWaitingContinuesChargingMove();
+await testDuplicateSpeciesSwitchKeepsIdentityPairs();
+await testDuplicateSpeciesStatusDoesNotBleedIntoRestState();
+await testSyncPlayerStateDoesNotApplyStatusToWrongDuplicate();
+await testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive();
+await testClassicBattleFlowScenarios();
 await testSpeciesTierCanOverrideGenerationProfile();
 console.log("Trainer item battle tests passed.");

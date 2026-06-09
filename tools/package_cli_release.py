@@ -22,7 +22,6 @@ PROJECT_PATHS = [
     "core",
     "data",
     "assets",
-    "docs",
     "showdown-adapter",
     "README.md",
     "plan.md",

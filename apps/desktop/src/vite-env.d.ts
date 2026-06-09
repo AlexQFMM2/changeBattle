@@ -28,6 +28,7 @@ declare global {
       beginChallenge(selectedIndexes: number[], seed: number, battles?: number): Promise<DesktopGameState>;
       continueRun(): Promise<DesktopGameState>;
       battleChoice(choice: string): Promise<DesktopGameState>;
+      autoAdvanceBattle(): Promise<DesktopGameState>;
       exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState>;
       restAction(action: RestAction): Promise<DesktopGameState>;
       shopItems(query?: string): Promise<ShopItem[]>;

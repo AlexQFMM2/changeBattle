@@ -88,7 +88,6 @@ vendor
 ChangeBattle-Desk.cmd
 README.md
 RELEASE-README.md
-docs
 plan.md
 ```
 
@@ -104,6 +103,8 @@ ChangeBattle-Desk-portable-vX.Y.Z\RELEASE-README.md
 
 `RELEASE-README.md` 里的版本必须和 zip 文件名一致。
 
+`docs/` 是项目内部规则、流程和设计说明，只给开发/发版人员查看，不进入最终 Desk release zip。最终包里不要包含 `docs` 目录。
+
 ## 资产打包提醒
 
 `tools/package_desktop_release.py` 会排除旧残留素材目录，避免便携包继续膨胀：
@@ -113,6 +114,8 @@ assets/pokemon-green
 assets/battle-effects-pack
 assets/battle/stage
 ```
+
+它也不会复制 `docs/`。如果最终 zip 里出现 `docs/`，说明打包脚本或手工复制流程有问题，需要重新检查。
 
 当前运行时宝可梦图片主要来自 `assets/pokemon-pack`，其次来自 `assets/pokemon-showdown`；战斗背景只应来自 `assets/battle-backgrounds/backgrounds.csv` 中登记的当前背景。
 
@@ -277,6 +280,14 @@ ssh win10@172.16.10.41 "cd /d D:\\changeBattle\\changeBattle && python -c \"impo
 
 每个关键文件都应该输出 `True`。
 
+检查内部文档没有进入 zip：
+
+```bash
+ssh win10@172.16.10.41 "cd /d D:\\changeBattle\\changeBattle && python -c \"import zipfile; z=zipfile.ZipFile(r'release\\ChangeBattle-Desk-portable-vX.Y.Z.zip'); prefix='ChangeBattle-Desk-portable-vX.Y.Z/docs/'; print(any(name.startswith(prefix) for name in z.namelist())); z.close()\""
+```
+
+这里应该输出 `False`。
+
 `RELEASE-README.md` 前几行应该包含：
 
 ```text
@@ -324,5 +335,6 @@ changeBattle-src-X.Y.Z.tgz
 - zip 内有 `runtime/electron/electron.exe`。
 - zip 内有 `vendor/pokemon-showdown/dist/sim/index.js`。
 - zip 内有 `apps/desktop/out/main/main.js`。
+- zip 内没有 `docs/`。
 - `RELEASE-README.md` 显示 `Version: X.Y.Z`。
 - 本地 `release/` 下有最终 zip。

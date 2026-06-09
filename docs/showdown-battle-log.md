@@ -2,6 +2,10 @@
 
 ChangeBattle treats Pokemon Showdown as the authoritative battle engine. The UI never recalculates battle effects. It reads Showdown protocol lines in order, translates them, updates trackers, and plays them as a serial timeline.
 
+For the frontend playback order, animation queue, and scenario references, see [`battle-timeline-flow.md`](./battle-timeline-flow.md).
+
+For stable Pokemon identity, `showdown_id`/`pokeball` transport, side detection, and saveback rules, see [`showdown-identity.md`](./showdown-identity.md).
+
 ## Principles
 
 - Do not deduplicate protocol messages by text. If Showdown emits two heal events, both are real events and both should be shown.

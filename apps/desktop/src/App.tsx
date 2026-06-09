@@ -50,6 +50,7 @@ function installBrowserAutomationBridge() {
     beginChallenge: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试对局"}),
     continueRun: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试对局"}),
     battleChoice: async () => ({screen: "battleMain", save, battle: debugBattle(true), message: "自动测试胜利", pending_transition: {screen: "result", save, battle: debugBattle(true), message: "自动测试结算"}}),
+    autoAdvanceBattle: async () => ({screen: "battleMain", save, battle: debugBattle(false), message: "自动测试推进"}),
     exchange: async () => ({screen: "result", save, message: "自动测试交换"}),
     restAction: async () => ({screen: "mainMenu", save, message: "自动测试休整"}),
     shopItems: async () => [],
@@ -419,6 +420,18 @@ function RoutedApp() {
     }
   }
 
+  async function autoAdvanceBattle(): Promise<boolean> {
+    if (battleChoicePendingRef.current) return false;
+    battleChoicePendingRef.current = true;
+    setBattleChoicePending(true);
+    try {
+      return await runAction(() => window.changeBattle!.autoAdvanceBattle(), undefined, false);
+    } finally {
+      battleChoicePendingRef.current = false;
+      setBattleChoicePending(false);
+    }
+  }
+
   async function finishExchange(ownIndex: number | null, enemyIndex: number | null) {
     await runAction(() => window.changeBattle!.exchange(ownIndex, enemyIndex));
   }
@@ -466,7 +479,7 @@ function RoutedApp() {
     if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
     if (screen === "starterItems") return <StarterItemsView starter={starter} onChoose={chooseStarterItem} onBack={cancelPreparation} />;
     if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={hasStarterItemChoices(starter) ? backToStarterItems : undefined} onReroll={rerollCandidates} onSingleReroll={rerollFocusedCandidate} onInspect={inspectFocusedCandidate} runSeed={seed} wholeRerollsRemaining={starter?.whole_rerolls_remaining ?? 0} singleRerollsRemaining={starter?.single_rerolls_remaining ?? 0} inspectRemaining={inspectRemaining} revealTraining={Boolean(save?.talent_equipped?.includes("intel_god_eye")) || inspectedIndexes.has(focusIndex)} inspected={inspectedIndexes.has(focusIndex)} />;
-    if (BATTLE_SCREENS.includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={navigateToScreen} onChoice={battleChoice} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={state => transitionToState(state, "battleComplete")} />;
+    if (BATTLE_SCREENS.includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={navigateToScreen} onChoice={battleChoice} onAutoAdvance={autoAdvanceBattle} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={state => transitionToState(state, "battleComplete")} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
     if (screen === "rest") return <RestView rest={rest} onAction={restAction} />;
     if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} summary={resultSummary} onBack={() => transitionToScreen("mainMenu", "returnHome")} />;

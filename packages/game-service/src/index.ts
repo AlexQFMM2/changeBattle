@@ -23,7 +23,7 @@ import type {
   SpriteIndexMap,
   SpriteMapEntry,
 } from "@changebattle/shared";
-import {battleSlotShowdownId} from "@changebattle/shared";
+import {SHOWDOWN_ID_POOL} from "@changebattle/shared";
 
 const require = createRequire(import.meta.url);
 const DEFAULT_SHOWDOWN_PATH = "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown";
@@ -116,6 +116,7 @@ const Z_CRYSTAL_TYPE_BY_ID: Record<string, string> = {
   ultranecroziumz: "psychic",
   wateriumz: "water",
 };
+const SHOWDOWN_ID_SET = new Set<string>(SHOWDOWN_ID_POOL);
 
 function battleLogLine(scope: string, message: string, data?: unknown): void {
   if (process.env.CHANGEBATTLE_DEBUG_DETAIL_LOG !== "1") return;
@@ -153,6 +154,7 @@ type ShowdownModule = {
 type TranslationData = Record<string, Record<string, string>>;
 type DetailData = Record<string, Record<string, any>>;
 type SideId = "p1" | "p2";
+type SideMap = {player: SideId; enemy: SideId};
 type Message = {type: string; data: string};
 type LogMessage = Message & {lines: string[]};
 type ParsedTimelineEvent = Omit<BattleTimelineEvent, "id">;
@@ -1492,15 +1494,16 @@ export class BattleSession {
   private turnLogSeq = 0;
   private readonly battleLogId = randomUUID();
   private rngState: number;
+  private sideMap: SideMap = {player: "p1", enemy: "p2"};
 
   constructor(service: GameService, sim: ShowdownModule, options: StartBattleOptions) {
     this.service = service;
     this.sim = sim;
-    this.playerTeam = withShowdownSlotIds(options.playerTeam, "p1");
-    this.enemyTeam = withShowdownSlotIds(options.enemyTeam, "p2");
-    this.playerDisplay = withDisplayShowdownIds(options.playerDisplay, "p1");
-    this.enemyDisplay = withDisplayShowdownIds(options.enemyDisplay, "p2");
-    this.initialPlayerState = options.playerState ? withStateShowdownIds(options.playerState, "p1") : undefined;
+    this.playerTeam = withShowdownTransportIds(options.playerTeam);
+    this.enemyTeam = withShowdownTransportIds(options.enemyTeam);
+    this.playerDisplay = withDisplayStableShowdownIds(options.playerDisplay, this.playerTeam);
+    this.enemyDisplay = withDisplayStableShowdownIds(options.enemyDisplay, this.enemyTeam);
+    this.initialPlayerState = options.playerState ? withStateStableShowdownIds(options.playerState, this.playerTeam, this.playerDisplay) : undefined;
     this.playerSlotKeys = buildSideSlotKeys(this.playerTeam, this.playerDisplay, this.initialPlayerState, "p1");
     this.enemySlotKeys = buildSideSlotKeys(this.enemyTeam, this.enemyDisplay, undefined, "p2");
     this.enemyAi = battleAiProfile(options.enemyAi);
@@ -1532,16 +1535,37 @@ export class BattleSession {
     await this.stream.write(init);
     await this.waitForMessages();
     this.consumePending();
+    this.updateSideMapFromRequests();
     await this.chooseTeamPreview();
-    if (this.initialPlayerState?.length) this.syncSideState("p1", this.initialPlayerState);
+    this.updateSideMapFromRequests();
+    if (this.initialPlayerState?.length) this.syncSideState(this.playerSide(), this.initialPlayerState);
     this.prepareEnemyChoice();
     return this.getState();
   }
 
   async choose(choice: string): Promise<BattleState> {
     if (!this.stream || this.ended) return this.getState();
-    await this.chooseSide("p1", choice);
+    await this.chooseSide(this.playerSide(), choice);
     await this.resolveEnemyIfNeeded();
+    this.prepareEnemyChoice();
+    return this.getState();
+  }
+
+  async advanceIfWaiting(): Promise<BattleState> {
+    if (!this.stream || this.ended) return this.getState();
+    for (let guard = 0; guard < 6 && !this.ended; guard += 1) {
+      const request = this.latestRequests[this.playerSide()];
+      if (isForcedContinuationRequest(request)) {
+        await this.chooseSide(this.playerSide(), "move 1");
+        await this.resolveEnemyIfNeeded();
+        continue;
+      }
+      if (request?.wait) {
+        await this.resolveEnemyIfNeeded();
+        continue;
+      }
+      break;
+    }
     this.prepareEnemyChoice();
     return this.getState();
   }
@@ -1552,8 +1576,8 @@ export class BattleSession {
       this.winner = "Enemy";
       this.recentEvents.push("玩家认输。", "胜者：对手");
       this.timelineEvents.push(
-        this.withTimelineId({type: "message", text: "玩家认输。", side: "p1"}),
-        this.withTimelineId({type: "win", text: "胜者：对手", side: "p2"})
+        this.withTimelineId({type: "message", text: "玩家认输。", side: this.playerSide()}),
+        this.withTimelineId({type: "win", text: "胜者：对手", side: this.enemySide()})
       );
     }
     return this.getState();
@@ -1563,7 +1587,7 @@ export class BattleSession {
     return {
       ended: this.ended,
       winner: this.winner,
-      request: this.latestRequests.p1 || null,
+      request: this.latestRequests[this.playerSide()] || null,
       tracker: this.tracker,
       recent_events: this.recentEvents.slice(-30),
       timeline_events: this.timelineEvents.slice(-100),
@@ -1571,39 +1595,69 @@ export class BattleSession {
       player_display: this.playerDisplay,
       enemy_team: this.enemyTeam,
       enemy_display: this.enemyDisplay,
+      player_side: this.playerSide(),
+      enemy_side: this.enemySide(),
     };
   }
 
   getPlayerState(): PlayerPokemonState[] {
-    return this.currentSideState("p1");
+    return this.currentSideState(this.playerSide());
   }
 
   syncPlayerState(states: PlayerPokemonState[]): BattleState {
-    this.syncSideState("p1", states);
+    this.syncSideState(this.playerSide(), states);
     this.prepareEnemyChoice();
     return this.getState();
   }
 
+  protected playerSide(): SideId {
+    return this.sideMap.player;
+  }
+
+  protected enemySide(): SideId {
+    return this.sideMap.enemy;
+  }
+
+  protected battleSide(side: SideId): any {
+    return this.stream?.battle?.sides[side === "p2" ? 1 : 0];
+  }
+
+  private updateSideMapFromRequests(): void {
+    const p1Score = sideTeamMatchScore(this.latestRequests.p1, this.playerTeam);
+    const p2Score = sideTeamMatchScore(this.latestRequests.p2, this.playerTeam);
+    if (!p1Score.available && !p2Score.available) return;
+    if (p1Score.score > p2Score.score) {
+      this.sideMap = {player: "p1", enemy: "p2"};
+      return;
+    }
+    if (p2Score.score > p1Score.score) {
+      this.sideMap = {player: "p2", enemy: "p1"};
+      return;
+    }
+    throw new Error(`无法根据 Showdown 队伍识别玩家 side：p1=${p1Score.score}，p2=${p2Score.score}。`);
+  }
+
   private async chooseTeamPreview(): Promise<void> {
-    const p1 = this.latestRequests.p1;
-    const p2 = this.latestRequests.p2;
-    if (p1?.teamPreview) await this.chooseSide("p1", "team 123");
-    if (p2?.teamPreview) await this.chooseSide("p2", this.enemyChoice(p2));
-    this.updatePpMemory(this.latestRequests.p1);
+    const playerRequest = this.latestRequests[this.playerSide()];
+    const enemyRequest = this.latestRequests[this.enemySide()];
+    if (playerRequest?.teamPreview) await this.chooseSide(this.playerSide(), "team 123");
+    if (enemyRequest?.teamPreview) await this.chooseSide(this.enemySide(), this.enemyChoice(enemyRequest));
+    this.updatePpMemory(this.latestRequests[this.playerSide()]);
   }
 
   private async resolveEnemyIfNeeded(): Promise<void> {
     for (let guard = 0; guard < 6 && !this.ended; guard += 1) {
-      const p1 = this.latestRequests.p1;
-      const p2 = this.latestRequests.p2;
-      if (p2 && !p2.wait) {
-        await this.chooseSide("p2", await this.consumeEnemyChoice(p2));
+      const playerRequest = this.latestRequests[this.playerSide()];
+      const enemyRequest = this.latestRequests[this.enemySide()];
+      if (enemyRequest && !enemyRequest.wait) {
+        await this.chooseSide(this.enemySide(), await this.consumeEnemyChoice(enemyRequest));
         continue;
       }
-      if (!p1 || !p1.wait) break;
+      if (!playerRequest || !playerRequest.wait) break;
       await this.waitForMessages();
       this.consumePending();
-      if (!this.latestRequests.p2 || this.latestRequests.p2.wait) break;
+      const nextEnemyRequest = this.latestRequests[this.enemySide()];
+      if (!nextEnemyRequest || nextEnemyRequest.wait) break;
     }
   }
 
@@ -1611,8 +1665,8 @@ export class BattleSession {
     await this.stream.write(`>${side} ${choice}`);
     await this.waitForMessages();
     this.consumePending();
-    this.updatePpMemory(this.latestRequests.p1);
-    if (side === "p2") this.prepareEnemyChoice();
+    this.updatePpMemory(this.latestRequests[this.playerSide()]);
+    if (side === this.enemySide()) this.prepareEnemyChoice();
   }
 
   protected async consumeEnemyChoice(request: BattleRequestView | null | undefined): Promise<string> {
@@ -1627,7 +1681,7 @@ export class BattleSession {
   }
 
   protected prepareEnemyChoice(): void {
-    const request = this.latestRequests.p2;
+    const request = this.latestRequests[this.enemySide()];
     if (!request || request.wait || this.ended) {
       this.plannedEnemyChoice = null;
       return;
@@ -1646,7 +1700,7 @@ export class BattleSession {
           try {
             this.latestRequests = snapshot;
             this.rngState = rngState;
-            const choice = this.enemyChoice(snapshot.p2);
+            const choice = this.enemyChoice(snapshot[this.enemySide()]);
             const elapsed = Date.now() - planned.startedAt;
             if (elapsed > this.enemyAi.timeBudgetMs && protocolDebugEnabled()) {
               this.recentEvents.push(`AI 计算超时：${elapsed}ms / ${this.enemyAi.timeBudgetMs}ms`);
@@ -1655,7 +1709,7 @@ export class BattleSession {
             resolve(choice);
           } catch {
             this.rngState = previousRng;
-            resolve(this.randomChoice(snapshot.p2));
+            resolve(this.randomChoice(snapshot[this.enemySide()]));
           } finally {
             this.latestRequests = previousRequests;
           }
@@ -1797,8 +1851,8 @@ export class BattleSession {
     const state = this.initialAiSearchState();
     if (!state) return null;
     const deadline = Date.now() + this.enemyAi.timeBudgetMs;
-    const enemyCandidates = this.aiActionCandidates("p2", state, request, this.enemyAi.candidateMoves, this.enemyAi.candidateSwitches);
-    const playerCandidates = this.aiActionCandidates("p1", state, this.latestRequests.p1, this.enemyAi.opponentCandidates, 1, this.enemyAi.opponentCandidates);
+    const enemyCandidates = this.aiActionCandidates(this.enemySide(), state, request, this.enemyAi.candidateMoves, this.enemyAi.candidateSwitches);
+    const playerCandidates = this.aiActionCandidates(this.playerSide(), state, this.latestRequests[this.playerSide()], this.enemyAi.opponentCandidates, 1, this.enemyAi.opponentCandidates);
     if (!enemyCandidates.length || !playerCandidates.length) return null;
     const scored: Array<{choice: string; score: number}> = [];
     for (const candidate of enemyCandidates) {
@@ -1832,8 +1886,8 @@ export class BattleSession {
     const enemyMoveLimit = Math.max(2, this.enemyAi.candidateMoves - searchedDepth);
     const enemySwitchLimit = Math.max(0, Math.min(this.enemyAi.candidateSwitches, depth > 1 ? 1 : 0));
     const opponentLimit = Math.max(1, this.enemyAi.opponentCandidates - searchedDepth);
-    const enemyCandidates = this.aiActionCandidates("p2", state, undefined, enemyMoveLimit, enemySwitchLimit, enemyMoveLimit + enemySwitchLimit);
-    const playerCandidates = this.aiActionCandidates("p1", state, undefined, opponentLimit, 1, opponentLimit);
+    const enemyCandidates = this.aiActionCandidates(this.enemySide(), state, undefined, enemyMoveLimit, enemySwitchLimit, enemyMoveLimit + enemySwitchLimit);
+    const playerCandidates = this.aiActionCandidates(this.playerSide(), state, undefined, opponentLimit, 1, opponentLimit);
     if (!enemyCandidates.length || !playerCandidates.length) return this.evaluateAiState(state);
     let best = -Infinity;
     for (const enemyAction of enemyCandidates) {
@@ -1845,8 +1899,8 @@ export class BattleSession {
   }
 
   private initialAiSearchState(): AiSearchState | null {
-    const p1 = this.aiSideState("p1", this.playerDisplay, this.latestRequests.p1);
-    const p2 = this.aiSideState("p2", this.enemyDisplay, this.latestRequests.p2);
+    const p1 = this.aiSideState("p1", this.displayForBattleSide("p1"), this.latestRequests.p1);
+    const p2 = this.aiSideState("p2", this.displayForBattleSide("p2"), this.latestRequests.p2);
     if (!p1.pokemon.length || !p2.pokemon.length) return null;
     return {p1: p1.pokemon, p2: p2.pokemon, active: {p1: p1.active, p2: p2.active}};
   }
@@ -2023,15 +2077,15 @@ export class BattleSession {
 
   private evaluateAiState(state: AiSearchState): number {
     const personality = this.personalityWeights();
-    const enemyAlive = state.p2.filter(pokemon => pokemon.hp > 0);
-    const playerAlive = state.p1.filter(pokemon => pokemon.hp > 0);
+    const enemyAlive = state[this.enemySide()].filter(pokemon => pokemon.hp > 0);
+    const playerAlive = state[this.playerSide()].filter(pokemon => pokemon.hp > 0);
     if (!playerAlive.length) return 100000;
     if (!enemyAlive.length) return -100000;
     const enemyHp = enemyAlive.reduce((sum, pokemon) => sum + pokemon.hp / Math.max(1, pokemon.maxHp), 0);
     const playerHp = playerAlive.reduce((sum, pokemon) => sum + pokemon.hp / Math.max(1, pokemon.maxHp), 0);
-    const enemyActive = this.aiActive(state, "p2");
-    const playerActive = this.aiActive(state, "p1");
-    const pressure = enemyActive && playerActive ? this.bestMovePressure(enemyActive.display, playerActive.display) - this.aiIncomingDamage("p2", enemyActive, state) : 0;
+    const enemyActive = this.aiActive(state, this.enemySide());
+    const playerActive = this.aiActive(state, this.playerSide());
+    const pressure = enemyActive && playerActive ? this.bestMovePressure(enemyActive.display, playerActive.display) - this.aiIncomingDamage(this.enemySide(), enemyActive, state) : 0;
     return enemyHp * 120 * personality.defense - playerHp * 120 * personality.damage + (enemyAlive.length - playerAlive.length) * 180 + pressure * 0.35 * personality.damage;
   }
 
@@ -2070,14 +2124,14 @@ export class BattleSession {
     if (!this.enemyAi.allowSwitch || this.enemyAi.switchAwareness <= 0) return null;
     const switches = this.scoredEnemySwitches(request);
     if (!switches.length) return null;
-    const active = this.activeDisplay("p2");
-    const player = this.activeDisplay("p1");
+    const active = this.activeDisplay(this.enemySide());
+    const player = this.activeDisplay(this.playerSide());
     if (!active || !player) return null;
-    const hp = this.activeHpFraction("p2");
+    const hp = this.activeHpFraction(this.enemySide());
     const currentPressure = this.bestMovePressure(active, player);
     const incomingRisk = this.estimatedIncomingDamage(active);
     const bestSwitch = switches[0];
-    const danger = incomingRisk > this.activeHpValue("p2") * 0.85 || hp < 0.28 || currentPressure < 24;
+    const danger = incomingRisk > this.activeHpValue(this.enemySide()) * 0.85 || hp < 0.28 || currentPressure < 24;
     const enoughGain = bestSwitch.score > currentPressure + 18;
     const switchChance = this.enemyAi.switchAwareness * (danger ? 0.75 : 0.22) * (enoughGain ? 1 : 0.45);
     return this.nextRandom() < switchChance ? bestSwitch.choice : null;
@@ -2087,15 +2141,15 @@ export class BattleSession {
     const moves = (request.active?.[0]?.moves || [])
       .map((move, index) => ({move, index: index + 1}))
       .filter(entry => !entry.move.disabled && Number(entry.move.pp ?? 1) > 0);
-    const active = this.activeDisplay("p2");
-    const target = this.activeDisplay("p1");
+    const active = this.activeDisplay(this.enemySide());
+    const target = this.activeDisplay(this.playerSide());
     return moves
       .map(entry => ({choice: `move ${entry.index}`, score: this.scoreEnemyMove(entry.move, active, target)}))
       .sort((a, b) => b.score - a.score);
   }
 
   private scoredEnemySwitches(request: BattleRequestView): Array<{choice: string; score: number}> {
-    const player = this.activeDisplay("p1");
+    const player = this.activeDisplay(this.playerSide());
     return legalSwitchIndexes(request)
       .map(index => {
         const display = this.enemyDisplay[index - 1];
@@ -2121,7 +2175,7 @@ export class BattleSession {
     if (!move?.exists) return 10;
     const personality = this.personalityWeights();
     const accuracy = typeof move.accuracy === "number" ? move.accuracy / 100 : 1;
-    const targetHp = this.activeHpValue("p1");
+    const targetHp = this.activeHpValue(this.playerSide());
     if (move.category === "Status" || !Number(move.basePower || move.damage)) {
       return this.scoreStatusMove(move, target) * accuracy;
     }
@@ -2133,12 +2187,12 @@ export class BattleSession {
     else if (effectiveness >= 2) score += 26;
     else if (effectiveness < 1) score -= 18;
     if (attacker?.types?.includes(move.type)) score += 12;
-    if (Number(move.priority || 0) > 0 && this.activeHpFraction("p2") < 0.35) score += 16;
+    if (Number(move.priority || 0) > 0 && this.activeHpFraction(this.enemySide()) < 0.35) score += 16;
     if (targetHp > 0 && damage >= targetHp) score += (90 + this.enemyAi.prediction * 35) * personality.ko;
     if (this.enemyAi.depth > 0) {
       const incoming = this.estimatedIncomingDamage(attacker);
-      if (incoming >= this.activeHpValue("p2") && damage < targetHp) score -= 24 * this.enemyAi.prediction;
-      if (damage >= targetHp && incoming >= this.activeHpValue("p2")) score += 35 * this.enemyAi.prediction;
+      if (incoming >= this.activeHpValue(this.enemySide()) && damage < targetHp) score -= 24 * this.enemyAi.prediction;
+      if (damage >= targetHp && incoming >= this.activeHpValue(this.enemySide())) score += 35 * this.enemyAi.prediction;
     }
     if (move.recoil || move.hasCrashDamage) score -= 10 * personality.riskPenalty;
     if (move.selfdestruct) score -= (this.activeHpFraction("p2") > 0.25 ? 80 : 15) * personality.riskPenalty;
@@ -2146,8 +2200,8 @@ export class BattleSession {
   }
 
   private scoreStatusMove(move: any, target: RentalPokemon | undefined): number {
-    const enemyHp = this.activeHpFraction("p2");
-    const targetStatus = toId(this.activeRuntime("p1")?.condition?.split(" ").slice(1).join(" ") || "");
+    const enemyHp = this.activeHpFraction(this.enemySide());
+    const targetStatus = toId(this.activeRuntime(this.playerSide())?.condition?.split(" ").slice(1).join(" ") || "");
     const personality = this.personalityWeights();
     let score = 14;
     if (move.status && !targetStatus) score += 52 * this.enemyAi.statusAwareness * personality.status;
@@ -2164,7 +2218,7 @@ export class BattleSession {
     const personality = this.personalityWeights();
     const incoming = this.estimatedIncomingDamage(candidate);
     const pressure = this.bestMovePressure(candidate, player);
-    const hp = Math.max(0.1, this.runtimeHpFraction(this.runtimeForDisplay("p2", candidate)));
+    const hp = Math.max(0.1, this.runtimeHpFraction(this.runtimeForDisplay(this.enemySide(), candidate)));
     return pressure * 0.8 * personality.damage - incoming * 0.55 * personality.defense + hp * 24 * personality.switch + this.nextRandom() * 6;
   }
 
@@ -2178,11 +2232,11 @@ export class BattleSession {
   }
 
   private estimatedIncomingDamage(defender: RentalPokemon | undefined): number {
-    const player = this.activeDisplay("p1");
+    const player = this.activeDisplay(this.playerSide());
     if (!player || !defender) return 0;
     const canUseExactMoves = this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
     if (canUseExactMoves) {
-      const requestMoves = this.latestRequests.p1?.active?.[0]?.moves || [];
+      const requestMoves = this.latestRequests[this.playerSide()]?.active?.[0]?.moves || [];
       const moveIds = requestMoves.length ? requestMoves.map(move => move.id || move.move) : (player.moves || []).map(move => move.id || move.name);
       if (!moveIds.length) return 0;
       return Math.max(...moveIds.map(moveId => {
@@ -2229,7 +2283,7 @@ export class BattleSession {
   private activeDisplay(side: SideId): RentalPokemon | undefined {
     const runtime = this.activeRuntime(side);
     if (!runtime) return undefined;
-    return side === "p1" ? findRentalByRuntime(this.playerDisplay, runtime) : findRentalByRuntime(this.enemyDisplay, runtime);
+    return findRentalByRuntime(this.displayForBattleSide(side), runtime);
   }
 
   private activeRuntime(side: SideId): RuntimePokemon | undefined {
@@ -2239,7 +2293,7 @@ export class BattleSession {
   private runtimeForDisplay(side: SideId, display: RentalPokemon): RuntimePokemon | undefined {
     const request = this.latestRequests[side];
     return request?.side?.pokemon?.find(pokemon => {
-      const runtimeDisplay = side === "p1" ? findRentalByRuntime(this.playerDisplay, pokemon) : findRentalByRuntime(this.enemyDisplay, pokemon);
+      const runtimeDisplay = findRentalByRuntime(this.displayForBattleSide(side), pokemon);
       return runtimeDisplay?.species_id === display.species_id;
     });
   }
@@ -2273,14 +2327,16 @@ export class BattleSession {
 
   private currentSideState(side: SideId): PlayerPokemonState[] {
     if (!this.stream?.battle) return [];
-    const battleSide = this.stream.battle.sides[side === "p2" ? 1 : 0];
-    const sourceTeam = side === "p2" ? this.enemyTeam : this.playerTeam;
-    const sourceDisplay = side === "p2" ? this.enemyDisplay : this.playerDisplay;
-    const sourceStates = side === "p2" ? undefined : this.initialPlayerState;
+    const battleSide = this.battleSide(side);
+    const sourceTeam = this.teamForBattleSide(side);
+    const sourceDisplay = this.displayForBattleSide(side);
+    const sourceStates = side === this.playerSide() ? this.initialPlayerState : undefined;
+    const identityByShowdownId = sourceIdentityByShowdownId(sourceTeam, sourceDisplay, sourceStates);
     const states = battleSide.pokemon.map((pokemon: any, index: number) => {
       const state = pokemonStateFromBattle(pokemon, battleSide, index);
-      state.run_member_id = state.run_member_id
-        || String(sourceTeam[index]?.run_member_id || sourceDisplay[index]?.run_member_id || sourceStates?.[index]?.run_member_id || "").trim()
+      const identity = identityByShowdownId.get(normalizeShowdownId(state.showdown_id));
+      state.run_member_id = identity?.run_member_id
+        || String(state.run_member_id || sourceTeam[index]?.run_member_id || sourceDisplay[index]?.run_member_id || sourceStates?.[index]?.run_member_id || "").trim()
         || undefined;
       return state;
     });
@@ -2289,8 +2345,8 @@ export class BattleSession {
 
   private syncSideState(side: SideId, states: PlayerPokemonState[]): void {
     if (!this.stream?.battle) return;
-    const battleSide = this.stream.battle.sides[side === "p2" ? 1 : 0];
-    const normalizedStates = withStateShowdownIds(states, side);
+    const battleSide = this.battleSide(side);
+    const normalizedStates = withStateStableShowdownIds(states, this.teamForBattleSide(side), this.displayForBattleSide(side));
     const stateByShowdownId = new Map<string, PlayerPokemonState>();
     for (const state of normalizedStates) {
       const id = normalizeShowdownId(state.showdown_id);
@@ -2329,12 +2385,20 @@ export class BattleSession {
     }
     battleSide.pokemonLeft = battleSide.pokemon.filter((pokemon: any) => !pokemon.fainted && pokemon.hp > 0).length;
     this.refreshRequests();
-    this.updatePpMemory(this.latestRequests.p1);
-    this.applyPlayerStateToTracker(this.currentSideState(side));
+    this.updatePpMemory(this.latestRequests[this.playerSide()]);
+    if (side === this.playerSide()) this.applyPlayerStateToTracker(this.currentSideState(side));
   }
 
   private slotKeysForSide(side: SideId): SlotKeySpec[] {
-    return side === "p2" ? this.enemySlotKeys : this.playerSlotKeys;
+    return side === this.playerSide() ? this.playerSlotKeys : this.enemySlotKeys;
+  }
+
+  private teamForBattleSide(side: SideId): PokemonSet[] {
+    return side === this.playerSide() ? this.playerTeam : this.enemyTeam;
+  }
+
+  private displayForBattleSide(side: SideId): RentalPokemon[] {
+    return side === this.playerSide() ? this.playerDisplay : this.enemyDisplay;
   }
 
   private refreshRequests(): void {
@@ -2352,7 +2416,7 @@ export class BattleSession {
   private applyPlayerStateToTracker(states: PlayerPokemonState[]): void {
     if (!states.length) return;
     const active = states.find(state => state.active) || states[0];
-    this.tracker.active.p1 = {
+    this.tracker.active[this.playerSide()] = {
       name: shortIdent(active.ident || "") || active.species || active.details || "",
       condition: active.condition || stateCondition(active),
       status: active.status || "",
@@ -2436,11 +2500,11 @@ export class TrainerItemBattleSession extends BattleSession {
     if (!this.stream || this.ended) return this.getState();
     const battle = this.stream.battle;
     if (!battle) throw new Error("当前对战尚未开始。");
-    const request = this.latestRequests.p1;
+    const request = this.latestRequests[this.playerSide()];
     if (!request || request.wait) throw new Error("现在不能使用道具。");
     if (request.forceSwitch) throw new Error("当前必须换人，不能使用战斗道具。");
     if (!request.active?.length) throw new Error("当前不是出招阶段，不能使用战斗道具。");
-    const side = battle.sides[0];
+    const side = this.battleSide(this.playerSide());
     const active = side.active[0];
     if (!active || active.fainted || active.hp <= 0) throw new Error("当前宝可梦无法行动，不能使用战斗道具。");
     const targetIndex = Math.max(0, Number(targetSlot || 0));
@@ -2466,9 +2530,9 @@ export class TrainerItemBattleSession extends BattleSession {
       priority: 0,
       speed: 1,
     });
-    const enemyRequest = this.latestRequests.p2;
-    if (enemyRequest && !enemyRequest.wait) await this.chooseSide("p2", await this.consumeEnemyChoice(enemyRequest));
-    else await this.chooseSide("p2", "default");
+    const enemyRequest = this.latestRequests[this.enemySide()];
+    if (enemyRequest && !enemyRequest.wait) await this.chooseSide(this.enemySide(), await this.consumeEnemyChoice(enemyRequest));
+    else await this.chooseSide(this.enemySide(), "default");
     if (this.lastTrainerItemActionSeq !== actionSeq) throw new Error("战斗道具没有成功生效，请重试。");
     this.prepareEnemyChoice();
     return this.getState();
@@ -2505,23 +2569,44 @@ function normalizeShowdownId(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
 
-function withShowdownSlotIds(team: PokemonSet[] = [], side: SideId): PokemonSet[] {
-  return team.map((pokemon, index) => {
-    const showdown_id = battleSlotShowdownId(side, index + 1);
+function validShowdownId(value: unknown): string {
+  const id = normalizeShowdownId(value);
+  return SHOWDOWN_ID_SET.has(id) ? id : "";
+}
+
+function firstStableShowdownId(used: Set<string>, ...values: unknown[]): string {
+  for (const value of values) {
+    const id = validShowdownId(value);
+    if (id && !used.has(id)) return id;
+  }
+  const fallback = SHOWDOWN_ID_POOL.find(id => !used.has(id));
+  if (!fallback) throw new Error("Showdown ID 池已耗尽。");
+  return fallback;
+}
+
+function withShowdownTransportIds(team: PokemonSet[] = []): PokemonSet[] {
+  const used = new Set<string>();
+  return team.map(pokemon => {
+    const showdown_id = firstStableShowdownId(used, pokemon.showdown_id, pokemon.pokeball);
+    used.add(showdown_id);
     return {...pokemon, showdown_id, pokeball: showdown_id};
   });
 }
 
-function withDisplayShowdownIds(display: RentalPokemon[] = [], side: SideId): RentalPokemon[] {
+function withDisplayStableShowdownIds(display: RentalPokemon[] = [], team: PokemonSet[] = []): RentalPokemon[] {
+  const used = new Set<string>();
   return display.map((pokemon, index) => {
-    const showdown_id = battleSlotShowdownId(side, index + 1);
+    const showdown_id = firstStableShowdownId(used, team[index]?.showdown_id, team[index]?.pokeball, pokemon.showdown_id);
+    used.add(showdown_id);
     return {...pokemon, showdown_id};
   });
 }
 
-function withStateShowdownIds(states: PlayerPokemonState[] = [], side: SideId): PlayerPokemonState[] {
+function withStateStableShowdownIds(states: PlayerPokemonState[] = [], team: PokemonSet[] = [], display: RentalPokemon[] = []): PlayerPokemonState[] {
+  const used = new Set<string>();
   return states.map((state, index) => {
-    const showdown_id = battleSlotShowdownId(side, index + 1);
+    const showdown_id = firstStableShowdownId(used, team[index]?.showdown_id, display[index]?.showdown_id, team[index]?.pokeball, state.showdown_id);
+    used.add(showdown_id);
     return {...state, slot: index + 1, showdown_id};
   });
 }
@@ -2549,6 +2634,15 @@ function legalSwitchIndexes(request: BattleRequestView): number[] {
     .map((pokemon, index) => ({pokemon, index: index + 1}))
     .filter(({pokemon}) => !pokemon.active && !String(pokemon.condition || "").endsWith(" fnt"))
     .map(({index}) => index);
+}
+
+function isForcedContinuationRequest(request: BattleRequestView | null | undefined): boolean {
+  if (!request || request.wait || request.teamPreview || request.forceSwitch) return false;
+  const active = request.active?.[0] as ({moves?: BattleRequestView["active"] extends Array<infer T> ? T extends {moves: infer M} ? M : never : never; trapped?: boolean} | undefined);
+  const moves = active?.moves || [];
+  if (moves.length !== 1) return false;
+  const move = moves[0] as {pp?: number; maxpp?: number; disabled?: boolean};
+  return Boolean(active?.trapped) || (move.pp === undefined && move.maxpp === undefined && !move.disabled);
 }
 
 function cloneBattleRequests(requests: Record<string, BattleRequestView>): Record<string, BattleRequestView> {
@@ -3000,7 +3094,6 @@ function buildSideSlotKeys(team: PokemonSet[], display: RentalPokemon[], states:
     for (const key of keysForSet(team[index])) keys.add(key);
     for (const key of keysForDisplay(display[index])) keys.add(key);
     for (const key of keysForState(states?.[index] || {})) keys.add(key);
-    addSlotKey(keys, "showdown_id", battleSlotShowdownId(side, slot));
     const fallbackName = display[index]?.species || display[index]?.name || team[index]?.species || team[index]?.name || states?.[index]?.species || states?.[index]?.details || slot;
     addSlotKey(keys, "ident", `${side}: ${fallbackName}`);
     keys.add(`slot:${slot}`);
@@ -3032,6 +3125,52 @@ function alignStatesToSlots(states: PlayerPokemonState[], slotKeys: SlotKeySpec[
     .sort((a, b) => a.slot - b.slot);
 }
 
+function sourceIdentityByShowdownId(team: PokemonSet[] = [], display: RentalPokemon[] = [], states: PlayerPokemonState[] | undefined): Map<string, {run_member_id?: string; showdown_id: string}> {
+  const identities = new Map<string, {run_member_id?: string; showdown_id: string}>();
+  const length = Math.max(team.length, display.length, states?.length || 0);
+  for (let index = 0; index < length; index += 1) {
+    const showdownId = normalizeShowdownId(team[index]?.showdown_id || team[index]?.pokeball || display[index]?.showdown_id || states?.[index]?.showdown_id);
+    if (!showdownId) continue;
+    const runMemberId = String(team[index]?.run_member_id || display[index]?.run_member_id || states?.[index]?.run_member_id || "").trim() || undefined;
+    identities.set(showdownId, {showdown_id: showdownId, run_member_id: runMemberId});
+  }
+  return identities;
+}
+
+function speciesIdForSet(pokemon: Partial<PokemonSet> | undefined): string {
+  return toId(String(pokemon?.species || pokemon?.name || ""));
+}
+
+function speciesIdForRuntime(pokemon: RuntimePokemon | undefined): string {
+  return toId(shortIdent(pokemon?.details || pokemon?.ident || "").split(",", 1)[0]);
+}
+
+function sideTeamMatchScore(request: BattleRequestView | undefined, team: PokemonSet[]): {available: boolean; score: number} {
+  const runtimeTeam = request?.side?.pokemon || [];
+  if (!runtimeTeam.length || !team.length) return {available: false, score: 0};
+  const runtimeById = new Map<string, RuntimePokemon>();
+  for (const pokemon of runtimeTeam) {
+    const id = normalizeShowdownId(pokemon.pokeball);
+    if (id) runtimeById.set(id, pokemon);
+  }
+  let score = 0;
+  let matched = 0;
+  for (const pokemon of team) {
+    const id = normalizeShowdownId(pokemon.showdown_id || pokemon.pokeball);
+    const expectedSpecies = speciesIdForSet(pokemon);
+    const runtime = id ? runtimeById.get(id) : undefined;
+    if (runtime) {
+      matched += 1;
+      score += 2;
+      const runtimeSpecies = speciesIdForRuntime(runtime);
+      if (expectedSpecies && runtimeSpecies && expectedSpecies === runtimeSpecies) score += 4;
+      continue;
+    }
+    if (expectedSpecies && runtimeTeam.some(entry => speciesIdForRuntime(entry) === expectedSpecies)) score += 1;
+  }
+  return {available: true, score: score + matched};
+}
+
 function findRentalByRuntime(team: RentalPokemon[], runtime: RuntimePokemon | string): RentalPokemon | undefined {
   const showdownId = normalizeShowdownId(typeof runtime === "string" ? "" : runtime.pokeball);
   if (showdownId) {
@@ -3051,8 +3190,50 @@ function removeValue(values: string[], value: string): void {
   if (index >= 0) values.splice(index, 1);
 }
 
+const STAT_LABEL_FALLBACKS: Record<string, string> = {
+  atk: "攻击",
+  def: "防御",
+  spa: "特攻",
+  spd: "特防",
+  spe: "速度",
+  accuracy: "命中",
+  evasion: "回避",
+};
+
+const CANT_REASON_FALLBACKS: Record<string, string> = {
+  flinch: "畏缩",
+  par: "麻痹",
+  paralysis: "麻痹",
+  slp: "睡眠",
+  sleep: "睡眠",
+  frz: "冰冻",
+  freeze: "冰冻",
+  recharge: "再充电",
+  confusion: "混乱",
+  attract: "着迷",
+  taunt: "挑衅",
+  disable: "定身",
+  truant: "偷懒",
+  focuspunch: "集中猛击",
+  powder: "粉尘",
+  gravity: "重力",
+  healblock: "回复封锁",
+  imprisonment: "封印",
+  throatlock: "地狱突刺",
+};
+
+function statLabel(service: GameService, stat: string): string {
+  const id = toId(stat);
+  return STAT_LABEL_FALLBACKS[id] || service.plain("stats", stat) || stat;
+}
+
+function cantReasonLabel(service: GameService, reason: string): string {
+  const id = toId(reason);
+  return CANT_REASON_FALLBACKS[id] || service.effectName(reason) || reason;
+}
+
 function boostText(service: GameService, stat: string, value: string): string {
-  const translated = service.plain("stats", stat);
+  const translated = statLabel(service, stat);
   return `${translated}${Number(value) >= 0 ? "+" : ""}${value}`;
 }
 
@@ -3245,7 +3426,6 @@ function runtimeShowdownIdForIdent(requests: Record<string, BattleRequestView> |
   const explicitId = normalizeShowdownId(explicit);
   if (explicitId) return explicitId;
   if (!side || !raw) return undefined;
-  if (isActiveIdent(tracker, side, raw) && tracker.active[side]?.showdown_id) return tracker.active[side].showdown_id;
   const requestRows = requests?.[side]?.side?.pokemon || [];
   const targetShort = toId(shortIdent(raw));
   const matching = requestRows.filter(pokemon => {
@@ -3255,8 +3435,12 @@ function runtimeShowdownIdForIdent(requests: Record<string, BattleRequestView> |
   });
   const active = matching.find(pokemon => pokemon.active) || requestRows.find(pokemon => pokemon.active && toId(shortIdent(pokemon.ident)) === targetShort);
   if (active?.pokeball) return normalizeShowdownId(active.pokeball);
+  const currentActive = requestRows.find(pokemon => pokemon.active);
+  if (currentActive?.pokeball && toId(shortIdent(currentActive.ident)) === targetShort) return normalizeShowdownId(currentActive.pokeball);
   const ids = Array.from(new Set(matching.map(pokemon => normalizeShowdownId(pokemon.pokeball)).filter(Boolean)));
-  return ids.length === 1 ? ids[0] : undefined;
+  if (ids.length === 1) return ids[0];
+  if (!condition && isActiveIdent(tracker, side, raw) && tracker.active[side]?.showdown_id) return tracker.active[side].showdown_id;
+  return undefined;
 }
 
 function attachTimelineShowdownIds(event: ParsedTimelineEvent, line: string, tag: string, parts: string[], tracker: BattleTracker, requests: Record<string, BattleRequestView> | undefined, lineShowdownIds?: Map<string, string>): void {
@@ -3311,7 +3495,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       timelineEvent = {type: "move", text, side: side || undefined, source, source_id: sourceId, move};
     } else if (tag === "cant" && parts[2] && parts[3]) {
       const target = translatedSpecies(service, parts[2]);
-      const reason = service.effectName(parts[3]);
+      const reason = cantReasonLabel(service, parts[3]);
       const move = parts[4] ? service.plain("moves", parts[4]) : "";
       text = move ? `${target} 因 ${reason} 无法使出 ${move}。` : `${target} 因 ${reason} 无法行动。`;
       timelineEvent = {type: "message", text, targetSide: sideFromIdent(parts[2]) || undefined, target, target_id: shortIdent(parts[2]), effect: reason};
@@ -3445,7 +3629,7 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const next = Number(parts[4]);
       setBoostValue(tracker, side, parts[3], next);
       const target = translatedSpecies(service, parts[2]);
-      text = `${target} ${service.plain("stats", parts[3])}变为 ${next >= 0 ? "+" : ""}${parts[4]}`;
+      text = `${target} ${statLabel(service, parts[3])}变为 ${next >= 0 ? "+" : ""}${parts[4]}`;
       timelineEvent = {type: "boost", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: parts[3], boost_amount: next - previous};
     } else if (tag === "-swapboost" && parts[2] && parts[3]) {
       const sourceSide = sideFromIdent(parts[2]);
@@ -3677,6 +3861,8 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       if (timelineEvent) timeline.push(timelineEvent);
     }
     for (const delayed of afterEvents) {
+      delayed.event.turn = delayed.event.turn || tracker.turn;
+      attachTimelineShowdownIds(delayed.event, line, tag, parts, tracker, requests, lineShowdownIds);
       events.push(delayed.text);
       timeline.push(delayed.event);
     }

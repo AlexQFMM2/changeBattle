@@ -27,6 +27,8 @@ ChangeBattle 当前更适合被理解为：
 - 理解天赋系统：[`天赋.md`](./天赋.md)
 - 理解 Pokemon Showdown 依赖与规则边界：[`showdown.md`](./showdown.md)
 - 理解 Showdown BattleStream 日志解析：[`showdown-battle-log.md`](./showdown-battle-log.md)
+- 理解 Showdown 身份、NPC 预生成和状态回写：[`showdown-identity.md`](./showdown-identity.md)
+- 理解 Showdown 战斗展示播放流程：[`battle-timeline-flow.md`](./battle-timeline-flow.md)
 - 理解 Boss 台词和标签：[`boss_dialogues.md`](./boss_dialogues.md)、[`boss_dialogue_tags.md`](./boss_dialogue_tags.md)
 - 理解招式动画资料抓取：[`52poke_fetching.md`](./52poke_fetching.md)、[`move_animation_references.md`](./move_animation_references.md)
 - 生成 Windows 桌面便携 release：[`windows-desktop-release.md`](./windows-desktop-release.md)
@@ -175,7 +177,7 @@ Pokemon Showdown 是对战规则、数据和底层 battle engine 的事实源。
 
 - 改桌面 UI：先看 `apps/desktop` 代码，再按需读规则文档。
 - 改战斗规则/生成逻辑：先看 `packages/game-service` 和 `packages/shared`，再读 `rule.md`、`randomPokemonRule.md`、`randomItemRule.md`。
-- 改 Showdown 解析：优先读 `showdown-battle-log.md`。
+- 改 Showdown 解析：优先读 `showdown-battle-log.md`；改战斗展示顺序和动画队列时读 `battle-timeline-flow.md`。
 - 改资源：先看 `data/*manifest*`、`sprite_index_map.json`、`assets/*` 和 `tools/package_desktop_release.py`。
 - 改发版流程：只读 `windows-desktop-release.md`，不要顺手改 release 产物。
 - 更新文档时，保持本页做导航，专题文档做细节，不把同一套规则复制到多处。
