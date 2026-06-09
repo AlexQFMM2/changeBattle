@@ -79,4 +79,39 @@ blacksludge,item,held,battle,3,700,2,1,0,poison recovery
 weaknesspolicy,item,held,battle,3,1000,1,1,0,boost after super effective hit
 airballoon,item,held,battle,2,500,2,1,0,ground immunity
 expertbelt,item,held,battle,2,500,2,1,0,super effective boost
+aloraichiumz,item,held,battle,3,800,1,1,0,z crystal
+buginiumz,item,held,battle,3,800,1,1,0,z crystal
+darkiniumz,item,held,battle,3,800,1,1,0,z crystal
+decidiumz,item,held,battle,3,800,1,1,0,z crystal
+dragoniumz,item,held,battle,3,800,1,1,0,z crystal
+eeviumz,item,held,battle,3,800,1,1,0,z crystal
+electriumz,item,held,battle,3,800,1,1,0,z crystal
+fairiumz,item,held,battle,3,800,1,1,0,z crystal
+fightiniumz,item,held,battle,3,800,1,1,0,z crystal
+firiumz,item,held,battle,3,800,1,1,0,z crystal
+flyiniumz,item,held,battle,3,800,1,1,0,z crystal
+ghostiumz,item,held,battle,3,800,1,1,0,z crystal
+grassiumz,item,held,battle,3,800,1,1,0,z crystal
+groundiumz,item,held,battle,3,800,1,1,0,z crystal
+iciumz,item,held,battle,3,800,1,1,0,z crystal
+inciniumz,item,held,battle,3,800,1,1,0,z crystal
+kommoniumz,item,held,battle,3,800,1,1,0,z crystal
+lunaliumz,item,held,battle,3,800,1,1,0,z crystal
+lycaniumz,item,held,battle,3,800,1,1,0,z crystal
+marshadiumz,item,held,battle,3,800,1,1,0,z crystal
+mewniumz,item,held,battle,3,800,1,1,0,z crystal
+mimikiumz,item,held,battle,3,800,1,1,0,z crystal
+normaliumz,item,held,battle,3,800,1,1,0,z crystal
+pikaniumz,item,held,battle,3,800,1,1,0,z crystal
+pikashuniumz,item,held,battle,3,800,1,1,0,z crystal
+poisoniumz,item,held,battle,3,800,1,1,0,z crystal
+primariumz,item,held,battle,3,800,1,1,0,z crystal
+psychiumz,item,held,battle,3,800,1,1,0,z crystal
+rockiumz,item,held,battle,3,800,1,1,0,z crystal
+snorliumz,item,held,battle,3,800,1,1,0,z crystal
+solganiumz,item,held,battle,3,800,1,1,0,z crystal
+steeliumz,item,held,battle,3,800,1,1,0,z crystal
+tapuniumz,item,held,battle,3,800,1,1,0,z crystal
+ultranecroziumz,item,held,battle,3,800,1,1,0,z crystal
+wateriumz,item,held,battle,3,800,1,1,0,z crystal
 *,tm,tm,tm,1,500,5,1,1,current team learnable starter tm pool

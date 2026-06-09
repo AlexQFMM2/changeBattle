@@ -3,6 +3,7 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {GameService} from "./index.js";
 import type {BattleState, BattleTimelineEvent, PokemonSet, PlayerPokemonState} from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING} from "@changebattle/shared";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(here, "../../..");
@@ -452,6 +453,78 @@ async function testSpeciesTierCanOverrideGenerationProfile(): Promise<void> {
   assert.deepEqual(generated.display.map(pokemon => pokemon.species_tier), [2, 3, 4]);
 }
 
+async function testZMoveBattleFlow(): Promise<void> {
+  const zSession = await createCustomSession(
+    [{...pokemon("Charmander", ["Ember", "Scratch"], "Blaze"), item: "Firium Z"}],
+    [{...pokemon("Blissey", ["Splash"], "Natural Cure"), level: 100}],
+    [91, 92, 93, 94],
+  );
+  const initial = zSession.getState();
+  assert.equal(initial.request?.active?.[0]?.canZMove?.[0]?.move, "Inferno Overdrive", JSON.stringify(initial.request?.active?.[0], null, 2));
+  assert.equal(initial.request?.active?.[0]?.canZMove?.[1], null, JSON.stringify(initial.request?.active?.[0], null, 2));
+  const afterZ = await zSession.choose("move 1 zmove");
+  assert.match(battleText(afterZ), /Z 力量|超强极限爆焰弹|Inferno Overdrive/i, battleText(afterZ));
+  assert.ok(!afterZ.request?.active?.[0]?.canZMove?.some(Boolean), JSON.stringify(afterZ.request?.active?.[0], null, 2));
+
+  const plainSession = await createCustomSession(
+    [pokemon("Charmander", ["Ember"], "Blaze")],
+    [pokemon("Blissey", ["Splash"], "Natural Cure")],
+    [95, 96, 97, 98],
+  );
+  assert.ok(!plainSession.getState().request?.active?.[0]?.canZMove?.some(Boolean), JSON.stringify(plainSession.getState().request?.active?.[0], null, 2));
+
+  const specialSession = await createCustomSession(
+    [{...pokemon("Snorlax", ["Giga Impact"], "Immunity"), item: "Snorlium Z"}],
+    [pokemon("Blissey", ["Splash"], "Natural Cure")],
+    [99, 100, 101, 102],
+  );
+  assert.equal(specialSession.getState().request?.active?.[0]?.canZMove?.[0]?.move, "Pulverizing Pancake", JSON.stringify(specialSession.getState().request?.active?.[0], null, 2));
+}
+
+async function testEnemyUsesZMoveWhenAvailable(): Promise<void> {
+  const session = await createCustomSession(
+    [pokemon("Blissey", ["Splash"], "Natural Cure")],
+    [{...pokemon("Charmander", ["Ember"], "Blaze"), item: "Firium Z"}],
+    [103, 104, 105, 106],
+    {level: "gym_low", randomness: 0, allowSwitch: false},
+  );
+  const state = await session.choose("move 1");
+  assert.match(battleText(state), /Z 力量|超强极限爆焰弹|Inferno Overdrive/i, battleText(state));
+}
+
+async function testZMoveGenerationGuarantee(): Promise<void> {
+  const service = new GameService({projectRoot, showdownPath});
+  const enabled = await service.generateRentalCandidates([107, 108, 109, 110], "gen9randombattle", 6, {
+    profiles: ["tier2", "tier2", "tier2", "tier2", "tier2", "tier2"],
+    purpose: "starter",
+    battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: ["zmove"]},
+  });
+  assert.ok(enabled.display.some(pokemon => service.battleSystemForItem(pokemon.item_id) === "zmove"), JSON.stringify(enabled.display.map(pokemon => ({species: pokemon.species_id, item: pokemon.item_id, moves: pokemon.moves.map(move => move.id)})), null, 2));
+
+  const disabled = await service.generateRentalCandidates([111, 112, 113, 114], "gen9randombattle", 6, {
+    profiles: ["tier2", "tier2", "tier2", "tier2", "tier2", "tier2"],
+    purpose: "starter",
+    battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: []},
+  });
+  assert.ok(disabled.display.every(pokemon => service.battleSystemForItem(pokemon.item_id) !== "zmove"), JSON.stringify(disabled.display.map(pokemon => ({species: pokemon.species_id, item: pokemon.item_id})), null, 2));
+}
+
+function testDedicatedZCrystalPreferredDuringGuarantee(): void {
+  const service = new GameService({projectRoot, showdownPath});
+  const team = [{...pokemon("Snorlax", ["Giga Impact", "Tackle"], "Immunity"), item: "Normalium Z"}];
+  const zGuarantee = (service as unknown as {ensureZMoveUser: (team: PokemonSet[], options: unknown, rng: () => number) => void}).ensureZMoveUser.bind(service);
+  zGuarantee(team, {battleSetting: {...DEFAULT_BATTLE_SETTING, enabled_battle_systems: ["zmove"]}}, () => 0);
+  assert.equal(team[0].item, "Snorlium Z", JSON.stringify(team[0], null, 2));
+}
+
+function testBattleSystemItemClassification(): void {
+  const service = new GameService({projectRoot, showdownPath});
+  assert.equal(service.battleSystemForItem("venusaurite"), "mega");
+  assert.equal(service.battleSystemForItem("firiumz"), "zmove");
+  assert.equal(service.battleSystemForItem("leftovers"), null);
+  assert.equal(service.zCrystalItemIds().length, 35);
+}
+
 await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
@@ -468,4 +541,9 @@ await testSyncPlayerStateDoesNotApplyStatusToWrongDuplicate();
 await testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive();
 await testClassicBattleFlowScenarios();
 await testSpeciesTierCanOverrideGenerationProfile();
+await testZMoveBattleFlow();
+await testEnemyUsesZMoveWhenAvailable();
+await testZMoveGenerationGuarantee();
+testDedicatedZCrystalPreferredDuringGuarantee();
+testBattleSystemItemClassification();
 console.log("Trainer item battle tests passed.");

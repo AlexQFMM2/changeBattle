@@ -312,7 +312,7 @@ function pickSpeciesForProfile(profile, rng, seenSpecies) {
 
 function randomGenerator(format, seed) {
   try {
-    return Sim.Teams.getGenerator(format || "gen7randombattle", seed);
+    return Sim.Teams.getGenerator(format || "gen9randombattle", seed);
   } catch {
     return null;
   }
@@ -728,7 +728,7 @@ function startReader() {
 }
 
 async function handleGenerate(command) {
-  const format = command.format || "gen7randombattle";
+  const format = command.format || "gen9randombattle";
   const seed = seedArray(command.seed);
   const targetCount = Math.max(1, Math.min(24, Number(command.count || 6)));
   if ((Array.isArray(command.profiles) && command.profiles.length) || (Array.isArray(command.stages) && command.stages.length) || (Array.isArray(command.speciesIds) && command.speciesIds.length) || (Array.isArray(command.species_ids) && command.species_ids.length)) {
@@ -801,7 +801,7 @@ async function handleStart(command) {
     p2: buildSideSlotKeys(p2Team, [], "p2"),
   };
   const init = [
-    `>start ${JSON.stringify({ formatid: command.formatid || "gen7customgame", seed: seedArray(command.seed) })}`,
+    `>start ${JSON.stringify({ formatid: command.formatid || "gen9customgame", seed: seedArray(command.seed) })}`,
     `>player p1 ${JSON.stringify({ name: command.p1Name || "Player", team: Sim.Teams.pack(p1Team) })}`,
     `>player p2 ${JSON.stringify({ name: command.p2Name || "Enemy", team: Sim.Teams.pack(p2Team) })}`,
   ].join("\n");

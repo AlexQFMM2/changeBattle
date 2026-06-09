@@ -78,7 +78,7 @@ export function TitleScreen({save, catalog, defaultAvatarAsset, onLoad, onNew, o
   );
 }
 
-export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onTitle, onTestMode}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onStarterUpgrade: () => void; onTitle: () => void; onTestMode: () => void}) {
+export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onBattleSetting, onTitle, onTestMode}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onStarterUpgrade: () => void; onBattleSetting: () => void; onTitle: () => void; onTestMode: () => void}) {
   const [leaving, setLeaving] = useState(false);
   const [quickDexOpen, setQuickDexOpen] = useState(false);
   const actionTimerRef = useRef<number | null>(null);
@@ -87,6 +87,7 @@ export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onTitle, on
     {label: save?.current_run ? "继续游戏" : "开始游戏", action: onStart},
     {label: "天赋配置", action: onTalent},
     {label: "开局筹备", action: onStarterUpgrade},
+    {label: "对局偏好", action: onBattleSetting},
     {label: "图鉴", action: () => setQuickDexOpen(true), instant: true},
     {label: "测试模式", action: onTestMode},
     {label: "回到主页", action: onTitle},

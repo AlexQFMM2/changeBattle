@@ -4,8 +4,8 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
-import {SHOWDOWN_ID_POOL} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
   BP_SCALE,
@@ -164,6 +164,7 @@ type PendingStarterState = {
   purchased: ShopOffer[];
   talents: TalentView[];
   upgrades: StarterUpgradeState;
+  battleSetting: BattleSetting;
   wholeRerollsUsed: number;
   singleRerollsUsed: number;
 };
@@ -466,6 +467,7 @@ function normalizeSave(save: LocalSave): LocalSave {
   save.talent_unlocks = Array.from(new Set((save.talent_unlocks || []).filter(id => TALENTS.some(talent => talent.id === id && !talent.disabled))));
   save.talent_equipped = (save.talent_equipped || []).filter(id => save.talent_unlocks!.includes(id)).slice(0, TALENT_EQUIP_LIMIT);
   save.starter_upgrades = normalizeStarterUpgrades(save.starter_upgrades);
+  save.battle_setting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
   save.boss_dex = normalizeBossDex(save.boss_dex);
   save.run_memory = {
     player_species_ids: Array.from(new Set((save.run_memory?.player_species_ids || []).map(toId).filter(Boolean))).slice(0, 6),
@@ -500,6 +502,29 @@ async function enableTestMode(): Promise<LocalSave> {
   if (!save) throw new Error("请先创建或读取存档。");
   save.stats = {...emptyStats(), ...(save.stats || {}), battle_points: 99999};
   return persist(save);
+}
+
+async function getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
+  const save = await loadSave();
+  if (!save) throw new Error("请先创建或读取存档。");
+  return {setting: normalizeBattleSetting(save.battle_setting), save};
+}
+
+async function updateBattleSetting(setting: Partial<BattleSetting>): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
+  const save = await loadSave();
+  if (!save) throw new Error("请先创建或读取存档。");
+  const mergedSetting = {...normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING), ...setting};
+  const rawGenerations = Array.from(new Set((mergedSetting.allowed_generations || [])
+    .map(value => Math.floor(Number(value)))
+    .filter(value => value >= 1 && value <= 9)));
+  const rawSystems = Array.from(new Set((mergedSetting.enabled_battle_systems || [])
+    .filter(system => ["mega", "zmove", "dynamax", "terastal"].includes(String(system)))));
+  if (rawGenerations.length < 3) throw new Error("地区专爱至少需要选择 3 个地区。");
+  if (rawSystems.length > 2) throw new Error("战斗系统最多同时选择 2 个。");
+  const nextSetting = normalizeBattleSetting(mergedSetting);
+  save.battle_setting = nextSetting;
+  const next = await persist(save);
+  return {setting: normalizeBattleSetting(next.battle_setting), save: next};
 }
 
 function gameState(partial: Partial<DesktopGameState>): DesktopGameState {
@@ -682,6 +707,7 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     battle_background: run.battle_background,
     player_talents: playerTalents,
     show_move_effectiveness: hasTalent(playerTalents, "intel_god_eye"),
+    battle_setting: normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING),
   };
 }
 
@@ -1297,6 +1323,14 @@ function shopPoolBucketForEntry(entry: ShopPoolEntry): ShopPoolBucket | null {
   return null;
 }
 
+function battleSettingAllowsItem(itemId: string, setting?: BattleSetting | null): boolean {
+  const normalized = itemKey(itemId);
+  if (!normalized) return false;
+  const system = gameService.battleSystemForItem(normalized);
+  if (!system) return true;
+  return normalizeBattleSetting(setting || DEFAULT_BATTLE_SETTING).enabled_battle_systems.includes(system);
+}
+
 function weightedShopBucket<T>(
   buckets: Partial<Record<ShopPoolBucket, T[]>>,
   rng: () => number,
@@ -1464,8 +1498,8 @@ async function tmOptionsForRun(run: CurrentRunData, source: "shop" | "starter", 
   return Promise.all(shuffleByRng(moves, rng).slice(0, limit).map((move, index) => tmOfferFromMove(move, index, source, 1, run.talents || [])));
 }
 
-async function starterTmOptions(runSeed: number, talents: TalentView[] = [], limit = 24): Promise<ShopOffer[]> {
-  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(runSeed, 77), "gen7randombattle", 6);
+async function starterTmOptions(runSeed: number, talents: TalentView[] = [], battleSetting: BattleSetting = normalizeBattleSetting(DEFAULT_BATTLE_SETTING), limit = 24): Promise<ShopOffer[]> {
+  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(runSeed, 77), "gen9randombattle", 6, {battleSetting, purpose: "starter"});
   const seen = new Set<string>();
   const moves: MoveSummary[] = [];
   for (const pokemon of generated.display || []) {
@@ -1480,7 +1514,8 @@ async function starterTmOptions(runSeed: number, talents: TalentView[] = [], lim
   return Promise.all(shuffleByRng(moves, rng).slice(0, limit).map((move, index) => tmOfferFromMove(move, index, "starter", 1, talents)));
 }
 
-async function shopOfferFromPoolEntry(entry: ShopPoolEntry, index: number, talents: TalentView[]): Promise<ShopOffer | null> {
+async function shopOfferFromPoolEntry(entry: ShopPoolEntry, index: number, talents: TalentView[], battleSetting?: BattleSetting | null): Promise<ShopOffer | null> {
+  if (!battleSettingAllowsItem(entry.id, battleSetting)) return null;
   const item = (await gameService.itemOptions()).find(option => itemKey(option.id || option.name) === entry.id);
   const localItem = LOCAL_ITEM_DETAILS[entry.id];
   if (!item && !localItem) return null;
@@ -1501,7 +1536,7 @@ async function shopOfferFromPoolEntry(entry: ShopPoolEntry, index: number, talen
 async function guaranteedShopOffer(index: number, run: CurrentRunData, rng: () => number): Promise<ShopOffer | null> {
   const guaranteed = GUARANTEED_SHOP_ITEMS[Math.floor(rng() * GUARANTEED_SHOP_ITEMS.length)] || GUARANTEED_SHOP_ITEMS[0];
   const entry: ShopPoolEntry = {id: guaranteed.id, kind: "item", category: "consumable", cost: guaranteed.cost, weight: 1, enabled: true, notes: "guaranteed recovery"};
-  const offer = await shopOfferFromPoolEntry(entry, index, run.talents || []);
+  const offer = await shopOfferFromPoolEntry(entry, index, run.talents || [], run.battle_setting);
   return offer ? {...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-guaranteed-${guaranteed.id}`} : null;
 }
 
@@ -1519,9 +1554,9 @@ function preferredShopBuckets(preferredCategory?: ShopPreferredCategory): ShopPo
 
 async function rollShopOffers(run: CurrentRunData, preferredCategory?: ShopPreferredCategory): Promise<ShopOffer[]> {
   const pool = await loadShopPool();
-  const itemEntries = pool.filter(entry => entry.kind === "item");
+  const itemEntries = pool.filter(entry => entry.kind === "item" && battleSettingAllowsItem(entry.id, run.battle_setting));
   const tmEnabled = pool.some(entry => entry.kind === "tm" && entry.id === "*");
-  const itemOffers = (await Promise.all(itemEntries.map((entry, index) => shopOfferFromPoolEntry(entry, index, run.talents || []))))
+  const itemOffers = (await Promise.all(itemEntries.map((entry, index) => shopOfferFromPoolEntry(entry, index, run.talents || [], run.battle_setting))))
     .filter((item): item is ShopOffer => Boolean(item))
     .map((item, index) => {
       const entry = itemEntries.find(poolEntry => poolEntry.id === itemKey(item.id || item.name));
@@ -1577,7 +1612,7 @@ function starterOfferWeight(entry: StarterItemPoolEntry, qualityLevel: number): 
   return base;
 }
 
-async function starterItemOffers(runSeed: number, talents: TalentView[] = [], upgrades?: StarterUpgradeState): Promise<ShopOffer[]> {
+async function starterItemOffers(runSeed: number, talents: TalentView[] = [], upgrades?: StarterUpgradeState, battleSetting: BattleSetting = normalizeBattleSetting(DEFAULT_BATTLE_SETTING)): Promise<ShopOffer[]> {
   const pool = await loadStarterItemPool();
   const itemOptions = await gameService.itemOptions();
   const normalizedUpgrades = normalizeStarterUpgrades(upgrades);
@@ -1591,7 +1626,7 @@ async function starterItemOffers(runSeed: number, talents: TalentView[] = [], up
     const entries = pool.filter(entry => entry.starter_group === group.id && entry.tier <= qualityLevel);
     const tmTemplate = entries.find(entry => entry.kind === "tm" && entry.id === "*");
     const tmOffers = tmTemplate
-      ? (await starterTmOptions(runSeed, talents)).map((offer, index) => ({
+      ? (await starterTmOptions(runSeed, talents, battleSetting)).map((offer, index) => ({
         ...offer,
         cost: 0,
         weight: starterOfferWeight(tmTemplate, qualityLevel),
@@ -1603,7 +1638,7 @@ async function starterItemOffers(runSeed: number, talents: TalentView[] = [], up
       }))
       : [];
     const itemOffers: Array<ShopOffer & {weight?: number}> = [];
-    entries.filter(entry => entry.kind === "item").forEach((entry, index) => {
+    entries.filter(entry => entry.kind === "item" && battleSettingAllowsItem(entry.id, battleSetting)).forEach((entry, index) => {
       const item = itemOptions.find(option => itemKey(option.id || option.name) === entry.id);
       const localItem = LOCAL_ITEM_DETAILS[entry.id];
       if (!item && !localItem) return;
@@ -1768,7 +1803,7 @@ async function buildPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo
   const routeSalt = route.type === "normal" ? 100 : route.type === "champion" ? 700 : route.stage.includes("tier3") ? 603 : route.stage === "tier2" ? 602 : 601;
   const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
   const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
-  const enemyGenerated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
+  const enemyGenerated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen9randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss", battleSetting: run.battle_setting});
   const enemyRaw = enemyGenerated.team.slice(0, 3);
   const enemyDisplay = enemyGenerated.display.slice(0, 3);
   ensureTeamRunMemberIds(enemyRaw, enemyDisplay);
@@ -1961,7 +1996,7 @@ async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, bat
   const trainer = chooseTrainerForRoute(route, run, battleNo);
   const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(trainer, run, battleNo);
   const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
-  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen7randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss"});
+  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen9randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss", battleSetting: run.battle_setting});
   const enemies = generated.display.slice(0, 3);
   const label = route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : "馆主";
   return {route, trainer, enemies, label};
@@ -2329,16 +2364,17 @@ function markStarterOrigin(generated: GeneratedTeam, origin: "current" | "memory
   };
 }
 
-async function generateStarterCandidatesForSave(save: LocalSave, seed: number, talents: TalentView[], count: number): Promise<GeneratedTeam> {
+async function generateStarterCandidatesForSave(save: LocalSave, seed: number, talents: TalentView[], count: number, setting?: BattleSetting): Promise<GeneratedTeam> {
   const setStreak = Number(save.stats?.set_win_streak || 0);
   const profiles = starterProfilesForStreak(setStreak, count, talents);
   const speciesTiers = starterSpeciesTiersForStreak(setStreak, count);
-  const current = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 1), "gen7randombattle", count, {profiles, speciesTiers, purpose: "starter"}), seed, talents, setStreak), "current");
+  const battleSetting = normalizeBattleSetting(setting || save.battle_setting || DEFAULT_BATTLE_SETTING);
+  const current = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 1), "gen9randombattle", count, {profiles, speciesTiers, purpose: "starter", battleSetting}), seed, talents, setStreak), "current");
   if (!hasTalent(talents, "starter_soulmate")) return current;
   const memorySpecies = Array.from(new Set([...(save.run_memory?.player_species_ids || []), ...(save.run_memory?.enemy_species_ids || [])].map(toId).filter(Boolean))).slice(0, 12);
   if (!memorySpecies.length) return current;
   const memoryProfiles = Array.from({length: memorySpecies.length}, (_value, index) => profiles[index % profiles.length] || "tier1" as GenerationProfile);
-  const memory = markStarterOrigin(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 0x5017), "gen7randombattle", memorySpecies.length, {profiles: memoryProfiles, speciesIds: memorySpecies, purpose: "starter"}), "memory");
+  const memory = markStarterOrigin(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 0x5017), "gen9randombattle", memorySpecies.length, {profiles: memoryProfiles, speciesIds: memorySpecies, purpose: "starter", battleSetting}), "memory");
   return {
     seed: current.seed,
     team: [...current.team, ...memory.team],
@@ -2359,7 +2395,7 @@ async function applyStarterMentorEye(team: PokemonSet[], display: RentalPokemon[
     if (rng() >= 0.33) continue;
     const profile = `tier${currentTier + 1}` as GenerationProfile;
     const speciesId = shown?.species_id || nextTeam[index]?.species;
-    const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 0xb010 + index * 131), "gen7randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "starter"});
+    const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 0xb010 + index * 131), "gen9randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "starter", battleSetting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING)});
     const template = generated.team[0];
     if (!template) continue;
     nextTeam[index] = {
@@ -2508,6 +2544,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.bag_item_meta = Object.fromEntries(Object.entries(run.bag_item_meta || {}).map(([id, meta]) => [itemKey(id), {...meta, id: itemKey(meta?.id || id)}] as const));
   run.talents = run.talents || [];
   run.talents = talentsForIds(run.talents.map(talent => talent.id));
+  run.battle_setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
   run.reroute_used = Math.max(0, Math.floor(Number(run.reroute_used || 0)));
   run.forced_trainer_ids = Object.fromEntries(Object.entries(run.forced_trainer_ids || {}).map(([battleNo, trainerId]) => [String(Math.max(1, Math.floor(Number(battleNo || 0)))), String(trainerId || "")]).filter(([, trainerId]) => trainerId));
   run.reroute_history = Object.fromEntries(Object.entries(run.reroute_history || {}).map(([battleNo, trainerIds]) => [String(Math.max(1, Math.floor(Number(battleNo || 0)))), Array.from(new Set((trainerIds || []).map(String).filter(Boolean)))] as const).filter(([, trainerIds]) => trainerIds.length));
@@ -2672,7 +2709,7 @@ async function prepareCandidates(seed?: number): Promise<DesktopGameState> {
     if (pendingCandidates && pendingStarter.wholeRerollsUsed >= limit) throw new Error("牌有问题次数不足，无法整体重换。");
     pendingStarter = {...pendingStarter, seed: runSeed, wholeRerollsUsed: pendingCandidates ? pendingStarter.wholeRerollsUsed + 1 : pendingStarter.wholeRerollsUsed};
   }
-  pendingCandidates = await generateStarterCandidatesForSave(save, runSeed, talents, count);
+  pendingCandidates = await generateStarterCandidatesForSave(save, runSeed, talents, count, pendingStarter?.battleSetting);
   return gameState({
     screen: "rentalSelect",
     save,
@@ -2697,7 +2734,7 @@ async function rerollStarterCandidate(index: number): Promise<DesktopGameState> 
   const profiles = starterProfilesForStreak(setStreak, count, pendingStarter.talents);
   const speciesTiers = starterSpeciesTiersForStreak(setStreak, count);
   const nextSeed = gameService.deriveSeed(pendingStarter.seed, 5000 + pendingStarter.singleRerollsUsed * 97 + slot);
-  const generated = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(nextSeed, "gen7randombattle", 1, {profiles: [profiles[slot % profiles.length] || "tier1"], speciesTiers: [speciesTiers[slot % speciesTiers.length] || 2], purpose: "starter"}), nextSeed, pendingStarter.talents, setStreak), "current");
+  const generated = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(nextSeed, "gen9randombattle", 1, {profiles: [profiles[slot % profiles.length] || "tier1"], speciesTiers: [speciesTiers[slot % speciesTiers.length] || 2], purpose: "starter", battleSetting: pendingStarter.battleSetting}), nextSeed, pendingStarter.talents, setStreak), "current");
   pendingCandidates.team[slot] = generated.team[0];
   pendingCandidates.display[slot] = generated.display[0];
   pendingStarter = {...pendingStarter, singleRerollsUsed: pendingStarter.singleRerollsUsed + 1};
@@ -2717,9 +2754,10 @@ async function prepareStarterItems(seed?: number): Promise<DesktopGameState> {
   const runSeed = seed || Math.floor(Math.random() * 0xffffffff);
   const talents: TalentView[] = talentsForIds(save.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
   const upgrades = normalizeStarterUpgrades(save.starter_upgrades);
+  const battleSetting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
   configuredTalents = talents;
-  const offers = await starterItemOffers(runSeed, talents, upgrades);
-  pendingStarter = {seed: runSeed, coins: starterCoinsForSeed(runSeed, talents), offers, purchased: [], talents, upgrades, wholeRerollsUsed: 0, singleRerollsUsed: 0};
+  const offers = await starterItemOffers(runSeed, talents, upgrades, battleSetting);
+  pendingStarter = {seed: runSeed, coins: starterCoinsForSeed(runSeed, talents), offers, purchased: [], talents, upgrades, battleSetting, wholeRerollsUsed: 0, singleRerollsUsed: 0};
   pendingCandidates = null;
   if (!offers.length) return chooseStarterItem(null);
   return gameState({screen: "starterItems", save, starter: starterChoiceState(pendingStarter), message: "选择一个开局道具，或跳过。"});
@@ -2813,7 +2851,8 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
     const seed = Math.floor(Math.random() * 0xffffffff);
     const talents = talentsForIds(save.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
     const upgrades = normalizeStarterUpgrades(save.starter_upgrades);
-    pendingStarter = {seed, coins: starterCoinsForSeed(seed, talents), offers: await starterItemOffers(seed, talents, upgrades), purchased: [], talents, upgrades, wholeRerollsUsed: 0, singleRerollsUsed: 0};
+    const battleSetting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
+    pendingStarter = {seed, coins: starterCoinsForSeed(seed, talents), offers: await starterItemOffers(seed, talents, upgrades, battleSetting), purchased: [], talents, upgrades, battleSetting, wholeRerollsUsed: 0, singleRerollsUsed: 0};
   }
   const starter = pendingStarter;
   if (offerId) {
@@ -2834,7 +2873,7 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
     }
   }
   const count = candidateCountForTalents(starter.talents);
-  pendingCandidates = await generateStarterCandidatesForSave(save, starter.seed, starter.talents, count);
+  pendingCandidates = await generateStarterCandidatesForSave(save, starter.seed, starter.talents, count, starter.battleSetting);
   return gameState({screen: "rentalSelect", save, starter: starterChoiceState(starter), candidates: pendingCandidates, selected_indexes: [], message: `随机种子：${starter.seed}`});
 }
 
@@ -2851,9 +2890,10 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
   if (!save) throw new Error("请先创建或读取存档。");
   const effectiveSeed = pendingStarter?.seed || runSeed;
   const runTalents = pendingStarter?.talents || talentsForIds(save.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const runBattleSetting = normalizeBattleSetting(pendingStarter?.battleSetting || save.battle_setting || DEFAULT_BATTLE_SETTING);
   if (!pendingCandidates) {
     const count = candidateCountForTalents(runTalents);
-    pendingCandidates = await generateStarterCandidatesForSave(save, effectiveSeed, runTalents, count);
+    pendingCandidates = await generateStarterCandidatesForSave(save, effectiveSeed, runTalents, count, pendingStarter?.battleSetting);
   }
   if (selectedIndexes.length !== 3) throw new Error("需要选择 3 只宝可梦。");
   const selectedOrigins = selectedIndexes.map(index => (pendingCandidates!.display[index] as RentalPokemon & {starter_origin?: string} | undefined)?.starter_origin || "current");
@@ -2900,6 +2940,7 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
     non_refundable_bag_items: starterBagItems,
     bag_item_meta: starterBagMeta,
     talents: runTalents,
+    battle_setting: runBattleSetting,
     reroute_used: 0,
     forced_trainer_ids: {},
     reroute_history: {},
@@ -3082,6 +3123,17 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   try {
     const save = await loadSave();
     if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+    const zMoveMatch = choice.match(/^move\s+(\d+)\s+zmove$/i);
+    if (zMoveMatch) {
+      const run = save.current_run as CurrentRunData;
+      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
+      if (!setting.enabled_battle_systems.includes("zmove")) throw new Error("本局未开启 Z 招式系统。");
+      const moveSlot = Math.max(1, Math.floor(Number(zMoveMatch[1] || 0)));
+      const request = activeBattle.getState().request;
+      const canZMove = request?.active?.[0]?.canZMove || [];
+      if (!canZMove.some(Boolean)) throw new Error("当前没有可用的 Z 招式。");
+      if (!canZMove[moveSlot - 1]) throw new Error("这个技能不能升级为 Z 招式。");
+    }
     let state: BattleState;
     let shouldPersist = false;
     if (choice.startsWith("item ")) {
@@ -3463,7 +3515,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
       const currentTier = Math.max(1, Math.min(4, Number(nextDisplayBase.stage_tier || nextRaw.stage_tier || 1)));
       const profile = `tier${Math.min(4, currentTier + 1)}` as GenerationProfile;
       const speciesId = nextDisplayBase.species_id || nextRaw.species;
-      const upgraded = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xe300 + own * 41 + foe * 97 + exchanges), "gen7randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "normal"});
+      const upgraded = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xe300 + own * 41 + foe * 97 + exchanges), "gen9randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "normal", battleSetting: run.battle_setting});
       const template = upgraded.team[0];
       if (template) {
         nextRaw = {
@@ -3510,7 +3562,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const own = Number(action.ownIndex);
     if (own < 0 || own >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
     const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
-    const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xa111 + nextBattleNo * 17 + own), "gen7randombattle", 1, {profiles: ["tier4"], purpose: "normal"});
+    const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xa111 + nextBattleNo * 17 + own), "gen9randombattle", 1, {profiles: ["tier4"], purpose: "normal", battleSetting: run.battle_setting});
     const nextRaw = generated.team[0];
     const nextDisplay = generated.display[0];
     if (!nextRaw || !nextDisplay) throw new Error("孤注一掷生成失败。");
@@ -3863,6 +3915,8 @@ app.whenReady().then(() => {
   handleIpc("save:updateTrainer", async (trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
   handleIpc("save:battleRecords", async () => saveStore!.battleRecords());
   handleIpc("save:testMode", async () => enableTestMode());
+  handleIpc("battleSetting:get", async () => getBattleSetting());
+  handleIpc("battleSetting:update", async (setting: Partial<BattleSetting>) => updateBattleSetting(setting));
   handleIpc("trainer:catalog", async () => trainerCatalogState());
   handleIpc("game:generateCandidates", async (seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));
   handleIpc("run:prepareStarterItems", async (seed?: number) => prepareStarterItems(seed));

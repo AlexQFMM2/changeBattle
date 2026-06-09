@@ -73,6 +73,7 @@ export type RentalPokemon = {
   item_id: string;
   item_desc: string;
   item_desc_zh: string;
+  item_battle_system?: BattleSystemId;
   moves: MoveSummary[];
   base_stats: Record<string, number>;
   stats: Record<string, number>;
@@ -85,6 +86,8 @@ export type RentalPokemon = {
   role: string;
   role_zh: string;
   shiny?: boolean;
+  is_legendary?: boolean;
+  is_mythical?: boolean;
   stage_tier?: 1 | 2 | 3 | 4;
   species_tier?: 1 | 2 | 3 | 4;
   generation_profile?: "tier1" | "tier2" | "tier3" | "tier4" | "champion";
@@ -281,6 +284,7 @@ export type BattleRequestView = {
   };
   active?: Array<{
     moves: BattleMoveRequest[];
+    canZMove?: Array<{move: string; target?: string} | null>;
   }>;
 };
 
@@ -347,6 +351,56 @@ export type BattleBackgroundView = {
   [key: string]: string | undefined;
 };
 
+export type BattleSystemId = "mega" | "zmove" | "dynamax" | "terastal";
+
+export type BattleSetting = {
+  allowed_generations: number[];
+  enabled_battle_systems: BattleSystemId[];
+  legendary_battle: boolean;
+};
+
+export const BATTLE_GENERATION_OPTIONS = [
+  {generation: 1, region: "关都"},
+  {generation: 2, region: "城都"},
+  {generation: 3, region: "丰缘"},
+  {generation: 4, region: "神奥"},
+  {generation: 5, region: "合众"},
+  {generation: 6, region: "卡洛斯"},
+  {generation: 7, region: "阿罗拉"},
+  {generation: 8, region: "伽勒尔"},
+  {generation: 9, region: "帕底亚"},
+] as const;
+
+export const BATTLE_SYSTEM_OPTIONS: Array<{id: BattleSystemId; name: string}> = [
+  {id: "mega", name: "Mega"},
+  {id: "zmove", name: "Z 招式"},
+  {id: "dynamax", name: "极巨化"},
+  {id: "terastal", name: "太晶化"},
+];
+
+export const DEFAULT_BATTLE_SETTING: BattleSetting = {
+  allowed_generations: [1, 2, 3, 4, 5, 6, 7],
+  enabled_battle_systems: [],
+  legendary_battle: false,
+};
+
+export function normalizeBattleSetting(input?: Partial<BattleSetting> | null): BattleSetting {
+  const validGenerations = new Set<number>(BATTLE_GENERATION_OPTIONS.map(option => option.generation));
+  const generationList = Array.from(new Set((input?.allowed_generations || DEFAULT_BATTLE_SETTING.allowed_generations)
+    .map(value => Math.floor(Number(value)))
+    .filter(value => validGenerations.has(value))));
+  const allowed_generations = generationList.length >= 3 ? generationList : [...DEFAULT_BATTLE_SETTING.allowed_generations];
+  const validSystems = new Set(BATTLE_SYSTEM_OPTIONS.map(option => option.id));
+  const enabled_battle_systems = Array.from(new Set((input?.enabled_battle_systems || [])
+    .filter((value): value is BattleSystemId => validSystems.has(value as BattleSystemId))))
+    .slice(0, 2);
+  return {
+    allowed_generations,
+    enabled_battle_systems,
+    legendary_battle: Boolean(input?.legendary_battle),
+  };
+}
+
 export type BattleState = {
   ended: boolean;
   winner: string | null;
@@ -364,6 +418,7 @@ export type BattleState = {
   enemy_trainer?: TrainerNpcView;
   player_talents?: TalentView[];
   show_move_effectiveness?: boolean;
+  battle_setting?: BattleSetting;
   enemy_boss_record?: BossDexRecord;
   battle_background?: BattleBackgroundView;
 };
@@ -695,6 +750,11 @@ export type SaveStarterUpgradesTable = {
   starter_upgrades?: StarterUpgradeState;
 };
 
+export type SaveBattleSettingTable = {
+  version: 1;
+  battle_setting: BattleSetting;
+};
+
 export type SaveBossDexTable = {
   version: 1;
   boss_dex: Record<string, BossDexRecord>;
@@ -811,6 +871,7 @@ export type CurrentRunData = {
   recycle_receipt_value?: number;
   economy_spend_types?: string[];
   talents?: TalentView[];
+  battle_setting?: BattleSetting;
   used_pokemon_display?: RentalPokemon[];
   used_pokemon_stats?: Record<string, Omit<ResultPokemonSummary, "pokemon">>;
   used_pokemon_stat_events?: ResultPokemonStatEvent[];
@@ -929,6 +990,7 @@ export type AppStatus =
   | "userInfo"
   | "talentConfig"
   | "starterUpgrade"
+  | "battleSetting"
   | "starterItems"
   | "rentalSelect"
   | "battleMain"
@@ -963,6 +1025,7 @@ export type LocalSave = {
   talent_unlocks?: string[];
   talent_equipped?: string[];
   starter_upgrades?: StarterUpgradeState;
+  battle_setting?: BattleSetting;
   named_champion_id?: string | null;
   boss_dex?: Record<string, BossDexRecord>;
   run_memory?: {

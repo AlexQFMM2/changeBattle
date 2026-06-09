@@ -1,6 +1,7 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
 import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon} from "@changebattle/shared";
+import {BATTLE_SYSTEM_OPTIONS} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
 import {ScreenToast} from "../feedback/ScreenToast";
@@ -11,6 +12,7 @@ import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgr
 const BATTLE_BACKGROUNDS = parseBattleBackgroundCsv(battleBackgroundCsv);
 const FALLBACK_BATTLE_BACKGROUND = BATTLE_BACKGROUNDS.find(background => background.id === "mountain-route") || BATTLE_BACKGROUNDS[0];
 const BATTLE_PANEL_MODES = new Set<AppStatus>(["battleMain", "moveMenu", "teamMenu", "statusMenu"]);
+const IMPLEMENTED_BATTLE_SYSTEMS = new Set(["zmove"]);
 
 function parseBattleBackgroundCsv(csv: string): BattleBackgroundView[] {
   return csv.trim().split(/\r?\n/).slice(1).map(line => {
@@ -41,6 +43,10 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
     const moveId = summary?.id ? toId(summary.id) : toId(event.move);
     const entry = firstBattleEffectEntry(moveEffectKeys(moveId, typeId(summary?.type || summary?.type_zh), moveCategoryId(summary?.category, summary?.category_zh)));
     return cueFromEntry(entry, event, entry?.visual || "normal-hit", actingSide, moveCueTargetSide(entry, actingSide, event.targetSide));
+  }
+  if (event.type === "item" && (event.effect === "Z招式" || /Z 力量|Z-Power|Z-Move/i.test(event.text))) {
+    const side = event.side || event.targetSide || "p1";
+    return {visual: "z-aura", renderer: "css", side, targetSide: side, anchor: "target", durationMs: 1500};
   }
   if ((event.type === "damage" || event.type === "heal") && !eventTargetsDisplayedActive(event, displayedNames, displayedShowdownIds)) return null;
   if (event.type === "damage") return cueFromEntry(battleEffectEntry("battle_action:damage"), event, "impact");
@@ -74,6 +80,112 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
     return cueFromEntry(entry, event, entry?.visual || "field");
   }
   return null;
+}
+
+function zImpactCueForEvent(event: BattleTimelineEvent, sourceSide: "p1" | "p2", durationMs: number): BattleVisualCue {
+  return {
+    visual: "z-impact",
+    renderer: "css",
+    side: sourceSide,
+    targetSide: event.targetSide || (sourceSide === "p1" ? "p2" : "p1"),
+    anchor: "target",
+    durationMs: Math.max(1400, durationMs + 160),
+  };
+}
+
+function isZPowerEvent(event: BattleTimelineEvent): boolean {
+  return event.type === "item" && (event.effect === "Z招式" || /Z 力量|Z-Power|Z-Move/i.test(event.text));
+}
+
+function zActorName(event: BattleTimelineEvent, displayedNames: {p1: string; p2: string}): string {
+  const textName = event.text.match(/^(.+?)\s*(?:被|让|開始|开始)/)?.[1]?.trim();
+  return textName || event.source || event.target || displayedNames[event.side || event.targetSide || "p1"] || "宝可梦";
+}
+
+function zMoveDisplayName(event: BattleTimelineEvent): string {
+  const raw = event.move || event.text.match(/使用\s+(.+?)(?:。|！|!|$)/)?.[1] || event.text;
+  const label = zMoveDisplayLabel(raw);
+  return label.endsWith("！") || label.endsWith("!") ? label : `${label}！`;
+}
+
+const Z_MOVE_SPRITE_FILES = new Map([
+  ["究极无敌大冲撞", "究极无敌大冲撞 Sprite.webp"], ["Breakneck Blitz", "究极无敌大冲撞 Sprite.webp"],
+  ["全力无双激烈拳", "全力无双激烈拳 Sprite.webp"], ["All-Out Pummeling", "全力无双激烈拳 Sprite.webp"],
+  ["极速俯冲轰烈撞", "极速俯冲轰烈撞 Sprite.webp"], ["Supersonic Skystrike", "极速俯冲轰烈撞 Sprite.webp"],
+  ["强酸剧毒灭绝雨", "强酸剧毒灭绝雨 Sprite.webp"], ["Acid Downpour", "强酸剧毒灭绝雨 Sprite.webp"],
+  ["地隆啸天大终结", "地隆啸天大终结 Sprite.webp"], ["Tectonic Rage", "地隆啸天大终结 Sprite.webp"],
+  ["毁天灭地巨岩坠", "毁天灭地巨岩坠 Sprite.webp"], ["Continental Crush", "毁天灭地巨岩坠 Sprite.webp"],
+  ["绝对捕食回旋斩", "绝对捕食回旋斩 Sprite.webp"], ["Savage Spin-Out", "绝对捕食回旋斩 Sprite.webp"],
+  ["无尽暗夜之诱惑", "无尽暗夜之诱惑 Sprite.webp"], ["Never-Ending Nightmare", "无尽暗夜之诱惑 Sprite.webp"],
+  ["超绝螺旋连击", "超绝螺旋连击 Sprite.webp"], ["Corkscrew Crash", "超绝螺旋连击 Sprite.webp"],
+  ["超强极限爆焰弹", "超强极限爆焰弹 Sprite.webp"], ["Inferno Overdrive", "超强极限爆焰弹 Sprite.webp"],
+  ["超级水流大漩涡", "超级水流大漩涡 Sprite.webp"], ["Hydro Vortex", "超级水流大漩涡 Sprite.webp"],
+  ["绚烂缤纷花怒放", "绚烂缤纷花怒放 Sprite.webp"], ["Bloom Doom", "绚烂缤纷花怒放 Sprite.webp"],
+  ["终极伏特狂雷闪", "终极伏特狂雷闪 Sprite.webp"], ["Gigavolt Havoc", "终极伏特狂雷闪 Sprite.webp"],
+  ["至高精神破坏波", "至高精神破坏波 Sprite.webp"], ["Shattered Psyche", "至高精神破坏波 Sprite.webp"],
+  ["激狂大地万里冰", "激狂大地万里冰 Sprite.webp"], ["Subzero Slammer", "激狂大地万里冰 Sprite.webp"],
+  ["究极巨龙震天地", "究极巨龙震天地 Sprite.webp"], ["Devastating Drake", "究极巨龙震天地 Sprite.webp"],
+  ["黑洞吞噬万物灭", "黑洞吞噬万物灭 Sprite.webp"], ["Black Hole Eclipse", "黑洞吞噬万物灭 Sprite.webp"],
+  ["可爱星星飞天撞", "可爱星星飞天撞 Sprite.webp"], ["Twinkle Tackle", "可爱星星飞天撞 Sprite.webp"],
+  ["认真起来大爆击", "认真起来大爆击 Sprite.webp"], ["Pulverizing Pancake", "认真起来大爆击 Sprite.webp"],
+  ["驾雷驭电戏冲浪", "驾雷驭电戏冲浪 Sprite.webp"], ["Stoked Sparksurfer", "驾雷驭电戏冲浪 Sprite.webp"],
+  ["皮卡皮卡必杀击", "皮卡皮卡必杀击 Sprite.webp"], ["Catastropika", "皮卡皮卡必杀击 Sprite.webp"],
+  ["千万伏特", "千万伏特 Sprite.webp"], ["10,000,000 Volt Thunderbolt", "千万伏特 Sprite.webp"],
+  ["九彩升华齐聚顶", "九彩升华齐聚顶 Sprite.webp"], ["Extreme Evoboost", "九彩升华齐聚顶 Sprite.webp"],
+  ["巨人卫士・阿罗拉", "巨人卫士・阿罗拉 Sprite.webp"], ["Guardian of Alola", "巨人卫士・阿罗拉 Sprite.webp"],
+  ["起源超新星大爆炸", "起源超新星大爆炸S Sprite.webp"], ["Genesis Supernova", "起源超新星大爆炸S Sprite.webp"],
+  ["遮天蔽日暗影箭", "遮天蔽日暗影箭S Sprite.webp"], ["Sinister Arrow Raid", "遮天蔽日暗影箭S Sprite.webp"],
+  ["极恶飞跃粉碎击", "极恶飞跃粉碎击 Sprite.webp"], ["Malicious Moonsault", "极恶飞跃粉碎击 Sprite.webp"],
+  ["海神庄严交响乐", "海神庄严交响乐 Sprite.webp"], ["Oceanic Operetta", "海神庄严交响乐 Sprite.webp"],
+  ["七星夺魂腿", "七星夺魂腿 Sprite.webp"], ["Soul-Stealing 7-Star Strike", "七星夺魂腿 Sprite.webp"],
+  ["炽魂热舞烈音爆", "炽魂热舞烈音爆 Sprite.webp"], ["Clangorous Soulblaze", "炽魂热舞烈音爆 Sprite.webp"],
+  ["亲密无间大乱揍", "亲密无间大乱揍 Sprite.webp"], ["Let's Snuggle Forever", "亲密无间大乱揍 Sprite.webp"],
+  ["狼啸石牙飓风暴", "狼啸石牙飓风暴 Sprite.webp"], ["Splintered Stormshards", "狼啸石牙飓风暴 Sprite.webp"],
+  ["日光回旋下苍穹", "日光回旋下苍穹 Sprite.webp"], ["Searing Sunraze Smash", "日光回旋下苍穹 Sprite.webp"],
+  ["月华飞溅落灵霄", "月华飞溅落灵霄 Sprite.webp"], ["Menacing Moonraze Maelstrom", "月华飞溅落灵霄 Sprite.webp"],
+  ["焚天灭世炽光爆", "焚天灭世炽光爆 Sprite.webp"], ["Light That Burns the Sky", "焚天灭世炽光爆 Sprite.webp"],
+]);
+
+function cleanZMoveName(text: string): string {
+  return text.replace(/[!！。.]/g, "").trim();
+}
+
+function zMoveSpriteFile(text: string): string | undefined {
+  const cleaned = cleanZMoveName(text);
+  const exact = Z_MOVE_SPRITE_FILES.get(cleaned);
+  if (exact) return exact;
+  const normalized = toId(cleaned);
+  return [...Z_MOVE_SPRITE_FILES.entries()].find(([name]) => toId(name) === normalized)?.[1];
+}
+
+function zMoveDisplayLabel(text: string, pokemon?: RentalPokemon): string {
+  const cleaned = cleanZMoveName(text);
+  const fileName = zMoveSpriteFile(text);
+  if (fileName) return fileName.replace(/(?:[ST])? Sprite\.(?:png|webp)$/, "");
+  const statusZMove = cleaned.match(/^Z[-\s](.+)$/i);
+  if (statusZMove) {
+    const summary = moveSummaryByName(pokemon, statusZMove[1]);
+    return `Z-${summary?.name_zh || statusZMove[1]}`;
+  }
+  return moveSummaryByName(pokemon, cleaned)?.name_zh || text;
+}
+
+function zMoveSpritePath(text: string): string | null {
+  const fileName = zMoveSpriteFile(text);
+  return fileName ? `assets/z-moves/${fileName}` : null;
+}
+
+function ZMoveNameCutIn({event}: {event: BattleTimelineEvent}) {
+  const moveName = zMoveDisplayName(event);
+  const spritePath = zMoveSpritePath(moveName);
+  const [spriteState, setSpriteState] = useState<"loading" | "ready" | "failed">("loading");
+  const spriteUrl = spritePath ? assetUrl(spritePath) : undefined;
+  return (
+    <span className={`z-move-name-content ${spriteState === "ready" ? "has-art" : ""}`}>
+      {spriteUrl && spriteState !== "failed" ? <img className="z-move-name-art" src={spriteUrl} alt={moveName} onLoad={() => setSpriteState("ready")} onError={() => setSpriteState("failed")} /> : null}
+      <span className="z-move-name-text">{moveName}</span>
+    </span>
+  );
 }
 
 function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
@@ -379,6 +491,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         await wait(920);
         if (playbackRun.current !== runId) return;
       }
+      let pendingZMoveSide: "p1" | "p2" | null = null;
+      let pendingZImpactSourceSide: "p1" | "p2" | null = null;
+      const skipZVisualIds = new Set<string>();
       for (const step of buildBattleDisplaySteps(added)) {
         if (playbackRun.current !== runId) return;
         if (step.kind === "pause") {
@@ -389,13 +504,50 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         const duration = timelineDuration(event, displayConditionsRef.current[event.targetSide || "p1"]);
         const targetIsDisplayedActive = eventCanMutateDisplayedActive(event, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current);
         if (step.kind === "message") {
+          if (isZPowerEvent(event)) {
+            const side = event.side || event.targetSide || "p1";
+            const actorName = zActorName(event, displayedActiveNamesRef.current);
+            pendingZMoveSide = side;
+            skipZVisualIds.add(event.id);
+            setCurrentVisualCue(targetIsDisplayedActive ? visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current) : null);
+            const powerEvent = {...event, id: `${event.id}:zpower`, text: `${actorName}让Z力量笼罩了全身`, effect: "z-move-call"} as BattleTimelineEvent;
+            setCurrentTimelineEvent(powerEvent);
+            setShownEvents(events => [...events, powerEvent.text].slice(-14));
+            await wait(860);
+            if (playbackRun.current !== runId) return;
+            const releaseEvent = {...event, id: `${event.id}:zrelease`, text: `${actorName}开始释放Z招式`, effect: "z-move-call"} as BattleTimelineEvent;
+            setCurrentTimelineEvent(releaseEvent);
+            setShownEvents(events => [...events, releaseEvent.text].slice(-14));
+            await wait(720);
+            setCurrentVisualCue(null);
+            continue;
+          }
+          if (event.type === "move" && pendingZMoveSide && (event.side || "p1") === pendingZMoveSide) {
+            const sourceSide = event.side || pendingZMoveSide;
+            pendingZMoveSide = null;
+            pendingZImpactSourceSide = sourceSide;
+            const nameEvent = {...event, id: `${event.id}:zname`, text: zMoveDisplayName(event), effect: "z-move-name"} as BattleTimelineEvent;
+            setCurrentTimelineEvent(nameEvent);
+            setShownEvents(events => [...events, event.text].slice(-14));
+            await wait(1180);
+            continue;
+          }
+          if (event.type === "move" && pendingZImpactSourceSide && (event.side || "p1") !== pendingZImpactSourceSide) {
+            pendingZImpactSourceSide = null;
+          }
           setCurrentTimelineEvent(event);
           setShownEvents(events => [...events, event.text].slice(-14));
           await wait(Math.max(780, Math.min(2200, duration)));
           continue;
         }
         if (step.kind === "visual") {
-          setCurrentVisualCue(targetIsDisplayedActive ? visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current) : null);
+          if (skipZVisualIds.has(event.id)) continue;
+          const zImpactActive = event.type === "damage" && pendingZImpactSourceSide && event.targetSide && event.targetSide !== pendingZImpactSourceSide;
+          const cue = zImpactActive
+            ? zImpactCueForEvent(event, pendingZImpactSourceSide!, duration)
+            : visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current);
+          if (zImpactActive) pendingZImpactSourceSide = null;
+          setCurrentVisualCue(targetIsDisplayedActive ? cue : null);
           await wait(duration);
           setCurrentVisualCue(null);
           continue;
@@ -575,7 +727,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
           <PokemonSprite className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""}`} pokemon={displayedSubstitutes.p2 ? undefined : displayEnemy} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} entrance={!displayedSubstitutes.p2 && introActive} />
         </div>
         <FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} onClick={() => setDetailIndex(activePlayerIndex)} />
-        {currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.text}</div> : null}
+        {currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""} ${currentTimelineEvent.effect === "z-move-call" ? "z-move-call" : ""} ${currentTimelineEvent.effect === "z-move-name" ? "z-move-name" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.effect === "z-move-name" ? <ZMoveNameCutIn event={currentTimelineEvent} /> : currentTimelineEvent.text}</div> : null}
       </section>
       <section className={`battle-bottom ${dialogue ? "dialogue-bottom-active" : ""} ${panelMode === "moveMenu" && !dialogue ? "move-bottom-active" : ""}`}>
         {dialogue ? (
@@ -583,7 +735,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         ) : (
           <>
             <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
-            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" && !requestWaiting ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={index => onChoice(`move ${index}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onForfeit={() => onChoice("forfeit")} />}</div>
+            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" && !requestWaiting ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, zMove) => onChoice(`move ${index}${zMove ? " zmove" : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands forceSwitch={Boolean(battle.request?.forceSwitch)} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onForfeit={() => onChoice("forfeit")} />}</div>
           </>
         )}
       </section>
@@ -786,21 +938,32 @@ function MainBattleCommands({forceSwitch, waiting, disabled, setMode, onBag, onF
   return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled={disabled || forceSwitch} onClick={onBag}>背包</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
 }
 
-function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number) => void; onBack: () => void}) {
-  const moves = battle.request?.active?.[0]?.moves || [];
+function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, zMove?: boolean) => void; onBack: () => void}) {
+  const activeRequest = battle.request?.active?.[0];
+  const moves = activeRequest?.moves || [];
   const active = activePokemon(battle, "p1").display;
   const target = activePokemon(battle, "p2").display;
+  const enabledSystems = battle.battle_setting?.enabled_battle_systems || [];
+  const visibleSystems = BATTLE_SYSTEM_OPTIONS.filter(option => enabledSystems.includes(option.id));
+  const canZMove = activeRequest?.canZMove || [];
+  const zAvailable = enabledSystems.includes("zmove") && canZMove.some(Boolean);
+  const [zMode, setZMode] = useState(false);
+  useEffect(() => {
+    if (!zAvailable && zMode) setZMode(false);
+  }, [zAvailable, zMode]);
   return <div className="move-menu">{moves.map((move, index) => {
     const summary = moveSummaryFor(active, move);
+    const zMove = canZMove[index];
     const multiplier = moveEffectiveness(summary, target);
     const showEffect = Boolean(battle.show_move_effectiveness);
     const superEffective = Boolean(showEffect && multiplier > 1);
     const damageRange = moveDamageRangeLabel(summary, active, target, battle);
+    const zMoveDisabled = zMode && !zMove;
     return (
       <MoveCard
         size="battle"
         className={superEffective ? "move-super-effective" : ""}
-        name={summary?.name_zh || move.move}
+        name={zMode && zMove ? zMoveDisplayLabel(zMove.move, active) : summary?.name_zh || move.move}
         moveType={summary?.type || summary?.type_zh}
         typeLabel={moveTypeLabel(summary)}
         badge={showEffect ? effectivenessLabel(multiplier) : null}
@@ -808,12 +971,14 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
         pp={move.pp}
         maxPp={move.maxpp}
         power={summary?.power || "--"}
-        disabled={disabled || move.disabled}
-        onClick={() => onMove(index + 1)}
+        disabled={disabled || move.disabled || zMoveDisabled}
+        onClick={() => onMove(index + 1, zMode)}
         key={move.id || index}
       />
     );
-  })}<div className="move-footer"><button className="menu-back" disabled={disabled} onClick={onBack}>返回</button><div className="battle-system-row"><button disabled title="后续系统槽">Mega</button><button disabled title="后续系统槽">Z</button><button disabled title="后续系统槽">极巨化</button><button disabled title="后续系统槽">太晶化</button></div></div></div>;
+  })}<div className="move-footer"><button className="menu-back" disabled={disabled} onClick={onBack}>返回</button>{visibleSystems.length ? <div className="battle-system-row">{visibleSystems.map(system => system.id === "zmove"
+    ? <button className={zMode ? "selected" : ""} disabled={disabled || !zAvailable} title={zAvailable ? "选择一个技能释放 Z 招式" : "当前没有可用的 Z 招式"} onClick={() => setZMode(value => !value)} key={system.id}>{zMode ? "取消 Z" : system.name}</button>
+    : <button disabled title={`${system.name} 未接入`} key={system.id}>{IMPLEMENTED_BATTLE_SYSTEMS.has(system.id) ? system.name : `${system.name} 未接入`}</button>)}</div> : null}</div></div>;
 }
 
 function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; disabled?: boolean; onSwitch: (index: number) => void; onBack: () => void}) {

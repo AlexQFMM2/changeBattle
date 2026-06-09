@@ -6,6 +6,7 @@ import {gunzipSync, gzipSync} from "node:zlib";
 import type {
   BattleRecordEntry,
   LocalSave,
+  SaveBattleSettingTable,
   SaveBattleRecordsTable,
   SaveBossDexTable,
   SaveManifest,
@@ -17,6 +18,7 @@ import type {
   TrainerGender,
   TrainerProfile,
 } from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 
 const SAVE_VERSION = 1 as const;
 const SPLIT_SAVE_VERSION = 2 as const;
@@ -27,6 +29,7 @@ const TABLE_FILES = {
   user: "user.dat",
   talents: "talents.dat",
   starterUpgrades: "starter_upgrades.dat",
+  battleSetting: "battle_setting.dat",
   bossDex: "boss_dex.dat",
   pokemonRecords: "pokemon_records.dat",
   runCheckpoint: "run_checkpoint.dat",
@@ -111,6 +114,7 @@ export class SaveStore {
         pokemon_inspect: 0,
         pokemon_single_reroll: 0,
       },
+      battle_setting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING),
       current_run: null,
       created_at: now,
       updated_at: now,
@@ -184,6 +188,7 @@ export class SaveStore {
     const user = await this.readTable<SaveUserTable>("user");
     const talents = await this.readTable<SaveTalentTable>("talents", {version: 1, talent_unlocks: [], talent_equipped: [], named_champion_id: null});
     const starterUpgrades = await this.readTable<SaveStarterUpgradesTable>("starterUpgrades", {version: 1});
+    const battleSetting = await this.readTable<SaveBattleSettingTable>("battleSetting", {version: 1, battle_setting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING)});
     const bossDex = await this.readTable<SaveBossDexTable>("bossDex", {version: 1, boss_dex: {}});
     const runCheckpoint = await this.readTable<SaveRunCheckpointTable>("runCheckpoint", {version: 1, current_run: null});
     return {
@@ -195,6 +200,7 @@ export class SaveStore {
       talent_equipped: talents.talent_equipped || [],
       named_champion_id: talents.named_champion_id || null,
       starter_upgrades: starterUpgrades.starter_upgrades,
+      battle_setting: normalizeBattleSetting(battleSetting.battle_setting),
       boss_dex: bossDex.boss_dex || {},
       run_memory: user.run_memory,
       current_run: runCheckpoint.current_run || null,
@@ -234,6 +240,10 @@ export class SaveStore {
     await this.writeTable<SaveStarterUpgradesTable>("starterUpgrades", {
       version: 1,
       starter_upgrades: save.starter_upgrades,
+    });
+    await this.writeTable<SaveBattleSettingTable>("battleSetting", {
+      version: 1,
+      battle_setting: normalizeBattleSetting(save.battle_setting),
     });
     await this.writeTable<SaveBossDexTable>("bossDex", {
       version: 1,

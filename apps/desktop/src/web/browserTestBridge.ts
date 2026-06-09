@@ -1,4 +1,5 @@
-import type {BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopGameState, LocalSave, PlayerPokemonState, RentalPokemon, RestAction, RestState, SaveBattleRecordsTable, ShopOffer, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleSetting, BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopGameState, LocalSave, PlayerPokemonState, RentalPokemon, RestAction, RestState, SaveBattleRecordsTable, ShopOffer, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {buildBattleDisplaySteps, type BattleDisplayStep} from "../components/battle/timelineFlow";
 import {TALENT_CATALOG, debugBattle, debugMove, debugPokemon} from "../lib/ui";
 
@@ -74,6 +75,12 @@ export function installBrowserTestBridge(): void {
       lastAction = "enableTestMode";
       save = {...save, stats: {...save.stats, battle_points: 99999}};
       return save;
+    },
+    getBattleSetting: async () => ({setting: normalizeBattleSetting(save.battle_setting), save}),
+    updateBattleSetting: async (setting: BattleSetting) => {
+      lastAction = "updateBattleSetting";
+      save = {...save, battle_setting: normalizeBattleSetting(setting)};
+      return {setting: save.battle_setting!, save};
     },
     trainerCatalog: async () => trainerCatalog(),
     prepareStarterItems: async () => {
@@ -173,6 +180,7 @@ function createSave(hasRun: boolean): LocalSave {
     talent_unlocks: [],
     talent_equipped: [],
     starter_upgrades: {},
+    battle_setting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING),
     current_run: hasRun ? ({status: "ready_to_battle", seed: 1, battles: 7, next_battle: 1, battle_no: 0, wins: 0, player_team: [], player_display: []} as any) : null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

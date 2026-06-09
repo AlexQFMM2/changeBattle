@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import type {BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
 import {
   BP_SCALE,
@@ -229,6 +230,18 @@ function testDefaultsAndHelpers(): void {
   assert.equal(currentBp(playerSave), 0);
 }
 
+function testBattleSettingDefaults(): void {
+  assert.deepEqual(DEFAULT_BATTLE_SETTING.allowed_generations, [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(DEFAULT_BATTLE_SETTING.enabled_battle_systems, []);
+  assert.equal(DEFAULT_BATTLE_SETTING.legendary_battle, false);
+
+  assert.deepEqual(normalizeBattleSetting({allowed_generations: [8, 9]}).allowed_generations, DEFAULT_BATTLE_SETTING.allowed_generations);
+  assert.deepEqual(normalizeBattleSetting({allowed_generations: [9, 8, 8, 7]}).allowed_generations, [9, 8, 7]);
+  assert.deepEqual(normalizeBattleSetting({enabled_battle_systems: ["mega", "zmove", "dynamax", "terastal"]}).enabled_battle_systems, ["mega", "zmove"]);
+  assert.deepEqual(normalizeBattleSetting({enabled_battle_systems: ["mega", "mega", "bad" as any]}).enabled_battle_systems, ["mega"]);
+  assert.equal(normalizeBattleSetting({legendary_battle: true}).legendary_battle, true);
+}
+
 function offer(id: string, index: number): ShopOffer {
   return {id, name: id, name_zh: id, cost: 100, desc: "", desc_zh: "", offer_id: `offer-${index}`, category: "held", source: "shop"};
 }
@@ -260,6 +273,7 @@ testGrowthTalents();
 testIntelTalents();
 testEconomyTalents();
 testDefaultsAndHelpers();
+testBattleSettingDefaults();
 testShopDuplicateBonus();
 testBattleTimelineEntryOrdering();
 

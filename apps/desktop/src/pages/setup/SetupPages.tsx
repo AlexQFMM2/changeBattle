@@ -1,6 +1,7 @@
 import type {ComponentProps} from "react";
 import {
   RentalSelect as RentalSelectComponent,
+  BattleSettingPage as BattleSettingPageComponent,
   StarterItemsView as StarterItemsViewComponent,
   StarterUpgradePage as StarterUpgradePageComponent,
   TalentConfigView as TalentConfigViewComponent,
@@ -12,6 +13,10 @@ export function TalentConfigView(props: ComponentProps<typeof TalentConfigViewCo
 
 export function StarterUpgradePage(props: ComponentProps<typeof StarterUpgradePageComponent>) {
   return <StarterUpgradePageComponent {...props} />;
+}
+
+export function BattleSettingPage(props: ComponentProps<typeof BattleSettingPageComponent>) {
+  return <BattleSettingPageComponent {...props} />;
 }
 
 export function StarterItemsView(props: ComponentProps<typeof StarterItemsViewComponent>) {

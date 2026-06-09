@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState} from "react";
 import type {CSSProperties} from "react";
-import type {DesktopGameState, LocalSave, RentalPokemon, StarterUpgradeView, TalentView, TrainerNpcView} from "@changebattle/shared";
+import type {BattleSetting, BattleSystemId, DesktopGameState, LocalSave, RentalPokemon, StarterUpgradeView, TalentView, TrainerNpcView} from "@changebattle/shared";
+import {BATTLE_GENERATION_OPTIONS, BATTLE_SYSTEM_OPTIONS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {AnimatePresence, motion} from "motion/react";
 import {ItemIcon, PokemonSprite, TALENT_CATALOG, TALENT_EQUIP_LIMIT, bpCostLabel, coinCostLabel, displayName, hasStarterItemChoices, itemCategoryLabel, statMarker, talentShortText} from "../../lib/ui";
 import {PokemonProfile} from "../pokemon/PokemonProfile";
@@ -259,6 +260,190 @@ export function StarterUpgradePage({save, onSaved, onBack}: {save: LocalSave | n
   );
 }
 
+type BattleSettingTab = "regions" | "systems" | "legendary";
+
+const BATTLE_SETTING_TABS: Array<{id: BattleSettingTab; label: string}> = [
+  {id: "regions", label: "地区专爱"},
+  {id: "systems", label: "战斗系统"},
+  {id: "legendary", label: "神战"},
+];
+
+const BATTLE_SYSTEM_STATE: Record<BattleSystemId, {ready: boolean; summary: string; detail: string}> = {
+  mega: {ready: false, summary: "未接入", detail: "Mega 机制还没有接入实战。当前不会开放 Mega 石，也不会在战斗中触发 Mega 进化。"},
+  zmove: {ready: true, summary: "已接入", detail: "Z 招式已接入实战。宝可梦携带对应 Z 纯晶后，每场战斗每方只能使用一次；选择 Z 招式后再点可 Z 化技能释放。"},
+  dynamax: {ready: false, summary: "未接入", detail: "极巨化机制还没有接入实战。当前不会开放极巨化按钮、极巨招式或相关战斗效果。"},
+  terastal: {ready: false, summary: "未接入", detail: "太晶化机制还没有接入实战。当前不会开放太晶化按钮、太晶属性变化或相关战斗效果。"},
+};
+
+function normalizeBattleSettingForReadySystems(setting?: Partial<BattleSetting> | null): BattleSetting {
+  const normalized = normalizeBattleSetting(setting || DEFAULT_BATTLE_SETTING);
+  return {
+    ...normalized,
+    enabled_battle_systems: normalized.enabled_battle_systems.filter(system => BATTLE_SYSTEM_STATE[system]?.ready),
+  };
+}
+
+export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
+  const [setting, setSetting] = useState<BattleSetting>(() => normalizeBattleSettingForReadySystems(save?.battle_setting || DEFAULT_BATTLE_SETTING));
+  const [activeTab, setActiveTab] = useState<BattleSettingTab>("regions");
+  const [selectedSystemId, setSelectedSystemId] = useState<BattleSystemId>("zmove");
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.changeBattle?.getBattleSetting().then(result => {
+      if (cancelled || !result) return;
+      setSetting(normalizeBattleSettingForReadySystems(result.setting));
+      if (result.save) onSaved(result.save);
+    }).catch(() => {
+      if (!cancelled) setSetting(normalizeBattleSettingForReadySystems(save?.battle_setting || DEFAULT_BATTLE_SETTING));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedRegionCount = setting.allowed_generations.length;
+  const selectedSystemCount = setting.enabled_battle_systems.length;
+  const canSave = selectedRegionCount >= 3 && selectedSystemCount <= 2;
+
+  function toggleGeneration(generation: number) {
+    setNotice("");
+    setSetting(current => {
+      const selected = current.allowed_generations.includes(generation);
+      if (selected && current.allowed_generations.length <= 3) {
+        setNotice("地区专爱至少保留 3 个地区。");
+        return current;
+      }
+      const allowed_generations = selected
+        ? current.allowed_generations.filter(value => value !== generation)
+        : [...current.allowed_generations, generation].sort((a, b) => a - b);
+      return {...current, allowed_generations};
+    });
+  }
+
+  function toggleSystem(system: BattleSystemId) {
+    setNotice("");
+    setSelectedSystemId(system);
+    setSetting(current => {
+      const selected = current.enabled_battle_systems.includes(system);
+      const ready = BATTLE_SYSTEM_STATE[system]?.ready;
+      if (!ready && !selected) {
+        setNotice("该战斗系统暂未接入。");
+        return current;
+      }
+      if (!selected && current.enabled_battle_systems.length >= 2) {
+        setNotice("战斗系统最多同时选择 2 个。");
+        return current;
+      }
+      const enabled_battle_systems = selected
+        ? current.enabled_battle_systems.filter(value => value !== system)
+        : [...current.enabled_battle_systems, system];
+      return {...current, enabled_battle_systems};
+    });
+  }
+
+  async function saveSetting() {
+    if (!canSave || saving) return;
+    setSaving(true);
+    setNotice("");
+    try {
+      const result = await window.changeBattle!.updateBattleSetting(setting);
+      setSetting(normalizeBattleSettingForReadySystems(result.setting));
+      if (result.save) onSaved(result.save);
+      setNotice("对局偏好已保存，下一局开始生效。");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "保存失败。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const detailTitle = activeTab === "regions" ? "地区专爱" : activeTab === "systems" ? "战斗系统" : "神战";
+  const selectedSystem = BATTLE_SYSTEM_OPTIONS.find(option => option.id === selectedSystemId) || BATTLE_SYSTEM_OPTIONS[1] || BATTLE_SYSTEM_OPTIONS[0];
+  const selectedSystemState = selectedSystem ? BATTLE_SYSTEM_STATE[selectedSystem.id] : null;
+  const selectedSystemOpen = selectedSystem ? setting.enabled_battle_systems.includes(selectedSystem.id) : false;
+  const detailText = activeTab === "regions"
+    ? `已选择 ${selectedRegionCount}/9 个地区，随机宝可梦只会来自这些世代。`
+    : activeTab === "systems"
+      ? selectedSystem && selectedSystemState ? selectedSystemState.detail : "当前不开放额外战斗系统。"
+      : setting.legendary_battle ? "神战开启：随机池允许神兽/幻兽，每队最多 1 只。" : "神战关闭：随机池不会出现神兽/幻兽。";
+  const detailStrong = activeTab === "systems" && selectedSystem && selectedSystemState
+    ? selectedSystemState.ready
+      ? selectedSystemOpen ? `${selectedSystem.name} 已开放` : `${selectedSystem.name} 可开放`
+      : `${selectedSystem.name} 未接入`
+    : canSave ? "配置有效" : "配置未完成";
+
+  return (
+    <div className="starter-upgrade-page battle-setting-page">
+      <section className="starter-upgrade-shell battle-setting-shell">
+        <div className="starter-upgrade-main">
+          <nav className="starter-upgrade-tabs">
+            {BATTLE_SETTING_TABS.map(tab => (
+              <button className={activeTab === tab.id ? "selected" : ""} onClick={() => { setActiveTab(tab.id); setNotice(""); }} key={tab.id}>
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          <div className="starter-upgrade-list battle-setting-list">
+            {activeTab === "regions" ? BATTLE_GENERATION_OPTIONS.map(option => {
+              const selected = setting.allowed_generations.includes(option.generation);
+              return (
+                <button className={`starter-upgrade-row battle-setting-row ${selected ? "selected" : ""}`} onClick={() => toggleGeneration(option.generation)} key={option.generation}>
+                  <span>{option.region}</span>
+                  <small>第 {option.generation} 世代</small>
+                  <b>{selected ? "已选" : "未选"}</b>
+                </button>
+              );
+            }) : null}
+            {activeTab === "systems" ? BATTLE_SYSTEM_OPTIONS.map(option => {
+              const selected = setting.enabled_battle_systems.includes(option.id);
+              const systemState = BATTLE_SYSTEM_STATE[option.id];
+              const selectedForDetail = selectedSystemId === option.id;
+              return (
+                <button className={`starter-upgrade-row battle-setting-row ${selected ? "selected" : ""} ${selectedForDetail ? "focused" : ""} ${!systemState.ready ? "unavailable" : ""}`} onClick={() => toggleSystem(option.id)} key={option.id}>
+                  <span>{option.name}</span>
+                  <small>{systemState.summary}</small>
+                  <b>{systemState.ready ? (selected ? "开放" : "关闭") : "未接入"}</b>
+                </button>
+              );
+            }) : null}
+            {activeTab === "legendary" ? (
+              <>
+                <button className={`starter-upgrade-row battle-setting-row ${!setting.legendary_battle ? "selected" : ""}`} onClick={() => setSetting(current => ({...current, legendary_battle: false}))}>
+                  <span>关闭神战</span>
+                  <small>随机池排除神兽与幻兽。</small>
+                  <b>{!setting.legendary_battle ? "当前" : "选择"}</b>
+                </button>
+                <button className={`starter-upgrade-row battle-setting-row ${setting.legendary_battle ? "selected" : ""}`} onClick={() => setSetting(current => ({...current, legendary_battle: true}))}>
+                  <span>开启神战</span>
+                  <small>随机池允许神兽/幻兽，每队最多 1 只。</small>
+                  <b>{setting.legendary_battle ? "当前" : "选择"}</b>
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+        <aside className="starter-upgrade-detail battle-setting-detail">
+          <div>
+            <span>对局偏好</span>
+            <h3>{activeTab === "systems" && selectedSystem ? selectedSystem.name : detailTitle}</h3>
+            <p>{detailText}</p>
+            <strong>{detailStrong}</strong>
+            <small>{notice || "保存后从下一局新挑战开始生效。"}</small>
+          </div>
+          <div className="starter-upgrade-actions">
+            <button disabled={!canSave || saving} onClick={saveSetting}>{saving ? "保存中" : "保存"}</button>
+            <button onClick={onBack}>返回</button>
+          </div>
+          <footer>地区 {selectedRegionCount}/9　系统 {selectedSystemCount}/2</footer>
+        </aside>
+      </section>
+    </div>
+  );
+}
+
 export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopGameState["starter"]; onChoose: (offerId: string | null) => void | Promise<void>; onBack: () => void | Promise<void>}) {
   const groupOrder = ["recovery", "berry", "tm", "battle"];
   const purchasedOffers = starter?.purchased_list || (starter?.purchased ? [starter.purchased] : []);
@@ -392,6 +577,18 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
   );
 }
 
+function battleSystemLabel(system: BattleSystemId): string {
+  return BATTLE_SYSTEM_OPTIONS.find(option => option.id === system)?.name || system;
+}
+
+function rentalSpecialBadges(pokemon: RentalPokemon): string[] {
+  return [
+    pokemon.is_mythical ? "幻兽" : "",
+    !pokemon.is_mythical && pokemon.is_legendary ? "神兽" : "",
+    pokemon.item_battle_system ? battleSystemLabel(pokemon.item_battle_system) : "",
+  ].filter(Boolean);
+}
+
 export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack, onReroll, onSingleReroll, onInspect, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false, inspected = false}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void; onStart: () => void | Promise<void>; onBack?: () => void | Promise<void>; onReroll?: () => void | Promise<void>; onSingleReroll?: () => void | Promise<void>; onInspect?: () => void; runSeed?: number; wholeRerollsRemaining?: number; singleRerollsRemaining?: number; inspectRemaining?: number; revealTraining?: boolean; inspected?: boolean}) {
   const pokemon = candidates[focusIndex];
   if (!pokemon) return <div className="loading-panel"><strong>正在生成租赁候选...</strong></div>;
@@ -435,11 +632,14 @@ export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, o
         <nav className={`rental-thumbnail-nav ${candidates.length > 12 ? "crowded" : ""}`} aria-label="候选宝可梦">
           {candidates.map((candidate, index) => {
             const candidateSelected = selected.includes(index);
+            const badges = rentalSpecialBadges(candidate);
+            const hasLegendaryBadge = Boolean(candidate.is_legendary || candidate.is_mythical);
+            const hasSystemBadge = Boolean(candidate.item_battle_system);
             return (
               <motion.button
-                className={`rental-thumbnail ${index === focusIndex ? "active" : ""} ${candidateSelected ? "picked" : ""}`}
-                aria-label={`${displayName(candidate)}${candidateSelected ? "，已选" : ""}`}
-                title={displayName(candidate)}
+                className={`rental-thumbnail ${index === focusIndex ? "active" : ""} ${candidateSelected ? "picked" : ""} ${badges.length ? "special-candidate" : ""} ${hasLegendaryBadge ? "legendary-candidate" : ""} ${hasSystemBadge ? "system-candidate" : ""}`}
+                aria-label={`${displayName(candidate)}${badges.length ? `，${badges.join("，")}` : ""}${candidateSelected ? "，已选" : ""}`}
+                title={[displayName(candidate), ...badges].join(" / ")}
                 onClick={() => setFocusIndex(index)}
                 initial={false}
                 animate={{opacity: index === focusIndex ? 1 : 0.62, y: index === focusIndex ? -2 : 0}}
@@ -449,6 +649,7 @@ export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, o
               >
                 {index === focusIndex ? <motion.i layoutId="rental-thumbnail-active" transition={{type: "spring", stiffness: 420, damping: 32}} /> : null}
                 {candidateSelected ? <motion.em className="rental-thumbnail-check" initial={{scale: 0.35, opacity: 0}} animate={{scale: 1, opacity: 1}} transition={{type: "spring", stiffness: 520, damping: 24}}>✓</motion.em> : null}
+                {badges.length ? <span className="rental-thumbnail-badges">{badges.slice(0, 2).map(label => <b key={label}>{label}</b>)}</span> : null}
                 <PokemonSprite pokemon={candidate} alt={displayName(candidate)} badge={false} />
               </motion.button>
             );

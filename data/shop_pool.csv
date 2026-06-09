@@ -92,4 +92,39 @@ scope lens,item,held,500,2,0,disabled example with space id
 scopelens,item,held,500,2,1,critical hit boost
 shellbell,item,held,500,2,1,damage recovery
 metronome,item,held,500,2,1,repeated move boost
+aloraichiumz,item,held,800,1,1,z crystal
+buginiumz,item,held,800,1,1,z crystal
+darkiniumz,item,held,800,1,1,z crystal
+decidiumz,item,held,800,1,1,z crystal
+dragoniumz,item,held,800,1,1,z crystal
+eeviumz,item,held,800,1,1,z crystal
+electriumz,item,held,800,1,1,z crystal
+fairiumz,item,held,800,1,1,z crystal
+fightiniumz,item,held,800,1,1,z crystal
+firiumz,item,held,800,1,1,z crystal
+flyiniumz,item,held,800,1,1,z crystal
+ghostiumz,item,held,800,1,1,z crystal
+grassiumz,item,held,800,1,1,z crystal
+groundiumz,item,held,800,1,1,z crystal
+iciumz,item,held,800,1,1,z crystal
+inciniumz,item,held,800,1,1,z crystal
+kommoniumz,item,held,800,1,1,z crystal
+lunaliumz,item,held,800,1,1,z crystal
+lycaniumz,item,held,800,1,1,z crystal
+marshadiumz,item,held,800,1,1,z crystal
+mewniumz,item,held,800,1,1,z crystal
+mimikiumz,item,held,800,1,1,z crystal
+normaliumz,item,held,800,1,1,z crystal
+pikaniumz,item,held,800,1,1,z crystal
+pikashuniumz,item,held,800,1,1,z crystal
+poisoniumz,item,held,800,1,1,z crystal
+primariumz,item,held,800,1,1,z crystal
+psychiumz,item,held,800,1,1,z crystal
+rockiumz,item,held,800,1,1,z crystal
+snorliumz,item,held,800,1,1,z crystal
+solganiumz,item,held,800,1,1,z crystal
+steeliumz,item,held,800,1,1,z crystal
+tapuniumz,item,held,800,1,1,z crystal
+ultranecroziumz,item,held,800,1,1,z crystal
+wateriumz,item,held,800,1,1,z crystal
 *,tm,tm,500,7,1,current team learnable tm pool

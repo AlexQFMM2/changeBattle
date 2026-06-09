@@ -5,6 +5,8 @@ import {createRequire} from "node:module";
 import path from "node:path";
 import type {
   BattleRequestView,
+  BattleSetting,
+  BattleSystemId,
   BattleMoveRequest,
   BattleState,
   BattleTimelineEvent,
@@ -23,7 +25,7 @@ import type {
   SpriteIndexMap,
   SpriteMapEntry,
 } from "@changebattle/shared";
-import {SHOWDOWN_ID_POOL} from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 
 const require = createRequire(import.meta.url);
 const DEFAULT_SHOWDOWN_PATH = "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown";
@@ -232,6 +234,7 @@ export type GenerateRentalOptions = {
   speciesTiers?: StageTier[];
   speciesIds?: string[];
   purpose?: "starter" | "normal" | "boss" | "rescue";
+  battleSetting?: BattleSetting;
 };
 
 export type GameServiceOptions = {
@@ -440,16 +443,16 @@ export class GameService {
     this.showdownPath = options.showdownPath || process.env.SHOWDOWN_PATH || DEFAULT_SHOWDOWN_PATH;
   }
 
-  async generateRentalCandidates(seed: number | number[] = Date.now(), format: string | GenerateRentalOptions = "gen7randombattle", count = RENTAL_CANDIDATE_COUNT, options: GenerateRentalOptions = {}): Promise<GeneratedTeam> {
+  async generateRentalCandidates(seed: number | number[] = Date.now(), format: string | GenerateRentalOptions = "gen9randombattle", count = RENTAL_CANDIDATE_COUNT, options: GenerateRentalOptions = {}): Promise<GeneratedTeam> {
     if (typeof format === "object") {
       options = format;
-      format = "gen7randombattle";
+      format = "gen9randombattle";
       count = options.profiles?.length || options.stages?.length || options.speciesTiers?.length || options.speciesIds?.length || count;
     }
     const sim = this.loadShowdown();
     const seedArray = this.seedArray(seed);
     await this.loadDisplayData();
-    if (options.profiles?.length || options.stages?.length || options.speciesTiers?.length || options.speciesIds?.length) {
+    if (options.profiles?.length || options.stages?.length || options.speciesTiers?.length || options.speciesIds?.length || options.battleSetting) {
       return this.generateProfiledCandidates(seedArray, format, count, options);
     }
     const team: PokemonSet[] = [];
@@ -463,7 +466,7 @@ export class GameService {
       const rng = this.createRngFromSeed(attemptSeed, attempt + 1);
       for (const baseSet of generated) {
         if (team.length >= targetCount) break;
-        const set = this.randomizeRentalSet(baseSet, rng);
+        const set = this.sanitizeSetForBattleSetting(this.randomizeRentalSet(baseSet, rng), options);
         const described = this.describeSet(set);
         if (seenSpecies.has(described.species_id)) continue;
         if (!this.hasUsableSprite(described)) continue;
@@ -477,6 +480,8 @@ export class GameService {
       throw new Error(`可用图片的租赁候选不足：${team.length}/${targetCount}`);
     }
 
+    this.ensureZMoveUser(team, options, this.createRngFromSeed(seedArray, 0x7a50));
+    display.splice(0, display.length, ...team.map(set => this.describeSet(set)));
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
   }
 
@@ -589,6 +594,24 @@ export class GameService {
         desc_zh: this.itemDescriptionZh(item),
         icon_asset: this.itemIconAsset(item.id, item),
       }));
+  }
+
+  battleSystemForItem(itemId: string): BattleSystemId | null {
+    const id = this.toId(itemId);
+    if (!id) return null;
+    const item = this.dataDex().items.get(id) as any;
+    if (item?.megaStone) return "mega";
+    if (item?.zMove || item?.zMoveType || id.endsWith("iumz")) return "zmove";
+    if (/dynamax|maxmushroom|maxmushrooms|maxhoney/.test(id)) return "dynamax";
+    if (/tera|terashard/.test(id)) return "terastal";
+    return null;
+  }
+
+  zCrystalItemIds(): string[] {
+    return this.dataDex().items.all()
+      .filter((item: any) => item?.exists && this.battleSystemForItem(item.id) === "zmove")
+      .map((item: any) => item.id)
+      .sort();
   }
 
   async dexSearch(category: DesktopDexCategory, query = "", offset = 0, limit = 8): Promise<DesktopDexSearchResult> {
@@ -952,6 +975,7 @@ export class GameService {
       item_id: item?.exists ? item.id : "",
       item_desc: item?.exists ? (item.desc || item.shortDesc || "") : "",
       item_desc_zh: this.detailDescription("items", item?.exists ? item.name : set.item),
+      item_battle_system: item?.exists ? this.battleSystemForItem(item.id) || undefined : undefined,
       moves: (set.moves || []).map((moveId: string) => this.moveDetails(moveId, dex)),
       base_stats: baseStats,
       stats: this.calculatedStats(baseStats, ivs, evs, level, nature),
@@ -964,6 +988,8 @@ export class GameService {
       role: set.role || "",
       role_zh: this.zh("roles", set.role || ""),
       shiny: Boolean(set.shiny),
+      is_legendary: Boolean(species.isLegendary),
+      is_mythical: Boolean(species.isMythical),
       stage_tier: set.stage_tier,
       species_tier: set.species_tier,
       generation_profile: set.generation_profile,
@@ -1051,10 +1077,10 @@ export class GameService {
       const speciesPick = speciesIds[index]
         ? {speciesId: speciesIds[index], speciesTier: this.tierForSpecies(speciesIds[index]) || this.profileStageTier(profile)}
         : requestedSpeciesTiers[index]
-          ? this.pickSpeciesForTier(requestedSpeciesTiers[index], rng, seenSpecies)
-          : this.pickSpeciesForProfile(profile, rng, seenSpecies);
+          ? this.pickSpeciesForTier(requestedSpeciesTiers[index], rng, seenSpecies, options)
+          : this.pickSpeciesForProfile(profile, rng, seenSpecies, options);
       const baseSet = this.baseSetForSpecies(speciesPick.speciesId, generator, rng);
-      const set = this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier);
+      const set = this.sanitizeSetForBattleSetting(this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier), options);
       const described = this.describeSet(set);
       if (seenSpecies.has(described.species_id) && !speciesIds[index]) continue;
       if (!this.hasUsableSprite(described) && !speciesIds[index]) {
@@ -1066,6 +1092,8 @@ export class GameService {
       display.push(described);
     }
     if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
+    this.ensureZMoveUser(team, options, rng);
+    display.splice(0, display.length, ...team.map(set => this.describeSet(set)));
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
   }
 
@@ -1081,7 +1109,7 @@ export class GameService {
 
   private randomGenerator(format: string, seedArray: number[]): any {
     try {
-      return this.loadShowdown().Teams.getGenerator(format || "gen7randombattle", seedArray);
+      return this.loadShowdown().Teams.getGenerator(format || "gen9randombattle", seedArray);
     } catch {
       return null;
     }
@@ -1151,20 +1179,24 @@ export class GameService {
     return values;
   }
 
-  private pickSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>): SpeciesPick {
+  private pickSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>, options: GenerateRentalOptions): SpeciesPick {
     const rule = this.pickSpeciesTierRule(profile, rng);
-    return this.pickSpeciesByRule(rule, rng, seenSpecies);
+    return this.pickSpeciesByRule(rule, rng, seenSpecies, options);
   }
 
-  private pickSpeciesForTier(tier: StageTier, rng: () => number, seenSpecies: Set<string>): SpeciesPick {
-    return this.pickSpeciesByRule({tier, weight: 1, preferNonNfe: true}, rng, seenSpecies);
+  private pickSpeciesForTier(tier: StageTier, rng: () => number, seenSpecies: Set<string>, options: GenerateRentalOptions): SpeciesPick {
+    return this.pickSpeciesByRule({tier, weight: 1, preferNonNfe: true}, rng, seenSpecies, options);
   }
 
-  private pickSpeciesByRule(rule: SpeciesTierRule, rng: () => number, seenSpecies: Set<string>): SpeciesPick {
+  private pickSpeciesByRule(rule: SpeciesTierRule, rng: () => number, seenSpecies: Set<string>, options: GenerateRentalOptions): SpeciesPick {
     const tierRows = this.loadTierRows();
-    const tierPool = tierRows.filter(row => row.tier === rule.tier);
-    const uniquePool = tierPool.filter(row => !seenSpecies.has(row.species_id));
-    const selectedPool = this.preferredSpeciesPool(uniquePool.length ? uniquePool : tierPool, rule);
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    const tierPool = tierRows.filter(row => row.tier === rule.tier && this.speciesAllowedByBattleSetting(row.species_id, setting, seenSpecies, options.purpose));
+    const fallbackTierPool = tierRows.filter(row => this.speciesAllowedByBattleSetting(row.species_id, setting, seenSpecies, options.purpose));
+    const sourcePool = tierPool.length ? tierPool : fallbackTierPool;
+    if (!sourcePool.length) return {speciesId: "pikachu", speciesTier: rule.tier};
+    const uniquePool = sourcePool.filter(row => !seenSpecies.has(row.species_id));
+    const selectedPool = this.preferredSpeciesPool(uniquePool.length ? uniquePool : sourcePool, rule);
     const dex = this.dataDex();
     const generationFor = (speciesId: string) => Math.max(1, Math.min(9, Number(dex.species.get(speciesId)?.gen || 1)));
     const seenGenerations = [...seenSpecies].map(generationFor);
@@ -1177,6 +1209,73 @@ export class GameService {
     const finalPool = genPool.length ? genPool : selectedPool;
     const selected = finalPool[this.randomInt(rng, 0, Math.max(0, finalPool.length - 1))];
     return {speciesId: selected?.species_id || "pikachu", speciesTier: selected?.tier || rule.tier};
+  }
+
+  private speciesAllowedByBattleSetting(speciesId: string, setting: BattleSetting, seenSpecies: Set<string>, purpose?: GenerateRentalOptions["purpose"]): boolean {
+    if (purpose === "boss") return true;
+    const species = this.dataDex().species.get(speciesId);
+    const generation = Math.max(1, Math.min(9, Number(species?.gen || 1)));
+    if (!setting.allowed_generations.includes(generation)) return false;
+    if (!setting.legendary_battle && this.isLegendarySpecies(speciesId)) return false;
+    if (setting.legendary_battle && this.isLegendarySpecies(speciesId)) {
+      const existingLegendaryCount = [...seenSpecies].filter(id => this.isLegendarySpecies(id)).length;
+      if (existingLegendaryCount >= 1) return false;
+    }
+    return true;
+  }
+
+  private isLegendarySpecies(speciesId: string): boolean {
+    const species = this.dataDex().species.get(speciesId);
+    return Boolean(species?.isLegendary || species?.isMythical);
+  }
+
+  private sanitizeSetForBattleSetting(set: PokemonSet, options: GenerateRentalOptions): PokemonSet {
+    if (!options.battleSetting) return set;
+    const setting = normalizeBattleSetting(options.battleSetting);
+    const system = this.battleSystemForItem(set.item);
+    if (!system || setting.enabled_battle_systems.includes(system)) return set;
+    return {...set, item: ""};
+  }
+
+  private ensureZMoveUser(team: PokemonSet[], options: GenerateRentalOptions, rng: () => number): void {
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    if (!setting.enabled_battle_systems.includes("zmove")) return;
+    for (const set of team) {
+      const specialItems = this.zCrystalChoicesForSet(set).special;
+      if (!specialItems.length) continue;
+      set.item = this.dataDex().items.get(specialItems[0])?.name || specialItems[0];
+    }
+    if (team.some(set => this.zCrystalOptionsForSet(set).some(itemId => this.toId(set.item) === itemId))) return;
+    const candidates = team
+      .map((set, index) => ({set, index, items: this.zCrystalOptionsForSet(set)}))
+      .filter(entry => entry.items.length > 0);
+    if (!candidates.length) return;
+    const picked = candidates[this.randomInt(rng, 0, candidates.length - 1)];
+    picked.set.item = this.dataDex().items.get(picked.items[0])?.name || picked.items[0];
+  }
+
+  private zCrystalOptionsForSet(set: PokemonSet): string[] {
+    const choices = this.zCrystalChoicesForSet(set);
+    return [...choices.special, ...choices.generic];
+  }
+
+  private zCrystalChoicesForSet(set: PokemonSet): {special: string[]; generic: string[]} {
+    const dex = this.dataDex();
+    const species = dex.species.get(set.species || set.name);
+    const speciesNames = new Set([species?.name, species?.baseSpecies, set.species, set.name].filter(Boolean).map(value => String(value)));
+    const moves = (set.moves || []).map((moveName: string) => dex.moves.get(moveName)).filter((move: any) => move?.exists);
+    if (!moves.length) return {special: [], generic: []};
+    const zItems = this.zCrystalItemIds().map(id => dex.items.get(id)).filter((item: any) => item?.exists);
+    const special = zItems.filter((item: any) => {
+      if (!item.zMoveFrom || !moves.some((move: any) => move.name === item.zMoveFrom)) return false;
+      const users = (item.itemUser || []) as string[];
+      return !users.length || users.some(user => speciesNames.has(user));
+    }).map((item: any) => item.id);
+    const generic = zItems.filter((item: any) => {
+      if (item.zMove !== true || !item.zMoveType) return false;
+      return moves.some((move: any) => move.type === item.zMoveType);
+    }).map((item: any) => item.id);
+    return {special, generic};
   }
 
   private profileStageTier(profile: GenerationProfile): StageTier {
@@ -1528,7 +1627,7 @@ export class BattleSession {
     this.stream = new this.sim.BattleStream({keepAlive: true});
     this.startReader();
     const init = [
-      `>start ${JSON.stringify({formatid: "gen7customgame", seed: this.service.seedArray(this.seed)})}`,
+      `>start ${JSON.stringify({formatid: "gen9customgame", seed: this.service.seedArray(this.seed)})}`,
       `>player p1 ${JSON.stringify({name: "Player", team: this.sim.Teams.pack(this.playerTeam)})}`,
       `>player p2 ${JSON.stringify({name: "Enemy", team: this.sim.Teams.pack(this.enemyTeam)})}`,
     ].join("\n");
@@ -1937,17 +2036,23 @@ export class BattleSession {
     const dex = this.sim.Dex.mod("gen7");
     const exactMovesAllowed = side === "p2" || this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
     if (exactMovesAllowed && request?.active?.[0]?.moves?.length) {
+      const canZMove = request.active[0].canZMove || [];
       return request.active[0].moves
         .map((moveRequest, index) => ({moveRequest, index: index + 1, move: dex.moves.get(moveRequest.id || moveRequest.move)}))
         .filter(entry => !entry.moveRequest.disabled && Number(entry.moveRequest.pp ?? 1) > 0 && entry.move?.exists)
-        .map(entry => ({
-          side,
-          kind: "move" as const,
-          choice: `move ${entry.index}`,
-          move: entry.move,
-          moveRequest: entry.moveRequest,
-          score: this.scoreAiMove(side, entry.move, active, opponent),
-        }))
+        .flatMap(entry => {
+          const score = this.scoreAiMove(side, entry.move, active, opponent);
+          const base = {
+            side,
+            kind: "move" as const,
+            move: entry.move,
+            moveRequest: entry.moveRequest,
+          };
+          const zMove = canZMove[entry.index - 1];
+          return zMove
+            ? [{...base, choice: `move ${entry.index} zmove`, score: score + 80}, {...base, choice: `move ${entry.index}`, score}]
+            : [{...base, choice: `move ${entry.index}`, score}];
+        })
         .sort((a, b) => b.score - a.score);
     }
     const sourceMoves = exactMovesAllowed
@@ -2138,13 +2243,19 @@ export class BattleSession {
   }
 
   private scoredEnemyMoves(request: BattleRequestView): Array<{choice: string; score: number}> {
+    const canZMove = request.active?.[0]?.canZMove || [];
     const moves = (request.active?.[0]?.moves || [])
       .map((move, index) => ({move, index: index + 1}))
       .filter(entry => !entry.move.disabled && Number(entry.move.pp ?? 1) > 0);
     const active = this.activeDisplay(this.enemySide());
     const target = this.activeDisplay(this.playerSide());
-    return moves
-      .map(entry => ({choice: `move ${entry.index}`, score: this.scoreEnemyMove(entry.move, active, target)}))
+    return moves.flatMap(entry => {
+      const score = this.scoreEnemyMove(entry.move, active, target);
+      const zMove = canZMove[entry.index - 1];
+      return zMove
+        ? [{choice: `move ${entry.index} zmove`, score: score + 80}, {choice: `move ${entry.index}`, score}]
+        : [{choice: `move ${entry.index}`, score}];
+    })
       .sort((a, b) => b.score - a.score);
   }
 
