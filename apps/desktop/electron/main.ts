@@ -46,6 +46,7 @@ import {
   exchangeKeepsItem,
   exchangeStateRatio,
   hasTalent,
+  isPremiumHeldShopEntry,
   isTmItemId,
   itemCategory,
   itemKey,
@@ -54,6 +55,7 @@ import {
   normalizeStarterUpgrades,
   normalizeStarChart,
   portfolioBonus,
+  premiumMachineMoveCandidates,
   pricedForRun,
   pricedForShop,
   recordPortfolioSpend,
@@ -239,6 +241,7 @@ const SHOP_KIND_CONFIG: Record<ShopKind, {title: string; theme: "green" | "blue"
 const SPECIAL_FORGE_COST = 50;
 const TERA_ORB_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
 const TERA_ORB_TYPE_ZH: Record<string, string> = {Normal: "一般", Fire: "火", Water: "水", Electric: "电", Grass: "草", Ice: "冰", Fighting: "格斗", Poison: "毒", Ground: "地面", Flying: "飞行", Psychic: "超能力", Bug: "虫", Rock: "岩石", Ghost: "幽灵", Dragon: "龙", Dark: "恶", Steel: "钢", Fairy: "妖精"};
+const PREMIUM_RECOVERY_ITEM_IDS = ["revivalherb", "fullrestore"];
 
 const GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
   {id: "potion", cost: 20},
@@ -374,12 +377,12 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "power_outage_profiteer",
     name: "乘火打劫",
-    desc: "本次恢复效果减半，商店抽奖和购买价格提高。",
-    detail: "纯负面事件，商店价格为 1.5 倍。",
+    desc: "本次恢复减半、商店涨价，但商品质量提高。",
+    detail: "回复商店必出复活草和全复药；战斗道具和技能机器会偏高质量。",
     tone: "risk",
     async apply(_save, run) {
-      run.rest_status = {...(run.rest_status || {}), event_recovery_multiplier: 0.5, event_shop_price_multiplier: 1.5};
-      return "乘火打劫：本次休整恢复减半，商店价格上涨。";
+      run.rest_status = {...(run.rest_status || {}), event_recovery_multiplier: 0.5, event_shop_price_multiplier: 1.5, event_premium_shop_goods: true};
+      return "乘火打劫：本次休整恢复减半，商店价格上涨，但商品质量提高。";
     },
   },
   {
@@ -1191,7 +1194,7 @@ function starterUpgradesForSave(save?: LocalSave | null): StarterUpgradeState {
 
 function badgeLevelCapForTalents(talents: TalentView[] | undefined = []): number | null {
   const level = talentLevel(talents, "badge_level_cap");
-  return level > 0 ? BADGE_LEVEL_CAPS[level] || null : null;
+  return level >= 2 ? BADGE_LEVEL_CAPS[2] : BADGE_LEVEL_CAPS[1];
 }
 
 async function applyArrivalLevelCap(talents: TalentView[] | undefined, rawSet: PokemonSet, display: RentalPokemon): Promise<{raw: PokemonSet; display: RentalPokemon; capped: boolean}> {
@@ -1462,6 +1465,7 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     battle_setting: normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING),
     battle_event_statuses: battleEventStatuses,
     contest_score: contestScore,
+    contest_marks: run.rest_status?.event_contest_active,
   };
 }
 
@@ -2296,6 +2300,26 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
       move_name_zh: meta?.move_name_zh || (moveId ? displayItem.name_zh.replace(/^技能机器\s*/, "") : undefined),
     });
   }
+  if (battleSettingHasTerastal(run.battle_setting) && run.tera_orb_type) {
+    const type = run.tera_orb_type;
+    const typeZh = run.tera_orb_type_zh || TERA_ORB_TYPE_ZH[type] || type;
+    const teraOrb: BagCategoryView["held"][number] = {
+      id: `tera-orb:${String(type).toLowerCase()}`,
+      name: `${type} Tera Orb`,
+      name_zh: `${typeZh}太晶珠`,
+      count: 1,
+      category: "held",
+      item_battle_system: "terastal",
+      icon_asset: "assets/placeholders/item.png",
+      cost: 0,
+      sell_price: 0,
+      desc: `Allows Terastallization into ${type}.`,
+      desc_zh: `当前太晶化属性：${typeZh}。这是战斗系统道具，只能查看，不能丢弃或交换。`,
+      locked: true,
+      lock_reason: "太晶珠由当前规则提供，不能丢弃、出售或用于以物易物。",
+    };
+    result.held.unshift(teraOrb);
+  }
   return result;
 }
 
@@ -2400,6 +2424,21 @@ async function tmShopOptionsForRun(run: CurrentRunData): Promise<ShopOffer[]> {
   return Promise.all(picks.map((move, index) => tmOfferFromMove(move, index, "shop", 1, run.talents || [])));
 }
 
+async function premiumTmShopOptionsForRun(run: CurrentRunData): Promise<ShopOffer[]> {
+  const seen = new Set<string>();
+  const usableMoves: MoveSummary[] = [];
+  for (const rawSet of run.player_team || []) {
+    for (const move of await gameService.learnableMoves(rawSet)) {
+      const moveId = toId(move.id || move.name);
+      if (!moveId || seen.has(moveId)) continue;
+      seen.add(moveId);
+      usableMoves.push(move);
+    }
+  }
+  const picks = premiumMachineMoveCandidates(usableMoves, shopOfferCount(run));
+  return Promise.all(picks.map((move, index) => tmOfferFromMove(move, index, "shop", 1, run.talents || [])));
+}
+
 async function starterTmOptions(runSeed: number, talents: TalentView[] = [], battleSetting: BattleSetting = normalizeBattleSetting(DEFAULT_BATTLE_SETTING), limit = 24): Promise<ShopOffer[]> {
   const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(runSeed, 77), "gen9randombattle", 6, {battleSetting, purpose: "starter"});
   const seen = new Set<string>();
@@ -2442,15 +2481,38 @@ async function guaranteedShopOffer(index: number, run: CurrentRunData, rng: () =
   return offer ? {...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-guaranteed-${guaranteed.id}`} : null;
 }
 
+function withShopSlotPricing(run: CurrentRunData, offer: ShopOffer, index: number): ShopOffer {
+  const slotDiscount = Number(run.rest_status?.shop_slot_discounts?.[index] || 0);
+  const cost = slotDiscount > 0 ? Math.floor(Number(offer.cost || 0) * slotDiscount) : Number(offer.cost || 0);
+  return {...offer, cost, discount: slotDiscount || offer.discount, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-${itemKey(offer.id || offer.name)}`};
+}
+
+function premiumHeldShopPool(pool: ShopPoolEntry[]): ShopPoolEntry[] {
+  return pool.filter(entry => isPremiumHeldShopEntry(entry, isSpecialBattleItem(entry.id)));
+}
+
+async function premiumRecoveryShopOffers(run: CurrentRunData, existingOffers: ShopOffer[]): Promise<ShopOffer[]> {
+  const shopPool = await loadShopPool();
+  const guaranteedOffers = (await Promise.all(PREMIUM_RECOVERY_ITEM_IDS.map(async (id, index) => {
+    const entry = shopPool.find(item => itemKey(item.id) === id) || {id, kind: "item", category: "consumable", cost: await itemBaseCostById(id), weight: 1, enabled: true, notes: "premium recovery"} as ShopPoolEntry;
+    return shopOfferFromPoolEntry(entry, index, run.talents || [], run.battle_setting);
+  }))).filter((offer): offer is ShopOffer => Boolean(offer));
+  const guaranteedIds = new Set(guaranteedOffers.map(offer => itemKey(offer.id || offer.name)));
+  const rest = existingOffers.filter(offer => !guaranteedIds.has(itemKey(offer.id || offer.name)));
+  return [...guaranteedOffers, ...rest].slice(0, shopOfferCount(run));
+}
+
 async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recovery"): Promise<ShopOffer[]> {
   const kind = normalizeShopKind(shopKind);
+  const premiumGoods = Boolean(run.rest_status?.event_premium_shop_goods);
   if (kind === "tm") {
-    return (await tmShopOptionsForRun(run)).map((offer, index) => ({...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-${itemKey(offer.id || offer.name)}`}));
+    return (await (premiumGoods ? premiumTmShopOptionsForRun(run) : tmShopOptionsForRun(run))).map((offer, index) => withShopSlotPricing(run, offer, index));
   }
   const pool = await loadShopPool();
+  const premiumHeldPool = premiumGoods && kind === "held" ? premiumHeldShopPool(pool) : null;
   const itemEntries = pool.filter(entry => {
     if (!battleSettingAllowsItem(entry.id, run.battle_setting)) return false;
-    if (kind === "held") return isRegularHeldShopItem(entry);
+    if (kind === "held") return premiumHeldPool ? premiumHeldPool.includes(entry) : isRegularHeldShopItem(entry);
     return entry.kind === "item";
   });
   const itemOffers = (await Promise.all(itemEntries.map((entry, index) => shopOfferFromPoolEntry(entry, index, run.talents || [], run.battle_setting))))
@@ -2482,9 +2544,7 @@ async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recover
     const selected = bucket ? weightedPick(bucketPool, rng) : null;
     if (!selected) break;
     const {weight: _weight, ...offer} = selected as ShopOffer & {weight?: number};
-    const slotDiscount = Number(run.rest_status?.shop_slot_discounts?.[index] || 0);
-    const cost = slotDiscount > 0 ? Math.floor(Number(offer.cost || 0) * slotDiscount) : Number(offer.cost || 0);
-    result.push({...offer, cost, discount: slotDiscount || offer.discount, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-${itemKey(offer.id || offer.name)}`});
+    result.push(offer);
   }
   const hasGuaranteed = result.some(offer => GUARANTEED_SHOP_ITEMS.some(item => item.id === itemKey(offer.id || offer.name)));
   if (kind === "recovery" && !hasGuaranteed) {
@@ -2494,7 +2554,8 @@ async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recover
       else result.push(guaranteed);
     }
   }
-  return result;
+  const finalResult = premiumGoods && kind === "recovery" ? await premiumRecoveryShopOffers(run, result) : result;
+  return finalResult.map((offer, index) => withShopSlotPricing(run, offer, index));
 }
 
 function starterGroupName(groupId: StarterItemGroup): string {
@@ -2927,7 +2988,9 @@ async function buildNightSkyState(save: LocalSave, run: CurrentRunData): Promise
     const encountered = battleNo <= currentBattleNo;
     const namedVisible = Boolean(preview.route.type === "champion" && run.named_champion_id && preview.trainer.id === run.named_champion_id);
     const trainerVisible = encountered || rumorLevel >= 1 || namedVisible;
-    const revealed = encountered ? 3 : Math.max(0, Math.min(3, previous?.unlocked ? 3 : Number(previous?.revealed || 0)));
+    const forceUnlocked = Boolean(previous?.unlocked);
+    const revealed = encountered || forceUnlocked ? 3 : Math.max(0, Math.min(3, Number(previous?.revealed || 0)));
+    const enemiesVisible = trainerVisible || forceUnlocked;
     rows.push({
       battle_no: battleNo,
       label: preview.label,
@@ -2937,8 +3000,8 @@ async function buildNightSkyState(save: LocalSave, run: CurrentRunData): Promise
       encountered,
       named_visible: namedVisible,
       revealed,
-      unlocked: Boolean(previous?.unlocked || revealed >= 3),
-      enemies: preview.enemies.slice(0, 3).map((enemy, index) => trainerVisible && index < revealed ? enemy : null),
+      unlocked: Boolean(forceUnlocked || revealed >= 3),
+      enemies: preview.enemies.slice(0, 3).map((enemy, index) => enemiesVisible && index < revealed ? enemy : null),
     });
   }
   run.night_sky = {rows};
@@ -3297,7 +3360,9 @@ async function generateStarterCandidatesForSave(save: LocalSave, seed: number, t
 }
 
 async function applyStarterMentorEye(team: PokemonSet[], display: RentalPokemon[], seed: number, talents: TalentView[]): Promise<{team: PokemonSet[]; display: RentalPokemon[]; upgraded: number}> {
-  if (!hasTalent(talents, "starter_mentor_eye")) return {team, display, upgraded: 0};
+  const mentorLevel = talentLevel(talents, "starter_mentor_eye");
+  if (mentorLevel <= 0) return {team, display, upgraded: 0};
+  const chance = mentorLevel >= 3 ? 0.33 : mentorLevel >= 2 ? 0.25 : 0.15;
   const nextTeam = team.map(pokemon => ({...pokemon}));
   let upgraded = 0;
   for (let index = 0; index < nextTeam.length; index += 1) {
@@ -3305,7 +3370,7 @@ async function applyStarterMentorEye(team: PokemonSet[], display: RentalPokemon[
     const currentTier = Math.max(1, Math.min(4, Number(shown?.stage_tier || nextTeam[index]?.stage_tier || 1)));
     if (currentTier >= 4) continue;
     const rng = seededRng(seed, 0xbe10 + index * 101);
-    if (rng() >= 0.33) continue;
+    if (rng() >= chance) continue;
     const profile = `tier${currentTier + 1}` as GenerationProfile;
     const speciesId = shown?.species_id || nextTeam[index]?.species;
     const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 0xb010 + index * 131), "gen9randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "starter", battleSetting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING)});
@@ -3602,6 +3667,11 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
 async function restState(save: LocalSave, run: CurrentRunData, message?: string): Promise<DesktopGameState> {
   normalizeCurrentRun(run);
   const delayedMessages = await applyRestDelayedEffects(run);
+  if (delayedMessages.length) {
+    save = await persist(save);
+    run = save.current_run as CurrentRunData;
+    normalizeCurrentRun(run);
+  }
   const restMessage = [message, ...delayedMessages].filter(Boolean).join(" ");
   ensureRestEventOptions(run);
   const exchangeCount = Number(run.rest_status?.exchanges || 0);
@@ -3985,6 +4055,7 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
     rest_status: freshRestStatus(runTalents),
   };
   const run = save.current_run as CurrentRunData;
+  normalizeCurrentRun(run);
   normalizePlayerState(run);
   run.planned_battles = await buildPlannedBattles(save, run);
   pendingStarter = null;
@@ -4033,7 +4104,9 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     save.current_run = null;
     const next = await persist(save);
     const message = `通关！完成 ${run.wins || run.battles} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
-    return gameState({screen: "result", save: next, message, result_summary: buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${run.wins || run.battles} 连胜`, wins: Number(run.wins || run.battles || 0), settled, run, clearBonus: bonus})});
+    const resultSummary = buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${run.wins || run.battles} 连胜`, wins: Number(run.wins || run.battles || 0), settled, run, clearBonus: bonus});
+    await saveStore?.appendBattleRecord(buildRunRecord({run, message, outcome: "win", resultSummary}));
+    return gameState({screen: "result", save: next, message, result_summary: resultSummary});
   }
   if (!run.planned_battles?.length) run.planned_battles = await buildPlannedBattles(save, run);
   const planned = run.planned_battles.find(entry => Number(entry.battle_no) === battleNo);
@@ -4492,8 +4565,9 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const currentLevel = Math.max(1, Math.floor(Number(rawSet.level || run.player_display[slot]?.level || 50)));
     const trustLevel = talentLevel(run.talents, "exchange_trust");
     const gainLevel = trustLevel >= 3 ? 4 : trustLevel >= 2 ? 2 : 1;
-    const nextLevel = Math.min(55, currentLevel + gainLevel);
-    const overflow = Math.max(0, currentLevel + gainLevel - 55);
+    const cap = badgeLevelCapForTalents(run.talents) || 50;
+    const nextLevel = Math.min(cap, currentLevel + gainLevel);
+    const overflow = Math.max(0, currentLevel + gainLevel - cap);
     rawSet.level = nextLevel;
     run.player_team[slot] = rawSet;
     const [nextDisplay] = await gameService.describeTeam([rawSet]);

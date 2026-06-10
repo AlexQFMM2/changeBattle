@@ -1,15 +1,14 @@
 import {useEffect, useMemo, useState} from "react";
-import type {BattleState, RentalPokemon, ResultPokemonSummary, ResultProgressRow, ResultSummaryRow, ResultSummaryState, TalentView} from "@changebattle/shared";
+import type {BattleState, RentalPokemon, ResultPokemonSummary, ResultProgressRow, ResultSummaryRow, ResultSummaryState} from "@changebattle/shared";
 import {PokemonSprite, displayName, trainerDisplayName, trainerImageUrl} from "../../lib/ui";
 
-export function ResultView({message, battle, summary, onBack}: {message: string; battle: BattleState | null; summary: ResultSummaryState | null; onBack: () => void}) {
+export function ResultView({message, battle, summary, onBack, backLabel = "返回主界面"}: {message: string; battle: BattleState | null; summary: ResultSummaryState | null; onBack: () => void; backLabel?: string}) {
   const playerWon = summary ? summary.outcome === "win" : battle ? playerWonBattleResult(battle) : false;
   const outcome = summary?.outcome || (playerWon ? "win" : "loss");
   const rows = summary?.rows?.length ? summary.rows : [{label: "结算说明", value: message}];
   const coinRows = (summary?.coin_rows?.length ? summary.coin_rows : rows.filter(row => row.value.includes("金币"))).filter(row => !row.value.includes("BP") && row.label !== "金币折算 BP");
   const usedPokemon = summary?.used_pokemon?.length ? summary.used_pokemon : fallbackUsedPokemon(summary, battle);
   const progressRows = summary?.progress?.length ? summary.progress : fallbackProgress(summary, battle, outcome);
-  const resultTalents = summary?.talents?.length ? summary.talents : battle?.player_talents || [];
   const [selectedPokemonKey, setSelectedPokemonKey] = useState(() => resultPokemonKey(usedPokemon[0]?.pokemon));
   const defaultProgressNo = progressRows.find(row => row.battle_no === 7)?.battle_no || progressRows.at(-1)?.battle_no || 1;
   const [selectedProgressNo, setSelectedProgressNo] = useState(defaultProgressNo);
@@ -45,12 +44,11 @@ export function ResultView({message, battle, summary, onBack}: {message: string;
               <h1>{summary?.headline || (playerWon ? "胜利结算" : "结算")}</h1>
               <p>{summary?.subtitle || message || "本局挑战已结束。"}</p>
             </div>
-            <button onClick={onBack}>返回主界面</button>
+            <button onClick={onBack}>{backLabel}</button>
           </header>
           <div className="result-settlement-grid">
             <ResultRows title="金币结算" rows={coinRows} tone="coin" />
           </div>
-          <TalentResult talents={resultTalents} />
           <section className="result-section result-pokemon-section">
             <header>
               <strong>本局使用过的宝可梦</strong>
@@ -117,26 +115,6 @@ function ResultRows({title, rows, tone}: {title: string; rows: ResultSummaryRow[
           </article>
         )) : <p>本项没有结算变动。</p>}
       </div>
-    </section>
-  );
-}
-
-function TalentResult({talents}: {talents: TalentView[]}) {
-  return (
-    <section className="result-section result-talents">
-      <header>
-        <strong>天赋展示</strong>
-        <span>{talents.length ? `${talents.length} 个` : "未携带"}</span>
-      </header>
-      {talents.length ? <div>
-        {talents.map(talent => (
-          <article key={talent.id}>
-            <b>{talent.name}</b>
-            <span>{talent.category}</span>
-            <small>{talent.desc}</small>
-          </article>
-        ))}
-      </div> : null}
     </section>
   );
 }

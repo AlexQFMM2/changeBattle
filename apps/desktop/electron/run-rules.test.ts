@@ -29,12 +29,14 @@ import {
   exchangeStateRatio,
   gainedBp,
   hasTalent,
+  isPremiumHeldShopEntry,
   itemCategory,
   moveDrawCost,
   moveDrawCount,
   normalizeStarterUpgrades,
   portfolioBonus,
   portfolioSpendTypeForLabel,
+  premiumMachineMoveCandidates,
   pricedForShop,
   recordPortfolioSpend,
   refundableBagBaseBpFromCosts,
@@ -265,6 +267,28 @@ function testShopDuplicateBonus(): void {
   assert.deepEqual(shopDuplicateBonusForOffers([offer("a", 0), offer("b", 1), offer("a", 2), offer("a", 3), offer("b", 4)]), {item_id: "a", name: "a", name_zh: "a", count: 2, match_count: 3, icon_asset: undefined});
 }
 
+function testPremiumShopHelpers(): void {
+  assert.equal(isPremiumHeldShopEntry({kind: "item", category: "held", cost: 800}), true);
+  assert.equal(isPremiumHeldShopEntry({kind: "item", category: "held", cost: 799}), false);
+  assert.equal(isPremiumHeldShopEntry({kind: "item", category: "consumable", cost: 1000}), false);
+  assert.equal(isPremiumHeldShopEntry({kind: "item", category: "held", cost: 1000}, true), false);
+
+  const high = premiumMachineMoveCandidates([
+    {id: "tackle", name: "Tackle", power: 40, learn_sources: ["machine"]},
+    {id: "flamethrower", name: "Flamethrower", power: 90, learn_sources: ["machine"]},
+    {id: "surf", name: "Surf", power: 90, learn_sources: ["machine"]},
+    {id: "blastburn", name: "Blast Burn", power: 150, learn_sources: ["levelup"]},
+  ], 2);
+  assert.deepEqual(high.map(move => move.id), ["flamethrower", "surf"]);
+
+  const fallback = premiumMachineMoveCandidates([
+    {id: "swift", name: "Swift", power: 60, learn_sources: ["machine"]},
+    {id: "magicalleaf", name: "Magical Leaf", power: 60, learn_sources: ["machine"]},
+    {id: "pound", name: "Pound", power: 40, learn_sources: ["machine"]},
+  ], 3);
+  assert.deepEqual(fallback.map(move => move.id), ["magicalleaf", "swift"]);
+}
+
 function testBattleTimelineEntryOrdering(): void {
   const events: BattleTimelineEvent[] = [
     {id: "s1", type: "switch", text: "大嘴鸥 上场了。", side: "p1", targetSide: "p1"},
@@ -288,6 +312,7 @@ testEconomyTalents();
 testDefaultsAndHelpers();
 testBattleSettingDefaults();
 testShopDuplicateBonus();
+testPremiumShopHelpers();
 testBattleTimelineEntryOrdering();
 
 console.log("Desk talent rule tests passed.");

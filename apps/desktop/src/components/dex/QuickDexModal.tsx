@@ -4,6 +4,7 @@ import {AnimatePresence, motion, type Variants} from "motion/react";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard} from "../move/MoveCard";
 import {ItemIcon, STAT_ROWS, assetUrl, playPokemonCry} from "../../lib/ui";
+import {groupLearnsetBySource} from "./learnsetGroups";
 
 export type QuickDexCategory = Exclude<DesktopDexCategory, "trainers">;
 
@@ -279,6 +280,7 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
 function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; onMoveSelect: (move: MoveSummary) => void}) {
   if (!entry) return <section className="quick-dex-detail empty">选择左侧条目查看详情。</section>;
   const sprite = dexSpriteUrl(entry);
+  const learnsetGroups = entry.category === "pokemon" ? groupLearnsetBySource(entry.learnset || []) : [];
   return (
     <section className="quick-dex-detail">
       <header>
@@ -293,28 +295,35 @@ function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; o
           <div className="quick-dex-badges">{(entry.types_zh || entry.types || []).map(type => <span key={type}>{type}</span>)}</div>
           {entry.base_stats ? <div className="quick-dex-stat-grid">{STAT_ROWS.map(([stat, label]) => <p key={stat}><span>{label}</span><strong>{entry.base_stats?.[stat] || 0}</strong></p>)}</div> : null}
           <div className="quick-dex-learnset">
-            {(entry.learnset || []).map(move => (
-              <MoveCard
-                size="dex"
-                className="quick-dex-move-card"
-                name={move.name_zh || move.name}
-                moveType={move.type || move.type_zh}
-                typeLabel={move.type_zh || move.type || "一般"}
-                category={move.category_zh || move.category || "变化"}
-                pp={move.pp || "--"}
-                power={move.power || "--"}
-                accuracy={move.accuracy ?? "必中"}
-                meta={[
-                  `PP ${move.pp || "--"}`,
-                  `威力 ${move.power || "--"}`,
-                  `命中 ${move.accuracy ?? "必中"}`,
-                  ...(move.learn_source_labels?.length ? [`来源 ${move.learn_source_labels.join(" / ")}`] : []),
-                ]}
-                onClick={() => onMoveSelect(move)}
-                key={move.id}
-              />
+            {learnsetGroups.map(group => (
+              <section className="quick-dex-learnset-group" key={`${entry.id}-${group.id}`}>
+                <h4><span>{group.label}</span><small>{group.moves.length}</small></h4>
+                <div>
+                  {group.moves.map(move => (
+                    <MoveCard
+                      size="dex"
+                      className="quick-dex-move-card"
+                      name={move.name_zh || move.name}
+                      moveType={move.type || move.type_zh}
+                      typeLabel={move.type_zh || move.type || "一般"}
+                      category={move.category_zh || move.category || "变化"}
+                      pp={move.pp || "--"}
+                      power={move.power || "--"}
+                      accuracy={move.accuracy ?? "必中"}
+                      meta={[
+                        `PP ${move.pp || "--"}`,
+                        `威力 ${move.power || "--"}`,
+                        `命中 ${move.accuracy ?? "必中"}`,
+                        ...(move.learn_source_labels?.length ? [`来源 ${move.learn_source_labels.join(" / ")}`] : []),
+                      ]}
+                      onClick={() => onMoveSelect(move)}
+                      key={`${group.id}-${move.id}`}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
-            {!entry.learnset?.length ? <small>暂无技能池数据。</small> : null}
+            {!learnsetGroups.length ? <small>暂无技能池数据。</small> : null}
           </div>
         </>
       ) : null}

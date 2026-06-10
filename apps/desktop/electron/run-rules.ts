@@ -12,6 +12,8 @@ export const SHOP_OFFER_COUNT = 3;
 export const SHOP_OFFER_COUNT_GAMBLER = 4;
 export const SHOP_CANDIDATE_COUNT = 4;
 export const SHOP_CANDIDATE_COUNT_GAMBLER = 8;
+export const PREMIUM_HELD_ITEM_MIN_COST = 800;
+export const PREMIUM_TM_MIN_POWER = 90;
 export const STARTER_COINS_DEFAULT = 0;
 export const STARTER_ITEM_MAX_LEVEL = 4;
 export const STARTER_ITEM_DEFAULT_QUALITY_LEVEL = 1;
@@ -599,6 +601,20 @@ export function shopOfferCount(run: CurrentRunData): number {
 
 export function shopCandidateCount(run: CurrentRunData): number {
   return SHOP_CANDIDATE_COUNT + Math.max(0, Math.min(4, talentLevel(run.talents, "growth_more_choices")));
+}
+
+export function isPremiumHeldShopEntry(entry: {kind?: string; category?: ItemCategory; cost?: number}, isSpecialBattleItem = false): boolean {
+  return entry.kind === "item" && entry.category === "held" && !isSpecialBattleItem && Math.max(0, Number(entry.cost || 0)) >= PREMIUM_HELD_ITEM_MIN_COST;
+}
+
+export function premiumMachineMoveCandidates<T extends {id?: string; name?: string; power?: number; learn_sources?: string[]}>(moves: T[], limit = Number.POSITIVE_INFINITY): T[] {
+  const machineMoves = moves
+    .filter(move => (move.learn_sources || []).includes("machine"))
+    .sort((a, b) => Number(b.power || 0) - Number(a.power || 0) || String(a.name || a.id || "").localeCompare(String(b.name || b.id || "")));
+  const highPower = machineMoves.filter(move => Number(move.power || 0) >= PREMIUM_TM_MIN_POWER);
+  if (highPower.length) return highPower.slice(0, limit);
+  const maxPower = Number(machineMoves[0]?.power || 0);
+  return machineMoves.filter(move => Number(move.power || 0) === maxPower).slice(0, limit);
 }
 
 export function shopNextRollCost(run: CurrentRunData): number {

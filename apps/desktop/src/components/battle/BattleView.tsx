@@ -1231,6 +1231,26 @@ function effectivenessLabel(multiplier: number): string {
   return "效果一般";
 }
 
+function contestMoveLabel(battle: BattleState, active: RentalPokemon | undefined, moveId: string | undefined): {label: string; tone: "liked" | "disliked"} | null {
+  const normalizedMove = toId(moveId);
+  const marks = battle.contest_marks;
+  if (!normalizedMove || !marks) return null;
+  const keys = [
+    active?.showdown_id,
+    active?.run_member_id,
+    active?.species_id,
+    active?.species,
+  ].map(value => String(value || "")).filter(Boolean);
+  for (const key of keys) {
+    const normalizedKey = toId(key);
+    const liked = marks.liked?.[key] || marks.liked?.[normalizedKey];
+    if (liked && toId(liked) === normalizedMove) return {label: "裁判喜欢", tone: "liked"};
+    const disliked = marks.disliked?.[key] || marks.disliked?.[normalizedKey];
+    if (disliked && toId(disliked) === normalizedMove) return {label: "裁判不喜", tone: "disliked"};
+  }
+  return null;
+}
+
 function MainBattleCommands({forceSwitch, waiting, disabled, setMode, onBag, onForfeit}: {forceSwitch: boolean; waiting?: boolean; disabled?: boolean; setMode: (mode: AppStatus) => void; onBag: () => void; onForfeit: () => void}) {
   if (waiting) return <div className="command-grid battle-command-grid"><button disabled>战斗继续中</button><button disabled>宝可梦</button><button disabled>背包</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
   return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled={disabled || forceSwitch} onClick={onBag}>背包</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
@@ -1278,6 +1298,13 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
     const damageRange = moveDamageRangeLabel(summary, active, target, battle);
     const zMoveDisabled = zMode && !zMove;
     const dynamaxMoveDisabled = dynamaxMode && !maxMove;
+    const contestLabel = contestMoveLabel(battle, active, summary?.id || move.id || move.move);
+    const badge = showEffect || contestLabel ? (
+      <span className="move-badge-stack">
+        {showEffect ? <span>{effectivenessLabel(multiplier)}</span> : null}
+        {contestLabel ? <span className={`contest-badge contest-${contestLabel.tone}`}>{contestLabel.label}</span> : null}
+      </span>
+    ) : null;
     const moveName = zMode && zMove
       ? zMoveDisplayLabel(zMove.move, active)
       : (dynamaxMode || showMaxMoves) && maxMove
@@ -1286,11 +1313,11 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
     return (
       <MoveCard
         size="battle"
-        className={superEffective ? "move-super-effective" : ""}
+        className={[superEffective ? "move-super-effective" : "", contestLabel ? `move-contest-${contestLabel.tone}` : ""].filter(Boolean).join(" ")}
         name={moveName}
         moveType={summary?.type || summary?.type_zh}
         typeLabel={moveTypeLabel(summary)}
-        badge={showEffect ? effectivenessLabel(multiplier) : null}
+        badge={badge}
         damageRange={damageRange}
         pp={move.pp}
         maxPp={move.maxpp}

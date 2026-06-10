@@ -3,6 +3,7 @@ import type {DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, Rental
 import {AnimatedModalLayer, AnimatedPanel} from "../motion/Animated";
 import {PokemonProfile} from "../pokemon/PokemonProfile";
 import {ItemIcon, PokemonSprite, STAT_ROWS, assetUrl, displayName, playPokemonCry, trainerImageUrl} from "../../lib/ui";
+import {groupLearnsetBySource, moveHasMultipleLearnSources} from "./learnsetGroups";
 
 const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
   {id: "pokemon", label: "宝可梦"},
@@ -135,6 +136,7 @@ function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
   if (!entry) return <section className="dex-entry-detail empty"><p>选择一个条目。</p></section>;
   if (entry.category === "trainers") return <TrainerDexDetail entry={entry} />;
   const sprite = dexSpriteUrl(entry);
+  const learnsetGroups = entry.category === "pokemon" ? groupLearnsetBySource(entry.learnset || []) : [];
   return (
     <section className="dex-entry-detail">
       <header>
@@ -151,13 +153,20 @@ function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
           <div className="dex-learnset-panel">
             <h4>技能池</h4>
             <div>
-              {entry.learnset?.length ? entry.learnset.map(move => (
-                <article key={`${entry.id}-${move.id}`}>
-                  <strong>{move.name_zh || move.name}</strong>
-                  <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
-                  {move.learn_source_labels?.length ? <span>来源：{move.learn_source_labels.join(" / ")}</span> : null}
-                  <small>威力 {move.power || "--"}　命中 {move.accuracy ?? "必中"}　PP {move.pp || "--"}</small>
-                </article>
+              {learnsetGroups.length ? learnsetGroups.map(group => (
+                <section className="dex-learnset-group" key={`${entry.id}-${group.id}`}>
+                  <h5><span>{group.label}</span><small>{group.moves.length}</small></h5>
+                  <div>
+                    {group.moves.map(move => (
+                      <article key={`${entry.id}-${group.id}-${move.id}`}>
+                        <strong>{move.name_zh || move.name}</strong>
+                        <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
+                        {moveHasMultipleLearnSources(move) && move.learn_source_labels?.length ? <span>来源：{move.learn_source_labels.join(" / ")}</span> : null}
+                        <small>威力 {move.power || "--"}　命中 {move.accuracy ?? "必中"}　PP {move.pp || "--"}</small>
+                      </article>
+                    ))}
+                  </div>
+                </section>
               )) : <p>暂无技能池数据。</p>}
             </div>
           </div>

@@ -463,6 +463,7 @@ export type BattleState = {
   battle_background?: BattleBackgroundView;
   battle_event_statuses?: RestEventStatusView[];
   contest_score?: number;
+  contest_marks?: RestContestState;
 };
 
 export type ExchangeState = {
@@ -614,6 +615,8 @@ export type BagItemView = {
   move_name_zh?: string;
   desc?: string;
   desc_zh?: string;
+  locked?: boolean;
+  lock_reason?: string;
 };
 
 export type BagCategoryView = Record<ItemCategory, BagItemView[]>;
@@ -1043,6 +1046,7 @@ export type CurrentRunData = {
     named_challenge_decided?: boolean;
     event_shop_disabled?: boolean;
     event_shop_price_multiplier?: number;
+    event_premium_shop_goods?: boolean;
     event_recovery_multiplier?: number;
     event_hungry?: boolean;
     event_low_tier_recovery_disabled?: boolean;
@@ -1127,6 +1131,7 @@ export type AppStatus =
   | "userInfo"
   | "talentConfig"
   | "starterUpgrade"
+  | "battleHistory"
   | "battleSetting"
   | "starterItems"
   | "rentalSelect"

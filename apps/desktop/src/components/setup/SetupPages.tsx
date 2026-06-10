@@ -681,7 +681,6 @@ function rentalSpecialBadges(pokemon: RentalPokemon): string[] {
     pokemon.is_mythical ? "幻兽" : "",
     !pokemon.is_mythical && pokemon.is_legendary ? "神兽" : "",
     pokemon.item_battle_system ? battleSystemLabel(pokemon.item_battle_system) : "",
-    pokemon.tera_type_zh ? `太晶珠:${pokemon.tera_type_zh}` : "",
   ].filter(Boolean);
 }
 
@@ -730,7 +729,7 @@ export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, o
             const candidateSelected = selected.includes(index);
             const badges = rentalSpecialBadges(candidate);
             const hasLegendaryBadge = Boolean(candidate.is_legendary || candidate.is_mythical);
-            const hasSystemBadge = Boolean(candidate.item_battle_system || candidate.tera_type);
+            const hasSystemBadge = Boolean(candidate.item_battle_system);
             return (
               <motion.button
                 className={`rental-thumbnail ${index === focusIndex ? "active" : ""} ${candidateSelected ? "picked" : ""} ${badges.length ? "special-candidate" : ""} ${hasLegendaryBadge ? "legendary-candidate" : ""} ${hasSystemBadge ? "system-candidate" : ""}`}

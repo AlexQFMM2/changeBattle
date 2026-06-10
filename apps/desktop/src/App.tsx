@@ -8,6 +8,7 @@ import "./styles.css";
 import {ScreenToast} from "./components/feedback/ScreenToast";
 import {QuickDexModal} from "./pages/dex/QuickDexModal";
 import {PlayerSettings} from "./pages/player/PlayerSettings";
+import {BattleHistoryView} from "./pages/result/BattleHistoryView";
 import {ResultView} from "./pages/result/ResultView";
 import {ExchangeView, RestView} from "./pages/rest/RestView";
 import {MainMenu, TitleScreen} from "./pages/shell/ShellScreens";
@@ -21,7 +22,7 @@ installBrowserTestBridge();
 
 const TRANSITION_ROUTE = "/transition";
 const BATTLE_SCREENS: AppStatus[] = ["battleMain", "moveMenu", "teamMenu", "statusMenu"];
-const HIDDEN_MESSAGE_SCREENS: AppStatus[] = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "battleSetting", "rentalSelect"];
+const HIDDEN_MESSAGE_SCREENS: AppStatus[] = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "battleHistory", "battleSetting", "rentalSelect"];
 
 function saveStarNodeLevel(save: LocalSave | null | undefined, id: string): number {
   return Math.max(0, Math.floor(Number(save?.star_chart?.nodes?.[id] || 0)));
@@ -33,6 +34,7 @@ const SCREEN_ROUTES: Record<AppStatus, string> = {
   userInfo: "/user",
   talentConfig: "/talents",
   starterUpgrade: "/starter-upgrades",
+  battleHistory: "/records",
   battleSetting: "/battle-setting",
   starterItems: "/starter-items",
   rentalSelect: "/rentals",
@@ -427,10 +429,11 @@ function RoutedApp() {
   const content = useMemo(() => {
     if (screen === "title") return <TitleScreen save={save} catalog={trainerCatalog} defaultAvatarAsset={trainerCatalog.players[0]?.avatar_asset || trainerCatalog.avatars[0]?.avatar_asset} onLoad={loadGame} onNew={() => { setTrainerName("训练师"); }} onCreate={createTitleSave} onDelete={deleteSave} />;
     if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => navigateToScreen("title")} saveLabel="创建存档" />;
-    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => navigateToScreen("talentConfig")} onStarterUpgrade={openStarterUpgrade} onBattleSetting={() => navigateToScreen("battleSetting")} onTitle={() => navigateToScreen("title")} onTestMode={enableTestMode} />;
+    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => navigateToScreen("talentConfig")} onStarterUpgrade={openStarterUpgrade} onHistory={() => navigateToScreen("battleHistory")} onBattleSetting={() => navigateToScreen("battleSetting")} onTitle={() => navigateToScreen("title")} onTestMode={enableTestMode} />;
     if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} saveLabel="保存设置" />;
     if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
     if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
+    if (screen === "battleHistory") return <BattleHistoryView onBack={() => navigateToScreen("mainMenu")} />;
     if (screen === "battleSetting") return <BattleSettingPage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
     if (screen === "starterItems") return <StarterItemsView starter={starter} onChoose={chooseStarterItem} onBack={cancelPreparation} />;
     if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={hasStarterItemChoices(starter) ? backToStarterItems : undefined} onReroll={rerollCandidates} onSingleReroll={rerollFocusedCandidate} onInspect={inspectFocusedCandidate} runSeed={seed} wholeRerollsRemaining={starter?.whole_rerolls_remaining ?? 0} singleRerollsRemaining={starter?.single_rerolls_remaining ?? 0} inspectRemaining={inspectRemaining} revealTraining={saveStarNodeLevel(save, "intel_god_eye") >= 3 || inspectedIndexes.has(focusIndex)} inspected={inspectedIndexes.has(focusIndex)} />;

@@ -442,6 +442,14 @@ function tmMoveId(item?: BagItemView): string {
   return item.id.startsWith("tm:") ? toId(item.id.slice(3)) : "";
 }
 
+function isLockedBagItem(item?: BagItemView | null): boolean {
+  return Boolean(item?.locked);
+}
+
+function isBarterMaterialItem(item?: BagItemView | null): boolean {
+  return Boolean(item && item.count > 0 && !item.locked && !item.item_battle_system);
+}
+
 function BagManageModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean; initialTarget?: number}) {
   const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
   const [itemId, setItemId] = useState("");
@@ -477,6 +485,7 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
   const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
   const [tmLoading, setTmLoading] = useState(false);
   const selectedMoveId = tmMoveId(item);
+  const locked = isLockedBagItem(item);
   const isTm = item.category === "tm";
   const isConsumable = item.category === "consumable";
   const isHeld = item.category === "held";
@@ -504,6 +513,7 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
   }
 
   function canUseOn(slot: number): boolean {
+    if (locked) return false;
     if (!isTm) return item.count > 0;
     if (!selectedMoveId || alreadyKnows(slot)) return false;
     return Boolean(tmLegalBySlot[slot]?.includes(selectedMoveId));
@@ -548,21 +558,30 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
             </div>
             <button onClick={() => requestClose()}>关闭</button>
           </header>
-          <div className="bag-target-team">
-            {rest.player_display.map((pokemon, index) => {
-              const disabled = busySlot !== null || !canUseOn(index);
-              const status = statusCode(rest.player_state[index]?.condition, rest.player_state[index]?.status);
-              return (
-                <button disabled={disabled} onClick={() => void applyTo(index)} key={`${pokemon.species_id}-bag-use-${index}`}>
-                  <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
-                  <strong>{displayName(pokemon)}</strong>
-                  <span>{conditionText(rest.player_state[index]?.condition)}</span>
-                  {status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}
-                  <b>{busySlot === index ? "处理中" : targetText(index)}</b>
-                </button>
-              );
-            })}
-          </div>
+          {locked ? (
+            <div className="bag-locked-note">
+              <ItemIcon item={item} />
+              <strong>{item.name_zh || item.name}</strong>
+              <p>{item.lock_reason || "这是规则提供的特殊道具，只能查看，不能使用、丢弃或交换。"}</p>
+              <small>{item.desc_zh || item.desc || item.name}</small>
+            </div>
+          ) : (
+            <div className="bag-target-team">
+              {rest.player_display.map((pokemon, index) => {
+                const disabled = busySlot !== null || !canUseOn(index);
+                const status = statusCode(rest.player_state[index]?.condition, rest.player_state[index]?.status);
+                return (
+                  <button disabled={disabled} onClick={() => void applyTo(index)} key={`${pokemon.species_id}-bag-use-${index}`}>
+                    <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+                    <strong>{displayName(pokemon)}</strong>
+                    <span>{conditionText(rest.player_state[index]?.condition)}</span>
+                    {status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}
+                    <b>{busySlot === index ? "处理中" : targetText(index)}</b>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </motion.section>
       )}
     </PokopiaModal>
@@ -570,7 +589,7 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
 }
 
 function ItemRecyclerModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
-  const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
+  const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat().filter(item => !isLockedBagItem(item));
   return (
     <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal bag-manage-modal recycler-modal">
@@ -666,7 +685,13 @@ function EventMoveServicePanel({rest, service, onClose, onAction, embedded = fal
   return (
     <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal event-service-modal">
-        <header><div><h2>{title}</h2><p>花 200 金币学习 1 个{service === "egg" ? "遗传" : "教授"}招式。</p></div><button onClick={onClose}>返回</button></header>
+        <header>
+          <div><h2>{title}</h2><p>花 200 金币学习 1 个{service === "egg" ? "遗传" : "教授"}招式。</p></div>
+          <div className="event-service-header-actions">
+            <button disabled={busy || !moveId || Number(rest.coins || 0) < 200} onClick={() => void learn()}>{busy ? "学习中" : "确认技能"}</button>
+            <button onClick={onClose}>返回</button>
+          </div>
+        </header>
         <div className="event-service-layout">
           <aside className="event-service-team">
             {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`event-move-slot-${entry.species_id}-${index}`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}
@@ -684,7 +709,6 @@ function EventMoveServicePanel({rest, service, onClose, onAction, embedded = fal
                 </button>
               )) : <p>当前没有可学习的{service === "egg" ? "遗传" : "教授"}招式。</p>}
             </div>
-            <button disabled={busy || !moveId || Number(rest.coins || 0) < 200} onClick={() => void learn()}>{busy ? "学习中" : "学习 200 金币"}</button>
           </main>
         </div>
       </section>
@@ -1170,7 +1194,7 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
 }
 
 function BarterBuyModal({rest, offer, onClose, onBuy}: {rest: NonNullable<DesktopGameState["rest"]>; offer: ShopOffer; onClose: () => void; onBuy: (offerId: string, itemIds: string[]) => void | Promise<void>}) {
-  const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat().filter(item => item.count > 0);
+  const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat().filter(isBarterMaterialItem);
   const [selected, setSelected] = useState<string[]>([]);
   const counts = selected.reduce<Record<string, number>>((acc, id) => ({...acc, [id]: Number(acc[id] || 0) + 1}), {});
   const value = selected.reduce((sum, id) => sum + Number(items.find(item => item.id === id)?.sell_price || 0), 0);
