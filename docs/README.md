@@ -22,6 +22,7 @@ ChangeBattle 当前更适合被理解为：
 
 - 理解平台形态、优先级和技术路线：[`platform-targets.md`](./platform-targets.md)
 - 理解当前游戏规则与体验目标：[`rule.md`](./rule.md)
+- 理解休整奇遇事件池：[`restEventRule.md`](./restEventRule.md)
 - 理解随机宝可梦生成规则：[`randomPokemonRule.md`](./randomPokemonRule.md)
 - 理解随机道具与商店规则：[`randomItemRule.md`](./randomItemRule.md)
 - 理解结算与结果页规则：[`resultRule.md`](./resultRule.md)

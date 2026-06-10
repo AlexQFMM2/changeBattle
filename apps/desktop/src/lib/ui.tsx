@@ -124,7 +124,6 @@ export const TALENT_CATALOG: TalentView[] = [
   {id: "exchange_factory_freedom", name: "工厂自由", category: "交换筑队", cost: 40, desc: "所有交换免费，但不解除 Boss 交换次数限制。"},
   {id: "intel_rumor", name: "小道消息", category: "情报规划", cost: 30, desc: "休整时可查看本局训练师顺序，并逐步揭示他们的阵容。"},
   {id: "intel_god_eye", name: "上帝之眼", category: "情报规划", cost: 8, desc: "对战时显示技能打击效果，允许查看图鉴，并显示个体值和努力值。"},
-  {id: "intel_shop_strategy", name: "神机妙算", category: "情报规划", cost: 18, desc: "商店抽奖前可额外花费金币指定道具方向。"},
   {id: "intel_reroute", name: "公子驾到", category: "情报规划", cost: 25, desc: "休整时可强行更换一个未挑战的同等级对手，每局最多 3 次。"},
   {id: "intel_named_challenge", name: "指名挑战", category: "情报规划", cost: 25, desc: "开局前指定本局冠军路线的最终 Boss；只在最终战为冠军时生效。"},
   {id: "growth_risky", name: "铤而走险", category: "养成改造", cost: 12, desc: "局内金币花费和休整页消耗道具可能出现更好或更坏的结果。"},
@@ -138,7 +137,7 @@ export const TALENT_CATALOG: TalentView[] = [
   {id: "economy_portfolio", name: "投资组合", category: "经济运营", cost: 20, desc: "通关结算时，按本局金币消费覆盖类型返利；每类 200 金币。"},
   {id: "economy_amulet_coin", name: "护符金币", category: "经济运营", cost: 35, desc: "所有正向金币入账获得 1.35 倍收益。"},
   {id: "economy_shiny_collector", name: "闪光收藏家", category: "经济运营", cost: 40, desc: "交换获得的宝可梦均为闪光，且闪光带来的金币加成提高。"},
-  {id: "economy_bargainer", name: "讲价高手", category: "经济运营", cost: 20, desc: "道具回收商出现时，出售道具获得 75% 原价。"},
+  {id: "economy_bargainer", name: "讲价高手", category: "经济运营", cost: 20, desc: "选择道具回收商奇遇后，出售道具获得 75% 原价。"},
   {id: "economy_premium_guest", name: "贵客专属", category: "经济运营", cost: 25, desc: "结束时自动处理剩余道具；通关或中断返还效率从 25% 提高到 50%，失败时从 10% 提高到 20%。"},
 ];
 
@@ -653,7 +652,6 @@ export function talentShortText(talent: TalentView): string {
     exchange_factory_freedom: "交换不再消耗金币。",
     intel_rumor: "休整时可查看本局训练师顺序并揭示阵容。",
     intel_god_eye: "对战和详情页显示更多隐藏信息。",
-    intel_shop_strategy: "商店抽奖前可指定道具类型。",
     intel_reroute: "休整时可更换一个未挑战的同等级对手，每局最多 3 次。",
     intel_named_challenge: "开局前指定本局冠军路线的最终 Boss。",
     growth_risky: "对局花费和休整道具可能出现更好或更坏的结果。",
@@ -667,7 +665,7 @@ export function talentShortText(talent: TalentView): string {
     economy_portfolio: "通关时按本局金币消费覆盖类型发放返利。",
     economy_amulet_coin: "金币正向结算获得额外收益。",
     economy_shiny_collector: "交换获得的宝可梦均为闪光，闪光收益提高。",
-    economy_bargainer: "道具回收商出现时出售价格提高。",
+    economy_bargainer: "道具回收商奇遇开启后出售价格提高。",
     economy_premium_guest: "可返还道具结算效率提高。",
   };
   if (cleanCopy[talent.id]) return cleanCopy[talent.id];

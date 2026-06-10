@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import type {CSSProperties, ReactElement} from "react";
-import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, TalentView} from "@changebattle/shared";
+import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, ShopOffer, TalentView} from "@changebattle/shared";
 import {AnimatePresence, motion, Reorder} from "motion/react";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
@@ -50,7 +50,8 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
     void runRestAction(action);
   };
   const workspaceKey = activePanel === "pokemon" ? `pokemon-${pokemonModalSlot ?? 0}` : activePanel === "bag" ? `bag-${bagTargetSlot}` : activePanel === "statsEditor" ? `stats-${statsEditorSlot ?? 0}` : activePanel === "talentAction" ? `talent-${talentActionId || "none"}` : activePanel || "empty";
-  const shouldPromptNamedChallenge = hasRunTalent(rest, "intel_named_challenge") && Number(rest.battle_no || 0) <= 0 && !rest.named_challenge_decided;
+  const shouldPromptRestEvent = Boolean(rest.rest_event?.required && rest.rest_event.options.length);
+  const shouldPromptNamedChallenge = !shouldPromptRestEvent && hasRunTalent(rest, "intel_named_challenge") && Number(rest.battle_no || 0) <= 0 && !rest.named_challenge_decided;
 
   function openManualTalent(talent: TalentView) {
     if (runTalentActionUsed(rest as NonNullable<DesktopGameState["rest"]>, talent.id)) return;
@@ -102,9 +103,15 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
       <section className="rest-talent-action-row rest-tab-row">
         <button className={activePanel === "exchange" ? "selected" : ""} onClick={() => setActivePanel("exchange")}>交换</button>
         <button className={activePanel === "bag" ? "selected" : ""} onClick={() => { setBagTargetSlot(0); setActivePanel("bag"); }}>背包</button>
-        <button className={activePanel === "shop" ? "selected" : ""} onClick={() => setActivePanel("shop")}>购买道具</button>
+        <button className={activePanel === "shop" ? "selected" : ""} onClick={() => setActivePanel("shop")}>商店</button>
+        <button className={activePanel === "forge" ? "selected" : ""} onClick={() => setActivePanel("forge")}>熔炉</button>
         <button className={activePanel === "talents" ? "selected" : ""} onClick={() => setActivePanel("talents")}>携带天赋</button>
         {rest.recycler_available ? <button className={`event-button ${activePanel === "recycler" ? "selected" : ""}`} onClick={() => setActivePanel("recycler")}>道具回收商</button> : null}
+        {rest.event_services?.doctor ? <button className={`event-button ${activePanel === "eventDoctor" ? "selected" : ""}`} onClick={() => setActivePanel("eventDoctor")}>蹩脚医生</button> : null}
+        {rest.event_services?.tutor ? <button className={`event-button ${activePanel === "eventTutor" ? "selected" : ""}`} onClick={() => setActivePanel("eventTutor")}>讲师老奶奶</button> : null}
+        {rest.event_services?.egg ? <button className={`event-button ${activePanel === "eventEgg" ? "selected" : ""}`} onClick={() => setActivePanel("eventEgg")}>培育屋爷爷</button> : null}
+        {rest.event_services?.raid_exchange ? <button className={`event-button ${activePanel === "raidExchange" ? "selected" : ""}`} onClick={() => setActivePanel("raidExchange")}>骇人奇袭</button> : null}
+        {Number(rest.event_services?.level_points || 0) > 0 ? <button className={`event-button ${activePanel === "eventLevel" ? "selected" : ""}`} onClick={() => setActivePanel("eventLevel")}>分配等级 <small>{rest.event_services?.level_points}</small></button> : null}
         <button className={activePanel === "nightSky" ? "selected" : ""} onClick={() => setActivePanel("nightSky")}>进度图 <small>{revealedSkyCount}/{(nightSkyRows.length || rest.battles) * 3}</small></button>
         {manualTalents.map(talent => {
           const used = runTalentActionUsed(rest, talent.id);
@@ -118,6 +125,11 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
         })}
         <span className="rest-tab-spacer" />
       </section>
+      {rest.rest_event_statuses?.length ? (
+        <section className="rest-event-status-row" aria-label="本次休整事件状态">
+          {rest.rest_event_statuses.map(status => <span className={`rest-event-status tone-${status.tone || "safe"}`} title={status.detail || status.label} key={status.id}><strong>{status.label}</strong>{status.detail ? <small>{status.detail}</small> : null}</span>)}
+        </section>
+      ) : null}
       <section className="rest-workspace" aria-label="休整工作区">
         <AnimatePresence mode="wait">
           <motion.div className="rest-workspace-panel" initial={{opacity: 0, y: 12, scale: 0.985}} animate={{opacity: 1, y: 0, scale: 1}} exit={{opacity: 0, y: -10, scale: 0.985}} transition={{duration: 0.22, ease: [0.2, 0.8, 0.2, 1]}} key={workspaceKey}>
@@ -125,10 +137,16 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
             {activePanel === "exchange" ? <RestExchangeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
             {activePanel === "bag" ? <BagManageModal embedded rest={rest} initialTarget={bagTargetSlot} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "recycler" ? <ItemRecyclerModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
+            {activePanel === "eventDoctor" ? <DoctorEventPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "eventTutor" ? <EventMoveServicePanel embedded rest={rest} service="tutor" onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "eventEgg" ? <EventMoveServicePanel embedded rest={rest} service="egg" onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "raidExchange" ? <RaidExchangePanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "eventLevel" ? <EventLevelPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "talents" ? <RunTalentModal embedded rest={rest} /> : null}
             {activePanel === "talentAction" && activeTalentAction ? <RunTalentActionModal embedded talent={activeTalentAction} rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
             {activePanel === "nightSky" ? <NightSkyModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
-            {activePanel === "shop" ? <ShopModal embedded rest={rest} shop={rest.shop} onClose={() => setActivePanel(null)} onRoll={preferredCategory => onAction({type: "roll_shop", preferredCategory})} onBuy={offerId => runRestAction({type: "buy_shop_offer", offerId}, "道具已购买")} /> : null}
+            {activePanel === "shop" ? <ShopModal embedded rest={rest} shop={rest.shop} onClose={() => setActivePanel(null)} onRoll={shopKind => onAction({type: "roll_shop", shopKind})} onBuy={offerId => runRestAction({type: "buy_shop_offer", offerId}, "道具已购买")} onBarterBuy={(offerId, itemIds) => runRestAction({type: "event_barter_buy", offerId, itemIds}, "道具已交换")} /> : null}
+            {activePanel === "forge" ? <ForgeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "pokemon" && pokemonModalSlot !== null ? <RestPokemonModal embedded rest={rest} initialSlot={pokemonModalSlot} onClose={() => setActivePanel(null)} onMove={(slot, moveSlot) => { setMoveEditorSlot(slot); setMoveEditorMoveSlot(moveSlot ?? 0); }} onUseItem={slot => { setPokemonModalSlot(null); setBagTargetSlot(slot); setActivePanel("bag"); }} onUnequip={unequipItem} onStats={slot => { setPokemonModalSlot(null); setStatsEditorSlot(slot); setActivePanel("statsEditor"); }} onAction={fireAction} /> : null}
             {activePanel === "statsEditor" && statsEditorSlot !== null ? <StatsAdjustModal embedded rest={rest} initialSlot={statsEditorSlot} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
           </motion.div>
@@ -160,15 +178,58 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
       ) : null}
       {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={1000} onDone={() => setToast(null)} /> : null}
       {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
+      {shouldPromptRestEvent ? <RestEventPrompt rest={rest} onAction={runRestAction} /> : null}
       {shouldPromptNamedChallenge ? <NamedChallengePrompt rest={rest} onAction={runRestAction} /> : null}
     </div>
   );
 }
 
-type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "talents" | "talentAction" | "nightSky" | "shop" | "pokemon" | "moveEditor" | "statsEditor" | null;
+type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "eventDoctor" | "eventTutor" | "eventEgg" | "raidExchange" | "eventLevel" | "talents" | "talentAction" | "nightSky" | "shop" | "forge" | "pokemon" | "moveEditor" | "statsEditor" | null;
 
 function EmbeddedOrModal({embedded, children}: {embedded?: boolean; children: ReactElement}) {
   return embedded ? children : <div className="modal-layer">{children}</div>;
+}
+
+function RestEventPrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>}) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const options = rest.rest_event?.options || [];
+
+  async function choose(eventId: string, eventName: string) {
+    if (busyId) return;
+    setBusyId(eventId);
+    try {
+      await Promise.resolve(onAction({type: "choose_rest_event", eventId}, `奇遇：${eventName}`));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <PokopiaModal className="rest-event-modal" closeDisabled labelledBy="rest-event-title" onClose={() => undefined}>
+      {() => (
+        <motion.section className="rest-event-content" variants={pokopiaItemVariants}>
+          <header>
+            <div>
+              <h2 id="rest-event-title">休整奇遇</h2>
+              <p>本次休整开始前，必须选择一张事件卡。</p>
+            </div>
+          </header>
+          <div className="rest-event-card-grid">
+            {options.map(option => (
+              <button className={`rest-event-card tone-${option.tone || "safe"}`} disabled={Boolean(busyId)} onClick={() => void choose(option.id, option.name)} key={`rest-event-${option.id}`}>
+                <span>{option.tone === "risk" ? "风险" : option.tone === "trade" ? "交易" : "稳定"}</span>
+                <strong>{option.name}</strong>
+                <div className="rest-event-card-body">
+                  <p>{option.desc}</p>
+                  {option.detail ? <small>{option.detail}</small> : null}
+                </div>
+              </button>
+            ))}
+          </div>
+        </motion.section>
+      )}
+    </PokopiaModal>
+  );
 }
 
 function NamedChallengePrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>}) {
@@ -217,11 +278,16 @@ function NamedChallengePrompt({rest, onAction}: {rest: NonNullable<DesktopGameSt
 }
 
 function hasRunTalent(rest: NonNullable<DesktopGameState["rest"]>, id: string): boolean {
-  return Boolean(rest.talents?.some(talent => talent.id === id));
+  return runTalentLevel(rest, id) > 0;
+}
+
+function runTalentLevel(rest: NonNullable<DesktopGameState["rest"]>, id: string): number {
+  const talent = rest.talents?.find(entry => entry.id === id);
+  return talent ? Math.max(1, Math.floor(Number(talent.level || 1))) : 0;
 }
 
 function isActiveRunTalent(id: string): boolean {
-  return ["growth_all_in", "intel_rumor", "intel_shop_strategy", "intel_reroute", "exchange_trust", "growth_lead_change", "economy_bp_exchange", "economy_recycle_receipt", "economy_portfolio", "economy_bargainer"].includes(id);
+  return ["growth_all_in", "intel_rumor", "intel_reroute", "exchange_trust", "growth_lead_change", "economy_bp_exchange", "economy_recycle_receipt", "economy_portfolio", "economy_bargainer"].includes(id);
 }
 
 function isManualRunTalent(id: string): boolean {
@@ -327,7 +393,7 @@ function RestPokemonModal({rest, initialSlot, onClose, onMove, onUseItem, onUneq
             </div>
             <section className="detail-tab-panel">
               {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>性别：{pokemon.gender || "未知"}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p className="wide">{abilityDescription(pokemon)}</p></div> : null}
-              {tab === "moves" ? <div className="detail-move-list">{pokemon.moves.map((move, index) => <article key={`${move.id}-${index}`}><strong>{index + 1}. {move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {state?.moves?.[index]?.pp ?? move.pp}/{state?.moves?.[index]?.maxpp ?? move.pp}</span><small>{moveDescription(move)}</small></article>)}</div> : null}
+              {tab === "moves" ? <div className="detail-move-list">{pokemon.moves.map((move, index) => <article key={`${move.id}-${index}`}><strong>{index + 1}. {move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {state?.moves?.[index]?.pp ?? move.pp}/{state?.moves?.[index]?.maxpp ?? move.pp}</span>{move.learn_source_labels?.length ? <span>来源：{move.learn_source_labels.join(" / ")}</span> : null}<small>{moveDescription(move)}</small></article>)}</div> : null}
               {tab === "stats" ? <div className="detail-stat-panel">
                 <div className="detail-hp-row"><span>HP</span><strong>{statLine(pokemon, "hp", revealTraining)}</strong><i /></div>
                 <div className="detail-stat-list">{STAT_ROWS.filter(([stat]) => stat !== "hp").map(([stat, label]) => <p key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></p>)}</div>
@@ -530,6 +596,221 @@ function ItemRecyclerModal({rest, onClose, onAction, embedded = false}: {rest: N
   );
 }
 
+function DoctorEventPanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+  const [busy, setBusy] = useState<"status" | "hp" | null>(null);
+  async function choose(branch: "status" | "hp") {
+    if (busy) return;
+    setBusy(branch);
+    try {
+      await onAction({type: "choose_doctor_treatment", branch}, branch === "status" ? "哥哥完成治疗" : "弟弟完成治疗");
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal event-service-modal">
+        <header><div><h2>蹩脚医生兄弟</h2><p>两兄弟手艺都不太稳定，但今天你必须挑一个。</p></div><button onClick={onClose}>返回</button></header>
+        <div className="event-service-card-grid">
+          <button disabled={Boolean(busy)} onClick={() => void choose("status")}>
+            <strong>哥哥：诊断异常</strong>
+            <span>全队解除异常并回满 PP，未濒死宝可梦 HP 压到一半。</span>
+          </button>
+          <button disabled={Boolean(busy)} onClick={() => void choose("hp")}>
+            <strong>弟弟：强行补血</strong>
+            <span>全队回满 HP，濒死复活到一半，并随机附加可治愈异常。</span>
+          </button>
+        </div>
+      </section>
+    </EmbeddedOrModal>
+  );
+}
+
+function EventMoveServicePanel({rest, service, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; service: "tutor" | "egg"; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+  const [slot, setSlot] = useState(0);
+  const [moveSlot, setMoveSlot] = useState(0);
+  const [moves, setMoves] = useState<PricedMove[]>([]);
+  const [moveId, setMoveId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pokemon = rest.player_display[slot] || rest.player_display[0];
+  const source = service === "egg" ? "egg" : "tutor";
+  const title = service === "egg" ? "培育屋爷爷" : "讲师老奶奶";
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setMoves([]);
+    setMoveId("");
+    void window.changeBattle!.learnableMoves(slot).then(list => {
+      if (cancelled) return;
+      const known = new Set((pokemon?.moves || []).map(move => toId(move.id || move.name)));
+      const filtered = list.filter(move => (move.learn_sources || []).includes(source) && !known.has(toId(move.id || move.name)));
+      setMoves(filtered);
+      setMoveId(toId(filtered[0]?.id || filtered[0]?.name || ""));
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [slot, pokemon, source]);
+
+  async function learn() {
+    if (busy || !moveId) return;
+    setBusy(true);
+    try {
+      await onAction({type: "event_learn_move", service, slot, moveSlot, moveId}, "事件技能已学习");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal event-service-modal">
+        <header><div><h2>{title}</h2><p>花 200 金币学习 1 个{service === "egg" ? "遗传" : "教授"}招式。</p></div><button onClick={onClose}>返回</button></header>
+        <div className="event-service-layout">
+          <aside className="event-service-team">
+            {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`event-move-slot-${entry.species_id}-${index}`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}
+          </aside>
+          <main>
+            <div className="segmented-row">
+              {(pokemon?.moves || []).map((move, index) => <button className={moveSlot === index ? "selected" : ""} onClick={() => setMoveSlot(index)} key={`event-replace-${index}`}><strong>{index + 1}</strong><small>{move.name_zh || move.name}</small></button>)}
+            </div>
+            <div className="event-move-list">
+              {loading ? <p>读取可学招式中...</p> : moves.length ? moves.map(move => (
+                <button className={moveId === toId(move.id || move.name) ? "selected" : ""} onClick={() => setMoveId(toId(move.id || move.name))} key={`event-learn-${move.id || move.name}`}>
+                  <strong>{move.name_zh || move.name}</strong>
+                  <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
+                  <small>{moveDescription(move)}</small>
+                </button>
+              )) : <p>当前没有可学习的{service === "egg" ? "遗传" : "教授"}招式。</p>}
+            </div>
+            <button disabled={busy || !moveId || Number(rest.coins || 0) < 200} onClick={() => void learn()}>{busy ? "学习中" : "学习 200 金币"}</button>
+          </main>
+        </div>
+      </section>
+    </EmbeddedOrModal>
+  );
+}
+
+function RaidExchangePanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+  const [own, setOwn] = useState(0);
+  const [enemy, setEnemy] = useState(0);
+  const battleNo = rest.event_services?.raid_exchange_battle_no || Number(rest.battle_no || 0) + 1;
+  const row = rest.night_sky?.rows?.find(entry => Number(entry.battle_no) === Number(battleNo));
+  const enemies = (row?.enemies || []).filter((entry): entry is RentalPokemon => Boolean(entry));
+  return (
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="rest-edit-modal exchange-rest-modal">
+        <header><div><h2>骇人奇袭</h2><p>观测第 {battleNo} 场完整队伍，并抢先交换 1 只宝可梦。</p></div><button onClick={onClose}>返回</button></header>
+        <div className={`rest-exchange-grid ${embedded ? "embedded-horizontal" : ""}`}>
+          <div>{rest.player_display.map((pokemon, index) => <button className={`mini-pokemon-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={`raid-own-${pokemon.species_id}-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
+          <div className="exchange-center-label" aria-hidden="true"><span>奇袭</span></div>
+          <div>{enemies.map((pokemon, index) => <button className={`mini-pokemon-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={`raid-enemy-${pokemon.species_id}-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span></button>)}</div>
+        </div>
+        <div className="command-row">
+          <button disabled={!enemies.length} onClick={() => onAction({type: "event_raid_exchange", ownIndex: own, enemyIndex: enemy}, "奇袭交换完成")}>执行奇袭交换</button>
+        </div>
+      </section>
+    </EmbeddedOrModal>
+  );
+}
+
+function EventLevelPanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+  const points = Number(rest.event_services?.level_points || 0);
+  return (
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal event-service-modal">
+        <header><div><h2>恋恋不舍</h2><p>本次不能交换宝可梦，但还可以分配 {points} 点等级。</p></div><button onClick={onClose}>返回</button></header>
+        <div className="event-service-card-grid">
+          {rest.player_display.map((pokemon, index) => <button disabled={points <= 0} onClick={() => onAction({type: "event_apply_level", slot: index}, "等级已提升")} key={`event-level-${pokemon.species_id}-${index}`}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><strong>{displayName(pokemon)}</strong><span>Lv{pokemon.level}</span></button>)}
+        </div>
+      </section>
+    </EmbeddedOrModal>
+  );
+}
+
+function ForgeModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+  const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
+  const normalForgeItems = items.filter(item => item.item_battle_system !== "mega" && item.item_battle_system !== "zmove");
+  const specialForgeItems = items.filter(item => item.item_battle_system === "mega" || item.item_battle_system === "zmove");
+  const [materials, setMaterials] = useState<string[]>([]);
+  const [working, setWorking] = useState(false);
+  const teraType = rest.player_display.find(pokemon => pokemon.tera_type_zh)?.tera_type_zh;
+  const materialCounts = materials.reduce<Record<string, number>>((acc, id) => ({...acc, [id]: Number(acc[id] || 0) + 1}), {});
+  const selectedMaterialItems = materials.map(id => items.find(item => item.id === id)).filter((item): item is BagItemView => Boolean(item));
+  const selectedKinds = selectedMaterialItems.map(forgeKindLabel);
+  const sameKind = selectedKinds.length === 3 && selectedKinds.every(kind => kind === selectedKinds[0]);
+
+  function addMaterial(itemId: string, maxCount: number) {
+    if (materials.length >= 3) return;
+    if (Number(materialCounts[itemId] || 0) >= maxCount) return;
+    setMaterials(current => [...current, itemId]);
+  }
+
+  async function runForge(action: RestAction) {
+    if (working) return;
+    setWorking(true);
+    try {
+      const ok = await Promise.resolve(onAction(action));
+      if (ok !== false) setMaterials([]);
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal forge-modal shop-theme-orange">
+        <header className="forge-header">
+          <div><h2>熔炉</h2><p>投入 3 个道具重铸；同类型材料会产出 2 个不同重铸物。</p></div>
+          <button onClick={onClose}>返回</button>
+        </header>
+        <div className="forge-grid">
+          <div className="forge-material-list">
+            {normalForgeItems.length ? normalForgeItems.map(item => {
+              const picked = Number(materialCounts[item.id] || 0);
+              return (
+                <button disabled={working || materials.length >= 3 || picked >= item.count} onClick={() => addMaterial(item.id, item.count)} key={`forge-material-${item.id}`}>
+                  <ItemIcon item={item} />
+                  <span>{item.name_zh || item.name}</span>
+                  <small>x{item.count}{picked ? ` / 已选 ${picked}` : ""}</small>
+                </button>
+              );
+            }) : <p>背包里没有可投入普通熔炉的道具。</p>}
+          </div>
+          <aside className="forge-panel">
+            <div className="forge-slots">
+              {[0, 1, 2].map(index => {
+                const id = materials[index];
+                const item = items.find(entry => entry.id === id);
+                return <button onClick={() => setMaterials(current => current.filter((_value, itemIndex) => itemIndex !== index))} disabled={!id || working} key={`forge-slot-${index}`}>{item ? <><ItemIcon item={item} /><span>{item.name_zh || item.name}</span></> : <span>材料 {index + 1}</span>}</button>;
+              })}
+            </div>
+            <button className="forge-main-button" disabled={working || materials.length !== 3} onClick={() => runForge({type: "forge_items", itemIds: materials})}>{working ? "重铸中" : "普通重铸"}</button>
+            <p className="forge-rule-hint">
+              {materials.length ? `材料类型：${selectedKinds.join(" / ")}${materials.length === 3 ? `　预计产出 ${sameKind ? 2 : 1} 个` : ""}` : "同类型 3 个材料会产出 2 个不同重铸物。"}
+            </p>
+            <button disabled={!materials.length || working} onClick={() => setMaterials([])}>清空材料</button>
+          </aside>
+        </div>
+        <div className="forge-special-row">
+          {specialForgeItems.map(item => <button disabled={working || Number(rest.coins || 0) < 50} onClick={() => runForge({type: "forge_special_item", itemId: item.id})} key={`special-forge-${item.id}`}><ItemIcon item={item} /><span>{item.name_zh || item.name}</span><small>{item.item_battle_system === "mega" ? "Mega 石重铸" : "Z 纯晶重铸"} 50</small></button>)}
+          {teraType ? <button disabled={working || Number(rest.coins || 0) < 50} onClick={() => runForge({type: "forge_tera_orb"})}><span>太晶珠：{teraType}</span><small>重铸属性 50</small></button> : null}
+        </div>
+      </section>
+    </EmbeddedOrModal>
+  );
+}
+
+function forgeKindLabel(item: BagItemView): string {
+  if (item.category === "tm") return "技能机器";
+  const text = `${item.id} ${item.name} ${item.name_zh} ${item.desc || ""} ${item.desc_zh || ""}`.toLowerCase();
+  if (item.id.endsWith("berry") || text.includes("berry") || text.includes("树果")) return "树果";
+  if (/ether|elixir/.test(item.id) || /\bpp\b/.test(text)) return "PP 补剂";
+  if (item.category === "held") return "普通携带";
+  return "回复";
+}
+
 function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
   const rows = rest.night_sky?.rows || [];
   const nextBattleNo = Math.max(1, Math.min(Number(rest.battles || rows.length || 1), Number(rest.battle_no || 0) + 1));
@@ -543,7 +824,8 @@ function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNu
   }, [nextBattleNo, rows, selectedBattleNo]);
   const selectedIndex = Math.max(0, rows.findIndex(row => row.battle_no === selectedBattleNo));
   const selectedRow = rows[selectedIndex] || rows[0] || null;
-  const hasScoutTalent = hasRunTalent(rest, "intel_rumor");
+  const rumorLevel = runTalentLevel(rest, "intel_rumor");
+  const hasScoutTalent = rumorLevel > 0;
   const hasRerouteTalent = hasRunTalent(rest, "intel_reroute");
   const currentBattleNo = Number(rest.battle_no || 0);
   const selectedTrainerVisible = selectedRow ? selectedRow.trainer_visible !== false : false;
@@ -552,10 +834,10 @@ function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNu
   const rerouteUsed = Number(rest.reroute_used || 0);
   const rerouteLimit = Number(rest.reroute_limit || 3);
   const canRerouteSelected = Boolean(hasRerouteTalent && selectedRow && selectedFuture && rerouteUsed < rerouteLimit);
-  const canScoutOne = Boolean(hasScoutTalent && selectedRow && selectedFuture && Number(selectedRow.revealed || 0) < 1);
-  const canScoutAll = Boolean(hasScoutTalent && selectedRow && selectedFuture && !selectedRow.unlocked);
-  const scoutOneLabel = !hasScoutTalent ? "需要小道消息" : !selectedFuture ? "已挑战" : Number(selectedRow?.revealed || 0) >= 1 ? "已揭示一只" : "免费解锁一只";
-  const scoutAllLabel = !hasScoutTalent ? "需要小道消息" : !selectedFuture ? "已挑战" : selectedRow?.unlocked ? "已解锁三只" : `金币解锁三只 ${coinCostLabel(rest.costs.scout_all)}`;
+  const canScoutOne = Boolean(rumorLevel >= 2 && selectedRow && selectedFuture && Number(selectedRow.revealed || 0) < 1);
+  const canScoutAll = Boolean(rumorLevel >= 3 && selectedRow && selectedFuture && !selectedRow.unlocked);
+  const scoutOneLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 2 ? "需要 Lv2" : !selectedFuture ? "已挑战" : Number(selectedRow?.revealed || 0) >= 1 ? "已揭示一只" : "免费解锁一只";
+  const scoutAllLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 3 ? "需要 Lv3" : !selectedFuture ? "已挑战" : selectedRow?.unlocked ? "已解锁三只" : `金币解锁三只 ${coinCostLabel(rest.costs.scout_all)}`;
   return (
     <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal night-sky-modal night-sky-gallery-modal">
@@ -766,18 +1048,30 @@ function RunTalentModal({rest, embedded = false}: {rest: NonNullable<DesktopGame
   );
 }
 
-type ShopPreferredCategory = "healing" | "pp" | "berry" | "battle" | "tm";
+type ShopKind = "recovery" | "held" | "tm";
+const SHOP_KIND_VIEW: Record<ShopKind, {label: string; desc: string; cost: number; theme: string}> = {
+  recovery: {label: "回复商店", desc: "恢复、树果、PP 补剂", cost: 50, theme: "green"},
+  held: {label: "道具商店", desc: "普通战斗携带道具", cost: 75, theme: "blue"},
+  tm: {label: "技能商店", desc: "2 张可用 TM + 1 张当前不可用 TM", cost: 75, theme: "purple"},
+};
 
-function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (preferredCategory?: ShopPreferredCategory) => boolean | void | Promise<boolean | void>; onBuy: (offerId: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
-  const offers = shop?.offers || [];
-  const slotCount = shop?.slot_count || offers.length || 3;
+function hasRestEventStatus(rest: NonNullable<DesktopGameState["rest"]>, id: string): boolean {
+  return Boolean(rest.rest_event_statuses?.some(status => status.id === id));
+}
+
+function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (shopKind: ShopKind) => boolean | void | Promise<boolean | void>; onBuy: (offerId: string) => boolean | void | Promise<boolean | void>; onBarterBuy?: (offerId: string, itemIds: string[]) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+  const [shopKind, setShopKind] = useState<ShopKind>((shop?.kind as ShopKind | undefined) || "recovery");
+  const activeKind = (shop?.kind as ShopKind | undefined) || "recovery";
+  const offers = activeKind === shopKind ? (shop?.offers || []) : [];
+  const slotCount = shopKind === "tm" ? 3 : shop?.slot_count || offers.length || 3;
   const [rolling, setRolling] = useState(false);
   const [revealed, setRevealed] = useState(Boolean(offers.length));
-  const [preferredCategory, setPreferredCategory] = useState<"" | ShopPreferredCategory>("");
   const [buyingOfferId, setBuyingOfferId] = useState("");
+  const [barterOffer, setBarterOffer] = useState<ShopOffer | null>(null);
   const bonus = shop?.last_roll_bonus || null;
-  const canChooseCategory = hasRunTalent(rest, "intel_shop_strategy");
-  const rollCost = Number(shop?.next_roll_cost || 0) + (preferredCategory ? Number(shop?.preferred_roll_cost || 100) : 0);
+  const barterActive = hasRestEventStatus(rest, "barter");
+  const shopDisabled = hasRestEventStatus(rest, "shop_disabled");
+  const rollCost = barterActive ? 0 : activeKind === shopKind ? Number(shop?.next_roll_cost || 0) : Number(shop?.free_rolls_remaining || 0) > 0 ? 0 : SHOP_KIND_VIEW[shopKind].cost;
   const canAffordRoll = Number(rest.coins || 0) >= rollCost;
 
   useEffect(() => {
@@ -786,10 +1080,10 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
   }, [offers.length, rolling]);
 
   async function roll() {
-    if (rolling || !canAffordRoll) return;
+    if (rolling || !canAffordRoll || shopDisabled) return;
     setRolling(true);
     setRevealed(false);
-    const ok = await onRoll(preferredCategory || undefined);
+    const ok = await onRoll(shopKind);
     if (ok === false) {
       setRolling(false);
       setRevealed(Boolean(offers.length));
@@ -803,6 +1097,11 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
 
   async function buy(offerId: string) {
     if (buyingOfferId) return;
+    if (barterActive) {
+      const offer = offers.find(entry => entry.offer_id === offerId) || null;
+      setBarterOffer(offer);
+      return;
+    }
     setBuyingOfferId(offerId);
     try {
       await onBuy(offerId);
@@ -813,21 +1112,13 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
 
   return (
     <EmbeddedOrModal embedded={embedded}>
-      <section className="shop-modal slot-shop-modal">
-        {canChooseCategory ? (
-          <div className="segmented-row">
-            <button className={!preferredCategory ? "selected" : ""} onClick={() => setPreferredCategory("")}>随机</button>
-            <button className={preferredCategory === "healing" ? "selected" : ""} onClick={() => setPreferredCategory("healing")}>恢复药</button>
-            <button className={preferredCategory === "pp" ? "selected" : ""} onClick={() => setPreferredCategory("pp")}>PP药</button>
-            <button className={preferredCategory === "berry" ? "selected" : ""} onClick={() => setPreferredCategory("berry")}>树果</button>
-            <button className={preferredCategory === "battle" ? "selected" : ""} onClick={() => setPreferredCategory("battle")}>战斗道具</button>
-            <button className={preferredCategory === "tm" ? "selected" : ""} onClick={() => setPreferredCategory("tm")}>技能机器</button>
-            <span>{preferredCategory ? `指定加收 ${coinCostLabel(shop?.preferred_roll_cost || 100)}` : "不指定类型"}</span>
-          </div>
-        ) : null}
+      <section className={`shop-modal slot-shop-modal shop-theme-${SHOP_KIND_VIEW[shopKind].theme}`}>
+        <div className="segmented-row shop-kind-row">
+          {(Object.keys(SHOP_KIND_VIEW) as ShopKind[]).map(kind => <button className={shopKind === kind ? "selected" : ""} onClick={() => { setShopKind(kind); setRevealed(activeKind === kind && Boolean(shop?.offers?.length)); }} key={kind}><strong>{SHOP_KIND_VIEW[kind].label}</strong><small>{SHOP_KIND_VIEW[kind].desc}</small></button>)}
+        </div>
         <div className="shop-control-row">
-          <span>抽奖 {coinCostLabel(shop?.next_roll_cost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　免费 ${shop.free_rolls_remaining}` : ""}</span>
-          <button disabled={rolling || !canAffordRoll} onClick={roll}>{rolling ? "抽取中" : `抽奖`}</button>
+          <span>{SHOP_KIND_VIEW[shopKind].label}　抽奖 {barterActive ? "免费" : coinCostLabel(rollCost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　免费 ${shop.free_rolls_remaining}` : ""}</span>
+          <button disabled={rolling || !canAffordRoll || shopDisabled} onClick={roll}>{shopDisabled ? "商店关闭" : rolling ? "抽取中" : `抽奖`}</button>
           <button onClick={onClose}>跳过</button>
         </div>
         {bonus && revealed ? <div className="slot-bonus-pop"><strong>抽到 {bonus.match_count} 连！</strong><span>免费获得 {bonus.count} 个 {bonus.name_zh || bonus.name}</span></div> : null}
@@ -847,7 +1138,7 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
             const itemPurchaseCount = Number(shop?.purchased_item_counts?.[toId(item.id || item.name)] || 0);
             const isBonus = bonus?.item_id === toId(item.id || item.name);
             const itemCost = Number(item.cost || 0);
-            const canAffordItem = Number(rest.coins || 0) >= itemCost;
+            const canAffordItem = barterActive || Number(rest.coins || 0) >= itemCost;
             const isBuying = buyingOfferId === item.offer_id;
             return (
               <article className={`shop-slot-card ${purchaseCount ? "bought" : ""} ${isBonus ? "bonus" : ""}`} key={item.offer_id}>
@@ -857,7 +1148,7 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
                   <small>{item.desc_zh || item.desc || item.name}</small>
                   <span><em>{itemCategoryLabel(item.category)}</em><b>{coinCostLabel(item.cost)}</b>{isBonus ? <i>{bonus?.match_count} 连</i> : null}{purchaseCount ? <i>已买 x{purchaseCount}</i> : itemPurchaseCount ? <i>同道具 x{itemPurchaseCount}</i> : null}</span>
                 </div>
-                <button disabled={Boolean(buyingOfferId) || !canAffordItem} onClick={() => buy(item.offer_id)}>{isBuying ? "购买中" : purchaseCount ? "再买" : "购买"}</button>
+                <button disabled={Boolean(buyingOfferId) || !canAffordItem || shopDisabled} onClick={() => buy(item.offer_id)}>{shopDisabled ? "关闭" : isBuying ? "购买中" : barterActive ? "交换" : purchaseCount ? "再买" : "购买"}</button>
               </article>
             );
           }) : Array.from({length: slotCount}, (_, index) => (
@@ -872,8 +1163,52 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, embedded = false}: {rest
             </article>
           ))}
         </div>
+        {barterOffer && onBarterBuy ? <BarterBuyModal rest={rest} offer={barterOffer} onClose={() => setBarterOffer(null)} onBuy={async (offerId, itemIds) => { setBuyingOfferId(offerId); try { await onBarterBuy(offerId, itemIds); setBarterOffer(null); } finally { setBuyingOfferId(""); } }} /> : null}
       </section>
     </EmbeddedOrModal>
+  );
+}
+
+function BarterBuyModal({rest, offer, onClose, onBuy}: {rest: NonNullable<DesktopGameState["rest"]>; offer: ShopOffer; onClose: () => void; onBuy: (offerId: string, itemIds: string[]) => void | Promise<void>}) {
+  const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat().filter(item => item.count > 0);
+  const [selected, setSelected] = useState<string[]>([]);
+  const counts = selected.reduce<Record<string, number>>((acc, id) => ({...acc, [id]: Number(acc[id] || 0) + 1}), {});
+  const value = selected.reduce((sum, id) => sum + Number(items.find(item => item.id === id)?.sell_price || 0), 0);
+  const required = Math.ceil(Number(offer.cost || 0) * 0.7);
+  function toggle(id: string, maxCount: number) {
+    setSelected(current => {
+      const picked = current.filter(value => value === id).length;
+      if (current.length >= 3 || picked >= maxCount) return current;
+      return [...current, id];
+    });
+  }
+  return (
+    <PokopiaModal className="barter-buy-modal" labelledBy="barter-buy-title" onClose={onClose}>
+      {requestClose => (
+        <motion.section className="barter-buy-content" variants={pokopiaItemVariants}>
+          <header>
+            <div><h2 id="barter-buy-title">以物易物</h2><p>{offer.name_zh || offer.name} 需要材料估值至少 {coinCostLabel(required)}，不找零。</p></div>
+            <button onClick={() => requestClose()}>关闭</button>
+          </header>
+          <div className="barter-material-list">
+            {items.length ? items.map(item => {
+              const picked = Number(counts[item.id] || 0);
+              return (
+                <button className={picked ? "selected" : ""} disabled={selected.length >= 3 && !picked} onClick={() => toggle(item.id, item.count)} key={`barter-${item.id}`}>
+                  <ItemIcon item={item} />
+                  <span><strong>{item.name_zh || item.name}</strong><small>x{item.count}　估值 {coinCostLabel(item.sell_price || 0)}{picked ? `　已选 ${picked}` : ""}</small></span>
+                </button>
+              );
+            }) : <p>背包里没有可交换的道具。</p>}
+          </div>
+          <footer className="command-row">
+            <span>当前估值 {coinCostLabel(value)}</span>
+            <button disabled={!selected.length} onClick={() => setSelected([])}>清空</button>
+            <button disabled={!selected.length || value < required} onClick={() => onBuy(offer.offer_id, selected)}>确认交换</button>
+          </footer>
+        </motion.section>
+      )}
+    </PokopiaModal>
   );
 }
 

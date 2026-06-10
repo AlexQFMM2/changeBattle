@@ -79,14 +79,14 @@ export function TitleScreen({save, catalog, defaultAvatarAsset, onLoad, onNew, o
 }
 
 export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onBattleSetting, onTitle, onTestMode}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onStarterUpgrade: () => void; onBattleSetting: () => void; onTitle: () => void; onTestMode: () => void}) {
+  void onStarterUpgrade;
   const [leaving, setLeaving] = useState(false);
   const [quickDexOpen, setQuickDexOpen] = useState(false);
   const actionTimerRef = useRef<number | null>(null);
   const winRate = save?.stats.battles ? Math.round((save.stats.wins / save.stats.battles) * 1000) / 10 : 0;
   const menuItems = [
     {label: save?.current_run ? "继续游戏" : "开始游戏", action: onStart},
-    {label: "天赋配置", action: onTalent},
-    {label: "开局筹备", action: onStarterUpgrade},
+    {label: "训练家星图", action: onTalent},
     {label: "对局偏好", action: onBattleSetting},
     {label: "图鉴", action: () => setQuickDexOpen(true), instant: true},
     {label: "测试模式", action: onTestMode},

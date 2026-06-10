@@ -12,8 +12,16 @@ import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgr
 const BATTLE_BACKGROUNDS = parseBattleBackgroundCsv(battleBackgroundCsv);
 const FALLBACK_BATTLE_BACKGROUND = BATTLE_BACKGROUNDS.find(background => background.id === "mountain-route") || BATTLE_BACKGROUNDS[0];
 const BATTLE_PANEL_MODES = new Set<AppStatus>(["battleMain", "moveMenu", "teamMenu", "statusMenu"]);
-const IMPLEMENTED_BATTLE_SYSTEMS = new Set(["mega", "zmove"]);
+const IMPLEMENTED_BATTLE_SYSTEMS = new Set(["mega", "zmove", "dynamax", "terastal"]);
 const BATTLE_ANIMATION_SPEEDUP_MS = 500;
+const FORCED_CONTINUATION_MOVE_IDS = new Set([
+  "fly", "dive", "dig", "bounce", "phantomforce", "shadowforce", "skydrop",
+  "solarbeam", "solarblade", "meteorbeam", "skullbash", "razorwind", "skyattack",
+  "iceburn", "freezeshock", "geomancy",
+  "outrage", "thrash", "petaldance", "rollout", "iceball", "uproar", "bravebird",
+]);
+
+type ActiveDisplaySnapshot = BattleState["tracker"]["active"]["p1"];
 
 function parseBattleBackgroundCsv(csv: string): BattleBackgroundView[] {
   return csv.trim().split(/\r?\n/).slice(1).map(line => {
@@ -28,11 +36,11 @@ function battleBackgroundFor(battle: BattleState | null): BattleBackgroundView |
 
 function isForcedContinuationRequest(request: BattleState["request"]): boolean {
   if (!request || request.wait || request.teamPreview || request.forceSwitch) return false;
-  const active = request.active?.[0] as ({moves?: BattleMoveRequest[]; trapped?: boolean} | undefined);
-  const moves = active?.moves || [];
+  const moves = request.active?.[0]?.moves || [];
   if (moves.length !== 1) return false;
   const move = moves[0];
-  return Boolean(active?.trapped) || (move.pp === undefined && move.maxpp === undefined && !move.disabled);
+  const moveId = toId(move.id || move.move);
+  return Boolean(moveId && moveId !== "struggle" && FORCED_CONTINUATION_MOVE_IDS.has(moveId) && move.pp === undefined && move.maxpp === undefined && !move.disabled);
 }
 
 function isForceSwitchRequest(request: BattleState["request"]): boolean {
@@ -44,7 +52,7 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
     const actingSide = event.side || "p1";
     const team = actingSide === (battle.player_side || "p1") ? battle.player_display : battle.enemy_display;
     const pokemon = findDisplayByShowdownId(team, event.source_showdown_id || displayedShowdownIds?.[actingSide]) || findDisplay(team, event.source_id || displayedNames[actingSide]);
-    const summary = moveSummaryByName(pokemon, event.move);
+    const summary = runtimeMoveSummary(moveSummaryByName(pokemon, event.move), pokemon, battle, actingSide);
     const moveId = summary?.id ? toId(summary.id) : toId(event.move);
     const entry = firstBattleEffectEntry(moveEffectKeys(moveId, typeId(summary?.type || summary?.type_zh), moveCategoryId(summary?.category, summary?.category_zh)));
     return cueFromEntry(entry, event, entry?.visual || "normal-hit", actingSide, moveCueTargetSide(entry, actingSide, event.targetSide));
@@ -64,6 +72,22 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
   if (event.type === "form" && /超级进化|进化石|Mega/i.test(event.text || event.effect || "")) {
     const side = event.side || event.targetSide || "p1";
     return {visual: "mega-evolve", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1600)};
+  }
+  if (event.type === "form" && event.effect === "Terastallize") {
+    const side = event.side || event.targetSide || "p1";
+    return {visual: "terastalize", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1500)};
+  }
+  if (event.type === "form" && /DynamaxEnd|极巨化结束|结束/.test(event.text || event.effect || "")) {
+    const side = event.side || event.targetSide || "p1";
+    return {visual: "dynamax-end", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1500)};
+  }
+  if (event.type === "form" && /超极巨|Gigantamax|Gmax/i.test(event.text || event.effect || "")) {
+    const side = event.side || event.targetSide || "p1";
+    return {visual: "gigantamax", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1900)};
+  }
+  if (event.type === "form" && /极巨化|Dynamax/i.test(event.text || event.effect || "")) {
+    const side = event.side || event.targetSide || "p1";
+    return {visual: "dynamax", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1700)};
   }
   if (event.type === "form") return cueFromEntry(battleEffectEntry("battle_action:form"), event, "ability", event.side, event.targetSide || event.side);
   if (event.type === "substitute") {
@@ -184,16 +208,125 @@ function zMoveSpritePath(text: string): string | null {
   return fileName ? `assets/z-moves/${fileName}` : null;
 }
 
-function displayedActiveDisplay(battle: BattleState, side: "p1" | "p2", displayedName: string, displayedShowdownId: string, fallback?: RentalPokemon): RentalPokemon | undefined {
+const DYNAMAX_MOVE_ZH = new Map([
+  ["maxstrike", "极巨攻击"], ["Max Strike", "极巨攻击"],
+  ["maxknuckle", "极巨拳斗"], ["Max Knuckle", "极巨拳斗"],
+  ["maxairstream", "极巨飞冲"], ["Max Airstream", "极巨飞冲"],
+  ["maxooze", "极巨酸毒"], ["Max Ooze", "极巨酸毒"],
+  ["maxquake", "极巨大地"], ["Max Quake", "极巨大地"],
+  ["maxrockfall", "极巨岩石"], ["Max Rockfall", "极巨岩石"],
+  ["maxflutterby", "极巨虫蛊"], ["Max Flutterby", "极巨虫蛊"],
+  ["maxphantasm", "极巨幽魂"], ["Max Phantasm", "极巨幽魂"],
+  ["maxsteelspike", "极巨钢铁"], ["Max Steelspike", "极巨钢铁"],
+  ["maxflare", "极巨火爆"], ["Max Flare", "极巨火爆"],
+  ["maxgeyser", "极巨水流"], ["Max Geyser", "极巨水流"],
+  ["maxovergrowth", "极巨草原"], ["Max Overgrowth", "极巨草原"],
+  ["maxlightning", "极巨闪电"], ["Max Lightning", "极巨闪电"],
+  ["maxmindstorm", "极巨超能"], ["Max Mindstorm", "极巨超能"],
+  ["maxhailstorm", "极巨寒冰"], ["Max Hailstorm", "极巨寒冰"],
+  ["maxwyrmwind", "极巨龙骑"], ["Max Wyrmwind", "极巨龙骑"],
+  ["maxdarkness", "极巨恶霸"], ["Max Darkness", "极巨恶霸"],
+  ["maxstarfall", "极巨妖精"], ["Max Starfall", "极巨妖精"],
+  ["maxguard", "极巨防壁"], ["Max Guard", "极巨防壁"],
+  ["gmaxwildfire", "超极巨地狱灭焰"], ["G-Max Wildfire", "超极巨地狱灭焰"],
+  ["gmaxbefuddle", "超极巨蝶影蛊惑"], ["G-Max Befuddle", "超极巨蝶影蛊惑"],
+  ["gmaxvoltcrash", "超极巨万雷轰顶"], ["G-Max Volt Crash", "超极巨万雷轰顶"],
+  ["gmaxgoldrush", "超极巨特大金币"], ["G-Max Gold Rush", "超极巨特大金币"],
+  ["gmaxchistrike", "超极巨会心一击"], ["G-Max Chi Strike", "超极巨会心一击"],
+  ["gmaxterror", "超极巨幻影幽魂"], ["G-Max Terror", "超极巨幻影幽魂"],
+  ["gmaxfoamburst", "超极巨激漩泡涡"], ["G-Max Foam Burst", "超极巨激漩泡涡"],
+  ["gmaxresonance", "超极巨极光旋律"], ["G-Max Resonance", "超极巨极光旋律"],
+  ["gmaxcuddle", "超极巨热情拥抱"], ["G-Max Cuddle", "超极巨热情拥抱"],
+  ["gmaxreplenish", "超极巨资源再生"], ["G-Max Replenish", "超极巨资源再生"],
+  ["gmaxmalodor", "超极巨臭气冲天"], ["G-Max Malodor", "超极巨臭气冲天"],
+  ["gmaxmeltdown", "超极巨液金熔击"], ["G-Max Meltdown", "超极巨液金熔击"],
+  ["gmaxdrumsolo", "超极巨狂擂乱打"], ["G-Max Drum Solo", "超极巨狂擂乱打"],
+  ["gmaxfireball", "超极巨破阵火球"], ["G-Max Fireball", "超极巨破阵火球"],
+  ["gmaxhydrosnipe", "超极巨狙击神射"], ["G-Max Hydrosnipe", "超极巨狙击神射"],
+  ["gmaxwindrage", "超极巨旋风袭卷"], ["G-Max Wind Rage", "超极巨旋风袭卷"],
+  ["gmaxgravitas", "超极巨天道七星"], ["G-Max Gravitas", "超极巨天道七星"],
+  ["gmaxstonesurge", "超极巨岩阵以待"], ["G-Max Stonesurge", "超极巨岩阵以待"],
+  ["gmaxvolcalith", "超极巨炎石喷发"], ["G-Max Volcalith", "超极巨炎石喷发"],
+  ["gmaxtartness", "超极巨酸不溜丢"], ["G-Max Tartness", "超极巨酸不溜丢"],
+  ["gmaxsweetness", "超极巨琼浆玉液"], ["G-Max Sweetness", "超极巨琼浆玉液"],
+  ["gmaxsandblast", "超极巨沙尘漫天"], ["G-Max Sandblast", "超极巨沙尘漫天"],
+  ["gmaxstunshock", "超极巨异毒电场"], ["G-Max Stun Shock", "超极巨异毒电场"],
+  ["gmaxcentiferno", "超极巨百火焚野"], ["G-Max Centiferno", "超极巨百火焚野"],
+  ["gmaxsmite", "超极巨天谴雷诛"], ["G-Max Smite", "超极巨天谴雷诛"],
+  ["gmaxsnooze", "超极巨睡魔降临"], ["G-Max Snooze", "超极巨睡魔降临"],
+  ["gmaxfinale", "超极巨幸福圆满"], ["G-Max Finale", "超极巨幸福圆满"],
+  ["gmaxdepletion", "超极巨劣化衰变"], ["G-Max Depletion", "超极巨劣化衰变"],
+  ["gmaxoneblow", "超极巨夺命一击"], ["G-Max One Blow", "超极巨夺命一击"],
+  ["gmaxrapidflow", "超极巨流水连击"], ["G-Max Rapid Flow", "超极巨流水连击"],
+  ["gmaxvinelash", "超极巨灰飞鞭灭"], ["G-Max Vine Lash", "超极巨灰飞鞭灭"],
+  ["gmaxcannonade", "超极巨水炮轰灭"], ["G-Max Cannonade", "超极巨水炮轰灭"],
+]);
+
+function dynamaxMoveDisplayLabel(text: string, pokemon?: RentalPokemon): string {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  return DYNAMAX_MOVE_ZH.get(raw) || DYNAMAX_MOVE_ZH.get(toId(raw)) || moveSummaryByName(pokemon, raw)?.name_zh || raw;
+}
+
+function displayedActiveDisplay(battle: BattleState, side: "p1" | "p2", displayedName: string, displayedShowdownId: string, fallback?: RentalPokemon, activeOverride?: ActiveDisplaySnapshot): RentalPokemon | undefined {
   const team = side === (battle.player_side || "p1") ? battle.player_display : battle.enemy_display;
   const base = findDisplayByShowdownId(team, displayedShowdownId) || findDisplay(team, displayedName) || fallback;
-  const active = battle.tracker.active[side];
+  const active = activeOverride || battle.tracker.active[side];
   const displayedRawKeys = [displayedName].filter(Boolean).map(value => String(value).trim().toLowerCase());
   const displayedIdKeys = displayedRawKeys.map(toId).filter(Boolean);
   const activeRawKeys = [active?.name, active?.display_name, active?.species_id].filter(Boolean).map(value => String(value).trim().toLowerCase());
   const activeIdKeys = activeRawKeys.map(toId).filter(Boolean);
   const trackerIsDisplayed = activeRawKeys.some(key => displayedRawKeys.includes(key)) || activeIdKeys.some(key => displayedIdKeys.includes(key));
   return trackerIsDisplayed ? displayFromActive(active, base) || base : base;
+}
+
+function activeSnapshotsForBattle(battle: BattleState | null): Record<"p1" | "p2", ActiveDisplaySnapshot> {
+  return {
+    p1: {...(battle?.tracker.active.p1 || {})},
+    p2: {...(battle?.tracker.active.p2 || {})},
+  };
+}
+
+function snapshotFromTimelineEvent(current: ActiveDisplaySnapshot, event: BattleTimelineEvent): ActiveDisplaySnapshot {
+  const effect = String(event.effect || "");
+  const dynamaxEnd = effect === "DynamaxEnd" || event.text.includes("极巨化结束");
+  const terastal = effect === "Terastallize";
+  const gigantamax = effect === "Gigantamax" || /超极巨|Gigantamax|Gmax/i.test(event.text);
+  const dynamax = !dynamaxEnd && (gigantamax || effect === "Dynamax" || /极巨化|Dynamax/i.test(event.text));
+  const original = dynamax && !current.original_species_id
+    ? {
+      original_species_id: current.species_id,
+      original_name: current.name,
+      original_display_name: current.display_name,
+      original_sprite: current.sprite,
+    }
+    : {};
+  return {
+    ...current,
+    ...original,
+    name: event.target_id || (dynamaxEnd ? current.original_name : current.name),
+    display_name: event.target || (dynamaxEnd ? current.original_display_name : current.display_name),
+    species_id: event.target_species_id || (dynamaxEnd ? current.original_species_id : current.species_id),
+    sprite: event.sprite || (dynamaxEnd ? current.original_sprite : current.sprite),
+    showdown_id: event.target_showdown_id || current.showdown_id,
+    condition: event.condition || current.condition,
+    ...(terastal ? {
+      terastallized: true,
+      tera_type: event.tera_type,
+      tera_type_zh: event.tera_type_zh,
+      types: event.tera_type ? [event.tera_type] : current.types,
+      types_zh: event.tera_type_zh ? [event.tera_type_zh] : current.types_zh,
+    } : {}),
+    ...(dynamax ? {dynamaxed: true, gigantamaxed: gigantamax} : {}),
+    ...(dynamaxEnd ? {
+      dynamaxed: false,
+      gigantamaxed: false,
+      original_species_id: undefined,
+      original_name: undefined,
+      original_display_name: undefined,
+      original_sprite: undefined,
+    } : {}),
+  };
 }
 
 function ZMoveNameCutIn({event}: {event: BattleTimelineEvent}) {
@@ -207,6 +340,11 @@ function ZMoveNameCutIn({event}: {event: BattleTimelineEvent}) {
       <span className="z-move-name-text">{moveName}</span>
     </span>
   );
+}
+
+function DynamaxMoveNameCutIn({event}: {event: BattleTimelineEvent}) {
+  const moveName = dynamaxMoveDisplayLabel(event.move || event.text);
+  return <span className="dynamax-move-name-text">{moveName.endsWith("！") || moveName.endsWith("!") ? moveName : `${moveName}！`}</span>;
 }
 
 function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
@@ -266,6 +404,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const [displayConditions, setDisplayConditions] = useState(finalConditions);
   const [displayedActiveNames, setDisplayedActiveNames] = useState(finalActiveNames);
   const [displayedActiveShowdownIds, setDisplayedActiveShowdownIds] = useState(finalActiveShowdownIds);
+  const [displayedActiveSnapshots, setDisplayedActiveSnapshots] = useState(() => activeSnapshotsForBattle(battle));
   const [displayedSubstitutes, setDisplayedSubstitutes] = useState(finalSubstitutes);
   const [hpTransitionMs, setHpTransitionMs] = useState({p1: 1400, p2: 1400});
   const [faintedSides, setFaintedSides] = useState({p1: false, p2: false});
@@ -283,6 +422,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const displayConditionsRef = useRef(displayConditions);
   const displayedActiveNamesRef = useRef(displayedActiveNames);
   const displayedActiveShowdownIdsRef = useRef(displayedActiveShowdownIds);
+  const displayedActiveSnapshotsRef = useRef(displayedActiveSnapshots);
   const displayedSubstitutesRef = useRef(displayedSubstitutes);
   const previousBattlePresent = useRef(false);
   const introDialoguePending = useRef(false);
@@ -297,6 +437,10 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const lastAutoAdvanceKey = useRef("");
   const lastCryKeys = useRef({p1: "", p2: ""});
   const lastCryScopeKey = useRef("");
+  const hasQueuedPlayback = Boolean(battle && (
+    timelineEvents.some((event, index) => !previousTimelineKeys.current.includes(`${event.id}:${event.text}`))
+    || addedRecentEventTexts(previousRecentEvents.current, recentEvents).length > 0
+  ));
 
   function selectPanelMode(nextMode: AppStatus) {
     setPanelMode(BATTLE_PANEL_MODES.has(nextMode) ? nextMode : "battleMain");
@@ -333,6 +477,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   useEffect(() => { displayConditionsRef.current = displayConditions; }, [displayConditions]);
   useEffect(() => { displayedActiveNamesRef.current = displayedActiveNames; }, [displayedActiveNames]);
   useEffect(() => { displayedActiveShowdownIdsRef.current = displayedActiveShowdownIds; }, [displayedActiveShowdownIds]);
+  useEffect(() => { displayedActiveSnapshotsRef.current = displayedActiveSnapshots; }, [displayedActiveSnapshots]);
   useEffect(() => { displayedSubstitutesRef.current = displayedSubstitutes; }, [displayedSubstitutes]);
   useEffect(() => {
     const log = battleLogRef.current;
@@ -388,6 +533,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
     const hasMoves = Boolean(battle?.request?.active?.[0]?.moves?.length);
     const forceSwitch = isForceSwitchRequest(battle?.request || null);
     if (forceSwitch) {
+      if (playbackActive || hasQueuedPlayback || currentTimelineEvent) return;
       forceSwitchPanelOpen.current = true;
       setPanelMode("teamMenu");
       setBattleItemOpen(false);
@@ -399,7 +545,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       if (panelMode === "teamMenu") setPanelMode("battleMain");
     }
     if (panelMode === "moveMenu" && !hasMoves) setPanelMode("battleMain");
-  }, [battle?.request?.forceSwitch, battle?.request?.active?.[0]?.moves?.length, panelMode]);
+  }, [battle?.request?.forceSwitch, battle?.request?.active?.[0]?.moves?.length, panelMode, playbackActive, hasQueuedPlayback, currentTimelineEvent?.id]);
 
   function playerWonBattle(activeBattle: BattleState): boolean {
     const winner = String(activeBattle.winner || "").toLowerCase();
@@ -470,6 +616,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       setPlaybackActive(false);
       setTrainerIntroActive(false);
       setDisplayedActiveNames(finalActiveNames);
+      setDisplayedActiveShowdownIds(finalActiveShowdownIds);
+      setDisplayedActiveSnapshots(activeSnapshotsForBattle(null));
       setDisplayedSubstitutes(finalSubstitutes);
       setDisplayConditions(finalConditions);
       setFaintedSides(finalFaintedSides);
@@ -505,6 +653,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       setCurrentVisualCue(null);
       setPlaybackActive(false);
       setFaintedSides(timelineFaintedState(timelineEvents, finalFaintedSides));
+      const finalSnapshots = activeSnapshotsForBattle(battle);
+      displayedActiveSnapshotsRef.current = finalSnapshots;
+      setDisplayedActiveSnapshots(finalSnapshots);
       setDisplayedSubstitutes(finalSubstitutes);
       if (battle.ended && pendingTransition && !finishRequested.current) {
         beginBattleOutro(battle, pendingTransition);
@@ -614,6 +765,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
             const nextShowdownIds = {...displayedActiveShowdownIdsRef.current, [event.targetSide]: event.target_showdown_id || ""};
             displayedActiveShowdownIdsRef.current = nextShowdownIds;
             setDisplayedActiveShowdownIds(nextShowdownIds);
+            const nextSnapshots = {...displayedActiveSnapshotsRef.current, [event.targetSide]: snapshotFromTimelineEvent(displayedActiveSnapshotsRef.current[event.targetSide], event)};
+            displayedActiveSnapshotsRef.current = nextSnapshots;
+            setDisplayedActiveSnapshots(nextSnapshots);
             const nextSubstitutes = {...displayedSubstitutesRef.current, [event.targetSide]: false};
             displayedSubstitutesRef.current = nextSubstitutes;
             setDisplayedSubstitutes(nextSubstitutes);
@@ -632,6 +786,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
               displayedActiveShowdownIdsRef.current = nextShowdownIds;
               setDisplayedActiveShowdownIds(nextShowdownIds);
             }
+            const nextSnapshots = {...displayedActiveSnapshotsRef.current, [event.targetSide]: snapshotFromTimelineEvent(displayedActiveSnapshotsRef.current[event.targetSide], event)};
+            displayedActiveSnapshotsRef.current = nextSnapshots;
+            setDisplayedActiveSnapshots(nextSnapshots);
           } else if (event.type === "substitute" && event.targetSide && targetIsDisplayedActive) {
             const nextSubstitutes = {...displayedSubstitutesRef.current, [event.targetSide]: Boolean(event.substitute)};
             displayedSubstitutesRef.current = nextSubstitutes;
@@ -643,6 +800,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
               setDisplayConditions(nextConditions);
             }
             setFaintedSides(current => ({...current, [event.targetSide!]: true}));
+            const nextSnapshots = {...displayedActiveSnapshotsRef.current, [event.targetSide]: {...displayedActiveSnapshotsRef.current[event.targetSide], condition: event.condition || "0 fnt"}};
+            displayedActiveSnapshotsRef.current = nextSnapshots;
+            setDisplayedActiveSnapshots(nextSnapshots);
           }
           await wait(180);
         }
@@ -657,10 +817,13 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       displayConditionsRef.current = finalConditions;
       displayedActiveNamesRef.current = finalActiveNames;
       displayedActiveShowdownIdsRef.current = finalActiveShowdownIds;
+      const finalSnapshots = activeSnapshotsForBattle(activeBattle);
+      displayedActiveSnapshotsRef.current = finalSnapshots;
       displayedSubstitutesRef.current = finalSubstitutes;
       setDisplayConditions(finalConditions);
       setDisplayedActiveNames(finalActiveNames);
       setDisplayedActiveShowdownIds(finalActiveShowdownIds);
+      setDisplayedActiveSnapshots(finalSnapshots);
       setDisplayedSubstitutes(finalSubstitutes);
       setFaintedSides(timelineFaintedState(timelineEvents, finalFaintedSides));
       if (activeBattle.ended && pendingTransition && !finishRequested.current) {
@@ -677,8 +840,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
     };
   }, [timelineKey, recentKey, dialogue?.kind]);
 
-  const displayPlayer = battle ? displayedActiveDisplay(battle, "p1", displayedActiveNames.p1, displayedActiveShowdownIds.p1, player.display) : player.display;
-  const displayEnemy = battle ? displayedActiveDisplay(battle, "p2", displayedActiveNames.p2, displayedActiveShowdownIds.p2, enemy.display) : enemy.display;
+  const displayPlayer = battle ? displayedActiveDisplay(battle, "p1", displayedActiveNames.p1, displayedActiveShowdownIds.p1, player.display, displayedActiveSnapshots.p1) : player.display;
+  const displayEnemy = battle ? displayedActiveDisplay(battle, "p2", displayedActiveNames.p2, displayedActiveShowdownIds.p2, enemy.display, displayedActiveSnapshots.p2) : enemy.display;
   const battleCryScopeKey = battle
     ? `${battle.enemy_trainer?.id || ""}:${battle.player_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}:${battle.enemy_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}`
     : "";
@@ -727,7 +890,6 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   ]);
 
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
-  const hasQueuedPlayback = timelineEvents.some((event, index) => !previousTimelineKeys.current.includes(`${event.id}:${event.text}`)) || addedRecentEventTexts(previousRecentEvents.current, recentEvents).length > 0;
   const requestWaiting = Boolean(battle.request?.wait) || isForcedContinuationRequest(battle.request);
   const forceSwitch = isForceSwitchRequest(battle.request);
   const controlsDisabled = Boolean(choicePending) || autoAdvancePending || requestWaiting || playbackActive || hasQueuedPlayback || introActive || trainerIntroActive || Boolean(dialogue);
@@ -744,6 +906,11 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const battleBackground = battleBackgroundFor(battle);
   const battleBackgroundUrl = assetUrl(battleBackground?.src);
   const battleFieldStyle = battleBackgroundUrl ? {"--battle-background-image": `url("${battleBackgroundUrl}")`} as CSSProperties : undefined;
+  const playerDynamaxClass = !displayedSubstitutes.p1 && !faintedSides.p1 && displayedActiveSnapshots.p1.dynamaxed ? displayedActiveSnapshots.p1.gigantamaxed ? "sprite-gigantamaxed" : "sprite-dynamaxed" : "";
+  const enemyDynamaxClass = !displayedSubstitutes.p2 && !faintedSides.p2 && displayedActiveSnapshots.p2.dynamaxed ? displayedActiveSnapshots.p2.gigantamaxed ? "sprite-gigantamaxed" : "sprite-dynamaxed" : "";
+  const playerTeraClass = !displayedSubstitutes.p1 && !faintedSides.p1 && displayedActiveSnapshots.p1.terastallized ? "sprite-terastallized" : "";
+  const enemyTeraClass = !displayedSubstitutes.p2 && !faintedSides.p2 && displayedActiveSnapshots.p2.terastallized ? "sprite-terastallized" : "";
+  const currentMoveIsDynamax = currentTimelineEvent?.type === "move" && /^(?:G-Max|Max)\b|^(?:极巨|超极巨)/i.test(currentTimelineEvent.move || "");
   return (
     <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
       {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => selectPanelMode("statusMenu")} /> : null}
@@ -756,13 +923,18 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         <BattleEffectLayer cue={currentVisualCue} />
         {trainerIntroActive ? <TrainerIntroOverlay battle={trainerOverlayBattle} /> : null}
         <div className="turn-badge">第 {battle.tracker.turn} 回合</div>
-        <FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} />
+        {battle.battle_event_statuses?.length ? (
+          <div className="battle-event-status-strip">
+            {battle.battle_event_statuses.map(status => <span className={`tone-${status.tone || "safe"}`} title={status.detail || status.label} key={`battle-event-${status.id}`}>{status.label}{status.id === "contest" ? ` ${battle.contest_score || 0}` : ""}</span>)}
+          </div>
+        ) : null}
+        <FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} teraType={displayedActiveSnapshots.p2.tera_type_zh} />
         <div className="battle-sprites">
-          <PokemonSprite className={`back-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""}`} pokemon={displayedSubstitutes.p1 ? undefined : displayPlayer} src={playerSprite} variant="back_normal" alt={displayPlayer ? displayName(displayPlayer) : "我方宝可梦"} entrance={!displayedSubstitutes.p1 && introActive} onClick={() => setDetailIndex(activePlayerIndex)} />
-          <PokemonSprite className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""}`} pokemon={displayedSubstitutes.p2 ? undefined : displayEnemy} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} entrance={!displayedSubstitutes.p2 && introActive} />
+          <PokemonSprite className={`back-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""} ${playerDynamaxClass} ${playerTeraClass}`} pokemon={displayedSubstitutes.p1 ? undefined : displayPlayer} src={playerSprite} variant="back_normal" alt={displayPlayer ? displayName(displayPlayer) : "我方宝可梦"} entrance={!displayedSubstitutes.p1 && introActive} onClick={() => setDetailIndex(activePlayerIndex)} />
+          <PokemonSprite className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""} ${enemyDynamaxClass} ${enemyTeraClass}`} pokemon={displayedSubstitutes.p2 ? undefined : displayEnemy} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} entrance={!displayedSubstitutes.p2 && introActive} />
         </div>
-        <FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} onClick={() => setDetailIndex(activePlayerIndex)} />
-        {currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""} ${currentTimelineEvent.effect === "z-move-call" ? "z-move-call" : ""} ${currentTimelineEvent.effect === "z-move-name" ? "z-move-name" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.effect === "z-move-name" ? <ZMoveNameCutIn event={currentTimelineEvent} /> : currentTimelineEvent.text}</div> : null}
+        <FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} teraType={displayedActiveSnapshots.p1.tera_type_zh} onClick={() => setDetailIndex(activePlayerIndex)} />
+        {currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""} ${currentTimelineEvent.effect === "z-move-call" ? "z-move-call" : ""} ${currentTimelineEvent.effect === "z-move-name" ? "z-move-name" : ""} ${currentMoveIsDynamax ? "dynamax-move-name" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.effect === "z-move-name" ? <ZMoveNameCutIn event={currentTimelineEvent} /> : currentMoveIsDynamax ? <DynamaxMoveNameCutIn event={currentTimelineEvent} /> : currentTimelineEvent.text}</div> : null}
       </section>
       <section className={`battle-bottom ${dialogue ? "dialogue-bottom-active" : ""} ${panelMode === "moveMenu" && !dialogue ? "move-bottom-active" : ""}`}>
         {dialogue ? (
@@ -870,11 +1042,11 @@ function BattleDialogueBox({dialogue}: {dialogue: TrainerDialogueState}) {
   );
 }
 
-function FighterPanel({pokemon, condition, status, side, substitute, transitionMs, onClick}: {pokemon?: RentalPokemon; condition?: string; status?: string; side: "player" | "enemy"; substitute?: boolean; transitionMs?: number; onClick?: () => void}) {
+function FighterPanel({pokemon, condition, status, side, substitute, transitionMs, teraType, onClick}: {pokemon?: RentalPokemon; condition?: string; status?: string; side: "player" | "enemy"; substitute?: boolean; transitionMs?: number; teraType?: string; onClick?: () => void}) {
   const hp = parseHp(condition);
   const code = statusCode(condition, status);
   const tone = hpTone(hp);
-  return <div className={`fighter-panel ${side} ${onClick ? "clickable-panel" : ""}`} onClick={onClick}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}<div className="hp-line"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
+  return <div className={`fighter-panel ${side} ${onClick ? "clickable-panel" : ""}`} onClick={onClick}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}{teraType ? <i className="tera-badge">太晶：{teraType}</i> : null}<div className="hp-line"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
 }
 
 function FieldEffectsOverlay({battle}: {battle: BattleState}) {
@@ -918,6 +1090,97 @@ const TYPE_CHART: Record<string, Record<string, number>> = {
   steel: {fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2},
   fairy: {fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5},
 };
+
+const TYPE_ZH_BY_ID: Record<string, string> = {
+  normal: "一般",
+  fire: "火",
+  water: "水",
+  electric: "电",
+  grass: "草",
+  ice: "冰",
+  fighting: "格斗",
+  poison: "毒",
+  ground: "地面",
+  flying: "飞行",
+  psychic: "超能力",
+  bug: "虫",
+  rock: "岩石",
+  ghost: "幽灵",
+  dragon: "龙",
+  dark: "恶",
+  steel: "钢",
+  fairy: "妖精",
+};
+
+const ARCEUS_FORM_TYPE_BY_ID: Record<string, string> = {
+  arceusbug: "bug",
+  arceusdark: "dark",
+  arceusdragon: "dragon",
+  arceuselectric: "electric",
+  arceusfairy: "fairy",
+  arceusfighting: "fighting",
+  arceusfire: "fire",
+  arceusflying: "flying",
+  arceusghost: "ghost",
+  arceusgrass: "grass",
+  arceusground: "ground",
+  arceusice: "ice",
+  arceuspoison: "poison",
+  arceuspsychic: "psychic",
+  arceusrock: "rock",
+  arceussteel: "steel",
+  arceuswater: "water",
+};
+
+const PLATE_TYPE_BY_ITEM_ID: Record<string, string> = {
+  flameplate: "fire",
+  splashplate: "water",
+  zapplate: "electric",
+  meadowplate: "grass",
+  icicleplate: "ice",
+  fistplate: "fighting",
+  toxicplate: "poison",
+  earthplate: "ground",
+  skyplate: "flying",
+  mindplate: "psychic",
+  insectplate: "bug",
+  stoneplate: "rock",
+  spookyplate: "ghost",
+  dracoplate: "dragon",
+  dreadplate: "dark",
+  ironplate: "steel",
+  pixieplate: "fairy",
+};
+
+function typeZh(type: string | undefined): string {
+  const id = typeId(type);
+  return TYPE_ZH_BY_ID[id] || type || "?";
+}
+
+function judgmentTypeForPokemon(pokemon: RentalPokemon | undefined): string | null {
+  const speciesType = ARCEUS_FORM_TYPE_BY_ID[toId(pokemon?.species_id || pokemon?.species)];
+  if (speciesType) return speciesType;
+  const itemType = PLATE_TYPE_BY_ITEM_ID[toId(pokemon?.item_id || pokemon?.item)];
+  return itemType || null;
+}
+
+function runtimeMoveSummary(summary: MoveSummary | undefined, pokemon: RentalPokemon | undefined, battle: BattleState, side: "p1" | "p2"): MoveSummary | undefined {
+  if (!summary) return summary;
+  const moveId = toId(summary.id || summary.name);
+  if (moveId === "terablast") {
+    const active = battle.tracker.active[side];
+    const teraType = active?.terastallized ? typeId(active.tera_type || active.tera_type_zh) : "";
+    if (!teraType) return summary;
+    const category = Number(pokemon?.stats?.atk || 0) > Number(pokemon?.stats?.spa || 0) ? "Physical" : "Special";
+    return {...summary, type: teraType, type_zh: typeZh(teraType), category, category_zh: category === "Physical" ? "物理" : "特殊"};
+  }
+  if (moveId === "judgment") {
+    const judgmentType = judgmentTypeForPokemon(pokemon);
+    if (!judgmentType) return summary;
+    return {...summary, type: judgmentType, type_zh: typeZh(judgmentType)};
+  }
+  return summary;
+}
 
 function moveTypeLabel(summary: MoveSummary | undefined): string {
   const raw = summary?.type_zh || summary?.type || "?";
@@ -973,7 +1236,7 @@ function MainBattleCommands({forceSwitch, waiting, disabled, setMode, onBag, onF
   return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled={disabled || forceSwitch} onClick={onBag}>背包</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
 }
 
-function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: "zmove" | "mega") => void; onBack: () => void}) {
+function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: "zmove" | "mega" | "max" | "terastallize") => void; onBack: () => void}) {
   const activeRequest = battle.request?.active?.[0];
   const moves = activeRequest?.moves || [];
   const active = activePokemon(battle, "p1").display;
@@ -981,29 +1244,50 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
   const enabledSystems = battle.battle_setting?.enabled_battle_systems || [];
   const visibleSystems = BATTLE_SYSTEM_OPTIONS.filter(option => enabledSystems.includes(option.id));
   const canZMove = activeRequest?.canZMove || [];
+  const maxMoves = activeRequest?.maxMoves?.maxMoves || [];
   const zAvailable = enabledSystems.includes("zmove") && canZMove.some(Boolean);
   const megaAvailable = enabledSystems.includes("mega") && Boolean(activeRequest?.canMegaEvo);
+  const dynamaxAvailable = enabledSystems.includes("dynamax") && Boolean(activeRequest?.canDynamax);
+  const terastalAvailable = enabledSystems.includes("terastal") && Boolean(activeRequest?.canTerastallize);
+  const isTerastallized = Boolean(battle.tracker.active.p1.terastallized);
+  const isDynamaxed = Boolean(battle.tracker.active.p1.dynamaxed);
+  const showMaxMoves = enabledSystems.includes("dynamax") && maxMoves.length > 0 && isDynamaxed;
   const [zMode, setZMode] = useState(false);
   const [megaMode, setMegaMode] = useState(false);
+  const [dynamaxMode, setDynamaxMode] = useState(false);
+  const [terastalMode, setTerastalMode] = useState(false);
   useEffect(() => {
     if (!zAvailable && zMode) setZMode(false);
   }, [zAvailable, zMode]);
   useEffect(() => {
     if (!megaAvailable && megaMode) setMegaMode(false);
   }, [megaAvailable, megaMode]);
+  useEffect(() => {
+    if (!dynamaxAvailable && dynamaxMode) setDynamaxMode(false);
+  }, [dynamaxAvailable, dynamaxMode]);
+  useEffect(() => {
+    if (!terastalAvailable && terastalMode) setTerastalMode(false);
+  }, [terastalAvailable, terastalMode]);
   return <div className="move-menu">{moves.map((move, index) => {
-    const summary = moveSummaryFor(active, move);
+    const summary = runtimeMoveSummary(moveSummaryFor(active, move), active, battle, "p1");
     const zMove = canZMove[index];
+    const maxMove = maxMoves[index];
     const multiplier = moveEffectiveness(summary, target);
     const showEffect = Boolean(battle.show_move_effectiveness);
     const superEffective = Boolean(showEffect && multiplier > 1);
     const damageRange = moveDamageRangeLabel(summary, active, target, battle);
     const zMoveDisabled = zMode && !zMove;
+    const dynamaxMoveDisabled = dynamaxMode && !maxMove;
+    const moveName = zMode && zMove
+      ? zMoveDisplayLabel(zMove.move, active)
+      : (dynamaxMode || showMaxMoves) && maxMove
+        ? dynamaxMoveDisplayLabel(maxMove.move, active)
+        : summary?.name_zh || move.move;
     return (
       <MoveCard
         size="battle"
         className={superEffective ? "move-super-effective" : ""}
-        name={zMode && zMove ? zMoveDisplayLabel(zMove.move, active) : summary?.name_zh || move.move}
+        name={moveName}
         moveType={summary?.type || summary?.type_zh}
         typeLabel={moveTypeLabel(summary)}
         badge={showEffect ? effectivenessLabel(multiplier) : null}
@@ -1011,17 +1295,28 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
         pp={move.pp}
         maxPp={move.maxpp}
         power={summary?.power || "--"}
-        disabled={disabled || move.disabled || zMoveDisabled}
-        onClick={() => onMove(index + 1, zMode ? "zmove" : megaMode ? "mega" : undefined)}
+        disabled={disabled || move.disabled || zMoveDisabled || dynamaxMoveDisabled}
+        onClick={() => onMove(index + 1, zMode ? "zmove" : megaMode ? "mega" : dynamaxMode ? "max" : terastalMode ? "terastallize" : undefined)}
         key={move.id || index}
       />
     );
   })}<div className="move-footer"><button className="menu-back" disabled={disabled} onClick={onBack}>返回</button>{visibleSystems.length ? <div className="battle-system-row">{visibleSystems.map(system => {
     if (system.id === "mega") {
-      return <button className={megaMode ? "selected" : ""} disabled={disabled || !megaAvailable} title={megaAvailable ? "确认使用 Mega 石后选择技能" : "当前不能 Mega 进化"} onClick={() => { setMegaMode(value => !value); setZMode(false); }} key={system.id}>{megaMode ? "取消 Mega" : system.name}</button>;
+      return <button className={megaMode ? "selected" : ""} disabled={disabled || !megaAvailable} title={megaAvailable ? "确认使用 Mega 石后选择技能" : "当前不能 Mega 进化"} onClick={() => { setMegaMode(value => !value); setZMode(false); setDynamaxMode(false); setTerastalMode(false); }} key={system.id}>{megaMode ? "取消 Mega" : system.name}</button>;
     }
     if (system.id === "zmove") {
-      return <button className={zMode ? "selected" : ""} disabled={disabled || !zAvailable} title={zAvailable ? "选择一个技能释放 Z 招式" : "当前没有可用的 Z 招式"} onClick={() => { setZMode(value => !value); setMegaMode(false); }} key={system.id}>{zMode ? "取消 Z" : system.name}</button>;
+      return <button className={zMode ? "selected" : ""} disabled={disabled || !zAvailable} title={zAvailable ? "选择一个技能释放 Z 招式" : "当前没有可用的 Z 招式"} onClick={() => { setZMode(value => !value); setMegaMode(false); setDynamaxMode(false); setTerastalMode(false); }} key={system.id}>{zMode ? "取消 Z" : system.name}</button>;
+    }
+    if (system.id === "dynamax") {
+      const label = isDynamaxed ? "极巨中" : dynamaxMode ? "取消极巨" : system.name;
+      const title = dynamaxAvailable ? "确认极巨化后选择技能" : isDynamaxed ? "极巨化已经发动" : "当前不能极巨化";
+      return <button className={dynamaxMode ? "selected" : ""} disabled={disabled || !dynamaxAvailable} title={title} onClick={() => { setDynamaxMode(value => !value); setZMode(false); setMegaMode(false); setTerastalMode(false); }} key={system.id}>{label}</button>;
+    }
+    if (system.id === "terastal") {
+      const teraType = battle.tracker.active.p1.tera_type_zh || (typeof activeRequest?.canTerastallize === "string" ? typeZh(activeRequest.canTerastallize) : "");
+      const label = isTerastallized ? "已太晶" : terastalMode ? "取消太晶" : system.name;
+      const title = terastalAvailable ? `使用太晶珠${teraType ? `变为${teraType}属性` : ""}后选择技能` : isTerastallized ? "太晶化已经发动" : "当前不能太晶化";
+      return <button className={terastalMode ? "selected" : ""} disabled={disabled || !terastalAvailable} title={title} onClick={() => { setTerastalMode(value => !value); setZMode(false); setMegaMode(false); setDynamaxMode(false); }} key={system.id}>{label}</button>;
     }
     return <button disabled title={`${system.name} 未接入`} key={system.id}>{IMPLEMENTED_BATTLE_SYSTEMS.has(system.id) ? system.name : `${system.name} 未接入`}</button>;
   })}</div> : null}</div></div>;
@@ -1109,7 +1404,12 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
               </div>
             ) : (
               <div className="detail-moves">
-                {pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><span>{ppText(move)}</span><p>{revealTraining ? moveDescription(move) : detailLockedText}</p></div>)}
+                {pokemon.moves.map(move => {
+                  const displayMove = runtime?.active || toId(move.id || move.name) === "judgment"
+                    ? runtimeMoveSummary(move, pokemon, battle, "p1") || move
+                    : move;
+                  return <div className="move-detail" key={move.id}><strong>{displayMove.name_zh || displayMove.name}</strong><span>{displayMove.type_zh}/{displayMove.category_zh}</span><span>威力 {displayMove.power || "--"}</span><span>命中 {displayMove.accuracy ?? "必中"}</span><span>{ppText(displayMove)}</span><p>{revealTraining ? moveDescription(displayMove) : detailLockedText}</p></div>;
+                })}
               </div>
             )}
           </div>

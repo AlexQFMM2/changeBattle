@@ -25,6 +25,15 @@ const GENERIC_NPC_ALIASES = new Set([
   "玩家", "馆主", "道馆馆主", "四天王", "冠军", "普通", "NPC",
   "关都地区", "城都地区", "丰缘地区", "神奥地区", "合众地区", "卡洛斯地区", "阿罗拉地区", "伽勒尔地区", "帕底亚地区", "蓝莓学园",
 ]);
+const LEGENDARY_TIER = 10;
+const BATTLE_RULE_PRESETS = ["none", "gen7", "gen8", "gen9"];
+const BATTLE_RULE_MAX_GENERATION = {none: 9, gen7: 7, gen8: 8, gen9: 9};
+const TACTICAL_SCORE_BONUS = new Map([
+  ["ditto", 320],
+  ["smeargle", 320],
+  ["shedinja", 180],
+  ["wobbuffet", 160],
+]);
 
 function toId(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -128,6 +137,18 @@ function isPoolSpecies(species, spriteMap) {
   return hasUsableSprite(spriteMap, species);
 }
 
+function speciesTagText(species) {
+  return (species.tags || []).map(tag => String(tag || "").toLowerCase()).join("|");
+}
+
+function isLegendarySpecies(species) {
+  return /legendary/.test(speciesTagText(species));
+}
+
+function isMythicalSpecies(species) {
+  return /mythical/.test(speciesTagText(species));
+}
+
 function speciesRows() {
   const spriteMap = JSON.parse(fs.readFileSync(spriteMapPath, "utf8"));
   const randomLevels = loadRandomLevels();
@@ -137,19 +158,23 @@ function speciesRows() {
     const bst = baseStatTotal(species);
     const defensiveBulk = bulkScore(species);
     const nfePenalty = species.nfe ? -45 : 45;
-    const legendaryBonus = species.legendary || species.mythical ? 90 : 0;
+    const legendary = isLegendarySpecies(species);
+    const mythical = isMythicalSpecies(species);
+    const legendaryBonus = legendary || mythical ? 90 : 0;
     const randomLevel = randomLevels[species.id] || "";
     const randomLevelScore = randomLevel ? Math.max(0, 100 - Number(randomLevel)) * 3 : 0;
     const nfeEvioliteBulkBonus = species.nfe ? Math.round(clamp((defensiveBulk - 220) / 2, 0, 80)) : 0;
     const randbatItem = randomSetItem(species);
     const randomSetEvioliteBonus = toId(randbatItem) === "eviolite" ? 40 : 0;
-    const score = bst + nfePenalty + legendaryBonus + randomLevelScore + nfeEvioliteBulkBonus + randomSetEvioliteBonus;
+    const tacticalBonus = TACTICAL_SCORE_BONUS.get(species.id) || 0;
+    const score = bst + nfePenalty + legendaryBonus + randomLevelScore + nfeEvioliteBulkBonus + randomSetEvioliteBonus + tacticalBonus;
     const notes = [
       species.nfe ? "nfe" : "",
-      species.legendary ? "legendary" : "",
-      species.mythical ? "mythical" : "",
+      legendary ? "legendary" : "",
+      mythical ? "mythical" : "",
       nfeEvioliteBulkBonus ? `eviolite-bulk+${nfeEvioliteBulkBonus}` : "",
       randomSetEvioliteBonus ? "eviolite-randset" : "",
+      tacticalBonus ? `tactical+${tacticalBonus}` : "",
     ].filter(Boolean).join("|");
     candidates.push({
       species_id: species.id,
@@ -169,10 +194,16 @@ function speciesRows() {
       notes,
     });
   }
-  const sorted = [...candidates].sort((a, b) => a.score - b.score);
-  const tierForIndex = index => Math.min(4, Math.max(1, Math.floor(index / Math.max(1, sorted.length / 4)) + 1));
+  const sorted = [...candidates]
+    .filter(row => !/(^|\|)(legendary|mythical)(\||$)/.test(row.notes))
+    .sort((a, b) => a.score - b.score);
+  const legendaryRows = candidates.filter(row => /(^|\|)(legendary|mythical)(\||$)/.test(row.notes));
+  const tierForIndex = index => Math.min(6, Math.max(1, Math.floor(index / Math.max(1, sorted.length / 6)) + 1));
   sorted.forEach((row, index) => {
     row.tier = tierForIndex(index);
+  });
+  legendaryRows.forEach(row => {
+    row.tier = LEGENDARY_TIER;
   });
   const tierById = new Map(sorted.map(row => [row.species_id, row.tier]));
   return candidates
@@ -346,12 +377,18 @@ function extractRepresentatives(trainers, nameToSpecies) {
   return rows.sort((a, b) => a.trainer_id.localeCompare(b.trainer_id) || Number(b.count) - Number(a.count));
 }
 
-function stageDistributionForTrainer(row) {
-  if (row.type === "champion") return [4, 4, 4];
-  if (row.type === "elite4") return [3, 4, 4];
-  if (row.tier === "tier1") return [1, 2, 2];
-  if (row.tier === "tier2") return [2, 3, 3];
-  return [3, 4, 4];
+function profileDistributionForTrainer(row) {
+  if (row.type === "champion") return ["champion", "champion", "champion"];
+  if (row.type === "elite4" || row.tier === "tier3") return ["tier3", "tier4", "tier4"];
+  if (row.tier === "tier2") return ["tier2", "tier3", "tier3"];
+  return ["tier1", "tier2", "tier2"];
+}
+
+function speciesTierDistributionForTrainer(row) {
+  if (row.type === "champion") return [5, 6, 6];
+  if (row.type === "elite4" || row.tier === "tier3") return [5, 5, 6];
+  if (row.tier === "tier2") return [4, 5, 5];
+  return [4, 4, 5];
 }
 
 function seededNumber(text) {
@@ -363,54 +400,162 @@ function seededNumber(text) {
   return hash >>> 0;
 }
 
+function speciesGeneration(speciesId) {
+  return Math.max(1, Math.min(9, Number(DATA_DEX.species.get(speciesId)?.gen || 1)));
+}
+
+function speciesAllowedForPreset(speciesId, preset) {
+  return speciesGeneration(speciesId) <= (BATTLE_RULE_MAX_GENERATION[preset] || 9);
+}
+
+function megaCapableSpeciesSet() {
+  const ids = new Set();
+  for (const item of DATA_DEX.items.all()) {
+    if (!item?.megaStone) continue;
+    if (item.id === "crucibellite") continue;
+    if (item.isNonstandard && item.isNonstandard !== "Past") continue;
+    for (const baseName of Object.keys(item.megaStone || {})) {
+      const species = DATA_DEX.species.get(baseName);
+      if (species.exists && species.id) ids.add(species.id);
+    }
+  }
+  return ids;
+}
+
+function gmaxCapableSpeciesSet() {
+  const ids = new Set();
+  for (const species of DATA_DEX.species.all()) {
+    if (species.exists && species.id && species.canGigantamax) ids.add(species.id);
+  }
+  return ids;
+}
+
+function stablePick(pool, salt) {
+  if (!pool.length) return "";
+  return pool[seededNumber(salt) % pool.length];
+}
+
 function makeBossPools(trainers, reps, tierRows) {
   const tierBySpecies = new Map(tierRows.map(row => [row.species_id, Number(row.override_tier || row.tier)]));
   const speciesByTier = new Map();
+  const tierRowBySpecies = new Map(tierRows.map(row => [row.species_id, row]));
   for (const row of tierRows) {
     const tier = Number(row.override_tier || row.tier);
     if (!speciesByTier.has(tier)) speciesByTier.set(tier, []);
     speciesByTier.get(tier).push(row.species_id);
   }
+  for (const list of speciesByTier.values()) list.sort();
   const repsByTrainer = new Map();
   for (const rep of reps) {
     if (!repsByTrainer.has(rep.trainer_id)) repsByTrainer.set(rep.trainer_id, []);
     repsByTrainer.get(rep.trainer_id).push(rep.species_id);
   }
+  const megaSpecies = megaCapableSpeciesSet();
+  const gmaxSpecies = gmaxCapableSpeciesSet();
+  const allowed = (id, preset, used = new Set()) => id && !used.has(id) && speciesAllowedForPreset(id, preset) && tierBySpecies.has(id);
+  const themedCandidate = (tier, preset, used, preferredTypes, predicate = () => true) => {
+    const pool = (speciesByTier.get(tier) || []).filter(id => {
+      if (!allowed(id, preset, used) || !predicate(id)) return false;
+      const types = DATA_DEX.species.get(id).types || [];
+      return types.some(type => preferredTypes.has(type));
+    });
+    return pool[0] || "";
+  };
+  const fallbackCandidate = (tier, preset, used, salt, predicate = () => true) => {
+    const exact = (speciesByTier.get(tier) || []).filter(id => allowed(id, preset, used) && predicate(id));
+    if (exact.length) return stablePick(exact, salt);
+    const loose = [...speciesByTier.entries()]
+      .filter(([candidateTier]) => candidateTier !== LEGENDARY_TIER)
+      .sort((a, b) => Math.abs(a[0] - tier) - Math.abs(b[0] - tier) || a[0] - b[0])
+      .flatMap(([, ids]) => ids)
+      .filter(id => allowed(id, preset, used) && predicate(id));
+    return stablePick(loose, salt);
+  };
+  const representativeCandidate = (repIds, tier, preset, used) => {
+    const exact = repIds.find(id => allowed(id, preset, used) && (tierBySpecies.get(id) || tier) === tier);
+    if (exact) return {speciesId: exact, source: "representative-exact-tier"};
+    const notLower = repIds.find(id => allowed(id, preset, used) && (tierBySpecies.get(id) || tier) >= tier);
+    if (notLower) return {speciesId: notLower, source: "representative-near-tier"};
+    return {speciesId: "", source: ""};
+  };
+  const chooseSpecies = ({trainer, preset, teamIndex, slotIndex, desiredTier, repIds, preferredTypes, used}) => {
+    const representative = representativeCandidate(repIds, desiredTier, preset, used);
+    if (representative.speciesId) return representative;
+    const themed = themedCandidate(desiredTier, preset, used, preferredTypes);
+    if (themed) return {speciesId: themed, source: "theme-fill"};
+    const fallback = fallbackCandidate(desiredTier, preset, used, `${trainer.id}:${preset}:${teamIndex}:${slotIndex}`);
+    return {speciesId: fallback, source: "tier-fill"};
+  };
+  const ensureSystemAnchor = ({team, preset, preferredTypes, trainer, teamIndex}) => {
+    const needsMega = preset === "gen7" && !team.some(entry => megaSpecies.has(entry.species_id));
+    const needsGmax = preset === "gen8" && !team.some(entry => gmaxSpecies.has(entry.species_id));
+    if (!needsMega && !needsGmax) return team;
+    const predicate = needsMega ? id => megaSpecies.has(id) : id => gmaxSpecies.has(id);
+    const label = needsMega ? "mega-system-fill" : "gmax-system-fill";
+    const replaceIndex = team.length - 1;
+    const used = new Set(team.map(entry => entry.species_id));
+    used.delete(team[replaceIndex]?.species_id);
+    const desiredTier = team[replaceIndex]?.species_tier || 5;
+    const themed = themedCandidate(desiredTier, preset, used, preferredTypes, predicate);
+    const fallback = themed || fallbackCandidate(desiredTier, preset, used, `${trainer.id}:${preset}:${teamIndex}:system`, predicate);
+    if (!fallback) return team;
+    const next = [...team];
+    const tier = tierBySpecies.get(fallback) || desiredTier;
+    next[replaceIndex] = {
+      ...next[replaceIndex],
+      species_id: fallback,
+      species: DATA_DEX.species.get(fallback).name || fallback,
+      species_tier: tier,
+      source: themed ? `${label}-theme` : label,
+    };
+    return next;
+  };
   const rows = [];
   const bossRows = trainers.filter(row => ["gym", "elite4", "champion"].includes(row.type) && row.enabled !== "0");
   for (const trainer of bossRows) {
-    const distribution = stageDistributionForTrainer(trainer);
+    const speciesDistribution = speciesTierDistributionForTrainer(trainer);
+    const profileDistribution = profileDistributionForTrainer(trainer);
     const repIds = [...new Set(repsByTrainer.get(trainer.id) || [])];
     const preferredTypes = new Set(repIds.flatMap(id => DATA_DEX.species.get(id).types || []));
     const poolId = trainer.team_pool_ids || `${trainer.type}:${trainer.tier}:${trainer.name_zh}`;
-    for (let teamIndex = 1; teamIndex <= 4; teamIndex += 1) {
-      const used = new Set();
-      distribution.forEach((stageTier, slotIndex) => {
-        const profile = trainer.type === "champion" ? "champion" : `tier${stageTier}`;
-        const exactRep = repIds.find(id => !used.has(id) && (tierBySpecies.get(id) || stageTier) === stageTier);
-        const anyRep = repIds.find(id => !used.has(id));
-        const themed = (speciesByTier.get(stageTier) || []).find(id => {
-          if (used.has(id)) return false;
-          const types = DATA_DEX.species.get(id).types || [];
-          return types.some(type => preferredTypes.has(type));
+    for (const preset of BATTLE_RULE_PRESETS) {
+      for (let teamIndex = 1; teamIndex <= 4; teamIndex += 1) {
+        const used = new Set();
+        const team = speciesDistribution.map((desiredTier, slotIndex) => {
+          const picked = chooseSpecies({trainer, preset, teamIndex, slotIndex, desiredTier, repIds, preferredTypes, used});
+          const speciesId = picked.speciesId || "pikachu";
+          used.add(speciesId);
+          const tier = tierBySpecies.get(speciesId) || desiredTier;
+          return {
+            pool_id: poolId,
+            battle_rule_preset: preset,
+            trainer_id: trainer.id,
+            trainer_name_zh: trainer.name_zh,
+            team_index: teamIndex,
+            slot: slotIndex + 1,
+            species_id: speciesId,
+            species: DATA_DEX.species.get(speciesId).name || speciesId,
+            species_tier: tier,
+            stage_tier: desiredTier,
+            generation_profile: profileDistribution[slotIndex] || "tier1",
+            source: picked.source || "tier-fill",
+          };
         });
-        const fallbackPool = speciesByTier.get(stageTier) || [];
-        const fallback = fallbackPool[seededNumber(`${trainer.id}:${teamIndex}:${slotIndex}`) % Math.max(1, fallbackPool.length)];
-        const speciesId = exactRep || anyRep || themed || fallback;
-        used.add(speciesId);
-        rows.push({
+        for (const entry of ensureSystemAnchor({team, preset, preferredTypes, trainer, teamIndex})) rows.push({
           pool_id: poolId,
+          battle_rule_preset: entry.battle_rule_preset,
           trainer_id: trainer.id,
           trainer_name_zh: trainer.name_zh,
-          team_index: teamIndex,
-          slot: slotIndex + 1,
-          species_id: speciesId,
-          species: DATA_DEX.species.get(speciesId).name || speciesId,
-          stage_tier: stageTier,
-          generation_profile: profile,
-          source: exactRep ? "representative-exact-tier" : anyRep ? "representative-any-tier" : themed ? "theme-fill" : "tier-fill",
+          team_index: entry.team_index,
+          slot: entry.slot,
+          species_id: entry.species_id,
+          species: entry.species,
+          species_tier: entry.species_tier || tierRowBySpecies.get(entry.species_id)?.tier || "",
+          stage_tier: entry.stage_tier,
+          generation_profile: entry.generation_profile,
+          source: entry.source,
         });
-      });
+      }
     }
   }
   return rows;
@@ -434,7 +579,7 @@ writeCsv(
 const pools = makeBossPools(trainers, reps, tierRows);
 writeCsv(
   bossPoolsPath,
-  ["pool_id", "trainer_id", "trainer_name_zh", "team_index", "slot", "species_id", "species", "stage_tier", "generation_profile", "source"],
+  ["pool_id", "battle_rule_preset", "trainer_id", "trainer_name_zh", "team_index", "slot", "species_id", "species", "species_tier", "stage_tier", "generation_profile", "source"],
   pools,
 );
 

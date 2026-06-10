@@ -155,6 +155,7 @@ function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
                 <article key={`${entry.id}-${move.id}`}>
                   <strong>{move.name_zh || move.name}</strong>
                   <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
+                  {move.learn_source_labels?.length ? <span>来源：{move.learn_source_labels.join(" / ")}</span> : null}
                   <small>威力 {move.power || "--"}　命中 {move.accuracy ?? "必中"}　PP {move.pp || "--"}</small>
                 </article>
               )) : <p>暂无技能池数据。</p>}

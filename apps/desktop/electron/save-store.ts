@@ -107,6 +107,7 @@ export class SaveStore {
       talent_unlocks: [],
       talent_equipped: [],
       named_champion_id: null,
+      star_chart: {nodes: {root_trainer_star: 1}},
       starter_upgrades: {
         item_quality: {battle: 1, recovery: 1, berry: 1, tm: 1},
         item_quantity: {battle: 2, recovery: 2, berry: 2, tm: 2},
@@ -186,7 +187,7 @@ export class SaveStore {
       throw new Error(`不支持的存档版本: ${manifest.version}`);
     }
     const user = await this.readTable<SaveUserTable>("user");
-    const talents = await this.readTable<SaveTalentTable>("talents", {version: 1, talent_unlocks: [], talent_equipped: [], named_champion_id: null});
+    const talents = await this.readTable<SaveTalentTable>("talents", {version: 1, talent_unlocks: [], talent_equipped: [], named_champion_id: null, star_chart: {nodes: {root_trainer_star: 1}}});
     const starterUpgrades = await this.readTable<SaveStarterUpgradesTable>("starterUpgrades", {version: 1});
     const battleSetting = await this.readTable<SaveBattleSettingTable>("battleSetting", {version: 1, battle_setting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING)});
     const bossDex = await this.readTable<SaveBossDexTable>("bossDex", {version: 1, boss_dex: {}});
@@ -198,6 +199,7 @@ export class SaveStore {
       stats: user.stats,
       talent_unlocks: talents.talent_unlocks || [],
       talent_equipped: talents.talent_equipped || [],
+      star_chart: talents.star_chart,
       named_champion_id: talents.named_champion_id || null,
       starter_upgrades: starterUpgrades.starter_upgrades,
       battle_setting: normalizeBattleSetting(battleSetting.battle_setting),
@@ -236,6 +238,7 @@ export class SaveStore {
       talent_unlocks: save.talent_unlocks || [],
       talent_equipped: save.talent_equipped || [],
       named_champion_id: save.named_champion_id || null,
+      star_chart: save.star_chart,
     });
     await this.writeTable<SaveStarterUpgradesTable>("starterUpgrades", {
       version: 1,

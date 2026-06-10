@@ -3,7 +3,7 @@ import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shar
 import {buildBattleDisplaySteps, type BattleDisplayStep} from "../components/battle/timelineFlow";
 import {TALENT_CATALOG, debugBattle, debugMove, debugPokemon} from "../lib/ui";
 
-export type BrowserTestScenario = "automated" | "battle-basic" | "battle-flinch" | "entry-weather" | "duplicate-status" | "rest-shop" | "dex";
+export type BrowserTestScenario = "automated" | "battle-basic" | "battle-flinch" | "entry-weather" | "duplicate-status" | "dynamax-end-meowth" | "rest-shop" | "dex";
 
 export type BrowserTestHook = {
   getScenario(): BrowserTestScenario;
@@ -168,7 +168,7 @@ function scenarioFromParams(params: URLSearchParams): BrowserTestScenario | null
 }
 
 function isScenario(value: string): value is BrowserTestScenario {
-  return ["battle-basic", "battle-flinch", "entry-weather", "duplicate-status", "rest-shop", "dex"].includes(value);
+  return ["battle-basic", "battle-flinch", "entry-weather", "duplicate-status", "dynamax-end-meowth", "rest-shop", "dex"].includes(value);
 }
 
 function createSave(hasRun: boolean): LocalSave {
@@ -210,11 +210,13 @@ function battleStateForScenario(scenario: BrowserTestScenario): BattleState {
   if (scenario === "battle-flinch") return flinchBattle(false);
   if (scenario === "entry-weather") return entryWeatherBattle();
   if (scenario === "duplicate-status") return duplicateStatusBattle();
+  if (scenario === "dynamax-end-meowth") return dynamaxMeowthBattle(false);
   return debugBattle(false);
 }
 
 function endedBattleForScenario(scenario: BrowserTestScenario): BattleState {
   if (scenario === "battle-flinch") return flinchBattle(true);
+  if (scenario === "dynamax-end-meowth") return dynamaxMeowthBattle(true);
   return debugBattle(true);
 }
 
@@ -299,6 +301,36 @@ function duplicateStatusBattle(): BattleState {
   });
 }
 
+function dynamaxMeowthBattle(ended: boolean): BattleState {
+  const meowth = meowthPokemon(false);
+  const meowthGmax = meowthPokemon(true);
+  const enemy = debugPokemon("Eevee", "伊布");
+  const timeline: BattleTimelineEvent[] = ended ? [
+    {id: "meowth-end-1", type: "move", text: "超极巨喵喵 使用 超极巨特大金币。", side: "p1", source: "超极巨喵喵", source_id: "Meowth-Gmax", source_showdown_id: "pokeball", move: "超极巨特大金币"},
+    {id: "meowth-end-2", type: "damage", text: "伊布 HP: 59/100", targetSide: "p2", target: "伊布", target_id: "Eevee", target_showdown_id: "greatball", condition: "59/100", hp: {current: 59, max: 100, text: "59/100"}},
+    {id: "meowth-end-3", type: "form", text: "超极巨喵喵 的极巨化结束了。", side: "p1", targetSide: "p1", target: "喵喵", target_id: "Meowth", target_showdown_id: "pokeball", target_species_id: "meowth", sprite: meowth.sprite, effect: "DynamaxEnd"},
+    {id: "meowth-end-4", type: "heal", text: "喵喵 回复到 108/108", targetSide: "p1", target: "喵喵", target_id: "Meowth", target_showdown_id: "pokeball", condition: "108/108", hp: {current: 108, max: 108, text: "108/108"}},
+  ] : [];
+  const active = ended
+    ? {name: "Meowth", display_name: "喵喵", species_id: "meowth", sprite: meowth.sprite, condition: "108/108", status: "", showdown_id: "pokeball", dynamaxed: false, gigantamaxed: false}
+    : {name: "Meowth-Gmax", display_name: "超极巨喵喵", species_id: "meowthgmax", sprite: meowthGmax.sprite, condition: "216/216", status: "", showdown_id: "pokeball", dynamaxed: true, gigantamaxed: true, original_species_id: "meowth", original_name: "Meowth", original_display_name: "喵喵", original_sprite: meowth.sprite};
+  return withCommonBattleFields({
+    ended: false,
+    winner: null,
+    request: {side: {pokemon: [runtimePokemon(meowth, "p1: Meowth", "pokeball", ended ? "108/108" : "216/216", true)]}, active: [{moves: [{id: "payday", move: "Pay Day", pp: 16, maxpp: 16}]}]},
+    player_side: "p1",
+    enemy_side: "p2",
+    tracker: {...tracker("Meowth", "Eevee", ended ? "108/108" : "216/216", ended ? "59/100" : "100/100"), turn: 4, active: {p1: active, p2: {name: "Eevee", display_name: "伊布", condition: ended ? "59/100" : "100/100", status: "", showdown_id: "greatball"}}},
+    recent_events: ended ? timeline.map(event => event.text) : ["超极巨喵喵 使用 超极巨特大金币。"],
+    timeline_events: timeline,
+    player_team: [{species: "Meowth", pokeball: "pokeball", showdown_id: "pokeball"}],
+    player_display: [{...meowth, showdown_id: "pokeball"}],
+    enemy_team: [{species: "Eevee", pokeball: "greatball", showdown_id: "greatball"}],
+    enemy_display: [{...enemy, showdown_id: "greatball"}],
+    battle_setting: {...normalizeBattleSetting(DEFAULT_BATTLE_SETTING), battle_rule_preset: "gen8", enabled_battle_systems: ["dynamax"]},
+  });
+}
+
 function restStateForScenario(save: LocalSave): RestState {
   const player = CANDIDATES.slice(0, 3);
   const enemy = [debugPokemon("EnemyMon1", "爆肌蚊"), debugPokemon("EnemyMon2", "路卡利欧"), debugPokemon("EnemyMon3", "胡地")];
@@ -376,6 +408,13 @@ function pokemonWithMove(species: string, zh: string, moveId: string, moveName: 
   return {...pokemon, moves: [debugMove(moveId, moveName, type)]};
 }
 
+function meowthPokemon(gmax: boolean): RentalPokemon {
+  const speciesId = gmax ? "meowthgmax" : "meowth";
+  const name = gmax ? "Meowth-Gmax" : "Meowth";
+  const pokemon = {...debugPokemon(name, gmax ? "超极巨喵喵" : "喵喵"), species_id: speciesId, level: 46, stats: {hp: 108, atk: 46, def: 49, spa: 44, spd: 45, spe: 94}, moves: [debugMove("payday", "聚宝功", "Normal")]};
+  return {...pokemon, sprite: spriteEntryWithPaths(speciesId, name, 52, `assets/pokemon-showdown/gen5/${gmax ? "meowth-gmax" : "meowth"}.png`, `assets/pokemon-showdown/gen5-back/${gmax ? "meowth-gmax" : "meowth"}.png`, "assets/audio/pokemon-cries/meowth.ogg")};
+}
+
 function pricedMove(id: string, name: string, cost: number) {
   return {...debugMove(id, name, id === "waterfall" ? "Water" : "Fire"), cost};
 }
@@ -446,4 +485,9 @@ function spriteEntry(speciesId: string, name: string, nationalDex: number, cryAs
     paths: emptySpritePaths(),
     cry_asset: cryAsset,
   };
+}
+
+function spriteEntryWithPaths(speciesId: string, name: string, nationalDex: number, front: string, back: string, cryAsset: string) {
+  const paths = {front_normal: front, back_normal: back, front_shiny: front, back_shiny: back, front_normal_full: front, front_shiny_full: front};
+  return {...spriteEntry(speciesId, name, nationalDex, cryAsset), paths};
 }

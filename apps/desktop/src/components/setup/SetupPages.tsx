@@ -1,176 +1,287 @@
-import {useEffect, useMemo, useState} from "react";
-import type {CSSProperties} from "react";
-import type {BattleSetting, BattleSystemId, DesktopGameState, LocalSave, RentalPokemon, StarterUpgradeView, TalentView, TrainerNpcView} from "@changebattle/shared";
-import {BATTLE_GENERATION_OPTIONS, BATTLE_SYSTEM_OPTIONS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
+import {useEffect, useMemo, useRef, useState} from "react";
+import type {CSSProperties, PointerEvent, WheelEvent} from "react";
+import type {BattleRulePreset, BattleSetting, BattleSystemId, DesktopGameState, LocalSave, RentalPokemon, StarterUpgradeView, TalentView} from "@changebattle/shared";
+import {BATTLE_GENERATION_OPTIONS, BATTLE_RULE_PRESET_OPTIONS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {AnimatePresence, motion} from "motion/react";
-import {ItemIcon, PokemonSprite, TALENT_CATALOG, TALENT_EQUIP_LIMIT, bpCostLabel, coinCostLabel, displayName, hasStarterItemChoices, itemCategoryLabel, statMarker, talentShortText} from "../../lib/ui";
+import {ItemIcon, PokemonSprite, bpCostLabel, coinCostLabel, displayName, hasStarterItemChoices, itemCategoryLabel, statMarker} from "../../lib/ui";
 import {PokemonProfile} from "../pokemon/PokemonProfile";
 
 export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
-  const talentPageSize = 20;
-  const [catalog, setCatalog] = useState<TalentView[]>(TALENT_CATALOG);
-  const [selectedId, setSelectedId] = useState(TALENT_CATALOG[0]?.id || "");
-  const [unlocked, setUnlocked] = useState<Set<string>>(() => new Set());
-  const [equipped, setEquipped] = useState<string[]>([]);
-  const [activeCategory, setActiveCategory] = useState("全部");
-  const [talentPage, setTalentPage] = useState(0);
-  const [champions, setChampions] = useState<TrainerNpcView[]>([]);
-  const selected = catalog.find(talent => talent.id === selectedId) || catalog[0];
-  const talentDisabled = Boolean(selected?.disabled);
-  const selectedUnlocked = selected ? unlocked.has(selected.id) : false;
-  const selectedEquipped = selected ? equipped.includes(selected.id) : false;
-  const equipSlotsFull = equipped.length >= TALENT_EQUIP_LIMIT;
-  const selectedAffordable = selected && !talentDisabled ? (save?.stats.battle_points || 0) >= (selected.cost || 0) : false;
-  const categories = ["全部", ...new Set(catalog.map(talent => talent.category))];
-  const visibleCategory = categories.includes(activeCategory) ? activeCategory : categories[0] || activeCategory;
-  const sortTalents = (talents: TalentView[]) => [...talents].sort((a, b) => Number(a.cost || 0) - Number(b.cost || 0) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-  const visibleTalents = sortTalents(visibleCategory === "全部" ? catalog : catalog.filter(talent => talent.category === visibleCategory));
-  const pageCount = Math.max(1, Math.ceil(visibleTalents.length / talentPageSize));
-  const currentPage = Math.min(talentPage, pageCount - 1);
-  const pagedTalents = visibleTalents.slice(currentPage * talentPageSize, (currentPage + 1) * talentPageSize);
-  const gridSlots = Array.from({length: talentPageSize}, (_, index) => pagedTalents[index] || null);
-  const equippedSlots = Array.from({length: TALENT_EQUIP_LIMIT}, (_, index) => catalog.find(talent => talent.id === equipped[index]) || null);
+  const [catalog, setCatalog] = useState<TalentView[]>([]);
+  const [selectedId, setSelectedId] = useState("root_trainer_star");
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [view, setView] = useState({x: 0, y: 0, scale: 0.78});
+  const dragRef = useRef<{x: number; y: number; originX: number; originY: number} | null>(null);
+  const selected = catalog.find(node => node.id === selectedId) || catalog[0];
+  const bp = save?.stats.battle_points || 0;
+  const nodeById = useMemo(() => new Map(catalog.map(node => [node.id, node])), [catalog]);
+  const unlockedCount = catalog.filter(node => Number(node.level || 0) > 0 && node.kind !== "root").length;
 
   useEffect(() => {
     let cancelled = false;
     void window.changeBattle?.getTalentConfig().then(config => {
       if (cancelled) return;
-      const unlockedIds = (config.unlocked || []).map(talent => talent.id);
-      const equippedIds = (config.equipped || []).map(talent => talent.id);
-      const nextCatalog = config.catalog?.length ? config.catalog : TALENT_CATALOG;
+      const nextCatalog = config.catalog || [];
       setCatalog(nextCatalog);
-      setEquipped(equippedIds);
-      setUnlocked(new Set([...unlockedIds, ...equippedIds]));
       if (config.save) onSaved(config.save);
-      const nextSelected = nextCatalog.find(talent => talent.id === equippedIds[0]) || nextCatalog[0];
-      if (nextSelected) {
-        setSelectedId(nextSelected.id);
-      }
+      setSelectedId(current => nextCatalog.some(node => node.id === current) ? current : nextCatalog.find(node => node.id === "root_trainer_star")?.id || nextCatalog[0]?.id || "");
     });
     return () => { cancelled = true; };
   }, [onSaved]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void window.changeBattle?.trainerCatalog().then(catalog => {
-      if (!cancelled) setChampions(catalog.champions || []);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  function selectTalent(talent: TalentView) {
-    setSelectedId(talent.id);
-    if (visibleCategory !== "全部" && visibleCategory !== talent.category) setActiveCategory(talent.category);
+  function nodeLevel(id: string): number {
+    return Math.max(0, Math.floor(Number(nodeById.get(id)?.level || 0)));
   }
 
-  function switchTalentCategory(category: string) {
-    setActiveCategory(category);
-    setTalentPage(0);
+  function nodeReady(node: TalentView): boolean {
+    return (node.requires || []).every(requirement => nodeLevel(requirement.id) >= Math.max(1, Number(requirement.level || 1)));
   }
 
-  function talentClass(talent: TalentView | null): string {
-    if (!talent) return "empty";
-    const routeClass = talent.category === "开局筹备" ? "starter" : talent.category === "交换筑队" ? "exchange" : talent.category === "情报规划" ? "intel" : talent.category === "养成改造" ? "growth" : "economy";
-    return `${routeClass} ${selectedId === talent.id ? "selected" : ""} ${unlocked.has(talent.id) ? "unlocked" : "locked"} ${equipped.includes(talent.id) ? "equipped" : ""} ${talent.disabled ? "disabled" : ""}`;
+  function nodeCost(node?: TalentView): number | null {
+    if (!node || node.disabled || node.kind === "root" || node.kind === "event_preview") return null;
+    const level = Math.max(0, Math.floor(Number(node.level || 0)));
+    const max = Math.max(1, Number(node.max_level || 1));
+    if (level >= max) return null;
+    return node.costs?.[level] ?? node.cost ?? null;
   }
 
-  async function unlockSelected() {
-    if (!selected || talentDisabled || selectedUnlocked || !selectedAffordable) return;
+  function nodeState(node: TalentView): string {
+    const level = nodeLevel(node.id);
+    if (node.kind === "event_preview" || node.disabled) return "preview";
+    if (level > 0) return level >= Number(node.max_level || 1) ? "maxed" : "active";
+    return nodeReady(node) ? "available" : "locked";
+  }
+
+  function routeClass(category?: string): string {
+    if (category === "开局筹备") return "starter";
+    if (category === "整备器械") return "gear";
+    if (category === "情报规划") return "intel";
+    if (category === "交换筑队") return "exchange";
+    if (category === "养成改造") return "growth";
+    if (category === "经济运营") return "economy";
+    if (category === "奇遇预留") return "event";
+    return "root";
+  }
+
+  async function upgradeSelected() {
+    if (!selected || nodeCost(selected) === null || !nodeReady(selected) || bp < Number(nodeCost(selected))) return;
     const config = await window.changeBattle?.unlockTalent(selected.id);
     if (!config) return;
-    setUnlocked(new Set((config.unlocked || []).map(talent => talent.id)));
-    setEquipped((config.equipped || []).map(talent => talent.id));
+    setCatalog(config.catalog || []);
     if (config.save) onSaved(config.save);
   }
 
-  async function equipSelected() {
-    if (!selected || talentDisabled || !selectedUnlocked || selectedEquipped || equipSlotsFull) return;
-    const nextIds = [...equipped, selected.id];
-    const config = await window.changeBattle?.configureTalents(nextIds);
-    setEquipped((config?.equipped || []).map(talent => talent.id));
-    if (config?.save) onSaved(config.save);
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest("button")) return;
+    dragRef.current = {x: event.clientX, y: event.clientY, originX: view.x, originY: view.y};
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  async function unequipSelected() {
-    if (!selected || talentDisabled) return;
-    const nextIds = equipped.filter(id => id !== selected.id);
-    const config = await window.changeBattle?.configureTalents(nextIds);
-    setEquipped((config?.equipped || []).map(talent => talent.id));
-    if (config?.save) onSaved(config.save);
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    setView(current => ({...current, x: drag.originX + event.clientX - drag.x, y: drag.originY + event.clientY - drag.y}));
   }
 
-  async function chooseNamedChampion(trainerId: string) {
-    const config = await window.changeBattle?.setNamedChallenge(trainerId || null);
-    if (config?.save) onSaved(config.save);
+  function onPointerUp() {
+    dragRef.current = null;
+  }
+
+  function onWheel(event: WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.08 : 0.08;
+    setView(current => ({...current, scale: Math.max(0.55, Math.min(1.8, Math.round((current.scale + delta) * 100) / 100))}));
+  }
+
+  function resetView() {
+    setView({x: 0, y: 0, scale: 0.78});
+  }
+
+  const graphBounds = useMemo(() => {
+    const xs = catalog.map(node => Number(node.x || 0));
+    const ys = catalog.map(node => Number(node.y || 0));
+    return {
+      minX: Math.min(-760, ...xs) - 140,
+      maxX: Math.max(760, ...xs) + 140,
+      minY: Math.min(-620, ...ys) - 140,
+      maxY: Math.max(620, ...ys) + 140,
+    };
+  }, [catalog]);
+  const graphWidth = graphBounds.maxX - graphBounds.minX;
+  const graphHeight = graphBounds.maxY - graphBounds.minY;
+  const selectedLevel = selected ? nodeLevel(selected.id) : 0;
+  const selectedMax = selected ? Math.max(1, Number(selected.max_level || 1)) : 1;
+  const selectedCost = nodeCost(selected);
+  const selectedReady = selected ? nodeReady(selected) : false;
+  const selectedState = selected ? nodeState(selected) : "locked";
+  const selectedEffects = selected?.effects?.filter(Boolean) || [];
+  const currentEffect = selectedLevel > 0
+    ? selectedEffects[Math.min(selectedLevel - 1, selectedEffects.length - 1)] || selected?.desc || `Lv${selectedLevel} 已点亮。`
+    : "尚未点亮。";
+  const nextEffect = selectedLevel >= selectedMax
+    ? "已满级。"
+    : selectedEffects[Math.min(selectedLevel, selectedEffects.length - 1)] || selected?.desc || `点亮后提升到 Lv${selectedLevel + 1}。`;
+  const requirements = selected?.requires || [];
+  const canUpgrade = Boolean(selected && selectedCost !== null && selectedReady && bp >= Number(selectedCost) && selectedState !== "preview");
+  const categoryHubs = useMemo(() => {
+    const root = catalog.find(node => node.id === "root_trainer_star");
+    if (!root) return new Map<string, {category: string; x: number; y: number; active: boolean}>();
+    const rootX = Number(root.x || 0);
+    const rootY = Number(root.y || 0);
+    const groups = new Map<string, TalentView[]>();
+    for (const node of catalog) {
+      if (node.id === "root_trainer_star") continue;
+      if (!(node.requires || []).some(requirement => requirement.id === "root_trainer_star")) continue;
+      const next = groups.get(node.category) || [];
+      next.push(node);
+      groups.set(node.category, next);
+    }
+    const hubs = new Map<string, {category: string; x: number; y: number; active: boolean}>();
+    for (const [category, nodes] of groups) {
+      const avgX = nodes.reduce((sum, node) => sum + Number(node.x || 0), 0) / nodes.length;
+      const avgY = nodes.reduce((sum, node) => sum + Number(node.y || 0), 0) / nodes.length;
+      const dx = avgX - rootX;
+      const dy = avgY - rootY;
+      const distance = Math.max(1, Math.hypot(dx, dy));
+      const trunkLength = Math.max(92, Math.min(155, distance * 0.44));
+      hubs.set(category, {
+        category,
+        x: rootX + (dx / distance) * trunkLength,
+        y: rootY + (dy / distance) * trunkLength,
+        active: nodes.some(node => Number(node.level || 0) > 0),
+      });
+    }
+    return hubs;
+  }, [catalog]);
+
+  function requirementText(requirement: {id: string; level?: number}) {
+    const node = nodeById.get(requirement.id);
+    const level = Math.max(1, Number(requirement.level || 1));
+    return `${node?.name || requirement.id} Lv${level}`;
+  }
+
+  function linkPath(from: {x?: number; y?: number}, to: {x?: number; y?: number}): string {
+    const x1 = Number(from.x || 0);
+    const y1 = Number(from.y || 0);
+    const x2 = Number(to.x || 0);
+    const y2 = Number(to.y || 0);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const bend = Math.max(-70, Math.min(70, (Math.abs(dx) - Math.abs(dy)) * 0.12));
+    const cx = x1 + dx * 0.52 - dy * 0.08;
+    const cy = y1 + dy * 0.52 + bend;
+    return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+  }
+
+  function selectNode(node: TalentView) {
+    setSelectedId(node.id);
+    setDetailOpen(true);
   }
 
   return (
-    <div className="talent-page">
-      <section className="talent-board">
-        <header className="talent-title-row">
-          <h2>天赋配置</h2>
-          <span>BP {save?.stats.battle_points || 0}</span>
-        </header>
-        <section className="equipped-talent-panel">
-          <header>
-            <strong>已装备天赋</strong>
-            <span>{equipped.length}/{TALENT_EQUIP_LIMIT}</span>
-          </header>
-          <div className="equipped-talents">
-            {equippedSlots.map((talent, index) => (
-              <button className={`talent-slot ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && selectTalent(talent)} key={`equipped-${index}`}>
-                {talent ? <><span>{talent.category}</span><strong>{talent.name}</strong></> : <><span>空</span><strong>空槽</strong></>}
-              </button>
-            ))}
+    <div className="talent-page star-chart-page">
+      <section className="talent-board star-chart-board">
+        <div className="star-chart-hud">
+          <div>
+            <strong>训练家星图</strong>
+            <span>点亮 {unlockedCount} · BP {bp}</span>
           </div>
-        </section>
-        <nav className="talent-tabs" aria-label="路线视图">
-          {categories.map(category => (
-            <button className={visibleCategory === category ? "selected" : ""} onClick={() => switchTalentCategory(category)} key={category}>
-              {category}
-            </button>
-          ))}
-        </nav>
-        <div className="talent-grid">
-          {gridSlots.map((talent, index) => (
-            <button className={`talent-node ${talentClass(talent)}`} disabled={!talent} onClick={() => talent && selectTalent(talent)} key={talent?.id || `${visibleCategory}-empty-${index}`}>
-              {talent ? <><span>{talent.category}</span><strong>{talent.name}</strong><small>{unlocked.has(talent.id) ? bpCostLabel(talent.cost || 0) : `锁定 ${bpCostLabel(talent.cost || 0)}`}</small></> : <span />}
-            </button>
-          ))}
-        </div>
-        <nav className="talent-pager">
-          <button disabled={currentPage <= 0} onClick={() => setTalentPage(page => Math.max(0, page - 1))}>上一页</button>
-          <span>{currentPage + 1}/{pageCount}</span>
-          <button disabled={currentPage >= pageCount - 1} onClick={() => setTalentPage(page => Math.min(pageCount - 1, page + 1))}>下一页</button>
-        </nav>
-        <footer className="talent-footer-note">路线视图会影响开局、交换、情报、养成与经济运营。</footer>
-      </section>
-      <section className="talent-detail-panel">
-        {selected ? (
-          <div className="talent-detail-copy">
-            <span>{selected.category}</span>
-            <h3>{selected.name}</h3>
-            <strong>{bpCostLabel(selected.cost || 0)} 需要</strong>
-            <p>{talentShortText(selected)}</p>
-            {selected.id === "intel_named_challenge" ? (
-              <div className="talent-champion-picker">
-                <label>最终 Boss</label>
-                <select value={save?.named_champion_id || ""} onChange={event => chooseNamedChampion(event.target.value)}>
-                  <option value="">默认随机冠军</option>
-                  {champions.map(champion => <option value={champion.id} key={champion.id}>{champion.name_zh}</option>)}
-                </select>
-              </div>
-            ) : null}
-            <small>{talentDisabled ? "暂不可用" : selectedEquipped ? "已携带并点亮" : selectedUnlocked ? (equipSlotsFull ? "槽位已满" : "已解锁，未携带") : selectedAffordable ? "可解锁" : "BP 不足"}</small>
-          </div>
-        ) : null}
-        <div className="talent-actions">
-          <button disabled={!selected || talentDisabled || selectedUnlocked || !selectedAffordable} onClick={unlockSelected}>解锁</button>
-          <button disabled={!selected || talentDisabled || !selectedUnlocked || selectedEquipped || equipSlotsFull} onClick={equipSelected}>{equipSlotsFull && selectedUnlocked && !selectedEquipped ? "槽满" : "装备"}</button>
-          <button disabled={talentDisabled || !selectedEquipped} onClick={unequipSelected}>卸下</button>
+          <button onClick={resetView}>重置</button>
           <button onClick={onBack}>返回</button>
         </div>
+        <div className="star-chart-viewport" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={onWheel}>
+          <div
+            className="star-chart-canvas"
+            style={{
+              width: graphWidth,
+              height: graphHeight,
+              left: `calc(50% + ${view.x}px)`,
+              top: `calc(50% + ${view.y}px)`,
+              transform: `translate(-50%, -50%) scale(${view.scale})`,
+            }}
+          >
+            <svg className="star-chart-links" viewBox={`${graphBounds.minX} ${graphBounds.minY} ${graphWidth} ${graphHeight}`} aria-hidden="true">
+              {(() => {
+                const root = catalog.find(node => node.id === "root_trainer_star");
+                if (!root) return null;
+                return Array.from(categoryHubs.values()).map(hub => (
+                  <path className={`trunk ${hub.active ? "active" : "available"}`} d={linkPath(root, hub)} key={`trunk-${hub.category}`} />
+                ));
+              })()}
+              {catalog.flatMap(node => (node.requires || []).map(requirement => {
+                const from = nodeById.get(requirement.id);
+                if (!from) return null;
+                const hub = requirement.id === "root_trainer_star" ? categoryHubs.get(node.category) : null;
+                const requirementMet = nodeLevel(from.id) >= Math.max(1, Number(requirement.level || 1));
+                const childActive = nodeLevel(node.id) > 0;
+                const stateClass = childActive ? "active" : requirementMet ? "available" : "locked";
+                return <path className={`${stateClass} ${hub ? "branch" : ""}`} d={linkPath(hub || from, node)} key={`${from.id}-${node.id}-${requirement.level || 1}`} />;
+              }))}
+            </svg>
+            {catalog.map(node => {
+              const level = nodeLevel(node.id);
+              const max = Math.max(1, Number(node.max_level || 1));
+              return (
+                <button
+                  className={`star-chart-node ${routeClass(node.category)} ${nodeState(node)} ${selectedId === node.id ? "selected" : ""}`}
+                  style={{
+                    left: Number(node.x || 0) - graphBounds.minX,
+                    top: Number(node.y || 0) - graphBounds.minY,
+                    "--progress": `${max ? Math.max(0, Math.min(1, level / max)) : 0}`,
+                    "--progress-pct": `${max ? Math.max(0, Math.min(100, (level / max) * 100)) : 0}%`,
+                  } as CSSProperties}
+                  title={`${node.name} Lv${level}/${max}`}
+                  aria-label={`${node.name} Lv${level}/${max}`}
+                  onClick={() => selectNode(node)}
+                  key={node.id}
+                />
+              );
+            })}
+          </div>
+        </div>
       </section>
+      <AnimatePresence>
+        {detailOpen && selected ? (
+          <motion.section
+            className="talent-detail-panel star-chart-detail"
+            initial={{x: 420, opacity: 0}}
+            animate={{x: 0, opacity: 1}}
+            exit={{x: 420, opacity: 0}}
+            transition={{duration: 0.22, ease: "easeOut"}}
+          >
+          <div className="talent-detail-copy">
+            <button className="star-chart-drawer-close" onClick={() => setDetailOpen(false)} aria-label="关闭详情">×</button>
+            <span>{selected.category}</span>
+            <h3>{selected.name}</h3>
+            <strong>Lv{selectedLevel}/{selectedMax}</strong>
+            <p>{selected.desc}</p>
+            <div className="star-chart-effect-box">
+              <span>当前效果</span>
+              <p>{currentEffect}</p>
+            </div>
+            <div className="star-chart-effect-box next">
+              <span>下级效果</span>
+              <p>{nextEffect}</p>
+            </div>
+            <div className="star-chart-requirements">
+              <span>前置</span>
+              {requirements.length ? requirements.map(requirement => (
+                <b className={nodeLevel(requirement.id) >= Math.max(1, Number(requirement.level || 1)) ? "met" : ""} key={`${selected.id}-${requirement.id}-${requirement.level || 1}`}>
+                  {requirementText(requirement)}
+                </b>
+              )) : <b className="met">无</b>}
+            </div>
+            <small>
+              {selected.kind === "event_preview" || selected.disabled ? "后续奇遇池预留，暂不能点亮。" : selectedCost === null ? "已满级或默认点亮。" : !selectedReady ? "前置节点未满足。" : bp < Number(selectedCost) ? "BP 不足。" : `可花费 ${bpCostLabel(Number(selectedCost))} 点亮/升级。`}
+            </small>
+          </div>
+          <div className="talent-actions">
+            <button disabled={!canUpgrade} onClick={upgradeSelected}>{selectedLevel > 0 ? "升级" : "点亮"}</button>
+            <span>{selectedCost === null ? "MAX" : bpCostLabel(Number(selectedCost || 0))}</span>
+          </div>
+        </motion.section>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -268,25 +379,17 @@ const BATTLE_SETTING_TABS: Array<{id: BattleSettingTab; label: string}> = [
   {id: "legendary", label: "神战"},
 ];
 
-const BATTLE_SYSTEM_STATE: Record<BattleSystemId, {ready: boolean; summary: string; detail: string}> = {
-  mega: {ready: true, summary: "已接入", detail: "Mega 进化已接入实战。宝可梦携带对应 Mega 石后，战斗中可先确认 Mega，再选择技能；每方每场战斗只能使用一次。"},
-  zmove: {ready: true, summary: "已接入", detail: "Z 招式已接入实战。宝可梦携带对应 Z 纯晶后，每场战斗每方只能使用一次；选择 Z 招式后再点可 Z 化技能释放。"},
-  dynamax: {ready: false, summary: "未接入", detail: "极巨化机制还没有接入实战。当前不会开放极巨化按钮、极巨招式或相关战斗效果。"},
-  terastal: {ready: false, summary: "未接入", detail: "太晶化机制还没有接入实战。当前不会开放太晶化按钮、太晶属性变化或相关战斗效果。"},
+const BATTLE_RULE_PRESET_STATE: Record<BattleRulePreset, {ready: boolean; summary: string; detail: string}> = {
+  none: {ready: true, summary: "默认", detail: "不开放 Mega、Z 招式、极巨化或太晶化。适合保留最朴素的随机对战体验。"},
+  gen7: {ready: true, summary: "Mega + Z", detail: "开放 Mega 进化与 Z 招式。随机池最多到第七世代；Mega 石与 Z 纯晶会进入道具池。"},
+  gen8: {ready: true, summary: "极巨 / 超极巨", detail: "开放极巨化与超极巨化。随机池最多到第八世代；对战使用第八世代 Showdown 规则。"},
+  gen9: {ready: true, summary: "太晶化", detail: "开放太晶珠。每场战斗每方可太晶化一次，太晶爆发会按当前太晶属性展示。"},
 };
 
-function normalizeBattleSettingForReadySystems(setting?: Partial<BattleSetting> | null): BattleSetting {
-  const normalized = normalizeBattleSetting(setting || DEFAULT_BATTLE_SETTING);
-  return {
-    ...normalized,
-    enabled_battle_systems: normalized.enabled_battle_systems.filter(system => BATTLE_SYSTEM_STATE[system]?.ready),
-  };
-}
-
 export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
-  const [setting, setSetting] = useState<BattleSetting>(() => normalizeBattleSettingForReadySystems(save?.battle_setting || DEFAULT_BATTLE_SETTING));
+  const [setting, setSetting] = useState<BattleSetting>(() => normalizeBattleSetting(save?.battle_setting || DEFAULT_BATTLE_SETTING));
   const [activeTab, setActiveTab] = useState<BattleSettingTab>("regions");
-  const [selectedSystemId, setSelectedSystemId] = useState<BattleSystemId>("mega");
+  const [selectedPresetId, setSelectedPresetId] = useState<BattleRulePreset>(() => setting.battle_rule_preset || "none");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -294,10 +397,16 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
     let cancelled = false;
     void window.changeBattle?.getBattleSetting().then(result => {
       if (cancelled || !result) return;
-      setSetting(normalizeBattleSettingForReadySystems(result.setting));
+      const normalized = normalizeBattleSetting(result.setting);
+      setSetting(normalized);
+      setSelectedPresetId(normalized.battle_rule_preset);
       if (result.save) onSaved(result.save);
     }).catch(() => {
-      if (!cancelled) setSetting(normalizeBattleSettingForReadySystems(save?.battle_setting || DEFAULT_BATTLE_SETTING));
+      if (!cancelled) {
+        const normalized = normalizeBattleSetting(save?.battle_setting || DEFAULT_BATTLE_SETTING);
+        setSetting(normalized);
+        setSelectedPresetId(normalized.battle_rule_preset);
+      }
     });
     return () => {
       cancelled = true;
@@ -305,8 +414,7 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
   }, []);
 
   const selectedRegionCount = setting.allowed_generations.length;
-  const selectedSystemCount = setting.enabled_battle_systems.length;
-  const canSave = selectedRegionCount >= 3 && selectedSystemCount <= 2;
+  const canSave = selectedRegionCount >= 3;
 
   function toggleGeneration(generation: number) {
     setNotice("");
@@ -323,25 +431,10 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
     });
   }
 
-  function toggleSystem(system: BattleSystemId) {
+  function selectPreset(preset: BattleRulePreset) {
     setNotice("");
-    setSelectedSystemId(system);
-    setSetting(current => {
-      const selected = current.enabled_battle_systems.includes(system);
-      const ready = BATTLE_SYSTEM_STATE[system]?.ready;
-      if (!ready && !selected) {
-        setNotice("该战斗系统暂未接入。");
-        return current;
-      }
-      if (!selected && current.enabled_battle_systems.length >= 2) {
-        setNotice("战斗系统最多同时选择 2 个。");
-        return current;
-      }
-      const enabled_battle_systems = selected
-        ? current.enabled_battle_systems.filter(value => value !== system)
-        : [...current.enabled_battle_systems, system];
-      return {...current, enabled_battle_systems};
-    });
+    setSelectedPresetId(preset);
+    setSetting(current => normalizeBattleSetting({...current, battle_rule_preset: preset}));
   }
 
   async function saveSetting() {
@@ -350,7 +443,9 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
     setNotice("");
     try {
       const result = await window.changeBattle!.updateBattleSetting(setting);
-      setSetting(normalizeBattleSettingForReadySystems(result.setting));
+      const normalized = normalizeBattleSetting(result.setting);
+      setSetting(normalized);
+      setSelectedPresetId(normalized.battle_rule_preset);
       if (result.save) onSaved(result.save);
       setNotice("对局偏好已保存，下一局开始生效。");
     } catch (error) {
@@ -361,18 +456,18 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
   }
 
   const detailTitle = activeTab === "regions" ? "地区专爱" : activeTab === "systems" ? "战斗系统" : "神战";
-  const selectedSystem = BATTLE_SYSTEM_OPTIONS.find(option => option.id === selectedSystemId) || BATTLE_SYSTEM_OPTIONS[1] || BATTLE_SYSTEM_OPTIONS[0];
-  const selectedSystemState = selectedSystem ? BATTLE_SYSTEM_STATE[selectedSystem.id] : null;
-  const selectedSystemOpen = selectedSystem ? setting.enabled_battle_systems.includes(selectedSystem.id) : false;
+  const selectedPreset = BATTLE_RULE_PRESET_OPTIONS.find(option => option.id === selectedPresetId) || BATTLE_RULE_PRESET_OPTIONS[0];
+  const selectedPresetState = BATTLE_RULE_PRESET_STATE[selectedPreset.id];
+  const selectedPresetOpen = setting.battle_rule_preset === selectedPreset.id;
   const detailText = activeTab === "regions"
     ? `已选择 ${selectedRegionCount}/9 个地区，随机宝可梦只会来自这些世代。`
     : activeTab === "systems"
-      ? selectedSystem && selectedSystemState ? selectedSystemState.detail : "当前不开放额外战斗系统。"
-      : setting.legendary_battle ? "神战开启：随机池允许神兽/幻兽，每队最多 1 只。" : "神战关闭：随机池不会出现神兽/幻兽。";
-  const detailStrong = activeTab === "systems" && selectedSystem && selectedSystemState
-    ? selectedSystemState.ready
-      ? selectedSystemOpen ? `${selectedSystem.name} 已开放` : `${selectedSystem.name} 可开放`
-      : `${selectedSystem.name} 未接入`
+      ? selectedPresetState.detail
+      : setting.legendary_battle ? "神战开启：随机池允许 tier10 神兽/幻兽档，每队最多 1 只。" : "神战关闭：随机池排除 tier10 神兽/幻兽档。";
+  const detailStrong = activeTab === "systems"
+    ? selectedPresetState.ready
+      ? selectedPresetOpen ? `${selectedPreset.name} 已启用` : `${selectedPreset.name} 可启用`
+      : `${selectedPreset.name} 未接入`
     : canSave ? "配置有效" : "配置未完成";
 
   return (
@@ -397,15 +492,15 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
                 </button>
               );
             }) : null}
-            {activeTab === "systems" ? BATTLE_SYSTEM_OPTIONS.map(option => {
-              const selected = setting.enabled_battle_systems.includes(option.id);
-              const systemState = BATTLE_SYSTEM_STATE[option.id];
-              const selectedForDetail = selectedSystemId === option.id;
+            {activeTab === "systems" ? BATTLE_RULE_PRESET_OPTIONS.map(option => {
+              const selected = setting.battle_rule_preset === option.id;
+              const presetState = BATTLE_RULE_PRESET_STATE[option.id];
+              const selectedForDetail = selectedPresetId === option.id;
               return (
-                <button className={`starter-upgrade-row battle-setting-row ${selected ? "selected" : ""} ${selectedForDetail ? "focused" : ""} ${!systemState.ready ? "unavailable" : ""}`} onClick={() => toggleSystem(option.id)} key={option.id}>
+                <button className={`starter-upgrade-row battle-setting-row ${selected ? "selected" : ""} ${selectedForDetail ? "focused" : ""} ${!presetState.ready ? "unavailable" : ""}`} onClick={() => selectPreset(option.id)} key={option.id}>
                   <span>{option.name}</span>
-                  <small>{systemState.summary}</small>
-                  <b>{systemState.ready ? (selected ? "开放" : "关闭") : "未接入"}</b>
+                  <small>{presetState.summary}</small>
+                  <b>{presetState.ready ? (selected ? "当前" : "选择") : "未接入"}</b>
                 </button>
               );
             }) : null}
@@ -413,12 +508,12 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
               <>
                 <button className={`starter-upgrade-row battle-setting-row ${!setting.legendary_battle ? "selected" : ""}`} onClick={() => setSetting(current => ({...current, legendary_battle: false}))}>
                   <span>关闭神战</span>
-                  <small>随机池排除神兽与幻兽。</small>
+                  <small>随机池排除 tier10 神兽/幻兽档。</small>
                   <b>{!setting.legendary_battle ? "当前" : "选择"}</b>
                 </button>
                 <button className={`starter-upgrade-row battle-setting-row ${setting.legendary_battle ? "selected" : ""}`} onClick={() => setSetting(current => ({...current, legendary_battle: true}))}>
                   <span>开启神战</span>
-                  <small>随机池允许神兽/幻兽，每队最多 1 只。</small>
+                  <small>随机池允许 tier10 神兽/幻兽档，每队最多 1 只。</small>
                   <b>{setting.legendary_battle ? "当前" : "选择"}</b>
                 </button>
               </>
@@ -428,7 +523,7 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
         <aside className="starter-upgrade-detail battle-setting-detail">
           <div>
             <span>对局偏好</span>
-            <h3>{activeTab === "systems" && selectedSystem ? selectedSystem.name : detailTitle}</h3>
+            <h3>{activeTab === "systems" ? selectedPreset.name : detailTitle}</h3>
             <p>{detailText}</p>
             <strong>{detailStrong}</strong>
             <small>{notice || "保存后从下一局新挑战开始生效。"}</small>
@@ -437,7 +532,7 @@ export function BattleSettingPage({save, onSaved, onBack}: {save: LocalSave | nu
             <button disabled={!canSave || saving} onClick={saveSetting}>{saving ? "保存中" : "保存"}</button>
             <button onClick={onBack}>返回</button>
           </div>
-          <footer>地区 {selectedRegionCount}/9　系统 {selectedSystemCount}/2</footer>
+          <footer>地区 {selectedRegionCount}/9　规则 {selectedPreset.name}</footer>
         </aside>
       </section>
     </div>
@@ -578,7 +673,7 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
 }
 
 function battleSystemLabel(system: BattleSystemId): string {
-  return BATTLE_SYSTEM_OPTIONS.find(option => option.id === system)?.name || system;
+  return ({mega: "Mega", zmove: "Z 招式", dynamax: "极巨化", terastal: "太晶化"} as Record<BattleSystemId, string>)[system] || system;
 }
 
 function rentalSpecialBadges(pokemon: RentalPokemon): string[] {
@@ -586,6 +681,7 @@ function rentalSpecialBadges(pokemon: RentalPokemon): string[] {
     pokemon.is_mythical ? "幻兽" : "",
     !pokemon.is_mythical && pokemon.is_legendary ? "神兽" : "",
     pokemon.item_battle_system ? battleSystemLabel(pokemon.item_battle_system) : "",
+    pokemon.tera_type_zh ? `太晶珠:${pokemon.tera_type_zh}` : "",
   ].filter(Boolean);
 }
 
@@ -634,7 +730,7 @@ export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, o
             const candidateSelected = selected.includes(index);
             const badges = rentalSpecialBadges(candidate);
             const hasLegendaryBadge = Boolean(candidate.is_legendary || candidate.is_mythical);
-            const hasSystemBadge = Boolean(candidate.item_battle_system);
+            const hasSystemBadge = Boolean(candidate.item_battle_system || candidate.tera_type);
             return (
               <motion.button
                 className={`rental-thumbnail ${index === focusIndex ? "active" : ""} ${candidateSelected ? "picked" : ""} ${badges.length ? "special-candidate" : ""} ${hasLegendaryBadge ? "legendary-candidate" : ""} ${hasSystemBadge ? "system-candidate" : ""}`}

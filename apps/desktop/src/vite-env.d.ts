@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 import type {BattleDisplayStep} from "./components/battle/timelineFlow";
 import type {BrowserTestScenario} from "./web/browserTestBridge";
 
@@ -22,10 +22,10 @@ declare global {
       prepareStarterItems(seed?: number): Promise<DesktopGameState>;
       chooseStarterItem(offerId?: string | null): Promise<DesktopGameState>;
       cancelPreparation(): Promise<DesktopGameState>;
-      getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
-      unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
-      configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
-      setNamedChallenge(trainerId: string | null): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}>;
+      getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}>;
+      unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}>;
+      configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}>;
+      setNamedChallenge(trainerId: string | null): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}>;
       getStarterUpgrades(): Promise<{catalog: StarterUpgradeView[]; save?: LocalSave | null}>;
       upgradeStarter(id: string): Promise<{catalog: StarterUpgradeView[]; save?: LocalSave | null}>;
       rerollStarterCandidate(index: number): Promise<DesktopGameState>;
@@ -40,6 +40,7 @@ declare global {
       editOptions(slot: number): Promise<PokemonEditOptions>;
       dexSearch(category: DesktopDexCategory, query?: string, offset?: number, limit?: number): Promise<DesktopDexSearchResult>;
       getBattleState(): Promise<BattleState | null>;
+      e2ePatchSave?(patch: Partial<LocalSave>): Promise<LocalSave>;
     };
     __changeBattleTest?: {
       getScenario(): BrowserTestScenario;

@@ -34,6 +34,8 @@ export type SpriteIndexMap = {
   entries: Record<string, SpriteMapEntry>;
 };
 
+export type MoveLearnSource = "levelup" | "machine" | "tutor" | "egg" | "event" | "transfer" | "other";
+
 export type MoveSummary = {
   id: string;
   name: string;
@@ -50,6 +52,8 @@ export type MoveSummary = {
   short_desc_zh: string;
   desc: string;
   desc_zh: string;
+  learn_sources?: MoveLearnSource[];
+  learn_source_labels?: string[];
 };
 
 export type RentalPokemon = {
@@ -74,6 +78,8 @@ export type RentalPokemon = {
   item_desc: string;
   item_desc_zh: string;
   item_battle_system?: BattleSystemId;
+  tera_type?: string;
+  tera_type_zh?: string;
   moves: MoveSummary[];
   base_stats: Record<string, number>;
   stats: Record<string, number>;
@@ -89,7 +95,7 @@ export type RentalPokemon = {
   is_legendary?: boolean;
   is_mythical?: boolean;
   stage_tier?: 1 | 2 | 3 | 4;
-  species_tier?: 1 | 2 | 3 | 4;
+  species_tier?: 1 | 2 | 3 | 4 | 5 | 6 | 10;
   generation_profile?: "tier1" | "tier2" | "tier3" | "tier4" | "champion";
   sprite?: SpriteMapEntry;
 };
@@ -132,6 +138,8 @@ export type BossDexPoolSlot = {
   slot: number;
   species_id: string;
   species?: string;
+  species_tier?: 1 | 2 | 3 | 4 | 5 | 6 | 10;
+  battle_rule_preset?: BattleRulePreset;
   generation_profile?: string;
   unlocked: boolean;
   pokemon?: RentalPokemon;
@@ -286,12 +294,18 @@ export type BattleRequestView = {
     moves: BattleMoveRequest[];
     canZMove?: Array<{move: string; target?: string} | null>;
     canMegaEvo?: boolean | string;
+    canDynamax?: boolean;
+    canTerastallize?: string | boolean;
+    maxMoves?: {
+      maxMoves: Array<{move: string; target?: string}>;
+      gigantamax?: string;
+    };
   }>;
 };
 
 export type BattleTracker = {
   turn: number;
-  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; types?: string[]; types_zh?: string[]; base_stats?: Record<string, number>; ability?: string; ability_zh?: string; ability_id?: string; ability_desc?: string; ability_desc_zh?: string; condition?: string; status?: string; substitute?: boolean; showdown_id?: string}>;
+  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; types?: string[]; types_zh?: string[]; base_stats?: Record<string, number>; ability?: string; ability_zh?: string; ability_id?: string; ability_desc?: string; ability_desc_zh?: string; condition?: string; status?: string; substitute?: boolean; showdown_id?: string; dynamaxed?: boolean; gigantamaxed?: boolean; terastallized?: boolean; tera_type?: string; tera_type_zh?: string; original_species_id?: string; original_name?: string; original_display_name?: string; original_sprite?: SpriteMapEntry}>;
   boosts: Record<"p1" | "p2", Record<string, number>>;
   side_conditions: Record<"p1" | "p2", string[]>;
   weather: string;
@@ -334,6 +348,8 @@ export type BattleTimelineEvent = {
   target_id?: string;
   target_showdown_id?: string;
   target_species_id?: string;
+  tera_type?: string;
+  tera_type_zh?: string;
   notice_title?: string;
   notice_detail?: string;
   move?: string;
@@ -353,9 +369,11 @@ export type BattleBackgroundView = {
 };
 
 export type BattleSystemId = "mega" | "zmove" | "dynamax" | "terastal";
+export type BattleRulePreset = "none" | "gen7" | "gen8" | "gen9";
 
 export type BattleSetting = {
   allowed_generations: number[];
+  battle_rule_preset: BattleRulePreset;
   enabled_battle_systems: BattleSystemId[];
   legendary_battle: boolean;
 };
@@ -379,11 +397,33 @@ export const BATTLE_SYSTEM_OPTIONS: Array<{id: BattleSystemId; name: string}> = 
   {id: "terastal", name: "太晶化"},
 ];
 
+export const BATTLE_RULE_PRESET_OPTIONS: Array<{id: BattleRulePreset; name: string; systems: BattleSystemId[]; max_generation?: number}> = [
+  {id: "none", name: "无特殊系统", systems: []},
+  {id: "gen7", name: "第七世代规则", systems: ["mega", "zmove"], max_generation: 7},
+  {id: "gen8", name: "第八世代规则", systems: ["dynamax"], max_generation: 8},
+  {id: "gen9", name: "第九世代规则", systems: ["terastal"], max_generation: 9},
+];
+
 export const DEFAULT_BATTLE_SETTING: BattleSetting = {
   allowed_generations: [1, 2, 3, 4, 5, 6, 7],
+  battle_rule_preset: "none",
   enabled_battle_systems: [],
   legendary_battle: false,
 };
+
+export function battleSystemsForRulePreset(preset: BattleRulePreset): BattleSystemId[] {
+  return [...(BATTLE_RULE_PRESET_OPTIONS.find(option => option.id === preset)?.systems || [])];
+}
+
+function inferBattleRulePreset(input?: Partial<BattleSetting> | null): BattleRulePreset {
+  const explicit = input?.battle_rule_preset;
+  if (BATTLE_RULE_PRESET_OPTIONS.some(option => option.id === explicit)) return explicit as BattleRulePreset;
+  const systems = new Set(input?.enabled_battle_systems || []);
+  if (systems.has("dynamax")) return "gen8";
+  if (systems.has("terastal")) return "gen9";
+  if (systems.has("mega") || systems.has("zmove")) return "gen7";
+  return DEFAULT_BATTLE_SETTING.battle_rule_preset;
+}
 
 export function normalizeBattleSetting(input?: Partial<BattleSetting> | null): BattleSetting {
   const validGenerations = new Set<number>(BATTLE_GENERATION_OPTIONS.map(option => option.generation));
@@ -391,12 +431,11 @@ export function normalizeBattleSetting(input?: Partial<BattleSetting> | null): B
     .map(value => Math.floor(Number(value)))
     .filter(value => validGenerations.has(value))));
   const allowed_generations = generationList.length >= 3 ? generationList : [...DEFAULT_BATTLE_SETTING.allowed_generations];
-  const validSystems = new Set(BATTLE_SYSTEM_OPTIONS.map(option => option.id));
-  const enabled_battle_systems = Array.from(new Set((input?.enabled_battle_systems || [])
-    .filter((value): value is BattleSystemId => validSystems.has(value as BattleSystemId))))
-    .slice(0, 2);
+  const battle_rule_preset = inferBattleRulePreset(input);
+  const enabled_battle_systems = battleSystemsForRulePreset(battle_rule_preset);
   return {
     allowed_generations,
+    battle_rule_preset,
     enabled_battle_systems,
     legendary_battle: Boolean(input?.legendary_battle),
   };
@@ -422,6 +461,8 @@ export type BattleState = {
   battle_setting?: BattleSetting;
   enemy_boss_record?: BossDexRecord;
   battle_background?: BattleBackgroundView;
+  battle_event_statuses?: RestEventStatusView[];
+  contest_score?: number;
 };
 
 export type ExchangeState = {
@@ -500,6 +541,16 @@ export type RestState = {
     old_name: string;
     new_name: string;
   } | null;
+  rest_event?: RestEventState;
+  rest_event_statuses?: RestEventStatusView[];
+  event_services?: {
+    doctor?: boolean;
+    tutor?: boolean;
+    egg?: boolean;
+    raid_exchange?: boolean;
+    raid_exchange_battle_no?: number;
+    level_points?: number;
+  };
   taken_enemy_slots: number[];
   exchange_count: number;
   costs: {
@@ -517,6 +568,35 @@ export type RestState = {
   };
 };
 
+export type RestEventTone = "safe" | "trade" | "risk";
+
+export type RestEventOption = {
+  id: string;
+  name: string;
+  desc: string;
+  detail?: string;
+  tone?: RestEventTone;
+};
+
+export type RestEventState = {
+  required: boolean;
+  selected_id?: string | null;
+  options: RestEventOption[];
+};
+
+export type RestEventStatusView = {
+  id: string;
+  label: string;
+  detail?: string;
+  tone?: RestEventTone;
+};
+
+export type RestContestState = {
+  score?: number;
+  liked?: Record<string, string>;
+  disliked?: Record<string, string>;
+};
+
 export type ItemCategory = "consumable" | "held" | "tm";
 
 export type BagItemView = {
@@ -525,6 +605,7 @@ export type BagItemView = {
   name_zh: string;
   count: number;
   category: ItemCategory;
+  item_battle_system?: BattleSystemId;
   icon_asset?: string;
   cost?: number;
   sell_price?: number;
@@ -544,6 +625,18 @@ export type TalentView = {
   desc: string;
   cost?: number;
   disabled?: boolean;
+  level?: number;
+  max_level?: number;
+  costs?: number[];
+  requires?: Array<{id: string; level?: number}>;
+  effects?: string[];
+  kind?: "talent" | "starter_upgrade" | "event_preview" | "root" | "badge";
+  x?: number;
+  y?: number;
+};
+
+export type StarChartState = {
+  nodes: Record<string, number>;
 };
 
 export type StarterUpgradeState = {
@@ -580,6 +673,9 @@ export type ShopOffer = ShopItem & {
 };
 
 export type ShopState = {
+  kind?: "recovery" | "held" | "tm";
+  title?: string;
+  theme?: "green" | "blue" | "purple" | "orange";
   roll_count: number;
   next_roll_cost: number | null;
   slot_count?: number;
@@ -639,6 +735,12 @@ export type StarterItemState = {
 export type RestAction =
   | {type: "next"}
   | {type: "abort"}
+  | {type: "choose_rest_event"; eventId: string}
+  | {type: "choose_doctor_treatment"; branch: "status" | "hp"}
+  | {type: "event_learn_move"; service: "tutor" | "egg"; slot: number; moveSlot: number; moveId: string}
+  | {type: "event_barter_buy"; offerId: string; itemIds: string[]}
+  | {type: "event_raid_exchange"; ownIndex: number; enemyIndex: number}
+  | {type: "event_apply_level"; slot: number}
   | {type: "restore_hp"; slots: number[]}
   | {type: "restore_pp"; slots: number[]; moveSlot?: number}
   | {type: "restore_status"; slots: number[]}
@@ -651,8 +753,11 @@ export type RestAction =
   | {type: "reroute_next"; battleNo?: number}
   | {type: "set_named_champion"; trainerId: string | null}
   | {type: "buy_item"; itemId: string}
-  | {type: "roll_shop"; preferredCategory?: "healing" | "pp" | "berry" | "battle" | "tm"}
+  | {type: "roll_shop"; shopKind?: "recovery" | "held" | "tm"}
   | {type: "buy_shop_offer"; offerId: string}
+  | {type: "forge_items"; itemIds: string[]}
+  | {type: "forge_special_item"; itemId: string}
+  | {type: "forge_tera_orb"}
   | {type: "buy_starter_item"; offerId: string}
   | {type: "skip_starter_item"}
   | {type: "sell_item"; itemId: string}
@@ -744,6 +849,7 @@ export type SaveTalentTable = {
   talent_unlocks: string[];
   talent_equipped: string[];
   named_champion_id?: string | null;
+  star_chart?: StarChartState;
 };
 
 export type SaveStarterUpgradesTable = {
@@ -851,6 +957,7 @@ export type CurrentRunData = {
   wins: number;
   reroll_count?: number;
   shop_roll_count?: number;
+  shop_kind?: "recovery" | "held" | "tm";
   shop_offers?: ShopOffer[];
   shop_purchased_offer_id?: string | null;
   shop_purchased_offer_counts?: Record<string, number>;
@@ -873,6 +980,8 @@ export type CurrentRunData = {
   economy_spend_types?: string[];
   talents?: TalentView[];
   battle_setting?: BattleSetting;
+  tera_orb_type?: string;
+  tera_orb_type_zh?: string;
   used_pokemon_display?: RentalPokemon[];
   used_pokemon_stats?: Record<string, Omit<ResultPokemonSummary, "pokemon">>;
   used_pokemon_stat_events?: ResultPokemonStatEvent[];
@@ -925,11 +1034,38 @@ export type CurrentRunData = {
     restore_status_used?: boolean;
     all_in_pending_next?: boolean;
     recycler_available?: boolean;
+    rest_event_options?: RestEventOption[];
+    rest_event_selected_id?: string | null;
     all_in_result?: {
       old_name: string;
       new_name: string;
     } | null;
     named_challenge_decided?: boolean;
+    event_shop_disabled?: boolean;
+    event_shop_price_multiplier?: number;
+    event_recovery_multiplier?: number;
+    event_hungry?: boolean;
+    event_low_tier_recovery_disabled?: boolean;
+    event_pending_full_restore?: boolean;
+    event_checked_bag_items?: Record<string, number>;
+    event_rest_healing_blocked?: boolean;
+    event_next_battle_healing_blocked?: boolean;
+    event_barter_active?: boolean;
+    event_doctor_pending?: boolean;
+    event_tutor_service_available?: boolean;
+    event_tutor_service_used?: boolean;
+    event_egg_service_available?: boolean;
+    event_egg_service_used?: boolean;
+    event_contest_next?: RestContestState;
+    event_contest_active?: RestContestState;
+    event_raid_exchange_available?: boolean;
+    event_raid_exchange_battle_no?: number;
+    event_raid_exchange_used?: boolean;
+    event_rerandomized_locked_battles?: number[];
+    event_exchange_disabled?: boolean;
+    event_level_points?: number;
+    event_soul_swap_next?: boolean;
+    event_soul_swap_active?: boolean;
   };
 };
 
@@ -1025,6 +1161,7 @@ export type LocalSave = {
   stats: TrainerStats;
   talent_unlocks?: string[];
   talent_equipped?: string[];
+  star_chart?: StarChartState;
   starter_upgrades?: StarterUpgradeState;
   battle_setting?: BattleSetting;
   named_champion_id?: string | null;

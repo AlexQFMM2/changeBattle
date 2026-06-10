@@ -1,7 +1,7 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
-contextBridge.exposeInMainWorld("changeBattle", {
+const api = {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
     return ipcRenderer.invoke("game:generateCandidates", seed);
   },
@@ -49,16 +49,16 @@ contextBridge.exposeInMainWorld("changeBattle", {
   cancelPreparation(): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:cancelPreparation");
   },
-  getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+  getTalentConfig(): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}> {
     return ipcRenderer.invoke("talents:get");
   },
-  unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+  unlockTalent(id: string): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}> {
     return ipcRenderer.invoke("talents:unlock", id);
   },
-  configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+  configureTalents(ids: string[]): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}> {
     return ipcRenderer.invoke("talents:configure", ids);
   },
-  setNamedChallenge(trainerId: string | null): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null}> {
+  setNamedChallenge(trainerId: string | null): Promise<{catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null}> {
     return ipcRenderer.invoke("talents:setNamedChallenge", trainerId);
   },
   getStarterUpgrades(): Promise<{catalog: StarterUpgradeView[]; save?: LocalSave | null}> {
@@ -103,4 +103,12 @@ contextBridge.exposeInMainWorld("changeBattle", {
   getBattleState(): Promise<BattleState | null> {
     return ipcRenderer.invoke("run:getBattleState");
   },
-});
+};
+
+if (process.env.CHANGEBATTLE_E2E === "1") {
+  Object.assign(api, {
+    e2ePatchSave: (patch: Partial<LocalSave>): Promise<LocalSave> => ipcRenderer.invoke("e2e:patchSave", patch),
+  });
+}
+
+contextBridge.exposeInMainWorld("changeBattle", api);

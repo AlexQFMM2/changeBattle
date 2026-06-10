@@ -4,16 +4,16 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
+  BADGE_LEVEL_CAPS,
   BP_SCALE,
   DEFAULT_BATTLES,
   RANDOMIZE_ALL_COST,
   RANDOMIZE_PART_COST,
   REROUTE_LIMIT,
-  RECYCLER_EVENT_CHANCE,
   RECYCLE_RECEIPT_RATE,
   REST_HP_COSTS,
   REST_PP_COSTS,
@@ -22,11 +22,12 @@ import {
   SCOUT_BASIC_COST,
   SCOUT_ONE_COST,
   SHOP_GUEST_FREE_ROLLS,
-  SHOP_PREFERRED_ROLL_COST,
   STARTER_ITEM_GROUPS,
   STARTER_ITEM_MAX_LEVEL,
+  STAR_CHART_NODE_BY_ID,
+  STAR_CHART_NODES,
   TALENTS,
-  TALENT_EQUIP_LIMIT,
+  TRUST_OVERFLOW_COIN_PER_LEVEL,
   WIN_BP_REWARD,
   addBp,
   addRunBp,
@@ -51,6 +52,7 @@ import {
   moveDrawCost,
   moveDrawCount,
   normalizeStarterUpgrades,
+  normalizeStarChart,
   portfolioBonus,
   pricedForRun,
   pricedForShop,
@@ -60,7 +62,6 @@ import {
   settleProphetFirstMover,
   shopDuplicateBonusForOffers,
   shopCandidateCount,
-  shopNextRollCost,
   shopOfferCount,
   spendBp,
   spendCoins,
@@ -69,8 +70,15 @@ import {
   starterUpgradeCatalog,
   starterUpgradeCost,
   starterUpgradeLevel,
+  starChartCatalog,
+  starNodeLevel,
+  starNodeUnlocked,
+  starNodeUpgradeCost,
+  starterUpgradesForStarChart,
   statResetCost,
   talentsForIds,
+  talentsForStarChart,
+  talentLevel,
   toId,
 } from "./run-rules.js";
 import {SaveStore} from "./save-store.js";
@@ -80,6 +88,17 @@ declare const __dirname: string;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const CHAMPION_BACKGROUND_ID = "champion-stage";
 const FALLBACK_BATTLE_BACKGROUND: BattleBackgroundView = {id: "mountain-route", name: "山地", src: "assets/battle-backgrounds/mountain-route.png"};
+const e2eUserDataDir = process.env.CHANGEBATTLE_E2E_USER_DATA_DIR;
+const e2eRemoteDebuggingPort = process.env.CHANGEBATTLE_E2E_REMOTE_DEBUGGING_PORT;
+const e2eEnabled = process.env.CHANGEBATTLE_E2E === "1";
+
+if (e2eUserDataDir) {
+  app.setPath("userData", e2eUserDataDir);
+}
+if (e2eRemoteDebuggingPort) {
+  app.commandLine.appendSwitch("remote-debugging-port", e2eRemoteDebuggingPort);
+  app.commandLine.appendSwitch("remote-allow-origins", "*");
+}
 
 protocol.registerSchemesAsPrivileged([
   {scheme: "changebattle-asset", privileges: {standard: true, secure: true, supportFetchAPI: true, stream: true}},
@@ -181,10 +200,12 @@ let shopPoolCache: ShopPoolEntry[] | null = null;
 let starterItemPoolCache: StarterItemPoolEntry[] | null = null;
 let bossTeamPoolCache: BossTeamPoolRow[] | null = null;
 
-type TalentConfigState = {catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; save?: LocalSave | null};
+type TalentConfigState = {catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null};
 type StarterUpgradeConfigState = {catalog: StarterUpgradeView[]; save?: LocalSave | null};
 type BossRoute = {type: "normal" | "gym" | "champion" | "elite4"; stage: string; route: string; pool: Array<{type: TrainerNpcType; tier?: string}>};
 type GenerationProfile = "tier1" | "tier2" | "tier3" | "tier4" | "champion";
+type SpeciesTier = 1 | 2 | 3 | 4 | 5 | 6 | 10;
+type ShopKind = "recovery" | "held" | "tm";
 type ShopPoolBucket = "healing" | "tm" | "held" | "berry" | "pp";
 type ShopPoolEntry = {
   id: string;
@@ -200,7 +221,7 @@ type StarterItemPoolEntry = ShopPoolEntry & {
   tier: number;
   discountable: boolean;
 };
-type BossTeamPoolRow = {pool_id: string; trainer_id: string; team_index: number; slot: number; species_id: string; species?: string; generation_profile: GenerationProfile};
+type BossTeamPoolRow = {pool_id: string; battle_rule_preset: BattleRulePreset; trainer_id: string; team_index: number; slot: number; species_id: string; species?: string; species_tier?: SpeciesTier; generation_profile: GenerationProfile};
 
 const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
   healing: 65,
@@ -209,6 +230,15 @@ const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
   tm: 5,
   held: 5,
 };
+
+const SHOP_KIND_CONFIG: Record<ShopKind, {title: string; theme: "green" | "blue" | "purple"; rollCost: number; buckets: ShopPoolBucket[]}> = {
+  recovery: {title: "回复商店", theme: "green", rollCost: 50, buckets: ["healing", "berry", "pp"]},
+  held: {title: "道具商店", theme: "blue", rollCost: 75, buckets: ["held"]},
+  tm: {title: "技能商店", theme: "purple", rollCost: 75, buckets: ["tm"]},
+};
+const SPECIAL_FORGE_COST = 50;
+const TERA_ORB_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
+const TERA_ORB_TYPE_ZH: Record<string, string> = {Normal: "一般", Fire: "火", Water: "水", Electric: "电", Grass: "草", Ice: "冰", Fighting: "格斗", Poison: "毒", Ground: "地面", Flying: "飞行", Psychic: "超能力", Bug: "虫", Rock: "岩石", Ghost: "幽灵", Dragon: "龙", Dark: "恶", Steel: "钢", Fairy: "妖精"};
 
 const GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
   {id: "potion", cost: 20},
@@ -257,6 +287,262 @@ const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: s
   maxelixir: {name: "Max Elixir", name_zh: "PP 多项全补剂", desc: "Fully restores PP to all moves.", desc_zh: "让所有招式恢复全部 PP。"},
 };
 
+type RestEventDefinition = RestEventOption & {
+  apply(save: LocalSave, run: CurrentRunData): Promise<string>;
+};
+
+const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
+  {
+    id: "recycler_appraisal",
+    name: "旧货估价",
+    desc: "本次休整解锁道具回收商。",
+    detail: "只有选择这张奇遇后，休整栏才会出现道具回收商按钮。讲价高手会提高本次出售价格。",
+    tone: "trade",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), recycler_available: true};
+      return "旧货估价：道具回收商来到了休整区。";
+    },
+  },
+  {
+    id: "sponsor_delivery",
+    name: "赞助到账",
+    desc: "立刻获得 120 金币。",
+    detail: "稳定补一点运营预算，但不直接给回复道具。",
+    tone: "safe",
+    async apply(_save, run) {
+      const gained = addCoins(run, 120);
+      return `赞助到账：获得 ${gained}金币。`;
+    },
+  },
+  {
+    id: "clinic_coupon",
+    name: "诊所抵用券",
+    desc: "本次休整获得 1 次免费商店抽奖。",
+    detail: "不会直接恢复队伍，可以优先用在回复商店找续航。",
+    tone: "safe",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), free_shop_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0) + 1};
+      return "诊所抵用券：本次休整获得 1 次免费商店抽奖。";
+    },
+  },
+  {
+    id: "countryside",
+    name: "田园风光",
+    desc: "随机恢复两只未濒死宝可梦到满状态，但本次休整没有商店。",
+    detail: "适合队伍残血时救急；商店整轮关闭。",
+    tone: "trade",
+    async apply(_save, run) {
+      const restored = restoreRandomPartyMembers(run, 2, "countryside");
+      run.rest_status = {...(run.rest_status || {}), event_shop_disabled: true};
+      return `田园风光：${restored || "没有"}宝可梦恢复到满状态，本次休整商店关闭。`;
+    },
+  },
+  {
+    id: "bad_doctor_brothers",
+    name: "蹩脚医生兄弟",
+    desc: "选择哥哥或弟弟的一种治疗方案。",
+    detail: "哥哥治异常和 PP 但扣血；弟弟救 HP 但附带异常。",
+    tone: "risk",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_doctor_pending: true};
+      return "蹩脚医生兄弟：请选择哥哥或弟弟的治疗方案。";
+    },
+  },
+  {
+    id: "blood_donation",
+    name: "献血光荣",
+    desc: "全队未濒死宝可梦扣除 1/4 当前 HP，获得 200 金币。",
+    detail: "至少保留 1 HP，濒死宝可梦不参与。",
+    tone: "trade",
+    async apply(_save, run) {
+      const count = damagePartyFraction(run, 0.25);
+      const gained = addCoins(run, 200);
+      return `献血光荣：${count} 只宝可梦贡献了体力，获得 ${gained}金币。`;
+    },
+  },
+  {
+    id: "major_surgery",
+    name: "重伤手术",
+    desc: "本次低级恢复道具失效；下次休整全队满状态。",
+    detail: "全满药、全复药、复活和 PP 药剂仍可用。",
+    tone: "trade",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_low_tier_recovery_disabled: true, event_pending_full_restore: true};
+      return "重伤手术：本次低级恢复道具失效，下次休整全队恢复满状态。";
+    },
+  },
+  {
+    id: "power_outage_profiteer",
+    name: "乘火打劫",
+    desc: "本次恢复效果减半，商店抽奖和购买价格提高。",
+    detail: "纯负面事件，商店价格为 1.5 倍。",
+    tone: "risk",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_recovery_multiplier: 0.5, event_shop_price_multiplier: 1.5};
+      return "乘火打劫：本次休整恢复减半，商店价格上涨。";
+    },
+  },
+  {
+    id: "potion_trial",
+    name: "药剂试喝",
+    desc: "随机获得一种轻恢复，并额外获得 50 金币。",
+    detail: "可能全队回血、解异常，或随机一只满状态。",
+    tone: "safe",
+    async apply(_save, run) {
+      const result = applyPotionTrial(run);
+      const gained = addCoins(run, 50);
+      return `药剂试喝：${result}，获得 ${gained}金币补贴。`;
+    },
+  },
+  {
+    id: "camping_pot",
+    name: "露营锅",
+    desc: "把背包内所有树果转换成回复药类道具。",
+    detail: "至少需要 3 个树果；不足时仍消耗树果但不产药，并令队伍饥饿，本次休整和下一战背包恢复减半。",
+    tone: "trade",
+    async apply(_save, run) {
+      const text = await convertBerriesToMedicine(run);
+      return `露营锅：${text}`;
+    },
+  },
+  {
+    id: "forgetful_river_god",
+    name: "健忘的河神",
+    desc: "30% 没收 1/4 背包道具，20% 道具翻倍，50% 无事发生。",
+    detail: "不影响宝可梦当前携带物，特殊系统道具默认受保护。",
+    tone: "risk",
+    async apply(_save, run) {
+      return applyRiverGod(run);
+    },
+  },
+  {
+    id: "safe_airline",
+    name: "安全航空",
+    desc: "落地后全队恢复满状态，但普通战斗携带道具会被托运。",
+    detail: "会卸下宝可梦身上的普通战斗道具；下次休整归还到背包。",
+    tone: "trade",
+    async apply(_save, run) {
+      const count = await checkBattleItems(run);
+      const restored = fullRestoreParty(run);
+      return `安全航空：${restored} 只宝可梦落地后恢复满状态，${count} 个普通战斗道具已托运，下次休整归还到背包。`;
+    },
+  },
+  {
+    id: "barter_village",
+    name: "以物易物",
+    desc: "商店抽奖免费，购买只能用背包道具交换。",
+    detail: "材料价值需达到商品价格 70%，不找零。",
+    tone: "trade",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_barter_active: true};
+      return "以物易物：本次商店抽奖免费，购买只能用背包道具交换。";
+    },
+  },
+  {
+    id: "devil_treasure",
+    name: "飞天魔鬼的宝藏",
+    desc: "获得高等级战斗道具和 1000 金币，但恢复道具被诅咒。",
+    detail: "本次休整与下一战不能使用 HP/异常/复活类背包恢复道具。",
+    tone: "risk",
+    async apply(_save, run) {
+      const rewards = await grantDevilTreasure(run);
+      const gained = addCoins(run, 1000);
+      run.rest_status = {...(run.rest_status || {}), event_rest_healing_blocked: true, event_next_battle_healing_blocked: true};
+      return `飞天魔鬼的宝藏：获得 ${rewards.join("、")} 和 ${gained}金币，但恢复道具受到诅咒。`;
+    },
+  },
+  {
+    id: "contest_stage",
+    name: "华丽大赛",
+    desc: "下一战按裁判喜欢/讨厌的技能累积华丽分。",
+    detail: "胜利后按分数给金币；高分战败会被裁判判作成功。",
+    tone: "trade",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_contest_next: buildContestMarks(run)};
+      return "华丽大赛：下一战将出现裁判喜欢和讨厌的技能。";
+    },
+  },
+  {
+    id: "tutor_granny",
+    name: "讲师老奶奶",
+    desc: "本次休整可花 200 金币学习 1 个教授招式。",
+    detail: "只显示当前宝可梦合法且未掌握的 tutor 来源招式。",
+    tone: "trade",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_tutor_service_available: true};
+      return "讲师老奶奶：本次休整解锁教授招式学习服务。";
+    },
+  },
+  {
+    id: "daycare_grandpa",
+    name: "培育屋爷爷",
+    desc: "本次休整可花 200 金币学习 1 个遗传招式。",
+    detail: "只显示当前宝可梦合法且未掌握的 egg 来源招式。",
+    tone: "trade",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_egg_service_available: true};
+      return "培育屋爷爷：本次休整解锁遗传招式学习服务。";
+    },
+  },
+  {
+    id: "last_minute_escape",
+    name: "临阵脱逃",
+    desc: "队内一只宝可梦离队，补发同物种同档位的新个体。",
+    detail: "配置会重随，可能变好也可能变坏。",
+    tone: "risk",
+    async apply(_save, run) {
+      if ((run.player_team || []).length <= 1) return "临阵脱逃：队伍人数太少，工厂没有触发替换。";
+      return replaceEscapedPokemon(run);
+    },
+  },
+  {
+    id: "scary_raid",
+    name: "骇人奇袭",
+    desc: "查看下一场完整队伍，并允许和对方交换 1 只宝可梦。",
+    detail: "包括馆主、四天王和冠军；交换后小道消息与真实队伍同步。",
+    tone: "trade",
+    async apply(_save, run) {
+      const battleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
+      run.rest_status = {...(run.rest_status || {}), event_raid_exchange_available: true, event_raid_exchange_battle_no: battleNo};
+      await revealNightSkyBattle(_save, run, battleNo);
+      return `骇人奇袭：已解锁第 ${battleNo} 场完整队伍和一次奇袭交换。`;
+    },
+  },
+  {
+    id: "invisible_hand",
+    name: "看不见的大手",
+    desc: "后续未锁定对手重新随机。",
+    detail: "会刷新小道消息；命名冠军不被替换。",
+    tone: "risk",
+    async apply(save, run) {
+      const count = await rerandomizeFutureBattles(save, run);
+      return `看不见的大手：${count} 场未来对手已被重新安排。`;
+    },
+  },
+  {
+    id: "soul_swap",
+    name: "灵魂互换",
+    desc: "下一战双方操作队伍互换，胜负仍按原阵营结算。",
+    detail: "如果你操作 NPC 队伍打赢自己的原队伍，本局按挑战失败处理。",
+    tone: "risk",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_soul_swap_next: true};
+      return "灵魂互换：下一战你将操作对手队伍，胜负按原阵营结算。";
+    },
+  },
+  {
+    id: "reluctant_team",
+    name: "恋恋不舍",
+    desc: "本次休整无法交换宝可梦，获得 4 点可分配等级。",
+    detail: "等级分配仍受徽章权限上限限制。",
+    tone: "trade",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_exchange_disabled: true, event_level_points: Number(run.rest_status?.event_level_points || 0) + 4};
+      return "恋恋不舍：本次无法交换宝可梦，获得 4 点可分配等级。";
+    },
+  },
+];
+
 function freshRestStatus(talents: TalentView[] | undefined, extra: CurrentRunData["rest_status"] = {}): CurrentRunData["rest_status"] {
   const baseFreeRolls = hasTalent(talents, "growth_vip_guest") ? SHOP_GUEST_FREE_ROLLS : 0;
   const extraFreeRolls = Number(extra.free_shop_rolls_remaining || 0);
@@ -270,6 +556,420 @@ function freshRestStatus(talents: TalentView[] | undefined, extra: CurrentRunDat
     recycler_available: Boolean(extra.recycler_available),
     named_challenge_decided: Boolean(extra.named_challenge_decided),
   };
+}
+
+function carryRestStatusForBattle(run: CurrentRunData): CurrentRunData["rest_status"] {
+  const status = run.rest_status || {};
+  return {
+    ...(status.all_in_pending_next ? {all_in_pending_next: true, all_in_result: status.all_in_result || null} : {}),
+    ...(Number(status.event_recovery_multiplier || 1) < 1 ? {event_recovery_multiplier: status.event_recovery_multiplier, event_hungry: Boolean(status.event_hungry)} : {}),
+    ...(status.event_pending_full_restore ? {event_pending_full_restore: true} : {}),
+    ...(status.event_checked_bag_items ? {event_checked_bag_items: status.event_checked_bag_items} : {}),
+    ...(status.event_next_battle_healing_blocked ? {event_next_battle_healing_blocked: true} : {}),
+    ...(status.event_contest_next ? {event_contest_next: status.event_contest_next} : {}),
+    ...(status.event_soul_swap_next ? {event_soul_swap_next: true} : {}),
+    ...(status.event_rerandomized_locked_battles?.length ? {event_rerandomized_locked_battles: status.event_rerandomized_locked_battles} : {}),
+  };
+}
+
+function carryRestStatusAfterBattle(run: CurrentRunData, extra: CurrentRunData["rest_status"] = {}): CurrentRunData["rest_status"] {
+  const status = run.rest_status || {};
+  return {
+    ...extra,
+    ...(status.event_pending_full_restore ? {event_pending_full_restore: true} : {}),
+    ...(status.event_checked_bag_items ? {event_checked_bag_items: status.event_checked_bag_items} : {}),
+    ...(status.event_rerandomized_locked_battles?.length ? {event_rerandomized_locked_battles: status.event_rerandomized_locked_battles} : {}),
+  };
+}
+
+function restEventView(event: RestEventDefinition | RestEventOption): RestEventOption {
+  return {id: event.id, name: event.name, desc: event.desc, detail: event.detail, tone: event.tone};
+}
+
+function ensureRestEventOptions(run: CurrentRunData): void {
+  if (run.status !== "awaiting_rest") return;
+  if (run.rest_status?.rest_event_selected_id) return;
+  if (run.rest_status?.rest_event_options?.length) return;
+  const rng = seededRng(Number(run.seed || 1), 0x7e57 + Number(run.battle_no || 0) * 173 + Number(run.next_battle || 1) * 37 + Number(run.wins || 0) * 19);
+  const pool = REST_EVENT_DEFINITIONS.filter(event => event.id !== "last_minute_escape" || (run.player_team || []).length > 1);
+  const picked = shuffleByRng(pool, rng).slice(0, 3).map(restEventView);
+  run.rest_status = {...(run.rest_status || {}), rest_event_options: picked, rest_event_selected_id: null};
+}
+
+function restEventRequired(run: CurrentRunData): boolean {
+  return run.status === "awaiting_rest" && Boolean(run.rest_status?.rest_event_options?.length) && !run.rest_status?.rest_event_selected_id;
+}
+
+async function chooseRestEvent(save: LocalSave, run: CurrentRunData, eventId: string): Promise<string> {
+  ensureRestEventOptions(run);
+  if (!restEventRequired(run)) throw new Error("当前没有待选择的休整奇遇。");
+  const rawId = String(eventId || "").trim();
+  const normalizedId = toId(rawId);
+  const option = run.rest_status?.rest_event_options?.find(event => event.id === rawId || toId(event.id) === normalizedId);
+  if (!option) throw new Error("休整奇遇不存在。");
+  const event = REST_EVENT_DEFINITIONS.find(entry => entry.id === option.id || toId(entry.id) === normalizedId);
+  if (!event) throw new Error("休整奇遇配置缺失。");
+  run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: event.id};
+  return event.apply(save, run);
+}
+
+function eventRng(run: CurrentRunData, label: string, extra = 0): () => number {
+  const salt = 0xe700 + Number(run.battle_no || run.next_battle || 0) * 193 + toId(label).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) + extra * 997;
+  return seededRng(Number(run.seed || 1), salt);
+}
+
+function fullRestoreState(state: PlayerPokemonState): void {
+  state.hp = Math.max(1, Number(state.maxhp || 1));
+  state.status = "";
+  state.moves = (state.moves || []).map(move => ({...move, pp: Math.max(0, Number(move.maxpp || move.pp || 0))}));
+  refreshStateCondition(state);
+}
+
+function fullRestoreParty(run: CurrentRunData): number {
+  const states = normalizePlayerState(run);
+  for (const state of states) fullRestoreState(state);
+  run.player_state = states;
+  return states.length;
+}
+
+function restoreRandomPartyMembers(run: CurrentRunData, count: number, label: string): string {
+  const states = normalizePlayerState(run);
+  const rng = eventRng(run, label);
+  const candidates = states.map((state, index) => ({state, index})).filter(entry => !entry.state.fainted && entry.state.hp > 0);
+  const picked = shuffleByRng(candidates, rng).slice(0, Math.max(0, count));
+  for (const entry of picked) fullRestoreState(entry.state);
+  run.player_state = states;
+  return picked.map(entry => run.player_display[entry.index]?.species_zh || run.player_display[entry.index]?.species || `第 ${entry.index + 1} 只`).join("、");
+}
+
+function damagePartyFraction(run: CurrentRunData, fraction: number): number {
+  const states = normalizePlayerState(run);
+  let count = 0;
+  for (const state of states) {
+    if (state.fainted || state.hp <= 0) continue;
+    state.hp = Math.max(1, Math.floor(Number(state.hp || 1) * (1 - fraction)));
+    refreshStateCondition(state);
+    count += 1;
+  }
+  run.player_state = states;
+  return count;
+}
+
+function healPartyFraction(run: CurrentRunData, fraction: number): number {
+  const states = normalizePlayerState(run);
+  let count = 0;
+  for (const state of states) {
+    if (state.fainted || state.hp <= 0) continue;
+    state.hp = Math.min(Number(state.maxhp || 1), Number(state.hp || 0) + Math.max(1, Math.floor(Number(state.maxhp || 1) * fraction)));
+    refreshStateCondition(state);
+    count += 1;
+  }
+  run.player_state = states;
+  return count;
+}
+
+function clearPartyStatus(run: CurrentRunData): number {
+  const states = normalizePlayerState(run);
+  let count = 0;
+  for (const state of states) {
+    if (state.status) count += 1;
+    state.status = "";
+    refreshStateCondition(state);
+  }
+  run.player_state = states;
+  return count;
+}
+
+function applyRandomStatus(run: CurrentRunData, label: string): number {
+  const states = normalizePlayerState(run);
+  const rng = eventRng(run, label);
+  const statuses = ["brn", "par", "psn", "slp"] as const;
+  let count = 0;
+  for (const state of states) {
+    if (state.hp <= 0) continue;
+    state.status = statuses[Math.floor(rng() * statuses.length)] || "psn";
+    refreshStateCondition(state);
+    count += 1;
+  }
+  run.player_state = states;
+  return count;
+}
+
+function applyPotionTrial(run: CurrentRunData): string {
+  const roll = eventRng(run, "potion_trial")();
+  if (roll < 1 / 3) return `全队 ${healPartyFraction(run, 0.4)} 只宝可梦恢复了 40% HP`;
+  if (roll < 2 / 3) return `全队解除了 ${clearPartyStatus(run)} 个异常状态`;
+  const restored = restoreRandomPartyMembers(run, 1, "potion_trial_full");
+  return `${restored || "没有宝可梦"}恢复到满状态`;
+}
+
+function isBerryItemId(itemId: string): boolean {
+  return itemKey(itemId).endsWith("berry");
+}
+
+function isSpecialSystemItemId(itemId: string): boolean {
+  const id = itemKey(itemId);
+  return Boolean(gameService.battleSystemForItem(id));
+}
+
+async function isOrdinaryHeldItemId(itemId: string): Promise<boolean> {
+  const id = itemKey(itemId);
+  if (!id || isTmItemId(id) || isBerryItemId(id) || isSpecialSystemItemId(id)) return false;
+  const item = await itemDetailsById(id);
+  let category = itemCategory(item);
+  if (category === "consumable" && !(await gameService.hasConsumableItemEffect(id))) category = "held";
+  return category === "held";
+}
+
+async function isHpStatusReviveRecoveryItem(itemId: string): Promise<boolean> {
+  const id = itemKey(itemId);
+  if (isTmItemId(id) || isBerryItemId(id)) return true;
+  if (!(await gameService.hasConsumableItemEffect(id))) return false;
+  return !["ether", "maxether", "elixir", "maxelixir"].includes(id);
+}
+
+function isLowTierRecoveryItem(itemId: string): boolean {
+  return ["potion", "superpotion", "hyperpotion", "freshwater", "sodapop", "lemonade", "moomoomilk", "energypowder", "energyroot", "fullheal", "healpowder", "antidote", "burnheal", "iceheal", "awakening", "paralyzeheal"].includes(itemKey(itemId)) || isBerryItemId(itemId);
+}
+
+async function assertRestItemUsableByEvents(run: CurrentRunData, itemId: string): Promise<void> {
+  const id = itemKey(itemId);
+  if (run.rest_status?.event_rest_healing_blocked && await isHpStatusReviveRecoveryItem(id)) throw new Error("恢复道具受到诅咒，本次休整不能使用。");
+  if (run.rest_status?.event_low_tier_recovery_disabled && isLowTierRecoveryItem(id)) throw new Error("重伤手术期间，低级恢复道具暂时失效。");
+}
+
+async function assertBattleItemUsableByEvents(run: CurrentRunData, itemId: string): Promise<void> {
+  if (run.rest_status?.event_next_battle_healing_blocked && await isHpStatusReviveRecoveryItem(itemId)) throw new Error("恢复道具受到诅咒，下一场战斗中不能使用。");
+}
+
+async function convertBerriesToMedicine(run: CurrentRunData): Promise<string> {
+  const berryEntries = Object.entries(run.bag_items || {}).filter(([id, count]) => isBerryItemId(id) && Number(count || 0) > 0);
+  const total = berryEntries.reduce((sum, [_id, count]) => sum + Number(count || 0), 0);
+  if (total < 3) {
+    for (const [id, count] of berryEntries) consumeBagItemCount(run, id, Number(count || 0));
+    run.rest_status = {...(run.rest_status || {}), event_recovery_multiplier: Math.min(eventRecoveryMultiplier(run), 0.5), event_hungry: true};
+    return total > 0
+      ? `只找到 ${total} 个树果，锅里没煮出像样的东西；队伍陷入饥饿，本次休整和下一战背包恢复效果减半。`
+      : "背包里没有树果，锅里什么也没煮出来；队伍陷入饥饿，本次休整和下一战背包恢复效果减半。";
+  }
+  for (const [id, count] of berryEntries) consumeBagItemCount(run, id, Number(count || 0));
+  const rng = eventRng(run, "camping_pot", total);
+  const rewards: string[] = [];
+  const rolls = Math.max(1, Math.ceil(total / 2));
+  for (let index = 0; index < rolls; index += 1) {
+    const roll = rng();
+    const itemId = total >= 8 && roll > 0.82 ? "fullrestore" : total >= 5 && roll > 0.65 ? "maxpotion" : roll > 0.42 ? "hyperpotion" : roll > 0.18 ? "superpotion" : "potion";
+    rewards.push(await grantBagItem(run, itemId, 1));
+  }
+  return `消耗 ${total} 个树果，获得 ${rewards.join("、")}。`;
+}
+
+async function eventEligibleBagItemIds(run: CurrentRunData): Promise<string[]> {
+  const ids: string[] = [];
+  for (const [id, count] of Object.entries(run.bag_items || {})) {
+    if (Number(count || 0) <= 0 || isSpecialSystemItemId(id)) continue;
+    ids.push(itemKey(id));
+  }
+  return ids;
+}
+
+async function applyRiverGod(run: CurrentRunData): Promise<string> {
+  const rng = eventRng(run, "forgetful_river_god");
+  const roll = rng();
+  const ids = await eventEligibleBagItemIds(run);
+  if (!ids.length) return "健忘的河神：你的背包太空了，河神什么也没做。";
+  if (roll < 0.3) {
+    const total = ids.reduce((sum, id) => sum + Number(run.bag_items?.[id] || 0), 0);
+    let removeCount = Math.max(1, Math.floor(total / 4));
+    const shuffled = shuffleByRng(ids, rng);
+    const removed: string[] = [];
+    for (const id of shuffled) {
+      while (removeCount > 0 && Number(run.bag_items?.[id] || 0) > 0) {
+        consumeBagItemCount(run, id, 1);
+        removed.push(id);
+        removeCount -= 1;
+      }
+      if (removeCount <= 0) break;
+    }
+    return `健忘的河神：河神弄丢了 ${removed.length} 个背包道具。`;
+  }
+  if (roll < 0.5) {
+    let doubled = 0;
+    for (const id of ids) {
+      const count = Number(run.bag_items?.[id] || 0);
+      adjustBagItem(run, id, count);
+      doubled += count;
+    }
+    return `健忘的河神：背包道具翻倍，额外获得 ${doubled} 个道具。`;
+  }
+  return "健忘的河神：河神想了半天，最后什么也没发生。";
+}
+
+async function checkBattleItems(run: CurrentRunData): Promise<number> {
+  const checked: Record<string, number> = {...(run.rest_status?.event_checked_bag_items || {})};
+  let count = 0;
+  for (const [id, amount] of Object.entries(run.bag_items || {})) {
+    if (Number(amount || 0) <= 0 || !(await isOrdinaryHeldItemId(id))) continue;
+    checked[itemKey(id)] = Number(checked[itemKey(id)] || 0) + Number(amount || 0);
+    consumeBagItemCount(run, id, Number(amount || 0));
+    count += Number(amount || 0);
+  }
+  const states = normalizePlayerState(run);
+  for (let index = 0; index < run.player_team.length; index += 1) {
+    const itemId = itemKey(run.player_team[index]?.item || run.player_display[index]?.item_id || run.player_display[index]?.item || "");
+    if (!itemId || !(await isOrdinaryHeldItemId(itemId))) continue;
+    checked[itemId] = Number(checked[itemId] || 0) + 1;
+    run.player_team[index].item = "";
+    run.player_display[index] = {...run.player_display[index], item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
+    if (states[index]) states[index].item = "";
+    count += 1;
+  }
+  run.player_state = states;
+  run.rest_status = {...(run.rest_status || {}), event_checked_bag_items: checked};
+  return count;
+}
+
+async function returnCheckedBagItems(run: CurrentRunData): Promise<number> {
+  const checked = run.rest_status?.event_checked_bag_items || {};
+  let count = 0;
+  for (const [id, amount] of Object.entries(checked)) {
+    const safeAmount = Math.max(0, Math.floor(Number(amount || 0)));
+    if (!safeAmount) continue;
+    await grantBagItem(run, id, safeAmount);
+    count += safeAmount;
+  }
+  if (run.rest_status) delete run.rest_status.event_checked_bag_items;
+  return count;
+}
+
+async function grantDevilTreasure(run: CurrentRunData): Promise<string[]> {
+  const pool = (await loadShopPool()).filter(entry => entry.enabled && entry.category === "held" && !isSpecialSystemItemId(entry.id) && !isBerryItemId(entry.id) && Number(entry.cost || 0) >= 300);
+  const rng = eventRng(run, "devil_treasure");
+  const picked = shuffleByRng(pool.length ? pool : await loadShopPool(), rng).slice(0, 2);
+  const rewards: string[] = [];
+  for (const entry of picked) rewards.push(await grantBagItem(run, entry.id, 1));
+  return rewards.length ? rewards : ["没有找到合适的宝藏"];
+}
+
+function buildContestMarks(run: CurrentRunData): NonNullable<CurrentRunData["rest_status"]>["event_contest_next"] {
+  const rng = eventRng(run, "contest_stage");
+  const liked: Record<string, string> = {};
+  const disliked: Record<string, string> = {};
+  for (const pokemon of run.player_display || []) {
+    const key = pokemon.showdown_id || pokemon.run_member_id || pokemon.species_id || pokemon.species || "";
+    const moves = (pokemon.moves || []).map(move => toId(move.id || move.name)).filter(Boolean);
+    if (!key || !moves.length) continue;
+    const shuffled = shuffleByRng(moves, rng);
+    liked[key] = shuffled[0];
+    if (shuffled.length > 1) disliked[key] = shuffled[1];
+  }
+  return {score: 0, liked, disliked};
+}
+
+function contestMoveDelta(marked: NonNullable<CurrentRunData["rest_status"]>["event_contest_active"], event: BattleTimelineEvent): number {
+  if (!marked) return 0;
+  const sourceKeys = [
+    event.source_showdown_id,
+    event.source_id,
+    event.source,
+  ].map(value => String(value || "")).filter(Boolean);
+  const moveId = toId(event.move || event.effect || "");
+  if (!moveId) return 0;
+  for (const key of sourceKeys) {
+    const normalizedKey = toId(key);
+    const liked = marked.liked?.[key] || marked.liked?.[normalizedKey];
+    const disliked = marked.disliked?.[key] || marked.disliked?.[normalizedKey];
+    if (liked && toId(liked) === moveId) return 1;
+    if (disliked && toId(disliked) === moveId) return -1;
+  }
+  return 0;
+}
+
+function settleContestScore(run: CurrentRunData, state: BattleState): {score: number; bonusCoins: number; overrideWin: boolean} {
+  const contest = run.rest_status?.event_contest_active;
+  if (!contest) return {score: 0, bonusCoins: 0, overrideWin: false};
+  const playerSide = state.player_side || "p1";
+  let score = Math.max(0, Number(contest.score || 0));
+  for (const event of state.timeline_events || []) {
+    if (event.type !== "move" || event.side !== playerSide) continue;
+    score = Math.max(0, score + contestMoveDelta(contest, event));
+  }
+  contest.score = score;
+  const bonusCoins = Math.min(300, score * 30);
+  const overrideWin = state.winner !== "Player" && score > 6;
+  return {score, bonusCoins, overrideWin};
+}
+
+function previewContestScore(run: CurrentRunData, state: BattleState): number {
+  const contest = run.rest_status?.event_contest_active;
+  if (!contest) return 0;
+  const playerSide = state.player_side || "p1";
+  let score = Math.max(0, Number(contest.score || 0));
+  for (const event of state.timeline_events || []) {
+    if (event.type !== "move" || event.side !== playerSide) continue;
+    score = Math.max(0, score + contestMoveDelta(contest, event));
+  }
+  return score;
+}
+
+async function revealNightSkyBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<void> {
+  await buildNightSkyState(save, run);
+  const row = run.night_sky?.rows?.find(entry => Number(entry.battle_no) === Number(battleNo));
+  if (row) {
+    row.revealed = 3;
+    row.unlocked = true;
+    row.enemies = (await generateOpponentPreview(save, run, battleNo)).enemies.slice(0, 3);
+  }
+}
+
+async function rerandomizeFutureBattles(save: LocalSave, run: CurrentRunData): Promise<number> {
+  const currentBattleNo = Math.max(0, Number(run.battle_no || Math.max(0, Number(run.next_battle || 1) - 1) || 0));
+  const locked = new Set((run.rest_status?.event_rerandomized_locked_battles || []).map(Number).filter(Boolean));
+  let count = 0;
+  for (let battleNo = currentBattleNo + 1; battleNo <= Number(run.battles || DEFAULT_BATTLES); battleNo += 1) {
+    if (locked.has(battleNo)) continue;
+    if (battleNo === Number(run.battles || DEFAULT_BATTLES) && run.named_champion_id) continue;
+    run.reroute_history = {...(run.reroute_history || {}), [String(battleNo)]: [...(run.reroute_history?.[String(battleNo)] || []), `event-${Date.now()}-${count}`]};
+    await refreshPlannedBattle(save, run, battleNo);
+    count += 1;
+  }
+  await buildNightSkyState(save, run);
+  return count;
+}
+
+async function replaceEscapedPokemon(run: CurrentRunData): Promise<string> {
+  const rng = eventRng(run, "last_minute_escape");
+  const slot = Math.floor(rng() * run.player_team.length);
+  const oldRaw = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
+  const oldDisplay = JSON.parse(JSON.stringify(run.player_display[slot])) as RentalPokemon;
+  const oldName = oldDisplay.species_zh || oldDisplay.species || oldRaw.species || "宝可梦";
+  const profile = (oldRaw.generation_profile || oldDisplay.generation_profile || "tier3") as GenerationProfile;
+  const speciesId = oldDisplay.species_id || oldRaw.species || oldRaw.name;
+  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed || 1), 0xee00 + Number(run.battle_no || run.next_battle || 0) * 31 + slot), "gen9randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "normal", battleSetting: run.battle_setting});
+  let nextRaw = generated.team[0];
+  let nextDisplay = generated.display[0];
+  if (!nextRaw || !nextDisplay) return `临阵脱逃：${oldName} 差点跑掉，但工厂没有找到替补。`;
+  const oldShowdownId = oldRaw.showdown_id || oldDisplay.showdown_id || run.player_state?.[slot]?.showdown_id;
+  addToExchangeBox(run, [oldRaw], [oldDisplay], run.player_state?.[slot] ? [run.player_state[slot]] : undefined);
+  const newShowdownId = takeReplacementRunShowdownId(run, slot, oldShowdownId);
+  writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
+  const capped = await applyArrivalLevelCap(run.talents, nextRaw, nextDisplay);
+  nextRaw = capped.raw;
+  nextDisplay = capped.display;
+  writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
+  run.player_team[slot] = nextRaw;
+  run.player_display[slot] = nextDisplay;
+  const states = normalizePlayerState(run);
+  states[slot] = fullStateForPokemon(nextDisplay, slot + 1);
+  writePlayerSlotShowdownId(run, slot, states, newShowdownId);
+  run.player_state = states;
+  const investments = run.bp_investments || [0, 0, 0];
+  const moveInvestments = run.move_investments || [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+  investments[slot] = 0;
+  moveInvestments[slot] = [0, 0, 0, 0];
+  run.bp_investments = investments;
+  run.move_investments = moveInvestments;
+  return `临阵脱逃：${oldName} 离队，工厂补发了新的 ${nextDisplay.species_zh || nextDisplay.species || oldName}${capped.capped ? "，等级已受徽章权限压制" : ""}。`;
 }
 
 function bpRiskRoll(run: CurrentRunData, label: string): number {
@@ -321,24 +1021,23 @@ async function grantBagItem(run: CurrentRunData, itemId: string, count: number):
   return `${item.name_zh || item.name} x${count}`;
 }
 
-function rollRecyclerEvent(run: CurrentRunData, battleNo: number): boolean {
-  const rng = seededRng(Number(run.seed || 1), 0x9ec0 + battleNo * 131 + Number(run.wins || 0) * 17);
-  return rng() < RECYCLER_EVENT_CHANCE;
+function consumeBagItemCount(run: CurrentRunData, itemId: string, count = 1): void {
+  const id = itemKey(itemId);
+  const current = Number(run.bag_items?.[id] || 0);
+  if (current < count) throw new Error("背包材料数量不足。");
+  adjustBagItem(run, id, -count);
+  const locked = Number(run.non_refundable_bag_items?.[id] || 0);
+  if (locked > 0) {
+    run.non_refundable_bag_items = {...(run.non_refundable_bag_items || {}), [id]: Math.max(0, locked - count)};
+    if (!run.non_refundable_bag_items[id]) delete run.non_refundable_bag_items[id];
+  }
 }
 
 async function grantVictoryRewards(run: CurrentRunData, isBoss: boolean, battleNo: number): Promise<{items: string[]; restBonus: CurrentRunData["rest_status"]}> {
-  const items: string[] = [];
-  const recyclerAvailable = rollRecyclerEvent(run, battleNo);
-  if (isBoss) {
-    items.push(await grantBagItem(run, "fullrestore", 2));
-    items.push(await grantBagItem(run, "maxelixir", 2));
-    return {items, restBonus: {free_shop_rolls_remaining: 1, shop_slot_discounts: [0.3, 0.5, 0.7, 0.3], recycler_available: recyclerAvailable}};
-  }
-  const rng = seededRng(Number(run.seed || 1), 0x711c70 + battleNo * 73 + Number(run.wins || 0) * 17);
-  items.push(await grantBagItem(run, rng() < 0.3 ? "fullheal" : "leppaberry", 2));
-  items.push(await grantBagItem(run, rng() < 0.55 ? "revive" : "hyperpotion", 1));
-  items.push(await grantBagItem(run, "fullrestore", 1));
-  return {items, restBonus: {recycler_available: recyclerAvailable}};
+  void run;
+  void isBoss;
+  void battleNo;
+  return {items: [], restBonus: {}};
 }
 
 const npcCatalog = loadNpcCatalog();
@@ -465,8 +1164,10 @@ function normalizeSave(save: LocalSave): LocalSave {
   save.stats = {...emptyStats(), ...(save.stats || {})};
   save.trainer = normalizeTrainerProfile(save.trainer);
   save.talent_unlocks = Array.from(new Set((save.talent_unlocks || []).filter(id => TALENTS.some(talent => talent.id === id && !talent.disabled))));
-  save.talent_equipped = (save.talent_equipped || []).filter(id => save.talent_unlocks!.includes(id)).slice(0, TALENT_EQUIP_LIMIT);
-  save.starter_upgrades = normalizeStarterUpgrades(save.starter_upgrades);
+  save.star_chart = normalizeStarChart(save.star_chart, save.talent_unlocks, save.starter_upgrades);
+  save.talent_unlocks = Array.from(new Set(talentsForStarChart(save.star_chart).map(talent => talent.id)));
+  save.talent_equipped = [...save.talent_unlocks];
+  save.starter_upgrades = starterUpgradesForStarChart(save.star_chart);
   save.battle_setting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
   save.boss_dex = normalizeBossDex(save.boss_dex);
   save.run_memory = {
@@ -477,6 +1178,41 @@ function normalizeSave(save: LocalSave): LocalSave {
   refreshStats(save);
   if (save.current_run) normalizeCurrentRun(save.current_run);
   return save;
+}
+
+function activeTalentsForSave(save?: LocalSave | null): TalentView[] {
+  if (!save) return [];
+  return talentsForStarChart(normalizeStarChart(save.star_chart, save.talent_unlocks, save.starter_upgrades));
+}
+
+function starterUpgradesForSave(save?: LocalSave | null): StarterUpgradeState {
+  return starterUpgradesForStarChart(normalizeStarChart(save?.star_chart, save?.talent_unlocks, save?.starter_upgrades));
+}
+
+function badgeLevelCapForTalents(talents: TalentView[] | undefined = []): number | null {
+  const level = talentLevel(talents, "badge_level_cap");
+  return level > 0 ? BADGE_LEVEL_CAPS[level] || null : null;
+}
+
+async function applyArrivalLevelCap(talents: TalentView[] | undefined, rawSet: PokemonSet, display: RentalPokemon): Promise<{raw: PokemonSet; display: RentalPokemon; capped: boolean}> {
+  const cap = badgeLevelCapForTalents(talents);
+  if (!cap || Math.floor(Number(rawSet.level || display.level || 1)) <= cap) return {raw: rawSet, display, capped: false};
+  const raw = {...rawSet, level: cap};
+  const [described] = await gameService.describeTeam([raw]);
+  return {raw, display: described || {...display, level: cap}, capped: true};
+}
+
+async function applyArrivalLevelCapToTeam(talents: TalentView[] | undefined, team: PokemonSet[], display: RentalPokemon[]): Promise<{team: PokemonSet[]; display: RentalPokemon[]; capped: number}> {
+  let capped = 0;
+  const nextTeam: PokemonSet[] = [];
+  const nextDisplay: RentalPokemon[] = [];
+  for (let index = 0; index < team.length; index += 1) {
+    const next = await applyArrivalLevelCap(talents, team[index], display[index]);
+    if (next.capped) capped += 1;
+    nextTeam.push(next.raw);
+    nextDisplay.push(next.display);
+  }
+  return {team: nextTeam, display: nextDisplay, capped};
 }
 
 function rememberRunForSoulmate(save: LocalSave, run: CurrentRunData): void {
@@ -504,6 +1240,19 @@ async function enableTestMode(): Promise<LocalSave> {
   return persist(save);
 }
 
+async function e2ePatchSave(patch: Partial<LocalSave>): Promise<LocalSave> {
+  if (!e2eEnabled) throw new Error("E2E IPC 未启用。");
+  const save = await loadSave();
+  if (!save) throw new Error("请先创建或读取存档。");
+  const next: LocalSave = {
+    ...save,
+    ...patch,
+    stats: patch.stats ? {...save.stats, ...patch.stats} : save.stats,
+    trainer: patch.trainer ? {...save.trainer, ...patch.trainer} : save.trainer,
+  };
+  return persist(next);
+}
+
 async function getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
@@ -517,10 +1266,7 @@ async function updateBattleSetting(setting: Partial<BattleSetting>): Promise<{se
   const rawGenerations = Array.from(new Set((mergedSetting.allowed_generations || [])
     .map(value => Math.floor(Number(value)))
     .filter(value => value >= 1 && value <= 9)));
-  const rawSystems = Array.from(new Set((mergedSetting.enabled_battle_systems || [])
-    .filter(system => ["mega", "zmove", "dynamax", "terastal"].includes(String(system)))));
   if (rawGenerations.length < 3) throw new Error("地区专爱至少需要选择 3 个地区。");
-  if (rawSystems.length > 2) throw new Error("战斗系统最多同时选择 2 个。");
   const nextSetting = normalizeBattleSetting(mergedSetting);
   save.battle_setting = nextSetting;
   const next = await persist(save);
@@ -699,6 +1445,12 @@ function rerouteTrainerForRoute(route: BossRoute, run: CurrentRunData, battleNo:
 function decorateBattleState(state: BattleState, run?: CurrentRunData | null): BattleState {
   if (!run) return state;
   const playerTalents = run.talents || [];
+  const contestScore = previewContestScore(run, state);
+  const battleEventStatuses: RestState["rest_event_statuses"] = [];
+  if (run.rest_status?.event_contest_active) battleEventStatuses.push({id: "contest", label: "华丽大赛", detail: `当前华丽分 ${contestScore}`, tone: "trade"});
+  if (Number(run.rest_status?.event_recovery_multiplier || 1) < 1) battleEventStatuses.push({id: "recovery_down", label: run.rest_status?.event_hungry ? "饥饿" : "恢复减半", detail: "本场背包恢复道具效果减半。", tone: "risk"});
+  if (run.rest_status?.event_next_battle_healing_blocked) battleEventStatuses.push({id: "healing_blocked", label: "恢复诅咒", detail: "本场不能使用 HP/异常/复活类背包恢复道具。", tone: "risk"});
+  if (run.rest_status?.event_soul_swap_active) battleEventStatuses.push({id: "soul_swap", label: "灵魂互换", detail: "你正在操作对手队伍，胜负按原阵营结算。", tone: "risk"});
   return {
     ...state,
     player_trainer: run.player_trainer,
@@ -708,6 +1460,8 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     player_talents: playerTalents,
     show_move_effectiveness: hasTalent(playerTalents, "intel_god_eye"),
     battle_setting: normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING),
+    battle_event_statuses: battleEventStatuses,
+    contest_score: contestScore,
   };
 }
 
@@ -737,7 +1491,7 @@ function starterChoiceState(starter: PendingStarterState) {
     item_groups: groups,
     whole_rerolls_remaining: Math.max(0, wholeRerollLimit - starter.wholeRerollsUsed),
     single_rerolls_remaining: Math.max(0, singleRerollLimit - starter.singleRerollsUsed),
-    inspect_count: starterUpgradeLevel(upgrades, "pokemon_inspect"),
+    inspect_count: 0,
   };
 }
 
@@ -1331,6 +2085,99 @@ function battleSettingAllowsItem(itemId: string, setting?: BattleSetting | null)
   return normalizeBattleSetting(setting || DEFAULT_BATTLE_SETTING).enabled_battle_systems.includes(system);
 }
 
+function isSpecialBattleItem(itemId: string): boolean {
+  const normalized = itemKey(itemId);
+  return Boolean(normalized && gameService.battleSystemForItem(normalized));
+}
+
+function isRegularHeldShopItem(entry: ShopPoolEntry): boolean {
+  return entry.kind === "item" && entry.category === "held" && !isSpecialBattleItem(entry.id);
+}
+
+function normalizeShopKind(value: unknown): ShopKind {
+  return value === "held" || value === "tm" || value === "recovery" ? value : "recovery";
+}
+
+function shopNextRollCostForKind(run: CurrentRunData, kind: ShopKind): number {
+  if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0) return 0;
+  return Math.ceil(SHOP_KIND_CONFIG[kind].rollCost * eventShopPriceMultiplier(run));
+}
+
+function eventShopPriceMultiplier(run: CurrentRunData): number {
+  return Math.max(0.1, Number(run.rest_status?.event_shop_price_multiplier || 1));
+}
+
+function eventRecoveryMultiplier(run: CurrentRunData): number {
+  return Math.max(0, Number(run.rest_status?.event_recovery_multiplier || 1));
+}
+
+type ForgeItemKind = "recovery" | "berry" | "pp" | "held" | "tm" | "special";
+
+async function forgeKindForItem(itemId: string): Promise<ForgeItemKind> {
+  const id = itemKey(itemId);
+  if (isTmItemId(id)) return "tm";
+  if (isSpecialBattleItem(id)) return "special";
+  const item = await itemDetailsById(id);
+  const text = `${id} ${item.desc || ""} ${item.desc_zh || ""}`.toLowerCase();
+  if (id.endsWith("berry") || text.includes("berry") || text.includes("树果")) return "berry";
+  if (/ether|elixir/.test(id) || /\bpp\b/.test(text)) return "pp";
+  const category = itemCategory(item);
+  return category === "held" ? "held" : "recovery";
+}
+
+async function forgePoolForKind(kind: Exclude<ForgeItemKind, "special">, run: CurrentRunData, excluded: Set<string>): Promise<string[]> {
+  if (kind === "tm") {
+    return (await gameService.machineMoves())
+      .map(move => tmItemId(move.id || move.name))
+      .filter(id => id && !excluded.has(itemKey(id)));
+  }
+  const pool = await loadShopPool();
+  return pool
+    .filter(entry => {
+      const bucket = shopPoolBucketForEntry(entry);
+      if (kind === "held") return isRegularHeldShopItem(entry);
+      if (kind === "berry") return bucket === "berry";
+      if (kind === "pp") return bucket === "pp";
+      return bucket === "healing";
+    })
+    .filter(entry => battleSettingAllowsItem(entry.id, run.battle_setting))
+    .map(entry => itemKey(entry.id))
+    .filter(id => id && !excluded.has(id));
+}
+
+async function rollForgeRewards(run: CurrentRunData, itemIds: string[]): Promise<string[]> {
+  const normalized = itemIds.map(itemKey).filter(Boolean);
+  if (normalized.length !== 3) throw new Error("熔炉需要投入 3 个道具。");
+  const counts = new Map<string, number>();
+  for (const id of normalized) counts.set(id, Number(counts.get(id) || 0) + 1);
+  for (const [id, count] of counts) {
+    if (Number(run.bag_items?.[id] || 0) < count) throw new Error("背包材料数量不足。");
+  }
+  const kinds = await Promise.all(normalized.map(id => forgeKindForItem(id)));
+  if (kinds.includes("special")) throw new Error("Mega 石和 Z 纯晶请使用特殊熔炉。");
+  const sameKind = kinds.every(kind => kind === kinds[0]);
+  const rewardCount = sameKind ? 2 : 1;
+  const rng = seededRng(Number(run.seed || 1), 0xf067 + Number(run.battle_no || run.next_battle || 0) * 43 + normalized.join("|").split("").reduce((sum, char) => sum + char.charCodeAt(0), 0));
+  const excluded = new Set(normalized);
+  const rewards: string[] = [];
+  for (let index = 0; index < rewardCount; index += 1) {
+    const targetKind = sameKind ? kinds[0] as Exclude<ForgeItemKind, "special"> : shuffleByRng(kinds as Array<Exclude<ForgeItemKind, "special">>, rng)[0];
+    const pool = await forgePoolForKind(targetKind, run, new Set([...excluded, ...rewards.map(itemKey)]));
+    const reward = shuffleByRng(pool, rng)[0];
+    if (reward) rewards.push(reward);
+  }
+  if (!rewards.length) throw new Error("当前材料没有可用的重铸池。");
+  return rewards;
+}
+
+function specialForgePoolForItem(itemId: string): string[] {
+  const id = itemKey(itemId);
+  const system = gameService.battleSystemForItem(id);
+  if (system === "mega") return gameService.megaStoneItemIds().filter(value => itemKey(value) !== id);
+  if (system === "zmove") return gameService.zCrystalItemIds().filter(value => itemKey(value) !== id);
+  return [];
+}
+
 function weightedShopBucket<T>(
   buckets: Partial<Record<ShopPoolBucket, T[]>>,
   rng: () => number,
@@ -1360,6 +2207,41 @@ function shuffleByRng<T>(values: T[], rng: () => number): T[] {
     [next[index], next[swap]] = [next[swap], next[index]];
   }
   return next;
+}
+
+function battleSettingHasTerastal(setting?: BattleSetting | null): boolean {
+  const normalized = normalizeBattleSetting(setting || DEFAULT_BATTLE_SETTING);
+  return normalized.battle_rule_preset === "gen9" && normalized.enabled_battle_systems.includes("terastal");
+}
+
+function randomTeraOrbType(seed: number, salt = 0): {type: string; typeZh: string} {
+  const rng = seededRng(seed || 1, 0x7465 + salt);
+  const type = TERA_ORB_TYPES[Math.floor(rng() * TERA_ORB_TYPES.length)] || "Normal";
+  return {type, typeZh: TERA_ORB_TYPE_ZH[type] || type};
+}
+
+function applyTeraOrbToRunTeam(run: CurrentRunData): void {
+  if (!battleSettingHasTerastal(run.battle_setting)) {
+    delete run.tera_orb_type;
+    delete run.tera_orb_type_zh;
+    run.player_team = (run.player_team || []).map(set => {
+      const next = {...set};
+      delete next.teraType;
+      return next;
+    });
+    run.player_display = (run.player_display || []).map(pokemon => ({...pokemon, tera_type: undefined, tera_type_zh: undefined}));
+    return;
+  }
+  if (!run.tera_orb_type) {
+    const rolled = randomTeraOrbType(Number(run.seed || 1));
+    run.tera_orb_type = rolled.type;
+    run.tera_orb_type_zh = rolled.typeZh;
+  }
+  const type = run.tera_orb_type;
+  const typeZh = run.tera_orb_type_zh || TERA_ORB_TYPE_ZH[type] || type;
+  run.tera_orb_type_zh = typeZh;
+  run.player_team = (run.player_team || []).map(set => ({...set, teraType: type}));
+  run.player_display = (run.player_display || []).map(pokemon => ({...pokemon, tera_type: type, tera_type_zh: typeZh}));
 }
 
 async function itemDetailsById(itemId: string): Promise<ShopItem> {
@@ -1406,6 +2288,7 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
       id: normalized,
       count: Number(count),
       category,
+      item_battle_system: gameService.battleSystemForItem(normalized) || undefined,
       icon_asset: displayItem.icon_asset,
       sell_price: sellPrice,
       move_id: meta?.move_id || moveId,
@@ -1451,7 +2334,7 @@ function pricedShopOfferForRun(run: CurrentRunData, offer: ShopOffer, extraPurch
   const itemId = itemKey(offer.id || offer.name);
   const purchased = shopItemPurchaseCount(run, itemId) + Math.max(0, Math.floor(Number(extraPurchases || 0)));
   const surcharge = purchased * SHOP_REPEAT_PURCHASE_SURCHARGE;
-  return {...offer, cost: Math.max(0, Math.floor(Number(offer.cost || 0))) + surcharge};
+  return {...offer, cost: Math.ceil((Math.max(0, Math.floor(Number(offer.cost || 0))) + surcharge) * eventShopPriceMultiplier(run))};
 }
 
 function pricedShopOffersForRun(run: CurrentRunData): ShopOffer[] {
@@ -1490,12 +2373,31 @@ async function tmOptionsForRun(run: CurrentRunData, source: "shop" | "starter", 
     for (const move of await gameService.learnableMoves(rawSet)) {
       const moveId = toId(move.id || move.name);
       if (!moveId || seen.has(moveId)) continue;
+      if (source === "shop" && !(move.learn_sources || []).includes("machine")) continue;
       seen.add(moveId);
       moves.push(move);
     }
   }
   const rng = seededRng(Number(run.seed || 1), 0x7a11 + Number(run.battle_no || run.next_battle || 0));
   return Promise.all(shuffleByRng(moves, rng).slice(0, limit).map((move, index) => tmOfferFromMove(move, index, source, 1, run.talents || [])));
+}
+
+async function tmShopOptionsForRun(run: CurrentRunData): Promise<ShopOffer[]> {
+  const rng = seededRng(Number(run.seed || 1), 0x7a91 + Number(run.shop_roll_count || 0) * 131 + Number(run.battle_no || run.next_battle || 0));
+  const usableByCurrentTeam = new Map<string, MoveSummary>();
+  for (const rawSet of run.player_team || []) {
+    for (const move of await gameService.learnableMoves(rawSet)) {
+      if (!(move.learn_sources || []).includes("machine")) continue;
+      const moveId = toId(move.id || move.name);
+      if (moveId && !usableByCurrentTeam.has(moveId)) usableByCurrentTeam.set(moveId, move);
+    }
+  }
+  const machineMoves = await gameService.machineMoves();
+  const unusable = machineMoves.filter(move => !usableByCurrentTeam.has(toId(move.id || move.name)));
+  const pickedUsable = shuffleByRng(Array.from(usableByCurrentTeam.values()), rng).slice(0, 2);
+  const pickedUnusable = shuffleByRng(unusable, rng).slice(0, 1);
+  const picks = [...pickedUsable, ...pickedUnusable];
+  return Promise.all(picks.map((move, index) => tmOfferFromMove(move, index, "shop", 1, run.talents || [])));
 }
 
 async function starterTmOptions(runSeed: number, talents: TalentView[] = [], battleSetting: BattleSetting = normalizeBattleSetting(DEFAULT_BATTLE_SETTING), limit = 24): Promise<ShopOffer[]> {
@@ -1540,48 +2442,42 @@ async function guaranteedShopOffer(index: number, run: CurrentRunData, rng: () =
   return offer ? {...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-guaranteed-${guaranteed.id}`} : null;
 }
 
-type ShopPreferredCategory = "healing" | "pp" | "berry" | "battle" | "tm";
-
-function preferredShopBuckets(preferredCategory?: ShopPreferredCategory): ShopPoolBucket[] | null {
-  if (!preferredCategory) return null;
-  if (preferredCategory === "healing") return ["healing"];
-  if (preferredCategory === "pp") return ["pp"];
-  if (preferredCategory === "berry") return ["berry"];
-  if (preferredCategory === "battle") return ["held"];
-  if (preferredCategory === "tm") return ["tm"];
-  return null;
-}
-
-async function rollShopOffers(run: CurrentRunData, preferredCategory?: ShopPreferredCategory): Promise<ShopOffer[]> {
+async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recovery"): Promise<ShopOffer[]> {
+  const kind = normalizeShopKind(shopKind);
+  if (kind === "tm") {
+    return (await tmShopOptionsForRun(run)).map((offer, index) => ({...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-${itemKey(offer.id || offer.name)}`}));
+  }
   const pool = await loadShopPool();
-  const itemEntries = pool.filter(entry => entry.kind === "item" && battleSettingAllowsItem(entry.id, run.battle_setting));
-  const tmEnabled = pool.some(entry => entry.kind === "tm" && entry.id === "*");
+  const itemEntries = pool.filter(entry => {
+    if (!battleSettingAllowsItem(entry.id, run.battle_setting)) return false;
+    if (kind === "held") return isRegularHeldShopItem(entry);
+    return entry.kind === "item";
+  });
   const itemOffers = (await Promise.all(itemEntries.map((entry, index) => shopOfferFromPoolEntry(entry, index, run.talents || [], run.battle_setting))))
     .filter((item): item is ShopOffer => Boolean(item))
     .map((item, index) => {
       const entry = itemEntries.find(poolEntry => poolEntry.id === itemKey(item.id || item.name));
       return {...item, offer_id: `shop-item-${index}-${itemKey(item.id || item.name)}`, weight: entry?.weight || 1};
     });
-  const tmOffers = tmEnabled ? (await tmOptionsForRun(run, "shop")).map(offer => ({...offer, weight: 1})) : [];
   const buckets: Partial<Record<ShopPoolBucket, Array<ShopOffer & {weight?: number}>>> = {
     healing: [],
     held: [],
     pp: [],
     berry: [],
-    tm: tmOffers,
+    tm: [],
   };
   for (const offer of itemOffers) {
     const entry = itemEntries.find(poolEntry => poolEntry.id === itemKey(offer.id || offer.name));
     const bucket = entry ? shopPoolBucketForEntry(entry) : null;
-    if (bucket && bucket !== "tm") buckets[bucket]?.push(offer);
+    if (bucket && bucket !== "tm" && SHOP_KIND_CONFIG[kind].buckets.includes(bucket)) buckets[bucket]?.push(offer);
   }
   const rng = seededRng(Number(run.seed || 1), 0x5100 + Number(run.shop_roll_count || 0) * 97 + Number(run.battle_no || run.next_battle || 0));
   const count = shopOfferCount(run);
   const result: ShopOffer[] = [];
-  const forcedBuckets = preferredShopBuckets(preferredCategory);
   const candidateLimit = shopCandidateCount(run);
   for (let index = 0; index < count; index += 1) {
-    const bucket = forcedBuckets ? weightedPick(forcedBuckets.filter(entry => (buckets[entry] || []).length > 0).map(entry => ({bucket: entry, weight: SHOP_BUCKET_WEIGHTS[entry]})), rng)?.bucket : weightedShopBucket(buckets, rng);
+    const allowedBuckets = SHOP_KIND_CONFIG[kind].buckets;
+    const bucket = weightedPick(allowedBuckets.filter(entry => (buckets[entry] || []).length > 0).map(entry => ({bucket: entry, weight: SHOP_BUCKET_WEIGHTS[entry]})), rng)?.bucket;
     const bucketPool = bucket ? shuffleByRng(buckets[bucket] || [], rng).slice(0, Math.max(1, candidateLimit)) : [];
     const selected = bucket ? weightedPick(bucketPool, rng) : null;
     if (!selected) break;
@@ -1591,7 +2487,7 @@ async function rollShopOffers(run: CurrentRunData, preferredCategory?: ShopPrefe
     result.push({...offer, cost, discount: slotDiscount || offer.discount, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-${itemKey(offer.id || offer.name)}`});
   }
   const hasGuaranteed = result.some(offer => GUARANTEED_SHOP_ITEMS.some(item => item.id === itemKey(offer.id || offer.name)));
-  if (!hasGuaranteed) {
+  if (kind === "recovery" && !hasGuaranteed) {
     const guaranteed = await guaranteedShopOffer(0, run, rng);
     if (guaranteed) {
       if (result.length) result[0] = guaranteed;
@@ -1703,12 +2599,12 @@ function starterProfilesForStreak(setStreak: number, count: number, talents: Tal
   return Array.from({length: Math.max(1, count)}, (_value, index) => base[index % base.length]);
 }
 
-function starterSpeciesTiersForStreak(setStreak: number, count: number): Array<1 | 2 | 3 | 4> {
-  const base: Array<1 | 2 | 3 | 4> = setStreak <= 0
-    ? [1, 2, 2, 3, 3, 3]
+function starterSpeciesTiersForStreak(setStreak: number, count: number): SpeciesTier[] {
+  const base: SpeciesTier[] = setStreak <= 0
+    ? [3, 4, 4, 4, 5, 5]
     : setStreak === 1
-      ? [2, 2, 3, 3, 3, 4]
-      : [2, 3, 3, 4, 4, 4];
+      ? [4, 4, 5, 5, 5, 6]
+      : [4, 5, 5, 6, 6, 6];
   return Array.from({length: Math.max(1, count)}, (_value, index) => base[index % base.length]);
 }
 
@@ -1774,11 +2670,13 @@ function loadBossTeamPools(): BossTeamPoolRow[] {
     const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""])) as Record<string, string>;
     return {
       pool_id: row.pool_id,
+      battle_rule_preset: (["none", "gen7", "gen8", "gen9"].includes(row.battle_rule_preset) ? row.battle_rule_preset : "none") as BattleRulePreset,
       trainer_id: row.trainer_id,
       team_index: Number(row.team_index || 0),
       slot: Number(row.slot || 0),
       species_id: row.species_id,
       species: row.species || undefined,
+      species_tier: Number(row.species_tier || 0) as SpeciesTier || undefined,
       generation_profile: (row.generation_profile || "tier1") as GenerationProfile,
     };
   }).filter(row => row.pool_id && row.species_id && row.team_index && row.slot);
@@ -1788,11 +2686,17 @@ function loadBossTeamPools(): BossTeamPoolRow[] {
 function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): {teamIndex: number; rows: BossTeamPoolRow[]; speciesIds: string[]; profiles: GenerationProfile[]} | null {
   const poolId = trainer.team_pool_id || trainer.team_pool_ids?.[0];
   if (!poolId) return null;
-  const rows = loadBossTeamPools().filter(row => row.pool_id === poolId);
-  if (!rows.length) return null;
-  const teamIndexes = [...new Set(rows.map(row => row.team_index))].sort((a, b) => a - b);
-  const teamIndex = pickStable(teamIndexes, run.seed || 0, battleNo, trainer.id, poolId) || teamIndexes[0];
-  const selected = rows.filter(row => row.team_index === teamIndex).sort((a, b) => a.slot - b.slot).slice(0, 3);
+  const preset = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING).battle_rule_preset;
+  const allPoolRows = loadBossTeamPools().filter(row => row.pool_id === poolId);
+  const trainerRows = allPoolRows.filter(row => row.trainer_id === trainer.id);
+  const poolRows = trainerRows.length ? trainerRows : allPoolRows;
+  const rows = poolRows.filter(row => row.battle_rule_preset === preset);
+  const fallbackRows = rows.length ? rows : poolRows.filter(row => row.battle_rule_preset === "none");
+  if (!fallbackRows.length) return null;
+  const selectedPreset = rows.length ? preset : "none";
+  const teamIndexes = [...new Set(fallbackRows.map(row => row.team_index))].sort((a, b) => a - b);
+  const teamIndex = pickStable(teamIndexes, run.seed || 0, battleNo, trainer.id, poolId, selectedPreset) || teamIndexes[0];
+  const selected = fallbackRows.filter(row => row.team_index === teamIndex).sort((a, b) => a.slot - b.slot).slice(0, 3);
   if (selected.length < 3) return null;
   return {teamIndex, rows: selected, speciesIds: selected.map(row => row.species_id), profiles: selected.map(row => row.generation_profile)};
 }
@@ -1835,8 +2739,16 @@ async function refreshPlannedBattle(save: LocalSave, run: CurrentRunData, battle
     .sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
 }
 
-function bossPoolSlotKey(poolId: string | undefined, teamIndex: number, slot: number, speciesId: string): string {
-  return `${poolId || "pool"}:${teamIndex}:${slot}:${speciesId}`;
+async function ensurePlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<PlannedBattleData> {
+  const existing = (run.planned_battles || []).find(entry => Number(entry.battle_no) === battleNo);
+  if (existing) return existing;
+  const planned = await buildPlannedBattle(save, run, battleNo);
+  run.planned_battles = [...(run.planned_battles || []), planned].sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
+  return planned;
+}
+
+function bossPoolSlotKey(poolId: string | undefined, preset: BattleRulePreset | undefined, teamIndex: number, slot: number, speciesId: string): string {
+  return `${poolId || "pool"}:${preset || "none"}:${teamIndex}:${slot}:${speciesId}`;
 }
 
 function isBossTrainer(trainer?: TrainerNpcView): boolean {
@@ -1852,7 +2764,7 @@ function recordBossEncounter(save: LocalSave, run: CurrentRunData, trainer: Trai
   const seenPokemon = {...previous.seen_pokemon};
   const seenPoolSlots = new Set(previous.seen_pool_slots);
   for (const row of bossTeam.rows) {
-    const key = bossPoolSlotKey(poolId, row.team_index, row.slot, row.species_id);
+    const key = bossPoolSlotKey(poolId, row.battle_rule_preset, row.team_index, row.slot, row.species_id);
     const pokemon = display[row.slot - 1];
     seenPoolSlots.add(key);
     if (pokemon) {
@@ -1905,7 +2817,9 @@ function trainerDexTypeLabel(type: TrainerNpcType): string {
 
 function bossPoolRowsForDex(trainer: TrainerNpcView, record: BossDexRecord | undefined): BossDexPoolRow[] {
   const poolIds = trainer.team_pool_ids?.length ? trainer.team_pool_ids : trainer.team_pool_id ? [trainer.team_pool_id] : [];
-  const rows = loadBossTeamPools().filter(row => poolIds.includes(row.pool_id)).sort((a, b) => a.team_index - b.team_index || a.slot - b.slot);
+  const allRows = loadBossTeamPools().filter(row => poolIds.includes(row.pool_id) && row.battle_rule_preset === "none");
+  const trainerRows = allRows.filter(row => row.trainer_id === trainer.id);
+  const rows = (trainerRows.length ? trainerRows : allRows).sort((a, b) => a.team_index - b.team_index || a.slot - b.slot);
   const byTeam = new Map<number, BossTeamPoolRow[]>();
   for (const row of rows) {
     const list = byTeam.get(row.team_index) || [];
@@ -1915,7 +2829,7 @@ function bossPoolRowsForDex(trainer: TrainerNpcView, record: BossDexRecord | und
   return [...byTeam.entries()].map(([teamIndex, teamRows]) => ({
     team_index: teamIndex,
     slots: teamRows.sort((a, b) => a.slot - b.slot).slice(0, 3).map(row => {
-      const key = bossPoolSlotKey(row.pool_id, row.team_index, row.slot, row.species_id);
+      const key = bossPoolSlotKey(row.pool_id, row.battle_rule_preset, row.team_index, row.slot, row.species_id);
       const seen = record?.seen_pokemon?.[key];
       return {
         key,
@@ -1923,6 +2837,8 @@ function bossPoolRowsForDex(trainer: TrainerNpcView, record: BossDexRecord | und
         slot: row.slot,
         species_id: row.species_id,
         species: row.species,
+        species_tier: row.species_tier,
+        battle_rule_preset: row.battle_rule_preset,
         generation_profile: row.generation_profile,
         unlocked: Boolean(seen),
         pokemon: seen?.pokemon,
@@ -1991,13 +2907,10 @@ function trainerDexSearch(save: LocalSave | null, query = "", offset = 0, limit 
 }
 
 async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<{route: BossRoute; trainer: TrainerNpcView; enemies: RentalPokemon[]; label: string}> {
-  const route = routeForRunBattle(save, run, battleNo);
-  const routeSalt = route.type === "normal" ? 100 : route.type === "champion" ? 700 : route.stage.includes("tier3") ? 603 : route.stage === "tier2" ? 602 : 601;
-  const trainer = chooseTrainerForRoute(route, run, battleNo);
-  const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(trainer, run, battleNo);
-  const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
-  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen9randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss", battleSetting: run.battle_setting});
-  const enemies = generated.display.slice(0, 3);
+  const planned = await ensurePlannedBattle(save, run, battleNo);
+  const route = {type: planned.route_type, stage: planned.route_stage, route: planned.route_route, pool: []} as BossRoute;
+  const trainer = planned.enemy_trainer;
+  const enemies = (planned.enemy_display || []).slice(0, 3);
   const label = route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : "馆主";
   return {route, trainer, enemies, label};
 }
@@ -2007,13 +2920,13 @@ async function buildNightSkyState(save: LocalSave, run: CurrentRunData): Promise
   const rows = [];
   const battles = Math.max(1, Number(run.battles || DEFAULT_BATTLES));
   const currentBattleNo = Math.max(0, Number(run.battle_no || Math.max(0, Number(run.next_battle || 1) - 1) || 0));
-  const hasRumor = hasTalent(run.talents, "intel_rumor");
+  const rumorLevel = talentLevel(run.talents, "intel_rumor");
   for (let battleNo = 1; battleNo <= battles; battleNo += 1) {
     const previous = previousRows.find(row => Number(row.battle_no) === battleNo);
     const preview = await generateOpponentPreview(save, run, battleNo);
     const encountered = battleNo <= currentBattleNo;
     const namedVisible = Boolean(preview.route.type === "champion" && run.named_champion_id && preview.trainer.id === run.named_champion_id);
-    const trainerVisible = encountered || hasRumor || namedVisible;
+    const trainerVisible = encountered || rumorLevel >= 1 || namedVisible;
     const revealed = encountered ? 3 : Math.max(0, Math.min(3, previous?.unlocked ? 3 : Number(previous?.revealed || 0)));
     rows.push({
       battle_no: battleNo,
@@ -2533,6 +3446,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.bag_items = Object.fromEntries(Object.entries(run.bag_items || {}).map(([id, count]) => [itemKey(id), Math.max(0, Number(count || 0))] as const).filter(([, count]) => count > 0));
   run.reroll_count = Number(run.reroll_count || 0);
   run.shop_roll_count = Number(run.shop_roll_count || 0);
+  run.shop_kind = normalizeShopKind(run.shop_kind);
   run.shop_offers = (run.shop_offers || []).map(offer => ({...offer, category: offer.category || itemCategory(offer)}));
   run.shop_purchased_offer_id = run.shop_purchased_offer_id || null;
   run.shop_purchased_offer_counts = Object.fromEntries(Object.entries(run.shop_purchased_offer_counts || {}).map(([offerId, count]) => [offerId, Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([, count]) => count > 0));
@@ -2545,6 +3459,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.talents = run.talents || [];
   run.talents = talentsForIds(run.talents.map(talent => talent.id));
   run.battle_setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
+  applyTeraOrbToRunTeam(run);
   run.reroute_used = Math.max(0, Math.floor(Number(run.reroute_used || 0)));
   run.forced_trainer_ids = Object.fromEntries(Object.entries(run.forced_trainer_ids || {}).map(([battleNo, trainerId]) => [String(Math.max(1, Math.floor(Number(battleNo || 0)))), String(trainerId || "")]).filter(([, trainerId]) => trainerId));
   run.reroute_history = Object.fromEntries(Object.entries(run.reroute_history || {}).map(([battleNo, trainerIds]) => [String(Math.max(1, Math.floor(Number(battleNo || 0)))), Array.from(new Set((trainerIds || []).map(String).filter(Boolean)))] as const).filter(([, trainerIds]) => trainerIds.length));
@@ -2595,8 +3510,38 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     restore_status_used: Boolean(run.rest_status?.restore_status_used),
     all_in_pending_next: Boolean(run.rest_status?.all_in_pending_next),
     recycler_available: Boolean(run.rest_status?.recycler_available),
+    rest_event_options: (run.rest_status?.rest_event_options || [])
+      .map(event => restEventView(event))
+      .filter(event => REST_EVENT_DEFINITIONS.some(definition => definition.id === event.id))
+      .slice(0, 3),
+    rest_event_selected_id: run.rest_status?.rest_event_selected_id ? toId(run.rest_status.rest_event_selected_id) : null,
     all_in_result: run.rest_status?.all_in_result || null,
     named_challenge_decided: Boolean(run.rest_status?.named_challenge_decided),
+    event_shop_disabled: Boolean(run.rest_status?.event_shop_disabled),
+    event_shop_price_multiplier: Math.max(0, Number(run.rest_status?.event_shop_price_multiplier || 0)) || undefined,
+    event_recovery_multiplier: Math.max(0, Number(run.rest_status?.event_recovery_multiplier || 0)) || undefined,
+    event_hungry: Boolean(run.rest_status?.event_hungry),
+    event_low_tier_recovery_disabled: Boolean(run.rest_status?.event_low_tier_recovery_disabled),
+    event_pending_full_restore: Boolean(run.rest_status?.event_pending_full_restore),
+    event_checked_bag_items: Object.fromEntries(Object.entries(run.rest_status?.event_checked_bag_items || {}).map(([id, count]) => [itemKey(id), Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([, count]) => count > 0)),
+    event_rest_healing_blocked: Boolean(run.rest_status?.event_rest_healing_blocked),
+    event_next_battle_healing_blocked: Boolean(run.rest_status?.event_next_battle_healing_blocked),
+    event_barter_active: Boolean(run.rest_status?.event_barter_active),
+    event_doctor_pending: Boolean(run.rest_status?.event_doctor_pending),
+    event_tutor_service_available: Boolean(run.rest_status?.event_tutor_service_available),
+    event_tutor_service_used: Boolean(run.rest_status?.event_tutor_service_used),
+    event_egg_service_available: Boolean(run.rest_status?.event_egg_service_available),
+    event_egg_service_used: Boolean(run.rest_status?.event_egg_service_used),
+    event_contest_next: run.rest_status?.event_contest_next || undefined,
+    event_contest_active: run.rest_status?.event_contest_active || undefined,
+    event_raid_exchange_available: Boolean(run.rest_status?.event_raid_exchange_available),
+    event_raid_exchange_battle_no: run.rest_status?.event_raid_exchange_battle_no ? Math.max(1, Math.floor(Number(run.rest_status.event_raid_exchange_battle_no))) : undefined,
+    event_raid_exchange_used: Boolean(run.rest_status?.event_raid_exchange_used),
+    event_rerandomized_locked_battles: (run.rest_status?.event_rerandomized_locked_battles || []).map(Number).filter(value => value > 0),
+    event_exchange_disabled: Boolean(run.rest_status?.event_exchange_disabled),
+    event_level_points: Math.max(0, Math.floor(Number(run.rest_status?.event_level_points || 0))),
+    event_soul_swap_next: Boolean(run.rest_status?.event_soul_swap_next),
+    event_soul_swap_active: Boolean(run.rest_status?.event_soul_swap_active),
   };
   normalizePlayerState(run);
   return run;
@@ -2616,8 +3561,49 @@ function rotateFirstUsable(run: CurrentRunData): boolean {
   return true;
 }
 
+async function applyRestDelayedEffects(run: CurrentRunData): Promise<string[]> {
+  const messages: string[] = [];
+  if (run.rest_status?.event_checked_bag_items && Object.keys(run.rest_status.event_checked_bag_items).length) {
+    const count = await returnCheckedBagItems(run);
+    if (count) messages.push(`安全航空归还了 ${count} 个托运道具。`);
+  }
+  if (run.rest_status?.event_pending_full_restore) {
+    fullRestoreParty(run);
+    delete run.rest_status.event_pending_full_restore;
+    messages.push("重伤手术完成：全队恢复到满状态。");
+  }
+  if (run.rest_status?.event_contest_active) delete run.rest_status.event_contest_active;
+  if (run.rest_status?.event_next_battle_healing_blocked) delete run.rest_status.event_next_battle_healing_blocked;
+  if (run.rest_status?.event_soul_swap_active) delete run.rest_status.event_soul_swap_active;
+  return messages;
+}
+
+function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"] {
+  const status = run.rest_status || {};
+  const entries: RestState["rest_event_statuses"] = [];
+  if (status.event_shop_disabled) entries.push({id: "shop_disabled", label: "商店关闭", detail: "本次休整不能使用商店。", tone: "risk"});
+  if (Number(status.event_shop_price_multiplier || 1) > 1) entries.push({id: "shop_price", label: `商店 x${Number(status.event_shop_price_multiplier).toFixed(1)}`, detail: "本次商店抽奖与购买价格提高。", tone: "risk"});
+  if (Number(status.event_recovery_multiplier || 1) < 1) entries.push({id: "recovery_down", label: status.event_hungry ? "饥饿" : "恢复减半", detail: status.event_hungry ? "本次休整和下一战背包恢复道具效果减半。" : "背包和事件恢复效果减半。", tone: "risk"});
+  if (status.event_low_tier_recovery_disabled) entries.push({id: "low_recovery_disabled", label: "低级恢复失效", detail: "低级回复药、状态药和树果不能使用。", tone: "risk"});
+  if (status.event_rest_healing_blocked) entries.push({id: "healing_blocked", label: "恢复诅咒", detail: "本次休整不能使用 HP/异常/复活类恢复道具。", tone: "risk"});
+  if (status.event_checked_bag_items && Object.keys(status.event_checked_bag_items).length) entries.push({id: "checked_items", label: "道具托运中", detail: "托运道具会在下次休整归还到背包。", tone: "risk"});
+  if (status.event_barter_active) entries.push({id: "barter", label: "以物易物", detail: "商店抽奖免费，购买只能用背包道具交换。", tone: "trade"});
+  if (status.event_exchange_disabled) entries.push({id: "exchange_disabled", label: "无法交换", detail: "本次休整不能交换宝可梦。", tone: "risk"});
+  if (Number(status.event_level_points || 0) > 0) entries.push({id: "level_points", label: `可分配等级 ${status.event_level_points}`, detail: "可分给当前队伍宝可梦。", tone: "safe"});
+  if (status.event_doctor_pending) entries.push({id: "doctor", label: "医生等待选择", detail: "请选择哥哥或弟弟的治疗方案。", tone: "trade"});
+  if (status.event_tutor_service_available && !status.event_tutor_service_used) entries.push({id: "tutor", label: "讲师老奶奶", detail: "可花 200 金币学习 1 个教授招式。", tone: "trade"});
+  if (status.event_egg_service_available && !status.event_egg_service_used) entries.push({id: "egg", label: "培育屋爷爷", detail: "可花 200 金币学习 1 个遗传招式。", tone: "trade"});
+  if (status.event_raid_exchange_available && !status.event_raid_exchange_used) entries.push({id: "raid_exchange", label: "骇人奇袭", detail: "可与下一位对手交换 1 只宝可梦。", tone: "trade"});
+  if (status.event_contest_next) entries.push({id: "contest", label: "华丽大赛", detail: "下一战会按裁判标记累计华丽分。", tone: "trade"});
+  if (status.event_soul_swap_next) entries.push({id: "soul_swap", label: "灵魂互换", detail: "下一战操作队伍互换，胜负按原阵营结算。", tone: "risk"});
+  return entries;
+}
+
 async function restState(save: LocalSave, run: CurrentRunData, message?: string): Promise<DesktopGameState> {
   normalizeCurrentRun(run);
+  const delayedMessages = await applyRestDelayedEffects(run);
+  const restMessage = [message, ...delayedMessages].filter(Boolean).join(" ");
+  ensureRestEventOptions(run);
   const exchangeCount = Number(run.rest_status?.exchanges || 0);
   const restExchangeCost = exchangeCount >= 3 ? null : exchangeCost(run, exchangeCount);
   const nightSky = await buildNightSkyState(save, run);
@@ -2638,11 +3624,13 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     bag_categories: await bagCategories(run),
     talents: run.talents || [],
     shop: {
+      kind: normalizeShopKind(run.shop_kind),
+      title: SHOP_KIND_CONFIG[normalizeShopKind(run.shop_kind)].title,
+      theme: SHOP_KIND_CONFIG[normalizeShopKind(run.shop_kind)].theme,
       roll_count: Number(run.shop_roll_count || 0),
-      next_roll_cost: shopNextRollCost(run),
-      slot_count: shopOfferCount(run),
+      next_roll_cost: shopNextRollCostForKind(run, normalizeShopKind(run.shop_kind)),
+      slot_count: normalizeShopKind(run.shop_kind) === "tm" ? 3 : shopOfferCount(run),
       free_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0),
-      preferred_roll_cost: hasTalent(run.talents, "intel_shop_strategy") ? SHOP_PREFERRED_ROLL_COST : undefined,
       slot_discounts: run.rest_status?.shop_slot_discounts || [],
       offers: pricedShopOffersForRun(run),
       purchased_offer_id: run.shop_purchased_offer_id || null,
@@ -2679,6 +3667,20 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     all_in_used: Boolean(run.all_in_exchange_used),
     all_in_pending_next: Boolean(run.rest_status?.all_in_pending_next),
     all_in_result: run.rest_status?.all_in_result || null,
+    rest_event: {
+      required: restEventRequired(run),
+      selected_id: run.rest_status?.rest_event_selected_id || null,
+      options: run.rest_status?.rest_event_options || [],
+    },
+    rest_event_statuses: restEventStatuses(run),
+    event_services: {
+      doctor: Boolean(run.rest_status?.event_doctor_pending),
+      tutor: Boolean(run.rest_status?.event_tutor_service_available && !run.rest_status?.event_tutor_service_used),
+      egg: Boolean(run.rest_status?.event_egg_service_available && !run.rest_status?.event_egg_service_used),
+      raid_exchange: Boolean(run.rest_status?.event_raid_exchange_available && !run.rest_status?.event_raid_exchange_used),
+      raid_exchange_battle_no: run.rest_status?.event_raid_exchange_battle_no,
+      level_points: Math.max(0, Number(run.rest_status?.event_level_points || 0)),
+    },
     taken_enemy_slots: run.rest_status?.taken_enemy_slots || [],
     exchange_count: exchangeCount,
     costs: {
@@ -2695,14 +3697,14 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       scout_all: SCOUT_ALL_COST,
     },
   };
-  return gameState({screen: "rest", save, rest, message});
+  return gameState({screen: "rest", save, rest, message: restMessage || message});
 }
 
 async function prepareCandidates(seed?: number): Promise<DesktopGameState> {
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
   const runSeed = seed || Math.floor(Math.random() * 0xffffffff);
-  const talents = pendingStarter?.talents || talentsForIds(save?.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const talents = pendingStarter?.talents || activeTalentsForSave(save);
   const count = candidateCountForTalents(talents);
   if (pendingStarter) {
     const limit = starterUpgradeLevel(pendingStarter.upgrades, "pokemon_reroll");
@@ -2752,8 +3754,8 @@ async function prepareStarterItems(seed?: number): Promise<DesktopGameState> {
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
   const runSeed = seed || Math.floor(Math.random() * 0xffffffff);
-  const talents: TalentView[] = talentsForIds(save.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
-  const upgrades = normalizeStarterUpgrades(save.starter_upgrades);
+  const talents: TalentView[] = activeTalentsForSave(save);
+  const upgrades = starterUpgradesForSave(save);
   const battleSetting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
   configuredTalents = talents;
   const offers = await starterItemOffers(runSeed, talents, upgrades, battleSetting);
@@ -2765,40 +3767,47 @@ async function prepareStarterItems(seed?: number): Promise<DesktopGameState> {
 
 async function talentConfig(): Promise<TalentConfigState> {
   const save = await loadSave();
-  const unlocked = talentsForIds(save?.talent_unlocks);
-  const equipped = talentsForIds(save?.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const chart = normalizeStarChart(save?.star_chart, save?.talent_unlocks, save?.starter_upgrades);
+  const catalog = starChartCatalog(chart);
+  const unlocked = catalog.filter(node => Number(node.level || 0) > 0);
+  const equipped = activeTalentsForSave(save);
   configuredTalents = equipped;
-  return {catalog: TALENTS, unlocked, equipped, save};
+  return {catalog, unlocked, equipped, star_chart: chart, save};
 }
 
 async function unlockTalent(id: string): Promise<TalentConfigState> {
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
-  const talent = TALENTS.find(entry => entry.id === id);
-  if (!talent) throw new Error("天赋不存在。");
-  if (talent.disabled) throw new Error("这个天赋暂不可用。");
-  save.talent_unlocks = save.talent_unlocks || [];
-  if (!save.talent_unlocks.includes(id)) {
-    spendBp(save, Number(talent.cost || 0));
-    save.talent_unlocks.push(id);
-  }
+  const node = STAR_CHART_NODE_BY_ID.get(id);
+  if (!node) throw new Error("星图节点不存在。");
+  if (node.disabled || node.kind === "event_preview") throw new Error("这个节点是后续奇遇预留，暂不可解锁。");
+  const chart = normalizeStarChart(save.star_chart, save.talent_unlocks, save.starter_upgrades);
+  if (!starNodeUnlocked(chart, node)) throw new Error("前置节点尚未点亮。");
+  const cost = starNodeUpgradeCost(chart, id);
+  if (cost === null) throw new Error("这个节点已经满级。");
+  spendBp(save, cost);
+  chart.nodes[id] = Math.min(node.max_level, starNodeLevel(chart, id) + 1);
+  save.star_chart = chart;
   const next = await persist(save);
-  const unlocked = talentsForIds(next.talent_unlocks);
-  const equipped = talentsForIds(next.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const nextChart = normalizeStarChart(next.star_chart, next.talent_unlocks, next.starter_upgrades);
+  const catalog = starChartCatalog(nextChart);
+  const unlocked = catalog.filter(entry => Number(entry.level || 0) > 0);
+  const equipped = activeTalentsForSave(next);
   configuredTalents = equipped;
-  return {catalog: TALENTS, unlocked, equipped, save: next};
+  return {catalog, unlocked, equipped, star_chart: nextChart, save: next};
 }
 
 async function configureTalents(ids: string[]): Promise<TalentConfigState> {
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
-  const unlocked = new Set(save.talent_unlocks || []);
-  const wanted = (ids || []).filter(id => unlocked.has(id)).slice(0, TALENT_EQUIP_LIMIT);
-  save.talent_equipped = wanted;
+  void ids;
   const next = await persist(save);
-  const equipped = talentsForIds(next.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const chart = normalizeStarChart(next.star_chart, next.talent_unlocks, next.starter_upgrades);
+  const catalog = starChartCatalog(chart);
+  const unlocked = catalog.filter(entry => Number(entry.level || 0) > 0);
+  const equipped = activeTalentsForSave(next);
   configuredTalents = equipped;
-  return {catalog: TALENTS, unlocked: talentsForIds(next.talent_unlocks), equipped, save: next};
+  return {catalog, unlocked, equipped, star_chart: chart, save: next};
 }
 
 async function setNamedChallenge(trainerId: string | null): Promise<TalentConfigState> {
@@ -2808,14 +3817,16 @@ async function setNamedChallenge(trainerId: string | null): Promise<TalentConfig
   if (id && !npcCatalog.some(entry => entry.type === "champion" && entry.id === id)) throw new Error("只能指定冠军作为最终 Boss。");
   save.named_champion_id = id;
   const next = await persist(save);
-  const equipped = talentsForIds(next.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const chart = normalizeStarChart(next.star_chart, next.talent_unlocks, next.starter_upgrades);
+  const catalog = starChartCatalog(chart);
+  const equipped = activeTalentsForSave(next);
   configuredTalents = equipped;
-  return {catalog: TALENTS, unlocked: talentsForIds(next.talent_unlocks), equipped, save: next};
+  return {catalog, unlocked: catalog.filter(entry => Number(entry.level || 0) > 0), equipped, star_chart: chart, save: next};
 }
 
 async function starterUpgradeConfig(): Promise<StarterUpgradeConfigState> {
   const save = await loadSave();
-  return {catalog: starterUpgradeCatalog(save?.starter_upgrades), save};
+  return {catalog: starterUpgradeCatalog(starterUpgradesForSave(save)), save};
 }
 
 function setStarterUpgradeLevel(upgrades: StarterUpgradeState, id: string, level: number): StarterUpgradeState {
@@ -2834,14 +3845,18 @@ function setStarterUpgradeLevel(upgrades: StarterUpgradeState, id: string, level
 async function upgradeStarter(id: string): Promise<StarterUpgradeConfigState> {
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
-  const upgrades = normalizeStarterUpgrades(save.starter_upgrades);
-  const currentLevel = starterUpgradeLevel(upgrades, id);
-  const cost = starterUpgradeCost(id, currentLevel);
+  const chart = normalizeStarChart(save.star_chart, save.talent_unlocks, save.starter_upgrades);
+  const node = STAR_CHART_NODE_BY_ID.get(id);
+  if (!node || node.kind !== "starter_upgrade") throw new Error("开局筹备项目不存在。");
+  const currentLevel = starNodeLevel(chart, id);
+  const cost = starNodeUpgradeCost(chart, id);
   if (cost === null || cost === undefined) throw new Error("这个项目已经满级。");
+  if (!starNodeUnlocked(chart, node)) throw new Error("前置节点尚未点亮。");
   spendBp(save, cost);
-  save.starter_upgrades = setStarterUpgradeLevel(upgrades, id, currentLevel + 1);
+  chart.nodes[id] = Math.min(node.max_level, currentLevel + 1);
+  save.star_chart = chart;
   const next = await persist(save);
-  return {catalog: starterUpgradeCatalog(next.starter_upgrades), save: next};
+  return {catalog: starterUpgradeCatalog(starterUpgradesForSave(next)), save: next};
 }
 
 async function chooseStarterItem(offerId: string | null): Promise<DesktopGameState> {
@@ -2849,8 +3864,8 @@ async function chooseStarterItem(offerId: string | null): Promise<DesktopGameSta
   if (!save) throw new Error("请先创建或读取存档。");
   if (!pendingStarter) {
     const seed = Math.floor(Math.random() * 0xffffffff);
-    const talents = talentsForIds(save.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
-    const upgrades = normalizeStarterUpgrades(save.starter_upgrades);
+    const talents = activeTalentsForSave(save);
+    const upgrades = starterUpgradesForSave(save);
     const battleSetting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
     pendingStarter = {seed, coins: starterCoinsForSeed(seed, talents), offers: await starterItemOffers(seed, talents, upgrades, battleSetting), purchased: [], talents, upgrades, battleSetting, wholeRerollsUsed: 0, singleRerollsUsed: 0};
   }
@@ -2889,7 +3904,7 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
   const effectiveSeed = pendingStarter?.seed || runSeed;
-  const runTalents = pendingStarter?.talents || talentsForIds(save.talent_equipped).slice(0, TALENT_EQUIP_LIMIT);
+  const runTalents = pendingStarter?.talents || activeTalentsForSave(save);
   const runBattleSetting = normalizeBattleSetting(pendingStarter?.battleSetting || save.battle_setting || DEFAULT_BATTLE_SETTING);
   if (!pendingCandidates) {
     const count = candidateCountForTalents(runTalents);
@@ -2909,8 +3924,9 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
   const selectedTeam = selectedIndexes.map(index => pendingCandidates!.team[index]);
   const selectedDisplay = selectedIndexes.map(index => pendingCandidates!.display[index]);
   const mentored = await applyStarterMentorEye(selectedTeam, selectedDisplay, effectiveSeed, runTalents);
-  const playerTeam = mentored.team;
-  const playerDisplay = mentored.display;
+  const cappedStarter = await applyArrivalLevelCapToTeam(runTalents, mentored.team, mentored.display);
+  const playerTeam = cappedStarter.team;
+  const playerDisplay = cappedStarter.display;
   const starterItemIds = (pendingStarter?.purchased || []).map(item => itemKey(item.id || item.name)).filter(Boolean);
   const starterBagItems = Object.fromEntries(starterItemIds.map(id => [id, starterItemIds.filter(value => value === id).length]));
   const starterBagMeta = Object.fromEntries((pendingStarter?.purchased || []).map(item => [itemKey(item.id || item.name), {
@@ -2973,7 +3989,9 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
   run.planned_battles = await buildPlannedBattles(save, run);
   pendingStarter = null;
   const next = await persist(save);
-  return await restState(next, next.current_run as CurrentRunData, mentored.upgraded ? `伯乐本乐发动：${mentored.upgraded} 只宝可梦获得数值升阶。出发前可以先整理队伍。` : "出发前可以先整理队伍。");
+  const mentorText = mentored.upgraded ? `伯乐本乐发动：${mentored.upgraded} 只宝可梦获得数值升阶。` : "";
+  const capText = cappedStarter.capped ? `徽章权限生效：${cappedStarter.capped} 只到手宝可梦等级已压到上限。` : "";
+  return await restState(next, next.current_run as CurrentRunData, `${mentorText}${capText}出发前可以先整理队伍。`);
 }
 
 async function continueRun(): Promise<DesktopGameState> {
@@ -3036,19 +4054,29 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   run.status = "in_battle";
   run.battle_no = battleNo;
   run.next_battle = battleNo;
+  if (run.rest_status?.event_contest_next) {
+    run.rest_status = {...run.rest_status, event_contest_active: run.rest_status.event_contest_next};
+    delete run.rest_status.event_contest_next;
+  }
+  if (run.rest_status?.event_soul_swap_next) {
+    run.rest_status = {...run.rest_status, event_soul_swap_active: true};
+    delete run.rest_status.event_soul_swap_next;
+  }
   delete run.enemy_boss_record;
   run.enemy_raw = enemyTeam;
   run.enemy_display = enemyDisplay;
   const battleStartSave = await persist(save);
   const battleStartRun = battleStartSave.current_run as CurrentRunData;
+  const soulSwapActive = Boolean(battleStartRun.rest_status?.event_soul_swap_active);
   activeBattleNo = battleNo;
   activeBattle = await gameService.createBattleSession({
-    playerTeam: battleStartRun.player_team,
-    enemyTeam,
-    playerDisplay: battleStartRun.player_display,
-    enemyDisplay,
-    playerState: normalizePlayerState(battleStartRun),
+    playerTeam: soulSwapActive ? enemyTeam : battleStartRun.player_team,
+    enemyTeam: soulSwapActive ? battleStartRun.player_team : enemyTeam,
+    playerDisplay: soulSwapActive ? enemyDisplay : battleStartRun.player_display,
+    enemyDisplay: soulSwapActive ? battleStartRun.player_display : enemyDisplay,
+    playerState: soulSwapActive ? undefined : normalizePlayerState(battleStartRun),
     seed: gameService.deriveSeed(Number(run.seed), 200 + battleNo),
+    battleSetting: battleStartRun.battle_setting,
     enemyAi: enemyAiForRoute(route, enemyTrainer),
   });
   const encounteredBoss = recordBossEncounter(battleStartSave, battleStartRun, enemyTrainer, bossTeam, enemyDisplay);
@@ -3061,17 +4089,22 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
 async function finishBattleState(save: LocalSave, state: BattleState): Promise<DesktopGameState> {
   if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
   const run = save.current_run as CurrentRunData;
-  const winBp = recordBattleResult(save, state.winner, run);
-  run.player_state = activeBattle.getPlayerState();
+  const soulSwapActive = Boolean(run.rest_status?.event_soul_swap_active);
+  run.player_state = soulSwapActive ? activeBattle.getEnemyState() : activeBattle.getPlayerState();
+  const contest = settleContestScore(run, state);
+  const effectivePlayerWin = (soulSwapActive ? state.winner !== "Player" : state.winner === "Player") || contest.overrideWin;
+  const effectiveWinner = effectivePlayerWin ? "Player" : state.winner === "tie" ? "tie" : "Enemy";
+  const winBp = recordBattleResult(save, effectiveWinner, run);
   const statEvents = recordRunBattleStats(run, state);
-  if (state.winner !== "Player") {
+  if (!effectivePlayerWin) {
     const wins = Number(run.wins || 0);
     rememberRunForSoulmate(save, run);
     const settled = await settleRunEnd(save, run, {outcome: "loss"});
     save.current_run = null;
     const next = await persist(save);
     const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "对手训练师";
-    const lossMessage = `挑战结束。败给 ${enemyName}。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+    const lossReason = soulSwapActive && state.winner === "Player" ? "灵魂互换：你操作对手队伍获胜，按挑战失败结算。" : `挑战结束。败给 ${enemyName}。`;
+    const lossMessage = `${lossReason}连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
     const resultBattle = decorateBattleState(state, run);
     const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `败给 ${enemyName}`, wins, settled, battle: resultBattle, run});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message: lossMessage, outcome: "loss", statEvents, resultSummary}));
@@ -3079,9 +4112,10 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
   }
   const wins = Number(run.wins || 0) + 1;
-  addToExchangeBox(run, state.enemy_team || run.enemy_raw || [], state.enemy_display || run.enemy_display || []);
+  addToExchangeBox(run, soulSwapActive ? (state.player_team || run.enemy_raw || []) : (state.enemy_team || run.enemy_raw || []), soulSwapActive ? (state.player_display || run.enemy_display || []) : (state.enemy_display || run.enemy_display || []));
   const stalwartRecovered = applyStalwartRecovery(run);
   const allInBonus = run.rest_status?.all_in_pending_next ? addCoins(run, currentCoins(run)) : 0;
+  const contestBonus = contest.bonusCoins ? addCoins(run, contest.bonusCoins) : 0;
   if (run.rest_status?.all_in_pending_next) run.rest_status = {...run.rest_status, all_in_pending_next: false};
   if (activeBattleNo >= Number(run.battles || DEFAULT_BATTLES)) {
     run.wins = wins;
@@ -3090,7 +4124,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
-    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
+    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `，华丽大赛 +${contestBonus}金币` : ""}${contest.overrideWin ? "，裁判介入改判成功" : ""}${soulSwapActive ? "，灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     const resultBattle = decorateBattleState(state, run);
     const resultSummary = buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "win", statEvents, resultSummary}));
@@ -3104,14 +4138,14 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     battle_no: activeBattleNo,
     next_battle: activeBattleNo + 1,
     wins,
-    enemy_raw: state.enemy_team,
-    enemy_display: state.enemy_display,
+    enemy_raw: soulSwapActive ? (state.player_team || run.enemy_raw) : state.enemy_team,
+    enemy_display: soulSwapActive ? (state.player_display || run.enemy_display) : state.enemy_display,
     coins_earned_this_run: Number(run.coins_earned_this_run || 0) + winBp,
     bp_earned_this_run: Number(run.bp_earned_this_run || 0) + winBp,
-    rest_status: freshRestStatus(run.talents, victoryRewards.restBonus),
+    rest_status: freshRestStatus(run.talents, carryRestStatusAfterBattle(run, victoryRewards.restBonus)),
   };
   const next = await persist(save);
-  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。奖励：${victoryRewards.items.join(" / ")}${victoryRewards.restBonus?.shop_slot_discounts?.length ? "；boss 商店奖励已生效" : ""}${victoryRewards.restBonus?.recycler_available ? "；道具回收商出现了" : ""}。当前连胜：${wins}`;
+  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
   await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: decorateBattleState(state, run), message: rewardText, outcome: "win", statEvents}));
   const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
@@ -3125,6 +4159,8 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
     const zMoveMatch = choice.match(/^move\s+(\d+)\s+zmove$/i);
     const megaMatch = choice.match(/^move\s+(\d+)\s+mega$/i);
+    const maxMatch = choice.match(/^move\s+(\d+)\s+max$/i);
+    const teraMatch = choice.match(/^move\s+(\d+)\s+terastallize$/i);
     if (zMoveMatch) {
       const run = save.current_run as CurrentRunData;
       const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
@@ -3145,6 +4181,26 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
       if (!active?.canMegaEvo) throw new Error("当前没有可用的 Mega 进化。");
       if (!move || move.disabled) throw new Error("这个技能不能用于 Mega 进化回合。");
     }
+    if (maxMatch) {
+      const run = save.current_run as CurrentRunData;
+      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
+      if (setting.battle_rule_preset !== "gen8" || !setting.enabled_battle_systems.includes("dynamax")) throw new Error("本局未开启极巨化系统。");
+      const moveSlot = Math.max(1, Math.floor(Number(maxMatch[1] || 0)));
+      const active = activeBattle.getState().request?.active?.[0];
+      const move = active?.moves?.[moveSlot - 1];
+      if (!active?.canDynamax) throw new Error("当前不能进行极巨化。");
+      if (!move || move.disabled) throw new Error("这个技能不能用于极巨化回合。");
+    }
+    if (teraMatch) {
+      const run = save.current_run as CurrentRunData;
+      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
+      if (setting.battle_rule_preset !== "gen9" || !setting.enabled_battle_systems.includes("terastal")) throw new Error("本局未开启太晶化系统。");
+      const moveSlot = Math.max(1, Math.floor(Number(teraMatch[1] || 0)));
+      const active = activeBattle.getState().request?.active?.[0];
+      const move = active?.moves?.[moveSlot - 1];
+      if (!active?.canTerastallize) throw new Error("当前不能进行太晶化。");
+      if (!move || move.disabled) throw new Error("这个技能不能用于太晶化回合。");
+    }
     let state: BattleState;
     let shouldPersist = false;
     if (choice.startsWith("item ")) {
@@ -3156,7 +4212,8 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
       const normalizedItem = itemKey(itemId);
       if (Number(run.bag_items?.[normalizedItem] || 0) <= 0) throw new Error("背包里没有这个道具。");
       if (!(await gameService.hasConsumableItemEffect(normalizedItem))) throw new Error("这个道具不能在战斗中主动使用。");
-      state = await activeBattle.chooseTrainerItem(normalizedItem, slot, moveSlotRaw ? Number(moveSlotRaw) : undefined);
+      await assertBattleItemUsableByEvents(run, normalizedItem);
+      state = await activeBattle.chooseTrainerItem(normalizedItem, slot, moveSlotRaw ? Number(moveSlotRaw) : undefined, eventRecoveryMultiplier(run));
       await consumeBagItem(run, normalizedItem);
       run.player_state = activeBattle.getPlayerState();
       shouldPersist = true;
@@ -3230,9 +4287,7 @@ async function finishExchange(ownIndex: number | null, enemyIndex: number | null
 async function finishRestForNextBattle(save: LocalSave, run: CurrentRunData): Promise<DesktopGameState> {
   if (!rotateFirstUsable(run)) throw new Error("队伍没有可出战宝可梦，请先恢复 HP。");
   const battleNo = Number(run.battle_no ?? 0);
-  const carryRestStatus: CurrentRunData["rest_status"] = run.rest_status?.all_in_pending_next
-    ? {all_in_pending_next: true, all_in_result: run.rest_status.all_in_result || null}
-    : {};
+  const carryRestStatus = carryRestStatusForBattle(run);
   save.current_run = {
     ...run,
     status: "ready",
@@ -3335,7 +4390,12 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   const run = save?.current_run as CurrentRunData | null;
   if (!save || !run || (run.status !== "awaiting_rest" && run.status !== "awaiting_exchange")) throw new Error("当前不在休整阶段。");
   normalizeCurrentRun(run);
-  if (action.type === "next") return finishRestForNextBattle(save, run);
+  ensureRestEventOptions(run);
+  if (action.type === "choose_rest_event") {
+    const message = await chooseRestEvent(save, run, action.eventId);
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, message);
+  }
   if (action.type === "abort") {
     save.stats = {...emptyStats(), ...(save.stats || {}), set_win_streak: 0};
     rememberRunForSoulmate(save, run);
@@ -3350,6 +4410,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     await saveStore?.appendBattleRecord(buildRunRecord({run, message, outcome: "abort", resultSummary}));
     return gameState({screen: "result", save: next, message, result_summary: resultSummary});
   }
+  if (restEventRequired(run)) throw new Error("请先选择本次休整奇遇。");
+  if (action.type === "next") return finishRestForNextBattle(save, run);
   if (run.rest_status?.all_in_pending_next) throw new Error("孤注一掷已发动，本次休整即将结束。");
 
   const states = normalizePlayerState(run);
@@ -3428,8 +4490,10 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const rawSet = {...run.player_team[slot]};
     const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
     const currentLevel = Math.max(1, Math.floor(Number(rawSet.level || run.player_display[slot]?.level || 50)));
-    const nextLevel = Math.min(55, currentLevel + 2);
-    const overflow = Math.max(0, currentLevel + 2 - 55);
+    const trustLevel = talentLevel(run.talents, "exchange_trust");
+    const gainLevel = trustLevel >= 3 ? 4 : trustLevel >= 2 ? 2 : 1;
+    const nextLevel = Math.min(55, currentLevel + gainLevel);
+    const overflow = Math.max(0, currentLevel + gainLevel - 55);
     rawSet.level = nextLevel;
     run.player_team[slot] = rawSet;
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
@@ -3438,16 +4502,86 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
     writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
-    const coinText = overflow ? `，溢出 ${overflow} 级转换为 ${addRunBp(save, run, overflow * 100)}金币` : "";
+    const coinText = overflow ? `，溢出 ${overflow} 级转换为 ${addRunBp(save, run, overflow * TRUST_OVERFLOW_COIN_PER_LEVEL)}金币` : "";
     run.rest_status = {...(run.rest_status || {}), trust_level_used: true};
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, `不负信赖：${run.player_display[slot].species_zh || run.player_display[slot].species} 提升到 ${nextLevel} 级${coinText}。`);
+  }
+
+  if (action.type === "choose_doctor_treatment") {
+    if (!run.rest_status?.event_doctor_pending) throw new Error("当前没有待选择的医生治疗。");
+    const states = normalizePlayerState(run);
+    if (action.branch === "status") {
+      for (const state of states) {
+        state.status = "";
+        state.moves = (state.moves || []).map(move => ({...move, pp: Math.max(0, Number(move.maxpp || move.pp || 0))}));
+        if (!state.fainted && state.hp > 0) state.hp = Math.max(1, Math.floor(Number(state.hp || 1) / 2));
+        refreshStateCondition(state);
+      }
+      run.player_state = states;
+      run.rest_status = {...(run.rest_status || {}), event_doctor_pending: false};
+      const next = await persist(save);
+      return await restState(next, next.current_run as CurrentRunData, "蹩脚医生哥哥：全队解除异常并恢复 PP，但未濒死宝可梦 HP 减半。");
+    }
+    for (const state of states) {
+      const maxhp = Math.max(1, Number(state.maxhp || 1));
+      state.hp = state.fainted || state.hp <= 0 ? Math.max(1, Math.floor(maxhp / 2)) : maxhp;
+      refreshStateCondition(state);
+    }
+    run.player_state = states;
+    applyRandomStatus(run, "bad_doctor_hp");
+    run.rest_status = {...(run.rest_status || {}), event_doctor_pending: false};
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, "蹩脚医生弟弟：全队恢复 HP，濒死宝可梦复活到半血，但都陷入了异常状态。");
+  }
+
+  if (action.type === "event_learn_move") {
+    const service = action.service === "egg" ? "egg" : "tutor";
+    const availableKey = service === "egg" ? "event_egg_service_available" : "event_tutor_service_available";
+    const usedKey = service === "egg" ? "event_egg_service_used" : "event_tutor_service_used";
+    if (!(run.rest_status as any)?.[availableKey]) throw new Error(service === "egg" ? "本次没有培育屋爷爷。" : "本次没有讲师老奶奶。");
+    if ((run.rest_status as any)?.[usedKey]) throw new Error("本次技能服务已经使用过。");
+    const slot = Math.floor(Number(action.slot));
+    const moveSlot = Math.floor(Number(action.moveSlot));
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    const rawSet = run.player_team[slot];
+    const selected = (await gameService.learnableMoves(rawSet)).find(move => toId(move.id || move.name) === toId(action.moveId));
+    if (!selected || !(selected.learn_sources || []).includes(service)) throw new Error(service === "egg" ? "这不是该宝可梦的合法遗传招式。" : "这不是该宝可梦的合法教授招式。");
+    const spent = spendRunBp(save, run, 200, `event-learn-${service}`);
+    await applyMoveToSlot(run, slot, moveSlot, selected.id || selected.name);
+    run.rest_status = {...(run.rest_status || {}), [usedKey]: true};
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `${service === "egg" ? "培育屋爷爷" : "讲师老奶奶"}：${run.player_display[slot]?.species_zh || "宝可梦"} 学会了 ${selected.name_zh || selected.name}，${spent.message}。`);
+  }
+
+  if (action.type === "event_apply_level") {
+    const points = Math.max(0, Math.floor(Number(run.rest_status?.event_level_points || 0)));
+    if (points <= 0) throw new Error("当前没有可分配等级。");
+    const slot = Math.floor(Number(action.slot));
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    const cap = badgeLevelCapForTalents(run.talents) || 100;
+    const rawSet = {...run.player_team[slot]};
+    const currentLevel = Math.max(1, Math.floor(Number(rawSet.level || run.player_display[slot]?.level || 50)));
+    if (currentLevel >= cap) throw new Error(`徽章权限限制，当前最高只能控制 ${cap} 级。`);
+    const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
+    rawSet.level = Math.min(cap, currentLevel + 1);
+    run.player_team[slot] = rawSet;
+    const [nextDisplay] = await gameService.describeTeam([rawSet]);
+    run.player_display[slot] = nextDisplay || run.player_display[slot];
+    const nextStates = normalizePlayerState(run);
+    nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    writePlayerSlotShowdownId(run, slot, nextStates, stableId);
+    run.player_state = nextStates;
+    run.rest_status = {...(run.rest_status || {}), event_level_points: points - 1};
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `恋恋不舍：${run.player_display[slot].species_zh || run.player_display[slot].species} 提升到 ${rawSet.level} 级。`);
   }
 
   if (action.type === "use_item") {
     const slot = Number(action.slot);
     if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
     const normalizedItem = itemKey(action.itemId);
+    await assertRestItemUsableByEvents(run, normalizedItem);
     let riskText = "";
     let consumeItem = true;
     if (hasTalent(run.talents, "growth_risky")) {
@@ -3466,8 +4600,16 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
         return await restState(next, next.current_run as CurrentRunData, "铤而走险触发：道具使用失败，并失去了该道具。");
       }
     }
+    const beforeHp = states[slot]?.hp ?? 0;
     const item = consumeItem ? await consumeBagItem(run, normalizedItem) : await itemDetailsById(normalizedItem);
     const text = await gameService.applyConsumableItemEffectToState(item.id, states[slot], action.moveSlot);
+    if (eventRecoveryMultiplier(run) !== 1 && states[slot]) {
+      const maxhp = Math.max(1, Number(states[slot].maxhp || 1));
+      if (states[slot].hp > beforeHp) {
+        states[slot].hp = Math.min(maxhp, beforeHp + Math.max(1, Math.floor((states[slot].hp - beforeHp) * eventRecoveryMultiplier(run))));
+        refreshStateCondition(states[slot]);
+      }
+    }
     run.player_state = states;
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, riskText ? `${riskText}${text ? ` ${text}` : ""}` : text);
@@ -3498,8 +4640,105 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     return await restState(next, next.current_run as CurrentRunData, `道具回收商回收了 ${item.name_zh || item.name}，获得 ${gained}金币。`);
   }
 
+  if (action.type === "forge_items") {
+    const itemIds = (action.itemIds || []).map(itemKey).filter(Boolean);
+    const rewards = await rollForgeRewards(run, itemIds);
+    for (const id of itemIds) consumeBagItemCount(run, id, 1);
+    const rewardTexts: string[] = [];
+    for (const reward of rewards) rewardTexts.push(await grantBagItem(run, reward, 1));
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `熔炉重铸完成，获得 ${rewardTexts.join("、")}。`);
+  }
+
+  if (action.type === "forge_special_item") {
+    const itemId = itemKey(action.itemId);
+    if (Number(run.bag_items?.[itemId] || 0) <= 0) throw new Error("背包里没有这个特殊道具。");
+    const pool = specialForgePoolForItem(itemId);
+    if (!pool.length) throw new Error("这个道具不能使用特殊熔炉。");
+    const spent = spendRunBp(save, run, SPECIAL_FORGE_COST, "forge-special");
+    const rng = seededRng(Number(run.seed || 1), 0x5f09 + Number(run.battle_no || run.next_battle || 0) * 79 + itemId.length * 17);
+    const reward = shuffleByRng(pool, rng)[0];
+    consumeBagItemCount(run, itemId, 1);
+    const rewardText = await grantBagItem(run, reward, 1);
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `特殊熔炉完成，获得 ${rewardText}，${spent.message}。`);
+  }
+
+  if (action.type === "forge_tera_orb") {
+    if (!battleSettingHasTerastal(run.battle_setting)) throw new Error("本局没有开启太晶化。");
+    applyTeraOrbToRunTeam(run);
+    const current = run.tera_orb_type || "Normal";
+    const options = TERA_ORB_TYPES.filter(type => type !== current);
+    const spent = spendRunBp(save, run, SPECIAL_FORGE_COST, "forge-tera-orb");
+    const rng = seededRng(Number(run.seed || 1), 0x7e4a + Number(run.battle_no || run.next_battle || 0) * 101 + current.length * 13);
+    const nextType = shuffleByRng(options, rng)[0] || "Normal";
+    run.tera_orb_type = nextType;
+    run.tera_orb_type_zh = TERA_ORB_TYPE_ZH[nextType] || nextType;
+    applyTeraOrbToRunTeam(run);
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `太晶珠重铸完成，变为${run.tera_orb_type_zh || nextType}属性，${spent.message}。`);
+  }
+
+  if (action.type === "event_raid_exchange") {
+    if (!run.rest_status?.event_raid_exchange_available || run.rest_status?.event_raid_exchange_used) throw new Error("当前没有可用的奇袭交换。");
+    const battleNo = Number(run.rest_status.event_raid_exchange_battle_no || run.next_battle || 1);
+    const planned = await ensurePlannedBattle(save, run, battleNo);
+    const own = Math.floor(Number(action.ownIndex));
+    const enemy = Math.floor(Number(action.enemyIndex));
+    if (own < 0 || own >= run.player_team.length || enemy < 0 || enemy >= planned.enemy_raw.length) throw new Error("交换编号需要在 1-3 之间。");
+    const oldRaw = JSON.parse(JSON.stringify(run.player_team[own])) as PokemonSet;
+    const oldDisplay = JSON.parse(JSON.stringify(run.player_display[own])) as RentalPokemon;
+    const oldState = JSON.parse(JSON.stringify(states[own])) as PlayerPokemonState;
+    const oldItem = itemKey(oldRaw.item || oldDisplay.item_id || oldDisplay.item);
+    if (oldItem) {
+      adjustBagItem(run, oldItem, 1);
+      oldRaw.item = "";
+      oldDisplay.item = "";
+      oldDisplay.item_id = "";
+      oldDisplay.item_zh = "";
+      oldDisplay.item_desc = "";
+      oldDisplay.item_desc_zh = "";
+    }
+    const targetRaw = JSON.parse(JSON.stringify(planned.enemy_raw[enemy])) as PokemonSet;
+    const targetDisplay = JSON.parse(JSON.stringify(planned.enemy_display[enemy])) as RentalPokemon;
+    const oldShowdownId = oldRaw.showdown_id || oldDisplay.showdown_id || oldState.showdown_id;
+    const newShowdownId = takeReplacementRunShowdownId(run, own, oldShowdownId);
+    let nextRaw = targetRaw;
+    let nextDisplay = targetDisplay;
+    const cappedArrival = await applyArrivalLevelCap(run.talents, nextRaw, nextDisplay);
+    nextRaw = cappedArrival.raw;
+    nextDisplay = cappedArrival.display;
+    writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
+    run.player_team[own] = nextRaw;
+    run.player_display[own] = nextDisplay;
+    const nextStates = normalizePlayerState(run);
+    nextStates[own] = fullStateForPokemon(nextDisplay, own + 1);
+    writePlayerSlotShowdownId(run, own, nextStates, newShowdownId);
+    run.player_state = nextStates;
+    addToExchangeBox(run, [oldRaw], [oldDisplay], [oldState]);
+    planned.enemy_raw[enemy] = oldRaw;
+    planned.enemy_display[enemy] = oldDisplay;
+    assignEnemyShowdownIds(planned.enemy_raw, planned.enemy_display);
+    run.planned_battles = [...(run.planned_battles || []).filter(entry => Number(entry.battle_no) !== battleNo), planned].sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
+    run.rest_status = {
+      ...(run.rest_status || {}),
+      event_raid_exchange_used: true,
+      event_rerandomized_locked_battles: Array.from(new Set([...(run.rest_status?.event_rerandomized_locked_battles || []), battleNo])),
+    };
+    await buildNightSkyState(save, run);
+    const investments = run.bp_investments || [0, 0, 0];
+    const moveInvestments = run.move_investments || [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    investments[own] = 0;
+    moveInvestments[own] = [0, 0, 0, 0];
+    run.bp_investments = investments;
+    run.move_investments = moveInvestments;
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `骇人奇袭：换来了 ${nextDisplay.species_zh || nextDisplay.species}${cappedArrival.capped ? "，等级已受徽章权限压制" : ""}。`);
+  }
+
   if (action.type === "exchange") {
     if (!run.enemy_raw || !run.enemy_display) throw new Error("没有可交换的敌方队伍。");
+    if (run.rest_status?.event_exchange_disabled) throw new Error("恋恋不舍：本次休整无法交换宝可梦。");
     const own = action.ownIndex + 1;
     const foe = action.enemyIndex + 1;
     if (own < 1 || own > 3 || foe < 1 || foe > 3) throw new Error("交换编号需要在 1-3 之间。");
@@ -3544,6 +4783,10 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
         if (!keepItem) nextDisplayBase = {...nextDisplayBase, item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
       }
     }
+    const cappedArrival = await applyArrivalLevelCap(run.talents, nextRaw, nextDisplayBase);
+    nextRaw = cappedArrival.raw;
+    nextDisplayBase = cappedArrival.display;
+    if (!keepItem) nextDisplayBase = {...nextDisplayBase, item: "", item_id: "", item_zh: "", item_desc: "", item_desc_zh: ""};
     writePokemonShowdownId(nextRaw, nextDisplayBase, undefined, newShowdownId);
     run.player_team[action.ownIndex] = hasTalent(run.talents, "economy_shiny_collector") ? {...nextRaw, shiny: true} : nextRaw;
     run.player_display[action.ownIndex] = hasTalent(run.talents, "economy_shiny_collector") ? shinyPokemon(nextDisplayBase) : nextDisplayBase;
@@ -3560,7 +4803,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const next = await persist(save);
     const stateText = ratio >= 1 ? "满 HP/满 PP" : ratio >= 0.75 ? "3/4 HP/3/4 PP" : "半 HP/半 PP";
     const itemText = keepItem ? "保留目标携带道具" : "不携带道具";
-    return await restState(next, next.current_run as CurrentRunData, `已交换，${spent.message}。新宝可梦以${stateText}加入，且${itemText}${hasTalent(run.talents, "exchange_elite_training") ? "；英才教育已提升品质" : ""}。`);
+    return await restState(next, next.current_run as CurrentRunData, `已交换，${spent.message}。新宝可梦以${stateText}加入，且${itemText}${hasTalent(run.talents, "exchange_elite_training") ? "；英才教育已提升品质" : ""}${cappedArrival.capped ? "；徽章权限已压制到手等级" : ""}。`);
   }
 
   if (action.type === "box_exchange") {
@@ -3569,14 +4812,18 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "all_in_exchange") {
     if (!hasTalent(run.talents, "growth_all_in")) throw new Error("需要天赋「孤注一掷」。");
+    if (run.rest_status?.event_exchange_disabled) throw new Error("恋恋不舍：本次休整无法交换宝可梦。");
     if (run.all_in_exchange_used) throw new Error("本局已经使用过孤注一掷。");
     const own = Number(action.ownIndex);
     if (own < 0 || own >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
     const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
     const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xa111 + nextBattleNo * 17 + own), "gen9randombattle", 1, {profiles: ["tier4"], purpose: "normal", battleSetting: run.battle_setting});
-    const nextRaw = generated.team[0];
-    const nextDisplay = generated.display[0];
+    let nextRaw = generated.team[0];
+    let nextDisplay = generated.display[0];
     if (!nextRaw || !nextDisplay) throw new Error("孤注一掷生成失败。");
+    const cappedArrival = await applyArrivalLevelCap(run.talents, nextRaw, nextDisplay);
+    nextRaw = cappedArrival.raw;
+    nextDisplay = cappedArrival.display;
     const oldName = run.player_display[own]?.species_zh || run.player_display[own]?.species || `第 ${own + 1} 只`;
     const oldShowdownId = run.player_team[own]?.showdown_id || run.player_display[own]?.showdown_id || states[own]?.showdown_id;
     addToExchangeBox(run, [run.player_team[own]], [run.player_display[own]], [states[own]]);
@@ -3609,10 +4856,12 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
       all_in_result: {old_name: oldName, new_name: newName},
     };
     const next = await persist(save);
-    return await restState(next, next.current_run as CurrentRunData, `孤注一掷发动：${oldName} 被替换成了 ${newName}。另外两只宝可梦已变为半血并陷入睡眠，即将结束休整。`);
+    return await restState(next, next.current_run as CurrentRunData, `孤注一掷发动：${oldName} 被替换成了 ${newName}${cappedArrival.capped ? "，徽章权限已压制到手等级" : ""}。另外两只宝可梦已变为半血并陷入睡眠，即将结束休整。`);
   }
 
   if (action.type === "buy_item") {
+    if (run.rest_status?.event_shop_disabled) throw new Error("本次休整没有商店。");
+    if (run.rest_status?.event_barter_active) throw new Error("以物易物期间不能使用金币购买，请投入背包道具交换。");
     const itemId = itemKey(action.itemId);
     const cost = await itemBaseCostById(itemId);
     const spent = spendRunBp(save, run, cost, `buy-item:${itemId}`);
@@ -3625,22 +4874,22 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (action.type === "roll_shop") {
     const snapshot = JSON.parse(JSON.stringify(run)) as CurrentRunData;
     try {
-      if (action.preferredCategory && !hasTalent(run.talents, "intel_shop_strategy")) throw new Error("需要天赋「神机妙算」。");
-      const cost = shopNextRollCost(run);
-      const preferredCost = action.preferredCategory ? SHOP_PREFERRED_ROLL_COST : 0;
-      if (currentCoins(run) < cost + preferredCost) throw new Error(`金币不足，需要 ${cost + preferredCost}金币。`);
-      const preferCost = action.preferredCategory ? spendRunBp(save, run, SHOP_PREFERRED_ROLL_COST, `shop-prefer:${action.preferredCategory}`) : null;
-      const spent = spendRunBp(save, run, cost, "shop-roll");
+      if (run.rest_status?.event_shop_disabled) throw new Error("本次休整没有商店。");
+      const shopKind = normalizeShopKind(action.shopKind);
+      const cost = run.rest_status?.event_barter_active ? 0 : shopNextRollCostForKind(run, shopKind);
+      if (currentCoins(run) < cost) throw new Error(`金币不足，需要 ${cost}金币。`);
+      const spent = spendRunBp(save, run, cost, `shop-roll:${shopKind}`);
       if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0 && cost <= 0) {
         run.rest_status = {...(run.rest_status || {}), free_shop_rolls_remaining: Math.max(0, Number(run.rest_status?.free_shop_rolls_remaining || 0) - 1)};
       }
-      run.rest_status = {...(run.rest_status || {}), free_shop_roll_used: true, shop_preferred_roll_used: Boolean(action.preferredCategory)};
+      run.rest_status = {...(run.rest_status || {}), free_shop_roll_used: true, shop_preferred_roll_used: false};
+      run.shop_kind = shopKind;
       run.shop_roll_count = Number(run.shop_roll_count || 0) + 1;
-      run.shop_offers = await rollShopOffers(run, action.preferredCategory);
+      run.shop_offers = await rollShopOffers(run, shopKind);
       run.shop_purchased_offer_id = null;
       run.shop_purchased_offer_counts = {};
       run.shop_purchased_item_counts = {};
-      run.shop_last_roll_bonus = shopDuplicateBonusForOffers(run.shop_offers || []);
+      run.shop_last_roll_bonus = shopKind === "tm" ? null : shopDuplicateBonusForOffers(run.shop_offers || []);
       if (run.shop_last_roll_bonus?.count) {
         const itemId = itemKey(run.shop_last_roll_bonus.item_id);
         run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + run.shop_last_roll_bonus.count};
@@ -3649,7 +4898,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
       }
       const next = await persist(save);
       const bonusText = run.shop_last_roll_bonus?.count ? `抽到 ${run.shop_last_roll_bonus.match_count} 连，免费获得 ${run.shop_last_roll_bonus.count} 个 ${run.shop_last_roll_bonus.name_zh || run.shop_last_roll_bonus.name}！` : "商店抽奖完成。";
-      return await restState(next, next.current_run as CurrentRunData, `${bonusText}${preferCost ? ` 神机妙算：${preferCost.message}。` : ""}${spent.paid || cost ? ` 抽奖${spent.message}。` : ""}`);
+      return await restState(next, next.current_run as CurrentRunData, `${SHOP_KIND_CONFIG[shopKind].title}：${bonusText}${spent.paid || cost ? ` 抽奖${spent.message}。` : ""}`);
     } catch (error) {
       for (const key of Object.keys(run)) delete (run as any)[key];
       Object.assign(run, snapshot);
@@ -3658,6 +4907,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   }
 
   if (action.type === "buy_shop_offer") {
+    if (run.rest_status?.event_barter_active) throw new Error("以物易物期间不能使用金币购买，请投入背包道具交换。");
     const offer = (run.shop_offers || []).find(item => item.offer_id === action.offerId);
     if (!offer) throw new Error("商品不存在，请先刷新商店。");
     const itemId = itemKey(offer.id || offer.name);
@@ -3670,6 +4920,35 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.shop_purchased_offer_id = offer.offer_id;
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, `已购买 ${offer.name_zh || offer.name}，${spent.message}。`);
+  }
+
+  if (action.type === "event_barter_buy") {
+    if (!run.rest_status?.event_barter_active) throw new Error("当前不是以物易物商店。");
+    const offer = (run.shop_offers || []).find(item => item.offer_id === action.offerId);
+    if (!offer) throw new Error("商品不存在，请先刷新商店。");
+    const materialIds = (action.itemIds || []).map(itemKey).filter(Boolean);
+    if (materialIds.length < 1 || materialIds.length > 3) throw new Error("以物易物需要投入 1-3 个背包道具。");
+    const materialCounts = materialIds.reduce<Record<string, number>>((acc, id) => ({...acc, [id]: Number(acc[id] || 0) + 1}), {});
+    let value = 0;
+    for (const [id, needed] of Object.entries(materialCounts)) {
+      if (isSpecialSystemItemId(id)) throw new Error("特殊系统道具不能用于以物易物。");
+      if (Number(run.bag_items?.[id] || 0) < needed) throw new Error("以物易物材料数量不足。");
+      const item = await itemDetailsById(id);
+      const meta = run.bag_item_meta?.[id];
+      value += sellPriceForItem({...item, cost: Math.max(0, Number(meta?.cost ?? item.cost ?? 0))}, run) * needed;
+    }
+    const pricedOffer = pricedShopOfferForRun(run, offer);
+    const required = Math.ceil(Number(pricedOffer.cost || 0) * 0.7);
+    if (value < required) throw new Error(`投入道具价值不足，需要至少 ${required}。`);
+    for (const [id, needed] of Object.entries(materialCounts)) consumeBagItemCount(run, id, needed);
+    const itemId = itemKey(offer.id || offer.name);
+    adjustBagItem(run, itemId, 1);
+    rememberBagItemMeta(run, offer);
+    run.shop_purchased_offer_counts = {...(run.shop_purchased_offer_counts || {}), [offer.offer_id]: Number(run.shop_purchased_offer_counts?.[offer.offer_id] || 0) + 1};
+    run.shop_purchased_item_counts = {...(run.shop_purchased_item_counts || {}), [itemId]: shopItemPurchaseCount(run, itemId) + 1};
+    run.shop_purchased_offer_id = offer.offer_id;
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `以物易物：换得 ${offer.name_zh || offer.name}。`);
   }
 
   if (action.type === "use_tm") {
@@ -3700,7 +4979,10 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const spent = spendRunBp(save, run, cost, "draw-moves");
     const rawSet = run.player_team[slot];
     const currentMoves = new Set((rawSet.moves || []).map((move: string) => toId(move)));
-    const legalMoves = (await gameService.learnableMoves(rawSet)).filter(move => !currentMoves.has(toId(move.id || move.name)));
+    const legalMoves = (await gameService.learnableMoves(rawSet)).filter(move => {
+      const sources = move.learn_sources || [];
+      return !currentMoves.has(toId(move.id || move.name)) && (sources.includes("levelup") || sources.includes("egg"));
+    });
     const drawKey = `${slot}:${action.moveSlot}`;
     const drawRoll = Number(run.move_draw_rolls?.[drawKey] || 0) + 1;
     run.move_draw_rolls = {...(run.move_draw_rolls || {}), [drawKey]: drawRoll};
@@ -3740,7 +5022,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   }
 
   if (action.type === "night_sky_scout") {
-    if (!hasTalent(run.talents, "intel_rumor")) throw new Error("需要天赋「小道消息」。");
+    const rumorLevel = talentLevel(run.talents, "intel_rumor");
+    if (rumorLevel <= 0) throw new Error("需要天赋「小道消息」。");
     const battleNo = Math.max(1, Math.min(Number(run.battles || DEFAULT_BATTLES), Number(action.battleNo || 1)));
     await buildNightSkyState(save, run);
     const rows = run.night_sky?.rows || [];
@@ -3749,10 +5032,12 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const currentBattleNo = Math.max(0, Number(run.battle_no || Math.max(0, Number(run.next_battle || 1) - 1) || 0));
     if (battleNo <= currentBattleNo) throw new Error("已经挑战过的对手无需侦查。");
     if (action.level === "one") {
+      if (rumorLevel < 2) throw new Error("需要小道消息 Lv2 才能免费查看一只宝可梦。");
       if (Number(row.revealed || 0) >= 1) throw new Error("这一行已经免费查看过。");
       row.revealed = 1;
       row.unlocked = false;
     } else {
+      if (rumorLevel < 3) throw new Error("需要小道消息 Lv3 才能解锁完整阵容。");
       if (!row.unlocked) spendRunBp(save, run, SCOUT_ALL_COST, `night-sky:${battleNo}`);
       row.revealed = 3;
       row.unlocked = true;
@@ -3926,6 +5211,9 @@ app.whenReady().then(() => {
   handleIpc("save:updateTrainer", async (trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
   handleIpc("save:battleRecords", async () => saveStore!.battleRecords());
   handleIpc("save:testMode", async () => enableTestMode());
+  if (e2eEnabled) {
+    handleIpc("e2e:patchSave", async (patch: Partial<LocalSave>) => e2ePatchSave(patch));
+  }
   handleIpc("battleSetting:get", async () => getBattleSetting());
   handleIpc("battleSetting:update", async (setting: Partial<BattleSetting>) => updateBattleSetting(setting));
   handleIpc("trainer:catalog", async () => trainerCatalogState());

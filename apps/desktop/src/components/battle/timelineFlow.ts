@@ -30,8 +30,12 @@ export function buildBattleDisplaySteps(events: BattleTimelineEvent[]): BattleDi
       steps.push({kind: "visual", event}, {kind: "hp", event}, {kind: "message", event});
       continue;
     }
-    if (event.type === "switch" || event.type === "form") {
+    if (event.type === "switch") {
       steps.push({kind: "message", event}, {kind: "state", event}, {kind: "visual", event});
+      continue;
+    }
+    if (event.type === "form") {
+      steps.push({kind: "message", event}, {kind: "visual", event}, {kind: "state", event});
       continue;
     }
     if (NOTICE_VISUAL_TYPES.has(event.type)) {
@@ -99,6 +103,7 @@ function isEntryEffectForSide(event: BattleTimelineEvent | undefined, firstSide:
 
 export function eventCanMutateDisplayedActive(event: BattleTimelineEvent, displayedNames: Record<BattleSide, string>, displayedShowdownIds: Record<BattleSide, string>): boolean {
   if (!event.targetSide) return true;
+  if (event.type === "form" && (event.effect === "DynamaxEnd" || event.text.includes("极巨化结束"))) return true;
   const eventShowdownId = String(event.target_showdown_id || "").trim().toLowerCase();
   const activeShowdownId = String(displayedShowdownIds[event.targetSide] || "").trim().toLowerCase();
   if (eventShowdownId || activeShowdownId) return Boolean(eventShowdownId && activeShowdownId && eventShowdownId === activeShowdownId);

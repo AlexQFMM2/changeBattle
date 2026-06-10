@@ -13,7 +13,12 @@ function specialPokemonLabels(pokemon: RentalPokemon): string[] {
     pokemon.is_mythical ? "幻兽" : "",
     !pokemon.is_mythical && pokemon.is_legendary ? "神兽" : "",
     pokemon.item_battle_system ? BATTLE_SYSTEM_LABELS[pokemon.item_battle_system] : "",
+    pokemon.tera_type_zh ? `太晶珠:${pokemon.tera_type_zh}` : "",
   ].filter(Boolean);
+}
+
+function learnSourceLabel(move: RentalPokemon["moves"][number]): string {
+  return (move.learn_source_labels || []).join(" / ");
 }
 
 export function PokemonProfile({pokemon, selected = false, runtime, compact = false, revealTraining = false}: {pokemon: RentalPokemon; selected?: boolean; runtime?: RuntimePokemon; compact?: boolean; revealTraining?: boolean}) {
@@ -42,9 +47,9 @@ export function PokemonProfile({pokemon, selected = false, runtime, compact = fa
           <span>HP</span>
           <strong>{runtime ? conditionText(runtime.condition) : pokemon.stats.hp}</strong>
         </div>
-        {hasSpecialItem ? <div className="profile-item-hint">{itemTitle}</div> : null}
+        {hasSpecialItem || pokemon.tera_type_zh ? <div className="profile-item-hint">{[hasSpecialItem ? itemTitle : "", pokemon.tera_type_zh ? `太晶珠：${pokemon.tera_type_zh}属性` : ""].filter(Boolean).join("　")}</div> : null}
         <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div>
-        <div className="moves-panel">{pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span><p>{revealTraining ? moveDescription(move) : "？？？"}</p></div>)}</div>
+        <div className="moves-panel">{pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span>{learnSourceLabel(move) ? <span>来源 {learnSourceLabel(move)}</span> : null}<p>{revealTraining ? moveDescription(move) : "？？？"}</p></div>)}</div>
       </section>
     </div>
   );

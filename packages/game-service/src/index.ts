@@ -15,6 +15,8 @@ import type {
   DesktopDexEntry,
   DesktopDexSearchResult,
   GeneratedTeam,
+  MoveLearnSource,
+  MoveSummary,
   PokemonEditOptions,
   PokemonSet,
   PricedMove,
@@ -25,7 +27,7 @@ import type {
   SpriteIndexMap,
   SpriteMapEntry,
 } from "@changebattle/shared";
-import {DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
+import {BATTLE_RULE_PRESET_OPTIONS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 
 const require = createRequire(import.meta.url);
 const DEFAULT_SHOWDOWN_PATH = "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown";
@@ -36,6 +38,17 @@ const RENTAL_CANDIDATE_COUNT = 6;
 const MAX_GENERATION_ATTEMPTS = 40;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const SIDE_NAMES = {p1: "玩家", p2: "对手"} as const;
+const STANDARD_TERA_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
+const MOVE_LEARN_SOURCE_ORDER: MoveLearnSource[] = ["levelup", "machine", "tutor", "egg", "event", "transfer", "other"];
+const MOVE_LEARN_SOURCE_LABELS: Record<MoveLearnSource, string> = {
+  levelup: "自学",
+  machine: "技能机器",
+  tutor: "教授",
+  egg: "遗传",
+  event: "特殊",
+  transfer: "转移",
+  other: "其他",
+};
 const FALLBACK_HELD_ITEMS = ["Leftovers", "Sitrus Berry", "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Assault Vest", "Focus Sash", "Expert Belt"];
 const ITEM_ICON_FALLBACK = "assets/placeholders/item.png";
 const LOCAL_DEX_ITEMS = [
@@ -189,10 +202,11 @@ type BattleTurnLogEntry = {
 };
 type SlotKeySpec = {slot: number; keys: Set<string>};
 type GenerationProfile = "tier1" | "tier2" | "tier3" | "tier4" | "champion";
-type StageTier = 1 | 2 | 3 | 4;
-type TierRow = {species_id: string; species: string; tier: StageTier; override_tier?: string; notes?: string};
-type SpeciesTierRule = {tier: StageTier; weight: number; preferNonNfe?: boolean};
-type SpeciesPick = {speciesId: string; speciesTier: StageTier};
+type StageTier = 1 | 2 | 3 | 4 | 5 | 6;
+type SpeciesTier = StageTier | 10;
+type TierRow = {species_id: string; species: string; tier: SpeciesTier; override_tier?: string; notes?: string};
+type SpeciesTierRule = {tier: SpeciesTier; weight: number; preferNonNfe?: boolean};
+type SpeciesPick = {speciesId: string; speciesTier: SpeciesTier};
 export type BattleAiKnowledge = "active_only" | "party_species" | "party_sets" | "omniscient";
 export type BattleAiPersonality = "balanced" | "aggressive" | "defensive" | "status" | "setup" | "adaptive";
 export type BattleAiProfile = {
@@ -231,7 +245,7 @@ type ConsumableItemEffect = {
 export type GenerateRentalOptions = {
   profiles?: GenerationProfile[];
   stages?: StageTier[];
-  speciesTiers?: StageTier[];
+  speciesTiers?: SpeciesTier[];
   speciesIds?: string[];
   purpose?: "starter" | "normal" | "boss" | "rescue";
   battleSetting?: BattleSetting;
@@ -249,6 +263,7 @@ export type StartBattleOptions = {
   enemyDisplay: RentalPokemon[];
   playerState?: PlayerPokemonState[];
   seed: number | number[];
+  battleSetting?: BattleSetting;
   enemyAi?: BattleAiProfileInput;
 };
 
@@ -483,6 +498,8 @@ export class GameService {
     const guaranteeRng = this.createRngFromSeed(seedArray, 0x7a50);
     this.ensureZMoveUser(team, options, guaranteeRng);
     this.ensureMegaUser(team, options, guaranteeRng);
+    this.ensureDynamaxUsers(team, options);
+    this.ensureTerastalTypes(team, options, guaranteeRng);
     display.splice(0, display.length, ...team.map(set => this.describeSet(set)));
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
   }
@@ -797,19 +814,26 @@ export class GameService {
     const dex = this.dataDex();
     const species = dex.species.get(set.species || set.name);
     if (!species.exists) return [];
+    const moves = this.learnsetMovesForSpecies(species.id, dex).map(summary => ({...summary, cost: this.defaultMoveCost(summary.power)}));
+    return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name));
+  }
+
+  async machineMoves(): Promise<MoveSummary[]> {
+    await this.loadDisplayData();
+    const dex = this.dataDex();
     const seen = new Set<string>();
-    const moves: PricedMove[] = [];
-    for (const entry of dex.species.getFullLearnset(species.id) || []) {
-      for (const moveId of Object.keys(entry.learnset || {})) {
-        const move = dex.moves.get(moveId);
-        if (!move.exists || !move.id || seen.has(move.id)) continue;
-        if (move.isNonstandard && move.isNonstandard !== "Past") continue;
-        seen.add(move.id);
-        const summary = this.moveDetails(move.id, dex);
-        moves.push({...summary, cost: this.defaultMoveCost(summary.power)});
+    for (const species of dex.species.all()) {
+      if (!species.exists || !species.id) continue;
+      for (const entry of dex.species.getFullLearnset(species.id) || []) {
+        for (const [moveId, learnCodes] of Object.entries(entry.learnset || {})) {
+          const move = dex.moves.get(moveId);
+          if (!move.exists || !move.id || seen.has(move.id)) continue;
+          if (move.isNonstandard && move.isNonstandard !== "Past") continue;
+          if (this.learnSourcesFromCodes(learnCodes as string[]).includes("machine")) seen.add(move.id);
+        }
       }
     }
-    return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name));
+    return Array.from(seen).map(moveId => this.moveDetails(moveId, dex, ["machine"])).sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name));
   }
 
   async editOptions(set: PokemonSet): Promise<PokemonEditOptions> {
@@ -976,6 +1000,7 @@ export class GameService {
     const speciesId = species.id || this.toId(set.species || set.name);
     const sprite = this.spriteMap?.entries[speciesId];
     const baseStats = this.fullStats(species.baseStats || {}, 0);
+    const teraType = set.teraType ? String(set.teraType) : "";
     return {
       name: set.name || set.species,
       species: set.species,
@@ -996,6 +1021,8 @@ export class GameService {
       item_desc: item?.exists ? (item.desc || item.shortDesc || "") : "",
       item_desc_zh: this.detailDescription("items", item?.exists ? item.name : set.item),
       item_battle_system: item?.exists ? this.battleSystemForItem(item.id) || undefined : undefined,
+      tera_type: teraType || undefined,
+      tera_type_zh: teraType ? this.zh("types", teraType) : undefined,
       moves: (set.moves || []).map((moveId: string) => this.moveDetails(moveId, dex)),
       base_stats: baseStats,
       stats: this.calculatedStats(baseStats, ivs, evs, level, nature),
@@ -1008,8 +1035,8 @@ export class GameService {
       role: set.role || "",
       role_zh: this.zh("roles", set.role || ""),
       shiny: Boolean(set.shiny),
-      is_legendary: Boolean(species.isLegendary),
-      is_mythical: Boolean(species.isMythical),
+      is_legendary: this.isLegendarySpecies(speciesId),
+      is_mythical: ((species.tags || []) as string[]).some(tag => /mythical/i.test(String(tag))),
       stage_tier: set.stage_tier,
       species_tier: set.species_tier,
       generation_profile: set.generation_profile,
@@ -1094,8 +1121,11 @@ export class GameService {
 
     for (let index = 0; index < targetCount; index += 1) {
       const profile = requestedProfiles[index] || requestedProfiles[requestedProfiles.length - 1] || "tier1";
+      const preferGmax = index === 0 && this.shouldEnsureGmaxCandidate(options) && !speciesIds.length;
       const speciesPick = speciesIds[index]
         ? {speciesId: speciesIds[index], speciesTier: this.tierForSpecies(speciesIds[index]) || this.profileStageTier(profile)}
+        : preferGmax
+          ? this.pickGmaxSpeciesForProfile(profile, rng, seenSpecies, options)
         : requestedSpeciesTiers[index]
           ? this.pickSpeciesForTier(requestedSpeciesTiers[index], rng, seenSpecies, options)
           : this.pickSpeciesForProfile(profile, rng, seenSpecies, options);
@@ -1114,6 +1144,8 @@ export class GameService {
     if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
     this.ensureZMoveUser(team, options, rng);
     this.ensureMegaUser(team, options, rng);
+    this.ensureDynamaxUsers(team, options);
+    this.ensureTerastalTypes(team, options, rng);
     display.splice(0, display.length, ...team.map(set => this.describeSet(set)));
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
   }
@@ -1124,8 +1156,11 @@ export class GameService {
     return Array.from({length: count}, () => "tier1" as GenerationProfile);
   }
 
-  private requestedSpeciesTiers(options: GenerateRentalOptions, count: number): StageTier[] {
-    return (options.speciesTiers || []).slice(0, count).map(tier => Math.max(1, Math.min(4, Number(tier || 1))) as StageTier);
+  private requestedSpeciesTiers(options: GenerateRentalOptions, count: number): SpeciesTier[] {
+    return (options.speciesTiers || []).slice(0, count).map(tier => {
+      const value = Number(tier || 1);
+      return (value === 10 ? 10 : Math.max(1, Math.min(6, value))) as SpeciesTier;
+    });
   }
 
   private randomGenerator(format: string, seedArray: number[]): any {
@@ -1161,7 +1196,7 @@ export class GameService {
     };
   }
 
-  private applyGenerationProfile(baseSet: PokemonSet, profile: GenerationProfile, rng: () => number, speciesTier?: StageTier): PokemonSet {
+  private applyGenerationProfile(baseSet: PokemonSet, profile: GenerationProfile, rng: () => number, speciesTier?: SpeciesTier): PokemonSet {
     const normalizedProfile = profile === "champion" ? "champion" : profile;
     const stageTier = this.profileStageTier(profile);
     const dex = this.dataDex();
@@ -1205,7 +1240,7 @@ export class GameService {
     return this.pickSpeciesByRule(rule, rng, seenSpecies, options);
   }
 
-  private pickSpeciesForTier(tier: StageTier, rng: () => number, seenSpecies: Set<string>, options: GenerateRentalOptions): SpeciesPick {
+  private pickSpeciesForTier(tier: SpeciesTier, rng: () => number, seenSpecies: Set<string>, options: GenerateRentalOptions): SpeciesPick {
     return this.pickSpeciesByRule({tier, weight: 1, preferNonNfe: true}, rng, seenSpecies, options);
   }
 
@@ -1232,12 +1267,31 @@ export class GameService {
     return {speciesId: selected?.species_id || "pikachu", speciesTier: selected?.tier || rule.tier};
   }
 
+  private pickGmaxSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>, options: GenerateRentalOptions): SpeciesPick {
+    const fallback = this.pickSpeciesForProfile(profile, rng, seenSpecies, options);
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    const tierRows = this.loadTierRows().filter(row => this.canGigantamaxSpecies(row.species_id) && this.speciesAllowedByBattleSetting(row.species_id, setting, seenSpecies, options.purpose));
+    if (!tierRows.length) return fallback;
+    const stageTier = this.profileStageTier(profile);
+    const sameTier = tierRows.filter(row => row.tier === stageTier);
+    const pool = sameTier.length ? sameTier : tierRows;
+    const selected = pool[this.randomInt(rng, 0, Math.max(0, pool.length - 1))];
+    return {speciesId: selected?.species_id || fallback.speciesId, speciesTier: selected?.tier || fallback.speciesTier};
+  }
+
+  private battlePresetMaxGeneration(setting: BattleSetting): number | null {
+    return BATTLE_RULE_PRESET_OPTIONS.find(option => option.id === setting.battle_rule_preset)?.max_generation || null;
+  }
+
   private speciesAllowedByBattleSetting(speciesId: string, setting: BattleSetting, seenSpecies: Set<string>, purpose?: GenerateRentalOptions["purpose"]): boolean {
     if (purpose === "boss") return true;
     const species = this.dataDex().species.get(speciesId);
     const generation = Math.max(1, Math.min(9, Number(species?.gen || 1)));
     if (!setting.allowed_generations.includes(generation)) return false;
+    const presetMaxGeneration = this.battlePresetMaxGeneration(setting);
+    if (presetMaxGeneration && generation > presetMaxGeneration) return false;
     if (this.toId(speciesId) === "rayquaza" && (!setting.legendary_battle || !setting.enabled_battle_systems.includes("mega"))) return false;
+    if (!setting.legendary_battle && this.tierForSpecies(speciesId) === 10) return false;
     if (!setting.legendary_battle && this.isLegendarySpecies(speciesId)) return false;
     if (setting.legendary_battle && this.isLegendarySpecies(speciesId)) {
       const existingLegendaryCount = [...seenSpecies].filter(id => this.isLegendarySpecies(id)).length;
@@ -1258,6 +1312,46 @@ export class GameService {
     const system = this.battleSystemForItem(set.item);
     if (!system || setting.enabled_battle_systems.includes(system)) return set;
     return {...set, item: ""};
+  }
+
+  private shouldEnsureGmaxCandidate(options: GenerateRentalOptions): boolean {
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    return setting.battle_rule_preset === "gen8" && options.purpose !== "boss";
+  }
+
+  private canGigantamaxSpecies(speciesId: string): boolean {
+    const species = this.dataDex().species.get(speciesId);
+    return Boolean(species?.canGigantamax);
+  }
+
+  private ensureDynamaxUsers(team: PokemonSet[], options: GenerateRentalOptions): void {
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    if (setting.battle_rule_preset !== "gen8" && !setting.enabled_battle_systems.includes("dynamax")) return;
+    for (const set of team) {
+      set.dynamaxLevel = Math.max(10, Number(set.dynamaxLevel || 10));
+      if (this.canGigantamaxSpecies(set.species || set.name)) set.gigantamax = true;
+    }
+  }
+
+  private ensureTerastalTypes(team: PokemonSet[], options: GenerateRentalOptions, rng: () => number): void {
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    if (setting.battle_rule_preset !== "gen9" || !setting.enabled_battle_systems.includes("terastal")) return;
+    for (const set of team) {
+      set.teraType = this.pickTeraTypeForSet(set, rng);
+    }
+  }
+
+  private pickTeraTypeForSet(set: PokemonSet, rng: () => number): string {
+    const dex = this.dataDex();
+    const moveTypes: string[] = (set.moves || [])
+      .map((moveName: string) => dex.moves.get(moveName))
+      .filter((move: any) => move?.exists && move.category !== "Status")
+      .map((move: any) => String(move.type || ""))
+      .filter((type: string) => STANDARD_TERA_TYPES.includes(type));
+    const species = dex.species.get(set.species || set.name);
+    const speciesTypes: string[] = (species?.types || []).filter((type: string) => STANDARD_TERA_TYPES.includes(type));
+    const choices: string[] = [...new Set<string>(moveTypes.length ? moveTypes : speciesTypes)];
+    return choices[this.randomInt(rng, 0, Math.max(0, choices.length - 1))] || "Normal";
   }
 
   private ensureZMoveUser(team: PokemonSet[], options: GenerateRentalOptions, rng: () => number): void {
@@ -1398,29 +1492,31 @@ export class GameService {
       return [
         {tier: 1, weight: 1},
         {tier: 2, weight: 2},
-        {tier: 2, weight: 3, preferNonNfe: true},
-        {tier: 3, weight: 4, preferNonNfe: true},
+        {tier: 3, weight: 3, preferNonNfe: true},
+        {tier: 4, weight: 4, preferNonNfe: true},
       ];
     }
     if (profile === "tier2") {
       return [
         {tier: 2, weight: 3},
-        {tier: 3, weight: 5, preferNonNfe: true},
+        {tier: 3, weight: 4, preferNonNfe: true},
         {tier: 4, weight: 2, preferNonNfe: true},
+        {tier: 5, weight: 1, preferNonNfe: true},
       ];
     }
     if (profile === "tier3") {
       return [
-        {tier: 2, weight: 2, preferNonNfe: true},
-        {tier: 3, weight: 5, preferNonNfe: true},
-        {tier: 4, weight: 3, preferNonNfe: true},
+        {tier: 3, weight: 2, preferNonNfe: true},
+        {tier: 4, weight: 5, preferNonNfe: true},
+        {tier: 5, weight: 3, preferNonNfe: true},
       ];
     }
     if (profile === "tier4") {
       return [
-        {tier: 2, weight: 1, preferNonNfe: true},
-        {tier: 3, weight: 2, preferNonNfe: true},
-        {tier: 4, weight: 7, preferNonNfe: true},
+        {tier: 4, weight: 2, preferNonNfe: true},
+        {tier: 5, weight: 4, preferNonNfe: true},
+        {tier: 6, weight: 3, preferNonNfe: true},
+        {tier: 10, weight: 1, preferNonNfe: true},
       ];
     }
     return [{tier: this.profileStageTier(profile), weight: 1, preferNonNfe: true}];
@@ -1436,7 +1532,7 @@ export class GameService {
     return (row.notes || "").split("|").map(note => note.trim().toLowerCase()).includes("nfe");
   }
 
-  private tierForSpecies(speciesId: string): StageTier | null {
+  private tierForSpecies(speciesId: string): SpeciesTier | null {
     const id = this.toId(speciesId);
     return this.loadTierRows().find(row => row.species_id === id)?.tier || null;
   }
@@ -1456,11 +1552,11 @@ export class GameService {
       return {
         species_id: row.species_id,
         species: row.species,
-        tier: Number(row.override_tier || row.tier || 1) as StageTier,
+        tier: Number(row.override_tier || row.tier || 1) as SpeciesTier,
         override_tier: row.override_tier,
         notes: row.notes,
       };
-    }).filter(row => row.species_id && row.tier >= 1 && row.tier <= 4);
+    }).filter(row => row.species_id && ((row.tier >= 1 && row.tier <= 6) || row.tier === 10));
     return this.tierRows;
   }
 
@@ -1491,9 +1587,10 @@ export class GameService {
     return existsSync(path.join(this.projectRoot, spritePath));
   }
 
-  private moveDetails(moveId: string, dex = this.dataDex()) {
+  private moveDetails(moveId: string, dex = this.dataDex(), learnSources: MoveLearnSource[] = []) {
     const move = dex.moves.get(moveId);
     const detail = this.detail("moves", move.name || moveId);
+    const sources = Array.from(new Set(learnSources));
     return {
       id: move.id || moveId,
       name: move.name || moveId,
@@ -1510,6 +1607,8 @@ export class GameService {
       short_desc_zh: detail?.description || "",
       desc: move.desc || move.shortDesc || "",
       desc_zh: detail?.description || "",
+      learn_sources: sources.length ? sources : undefined,
+      learn_source_labels: sources.length ? sources.map(source => MOVE_LEARN_SOURCE_LABELS[source] || "其他") : undefined,
     };
   }
 
@@ -1530,18 +1629,38 @@ export class GameService {
   private speciesLearnset(speciesId: string, dex = this.dataDex(), limit = 96) {
     const species = dex.species.get(speciesId);
     if (!species.exists) return [];
-    const seen = new Set<string>();
-    const moves = [];
-    for (const entry of dex.species.getFullLearnset(species.id) || []) {
-      for (const moveId of Object.keys(entry.learnset || {})) {
+    const moves = this.learnsetMovesForSpecies(species.id, dex);
+    return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name)).slice(0, limit);
+  }
+
+  private learnsetMovesForSpecies(speciesId: string, dex = this.dataDex()): MoveSummary[] {
+    const sourcesByMove = new Map<string, Set<MoveLearnSource>>();
+    for (const entry of dex.species.getFullLearnset(speciesId) || []) {
+      for (const [moveId, learnCodes] of Object.entries(entry.learnset || {})) {
         const move = dex.moves.get(moveId);
-        if (!move.exists || !move.id || seen.has(move.id)) continue;
+        if (!move.exists || !move.id) continue;
         if (move.isNonstandard && move.isNonstandard !== "Past") continue;
-        seen.add(move.id);
-        moves.push(this.moveDetails(move.id, dex));
+        const sourceSet = sourcesByMove.get(move.id) || new Set<MoveLearnSource>();
+        for (const source of this.learnSourcesFromCodes(learnCodes as string[])) sourceSet.add(source);
+        sourcesByMove.set(move.id, sourceSet);
       }
     }
-    return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name)).slice(0, limit);
+    return Array.from(sourcesByMove.entries()).map(([moveId, sources]) => this.moveDetails(moveId, dex, Array.from(sources).sort((a, b) => MOVE_LEARN_SOURCE_ORDER.indexOf(a) - MOVE_LEARN_SOURCE_ORDER.indexOf(b))));
+  }
+
+  private learnSourcesFromCodes(codes: string[] = []): MoveLearnSource[] {
+    const result = new Set<MoveLearnSource>();
+    for (const code of codes || []) {
+      const marker = String(code || "").replace(/^\d+/, "").charAt(0).toUpperCase();
+      if (marker === "L") result.add("levelup");
+      else if (marker === "M") result.add("machine");
+      else if (marker === "T") result.add("tutor");
+      else if (marker === "E") result.add("egg");
+      else if (marker === "S") result.add("event");
+      else if (marker === "V" || marker === "D") result.add("transfer");
+      else result.add("other");
+    }
+    return Array.from(result);
   }
 
   private speciesLearnsetSearchParts(speciesId: string, dex = this.dataDex()): string[] {
@@ -1676,6 +1795,7 @@ export class BattleSession {
   private readonly enemySlotKeys: SlotKeySpec[];
   private readonly enemyAi: BattleAiProfile;
   private readonly seed: number | number[];
+  private readonly battleSetting: BattleSetting;
   protected stream: any = null;
   private pendingMessages: Message[] = [];
   private pendingRawMessages: Message[] = [];
@@ -1706,8 +1826,15 @@ export class BattleSession {
     this.enemySlotKeys = buildSideSlotKeys(this.enemyTeam, this.enemyDisplay, undefined, "p2");
     this.enemyAi = battleAiProfile(options.enemyAi);
     this.seed = options.seed;
+    this.battleSetting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
     const seedValue = Array.isArray(options.seed) ? options.seed.reduce((acc, value) => acc ^ value, 0) : Number(options.seed);
     this.rngState = seedValue >>> 0;
+  }
+
+  private showdownBattleFormat(): string {
+    if (this.battleSetting.battle_rule_preset === "gen8") return "gen8customgame";
+    if (this.battleSetting.battle_rule_preset === "gen7") return "gen7customgame";
+    return "gen9customgame";
   }
 
   async start(): Promise<BattleState> {
@@ -1726,7 +1853,7 @@ export class BattleSession {
     this.stream = new this.sim.BattleStream({keepAlive: true});
     this.startReader();
     const init = [
-      `>start ${JSON.stringify({formatid: "gen9customgame", seed: this.service.seedArray(this.seed)})}`,
+      `>start ${JSON.stringify({formatid: this.showdownBattleFormat(), seed: this.service.seedArray(this.seed)})}`,
       `>player p1 ${JSON.stringify({name: "Player", team: this.sim.Teams.pack(this.playerTeam)})}`,
       `>player p2 ${JSON.stringify({name: "Enemy", team: this.sim.Teams.pack(this.enemyTeam)})}`,
     ].join("\n");
@@ -1800,6 +1927,10 @@ export class BattleSession {
 
   getPlayerState(): PlayerPokemonState[] {
     return this.currentSideState(this.playerSide());
+  }
+
+  getEnemyState(): PlayerPokemonState[] {
+    return this.currentSideState(this.enemySide());
   }
 
   syncPlayerState(states: PlayerPokemonState[]): BattleState {
@@ -2026,7 +2157,11 @@ export class BattleSession {
       .map((move, index) => ({move, index: index + 1}))
       .filter(entry => !entry.move.disabled)
       .map(entry => entry.index);
-    if (moves.length) return request.active?.[0]?.canMegaEvo ? `move ${this.pick(moves)} mega` : `move ${this.pick(moves)}`;
+    if (moves.length) {
+      if (request.active?.[0]?.canDynamax) return `move ${this.pick(moves)} max`;
+      if (request.active?.[0]?.canTerastallize) return `move ${this.pick(moves)} terastallize`;
+      return request.active?.[0]?.canMegaEvo ? `move ${this.pick(moves)} mega` : `move ${this.pick(moves)}`;
+    }
     const switches = legalSwitchIndexes(request);
     return switches.length ? `switch ${this.pick(switches)}` : "default";
   }
@@ -2137,6 +2272,9 @@ export class BattleSession {
     if (exactMovesAllowed && request?.active?.[0]?.moves?.length) {
       const canZMove = request.active[0].canZMove || [];
       const canMegaEvo = Boolean(request.active[0].canMegaEvo);
+      const canDynamax = Boolean(request.active[0].canDynamax);
+      const canTerastallize = Boolean(request.active[0].canTerastallize);
+      const maxMoves = request.active[0].maxMoves?.maxMoves || [];
       return request.active[0].moves
         .map((moveRequest, index) => ({moveRequest, index: index + 1, move: dex.moves.get(moveRequest.id || moveRequest.move)}))
         .filter(entry => !entry.moveRequest.disabled && Number(entry.moveRequest.pp ?? 1) > 0 && entry.move?.exists)
@@ -2148,7 +2286,9 @@ export class BattleSession {
             move: entry.move,
             moveRequest: entry.moveRequest,
           };
-          const candidates = canMegaEvo ? [{...base, choice: `move ${entry.index} mega`, score: score + 75}] : [];
+          const candidates = canDynamax && maxMoves[entry.index - 1] ? [{...base, choice: `move ${entry.index} max`, score: score + 78}] : [];
+          if (canTerastallize) candidates.push({...base, choice: `move ${entry.index} terastallize`, score: score + 76});
+          if (canMegaEvo) candidates.push({...base, choice: `move ${entry.index} mega`, score: score + 75});
           const zMove = canZMove[entry.index - 1];
           if (zMove) candidates.push({...base, choice: `move ${entry.index} zmove`, score: score + 80});
           candidates.push({...base, choice: `move ${entry.index}`, score});
@@ -2346,6 +2486,9 @@ export class BattleSession {
   private scoredEnemyMoves(request: BattleRequestView): Array<{choice: string; score: number}> {
     const canZMove = request.active?.[0]?.canZMove || [];
     const canMegaEvo = Boolean(request.active?.[0]?.canMegaEvo);
+    const canDynamax = Boolean(request.active?.[0]?.canDynamax);
+    const canTerastallize = Boolean(request.active?.[0]?.canTerastallize);
+    const maxMoves = request.active?.[0]?.maxMoves?.maxMoves || [];
     const moves = (request.active?.[0]?.moves || [])
       .map((move, index) => ({move, index: index + 1}))
       .filter(entry => !entry.move.disabled && Number(entry.move.pp ?? 1) > 0);
@@ -2354,7 +2497,9 @@ export class BattleSession {
     return moves.flatMap(entry => {
       const score = this.scoreEnemyMove(entry.move, active, target);
       const zMove = canZMove[entry.index - 1];
-      const candidates = canMegaEvo ? [{choice: `move ${entry.index} mega`, score: score + 75}] : [];
+      const candidates = canDynamax && maxMoves[entry.index - 1] ? [{choice: `move ${entry.index} max`, score: score + 78}] : [];
+      if (canTerastallize) candidates.push({choice: `move ${entry.index} terastallize`, score: score + 76});
+      if (canMegaEvo) candidates.push({choice: `move ${entry.index} mega`, score: score + 75});
       if (zMove) candidates.push({choice: `move ${entry.index} zmove`, score: score + 80});
       candidates.push({choice: `move ${entry.index}`, score});
       return candidates;
@@ -2710,7 +2855,7 @@ export class TrainerItemBattleSession extends BattleSession {
   private trainerItemActionSeq = 0;
   private lastTrainerItemActionSeq = 0;
 
-  async chooseTrainerItem(itemId: string, targetSlot: number, moveSlot?: number): Promise<BattleState> {
+  async chooseTrainerItem(itemId: string, targetSlot: number, moveSlot?: number, recoveryMultiplier = 1): Promise<BattleState> {
     if (!this.stream || this.ended) return this.getState();
     const battle = this.stream.battle;
     if (!battle) throw new Error("当前对战尚未开始。");
@@ -2739,6 +2884,7 @@ export class TrainerItemBattleSession extends BattleSession {
       itemName,
       effect,
       moveSlot,
+      recoveryMultiplier,
       trainerItemActionSeq: actionSeq,
       order: 102,
       priority: 0,
@@ -2759,7 +2905,7 @@ export class TrainerItemBattleSession extends BattleSession {
     battle.runAction = (action: any) => {
       if (action?.choice !== "trainerItem") return originalRunAction(action);
       battle.add('-message', `${battlePokemonName(action.target)} 使用了 ${action.itemName}。`);
-      applyConsumableEffectToBattlePokemon(battle, action.effect, action.target, action.itemId, action.itemName, action.moveSlot);
+      applyConsumableEffectToBattlePokemon(battle, action.effect, action.target, action.itemId, action.itemName, action.moveSlot, action.recoveryMultiplier);
       this.lastTrainerItemActionSeq = Number(action.trainerItemActionSeq || 0);
       return undefined;
     };
@@ -2847,7 +2993,116 @@ function setActiveDisplay(tracker: BattleTracker, service: GameService, side: Si
     ability_desc_zh: display.ability_desc_zh,
     condition: condition || tracker.active[side]?.condition,
     showdown_id: normalizeShowdownId(showdownId) || tracker.active[side]?.showdown_id,
-    ...(clearSubstitute ? {substitute: false} : {}),
+    ...(clearSubstitute ? {
+      substitute: false,
+      dynamaxed: false,
+      gigantamaxed: false,
+      terastallized: false,
+      tera_type: undefined,
+      tera_type_zh: undefined,
+      original_species_id: undefined,
+      original_name: undefined,
+      original_display_name: undefined,
+      original_sprite: undefined,
+    } : {}),
+  };
+}
+
+function beginDynamaxDisplay(tracker: BattleTracker, service: GameService, side: SideId, ident: string, isGmax: boolean): ParsedTimelineEvent {
+  const current = tracker.active[side] || {};
+  const baseDisplay = activeDisplay(service, ident);
+  const original = current.original_species_id
+    ? {}
+    : {
+      original_species_id: current.species_id || baseDisplay.species_id,
+      original_name: current.name || baseDisplay.name,
+      original_display_name: current.display_name || baseDisplay.name_zh,
+      original_sprite: current.sprite || baseDisplay.sprite,
+    };
+  const target = current.display_name || translatedSpecies(service, ident);
+  if (isGmax) {
+    const baseName = current.name || shortIdent(ident);
+    const display = service.speciesDisplay(`${baseName}-Gmax`);
+    tracker.active[side] = {
+      ...current,
+      ...original,
+      name: display.name,
+      display_name: display.name_zh,
+      species_id: display.species_id,
+      sprite: display.sprite,
+      types: display.types,
+      types_zh: display.types_zh,
+      base_stats: display.base_stats,
+      ability: display.ability,
+      ability_zh: display.ability_zh,
+      ability_id: display.ability_id,
+      ability_desc: display.ability_desc,
+      ability_desc_zh: display.ability_desc_zh,
+      dynamaxed: true,
+      gigantamaxed: true,
+    };
+    const nextTarget = display.name_zh || target;
+    return {type: "form", text: `${target} 超极巨化为 ${nextTarget}！`, side, targetSide: side, target: nextTarget, target_id: display.name, target_showdown_id: current.showdown_id, target_species_id: display.species_id, sprite: display.sprite, effect: "Gigantamax"};
+  }
+  tracker.active[side] = {...current, ...original, dynamaxed: true, gigantamaxed: false};
+  return {type: "form", text: `${target} 极巨化了！`, side, targetSide: side, target, target_id: current.name || shortIdent(ident), target_showdown_id: current.showdown_id, target_species_id: current.species_id, sprite: current.sprite, effect: "Dynamax"};
+}
+
+function endDynamaxDisplay(tracker: BattleTracker, side: SideId, ident: string, service: GameService): ParsedTimelineEvent {
+  const current = tracker.active[side] || {};
+  const target = current.display_name || translatedSpecies(service, ident);
+  const restoredDisplay = service.speciesDisplay(current.original_species_id || current.original_name || shortIdent(ident));
+  tracker.active[side] = {
+    ...current,
+    name: current.original_name || restoredDisplay.name || current.name,
+    display_name: current.original_display_name || restoredDisplay.name_zh || current.display_name,
+    species_id: current.original_species_id || restoredDisplay.species_id || current.species_id,
+    sprite: current.original_sprite || restoredDisplay.sprite || current.sprite,
+    types: restoredDisplay.types || current.types,
+    types_zh: restoredDisplay.types_zh || current.types_zh,
+    base_stats: restoredDisplay.base_stats || current.base_stats,
+    ability: restoredDisplay.ability || current.ability,
+    ability_zh: restoredDisplay.ability_zh || current.ability_zh,
+    ability_id: restoredDisplay.ability_id || current.ability_id,
+    ability_desc: restoredDisplay.ability_desc || current.ability_desc,
+    ability_desc_zh: restoredDisplay.ability_desc_zh || current.ability_desc_zh,
+    dynamaxed: false,
+    gigantamaxed: false,
+    original_species_id: undefined,
+    original_name: undefined,
+    original_display_name: undefined,
+    original_sprite: undefined,
+  };
+  const restoredTarget = tracker.active[side].display_name || target;
+  return {type: "form", text: `${target} 的极巨化结束了。`, side, targetSide: side, target: restoredTarget, target_id: tracker.active[side].name || shortIdent(ident), target_showdown_id: tracker.active[side].showdown_id, target_species_id: tracker.active[side].species_id, sprite: tracker.active[side].sprite, effect: "DynamaxEnd"};
+}
+
+function beginTerastalDisplay(tracker: BattleTracker, service: GameService, side: SideId, ident: string, teraType: string): ParsedTimelineEvent {
+  const current = tracker.active[side] || {};
+  const target = current.display_name || translatedSpecies(service, ident);
+  const typeName = String(teraType || "").trim() || "Normal";
+  const typeZh = service.plain("types", typeName) || typeName;
+  tracker.active[side] = {
+    ...current,
+    terastallized: true,
+    tera_type: typeName,
+    tera_type_zh: typeZh,
+    types: [typeName],
+    types_zh: [typeZh],
+  };
+  return {
+    type: "form",
+    text: `${target} 太晶化成了${typeZh}属性！`,
+    side,
+    targetSide: side,
+    target,
+    target_id: current.name || shortIdent(ident),
+    target_showdown_id: current.showdown_id,
+    target_species_id: current.species_id,
+    sprite: current.sprite,
+    effect: "Terastallize",
+    tera_type: typeName,
+    tera_type_zh: typeZh,
   };
 }
 
@@ -2858,13 +3113,21 @@ function legalSwitchIndexes(request: BattleRequestView): number[] {
     .map(({index}) => index);
 }
 
+const FORCED_CONTINUATION_MOVE_IDS = new Set([
+  "fly", "dive", "dig", "bounce", "phantomforce", "shadowforce", "skydrop",
+  "solarbeam", "solarblade", "meteorbeam", "skullbash", "razorwind", "skyattack",
+  "iceburn", "freezeshock", "geomancy",
+  "outrage", "thrash", "petaldance", "rollout", "iceball", "uproar", "bravebird",
+]);
+
 function isForcedContinuationRequest(request: BattleRequestView | null | undefined): boolean {
   if (!request || request.wait || request.teamPreview || request.forceSwitch) return false;
   const active = request.active?.[0] as ({moves?: BattleRequestView["active"] extends Array<infer T> ? T extends {moves: infer M} ? M : never : never; trapped?: boolean} | undefined);
   const moves = active?.moves || [];
   if (moves.length !== 1) return false;
   const move = moves[0] as {pp?: number; maxpp?: number; disabled?: boolean};
-  return Boolean(active?.trapped) || (move.pp === undefined && move.maxpp === undefined && !move.disabled);
+  const moveId = toId((move as {id?: string; move?: string}).id || (move as {id?: string; move?: string}).move || "");
+  return Boolean(moveId && moveId !== "struggle" && FORCED_CONTINUATION_MOVE_IDS.has(moveId) && move.pp === undefined && move.maxpp === undefined && !move.disabled);
 }
 
 function cloneBattleRequests(requests: Record<string, BattleRequestView>): Record<string, BattleRequestView> {
@@ -2976,7 +3239,14 @@ function isActiveIdent(tracker: BattleTracker, side: SideId | null, raw: string 
   const active = tracker.active[side];
   const target = toId(shortIdent(raw));
   if (!target) return false;
-  return [active?.name, active?.display_name, active?.species_id].some(value => toId(String(value || "")) === target);
+  return [
+    active?.name,
+    active?.display_name,
+    active?.species_id,
+    active?.original_name,
+    active?.original_display_name,
+    active?.original_species_id,
+  ].some(value => toId(String(value || "")) === target);
 }
 
 function shortIdent(raw: string): string {
@@ -3156,12 +3426,14 @@ function assertConsumableEffectCanApplyToBattlePokemon(effect: ConsumableItemEff
   if (!canApply) throw new Error("目标不需要这个道具。");
 }
 
-function applyConsumableEffectToBattlePokemon(battle: any, effect: ConsumableItemEffect, target: any, itemId: string, itemName: string, moveSlot?: number): string[] {
+function applyConsumableEffectToBattlePokemon(battle: any, effect: ConsumableItemEffect, target: any, itemId: string, itemName: string, moveSlot?: number, recoveryMultiplier = 1): string[] {
   const details: string[] = [];
   const wasFainted = Boolean(target.fainted || target.hp <= 0);
+  const multiplier = Math.max(0, Number(recoveryMultiplier || 1));
   if (effect.revive) {
     if (!wasFainted) throw new Error("目标没有濒死，不能使用这个复活道具。");
-    target.hp = effect.revive === "full" ? target.maxhp : Math.max(1, Math.floor(target.maxhp / 2));
+    const baseHp = effect.revive === "full" ? target.maxhp : Math.max(1, Math.floor(target.maxhp / 2));
+    target.hp = Math.max(1, Math.floor(baseHp * multiplier));
     target.fainted = false;
     target.faintQueued = false;
     target.status = "";
@@ -3176,7 +3448,7 @@ function applyConsumableEffectToBattlePokemon(battle: any, effect: ConsumableIte
   const hpAmount = computeHpAmount(effect.hp, target.maxhp);
   if (hpAmount > 0 && !target.fainted && target.hp < target.maxhp) {
     const previous = target.hp;
-    target.hp = Math.min(target.maxhp, target.hp + hpAmount);
+    target.hp = Math.min(target.maxhp, target.hp + Math.max(1, Math.floor(hpAmount * multiplier)));
     battle.add('-heal', target, battleHealthText(target), '[from] item: ' + itemId);
     details.push(`恢复了 ${target.hp - previous} 点生命值`);
   }
@@ -3725,6 +3997,12 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
       const move = service.plain("moves", parts[3]);
       text = `${source} 使用 ${move}。`;
       timelineEvent = {type: "move", text, side: side || undefined, source, source_id: sourceId, move};
+    } else if (tag === "-terastallize" && parts[2] && parts[3]) {
+      const side = sideFromIdent(parts[2]);
+      if (side) {
+        timelineEvent = beginTerastalDisplay(tracker, service, side, parts[2], parts[3]);
+        text = timelineEvent.text;
+      }
     } else if (tag === "cant" && parts[2] && parts[3]) {
       const target = translatedSpecies(service, parts[2]);
       const reason = cantReasonLabel(service, parts[3]);
@@ -3823,6 +4101,14 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
         if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], substitute: true};
         text = `${target} 制造了替身。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: true};
+      } else if (effectId === "dynamax") {
+        if (side && isActiveIdent(tracker, side, parts[2])) {
+          timelineEvent = beginDynamaxDisplay(tracker, service, side, parts[2], parts.some(value => toId(value) === "gmax"));
+          text = timelineEvent.text;
+        } else {
+          text = `${target} 极巨化了！`;
+          timelineEvent = {type: "form", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: "Dynamax"};
+        }
       } else if (effectId === "confusion") {
         updateActiveStatusToken(tracker, side, parts[2], "confusion", true);
         text = `${target} 陷入混乱。`;
@@ -3840,6 +4126,14 @@ function consumeLog(messages: Message[], tracker: BattleTracker, service: GameSe
         if (side && isActiveIdent(tracker, side, parts[2])) tracker.active[side] = {...tracker.active[side], substitute: false};
         text = `${target} 的替身消失了。`;
         timelineEvent = {type: "substitute", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect, substitute: false};
+      } else if (effectId === "dynamax") {
+        if (side && (isActiveIdent(tracker, side, parts[2]) || tracker.active[side]?.dynamaxed)) {
+          timelineEvent = endDynamaxDisplay(tracker, side, parts[2], service);
+          text = timelineEvent.text;
+        } else {
+          text = `${target} 的极巨化结束了。`;
+          timelineEvent = {type: "form", text, targetSide: side || undefined, target, target_id: shortIdent(parts[2]), effect: "DynamaxEnd"};
+        }
       } else if (effectId === "confusion") {
         updateActiveStatusToken(tracker, side, parts[2], "confusion", false);
         text = `${target} 的混乱结束了。`;

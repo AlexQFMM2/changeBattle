@@ -14,7 +14,6 @@ import {
   SHOP_ROLL_COST_GAMBLER_PAID,
   SHOP_ROLL_COST_NEXT,
   TALENTS,
-  TALENT_EQUIP_LIMIT,
   addRunBp,
   canDirectMove,
   canExchangeBoss,
@@ -58,6 +57,10 @@ function talents(ids: string[]): TalentView[] {
   return ids.map(id => talent(id));
 }
 
+function talentAtLevel(id: string, level: number): TalentView {
+  return {...talent(id), level};
+}
+
 function run(ids: string[] = [], patch: Partial<CurrentRunData> = {}): CurrentRunData {
   return {
     status: "awaiting_rest",
@@ -89,12 +92,12 @@ function save(bp: number): LocalSave {
 }
 
 function testTalentCatalog(): void {
-  assert.equal(TALENT_EQUIP_LIMIT, 7);
-  assert.equal(TALENTS.length, 28);
+  assert.equal(TALENTS.length, 27);
   assert.deepEqual(TALENTS.filter(entry => entry.disabled).map(entry => entry.id), []);
   assert.equal(talent("starter_angel_fund").name, "天使基金");
   assert.equal(talent("exchange_stalwart").cost, 20);
   assert.equal(talent("growth_all_in").name, "孤注一掷");
+  assert.throws(() => talent("intel_shop_strategy"));
   assert.throws(() => talent("exchange_safe_box"));
   assert.throws(() => talent("prophet_next_scout"));
 }
@@ -102,8 +105,10 @@ function testTalentCatalog(): void {
 function testStarterTalents(): void {
   assert.equal(candidateCountForTalents([]), 6);
   assert.equal(starterCoinsForSeed(1), 0);
-  assert.equal(starterCoinsForSeed(1, talents(["starter_angel_fund"])), 1000);
-  assert.equal(starterNonConvertibleCoinsForTalents(talents(["starter_angel_fund"])), 1000);
+  assert.equal(starterCoinsForSeed(1, talents(["starter_angel_fund"])), 300);
+  assert.equal(starterCoinsForSeed(1, [talentAtLevel("starter_angel_fund", 2)]), 600);
+  assert.equal(starterCoinsForSeed(1, [talentAtLevel("starter_angel_fund", 3)]), 1000);
+  assert.equal(starterNonConvertibleCoinsForTalents([talentAtLevel("starter_angel_fund", 3)]), 1000);
   const upgrades = normalizeStarterUpgrades({item_quantity: {battle: 0, recovery: 0, berry: 0, tm: 0}});
   assert.equal(starterUpgradeLevel(upgrades, "item_quantity:battle"), 2);
   assert.equal(starterUpgradeLevel(upgrades, "item_quantity:recovery"), 2);
@@ -142,11 +147,14 @@ function testExchangeTalents(): void {
 
 function testGrowthTalents(): void {
   assert.equal(moveDrawCount(run()), 8);
-  assert.equal(moveDrawCount(run(["growth_more_choices"])), 16);
+  assert.equal(moveDrawCount(run(["growth_more_choices"])), 10);
+  assert.equal(moveDrawCount(run([], {talents: [talentAtLevel("growth_more_choices", 4)]})), 24);
   assert.equal(shopOfferCount(run()), 3);
   assert.equal(shopOfferCount(run(["growth_more_choices"])), 4);
+  assert.equal(shopOfferCount(run([], {talents: [talentAtLevel("growth_more_choices", 4)]})), 7);
   assert.equal(shopCandidateCount(run()), 4);
-  assert.equal(shopCandidateCount(run(["growth_more_choices"])), 8);
+  assert.equal(shopCandidateCount(run(["growth_more_choices"])), 5);
+  assert.equal(shopCandidateCount(run([], {talents: [talentAtLevel("growth_more_choices", 4)]})), 8);
   assert.equal(MOVE_DRAW_COST, 100);
   assert.equal(RANDOMIZE_PART_COST, 50);
   assert.equal(RANDOMIZE_ALL_COST, 150);
@@ -181,22 +189,25 @@ function testEconomyTalents(): void {
 
   const bagRun = run([], {bag_items: {potion: 2, berry: 1}, non_refundable_bag_items: {potion: 1}});
   assert.equal(refundableBagBaseBpFromCosts(bagRun, {potion: 200, berry: 300}), 125);
-  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["economy_premium_guest"])}, {potion: 200, berry: 300}), 250);
+  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["economy_premium_guest"])}, {potion: 200, berry: 300}), 150);
+  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: [talentAtLevel("economy_premium_guest", 3)]}, {potion: 200, berry: 300}), 250);
   assert.equal(refundableBagBaseBpFromCosts(bagRun, {potion: 200, berry: 300}, "loss"), 50);
-  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["economy_premium_guest"])}, {potion: 200, berry: 300}, "loss"), 100);
+  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: talents(["economy_premium_guest"])}, {potion: 200, berry: 300}, "loss"), 60);
+  assert.equal(refundableBagBaseBpFromCosts({...bagRun, talents: [talentAtLevel("economy_premium_guest", 3)]}, {potion: 200, berry: 300}, "loss"), 100);
 
   assert.equal(gainedBp(run(), 100), 100);
-  assert.equal(gainedBp(run(["economy_amulet_coin"]), 100), 135);
+  assert.equal(gainedBp(run(["economy_amulet_coin"]), 100), 110);
+  assert.equal(gainedBp(run([], {talents: [talentAtLevel("economy_amulet_coin", 3)]}), 100), 135);
   assert.equal(gainedBp(run([], {player_display: [{shiny: true} as any]}), 100), 110);
   assert.equal(gainedBp(run(["economy_shiny_collector"], {player_display: [{shiny: true} as any]}), 100), 130);
-  assert.equal(gainedBp(run(["economy_shiny_collector", "economy_amulet_coin"], {player_display: [{shiny: true} as any]}), 100), 175);
+  assert.equal(gainedBp(run([], {talents: [talent("economy_shiny_collector"), talentAtLevel("economy_amulet_coin", 3)], player_display: [{shiny: true} as any]}), 100), 175);
 
   const playerSave = save(0);
-  assert.equal(addRunBp(playerSave, run(["economy_amulet_coin"]), 200), 270);
+  assert.equal(addRunBp(playerSave, run([], {talents: [talentAtLevel("economy_amulet_coin", 3)]}), 200), 270);
   assert.equal(currentBp(playerSave), 0);
   const bonusSave = save(0);
   bonusSave.stats.set_win_streak = 1;
-  assert.equal(clearBonus(bonusSave, run(["economy_amulet_coin"])).bonus, Math.floor((2 * 2 + 7) * BP_SCALE * 1.35));
+  assert.equal(clearBonus(bonusSave, run([], {talents: [talentAtLevel("economy_amulet_coin", 3)]})).bonus, Math.floor((2 * 2 + 7) * BP_SCALE * 1.35));
 
   assert.equal(portfolioSpendTypeForLabel("shop-buy:potion"), "商店");
   assert.equal(portfolioSpendTypeForLabel("adjust-move"), "技能");
@@ -237,8 +248,10 @@ function testBattleSettingDefaults(): void {
 
   assert.deepEqual(normalizeBattleSetting({allowed_generations: [8, 9]}).allowed_generations, DEFAULT_BATTLE_SETTING.allowed_generations);
   assert.deepEqual(normalizeBattleSetting({allowed_generations: [9, 8, 8, 7]}).allowed_generations, [9, 8, 7]);
-  assert.deepEqual(normalizeBattleSetting({enabled_battle_systems: ["mega", "zmove", "dynamax", "terastal"]}).enabled_battle_systems, ["mega", "zmove"]);
-  assert.deepEqual(normalizeBattleSetting({enabled_battle_systems: ["mega", "mega", "bad" as any]}).enabled_battle_systems, ["mega"]);
+  assert.deepEqual(normalizeBattleSetting({battle_rule_preset: "gen7"}).enabled_battle_systems, ["mega", "zmove"]);
+  assert.deepEqual(normalizeBattleSetting({battle_rule_preset: "gen8"}).enabled_battle_systems, ["dynamax"]);
+  assert.deepEqual(normalizeBattleSetting({battle_rule_preset: "gen9"}).enabled_battle_systems, ["terastal"]);
+  assert.deepEqual(normalizeBattleSetting({enabled_battle_systems: ["mega", "mega", "bad" as any]}).enabled_battle_systems, ["mega", "zmove"]);
   assert.equal(normalizeBattleSetting({legendary_battle: true}).legendary_battle, true);
 }
 

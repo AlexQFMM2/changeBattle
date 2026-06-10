@@ -304,6 +304,12 @@ function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; o
                 pp={move.pp || "--"}
                 power={move.power || "--"}
                 accuracy={move.accuracy ?? "必中"}
+                meta={[
+                  `PP ${move.pp || "--"}`,
+                  `威力 ${move.power || "--"}`,
+                  `命中 ${move.accuracy ?? "必中"}`,
+                  ...(move.learn_source_labels?.length ? [`来源 ${move.learn_source_labels.join(" / ")}`] : []),
+                ]}
                 onClick={() => onMoveSelect(move)}
                 key={move.id}
               />

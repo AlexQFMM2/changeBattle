@@ -1,11 +1,13 @@
 {
   "name": "@changebattle/desktop",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "main": "out/main/main.js",
   "scripts": {
     "dev": "node scripts/electron-vite.mjs dev",
+    "e2e:electron": "node scripts/electron-e2e-launch.mjs",
+    "e2e:star-chart": "node scripts/electron-star-chart.e2e.mjs",
     "web:dev": "vite --host 127.0.0.1 --port 5179",
     "build": "tsc -p tsconfig.json --noEmit && node scripts/electron-vite.mjs build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
