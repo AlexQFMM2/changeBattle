@@ -139,6 +139,106 @@ async function testEnemyAiPrefersEffectiveDamage(): Promise<void> {
   assert.doesNotMatch(events, /抓|Scratch/, events);
 }
 
+async function testSoulSickAiPrefersBadMoves(): Promise<void> {
+  const session = await createCustomSession(
+    [pokemon("Gengar", ["Splash"], "Levitate")],
+    [pokemon("Rattata", ["Tackle", "Crunch"], "Run Away")],
+    [201, 202, 203, 204],
+    {level: "gym_low", personality: "soul_sick", randomness: 0, allowSwitch: true, depth: 2},
+  );
+  const state = await session.choose("move 1");
+  const text = battleText(state);
+  assert.match(text, /撞击|Tackle/, text);
+  assert.doesNotMatch(text, /咬碎|Crunch/, text);
+  assert.match(text, /没有效果|doesn't affect|无效/i, text);
+}
+
+async function testSoulSickAiDoesNotPreferBattleSystems(): Promise<void> {
+  const session = await createCustomSession(
+    [pokemon("Blissey", ["Splash"], "Natural Cure")],
+    [{...pokemon("Charmander", ["Ember", "Scratch"], "Blaze"), item: "Firium Z"}],
+    [205, 206, 207, 208],
+    {level: "gym_low", personality: "soul_sick", randomness: 0},
+  );
+  const state = await session.choose("move 1");
+  const text = battleText(state);
+  assert.doesNotMatch(text, /Z 力量|超强极限爆焰弹|Inferno Overdrive/i, text);
+}
+
+async function testSoulSickAiDoesNotVoluntarySwitchButCanForceSwitch(): Promise<void> {
+  const noSwitchSession = await createCustomSession(
+    [pokemon("Garchomp", ["Splash"], "Sand Veil")],
+    [pokemon("Magikarp", ["Splash"], "Swift Swim"), pokemon("Charmander", ["Ember"], "Blaze")],
+    [209, 210, 211, 212],
+    {level: "gym_low", personality: "soul_sick", randomness: 0, allowSwitch: true, switchAwareness: 1},
+  );
+  const noSwitch = await noSwitchSession.choose("move 1");
+  assert.equal(noSwitch.tracker.active[noSwitch.enemy_side || "p2"]?.species_id, "magikarp", JSON.stringify(noSwitch.tracker.active, null, 2));
+
+  const forceSwitchSession = await createCustomSession(
+    [{...pokemon("Rampardos", ["Head Smash"], "Mold Breaker"), level: 80}],
+    [{...pokemon("Magikarp", ["Splash"], "Swift Swim"), level: 1}, pokemon("Charmander", ["Ember"], "Blaze")],
+    [213, 214, 215, 216],
+    {level: "gym_low", personality: "soul_sick", randomness: 0, allowSwitch: false},
+  );
+  const forced = await forceSwitchSession.choose("move 1");
+  assert.equal(forced.tracker.active[forced.enemy_side || "p2"]?.species_id, "charmander", JSON.stringify(forced.tracker.active, null, 2));
+}
+
+async function testRookieAiPrefersEffectiveDamage(): Promise<void> {
+  const session = await createCustomSession(
+    [pokemon("Bulbasaur", ["Tackle"], "Overgrow")],
+    [pokemon("Charmander", ["Scratch", "Ember"], "Blaze")],
+    [217, 218, 219, 220],
+    {level: "normal", personality: "rookie", randomness: 0},
+  );
+  const state = await session.choose("move 1");
+  const text = battleText(state);
+  assert.match(text, /火花|Ember/, text);
+  assert.doesNotMatch(text, /抓|Scratch/, text);
+}
+
+async function testRookieAiHasLowerKoPressureThanBalanced(): Promise<void> {
+  const balanced = await createCustomSession(
+    [pokemon("Bulbasaur", ["Tackle"], "Overgrow")],
+    [pokemon("Charmander", ["Scratch"], "Blaze")],
+    [221, 222, 223, 224],
+    {level: "normal", personality: "balanced", randomness: 0, prediction: 0.15},
+  );
+  const rookie = await createCustomSession(
+    [pokemon("Bulbasaur", ["Tackle"], "Overgrow")],
+    [pokemon("Charmander", ["Scratch"], "Blaze")],
+    [221, 222, 223, 224],
+    {level: "normal", personality: "rookie", randomness: 0, prediction: 0.05},
+  );
+  const scoreMove = (session: unknown) => (session as {scoreEnemyMove: (move: unknown, attacker: unknown, target: unknown) => number});
+  const move = {id: "scratch", move: "Scratch", pp: 35};
+  const balancedAttacker = balanced.getState().enemy_display[0];
+  const balancedTarget = balanced.getState().player_display[0];
+  const rookieAttacker = rookie.getState().enemy_display[0];
+  const rookieTarget = rookie.getState().player_display[0];
+  const balancedHealthy = scoreMove(balanced).scoreEnemyMove(move, balancedAttacker, balancedTarget);
+  const rookieHealthy = scoreMove(rookie).scoreEnemyMove(move, rookieAttacker, rookieTarget);
+  balanced.syncPlayerState(withHp(balanced.getPlayerState(), 1));
+  rookie.syncPlayerState(withHp(rookie.getPlayerState(), 1));
+  const balancedKo = scoreMove(balanced).scoreEnemyMove(move, balancedAttacker, balancedTarget);
+  const rookieKo = scoreMove(rookie).scoreEnemyMove(move, rookieAttacker, rookieTarget);
+  assert.ok(balancedKo - balancedHealthy > rookieKo - rookieHealthy, `balanced delta ${balancedKo - balancedHealthy}, rookie delta ${rookieKo - rookieHealthy}`);
+}
+
+async function testRookieAiDoesNotPreferBattleSystems(): Promise<void> {
+  const session = await createCustomSession(
+    [pokemon("Bulbasaur", ["Tackle"], "Overgrow")],
+    [{...pokemon("Charmander", ["Ember", "Scratch"], "Blaze"), item: "Firium Z"}],
+    [225, 226, 227, 228],
+    {level: "normal", personality: "rookie", randomness: 0},
+  );
+  const state = await session.choose("move 1");
+  const text = battleText(state);
+  assert.match(text, /火花|Ember/, text);
+  assert.doesNotMatch(text, /Z 力量|超强极限爆焰弹|Inferno Overdrive/i, text);
+}
+
 async function testRegeneratorUsesShowdownIdWithDuplicateIdent(): Promise<void> {
   const service = new GameService({projectRoot, showdownPath});
   const playerTeam = [
@@ -789,6 +889,12 @@ await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
 await testEnemyAiPrefersEffectiveDamage();
+await testSoulSickAiPrefersBadMoves();
+await testSoulSickAiDoesNotPreferBattleSystems();
+await testSoulSickAiDoesNotVoluntarySwitchButCanForceSwitch();
+await testRookieAiPrefersEffectiveDamage();
+await testRookieAiHasLowerKoPressureThanBalanced();
+await testRookieAiDoesNotPreferBattleSystems();
 await testRegeneratorUsesShowdownIdWithDuplicateIdent();
 await testShowdownIdsStayWithPokemonObjects();
 await testPainSplitSetHpHasFiniteTimeline();

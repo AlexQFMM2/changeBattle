@@ -208,7 +208,7 @@ type TierRow = {species_id: string; species: string; tier: SpeciesTier; override
 type SpeciesTierRule = {tier: SpeciesTier; weight: number; preferNonNfe?: boolean};
 type SpeciesPick = {speciesId: string; speciesTier: SpeciesTier};
 export type BattleAiKnowledge = "active_only" | "party_species" | "party_sets" | "omniscient";
-export type BattleAiPersonality = "balanced" | "aggressive" | "defensive" | "status" | "setup" | "adaptive";
+export type BattleAiPersonality = "balanced" | "aggressive" | "defensive" | "status" | "setup" | "adaptive" | "rookie" | "soul_sick";
 export type BattleAiProfile = {
   level: "normal" | "gym_low" | "gym_high" | "elite4" | "champion";
   knowledge: BattleAiKnowledge;
@@ -357,14 +357,26 @@ const BATTLE_AI_PERSONALITY_WEIGHTS: Record<BattleAiPersonality, BattleAiPersona
   status: {damage: 0.9, ko: 0.95, status: 1.32, setup: 0.96, switch: 1.08, defense: 1.12, riskPenalty: 1.05},
   setup: {damage: 0.98, ko: 1.06, status: 0.92, setup: 1.34, switch: 0.95, defense: 0.95, riskPenalty: 1},
   adaptive: {damage: 1.04, ko: 1.08, status: 1.08, setup: 1.08, switch: 1.1, defense: 1.08, riskPenalty: 0.95},
+  rookie: {damage: 0.86, ko: 0.35, status: 0.48, setup: 0.38, switch: 0.3, defense: 0.68, riskPenalty: 0.75},
+  soul_sick: {damage: 0.18, ko: 0.1, status: 0.4, setup: 0.25, switch: 0, defense: 0.35, riskPenalty: 0.2},
 };
 
 function battleAiProfile(input?: BattleAiProfileInput): BattleAiProfile {
   const base = typeof input === "string" ? BATTLE_AI_PRESETS[input] : BATTLE_AI_PRESETS[input?.level || "normal"];
   const merged = {...base, ...(typeof input === "object" ? input : {})};
+  const personality = BATTLE_AI_PERSONALITY_WEIGHTS[merged.personality as BattleAiPersonality] ? merged.personality : "balanced";
+  if (personality === "soul_sick") {
+    merged.depth = 0;
+    merged.allowSwitch = false;
+    merged.switchAwareness = 0;
+    merged.candidateSwitches = 0;
+    merged.prediction = 0;
+    merged.statusAwareness = Math.min(Number(merged.statusAwareness || 0), 0.25);
+    merged.setupAwareness = Math.min(Number(merged.setupAwareness || 0), 0.2);
+  }
   return {
     ...merged,
-    personality: BATTLE_AI_PERSONALITY_WEIGHTS[merged.personality as BattleAiPersonality] ? merged.personality : "balanced",
+    personality,
     randomness: clampNumber(merged.randomness, 0, 1),
     prediction: clampNumber(merged.prediction, 0, 1),
     statusAwareness: clampNumber(merged.statusAwareness, 0, 1),
@@ -2286,6 +2298,7 @@ export class BattleSession {
             move: entry.move,
             moveRequest: entry.moveRequest,
           };
+          if (side === "p2" && this.avoidsBattleSystemAi()) return [{...base, choice: `move ${entry.index}`, score}];
           const candidates = canDynamax && maxMoves[entry.index - 1] ? [{...base, choice: `move ${entry.index} max`, score: score + 78}] : [];
           if (canTerastallize) candidates.push({...base, choice: `move ${entry.index} terastallize`, score: score + 76});
           if (canMegaEvo) candidates.push({...base, choice: `move ${entry.index} mega`, score: score + 75});
@@ -2348,6 +2361,7 @@ export class BattleSession {
   private scoreAiMove(side: SideId, move: any, attacker: AiPokemonState, target: AiPokemonState): number {
     const accuracy = typeof move.accuracy === "number" ? move.accuracy / 100 : 1;
     const personality = side === "p2" ? this.personalityWeights() : BATTLE_AI_PERSONALITY_WEIGHTS.balanced;
+    if (side === "p2" && this.isSoulSickAi()) return this.scoreSoulSickMove(move, attacker.display, target.display, target.hp) * accuracy;
     if (move.category === "Status" || !Number(move.basePower || move.damage)) {
       const statusBase = move.status ? 44 * this.enemyAi.statusAwareness * personality.status : 14;
       const setupBase = (move.boosts || move.self?.boosts) ? 38 * this.enemyAi.setupAwareness * personality.setup : 0;
@@ -2497,6 +2511,7 @@ export class BattleSession {
     return moves.flatMap(entry => {
       const score = this.scoreEnemyMove(entry.move, active, target);
       const zMove = canZMove[entry.index - 1];
+      if (this.avoidsBattleSystemAi()) return [{choice: `move ${entry.index}`, score}];
       const candidates = canDynamax && maxMoves[entry.index - 1] ? [{choice: `move ${entry.index} max`, score: score + 78}] : [];
       if (canTerastallize) candidates.push({choice: `move ${entry.index} terastallize`, score: score + 76});
       if (canMegaEvo) candidates.push({choice: `move ${entry.index} mega`, score: score + 75});
@@ -2505,6 +2520,18 @@ export class BattleSession {
       return candidates;
     })
       .sort((a, b) => b.score - a.score);
+  }
+
+  private isSoulSickAi(): boolean {
+    return this.enemyAi.personality === "soul_sick";
+  }
+
+  private isRookieAi(): boolean {
+    return this.enemyAi.personality === "rookie";
+  }
+
+  private avoidsBattleSystemAi(): boolean {
+    return this.isSoulSickAi() || this.isRookieAi();
   }
 
   private scoredEnemySwitches(request: BattleRequestView): Array<{choice: string; score: number}> {
@@ -2535,6 +2562,7 @@ export class BattleSession {
     const personality = this.personalityWeights();
     const accuracy = typeof move.accuracy === "number" ? move.accuracy / 100 : 1;
     const targetHp = this.activeHpValue(this.playerSide());
+    if (this.isSoulSickAi()) return this.scoreSoulSickMove(move, attacker, target, targetHp) * accuracy;
     if (move.category === "Status" || !Number(move.basePower || move.damage)) {
       return this.scoreStatusMove(move, target) * accuracy;
     }
@@ -2556,6 +2584,30 @@ export class BattleSession {
     if (move.recoil || move.hasCrashDamage) score -= 10 * personality.riskPenalty;
     if (move.selfdestruct) score -= (this.activeHpFraction("p2") > 0.25 ? 80 : 15) * personality.riskPenalty;
     return score;
+  }
+
+  private scoreSoulSickMove(move: any, attacker: RentalPokemon | undefined, target: RentalPokemon | undefined, targetHp: number): number {
+    const effectiveness = this.typeMultiplier(move.type, target);
+    if (move.category === "Status" || !Number(move.basePower || move.damage)) {
+      let score = 38;
+      if (move.boosts || move.self?.boosts) score -= 10;
+      if (move.status || move.volatileStatus) score += 4;
+      if (effectiveness <= 0 && !move.status && !move.boosts && !move.self?.boosts) score += 36;
+      return score + this.nextRandom() * 3;
+    }
+    const basePower = Math.max(1, Number(move.basePower || move.damage || 1));
+    const damage = this.estimatedMoveDamage(move, attacker, target);
+    let score = Math.max(0, 130 - basePower);
+    if (effectiveness <= 0) score += 140;
+    else if (effectiveness < 1) score += 72;
+    else if (effectiveness >= 4) score -= 92;
+    else if (effectiveness >= 2) score -= 58;
+    if (attacker?.types?.includes(move.type)) score -= 10;
+    if (targetHp > 0 && damage >= targetHp) score -= 130;
+    if (Number(move.priority || 0) > 0 && this.activeHpFraction(this.enemySide()) < 0.35) score -= 16;
+    if (move.recoil || move.hasCrashDamage) score += 8;
+    if (move.selfdestruct) score += 24;
+    return score + this.nextRandom() * 3;
   }
 
   private scoreStatusMove(move: any, target: RentalPokemon | undefined): number {

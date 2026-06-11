@@ -1075,6 +1075,122 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   background: rgb(105 12 18 / 72%);
 }
 
+.bgm-control {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 320;
+  color: #fffdf5;
+  font-family: inherit;
+}
+
+.bgm-floating-button {
+  width: 72px;
+  height: 34px;
+  border: 2px solid #ffe0a0;
+  border-radius: 5px;
+  background: rgb(27 35 28 / 82%);
+  color: #fff4cf;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 36%);
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.bgm-floating-button span {
+  font-size: 18px;
+}
+
+.bgm-floating-button:hover,
+.bgm-control.open .bgm-floating-button {
+  background: #4b613d;
+  color: #fff9df;
+}
+
+.bgm-settings-panel {
+  position: absolute;
+  right: 0;
+  top: 42px;
+  width: 236px;
+  display: grid;
+  gap: 10px;
+  border: 2px solid #d9b66f;
+  border-radius: 8px;
+  background: rgb(24 32 26 / 92%);
+  color: #fff8df;
+  padding: 10px;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 42%);
+}
+
+.bgm-settings-panel header,
+.bgm-toggle-row,
+.bgm-volume-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bgm-settings-panel header strong {
+  font-size: 14px;
+}
+
+.bgm-settings-panel header button {
+  min-height: 22px;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.bgm-toggle-row,
+.bgm-volume-row {
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.bgm-toggle-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: #e2b954;
+}
+
+.bgm-volume-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.bgm-volume-row input {
+  width: 100%;
+  accent-color: #e2b954;
+}
+
+.bgm-settings-panel p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  border-top: 1px solid rgb(255 232 170 / 24%);
+  padding-top: 8px;
+}
+
+.bgm-settings-panel p span,
+.bgm-settings-panel small {
+  color: rgb(255 248 223 / 68%);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.bgm-settings-panel p strong {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .error-modal-layer {
   z-index: 160;
 }
@@ -7468,11 +7584,30 @@ button.party-status-chip {
   text-align: left;
 }
 
+.rest-workspace .forge-material-list button {
+  grid-template-rows: auto auto auto;
+}
+
+.rest-workspace .forge-material-list button.selected {
+  border-color: #c06d22;
+  background: #fff0d0;
+}
+
+.rest-workspace .forge-material-list button.blocked {
+  border-color: #b75b62;
+  background: #fff1f1;
+  color: #6f2329;
+}
+
 .rest-workspace .forge-material-list .item-icon,
 .rest-workspace .forge-special-row .item-icon,
 .rest-workspace .forge-slots .item-icon {
   width: 22px;
   height: 22px;
+}
+
+.rest-workspace .forge-material-list .item-icon {
+  grid-row: 1 / 4;
 }
 
 .rest-workspace .forge-material-list span,
@@ -7486,6 +7621,22 @@ button.party-status-chip {
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rest-workspace .forge-material-list em {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(74, 50, 36, 0.72);
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .forge-material-list button.blocked em {
+  color: #8f3038;
 }
 
 .rest-workspace .forge-panel,
@@ -8515,8 +8666,11 @@ button.party-status-chip {
 
 .rest-event-card-grid {
   min-width: 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
   gap: 10px;
 }
 
@@ -8524,9 +8678,9 @@ button.party-status-chip {
   min-width: 0;
   min-height: 190px;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
-  justify-items: start;
+  justify-items: stretch;
   gap: 8px;
   border: 3px solid #37433c;
   border-radius: 8px;
@@ -8557,17 +8711,45 @@ button.party-status-chip {
 }
 
 .rest-event-card strong {
-  font-size: 18px;
+  justify-self: center;
+  width: 100%;
+  text-align: center;
+  font-size: 20px;
 }
 
 .rest-event-card p {
   color: #27342d;
+  font-size: 14px;
   line-height: 1.45;
 }
 
 .rest-event-card small {
   color: #657065;
   line-height: 1.45;
+}
+
+.rest-event-card-body section {
+  display: grid;
+  gap: 4px;
+}
+
+.rest-event-card-body b {
+  color: #21352d;
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.rest-event-card-body ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  color: #27342d;
+}
+
+.rest-event-card-body li {
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .rest-event-card.tone-safe {
@@ -15348,6 +15530,53 @@ button.party-status-chip {
   max-height: none;
 }
 
+.score-bet-modal {
+  gap: 10px;
+}
+
+.score-bet-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.score-bet-summary article {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  border-radius: 8px;
+  background: rgba(24, 24, 27, 0.5);
+}
+
+.score-bet-summary span,
+.score-bet-summary small {
+  color: rgba(244, 244, 245, 0.68);
+  font-size: 0.76rem;
+}
+
+.score-bet-summary strong {
+  font-size: 1.05rem;
+  color: #fff7ed;
+}
+
+.score-bet-target-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.score-bet-controls {
+  display: grid;
+  grid-template-columns: auto minmax(96px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.score-bet-controls input {
+  width: 100%;
+  min-width: 0;
+}
+
 .pokopia-layer[data-phase="expand"] .pokopia-shell.barter-buy-modal,
 .pokopia-layer[data-phase="exit"] .pokopia-shell.barter-buy-modal,
 .pokopia-content.barter-buy-modal {
@@ -15492,9 +15721,9 @@ button.party-status-chip {
 .pokopia-layer[data-phase="expand"] .pokopia-shell.rest-event-modal,
 .pokopia-layer[data-phase="exit"] .pokopia-shell.rest-event-modal,
 .pokopia-content.rest-event-modal {
-  width: min(406px, calc(100% - 28px));
+  width: min(560px, calc(100% - 20px));
   min-height: 0;
-  height: 198px;
+  height: min(300px, calc(100% - 20px));
 }
 
 .pokopia-shell.rest-event-modal {
@@ -15510,7 +15739,7 @@ button.party-status-chip {
 .rest-event-content {
   height: 100%;
   grid-template-rows: 24px minmax(0, 1fr);
-  gap: 8px;
+  gap: 7px;
   padding: 10px;
 }
 
@@ -15533,18 +15762,21 @@ button.party-status-chip {
 
 .rest-event-card-grid {
   min-height: 0;
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
   align-content: start;
-  gap: 7px;
+  gap: 8px;
 }
 
 .rest-event-card {
   min-height: 0;
-  height: 136px;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 5px;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
   border-width: 2px;
   border-radius: 5px;
-  padding: 8px;
+  padding: 9px;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 72%), 0 4px 0 rgb(26 38 31 / 16%);
 }
 
@@ -15562,7 +15794,10 @@ button.party-status-chip {
 }
 
 .rest-event-card strong {
-  font-size: 11px;
+  justify-self: center;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
   line-height: 1.05;
 }
 
@@ -15570,7 +15805,7 @@ button.party-status-chip {
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 5px;
+  gap: 6px;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 3px;
@@ -15591,10 +15826,30 @@ button.party-status-chip {
   display: block;
   overflow: visible;
   margin: 0;
-  font-size: 7px;
-  line-height: 1.24;
+  font-size: 9px;
+  line-height: 1.3;
   -webkit-box-orient: initial;
   -webkit-line-clamp: unset;
+}
+
+.rest-event-card-body section {
+  gap: 2px;
+}
+
+.rest-event-card-body b {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.rest-event-card-body ul {
+  gap: 2px;
+  padding-left: 11px;
+}
+
+.rest-event-card-body li {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.24;
 }
 
 /* Compact rest event status chips. The rest page has four rows once event statuses exist. */

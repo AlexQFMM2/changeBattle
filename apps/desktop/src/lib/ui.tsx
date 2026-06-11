@@ -473,6 +473,17 @@ export function pokemonCryUrl(source?: {sprite?: Pick<SpriteMapEntry, "cry_asset
 }
 
 const pokemonCryAudioByChannel = new Map<string, HTMLAudioElement>();
+const POKEMON_CRY_MAX_VOLUME = 0.72;
+const DEFAULT_POKEMON_CRY_VOLUME_RATIO = 0.2;
+let pokemonCryVolume = POKEMON_CRY_MAX_VOLUME * DEFAULT_POKEMON_CRY_VOLUME_RATIO;
+
+export function setPokemonCryVolume(volume: number): void {
+  const normalized = Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : DEFAULT_POKEMON_CRY_VOLUME_RATIO));
+  pokemonCryVolume = normalized * POKEMON_CRY_MAX_VOLUME;
+  for (const audio of pokemonCryAudioByChannel.values()) {
+    audio.volume = pokemonCryVolume;
+  }
+}
 
 export function playPokemonCry(source?: {sprite?: Pick<SpriteMapEntry, "cry_asset">} | Pick<SpriteMapEntry, "cry_asset">, channel = "pokemon"): void {
   const url = pokemonCryUrl(source);
@@ -483,7 +494,7 @@ export function playPokemonCry(source?: {sprite?: Pick<SpriteMapEntry, "cry_asse
     audio.pause();
     if (audio.src !== url) audio.src = url;
     audio.currentTime = 0;
-    audio.volume = 0.72;
+    audio.volume = pokemonCryVolume;
     const playback = audio.play();
     if (playback) void playback.catch(() => undefined);
   } catch {

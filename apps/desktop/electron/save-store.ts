@@ -18,7 +18,7 @@ import type {
   TrainerGender,
   TrainerProfile,
 } from "@changebattle/shared";
-import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
+import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 
 const SAVE_VERSION = 1 as const;
 const SPLIT_SAVE_VERSION = 2 as const;
@@ -99,11 +99,13 @@ export class SaveStore {
         battles: 0,
         wins: 0,
         losses: 0,
+        pokemon_usage_counts: {},
         win_rate: 0,
         set_win_streak: 0,
         best_set_win_streak: 0,
         rank_status: "未开放",
       },
+      audio_settings: DEFAULT_AUDIO_SETTINGS,
       talent_unlocks: [],
       talent_equipped: [],
       named_champion_id: null,
@@ -197,6 +199,7 @@ export class SaveStore {
       bp_scale: user.bp_scale ?? BP_SCALE,
       trainer: user.trainer,
       stats: user.stats,
+      audio_settings: user.audio_settings || DEFAULT_AUDIO_SETTINGS,
       talent_unlocks: talents.talent_unlocks || [],
       talent_equipped: talents.talent_equipped || [],
       star_chart: talents.star_chart,
@@ -229,6 +232,7 @@ export class SaveStore {
       bp_scale: save.bp_scale ?? BP_SCALE,
       trainer: save.trainer,
       stats: save.stats,
+      audio_settings: save.audio_settings,
       run_memory: save.run_memory,
       created_at: save.created_at,
       updated_at: save.updated_at,

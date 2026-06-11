@@ -17,13 +17,16 @@ const ENTRY_EFFECT_TYPES = new Set(["ability", "weather", "field", "item", "mess
 
 export function buildBattleDisplaySteps(events: BattleTimelineEvent[]): BattleDisplayStep[] {
   const steps: BattleDisplayStep[] = [];
-  for (const event of orderEntryPhaseEvents(events)) {
+  const orderedEvents = orderEntryPhaseEvents(events);
+  for (let index = 0; index < orderedEvents.length; index += 1) {
+    const event = orderedEvents[index];
     if (MESSAGE_ONLY_TYPES.has(event.type)) {
       steps.push({kind: "message", event});
       continue;
     }
     if (event.type === "move") {
-      steps.push({kind: "message", event}, {kind: "visual", event});
+      steps.push({kind: "message", event});
+      if (!moveMisses(event, orderedEvents[index + 1])) steps.push({kind: "visual", event});
       continue;
     }
     if (event.type === "damage" || event.type === "heal") {
@@ -49,6 +52,22 @@ export function buildBattleDisplaySteps(events: BattleTimelineEvent[]): BattleDi
     steps.push({kind: "message", event});
   }
   return steps;
+}
+
+function moveMisses(move: BattleTimelineEvent, next: BattleTimelineEvent | undefined): boolean {
+  if (!next || next.type !== "miss") return false;
+  const moveSide = move.side || move.targetSide || "";
+  const missSide = next.side || "";
+  if (moveSide && missSide && moveSide !== missSide) return false;
+  const moveShowdownId = toId(move.source_showdown_id || "");
+  const missShowdownId = toId(next.source_showdown_id || "");
+  if (moveShowdownId && missShowdownId && moveShowdownId !== missShowdownId) return false;
+  const moveSource = toId(move.source_id || move.source || "");
+  const missSource = toId(next.source_id || next.source || "");
+  if (!moveShowdownId || !missShowdownId) {
+    if (moveSource && missSource && moveSource !== missSource) return false;
+  }
+  return !move.turn || !next.turn || Number(move.turn) === Number(next.turn);
 }
 
 function orderEntryPhaseEvents(events: BattleTimelineEvent[]): BattleTimelineEvent[] {

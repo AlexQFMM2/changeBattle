@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 const api = {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -33,6 +33,12 @@ const api = {
   },
   updateBattleSetting(setting: BattleSetting): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
     return ipcRenderer.invoke("battleSetting:update", setting);
+  },
+  getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("audioSettings:get");
+  },
+  updateAudioSettings(settings: Partial<AudioSettings>): Promise<{settings: AudioSettings; save?: LocalSave | null}> {
+    return ipcRenderer.invoke("audioSettings:update", settings);
   },
   trainerCatalog(): Promise<TrainerCatalogState> {
     return ipcRenderer.invoke("trainer:catalog");

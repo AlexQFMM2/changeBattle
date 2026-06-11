@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 import type {BattleDisplayStep} from "./components/battle/timelineFlow";
 import type {BrowserTestScenario} from "./web/browserTestBridge";
 
@@ -17,6 +17,8 @@ declare global {
       enableTestMode(): Promise<LocalSave>;
       getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
       updateBattleSetting(setting: BattleSetting): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
+      getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}>;
+      updateAudioSettings(settings: Partial<AudioSettings>): Promise<{settings: AudioSettings; save?: LocalSave | null}>;
       trainerCatalog(): Promise<TrainerCatalogState>;
       prepareCandidates(seed?: number): Promise<DesktopGameState>;
       prepareStarterItems(seed?: number): Promise<DesktopGameState>;

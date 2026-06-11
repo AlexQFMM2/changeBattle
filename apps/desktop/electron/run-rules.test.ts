@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type {BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
+import type {BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
 import {
@@ -13,6 +13,8 @@ import {
   SHOP_ROLL_COST_FIRST,
   SHOP_ROLL_COST_GAMBLER_PAID,
   SHOP_ROLL_COST_NEXT,
+  SOUL_SWAP_TURN_LIMIT,
+  SCORE_BET_MIN_STAKE,
   TALENTS,
   addRunBp,
   canDirectMove,
@@ -23,6 +25,7 @@ import {
   convertibleCoinsForSettlement,
   currentBp,
   currentCoins,
+  enemyAiProfileForRunRoute,
   exchangeCost,
   exchangeFullState,
   exchangeKeepsItem,
@@ -40,14 +43,22 @@ import {
   pricedForShop,
   recordPortfolioSpend,
   refundableBagBaseBpFromCosts,
+  rookieNormalNpcAiProfile,
   scoutCost,
   sellPriceForItem,
+  scoreBetMaxStakeForCoins,
+  scoreBetMultiplier,
+  scoreBetPayout,
   shopCandidateCount,
   shopDuplicateBonusForOffers,
   shopNextRollCost,
   shopOfferCount,
+  shouldForceSoulSwapTimeout,
+  soulSwapAllowedForNextBattle,
+  soulSwapEnemyAiProfile,
   spendBp,
   spendCoins,
+  settleScoreBetResult,
   starterCoinsForSeed,
   starterNonConvertibleCoinsForTalents,
   starterUpgradeLevel,
@@ -230,6 +241,24 @@ function testEconomyTalents(): void {
   assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 500, excludedCoins: 0});
 }
 
+function testScoreBetRules(): void {
+  assert.equal(scoreBetMultiplier(3), 5);
+  assert.equal(scoreBetPayout(100, 3), 500);
+  assert.equal(scoreBetPayout(100, 2), 200);
+  assert.equal(scoreBetPayout(101, 1), 151);
+  assert.equal(scoreBetMaxStakeForCoins(100, 0), SCORE_BET_MIN_STAKE);
+  assert.equal(scoreBetMaxStakeForCoins(900, 100), 500);
+  assert.equal(scoreBetMaxStakeForCoins(5000, 100), 1000);
+
+  const bet = {target_alive: 3 as const, stake: 100, multiplier: 5};
+  assert.deepEqual(settleScoreBetResult(bet, true, 3, 0), {hit: true, payout: 500, targetAlive: 3, stake: 100, message: "重金下注命中 3:0，返还 500金币。"});
+  assert.equal(settleScoreBetResult(bet, true, 2, 0)?.hit, false);
+  assert.equal(settleScoreBetResult({...bet, target_alive: 2 as const, multiplier: 2}, true, 3, 0)?.hit, false);
+  assert.equal(settleScoreBetResult({...bet, target_alive: 1 as const, multiplier: 1.5}, true, 1, 0)?.hit, true);
+  assert.equal(settleScoreBetResult(bet, true, 3, 1)?.hit, false);
+  assert.equal(settleScoreBetResult(bet, false, 3, 0)?.hit, false);
+}
+
 function testDefaultsAndHelpers(): void {
   const plain = run();
   assert.equal(hasTalent(plain.talents, "exchange_careful"), false);
@@ -303,16 +332,85 @@ function testBattleTimelineEntryOrdering(): void {
   assert.deepEqual(seen, ["s1", "w1", "s2", "w2"]);
 }
 
+function testBattleTimelineMissSkipsMoveVisual(): void {
+  const events: BattleTimelineEvent[] = [
+    {id: "m1", type: "move", text: "好胜毛蟹 使用 吸取拳。", side: "p1", source: "好胜毛蟹", source_id: "Crabominable", source_showdown_id: "pokeball", move: "吸取拳", turn: 1},
+    {id: "x1", type: "miss", text: "好胜毛蟹 的攻击没有命中 步哨鼠。", side: "p1", targetSide: "p2", source: "好胜毛蟹", source_id: "Crabominable", target: "步哨鼠", target_id: "Watchog", target_showdown_id: "pokeball", turn: 1},
+  ];
+  assert.deepEqual(buildBattleDisplaySteps(events).map(step => `${step.kind}:${step.event?.id}`), ["message:m1", "message:x1", "visual:x1"]);
+}
+
+function battleStateAtTurn(turn: number, ended = false): BattleState {
+  return {
+    ended,
+    winner: ended ? "Player" : null,
+    request: null,
+    tracker: {
+      turn,
+      active: {p1: {}, p2: {}},
+      boosts: {p1: {}, p2: {}},
+      side_conditions: {p1: [], p2: []},
+      weather: "",
+      field: [],
+      pp: {},
+    },
+    recent_events: [],
+    timeline_events: [],
+    player_team: [],
+    player_display: [],
+    enemy_team: [],
+    enemy_display: [],
+  };
+}
+
+function testSoulSwapRules(): void {
+  const profile = soulSwapEnemyAiProfile();
+  assert.equal(typeof profile, "object");
+  assert.equal((profile as any).personality, "soul_sick");
+  assert.equal((profile as any).allowSwitch, false);
+  assert.equal((profile as any).depth, 0);
+
+  assert.equal(shouldForceSoulSwapTimeout(run([], {rest_status: {event_soul_swap_active: true}}), battleStateAtTurn(SOUL_SWAP_TURN_LIMIT - 1)), false);
+  assert.equal(shouldForceSoulSwapTimeout(run([], {rest_status: {event_soul_swap_active: true}}), battleStateAtTurn(SOUL_SWAP_TURN_LIMIT)), true);
+  assert.equal(shouldForceSoulSwapTimeout(run([], {rest_status: {}}), battleStateAtTurn(SOUL_SWAP_TURN_LIMIT)), false);
+  assert.equal(shouldForceSoulSwapTimeout(run([], {rest_status: {event_soul_swap_active: true}}), battleStateAtTurn(SOUL_SWAP_TURN_LIMIT, true)), false);
+
+  assert.equal(soulSwapAllowedForNextBattle(run([], {next_battle: 2})), true);
+  assert.equal(soulSwapAllowedForNextBattle(run([], {next_battle: 3})), false);
+  assert.equal(soulSwapAllowedForNextBattle(run([], {next_battle: 7})), false);
+  assert.equal(soulSwapAllowedForNextBattle(run([], {next_battle: 3, planned_battles: [{battle_no: 3, route_type: "normal"} as any]})), true);
+  assert.equal(soulSwapAllowedForNextBattle(run([], {next_battle: 2, planned_battles: [{battle_no: 2, route_type: "gym"} as any]})), false);
+}
+
+function testRookieAiRules(): void {
+  const profile = rookieNormalNpcAiProfile();
+  assert.equal(typeof profile, "object");
+  assert.equal((profile as any).personality, "rookie");
+  assert.equal((profile as any).depth, 0);
+  assert.equal((profile as any).randomness, 0.36);
+  assert.equal((profile as any).switchAwareness, 0.08);
+
+  assert.equal((enemyAiProfileForRunRoute(run([], {wins: 0}), "normal", "normal") as any).personality, "rookie");
+  assert.equal(enemyAiProfileForRunRoute(run([], {wins: 1}), "normal", "normal"), "normal");
+  assert.equal(enemyAiProfileForRunRoute(run([], {wins: 0}), "gym", "gym_low"), "gym_low");
+  assert.deepEqual(enemyAiProfileForRunRoute(run([], {wins: 0}), "champion", {level: "champion", personality: "adaptive"} as any), {level: "champion", personality: "adaptive"});
+  assert.equal((soulSwapEnemyAiProfile() as any).personality, "soul_sick");
+}
+
 testTalentCatalog();
 testStarterTalents();
 testExchangeTalents();
 testGrowthTalents();
 testIntelTalents();
 testEconomyTalents();
+testScoreBetRules();
 testDefaultsAndHelpers();
 testBattleSettingDefaults();
 testShopDuplicateBonus();
 testPremiumShopHelpers();
 testBattleTimelineEntryOrdering();
+testBattleTimelineMissSkipsMoveVisual();
+testSoulSwapRules();
+testRookieAiRules();
 
 console.log("Desk talent rule tests passed.");

@@ -5,6 +5,8 @@ import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "rea
 import type {AppStatus, BagCategoryView, BattleState, DesktopGameState, LocalSave, RentalPokemon, RestAction, ResultSummaryState, TrainerCatalogState} from "@changebattle/shared";
 import {useResponsiveCanvas} from "./hooks/useResponsiveCanvas";
 import "./styles.css";
+import {BgmController} from "./components/audio/BgmController";
+import type {BgmScene} from "./components/audio/musicManifest";
 import {ScreenToast} from "./components/feedback/ScreenToast";
 import {QuickDexModal} from "./pages/dex/QuickDexModal";
 import {PlayerSettings} from "./pages/player/PlayerSettings";
@@ -106,7 +108,7 @@ function RoutedApp() {
   const [message, setMessage] = useState(browserInitialState?.message || "欢迎来到 ChangeBattle。选择读取存档或开始新游戏。");
   const [loading, setLoading] = useState(false);
   const [appToast, setAppToast] = useState<{id: number; message: string; durationMs?: number} | null>(null);
-  const [routeTransition, setRouteTransition] = useState<(RouteTransitionCopy & {id: number}) | null>(null);
+  const [routeTransition, setRouteTransition] = useState<(RouteTransitionCopy & {id: number; targetScreen: AppStatus; musicScene?: BgmScene}) | null>(null);
   const [battleChoicePending, setBattleChoicePending] = useState(false);
   const battleChoicePendingRef = useRef(false);
   const routeTransitionTimerRef = useRef<number | null>(null);
@@ -148,7 +150,8 @@ function RoutedApp() {
     });
   }, []);
 
-  function applyStateData(state: DesktopGameState) {
+  function applyStateData(state: DesktopGameState, options: {showToastMessage?: boolean} = {}) {
+    const showToastMessage = options.showToastMessage ?? true;
     const nextBattle = state.battle || null;
     setSave(state.save || null);
     if (state.candidates?.display) {
@@ -167,24 +170,24 @@ function RoutedApp() {
     setResultSummary(state.result_summary || null);
     setPendingTransition(state.pending_transition || null);
     setMessage(state.message || "");
-    if (state.toast_message) showAppToast(state.toast_message, 2400);
+    if (showToastMessage && state.toast_message) showAppToast(state.toast_message, 2400);
   }
 
-  function applyState(state: DesktopGameState) {
-    flushSync(() => applyStateData(state));
+  function applyState(state: DesktopGameState, options: {showToastMessage?: boolean} = {}) {
+    flushSync(() => applyStateData(state, options));
     navigateToScreen(state.screen);
   }
 
-  function transitionToState(state: DesktopGameState, reason: RouteTransitionReason) {
+  function transitionToState(state: DesktopGameState, reason: RouteTransitionReason, options: {showToastMessage?: boolean} = {}) {
     clearRouteTransitionTimer();
     setDexOpen(false);
     const copy = routeTransitionCopy(state.screen, reason);
-    setRouteTransition({...copy, id: ++routeTransitionIdRef.current});
+    setRouteTransition({...copy, id: ++routeTransitionIdRef.current, targetScreen: state.screen, musicScene: bgmSceneForScreen(state.screen, state.battle || null)});
     navigate(TRANSITION_ROUTE);
     routeTransitionTimerRef.current = window.setTimeout(() => {
       routeTransitionTimerRef.current = null;
       flushSync(() => {
-        applyStateData(state);
+        applyStateData(state, options);
         setRouteTransition(null);
       });
       navigateToScreen(state.screen);
@@ -195,7 +198,7 @@ function RoutedApp() {
     clearRouteTransitionTimer();
     setDexOpen(false);
     const copy = routeTransitionCopy(nextScreen, reason);
-    setRouteTransition({...copy, id: ++routeTransitionIdRef.current});
+    setRouteTransition({...copy, id: ++routeTransitionIdRef.current, targetScreen: nextScreen, musicScene: bgmSceneForScreen(nextScreen, nextScreen === "battleMain" ? battle : null)});
     navigate(TRANSITION_ROUTE);
     routeTransitionTimerRef.current = window.setTimeout(() => {
       routeTransitionTimerRef.current = null;
@@ -214,6 +217,12 @@ function RoutedApp() {
     if (reason === "settlement") return nextScreen === "result";
     if (reason === "returnHome") return nextScreen === "mainMenu";
     return false;
+  }
+
+  function bgmSceneForScreen(nextScreen: AppStatus, nextBattle?: BattleState | null): BgmScene {
+    if (BATTLE_SCREENS.includes(nextScreen)) return nextBattle?.music_scene === "boss" ? "boss" : "battle";
+    if (nextScreen === "starterItems" || nextScreen === "rentalSelect" || nextScreen === "rest" || nextScreen === "exchange") return "rest";
+    return "nonBattle";
   }
 
   async function runAction(action: () => Promise<DesktopGameState | LocalSave | null>, fallbackScreen?: AppStatus, showLoading = true, transitionReason?: RouteTransitionReason): Promise<boolean> {
@@ -392,9 +401,24 @@ function RoutedApp() {
     await runAction(() => window.changeBattle!.exchange(ownIndex, enemyIndex));
   }
 
-  async function restAction(action: RestAction): Promise<boolean> {
+  async function restAction(action: RestAction): Promise<DesktopGameState | false> {
     const transitionReason = action.type === "next" ? "battleStart" : action.type === "abort" ? "settlement" : undefined;
-    return runAction(() => window.changeBattle!.restAction(action), undefined, !["roll_shop", "buy_shop_offer"].includes(action.type), transitionReason);
+    const showLoading = !["roll_shop", "buy_shop_offer"].includes(action.type);
+    const bubbleErrorToRestToast = action.type !== "next" && action.type !== "abort";
+    if (showLoading) setLoading(true);
+    try {
+      const result = await window.changeBattle!.restAction(action);
+      if (showLoading) setLoading(false);
+      if (shouldUseRouteTransition(result.screen, transitionReason)) transitionToState(result, transitionReason!, {showToastMessage: false});
+      else applyState(result, {showToastMessage: false});
+      return result;
+    } catch (err) {
+      if (bubbleErrorToRestToast) throw err;
+      showAppToast(userFacingError(err));
+      return false;
+    } finally {
+      if (showLoading) setLoading(false);
+    }
   }
 
   function openDex() {
@@ -450,6 +474,7 @@ function RoutedApp() {
   const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
   const restHasDexTalent = Boolean(rest?.talents?.some(talent => talent.id === "intel_god_eye"));
   const showDexButton = (isBattleScreen && battleHasDexTalent) || (screen === "rest" && restHasDexTalent);
+  const bgmScene = routeTransition?.musicScene || bgmSceneForScreen(screen, battle);
 
   useEffect(() => {
     if (!showDexButton && dexOpen) setDexOpen(false);
@@ -481,11 +506,14 @@ function RoutedApp() {
   ) : <Navigate to={routeForScreen(fallbackScreenForSave(save))} replace />;
 
   return (
-    <Routes>
-      <Route path={TRANSITION_ROUTE} element={transitionPage} />
-      {ROUTE_SCREENS.map(entry => <Route path={entry.route} element={routeTransition ? <Navigate to={TRANSITION_ROUTE} replace /> : gamePage} key={entry.route} />)}
-      <Route path="*" element={<Navigate to={routeForScreen("title")} replace />} />
-    </Routes>
+    <>
+      <BgmController scene={bgmScene} save={save} onSave={setSave} />
+      <Routes>
+        <Route path={TRANSITION_ROUTE} element={transitionPage} />
+        {ROUTE_SCREENS.map(entry => <Route path={entry.route} element={routeTransition ? <Navigate to={TRANSITION_ROUTE} replace /> : gamePage} key={entry.route} />)}
+        <Route path="*" element={<Navigate to={routeForScreen("title")} replace />} />
+      </Routes>
+    </>
   );
 }
 

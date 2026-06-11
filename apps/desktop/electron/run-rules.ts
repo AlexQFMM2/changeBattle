@@ -1,4 +1,5 @@
-import type {CurrentRunData, ItemCategory, LocalSave, ShopItem, ShopOffer, ShopState, StarChartState, StarterItemGroup, StarterUpgradeState, StarterUpgradeView, TalentView} from "@changebattle/shared";
+import type {BattleState, CurrentRunData, ItemCategory, LocalSave, RestScoreBetState, RestScoreBetTarget, ShopItem, ShopOffer, ShopState, StarChartState, StarterItemGroup, StarterUpgradeState, StarterUpgradeView, TalentView} from "@changebattle/shared";
+import type {BattleAiProfileInput} from "@changebattle/game-service";
 
 export const DEFAULT_BATTLES = 7;
 export const COINS_PER_BP = 100;
@@ -14,6 +15,11 @@ export const SHOP_CANDIDATE_COUNT = 4;
 export const SHOP_CANDIDATE_COUNT_GAMBLER = 8;
 export const PREMIUM_HELD_ITEM_MIN_COST = 800;
 export const PREMIUM_TM_MIN_POWER = 90;
+export const SOUL_SWAP_TURN_LIMIT = 30;
+export const SCORE_BET_MIN_STAKE = 100;
+export const SCORE_BET_MAX_STAKE = 1000;
+export const SCORE_BET_DEFAULT_TARGET: RestScoreBetTarget = 3;
+export const SCORE_BET_MULTIPLIERS: Record<RestScoreBetTarget, number> = {1: 1.5, 2: 2, 3: 5};
 export const STARTER_COINS_DEFAULT = 0;
 export const STARTER_ITEM_MAX_LEVEL = 4;
 export const STARTER_ITEM_DEFAULT_QUALITY_LEVEL = 1;
@@ -44,6 +50,61 @@ export const REST_EXCHANGE_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE] as const;
 export const REST_HP_COSTS = {1: 0, 2: 0, 3: 0} as const;
 export const REST_PP_COSTS = {1: 0, 2: 0, 3: 0} as const;
 export const REST_STATUS_COSTS = {1: 0, 2: 0, 3: 0} as const;
+
+export function soulSwapEnemyAiProfile(): BattleAiProfileInput {
+  return {
+    level: "normal",
+    personality: "soul_sick",
+    depth: 0,
+    randomness: 0.2,
+    allowSwitch: false,
+    prediction: 0,
+    statusAwareness: 0.15,
+    setupAwareness: 0.1,
+    switchAwareness: 0,
+    candidateMoves: 4,
+    candidateSwitches: 0,
+    opponentCandidates: 1,
+    timeBudgetMs: 10,
+  };
+}
+
+export function rookieNormalNpcAiProfile(): BattleAiProfileInput {
+  return {
+    level: "normal",
+    knowledge: "party_species",
+    personality: "rookie",
+    depth: 0,
+    randomness: 0.36,
+    allowSwitch: true,
+    prediction: 0.05,
+    statusAwareness: 0.22,
+    setupAwareness: 0.12,
+    switchAwareness: 0.08,
+    candidateMoves: 2,
+    candidateSwitches: 1,
+    opponentCandidates: 1,
+    timeBudgetMs: 25,
+  };
+}
+
+export function enemyAiProfileForRunRoute(run: CurrentRunData | null | undefined, routeType: string, fallback: BattleAiProfileInput): BattleAiProfileInput {
+  if (routeType === "normal" && Number(run?.wins || 0) <= 0) return rookieNormalNpcAiProfile();
+  return fallback;
+}
+
+export function soulSwapAllowedForNextBattle(run: CurrentRunData | null | undefined): boolean {
+  if (!run) return false;
+  const battleNo = Math.max(1, Math.floor(Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1)));
+  const planned = (run.planned_battles || []).find(entry => Number(entry.battle_no) === battleNo);
+  if (planned?.route_type) return planned.route_type === "normal";
+  return battleNo !== 3 && battleNo !== Math.max(1, Number(run.battles || DEFAULT_BATTLES));
+}
+
+export function shouldForceSoulSwapTimeout(run: CurrentRunData | null | undefined, state: BattleState | null | undefined): boolean {
+  if (!run?.rest_status?.event_soul_swap_active || !state || state.ended) return false;
+  return Number(state.tracker?.turn || 0) >= SOUL_SWAP_TURN_LIMIT;
+}
 export const ADJUST_STATS_COST = 10 * BP_SCALE;
 
 export const STARTER_ITEM_GROUPS: Array<{id: StarterItemGroup; name: string}> = [
@@ -311,7 +372,7 @@ export function starterUpgradesForStarChart(chart?: StarChartState | null): Star
 }
 
 export function emptyStats() {
-  return {battle_points: 0, battles: 0, wins: 0, losses: 0, win_rate: 0, set_win_streak: 0, best_set_win_streak: 0, rank_status: "未开放"};
+  return {battle_points: 0, battles: 0, wins: 0, losses: 0, pokemon_usage_counts: {}, win_rate: 0, set_win_streak: 0, best_set_win_streak: 0, rank_status: "未开放"};
 }
 
 export function currentBp(save: LocalSave): number {
@@ -324,6 +385,7 @@ export function refreshStats(save: LocalSave): void {
   stats.battles = Number(stats.battles || 0);
   stats.wins = Number(stats.wins || 0);
   stats.losses = Number(stats.losses || 0);
+  stats.pokemon_usage_counts = Object.fromEntries(Object.entries(stats.pokemon_usage_counts || {}).map(([id, count]) => [toId(id), Math.max(0, Math.floor(Number(count || 0)))]).filter(([id, count]) => Boolean(id && count)));
   stats.win_rate = stats.battles ? Math.round((stats.wins / stats.battles) * 1000) / 10 : 0;
   stats.set_win_streak = Number(stats.set_win_streak || 0);
   stats.best_set_win_streak = Math.max(Number(stats.best_set_win_streak || 0), stats.set_win_streak);
@@ -359,6 +421,53 @@ export function spendCoins(run: CurrentRunData, cost: number): void {
   const locked = Math.max(0, Math.floor(Number(run.non_convertible_coins || 0)));
   run.non_convertible_coins = Math.max(0, locked - normalizedCost);
   run.coins = currentCoins(run) - normalizedCost;
+}
+
+export function scoreBetTarget(value: unknown, fallback: RestScoreBetTarget = SCORE_BET_DEFAULT_TARGET): RestScoreBetTarget {
+  const target = Math.floor(Number(value || 0));
+  return target === 1 || target === 2 || target === 3 ? target : fallback;
+}
+
+export function scoreBetMultiplier(target: RestScoreBetTarget): number {
+  return SCORE_BET_MULTIPLIERS[target] || SCORE_BET_MULTIPLIERS[SCORE_BET_DEFAULT_TARGET];
+}
+
+export function scoreBetPayout(stake: number, target: RestScoreBetTarget): number {
+  return Math.floor(Math.max(0, Math.floor(Number(stake || 0))) * scoreBetMultiplier(target));
+}
+
+export function scoreBetMaxStakeForCoins(coins: number, currentStake = 0): number {
+  const available = Math.max(0, Math.floor(Number(coins || 0))) + Math.max(0, Math.floor(Number(currentStake || 0)));
+  return Math.max(SCORE_BET_MIN_STAKE, Math.min(SCORE_BET_MAX_STAKE, Math.floor(available * 0.5)));
+}
+
+export function normalizeScoreBetState(bet: Partial<RestScoreBetState> | null | undefined, maxStake = SCORE_BET_MAX_STAKE): RestScoreBetState | undefined {
+  if (!bet) return undefined;
+  const target = scoreBetTarget(bet.target_alive);
+  const stake = Math.max(SCORE_BET_MIN_STAKE, Math.min(Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(maxStake || SCORE_BET_MIN_STAKE))), Math.floor(Number(bet.stake || SCORE_BET_MIN_STAKE))));
+  const multiplier = scoreBetMultiplier(target);
+  return {
+    target_alive: target,
+    stake,
+    multiplier,
+    max_stake: Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(maxStake || SCORE_BET_MIN_STAKE))),
+    payout: scoreBetPayout(stake, target),
+  };
+}
+
+export function settleScoreBetResult(bet: RestScoreBetState | null | undefined, effectivePlayerWin: boolean, playerAlive: number, enemyAlive: number): {hit: boolean; payout: number; targetAlive: RestScoreBetTarget; stake: number; message: string} | null {
+  const normalized = normalizeScoreBetState(bet);
+  if (!normalized) return null;
+  const targetAlive = normalized.target_alive;
+  const stake = normalized.stake;
+  const exactHit = Boolean(effectivePlayerWin) && Math.max(0, Math.floor(Number(playerAlive || 0))) === targetAlive && Math.max(0, Math.floor(Number(enemyAlive || 0))) === 0;
+  const scoreText = `${Math.max(0, Math.floor(Number(playerAlive || 0)))}:0`;
+  if (exactHit) {
+    const payout = scoreBetPayout(stake, targetAlive);
+    return {hit: true, payout, targetAlive, stake, message: `重金下注命中 ${targetAlive}:0，返还 ${payout}金币。`};
+  }
+  const reason = !effectivePlayerWin ? "本场没有按原阵营获胜" : Math.max(0, Math.floor(Number(enemyAlive || 0))) > 0 ? `对方仍有 ${Math.max(0, Math.floor(Number(enemyAlive || 0)))} 只存活` : `实际比分 ${scoreText}`;
+  return {hit: false, payout: 0, targetAlive, stake, message: `重金下注未命中 ${targetAlive}:0，${reason}，下注 ${stake}金币不返还。`};
 }
 
 export function coinsToBp(coins: number): number {

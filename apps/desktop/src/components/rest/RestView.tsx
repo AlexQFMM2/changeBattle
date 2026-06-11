@@ -5,7 +5,7 @@ import {AnimatePresence, motion, Reorder} from "motion/react";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard, MoveCardContent, moveCardClassName} from "../move/MoveCard";
-import {ItemIcon, PokemonSprite, abilityDescription, coinCostLabel, conditionText, displayName, hpTone, itemCategoryLabel, moveDescription, parseHp, runtimeMoveLabel, statLine, statMarker, statusCode, statusLabel, talentShortText, toId, trainerImageUrl, typeId} from "../../lib/ui";
+import {ItemIcon, PokemonSprite, abilityDescription, coinCostLabel, conditionText, displayName, hpTone, itemCategoryLabel, moveDescription, parseHp, runtimeMoveLabel, statLine, statMarker, statusCode, statusLabel, talentShortText, toId, trainerImageUrl, typeId, userFacingError} from "../../lib/ui";
 import {STAT_ROWS} from "../../lib/ui";
 
 export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameState["exchange"]; onSkip: () => void; onExchange: (ownIndex: number, enemyIndex: number) => void}) {
@@ -15,7 +15,22 @@ export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopG
   return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns exchange-columns-with-label"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div className="exchange-center-label" aria-hidden="true"><span>交换</span></div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
 }
 
-export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
+type RestActionResult = DesktopGameState | boolean | void;
+type RestActionHandler = (action: RestAction, successMessage?: string) => RestActionResult | Promise<RestActionResult>;
+
+function isDesktopGameStateResult(result: RestActionResult): result is DesktopGameState {
+  return Boolean(result && typeof result === "object" && "screen" in result);
+}
+
+function restActionResultMessage(result: RestActionResult): string | undefined {
+  return isDesktopGameStateResult(result) ? result.toast_message || result.message : undefined;
+}
+
+function errorMessage(error: unknown): string {
+  return userFacingError(error) || "操作失败。";
+}
+
+export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAction: RestActionHandler}) {
   const [pokemonModalSlot, setPokemonModalSlot] = useState<number | null>(null);
   const [activePanel, setActivePanel] = useState<RestWorkspacePanel>(() => new URLSearchParams(location.search).get("scenario") === "rest-shop" ? "shop" : "nightSky");
   const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);
@@ -42,9 +57,14 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
     return undefined;
   };
   const runRestAction = async (action: RestAction, successMessage = successMessageForAction(action)) => {
-    const ok = await Promise.resolve(onAction(action));
-    if (ok !== false && successMessage) showToast(successMessage);
-    return ok;
+    try {
+      const result = await Promise.resolve(onAction(action));
+      if (result !== false && action.type !== "next" && action.type !== "abort") showToast(restActionResultMessage(result) || successMessage || "操作完成。");
+      return result;
+    } catch (error) {
+      showToast(errorMessage(error));
+      return false;
+    }
   };
   const fireAction = (action: RestAction) => {
     void runRestAction(action);
@@ -105,12 +125,12 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
         <button className={activePanel === "bag" ? "selected" : ""} onClick={() => { setBagTargetSlot(0); setActivePanel("bag"); }}>背包</button>
         <button className={activePanel === "shop" ? "selected" : ""} onClick={() => setActivePanel("shop")}>商店</button>
         <button className={activePanel === "forge" ? "selected" : ""} onClick={() => setActivePanel("forge")}>熔炉</button>
-        <button className={activePanel === "talents" ? "selected" : ""} onClick={() => setActivePanel("talents")}>携带天赋</button>
         {rest.recycler_available ? <button className={`event-button ${activePanel === "recycler" ? "selected" : ""}`} onClick={() => setActivePanel("recycler")}>道具回收商</button> : null}
         {rest.event_services?.doctor ? <button className={`event-button ${activePanel === "eventDoctor" ? "selected" : ""}`} onClick={() => setActivePanel("eventDoctor")}>蹩脚医生</button> : null}
         {rest.event_services?.tutor ? <button className={`event-button ${activePanel === "eventTutor" ? "selected" : ""}`} onClick={() => setActivePanel("eventTutor")}>讲师老奶奶</button> : null}
         {rest.event_services?.egg ? <button className={`event-button ${activePanel === "eventEgg" ? "selected" : ""}`} onClick={() => setActivePanel("eventEgg")}>培育屋爷爷</button> : null}
         {rest.event_services?.raid_exchange ? <button className={`event-button ${activePanel === "raidExchange" ? "selected" : ""}`} onClick={() => setActivePanel("raidExchange")}>骇人奇袭</button> : null}
+        {rest.event_services?.score_bet ? <button className={`event-button ${activePanel === "scoreBet" ? "selected" : ""}`} onClick={() => setActivePanel("scoreBet")}>重金下注</button> : null}
         {Number(rest.event_services?.level_points || 0) > 0 ? <button className={`event-button ${activePanel === "eventLevel" ? "selected" : ""}`} onClick={() => setActivePanel("eventLevel")}>分配等级 <small>{rest.event_services?.level_points}</small></button> : null}
         <button className={activePanel === "nightSky" ? "selected" : ""} onClick={() => setActivePanel("nightSky")}>进度图 <small>{revealedSkyCount}/{(nightSkyRows.length || rest.battles) * 3}</small></button>
         {manualTalents.map(talent => {
@@ -141,12 +161,12 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
             {activePanel === "eventTutor" ? <EventMoveServicePanel embedded rest={rest} service="tutor" onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "eventEgg" ? <EventMoveServicePanel embedded rest={rest} service="egg" onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "raidExchange" ? <RaidExchangePanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "scoreBet" ? <ScoreBetPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "eventLevel" ? <EventLevelPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
-            {activePanel === "talents" ? <RunTalentModal embedded rest={rest} /> : null}
             {activePanel === "talentAction" && activeTalentAction ? <RunTalentActionModal embedded talent={activeTalentAction} rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
             {activePanel === "nightSky" ? <NightSkyModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
-            {activePanel === "shop" ? <ShopModal embedded rest={rest} shop={rest.shop} onClose={() => setActivePanel(null)} onRoll={shopKind => onAction({type: "roll_shop", shopKind})} onBuy={offerId => runRestAction({type: "buy_shop_offer", offerId}, "道具已购买")} onBarterBuy={(offerId, itemIds) => runRestAction({type: "event_barter_buy", offerId, itemIds}, "道具已交换")} /> : null}
-            {activePanel === "forge" ? <ForgeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "shop" ? <ShopModal embedded rest={rest} shop={rest.shop} onClose={() => setActivePanel(null)} onRoll={shopKind => runRestAction({type: "roll_shop", shopKind})} onBuy={offerId => runRestAction({type: "buy_shop_offer", offerId}, "道具已购买")} onBarterBuy={(offerId, itemIds) => runRestAction({type: "event_barter_buy", offerId, itemIds}, "道具已交换")} /> : null}
+            {activePanel === "forge" ? <ForgeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} onNotice={showToast} /> : null}
             {activePanel === "pokemon" && pokemonModalSlot !== null ? <RestPokemonModal embedded rest={rest} initialSlot={pokemonModalSlot} onClose={() => setActivePanel(null)} onMove={(slot, moveSlot) => { setMoveEditorSlot(slot); setMoveEditorMoveSlot(moveSlot ?? 0); }} onUseItem={slot => { setPokemonModalSlot(null); setBagTargetSlot(slot); setActivePanel("bag"); }} onUnequip={unequipItem} onStats={slot => { setPokemonModalSlot(null); setStatsEditorSlot(slot); setActivePanel("statsEditor"); }} onAction={fireAction} /> : null}
             {activePanel === "statsEditor" && statsEditorSlot !== null ? <StatsAdjustModal embedded rest={rest} initialSlot={statsEditorSlot} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
           </motion.div>
@@ -176,7 +196,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
           </section>
         </div>
       ) : null}
-      {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={1000} onDone={() => setToast(null)} /> : null}
+      {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={2600} onDone={() => setToast(null)} /> : null}
       {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
       {shouldPromptRestEvent ? <RestEventPrompt rest={rest} onAction={runRestAction} /> : null}
       {shouldPromptNamedChallenge ? <NamedChallengePrompt rest={rest} onAction={runRestAction} /> : null}
@@ -184,13 +204,13 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   );
 }
 
-type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "eventDoctor" | "eventTutor" | "eventEgg" | "raidExchange" | "eventLevel" | "talents" | "talentAction" | "nightSky" | "shop" | "forge" | "pokemon" | "moveEditor" | "statsEditor" | null;
+type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "eventDoctor" | "eventTutor" | "eventEgg" | "raidExchange" | "scoreBet" | "eventLevel" | "talentAction" | "nightSky" | "shop" | "forge" | "pokemon" | "moveEditor" | "statsEditor" | null;
 
 function EmbeddedOrModal({embedded, children}: {embedded?: boolean; children: ReactElement}) {
   return embedded ? children : <div className="modal-layer">{children}</div>;
 }
 
-function RestEventPrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>}) {
+function RestEventPrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: RestActionHandler}) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const options = rest.rest_event?.options || [];
 
@@ -217,11 +237,18 @@ function RestEventPrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["
           <div className="rest-event-card-grid">
             {options.map(option => (
               <button className={`rest-event-card tone-${option.tone || "safe"}`} disabled={Boolean(busyId)} onClick={() => void choose(option.id, option.name)} key={`rest-event-${option.id}`}>
-                <span>{option.tone === "risk" ? "风险" : option.tone === "trade" ? "交易" : "稳定"}</span>
                 <strong>{option.name}</strong>
                 <div className="rest-event-card-body">
-                  <p>{option.desc}</p>
-                  {option.detail ? <small>{option.detail}</small> : null}
+                  <section>
+                    <b>介绍：</b>
+                    <p>{option.intro || option.desc}</p>
+                  </section>
+                  <section>
+                    <b>效果：</b>
+                    <ul>
+                      {(option.effects?.length ? option.effects : [option.desc, option.detail].filter((value): value is string => Boolean(value))).map((effect, index) => <li key={`${option.id}-effect-${index}`}>{effect}</li>)}
+                    </ul>
+                  </section>
                 </div>
               </button>
             ))}
@@ -232,7 +259,7 @@ function RestEventPrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["
   );
 }
 
-function NamedChallengePrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>}) {
+function NamedChallengePrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: RestActionHandler}) {
   const [busy, setBusy] = useState(false);
   const champions = rest.champion_options || [];
 
@@ -302,7 +329,7 @@ function runTalentActionUsed(rest: NonNullable<DesktopGameState["rest"]>, id: st
   return false;
 }
 
-function RestPokemonModal({rest, initialSlot, onClose, onMove, onUseItem, onUnequip, onStats, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot: number; onClose: () => void; onMove: (slot: number, moveSlot?: number) => void; onUseItem?: (slot: number) => void; onUnequip: (slot: number) => void; onStats: (slot: number) => void; onAction?: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
+function RestPokemonModal({rest, initialSlot, onClose, onMove, onUseItem, onUnequip, onStats, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot: number; onClose: () => void; onMove: (slot: number, moveSlot?: number) => void; onUseItem?: (slot: number) => void; onUnequip: (slot: number) => void; onStats: (slot: number) => void; onAction?: RestActionHandler; embedded?: boolean}) {
   const [slot, setSlot] = useState(initialSlot);
   const [tab, setTab] = useState<"info" | "moves" | "stats">("info");
   const [sheetFocus, setSheetFocus] = useState<{type: "nature" | "ability" | "item" | "move"; moveIndex?: number}>({type: "ability"});
@@ -412,7 +439,7 @@ function RestPokemonModal({rest, initialSlot, onClose, onMove, onUseItem, onUneq
   );
 }
 
-function RestExchangeModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
+function RestExchangeModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const [own, setOwn] = useState(0);
   const [enemy, setEnemy] = useState(0);
   const canExchange = rest.costs.exchange !== null && rest.enemy_display.length > 0 && !rest.taken_enemy_slots.includes(enemy + 1);
@@ -450,7 +477,7 @@ function isBarterMaterialItem(item?: BagItemView | null): boolean {
   return Boolean(item && item.count > 0 && !item.locked && !item.item_battle_system);
 }
 
-function BagManageModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean; initialTarget?: number}) {
+function BagManageModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean; initialTarget?: number}) {
   const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
   const [itemId, setItemId] = useState("");
   const selected = items.find(item => item.id === itemId) || null;
@@ -480,7 +507,7 @@ function BagManageModal({rest, onClose, onAction, embedded = false}: {rest: NonN
   );
 }
 
-function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>}) {
+function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler}) {
   const [busySlot, setBusySlot] = useState<number | null>(null);
   const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
   const [tmLoading, setTmLoading] = useState(false);
@@ -588,7 +615,7 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
   );
 }
 
-function ItemRecyclerModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
+function ItemRecyclerModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat().filter(item => !isLockedBagItem(item));
   return (
     <EmbeddedOrModal embedded={embedded}>
@@ -615,7 +642,7 @@ function ItemRecyclerModal({rest, onClose, onAction, embedded = false}: {rest: N
   );
 }
 
-function DoctorEventPanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+function DoctorEventPanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const [busy, setBusy] = useState<"status" | "hp" | null>(null);
   async function choose(branch: "status" | "hp") {
     if (busy) return;
@@ -645,7 +672,7 @@ function DoctorEventPanel({rest, onClose, onAction, embedded = false}: {rest: No
   );
 }
 
-function EventMoveServicePanel({rest, service, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; service: "tutor" | "egg"; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+function EventMoveServicePanel({rest, service, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; service: "tutor" | "egg"; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const [slot, setSlot] = useState(0);
   const [moveSlot, setMoveSlot] = useState(0);
   const [moves, setMoves] = useState<PricedMove[]>([]);
@@ -716,7 +743,7 @@ function EventMoveServicePanel({rest, service, onClose, onAction, embedded = fal
   );
 }
 
-function RaidExchangePanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+function RaidExchangePanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const [own, setOwn] = useState(0);
   const [enemy, setEnemy] = useState(0);
   const battleNo = rest.event_services?.raid_exchange_battle_no || Number(rest.battle_no || 0) + 1;
@@ -739,7 +766,71 @@ function RaidExchangePanel({rest, onClose, onAction, embedded = false}: {rest: N
   );
 }
 
-function EventLevelPanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+function ScoreBetPanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
+  const bet = rest.score_bet;
+  const [draftStake, setDraftStake] = useState(String(bet?.stake || 100));
+  useEffect(() => {
+    setDraftStake(String(bet?.stake || 100));
+  }, [bet?.stake]);
+  if (!bet) {
+    return (
+      <EmbeddedOrModal embedded={embedded}>
+        <section className="shop-modal score-bet-modal">
+          <header><div><h2>重金下注</h2><p>当前没有进行中的盘口。</p></div><button onClick={onClose}>返回</button></header>
+        </section>
+      </EmbeddedOrModal>
+    );
+  }
+  const currentBet = bet;
+  const targets: Array<{value: 1 | 2 | 3; label: string; multiplier: string}> = [
+    {value: 3, label: "3:0", multiplier: "5x"},
+    {value: 2, label: "2:0", multiplier: "2x"},
+    {value: 1, label: "1:0", multiplier: "1.5x"},
+  ];
+  const maxStake = Math.max(100, Number(currentBet.max_stake || currentBet.stake || 100));
+  const numericDraft = Math.max(100, Math.min(maxStake, Math.floor(Number(draftStake || currentBet.stake || 100))));
+  const targetLabel = `${currentBet.target_alive}:0`;
+
+  function adjustStake(delta: number) {
+    const nextStake = Math.max(100, Math.min(maxStake, Math.floor(Number(currentBet.stake || 100) + delta)));
+    setDraftStake(String(nextStake));
+    void onAction({type: "event_score_bet_adjust", stake: nextStake}, "下注已调整");
+  }
+
+  function applyStake() {
+    setDraftStake(String(numericDraft));
+    void onAction({type: "event_score_bet_adjust", stake: numericDraft}, "下注已调整");
+  }
+
+  return (
+    <EmbeddedOrModal embedded={embedded}>
+      <section className="shop-modal event-service-modal score-bet-modal">
+        <header><div><h2>重金下注</h2><p>精确命中下一战比分才返还，赢多赢少都算没中。</p></div><button onClick={onClose}>返回</button></header>
+        <div className="score-bet-summary">
+          <article><span>盘口</span><strong>{targetLabel}</strong><small>只能押自己赢</small></article>
+          <article><span>下注</span><strong>{currentBet.stake} 金币</strong><small>最低 100，最高 {maxStake}</small></article>
+          <article><span>返还</span><strong>{currentBet.payout || Math.floor(currentBet.stake * currentBet.multiplier)} 金币</strong><small>赔率 {currentBet.multiplier}x</small></article>
+        </div>
+        <div className="segmented-row score-bet-target-row">
+          {targets.map(target => (
+            <button className={currentBet.target_alive === target.value ? "selected" : ""} onClick={() => onAction({type: "event_score_bet_adjust", targetAlive: target.value}, `盘口已改为 ${target.label}`)} key={`score-bet-target-${target.value}`}>
+              <strong>{target.label}</strong>
+              <small>{target.multiplier}</small>
+            </button>
+          ))}
+        </div>
+        <div className="score-bet-controls">
+          <button disabled={currentBet.stake <= 100} onClick={() => adjustStake(-100)}>-100</button>
+          <input type="number" min={100} max={maxStake} step={100} value={draftStake} onChange={event => setDraftStake(event.target.value)} onBlur={applyStake} />
+          <button disabled={currentBet.stake >= maxStake} onClick={() => adjustStake(100)}>+100</button>
+          <button onClick={applyStake}>调整下注</button>
+        </div>
+      </section>
+    </EmbeddedOrModal>
+  );
+}
+
+function EventLevelPanel({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const points = Number(rest.event_services?.level_points || 0);
   return (
     <EmbeddedOrModal embedded={embedded}>
@@ -753,7 +844,7 @@ function EventLevelPanel({rest, onClose, onAction, embedded = false}: {rest: Non
   );
 }
 
-function ForgeModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction, successMessage?: string) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+function ForgeModal({rest, onClose, onAction, onNotice, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; onNotice?: (message: string, tone?: "normal" | "danger") => void; embedded?: boolean}) {
   const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
   const normalForgeItems = items.filter(item => item.item_battle_system !== "mega" && item.item_battle_system !== "zmove");
   const specialForgeItems = items.filter(item => item.item_battle_system === "mega" || item.item_battle_system === "zmove");
@@ -764,6 +855,12 @@ function ForgeModal({rest, onClose, onAction, embedded = false}: {rest: NonNulla
   const selectedMaterialItems = materials.map(id => items.find(item => item.id === id)).filter((item): item is BagItemView => Boolean(item));
   const selectedKinds = selectedMaterialItems.map(forgeKindLabel);
   const sameKind = selectedKinds.length === 3 && selectedKinds.every(kind => kind === selectedKinds[0]);
+
+  function blockedNormalForgeReason(item: BagItemView): string {
+    if (item.item_battle_system === "terastal") return "该道具不能被放进普通熔炉。";
+    if (isLockedBagItem(item)) return item.lock_reason || "该道具不能被放进普通熔炉。";
+    return "";
+  }
 
   function addMaterial(itemId: string, maxCount: number) {
     if (materials.length >= 3) return;
@@ -793,11 +890,13 @@ function ForgeModal({rest, onClose, onAction, embedded = false}: {rest: NonNulla
           <div className="forge-material-list">
             {normalForgeItems.length ? normalForgeItems.map(item => {
               const picked = Number(materialCounts[item.id] || 0);
+              const blockedReason = blockedNormalForgeReason(item);
               return (
-                <button disabled={working || materials.length >= 3 || picked >= item.count} onClick={() => addMaterial(item.id, item.count)} key={`forge-material-${item.id}`}>
+                <button className={`${picked ? "selected" : ""} ${blockedReason ? "blocked" : ""}`} disabled={working || (!blockedReason && (materials.length >= 3 || picked >= item.count))} onClick={() => { if (blockedReason) { onNotice?.(blockedReason, "danger"); return; } addMaterial(item.id, item.count); }} key={`forge-material-${item.id}`}>
                   <ItemIcon item={item} />
                   <span>{item.name_zh || item.name}</span>
                   <small>x{item.count}{picked ? ` / 已选 ${picked}` : ""}</small>
+                  <em>{blockedReason || item.desc_zh || item.desc || itemCategoryLabel(item.category)}</em>
                 </button>
               );
             }) : <p>背包里没有可投入普通熔炉的道具。</p>}
@@ -835,7 +934,7 @@ function forgeKindLabel(item: BagItemView): string {
   return "回复";
 }
 
-function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
+function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const rows = rest.night_sky?.rows || [];
   const nextBattleNo = Math.max(1, Math.min(Number(rest.battles || rows.length || 1), Number(rest.battle_no || 0) + 1));
   const [selectedBattleNo, setSelectedBattleNo] = useState(() => rows.find(row => row.battle_no === nextBattleNo)?.battle_no || rows[0]?.battle_no || 0);
@@ -930,7 +1029,7 @@ function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNu
   );
 }
 
-function RunTalentActionContent({talent, rest, onAction}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onAction: (action: RestAction) => void | Promise<void>}) {
+function RunTalentActionContent({talent, rest, onAction}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onAction: RestActionHandler}) {
   const [allInSlot, setAllInSlot] = useState(0);
   const [trustSlot, setTrustSlot] = useState(0);
   const [leadSlot, setLeadSlot] = useState(0);
@@ -1010,7 +1109,7 @@ function RunTalentActionContent({talent, rest, onAction}: {talent: TalentView; r
   return <p className="talent-action-empty">这个天赋不需要在休整页手动发动。</p>;
 }
 
-function RunTalentActionModal({talent, rest, onClose, onAction, embedded = false}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: (action: RestAction) => void | Promise<void>; embedded?: boolean}) {
+function RunTalentActionModal({talent, rest, onClose, onAction, embedded = false}: {talent: TalentView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   return (
     <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal talent-action-modal">
@@ -1083,7 +1182,7 @@ function hasRestEventStatus(rest: NonNullable<DesktopGameState["rest"]>, id: str
   return Boolean(rest.rest_event_statuses?.some(status => status.id === id));
 }
 
-function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (shopKind: ShopKind) => boolean | void | Promise<boolean | void>; onBuy: (offerId: string) => boolean | void | Promise<boolean | void>; onBarterBuy?: (offerId: string, itemIds: string[]) => boolean | void | Promise<boolean | void>; embedded?: boolean}) {
+function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (shopKind: ShopKind) => RestActionResult | Promise<RestActionResult>; onBuy: (offerId: string) => RestActionResult | Promise<RestActionResult>; onBarterBuy?: (offerId: string, itemIds: string[]) => RestActionResult | Promise<RestActionResult>; embedded?: boolean}) {
   const [shopKind, setShopKind] = useState<ShopKind>((shop?.kind as ShopKind | undefined) || "recovery");
   const activeKind = (shop?.kind as ShopKind | undefined) || "recovery";
   const offers = activeKind === shopKind ? (shop?.offers || []) : [];
@@ -1242,7 +1341,7 @@ const MOVE_DRAW_FINAL_HOLD_MS = 460;
 const MOVE_DRAW_RESULT_WAIT_MS = 2000;
 const moveDrawLayoutTransition = {duration: 0.46, ease: [0.2, 0.82, 0.2, 1] as const};
 
-function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; initialMoveSlot?: number; onClose: () => void; onAction: (action: RestAction) => boolean | void | Promise<boolean | void>}) {
+function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; initialMoveSlot?: number; onClose: () => void; onAction: RestActionHandler}) {
   const slot = initialSlot;
   const moveSlot = initialMoveSlot;
   const pokemon = rest.player_display[slot] || rest.player_display[0];
@@ -1370,7 +1469,7 @@ function shuffleOrder(order: string[], step: number): string[] {
   return next;
 }
 
-function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; onClose: () => void; onAction: (action: RestAction) => void; embedded?: boolean}) {
+function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {
   const [slot, setSlot] = useState(initialSlot);
   const pokemon = rest.player_display[slot];
   return (

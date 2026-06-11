@@ -1,5 +1,5 @@
-import type {BattleSetting, BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopGameState, LocalSave, PlayerPokemonState, RentalPokemon, RestAction, RestState, SaveBattleRecordsTable, ShopOffer, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
-import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
+import type {AudioSettings, BattleSetting, BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopGameState, LocalSave, PlayerPokemonState, RentalPokemon, RestAction, RestState, SaveBattleRecordsTable, ShopOffer, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {buildBattleDisplaySteps, type BattleDisplayStep} from "../components/battle/timelineFlow";
 import {TALENT_CATALOG, debugBattle, debugMove, debugPokemon} from "../lib/ui";
 
@@ -81,6 +81,13 @@ export function installBrowserTestBridge(): void {
       lastAction = "updateBattleSetting";
       save = {...save, battle_setting: normalizeBattleSetting(setting)};
       return {setting: save.battle_setting!, save};
+    },
+    getAudioSettings: async () => ({settings: save.audio_settings || DEFAULT_AUDIO_SETTINGS, save}),
+    updateAudioSettings: async (settings: Partial<AudioSettings>) => {
+      lastAction = "updateAudioSettings";
+      const volume = Number(settings.bgm_volume ?? save.audio_settings?.bgm_volume ?? DEFAULT_AUDIO_SETTINGS.bgm_volume);
+      save = {...save, audio_settings: {bgm_enabled: settings.bgm_enabled ?? save.audio_settings?.bgm_enabled ?? DEFAULT_AUDIO_SETTINGS.bgm_enabled, bgm_volume: Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : DEFAULT_AUDIO_SETTINGS.bgm_volume))}};
+      return {settings: save.audio_settings!, save};
     },
     trainerCatalog: async () => trainerCatalog(),
     prepareStarterItems: async () => {

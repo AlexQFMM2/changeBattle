@@ -3,7 +3,7 @@ import type {DesktopDexCategory, DesktopDexEntry, MoveSummary} from "@changebatt
 import {AnimatePresence, motion, type Variants} from "motion/react";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard} from "../move/MoveCard";
-import {ItemIcon, STAT_ROWS, assetUrl, playPokemonCry} from "../../lib/ui";
+import {ItemIcon, STAT_ROWS, assetUrl} from "../../lib/ui";
 import {groupLearnsetBySource} from "./learnsetGroups";
 
 export type QuickDexCategory = Exclude<DesktopDexCategory, "trainers">;
@@ -122,10 +122,6 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
   useEffect(() => {
     setPage(0);
   }, [category, searchQuery]);
-
-  useEffect(() => {
-    if (selected?.category === "pokemon") playPokemonCry(selected, "quick-dex");
-  }, [selected?.category, selected?.id, selected?.sprite?.cry_asset]);
 
   function chooseCategory(nextCategory: QuickDexCategory) {
     if (nextCategory === category) return;
@@ -287,7 +283,7 @@ function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; o
         {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : <span>{entry.category === "moves" ? "技" : "特"}</span>}
         <div>
           <h3>{entry.name_zh || entry.name}</h3>
-          <p>{entry.name} / {entry.id}</p>
+          <p>{entry.name} / {entry.id}{entry.category === "pokemon" ? `（使用次数${entry.usage_count || 0}）` : ""}</p>
         </div>
       </header>
       {entry.category === "pokemon" ? (

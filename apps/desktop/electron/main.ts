@@ -4,8 +4,8 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
-import {DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
   BADGE_LEVEL_CAPS,
@@ -22,6 +22,9 @@ import {
   SCOUT_BASIC_COST,
   SCOUT_ONE_COST,
   SHOP_GUEST_FREE_ROLLS,
+  SOUL_SWAP_TURN_LIMIT,
+  SCORE_BET_DEFAULT_TARGET,
+  SCORE_BET_MIN_STAKE,
   STARTER_ITEM_GROUPS,
   STARTER_ITEM_MAX_LEVEL,
   STAR_CHART_NODE_BY_ID,
@@ -42,6 +45,7 @@ import {
   currentBp,
   currentCoins,
   emptyStats,
+  enemyAiProfileForRunRoute,
   exchangeCost,
   exchangeKeepsItem,
   exchangeStateRatio,
@@ -60,13 +64,21 @@ import {
   pricedForShop,
   recordPortfolioSpend,
   refreshStats,
+  normalizeScoreBetState,
   sellPriceForItem,
   settleProphetFirstMover,
+  settleScoreBetResult,
   shopDuplicateBonusForOffers,
   shopCandidateCount,
   shopOfferCount,
+  shouldForceSoulSwapTimeout,
   spendBp,
   spendCoins,
+  soulSwapAllowedForNextBattle,
+  scoreBetMaxStakeForCoins,
+  scoreBetMultiplier,
+  scoreBetPayout,
+  scoreBetTarget,
   starterCoinsForSeed,
   starterNonConvertibleCoinsForTalents,
   starterUpgradeCatalog,
@@ -78,6 +90,7 @@ import {
   starNodeUpgradeCost,
   starterUpgradesForStarChart,
   statResetCost,
+  soulSwapEnemyAiProfile,
   talentsForIds,
   talentsForStarChart,
   talentLevel,
@@ -93,6 +106,7 @@ const FALLBACK_BATTLE_BACKGROUND: BattleBackgroundView = {id: "mountain-route", 
 const e2eUserDataDir = process.env.CHANGEBATTLE_E2E_USER_DATA_DIR;
 const e2eRemoteDebuggingPort = process.env.CHANGEBATTLE_E2E_REMOTE_DEBUGGING_PORT;
 const e2eEnabled = process.env.CHANGEBATTLE_E2E === "1";
+let transientAudioSettings: AudioSettings = {...DEFAULT_AUDIO_SETTINGS};
 
 if (e2eUserDataDir) {
   app.setPath("userData", e2eUserDataDir);
@@ -294,10 +308,107 @@ type RestEventDefinition = RestEventOption & {
   apply(save: LocalSave, run: CurrentRunData): Promise<string>;
 };
 
+type RestEventCopy = {intro: string; effects: string[]};
+
+const REST_EVENT_COPY: Record<string, RestEventCopy> = {
+  recycler_appraisal: {
+    intro: "旧货商在休整区支起临时摊位，一边压价一边叹气，仿佛亏的是他自己。",
+    effects: ["本次休整解锁道具回收商。", "默认按 50% 价格回收背包道具。", "拥有讲价高手时，回收价提高到 75%。"],
+  },
+  sponsor_delivery: {
+    intro: "一封赞助信被送到你手里。数额不大，但足够让本次休整多一点周转空间。",
+    effects: ["立刻获得 120 金币。", "不直接给予回复道具。"],
+  },
+  score_bet: {
+    intro: "休整区旁边临时围了一圈人，像是在给下一场比赛开盘口。你本来只是路过凑热闹，听见有人念到自己的赛程，忽然觉得赔率好像有点不太聪明。于是你悄悄换了个账户，给自己下一场的比分押了一注。",
+    effects: ["选择后立刻默认下注 100 金币，盘口为 3:0。", "本次休整可以调整下注盘口和金额。", "只能下注自己获胜，且必须精确命中 3:0、2:0 或 1:0。", "3:0 返还 5 倍，2:0 返还 2 倍，1:0 返还 1.5 倍。", "赢多了、赢少了、战败或平局都不算命中。"],
+  },
+  clinic_coupon: {
+    intro: "路边诊所送来一张抵用券。它不能直接治疗队伍，但能帮你更便宜地找到补给。",
+    effects: ["本次休整获得 1 次免费商店抽奖。", "推荐优先用于回复商店。"],
+  },
+  countryside: {
+    intro: "你们绕进一座被田埂和果树包围的小村落。这里没有像样的商店，只有热情村民、清水和刚摘下来的树果。",
+    effects: ["随机选择 2 只未濒死宝可梦恢复到满状态。", "满状态包括 HP、异常状态和 PP。", "本次休整无法使用商店。"],
+  },
+  bad_doctor_brothers: {
+    intro: "村口诊所挂着一块掉漆的招牌。哥哥负责治病，弟弟负责救命，两个人都信誓旦旦，只是宝可梦们看起来有点紧张。",
+    effects: ["选择哥哥：全队解除异常并回满 PP，但未濒死宝可梦 HP 减半。", "选择弟弟：全队恢复 HP，濒死复活到半血，但全队随机陷入异常。"],
+  },
+  blood_donation: {
+    intro: "临时医疗站正在招募志愿者。护士认真递来补给券，旁边的宝可梦们看起来不是很想排队。",
+    effects: ["全队未濒死宝可梦当前 HP 减少 25%。", "至少保留 1 HP，濒死宝可梦不参与。", "立刻获得 200 金币。"],
+  },
+  major_surgery: {
+    intro: "医疗队判断你的队伍需要彻底处理伤势。普通药剂只能压住表面症状，真正的手术要等设备准备好。",
+    effects: ["本次休整不会立刻回血。", "本次休整低级恢复道具失效。", "全满药、全复药、复活类和 PP 药剂仍可用。", "打完下一场后，下次休整全队恢复到满状态。"],
+  },
+  power_outage_profiteer: {
+    intro: "宝可梦中心突然停电，备用设备断断续续闪着红灯。商店老板倒是很精神，立刻把价格牌翻到另一面。",
+    effects: ["本次休整所有恢复效果减半。", "商店抽奖与商品购买价格提高到 1.5 倍。", "回复商店必出复活草和全复药。", "道具商店和技能商店会刷出更高质量商品。"],
+  },
+  potion_trial: {
+    intro: "药剂师推来几瓶颜色可疑的饮料，并保证至少有一瓶绝对有效。他还愿意支付一点试喝补贴。",
+    effects: ["随机触发一种轻恢复。", "可能全队回血、全队解异常，或随机 1 只满状态。", "额外获得 50 金币。"],
+  },
+  camping_pot: {
+    intro: "你们在路边支起一口旧锅，把背包里的树果全倒进去。味道不一定稳定，但热汤确实能让队伍重新打起精神。",
+    effects: ["消耗背包内所有树果，转换为回复药类道具。", "至少 3 个树果才能煮出有效补给。", "树果不足时不会产药，并令本次休整和下一战背包恢复减半。"],
+  },
+  forgetful_river_god: {
+    intro: "你不小心把背包掉进河里。水面泛起涟漪，河神慢慢冒出来，问你掉的是普通背包，还是装得更满的背包。",
+    effects: ["30%：没收约 25% 背包道具。", "20%：背包内道具数量翻倍。", "50%：什么也没有发生。", "特殊系统道具不参与随机变化。"],
+  },
+  safe_airline: {
+    intro: "为了前往下一个赛区，你们搭上一趟手续严格的安全航空。工作人员认真检查了每一个瓶瓶罐罐。",
+    effects: ["落地时全队恢复到满状态。", "本次休整普通战斗携带道具会被托运。", "宝可梦身上的普通战斗道具也会卸下托运。", "托运道具会在下次休整归还到背包。"],
+  },
+  barter_village: {
+    intro: "这个村落的商家不信任任何流通货币。金币在这里买不到东西，只有背包里的实物才算数。",
+    effects: ["本次休整商店抽奖免费且不限次数。", "购买商品不能使用金币。", "必须投入 1-3 个背包道具交换。", "材料总价值需达到商品价格的 70%，不找零。"],
+  },
+  devil_treasure: {
+    intro: "你在荒废高台上发现一只飞天魔鬼留下的宝箱。财宝价值不菲，但箱底刻着让人不安的诅咒。",
+    effects: ["随机获得 2 个高等级战斗道具。", "立刻获得 1000 金币。", "本次休整和下一场战斗中，无法使用 HP、异常、复活类背包恢复道具。"],
+  },
+  contest_stage: {
+    intro: "休整区临时搭起小舞台。裁判不太关心你下一场能不能赢，他们只关心招式够不够漂亮、节奏够不够讲究。",
+    effects: ["下一战每只己方宝可梦会标出裁判喜欢和讨厌的技能。", "使用喜欢技能获得华丽分，使用讨厌技能会扣分或不加分。", "胜利后每点华丽分奖励 30 金币，单场上限 300。", "战败时若华丽分超过 6，裁判会把本场按胜利处理。"],
+  },
+  tutor_granny: {
+    intro: "一位背着旧教材的老奶奶坐在休整区角落。她讲课很慢，但讲的全是学校里不教、机器也刻不出来的老招式。",
+    effects: ["本次休整解锁讲师老奶奶。", "可花 200 金币让 1 只宝可梦学习合法教授招式。", "只显示当前能学、且还没掌握的 tutor 来源招式。"],
+  },
+  daycare_grandpa: {
+    intro: "培育屋爷爷带着一本厚厚的谱系笔记。他说有些招式不是机器教会的，要从血脉、习惯和一点耐心里找回来。",
+    effects: ["本次休整解锁培育屋爷爷。", "可花 200 金币让 1 只宝可梦学习合法遗传招式。", "只显示当前能学、且还没掌握的 egg 来源招式。"],
+  },
+  last_minute_escape: {
+    intro: "你的一只宝可梦追逐自由去了。工厂工作人员一边道歉一边翻找备用名册，承诺补上一只差不多的同伴。",
+    effects: ["随机选择队内 1 只宝可梦离队。", "按离队宝可梦的物种档位和数值档位重新 roll 1 只替补。", "补发宝可梦的物种、等级、能力、特性、技能和携带物会重新随机。"],
+  },
+  scary_raid: {
+    intro: "有人把下一位对手的训练资料塞到你手里。最后一页还夹着一张临时交换许可，盖章的位置看起来非常可疑。",
+    effects: ["本次休整可以查看下一位对手的完整队伍。", "允许与下一位对手交换 1 只宝可梦。", "交换范围包括馆主、四天王和冠军。", "交换后下一场真实队伍与小道消息同步更新。"],
+  },
+  invisible_hand: {
+    intro: "赛程表突然被人重排了。没有人承认自己动过手脚，但每个对手名字旁边都多了一道新鲜涂改痕迹。",
+    effects: ["后续所有尚未挑战、尚未被奇袭锁定的对手重新随机。", "体验上等同于看不见的大手连续使用公子特权。", "已锁定、已进入战斗和命名冠军目标不受影响。"],
+  },
+  soul_swap: {
+    intro: "休整区发生了一件很难解释的怪事。你和下一位对手短暂交换了灵魂。两个人很快都发现胜负仍按原本身体结算，于是心里不约而同冒出同一句话：这场比赛，一定要“输”。",
+    effects: [`下一场战斗中，你操作对手队伍。`, "对手也发现了规则，会努力把你的队伍打输。", "胜负仍按原阵营判断。", "如果你用 NPC 队伍打赢自己的原队伍，本局按挑战失败处理。", `${SOUL_SWAP_TURN_LIMIT} 回合未分胜负时，工厂会叫停并判定双方同时判负。`],
+  },
+  reluctant_team: {
+    intro: "队伍里的宝可梦今天格外黏人。它们不愿意被交换走，也不想看见新同伴顶替自己的位置。",
+    effects: ["本次休整无法交换宝可梦。", "立刻获得 4 点可分配等级。", "等级可以分给当前队伍任意宝可梦。", "等级分配仍受徽章权限上限限制。"],
+  },
+};
+
 const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "recycler_appraisal",
-    name: "旧货估价",
+    name: "含泪甩卖",
     desc: "本次休整解锁道具回收商。",
     detail: "只有选择这张奇遇后，休整栏才会出现道具回收商按钮。讲价高手会提高本次出售价格。",
     tone: "trade",
@@ -315,6 +426,20 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
     async apply(_save, run) {
       const gained = addCoins(run, 120);
       return `赞助到账：获得 ${gained}金币。`;
+    },
+  },
+  {
+    id: "score_bet",
+    name: "重金下注",
+    desc: "默认押 100 金币猜下一战精确比分 3:0。",
+    detail: "休整中可调整比分和金额；只认精确命中，没中本金不返还。",
+    tone: "risk",
+    async apply(_save, run) {
+      if (currentCoins(run) < SCORE_BET_MIN_STAKE) throw new Error(`重金下注至少需要 ${SCORE_BET_MIN_STAKE}金币。`);
+      spendCoins(run, SCORE_BET_MIN_STAKE);
+      const bet = normalizeScoreBetState({target_alive: SCORE_BET_DEFAULT_TARGET, stake: SCORE_BET_MIN_STAKE, multiplier: scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET)}, scoreBetMaxStakeForCoins(currentCoins(run), SCORE_BET_MIN_STAKE));
+      run.rest_status = {...(run.rest_status || {}), event_score_bet_next: bet};
+      return `重金下注：已默认下注 ${SCORE_BET_MIN_STAKE}金币，精确比分 3:0，命中返还 ${scoreBetPayout(SCORE_BET_MIN_STAKE, SCORE_BET_DEFAULT_TARGET)}金币。`;
     },
   },
   {
@@ -366,12 +491,12 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "major_surgery",
     name: "重伤手术",
-    desc: "本次低级恢复道具失效；下次休整全队满状态。",
+    desc: "本次不回血且低级恢复道具失效；下次休整全队满状态。",
     detail: "全满药、全复药、复活和 PP 药剂仍可用。",
     tone: "trade",
     async apply(_save, run) {
-      run.rest_status = {...(run.rest_status || {}), event_low_tier_recovery_disabled: true, event_pending_full_restore: true};
-      return "重伤手术：本次低级恢复道具失效，下次休整全队恢复满状态。";
+      run.rest_status = {...(run.rest_status || {}), event_low_tier_recovery_disabled: true, event_pending_full_restore_after_battle: true};
+      return "重伤手术：本次休整不回血，低级恢复道具失效；打完下一场后，下次休整全队恢复满状态。";
     },
   },
   {
@@ -490,12 +615,12 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "last_minute_escape",
     name: "临阵脱逃",
-    desc: "队内一只宝可梦离队，补发同物种同档位的新个体。",
-    detail: "配置会重随，可能变好也可能变坏。",
+    desc: "队内一只宝可梦离队，按同物种档位和同数值档位补发新宝可梦。",
+    detail: "物种和配置都会重随，可能变好也可能变坏。",
     tone: "risk",
-    async apply(_save, run) {
+    async apply(save, run) {
       if ((run.player_team || []).length <= 1) return "临阵脱逃：队伍人数太少，工厂没有触发替换。";
-      return replaceEscapedPokemon(run);
+      return replaceEscapedPokemon(save, run);
     },
   },
   {
@@ -566,11 +691,12 @@ function carryRestStatusForBattle(run: CurrentRunData): CurrentRunData["rest_sta
   return {
     ...(status.all_in_pending_next ? {all_in_pending_next: true, all_in_result: status.all_in_result || null} : {}),
     ...(Number(status.event_recovery_multiplier || 1) < 1 ? {event_recovery_multiplier: status.event_recovery_multiplier, event_hungry: Boolean(status.event_hungry)} : {}),
-    ...(status.event_pending_full_restore ? {event_pending_full_restore: true} : {}),
+    ...(status.event_pending_full_restore || status.event_pending_full_restore_after_battle ? {event_pending_full_restore: true} : {}),
     ...(status.event_checked_bag_items ? {event_checked_bag_items: status.event_checked_bag_items} : {}),
     ...(status.event_next_battle_healing_blocked ? {event_next_battle_healing_blocked: true} : {}),
     ...(status.event_contest_next ? {event_contest_next: status.event_contest_next} : {}),
     ...(status.event_soul_swap_next ? {event_soul_swap_next: true} : {}),
+    ...(status.event_score_bet_next ? {event_score_bet_next: status.event_score_bet_next} : {}),
     ...(status.event_rerandomized_locked_battles?.length ? {event_rerandomized_locked_battles: status.event_rerandomized_locked_battles} : {}),
   };
 }
@@ -586,7 +712,16 @@ function carryRestStatusAfterBattle(run: CurrentRunData, extra: CurrentRunData["
 }
 
 function restEventView(event: RestEventDefinition | RestEventOption): RestEventOption {
-  return {id: event.id, name: event.name, desc: event.desc, detail: event.detail, tone: event.tone};
+  const copy = REST_EVENT_COPY[event.id];
+  return {
+    id: event.id,
+    name: event.name,
+    desc: event.desc,
+    detail: event.detail,
+    intro: event.intro || copy?.intro || event.desc,
+    effects: event.effects || copy?.effects || [event.desc, event.detail].filter((value): value is string => Boolean(value)),
+    tone: event.tone,
+  };
 }
 
 function ensureRestEventOptions(run: CurrentRunData): void {
@@ -594,7 +729,12 @@ function ensureRestEventOptions(run: CurrentRunData): void {
   if (run.rest_status?.rest_event_selected_id) return;
   if (run.rest_status?.rest_event_options?.length) return;
   const rng = seededRng(Number(run.seed || 1), 0x7e57 + Number(run.battle_no || 0) * 173 + Number(run.next_battle || 1) * 37 + Number(run.wins || 0) * 19);
-  const pool = REST_EVENT_DEFINITIONS.filter(event => event.id !== "last_minute_escape" || (run.player_team || []).length > 1);
+  const pool = REST_EVENT_DEFINITIONS.filter(event => {
+    if (event.id === "last_minute_escape" && (run.player_team || []).length <= 1) return false;
+    if (event.id === "score_bet" && currentCoins(run) < SCORE_BET_MIN_STAKE) return false;
+    if (event.id === "soul_swap" && !soulSwapAllowedForNextBattle(run)) return false;
+    return true;
+  });
   const picked = shuffleByRng(pool, rng).slice(0, 3).map(restEventView);
   run.rest_status = {...(run.rest_status || {}), rest_event_options: picked, rest_event_selected_id: null};
 }
@@ -940,18 +1080,18 @@ async function rerandomizeFutureBattles(save: LocalSave, run: CurrentRunData): P
   return count;
 }
 
-async function replaceEscapedPokemon(run: CurrentRunData): Promise<string> {
+async function replaceEscapedPokemon(save: LocalSave, run: CurrentRunData): Promise<string> {
   const rng = eventRng(run, "last_minute_escape");
   const slot = Math.floor(rng() * run.player_team.length);
   const oldRaw = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
   const oldDisplay = JSON.parse(JSON.stringify(run.player_display[slot])) as RentalPokemon;
   const oldName = oldDisplay.species_zh || oldDisplay.species || oldRaw.species || "宝可梦";
   const profile = (oldRaw.generation_profile || oldDisplay.generation_profile || "tier3") as GenerationProfile;
-  const speciesId = oldDisplay.species_id || oldRaw.species || oldRaw.name;
-  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed || 1), 0xee00 + Number(run.battle_no || run.next_battle || 0) * 31 + slot), "gen9randombattle", 1, {profiles: [profile], speciesIds: [speciesId], purpose: "normal", battleSetting: run.battle_setting});
+  const speciesTier = Math.max(1, Math.min(4, Number(oldRaw.species_tier || oldDisplay.species_tier || oldRaw.stage_tier || oldDisplay.stage_tier || 2))) as SpeciesTier;
+  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed || 1), 0xee00 + Number(run.battle_no || run.next_battle || 0) * 31 + slot), "gen9randombattle", 1, {profiles: [profile], speciesTiers: [speciesTier], purpose: "normal", battleSetting: run.battle_setting});
   let nextRaw = generated.team[0];
   let nextDisplay = generated.display[0];
-  if (!nextRaw || !nextDisplay) return `临阵脱逃：${oldName} 差点跑掉，但工厂没有找到替补。`;
+  if (!nextRaw || !nextDisplay) return `临阵脱逃：${oldName} 差点跑掉，但工厂没有找到同档位替补。`;
   const oldShowdownId = oldRaw.showdown_id || oldDisplay.showdown_id || run.player_state?.[slot]?.showdown_id;
   addToExchangeBox(run, [oldRaw], [oldDisplay], run.player_state?.[slot] ? [run.player_state[slot]] : undefined);
   const newShowdownId = takeReplacementRunShowdownId(run, slot, oldShowdownId);
@@ -962,6 +1102,7 @@ async function replaceEscapedPokemon(run: CurrentRunData): Promise<string> {
   writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
   run.player_team[slot] = nextRaw;
   run.player_display[slot] = nextDisplay;
+  recordPokemonUsage(save, nextDisplay);
   const states = normalizePlayerState(run);
   states[slot] = fullStateForPokemon(nextDisplay, slot + 1);
   writePlayerSlotShowdownId(run, slot, states, newShowdownId);
@@ -1131,6 +1272,14 @@ function migrateSaveBpScale(save: LocalSave): void {
   void save;
 }
 
+function normalizeAudioSettings(input?: Partial<AudioSettings> | null): AudioSettings {
+  const volume = Number(input?.bgm_volume ?? DEFAULT_AUDIO_SETTINGS.bgm_volume);
+  return {
+    bgm_enabled: input?.bgm_enabled !== false,
+    bgm_volume: Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : DEFAULT_AUDIO_SETTINGS.bgm_volume)),
+  };
+}
+
 function emptyBossDexRecord(): BossDexRecord {
   return {
     encounters: 0,
@@ -1172,6 +1321,7 @@ function normalizeSave(save: LocalSave): LocalSave {
   save.talent_equipped = [...save.talent_unlocks];
   save.starter_upgrades = starterUpgradesForStarChart(save.star_chart);
   save.battle_setting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
+  save.audio_settings = normalizeAudioSettings(save.audio_settings);
   save.boss_dex = normalizeBossDex(save.boss_dex);
   save.run_memory = {
     player_species_ids: Array.from(new Set((save.run_memory?.player_species_ids || []).map(toId).filter(Boolean))).slice(0, 6),
@@ -1181,6 +1331,40 @@ function normalizeSave(save: LocalSave): LocalSave {
   refreshStats(save);
   if (save.current_run) normalizeCurrentRun(save.current_run);
   return save;
+}
+
+function pokemonUsageKey(pokemon?: Partial<RentalPokemon> | PokemonSet | null): string {
+  if (!pokemon) return "";
+  const value = "species_id" in pokemon
+    ? pokemon.species_id || pokemon.species || pokemon.name
+    : pokemon.species || pokemon.name;
+  return toId(String(value || ""));
+}
+
+function recordPokemonUsage(save: LocalSave, pokemon: Partial<RentalPokemon> | PokemonSet | null | undefined): void {
+  const key = pokemonUsageKey(pokemon);
+  if (!key) return;
+  save.stats = {...emptyStats(), ...(save.stats || {})};
+  const counts = {...(save.stats.pokemon_usage_counts || {})};
+  counts[key] = Math.max(0, Math.floor(Number(counts[key] || 0))) + 1;
+  save.stats.pokemon_usage_counts = counts;
+  refreshStats(save);
+}
+
+function recordPokemonUsageList(save: LocalSave, pokemonList: Array<Partial<RentalPokemon> | PokemonSet | null | undefined>): void {
+  for (const pokemon of pokemonList) recordPokemonUsage(save, pokemon);
+}
+
+function decorateDexUsageCounts(save: LocalSave | null, result: DesktopDexSearchResult): DesktopDexSearchResult {
+  if (result.category !== "pokemon") return result;
+  const counts = save?.stats?.pokemon_usage_counts || {};
+  return {
+    ...result,
+    entries: result.entries.map(entry => ({
+      ...entry,
+      usage_count: Math.max(0, Math.floor(Number(counts[toId(entry.id)] ?? counts[pokemonUsageKey(entry)] ?? 0))),
+    })),
+  };
 }
 
 function activeTalentsForSave(save?: LocalSave | null): TalentView[] {
@@ -1274,6 +1458,25 @@ async function updateBattleSetting(setting: Partial<BattleSetting>): Promise<{se
   save.battle_setting = nextSetting;
   const next = await persist(save);
   return {setting: normalizeBattleSetting(next.battle_setting), save: next};
+}
+
+async function getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}> {
+  const save = await loadSave();
+  if (!save) return {settings: transientAudioSettings, save: null};
+  return {settings: normalizeAudioSettings(save.audio_settings), save};
+}
+
+async function updateAudioSettings(settings: Partial<AudioSettings>): Promise<{settings: AudioSettings; save?: LocalSave | null}> {
+  const nextSettings = normalizeAudioSettings({...transientAudioSettings, ...settings});
+  const save = await loadSave();
+  if (!save) {
+    transientAudioSettings = nextSettings;
+    return {settings: transientAudioSettings, save: null};
+  }
+  save.audio_settings = nextSettings;
+  const next = await persist(save);
+  transientAudioSettings = nextSettings;
+  return {settings: normalizeAudioSettings(next.audio_settings), save: next};
 }
 
 function gameState(partial: Partial<DesktopGameState>): DesktopGameState {
@@ -1453,7 +1656,8 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
   if (run.rest_status?.event_contest_active) battleEventStatuses.push({id: "contest", label: "华丽大赛", detail: `当前华丽分 ${contestScore}`, tone: "trade"});
   if (Number(run.rest_status?.event_recovery_multiplier || 1) < 1) battleEventStatuses.push({id: "recovery_down", label: run.rest_status?.event_hungry ? "饥饿" : "恢复减半", detail: "本场背包恢复道具效果减半。", tone: "risk"});
   if (run.rest_status?.event_next_battle_healing_blocked) battleEventStatuses.push({id: "healing_blocked", label: "恢复诅咒", detail: "本场不能使用 HP/异常/复活类背包恢复道具。", tone: "risk"});
-  if (run.rest_status?.event_soul_swap_active) battleEventStatuses.push({id: "soul_swap", label: "灵魂互换", detail: "你正在操作对手队伍，胜负按原阵营结算。", tone: "risk"});
+  if (run.rest_status?.event_soul_swap_active) battleEventStatuses.push({id: "soul_swap", label: "灵魂互换", detail: `双方都知道要努力“输”掉这场；${SOUL_SWAP_TURN_LIMIT} 回合未分胜负会被工厂叫停。`, tone: "risk"});
+  if (run.rest_status?.event_score_bet_active) battleEventStatuses.push({id: "score_bet", label: "重金下注", detail: `精确命中 ${run.rest_status.event_score_bet_active.target_alive}:0 返还 ${run.rest_status.event_score_bet_active.payout || scoreBetPayout(run.rest_status.event_score_bet_active.stake, run.rest_status.event_score_bet_active.target_alive)}金币。`, tone: "risk"});
   return {
     ...state,
     player_trainer: run.player_trainer,
@@ -1463,6 +1667,7 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     player_talents: playerTalents,
     show_move_effectiveness: hasTalent(playerTalents, "intel_god_eye"),
     battle_setting: normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING),
+    music_scene: run.boss_type && run.boss_type !== "normal" ? "boss" : "battle",
     battle_event_statuses: battleEventStatuses,
     contest_score: contestScore,
     contest_marks: run.rest_status?.event_contest_active,
@@ -2695,12 +2900,14 @@ function championPersonalityForTrainer(trainer?: TrainerNpcView): BattleAiPerson
   return "balanced";
 }
 
-function enemyAiForRoute(route: BossRoute, trainer?: TrainerNpcView): BattleAiProfileInput {
-  if (route.type === "champion") return {level: "champion", personality: championPersonalityForTrainer(trainer)};
-  if (route.type === "elite4") return "elite4";
-  if (route.type === "gym" && route.stage.includes("tier3")) return "gym_high";
-  if (route.type === "gym") return "gym_low";
-  return "normal";
+function enemyAiForRoute(route: BossRoute, trainer?: TrainerNpcView, run?: CurrentRunData | null): BattleAiProfileInput {
+  let profile: BattleAiProfileInput;
+  if (route.type === "champion") profile = {level: "champion", personality: championPersonalityForTrainer(trainer)};
+  else if (route.type === "elite4") profile = "elite4";
+  else if (route.type === "gym" && route.stage.includes("tier3")) profile = "gym_high";
+  else if (route.type === "gym") profile = "gym_low";
+  else profile = "normal";
+  return enemyAiProfileForRunRoute(run, route.type, profile);
 }
 
 function normalEnemyProfilesForRoute(route: BossRoute): GenerationProfile[] {
@@ -3560,6 +3767,16 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     display: (run.exchange_box?.display || []).filter(Boolean),
     state: (run.exchange_box?.state || []).filter(Boolean),
   };
+  const migrateCurrentRestSurgeryRestore = run.status === "awaiting_rest" && Boolean(run.rest_status?.event_low_tier_recovery_disabled && run.rest_status?.event_pending_full_restore);
+  const selectedRestEventId = run.rest_status?.rest_event_selected_id ? toId(run.rest_status.rest_event_selected_id) : null;
+  const selectedRestEventAllowed = !selectedRestEventId
+    || (selectedRestEventId !== "soul_swap" || soulSwapAllowedForNextBattle(run))
+    && (selectedRestEventId !== "score_bet" || currentCoins(run) >= SCORE_BET_MIN_STAKE);
+  const normalizeStoredScoreBet = (bet: Partial<RestScoreBetState> | null | undefined): RestScoreBetState | undefined => {
+    if (!bet) return undefined;
+    const stake = Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(bet.stake || SCORE_BET_MIN_STAKE)));
+    return normalizeScoreBetState(bet, Math.max(stake, scoreBetMaxStakeForCoins(currentCoins(run), stake)));
+  };
   run.rest_status = {
     exchanges: Number(run.rest_status?.exchanges || 0),
     taken_enemy_slots: (run.rest_status?.taken_enemy_slots || []).map(Number).filter(slot => slot >= 1 && slot <= 3),
@@ -3577,9 +3794,9 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     recycler_available: Boolean(run.rest_status?.recycler_available),
     rest_event_options: (run.rest_status?.rest_event_options || [])
       .map(event => restEventView(event))
-      .filter(event => REST_EVENT_DEFINITIONS.some(definition => definition.id === event.id))
+      .filter(event => REST_EVENT_DEFINITIONS.some(definition => definition.id === event.id) && (event.id !== "soul_swap" || soulSwapAllowedForNextBattle(run)) && (event.id !== "score_bet" || currentCoins(run) >= SCORE_BET_MIN_STAKE))
       .slice(0, 3),
-    rest_event_selected_id: run.rest_status?.rest_event_selected_id ? toId(run.rest_status.rest_event_selected_id) : null,
+    rest_event_selected_id: selectedRestEventAllowed ? selectedRestEventId : null,
     all_in_result: run.rest_status?.all_in_result || null,
     named_challenge_decided: Boolean(run.rest_status?.named_challenge_decided),
     event_shop_disabled: Boolean(run.rest_status?.event_shop_disabled),
@@ -3587,7 +3804,8 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     event_recovery_multiplier: Math.max(0, Number(run.rest_status?.event_recovery_multiplier || 0)) || undefined,
     event_hungry: Boolean(run.rest_status?.event_hungry),
     event_low_tier_recovery_disabled: Boolean(run.rest_status?.event_low_tier_recovery_disabled),
-    event_pending_full_restore: Boolean(run.rest_status?.event_pending_full_restore),
+    event_pending_full_restore: Boolean(run.rest_status?.event_pending_full_restore && !migrateCurrentRestSurgeryRestore),
+    event_pending_full_restore_after_battle: Boolean(run.rest_status?.event_pending_full_restore_after_battle || migrateCurrentRestSurgeryRestore),
     event_checked_bag_items: Object.fromEntries(Object.entries(run.rest_status?.event_checked_bag_items || {}).map(([id, count]) => [itemKey(id), Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([, count]) => count > 0)),
     event_rest_healing_blocked: Boolean(run.rest_status?.event_rest_healing_blocked),
     event_next_battle_healing_blocked: Boolean(run.rest_status?.event_next_battle_healing_blocked),
@@ -3607,6 +3825,8 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     event_level_points: Math.max(0, Math.floor(Number(run.rest_status?.event_level_points || 0))),
     event_soul_swap_next: Boolean(run.rest_status?.event_soul_swap_next),
     event_soul_swap_active: Boolean(run.rest_status?.event_soul_swap_active),
+    event_score_bet_next: normalizeStoredScoreBet(run.rest_status?.event_score_bet_next),
+    event_score_bet_active: normalizeStoredScoreBet(run.rest_status?.event_score_bet_active),
   };
   normalizePlayerState(run);
   return run;
@@ -3640,6 +3860,7 @@ async function applyRestDelayedEffects(run: CurrentRunData): Promise<string[]> {
   if (run.rest_status?.event_contest_active) delete run.rest_status.event_contest_active;
   if (run.rest_status?.event_next_battle_healing_blocked) delete run.rest_status.event_next_battle_healing_blocked;
   if (run.rest_status?.event_soul_swap_active) delete run.rest_status.event_soul_swap_active;
+  if (run.rest_status?.event_score_bet_active) delete run.rest_status.event_score_bet_active;
   return messages;
 }
 
@@ -3650,6 +3871,7 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
   if (Number(status.event_shop_price_multiplier || 1) > 1) entries.push({id: "shop_price", label: `商店 x${Number(status.event_shop_price_multiplier).toFixed(1)}`, detail: "本次商店抽奖与购买价格提高。", tone: "risk"});
   if (Number(status.event_recovery_multiplier || 1) < 1) entries.push({id: "recovery_down", label: status.event_hungry ? "饥饿" : "恢复减半", detail: status.event_hungry ? "本次休整和下一战背包恢复道具效果减半。" : "背包和事件恢复效果减半。", tone: "risk"});
   if (status.event_low_tier_recovery_disabled) entries.push({id: "low_recovery_disabled", label: "低级恢复失效", detail: "低级回复药、状态药和树果不能使用。", tone: "risk"});
+  if (status.event_pending_full_restore_after_battle) entries.push({id: "pending_surgery_restore", label: "术后观察", detail: "本次休整不会立刻回血；打完下一场后，下次休整全队满状态。", tone: "trade"});
   if (status.event_rest_healing_blocked) entries.push({id: "healing_blocked", label: "恢复诅咒", detail: "本次休整不能使用 HP/异常/复活类恢复道具。", tone: "risk"});
   if (status.event_checked_bag_items && Object.keys(status.event_checked_bag_items).length) entries.push({id: "checked_items", label: "道具托运中", detail: "托运道具会在下次休整归还到背包。", tone: "risk"});
   if (status.event_barter_active) entries.push({id: "barter", label: "以物易物", detail: "商店抽奖免费，购买只能用背包道具交换。", tone: "trade"});
@@ -3661,6 +3883,7 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
   if (status.event_raid_exchange_available && !status.event_raid_exchange_used) entries.push({id: "raid_exchange", label: "骇人奇袭", detail: "可与下一位对手交换 1 只宝可梦。", tone: "trade"});
   if (status.event_contest_next) entries.push({id: "contest", label: "华丽大赛", detail: "下一战会按裁判标记累计华丽分。", tone: "trade"});
   if (status.event_soul_swap_next) entries.push({id: "soul_swap", label: "灵魂互换", detail: "下一战操作队伍互换，胜负按原阵营结算。", tone: "risk"});
+  if (status.event_score_bet_next) entries.push({id: "score_bet", label: "重金下注", detail: `下一战精确比分 ${status.event_score_bet_next.target_alive}:0，下注 ${status.event_score_bet_next.stake}，命中返还 ${status.event_score_bet_next.payout || scoreBetPayout(status.event_score_bet_next.stake, status.event_score_bet_next.target_alive)}。`, tone: "risk"});
   return entries;
 }
 
@@ -3737,6 +3960,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     all_in_used: Boolean(run.all_in_exchange_used),
     all_in_pending_next: Boolean(run.rest_status?.all_in_pending_next),
     all_in_result: run.rest_status?.all_in_result || null,
+    score_bet: run.rest_status?.event_score_bet_next ? normalizeScoreBetState(run.rest_status.event_score_bet_next, Math.max(Number(run.rest_status.event_score_bet_next.stake || SCORE_BET_MIN_STAKE), scoreBetMaxStakeForCoins(currentCoins(run), Number(run.rest_status.event_score_bet_next.stake || 0)))) : undefined,
     rest_event: {
       required: restEventRequired(run),
       selected_id: run.rest_status?.rest_event_selected_id || null,
@@ -3750,6 +3974,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       raid_exchange: Boolean(run.rest_status?.event_raid_exchange_available && !run.rest_status?.event_raid_exchange_used),
       raid_exchange_battle_no: run.rest_status?.event_raid_exchange_battle_no,
       level_points: Math.max(0, Number(run.rest_status?.event_level_points || 0)),
+      score_bet: Boolean(run.rest_status?.event_score_bet_next),
     },
     taken_enemy_slots: run.rest_status?.taken_enemy_slots || [],
     exchange_count: exchangeCount,
@@ -4055,6 +4280,7 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
     rest_status: freshRestStatus(runTalents),
   };
   const run = save.current_run as CurrentRunData;
+  recordPokemonUsageList(save, playerDisplay);
   normalizeCurrentRun(run);
   normalizePlayerState(run);
   run.planned_battles = await buildPlannedBattles(save, run);
@@ -4135,6 +4361,10 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     run.rest_status = {...run.rest_status, event_soul_swap_active: true};
     delete run.rest_status.event_soul_swap_next;
   }
+  if (run.rest_status?.event_score_bet_next) {
+    run.rest_status = {...run.rest_status, event_score_bet_active: run.rest_status.event_score_bet_next};
+    delete run.rest_status.event_score_bet_next;
+  }
   delete run.enemy_boss_record;
   run.enemy_raw = enemyTeam;
   run.enemy_display = enemyDisplay;
@@ -4150,7 +4380,7 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     playerState: soulSwapActive ? undefined : normalizePlayerState(battleStartRun),
     seed: gameService.deriveSeed(Number(run.seed), 200 + battleNo),
     battleSetting: battleStartRun.battle_setting,
-    enemyAi: enemyAiForRoute(route, enemyTrainer),
+    enemyAi: soulSwapActive ? soulSwapEnemyAiProfile() : enemyAiForRoute(route, enemyTrainer, battleStartRun),
   });
   const encounteredBoss = recordBossEncounter(battleStartSave, battleStartRun, enemyTrainer, bossTeam, enemyDisplay);
   const stateSave = encounteredBoss ? await persist(battleStartSave) : battleStartSave;
@@ -4159,14 +4389,29 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: `第 ${battleNo}/${run.battles} 场：${label} ${enemyTrainer.name_zh}`});
 }
 
+function aliveStateCount(states: PlayerPokemonState[] | undefined): number {
+  return (states || []).filter(state => !state.fainted && Math.max(0, Number(state.hp || 0)) > 0 && !/\bfnt\b/i.test(String(state.condition || ""))).length;
+}
+
+function settleActiveScoreBet(run: CurrentRunData, effectivePlayerWin: boolean, playerAlive: number, enemyAlive: number): string {
+  const result = settleScoreBetResult(run.rest_status?.event_score_bet_active, effectivePlayerWin, playerAlive, enemyAlive);
+  if (!result) return "";
+  if (result.payout > 0) addCoins(run, result.payout);
+  if (run.rest_status) delete run.rest_status.event_score_bet_active;
+  return result.message;
+}
+
 async function finishBattleState(save: LocalSave, state: BattleState): Promise<DesktopGameState> {
   if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
   const run = save.current_run as CurrentRunData;
   const soulSwapActive = Boolean(run.rest_status?.event_soul_swap_active);
-  run.player_state = soulSwapActive ? activeBattle.getEnemyState() : activeBattle.getPlayerState();
+  const playerPerspectiveState = soulSwapActive ? activeBattle.getEnemyState() : activeBattle.getPlayerState();
+  const enemyPerspectiveState = soulSwapActive ? activeBattle.getPlayerState() : activeBattle.getEnemyState();
+  run.player_state = playerPerspectiveState;
   const contest = settleContestScore(run, state);
   const effectivePlayerWin = (soulSwapActive ? state.winner !== "Player" : state.winner === "Player") || contest.overrideWin;
   const effectiveWinner = effectivePlayerWin ? "Player" : state.winner === "tie" ? "tie" : "Enemy";
+  const scoreBetText = settleActiveScoreBet(run, effectivePlayerWin, aliveStateCount(playerPerspectiveState), aliveStateCount(enemyPerspectiveState));
   const winBp = recordBattleResult(save, effectiveWinner, run);
   const statEvents = recordRunBattleStats(run, state);
   if (!effectivePlayerWin) {
@@ -4177,7 +4422,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const next = await persist(save);
     const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "对手训练师";
     const lossReason = soulSwapActive && state.winner === "Player" ? "灵魂互换：你操作对手队伍获胜，按挑战失败结算。" : `挑战结束。败给 ${enemyName}。`;
-    const lossMessage = `${lossReason}连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+    const lossMessage = `${lossReason}${scoreBetText ? `${scoreBetText} ` : ""}连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
     const resultBattle = decorateBattleState(state, run);
     const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `败给 ${enemyName}`, wins, settled, battle: resultBattle, run});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message: lossMessage, outcome: "loss", statEvents, resultSummary}));
@@ -4197,7 +4442,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
-    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `，华丽大赛 +${contestBonus}金币` : ""}${contest.overrideWin ? "，裁判介入改判成功" : ""}${soulSwapActive ? "，灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
+    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `，华丽大赛 +${contestBonus}金币` : ""}${scoreBetText ? `，${scoreBetText}` : ""}${contest.overrideWin ? "，裁判介入改判成功" : ""}${soulSwapActive ? "，灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     const resultBattle = decorateBattleState(state, run);
     const resultSummary = buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "win", statEvents, resultSummary}));
@@ -4218,10 +4463,44 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     rest_status: freshRestStatus(run.talents, carryRestStatusAfterBattle(run, victoryRewards.restBonus)),
   };
   const next = await persist(save);
-  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
+  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${scoreBetText ? `；${scoreBetText}` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
   await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: decorateBattleState(state, run), message: rewardText, outcome: "win", statEvents}));
   const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
+}
+
+async function finishSoulSwapTimeoutLoss(save: LocalSave, state: BattleState): Promise<DesktopGameState> {
+  if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+  const run = save.current_run as CurrentRunData;
+  const playerPerspectiveState = activeBattle.getEnemyState();
+  const enemyPerspectiveState = activeBattle.getPlayerState();
+  run.player_state = playerPerspectiveState;
+  const scoreBetText = settleActiveScoreBet(run, false, aliveStateCount(playerPerspectiveState), aliveStateCount(enemyPerspectiveState));
+  recordBattleResult(save, "Enemy", run);
+  const statEvents = recordRunBattleStats(run, state);
+  const wins = Number(run.wins || 0);
+  rememberRunForSoulmate(save, run);
+  const settled = await settleRunEnd(save, run, {outcome: "loss"});
+  save.current_run = null;
+  const next = await persist(save);
+  const timeoutText = `灵魂互换：战斗超过 ${SOUL_SWAP_TURN_LIMIT} 回合仍未分出胜负，工厂判定双方刻意打假赛，双方同时判负。`;
+  const message = `${timeoutText}${scoreBetText ? `${scoreBetText} ` : ""}挑战失败。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+  const timeoutEvent: BattleTimelineEvent = {id: randomUUID(), type: "win", text: "工厂叫停：双方同时判负。", turn: state.tracker?.turn};
+  const forcedBattle: BattleState = {
+    ...state,
+    ended: true,
+    winner: "tie",
+    recent_events: [...(state.recent_events || []), timeoutText].slice(-30),
+    timeline_events: [
+      ...(state.timeline_events || []),
+      timeoutEvent,
+    ].slice(-100),
+  };
+  const resultBattle = decorateBattleState(forcedBattle, run);
+  const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: "灵魂互换被工厂叫停", wins, settled, battle: resultBattle, run});
+  await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "loss", statEvents, resultSummary}));
+  const transition = gameState({screen: "result", save: next, battle: resultBattle, message, result_summary: resultSummary});
+  return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message, pending_transition: transition});
 }
 
 async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
@@ -4293,6 +4572,9 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     } else {
       state = choice === "forfeit" ? activeBattle.forfeit() : await activeBattle.choose(choice);
     }
+    if (shouldForceSoulSwapTimeout(save.current_run as CurrentRunData, state)) {
+      return finishSoulSwapTimeoutLoss(save, state);
+    }
     if (!state.ended) {
       const next = shouldPersist ? await persist(save) : save;
       return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await bagCategories(next.current_run as CurrentRunData)});
@@ -4310,6 +4592,9 @@ async function autoAdvanceBattle(): Promise<DesktopGameState> {
     const save = await loadSave();
     if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
     const state = await activeBattle.advanceIfWaiting();
+    if (shouldForceSoulSwapTimeout(save.current_run as CurrentRunData, state)) {
+      return finishSoulSwapTimeoutLoss(save, state);
+    }
     if (!state.ended) {
       return gameState({screen: "battleMain", save, battle: decorateBattleState(state, save.current_run as CurrentRunData), battle_bag: await bagCategories(save.current_run as CurrentRunData)});
     }
@@ -4338,6 +4623,7 @@ async function finishExchange(ownIndex: number | null, enemyIndex: number | null
     rememberRunPokemonAppearances(run, playerDisplay);
     playerTeam[ownIndex] = run.enemy_raw[enemyIndex];
     playerDisplay[ownIndex] = run.enemy_display[enemyIndex];
+    recordPokemonUsage(save, playerDisplay[ownIndex]);
     rememberRunPokemonAppearances(run, playerDisplay);
   }
   const nextRun: CurrentRunData = {...run, status: "ready", next_battle: Number(run.battle_no || 1) + 1, player_team: playerTeam, player_display: playerDisplay};
@@ -4488,6 +4774,22 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (run.rest_status?.all_in_pending_next) throw new Error("孤注一掷已发动，本次休整即将结束。");
 
   const states = normalizePlayerState(run);
+  if (action.type === "event_score_bet_adjust") {
+    const current = run.rest_status?.event_score_bet_next;
+    if (!current) throw new Error("当前没有重金下注。");
+    const currentStake = Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(current.stake || SCORE_BET_MIN_STAKE)));
+    const maxStake = scoreBetMaxStakeForCoins(currentCoins(run), currentStake);
+    const target = action.targetAlive === undefined ? current.target_alive : scoreBetTarget(action.targetAlive, current.target_alive);
+    const requestedStake = action.stake === undefined ? currentStake : Math.max(SCORE_BET_MIN_STAKE, Math.min(maxStake, Math.floor(Number(action.stake || SCORE_BET_MIN_STAKE))));
+    const diff = requestedStake - currentStake;
+    if (diff > 0) spendCoins(run, diff);
+    if (diff < 0) addCoins(run, -diff);
+    const normalized = normalizeScoreBetState({target_alive: target, stake: requestedStake, multiplier: scoreBetMultiplier(target)}, Math.max(requestedStake, scoreBetMaxStakeForCoins(currentCoins(run), requestedStake)));
+    run.rest_status = {...(run.rest_status || {}), event_score_bet_next: normalized};
+    const next = await persist(save);
+    const refundText = diff < 0 ? `，退回 ${-diff}金币` : diff > 0 ? `，补下注 ${diff}金币` : "";
+    return await restState(next, next.current_run as CurrentRunData, `重金下注：已调整为精确 ${target}:0，下注 ${requestedStake}金币，命中返还 ${scoreBetPayout(requestedStake, target)}金币${refundText}。`);
+  }
   if (action.type === "restore_hp" || action.type === "restore_pp" || action.type === "restore_status") {
     throw new Error("休整免费恢复已移除，请使用背包中的恢复道具。");
   }
@@ -4785,6 +5087,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
     run.player_team[own] = nextRaw;
     run.player_display[own] = nextDisplay;
+    recordPokemonUsage(save, nextDisplay);
     const nextStates = normalizePlayerState(run);
     nextStates[own] = fullStateForPokemon(nextDisplay, own + 1);
     writePlayerSlotShowdownId(run, own, nextStates, newShowdownId);
@@ -4864,6 +5167,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     writePokemonShowdownId(nextRaw, nextDisplayBase, undefined, newShowdownId);
     run.player_team[action.ownIndex] = hasTalent(run.talents, "economy_shiny_collector") ? {...nextRaw, shiny: true} : nextRaw;
     run.player_display[action.ownIndex] = hasTalent(run.talents, "economy_shiny_collector") ? shinyPokemon(nextDisplayBase) : nextDisplayBase;
+    recordPokemonUsage(save, run.player_display[action.ownIndex]);
     writePokemonShowdownId(run.player_team[action.ownIndex], run.player_display[action.ownIndex], undefined, newShowdownId);
     run.player_state = normalizePlayerState(run);
     const ratio = exchangeStateRatio(run);
@@ -4905,6 +5209,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
     run.player_team[own] = hasTalent(run.talents, "economy_shiny_collector") ? {...nextRaw, shiny: true} : nextRaw;
     run.player_display[own] = hasTalent(run.talents, "economy_shiny_collector") ? shinyPokemon(nextDisplay) : nextDisplay;
+    recordPokemonUsage(save, run.player_display[own]);
     writePokemonShowdownId(run.player_team[own], run.player_display[own], undefined, newShowdownId);
     run.player_state = normalizePlayerState(run);
     run.player_state[own] = fullStateForPokemon(run.player_display[own], own + 1);
@@ -5260,8 +5565,9 @@ async function editOptions(slot: number): Promise<PokemonEditOptions> {
 }
 
 async function dexSearch(category: DesktopDexCategory, query = "", offset = 0, limit = 8): Promise<DesktopDexSearchResult> {
-  if (category === "trainers") return trainerDexSearch(await loadSave(), query, offset, limit);
-  return gameService.dexSearch(category, query, offset, limit);
+  const save = await loadSave();
+  if (category === "trainers") return trainerDexSearch(save, query, offset, limit);
+  return decorateDexUsageCounts(save, await gameService.dexSearch(category, query, offset, limit));
 }
 
 app.whenReady().then(() => {
@@ -5290,6 +5596,8 @@ app.whenReady().then(() => {
   }
   handleIpc("battleSetting:get", async () => getBattleSetting());
   handleIpc("battleSetting:update", async (setting: Partial<BattleSetting>) => updateBattleSetting(setting));
+  handleIpc("audioSettings:get", async () => getAudioSettings());
+  handleIpc("audioSettings:update", async (settings: Partial<AudioSettings>) => updateAudioSettings(settings));
   handleIpc("trainer:catalog", async () => trainerCatalogState());
   handleIpc("game:generateCandidates", async (seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));
   handleIpc("run:prepareStarterItems", async (seed?: number) => prepareStarterItems(seed));

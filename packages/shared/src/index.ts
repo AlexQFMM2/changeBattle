@@ -164,6 +164,7 @@ export type DesktopDexEntry = {
   types_zh?: string[];
   base_stats?: Record<string, number>;
   learnset?: MoveSummary[];
+  usage_count?: number;
   type?: string;
   type_zh?: string;
   move_category?: string;
@@ -459,11 +460,22 @@ export type BattleState = {
   player_talents?: TalentView[];
   show_move_effectiveness?: boolean;
   battle_setting?: BattleSetting;
+  music_scene?: "battle" | "boss";
   enemy_boss_record?: BossDexRecord;
   battle_background?: BattleBackgroundView;
   battle_event_statuses?: RestEventStatusView[];
   contest_score?: number;
   contest_marks?: RestContestState;
+};
+
+export type AudioSettings = {
+  bgm_enabled: boolean;
+  bgm_volume: number;
+};
+
+export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+  bgm_enabled: true,
+  bgm_volume: 0.2,
 };
 
 export type ExchangeState = {
@@ -542,6 +554,7 @@ export type RestState = {
     old_name: string;
     new_name: string;
   } | null;
+  score_bet?: RestScoreBetState;
   rest_event?: RestEventState;
   rest_event_statuses?: RestEventStatusView[];
   event_services?: {
@@ -551,6 +564,7 @@ export type RestState = {
     raid_exchange?: boolean;
     raid_exchange_battle_no?: number;
     level_points?: number;
+    score_bet?: boolean;
   };
   taken_enemy_slots: number[];
   exchange_count: number;
@@ -576,6 +590,8 @@ export type RestEventOption = {
   name: string;
   desc: string;
   detail?: string;
+  intro?: string;
+  effects?: string[];
   tone?: RestEventTone;
 };
 
@@ -590,6 +606,16 @@ export type RestEventStatusView = {
   label: string;
   detail?: string;
   tone?: RestEventTone;
+};
+
+export type RestScoreBetTarget = 1 | 2 | 3;
+
+export type RestScoreBetState = {
+  target_alive: RestScoreBetTarget;
+  stake: number;
+  multiplier: number;
+  max_stake?: number;
+  payout?: number;
 };
 
 export type RestContestState = {
@@ -744,6 +770,7 @@ export type RestAction =
   | {type: "event_barter_buy"; offerId: string; itemIds: string[]}
   | {type: "event_raid_exchange"; ownIndex: number; enemyIndex: number}
   | {type: "event_apply_level"; slot: number}
+  | {type: "event_score_bet_adjust"; targetAlive?: RestScoreBetTarget; stake?: number}
   | {type: "restore_hp"; slots: number[]}
   | {type: "restore_pp"; slots: number[]; moveSlot?: number}
   | {type: "restore_status"; slots: number[]}
@@ -839,6 +866,7 @@ export type SaveUserTable = {
   bp_scale?: number;
   trainer: TrainerProfile;
   stats: TrainerStats;
+  audio_settings?: AudioSettings;
   run_memory?: {
     player_species_ids?: string[];
     enemy_species_ids?: string[];
@@ -1051,6 +1079,7 @@ export type CurrentRunData = {
     event_hungry?: boolean;
     event_low_tier_recovery_disabled?: boolean;
     event_pending_full_restore?: boolean;
+    event_pending_full_restore_after_battle?: boolean;
     event_checked_bag_items?: Record<string, number>;
     event_rest_healing_blocked?: boolean;
     event_next_battle_healing_blocked?: boolean;
@@ -1070,6 +1099,8 @@ export type CurrentRunData = {
     event_level_points?: number;
     event_soul_swap_next?: boolean;
     event_soul_swap_active?: boolean;
+    event_score_bet_next?: RestScoreBetState;
+    event_score_bet_active?: RestScoreBetState;
   };
 };
 
@@ -1116,6 +1147,7 @@ export type TrainerStats = {
   battles: number;
   wins: number;
   losses: number;
+  pokemon_usage_counts?: Record<string, number>;
   win_rate?: number;
   set_win_streak?: number;
   best_set_win_streak?: number;
@@ -1169,6 +1201,7 @@ export type LocalSave = {
   star_chart?: StarChartState;
   starter_upgrades?: StarterUpgradeState;
   battle_setting?: BattleSetting;
+  audio_settings?: AudioSettings;
   named_champion_id?: string | null;
   boss_dex?: Record<string, BossDexRecord>;
   run_memory?: {

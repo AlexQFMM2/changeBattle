@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState} from "react";
 import type {DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, RentalPokemon} from "@changebattle/shared";
 import {AnimatedModalLayer, AnimatedPanel} from "../motion/Animated";
 import {PokemonProfile} from "../pokemon/PokemonProfile";
-import {ItemIcon, PokemonSprite, STAT_ROWS, assetUrl, displayName, playPokemonCry, trainerImageUrl} from "../../lib/ui";
+import {ItemIcon, PokemonSprite, STAT_ROWS, assetUrl, displayName, trainerImageUrl} from "../../lib/ui";
 import {groupLearnsetBySource, moveHasMultipleLearnSources} from "./learnsetGroups";
 
 const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
@@ -75,10 +75,6 @@ export function DexModal({onClose}: {onClose: () => void}) {
     };
   }, [category, query, trainerFilter, currentPage]);
 
-  useEffect(() => {
-    if (selected?.category === "pokemon") playPokemonCry(selected, "dex");
-  }, [selected?.category, selected?.id, selected?.sprite?.cry_asset]);
-
   return (
     <AnimatedModalLayer className="modal-layer">
       <AnimatedPanel className="dex-modal">
@@ -143,7 +139,7 @@ function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
         {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : null}
         <div>
           <h3>{entry.name_zh || entry.name}</h3>
-          <p>{entry.name}　{entry.id}</p>
+          <p>{entry.name}　{entry.id}{entry.category === "pokemon" ? `（使用次数${entry.usage_count || 0}）` : ""}</p>
         </div>
       </header>
       {entry.category === "pokemon" ? (

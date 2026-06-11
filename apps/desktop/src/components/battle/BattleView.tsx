@@ -408,6 +408,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const [displayedSubstitutes, setDisplayedSubstitutes] = useState(finalSubstitutes);
   const [hpTransitionMs, setHpTransitionMs] = useState({p1: 1400, p2: 1400});
   const [faintedSides, setFaintedSides] = useState({p1: false, p2: false});
+  const [entryRevealLocked, setEntryRevealLocked] = useState(() => Boolean(battle));
   const [introActive, setIntroActive] = useState(false);
   const [trainerIntroActive, setTrainerIntroActive] = useState(false);
   const [dialogue, setDialogue] = useState<TrainerDialogueState | null>(null);
@@ -493,6 +494,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       const dialogueBattle = battle;
       const enemy = dialogueBattle?.enemy_trainer;
       introDialoguePending.current = true;
+      setEntryRevealLocked(true);
       setDialogue({
         kind: "intro",
         speaker: trainerDisplayName(enemy),
@@ -511,6 +513,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
     if (!battlePresent) {
       introDialoguePending.current = false;
       bossDialogueSelection.current = null;
+      setEntryRevealLocked(false);
       setIntroActive(false);
       setTrainerIntroActive(false);
       setDialogue(null);
@@ -590,6 +593,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       if (pokemonIntroTimer.current) window.clearTimeout(pokemonIntroTimer.current);
       pokemonIntroTimer.current = window.setTimeout(() => {
         setIntroActive(false);
+        setEntryRevealLocked(false);
         pokemonIntroTimer.current = null;
       }, 1180);
       return;
@@ -856,7 +860,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       lastCryKeys.current = {p1: "", p2: ""};
       lastCryScopeKey.current = battleCryScopeKey;
     }
-    if (dialogue || trainerIntroActive) return;
+    if (introDialoguePending.current || entryRevealLocked || dialogue || trainerIntroActive || introActive) return;
     const playerCryKey = !displayedSubstitutes.p1 && displayPlayer?.sprite?.cry_asset
       ? `${displayPlayer.species_id || displayPlayer.sprite.species_id}:${displayPlayer.sprite.cry_asset}`
       : "";
@@ -879,6 +883,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
     battleCryScopeKey,
     dialogue,
     trainerIntroActive,
+    introActive,
+    entryRevealLocked,
     displayedSubstitutes.p1,
     displayedSubstitutes.p2,
     displayPlayer?.species_id,
@@ -897,7 +903,10 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
   const playerParty = playerPartySlots(battle, activePlayerIndex, displayConditions.p1, battle.tracker.active.p1.status || "", setDetailIndex);
-  const enemyParty = enemyPartySlots(battle, displayedActiveNames.p2 || battle.tracker.active.p2.species_id || battle.tracker.active.p2.name || "", displayConditions.p2, battle.tracker.active.p2.status || "");
+  const rawEnemyParty = enemyPartySlots(battle, displayedActiveNames.p2 || battle.tracker.active.p2.species_id || battle.tracker.active.p2.name || "", displayConditions.p2, battle.tracker.active.p2.status || "");
+  const enemyParty = entryRevealLocked || introActive
+    ? rawEnemyParty.map(slot => slot.active ? {...slot, display: undefined, condition: undefined, status: undefined, active: false, revealed: false} : slot)
+    : rawEnemyParty;
   const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"]) : 1600;
   const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
   const detailOpen = detailIndex !== null || panelMode === "teamMenu";
