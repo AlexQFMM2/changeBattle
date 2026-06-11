@@ -145,7 +145,7 @@ release 签名规则：
 - keystore 和 `signing.properties` 只放本机构建目录或 Windows `D:\changeBattle\signing`，不进 git。
 - `signing.properties` 至少包含 `storeFile`、`storePassword`、`keyAlias`、`keyPassword`。
 - 也可以用 `CHANGEBATTLE_ANDROID_SIGNING_PROPERTIES` 指向外部签名配置文件。
-- release APK 输出到 `release/ChangeBattle-Mobile-v0.6.2.apk`。
+- release APK 输出到 `release/ChangeBattle-Mobile-v0.6.3.apk`。
 
 后续策略：
 

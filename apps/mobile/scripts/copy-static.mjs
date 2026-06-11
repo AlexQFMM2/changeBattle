@@ -10,8 +10,8 @@ for (const name of ["assets", "data"]) {
   const source = join(projectRoot, name);
   const target = join(dist, name);
   if (!existsSync(source)) continue;
-  if (existsSync(target)) rmSync(target, {recursive: true, force: true});
-  mkdirSync(dist, {recursive: true});
+  if (name === "data" && existsSync(target)) rmSync(target, {recursive: true, force: true});
+  mkdirSync(target, {recursive: true});
   cpSync(source, target, {
     recursive: true,
     filter: path => !/[\\/]pokemon-green([\\/]|$)/.test(path) && !/[\\/]battle-effects-pack([\\/]|$)/.test(path),
