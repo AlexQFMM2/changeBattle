@@ -1,6 +1,6 @@
 {
   "name": "@changebattle/desktop",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "main": "out/main/main.js",
@@ -14,6 +14,7 @@
     "test:talents": "tsx electron/run-rules.test.ts"
   },
   "dependencies": {
+    "@changebattle/game-runtime": "workspace:*",
     "@changebattle/game-service": "workspace:*",
     "@changebattle/shared": "workspace:*",
     "@vitejs/plugin-react": "^5.0.0",

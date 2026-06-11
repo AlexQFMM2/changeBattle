@@ -6,11 +6,12 @@ const projectRoot = resolve(__dirname, "../..");
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({exclude: ["@changebattle/game-service", "@changebattle/shared"]})],
+    plugins: [externalizeDepsPlugin({exclude: ["@changebattle/game-runtime", "@changebattle/game-service", "@changebattle/shared"]})],
     resolve: {
       alias: {
         "@changebattle/shared": resolve(projectRoot, "packages/shared/src"),
         "@changebattle/game-service": resolve(projectRoot, "packages/game-service/src"),
+        "@changebattle/game-runtime": resolve(projectRoot, "packages/game-runtime/src"),
       },
     },
     build: {

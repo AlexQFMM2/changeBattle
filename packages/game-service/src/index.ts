@@ -1,8 +1,3 @@
-import {appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from "node:fs";
-import {readFile} from "node:fs/promises";
-import {randomUUID} from "node:crypto";
-import {createRequire} from "node:module";
-import path from "node:path";
 import type {
   BattleRequestView,
   BattleSetting,
@@ -29,8 +24,6 @@ import type {
 } from "@changebattle/shared";
 import {BATTLE_RULE_PRESET_OPTIONS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 
-const require = createRequire(import.meta.url);
-const DEFAULT_SHOWDOWN_PATH = "/home/alexqfmm/workPlace/pokemon/pokemonShowdowm/pokemon-showdown";
 const MIN_RENTAL_LEVEL = 45;
 const MAX_RENTAL_LEVEL = 55;
 const SHINY_RATE = 30;
@@ -133,28 +126,23 @@ const Z_CRYSTAL_TYPE_BY_ID: Record<string, string> = {
 };
 const SHOWDOWN_ID_SET = new Set<string>(SHOWDOWN_ID_POOL);
 
+function runtimeEnv(name: string): string | undefined {
+  return (globalThis as {process?: {env?: Record<string, string | undefined>}}).process?.env?.[name];
+}
+
 function battleLogLine(scope: string, message: string, data?: unknown): void {
-  if (process.env.CHANGEBATTLE_DEBUG_DETAIL_LOG !== "1") return;
-  const logFile = process.env.CHANGEBATTLE_DEBUG_LOG_FILE || process.env.CHANGEBATTLE_LOG_FILE;
-  if (!logFile) return;
+  if (runtimeEnv("CHANGEBATTLE_DEBUG_DETAIL_LOG") !== "1") return;
   try {
-    mkdirSync(path.dirname(logFile), {recursive: true});
-    const line = JSON.stringify({ts: new Date().toISOString(), scope, event: message, data}, (_key, value) => value instanceof Error ? {name: value.name, message: value.message, stack: value.stack} : value);
-    appendFileSync(logFile, `${line}\n`, "utf8");
+    console.debug("[changebattle]", JSON.stringify({ts: new Date().toISOString(), scope, event: message, data}, (_key, value) => value instanceof Error ? {name: value.name, message: value.message, stack: value.stack} : value));
   } catch {
     // Diagnostics must not affect battle simulation.
   }
 }
 
 function battleTurnLogLine(entry: BattleTurnLogEntry): void {
-  const logFile = process.env.CHANGEBATTLE_BATTLE_LOG_FILE;
-  if (!logFile) return;
+  if (runtimeEnv("CHANGEBATTLE_DEBUG_DETAIL_LOG") !== "1") return;
   try {
-    mkdirSync(path.dirname(logFile), {recursive: true});
-    const current = existsSync(logFile) ? JSON.parse(readFileSync(logFile, "utf8") || "[]") : [];
-    const entries = Array.isArray(current) ? current : [];
-    entries.push(entry);
-    writeFileSync(logFile, `${JSON.stringify(entries, null, 2)}\n`, "utf8");
+    console.debug("[changebattle:battle]", entry);
   } catch {
     // Diagnostics must not affect battle simulation.
   }
@@ -254,6 +242,16 @@ export type GenerateRentalOptions = {
 export type GameServiceOptions = {
   projectRoot: string;
   showdownPath?: string;
+  showdownModule?: ShowdownModule;
+  showdownLoader?: () => ShowdownModule;
+  randomUUID?: () => string;
+  dataProvider?: {
+    readText(relativePath: string): Promise<string>;
+    readTextSync?(relativePath: string): string | null | undefined;
+    exists?(relativePath: string): boolean | Promise<boolean>;
+    existsSync?(relativePath: string): boolean;
+  };
+  assetExistsSync?: (relativePath: string) => boolean;
 };
 
 export type StartBattleOptions = {
@@ -455,7 +453,10 @@ function previewCanHit(moveType: string, target: RentalPokemon | undefined, dex:
 
 export class GameService {
   readonly projectRoot: string;
-  private readonly showdownPath: string;
+  private readonly showdownLoader?: NonNullable<GameServiceOptions["showdownLoader"]>;
+  private readonly uuidProvider?: NonNullable<GameServiceOptions["randomUUID"]>;
+  private readonly dataProvider?: NonNullable<GameServiceOptions["dataProvider"]>;
+  private readonly assetExistsSync?: NonNullable<GameServiceOptions["assetExistsSync"]>;
   private sim: ShowdownModule | null = null;
   private spriteMap: SpriteIndexMap | null = null;
   private translations: TranslationData | null = null;
@@ -467,7 +468,12 @@ export class GameService {
 
   constructor(options: GameServiceOptions) {
     this.projectRoot = options.projectRoot;
-    this.showdownPath = options.showdownPath || process.env.SHOWDOWN_PATH || DEFAULT_SHOWDOWN_PATH;
+    void options.showdownPath;
+    this.showdownLoader = options.showdownLoader;
+    this.uuidProvider = options.randomUUID;
+    this.dataProvider = options.dataProvider;
+    this.assetExistsSync = options.assetExistsSync;
+    this.sim = options.showdownModule || null;
   }
 
   async generateRentalCandidates(seed: number | number[] = Date.now(), format: string | GenerateRentalOptions = "gen9randombattle", count = RENTAL_CANDIDATE_COUNT, options: GenerateRentalOptions = {}): Promise<GeneratedTeam> {
@@ -570,10 +576,10 @@ export class GameService {
   private resolveItemIconAsset(assetId: string): string | null {
     const normalized = this.toId(assetId);
     if (!normalized) return null;
-    const packPath = path.join(this.projectRoot, "assets", "items-pack", `${normalized}.png`);
-    if (existsSync(packPath)) return `assets/items-pack/${normalized}.png`;
-    const itemPath = path.join(this.projectRoot, "assets", "items", `${normalized}.png`);
-    return existsSync(itemPath) ? `assets/items/${normalized}.png` : null;
+    const packPath = `assets/items-pack/${normalized}.png`;
+    if (this.projectAssetExists(packPath)) return packPath;
+    const itemPath = `assets/items/${normalized}.png`;
+    return this.projectAssetExists(itemPath) ? itemPath : null;
   }
 
   private zCrystalType(item?: {desc?: string; shortDesc?: string}): string {
@@ -912,9 +918,32 @@ export class GameService {
 
   loadShowdown(): ShowdownModule {
     if (!this.sim) {
-      this.sim = require(path.join(this.showdownPath, "dist", "sim")) as ShowdownModule;
+      if (!this.showdownLoader) throw new Error("Showdown module is not configured.");
+      this.sim = this.showdownLoader();
     }
     return this.sim;
+  }
+
+  private async readProjectText(relativePath: string): Promise<string> {
+    if (this.dataProvider) return this.dataProvider.readText(relativePath);
+    throw new Error(`GameService dataProvider is not configured: ${relativePath}`);
+  }
+
+  private readProjectTextSync(relativePath: string): string | null {
+    if (this.dataProvider?.readTextSync) return this.dataProvider.readTextSync(relativePath) ?? null;
+    return null;
+  }
+
+  private projectAssetExists(relativePath: string): boolean {
+    if (this.assetExistsSync) return this.assetExistsSync(relativePath);
+    if (this.dataProvider?.existsSync) return this.dataProvider.existsSync(relativePath);
+    return false;
+  }
+
+  randomUUID(): string {
+    return this.uuidProvider?.()
+      || globalThis.crypto?.randomUUID?.()
+      || `changebattle-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
   private dataDex(): any {
@@ -985,7 +1014,7 @@ export class GameService {
 
   private async loadSpriteMap(): Promise<SpriteIndexMap> {
     if (!this.spriteMap) {
-      const raw = await readFile(path.join(this.projectRoot, "data", "sprite_index_map.json"), "utf8");
+      const raw = await this.readProjectText("data/sprite_index_map.json");
       this.spriteMap = JSON.parse(raw) as SpriteIndexMap;
     }
     return this.spriteMap;
@@ -1551,12 +1580,12 @@ export class GameService {
 
   private loadTierRows(): TierRow[] {
     if (this.tierRows) return this.tierRows;
-    const filePath = path.join(this.projectRoot, "data", "pokemon_tiers.csv");
-    if (!existsSync(filePath)) {
+    const raw = this.readProjectTextSync("data/pokemon_tiers.csv");
+    if (!raw) {
       this.tierRows = [];
       return this.tierRows;
     }
-    const lines = readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean);
+    const lines = raw.split(/\r?\n/).filter(Boolean);
     const header = this.parseCsvLine(lines[0] || "");
     this.tierRows = lines.slice(1).map(line => {
       const values = this.parseCsvLine(line);
@@ -1596,7 +1625,7 @@ export class GameService {
     const spritePath = pokemon.sprite?.paths.front_normal;
     if (!spritePath || pokemon.sprite?.sprite_index === 0) return false;
     if (/^https?:\/\//i.test(spritePath)) return true;
-    return existsSync(path.join(this.projectRoot, spritePath));
+    return this.projectAssetExists(spritePath);
   }
 
   private moveDetails(moveId: string, dex = this.dataDex(), learnSources: MoveLearnSource[] = []) {
@@ -1719,9 +1748,9 @@ export class GameService {
   async loadConsumableItemEffects(): Promise<Map<string, ConsumableItemEffect>> {
     if (this.consumableEffects) return this.consumableEffects;
     const effects = new Map<string, ConsumableItemEffect>();
-    const filePath = path.join(this.projectRoot, "data", "consumable_item_effects.csv");
-    if (existsSync(filePath)) {
-      const lines = (await readFile(filePath, "utf8")).split(/\r?\n/).filter(line => line.trim());
+    const raw = await this.readProjectText("data/consumable_item_effects.csv").catch(() => "");
+    if (raw) {
+      const lines = raw.split(/\r?\n/).filter(line => line.trim());
       const header = parseCsvLine(lines[0] || "");
       for (const line of lines.slice(1)) {
         const values = parseCsvLine(line);
@@ -1749,7 +1778,7 @@ export class GameService {
 
   private async loadTranslations(): Promise<TranslationData> {
     if (!this.translations) {
-      const raw = await readFile(path.join(this.projectRoot, "data", "zh_cn_overrides.json"), "utf8");
+      const raw = await this.readProjectText("data/zh_cn_overrides.json");
       const parsed = JSON.parse(raw) as TranslationData;
       this.translations = parsed;
       this.translationNormalized = this.normalizeSections(parsed);
@@ -1759,7 +1788,7 @@ export class GameService {
 
   private async loadDetails(): Promise<DetailData> {
     if (!this.details) {
-      const raw = await readFile(path.join(this.projectRoot, "data", "zh_cn_details.json"), "utf8");
+      const raw = await this.readProjectText("data/zh_cn_details.json");
       const parsed = JSON.parse(raw) as DetailData;
       this.details = parsed;
       this.detailsNormalized = this.normalizeSections(parsed);
@@ -1822,12 +1851,13 @@ export class BattleSession {
   private timelineEvents: BattleTimelineEvent[] = [];
   private timelineSeq = 0;
   private turnLogSeq = 0;
-  private readonly battleLogId = randomUUID();
+  private readonly battleLogId: string;
   private rngState: number;
   private sideMap: SideMap = {player: "p1", enemy: "p2"};
 
   constructor(service: GameService, sim: ShowdownModule, options: StartBattleOptions) {
     this.service = service;
+    this.battleLogId = service.randomUUID();
     this.sim = sim;
     this.playerTeam = withShowdownTransportIds(options.playerTeam);
     this.enemyTeam = withShowdownTransportIds(options.enemyTeam);
@@ -3885,7 +3915,7 @@ function hasTag(parts: string[], tag: string): boolean {
 }
 
 function protocolDebugEnabled(): boolean {
-  return process.env.CHANGEBATTLE_DEBUG_SHOWDOWN === "1";
+  return runtimeEnv("CHANGEBATTLE_DEBUG_SHOWDOWN") === "1";
 }
 
 function isIgnoredProtocolTag(tag: string): boolean {

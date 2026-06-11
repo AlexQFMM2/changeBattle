@@ -34,6 +34,7 @@ ChangeBattle 当前更适合被理解为：
 - 理解 Boss 台词和标签：[`boss_dialogues.md`](./boss_dialogues.md)、[`boss_dialogue_tags.md`](./boss_dialogue_tags.md)
 - 理解招式动画资料抓取：[`52poke_fetching.md`](./52poke_fetching.md)、[`move_animation_references.md`](./move_animation_references.md)
 - 生成 Windows 桌面便携 release：[`windows-desktop-release.md`](./windows-desktop-release.md)
+- 生成 Android 自用 APK release：[`app-release.md`](./app-release.md)
 - 查阅历史 green.gba 导出说明：[`green-gba-assets.md`](./green-gba-assets.md)
 
 ## 项目地图
@@ -84,11 +85,11 @@ Python 文字版入口。
 
 它不作为正式发布模式，也不承担长期存档或服务器能力。后续 Web 入口主要服务 Chrome MCP / Chrome Automation 自动化测试、截图验收和指定场景 smoke；详细边界见 [`platform-targets.md`](./platform-targets.md)。
 
-### `app`
+### `apps/mobile`
 
-未来 Android 本地自用形态。
+Android 本地自用形态。
 
-它不上架，不考虑 iOS。后续可基于 WebView/Capacitor 复用 React 前端和 `640x320` 横屏画布，接独立 mobile bridge 与本地存档；当前优先级低于 Desk 和 Web 测试入口。
+它不上架，不考虑 iOS。当前已有 Capacitor Android debug APK 壳，复用 React 前端和 `640x320` 横屏画布，并通过独立 mobile bridge 做本地 smoke；完整 Desk game runtime / Showdown 战斗服务迁移仍是后续工作。详细边界见 [`platform-targets.md`](./platform-targets.md)。
 
 ### `data`
 
@@ -162,6 +163,22 @@ http://127.0.0.1:5179/?scenario=rest-shop#/
 
 Web 入口只服务 Chrome MCP / Chrome Automation 本地测试，不是正式发布模式；详细边界见 [`platform-targets.md`](./platform-targets.md)。
 
+Android mobile debug APK：
+
+```bash
+pnpm mobile:build:web
+pnpm mobile:sync
+pnpm mobile:apk
+```
+
+Android mobile release APK：
+
+```bash
+pnpm mobile:apk:release
+```
+
+Mobile 当前用于 Android 壳、横屏触摸、资源路径和 bridge 验证；完整本地游玩还需要继续抽离跨平台 runtime。已有 APK 产物放在 `release/`，不进入 git。
+
 桌面构建：
 
 ```bash
@@ -189,6 +206,8 @@ python3 -m py_compile changeBattle-cli/play.py
 
 Windows 桌面 release 按 [`windows-desktop-release.md`](./windows-desktop-release.md) 走。发版时要用已提交的 `HEAD` 生成源码包，同步到 Windows 构建机，再生成 `ChangeBattle-Desk-portable-vX.Y.Z.zip`。
 
+Android 自用 APK release 按 [`app-release.md`](./app-release.md) 走。签名文件只放 Windows `D:\changeBattle\signing`，APK 输出统一放 `release/`。
+
 ## 资源与数据来源
 
 Pokemon Showdown 是对战规则、数据和底层 battle engine 的事实源。ChangeBattle 不手写完整伤害公式、异常、特性、道具、天气、场地和复杂招式规则。
@@ -209,6 +228,7 @@ Pokemon Showdown 是对战规则、数据和底层 battle engine 的事实源。
 - 改战斗规则/生成逻辑：先看 `packages/game-service` 和 `packages/shared`，再读 `rule.md`、`randomPokemonRule.md`、`randomItemRule.md`。
 - 改 Showdown 解析：优先读 `showdown-battle-log.md`；改战斗展示顺序和动画队列时读 `battle-timeline-flow.md`。
 - 改资源：先看 `data/*manifest*`、`sprite_index_map.json`、`assets/*` 和 `tools/package_desktop_release.py`。
-- 改发版流程：只读 `windows-desktop-release.md`，不要顺手改 release 产物。
+- 改 Desk 发版流程：只读 `windows-desktop-release.md`，不要顺手改 App release。
+- 改 Android APK 发版流程：只读 `app-release.md`，不要顺手改 Desk release。
 - 更新文档时，保持本页做导航，专题文档做细节，不把同一套规则复制到多处。
 - 判断平台优先级或 Web/App 边界：读 `platform-targets.md`，Desk 仍是正式主版本。

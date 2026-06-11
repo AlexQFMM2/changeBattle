@@ -15,3 +15,17 @@ node_modules/
 apps/desktop/out/
 apps/desktop/dist/
 apps/desktop/dist-electron/
+apps/mobile/dist/
+apps/mobile/public/showdown/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/app/src/main/assets/public/
+apps/mobile/android/capacitor-cordova-android-plugins/
+apps/mobile/android/app/src/main/assets/capacitor.config.json
+apps/mobile/android/app/src/main/assets/capacitor.plugins.json
+apps/mobile/android/app/src/main/res/xml/config.xml
+apps/mobile/android/signing.properties
+apps/mobile/signing.properties
+*.jks
+*.keystore

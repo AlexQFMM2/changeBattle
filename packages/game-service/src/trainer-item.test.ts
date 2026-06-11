@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import {existsSync, readFileSync} from "node:fs";
+import {readFile} from "node:fs/promises";
+import {createRequire} from "node:module";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {GameService} from "./index.js";
@@ -8,6 +11,29 @@ import {DEFAULT_BATTLE_SETTING} from "@changebattle/shared";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(here, "../../..");
 const showdownPath = process.env.SHOWDOWN_PATH || path.resolve(projectRoot, "../pokemonShowdowm/pokemon-showdown");
+const nodeRequire = createRequire(import.meta.url);
+
+function createTestService(): GameService {
+  return new GameService({
+    projectRoot,
+    showdownPath,
+    dataProvider: {
+      readText: relativePath => readFile(path.join(projectRoot, relativePath), "utf8"),
+      readTextSync(relativePath) {
+        const filePath = path.join(projectRoot, relativePath);
+        return existsSync(filePath) ? readFileSync(filePath, "utf8") : null;
+      },
+      exists(relativePath) {
+        return existsSync(path.join(projectRoot, relativePath));
+      },
+      existsSync(relativePath) {
+        return existsSync(path.join(projectRoot, relativePath));
+      },
+    },
+    assetExistsSync: relativePath => existsSync(path.join(projectRoot, relativePath)),
+    showdownLoader: () => nodeRequire(path.join(showdownPath, "dist", "sim")),
+  });
+}
 
 const baseStats = {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
 const zeroStats = {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
@@ -31,7 +57,7 @@ function pokemon(species: string, moves: string[], ability?: string): PokemonSet
 }
 
 async function createSession() {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerTeam = [pokemon("Pikachu", ["Tackle"])];
   const enemyTeam = [pokemon("Bulbasaur", ["Tackle"])];
   const playerDisplay = await service.describeTeam(playerTeam);
@@ -64,7 +90,7 @@ function assertTimelineOrder(state: BattleState, types: string[], label: string)
 }
 
 async function createCustomSession(playerTeam: PokemonSet[], enemyTeam: PokemonSet[], seed: number[], enemyAi: Record<string, unknown> = {level: "gym_low", randomness: 0, allowSwitch: false}, battleSetting: BattleSetting = GEN7_BATTLE_SETTING) {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerDisplay = await service.describeTeam(playerTeam);
   const enemyDisplay = await service.describeTeam(enemyTeam);
   for (let index = 0; index < playerDisplay.length; index += 1) {
@@ -122,7 +148,7 @@ async function testInvalidItemDoesNotAdvanceTurn(): Promise<void> {
 }
 
 async function testEnemyAiPrefersEffectiveDamage(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerTeam = [pokemon("Bulbasaur", ["Tackle"])];
   const enemyTeam = [pokemon("Charmander", ["Scratch", "Ember"])];
   const session = await service.createBattleSession({
@@ -240,7 +266,7 @@ async function testRookieAiDoesNotPreferBattleSystems(): Promise<void> {
 }
 
 async function testRegeneratorUsesShowdownIdWithDuplicateIdent(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerTeam = [
     pokemon("Tangela", ["Tackle"], "Regenerator"),
     pokemon("Tangela", ["Tackle"], "Chlorophyll"),
@@ -271,7 +297,7 @@ async function testRegeneratorUsesShowdownIdWithDuplicateIdent(): Promise<void> 
 }
 
 async function testShowdownIdsStayWithPokemonObjects(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerTeam = [
     {...pokemon("Exploud", ["Tackle"], "Soundproof"), run_member_id: "member-exploud", showdown_id: "greatball", pokeball: "greatball"},
     {...pokemon("Cacturne", ["Tackle"], "Sand Veil"), run_member_id: "member-cacturne", showdown_id: "pokeball", pokeball: "pokeball"},
@@ -315,7 +341,7 @@ async function testShowdownIdsStayWithPokemonObjects(): Promise<void> {
 }
 
 async function testPainSplitSetHpHasFiniteTimeline(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerTeam = [pokemon("Rotom", ["Pain Split"], "Levitate")];
   const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
   const session = await service.createBattleSession({
@@ -337,7 +363,7 @@ async function testPainSplitSetHpHasFiniteTimeline(): Promise<void> {
 }
 
 async function testSkyAttackAnimationProtocolIsHidden(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerTeam = [pokemon("Hawlucha", ["Sky Attack"], "Unburden")];
   const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
   const session = await service.createBattleSession({
@@ -355,7 +381,7 @@ async function testSkyAttackAnimationProtocolIsHidden(): Promise<void> {
 }
 
 async function testBoostAndCantReasonsAreLocalized(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const boostTeam = [pokemon("Pikachu", ["Double Team"], "Static")];
   const passiveEnemy = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
   const boostSession = await service.createBattleSession({
@@ -388,7 +414,7 @@ async function testBoostAndCantReasonsAreLocalized(): Promise<void> {
 }
 
 async function testAdvanceIfWaitingContinuesChargingMove(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const playerTeam = [pokemon("Charizard", ["Fly"], "Blaze")];
   const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
   const session = await service.createBattleSession({
@@ -547,7 +573,7 @@ async function testClassicBattleFlowScenarios(): Promise<void> {
 }
 
 async function testSpeciesTierCanOverrideGenerationProfile(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const generated = await service.generateRentalCandidates([31, 32, 33, 34], "gen7randombattle", 3, {
     profiles: ["tier1", "tier1", "tier1"],
     speciesTiers: [2, 3, 4],
@@ -558,7 +584,7 @@ async function testSpeciesTierCanOverrideGenerationProfile(): Promise<void> {
 }
 
 async function testMoveLearnSourcesAreClassified(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const moves = await service.learnableMoves(pokemon("Pikachu", ["Tackle"], "Static"));
   const thunderbolt = moves.find(move => move.id === "thunderbolt");
   const fakeout = moves.find(move => move.id === "fakeout");
@@ -628,7 +654,7 @@ async function testZMoveInternalProtocolIsHidden(): Promise<void> {
 }
 
 async function testZMoveGenerationGuarantee(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const enabled = await service.generateRentalCandidates([107, 108, 109, 110], "gen9randombattle", 6, {
     profiles: ["tier2", "tier2", "tier2", "tier2", "tier2", "tier2"],
     purpose: "starter",
@@ -674,7 +700,7 @@ async function testEnemyUsesMegaWhenAvailable(): Promise<void> {
 }
 
 async function testMegaGenerationGuarantee(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const enabled = await service.generateRentalCandidates([123, 124, 125, 126], "gen9randombattle", 3, {
     speciesIds: ["charizard", "venusaur", "blastoise"],
     purpose: "starter",
@@ -691,7 +717,7 @@ async function testMegaGenerationGuarantee(): Promise<void> {
 }
 
 function testDedicatedMegaStoneGuarantee(): void {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const team = [{...pokemon("Charizard", ["Scratch", "Ember"], "Blaze"), item: "Leftovers"}];
   const megaGuarantee = (service as unknown as {ensureMegaUser: (team: PokemonSet[], options: unknown, rng: () => number) => void}).ensureMegaUser.bind(service);
   megaGuarantee(team, {battleSetting: GEN7_BATTLE_SETTING}, () => 0);
@@ -699,7 +725,7 @@ function testDedicatedMegaStoneGuarantee(): void {
 }
 
 function testRayquazaMegaPoolGate(): void {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const allowed = (service as unknown as {speciesAllowedByBattleSetting: (speciesId: string, setting: typeof DEFAULT_BATTLE_SETTING, seenSpecies: Set<string>, purpose?: "starter" | "normal" | "boss" | "rescue") => boolean}).speciesAllowedByBattleSetting.bind(service);
   const tierForSpecies = (service as unknown as {tierForSpecies: (speciesId: string) => number | null}).tierForSpecies.bind(service);
   assert.equal(tierForSpecies("ditto"), 6);
@@ -792,7 +818,7 @@ async function testEnemyUsesDynamaxWhenAvailable(): Promise<void> {
 }
 
 async function testDynamaxGenerationGuarantee(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const enabled = await service.generateRentalCandidates([143, 144, 145, 146], "gen8randombattle", 3, {
     speciesIds: ["charizard", "venusaur", "blastoise"],
     purpose: "starter",
@@ -842,7 +868,7 @@ async function testEnemyUsesTerastalWhenAvailable(): Promise<void> {
 }
 
 async function testTerastalGenerationTeraTypes(): Promise<void> {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const team: PokemonSet[] = [
     {...pokemon("Charmander", ["Ember", "Scratch"], "Blaze")},
     {...pokemon("Magikarp", ["Splash"], "Swift Swim")},
@@ -862,7 +888,7 @@ async function testTerastalGenerationTeraTypes(): Promise<void> {
 }
 
 function testDedicatedZCrystalPreferredDuringGuarantee(): void {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   const team = [{...pokemon("Snorlax", ["Giga Impact", "Tackle"], "Immunity"), item: "Normalium Z"}];
   const zGuarantee = (service as unknown as {ensureZMoveUser: (team: PokemonSet[], options: unknown, rng: () => number) => void}).ensureZMoveUser.bind(service);
   zGuarantee(team, {battleSetting: GEN7_BATTLE_SETTING}, () => 0);
@@ -876,7 +902,7 @@ function testDedicatedZCrystalPreferredDuringGuarantee(): void {
 }
 
 function testBattleSystemItemClassification(): void {
-  const service = new GameService({projectRoot, showdownPath});
+  const service = createTestService();
   assert.equal(service.battleSystemForItem("venusaurite"), "mega");
   assert.equal(service.battleSystemForItem("firiumz"), "zmove");
   assert.equal(service.battleSystemForItem("leftovers"), null);

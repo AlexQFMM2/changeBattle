@@ -69,7 +69,7 @@ function fallbackScreenForSave(save: LocalSave | null): AppStatus {
   return save ? "mainMenu" : "title";
 }
 
-function App() {
+export function App() {
   return (
     <HashRouter>
       <RoutedApp />
@@ -517,4 +517,11 @@ function RoutedApp() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+export function mountChangeBattleApp(element = document.getElementById("root")) {
+  if (!element) throw new Error("Missing #root element.");
+  createRoot(element).render(<App />);
+}
+
+if (import.meta.env.VITE_CHANGEBATTLE_MANUAL_MOUNT !== "1") {
+  mountChangeBattleApp();
+}

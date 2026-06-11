@@ -2,10 +2,76 @@ import {app, BrowserWindow, Menu, ipcMain, protocol} from "electron";
 import {randomUUID} from "node:crypto";
 import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
+import {createRequire} from "node:module";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RainbowRocketSupportState, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
+import {
+  createChangeBattleRuntime,
+  createPreparationRuntime,
+  createProfileSettingsRuntime,
+  createProgressionRuntime,
+  createRunPlanningRuntime,
+  createTrainerProfileTools,
+  buildStartBattleSessionOptions,
+  buildPlannedBattle as runtimeBuildPlannedBattle,
+  buildPlannedBattles as runtimeBuildPlannedBattles,
+  buildRainbowRocketPlannedBattle as runtimeBuildRainbowRocketPlannedBattle,
+  buildRainbowRocketPlannedBattles as runtimeBuildRainbowRocketPlannedBattles,
+  buildVillainIntrusionPlannedBattle as runtimeBuildVillainIntrusionPlannedBattle,
+  applyBattleSpecialRewardCoins as runtimeApplyBattleSpecialRewardCoins,
+  applyBattleWinRestTransition as runtimeApplyBattleWinRestTransition,
+  applyArrivalLevelCap as runtimeApplyArrivalLevelCap,
+  applyArrivalLevelCapToTeam as runtimeApplyArrivalLevelCapToTeam,
+  adjustedStateAfterEdit as runtimeAdjustedStateAfterEdit,
+  applyRainbowRocketRestore as runtimeApplyRainbowRocketRestore,
+  applyRainbowRocketSupportChoice as runtimeApplyRainbowRocketSupportChoice,
+  buildRainbowRocketFactorySupport as runtimeBuildRainbowRocketFactorySupport,
+  buildRestState as runtimeBuildRestState,
+  buildRuntimeBattleRecord,
+  buildRuntimeResultSummary,
+  buildRuntimeRunRecord,
+  completeRainbowRocketSupport as runtimeCompleteRainbowRocketSupport,
+  decorateDexUsageCounts as runtimeDecorateDexUsageCounts,
+  ensureRainbowRocketSupport as runtimeEnsureRainbowRocketSupport,
+  ensureStarterShiny as runtimeEnsureStarterShiny,
+  generateStarterItemOffers as runtimeGenerateStarterItemOffers,
+  generateStarterCandidatesForSave as runtimeGenerateStarterCandidatesForSave,
+  loadTrainerNpcCatalogSync,
+  markStarterOrigin as runtimeMarkStarterOrigin,
+  normalizeStatsInput as runtimeNormalizeStatsInput,
+  normalizeRuntimePath,
+  parseCsvLine,
+  prepareRunForNextBattleAfterRest,
+  prepareStartBattleRun,
+  executeBattleAutoAdvance as runtimeExecuteBattleAutoAdvance,
+  executeBattleChoice as runtimeExecuteBattleChoice,
+  resolveBattleCommandOutcome as runtimeResolveBattleCommandOutcome,
+  applyFinishedBattlePerspectiveToRun as runtimeApplyFinishedBattlePerspectiveToRun,
+  finishedBattlePerspective as runtimeFinishedBattlePerspective,
+  recordTrainerDexEncounter as runtimeRecordTrainerDexEncounter,
+  recordBattleOutcomeStats as runtimeRecordBattleOutcomeStats,
+  setRunLeadSlot as runtimeSetRunLeadSlot,
+  shinyPokemon as runtimeShinyPokemon,
+  spendRunCoins as runtimeSpendRunCoins,
+  starterProfilesForStreak as runtimeStarterProfilesForStreak,
+  starterSpeciesTiersForStreak as runtimeStarterSpeciesTiersForStreak,
+  villainIntrusionRollHits as runtimeVillainIntrusionRollHits,
+  villainTrainerByName as runtimeVillainTrainerByName,
+  villainTrainerPool as runtimeVillainTrainerPool,
+  rainbowRocketRollHits as runtimeRainbowRocketRollHits,
+  rainbowRocketUnlocked as runtimeRainbowRocketUnlocked,
+  rainbowRocketSupportRequired as runtimeRainbowRocketSupportRequired,
+  trainerDexSearch as runtimeTrainerDexSearch,
+  validateStatAdjustments as runtimeValidateStatAdjustments,
+  pokemonUsageKey as runtimePokemonUsageKey,
+  type PreparationRuntimeApi,
+  type ProfileSettingsRuntimeApi,
+  type ProgressionRuntimeApi,
+  type RuntimeDataProvider,
+  type RunPlanningRuntimeApi,
+} from "@changebattle/game-runtime";
 import {
   ADJUST_STATS_COST,
   BADGE_LEVEL_CAPS,
@@ -31,7 +97,7 @@ import {
   STAR_CHART_NODES,
   TALENTS,
   TRUST_OVERFLOW_COIN_PER_LEVEL,
-  WIN_BP_REWARD,
+  activeTalentsForSave as runtimeActiveTalentsForSave,
   addBp,
   addRunBp,
   addCoins,
@@ -84,6 +150,7 @@ import {
   starterUpgradeCatalog,
   starterUpgradeCost,
   starterUpgradeLevel,
+  starterUpgradesForSave as runtimeStarterUpgradesForSave,
   starChartCatalog,
   starNodeLevel,
   starNodeUnlocked,
@@ -96,9 +163,12 @@ import {
   talentLevel,
   toId,
 } from "./run-rules.js";
+import {activeBattleStateGetter, desktopRuntimeAssetUrl} from "./desktop-runtime-api.js";
+import {registerDesktopRuntimeIpc} from "./runtime-ipc.js";
 import {SaveStore} from "./save-store.js";
 
 declare const __dirname: string;
+const nodeRequire = createRequire(import.meta.url);
 
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const CHAMPION_BACKGROUND_ID = "champion-stage";
@@ -138,6 +208,24 @@ function findProjectRoot(): string {
 }
 
 const projectRoot = findProjectRoot();
+const desktopDataProvider: RuntimeDataProvider = {
+  async readText(runtimePath) {
+    return readFile(path.join(projectRoot, normalizeRuntimePath(runtimePath)), "utf8");
+  },
+  readTextSync(runtimePath) {
+    const filePath = path.join(projectRoot, normalizeRuntimePath(runtimePath));
+    return existsSync(filePath) ? readFileSync(filePath, "utf8") : null;
+  },
+  async readJson<T = unknown>(runtimePath: string): Promise<T> {
+    return JSON.parse(await this.readText(runtimePath)) as T;
+  },
+  async exists(runtimePath) {
+    return existsSync(path.join(projectRoot, normalizeRuntimePath(runtimePath)));
+  },
+  existsSync(runtimePath) {
+    return existsSync(path.join(projectRoot, normalizeRuntimePath(runtimePath)));
+  },
+};
 const desktopLogEnabled = process.env.CHANGEBATTLE_DISABLE_LOG !== "1";
 const desktopLogDir = process.env.CHANGEBATTLE_LOG_DIR || path.join(projectRoot, "logs");
 const desktopLogStamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -187,11 +275,24 @@ function findShowdownRoot(): string | undefined {
     process.env.SHOWDOWN_PATH,
     path.join(projectRoot, "vendor", "pokemon-showdown"),
     path.join(projectRoot, "resources", "vendor", "pokemon-showdown"),
+    path.resolve(projectRoot, "../pokemonShowdowm/pokemon-showdown"),
   ].filter(Boolean) as string[];
   return candidates.find(candidate => existsSync(path.join(candidate, "dist", "sim", "index.js")));
 }
 
-const gameService = new GameService({projectRoot, showdownPath: findShowdownRoot()});
+const showdownRoot = findShowdownRoot();
+const gameService = new GameService({
+  projectRoot,
+  dataProvider: desktopDataProvider,
+  assetExistsSync: relativePath => existsSync(path.join(projectRoot, normalizeRuntimePath(relativePath))),
+  showdownPath: showdownRoot,
+  showdownLoader: () => {
+    const root = showdownRoot || findShowdownRoot();
+    if (!root) throw new Error("Pokemon Showdown runtime not found.");
+    return nodeRequire(path.join(root, "dist", "sim"));
+  },
+  randomUUID,
+});
 type PendingStarterState = {
   seed: number;
   coins: number;
@@ -205,6 +306,10 @@ type PendingStarterState = {
 };
 
 let saveStore: SaveStore | null = null;
+let profileSettingsRuntime: ProfileSettingsRuntimeApi | null = null;
+let progressionRuntime: ProgressionRuntimeApi | null = null;
+let preparationRuntime: PreparationRuntimeApi | null = null;
+let runPlanningRuntime: RunPlanningRuntimeApi | null = null;
 let pendingCandidates: GeneratedTeam | null = null;
 let pendingStarter: PendingStarterState | null = null;
 let configuredTalents: TalentView[] = [];
@@ -241,11 +346,9 @@ type StarterItemPoolEntry = ShopPoolEntry & {
 type BossTeamPoolRow = {pool_id: string; battle_rule_preset: BattleRulePreset; trainer_id: string; team_index: number; slot: number; species_id: string; species?: string; species_tier?: SpeciesTier; generation_profile: GenerationProfile};
 type TeamPoolSelection = {teamIndex: number; rows: BossTeamPoolRow[]; speciesIds: string[]; profiles: GenerationProfile[]};
 
-const VILLAIN_INTRUSION_BONUS_COINS = 500;
 const VILLAIN_INTRUSION_CHANCE = 0.1;
 const VILLAIN_INTRUSION_EXCLUDED_NAMES = new Set(["坂木", "giovanni"]);
 const RAINBOW_ROCKET_CHANCE = 0.1;
-const RAINBOW_ROCKET_REWARD_COINS = 2000;
 const RAINBOW_ROCKET_TEAM_SIZE = 6;
 const RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT = 6;
 const RAINBOW_ROCKET_SUPPORT_PICK_LIMIT = 3;
@@ -1148,30 +1251,7 @@ function bpRiskRoll(run: CurrentRunData, label: string): number {
 
 function spendRunBp(save: LocalSave, run: CurrentRunData, cost: number, label: string, options: {alreadyPriced?: boolean} = {}): {paid: number; message: string} {
   void save;
-  const baseCost = options.alreadyPriced ? Math.max(0, Math.floor(Number(cost || 0))) : pricedForRun(run, cost);
-  if (baseCost <= 0) return {paid: 0, message: "免费"};
-  if (!hasTalent(run.talents, "growth_risky")) {
-    spendCoins(run, baseCost);
-    recordPortfolioSpend(run, label, baseCost);
-    return {paid: baseCost, message: spendText(baseCost)};
-  }
-  const roll = bpRiskRoll(run, label);
-  if (roll < 0.4) {
-    return {paid: 0, message: `铤而走险触发：本次花费为 0（原价 ${baseCost}金币）`};
-  }
-  if (roll < 0.6) {
-    const paid = Math.ceil(baseCost * 1.5);
-    spendCoins(run, paid);
-    recordPortfolioSpend(run, label, paid);
-    return {paid, message: `铤而走险触发：消耗增加 1.5 倍，花费 ${paid}金币`};
-  }
-  if (roll < 0.7) {
-    addCoins(run, baseCost);
-    return {paid: 0, message: `铤而走险触发：本次免费，并额外获得 ${baseCost}金币`};
-  }
-  spendCoins(run, baseCost);
-  recordPortfolioSpend(run, label, baseCost);
-  return {paid: baseCost, message: spendText(baseCost)};
+  return runtimeSpendRunCoins(run, cost, label, options);
 }
 
 function adjustBagItem(run: CurrentRunData, itemId: string, delta: number): void {
@@ -1210,7 +1290,8 @@ async function grantVictoryRewards(run: CurrentRunData, isBoss: boolean, battleN
   return {items: [], restBonus: {}};
 }
 
-const npcCatalog = loadNpcCatalog();
+const npcCatalog = loadTrainerNpcCatalogSync(desktopDataProvider);
+const trainerProfileTools = createTrainerProfileTools(npcCatalog);
 
 function installChineseMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -1361,16 +1442,8 @@ function normalizeSave(save: LocalSave): LocalSave {
   return save;
 }
 
-function pokemonUsageKey(pokemon?: Partial<RentalPokemon> | PokemonSet | null): string {
-  if (!pokemon) return "";
-  const value = "species_id" in pokemon
-    ? pokemon.species_id || pokemon.species || pokemon.name
-    : pokemon.species || pokemon.name;
-  return toId(String(value || ""));
-}
-
 function recordPokemonUsage(save: LocalSave, pokemon: Partial<RentalPokemon> | PokemonSet | null | undefined): void {
-  const key = pokemonUsageKey(pokemon);
+  const key = runtimePokemonUsageKey(pokemon);
   if (!key) return;
   save.stats = {...emptyStats(), ...(save.stats || {})};
   const counts = {...(save.stats.pokemon_usage_counts || {})};
@@ -1383,25 +1456,12 @@ function recordPokemonUsageList(save: LocalSave, pokemonList: Array<Partial<Rent
   for (const pokemon of pokemonList) recordPokemonUsage(save, pokemon);
 }
 
-function decorateDexUsageCounts(save: LocalSave | null, result: DesktopDexSearchResult): DesktopDexSearchResult {
-  if (result.category !== "pokemon") return result;
-  const counts = save?.stats?.pokemon_usage_counts || {};
-  return {
-    ...result,
-    entries: result.entries.map(entry => ({
-      ...entry,
-      usage_count: Math.max(0, Math.floor(Number(counts[toId(entry.id)] ?? counts[pokemonUsageKey(entry)] ?? 0))),
-    })),
-  };
-}
-
 function activeTalentsForSave(save?: LocalSave | null): TalentView[] {
-  if (!save) return [];
-  return talentsForStarChart(normalizeStarChart(save.star_chart, save.talent_unlocks, save.starter_upgrades));
+  return runtimeActiveTalentsForSave(save);
 }
 
 function starterUpgradesForSave(save?: LocalSave | null): StarterUpgradeState {
-  return starterUpgradesForStarChart(normalizeStarChart(save?.star_chart, save?.talent_unlocks, save?.starter_upgrades));
+  return runtimeStarterUpgradesForSave(save);
 }
 
 function badgeLevelCapForTalents(talents: TalentView[] | undefined = []): number | null {
@@ -1410,24 +1470,11 @@ function badgeLevelCapForTalents(talents: TalentView[] | undefined = []): number
 }
 
 async function applyArrivalLevelCap(talents: TalentView[] | undefined, rawSet: PokemonSet, display: RentalPokemon): Promise<{raw: PokemonSet; display: RentalPokemon; capped: boolean}> {
-  const cap = badgeLevelCapForTalents(talents);
-  if (!cap || Math.floor(Number(rawSet.level || display.level || 1)) <= cap) return {raw: rawSet, display, capped: false};
-  const raw = {...rawSet, level: cap};
-  const [described] = await gameService.describeTeam([raw]);
-  return {raw, display: described || {...display, level: cap}, capped: true};
+  return runtimeApplyArrivalLevelCap(talents, rawSet, display, gameService);
 }
 
 async function applyArrivalLevelCapToTeam(talents: TalentView[] | undefined, team: PokemonSet[], display: RentalPokemon[]): Promise<{team: PokemonSet[]; display: RentalPokemon[]; capped: number}> {
-  let capped = 0;
-  const nextTeam: PokemonSet[] = [];
-  const nextDisplay: RentalPokemon[] = [];
-  for (let index = 0; index < team.length; index += 1) {
-    const next = await applyArrivalLevelCap(talents, team[index], display[index]);
-    if (next.capped) capped += 1;
-    nextTeam.push(next.raw);
-    nextDisplay.push(next.display);
-  }
-  return {team: nextTeam, display: nextDisplay, capped};
+  return runtimeApplyArrivalLevelCapToTeam(talents, team, display, gameService);
 }
 
 function rememberRunForSoulmate(save: LocalSave, run: CurrentRunData): void {
@@ -1437,10 +1484,28 @@ function rememberRunForSoulmate(save: LocalSave, run: CurrentRunData): void {
   };
 }
 
+function requireProfileSettingsRuntime(): ProfileSettingsRuntimeApi {
+  if (!profileSettingsRuntime) throw new Error("ProfileSettingsRuntime 尚未初始化");
+  return profileSettingsRuntime;
+}
+
+function requireProgressionRuntime(): ProgressionRuntimeApi {
+  if (!progressionRuntime) throw new Error("ProgressionRuntime 尚未初始化");
+  return progressionRuntime;
+}
+
+function requirePreparationRuntime(): PreparationRuntimeApi {
+  if (!preparationRuntime) throw new Error("PreparationRuntime 尚未初始化");
+  return preparationRuntime;
+}
+
+function requireRunPlanningRuntime(): RunPlanningRuntimeApi {
+  if (!runPlanningRuntime) throw new Error("RunPlanningRuntime 尚未初始化");
+  return runPlanningRuntime;
+}
+
 async function loadSave(): Promise<LocalSave | null> {
-  if (!saveStore) throw new Error("SaveStore 尚未初始化");
-  const save = await saveStore.load();
-  return save ? normalizeSave(save) : null;
+  return requireProfileSettingsRuntime().loadSave();
 }
 
 async function persist(save: LocalSave): Promise<LocalSave> {
@@ -1469,66 +1534,23 @@ async function e2ePatchSave(patch: Partial<LocalSave>): Promise<LocalSave> {
 }
 
 async function getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  return {setting: normalizeBattleSetting(save.battle_setting), save};
+  return requireProfileSettingsRuntime().getBattleSetting();
 }
 
 async function updateBattleSetting(setting: Partial<BattleSetting>): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  const mergedSetting = {...normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING), ...setting};
-  const rawGenerations = Array.from(new Set((mergedSetting.allowed_generations || [])
-    .map(value => Math.floor(Number(value)))
-    .filter(value => value >= 1 && value <= 9)));
-  if (rawGenerations.length < 3) throw new Error("地区专爱至少需要选择 3 个地区。");
-  const nextSetting = normalizeBattleSetting(mergedSetting);
-  save.battle_setting = nextSetting;
-  const next = await persist(save);
-  return {setting: normalizeBattleSetting(next.battle_setting), save: next};
+  return requireProfileSettingsRuntime().updateBattleSetting(setting);
 }
 
 async function getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}> {
-  const save = await loadSave();
-  if (!save) return {settings: transientAudioSettings, save: null};
-  return {settings: normalizeAudioSettings(save.audio_settings), save};
+  return requireProfileSettingsRuntime().getAudioSettings();
 }
 
 async function updateAudioSettings(settings: Partial<AudioSettings>): Promise<{settings: AudioSettings; save?: LocalSave | null}> {
-  const nextSettings = normalizeAudioSettings({...transientAudioSettings, ...settings});
-  const save = await loadSave();
-  if (!save) {
-    transientAudioSettings = nextSettings;
-    return {settings: transientAudioSettings, save: null};
-  }
-  save.audio_settings = nextSettings;
-  const next = await persist(save);
-  transientAudioSettings = nextSettings;
-  return {settings: normalizeAudioSettings(next.audio_settings), save: next};
+  return requireProfileSettingsRuntime().updateAudioSettings(settings);
 }
 
 function gameState(partial: Partial<DesktopGameState>): DesktopGameState {
   return {screen: "title", save: null, ...partial} as DesktopGameState;
-}
-
-function parseCsvLine(line: string): string[] {
-  const cells: string[] = [];
-  let cell = "";
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    if (char === "\"") {
-      if (quoted && line[index + 1] === "\"") {
-        cell += "\"";
-        index += 1;
-      } else quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      cells.push(cell);
-      cell = "";
-    } else cell += char;
-  }
-  cells.push(cell);
-  return cells;
 }
 
 function loadBattleBackgroundCatalog(): BattleBackgroundView[] {
@@ -1554,79 +1576,16 @@ function battleBackgroundForRun(run: CurrentRunData, trainer: TrainerNpcView, ba
   return picked || FALLBACK_BATTLE_BACKGROUND;
 }
 
-function normalizeNpcRow(row: Record<string, string>): TrainerNpcView | null {
-  if (row.enabled === "0") return null;
-  const type = row.type as TrainerNpcType;
-  if (!["player", "normal", "gym", "elite4", "champion", "villain", "avatar"].includes(type)) return null;
-  return {
-    id: row.id,
-    type,
-    region: row.region || undefined,
-    role: row.role || undefined,
-    tier: row.tier || undefined,
-    name_zh: row.name_zh || row.name_en || row.id,
-    name_en: row.name_en || undefined,
-    front_asset: row.front_asset || undefined,
-    front_gif_asset: row.front_gif_asset || undefined,
-    back_asset: row.back_asset || undefined,
-    avatar_asset: row.avatar_asset || undefined,
-    team_pool_ids: row.team_pool_ids ? row.team_pool_ids.split("|").filter(Boolean) : [],
-    notes: row.notes || undefined,
-  };
-}
-
-function loadNpcCatalog(): TrainerNpcView[] {
-  const csvPath = path.join(projectRoot, "data", "npc_trainers.csv");
-  if (!existsSync(csvPath)) return [];
-  const lines = readFileSync(csvPath, "utf8").split(/\r?\n/).filter(Boolean);
-  const header = parseCsvLine(lines[0] || "");
-  return lines.slice(1).map(line => {
-    const values = parseCsvLine(line);
-    const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""]));
-    return normalizeNpcRow(row);
-  }).filter((entry): entry is TrainerNpcView => Boolean(entry));
-}
-
 function trainerCatalogState(): TrainerCatalogState {
-  return {
-    players: npcCatalog.filter(entry => entry.type === "player" && entry.front_asset && entry.back_asset),
-    avatars: npcCatalog.filter(entry => entry.type === "avatar" && entry.avatar_asset),
-    champions: npcCatalog.filter(entry => entry.type === "champion" && entry.front_asset),
-  };
-}
-
-function defaultPlayerTrainer(): TrainerNpcView {
-  const catalog = trainerCatalogState();
-  return catalog.players[0] || {id: "player:default", type: "player", name_zh: "训练师"};
-}
-
-function defaultAvatarAssetFor(player: TrainerNpcView): string | undefined {
-  return player.avatar_asset || trainerCatalogState().avatars[0]?.avatar_asset;
+  return trainerProfileTools.trainerCatalogState();
 }
 
 function trainerFromProfile(profile: TrainerProfile): TrainerNpcView {
-  const configured = npcCatalog.find(entry => entry.type === "player" && entry.id === profile.player_npc_id);
-  const fallback = defaultPlayerTrainer();
-  const player = configured || fallback;
-  return {
-    ...player,
-    name_zh: profile.name?.trim() || player.name_zh || "训练师",
-    avatar_asset: profile.avatar_asset || player.avatar_asset || defaultAvatarAssetFor(player),
-  };
+  return trainerProfileTools.trainerFromProfile(profile);
 }
 
 function normalizeTrainerProfile(profile?: TrainerProfile): TrainerProfile {
-  const fallback = defaultPlayerTrainer();
-  const player = npcCatalog.find(entry => entry.type === "player" && entry.id === profile?.player_npc_id) || fallback;
-  return {
-    name: profile?.name?.trim() || "训练师",
-    gender: profile?.gender || "other",
-    player_npc_id: player.id,
-    front_asset: player.front_asset,
-    front_gif_asset: player.front_gif_asset,
-    back_asset: player.back_asset,
-    avatar_asset: profile?.avatar_asset || player.avatar_asset || defaultAvatarAssetFor(player),
-  };
+  return trainerProfileTools.normalizeTrainerProfile(profile);
 }
 
 function simpleHash(...values: Array<string | number>): number {
@@ -1733,22 +1692,7 @@ function starterChoiceState(starter: PendingStarterState) {
 }
 
 function recordBattleResult(save: LocalSave, winner: string | null, run?: CurrentRunData): number {
-  const stats = {...emptyStats(), ...(save.stats || {})};
-  stats.battles = Number(stats.battles || 0) + 1;
-  let gained = 0;
-  if (winner === "Player") {
-    stats.wins = Number(stats.wins || 0) + 1;
-    save.stats = stats;
-    gained = addRunBp(save, run, WIN_BP_REWARD);
-    refreshStats(save);
-  } else {
-    stats.losses = Number(stats.losses || 0) + 1;
-    if (run?.special_run !== "rainbow_rocket") stats.set_win_streak = 0;
-    save.stats = stats;
-    refreshStats(save);
-  }
-  if (run) recordBossBattleResult(save, run, winner);
-  return gained;
+  return runtimeRecordBattleOutcomeStats(save, winner, run, {now: new Date().toISOString()});
 }
 
 async function refundableBagBaseBp(run: CurrentRunData, outcome: "normal" | "loss" = "normal"): Promise<number> {
@@ -1993,42 +1937,30 @@ function battlePokemonSummaries(run: CurrentRunData, battle: BattleState, events
 }
 
 function buildBattleRecord(options: {run: CurrentRunData; battle: BattleState; message: string; outcome: BattleRecordEntry["outcome"]; statEvents: ResultPokemonStatEvent[]; resultSummary?: ResultSummaryState}): BattleRecordEntry {
-  const run = options.run;
-  const battle = options.battle;
-  return {
+  return buildRuntimeBattleRecord({
     id: randomUUID(),
-    created_at: new Date().toISOString(),
-    run_seed: Number(run.seed || 0),
-    battle_no: Math.max(1, Number(run.battle_no || activeBattleNo || run.next_battle || 1)),
-    total_battles: Math.max(1, Number(run.battles || DEFAULT_BATTLES)),
-    outcome: options.outcome,
-    winner: battle.winner,
+    createdAt: new Date().toISOString(),
+    run: options.run,
+    battle: options.battle,
     message: options.message,
-    enemy_trainer: run.enemy_trainer,
-    player_team: battle.player_display,
-    enemy_team: battle.enemy_display || run.enemy_display || [],
-    player_pokemon: battlePokemonSummaries(run, battle, options.statEvents),
-    result_summary: options.resultSummary,
-  };
+    outcome: options.outcome,
+    statEvents: options.statEvents,
+    resultSummary: options.resultSummary,
+    defaultBattles: DEFAULT_BATTLES,
+    activeBattleNo,
+  });
 }
 
 function buildRunRecord(options: {run: CurrentRunData; message: string; outcome: BattleRecordEntry["outcome"]; resultSummary?: ResultSummaryState}): BattleRecordEntry {
-  const run = options.run;
-  return {
+  return buildRuntimeRunRecord({
     id: randomUUID(),
-    created_at: new Date().toISOString(),
-    run_seed: Number(run.seed || 0),
-    battle_no: Math.max(1, Number(run.battle_no || run.next_battle || 1)),
-    total_battles: Math.max(1, Number(run.battles || DEFAULT_BATTLES)),
-    outcome: options.outcome,
-    winner: options.outcome === "win" ? "Player" : options.outcome,
+    createdAt: new Date().toISOString(),
+    run: options.run,
     message: options.message,
-    enemy_trainer: run.enemy_trainer,
-    player_team: run.player_display || [],
-    enemy_team: run.enemy_display || [],
-    player_pokemon: resultUsedPokemon(run, run.player_display || []),
-    result_summary: options.resultSummary,
-  };
+    outcome: options.outcome,
+    resultSummary: options.resultSummary,
+    defaultBattles: DEFAULT_BATTLES,
+  });
 }
 
 function resultProgressRows(options: {run?: CurrentRunData | null; wins: number; outcome: ResultSummaryState["outcome"]; battle?: BattleState | null}): ResultSummaryState["progress"] {
@@ -2068,42 +2000,19 @@ function buildResultSummary(options: {
   clearBonus?: number;
   allInBonus?: number;
 }): ResultSummaryState {
-  const settled = options.settled;
-  const coinRows: ResultSummaryState["coin_rows"] = [];
-  if (options.battleReward !== undefined) coinRows.push({label: "本场胜利奖励", value: `${options.battleReward}金币`, detail: "击败本场训练师获得"});
-  if (options.clearBonus !== undefined) coinRows.push({label: "连续通关奖励", value: `${options.clearBonus}金币`, detail: "完成整轮挑战获得"});
-  if (options.allInBonus) coinRows.push({label: "孤注一掷翻倍", value: `${options.allInBonus}金币`, detail: "获胜后按当前金币翻倍"});
-  coinRows.push(
-    {label: "道具卖出总计", value: `${settled.refundGained}金币`, detail: "结算时按当前背包返还比例折算"},
-    {label: "回收票据", value: `${settled.receiptBonus}金币`, detail: "按本局回收流水追加"},
-    {label: "投资组合", value: `${settled.portfolioBonus}金币`, detail: settled.portfolioTypes.length ? settled.portfolioTypes.join(" / ") : "本局未触发"},
-    {label: "天使基金不折算", value: `${settled.excludedCoins}金币`, detail: "开局基金剩余部分不进入 BP 折算"},
-  );
-  const bpRows: ResultSummaryState["bp_rows"] = [
-    {label: "金币折算 BP", value: `${settled.convertedCoins}金币 -> ${settled.convertedBp}BP`, detail: "结算时向下取整"},
-  ];
-  if (settled.paidBack) bpRows.push({label: "临时 BP 扣回", value: `${settled.paidBack}BP`, detail: "先手预言等临时 BP 在结算时扣回"});
-  const rows: ResultSummaryState["rows"] = [
-    {label: "结果", value: options.outcome === "win" ? "WIN" : options.outcome === "loss" ? "LOST" : "ABORT", detail: options.headline},
-    {label: "连胜", value: `${options.wins}`},
-    ...coinRows,
-    ...bpRows,
-  ];
-  const playerTeam = options.battle?.player_display || options.run?.player_display || [];
-  return {
+  return buildRuntimeResultSummary({
     outcome: options.outcome,
     headline: options.headline,
     subtitle: options.subtitle,
-    rows,
-    coin_rows: coinRows,
-    bp_rows: bpRows,
-    talents: options.battle?.player_talents?.length ? options.battle.player_talents : options.run?.talents || [],
-    used_pokemon: resultUsedPokemon(options.run, playerTeam),
-    progress: resultProgressRows({run: options.run, wins: options.wins, outcome: options.outcome, battle: options.battle}),
-    player_team: playerTeam,
-    enemy_team: options.battle?.enemy_display || options.run?.enemy_display || [],
-    enemy_trainer: options.battle?.enemy_trainer || options.run?.enemy_trainer,
-  };
+    wins: options.wins,
+    settled: options.settled,
+    battle: options.battle,
+    run: options.run,
+    battleReward: options.battleReward,
+    clearBonus: options.clearBonus,
+    allInBonus: options.allInBonus,
+    defaultBattles: DEFAULT_BATTLES,
+  });
 }
 
 function tmItemId(moveId: string | undefined): string {
@@ -2672,22 +2581,6 @@ async function premiumTmShopOptionsForRun(run: CurrentRunData): Promise<ShopOffe
   return Promise.all(picks.map((move, index) => tmOfferFromMove(move, index, "shop", 1, run.talents || [])));
 }
 
-async function starterTmOptions(runSeed: number, talents: TalentView[] = [], battleSetting: BattleSetting = normalizeBattleSetting(DEFAULT_BATTLE_SETTING), limit = 24): Promise<ShopOffer[]> {
-  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(runSeed, 77), "gen9randombattle", 6, {battleSetting, purpose: "starter"});
-  const seen = new Set<string>();
-  const moves: MoveSummary[] = [];
-  for (const pokemon of generated.display || []) {
-    for (const move of pokemon.moves || []) {
-      const moveId = toId(move.id || move.name);
-      if (!moveId || seen.has(moveId)) continue;
-      seen.add(moveId);
-      moves.push(move);
-    }
-  }
-  const rng = seededRng(runSeed, 0x5a77);
-  return Promise.all(shuffleByRng(moves, rng).slice(0, limit).map((move, index) => tmOfferFromMove(move, index, "starter", 1, talents)));
-}
-
 async function shopOfferFromPoolEntry(entry: ShopPoolEntry, index: number, talents: TalentView[], battleSetting?: BattleSetting | null): Promise<ShopOffer | null> {
   if (!battleSettingAllowsItem(entry.id, battleSetting)) return null;
   const item = (await gameService.itemOptions()).find(option => itemKey(option.id || option.name) === entry.id);
@@ -2795,70 +2688,15 @@ function starterGroupName(groupId: StarterItemGroup): string {
   return STARTER_ITEM_GROUPS.find(group => group.id === groupId)?.name || groupId;
 }
 
-function starterOfferWeight(entry: StarterItemPoolEntry, qualityLevel: number): number {
-  const base = Math.max(0, Number(entry.weight || 1));
-  if (entry.tier === qualityLevel) return base * 3;
-  if (entry.tier === qualityLevel - 1) return base * 2;
-  return base;
-}
-
 async function starterItemOffers(runSeed: number, talents: TalentView[] = [], upgrades?: StarterUpgradeState, battleSetting: BattleSetting = normalizeBattleSetting(DEFAULT_BATTLE_SETTING)): Promise<ShopOffer[]> {
-  const pool = await loadStarterItemPool();
-  const itemOptions = await gameService.itemOptions();
-  const normalizedUpgrades = normalizeStarterUpgrades(upgrades);
-  const rng = seededRng(runSeed, 0x57a27);
-  const result: ShopOffer[] = [];
-  for (const group of STARTER_ITEM_GROUPS) {
-    const quantityLevel = Number(normalizedUpgrades.item_quantity?.[group.id] || 0);
-    if (quantityLevel <= 0) continue;
-    const qualityLevel = Number(normalizedUpgrades.item_quality?.[group.id] || 1);
-    const used = new Set<string>();
-    const entries = pool.filter(entry => entry.starter_group === group.id && entry.tier <= qualityLevel);
-    const tmTemplate = entries.find(entry => entry.kind === "tm" && entry.id === "*");
-    const tmOffers = tmTemplate
-      ? (await starterTmOptions(runSeed, talents, battleSetting)).map((offer, index) => ({
-        ...offer,
-        cost: 0,
-        weight: starterOfferWeight(tmTemplate, qualityLevel),
-        discountable: tmTemplate.discountable,
-        starter_group: group.id,
-        starter_group_label: group.name,
-        item_tier: tmTemplate.tier,
-        offer_id: `starter-${group.id}-tm-${index}-${itemKey(offer.id || offer.name)}`,
-      }))
-      : [];
-    const itemOffers: Array<ShopOffer & {weight?: number}> = [];
-    entries.filter(entry => entry.kind === "item" && battleSettingAllowsItem(entry.id, battleSetting)).forEach((entry, index) => {
-      const item = itemOptions.find(option => itemKey(option.id || option.name) === entry.id);
-      const localItem = LOCAL_ITEM_DETAILS[entry.id];
-      if (!item && !localItem) return;
-      const detail = item || {id: entry.id, ...localItem, cost: entry.cost || 1};
-      itemOffers.push({
-        ...detail,
-        id: entry.id,
-        cost: 0,
-        category: entry.category,
-        icon_asset: itemIconAsset(entry.id),
-        offer_id: `starter-${group.id}-${index}-${entry.id}`,
-        source: "starter",
-        weight: starterOfferWeight(entry, qualityLevel),
-        discountable: entry.discountable,
-        starter_group: group.id,
-        starter_group_label: group.name,
-        item_tier: entry.tier,
-      });
-    });
-    const candidates = [...itemOffers, ...tmOffers];
-    for (let index = 0; index < quantityLevel; index += 1) {
-      const available = candidates.filter(offer => !used.has(itemKey(offer.id || offer.name)));
-      const picked = weightedPick(available, rng);
-      if (!picked) break;
-      used.add(itemKey(picked.id || picked.name));
-      const {weight: _weight, ...offer} = picked;
-      result.push({...offer, offer_id: `starter-${group.id}-${index}-${itemKey(offer.id || offer.name)}`});
-    }
-  }
-  return result;
+  return runtimeGenerateStarterItemOffers({
+    data: desktopDataProvider,
+    service: gameService,
+    runSeed,
+    talents,
+    upgrades,
+    battleSetting,
+  });
 }
 
 function routeBossForBattle(setStreak: number, battleNo: number): BossRoute {
@@ -2884,22 +2722,11 @@ function routeForRunBattle(save: LocalSave, run: CurrentRunData, battleNo: numbe
 
 
 function starterProfilesForStreak(setStreak: number, count: number, talents: TalentView[] = []): GenerationProfile[] {
-  void talents;
-  const base: GenerationProfile[] = setStreak <= 0
-    ? ["tier1", "tier1", "tier1", "tier2", "tier2", "tier2"]
-    : setStreak === 1
-      ? ["tier1", "tier1", "tier1", "tier2", "tier2", "tier3"]
-      : ["tier1", "tier2", "tier2", "tier3", "tier3", "tier3"];
-  return Array.from({length: Math.max(1, count)}, (_value, index) => base[index % base.length]);
+  return runtimeStarterProfilesForStreak(setStreak, count, talents) as GenerationProfile[];
 }
 
 function starterSpeciesTiersForStreak(setStreak: number, count: number): SpeciesTier[] {
-  const base: SpeciesTier[] = setStreak <= 0
-    ? [3, 4, 4, 4, 5, 5]
-    : setStreak === 1
-      ? [4, 4, 5, 5, 5, 6]
-      : [4, 5, 5, 6, 6, 6];
-  return Array.from({length: Math.max(1, count)}, (_value, index) => base[index % base.length]);
+  return runtimeStarterSpeciesTiersForStreak(setStreak, count) as SpeciesTier[];
 }
 
 function profilesForRoute(route: BossRoute): GenerationProfile[] {
@@ -3029,11 +2856,7 @@ function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battle
 }
 
 function villainTrainerPool(): TrainerNpcView[] {
-  return npcCatalog.filter(entry => {
-    if (entry.type !== "villain" || !entry.front_asset) return false;
-    const nameId = toId(entry.name_en || entry.name_zh || entry.id);
-    return !VILLAIN_INTRUSION_EXCLUDED_NAMES.has(entry.name_zh) && !VILLAIN_INTRUSION_EXCLUDED_NAMES.has(nameId);
-  });
+  return runtimeVillainTrainerPool(npcCatalog, Array.from(VILLAIN_INTRUSION_EXCLUDED_NAMES));
 }
 
 function villainTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): TeamPoolSelection | null {
@@ -3057,114 +2880,63 @@ function isRainbowRocketBattle(planned?: PlannedBattleData | null): boolean {
 }
 
 async function buildVillainIntrusionPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number, trainerOverride?: TrainerNpcView): Promise<PlannedBattleData> {
-  const pool = villainTrainerPool();
-  if (!pool.length) throw new Error("缺少可用的反派头目数据。");
-  const selectedTrainer = trainerOverride || pickStable(pool, run.seed || 0, battleNo, Number(run.wins || 0), "villain_intrusion") || pool[0];
-  const teamPoolId = selectedTrainer.team_pool_ids?.length
-    ? pickStable(selectedTrainer.team_pool_ids, run.seed || 0, battleNo, selectedTrainer.id, "villain_intrusion")
-    : selectedTrainer.team_pool_id;
-  const enemyTrainer = {...selectedTrainer, team_pool_id: teamPoolId};
-  const team = villainTeamForTrainer(enemyTrainer, run, battleNo);
-  if (!team) throw new Error(`反派头目 ${enemyTrainer.name_zh} 缺少可用的 3 只队伍预设。`);
-  const enemyGenerated = await gameService.generateRentalCandidates(
-    gameService.deriveSeed(Number(run.seed), 0x7600 + battleNo),
-    "gen9randombattle",
-    3,
-    {profiles: team.profiles, speciesIds: team.speciesIds, purpose: "boss", battleSetting: run.battle_setting},
-  );
-  const enemyRaw = enemyGenerated.team.slice(0, 3);
-  const enemyDisplay = enemyGenerated.display.slice(0, 3);
-  ensureTeamRunMemberIds(enemyRaw, enemyDisplay);
-  assignEnemyShowdownIds(enemyRaw, enemyDisplay);
-  return {
-    battle_no: battleNo,
-    route_type: "normal",
-    route_stage: "villain_intrusion",
-    route_route: "event:villain_intrusion",
-    generation_stage: team.profiles.join("|"),
-    special_event: "villain_intrusion",
-    enemy_team_pool_id: enemyTrainer.team_pool_id,
-    enemy_trainer: enemyTrainer,
-    enemy_raw: enemyRaw,
-    enemy_display: enemyDisplay,
-    battle_background: battleBackgroundForRun({...run, boss_route: "event:villain_intrusion"}, enemyTrainer, battleNo),
-  };
-}
-
-function villainTrainerByName(name: string): TrainerNpcView | undefined {
-  const nameId = toId(name);
-  return npcCatalog.find(entry => entry.type === "villain" && (entry.name_zh === name || toId(entry.name_en || "") === nameId || toId(entry.id).includes(nameId)));
-}
-
-function rainbowRocketUnlocked(save: LocalSave): boolean {
-  const bossDex = normalizeBossDex(save.boss_dex);
-  return RAINBOW_ROCKET_UNLOCK_NAMES.every(name => {
-    const trainer = villainTrainerByName(name);
-    return trainer && Number(bossDex[trainer.id]?.wins || 0) > 0;
+  void save;
+  return runtimeBuildVillainIntrusionPlannedBattle({
+    run,
+    battleNo,
+    service: gameService,
+    npcCatalog,
+    rainbowRocketTeamPools: loadRainbowRocketTeamPools(),
+    battleBackgroundForRun,
+    uuid: randomUUID,
+    trainerOverride,
   });
 }
 
+function villainTrainerByName(name: string): TrainerNpcView | undefined {
+  return runtimeVillainTrainerByName(npcCatalog, name);
+}
+
+function rainbowRocketUnlocked(save: LocalSave): boolean {
+  return runtimeRainbowRocketUnlocked(save, npcCatalog, RAINBOW_ROCKET_UNLOCK_NAMES);
+}
+
 function rainbowRocketRollHits(seed: number): boolean {
-  return simpleHash(seed || 0, "rainbow_rocket") % 1000 < RAINBOW_ROCKET_CHANCE * 1000;
+  return runtimeRainbowRocketRollHits(seed, RAINBOW_ROCKET_CHANCE);
 }
 
 async function buildRainbowRocketPlannedBattle(run: CurrentRunData, battleNo: number, trainer: TrainerNpcView): Promise<PlannedBattleData> {
-  const teamPoolId = trainer.team_pool_ids?.length
-    ? pickStable(trainer.team_pool_ids, run.seed || 0, battleNo, trainer.id, "rainbow_rocket")
-    : trainer.team_pool_id;
-  const enemyTrainer = {...trainer, team_pool_id: teamPoolId};
-  const team = rainbowRocketTeamForTrainer(enemyTrainer, run, battleNo);
-  if (!team) throw new Error(`彩虹火箭队 ${enemyTrainer.name_zh} 缺少可用的 4 只队伍预设。`);
-  const generated = await gameService.generateRentalCandidates(
-    gameService.deriveSeed(Number(run.seed), 0x8800 + battleNo),
-    "gen9randombattle",
-    4,
-    {profiles: team.profiles, speciesIds: team.speciesIds, purpose: "boss", battleSetting: run.battle_setting},
-  );
-  const enemyRaw = generated.team.slice(0, 4);
-  const enemyDisplay = generated.display.slice(0, 4);
-  ensureTeamRunMemberIds(enemyRaw, enemyDisplay);
-  assignEnemyShowdownIds(enemyRaw, enemyDisplay);
-  return {
-    battle_no: battleNo,
-    route_type: "normal",
-    route_stage: "rainbow_rocket",
-    route_route: "event:rainbow_rocket",
-    generation_stage: team.profiles.join("|"),
-    special_event: "rainbow_rocket",
-    enemy_team_pool_id: enemyTrainer.team_pool_id,
-    enemy_trainer: enemyTrainer,
-    enemy_raw: enemyRaw,
-    enemy_display: enemyDisplay,
-    battle_background: battleBackgroundForRun({...run, boss_route: "event:rainbow_rocket"}, enemyTrainer, battleNo),
-  };
+  return runtimeBuildRainbowRocketPlannedBattle({
+    run,
+    battleNo,
+    service: gameService,
+    npcCatalog,
+    rainbowRocketTeamPools: loadRainbowRocketTeamPools(),
+    battleBackgroundForRun,
+    uuid: randomUUID,
+    trainer,
+  });
 }
 
 async function buildRainbowRocketPlannedBattles(run: CurrentRunData): Promise<PlannedBattleData[]> {
-  const finalTrainer = villainTrainerByName(RAINBOW_ROCKET_FINAL_NAME);
-  if (!finalTrainer) throw new Error("缺少彩虹火箭队最终 Boss 坂木。");
-  const firstSix = RAINBOW_ROCKET_UNLOCK_NAMES
-    .map(name => villainTrainerByName(name))
-    .filter((entry): entry is TrainerNpcView => Boolean(entry));
-  if (firstSix.length < RAINBOW_ROCKET_UNLOCK_NAMES.length) throw new Error("彩虹火箭队 6 名头目资料不完整。");
-  const ordered = shuffleByRng(firstSix, seededRng(Number(run.seed || 1), 0x7799));
-  const trainers = [...ordered, finalTrainer];
-  const battles: PlannedBattleData[] = [];
-  for (let index = 0; index < trainers.length; index += 1) battles.push(await buildRainbowRocketPlannedBattle(run, index + 1, trainers[index]));
-  return battles;
+  return runtimeBuildRainbowRocketPlannedBattles({
+    run,
+    service: gameService,
+    npcCatalog,
+    rainbowRocketTeamPools: loadRainbowRocketTeamPools(),
+    battleBackgroundForRun,
+    uuid: randomUUID,
+    unlockNames: RAINBOW_ROCKET_UNLOCK_NAMES,
+    finalName: RAINBOW_ROCKET_FINAL_NAME,
+  });
 }
 
 async function buildRainbowRocketFactorySupport(run: CurrentRunData, battleNo: number): Promise<{team: PokemonSet[]; display: RentalPokemon[]}> {
-  const generated = await gameService.generateRentalCandidates(
-    gameService.deriveSeed(Number(run.seed || 1), 0x9900 + battleNo),
-    "gen9randombattle",
-    RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT,
-    {profiles: ["tier3", "tier3", "tier4", "tier4", "champion", "champion"], purpose: "starter", battleSetting: run.battle_setting},
-  );
-  const team = generated.team.slice(0, RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT);
-  const display = generated.display.slice(0, RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT);
-  ensureTeamRunMemberIds(team, display);
-  return {team, display};
+  return runtimeBuildRainbowRocketFactorySupport(run, battleNo, {
+    service: gameService,
+    uuid: randomUUID,
+    factorySupportCount: RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT,
+  });
 }
 
 function originalRouteSupportForBattle(run: CurrentRunData, battleNo: number): {team: PokemonSet[]; display: RentalPokemon[]; trainer?: TrainerNpcView} {
@@ -3178,113 +2950,28 @@ function originalRouteSupportForBattle(run: CurrentRunData, battleNo: number): {
 }
 
 async function ensureRainbowRocketSupport(run: CurrentRunData): Promise<boolean> {
-  if (!isRainbowRocketRun(run) || run.status !== "awaiting_rest") return false;
-  const battleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
-  const existing = run.rest_status?.rainbow_rocket_support;
-  if (existing && Number(existing.battle_no) === battleNo && !existing.completed) return false;
-  if (existing && Number(existing.battle_no) === battleNo && existing.completed) return false;
-  const factory = await buildRainbowRocketFactorySupport(run, battleNo);
-  const route = originalRouteSupportForBattle(run, battleNo);
-  const missing = Math.max(0, RAINBOW_ROCKET_TEAM_SIZE - (run.player_team || []).length);
-  const support: RainbowRocketSupportState = {
-    battle_no: battleNo,
-    invasion: battleNo === 1 && Number(run.wins || 0) <= 0,
-    completed: false,
-    picks_used: 0,
-    picks_required: Math.min(RAINBOW_ROCKET_SUPPORT_PICK_LIMIT, Math.max(1, missing)),
-    max_team_size: RAINBOW_ROCKET_TEAM_SIZE,
-    factory_team: factory.team,
-    factory_display: factory.display,
-    route_team: route.team,
-    route_display: route.display,
-    route_trainer: route.trainer,
-  };
-  run.rest_status = {...(run.rest_status || {}), rainbow_rocket_support: support};
-  return true;
+  return runtimeEnsureRainbowRocketSupport(run, {
+    service: gameService,
+    uuid: randomUUID,
+    teamSize: RAINBOW_ROCKET_TEAM_SIZE,
+    factorySupportCount: RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT,
+    supportPickLimit: RAINBOW_ROCKET_SUPPORT_PICK_LIMIT,
+  });
 }
 
 function rainbowRocketSupportRequired(run: CurrentRunData): boolean {
-  const support = run.rest_status?.rainbow_rocket_support;
-  if (!isRainbowRocketRun(run) || !support || support.completed) return false;
-  if (support.invasion && (run.player_team || []).length < RAINBOW_ROCKET_TEAM_SIZE) return true;
-  return Number(support.picks_used || 0) < Number(support.picks_required || 1);
+  return runtimeRainbowRocketSupportRequired(run, RAINBOW_ROCKET_TEAM_SIZE);
 }
 
 async function applyRainbowRocketSupportChoice(save: LocalSave, run: CurrentRunData, action: Extract<RestAction, {type: "rainbow_rocket_support"}>): Promise<string> {
-  if (!isRainbowRocketRun(run)) throw new Error("当前不是彩虹火箭队路线。");
-  const support = run.rest_status?.rainbow_rocket_support;
-  if (!support || support.completed) throw new Error("当前没有待处理的彩虹火箭队支援。");
-  const rawPool = action.source === "route" ? support.route_team || [] : support.factory_team || [];
-  const displayPool = action.source === "route" ? support.route_display || [] : support.factory_display || [];
-  const candidateIndex = Math.floor(Number(action.candidateIndex));
-  const candidateRaw = rawPool[candidateIndex];
-  const candidateDisplay = displayPool[candidateIndex];
-  if (!candidateRaw || !candidateDisplay) throw new Error("支援候选不存在。");
-  const maxTeamSize = Math.max(3, Number(support.max_team_size || RAINBOW_ROCKET_TEAM_SIZE));
-  const targetIndex = action.targetIndex === null || action.targetIndex === undefined ? null : Math.floor(Number(action.targetIndex));
-  if (targetIndex !== null && (targetIndex < 0 || targetIndex >= run.player_team.length)) throw new Error("替换目标无效。");
-  if (targetIndex === null && run.player_team.length >= maxTeamSize) throw new Error("队伍已满，请选择一名队员替换。");
-
-  const nextRaw = JSON.parse(JSON.stringify(candidateRaw)) as PokemonSet;
-  const nextDisplay = JSON.parse(JSON.stringify(candidateDisplay)) as RentalPokemon;
-  const newMemberId = createRunMemberId();
-  nextRaw.run_member_id = newMemberId;
-  nextDisplay.run_member_id = newMemberId;
-  const slot = targetIndex ?? run.player_team.length;
-  const oldShowdownId = targetIndex === null ? null : run.player_team[slot]?.showdown_id || run.player_display[slot]?.showdown_id || run.player_state?.[slot]?.showdown_id;
-  const newShowdownId = targetIndex === null ? takeRunShowdownId(run) : takeReplacementRunShowdownId(run, slot, oldShowdownId);
-  writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
-
-  if (targetIndex === null) {
-    run.player_team = [...(run.player_team || []), nextRaw];
-    run.player_display = [...(run.player_display || []), nextDisplay];
-  } else {
-    run.player_team[slot] = nextRaw;
-    run.player_display[slot] = nextDisplay;
-  }
-  recordPokemonUsage(save, nextDisplay);
-  run.bp_investments = [...(run.bp_investments || [])];
-  run.move_investments = [...(run.move_investments || [])];
-  run.bp_investments[slot] = 0;
-  run.move_investments[slot] = [0, 0, 0, 0];
-  const states = normalizePlayerState(run);
-  states[slot] = fullStateForPokemon(nextDisplay, slot + 1);
-  writePlayerSlotShowdownId(run, slot, states, newShowdownId);
-  run.player_state = states;
-
-  rawPool.splice(candidateIndex, 1);
-  displayPool.splice(candidateIndex, 1);
-  if (action.source === "route") {
-    support.route_team = rawPool;
-    support.route_display = displayPool;
-  } else {
-    support.factory_team = rawPool;
-    support.factory_display = displayPool;
-  }
-  support.picks_used = Number(support.picks_used || 0) + 1;
-  run.rest_status = {...(run.rest_status || {}), rainbow_rocket_support: support};
-  return `${nextDisplay.species_zh || nextDisplay.species || "支援宝可梦"} 已加入彩虹火箭队反击队伍。`;
+  return runtimeApplyRainbowRocketSupportChoice(save, run, action, {
+    uuid: randomUUID,
+    recordPokemonUsage,
+  });
 }
 
 function applyRainbowRocketRestore(run: CurrentRunData, slots: number[]): string {
-  if (!isRainbowRocketRun(run)) throw new Error("当前不是彩虹火箭队路线。");
-  const uniqueSlots = Array.from(new Set((slots || []).map(slot => Math.floor(Number(slot))).filter(slot => Number.isFinite(slot))));
-  if (!uniqueSlots.length || uniqueSlots.length > 2) throw new Error("每次彩虹火箭队休整只能选择 1-2 只恢复。");
-  const used = new Set((run.rest_status?.rainbow_rocket_restore_used || []).map(slot => Math.floor(Number(slot))).filter(slot => Number.isFinite(slot)));
-  if (used.size + uniqueSlots.length > 2) throw new Error("本次休整的工厂治疗名额已经用完。");
-  const states = normalizePlayerState(run);
-  for (const slot of uniqueSlots) {
-    if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
-    if (used.has(slot)) throw new Error("这只宝可梦本次休整已经恢复过。");
-    const full = fullStateForPokemon(run.player_display[slot], slot + 1);
-    const stableId = stablePlayerSlotShowdownId(run, slot, run.player_team[slot]?.showdown_id, run.player_display[slot]?.showdown_id, states[slot]?.showdown_id);
-    states[slot] = {...full, active: states[slot]?.active || slot === 0};
-    writePlayerSlotShowdownId(run, slot, states, stableId);
-    used.add(slot);
-  }
-  run.player_state = states;
-  run.rest_status = {...(run.rest_status || {}), rainbow_rocket_restore_used: Array.from(used).sort((a, b) => a - b)};
-  return `工厂治疗完成：已恢复 ${uniqueSlots.length} 只宝可梦。`;
+  return runtimeApplyRainbowRocketRestore(run, slots, RAINBOW_ROCKET_TEAM_SIZE);
 }
 
 async function grantRainbowRocketSupplies(run: CurrentRunData): Promise<string[]> {
@@ -3294,35 +2981,30 @@ async function grantRainbowRocketSupplies(run: CurrentRunData): Promise<string[]
 }
 
 async function buildPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<PlannedBattleData> {
-  const route = routeForRunBattle(save, run, battleNo);
-  const enemyTrainer = chooseTrainerForRoute(route, run, battleNo);
-  const routeSalt = route.type === "normal" ? 100 : route.type === "champion" ? 700 : route.stage.includes("tier3") ? 603 : route.stage === "tier2" ? 602 : 601;
-  const bossTeam = route.type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
-  const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
-  const enemyGenerated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen9randombattle", profiles.length, {profiles, speciesIds: bossTeam?.speciesIds, purpose: route.type === "normal" ? "normal" : "boss", battleSetting: run.battle_setting});
-  const enemyRaw = enemyGenerated.team.slice(0, 3);
-  const enemyDisplay = enemyGenerated.display.slice(0, 3);
-  ensureTeamRunMemberIds(enemyRaw, enemyDisplay);
-  assignEnemyShowdownIds(enemyRaw, enemyDisplay);
-  return {
-    battle_no: battleNo,
-    route_type: route.type,
-    route_stage: route.stage,
-    route_route: route.route,
-    generation_stage: profiles.join("|"),
-    enemy_team_pool_id: enemyTrainer.team_pool_id,
-    enemy_trainer: enemyTrainer,
-    enemy_raw: enemyRaw,
-    enemy_display: enemyDisplay,
-    battle_background: battleBackgroundForRun({...run, boss_route: route.route}, enemyTrainer, battleNo),
-  };
+  return runtimeBuildPlannedBattle({
+    save,
+    run,
+    battleNo,
+    service: gameService,
+    npcCatalog,
+    bossTeamPools: loadBossTeamPools(),
+    defaultBattles: DEFAULT_BATTLES,
+    battleBackgroundForRun,
+    uuid: randomUUID,
+  });
 }
 
 async function buildPlannedBattles(save: LocalSave, run: CurrentRunData): Promise<PlannedBattleData[]> {
-  const total = Math.max(1, Number(run.battles || DEFAULT_BATTLES));
-  const planned: PlannedBattleData[] = [];
-  for (let battleNo = 1; battleNo <= total; battleNo += 1) planned.push(await buildPlannedBattle(save, run, battleNo));
-  return planned;
+  return runtimeBuildPlannedBattles({
+    save,
+    run,
+    service: gameService,
+    npcCatalog,
+    bossTeamPools: loadBossTeamPools(),
+    defaultBattles: DEFAULT_BATTLES,
+    battleBackgroundForRun,
+    uuid: randomUUID,
+  });
 }
 
 async function refreshPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<void> {
@@ -3346,7 +3028,7 @@ function hasChampionWin(save: LocalSave): boolean {
 }
 
 function villainIntrusionRollHits(run: CurrentRunData, battleNo: number): boolean {
-  return simpleHash(run.seed || 0, battleNo, Number(run.wins || 0), "villain_intrusion") % 1000 < VILLAIN_INTRUSION_CHANCE * 1000;
+  return runtimeVillainIntrusionRollHits(run, battleNo, VILLAIN_INTRUSION_CHANCE);
 }
 
 async function ensureVillainIntrusion(save: LocalSave, run: CurrentRunData): Promise<boolean> {
@@ -3386,79 +3068,22 @@ function isBossTrainer(trainer?: TrainerNpcView): boolean {
   return Boolean(trainer && ["gym", "elite4", "champion", "villain"].includes(trainer.type));
 }
 
-function bossDexEventTagsForRun(run: CurrentRunData): string[] {
-  const tags: string[] = [];
-  if (run.special_event === "villain_intrusion") tags.push("普通乱入", "特殊事件");
-  if (run.special_event === "rainbow_rocket" || run.special_run === "rainbow_rocket") tags.push("彩虹火箭队", "特殊事件");
-  return Array.from(new Set(tags));
-}
-
-function trainerDexTags(trainer: TrainerNpcView, record: BossDexRecord | undefined): string[] {
-  const tags = [trainerDexTypeLabel(trainer.type), ...(record?.event_tags || [])].filter(Boolean);
-  return Array.from(new Set(tags));
-}
-
 function recordBossEncounter(save: LocalSave, run: CurrentRunData, trainer: TrainerNpcView, bossTeam: ReturnType<typeof bossTeamForTrainer>, display: RentalPokemon[]): BossDexRecord | undefined {
   if (!isBossTrainer(trainer) || !bossTeam) return undefined;
-  const now = new Date().toISOString();
-  save.boss_dex = normalizeBossDex(save.boss_dex);
-  const previous = normalizeBossDexRecord(save.boss_dex[trainer.id]);
-  const eventTags = Array.from(new Set([...(previous.event_tags || []), ...bossDexEventTagsForRun(run)]));
-  const poolId = trainer.team_pool_id || trainer.team_pool_ids?.[0];
-  const seenPokemon = {...previous.seen_pokemon};
-  const seenPoolSlots = new Set(previous.seen_pool_slots);
-  for (const row of bossTeam.rows) {
-    const key = bossPoolSlotKey(poolId, row.battle_rule_preset, row.team_index, row.slot, row.species_id);
-    const pokemon = display[row.slot - 1];
-    seenPoolSlots.add(key);
-    if (pokemon) {
-      seenPokemon[key] = {
-        key,
-        team_index: row.team_index,
-        slot: row.slot,
-        species_id: row.species_id,
-        pokemon,
-      };
-    }
-  }
-  const next = normalizeBossDexRecord({
-    ...previous,
-    encounters: previous.encounters + 1,
-    first_seen_at: previous.first_seen_at || now,
-    last_seen_at: now,
-    event_tags: eventTags,
-    seen_pool_slots: Array.from(seenPoolSlots),
-    seen_pokemon: seenPokemon,
+  const event = run.special_event === "rainbow_rocket" || run.special_run === "rainbow_rocket"
+    ? "rainbow_rocket"
+    : run.special_event === "villain_intrusion"
+      ? "villain_intrusion"
+      : undefined;
+  const next = runtimeRecordTrainerDexEncounter(save, trainer, {
+    event,
+    now: new Date().toISOString(),
+    teamPool: bossTeam,
+    display,
+    poolId: trainer.team_pool_id || trainer.team_pool_ids?.[0],
   });
-  save.boss_dex[trainer.id] = next;
-  run.enemy_boss_record = next;
+  if (next) run.enemy_boss_record = next;
   return next;
-}
-
-function recordBossBattleResult(save: LocalSave, run: CurrentRunData, winner: string | null): void {
-  const trainer = run.enemy_trainer;
-  if (!isBossTrainer(trainer)) return;
-  save.boss_dex = normalizeBossDex(save.boss_dex);
-  const previous = normalizeBossDexRecord(save.boss_dex[trainer!.id]);
-  const playerWon = winner === "Player";
-  const next = normalizeBossDexRecord({
-    ...previous,
-    completed: previous.completed + 1,
-    wins: previous.wins + (playerWon ? 1 : 0),
-    losses: previous.losses + (playerWon ? 0 : 1),
-    last_result: playerWon ? "win" : "loss",
-    last_battled_at: new Date().toISOString(),
-  });
-  save.boss_dex![trainer!.id] = next;
-  run.enemy_boss_record = next;
-}
-
-function trainerDexTypeLabel(type: TrainerNpcType): string {
-  if (type === "champion") return "冠军";
-  if (type === "elite4") return "四天王";
-  if (type === "gym") return "馆主";
-  if (type === "villain") return "反派头目";
-  return "训练师";
 }
 
 function bossPoolRowsForDex(trainer: TrainerNpcView, record: BossDexRecord | undefined): BossDexPoolRow[] {
@@ -3501,67 +3126,17 @@ function bossSummary(record?: BossDexRecord): string {
 }
 
 function trainerDexSearch(save: LocalSave | null, query = "", offset = 0, limit = 8): DesktopDexSearchResult {
-  const normalizedOffset = Math.max(0, Number(offset || 0));
-  const cappedLimit = Math.max(1, Math.min(120, Number(limit || 8)));
-  const typeMatch = String(query || "").match(/\btype:(gym|elite4|champion|villain)\b/i);
-  const typeFilter = typeMatch?.[1] as TrainerNpcType | undefined;
-  const eventMatch = String(query || "").match(/\bevent:(special|villain_intrusion|rainbow_rocket)\b/i);
-  const eventFilter = eventMatch?.[1]?.toLowerCase();
-  const cleanQuery = String(query || "").replace(/\btype:(gym|elite4|champion|villain)\b/ig, "").replace(/\bevent:(special|villain_intrusion|rainbow_rocket)\b/ig, "").trim().toLowerCase();
-  const cleanId = toId(cleanQuery);
-  const bossDex = normalizeBossDex(save?.boss_dex);
-  const bosses = npcCatalog.filter(entry => isBossTrainer(entry) && entry.front_asset && (!typeFilter || entry.type === typeFilter));
-  const entries: DesktopDexEntry[] = bosses.map((trainer, index) => {
-    const record = bossDex[trainer.id];
-    const unlocked = Boolean(record?.encounters);
-    const typeLabel = trainerDexTypeLabel(trainer.type);
-    const trainerTags = unlocked ? trainerDexTags(trainer, record) : [];
-    const hiddenName = `${trainer.region || "未知地区"}${typeLabel} #${index + 1}`;
-    const nameZh = unlocked ? trainer.name_zh : "？？？";
-    const name = unlocked ? (trainer.name_en || trainer.name_zh) : "???";
-    return {
-      id: trainer.id,
-      name,
-      name_zh: nameZh,
-      category: "trainers" as const,
-      desc_zh: unlocked ? `${trainer.region || "未知地区"}${typeLabel}` : hiddenName,
-      tags: unlocked
-        ? [trainer.id, trainer.name_zh, trainer.name_en || "", trainer.region || "", trainer.role || "", trainerDexTypeLabel(trainer.type), ...(record?.event_tags || []), trainer.notes || ""]
-        : [trainer.region || "", trainerDexTypeLabel(trainer.type), hiddenName],
-      trainer: unlocked ? trainer : {...trainer, name_zh: "？？？", name_en: "???", front_asset: undefined, front_gif_asset: undefined, avatar_asset: undefined},
-      unlocked,
-      trainer_tags: trainerTags,
-      boss_record: record,
-      boss_pool_rows: bossPoolRowsForDex(trainer, record),
-      boss_summary: bossSummary(record),
-    };
-  }).filter(entry => {
-    if (eventFilter) {
-      if (!entry.unlocked) return false;
-      const eventTags = new Set(entry.boss_record?.event_tags || []);
-      if (eventFilter === "special" && !eventTags.has("特殊事件")) return false;
-      if (eventFilter === "villain_intrusion" && !eventTags.has("普通乱入")) return false;
-      if (eventFilter === "rainbow_rocket" && !eventTags.has("彩虹火箭队")) return false;
-    }
-    if (!cleanQuery && !cleanId) return true;
-    const rawParts = entry.unlocked ? [entry.id, entry.name, entry.name_zh, entry.desc_zh, ...(entry.tags || [])] : [entry.desc_zh, ...(entry.tags || [])];
-    const parts = rawParts.filter(Boolean).map(value => String(value).toLowerCase());
-    const ids = parts.map(value => toId(value));
-    return parts.some(value => value.includes(cleanQuery)) || ids.some(value => value.includes(cleanId));
-  }).sort((a, b) => {
-    const typeOrder = {gym: 0, elite4: 1, champion: 2, villain: 3} as Record<string, number>;
-    return (typeOrder[a.trainer?.type || ""] ?? 9) - (typeOrder[b.trainer?.type || ""] ?? 9) || String(a.trainer?.region || "").localeCompare(String(b.trainer?.region || "")) || a.id.localeCompare(b.id);
+  return runtimeTrainerDexSearch({
+    save,
+    npcCatalog,
+    query,
+    offset,
+    limit,
+    includeNormal: false,
+    requireFrontAsset: true,
+    bossPoolRowsForDex,
+    bossSummary,
   });
-  const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit);
-  return {
-    category: "trainers",
-    query: String(query || ""),
-    offset: normalizedOffset,
-    limit: cappedLimit,
-    total: entries.length,
-    has_more: normalizedOffset + page.length < entries.length,
-    entries: page,
-  };
 }
 
 async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<{route: BossRoute; trainer: TrainerNpcView; enemies: RentalPokemon[]; label: string}> {
@@ -3921,41 +3496,19 @@ function fullStateForPokemon(pokemon: RentalPokemon, slot: number): PlayerPokemo
 }
 
 function shinyPokemon(pokemon: RentalPokemon): RentalPokemon {
-  return {...pokemon, shiny: true};
+  return runtimeShinyPokemon(pokemon);
 }
 
 function ensureStarterShiny(generated: GeneratedTeam, seed: number, talents: TalentView[], setStreak: number): GeneratedTeam {
-  void seed;
-  void talents;
-  void setStreak;
-  return generated;
+  return runtimeEnsureStarterShiny(generated, seed, talents, setStreak);
 }
 
 function markStarterOrigin(generated: GeneratedTeam, origin: "current" | "memory"): GeneratedTeam {
-  return {
-    ...generated,
-    team: generated.team.map(pokemon => ({...pokemon, starter_origin: origin})),
-    display: generated.display.map(pokemon => ({...pokemon, starter_origin: origin} as RentalPokemon)),
-  };
+  return runtimeMarkStarterOrigin(generated, origin);
 }
 
 async function generateStarterCandidatesForSave(save: LocalSave, seed: number, talents: TalentView[], count: number, setting?: BattleSetting): Promise<GeneratedTeam> {
-  const setStreak = Number(save.stats?.set_win_streak || 0);
-  const profiles = starterProfilesForStreak(setStreak, count, talents);
-  const speciesTiers = starterSpeciesTiersForStreak(setStreak, count);
-  const battleSetting = normalizeBattleSetting(setting || save.battle_setting || DEFAULT_BATTLE_SETTING);
-  const current = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 1), "gen9randombattle", count, {profiles, speciesTiers, purpose: "starter", battleSetting}), seed, talents, setStreak), "current");
-  if (!hasTalent(talents, "starter_soulmate")) return current;
-  const memorySpecies = Array.from(new Set([...(save.run_memory?.player_species_ids || []), ...(save.run_memory?.enemy_species_ids || [])].map(toId).filter(Boolean))).slice(0, 12);
-  if (!memorySpecies.length) return current;
-  const memoryProfiles = Array.from({length: memorySpecies.length}, (_value, index) => profiles[index % profiles.length] || "tier1" as GenerationProfile);
-  const memory = markStarterOrigin(await gameService.generateRentalCandidates(gameService.deriveSeed(seed, 0x5017), "gen9randombattle", memorySpecies.length, {profiles: memoryProfiles, speciesIds: memorySpecies, purpose: "starter", battleSetting}), "memory");
-  return {
-    seed: current.seed,
-    team: [...current.team, ...memory.team],
-    display: [...current.display, ...memory.display],
-    packed: current.packed,
-  };
+  return runtimeGenerateStarterCandidatesForSave({service: gameService, save, seed, talents, count, setting});
 }
 
 async function applyStarterMentorEye(team: PokemonSet[], display: RentalPokemon[], seed: number, talents: TalentView[]): Promise<{team: PokemonSet[]; display: RentalPokemon[]; upgraded: number}> {
@@ -4318,7 +3871,13 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
   const nextPreview = hasTalent(run.talents, "intel_reroute") && nextBattleNo <= Number(run.battles || DEFAULT_BATTLES)
     ? await generateOpponentPreview(save, run, nextBattleNo)
     : null;
-  const rest: RestState = {
+  const rest: RestState = runtimeBuildRestState({
+    save,
+    run,
+    defaultBattles: DEFAULT_BATTLES,
+    exchangeDisabled: isRainbowRocketRun(run) || exchangeCount >= 3,
+    exchangeCost: restExchangeCost,
+    extra: {
     battle_no: Number(run.battle_no ?? Math.max(0, Number(run.next_battle || 1) - 1)),
     battles: Number(run.battles || DEFAULT_BATTLES),
     wins: Number(run.wins || 0),
@@ -4416,312 +3975,65 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       scout_one: SCOUT_ONE_COST,
       scout_all: SCOUT_ALL_COST,
     },
-  };
+    },
+  });
   return gameState({screen: "rest", save, rest, message: restMessage || message});
 }
 
 async function prepareCandidates(seed?: number): Promise<DesktopGameState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  const runSeed = seed || Math.floor(Math.random() * 0xffffffff);
-  const talents = pendingStarter?.talents || activeTalentsForSave(save);
-  const count = candidateCountForTalents(talents);
-  if (pendingStarter) {
-    const limit = starterUpgradeLevel(pendingStarter.upgrades, "pokemon_reroll");
-    if (pendingCandidates && pendingStarter.wholeRerollsUsed >= limit) throw new Error("牌有问题次数不足，无法整体重换。");
-    pendingStarter = {...pendingStarter, seed: runSeed, wholeRerollsUsed: pendingCandidates ? pendingStarter.wholeRerollsUsed + 1 : pendingStarter.wholeRerollsUsed};
-  }
-  pendingCandidates = await generateStarterCandidatesForSave(save, runSeed, talents, count, pendingStarter?.battleSetting);
-  return gameState({
-    screen: "rentalSelect",
-    save,
-    starter: pendingStarter ? starterChoiceState(pendingStarter) : undefined,
-    candidates: pendingCandidates,
-    selected_indexes: [],
-    message: `随机种子：${runSeed}`,
-  });
+  return requirePreparationRuntime().prepareCandidates(seed);
 }
 
 async function rerollStarterCandidate(index: number): Promise<DesktopGameState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  if (!pendingStarter || !pendingCandidates) throw new Error("当前不在开局选队阶段。");
-  const slot = Math.floor(Number(index || 0));
-  if (slot < 0 || slot >= pendingCandidates.display.length) throw new Error("候选编号无效。");
-  if ((pendingCandidates.display[slot] as RentalPokemon & {starter_origin?: string}).starter_origin === "memory") throw new Error("回忆候选不能单独重随。");
-  const limit = starterUpgradeLevel(pendingStarter.upgrades, "pokemon_single_reroll");
-  if (pendingStarter.singleRerollsUsed >= limit) throw new Error("我要发功次数不足，无法单独重随。");
-  const count = candidateCountForTalents(pendingStarter.talents);
-  const setStreak = Number(save.stats?.set_win_streak || 0);
-  const profiles = starterProfilesForStreak(setStreak, count, pendingStarter.talents);
-  const speciesTiers = starterSpeciesTiersForStreak(setStreak, count);
-  const nextSeed = gameService.deriveSeed(pendingStarter.seed, 5000 + pendingStarter.singleRerollsUsed * 97 + slot);
-  const generated = markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(nextSeed, "gen9randombattle", 1, {profiles: [profiles[slot % profiles.length] || "tier1"], speciesTiers: [speciesTiers[slot % speciesTiers.length] || 2], purpose: "starter", battleSetting: pendingStarter.battleSetting}), nextSeed, pendingStarter.talents, setStreak), "current");
-  pendingCandidates.team[slot] = generated.team[0];
-  pendingCandidates.display[slot] = generated.display[0];
-  pendingStarter = {...pendingStarter, singleRerollsUsed: pendingStarter.singleRerollsUsed + 1};
-  return gameState({
-    screen: "rentalSelect",
-    save,
-    starter: starterChoiceState(pendingStarter),
-    candidates: pendingCandidates,
-    selected_indexes: [],
-    message: `我要发功发动，已重随第 ${slot + 1} 只候选。`,
-  });
+  return requirePreparationRuntime().rerollStarterCandidate(index);
 }
 
 async function prepareStarterItems(seed?: number): Promise<DesktopGameState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  const runSeed = seed || Math.floor(Math.random() * 0xffffffff);
-  const talents: TalentView[] = activeTalentsForSave(save);
-  const upgrades = starterUpgradesForSave(save);
-  const battleSetting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
-  configuredTalents = talents;
-  const offers = await starterItemOffers(runSeed, talents, upgrades, battleSetting);
-  pendingStarter = {seed: runSeed, coins: starterCoinsForSeed(runSeed, talents), offers, purchased: [], talents, upgrades, battleSetting, wholeRerollsUsed: 0, singleRerollsUsed: 0};
-  pendingCandidates = null;
-  if (!offers.length) return chooseStarterItem(null);
-  return gameState({screen: "starterItems", save, starter: starterChoiceState(pendingStarter), message: "选择一个开局道具，或跳过。"});
+  return requirePreparationRuntime().prepareStarterItems(seed);
 }
 
 async function talentConfig(): Promise<TalentConfigState> {
-  const save = await loadSave();
-  const chart = normalizeStarChart(save?.star_chart, save?.talent_unlocks, save?.starter_upgrades);
-  const catalog = starChartCatalog(chart);
-  const unlocked = catalog.filter(node => Number(node.level || 0) > 0);
-  const equipped = activeTalentsForSave(save);
-  configuredTalents = equipped;
-  return {catalog, unlocked, equipped, star_chart: chart, save};
+  const result = await requireProgressionRuntime().talentConfig();
+  configuredTalents = result.equipped;
+  return result;
 }
 
 async function unlockTalent(id: string): Promise<TalentConfigState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  const node = STAR_CHART_NODE_BY_ID.get(id);
-  if (!node) throw new Error("星图节点不存在。");
-  if (node.disabled || node.kind === "event_preview") throw new Error("这个节点是后续奇遇预留，暂不可解锁。");
-  const chart = normalizeStarChart(save.star_chart, save.talent_unlocks, save.starter_upgrades);
-  if (!starNodeUnlocked(chart, node)) throw new Error("前置节点尚未点亮。");
-  const cost = starNodeUpgradeCost(chart, id);
-  if (cost === null) throw new Error("这个节点已经满级。");
-  spendBp(save, cost);
-  chart.nodes[id] = Math.min(node.max_level, starNodeLevel(chart, id) + 1);
-  save.star_chart = chart;
-  const next = await persist(save);
-  const nextChart = normalizeStarChart(next.star_chart, next.talent_unlocks, next.starter_upgrades);
-  const catalog = starChartCatalog(nextChart);
-  const unlocked = catalog.filter(entry => Number(entry.level || 0) > 0);
-  const equipped = activeTalentsForSave(next);
-  configuredTalents = equipped;
-  return {catalog, unlocked, equipped, star_chart: nextChart, save: next};
+  const result = await requireProgressionRuntime().unlockTalent(id);
+  configuredTalents = result.equipped;
+  return result;
 }
 
 async function configureTalents(ids: string[]): Promise<TalentConfigState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  void ids;
-  const next = await persist(save);
-  const chart = normalizeStarChart(next.star_chart, next.talent_unlocks, next.starter_upgrades);
-  const catalog = starChartCatalog(chart);
-  const unlocked = catalog.filter(entry => Number(entry.level || 0) > 0);
-  const equipped = activeTalentsForSave(next);
-  configuredTalents = equipped;
-  return {catalog, unlocked, equipped, star_chart: chart, save: next};
+  const result = await requireProgressionRuntime().configureTalents(ids);
+  configuredTalents = result.equipped;
+  return result;
 }
 
 async function setNamedChallenge(trainerId: string | null): Promise<TalentConfigState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  const id = trainerId || null;
-  if (id && !npcCatalog.some(entry => entry.type === "champion" && entry.id === id)) throw new Error("只能指定冠军作为最终 Boss。");
-  save.named_champion_id = id;
-  const next = await persist(save);
-  const chart = normalizeStarChart(next.star_chart, next.talent_unlocks, next.starter_upgrades);
-  const catalog = starChartCatalog(chart);
-  const equipped = activeTalentsForSave(next);
-  configuredTalents = equipped;
-  return {catalog, unlocked: catalog.filter(entry => Number(entry.level || 0) > 0), equipped, star_chart: chart, save: next};
+  const result = await requireProgressionRuntime().setNamedChallenge(trainerId);
+  configuredTalents = result.equipped;
+  return result;
 }
 
 async function starterUpgradeConfig(): Promise<StarterUpgradeConfigState> {
-  const save = await loadSave();
-  return {catalog: starterUpgradeCatalog(starterUpgradesForSave(save)), save};
-}
-
-function setStarterUpgradeLevel(upgrades: StarterUpgradeState, id: string, level: number): StarterUpgradeState {
-  const next = normalizeStarterUpgrades(upgrades);
-  const [kind, groupRaw] = id.split(":");
-  const group = groupRaw as StarterItemGroup | undefined;
-  if (kind === "item_quality" && group && STARTER_ITEM_GROUPS.some(entry => entry.id === group)) next.item_quality = {...next.item_quality, [group]: level};
-  else if (kind === "item_quantity" && group && STARTER_ITEM_GROUPS.some(entry => entry.id === group)) next.item_quantity = {...next.item_quantity, [group]: level};
-  else if (id === "pokemon_reroll") next.pokemon_reroll = level;
-  else if (id === "pokemon_inspect") next.pokemon_inspect = level;
-  else if (id === "pokemon_single_reroll") next.pokemon_single_reroll = level;
-  else throw new Error("开局筹备项目不存在。");
-  return normalizeStarterUpgrades(next);
+  return requireProgressionRuntime().starterUpgradeConfig();
 }
 
 async function upgradeStarter(id: string): Promise<StarterUpgradeConfigState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  const chart = normalizeStarChart(save.star_chart, save.talent_unlocks, save.starter_upgrades);
-  const node = STAR_CHART_NODE_BY_ID.get(id);
-  if (!node || node.kind !== "starter_upgrade") throw new Error("开局筹备项目不存在。");
-  const currentLevel = starNodeLevel(chart, id);
-  const cost = starNodeUpgradeCost(chart, id);
-  if (cost === null || cost === undefined) throw new Error("这个项目已经满级。");
-  if (!starNodeUnlocked(chart, node)) throw new Error("前置节点尚未点亮。");
-  spendBp(save, cost);
-  chart.nodes[id] = Math.min(node.max_level, currentLevel + 1);
-  save.star_chart = chart;
-  const next = await persist(save);
-  return {catalog: starterUpgradeCatalog(starterUpgradesForSave(next)), save: next};
+  return requireProgressionRuntime().upgradeStarter(id);
 }
 
 async function chooseStarterItem(offerId: string | null): Promise<DesktopGameState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  if (!pendingStarter) {
-    const seed = Math.floor(Math.random() * 0xffffffff);
-    const talents = activeTalentsForSave(save);
-    const upgrades = starterUpgradesForSave(save);
-    const battleSetting = normalizeBattleSetting(save.battle_setting || DEFAULT_BATTLE_SETTING);
-    pendingStarter = {seed, coins: starterCoinsForSeed(seed, talents), offers: await starterItemOffers(seed, talents, upgrades, battleSetting), purchased: [], talents, upgrades, battleSetting, wholeRerollsUsed: 0, singleRerollsUsed: 0};
-  }
-  const starter = pendingStarter;
-  if (offerId) {
-    const offer = starter.offers.find(item => item.offer_id === offerId);
-    if (!offer) throw new Error("开局道具不存在。");
-    if (starter.purchased.some(item => item.offer_id === offer.offer_id)) throw new Error("这个开局道具已经购买过了。");
-    const groupLimit = hasTalent(starter.talents, "starter_bag_expansion") ? 2 : 1;
-    if (offer.starter_group && starter.purchased.filter(item => item.starter_group === offer.starter_group).length >= groupLimit) throw new Error(`${offer.starter_group_label || starterGroupName(offer.starter_group)}最多选择 ${groupLimit} 个。`);
-    starter.purchased.push(offer);
-    const maxPurchases = STARTER_ITEM_GROUPS.reduce((sum, group) => sum + Math.min(groupLimit, starter.offers.filter(offer => offer.starter_group === group.id).length), 0);
-    if (starter.purchased.length < maxPurchases) {
-      return gameState({
-        screen: "starterItems",
-        save,
-        starter: starterChoiceState(starter),
-        message: `已选择 ${offer.name_zh || offer.name}。还可以继续选择其他类别，或点击跳过进入选队。`,
-      });
-    }
-  }
-  const count = candidateCountForTalents(starter.talents);
-  pendingCandidates = await generateStarterCandidatesForSave(save, starter.seed, starter.talents, count, starter.battleSetting);
-  return gameState({screen: "rentalSelect", save, starter: starterChoiceState(starter), candidates: pendingCandidates, selected_indexes: [], message: `随机种子：${starter.seed}`});
+  return requirePreparationRuntime().chooseStarterItem(offerId);
 }
 
 async function cancelPreparation(): Promise<DesktopGameState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  pendingStarter = null;
-  pendingCandidates = null;
-  return gameState({screen: "mainMenu", save, message: "已返回主菜单，本次准备已取消。"});
+  return requirePreparationRuntime().cancelPreparation();
 }
 
 async function beginChallenge(selectedIndexes: number[], runSeed: number, battles = DEFAULT_BATTLES): Promise<DesktopGameState> {
-  const save = await loadSave();
-  if (!save) throw new Error("请先创建或读取存档。");
-  const effectiveSeed = pendingStarter?.seed || runSeed;
-  const runTalents = pendingStarter?.talents || activeTalentsForSave(save);
-  const runBattleSetting = normalizeBattleSetting(pendingStarter?.battleSetting || save.battle_setting || DEFAULT_BATTLE_SETTING);
-  if (!pendingCandidates) {
-    const count = candidateCountForTalents(runTalents);
-    pendingCandidates = await generateStarterCandidatesForSave(save, effectiveSeed, runTalents, count, pendingStarter?.battleSetting);
-  }
-  if (selectedIndexes.length !== 3) throw new Error("需要选择 3 只宝可梦。");
-  const selectedOrigins = selectedIndexes.map(index => (pendingCandidates!.display[index] as RentalPokemon & {starter_origin?: string} | undefined)?.starter_origin || "current");
-  if (hasTalent(runTalents, "starter_soulmate")) {
-    const memoryCount = selectedOrigins.filter(origin => origin === "memory").length;
-    const currentCount = selectedOrigins.length - memoryCount;
-    if (memoryCount > 1) throw new Error("灵魂伴侣最多选择 1 只回忆候选。");
-    if (memoryCount === 1 && currentCount !== 2) throw new Error("选择回忆候选后，需要再选择 2 只本局候选。");
-    if (memoryCount === 0 && currentCount !== 3) throw new Error("未选择回忆候选时，需要选择 3 只本局候选。");
-  } else if (selectedOrigins.some(origin => origin === "memory")) {
-    throw new Error("需要天赋「灵魂伴侣」才能选择回忆候选。");
-  }
-  const selectedTeam = selectedIndexes.map(index => pendingCandidates!.team[index]);
-  const selectedDisplay = selectedIndexes.map(index => pendingCandidates!.display[index]);
-  const mentored = await applyStarterMentorEye(selectedTeam, selectedDisplay, effectiveSeed, runTalents);
-  const cappedStarter = await applyArrivalLevelCapToTeam(runTalents, mentored.team, mentored.display);
-  const playerTeam = cappedStarter.team;
-  const playerDisplay = cappedStarter.display;
-  const starterItemIds = (pendingStarter?.purchased || []).map(item => itemKey(item.id || item.name)).filter(Boolean);
-  const starterBagItems = Object.fromEntries(starterItemIds.map(id => [id, starterItemIds.filter(value => value === id).length]));
-  const starterBagMeta = Object.fromEntries((pendingStarter?.purchased || []).map(item => [itemKey(item.id || item.name), {
-    id: itemKey(item.id || item.name),
-    name: item.name,
-    name_zh: item.name_zh,
-    desc: item.desc,
-    desc_zh: item.desc_zh,
-    category: item.category,
-    move_id: item.move_id,
-    move_name: item.move_name,
-    move_name_zh: item.move_name_zh,
-  }]));
-  const temporaryBp = applyProphetFirstMover(save, runTalents);
-  save.current_run = {
-    status: "awaiting_rest",
-    seed: effectiveSeed,
-    battles,
-    next_battle: 1,
-    battle_no: 0,
-    wins: 0,
-    reroll_count: 0,
-    shop_roll_count: 0,
-    shop_offers: [],
-    starter_item_offers: pendingStarter?.offers || [],
-    starter_item_purchased: (pendingStarter?.purchased || []).map(item => item.offer_id),
-    non_refundable_bag_items: starterBagItems,
-    bag_item_meta: starterBagMeta,
-    talents: runTalents,
-    battle_setting: runBattleSetting,
-    reroute_used: 0,
-    forced_trainer_ids: {},
-    reroute_history: {},
-    named_champion_id: null,
-    recycle_receipt_value: 0,
-    economy_spend_types: [],
-    boss_type: "normal",
-    boss_stage: "initial",
-    boss_route: "initial",
-    player_trainer: trainerFromProfile(save.trainer),
-    run_start_bp: currentBp(save) - temporaryBp.amount,
-    temporary_bp_debt: temporaryBp.amount,
-    second_team_roar_used: false,
-    all_in_exchange_used: false,
-    exchange_box: {team: [], display: [], state: []},
-    player_team: playerTeam,
-    player_display: playerDisplay,
-    player_state: [],
-    coins: pendingStarter?.coins ?? starterCoinsForSeed(effectiveSeed, runTalents),
-    non_convertible_coins: starterNonConvertibleCoinsForTalents(runTalents),
-    coins_earned_this_run: 0,
-    bp_earned_this_run: 0,
-    bp_investments: [0, 0, 0],
-    move_investments: [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
-    bag_items: starterBagItems,
-    rest_status: freshRestStatus(runTalents),
-  };
-  const run = save.current_run as CurrentRunData;
-  recordPokemonUsageList(save, playerDisplay);
-  normalizeCurrentRun(run);
-  normalizePlayerState(run);
-  run.planned_battles = await buildPlannedBattles(save, run);
-  if (rainbowRocketUnlocked(save) && rainbowRocketRollHits(effectiveSeed)) {
-    run.special_run = "rainbow_rocket";
-    run.battles = DEFAULT_BATTLES;
-    run.original_planned_battles = JSON.parse(JSON.stringify(run.planned_battles)) as PlannedBattleData[];
-    run.planned_battles = await buildRainbowRocketPlannedBattles(run);
-    run.rest_status = {...(run.rest_status || {}), rest_event_options: [], rest_event_selected_id: null};
-  }
-  pendingStarter = null;
-  const next = await persist(save);
-  const mentorText = mentored.upgraded ? `伯乐本乐发动：${mentored.upgraded} 只宝可梦获得数值升阶。` : "";
-  const capText = cappedStarter.capped ? `徽章权限生效：${cappedStarter.capped} 只到手宝可梦等级已压到上限。` : "";
-  const rocketText = run.special_run === "rainbow_rocket" ? "WARNING / WARNING：彩虹火箭队入侵，对战表已被劫持。" : "";
-  return await restState(next, next.current_run as CurrentRunData, `${mentorText}${capText}${rocketText || "出发前可以先整理队伍。"}`);
+  return requireRunPlanningRuntime().beginChallenge(selectedIndexes, runSeed, battles);
 }
 
 async function continueRun(): Promise<DesktopGameState> {
@@ -4752,11 +4064,25 @@ async function settleInterruptedBattle(save: LocalSave, run: CurrentRunData): Pr
 }
 
 async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
-  const run = save.current_run as CurrentRunData | null;
-  if (!run) return gameState({screen: "mainMenu", save, message: "当前没有进行中的挑战。"});
-  normalizeCurrentRun(run);
-  const battleNo = Number(run.next_battle || 1);
-  if (battleNo > Number(run.battles || DEFAULT_BATTLES)) {
+  const prepared = await prepareStartBattleRun({
+    save,
+    defaultBattles: DEFAULT_BATTLES,
+    normalizeCurrentRun,
+    buildPlannedBattles,
+    trainerFromProfile,
+    battleBackgroundForRun,
+    bossTeamForPlanned: (planned, run, battleNo) => isRainbowRocketBattle(planned)
+      ? rainbowRocketTeamForTrainer(planned.enemy_trainer, run, battleNo)
+      : isVillainIntrusionBattle(planned)
+        ? villainTeamForTrainer(planned.enemy_trainer, run, battleNo)
+        : planned.route_type === "normal"
+          ? null
+          : bossTeamForTrainer(planned.enemy_trainer, run, battleNo),
+  });
+  if (prepared.status === "no_run") return gameState({screen: "mainMenu", save, message: prepared.message});
+  const run = prepared.run;
+  const battleNo = prepared.battleNo;
+  if (prepared.status === "completed") {
     const {setStreak, bonus} = clearBonus(save, run);
     rememberRunForSoulmate(save, run);
     const settled = await settleRunEnd(save, run, {completed: true});
@@ -4767,60 +4093,22 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     await saveStore?.appendBattleRecord(buildRunRecord({run, message, outcome: "win", resultSummary}));
     return gameState({screen: "result", save: next, message, result_summary: resultSummary});
   }
-  if (!run.planned_battles?.length) run.planned_battles = await buildPlannedBattles(save, run);
-  const planned = run.planned_battles.find(entry => Number(entry.battle_no) === battleNo);
-  if (!planned) throw new Error(`缺少第 ${battleNo} 场预生成 NPC 数据。`);
-  const enemyTrainer = planned.enemy_trainer;
-  const enemyTeam = JSON.parse(JSON.stringify(planned.enemy_raw || [])) as PokemonSet[];
-  const enemyDisplay = JSON.parse(JSON.stringify(planned.enemy_display || [])) as RentalPokemon[];
-  const route = {type: planned.route_type, stage: planned.route_stage, route: planned.route_route, pool: []} as BossRoute;
-  const bossTeam = isRainbowRocketBattle(planned) ? rainbowRocketTeamForTrainer(enemyTrainer, run, battleNo) : isVillainIntrusionBattle(planned) ? villainTeamForTrainer(enemyTrainer, run, battleNo) : planned.route_type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
-  run.boss_type = planned.route_type;
-  run.special_event = planned.special_event;
-  run.boss_stage = planned.route_stage;
-  run.boss_route = planned.route_route;
-  run.enemy_team_pool_id = planned.enemy_team_pool_id;
-  run.generation_stage = planned.generation_stage;
-  run.player_trainer = trainerFromProfile(save.trainer);
-  run.enemy_trainer = enemyTrainer;
-  run.battle_background = planned.battle_background || battleBackgroundForRun(run, enemyTrainer, battleNo);
-  run.status = "in_battle";
-  run.battle_no = battleNo;
-  run.next_battle = battleNo;
-  if (run.rest_status?.event_contest_next) {
-    run.rest_status = {...run.rest_status, event_contest_active: run.rest_status.event_contest_next};
-    delete run.rest_status.event_contest_next;
-  }
-  if (run.rest_status?.event_soul_swap_next) {
-    run.rest_status = {...run.rest_status, event_soul_swap_active: true};
-    delete run.rest_status.event_soul_swap_next;
-  }
-  if (run.rest_status?.event_score_bet_next) {
-    run.rest_status = {...run.rest_status, event_score_bet_active: run.rest_status.event_score_bet_next};
-    delete run.rest_status.event_score_bet_next;
-  }
-  delete run.enemy_boss_record;
-  run.enemy_raw = enemyTeam;
-  run.enemy_display = enemyDisplay;
+  const {planned, enemyTrainer, enemyTeam, enemyDisplay, route, bossTeam} = prepared;
   const battleStartSave = await persist(save);
   const battleStartRun = battleStartSave.current_run as CurrentRunData;
   const soulSwapActive = Boolean(battleStartRun.rest_status?.event_soul_swap_active);
   activeBattleNo = battleNo;
-  activeBattle = await gameService.createBattleSession({
-    playerTeam: soulSwapActive ? enemyTeam : battleStartRun.player_team,
-    enemyTeam: soulSwapActive ? battleStartRun.player_team : enemyTeam,
-    playerDisplay: soulSwapActive ? enemyDisplay : battleStartRun.player_display,
-    enemyDisplay: soulSwapActive ? battleStartRun.player_display : enemyDisplay,
-    playerState: soulSwapActive ? undefined : normalizePlayerState(battleStartRun),
+  activeBattle = await gameService.createBattleSession(buildStartBattleSessionOptions(prepared, {
+    run: battleStartRun,
+    soulSwapActive,
+    playerState: normalizePlayerState(battleStartRun),
     seed: gameService.deriveSeed(Number(run.seed), 200 + battleNo),
-    battleSetting: battleStartRun.battle_setting,
     enemyAi: soulSwapActive ? soulSwapEnemyAiProfile() : isRainbowRocketBattle(planned) ? enemyAiProfileForRunRoute(battleStartRun, "champion", {level: "champion", personality: championPersonalityForTrainer(enemyTrainer)}) : enemyAiForRoute(route, enemyTrainer, battleStartRun),
-  });
+  }));
   const encounteredBoss = recordBossEncounter(battleStartSave, battleStartRun, enemyTrainer, bossTeam, enemyDisplay);
   const stateSave = encounteredBoss ? await persist(battleStartSave) : battleStartSave;
   const stateRun = stateSave.current_run as CurrentRunData;
-  const label = planned.special_event === "rainbow_rocket" ? "彩虹火箭队" : planned.special_event === "villain_intrusion" ? "反派头目乱入" : run.boss_type === "normal" ? "普通 NPC" : run.boss_type === "champion" ? "冠军" : run.boss_type === "elite4" ? "四天王" : "馆主";
-  return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: `第 ${battleNo}/${run.battles} 场：${label} ${enemyTrainer.name_zh}`});
+  return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: prepared.message});
 }
 
 function aliveStateCount(states: PlayerPokemonState[] | undefined): number {
@@ -4838,10 +4126,11 @@ function settleActiveScoreBet(run: CurrentRunData, effectivePlayerWin: boolean, 
 async function finishBattleState(save: LocalSave, state: BattleState): Promise<DesktopGameState> {
   if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
   const run = save.current_run as CurrentRunData;
-  const soulSwapActive = Boolean(run.rest_status?.event_soul_swap_active);
-  const playerPerspectiveState = soulSwapActive ? activeBattle.getEnemyState() : activeBattle.getPlayerState();
-  const enemyPerspectiveState = soulSwapActive ? activeBattle.getPlayerState() : activeBattle.getEnemyState();
-  run.player_state = playerPerspectiveState;
+  const perspective = runtimeFinishedBattlePerspective(run, state, activeBattle);
+  const soulSwapActive = perspective.soulSwapActive;
+  const playerPerspectiveState = perspective.playerState;
+  const enemyPerspectiveState = perspective.enemyState;
+  runtimeApplyFinishedBattlePerspectiveToRun(run, perspective);
   const contest = settleContestScore(run, state);
   const effectivePlayerWin = (soulSwapActive ? state.winner !== "Player" : state.winner === "Player") || contest.overrideWin;
   const effectiveWinner = effectivePlayerWin ? "Player" : state.winner === "tie" ? "tie" : "Enemy";
@@ -4864,12 +4153,11 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
   }
   const wins = Number(run.wins || 0) + 1;
-  if (!isRainbowRocketRun(run)) addToExchangeBox(run, soulSwapActive ? (state.player_team || run.enemy_raw || []) : (state.enemy_team || run.enemy_raw || []), soulSwapActive ? (state.player_display || run.enemy_display || []) : (state.enemy_display || run.enemy_display || []));
+  if (!isRainbowRocketRun(run)) addToExchangeBox(run, perspective.exchangeTeam, perspective.exchangeDisplay);
   const stalwartRecovered = applyStalwartRecovery(run);
   const allInBonus = run.rest_status?.all_in_pending_next ? addCoins(run, currentCoins(run)) : 0;
   const contestBonus = contest.bonusCoins ? addCoins(run, contest.bonusCoins) : 0;
-  const villainIntrusionBonus = run.special_event === "villain_intrusion" ? addCoins(run, VILLAIN_INTRUSION_BONUS_COINS) : 0;
-  const rainbowRocketBonus = isRainbowRocketRun(run) ? addCoins(run, RAINBOW_ROCKET_REWARD_COINS) : 0;
+  const {villainIntrusionBonus, rainbowRocketBonus} = runtimeApplyBattleSpecialRewardCoins(run);
   const rainbowRocketSupplies = isRainbowRocketRun(run) && activeBattleNo < Number(run.battles || DEFAULT_BATTLES) ? await grantRainbowRocketSupplies(run) : [];
   if (run.rest_status?.all_in_pending_next) run.rest_status = {...run.rest_status, all_in_pending_next: false};
   if (activeBattleNo >= Number(run.battles || DEFAULT_BATTLES)) {
@@ -4887,19 +4175,15 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message, pending_transition: transition});
   }
   const victoryRewards = await grantVictoryRewards(run, run.boss_type !== "normal", activeBattleNo);
-  save.current_run = {
-    ...run,
-    status: "awaiting_rest",
-    battle_no: activeBattleNo,
-    next_battle: activeBattleNo + 1,
+  save.current_run = runtimeApplyBattleWinRestTransition(run, {
+    battleNo: activeBattleNo,
     wins,
-    special_event: undefined,
-    enemy_raw: soulSwapActive ? (state.player_team || run.enemy_raw) : state.enemy_team,
-    enemy_display: soulSwapActive ? (state.player_display || run.enemy_display) : state.enemy_display,
-    coins_earned_this_run: Number(run.coins_earned_this_run || 0) + winBp + villainIntrusionBonus + rainbowRocketBonus,
-    bp_earned_this_run: Number(run.bp_earned_this_run || 0) + winBp,
-    rest_status: freshRestStatus(run.talents, carryRestStatusAfterBattle(run, victoryRewards.restBonus)),
-  };
+    enemyTeam: perspective.enemyTeam,
+    enemyDisplay: perspective.enemyDisplay,
+    coinsEarned: winBp + villainIntrusionBonus + rainbowRocketBonus,
+    bpEarned: winBp,
+    restStatus: freshRestStatus(run.talents, carryRestStatusAfterBattle(run, victoryRewards.restBonus)),
+  });
   const next = await persist(save);
   const supplyText = rainbowRocketSupplies.length ? `；工厂补给：${rainbowRocketSupplies.join("、")}` : "";
   const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `；反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `；彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${supplyText}${scoreBetText ? `；${scoreBetText}` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
@@ -4948,74 +4232,18 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   try {
     const save = await loadSave();
     if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
-    const zMoveMatch = choice.match(/^move\s+(\d+)\s+zmove$/i);
-    const megaMatch = choice.match(/^move\s+(\d+)\s+mega$/i);
-    const maxMatch = choice.match(/^move\s+(\d+)\s+max$/i);
-    const teraMatch = choice.match(/^move\s+(\d+)\s+terastallize$/i);
-    if (zMoveMatch) {
-      const run = save.current_run as CurrentRunData;
-      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
-      if (!setting.enabled_battle_systems.includes("zmove")) throw new Error("本局未开启 Z 招式系统。");
-      const moveSlot = Math.max(1, Math.floor(Number(zMoveMatch[1] || 0)));
-      const request = activeBattle.getState().request;
-      const canZMove = request?.active?.[0]?.canZMove || [];
-      if (!canZMove.some(Boolean)) throw new Error("当前没有可用的 Z 招式。");
-      if (!canZMove[moveSlot - 1]) throw new Error("这个技能不能升级为 Z 招式。");
-    }
-    if (megaMatch) {
-      const run = save.current_run as CurrentRunData;
-      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
-      if (!setting.enabled_battle_systems.includes("mega")) throw new Error("本局未开启 Mega 系统。");
-      const moveSlot = Math.max(1, Math.floor(Number(megaMatch[1] || 0)));
-      const active = activeBattle.getState().request?.active?.[0];
-      const move = active?.moves?.[moveSlot - 1];
-      if (!active?.canMegaEvo) throw new Error("当前没有可用的 Mega 进化。");
-      if (!move || move.disabled) throw new Error("这个技能不能用于 Mega 进化回合。");
-    }
-    if (maxMatch) {
-      const run = save.current_run as CurrentRunData;
-      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
-      if (setting.battle_rule_preset !== "gen8" || !setting.enabled_battle_systems.includes("dynamax")) throw new Error("本局未开启极巨化系统。");
-      const moveSlot = Math.max(1, Math.floor(Number(maxMatch[1] || 0)));
-      const active = activeBattle.getState().request?.active?.[0];
-      const move = active?.moves?.[moveSlot - 1];
-      if (!active?.canDynamax) throw new Error("当前不能进行极巨化。");
-      if (!move || move.disabled) throw new Error("这个技能不能用于极巨化回合。");
-    }
-    if (teraMatch) {
-      const run = save.current_run as CurrentRunData;
-      const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
-      if (setting.battle_rule_preset !== "gen9" || !setting.enabled_battle_systems.includes("terastal")) throw new Error("本局未开启太晶化系统。");
-      const moveSlot = Math.max(1, Math.floor(Number(teraMatch[1] || 0)));
-      const active = activeBattle.getState().request?.active?.[0];
-      const move = active?.moves?.[moveSlot - 1];
-      if (!active?.canTerastallize) throw new Error("当前不能进行太晶化。");
-      if (!move || move.disabled) throw new Error("这个技能不能用于太晶化回合。");
-    }
-    let state: BattleState;
-    let shouldPersist = false;
-    if (choice.startsWith("item ")) {
-      const [, itemId, slotRaw, moveSlotRaw] = choice.split(/\s+/);
-      const run = save.current_run as CurrentRunData;
-      const slot = Math.max(0, Number(slotRaw || 1) - 1);
-      const states = activeBattle.getPlayerState();
-      if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
-      const normalizedItem = itemKey(itemId);
-      if (Number(run.bag_items?.[normalizedItem] || 0) <= 0) throw new Error("背包里没有这个道具。");
-      if (!(await gameService.hasConsumableItemEffect(normalizedItem))) throw new Error("这个道具不能在战斗中主动使用。");
-      await assertBattleItemUsableByEvents(run, normalizedItem);
-      state = await activeBattle.chooseTrainerItem(normalizedItem, slot, moveSlotRaw ? Number(moveSlotRaw) : undefined, eventRecoveryMultiplier(run));
-      await consumeBagItem(run, normalizedItem);
-      run.player_state = activeBattle.getPlayerState();
-      shouldPersist = true;
-    } else {
-      state = choice === "forfeit" ? activeBattle.forfeit() : await activeBattle.choose(choice);
-    }
+    const run = save.current_run as CurrentRunData;
+    const result = await runtimeExecuteBattleChoice(run, activeBattle, choice, {
+      hasConsumableItemEffect: itemId => gameService.hasConsumableItemEffect(itemId),
+      isHpStatusReviveRecoveryItem,
+    });
+    const outcome = runtimeResolveBattleCommandOutcome(result);
+    const {state} = outcome;
     if (shouldForceSoulSwapTimeout(save.current_run as CurrentRunData, state)) {
       return finishSoulSwapTimeoutLoss(save, state);
     }
-    if (!state.ended) {
-      const next = shouldPersist ? await persist(save) : save;
+    if (outcome.status === "ongoing") {
+      const next = outcome.shouldPersist ? await persist(save) : save;
       return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await bagCategories(next.current_run as CurrentRunData)});
     }
     return finishBattleState(save, state);
@@ -5030,11 +4258,12 @@ async function autoAdvanceBattle(): Promise<DesktopGameState> {
   try {
     const save = await loadSave();
     if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
-    const state = await activeBattle.advanceIfWaiting();
+    const state = await runtimeExecuteBattleAutoAdvance(activeBattle);
+    const outcome = runtimeResolveBattleCommandOutcome(state);
     if (shouldForceSoulSwapTimeout(save.current_run as CurrentRunData, state)) {
       return finishSoulSwapTimeoutLoss(save, state);
     }
-    if (!state.ended) {
+    if (outcome.status === "ongoing") {
       return gameState({screen: "battleMain", save, battle: decorateBattleState(state, save.current_run as CurrentRunData), battle_bag: await bagCategories(save.current_run as CurrentRunData)});
     }
     return finishBattleState(save, state);
@@ -5088,19 +4317,7 @@ async function finishRestForNextBattle(save: LocalSave, run: CurrentRunData): Pr
   if (!rotateFirstUsable(run)) throw new Error("队伍没有可出战宝可梦，请先恢复 HP。");
   const battleNo = Number(run.battle_no ?? 0);
   const carryRestStatus = carryRestStatusForBattle(run);
-  save.current_run = {
-    ...run,
-    status: "ready",
-    next_battle: battleNo + 1,
-    rest_status: {exchanges: 0, taken_enemy_slots: [], ...carryRestStatus},
-  };
-  delete save.current_run.battle_no;
-  delete save.current_run.enemy_raw;
-  delete save.current_run.enemy_display;
-  delete save.current_run.battle_background;
-  delete save.current_run.special_event;
-  delete save.current_run.rest_status?.rainbow_rocket_support;
-  delete save.current_run.rest_status?.rainbow_rocket_restore_used;
+  save.current_run = prepareRunForNextBattleAfterRest(run, {battleNo, carryRestStatus});
   const next = await persist(save);
   return startNextBattle(next);
 }
@@ -5154,12 +4371,12 @@ async function applyRandomizedStats(run: CurrentRunData, slot: number, part: "ab
   }
   if (part === "ivs" || part === "all") rawSet.ivs = randomIvs(rng);
   if (part === "evs" || part === "all") rawSet.evs = randomEvs(rng);
-  validateStatAdjustments(rawSet, options);
+  runtimeValidateStatAdjustments(rawSet, options);
   const [nextDisplay] = await gameService.describeTeam([rawSet]);
   const states = normalizePlayerState(run);
   run.player_team[slot] = rawSet;
   run.player_display[slot] = nextDisplay || run.player_display[slot];
-  states[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+  states[slot] = runtimeAdjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
   writePlayerSlotShowdownId(run, slot, states, stableId);
   run.player_state = states;
 }
@@ -5182,7 +4399,7 @@ async function applyMoveToSlot(run: CurrentRunData, slot: number, moveSlot: numb
   const states = normalizePlayerState(run);
   run.player_team[slot] = rawSet;
   run.player_display[slot] = nextDisplay || run.player_display[slot];
-  states[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+  states[slot] = runtimeAdjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
   writePlayerSlotShowdownId(run, slot, states, stableId);
   run.player_state = states;
   return selected;
@@ -5224,13 +4441,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     return await restState(next, next.current_run as CurrentRunData, message);
   }
   if (action.type === "rainbow_rocket_support_done") {
-    if (!isRainbowRocketRun(run)) throw new Error("当前不是彩虹火箭队路线。");
-    const support = run.rest_status?.rainbow_rocket_support;
-    if (!support) throw new Error("当前没有待处理的彩虹火箭队支援。");
-    if (support.invasion && (run.player_team || []).length < Number(support.max_team_size || RAINBOW_ROCKET_TEAM_SIZE)) throw new Error("彩虹火箭队入侵时必须先把队伍补到 6 只。");
-    if (Number(support.picks_used || 0) < Number(support.picks_required || 1)) throw new Error("请先选择本次支援。");
-    support.completed = true;
-    run.rest_status = {...(run.rest_status || {}), rainbow_rocket_support: support};
+    runtimeCompleteRainbowRocketSupport(run, RAINBOW_ROCKET_TEAM_SIZE);
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, "彩虹火箭队支援已确认。");
   }
@@ -5314,17 +4525,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "set_lead") {
     if (!hasTalent(run.talents, "growth_lead_change")) throw new Error("需要天赋「临阵换将」。");
-    if (run.rest_status?.lead_change_used) throw new Error("本次休整已经调整过首发。");
-    const slot = Math.floor(Number(action.slot || 0));
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
-    if (states[slot]?.fainted || Number(states[slot]?.hp || 0) <= 0) throw new Error("濒死宝可梦不能设为首发。");
-    for (const key of ["player_team", "player_display", "player_state", "bp_investments", "move_investments"] as const) {
-      const values = [...((run as any)[key] || [])];
-      if (slot < values.length) [values[0], values[slot]] = [values[slot], values[0]];
-      (run as any)[key] = values;
-    }
-    run.rest_status = {...(run.rest_status || {}), lead_change_used: true};
-    normalizePlayerState(run);
+    runtimeSetRunLeadSlot(run, action.slot);
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, "临阵换将：首发已调整。");
   }
@@ -5347,7 +4548,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
-    nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    nextStates[slot] = runtimeAdjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
     writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
     const coinText = overflow ? `，溢出 ${overflow} 级转换为 ${addRunBp(save, run, overflow * TRUST_OVERFLOW_COIN_PER_LEVEL)}金币` : "";
@@ -5417,7 +4618,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
-    nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    nextStates[slot] = runtimeAdjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
     writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
     run.rest_status = {...(run.rest_status || {}), event_level_points: points - 1};
@@ -5968,7 +5169,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.player_team[slot] = rawSet;
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
-    nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    nextStates[slot] = runtimeAdjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
     writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
     moveInvestments[slot] = moveInvestments[slot] || [0, 0, 0, 0];
@@ -5982,20 +5183,20 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const slot = action.slot;
     if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const rawSet = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
-    rawSet.ivs = normalizeStatsInput(action.ivs, 31);
-    rawSet.evs = normalizeStatsInput(action.evs, 0);
+    rawSet.ivs = runtimeNormalizeStatsInput(action.ivs, 31);
+    rawSet.evs = runtimeNormalizeStatsInput(action.evs, 0);
     rawSet.ability = action.ability || rawSet.ability || run.player_display[slot].ability;
     rawSet.nature = action.nature || rawSet.nature || run.player_display[slot].nature || "Serious";
     const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
     const options = await gameService.editOptions(rawSet);
-    validateStatAdjustments(rawSet, options);
+    runtimeValidateStatAdjustments(rawSet, options);
     const cost = await goodsCost("service", "adjust_stats", ADJUST_STATS_COST);
     const spent = spendRunBp(save, run, cost, "adjust-stats");
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
     run.player_team[slot] = rawSet;
     run.player_display[slot] = nextDisplay || run.player_display[slot];
     const nextStates = normalizePlayerState(run);
-    nextStates[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+    nextStates[slot] = runtimeAdjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
     writePlayerSlotShowdownId(run, slot, nextStates, stableId);
     run.player_state = nextStates;
     const investments = run.bp_investments || [0, 0, 0];
@@ -6043,12 +5244,74 @@ async function editOptions(slot: number): Promise<PokemonEditOptions> {
 async function dexSearch(category: DesktopDexCategory, query = "", offset = 0, limit = 8): Promise<DesktopDexSearchResult> {
   const save = await loadSave();
   if (category === "trainers") return trainerDexSearch(save, query, offset, limit);
-  return decorateDexUsageCounts(save, await gameService.dexSearch(category, query, offset, limit));
+  return runtimeDecorateDexUsageCounts(save, await gameService.dexSearch(category, query, offset, limit));
 }
 
 app.whenReady().then(() => {
   installChineseMenu();
   saveStore = new SaveStore(app.getPath("userData"));
+  profileSettingsRuntime = createProfileSettingsRuntime({
+    data: desktopDataProvider,
+    saves: saveStore,
+    now: () => new Date(),
+  }, {
+    trainerTools: trainerProfileTools,
+    initialTransientAudioSettings: transientAudioSettings,
+    normalizeSave,
+  });
+  progressionRuntime = createProgressionRuntime({
+    loadSave,
+    persist,
+    npcCatalog,
+  });
+  preparationRuntime = createPreparationRuntime({
+    loadSave,
+    getState: () => ({pendingCandidates, pendingStarter}),
+    setState: state => {
+      if ("pendingCandidates" in state) pendingCandidates = state.pendingCandidates ?? null;
+      if ("pendingStarter" in state) pendingStarter = state.pendingStarter ?? null;
+    },
+    setConfiguredTalents: talents => {
+      configuredTalents = talents;
+    },
+    gameState,
+    randomSeed: () => Math.floor(Math.random() * 0xffffffff),
+    generateStarterCandidatesForSave,
+    starterItemOffers,
+    starterChoiceState,
+    starterGroupName,
+    deriveSeed: (seed, salt) => gameService.deriveSeed(seed, salt),
+    generateSingleStarterCandidate: async input => markStarterOrigin(ensureStarterShiny(await gameService.generateRentalCandidates(input.seed, "gen9randombattle", 1, {
+      profiles: [input.profile as GenerationProfile],
+      speciesTiers: [input.speciesTier as SpeciesTier],
+      purpose: "starter",
+      battleSetting: input.battleSetting,
+    }), input.seed, input.talents, input.setStreak), "current"),
+    starterProfilesForStreak: (setStreak, count, talents) => starterProfilesForStreak(setStreak, count, talents),
+    starterSpeciesTiersForStreak: (setStreak, count) => starterSpeciesTiersForStreak(setStreak, count),
+  });
+  runPlanningRuntime = createRunPlanningRuntime({
+    loadSave,
+    persist,
+    getPreparationState: () => ({pendingCandidates, pendingStarter}),
+    setPreparationState: state => {
+      if ("pendingCandidates" in state) pendingCandidates = state.pendingCandidates ?? null;
+      if ("pendingStarter" in state) pendingStarter = state.pendingStarter ?? null;
+    },
+    generateStarterCandidatesForSave,
+    applyStarterMentorEye,
+    applyArrivalLevelCapToTeam,
+    trainerFromProfile,
+    freshRestStatus,
+    recordPokemonUsageList,
+    normalizeCurrentRun,
+    normalizePlayerState,
+    buildPlannedBattles,
+    rainbowRocketUnlocked,
+    rainbowRocketRollHits,
+    buildRainbowRocketPlannedBattles,
+    restState,
+  });
   protocol.handle("changebattle-asset", async request => {
     const url = new URL(request.url);
     const rawPath = decodeURIComponent(url.pathname.replace(/^\//, ""));
@@ -6061,49 +5324,35 @@ app.whenReady().then(() => {
     }
   });
 
-  handleIpc("save:load", async () => loadSave());
-  handleIpc("save:createNew", async (trainer: TrainerProfile) => saveStore!.createNew(normalizeTrainerProfile(trainer)));
-  handleIpc("save:delete", async () => saveStore!.delete());
-  handleIpc("save:updateTrainer", async (trainer: TrainerProfile) => saveStore!.updateTrainer(normalizeTrainerProfile(trainer)));
-  handleIpc("save:battleRecords", async () => saveStore!.battleRecords());
-  handleIpc("save:testMode", async () => enableTestMode());
-  if (e2eEnabled) {
-    handleIpc("e2e:patchSave", async (patch: Partial<LocalSave>) => e2ePatchSave(patch));
-  }
-  handleIpc("battleSetting:get", async () => getBattleSetting());
-  handleIpc("battleSetting:update", async (setting: Partial<BattleSetting>) => updateBattleSetting(setting));
-  handleIpc("audioSettings:get", async () => getAudioSettings());
-  handleIpc("audioSettings:update", async (settings: Partial<AudioSettings>) => updateAudioSettings(settings));
-  handleIpc("trainer:catalog", async () => trainerCatalogState());
-  handleIpc("game:generateCandidates", async (seed?: number) => gameService.generateRentalCandidates(seed || Date.now()));
-  handleIpc("run:prepareStarterItems", async (seed?: number) => prepareStarterItems(seed));
-  handleIpc("run:chooseStarterItem", async (offerId?: string | null) => chooseStarterItem(offerId || null));
-  handleIpc("run:cancelPreparation", async () => cancelPreparation());
-  handleIpc("talents:get", async () => talentConfig());
-  handleIpc("talents:unlock", async (id: string) => unlockTalent(id));
-  handleIpc("talents:configure", async (ids: string[]) => configureTalents(ids));
-  handleIpc("talents:setNamedChallenge", async (trainerId: string | null) => setNamedChallenge(trainerId));
-  handleIpc("starterUpgrades:get", async () => starterUpgradeConfig());
-  handleIpc("starterUpgrades:upgrade", async (id: string) => upgradeStarter(id));
-  handleIpc("run:prepareCandidates", async (seed?: number) => prepareCandidates(seed));
-  handleIpc("run:rerollStarterCandidate", async (index: number) => rerollStarterCandidate(index));
-  handleIpc("run:beginChallenge", async (selectedIndexes: number[], seed: number, battles?: number) => beginChallenge(selectedIndexes, seed, battles));
-  handleIpc("run:continue", async () => continueRun());
-  handleIpc("run:battleChoice", async (choice: string) => submitBattleChoice(choice));
-  handleIpc("run:autoAdvanceBattle", async () => autoAdvanceBattle());
-  handleIpc("run:exchange", async (ownIndex: number | null, enemyIndex: number | null) => {
-    if (ownIndex === null || enemyIndex === null) return handleRestAction({type: "next"});
-    return handleRestAction({type: "exchange", ownIndex, enemyIndex});
-  });
-  handleIpc("run:restAction", async (action: RestAction) => handleRestAction(action));
-  handleIpc("shop:items", async (query?: string) => shopItems(query || ""));
-  handleIpc("pokemon:learnableMoves", async (slot: number, query?: string) => learnableMoves(slot, query || ""));
-  handleIpc("pokemon:editOptions", async (slot: number) => editOptions(slot));
-  handleIpc("dex:search", async (category: DesktopDexCategory, query?: string, offset?: number, limit?: number) => dexSearch(category, query || "", offset || 0, limit || 8));
-  handleIpc("run:getBattleState", async () => {
-    const save = await loadSave();
-    return activeBattle ? decorateBattleState(activeBattle.getState(), save?.current_run as CurrentRunData | null) : null;
-  });
+  registerDesktopRuntimeIpc(handleIpc, createChangeBattleRuntime({
+    assets: {assetUrl: desktopRuntimeAssetUrl},
+  }, {
+    profileSettings: requireProfileSettingsRuntime(),
+    progression: requireProgressionRuntime(),
+    preparation: requirePreparationRuntime(),
+    runPlanning: requireRunPlanningRuntime(),
+    handlers: {
+      generateCandidates: async seed => gameService.generateRentalCandidates(seed || Date.now()),
+      enableTestMode,
+      continueRun,
+      battleChoice: submitBattleChoice,
+      autoAdvanceBattle,
+      exchange: async (ownIndex, enemyIndex) => {
+        if (ownIndex === null || enemyIndex === null) return handleRestAction({type: "next"});
+        return handleRestAction({type: "exchange", ownIndex, enemyIndex});
+      },
+      restAction: handleRestAction,
+      shopItems,
+      learnableMoves,
+      editOptions,
+      dexSearch,
+      getBattleState: activeBattleStateGetter({
+        loadSave,
+        activeBattleState: () => activeBattle ? activeBattle.getState() : null,
+        decorateBattleState,
+      }),
+    },
+  }), {e2ePatchSave: e2eEnabled ? e2ePatchSave : undefined});
 
   createWindow();
   app.on("activate", () => {

@@ -15,7 +15,7 @@
 
 1. Desk 持续作为唯一正式主版本。
 2. Web 作为测试外壳辅助 Desk，优先服务自动化验收。
-3. App 等 Desk 和 Web 测试入口稳定后再推进。
+3. App 已有 Capacitor debug APK 壳；完整本地规则运行时等 Desk/Web 稳定后继续推进。
 4. CLI 不再投入新功能、平衡同步或体验修复。
 
 ## CLI
@@ -103,19 +103,53 @@ http://127.0.0.1:5179/?scenario=dex#/
 
 ## App
 
-App 指未来 Android 本地自用版本。不上架，不考虑 iOS，不把移动端作为当前最高优先级。
+App 指 Android 本地自用版本。不上架，不考虑 iOS，不把移动端作为当前最高优先级。
+
+当前状态：
+
+- 已新增 `apps/mobile`，使用 Capacitor Android + Vite + React。
+- 已能生成 Android debug APK，入口复用桌面 React UI 与 `640x320` 横屏画布。
+- 当前 mobile bridge 是本地存档和 UI smoke 用的 scaffold；还没有把完整 Desk game runtime / Showdown 战斗服务迁移到移动端。
+- 第一版 APK 可用于真机启动、布局、触摸、资源路径和桥接形态验证；完整本地游玩需要继续抽离跨平台运行时。
 
 技术路线建议：
 
-- 优先考虑 Capacitor/WebView，复用现有 React renderer。
+- Capacitor/WebView 复用现有 React renderer。
 - 保持 640x320 基础画布模型，面向手机横屏做缩放、安全区和触摸热区适配。
 - 使用独立 mobile bridge 接本地存档、资源路径和必要的系统能力。
 - 存档走 App 本地存储，不依赖浏览器缓存或远程服务器。
+- 后续把 Electron main 里的游戏业务 API 抽成可复用 runtime，再由 Desk IPC 和 Mobile bridge 分别调用。
+- Mobile 运行时需要解决 `game-service` 的 Node 依赖边界：数据读取、Showdown 引入、日志输出和加密存档都要能在 WebView/Capacitor 环境落地。
+
+常用命令：
+
+```bash
+pnpm --dir changeBattle mobile:dev
+pnpm --dir changeBattle mobile:build:web
+pnpm --dir changeBattle mobile:sync
+pnpm --dir changeBattle mobile:apk
+pnpm --dir changeBattle mobile:apk:release
+```
+
+Windows Android 构建机当前验证环境：
+
+```text
+Android Studio: G:\ANDROID
+Android SDK: G:\SDK
+JDK 21: D:\jdk-21.0.11
+Gradle wrapper: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
+```
+
+release 签名规则：
+
+- keystore 和 `signing.properties` 只放本机构建目录或 Windows `D:\changeBattle\signing`，不进 git。
+- `signing.properties` 至少包含 `storeFile`、`storePassword`、`keyAlias`、`keyPassword`。
+- 也可以用 `CHANGEBATTLE_ANDROID_SIGNING_PROPERTIES` 指向外部签名配置文件。
+- release APK 输出到 `release/ChangeBattle-Mobile-v0.6.1.apk`。
 
 后续策略：
 
-- 等 Desk 主流程和 Web 自动化测试入口稳定后再推进。
-- 第一版只服务自己手机安装游玩，不考虑商店上架、iOS、账号系统或云同步。
+- 第一版只服务自己手机安装和验证，不考虑商店上架、iOS、账号系统或云同步。
 - 移动端适配重点是横屏体验、触摸按钮、文字密度、音频播放和资源体积。
 - App 不改变 Desk 的正式主版本地位。
 
