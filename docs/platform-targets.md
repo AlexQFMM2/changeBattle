@@ -93,6 +93,7 @@ http://127.0.0.1:5179/?scenario=battle-flinch#/
 http://127.0.0.1:5179/?scenario=entry-weather#/
 http://127.0.0.1:5179/?scenario=duplicate-status#/
 http://127.0.0.1:5179/?scenario=rest-shop#/
+http://127.0.0.1:5179/?scenario=rainbow-rocket#/
 http://127.0.0.1:5179/?scenario=dex#/
 ```
 

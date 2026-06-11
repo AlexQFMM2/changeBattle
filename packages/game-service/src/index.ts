@@ -1981,9 +1981,14 @@ export class BattleSession {
   private async chooseTeamPreview(): Promise<void> {
     const playerRequest = this.latestRequests[this.playerSide()];
     const enemyRequest = this.latestRequests[this.enemySide()];
-    if (playerRequest?.teamPreview) await this.chooseSide(this.playerSide(), "team 123");
+    if (playerRequest?.teamPreview) await this.chooseSide(this.playerSide(), this.playerTeamPreviewChoice(playerRequest));
     if (enemyRequest?.teamPreview) await this.chooseSide(this.enemySide(), this.enemyChoice(enemyRequest));
     this.updatePpMemory(this.latestRequests[this.playerSide()]);
+  }
+
+  private playerTeamPreviewChoice(request: BattleRequestView): string {
+    const count = Math.max(1, request.side?.pokemon?.length || this.playerTeam.length || 3);
+    return "team " + Array.from({length: count}, (_value, index) => index + 1).join("");
   }
 
   private async resolveEnemyIfNeeded(): Promise<void> {

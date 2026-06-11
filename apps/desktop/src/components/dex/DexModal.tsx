@@ -13,11 +13,14 @@ const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
   {id: "trainers", label: "训练师"},
 ];
 const DEX_PAGE_SIZE = 8;
-const TRAINER_DEX_FILTERS: Array<{id: "all" | "gym" | "elite4" | "champion"; label: string}> = [
+type TrainerDexFilter = "all" | "gym" | "elite4" | "champion" | "villain" | "special";
+const TRAINER_DEX_FILTERS: Array<{id: TrainerDexFilter; label: string; query?: string}> = [
   {id: "all", label: "全部"},
-  {id: "gym", label: "馆主"},
-  {id: "elite4", label: "四天王"},
-  {id: "champion", label: "冠军"},
+  {id: "gym", label: "馆主", query: "type:gym"},
+  {id: "elite4", label: "四天王", query: "type:elite4"},
+  {id: "champion", label: "冠军", query: "type:champion"},
+  {id: "villain", label: "反派头目", query: "type:villain"},
+  {id: "special", label: "特殊事件", query: "event:special"},
 ];
 
 function dexEntryText(entry: DesktopDexEntry): string {
@@ -34,7 +37,7 @@ function dexSpriteUrl(entry: DesktopDexEntry): string {
 
 export function DexModal({onClose}: {onClose: () => void}) {
   const [category, setCategory] = useState<DesktopDexCategory>("pokemon");
-  const [trainerFilter, setTrainerFilter] = useState<"all" | "gym" | "elite4" | "champion">("all");
+  const [trainerFilter, setTrainerFilter] = useState<TrainerDexFilter>("all");
   const [query, setQuery] = useState("");
   const [entries, setEntries] = useState<DesktopDexEntry[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -53,7 +56,8 @@ export function DexModal({onClose}: {onClose: () => void}) {
     setEntries([]);
     setSelectedId("");
     const timer = window.setTimeout(() => {
-      const searchQuery = category === "trainers" && trainerFilter !== "all" ? `${query} type:${trainerFilter}` : query;
+      const filterQuery = TRAINER_DEX_FILTERS.find(filter => filter.id === trainerFilter)?.query || "";
+      const searchQuery = category === "trainers" && filterQuery ? `${query} ${filterQuery}` : query;
       void window.changeBattle!.dexSearch(category, searchQuery, currentPage * DEX_PAGE_SIZE, DEX_PAGE_SIZE).then(result => {
         if (cancelled) return;
         setEntries(result.entries || []);
@@ -106,6 +110,7 @@ export function DexModal({onClose}: {onClose: () => void}) {
                 {entry.category === "trainers" ? <TrainerDexAvatar entry={entry} /> : null}
                 <strong>{entry.name_zh || entry.name}</strong>
                 <span>{entry.name}</span>
+                {entry.category === "trainers" && entry.unlocked && entry.trainer_tags?.length ? <TrainerDexBadges tags={entry.trainer_tags} compact /> : null}
                 <small>{dexEntryText(entry)}</small>
               </button>
             ))}
@@ -120,6 +125,12 @@ export function DexModal({onClose}: {onClose: () => void}) {
       </AnimatedPanel>
     </AnimatedModalLayer>
   );
+}
+
+function TrainerDexBadges({tags, compact = false}: {tags: string[]; compact?: boolean}) {
+  const uniqueTags = Array.from(new Set(tags.filter(Boolean)));
+  if (!uniqueTags.length) return null;
+  return <div className={`trainer-dex-badges ${compact ? "compact" : ""}`}>{uniqueTags.map(tag => <span key={tag}>{tag}</span>)}</div>;
 }
 
 function TrainerDexAvatar({entry}: {entry: DesktopDexEntry}) {
@@ -195,7 +206,8 @@ function TrainerDexDetail({entry}: {entry: DesktopDexEntry}) {
         {image ? <img src={image} alt={entry.name_zh || entry.name} /> : <i className="shadow-orb large">?</i>}
         <div>
           <h3>{entry.unlocked ? entry.name_zh : "未知训练师"}</h3>
-          <p>{trainer?.region || "未知地区"}　{trainer?.role || (trainer?.type === "champion" ? "冠军" : trainer?.type === "elite4" ? "四天王" : "馆主")}</p>
+          <p>{entry.unlocked ? `${trainer?.region || "未知地区"}　${trainer?.role || (trainer?.type === "champion" ? "冠军" : trainer?.type === "elite4" ? "四天王" : trainer?.type === "villain" ? "反派头目" : "馆主")}` : entry.desc_zh || "尚未遭遇"}</p>
+          {entry.unlocked ? <TrainerDexBadges tags={entry.trainer_tags || []} /> : null}
         </div>
       </header>
       <div className="trainer-dex-stats">

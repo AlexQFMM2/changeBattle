@@ -84,6 +84,36 @@ pnpm moves:observe-animations
 const CONCURRENCY = 3;
 ```
 
+彩虹火箭队 7 人资源预设也复用同一套 ChromeAutomation/DevTools 方式。第一版只抓固定名单：坂木、赤焰松、水梧桐、赤日、魁奇思、弗拉达利、露莎米奈。
+
+```bash
+pnpm rainbow:fetch-resources
+pnpm rainbow:build-data
+```
+
+抓取脚本会访问以下三个章节：
+
+```text
+https://wiki.52poke.com/wiki/${name}#宝可梦
+https://wiki.52poke.com/wiki/${name}#对话
+https://wiki.52poke.com/wiki/${name}#画像
+```
+
+临时抓取结果写入：
+
+- `work/rainbow_rocket/resources.json`
+- `work/rainbow_rocket/review.md`
+- `work/rainbow_rocket/assets/`
+
+正式数据生成结果写入：
+
+- `data/npc_trainers.csv`：追加/更新 `type=villain` 的彩虹火箭队 7 人训练师。
+- `data/rainbow_rocket_representatives.csv`：每位头目的代表宝可梦。
+- `data/rainbow_rocket_team_pools.csv`：未来彩虹火箭路线使用的 4 人队预设，不写入当前 `boss_team_pools.csv`。
+- `data/rainbow_rocket_dialogues.json`：按 `boss_dialogues.json` 同款格式生成的游戏台词；神百原始台词素材留在 `work/rainbow_rocket/resources.json` 和 `review.md` 里审核。
+
+`work/` 目录只作为审核和续跑缓存，不进入 release。正式脚本只补缺资源；已有可用头像/画像不应被批量覆盖。
+
 ## 续跑策略
 
 抓取脚本应具备以下行为：

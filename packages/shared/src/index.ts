@@ -124,6 +124,7 @@ export type BossDexRecord = {
   completed: number;
   wins: number;
   losses: number;
+  event_tags?: string[];
   last_result?: BossDexLastResult;
   first_seen_at?: string;
   last_seen_at?: string;
@@ -175,6 +176,7 @@ export type DesktopDexEntry = {
   priority?: number;
   trainer?: TrainerNpcView;
   unlocked?: boolean;
+  trainer_tags?: string[];
   boss_record?: BossDexRecord;
   boss_pool_rows?: BossDexPoolRow[];
   boss_summary?: string;
@@ -557,6 +559,17 @@ export type RestState = {
   score_bet?: RestScoreBetState;
   rest_event?: RestEventState;
   rest_event_statuses?: RestEventStatusView[];
+  rainbow_rocket_support?: {
+    battle_no: number;
+    invasion?: boolean;
+    completed?: boolean;
+    picks_used: number;
+    picks_required: number;
+    max_team_size: number;
+    factory_display: RentalPokemon[];
+    route_display: RentalPokemon[];
+    route_trainer?: TrainerNpcView;
+  };
   event_services?: {
     doctor?: boolean;
     tutor?: boolean;
@@ -769,6 +782,9 @@ export type RestAction =
   | {type: "event_learn_move"; service: "tutor" | "egg"; slot: number; moveSlot: number; moveId: string}
   | {type: "event_barter_buy"; offerId: string; itemIds: string[]}
   | {type: "event_raid_exchange"; ownIndex: number; enemyIndex: number}
+  | {type: "rainbow_rocket_support"; source: "factory" | "route"; candidateIndex: number; targetIndex?: number | null}
+  | {type: "rainbow_rocket_support_done"}
+  | {type: "rainbow_rocket_restore"; slots: number[]}
   | {type: "event_apply_level"; slot: number}
   | {type: "event_score_bet_adjust"; targetAlive?: RestScoreBetTarget; stake?: number}
   | {type: "restore_hp"; slots: number[]}
@@ -972,11 +988,26 @@ export type PlannedBattleData = {
   route_stage: string;
   route_route: string;
   generation_stage: string;
+  special_event?: "villain_intrusion" | "rainbow_rocket";
   enemy_team_pool_id?: string;
   enemy_trainer: TrainerNpcView;
   enemy_raw: PokemonSet[];
   enemy_display: RentalPokemon[];
   battle_background?: BattleBackgroundView;
+};
+
+export type RainbowRocketSupportState = {
+  battle_no: number;
+  invasion?: boolean;
+  completed?: boolean;
+  picks_used?: number;
+  picks_required?: number;
+  max_team_size?: number;
+  factory_team: PokemonSet[];
+  factory_display: RentalPokemon[];
+  route_team: PokemonSet[];
+  route_display: RentalPokemon[];
+  route_trainer?: TrainerNpcView;
 };
 
 export type CurrentRunData = {
@@ -1017,6 +1048,8 @@ export type CurrentRunData = {
   used_pokemon_stats?: Record<string, Omit<ResultPokemonSummary, "pokemon">>;
   used_pokemon_stat_events?: ResultPokemonStatEvent[];
   boss_type?: "normal" | "gym" | "champion" | "elite4";
+  special_run?: "rainbow_rocket";
+  special_event?: "villain_intrusion" | "rainbow_rocket";
   boss_stage?: string;
   boss_route?: string;
   enemy_team_pool_id?: string;
@@ -1034,6 +1067,7 @@ export type CurrentRunData = {
   all_in_exchange_used?: boolean;
   showdown_id_pool?: ShowdownIdPoolState;
   planned_battles?: PlannedBattleData[];
+  original_planned_battles?: PlannedBattleData[];
   player_side?: BattleSideId;
   enemy_side?: BattleSideId;
   exchange_box?: {
@@ -1101,13 +1135,19 @@ export type CurrentRunData = {
     event_soul_swap_active?: boolean;
     event_score_bet_next?: RestScoreBetState;
     event_score_bet_active?: RestScoreBetState;
+    event_villain_intrusion_checked_battle_no?: number;
+    event_villain_intrusion_active?: boolean;
+    event_villain_intrusion_battle_no?: number;
+    event_villain_intrusion_trainer_id?: string;
+    rainbow_rocket_support?: RainbowRocketSupportState;
+    rainbow_rocket_restore_used?: number[];
   };
 };
 
 
 export type TrainerGender = "male" | "female" | "other";
 
-export type TrainerNpcType = "player" | "normal" | "gym" | "elite4" | "champion" | "avatar";
+export type TrainerNpcType = "player" | "normal" | "gym" | "elite4" | "champion" | "villain" | "avatar";
 
 export type TrainerNpcView = {
   id: string;

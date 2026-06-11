@@ -1330,7 +1330,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   min-width: 0;
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   align-items: center;
   gap: 2px 8px;
   text-align: left;
@@ -1370,6 +1370,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .dex-result-list small {
   grid-column: 2 / -1;
   color: #596052;
+}
+
+.dex-result-list .trainer-dex-badges {
+  grid-column: 2 / -1;
 }
 
 .dex-pager {
@@ -1444,6 +1448,40 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 
 .dex-entry-detail h3 {
   font-size: 28px;
+}
+
+.trainer-dex-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.trainer-dex-badges span {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid #6e4b74;
+  border-radius: 5px;
+  background: #f3e7ff;
+  color: #34243a;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.trainer-dex-badges.compact {
+  gap: 3px;
+  margin-top: 0;
+}
+
+.trainer-dex-badges.compact span {
+  min-height: 16px;
+  border-width: 1px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 9px;
 }
 
 .dex-type-row {
@@ -5983,7 +6021,7 @@ button.party-status-chip {
 
 .rest-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px 94px;
+  grid-template-columns: minmax(0, 1fr) 168px 94px;
   align-items: center;
   gap: 8px;
   animation: enter-up .42s cubic-bezier(.2, .82, .2, 1) both;
@@ -6029,7 +6067,7 @@ button.party-status-chip {
 .rest-team-strip {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 5px;
   align-items: stretch;
 }
@@ -7151,6 +7189,136 @@ button.party-status-chip {
 .rest-workspace .mini-pokemon-card span,
 .rest-workspace .mini-pokemon-card small {
   font-size: 8px;
+}
+
+.rainbow-support-modal {
+  width: min(96vw, 900px);
+}
+
+.rainbow-support-content {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.rainbow-support-content > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.rainbow-warning {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  border: 1px solid #442623;
+  border-radius: 3px;
+  padding: 2px 7px;
+  background: #d53c30;
+  color: #fff9d6;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.rainbow-warning.compact {
+  background: #343136;
+}
+
+.rainbow-support-progress {
+  display: grid;
+  gap: 4px;
+  min-width: 104px;
+}
+
+.rainbow-support-progress span {
+  border: 1px solid #25332b;
+  border-radius: 3px;
+  padding: 4px 6px;
+  background: #fff3bd;
+  font-size: 11px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.rainbow-support-main {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1fr;
+  gap: 8px;
+}
+
+.rainbow-support-team,
+.rainbow-support-column {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  border: 1px solid rgb(37 51 43 / 30%);
+  border-radius: 5px;
+  padding: 7px;
+  background: #fffdf5;
+}
+
+.rainbow-support-column {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.rainbow-support-team h3,
+.rainbow-support-column h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.rainbow-support-grid {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  overflow: auto;
+}
+
+.rainbow-support-grid .mini-pokemon-card {
+  min-height: 54px;
+}
+
+.rainbow-support-grid .mini-pokemon-card.restore-selected {
+  outline: 2px solid #4f9e76;
+  outline-offset: -3px;
+}
+
+.rainbow-support-empty {
+  margin: 0;
+  color: #6e675e;
+  font-size: 11px;
+}
+
+.rainbow-restore-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto)) minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+}
+
+.rainbow-restore-row button {
+  min-height: 24px;
+  font-size: 10px;
+}
+
+.rainbow-restore-row button.selected {
+  background: #25332b;
+  color: #fff8d8;
+}
+
+.rainbow-restore-row small {
+  min-width: 0;
+  color: #655f55;
+  font-size: 9px;
 }
 
 .rest-workspace .bag-manage-layout {
@@ -11834,7 +12002,7 @@ button.party-status-chip {
   position: relative;
   z-index: 4;
   justify-self: center;
-  width: 282px;
+  width: min(360px, 100%);
   display: grid;
   gap: 4px;
 }
@@ -11939,7 +12107,7 @@ button.party-status-chip {
 
 .quick-dex-mega-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
 }
 
@@ -12115,6 +12283,11 @@ button.party-status-chip {
   background: rgb(86 210 116 / 18%);
 }
 
+.quick-dex-list button.locked {
+  border-color: rgb(255 255 255 / 9%);
+  background: rgb(255 255 255 / 4%);
+}
+
 .quick-dex-list button img,
 .quick-dex-list button > span {
   grid-row: 1 / span 2;
@@ -12151,6 +12324,34 @@ button.party-status-chip {
   white-space: nowrap;
 }
 
+.quick-dex-list .quick-dex-trainer-badges {
+  grid-column: 2;
+}
+
+.quick-dex-trainer-avatar {
+  border-radius: 5px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.quick-dex-trainer-badges {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.quick-dex-trainer-badges span {
+  min-height: 12px;
+  border: 1px solid rgb(190 149 226 / 45%);
+  border-radius: 3px;
+  background: rgb(111 58 146 / 24%);
+  color: #f6eaff;
+  padding: 1px 4px;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
 .quick-dex-message,
 .quick-dex-detail.empty {
   margin: 0;
@@ -12171,6 +12372,10 @@ button.party-status-chip {
   background: rgb(255 255 255 / 6%);
   padding: 7px;
   overflow: auto;
+}
+
+.quick-dex-detail.locked {
+  background: rgb(255 255 255 / 4%);
 }
 
 .quick-dex-detail header {
@@ -12234,14 +12439,16 @@ button.party-status-chip {
 }
 
 .quick-dex-stat-grid,
-.quick-dex-facts {
+.quick-dex-facts,
+.quick-dex-trainer-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
 }
 
 .quick-dex-stat-grid p,
-.quick-dex-facts p {
+.quick-dex-facts p,
+.quick-dex-trainer-stats p {
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -12252,16 +12459,22 @@ button.party-status-chip {
 }
 
 .quick-dex-stat-grid span,
-.quick-dex-facts p {
+.quick-dex-facts p,
+.quick-dex-trainer-stats span {
   color: #dafee1;
   font-size: 8px;
   font-weight: 850;
 }
 
 .quick-dex-stat-grid strong,
-.quick-dex-facts strong {
+.quick-dex-facts strong,
+.quick-dex-trainer-stats strong {
   color: #fff;
   font-size: 9px;
+}
+
+.quick-dex-trainer-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .quick-dex-learnset {
@@ -15260,7 +15473,7 @@ button.party-status-chip {
 
 .rest-header {
   min-height: 38px;
-  grid-template-columns: minmax(0, 1fr) 108px 72px;
+  grid-template-columns: minmax(0, 1fr) 144px 72px;
   gap: 5px;
   padding: 4px 6px;
 }
@@ -19516,5 +19729,30 @@ button.party-status-chip {
   .star-chart-hud {
     right: 10px;
     grid-template-columns: minmax(84px, 1fr) auto auto;
+  }
+
+  .rainbow-support-modal {
+    width: 96vw;
+  }
+
+  .rainbow-support-content {
+    max-height: 86vh;
+  }
+
+  .rainbow-support-main {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .rainbow-support-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rainbow-restore-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rainbow-restore-row small {
+    grid-column: 1 / -1;
   }
 }

@@ -3,7 +3,7 @@ import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} 
 import {buildBattleDisplaySteps, type BattleDisplayStep} from "../components/battle/timelineFlow";
 import {TALENT_CATALOG, debugBattle, debugMove, debugPokemon} from "../lib/ui";
 
-export type BrowserTestScenario = "automated" | "battle-basic" | "battle-flinch" | "entry-weather" | "duplicate-status" | "dynamax-end-meowth" | "rest-shop" | "dex";
+export type BrowserTestScenario = "automated" | "battle-basic" | "battle-flinch" | "entry-weather" | "duplicate-status" | "dynamax-end-meowth" | "rest-shop" | "rainbow-rocket" | "dex";
 
 export type BrowserTestHook = {
   getScenario(): BrowserTestScenario;
@@ -48,7 +48,7 @@ export function installBrowserTestBridge(): void {
     return next;
   };
   const battleForScenario = () => battleStateForScenario(scenario);
-  const restForScenario = () => restStateForScenario(save);
+  const restForScenario = () => restStateForScenario(save, scenario);
   const resultForScenario = (battle: BattleState) => resultStateForBattle(save, battle);
 
   window.changeBattle = {
@@ -127,7 +127,7 @@ export function installBrowserTestBridge(): void {
     },
     continueRun: async () => {
       lastAction = "continueRun";
-      if (scenario === "rest-shop") return setState({screen: "rest", save, rest: restForScenario(), message: "自动测试休整"});
+      if (scenario === "rest-shop" || scenario === "rainbow-rocket") return setState({screen: "rest", save, rest: restForScenario(), message: "自动测试休整"});
       const battle = battleForScenario();
       return setState({screen: "battleMain", save, battle, message: "自动测试对局"});
     },
@@ -147,6 +147,29 @@ export function installBrowserTestBridge(): void {
     },
     restAction: async (action: RestAction) => {
       lastAction = `restAction:${action.type}`;
+      if (scenario === "rainbow-rocket") {
+        const rest = state?.rest || restForScenario();
+        if (action.type === "rainbow_rocket_support" && rest.rainbow_rocket_support) {
+          const pool = action.source === "route" ? rest.rainbow_rocket_support.route_display : rest.rainbow_rocket_support.factory_display;
+          const picked = pool[action.candidateIndex];
+          if (picked) {
+            if (rest.player_display.length < rest.rainbow_rocket_support.max_team_size || action.targetIndex === null || action.targetIndex === undefined) {
+              rest.player_display = [...rest.player_display, picked].slice(0, rest.rainbow_rocket_support.max_team_size);
+              rest.player_state = rest.player_display.map((pokemon, index) => playerState(pokemon, index, "100/100"));
+            } else {
+              rest.player_display[action.targetIndex] = picked;
+              rest.player_state[action.targetIndex] = playerState(picked, action.targetIndex, "100/100");
+            }
+            rest.rainbow_rocket_support.picks_used += 1;
+          }
+          return setState({screen: "rest", save, rest, message: "自动测试：彩虹火箭队支援"});
+        }
+        if (action.type === "rainbow_rocket_support_done" && rest.rainbow_rocket_support) {
+          rest.rainbow_rocket_support.completed = true;
+          return setState({screen: "rest", save, rest, message: "自动测试：支援确认"});
+        }
+        if (action.type === "rainbow_rocket_restore") return setState({screen: "rest", save, rest, message: "自动测试：工厂治疗"});
+      }
       if (action.type === "next") return setState({screen: "battleMain", save, battle: battleForScenario(), message: "自动测试下一场"});
       if (action.type === "abort") return setState(resultForScenario(endedBattleForScenario(scenario)));
       return setState({screen: "rest", save, rest: restForScenario(), message: `自动测试休整：${action.type}`});
@@ -175,7 +198,7 @@ function scenarioFromParams(params: URLSearchParams): BrowserTestScenario | null
 }
 
 function isScenario(value: string): value is BrowserTestScenario {
-  return ["battle-basic", "battle-flinch", "entry-weather", "duplicate-status", "dynamax-end-meowth", "rest-shop", "dex"].includes(value);
+  return ["battle-basic", "battle-flinch", "entry-weather", "duplicate-status", "dynamax-end-meowth", "rest-shop", "rainbow-rocket", "dex"].includes(value);
 }
 
 function createSave(hasRun: boolean): LocalSave {
@@ -209,6 +232,7 @@ function trainerCatalog(): TrainerCatalogState {
 function initialStateForScenario(scenario: BrowserTestScenario, save: LocalSave): DesktopGameState | null {
   if (scenario === "automated") return null;
   if (scenario === "rest-shop") return {screen: "rest", save, rest: restStateForScenario(save), message: "Web 场景：休整商店"};
+  if (scenario === "rainbow-rocket") return {screen: "rest", save, rest: restStateForScenario(save, scenario), message: "Web 场景：彩虹火箭队"};
   if (scenario === "dex") return {screen: "mainMenu", save: {...save, current_run: null}, message: "Web 场景：图鉴"};
   return {screen: "battleMain", save, battle: battleStateForScenario(scenario), message: `Web 场景：${scenario}`};
 }
@@ -338,25 +362,41 @@ function dynamaxMeowthBattle(ended: boolean): BattleState {
   });
 }
 
-function restStateForScenario(save: LocalSave): RestState {
+function restStateForScenario(save: LocalSave, scenario: BrowserTestScenario = "rest-shop"): RestState {
   const player = CANDIDATES.slice(0, 3);
   const enemy = [debugPokemon("EnemyMon1", "爆肌蚊"), debugPokemon("EnemyMon2", "路卡利欧"), debugPokemon("EnemyMon3", "胡地")];
+  const rainbowFactory = CANDIDATES.slice(3, 6).map((pokemon, index) => ({...pokemon, species_zh: `工厂支援${index + 1}`}));
+  const rainbowRoute = [debugPokemon("RouteSupport1", "原赛程支援1"), debugPokemon("RouteSupport2", "原赛程支援2"), debugPokemon("RouteSupport3", "原赛程支援3")];
+  const isRainbowRocket = scenario === "rainbow-rocket";
   return {
     battle_no: 1,
     battles: 7,
-    wins: 1,
+    wins: isRainbowRocket ? 0 : 1,
     battle_points: save.stats.battle_points,
-    coins: 300,
+    coins: isRainbowRocket ? 2000 : 300,
     player_display: player,
     enemy_display: enemy,
     player_state: player.map((pokemon, index) => playerState(pokemon, index, index === 0 ? "80/100" : "100/100")),
     bag_items: {potion: 2},
     bag_categories: {consumable: [{id: "potion", name: "Potion", name_zh: "回复药", count: 2, category: "consumable", cost: 20, desc_zh: "回复少量 HP。"}], held: [], tm: []},
     talents: [],
-    shop: {roll_count: 1, next_roll_cost: 20, slot_count: 3, offers: shopOffers(), purchased_offer_id: null, purchased_offer_counts: {}, purchased_item_counts: {}},
+    shop: {roll_count: 1, next_roll_cost: isRainbowRocket ? null : 20, slot_count: 3, offers: isRainbowRocket ? [] : shopOffers(), purchased_offer_id: null, purchased_offer_counts: {}, purchased_item_counts: {}},
     night_sky: {rows: Array.from({length: 7}, (_value, index) => ({battle_no: index + 1, label: index === 6 ? "最终战" : "挑战", trainer: ENEMY_TRAINER, trainer_visible: true, revealed: index < 1 ? 3 : 0, enemies: index < 1 ? enemy : [null, null, null]}))},
     taken_enemy_slots: [],
     exchange_count: 0,
+    rest_event_statuses: isRainbowRocket ? [{id: "rainbow_rocket", label: "彩虹火箭队", detail: "赛程已被劫持：普通奇遇和商店关闭。", tone: "risk"}] : undefined,
+    event_services: isRainbowRocket ? {tutor: true, egg: true, raid_exchange: false} : undefined,
+    rainbow_rocket_support: isRainbowRocket ? {
+      battle_no: 1,
+      invasion: true,
+      completed: false,
+      picks_used: 0,
+      picks_required: 3,
+      max_team_size: 6,
+      factory_display: rainbowFactory,
+      route_display: rainbowRoute,
+      route_trainer: {...ENEMY_TRAINER, name_zh: "原赛程馆主"},
+    } : undefined,
     costs: {exchange: 0, restore_hp: {1: 20, 2: 30, 3: 40}, restore_pp: {1: 20, 2: 30, 3: 40}, restore_status: {1: 20, 2: 30, 3: 40}, adjust_stats: 100, randomize_part: 50, randomize_all: 150, move_draw: 100, scout_basic: 50, scout_one: 100, scout_all: 200},
   };
 }

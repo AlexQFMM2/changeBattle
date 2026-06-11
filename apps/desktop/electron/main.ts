@@ -4,7 +4,7 @@ import {appendFileSync, existsSync, mkdirSync, readFileSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RainbowRocketSupportState, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   ADJUST_STATS_COST,
@@ -215,6 +215,7 @@ let goodsCache: Map<string, {item_type: string; item_id: string; item_cost: numb
 let shopPoolCache: ShopPoolEntry[] | null = null;
 let starterItemPoolCache: StarterItemPoolEntry[] | null = null;
 let bossTeamPoolCache: BossTeamPoolRow[] | null = null;
+let rainbowRocketTeamPoolCache: BossTeamPoolRow[] | null = null;
 
 type TalentConfigState = {catalog: TalentView[]; unlocked: TalentView[]; equipped: TalentView[]; star_chart?: StarChartState; save?: LocalSave | null};
 type StarterUpgradeConfigState = {catalog: StarterUpgradeView[]; save?: LocalSave | null};
@@ -238,6 +239,19 @@ type StarterItemPoolEntry = ShopPoolEntry & {
   discountable: boolean;
 };
 type BossTeamPoolRow = {pool_id: string; battle_rule_preset: BattleRulePreset; trainer_id: string; team_index: number; slot: number; species_id: string; species?: string; species_tier?: SpeciesTier; generation_profile: GenerationProfile};
+type TeamPoolSelection = {teamIndex: number; rows: BossTeamPoolRow[]; speciesIds: string[]; profiles: GenerationProfile[]};
+
+const VILLAIN_INTRUSION_BONUS_COINS = 500;
+const VILLAIN_INTRUSION_CHANCE = 0.1;
+const VILLAIN_INTRUSION_EXCLUDED_NAMES = new Set(["坂木", "giovanni"]);
+const RAINBOW_ROCKET_CHANCE = 0.1;
+const RAINBOW_ROCKET_REWARD_COINS = 2000;
+const RAINBOW_ROCKET_TEAM_SIZE = 6;
+const RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT = 6;
+const RAINBOW_ROCKET_SUPPORT_PICK_LIMIT = 3;
+const RAINBOW_ROCKET_UNLOCK_NAMES = ["赤焰松", "水梧桐", "赤日", "魁奇思", "弗拉达利", "露莎米奈"];
+const RAINBOW_ROCKET_FINAL_NAME = "坂木";
+const RAINBOW_ROCKET_SUPPLY_ITEMS = ["fullrestore", "revivalherb", "maxelixir"];
 
 const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
   healing: 65,
@@ -726,6 +740,14 @@ function restEventView(event: RestEventDefinition | RestEventOption): RestEventO
 
 function ensureRestEventOptions(run: CurrentRunData): void {
   if (run.status !== "awaiting_rest") return;
+  if (isRainbowRocketRun(run)) {
+    run.rest_status = {...(run.rest_status || {}), rest_event_options: [], rest_event_selected_id: null};
+    return;
+  }
+  if (run.rest_status?.event_villain_intrusion_active) {
+    run.rest_status = {...(run.rest_status || {}), rest_event_options: [], rest_event_selected_id: null};
+    return;
+  }
   if (run.rest_status?.rest_event_selected_id) return;
   if (run.rest_status?.rest_event_options?.length) return;
   const rng = seededRng(Number(run.seed || 1), 0x7e57 + Number(run.battle_no || 0) * 173 + Number(run.next_battle || 1) * 37 + Number(run.wins || 0) * 19);
@@ -1056,6 +1078,8 @@ function previewContestScore(run: CurrentRunData, state: BattleState): number {
 }
 
 async function revealNightSkyBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<void> {
+  const planned = await ensurePlannedBattle(save, run, battleNo);
+  if (isVillainIntrusionBattle(planned)) throw new Error("赛程异常，无法提前解锁反派头目的完整队伍。");
   await buildNightSkyState(save, run);
   const row = run.night_sky?.rows?.find(entry => Number(entry.battle_no) === Number(battleNo));
   if (row) {
@@ -1072,6 +1096,8 @@ async function rerandomizeFutureBattles(save: LocalSave, run: CurrentRunData): P
   for (let battleNo = currentBattleNo + 1; battleNo <= Number(run.battles || DEFAULT_BATTLES); battleNo += 1) {
     if (locked.has(battleNo)) continue;
     if (battleNo === Number(run.battles || DEFAULT_BATTLES) && run.named_champion_id) continue;
+    const planned = (run.planned_battles || []).find(entry => Number(entry.battle_no) === battleNo);
+    if (isVillainIntrusionBattle(planned)) continue;
     run.reroute_history = {...(run.reroute_history || {}), [String(battleNo)]: [...(run.reroute_history?.[String(battleNo)] || []), `event-${Date.now()}-${count}`]};
     await refreshPlannedBattle(save, run, battleNo);
     count += 1;
@@ -1286,6 +1312,7 @@ function emptyBossDexRecord(): BossDexRecord {
     completed: 0,
     wins: 0,
     losses: 0,
+    event_tags: [],
     last_result: null,
     seen_pool_slots: [],
     seen_pokemon: {},
@@ -1302,6 +1329,7 @@ function normalizeBossDexRecord(record?: Partial<BossDexRecord> | null): BossDex
     wins: Math.max(0, Number(record?.wins || 0)),
     losses: Math.max(0, Number(record?.losses || 0)),
     last_result: record?.last_result === "win" || record?.last_result === "loss" ? record.last_result : null,
+    event_tags: Array.from(new Set((record?.event_tags || []).map(value => String(value || "").trim()).filter(Boolean))),
     seen_pool_slots: Array.from(new Set((record?.seen_pool_slots || []).filter(Boolean))),
     seen_pokemon: seenPokemon,
   };
@@ -1529,7 +1557,7 @@ function battleBackgroundForRun(run: CurrentRunData, trainer: TrainerNpcView, ba
 function normalizeNpcRow(row: Record<string, string>): TrainerNpcView | null {
   if (row.enabled === "0") return null;
   const type = row.type as TrainerNpcType;
-  if (!["player", "normal", "gym", "elite4", "champion", "avatar"].includes(type)) return null;
+  if (!["player", "normal", "gym", "elite4", "champion", "villain", "avatar"].includes(type)) return null;
   return {
     id: row.id,
     type,
@@ -1715,7 +1743,7 @@ function recordBattleResult(save: LocalSave, winner: string | null, run?: Curren
     refreshStats(save);
   } else {
     stats.losses = Number(stats.losses || 0) + 1;
-    stats.set_win_streak = 0;
+    if (run?.special_run !== "rainbow_rocket") stats.set_win_streak = 0;
     save.stats = stats;
     refreshStats(save);
   }
@@ -2951,22 +2979,318 @@ function loadBossTeamPools(): BossTeamPoolRow[] {
   return bossTeamPoolCache;
 }
 
-function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): {teamIndex: number; rows: BossTeamPoolRow[]; speciesIds: string[]; profiles: GenerationProfile[]} | null {
+function loadRainbowRocketTeamPools(): BossTeamPoolRow[] {
+  if (rainbowRocketTeamPoolCache) return rainbowRocketTeamPoolCache;
+  const csvPath = path.join(projectRoot, "data", "rainbow_rocket_team_pools.csv");
+  if (!existsSync(csvPath)) {
+    rainbowRocketTeamPoolCache = [];
+    return rainbowRocketTeamPoolCache;
+  }
+  const lines = readFileSync(csvPath, "utf8").split(/\r?\n/).filter(Boolean);
+  const header = parseCsvLine(lines[0] || "");
+  rainbowRocketTeamPoolCache = lines.slice(1).map(line => {
+    const values = parseCsvLine(line);
+    const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""])) as Record<string, string>;
+    return {
+      pool_id: row.pool_id,
+      battle_rule_preset: (["none", "gen7", "gen8", "gen9"].includes(row.battle_rule_preset) ? row.battle_rule_preset : "none") as BattleRulePreset,
+      trainer_id: row.trainer_id,
+      team_index: Number(row.team_index || 0),
+      slot: Number(row.slot || 0),
+      species_id: row.species_id,
+      species: row.species || undefined,
+      species_tier: Number(row.species_tier || 0) as SpeciesTier || undefined,
+      generation_profile: (row.generation_profile || "champion") as GenerationProfile,
+    };
+  }).filter(row => row.pool_id && row.species_id && row.team_index && row.slot);
+  return rainbowRocketTeamPoolCache;
+}
+
+function pickTeamPoolSelection(sourceRows: BossTeamPoolRow[], trainer: TrainerNpcView, run: CurrentRunData, battleNo: number, saltLabel: string, count = 3): TeamPoolSelection | null {
   const poolId = trainer.team_pool_id || trainer.team_pool_ids?.[0];
   if (!poolId) return null;
   const preset = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING).battle_rule_preset;
-  const allPoolRows = loadBossTeamPools().filter(row => row.pool_id === poolId);
+  const allPoolRows = sourceRows.filter(row => row.pool_id === poolId);
   const trainerRows = allPoolRows.filter(row => row.trainer_id === trainer.id);
   const poolRows = trainerRows.length ? trainerRows : allPoolRows;
-  const rows = poolRows.filter(row => row.battle_rule_preset === preset);
-  const fallbackRows = rows.length ? rows : poolRows.filter(row => row.battle_rule_preset === "none");
+  const presetRows = poolRows.filter(row => row.battle_rule_preset === preset);
+  const fallbackRows = presetRows.length ? presetRows : poolRows.filter(row => row.battle_rule_preset === "none");
   if (!fallbackRows.length) return null;
-  const selectedPreset = rows.length ? preset : "none";
+  const selectedPreset = presetRows.length ? preset : "none";
   const teamIndexes = [...new Set(fallbackRows.map(row => row.team_index))].sort((a, b) => a - b);
-  const teamIndex = pickStable(teamIndexes, run.seed || 0, battleNo, trainer.id, poolId, selectedPreset) || teamIndexes[0];
-  const selected = fallbackRows.filter(row => row.team_index === teamIndex).sort((a, b) => a.slot - b.slot).slice(0, 3);
-  if (selected.length < 3) return null;
+  const teamIndex = pickStable(teamIndexes, run.seed || 0, battleNo, trainer.id, poolId, selectedPreset, saltLabel) || teamIndexes[0];
+  const selected = fallbackRows.filter(row => row.team_index === teamIndex).sort((a, b) => a.slot - b.slot).slice(0, count);
+  if (selected.length < count) return null;
   return {teamIndex, rows: selected, speciesIds: selected.map(row => row.species_id), profiles: selected.map(row => row.generation_profile)};
+}
+
+function bossTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): TeamPoolSelection | null {
+  return pickTeamPoolSelection(loadBossTeamPools(), trainer, run, battleNo, "boss");
+}
+
+function villainTrainerPool(): TrainerNpcView[] {
+  return npcCatalog.filter(entry => {
+    if (entry.type !== "villain" || !entry.front_asset) return false;
+    const nameId = toId(entry.name_en || entry.name_zh || entry.id);
+    return !VILLAIN_INTRUSION_EXCLUDED_NAMES.has(entry.name_zh) && !VILLAIN_INTRUSION_EXCLUDED_NAMES.has(nameId);
+  });
+}
+
+function villainTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): TeamPoolSelection | null {
+  return pickTeamPoolSelection(loadRainbowRocketTeamPools(), trainer, run, battleNo, "villain_intrusion");
+}
+
+function rainbowRocketTeamForTrainer(trainer: TrainerNpcView, run: CurrentRunData, battleNo: number): TeamPoolSelection | null {
+  return pickTeamPoolSelection(loadRainbowRocketTeamPools(), trainer, run, battleNo, "rainbow_rocket", 4);
+}
+
+function isVillainIntrusionBattle(planned?: PlannedBattleData | null): boolean {
+  return planned?.special_event === "villain_intrusion";
+}
+
+function isRainbowRocketRun(run?: CurrentRunData | null): boolean {
+  return run?.special_run === "rainbow_rocket";
+}
+
+function isRainbowRocketBattle(planned?: PlannedBattleData | null): boolean {
+  return planned?.special_event === "rainbow_rocket";
+}
+
+async function buildVillainIntrusionPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number, trainerOverride?: TrainerNpcView): Promise<PlannedBattleData> {
+  const pool = villainTrainerPool();
+  if (!pool.length) throw new Error("缺少可用的反派头目数据。");
+  const selectedTrainer = trainerOverride || pickStable(pool, run.seed || 0, battleNo, Number(run.wins || 0), "villain_intrusion") || pool[0];
+  const teamPoolId = selectedTrainer.team_pool_ids?.length
+    ? pickStable(selectedTrainer.team_pool_ids, run.seed || 0, battleNo, selectedTrainer.id, "villain_intrusion")
+    : selectedTrainer.team_pool_id;
+  const enemyTrainer = {...selectedTrainer, team_pool_id: teamPoolId};
+  const team = villainTeamForTrainer(enemyTrainer, run, battleNo);
+  if (!team) throw new Error(`反派头目 ${enemyTrainer.name_zh} 缺少可用的 3 只队伍预设。`);
+  const enemyGenerated = await gameService.generateRentalCandidates(
+    gameService.deriveSeed(Number(run.seed), 0x7600 + battleNo),
+    "gen9randombattle",
+    3,
+    {profiles: team.profiles, speciesIds: team.speciesIds, purpose: "boss", battleSetting: run.battle_setting},
+  );
+  const enemyRaw = enemyGenerated.team.slice(0, 3);
+  const enemyDisplay = enemyGenerated.display.slice(0, 3);
+  ensureTeamRunMemberIds(enemyRaw, enemyDisplay);
+  assignEnemyShowdownIds(enemyRaw, enemyDisplay);
+  return {
+    battle_no: battleNo,
+    route_type: "normal",
+    route_stage: "villain_intrusion",
+    route_route: "event:villain_intrusion",
+    generation_stage: team.profiles.join("|"),
+    special_event: "villain_intrusion",
+    enemy_team_pool_id: enemyTrainer.team_pool_id,
+    enemy_trainer: enemyTrainer,
+    enemy_raw: enemyRaw,
+    enemy_display: enemyDisplay,
+    battle_background: battleBackgroundForRun({...run, boss_route: "event:villain_intrusion"}, enemyTrainer, battleNo),
+  };
+}
+
+function villainTrainerByName(name: string): TrainerNpcView | undefined {
+  const nameId = toId(name);
+  return npcCatalog.find(entry => entry.type === "villain" && (entry.name_zh === name || toId(entry.name_en || "") === nameId || toId(entry.id).includes(nameId)));
+}
+
+function rainbowRocketUnlocked(save: LocalSave): boolean {
+  const bossDex = normalizeBossDex(save.boss_dex);
+  return RAINBOW_ROCKET_UNLOCK_NAMES.every(name => {
+    const trainer = villainTrainerByName(name);
+    return trainer && Number(bossDex[trainer.id]?.wins || 0) > 0;
+  });
+}
+
+function rainbowRocketRollHits(seed: number): boolean {
+  return simpleHash(seed || 0, "rainbow_rocket") % 1000 < RAINBOW_ROCKET_CHANCE * 1000;
+}
+
+async function buildRainbowRocketPlannedBattle(run: CurrentRunData, battleNo: number, trainer: TrainerNpcView): Promise<PlannedBattleData> {
+  const teamPoolId = trainer.team_pool_ids?.length
+    ? pickStable(trainer.team_pool_ids, run.seed || 0, battleNo, trainer.id, "rainbow_rocket")
+    : trainer.team_pool_id;
+  const enemyTrainer = {...trainer, team_pool_id: teamPoolId};
+  const team = rainbowRocketTeamForTrainer(enemyTrainer, run, battleNo);
+  if (!team) throw new Error(`彩虹火箭队 ${enemyTrainer.name_zh} 缺少可用的 4 只队伍预设。`);
+  const generated = await gameService.generateRentalCandidates(
+    gameService.deriveSeed(Number(run.seed), 0x8800 + battleNo),
+    "gen9randombattle",
+    4,
+    {profiles: team.profiles, speciesIds: team.speciesIds, purpose: "boss", battleSetting: run.battle_setting},
+  );
+  const enemyRaw = generated.team.slice(0, 4);
+  const enemyDisplay = generated.display.slice(0, 4);
+  ensureTeamRunMemberIds(enemyRaw, enemyDisplay);
+  assignEnemyShowdownIds(enemyRaw, enemyDisplay);
+  return {
+    battle_no: battleNo,
+    route_type: "normal",
+    route_stage: "rainbow_rocket",
+    route_route: "event:rainbow_rocket",
+    generation_stage: team.profiles.join("|"),
+    special_event: "rainbow_rocket",
+    enemy_team_pool_id: enemyTrainer.team_pool_id,
+    enemy_trainer: enemyTrainer,
+    enemy_raw: enemyRaw,
+    enemy_display: enemyDisplay,
+    battle_background: battleBackgroundForRun({...run, boss_route: "event:rainbow_rocket"}, enemyTrainer, battleNo),
+  };
+}
+
+async function buildRainbowRocketPlannedBattles(run: CurrentRunData): Promise<PlannedBattleData[]> {
+  const finalTrainer = villainTrainerByName(RAINBOW_ROCKET_FINAL_NAME);
+  if (!finalTrainer) throw new Error("缺少彩虹火箭队最终 Boss 坂木。");
+  const firstSix = RAINBOW_ROCKET_UNLOCK_NAMES
+    .map(name => villainTrainerByName(name))
+    .filter((entry): entry is TrainerNpcView => Boolean(entry));
+  if (firstSix.length < RAINBOW_ROCKET_UNLOCK_NAMES.length) throw new Error("彩虹火箭队 6 名头目资料不完整。");
+  const ordered = shuffleByRng(firstSix, seededRng(Number(run.seed || 1), 0x7799));
+  const trainers = [...ordered, finalTrainer];
+  const battles: PlannedBattleData[] = [];
+  for (let index = 0; index < trainers.length; index += 1) battles.push(await buildRainbowRocketPlannedBattle(run, index + 1, trainers[index]));
+  return battles;
+}
+
+async function buildRainbowRocketFactorySupport(run: CurrentRunData, battleNo: number): Promise<{team: PokemonSet[]; display: RentalPokemon[]}> {
+  const generated = await gameService.generateRentalCandidates(
+    gameService.deriveSeed(Number(run.seed || 1), 0x9900 + battleNo),
+    "gen9randombattle",
+    RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT,
+    {profiles: ["tier3", "tier3", "tier4", "tier4", "champion", "champion"], purpose: "starter", battleSetting: run.battle_setting},
+  );
+  const team = generated.team.slice(0, RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT);
+  const display = generated.display.slice(0, RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT);
+  ensureTeamRunMemberIds(team, display);
+  return {team, display};
+}
+
+function originalRouteSupportForBattle(run: CurrentRunData, battleNo: number): {team: PokemonSet[]; display: RentalPokemon[]; trainer?: TrainerNpcView} {
+  const planned = (run.original_planned_battles || []).find(entry => Number(entry.battle_no) === battleNo);
+  if (!planned) return {team: [], display: []};
+  return {
+    team: JSON.parse(JSON.stringify(planned.enemy_raw || [])) as PokemonSet[],
+    display: JSON.parse(JSON.stringify(planned.enemy_display || [])) as RentalPokemon[],
+    trainer: planned.enemy_trainer,
+  };
+}
+
+async function ensureRainbowRocketSupport(run: CurrentRunData): Promise<boolean> {
+  if (!isRainbowRocketRun(run) || run.status !== "awaiting_rest") return false;
+  const battleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
+  const existing = run.rest_status?.rainbow_rocket_support;
+  if (existing && Number(existing.battle_no) === battleNo && !existing.completed) return false;
+  if (existing && Number(existing.battle_no) === battleNo && existing.completed) return false;
+  const factory = await buildRainbowRocketFactorySupport(run, battleNo);
+  const route = originalRouteSupportForBattle(run, battleNo);
+  const missing = Math.max(0, RAINBOW_ROCKET_TEAM_SIZE - (run.player_team || []).length);
+  const support: RainbowRocketSupportState = {
+    battle_no: battleNo,
+    invasion: battleNo === 1 && Number(run.wins || 0) <= 0,
+    completed: false,
+    picks_used: 0,
+    picks_required: Math.min(RAINBOW_ROCKET_SUPPORT_PICK_LIMIT, Math.max(1, missing)),
+    max_team_size: RAINBOW_ROCKET_TEAM_SIZE,
+    factory_team: factory.team,
+    factory_display: factory.display,
+    route_team: route.team,
+    route_display: route.display,
+    route_trainer: route.trainer,
+  };
+  run.rest_status = {...(run.rest_status || {}), rainbow_rocket_support: support};
+  return true;
+}
+
+function rainbowRocketSupportRequired(run: CurrentRunData): boolean {
+  const support = run.rest_status?.rainbow_rocket_support;
+  if (!isRainbowRocketRun(run) || !support || support.completed) return false;
+  if (support.invasion && (run.player_team || []).length < RAINBOW_ROCKET_TEAM_SIZE) return true;
+  return Number(support.picks_used || 0) < Number(support.picks_required || 1);
+}
+
+async function applyRainbowRocketSupportChoice(save: LocalSave, run: CurrentRunData, action: Extract<RestAction, {type: "rainbow_rocket_support"}>): Promise<string> {
+  if (!isRainbowRocketRun(run)) throw new Error("当前不是彩虹火箭队路线。");
+  const support = run.rest_status?.rainbow_rocket_support;
+  if (!support || support.completed) throw new Error("当前没有待处理的彩虹火箭队支援。");
+  const rawPool = action.source === "route" ? support.route_team || [] : support.factory_team || [];
+  const displayPool = action.source === "route" ? support.route_display || [] : support.factory_display || [];
+  const candidateIndex = Math.floor(Number(action.candidateIndex));
+  const candidateRaw = rawPool[candidateIndex];
+  const candidateDisplay = displayPool[candidateIndex];
+  if (!candidateRaw || !candidateDisplay) throw new Error("支援候选不存在。");
+  const maxTeamSize = Math.max(3, Number(support.max_team_size || RAINBOW_ROCKET_TEAM_SIZE));
+  const targetIndex = action.targetIndex === null || action.targetIndex === undefined ? null : Math.floor(Number(action.targetIndex));
+  if (targetIndex !== null && (targetIndex < 0 || targetIndex >= run.player_team.length)) throw new Error("替换目标无效。");
+  if (targetIndex === null && run.player_team.length >= maxTeamSize) throw new Error("队伍已满，请选择一名队员替换。");
+
+  const nextRaw = JSON.parse(JSON.stringify(candidateRaw)) as PokemonSet;
+  const nextDisplay = JSON.parse(JSON.stringify(candidateDisplay)) as RentalPokemon;
+  const newMemberId = createRunMemberId();
+  nextRaw.run_member_id = newMemberId;
+  nextDisplay.run_member_id = newMemberId;
+  const slot = targetIndex ?? run.player_team.length;
+  const oldShowdownId = targetIndex === null ? null : run.player_team[slot]?.showdown_id || run.player_display[slot]?.showdown_id || run.player_state?.[slot]?.showdown_id;
+  const newShowdownId = targetIndex === null ? takeRunShowdownId(run) : takeReplacementRunShowdownId(run, slot, oldShowdownId);
+  writePokemonShowdownId(nextRaw, nextDisplay, undefined, newShowdownId);
+
+  if (targetIndex === null) {
+    run.player_team = [...(run.player_team || []), nextRaw];
+    run.player_display = [...(run.player_display || []), nextDisplay];
+  } else {
+    run.player_team[slot] = nextRaw;
+    run.player_display[slot] = nextDisplay;
+  }
+  recordPokemonUsage(save, nextDisplay);
+  run.bp_investments = [...(run.bp_investments || [])];
+  run.move_investments = [...(run.move_investments || [])];
+  run.bp_investments[slot] = 0;
+  run.move_investments[slot] = [0, 0, 0, 0];
+  const states = normalizePlayerState(run);
+  states[slot] = fullStateForPokemon(nextDisplay, slot + 1);
+  writePlayerSlotShowdownId(run, slot, states, newShowdownId);
+  run.player_state = states;
+
+  rawPool.splice(candidateIndex, 1);
+  displayPool.splice(candidateIndex, 1);
+  if (action.source === "route") {
+    support.route_team = rawPool;
+    support.route_display = displayPool;
+  } else {
+    support.factory_team = rawPool;
+    support.factory_display = displayPool;
+  }
+  support.picks_used = Number(support.picks_used || 0) + 1;
+  run.rest_status = {...(run.rest_status || {}), rainbow_rocket_support: support};
+  return `${nextDisplay.species_zh || nextDisplay.species || "支援宝可梦"} 已加入彩虹火箭队反击队伍。`;
+}
+
+function applyRainbowRocketRestore(run: CurrentRunData, slots: number[]): string {
+  if (!isRainbowRocketRun(run)) throw new Error("当前不是彩虹火箭队路线。");
+  const uniqueSlots = Array.from(new Set((slots || []).map(slot => Math.floor(Number(slot))).filter(slot => Number.isFinite(slot))));
+  if (!uniqueSlots.length || uniqueSlots.length > 2) throw new Error("每次彩虹火箭队休整只能选择 1-2 只恢复。");
+  const used = new Set((run.rest_status?.rainbow_rocket_restore_used || []).map(slot => Math.floor(Number(slot))).filter(slot => Number.isFinite(slot)));
+  if (used.size + uniqueSlots.length > 2) throw new Error("本次休整的工厂治疗名额已经用完。");
+  const states = normalizePlayerState(run);
+  for (const slot of uniqueSlots) {
+    if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
+    if (used.has(slot)) throw new Error("这只宝可梦本次休整已经恢复过。");
+    const full = fullStateForPokemon(run.player_display[slot], slot + 1);
+    const stableId = stablePlayerSlotShowdownId(run, slot, run.player_team[slot]?.showdown_id, run.player_display[slot]?.showdown_id, states[slot]?.showdown_id);
+    states[slot] = {...full, active: states[slot]?.active || slot === 0};
+    writePlayerSlotShowdownId(run, slot, states, stableId);
+    used.add(slot);
+  }
+  run.player_state = states;
+  run.rest_status = {...(run.rest_status || {}), rainbow_rocket_restore_used: Array.from(used).sort((a, b) => a - b)};
+  return `工厂治疗完成：已恢复 ${uniqueSlots.length} 只宝可梦。`;
+}
+
+async function grantRainbowRocketSupplies(run: CurrentRunData): Promise<string[]> {
+  const gained: string[] = [];
+  for (const itemId of RAINBOW_ROCKET_SUPPLY_ITEMS) gained.push(await grantBagItem(run, itemId, 1));
+  return gained;
 }
 
 async function buildPlannedBattle(save: LocalSave, run: CurrentRunData, battleNo: number): Promise<PlannedBattleData> {
@@ -3015,12 +3339,63 @@ async function ensurePlannedBattle(save: LocalSave, run: CurrentRunData, battleN
   return planned;
 }
 
+function hasChampionWin(save: LocalSave): boolean {
+  if (Number(save.stats?.set_win_streak || 0) > 0) return true;
+  const bossDex = normalizeBossDex(save.boss_dex);
+  return npcCatalog.some(trainer => trainer.type === "champion" && Number(bossDex[trainer.id]?.wins || 0) > 0);
+}
+
+function villainIntrusionRollHits(run: CurrentRunData, battleNo: number): boolean {
+  return simpleHash(run.seed || 0, battleNo, Number(run.wins || 0), "villain_intrusion") % 1000 < VILLAIN_INTRUSION_CHANCE * 1000;
+}
+
+async function ensureVillainIntrusion(save: LocalSave, run: CurrentRunData): Promise<boolean> {
+  if (run.status !== "awaiting_rest") return false;
+  if (isRainbowRocketRun(run)) return false;
+  const battleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
+  if (battleNo > Number(run.battles || DEFAULT_BATTLES)) return false;
+  if (Number(run.rest_status?.event_villain_intrusion_checked_battle_no || 0) === battleNo) return false;
+  const restStatus = {...(run.rest_status || {}), event_villain_intrusion_checked_battle_no: battleNo};
+  run.rest_status = restStatus;
+  if (Number(run.wins || 0) < 2) return true;
+  if (!hasChampionWin(save)) return true;
+  const planned = await ensurePlannedBattle(save, run, battleNo);
+  if (planned.route_type !== "normal" || isVillainIntrusionBattle(planned)) return true;
+  if (!villainIntrusionRollHits(run, battleNo)) return true;
+  const replacement = await buildVillainIntrusionPlannedBattle(save, run, battleNo);
+  run.planned_battles = [...(run.planned_battles || []).filter(entry => Number(entry.battle_no) !== battleNo), replacement]
+    .sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
+  run.rest_status = {
+    ...restStatus,
+    event_villain_intrusion_active: true,
+    event_villain_intrusion_battle_no: battleNo,
+    event_villain_intrusion_trainer_id: replacement.enemy_trainer.id,
+    rest_event_options: [],
+    rest_event_selected_id: null,
+  };
+  if (run.scout && Number(run.scout.title.match(/第\s*(\d+)/)?.[1] || 0) === battleNo) delete run.scout;
+  delete run.night_sky;
+  return true;
+}
+
 function bossPoolSlotKey(poolId: string | undefined, preset: BattleRulePreset | undefined, teamIndex: number, slot: number, speciesId: string): string {
   return `${poolId || "pool"}:${preset || "none"}:${teamIndex}:${slot}:${speciesId}`;
 }
 
 function isBossTrainer(trainer?: TrainerNpcView): boolean {
-  return Boolean(trainer && ["gym", "elite4", "champion"].includes(trainer.type));
+  return Boolean(trainer && ["gym", "elite4", "champion", "villain"].includes(trainer.type));
+}
+
+function bossDexEventTagsForRun(run: CurrentRunData): string[] {
+  const tags: string[] = [];
+  if (run.special_event === "villain_intrusion") tags.push("普通乱入", "特殊事件");
+  if (run.special_event === "rainbow_rocket" || run.special_run === "rainbow_rocket") tags.push("彩虹火箭队", "特殊事件");
+  return Array.from(new Set(tags));
+}
+
+function trainerDexTags(trainer: TrainerNpcView, record: BossDexRecord | undefined): string[] {
+  const tags = [trainerDexTypeLabel(trainer.type), ...(record?.event_tags || [])].filter(Boolean);
+  return Array.from(new Set(tags));
 }
 
 function recordBossEncounter(save: LocalSave, run: CurrentRunData, trainer: TrainerNpcView, bossTeam: ReturnType<typeof bossTeamForTrainer>, display: RentalPokemon[]): BossDexRecord | undefined {
@@ -3028,6 +3403,7 @@ function recordBossEncounter(save: LocalSave, run: CurrentRunData, trainer: Trai
   const now = new Date().toISOString();
   save.boss_dex = normalizeBossDex(save.boss_dex);
   const previous = normalizeBossDexRecord(save.boss_dex[trainer.id]);
+  const eventTags = Array.from(new Set([...(previous.event_tags || []), ...bossDexEventTagsForRun(run)]));
   const poolId = trainer.team_pool_id || trainer.team_pool_ids?.[0];
   const seenPokemon = {...previous.seen_pokemon};
   const seenPoolSlots = new Set(previous.seen_pool_slots);
@@ -3050,6 +3426,7 @@ function recordBossEncounter(save: LocalSave, run: CurrentRunData, trainer: Trai
     encounters: previous.encounters + 1,
     first_seen_at: previous.first_seen_at || now,
     last_seen_at: now,
+    event_tags: eventTags,
     seen_pool_slots: Array.from(seenPoolSlots),
     seen_pokemon: seenPokemon,
   });
@@ -3080,12 +3457,14 @@ function trainerDexTypeLabel(type: TrainerNpcType): string {
   if (type === "champion") return "冠军";
   if (type === "elite4") return "四天王";
   if (type === "gym") return "馆主";
+  if (type === "villain") return "反派头目";
   return "训练师";
 }
 
 function bossPoolRowsForDex(trainer: TrainerNpcView, record: BossDexRecord | undefined): BossDexPoolRow[] {
   const poolIds = trainer.team_pool_ids?.length ? trainer.team_pool_ids : trainer.team_pool_id ? [trainer.team_pool_id] : [];
-  const allRows = loadBossTeamPools().filter(row => poolIds.includes(row.pool_id) && row.battle_rule_preset === "none");
+  const sourceRows = trainer.type === "villain" ? loadRainbowRocketTeamPools() : loadBossTeamPools();
+  const allRows = sourceRows.filter(row => poolIds.includes(row.pool_id) && row.battle_rule_preset === "none");
   const trainerRows = allRows.filter(row => row.trainer_id === trainer.id);
   const rows = (trainerRows.length ? trainerRows : allRows).sort((a, b) => a.team_index - b.team_index || a.slot - b.slot);
   const byTeam = new Map<number, BossTeamPoolRow[]>();
@@ -3124,9 +3503,11 @@ function bossSummary(record?: BossDexRecord): string {
 function trainerDexSearch(save: LocalSave | null, query = "", offset = 0, limit = 8): DesktopDexSearchResult {
   const normalizedOffset = Math.max(0, Number(offset || 0));
   const cappedLimit = Math.max(1, Math.min(120, Number(limit || 8)));
-  const typeMatch = String(query || "").match(/\btype:(gym|elite4|champion)\b/i);
+  const typeMatch = String(query || "").match(/\btype:(gym|elite4|champion|villain)\b/i);
   const typeFilter = typeMatch?.[1] as TrainerNpcType | undefined;
-  const cleanQuery = String(query || "").replace(/\btype:(gym|elite4|champion)\b/ig, "").trim().toLowerCase();
+  const eventMatch = String(query || "").match(/\bevent:(special|villain_intrusion|rainbow_rocket)\b/i);
+  const eventFilter = eventMatch?.[1]?.toLowerCase();
+  const cleanQuery = String(query || "").replace(/\btype:(gym|elite4|champion|villain)\b/ig, "").replace(/\bevent:(special|villain_intrusion|rainbow_rocket)\b/ig, "").trim().toLowerCase();
   const cleanId = toId(cleanQuery);
   const bossDex = normalizeBossDex(save?.boss_dex);
   const bosses = npcCatalog.filter(entry => isBossTrainer(entry) && entry.front_asset && (!typeFilter || entry.type === typeFilter));
@@ -3134,6 +3515,7 @@ function trainerDexSearch(save: LocalSave | null, query = "", offset = 0, limit 
     const record = bossDex[trainer.id];
     const unlocked = Boolean(record?.encounters);
     const typeLabel = trainerDexTypeLabel(trainer.type);
+    const trainerTags = unlocked ? trainerDexTags(trainer, record) : [];
     const hiddenName = `${trainer.region || "未知地区"}${typeLabel} #${index + 1}`;
     const nameZh = unlocked ? trainer.name_zh : "？？？";
     const name = unlocked ? (trainer.name_en || trainer.name_zh) : "???";
@@ -3144,22 +3526,30 @@ function trainerDexSearch(save: LocalSave | null, query = "", offset = 0, limit 
       category: "trainers" as const,
       desc_zh: unlocked ? `${trainer.region || "未知地区"}${typeLabel}` : hiddenName,
       tags: unlocked
-        ? [trainer.id, trainer.name_zh, trainer.name_en || "", trainer.region || "", trainer.role || "", trainerDexTypeLabel(trainer.type), trainer.notes || ""]
-        : [trainer.region || "", trainer.role || "", trainerDexTypeLabel(trainer.type), hiddenName],
+        ? [trainer.id, trainer.name_zh, trainer.name_en || "", trainer.region || "", trainer.role || "", trainerDexTypeLabel(trainer.type), ...(record?.event_tags || []), trainer.notes || ""]
+        : [trainer.region || "", trainerDexTypeLabel(trainer.type), hiddenName],
       trainer: unlocked ? trainer : {...trainer, name_zh: "？？？", name_en: "???", front_asset: undefined, front_gif_asset: undefined, avatar_asset: undefined},
       unlocked,
+      trainer_tags: trainerTags,
       boss_record: record,
       boss_pool_rows: bossPoolRowsForDex(trainer, record),
       boss_summary: bossSummary(record),
     };
   }).filter(entry => {
+    if (eventFilter) {
+      if (!entry.unlocked) return false;
+      const eventTags = new Set(entry.boss_record?.event_tags || []);
+      if (eventFilter === "special" && !eventTags.has("特殊事件")) return false;
+      if (eventFilter === "villain_intrusion" && !eventTags.has("普通乱入")) return false;
+      if (eventFilter === "rainbow_rocket" && !eventTags.has("彩虹火箭队")) return false;
+    }
     if (!cleanQuery && !cleanId) return true;
     const rawParts = entry.unlocked ? [entry.id, entry.name, entry.name_zh, entry.desc_zh, ...(entry.tags || [])] : [entry.desc_zh, ...(entry.tags || [])];
     const parts = rawParts.filter(Boolean).map(value => String(value).toLowerCase());
     const ids = parts.map(value => toId(value));
     return parts.some(value => value.includes(cleanQuery)) || ids.some(value => value.includes(cleanId));
   }).sort((a, b) => {
-    const typeOrder = {gym: 0, elite4: 1, champion: 2} as Record<string, number>;
+    const typeOrder = {gym: 0, elite4: 1, champion: 2, villain: 3} as Record<string, number>;
     return (typeOrder[a.trainer?.type || ""] ?? 9) - (typeOrder[b.trainer?.type || ""] ?? 9) || String(a.trainer?.region || "").localeCompare(String(b.trainer?.region || "")) || a.id.localeCompare(b.id);
   });
   const page = entries.slice(normalizedOffset, normalizedOffset + cappedLimit);
@@ -3179,7 +3569,7 @@ async function generateOpponentPreview(save: LocalSave, run: CurrentRunData, bat
   const route = {type: planned.route_type, stage: planned.route_stage, route: planned.route_route, pool: []} as BossRoute;
   const trainer = planned.enemy_trainer;
   const enemies = (planned.enemy_display || []).slice(0, 3);
-  const label = route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : "馆主";
+  const label = isVillainIntrusionBattle(planned) ? "反派头目乱入" : route.type === "normal" ? "普通 NPC" : route.type === "champion" ? "冠军" : route.type === "elite4" ? "四天王" : "馆主";
   return {route, trainer, enemies, label};
 }
 
@@ -3192,12 +3582,14 @@ async function buildNightSkyState(save: LocalSave, run: CurrentRunData): Promise
   for (let battleNo = 1; battleNo <= battles; battleNo += 1) {
     const previous = previousRows.find(row => Number(row.battle_no) === battleNo);
     const preview = await generateOpponentPreview(save, run, battleNo);
+    const planned = (run.planned_battles || []).find(entry => Number(entry.battle_no) === battleNo);
+    const isVillainIntrusion = isVillainIntrusionBattle(planned);
     const encountered = battleNo <= currentBattleNo;
     const namedVisible = Boolean(preview.route.type === "champion" && run.named_champion_id && preview.trainer.id === run.named_champion_id);
-    const trainerVisible = encountered || rumorLevel >= 1 || namedVisible;
+    const trainerVisible = isVillainIntrusion || encountered || rumorLevel >= 1 || namedVisible;
     const forceUnlocked = Boolean(previous?.unlocked);
-    const revealed = encountered || forceUnlocked ? 3 : Math.max(0, Math.min(3, Number(previous?.revealed || 0)));
-    const enemiesVisible = trainerVisible || forceUnlocked;
+    const revealed = isVillainIntrusion && !encountered ? 0 : encountered || forceUnlocked ? 3 : Math.max(0, Math.min(3, Number(previous?.revealed || 0)));
+    const enemiesVisible = encountered || (!isVillainIntrusion && (trainerVisible || forceUnlocked));
     rows.push({
       battle_no: battleNo,
       label: preview.label,
@@ -3762,6 +4154,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.all_in_exchange_used = Boolean(run.all_in_exchange_used);
   normalizeRunShowdownIdPool(run);
   run.planned_battles = (run.planned_battles || []).filter(Boolean).sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
+  run.original_planned_battles = (run.original_planned_battles || []).filter(Boolean).sort((a, b) => Number(a.battle_no) - Number(b.battle_no));
   run.exchange_box = {
     team: (run.exchange_box?.team || []).filter(Boolean),
     display: (run.exchange_box?.display || []).filter(Boolean),
@@ -3827,6 +4220,23 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     event_soul_swap_active: Boolean(run.rest_status?.event_soul_swap_active),
     event_score_bet_next: normalizeStoredScoreBet(run.rest_status?.event_score_bet_next),
     event_score_bet_active: normalizeStoredScoreBet(run.rest_status?.event_score_bet_active),
+    event_villain_intrusion_checked_battle_no: run.rest_status?.event_villain_intrusion_checked_battle_no ? Math.max(1, Math.floor(Number(run.rest_status.event_villain_intrusion_checked_battle_no))) : undefined,
+    event_villain_intrusion_active: Boolean(run.rest_status?.event_villain_intrusion_active),
+    event_villain_intrusion_battle_no: run.rest_status?.event_villain_intrusion_battle_no ? Math.max(1, Math.floor(Number(run.rest_status.event_villain_intrusion_battle_no))) : undefined,
+    event_villain_intrusion_trainer_id: run.rest_status?.event_villain_intrusion_trainer_id || undefined,
+    rainbow_rocket_support: run.rest_status?.rainbow_rocket_support ? {
+      ...run.rest_status.rainbow_rocket_support,
+      battle_no: Math.max(1, Math.floor(Number(run.rest_status.rainbow_rocket_support.battle_no || 1))),
+      completed: Boolean(run.rest_status.rainbow_rocket_support.completed),
+      invasion: Boolean(run.rest_status.rainbow_rocket_support.invasion),
+      picks_used: Math.max(0, Math.floor(Number(run.rest_status.rainbow_rocket_support.picks_used || 0))),
+      picks_required: Math.max(0, Math.floor(Number(run.rest_status.rainbow_rocket_support.picks_required || 0))),
+      max_team_size: Math.max(3, Math.floor(Number(run.rest_status.rainbow_rocket_support.max_team_size || RAINBOW_ROCKET_TEAM_SIZE))),
+      factory_team: (run.rest_status.rainbow_rocket_support.factory_team || []).filter(Boolean),
+      factory_display: (run.rest_status.rainbow_rocket_support.factory_display || []).filter(Boolean),
+      route_team: (run.rest_status.rainbow_rocket_support.route_team || []).filter(Boolean),
+      route_display: (run.rest_status.rainbow_rocket_support.route_display || []).filter(Boolean),
+    } : undefined,
   };
   normalizePlayerState(run);
   return run;
@@ -3881,6 +4291,8 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
   if (status.event_tutor_service_available && !status.event_tutor_service_used) entries.push({id: "tutor", label: "讲师老奶奶", detail: "可花 200 金币学习 1 个教授招式。", tone: "trade"});
   if (status.event_egg_service_available && !status.event_egg_service_used) entries.push({id: "egg", label: "培育屋爷爷", detail: "可花 200 金币学习 1 个遗传招式。", tone: "trade"});
   if (status.event_raid_exchange_available && !status.event_raid_exchange_used) entries.push({id: "raid_exchange", label: "骇人奇袭", detail: "可与下一位对手交换 1 只宝可梦。", tone: "trade"});
+  if (status.event_villain_intrusion_active) entries.push({id: "villain_intrusion", label: "反派头目乱入", detail: "下一场赛程异常：彩虹火箭队头目将替代普通对手，胜利额外奖励 500 金币。", tone: "risk"});
+  if (isRainbowRocketRun(run)) entries.push({id: "rainbow_rocket", label: "彩虹火箭队", detail: "赛程已被劫持：普通奇遇和商店关闭，工厂支援与技能服务常驻。", tone: "risk"});
   if (status.event_contest_next) entries.push({id: "contest", label: "华丽大赛", detail: "下一战会按裁判标记累计华丽分。", tone: "trade"});
   if (status.event_soul_swap_next) entries.push({id: "soul_swap", label: "灵魂互换", detail: "下一战操作队伍互换，胜负按原阵营结算。", tone: "risk"});
   if (status.event_score_bet_next) entries.push({id: "score_bet", label: "重金下注", detail: `下一战精确比分 ${status.event_score_bet_next.target_alive}:0，下注 ${status.event_score_bet_next.stake}，命中返还 ${status.event_score_bet_next.payout || scoreBetPayout(status.event_score_bet_next.stake, status.event_score_bet_next.target_alive)}。`, tone: "risk"});
@@ -3890,7 +4302,9 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
 async function restState(save: LocalSave, run: CurrentRunData, message?: string): Promise<DesktopGameState> {
   normalizeCurrentRun(run);
   const delayedMessages = await applyRestDelayedEffects(run);
-  if (delayedMessages.length) {
+  const villainIntrusionChanged = await ensureVillainIntrusion(save, run);
+  const rainbowRocketSupportChanged = await ensureRainbowRocketSupport(run);
+  if (delayedMessages.length || villainIntrusionChanged || rainbowRocketSupportChanged) {
     save = await persist(save);
     run = save.current_run as CurrentRunData;
     normalizeCurrentRun(run);
@@ -3898,7 +4312,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
   const restMessage = [message, ...delayedMessages].filter(Boolean).join(" ");
   ensureRestEventOptions(run);
   const exchangeCount = Number(run.rest_status?.exchanges || 0);
-  const restExchangeCost = exchangeCount >= 3 ? null : exchangeCost(run, exchangeCount);
+  const restExchangeCost = isRainbowRocketRun(run) || exchangeCount >= 3 ? null : exchangeCost(run, exchangeCount);
   const nightSky = await buildNightSkyState(save, run);
   const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
   const nextPreview = hasTalent(run.talents, "intel_reroute") && nextBattleNo <= Number(run.battles || DEFAULT_BATTLES)
@@ -3921,11 +4335,11 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       title: SHOP_KIND_CONFIG[normalizeShopKind(run.shop_kind)].title,
       theme: SHOP_KIND_CONFIG[normalizeShopKind(run.shop_kind)].theme,
       roll_count: Number(run.shop_roll_count || 0),
-      next_roll_cost: shopNextRollCostForKind(run, normalizeShopKind(run.shop_kind)),
+      next_roll_cost: isRainbowRocketRun(run) ? null : shopNextRollCostForKind(run, normalizeShopKind(run.shop_kind)),
       slot_count: normalizeShopKind(run.shop_kind) === "tm" ? 3 : shopOfferCount(run),
       free_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0),
       slot_discounts: run.rest_status?.shop_slot_discounts || [],
-      offers: pricedShopOffersForRun(run),
+      offers: isRainbowRocketRun(run) ? [] : pricedShopOffersForRun(run),
       purchased_offer_id: run.shop_purchased_offer_id || null,
       purchased_offer_counts: run.shop_purchased_offer_counts || {},
       purchased_item_counts: run.shop_purchased_item_counts || {},
@@ -3967,11 +4381,22 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       options: run.rest_status?.rest_event_options || [],
     },
     rest_event_statuses: restEventStatuses(run),
+    rainbow_rocket_support: run.rest_status?.rainbow_rocket_support ? {
+      battle_no: run.rest_status.rainbow_rocket_support.battle_no,
+      invasion: run.rest_status.rainbow_rocket_support.invasion,
+      completed: run.rest_status.rainbow_rocket_support.completed,
+      picks_used: Number(run.rest_status.rainbow_rocket_support.picks_used || 0),
+      picks_required: Number(run.rest_status.rainbow_rocket_support.picks_required || 0),
+      max_team_size: Number(run.rest_status.rainbow_rocket_support.max_team_size || RAINBOW_ROCKET_TEAM_SIZE),
+      factory_display: run.rest_status.rainbow_rocket_support.factory_display || [],
+      route_display: run.rest_status.rainbow_rocket_support.route_display || [],
+      route_trainer: run.rest_status.rainbow_rocket_support.route_trainer,
+    } : undefined,
     event_services: {
       doctor: Boolean(run.rest_status?.event_doctor_pending),
-      tutor: Boolean(run.rest_status?.event_tutor_service_available && !run.rest_status?.event_tutor_service_used),
-      egg: Boolean(run.rest_status?.event_egg_service_available && !run.rest_status?.event_egg_service_used),
-      raid_exchange: Boolean(run.rest_status?.event_raid_exchange_available && !run.rest_status?.event_raid_exchange_used),
+      tutor: isRainbowRocketRun(run) || Boolean(run.rest_status?.event_tutor_service_available && !run.rest_status?.event_tutor_service_used),
+      egg: isRainbowRocketRun(run) || Boolean(run.rest_status?.event_egg_service_available && !run.rest_status?.event_egg_service_used),
+      raid_exchange: !isRainbowRocketRun(run) && Boolean(run.rest_status?.event_raid_exchange_available && !run.rest_status?.event_raid_exchange_used),
       raid_exchange_battle_no: run.rest_status?.event_raid_exchange_battle_no,
       level_points: Math.max(0, Number(run.rest_status?.event_level_points || 0)),
       score_bet: Boolean(run.rest_status?.event_score_bet_next),
@@ -4284,11 +4709,19 @@ async function beginChallenge(selectedIndexes: number[], runSeed: number, battle
   normalizeCurrentRun(run);
   normalizePlayerState(run);
   run.planned_battles = await buildPlannedBattles(save, run);
+  if (rainbowRocketUnlocked(save) && rainbowRocketRollHits(effectiveSeed)) {
+    run.special_run = "rainbow_rocket";
+    run.battles = DEFAULT_BATTLES;
+    run.original_planned_battles = JSON.parse(JSON.stringify(run.planned_battles)) as PlannedBattleData[];
+    run.planned_battles = await buildRainbowRocketPlannedBattles(run);
+    run.rest_status = {...(run.rest_status || {}), rest_event_options: [], rest_event_selected_id: null};
+  }
   pendingStarter = null;
   const next = await persist(save);
   const mentorText = mentored.upgraded ? `伯乐本乐发动：${mentored.upgraded} 只宝可梦获得数值升阶。` : "";
   const capText = cappedStarter.capped ? `徽章权限生效：${cappedStarter.capped} 只到手宝可梦等级已压到上限。` : "";
-  return await restState(next, next.current_run as CurrentRunData, `${mentorText}${capText}出发前可以先整理队伍。`);
+  const rocketText = run.special_run === "rainbow_rocket" ? "WARNING / WARNING：彩虹火箭队入侵，对战表已被劫持。" : "";
+  return await restState(next, next.current_run as CurrentRunData, `${mentorText}${capText}${rocketText || "出发前可以先整理队伍。"}`);
 }
 
 async function continueRun(): Promise<DesktopGameState> {
@@ -4341,8 +4774,9 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   const enemyTeam = JSON.parse(JSON.stringify(planned.enemy_raw || [])) as PokemonSet[];
   const enemyDisplay = JSON.parse(JSON.stringify(planned.enemy_display || [])) as RentalPokemon[];
   const route = {type: planned.route_type, stage: planned.route_stage, route: planned.route_route, pool: []} as BossRoute;
-  const bossTeam = planned.route_type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
+  const bossTeam = isRainbowRocketBattle(planned) ? rainbowRocketTeamForTrainer(enemyTrainer, run, battleNo) : isVillainIntrusionBattle(planned) ? villainTeamForTrainer(enemyTrainer, run, battleNo) : planned.route_type === "normal" ? null : bossTeamForTrainer(enemyTrainer, run, battleNo);
   run.boss_type = planned.route_type;
+  run.special_event = planned.special_event;
   run.boss_stage = planned.route_stage;
   run.boss_route = planned.route_route;
   run.enemy_team_pool_id = planned.enemy_team_pool_id;
@@ -4380,12 +4814,12 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
     playerState: soulSwapActive ? undefined : normalizePlayerState(battleStartRun),
     seed: gameService.deriveSeed(Number(run.seed), 200 + battleNo),
     battleSetting: battleStartRun.battle_setting,
-    enemyAi: soulSwapActive ? soulSwapEnemyAiProfile() : enemyAiForRoute(route, enemyTrainer, battleStartRun),
+    enemyAi: soulSwapActive ? soulSwapEnemyAiProfile() : isRainbowRocketBattle(planned) ? enemyAiProfileForRunRoute(battleStartRun, "champion", {level: "champion", personality: championPersonalityForTrainer(enemyTrainer)}) : enemyAiForRoute(route, enemyTrainer, battleStartRun),
   });
   const encounteredBoss = recordBossEncounter(battleStartSave, battleStartRun, enemyTrainer, bossTeam, enemyDisplay);
   const stateSave = encounteredBoss ? await persist(battleStartSave) : battleStartSave;
   const stateRun = stateSave.current_run as CurrentRunData;
-  const label = run.boss_type === "normal" ? "普通 NPC" : run.boss_type === "champion" ? "冠军" : run.boss_type === "elite4" ? "四天王" : "馆主";
+  const label = planned.special_event === "rainbow_rocket" ? "彩虹火箭队" : planned.special_event === "villain_intrusion" ? "反派头目乱入" : run.boss_type === "normal" ? "普通 NPC" : run.boss_type === "champion" ? "冠军" : run.boss_type === "elite4" ? "四天王" : "馆主";
   return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: `第 ${battleNo}/${run.battles} 场：${label} ${enemyTrainer.name_zh}`});
 }
 
@@ -4430,10 +4864,13 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
   }
   const wins = Number(run.wins || 0) + 1;
-  addToExchangeBox(run, soulSwapActive ? (state.player_team || run.enemy_raw || []) : (state.enemy_team || run.enemy_raw || []), soulSwapActive ? (state.player_display || run.enemy_display || []) : (state.enemy_display || run.enemy_display || []));
+  if (!isRainbowRocketRun(run)) addToExchangeBox(run, soulSwapActive ? (state.player_team || run.enemy_raw || []) : (state.enemy_team || run.enemy_raw || []), soulSwapActive ? (state.player_display || run.enemy_display || []) : (state.enemy_display || run.enemy_display || []));
   const stalwartRecovered = applyStalwartRecovery(run);
   const allInBonus = run.rest_status?.all_in_pending_next ? addCoins(run, currentCoins(run)) : 0;
   const contestBonus = contest.bonusCoins ? addCoins(run, contest.bonusCoins) : 0;
+  const villainIntrusionBonus = run.special_event === "villain_intrusion" ? addCoins(run, VILLAIN_INTRUSION_BONUS_COINS) : 0;
+  const rainbowRocketBonus = isRainbowRocketRun(run) ? addCoins(run, RAINBOW_ROCKET_REWARD_COINS) : 0;
+  const rainbowRocketSupplies = isRainbowRocketRun(run) && activeBattleNo < Number(run.battles || DEFAULT_BATTLES) ? await grantRainbowRocketSupplies(run) : [];
   if (run.rest_status?.all_in_pending_next) run.rest_status = {...run.rest_status, all_in_pending_next: false};
   if (activeBattleNo >= Number(run.battles || DEFAULT_BATTLES)) {
     run.wins = wins;
@@ -4442,7 +4879,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
-    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `，华丽大赛 +${contestBonus}金币` : ""}${scoreBetText ? `，${scoreBetText}` : ""}${contest.overrideWin ? "，裁判介入改判成功" : ""}${soulSwapActive ? "，灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
+    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `，华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `，反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `，彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${scoreBetText ? `，${scoreBetText}` : ""}${contest.overrideWin ? "，裁判介入改判成功" : ""}${soulSwapActive ? "，灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     const resultBattle = decorateBattleState(state, run);
     const resultSummary = buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "win", statEvents, resultSummary}));
@@ -4456,14 +4893,16 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     battle_no: activeBattleNo,
     next_battle: activeBattleNo + 1,
     wins,
+    special_event: undefined,
     enemy_raw: soulSwapActive ? (state.player_team || run.enemy_raw) : state.enemy_team,
     enemy_display: soulSwapActive ? (state.player_display || run.enemy_display) : state.enemy_display,
-    coins_earned_this_run: Number(run.coins_earned_this_run || 0) + winBp,
+    coins_earned_this_run: Number(run.coins_earned_this_run || 0) + winBp + villainIntrusionBonus + rainbowRocketBonus,
     bp_earned_this_run: Number(run.bp_earned_this_run || 0) + winBp,
     rest_status: freshRestStatus(run.talents, carryRestStatusAfterBattle(run, victoryRewards.restBonus)),
   };
   const next = await persist(save);
-  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${scoreBetText ? `；${scoreBetText}` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
+  const supplyText = rainbowRocketSupplies.length ? `；工厂补给：${rainbowRocketSupplies.join("、")}` : "";
+  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `；反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `；彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${supplyText}${scoreBetText ? `；${scoreBetText}` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
   await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: decorateBattleState(state, run), message: rewardText, outcome: "win", statEvents}));
   const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
@@ -4560,7 +4999,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
       const run = save.current_run as CurrentRunData;
       const slot = Math.max(0, Number(slotRaw || 1) - 1);
       const states = activeBattle.getPlayerState();
-      if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+      if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
       const normalizedItem = itemKey(itemId);
       if (Number(run.bag_items?.[normalizedItem] || 0) <= 0) throw new Error("背包里没有这个道具。");
       if (!(await gameService.hasConsumableItemEffect(normalizedItem))) throw new Error("这个道具不能在战斗中主动使用。");
@@ -4634,6 +5073,7 @@ async function finishExchange(ownIndex: number | null, enemyIndex: number | null
   delete nextRun.enemy_boss_record;
   delete nextRun.battle_background;
   delete nextRun.boss_type;
+  delete nextRun.special_event;
   delete nextRun.boss_stage;
   delete nextRun.boss_route;
   delete nextRun.enemy_team_pool_id;
@@ -4644,6 +5084,7 @@ async function finishExchange(ownIndex: number | null, enemyIndex: number | null
 }
 
 async function finishRestForNextBattle(save: LocalSave, run: CurrentRunData): Promise<DesktopGameState> {
+  if (rainbowRocketSupportRequired(run)) throw new Error("请先处理彩虹火箭队支援。");
   if (!rotateFirstUsable(run)) throw new Error("队伍没有可出战宝可梦，请先恢复 HP。");
   const battleNo = Number(run.battle_no ?? 0);
   const carryRestStatus = carryRestStatusForBattle(run);
@@ -4657,6 +5098,9 @@ async function finishRestForNextBattle(save: LocalSave, run: CurrentRunData): Pr
   delete save.current_run.enemy_raw;
   delete save.current_run.enemy_display;
   delete save.current_run.battle_background;
+  delete save.current_run.special_event;
+  delete save.current_run.rest_status?.rainbow_rocket_support;
+  delete save.current_run.rest_status?.rainbow_rocket_restore_used;
   const next = await persist(save);
   return startNextBattle(next);
 }
@@ -4721,7 +5165,7 @@ async function applyRandomizedStats(run: CurrentRunData, slot: number, part: "ab
 }
 
 async function applyMoveToSlot(run: CurrentRunData, slot: number, moveSlot: number, moveId: string): Promise<MoveSummary> {
-  if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+  if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
   const rawSet = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
   const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball);
   const currentMoves = [...(rawSet.moves || [])];
@@ -4774,6 +5218,32 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (run.rest_status?.all_in_pending_next) throw new Error("孤注一掷已发动，本次休整即将结束。");
 
   const states = normalizePlayerState(run);
+  if (action.type === "rainbow_rocket_support") {
+    const message = await applyRainbowRocketSupportChoice(save, run, action);
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, message);
+  }
+  if (action.type === "rainbow_rocket_support_done") {
+    if (!isRainbowRocketRun(run)) throw new Error("当前不是彩虹火箭队路线。");
+    const support = run.rest_status?.rainbow_rocket_support;
+    if (!support) throw new Error("当前没有待处理的彩虹火箭队支援。");
+    if (support.invasion && (run.player_team || []).length < Number(support.max_team_size || RAINBOW_ROCKET_TEAM_SIZE)) throw new Error("彩虹火箭队入侵时必须先把队伍补到 6 只。");
+    if (Number(support.picks_used || 0) < Number(support.picks_required || 1)) throw new Error("请先选择本次支援。");
+    support.completed = true;
+    run.rest_status = {...(run.rest_status || {}), rainbow_rocket_support: support};
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, "彩虹火箭队支援已确认。");
+  }
+  if (action.type === "rainbow_rocket_restore") {
+    const message = applyRainbowRocketRestore(run, action.slots || []);
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, message);
+  }
+  if (isRainbowRocketRun(run)) {
+    if (action.type === "exchange" || action.type === "all_in_exchange" || action.type === "box_exchange" || action.type === "event_raid_exchange") throw new Error("彩虹火箭队路线不能交换敌方宝可梦。");
+    if (action.type === "roll_shop" || action.type === "buy_shop_offer" || action.type === "buy_item" || action.type === "event_barter_buy") throw new Error("彩虹火箭队入侵期间普通商店关闭。");
+    if (action.type === "scout_next" || action.type === "night_sky_scout" || action.type === "reroute_next") throw new Error("彩虹火箭队路线无法使用普通情报和奇遇。");
+  }
   if (action.type === "event_score_bet_adjust") {
     const current = run.rest_status?.event_score_bet_next;
     if (!current) throw new Error("当前没有重金下注。");
@@ -4810,6 +5280,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const battleNo = Math.max(1, Math.min(Number(run.battles || DEFAULT_BATTLES), Math.floor(Number(action.battleNo || run.next_battle || currentBattleNo + 1 || 1))));
     if (battleNo <= currentBattleNo) throw new Error("已经挑战过的对手不能更换。");
     if (battleNo > Number(run.battles || DEFAULT_BATTLES)) throw new Error("本局已经没有这场对战。");
+    const planned = await ensurePlannedBattle(save, run, battleNo);
+    if (isVillainIntrusionBattle(planned)) throw new Error("赛程异常，公子驾到无法更换反派头目乱入。");
     const route = routeForRunBattle(save, run, battleNo);
     const currentTrainer = chooseTrainerForRoute(route, run, battleNo);
     const trainer = rerouteTrainerForRoute(route, run, battleNo);
@@ -4844,7 +5316,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (!hasTalent(run.talents, "growth_lead_change")) throw new Error("需要天赋「临阵换将」。");
     if (run.rest_status?.lead_change_used) throw new Error("本次休整已经调整过首发。");
     const slot = Math.floor(Number(action.slot || 0));
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     if (states[slot]?.fainted || Number(states[slot]?.hp || 0) <= 0) throw new Error("濒死宝可梦不能设为首发。");
     for (const key of ["player_team", "player_display", "player_state", "bp_investments", "move_investments"] as const) {
       const values = [...((run as any)[key] || [])];
@@ -4861,7 +5333,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (!hasTalent(run.talents, "exchange_trust")) throw new Error("需要天赋「不负信赖」。");
     if (run.rest_status?.trust_level_used) throw new Error("本次休整已经培养过信赖。");
     const slot = Math.floor(Number(action.slot || 0));
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const rawSet = {...run.player_team[slot]};
     const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
     const currentLevel = Math.max(1, Math.floor(Number(rawSet.level || run.player_display[slot]?.level || 50)));
@@ -4919,7 +5391,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if ((run.rest_status as any)?.[usedKey]) throw new Error("本次技能服务已经使用过。");
     const slot = Math.floor(Number(action.slot));
     const moveSlot = Math.floor(Number(action.moveSlot));
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const rawSet = run.player_team[slot];
     const selected = (await gameService.learnableMoves(rawSet)).find(move => toId(move.id || move.name) === toId(action.moveId));
     if (!selected || !(selected.learn_sources || []).includes(service)) throw new Error(service === "egg" ? "这不是该宝可梦的合法遗传招式。" : "这不是该宝可梦的合法教授招式。");
@@ -4934,7 +5406,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const points = Math.max(0, Math.floor(Number(run.rest_status?.event_level_points || 0)));
     if (points <= 0) throw new Error("当前没有可分配等级。");
     const slot = Math.floor(Number(action.slot));
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const cap = badgeLevelCapForTalents(run.talents) || 100;
     const rawSet = {...run.player_team[slot]};
     const currentLevel = Math.max(1, Math.floor(Number(rawSet.level || run.player_display[slot]?.level || 50)));
@@ -4955,7 +5427,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "use_item") {
     const slot = Number(action.slot);
-    if (slot < 0 || slot >= states.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
     const normalizedItem = itemKey(action.itemId);
     await assertRestItemUsableByEvents(run, normalizedItem);
     let riskText = "";
@@ -5193,7 +5665,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (run.rest_status?.event_exchange_disabled) throw new Error("恋恋不舍：本次休整无法交换宝可梦。");
     if (run.all_in_exchange_used) throw new Error("本局已经使用过孤注一掷。");
     const own = Number(action.ownIndex);
-    if (own < 0 || own >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (own < 0 || own >= run.player_team.length) throw new Error("队伍编号无效。");
     const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
     const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(run.seed), 0xa111 + nextBattleNo * 17 + own), "gen9randombattle", 1, {profiles: ["tier4"], purpose: "normal", battleSetting: run.battle_setting});
     let nextRaw = generated.team[0];
@@ -5353,7 +5825,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "draw_moves") {
     const slot = action.slot;
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const cost = moveDrawCost(run);
     const spent = spendRunBp(save, run, cost, "draw-moves");
     const rawSet = run.player_team[slot];
@@ -5388,9 +5860,11 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (!hasTalent(run.talents, "intel_rumor")) throw new Error("需要天赋「小道消息」。");
     const level = action.level === "all" ? "all" : "one";
     if (level === "one" && run.rest_status?.free_scout_used) throw new Error("本次休整已经使用过免费侦查。");
+    const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
+    const planned = await ensurePlannedBattle(save, run, nextBattleNo);
+    if (isVillainIntrusionBattle(planned)) throw new Error("赛程异常，小道消息无法读取反派头目的完整队伍。");
     const cost = level === "all" ? SCOUT_ALL_COST : SCOUT_ONE_COST;
     const spent = spendRunBp(save, run, cost, "scout-next");
-    const nextBattleNo = Number(run.next_battle || (Number(run.battle_no || 0) + 1) || 1);
     const preview = await generateOpponentPreview(save, run, nextBattleNo);
     const enemyPool = preview.enemies;
     const enemies = level === "one" ? [enemyPool[Math.floor(seededRng(Number(run.seed || 1), 0x5c07 + nextBattleNo * 19)() * enemyPool.length)]].filter(Boolean) : enemyPool;
@@ -5410,6 +5884,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (!row) throw new Error("没有找到这场训练师信息。");
     const currentBattleNo = Math.max(0, Number(run.battle_no || Math.max(0, Number(run.next_battle || 1) - 1) || 0));
     if (battleNo <= currentBattleNo) throw new Error("已经挑战过的对手无需侦查。");
+    const planned = await ensurePlannedBattle(save, run, battleNo);
+    if (isVillainIntrusionBattle(planned)) throw new Error("赛程异常，夜观天象无法解锁反派头目的完整队伍。");
     if (action.level === "one") {
       if (rumorLevel < 2) throw new Error("需要小道消息 Lv2 才能免费查看一只宝可梦。");
       if (Number(row.revealed || 0) >= 1) throw new Error("这一行已经免费查看过。");
@@ -5427,7 +5903,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "randomize_stat_part" || action.type === "randomize_all_stats") {
     const slot = action.slot;
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const baseCost = action.type === "randomize_all_stats" ? RANDOMIZE_ALL_COST : RANDOMIZE_PART_COST;
     const cost = statResetCost(run, baseCost, action.type === "randomize_all_stats" ? "all" : action.part);
     const spent = spendRunBp(save, run, cost, "randomize-stats");
@@ -5438,7 +5914,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "equip_item" || action.type === "unequip_item") {
     const slot = action.slot + 1;
-    if (slot < 1 || slot > run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 1 || slot > run.player_team.length) throw new Error("队伍编号无效。");
     const oldItem = itemKey(run.player_display[action.slot]?.item_id || run.player_team[action.slot]?.item);
     const oldItemName = run.player_display[action.slot]?.item_zh || run.player_display[action.slot]?.item || oldItem;
     if (oldItem) run.bag_items = {...(run.bag_items || {}), [oldItem]: Number(run.bag_items?.[oldItem] || 0) + 1};
@@ -5468,7 +5944,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (action.type === "adjust_move") {
     const slot = action.slot;
     const moveSlot = action.moveSlot;
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const rawSet = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
     const currentMoves = [...(rawSet.moves || [])];
     if (moveSlot < 0 || moveSlot >= currentMoves.length) throw new Error("招式格子无效。");
@@ -5504,7 +5980,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "adjust_stats") {
     const slot = action.slot;
-    if (slot < 0 || slot >= run.player_team.length) throw new Error("宝可梦编号需要在 1-3 之间。");
+    if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const rawSet = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
     rawSet.ivs = normalizeStatsInput(action.ivs, 31);
     rawSet.evs = normalizeStatsInput(action.evs, 0);

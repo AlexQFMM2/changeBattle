@@ -3,16 +3,17 @@ import type {DesktopDexCategory, DesktopDexEntry, MoveSummary} from "@changebatt
 import {AnimatePresence, motion, type Variants} from "motion/react";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard} from "../move/MoveCard";
-import {ItemIcon, STAT_ROWS, assetUrl} from "../../lib/ui";
+import {ItemIcon, STAT_ROWS, assetUrl, trainerImageUrl} from "../../lib/ui";
 import {groupLearnsetBySource} from "./learnsetGroups";
 
-export type QuickDexCategory = Exclude<DesktopDexCategory, "trainers">;
+export type QuickDexCategory = DesktopDexCategory;
 
 const QUICK_DEX_TABS: Array<{id: QuickDexCategory; label: string; hint: string}> = [
   {id: "pokemon", label: "宝可梦", hint: "属性 / 种族值 / 技能池"},
   {id: "items", label: "道具", hint: "战斗与养成说明"},
   {id: "moves", label: "技能", hint: "属性 / 威力 / 命中"},
   {id: "abilities", label: "特性", hint: "触发效果"},
+  {id: "trainers", label: "训练师", hint: "馆主 / 四天王 / 冠军 / 反派头目"},
 ];
 
 const POKEMON_TYPE_FILTERS = ["全部", "一般", "火", "水", "电", "草", "冰", "格斗", "毒", "地面", "飞行", "超能力", "虫", "岩石", "幽灵", "龙", "恶", "钢", "妖精"];
@@ -44,6 +45,11 @@ const QUICK_DEX_MENUS: Record<QuickDexCategory, MegaMenuColumn[]> = {
     {title: "成长运营", items: [{label: "速度", query: "speed"}, {label: "攻击", query: "attack"}, {label: "防御", query: "defense"}]},
     {title: "关键词", items: [{label: "接触", query: "contact"}, {label: "HP", query: "hp"}, {label: "状态", query: "status"}]},
   ],
+  trainers: [
+    {title: "基础身份", items: [{label: "全部", query: ""}, {label: "馆主", query: "type:gym"}, {label: "四天王", query: "type:elite4"}, {label: "冠军", query: "type:champion"}]},
+    {title: "特殊身份", items: [{label: "反派头目", query: "type:villain"}, {label: "特殊事件", query: "event:special"}]},
+    {title: "事件来源", items: [{label: "普通乱入", query: "event:villain_intrusion"}, {label: "彩虹火箭队", query: "event:rainbow_rocket"}]},
+  ],
 };
 
 const megaContentVariants: Variants = {
@@ -58,6 +64,7 @@ function dexSpriteUrl(entry: DesktopDexEntry): string {
 }
 
 function entrySummary(entry: DesktopDexEntry): string {
+  if (entry.category === "trainers") return entry.boss_summary || entry.desc_zh || "尚未遭遇";
   if (entry.category === "pokemon") return `${entry.types_zh?.join(" / ") || entry.types?.join(" / ") || "未知属性"}  No.${entry.sprite?.national_dex || "--"}`;
   if (entry.category === "moves") return `${entry.type_zh || entry.type || "未知"} / ${entry.move_category_zh || entry.move_category || "变化"}  威力 ${entry.power || "--"}  命中 ${entry.accuracy ?? "必中"}`;
   return entry.desc_zh || "暂无中文说明。";
@@ -244,15 +251,19 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
                       />
                     ) : (
                       <motion.button
-                        className={selected?.id === entry.id ? "selected" : ""}
+                        className={`${selected?.id === entry.id ? "selected" : ""} ${entry.category === "trainers" && !entry.unlocked ? "locked" : ""}`}
                         onClick={() => setSelectedId(entry.id)}
                         initial={{opacity: 0, y: 8}}
                         animate={{opacity: 1, y: 0}}
                         transition={{delay: index * 0.025, type: "spring", stiffness: 360, damping: 30}}
                         key={`${entry.category}-${entry.id}`}
                       >
-                        {entry.category === "pokemon" && dexSpriteUrl(entry) ? <img src={dexSpriteUrl(entry)} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : <span>特</span>}
+                        {entry.category === "pokemon" && dexSpriteUrl(entry) ? <img src={dexSpriteUrl(entry)} alt={entry.name_zh || entry.name} /> : null}
+                        {entry.category === "items" ? <ItemIcon item={entry} /> : null}
+                        {entry.category === "trainers" ? <QuickTrainerAvatar entry={entry} /> : null}
+                        {entry.category !== "pokemon" && entry.category !== "items" && entry.category !== "trainers" ? <span>特</span> : null}
                         <strong>{entry.name_zh || entry.name}</strong>
+                        {entry.category === "trainers" && entry.unlocked && entry.trainer_tags?.length ? <QuickTrainerBadges tags={entry.trainer_tags} /> : null}
                         <small>{entrySummary(entry)}</small>
                       </motion.button>
                     )
@@ -273,19 +284,54 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
   );
 }
 
+function QuickTrainerBadges({tags}: {tags: string[]}) {
+  const uniqueTags = Array.from(new Set(tags.filter(Boolean)));
+  if (!uniqueTags.length) return null;
+  return <div className="quick-dex-trainer-badges">{uniqueTags.map(tag => <span key={tag}>{tag}</span>)}</div>;
+}
+
+function QuickTrainerAvatar({entry}: {entry: DesktopDexEntry}) {
+  const image = entry.unlocked ? trainerImageUrl(entry.trainer, "avatar") || trainerImageUrl(entry.trainer, "front") : "";
+  return image ? <img className="quick-dex-trainer-avatar" src={image} alt={entry.name_zh || entry.name} /> : <span>?</span>;
+}
+
 function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; onMoveSelect: (move: MoveSummary) => void}) {
   if (!entry) return <section className="quick-dex-detail empty">选择左侧条目查看详情。</section>;
   const sprite = dexSpriteUrl(entry);
   const learnsetGroups = entry.category === "pokemon" ? groupLearnsetBySource(entry.learnset || []) : [];
+  const trainerImage = entry.category === "trainers" && entry.unlocked ? trainerImageUrl(entry.trainer, "frontGif") || trainerImageUrl(entry.trainer, "front") || trainerImageUrl(entry.trainer, "avatar") : "";
+  const trainerRecord = entry.category === "trainers" ? entry.boss_record : undefined;
+  const lastTrainerResult = trainerRecord?.last_result === "win" ? "胜利" : trainerRecord?.last_result === "loss" ? "失败" : "未结算";
   return (
-    <section className="quick-dex-detail">
+    <section className={`quick-dex-detail ${entry.category === "trainers" && !entry.unlocked ? "locked" : ""}`}>
       <header>
-        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : <span>{entry.category === "moves" ? "技" : "特"}</span>}
+        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : null}
+        {!sprite && entry.category === "items" ? <ItemIcon item={entry} /> : null}
+        {!sprite && entry.category === "trainers" && trainerImage ? <img src={trainerImage} alt={entry.name_zh || entry.name} /> : null}
+        {!sprite && entry.category !== "items" && !(entry.category === "trainers" && trainerImage) ? <span>{entry.category === "moves" ? "技" : entry.category === "trainers" ? "?" : "特"}</span> : null}
         <div>
-          <h3>{entry.name_zh || entry.name}</h3>
-          <p>{entry.name} / {entry.id}{entry.category === "pokemon" ? `（使用次数${entry.usage_count || 0}）` : ""}</p>
+          <h3>{entry.category === "trainers" && !entry.unlocked ? "未知训练师" : entry.name_zh || entry.name}</h3>
+          <p>
+            {entry.category === "trainers"
+              ? entry.unlocked
+                ? `${entry.trainer?.region || "未知地区"} / ${entry.trainer?.role || "训练师"}`
+                : entry.desc_zh || "尚未遭遇"
+              : `${entry.name} / ${entry.id}${entry.category === "pokemon" ? `（使用次数${entry.usage_count || 0}）` : ""}`}
+          </p>
         </div>
       </header>
+      {entry.category === "trainers" ? (
+        <>
+          {entry.unlocked ? <QuickTrainerBadges tags={entry.trainer_tags || []} /> : null}
+          <div className="quick-dex-trainer-stats">
+            <p><span>交手</span><strong>{trainerRecord?.completed || 0}</strong></p>
+            <p><span>胜</span><strong>{trainerRecord?.wins || 0}</strong></p>
+            <p><span>负</span><strong>{trainerRecord?.losses || 0}</strong></p>
+            <p><span>上次</span><strong>{lastTrainerResult}</strong></p>
+          </div>
+          <p className="quick-dex-description">{entry.unlocked ? entry.boss_summary || "已记录这位训练师的遭遇资料。" : "尚未遭遇。遇到后才会显示真实身份、头像和特殊事件标签。"}</p>
+        </>
+      ) : null}
       {entry.category === "pokemon" ? (
         <>
           <div className="quick-dex-badges">{(entry.types_zh || entry.types || []).map(type => <span key={type}>{type}</span>)}</div>
@@ -333,7 +379,7 @@ function QuickDexDetail({entry, onMoveSelect}: {entry: DesktopDexEntry | null; o
           <p>优先度 <strong>{entry.priority || 0}</strong></p>
         </div>
       ) : null}
-      {entry.category !== "pokemon" ? <p className="quick-dex-description">{entry.desc_zh || "暂无中文说明。"}</p> : null}
+      {entry.category !== "pokemon" && entry.category !== "trainers" ? <p className="quick-dex-description">{entry.desc_zh || "暂无中文说明。"}</p> : null}
     </section>
   );
 }

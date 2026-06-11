@@ -166,6 +166,7 @@ export const TRAINER_TYPE_LABELS: Record<TrainerNpcView["type"], string> = {
   gym: "馆主",
   elite4: "四天王",
   champion: "冠军",
+  villain: "彩虹火箭队",
   avatar: "训练师",
 };
 
@@ -236,6 +237,11 @@ export const BOSS_DIALOGUE_SETS: Record<Exclude<TrainerNpcView["type"], "player"
     defeat: ["我被打败了。你和宝可梦的光芒，确实抵达了这里。"],
     victory: ["现在的你还没有到达终点。继续前进吧。"],
   },
+  villain: {
+    intro: ["彩虹火箭队{name} 接管了赛程。", "这场战斗，不会按照工厂原本的规则结束。"],
+    defeat: ["连被劫持的赛程也被你打破了。"],
+    victory: ["赛程已经改写。现在，退场吧。"],
+  },
 };
 
 export function toId(value: string | undefined): string {
@@ -287,8 +293,12 @@ export function bossDialogueVariant(record?: BossDexRecord): BossDialogueVariant
   return "rematch";
 }
 
+function isBossDialogueType(type: TrainerNpcView["type"] | undefined): type is keyof typeof BOSS_DIALOGUE_SETS {
+  return type === "gym" || type === "elite4" || type === "champion" || type === "villain";
+}
+
 export function bossDialogueGroups(trainer?: TrainerNpcView, variant: BossDialogueVariant = "default"): TrainerDialogueSet[] {
-  if (!trainer || !["gym", "elite4", "champion"].includes(trainer.type)) return [];
+  if (!trainer || !isBossDialogueType(trainer.type)) return [];
   const entry = BOSS_DIALOGUE_CATALOG[trainer.id];
   if (!entry) return [];
   if (Array.isArray(entry)) return entry;
@@ -302,7 +312,7 @@ export function trainerDialogueLines(trainer: TrainerNpcView | undefined, moment
     const lines = bossGroups[index]?.[moment] || bossGroups[0]?.[moment] || [];
     if (lines.length) return lines.map(line => formatDialogueLine(line, trainer));
   }
-  const set = trainer?.type === "gym" || trainer?.type === "elite4" || trainer?.type === "champion" ? BOSS_DIALOGUE_SETS[trainer.type] : normalDialogueSet(trainer);
+  const set = trainer && isBossDialogueType(trainer.type) ? BOSS_DIALOGUE_SETS[trainer.type] : normalDialogueSet(trainer);
   if (!trainer || trainer.type === "normal") {
     const pool = set[moment];
     const line = pool[stableIndex(`${trainer?.id || "trainer"}:${moment}`, pool.length)] || pool[0];
