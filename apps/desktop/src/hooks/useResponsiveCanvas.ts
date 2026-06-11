@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import type {CSSProperties} from "react";
 
 export function responsiveScale(width: number, height: number, baseWidth = 640, baseHeight = 320): number {
@@ -9,6 +9,7 @@ export function responsiveScale(width: number, height: number, baseWidth = 640, 
 export function useResponsiveCanvas(baseWidth = 640, baseHeight = 320): {ref: (node: HTMLElement | null) => void; style: CSSProperties} {
   const [node, setNode] = useState<HTMLElement | null>(null);
   const [scale, setScale] = useState(1);
+  const maxMobileScaleRef = useRef(0);
   const ref = useCallback((nextNode: HTMLElement | null) => {
     setNode(nextNode);
   }, []);
@@ -17,7 +18,13 @@ export function useResponsiveCanvas(baseWidth = 640, baseHeight = 320): {ref: (n
     if (!node) return;
     const update = () => {
       const rect = node.getBoundingClientRect();
-      setScale(responsiveScale(rect.width, rect.height, baseWidth, baseHeight));
+      const nextScale = responsiveScale(rect.width, rect.height, baseWidth, baseHeight);
+      if (import.meta.env.VITE_CHANGEBATTLE_MOBILE === "1") {
+        maxMobileScaleRef.current = Math.max(maxMobileScaleRef.current || 0, nextScale);
+        setScale(maxMobileScaleRef.current || nextScale);
+        return;
+      }
+      setScale(nextScale);
     };
     update();
     const frame = window.requestAnimationFrame(update);

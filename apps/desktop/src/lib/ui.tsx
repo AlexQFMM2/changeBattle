@@ -41,6 +41,12 @@ export type BattleVisualCue = {
 
 export const BATTLE_EFFECTS = battleEffectAssets as {defaults: {duration_ms: number; anchor: "target" | "field" | "side"}; entries: Record<string, BattleEffectEntry>};
 const BATTLE_CSS_EFFECT_SPEEDUP_MS = 500;
+const LEGACY_ASSET_PATHS: Record<string, string> = {
+  "assets/npc/player-front/斗也-bw_black.png": "assets/npc/player-front/black-bw-black-c8f5411e.png",
+  "assets/npc/player-back/斗也-bw_touya_back.png": "assets/npc/player-back/black-bw-touya-back-b2e0a77d.png",
+  "assets/npc/avatars/斗也-blackchallenge.png": "assets/npc/avatars/black-blackchallenge-59553dba.png",
+  "assets/npc/normal/dp_battle_girl-2-dp_battle_girl.png": "assets/npc/normal/dp-battle-girl-2-dp-battle-girl-4c7f4ba3.png",
+};
 export const TYPE_ID_BY_ZH: Record<string, string> = {
   一般: "normal",
   火: "fire",
@@ -472,8 +478,13 @@ export function cueFromEntry(entry: BattleEffectEntry | undefined, event: Battle
 
 export function assetUrl(path?: string): string | undefined {
   if (!path) return undefined;
-  if (/^https?:\/\//i.test(path)) return path;
-  return window.changeBattle?.assetUrl(path);
+  if (/^(https?:|data:|blob:|capacitor:|file:)/i.test(path)) return path;
+  const cleanPath = path.replace(/^\/+/, "");
+  const resolvedPath = LEGACY_ASSET_PATHS[cleanPath] || cleanPath;
+  if (import.meta.env.VITE_CHANGEBATTLE_MOBILE === "1" && resolvedPath.startsWith("assets/")) {
+    return `/${resolvedPath.split("/").map(part => encodeURIComponent(part)).join("/")}`;
+  }
+  return window.changeBattle?.assetUrl(resolvedPath) || resolvedPath;
 }
 
 export function pokemonCryUrl(source?: {sprite?: Pick<SpriteMapEntry, "cry_asset">} | Pick<SpriteMapEntry, "cry_asset">): string | undefined {
