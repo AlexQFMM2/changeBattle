@@ -1,7 +1,8 @@
 import {cpSync, existsSync, mkdirSync, rmSync} from "node:fs";
 import {join, resolve} from "node:path";
+import {fileURLToPath} from "node:url";
 
-const mobileRoot = resolve(new URL("..", import.meta.url).pathname);
+const mobileRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const projectRoot = resolve(mobileRoot, "../..");
 const dist = join(mobileRoot, "dist");
 

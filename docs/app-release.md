@@ -117,8 +117,8 @@ D:\jdk-21.0.11\bin\keytool.exe -genkeypair -v ^
 当前版本：
 
 ```text
-versionName: 0.6.1
-versionCode: 601
+versionName: 0.6.2
+versionCode: 602
 ```
 
 需要同步检查：
@@ -134,6 +134,7 @@ apps/mobile/android/app/build.gradle
 ```text
 0.6.0 -> versionCode 600
 0.6.1 -> versionCode 601
+0.6.2 -> versionCode 602
 0.7.0 -> versionCode 700
 1.0.0 -> versionCode 1000
 ```
