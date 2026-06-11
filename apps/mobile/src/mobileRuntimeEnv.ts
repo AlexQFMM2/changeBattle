@@ -10,20 +10,22 @@ const LEGACY_ASSET_PATHS: Record<string, string> = {
   "assets/npc/normal/dp_battle_girl-2-dp_battle_girl.png": "assets/npc/normal/dp-battle-girl-2-dp-battle-girl-4c7f4ba3.png",
 };
 
+function mobileAssetUrl(relativePath: string): string {
+  if (/^(https?:|data:|blob:|capacitor:|file:)/i.test(relativePath)) return relativePath;
+  const cleanPath = relativePath.replace(/^\/+/, "");
+  const migratedPath = LEGACY_ASSET_PATHS[cleanPath] || cleanPath;
+  const encodedPath = migratedPath.split("/").map(part => encodeURIComponent(part)).join("/");
+  const origin = globalThis.location?.origin || "capacitor://localhost";
+  return `${origin}/${encodedPath}`;
+}
+
 export function createMobileRuntimeEnvironment(): RuntimeEnvironment<MobileShowdownModule> {
   return {
     data: createMobileDataProvider(),
     saves: createMobileSaveStore(),
     assets: {
       assetUrl(relativePath) {
-        if (/^(https?:|data:|blob:)/i.test(relativePath)) return relativePath;
-        const cleanPath = relativePath.replace(/^\/+/, "");
-        const migratedPath = LEGACY_ASSET_PATHS[cleanPath] || cleanPath;
-        try {
-          return encodeURI(migratedPath);
-        } catch {
-          return migratedPath;
-        }
+        return mobileAssetUrl(relativePath);
       },
     },
     showdown: createMobileShowdownLoader(),

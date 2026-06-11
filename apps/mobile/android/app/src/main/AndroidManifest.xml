@@ -16,6 +16,7 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:screenOrientation="landscape"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustNothing|stateHidden"
             android:exported="true">
 
             <intent-filter>
