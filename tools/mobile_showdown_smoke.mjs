@@ -124,6 +124,12 @@ export default sim;
 `;
 
 const banner = `
+globalThis.global = globalThis.global || globalThis;
+globalThis.process = globalThis.process || {env: {}};
+globalThis.Config = globalThis.Config || {nofswriting: true};
+const global = globalThis;
+const Config = globalThis.Config;
+const process = globalThis.process;
 const __dirname = ${JSON.stringify(showdownSimDir)};
 const __cbPath = {
   sep: "/",

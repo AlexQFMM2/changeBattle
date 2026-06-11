@@ -10,7 +10,12 @@ export function createMobileRuntimeEnvironment(): RuntimeEnvironment<MobileShowd
     assets: {
       assetUrl(relativePath) {
         if (/^(https?:|data:|blob:)/i.test(relativePath)) return relativePath;
-        return relativePath.replace(/^\/+/, "");
+        const cleanPath = relativePath.replace(/^\/+/, "");
+        try {
+          return encodeURI(cleanPath);
+        } catch {
+          return cleanPath;
+        }
       },
     },
     showdown: createMobileShowdownLoader(),

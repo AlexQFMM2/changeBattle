@@ -8,6 +8,7 @@ export default defineConfig({
   root: __dirname,
   plugins: [react()],
   define: {
+    global: "globalThis",
     "import.meta.env.VITE_CHANGEBATTLE_MANUAL_MOUNT": JSON.stringify("1"),
     "import.meta.env.VITE_CHANGEBATTLE_MOBILE": JSON.stringify("1"),
   },

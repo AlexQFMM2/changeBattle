@@ -19,6 +19,84 @@ body::before {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+.star-chart-page .star-chart-detail {
+  top: 32px;
+  right: max(6px, env(safe-area-inset-right));
+  bottom: max(6px, env(safe-area-inset-bottom));
+  width: min(186px, 34vw);
+  min-width: 168px;
+  padding: 8px;
+  gap: 5px;
+  border-left: 1px solid rgb(255 255 255 / 12%);
+  box-shadow: -8px 0 18px rgb(0 0 0 / 30%);
+}
+
+.star-chart-page .star-chart-detail .talent-detail-copy {
+  min-height: 0;
+  gap: 5px;
+  padding: 22px 1px 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.star-chart-drawer-close {
+  width: 20px;
+  height: 20px;
+  font-size: 13px;
+}
+
+.star-chart-page .star-chart-detail .talent-detail-copy h3 {
+  font-size: 14px;
+  line-height: 1.05;
+}
+
+.star-chart-page .star-chart-detail .talent-detail-copy > p,
+.star-chart-page .star-chart-detail .talent-detail-copy > small,
+.star-chart-page .star-chart-effect-box p {
+  font-size: 7px;
+  line-height: 1.22;
+}
+
+.star-chart-page .star-chart-effect-box,
+.star-chart-page .star-chart-requirements {
+  gap: 3px;
+  padding: 5px;
+}
+
+.star-chart-page .star-chart-requirements b {
+  padding: 3px 4px;
+}
+
+.star-chart-page .star-chart-detail .talent-actions {
+  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) 34px;
+}
+
+.star-chart-page .star-chart-detail .talent-actions button {
+  min-height: 20px;
+  padding: 2px 6px;
+}
+
+.star-chart-page .star-chart-detail .talent-actions span {
+  min-width: 0;
+}
+
+.bgm-control {
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+}
+
+.bgm-floating-button {
+  width: 56px;
+  height: 28px;
+  font-size: 10px;
+  border-width: 1px;
+}
+
+.bgm-floating-button span {
+  font-size: 14px;
+}
+
 @media (orientation: portrait) {
   body::after {
     content: "请横屏游玩";
