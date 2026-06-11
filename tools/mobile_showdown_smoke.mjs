@@ -8,7 +8,8 @@ const projectRoot = path.resolve(import.meta.dirname, "..");
 const defaultShowdownRoot = path.resolve(projectRoot, "../pokemonShowdowm/pokemon-showdown");
 const showdownRoot = path.resolve(process.env.SHOWDOWN_PATH || defaultShowdownRoot);
 const simEntry = path.join(showdownRoot, "dist", "sim", "index.js");
-const showdownSimDir = slash(path.dirname(simEntry));
+const showdownVirtualRoot = "/showdown";
+const showdownSimDir = `${showdownVirtualRoot}/dist/sim`;
 const dataRoot = path.join(showdownRoot, "dist", "data");
 const workDir = path.join(projectRoot, "tmp", "mobile-showdown-smoke");
 const generatedEntry = path.join(workDir, "entry.mjs");
@@ -38,13 +39,9 @@ function walkJsFiles(root) {
 }
 
 function moduleKeys(filePath) {
-  const withoutExt = filePath.replace(/\.js$/, "");
-  return [
-    slash(filePath),
-    slash(withoutExt),
-    slash(path.resolve(filePath)),
-    slash(path.resolve(withoutExt)),
-  ];
+  const relative = slash(path.relative(showdownRoot, filePath));
+  const virtualPath = `${showdownVirtualRoot}/${relative}`;
+  return [virtualPath, virtualPath.replace(/\.js$/, "")];
 }
 
 function importPath(filePath) {
