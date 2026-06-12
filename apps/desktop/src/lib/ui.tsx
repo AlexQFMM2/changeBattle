@@ -551,10 +551,115 @@ export function itemImageUrl(item?: {icon_asset?: string}): string {
   return assetUrl(item?.icon_asset || "assets/placeholders/item.png") || "";
 }
 
+const ITEM_ICON_ALIASES: Record<string, string> = {
+  berry: "oranberry",
+  bitterberry: "persimberry",
+  burntberry: "aspearberry",
+  goldberry: "sitrusberry",
+  iceberry: "aspearberry",
+  mintberry: "chestoberry",
+  miracleberry: "lumberry",
+  mysteryberry: "leppaberry",
+  przcureberry: "cheriberry",
+  psncureberry: "pechaberry",
+};
+
+const Z_CRYSTAL_ICON_TYPES: Record<string, string> = {
+  aloraichiumz: "electric",
+  buginiumz: "bug",
+  darkiniumz: "dark",
+  decidiumz: "ghost",
+  dragoniumz: "dragon",
+  eeviumz: "normal",
+  electriumz: "electric",
+  fairiumz: "fairy",
+  fightiniumz: "fighting",
+  firiumz: "fire",
+  flyiniumz: "flying",
+  ghostiumz: "ghost",
+  grassiumz: "grass",
+  groundiumz: "ground",
+  iciumz: "ice",
+  inciniumz: "dark",
+  kommoniumz: "dragon",
+  lunaliumz: "ghost",
+  lycaniumz: "rock",
+  marshadiumz: "ghost",
+  mewniumz: "psychic",
+  mimikiumz: "fairy",
+  normaliumz: "normal",
+  pikaniumz: "electric",
+  pikashuniumz: "electric",
+  poisoniumz: "poison",
+  primariumz: "water",
+  psychiumz: "psychic",
+  rockiumz: "rock",
+  snorliumz: "normal",
+  solganiumz: "steel",
+  steeliumz: "steel",
+  tapuniumz: "fairy",
+  ultranecroziumz: "psychic",
+  wateriumz: "water",
+};
+
+const ITEM_TYPE_PLATE_ASSETS: Record<string, string> = {
+  bug: "insectplate",
+  dark: "dreadplate",
+  dragon: "dracoplate",
+  electric: "zapplate",
+  fairy: "pixieplate",
+  fighting: "fistplate",
+  fire: "flameplate",
+  flying: "skyplate",
+  ghost: "spookyplate",
+  grass: "meadowplate",
+  ground: "earthplate",
+  ice: "icicleplate",
+  normal: "blankplate",
+  poison: "toxicplate",
+  psychic: "mindplate",
+  rock: "stoneplate",
+  steel: "ironplate",
+  water: "splashplate",
+};
+
+function itemFallbackAssets(item?: {id?: string; icon_asset?: string; name?: string; name_zh?: string}): string[] {
+  const id = toId(item?.id || item?.name || "");
+  const candidates = [item?.icon_asset].filter(Boolean) as string[];
+  if (id) {
+    candidates.push(`assets/items-pack/${id}.png`, `assets/items/${id}.png`);
+    const alias = ITEM_ICON_ALIASES[id];
+    if (alias) candidates.push(`assets/items-pack/${alias}.png`, `assets/items/${alias}.png`);
+    const zType = Z_CRYSTAL_ICON_TYPES[id] || (id.endsWith("iumz") ? "electric" : "");
+    if (zType) candidates.push(`assets/items-pack/${ITEM_TYPE_PLATE_ASSETS[zType] || "zapplate"}.png`);
+    if (id.endsWith("berry")) candidates.push("assets/items-pack/oranberry.png", "assets/items/oranberry.png");
+    if (id.endsWith("ite") || /进化石|超级石|mega/i.test(`${item?.name || ""} ${item?.name_zh || ""}`)) candidates.push("assets/items-pack/medichamite.png");
+    if (id.includes("stone")) candidates.push("assets/items-pack/stoneplate.png");
+  }
+  candidates.push("assets/placeholders/item.png");
+  return Array.from(new Set(candidates));
+}
+
 export function ItemIcon({item}: {item?: {id?: string; icon_asset?: string; name?: string; name_zh?: string}}) {
   const isTm = /^tm:/i.test(String(item?.id || ""));
   if (isTm) return <span className="item-icon tm-icon">TM</span>;
-  return <img className="item-icon" src={itemImageUrl(item)} alt={item?.name_zh || item?.name || "道具"} />;
+  return (
+    <img
+      className="item-icon"
+      src={itemImageUrl(item)}
+      alt={item?.name_zh || item?.name || "道具"}
+      onError={event => {
+        const image = event.currentTarget;
+        const candidates = itemFallbackAssets(item).map(path => assetUrl(path) || path);
+        const index = Math.max(0, Number(image.dataset.fallbackIndex || 0));
+        const next = candidates[index + 1];
+        if (next) {
+          image.dataset.fallbackIndex = String(index + 1);
+          image.src = next;
+        }
+      }}
+    />
+  );
 }
 
 export function trainerImageUrl(trainer?: Pick<TrainerNpcView, "front_asset" | "front_gif_asset" | "back_asset" | "avatar_asset">, slot: "front" | "frontGif" | "back" | "avatar" = "front"): string | undefined {
@@ -873,11 +978,11 @@ export function playerPartySlots(battle: BattleState, activeIndex: number, activ
       revealed: true,
       onClick: display || runtime ? () => onSelect(index) : undefined,
     };
-  }).slice(0, 3);
+  });
 }
 
 export function enemyPartySlots(battle: BattleState, activeName: string, activeCondition: string, activeStatus: string): PartyStatusSlot[] {
-  const team = battle.enemy_display.slice(0, 3);
+  const team = battle.enemy_display;
   const seen = new Map<number, {condition?: string; status?: string; active?: boolean}>();
   for (const event of battle.timeline_events || []) {
     if (event.targetSide !== "p2" && event.side !== "p2") continue;
@@ -894,7 +999,7 @@ export function enemyPartySlots(battle: BattleState, activeName: string, activeC
   if (activeIndex >= 0) {
     seen.set(activeIndex, {...(seen.get(activeIndex) || {}), condition: activeCondition, status: activeStatus, active: true});
   }
-  return Array.from({length: 3}, (_value, index) => {
+  return Array.from({length: Math.max(3, team.length)}, (_value, index) => {
     const visible = seen.get(index);
     return {
       key: team[index]?.run_member_id || team[index]?.species_id || `enemy-${index}`,

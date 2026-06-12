@@ -32,6 +32,7 @@ export type DesktopRuntimeApiDeps = {
   updateTrainer(trainer: TrainerProfile): Promise<LocalSave>;
   battleRecords(): Promise<SaveBattleRecordsTable>;
   enableTestMode(): Promise<LocalSave>;
+  startRainbowRocketTestRun?(): Promise<DesktopGameState>;
   getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   updateBattleSetting(setting: Partial<BattleSetting>): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}>;
@@ -77,6 +78,7 @@ export function createDesktopRuntimeApi(deps: DesktopRuntimeApiDeps): ChangeBatt
     updateTrainer: deps.updateTrainer,
     battleRecords: deps.battleRecords,
     enableTestMode: deps.enableTestMode,
+    startRainbowRocketTestRun: deps.startRainbowRocketTestRun,
     getBattleSetting: deps.getBattleSetting,
     updateBattleSetting: deps.updateBattleSetting,
     getAudioSettings: deps.getAudioSettings,

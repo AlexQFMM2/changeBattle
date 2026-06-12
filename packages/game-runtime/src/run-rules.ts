@@ -356,6 +356,26 @@ export function normalizeStarChart(input?: StarChartState | null, legacyTalentId
   return {nodes};
 }
 
+export function fullStarChart(): StarChartState {
+  return {
+    nodes: Object.fromEntries(
+      STAR_CHART_NODES
+        .filter(node => !node.disabled && node.kind !== "event_preview")
+        .map(node => [node.id, node.max_level]),
+    ),
+  };
+}
+
+export function enableTestModeForSave(save: LocalSave): LocalSave {
+  const starChart = normalizeStarChart(fullStarChart());
+  save.stats = {...emptyStats(), ...(save.stats || {}), battle_points: MAX_BP};
+  save.star_chart = starChart;
+  save.talent_unlocks = Array.from(new Set(talentsForStarChart(starChart).map(talent => talent.id)));
+  save.starter_upgrades = starterUpgradesForStarChart(starChart);
+  if (save.current_run) save.current_run.talents = talentsForStarChart(starChart);
+  return save;
+}
+
 export function starNodeLevel(chart: StarChartState | undefined | null, id: string): number {
   const node = STAR_CHART_NODE_BY_ID.get(id);
   if (!node) return 0;
@@ -687,6 +707,23 @@ export function talent(id: string): TalentView {
 export function talentsForIds(ids: string[] = []): TalentView[] {
   const wanted = new Set(ids);
   return TALENTS.filter(entry => wanted.has(entry.id));
+}
+
+export function normalizeTalentViews(talents: TalentView[] = []): TalentView[] {
+  const seen = new Set<string>();
+  const normalized: TalentView[] = [];
+  for (const input of talents) {
+    if (!input?.id || seen.has(input.id)) continue;
+    const base = TALENTS.find(entry => entry.id === input.id);
+    if (!base) continue;
+    seen.add(input.id);
+    normalized.push({
+      ...base,
+      level: Math.max(1, Math.floor(Number(input.level || base.level || 1))),
+      max_level: input.max_level || base.max_level,
+    });
+  }
+  return normalized;
 }
 
 export function activeTalentsForSave(save?: LocalSave | null): TalentView[] {

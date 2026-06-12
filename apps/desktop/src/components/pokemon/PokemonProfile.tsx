@@ -25,12 +25,14 @@ export function PokemonProfile({pokemon, selected = false, runtime, compact = fa
   const hasSpecialItem = Boolean(pokemon.item_battle_system);
   const itemLabel = pokemon.item_zh || "无";
   const itemTitle = hasSpecialItem ? `${itemLabel}：${BATTLE_SYSTEM_LABELS[pokemon.item_battle_system!]} 系统道具` : itemLabel;
+  const typeLabels = pokemon.types_zh?.length ? pokemon.types_zh : pokemon.types || [];
   return (
     <div className={`pokemon-profile ${compact ? "compact" : ""} ${specialLabels.length ? "special-profile" : ""}`}>
       <aside className="profile-card">
         <span>No.{pokemon.sprite?.national_dex || "?"}</span>
         {specialLabels.length ? <div className="profile-special-badges">{specialLabels.map(label => <b key={label}>{label}</b>)}</div> : null}
         <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} badge="full" />
+        {typeLabels.length ? <div className="profile-type-row">{typeLabels.map(type => <span key={type}>{type}</span>)}</div> : null}
         <h2>{displayName(pokemon)}</h2>
         <p>{pokemon.species}</p>
         <p>Lv{pokemon.level} {pokemon.gender}</p>

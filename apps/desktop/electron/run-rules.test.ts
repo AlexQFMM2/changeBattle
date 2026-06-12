@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type {BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
+import {debugPokemon} from "../src/lib/ui.tsx";
 import {
   BP_SCALE,
   MOVE_DRAW_COST,
@@ -16,6 +17,7 @@ import {
   SOUL_SWAP_TURN_LIMIT,
   SCORE_BET_MIN_STAKE,
   TALENTS,
+  applyAllInExchange,
   addRunBp,
   canDirectMove,
   canExchangeBoss,
@@ -25,11 +27,13 @@ import {
   convertibleCoinsForSettlement,
   currentBp,
   currentCoins,
+  enableTestModeForSave,
   enemyAiProfileForRunRoute,
   exchangeCost,
   exchangeFullState,
   exchangeKeepsItem,
   exchangeStateRatio,
+  fullStateForPokemon,
   gainedBp,
   hasTalent,
   isPremiumHeldShopEntry,
@@ -37,6 +41,7 @@ import {
   moveDrawCost,
   moveDrawCount,
   normalizeStarterUpgrades,
+  normalizeTalentViews,
   portfolioBonus,
   portfolioSpendTypeForLabel,
   premiumMachineMoveCandidates,
@@ -59,6 +64,7 @@ import {
   spendBp,
   spendCoins,
   settleScoreBetResult,
+  starNodeLevel,
   starterCoinsForSeed,
   starterNonConvertibleCoinsForTalents,
   starterUpgradeLevel,
@@ -102,6 +108,45 @@ function save(bp: number): LocalSave {
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
   };
+}
+
+function testEnableTestMode(): void {
+  const next = enableTestModeForSave(save(12));
+  assert.equal(next.stats.battle_points, 99999);
+  assert.equal(starNodeLevel(next.star_chart, "intel_rumor"), 3);
+  assert.equal(starNodeLevel(next.star_chart, "growth_all_in"), 1);
+  assert.equal(starNodeLevel(next.star_chart, "item_quantity:battle"), 4);
+  assert.equal(next.starter_upgrades?.item_quantity?.battle, 4);
+  assert.ok(next.talent_unlocks?.includes("intel_rumor"));
+  assert.ok(next.talent_unlocks?.includes("growth_all_in"));
+  const activeRunSave = save(0);
+  activeRunSave.current_run = run(["intel_rumor"]);
+  const activeRunNext = enableTestModeForSave(activeRunSave);
+  assert.equal(activeRunNext.current_run?.talents?.find(entry => entry.id === "intel_rumor")?.level, 3);
+  assert.equal(activeRunNext.current_run?.talents?.some(entry => entry.id === "growth_all_in"), true);
+  const normalized = normalizeTalentViews([talentAtLevel("intel_rumor", 3)]);
+  assert.equal(normalized.find(entry => entry.id === "intel_rumor")?.level, 3);
+}
+
+async function testAllInExchangePenalty(): Promise<void> {
+  const display = ["Alpha", "Beta", "Gamma"].map((species, index) => ({...debugPokemon(species, `测试${index + 1}`), level: 30, showdown_id: `testball${index + 1}`}));
+  const playerState = display.map((pokemon, index) => fullStateForPokemon(pokemon, index + 1));
+  const testRun = run(["growth_all_in"], {
+    player_team: display.map((pokemon, index) => ({species: pokemon.species, level: pokemon.level, moves: ["tackle"], showdown_id: `testball${index + 1}`}) as any),
+    player_display: display,
+    player_state: playerState,
+  });
+  const generatedDisplay = {...debugPokemon("Delta", "测试替换"), level: 30, showdown_id: "replacementball"};
+  await applyAllInExchange(save(0), testRun, 0, {
+    raw: {species: generatedDisplay.species, level: generatedDisplay.level, moves: ["tackle"], showdown_id: "replacementball"} as any,
+    display: generatedDisplay,
+  }, {describeTeam: async () => []});
+  assert.equal(testRun.player_state?.[0]?.status, "");
+  assert.equal(testRun.player_state?.[1]?.hp, Math.max(1, Math.floor(Number(testRun.player_state?.[1]?.maxhp || 1) / 2)));
+  assert.equal(testRun.player_state?.[1]?.status, "slp");
+  assert.equal(testRun.player_state?.[2]?.hp, Math.max(1, Math.floor(Number(testRun.player_state?.[2]?.maxhp || 1) / 2)));
+  assert.equal(testRun.player_state?.[2]?.status, "slp");
+  assert.equal(testRun.rest_status?.all_in_pending_next, true);
 }
 
 function testTalentCatalog(): void {
@@ -398,6 +443,8 @@ function testRookieAiRules(): void {
 }
 
 testTalentCatalog();
+testEnableTestMode();
+await testAllInExchangePenalty();
 testStarterTalents();
 testExchangeTalents();
 testGrowthTalents();

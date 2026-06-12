@@ -20,6 +20,7 @@ import {
   createPreparationRuntime,
   createProfileSettingsRuntime,
   createProgressionRuntime,
+  enableTestModeForSave,
   buildVillainIntrusionPlannedBattle,
   executeBattleAutoAdvance,
   executeBattleChoice,
@@ -424,8 +425,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         generateCandidates: async seed => (await loadGameService()).generateRentalCandidates(seed || Date.now()),
         enableTestMode: async () => {
           const save = await ensureSave();
-          save.stats = {...save.stats, battle_points: 99999};
-          return env.saves.save(save);
+          return env.saves.save(enableTestModeForSave(save));
         },
         continueRun: async () => {
           const save = await ensureSave();
@@ -957,6 +957,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
 
 function mobileRest(save: LocalSave, run: CurrentRunData): RestState {
   const shopKind = mobileNormalizeShopKind(run.shop_kind);
+  if (run.planned_battles?.length) buildRuntimeNightSkyState(run, run.planned_battles);
   return buildRestState({
     save,
     run,

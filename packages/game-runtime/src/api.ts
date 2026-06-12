@@ -28,6 +28,7 @@ export type ChangeBattleRuntimeApi = {
   updateTrainer(trainer: TrainerProfile): Promise<LocalSave>;
   battleRecords(): Promise<SaveBattleRecordsTable>;
   enableTestMode(): Promise<LocalSave>;
+  startRainbowRocketTestRun?(): Promise<DesktopGameState>;
   getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   updateBattleSetting(setting: Partial<BattleSetting>): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}>;

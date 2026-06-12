@@ -111,6 +111,7 @@ import {
   currentBp,
   currentCoins,
   emptyStats,
+  enableTestModeForSave,
   enemyAiProfileForRunRoute,
   exchangeCost,
   exchangeKeepsItem,
@@ -122,6 +123,7 @@ import {
   itemKey,
   moveDrawCost,
   moveDrawCount,
+  normalizeTalentViews,
   normalizeStarterUpgrades,
   normalizeStarChart,
   portfolioBonus,
@@ -158,7 +160,6 @@ import {
   starterUpgradesForStarChart,
   statResetCost,
   soulSwapEnemyAiProfile,
-  talentsForIds,
   talentsForStarChart,
   talentLevel,
   toId,
@@ -1516,8 +1517,86 @@ async function persist(save: LocalSave): Promise<LocalSave> {
 async function enableTestMode(): Promise<LocalSave> {
   const save = await loadSave();
   if (!save) throw new Error("请先创建或读取存档。");
-  save.stats = {...emptyStats(), ...(save.stats || {}), battle_points: 99999};
-  return persist(save);
+  return persist(enableTestModeForSave(save));
+}
+
+const RAINBOW_ROCKET_TEST_STREAK = 3;
+
+function rainbowRocketTestCandidateScore(raw: PokemonSet | undefined, display: RentalPokemon | undefined, index: number): number {
+  const profileRank: Record<string, number> = {tier1: 1, tier2: 2, tier3: 3, tier4: 4, champion: 5};
+  const profile = String(raw?.generation_profile || display?.generation_profile || "");
+  const speciesTier = Number(raw?.species_tier || display?.species_tier || 0);
+  const stageTier = Number(raw?.stage_tier || display?.stage_tier || 0);
+  const level = Number(raw?.level || display?.level || 0);
+  return (profileRank[profile] || 0) * 100000 + speciesTier * 1000 + stageTier * 100 + level - index / 100;
+}
+
+function pickRainbowRocketTestStarterIndexes(generated: GeneratedTeam): number[] {
+  return generated.display
+    .map((display, index) => ({index, score: rainbowRocketTestCandidateScore(generated.team[index], display, index)}))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(entry => entry.index);
+}
+
+async function startRainbowRocketTestRun(): Promise<DesktopGameState> {
+  const save = await loadSave();
+  if (!save) throw new Error("请先创建或读取存档。");
+  const testSave = enableTestModeForSave(save);
+  const generationSave: LocalSave = {
+    ...testSave,
+    stats: {
+      ...emptyStats(),
+      ...(testSave.stats || {}),
+      set_win_streak: Math.max(RAINBOW_ROCKET_TEST_STREAK, Number(testSave.stats?.set_win_streak || 0)),
+      best_set_win_streak: Math.max(RAINBOW_ROCKET_TEST_STREAK, Number(testSave.stats?.best_set_win_streak || 0)),
+    },
+  };
+  const seed = Math.floor(Math.random() * 0xffffffff);
+  const talents = runtimeActiveTalentsForSave(testSave);
+  const battleSetting = normalizeBattleSetting(testSave.battle_setting || DEFAULT_BATTLE_SETTING);
+  const generated = await generateStarterCandidatesForSave(generationSave, seed, talents, candidateCountForTalents(talents), battleSetting);
+  const starterIndexes = pickRainbowRocketTestStarterIndexes(generated);
+  const playerTeam = starterIndexes.map(index => generated.team[index]).filter(Boolean);
+  const playerDisplay = starterIndexes.map(index => generated.display[index]).filter(Boolean);
+  if (playerTeam.length < 3 || playerDisplay.length < 3) throw new Error("彩虹火箭队测试队伍生成失败。");
+  testSave.current_run = {
+    status: "awaiting_rest",
+    seed,
+    battles: DEFAULT_BATTLES,
+    next_battle: 1,
+    battle_no: 0,
+    wins: 0,
+    player_team: playerTeam,
+    player_display: playerDisplay,
+    player_state: [],
+    enemy_display: [],
+    talents,
+    battle_setting: battleSetting,
+    player_trainer: trainerFromProfile(testSave.trainer),
+    run_start_bp: currentBp(testSave),
+    coins: 1000,
+    non_convertible_coins: 0,
+    coins_earned_this_run: 0,
+    bp_earned_this_run: 0,
+    bp_investments: [0, 0, 0],
+    move_investments: [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+    bag_items: {},
+    rest_status: freshRestStatus(talents, {rest_event_options: [], rest_event_selected_id: null}),
+    special_run: "rainbow_rocket",
+  } as CurrentRunData;
+  const run = testSave.current_run as CurrentRunData;
+  recordPokemonUsageList(testSave, playerDisplay);
+  normalizeCurrentRun(run);
+  normalizePlayerState(run);
+  run.original_planned_battles = await buildPlannedBattles(generationSave, run);
+  run.planned_battles = await buildRainbowRocketPlannedBattles(run);
+  pendingCandidates = null;
+  pendingStarter = null;
+  activeBattle = null;
+  activeBattleNo = 0;
+  const next = await persist(testSave);
+  return restState(next, next.current_run as CurrentRunData, "测试：彩虹火箭队入侵已启动。");
 }
 
 async function e2ePatchSave(patch: Partial<LocalSave>): Promise<LocalSave> {
@@ -3674,7 +3753,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.non_refundable_bag_items = Object.fromEntries(Object.entries(run.non_refundable_bag_items || {}).map(([id, count]) => [itemKey(id), Math.max(0, Number(count || 0))] as const).filter(([, count]) => count > 0));
   run.bag_item_meta = Object.fromEntries(Object.entries(run.bag_item_meta || {}).map(([id, meta]) => [itemKey(id), {...meta, id: itemKey(meta?.id || id)}] as const));
   run.talents = run.talents || [];
-  run.talents = talentsForIds(run.talents.map(talent => talent.id));
+  run.talents = normalizeTalentViews(run.talents);
   run.battle_setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
   applyTeraOrbToRunTeam(run);
   run.reroute_used = Math.max(0, Math.floor(Number(run.reroute_used || 0)));
@@ -5334,6 +5413,7 @@ app.whenReady().then(() => {
     handlers: {
       generateCandidates: async seed => gameService.generateRentalCandidates(seed || Date.now()),
       enableTestMode,
+      startRainbowRocketTestRun,
       continueRun,
       battleChoice: submitBattleChoice,
       autoAdvanceBattle,

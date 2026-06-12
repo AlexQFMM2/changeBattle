@@ -562,7 +562,7 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
     .filter(group => group.offers.length > 0)
     .sort((a, b) => groupOrder.indexOf(a.id) - groupOrder.indexOf(b.id));
   const [pageIndex, setPageIndex] = useState(0);
-  const [stagedOfferId, setStagedOfferId] = useState<string | null>(null);
+  const [stagedOfferIds, setStagedOfferIds] = useState<string[]>([]);
   const [skipConfirmOpen, setSkipConfirmOpen] = useState(false);
   const currentIndex = Math.min(pageIndex, Math.max(0, groups.length - 1));
   const currentGroup = groups[currentIndex] || null;
@@ -570,9 +570,9 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
   const currentPurchasedIds = currentGroup?.purchased_offer_ids || (currentGroup?.purchased_offer_id ? [currentGroup.purchased_offer_id] : []);
   const groupLimit = Math.min(perGroupLimit, currentGroup?.offers.length || perGroupLimit);
   const groupLocked = currentPurchasedIds.length >= groupLimit;
-  const selectedOfferId = stagedOfferId;
-  const selectedOffer = currentGroup?.offers.find(offer => offer.offer_id === selectedOfferId) || null;
-  const stagedCount = selectedOffer && !currentPurchasedIds.includes(selectedOffer.offer_id) ? 1 : 0;
+  const stagedOfferIdSet = new Set(stagedOfferIds);
+  const selectedOffers = currentGroup?.offers.filter(offer => stagedOfferIdSet.has(offer.offer_id) && !currentPurchasedIds.includes(offer.offer_id)) || [];
+  const stagedCount = selectedOffers.length;
   const selectedCount = Math.min(groupLimit, currentPurchasedIds.length + stagedCount);
   const isLastPage = currentIndex >= groups.length - 1;
   const progress = groups.length ? `${currentIndex + 1}/${groups.length}` : "0/0";
@@ -582,7 +582,7 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
   }, [groups.length]);
 
   useEffect(() => {
-    setStagedOfferId(null);
+    setStagedOfferIds([]);
     setSkipConfirmOpen(false);
   }, [currentGroup?.id]);
 
@@ -600,12 +600,14 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
       await onChoose(null);
       return;
     }
-    if (selectedOffer && !currentPurchasedIds.includes(selectedOffer.offer_id)) {
-      const willCompleteAllChoices = purchasedOffers.length + 1 >= (starter?.max_purchases || groups.length);
-      const willLockGroup = currentPurchasedIds.length + 1 >= groupLimit;
-      await onChoose(selectedOffer.offer_id);
+    if (selectedOffers.length) {
+      const willCompleteAllChoices = purchasedOffers.length + selectedOffers.length >= (starter?.max_purchases || groups.length);
+      const willLockGroup = currentPurchasedIds.length + selectedOffers.length >= groupLimit;
+      for (const offer of selectedOffers) {
+        await onChoose(offer.offer_id);
+      }
       if (isLastPage && !willCompleteAllChoices) await onChoose(null);
-      setStagedOfferId(null);
+      setStagedOfferIds([]);
       if (!isLastPage && willLockGroup) setPageIndex(index => Math.min(groups.length - 1, index + 1));
       return;
     }
@@ -649,18 +651,26 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
         <div className="starter-group starter-wizard-card">
           <header>
             <strong>{currentGroup.name}（质量 Lv{currentGroup.quality_level} / 数量 Lv{currentGroup.quantity_level}）</strong>
-            <span>{selectedCount}/{groupLimit}　{groupLocked ? "已锁定" : selectedOffer ? "待锁定" : "可跳过"}</span>
+            <span>{selectedCount}/{groupLimit}　{groupLocked ? "已锁定" : selectedOffers.length ? "待锁定" : "可跳过"}</span>
           </header>
           <div className="starter-group-offers">
             {Array.from({length: 4}, (_value, slotIndex) => {
               const offer = currentGroup.offers[slotIndex];
               if (!offer) return <div className="starter-offer-placeholder" key={`empty-${currentGroup.id}-${slotIndex}`} />;
-              const selected = selectedOfferId === offer.offer_id;
+              const selected = stagedOfferIdSet.has(offer.offer_id);
               const purchased = currentPurchasedIds.includes(offer.offer_id);
-              const locked = groupLocked || purchased;
+              const locked = groupLocked || purchased || (!selected && selectedCount >= groupLimit);
               return (
-                <button className={`starter-offer ${selected ? "selected" : ""}`} disabled={locked} onClick={() => setStagedOfferId(current => current === offer.offer_id ? null : offer.offer_id)} key={offer.offer_id}>
+                <button
+                  className={`starter-offer ${selected ? "selected" : ""}`}
+                  disabled={locked}
+                  role="checkbox"
+                  aria-checked={purchased || selected}
+                  onClick={() => setStagedOfferIds(current => current.includes(offer.offer_id) ? current.filter(id => id !== offer.offer_id) : currentPurchasedIds.length + current.length < groupLimit ? [...current, offer.offer_id] : current)}
+                  key={offer.offer_id}
+                >
                   <ItemIcon item={offer} />
+                  <span className="starter-offer-check" aria-hidden="true">{purchased || selected ? "✓" : ""}</span>
                   <strong>{offer.name_zh || offer.name}</strong>
                   <span><b className="price-badge">Lv{offer.item_tier || 1}</b><i>{purchasedIds.has(offer.offer_id) ? "已选择" : selected ? "已选中" : "免费"}</i></span>
                   <small>{itemCategoryLabel(offer.category)}　{offer.desc_zh || offer.desc || offer.name}</small>
@@ -710,6 +720,7 @@ export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, o
     singleRerollsRemaining > 0 ? `发功 ${singleRerollsRemaining}` : "",
     inspectRemaining > 0 ? `验牌 ${inspectRemaining}` : ""
   ].filter(Boolean);
+  const thumbnailColumns = candidates.length <= 6 ? 6 : 12;
   return (
     <div className="dex-layout rental-select-layout">
       <section className="rental-gallery-panel">
@@ -739,7 +750,7 @@ export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, o
             <PokemonProfile pokemon={pokemon} selected={focusedSelected} revealTraining={revealTraining} compact />
           </motion.div>
         </AnimatePresence>
-        <nav className={`rental-thumbnail-nav ${candidates.length > 12 ? "crowded" : ""}`} aria-label="候选宝可梦">
+        <nav className={`rental-thumbnail-nav columns-${thumbnailColumns} ${candidates.length > 12 ? "overflowing" : ""}`} aria-label="候选宝可梦">
           {candidates.map((candidate, index) => {
             const candidateSelected = selected.includes(index);
             const badges = rentalSpecialBadges(candidate);

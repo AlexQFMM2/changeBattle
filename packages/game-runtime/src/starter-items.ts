@@ -220,8 +220,71 @@ function defaultMoveCost(power: number | undefined): number {
 }
 
 function itemIconAsset(itemId: string): string {
-  return `assets/items/${itemKey(itemId)}.png`;
+  const normalized = itemKey(itemId);
+  if (!normalized) return "assets/placeholders/item.png";
+  const zType = Z_CRYSTAL_ICON_TYPES[normalized];
+  if (zType) return `assets/items-pack/${ITEM_TYPE_PLATE_ASSETS[zType] || "zapplate"}.png`;
+  return `assets/items-pack/${normalized}.png`;
 }
+
+const Z_CRYSTAL_ICON_TYPES: Record<string, string> = {
+  aloraichiumz: "electric",
+  buginiumz: "bug",
+  darkiniumz: "dark",
+  decidiumz: "ghost",
+  dragoniumz: "dragon",
+  eeviumz: "normal",
+  electriumz: "electric",
+  fairiumz: "fairy",
+  fightiniumz: "fighting",
+  firiumz: "fire",
+  flyiniumz: "flying",
+  ghostiumz: "ghost",
+  grassiumz: "grass",
+  groundiumz: "ground",
+  iciumz: "ice",
+  inciniumz: "dark",
+  kommoniumz: "dragon",
+  lunaliumz: "ghost",
+  lycaniumz: "rock",
+  marshadiumz: "ghost",
+  mewniumz: "psychic",
+  mimikiumz: "fairy",
+  normaliumz: "normal",
+  pikaniumz: "electric",
+  pikashuniumz: "electric",
+  poisoniumz: "poison",
+  primariumz: "water",
+  psychiumz: "psychic",
+  rockiumz: "rock",
+  snorliumz: "normal",
+  solganiumz: "steel",
+  steeliumz: "steel",
+  tapuniumz: "fairy",
+  ultranecroziumz: "psychic",
+  wateriumz: "water",
+};
+
+const ITEM_TYPE_PLATE_ASSETS: Record<string, string> = {
+  bug: "insectplate",
+  dark: "dreadplate",
+  dragon: "dracoplate",
+  electric: "zapplate",
+  fairy: "pixieplate",
+  fighting: "fistplate",
+  fire: "flameplate",
+  flying: "skyplate",
+  ghost: "spookyplate",
+  grass: "meadowplate",
+  ground: "earthplate",
+  ice: "icicleplate",
+  normal: "blankplate",
+  poison: "toxicplate",
+  psychic: "mindplate",
+  rock: "stoneplate",
+  steel: "ironplate",
+  water: "splashplate",
+};
 
 function tmIconAsset(): string {
   return "assets/placeholders/move.png";

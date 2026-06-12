@@ -18,6 +18,7 @@ export function registerDesktopRuntimeIpc(
   handleIpc("save:updateTrainer", async (trainer: TrainerProfile) => api.updateTrainer(trainer));
   handleIpc("save:battleRecords", async () => api.battleRecords());
   handleIpc("save:testMode", async () => api.enableTestMode());
+  if (api.startRainbowRocketTestRun) handleIpc("run:rainbowRocketTest", async () => api.startRainbowRocketTestRun!());
   if (options.e2ePatchSave) {
     handleIpc("e2e:patchSave", async (patch: Partial<LocalSave>) => options.e2ePatchSave!(patch));
   }

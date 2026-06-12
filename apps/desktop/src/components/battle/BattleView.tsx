@@ -1,11 +1,14 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RuntimePokemon} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
 import {BATTLE_SYSTEM_OPTIONS} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
 import {ScreenToast} from "../feedback/ScreenToast";
+import {EventInfoModal} from "../feedback/EventInfoModal";
 import {MoveCard} from "../move/MoveCard";
+import {QuickDexModal} from "../dex/QuickDexModal";
+import {BattleSmallImage} from "./BattleSmallImage";
 import {buildBattleDisplaySteps, eventCanMutateDisplayedActive} from "./timelineFlow";
 import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgrounds.csv?raw";
 
@@ -416,6 +419,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const [itemTargetIndex, setItemTargetIndex] = useState(0);
   const [battleItemOpen, setBattleItemOpen] = useState(false);
   const [battleItemToast, setBattleItemToast] = useState<{id: number; message: string} | null>(null);
+  const [eventInfoStatus, setEventInfoStatus] = useState<RestEventStatusView | null>(null);
+  const [battleDexQuery, setBattleDexQuery] = useState<string | null>(null);
   const [panelMode, setPanelMode] = useState<AppStatus>(BATTLE_PANEL_MODES.has(mode) ? mode : "battleMain");
   const [autoAdvancePending, setAutoAdvancePending] = useState(false);
   const previousTimelineKeys = useRef<string[]>([]);
@@ -920,9 +925,13 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const playerTeraClass = !displayedSubstitutes.p1 && !faintedSides.p1 && displayedActiveSnapshots.p1.terastallized ? "sprite-terastallized" : "";
   const enemyTeraClass = !displayedSubstitutes.p2 && !faintedSides.p2 && displayedActiveSnapshots.p2.terastallized ? "sprite-terastallized" : "";
   const currentMoveIsDynamax = currentTimelineEvent?.type === "move" && /^(?:G-Max|Max)\b|^(?:极巨|超极巨)/i.test(currentTimelineEvent.move || "");
+  const openBattleDex = (pokemon: RentalPokemon) => {
+    const query = pokemon.species_zh || pokemon.species || pokemon.species_id || displayName(pokemon);
+    setBattleDexQuery(query);
+  };
   return (
     <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
-      {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => selectPanelMode("statusMenu")} /> : null}
+      {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => selectPanelMode("statusMenu")} onOpenEnemyDex={battle.show_move_effectiveness ? openBattleDex : undefined} /> : null}
       <section className={`battle-field ${battleBackgroundUrl ? "has-battle-background" : ""} ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`} style={battleFieldStyle}>
         <div className="battle-platforms" aria-hidden="true">
           <i className="battle-platform player-platform" />
@@ -934,7 +943,11 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         <div className="turn-badge">第 {battle.tracker.turn} 回合</div>
         {battle.battle_event_statuses?.length ? (
           <div className="battle-event-status-strip">
-            {battle.battle_event_statuses.map(status => <span className={`tone-${status.tone || "safe"}`} title={status.detail || status.label} key={`battle-event-${status.id}`}>{status.label}{status.id === "contest" ? ` ${battle.contest_score || 0}` : ""}</span>)}
+            {battle.battle_event_statuses.map(status => (
+              <button className={`tone-${status.tone || "safe"}`} title={status.detail || status.label} onClick={() => setEventInfoStatus(status)} key={`battle-event-${status.id}`}>
+                {status.label}{status.id === "contest" ? ` ${battle.contest_score || 0}` : ""}
+              </button>
+            ))}
           </div>
         ) : null}
         <FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} teraType={displayedActiveSnapshots.p2.tera_type_zh} />
@@ -966,14 +979,17 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         return Boolean(ok);
       }} /> : null}
       {battleItemToast ? <ScreenToast key={battleItemToast.id} message={battleItemToast.message} durationMs={1200} onDone={() => setBattleItemToast(null)} /> : null}
+      {eventInfoStatus ? <EventInfoModal status={eventInfoStatus} context="战斗事件" onClose={() => setEventInfoStatus(null)} /> : null}
+      {battleDexQuery ? <QuickDexModal key={battleDexQuery} initialCategory="pokemon" initialQuery={battleDexQuery} onClose={() => setBattleDexQuery(null)} /> : null}
     </div>
   );
 }
 
-function BattlePartyBoard({battle, playerSlots, enemySlots, onOpenStatus}: {battle: BattleState; playerSlots: PartyStatusSlot[]; enemySlots: PartyStatusSlot[]; onOpenStatus: () => void}) {
+function BattlePartyBoard({battle, playerSlots, enemySlots, onOpenStatus, onOpenEnemyDex}: {battle: BattleState; playerSlots: PartyStatusSlot[]; enemySlots: PartyStatusSlot[]; onOpenStatus: () => void; onOpenEnemyDex?: (pokemon: RentalPokemon) => void}) {
   const weather = battle.tracker.weather && battle.tracker.weather !== "无" ? battle.tracker.weather : "无";
   const field = battle.tracker.field.join(" / ") || "无";
   const enemyLeft = enemySlots.filter(slot => !statusCode(slot.condition, slot.status).includes("fnt")).length;
+  const enemyTotal = Math.max(1, enemySlots.length);
   return (
     <div className="battle-party-board">
       <PartyStatusColumn side="player" title="我方" slots={playerSlots} />
@@ -983,44 +999,25 @@ function BattlePartyBoard({battle, playerSlots, enemySlots, onOpenStatus}: {batt
         <span>场地 {field}</span>
         <span>我方能力 {boostSummary(battle.tracker.boosts.p1)}</span>
         <span>对手能力 {boostSummary(battle.tracker.boosts.p2)}</span>
-        <small>对手剩余 {enemyLeft}/3</small>
+        <small>对手剩余 {enemyLeft}/{enemyTotal}</small>
       </button>
-      <PartyStatusColumn side="enemy" title="对手" slots={enemySlots} />
+      <PartyStatusColumn side="enemy" title="对手" slots={enemySlots} onOpenEnemyDex={onOpenEnemyDex} />
     </div>
   );
 }
 
-function PartyStatusColumn({side, title, slots}: {side: "player" | "enemy"; title: string; slots: PartyStatusSlot[]}) {
+function PartyStatusColumn({side, title, slots, onOpenEnemyDex}: {side: "player" | "enemy"; title: string; slots: PartyStatusSlot[]; onOpenEnemyDex?: (pokemon: RentalPokemon) => void}) {
   return (
     <div className={`party-status-column ${side}`}>
       <strong>{title}</strong>
-      <div className="party-status-slots">
-        {slots.map(slot => <PartyStatusChip slot={slot} side={side} key={slot.key} />)}
+      <div className="party-status-slots" style={{"--party-slot-count": Math.max(1, slots.length)} as CSSProperties}>
+        {slots.map(slot => {
+          const enemyDexClick = side === "enemy" && onOpenEnemyDex && slot.revealed && slot.display ? () => onOpenEnemyDex(slot.display!) : undefined;
+          return <BattleSmallImage slot={slot} side={side} onClick={enemyDexClick || slot.onClick} key={slot.key} />;
+        })}
       </div>
     </div>
   );
-}
-
-function PartyStatusChip({slot, side}: {slot: PartyStatusSlot; side: "player" | "enemy"}) {
-  const hp = parseHp(slot.condition);
-  const code = statusCode(slot.condition, slot.status);
-  const tone = hpTone(hp);
-  const revealed = side === "player" || slot.revealed;
-  const body = (
-    <>
-      <span className="party-chip-label">{slot.active ? "▶" : slot.label}</span>
-      <span className={`party-chip-sprite ${revealed ? "" : "unknown"}`}>
-        {revealed && slot.display ? <PokemonSprite pokemon={slot.display} alt={displayName(slot.display)} badge={false} /> : <i>?</i>}
-      </span>
-      <span className="party-chip-info">
-        <b>{revealed && slot.display ? displayName(slot.display) : "未登场"}</b>
-        <small>{hp?.text || (revealed ? conditionText(slot.condition) : "未知")}</small>
-        <span className="party-chip-hp"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : revealed ? 0 : 100}%`} as CSSProperties} /></span>
-      </span>
-      {code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}
-    </>
-  );
-  return slot.onClick ? <button className={`party-status-chip ${slot.active ? "active" : ""}`} onClick={slot.onClick}>{body}</button> : <div className={`party-status-chip ${slot.active ? "active" : ""}`}>{body}</div>;
 }
 
 function TrainerIntroOverlay({battle}: {battle: BattleState}) {

@@ -28,6 +28,9 @@ const api = {
   enableTestMode(): Promise<LocalSave> {
     return ipcRenderer.invoke("save:testMode");
   },
+  startRainbowRocketTestRun(): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("run:rainbowRocketTest");
+  },
   getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
     return ipcRenderer.invoke("battleSetting:get");
   },

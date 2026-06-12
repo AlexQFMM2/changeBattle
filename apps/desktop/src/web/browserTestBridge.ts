@@ -1,5 +1,6 @@
 import type {AudioSettings, BattleSetting, BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopGameState, LocalSave, PlayerPokemonState, RentalPokemon, RestAction, RestState, SaveBattleRecordsTable, ShopOffer, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
+import {enableTestModeForSave} from "@changebattle/game-runtime";
 import {buildBattleDisplaySteps, type BattleDisplayStep} from "../components/battle/timelineFlow";
 import {TALENT_CATALOG, debugBattle, debugMove, debugPokemon} from "../lib/ui";
 
@@ -73,7 +74,7 @@ export function installBrowserTestBridge(): void {
     battleRecords: async (): Promise<SaveBattleRecordsTable> => ({version: 1, records: []}),
     enableTestMode: async () => {
       lastAction = "enableTestMode";
-      save = {...save, stats: {...save.stats, battle_points: 99999}};
+      save = enableTestModeForSave({...save});
       return save;
     },
     getBattleSetting: async () => ({setting: normalizeBattleSetting(save.battle_setting), save}),

@@ -2720,6 +2720,28 @@ input, select { min-height: 22px; min-width: 110px; padding: 4px 6px; border: 2p
   border: 2px solid #7aa982;
 }
 
+.profile-type-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-type-row span {
+  min-width: 34px;
+  border: 1px solid #247267;
+  border-radius: 4px;
+  background: #eef8de;
+  color: #25332b;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-shadow: none;
+}
+
 .profile-card h2 { margin: 0; font-size: 26px; text-align: center; }
 .profile-card p { margin: 0; color: #395447; }
 
@@ -7191,36 +7213,76 @@ button.party-status-chip {
   font-size: 8px;
 }
 
+.pokopia-layer[data-phase="expand"] .pokopia-shell.rainbow-support-modal,
+.pokopia-layer[data-phase="exit"] .pokopia-shell.rainbow-support-modal,
+.pokopia-content.rainbow-support-modal,
 .rainbow-support-modal {
-  width: min(96vw, 900px);
+  width: min(608px, calc(100vw - 24px));
+  height: min(292px, calc(100vh - 24px));
+  min-height: 0;
 }
 
 .rainbow-support-content {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
   min-width: 0;
+  min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-rows: 34px minmax(0, 1fr) 24px;
+  gap: 6px;
+  overflow: hidden;
+  padding: 9px;
 }
 
 .rainbow-support-content > header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: start;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.rainbow-support-content > header > div:first-child {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.rainbow-support-content > header h2,
+.rainbow-support-content > header p {
+  margin: 0;
+}
+
+.rainbow-support-content > header h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.rainbow-support-content > header p {
+  display: none;
 }
 
 .rainbow-warning {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
+  min-height: 15px;
   border: 1px solid #442623;
   border-radius: 3px;
-  padding: 2px 7px;
+  padding: 1px 4px;
   background: #d53c30;
   color: #fff9d6;
-  font-size: 13px;
+  font-size: 8px;
   font-weight: 950;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .rainbow-warning.compact {
@@ -7228,27 +7290,29 @@ button.party-status-chip {
 }
 
 .rainbow-support-progress {
-  display: grid;
+  display: flex;
   gap: 4px;
-  min-width: 104px;
+  min-width: 0;
 }
 
 .rainbow-support-progress span {
   border: 1px solid #25332b;
   border-radius: 3px;
-  padding: 4px 6px;
+  padding: 2px 5px;
   background: #fff3bd;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 850;
   text-align: center;
+  white-space: nowrap;
 }
 
 .rainbow-support-main {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1.05fr 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(150px, .95fr) minmax(132px, 1fr) minmax(132px, 1fr);
+  gap: 6px;
+  overflow: hidden;
 }
 
 .rainbow-support-team,
@@ -7257,11 +7321,12 @@ button.party-status-chip {
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 6px;
+  gap: 4px;
   border: 1px solid rgb(37 51 43 / 30%);
   border-radius: 5px;
-  padding: 7px;
+  padding: 5px;
   background: #fffdf5;
+  overflow: hidden;
 }
 
 .rainbow-support-column {
@@ -7271,7 +7336,12 @@ button.party-status-chip {
 .rainbow-support-team h3,
 .rainbow-support-column h3 {
   margin: 0;
-  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.05;
 }
 
 .rainbow-support-grid {
@@ -7279,12 +7349,49 @@ button.party-status-chip {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-  overflow: auto;
+  grid-auto-rows: minmax(46px, 1fr);
+  gap: 4px;
+  overflow: hidden;
+}
+
+.rainbow-support-grid.team {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(46px, 1fr);
 }
 
 .rainbow-support-grid .mini-pokemon-card {
-  min-height: 54px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 26px auto auto;
+  justify-items: center;
+  align-items: start;
+  gap: 1px;
+  padding: 3px;
+  text-align: center;
+}
+
+.rainbow-support-grid .mini-pokemon-card .pokemon-sprite {
+  width: 25px;
+  height: 25px;
+}
+
+.rainbow-support-grid .mini-pokemon-card span,
+.rainbow-support-grid .mini-pokemon-card small {
+  grid-column: auto;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.rainbow-support-grid .mini-pokemon-card small {
+  color: #8b302f;
+  font-size: 6px;
 }
 
 .rainbow-support-grid .mini-pokemon-card.restore-selected {
@@ -7300,14 +7407,18 @@ button.party-status-chip {
 
 .rainbow-restore-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, auto)) minmax(0, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
   align-items: center;
+  min-width: 0;
 }
 
 .rainbow-restore-row button {
-  min-height: 24px;
-  font-size: 10px;
+  min-width: 0;
+  min-height: 20px;
+  padding: 1px 3px;
+  font-size: 7px;
+  line-height: 1;
 }
 
 .rainbow-restore-row button.selected {
@@ -7316,9 +7427,24 @@ button.party-status-chip {
 }
 
 .rainbow-restore-row small {
+  display: none;
   min-width: 0;
   color: #655f55;
   font-size: 9px;
+}
+
+.rainbow-support-content > footer.command-row {
+  min-height: 0;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rainbow-support-content > footer.command-row button {
+  min-width: 78px;
+  min-height: 22px;
+  padding: 2px 8px;
+  font-size: 8px;
+  line-height: 1;
 }
 
 .rest-workspace .bag-manage-layout {
@@ -7590,9 +7716,9 @@ button.party-status-chip {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--slot-count, 3), minmax(0, 1fr));
   grid-auto-rows: minmax(0, 1fr);
-  gap: 6px;
+  gap: 5px;
   overflow: hidden;
 }
 
@@ -7600,15 +7726,18 @@ button.party-status-chip {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 56px;
-  align-items: center;
-  gap: 7px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 26px minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: start;
+  gap: 3px;
+  text-align: center;
   border: 1px solid #394639;
   border-radius: 5px;
   background:
     linear-gradient(180deg, rgb(255 255 255 / 36%), transparent 45%),
     #fffdf3;
-  padding: 5px 6px;
+  padding: 4px;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 55%), 0 2px 0 rgb(0 0 0 / 10%);
   animation: enter-up .22s ease-out both;
 }
@@ -7630,16 +7759,17 @@ button.party-status-chip {
 }
 
 .rest-workspace .shop-slot-card > .item-icon {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
   image-rendering: pixelated;
 }
 
 .rest-workspace .shop-slot-card > div {
   min-width: 0;
+  width: 100%;
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .rest-workspace .shop-slot-card strong,
@@ -7653,10 +7783,11 @@ button.party-status-chip {
 
 .rest-workspace .shop-slot-card strong {
   color: #35263b;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 950;
   line-height: 1;
   white-space: nowrap;
+  text-align: center;
 }
 
 .rest-workspace .shop-slot-card small {
@@ -7672,11 +7803,13 @@ button.party-status-chip {
 .rest-workspace .shop-slot-card span {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 7px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 6px;
   font-weight: 900;
   line-height: 1;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .rest-workspace .shop-slot-card em,
@@ -7689,18 +7822,112 @@ button.party-status-chip {
 .rest-workspace .shop-slot-card b {
   flex: 0 0 auto;
   color: #b68120;
-  font-size: 8px;
+  font-size: 7px;
   line-height: 1;
 }
 
+.rest-workspace .shop-slot-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3px;
+}
+
 .rest-workspace .shop-slot-card button {
+  width: 100%;
   min-width: 0;
-  min-height: 24px;
+  min-height: 20px;
   border-width: 1px;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 8px;
+  border-radius: 3px;
+  padding: 2px 3px;
+  font-size: 7px;
   line-height: 1;
+}
+
+.shop-occupied-panel {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid rgb(37 51 43 / 24%);
+  border-radius: 5px;
+  background: #fffdf5;
+  color: #2d2630;
+  padding: 18px;
+  text-align: center;
+}
+
+.shop-occupied-panel strong,
+.shop-occupied-panel span {
+  text-shadow: none;
+}
+
+.shop-occupied-panel strong {
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.shop-occupied-panel span {
+  max-width: 360px;
+  color: #5d6658;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.shop-occupied-panel button {
+  min-width: 68px;
+}
+
+.shop-offer-detail-modal {
+  width: min(300px, 92vw);
+  display: grid;
+  gap: 10px;
+  border: 2px solid #24362d;
+  border-radius: 6px;
+  background: #fffdf3;
+  color: #2d2630;
+  padding: 12px;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 42%);
+}
+
+.shop-offer-detail-modal header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.shop-offer-detail-modal .item-icon {
+  width: 38px;
+  height: 38px;
+  image-rendering: pixelated;
+}
+
+.shop-offer-detail-modal h2,
+.shop-offer-detail-modal p {
+  margin: 0;
+  text-shadow: none;
+}
+
+.shop-offer-detail-modal h2 {
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.shop-offer-detail-modal span,
+.shop-offer-detail-modal small {
+  color: #5d664f;
+  font-size: 10px;
+  font-weight: 800;
+  text-shadow: none;
+}
+
+.shop-offer-detail-modal p {
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .rest-workspace .forge-modal {
@@ -10923,7 +11150,7 @@ button.party-status-chip {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 46px minmax(0, .72fr) auto;
+  grid-template-columns: 46px 18px minmax(0, .72fr) auto;
   grid-template-rows: auto minmax(0, 1fr);
   align-items: center;
   gap: 3px 8px;
@@ -10942,9 +11169,29 @@ button.party-status-chip {
   image-rendering: pixelated;
 }
 
+.starter-offer-check {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #5c6759;
+  border-radius: 3px;
+  background: #f7f1df;
+  color: #fffdf5;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 55%);
+}
+
 .starter-offer.selected {
   border-color: #d65f45;
   background: #fff2dd;
+}
+
+.starter-offer.selected .starter-offer-check {
+  border-color: #d65f45;
+  background: #d65f45;
 }
 
 .starter-offer strong,
@@ -10995,7 +11242,7 @@ button.party-status-chip {
 }
 
 .starter-offer small {
-  grid-column: 2 / -1;
+  grid-column: 3 / -1;
   color: #596052;
   font-size: 9px;
   white-space: normal;
@@ -14783,20 +15030,27 @@ button.party-status-chip {
 
 .rental-thumbnail-nav {
   min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px;
   align-items: stretch;
-  justify-content: center;
   padding: 2px 4px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+.rental-thumbnail-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.rental-thumbnail-nav.columns-12 {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
 .rental-thumbnail {
   position: relative;
-  flex: 0 0 46px;
-  width: 46px;
-  min-width: 46px;
+  width: 100%;
+  min-width: 0;
   height: 36px;
   display: grid;
   place-items: center;
@@ -14828,33 +15082,32 @@ button.party-status-chip {
   box-shadow: inset 0 0 0 1px rgb(255 235 142 / 58%), 0 0 15px rgb(255 203 77 / 52%);
 }
 
-.rental-thumbnail-nav.crowded {
+.rental-thumbnail-nav.overflowing {
   gap: 4px;
-  justify-content: center;
-  overflow-x: auto;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  overflow: hidden;
 }
 
-.rental-thumbnail-nav.crowded .rental-thumbnail {
-  flex-basis: 28px;
-  width: 28px;
-  min-width: 28px;
+.rental-thumbnail-nav.overflowing .rental-thumbnail {
+  width: 100%;
+  min-width: 0;
   height: 31px;
   border-width: 1px;
   border-radius: 5px;
   padding: 1px;
 }
 
-.rental-thumbnail-nav.crowded .rental-thumbnail i {
+.rental-thumbnail-nav.overflowing .rental-thumbnail i {
   border-width: 1px;
   border-radius: 4px;
 }
 
-.rental-thumbnail-nav.crowded .rental-thumbnail .pokemon-sprite {
+.rental-thumbnail-nav.overflowing .rental-thumbnail .pokemon-sprite {
   width: 24px;
   height: 24px;
 }
 
-.rental-thumbnail-nav.crowded .rental-thumbnail-check {
+.rental-thumbnail-nav.overflowing .rental-thumbnail-check {
   top: 0;
   right: 0;
   width: 9px;
@@ -14862,13 +15115,13 @@ button.party-status-chip {
   font-size: 7px;
 }
 
-.rental-thumbnail-nav.crowded .rental-thumbnail-badges {
+.rental-thumbnail-nav.overflowing .rental-thumbnail-badges {
   left: 1px;
   bottom: 1px;
   gap: 1px;
 }
 
-.rental-thumbnail-nav.crowded .rental-thumbnail-badges b {
+.rental-thumbnail-nav.overflowing .rental-thumbnail-badges b {
   max-width: 13px;
   padding: 0 1px;
   font-size: 4px;
@@ -15092,7 +15345,7 @@ button.party-status-chip {
 
 .starter-offer {
   height: 58px;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
+  grid-template-columns: 26px 14px minmax(0, 1fr) auto;
   gap: 2px 6px;
   border-width: 1px;
   border-radius: 4px;
@@ -15442,7 +15695,7 @@ button.party-status-chip {
 
 .starter-offer {
   height: 38px;
-  grid-template-columns: 28px minmax(0, .42fr) auto minmax(0, .58fr);
+  grid-template-columns: 28px 14px minmax(0, .42fr) auto minmax(0, .58fr);
   grid-template-rows: minmax(0, 1fr);
   align-items: center;
   gap: 4px 7px;
@@ -15453,6 +15706,21 @@ button.party-status-chip {
   grid-row: 1;
   width: 24px;
   height: 24px;
+}
+
+.starter-offer .starter-offer-check {
+  width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  gap: 0;
+  justify-self: center;
+  border-width: 1px;
+  border-radius: 2px;
+  padding: 0;
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .starter-offer small {
@@ -15636,6 +15904,7 @@ button.party-status-chip {
 }
 
 .rest-event-status {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -15647,6 +15916,8 @@ button.party-status-chip {
   color: rgba(255, 255, 255, 0.86);
   font-size: 6px;
   line-height: 1.1;
+  text-align: left;
+  cursor: pointer;
 }
 
 .rest-event-status strong {
@@ -15725,7 +15996,7 @@ button.party-status-chip {
 
 .event-service-layout {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: 78px minmax(0, 1fr);
   gap: 6px;
   min-height: 0;
 }
@@ -15748,8 +16019,147 @@ button.party-status-chip {
   overflow: auto;
 }
 
+.event-service-team {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 42px;
+  overflow: hidden;
+}
+
+.event-service-team button {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+}
+
+.event-service-team .pokemon-sprite {
+  width: 34px;
+  height: 34px;
+}
+
 .event-move-list {
   max-height: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 104px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.event-move-list .event-learn-move-card {
+  min-height: 0;
+  height: 104px;
+  display: grid;
+  grid-template-rows: 17px 15px minmax(0, 1fr);
+  justify-items: stretch;
+  text-align: left;
+  align-content: start;
+  gap: 4px;
+  border: 2px solid #262b26;
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 35%), transparent 48%),
+    var(--move-main, #d6cfbf);
+  color: #151714;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.event-move-list .event-learn-move-card.selected {
+  outline: 3px solid #ee5d62;
+  outline-offset: -3px;
+}
+
+.event-learn-move-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 0;
+  padding: 0 2px;
+}
+
+.event-learn-move-title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  line-height: 1.1;
+}
+
+.event-learn-move-title i {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  min-height: 10px;
+  border-radius: 2px;
+  background: #bf2f28;
+  color: #fff7f1;
+  padding: 0 2px;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.event-learn-move-stats {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  align-items: start;
+  align-content: stretch;
+  justify-content: stretch;
+  gap: 3px;
+  padding: 0;
+}
+
+.event-learn-move-stats b,
+.event-learn-move-stats em {
+  min-width: 0;
+  min-height: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(35 39 35 / 24%);
+  border-radius: 2px;
+  background: rgb(255 255 255 / 34%);
+  color: #242820;
+  padding: 1px 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+  font-style: normal;
+}
+
+.event-learn-move-stats b {
+  min-width: 24px;
+  border-radius: 2px;
+  color: #fffdf5;
+  background: rgb(0 0 0 / 34%);
+  font-size: 7px;
+}
+
+.event-learn-move-card small {
+  min-width: 0;
+  min-height: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  border: 1px solid rgb(35 39 35 / 16%);
+  border-radius: 2px;
+  background: rgb(255 255 255 / 22%);
+  color: #242820;
+  padding: 3px 4px;
+  overflow: hidden;
+  white-space: normal;
+  text-align: left;
+  font-size: 7px;
+  line-height: 1.22;
+  text-overflow: clip;
 }
 
 .score-bet-modal {
@@ -15917,10 +16327,11 @@ button.party-status-chip {
   flex-wrap: wrap;
   gap: 4px;
   max-width: min(50%, 300px);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
-.battle-event-status-strip span {
+.battle-event-status-strip button {
+  appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 3px;
   padding: 2px 5px;
@@ -15929,6 +16340,7 @@ button.party-status-chip {
   font-size: 7px;
   line-height: 1;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
 }
 
 .battle-event-status-strip .tone-trade {
@@ -15937,6 +16349,65 @@ button.party-status-chip {
 
 .battle-event-status-strip .tone-risk {
   border-color: rgba(248, 113, 113, 0.48);
+}
+
+.event-info-modal {
+  width: min(300px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 7px;
+  border: 2px solid rgba(74, 222, 128, 0.5);
+  border-radius: 5px;
+  background: #f8f4ec;
+  color: #352b31;
+  padding: 10px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.36);
+}
+
+.event-info-modal.tone-trade {
+  border-color: rgba(14, 116, 144, 0.62);
+}
+
+.event-info-modal.tone-risk {
+  border-color: rgba(185, 28, 28, 0.68);
+}
+
+.event-info-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.event-info-modal header span {
+  color: #6e6259;
+  font-size: 9px;
+}
+
+.event-info-modal header button {
+  min-height: 20px;
+  border-radius: 4px;
+  padding: 2px 9px;
+  font-size: 9px;
+}
+
+.event-info-modal h2,
+.event-info-modal p {
+  margin: 0;
+}
+
+.event-info-modal h2 {
+  color: #2f262c;
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.event-info-modal p {
+  overflow: auto;
+  color: #5b514c;
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 /* Rest event picker: designed for the 640x320 game surface, then scaled by Electron. */
@@ -17763,7 +18234,7 @@ button.party-status-chip {
 
 .battle-bottom,
 .battle-bottom.move-bottom-active {
-  grid-template-columns: minmax(0, 1fr) 273px;
+  grid-template-columns: minmax(0, 2fr) minmax(220px, 3fr);
 }
 
 .battle-log,
@@ -18444,6 +18915,174 @@ button.party-status-chip {
   font-size: 7px;
 }
 
+.battle-layout .party-status-slots {
+  grid-template-columns: repeat(var(--party-slot-count, 3), minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.battle-layout .battle-small-image {
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12px;
+  grid-template-rows: 20px 9px 4px;
+  align-items: center;
+  justify-items: center;
+  gap: 1px;
+  border-width: 1px;
+  border-radius: 3px;
+  padding: 2px;
+  color: #1f241f;
+}
+
+.battle-layout button.battle-small-image {
+  cursor: pointer;
+}
+
+.battle-layout .battle-small-image.active {
+  border-color: #e65a60;
+  box-shadow: inset 0 0 0 1px #f1c14e;
+}
+
+.battle-layout .battle-small-image.fainted {
+  border-color: #7b7f79;
+  background: #d3d4cf;
+  filter: grayscale(1);
+  opacity: .62;
+}
+
+.battle-layout .battle-small-image.fainted .battle-small-sprite,
+.battle-layout .battle-small-image.fainted strong,
+.battle-layout .battle-small-image.fainted .battle-small-index {
+  opacity: .58;
+}
+
+.battle-layout .battle-small-index {
+  grid-column: 2;
+  grid-row: 1;
+  width: 11px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  background: #e8dec6;
+  color: #25332b;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.battle-layout .battle-small-sprite {
+  grid-column: 1;
+  grid-row: 1;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  background: #edf1ea;
+}
+
+.battle-layout .battle-small-sprite .pokemon-sprite {
+  --pokemon-sprite-size: 20px;
+}
+
+.battle-layout .battle-small-sprite.unknown {
+  background: #161915;
+  color: #f8f4ec;
+}
+
+.battle-layout .battle-small-sprite.unknown i {
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.battle-layout .battle-small-image strong {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: #34293a;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.battle-layout .battle-small-image small {
+  display: none;
+}
+
+.battle-layout .battle-small-hp {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  height: 4px;
+  border: 1px solid #5b674c;
+  border-radius: 999px;
+  background: #ddd5c9;
+  overflow: hidden;
+}
+
+.battle-layout .battle-small-hp i {
+  display: block;
+  height: 100%;
+}
+
+.battle-layout .battle-small-status {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  display: grid;
+  place-items: center;
+  border-width: 1px;
+  border-radius: 2px;
+  border-style: solid;
+  color: #fffdf5;
+  padding: 0;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .36);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .22), inset 0 0 0 1px rgba(255, 255, 255, .18);
+}
+
+.battle-layout .battle-small-status.par {
+  border-color: #a27010;
+  background: #f0c13a;
+  color: #3d2a0b;
+  text-shadow: none;
+}
+
+.battle-layout .battle-small-status.psn,
+.battle-layout .battle-small-status.tox {
+  border-color: #5d286a;
+  background: #9a44b2;
+}
+
+.battle-layout .battle-small-status.frz {
+  border-color: #1f3f86;
+  background: #2555b8;
+}
+
+.battle-layout .battle-small-status.brn {
+  border-color: #8f231f;
+  background: #d74737;
+}
+
+.battle-layout .battle-small-status.slp {
+  border-color: #256b9a;
+  background: #3e9bd3;
+}
+
 /* Asset decoration pass: small CrystalFantasy UI pieces layered over the compact UI. */
 :root {
   --cb-ui-highlight-slot: url("./assets/ui/highlight-slot.png");
@@ -18523,6 +19162,13 @@ button.party-status-chip {
   vertical-align: -2px;
 }
 
+.rest-workspace .shop-slot-card b::before {
+  width: 7px;
+  height: 8px;
+  margin-right: 1px;
+  vertical-align: -1px;
+}
+
 .starter-offer span i {
   min-height: 14px;
   display: inline-flex;
@@ -18538,7 +19184,8 @@ button.party-status-chip {
 
 .hp-line,
 .rest-pokemon-sheet .rest-sheet-hp,
-.party-chip-hp {
+.party-chip-hp,
+.battle-small-hp {
   border-color: #2b2430;
   background:
     var(--cb-ui-value-bar) center / 100% 100% no-repeat,
@@ -18554,14 +19201,16 @@ button.party-status-chip {
 
 .hp-line i,
 .rest-pokemon-sheet .rest-sheet-hp i,
-.party-chip-hp i {
+.party-chip-hp i,
+.battle-small-hp i {
   border-radius: 0;
   image-rendering: pixelated;
 }
 
 .hp-line i.hp-high,
 .rest-pokemon-sheet .rest-sheet-hp i.hp-high,
-.party-chip-hp i.hp-high {
+.party-chip-hp i.hp-high,
+.battle-small-hp i.hp-high {
   background:
     linear-gradient(90deg, rgb(55 202 94 / 88%), rgb(136 229 103 / 86%)),
     var(--cb-ui-value-blue) center / 100% 100% repeat-x;
@@ -18569,7 +19218,8 @@ button.party-status-chip {
 
 .hp-line i.hp-mid,
 .rest-pokemon-sheet .rest-sheet-hp i.hp-mid,
-.party-chip-hp i.hp-mid {
+.party-chip-hp i.hp-mid,
+.battle-small-hp i.hp-mid {
   background:
     linear-gradient(90deg, rgb(230 184 46 / 90%), rgb(255 225 106 / 88%)),
     var(--cb-ui-value-blue) center / 100% 100% repeat-x;
@@ -18577,7 +19227,8 @@ button.party-status-chip {
 
 .hp-line i.hp-low,
 .rest-pokemon-sheet .rest-sheet-hp i.hp-low,
-.party-chip-hp i.hp-low {
+.party-chip-hp i.hp-low,
+.battle-small-hp i.hp-low {
   background:
     linear-gradient(90deg, rgb(217 74 66 / 92%), rgb(255 122 98 / 86%)),
     var(--cb-ui-value-red) center / 100% 100% repeat-x;
@@ -19799,20 +20450,21 @@ button.party-status-chip {
   }
 
   .rainbow-support-modal {
-    width: 96vw;
+    width: min(608px, calc(100vw - 24px));
+    height: min(292px, calc(100vh - 24px));
   }
 
   .rainbow-support-content {
-    max-height: 86vh;
+    max-height: none;
   }
 
   .rainbow-support-main {
-    grid-template-columns: 1fr;
-    overflow: auto;
+    grid-template-columns: minmax(150px, .95fr) minmax(132px, 1fr) minmax(132px, 1fr);
+    overflow: hidden;
   }
 
   .rainbow-support-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .rainbow-restore-row {
@@ -19820,6 +20472,6 @@ button.party-status-chip {
   }
 
   .rainbow-restore-row small {
-    grid-column: 1 / -1;
+    display: none;
   }
 }

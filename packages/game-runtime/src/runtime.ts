@@ -55,6 +55,7 @@ export function createChangeBattleRuntime(env: Pick<RuntimeEnvironment, "assets"
     updateTrainer: parts.profileSettings.updateTrainer,
     battleRecords: parts.profileSettings.battleRecords,
     enableTestMode: parts.handlers.enableTestMode || missing("enableTestMode"),
+    startRainbowRocketTestRun: parts.handlers.startRainbowRocketTestRun,
     getBattleSetting: parts.profileSettings.getBattleSetting,
     updateBattleSetting: parts.profileSettings.updateBattleSetting,
     getAudioSettings: parts.profileSettings.getAudioSettings,

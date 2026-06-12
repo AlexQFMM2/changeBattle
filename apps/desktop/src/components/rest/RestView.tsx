@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState} from "react";
 import type {CSSProperties, ReactElement} from "react";
-import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, ShopOffer, TalentView} from "@changebattle/shared";
+import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopOffer, TalentView} from "@changebattle/shared";
 import {AnimatePresence, motion, Reorder} from "motion/react";
+import {EventInfoModal} from "../feedback/EventInfoModal";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard, MoveCardContent, moveCardClassName} from "../move/MoveCard";
@@ -39,6 +40,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   const [bagTargetSlot, setBagTargetSlot] = useState(0);
   const [talentActionId, setTalentActionId] = useState<string | null>(null);
   const [abortConfirmOpen, setAbortConfirmOpen] = useState(false);
+  const [eventInfoStatus, setEventInfoStatus] = useState<RestEventStatusView | null>(null);
   const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
 
   if (!rest) return <div className="loading-panel"><strong>正在整理队伍...</strong></div>;
@@ -148,7 +150,12 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
       </section>
       {rest.rest_event_statuses?.length ? (
         <section className="rest-event-status-row" aria-label="本次休整事件状态">
-          {rest.rest_event_statuses.map(status => <span className={`rest-event-status tone-${status.tone || "safe"}`} title={status.detail || status.label} key={status.id}><strong>{status.label}</strong>{status.detail ? <small>{status.detail}</small> : null}</span>)}
+          {rest.rest_event_statuses.map(status => (
+            <button className={`rest-event-status tone-${status.tone || "safe"}`} title={status.detail || status.label} onClick={() => setEventInfoStatus(status)} key={status.id}>
+              <strong>{status.label}</strong>
+              {status.detail ? <small>{status.detail}</small> : null}
+            </button>
+          ))}
         </section>
       ) : null}
       <section className="rest-workspace" aria-label="休整工作区">
@@ -199,6 +206,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
       ) : null}
       {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={2600} onDone={() => setToast(null)} /> : null}
       {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
+      {eventInfoStatus ? <EventInfoModal status={eventInfoStatus} context="休整事件" onClose={() => setEventInfoStatus(null)} /> : null}
       {shouldPromptRainbowRocket && rest.rainbow_rocket_support ? <RainbowRocketSupportPrompt rest={rest} onAction={runRestAction} /> : null}
       {shouldPromptRestEvent ? <RestEventPrompt rest={rest} onAction={runRestAction} /> : null}
       {shouldPromptNamedChallenge ? <NamedChallengePrompt rest={rest} onAction={runRestAction} /> : null}
@@ -839,7 +847,7 @@ function EventMoveServicePanel({rest, service, onClose, onAction, embedded = fal
         </header>
         <div className="event-service-layout">
           <aside className="event-service-team">
-            {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`event-move-slot-${entry.species_id}-${index}`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}
+            {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} aria-label={displayName(entry)} title={displayName(entry)} onClick={() => setSlot(index)} key={`event-move-slot-${entry.species_id}-${index}`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /></button>)}
           </aside>
           <main>
             <div className="segmented-row">
@@ -847,17 +855,38 @@ function EventMoveServicePanel({rest, service, onClose, onAction, embedded = fal
             </div>
             <div className="event-move-list">
               {loading ? <p>读取可学招式中...</p> : moves.length ? moves.map(move => (
-                <button className={moveId === toId(move.id || move.name) ? "selected" : ""} onClick={() => setMoveId(toId(move.id || move.name))} key={`event-learn-${move.id || move.name}`}>
-                  <strong>{move.name_zh || move.name}</strong>
-                  <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
-                  <small>{moveDescription(move)}</small>
-                </button>
+                <EventLearnMoveCard
+                  move={move}
+                  selected={moveId === toId(move.id || move.name)}
+                  onClick={() => setMoveId(toId(move.id || move.name))}
+                  key={`event-learn-${move.id || move.name}`}
+                />
               )) : <p>当前没有可学习的{service === "egg" ? "遗传" : "教授"}招式。</p>}
             </div>
           </main>
         </div>
       </section>
     </EmbeddedOrModal>
+  );
+}
+
+function EventLearnMoveCard({move, selected, onClick}: {move: PricedMove; selected: boolean; onClick: () => void}) {
+  const moveType = move.type || move.type_zh || "Normal";
+  const description = moveDescription(move);
+  return (
+    <button type="button" className={`event-learn-move-card move-type-${typeId(moveType)} ${selected ? "selected" : ""}`} onClick={onClick}>
+      <span className="event-learn-move-title">
+        <strong>{move.name_zh || move.name}</strong>
+        <i>{move.category_zh || move.category || "变化"}</i>
+      </span>
+      <span className="event-learn-move-stats">
+        <b>{move.type_zh || move.type || "一般"}</b>
+        <em>PP {move.pp ?? "--"}</em>
+        <em>威力 {move.power || "--"}</em>
+        <em>命中 {move.accuracy ?? "必中"}</em>
+      </span>
+      <small>{description}</small>
+    </button>
   );
 }
 
@@ -1309,9 +1338,12 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
   const [revealed, setRevealed] = useState(Boolean(offers.length));
   const [buyingOfferId, setBuyingOfferId] = useState("");
   const [barterOffer, setBarterOffer] = useState<ShopOffer | null>(null);
+  const [detailOffer, setDetailOffer] = useState<ShopOffer | null>(null);
   const bonus = shop?.last_roll_bonus || null;
   const barterActive = hasRestEventStatus(rest, "barter");
   const shopDisabled = hasRestEventStatus(rest, "shop_disabled");
+  const rainbowRocketActive = hasRestEventStatus(rest, "rainbow_rocket");
+  const occupiedByRainbowRocket = rainbowRocketActive || shopDisabled || !shop;
   const rollCost = barterActive ? 0 : activeKind === shopKind ? Number(shop?.next_roll_cost || 0) : Number(shop?.free_rolls_remaining || 0) > 0 ? 0 : SHOP_KIND_VIEW[shopKind].cost;
   const canAffordRoll = Number(rest.coins || 0) >= rollCost;
 
@@ -1354,25 +1386,32 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
   return (
     <EmbeddedOrModal embedded={embedded}>
       <section className={`shop-modal slot-shop-modal shop-theme-${SHOP_KIND_VIEW[shopKind].theme}`}>
-        <div className="segmented-row shop-kind-row">
-          {(Object.keys(SHOP_KIND_VIEW) as ShopKind[]).map(kind => <button className={shopKind === kind ? "selected" : ""} onClick={() => { setShopKind(kind); setRevealed(activeKind === kind && Boolean(shop?.offers?.length)); }} key={kind}><strong>{SHOP_KIND_VIEW[kind].label}</strong><small>{SHOP_KIND_VIEW[kind].desc}</small></button>)}
-        </div>
-        <div className="shop-control-row">
-          <span>{SHOP_KIND_VIEW[shopKind].label}　抽奖 {barterActive ? "免费" : coinCostLabel(rollCost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　免费 ${shop.free_rolls_remaining}` : ""}</span>
-          <button disabled={rolling || !canAffordRoll || shopDisabled} onClick={roll}>{shopDisabled ? "商店关闭" : rolling ? "抽取中" : `抽奖`}</button>
-          <button onClick={onClose}>跳过</button>
-        </div>
-        {bonus && revealed ? <div className="slot-bonus-pop"><strong>抽到 {bonus.match_count} 连！</strong><span>免费获得 {bonus.count} 个 {bonus.name_zh || bonus.name}</span></div> : null}
-        <div className={`shop-slot-grid ${rolling ? "rolling" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
+        {occupiedByRainbowRocket ? (
+          <div className="shop-occupied-panel">
+            <strong>商店已被彩虹火箭队成员占领</strong>
+            <span>普通商店暂时关闭。请优先处理工厂支援、技能服务和下一场战斗。</span>
+            <button onClick={onClose}>返回</button>
+          </div>
+        ) : (
+          <>
+            <div className="segmented-row shop-kind-row">
+              {(Object.keys(SHOP_KIND_VIEW) as ShopKind[]).map(kind => <button className={shopKind === kind ? "selected" : ""} onClick={() => { setShopKind(kind); setRevealed(activeKind === kind && Boolean(shop?.offers?.length)); }} key={kind}><strong>{SHOP_KIND_VIEW[kind].label}</strong><small>{SHOP_KIND_VIEW[kind].desc}</small></button>)}
+            </div>
+            <div className="shop-control-row">
+              <span>{SHOP_KIND_VIEW[shopKind].label}　抽奖 {barterActive ? "免费" : coinCostLabel(rollCost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　免费 ${shop.free_rolls_remaining}` : ""}</span>
+              <button disabled={rolling || !canAffordRoll} onClick={roll}>{rolling ? "抽取中" : `抽奖`}</button>
+              <button onClick={onClose}>跳过</button>
+            </div>
+            {bonus && revealed ? <div className="slot-bonus-pop"><strong>抽到 {bonus.match_count} 连！</strong><span>免费获得 {bonus.count} 个 {bonus.name_zh || bonus.name}</span></div> : null}
+            <div className={`shop-slot-grid ${rolling ? "rolling" : ""}`} style={{"--slot-count": slotCount} as CSSProperties}>
           {rolling ? Array.from({length: slotCount}, (_, index) => (
             <article className="shop-slot-card placeholder" key={`rolling-shop-${index}`}>
               <ItemIcon item={undefined} />
               <div>
                 <strong>抽取中</strong>
-                <small>正在刷新商品</small>
                 <span>价格待定</span>
               </div>
-              <button disabled>等待</button>
+              <div className="shop-slot-actions"><button disabled>等待</button><button disabled>详情</button></div>
             </article>
           )) : revealed && offers.length ? offers.map(item => {
             const purchaseCount = Number(shop?.purchased_offer_counts?.[item.offer_id] || (shop?.purchased_offer_id === item.offer_id ? 1 : 0));
@@ -1386,10 +1425,12 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
                 <ItemIcon item={item} />
                 <div>
                   <strong>{item.name_zh || item.name}</strong>
-                  <small>{item.desc_zh || item.desc || item.name}</small>
-                  <span><em>{itemCategoryLabel(item.category)}</em><b>{coinCostLabel(item.cost)}</b>{isBonus ? <i>{bonus?.match_count} 连</i> : null}{purchaseCount ? <i>已买 x{purchaseCount}</i> : itemPurchaseCount ? <i>同道具 x{itemPurchaseCount}</i> : null}</span>
+                  <span><b>{coinCostLabel(item.cost)}</b>{isBonus ? <i>{bonus?.match_count} 连</i> : null}{purchaseCount ? <i>已买 x{purchaseCount}</i> : itemPurchaseCount ? <i>同道具 x{itemPurchaseCount}</i> : null}</span>
                 </div>
-                <button disabled={Boolean(buyingOfferId) || !canAffordItem || shopDisabled} onClick={() => buy(item.offer_id)}>{shopDisabled ? "关闭" : isBuying ? "购买中" : barterActive ? "交换" : purchaseCount ? "再买" : "购买"}</button>
+                <div className="shop-slot-actions">
+                  <button disabled={Boolean(buyingOfferId) || !canAffordItem || shopDisabled} onClick={() => buy(item.offer_id)}>{shopDisabled ? "关闭" : isBuying ? "购买中" : barterActive ? "交换" : purchaseCount ? "再买" : "购买"}</button>
+                  <button onClick={() => setDetailOffer(item)}>详情</button>
+                </div>
               </article>
             );
           }) : Array.from({length: slotCount}, (_, index) => (
@@ -1397,16 +1438,39 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
               <ItemIcon item={undefined} />
               <div>
                 <strong>待抽取</strong>
-                <small>点击抽奖刷新商品。</small>
                 <span>价格待定</span>
               </div>
-              <button disabled>购买</button>
+              <div className="shop-slot-actions"><button disabled>购买</button><button disabled>详情</button></div>
             </article>
           ))}
-        </div>
-        {barterOffer && onBarterBuy ? <BarterBuyModal rest={rest} offer={barterOffer} onClose={() => setBarterOffer(null)} onBuy={async (offerId, itemIds) => { setBuyingOfferId(offerId); try { await onBarterBuy(offerId, itemIds); setBarterOffer(null); } finally { setBuyingOfferId(""); } }} /> : null}
+            </div>
+            {barterOffer && onBarterBuy ? <BarterBuyModal rest={rest} offer={barterOffer} onClose={() => setBarterOffer(null)} onBuy={async (offerId, itemIds) => { setBuyingOfferId(offerId); try { await onBarterBuy(offerId, itemIds); setBarterOffer(null); } finally { setBuyingOfferId(""); } }} /> : null}
+            {detailOffer ? <ShopOfferDetailModal offer={detailOffer} onClose={() => setDetailOffer(null)} /> : null}
+          </>
+        )}
       </section>
     </EmbeddedOrModal>
+  );
+}
+
+function ShopOfferDetailModal({offer, onClose}: {offer: ShopOffer; onClose: () => void}) {
+  return (
+    <div className="modal-layer">
+      <section className="shop-offer-detail-modal">
+        <header>
+          <ItemIcon item={offer} />
+          <div>
+            <h2>{offer.name_zh || offer.name}</h2>
+            <span>{itemCategoryLabel(offer.category)}　{coinCostLabel(offer.cost)}</span>
+          </div>
+        </header>
+        <p>{offer.desc_zh || offer.desc || offer.name_zh || offer.name}</p>
+        {offer.move_name || offer.move_name_zh ? <small>技能：{offer.move_name_zh || offer.move_name}</small> : null}
+        <div className="command-row">
+          <button onClick={onClose}>关闭</button>
+        </div>
+      </section>
+    </div>
   );
 }
 

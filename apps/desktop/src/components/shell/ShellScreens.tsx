@@ -79,7 +79,7 @@ export function TitleScreen({save, catalog, defaultAvatarAsset, onLoad, onNew, o
   );
 }
 
-export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onHistory, onBattleSetting, onTitle, onTestMode}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onStarterUpgrade: () => void; onHistory: () => void; onBattleSetting: () => void; onTitle: () => void; onTestMode: () => void}) {
+export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onStarterUpgrade: () => void; onHistory: () => void; onBattleSetting: () => void; onTitle: () => void; onTestMode: () => void; onRainbowRocketTest?: () => void}) {
   void onStarterUpgrade;
   const [leaving, setLeaving] = useState(false);
   const [quickDexOpen, setQuickDexOpen] = useState(false);
@@ -92,6 +92,7 @@ export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onHistory, 
     {label: "对局偏好", action: onBattleSetting},
     {label: "图鉴", action: () => setQuickDexOpen(true), instant: true},
     {label: "测试模式", action: onTestMode},
+    ...(onRainbowRocketTest ? [{label: "彩虹火箭队测试", action: onRainbowRocketTest}] : []),
     {label: "回到主页", action: onTitle},
   ];
 

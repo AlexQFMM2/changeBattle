@@ -75,7 +75,8 @@ export async function generateStarterCandidatesForSave(options: {
     battleSetting,
   }), seed, talents, setStreak), "current");
   if (!hasTalent(talents, "starter_soulmate")) return current;
-  const memorySpecies = Array.from(new Set([...(save.run_memory?.player_species_ids || []), ...(save.run_memory?.enemy_species_ids || [])].map(toId).filter(Boolean))).slice(0, 12);
+  const memoryLimit = Math.max(0, 12 - current.display.length);
+  const memorySpecies = Array.from(new Set([...(save.run_memory?.player_species_ids || []), ...(save.run_memory?.enemy_species_ids || [])].map(toId).filter(Boolean))).slice(0, memoryLimit);
   if (!memorySpecies.length) return current;
   const memoryProfiles = Array.from({length: memorySpecies.length}, (_value, index) => profiles[index % profiles.length] || "tier1" as RuntimeGenerationProfile);
   const memory = markStarterOrigin(await service.generateRentalCandidates(service.deriveSeed(seed, 0x5017), "gen9randombattle", memorySpecies.length, {
