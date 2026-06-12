@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import type {CSSProperties, ReactElement} from "react";
 import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopOffer, TalentView} from "@changebattle/shared";
 import {AnimatePresence, motion, Reorder} from "motion/react";
-import {EventInfoModal} from "../feedback/EventInfoModal";
+import {DraggableFloatingButton} from "../feedback/DraggableFloatingButton";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard, MoveCardContent, moveCardClassName} from "../move/MoveCard";
@@ -40,7 +40,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   const [bagTargetSlot, setBagTargetSlot] = useState(0);
   const [talentActionId, setTalentActionId] = useState<string | null>(null);
   const [abortConfirmOpen, setAbortConfirmOpen] = useState(false);
-  const [eventInfoStatus, setEventInfoStatus] = useState<RestEventStatusView | null>(null);
+  const [eventPanelOpen, setEventPanelOpen] = useState(false);
   const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
 
   if (!rest) return <div className="loading-panel"><strong>正在整理队伍...</strong></div>;
@@ -149,14 +149,10 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
         <span className="rest-tab-spacer" />
       </section>
       {rest.rest_event_statuses?.length ? (
-        <section className="rest-event-status-row" aria-label="本次休整事件状态">
-          {rest.rest_event_statuses.map(status => (
-            <button className={`rest-event-status tone-${status.tone || "safe"}`} title={status.detail || status.label} onClick={() => setEventInfoStatus(status)} key={status.id}>
-              <strong>{status.label}</strong>
-              {status.detail ? <small>{status.detail}</small> : null}
-            </button>
-          ))}
-        </section>
+        <DraggableFloatingButton className="floating-rest-event-button" title="查看特殊事件" storageKey="changebattle:floating:rest-events" onClick={() => setEventPanelOpen(true)}>
+          <span>事件</span>
+          <b>{rest.rest_event_statuses.length}</b>
+        </DraggableFloatingButton>
       ) : null}
       <section className="rest-workspace" aria-label="休整工作区">
         <AnimatePresence mode="wait">
@@ -206,7 +202,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
       ) : null}
       {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={2600} onDone={() => setToast(null)} /> : null}
       {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
-      {eventInfoStatus ? <EventInfoModal status={eventInfoStatus} context="休整事件" onClose={() => setEventInfoStatus(null)} /> : null}
+      {eventPanelOpen && rest.rest_event_statuses?.length ? <RestEventInfoPanel statuses={rest.rest_event_statuses} onClose={() => setEventPanelOpen(false)} /> : null}
       {shouldPromptRainbowRocket && rest.rainbow_rocket_support ? <RainbowRocketSupportPrompt rest={rest} onAction={runRestAction} /> : null}
       {shouldPromptRestEvent ? <RestEventPrompt rest={rest} onAction={runRestAction} /> : null}
       {shouldPromptNamedChallenge ? <NamedChallengePrompt rest={rest} onAction={runRestAction} /> : null}
@@ -218,6 +214,50 @@ type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "eventDoctor" | "eve
 
 function EmbeddedOrModal({embedded, children}: {embedded?: boolean; children: ReactElement}) {
   return embedded ? children : <div className="modal-layer">{children}</div>;
+}
+
+function RestEventInfoPanel({statuses, onClose}: {statuses: RestEventStatusView[]; onClose: () => void}) {
+  const [selectedId, setSelectedId] = useState(statuses[0]?.id || "");
+  const selected = statuses.find(status => status.id === selectedId) || statuses[0];
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  if (!selected) return null;
+
+  return (
+    <div className="modal-layer rest-event-info-layer" role="presentation" onClick={onClose}>
+      <section className={`rest-event-info-modal tone-${selected.tone || "safe"}`} role="dialog" aria-modal="true" aria-labelledby="rest-event-info-title" onClick={event => event.stopPropagation()}>
+        <header>
+          <div>
+            <span>休整事件</span>
+            <h2 id="rest-event-info-title">特殊事件</h2>
+          </div>
+          <button onClick={onClose}>关闭</button>
+        </header>
+        <div className="rest-event-info-body">
+          <nav aria-label="特殊事件列表">
+            {statuses.map(status => (
+              <button className={`tone-${status.tone || "safe"} ${status.id === selected.id ? "selected" : ""}`} onClick={() => setSelectedId(status.id)} key={status.id}>
+                <strong>{status.label}</strong>
+                {status.detail ? <small>{status.detail}</small> : null}
+              </button>
+            ))}
+          </nav>
+          <article>
+            <span className={`rest-event-info-tone tone-${selected.tone || "safe"}`}>{selected.tone === "risk" ? "风险" : selected.tone === "trade" ? "交易" : "增益"}</span>
+            <h3>{selected.label}</h3>
+            <p>{selected.detail || "这个事件已经生效，当前没有额外说明。"}</p>
+          </article>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function RainbowRocketSupportPrompt({rest, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; onAction: RestActionHandler}) {
@@ -1332,7 +1372,8 @@ function hasRestEventStatus(rest: NonNullable<DesktopGameState["rest"]>, id: str
 function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (shopKind: ShopKind) => RestActionResult | Promise<RestActionResult>; onBuy: (offerId: string) => RestActionResult | Promise<RestActionResult>; onBarterBuy?: (offerId: string, itemIds: string[]) => RestActionResult | Promise<RestActionResult>; embedded?: boolean}) {
   const [shopKind, setShopKind] = useState<ShopKind>((shop?.kind as ShopKind | undefined) || "recovery");
   const activeKind = (shop?.kind as ShopKind | undefined) || "recovery";
-  const offers = activeKind === shopKind ? (shop?.offers || []) : [];
+  const offersForKind = (kind: ShopKind) => shop?.offers_by_kind?.[kind] || (activeKind === kind ? (shop?.offers || []) : []);
+  const offers = offersForKind(shopKind);
   const slotCount = shopKind === "tm" ? 3 : shop?.slot_count || offers.length || 3;
   const [rolling, setRolling] = useState(false);
   const [revealed, setRevealed] = useState(Boolean(offers.length));
@@ -1395,7 +1436,7 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
         ) : (
           <>
             <div className="segmented-row shop-kind-row">
-              {(Object.keys(SHOP_KIND_VIEW) as ShopKind[]).map(kind => <button className={shopKind === kind ? "selected" : ""} onClick={() => { setShopKind(kind); setRevealed(activeKind === kind && Boolean(shop?.offers?.length)); }} key={kind}><strong>{SHOP_KIND_VIEW[kind].label}</strong><small>{SHOP_KIND_VIEW[kind].desc}</small></button>)}
+              {(Object.keys(SHOP_KIND_VIEW) as ShopKind[]).map(kind => <button className={shopKind === kind ? "selected" : ""} onClick={() => { setShopKind(kind); setRevealed(Boolean(offersForKind(kind).length)); }} key={kind}><strong>{SHOP_KIND_VIEW[kind].label}</strong><small>{SHOP_KIND_VIEW[kind].desc}</small></button>)}
             </div>
             <div className="shop-control-row">
               <span>{SHOP_KIND_VIEW[shopKind].label}　抽奖 {barterActive ? "免费" : coinCostLabel(rollCost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　免费 ${shop.free_rolls_remaining}` : ""}</span>

@@ -32,6 +32,8 @@ const MAX_GENERATION_ATTEMPTS = 40;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const SIDE_NAMES = {p1: "玩家", p2: "对手"} as const;
 const STANDARD_TERA_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
+const PIKASHUNIUM_ALLOWED_PIKACHU_IDS = new Set(["pikachuoriginal", "pikachuhoenn", "pikachusinnoh", "pikachuunova", "pikachukalos", "pikachualola", "pikachupartner"]);
+const PIKASHUNIUM_FALLBACK_PIKACHU_FORM = "Pikachu-Original";
 const MOVE_LEARN_SOURCE_ORDER: MoveLearnSource[] = ["levelup", "machine", "tutor", "egg", "event", "transfer", "other"];
 const MOVE_LEARN_SOURCE_LABELS: Record<MoveLearnSource, string> = {
   levelup: "自学",
@@ -124,6 +126,7 @@ const Z_CRYSTAL_TYPE_BY_ID: Record<string, string> = {
   ultranecroziumz: "psychic",
   wateriumz: "water",
 };
+const MEGA_STONE_ID_EXCEPTIONS = new Set(["eviolite"]);
 const SHOWDOWN_ID_SET = new Set<string>(SHOWDOWN_ID_POOL);
 
 function runtimeEnv(name: string): string | undefined {
@@ -514,6 +517,7 @@ export class GameService {
     }
 
     const guaranteeRng = this.createRngFromSeed(seedArray, 0x7a50);
+    this.normalizePikachuFormsForZMoves(team, options);
     this.ensureSignatureMoves(team);
     this.ensureZMoveUser(team, options, guaranteeRng);
     this.ensureMegaUser(team, options, guaranteeRng);
@@ -649,8 +653,10 @@ export class GameService {
     const id = this.toId(itemId);
     if (!id) return null;
     const item = this.dataDex().items.get(id) as any;
+    const looksLikeMegaStone = !MEGA_STONE_ID_EXCEPTIONS.has(id) && (/ite(?:x|y|z)?$/.test(id) || id.endsWith("nitex") || id.endsWith("nitey"));
     if (item?.megaStone) return "mega";
-    if (item?.zMove || item?.zMoveType || id.endsWith("iumz")) return "zmove";
+    if (looksLikeMegaStone) return "mega";
+    if (item?.zMove || item?.zMoveType || Z_CRYSTAL_TYPE_BY_ID[id] || id.endsWith("iumz")) return "zmove";
     if (/dynamax|maxmushroom|maxmushrooms|maxhoney/.test(id)) return "dynamax";
     if (/tera|terashard/.test(id)) return "terastal";
     return null;
@@ -1187,6 +1193,7 @@ export class GameService {
       this.fillProfiledCandidateFallback(seedArray, format, targetCount, options, team, display, seenSpecies);
     }
     if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
+    this.normalizePikachuFormsForZMoves(team, options);
     this.ensureSignatureMoves(team);
     this.ensureZMoveUser(team, options, rng);
     this.ensureMegaUser(team, options, rng);
@@ -1473,6 +1480,22 @@ export class GameService {
     picked.set.item = this.dataDex().items.get(picked.items[0])?.name || picked.items[0];
   }
 
+  private normalizePikachuFormsForZMoves(team: PokemonSet[], options: GenerateRentalOptions): void {
+    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
+    if (!setting.enabled_battle_systems.includes("zmove")) return;
+    const dex = this.dataDex();
+    for (const set of team) {
+      const species = dex.species.get(set.species || set.name);
+      const speciesId = this.toId(species?.id || set.species || set.name);
+      const baseSpeciesId = this.toId(species?.baseSpecies || set.species || set.name);
+      const rawSpeciesId = this.toId(set.species || set.name);
+      const isPikachuForm = speciesId === "pikachu" || baseSpeciesId === "pikachu" || speciesId.startsWith("pikachu") || rawSpeciesId.startsWith("pikachu");
+      if (!isPikachuForm || speciesId === "pikachu" || PIKASHUNIUM_ALLOWED_PIKACHU_IDS.has(speciesId)) continue;
+      set.species = PIKASHUNIUM_FALLBACK_PIKACHU_FORM;
+      set.name = PIKASHUNIUM_FALLBACK_PIKACHU_FORM;
+    }
+  }
+
   private ensureSignatureMoves(team: PokemonSet[]): void {
     const dex = this.dataDex();
     for (const set of team) {
@@ -1480,8 +1503,8 @@ export class GameService {
       const speciesId = this.toId(species?.id || set.species || set.name);
       const baseSpeciesId = this.toId(species?.baseSpecies || set.species || set.name);
       if (speciesId !== "pikachu" && baseSpeciesId !== "pikachu") continue;
-      this.ensureMoveForSet(set, "Volt Tackle");
-      this.ensureMoveForSet(set, "Thunderbolt");
+      const zChoice = this.pikachuSignatureZChoiceForSet(set);
+      if (zChoice) this.ensureMoveForSet(set, zChoice.moveName);
     }
   }
 
@@ -1569,6 +1592,8 @@ export class GameService {
 
   private specialZCrystalChoicesForSet(set: PokemonSet): Array<{itemId: string; moveName: string}> {
     const dex = this.dataDex();
+    const pikachuChoice = this.pikachuSignatureZChoiceForSet(set);
+    if (pikachuChoice && dex.items.get(pikachuChoice.itemId)?.exists) return [pikachuChoice];
     const species = dex.species.get(set.species || set.name);
     const speciesNames = new Set([species?.name, species?.baseSpecies, set.species, set.name].filter(Boolean).map(value => String(value)));
     const speciesIds = new Set([...speciesNames].map(value => this.toId(value)));
@@ -1580,6 +1605,18 @@ export class GameService {
         return !users.length || users.some(user => speciesNames.has(user) || speciesIds.has(this.toId(user)));
       })
       .map((item: any) => ({itemId: item.id, moveName: item.zMoveFrom}));
+  }
+
+  private pikachuSignatureZChoiceForSet(set: PokemonSet): {itemId: string; moveName: string} | null {
+    const species = this.dataDex().species.get(set.species || set.name);
+    const speciesId = this.toId(species?.id || set.species || set.name);
+    const baseSpeciesId = this.toId(species?.baseSpecies || set.species || set.name);
+    const rawSpeciesId = this.toId(set.species || set.name);
+    const isPikachuForm = speciesId === "pikachu" || baseSpeciesId === "pikachu" || speciesId.startsWith("pikachu") || rawSpeciesId.startsWith("pikachu");
+    if (!isPikachuForm) return null;
+    if (speciesId === "pikachu") return {itemId: "pikaniumz", moveName: "Volt Tackle"};
+    if (!PIKASHUNIUM_ALLOWED_PIKACHU_IDS.has(speciesId)) return null;
+    return {itemId: "pikashuniumz", moveName: "Thunderbolt"};
   }
 
   private profileStageTier(profile: GenerationProfile): StageTier {
@@ -2253,6 +2290,8 @@ export class BattleSession {
     const protocolLines = splitLogLines(this.pendingMessages);
     const requestDiffs = this.pendingRequestDiffs.slice();
     const {events, timeline} = consumeLog(this.pendingMessages, this.tracker, this.service, this.latestRequests, this.pendingLineShowdownIds);
+    this.applyRequestActiveToTracker("p1");
+    this.applyRequestActiveToTracker("p2");
     const afterTurn = this.tracker.turn;
     const timelineWithIds = timeline.map(event => this.withTimelineId(event));
     this.logTurnSummary(beforeTurn, afterTurn, showdownDATA, protocolLines, requestDiffs, events, timelineWithIds);
@@ -2961,27 +3000,52 @@ export class BattleSession {
   private applyPlayerStateToTracker(states: PlayerPokemonState[]): void {
     if (!states.length) return;
     const active = states.find(state => state.active) || states[0];
-    const rawName = shortIdent(active.ident || "") || active.species || active.details || "";
-    const runtimeLike = {ident: active.ident || rawName, pokeball: active.showdown_id} as RuntimePokemon;
-    const display = findRentalByRuntime(this.playerDisplay, runtimeLike)
-      || findRentalByRuntime(this.playerDisplay, rawName)
-      || this.service.speciesDisplay(rawName);
-    this.tracker.active[this.playerSide()] = {
-      name: display.name || rawName,
-      display_name: ("species_zh" in display ? display.species_zh : display.name_zh) || display.name || rawName,
-      species_id: display.species_id || toId(rawName),
-      sprite: display.sprite,
-      types: display.types,
-      types_zh: display.types_zh,
-      base_stats: display.base_stats,
-      ability: display.ability,
-      ability_zh: display.ability_zh,
-      ability_id: display.ability_id,
-      ability_desc: display.ability_desc,
-      ability_desc_zh: display.ability_desc_zh,
+    const runtimeLike = {
+      ident: active.ident || active.species || active.details || "",
+      details: active.details,
       condition: active.condition || stateCondition(active),
-      status: active.status || "",
-      showdown_id: normalizeShowdownId(active.showdown_id),
+      active: true,
+      item: active.item,
+      pokeball: active.showdown_id,
+    } as RuntimePokemon;
+    this.applyRuntimeActiveToTracker(this.playerSide(), runtimeLike);
+  }
+
+  private applyRequestActiveToTracker(side: SideId): void {
+    const runtime = this.latestRequests[side]?.side?.pokemon?.find(pokemon => pokemon.active) || this.latestRequests[side]?.side?.pokemon?.[0];
+    if (!runtime) return;
+    this.applyRuntimeActiveToTracker(side, runtime);
+  }
+
+  private applyRuntimeActiveToTracker(side: SideId, runtime: RuntimePokemon): void {
+    const rawName = shortIdent(runtime.ident || "") || runtime.details || "";
+    const team = this.displayForBattleSide(side);
+    const display = findRentalByRuntime(team, runtime)
+      || findRentalByRuntime(team, rawName)
+      || this.service.speciesDisplay(rawName);
+    const condition = runtime.condition || this.tracker.active[side]?.condition || "";
+    const showdownId = normalizeShowdownId(runtime.pokeball) || this.tracker.active[side]?.showdown_id;
+    const previous = this.tracker.active[side];
+    const sameTrackedPokemon = Boolean(showdownId && previous?.showdown_id && normalizeShowdownId(previous.showdown_id) === showdownId);
+    this.tracker.active[side] = {
+      ...previous,
+      ...(sameTrackedPokemon ? {} : {
+        name: display.name || rawName,
+        display_name: ("species_zh" in display ? display.species_zh : display.name_zh) || display.name || rawName,
+        species_id: display.species_id || toId(rawName),
+        sprite: display.sprite,
+        types: display.types,
+        types_zh: display.types_zh,
+        base_stats: display.base_stats,
+        ability: display.ability,
+        ability_zh: display.ability_zh,
+        ability_id: display.ability_id,
+        ability_desc: display.ability_desc,
+        ability_desc_zh: display.ability_desc_zh,
+      }),
+      condition,
+      status: condition.split(" ").slice(1).join(" "),
+      showdown_id: showdownId,
     };
   }
 

@@ -7,6 +7,7 @@ import {useResponsiveCanvas} from "./hooks/useResponsiveCanvas";
 import "./styles.css";
 import {BgmController} from "./components/audio/BgmController";
 import type {BgmScene} from "./components/audio/musicManifest";
+import {DraggableFloatingButton} from "./components/feedback/DraggableFloatingButton";
 import {ScreenToast} from "./components/feedback/ScreenToast";
 import {QuickDexModal} from "./pages/dex/QuickDexModal";
 import {PlayerSettings} from "./pages/player/PlayerSettings";
@@ -430,8 +431,7 @@ function RoutedApp() {
 
   function openDex() {
     const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
-    const restHasDexTalent = Boolean(rest?.talents?.some(talent => talent.id === "intel_god_eye"));
-    const canOpenDex = screen === "mainMenu" || (BATTLE_SCREENS.includes(screen) && battleHasDexTalent) || (screen === "rest" && restHasDexTalent);
+    const canOpenDex = screen === "mainMenu" || (BATTLE_SCREENS.includes(screen) && battleHasDexTalent) || screen === "rest";
     if (!canOpenDex) {
       showAppToast("当前页面不能打开图鉴。");
       return;
@@ -479,8 +479,7 @@ function RoutedApp() {
   const hideTransientMessage = HIDDEN_MESSAGE_SCREENS.includes(screen);
   const transientMessage = !isBattleScreen && !hideTransientMessage ? message : "";
   const battleHasDexTalent = Boolean(battle?.player_talents?.some(talent => talent.id === "intel_god_eye"));
-  const restHasDexTalent = Boolean(rest?.talents?.some(talent => talent.id === "intel_god_eye"));
-  const showDexButton = (isBattleScreen && battleHasDexTalent) || (screen === "rest" && restHasDexTalent);
+  const showDexButton = (isBattleScreen && battleHasDexTalent) || screen === "rest";
   const bgmScene = routeTransition?.musicScene || bgmSceneForScreen(screen, battle);
 
   useEffect(() => {
@@ -492,7 +491,7 @@ function RoutedApp() {
       <section className="game-screen" ref={responsiveCanvas.ref} style={responsiveCanvas.style}>
         <div className="game-viewport">
           {guardedRedirect ? null : content}
-          {showDexButton ? <button className="floating-dex-button" title="打开图鉴" onClick={openDex}>图鉴</button> : null}
+          {showDexButton ? <DraggableFloatingButton className="floating-dex-button" title="打开图鉴" storageKey="changebattle:floating:dex" onClick={openDex}>图鉴</DraggableFloatingButton> : null}
           {dexOpen ? <QuickDexModal onClose={() => setDexOpen(false)} /> : null}
           {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
           {transientMessage ? <ScreenToast message={transientMessage} /> : null}

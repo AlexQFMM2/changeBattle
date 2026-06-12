@@ -679,7 +679,7 @@ async function testPikachuGenerationGuaranteesSignatureZMoves(): Promise<void> {
   });
   const moveIds = generated.display[0].moves.map(move => move.id);
   assert.ok(moveIds.includes("volttackle"), JSON.stringify(generated.display[0], null, 2));
-  assert.ok(moveIds.includes("thunderbolt"), JSON.stringify(generated.display[0], null, 2));
+  assert.equal(generated.display[0].item_id, "pikaniumz", JSON.stringify(generated.display[0], null, 2));
   assert.equal(service.battleSystemForItem(generated.display[0].item_id), "zmove", JSON.stringify(generated.display[0], null, 2));
 
   const session = await service.createBattleSession({
@@ -692,6 +692,27 @@ async function testPikachuGenerationGuaranteesSignatureZMoves(): Promise<void> {
     battleSetting: GEN7_BATTLE_SETTING,
   });
   assert.ok(session.getState().request?.active?.[0]?.canZMove?.some(Boolean), JSON.stringify(session.getState().request?.active?.[0], null, 2));
+
+  const capGenerated = await service.generateRentalCandidates([179, 180, 181, 182], "gen9randombattle", 1, {
+    speciesIds: ["pikachuphd"],
+    purpose: "starter",
+    battleSetting: GEN7_BATTLE_SETTING,
+  });
+  const capMoveIds = capGenerated.display[0].moves.map(move => move.id);
+  assert.equal(capGenerated.display[0].species_id, "pikachuoriginal", JSON.stringify(capGenerated.display[0], null, 2));
+  assert.ok(capMoveIds.includes("thunderbolt"), JSON.stringify(capGenerated.display[0], null, 2));
+  assert.equal(capGenerated.display[0].item_id, "pikashuniumz", JSON.stringify(capGenerated.display[0], null, 2));
+  assert.equal(service.battleSystemForItem(capGenerated.display[0].item_id), "zmove", JSON.stringify(capGenerated.display[0], null, 2));
+  const capSession = await service.createBattleSession({
+    playerTeam: capGenerated.team,
+    enemyTeam: [{...pokemon("Blissey", ["Splash"], "Natural Cure"), level: 100}],
+    playerDisplay: capGenerated.display,
+    enemyDisplay: await service.describeTeam([{...pokemon("Blissey", ["Splash"], "Natural Cure"), level: 100}]),
+    seed: [183, 184, 185, 186],
+    enemyAi: {level: "gym_low", randomness: 0, allowSwitch: false},
+    battleSetting: GEN7_BATTLE_SETTING,
+  });
+  assert.ok(capSession.getState().request?.active?.[0]?.canZMove?.some(Boolean), JSON.stringify(capSession.getState().request?.active?.[0], null, 2));
 }
 
 async function testMegaBattleFlow(): Promise<void> {
@@ -942,7 +963,9 @@ function testDedicatedZCrystalPreferredDuringGuarantee(): void {
 function testBattleSystemItemClassification(): void {
   const service = createTestService();
   assert.equal(service.battleSystemForItem("venusaurite"), "mega");
+  assert.equal(service.battleSystemForItem("absolitez"), "mega");
   assert.equal(service.battleSystemForItem("firiumz"), "zmove");
+  assert.equal(service.battleSystemForItem("eviolite"), null);
   assert.equal(service.battleSystemForItem("leftovers"), null);
   assert.equal(service.zCrystalItemIds().length, 35);
   assert.equal(service.megaStoneItemIds().length, 92);

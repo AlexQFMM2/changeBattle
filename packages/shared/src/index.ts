@@ -725,6 +725,7 @@ export type ShopState = {
   preferred_roll_cost?: number;
   slot_discounts?: number[];
   offers: ShopOffer[];
+  offers_by_kind?: Partial<Record<"recovery" | "held" | "tm", ShopOffer[]>>;
   purchased_offer_id?: string | null;
   purchased_offer_counts?: Record<string, number>;
   purchased_item_counts?: Record<string, number>;
@@ -1021,6 +1022,7 @@ export type CurrentRunData = {
   shop_roll_count?: number;
   shop_kind?: "recovery" | "held" | "tm";
   shop_offers?: ShopOffer[];
+  shop_offers_by_kind?: Partial<Record<"recovery" | "held" | "tm", ShopOffer[]>>;
   shop_purchased_offer_id?: string | null;
   shop_purchased_offer_counts?: Record<string, number>;
   shop_purchased_item_counts?: Record<string, number>;

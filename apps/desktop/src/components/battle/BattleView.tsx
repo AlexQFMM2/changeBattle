@@ -290,6 +290,54 @@ function activeSnapshotsForBattle(battle: BattleState | null): Record<"p1" | "p2
   };
 }
 
+function timelineIdentityKeys(...values: Array<string | undefined>): Set<string> {
+  const keys = new Set<string>();
+  for (const value of values) {
+    const raw = String(value || "").trim();
+    if (!raw) continue;
+    keys.add(raw.toLowerCase());
+    const id = toId(raw);
+    if (id) keys.add(id);
+  }
+  return keys;
+}
+
+function timelineEventIdentityKeys(event: BattleTimelineEvent): Set<string> {
+  return timelineIdentityKeys(event.target_showdown_id, event.source_showdown_id, event.target_id, event.target, event.source_id, event.source, event.target_species_id);
+}
+
+function timelineKeysIntersect(left: Set<string>, right: Set<string>): boolean {
+  for (const key of left) if (right.has(key)) return true;
+  return false;
+}
+
+function finalTimelineConditionForActive(battle: BattleState | null, side: "p1" | "p2", fallbackName: string, fallbackShowdownId: string, fallbackCondition: string): string {
+  if (!battle) return fallbackCondition;
+  const finalActive = battle.tracker.active[side];
+  const finalKeys = timelineIdentityKeys(fallbackShowdownId, finalActive?.showdown_id, fallbackName, finalActive?.name, finalActive?.display_name, finalActive?.species_id);
+  let displayedKeys = new Set(finalKeys);
+  let latest = fallbackCondition;
+  for (const event of battle.timeline_events || []) {
+    const eventSide = event.targetSide || event.side;
+    if (eventSide !== side) continue;
+    const eventKeys = timelineEventIdentityKeys(event);
+    if (event.type === "switch" && event.targetSide === side) {
+      displayedKeys = eventKeys.size ? eventKeys : displayedKeys;
+      if (event.condition) latest = event.condition;
+      continue;
+    }
+    if (!event.condition) continue;
+    if (event.type === "faint") {
+      latest = event.condition;
+      continue;
+    }
+    if (!eventKeys.size || timelineKeysIntersect(eventKeys, displayedKeys) || timelineKeysIntersect(eventKeys, finalKeys)) {
+      latest = event.condition;
+    }
+  }
+  return latest || fallbackCondition;
+}
+
 function snapshotFromTimelineEvent(current: ActiveDisplaySnapshot, event: BattleTimelineEvent): ActiveDisplaySnapshot {
   const effect = String(event.effect || "");
   const dynamaxEnd = effect === "DynamaxEnd" || event.text.includes("极巨化结束");
@@ -375,13 +423,13 @@ function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
 export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, choicePending, pendingTransition, onBattleAnimationDone}: {battle: BattleState | null; battleBag: BagCategoryView | null; mode: AppStatus; setMode: (mode: AppStatus) => void; onChoice: (choice: string) => Promise<boolean> | boolean | void; onAutoAdvance?: () => Promise<boolean> | boolean | void; choicePending?: boolean; pendingTransition: DesktopGameState | null; onBattleAnimationDone: (state: DesktopGameState) => void}) {
   const player = activePokemon(battle, "p1");
   const enemy = activePokemon(battle, "p2");
-  const finalConditions = {
-    p1: player.runtime?.condition || battle?.tracker.active.p1.condition || "",
-    p2: battle?.tracker.active.p2.condition || "",
-  };
   const finalActiveNames = {
     p1: battle?.tracker.active.p1.name || runtimeName(player.runtime) || "",
     p2: battle?.tracker.active.p2.name || "",
+  };
+  const finalConditions = {
+    p1: finalTimelineConditionForActive(battle, "p1", finalActiveNames.p1, battle?.tracker.active.p1.showdown_id || player.runtime?.pokeball || "", player.runtime?.condition || battle?.tracker.active.p1.condition || ""),
+    p2: finalTimelineConditionForActive(battle, "p2", finalActiveNames.p2, battle?.tracker.active.p2.showdown_id || "", battle?.tracker.active.p2.condition || ""),
   };
   const finalActiveShowdownIds = {
     p1: battle?.tracker.active.p1.showdown_id || player.runtime?.pokeball || "",
