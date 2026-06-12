@@ -4,13 +4,38 @@
 
 ## 当前边界
 
-当前 `apps/mobile` 已经是可构建的 Capacitor Android 工程，能生成 APK 并打开真实 React UI。
+当前 `apps/mobile` 已经是可构建的 Capacitor Android 工程，能生成 APK，并开始接入真实 `game-runtime`、mobile data bundle 和 mobile Showdown bundle。
 
 重要限制：
 
-- 当前 mobile bridge 仍是本地 smoke/scaffold，完整 Desk game runtime / Showdown 战斗服务还没有迁移到移动端。
-- APK 可用于安装体验、横屏触摸、资源路径、启动页、签名和 bridge 形态验证。
-- 完整本地游玩需要后续把 Electron main 中的游戏业务 API 抽成跨平台 runtime。
+- APK 已不再按 mock/scaffold 作为目标；后续问题应按真实 App runtime 排查。
+- APK 可用于安装体验、横屏触摸、资源路径、启动页、签名、bridge 形态和基础真实流程验证。
+- 完整本地游玩仍需要持续真机/模拟器 smoke。当前不要只看构建通过就判定 App release 可用。
+- Android 模拟器截图和自动化点击流程见 [`android-emulator-smoke.md`](./android-emulator-smoke.md)。
+
+## 当前 APK 问题记录
+
+这组记录用于避免下一轮重复定位同一类问题。记录日期：2026-06-12。
+
+已修复/已定位：
+
+- `开始游戏` 曾报 `Module not found in bundle: ../data/random-battles/gen9/teams`。原因是 mobile Showdown bundle 没带 `random-battles/**/teams.js`，并且动态 glob 没有被 esbuild 正确保留；已在 mobile Showdown bundle/smoke 中补齐随机队伍模块，并用 `Teams.generate("gen9randombattle")` 校验 6 只队伍。
+- Mobile 候选队曾大量 fallback 到皮卡丘形态。原因是 `pokemon_tiers.csv` 只走同步读取，而 mobile `DataProvider` 只有异步读取；已补 async tier loading。
+- 公共 `assets/` 资源曾在 APK 中缺失，导致图片和 BGM 不加载。后续打包必须确认 mobile static copy 同时带上 `apps/desktop/src/assets` 中被 Vite 引用的资源，以及项目公共 `assets/` 中由 `assetUrl()` 访问的资源。
+
+当前待修：
+
+- 普通流程选完人后直接进入战斗页，预期应先进入第 1 场前的休整页。
+- 进入战斗后存在敌方/宝可梦显示为 `?`、血量不显示、点击“战斗”不弹技能菜单的问题。优先怀疑是普通流程跳过首个休整页后 run/battle session 状态不一致，但需要用模拟器实际点按和 logcat 确认。
+- 路由中转页视频在 Android WebView 上会短暂露出原生视频播放按钮。预期修法不是禁用或隐藏视频加载，而是在转场层最上方盖一个约 1 秒的黑色遮罩，等 WebView 原生控件闪现阶段过去后再淡出。
+- 星图右侧描述移动端已能显示，但样式和触摸布局仍需要按真机截图继续修。
+
+排查原则：
+
+- 先用模拟器实际走一遍：新建存档 -> 开始游戏 -> 选队 -> 进入休整/战斗。
+- 资源问题先看 APK 内是否包含文件，再看 `assetUrl()` 返回路径，不要只改前端引用。
+- 战斗页问题先看 runtime 返回的 battle state/request，再看 UI 显示层。
+- 不要为了掩盖 Android WebView 视频控件问题而关闭视频本身；用高层遮罩处理闪屏。
 
 ## 最终产物
 
@@ -117,8 +142,8 @@ D:\jdk-21.0.11\bin\keytool.exe -genkeypair -v ^
 当前版本：
 
 ```text
-versionName: 0.6.5
-versionCode: 605
+versionName: 0.7.0
+versionCode: 700
 ```
 
 需要同步检查：
@@ -138,6 +163,14 @@ apps/mobile/android/app/build.gradle
 0.6.3 -> versionCode 603
 0.6.4 -> versionCode 604
 0.6.5 -> versionCode 605
+0.6.6 -> versionCode 606
+0.6.7 -> versionCode 607
+0.6.8 -> versionCode 608
+0.6.9 -> versionCode 609
+0.6.10 -> versionCode 610
+0.6.11 -> versionCode 611
+0.6.12 -> versionCode 612
+0.6.13 -> versionCode 613
 0.7.0 -> versionCode 700
 1.0.0 -> versionCode 1000
 ```
@@ -271,9 +304,11 @@ ssh win10@172.16.10.41 "set PATH=G:\SDK\platform-tools;%PATH%&& adb install -r D
 - App 名称显示为 `ChangeBattle`。
 - 图标不是 Capacitor 默认图标。
 - 横屏启动。
-- 标题页、主菜单、候选队伍、战斗页能点击。
+- 标题页、主菜单、候选队伍、休整页、战斗页能点击。
 - Android 返回键不会直接破坏存档。
 - 退出后重开仍能读取 mobile 本地存档。
+
+如果需要在 Windows 构建机上开 Android 模拟器、截图、自动点击，请按 [`android-emulator-smoke.md`](./android-emulator-smoke.md) 执行。
 
 ## 快速检查清单
 

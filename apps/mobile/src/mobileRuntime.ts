@@ -61,6 +61,7 @@ import {
   exchangeKeepsItem,
   exchangeStateRatio,
   itemKey,
+  itemCategory,
   hasTalent,
   partialStateForPokemon,
   prepareRunForNextBattleAfterRest,
@@ -89,6 +90,7 @@ import {
   spendRunCoins,
   routeForRunBattle,
   sellRunBagItem,
+  sellPriceForItem,
   shinyPokemon,
   settleBasicBattleResult,
   starterChoiceState,
@@ -101,7 +103,8 @@ import {
   validateStatAdjustments,
   villainIntrusionRollHits,
 } from "@changebattle/game-runtime";
-import type {BattleBackgroundView, BattleState, CurrentRunData, DesktopGameState, LocalSave, MoveSummary, PlannedBattleData, PokemonSet, RestState, ShopItem, ShopOffer, ShopState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleState, CurrentRunData, DesktopGameState, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PokemonSet, RestState, ShopItem, ShopOffer, ShopState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {createMobileRuntimeEnvironment} from "./mobileRuntimeEnv";
 
 const MOBILE_TERA_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"] as const;
@@ -163,6 +166,21 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
     let activeBattle: TrainerItemBattleSession | null = null;
     let activeBattleState: BattleState | null = null;
     const gameState = (partial: Partial<DesktopGameState>): DesktopGameState => ({screen: "mainMenu", save: null, ...partial} as DesktopGameState);
+    const decorateMobileBattleState = (state: BattleState, run?: CurrentRunData | null): BattleState => {
+      if (!run) return state;
+      const playerTalents = run.talents || [];
+      return {
+        ...state,
+        player_trainer: run.player_trainer,
+        enemy_trainer: run.enemy_trainer,
+        enemy_boss_record: run.enemy_boss_record,
+        battle_background: run.battle_background,
+        player_talents: playerTalents,
+        show_move_effectiveness: hasTalent(playerTalents, "intel_god_eye"),
+        battle_setting: normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING),
+        music_scene: run.boss_type && run.boss_type !== "normal" ? "boss" : "battle",
+      };
+    };
     let bossTeamPoolsPromise: Promise<RuntimeBossTeamPoolRow[]> | null = null;
     const loadBossTeamPools = () => {
       bossTeamPoolsPromise ||= loadMobileTeamPools(env.data, "data/boss_team_pools.csv", "tier1");
@@ -259,8 +277,8 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         seed: battleService.deriveSeed(Number(run.seed), 200 + prepared.battleNo),
         enemyAi: prepared.route.type === "champion" ? "champion" : prepared.route.type === "elite4" ? "elite4" : prepared.route.type === "gym" ? "gym_low" : "normal",
       }));
-      activeBattleState = activeBattle.getState();
-      return gameState({screen: "battleMain", save: next, battle: activeBattleState, message: prepared.message});
+      activeBattleState = decorateMobileBattleState(activeBattle.getState(), run);
+      return gameState({screen: "battleMain", save: next, battle: activeBattleState, battle_bag: await mobileBagCategories(battleService, run), message: prepared.message});
     };
     const finishMobileBattle = async (state: BattleState): Promise<DesktopGameState> => {
       const save = await ensureSave();
@@ -300,18 +318,18 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
       if (settled.outcome === "loss") {
         const next = await env.saves.save(save);
         activeBattle = null;
-        activeBattleState = state;
-        return gameState({screen: "result", save: next, battle: state, message: settled.message});
+        activeBattleState = decorateMobileBattleState(state, run);
+        return gameState({screen: "result", save: next, battle: activeBattleState, message: settled.message});
       }
       if (settled.outcome === "completed") {
         const done = await env.saves.save(save);
         activeBattle = null;
-        activeBattleState = state;
-        return gameState({screen: "result", save: done, battle: state, message: settled.message});
+        activeBattleState = decorateMobileBattleState(state, run);
+        return gameState({screen: "result", save: done, battle: activeBattleState, message: settled.message});
       }
       activeBattle = null;
-      activeBattleState = state;
-      return mobileRestGameState(save, settled.message, state);
+      activeBattleState = decorateMobileBattleState(state, run);
+      return mobileRestGameState(save, settled.message, activeBattleState);
     };
     const mobileRestGameState = async (save: LocalSave, message: string, battle?: BattleState | null): Promise<DesktopGameState> => {
       const run = save.current_run as CurrentRunData | null;
@@ -391,7 +409,10 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
             message: "WARNING / WARNING：彩虹火箭队入侵，请先处理工厂支援。",
           });
         }
-        return startMobileNextBattle(save, service);
+        run.status = "awaiting_rest";
+        run.battle_no = 0;
+        run.next_battle = 1;
+        return mobileRestGameState(save, "出发前可以先整理队伍。");
       },
     };
     return createChangeBattleRuntime(env, {
@@ -411,11 +432,21 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           const run = save.current_run as CurrentRunData | null;
           if (!run) return gameState({screen: "mainMenu", save, message: `欢迎回来，${save.trainer.name}。`});
           if (run.status === "awaiting_rest") return mobileRestGameState(save, "继续移动端休整。");
-          if (run.status === "in_battle" && activeBattle) return gameState({screen: "battleMain", save, battle: activeBattle.getState(), message: "继续移动端战斗。"});
+          if (run.status === "in_battle" && activeBattle) {
+            const service = await loadGameService();
+            const state = decorateMobileBattleState(activeBattle.getState(), run);
+            return gameState({screen: "battleMain", save, battle: state, battle_bag: await mobileBagCategories(service, run), message: "继续移动端战斗。"});
+          }
           if (run.status === "in_battle") {
             save.current_run = null;
             const next = await env.saves.save(save);
             return gameState({screen: "result", save: next, message: "移动端读档发现战斗未完成，已按失败结算。"});
+          }
+          if (run.status === "ready" && Number(run.wins || 0) <= 0 && !run.enemy_trainer) {
+            run.status = "awaiting_rest";
+            run.battle_no = 0;
+            run.next_battle = 1;
+            return mobileRestGameState(save, "出发前可以先整理队伍。");
           }
           return startMobileNextBattle(save);
         },
@@ -430,18 +461,20 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           });
           const outcome = resolveBattleCommandOutcome(result);
           const {state} = outcome;
-          activeBattleState = state;
+          activeBattleState = decorateMobileBattleState(state, run);
           const nextSave = outcome.shouldPersist ? await env.saves.save(save) : save;
-          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save: nextSave, battle: state});
+          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save: nextSave, battle: activeBattleState, battle_bag: await mobileBagCategories(service, nextSave.current_run as CurrentRunData)});
           return finishMobileBattle(state);
         },
         autoAdvanceBattle: async () => {
           const save = await ensureSave();
           if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+          const run = save.current_run as CurrentRunData;
+          const service = await loadGameService();
           const state = await executeBattleAutoAdvance(activeBattle);
           const outcome = resolveBattleCommandOutcome(state);
-          activeBattleState = state;
-          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save, battle: state});
+          activeBattleState = decorateMobileBattleState(state, run);
+          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save, battle: activeBattleState, battle_bag: await mobileBagCategories(service, run)});
           return finishMobileBattle(state);
         },
         exchange: async (ownIndex, enemyIndex) => {
@@ -1074,6 +1107,19 @@ function mobileRememberBagItemMeta(run: CurrentRunData, offer: ShopOffer): void 
 
 async function mobileItemDetails(service: GameService, itemId: string, meta?: Partial<ShopOffer>): Promise<ShopItem> {
   const id = itemKey(itemId);
+  if (/^tm:/i.test(id)) {
+    const moveId = id.slice(3);
+    return {
+      ...(meta || {}),
+      id,
+      name: meta?.name || `TM ${moveId}`,
+      name_zh: meta?.name_zh || `技能机器 ${meta?.move_name_zh || meta?.move_name || moveId}`,
+      desc: meta?.desc || `Teaches ${meta?.move_name || moveId}.`,
+      desc_zh: meta?.desc_zh || `让宝可梦学会 ${meta?.move_name_zh || meta?.move_name || moveId}。`,
+      cost: Math.max(0, Number(meta?.cost || 0)),
+      icon_asset: meta?.icon_asset || "assets/placeholders/move.png",
+    } as ShopItem;
+  }
   const found = (await service.itemOptions()).find(item => itemKey(item.id || item.name) === id);
   return {
     ...(found || {id, name: id, name_zh: id, desc: "", desc_zh: "", cost: 0, category: "held"}),
@@ -1081,6 +1127,47 @@ async function mobileItemDetails(service: GameService, itemId: string, meta?: Pa
     id,
     cost: Math.max(0, Number(meta?.cost ?? found?.cost ?? 0)),
   } as ShopItem;
+}
+
+async function mobileBagCategories(service: GameService, run: CurrentRunData): Promise<BagCategoryView> {
+  const result: BagCategoryView = {consumable: [], held: [], tm: []};
+  for (const [rawId, rawCount] of Object.entries(run.bag_items || {})) {
+    const count = Math.max(0, Math.floor(Number(rawCount || 0)));
+    if (count <= 0) continue;
+    const id = itemKey(rawId);
+    const meta = run.bag_item_meta?.[id];
+    const item = await mobileItemDetails(service, id, meta);
+    let category = (meta?.category as ItemCategory | undefined) || itemCategory(item);
+    if (category === "consumable" && !(await service.hasConsumableItemEffect(id))) category = "held";
+    const moveId = /^tm:/i.test(id) ? id.slice(3) : undefined;
+    result[category].push({
+      ...item,
+      id,
+      count,
+      category,
+      item_battle_system: service.battleSystemForItem(id) || undefined,
+      sell_price: sellPriceForItem({cost: Math.max(0, Number(item.cost || 0))}, run),
+      move_id: meta?.move_id || moveId,
+      move_name: meta?.move_name || moveId,
+      move_name_zh: meta?.move_name_zh || (moveId ? String(item.name_zh || item.name || moveId).replace(/^技能机器\s*/, "") : undefined),
+    });
+  }
+  if (mobileBattleSettingHasTerastal(run) && run.tera_orb_type) {
+    const type = run.tera_orb_type;
+    const typeZh = run.tera_orb_type_zh || MOBILE_TERA_TYPE_ZH[type as keyof typeof MOBILE_TERA_TYPE_ZH] || type;
+    result.held.push({
+      id: `tera-orb:${String(type).toLowerCase()}`,
+      name: `${type} Tera Orb`,
+      name_zh: `${typeZh}太晶珠`,
+      count: 1,
+      category: "held",
+      item_battle_system: "terastal",
+      icon_asset: "assets/placeholders/item.png",
+      locked: true,
+      lock_reason: "太晶珠会在技能菜单中使用。",
+    });
+  }
+  return result;
 }
 
 async function mobileForgeRewards(service: GameService, run: CurrentRunData, materialIds: string[]): Promise<ShopItem[]> {
@@ -1366,7 +1453,7 @@ function mobileStarterBag(purchased: ShopOffer[]): {items: Record<string, number
   const items: Record<string, number> = {};
   const meta: Record<string, Partial<ShopOffer>> = {};
   for (const offer of purchased) {
-    const id = toId(offer.id || offer.name);
+    const id = itemKey(offer.id || offer.name);
     if (!id) continue;
     items[id] = Number(items[id] || 0) + 1;
     meta[id] = {
@@ -1375,7 +1462,9 @@ function mobileStarterBag(purchased: ShopOffer[]): {items: Record<string, number
       name_zh: offer.name_zh,
       desc: offer.desc,
       desc_zh: offer.desc_zh,
+      cost: offer.cost,
       category: offer.category,
+      icon_asset: offer.icon_asset,
       move_id: offer.move_id,
       move_name: offer.move_name,
       move_name_zh: offer.move_name_zh,

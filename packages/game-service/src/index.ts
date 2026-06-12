@@ -514,6 +514,7 @@ export class GameService {
     }
 
     const guaranteeRng = this.createRngFromSeed(seedArray, 0x7a50);
+    this.ensureSignatureMoves(team);
     this.ensureZMoveUser(team, options, guaranteeRng);
     this.ensureMegaUser(team, options, guaranteeRng);
     this.ensureDynamaxUsers(team, options);
@@ -1010,6 +1011,7 @@ export class GameService {
     await this.loadSpriteMap();
     await this.loadTranslations();
     await this.loadDetails();
+    await this.loadTierRowsAsync();
   }
 
   private async loadSpriteMap(): Promise<SpriteIndexMap> {
@@ -1185,6 +1187,7 @@ export class GameService {
       this.fillProfiledCandidateFallback(seedArray, format, targetCount, options, team, display, seenSpecies);
     }
     if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
+    this.ensureSignatureMoves(team);
     this.ensureZMoveUser(team, options, rng);
     this.ensureMegaUser(team, options, rng);
     this.ensureDynamaxUsers(team, options);
@@ -1470,6 +1473,18 @@ export class GameService {
     picked.set.item = this.dataDex().items.get(picked.items[0])?.name || picked.items[0];
   }
 
+  private ensureSignatureMoves(team: PokemonSet[]): void {
+    const dex = this.dataDex();
+    for (const set of team) {
+      const species = dex.species.get(set.species || set.name);
+      const speciesId = this.toId(species?.id || set.species || set.name);
+      const baseSpeciesId = this.toId(species?.baseSpecies || set.species || set.name);
+      if (speciesId !== "pikachu" && baseSpeciesId !== "pikachu") continue;
+      this.ensureMoveForSet(set, "Volt Tackle");
+      this.ensureMoveForSet(set, "Thunderbolt");
+    }
+  }
+
   private zCrystalOptionsForSet(set: PokemonSet): string[] {
     const choices = this.zCrystalChoicesForSet(set);
     return [...choices.special, ...choices.generic];
@@ -1640,9 +1655,21 @@ export class GameService {
       this.tierRows = [];
       return this.tierRows;
     }
+    this.tierRows = this.parseTierRows(raw);
+    return this.tierRows;
+  }
+
+  private async loadTierRowsAsync(): Promise<TierRow[]> {
+    if (this.tierRows) return this.tierRows;
+    const raw = await this.readProjectText("data/pokemon_tiers.csv").catch(() => "");
+    this.tierRows = raw ? this.parseTierRows(raw) : [];
+    return this.tierRows;
+  }
+
+  private parseTierRows(raw: string): TierRow[] {
     const lines = raw.split(/\r?\n/).filter(Boolean);
     const header = this.parseCsvLine(lines[0] || "");
-    this.tierRows = lines.slice(1).map(line => {
+    return lines.slice(1).map(line => {
       const values = this.parseCsvLine(line);
       const row = Object.fromEntries(header.map((key, index) => [key, values[index] || ""])) as Record<string, string>;
       return {
@@ -1653,7 +1680,6 @@ export class GameService {
         notes: row.notes,
       };
     }).filter(row => row.species_id && ((row.tier >= 1 && row.tier <= 6) || row.tier === 10));
-    return this.tierRows;
   }
 
   private parseCsvLine(line: string): string[] {
@@ -1932,6 +1958,26 @@ export class BattleSession {
     if (this.battleSetting.battle_rule_preset === "gen8") return "gen8customgame";
     if (this.battleSetting.battle_rule_preset === "gen7") return "gen7customgame";
     return "gen9customgame";
+  }
+
+  private battleSystemEnabled(system: BattleSystemId): boolean {
+    return this.battleSetting.enabled_battle_systems.includes(system);
+  }
+
+  private requestCanDynamax(request: BattleRequestView | null | undefined): boolean {
+    return this.battleSystemEnabled("dynamax") && Boolean(request?.active?.[0]?.canDynamax);
+  }
+
+  private requestCanTerastallize(request: BattleRequestView | null | undefined): boolean {
+    return this.battleSystemEnabled("terastal") && Boolean(request?.active?.[0]?.canTerastallize);
+  }
+
+  private requestCanMegaEvo(request: BattleRequestView | null | undefined): boolean {
+    return this.battleSystemEnabled("mega") && Boolean(request?.active?.[0]?.canMegaEvo);
+  }
+
+  private requestCanZMove(request: BattleRequestView | null | undefined, index: number): unknown {
+    return this.battleSystemEnabled("zmove") ? request?.active?.[0]?.canZMove?.[index] : undefined;
   }
 
   async start(): Promise<BattleState> {
@@ -2260,9 +2306,9 @@ export class BattleSession {
       .filter(entry => !entry.move.disabled)
       .map(entry => entry.index);
     if (moves.length) {
-      if (request.active?.[0]?.canDynamax) return `move ${this.pick(moves)} max`;
-      if (request.active?.[0]?.canTerastallize) return `move ${this.pick(moves)} terastallize`;
-      return request.active?.[0]?.canMegaEvo ? `move ${this.pick(moves)} mega` : `move ${this.pick(moves)}`;
+      if (this.requestCanDynamax(request)) return `move ${this.pick(moves)} max`;
+      if (this.requestCanTerastallize(request)) return `move ${this.pick(moves)} terastallize`;
+      return this.requestCanMegaEvo(request) ? `move ${this.pick(moves)} mega` : `move ${this.pick(moves)}`;
     }
     const switches = legalSwitchIndexes(request);
     return switches.length ? `switch ${this.pick(switches)}` : "default";
@@ -2372,10 +2418,9 @@ export class BattleSession {
     const dex = this.sim.Dex.mod("gen7");
     const exactMovesAllowed = side === "p2" || this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
     if (exactMovesAllowed && request?.active?.[0]?.moves?.length) {
-      const canZMove = request.active[0].canZMove || [];
-      const canMegaEvo = Boolean(request.active[0].canMegaEvo);
-      const canDynamax = Boolean(request.active[0].canDynamax);
-      const canTerastallize = Boolean(request.active[0].canTerastallize);
+      const canMegaEvo = this.requestCanMegaEvo(request);
+      const canDynamax = this.requestCanDynamax(request);
+      const canTerastallize = this.requestCanTerastallize(request);
       const maxMoves = request.active[0].maxMoves?.maxMoves || [];
       return request.active[0].moves
         .map((moveRequest, index) => ({moveRequest, index: index + 1, move: dex.moves.get(moveRequest.id || moveRequest.move)}))
@@ -2392,7 +2437,7 @@ export class BattleSession {
           const candidates = canDynamax && maxMoves[entry.index - 1] ? [{...base, choice: `move ${entry.index} max`, score: score + 78}] : [];
           if (canTerastallize) candidates.push({...base, choice: `move ${entry.index} terastallize`, score: score + 76});
           if (canMegaEvo) candidates.push({...base, choice: `move ${entry.index} mega`, score: score + 75});
-          const zMove = canZMove[entry.index - 1];
+          const zMove = this.requestCanZMove(request, entry.index - 1);
           if (zMove) candidates.push({...base, choice: `move ${entry.index} zmove`, score: score + 80});
           candidates.push({...base, choice: `move ${entry.index}`, score});
           return candidates;
@@ -2588,10 +2633,9 @@ export class BattleSession {
   }
 
   private scoredEnemyMoves(request: BattleRequestView): Array<{choice: string; score: number}> {
-    const canZMove = request.active?.[0]?.canZMove || [];
-    const canMegaEvo = Boolean(request.active?.[0]?.canMegaEvo);
-    const canDynamax = Boolean(request.active?.[0]?.canDynamax);
-    const canTerastallize = Boolean(request.active?.[0]?.canTerastallize);
+    const canMegaEvo = this.requestCanMegaEvo(request);
+    const canDynamax = this.requestCanDynamax(request);
+    const canTerastallize = this.requestCanTerastallize(request);
     const maxMoves = request.active?.[0]?.maxMoves?.maxMoves || [];
     const moves = (request.active?.[0]?.moves || [])
       .map((move, index) => ({move, index: index + 1}))
@@ -2600,7 +2644,7 @@ export class BattleSession {
     const target = this.activeDisplay(this.playerSide());
     return moves.flatMap(entry => {
       const score = this.scoreEnemyMove(entry.move, active, target);
-      const zMove = canZMove[entry.index - 1];
+      const zMove = this.requestCanZMove(request, entry.index - 1);
       if (this.avoidsBattleSystemAi()) return [{choice: `move ${entry.index}`, score}];
       const candidates = canDynamax && maxMoves[entry.index - 1] ? [{choice: `move ${entry.index} max`, score: score + 78}] : [];
       if (canTerastallize) candidates.push({choice: `move ${entry.index} terastallize`, score: score + 76});
@@ -2917,8 +2961,24 @@ export class BattleSession {
   private applyPlayerStateToTracker(states: PlayerPokemonState[]): void {
     if (!states.length) return;
     const active = states.find(state => state.active) || states[0];
+    const rawName = shortIdent(active.ident || "") || active.species || active.details || "";
+    const runtimeLike = {ident: active.ident || rawName, pokeball: active.showdown_id} as RuntimePokemon;
+    const display = findRentalByRuntime(this.playerDisplay, runtimeLike)
+      || findRentalByRuntime(this.playerDisplay, rawName)
+      || this.service.speciesDisplay(rawName);
     this.tracker.active[this.playerSide()] = {
-      name: shortIdent(active.ident || "") || active.species || active.details || "",
+      name: display.name || rawName,
+      display_name: ("species_zh" in display ? display.species_zh : display.name_zh) || display.name || rawName,
+      species_id: display.species_id || toId(rawName),
+      sprite: display.sprite,
+      types: display.types,
+      types_zh: display.types_zh,
+      base_stats: display.base_stats,
+      ability: display.ability,
+      ability_zh: display.ability_zh,
+      ability_id: display.ability_id,
+      ability_desc: display.ability_desc,
+      ability_desc_zh: display.ability_desc_zh,
       condition: active.condition || stateCondition(active),
       status: active.status || "",
       showdown_id: normalizeShowdownId(active.showdown_id),

@@ -42,9 +42,10 @@ export function TitleScreen({save, catalog, defaultAvatarAsset, onLoad, onNew, o
 
   return (
     <AnimatedPage className="title-screen title-page">
-      <video className="title-video-bg" poster={titleBackgroundPoster} autoPlay muted loop playsInline aria-hidden="true">
+      <video className="title-video-bg" poster={titleBackgroundPoster} autoPlay muted loop playsInline controls={false} disablePictureInPicture controlsList="nodownload nofullscreen noplaybackrate" aria-hidden="true">
         <source src={titleBackgroundVideo} type="video/mp4" />
       </video>
+      <div className="video-startup-mask" aria-hidden="true" />
       <div className="title-atmosphere" aria-hidden="true" />
       <div className="title-slide-track">
         <motion.div className="title-slide-pane save-pane" animate={{x: savePickerOpen ? "0%" : "-112%", opacity: savePickerOpen ? 1 : 0.85}} transition={{type: "spring", stiffness: 210, damping: 30}}>
@@ -116,9 +117,10 @@ export function MainMenu({save, onStart, onTalent, onStarterUpgrade, onHistory, 
 
   return (
     <AnimatedPage className="main-menu-page">
-      <video className="main-menu-video-bg" autoPlay muted loop playsInline aria-hidden="true">
+      <video className="main-menu-video-bg" autoPlay muted loop playsInline controls={false} disablePictureInPicture controlsList="nodownload nofullscreen noplaybackrate" aria-hidden="true">
         <source src={mainMenuBackgroundVideo} type="video/mp4" />
       </video>
+      <div className="video-startup-mask" aria-hidden="true" />
       <div className="main-menu-shade" aria-hidden="true" />
       <motion.section className="main-user-panel" aria-label="用户信息" initial="hidden" animate={leaving ? "leaving" : "visible"} variants={mainUserPanelVariants}>
         <span className="main-user-avatar">

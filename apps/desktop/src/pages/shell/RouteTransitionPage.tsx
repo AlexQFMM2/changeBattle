@@ -1,4 +1,4 @@
-import {useRef} from "react";
+import {useRef, useState} from "react";
 import type {CSSProperties} from "react";
 import spritesaurusTransitionVideo from "../../assets/title/spritesaurus-transition.mp4";
 
@@ -85,9 +85,10 @@ export function routeTransitionCopy(targetScreen: string, reason: RouteTransitio
 
 export function RouteTransitionPage({title, detail, tip, durationMs}: RouteTransitionCopy) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const style = {"--route-transition-duration": `${durationMs}ms`} as CSSProperties;
   function playVideo() {
-    void videoRef.current?.play().catch(() => undefined);
+    void videoRef.current?.play().then(() => setVideoPlaying(true)).catch(() => setVideoPlaying(false));
   }
 
   function randomizePlaybackStart() {
@@ -99,7 +100,7 @@ export function RouteTransitionPage({title, detail, tip, durationMs}: RouteTrans
 
   return (
     <div className="route-transition-page" style={style} aria-live="polite">
-      <video ref={videoRef} className="route-transition-video" autoPlay muted loop playsInline preload="auto" onLoadedMetadata={randomizePlaybackStart} onCanPlay={playVideo}>
+      <video ref={videoRef} className={`route-transition-video ${videoPlaying ? "playing" : ""}`} autoPlay muted loop playsInline preload="auto" controls={false} disablePictureInPicture controlsList="nodownload nofullscreen noplaybackrate" onLoadedMetadata={randomizePlaybackStart} onCanPlay={playVideo}>
         <source src={spritesaurusTransitionVideo} type="video/mp4" />
       </video>
       <div className="route-transition-shade" aria-hidden="true" />

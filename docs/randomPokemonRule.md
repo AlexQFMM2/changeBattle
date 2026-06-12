@@ -51,6 +51,19 @@
   tier3, tier3, tier4
 ```
 
+普通敌人的物种分级单独指定，不再只靠数值 profile 的权重随机，避免普通敌人大量抽到 `species tier1/2` 的弱小未进化物种：
+
+```text
+普通早期:
+  species tier3, tier4, tier4
+
+普通 before_tier2:
+  species tier4, tier4, tier5
+
+普通 before_tier3:
+  species tier4, tier5, tier5
+```
+
 Boss 按路线分配数值分级。馆主、四天王、冠军这类 Boss 角色的物种来自预处理好的固定队伍池，不现场按物种分级抽奖；这里的分级只用于决定这些固定物种生成出来时的数值强度。
 
 ```text

@@ -38,6 +38,7 @@ export type PlannedBattleService = {
     count: number,
     options: {
       profiles?: RuntimeGenerationProfile[];
+      speciesTiers?: RuntimeSpeciesTier[];
       speciesIds?: string[];
       purpose?: "starter" | "normal" | "boss" | "rescue";
       battleSetting?: BattleSetting;
@@ -113,6 +114,13 @@ export function normalEnemyProfilesForBattle(setStreak: number, battleNo: number
   if (nextBoss.type === "champion" || nextBoss.stage.includes("tier3")) return ["tier3", "tier3", "tier4"];
   if (nextBoss.stage === "tier2") return ["tier2", "tier2", "tier3"];
   return ["tier1", "tier1", "tier2"];
+}
+
+export function normalEnemySpeciesTiersForBattle(setStreak: number, battleNo: number): RuntimeSpeciesTier[] {
+  const nextBoss = routeBossForBattle(setStreak, battleNo < 3 ? 3 : 7);
+  if (nextBoss.type === "champion" || nextBoss.stage.includes("tier3")) return [4, 5, 5];
+  if (nextBoss.stage === "tier2") return [4, 4, 5];
+  return [3, 4, 4];
 }
 
 export function profilesForRoute(route: PlannedBattleRoute): RuntimeGenerationProfile[] {
@@ -236,8 +244,10 @@ export async function buildPlannedBattle(options: {
   const routeSalt = route.type === "normal" ? 100 : route.type === "champion" ? 700 : route.stage.includes("tier3") ? 603 : route.stage === "tier2" ? 602 : 601;
   const bossTeam = route.type === "normal" ? null : pickTeamPoolSelection(bossTeamPools, enemyTrainer, run, battleNo, "boss");
   const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
+  const speciesTiers = route.type === "normal" ? normalEnemySpeciesTiersForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : undefined;
   const enemyGenerated = await service.generateRentalCandidates(service.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen9randombattle", profiles.length, {
     profiles,
+    speciesTiers,
     speciesIds: bossTeam?.speciesIds,
     purpose: route.type === "normal" ? "normal" : "boss",
     battleSetting: run.battle_setting,

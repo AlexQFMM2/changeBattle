@@ -7,6 +7,23 @@
 - 原则：迁移时优先把 Electron main 中的真实业务搬进 runtime，再由 Desk/App adapter 调用同一个 `createChangeBattleRuntime(env)`；不再为了拆文件而横向切碎。
 - 当前状态：基础 façade、Profile/Settings、Progression、Preparation、planned battle 生成、特殊 planned battle 生成、彩虹火箭支援候选/选择、开战前 run 准备已进入 runtime；Mobile 普通战已创建真实 Showdown battle session，并接入普通反派乱入/彩虹火箭 planned route 与开局 WARNING 支援页；完整战斗结算、普通 rest/shop、exchange、dex 仍主要留在 Desk 侧，Mobile 仍有部分简化逻辑。
 
+## 当前待修复问题
+
+记录日期：2026-06-12。
+
+- [x] 普通流程选完人后直接进入战斗页，预期应先进入第 1 场前休整页。
+- [ ] 战斗页显示大量 `?`、HP 不显示，点击“战斗”不弹技能菜单；已补齐 Mobile battle state 装饰和 `battle_bag`，仍需用模拟器点按和 logcat 验证 battle state/request。
+- [x] 路由中转页 Android WebView 会短暂露出原生视频播放按钮；已用高层 1 秒黑色遮罩处理，不关闭视频加载。
+- [ ] 星图右侧描述已显示，移动端详情面板已先行放大并改为更稳的两列布局；仍需按真机截图继续调整。
+
+远程模拟器 smoke 流程见 `docs/android-emulator-smoke.md`。
+
+## 已修复问题记录
+
+- [x] mobile Showdown bundle 缺 `random-battles/**/teams.js`，导致开始游戏时报 `Module not found in bundle: ../data/random-battles/gen9/teams`。
+- [x] mobile tier rows 只走同步读取，导致候选队 fallback 到皮卡丘形态；已补异步 `pokemon_tiers.csv` 加载。
+- [x] 公共 `assets/` 未完整进入 APK 导致图片/BGM 缺失；已按 mobile static copy 方向处理，后续每版仍需验 APK 内资源。
+
 ## Migration Checklist
 
 - [x] 建立 `packages/game-runtime`

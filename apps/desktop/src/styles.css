@@ -11123,6 +11123,15 @@ button.party-status-chip {
   pointer-events: none;
 }
 
+.video-startup-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: #000;
+  pointer-events: none;
+  animation: route-transition-start-mask 1.12s ease forwards;
+}
+
 .title-screen.title-page::before {
   content: "";
   position: absolute;
@@ -18795,7 +18804,19 @@ button.party-status-chip {
   inset: 0;
   z-index: 40;
   overflow: hidden;
-  background: #050608;
+  background:
+    radial-gradient(circle at 50% 35%, rgb(58 77 64 / 45%), transparent 42%),
+    linear-gradient(180deg, #10180f 0%, #050806 100%);
+}
+
+.route-transition-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #000;
+  pointer-events: none;
+  animation: route-transition-start-mask 1.18s ease forwards;
 }
 
 .route-transition-video,
@@ -18809,8 +18830,14 @@ button.party-status-chip {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: .96;
+  opacity: 0;
   filter: saturate(1.04) contrast(1.04);
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+
+.route-transition-video.playing {
+  opacity: .96;
 }
 
 .route-transition-shade {
@@ -18916,6 +18943,11 @@ button.party-status-chip {
 @keyframes route-transition-progress {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
+}
+
+@keyframes route-transition-start-mask {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @media (max-width: 760px) {

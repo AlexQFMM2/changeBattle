@@ -800,6 +800,7 @@ export function displayFromActive(active: ActiveTrackerDisplay | undefined, base
     nature_minus: base?.nature_minus || "",
     role: base?.role || "",
     role_zh: base?.role_zh || "",
+    shiny: Boolean(base?.shiny),
     sprite: active?.sprite || base?.sprite,
   };
 }

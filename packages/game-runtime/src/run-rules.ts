@@ -336,6 +336,8 @@ export function normalizeStarChart(input?: StarChartState | null, legacyTalentId
       const node = STAR_CHART_NODE_BY_ID.get(id);
       if (node && node.kind !== "event_preview") nodes[id] = Math.max(nodes[id] || 0, 1);
     }
+  }
+  if (!hasExplicitChart || starterUpgrades) {
     for (const group of STARTER_ITEM_GROUPS) {
       nodes[`item_quality:${group.id}`] = Math.max(nodes[`item_quality:${group.id}`] || 0, Number(starter.item_quality?.[group.id] || 1));
       nodes[`item_quantity:${group.id}`] = Math.max(nodes[`item_quantity:${group.id}`] || 0, Number(starter.item_quantity?.[group.id] || 2));

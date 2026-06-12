@@ -670,6 +670,30 @@ async function testZMoveGenerationGuarantee(): Promise<void> {
   assert.ok(disabled.display.every(pokemon => service.battleSystemForItem(pokemon.item_id) !== "zmove"), JSON.stringify(disabled.display.map(pokemon => ({species: pokemon.species_id, item: pokemon.item_id})), null, 2));
 }
 
+async function testPikachuGenerationGuaranteesSignatureZMoves(): Promise<void> {
+  const service = createTestService();
+  const generated = await service.generateRentalCandidates([171, 172, 173, 174], "gen9randombattle", 1, {
+    speciesIds: ["pikachu"],
+    purpose: "starter",
+    battleSetting: GEN7_BATTLE_SETTING,
+  });
+  const moveIds = generated.display[0].moves.map(move => move.id);
+  assert.ok(moveIds.includes("volttackle"), JSON.stringify(generated.display[0], null, 2));
+  assert.ok(moveIds.includes("thunderbolt"), JSON.stringify(generated.display[0], null, 2));
+  assert.equal(service.battleSystemForItem(generated.display[0].item_id), "zmove", JSON.stringify(generated.display[0], null, 2));
+
+  const session = await service.createBattleSession({
+    playerTeam: generated.team,
+    enemyTeam: [{...pokemon("Blissey", ["Splash"], "Natural Cure"), level: 100}],
+    playerDisplay: generated.display,
+    enemyDisplay: await service.describeTeam([{...pokemon("Blissey", ["Splash"], "Natural Cure"), level: 100}]),
+    seed: [175, 176, 177, 178],
+    enemyAi: {level: "gym_low", randomness: 0, allowSwitch: false},
+    battleSetting: GEN7_BATTLE_SETTING,
+  });
+  assert.ok(session.getState().request?.active?.[0]?.canZMove?.some(Boolean), JSON.stringify(session.getState().request?.active?.[0], null, 2));
+}
+
 async function testMegaBattleFlow(): Promise<void> {
   const session = await createCustomSession(
     [{...pokemon("Charizard", ["Scratch", "Ember"], "Blaze"), item: "Charizardite X"}],
@@ -867,6 +891,20 @@ async function testEnemyUsesTerastalWhenAvailable(): Promise<void> {
   assert.equal(active.tera_type, "Ice", JSON.stringify(active, null, 2));
 }
 
+async function testEnemyDoesNotUseTerastalWhenDisabled(): Promise<void> {
+  const session = await createCustomSession(
+    [pokemon("Blissey", ["Tackle"], "Natural Cure")],
+    [{...pokemon("Pikachu", ["Tera Blast", "Thunderbolt"], "Static"), teraType: "Ice"}],
+    [159, 160, 161, 162],
+    {level: "gym_low", randomness: 0, allowSwitch: false},
+    DEFAULT_BATTLE_SETTING,
+  );
+  const state = await session.choose("move 1");
+  const active = state.tracker.active[state.enemy_side || "p2"];
+  assert.ok(!/太晶化成了冰属性/.test(battleText(state)), battleText(state));
+  assert.ok(!active.terastallized, JSON.stringify(active, null, 2));
+}
+
 async function testTerastalGenerationTeraTypes(): Promise<void> {
   const service = createTestService();
   const team: PokemonSet[] = [
@@ -938,6 +976,7 @@ await testZMoveBattleFlow();
 await testEnemyUsesZMoveWhenAvailable();
 await testZMoveInternalProtocolIsHidden();
 await testZMoveGenerationGuarantee();
+await testPikachuGenerationGuaranteesSignatureZMoves();
 await testMegaBattleFlow();
 await testEnemyUsesMegaWhenAvailable();
 await testMegaGenerationGuarantee();
@@ -947,6 +986,7 @@ await testEnemyUsesDynamaxWhenAvailable();
 await testDynamaxGenerationGuarantee();
 await testTerastalBattleFlow();
 await testEnemyUsesTerastalWhenAvailable();
+await testEnemyDoesNotUseTerastalWhenDisabled();
 await testTerastalGenerationTeraTypes();
 testDedicatedZCrystalPreferredDuringGuarantee();
 testDedicatedMegaStoneGuarantee();

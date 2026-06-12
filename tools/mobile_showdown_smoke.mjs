@@ -1,4 +1,4 @@
-import {existsSync, mkdirSync, readdirSync, rmSync, writeFileSync} from "node:fs";
+import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from "node:fs";
 import {builtinModules} from "node:module";
 import {pathToFileURL} from "node:url";
 import path from "node:path";
@@ -86,6 +86,7 @@ const dataFiles = walkJsFiles(dataRoot)
       if (!allowedMods.has(mod)) return false;
       if (blockedDataMods.has(mod)) return false;
     }
+    if (relative.startsWith("random-battles/")) return path.basename(file) === "teams.js";
     if (relative.startsWith("text/")) return allowedTextFiles.has(path.basename(file));
     return allowedDataFiles.has(path.basename(file));
   })
@@ -98,11 +99,30 @@ const modNames = existsSync(path.join(dataRoot, "mods"))
 
 const imports = [];
 const mapEntries = [];
+const moduleIdentByKey = new Map();
 for (const [index, file] of [...dataFiles, ...configFiles].entries()) {
   const ident = `dataModule${index}`;
   imports.push(`import * as ${ident} from ${JSON.stringify(importPath(file))};`);
   for (const key of moduleKeys(file)) {
     mapEntries.push(`${JSON.stringify(key)}: ${ident}`);
+    moduleIdentByKey.set(key, ident);
+  }
+}
+function addModuleAlias(fromKey, toKey) {
+  const ident = moduleIdentByKey.get(toKey) || moduleIdentByKey.get(`${toKey}.js`);
+  if (!ident || moduleIdentByKey.has(fromKey)) return;
+  mapEntries.push(`${JSON.stringify(fromKey)}: ${ident}`);
+  moduleIdentByKey.set(fromKey, ident);
+}
+for (const modName of modNames) {
+  for (const fileName of allowedDataFiles) {
+    const relative = fileName.replace(/\.js$/, "");
+    const modKey = `/showdown/dist/data/mods/${modName}/${relative}`;
+    const targetKey = modName === "gen7" && fileName === "learnsets.js"
+      ? `/showdown/dist/data/mods/gen7sm/${relative}`
+      : `/showdown/dist/data/${relative}`;
+    addModuleAlias(modKey, targetKey);
+    addModuleAlias(`${modKey}.js`, `${targetKey}.js`);
   }
 }
 const customFormatsKeys = moduleKeys(path.join(showdownRoot, "dist", "config", "custom-formats.js"));
@@ -220,6 +240,25 @@ await build({
   logLevel: "silent",
 });
 
+const bundledSource = readFileSync(bundleFile, "utf8");
+const randomBattleGlobBridge = `globRequire_data_random_battles_teams = function changeBattleRandomBattleTeams(path2) {
+      const modules = globalThis.__changeBattleShowdownModules || {};
+      const normalized = __cbPath.resolve(path2);
+      const relativeToSim = __cbPath.resolve(__dirname, path2);
+      const candidates = [path2, normalized, normalized + ".js", relativeToSim, relativeToSim + ".js"];
+      for (const candidate of candidates) {
+        const module = modules[candidate];
+        if (module) {
+          const defaultExport = module.default && module.default.default ? module.default.default : module.default;
+          return defaultExport ? {...module, default: defaultExport} : module;
+        }
+      }
+      throw new Error("Module not found in bundle: " + path2);
+    };`;
+if (bundledSource.includes("globRequire_data_random_battles_teams = __glob({});")) {
+  writeFileSync(bundleFile, bundledSource.replace("globRequire_data_random_battles_teams = __glob({});", randomBattleGlobBridge), "utf8");
+}
+
 if (skipSmoke) {
   console.log(JSON.stringify({
     ok: true,
@@ -232,15 +271,31 @@ if (skipSmoke) {
 
 const showdown = await import(pathToFileURL(bundleFile).href);
 showdown.Dex.includeData();
+const generatedTeam = showdown.Teams.generate("gen9randombattle", {seed: [1, 2, 3, 4]});
+if (!Array.isArray(generatedTeam) || generatedTeam.length < 6) {
+  throw new Error(`Mobile Showdown random battle generator failed: ${JSON.stringify(generatedTeam).slice(0, 500)}`);
+}
+const gen7Learnsets = globalThis.__changeBattleShowdownModules?.["/showdown/dist/data/mods/gen7/learnsets"];
+if (!gen7Learnsets?.Learnsets) {
+  throw new Error("Mobile Showdown gen7 learnsets alias is missing.");
+}
 
 const stream = new showdown.BattleStream();
 const output = [];
 void (async () => {
   for await (const chunk of stream) output.push(String(chunk));
 })();
+const smokeP1Team = showdown.Teams.pack([
+  {species: "Pikachu", ability: "Static", moves: ["Thunderbolt", "Quick Attack"], evs: {hp: 85, atk: 85, def: 85, spa: 85, spd: 85, spe: 85}, level: 50},
+  {species: "Eevee", ability: "Run Away", moves: ["Quick Attack", "Swift"], evs: {hp: 85, atk: 85, def: 85, spa: 85, spd: 85, spe: 85}, level: 50},
+]);
+const smokeP2Team = showdown.Teams.pack([
+  {species: "Meowth", ability: "Pickup", moves: ["Scratch", "Growl"], evs: {hp: 85, atk: 85, def: 85, spa: 85, spd: 85, spe: 85}, level: 50},
+  {species: "Persian", ability: "Limber", moves: ["Scratch", "Swift"], evs: {hp: 85, atk: 85, def: 85, spa: 85, spd: 85, spe: 85}, level: 50},
+]);
 void stream.write(`>start {"formatid":"gen9customgame","seed":[1,2,3,4]}`);
-void stream.write(`>player p1 {"name":"AppP1","team":"Pikachu||static|thunderbolt,quickattack||85,,,,85||||50]Eevee||runaway|quickattack,swift||85,,,,85||||50"}`);
-void stream.write(`>player p2 {"name":"AppP2","team":"Meowth||pickup|scratch,growl||85,,,,85||||50]Persian||limber|scratch,swift||85,,,,85||||50"}`);
+void stream.write(`>player p1 ${JSON.stringify({name: "AppP1", team: smokeP1Team})}`);
+void stream.write(`>player p2 ${JSON.stringify({name: "AppP2", team: smokeP2Team})}`);
 void stream.write(`>p1 team 12`);
 void stream.write(`>p2 team 12`);
 void stream.write(`>p1 move 1`);
@@ -252,10 +307,31 @@ const text = output.join("\n");
 if (!text.includes("|move|") && !text.includes("|turn|")) {
   throw new Error(`Mobile Showdown smoke did not produce battle output:\n${text.slice(0, 2000)}`);
 }
+
+const gen7Stream = new showdown.BattleStream();
+const gen7Output = [];
+void (async () => {
+  for await (const chunk of gen7Stream) gen7Output.push(String(chunk));
+})();
+void gen7Stream.write(`>start {"formatid":"gen7customgame","seed":[5,6,7,8]}`);
+void gen7Stream.write(`>player p1 ${JSON.stringify({name: "Gen7P1", team: smokeP1Team})}`);
+void gen7Stream.write(`>player p2 ${JSON.stringify({name: "Gen7P2", team: smokeP2Team})}`);
+void gen7Stream.write(`>p1 team 12`);
+void gen7Stream.write(`>p2 team 12`);
+void gen7Stream.write(`>p1 move 1`);
+void gen7Stream.write(`>p2 move 1`);
+void gen7Stream.writeEnd();
+
+await new Promise(resolve => setTimeout(resolve, 100));
+const gen7Text = gen7Output.join("\n");
+if (!gen7Text.includes("|move|") && !gen7Text.includes("|turn|")) {
+  throw new Error(`Mobile Showdown gen7 smoke did not produce battle output:\n${gen7Text.slice(0, 2000)}`);
+}
 console.log(JSON.stringify({
   ok: true,
   bundle: path.relative(projectRoot, bundleFile),
   data_modules: dataFiles.length,
   mods: modNames.length,
+  random_team_size: generatedTeam.length,
   output_excerpt: text.split("\n").slice(0, 12),
 }, null, 2));
