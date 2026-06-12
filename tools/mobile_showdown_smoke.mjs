@@ -5,8 +5,14 @@ import path from "node:path";
 import {build} from "esbuild";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
-const defaultShowdownRoot = path.resolve(projectRoot, "../pokemonShowdowm/pokemon-showdown");
-const showdownRoot = path.resolve(process.env.SHOWDOWN_PATH || defaultShowdownRoot);
+const showdownRootCandidates = [
+  process.env.SHOWDOWN_PATH,
+  path.resolve(projectRoot, "../vendor/pokemon-showdown"),
+  path.resolve(projectRoot, "../pokemonShowdowm/pokemon-showdown"),
+  path.resolve(projectRoot, "release/changeBattle-cli-win/vendor/pokemon-showdown"),
+].filter(Boolean);
+const showdownRoot = showdownRootCandidates.find(candidate => existsSync(path.join(candidate, "dist", "sim", "index.js")))
+  || path.resolve(showdownRootCandidates[0]);
 const simEntry = path.join(showdownRoot, "dist", "sim", "index.js");
 const showdownVirtualRoot = "/showdown";
 const showdownSimDir = `${showdownVirtualRoot}/dist/sim`;
@@ -17,7 +23,7 @@ const bundleFile = path.resolve(projectRoot, process.env.CHANGEBATTLE_MOBILE_SHO
 const skipSmoke = process.env.CHANGEBATTLE_MOBILE_SHOWDOWN_SKIP_SMOKE === "1";
 
 if (!existsSync(simEntry)) {
-  throw new Error(`Pokemon Showdown sim entry not found: ${simEntry}`);
+  throw new Error(`Pokemon Showdown sim entry not found. Tried: ${showdownRootCandidates.map(candidate => path.join(candidate, "dist", "sim", "index.js")).join(", ")}`);
 }
 
 function slash(value) {

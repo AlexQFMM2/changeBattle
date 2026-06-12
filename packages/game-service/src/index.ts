@@ -1160,27 +1160,26 @@ export class GameService {
     const rng = this.createRngFromSeed(seedArray, 4100 + targetCount);
     const generator = this.randomGenerator(format, seedArray);
 
-    for (let index = 0; index < targetCount; index += 1) {
-      const profile = requestedProfiles[index] || requestedProfiles[requestedProfiles.length - 1] || "tier1";
-      const preferGmax = index === 0 && this.shouldEnsureGmaxCandidate(options) && !speciesIds.length;
-      const speciesPick = speciesIds[index]
-        ? {speciesId: speciesIds[index], speciesTier: this.tierForSpecies(speciesIds[index]) || this.profileStageTier(profile)}
+    const maxAttempts = Math.max(targetCount * 80, MAX_GENERATION_ATTEMPTS);
+    for (let slot = 0, attempts = 0; slot < targetCount && attempts < maxAttempts; attempts += 1) {
+      const profile = requestedProfiles[slot] || requestedProfiles[requestedProfiles.length - 1] || "tier1";
+      const preferGmax = slot === 0 && this.shouldEnsureGmaxCandidate(options) && !speciesIds.length;
+      const speciesPick = speciesIds[slot]
+        ? {speciesId: speciesIds[slot], speciesTier: this.tierForSpecies(speciesIds[slot]) || this.profileStageTier(profile)}
         : preferGmax
           ? this.pickGmaxSpeciesForProfile(profile, rng, seenSpecies, options)
-        : requestedSpeciesTiers[index]
-          ? this.pickSpeciesForTier(requestedSpeciesTiers[index], rng, seenSpecies, options)
+        : requestedSpeciesTiers[slot]
+          ? this.pickSpeciesForTier(requestedSpeciesTiers[slot], rng, seenSpecies, options)
           : this.pickSpeciesForProfile(profile, rng, seenSpecies, options);
       const baseSet = this.baseSetForSpecies(speciesPick.speciesId, generator, rng);
       const set = this.sanitizeSetForBattleSetting(this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier), options);
       const described = this.describeSet(set);
-      if (seenSpecies.has(described.species_id) && !speciesIds[index]) continue;
-      if (!this.hasUsableSprite(described) && !speciesIds[index]) {
-        index -= 1;
-        continue;
-      }
+      if (seenSpecies.has(described.species_id) && !speciesIds[slot]) continue;
+      if (!this.hasUsableSprite(described) && !speciesIds[slot]) continue;
       seenSpecies.add(described.species_id);
       team.push(set);
       display.push(described);
+      slot += 1;
     }
     if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
     this.ensureZMoveUser(team, options, rng);

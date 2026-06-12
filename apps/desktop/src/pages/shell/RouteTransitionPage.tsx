@@ -86,16 +86,20 @@ export function routeTransitionCopy(targetScreen: string, reason: RouteTransitio
 export function RouteTransitionPage({title, detail, tip, durationMs}: RouteTransitionCopy) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const style = {"--route-transition-duration": `${durationMs}ms`} as CSSProperties;
+  function playVideo() {
+    void videoRef.current?.play().catch(() => undefined);
+  }
+
   function randomizePlaybackStart() {
     const video = videoRef.current;
     if (!video || !Number.isFinite(video.duration) || video.duration <= 8) return;
     video.currentTime = Math.random() * Math.max(0, video.duration - 6);
-    void video.play().catch(() => undefined);
+    playVideo();
   }
 
   return (
     <div className="route-transition-page" style={style} aria-live="polite">
-      <video ref={videoRef} className="route-transition-video" muted loop playsInline preload="metadata" onLoadedMetadata={randomizePlaybackStart}>
+      <video ref={videoRef} className="route-transition-video" autoPlay muted loop playsInline preload="auto" onLoadedMetadata={randomizePlaybackStart} onCanPlay={playVideo}>
         <source src={spritesaurusTransitionVideo} type="video/mp4" />
       </video>
       <div className="route-transition-shade" aria-hidden="true" />
