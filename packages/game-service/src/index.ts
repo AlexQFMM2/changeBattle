@@ -1181,6 +1181,9 @@ export class GameService {
       display.push(described);
       slot += 1;
     }
+    if (team.length < targetCount) {
+      this.fillProfiledCandidateFallback(seedArray, format, targetCount, options, team, display, seenSpecies);
+    }
     if (team.length < targetCount) throw new Error(`可用图片的阶段候选不足：${team.length}/${targetCount}`);
     this.ensureZMoveUser(team, options, rng);
     this.ensureMegaUser(team, options, rng);
@@ -1188,6 +1191,59 @@ export class GameService {
     this.ensureTerastalTypes(team, options, rng);
     display.splice(0, display.length, ...team.map(set => this.describeSet(set)));
     return {seed: seedArray, team, display, packed: sim.Teams.pack(team)};
+  }
+
+  private fillProfiledCandidateFallback(seedArray: number[], format: string, targetCount: number, options: GenerateRentalOptions, team: PokemonSet[], display: RentalPokemon[], seenSpecies: Set<string>): void {
+    const sim = this.loadShowdown();
+    const rng = this.createRngFromSeed(seedArray, 0x51f1 + targetCount + team.length);
+    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS * 2 && team.length < targetCount; attempt += 1) {
+      const generated = this.normalizeTeam(sim.Teams.generate(format || "gen9randombattle", {seed: this.bumpSeed(seedArray, 0x5000 + attempt)}));
+      for (const baseSet of generated) {
+        if (team.length >= targetCount) break;
+        const set = this.sanitizeSetForBattleSetting(this.randomizeRentalSet(baseSet, rng), options);
+        const described = this.describeSet(set);
+        if (seenSpecies.has(described.species_id)) continue;
+        if (!this.hasUsableSprite(described)) continue;
+        seenSpecies.add(described.species_id);
+        team.push(set);
+        display.push(described);
+      }
+    }
+
+    const relaxedOptions = {...options, battleSetting: undefined};
+    const profiles = this.requestedProfiles(options, targetCount);
+    const tierRows = this.loadTierRows();
+    for (let attempt = 0; attempt < targetCount * 80 && team.length < targetCount; attempt += 1) {
+      const profile = profiles[team.length] || profiles[profiles.length - 1] || "tier1";
+      const rule = this.pickSpeciesTierRule(profile, rng);
+      const pool = this.preferredSpeciesPool(tierRows.filter(row => row.tier === rule.tier && !seenSpecies.has(row.species_id)), rule);
+      const fallbackPool = tierRows.filter(row => !seenSpecies.has(row.species_id));
+      const sourcePool = pool.length ? pool : fallbackPool;
+      const selected = sourcePool[this.randomInt(rng, 0, Math.max(0, sourcePool.length - 1))];
+      if (!selected) break;
+      const baseSet = this.baseSetForSpecies(selected.species_id, this.randomGenerator(format, this.bumpSeed(seedArray, 0x6500 + attempt)), rng);
+      const set = this.sanitizeSetForBattleSetting(this.applyGenerationProfile(baseSet, profile, rng, selected.tier), options);
+      const described = this.describeSet(set);
+      if (seenSpecies.has(described.species_id)) continue;
+      if (!this.hasUsableSprite(described)) continue;
+      seenSpecies.add(described.species_id);
+      team.push(set);
+      display.push(described);
+    }
+
+    if (team.length < targetCount && !options.battleSetting) return;
+    for (let attempt = 0; attempt < targetCount * 40 && team.length < targetCount; attempt += 1) {
+      const profile = profiles[team.length] || profiles[profiles.length - 1] || "tier1";
+      const speciesPick = this.pickSpeciesForProfile(profile, rng, seenSpecies, relaxedOptions);
+      const baseSet = this.baseSetForSpecies(speciesPick.speciesId, this.randomGenerator(format, this.bumpSeed(seedArray, 0x7700 + attempt)), rng);
+      const set = this.sanitizeSetForBattleSetting(this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier), options);
+      const described = this.describeSet(set);
+      if (seenSpecies.has(described.species_id)) continue;
+      if (!this.hasUsableSprite(described)) continue;
+      seenSpecies.add(described.species_id);
+      team.push(set);
+      display.push(described);
+    }
   }
 
   private requestedProfiles(options: GenerateRentalOptions, count: number): GenerationProfile[] {
