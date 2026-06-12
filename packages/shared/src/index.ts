@@ -627,6 +627,7 @@ export type RestScoreBetState = {
   target_alive: RestScoreBetTarget;
   stake: number;
   multiplier: number;
+  multiplier_options?: number[];
   max_stake?: number;
   payout?: number;
 };
@@ -792,7 +793,7 @@ export type RestAction =
   | {type: "rainbow_rocket_support_done"}
   | {type: "rainbow_rocket_restore"; slots: number[]}
   | {type: "event_apply_level"; slot: number}
-  | {type: "event_score_bet_adjust"; targetAlive?: RestScoreBetTarget; stake?: number}
+  | {type: "event_score_bet_adjust"; targetAlive?: RestScoreBetTarget; stake?: number; multiplier?: number}
   | {type: "restore_hp"; slots: number[]}
   | {type: "restore_pp"; slots: number[]; moveSlot?: number}
   | {type: "restore_status"; slots: number[]}
@@ -1108,6 +1109,7 @@ export type CurrentRunData = {
     recycler_available?: boolean;
     rest_event_options?: RestEventOption[];
     rest_event_selected_id?: string | null;
+    recent_rest_event_ids?: string[];
     all_in_result?: {
       old_name: string;
       new_name: string;

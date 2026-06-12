@@ -1012,11 +1012,12 @@ function ScoreBetPanel({rest, onClose, onAction, embedded = false}: {rest: NonNu
     );
   }
   const currentBet = bet;
-  const targets: Array<{value: 1 | 2 | 3; label: string; multiplier: string}> = [
-    {value: 3, label: "3:0", multiplier: "5x"},
-    {value: 2, label: "2:0", multiplier: "2x"},
-    {value: 1, label: "1:0", multiplier: "1.5x"},
+  const targets: Array<{value: 1 | 2 | 3; label: string}> = [
+    {value: 3, label: "3:0"},
+    {value: 2, label: "2:0"},
+    {value: 1, label: "1:0"},
   ];
+  const multiplierOptions = currentBet.multiplier_options?.length ? currentBet.multiplier_options : [1.5, 2, 3, 5];
   const maxStake = Math.max(100, Number(currentBet.max_stake || currentBet.stake || 100));
   const numericDraft = Math.max(100, Math.min(maxStake, Math.floor(Number(draftStake || currentBet.stake || 100))));
   const targetLabel = `${currentBet.target_alive}:0`;
@@ -1045,7 +1046,15 @@ function ScoreBetPanel({rest, onClose, onAction, embedded = false}: {rest: NonNu
           {targets.map(target => (
             <button className={currentBet.target_alive === target.value ? "selected" : ""} onClick={() => onAction({type: "event_score_bet_adjust", targetAlive: target.value}, `盘口已改为 ${target.label}`)} key={`score-bet-target-${target.value}`}>
               <strong>{target.label}</strong>
-              <small>{target.multiplier}</small>
+              <small>比分</small>
+            </button>
+          ))}
+        </div>
+        <div className="segmented-row score-bet-target-row">
+          {multiplierOptions.map(multiplier => (
+            <button className={Math.abs(Number(currentBet.multiplier || 0) - multiplier) < 0.001 ? "selected" : ""} onClick={() => onAction({type: "event_score_bet_adjust", multiplier}, `赔率已改为 ${multiplier}x`)} key={`score-bet-multiplier-${multiplier}`}>
+              <strong>{multiplier}x</strong>
+              <small>赔率</small>
             </button>
           ))}
         </div>

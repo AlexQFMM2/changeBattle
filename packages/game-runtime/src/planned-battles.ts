@@ -4,6 +4,10 @@ import type {RuntimeDataProvider} from "./data-provider.js";
 import {parseCsvLine} from "./profile-settings.js";
 import type {RuntimeGenerationProfile, RuntimeSpeciesTier} from "./starter-candidates.js";
 
+function toId(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 export type PlannedBattleRoute = {
   type: "normal" | "gym" | "champion" | "elite4";
   stage: string;
@@ -42,6 +46,7 @@ export type PlannedBattleService = {
       speciesIds?: string[];
       purpose?: "starter" | "normal" | "boss" | "rescue";
       battleSetting?: BattleSetting;
+      speciesUsageCounts?: Record<string, number>;
     },
   ): Promise<GeneratedTeam>;
 };
@@ -227,6 +232,18 @@ export function pickTeamPoolSelection(sourceRows: RuntimeBossTeamPoolRow[], trai
   return {teamIndex, rows: selected, speciesIds: selected.map(row => row.species_id), profiles: selected.map(row => row.generation_profile)};
 }
 
+function normalizeSpeciesUsageCounts(counts?: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(counts || {}).map(([id, count]) => [toId(id), Math.max(0, Math.floor(Number(count || 0)))]).filter(([id]) => Boolean(id)));
+}
+
+function recordGeneratedSpeciesUsage(counts: Record<string, number>, display: RentalPokemon[]): void {
+  for (const pokemon of display) {
+    const key = toId(pokemon.species_id || pokemon.species || pokemon.name);
+    if (!key) continue;
+    counts[key] = Math.max(0, Number(counts[key] || 0)) + 1;
+  }
+}
+
 export async function buildPlannedBattle(options: {
   save: LocalSave;
   run: CurrentRunData;
@@ -237,6 +254,7 @@ export async function buildPlannedBattle(options: {
   defaultBattles: number;
   battleBackgroundForRun(run: CurrentRunData, trainer: TrainerNpcView, battleNo: number): BattleBackgroundView;
   uuid(): string;
+  speciesUsageCounts?: Record<string, number>;
 }): Promise<PlannedBattleData> {
   const {save, run, battleNo, service, npcCatalog, bossTeamPools, defaultBattles} = options;
   const route = routeForRunBattle(save, run, battleNo, defaultBattles);
@@ -251,9 +269,11 @@ export async function buildPlannedBattle(options: {
     speciesIds: bossTeam?.speciesIds,
     purpose: route.type === "normal" ? "normal" : "boss",
     battleSetting: run.battle_setting,
+    speciesUsageCounts: options.speciesUsageCounts || save.stats?.pokemon_usage_counts,
   });
   const enemyRaw = enemyGenerated.team.slice(0, 3);
   const enemyDisplay = enemyGenerated.display.slice(0, 3);
+  if (options.speciesUsageCounts) recordGeneratedSpeciesUsage(options.speciesUsageCounts, enemyDisplay);
   ensureTeamRunMemberIds(enemyRaw, enemyDisplay, options.uuid);
   assignEnemyShowdownIds(enemyRaw, enemyDisplay);
   return {
@@ -273,7 +293,8 @@ export async function buildPlannedBattle(options: {
 export async function buildPlannedBattles(options: Omit<Parameters<typeof buildPlannedBattle>[0], "battleNo">): Promise<PlannedBattleData[]> {
   const total = Math.max(1, Number(options.run.battles || options.defaultBattles));
   const planned: PlannedBattleData[] = [];
-  for (let battleNo = 1; battleNo <= total; battleNo += 1) planned.push(await buildPlannedBattle({...options, battleNo}));
+  const speciesUsageCounts = normalizeSpeciesUsageCounts(options.speciesUsageCounts || options.save.stats?.pokemon_usage_counts);
+  for (let battleNo = 1; battleNo <= total; battleNo += 1) planned.push(await buildPlannedBattle({...options, battleNo, speciesUsageCounts}));
   return planned;
 }
 

@@ -1364,6 +1364,9 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
       : (dynamaxMode || showMaxMoves) && maxMove
         ? dynamaxMoveDisplayLabel(maxMove.move, active)
         : summary?.name_zh || move.move;
+    const displayedAccuracy = (zMode && zMove) || ((dynamaxMode || showMaxMoves) && maxMove)
+      ? "必中"
+      : summary ? summary.accuracy ?? "必中" : undefined;
     return (
       <MoveCard
         size="battle"
@@ -1376,6 +1379,7 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
         pp={move.pp}
         maxPp={move.maxpp}
         power={summary?.power || "--"}
+        accuracy={displayedAccuracy}
         disabled={disabled || move.disabled || zMoveDisabled || dynamaxMoveDisabled}
         onClick={() => onMove(index + 1, zMode ? "zmove" : megaMode ? "mega" : dynamaxMode ? "max" : terastalMode ? "terastallize" : undefined)}
         key={move.id || index}

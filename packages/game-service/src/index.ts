@@ -253,6 +253,7 @@ export type GenerateRentalOptions = {
   speciesIds?: string[];
   purpose?: "starter" | "normal" | "boss" | "rescue";
   battleSetting?: BattleSetting;
+  speciesUsageCounts?: Record<string, number>;
 };
 
 export type GameServiceOptions = {
@@ -1201,11 +1202,8 @@ export class GameService {
     const maxAttempts = Math.max(targetCount * 80, MAX_GENERATION_ATTEMPTS);
     for (let slot = 0, attempts = 0; slot < targetCount && attempts < maxAttempts; attempts += 1) {
       const profile = requestedProfiles[slot] || requestedProfiles[requestedProfiles.length - 1] || "tier1";
-      const preferGmax = slot === 0 && this.shouldEnsureGmaxCandidate(options) && !speciesIds.length;
       const speciesPick = speciesIds[slot]
         ? {speciesId: speciesIds[slot], speciesTier: this.tierForSpecies(speciesIds[slot]) || this.profileStageTier(profile)}
-        : preferGmax
-          ? this.pickGmaxSpeciesForProfile(profile, rng, seenSpecies, options)
         : requestedSpeciesTiers[slot]
           ? this.pickSpeciesForTier(requestedSpeciesTiers[slot], rng, seenSpecies, options)
           : this.pickSpeciesForProfile(profile, rng, seenSpecies, options);
@@ -1399,20 +1397,26 @@ export class GameService {
     const targetGen = targetGenerations[this.randomInt(rng, 0, Math.max(0, targetGenerations.length - 1))] || availableGenerations[0];
     const genPool = selectedPool.filter(row => generationFor(row.species_id) === targetGen);
     const finalPool = genPool.length ? genPool : selectedPool;
-    const selected = finalPool[this.randomInt(rng, 0, Math.max(0, finalPool.length - 1))];
+    const selected = this.pickSpeciesRowWithUsageBias(finalPool, rng, options);
     return {speciesId: selected?.species_id || "pikachu", speciesTier: selected?.tier || rule.tier};
   }
 
-  private pickGmaxSpeciesForProfile(profile: GenerationProfile, rng: () => number, seenSpecies: Set<string>, options: GenerateRentalOptions): SpeciesPick {
-    const fallback = this.pickSpeciesForProfile(profile, rng, seenSpecies, options);
-    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
-    const tierRows = this.loadTierRows().filter(row => this.canGigantamaxSpecies(row.species_id) && this.speciesAllowedByBattleSetting(row.species_id, setting, seenSpecies, options.purpose));
-    if (!tierRows.length) return fallback;
-    const stageTier = this.profileStageTier(profile);
-    const sameTier = tierRows.filter(row => row.tier === stageTier);
-    const pool = sameTier.length ? sameTier : tierRows;
-    const selected = pool[this.randomInt(rng, 0, Math.max(0, pool.length - 1))];
-    return {speciesId: selected?.species_id || fallback.speciesId, speciesTier: selected?.tier || fallback.speciesTier};
+  private pickSpeciesRowWithUsageBias(pool: TierRow[], rng: () => number, options: GenerateRentalOptions): TierRow | undefined {
+    if (!pool.length) return undefined;
+    if (!options.speciesUsageCounts || options.purpose === "boss") return pool[this.randomInt(rng, 0, Math.max(0, pool.length - 1))];
+    const usageCounts = options.speciesUsageCounts;
+    const weights = pool.map(row => {
+      const count = Math.max(0, Math.floor(Number(usageCounts[this.toId(row.species_id)] || 0)));
+      if (count <= 0) return 16;
+      return Math.max(1, Math.floor(16 / Math.pow(count + 1, 2)));
+    });
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    let roll = rng() * total;
+    for (let index = 0; index < pool.length; index += 1) {
+      roll -= weights[index];
+      if (roll <= 0) return pool[index];
+    }
+    return pool[pool.length - 1];
   }
 
   private battlePresetMaxGeneration(setting: BattleSetting): number | null {
@@ -1450,22 +1454,11 @@ export class GameService {
     return {...set, item: ""};
   }
 
-  private shouldEnsureGmaxCandidate(options: GenerateRentalOptions): boolean {
-    const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
-    return setting.battle_rule_preset === "gen8" && options.purpose !== "boss";
-  }
-
-  private canGigantamaxSpecies(speciesId: string): boolean {
-    const species = this.dataDex().species.get(speciesId);
-    return Boolean(species?.canGigantamax);
-  }
-
   private ensureDynamaxUsers(team: PokemonSet[], options: GenerateRentalOptions): void {
     const setting = normalizeBattleSetting(options.battleSetting || DEFAULT_BATTLE_SETTING);
     if (setting.battle_rule_preset !== "gen8" && !setting.enabled_battle_systems.includes("dynamax")) return;
     for (const set of team) {
       set.dynamaxLevel = Math.max(10, Number(set.dynamaxLevel || 10));
-      if (this.canGigantamaxSpecies(set.species || set.name)) set.gigantamax = true;
     }
   }
 
@@ -3279,8 +3272,13 @@ function activeDisplay(service: GameService, rawSpecies: string | undefined): Re
 
 function setActiveDisplay(tracker: BattleTracker, service: GameService, side: SideId, rawSpecies: string | undefined, condition?: string, clearSubstitute = false, showdownId?: string): void {
   const display = activeDisplay(service, rawSpecies);
+  const previous = tracker.active[side] || {};
+  const normalizedShowdownId = normalizeShowdownId(showdownId) || previous.showdown_id;
+  const sameShowdownPokemon = Boolean(previous.showdown_id && normalizedShowdownId && previous.showdown_id === normalizedShowdownId);
+  const sameVisibleSpecies = Boolean(!showdownId && previous.dynamaxed && previous.species_id && previous.species_id === display.species_id);
+  const clearBattleForm = clearSubstitute && !sameShowdownPokemon && !sameVisibleSpecies;
   tracker.active[side] = {
-    ...tracker.active[side],
+    ...previous,
     name: display.name,
     display_name: display.name_zh,
     species_id: display.species_id,
@@ -3293,10 +3291,12 @@ function setActiveDisplay(tracker: BattleTracker, service: GameService, side: Si
     ability_id: display.ability_id,
     ability_desc: display.ability_desc,
     ability_desc_zh: display.ability_desc_zh,
-    condition: condition || tracker.active[side]?.condition,
-    showdown_id: normalizeShowdownId(showdownId) || tracker.active[side]?.showdown_id,
+    condition: condition || previous.condition,
+    showdown_id: normalizedShowdownId,
     ...(clearSubstitute ? {
       substitute: false,
+    } : {}),
+    ...(clearBattleForm ? {
       dynamaxed: false,
       gigantamaxed: false,
       terastallized: false,

@@ -25,6 +25,7 @@ import {
   normalizeScoreBetState,
   scoreBetMaxStakeForCoins,
   scoreBetMultiplier,
+  scoreBetMultiplierChoice,
   scoreBetPayout,
   scoreBetTarget,
   sellPriceForItem,
@@ -38,6 +39,7 @@ export const RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT = 6;
 export const RAINBOW_ROCKET_SUPPORT_PICK_LIMIT = 3;
 export const RAINBOW_ROCKET_FACTORY_SUPPORT_PROFILES = ["tier3", "tier3", "tier4", "tier4", "champion", "champion"] as const;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
+const RECENT_REST_EVENT_LIMIT = 5;
 
 export type RainbowRocketSupportRuntimeOptions = {
   service: PlannedBattleService;
@@ -188,7 +190,10 @@ export function ensureBasicRestEventOptions(run: CurrentRunData, eventPool: Rest
   }
   if (run.rest_status?.rest_event_selected_id || run.rest_status?.rest_event_options?.length) return;
   const seed = `${run.seed || 1}:${run.battle_no || 0}:${run.next_battle || 1}:${run.wins || 0}`;
-  const picked = stableRestEventShuffle(eventPool, seed).slice(0, 3).map(event => ({...event}));
+  const recent = new Set((run.rest_status?.recent_rest_event_ids || []).map(toId).filter(Boolean));
+  const freshPool = eventPool.filter(event => !recent.has(toId(event.id)));
+  const sourcePool = freshPool.length >= 3 ? freshPool : eventPool;
+  const picked = stableRestEventShuffle(sourcePool, seed).slice(0, 3).map(event => ({...event}));
   run.rest_status = {...(run.rest_status || {}), rest_event_options: picked, rest_event_selected_id: null};
 }
 
@@ -205,7 +210,8 @@ export function applyBasicRestEventChoice(save: LocalSave, run: CurrentRunData, 
   const option = run.rest_status?.rest_event_options?.find(event => event.id === rawId || toId(event.id) === normalizedId);
   if (!option) throw new Error("休整奇遇不存在。");
   const id = option.id;
-  run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: id};
+  const recent = [id, ...(run.rest_status?.recent_rest_event_ids || []).filter(value => toId(value) !== toId(id))].slice(0, RECENT_REST_EVENT_LIMIT);
+  run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: id, recent_rest_event_ids: recent};
   if (id === "sponsor_delivery") {
     const gained = addCoins(run, 120);
     return `赞助到账：获得 ${gained}金币。`;
@@ -268,20 +274,21 @@ export function applyDoctorTreatment(run: CurrentRunData, branch: "status" | "hp
   return "蹩脚医生弟弟：全队恢复 HP，濒死宝可梦复活到半血。";
 }
 
-export function applyScoreBetAdjustment(run: CurrentRunData, options: {targetAlive?: RestScoreBetTarget; stake?: number}): string {
+export function applyScoreBetAdjustment(run: CurrentRunData, options: {targetAlive?: RestScoreBetTarget; stake?: number; multiplier?: number}): string {
   const current = run.rest_status?.event_score_bet_next;
   if (!current) throw new Error("当前没有重金下注。");
   const currentStake = Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(current.stake || SCORE_BET_MIN_STAKE)));
   const maxStake = scoreBetMaxStakeForCoins(currentCoins(run), currentStake);
   const target = options.targetAlive === undefined ? current.target_alive : scoreBetTarget(options.targetAlive, current.target_alive);
+  const multiplier = options.multiplier === undefined ? scoreBetMultiplierChoice(current.multiplier, scoreBetMultiplier(target)) : scoreBetMultiplierChoice(options.multiplier, current.multiplier);
   const requestedStake = options.stake === undefined ? currentStake : Math.max(SCORE_BET_MIN_STAKE, Math.min(maxStake, Math.floor(Number(options.stake || SCORE_BET_MIN_STAKE))));
   const diff = requestedStake - currentStake;
   if (diff > 0) spendRunCoins(run, diff, "score-bet-adjust", {alreadyPriced: true});
   if (diff < 0) addCoins(run, -diff);
-  const normalized = normalizeScoreBetState({target_alive: target, stake: requestedStake, multiplier: scoreBetMultiplier(target)}, Math.max(requestedStake, scoreBetMaxStakeForCoins(currentCoins(run), requestedStake)));
+  const normalized = normalizeScoreBetState({target_alive: target, stake: requestedStake, multiplier}, Math.max(requestedStake, scoreBetMaxStakeForCoins(currentCoins(run), requestedStake)));
   run.rest_status = {...(run.rest_status || {}), event_score_bet_next: normalized};
   const refundText = diff < 0 ? `，退回 ${-diff}金币` : diff > 0 ? `，补下注 ${diff}金币` : "";
-  return `重金下注：已调整为精确 ${target}:0，下注 ${requestedStake}金币，命中返还 ${scoreBetPayout(requestedStake, target)}金币${refundText}。`;
+  return `重金下注：已调整为精确 ${target}:0，赔率 ${normalized?.multiplier || multiplier}x，下注 ${requestedStake}金币，命中返还 ${normalized?.payout || scoreBetPayout(requestedStake, multiplier)}金币${refundText}。`;
 }
 
 export async function applyTrustLevel(save: LocalSave, run: CurrentRunData, slot: number, service: ArrivalLevelCapRuntimeService): Promise<string> {

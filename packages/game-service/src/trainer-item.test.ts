@@ -874,14 +874,14 @@ async function testEnemyUsesDynamaxWhenAvailable(): Promise<void> {
   assert.equal(active.species_id, "charizardgmax", JSON.stringify(active, null, 2));
 }
 
-async function testDynamaxGenerationGuarantee(): Promise<void> {
+async function testDynamaxGenerationDoesNotForceGigantamax(): Promise<void> {
   const service = createTestService();
   const enabled = await service.generateRentalCandidates([143, 144, 145, 146], "gen8randombattle", 3, {
     speciesIds: ["charizard", "venusaur", "blastoise"],
     purpose: "starter",
     battleSetting: GEN8_BATTLE_SETTING,
   });
-  assert.ok(enabled.team.some(set => set.gigantamax), JSON.stringify(enabled.team, null, 2));
+  assert.ok(enabled.team.every(set => set.gigantamax !== true), JSON.stringify(enabled.team, null, 2));
   assert.ok(enabled.team.every(set => Number(set.dynamaxLevel || 0) === 10), JSON.stringify(enabled.team, null, 2));
 
   const allowed = (service as unknown as {speciesAllowedByBattleSetting: (speciesId: string, setting: BattleSetting, seenSpecies: Set<string>, purpose?: "starter" | "normal" | "boss" | "rescue") => boolean}).speciesAllowedByBattleSetting.bind(service);
@@ -1019,7 +1019,7 @@ await testMegaGenerationGuarantee();
 await testDynamaxBattleFlow();
 await testDynamaxEndRestoresDisplayFromSparseOriginal();
 await testEnemyUsesDynamaxWhenAvailable();
-await testDynamaxGenerationGuarantee();
+await testDynamaxGenerationDoesNotForceGigantamax();
 await testTerastalBattleFlow();
 await testEnemyUsesTerastalWhenAvailable();
 await testEnemyDoesNotUseTerastalWhenDisabled();

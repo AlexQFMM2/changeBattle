@@ -146,6 +146,7 @@ import {
   soulSwapAllowedForNextBattle,
   scoreBetMaxStakeForCoins,
   scoreBetMultiplier,
+  scoreBetMultiplierChoice,
   scoreBetPayout,
   scoreBetTarget,
   starterCoinsForSeed,
@@ -573,7 +574,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
       spendCoins(run, SCORE_BET_MIN_STAKE);
       const bet = normalizeScoreBetState({target_alive: SCORE_BET_DEFAULT_TARGET, stake: SCORE_BET_MIN_STAKE, multiplier: scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET)}, scoreBetMaxStakeForCoins(currentCoins(run), SCORE_BET_MIN_STAKE));
       run.rest_status = {...(run.rest_status || {}), event_score_bet_next: bet};
-      return `重金下注：已默认下注 ${SCORE_BET_MIN_STAKE}金币，精确比分 3:0，命中返还 ${scoreBetPayout(SCORE_BET_MIN_STAKE, SCORE_BET_DEFAULT_TARGET)}金币。`;
+      return `重金下注：已默认下注 ${SCORE_BET_MIN_STAKE}金币，精确比分 3:0，赔率 ${bet?.multiplier || scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET)}x，命中返还 ${bet?.payout || scoreBetPayout(SCORE_BET_MIN_STAKE, scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET))}金币。`;
     },
   },
   {
@@ -823,6 +824,7 @@ function freshRestStatus(talents: TalentView[] | undefined, extra: CurrentRunDat
 function carryRestStatusForBattle(run: CurrentRunData): CurrentRunData["rest_status"] {
   const status = run.rest_status || {};
   return {
+    ...(status.recent_rest_event_ids?.length ? {recent_rest_event_ids: status.recent_rest_event_ids.slice(0, 5)} : {}),
     ...(status.all_in_pending_next ? {all_in_pending_next: true, all_in_result: status.all_in_result || null} : {}),
     ...(Number(status.event_recovery_multiplier || 1) < 1 ? {event_recovery_multiplier: status.event_recovery_multiplier, event_hungry: Boolean(status.event_hungry)} : {}),
     ...(status.event_pending_full_restore || status.event_pending_full_restore_after_battle ? {event_pending_full_restore: true} : {}),
@@ -839,6 +841,7 @@ function carryRestStatusAfterBattle(run: CurrentRunData, extra: CurrentRunData["
   const status = run.rest_status || {};
   return {
     ...extra,
+    ...(status.recent_rest_event_ids?.length ? {recent_rest_event_ids: status.recent_rest_event_ids.slice(0, 5)} : {}),
     ...(status.event_pending_full_restore ? {event_pending_full_restore: true} : {}),
     ...(status.event_checked_bag_items ? {event_checked_bag_items: status.event_checked_bag_items} : {}),
     ...(status.event_rerandomized_locked_battles?.length ? {event_rerandomized_locked_battles: status.event_rerandomized_locked_battles} : {}),
@@ -877,7 +880,10 @@ function ensureRestEventOptions(run: CurrentRunData): void {
     if (event.id === "soul_swap" && !soulSwapAllowedForNextBattle(run)) return false;
     return true;
   });
-  const picked = shuffleByRng(pool, rng).slice(0, 3).map(restEventView);
+  const recent = new Set((run.rest_status?.recent_rest_event_ids || []).map(toId).filter(Boolean));
+  const freshPool = pool.filter(event => !recent.has(toId(event.id)));
+  const sourcePool = freshPool.length >= 3 ? freshPool : pool;
+  const picked = shuffleByRng(sourcePool, rng).slice(0, 3).map(restEventView);
   run.rest_status = {...(run.rest_status || {}), rest_event_options: picked, rest_event_selected_id: null};
 }
 
@@ -894,7 +900,8 @@ async function chooseRestEvent(save: LocalSave, run: CurrentRunData, eventId: st
   if (!option) throw new Error("休整奇遇不存在。");
   const event = REST_EVENT_DEFINITIONS.find(entry => entry.id === option.id || toId(entry.id) === normalizedId);
   if (!event) throw new Error("休整奇遇配置缺失。");
-  run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: event.id};
+  const recent = [event.id, ...(run.rest_status?.recent_rest_event_ids || []).filter(value => toId(value) !== toId(event.id))].slice(0, 5);
+  run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: event.id, recent_rest_event_ids: recent};
   return event.apply(save, run);
 }
 
@@ -1751,7 +1758,7 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
   if (Number(run.rest_status?.event_recovery_multiplier || 1) < 1) battleEventStatuses.push({id: "recovery_down", label: run.rest_status?.event_hungry ? "饥饿" : "恢复减半", detail: "本场背包恢复道具效果减半。", tone: "risk"});
   if (run.rest_status?.event_next_battle_healing_blocked) battleEventStatuses.push({id: "healing_blocked", label: "恢复诅咒", detail: "本场不能使用 HP/异常/复活类背包恢复道具。", tone: "risk"});
   if (run.rest_status?.event_soul_swap_active) battleEventStatuses.push({id: "soul_swap", label: "灵魂互换", detail: `双方都知道要努力“输”掉这场；${SOUL_SWAP_TURN_LIMIT} 回合未分胜负会被工厂叫停。`, tone: "risk"});
-  if (run.rest_status?.event_score_bet_active) battleEventStatuses.push({id: "score_bet", label: "重金下注", detail: `精确命中 ${run.rest_status.event_score_bet_active.target_alive}:0 返还 ${run.rest_status.event_score_bet_active.payout || scoreBetPayout(run.rest_status.event_score_bet_active.stake, run.rest_status.event_score_bet_active.target_alive)}金币。`, tone: "risk"});
+  if (run.rest_status?.event_score_bet_active) battleEventStatuses.push({id: "score_bet", label: "重金下注", detail: `精确命中 ${run.rest_status.event_score_bet_active.target_alive}:0，赔率 ${run.rest_status.event_score_bet_active.multiplier}x，返还 ${run.rest_status.event_score_bet_active.payout || scoreBetPayout(run.rest_status.event_score_bet_active.stake, run.rest_status.event_score_bet_active.multiplier)}金币。`, tone: "risk"});
   return {
     ...state,
     player_trainer: run.player_trainer,
@@ -2646,6 +2653,20 @@ function pricedShopOffersForRun(run: CurrentRunData): ShopOffer[] {
   return (run.shop_offers || []).map(offer => pricedShopOfferForRun(run, offer));
 }
 
+function pricedShopOffersByKindForRun(run: CurrentRunData): Partial<Record<ShopKind, ShopOffer[]>> {
+  return Object.fromEntries(Object.entries(run.shop_offers_by_kind || {}).map(([kind, offers]) => [
+    kind,
+    (offers || []).map(offer => pricedShopOfferForRun(run, offer)),
+  ])) as Partial<Record<ShopKind, ShopOffer[]>>;
+}
+
+function findRunShopOffer(run: CurrentRunData, offerId: string): ShopOffer | null {
+  return [
+    ...(run.shop_offers || []),
+    ...Object.values(run.shop_offers_by_kind || {}).flatMap(offers => offers || []),
+  ].find(item => item.offer_id === offerId) || null;
+}
+
 async function tmOfferFromMove(move: MoveSummary, index: number, source: "shop" | "starter", discount = 1, talents: TalentView[] = []): Promise<ShopOffer> {
   const moveId = toId(move.id || move.name);
   const baseCost = Math.floor((await moveGoodsCost(move)) * discount);
@@ -2764,7 +2785,8 @@ async function premiumRecoveryShopOffers(run: CurrentRunData, existingOffers: Sh
   }))).filter((offer): offer is ShopOffer => Boolean(offer));
   const guaranteedIds = new Set(guaranteedOffers.map(offer => itemKey(offer.id || offer.name)));
   const rest = existingOffers.filter(offer => !guaranteedIds.has(itemKey(offer.id || offer.name)));
-  return [...guaranteedOffers, ...rest].slice(0, shopOfferCount(run));
+  const count = Math.max(guaranteedOffers.length, shopOfferCount(run));
+  return [...guaranteedOffers, ...rest].slice(0, count);
 }
 
 async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recovery"): Promise<ShopOffer[]> {
@@ -3806,7 +3828,13 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.reroll_count = Number(run.reroll_count || 0);
   run.shop_roll_count = Number(run.shop_roll_count || 0);
   run.shop_kind = normalizeAvailableShopKind(run, run.shop_kind);
+  if (!run.shop_offers_by_kind && run.shop_offers?.length) run.shop_offers_by_kind = {[run.shop_kind]: run.shop_offers};
+  if (run.shop_offers_by_kind?.[run.shop_kind]) run.shop_offers = run.shop_offers_by_kind[run.shop_kind];
   run.shop_offers = (run.shop_offers || []).map(offer => ({...offer, category: offer.category || itemCategory(offer)}));
+  run.shop_offers_by_kind = Object.fromEntries(Object.entries(run.shop_offers_by_kind || {}).map(([kind, offers]) => [
+    kind,
+    (offers || []).map(offer => ({...offer, category: offer.category || itemCategory(offer)})),
+  ])) as Partial<Record<ShopKind, ShopOffer[]>>;
   run.shop_purchased_offer_id = run.shop_purchased_offer_id || null;
   run.shop_purchased_offer_counts = Object.fromEntries(Object.entries(run.shop_purchased_offer_counts || {}).map(([offerId, count]) => [offerId, Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([, count]) => count > 0));
   run.shop_purchased_item_counts = Object.fromEntries(Object.entries(run.shop_purchased_item_counts || {}).map(([itemId, count]) => [itemKey(itemId), Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([itemId, count]) => itemId && count > 0));
@@ -3885,6 +3913,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
       .filter(event => REST_EVENT_DEFINITIONS.some(definition => definition.id === event.id) && (event.id !== "soul_swap" || soulSwapAllowedForNextBattle(run)) && (event.id !== "score_bet" || currentCoins(run) >= SCORE_BET_MIN_STAKE))
       .slice(0, 3),
     rest_event_selected_id: selectedRestEventAllowed ? selectedRestEventId : null,
+    recent_rest_event_ids: (run.rest_status?.recent_rest_event_ids || []).map(toId).filter(Boolean).slice(0, 5),
     all_in_result: run.rest_status?.all_in_result || null,
     named_challenge_decided: Boolean(run.rest_status?.named_challenge_decided),
     event_shop_disabled: Boolean(run.rest_status?.event_shop_disabled),
@@ -3990,7 +4019,7 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
   if (isRainbowRocketRun(run)) entries.push({id: "rainbow_rocket", label: "彩虹火箭队", detail: "赛程已被劫持：普通奇遇和商店关闭，工厂支援与技能服务常驻。", tone: "risk"});
   if (status.event_contest_next) entries.push({id: "contest", label: "华丽大赛", detail: "下一战会按裁判标记累计华丽分。", tone: "trade"});
   if (status.event_soul_swap_next) entries.push({id: "soul_swap", label: "灵魂互换", detail: "下一战操作队伍互换，胜负按原阵营结算。", tone: "risk"});
-  if (status.event_score_bet_next) entries.push({id: "score_bet", label: "重金下注", detail: `下一战精确比分 ${status.event_score_bet_next.target_alive}:0，下注 ${status.event_score_bet_next.stake}，命中返还 ${status.event_score_bet_next.payout || scoreBetPayout(status.event_score_bet_next.stake, status.event_score_bet_next.target_alive)}。`, tone: "risk"});
+  if (status.event_score_bet_next) entries.push({id: "score_bet", label: "重金下注", detail: `下一战精确比分 ${status.event_score_bet_next.target_alive}:0，赔率 ${status.event_score_bet_next.multiplier}x，下注 ${status.event_score_bet_next.stake}，命中返还 ${status.event_score_bet_next.payout || scoreBetPayout(status.event_score_bet_next.stake, status.event_score_bet_next.multiplier)}。`, tone: "risk"});
   return entries;
 }
 
@@ -4043,6 +4072,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       free_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0),
       slot_discounts: run.rest_status?.shop_slot_discounts || [],
       offers: isRainbowRocketRun(run) ? [] : pricedShopOffersForRun(run),
+      offers_by_kind: isRainbowRocketRun(run) ? {} : pricedShopOffersByKindForRun(run),
       purchased_offer_id: run.shop_purchased_offer_id || null,
       purchased_offer_counts: run.shop_purchased_offer_counts || {},
       purchased_item_counts: run.shop_purchased_item_counts || {},
@@ -4605,15 +4635,16 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const currentStake = Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(current.stake || SCORE_BET_MIN_STAKE)));
     const maxStake = scoreBetMaxStakeForCoins(currentCoins(run), currentStake);
     const target = action.targetAlive === undefined ? current.target_alive : scoreBetTarget(action.targetAlive, current.target_alive);
+    const multiplier = action.multiplier === undefined ? scoreBetMultiplierChoice(current.multiplier, scoreBetMultiplier(target)) : scoreBetMultiplierChoice(action.multiplier, current.multiplier);
     const requestedStake = action.stake === undefined ? currentStake : Math.max(SCORE_BET_MIN_STAKE, Math.min(maxStake, Math.floor(Number(action.stake || SCORE_BET_MIN_STAKE))));
     const diff = requestedStake - currentStake;
     if (diff > 0) spendCoins(run, diff);
     if (diff < 0) addCoins(run, -diff);
-    const normalized = normalizeScoreBetState({target_alive: target, stake: requestedStake, multiplier: scoreBetMultiplier(target)}, Math.max(requestedStake, scoreBetMaxStakeForCoins(currentCoins(run), requestedStake)));
+    const normalized = normalizeScoreBetState({target_alive: target, stake: requestedStake, multiplier}, Math.max(requestedStake, scoreBetMaxStakeForCoins(currentCoins(run), requestedStake)));
     run.rest_status = {...(run.rest_status || {}), event_score_bet_next: normalized};
     const next = await persist(save);
     const refundText = diff < 0 ? `，退回 ${-diff}金币` : diff > 0 ? `，补下注 ${diff}金币` : "";
-    return await restState(next, next.current_run as CurrentRunData, `重金下注：已调整为精确 ${target}:0，下注 ${requestedStake}金币，命中返还 ${scoreBetPayout(requestedStake, target)}金币${refundText}。`);
+    return await restState(next, next.current_run as CurrentRunData, `重金下注：已调整为精确 ${target}:0，赔率 ${normalized?.multiplier || multiplier}x，下注 ${requestedStake}金币，命中返还 ${normalized?.payout || scoreBetPayout(requestedStake, multiplier)}金币${refundText}。`);
   }
   if (action.type === "restore_hp" || action.type === "restore_pp" || action.type === "restore_status") {
     throw new Error("休整免费恢复已移除，请使用背包中的恢复道具。");
@@ -5089,6 +5120,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
       run.shop_kind = shopKind;
       run.shop_roll_count = Number(run.shop_roll_count || 0) + 1;
       run.shop_offers = await rollShopOffers(run, shopKind);
+      run.shop_offers_by_kind = {...(run.shop_offers_by_kind || {}), [shopKind]: run.shop_offers};
       run.shop_purchased_offer_id = null;
       run.shop_purchased_offer_counts = {};
       run.shop_purchased_item_counts = {};
@@ -5111,7 +5143,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "buy_shop_offer") {
     if (run.rest_status?.event_barter_active) throw new Error("以物易物期间不能使用金币购买，请投入背包道具交换。");
-    const offer = (run.shop_offers || []).find(item => item.offer_id === action.offerId);
+    const offer = findRunShopOffer(run, action.offerId);
     if (!offer) throw new Error("商品不存在，请先刷新商店。");
     const itemId = itemKey(offer.id || offer.name);
     const pricedOffer = pricedShopOfferForRun(run, offer);
@@ -5127,7 +5159,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "event_barter_buy") {
     if (!run.rest_status?.event_barter_active) throw new Error("当前不是以物易物商店。");
-    const offer = (run.shop_offers || []).find(item => item.offer_id === action.offerId);
+    const offer = findRunShopOffer(run, action.offerId);
     if (!offer) throw new Error("商品不存在，请先刷新商店。");
     const materialIds = (action.itemIds || []).map(itemKey).filter(Boolean);
     if (materialIds.length < 1 || materialIds.length > 3) throw new Error("以物易物需要投入 1-3 个背包道具。");

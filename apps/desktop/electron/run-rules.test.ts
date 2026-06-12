@@ -16,6 +16,7 @@ import {
   SHOP_ROLL_COST_NEXT,
   SOUL_SWAP_TURN_LIMIT,
   SCORE_BET_MIN_STAKE,
+  STAR_CHART_NODES,
   TALENTS,
   applyAllInExchange,
   addRunBp,
@@ -126,6 +127,13 @@ function testEnableTestMode(): void {
   assert.equal(activeRunNext.current_run?.talents?.some(entry => entry.id === "growth_all_in"), true);
   const normalized = normalizeTalentViews([talentAtLevel("intel_rumor", 3)]);
   assert.equal(normalized.find(entry => entry.id === "intel_rumor")?.level, 3);
+  const multiLevelActiveNodes = STAR_CHART_NODES.filter(node => (node.kind === "talent" || node.kind === "badge") && node.max_level > 1);
+  const normalizedMultiLevel = normalizeTalentViews(multiLevelActiveNodes.map(node => ({id: node.id, level: node.max_level} as TalentView)));
+  for (const node of multiLevelActiveNodes) {
+    const normalizedNode = normalizedMultiLevel.find(entry => entry.id === node.id);
+    assert.equal(normalizedNode?.level, node.max_level, `${node.id} should keep level ${node.max_level}`);
+    assert.equal(normalizedNode?.kind, node.kind, `${node.id} should keep kind ${node.kind}`);
+  }
 }
 
 async function testAllInExchangePenalty(): Promise<void> {
@@ -288,18 +296,19 @@ function testEconomyTalents(): void {
 
 function testScoreBetRules(): void {
   assert.equal(scoreBetMultiplier(3), 5);
-  assert.equal(scoreBetPayout(100, 3), 500);
+  assert.equal(scoreBetPayout(100, 3), 300);
   assert.equal(scoreBetPayout(100, 2), 200);
-  assert.equal(scoreBetPayout(101, 1), 151);
+  assert.equal(scoreBetPayout(101, 1.5), 151);
   assert.equal(scoreBetMaxStakeForCoins(100, 0), SCORE_BET_MIN_STAKE);
   assert.equal(scoreBetMaxStakeForCoins(900, 100), 500);
   assert.equal(scoreBetMaxStakeForCoins(5000, 100), 1000);
 
   const bet = {target_alive: 3 as const, stake: 100, multiplier: 5};
-  assert.deepEqual(settleScoreBetResult(bet, true, 3, 0), {hit: true, payout: 500, targetAlive: 3, stake: 100, message: "重金下注命中 3:0，返还 500金币。"});
+  assert.deepEqual(settleScoreBetResult(bet, true, 3, 0), {hit: true, payout: 500, targetAlive: 3, stake: 100, message: "重金下注命中 3:0（5x），返还 500金币。"});
   assert.equal(settleScoreBetResult(bet, true, 2, 0)?.hit, false);
   assert.equal(settleScoreBetResult({...bet, target_alive: 2 as const, multiplier: 2}, true, 3, 0)?.hit, false);
   assert.equal(settleScoreBetResult({...bet, target_alive: 1 as const, multiplier: 1.5}, true, 1, 0)?.hit, true);
+  assert.equal(settleScoreBetResult({...bet, target_alive: 1 as const, multiplier: 5}, true, 1, 0)?.payout, 500);
   assert.equal(settleScoreBetResult(bet, true, 3, 1)?.hit, false);
   assert.equal(settleScoreBetResult(bet, false, 3, 0)?.hit, false);
 }

@@ -61,6 +61,7 @@ import {
   loadRuntimeTeamPools,
   loadTrainerNpcCatalog,
   markStarterOrigin,
+  normalizeScoreBetState,
   normalizeStatsInput,
   exchangeCost,
   exchangeKeepsItem,
@@ -96,6 +97,8 @@ import {
   sellRunBagItem,
   sellPriceForItem,
   shinyPokemon,
+  scoreBetMaxStakeForCoins,
+  SCORE_BET_MIN_STAKE,
   settleBasicBattleResult,
   starterChoiceState,
   starterProfilesForStreak,
@@ -145,6 +148,7 @@ const MOBILE_GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
   {id: "revive", cost: 120},
   {id: "fullheal", cost: 30},
 ];
+const MOBILE_PREMIUM_RECOVERY_ITEM_IDS = ["revivalherb", "fullrestore"];
 const MOBILE_SHOP_POOL = parseMobileShopPool(shopPoolCsv);
 const MOBILE_TERA_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"] as const;
 const MOBILE_TERA_TYPE_ZH: Record<string, string> = {
@@ -832,7 +836,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
             return gameState({screen: "rest", save: next, rest: await mobileRest(next, next.current_run as CurrentRunData, await loadGameService()), message});
           }
           if (action.type === "event_score_bet_adjust") {
-            const message = applyScoreBetAdjustment(run, {targetAlive: action.targetAlive, stake: action.stake});
+            const message = applyScoreBetAdjustment(run, {targetAlive: action.targetAlive, stake: action.stake, multiplier: action.multiplier});
             const next = await env.saves.save(save);
             return gameState({screen: "rest", save: next, rest: await mobileRest(next, next.current_run as CurrentRunData, await loadGameService()), message});
           }
@@ -1099,7 +1103,7 @@ async function mobileRest(save: LocalSave, run: CurrentRunData, service: GameSer
       all_in_used: Boolean(run.all_in_exchange_used),
       all_in_pending_next: Boolean(run.rest_status?.all_in_pending_next),
       all_in_result: run.rest_status?.all_in_result || null,
-      score_bet: run.rest_status?.event_score_bet_next,
+      score_bet: run.rest_status?.event_score_bet_next ? normalizeScoreBetState(run.rest_status.event_score_bet_next, Math.max(Number(run.rest_status.event_score_bet_next.stake || SCORE_BET_MIN_STAKE), scoreBetMaxStakeForCoins(currentCoins(run), Number(run.rest_status.event_score_bet_next.stake || 0)))) : undefined,
       shop: run.special_run === "rainbow_rocket" ? undefined : {
         kind: shopKind,
         title: mobileShopConfig(shopKind).title,
@@ -1286,6 +1290,19 @@ async function mobileGuaranteedShopOffer(service: GameService, index: number, ru
   return offer ? {...offer, offer_id: `${Number(run.shop_roll_count || 0)}-${index}-guaranteed-${guaranteed.id}`} : null;
 }
 
+async function mobilePremiumRecoveryShopOffers(service: GameService, run: CurrentRunData, existingOffers: ShopOffer[]): Promise<ShopOffer[]> {
+  const guaranteedOffers = (await Promise.all(MOBILE_PREMIUM_RECOVERY_ITEM_IDS.map(async (id, index) => {
+    const entry = MOBILE_SHOP_POOL.find(item => itemKey(item.id) === id);
+    if (entry) return mobileShopOfferFromPoolEntry(service, entry, index, run);
+    const item = (await service.itemOptions()).find(option => itemKey(option.id || option.name) === id);
+    return item ? {...item, id, category: "consumable" as const, offer_id: `shop-pool-${index}-${id}`, source: "shop" as const} : null;
+  }))).filter((offer): offer is ShopOffer => Boolean(offer));
+  const guaranteedIds = new Set(guaranteedOffers.map(offer => itemKey(offer.id || offer.name)));
+  const rest = existingOffers.filter(offer => !guaranteedIds.has(itemKey(offer.id || offer.name)));
+  const count = Math.max(guaranteedOffers.length, shopOfferCount(run));
+  return [...guaranteedOffers, ...rest].slice(0, count);
+}
+
 function mobileWithShopSlotPricing(run: CurrentRunData, offer: ShopOffer, index: number): ShopOffer {
   const slotDiscount = Number(run.rest_status?.shop_slot_discounts?.[index] || 0);
   const cost = slotDiscount > 0 ? Math.floor(Number(offer.cost || 0) * slotDiscount) : Number(offer.cost || 0);
@@ -1359,7 +1376,10 @@ async function mobileRollShopOffers(service: GameService, run: CurrentRunData, k
       else result.push(guaranteed);
     }
   }
-  return result.map((offer, index) => mobileWithShopSlotPricing(run, offer, index));
+  const premiumResult = run.rest_status?.event_premium_shop_goods && kind === "recovery"
+    ? await mobilePremiumRecoveryShopOffers(service, run, result)
+    : result;
+  return premiumResult.map((offer, index) => mobileWithShopSlotPricing(run, offer, index));
 }
 
 function mobileTmOffer(move: MoveSummary, index: number): ShopOffer {

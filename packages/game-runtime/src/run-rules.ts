@@ -62,6 +62,7 @@ export const SCORE_BET_MIN_STAKE = 100;
 export const SCORE_BET_MAX_STAKE = 1000;
 export const SCORE_BET_DEFAULT_TARGET: RestScoreBetTarget = 3;
 export const SCORE_BET_MULTIPLIERS: Record<RestScoreBetTarget, number> = {1: 1.5, 2: 2, 3: 5};
+export const SCORE_BET_MULTIPLIER_OPTIONS = [1.5, 2, 3, 5] as const;
 export const STARTER_COINS_DEFAULT = 0;
 export const STARTER_ITEM_MAX_LEVEL = 4;
 export const STARTER_ITEM_DEFAULT_QUALITY_LEVEL = 1;
@@ -527,8 +528,14 @@ export function scoreBetMultiplier(target: RestScoreBetTarget): number {
   return SCORE_BET_MULTIPLIERS[target] || SCORE_BET_MULTIPLIERS[SCORE_BET_DEFAULT_TARGET];
 }
 
-export function scoreBetPayout(stake: number, target: RestScoreBetTarget): number {
-  return Math.floor(Math.max(0, Math.floor(Number(stake || 0))) * scoreBetMultiplier(target));
+export function scoreBetMultiplierChoice(value: unknown, fallback = scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET)): number {
+  const numeric = Number(value);
+  const options = [...SCORE_BET_MULTIPLIER_OPTIONS];
+  return options.find(option => Math.abs(option - numeric) < 0.001) || options.find(option => Math.abs(option - fallback) < 0.001) || scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET);
+}
+
+export function scoreBetPayout(stake: number, multiplier: number): number {
+  return Math.floor(Math.max(0, Math.floor(Number(stake || 0))) * scoreBetMultiplierChoice(multiplier));
 }
 
 export function scoreBetMaxStakeForCoins(coins: number, currentStake = 0): number {
@@ -540,13 +547,14 @@ export function normalizeScoreBetState(bet: Partial<RestScoreBetState> | null | 
   if (!bet) return undefined;
   const target = scoreBetTarget(bet.target_alive);
   const stake = Math.max(SCORE_BET_MIN_STAKE, Math.min(Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(maxStake || SCORE_BET_MIN_STAKE))), Math.floor(Number(bet.stake || SCORE_BET_MIN_STAKE))));
-  const multiplier = scoreBetMultiplier(target);
+  const multiplier = scoreBetMultiplierChoice(bet.multiplier, scoreBetMultiplier(target));
   return {
     target_alive: target,
     stake,
     multiplier,
+    multiplier_options: [...SCORE_BET_MULTIPLIER_OPTIONS],
     max_stake: Math.max(SCORE_BET_MIN_STAKE, Math.floor(Number(maxStake || SCORE_BET_MIN_STAKE))),
-    payout: scoreBetPayout(stake, target),
+    payout: scoreBetPayout(stake, multiplier),
   };
 }
 
@@ -558,11 +566,11 @@ export function settleScoreBetResult(bet: RestScoreBetState | null | undefined, 
   const exactHit = Boolean(effectivePlayerWin) && Math.max(0, Math.floor(Number(playerAlive || 0))) === targetAlive && Math.max(0, Math.floor(Number(enemyAlive || 0))) === 0;
   const scoreText = `${Math.max(0, Math.floor(Number(playerAlive || 0)))}:0`;
   if (exactHit) {
-    const payout = scoreBetPayout(stake, targetAlive);
-    return {hit: true, payout, targetAlive, stake, message: `重金下注命中 ${targetAlive}:0，返还 ${payout}金币。`};
+    const payout = scoreBetPayout(stake, normalized.multiplier);
+    return {hit: true, payout, targetAlive, stake, message: `重金下注命中 ${targetAlive}:0（${normalized.multiplier}x），返还 ${payout}金币。`};
   }
   const reason = !effectivePlayerWin ? "本场没有按原阵营获胜" : Math.max(0, Math.floor(Number(enemyAlive || 0))) > 0 ? `对方仍有 ${Math.max(0, Math.floor(Number(enemyAlive || 0)))} 只存活` : `实际比分 ${scoreText}`;
-  return {hit: false, payout: 0, targetAlive, stake, message: `重金下注未命中 ${targetAlive}:0，${reason}，下注 ${stake}金币不返还。`};
+  return {hit: false, payout: 0, targetAlive, stake, message: `重金下注未命中 ${targetAlive}:0（${normalized.multiplier}x），${reason}，下注 ${stake}金币不返还。`};
 }
 
 export function coinsToBp(coins: number): number {
@@ -714,13 +722,17 @@ export function normalizeTalentViews(talents: TalentView[] = []): TalentView[] {
   const normalized: TalentView[] = [];
   for (const input of talents) {
     if (!input?.id || seen.has(input.id)) continue;
-    const base = TALENTS.find(entry => entry.id === input.id);
+    const node = STAR_CHART_NODE_BY_ID.get(input.id);
+    const base = TALENTS.find(entry => entry.id === input.id) || ((node?.kind === "talent" || node?.kind === "badge") ? node : undefined);
     if (!base) continue;
+    const maxLevel = node?.max_level || input.max_level || base.max_level || 1;
     seen.add(input.id);
     normalized.push({
       ...base,
-      level: Math.max(1, Math.floor(Number(input.level || base.level || 1))),
-      max_level: input.max_level || base.max_level,
+      kind: node?.kind || base.kind,
+      category: node?.category || base.category,
+      level: Math.max(1, Math.min(maxLevel, Math.floor(Number(input.level || base.level || 1)))),
+      max_level: maxLevel,
     });
   }
   return normalized;
