@@ -9,7 +9,7 @@ import {PokemonProfile} from "../pokemon/PokemonProfile";
 export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | null; onSaved: (save: LocalSave) => void; onBack: () => void}) {
   const [catalog, setCatalog] = useState<TalentView[]>([]);
   const [selectedId, setSelectedId] = useState("root_trainer_star");
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(true);
   const [view, setView] = useState({x: 0, y: 0, scale: 0.78});
   const dragRef = useRef<{x: number; y: number; originX: number; originY: number} | null>(null);
   const selected = catalog.find(node => node.id === selectedId) || catalog[0];
@@ -90,11 +90,19 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
   function onWheel(event: WheelEvent<HTMLDivElement>) {
     event.preventDefault();
     const delta = event.deltaY > 0 ? -0.08 : 0.08;
+    zoomBy(delta);
+  }
+
+  function zoomBy(delta: number) {
     setView(current => ({...current, scale: Math.max(0.55, Math.min(1.8, Math.round((current.scale + delta) * 100) / 100))}));
   }
 
   function resetView() {
     setView({x: 0, y: 0, scale: 0.78});
+  }
+
+  function actualSizeView() {
+    setView(current => ({...current, scale: 1}));
   }
 
   const graphBounds = useMemo(() => {
@@ -186,8 +194,15 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
             <strong>训练家星图</strong>
             <span>点亮 {unlockedCount} · BP {bp}</span>
           </div>
-          <button onClick={resetView}>重置</button>
-          <button onClick={onBack}>返回</button>
+          <div className="star-chart-zoom-controls" aria-label="星图缩放">
+            <button onClick={() => zoomBy(-0.12)} aria-label="缩小星图">-</button>
+            <button onClick={actualSizeView} aria-label="重置为 1:1">1:1</button>
+            <button onClick={() => zoomBy(0.12)} aria-label="放大星图">+</button>
+          </div>
+          <div className="star-chart-nav-controls">
+            <button onClick={resetView}>重置</button>
+            <button onClick={onBack}>返回</button>
+          </div>
         </div>
         <div className="star-chart-viewport" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={onWheel}>
           <div
@@ -249,7 +264,7 @@ export function TalentConfigView({save, onSaved, onBack}: {save: LocalSave | nul
             exit={{x: 420, opacity: 0}}
             transition={{duration: 0.22, ease: "easeOut"}}
           >
-          <div className="talent-detail-copy">
+          <div className="star-chart-detail-body">
             <button className="star-chart-drawer-close" onClick={() => setDetailOpen(false)} aria-label="关闭详情">×</button>
             <span>{selected.category}</span>
             <h3>{selected.name}</h3>

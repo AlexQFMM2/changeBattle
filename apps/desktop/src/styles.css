@@ -19360,9 +19360,9 @@ button.party-status-chip {
   top: 14px;
   z-index: 8;
   display: grid;
-  grid-template-columns: minmax(112px, 1fr) auto auto;
+  grid-template-columns: minmax(118px, auto) auto auto;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   color: #fff;
   padding: 7px 8px 7px 11px;
   background: linear-gradient(90deg, rgb(0 0 0 / 66%), rgb(0 0 0 / 24%));
@@ -19407,9 +19407,36 @@ button.party-status-chip {
   text-shadow: 0 1px 0 rgb(0 0 0 / 64%);
 }
 
+.star-chart-zoom-controls,
+.star-chart-nav-controls {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.star-chart-zoom-controls {
+  padding: 2px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(0 0 0 / 20%);
+}
+
+.star-chart-zoom-controls button {
+  min-width: 24px;
+  width: 24px;
+  padding: 0;
+  font-size: 12px;
+}
+
+.star-chart-zoom-controls button:nth-child(2) {
+  min-width: 32px;
+  width: 32px;
+  font-size: 8px;
+}
+
 .star-chart-page .star-chart-viewport {
   position: absolute;
-  inset: 0;
+  inset: 0 160px 0 0;
   border: 0;
   border-radius: 0;
   background:
@@ -19602,8 +19629,8 @@ button.party-status-chip {
   right: 0;
   bottom: 0;
   z-index: 12;
-  width: min(276px, 31%);
-  min-width: 238px;
+  width: 160px;
+  min-width: 160px;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 7px;
@@ -19618,8 +19645,11 @@ button.party-status-chip {
   color: #fff9e8;
 }
 
-.star-chart-page .star-chart-detail .talent-detail-copy {
+.star-chart-page .star-chart-detail-body {
   position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
   align-content: start;
   overflow: auto;
   gap: 6px;
@@ -19642,15 +19672,15 @@ button.party-status-chip {
   box-shadow: none;
 }
 
-.star-chart-page .star-chart-detail .talent-detail-copy > span {
+.star-chart-page .star-chart-detail-body > span {
   color: #9fddb0;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1;
   font-weight: 950;
   letter-spacing: 0;
 }
 
-.star-chart-page .star-chart-detail .talent-detail-copy h3 {
+.star-chart-page .star-chart-detail-body h3 {
   color: #fff4c6;
   font-size: 16px;
   line-height: 1;
@@ -19658,17 +19688,17 @@ button.party-status-chip {
   text-shadow: 0 2px 0 rgb(0 0 0 / 56%);
 }
 
-.star-chart-page .star-chart-detail .talent-detail-copy > strong {
+.star-chart-page .star-chart-detail-body > strong {
   color: #ff6f73;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1;
 }
 
-.star-chart-page .star-chart-detail .talent-detail-copy > p,
-.star-chart-page .star-chart-detail .talent-detail-copy > small {
+.star-chart-page .star-chart-detail-body > p,
+.star-chart-page .star-chart-detail-body > small {
   color: rgb(255 249 232 / 72%);
-  font-size: 8px;
-  line-height: 1.28;
+  font-size: 10px;
+  line-height: 1.4;
   margin: 0;
 }
 
@@ -19689,14 +19719,14 @@ button.party-status-chip {
 .star-chart-page .star-chart-effect-box span,
 .star-chart-page .star-chart-requirements span {
   color: rgb(255 249 232 / 62%);
-  font-size: 6px;
+  font-size: 8px;
   line-height: 1;
 }
 
 .star-chart-page .star-chart-effect-box p {
   color: #fff9e8;
-  font-size: 8px;
-  line-height: 1.25;
+  font-size: 10px;
+  line-height: 1.35;
 }
 
 .star-chart-page .star-chart-requirements b {
@@ -19704,7 +19734,7 @@ button.party-status-chip {
   color: rgb(255 249 232 / 62%);
   border-radius: 3px;
   padding: 4px 5px;
-  font-size: 7px;
+  font-size: 9px;
   line-height: 1;
 }
 
@@ -19721,14 +19751,14 @@ button.party-status-chip {
 .star-chart-page .star-chart-detail .talent-actions span {
   color: rgb(255 249 232 / 62%);
   min-width: 38px;
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .star-chart-page .star-chart-detail .talent-actions button {
   min-height: 22px;
   border-radius: 3px;
   padding: 2px 8px;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1;
 }
 
@@ -19736,7 +19766,7 @@ button.party-status-chip {
   letter-spacing: 0;
 }
 
-.star-chart-page .star-chart-detail .talent-detail-copy > :is(span, strong, p, small),
+.star-chart-page .star-chart-detail-body > :is(span, strong, p, small),
 .star-chart-page .star-chart-effect-box :is(span, p),
 .star-chart-page .star-chart-requirements :is(span, b) {
   font-weight: 850;
@@ -19754,13 +19784,18 @@ button.party-status-chip {
 
 @media (max-width: 760px) {
   .star-chart-page .star-chart-detail {
-    width: min(330px, 86%);
-    min-width: 0;
+    width: 160px;
+    min-width: 160px;
   }
 
   .star-chart-hud {
     right: 10px;
-    grid-template-columns: minmax(84px, 1fr) auto auto;
+    grid-template-columns: minmax(84px, 1fr) auto;
+  }
+
+  .star-chart-nav-controls {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .rainbow-support-modal {

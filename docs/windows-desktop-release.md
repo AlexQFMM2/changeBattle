@@ -162,6 +162,40 @@ git rev-parse --short HEAD
 
 记下短 commit，后面写入 `RELEASE-README.md`。
 
+## 快速自动化脚本
+
+如果只是按已提交的 `HEAD` 生成新版本，优先使用脚本，避免手动重复敲 SSH 命令。
+
+Linux 本机同步源码到 Windows：
+
+```bash
+tools/send_release_source_to_windows.sh X.Y.Z
+```
+
+不传版本号时脚本会提示输入。脚本会：
+
+- 校验 `package.json` 版本等于输入版本。
+- 要求 git 工作区干净。
+- 用 `git archive HEAD` 生成 `changeBattle-src-X.Y.Z.tgz`。
+- 上传源码包到 `D:\changeBattle\release`。
+- 替换 `D:\changeBattle\changeBattle`。
+- 把 Windows release 脚本复制到 `D:\changeBattle` 根目录。
+- 写入 `.changebattle-release-commit`，供 Desk release README 使用。
+
+Windows 构建 Desk：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-desk-release.ps1
+```
+
+也可以直接传版本号：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-desk-release.ps1 -Version X.Y.Z
+```
+
+脚本会安装依赖、构建 Desktop、打包便携 zip、复制到 `D:\changeBattle\release`，并校验启动脚本、Electron runtime、Showdown runtime 和 `docs/` 排除规则。
+
 ## 2. 同步源码到 Windows
 
 推荐只从已提交的 `HEAD` 生成源码包，避免把本地 `node_modules`、`release`、`saves`、未提交改动带过去。

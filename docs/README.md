@@ -35,6 +35,7 @@ ChangeBattle 当前更适合被理解为：
 - 理解招式动画资料抓取：[`52poke_fetching.md`](./52poke_fetching.md)、[`move_animation_references.md`](./move_animation_references.md)
 - 生成 Windows 桌面便携 release：[`windows-desktop-release.md`](./windows-desktop-release.md)
 - 生成 Android 自用 APK release：[`app-release.md`](./app-release.md)
+- 自动同步源码到 Windows release 构建机：`tools/send_release_source_to_windows.sh`
 - 通过 SSH 操作 Windows Android 模拟器做截图 smoke：[`android-emulator-smoke.md`](./android-emulator-smoke.md)
 - 查阅历史 green.gba 导出说明：[`green-gba-assets.md`](./green-gba-assets.md)
 

@@ -197,6 +197,32 @@ git push origin main
 git rev-parse --short HEAD
 ```
 
+## 快速自动化脚本
+
+如果只是按已提交的 `HEAD` 生成新版本，优先使用脚本。
+
+Linux 本机同步源码到 Windows：
+
+```bash
+tools/send_release_source_to_windows.sh X.Y.Z
+```
+
+不传版本号时脚本会提示输入。它会校验版本、要求 git 工作区干净、生成 `git archive` 源码包、上传并替换 Windows 源码目录，同时把 Windows release 脚本复制到 `D:\changeBattle`。
+
+Windows 构建 APK：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-mobile-release.ps1
+```
+
+也可以直接传版本号：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-mobile-release.ps1 -Version X.Y.Z
+```
+
+脚本会安装依赖、构建 mobile web、同步 Capacitor、生成 release APK、复制到 `D:\changeBattle\release`，并用 SDK 里的 `apksigner` 校验签名。
+
 ## 2. 同步源码到 Windows
 
 推荐从已提交的 `HEAD` 生成源码包：
