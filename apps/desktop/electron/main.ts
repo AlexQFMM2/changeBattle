@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   createChangeBattleRuntime,
@@ -27,6 +27,7 @@ import {
   adjustedStateAfterEdit as runtimeAdjustedStateAfterEdit,
   applyRainbowRocketRestore as runtimeApplyRainbowRocketRestore,
   applyRainbowRocketSupportChoice as runtimeApplyRainbowRocketSupportChoice,
+  applyRestConsumableItem as runtimeApplyRestConsumableItem,
   buildRainbowRocketFactorySupport as runtimeBuildRainbowRocketFactorySupport,
   buildRestState as runtimeBuildRestState,
   buildRuntimeBattleRecord,
@@ -328,7 +329,6 @@ type StarterUpgradeConfigState = {catalog: StarterUpgradeView[]; save?: LocalSav
 type BossRoute = {type: "normal" | "gym" | "champion" | "elite4"; stage: string; route: string; pool: Array<{type: TrainerNpcType; tier?: string}>};
 type GenerationProfile = "tier1" | "tier2" | "tier3" | "tier4" | "champion";
 type SpeciesTier = 1 | 2 | 3 | 4 | 5 | 6 | 10;
-type ShopKind = "recovery" | "held" | "tm";
 type ShopPoolBucket = "healing" | "tm" | "held" | "berry" | "pp";
 type ShopPoolEntry = {
   id: string;
@@ -365,10 +365,12 @@ const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
   held: 5,
 };
 
-const SHOP_KIND_CONFIG: Record<ShopKind, {title: string; theme: "green" | "blue" | "purple"; rollCost: number; buckets: ShopPoolBucket[]}> = {
+const SHOP_KIND_CONFIG: Record<ShopKind, {title: string; theme: "green" | "blue" | "purple" | "orange"; rollCost: number; buckets: ShopPoolBucket[]}> = {
   recovery: {title: "回复商店", theme: "green", rollCost: 50, buckets: ["healing", "berry", "pp"]},
   held: {title: "道具商店", theme: "blue", rollCost: 75, buckets: ["held"]},
   tm: {title: "技能商店", theme: "purple", rollCost: 75, buckets: ["tm"]},
+  mega: {title: "Mega 商店", theme: "orange", rollCost: 75, buckets: ["held"]},
+  zmove: {title: "Z 招式商店", theme: "purple", rollCost: 75, buckets: ["held"]},
 };
 const SPECIAL_FORGE_COST = 50;
 const TERA_ORB_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
@@ -420,6 +422,20 @@ const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: s
   maxether: {name: "Max Ether", name_zh: "PP 单项全补剂", desc: "Fully restores PP to one move.", desc_zh: "让 1 个招式恢复全部 PP。"},
   elixir: {name: "Elixir", name_zh: "PP 多项小补剂", desc: "Restores 10 PP to all moves.", desc_zh: "让所有招式恢复 10 点 PP。"},
   maxelixir: {name: "Max Elixir", name_zh: "PP 多项全补剂", desc: "Fully restores PP to all moves.", desc_zh: "让所有招式恢复全部 PP。"},
+  pomegberry: {name: "Pomeg Berry", name_zh: "榴石果", desc: "Lowers HP EVs by 10.", desc_zh: "休整页使用，降低 HP 努力值 10 点。"},
+  kelpsyberry: {name: "Kelpsy Berry", name_zh: "藻根果", desc: "Lowers Attack EVs by 10.", desc_zh: "休整页使用，降低攻击努力值 10 点。"},
+  qualotberry: {name: "Qualot Berry", name_zh: "比巴果", desc: "Lowers Defense EVs by 10.", desc_zh: "休整页使用，降低防御努力值 10 点。"},
+  hondewberry: {name: "Hondew Berry", name_zh: "哈密果", desc: "Lowers Special Attack EVs by 10.", desc_zh: "休整页使用，降低特攻努力值 10 点。"},
+  grepaberry: {name: "Grepa Berry", name_zh: "萄葡果", desc: "Lowers Special Defense EVs by 10.", desc_zh: "休整页使用，降低特防努力值 10 点。"},
+  tamatoberry: {name: "Tamato Berry", name_zh: "茄番果", desc: "Lowers Speed EVs by 10.", desc_zh: "休整页使用，降低速度努力值 10 点。"},
+  hpup: {name: "HP Up", name_zh: "HP 增强剂", desc: "Raises HP EVs by 100.", desc_zh: "休整页使用，提升 HP 努力值 100 点。"},
+  protein: {name: "Protein", name_zh: "攻击增强剂", desc: "Raises Attack EVs by 100.", desc_zh: "休整页使用，提升攻击努力值 100 点。"},
+  iron: {name: "Iron", name_zh: "防御增强剂", desc: "Raises Defense EVs by 100.", desc_zh: "休整页使用，提升防御努力值 100 点。"},
+  calcium: {name: "Calcium", name_zh: "特攻增强剂", desc: "Raises Special Attack EVs by 100.", desc_zh: "休整页使用，提升特攻努力值 100 点。"},
+  zinc: {name: "Zinc", name_zh: "特防增强剂", desc: "Raises Special Defense EVs by 100.", desc_zh: "休整页使用，提升特防努力值 100 点。"},
+  carbos: {name: "Carbos", name_zh: "速度增强剂", desc: "Raises Speed EVs by 100.", desc_zh: "休整页使用，提升速度努力值 100 点。"},
+  bottlecap: {name: "Bottle Cap", name_zh: "银色王冠", desc: "Sets one IV to 31.", desc_zh: "休整页使用，指定 1 项个体值提升到 31。"},
+  goldbottlecap: {name: "Gold Bottle Cap", name_zh: "金色王冠", desc: "Sets all IVs to 31.", desc_zh: "休整页使用，全部个体值提升到 31。"},
 };
 
 type RestEventDefinition = RestEventOption & {
@@ -495,11 +511,11 @@ const REST_EVENT_COPY: Record<string, RestEventCopy> = {
   },
   tutor_granny: {
     intro: "一位背着旧教材的老奶奶坐在休整区角落。她讲课很慢，但讲的全是学校里不教、机器也刻不出来的老招式。",
-    effects: ["本次休整解锁讲师老奶奶。", "可花 200 金币让 1 只宝可梦学习合法教授招式。", "只显示当前能学、且还没掌握的 tutor 来源招式。"],
+    effects: ["本次休整解锁讲师老奶奶。", "每次花 100 金币让 1 只宝可梦学习合法教授招式。", "本次休整内可反复使用。", "只显示当前能学、且还没掌握的 tutor 来源招式。"],
   },
   daycare_grandpa: {
     intro: "培育屋爷爷带着一本厚厚的谱系笔记。他说有些招式不是机器教会的，要从血脉、习惯和一点耐心里找回来。",
-    effects: ["本次休整解锁培育屋爷爷。", "可花 200 金币让 1 只宝可梦学习合法遗传招式。", "只显示当前能学、且还没掌握的 egg 来源招式。"],
+    effects: ["本次休整解锁培育屋爷爷。", "每次花 100 金币让 1 只宝可梦学习合法遗传招式。", "本次休整内可反复使用。", "只显示当前能学、且还没掌握的 egg 来源招式。"],
   },
   last_minute_escape: {
     intro: "你的一只宝可梦追逐自由去了。工厂工作人员一边道歉一边翻找备用名册，承诺补上一只差不多的同伴。",
@@ -711,7 +727,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "tutor_granny",
     name: "讲师老奶奶",
-    desc: "本次休整可花 200 金币学习 1 个教授招式。",
+    desc: "本次休整可花 100 金币反复学习教授招式。",
     detail: "只显示当前宝可梦合法且未掌握的 tutor 来源招式。",
     tone: "trade",
     async apply(_save, run) {
@@ -722,7 +738,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "daycare_grandpa",
     name: "培育屋爷爷",
-    desc: "本次休整可花 200 金币学习 1 个遗传招式。",
+    desc: "本次休整可花 100 金币反复学习遗传招式。",
     detail: "只显示当前宝可梦合法且未掌握的 egg 来源招式。",
     tone: "trade",
     async apply(_save, run) {
@@ -981,6 +997,16 @@ function isSpecialSystemItemId(itemId: string): boolean {
   return Boolean(gameService.battleSystemForItem(id));
 }
 
+const TRAINING_CONSUMABLE_ITEM_IDS = new Set([
+  "pomegberry", "kelpsyberry", "qualotberry", "hondewberry", "grepaberry", "tamatoberry",
+  "hpup", "protein", "iron", "calcium", "zinc", "carbos",
+  "bottlecap", "goldbottlecap",
+]);
+
+function isTrainingConsumableItemId(itemId: string): boolean {
+  return TRAINING_CONSUMABLE_ITEM_IDS.has(itemKey(itemId));
+}
+
 async function isOrdinaryHeldItemId(itemId: string): Promise<boolean> {
   const id = itemKey(itemId);
   if (!id || isTmItemId(id) || isBerryItemId(id) || isSpecialSystemItemId(id)) return false;
@@ -992,12 +1018,14 @@ async function isOrdinaryHeldItemId(itemId: string): Promise<boolean> {
 
 async function isHpStatusReviveRecoveryItem(itemId: string): Promise<boolean> {
   const id = itemKey(itemId);
+  if (isTrainingConsumableItemId(id)) return false;
   if (isTmItemId(id) || isBerryItemId(id)) return true;
   if (!(await gameService.hasConsumableItemEffect(id))) return false;
   return !["ether", "maxether", "elixir", "maxelixir"].includes(id);
 }
 
 function isLowTierRecoveryItem(itemId: string): boolean {
+  if (isTrainingConsumableItemId(itemId)) return false;
   return ["potion", "superpotion", "hyperpotion", "freshwater", "sodapop", "lemonade", "moomoomilk", "energypowder", "energyroot", "fullheal", "healpowder", "antidote", "burnheal", "iceheal", "awakening", "paralyzeheal"].includes(itemKey(itemId)) || isBerryItemId(itemId);
 }
 
@@ -2320,7 +2348,30 @@ function isRegularHeldShopItem(entry: ShopPoolEntry): boolean {
 }
 
 function normalizeShopKind(value: unknown): ShopKind {
-  return value === "held" || value === "tm" || value === "recovery" ? value : "recovery";
+  return value === "held" || value === "tm" || value === "recovery" || value === "mega" || value === "zmove" ? value : "recovery";
+}
+
+function gen7SpecialShopEnabled(run: CurrentRunData, system: "mega" | "zmove"): boolean {
+  const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
+  return setting.battle_rule_preset === "gen7" && setting.enabled_battle_systems.includes(system);
+}
+
+function availableShopKindsForRun(run: CurrentRunData): ShopKind[] {
+  const kinds: ShopKind[] = ["recovery", "held", "tm"];
+  if (gen7SpecialShopEnabled(run, "mega")) kinds.push("mega");
+  if (gen7SpecialShopEnabled(run, "zmove")) kinds.push("zmove");
+  return kinds;
+}
+
+function normalizeAvailableShopKind(run: CurrentRunData, value: unknown): ShopKind {
+  const kind = normalizeShopKind(value);
+  return availableShopKindsForRun(run).includes(kind) ? kind : "recovery";
+}
+
+function assertShopKindAvailable(run: CurrentRunData, kind: ShopKind): void {
+  if (availableShopKindsForRun(run).includes(kind)) return;
+  if (kind === "mega" || kind === "zmove") throw new Error("Mega/Z 商店仅在 Gen7 规则开启时可用。");
+  throw new Error("当前商店不可用。");
 }
 
 function shopNextRollCostForKind(run: CurrentRunData, kind: ShopKind): number {
@@ -2544,6 +2595,15 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
   return result;
 }
 
+async function battleBagCategories(run: CurrentRunData): Promise<BagCategoryView> {
+  const categories = await bagCategories(run);
+  const consumable = [];
+  for (const item of categories.consumable) {
+    if (await gameService.hasBattleConsumableItemEffect(item.id)) consumable.push(item);
+  }
+  return {...categories, consumable};
+}
+
 function rememberBagItemMeta(run: CurrentRunData, offer: Partial<ShopOffer> | ShopItem): void {
   const id = itemKey(offer.id || offer.name);
   if (!id) return;
@@ -2709,6 +2769,7 @@ async function premiumRecoveryShopOffers(run: CurrentRunData, existingOffers: Sh
 
 async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recovery"): Promise<ShopOffer[]> {
   const kind = normalizeShopKind(shopKind);
+  assertShopKindAvailable(run, kind);
   const premiumGoods = Boolean(run.rest_status?.event_premium_shop_goods);
   if (kind === "tm") {
     return (await (premiumGoods ? premiumTmShopOptionsForRun(run) : tmShopOptionsForRun(run))).map((offer, index) => withShopSlotPricing(run, offer, index));
@@ -2718,6 +2779,8 @@ async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recover
   const itemEntries = pool.filter(entry => {
     if (!battleSettingAllowsItem(entry.id, run.battle_setting)) return false;
     if (kind === "held") return premiumHeldPool ? premiumHeldPool.includes(entry) : isRegularHeldShopItem(entry);
+    if (kind === "mega") return entry.kind === "item" && entry.category === "held" && gameService.battleSystemForItem(entry.id) === "mega";
+    if (kind === "zmove") return entry.kind === "item" && entry.category === "held" && gameService.battleSystemForItem(entry.id) === "zmove";
     return entry.kind === "item";
   });
   const itemOffers = (await Promise.all(itemEntries.map((entry, index) => shopOfferFromPoolEntry(entry, index, run.talents || [], run.battle_setting))))
@@ -3742,7 +3805,7 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.bag_items = Object.fromEntries(Object.entries(run.bag_items || {}).map(([id, count]) => [itemKey(id), Math.max(0, Number(count || 0))] as const).filter(([, count]) => count > 0));
   run.reroll_count = Number(run.reroll_count || 0);
   run.shop_roll_count = Number(run.shop_roll_count || 0);
-  run.shop_kind = normalizeShopKind(run.shop_kind);
+  run.shop_kind = normalizeAvailableShopKind(run, run.shop_kind);
   run.shop_offers = (run.shop_offers || []).map(offer => ({...offer, category: offer.category || itemCategory(offer)}));
   run.shop_purchased_offer_id = run.shop_purchased_offer_id || null;
   run.shop_purchased_offer_counts = Object.fromEntries(Object.entries(run.shop_purchased_offer_counts || {}).map(([offerId, count]) => [offerId, Math.max(0, Math.floor(Number(count || 0)))] as const).filter(([, count]) => count > 0));
@@ -3920,8 +3983,8 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
   if (status.event_exchange_disabled) entries.push({id: "exchange_disabled", label: "无法交换", detail: "本次休整不能交换宝可梦。", tone: "risk"});
   if (Number(status.event_level_points || 0) > 0) entries.push({id: "level_points", label: `可分配等级 ${status.event_level_points}`, detail: "可分给当前队伍宝可梦。", tone: "safe"});
   if (status.event_doctor_pending) entries.push({id: "doctor", label: "医生等待选择", detail: "请选择哥哥或弟弟的治疗方案。", tone: "trade"});
-  if (status.event_tutor_service_available && !status.event_tutor_service_used) entries.push({id: "tutor", label: "讲师老奶奶", detail: "可花 200 金币学习 1 个教授招式。", tone: "trade"});
-  if (status.event_egg_service_available && !status.event_egg_service_used) entries.push({id: "egg", label: "培育屋爷爷", detail: "可花 200 金币学习 1 个遗传招式。", tone: "trade"});
+  if (status.event_tutor_service_available) entries.push({id: "tutor", label: "讲师老奶奶", detail: "每次 100 金币学习 1 个教授招式，本次休整内不限次数。", tone: "trade"});
+  if (status.event_egg_service_available) entries.push({id: "egg", label: "培育屋爷爷", detail: "每次 100 金币学习 1 个遗传招式，本次休整内不限次数。", tone: "trade"});
   if (status.event_raid_exchange_available && !status.event_raid_exchange_used) entries.push({id: "raid_exchange", label: "骇人奇袭", detail: "可与下一位对手交换 1 只宝可梦。", tone: "trade"});
   if (status.event_villain_intrusion_active) entries.push({id: "villain_intrusion", label: "反派头目乱入", detail: "下一场赛程异常：彩虹火箭队头目将替代普通对手，胜利额外奖励 500 金币。", tone: "risk"});
   if (isRainbowRocketRun(run)) entries.push({id: "rainbow_rocket", label: "彩虹火箭队", detail: "赛程已被劫持：普通奇遇和商店关闭，工厂支援与技能服务常驻。", tone: "risk"});
@@ -3950,6 +4013,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
   const nextPreview = hasTalent(run.talents, "intel_reroute") && nextBattleNo <= Number(run.battles || DEFAULT_BATTLES)
     ? await generateOpponentPreview(save, run, nextBattleNo)
     : null;
+  const shopKind = normalizeAvailableShopKind(run, run.shop_kind);
   const rest: RestState = runtimeBuildRestState({
     save,
     run,
@@ -3969,12 +4033,13 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     bag_categories: await bagCategories(run),
     talents: run.talents || [],
     shop: {
-      kind: normalizeShopKind(run.shop_kind),
-      title: SHOP_KIND_CONFIG[normalizeShopKind(run.shop_kind)].title,
-      theme: SHOP_KIND_CONFIG[normalizeShopKind(run.shop_kind)].theme,
+      kind: shopKind,
+      title: SHOP_KIND_CONFIG[shopKind].title,
+      theme: SHOP_KIND_CONFIG[shopKind].theme,
+      available_kinds: availableShopKindsForRun(run),
       roll_count: Number(run.shop_roll_count || 0),
-      next_roll_cost: isRainbowRocketRun(run) ? null : shopNextRollCostForKind(run, normalizeShopKind(run.shop_kind)),
-      slot_count: normalizeShopKind(run.shop_kind) === "tm" ? 3 : shopOfferCount(run),
+      next_roll_cost: isRainbowRocketRun(run) ? null : shopNextRollCostForKind(run, shopKind),
+      slot_count: shopKind === "tm" ? 3 : shopOfferCount(run),
       free_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0),
       slot_discounts: run.rest_status?.shop_slot_discounts || [],
       offers: isRainbowRocketRun(run) ? [] : pricedShopOffersForRun(run),
@@ -4032,8 +4097,8 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     } : undefined,
     event_services: {
       doctor: Boolean(run.rest_status?.event_doctor_pending),
-      tutor: isRainbowRocketRun(run) || Boolean(run.rest_status?.event_tutor_service_available && !run.rest_status?.event_tutor_service_used),
-      egg: isRainbowRocketRun(run) || Boolean(run.rest_status?.event_egg_service_available && !run.rest_status?.event_egg_service_used),
+      tutor: isRainbowRocketRun(run) || Boolean(run.rest_status?.event_tutor_service_available),
+      egg: isRainbowRocketRun(run) || Boolean(run.rest_status?.event_egg_service_available),
       raid_exchange: !isRainbowRocketRun(run) && Boolean(run.rest_status?.event_raid_exchange_available && !run.rest_status?.event_raid_exchange_used),
       raid_exchange_battle_no: run.rest_status?.event_raid_exchange_battle_no,
       level_points: Math.max(0, Number(run.rest_status?.event_level_points || 0)),
@@ -4187,7 +4252,7 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   const encounteredBoss = recordBossEncounter(battleStartSave, battleStartRun, enemyTrainer, bossTeam, enemyDisplay);
   const stateSave = encounteredBoss ? await persist(battleStartSave) : battleStartSave;
   const stateRun = stateSave.current_run as CurrentRunData;
-  return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await bagCategories(stateRun), message: prepared.message});
+  return gameState({screen: "battleMain", save: stateSave, battle: decorateBattleState(activeBattle.getState(), stateRun), battle_bag: await battleBagCategories(stateRun), message: prepared.message});
 }
 
 function aliveStateCount(states: PlayerPokemonState[] | undefined): number {
@@ -4229,7 +4294,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `败给 ${enemyName}`, wins, settled, battle: resultBattle, run});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message: lossMessage, outcome: "loss", statEvents, resultSummary}));
     const transition = gameState({screen: "result", save: next, battle: resultBattle, message: lossMessage, result_summary: resultSummary});
-    return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message: lossMessage, pending_transition: transition});
+    return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await battleBagCategories(run), message: lossMessage, pending_transition: transition});
   }
   const wins = Number(run.wins || 0) + 1;
   if (!isRainbowRocketRun(run)) addToExchangeBox(run, perspective.exchangeTeam, perspective.exchangeDisplay);
@@ -4251,7 +4316,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const resultSummary = buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "win", statEvents, resultSummary}));
     const transition = gameState({screen: "result", save: next, battle: resultBattle, message, result_summary: resultSummary});
-    return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message, pending_transition: transition});
+    return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await battleBagCategories(run), message, pending_transition: transition});
   }
   const victoryRewards = await grantVictoryRewards(run, run.boss_type !== "normal", activeBattleNo);
   save.current_run = runtimeApplyBattleWinRestTransition(run, {
@@ -4268,7 +4333,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `；反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `；彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${supplyText}${scoreBetText ? `；${scoreBetText}` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
   await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: decorateBattleState(state, run), message: rewardText, outcome: "win", statEvents}));
   const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
-  return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await bagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
+  return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await battleBagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
 }
 
 async function finishSoulSwapTimeoutLoss(save: LocalSave, state: BattleState): Promise<DesktopGameState> {
@@ -4302,7 +4367,7 @@ async function finishSoulSwapTimeoutLoss(save: LocalSave, state: BattleState): P
   const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: "灵魂互换被工厂叫停", wins, settled, battle: resultBattle, run});
   await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "loss", statEvents, resultSummary}));
   const transition = gameState({screen: "result", save: next, battle: resultBattle, message, result_summary: resultSummary});
-  return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await bagCategories(run), message, pending_transition: transition});
+  return gameState({screen: "battleMain", save: next, battle: resultBattle, battle_bag: await battleBagCategories(run), message, pending_transition: transition});
 }
 
 async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
@@ -4313,7 +4378,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
     const run = save.current_run as CurrentRunData;
     const result = await runtimeExecuteBattleChoice(run, activeBattle, choice, {
-      hasConsumableItemEffect: itemId => gameService.hasConsumableItemEffect(itemId),
+      hasConsumableItemEffect: itemId => gameService.hasBattleConsumableItemEffect(itemId),
       isHpStatusReviveRecoveryItem,
     });
     const outcome = runtimeResolveBattleCommandOutcome(result);
@@ -4323,7 +4388,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
     }
     if (outcome.status === "ongoing") {
       const next = outcome.shouldPersist ? await persist(save) : save;
-      return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await bagCategories(next.current_run as CurrentRunData)});
+      return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, next.current_run as CurrentRunData), battle_bag: await battleBagCategories(next.current_run as CurrentRunData)});
     }
     return finishBattleState(save, state);
   } finally {
@@ -4343,7 +4408,7 @@ async function autoAdvanceBattle(): Promise<DesktopGameState> {
       return finishSoulSwapTimeoutLoss(save, state);
     }
     if (outcome.status === "ongoing") {
-      return gameState({screen: "battleMain", save, battle: decorateBattleState(state, save.current_run as CurrentRunData), battle_bag: await bagCategories(save.current_run as CurrentRunData)});
+      return gameState({screen: "battleMain", save, battle: decorateBattleState(state, save.current_run as CurrentRunData), battle_bag: await battleBagCategories(save.current_run as CurrentRunData)});
     }
     return finishBattleState(save, state);
   } finally {
@@ -4666,18 +4731,15 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (action.type === "event_learn_move") {
     const service = action.service === "egg" ? "egg" : "tutor";
     const availableKey = service === "egg" ? "event_egg_service_available" : "event_tutor_service_available";
-    const usedKey = service === "egg" ? "event_egg_service_used" : "event_tutor_service_used";
     if (!(run.rest_status as any)?.[availableKey]) throw new Error(service === "egg" ? "本次没有培育屋爷爷。" : "本次没有讲师老奶奶。");
-    if ((run.rest_status as any)?.[usedKey]) throw new Error("本次技能服务已经使用过。");
     const slot = Math.floor(Number(action.slot));
     const moveSlot = Math.floor(Number(action.moveSlot));
     if (slot < 0 || slot >= run.player_team.length) throw new Error("队伍编号无效。");
     const rawSet = run.player_team[slot];
     const selected = (await gameService.learnableMoves(rawSet)).find(move => toId(move.id || move.name) === toId(action.moveId));
     if (!selected || !(selected.learn_sources || []).includes(service)) throw new Error(service === "egg" ? "这不是该宝可梦的合法遗传招式。" : "这不是该宝可梦的合法教授招式。");
-    const spent = spendRunBp(save, run, 200, `event-learn-${service}`);
+    const spent = spendRunBp(save, run, 100, `event-learn-${service}`);
     await applyMoveToSlot(run, slot, moveSlot, selected.id || selected.name);
-    run.rest_status = {...(run.rest_status || {}), [usedKey]: true};
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, `${service === "egg" ? "培育屋爷爷" : "讲师老奶奶"}：${run.player_display[slot]?.species_zh || "宝可梦"} 学会了 ${selected.name_zh || selected.name}，${spent.message}。`);
   }
@@ -4710,6 +4772,10 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
     const normalizedItem = itemKey(action.itemId);
     await assertRestItemUsableByEvents(run, normalizedItem);
+    const trainingEffect = await gameService.trainingItemEffect(normalizedItem);
+    if (trainingEffect) {
+      await runtimeApplyRestConsumableItem(run, normalizedItem, slot, action.moveSlot, gameService, {stat: action.stat, consume: false, dryRun: true});
+    }
     let riskText = "";
     let consumeItem = true;
     if (hasTalent(run.talents, "growth_risky")) {
@@ -4727,6 +4793,11 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
         const next = await persist(save);
         return await restState(next, next.current_run as CurrentRunData, "铤而走险触发：道具使用失败，并失去了该道具。");
       }
+    }
+    if (trainingEffect) {
+      const text = await runtimeApplyRestConsumableItem(run, normalizedItem, slot, action.moveSlot, gameService, {stat: action.stat, consume: consumeItem});
+      const next = await persist(save);
+      return await restState(next, next.current_run as CurrentRunData, riskText ? `${riskText}${text ? ` ${text}` : ""}` : text);
     }
     const beforeHp = states[slot]?.hp ?? 0;
     const item = consumeItem ? await consumeBagItem(run, normalizedItem) : await itemDetailsById(normalizedItem);
@@ -5007,6 +5078,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     try {
       if (run.rest_status?.event_shop_disabled) throw new Error("本次休整没有商店。");
       const shopKind = normalizeShopKind(action.shopKind);
+      assertShopKindAvailable(run, shopKind);
       const cost = run.rest_status?.event_barter_active ? 0 : shopNextRollCostForKind(run, shopKind);
       if (currentCoins(run) < cost) throw new Error(`金币不足，需要 ${cost}金币。`);
       const spent = spendRunBp(save, run, cost, `shop-roll:${shopKind}`);

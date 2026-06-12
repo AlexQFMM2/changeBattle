@@ -50,6 +50,20 @@ const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: s
   maxether: {name: "Max Ether", name_zh: "PP 单项全补剂", desc: "Fully restores PP to one move.", desc_zh: "让 1 个招式恢复全部 PP。"},
   elixir: {name: "Elixir", name_zh: "PP 多项小补剂", desc: "Restores 10 PP to all moves.", desc_zh: "让所有招式恢复 10 点 PP。"},
   maxelixir: {name: "Max Elixir", name_zh: "PP 多项全补剂", desc: "Fully restores PP to all moves.", desc_zh: "让所有招式恢复全部 PP。"},
+  pomegberry: {name: "Pomeg Berry", name_zh: "榴石果", desc: "Lowers HP EVs by 10.", desc_zh: "休整页使用，降低 HP 努力值 10 点。"},
+  kelpsyberry: {name: "Kelpsy Berry", name_zh: "藻根果", desc: "Lowers Attack EVs by 10.", desc_zh: "休整页使用，降低攻击努力值 10 点。"},
+  qualotberry: {name: "Qualot Berry", name_zh: "比巴果", desc: "Lowers Defense EVs by 10.", desc_zh: "休整页使用，降低防御努力值 10 点。"},
+  hondewberry: {name: "Hondew Berry", name_zh: "哈密果", desc: "Lowers Special Attack EVs by 10.", desc_zh: "休整页使用，降低特攻努力值 10 点。"},
+  grepaberry: {name: "Grepa Berry", name_zh: "萄葡果", desc: "Lowers Special Defense EVs by 10.", desc_zh: "休整页使用，降低特防努力值 10 点。"},
+  tamatoberry: {name: "Tamato Berry", name_zh: "茄番果", desc: "Lowers Speed EVs by 10.", desc_zh: "休整页使用，降低速度努力值 10 点。"},
+  hpup: {name: "HP Up", name_zh: "HP 增强剂", desc: "Raises HP EVs by 100.", desc_zh: "休整页使用，提升 HP 努力值 100 点。"},
+  protein: {name: "Protein", name_zh: "攻击增强剂", desc: "Raises Attack EVs by 100.", desc_zh: "休整页使用，提升攻击努力值 100 点。"},
+  iron: {name: "Iron", name_zh: "防御增强剂", desc: "Raises Defense EVs by 100.", desc_zh: "休整页使用，提升防御努力值 100 点。"},
+  calcium: {name: "Calcium", name_zh: "特攻增强剂", desc: "Raises Special Attack EVs by 100.", desc_zh: "休整页使用，提升特攻努力值 100 点。"},
+  zinc: {name: "Zinc", name_zh: "特防增强剂", desc: "Raises Special Defense EVs by 100.", desc_zh: "休整页使用，提升特防努力值 100 点。"},
+  carbos: {name: "Carbos", name_zh: "速度增强剂", desc: "Raises Speed EVs by 100.", desc_zh: "休整页使用，提升速度努力值 100 点。"},
+  bottlecap: {name: "Bottle Cap", name_zh: "银色王冠", desc: "Sets one IV to 31.", desc_zh: "休整页使用，指定 1 项个体值提升到 31。"},
+  goldbottlecap: {name: "Gold Bottle Cap", name_zh: "金色王冠", desc: "Sets all IVs to 31.", desc_zh: "休整页使用，全部个体值提升到 31。"},
 };
 
 export async function generateStarterItemOffers(options: {

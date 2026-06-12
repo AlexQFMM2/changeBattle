@@ -108,12 +108,12 @@ import {
   villainIntrusionRollHits,
 } from "@changebattle/game-runtime";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
-import type {BagCategoryView, BattleBackgroundView, BattleState, CurrentRunData, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PokemonSet, RentalPokemon, RestState, ShopItem, ShopOffer, ShopState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleState, CurrentRunData, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PokemonSet, RentalPokemon, RestState, ShopItem, ShopKind, ShopOffer, ShopState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {createMobileRuntimeEnvironment} from "./mobileRuntimeEnv";
 import shopPoolCsv from "../../../data/shop_pool.csv?raw";
 
 const RAINBOW_ROCKET_TEST_STREAK = 3;
-type MobileShopKind = "recovery" | "held" | "tm";
+type MobileShopKind = ShopKind;
 type MobileShopPoolBucket = "healing" | "tm" | "held" | "berry" | "pp";
 type MobileShopPoolEntry = {
   id: string;
@@ -135,6 +135,8 @@ const MOBILE_SHOP_KIND_CONFIG: Record<MobileShopKind, {title: string; theme: Sho
   recovery: {title: "回复商店", theme: "green", rollCost: 50, buckets: ["healing", "berry", "pp"]},
   held: {title: "道具商店", theme: "blue", rollCost: 75, buckets: ["held"]},
   tm: {title: "技能商店", theme: "purple", rollCost: 75, buckets: ["tm"]},
+  mega: {title: "Mega 商店", theme: "orange", rollCost: 75, buckets: ["held"]},
+  zmove: {title: "Z 招式商店", theme: "purple", rollCost: 75, buckets: ["held"]},
 };
 const MOBILE_GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
   {id: "potion", cost: 20},
@@ -315,7 +317,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         enemyAi: prepared.route.type === "champion" ? "champion" : prepared.route.type === "elite4" ? "elite4" : prepared.route.type === "gym" ? "gym_low" : "normal",
       }));
       activeBattleState = decorateMobileBattleState(activeBattle.getState(), run);
-      return gameState({screen: "battleMain", save: next, battle: activeBattleState, battle_bag: await mobileBagCategories(battleService, run), message: prepared.message});
+      return gameState({screen: "battleMain", save: next, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(battleService, run), message: prepared.message});
     };
     const finishMobileBattle = async (state: BattleState): Promise<DesktopGameState> => {
       const save = await ensureSave();
@@ -551,7 +553,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           if (run.status === "in_battle" && activeBattle) {
             const service = await loadGameService();
             const state = decorateMobileBattleState(activeBattle.getState(), run);
-            return gameState({screen: "battleMain", save, battle: state, battle_bag: await mobileBagCategories(service, run), message: "继续移动端战斗。"});
+            return gameState({screen: "battleMain", save, battle: state, battle_bag: await mobileBattleBagCategories(service, run), message: "继续移动端战斗。"});
           }
           if (run.status === "in_battle") {
             save.current_run = null;
@@ -572,14 +574,14 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           const run = save.current_run as CurrentRunData;
           const service = await loadGameService();
           const result = await executeBattleChoice(run, activeBattle, choice, {
-            hasConsumableItemEffect: itemId => service.hasConsumableItemEffect(itemId),
+            hasConsumableItemEffect: itemId => service.hasBattleConsumableItemEffect(itemId),
             isHpStatusReviveRecoveryItem: itemId => mobileIsHpStatusReviveRecoveryItem(service, itemId),
           });
           const outcome = resolveBattleCommandOutcome(result);
           const {state} = outcome;
           activeBattleState = decorateMobileBattleState(state, run);
           const nextSave = outcome.shouldPersist ? await env.saves.save(save) : save;
-          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save: nextSave, battle: activeBattleState, battle_bag: await mobileBagCategories(service, nextSave.current_run as CurrentRunData)});
+          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save: nextSave, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(service, nextSave.current_run as CurrentRunData)});
           return finishMobileBattle(state);
         },
         autoAdvanceBattle: async () => {
@@ -590,7 +592,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           const state = await executeBattleAutoAdvance(activeBattle);
           const outcome = resolveBattleCommandOutcome(state);
           activeBattleState = decorateMobileBattleState(state, run);
-          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save, battle: activeBattleState, battle_bag: await mobileBagCategories(service, run)});
+          if (outcome.status === "ongoing") return gameState({screen: "battleMain", save, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(service, run)});
           return finishMobileBattle(state);
         },
         exchange: async (ownIndex, enemyIndex) => {
@@ -678,6 +680,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           if (action.type === "roll_shop") {
             if (run.special_run === "rainbow_rocket") throw new Error("彩虹火箭队入侵期间普通商店关闭。");
             const shopKind = mobileNormalizeShopKind(action.shopKind);
+            mobileAssertShopKindAvailable(run, shopKind);
             const cost = mobileShopNextRollCost(run, shopKind);
             const spent = spendRunCoins(run, cost, `shop-roll:${shopKind}`);
             if (cost <= 0 && Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0) {
@@ -795,15 +798,12 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           }
           if (action.type === "event_learn_move") {
             const availableKey = action.service === "egg" ? "event_egg_service_available" : "event_tutor_service_available";
-            const usedKey = action.service === "egg" ? "event_egg_service_used" : "event_tutor_service_used";
             if (!run.rest_status?.[availableKey] && run.special_run !== "rainbow_rocket") throw new Error("当前没有对应的事件技能服务。");
-            if (run.rest_status?.[usedKey] && run.special_run !== "rainbow_rocket") throw new Error("本次事件技能服务已经使用过。");
             const message = await mobileLearnMove(save, run, action.slot, action.moveSlot, action.moveId, {
               source: action.service,
-              cost: run.special_run === "rainbow_rocket" ? 0 : 200,
+              cost: run.special_run === "rainbow_rocket" ? 0 : 100,
               label: action.service === "egg" ? "遗传招式" : "教授招式",
             }, await loadGameService());
-            if (run.special_run !== "rainbow_rocket") run.rest_status = {...(run.rest_status || {}), [usedKey]: true};
             const next = await env.saves.save(save);
             return gameState({screen: "rest", save: next, rest: await mobileRest(next, next.current_run as CurrentRunData, await loadGameService()), message});
           }
@@ -847,7 +847,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
             return gameState({screen: "rest", save: next, rest: await mobileRest(next, next.current_run as CurrentRunData, await loadGameService()), message});
           }
           if (action.type === "use_item") {
-            const message = await applyRestConsumableItem(run, action.itemId, action.slot, action.moveSlot, await loadGameService());
+            const message = await applyRestConsumableItem(run, action.itemId, action.slot, action.moveSlot, await loadGameService(), {stat: action.stat});
             const next = await env.saves.save(save);
             return gameState({screen: "rest", save: next, rest: await mobileRest(next, next.current_run as CurrentRunData, await loadGameService()), message});
           }
@@ -1074,7 +1074,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
 }
 
 async function mobileRest(save: LocalSave, run: CurrentRunData, service: GameService): Promise<RestState> {
-  const shopKind = mobileNormalizeShopKind(run.shop_kind);
+  const shopKind = mobileNormalizeAvailableShopKind(run, run.shop_kind);
   const shopOffersByKind = run.shop_offers_by_kind || {};
   const activeOffers = mobileCurrentShopOffers(run);
   if (run.planned_battles?.length) buildRuntimeNightSkyState(run, run.planned_battles);
@@ -1104,6 +1104,7 @@ async function mobileRest(save: LocalSave, run: CurrentRunData, service: GameSer
         kind: shopKind,
         title: mobileShopConfig(shopKind).title,
         theme: mobileShopConfig(shopKind).theme,
+        available_kinds: mobileAvailableShopKinds(run),
         roll_count: Number(run.shop_roll_count || 0),
         next_roll_cost: mobileShopNextRollCost(run, shopKind),
         slot_count: shopKind === "tm" ? 3 : shopOfferCount(run),
@@ -1123,8 +1124,8 @@ async function mobileRest(save: LocalSave, run: CurrentRunData, service: GameSer
       },
       event_services: {
         doctor: Boolean(run.rest_status?.event_doctor_pending),
-        tutor: run.special_run === "rainbow_rocket" || Boolean(run.rest_status?.event_tutor_service_available && !run.rest_status?.event_tutor_service_used),
-        egg: run.special_run === "rainbow_rocket" || Boolean(run.rest_status?.event_egg_service_available && !run.rest_status?.event_egg_service_used),
+        tutor: run.special_run === "rainbow_rocket" || Boolean(run.rest_status?.event_tutor_service_available),
+        egg: run.special_run === "rainbow_rocket" || Boolean(run.rest_status?.event_egg_service_available),
         raid_exchange: Boolean(run.rest_status?.event_raid_exchange_available && !run.rest_status?.event_raid_exchange_used),
         raid_exchange_battle_no: run.rest_status?.event_raid_exchange_battle_no,
         level_points: Math.max(0, Number(run.rest_status?.event_level_points || 0)),
@@ -1135,7 +1136,7 @@ async function mobileRest(save: LocalSave, run: CurrentRunData, service: GameSer
 }
 
 function mobileCurrentShopOffers(run: CurrentRunData): ShopOffer[] {
-  const shopKind = mobileNormalizeShopKind(run.shop_kind);
+  const shopKind = mobileNormalizeAvailableShopKind(run, run.shop_kind);
   return run.shop_offers_by_kind?.[shopKind] || run.shop_offers || [];
 }
 
@@ -1167,7 +1168,30 @@ function parseMobileShopPool(csv: string): MobileShopPoolEntry[] {
 }
 
 function mobileNormalizeShopKind(value: unknown): MobileShopKind {
-  return value === "held" || value === "tm" || value === "recovery" ? value : "recovery";
+  return value === "held" || value === "tm" || value === "recovery" || value === "mega" || value === "zmove" ? value : "recovery";
+}
+
+function mobileGen7SpecialShopEnabled(run: CurrentRunData, system: "mega" | "zmove"): boolean {
+  const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
+  return setting.battle_rule_preset === "gen7" && setting.enabled_battle_systems.includes(system);
+}
+
+function mobileAvailableShopKinds(run: CurrentRunData): MobileShopKind[] {
+  const kinds: MobileShopKind[] = ["recovery", "held", "tm"];
+  if (mobileGen7SpecialShopEnabled(run, "mega")) kinds.push("mega");
+  if (mobileGen7SpecialShopEnabled(run, "zmove")) kinds.push("zmove");
+  return kinds;
+}
+
+function mobileNormalizeAvailableShopKind(run: CurrentRunData, value: unknown): MobileShopKind {
+  const kind = mobileNormalizeShopKind(value);
+  return mobileAvailableShopKinds(run).includes(kind) ? kind : "recovery";
+}
+
+function mobileAssertShopKindAvailable(run: CurrentRunData, kind: MobileShopKind): void {
+  if (mobileAvailableShopKinds(run).includes(kind)) return;
+  if (kind === "mega" || kind === "zmove") throw new Error("Mega/Z 商店仅在 Gen7 规则开启时可用。");
+  throw new Error("当前商店不可用。");
 }
 
 function mobileShopConfig(kind: MobileShopKind): {title: string; theme: ShopState["theme"]} {
@@ -1269,6 +1293,7 @@ function mobileWithShopSlotPricing(run: CurrentRunData, offer: ShopOffer, index:
 }
 
 async function mobileRollShopOffers(service: GameService, run: CurrentRunData, kind: MobileShopKind): Promise<ShopOffer[]> {
+  mobileAssertShopKindAvailable(run, kind);
   const count = kind === "tm" ? 3 : shopOfferCount(run);
   if (kind === "tm") {
     const rng = mobileSeededRng(`${run.seed || 1}:mobile-tm-shop:${run.shop_roll_count || 0}:${run.battle_no || run.next_battle || 0}`);
@@ -1291,6 +1316,8 @@ async function mobileRollShopOffers(service: GameService, run: CurrentRunData, k
   const itemEntries = MOBILE_SHOP_POOL.filter(entry => {
     if (!mobileBattleSettingAllowsItem(service, entry.id, run)) return false;
     if (kind === "held") return mobileIsRegularHeldShopItem(service, entry);
+    if (kind === "mega") return entry.kind === "item" && entry.category === "held" && service.battleSystemForItem(entry.id) === "mega";
+    if (kind === "zmove") return entry.kind === "item" && entry.category === "held" && service.battleSystemForItem(entry.id) === "zmove";
     const bucket = mobileShopPoolBucketForEntry(entry);
     return Boolean(bucket && MOBILE_SHOP_KIND_CONFIG[kind].buckets.includes(bucket));
   });
@@ -1438,6 +1465,15 @@ async function mobileBagCategories(service: GameService, run: CurrentRunData): P
     });
   }
   return result;
+}
+
+async function mobileBattleBagCategories(service: GameService, run: CurrentRunData): Promise<BagCategoryView> {
+  const categories = await mobileBagCategories(service, run);
+  const consumable = [];
+  for (const item of categories.consumable) {
+    if (await service.hasBattleConsumableItemEffect(item.id)) consumable.push(item);
+  }
+  return {...categories, consumable};
 }
 
 async function mobileForgeRewards(service: GameService, run: CurrentRunData, materialIds: string[]): Promise<ShopItem[]> {
@@ -1714,9 +1750,20 @@ async function exchangeMobileEnemyPokemon(save: LocalSave, run: CurrentRunData, 
 
 async function mobileIsHpStatusReviveRecoveryItem(service: GameService, itemId: string): Promise<boolean> {
   const id = toId(itemId);
+  if (isTrainingConsumableItemId(id)) return false;
   if (/^tm:/i.test(String(itemId || "")) || /berry/i.test(id)) return true;
   if (!(await service.hasConsumableItemEffect(id))) return false;
   return !["ether", "maxether", "elixir", "maxelixir"].includes(id);
+}
+
+const TRAINING_CONSUMABLE_ITEM_IDS = new Set([
+  "pomegberry", "kelpsyberry", "qualotberry", "hondewberry", "grepaberry", "tamatoberry",
+  "hpup", "protein", "iron", "calcium", "zinc", "carbos",
+  "bottlecap", "goldbottlecap",
+]);
+
+function isTrainingConsumableItemId(itemId: string): boolean {
+  return TRAINING_CONSUMABLE_ITEM_IDS.has(toId(itemId));
 }
 
 function mobileStarterBag(purchased: ShopOffer[]): {items: Record<string, number>; meta: Record<string, Partial<ShopOffer>>} {
@@ -1786,7 +1833,7 @@ function mobileNormalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   run.player_display = run.player_display || [];
   run.bp_earned_this_run = Number(run.bp_earned_this_run || 0);
   run.coins_earned_this_run = Number(run.coins_earned_this_run || 0);
-  run.shop_kind = mobileNormalizeShopKind(run.shop_kind);
+  run.shop_kind = mobileNormalizeAvailableShopKind(run, run.shop_kind);
   if (!run.shop_offers_by_kind && run.shop_offers?.length) run.shop_offers_by_kind = {[run.shop_kind]: run.shop_offers};
   if (run.shop_offers_by_kind?.[run.shop_kind]) run.shop_offers = run.shop_offers_by_kind[run.shop_kind];
   return run;

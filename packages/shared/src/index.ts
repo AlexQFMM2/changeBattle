@@ -714,10 +714,13 @@ export type ShopOffer = ShopItem & {
   move_name_zh?: string;
 };
 
+export type ShopKind = "recovery" | "held" | "tm" | "mega" | "zmove";
+
 export type ShopState = {
-  kind?: "recovery" | "held" | "tm";
+  kind?: ShopKind;
   title?: string;
   theme?: "green" | "blue" | "purple" | "orange";
+  available_kinds?: ShopKind[];
   roll_count: number;
   next_roll_cost: number | null;
   slot_count?: number;
@@ -725,7 +728,7 @@ export type ShopState = {
   preferred_roll_cost?: number;
   slot_discounts?: number[];
   offers: ShopOffer[];
-  offers_by_kind?: Partial<Record<"recovery" | "held" | "tm", ShopOffer[]>>;
+  offers_by_kind?: Partial<Record<ShopKind, ShopOffer[]>>;
   purchased_offer_id?: string | null;
   purchased_offer_counts?: Record<string, number>;
   purchased_item_counts?: Record<string, number>;
@@ -769,6 +772,8 @@ export type ReviewState = {
   summary?: string;
 };
 
+export type StatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
+
 export type StarterItemState = {
   offers: ShopOffer[];
   purchased: string[];
@@ -800,7 +805,7 @@ export type RestAction =
   | {type: "reroute_next"; battleNo?: number}
   | {type: "set_named_champion"; trainerId: string | null}
   | {type: "buy_item"; itemId: string}
-  | {type: "roll_shop"; shopKind?: "recovery" | "held" | "tm"}
+  | {type: "roll_shop"; shopKind?: ShopKind}
   | {type: "buy_shop_offer"; offerId: string}
   | {type: "forge_items"; itemIds: string[]}
   | {type: "forge_special_item"; itemId: string}
@@ -810,7 +815,7 @@ export type RestAction =
   | {type: "sell_item"; itemId: string}
   | {type: "equip_item"; itemId: string; slot: number}
   | {type: "unequip_item"; slot: number}
-  | {type: "use_item"; itemId: string; slot: number; moveSlot?: number; context?: "rest" | "battle"}
+  | {type: "use_item"; itemId: string; slot: number; moveSlot?: number; stat?: StatId; context?: "rest" | "battle"}
   | {type: "use_tm"; itemId: string; slot: number; moveSlot: number}
   | {type: "draw_moves"; slot: number; moveSlot: number}
   | {type: "apply_drawn_move"; slot: number; moveSlot: number; moveId: string}
@@ -1020,9 +1025,9 @@ export type CurrentRunData = {
   wins: number;
   reroll_count?: number;
   shop_roll_count?: number;
-  shop_kind?: "recovery" | "held" | "tm";
+  shop_kind?: ShopKind;
   shop_offers?: ShopOffer[];
-  shop_offers_by_kind?: Partial<Record<"recovery" | "held" | "tm", ShopOffer[]>>;
+  shop_offers_by_kind?: Partial<Record<ShopKind, ShopOffer[]>>;
   shop_purchased_offer_id?: string | null;
   shop_purchased_offer_counts?: Record<string, number>;
   shop_purchased_item_counts?: Record<string, number>;

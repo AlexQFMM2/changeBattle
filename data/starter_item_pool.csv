@@ -21,6 +21,12 @@ chestoberry,item,consumable,berry,1,10,4,1,1,sleep berry
 pechaberry,item,consumable,berry,1,10,4,1,1,poison berry
 rawstberry,item,consumable,berry,1,10,4,1,1,burn berry
 aspearberry,item,consumable,berry,1,10,4,1,1,freeze berry
+pomegberry,item,consumable,berry,2,5,3,1,1,lower hp ev berry
+kelpsyberry,item,consumable,berry,2,5,3,1,1,lower attack ev berry
+qualotberry,item,consumable,berry,2,5,3,1,1,lower defense ev berry
+hondewberry,item,consumable,berry,2,5,3,1,1,lower special attack ev berry
+grepaberry,item,consumable,berry,2,5,3,1,1,lower special defense ev berry
+tamatoberry,item,consumable,berry,2,5,3,1,1,lower speed ev berry
 figyberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
 wikiberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
 magoberry,item,consumable,berry,2,20,4,1,1,pinch heal berry
@@ -55,6 +61,14 @@ marangaberry,item,consumable,berry,4,30,1,1,1,special hit special defense berry
 lansatberry,item,consumable,berry,4,30,1,1,1,pinch critical berry
 starfberry,item,consumable,berry,4,30,1,1,1,pinch random stat berry
 micleberry,item,consumable,berry,4,30,1,1,1,pinch accuracy berry
+hpup,item,consumable,recovery,3,50,2,1,1,raise hp ev vitamin
+protein,item,consumable,recovery,3,50,2,1,1,raise attack ev vitamin
+iron,item,consumable,recovery,3,50,2,1,1,raise defense ev vitamin
+calcium,item,consumable,recovery,3,50,2,1,1,raise special attack ev vitamin
+zinc,item,consumable,recovery,3,50,2,1,1,raise special defense ev vitamin
+carbos,item,consumable,recovery,3,50,2,1,1,raise speed ev vitamin
+bottlecap,item,consumable,recovery,3,100,1,1,1,iv training cap
+goldbottlecap,item,consumable,recovery,4,300,1,1,1,full iv training cap
 muscleband,item,held,battle,1,500,3,1,0,physical boost
 wiseglasses,item,held,battle,1,500,3,1,0,special boost
 shellbell,item,held,battle,1,500,2,1,0,damage recovery
@@ -79,6 +93,60 @@ blacksludge,item,held,battle,3,700,2,1,0,poison recovery
 weaknesspolicy,item,held,battle,3,1000,1,1,0,boost after super effective hit
 airballoon,item,held,battle,2,500,2,1,0,ground immunity
 expertbelt,item,held,battle,2,500,2,1,0,super effective boost
+blackbelt,item,held,battle,1,300,3,1,0,fighting type boost
+blackglasses,item,held,battle,1,300,3,1,0,dark type boost
+charcoal,item,held,battle,1,300,3,1,0,fire type boost
+dragonfang,item,held,battle,1,300,3,1,0,dragon type boost
+hardstone,item,held,battle,1,300,3,1,0,rock type boost
+magnet,item,held,battle,1,300,3,1,0,electric type boost
+metalcoat,item,held,battle,1,300,3,1,0,steel type boost
+miracleseed,item,held,battle,1,300,3,1,0,grass type boost
+mysticwater,item,held,battle,1,300,3,1,0,water type boost
+nevermeltice,item,held,battle,1,300,3,1,0,ice type boost
+pinkbow,item,held,battle,1,300,3,1,0,normal type boost
+poisonbarb,item,held,battle,1,300,3,1,0,poison type boost
+polkadotbow,item,held,battle,1,300,3,1,0,normal type boost
+sharpbeak,item,held,battle,1,300,3,1,0,flying type boost
+silkscarf,item,held,battle,1,300,3,1,0,normal type boost
+silverpowder,item,held,battle,1,300,3,1,0,bug type boost
+softsand,item,held,battle,1,300,3,1,0,ground type boost
+spelltag,item,held,battle,1,300,3,1,0,ghost type boost
+twistedspoon,item,held,battle,1,300,3,1,0,psychic type boost
+absorbbulb,item,held,battle,2,500,2,1,0,water hit special attack boost
+adrenalineorb,item,held,battle,2,500,2,1,0,intimidate speed boost
+bigroot,item,held,battle,2,500,2,1,0,drain recovery boost
+bindingband,item,held,battle,2,500,2,1,0,binding damage boost
+brightpowder,item,held,battle,2,500,2,1,0,evasion boost
+cellbattery,item,held,battle,2,500,2,1,0,electric hit attack boost
+damprock,item,held,battle,2,500,2,1,0,rain duration boost
+destinyknot,item,held,battle,2,500,2,1,0,infatuation reflection
+electricseed,item,held,battle,2,500,2,1,0,electric terrain defense boost
+grassyseed,item,held,battle,2,500,2,1,0,grassy terrain defense boost
+gripclaw,item,held,battle,2,500,2,1,0,binding duration boost
+heatrock,item,held,battle,2,500,2,1,0,sun duration boost
+icyrock,item,held,battle,2,500,2,1,0,snow duration boost
+kingsrock,item,held,battle,2,500,2,1,0,flinch chance boost
+laxincense,item,held,battle,2,500,2,1,0,evasion boost
+luminousmoss,item,held,battle,2,500,2,1,0,water hit special defense boost
+mistyseed,item,held,battle,2,500,2,1,0,misty terrain special defense boost
+psychicseed,item,held,battle,2,500,2,1,0,psychic terrain special defense boost
+quickclaw,item,held,battle,2,500,2,1,0,chance move first
+smoothrock,item,held,battle,2,500,2,1,0,sandstorm duration boost
+terrainextender,item,held,battle,2,500,2,1,0,terrain duration boost
+widelens,item,held,battle,2,500,2,1,0,accuracy boost
+zoomlens,item,held,battle,2,500,2,1,0,late move accuracy boost
+ejectbutton,item,held,battle,3,600,1,1,0,switch after hit
+flameorb,item,held,battle,3,600,1,1,0,self burn orb
+fullincense,item,held,battle,3,600,1,1,0,move last
+laggingtail,item,held,battle,3,600,1,1,0,move last
+razorclaw,item,held,battle,3,600,1,1,0,critical hit boost
+razorfang,item,held,battle,3,600,1,1,0,flinch chance boost
+redcard,item,held,battle,3,600,1,1,0,force attacker switch
+toxicorb,item,held,battle,3,600,1,1,0,self poison orb
+normalgem,item,held,battle,3,700,1,1,0,normal attack gem
+protectivepads,item,held,battle,3,700,1,1,0,contact effect protection
+ringtarget,item,held,battle,3,700,1,1,0,remove type immunity
+shedshell,item,held,battle,3,700,1,1,0,ignore trapping
 aloraichiumz,item,held,battle,3,800,1,1,0,z crystal
 buginiumz,item,held,battle,3,800,1,1,0,z crystal
 darkiniumz,item,held,battle,3,800,1,1,0,z crystal

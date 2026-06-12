@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import type {CSSProperties, ReactElement} from "react";
-import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopOffer, TalentView} from "@changebattle/shared";
+import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopKind, ShopOffer, StatId, TalentView} from "@changebattle/shared";
 import {AnimatePresence, motion, Reorder} from "motion/react";
 import {DraggableFloatingButton} from "../feedback/DraggableFloatingButton";
 import {ScreenToast} from "../feedback/ScreenToast";
@@ -18,6 +18,26 @@ export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopG
 
 type RestActionResult = DesktopGameState | boolean | void;
 type RestActionHandler = (action: RestAction, successMessage?: string) => RestActionResult | Promise<RestActionResult>;
+type TrainingItemUi = {scope: "one" | "all"; fixedStat?: StatId};
+
+const TRAINING_ITEM_UI: Record<string, TrainingItemUi> = {
+  pomegberry: {scope: "one", fixedStat: "hp"},
+  kelpsyberry: {scope: "one", fixedStat: "atk"},
+  qualotberry: {scope: "one", fixedStat: "def"},
+  hondewberry: {scope: "one", fixedStat: "spa"},
+  grepaberry: {scope: "one", fixedStat: "spd"},
+  tamatoberry: {scope: "one", fixedStat: "spe"},
+  hpup: {scope: "one", fixedStat: "hp"},
+  protein: {scope: "one", fixedStat: "atk"},
+  iron: {scope: "one", fixedStat: "def"},
+  calcium: {scope: "one", fixedStat: "spa"},
+  zinc: {scope: "one", fixedStat: "spd"},
+  carbos: {scope: "one", fixedStat: "spe"},
+  bottlecap: {scope: "one"},
+  goldbottlecap: {scope: "all"},
+};
+
+const STAT_LABELS = Object.fromEntries(STAT_ROWS) as Record<StatId, string>;
 
 function isDesktopGameStateResult(result: RestActionResult): result is DesktopGameState {
   return Boolean(result && typeof result === "object" && "screen" in result);
@@ -678,6 +698,11 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
   const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
   const [tmLoading, setTmLoading] = useState(false);
   const selectedMoveId = tmMoveId(item);
+  const trainingUi = TRAINING_ITEM_UI[toId(item.id)];
+  const [selectedStat, setSelectedStat] = useState<StatId | undefined>(() => trainingUi?.scope === "one" ? trainingUi.fixedStat || "hp" : undefined);
+  const statOptions = trainingUi?.scope === "one"
+    ? trainingUi.fixedStat ? [trainingUi.fixedStat] : STAT_ROWS.map(([stat]) => stat)
+    : [];
   const locked = isLockedBagItem(item);
   const isTm = item.category === "tm";
   const isConsumable = item.category === "consumable";
@@ -686,6 +711,10 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
   useEffect(() => {
     if (item.count <= 0) onClose();
   }, [item.count, onClose]);
+
+  useEffect(() => {
+    setSelectedStat(trainingUi?.scope === "one" ? trainingUi.fixedStat || "hp" : undefined);
+  }, [item.id, trainingUi?.fixedStat, trainingUi?.scope]);
 
   useEffect(() => {
     let cancelled = false;
@@ -707,6 +736,7 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
 
   function canUseOn(slot: number): boolean {
     if (locked) return false;
+    if (isConsumable && trainingUi?.scope === "one" && !selectedStat) return false;
     if (!isTm) return item.count > 0;
     if (!selectedMoveId || alreadyKnows(slot)) return false;
     return Boolean(tmLegalBySlot[slot]?.includes(selectedMoveId));
@@ -731,9 +761,9 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
     try {
       const ok = isHeld
         ? await Promise.resolve(onAction({type: "equip_item", itemId: item.id, slot}, "道具已携带"))
-        : isTm
-          ? await Promise.resolve(onAction({type: "use_tm", itemId: item.id, slot, moveSlot: 0}, "技能机器已使用"))
-          : await Promise.resolve(onAction({type: "use_item", itemId: item.id, slot, context: "rest"}, "道具已使用"));
+          : isTm
+            ? await Promise.resolve(onAction({type: "use_tm", itemId: item.id, slot, moveSlot: 0}, "技能机器已使用"))
+            : await Promise.resolve(onAction({type: "use_item", itemId: item.id, slot, stat: trainingUi?.scope === "one" ? selectedStat : undefined, context: "rest"}, "道具已使用"));
       if (ok === false) return;
     } finally {
       setBusySlot(null);
@@ -759,21 +789,33 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
               <small>{item.desc_zh || item.desc || item.name}</small>
             </div>
           ) : (
-            <div className="bag-target-team">
-              {rest.player_display.map((pokemon, index) => {
-                const disabled = busySlot !== null || !canUseOn(index);
-                const status = statusCode(rest.player_state[index]?.condition, rest.player_state[index]?.status);
-                return (
-                  <button disabled={disabled} onClick={() => void applyTo(index)} key={`${pokemon.species_id}-bag-use-${index}`}>
-                    <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
-                    <strong>{displayName(pokemon)}</strong>
-                    <span>{conditionText(rest.player_state[index]?.condition)}</span>
-                    {status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}
-                    <b>{busySlot === index ? "处理中" : targetText(index)}</b>
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              {trainingUi?.scope === "one" ? (
+                <div className="bag-stat-picker" aria-label="选择能力项">
+                  <span>能力项</span>
+                  {statOptions.map(stat => (
+                    <button className={selectedStat === stat ? "selected" : ""} type="button" onClick={() => setSelectedStat(stat)} key={stat}>
+                      {STAT_LABELS[stat]}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="bag-target-team">
+                {rest.player_display.map((pokemon, index) => {
+                  const disabled = busySlot !== null || !canUseOn(index);
+                  const status = statusCode(rest.player_state[index]?.condition, rest.player_state[index]?.status);
+                  return (
+                    <button disabled={disabled} onClick={() => void applyTo(index)} key={`${pokemon.species_id}-bag-use-${index}`}>
+                      <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
+                      <strong>{displayName(pokemon)}</strong>
+                      <span>{conditionText(rest.player_state[index]?.condition)}</span>
+                      {status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}
+                      <b>{busySlot === index ? "处理中" : targetText(index)}</b>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
         </motion.section>
       )}
@@ -848,6 +890,7 @@ function EventMoveServicePanel({rest, service, onClose, onAction, embedded = fal
   const pokemon = rest.player_display[slot] || rest.player_display[0];
   const source = service === "egg" ? "egg" : "tutor";
   const title = service === "egg" ? "培育屋爷爷" : "讲师老奶奶";
+  const serviceCost = 100;
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -879,9 +922,9 @@ function EventMoveServicePanel({rest, service, onClose, onAction, embedded = fal
     <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal event-service-modal">
         <header>
-          <div><h2>{title}</h2><p>花 200 金币学习 1 个{service === "egg" ? "遗传" : "教授"}招式。</p></div>
+          <div><h2>{title}</h2><p>每次花 {serviceCost} 金币学习 1 个{service === "egg" ? "遗传" : "教授"}招式，本次休整内不限次数。</p></div>
           <div className="event-service-header-actions">
-            <button disabled={busy || !moveId || Number(rest.coins || 0) < 200} onClick={() => void learn()}>{busy ? "学习中" : "确认技能"}</button>
+            <button disabled={busy || !moveId || Number(rest.coins || 0) < serviceCost} onClick={() => void learn()}>{busy ? "学习中" : "确认技能"}</button>
             <button onClick={onClose}>返回</button>
           </div>
         </header>
@@ -1358,11 +1401,12 @@ function RunTalentModal({rest, embedded = false}: {rest: NonNullable<DesktopGame
   );
 }
 
-type ShopKind = "recovery" | "held" | "tm";
 const SHOP_KIND_VIEW: Record<ShopKind, {label: string; desc: string; cost: number; theme: string}> = {
-  recovery: {label: "回复商店", desc: "恢复、树果、PP 补剂", cost: 50, theme: "green"},
-  held: {label: "道具商店", desc: "普通战斗携带道具", cost: 75, theme: "blue"},
-  tm: {label: "技能商店", desc: "2 张可用 TM + 1 张当前不可用 TM", cost: 75, theme: "purple"},
+  recovery: {label: "回复商店", desc: "恢复/树果/PP", cost: 50, theme: "green"},
+  held: {label: "道具商店", desc: "战斗携带", cost: 75, theme: "blue"},
+  tm: {label: "技能商店", desc: "技能机器", cost: 75, theme: "purple"},
+  mega: {label: "Mega 商店", desc: "进化石", cost: 75, theme: "orange"},
+  zmove: {label: "Z 招式商店", desc: "Z 纯晶", cost: 75, theme: "purple"},
 };
 
 function hasRestEventStatus(rest: NonNullable<DesktopGameState["rest"]>, id: string): boolean {
@@ -1372,6 +1416,7 @@ function hasRestEventStatus(rest: NonNullable<DesktopGameState["rest"]>, id: str
 function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (shopKind: ShopKind) => RestActionResult | Promise<RestActionResult>; onBuy: (offerId: string) => RestActionResult | Promise<RestActionResult>; onBarterBuy?: (offerId: string, itemIds: string[]) => RestActionResult | Promise<RestActionResult>; embedded?: boolean}) {
   const [shopKind, setShopKind] = useState<ShopKind>((shop?.kind as ShopKind | undefined) || "recovery");
   const activeKind = (shop?.kind as ShopKind | undefined) || "recovery";
+  const availableKinds = shop?.available_kinds?.length ? shop.available_kinds : (["recovery", "held", "tm"] as ShopKind[]);
   const offersForKind = (kind: ShopKind) => shop?.offers_by_kind?.[kind] || (activeKind === kind ? (shop?.offers || []) : []);
   const offers = offersForKind(shopKind);
   const slotCount = shopKind === "tm" ? 3 : shop?.slot_count || offers.length || 3;
@@ -1392,6 +1437,10 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
     if (!offers.length) setRevealed(false);
     else if (!rolling) setRevealed(true);
   }, [offers.length, rolling]);
+
+  useEffect(() => {
+    if (!availableKinds.includes(shopKind)) setShopKind(availableKinds[0] || "recovery");
+  }, [availableKinds, shopKind]);
 
   async function roll() {
     if (rolling || !canAffordRoll || shopDisabled) return;
@@ -1435,8 +1484,8 @@ function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = 
           </div>
         ) : (
           <>
-            <div className="segmented-row shop-kind-row">
-              {(Object.keys(SHOP_KIND_VIEW) as ShopKind[]).map(kind => <button className={shopKind === kind ? "selected" : ""} onClick={() => { setShopKind(kind); setRevealed(Boolean(offersForKind(kind).length)); }} key={kind}><strong>{SHOP_KIND_VIEW[kind].label}</strong><small>{SHOP_KIND_VIEW[kind].desc}</small></button>)}
+            <div className="segmented-row shop-kind-row" style={{"--shop-kind-count": availableKinds.length} as CSSProperties}>
+              {availableKinds.map(kind => <button className={shopKind === kind ? "selected" : ""} onClick={() => { setShopKind(kind); setRevealed(Boolean(offersForKind(kind).length)); }} key={kind}><strong>{SHOP_KIND_VIEW[kind].label}</strong><small>{SHOP_KIND_VIEW[kind].desc}</small></button>)}
             </div>
             <div className="shop-control-row">
               <span>{SHOP_KIND_VIEW[shopKind].label}　抽奖 {barterActive ? "免费" : coinCostLabel(rollCost)}　{slotCount} 格{shop?.free_rolls_remaining ? `　免费 ${shop.free_rolls_remaining}` : ""}</span>

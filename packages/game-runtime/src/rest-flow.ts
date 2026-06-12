@@ -1,4 +1,4 @@
-import type {CurrentRunData, LocalSave, NightSkyState, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, RainbowRocketSupportState, RentalPokemon, RestAction, RestEventOption, RestScoreBetTarget, RestState, ScoutState, ShopItem, ShopOffer, TrainerNpcView} from "@changebattle/shared";
+import type {CurrentRunData, LocalSave, NightSkyState, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, RainbowRocketSupportState, RentalPokemon, RestAction, RestEventOption, RestScoreBetTarget, RestState, ScoutState, ShopItem, ShopOffer, StatId, TrainerNpcView} from "@changebattle/shared";
 import {SHOWDOWN_ID_POOL} from "@changebattle/shared";
 import type {PlannedBattleService} from "./planned-battles.js";
 import {
@@ -54,6 +54,14 @@ export type ArrivalLevelCapRuntimeService = {
 export type RestItemRuntimeService = ArrivalLevelCapRuntimeService & {
   hasConsumableItemEffect(itemId: string): Promise<boolean> | boolean;
   applyConsumableItemEffectToState(itemId: string, state: PlayerPokemonState, moveSlot?: number): Promise<string> | string;
+  trainingItemEffect?(itemId: string): Promise<TrainingItemEffect | null> | TrainingItemEffect | null;
+};
+
+export type TrainingItemEffect = {
+  stat_kind: "iv" | "ev";
+  stat?: StatId;
+  amount: number;
+  scope: "one" | "all";
 };
 
 export type RuntimeRestStateOptions = {
@@ -146,19 +154,19 @@ export const BASIC_REST_EVENT_OPTIONS: RestEventOption[] = [
   {
     id: "tutor_granny",
     name: "讲师老奶奶",
-    desc: "本次休整可花 200 金币学习 1 个教授招式。",
+    desc: "本次休整可花 100 金币反复学习教授招式。",
     detail: "只显示当前宝可梦合法且未掌握的 tutor 来源招式。",
     intro: "一位背着旧教材的老奶奶坐在休整区角落。她讲课很慢，但讲的全是学校里不教、机器也刻不出来的老招式。",
-    effects: ["本次休整解锁讲师老奶奶。", "可花 200 金币让 1 只宝可梦学习合法教授招式。"],
+    effects: ["本次休整解锁讲师老奶奶。", "每次花 100 金币让 1 只宝可梦学习合法教授招式。", "本次休整内可反复使用。"],
     tone: "trade",
   },
   {
     id: "daycare_grandpa",
     name: "培育屋爷爷",
-    desc: "本次休整可花 200 金币学习 1 个遗传招式。",
+    desc: "本次休整可花 100 金币反复学习遗传招式。",
     detail: "只显示当前宝可梦合法且未掌握的 egg 来源招式。",
     intro: "培育屋爷爷带着一本厚厚的谱系笔记。他说有些招式不是机器教会的，要从血脉、习惯和一点耐心里找回来。",
-    effects: ["本次休整解锁培育屋爷爷。", "可花 200 金币让 1 只宝可梦学习合法遗传招式。"],
+    effects: ["本次休整解锁培育屋爷爷。", "每次花 100 金币让 1 只宝可梦学习合法遗传招式。", "本次休整内可反复使用。"],
     tone: "trade",
   },
   {
@@ -318,17 +326,94 @@ export function adjustRunBagItem(run: CurrentRunData, itemId: string, delta: num
   }
 }
 
-export async function applyRestConsumableItem(run: CurrentRunData, itemId: string, slot: number, moveSlot: number | undefined, service: RestItemRuntimeService): Promise<string> {
+export async function applyRestConsumableItem(
+  run: CurrentRunData,
+  itemId: string,
+  slot: number,
+  moveSlot: number | undefined,
+  service: RestItemRuntimeService,
+  options: {stat?: StatId; consume?: boolean; dryRun?: boolean} = {},
+): Promise<string> {
   const id = itemKey(itemId);
   const target = Math.floor(Number(slot));
   if (!id || Number(run.bag_items?.[id] || 0) <= 0) throw new Error("背包里没有这个道具。");
   if (target < 0 || target >= (run.player_display || []).length) throw new Error("队伍编号无效。");
   if (!(await service.hasConsumableItemEffect(id))) throw new Error("这个道具不能作为消耗道具使用。");
+  const trainingEffect = service.trainingItemEffect ? await service.trainingItemEffect(id) : null;
+  if (trainingEffect) {
+    const message = await applyTrainingConsumableItem(run, id, target, trainingEffect, options.stat, service, Boolean(options.dryRun));
+    if (options.consume !== false && !options.dryRun) adjustRunBagItem(run, id, -1);
+    return message;
+  }
   const states = normalizePlayerState(run);
   const message = await service.applyConsumableItemEffectToState(id, states[target], moveSlot);
-  run.player_state = states;
-  adjustRunBagItem(run, id, -1);
+  if (!options.dryRun) {
+    run.player_state = states;
+    if (options.consume !== false) adjustRunBagItem(run, id, -1);
+  }
   return message || "道具已使用。";
+}
+
+async function applyTrainingConsumableItem(
+  run: CurrentRunData,
+  itemId: string,
+  slot: number,
+  effect: TrainingItemEffect,
+  selectedStat: StatId | undefined,
+  service: ArrivalLevelCapRuntimeService,
+  dryRun: boolean,
+): Promise<string> {
+  if (slot < 0 || slot >= (run.player_team || []).length) throw new Error("队伍编号无效。");
+  const rawSet = clone(run.player_team[slot]) as PokemonSet;
+  const stat = effect.scope === "all" ? undefined : effect.stat || selectedStat;
+  if (effect.scope !== "all" && !isStatId(stat)) throw new Error("请选择能力项。");
+  const pokemonName = run.player_display?.[slot]?.species_zh || run.player_display?.[slot]?.species || rawSet.species || rawSet.name || "宝可梦";
+  let detail = "";
+  if (effect.stat_kind === "ev") {
+    const key = stat as StatId;
+    const evs = normalizeStatsInput(rawSet.evs, 0);
+    const current = Math.max(0, Math.min(255, Number(evs[key] || 0)));
+    if (effect.amount < 0) {
+      if (current <= 0) throw new Error(`${pokemonName} 的${statZh(key)}努力值已经是 0。`);
+      const next = Math.max(0, current + effect.amount);
+      evs[key] = next;
+      detail = `${statZh(key)}努力值 ${current} -> ${next}`;
+    } else {
+      const total = STAT_IDS.reduce((sum, statId) => sum + Math.max(0, Math.min(255, Number(evs[statId] || 0))), 0);
+      const add = Math.min(effect.amount, 255 - current, 510 - total);
+      if (add <= 0) throw new Error(`${pokemonName} 的努力值已经没有可提升空间。`);
+      evs[key] = current + add;
+      detail = `${statZh(key)}努力值 ${current} -> ${evs[key]}`;
+    }
+    rawSet.evs = evs;
+  } else if (effect.stat_kind === "iv") {
+    const ivs = normalizeStatsInput(rawSet.ivs, 31);
+    if (effect.scope === "all") {
+      const missing = STAT_IDS.filter(statId => Number(ivs[statId] || 0) < 31);
+      if (!missing.length) throw new Error(`${pokemonName} 的个体值已经全满。`);
+      for (const statId of STAT_IDS) ivs[statId] = 31;
+      detail = "全部个体值提升到 31";
+    } else {
+      const key = stat as StatId;
+      if (Number(ivs[key] || 0) >= 31) throw new Error(`${pokemonName} 的${statZh(key)}个体值已经是 31。`);
+      const previous = Math.max(0, Math.min(31, Number(ivs[key] || 0)));
+      ivs[key] = 31;
+      detail = `${statZh(key)}个体值 ${previous} -> 31`;
+    }
+    rawSet.ivs = ivs;
+  } else {
+    throw new Error("这个训练道具配置无效。");
+  }
+  if (dryRun) return `${pokemonName} 可以使用 ${itemId}。`;
+  const [nextDisplay] = await service.describeTeam([rawSet]);
+  const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, run.player_display?.[slot]?.showdown_id, run.player_state?.[slot]?.showdown_id);
+  run.player_team[slot] = rawSet;
+  run.player_display[slot] = nextDisplay || run.player_display[slot];
+  const states = normalizePlayerState(run);
+  states[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+  writePlayerSlotShowdownId(run, slot, states, stableId);
+  run.player_state = states;
+  return `${pokemonName} 完成训练：${detail}。`;
 }
 
 export async function applyHeldItemChange(run: CurrentRunData, itemId: string | null, slot: number, service: ArrivalLevelCapRuntimeService): Promise<string> {
@@ -944,6 +1029,14 @@ export function adjustedStateAfterEdit(oldState: PlayerPokemonState, newDisplay:
 
 export function normalizeStatsInput(input: Record<string, number> | undefined, defaultValue: number): Record<string, number> {
   return Object.fromEntries(STAT_IDS.map(stat => [stat, Number(input?.[stat] ?? defaultValue)]));
+}
+
+function isStatId(value: unknown): value is StatId {
+  return (STAT_IDS as readonly string[]).includes(String(value || ""));
+}
+
+function statZh(stat: StatId): string {
+  return ({hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"} satisfies Record<StatId, string>)[stat];
 }
 
 export function validateStatAdjustments(rawSet: PokemonSet, options: PokemonEditOptions): void {

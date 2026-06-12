@@ -33,6 +33,12 @@ chestoberry,item,consumable,5,4,1,sleep berry
 pechaberry,item,consumable,5,4,1,poison berry
 rawstberry,item,consumable,5,4,1,burn berry
 aspearberry,item,consumable,5,4,1,freeze berry
+pomegberry,item,consumable,5,3,1,lower hp ev berry
+kelpsyberry,item,consumable,5,3,1,lower attack ev berry
+qualotberry,item,consumable,5,3,1,lower defense ev berry
+hondewberry,item,consumable,5,3,1,lower special attack ev berry
+grepaberry,item,consumable,5,3,1,lower special defense ev berry
+tamatoberry,item,consumable,5,3,1,lower speed ev berry
 figyberry,item,consumable,10,4,1,pinch heal berry
 wikiberry,item,consumable,10,4,1,pinch heal berry
 magoberry,item,consumable,10,4,1,pinch heal berry
@@ -67,6 +73,14 @@ marangaberry,item,consumable,15,1,1,special hit special defense berry
 lansatberry,item,consumable,15,1,1,pinch critical berry
 starfberry,item,consumable,15,1,1,pinch random stat berry
 micleberry,item,consumable,15,1,1,pinch accuracy berry
+hpup,item,consumable,50,2,1,raise hp ev vitamin
+protein,item,consumable,50,2,1,raise attack ev vitamin
+iron,item,consumable,50,2,1,raise defense ev vitamin
+calcium,item,consumable,50,2,1,raise special attack ev vitamin
+zinc,item,consumable,50,2,1,raise special defense ev vitamin
+carbos,item,consumable,50,2,1,raise speed ev vitamin
+bottlecap,item,consumable,100,1,1,iv training cap
+goldbottlecap,item,consumable,300,1,1,full iv training cap
 leftovers,item,held,800,5,1,recover each turn
 blacksludge,item,held,700,3,1,poison recovery
 lifeorb,item,held,900,4,1,damage boost
@@ -92,6 +106,60 @@ scope lens,item,held,500,2,0,disabled example with space id
 scopelens,item,held,500,2,1,critical hit boost
 shellbell,item,held,500,2,1,damage recovery
 metronome,item,held,500,2,1,repeated move boost
+blackbelt,item,held,300,3,1,fighting type boost
+blackglasses,item,held,300,3,1,dark type boost
+charcoal,item,held,300,3,1,fire type boost
+dragonfang,item,held,300,3,1,dragon type boost
+hardstone,item,held,300,3,1,rock type boost
+magnet,item,held,300,3,1,electric type boost
+metalcoat,item,held,300,3,1,steel type boost
+miracleseed,item,held,300,3,1,grass type boost
+mysticwater,item,held,300,3,1,water type boost
+nevermeltice,item,held,300,3,1,ice type boost
+pinkbow,item,held,300,3,1,normal type boost
+poisonbarb,item,held,300,3,1,poison type boost
+polkadotbow,item,held,300,3,1,normal type boost
+sharpbeak,item,held,300,3,1,flying type boost
+silkscarf,item,held,300,3,1,normal type boost
+silverpowder,item,held,300,3,1,bug type boost
+softsand,item,held,300,3,1,ground type boost
+spelltag,item,held,300,3,1,ghost type boost
+twistedspoon,item,held,300,3,1,psychic type boost
+absorbbulb,item,held,500,2,1,water hit special attack boost
+adrenalineorb,item,held,500,2,1,intimidate speed boost
+bigroot,item,held,500,2,1,drain recovery boost
+bindingband,item,held,500,2,1,binding damage boost
+brightpowder,item,held,500,2,1,evasion boost
+cellbattery,item,held,500,2,1,electric hit attack boost
+damprock,item,held,500,2,1,rain duration boost
+destinyknot,item,held,500,2,1,infatuation reflection
+electricseed,item,held,500,2,1,electric terrain defense boost
+grassyseed,item,held,500,2,1,grassy terrain defense boost
+gripclaw,item,held,500,2,1,binding duration boost
+heatrock,item,held,500,2,1,sun duration boost
+icyrock,item,held,500,2,1,snow duration boost
+kingsrock,item,held,500,2,1,flinch chance boost
+laxincense,item,held,500,2,1,evasion boost
+luminousmoss,item,held,500,2,1,water hit special defense boost
+mistyseed,item,held,500,2,1,misty terrain special defense boost
+psychicseed,item,held,500,2,1,psychic terrain special defense boost
+quickclaw,item,held,500,2,1,chance move first
+smoothrock,item,held,500,2,1,sandstorm duration boost
+terrainextender,item,held,500,2,1,terrain duration boost
+widelens,item,held,500,2,1,accuracy boost
+zoomlens,item,held,500,2,1,late move accuracy boost
+ejectbutton,item,held,600,1,1,switch after hit
+flameorb,item,held,600,1,1,self burn orb
+fullincense,item,held,600,1,1,move last
+laggingtail,item,held,600,1,1,move last
+razorclaw,item,held,600,1,1,critical hit boost
+razorfang,item,held,600,1,1,flinch chance boost
+redcard,item,held,600,1,1,force attacker switch
+toxicorb,item,held,600,1,1,self poison orb
+normalgem,item,held,700,1,1,normal attack gem
+protectivepads,item,held,700,1,1,contact effect protection
+ringtarget,item,held,700,1,1,remove type immunity
+shedshell,item,held,700,1,1,ignore trapping
 aloraichiumz,item,held,800,1,1,z crystal
 buginiumz,item,held,800,1,1,z crystal
 darkiniumz,item,held,800,1,1,z crystal

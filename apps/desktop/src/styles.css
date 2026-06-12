@@ -7594,21 +7594,36 @@ button.party-status-chip {
 
 .rest-workspace .shop-kind-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--shop-kind-count, 3), minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
 }
 
 .rest-workspace .shop-kind-row button {
   display: grid;
-  gap: 2px;
-  min-height: 34px;
-  text-align: left;
+  grid-template-rows: auto auto;
+  gap: 1px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 2px 3px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.rest-workspace .shop-kind-row strong {
+  overflow: hidden;
+  font-size: 7px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rest-workspace .shop-kind-row small {
   overflow: hidden;
   color: #697060;
-  font-size: 6px;
+  font-size: 5px;
   font-weight: 800;
+  line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -8564,7 +8579,7 @@ button.party-status-chip {
 .pokopia-layer[data-phase="exit"] .pokopia-shell.bag-target-modal,
 .pokopia-content.bag-target-modal {
   width: 430px;
-  height: 176px;
+  height: 206px;
 }
 
 .pokopia-content.bag-target-modal {
@@ -8575,7 +8590,7 @@ button.party-status-chip {
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 8px;
   border: 2px solid rgb(164 121 245 / 72%);
   border-radius: 12px;
@@ -8585,6 +8600,41 @@ button.party-status-chip {
   padding: 10px;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%), 0 18px 44px rgb(0 0 0 / 52%);
   overflow: hidden;
+}
+
+.bag-stat-picker {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto repeat(6, minmax(0, 1fr));
+  align-items: center;
+  gap: 4px;
+}
+
+.bag-stat-picker span {
+  color: #fff7ce;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.bag-stat-picker button {
+  min-width: 0;
+  min-height: 18px;
+  border: 1px solid rgb(229 217 255 / 70%);
+  border-radius: 5px;
+  background: rgb(255 253 243 / 12%);
+  color: #f1eafd;
+  padding: 2px 3px;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.bag-stat-picker button.selected {
+  border-color: #9af0c8;
+  background: #d6efe2;
+  color: #142d28;
 }
 
 .bag-target-content header {
@@ -15949,6 +15999,7 @@ button.party-status-chip {
 
 .event-service-modal {
   min-height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .event-service-modal > header {
@@ -20489,14 +20540,14 @@ button.party-status-chip {
 }
 
 .rest-page {
-  --rest-workspace-height: 184px;
-  grid-template-rows: auto auto var(--rest-workspace-height);
-  align-content: start;
+  --rest-workspace-min-height: 184px;
+  grid-template-rows: auto auto minmax(var(--rest-workspace-min-height), 1fr);
+  align-content: stretch;
 }
 
 .rest-workspace {
-  height: var(--rest-workspace-height);
-  align-self: start;
+  height: 100%;
+  align-self: stretch;
 }
 
 .floating-rest-event-button {
@@ -20727,7 +20778,7 @@ button.party-status-chip {
 
 @media (max-width: 760px) {
   .rest-page {
-    --rest-workspace-height: 150px;
+    --rest-workspace-min-height: 150px;
   }
 
   .floating-rest-event-button {

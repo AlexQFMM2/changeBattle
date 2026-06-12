@@ -21,6 +21,7 @@ import type {
   ShopItem,
   SpriteIndexMap,
   SpriteMapEntry,
+  StatId,
 } from "@changebattle/shared";
 import {BATTLE_RULE_PRESET_OPTIONS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 
@@ -230,7 +231,19 @@ type ConsumableItemEffect = {
   pp: string;
   pp_scope: "" | "one" | "all";
   status: string;
+  stat_kind: "" | "iv" | "ev";
+  stat?: StatId;
+  amount: number;
+  scope: "" | "one" | "all";
+  battle_usable: boolean;
   notes?: string;
+};
+
+export type TrainingItemEffect = {
+  stat_kind: "iv" | "ev";
+  stat?: StatId;
+  amount: number;
+  scope: "one" | "all";
 };
 
 export type GenerateRentalOptions = {
@@ -914,10 +927,27 @@ export class GameService {
     return Boolean((await this.loadConsumableItemEffects()).get(toId(itemId)));
   }
 
+  async hasBattleConsumableItemEffect(itemId: string): Promise<boolean> {
+    const effect = (await this.loadConsumableItemEffects()).get(toId(itemId));
+    return Boolean(effect?.battle_usable);
+  }
+
+  async trainingItemEffect(itemId: string): Promise<TrainingItemEffect | null> {
+    const effect = (await this.loadConsumableItemEffects()).get(toId(itemId));
+    if (!effect?.stat_kind) return null;
+    return {
+      stat_kind: effect.stat_kind,
+      stat: effect.stat,
+      amount: effect.amount,
+      scope: effect.scope === "all" ? "all" : "one",
+    };
+  }
+
   async applyConsumableItemEffectToState(itemId: string, state: PlayerPokemonState, moveSlot?: number): Promise<string> {
     await this.loadDisplayData();
     const effect = (await this.loadConsumableItemEffects()).get(toId(itemId));
     if (!effect) throw new Error("这个道具不能作为消耗道具使用。");
+    if (effect.stat_kind) throw new Error("这个训练道具只能在休整页使用。");
     const itemName = this.plain("items", itemId);
     const result = applyConsumableEffectToMutableState(effect, state, itemName, moveSlot);
     return result.message;
@@ -1882,6 +1912,11 @@ export class GameService {
           pp: String(row.pp || ""),
           pp_scope: row.pp_scope === "one" || row.pp_scope === "all" ? row.pp_scope : "",
           status: String(row.status || "none"),
+          stat_kind: row.stat_kind === "iv" || row.stat_kind === "ev" ? row.stat_kind : "",
+          stat: parseStatId(row.stat),
+          amount: Number(row.amount || 0),
+          scope: row.scope === "one" || row.scope === "all" ? row.scope : "",
+          battle_usable: row.battle_usable === "" ? true : row.battle_usable !== "0",
           notes: row.notes || "",
         });
       }
@@ -3137,6 +3172,7 @@ export class TrainerItemBattleSession extends BattleSession {
     if (!target) throw new Error("道具目标不存在。");
     const effect = (await this.service.loadConsumableItemEffects()).get(toId(itemId));
     if (!effect) throw new Error("这个道具不能在战斗中主动使用。");
+    if (!effect.battle_usable || effect.stat_kind) throw new Error("这个道具不能在战斗中主动使用。");
     const itemName = this.service.plain("items", itemId) || itemId;
     assertConsumableEffectCanApplyToBattlePokemon(effect, target, moveSlot);
     this.installTrainerItemAction();
@@ -3596,6 +3632,11 @@ function statusCanBeCured(effect: ConsumableItemEffect, status: string): boolean
 
 function normalizeMoveSlot(moveSlot?: number): number {
   return Math.max(0, Number(moveSlot || 0));
+}
+
+function parseStatId(value: unknown): StatId | undefined {
+  const id = toId(String(value || ""));
+  return (STAT_IDS as readonly string[]).includes(id) ? id as StatId : undefined;
 }
 
 function stateDisplayName(state: PlayerPokemonState): string {

@@ -2,6 +2,12 @@ item_id,item_type,item_name,item_cost
 elixir,item,Elixir,150
 fullrestore,item,Full Restore,200
 hyperpotion,item,Hyper Potion,120
+hpup,item,HP Up,50
+protein,item,Protein,50
+iron,item,Iron,50
+calcium,item,Calcium,50
+zinc,item,Zinc,50
+carbos,item,Carbos,50
 maxelixir,item,Max Elixir,200
 maxpotion,item,Max Potion,160
 maxrevive,item,Max Revive,200
@@ -45,7 +51,7 @@ blastoisinite,item,Blastoisinite,500
 blazikenite,item,Blazikenite,500
 blueorb,item,Blue Orb,500
 blukberry,item,Bluk Berry,10
-bottlecap,item,Bottle Cap,500
+bottlecap,item,Bottle Cap,100
 brightpowder,item,Bright Powder,500
 buginiumz,item,Buginium Z,500
 bugmemory,item,Bug Memory,500
@@ -129,12 +135,12 @@ ghostiumz,item,Ghostium Z,500
 ghostmemory,item,Ghost Memory,500
 glalitite,item,Glalitite,500
 goldberry,item,Gold Berry,10
-goldbottlecap,item,Gold Bottle Cap,500
+goldbottlecap,item,Gold Bottle Cap,300
 grassiumz,item,Grassium Z,500
 grassmemory,item,Grass Memory,500
 grassyseed,item,Grassy Seed,500
 greatball,item,Great Ball,500
-grepaberry,item,Grepa Berry,10
+grepaberry,item,Grepa Berry,5
 gripclaw,item,Grip Claw,500
 griseousorb,item,Griseous Orb,500
 groundiumz,item,Groundium Z,500
@@ -147,7 +153,7 @@ heatrock,item,Heat Rock,500
 heavyball,item,Heavy Ball,500
 helixfossil,item,Helix Fossil,500
 heracronite,item,Heracronite,500
-hondewberry,item,Hondew Berry,10
+hondewberry,item,Hondew Berry,5
 houndoominite,item,Houndoominite,500
 iapapaberry,item,Iapapa Berry,20
 iceberry,item,Ice Berry,10
@@ -166,7 +172,7 @@ kangaskhanite,item,Kangaskhanite,500
 kasibberry,item,Kasib Berry,10
 kebiaberry,item,Kebia Berry,10
 keeberry,item,Kee Berry,30
-kelpsyberry,item,Kelpsy Berry,10
+kelpsyberry,item,Kelpsy Berry,5
 kingsrock,item,King's Rock,500
 kommoniumz,item,Kommonium Z,500
 laggingtail,item,Lagging Tail,500
@@ -251,7 +257,7 @@ poisoniumz,item,Poisonium Z,500
 poisonmemory,item,Poison Memory,500
 pokeball,item,Poke Ball,500
 polkadotbow,item,Polkadot Bow,500
-pomegberry,item,Pomeg Berry,10
+pomegberry,item,Pomeg Berry,5
 poweranklet,item,Power Anklet,500
 powerband,item,Power Band,500
 powerbelt,item,Power Belt,500
@@ -270,7 +276,7 @@ psncureberry,item,PSN Cure Berry,10
 psychicmemory,item,Psychic Memory,500
 psychicseed,item,Psychic Seed,500
 psychiumz,item,Psychium Z,500
-qualotberry,item,Qualot Berry,10
+qualotberry,item,Qualot Berry,5
 quickball,item,Quick Ball,500
 quickclaw,item,Quick Claw,500
 quickpowder,item,Quick Powder,500
@@ -333,7 +339,7 @@ stickybarb,item,Sticky Barb,500
 stoneplate,item,Stone Plate,500
 sunstone,item,Sun Stone,500
 swampertite,item,Swampertite,500
-tamatoberry,item,Tamato Berry,10
+tamatoberry,item,Tamato Berry,5
 tangaberry,item,Tanga Berry,10
 tapuniumz,item,Tapunium Z,500
 terrainextender,item,Terrain Extender,500

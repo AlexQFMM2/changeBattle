@@ -147,6 +147,18 @@ async function testInvalidItemDoesNotAdvanceTurn(): Promise<void> {
   assert.equal(session.getState().tracker.turn, before);
 }
 
+async function testTrainingItemsAreRestOnlyConsumables(): Promise<void> {
+  const {service, session} = await createSession();
+  assert.equal(await service.hasConsumableItemEffect("hpup"), true);
+  assert.equal(await service.hasBattleConsumableItemEffect("hpup"), false);
+  assert.deepEqual(await service.trainingItemEffect("hpup"), {stat_kind: "ev", stat: "hp", amount: 100, scope: "one"});
+  assert.deepEqual(await service.trainingItemEffect("bottlecap"), {stat_kind: "iv", stat: undefined, amount: 31, scope: "one"});
+  assert.deepEqual(await service.trainingItemEffect("goldbottlecap"), {stat_kind: "iv", stat: undefined, amount: 31, scope: "all"});
+  const before = session.getState().tracker.turn;
+  await assert.rejects(() => session.chooseTrainerItem("hpup", 0), /不能在战斗中主动使用/);
+  assert.equal(session.getState().tracker.turn, before);
+}
+
 async function testEnemyAiPrefersEffectiveDamage(): Promise<void> {
   const service = createTestService();
   const playerTeam = [pokemon("Bulbasaur", ["Tackle"])];
@@ -975,6 +987,7 @@ function testBattleSystemItemClassification(): void {
 await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
+await testTrainingItemsAreRestOnlyConsumables();
 await testEnemyAiPrefersEffectiveDamage();
 await testSoulSickAiPrefersBadMoves();
 await testSoulSickAiDoesNotPreferBattleSystems();
