@@ -17,13 +17,16 @@ import {
   TRUST_OVERFLOW_COIN_PER_LEVEL,
   addCoins,
   addRunBp,
+  applyRestShopDiscountCoupon,
   currentBp,
   currentCoins,
   exchangeCost,
   hasTalent,
+  isTaskRewardItemId,
   itemKey,
   moveDrawCost,
   normalizeScoreBetState,
+  RUN_QUEST_DEFINITIONS,
   scoreBetMaxStakeForCoins,
   scoreBetMultiplier,
   scoreBetMultiplierChoice,
@@ -32,6 +35,7 @@ import {
   sellPriceForItem,
   spendBp,
   spendRunCoins,
+  startRunQuest,
   talentLevel,
 } from "./run-rules.js";
 
@@ -182,6 +186,15 @@ export const BASIC_REST_EVENT_OPTIONS: RestEventOption[] = [
     effects: ["本次休整无法交换宝可梦。", "立刻获得 4 点可分配等级。"],
     tone: "trade",
   },
+  ...RUN_QUEST_DEFINITIONS.map(quest => ({
+    id: `quest:${quest.id}`,
+    name: quest.name,
+    desc: quest.desc,
+    detail: quest.detail,
+    intro: quest.intro,
+    effects: quest.effects,
+    tone: "trade" as const,
+  })),
 ];
 
 export function ensureBasicRestEventOptions(run: CurrentRunData, eventPool: RestEventOption[] = BASIC_REST_EVENT_OPTIONS): void {
@@ -193,8 +206,9 @@ export function ensureBasicRestEventOptions(run: CurrentRunData, eventPool: Rest
   if (run.rest_status?.rest_event_selected_id || run.rest_status?.rest_event_options?.length) return;
   const seed = `${run.seed || 1}:${run.battle_no || 0}:${run.next_battle || 1}:${run.wins || 0}`;
   const recent = new Set((run.rest_status?.recent_rest_event_ids || []).map(toId).filter(Boolean));
-  const freshPool = eventPool.filter(event => !recent.has(toId(event.id)));
-  const sourcePool = freshPool.length >= 3 ? freshPool : eventPool;
+  const availablePool = eventPool.filter(event => !(run.active_quest && String(event.id).startsWith("quest:")));
+  const freshPool = availablePool.filter(event => !recent.has(toId(event.id)));
+  const sourcePool = freshPool.length >= 3 ? freshPool : availablePool;
   const picked = stableRestEventShuffle(sourcePool, seed).slice(0, 3).map(event => ({...event}));
   run.rest_status = {...(run.rest_status || {}), rest_event_options: picked, rest_event_selected_id: null};
 }
@@ -212,6 +226,7 @@ export function applyBasicRestEventChoice(save: LocalSave, run: CurrentRunData, 
   const option = run.rest_status?.rest_event_options?.find(event => event.id === rawId || toId(event.id) === normalizedId);
   if (!option) throw new Error("休整奇遇不存在。");
   const id = option.id;
+  if (run.active_quest && id.startsWith("quest:")) throw new Error(`已有进行中的任务：${run.active_quest.name}。`);
   const recent = [id, ...(run.rest_status?.recent_rest_event_ids || []).filter(value => toId(value) !== toId(id))].slice(0, RECENT_REST_EVENT_LIMIT);
   run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: id, recent_rest_event_ids: recent};
   if (id === "sponsor_delivery") {
@@ -238,6 +253,10 @@ export function applyBasicRestEventChoice(save: LocalSave, run: CurrentRunData, 
   if (id === "reluctant_team") {
     run.rest_status = {...(run.rest_status || {}), event_exchange_disabled: true, event_level_points: Number(run.rest_status?.event_level_points || 0) + 4};
     return "恋恋不舍：本次无法交换宝可梦，获得 4 点可分配等级。";
+  }
+  if (id.startsWith("quest:")) {
+    const questId = id.slice("quest:".length);
+    return startRunQuest(run, questId as Parameters<typeof startRunQuest>[1]);
   }
   const definition = eventPool.find(event => event.id === id || toId(event.id) === normalizedId);
   return `${definition?.name || option.name || "休整奇遇"}：效果已记录。`;
@@ -346,6 +365,7 @@ export async function applyRestConsumableItem(
   const id = itemKey(itemId);
   const target = Math.floor(Number(slot));
   if (!id || Number(run.bag_items?.[id] || 0) <= 0) throw new Error("背包里没有这个道具。");
+  if (isTaskRewardItemId(id)) return applyRestShopDiscountCoupon(run, id, Boolean(options.dryRun));
   if (target < 0 || target >= (run.player_display || []).length) throw new Error("队伍编号无效。");
   if (!(await service.hasConsumableItemEffect(id))) throw new Error("这个道具不能作为消耗道具使用。");
   if (id === "rarecandy") {
@@ -487,6 +507,7 @@ export function sellRunBagItem(save: LocalSave, run: CurrentRunData, itemId: str
   const id = itemKey(itemId);
   if (!run.rest_status?.recycler_available) throw new Error("当前没有道具回收商，不能出售道具。");
   if (!id || Number(run.bag_items?.[id] || 0) <= 0) throw new Error("背包里没有这个道具。");
+  if (isTaskRewardItemId(id)) throw new Error("任务奖励道具不能出售。");
   const price = sellPriceForItem({cost: Math.max(0, Number(item.cost || 0))}, run);
   const gained = addRunBp(save, run, price);
   adjustRunBagItem(run, id, -1);
@@ -524,6 +545,7 @@ export function barterRunShopOffer(run: CurrentRunData, offer: ShopOffer, materi
   }
   let value = 0;
   for (const [id, material] of materialCounts) {
+    if (isTaskRewardItemId(id)) throw new Error("任务奖励道具不能用于以物易物。");
     if (Number(run.bag_items?.[id] || 0) < material.count) throw new Error("以物易物材料数量不足。");
     value += sellPriceForItem({cost: Math.max(0, Number(material.item.cost || 0))}, run) * material.count;
   }
@@ -543,6 +565,7 @@ export function forgeRunItems(run: CurrentRunData, materialIds: string[], reward
   const ids = materialIds.map(itemKey).filter(Boolean);
   if (ids.length !== 3) throw new Error("普通熔炉需要投入 3 个道具。");
   for (const id of ids) {
+    if (isTaskRewardItemId(id)) throw new Error("任务奖励道具不能用于重铸。");
     if (Number(run.bag_items?.[id] || 0) <= 0) throw new Error("背包材料数量不足。");
   }
   for (const id of ids) adjustRunBagItem(run, id, -1);
@@ -556,6 +579,7 @@ export function forgeRunItems(run: CurrentRunData, materialIds: string[], reward
 export function forgeRunSpecialItem(run: CurrentRunData, materialId: string, reward: ShopItem, cost: number): string {
   const id = itemKey(materialId);
   if (!id || Number(run.bag_items?.[id] || 0) <= 0) throw new Error("背包里没有这个特殊道具。");
+  if (isTaskRewardItemId(id)) throw new Error("任务奖励道具不能用于重铸。");
   const spent = spendRunCoins(run, cost, "forge-special");
   adjustRunBagItem(run, id, -1);
   adjustRunBagItem(run, reward.id, 1);

@@ -964,16 +964,17 @@ export type PartyStatusSlot = {
   onClick?: () => void;
 };
 
-export function playerPartySlots(battle: BattleState, activeIndex: number, activeCondition: string, activeStatus: string, onSelect: (index: number) => void): PartyStatusSlot[] {
+export function playerPartySlots(battle: BattleState, activeIndex: number, activeCondition: string, activeStatus: string, onSelect: (index: number) => void, activeDisplay?: RentalPokemon): PartyStatusSlot[] {
   const runtimes = battle.request?.side?.pokemon || [];
   return Array.from({length: Math.max(3, battle.player_display.length || runtimes.length)}, (_value, index) => {
     const runtime = runtimes[index];
     const active = Boolean(runtime?.active || index === activeIndex);
     const display = displayForRuntime(battle.player_display, runtime, index) || battle.player_display[index];
+    const slotDisplay = active && activeDisplay ? activeDisplay : display;
     return {
       key: runtime?.ident || display?.run_member_id || `player-${index}`,
       label: String(index + 1),
-      display,
+      display: slotDisplay,
       condition: active ? activeCondition : runtime?.condition,
       status: active ? activeStatus : undefined,
       active,
@@ -983,7 +984,7 @@ export function playerPartySlots(battle: BattleState, activeIndex: number, activ
   });
 }
 
-export function enemyPartySlots(battle: BattleState, activeName: string, activeCondition: string, activeStatus: string): PartyStatusSlot[] {
+export function enemyPartySlots(battle: BattleState, activeName: string, activeCondition: string, activeStatus: string, activeDisplay?: RentalPokemon, activeShowdownId?: string): PartyStatusSlot[] {
   const team = battle.enemy_display;
   const seen = new Map<number, {condition?: string; status?: string; active?: boolean}>();
   for (const event of battle.timeline_events || []) {
@@ -997,7 +998,10 @@ export function enemyPartySlots(battle: BattleState, activeName: string, activeC
       status: event.condition ? undefined : previous.status,
     });
   }
-  const activeIndex = findDisplayIndex(team, activeName);
+  const normalizedActiveShowdownId = String(activeShowdownId || "").trim().toLowerCase();
+  const activeIndex = normalizedActiveShowdownId
+    ? team.findIndex(pokemon => String(pokemon.showdown_id || "").trim().toLowerCase() === normalizedActiveShowdownId)
+    : findDisplayIndex(team, activeName);
   if (activeIndex >= 0) {
     seen.set(activeIndex, {...(seen.get(activeIndex) || {}), condition: activeCondition, status: activeStatus, active: true});
   }
@@ -1006,7 +1010,7 @@ export function enemyPartySlots(battle: BattleState, activeName: string, activeC
     return {
       key: team[index]?.run_member_id || team[index]?.species_id || `enemy-${index}`,
       label: String(index + 1),
-      display: visible ? team[index] : undefined,
+      display: visible ? visible.active && activeDisplay ? activeDisplay : team[index] : undefined,
       condition: visible?.condition,
       status: visible?.status,
       active: visible?.active,

@@ -23,7 +23,7 @@ import type {
   SpriteMapEntry,
   StatId,
 } from "@changebattle/shared";
-import {BATTLE_RULE_PRESET_OPTIONS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
+import {BATTLE_RULE_PRESET_OPTIONS, DEFAULT_BATTLE_SETTING, REST_SHOP_DISCOUNT_COUPONS, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 
 const MIN_RENTAL_LEVEL = 45;
 const MAX_RENTAL_LEVEL = 55;
@@ -48,6 +48,7 @@ const MOVE_LEARN_SOURCE_LABELS: Record<MoveLearnSource, string> = {
 const FALLBACK_HELD_ITEMS = ["Leftovers", "Sitrus Berry", "Life Orb", "Choice Scarf", "Choice Band", "Choice Specs", "Assault Vest", "Focus Sash", "Expert Belt"];
 const ITEM_ICON_FALLBACK = "assets/placeholders/item.png";
 const LOCAL_DEX_ITEMS = [
+  ...Object.entries(REST_SHOP_DISCOUNT_COUPONS).map(([id, item]) => ({id, name: item.name, name_zh: item.name_zh, desc: item.desc, desc_zh: item.desc_zh, icon_asset: item.icon_asset})),
   {id: "potion", name: "Potion", name_zh: "回复药", desc: "Restores 20 HP.", desc_zh: "恢复 20 点 HP。"},
   {id: "freshwater", name: "Fresh Water", name_zh: "美味之水", desc: "Restores 30 HP.", desc_zh: "恢复 30 点 HP。"},
   {id: "sodapop", name: "Soda Pop", name_zh: "劲爽汽水", desc: "Restores 50 HP.", desc_zh: "恢复 50 点 HP。"},
@@ -663,7 +664,7 @@ export class GameService {
   async itemOptions(): Promise<ShopItem[]> {
     await this.loadDisplayData();
     const dex = this.dataDex();
-    return dex.items.all()
+    const showdownItems: ShopItem[] = dex.items.all()
       .filter((item: any) => item.exists && this.includeDataEntry(item))
       .map((item: any) => ({
         id: item.id,
@@ -674,6 +675,19 @@ export class GameService {
         desc_zh: this.itemDescriptionZh(item),
         icon_asset: this.itemIconAsset(item.id, item),
       }));
+    const existing = new Set(showdownItems.map(item => this.toId(item.id)));
+    const localItems = LOCAL_DEX_ITEMS
+      .filter(item => !existing.has(this.toId(item.id)))
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        name_zh: item.name_zh,
+        cost: 0,
+        desc: item.desc,
+        desc_zh: item.desc_zh,
+        icon_asset: ("icon_asset" in item ? item.icon_asset : undefined) || this.itemIconAsset(item.id, item),
+      }));
+    return [...localItems, ...showdownItems];
   }
 
   battleSystemForItem(itemId: string): BattleSystemId | null {
@@ -943,10 +957,12 @@ export class GameService {
   }
 
   async hasConsumableItemEffect(itemId: string): Promise<boolean> {
+    if (REST_SHOP_DISCOUNT_COUPONS[toId(itemId)]) return true;
     return Boolean((await this.loadConsumableItemEffects()).get(toId(itemId)));
   }
 
   async hasBattleConsumableItemEffect(itemId: string): Promise<boolean> {
+    if (REST_SHOP_DISCOUNT_COUPONS[toId(itemId)]) return false;
     const effect = (await this.loadConsumableItemEffects()).get(toId(itemId));
     return Boolean(effect?.battle_usable);
   }
@@ -964,6 +980,7 @@ export class GameService {
 
   async applyConsumableItemEffectToState(itemId: string, state: PlayerPokemonState, moveSlot?: number): Promise<string> {
     await this.loadDisplayData();
+    if (REST_SHOP_DISCOUNT_COUPONS[toId(itemId)]) throw new Error("商店折扣券只能在休整页使用。");
     const effect = (await this.loadConsumableItemEffects()).get(toId(itemId));
     if (!effect) throw new Error("这个道具不能作为消耗道具使用。");
     if (effect.stat_kind) throw new Error("这个训练道具只能在休整页使用。");
@@ -4354,7 +4371,7 @@ function runtimeShowdownIdForIdent(requests: Record<string, BattleRequestView> |
   if (currentActive?.pokeball && toId(shortIdent(currentActive.ident)) === targetShort) return normalizeShowdownId(currentActive.pokeball);
   const ids = Array.from(new Set(matching.map(pokemon => normalizeShowdownId(pokemon.pokeball)).filter(Boolean)));
   if (ids.length === 1) return ids[0];
-  if (!condition && isActiveIdent(tracker, side, raw) && tracker.active[side]?.showdown_id) return tracker.active[side].showdown_id;
+  if (isActiveIdent(tracker, side, raw) && tracker.active[side]?.showdown_id) return tracker.active[side].showdown_id;
   return undefined;
 }
 

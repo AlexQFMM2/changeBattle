@@ -1,4 +1,5 @@
-import type {BattleState, CoinLedgerEntry, CurrentRunData, ItemCategory, LocalSave, RestScoreBetState, RestScoreBetTarget, ShopItem, ShopOffer, ShopState, StarChartState, StarterItemGroup, StarterUpgradeState, StarterUpgradeView, TalentView} from "@changebattle/shared";
+import type {BattleState, BattleTimelineEvent, CoinLedgerEntry, CurrentRunData, ItemCategory, LocalSave, PlayerPokemonState, RestEventStatusView, RestScoreBetState, RestScoreBetTarget, ResultPokemonStatEvent, RunQuestId, RunQuestState, ShopItem, ShopKind, ShopOffer, ShopState, StarChartState, StarterItemGroup, StarterUpgradeState, StarterUpgradeView, TalentView} from "@changebattle/shared";
+import {REST_SHOP_DISCOUNT_COUPONS, REST_SHOP_DISCOUNT_RATE} from "@changebattle/shared";
 
 export type RuntimeBattleAiLevel = "normal" | "gym_low" | "gym_high" | "elite4" | "champion";
 export type RuntimeBattleAiKnowledge = "active_only" | "party_species" | "party_sets" | "omniscient";
@@ -116,6 +117,84 @@ export const REST_EXCHANGE_COSTS = [0, 1 * BP_SCALE, 2 * BP_SCALE] as const;
 export const REST_HP_COSTS = {1: 0, 2: 0, 3: 0} as const;
 export const REST_PP_COSTS = {1: 0, 2: 0, 3: 0} as const;
 export const REST_STATUS_COSTS = {1: 0, 2: 0, 3: 0} as const;
+
+export type RunQuestDefinition = {
+  id: RunQuestId;
+  name: string;
+  desc: string;
+  detail: string;
+  intro: string;
+  effects: string[];
+  target: number;
+  expires_after_battles?: number;
+  expires_after_rests?: number;
+  reward_coins: number;
+  reward_item?: string;
+};
+
+export const RUN_QUEST_DEFINITIONS: RunQuestDefinition[] = [
+  {
+    id: "ace_trial",
+    name: "王牌试炼",
+    desc: "3 场战斗内，同一只宝可梦击倒 5 只宝可梦。",
+    detail: "从领取任务开始连续 3 场统计；同一只宝可梦累计击倒达到 5 即完成。",
+    intro: "工厂裁判递来一张王牌挑战书：真正的核心成员，应该能在连续战斗里打出统治力。",
+    effects: ["接下来 3 场战斗内，同一只宝可梦累计击倒 5 只宝可梦。", "完成奖励：500 金币与训练商店折扣券。"],
+    target: 5,
+    expires_after_battles: 3,
+    reward_coins: 500,
+    reward_item: "trainingcoupon",
+  },
+  {
+    id: "winning_champion",
+    name: "常胜冠军",
+    desc: "连续赢下 3 场，且每场存活数量均大于等于 2。",
+    detail: "只看领取后的连续 3 场；任一场失败或存活数不足 2，任务失败。",
+    intro: "冠军奖杯的复制品摆在休整桌上。旁边的小字写着：胜利不只要赢，还要赢得漂亮。",
+    effects: ["连续赢下 3 场战斗。", "每场结束时己方存活数量必须大于等于 2。", "完成奖励：500 金币与战斗道具商店折扣券。"],
+    target: 3,
+    expires_after_battles: 3,
+    reward_coins: 500,
+    reward_item: "battleitemcoupon",
+  },
+  {
+    id: "type_expert",
+    name: "属性专家",
+    desc: "3 场战斗内，打出 8 次效果绝佳。",
+    detail: "从领取任务开始连续 3 场累计效果绝佳次数。",
+    intro: "属性讲师把一份弱点表推到你面前：知识本身没有伤害，但会让招式打得很疼。",
+    effects: ["接下来 3 场战斗内，累计打出 8 次效果绝佳。", "完成奖励：500 金币与技能机器商店折扣券。"],
+    target: 8,
+    expires_after_battles: 3,
+    reward_coins: 500,
+    reward_item: "tmcoupon",
+  },
+  {
+    id: "item_master",
+    name: "药系天王",
+    desc: "3 场战斗内，任意一场战斗中使用 5 次道具。",
+    detail: "从领取任务开始连续 3 场统计；任意单场战斗道具使用次数达到 5 即完成。",
+    intro: "补给员把药箱扣上，认真说：药也有战术，关键是你敢不敢在场上用。",
+    effects: ["接下来 3 场战斗内，任意一场战斗中使用 5 次道具。", "完成奖励：500 金币与恢复商店折扣券。"],
+    target: 5,
+    expires_after_battles: 3,
+    reward_coins: 500,
+    reward_item: "recoverycoupon",
+  },
+  {
+    id: "frugal_challenge",
+    name: "节俭挑战",
+    desc: "接下来 2 次休整花费均不超过 500 金币。",
+    detail: "统计所有金币支出；任一次休整支出超过 500，任务失败。",
+    intro: "财务员拍了拍账本：强大的训练师也要学会控制预算。",
+    effects: ["接下来 2 次休整中，每次所有金币支出均不超过 500。", "完成奖励：1000 金币。"],
+    target: 2,
+    expires_after_rests: 2,
+    reward_coins: 1000,
+  },
+];
+
+export const RUN_QUEST_DEFINITION_BY_ID = Object.fromEntries(RUN_QUEST_DEFINITIONS.map(quest => [quest.id, quest])) as Record<RunQuestId, RunQuestDefinition>;
 
 export function soulSwapEnemyAiProfile(): RuntimeBattleAiProfileObjectInput {
   return {
@@ -502,11 +581,268 @@ export function isTrainingShopItemId(itemId: string | undefined): boolean {
   return Boolean(id && (TRAINING_ITEM_IDS as readonly string[]).includes(id));
 }
 
+export function restShopDiscountCoupon(itemId: string | undefined): (typeof REST_SHOP_DISCOUNT_COUPONS)[string] | null {
+  const id = itemKey(itemId);
+  return id ? REST_SHOP_DISCOUNT_COUPONS[id] || null : null;
+}
+
+export function isRestShopDiscountCoupon(itemId: string | undefined): boolean {
+  return Boolean(restShopDiscountCoupon(itemId));
+}
+
+export function isTaskRewardItemId(itemId: string | undefined): boolean {
+  return isRestShopDiscountCoupon(itemId);
+}
+
+export function restShopKindDiscount(run: CurrentRunData | null | undefined, kind: ShopKind): number {
+  const value = Number(run?.rest_status?.shop_kind_discounts?.[kind] || 1);
+  return value > 0 && value < 1 ? value : 1;
+}
+
+export function applyRestShopKindDiscount(run: CurrentRunData | null | undefined, kind: ShopKind, cost: number): number {
+  const base = Math.max(0, Math.floor(Number(cost || 0)));
+  if (base <= 0) return 0;
+  const discount = restShopKindDiscount(run, kind);
+  if (discount >= 1) return base;
+  return Math.max(1, Math.floor(base * discount));
+}
+
+export function applyRestShopDiscountCoupon(run: CurrentRunData, itemId: string, dryRun = false): string {
+  const id = itemKey(itemId);
+  const coupon = restShopDiscountCoupon(id);
+  if (!coupon) throw new Error("这个道具不是商店折扣券。");
+  if (Number(run.bag_items?.[id] || 0) <= 0) throw new Error("背包里没有这个道具。");
+  const current = restShopKindDiscount(run, coupon.shopKind);
+  if (current <= REST_SHOP_DISCOUNT_RATE) return `${coupon.name_zh}已生效，本次休整不会重复叠加。`;
+  if (dryRun) return `${coupon.name_zh}可以使用。`;
+  run.rest_status = {
+    ...(run.rest_status || {}),
+    shop_kind_discounts: {
+      ...(run.rest_status?.shop_kind_discounts || {}),
+      [coupon.shopKind]: REST_SHOP_DISCOUNT_RATE,
+    },
+  };
+  run.bag_items = {...(run.bag_items || {}), [id]: Math.max(0, Number(run.bag_items?.[id] || 0) - 1)};
+  if (run.bag_items[id] <= 0) {
+    delete run.bag_items[id];
+    if (run.bag_item_meta) delete run.bag_item_meta[id];
+  }
+  return `${coupon.name_zh}已使用：本次休整${coupon.shopKind === "training" ? "训练商店" : coupon.shopKind === "held" ? "道具商店" : coupon.shopKind === "tm" ? "技能商店" : "回复商店"}抽奖和购买 5 折。`;
+}
+
+function questDefinitionFor(id: string | undefined): RunQuestDefinition {
+  const quest = RUN_QUEST_DEFINITION_BY_ID[id as RunQuestId];
+  if (!quest) throw new Error(`未知任务：${id || ""}`);
+  return quest;
+}
+
+function questRewardItemName(itemId: string | undefined): string {
+  const coupon = restShopDiscountCoupon(itemId);
+  return coupon?.name_zh || itemId || "";
+}
+
+function grantQuestReward(run: CurrentRunData, quest: RunQuestDefinition): string {
+  const rewards: string[] = [];
+  if (quest.reward_coins > 0) {
+    const gained = addCoins(run, quest.reward_coins, `quest:${quest.id}`, `${quest.name}奖励`);
+    rewards.push(`${gained}金币`);
+  }
+  if (quest.reward_item) {
+    const id = itemKey(quest.reward_item);
+    run.bag_items = {...(run.bag_items || {}), [id]: Number(run.bag_items?.[id] || 0) + 1};
+    const coupon = restShopDiscountCoupon(id);
+    if (coupon) {
+      run.bag_item_meta = {
+        ...(run.bag_item_meta || {}),
+        [id]: {
+          id,
+          name: coupon.name,
+          name_zh: coupon.name_zh,
+          desc: coupon.desc,
+          desc_zh: coupon.desc_zh,
+          icon_asset: coupon.icon_asset,
+          category: "consumable",
+          cost: 0,
+        },
+      };
+    }
+    rewards.push(questRewardItemName(id));
+  }
+  return `任务完成：${quest.name}，获得 ${rewards.join("、")}。`;
+}
+
+export function startRunQuest(run: CurrentRunData, questId: RunQuestId): string {
+  if (run.active_quest) throw new Error(`已有进行中的任务：${run.active_quest.name}。`);
+  const quest = questDefinitionFor(questId);
+  const cursor = run.coin_ledger?.[0]?.id;
+  run.active_quest = {
+    id: quest.id,
+    name: quest.name,
+    desc: quest.desc,
+    started_battle_no: Math.max(0, Math.floor(Number(run.battle_no || run.next_battle || 0))),
+    expires_after_battles: quest.expires_after_battles,
+    expires_after_rests: quest.expires_after_rests,
+    progress: {
+      value: 0,
+      target: quest.target,
+      battle_count: 0,
+      rest_count: 0,
+      kills_by_pokemon: quest.id === "ace_trial" ? {} : undefined,
+      rest_ledger_cursor_id: quest.id === "frugal_challenge" ? cursor : undefined,
+    },
+  };
+  return `任务已领取：${quest.name}。${quest.desc}`;
+}
+
+export function runQuestStatus(run: CurrentRunData | null | undefined, context: "rest" | "battle" = "rest"): RestEventStatusView | null {
+  const quest = run?.active_quest;
+  if (!quest) return null;
+  const definition = questDefinitionFor(quest.id);
+  const value = Math.max(0, Math.floor(Number(quest.progress.value || 0)));
+  const target = Math.max(1, Math.floor(Number(quest.progress.target || definition.target || 1)));
+  if (context === "battle" && quest.id === "frugal_challenge") return null;
+  return {
+    id: `quest:${quest.id}`,
+    label: `${quest.name} ${Math.min(value, target)}/${target}`,
+    detail: `${quest.desc} 奖励：${definition.reward_coins ? `${definition.reward_coins}金币` : ""}${definition.reward_item ? `${definition.reward_coins ? " + " : ""}${questRewardItemName(definition.reward_item)}` : ""}`,
+    tone: "trade",
+  };
+}
+
+export function runQuestRestSpendSinceCursor(run: CurrentRunData, cursorId: string | undefined): number {
+  let total = 0;
+  for (const entry of run.coin_ledger || []) {
+    if (cursorId && entry.id === cursorId) break;
+    if (entry.type === "spend") total += Math.max(0, Math.floor(Number(entry.amount || 0)));
+  }
+  return total;
+}
+
+function questFailureMessage(quest: RunQuestState): string {
+  return `任务失败：${quest.name}。`;
+}
+
+function questProgressDone(run: CurrentRunData, quest: RunQuestState, definition: RunQuestDefinition): string | null {
+  if (Math.max(0, Number(quest.progress.value || 0)) < definition.target) return null;
+  const message = grantQuestReward(run, definition);
+  delete run.active_quest;
+  return message;
+}
+
+export function updateRunQuestAfterRest(run: CurrentRunData): string | null {
+  const quest = run.active_quest;
+  if (!quest || quest.id !== "frugal_challenge") return null;
+  const definition = questDefinitionFor(quest.id);
+  const spent = runQuestRestSpendSinceCursor(run, quest.progress.rest_ledger_cursor_id);
+  if (spent > 500) {
+    const message = questFailureMessage(quest);
+    delete run.active_quest;
+    return message;
+  }
+  const restCount = Math.max(0, Math.floor(Number(quest.progress.rest_count || 0))) + 1;
+  quest.progress.rest_count = restCount;
+  quest.progress.value = restCount;
+  const completed = questProgressDone(run, quest, definition);
+  if (completed) return completed;
+  quest.progress.rest_ledger_cursor_id = run.coin_ledger?.[0]?.id;
+  if (definition.expires_after_rests && restCount >= definition.expires_after_rests) {
+    const message = questFailureMessage(quest);
+    delete run.active_quest;
+    return message;
+  }
+  return null;
+}
+
+function battleItemUsesForPlayer(timelineEvents: BattleTimelineEvent[], playerSide: "p1" | "p2" = "p1"): number {
+  return (timelineEvents || []).filter(event => event.type === "item" && (event.side === playerSide || event.targetSide === playerSide)).length;
+}
+
+function superEffectiveCount(timelineEvents: BattleTimelineEvent[]): number {
+  return (timelineEvents || []).filter(event => event.type === "effectiveness" && /效果拔群|super effective/i.test(`${event.text} ${event.effect || ""}`)).length;
+}
+
+function alivePokemonCount(states: PlayerPokemonState[] | undefined): number {
+  return (states || []).filter(state => !state.fainted && Math.max(0, Number(state.hp || 0)) > 0 && !/\bfnt\b/i.test(String(state.condition || ""))).length;
+}
+
+function fallbackKillEventsFromTimeline(timelineEvents: BattleTimelineEvent[], playerSide: "p1" | "p2" = "p1"): ResultPokemonStatEvent[] {
+  const result: ResultPokemonStatEvent[] = [];
+  let lastPlayerSource = "";
+  for (const event of timelineEvents || []) {
+    if (event.side === playerSide && (event.source_showdown_id || event.source_id || event.source)) {
+      lastPlayerSource = String(event.source_showdown_id || event.source_id || event.source || "");
+    }
+    if (event.type !== "faint" || event.targetSide === playerSide || !lastPlayerSource) continue;
+    result.push({
+      battle_no: 0,
+      turn: Math.max(0, Math.floor(Number(event.turn || 0))),
+      pokemon_key: lastPlayerSource,
+      kind: "kill",
+      value: 1,
+      source: "move",
+    });
+  }
+  return result;
+}
+
+export function updateRunQuestAfterBattle(run: CurrentRunData, options: {playerWon: boolean; playerState?: PlayerPokemonState[]; statEvents?: ResultPokemonStatEvent[]; timelineEvents?: BattleTimelineEvent[]; playerSide?: "p1" | "p2"}): string | null {
+  const quest = run.active_quest;
+  if (!quest || quest.id === "frugal_challenge") return null;
+  const definition = questDefinitionFor(quest.id);
+  const battleCount = Math.max(0, Math.floor(Number(quest.progress.battle_count || 0))) + 1;
+  quest.progress.battle_count = battleCount;
+  if (!options.playerWon && quest.id === "winning_champion") {
+    const message = questFailureMessage(quest);
+    delete run.active_quest;
+    return message;
+  }
+  if (quest.id === "ace_trial") {
+    const byPokemon = {...(quest.progress.kills_by_pokemon || {})};
+    const statEvents = options.statEvents?.length ? options.statEvents : fallbackKillEventsFromTimeline(options.timelineEvents || [], options.playerSide || "p1");
+    for (const event of statEvents) {
+      if (event.kind !== "kill") continue;
+      byPokemon[event.pokemon_key] = Number(byPokemon[event.pokemon_key] || 0) + Math.max(0, Number(event.value || 0));
+    }
+    const best = Math.max(0, ...Object.values(byPokemon).map(value => Math.floor(Number(value || 0))));
+    quest.progress.kills_by_pokemon = byPokemon;
+    quest.progress.best_kills = best;
+    quest.progress.value = best;
+  } else if (quest.id === "winning_champion") {
+    const alive = alivePokemonCount(options.playerState);
+    if (!options.playerWon || alive < 2) {
+      const message = questFailureMessage(quest);
+      delete run.active_quest;
+      return message;
+    }
+    const wins = Math.max(0, Math.floor(Number(quest.progress.consecutive_wins || 0))) + 1;
+    quest.progress.consecutive_wins = wins;
+    quest.progress.value = wins;
+  } else if (quest.id === "type_expert") {
+    quest.progress.value = Math.max(0, Math.floor(Number(quest.progress.value || 0))) + superEffectiveCount(options.timelineEvents || []);
+  } else if (quest.id === "item_master") {
+    const trackedUses = Math.max(0, Math.floor(Number(run.rest_status?.battle_item_uses_current || 0)));
+    const uses = trackedUses || battleItemUsesForPlayer(options.timelineEvents || [], options.playerSide || "p1");
+    quest.progress.max_items_used_in_battle = Math.max(Math.floor(Number(quest.progress.max_items_used_in_battle || 0)), uses);
+    quest.progress.value = quest.progress.max_items_used_in_battle;
+  }
+  const completed = questProgressDone(run, quest, definition);
+  if (completed) return completed;
+  if (definition.expires_after_battles && battleCount >= definition.expires_after_battles) {
+    const message = questFailureMessage(quest);
+    delete run.active_quest;
+    return message;
+  }
+  return null;
+}
+
 function coinLedgerLabel(reason: string, fallback: string): string {
   const labels: Record<string, string> = {
     gain: "金币收入",
     reward: "金币奖励",
     "battle-reward": "战斗奖励",
+    "battle-reward:base": "战斗对局奖励",
+    "battle-reward:shiny": "闪光加成",
+    "battle-reward:amulet": "护符金币",
     "shop-duplicate": "商店重复奖励",
     settlement: "结算",
     "score-bet-adjust": "重金下注",
@@ -841,6 +1177,29 @@ export function gainedBp(run: CurrentRunData | null | undefined, amount: number)
   return Math.floor(total);
 }
 
+export function battleRewardCoinBreakdown(run: CurrentRunData | null | undefined, amount: number): {base: number; shinyBonus: number; amuletBonus: number; total: number} {
+  const base = Math.max(0, Math.floor(Number(amount || 0)));
+  if (base <= 0) return {base: 0, shinyBonus: 0, amuletBonus: 0, total: 0};
+  const shinyCount = (run?.player_display || []).filter(pokemon => pokemon.shiny).length;
+  const shinyMultiplier = shinyCount > 0 ? Math.pow(hasTalent(run?.talents, "economy_shiny_collector") ? 1.3 : 1.1, shinyCount) : 1;
+  const afterShiny = Math.floor(base * shinyMultiplier);
+  const amuletLevel = talentLevel(run?.talents, "economy_amulet_coin");
+  const amuletMultiplier = amuletLevel >= 3 ? 1.35 : amuletLevel === 2 ? 1.2 : amuletLevel === 1 ? 1.1 : 1;
+  const total = Math.floor(base * shinyMultiplier * amuletMultiplier);
+  const shinyBonus = Math.max(0, afterShiny - base);
+  const amuletBonus = Math.max(0, total - base - shinyBonus);
+  return {base, shinyBonus, amuletBonus, total};
+}
+
+export function addBattleRewardCoins(run: CurrentRunData | null | undefined, amount: number): number {
+  const breakdown = battleRewardCoinBreakdown(run, amount);
+  if (!run) return breakdown.total;
+  if (breakdown.base > 0) addCoins(run, breakdown.base, "battle-reward:base", "战斗对局奖励");
+  if (breakdown.shinyBonus > 0) addCoins(run, breakdown.shinyBonus, "battle-reward:shiny", "闪光加成");
+  if (breakdown.amuletBonus > 0) addCoins(run, breakdown.amuletBonus, "battle-reward:amulet", "护符金币");
+  return breakdown.total;
+}
+
 export function addRunBp(save: LocalSave, run: CurrentRunData | null | undefined, amount: number): number {
   void save;
   const gained = gainedBp(run, amount);
@@ -1072,6 +1431,7 @@ export function tmIconAssetForMoveType(moveType: string | undefined): string {
 
 export function itemCategory(item: Pick<ShopItem, "id" | "name" | "desc" | "desc_zh"> & Partial<Pick<ShopItem, "name_zh">>): ItemCategory {
   if (isTmItemId(item.id)) return "tm";
+  if (isRestShopDiscountCoupon(item.id)) return "consumable";
   const text = `${item.id} ${item.name} ${item.desc} ${item.desc_zh}`.toLowerCase();
   if (/technical machine|\btm\d*|\btr\d*|技能机器|招式学习器/.test(text)) return "tm";
   if (/potion|restore|heal|revive|ether|elixir|berry|herb|药|回复|恢复|解除|树果|果/.test(text)) return "consumable";

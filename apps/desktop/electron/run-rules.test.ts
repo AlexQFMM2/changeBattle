@@ -21,7 +21,11 @@ import {
   TALENTS,
   addCoins,
   applyAllInExchange,
+  applyRestShopDiscountCoupon,
+  applyRestShopKindDiscount,
   addRunBp,
+  addBattleRewardCoins,
+  battleRewardCoinBreakdown,
   canDirectMove,
   canExchangeBoss,
   canScoutNext,
@@ -40,6 +44,8 @@ import {
   gainedBp,
   hasTalent,
   isPremiumHeldShopEntry,
+  isRestShopDiscountCoupon,
+  isTaskRewardItemId,
   isTrainingShopItemId,
   itemCategory,
   moveDrawCost,
@@ -65,6 +71,7 @@ import {
   shouldForceSoulSwapTimeout,
   soulSwapAllowedForNextBattle,
   soulSwapEnemyAiProfile,
+  startRunQuest,
   spendBp,
   spendCoins,
   spendRunCoins,
@@ -76,6 +83,13 @@ import {
   statResetCost,
   talent,
   tmIconAssetForMoveType,
+  updateRunQuestAfterBattle,
+  updateRunQuestAfterRest,
+  barterRunShopOffer,
+  buyRunShopOffer,
+  forgeRunItems,
+  forgeRunSpecialItem,
+  sellRunBagItem,
 } from "./run-rules.js";
 
 function talents(ids: string[]): TalentView[] {
@@ -272,6 +286,14 @@ function testEconomyTalents(): void {
   assert.equal(gainedBp(run([], {player_display: [{shiny: true} as any]}), 100), 110);
   assert.equal(gainedBp(run(["economy_shiny_collector"], {player_display: [{shiny: true} as any]}), 100), 130);
   assert.equal(gainedBp(run([], {talents: [talent("economy_shiny_collector"), talentAtLevel("economy_amulet_coin", 3)], player_display: [{shiny: true} as any]}), 100), 175);
+  assert.deepEqual(battleRewardCoinBreakdown(run([], {talents: [talentAtLevel("economy_amulet_coin", 3)]}), 500), {base: 500, shinyBonus: 0, amuletBonus: 175, total: 675});
+  const rewardRun = run([], {talents: [talentAtLevel("economy_amulet_coin", 3)]});
+  assert.equal(addBattleRewardCoins(rewardRun, 500), 675);
+  assert.equal(currentCoins(rewardRun), 675);
+  assert.deepEqual((rewardRun.coin_ledger || []).map(entry => ({label: entry.label, amount: entry.amount})), [
+    {label: "护符金币", amount: 175},
+    {label: "战斗对局奖励", amount: 500},
+  ]);
 
   const playerSave = save(0);
   assert.equal(addRunBp(playerSave, run([], {talents: [talentAtLevel("economy_amulet_coin", 3)]}), 200), 270);
@@ -321,6 +343,99 @@ function testCoinLedgerAndTrainingRules(): void {
   for (let index = 0; index < 120; index += 1) addCoins(ledgerRun, 1, "gain");
   assert.equal(ledgerRun.coin_ledger?.length, 100);
   assert.equal(ledgerRun.coin_ledger?.[0]?.after, currentCoins(ledgerRun));
+}
+
+function testRestShopDiscountCoupons(): void {
+  assert.equal(isRestShopDiscountCoupon("trainingcoupon"), true);
+  assert.equal(isTaskRewardItemId("tmcoupon"), true);
+  assert.equal(isTaskRewardItemId("potion"), false);
+
+  const couponRun = run([], {
+    coins: 500,
+    bag_items: {recoverycoupon: 2, tmcoupon: 1},
+    rest_status: {exchanges: 0, taken_enemy_slots: []},
+  });
+  assert.equal(applyRestShopKindDiscount(couponRun, "recovery", 50), 50);
+  const message = applyRestShopDiscountCoupon(couponRun, "recoverycoupon");
+  assert.match(message, /5 折/);
+  assert.equal(couponRun.bag_items?.recoverycoupon, 1);
+  assert.equal(applyRestShopKindDiscount(couponRun, "recovery", 50), 25);
+  assert.equal(applyRestShopKindDiscount(couponRun, "held", 75), 75);
+  assert.equal(moveDrawCost(couponRun), MOVE_DRAW_COST);
+
+  const repeat = applyRestShopDiscountCoupon(couponRun, "recoverycoupon");
+  assert.match(repeat, /已生效/);
+  assert.equal(couponRun.bag_items?.recoverycoupon, 1);
+
+  const pricedOffer: ShopOffer = {id: "potion", name: "Potion", name_zh: "回复药", desc: "", desc_zh: "", cost: applyRestShopKindDiscount(couponRun, "recovery", 20), category: "consumable", offer_id: "offer-potion"};
+  buyRunShopOffer(couponRun, pricedOffer);
+  assert.equal(currentCoins(couponRun), 490);
+  assert.equal(couponRun.coin_ledger?.[0]?.amount, 10);
+  assert.equal(couponRun.coin_ledger?.[0]?.label, "商店购买");
+
+  const taskRun = run([], {
+    coins: 100,
+    bag_items: {tmcoupon: 1, potion: 3},
+    rest_status: {exchanges: 0, taken_enemy_slots: [], recycler_available: true, event_barter_active: true},
+  });
+  assert.throws(() => sellRunBagItem(save(0), taskRun, "tmcoupon", {cost: 100, name: "TM Coupon", name_zh: "技能机器商店折扣券"}), /任务奖励道具不能出售/);
+  assert.throws(() => forgeRunItems(taskRun, ["tmcoupon", "potion", "potion"], []), /任务奖励道具不能用于重铸/);
+  assert.throws(() => forgeRunSpecialItem(taskRun, "tmcoupon", {id: "leftovers", name: "Leftovers", name_zh: "剩饭", desc: "", desc_zh: "", cost: 800}, 50), /任务奖励道具不能用于重铸/);
+  assert.throws(() => barterRunShopOffer(taskRun, {id: "leftovers", name: "Leftovers", name_zh: "剩饭", desc: "", desc_zh: "", cost: 100, category: "held", offer_id: "leftovers-offer"}, [{item: {id: "tmcoupon", name: "TM Coupon", name_zh: "技能机器商店折扣券", desc: "", desc_zh: "", cost: 100}}]), /任务奖励道具不能用于以物易物/);
+}
+
+function testRunQuests(): void {
+  const aceRun = run([], {coins: 0});
+  assert.match(startRunQuest(aceRun, "ace_trial"), /王牌试炼/);
+  assert.throws(() => startRunQuest(aceRun, "type_expert"), /已有进行中的任务/);
+  assert.equal(updateRunQuestAfterBattle(aceRun, {
+    playerWon: true,
+    statEvents: [
+      {battle_no: 1, turn: 1, pokemon_key: "alpha", kind: "kill", value: 2},
+      {battle_no: 1, turn: 2, pokemon_key: "alpha", kind: "kill", value: 3},
+    ],
+    timelineEvents: [],
+    playerSide: "p1",
+  }), "任务完成：王牌试炼，获得 500金币、训练商店折扣券。");
+  assert.equal(aceRun.active_quest, undefined);
+  assert.equal(currentCoins(aceRun), 500);
+  assert.equal(aceRun.bag_items?.trainingcoupon, 1);
+  assert.equal(aceRun.coin_ledger?.[0]?.label, "王牌试炼奖励");
+
+  const championRun = run();
+  startRunQuest(championRun, "winning_champion");
+  assert.equal(updateRunQuestAfterBattle(championRun, {playerWon: true, playerState: [{hp: 1, maxhp: 10} as any], timelineEvents: [], playerSide: "p1"}), "任务失败：常胜冠军。");
+  assert.equal(championRun.active_quest, undefined);
+
+  const typeRun = run([], {coins: 0});
+  startRunQuest(typeRun, "type_expert");
+  assert.equal(updateRunQuestAfterBattle(typeRun, {
+    playerWon: true,
+    timelineEvents: Array.from({length: 8}, (_, index) => ({id: `e${index}`, type: "effectiveness", text: "效果拔群！", effect: "super effective"} as BattleTimelineEvent)),
+    playerSide: "p1",
+  }), "任务完成：属性专家，获得 500金币、技能机器商店折扣券。");
+  assert.equal(typeRun.bag_items?.tmcoupon, 1);
+
+  const itemRun = run([], {rest_status: {exchanges: 0, taken_enemy_slots: [], battle_item_uses_current: 5}});
+  startRunQuest(itemRun, "item_master");
+  assert.equal(updateRunQuestAfterBattle(itemRun, {playerWon: true, timelineEvents: [], playerSide: "p1"}), "任务完成：药系天王，获得 500金币、恢复商店折扣券。");
+  assert.equal(itemRun.bag_items?.recoverycoupon, 1);
+
+  const frugalRun = run([], {coins: 1500});
+  startRunQuest(frugalRun, "frugal_challenge");
+  spendCoins(frugalRun, 400, "shop-buy:potion");
+  assert.equal(updateRunQuestAfterRest(frugalRun), null);
+  assert.equal(frugalRun.active_quest?.progress.value, 1);
+  spendCoins(frugalRun, 500, "shop-buy:tm");
+  assert.equal(updateRunQuestAfterRest(frugalRun), "任务完成：节俭挑战，获得 1000金币。");
+  assert.equal(frugalRun.active_quest, undefined);
+  assert.equal(currentCoins(frugalRun), 1600);
+
+  const failRun = run([], {coins: 1000});
+  startRunQuest(failRun, "frugal_challenge");
+  spendCoins(failRun, 501, "shop-buy:expensive");
+  assert.equal(updateRunQuestAfterRest(failRun), "任务失败：节俭挑战。");
+  assert.equal(failRun.active_quest, undefined);
 }
 
 function testScoreBetRules(): void {
@@ -508,6 +623,8 @@ testGrowthTalents();
 testIntelTalents();
 testEconomyTalents();
 testCoinLedgerAndTrainingRules();
+testRestShopDiscountCoupons();
+testRunQuests();
 testScoreBetRules();
 testDefaultsAndHelpers();
 testBattleSettingDefaults();

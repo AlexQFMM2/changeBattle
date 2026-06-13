@@ -726,6 +726,43 @@ export type ShopOffer = ShopItem & {
 
 export type ShopKind = "recovery" | "held" | "tm" | "training" | "mega" | "zmove";
 
+export const REST_SHOP_DISCOUNT_RATE = 0.5;
+
+export const REST_SHOP_DISCOUNT_COUPONS: Record<string, {shopKind: ShopKind; name: string; name_zh: string; desc: string; desc_zh: string; icon_asset: string}> = {
+  trainingcoupon: {
+    shopKind: "training",
+    name: "Training Shop Coupon",
+    name_zh: "训练商店折扣券",
+    desc: "Use during rest to halve Training Shop roll and purchase costs this rest.",
+    desc_zh: "休整页使用，本次休整训练商店抽奖和购买 5 折。",
+    icon_asset: "assets/items-pack/expcharm.png",
+  },
+  battleitemcoupon: {
+    shopKind: "held",
+    name: "Battle Item Shop Coupon",
+    name_zh: "战斗道具商店折扣券",
+    desc: "Use during rest to halve Battle Item Shop roll and purchase costs this rest.",
+    desc_zh: "休整页使用，本次休整道具商店抽奖和购买 5 折。",
+    icon_asset: "assets/items-pack/amuletcoin.png",
+  },
+  tmcoupon: {
+    shopKind: "tm",
+    name: "TM Shop Coupon",
+    name_zh: "技能机器商店折扣券",
+    desc: "Use during rest to halve TM Shop roll and purchase costs this rest.",
+    desc_zh: "休整页使用，本次休整技能商店抽奖和购买 5 折。",
+    icon_asset: "assets/items-pack/auroraticket.png",
+  },
+  recoverycoupon: {
+    shopKind: "recovery",
+    name: "Recovery Shop Coupon",
+    name_zh: "恢复商店折扣券",
+    desc: "Use during rest to halve Recovery Shop roll and purchase costs this rest.",
+    desc_zh: "休整页使用，本次休整回复商店抽奖和购买 5 折。",
+    icon_asset: "assets/items-pack/cleansetag.png",
+  },
+};
+
 export type CoinLedgerEntry = {
   id: string;
   at: string;
@@ -870,6 +907,31 @@ export type ResultPokemonStatEvent = {
   kind: "kill" | "death" | "assist" | "damage_dealt" | "damage_taken";
   value: number;
   source?: "move" | "status" | "item" | "ability" | "field" | "unknown";
+};
+
+export type RunQuestId = "ace_trial" | "winning_champion" | "type_expert" | "item_master" | "frugal_challenge";
+
+export type RunQuestProgress = {
+  value?: number;
+  target?: number;
+  battle_count?: number;
+  rest_count?: number;
+  best_kills?: number;
+  kills_by_pokemon?: Record<string, number>;
+  consecutive_wins?: number;
+  max_items_used_in_battle?: number;
+  rest_ledger_cursor_id?: string;
+};
+
+export type RunQuestState = {
+  id: RunQuestId;
+  name: string;
+  desc: string;
+  started_battle_no: number;
+  expires_after_battles?: number;
+  expires_after_rests?: number;
+  progress: RunQuestProgress;
+  completed?: boolean;
 };
 
 export type ResultProgressRow = {
@@ -1092,6 +1154,7 @@ export type CurrentRunData = {
   non_convertible_coins?: number;
   coins_earned_this_run?: number;
   coin_ledger?: CoinLedgerEntry[];
+  active_quest?: RunQuestState;
   second_team_roar_used?: boolean;
   all_in_exchange_used?: boolean;
   showdown_id_pool?: ShowdownIdPoolState;
@@ -1121,6 +1184,8 @@ export type CurrentRunData = {
     trust_level_used?: boolean;
     lead_change_used?: boolean;
     shop_slot_discounts?: number[];
+    shop_kind_discounts?: Partial<Record<ShopKind, number>>;
+    battle_item_uses_current?: number;
     shop_preferred_roll_used?: boolean;
     free_scout_used?: boolean;
     restore_hp_used?: boolean;

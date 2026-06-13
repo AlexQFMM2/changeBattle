@@ -85,6 +85,7 @@ import {
   REST_HP_COSTS,
   REST_PP_COSTS,
   REST_STATUS_COSTS,
+  RUN_QUEST_DEFINITIONS,
   SCOUT_ALL_COST,
   SCOUT_BASIC_COST,
   SCOUT_ONE_COST,
@@ -118,7 +119,9 @@ import {
   exchangeKeepsItem,
   exchangeStateRatio,
   hasTalent,
+  applyRestShopKindDiscount,
   isPremiumHeldShopEntry,
+  isTaskRewardItemId,
   isTrainingShopItemId,
   isTmItemId,
   itemCategory,
@@ -132,6 +135,8 @@ import {
   premiumMachineMoveCandidates,
   pricedForRun,
   pricedForShop,
+  restShopDiscountCoupon,
+  runQuestStatus,
   recordCoinLedger,
   recordPortfolioSpend,
   refreshStats,
@@ -153,6 +158,7 @@ import {
   scoreBetTarget,
   starterCoinsForSeed,
   starterNonConvertibleCoinsForTalents,
+  startRunQuest,
   starterUpgradeCatalog,
   starterUpgradeCost,
   starterUpgradeLevel,
@@ -168,6 +174,8 @@ import {
   talentLevel,
   tmIconAssetForMoveType,
   toId,
+  updateRunQuestAfterBattle,
+  updateRunQuestAfterRest,
 } from "./run-rules.js";
 import {activeBattleStateGetter, desktopRuntimeAssetUrl} from "./desktop-runtime-api.js";
 import {registerDesktopRuntimeIpc} from "./runtime-ipc.js";
@@ -402,7 +410,11 @@ const GUARANTEED_SHOP_ITEMS: Array<{id: string; cost: number}> = [
 ];
 const SHOP_REPEAT_PURCHASE_SURCHARGE = 10;
 
-const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: string; desc_zh: string}> = {
+const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: string; desc_zh: string; icon_asset?: string}> = {
+  trainingcoupon: restShopDiscountCoupon("trainingcoupon")!,
+  battleitemcoupon: restShopDiscountCoupon("battleitemcoupon")!,
+  tmcoupon: restShopDiscountCoupon("tmcoupon")!,
+  recoverycoupon: restShopDiscountCoupon("recoverycoupon")!,
   potion: {name: "Potion", name_zh: "回复药", desc: "Restores 20 HP.", desc_zh: "恢复 20 点 HP。"},
   superpotion: {name: "Super Potion", name_zh: "好伤药", desc: "Restores 60 HP.", desc_zh: "恢复 60 点 HP。"},
   hyperpotion: {name: "Hyper Potion", name_zh: "绝好伤药", desc: "Restores 120 HP.", desc_zh: "恢复 120 点 HP。"},
@@ -547,6 +559,18 @@ const REST_EVENT_COPY: Record<string, RestEventCopy> = {
 };
 
 const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
+  ...RUN_QUEST_DEFINITIONS.map((quest): RestEventDefinition => ({
+    id: `quest:${quest.id}`,
+    name: quest.name,
+    desc: quest.desc,
+    detail: quest.detail,
+    intro: quest.intro,
+    effects: quest.effects,
+    tone: "trade",
+    async apply(_save, run) {
+      return startRunQuest(run, quest.id);
+    },
+  })),
   {
     id: "recycler_appraisal",
     name: "含泪甩卖",
@@ -881,6 +905,7 @@ function ensureRestEventOptions(run: CurrentRunData): void {
   if (run.rest_status?.rest_event_options?.length) return;
   const rng = seededRng(Number(run.seed || 1), 0x7e57 + Number(run.battle_no || 0) * 173 + Number(run.next_battle || 1) * 37 + Number(run.wins || 0) * 19);
   const pool = REST_EVENT_DEFINITIONS.filter(event => {
+    if (run.active_quest && event.id.startsWith("quest:")) return false;
     if (event.id === "last_minute_escape" && (run.player_team || []).length <= 1) return false;
     if (event.id === "score_bet" && currentCoins(run) < SCORE_BET_MIN_STAKE) return false;
     if (event.id === "soul_swap" && !soulSwapAllowedForNextBattle(run)) return false;
@@ -906,6 +931,7 @@ async function chooseRestEvent(save: LocalSave, run: CurrentRunData, eventId: st
   if (!option) throw new Error("休整奇遇不存在。");
   const event = REST_EVENT_DEFINITIONS.find(entry => entry.id === option.id || toId(entry.id) === normalizedId);
   if (!event) throw new Error("休整奇遇配置缺失。");
+  if (run.active_quest && event.id.startsWith("quest:")) throw new Error(`已有进行中的任务：${run.active_quest.name}。`);
   const recent = [event.id, ...(run.rest_status?.recent_rest_event_ids || []).filter(value => toId(value) !== toId(event.id))].slice(0, 5);
   run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: event.id, recent_rest_event_ids: recent};
   return event.apply(save, run);
@@ -1765,6 +1791,8 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
   if (run.rest_status?.event_next_battle_healing_blocked) battleEventStatuses.push({id: "healing_blocked", label: "恢复诅咒", detail: "本场不能使用 HP/异常/复活类背包恢复道具。", tone: "risk"});
   if (run.rest_status?.event_soul_swap_active) battleEventStatuses.push({id: "soul_swap", label: "灵魂互换", detail: `双方都知道要努力“输”掉这场；${SOUL_SWAP_TURN_LIMIT} 回合未分胜负会被工厂叫停。`, tone: "risk"});
   if (run.rest_status?.event_score_bet_active) battleEventStatuses.push({id: "score_bet", label: "重金下注", detail: `精确命中 ${run.rest_status.event_score_bet_active.target_alive}:0，赔率 ${run.rest_status.event_score_bet_active.multiplier}x，返还 ${run.rest_status.event_score_bet_active.payout || scoreBetPayout(run.rest_status.event_score_bet_active.stake, run.rest_status.event_score_bet_active.multiplier)}金币。`, tone: "risk"});
+  const questStatus = runQuestStatus(run, "battle");
+  if (questStatus) battleEventStatuses.push(questStatus);
   return {
     ...state,
     player_trainer: run.player_trainer,
@@ -2388,7 +2416,7 @@ function assertShopKindAvailable(run: CurrentRunData, kind: ShopKind): void {
 
 function shopNextRollCostForKind(run: CurrentRunData, kind: ShopKind): number {
   if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0) return 0;
-  return Math.ceil(SHOP_KIND_CONFIG[kind].rollCost * eventShopPriceMultiplier(run));
+  return applyRestShopKindDiscount(run, kind, Math.ceil(SHOP_KIND_CONFIG[kind].rollCost * eventShopPriceMultiplier(run)));
 }
 
 function eventShopPriceMultiplier(run: CurrentRunData): number {
@@ -2544,7 +2572,7 @@ async function itemDetailsById(itemId: string): Promise<ShopItem> {
   const localItem = LOCAL_ITEM_DETAILS[normalized];
   const fallbackName = itemId || normalized;
   const cost = await itemBaseCostById(normalized);
-  const icon_asset = item?.icon_asset || itemIconAsset(normalized);
+  const icon_asset = item?.icon_asset || localItem?.icon_asset || itemIconAsset(normalized);
   return item
     ? {...item, id: normalized, cost, icon_asset}
     : localItem
@@ -2648,29 +2676,34 @@ function shopItemPurchaseCount(run: CurrentRunData, itemId: string): number {
   return Math.max(0, Math.floor(Number(run.shop_purchased_item_counts?.[itemKey(itemId)] || 0)));
 }
 
-function pricedShopOfferForRun(run: CurrentRunData, offer: ShopOffer, extraPurchases = 0): ShopOffer {
+function pricedShopOfferForRun(run: CurrentRunData, offer: ShopOffer, extraPurchases = 0, shopKind?: ShopKind | null): ShopOffer {
   const itemId = itemKey(offer.id || offer.name);
   const purchased = shopItemPurchaseCount(run, itemId) + Math.max(0, Math.floor(Number(extraPurchases || 0)));
   const surcharge = purchased * SHOP_REPEAT_PURCHASE_SURCHARGE;
-  return {...offer, cost: Math.ceil((Math.max(0, Math.floor(Number(offer.cost || 0))) + surcharge) * eventShopPriceMultiplier(run))};
+  const eventPriced = Math.ceil((Math.max(0, Math.floor(Number(offer.cost || 0))) + surcharge) * eventShopPriceMultiplier(run));
+  const cost = shopKind ? applyRestShopKindDiscount(run, shopKind, eventPriced) : eventPriced;
+  return {...offer, cost};
 }
 
 function pricedShopOffersForRun(run: CurrentRunData): ShopOffer[] {
-  return (run.shop_offers || []).map(offer => pricedShopOfferForRun(run, offer));
+  const shopKind = normalizeAvailableShopKind(run, run.shop_kind);
+  return (run.shop_offers || []).map(offer => pricedShopOfferForRun(run, offer, 0, shopKind));
 }
 
 function pricedShopOffersByKindForRun(run: CurrentRunData): Partial<Record<ShopKind, ShopOffer[]>> {
   return Object.fromEntries(Object.entries(run.shop_offers_by_kind || {}).map(([kind, offers]) => [
     kind,
-    (offers || []).map(offer => pricedShopOfferForRun(run, offer)),
+    (offers || []).map(offer => pricedShopOfferForRun(run, offer, 0, normalizeShopKind(kind))),
   ])) as Partial<Record<ShopKind, ShopOffer[]>>;
 }
 
-function findRunShopOffer(run: CurrentRunData, offerId: string): ShopOffer | null {
-  return [
-    ...(run.shop_offers || []),
-    ...Object.values(run.shop_offers_by_kind || {}).flatMap(offers => offers || []),
-  ].find(item => item.offer_id === offerId) || null;
+function findRunShopOffer(run: CurrentRunData, offerId: string): {offer: ShopOffer; shopKind: ShopKind | null} | null {
+  for (const [kind, offers] of Object.entries(run.shop_offers_by_kind || {})) {
+    const offer = (offers || []).find(item => item.offer_id === offerId);
+    if (offer) return {offer, shopKind: normalizeShopKind(kind)};
+  }
+  const offer = (run.shop_offers || []).find(item => item.offer_id === offerId);
+  return offer ? {offer, shopKind: normalizeAvailableShopKind(run, run.shop_kind)} : null;
 }
 
 async function tmOfferFromMove(move: MoveSummary, index: number, source: "shop" | "starter", discount = 1, talents: TalentView[] = []): Promise<ShopOffer> {
@@ -4032,6 +4065,8 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
   if (status.event_contest_next) entries.push({id: "contest", label: "华丽大赛", detail: "下一战会按裁判标记累计华丽分。", tone: "trade"});
   if (status.event_soul_swap_next) entries.push({id: "soul_swap", label: "灵魂互换", detail: "下一战操作队伍互换，胜负按原阵营结算。", tone: "risk"});
   if (status.event_score_bet_next) entries.push({id: "score_bet", label: "重金下注", detail: `下一战精确比分 ${status.event_score_bet_next.target_alive}:0，赔率 ${status.event_score_bet_next.multiplier}x，下注 ${status.event_score_bet_next.stake}，命中返还 ${status.event_score_bet_next.payout || scoreBetPayout(status.event_score_bet_next.stake, status.event_score_bet_next.multiplier)}。`, tone: "risk"});
+  const questStatus = runQuestStatus(run, "rest");
+  if (questStatus) entries.push(questStatus);
   return entries;
 }
 
@@ -4323,6 +4358,13 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   const scoreBetText = settleActiveScoreBet(run, effectivePlayerWin, aliveStateCount(playerPerspectiveState), aliveStateCount(enemyPerspectiveState));
   const winBp = recordBattleResult(save, effectiveWinner, run);
   const statEvents = recordRunBattleStats(run, state);
+  const questMessage = updateRunQuestAfterBattle(run, {
+    playerWon: effectivePlayerWin,
+    playerState: playerPerspectiveState,
+    statEvents,
+    timelineEvents: state.timeline_events || [],
+    playerSide: "p1",
+  });
   if (!effectivePlayerWin) {
     const wins = Number(run.wins || 0);
     rememberRunForSoulmate(save, run);
@@ -4331,7 +4373,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const next = await persist(save);
     const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "对手训练师";
     const lossReason = soulSwapActive && state.winner === "Player" ? "灵魂互换：你操作对手队伍获胜，按挑战失败结算。" : `挑战结束。败给 ${enemyName}。`;
-    const lossMessage = `${lossReason}${scoreBetText ? `${scoreBetText} ` : ""}连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+    const lossMessage = `${lossReason}${scoreBetText ? `${scoreBetText} ` : ""}${questMessage ? `${questMessage} ` : ""}连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
     const resultBattle = decorateBattleState(state, run);
     const resultSummary = buildResultSummary({outcome: "loss", headline: "挑战失败", subtitle: `败给 ${enemyName}`, wins, settled, battle: resultBattle, run});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message: lossMessage, outcome: "loss", statEvents, resultSummary}));
@@ -4353,7 +4395,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
-    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `，华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `，反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `，彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${scoreBetText ? `，${scoreBetText}` : ""}${contest.overrideWin ? "，裁判介入改判成功" : ""}${soulSwapActive ? "，灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
+    const message = `通关！完成 ${wins} 连胜。连续通关 ${setStreak} 次，奖励 ${bonus}金币${allInBonus ? `，孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `，华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `，反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `，彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${scoreBetText ? `，${scoreBetText}` : ""}${questMessage ? `，${questMessage}` : ""}${contest.overrideWin ? "，裁判介入改判成功" : ""}${soulSwapActive ? "，灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "，坚毅不倒已恢复队伍" : ""}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}。`;
     const resultBattle = decorateBattleState(state, run);
     const resultSummary = buildResultSummary({outcome: "win", headline: "通关", subtitle: `完成 ${wins} 连胜`, wins, settled, battle: resultBattle, run, battleReward: winBp, clearBonus: bonus, allInBonus});
     await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: resultBattle, message, outcome: "win", statEvents, resultSummary}));
@@ -4372,7 +4414,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   });
   const next = await persist(save);
   const supplyText = rainbowRocketSupplies.length ? `；工厂补给：${rainbowRocketSupplies.join("、")}` : "";
-  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `；反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `；彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${supplyText}${scoreBetText ? `；${scoreBetText}` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
+  const rewardText = `对局胜利，获得 ${winBp}金币${allInBonus ? `；孤注一掷翻倍 +${allInBonus}金币` : ""}${contestBonus ? `；华丽大赛 +${contestBonus}金币` : ""}${villainIntrusionBonus ? `；反派乱入奖励 +${villainIntrusionBonus}金币` : ""}${rainbowRocketBonus ? `；彩虹火箭队奖励 +${rainbowRocketBonus}金币` : ""}${supplyText}${scoreBetText ? `；${scoreBetText}` : ""}${questMessage ? `；${questMessage}` : ""}${contest.overrideWin ? "；裁判介入改判成功" : ""}${soulSwapActive ? "；灵魂互换按原队伍胜利结算" : ""}${stalwartRecovered ? "；坚毅不倒已恢复队伍" : ""}。当前连胜：${wins}`;
   await saveStore?.appendBattleRecord(buildBattleRecord({run, battle: decorateBattleState(state, run), message: rewardText, outcome: "win", statEvents}));
   const transition = {...await restState(next, next.current_run as CurrentRunData), toast_message: rewardText};
   return gameState({screen: "battleMain", save: next, battle: decorateBattleState(state, run), battle_bag: await battleBagCategories(next.current_run as CurrentRunData), message: `本场胜利！当前连胜：${wins}`, pending_transition: transition});
@@ -4387,13 +4429,20 @@ async function finishSoulSwapTimeoutLoss(save: LocalSave, state: BattleState): P
   const scoreBetText = settleActiveScoreBet(run, false, aliveStateCount(playerPerspectiveState), aliveStateCount(enemyPerspectiveState));
   recordBattleResult(save, "Enemy", run);
   const statEvents = recordRunBattleStats(run, state);
+  const questMessage = updateRunQuestAfterBattle(run, {
+    playerWon: false,
+    playerState: playerPerspectiveState,
+    statEvents,
+    timelineEvents: state.timeline_events || [],
+    playerSide: "p1",
+  });
   const wins = Number(run.wins || 0);
   rememberRunForSoulmate(save, run);
   const settled = await settleRunEnd(save, run, {outcome: "loss"});
   save.current_run = null;
   const next = await persist(save);
   const timeoutText = `灵魂互换：战斗超过 ${SOUL_SWAP_TURN_LIMIT} 回合仍未分出胜负，工厂判定双方刻意打假赛，双方同时判负。`;
-  const message = `${timeoutText}${scoreBetText ? `${scoreBetText} ` : ""}挑战失败。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
+  const message = `${timeoutText}${scoreBetText ? `${scoreBetText} ` : ""}${questMessage ? `${questMessage} ` : ""}挑战失败。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
   const timeoutEvent: BattleTimelineEvent = {id: randomUUID(), type: "win", text: "工厂叫停：双方同时判负。", turn: state.tracker?.turn};
   const forcedBattle: BattleState = {
     ...state,
@@ -4502,10 +4551,12 @@ async function finishRestForNextBattle(save: LocalSave, run: CurrentRunData): Pr
   if (rainbowRocketSupportRequired(run)) throw new Error("请先处理彩虹火箭队支援。");
   if (!rotateFirstUsable(run)) throw new Error("队伍没有可出战宝可梦，请先恢复 HP。");
   const battleNo = Number(run.battle_no ?? 0);
+  const questMessage = updateRunQuestAfterRest(run);
   const carryRestStatus = carryRestStatusForBattle(run);
   save.current_run = prepareRunForNextBattleAfterRest(run, {battleNo, carryRestStatus});
   const next = await persist(save);
-  return startNextBattle(next);
+  const nextState = await startNextBattle(next);
+  return questMessage ? {...nextState, message: [questMessage, nextState.message].filter(Boolean).join(" ")} : nextState;
 }
 
 function normalizeStatsInput(input: Record<string, number> | undefined, defaultValue: number): Record<string, number> {
@@ -4811,9 +4862,14 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   }
 
   if (action.type === "use_item") {
+    const normalizedItem = itemKey(action.itemId);
+    if (isTaskRewardItemId(normalizedItem)) {
+      const text = await runtimeApplyRestConsumableItem(run, normalizedItem, 0, action.moveSlot, gameService);
+      const next = await persist(save);
+      return await restState(next, next.current_run as CurrentRunData, text);
+    }
     const slot = Number(action.slot);
     if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
-    const normalizedItem = itemKey(action.itemId);
     await assertRestItemUsableByEvents(run, normalizedItem);
     const trainingEffect = await gameService.trainingItemEffect(normalizedItem);
     if (trainingEffect) {
@@ -4862,6 +4918,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const itemId = itemKey(action.itemId);
     const count = Number(run.bag_items?.[itemId] || 0);
     if (count <= 0) throw new Error("背包里没有这个道具。");
+    if (isTaskRewardItemId(itemId)) throw new Error("任务奖励道具不能出售。");
     const item = await itemDetailsById(itemId);
     const meta = run.bag_item_meta?.[itemId];
     const displayItem = {...item, cost: Math.max(0, Number(meta?.cost ?? item.cost ?? 0))};
@@ -4884,6 +4941,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "forge_items") {
     const itemIds = (action.itemIds || []).map(itemKey).filter(Boolean);
+    if (itemIds.some(isTaskRewardItemId)) throw new Error("任务奖励道具不能用于重铸。");
     const rewards = await rollForgeRewards(run, itemIds);
     for (const id of itemIds) consumeBagItemCount(run, id, 1);
     const rewardTexts: string[] = [];
@@ -4895,6 +4953,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (action.type === "forge_special_item") {
     const itemId = itemKey(action.itemId);
     if (Number(run.bag_items?.[itemId] || 0) <= 0) throw new Error("背包里没有这个特殊道具。");
+    if (isTaskRewardItemId(itemId)) throw new Error("任务奖励道具不能用于重铸。");
     const pool = specialForgePoolForItem(itemId);
     if (!pool.length) throw new Error("这个道具不能使用特殊熔炉。");
     const spent = spendRunBp(save, run, SPECIAL_FORGE_COST, "forge-special");
@@ -5155,10 +5214,11 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "buy_shop_offer") {
     if (run.rest_status?.event_barter_active) throw new Error("以物易物期间不能使用金币购买，请投入背包道具交换。");
-    const offer = findRunShopOffer(run, action.offerId);
-    if (!offer) throw new Error("商品不存在，请先刷新商店。");
+    const found = findRunShopOffer(run, action.offerId);
+    if (!found) throw new Error("商品不存在，请先刷新商店。");
+    const {offer, shopKind} = found;
     const itemId = itemKey(offer.id || offer.name);
-    const pricedOffer = pricedShopOfferForRun(run, offer);
+    const pricedOffer = pricedShopOfferForRun(run, offer, 0, shopKind);
     const spent = spendRunBp(save, run, Number(pricedOffer.cost || 0), `shop-buy:${itemId}`, {alreadyPriced: true});
     run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + 1};
     rememberBagItemMeta(run, offer);
@@ -5171,14 +5231,16 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
 
   if (action.type === "event_barter_buy") {
     if (!run.rest_status?.event_barter_active) throw new Error("当前不是以物易物商店。");
-    const offer = findRunShopOffer(run, action.offerId);
-    if (!offer) throw new Error("商品不存在，请先刷新商店。");
+    const found = findRunShopOffer(run, action.offerId);
+    if (!found) throw new Error("商品不存在，请先刷新商店。");
+    const {offer} = found;
     const materialIds = (action.itemIds || []).map(itemKey).filter(Boolean);
     if (materialIds.length < 1 || materialIds.length > 3) throw new Error("以物易物需要投入 1-3 个背包道具。");
     const materialCounts = materialIds.reduce<Record<string, number>>((acc, id) => ({...acc, [id]: Number(acc[id] || 0) + 1}), {});
     let value = 0;
     for (const [id, needed] of Object.entries(materialCounts)) {
       if (isSpecialSystemItemId(id)) throw new Error("特殊系统道具不能用于以物易物。");
+      if (isTaskRewardItemId(id)) throw new Error("任务奖励道具不能用于以物易物。");
       if (Number(run.bag_items?.[id] || 0) < needed) throw new Error("以物易物材料数量不足。");
       const item = await itemDetailsById(id);
       const meta = run.bag_item_meta?.[id];

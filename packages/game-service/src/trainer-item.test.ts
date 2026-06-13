@@ -1034,6 +1034,18 @@ function testBattleSystemItemClassification(): void {
   assert.ok(!service.megaStoneItemIds().includes("crucibellite"));
 }
 
+async function testItemOptionsIncludeLocalRecoveryItems(): Promise<void> {
+  const service = createTestService();
+  const items = await service.itemOptions();
+  const byId = new Map(items.map(item => [String(item.id), item]));
+  for (const id of ["potion", "superpotion", "hyperpotion", "fullrestore", "revivalherb", "ether", "maxether", "elixir", "maxelixir"]) {
+    const item = byId.get(id);
+    assert.ok(item, `${id} should be available to shop/item detail lookup`);
+    assert.ok(item.name_zh && item.name_zh !== id, `${id} should have localized display name`);
+    assert.ok(item.icon_asset, `${id} should have an icon asset`);
+  }
+}
+
 await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
@@ -1081,4 +1093,5 @@ testDedicatedZCrystalPreferredDuringGuarantee();
 testDedicatedMegaStoneGuarantee();
 testRayquazaMegaPoolGate();
 testBattleSystemItemClassification();
+await testItemOptionsIncludeLocalRecoveryItems();
 console.log("Trainer item battle tests passed.");

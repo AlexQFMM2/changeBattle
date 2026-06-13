@@ -69,6 +69,7 @@ import {
   itemKey,
   itemCategory,
   isTrainingShopItemId,
+  applyRestShopKindDiscount,
   hasTalent,
   partialStateForPokemon,
   prepareRunForNextBattleAfterRest,
@@ -81,6 +82,7 @@ import {
   recordTrainerDexResult,
   rerouteTrainerForRoute,
   resolveBattleCommandOutcome,
+  runQuestStatus,
   pricedForRun,
   createTrainerProfileTools,
   buyRunItem,
@@ -110,10 +112,12 @@ import {
   talentLevel,
   toId,
   trainerDexSearch,
+  updateRunQuestAfterBattle,
+  updateRunQuestAfterRest,
   validateStatAdjustments,
   villainIntrusionRollHits,
 } from "@changebattle/game-runtime";
-import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
+import {DEFAULT_BATTLE_SETTING, REST_SHOP_DISCOUNT_COUPONS, normalizeBattleSetting} from "@changebattle/shared";
 import type {BagCategoryView, BattleBackgroundView, BattleState, CurrentRunData, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PokemonSet, RentalPokemon, RestState, ShopItem, ShopKind, ShopOffer, ShopState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {createMobileRuntimeEnvironment} from "./mobileRuntimeEnv";
 import shopPoolCsv from "../../../data/shop_pool.csv?raw";
@@ -217,6 +221,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
     const decorateMobileBattleState = (state: BattleState, run?: CurrentRunData | null): BattleState => {
       if (!run) return state;
       const playerTalents = run.talents || [];
+      const questStatus = runQuestStatus(run, "battle");
       return {
         ...state,
         player_trainer: run.player_trainer,
@@ -227,6 +232,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         show_move_effectiveness: hasTalent(playerTalents, "intel_god_eye"),
         battle_setting: normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING),
         music_scene: run.boss_type && run.boss_type !== "normal" ? "boss" : "battle",
+        battle_event_statuses: questStatus ? [...(state.battle_event_statuses || []), questStatus] : state.battle_event_statuses,
       };
     };
     let bossTeamPoolsPromise: Promise<RuntimeBossTeamPoolRow[]> | null = null;
@@ -334,23 +340,32 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
       if (!run || !activeBattle) return gameState({screen: "result", save, battle: state, message: "移动端战斗已结束。"});
       const perspective = finishedBattlePerspective(run, state, activeBattle);
       applyFinishedBattlePerspectiveToRun(run, perspective);
+      const mobilePlayerWon = perspective.playerWonByBattleState;
+      const questMessage = updateRunQuestAfterBattle(run, {
+        playerWon: mobilePlayerWon,
+        playerState: perspective.playerState,
+        timelineEvents: state.timeline_events || [],
+        playerSide: "p1",
+      });
       const settled = settleBasicBattleResult(save, run, state, {
         playerState: perspective.playerState,
+        playerWon: mobilePlayerWon,
         defaultBattles: 7,
         rewardCoins: mobileBattleRewardCoins(run),
         lossMessage: "移动端挑战失败。",
-        winMessage: wins => `移动端真实战斗胜利，获得 ${mobileBattleRewardCoins(run)} 金币。当前连胜：${wins}`,
-        completedMessage: wins => `移动端挑战通关，完成 ${wins} 连胜，获得 ${mobileBattleRewardCoins(run)} 金币。`,
+        winMessage: (wins, coinsEarned) => `移动端真实战斗胜利，获得 ${coinsEarned} 金币。当前连胜：${wins}`,
+        completedMessage: (wins, coinsEarned) => `移动端挑战通关，完成 ${wins} 连胜，获得 ${coinsEarned} 金币。`,
       });
+      const settlementMessage = [settled.message, questMessage].filter(Boolean).join(" ");
       recordTrainerDexResult(save, run.enemy_trainer?.id, settled.outcome === "loss" ? "loss" : "win", {now: env.now().toISOString()});
       const resultSummary = buildRuntimeResultSummary({
         outcome: settled.outcome === "loss" ? "loss" : "win",
         headline: settled.outcome === "loss" ? "挑战失败" : settled.outcome === "completed" ? "通关" : "战斗胜利",
-        subtitle: settled.message,
+        subtitle: settlementMessage,
         wins: settled.outcome === "loss" ? Number(run.wins || 0) : Number(settled.wins || run.wins || 0),
         run,
         battle: state,
-        battleReward: settled.outcome === "loss" ? undefined : mobileBattleRewardCoins(run),
+        battleReward: settled.outcome === "loss" ? undefined : settled.coinsEarned,
         defaultBattles: 7,
       });
       await env.saves.appendBattleRecord(buildRuntimeBattleRecord({
@@ -358,7 +373,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         createdAt: env.now().toISOString(),
         run,
         battle: state,
-        message: settled.message,
+        message: settlementMessage,
         outcome: settled.outcome === "loss" ? "loss" : "win",
         resultSummary,
         defaultBattles: 7,
@@ -367,19 +382,19 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
       if (settled.outcome === "loss") {
         const next = await env.saves.save(save);
         activeBattle = null;
-        const transition = gameState({screen: "result", save: next, battle: activeBattleState, message: settled.message, result_summary: resultSummary});
-        return gameState({screen: "battleMain", save: next, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), run), message: settled.message, pending_transition: transition});
+        const transition = gameState({screen: "result", save: next, battle: activeBattleState, message: settlementMessage, result_summary: resultSummary});
+        return gameState({screen: "battleMain", save: next, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), run), message: settlementMessage, pending_transition: transition});
       }
       if (settled.outcome === "completed") {
         const done = await env.saves.save(save);
         activeBattle = null;
-        const transition = gameState({screen: "result", save: done, battle: activeBattleState, message: settled.message, result_summary: resultSummary});
-        return gameState({screen: "battleMain", save: done, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), run), message: settled.message, pending_transition: transition});
+        const transition = gameState({screen: "result", save: done, battle: activeBattleState, message: settlementMessage, result_summary: resultSummary});
+        return gameState({screen: "battleMain", save: done, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), run), message: settlementMessage, pending_transition: transition});
       }
       activeBattle = null;
-      const transition = await mobileRestGameState(save, settled.message, activeBattleState);
+      const transition = await mobileRestGameState(save, settlementMessage, activeBattleState);
       const transitionRun = (transition.save?.current_run as CurrentRunData | null) || run;
-      return gameState({screen: "battleMain", save: transition.save || save, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), transitionRun), message: settled.message, pending_transition: transition});
+      return gameState({screen: "battleMain", save: transition.save || save, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), transitionRun), message: settlementMessage, pending_transition: transition});
     };
     const mobileRestGameState = async (save: LocalSave, message: string, battle?: BattleState | null): Promise<DesktopGameState> => {
       const run = save.current_run as CurrentRunData | null;
@@ -624,8 +639,10 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           if (!run) return gameState({screen: "mainMenu", save, message: "当前没有进行中的挑战。"});
           if (action.type === "next") {
             if (rainbowRocketSupportRequired(run)) throw new Error("请先处理彩虹火箭队支援。");
+            const questMessage = updateRunQuestAfterRest(run);
             save.current_run = prepareRunForNextBattleAfterRest(run);
-            return startMobileNextBattle(save);
+            const nextState = await startMobileNextBattle(save);
+            return questMessage ? {...nextState, message: [questMessage, nextState.message].filter(Boolean).join(" ")} : nextState;
           }
           if (action.type === "abort") {
             const resultSummary = buildRuntimeResultSummary({
@@ -717,16 +734,17 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           if (action.type === "buy_shop_offer") {
             if (run.special_run === "rainbow_rocket") throw new Error("彩虹火箭队入侵期间普通商店关闭。");
             if (run.rest_status?.event_barter_active) throw new Error("以物易物期间不能使用金币购买，请投入背包道具交换。");
-            const offer = mobileFindShopOffer(run, action.offerId);
-            if (!offer) throw new Error("商店商品不存在。");
-            const message = buyRunShopOffer(run, offer);
+            const found = mobileFindShopOffer(run, action.offerId);
+            if (!found) throw new Error("商店商品不存在。");
+            const message = buyRunShopOffer(run, mobilePricedShopOffer(run, found.offer, found.shopKind));
             const next = await env.saves.save(save);
             return gameState({screen: "rest", save: next, rest: await mobileRest(next, next.current_run as CurrentRunData, await loadGameService()), message});
           }
           if (action.type === "event_barter_buy") {
             if (run.special_run === "rainbow_rocket") throw new Error("彩虹火箭队入侵期间普通商店关闭。");
-            const offer = mobileFindShopOffer(run, action.offerId);
-            if (!offer) throw new Error("商店商品不存在。");
+            const found = mobileFindShopOffer(run, action.offerId);
+            if (!found) throw new Error("商店商品不存在。");
+            const offer = found.offer;
             const service = await loadGameService();
             const materials = await Promise.all((action.itemIds || []).map(async itemId => ({item: await mobileItemDetails(service, itemId, run.bag_item_meta?.[itemKey(itemId)]), count: 1})));
             const message = barterRunShopOffer(run, offer, materials);
@@ -1093,7 +1111,10 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
 
 async function mobileRest(save: LocalSave, run: CurrentRunData, service: GameService): Promise<RestState> {
   const shopKind = mobileNormalizeAvailableShopKind(run, run.shop_kind);
-  const shopOffersByKind = run.shop_offers_by_kind || {};
+  const shopOffersByKind = Object.fromEntries(Object.entries(run.shop_offers_by_kind || {}).map(([kind, offers]) => [
+    kind,
+    (offers || []).map(offer => mobilePricedShopOffer(run, offer, mobileNormalizeShopKind(kind))),
+  ])) as Partial<Record<MobileShopKind, ShopOffer[]>>;
   const activeOffers = mobileCurrentShopOffers(run);
   if (run.planned_battles?.length) buildRuntimeNightSkyState(run, run.planned_battles);
   return buildRestState({
@@ -1149,21 +1170,23 @@ async function mobileRest(save: LocalSave, run: CurrentRunData, service: GameSer
         level_points: Math.max(0, Number(run.rest_status?.event_level_points || 0)),
         score_bet: Boolean(run.rest_status?.event_score_bet_next),
       },
+      rest_event_statuses: [runQuestStatus(run, "rest")].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
     },
   });
 }
 
 function mobileCurrentShopOffers(run: CurrentRunData): ShopOffer[] {
   const shopKind = mobileNormalizeAvailableShopKind(run, run.shop_kind);
-  return run.shop_offers_by_kind?.[shopKind] || run.shop_offers || [];
+  return (run.shop_offers_by_kind?.[shopKind] || run.shop_offers || []).map(offer => mobilePricedShopOffer(run, offer, shopKind));
 }
 
-function mobileFindShopOffer(run: CurrentRunData, offerId: string): ShopOffer | undefined {
-  const allOffers = [
-    ...(run.shop_offers || []),
-    ...Object.values(run.shop_offers_by_kind || {}).flatMap(offers => offers || []),
-  ];
-  return allOffers.find(item => item.offer_id === offerId);
+function mobileFindShopOffer(run: CurrentRunData, offerId: string): {offer: ShopOffer; shopKind: MobileShopKind} | undefined {
+  for (const [kind, offers] of Object.entries(run.shop_offers_by_kind || {})) {
+    const offer = (offers || []).find(item => item.offer_id === offerId);
+    if (offer) return {offer, shopKind: mobileNormalizeShopKind(kind)};
+  }
+  const offer = (run.shop_offers || []).find(item => item.offer_id === offerId);
+  return offer ? {offer, shopKind: mobileNormalizeAvailableShopKind(run, run.shop_kind)} : undefined;
 }
 
 function parseMobileShopPool(csv: string): MobileShopPoolEntry[] {
@@ -1222,7 +1245,12 @@ function mobileEventShopPriceMultiplier(run: CurrentRunData): number {
 
 function mobileShopNextRollCost(run: CurrentRunData, kind: MobileShopKind): number {
   if (Number(run.rest_status?.free_shop_rolls_remaining || 0) > 0) return 0;
-  return Math.ceil(MOBILE_SHOP_KIND_CONFIG[kind].rollCost * mobileEventShopPriceMultiplier(run));
+  return applyRestShopKindDiscount(run, kind, Math.ceil(MOBILE_SHOP_KIND_CONFIG[kind].rollCost * mobileEventShopPriceMultiplier(run)));
+}
+
+function mobilePricedShopOffer(run: CurrentRunData, offer: ShopOffer, kind: MobileShopKind): ShopOffer {
+  const eventPriced = Math.ceil(Math.max(0, Math.floor(Number(offer.cost || 0))) * mobileEventShopPriceMultiplier(run));
+  return {...offer, cost: applyRestShopKindDiscount(run, kind, eventPriced)};
 }
 
 function mobileShopPoolBucketForEntry(entry: MobileShopPoolEntry): MobileShopPoolBucket | null {
@@ -1460,8 +1488,9 @@ async function mobileItemDetails(service: GameService, itemId: string, meta?: Pa
     } as ShopItem;
   }
   const found = (await service.itemOptions()).find(item => itemKey(item.id || item.name) === id);
+  const coupon = REST_SHOP_DISCOUNT_COUPONS[id];
   return {
-    ...(found || {id, name: id, name_zh: id, desc: "", desc_zh: "", cost: 0, category: "held"}),
+    ...(found || (coupon ? {id, name: coupon.name, name_zh: coupon.name_zh, desc: coupon.desc, desc_zh: coupon.desc_zh, cost: 0, icon_asset: coupon.icon_asset, category: "consumable"} : {id, name: id, name_zh: id, desc: "", desc_zh: "", cost: 0, category: "held"})),
     ...(meta || {}),
     id,
     cost: Math.max(0, Number(meta?.cost ?? found?.cost ?? 0)),

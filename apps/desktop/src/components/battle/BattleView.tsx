@@ -1001,8 +1001,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
-  const playerParty = playerPartySlots(battle, activePlayerIndex, displayConditions.p1, battle.tracker.active.p1.status || "", setDetailIndex);
-  const rawEnemyParty = enemyPartySlots(battle, displayedActiveNames.p2 || battle.tracker.active.p2.species_id || battle.tracker.active.p2.name || "", displayConditions.p2, battle.tracker.active.p2.status || "");
+  const playerParty = playerPartySlots(battle, activePlayerIndex, displayConditions.p1, battle.tracker.active.p1.status || "", setDetailIndex, displayPlayer);
+  const rawEnemyParty = enemyPartySlots(battle, displayedActiveNames.p2 || battle.tracker.active.p2.species_id || battle.tracker.active.p2.name || "", displayConditions.p2, battle.tracker.active.p2.status || "", displayEnemy, displayedActiveShowdownIds.p2 || displayedActiveSnapshots.p2.showdown_id);
   const enemyParty = entryRevealLocked || introActive
     ? rawEnemyParty.map(slot => slot.active ? {...slot, display: undefined, condition: undefined, status: undefined, active: false, revealed: false} : slot)
     : rawEnemyParty;

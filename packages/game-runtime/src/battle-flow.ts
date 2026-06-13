@@ -1,6 +1,6 @@
 import type {BattleBackgroundView, BattleRecordEntry, BattleRequestView, BattleSetting, BattleState, BossDexRecord, CurrentRunData, LocalSave, PlannedBattleData, PlayerPokemonState, PokemonSet, RentalPokemon, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
-import {WIN_BP_REWARD, addCoins, addRunBp, emptyStats, itemKey, refreshStats} from "./run-rules.js";
+import {WIN_BP_REWARD, addBattleRewardCoins, addCoins, emptyStats, itemKey, refreshStats} from "./run-rules.js";
 
 export const VILLAIN_INTRUSION_BONUS_COINS = 500;
 export const RAINBOW_ROCKET_REWARD_COINS = 2000;
@@ -45,8 +45,8 @@ export type RunRestStatusCarry = NonNullable<CurrentRunData["rest_status"]>;
 
 export type BasicBattleSettlement =
   | {outcome: "loss"; run: CurrentRunData; message: string}
-  | {outcome: "completed"; run: CurrentRunData; wins: number; message: string}
-  | {outcome: "rest"; run: CurrentRunData; wins: number; message: string};
+  | {outcome: "completed"; run: CurrentRunData; wins: number; message: string; coinsEarned: number}
+  | {outcome: "rest"; run: CurrentRunData; wins: number; message: string; coinsEarned: number};
 
 export type RuntimeExchangeResult = {
   run: CurrentRunData;
@@ -304,6 +304,10 @@ export async function executeBattleChoice(run: CurrentRunData, session: RuntimeB
     });
     if (!itemUse) throw new Error("战斗道具指令无效。");
     const state = await session.chooseTrainerItem(itemUse.itemId, itemUse.slot, itemUse.moveSlot, itemUse.recoveryMultiplier);
+    run.rest_status = {
+      ...(run.rest_status || {}),
+      battle_item_uses_current: Math.max(0, Math.floor(Number(run.rest_status?.battle_item_uses_current || 0))) + 1,
+    };
     run.player_state = session.getPlayerState();
     return {state, shouldPersist: true};
   }
@@ -361,6 +365,7 @@ export function applyBattleWinRestTransition(run: CurrentRunData, options: Runti
   run.coins_earned_this_run = Number(run.coins_earned_this_run || 0) + Math.max(0, Math.floor(Number(options.coinsEarned || 0)));
   run.bp_earned_this_run = Number(run.bp_earned_this_run || 0) + Math.max(0, Math.floor(Number(options.bpEarned || 0)));
   if (options.restStatus) run.rest_status = options.restStatus;
+  if (run.rest_status) delete run.rest_status.battle_item_uses_current;
   return run;
 }
 
@@ -402,13 +407,14 @@ export function settleBasicBattleResult(save: LocalSave, run: CurrentRunData, st
   playerWon?: boolean;
   defaultBattles: number;
   rewardCoins?: number;
-  winMessage?: (wins: number) => string;
+  winMessage?: (wins: number, coinsEarned: number) => string;
   lossMessage?: string;
-  completedMessage?: (wins: number) => string;
+  completedMessage?: (wins: number, coinsEarned: number) => string;
 }): BasicBattleSettlement {
   if (options.playerState) run.player_state = options.playerState;
   const playerWon = options.playerWon ?? state.winner === "Player";
-  recordBattleOutcomeStats(save, playerWon ? "Player" : state.winner === "tie" ? "tie" : "Enemy", run, {recordTrainerDex: false});
+  const rewardCoins = Math.max(0, Math.floor(Number(options.rewardCoins ?? WIN_BP_REWARD)));
+  const gainedBattleCoins = recordBattleOutcomeStats(save, playerWon ? "Player" : state.winner === "tie" ? "tie" : "Enemy", run, {recordTrainerDex: false, winReward: rewardCoins});
   if (!playerWon) {
     save.current_run = null;
     return {outcome: "loss", run, message: options.lossMessage || "挑战失败。"};
@@ -418,22 +424,18 @@ export function settleBasicBattleResult(save: LocalSave, run: CurrentRunData, st
   run.wins = wins;
   run.enemy_raw = state.enemy_team || run.enemy_raw;
   run.enemy_display = state.enemy_display || run.enemy_display;
-  const rewardCoins = Math.max(0, Math.floor(Number(options.rewardCoins || 0)));
-  if (rewardCoins > 0) {
-    addCoins(run, rewardCoins, "battle-reward", "战斗奖励");
-  }
   if (battleNo >= Number(run.battles || options.defaultBattles)) {
     save.current_run = null;
-    return {outcome: "completed", run, wins, message: options.completedMessage?.(wins) || `挑战通关，完成 ${wins} 连胜。`};
+    return {outcome: "completed", run, wins, coinsEarned: gainedBattleCoins, message: options.completedMessage?.(wins, gainedBattleCoins) || `挑战通关，完成 ${wins} 连胜。`};
   }
   save.current_run = applyBattleWinRestTransition(run, {
     battleNo,
     wins,
     enemyTeam: state.enemy_team || run.enemy_raw,
     enemyDisplay: state.enemy_display || run.enemy_display,
-    coinsEarned: rewardCoins,
+    coinsEarned: gainedBattleCoins,
   });
-  return {outcome: "rest", run, wins, message: options.winMessage?.(wins) || `对局胜利。当前连胜：${wins}`};
+  return {outcome: "rest", run, wins, coinsEarned: gainedBattleCoins, message: options.winMessage?.(wins, gainedBattleCoins) || `对局胜利。当前连胜：${wins}`};
 }
 
 export function recordBattleOutcomeStats(save: LocalSave, winner: string | null, run?: CurrentRunData, options: {
@@ -447,7 +449,8 @@ export function recordBattleOutcomeStats(save: LocalSave, winner: string | null,
   if (winner === "Player") {
     stats.wins = Number(stats.wins || 0) + 1;
     save.stats = stats;
-    gained = addRunBp(save, run, options.winReward ?? WIN_BP_REWARD);
+    void save;
+    gained = addBattleRewardCoins(run, options.winReward ?? WIN_BP_REWARD);
     refreshStats(save);
   } else {
     stats.losses = Number(stats.losses || 0) + 1;
