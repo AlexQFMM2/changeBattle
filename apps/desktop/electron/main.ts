@@ -4928,7 +4928,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (slot < 0 || slot >= states.length) throw new Error("队伍编号无效。");
     await assertRestItemUsableByEvents(run, normalizedItem);
     const trainingEffect = await gameService.trainingItemEffect(normalizedItem);
-    if (trainingEffect) {
+    const useRuntimeRestConsumable = Boolean(trainingEffect) || normalizedItem === "rarecandy";
+    if (useRuntimeRestConsumable) {
       await runtimeApplyRestConsumableItem(run, normalizedItem, slot, action.moveSlot, gameService, {stat: action.stat, consume: false, dryRun: true});
     }
     let riskText = "";
@@ -4949,7 +4950,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
         return await restState(next, next.current_run as CurrentRunData, "铤而走险触发：道具使用失败，并失去了该道具。");
       }
     }
-    if (trainingEffect) {
+    if (useRuntimeRestConsumable) {
       const text = await runtimeApplyRestConsumableItem(run, normalizedItem, slot, action.moveSlot, gameService, {stat: action.stat, consume: consumeItem});
       const next = await persist(save);
       return await restState(next, next.current_run as CurrentRunData, riskText ? `${riskText}${text ? ` ${text}` : ""}` : text);

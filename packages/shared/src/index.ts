@@ -535,6 +535,7 @@ export type BattleState = {
 
 export type BattleAiHintAlternative = {
   choice: string;
+  choice_label?: string;
   title: string;
   reason: string;
   score: number;

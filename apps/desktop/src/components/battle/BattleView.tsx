@@ -1579,7 +1579,7 @@ function BattleAiHintModal({hint, error, disabled, onExecute, onClose}: {hint: B
           <>
             <section className="battle-ai-hint-primary">
               <strong>{hint.title}</strong>
-              <span>指令 {hint.choice}</span>
+              <span>指令 {hint.choice_label || hint.choice}</span>
               <p>{hint.reason}</p>
             </section>
             {alternatives.length ? (
@@ -1603,7 +1603,7 @@ function BattleAiHintAlternativeRow({option}: {option: BattleAiHintAlternative})
   return (
     <div className="battle-ai-hint-alt">
       <strong>{option.title}</strong>
-      <span>{option.choice}</span>
+      <span>{option.choice_label || option.choice}</span>
       <p>{option.reason}</p>
     </div>
   );

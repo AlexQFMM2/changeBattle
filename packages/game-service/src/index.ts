@@ -2836,10 +2836,31 @@ export class BattleSession {
   private aiCandidateHint(candidate: AiCandidate): BattleAiHintAlternative {
     return {
       choice: candidate.choice,
+      choice_label: this.aiCandidateChoiceLabel(candidate),
       title: this.aiCandidateTitle(candidate),
       reason: this.aiCandidateReason(candidate),
       score: Math.round(candidate.score),
     };
+  }
+
+  private aiCandidateMoveName(candidate: AiCandidate): string {
+    const raw = candidate.moveRequest?.id || candidate.move?.id || candidate.moveRequest?.move || candidate.move?.name || "";
+    const translated = this.service.plain("moves", raw);
+    if (translated && toId(translated) !== toId(raw)) return translated;
+    return candidate.moveRequest?.move || candidate.move?.name || `第 ${candidate.moveSlot || "?"} 招`;
+  }
+
+  private aiCandidateChoiceLabel(candidate: AiCandidate): string {
+    if (candidate.kind === "switch") return `换上第 ${candidate.switchSlot || "?"} 只`;
+    if (candidate.kind === "move") {
+      const slot = candidate.moveSlot || candidate.choice.match(/^move\s+(\d+)/i)?.[1] || "?";
+      if (candidate.battleSystem === "mega") return `第 ${slot} 招 + Mega`;
+      if (candidate.battleSystem === "zmove") return `第 ${slot} 招 + Z招式`;
+      if (candidate.battleSystem === "max") return `第 ${slot} 招 + 极巨化`;
+      if (candidate.battleSystem === "terastallize") return `第 ${slot} 招 + 太晶化`;
+      return `第 ${slot} 招`;
+    }
+    return "默认行动";
   }
 
   private aiCandidateTitle(candidate: AiCandidate): string {
@@ -2848,7 +2869,7 @@ export class BattleSession {
       return `换上 ${name}`;
     }
     if (candidate.kind === "move") {
-      const moveName = candidate.moveRequest?.move || candidate.move?.name || `第 ${candidate.moveSlot || "?"} 招`;
+      const moveName = this.aiCandidateMoveName(candidate);
       if (candidate.battleSystem === "mega") return `Mega 后使用 ${moveName}`;
       if (candidate.battleSystem === "zmove") return `释放 Z 招式：${moveName}`;
       if (candidate.battleSystem === "max") return `极巨化后使用 ${moveName}`;
