@@ -85,6 +85,7 @@ export type RuntimeBattleSessionLike = {
   choose(choice: string): Promise<BattleState>;
   forfeit(): BattleState;
   chooseTrainerItem(itemId: string, slot: number, moveSlot?: number, recoveryMultiplier?: number): Promise<BattleState>;
+  useDialgaGrace?(): Promise<BattleState>;
   advanceIfWaiting(): Promise<BattleState>;
 };
 
@@ -204,6 +205,11 @@ export function assertBattleChoiceAllowed(choice: string, run: CurrentRunData, s
     if (!/^switch\s+\d+/i.test(choice) && !/^default$/i.test(choice)) throw new Error("当前必须换人，不能使用招式或道具。");
     return;
   }
+  if (choice === "dialga_grace") {
+    if (!run.rest_status?.event_dialga_grace_active || run.rest_status.event_dialga_grace_used) throw new Error("帝牙卢卡的恩典当前不可用。");
+    if (!request || request.wait || request.teamPreview) throw new Error("当前不能发动帝牙卢卡的恩典。");
+    return;
+  }
   const setting = normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING);
   const zMoveMatch = choice.match(/^move\s+(\d+)\s+zmove$/i);
   if (zMoveMatch) {
@@ -297,6 +303,14 @@ export async function executeBattleChoice(run: CurrentRunData, session: RuntimeB
   isHpStatusReviveRecoveryItem?(itemId: string): Promise<boolean> | boolean;
 }): Promise<RuntimeBattleChoiceResult> {
   assertBattleChoiceAllowed(choice, run, session.getState());
+  if (choice === "dialga_grace") {
+    if (!run.rest_status?.event_dialga_grace_active || run.rest_status.event_dialga_grace_used) throw new Error("帝牙卢卡的恩典当前不可用。");
+    if (!session.useDialgaGrace) throw new Error("当前战斗不支持帝牙卢卡的恩典。");
+    const state = await session.useDialgaGrace();
+    run.rest_status = {...(run.rest_status || {}), event_dialga_grace_used: true};
+    run.player_state = session.getPlayerState();
+    return {state, shouldPersist: true};
+  }
   if (choice.startsWith("item ")) {
     const itemUse = await prepareTrainerItemUse(run, choice, {
       playerStateLength: session.getPlayerState().length,
@@ -647,6 +661,7 @@ export function buildBasicBattleRecord(options: {
     enemy_trainer: run.enemy_trainer,
     player_team: battle?.player_display || run.player_display || [],
     enemy_team: battle?.enemy_display || run.enemy_display || [],
+    turn_records: battle?.turn_records || [],
   };
 }
 
@@ -690,11 +705,12 @@ export function buildRuntimeBattleRecord(options: {
 }): BattleRecordEntry {
   const run = options.run;
   const battle = options.battle;
+  const battleNo = Math.max(1, Number(run.battle_no || options.activeBattleNo || run.next_battle || 1));
   return {
     id: options.id,
     created_at: options.createdAt,
     run_seed: Number(run.seed || 0),
-    battle_no: Math.max(1, Number(run.battle_no || options.activeBattleNo || run.next_battle || 1)),
+    battle_no: battleNo,
     total_battles: Math.max(1, Number(run.battles || options.defaultBattles)),
     outcome: options.outcome,
     winner: battle.winner,
@@ -702,8 +718,9 @@ export function buildRuntimeBattleRecord(options: {
     enemy_trainer: run.enemy_trainer,
     player_team: battle.player_display || run.player_display || [],
     enemy_team: battle.enemy_display || run.enemy_display || [],
+    turn_records: battle.turn_records || [],
     player_pokemon: battlePokemonSummaries(run, battle, options.statEvents || []),
-    result_summary: options.resultSummary,
+    result_summary: markResultSummaryBattleRecord(options.resultSummary, options.id, battleNo),
   };
 }
 
@@ -730,7 +747,15 @@ export function buildRuntimeRunRecord(options: {
     player_team: run.player_display || [],
     enemy_team: run.enemy_display || [],
     player_pokemon: resultUsedPokemon(run, run.player_display || []),
-    result_summary: options.resultSummary,
+    result_summary: markResultSummaryBattleRecord(options.resultSummary, options.id, Math.max(1, Number(run.battle_no || run.next_battle || 1))),
+  };
+}
+
+function markResultSummaryBattleRecord(summary: ResultSummaryState | undefined, recordId: string, battleNo: number): ResultSummaryState | undefined {
+  if (!summary?.progress?.length) return summary;
+  return {
+    ...summary,
+    progress: summary.progress.map(row => Number(row.battle_no) === Number(battleNo) ? {...row, battle_record_id: recordId} : row),
   };
 }
 
@@ -773,6 +798,8 @@ export function buildRuntimeResultSummary(options: {
     outcome: options.outcome,
     headline: options.headline,
     subtitle: options.subtitle,
+    run_seed: Number(options.run?.seed || 0),
+    total_battles: Math.max(options.defaultBattles, Number(options.run?.battles || options.defaultBattles)),
     rows,
     coin_rows: coinRows,
     bp_rows: bpRows,
@@ -876,6 +903,10 @@ function activatePendingRestEvents(run: CurrentRunData): void {
   if (run.rest_status?.event_soul_swap_next) {
     run.rest_status = {...run.rest_status, event_soul_swap_active: true};
     delete run.rest_status.event_soul_swap_next;
+  }
+  if (run.rest_status?.event_dialga_grace_next) {
+    run.rest_status = {...run.rest_status, event_dialga_grace_active: true, event_dialga_grace_used: false};
+    delete run.rest_status.event_dialga_grace_next;
   }
   if (run.rest_status?.event_score_bet_next) {
     run.rest_status = {...run.rest_status, event_score_bet_active: run.rest_status.event_score_bet_next};

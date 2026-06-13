@@ -752,11 +752,25 @@ export function startRunQuest(run: CurrentRunData, questId: RunQuestId): string 
   return `任务已领取：${quest.name}。${quest.desc}`;
 }
 
-export function runQuestStatus(run: CurrentRunData | null | undefined, context: "rest" | "battle" = "rest"): RestEventStatusView | null {
+export function runQuestStatus(run: CurrentRunData | null | undefined, context: "rest" | "battle" = "rest", options: {timelineEvents?: BattleTimelineEvent[]; playerSide?: "p1" | "p2"; battleEnded?: boolean} = {}): RestEventStatusView | null {
   const quest = run?.active_quest;
   if (!quest) return null;
   const definition = questDefinitionFor(quest.id);
-  const value = Math.max(0, Math.floor(Number(quest.progress.value || 0)));
+  const progressValue = Math.max(0, Math.floor(Number(quest.progress.value || 0)));
+  let value = progressValue;
+  if (context === "battle" && !options.battleEnded) {
+    if (quest.id === "item_master") {
+      value = Math.max(progressValue, Math.max(0, Math.floor(Number(run.rest_status?.battle_item_uses_current || 0))));
+    } else if (quest.id === "type_expert") {
+      value = progressValue + superEffectiveCount(options.timelineEvents || []);
+    } else if (quest.id === "ace_trial") {
+      const byPokemon = {...(quest.progress.kills_by_pokemon || {})};
+      for (const event of fallbackKillEventsFromTimeline(options.timelineEvents || [], options.playerSide || "p1")) {
+        byPokemon[event.pokemon_key] = Number(byPokemon[event.pokemon_key] || 0) + Math.max(0, Number(event.value || 0));
+      }
+      value = Math.max(progressValue, ...Object.values(byPokemon).map(entry => Math.max(0, Math.floor(Number(entry || 0)))));
+    }
+  }
   const target = Math.max(1, Math.floor(Number(quest.progress.target || definition.target || 1)));
   if (context === "battle" && quest.id === "frugal_challenge") return null;
   return {

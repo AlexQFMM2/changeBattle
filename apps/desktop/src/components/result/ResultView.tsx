@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import type {BattleState, RentalPokemon, ResultPokemonSummary, ResultProgressRow, ResultSummaryRow, ResultSummaryState} from "@changebattle/shared";
+import type {BattleRecordEntry, BattleState, BattleTurnPokemonState, BattleTurnRecord, RentalPokemon, ResultPokemonSummary, ResultProgressRow, ResultSummaryRow, ResultSummaryState} from "@changebattle/shared";
 import {PokemonSprite, displayName, trainerDisplayName, trainerImageUrl} from "../../lib/ui";
 
 export function ResultView({message, battle, summary, onBack, backLabel = "返回主界面"}: {message: string; battle: BattleState | null; summary: ResultSummaryState | null; onBack: () => void; backLabel?: string}) {
@@ -13,8 +13,25 @@ export function ResultView({message, battle, summary, onBack, backLabel = "返�
   const defaultProgressNo = progressRows.find(row => row.battle_no === 7)?.battle_no || progressRows.at(-1)?.battle_no || 1;
   const [selectedProgressNo, setSelectedProgressNo] = useState(defaultProgressNo);
   const [usedPage, setUsedPage] = useState(0);
+  const [battleRecords, setBattleRecords] = useState<BattleRecordEntry[]>([]);
+  const [recordsLoaded, setRecordsLoaded] = useState(false);
+  const [roundPanelOpen, setRoundPanelOpen] = useState(false);
+  const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null);
   const selectedPokemon = usedPokemon.find(entry => resultPokemonKey(entry.pokemon) === selectedPokemonKey) || usedPokemon[0] || null;
   const selectedProgress = progressRows.find(row => row.battle_no === selectedProgressNo) || progressRows.find(row => row.battle_no === defaultProgressNo) || progressRows[0] || null;
+  const selectedBattleRecord = useMemo(() => {
+    if (!selectedProgress) return null;
+    const byId = selectedProgress.battle_record_id ? battleRecords.find(record => record.id === selectedProgress.battle_record_id) : null;
+    if (byId) return byId;
+    const seed = Number(summary?.run_seed || 0);
+    return battleRecords
+      .filter(record => Number(record.battle_no) === Number(selectedProgress.battle_no))
+      .filter(record => !seed || Number(record.run_seed || 0) === seed)
+      .sort((left, right) => Date.parse(right.created_at || "") - Date.parse(left.created_at || ""))[0] || null;
+  }, [battleRecords, selectedProgress, summary?.run_seed]);
+  const selectedTurn = selectedBattleRecord?.turn_records?.find(record => record.id === selectedTurnId)
+    || selectedBattleRecord?.turn_records?.at(-1)
+    || null;
   const usedPageSize = 3;
   const usedPageCount = Math.max(1, Math.ceil(usedPokemon.length / usedPageSize));
   const currentUsedPage = Math.min(usedPage, usedPageCount - 1);
@@ -33,6 +50,27 @@ export function ResultView({message, battle, summary, onBack, backLabel = "返�
   useEffect(() => {
     if (!progressRows.some(row => row.battle_no === selectedProgressNo)) setSelectedProgressNo(defaultProgressNo);
   }, [defaultProgressNo, progressRows, selectedProgressNo]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.changeBattle?.battleRecords().then(table => {
+      if (cancelled) return;
+      setBattleRecords(table?.records || []);
+      setRecordsLoaded(true);
+    }).catch(() => {
+      if (cancelled) return;
+      setBattleRecords([]);
+      setRecordsLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setRoundPanelOpen(false);
+    setSelectedTurnId(null);
+  }, [selectedProgressNo]);
 
   return (
     <div className={`result-screen result-${outcome}`}>
@@ -91,7 +129,21 @@ export function ResultView({message, battle, summary, onBack, backLabel = "返�
               </button>
             ))}
           </div>
-          <ProgressDetail row={selectedProgress} />
+          {roundPanelOpen && selectedBattleRecord?.turn_records?.length ? (
+            <BattleRoundPanel
+              record={selectedBattleRecord}
+              selectedTurn={selectedTurn}
+              onSelectTurn={turn => setSelectedTurnId(turn.id)}
+              onBack={() => setRoundPanelOpen(false)}
+            />
+          ) : (
+            <ProgressDetail
+              row={selectedProgress}
+              record={selectedBattleRecord}
+              recordsLoaded={recordsLoaded}
+              onOpenRounds={selectedBattleRecord?.turn_records?.length ? () => setRoundPanelOpen(true) : undefined}
+            />
+          )}
         </aside>
       </section>
     </div>
@@ -149,7 +201,7 @@ function PokemonResultDetail({entry}: {entry: ResultPokemonSummary | null}) {
   );
 }
 
-function ProgressDetail({row}: {row: ResultProgressRow | null}) {
+function ProgressDetail({row, record, recordsLoaded, onOpenRounds}: {row: ResultProgressRow | null; record?: BattleRecordEntry | null; recordsLoaded?: boolean; onOpenRounds?: () => void}) {
   if (!row) return <article className="result-progress-detail">暂无进度记录。</article>;
   const visible = Boolean(row.trainer && row.trainer_visible);
   const image = visible ? trainerImageUrl(row.trainer, "front") || trainerImageUrl(row.trainer, "frontGif") : "";
@@ -160,9 +212,76 @@ function ProgressDetail({row}: {row: ResultProgressRow | null}) {
         <strong>{visible && row.trainer ? trainerDisplayName(row.trainer) : "未知训练家"}</strong>
         <span>{row.label}</span>
         <small>{progressOutcomeText(row.outcome)}</small>
+        {onOpenRounds ? <button className="result-round-open" onClick={onOpenRounds}>查看回合</button> : recordsLoaded && record ? <small>这场战斗暂无回合记录</small> : null}
       </div>
     </article>
   );
+}
+
+function BattleRoundPanel({record, selectedTurn, onSelectTurn, onBack}: {record: BattleRecordEntry; selectedTurn: BattleTurnRecord | null; onSelectTurn: (turn: BattleTurnRecord) => void; onBack: () => void}) {
+  const turns = record.turn_records || [];
+  return (
+    <section className="result-round-panel">
+      <header>
+        <div>
+          <strong>第 {record.battle_no} 场回合记录</strong>
+          <span>{turns.length} 个节点</span>
+        </div>
+        <button onClick={onBack}>返回</button>
+      </header>
+      <div className="result-round-list">
+        {turns.map(turn => (
+          <button className={selectedTurn?.id === turn.id ? "selected" : ""} onClick={() => onSelectTurn(turn)} key={turn.id}>
+            <i>{turn.turn || "开局"}</i>
+            <span>{turn.summary}</span>
+            <small>{aliveText(turn.end_state.player_team)} / {aliveText(turn.end_state.enemy_team)}</small>
+          </button>
+        ))}
+      </div>
+      <TurnDetail turn={selectedTurn} />
+    </section>
+  );
+}
+
+function TurnDetail({turn}: {turn: BattleTurnRecord | null}) {
+  if (!turn) return <article className="result-turn-detail empty">暂无回合详情。</article>;
+  return (
+    <article className="result-turn-detail">
+      <header>
+        <strong>{turn.title}</strong>
+        <span>{turn.result_tags.join(" / ") || "记录"}</span>
+      </header>
+      <p>{turn.summary}</p>
+      <div className="turn-action-grid">
+        <span>我方：{turn.player_action?.label || "未记录行动"}</span>
+        <span>对手：{turn.enemy_action?.label || "未记录行动"}</span>
+      </div>
+      <div className="turn-team-grid">
+        <TurnTeam title="我方回合末状态" team={turn.end_state.player_team} />
+        <TurnTeam title="对手回合末状态" team={turn.end_state.enemy_team} />
+      </div>
+    </article>
+  );
+}
+
+function TurnTeam({title, team}: {title: string; team: BattleTurnPokemonState[]}) {
+  return (
+    <section className="turn-team-state">
+      <strong>{title}</strong>
+      {team.map(pokemon => (
+        <div className={`turn-pokemon-row ${pokemon.active ? "active" : ""} ${pokemon.fainted ? "fainted" : ""}`} key={`${title}-${pokemon.showdown_id || pokemon.slot}`}>
+          <span>{pokemon.active ? "▶" : pokemon.slot}</span>
+          <b>{pokemon.name}</b>
+          <small>{pokemon.hp}/{pokemon.max_hp}{pokemon.status ? ` ${pokemon.status}` : ""}{pokemon.fainted ? " fnt" : ""}</small>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function aliveText(team: BattleTurnPokemonState[]): string {
+  const alive = team.filter(pokemon => !pokemon.fainted && pokemon.hp > 0).length;
+  return `${alive}/${Math.max(1, team.length)}`;
 }
 
 function fallbackUsedPokemon(summary: ResultSummaryState | null, battle: BattleState | null): ResultPokemonSummary[] {

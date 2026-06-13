@@ -4,7 +4,7 @@ ChangeBattle 是一个以 Pokemon Showdown 为底层规则引擎的宝可梦 Bos
 
 项目当前主版本是 Electron + React 桌面端，同时维护 Capacitor Android 自用 App。早期 Python CLI 仍保留在仓库中，但已经不是主要开发和规则验收入口。
 
-当前版本：`0.7.5`
+当前版本：`0.7.7`
 
 ```text
 Pokemon Showdown = 宝可梦数据、队伍 set、权威战斗规则和 BattleStream

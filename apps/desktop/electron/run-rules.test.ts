@@ -59,6 +59,7 @@ import {
   recordPortfolioSpend,
   refundableBagBaseBpFromCosts,
   rookieNormalNpcAiProfile,
+  runQuestStatus,
   scoutCost,
   sellPriceForItem,
   scoreBetMaxStakeForCoins,
@@ -416,10 +417,32 @@ function testRunQuests(): void {
   }), "任务完成：属性专家，获得 500金币、技能机器商店折扣券。");
   assert.equal(typeRun.bag_items?.tmcoupon, 1);
 
+  const typeStatusRun = run([], {coins: 0});
+  startRunQuest(typeStatusRun, "type_expert");
+  assert.equal(runQuestStatus(typeStatusRun, "battle", {
+    timelineEvents: Array.from({length: 3}, (_, index) => ({id: `se${index}`, type: "effectiveness", text: "效果拔群！", effect: "super effective"} as BattleTimelineEvent)),
+  })?.label, "属性专家 3/8");
+
   const itemRun = run([], {rest_status: {exchanges: 0, taken_enemy_slots: [], battle_item_uses_current: 5}});
   startRunQuest(itemRun, "item_master");
   assert.equal(updateRunQuestAfterBattle(itemRun, {playerWon: true, timelineEvents: [], playerSide: "p1"}), "任务完成：药系天王，获得 500金币、恢复商店折扣券。");
   assert.equal(itemRun.bag_items?.recoverycoupon, 1);
+
+  const itemStatusRun = run([], {rest_status: {exchanges: 0, taken_enemy_slots: [], battle_item_uses_current: 3}});
+  startRunQuest(itemStatusRun, "item_master");
+  assert.equal(runQuestStatus(itemStatusRun, "battle")?.label, "药系天王 3/5");
+
+  const aceStatusRun = run();
+  startRunQuest(aceStatusRun, "ace_trial");
+  assert.equal(runQuestStatus(aceStatusRun, "battle", {
+    playerSide: "p1",
+    timelineEvents: [
+      {id: "m1", type: "move", text: "Pikachu 使用 Thunderbolt。", side: "p1", source: "Pikachu", source_showdown_id: "p1: Pikachu"} as BattleTimelineEvent,
+      {id: "f1", type: "faint", text: "对手倒下了。", targetSide: "p2", target: "Enemy"} as BattleTimelineEvent,
+      {id: "m2", type: "move", text: "Pikachu 使用 Thunderbolt。", side: "p1", source: "Pikachu", source_showdown_id: "p1: Pikachu"} as BattleTimelineEvent,
+      {id: "f2", type: "faint", text: "对手倒下了。", targetSide: "p2", target: "Enemy 2"} as BattleTimelineEvent,
+    ],
+  })?.label, "王牌试炼 2/5");
 
   const frugalRun = run([], {coins: 1500});
   startRunQuest(frugalRun, "frugal_challenge");

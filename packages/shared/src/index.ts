@@ -372,6 +372,58 @@ export type BattleTimelineEvent = {
   hp?: {current: number; max: number; text: string} | null;
 };
 
+export type BattleTurnActionKind = "move" | "switch" | "item" | "forfeit" | "wait" | "unknown";
+
+export type BattleTurnAction = {
+  side: "p1" | "p2";
+  kind: BattleTurnActionKind;
+  actor_name?: string;
+  actor_showdown_id?: string;
+  label: string;
+  move_name?: string;
+  target_name?: string;
+};
+
+export type BattleTurnPokemonState = {
+  slot: number;
+  name: string;
+  showdown_id?: string;
+  species_id?: string;
+  active: boolean;
+  hp: number;
+  max_hp: number;
+  hp_text: string;
+  status: string;
+  fainted: boolean;
+  pp?: Array<{
+    slot: number;
+    id: string;
+    name: string;
+    pp: number;
+    max_pp: number;
+  }>;
+};
+
+export type BattleTurnEndState = {
+  player_team: BattleTurnPokemonState[];
+  enemy_team: BattleTurnPokemonState[];
+  weather: string;
+  field: string[];
+  side_conditions: Record<"p1" | "p2", string[]>;
+};
+
+export type BattleTurnRecord = {
+  id: string;
+  turn: number;
+  title: string;
+  summary: string;
+  player_action?: BattleTurnAction;
+  enemy_action?: BattleTurnAction;
+  result_tags: string[];
+  event_texts: string[];
+  end_state: BattleTurnEndState;
+};
+
 export type BattleBackgroundView = {
   id: string;
   name: string;
@@ -461,6 +513,7 @@ export type BattleState = {
   tracker: BattleTracker;
   recent_events: string[];
   timeline_events: BattleTimelineEvent[];
+  turn_records?: BattleTurnRecord[];
   player_team: PokemonSet[];
   player_display: RentalPokemon[];
   enemy_team: PokemonSet[];
@@ -474,6 +527,8 @@ export type BattleState = {
   enemy_boss_record?: BossDexRecord;
   battle_background?: BattleBackgroundView;
   battle_event_statuses?: RestEventStatusView[];
+  dialga_grace_available?: boolean;
+  dialga_grace_target_turn?: number;
   contest_score?: number;
   contest_marks?: RestContestState;
 };
@@ -615,6 +670,7 @@ export type RestEventOption = {
   intro?: string;
   effects?: string[];
   tone?: RestEventTone;
+  status?: "available" | "pending_implementation";
 };
 
 export type RestEventState = {
@@ -944,12 +1000,15 @@ export type ResultProgressRow = {
   outcome?: "win" | "loss" | "abort" | "pending";
   trainer?: TrainerNpcView;
   trainer_visible?: boolean;
+  battle_record_id?: string;
 };
 
 export type ResultSummaryState = {
   outcome: "win" | "loss" | "abort";
   headline: string;
   subtitle?: string;
+  run_seed?: number;
+  total_battles?: number;
   rows: ResultSummaryRow[];
   coin_rows?: ResultSummaryRow[];
   bp_rows?: ResultSummaryRow[];
@@ -1029,6 +1088,7 @@ export type BattleRecordEntry = {
   enemy_trainer?: TrainerNpcView;
   player_team: RentalPokemon[];
   enemy_team: RentalPokemon[];
+  turn_records?: BattleTurnRecord[];
   player_pokemon?: ResultPokemonSummary[];
   result_summary?: ResultSummaryState;
 };
@@ -1233,6 +1293,9 @@ export type CurrentRunData = {
     event_level_points?: number;
     event_soul_swap_next?: boolean;
     event_soul_swap_active?: boolean;
+    event_dialga_grace_next?: boolean;
+    event_dialga_grace_active?: boolean;
+    event_dialga_grace_used?: boolean;
     event_score_bet_next?: RestScoreBetState;
     event_score_bet_active?: RestScoreBetState;
     event_villain_intrusion_checked_battle_no?: number;

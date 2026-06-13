@@ -225,7 +225,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
     const decorateMobileBattleState = (state: BattleState, run?: CurrentRunData | null): BattleState => {
       if (!run) return state;
       const playerTalents = run.talents || [];
-      const questStatus = runQuestStatus(run, "battle");
+      const questStatus = runQuestStatus(run, "battle", {timelineEvents: state.timeline_events || [], playerSide: state.player_side || "p1", battleEnded: state.ended});
       return {
         ...state,
         player_trainer: run.player_trainer,

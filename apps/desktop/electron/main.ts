@@ -557,6 +557,10 @@ const REST_EVENT_COPY: Record<string, RestEventCopy> = {
     intro: "休整区发生了一件很难解释的怪事。你和下一位对手短暂交换了灵魂。两个人很快都发现胜负仍按原本身体结算，于是心里不约而同冒出同一句话：这场比赛，一定要“输”。",
     effects: [`下一场战斗中，你操作对手队伍。`, "对手也发现了规则，会努力把你的队伍打输。", "胜负仍按原阵营判断。", "如果你用 NPC 队伍打赢自己的原队伍，本局按挑战失败处理。", `${SOUL_SWAP_TURN_LIMIT} 回合未分胜负时，工厂会叫停并判定双方同时判负。`],
   },
+  dialga_grace: {
+    intro: "时间的裂缝在休整区短暂张开。帝牙卢卡的恩典并不会让整场战斗倒流，但能把你的队伍从过去的节点里拉回来一次。",
+    effects: ["下一战限 1 次，发动后代替本回合行动。", "我方全队 HP、异常、PP、濒死状态恢复为 3 回合前。", "不足 3 回合则恢复到第 1 回合。", "对手、天气、场地、能力变化和战斗进程不回退。"],
+  },
   reluctant_team: {
     intro: "队伍里的宝可梦今天格外黏人。它们不愿意被交换走，也不想看见新同伴顶替自己的位置。",
     effects: ["本次休整无法交换宝可梦。", "立刻获得 4 点可分配等级。", "等级可以分给当前队伍任意宝可梦。", "等级分配仍受徽章权限上限限制。"],
@@ -839,6 +843,17 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
       return "恋恋不舍：本次无法交换宝可梦，获得 4 点可分配等级。";
     },
   },
+  {
+    id: "dialga_grace",
+    name: "帝牙卢卡的恩典",
+    desc: "下一战获得 1 次时间恩典，可代替一回合行动恢复到 3 回合前状态。",
+    detail: "战斗内特殊行动；不回退对手、天气、场地、能力变化或战斗进程。",
+    tone: "safe",
+    async apply(_save, run) {
+      run.rest_status = {...(run.rest_status || {}), event_dialga_grace_next: true};
+      return "帝牙卢卡的恩典：下一战可发动 1 次时间恩典，代替本回合行动恢复我方全队到 3 回合前状态。";
+    },
+  },
 ];
 
 function freshRestStatus(talents: TalentView[] | undefined, extra: CurrentRunData["rest_status"] = {}): CurrentRunData["rest_status"] {
@@ -867,6 +882,7 @@ function carryRestStatusForBattle(run: CurrentRunData): CurrentRunData["rest_sta
     ...(status.event_next_battle_healing_blocked ? {event_next_battle_healing_blocked: true} : {}),
     ...(status.event_contest_next ? {event_contest_next: status.event_contest_next} : {}),
     ...(status.event_soul_swap_next ? {event_soul_swap_next: true} : {}),
+    ...(status.event_dialga_grace_next ? {event_dialga_grace_next: true} : {}),
     ...(status.event_score_bet_next ? {event_score_bet_next: status.event_score_bet_next} : {}),
     ...(status.event_rerandomized_locked_battles?.length ? {event_rerandomized_locked_battles: status.event_rerandomized_locked_battles} : {}),
   };
@@ -1782,9 +1798,25 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
   if (Number(run.rest_status?.event_recovery_multiplier || 1) < 1) battleEventStatuses.push({id: "recovery_down", label: run.rest_status?.event_hungry ? "饥饿" : "恢复减半", detail: "本场背包恢复道具效果减半。", tone: "risk"});
   if (run.rest_status?.event_next_battle_healing_blocked) battleEventStatuses.push({id: "healing_blocked", label: "恢复诅咒", detail: "本场不能使用 HP/异常/复活类背包恢复道具。", tone: "risk"});
   if (run.rest_status?.event_soul_swap_active) battleEventStatuses.push({id: "soul_swap", label: "灵魂互换", detail: `双方都知道要努力“输”掉这场；${SOUL_SWAP_TURN_LIMIT} 回合未分胜负会被工厂叫停。`, tone: "risk"});
+  if (run.rest_status?.event_dialga_grace_active) battleEventStatuses.push({id: "dialga_grace", label: run.rest_status.event_dialga_grace_used ? "恩典已用" : "帝牙卢卡的恩典", detail: run.rest_status.event_dialga_grace_used ? "本场战斗的时间恩典已经发动过。" : "可代替本回合行动，恢复我方全队到 3 回合前记录。", tone: "safe"});
   if (run.rest_status?.event_score_bet_active) battleEventStatuses.push({id: "score_bet", label: "重金下注", detail: `精确命中 ${run.rest_status.event_score_bet_active.target_alive}:0，赔率 ${run.rest_status.event_score_bet_active.multiplier}x，返还 ${run.rest_status.event_score_bet_active.payout || scoreBetPayout(run.rest_status.event_score_bet_active.stake, run.rest_status.event_score_bet_active.multiplier)}金币。`, tone: "risk"});
-  const questStatus = runQuestStatus(run, "battle");
+  const questStatus = runQuestStatus(run, "battle", {timelineEvents: state.timeline_events || [], playerSide: state.player_side || "p1", battleEnded: state.ended});
   if (questStatus) battleEventStatuses.push(questStatus);
+  const request = state.request;
+  const dialgaGraceAvailable = Boolean(
+    run.rest_status?.event_dialga_grace_active
+    && !run.rest_status.event_dialga_grace_used
+    && !state.ended
+    && request
+    && !request.wait
+    && !request.teamPreview
+    && !request.forceSwitch?.some(Boolean)
+  );
+  const currentTurn = Math.max(1, Number(state.tracker?.turn || state.turn_records?.at(-1)?.turn || 1));
+  const dialgaTargetRecord = state.turn_records
+    ?.filter(record => record.turn > 0 && record.turn <= Math.max(1, currentTurn - 3) && record.end_state?.player_team?.length)
+    .at(-1)
+    || state.turn_records?.find(record => record.end_state?.player_team?.length);
   return {
     ...state,
     player_trainer: run.player_trainer,
@@ -1796,6 +1828,8 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     battle_setting: normalizeBattleSetting(run.battle_setting || DEFAULT_BATTLE_SETTING),
     music_scene: run.boss_type && run.boss_type !== "normal" ? "boss" : "battle",
     battle_event_statuses: battleEventStatuses,
+    dialga_grace_available: dialgaGraceAvailable,
+    dialga_grace_target_turn: dialgaTargetRecord?.turn,
     contest_score: contestScore,
     contest_marks: run.rest_status?.event_contest_active,
   };
@@ -3998,6 +4032,9 @@ function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
     event_level_points: Math.max(0, Math.floor(Number(run.rest_status?.event_level_points || 0))),
     event_soul_swap_next: Boolean(run.rest_status?.event_soul_swap_next),
     event_soul_swap_active: Boolean(run.rest_status?.event_soul_swap_active),
+    event_dialga_grace_next: Boolean(run.rest_status?.event_dialga_grace_next),
+    event_dialga_grace_active: Boolean(run.rest_status?.event_dialga_grace_active),
+    event_dialga_grace_used: Boolean(run.rest_status?.event_dialga_grace_used),
     event_score_bet_next: normalizeStoredScoreBet(run.rest_status?.event_score_bet_next),
     event_score_bet_active: normalizeStoredScoreBet(run.rest_status?.event_score_bet_active),
     event_villain_intrusion_checked_battle_no: run.rest_status?.event_villain_intrusion_checked_battle_no ? Math.max(1, Math.floor(Number(run.rest_status.event_villain_intrusion_checked_battle_no))) : undefined,
@@ -4050,6 +4087,8 @@ async function applyRestDelayedEffects(run: CurrentRunData): Promise<string[]> {
   if (run.rest_status?.event_contest_active) delete run.rest_status.event_contest_active;
   if (run.rest_status?.event_next_battle_healing_blocked) delete run.rest_status.event_next_battle_healing_blocked;
   if (run.rest_status?.event_soul_swap_active) delete run.rest_status.event_soul_swap_active;
+  if (run.rest_status?.event_dialga_grace_active) delete run.rest_status.event_dialga_grace_active;
+  if (run.rest_status?.event_dialga_grace_used) delete run.rest_status.event_dialga_grace_used;
   if (run.rest_status?.event_score_bet_active) delete run.rest_status.event_score_bet_active;
   return messages;
 }
@@ -4075,6 +4114,7 @@ function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"
   if (isRainbowRocketRun(run)) entries.push({id: "rainbow_rocket", label: "彩虹火箭队", detail: "赛程已被劫持：普通奇遇和商店关闭，工厂支援与技能服务常驻。", tone: "risk"});
   if (status.event_contest_next) entries.push({id: "contest", label: "华丽大赛", detail: "下一战会按裁判标记累计华丽分。", tone: "trade"});
   if (status.event_soul_swap_next) entries.push({id: "soul_swap", label: "灵魂互换", detail: "下一战操作队伍互换，胜负按原阵营结算。", tone: "risk"});
+  if (status.event_dialga_grace_next) entries.push({id: "dialga_grace", label: "帝牙卢卡的恩典", detail: "下一战限 1 次，可代替本回合行动恢复我方全队到 3 回合前。", tone: "safe"});
   if (status.event_score_bet_next) entries.push({id: "score_bet", label: "重金下注", detail: `下一战精确比分 ${status.event_score_bet_next.target_alive}:0，赔率 ${status.event_score_bet_next.multiplier}x，下注 ${status.event_score_bet_next.stake}，命中返还 ${status.event_score_bet_next.payout || scoreBetPayout(status.event_score_bet_next.stake, status.event_score_bet_next.multiplier)}。`, tone: "risk"});
   const questStatus = runQuestStatus(run, "rest");
   if (questStatus) entries.push(questStatus);

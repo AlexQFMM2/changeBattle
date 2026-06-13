@@ -188,6 +188,15 @@ export const BASIC_REST_EVENT_OPTIONS: RestEventOption[] = [
     effects: ["本次休整无法交换宝可梦。", "立刻获得 4 点可分配等级。"],
     tone: "trade",
   },
+  {
+    id: "dialga_grace",
+    name: "帝牙卢卡的恩典",
+    desc: "下一战获得 1 次时间恩典，可代替一回合行动恢复到 3 回合前状态。",
+    detail: "战斗内特殊行动；不回退对手、天气、场地、能力变化或战斗进程。",
+    intro: "时间的裂缝在休整区短暂张开。帝牙卢卡的恩典并不会让整场战斗倒流，但能把你的队伍从过去的节点里拉回来一次。",
+    effects: ["下一战限 1 次，发动后代替本回合行动。", "我方全队 HP、异常、PP、濒死状态恢复为 3 回合前；不足 3 回合则恢复到第 1 回合。", "对手和战场状态不回退。"],
+    tone: "safe",
+  },
   ...RUN_QUEST_DEFINITIONS.map(quest => ({
     id: `quest:${quest.id}`,
     name: quest.name,
@@ -208,7 +217,7 @@ export function ensureBasicRestEventOptions(run: CurrentRunData, eventPool: Rest
   if (run.rest_status?.rest_event_selected_id || run.rest_status?.rest_event_options?.length) return;
   const seed = `${run.seed || 1}:${run.battle_no || 0}:${run.next_battle || 1}:${run.wins || 0}`;
   const recent = new Set((run.rest_status?.recent_rest_event_ids || []).map(toId).filter(Boolean));
-  const availablePool = eventPool.filter(event => !(run.active_quest && String(event.id).startsWith("quest:")));
+  const availablePool = eventPool.filter(event => event.status !== "pending_implementation" && !(run.active_quest && String(event.id).startsWith("quest:")));
   const freshPool = availablePool.filter(event => !recent.has(toId(event.id)));
   const sourcePool = freshPool.length >= 3 ? freshPool : availablePool;
   const picked = stableRestEventShuffle(sourcePool, seed).slice(0, 3).map(event => ({...event}));
@@ -255,6 +264,10 @@ export function applyBasicRestEventChoice(save: LocalSave, run: CurrentRunData, 
   if (id === "reluctant_team") {
     run.rest_status = {...(run.rest_status || {}), event_exchange_disabled: true, event_level_points: Number(run.rest_status?.event_level_points || 0) + 4};
     return "恋恋不舍：本次无法交换宝可梦，获得 4 点可分配等级。";
+  }
+  if (id === "dialga_grace") {
+    run.rest_status = {...(run.rest_status || {}), event_dialga_grace_next: true};
+    return "帝牙卢卡的恩典：下一战可发动 1 次时间恩典，代替本回合行动恢复我方全队到 3 回合前状态。";
   }
   if (id.startsWith("quest:")) {
     const questId = id.slice("quest:".length);

@@ -1,6 +1,6 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, BattleTurnPokemonState, BattleTurnRecord, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
 import {BATTLE_SYSTEM_OPTIONS} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
@@ -1058,7 +1058,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         ) : (
           <>
             <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
-            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onForfeit={() => onChoice("forfeit")} />}</div>
+            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands battle={battle} forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onDialgaGrace={() => onChoice("dialga_grace")} onForfeit={() => onChoice("forfeit")} />}</div>
           </>
         )}
       </section>
@@ -1352,9 +1352,18 @@ function contestMoveLabel(battle: BattleState, active: RentalPokemon | undefined
   return null;
 }
 
-function MainBattleCommands({forceSwitch, waiting, disabled, setMode, onBag, onForfeit}: {forceSwitch: boolean; waiting?: boolean; disabled?: boolean; setMode: (mode: AppStatus) => void; onBag: () => void; onForfeit: () => void}) {
-  if (waiting) return <div className="command-grid battle-command-grid"><button disabled>战斗继续中</button><button disabled>宝可梦</button><button disabled>背包</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
-  return <div className="command-grid battle-command-grid">{forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}<button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button><button disabled={disabled || forceSwitch} onClick={onBag}>背包</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
+function MainBattleCommands({battle, forceSwitch, waiting, disabled, setMode, onBag, onDialgaGrace, onForfeit}: {battle: BattleState; forceSwitch: boolean; waiting?: boolean; disabled?: boolean; setMode: (mode: AppStatus) => void; onBag: () => void; onDialgaGrace: () => void; onForfeit: () => void}) {
+  const graceTarget = battle.dialga_grace_target_turn ? `恢复至第 ${battle.dialga_grace_target_turn} 回合` : "等待回合记录";
+  if (waiting) return <div className="command-grid battle-command-grid"><button disabled>战斗继续中</button><button disabled>宝可梦</button><button disabled>背包</button><button disabled>恩典</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
+  return (
+    <div className={`command-grid battle-command-grid ${battle.dialga_grace_available || battle.battle_event_statuses?.some(status => status.id === "dialga_grace") ? "has-special-command" : ""}`}>
+      {forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}
+      <button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button>
+      <button disabled={disabled || forceSwitch} onClick={onBag}>背包</button>
+      {battle.battle_event_statuses?.some(status => status.id === "dialga_grace") ? <button className="special-command-button" title={graceTarget} disabled={disabled || !battle.dialga_grace_available} onClick={onDialgaGrace}>恩典</button> : null}
+      <button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button>
+    </div>
+  );
 }
 
 function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: "zmove" | "mega" | "max" | "terastallize") => void; onBack: () => void}) {
@@ -1715,7 +1724,79 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
 }
 
 function StatusModal({battle, onBack}: {battle: BattleState; onBack: () => void}) {
-  return <div className="modal-layer"><section className="status-modal"><header><h2>对局状态</h2><button onClick={onBack}>关闭</button></header><div className="status-grid"><p>回合：{battle.tracker.turn}</p><p>天气：{battle.tracker.weather || "无"}</p><p>全场：{battle.tracker.field.join(" / ") || "无"}</p><p>我方场地：{battle.tracker.side_conditions.p1.join(" / ") || "无"}</p><p>对手场地：{battle.tracker.side_conditions.p2.join(" / ") || "无"}</p><p>我方能力：{boostSummary(battle.tracker.boosts.p1)}</p><p>对手能力：{boostSummary(battle.tracker.boosts.p2)}</p></div><h3>最近战报</h3><div className="status-events">{lastEvents(battle, 14).map((event, index) => <small key={index}>{event}</small>)}</div></section></div>;
+  const [tab, setTab] = useState<"status" | "turns">("status");
+  const [selectedTurnId, setSelectedTurnId] = useState<string | null>(null);
+  const turns = battle.turn_records || [];
+  const selectedTurn = turns.find(turn => turn.id === selectedTurnId) || turns.at(-1) || null;
+  return (
+    <div className="modal-layer">
+      <section className="status-modal">
+        <header>
+          <h2>对局状态</h2>
+          <div className="status-modal-tabs">
+            <button className={tab === "status" ? "selected" : ""} onClick={() => setTab("status")}>状态</button>
+            <button className={tab === "turns" ? "selected" : ""} onClick={() => setTab("turns")}>回合</button>
+          </div>
+          <button onClick={onBack}>关闭</button>
+        </header>
+        {tab === "status" ? (
+          <>
+            <div className="status-grid"><p>回合：{battle.tracker.turn}</p><p>天气：{battle.tracker.weather || "无"}</p><p>全场：{battle.tracker.field.join(" / ") || "无"}</p><p>我方场地：{battle.tracker.side_conditions.p1.join(" / ") || "无"}</p><p>对手场地：{battle.tracker.side_conditions.p2.join(" / ") || "无"}</p><p>我方能力：{boostSummary(battle.tracker.boosts.p1)}</p><p>对手能力：{boostSummary(battle.tracker.boosts.p2)}</p></div>
+            <h3>最近战报</h3>
+            <div className="status-events">{lastEvents(battle, 14).map((event, index) => <small key={index}>{event}</small>)}</div>
+          </>
+        ) : (
+          <BattleTurnStatus turns={turns} selectedTurn={selectedTurn} onSelectTurn={turn => setSelectedTurnId(turn.id)} />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function BattleTurnStatus({turns, selectedTurn, onSelectTurn}: {turns: BattleTurnRecord[]; selectedTurn: BattleTurnRecord | null; onSelectTurn: (turn: BattleTurnRecord) => void}) {
+  if (!turns.length) return <div className="status-events"><small>本场战斗还没有回合记录。</small></div>;
+  return (
+    <div className="battle-turn-status">
+      <div className="battle-turn-list">
+        {turns.map(turn => (
+          <button className={selectedTurn?.id === turn.id ? "selected" : ""} onClick={() => onSelectTurn(turn)} key={turn.id}>
+            <strong>{turn.title}</strong>
+            <span>{turn.summary}</span>
+            <small>{battleTurnAliveText(turn.end_state.player_team)} / {battleTurnAliveText(turn.end_state.enemy_team)}</small>
+          </button>
+        ))}
+      </div>
+      {selectedTurn ? (
+        <article className="battle-turn-detail">
+          <strong>{selectedTurn.title}</strong>
+          <p>{selectedTurn.summary}</p>
+          <div className="battle-turn-team-grid">
+            <BattleTurnTeam title="我方" team={selectedTurn.end_state.player_team} />
+            <BattleTurnTeam title="对手" team={selectedTurn.end_state.enemy_team} />
+          </div>
+        </article>
+      ) : null}
+    </div>
+  );
+}
+
+function BattleTurnTeam({title, team}: {title: string; team: BattleTurnPokemonState[]}) {
+  return (
+    <section>
+      <strong>{title}</strong>
+      {team.map(pokemon => (
+        <div className={`${pokemon.active ? "active" : ""} ${pokemon.fainted ? "fainted" : ""}`} key={`${title}-${pokemon.showdown_id || pokemon.slot}`}>
+          <span>{pokemon.active ? "▶" : pokemon.slot}</span>
+          <b>{pokemon.name}</b>
+          <small>{pokemon.hp}/{pokemon.max_hp}{pokemon.status ? ` ${pokemon.status}` : ""}{pokemon.fainted ? " fnt" : ""}</small>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function battleTurnAliveText(team: BattleTurnPokemonState[]): string {
+  return `${team.filter(pokemon => !pokemon.fainted && pokemon.hp > 0).length}/${Math.max(1, team.length)}`;
 }
 
 function lastEvents(battle: BattleState, limit = 5): string[] {

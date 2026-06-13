@@ -5,6 +5,10 @@ import type {
   BattleMoveRequest,
   BattleState,
   BattleTimelineEvent,
+  BattleTurnAction,
+  BattleTurnEndState,
+  BattleTurnPokemonState,
+  BattleTurnRecord,
   BattleTracker,
   DesktopDexCategory,
   DesktopDexEntry,
@@ -2152,8 +2156,9 @@ export class BattleSession {
   protected ended = false;
   private winner: string | null = null;
   private tracker = createBattleTracker();
-  private recentEvents: string[] = [];
-  private timelineEvents: BattleTimelineEvent[] = [];
+  protected recentEvents: string[] = [];
+  protected timelineEvents: BattleTimelineEvent[] = [];
+  protected turnRecords: BattleTurnRecord[] = [];
   private timelineSeq = 0;
   private turnLogSeq = 0;
   private readonly battleLogId: string;
@@ -2215,6 +2220,7 @@ export class BattleSession {
     this.tracker = createBattleTracker();
     this.recentEvents = [];
     this.timelineEvents = [];
+    this.turnRecords = [];
     this.timelineSeq = 0;
     this.turnLogSeq = 0;
     this.stream = new this.sim.BattleStream({keepAlive: true});
@@ -2271,6 +2277,7 @@ export class BattleSession {
         this.withTimelineId({type: "message", text: "玩家认输。", side: this.playerSide()}),
         this.withTimelineId({type: "win", text: "胜者：对手", side: this.enemySide()})
       );
+      this.recordTurnSummary(this.tracker.turn || 0, this.timelineEvents.slice(-2));
     }
     return this.getState();
   }
@@ -2283,6 +2290,7 @@ export class BattleSession {
       tracker: this.tracker,
       recent_events: this.recentEvents.slice(-30),
       timeline_events: this.timelineEvents.slice(-100),
+      turn_records: this.turnRecords,
       player_team: this.playerTeam,
       player_display: this.playerDisplay,
       enemy_team: this.enemyTeam,
@@ -2490,6 +2498,7 @@ export class BattleSession {
     this.recentEvents = this.recentEvents.slice(-40);
     this.timelineEvents.push(...timelineWithIds);
     this.timelineEvents = this.timelineEvents.slice(-140);
+    this.recordTurnSummary(afterTurn || beforeTurn || 0, timelineWithIds);
   }
 
   private logTurnSummary(beforeTurn: number, afterTurn: number, showdownDATA: LogMessage[], protocolLines: string[], requestDiffs: RequestDiffLog[], events: string[], timeline: BattleTimelineEvent[]): void {
@@ -2509,6 +2518,91 @@ export class BattleSession {
         timeline,
         tracker: JSON.parse(JSON.stringify(this.tracker)) as BattleTracker,
       },
+    });
+  }
+
+  protected recordTurnSummary(turn: number, timeline: BattleTimelineEvent[]): void {
+    const meaningful = timeline.filter(event => event.text && event.type !== "debug");
+    if (!meaningful.length && turn <= 0) return;
+    const playerSide = this.playerSide();
+    const enemySide = this.enemySide();
+    const playerAction = this.actionForTurn(playerSide, meaningful);
+    const enemyAction = this.actionForTurn(enemySide, meaningful);
+    const eventTexts = meaningful.map(event => event.text).filter(Boolean).slice(-12);
+    const summary = turnSummaryText(playerAction, enemyAction, eventTexts);
+    const record: BattleTurnRecord = {
+      id: `turn-${Math.max(0, turn)}`,
+      turn: Math.max(0, turn),
+      title: turn > 0 ? `第 ${turn} 回合` : "战斗开局",
+      summary,
+      player_action: playerAction,
+      enemy_action: enemyAction,
+      result_tags: turnResultTags(meaningful),
+      event_texts: eventTexts,
+      end_state: this.turnEndState(),
+    };
+    const existingIndex = this.turnRecords.findIndex(entry => entry.turn === record.turn);
+    if (existingIndex >= 0) {
+      const previous = this.turnRecords[existingIndex];
+      this.turnRecords[existingIndex] = mergeTurnRecord(previous, record);
+    } else {
+      this.turnRecords.push(record);
+      this.turnRecords.sort((left, right) => left.turn - right.turn);
+    }
+    this.turnRecords = this.turnRecords.slice(-80);
+  }
+
+  private actionForTurn(side: SideId, events: BattleTimelineEvent[]): BattleTurnAction | undefined {
+    const direct = events.find(event => event.side === side && (event.type === "move" || event.type === "switch" || event.type === "item"));
+    if (direct) return actionFromTimelineEvent(side, direct);
+    const forfeit = events.find(event => event.type === "message" && event.side === side && /认输|forfeit/i.test(event.text));
+    if (forfeit) return {side, kind: "forfeit", actor_name: SIDE_NAMES[side], label: forfeit.text};
+    return undefined;
+  }
+
+  protected dialgaGraceTargetRecord(): BattleTurnRecord | null {
+    const currentTurn = Math.max(1, Number(this.tracker.turn || this.turnRecords.at(-1)?.turn || 1));
+    const targetTurn = Math.max(1, currentTurn - 3);
+    const candidates = this.turnRecords.filter(record => record.turn > 0 && record.turn <= targetTurn && record.end_state?.player_team?.length);
+    return candidates.at(-1) || this.turnRecords.find(record => record.end_state?.player_team?.length) || null;
+  }
+
+  private turnEndState(): BattleTurnEndState {
+    return {
+      player_team: this.turnPokemonStates(this.playerSide()),
+      enemy_team: this.turnPokemonStates(this.enemySide()),
+      weather: this.tracker.weather || "无",
+      field: [...this.tracker.field],
+      side_conditions: {
+        p1: [...this.tracker.side_conditions.p1],
+        p2: [...this.tracker.side_conditions.p2],
+      },
+    };
+  }
+
+  private turnPokemonStates(side: SideId): BattleTurnPokemonState[] {
+    const display = this.displayForBattleSide(side);
+    return this.currentSideState(side).map((state, index) => {
+      const pokemon = findRentalByRuntime(display, state) || display[index];
+      return {
+        slot: Number(state.slot || index + 1),
+        name: pokemon ? (pokemon.species_zh || pokemon.name || pokemon.species || state.species) : state.species || state.details || `Slot ${index + 1}`,
+        showdown_id: state.showdown_id,
+        species_id: pokemon?.species_id || toId(state.species || state.details),
+        active: Boolean(state.active),
+        hp: Math.max(0, Number(state.hp || 0)),
+        max_hp: Math.max(1, Number(state.maxhp || 1)),
+        hp_text: state.condition || stateCondition(state),
+        status: state.status || statusFromCondition(state.condition),
+        fainted: Boolean(state.fainted || Number(state.hp || 0) <= 0 || /\bfnt\b/i.test(state.condition || "")),
+        pp: (state.moves || []).map(move => ({
+          slot: Number(move.slot || 0),
+          id: move.id,
+          name: move.move,
+          pp: Math.max(0, Number(move.pp || 0)),
+          max_pp: Math.max(0, Number(move.maxpp || 0)),
+        })),
+      };
     });
   }
 
@@ -3096,7 +3190,7 @@ export class BattleSession {
     this.tracker.pp[activeName] = Object.fromEntries(activeMoves.map(move => [move.id || move.move, {name: move.move || move.id, pp: move.pp, maxpp: move.maxpp}]));
   }
 
-  private currentSideState(side: SideId): PlayerPokemonState[] {
+  protected currentSideState(side: SideId): PlayerPokemonState[] {
     if (!this.stream?.battle) return [];
     const battleSide = this.battleSide(side);
     const sourceTeam = this.teamForBattleSide(side);
@@ -3114,7 +3208,15 @@ export class BattleSession {
     return alignStatesToSlots(states, this.slotKeysForSide(side));
   }
 
-  private syncSideState(side: SideId, states: PlayerPokemonState[]): void {
+  protected syncSideState(side: SideId, states: PlayerPokemonState[]): void {
+    if (!this.stream?.battle) return;
+    this.applySideState(side, states);
+    this.refreshRequests();
+    this.updatePpMemory(this.latestRequests[this.playerSide()]);
+    if (side === this.playerSide()) this.applyPlayerStateToTracker(this.currentSideState(side));
+  }
+
+  protected applySideState(side: SideId, states: PlayerPokemonState[]): void {
     if (!this.stream?.battle) return;
     const battleSide = this.battleSide(side);
     const normalizedStates = withStateStableShowdownIds(states, this.teamForBattleSide(side), this.displayForBattleSide(side));
@@ -3155,9 +3257,6 @@ export class BattleSession {
       }
     }
     battleSide.pokemonLeft = battleSide.pokemon.filter((pokemon: any) => !pokemon.fainted && pokemon.hp > 0).length;
-    this.refreshRequests();
-    this.updatePpMemory(this.latestRequests[this.playerSide()]);
-    if (side === this.playerSide()) this.applyPlayerStateToTracker(this.currentSideState(side));
   }
 
   private slotKeysForSide(side: SideId): SlotKeySpec[] {
@@ -3302,16 +3401,129 @@ export class BattleSession {
     }
   }
 
-  private withTimelineId(event: ParsedTimelineEvent): BattleTimelineEvent {
+  protected withTimelineId(event: ParsedTimelineEvent): BattleTimelineEvent {
     this.timelineSeq += 1;
     return {...event, id: `t${this.timelineSeq}`};
   }
+}
+
+function actionFromTimelineEvent(side: SideId, event: BattleTimelineEvent): BattleTurnAction {
+  if (event.type === "move") {
+    return {
+      side,
+      kind: "move",
+      actor_name: event.source,
+      actor_showdown_id: event.source_showdown_id,
+      label: event.move ? `${event.source || SIDE_NAMES[side]} 使用 ${event.move}` : event.text,
+      move_name: event.move,
+      target_name: event.target,
+    };
+  }
+  if (event.type === "switch") {
+    return {
+      side,
+      kind: "switch",
+      actor_name: event.target,
+      actor_showdown_id: event.target_showdown_id,
+      label: event.target ? `换上 ${event.target}` : event.text,
+      target_name: event.target,
+    };
+  }
+  if (event.type === "item") {
+    return {
+      side,
+      kind: "item",
+      actor_name: event.target || event.source,
+      actor_showdown_id: event.target_showdown_id || event.source_showdown_id,
+      label: event.effect ? `${event.target || event.source || SIDE_NAMES[side]} 触发 ${event.effect}` : event.text,
+      target_name: event.target,
+    };
+  }
+  return {side, kind: "unknown", label: event.text};
+}
+
+function turnSummaryText(playerAction: BattleTurnAction | undefined, enemyAction: BattleTurnAction | undefined, eventTexts: string[]): string {
+  const actions = [
+    playerAction?.label ? `我方：${playerAction.label}` : "",
+    enemyAction?.label ? `对手：${enemyAction.label}` : "",
+  ].filter(Boolean);
+  if (actions.length) return actions.join("；");
+  return eventTexts[0] || "本回合没有关键行动。";
+}
+
+function turnResultTags(events: BattleTimelineEvent[]): string[] {
+  const tags = new Set<string>();
+  for (const event of events) {
+    if (event.type === "faint") tags.add("濒死");
+    if (event.type === "damage") tags.add("伤害");
+    if (event.type === "heal") tags.add("恢复");
+    if (event.type === "status") tags.add("异常");
+    if (event.type === "weather") tags.add("天气");
+    if (event.type === "field") tags.add("场地");
+    if (event.type === "boost") tags.add("能力变化");
+    if (event.type === "win") tags.add("胜负");
+  }
+  return Array.from(tags);
+}
+
+function mergeTurnRecord(previous: BattleTurnRecord, next: BattleTurnRecord): BattleTurnRecord {
+  const eventTexts = [...previous.event_texts, ...next.event_texts].filter(Boolean).slice(-18);
+  const resultTags = Array.from(new Set([...previous.result_tags, ...next.result_tags]));
+  const playerAction = previous.player_action?.kind && previous.player_action.kind !== "unknown" ? previous.player_action : next.player_action;
+  const enemyAction = previous.enemy_action?.kind && previous.enemy_action.kind !== "unknown" ? previous.enemy_action : next.enemy_action;
+  return {
+    ...next,
+    player_action: playerAction,
+    enemy_action: enemyAction,
+    summary: turnSummaryText(playerAction, enemyAction, eventTexts),
+    result_tags: resultTags,
+    event_texts: eventTexts,
+  };
+}
+
+function statusFromCondition(condition: string | undefined): string {
+  const parts = String(condition || "").trim().split(/\s+/).slice(1);
+  return parts.find(part => part && part !== "fnt") || "";
+}
+
+function isForceSwitchRequest(request: BattleRequestView | null | undefined): boolean {
+  return Boolean(request?.forceSwitch?.some(Boolean));
+}
+
+function playerStatesFromTurnRecord(record: BattleTurnRecord, currentStates: PlayerPokemonState[]): PlayerPokemonState[] {
+  const byShowdownId = new Map(record.end_state.player_team.map(state => [normalizeShowdownId(state.showdown_id), state]).filter(([id]) => Boolean(id)) as Array<[string, BattleTurnPokemonState]>);
+  const bySlot = new Map(record.end_state.player_team.map(state => [Number(state.slot), state]));
+  return currentStates.map(state => {
+    const snapshot = (state.showdown_id ? byShowdownId.get(normalizeShowdownId(state.showdown_id)) : undefined) || bySlot.get(Number(state.slot));
+    if (!snapshot) return state;
+    const maxhp = Math.max(1, Number(state.maxhp || snapshot.max_hp || 1));
+    const hp = Math.max(0, Math.min(maxhp, Number(snapshot.hp || 0)));
+    const status = hp > 0 && !snapshot.fainted ? statusFromCondition(snapshot.hp_text) || snapshot.status || "" : "";
+    const ppById = new Map((snapshot.pp || []).map(move => [toId(move.id || move.name), move]));
+    const ppBySlot = new Map((snapshot.pp || []).map(move => [Number(move.slot), move]));
+    const moves = (state.moves || []).map(move => {
+      const snapshotMove = ppById.get(toId(move.id || move.move)) || ppBySlot.get(Number(move.slot));
+      return snapshotMove ? {...move, pp: Math.max(0, Math.min(Number(snapshotMove.pp || 0), Number(move.maxpp || snapshotMove.max_pp || 0)))} : move;
+    });
+    const next: PlayerPokemonState = {
+      ...state,
+      hp,
+      status,
+      fainted: snapshot.fainted || hp <= 0,
+      moves,
+    };
+    next.condition = stateCondition(next);
+    return next;
+  });
 }
 
 export class TrainerItemBattleSession extends BattleSession {
   private trainerItemPatchInstalled = false;
   private trainerItemActionSeq = 0;
   private lastTrainerItemActionSeq = 0;
+  private dialgaGracePatchInstalled = false;
+  private dialgaGraceActionSeq = 0;
+  private lastDialgaGraceActionSeq = 0;
 
   async chooseTrainerItem(itemId: string, targetSlot: number, moveSlot?: number, recoveryMultiplier = 1): Promise<BattleState> {
     if (!this.stream || this.ended) return this.getState();
@@ -3357,6 +3569,51 @@ export class TrainerItemBattleSession extends BattleSession {
     return this.getState();
   }
 
+  async useDialgaGrace(): Promise<BattleState> {
+    if (!this.stream || this.ended) return this.getState();
+    const battle = this.stream.battle;
+    if (!battle) throw new Error("当前对战尚未开始。");
+    const request = this.latestRequests[this.playerSide()];
+    if (!request || request.wait || request.teamPreview || isForceSwitchRequest(request)) throw new Error("当前不能发动帝牙卢卡的恩典。");
+    if (!request.active?.length) throw new Error("当前不是出招阶段，不能发动帝牙卢卡的恩典。");
+    const side = this.battleSide(this.playerSide());
+    const active = side.active[0];
+    if (!active || active.fainted || active.hp <= 0) throw new Error("当前宝可梦无法行动，不能发动帝牙卢卡的恩典。");
+    const target = this.dialgaGraceTargetRecord();
+    if (!target) throw new Error("没有可恢复的回合节点。");
+    this.installDialgaGraceAction();
+    const actionSeq = ++this.dialgaGraceActionSeq;
+    side.clearChoice();
+    side.choice.actions.push({
+      choice: "dialgaGrace",
+      pokemon: active,
+      restoreStates: playerStatesFromTurnRecord(target, this.currentSideState(this.playerSide())),
+      targetTurn: target.turn,
+      dialgaGraceActionSeq: actionSeq,
+      order: 102,
+      priority: 0,
+      speed: 1,
+    });
+    const enemyRequest = this.latestRequests[this.enemySide()];
+    if (enemyRequest && !enemyRequest.wait) await this.chooseSide(this.enemySide(), await this.consumeEnemyChoice(enemyRequest));
+    else await this.chooseSide(this.enemySide(), "default");
+    if (this.lastDialgaGraceActionSeq !== actionSeq) throw new Error("帝牙卢卡的恩典没有成功生效，请重试。");
+    const notice = this.withTimelineId({
+      type: "item",
+      text: `帝牙卢卡的恩典发动，我方队伍状态恢复为第 ${Math.max(1, Number(target.turn || 1))} 回合。`,
+      side: this.playerSide(),
+      effect: "帝牙卢卡的恩典",
+      turn: this.getState().tracker.turn,
+    });
+    this.timelineEvents.push(notice);
+    this.timelineEvents = this.timelineEvents.slice(-140);
+    this.recentEvents.push(notice.text);
+    this.recentEvents = this.recentEvents.slice(-40);
+    this.recordTurnSummary(this.getState().tracker.turn || target.turn || 0, [notice]);
+    this.prepareEnemyChoice();
+    return this.getState();
+  }
+
   private installTrainerItemAction(): void {
     if (this.trainerItemPatchInstalled || !this.stream?.battle) return;
     const battle = this.stream.battle;
@@ -3369,6 +3626,21 @@ export class TrainerItemBattleSession extends BattleSession {
       return undefined;
     };
     this.trainerItemPatchInstalled = true;
+  }
+
+  private installDialgaGraceAction(): void {
+    if (this.dialgaGracePatchInstalled || !this.stream?.battle) return;
+    const battle = this.stream.battle;
+    const originalRunAction = battle.runAction.bind(battle);
+    battle.runAction = (action: any) => {
+      if (action?.choice !== "dialgaGrace") return originalRunAction(action);
+      const targetTurn = Math.max(1, Number(action.targetTurn || 1));
+      battle.add('-message', `帝牙卢卡的恩典发动，我方队伍状态恢复为第 ${targetTurn} 回合。`);
+      this.applySideState(this.playerSide(), action.restoreStates || []);
+      this.lastDialgaGraceActionSeq = Number(action.dialgaGraceActionSeq || 0);
+      return undefined;
+    };
+    this.dialgaGracePatchInstalled = true;
   }
 }
 
