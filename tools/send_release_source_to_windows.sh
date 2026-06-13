@@ -29,6 +29,21 @@ if [[ -n "$(git status --short)" ]]; then
   exit 1
 fi
 
+REQUIRED_RELEASE_PATHS=(
+  "data/pokemon_resource_registry.json"
+  "data/item_resource_registry.json"
+  "data/sprite_index_map.json"
+  "assets/runtime/pokemon"
+  "assets/runtime/items"
+)
+for REQUIRED_PATH in "${REQUIRED_RELEASE_PATHS[@]}"; do
+  if [[ ! -e "$REQUIRED_PATH" ]]; then
+    echo "Required release resource is missing: $REQUIRED_PATH" >&2
+    echo "Run pnpm assets:build-registry and commit the generated files before release." >&2
+    exit 1
+  fi
+done
+
 ARCHIVE="/tmp/changeBattle-src-${VERSION}.tgz"
 REMOTE_ARCHIVE="${WINDOWS_ROOT}/release/changeBattle-src-${VERSION}.tgz"
 COMMIT="$(git rev-parse --short HEAD)"

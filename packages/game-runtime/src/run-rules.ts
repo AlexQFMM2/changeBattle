@@ -89,13 +89,14 @@ export const TRAINING_MINT_ITEM_IDS = [
   "timidmint", "hastymint", "jollymint", "naivemint",
   "seriousmint",
 ] as const;
-export type TrainingShopGroup = "ev_berry" | "vitamin" | "cap" | "ability" | "mint";
+export type TrainingShopGroup = "ev_berry" | "vitamin" | "cap" | "ability" | "mint" | "candy";
 export const TRAINING_SHOP_GROUP_WEIGHTS: Record<TrainingShopGroup, number> = {
   ev_berry: 30,
   vitamin: 30,
   cap: 10,
   ability: 10,
-  mint: 20,
+  mint: 10,
+  candy: 10,
 };
 export const TRAINING_ITEM_IDS = [
   ...TRAINING_EV_BERRY_ITEM_IDS,
@@ -632,10 +633,11 @@ export function trainingShopGroupForItemId(itemId: string | undefined): Training
   const id = itemKey(itemId);
   if (!id) return null;
   if ((TRAINING_EV_BERRY_ITEM_IDS as readonly string[]).includes(id)) return "ev_berry";
-  if ((TRAINING_VITAMIN_ITEM_IDS as readonly string[]).includes(id) || (TRAINING_CANDY_ITEM_IDS as readonly string[]).includes(id)) return "vitamin";
+  if ((TRAINING_VITAMIN_ITEM_IDS as readonly string[]).includes(id)) return "vitamin";
   if ((TRAINING_CAP_ITEM_IDS as readonly string[]).includes(id)) return "cap";
   if ((TRAINING_ABILITY_ITEM_IDS as readonly string[]).includes(id)) return "ability";
   if ((TRAINING_MINT_ITEM_IDS as readonly string[]).includes(id)) return "mint";
+  if ((TRAINING_CANDY_ITEM_IDS as readonly string[]).includes(id)) return "candy";
   return null;
 }
 
@@ -1498,7 +1500,7 @@ export function isTmItemId(itemId: string | undefined): boolean {
 
 export function tmIconAssetForMoveType(moveType: string | undefined): string {
   const typeId = toId(moveType);
-  return typeId && TM_ICON_TYPE_IDS.has(typeId) ? `assets/items-pack/machine${typeId}.png` : "assets/placeholders/move.png";
+  return typeId && TM_ICON_TYPE_IDS.has(typeId) ? `assets/runtime/items/machine${typeId}/icon.png` : "assets/placeholders/move.png";
 }
 
 export function itemCategory(item: Pick<ShopItem, "id" | "name" | "desc" | "desc_zh"> & Partial<Pick<ShopItem, "name_zh">>): ItemCategory {

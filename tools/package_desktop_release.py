@@ -35,6 +35,30 @@ PROJECT_PATHS = [
     "plan.md",
 ]
 
+SOURCE_ASSET_DIRS = {
+    "pokemon-showdown",
+    "pokemon-pack",
+    "pokemon-custom",
+    "items-pack",
+    "items",
+}
+REQUIRED_RUNTIME_DIRS = [
+    "assets/runtime/pokemon",
+    "assets/runtime/items",
+]
+REQUIRED_RESOURCE_REGISTRIES = [
+    "data/pokemon_resource_registry.json",
+    "data/item_resource_registry.json",
+    "data/sprite_index_map.json",
+]
+FORBIDDEN_RESOURCE_MARKERS = [
+    "/home/alexqfmm/workPlace/pokemon/ui-refrence",
+    "assets/pokemon-showdown",
+    "assets/pokemon-pack",
+    "assets/pokemon-custom",
+    "assets/items-pack",
+    "assets/items/",
+]
 NPC_ASSET_FIELDS = ["front_asset", "front_gif_asset", "back_asset", "avatar_asset"]
 
 SHOWDOWN_DIST_DIRS = [
@@ -50,6 +74,8 @@ SHOWDOWN_NODE_MODULES = [
 
 def ignore_runtime_dirs(_dir: str, names: list[str]) -> set[str]:
     ignored = {"__pycache__", ".pytest_cache", "node_modules", "dist", "dist-electron", "pokemon-green", "battle-effects-pack"}
+    if Path(_dir).as_posix().endswith("assets"):
+        ignored.update(SOURCE_ASSET_DIRS)
     if Path(_dir).as_posix().endswith("assets/battle"):
         ignored.add("stage")
     ignored.update(name for name in names if name.endswith(".pyc"))
@@ -94,6 +120,27 @@ def validate_npc_asset_paths(stage_dir: Path) -> None:
         sample = "\n".join(problems[:20])
         extra = "" if len(problems) <= 20 else f"\n... and {len(problems) - 20} more"
         raise RuntimeError(f"NPC asset validation failed:\n{sample}{extra}")
+
+
+def validate_runtime_resources(stage_dir: Path) -> None:
+    missing = [relative for relative in REQUIRED_RUNTIME_DIRS if not (stage_dir / relative).is_dir()]
+    missing.extend(relative for relative in REQUIRED_RESOURCE_REGISTRIES if not (stage_dir / relative).is_file())
+    if missing:
+        raise RuntimeError("Release resource validation failed; missing:\n" + "\n".join(missing))
+
+    bundled_sources = [name for name in sorted(SOURCE_ASSET_DIRS) if (stage_dir / "assets" / name).exists()]
+    if bundled_sources:
+        raise RuntimeError("Reference asset directories should not be bundled:\n" + "\n".join(bundled_sources))
+
+    problems: list[str] = []
+    for relative in REQUIRED_RESOURCE_REGISTRIES:
+        path = stage_dir / relative
+        text = path.read_text(encoding="utf-8")
+        for marker in FORBIDDEN_RESOURCE_MARKERS:
+            if marker in text:
+                problems.append(f"{relative} contains forbidden marker: {marker}")
+    if problems:
+        raise RuntimeError("Release registry validation failed:\n" + "\n".join(problems))
 
 
 def copy_showdown(showdown_root: Path, dst_root: Path) -> None:
@@ -288,6 +335,7 @@ def main() -> int:
 
     for relative in PROJECT_PATHS:
         copy_path(PROJECT_ROOT / relative, stage_dir / relative)
+    validate_runtime_resources(stage_dir)
     validate_npc_asset_paths(stage_dir)
     copy_showdown(showdown_root, stage_dir / "vendor" / "pokemon-showdown")
     extract_electron_runtime(runtime_version, stage_dir / "runtime" / "electron")

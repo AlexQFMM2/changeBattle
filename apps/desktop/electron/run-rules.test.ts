@@ -19,6 +19,7 @@ import {
   SCORE_BET_MIN_STAKE,
   STAR_CHART_NODES,
   TALENTS,
+  TRAINING_SHOP_GROUP_WEIGHTS,
   addCoins,
   applyAllInExchange,
   applyRestShopDiscountCoupon,
@@ -84,6 +85,7 @@ import {
   statResetCost,
   talent,
   tmIconAssetForMoveType,
+  trainingShopGroupForItemId,
   updateRunQuestAfterBattle,
   updateRunQuestAfterRest,
   barterRunShopOffer,
@@ -330,6 +332,13 @@ function testCoinLedgerAndTrainingRules(): void {
   assert.equal(isTrainingShopItemId("rarecandy"), true);
   assert.equal(isTrainingShopItemId("leftovers"), false);
   assert.equal(isTrainingShopItemId("potion"), false);
+  assert.deepEqual(TRAINING_SHOP_GROUP_WEIGHTS, {ev_berry: 30, vitamin: 30, cap: 10, ability: 10, mint: 10, candy: 10});
+  assert.equal(trainingShopGroupForItemId("pomegberry"), "ev_berry");
+  assert.equal(trainingShopGroupForItemId("hpup"), "vitamin");
+  assert.equal(trainingShopGroupForItemId("bottlecap"), "cap");
+  assert.equal(trainingShopGroupForItemId("abilitypatch"), "ability");
+  assert.equal(trainingShopGroupForItemId("adamantmint"), "mint");
+  assert.equal(trainingShopGroupForItemId("rarecandy"), "candy");
 
   const ledgerRun = run([], {coins: 100});
   addCoins(ledgerRun, 50, "sponsor-delivery");
@@ -540,8 +549,8 @@ function testPremiumShopHelpers(): void {
 }
 
 function testTmIconAssets(): void {
-  assert.equal(tmIconAssetForMoveType("Bug"), "assets/items-pack/machinebug.png");
-  assert.equal(tmIconAssetForMoveType("Fire"), "assets/items-pack/machinefire.png");
+  assert.equal(tmIconAssetForMoveType("Bug"), "assets/runtime/items/machinebug/icon.png");
+  assert.equal(tmIconAssetForMoveType("Fire"), "assets/runtime/items/machinefire/icon.png");
   assert.equal(tmIconAssetForMoveType("???"), "assets/placeholders/move.png");
   assert.equal(tmIconAssetForMoveType(undefined), "assets/placeholders/move.png");
 }

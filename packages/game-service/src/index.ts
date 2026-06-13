@@ -516,6 +516,7 @@ export class GameService {
   private readonly assetExistsSync?: NonNullable<GameServiceOptions["assetExistsSync"]>;
   private sim: ShowdownModule | null = null;
   private spriteMap: SpriteIndexMap | null = null;
+  private itemResourceRegistry: {entries?: Record<string, {icon?: string; fallback_icon?: string}>} | null = null;
   private translations: TranslationData | null = null;
   private translationNormalized: TranslationData | null = null;
   private details: DetailData | null = null;
@@ -619,6 +620,8 @@ export class GameService {
     const rawItemId = String(itemId || item?.name || "");
     const normalized = this.toId(rawItemId);
     if (!normalized) return ITEM_ICON_FALLBACK;
+    const registryIcon = this.itemResourceRegistry?.entries?.[normalized]?.icon;
+    if (registryIcon && this.projectAssetExists(registryIcon)) return registryIcon;
     const direct = this.resolveItemIconAsset(normalized);
     if (direct) return direct;
     const alias = ITEM_ICON_ALIASES[normalized];
@@ -643,10 +646,8 @@ export class GameService {
   private resolveItemIconAsset(assetId: string): string | null {
     const normalized = this.toId(assetId);
     if (!normalized) return null;
-    const packPath = `assets/items-pack/${normalized}.png`;
-    if (this.projectAssetExists(packPath)) return packPath;
-    const itemPath = `assets/items/${normalized}.png`;
-    return this.projectAssetExists(itemPath) ? itemPath : null;
+    const runtimePath = `assets/runtime/items/${normalized}/icon.png`;
+    return this.projectAssetExists(runtimePath) ? runtimePath : null;
   }
 
   private zCrystalType(item?: {desc?: string; shortDesc?: string}): string {
@@ -813,7 +814,7 @@ export class GameService {
 
     if (normalizedCategory === "pokemon") {
       entries = dex.species.all()
-        .filter((species: any) => species.exists && species.num > 0 && this.includeDataEntry(species))
+        .filter((species: any) => species.exists && species.num > 0 && this.includeDexSpeciesEntry(species))
         .map((species: any) => {
           const entry = {
             id: species.id,
@@ -892,7 +893,7 @@ export class GameService {
       entries = [
         ...localEntries,
         ...dex.items.all()
-        .filter((item: any) => item.exists && this.includeDataEntry(item))
+        .filter((item: any) => item.exists && this.includeDexItemEntry(item))
         .filter((item: any) => !localItemIds.has(item.id))
         .map((item: any) => includeRank({
           id: item.id,
@@ -1081,6 +1082,26 @@ export class GameService {
     return !entry.isNonstandard || entry.isNonstandard === "Past";
   }
 
+  private includeDexSpeciesEntry(species: any): boolean {
+    if (this.includeDataEntry(species)) return true;
+    if (species?.isNonstandard !== "Future") return false;
+    if (!/^Mega(?:-|$)/i.test(String(species?.forme || ""))) return false;
+    return Boolean(this.spriteMap?.entries?.[species.id]);
+  }
+
+  private includeDexItemEntry(item: any): boolean {
+    if (this.includeDataEntry(item)) return true;
+    if (item?.isNonstandard !== "Future") return false;
+    if (this.battleSystemForItem(item.id) !== "mega") return false;
+    const megaTargets = item?.megaStone && typeof item.megaStone === "object"
+      ? Object.values(item.megaStone)
+      : [item?.megaStone];
+    return megaTargets.some(target => {
+      const targetSpecies = this.dataDex().species.get(String(target || ""));
+      return targetSpecies?.exists && this.includeDexSpeciesEntry(targetSpecies);
+    });
+  }
+
   seedArray(seed: number | number[]): number[] {
     if (Array.isArray(seed) && seed.length === 4) return seed.map(value => Number(value) & 0xffff);
     let value = Number.isFinite(Number(seed)) ? Number(seed) >>> 0 : 1;
@@ -1135,6 +1156,7 @@ export class GameService {
 
   private async loadDisplayData(): Promise<void> {
     await this.loadSpriteMap();
+    await this.loadItemResourceRegistry();
     await this.loadTranslations();
     await this.loadDetails();
     await this.loadTierRowsAsync();
@@ -1146,6 +1168,16 @@ export class GameService {
       this.spriteMap = JSON.parse(raw) as SpriteIndexMap;
     }
     return this.spriteMap;
+  }
+
+  private async loadItemResourceRegistry(): Promise<void> {
+    if (this.itemResourceRegistry) return;
+    try {
+      const raw = await this.readProjectText("data/item_resource_registry.json");
+      this.itemResourceRegistry = JSON.parse(raw);
+    } catch {
+      this.itemResourceRegistry = {entries: {}};
+    }
   }
 
   private bumpSeed(seed: number[], attempt: number): number[] {

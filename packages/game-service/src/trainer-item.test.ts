@@ -665,6 +665,25 @@ async function testDexPokemonAbilitiesAndLearnset(): Promise<void> {
   assert.ok(ivysaur?.learnset?.some(move => move.learn_sources?.includes("machine")), "dex pokemon entry should include machine moves");
 }
 
+async function testDexIncludesFutureMegaFormsWithSprites(): Promise<void> {
+  const service = createTestService();
+  const result = await service.dexSearch("pokemon", "超级姆克鹰", 0, 8);
+  const megaStaraptor = result.entries.find(entry => entry.id === "staraptormega");
+  assert.ok(megaStaraptor, JSON.stringify(result.entries, null, 2));
+  assert.equal(megaStaraptor?.name, "Staraptor-Mega");
+  assert.deepEqual(megaStaraptor?.types, ["Fighting", "Flying"]);
+  assert.equal(megaStaraptor?.base_stats?.atk, 140);
+  assert.match(megaStaraptor?.sprite?.paths.front_normal || "", /^assets\/runtime\/pokemon\/staraptormega\/front_normal-/);
+  assert.match(megaStaraptor?.sprite?.paths.back_normal || "", /^assets\/runtime\/pokemon\/staraptormega\/back_normal-/);
+  assert.match(megaStaraptor?.sprite?.paths.front_shiny || "", /^assets\/runtime\/pokemon\/staraptormega\/front_shiny-/);
+  assert.match(megaStaraptor?.sprite?.paths.back_shiny || "", /^assets\/runtime\/pokemon\/staraptormega\/back_shiny-/);
+
+  const itemResult = await service.dexSearch("items", "姆克鹰进化石", 0, 8);
+  const staraptite = itemResult.entries.find(entry => entry.id === "staraptite");
+  assert.ok(staraptite, JSON.stringify(itemResult.entries, null, 2));
+  assert.equal(staraptite?.name, "Staraptite");
+}
+
 async function testZMoveBattleFlow(): Promise<void> {
   const zSession = await createCustomSession(
     [{...pokemon("Charmander", ["Ember", "Scratch"], "Blaze"), item: "Firium Z"}],
@@ -1079,6 +1098,7 @@ await testClassicBattleFlowScenarios();
 await testSpeciesTierCanOverrideGenerationProfile();
 await testMoveLearnSourcesAreClassified();
 await testDexPokemonAbilitiesAndLearnset();
+await testDexIncludesFutureMegaFormsWithSprites();
 await testZMoveBattleFlow();
 await testEnemyUsesZMoveWhenAvailable();
 await testZMoveInternalProtocolIsHidden();

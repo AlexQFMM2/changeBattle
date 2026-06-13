@@ -503,7 +503,7 @@ UI 参考：![商店参考](../image.png)
 
 道具图片：
 
-- [x] Desk 从 Showdown itemicons 白名单下载商店池图标到 `assets/items`，保证离线可用。
+- [x] Desk 通过 `data/item_resource_registry.json` 引用 `assets/runtime/items` 下的精选图标，保证离线可用且不把完整参考素材库打进包。
 - [x] Desk 缺失的道具图标回退到 `assets/placeholders/item.png`，技能机器使用技能占位图。
 
 ## 休整规则

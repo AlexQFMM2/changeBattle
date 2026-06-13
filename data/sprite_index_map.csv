@@ -532,7 +532,7 @@ empoleon,Empoleon,395,448,assets/pokemon-green/pokemon/0448/front_normal.png,eme
 starly,Starly,396,449,assets/pokemon-green/pokemon/0449/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 staravia,Staravia,397,450,assets/pokemon-green/pokemon/0450/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 staraptor,Staraptor,398,451,assets/pokemon-green/pokemon/0451/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
-staraptormega,Staraptor-Mega,398,451,assets/pokemon-green/pokemon/0451/front_normal.png,base-species-fallback,edit this row if the sprite is wrong
+staraptormega,Staraptor-Mega,398,398,assets/pokemon-custom/398Staraptor-Mega.png,manual-verified,manual verified from docs/mega进化神百源码.html; front image reused for back fallback when no dedicated back sprite exists
 bidoof,Bidoof,399,452,assets/pokemon-green/pokemon/0452/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 bibarel,Bibarel,400,453,assets/pokemon-green/pokemon/0453/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong
 kricketot,Kricketot,401,454,assets/pokemon-green/pokemon/0454/front_normal.png,emerald-internal-index,edit this row if the sprite is wrong

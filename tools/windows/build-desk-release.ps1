@@ -88,6 +88,9 @@ try {
     "$Prefix/ChangeBattle-Desk.cmd",
     "$Prefix/RELEASE-README.md",
     "$Prefix/apps/desktop/out/main/main.js",
+    "$Prefix/data/pokemon_resource_registry.json",
+    "$Prefix/data/item_resource_registry.json",
+    "$Prefix/data/sprite_index_map.json",
     "$Prefix/runtime/electron/electron.exe",
     "$Prefix/vendor/pokemon-showdown/dist/sim/index.js"
   )
@@ -96,9 +99,37 @@ try {
       throw "Missing from zip: $Item"
     }
   }
+  $RequiredPrefixes = @(
+    "$Prefix/assets/runtime/pokemon/",
+    "$Prefix/assets/runtime/items/"
+  )
+  foreach ($RequiredPrefix in $RequiredPrefixes) {
+    $Found = $false
+    foreach ($Name in $Names) {
+      if ($Name.StartsWith($RequiredPrefix)) {
+        $Found = $true
+        break
+      }
+    }
+    if (-not $Found) {
+      throw "Missing runtime assets in zip: $RequiredPrefix"
+    }
+  }
+  $ForbiddenPrefixes = @(
+    "$Prefix/assets/pokemon-showdown/",
+    "$Prefix/assets/pokemon-pack/",
+    "$Prefix/assets/pokemon-custom/",
+    "$Prefix/assets/items-pack/",
+    "$Prefix/assets/items/"
+  )
   foreach ($Name in $Names) {
     if ($Name.StartsWith("$Prefix/docs/")) {
       throw "docs/ should not be bundled in desktop release"
+    }
+    foreach ($ForbiddenPrefix in $ForbiddenPrefixes) {
+      if ($Name.StartsWith($ForbiddenPrefix)) {
+        throw "Reference asset directory should not be bundled: $ForbiddenPrefix"
+      }
     }
   }
 } finally {

@@ -181,10 +181,10 @@ ssh win10@172.16.10.41 "G:\SDK\build-tools\35.0.0\apksigner.bat verify --verbose
 查看 APK 内是否包含资源：
 
 ```bash
-ssh win10@172.16.10.41 "powershell -NoProfile -Command \"Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::OpenRead('D:\changeBattle\release\ChangeBattle-Mobile-vX.Y.Z.apk').Entries | Where-Object { \$_.FullName -match 'assets|audio|showdown|pokemon' } | Select-Object -First 80 -ExpandProperty FullName\""
+ssh win10@172.16.10.41 "powershell -NoProfile -Command \"Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::OpenRead('D:\changeBattle\release\ChangeBattle-Mobile-vX.Y.Z.apk').Entries | Where-Object { \$_.FullName -match 'runtime|resource_registry|sprite_index|audio|showdown|pokemon' } | Select-Object -First 80 -ExpandProperty FullName\""
 ```
 
-资源不显示时优先确认 APK 内文件存在，再确认运行时 URL。视频能显示只说明 Vite 引用进来的 `apps/desktop/src/assets` 被打包了，不代表公共 `assets/` 一定被 mobile static copy 带进 APK。
+至少应看到 `assets/public/data/*resource_registry.json`、`assets/public/data/sprite_index_map.json`、`assets/public/assets/runtime/pokemon/` 和 `assets/public/assets/runtime/items/` 下的文件。资源不显示时优先确认 APK 内文件存在，再确认运行时 URL。视频能显示只说明 Vite 引用进来的 `apps/desktop/src/assets` 被打包了，不代表公共 `assets/` 一定被 mobile static copy 带进 APK。
 
 ## 当前重点 smoke 场景
 

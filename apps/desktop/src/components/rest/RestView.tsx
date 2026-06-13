@@ -1356,7 +1356,7 @@ function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNu
   const canRerouteSelected = Boolean(hasRerouteTalent && selectedRow && selectedFuture && rerouteUsed < rerouteLimit);
   const canScoutOne = Boolean(rumorLevel >= 2 && selectedRow && selectedFuture && Number(selectedRow.revealed || 0) < 1);
   const canScoutAll = Boolean(rumorLevel >= 3 && selectedRow && selectedFuture && !selectedRow.unlocked);
-  const scoutOneLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 2 ? "需要 Lv2" : !selectedFuture ? "已挑战" : Number(selectedRow?.revealed || 0) >= 1 ? "已揭示一只" : "免费解锁一只";
+  const scoutOneLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 2 ? "需要 Lv2" : !selectedFuture ? "已挑战" : Number(selectedRow?.revealed || 0) >= 1 ? "已揭示一只" : "揭示 1 只（免费）";
   const scoutAllLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 3 ? "需要 Lv3" : !selectedFuture ? "已挑战" : selectedRow?.unlocked ? "已解锁三只" : `解锁三只（${coinCostLabel(rest.costs.scout_all)}）`;
   return (
     <EmbeddedOrModal embedded={embedded}>

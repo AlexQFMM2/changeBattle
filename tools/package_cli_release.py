@@ -34,6 +34,13 @@ PROJECT_PATHS = [
     "install_windows.ps1",
 ]
 
+SOURCE_ASSET_DIRS = {
+    "pokemon-showdown",
+    "pokemon-pack",
+    "pokemon-custom",
+    "items-pack",
+    "items",
+}
 SHOWDOWN_DIST_DIRS = [
     "sim",
     "data",
@@ -47,6 +54,8 @@ SHOWDOWN_NODE_MODULES = [
 
 def ignore_runtime_dirs(_dir: str, names: list[str]) -> set[str]:
     ignored = {"__pycache__", ".pytest_cache"}
+    if Path(_dir).as_posix().endswith("assets"):
+        ignored.update(SOURCE_ASSET_DIRS)
     ignored.update(name for name in names if name.endswith(".pyc"))
     return ignored
 

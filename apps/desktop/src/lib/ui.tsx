@@ -627,14 +627,14 @@ function itemFallbackAssets(item?: {id?: string; icon_asset?: string; name?: str
   const id = toId(item?.id || item?.name || "");
   const candidates = [item?.icon_asset].filter(Boolean) as string[];
   if (id) {
-    candidates.push(`assets/items-pack/${id}.png`, `assets/items/${id}.png`);
+    candidates.push(`assets/runtime/items/${id}/icon.png`);
     const alias = ITEM_ICON_ALIASES[id];
-    if (alias) candidates.push(`assets/items-pack/${alias}.png`, `assets/items/${alias}.png`);
+    if (alias) candidates.push(`assets/runtime/items/${alias}/icon.png`);
     const zType = Z_CRYSTAL_ICON_TYPES[id] || (id.endsWith("iumz") ? "electric" : "");
-    if (zType) candidates.push(`assets/items-pack/${ITEM_TYPE_PLATE_ASSETS[zType] || "zapplate"}.png`);
-    if (id.endsWith("berry")) candidates.push("assets/items-pack/oranberry.png", "assets/items/oranberry.png");
-    if (id.endsWith("ite") || /进化石|超级石|mega/i.test(`${item?.name || ""} ${item?.name_zh || ""}`)) candidates.push("assets/items-pack/medichamite.png");
-    if (id.includes("stone")) candidates.push("assets/items-pack/stoneplate.png");
+    if (zType) candidates.push(`assets/runtime/items/${ITEM_TYPE_PLATE_ASSETS[zType] || "zapplate"}/icon.png`);
+    if (id.endsWith("berry")) candidates.push("assets/runtime/items/oranberry/icon.png");
+    if (id.endsWith("ite") || /进化石|超级石|mega/i.test(`${item?.name || ""} ${item?.name_zh || ""}`)) candidates.push("assets/runtime/items/medichamite/icon.png");
+    if (id.includes("stone")) candidates.push("assets/runtime/items/stoneplate/icon.png");
   }
   candidates.push("assets/placeholders/item.png");
   return Array.from(new Set(candidates));

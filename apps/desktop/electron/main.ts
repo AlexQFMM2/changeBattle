@@ -1066,7 +1066,7 @@ async function isOrdinaryHeldItemId(itemId: string): Promise<boolean> {
   if (!id || isTmItemId(id) || isBerryItemId(id) || isSpecialSystemItemId(id)) return false;
   const item = await itemDetailsById(id);
   let category = itemCategory(item);
-  if (category === "consumable" && !(await gameService.hasConsumableItemEffect(id))) category = "held";
+  if (category === "consumable" && !isTrainingShopItemId(id) && !(await gameService.hasConsumableItemEffect(id))) category = "held";
   return category === "held";
 }
 
@@ -2275,10 +2275,8 @@ const Z_CRYSTAL_ICON_TYPES: Record<string, string> = {
 function itemIconAssetByAssetId(assetId: string): string | null {
   const normalized = itemKey(assetId);
   if (!normalized) return null;
-  const packIconPath = path.join(projectRoot, "assets", "items-pack", `${normalized}.png`);
-  if (existsSync(packIconPath)) return `assets/items-pack/${normalized}.png`;
-  const iconPath = path.join(projectRoot, "assets", "items", `${normalized}.png`);
-  return existsSync(iconPath) ? `assets/items/${normalized}.png` : null;
+  const runtimeIconPath = path.join(projectRoot, "assets", "runtime", "items", normalized, "icon.png");
+  return existsSync(runtimeIconPath) ? `assets/runtime/items/${normalized}/icon.png` : null;
 }
 
 function itemIconAsset(itemId: string, fallback = "assets/placeholders/item.png"): string {
@@ -2643,7 +2641,7 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
       icon_asset: moveId ? tmIconAssetForMoveType(moveType) : meta?.icon_asset || item.icon_asset,
     };
     let category = (meta?.category as ItemCategory | undefined) || itemCategory(item);
-    if (category === "consumable" && !(await gameService.hasConsumableItemEffect(normalized))) category = "held";
+    if (category === "consumable" && !isTrainingShopItemId(normalized) && !(await gameService.hasConsumableItemEffect(normalized))) category = "held";
     const sellPrice = sellPriceForItem(displayItem, run);
     result[category].push({
       ...displayItem,
@@ -5402,7 +5400,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
       row.unlocked = false;
     } else {
       if (rumorLevel < 3) throw new Error("需要小道消息 Lv3 才能解锁完整阵容。");
-      if (!row.unlocked) spendRunBp(save, run, SCOUT_ALL_COST, `night-sky:${battleNo}`);
+      if (!row.unlocked) runtimeSpendRunCoins(run, SCOUT_ALL_COST, `night-sky:${battleNo}`);
       row.revealed = 3;
       row.unlocked = true;
     }

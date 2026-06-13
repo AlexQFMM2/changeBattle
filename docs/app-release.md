@@ -207,7 +207,7 @@ Linux 本机同步源码到 Windows：
 tools/send_release_source_to_windows.sh X.Y.Z
 ```
 
-不传版本号时脚本会提示输入。它会校验版本、要求 git 工作区干净、生成 `git archive` 源码包、上传并替换 Windows 源码目录，同时把 Windows release 脚本复制到 `D:\changeBattle`。
+不传版本号时脚本会提示输入。它会校验版本、要求 git 工作区干净、预检资源 registry 与 `assets/runtime` 已生成、生成 `git archive` 源码包、上传并替换 Windows 源码目录，同时把 Windows release 脚本复制到 `D:\changeBattle`。
 
 Windows 构建 APK：
 
@@ -221,7 +221,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-mobile
 powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-mobile-release.ps1 -Version X.Y.Z
 ```
 
-脚本会安装依赖、构建 mobile web、同步 Capacitor、生成 release APK、复制到 `D:\changeBattle\release`，并用 SDK 里的 `apksigner` 校验签名。
+脚本会安装依赖、构建 mobile web、同步 Capacitor、生成 release APK、复制到 `D:\changeBattle\release`，校验 APK 内的资源 registry 和 `assets/runtime`，并用 SDK 里的 `apksigner` 校验签名。
 
 ## 2. 同步源码到 Windows
 
@@ -345,5 +345,8 @@ ssh win10@172.16.10.41 "set PATH=G:\SDK\platform-tools;%PATH%&& adb install -r D
 - 本地 `pnpm typecheck` 通过。
 - Windows `pnpm install`、mobile build、Capacitor sync 通过。
 - release APK 已签名。
+- APK 内有 `assets/public/data/pokemon_resource_registry.json`、`assets/public/data/item_resource_registry.json`、`assets/public/data/sprite_index_map.json`。
+- APK 内有 `assets/public/assets/runtime/pokemon/` 和 `assets/public/assets/runtime/items/`。
+- APK 内没有 `assets/public/assets/pokemon-showdown/`、`assets/public/assets/pokemon-pack/`、`assets/public/assets/items-pack/`、`assets/public/assets/items/`、`assets/public/assets/pokemon-custom/`。
 - APK 已复制到 Windows `D:\changeBattle\release` 和 Linux `release/`。
 - 真机 smoke 通过。

@@ -176,6 +176,7 @@ tools/send_release_source_to_windows.sh X.Y.Z
 
 - 校验 `package.json` 版本等于输入版本。
 - 要求 git 工作区干净。
+- 预检资源 registry 与 `assets/runtime` 已生成。
 - 用 `git archive HEAD` 生成 `changeBattle-src-X.Y.Z.tgz`。
 - 上传源码包到 `D:\changeBattle\release`。
 - 替换 `D:\changeBattle\changeBattle`。
@@ -194,7 +195,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-desk-r
 powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattle\build-desk-release.ps1 -Version X.Y.Z
 ```
 
-脚本会安装依赖、构建 Desktop、打包便携 zip、复制到 `D:\changeBattle\release`，并校验启动脚本、Electron runtime、Showdown runtime 和 `docs/` 排除规则。
+脚本会安装依赖、构建 Desktop、打包便携 zip、复制到 `D:\changeBattle\release`，并校验启动脚本、Electron runtime、Showdown runtime、资源 registry、`assets/runtime` 和 `docs/` / 旧参考素材库排除规则。
 
 ## 2. 同步源码到 Windows
 
@@ -282,15 +283,15 @@ ssh win10@172.16.10.41 "dir D:\changeBattle\release\ChangeBattle-Desk-portable-v
 检查关键文件：
 
 ```bash
-ssh win10@172.16.10.41 "cd /d D:\changeBattle\changeBattle && python -c \"import zipfile; z=zipfile.ZipFile(r'D:\changeBattle\release\ChangeBattle-Desk-portable-vX.Y.Z.zip'); names=set(z.namelist()); wanted=['ChangeBattle-Desk-portable-vX.Y.Z/ChangeBattle-Desk.cmd','ChangeBattle-Desk-portable-vX.Y.Z/RELEASE-README.md','ChangeBattle-Desk-portable-vX.Y.Z/apps/desktop/out/main/main.js','ChangeBattle-Desk-portable-vX.Y.Z/runtime/electron/electron.exe','ChangeBattle-Desk-portable-vX.Y.Z/vendor/pokemon-showdown/dist/sim/index.js']; print('\\n'.join(f'{w}: {w in names}' for w in wanted)); print('\\n'.join(z.read('ChangeBattle-Desk-portable-vX.Y.Z/RELEASE-README.md').decode('utf-8').splitlines()[0:8])); z.close()\""
+ssh win10@172.16.10.41 "cd /d D:\changeBattle\changeBattle && python -c \"import zipfile; z=zipfile.ZipFile(r'D:\changeBattle\release\ChangeBattle-Desk-portable-vX.Y.Z.zip'); names=set(z.namelist()); wanted=['ChangeBattle-Desk-portable-vX.Y.Z/ChangeBattle-Desk.cmd','ChangeBattle-Desk-portable-vX.Y.Z/RELEASE-README.md','ChangeBattle-Desk-portable-vX.Y.Z/apps/desktop/out/main/main.js','ChangeBattle-Desk-portable-vX.Y.Z/data/pokemon_resource_registry.json','ChangeBattle-Desk-portable-vX.Y.Z/data/item_resource_registry.json','ChangeBattle-Desk-portable-vX.Y.Z/data/sprite_index_map.json','ChangeBattle-Desk-portable-vX.Y.Z/runtime/electron/electron.exe','ChangeBattle-Desk-portable-vX.Y.Z/vendor/pokemon-showdown/dist/sim/index.js']; print('\\n'.join(f'{w}: {w in names}' for w in wanted)); print('runtime pokemon:', any(n.startswith('ChangeBattle-Desk-portable-vX.Y.Z/assets/runtime/pokemon/') for n in names)); print('runtime items:', any(n.startswith('ChangeBattle-Desk-portable-vX.Y.Z/assets/runtime/items/') for n in names)); print('\\n'.join(z.read('ChangeBattle-Desk-portable-vX.Y.Z/RELEASE-README.md').decode('utf-8').splitlines()[0:8])); z.close()\""
 ```
 
 每个关键文件都应该输出 `True`。
 
-检查内部文档没有进入 zip：
+检查内部文档和旧参考素材库没有进入 zip：
 
 ```bash
-ssh win10@172.16.10.41 "cd /d D:\changeBattle\changeBattle && python -c \"import zipfile; z=zipfile.ZipFile(r'D:\changeBattle\release\ChangeBattle-Desk-portable-vX.Y.Z.zip'); print(any(name.startswith('ChangeBattle-Desk-portable-vX.Y.Z/docs/') for name in z.namelist())); z.close()\""
+ssh win10@172.16.10.41 "cd /d D:\changeBattle\changeBattle && python -c \"import zipfile; z=zipfile.ZipFile(r'D:\changeBattle\release\ChangeBattle-Desk-portable-vX.Y.Z.zip'); prefixes=['ChangeBattle-Desk-portable-vX.Y.Z/docs/','ChangeBattle-Desk-portable-vX.Y.Z/assets/pokemon-showdown/','ChangeBattle-Desk-portable-vX.Y.Z/assets/pokemon-pack/','ChangeBattle-Desk-portable-vX.Y.Z/assets/items-pack/','ChangeBattle-Desk-portable-vX.Y.Z/assets/items/','ChangeBattle-Desk-portable-vX.Y.Z/assets/pokemon-custom/']; print(any(any(name.startswith(p) for p in prefixes) for name in z.namelist())); z.close()\""
 ```
 
 这里应该输出 `False`。
@@ -317,9 +318,12 @@ ls -lh /home/alexqfmm/workPlace/pokemon/changeBattle/release/ChangeBattle-Desk-p
 - `D:\changeBattle\vendor\pokemon-showdown\dist\sim\index.js` 存在。
 - `D:\changeBattle\vendor\pokemon-showdown\node_modules\ts-chacha20` 存在。
 - `tools\package_desktop_release.py` 生成了 `ChangeBattle-Desk-portable-vX.Y.Z.zip`。
+- zip 内有 `data/pokemon_resource_registry.json`、`data/item_resource_registry.json` 和 `data/sprite_index_map.json`。
+- zip 内有 `assets/runtime/pokemon/` 和 `assets/runtime/items/`。
 - zip 内有 `runtime/electron/electron.exe`。
 - zip 内有 `vendor/pokemon-showdown/dist/sim/index.js`。
 - zip 内有 `apps/desktop/out/main/main.js`。
 - zip 内没有 `docs/`。
+- zip 内没有 `assets/pokemon-showdown/`、`assets/pokemon-pack/`、`assets/items-pack/`、`assets/items/`、`assets/pokemon-custom/`。
 - `RELEASE-README.md` 显示 `Version: X.Y.Z`。
 - Linux 本地 `release/` 下有最终 zip。

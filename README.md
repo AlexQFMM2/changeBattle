@@ -171,20 +171,24 @@ BP 是局外成长货币：
 - `starter_item_pool.csv`：开局道具候选池。
 - `shop_pool.csv`：休整商店候选池。
 - `consumable_item_effects.csv`：消耗品效果。
-- `sprite_index_map.json` / `sprite_index_map.csv`：宝可梦图片索引。
+- `pokemon_resource_registry.json`：宝可梦资源权威档案，记录形态、正背面、闪光、图标等运行时路径。
+- `item_resource_registry.json`：道具资源权威档案，记录道具分类、系统标签和图标路径。
+- `sprite_index_map.json`：由宝可梦 registry 派生的兼容图片索引；旧 UI 结构短期仍会读取它。
+- `resource_source_sprite_index_map.json` / `sprite_index_map.csv`：资源生成和人工校对用的源映射，不是 release 运行时最终来源。
 - `battle_effect_assets.json`：战斗演出效果配置。
 - `npc_trainers.csv`、`goods.csv`、翻译表和描述数据。
 
 主要资源目录是 `assets/`：
 
-- `assets/pokemon-pack`
-- `assets/pokemon-showdown`
-- `assets/items-pack`
+- `assets/runtime/pokemon`
+- `assets/runtime/items`
 - `assets/pokeballs-pack`
 - `assets/battle-backgrounds`
 - `assets/audio`
 - `assets/npc`
 - `assets/placeholders`
+
+`assets/runtime/*` 是桌面端和 App release 会打包的精选运行时资源。`assets/pokemon-showdown`、`assets/pokemon-pack`、`assets/items-pack`、`assets/items` 和 `assets/pokemon-custom` 是参考素材库，统一外置在 `/home/alexqfmm/workPlace/pokemon/ui-refrence/`，不应重新放回项目或进入 release 包。
 
 ## 项目结构
 

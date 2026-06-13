@@ -1164,7 +1164,7 @@ function ensureTeamRunMemberIds(team: PokemonSet[] = [], display: RentalPokemon[
   }
 }
 
-function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
+export function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
   const display = run.player_display || [];
   const existing = run.player_state || [];
   return display.map((pokemon, index) => {

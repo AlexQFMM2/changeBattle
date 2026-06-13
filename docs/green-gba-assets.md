@@ -4,7 +4,7 @@
 
 这是一份历史/低频参考文档，用来记录 `green.gba` 的导出、校对和素材研究流程；它不再代表当前桌面运行时的图片来源。
 
-当前宝可梦图片优先来自 `assets/pokemon-pack`，其次来自 `assets/pokemon-showdown`，最后才回退到占位图。`green.gba` 导出结果只作为历史校对和未来素材研究入口，不应把 `assets/pokemon-green` 当作 release 资源或当前运行时资源。
+当前运行时宝可梦图片来自 `data/pokemon_resource_registry.json` 和 `assets/runtime/pokemon/`。`green.gba` 导出结果只作为历史校对和未来素材研究入口，不应把 `assets/pokemon-green` 当作 release 资源或当前运行时资源。
 
 `green.gba` 是一个基于美版 Pokemon Emerald 的改版 ROM，头信息为 `POKEMON EMER / BPEE01`。这份文档只说明如何读取资源，不修改 ROM 本体。
 
@@ -49,13 +49,15 @@ dump/green-gba-pokemon/sheets/back_normal_000.png
 
 ## 当前运行时图片来源
 
-当前桌面运行时不再读取 `assets/pokemon-green`。宝可梦图片来源顺序是：
+当前桌面端和 App 运行时不再读取 `assets/pokemon-green`，也不直接读取完整的 `assets/pokemon-pack` 或 `assets/pokemon-showdown` 参考库。宝可梦图片最终来源是：
 
 ```text
-assets/pokemon-pack
-assets/pokemon-showdown
+data/pokemon_resource_registry.json
+assets/runtime/pokemon
 assets/placeholders/pokemon.png
 ```
+
+完整参考素材库已外置到 `/home/alexqfmm/workPlace/pokemon/ui-refrence/`。项目内只保留 registry 实际引用到的精选运行时图片。
 
 如果需要重新研究 `green.gba` 图片，可以继续导出到临时目录：
 
@@ -75,7 +77,13 @@ python3 tools/extract_green_gba_pokemon_sprites.py \
 data/sprite_index_map.csv
 ```
 
-运行时 manifest：
+资源生成源快照：
+
+```text
+data/resource_source_sprite_index_map.json
+```
+
+兼容 manifest：
 
 ```text
 data/sprite_index_map.json
@@ -84,9 +92,7 @@ data/sprite_index_map.json
 生成命令：
 
 ```bash
-python3 tools/build_sprite_index_map.py \
-  --csv data/sprite_index_map.csv \
-  --out data/sprite_index_map.json
+pnpm assets:build-registry
 ```
 
 如果需要按当前启发式规则重建 CSV：
@@ -98,7 +104,7 @@ python3 tools/build_sprite_index_map.py \
   --out data/sprite_index_map.json
 ```
 
-CSV 是之后校图的主入口，每行至少关心这两列：
+CSV 和 `data/resource_overrides.json` 是之后校图的主入口。旧 CSV 每行至少关心这两列：
 
 ```text
 species_id,image
@@ -110,17 +116,18 @@ ambipom,assets/pokemon-pack/pokemon/0477/front_normal.png
 - `1-251`：Kanto / Johto 基本与 sprite index 直接对应。
 - `252-386`：Hoenn 使用 Emerald 内部 species 顺序，默认 `national_dex + 25`。
 - `387+`：这个 ROM 在 Gen IV 前放了未知图腾形态槽，默认 `national_dex + 53`。
-- 形态、Mega、Gmax、地区形态等默认回退到基础 species 的图片，发现专用图后直接改 CSV。
+- 形态、Mega、Gmax、地区形态等应在 registry 中指向正确形态；发现专用图后优先改 `data/resource_overrides.json` 或源映射，再重新生成 registry。
 - `sprite_index=0000` 是问号占位图，不绑定 Showdown species。
-- 发现错图时直接改 `data/sprite_index_map.csv` 的 `image`，再重新生成 JSON。
+- 发现错图时不要把完整参考素材库复制回项目，改源映射或 override 后重新生成 runtime assets。
 
 UI 读取流程建议：
 
 ```text
 Showdown species id
-  -> data/sprite_index_map.json entries[species_id]  # 由 CSV 生成
+  -> data/pokemon_resource_registry.json entries[species_id]
+  -> data/sprite_index_map.json entries[species_id]  # 兼容层
   -> paths.front_normal / paths.back_normal
-  -> 依次尝试 pokemon-pack / pokemon-showdown
+  -> assets/runtime/pokemon
   -> 找不到时回退 assets/placeholders/pokemon.png
 ```
 

@@ -33,6 +33,7 @@ ChangeBattle 当前更适合被理解为：
 - 理解 Showdown 战斗展示播放流程：[`battle-timeline-flow.md`](./battle-timeline-flow.md)
 - 理解 Boss 台词和标签：[`boss_dialogues.md`](./boss_dialogues.md)、[`boss_dialogue_tags.md`](./boss_dialogue_tags.md)
 - 理解招式动画资料抓取：[`52poke_fetching.md`](./52poke_fetching.md)、[`move_animation_references.md`](./move_animation_references.md)
+- 理解宝可梦/道具资源 registry 与 runtime assets：[`resource-registry.md`](./resource-registry.md)
 - 生成 Windows 桌面便携 release：[`windows-desktop-release.md`](./windows-desktop-release.md)
 - 生成 Android 自用 APK release：[`app-release.md`](./app-release.md)
 - 自动同步源码到 Windows release 构建机：`tools/send_release_source_to_windows.sh`
@@ -118,7 +119,10 @@ Python 文字版入口。
 - `pokemon_tiers.csv`：随机宝可梦物种 tier 与候选生成基础数据。
 - `boss_team_pools.csv`、`rainbow_rocket_team_pools.csv`：Boss / 彩虹火箭队伍池。
 - `starter_item_pool.csv`、`shop_pool.csv`、`consumable_item_effects.csv`：初始道具、商店和消耗品效果。
-- `sprite_index_map.json` / `sprite_index_map.csv`：运行时宝可梦图片路径来源。
+- `pokemon_resource_registry.json`：宝可梦资源权威档案，运行时图片最终来源。
+- `item_resource_registry.json`：道具资源权威档案，运行时道具图标最终来源。
+- `sprite_index_map.json`：由宝可梦 registry 派生的兼容图片索引。
+- `resource_source_sprite_index_map.json` / `sprite_index_map.csv`：资源生成和校对用源映射。
 - `battle_effect_assets.json`：当前战斗表现层配置，主要使用 CSS fallback 和必要资源。
 - `npc_trainers.csv`、`goods.csv`、中文翻译和详情数据。
 
@@ -126,19 +130,19 @@ Python 文字版入口。
 
 桌面端和 App release 会打包的资源目录。
 
-当前主要图片来源：
+当前主要运行时图片来源：
 
-1. `assets/pokemon-pack`
-2. `assets/pokemon-showdown`
+1. `assets/runtime/pokemon`
+2. `assets/runtime/items`
 3. placeholder
 
 其他常用资源：
 
 - `assets/battle-backgrounds/backgrounds.csv`：当前战斗背景目录清单。
-- `assets/items-pack`、`assets/pokeballs-pack`：道具和球资源。
+- `assets/pokeballs-pack`：球资源。
 - `assets/audio`、`assets/npc`：音频和 NPC 资源。
 
-`assets/pokemon-green` 不再作为运行时资源来源；如果本地或构建机残留，也不应进入 release。
+参考素材库外置在 `/home/alexqfmm/workPlace/pokemon/ui-refrence/`。`assets/pokemon-showdown`、`assets/pokemon-pack`、`assets/items-pack`、`assets/items`、`assets/pokemon-custom` 和 `assets/pokemon-green` 都不应作为运行时资源来源，也不应进入 release。
 
 ### `tools`
 
@@ -146,7 +150,7 @@ Python 文字版入口。
 
 常见用途：
 
-- 导入 pokemon pack 资源并生成 sprite map。
+- 构建资源 registry 与精选 runtime assets。
 - 构建 mobile Showdown bundle，并用 smoke 脚本验证 mobile bundle 能生成随机队。
 - 抓取/观察 52poke 招式动画资料，校验战斗效果配置。
 - 生成彩虹火箭队资料和队伍数据。
@@ -266,10 +270,10 @@ Windows 桌面 release 按 [`windows-desktop-release.md`](./windows-desktop-rele
 
 Pokemon Showdown 是对战规则、数据和底层 battle engine 的事实源。ChangeBattle 不手写完整伤害公式、异常、特性、道具、天气、场地和复杂招式规则。
 
-宝可梦图片当前优先级：
+宝可梦和道具图片当前来源：
 
-1. `assets/pokemon-pack`
-2. `assets/pokemon-showdown`
+1. `data/pokemon_resource_registry.json` / `data/item_resource_registry.json`
+2. `assets/runtime/pokemon` / `assets/runtime/items`
 3. placeholder
 
 战斗背景当前由 `assets/battle-backgrounds/backgrounds.csv` 管理。不要把该目录里的历史导入素材当成运行时必需资源；清理资源前应先检查 CSV、运行时数据文件、mobile static copy 和 release 打包脚本。
@@ -283,7 +287,7 @@ Pokemon Showdown 是对战规则、数据和底层 battle engine 的事实源。
 - 改流程、休整、星图、默认道具：先看 `packages/game-runtime`，再读 `rule.md` 和 `randomItemRule.md`。
 - 改宝可梦、敌人、招式、专属 Z 招式或候选生成：先看 `packages/game-service`，再读 `randomPokemonRule.md`。
 - 改 Showdown 解析：优先读 `showdown-battle-log.md`；改战斗展示顺序和动画队列时读 `battle-timeline-flow.md`。
-- 改资源：先看 `data/*manifest*`、`sprite_index_map.json`、`assets/*`、mobile static copy 和 release 打包脚本。
+- 改资源：先看 [`resource-registry.md`](./resource-registry.md)、`data/*resource_registry.json`、`assets/runtime/*`、mobile static copy 和 release 打包脚本。
 - 改 Desk 发版流程：只读 `windows-desktop-release.md`，不要顺手改 App release。
 - 改 Android APK 发版流程：只读 `app-release.md`，不要顺手改 Desk release。
 - 判断平台优先级或 Web/App 边界：读 `platform-targets.md`，Desk 仍是正式主版本，Android 是真实自用 App。

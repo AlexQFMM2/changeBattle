@@ -61,6 +61,58 @@ if (-not (Test-Path $LocalApk)) {
 
 Copy-Item -Force $LocalApk $ReleaseApk
 
+Write-Host "Validating APK bundled resources..."
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$ApkZip = [IO.Compression.ZipFile]::OpenRead($ReleaseApk)
+try {
+  $Names = New-Object 'System.Collections.Generic.HashSet[string]'
+  foreach ($Entry in $ApkZip.Entries) {
+    [void]$Names.Add($Entry.FullName)
+  }
+  $Wanted = @(
+    "assets/public/data/pokemon_resource_registry.json",
+    "assets/public/data/item_resource_registry.json",
+    "assets/public/data/sprite_index_map.json"
+  )
+  foreach ($Item in $Wanted) {
+    if (-not $Names.Contains($Item)) {
+      throw "Missing from APK: $Item"
+    }
+  }
+  $RequiredPrefixes = @(
+    "assets/public/assets/runtime/pokemon/",
+    "assets/public/assets/runtime/items/"
+  )
+  foreach ($RequiredPrefix in $RequiredPrefixes) {
+    $Found = $false
+    foreach ($Name in $Names) {
+      if ($Name.StartsWith($RequiredPrefix)) {
+        $Found = $true
+        break
+      }
+    }
+    if (-not $Found) {
+      throw "Missing runtime assets in APK: $RequiredPrefix"
+    }
+  }
+  $ForbiddenPrefixes = @(
+    "assets/public/assets/pokemon-showdown/",
+    "assets/public/assets/pokemon-pack/",
+    "assets/public/assets/pokemon-custom/",
+    "assets/public/assets/items-pack/",
+    "assets/public/assets/items/"
+  )
+  foreach ($Name in $Names) {
+    foreach ($ForbiddenPrefix in $ForbiddenPrefixes) {
+      if ($Name.StartsWith($ForbiddenPrefix)) {
+        throw "Reference asset directory should not be bundled in APK: $ForbiddenPrefix"
+      }
+    }
+  }
+} finally {
+  $ApkZip.Dispose()
+}
+
 $ApkSigner = Get-ChildItem (Join-Path $AndroidHome "build-tools") -Directory |
   Sort-Object Name -Descending |
   ForEach-Object { Join-Path $_.FullName "apksigner.bat" } |

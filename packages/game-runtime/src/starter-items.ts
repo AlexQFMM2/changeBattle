@@ -237,8 +237,8 @@ function itemIconAsset(itemId: string): string {
   const normalized = itemKey(itemId);
   if (!normalized) return "assets/placeholders/item.png";
   const zType = Z_CRYSTAL_ICON_TYPES[normalized];
-  if (zType) return `assets/items-pack/${ITEM_TYPE_PLATE_ASSETS[zType] || "zapplate"}.png`;
-  return `assets/items-pack/${normalized}.png`;
+  if (zType) return `assets/runtime/items/${ITEM_TYPE_PLATE_ASSETS[zType] || "zapplate"}/icon.png`;
+  return `assets/runtime/items/${normalized}/icon.png`;
 }
 
 const Z_CRYSTAL_ICON_TYPES: Record<string, string> = {

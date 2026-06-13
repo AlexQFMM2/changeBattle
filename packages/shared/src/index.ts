@@ -795,7 +795,7 @@ export const REST_SHOP_DISCOUNT_COUPONS: Record<string, {shopKind: ShopKind; nam
     name_zh: "训练商店折扣券",
     desc: "Use during rest to halve Training Shop roll and purchase costs this rest.",
     desc_zh: "休整页使用，本次休整训练商店抽奖和购买 5 折。",
-    icon_asset: "assets/items-pack/expcharm.png",
+    icon_asset: "assets/runtime/items/expcharm/icon.png",
   },
   battleitemcoupon: {
     shopKind: "held",
@@ -803,7 +803,7 @@ export const REST_SHOP_DISCOUNT_COUPONS: Record<string, {shopKind: ShopKind; nam
     name_zh: "战斗道具商店折扣券",
     desc: "Use during rest to halve Battle Item Shop roll and purchase costs this rest.",
     desc_zh: "休整页使用，本次休整道具商店抽奖和购买 5 折。",
-    icon_asset: "assets/items-pack/amuletcoin.png",
+    icon_asset: "assets/runtime/items/amuletcoin/icon.png",
   },
   tmcoupon: {
     shopKind: "tm",
@@ -811,7 +811,7 @@ export const REST_SHOP_DISCOUNT_COUPONS: Record<string, {shopKind: ShopKind; nam
     name_zh: "技能机器商店折扣券",
     desc: "Use during rest to halve TM Shop roll and purchase costs this rest.",
     desc_zh: "休整页使用，本次休整技能商店抽奖和购买 5 折。",
-    icon_asset: "assets/items-pack/auroraticket.png",
+    icon_asset: "assets/runtime/items/auroraticket/icon.png",
   },
   recoverycoupon: {
     shopKind: "recovery",
@@ -819,7 +819,7 @@ export const REST_SHOP_DISCOUNT_COUPONS: Record<string, {shopKind: ShopKind; nam
     name_zh: "恢复商店折扣券",
     desc: "Use during rest to halve Recovery Shop roll and purchase costs this rest.",
     desc_zh: "休整页使用，本次休整回复商店抽奖和购买 5 折。",
-    icon_asset: "assets/items-pack/cleansetag.png",
+    icon_asset: "assets/runtime/items/cleansetag/icon.png",
   },
 };
 

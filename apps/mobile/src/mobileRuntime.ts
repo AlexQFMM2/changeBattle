@@ -62,6 +62,7 @@ import {
   loadTrainerNpcCatalog,
   markStarterOrigin,
   normalizeScoreBetState,
+  normalizePlayerState,
   normalizeStatsInput,
   exchangeCost,
   exchangeKeepsItem,
@@ -335,6 +336,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         run,
         seed: battleService.deriveSeed(Number(run.seed), 200 + prepared.battleNo),
         enemyAi: prepared.route.type === "champion" ? "champion" : prepared.route.type === "elite4" ? "elite4" : prepared.route.type === "gym" ? "gym_low" : "normal",
+        playerState: normalizePlayerState(run),
       }));
       activeBattleState = decorateMobileBattleState(activeBattle.getState(), run);
       return gameState({screen: "battleMain", save: next, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(battleService, run), message: prepared.message});
@@ -1553,7 +1555,7 @@ async function mobileBagCategories(service: GameService, run: CurrentRunData): P
     const meta = run.bag_item_meta?.[id];
     const item = await mobileItemDetails(service, id, meta);
     let category = (meta?.category as ItemCategory | undefined) || itemCategory(item);
-    if (category === "consumable" && !(await service.hasConsumableItemEffect(id))) category = "held";
+    if (category === "consumable" && !isTrainingShopItemId(id) && !(await service.hasConsumableItemEffect(id))) category = "held";
     const moveId = /^tm:/i.test(id) ? id.slice(3) : undefined;
     result[category].push({
       ...item,
