@@ -144,6 +144,16 @@ razorfang,item,held,battle,3,600,1,1,0,flinch chance boost
 redcard,item,held,battle,3,600,1,1,0,force attacker switch
 toxicorb,item,held,battle,3,600,1,1,0,self poison orb
 normalgem,item,held,battle,3,700,1,1,0,normal attack gem
+thickclub,item,held,battle,3,600,1,1,0,marowak exclusive attack boost
+souldew,item,held,battle,3,700,1,1,0,latias latios exclusive soul dew
+lightball,item,held,battle,3,600,1,1,0,pikachu exclusive attack boost
+luckypunch,item,held,battle,2,500,1,1,0,chansey exclusive critical boost
+stick,item,held,battle,2,500,1,1,0,farfetchd exclusive critical boost
+leek,item,held,battle,2,500,1,1,0,farfetchd sirfetchd exclusive critical boost
+deepseatooth,item,held,battle,2,500,1,1,0,clamperl exclusive special attack boost
+deepseascale,item,held,battle,2,500,1,1,0,clamperl exclusive special defense boost
+quickpowder,item,held,battle,2,500,1,1,0,ditto exclusive speed boost
+metalpowder,item,held,battle,2,500,1,1,0,ditto exclusive defense boost
 protectivepads,item,held,battle,3,700,1,1,0,contact effect protection
 ringtarget,item,held,battle,3,700,1,1,0,remove type immunity
 shedshell,item,held,battle,3,700,1,1,0,ignore trapping

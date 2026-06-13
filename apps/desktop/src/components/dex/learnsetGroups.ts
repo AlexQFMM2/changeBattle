@@ -3,6 +3,7 @@ import type {MoveLearnSource, MoveSummary} from "@changebattle/shared";
 type LearnsetSourceGroup = {
   id: MoveLearnSource | "special";
   label: string;
+  tabLabel: string;
   sources: MoveLearnSource[];
 };
 
@@ -13,12 +14,20 @@ export type LearnsetMoveGroup = {
 };
 
 const LEARNSET_SOURCE_GROUPS: LearnsetSourceGroup[] = [
-  {id: "levelup", label: "天生就会", sources: ["levelup"]},
-  {id: "machine", label: "技能机器", sources: ["machine"]},
-  {id: "tutor", label: "教学", sources: ["tutor"]},
-  {id: "egg", label: "遗传", sources: ["egg"]},
-  {id: "special", label: "特殊来源", sources: ["event", "transfer", "other"]},
+  {id: "levelup", label: "自学技能", tabLabel: "自学技能", sources: ["levelup"]},
+  {id: "egg", label: "遗传技能", tabLabel: "遗传技能", sources: ["egg"]},
+  {id: "tutor", label: "教授技能", tabLabel: "教授技能", sources: ["tutor"]},
+  {id: "machine", label: "可学技能机器", tabLabel: "技能机器", sources: ["machine"]},
+  {id: "special", label: "特殊来源", tabLabel: "特殊来源", sources: ["event", "transfer", "other"]},
 ];
+
+export const POKEMON_INFO_TAB_ID = "info";
+
+export type PokemonDexDetailTab = {
+  id: string;
+  label: string;
+  count?: number;
+};
 
 export function groupLearnsetBySource(learnset: MoveSummary[] = []): LearnsetMoveGroup[] {
   const grouped = LEARNSET_SOURCE_GROUPS.map(group => ({
@@ -35,6 +44,16 @@ export function groupLearnsetBySource(learnset: MoveSummary[] = []): LearnsetMov
     grouped.push({id: "uncategorized", label: "其他来源", moves: uncategorized});
   }
   return grouped.filter(group => group.moves.length > 0);
+}
+
+export function pokemonDexDetailTabs(learnset: MoveSummary[] = []): PokemonDexDetailTab[] {
+  const groups = groupLearnsetBySource(learnset);
+  const tabs: PokemonDexDetailTab[] = [{id: POKEMON_INFO_TAB_ID, label: "基本信息"}];
+  for (const group of groups) {
+    const config = LEARNSET_SOURCE_GROUPS.find(sourceGroup => String(sourceGroup.id) === group.id);
+    tabs.push({id: group.id, label: config?.tabLabel || group.label, count: group.moves.length});
+  }
+  return tabs;
 }
 
 export function moveHasMultipleLearnSources(move: MoveSummary): boolean {

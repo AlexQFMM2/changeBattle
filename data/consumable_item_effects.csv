@@ -47,3 +47,4 @@ zinc,,,,,none,ev,spd,100,one,0,raise special defense ev
 carbos,,,,,none,ev,spe,100,one,0,raise speed ev
 bottlecap,,,,,none,iv,,31,one,0,set one iv to 31
 goldbottlecap,,,,,none,iv,,31,all,0,set all ivs to 31
+rarecandy,,,,,none,,,,,0,raise level by 1 in rest

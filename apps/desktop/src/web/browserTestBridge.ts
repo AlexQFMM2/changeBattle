@@ -441,8 +441,8 @@ function dexSearch(category: DesktopDexCategory, query: string, offset: number, 
 function dexEntries(category: DesktopDexCategory): DesktopDexEntry[] {
   if (category === "pokemon") {
     return [
-      {id: "pikachu", name: "Pikachu", name_zh: "皮卡丘", category, desc_zh: "自动测试图鉴条目。", types: ["Electric"], types_zh: ["电"], sprite: spriteEntry("pikachu", "Pikachu", 25, "assets/audio/pokemon-cries/pikachu.ogg")},
-      {id: "eevee", name: "Eevee", name_zh: "伊布", category, desc_zh: "用于同物种测试。", types: ["Normal"], types_zh: ["一般"], sprite: spriteEntry("eevee", "Eevee", 133, "assets/audio/pokemon-cries/eevee.ogg")},
+      {id: "pikachu", name: "Pikachu", name_zh: "皮卡丘", category, desc_zh: "自动测试图鉴条目。", types: ["Electric"], types_zh: ["电"], sprite: spriteEntry("pikachu", "Pikachu", 25, "assets/audio/pokemon-cries/pikachu.ogg"), base_stats: {hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90}, abilities: [{id: "static", name: "Static", name_zh: "静电"}, {id: "lightningrod", name: "Lightning Rod", name_zh: "避雷针", hidden: true}], learnset: [{...debugMove("thunderbolt", "十万伏特", "Electric"), learn_sources: ["levelup", "machine"]}, {...debugMove("fakeout", "击掌奇袭", "Normal"), learn_sources: ["egg"]}]},
+      {id: "eevee", name: "Eevee", name_zh: "伊布", category, desc_zh: "用于同物种测试。", types: ["Normal"], types_zh: ["一般"], sprite: spriteEntry("eevee", "Eevee", 133, "assets/audio/pokemon-cries/eevee.ogg"), base_stats: {hp: 55, atk: 55, def: 50, spa: 45, spd: 65, spe: 55}, abilities: [{id: "runaway", name: "Run Away", name_zh: "逃跑"}, {id: "adaptability", name: "Adaptability", name_zh: "适应力"}], learnset: [{...debugMove("quickattack", "电光一闪", "Normal"), learn_sources: ["levelup"]}]},
     ];
   }
   if (category === "moves") return [{id: "waterfall", name: "Waterfall", name_zh: "攀瀑", category, desc_zh: "有概率使目标畏缩。", type: "Water", type_zh: "水", move_category: "Physical", move_category_zh: "物理", power: 80, accuracy: 100, pp: 15}];

@@ -159,6 +159,45 @@ async function testTrainingItemsAreRestOnlyConsumables(): Promise<void> {
   assert.equal(session.getState().tracker.turn, before);
 }
 
+async function testPokemonGenderGeneration(): Promise<void> {
+  const service = createTestService();
+  const generated = await service.generateRentalCandidates([301, 302, 303, 304], "gen9randombattle", 3, {
+    speciesIds: ["Pikachu", "Nidoran-F", "Magnemite"],
+    profiles: ["tier1", "tier1", "tier1"],
+    battleSetting: GEN9_BATTLE_SETTING,
+  });
+  const repeated = await service.generateRentalCandidates([301, 302, 303, 304], "gen9randombattle", 3, {
+    speciesIds: ["Pikachu", "Nidoran-F", "Magnemite"],
+    profiles: ["tier1", "tier1", "tier1"],
+    battleSetting: GEN9_BATTLE_SETTING,
+  });
+  assert.deepEqual(generated.team.map(set => set.gender || ""), repeated.team.map(set => set.gender || ""));
+  assert.deepEqual(generated.display.map(pokemon => pokemon.gender || ""), generated.team.map(set => set.gender || ""));
+  const genderBySpecies = new Map(generated.display.map(pokemon => [pokemon.species_id, pokemon.gender || ""]));
+  const pikachuGender = generated.display.find(pokemon => pokemon.species_id.startsWith("pikachu"))?.gender || "";
+  assert.match(pikachuGender, /^[MF]$/);
+  assert.equal(genderBySpecies.get("nidoranf"), "F");
+  assert.equal(genderBySpecies.get("magnemite"), "");
+}
+
+async function testBattleSessionNormalizesMissingGender(): Promise<void> {
+  const service = createTestService();
+  const playerTeam = [{...pokemon("Pikachu", ["Tackle"]), gender: undefined}];
+  const enemyTeam = [{...pokemon("Magnemite", ["Tackle"], "Magnet Pull"), gender: undefined}];
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay: await service.describeTeam(playerTeam),
+    enemyDisplay: await service.describeTeam(enemyTeam),
+    seed: [401, 402, 403, 404],
+  });
+  const state = session.getState();
+  assert.match(state.player_team[0].gender || "", /^[MF]$/);
+  assert.equal(state.player_display[0].gender, state.player_team[0].gender);
+  assert.equal(state.enemy_team[0].gender || "", "");
+  assert.equal(state.enemy_display[0].gender || "", "");
+}
+
 async function testEnemyAiPrefersEffectiveDamage(): Promise<void> {
   const service = createTestService();
   const playerTeam = [pokemon("Bulbasaur", ["Tackle"])];
@@ -609,6 +648,17 @@ async function testMoveLearnSourcesAreClassified(): Promise<void> {
   assert.ok(machineMoves.every(move => move.learn_sources?.includes("machine")), JSON.stringify(machineMoves.slice(0, 5), null, 2));
 }
 
+async function testDexPokemonAbilitiesAndLearnset(): Promise<void> {
+  const service = createTestService();
+  const result = await service.dexSearch("pokemon", "妙蛙草", 0, 4);
+  const ivysaur = result.entries.find(entry => entry.id === "ivysaur");
+  assert.ok(ivysaur, JSON.stringify(result.entries, null, 2));
+  assert.ok(ivysaur?.abilities?.some(ability => ability.id === "overgrow" && !ability.hidden), JSON.stringify(ivysaur?.abilities, null, 2));
+  assert.ok(ivysaur?.abilities?.some(ability => ability.id === "chlorophyll" && ability.hidden), JSON.stringify(ivysaur?.abilities, null, 2));
+  assert.ok(ivysaur?.learnset?.some(move => move.learn_sources?.includes("levelup")), "dex pokemon entry should include level-up moves");
+  assert.ok(ivysaur?.learnset?.some(move => move.learn_sources?.includes("machine")), "dex pokemon entry should include machine moves");
+}
+
 async function testZMoveBattleFlow(): Promise<void> {
   const zSession = await createCustomSession(
     [{...pokemon("Charmander", ["Ember", "Scratch"], "Blaze"), item: "Firium Z"}],
@@ -988,6 +1038,8 @@ await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
 await testTrainingItemsAreRestOnlyConsumables();
+await testPokemonGenderGeneration();
+await testBattleSessionNormalizesMissingGender();
 await testEnemyAiPrefersEffectiveDamage();
 await testSoulSickAiPrefersBadMoves();
 await testSoulSickAiDoesNotPreferBattleSystems();
@@ -1008,6 +1060,7 @@ await testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive();
 await testClassicBattleFlowScenarios();
 await testSpeciesTierCanOverrideGenerationProfile();
 await testMoveLearnSourcesAreClassified();
+await testDexPokemonAbilitiesAndLearnset();
 await testZMoveBattleFlow();
 await testEnemyUsesZMoveWhenAvailable();
 await testZMoveInternalProtocolIsHidden();

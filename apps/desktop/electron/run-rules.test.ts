@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type {BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
+import {pokemonDexDetailTabs} from "../src/components/dex/learnsetGroups.ts";
 import {debugPokemon} from "../src/lib/ui.tsx";
 import {
   BP_SCALE,
@@ -18,6 +19,7 @@ import {
   SCORE_BET_MIN_STAKE,
   STAR_CHART_NODES,
   TALENTS,
+  addCoins,
   applyAllInExchange,
   addRunBp,
   canDirectMove,
@@ -38,6 +40,7 @@ import {
   gainedBp,
   hasTalent,
   isPremiumHeldShopEntry,
+  isTrainingShopItemId,
   itemCategory,
   moveDrawCost,
   moveDrawCount,
@@ -64,6 +67,7 @@ import {
   soulSwapEnemyAiProfile,
   spendBp,
   spendCoins,
+  spendRunCoins,
   settleScoreBetResult,
   starNodeLevel,
   starterCoinsForSeed,
@@ -71,6 +75,7 @@ import {
   starterUpgradeLevel,
   statResetCost,
   talent,
+  tmIconAssetForMoveType,
 } from "./run-rules.js";
 
 function talents(ids: string[]): TalentView[] {
@@ -294,6 +299,30 @@ function testEconomyTalents(): void {
   assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 500, excludedCoins: 0});
 }
 
+function testCoinLedgerAndTrainingRules(): void {
+  assert.equal(isTrainingShopItemId("pomegberry"), true);
+  assert.equal(isTrainingShopItemId("hpup"), true);
+  assert.equal(isTrainingShopItemId("bottlecap"), true);
+  assert.equal(isTrainingShopItemId("goldbottlecap"), true);
+  assert.equal(isTrainingShopItemId("rarecandy"), true);
+  assert.equal(isTrainingShopItemId("leftovers"), false);
+  assert.equal(isTrainingShopItemId("potion"), false);
+
+  const ledgerRun = run([], {coins: 100});
+  addCoins(ledgerRun, 50, "sponsor-delivery");
+  spendRunCoins(ledgerRun, 30, "shop-roll:training", {alreadyPriced: true});
+  assert.equal(currentCoins(ledgerRun), 120);
+  assert.equal(ledgerRun.coin_ledger?.length, 2);
+  assert.deepEqual(ledgerRun.coin_ledger?.map(entry => [entry.type, entry.amount, entry.before, entry.after, entry.label]), [
+    ["spend", 30, 150, 120, "商店抽奖"],
+    ["gain", 50, 100, 150, "赞助到账"],
+  ]);
+
+  for (let index = 0; index < 120; index += 1) addCoins(ledgerRun, 1, "gain");
+  assert.equal(ledgerRun.coin_ledger?.length, 100);
+  assert.equal(ledgerRun.coin_ledger?.[0]?.after, currentCoins(ledgerRun));
+}
+
 function testScoreBetRules(): void {
   assert.equal(scoreBetMultiplier(3), 5);
   assert.equal(scoreBetPayout(100, 3), 300);
@@ -370,6 +399,25 @@ function testPremiumShopHelpers(): void {
     {id: "pound", name: "Pound", power: 40, learn_sources: ["machine"]},
   ], 3);
   assert.deepEqual(fallback.map(move => move.id), ["magicalleaf", "swift"]);
+}
+
+function testTmIconAssets(): void {
+  assert.equal(tmIconAssetForMoveType("Bug"), "assets/items-pack/machinebug.png");
+  assert.equal(tmIconAssetForMoveType("Fire"), "assets/items-pack/machinefire.png");
+  assert.equal(tmIconAssetForMoveType("???"), "assets/placeholders/move.png");
+  assert.equal(tmIconAssetForMoveType(undefined), "assets/placeholders/move.png");
+}
+
+function testPokemonDexDetailTabs(): void {
+  const tabs = pokemonDexDetailTabs([
+    {id: "tackle", name: "Tackle", name_zh: "撞击", type: "Normal", category: "Physical", learn_sources: ["levelup"]},
+    {id: "fakeout", name: "Fake Out", name_zh: "击掌奇袭", type: "Normal", category: "Physical", learn_sources: ["egg"]},
+    {id: "knockoff", name: "Knock Off", name_zh: "拍落", type: "Dark", category: "Physical", learn_sources: ["tutor"]},
+    {id: "thunderbolt", name: "Thunderbolt", name_zh: "十万伏特", type: "Electric", category: "Special", learn_sources: ["machine"]},
+  ] as any);
+  assert.deepEqual(tabs.map(tab => tab.label), ["基本信息", "自学技能", "遗传技能", "教授技能", "技能机器"]);
+  const specialTabs = pokemonDexDetailTabs([{id: "celebrate", name: "Celebrate", name_zh: "庆祝", type: "Normal", category: "Status", learn_sources: ["event"]}] as any);
+  assert.deepEqual(specialTabs.map(tab => tab.label), ["基本信息", "特殊来源"]);
 }
 
 function testBattleTimelineEntryOrdering(): void {
@@ -459,11 +507,14 @@ testExchangeTalents();
 testGrowthTalents();
 testIntelTalents();
 testEconomyTalents();
+testCoinLedgerAndTrainingRules();
 testScoreBetRules();
 testDefaultsAndHelpers();
 testBattleSettingDefaults();
 testShopDuplicateBonus();
 testPremiumShopHelpers();
+testTmIconAssets();
+testPokemonDexDetailTabs();
 testBattleTimelineEntryOrdering();
 testBattleTimelineMissSkipsMoveVisual();
 testSoulSwapRules();

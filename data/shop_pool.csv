@@ -33,12 +33,12 @@ chestoberry,item,consumable,5,4,1,sleep berry
 pechaberry,item,consumable,5,4,1,poison berry
 rawstberry,item,consumable,5,4,1,burn berry
 aspearberry,item,consumable,5,4,1,freeze berry
-pomegberry,item,consumable,5,3,1,lower hp ev berry
-kelpsyberry,item,consumable,5,3,1,lower attack ev berry
-qualotberry,item,consumable,5,3,1,lower defense ev berry
-hondewberry,item,consumable,5,3,1,lower special attack ev berry
-grepaberry,item,consumable,5,3,1,lower special defense ev berry
-tamatoberry,item,consumable,5,3,1,lower speed ev berry
+pomegberry,item,consumable,15,3,1,lower hp ev berry training
+kelpsyberry,item,consumable,15,3,1,lower attack ev berry training
+qualotberry,item,consumable,15,3,1,lower defense ev berry training
+hondewberry,item,consumable,15,3,1,lower special attack ev berry training
+grepaberry,item,consumable,15,3,1,lower special defense ev berry training
+tamatoberry,item,consumable,15,3,1,lower speed ev berry training
 figyberry,item,consumable,10,4,1,pinch heal berry
 wikiberry,item,consumable,10,4,1,pinch heal berry
 magoberry,item,consumable,10,4,1,pinch heal berry
@@ -73,14 +73,15 @@ marangaberry,item,consumable,15,1,1,special hit special defense berry
 lansatberry,item,consumable,15,1,1,pinch critical berry
 starfberry,item,consumable,15,1,1,pinch random stat berry
 micleberry,item,consumable,15,1,1,pinch accuracy berry
-hpup,item,consumable,50,2,1,raise hp ev vitamin
-protein,item,consumable,50,2,1,raise attack ev vitamin
-iron,item,consumable,50,2,1,raise defense ev vitamin
-calcium,item,consumable,50,2,1,raise special attack ev vitamin
-zinc,item,consumable,50,2,1,raise special defense ev vitamin
-carbos,item,consumable,50,2,1,raise speed ev vitamin
-bottlecap,item,consumable,100,1,1,iv training cap
-goldbottlecap,item,consumable,300,1,1,full iv training cap
+hpup,item,consumable,200,2,1,raise hp ev vitamin training
+protein,item,consumable,200,2,1,raise attack ev vitamin training
+iron,item,consumable,200,2,1,raise defense ev vitamin training
+calcium,item,consumable,200,2,1,raise special attack ev vitamin training
+zinc,item,consumable,200,2,1,raise special defense ev vitamin training
+carbos,item,consumable,200,2,1,raise speed ev vitamin training
+bottlecap,item,consumable,200,1,1,iv training cap
+goldbottlecap,item,consumable,600,1,1,full iv training cap
+rarecandy,item,consumable,300,1,1,raise level training
 leftovers,item,held,800,5,1,recover each turn
 blacksludge,item,held,700,3,1,poison recovery
 lifeorb,item,held,900,4,1,damage boost
@@ -157,6 +158,16 @@ razorfang,item,held,600,1,1,flinch chance boost
 redcard,item,held,600,1,1,force attacker switch
 toxicorb,item,held,600,1,1,self poison orb
 normalgem,item,held,700,1,1,normal attack gem
+thickclub,item,held,600,1,1,marowak exclusive attack boost
+souldew,item,held,700,1,1,latias latios exclusive soul dew
+lightball,item,held,600,1,1,pikachu exclusive attack boost
+luckypunch,item,held,500,1,1,chansey exclusive critical boost
+stick,item,held,500,1,1,farfetchd exclusive critical boost
+leek,item,held,500,1,1,farfetchd sirfetchd exclusive critical boost
+deepseatooth,item,held,500,1,1,clamperl exclusive special attack boost
+deepseascale,item,held,500,1,1,clamperl exclusive special defense boost
+quickpowder,item,held,500,1,1,ditto exclusive speed boost
+metalpowder,item,held,500,1,1,ditto exclusive defense boost
 protectivepads,item,held,700,1,1,contact effect protection
 ringtarget,item,held,700,1,1,remove type immunity
 shedshell,item,held,700,1,1,ignore trapping

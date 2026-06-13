@@ -1,4 +1,4 @@
-import type {BattleState, CurrentRunData, ItemCategory, LocalSave, RestScoreBetState, RestScoreBetTarget, ShopItem, ShopOffer, ShopState, StarChartState, StarterItemGroup, StarterUpgradeState, StarterUpgradeView, TalentView} from "@changebattle/shared";
+import type {BattleState, CoinLedgerEntry, CurrentRunData, ItemCategory, LocalSave, RestScoreBetState, RestScoreBetTarget, ShopItem, ShopOffer, ShopState, StarChartState, StarterItemGroup, StarterUpgradeState, StarterUpgradeView, TalentView} from "@changebattle/shared";
 
 export type RuntimeBattleAiLevel = "normal" | "gym_low" | "gym_high" | "elite4" | "champion";
 export type RuntimeBattleAiKnowledge = "active_only" | "party_species" | "party_sets" | "omniscient";
@@ -75,6 +75,29 @@ export const SHOP_GUEST_FREE_ROLLS = 3;
 export const MOVE_DRAW_COST = 1 * BP_SCALE;
 export const MOVE_DRAW_COUNT = 8;
 export const MOVE_DRAW_COUNT_GAMBLER = 16;
+export const TRAINING_EV_BERRY_ITEM_IDS = ["pomegberry", "kelpsyberry", "qualotberry", "hondewberry", "grepaberry", "tamatoberry"] as const;
+export const TRAINING_VITAMIN_ITEM_IDS = ["hpup", "protein", "iron", "calcium", "zinc", "carbos"] as const;
+export const TRAINING_CAP_ITEM_IDS = ["bottlecap", "goldbottlecap"] as const;
+export const TRAINING_CANDY_ITEM_IDS = ["rarecandy"] as const;
+export const TRAINING_ITEM_IDS = [...TRAINING_EV_BERRY_ITEM_IDS, ...TRAINING_VITAMIN_ITEM_IDS, ...TRAINING_CAP_ITEM_IDS, ...TRAINING_CANDY_ITEM_IDS] as const;
+export const TRAINING_ITEM_PRICES: Record<string, number> = {
+  pomegberry: 15,
+  kelpsyberry: 15,
+  qualotberry: 15,
+  hondewberry: 15,
+  grepaberry: 15,
+  tamatoberry: 15,
+  hpup: 200,
+  protein: 200,
+  iron: 200,
+  calcium: 200,
+  zinc: 200,
+  carbos: 200,
+  bottlecap: 200,
+  goldbottlecap: 600,
+  rarecandy: 300,
+};
+const TM_ICON_TYPE_IDS = new Set(["normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel", "fairy"]);
 export const RANDOMIZE_PART_COST = 0.5 * BP_SCALE;
 export const RANDOMIZE_ALL_COST = 1.5 * BP_SCALE;
 export const SCOUT_BASIC_COST = 0;
@@ -474,25 +497,87 @@ export function currentCoins(run: CurrentRunData | null | undefined): number {
   return Math.max(0, Math.floor(Number(run?.coins || 0)));
 }
 
-export function addCoins(run: CurrentRunData, amount: number): number {
+export function isTrainingShopItemId(itemId: string | undefined): boolean {
+  const id = itemKey(itemId);
+  return Boolean(id && (TRAINING_ITEM_IDS as readonly string[]).includes(id));
+}
+
+function coinLedgerLabel(reason: string, fallback: string): string {
+  const labels: Record<string, string> = {
+    gain: "金币收入",
+    reward: "金币奖励",
+    "battle-reward": "战斗奖励",
+    "shop-duplicate": "商店重复奖励",
+    settlement: "结算",
+    "score-bet-adjust": "重金下注",
+    "score-bet-refund": "重金下注返还",
+    "bp-to-coins": "BP兑换金币",
+    "all-in-bonus": "孤注一掷奖励",
+    "contest-bonus": "华丽大赛奖励",
+    "villain-intrusion-bonus": "反派乱入奖励",
+    "rainbow-rocket-bonus": "彩虹火箭队奖励",
+    "sponsor-delivery": "赞助到账",
+    "blood-donation": "献血光荣",
+    "potion-trial": "药剂试喝",
+    "devil-treasure": "飞天魔鬼的宝藏",
+    "move-refund": "技能返还",
+    "score-bet-payout": "重金下注命中",
+    "clear-bonus": "通关连胜奖励",
+  };
+  if (reason.startsWith("shop-roll:")) return "商店抽奖";
+  if (reason.startsWith("shop-buy:")) return "商店购买";
+  if (reason.startsWith("buy-item:")) return "购买道具";
+  if (reason.startsWith("draw-moves")) return "技能抽奖";
+  if (reason.startsWith("adjust-move")) return "技能学习";
+  if (reason.startsWith("randomize-stats")) return "数值重置";
+  if (reason.startsWith("night-sky")) return "夜观天象";
+  if (reason.startsWith("exchange")) return "交换服务";
+  if (reason.startsWith("forge")) return "锻造";
+  if (reason.startsWith("scout")) return "侦察";
+  if (reason.startsWith("event-learn")) return "奇遇招式学习";
+  return labels[reason] || fallback;
+}
+
+export function recordCoinLedger(run: CurrentRunData, type: CoinLedgerEntry["type"], amount: number, before: number, after: number, reason: string, label?: string): void {
+  const normalizedAmount = Math.max(0, Math.floor(Number(amount || 0)));
+  if (normalizedAmount <= 0 || before === after) return;
+  const at = new Date().toISOString();
+  const entry: CoinLedgerEntry = {
+    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    at,
+    type,
+    amount: normalizedAmount,
+    before: Math.max(0, Math.floor(Number(before || 0))),
+    after: Math.max(0, Math.floor(Number(after || 0))),
+    reason,
+    label: label || coinLedgerLabel(reason, type === "gain" ? "金币收入" : "金币支出"),
+  };
+  run.coin_ledger = [entry, ...(run.coin_ledger || [])].slice(0, 100);
+}
+
+export function addCoins(run: CurrentRunData, amount: number, reason = "gain", label?: string): number {
   const gained = Math.max(0, Math.floor(Number(amount || 0)));
+  const before = currentCoins(run);
   run.coins = currentCoins(run) + gained;
+  recordCoinLedger(run, "gain", gained, before, currentCoins(run), reason, label);
   return gained;
 }
 
-export function spendCoins(run: CurrentRunData, cost: number): void {
+export function spendCoins(run: CurrentRunData, cost: number, reason = "spend", label?: string): void {
   const normalizedCost = Math.max(0, Math.floor(Number(cost || 0)));
   if (currentCoins(run) < normalizedCost) throw new Error(`金币不足，需要 ${normalizedCost}金币。`);
+  const before = currentCoins(run);
   const locked = Math.max(0, Math.floor(Number(run.non_convertible_coins || 0)));
   run.non_convertible_coins = Math.max(0, locked - normalizedCost);
   run.coins = currentCoins(run) - normalizedCost;
+  recordCoinLedger(run, "spend", normalizedCost, before, currentCoins(run), reason, label);
 }
 
 export function spendRunCoins(run: CurrentRunData, cost: number, label: string, options: {alreadyPriced?: boolean; nowMs?: number} = {}): {paid: number; message: string} {
   const baseCost = options.alreadyPriced ? Math.max(0, Math.floor(Number(cost || 0))) : pricedForRun(run, cost);
   if (baseCost <= 0) return {paid: 0, message: "免费"};
   if (!hasTalent(run.talents, "growth_risky")) {
-    spendCoins(run, baseCost);
+    spendCoins(run, baseCost, label);
     recordPortfolioSpend(run, label, baseCost);
     return {paid: baseCost, message: spendText(baseCost)};
   }
@@ -502,15 +587,15 @@ export function spendRunCoins(run: CurrentRunData, cost: number, label: string, 
   }
   if (roll < 0.6) {
     const paid = Math.ceil(baseCost * 1.5);
-    spendCoins(run, paid);
+    spendCoins(run, paid, label);
     recordPortfolioSpend(run, label, paid);
     return {paid, message: `铤而走险触发：消耗增加 1.5 倍，花费 ${paid}金币`};
   }
   if (roll < 0.7) {
-    addCoins(run, baseCost);
+    addCoins(run, baseCost, label, "铤而走险返利");
     return {paid: 0, message: `铤而走险触发：本次免费，并额外获得 ${baseCost}金币`};
   }
-  spendCoins(run, baseCost);
+  spendCoins(run, baseCost, label);
   recordPortfolioSpend(run, label, baseCost);
   return {paid: baseCost, message: spendText(baseCost)};
 }
@@ -759,7 +844,7 @@ export function gainedBp(run: CurrentRunData | null | undefined, amount: number)
 export function addRunBp(save: LocalSave, run: CurrentRunData | null | undefined, amount: number): number {
   void save;
   const gained = gainedBp(run, amount);
-  if (run) addCoins(run, gained);
+  if (run) addCoins(run, gained, "reward", "金币奖励");
   return gained;
 }
 
@@ -769,7 +854,7 @@ export function clearBonus(save: LocalSave, run?: CurrentRunData): {setStreak: n
   save.stats.set_win_streak = setStreak;
   save.stats.best_set_win_streak = Math.max(Number(save.stats.best_set_win_streak || 0), setStreak);
   const bonus = gainedBp(run, (setStreak * 2 + 7) * BP_SCALE);
-  if (run) addCoins(run, bonus);
+  if (run) addCoins(run, bonus, "clear-bonus");
   return {setStreak, bonus};
 }
 
@@ -978,6 +1063,11 @@ export function itemKey(value: string | undefined): string {
 
 export function isTmItemId(itemId: string | undefined): boolean {
   return /^tm:/i.test(String(itemId || ""));
+}
+
+export function tmIconAssetForMoveType(moveType: string | undefined): string {
+  const typeId = toId(moveType);
+  return typeId && TM_ICON_TYPE_IDS.has(typeId) ? `assets/items-pack/machine${typeId}.png` : "assets/placeholders/move.png";
 }
 
 export function itemCategory(item: Pick<ShopItem, "id" | "name" | "desc" | "desc_zh"> & Partial<Pick<ShopItem, "name_zh">>): ItemCategory {

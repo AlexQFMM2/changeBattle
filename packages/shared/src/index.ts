@@ -65,6 +65,8 @@ export type RentalPokemon = {
   species_id: string;
   level: number;
   gender: string;
+  heightm?: number;
+  weightkg?: number;
   types: string[];
   types_zh: string[];
   ability: string;
@@ -164,6 +166,11 @@ export type DesktopDexEntry = {
   types?: string[];
   types_zh?: string[];
   base_stats?: Record<string, number>;
+  heightm?: number;
+  weightkg?: number;
+  gender?: string;
+  gender_ratio?: {M?: number; F?: number};
+  abilities?: Array<{id: string; name: string; name_zh: string; desc_zh?: string; hidden?: boolean}>;
   learnset?: MoveSummary[];
   usage_count?: number;
   type?: string;
@@ -275,6 +282,7 @@ export type RuntimePokemon = {
   active?: boolean;
   item?: string;
   pokeball?: string;
+  gender?: string;
 };
 
 export type BattleMoveRequest = {
@@ -308,7 +316,7 @@ export type BattleRequestView = {
 
 export type BattleTracker = {
   turn: number;
-  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; types?: string[]; types_zh?: string[]; base_stats?: Record<string, number>; ability?: string; ability_zh?: string; ability_id?: string; ability_desc?: string; ability_desc_zh?: string; condition?: string; status?: string; substitute?: boolean; showdown_id?: string; dynamaxed?: boolean; gigantamaxed?: boolean; terastallized?: boolean; tera_type?: string; tera_type_zh?: string; original_species_id?: string; original_name?: string; original_display_name?: string; original_sprite?: SpriteMapEntry}>;
+  active: Record<"p1" | "p2", {name?: string; display_name?: string; species_id?: string; sprite?: SpriteMapEntry; types?: string[]; types_zh?: string[]; base_stats?: Record<string, number>; ability?: string; ability_zh?: string; ability_id?: string; ability_desc?: string; ability_desc_zh?: string; gender?: string; condition?: string; status?: string; substitute?: boolean; showdown_id?: string; dynamaxed?: boolean; gigantamaxed?: boolean; terastallized?: boolean; tera_type?: string; tera_type_zh?: string; original_species_id?: string; original_name?: string; original_display_name?: string; original_sprite?: SpriteMapEntry}>;
   boosts: Record<"p1" | "p2", Record<string, number>>;
   side_conditions: Record<"p1" | "p2", string[]>;
   weather: string;
@@ -520,6 +528,7 @@ export type RestState = {
   enemy_display: RentalPokemon[];
   player_state: PlayerPokemonState[];
   bag_items: Record<string, number>;
+  coin_ledger?: CoinLedgerEntry[];
   bag_categories?: BagCategoryView;
   talents?: TalentView[];
   shop?: ShopState;
@@ -715,7 +724,18 @@ export type ShopOffer = ShopItem & {
   move_name_zh?: string;
 };
 
-export type ShopKind = "recovery" | "held" | "tm" | "mega" | "zmove";
+export type ShopKind = "recovery" | "held" | "tm" | "training" | "mega" | "zmove";
+
+export type CoinLedgerEntry = {
+  id: string;
+  at: string;
+  type: "gain" | "spend";
+  amount: number;
+  before: number;
+  after: number;
+  reason: string;
+  label: string;
+};
 
 export type ShopState = {
   kind?: ShopKind;
@@ -1071,6 +1091,7 @@ export type CurrentRunData = {
   coins?: number;
   non_convertible_coins?: number;
   coins_earned_this_run?: number;
+  coin_ledger?: CoinLedgerEntry[];
   second_team_roar_used?: boolean;
   all_in_exchange_used?: boolean;
   showdown_id_pool?: ShowdownIdPoolState;

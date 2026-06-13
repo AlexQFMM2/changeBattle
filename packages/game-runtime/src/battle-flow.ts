@@ -420,7 +420,7 @@ export function settleBasicBattleResult(save: LocalSave, run: CurrentRunData, st
   run.enemy_display = state.enemy_display || run.enemy_display;
   const rewardCoins = Math.max(0, Math.floor(Number(options.rewardCoins || 0)));
   if (rewardCoins > 0) {
-    run.coins = Number(run.coins || 0) + rewardCoins;
+    addCoins(run, rewardCoins, "battle-reward", "战斗奖励");
   }
   if (battleNo >= Number(run.battles || options.defaultBattles)) {
     save.current_run = null;
@@ -468,8 +468,8 @@ export function battleSpecialRewardCoins(run: CurrentRunData): number {
 }
 
 export function applyBattleSpecialRewardCoins(run: CurrentRunData): {villainIntrusionBonus: number; rainbowRocketBonus: number; total: number} {
-  const villainIntrusionBonus = run.special_event === "villain_intrusion" ? addCoins(run, VILLAIN_INTRUSION_BONUS_COINS) : 0;
-  const rainbowRocketBonus = run.special_run === "rainbow_rocket" || run.special_event === "rainbow_rocket" ? addCoins(run, RAINBOW_ROCKET_REWARD_COINS) : 0;
+  const villainIntrusionBonus = run.special_event === "villain_intrusion" ? addCoins(run, VILLAIN_INTRUSION_BONUS_COINS, "villain-intrusion-bonus") : 0;
+  const rainbowRocketBonus = run.special_run === "rainbow_rocket" || run.special_event === "rainbow_rocket" ? addCoins(run, RAINBOW_ROCKET_REWARD_COINS, "rainbow-rocket-bonus") : 0;
   return {villainIntrusionBonus, rainbowRocketBonus, total: villainIntrusionBonus + rainbowRocketBonus};
 }
 

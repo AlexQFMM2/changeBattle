@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import type {CSSProperties, ReactElement} from "react";
-import type {BagItemView, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopKind, ShopOffer, StatId, TalentView} from "@changebattle/shared";
+import type {BagItemView, CoinLedgerEntry, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopKind, ShopOffer, StatId, TalentView} from "@changebattle/shared";
 import {AnimatePresence, motion, Reorder} from "motion/react";
 import {DraggableFloatingButton} from "../feedback/DraggableFloatingButton";
 import {ScreenToast} from "../feedback/ScreenToast";
@@ -61,6 +61,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   const [talentActionId, setTalentActionId] = useState<string | null>(null);
   const [abortConfirmOpen, setAbortConfirmOpen] = useState(false);
   const [eventPanelOpen, setEventPanelOpen] = useState(false);
+  const [coinLedgerOpen, setCoinLedgerOpen] = useState(false);
   const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
 
   if (!rest) return <div className="loading-panel"><strong>正在整理队伍...</strong></div>;
@@ -122,7 +123,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
           <div className="rest-run-stats" aria-label="本局状态">
             <span>第 {rest.battle_no}/{rest.battles} 场后</span>
             <span>连胜 {rest.wins}</span>
-            <span>金币 {rest.coins ?? 0}</span>
+            <button className="coin-ledger-trigger" type="button" onClick={() => setCoinLedgerOpen(true)}>金币 {rest.coins ?? 0}</button>
           </div>
         </div>
         <div className="rest-team-strip" aria-label="当前队伍">
@@ -222,6 +223,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
       ) : null}
       {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={2600} onDone={() => setToast(null)} /> : null}
       {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
+      {coinLedgerOpen ? <CoinLedgerModal entries={rest.coin_ledger || []} onClose={() => setCoinLedgerOpen(false)} /> : null}
       {eventPanelOpen && rest.rest_event_statuses?.length ? <RestEventInfoPanel statuses={rest.rest_event_statuses} onClose={() => setEventPanelOpen(false)} /> : null}
       {shouldPromptRainbowRocket && rest.rainbow_rocket_support ? <RainbowRocketSupportPrompt rest={rest} onAction={runRestAction} /> : null}
       {shouldPromptRestEvent ? <RestEventPrompt rest={rest} onAction={runRestAction} /> : null}
@@ -234,6 +236,46 @@ type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "eventDoctor" | "eve
 
 function EmbeddedOrModal({embedded, children}: {embedded?: boolean; children: ReactElement}) {
   return embedded ? children : <div className="modal-layer">{children}</div>;
+}
+
+function CoinLedgerModal({entries, onClose}: {entries: CoinLedgerEntry[]; onClose: () => void}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const formatTime = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"});
+  };
+
+  return (
+    <div className="modal-layer" role="presentation" onClick={onClose}>
+      <section className="coin-ledger-modal" role="dialog" aria-modal="true" aria-labelledby="coin-ledger-title" onClick={event => event.stopPropagation()}>
+        <header>
+          <h2 id="coin-ledger-title">金币流水</h2>
+          <button onClick={onClose}>关闭</button>
+        </header>
+        {entries.length ? (
+          <div className="coin-ledger-list">
+            {entries.map(entry => (
+              <article className={`coin-ledger-entry ${entry.type}`} key={entry.id}>
+                <span>{formatTime(entry.at)}</span>
+                <strong>{entry.label || entry.reason}</strong>
+                <b>{entry.type === "gain" ? "+" : "-"}{entry.amount}</b>
+                <small>{entry.before}{" -> "}{entry.after}</small>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="coin-ledger-empty">本局还没有金币变化记录。</p>
+        )}
+      </section>
+    </div>
+  );
 }
 
 function RestEventInfoPanel({statuses, onClose}: {statuses: RestEventStatusView[]; onClose: () => void}) {
@@ -605,7 +647,7 @@ function RestPokemonModal({rest, initialSlot, onClose, onMove, onUseItem, onUneq
               <button className={tab === "stats" ? "selected" : ""} onClick={() => setTab("stats")}>数值</button>
             </div>
             <section className="detail-tab-panel">
-              {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>性别：{pokemon.gender || "未知"}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p className="wide">{abilityDescription(pokemon)}</p></div> : null}
+              {tab === "info" ? <div className="detail-info-grid"><p>HP：{conditionText(state?.condition)}</p><p>特性：{pokemon.ability_zh || pokemon.ability}</p><p>性格：{pokemon.nature_zh || pokemon.nature}</p><p className="wide">{abilityDescription(pokemon)}</p></div> : null}
               {tab === "moves" ? <div className="detail-move-list">{pokemon.moves.map((move, index) => <article key={`${move.id}-${index}`}><strong>{index + 1}. {move.name_zh || move.name}</strong><span>{move.type_zh}/{move.category_zh}　威力 {move.power || "--"}　PP {state?.moves?.[index]?.pp ?? move.pp}/{state?.moves?.[index]?.maxpp ?? move.pp}</span>{move.learn_source_labels?.length ? <span>来源：{move.learn_source_labels.join(" / ")}</span> : null}<small>{moveDescription(move)}</small></article>)}</div> : null}
               {tab === "stats" ? <div className="detail-stat-panel">
                 <div className="detail-hp-row"><span>HP</span><strong>{statLine(pokemon, "hp", revealTraining)}</strong><i /></div>
@@ -1416,6 +1458,7 @@ const SHOP_KIND_VIEW: Record<ShopKind, {label: string; desc: string; cost: numbe
   tm: {label: "技能商店", desc: "技能机器", cost: 75, theme: "purple"},
   mega: {label: "Mega 商店", desc: "进化石", cost: 75, theme: "orange"},
   zmove: {label: "Z 招式商店", desc: "Z 纯晶", cost: 75, theme: "purple"},
+  training: {label: "训练商店", desc: "培养道具", cost: 75, theme: "orange"},
 };
 
 function hasRestEventStatus(rest: NonNullable<DesktopGameState["rest"]>, id: string): boolean {
@@ -1425,10 +1468,10 @@ function hasRestEventStatus(rest: NonNullable<DesktopGameState["rest"]>, id: str
 function ShopModal({rest, shop, onClose, onRoll, onBuy, onBarterBuy, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; shop: NonNullable<DesktopGameState["rest"]>["shop"]; onClose: () => void; onRoll: (shopKind: ShopKind) => RestActionResult | Promise<RestActionResult>; onBuy: (offerId: string) => RestActionResult | Promise<RestActionResult>; onBarterBuy?: (offerId: string, itemIds: string[]) => RestActionResult | Promise<RestActionResult>; embedded?: boolean}) {
   const [shopKind, setShopKind] = useState<ShopKind>((shop?.kind as ShopKind | undefined) || "recovery");
   const activeKind = (shop?.kind as ShopKind | undefined) || "recovery";
-  const availableKinds = shop?.available_kinds?.length ? shop.available_kinds : (["recovery", "held", "tm"] as ShopKind[]);
+  const availableKinds = shop?.available_kinds?.length ? shop.available_kinds : (["recovery", "held", "tm", "training"] as ShopKind[]);
   const offersForKind = (kind: ShopKind) => shop?.offers_by_kind?.[kind] || (activeKind === kind ? (shop?.offers || []) : []);
   const offers = offersForKind(shopKind);
-  const slotCount = shopKind === "tm" ? 3 : shop?.slot_count || offers.length || 3;
+  const slotCount = shop?.slot_count || offers.length || 3;
   const [rolling, setRolling] = useState(false);
   const [revealed, setRevealed] = useState(Boolean(offers.length));
   const [buyingOfferId, setBuyingOfferId] = useState("");

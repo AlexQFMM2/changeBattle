@@ -22,6 +22,7 @@ import {
   exchangeCost,
   hasTalent,
   itemKey,
+  moveDrawCost,
   normalizeScoreBetState,
   scoreBetMaxStakeForCoins,
   scoreBetMultiplier,
@@ -89,7 +90,7 @@ export function buildRestState(options: RuntimeRestStateOptions): RestState {
     adjust_stats: ADJUST_STATS_COST,
     randomize_part: RANDOMIZE_PART_COST,
     randomize_all: RANDOMIZE_ALL_COST,
-    move_draw: 0,
+    move_draw: moveDrawCost(run),
     scout_basic: 0,
     scout_one: 0,
     scout_all: 0,
@@ -106,6 +107,7 @@ export function buildRestState(options: RuntimeRestStateOptions): RestState {
     enemy_display: run.enemy_display || [],
     player_state: normalizePlayerState(run),
     bag_items: run.bag_items || {},
+    coin_ledger: run.coin_ledger || [],
     talents: run.talents || [],
     rainbow_rocket_support: support ? {
       battle_no: support.battle_no,
@@ -213,7 +215,7 @@ export function applyBasicRestEventChoice(save: LocalSave, run: CurrentRunData, 
   const recent = [id, ...(run.rest_status?.recent_rest_event_ids || []).filter(value => toId(value) !== toId(id))].slice(0, RECENT_REST_EVENT_LIMIT);
   run.rest_status = {...(run.rest_status || {}), rest_event_selected_id: id, recent_rest_event_ids: recent};
   if (id === "sponsor_delivery") {
-    const gained = addCoins(run, 120);
+    const gained = addCoins(run, 120, "sponsor-delivery");
     return `赞助到账：获得 ${gained}金币。`;
   }
   if (id === "clinic_coupon") {
@@ -222,7 +224,7 @@ export function applyBasicRestEventChoice(save: LocalSave, run: CurrentRunData, 
   }
   if (id === "blood_donation") {
     const count = damagePartyFraction(run, 0.25);
-    const gained = addCoins(run, 200);
+    const gained = addCoins(run, 200, "blood-donation");
     return `献血光荣：${count} 只宝可梦贡献了体力，获得 ${gained}金币。`;
   }
   if (id === "tutor_granny") {
@@ -245,7 +247,7 @@ export function applyBpToCoins(save: LocalSave, run: CurrentRunData, bp: number)
   if (!hasTalent(run.talents, "economy_bp_exchange")) throw new Error("需要天赋「有借有换」。");
   const amount = Math.max(1, Math.floor(Number(bp || 0)));
   spendBp(save, amount);
-  const gained = addCoins(run, amount * 50);
+  const gained = addCoins(run, amount * 50, "bp-to-coins");
   return `有借有换：消耗 ${amount}BP，获得 ${gained}金币。`;
 }
 
@@ -284,7 +286,7 @@ export function applyScoreBetAdjustment(run: CurrentRunData, options: {targetAli
   const requestedStake = options.stake === undefined ? currentStake : Math.max(SCORE_BET_MIN_STAKE, Math.min(maxStake, Math.floor(Number(options.stake || SCORE_BET_MIN_STAKE))));
   const diff = requestedStake - currentStake;
   if (diff > 0) spendRunCoins(run, diff, "score-bet-adjust", {alreadyPriced: true});
-  if (diff < 0) addCoins(run, -diff);
+  if (diff < 0) addCoins(run, -diff, "score-bet-refund");
   const normalized = normalizeScoreBetState({target_alive: target, stake: requestedStake, multiplier}, Math.max(requestedStake, scoreBetMaxStakeForCoins(currentCoins(run), requestedStake)));
   run.rest_status = {...(run.rest_status || {}), event_score_bet_next: normalized};
   const refundText = diff < 0 ? `，退回 ${-diff}金币` : diff > 0 ? `，补下注 ${diff}金币` : "";
@@ -346,6 +348,11 @@ export async function applyRestConsumableItem(
   if (!id || Number(run.bag_items?.[id] || 0) <= 0) throw new Error("背包里没有这个道具。");
   if (target < 0 || target >= (run.player_display || []).length) throw new Error("队伍编号无效。");
   if (!(await service.hasConsumableItemEffect(id))) throw new Error("这个道具不能作为消耗道具使用。");
+  if (id === "rarecandy") {
+    const message = await applyRareCandyItem(run, target, service, Boolean(options.dryRun));
+    if (options.consume !== false && !options.dryRun) adjustRunBagItem(run, id, -1);
+    return message;
+  }
   const trainingEffect = service.trainingItemEffect ? await service.trainingItemEffect(id) : null;
   if (trainingEffect) {
     const message = await applyTrainingConsumableItem(run, id, target, trainingEffect, options.stat, service, Boolean(options.dryRun));
@@ -359,6 +366,32 @@ export async function applyRestConsumableItem(
     if (options.consume !== false) adjustRunBagItem(run, id, -1);
   }
   return message || "道具已使用。";
+}
+
+async function applyRareCandyItem(
+  run: CurrentRunData,
+  slot: number,
+  service: ArrivalLevelCapRuntimeService,
+  dryRun: boolean,
+): Promise<string> {
+  if (slot < 0 || slot >= (run.player_team || []).length) throw new Error("队伍编号无效。");
+  const rawSet = clone(run.player_team[slot]) as PokemonSet;
+  const pokemonName = run.player_display?.[slot]?.species_zh || run.player_display?.[slot]?.species || rawSet.species || rawSet.name || "宝可梦";
+  const cap = badgeLevelCapForTalents(run.talents) || 100;
+  const currentLevel = Math.max(1, Math.floor(Number(rawSet.level || run.player_display?.[slot]?.level || 1)));
+  if (currentLevel >= cap) throw new Error(`${pokemonName} 已达到当前徽章等级上限 Lv${cap}。`);
+  const nextLevel = Math.min(cap, currentLevel + 1);
+  if (dryRun) return `${pokemonName} 可以使用神奇糖果。`;
+  rawSet.level = nextLevel;
+  const [nextDisplay] = await service.describeTeam([rawSet]);
+  const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, run.player_display?.[slot]?.showdown_id, run.player_state?.[slot]?.showdown_id);
+  run.player_team[slot] = rawSet;
+  run.player_display[slot] = nextDisplay || {...run.player_display[slot], level: nextLevel};
+  const states = normalizePlayerState(run);
+  states[slot] = adjustedStateAfterEdit(states[slot], run.player_display[slot], slot + 1);
+  writePlayerSlotShowdownId(run, slot, states, stableId);
+  run.player_state = states;
+  return `${pokemonName} 使用了神奇糖果，提升到 Lv${nextLevel}。`;
 }
 
 async function applyTrainingConsumableItem(

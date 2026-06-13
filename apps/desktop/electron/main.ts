@@ -119,6 +119,7 @@ import {
   exchangeStateRatio,
   hasTalent,
   isPremiumHeldShopEntry,
+  isTrainingShopItemId,
   isTmItemId,
   itemCategory,
   itemKey,
@@ -131,6 +132,7 @@ import {
   premiumMachineMoveCandidates,
   pricedForRun,
   pricedForShop,
+  recordCoinLedger,
   recordPortfolioSpend,
   refreshStats,
   normalizeScoreBetState,
@@ -164,6 +166,7 @@ import {
   soulSwapEnemyAiProfile,
   talentsForStarChart,
   talentLevel,
+  tmIconAssetForMoveType,
   toId,
 } from "./run-rules.js";
 import {activeBattleStateGetter, desktopRuntimeAssetUrl} from "./desktop-runtime-api.js";
@@ -330,7 +333,7 @@ type StarterUpgradeConfigState = {catalog: StarterUpgradeView[]; save?: LocalSav
 type BossRoute = {type: "normal" | "gym" | "champion" | "elite4"; stage: string; route: string; pool: Array<{type: TrainerNpcType; tier?: string}>};
 type GenerationProfile = "tier1" | "tier2" | "tier3" | "tier4" | "champion";
 type SpeciesTier = 1 | 2 | 3 | 4 | 5 | 6 | 10;
-type ShopPoolBucket = "healing" | "tm" | "held" | "berry" | "pp";
+type ShopPoolBucket = "healing" | "tm" | "held" | "berry" | "pp" | "training";
 type ShopPoolEntry = {
   id: string;
   kind: "item" | "tm";
@@ -364,12 +367,14 @@ const SHOP_BUCKET_WEIGHTS: Record<ShopPoolBucket, number> = {
   berry: 10,
   tm: 5,
   held: 5,
+  training: 1,
 };
 
 const SHOP_KIND_CONFIG: Record<ShopKind, {title: string; theme: "green" | "blue" | "purple" | "orange"; rollCost: number; buckets: ShopPoolBucket[]}> = {
   recovery: {title: "回复商店", theme: "green", rollCost: 50, buckets: ["healing", "berry", "pp"]},
   held: {title: "道具商店", theme: "blue", rollCost: 75, buckets: ["held"]},
   tm: {title: "技能商店", theme: "purple", rollCost: 75, buckets: ["tm"]},
+  training: {title: "训练商店", theme: "orange", rollCost: 75, buckets: ["training"]},
   mega: {title: "Mega 商店", theme: "orange", rollCost: 75, buckets: ["held"]},
   zmove: {title: "Z 招式商店", theme: "purple", rollCost: 75, buckets: ["held"]},
 };
@@ -437,6 +442,7 @@ const LOCAL_ITEM_DETAILS: Record<string, {name: string; name_zh: string; desc: s
   carbos: {name: "Carbos", name_zh: "速度增强剂", desc: "Raises Speed EVs by 100.", desc_zh: "休整页使用，提升速度努力值 100 点。"},
   bottlecap: {name: "Bottle Cap", name_zh: "银色王冠", desc: "Sets one IV to 31.", desc_zh: "休整页使用，指定 1 项个体值提升到 31。"},
   goldbottlecap: {name: "Gold Bottle Cap", name_zh: "金色王冠", desc: "Sets all IVs to 31.", desc_zh: "休整页使用，全部个体值提升到 31。"},
+  rarecandy: {name: "Rare Candy", name_zh: "神奇糖果", desc: "Raises level by 1.", desc_zh: "休整页使用，等级提升 1 级，受徽章等级上限限制。"},
 };
 
 type RestEventDefinition = RestEventOption & {
@@ -559,7 +565,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
     detail: "稳定补一点运营预算，但不直接给回复道具。",
     tone: "safe",
     async apply(_save, run) {
-      const gained = addCoins(run, 120);
+      const gained = addCoins(run, 120, "sponsor-delivery");
       return `赞助到账：获得 ${gained}金币。`;
     },
   },
@@ -571,7 +577,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
     tone: "risk",
     async apply(_save, run) {
       if (currentCoins(run) < SCORE_BET_MIN_STAKE) throw new Error(`重金下注至少需要 ${SCORE_BET_MIN_STAKE}金币。`);
-      spendCoins(run, SCORE_BET_MIN_STAKE);
+      spendCoins(run, SCORE_BET_MIN_STAKE, "score-bet-adjust");
       const bet = normalizeScoreBetState({target_alive: SCORE_BET_DEFAULT_TARGET, stake: SCORE_BET_MIN_STAKE, multiplier: scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET)}, scoreBetMaxStakeForCoins(currentCoins(run), SCORE_BET_MIN_STAKE));
       run.rest_status = {...(run.rest_status || {}), event_score_bet_next: bet};
       return `重金下注：已默认下注 ${SCORE_BET_MIN_STAKE}金币，精确比分 3:0，赔率 ${bet?.multiplier || scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET)}x，命中返还 ${bet?.payout || scoreBetPayout(SCORE_BET_MIN_STAKE, scoreBetMultiplier(SCORE_BET_DEFAULT_TARGET))}金币。`;
@@ -619,7 +625,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
     tone: "trade",
     async apply(_save, run) {
       const count = damagePartyFraction(run, 0.25);
-      const gained = addCoins(run, 200);
+      const gained = addCoins(run, 200, "blood-donation");
       return `献血光荣：${count} 只宝可梦贡献了体力，获得 ${gained}金币。`;
     },
   },
@@ -653,7 +659,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
     tone: "safe",
     async apply(_save, run) {
       const result = applyPotionTrial(run);
-      const gained = addCoins(run, 50);
+      const gained = addCoins(run, 50, "potion-trial");
       return `药剂试喝：${result}，获得 ${gained}金币补贴。`;
     },
   },
@@ -709,7 +715,7 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
     tone: "risk",
     async apply(_save, run) {
       const rewards = await grantDevilTreasure(run);
-      const gained = addCoins(run, 1000);
+      const gained = addCoins(run, 1000, "devil-treasure");
       run.rest_status = {...(run.rest_status || {}), event_rest_healing_blocked: true, event_next_battle_healing_blocked: true};
       return `飞天魔鬼的宝藏：获得 ${rewards.join("、")} 和 ${gained}金币，但恢复道具受到诅咒。`;
     },
@@ -1835,6 +1841,8 @@ async function settleRunEnd(save: LocalSave, run: CurrentRunData, options: {refu
   const {convertibleCoins: convertedCoins, excludedCoins} = convertibleCoinsForSettlement(run);
   const convertedBp = coinsToBp(convertedCoins);
   if (convertedBp > 0) addBp(save, convertedBp);
+  const beforeSettlementCoins = currentCoins(run);
+  if (beforeSettlementCoins > 0) recordCoinLedger(run, "spend", beforeSettlementCoins, beforeSettlementCoins, 0, "settlement", "结算折算");
   run.coins = 0;
   run.non_convertible_coins = 0;
   return {paidBack, refundBase, refundGained, receiptBonus, portfolioBonus: portfolioGained, portfolioTypes: portfolio.types, convertedCoins, excludedCoins, convertedBp};
@@ -2237,10 +2245,6 @@ function itemIconAsset(itemId: string, fallback = "assets/placeholders/item.png"
   return fallback;
 }
 
-function tmIconAsset(): string {
-  return "assets/placeholders/move.png";
-}
-
 async function loadShopPool(): Promise<ShopPoolEntry[]> {
   if (shopPoolCache) return shopPoolCache;
   const filePath = path.join(projectRoot, "data", "shop_pool.csv");
@@ -2330,6 +2334,7 @@ function shopPoolBucketForEntry(entry: ShopPoolEntry): ShopPoolBucket | null {
   if (entry.kind === "tm") return "tm";
   const id = itemKey(entry.id);
   const text = `${id} ${entry.notes || ""}`.toLowerCase();
+  if (isTrainingShopItemId(id)) return "training";
   if (id.endsWith("berry") || text.includes("berry")) return "berry";
   if (/ether|elixir/.test(id) || /\bpp\b/.test(text)) return "pp";
   if (entry.category === "consumable") return "healing";
@@ -2355,7 +2360,7 @@ function isRegularHeldShopItem(entry: ShopPoolEntry): boolean {
 }
 
 function normalizeShopKind(value: unknown): ShopKind {
-  return value === "held" || value === "tm" || value === "recovery" || value === "mega" || value === "zmove" ? value : "recovery";
+  return value === "held" || value === "tm" || value === "training" || value === "recovery" || value === "mega" || value === "zmove" ? value : "recovery";
 }
 
 function gen7SpecialShopEnabled(run: CurrentRunData, system: "mega" | "zmove"): boolean {
@@ -2364,7 +2369,7 @@ function gen7SpecialShopEnabled(run: CurrentRunData, system: "mega" | "zmove"): 
 }
 
 function availableShopKindsForRun(run: CurrentRunData): ShopKind[] {
-  const kinds: ShopKind[] = ["recovery", "held", "tm"];
+  const kinds: ShopKind[] = ["recovery", "held", "tm", "training"];
   if (gen7SpecialShopEnabled(run, "mega")) kinds.push("mega");
   if (gen7SpecialShopEnabled(run, "zmove")) kinds.push("zmove");
   return kinds;
@@ -2531,8 +2536,9 @@ async function itemDetailsById(itemId: string): Promise<ShopItem> {
   const normalized = itemKey(itemId);
   if (isTmItemId(normalized)) {
     const moveId = normalized.slice(3);
+    const move = (await gameService.machineMoves()).find(candidate => toId(candidate.id || candidate.name) === moveId);
     const cost = await goodsCost("skill", moveId, 2 * BP_SCALE);
-    return {id: normalized, name: `TM ${moveId}`, name_zh: `技能机器 ${moveId}`, cost, desc: `Teaches ${moveId}.`, desc_zh: `让宝可梦学会 ${moveId}。`, icon_asset: tmIconAsset()};
+    return {id: normalized, name: `TM ${move?.name || moveId}`, name_zh: `技能机器 ${move?.name_zh || move?.name || moveId}`, cost, desc: `Teaches ${move?.name || moveId}.`, desc_zh: `让宝可梦学会 ${move?.name_zh || move?.name || moveId}。`, icon_asset: tmIconAssetForMoveType(move?.type)};
   }
   const item = (await gameService.itemOptions()).find(option => itemKey(option.id || option.name) === normalized);
   const localItem = LOCAL_ITEM_DETAILS[normalized];
@@ -2683,7 +2689,7 @@ async function tmOfferFromMove(move: MoveSummary, index: number, source: "shop" 
     cost: pricedForShop(base, talents),
     offer_id: `${source}-tm-${index}-${moveId}`,
     category: "tm",
-    icon_asset: tmIconAsset(),
+    icon_asset: tmIconAssetForMoveType(move.type),
     discount,
     source,
     move_id: moveId,
@@ -2710,6 +2716,7 @@ async function tmOptionsForRun(run: CurrentRunData, source: "shop" | "starter", 
 
 async function tmShopOptionsForRun(run: CurrentRunData): Promise<ShopOffer[]> {
   const rng = seededRng(Number(run.seed || 1), 0x7a91 + Number(run.shop_roll_count || 0) * 131 + Number(run.battle_no || run.next_battle || 0));
+  const count = shopOfferCount(run);
   const usableByCurrentTeam = new Map<string, MoveSummary>();
   for (const rawSet of run.player_team || []) {
     for (const move of await gameService.learnableMoves(rawSet)) {
@@ -2720,9 +2727,12 @@ async function tmShopOptionsForRun(run: CurrentRunData): Promise<ShopOffer[]> {
   }
   const machineMoves = await gameService.machineMoves();
   const unusable = machineMoves.filter(move => !usableByCurrentTeam.has(toId(move.id || move.name)));
-  const pickedUsable = shuffleByRng(Array.from(usableByCurrentTeam.values()), rng).slice(0, 2);
-  const pickedUnusable = shuffleByRng(unusable, rng).slice(0, 1);
-  const picks = [...pickedUsable, ...pickedUnusable];
+  const usablePool = shuffleByRng(Array.from(usableByCurrentTeam.values()), rng);
+  const unusablePool = shuffleByRng(unusable, rng);
+  const preferredUsableCount = Math.min(usablePool.length, Math.max(0, count - 1));
+  const pickedUsable = usablePool.slice(0, preferredUsableCount);
+  const pickedUnusable = unusablePool.slice(0, count - pickedUsable.length);
+  const picks = [...pickedUsable, ...pickedUnusable, ...usablePool.slice(preferredUsableCount)].slice(0, count);
   return Promise.all(picks.map((move, index) => tmOfferFromMove(move, index, "shop", 1, run.talents || [])));
 }
 
@@ -2801,6 +2811,7 @@ async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recover
   const itemEntries = pool.filter(entry => {
     if (!battleSettingAllowsItem(entry.id, run.battle_setting)) return false;
     if (kind === "held") return premiumHeldPool ? premiumHeldPool.includes(entry) : isRegularHeldShopItem(entry);
+    if (kind === "training") return entry.kind === "item" && isTrainingShopItemId(entry.id);
     if (kind === "mega") return entry.kind === "item" && entry.category === "held" && gameService.battleSystemForItem(entry.id) === "mega";
     if (kind === "zmove") return entry.kind === "item" && entry.category === "held" && gameService.battleSystemForItem(entry.id) === "zmove";
     return entry.kind === "item";
@@ -2817,6 +2828,7 @@ async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recover
     pp: [],
     berry: [],
     tm: [],
+    training: [],
   };
   for (const offer of itemOffers) {
     const entry = itemEntries.find(poolEntry => poolEntry.id === itemKey(offer.id || offer.name));
@@ -4068,7 +4080,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       available_kinds: availableShopKindsForRun(run),
       roll_count: Number(run.shop_roll_count || 0),
       next_roll_cost: isRainbowRocketRun(run) ? null : shopNextRollCostForKind(run, shopKind),
-      slot_count: shopKind === "tm" ? 3 : shopOfferCount(run),
+      slot_count: shopOfferCount(run),
       free_rolls_remaining: Number(run.rest_status?.free_shop_rolls_remaining || 0),
       slot_discounts: run.rest_status?.shop_slot_discounts || [],
       offers: isRainbowRocketRun(run) ? [] : pricedShopOffersForRun(run),
@@ -4292,7 +4304,7 @@ function aliveStateCount(states: PlayerPokemonState[] | undefined): number {
 function settleActiveScoreBet(run: CurrentRunData, effectivePlayerWin: boolean, playerAlive: number, enemyAlive: number): string {
   const result = settleScoreBetResult(run.rest_status?.event_score_bet_active, effectivePlayerWin, playerAlive, enemyAlive);
   if (!result) return "";
-  if (result.payout > 0) addCoins(run, result.payout);
+  if (result.payout > 0) addCoins(run, result.payout, "score-bet-payout");
   if (run.rest_status) delete run.rest_status.event_score_bet_active;
   return result.message;
 }
@@ -4329,8 +4341,8 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   const wins = Number(run.wins || 0) + 1;
   if (!isRainbowRocketRun(run)) addToExchangeBox(run, perspective.exchangeTeam, perspective.exchangeDisplay);
   const stalwartRecovered = applyStalwartRecovery(run);
-  const allInBonus = run.rest_status?.all_in_pending_next ? addCoins(run, currentCoins(run)) : 0;
-  const contestBonus = contest.bonusCoins ? addCoins(run, contest.bonusCoins) : 0;
+  const allInBonus = run.rest_status?.all_in_pending_next ? addCoins(run, currentCoins(run), "all-in-bonus") : 0;
+  const contestBonus = contest.bonusCoins ? addCoins(run, contest.bonusCoins, "contest-bonus") : 0;
   const {villainIntrusionBonus, rainbowRocketBonus} = runtimeApplyBattleSpecialRewardCoins(run);
   const rainbowRocketSupplies = isRainbowRocketRun(run) && activeBattleNo < Number(run.battles || DEFAULT_BATTLES) ? await grantRainbowRocketSupplies(run) : [];
   if (run.rest_status?.all_in_pending_next) run.rest_status = {...run.rest_status, all_in_pending_next: false};
@@ -4638,8 +4650,8 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     const multiplier = action.multiplier === undefined ? scoreBetMultiplierChoice(current.multiplier, scoreBetMultiplier(target)) : scoreBetMultiplierChoice(action.multiplier, current.multiplier);
     const requestedStake = action.stake === undefined ? currentStake : Math.max(SCORE_BET_MIN_STAKE, Math.min(maxStake, Math.floor(Number(action.stake || SCORE_BET_MIN_STAKE))));
     const diff = requestedStake - currentStake;
-    if (diff > 0) spendCoins(run, diff);
-    if (diff < 0) addCoins(run, -diff);
+    if (diff > 0) spendCoins(run, diff, "score-bet-adjust");
+    if (diff < 0) addCoins(run, -diff, "score-bet-refund");
     const normalized = normalizeScoreBetState({target_alive: target, stake: requestedStake, multiplier}, Math.max(requestedStake, scoreBetMaxStakeForCoins(currentCoins(run), requestedStake)));
     run.rest_status = {...(run.rest_status || {}), event_score_bet_next: normalized};
     const next = await persist(save);
@@ -4654,7 +4666,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     if (!hasTalent(run.talents, "economy_bp_exchange")) throw new Error("需要天赋「有借有换」。");
     const bp = Math.max(1, Math.floor(Number(action.bp || 0)));
     spendBp(save, bp);
-    const gained = addCoins(run, bp * 50);
+    const gained = addCoins(run, bp * 50, "bp-to-coins");
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, `有借有换：消耗 ${bp}BP，获得 ${gained}金币。`);
   }
@@ -5347,7 +5359,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     rawSet.moves = currentMoves;
     const [nextDisplay] = await gameService.describeTeam([rawSet]);
     const stableId = stablePlayerSlotShowdownId(run, slot, rawSet.showdown_id, rawSet.pokeball, states[slot]?.showdown_id);
-    if (refund) addCoins(run, refund);
+    if (refund) addCoins(run, refund, "move-refund");
     const spent = spendRunBp(save, run, cost, "adjust-move");
     run.player_team[slot] = rawSet;
     run.player_display[slot] = nextDisplay || run.player_display[slot];

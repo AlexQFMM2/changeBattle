@@ -1,9 +1,9 @@
-import {useEffect, useMemo, useState} from "react";
-import type {DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, RentalPokemon} from "@changebattle/shared";
+import {useEffect, useRef, useState} from "react";
+import type {DesktopDexCategory, DesktopDexEntry, DesktopDexSearchResult, MoveSummary, RentalPokemon} from "@changebattle/shared";
 import {AnimatedModalLayer, AnimatedPanel} from "../motion/Animated";
 import {PokemonProfile} from "../pokemon/PokemonProfile";
 import {ItemIcon, PokemonSprite, STAT_ROWS, assetUrl, displayName, trainerImageUrl} from "../../lib/ui";
-import {groupLearnsetBySource, moveHasMultipleLearnSources} from "./learnsetGroups";
+import {POKEMON_INFO_TAB_ID, groupLearnsetBySource, pokemonDexDetailTabs} from "./learnsetGroups";
 
 const DEX_TABS: Array<{id: DesktopDexCategory; label: string}> = [
   {id: "pokemon", label: "宝可梦"},
@@ -22,6 +22,7 @@ const TRAINER_DEX_FILTERS: Array<{id: TrainerDexFilter; label: string; query?: s
   {id: "villain", label: "反派头目", query: "type:villain"},
   {id: "special", label: "特殊事件", query: "event:special"},
 ];
+type DexAbilitySummary = NonNullable<DesktopDexEntry["abilities"]>[number];
 
 function dexEntryText(entry: DesktopDexEntry): string {
   if (entry.category === "trainers") return entry.boss_summary || entry.desc_zh || "尚未遭遇";
@@ -35,6 +36,16 @@ function dexSpriteUrl(entry: DesktopDexEntry): string {
   return path ? assetUrl(path) || "" : "";
 }
 
+function pokemonMetaLabel(entry: DesktopDexEntry): string {
+  const height = entry.heightm ? `身高 ${entry.heightm}m` : "";
+  const weight = entry.weightkg ? `体重 ${entry.weightkg}kg` : "";
+  const fixedGender = entry.gender === "M" ? "仅雄性" : entry.gender === "F" ? "仅雌性" : entry.gender === "N" ? "无性别" : "";
+  const ratio = entry.gender_ratio && !fixedGender
+    ? `♂ ${Math.round(Number(entry.gender_ratio.M || 0) * 100)}% / ♀ ${Math.round(Number(entry.gender_ratio.F || 0) * 100)}%`
+    : fixedGender;
+  return [height, weight, ratio].filter(Boolean).join("　");
+}
+
 export function DexModal({onClose}: {onClose: () => void}) {
   const [category, setCategory] = useState<DesktopDexCategory>("pokemon");
   const [trainerFilter, setTrainerFilter] = useState<TrainerDexFilter>("all");
@@ -45,6 +56,8 @@ export function DexModal({onClose}: {onClose: () => void}) {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailExpanded, setDetailExpanded] = useState(false);
+  const preferredSelectedId = useRef("");
   const selected = entries.find(entry => entry.id === selectedId) || entries[0] || null;
   const pageCount = Math.max(1, Math.ceil(total / DEX_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
@@ -62,7 +75,9 @@ export function DexModal({onClose}: {onClose: () => void}) {
         if (cancelled) return;
         setEntries(result.entries || []);
         setTotal(result.total || 0);
-        setSelectedId(current => result.entries.some(entry => entry.id === current) ? current : result.entries[0]?.id || "");
+        const preferred = preferredSelectedId.current;
+        preferredSelectedId.current = "";
+        setSelectedId(current => preferred && result.entries.some(entry => entry.id === preferred) ? preferred : result.entries.some(entry => entry.id === current) ? current : result.entries[0]?.id || "");
       }).catch(err => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -78,6 +93,14 @@ export function DexModal({onClose}: {onClose: () => void}) {
       window.clearTimeout(timer);
     };
   }, [category, query, trainerFilter, currentPage]);
+
+  function openAbility(ability: DexAbilitySummary) {
+    preferredSelectedId.current = ability.id;
+    setCategory("abilities");
+    setQuery(ability.id || ability.name);
+    setSelectedId(ability.id);
+    setPage(0);
+  }
 
   return (
     <AnimatedModalLayer className="modal-layer">
@@ -98,7 +121,7 @@ export function DexModal({onClose}: {onClose: () => void}) {
           </nav>
         ) : null}
         <input className="dex-search-input" value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} placeholder="搜索名称、英文、属性、说明" />
-        <div className="dex-modal-body">
+        <div className={`dex-modal-body ${detailExpanded ? "detail-expanded" : ""}`}>
           <div className="dex-result-list">
             {loading ? <p>读取本地图鉴...</p> : null}
             {error ? <p>{error}</p> : null}
@@ -120,7 +143,7 @@ export function DexModal({onClose}: {onClose: () => void}) {
               <button disabled={loading || currentPage >= pageCount - 1} onClick={() => setPage(value => Math.min(pageCount - 1, value + 1))}>下一页</button>
             </nav>
           </div>
-          <DexEntryDetail entry={selected} />
+          <DexEntryDetail entry={selected} expanded={detailExpanded} onToggleExpanded={() => setDetailExpanded(value => !value)} onAbilitySelect={openAbility} />
         </div>
       </AnimatedPanel>
     </AnimatedModalLayer>
@@ -139,43 +162,45 @@ function TrainerDexAvatar({entry}: {entry: DesktopDexEntry}) {
   return image ? <img className="trainer-dex-avatar" src={image} alt={entry.name_zh || entry.name} /> : <i className="shadow-orb">?</i>;
 }
 
-function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
+function DexEntryDetail({entry, expanded, onToggleExpanded, onAbilitySelect}: {entry: DesktopDexEntry | null; expanded: boolean; onToggleExpanded: () => void; onAbilitySelect: (ability: DexAbilitySummary) => void}) {
+  const [pokemonTab, setPokemonTab] = useState(POKEMON_INFO_TAB_ID);
+  useEffect(() => {
+    setPokemonTab(POKEMON_INFO_TAB_ID);
+  }, [entry?.category, entry?.id]);
   if (!entry) return <section className="dex-entry-detail empty"><p>选择一个条目。</p></section>;
   if (entry.category === "trainers") return <TrainerDexDetail entry={entry} />;
   const sprite = dexSpriteUrl(entry);
   const learnsetGroups = entry.category === "pokemon" ? groupLearnsetBySource(entry.learnset || []) : [];
+  const pokemonTabs = entry.category === "pokemon" ? pokemonDexDetailTabs(entry.learnset || []) : [];
+  const activePokemonTab = pokemonTabs.some(tab => tab.id === pokemonTab) ? pokemonTab : POKEMON_INFO_TAB_ID;
+  const activeLearnsetGroup = learnsetGroups.find(group => group.id === activePokemonTab) || null;
   return (
-    <section className="dex-entry-detail">
-      <header>
-        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : null}
-        <div>
-          <h3>{entry.name_zh || entry.name}</h3>
-          <p>{entry.name}　{entry.id}{entry.category === "pokemon" ? `（使用次数${entry.usage_count || 0}）` : ""}</p>
-        </div>
-      </header>
+    <section className={`dex-entry-detail ${entry.category === "pokemon" ? "pokemon-dex-detail" : ""}`}>
+      {entry.category !== "pokemon" ? (
+        <header>
+          {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : entry.category === "items" ? <ItemIcon item={entry} /> : null}
+          <div>
+            <h3>{entry.name_zh || entry.name}</h3>
+            <p>{entry.name}　{entry.id}</p>
+          </div>
+          <button className="dex-detail-expand-button" onClick={onToggleExpanded} title={expanded ? "还原详情面板" : "放大详情面板"} aria-label={expanded ? "还原详情面板" : "放大详情面板"}>{expanded ? "↙" : "⛶"}</button>
+        </header>
+      ) : null}
       {entry.category === "pokemon" ? (
         <>
-          <div className="dex-type-row">{(entry.types_zh || entry.types || []).map(type => <span key={type}>{type}</span>)}</div>
-          {entry.base_stats ? <div className="dex-stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{entry.base_stats?.[stat] || 0}</strong></div>)}</div> : null}
-          <div className="dex-learnset-panel">
-            <h4>技能池</h4>
-            <div>
-              {learnsetGroups.length ? learnsetGroups.map(group => (
-                <section className="dex-learnset-group" key={`${entry.id}-${group.id}`}>
-                  <h5><span>{group.label}</span><small>{group.moves.length}</small></h5>
-                  <div>
-                    {group.moves.map(move => (
-                      <article key={`${entry.id}-${group.id}-${move.id}`}>
-                        <strong>{move.name_zh || move.name}</strong>
-                        <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
-                        {moveHasMultipleLearnSources(move) && move.learn_source_labels?.length ? <span>来源：{move.learn_source_labels.join(" / ")}</span> : null}
-                        <small>威力 {move.power || "--"}　命中 {move.accuracy ?? "必中"}　PP {move.pp || "--"}</small>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              )) : <p>暂无技能池数据。</p>}
-            </div>
+          <div className="dex-pokemon-tab-bar">
+            <nav className="dex-pokemon-subtabs">
+              {pokemonTabs.map(tab => (
+                <button className={activePokemonTab === tab.id ? "selected" : ""} onClick={() => setPokemonTab(tab.id)} key={`${entry.id}-${tab.id}`}>
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined ? <small>{tab.count}</small> : null}
+                </button>
+              ))}
+            </nav>
+            <button className="dex-detail-expand-button" onClick={onToggleExpanded} title={expanded ? "还原详情面板" : "放大详情面板"} aria-label={expanded ? "还原详情面板" : "放大详情面板"}>{expanded ? "↙" : "⛶"}</button>
+          </div>
+          <div className="dex-pokemon-tab-panel">
+            {activePokemonTab === POKEMON_INFO_TAB_ID ? <PokemonDexInfo entry={entry} onAbilitySelect={onAbilitySelect} /> : <PokemonDexLearnsetGroup entry={entry} group={activeLearnsetGroup} />}
           </div>
         </>
       ) : null}
@@ -191,6 +216,61 @@ function DexEntryDetail({entry}: {entry: DesktopDexEntry | null}) {
       ) : null}
       {entry.category !== "pokemon" ? <p className="dex-description">{entry.desc_zh || "暂无中文说明。"}</p> : null}
     </section>
+  );
+}
+
+function PokemonDexInfo({entry, onAbilitySelect}: {entry: DesktopDexEntry; onAbilitySelect: (ability: DexAbilitySummary) => void}) {
+  const sprite = dexSpriteUrl(entry);
+  return (
+    <div className="dex-pokemon-info">
+      <section className="dex-pokemon-identity">
+        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : null}
+        <div>
+          <h3>{entry.name_zh || entry.name}</h3>
+          <p>{entry.name}　{entry.id}（使用次数{entry.usage_count || 0}）</p>
+        </div>
+      </section>
+      <div className="dex-type-row">{(entry.types_zh || entry.types || []).map(type => <span key={type}>{type}</span>)}</div>
+      {pokemonMetaLabel(entry) ? <p className="dex-entry-meta">{pokemonMetaLabel(entry)}</p> : null}
+      {entry.base_stats ? <div className="dex-stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{entry.base_stats?.[stat] || 0}</strong></div>)}</div> : null}
+      <section className="dex-ability-panel">
+        <h4>可能特性</h4>
+        <div>
+          {(entry.abilities || []).map(ability => (
+            <button onClick={() => onAbilitySelect(ability)} key={ability.id}>
+              <strong>{ability.name_zh || ability.name}</strong>
+              {ability.hidden ? <span>隐藏</span> : null}
+              <small>{ability.desc_zh || ability.name}</small>
+            </button>
+          ))}
+          {!entry.abilities?.length ? <p>暂无特性数据。</p> : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function PokemonDexLearnsetGroup({entry, group}: {entry: DesktopDexEntry; group: ReturnType<typeof groupLearnsetBySource>[number] | null}) {
+  if (!group) return <div className="dex-learnset-panel empty"><p>暂无技能池数据。</p></div>;
+  return (
+    <div className="dex-learnset-panel">
+      <section className="dex-learnset-group">
+        <h5><span>{group.label}</span><small>{group.moves.length}</small></h5>
+        <div>
+          {group.moves.map(move => <DexMoveCard move={move} key={`${entry.id}-${group.id}-${move.id}`} />)}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DexMoveCard({move}: {move: MoveSummary}) {
+  return (
+    <article>
+      <strong>{move.name_zh || move.name}</strong>
+      <span>{move.type_zh || move.type} / {move.category_zh || move.category}</span>
+      <small>威力 {move.power || "--"}　命中 {move.accuracy ?? "必中"}　PP {move.pp || "--"}</small>
+    </article>
   );
 }
 

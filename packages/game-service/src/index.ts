@@ -516,7 +516,7 @@ export class GameService {
       const rng = this.createRngFromSeed(attemptSeed, attempt + 1);
       for (const baseSet of generated) {
         if (team.length >= targetCount) break;
-        const set = this.sanitizeSetForBattleSetting(this.randomizeRentalSet(baseSet, rng), options);
+        const set = this.normalizeSetGender(this.sanitizeSetForBattleSetting(this.randomizeRentalSet(baseSet, rng), options), rng);
         const described = this.describeSet(set);
         if (seenSpecies.has(described.species_id)) continue;
         if (!this.hasUsableSprite(described)) continue;
@@ -546,7 +546,11 @@ export class GameService {
     return this.normalizeTeam(team).map(set => this.describeSet(set));
   }
 
-  speciesDisplay(rawSpecies: string): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry; types: string[]; types_zh: string[]; base_stats: Record<string, number>; ability: string; ability_zh: string; ability_id: string; ability_desc: string; ability_desc_zh: string} {
+  normalizeBattleTeam(team: PokemonSet[]): PokemonSet[] {
+    return this.normalizeTeam(team);
+  }
+
+  speciesDisplay(rawSpecies: string): {species_id: string; name: string; name_zh: string; sprite?: SpriteMapEntry; types: string[]; types_zh: string[]; base_stats: Record<string, number>; ability: string; ability_zh: string; ability_id: string; ability_desc: string; ability_desc_zh: string; gender: string; heightm?: number; weightkg?: number} {
     const species = this.dataDex().species.get(rawSpecies);
     const speciesId = species.id || this.toId(rawSpecies);
     const name = species.name || rawSpecies;
@@ -565,11 +569,15 @@ export class GameService {
       ability_id: this.toId(ability),
       ability_desc: ability ? (this.dataDex().abilities.get(ability)?.desc || this.dataDex().abilities.get(ability)?.shortDesc || "") : "",
       ability_desc_zh: ability ? this.abilityDescription(ability) : "",
+      gender: this.fixedSpeciesGender(species),
+      heightm: Number(species.heightm || 0) || undefined,
+      weightkg: Number(species.weightkg || 0) || undefined,
     };
   }
 
   private itemIconAsset(itemId: string | undefined, item?: {name?: string; desc?: string; shortDesc?: string}): string {
-    const normalized = this.toId(itemId || item?.name || "");
+    const rawItemId = String(itemId || item?.name || "");
+    const normalized = this.toId(rawItemId);
     if (!normalized) return ITEM_ICON_FALLBACK;
     const direct = this.resolveItemIconAsset(normalized);
     if (direct) return direct;
@@ -583,7 +591,7 @@ export class GameService {
       const zAsset = this.resolveItemIconAsset(`${zType}gem`) || this.resolveItemIconAsset(`${zType}memory`);
       if (zAsset) return zAsset;
     }
-    const machineType = this.machineTypeForItem(normalized, item);
+    const machineType = this.machineTypeForItem(rawItemId, normalized, item);
     if (machineType) {
       const prefix = normalized.startsWith("tr") ? "machinetr" : "machine";
       const machineAsset = this.resolveItemIconAsset(`${prefix}${machineType}`) || this.resolveItemIconAsset(`machine${machineType}`);
@@ -607,7 +615,12 @@ export class GameService {
     return match ? this.toId(match[1]) : "";
   }
 
-  private machineTypeForItem(itemId: string, item?: {desc?: string; shortDesc?: string}): string {
+  private machineTypeForItem(rawItemId: string, itemId: string, item?: {desc?: string; shortDesc?: string}): string {
+    const tmMoveId = rawItemId.match(/^tm:(.+)$/i)?.[1];
+    if (tmMoveId) {
+      const move = this.dataDex().moves.get(tmMoveId);
+      return move?.exists ? this.toId(move.type) : "";
+    }
     if (!/^(?:tr|tm)\d+$/i.test(itemId)) return "";
     const text = String(item?.desc || item?.shortDesc || "");
     const moveName = text.match(/move ([^.]+)\./i)?.[1];
@@ -755,6 +768,11 @@ export class GameService {
             types: species.types || [],
             types_zh: (species.types || []).map((typeName: string) => this.zh("types", typeName)),
             base_stats: this.fullStats(species.baseStats || {}, 0),
+            heightm: Number(species.heightm || 0) || undefined,
+            weightkg: Number(species.weightkg || 0) || undefined,
+            gender: String(species.gender || "") || undefined,
+            gender_ratio: species.genderRatio ? {...species.genderRatio} : undefined,
+            abilities: this.speciesAbilitySummaries(species),
           };
           return includeRank(entry, shouldSearchLearnset ? this.speciesLearnsetSearchParts(species.id, dex) : []);
         })
@@ -1065,7 +1083,59 @@ export class GameService {
   }
 
   private normalizeTeam(team: PokemonSet[]): PokemonSet[] {
-    return team.map(set => ({...set, level: Number(set.level || 50), nature: set.nature || "Serious", moves: [...(set.moves || [])]}));
+    return team.map((set, index) => this.normalizeSetGender({
+      ...set,
+      level: Number(set.level || 50),
+      nature: set.nature || "Serious",
+      moves: [...(set.moves || [])],
+    }, this.genderRngForSet(set, index)));
+  }
+
+  private normalizeSetGender(set: PokemonSet, rng: () => number = this.genderRngForSet(set)): PokemonSet {
+    const existing = this.normalizedPokemonGender(set.gender);
+    if (existing !== null) return {...set, gender: existing};
+    return {...set, gender: this.genderForSpecies(set.species || set.name, rng)};
+  }
+
+  private normalizedPokemonGender(value: unknown): string | null {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    if (/^(?:m|male|♂)$/i.test(raw)) return "M";
+    if (/^(?:f|female|♀)$/i.test(raw)) return "F";
+    if (/^(?:n|none|genderless|无)$/i.test(raw)) return "";
+    return null;
+  }
+
+  private fixedSpeciesGender(species: any): string {
+    const raw = this.normalizedPokemonGender(species?.gender);
+    return raw === null ? "" : raw;
+  }
+
+  private genderForSpecies(rawSpecies: string | undefined, rng: () => number): string {
+    const species = this.dataDex().species.get(rawSpecies || "");
+    if (!species?.exists) return rng() < 0.5 ? "M" : "F";
+    const fixed = this.normalizedPokemonGender(species.gender);
+    if (fixed !== null) return fixed;
+    const ratio = species.genderRatio || {};
+    const male = Number(ratio.M);
+    const female = Number(ratio.F);
+    if (Number.isFinite(male) && Number.isFinite(female)) {
+      if (male <= 0 && female <= 0) return "";
+      if (male <= 0) return "F";
+      if (female <= 0) return "M";
+      return rng() < male / (male + female) ? "M" : "F";
+    }
+    return rng() < 0.5 ? "M" : "F";
+  }
+
+  private genderRngForSet(set: Partial<PokemonSet> | undefined, salt = 0): () => number {
+    const key = `${set?.species || set?.name || ""}:${set?.level || ""}:${(set?.moves || []).join(",")}:${salt}`;
+    let state = 0x9e3779b9;
+    for (let index = 0; index < key.length; index += 1) state = ((state << 5) - state + key.charCodeAt(index)) >>> 0;
+    return () => {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 0x100000000;
+    };
   }
 
   private describeSet(set: PokemonSet): RentalPokemon {
@@ -1088,6 +1158,8 @@ export class GameService {
       species_id: speciesId,
       level,
       gender: set.gender || "",
+      heightm: Number(species.heightm || 0) || undefined,
+      weightkg: Number(species.weightkg || 0) || undefined,
       types: species.types || [],
       types_zh: (species.types || []).map((typeName: string) => this.zh("types", typeName)),
       ability: ability.exists ? ability.name : (set.ability || ""),
@@ -1208,7 +1280,7 @@ export class GameService {
           ? this.pickSpeciesForTier(requestedSpeciesTiers[slot], rng, seenSpecies, options)
           : this.pickSpeciesForProfile(profile, rng, seenSpecies, options);
       const baseSet = this.baseSetForSpecies(speciesPick.speciesId, generator, rng);
-      const set = this.sanitizeSetForBattleSetting(this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier), options);
+      const set = this.normalizeSetGender(this.sanitizeSetForBattleSetting(this.applyGenerationProfile(baseSet, profile, rng, speciesPick.speciesTier), options), rng);
       const described = this.describeSet(set);
       if (seenSpecies.has(described.species_id) && !speciesIds[slot]) continue;
       if (!this.hasUsableSprite(described) && !speciesIds[slot]) continue;
@@ -1310,14 +1382,14 @@ export class GameService {
     const species = dex.species.get(speciesId);
     if (generator?.randomSet && species.exists) {
       try {
-        return this.normalizeTeam([generator.randomSet(species)])[0];
+        return this.normalizeSetGender(this.normalizeTeam([generator.randomSet(species)])[0], rng);
       } catch {
         // Fall through to the local legal-set fallback.
       }
     }
     const abilities = Object.values(species.abilities || {}).filter(Boolean) as string[];
     const ability = abilities[this.randomInt(rng, 0, Math.max(0, abilities.length - 1))] || "";
-    return {
+    return this.normalizeSetGender({
       name: species.name || speciesId,
       species: species.name || speciesId,
       ability,
@@ -1327,7 +1399,7 @@ export class GameService {
       evs: this.fullStats({}, 0),
       ivs: this.fullStats({}, 31),
       level: 50,
-    };
+    }, rng);
   }
 
   private applyGenerationProfile(baseSet: PokemonSet, profile: GenerationProfile, rng: () => number, speciesTier?: SpeciesTier): PokemonSet {
@@ -1815,6 +1887,26 @@ export class GameService {
     return moves.sort((a, b) => (b.power || 0) - (a.power || 0) || a.name.localeCompare(b.name)).slice(0, limit);
   }
 
+  private speciesAbilitySummaries(species: any): NonNullable<DesktopDexEntry["abilities"]> {
+    const seen = new Set<string>();
+    const result: NonNullable<DesktopDexEntry["abilities"]> = [];
+    for (const [slot, abilityName] of Object.entries(species?.abilities || {})) {
+      const ability = this.dataDex().abilities.get(String(abilityName || ""));
+      const id = ability?.exists ? ability.id : this.toId(String(abilityName || ""));
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const name = ability?.exists ? ability.name : String(abilityName || id);
+      result.push({
+        id,
+        name,
+        name_zh: this.zh("abilities", name),
+        desc_zh: this.detailDescription("abilities", name),
+        hidden: String(slot).toUpperCase() === "H",
+      });
+    }
+    return result;
+  }
+
   private learnsetMovesForSpecies(speciesId: string, dex = this.dataDex()): MoveSummary[] {
     const sourcesByMove = new Map<string, Set<MoveLearnSource>>();
     for (const entry of dex.species.getFullLearnset(speciesId) || []) {
@@ -2005,8 +2097,8 @@ export class BattleSession {
     this.service = service;
     this.battleLogId = service.randomUUID();
     this.sim = sim;
-    this.playerTeam = withShowdownTransportIds(options.playerTeam);
-    this.enemyTeam = withShowdownTransportIds(options.enemyTeam);
+    this.playerTeam = withShowdownTransportIds(service.normalizeBattleTeam(options.playerTeam));
+    this.enemyTeam = withShowdownTransportIds(service.normalizeBattleTeam(options.enemyTeam));
     this.playerDisplay = withDisplayStableShowdownIds(options.playerDisplay, this.playerTeam);
     this.enemyDisplay = withDisplayStableShowdownIds(options.enemyDisplay, this.enemyTeam);
     this.initialPlayerState = options.playerState ? withStateStableShowdownIds(options.playerState, this.playerTeam, this.playerDisplay) : undefined;
@@ -3055,6 +3147,10 @@ export class BattleSession {
     const showdownId = normalizeShowdownId(runtime.pokeball) || this.tracker.active[side]?.showdown_id;
     const previous = this.tracker.active[side];
     const sameTrackedPokemon = Boolean(showdownId && previous?.showdown_id && normalizeShowdownId(previous.showdown_id) === showdownId);
+    const runtimeGender = protocolGenderFromDetails((runtime as RuntimePokemon & {gender?: string}).gender)
+      || protocolGenderFromDetails(runtime.details)
+      || protocolGenderFromDetails(runtime.ident);
+    const gender = runtimeGender || (sameTrackedPokemon ? previous?.gender || "" : ("gender" in display ? display.gender || "" : ""));
     this.tracker.active[side] = {
       ...previous,
       ...(sameTrackedPokemon ? {} : {
@@ -3071,6 +3167,7 @@ export class BattleSession {
         ability_desc: display.ability_desc,
         ability_desc_zh: display.ability_desc_zh,
       }),
+      gender,
       condition,
       status: condition.split(" ").slice(1).join(" "),
       showdown_id: showdownId,
@@ -3253,7 +3350,7 @@ function withDisplayStableShowdownIds(display: RentalPokemon[] = [], team: Pokem
   return display.map((pokemon, index) => {
     const showdown_id = firstStableShowdownId(used, team[index]?.showdown_id, team[index]?.pokeball, pokemon.showdown_id);
     used.add(showdown_id);
-    return {...pokemon, showdown_id};
+    return {...pokemon, gender: pokemon.gender || team[index]?.gender || "", showdown_id};
   });
 }
 
@@ -3268,6 +3365,13 @@ function withStateStableShowdownIds(states: PlayerPokemonState[] = [], team: Pok
 
 function activeDisplay(service: GameService, rawSpecies: string | undefined): ReturnType<GameService["speciesDisplay"]> {
   return service.speciesDisplay(shortIdent(rawSpecies || "").split(",", 1)[0].trim());
+}
+
+function protocolGenderFromDetails(value: string | undefined): string {
+  const parts = String(value || "").split(",").map(part => part.trim());
+  if (parts.some(part => /^(?:m|male|♂)$/i.test(part))) return "M";
+  if (parts.some(part => /^(?:f|female|♀)$/i.test(part))) return "F";
+  return "";
 }
 
 function setActiveDisplay(tracker: BattleTracker, service: GameService, side: SideId, rawSpecies: string | undefined, condition?: string, clearSubstitute = false, showdownId?: string): void {
@@ -3291,6 +3395,7 @@ function setActiveDisplay(tracker: BattleTracker, service: GameService, side: Si
     ability_id: display.ability_id,
     ability_desc: display.ability_desc,
     ability_desc_zh: display.ability_desc_zh,
+    gender: protocolGenderFromDetails(rawSpecies) || (sameShowdownPokemon ? previous.gender : display.gender),
     condition: condition || previous.condition,
     showdown_id: normalizedShowdownId,
     ...(clearSubstitute ? {

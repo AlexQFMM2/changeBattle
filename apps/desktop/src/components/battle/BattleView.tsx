@@ -26,6 +26,12 @@ const FORCED_CONTINUATION_MOVE_IDS = new Set([
 
 type ActiveDisplaySnapshot = BattleState["tracker"]["active"]["p1"];
 
+function genderMark(gender: string | undefined): string {
+  if (/^m$/i.test(String(gender || ""))) return "♂";
+  if (/^f$/i.test(String(gender || ""))) return "♀";
+  return "";
+}
+
 function parseBattleBackgroundCsv(csv: string): BattleBackgroundView[] {
   return csv.trim().split(/\r?\n/).slice(1).map(line => {
     const [id = "", name = "", src = ""] = line.split(",");
@@ -139,7 +145,7 @@ function zActorName(event: BattleTimelineEvent, displayedNames: {p1: string; p2:
 }
 
 function zMoveDisplayName(event: BattleTimelineEvent): string {
-  const raw = event.move || event.text.match(/使用\s+(.+?)(?:。|！|!|$)/)?.[1] || event.text;
+  const raw = event.move || event.text.match(/使用\s+(.+?)(?:。|！|!|$)/)?.[1] || event.text.match(/\bused\s+(.+?)(?:。|！|!|\.|$)/i)?.[1] || event.text;
   const label = zMoveDisplayLabel(raw);
   return label.endsWith("！") || label.endsWith("!") ? label : `${label}！`;
 }
@@ -182,6 +188,44 @@ const Z_MOVE_SPRITE_FILES = new Map([
   ["焚天灭世炽光爆", "焚天灭世炽光爆 Sprite.webp"], ["Light That Burns the Sky", "焚天灭世炽光爆 Sprite.webp"],
 ]);
 
+const Z_MOVE_NAME_ZH = new Map([
+  ["Breakneck Blitz", "究极无敌大冲撞"],
+  ["All-Out Pummeling", "全力无双激烈拳"],
+  ["Supersonic Skystrike", "极速俯冲轰烈撞"],
+  ["Acid Downpour", "强酸剧毒灭绝雨"],
+  ["Tectonic Rage", "地隆啸天大终结"],
+  ["Continental Crush", "毁天灭地巨岩坠"],
+  ["Savage Spin-Out", "绝对捕食回旋斩"],
+  ["Never-Ending Nightmare", "无尽暗夜之诱惑"],
+  ["Corkscrew Crash", "超绝螺旋连击"],
+  ["Inferno Overdrive", "超强极限爆焰弹"],
+  ["Hydro Vortex", "超级水流大漩涡"],
+  ["Bloom Doom", "绚烂缤纷花怒放"],
+  ["Gigavolt Havoc", "终极伏特狂雷闪"],
+  ["Shattered Psyche", "至高精神破坏波"],
+  ["Subzero Slammer", "激狂大地万里冰"],
+  ["Devastating Drake", "究极巨龙震天地"],
+  ["Black Hole Eclipse", "黑洞吞噬万物灭"],
+  ["Twinkle Tackle", "可爱星星飞天撞"],
+  ["Pulverizing Pancake", "认真起来大爆击"],
+  ["Stoked Sparksurfer", "驾雷驭电戏冲浪"],
+  ["Catastropika", "皮卡皮卡必杀击"],
+  ["10,000,000 Volt Thunderbolt", "千万伏特"],
+  ["Extreme Evoboost", "九彩升华齐聚顶"],
+  ["Guardian of Alola", "巨人卫士・阿罗拉"],
+  ["Genesis Supernova", "起源超新星大爆炸"],
+  ["Sinister Arrow Raid", "遮天蔽日暗影箭"],
+  ["Malicious Moonsault", "极恶飞跃粉碎击"],
+  ["Oceanic Operetta", "海神庄严交响乐"],
+  ["Soul-Stealing 7-Star Strike", "七星夺魂腿"],
+  ["Clangorous Soulblaze", "炽魂热舞烈音爆"],
+  ["Let's Snuggle Forever", "亲密无间大乱揍"],
+  ["Splintered Stormshards", "狼啸石牙飓风暴"],
+  ["Searing Sunraze Smash", "日光回旋下苍穹"],
+  ["Menacing Moonraze Maelstrom", "月华飞溅落灵霄"],
+  ["Light That Burns the Sky", "焚天灭世炽光爆"],
+]);
+
 function cleanZMoveName(text: string): string {
   return text.replace(/[!！。.]/g, "").trim();
 }
@@ -198,6 +242,8 @@ function zMoveDisplayLabel(text: string, pokemon?: RentalPokemon): string {
   const cleaned = cleanZMoveName(text);
   const fileName = zMoveSpriteFile(text);
   if (fileName) return fileName.replace(/(?:[ST])? Sprite\.(?:png|webp)$/, "");
+  const mapped = Z_MOVE_NAME_ZH.get(cleaned) || [...Z_MOVE_NAME_ZH.entries()].find(([name]) => toId(name) === toId(cleaned))?.[1];
+  if (mapped) return mapped;
   const statusZMove = cleaned.match(/^Z[-\s](.+)$/i);
   if (statusZMove) {
     const summary = moveSummaryByName(pokemon, statusZMove[1]);
@@ -1100,7 +1146,8 @@ function FighterPanel({pokemon, condition, status, side, substitute, transitionM
   const hp = parseHp(condition);
   const code = statusCode(condition, status);
   const tone = hpTone(hp);
-  return <div className={`fighter-panel ${side} ${onClick ? "clickable-panel" : ""}`} onClick={onClick}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}{teraType ? <i className="tera-badge">太晶：{teraType}</i> : null}<div className="hp-line"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
+  const gender = genderMark(pokemon?.gender);
+  return <div className={`fighter-panel ${side} ${onClick ? "clickable-panel" : ""}`} onClick={onClick}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}{gender ? ` ${gender}` : ""}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}{teraType ? <i className="tera-badge">太晶：{teraType}</i> : null}<div className="hp-line"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
 }
 
 function FieldEffectsOverlay({battle}: {battle: BattleState}) {
@@ -1459,7 +1506,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
           <header>
             <div>
               <h2>{displayName(pokemon)}</h2>
-              <p>{pokemon.species}　Lv{pokemon.level} {pokemon.gender}</p>
+              <p>{pokemon.species}　Lv{pokemon.level}{genderMark(pokemon.gender) ? ` ${genderMark(pokemon.gender)}` : ""}</p>
             </div>
             <div className="detail-tabs">
               <button className={tab === "basic" ? "selected" : ""} onClick={() => setTab("basic")}>基础信息</button>

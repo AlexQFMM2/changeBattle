@@ -2,7 +2,7 @@ import type {BattleSetting, BattleSystemId, GeneratedTeam, ItemCategory, MoveSum
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import type {RuntimeDataProvider} from "./data-provider.js";
 import {parseCsvLine} from "./profile-settings.js";
-import {BP_SCALE, STARTER_ITEM_GROUPS, STARTER_ITEM_MAX_LEVEL, itemKey, normalizeStarterUpgrades, pricedForShop, toId} from "./run-rules.js";
+import {BP_SCALE, STARTER_ITEM_GROUPS, STARTER_ITEM_MAX_LEVEL, itemKey, normalizeStarterUpgrades, pricedForShop, tmIconAssetForMoveType, toId} from "./run-rules.js";
 
 export type StarterItemPoolEntry = {
   id: string;
@@ -207,7 +207,7 @@ function tmOfferFromMove(move: MoveSummary, index: number, source: "shop" | "sta
     cost: pricedForShop(base, talents),
     offer_id: `${source}-tm-${index}-${moveId}`,
     category: "tm",
-    icon_asset: tmIconAsset(),
+    icon_asset: tmIconAssetForMoveType(move.type),
     discount,
     source,
     move_id: moveId,
@@ -299,10 +299,6 @@ const ITEM_TYPE_PLATE_ASSETS: Record<string, string> = {
   steel: "ironplate",
   water: "splashplate",
 };
-
-function tmIconAsset(): string {
-  return "assets/placeholders/move.png";
-}
 
 function tmItemId(moveId: string | undefined): string {
   return `tm:${toId(moveId)}`;

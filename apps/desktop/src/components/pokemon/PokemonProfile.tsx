@@ -35,7 +35,7 @@ export function PokemonProfile({pokemon, selected = false, runtime, compact = fa
         {typeLabels.length ? <div className="profile-type-row">{typeLabels.map(type => <span key={type}>{type}</span>)}</div> : null}
         <h2>{displayName(pokemon)}</h2>
         <p>{pokemon.species}</p>
-        <p>Lv{pokemon.level} {pokemon.gender}</p>
+        <p>Lv{pokemon.level}</p>
         {selected ? <strong>已选中</strong> : null}
       </aside>
       <section className="profile-info">
