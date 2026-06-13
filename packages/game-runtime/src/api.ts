@@ -1,5 +1,6 @@
 import type {
   AudioSettings,
+  BattleAiHint,
   BattleSetting,
   BattleState,
   DesktopDexCategory,
@@ -47,6 +48,7 @@ export type ChangeBattleRuntimeApi = {
   rerollStarterCandidate(index: number): Promise<DesktopGameState>;
   beginChallenge(selectedIndexes: number[], seed: number, battles?: number): Promise<DesktopGameState>;
   continueRun(): Promise<DesktopGameState>;
+  battleHint(): Promise<BattleAiHint>;
   battleChoice(choice: string): Promise<DesktopGameState>;
   autoAdvanceBattle(): Promise<DesktopGameState>;
   exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState>;

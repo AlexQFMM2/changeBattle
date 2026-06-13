@@ -605,6 +605,11 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           }
           return startMobileNextBattle(save);
         },
+        battleHint: async () => {
+          const save = await ensureSave();
+          if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+          return activeBattle.playerAiHint();
+        },
         battleChoice: async choice => {
           const save = await ensureSave();
           if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");

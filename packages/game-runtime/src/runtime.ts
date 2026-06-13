@@ -74,6 +74,7 @@ export function createChangeBattleRuntime(env: Pick<RuntimeEnvironment, "assets"
     rerollStarterCandidate: parts.preparation.rerollStarterCandidate,
     beginChallenge: parts.runPlanning.beginChallenge,
     continueRun: parts.handlers.continueRun || missing("continueRun"),
+    battleHint: parts.handlers.battleHint || missing("battleHint"),
     battleChoice: parts.handlers.battleChoice || missing("battleChoice"),
     autoAdvanceBattle: parts.handlers.autoAdvanceBattle || missing("autoAdvanceBattle"),
     exchange: parts.handlers.exchange || missing("exchange"),

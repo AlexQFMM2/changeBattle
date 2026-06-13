@@ -533,6 +533,17 @@ export type BattleState = {
   contest_marks?: RestContestState;
 };
 
+export type BattleAiHintAlternative = {
+  choice: string;
+  title: string;
+  reason: string;
+  score: number;
+};
+
+export type BattleAiHint = BattleAiHintAlternative & {
+  alternatives: BattleAiHintAlternative[];
+};
+
 export type AudioSettings = {
   bgm_enabled: boolean;
   bgm_volume: number;

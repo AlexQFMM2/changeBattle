@@ -1,6 +1,6 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BagItemView, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, BattleTurnPokemonState, BattleTurnRecord, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleAiHint, BattleAiHintAlternative, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, BattleTurnPokemonState, BattleTurnRecord, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
 import {BATTLE_SYSTEM_OPTIONS} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
@@ -17,6 +17,8 @@ const FALLBACK_BATTLE_BACKGROUND = BATTLE_BACKGROUNDS.find(background => backgro
 const BATTLE_PANEL_MODES = new Set<AppStatus>(["battleMain", "moveMenu", "teamMenu", "statusMenu"]);
 const IMPLEMENTED_BATTLE_SYSTEMS = new Set(["mega", "zmove", "dynamax", "terastal"]);
 const BATTLE_ANIMATION_SPEEDUP_MS = 500;
+const DEFAULT_BATTLE_ANIMATION_SPEED = 1;
+type BattleAnimationSpeed = 1 | 2;
 const FORCED_CONTINUATION_MOVE_IDS = new Set([
   "fly", "dive", "dig", "bounce", "phantomforce", "shadowforce", "skydrop",
   "solarbeam", "solarblade", "meteorbeam", "skullbash", "razorwind", "skyattack",
@@ -25,6 +27,21 @@ const FORCED_CONTINUATION_MOVE_IDS = new Set([
 ]);
 
 type ActiveDisplaySnapshot = BattleState["tracker"]["active"]["p1"];
+
+type BattleViewProps = {
+  battle: BattleState | null;
+  battleBag: BagCategoryView | null;
+  mode: AppStatus;
+  setMode: (mode: AppStatus) => void;
+  onChoice: (choice: string) => Promise<boolean> | boolean | void;
+  onAutoAdvance?: () => Promise<boolean> | boolean | void;
+  onBattleHint?: () => Promise<BattleAiHint>;
+  choicePending?: boolean;
+  pendingTransition: DesktopGameState | null;
+  onBattleAnimationDone: (state: DesktopGameState) => void;
+  battleAnimationSpeed?: BattleAnimationSpeed;
+  onBattleAnimationSpeedChange?: (speed: BattleAnimationSpeed) => void;
+};
 
 function genderMark(gender: string | undefined): string {
   if (/^m$/i.test(String(gender || ""))) return "♂";
@@ -56,7 +73,24 @@ function isForceSwitchRequest(request: BattleState["request"]): boolean {
   return Boolean(request?.forceSwitch?.some(Boolean));
 }
 
-function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}): BattleVisualCue | null {
+function aiAutoplayRequestKey(battle: BattleState | null): string {
+  if (!battle?.request || battle.request.wait || battle.request.teamPreview || battle.ended) return "";
+  const activeMoves = (battle.request.active?.[0]?.moves || [])
+    .map((move, index) => `${index + 1}:${move.id || move.move}:${move.pp ?? ""}:${move.disabled ? 1 : 0}`)
+    .join(",");
+  const sideState = (battle.request.side?.pokemon || [])
+    .map(pokemon => `${pokemon.ident}:${pokemon.condition}:${pokemon.active ? 1 : 0}`)
+    .join("|");
+  const forceSwitch = battle.request.forceSwitch?.map(value => value ? 1 : 0).join(",") || "";
+  return [battle.tracker.turn, forceSwitch, activeMoves, sideState].join("#");
+}
+
+function userFacingBattleError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return String(error || "操作失败，请稍后再试。");
+}
+
+function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, displayedNames: {p1: string; p2: string}, displayedShowdownIds?: {p1: string; p2: string}, speed: BattleAnimationSpeed = DEFAULT_BATTLE_ANIMATION_SPEED): BattleVisualCue | null {
   if (event.type === "move") {
     const actingSide = event.side || "p1";
     const team = actingSide === (battle.player_side || "p1") ? battle.player_display : battle.enemy_display;
@@ -64,74 +98,74 @@ function visualCueForEvent(event: BattleTimelineEvent, battle: BattleState, disp
     const summary = runtimeMoveSummary(moveSummaryByName(pokemon, event.move), pokemon, battle, actingSide);
     const moveId = summary?.id ? toId(summary.id) : toId(event.move);
     const entry = firstBattleEffectEntry(moveEffectKeys(moveId, typeId(summary?.type || summary?.type_zh), moveCategoryId(summary?.category, summary?.category_zh)));
-    return cueFromEntry(entry, event, entry?.visual || "normal-hit", actingSide, moveCueTargetSide(entry, actingSide, event.targetSide));
+    return scaleBattleVisualCue(cueFromEntry(entry, event, entry?.visual || "normal-hit", actingSide, moveCueTargetSide(entry, actingSide, event.targetSide)), speed);
   }
   if (event.type === "item" && (event.effect === "Z招式" || /Z 力量|Z-Power|Z-Move/i.test(event.text))) {
     const side = event.side || event.targetSide || "p1";
-    return {visual: "z-aura", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1500)};
+    return {visual: "z-aura", renderer: "css", side, targetSide: side, anchor: "target", durationMs: battleAnimationDuration(1500, speed)};
   }
   if ((event.type === "damage" || event.type === "heal") && !eventTargetsDisplayedActive(event, displayedNames, displayedShowdownIds)) return null;
-  if (event.type === "damage") return cueFromEntry(battleEffectEntry("battle_action:damage"), event, "impact");
-  if (event.type === "heal") return cueFromEntry(battleEffectEntry("battle_action:heal"), event, "heal");
-  if (event.type === "faint") return cueFromEntry(battleEffectEntry("battle_action:faint"), event, "faint");
-  if (event.type === "miss") return cueFromEntry(battleEffectEntry("battle_action:miss"), event, "miss");
-  if (event.type === "crit") return cueFromEntry(battleEffectEntry("battle_action:crit"), event, "crit");
-  if (event.type === "effectiveness") return cueFromEntry(battleEffectEntry("battle_action:effectiveness"), event, "effectiveness");
-  if (event.type === "switch") return cueFromEntry(battleEffectEntry("battle_action:switch_in"), event, "switch-in", event.side || event.targetSide, event.targetSide || event.side);
+  if (event.type === "damage") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:damage"), event, "impact"), speed);
+  if (event.type === "heal") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:heal"), event, "heal"), speed);
+  if (event.type === "faint") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:faint"), event, "faint"), speed);
+  if (event.type === "miss") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:miss"), event, "miss"), speed);
+  if (event.type === "crit") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:crit"), event, "crit"), speed);
+  if (event.type === "effectiveness") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:effectiveness"), event, "effectiveness"), speed);
+  if (event.type === "switch") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:switch_in"), event, "switch-in", event.side || event.targetSide, event.targetSide || event.side), speed);
   if (event.type === "form" && /超级进化|进化石|Mega/i.test(event.text || event.effect || "")) {
     const side = event.side || event.targetSide || "p1";
-    return {visual: "mega-evolve", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1600)};
+    return {visual: "mega-evolve", renderer: "css", side, targetSide: side, anchor: "target", durationMs: battleAnimationDuration(1600, speed)};
   }
   if (event.type === "form" && event.effect === "Terastallize") {
     const side = event.side || event.targetSide || "p1";
-    return {visual: "terastalize", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1500)};
+    return {visual: "terastalize", renderer: "css", side, targetSide: side, anchor: "target", durationMs: battleAnimationDuration(1500, speed)};
   }
   if (event.type === "form" && /DynamaxEnd|极巨化结束|结束/.test(event.text || event.effect || "")) {
     const side = event.side || event.targetSide || "p1";
-    return {visual: "dynamax-end", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1500)};
+    return {visual: "dynamax-end", renderer: "css", side, targetSide: side, anchor: "target", durationMs: battleAnimationDuration(1500, speed)};
   }
   if (event.type === "form" && /超极巨|Gigantamax|Gmax/i.test(event.text || event.effect || "")) {
     const side = event.side || event.targetSide || "p1";
-    return {visual: "gigantamax", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1900)};
+    return {visual: "gigantamax", renderer: "css", side, targetSide: side, anchor: "target", durationMs: battleAnimationDuration(1900, speed)};
   }
   if (event.type === "form" && /极巨化|Dynamax/i.test(event.text || event.effect || "")) {
     const side = event.side || event.targetSide || "p1";
-    return {visual: "dynamax", renderer: "css", side, targetSide: side, anchor: "target", durationMs: fasterBattleAnimationDuration(1700)};
+    return {visual: "dynamax", renderer: "css", side, targetSide: side, anchor: "target", durationMs: battleAnimationDuration(1700, speed)};
   }
-  if (event.type === "form") return cueFromEntry(battleEffectEntry("battle_action:form"), event, "ability", event.side, event.targetSide || event.side);
+  if (event.type === "form") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:form"), event, "ability", event.side, event.targetSide || event.side), speed);
   if (event.type === "substitute") {
     const entry = firstBattleEffectEntry(statusEffectKeys("substitute", "volatile"));
-    return cueFromEntry(entry, event, entry?.visual || "substitute", event.side, event.targetSide);
+    return scaleBattleVisualCue(cueFromEntry(entry, event, entry?.visual || "substitute", event.side, event.targetSide), speed);
   }
   if (event.type === "boost") {
     const entry = firstBattleEffectEntry(boostEffectKeys(event));
-    return cueFromEntry(entry, event, entry?.visual || "boost");
+    return scaleBattleVisualCue(cueFromEntry(entry, event, entry?.visual || "boost"), speed);
   }
-  if (event.type === "item") return cueFromEntry(battleEffectEntry("battle_action:item"), event, "item");
-  if (event.type === "ability") return cueFromEntry(battleEffectEntry("battle_action:ability"), event, "ability");
+  if (event.type === "item") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:item"), event, "item"), speed);
+  if (event.type === "ability") return scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:ability"), event, "ability"), speed);
   if (event.type === "status") {
     const entry = firstBattleEffectEntry(statusEffectKeys(event.effect));
-    return cueFromEntry(entry, event, entry?.visual || "status");
+    return scaleBattleVisualCue(cueFromEntry(entry, event, entry?.visual || "status"), speed);
   }
   if (event.type === "weather") {
     const entry = firstBattleEffectEntry(weatherEffectKeys(event));
-    return cueFromEntry(entry, event, entry?.visual || "field");
+    return scaleBattleVisualCue(cueFromEntry(entry, event, entry?.visual || "field"), speed);
   }
   if (event.type === "field") {
     const entry = firstBattleEffectEntry(fieldEffectKeys(event));
-    return cueFromEntry(entry, event, entry?.visual || "field");
+    return scaleBattleVisualCue(cueFromEntry(entry, event, entry?.visual || "field"), speed);
   }
   return null;
 }
 
-function zImpactCueForEvent(event: BattleTimelineEvent, sourceSide: "p1" | "p2", durationMs: number): BattleVisualCue {
+function zImpactCueForEvent(event: BattleTimelineEvent, sourceSide: "p1" | "p2", durationMs: number, speed: BattleAnimationSpeed): BattleVisualCue {
   return {
     visual: "z-impact",
     renderer: "css",
     side: sourceSide,
     targetSide: event.targetSide || (sourceSide === "p1" ? "p2" : "p1"),
     anchor: "target",
-    durationMs: fasterBattleAnimationDuration(Math.max(1400, durationMs + 160)),
+    durationMs: battleAnimationDuration(Math.max(1400, durationMs + 160), speed),
   };
 }
 
@@ -466,7 +500,7 @@ function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
   return <div className={`battle-effect-layer anchor-${cue.anchor} side-${cue.side || "none"} target-${cue.targetSide || "none"}`} style={style}>{content}</div>;
 }
 
-export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, choicePending, pendingTransition, onBattleAnimationDone}: {battle: BattleState | null; battleBag: BagCategoryView | null; mode: AppStatus; setMode: (mode: AppStatus) => void; onChoice: (choice: string) => Promise<boolean> | boolean | void; onAutoAdvance?: () => Promise<boolean> | boolean | void; choicePending?: boolean; pendingTransition: DesktopGameState | null; onBattleAnimationDone: (state: DesktopGameState) => void}) {
+export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, onBattleHint, choicePending, pendingTransition, onBattleAnimationDone, battleAnimationSpeed = DEFAULT_BATTLE_ANIMATION_SPEED, onBattleAnimationSpeedChange}: BattleViewProps) {
   const player = activePokemon(battle, "p1");
   const enemy = activePokemon(battle, "p2");
   const finalActiveNames = {
@@ -494,6 +528,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const timelineEvents = battle?.timeline_events || [];
   const timelineKey = timelineEvents.map(event => `${event.id}:${event.text}`).join("\n");
   const recentKey = recentEvents.join("\n");
+  const battleSpeed = battleAnimationSpeed === 2 ? 2 : 1;
+  const battleSpeedRef = useRef<BattleAnimationSpeed>(battleSpeed);
   const [shownEvents, setShownEvents] = useState(turnEvents);
   const [currentTimelineEvent, setCurrentTimelineEvent] = useState<BattleTimelineEvent | null>(null);
   const [currentVisualCue, setCurrentVisualCue] = useState<BattleVisualCue | null>(null);
@@ -517,6 +553,12 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const [battleDexQuery, setBattleDexQuery] = useState<string | null>(null);
   const [panelMode, setPanelMode] = useState<AppStatus>(BATTLE_PANEL_MODES.has(mode) ? mode : "battleMain");
   const [autoAdvancePending, setAutoAdvancePending] = useState(false);
+  const [aiHintLoading, setAiHintLoading] = useState(false);
+  const [aiHint, setAiHint] = useState<BattleAiHint | null>(null);
+  const [aiHintError, setAiHintError] = useState<string | null>(null);
+  const [aiAutoplayEnabled, setAiAutoplayEnabled] = useState(false);
+  const [aiAutoplayPending, setAiAutoplayPending] = useState(false);
+  const [aiAutoplayToast, setAiAutoplayToast] = useState<{id: number; message: string} | null>(null);
   const previousTimelineKeys = useRef<string[]>([]);
   const previousRecentEvents = useRef<string[]>([]);
   const displayConditionsRef = useRef(displayConditions);
@@ -535,16 +577,45 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const finishRequested = useRef(false);
   const autoAdvanceInFlight = useRef(false);
   const lastAutoAdvanceKey = useRef("");
+  const aiAutoplayInFlight = useRef(false);
+  const lastAiAutoplayKey = useRef("");
   const lastCryKeys = useRef({p1: "", p2: ""});
   const lastCryScopeKey = useRef("");
   const hasQueuedPlayback = Boolean(battle && (
     timelineEvents.some((event, index) => !previousTimelineKeys.current.includes(`${event.id}:${event.text}`))
     || addedRecentEventTexts(previousRecentEvents.current, recentEvents).length > 0
   ));
+  const requestWaiting = Boolean(battle?.request?.wait) || isForcedContinuationRequest(battle?.request || null);
+  const forceSwitch = isForceSwitchRequest(battle?.request || null);
+  const aiAutoplayKey = aiAutoplayRequestKey(battle);
+  const baseBattleActionBlocked = Boolean(choicePending)
+    || autoAdvancePending
+    || requestWaiting
+    || playbackActive
+    || hasQueuedPlayback
+    || introActive
+    || trainerIntroActive
+    || Boolean(dialogue);
+  const battleActionBlocked = baseBattleActionBlocked || aiAutoplayPending;
+  const controlsDisabled = battleActionBlocked || aiAutoplayEnabled;
+  const aiHintDisabled = !onBattleHint
+    || battleActionBlocked
+    || aiAutoplayEnabled
+    || Boolean(battle?.ended)
+    || Boolean(battle?.request?.teamPreview);
+  const aiAutoplayActionBlocked = !onBattleHint
+    || baseBattleActionBlocked
+    || Boolean(battle?.ended)
+    || Boolean(battle?.request?.teamPreview);
+  const aiAutoplayToggleDisabled = !onBattleHint || Boolean(battle?.ended);
 
   function selectPanelMode(nextMode: AppStatus) {
     setPanelMode(BATTLE_PANEL_MODES.has(nextMode) ? nextMode : "battleMain");
   }
+
+  useEffect(() => {
+    battleSpeedRef.current = battleSpeed;
+  }, [battleSpeed]);
 
   async function triggerAutoAdvance(key: string) {
     if (!onAutoAdvance || autoAdvanceInFlight.current || lastAutoAdvanceKey.current === key) return;
@@ -561,6 +632,84 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       setAutoAdvancePending(false);
     }
   }
+
+  async function handleAiHint() {
+    if (!onBattleHint || aiHintLoading) return;
+    setAiHintLoading(true);
+    setAiHint(null);
+    setAiHintError(null);
+    try {
+      setAiHint(await onBattleHint());
+    } catch (error) {
+      setAiHintError(userFacingBattleError(error));
+    } finally {
+      setAiHintLoading(false);
+    }
+  }
+
+  async function executeAiHintChoice(choice: string) {
+    const ok = await onChoice(choice);
+    if (ok !== false) {
+      setAiHint(null);
+      setAiHintError(null);
+    }
+  }
+
+  function toggleAiAutoplay() {
+    const nextEnabled = !aiAutoplayEnabled;
+    lastAiAutoplayKey.current = "";
+    setAiAutoplayEnabled(nextEnabled);
+    setAiHint(null);
+    setAiHintError(null);
+    setDetailIndex(null);
+    setBattleItemOpen(false);
+    setPanelMode("battleMain");
+    setAiAutoplayToast({id: Date.now(), message: nextEnabled ? "AI代打已开启。" : "AI代打已关闭。"});
+  }
+
+  useEffect(() => {
+    if (!aiAutoplayEnabled) {
+      lastAiAutoplayKey.current = "";
+      return;
+    }
+    if (!battle) {
+      setAiAutoplayEnabled(false);
+      return;
+    }
+    if (!aiAutoplayKey || aiAutoplayActionBlocked || aiHintLoading || aiHint || aiHintError || aiAutoplayInFlight.current) return;
+    if (lastAiAutoplayKey.current === aiAutoplayKey) return;
+    lastAiAutoplayKey.current = aiAutoplayKey;
+    aiAutoplayInFlight.current = true;
+    setAiAutoplayPending(true);
+    setDetailIndex(null);
+    setBattleItemOpen(false);
+    setAiHint(null);
+    setAiHintError(null);
+    setPanelMode("battleMain");
+    void (async () => {
+      try {
+        const hint = await onBattleHint!();
+        const ok = await onChoice(hint.choice);
+        if (ok === false) {
+          setAiAutoplayEnabled(false);
+          setAiAutoplayToast({id: Date.now(), message: "AI代打提交失败，已暂停。"});
+        }
+      } catch (error) {
+        setAiAutoplayEnabled(false);
+        setAiAutoplayToast({id: Date.now(), message: `AI代打已暂停：${userFacingBattleError(error)}`});
+      } finally {
+        aiAutoplayInFlight.current = false;
+        setAiAutoplayPending(false);
+      }
+    })();
+  }, [aiAutoplayEnabled, aiAutoplayKey, aiAutoplayActionBlocked, aiHintLoading, Boolean(aiHint), Boolean(aiHintError), onBattleHint, onChoice]);
+
+  useEffect(() => {
+    if (battle?.ended && aiAutoplayEnabled) {
+      setAiAutoplayEnabled(false);
+      lastAiAutoplayKey.current = "";
+    }
+  }, [battle?.ended, aiAutoplayEnabled]);
 
   function selectedDialogueGroupIndex(activeBattle: BattleState | null): number | undefined {
     if (!activeBattle) return undefined;
@@ -635,6 +784,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
     const hasMoves = Boolean(battle?.request?.active?.[0]?.moves?.length);
     const forceSwitch = isForceSwitchRequest(battle?.request || null);
     if (forceSwitch) {
+      if (aiAutoplayEnabled) return;
       if (playbackActive || hasQueuedPlayback || currentTimelineEvent) return;
       forceSwitchPanelOpen.current = true;
       setPanelMode("teamMenu");
@@ -647,7 +797,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       if (panelMode === "teamMenu") setPanelMode("battleMain");
     }
     if (panelMode === "moveMenu" && !hasMoves) setPanelMode("battleMain");
-  }, [battle?.request?.forceSwitch, battle?.request?.active?.[0]?.moves?.length, panelMode, playbackActive, hasQueuedPlayback, currentTimelineEvent?.id]);
+  }, [battle?.request?.forceSwitch, battle?.request?.active?.[0]?.moves?.length, panelMode, playbackActive, hasQueuedPlayback, currentTimelineEvent?.id, aiAutoplayEnabled]);
 
   function playerWonBattle(activeBattle: BattleState): boolean {
     const winner = String(activeBattle.winner || "").toLowerCase();
@@ -770,13 +920,14 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
 
     const activeBattle = battle;
     async function playQueue() {
+      const currentSpeed = () => battleSpeedRef.current;
       setPlaybackActive(true);
       if (trainerIntroActive) {
-        await wait(1750);
+        await wait(scaleBattleDuration(1750, currentSpeed()));
         if (playbackRun.current !== runId) return;
       }
       if (introActive) {
-        await wait(920);
+        await wait(scaleBattleDuration(920, currentSpeed()));
         if (playbackRun.current !== runId) return;
       }
       let pendingZMoveSide: "p1" | "p2" | null = null;
@@ -785,11 +936,11 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
       for (const step of buildBattleDisplaySteps(added)) {
         if (playbackRun.current !== runId) return;
         if (step.kind === "pause") {
-          await wait(step.durationMs);
+          await wait(scaleBattleDuration(step.durationMs, currentSpeed()));
           continue;
         }
         const event = step.event;
-        const duration = timelineDuration(event, displayConditionsRef.current[event.targetSide || "p1"]);
+        const duration = timelineDuration(event, displayConditionsRef.current[event.targetSide || "p1"], currentSpeed());
         const targetIsDisplayedActive = eventCanMutateDisplayedActive(event, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current);
         if (step.kind === "message") {
           if (isZPowerEvent(event)) {
@@ -797,16 +948,16 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
             const actorName = zActorName(event, displayedActiveNamesRef.current);
             pendingZMoveSide = side;
             skipZVisualIds.add(event.id);
-            setCurrentVisualCue(targetIsDisplayedActive ? visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current) : null);
+            setCurrentVisualCue(targetIsDisplayedActive ? visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current, currentSpeed()) : null);
             const powerEvent = {...event, id: `${event.id}:zpower`, text: `${actorName}让Z力量笼罩了全身`, effect: "z-move-call"} as BattleTimelineEvent;
             setCurrentTimelineEvent(powerEvent);
             setShownEvents(events => [...events, powerEvent.text].slice(-14));
-            await wait(860);
+            await wait(scaleBattleDuration(860, currentSpeed()));
             if (playbackRun.current !== runId) return;
             const releaseEvent = {...event, id: `${event.id}:zrelease`, text: `${actorName}开始释放Z招式`, effect: "z-move-call"} as BattleTimelineEvent;
             setCurrentTimelineEvent(releaseEvent);
             setShownEvents(events => [...events, releaseEvent.text].slice(-14));
-            await wait(720);
+            await wait(scaleBattleDuration(720, currentSpeed()));
             setCurrentVisualCue(null);
             continue;
           }
@@ -817,7 +968,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
             const nameEvent = {...event, id: `${event.id}:zname`, text: zMoveDisplayName(event), effect: "z-move-name"} as BattleTimelineEvent;
             setCurrentTimelineEvent(nameEvent);
             setShownEvents(events => [...events, event.text].slice(-14));
-            await wait(1180);
+            await wait(scaleBattleDuration(1180, currentSpeed()));
             continue;
           }
           if (event.type === "move" && pendingZImpactSourceSide && (event.side || "p1") !== pendingZImpactSourceSide) {
@@ -825,15 +976,15 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
           }
           setCurrentTimelineEvent(event);
           setShownEvents(events => [...events, event.text].slice(-14));
-          await wait(Math.max(780, Math.min(2200, duration)));
+          await wait(Math.max(scaleBattleDuration(780, currentSpeed()), Math.min(scaleBattleDuration(2200, currentSpeed()), duration)));
           continue;
         }
         if (step.kind === "visual") {
           if (skipZVisualIds.has(event.id)) continue;
           const zImpactActive = event.type === "damage" && pendingZImpactSourceSide && event.targetSide && event.targetSide !== pendingZImpactSourceSide;
           const cue = zImpactActive
-            ? zImpactCueForEvent(event, pendingZImpactSourceSide!, duration)
-            : visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current);
+            ? zImpactCueForEvent(event, pendingZImpactSourceSide!, duration, currentSpeed())
+            : visualCueForEvent(event, activeBattle, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current, currentSpeed());
           if (zImpactActive) pendingZImpactSourceSide = null;
           setCurrentVisualCue(targetIsDisplayedActive ? cue : null);
           await wait(duration);
@@ -850,7 +1001,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
             }
             await wait(duration);
           } else {
-            await wait(180);
+            await wait(scaleBattleDuration(180, currentSpeed(), 90));
           }
           continue;
         }
@@ -858,8 +1009,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
           if (event.type === "switch" && event.targetSide && event.target_id) {
             const oldName = displayedActiveNamesRef.current[event.targetSide];
             if (oldName && oldName !== event.target_id) {
-              setCurrentVisualCue(cueFromEntry(battleEffectEntry("battle_action:switch_out"), event, "switch-out", event.targetSide, event.targetSide));
-              await wait(520);
+              setCurrentVisualCue(scaleBattleVisualCue(cueFromEntry(battleEffectEntry("battle_action:switch_out"), event, "switch-out", event.targetSide, event.targetSide), currentSpeed()));
+              await wait(scaleBattleDuration(520, currentSpeed()));
               setCurrentVisualCue(null);
             }
             const nextNames = {...displayedActiveNamesRef.current, [event.targetSide]: event.target_id};
@@ -907,11 +1058,11 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
             displayedActiveSnapshotsRef.current = nextSnapshots;
             setDisplayedActiveSnapshots(nextSnapshots);
           }
-          await wait(180);
+          await wait(scaleBattleDuration(180, currentSpeed(), 90));
         }
       }
       if (playbackRun.current !== runId) return;
-      await wait(420);
+      await wait(scaleBattleDuration(420, currentSpeed()));
       if (playbackRun.current !== runId) return;
       setCurrentTimelineEvent(null);
       setCurrentVisualCue(null);
@@ -995,9 +1146,6 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   ]);
 
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
-  const requestWaiting = Boolean(battle.request?.wait) || isForcedContinuationRequest(battle.request);
-  const forceSwitch = isForceSwitchRequest(battle.request);
-  const controlsDisabled = Boolean(choicePending) || autoAdvancePending || requestWaiting || playbackActive || hasQueuedPlayback || introActive || trainerIntroActive || Boolean(dialogue);
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
@@ -1006,8 +1154,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
   const enemyParty = entryRevealLocked || introActive
     ? rawEnemyParty.map(slot => slot.active ? {...slot, display: undefined, condition: undefined, status: undefined, active: false, revealed: false} : slot)
     : rawEnemyParty;
-  const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"]) : 1600;
-  const messageMs = currentTimelineEvent?.notice_title ? Math.max(2200, messageDuration) : Math.max(900, messageDuration);
+  const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"], battleSpeed) : scaleBattleDuration(1600, battleSpeed);
+  const messageMs = currentTimelineEvent?.notice_title ? Math.max(scaleBattleDuration(2200, battleSpeed), messageDuration) : Math.max(scaleBattleDuration(900, battleSpeed), messageDuration);
   const detailOpen = detailIndex !== null || panelMode === "teamMenu";
   const detailInitialIndex = detailIndex ?? activePlayerIndex;
   const trainerOverlayBattle = dialogue ? {...battle, player_trainer: dialogue.playerTrainer || battle.player_trainer, enemy_trainer: dialogue.trainer || battle.enemy_trainer, enemy_boss_record: dialogue.bossRecord || battle.enemy_boss_record} : battle;
@@ -1024,7 +1172,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
     setBattleDexQuery(query);
   };
   return (
-    <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} onClick={dialogue ? advanceBattleDialogue : undefined}>
+    <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} data-battle-speed={battleSpeed} onClick={dialogue ? advanceBattleDialogue : undefined}>
       {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => selectPanelMode("statusMenu")} onOpenEnemyDex={battle.show_move_effectiveness ? openBattleDex : undefined} /> : null}
       <section className={`battle-field ${battleBackgroundUrl ? "has-battle-background" : ""} ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`} style={battleFieldStyle}>
         <div className="battle-platforms" aria-hidden="true">
@@ -1035,6 +1183,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         <BattleEffectLayer cue={currentVisualCue} />
         {trainerIntroActive ? <TrainerIntroOverlay battle={trainerOverlayBattle} /> : null}
         <div className="turn-badge">第 {battle.tracker.turn} 回合</div>
+        <BattleToolbar speed={battleSpeed} onSpeedChange={onBattleAnimationSpeedChange} onAiHint={handleAiHint} aiHintLoading={aiHintLoading} aiHintDisabled={aiHintDisabled} aiAutoplayEnabled={aiAutoplayEnabled} aiAutoplayPending={aiAutoplayPending} aiAutoplayDisabled={aiAutoplayToggleDisabled} onAiAutoplayToggle={toggleAiAutoplay} />
         {battle.battle_event_statuses?.length ? (
           <div className="battle-event-status-strip">
             {battle.battle_event_statuses.map(status => (
@@ -1058,7 +1207,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         ) : (
           <>
             <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
-            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>{panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands battle={battle} forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onDialgaGrace={() => onChoice("dialga_grace")} onForfeit={() => onChoice("forfeit")} />}</div>
+            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>
+              {panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands battle={battle} forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onDialgaGrace={() => onChoice("dialga_grace")} onForfeit={() => onChoice("forfeit")} />}
+            </div>
           </>
         )}
       </section>
@@ -1073,7 +1224,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, ch
         return Boolean(ok);
       }} /> : null}
       {battleItemToast ? <ScreenToast key={battleItemToast.id} message={battleItemToast.message} durationMs={1200} onDone={() => setBattleItemToast(null)} /> : null}
+      {aiAutoplayToast ? <ScreenToast key={aiAutoplayToast.id} message={aiAutoplayToast.message} durationMs={1400} onDone={() => setAiAutoplayToast(null)} /> : null}
       {eventInfoStatus ? <EventInfoModal status={eventInfoStatus} context="战斗事件" onClose={() => setEventInfoStatus(null)} /> : null}
+      {(aiHint || aiHintError) && !dialogue ? <BattleAiHintModal hint={aiHint} error={aiHintError} disabled={controlsDisabled || aiHintLoading} onExecute={executeAiHintChoice} onClose={() => { setAiHint(null); setAiHintError(null); }} /> : null}
       {battleDexQuery ? <QuickDexModal key={battleDexQuery} initialCategory="pokemon" initialQuery={battleDexQuery} onClose={() => setBattleDexQuery(null)} /> : null}
     </div>
   );
@@ -1362,6 +1515,96 @@ function MainBattleCommands({battle, forceSwitch, waiting, disabled, setMode, on
       <button disabled={disabled || forceSwitch} onClick={onBag}>背包</button>
       {battle.battle_event_statuses?.some(status => status.id === "dialga_grace") ? <button className="special-command-button" title={graceTarget} disabled={disabled || !battle.dialga_grace_available} onClick={onDialgaGrace}>恩典</button> : null}
       <button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button>
+    </div>
+  );
+}
+
+function BattleToolbar({
+  speed,
+  onSpeedChange,
+  onAiHint,
+  aiHintLoading,
+  aiHintDisabled,
+  aiAutoplayEnabled,
+  aiAutoplayPending,
+  aiAutoplayDisabled,
+  onAiAutoplayToggle,
+}: {
+  speed: BattleAnimationSpeed;
+  onSpeedChange?: (speed: BattleAnimationSpeed) => void;
+  onAiHint?: () => void;
+  aiHintLoading?: boolean;
+  aiHintDisabled?: boolean;
+  aiAutoplayEnabled?: boolean;
+  aiAutoplayPending?: boolean;
+  aiAutoplayDisabled?: boolean;
+  onAiAutoplayToggle?: () => void;
+}) {
+  return (
+    <div className="battle-toolbar" aria-label="战斗辅助工具">
+      <button className="battle-toolbar-button battle-ai-tool" type="button" title="AI 提示" disabled={aiHintDisabled || aiHintLoading} onClick={onAiHint}>{aiHintLoading ? "计算中" : "AI提示"}</button>
+      <div className="battle-speed-control" role="group" aria-label="战斗倍速">
+        {[1, 2].map(value => {
+          const nextSpeed = value as BattleAnimationSpeed;
+          return (
+            <button
+              className={speed === nextSpeed ? "selected" : ""}
+              type="button"
+              aria-pressed={speed === nextSpeed}
+              onClick={() => onSpeedChange?.(nextSpeed)}
+              key={nextSpeed}
+            >
+              {nextSpeed}x
+            </button>
+          );
+        })}
+      </div>
+      <button className={`battle-toolbar-button battle-ai-tool ${aiAutoplayEnabled ? "selected" : ""}`} type="button" title={aiAutoplayEnabled ? "关闭 AI 代打" : "开启 AI 代打"} aria-pressed={Boolean(aiAutoplayEnabled)} disabled={aiAutoplayDisabled} onClick={onAiAutoplayToggle}>{aiAutoplayPending ? "代打中" : "AI代打"}</button>
+    </div>
+  );
+}
+
+function BattleAiHintModal({hint, error, disabled, onExecute, onClose}: {hint: BattleAiHint | null; error: string | null; disabled?: boolean; onExecute: (choice: string) => void | Promise<void>; onClose: () => void}) {
+  const alternatives = hint?.alternatives || [];
+  return (
+    <div className="modal-layer battle-ai-hint-layer">
+      <div className="battle-ai-hint-modal">
+        <header>
+          <h2>AI 提示</h2>
+          <button type="button" onClick={onClose}>关闭</button>
+        </header>
+        {error ? (
+          <p className="battle-ai-hint-error">{error}</p>
+        ) : hint ? (
+          <>
+            <section className="battle-ai-hint-primary">
+              <strong>{hint.title}</strong>
+              <span>指令 {hint.choice}</span>
+              <p>{hint.reason}</p>
+            </section>
+            {alternatives.length ? (
+              <section className="battle-ai-hint-alternatives">
+                <h3>备选</h3>
+                {alternatives.map(option => <BattleAiHintAlternativeRow option={option} key={option.choice} />)}
+              </section>
+            ) : null}
+            <footer>
+              <button type="button" onClick={onClose}>先看看</button>
+              <button className="primary" type="button" disabled={disabled} onClick={() => onExecute(hint.choice)}>执行建议</button>
+            </footer>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function BattleAiHintAlternativeRow({option}: {option: BattleAiHintAlternative}) {
+  return (
+    <div className="battle-ai-hint-alt">
+      <strong>{option.title}</strong>
+      <span>{option.choice}</span>
+      <p>{option.reason}</p>
     </div>
   );
 }
@@ -1817,22 +2060,32 @@ function addedRecentEventTexts(previous: string[], current: string[]): string[] 
   return current.slice(overlap);
 }
 
-function timelineDuration(event: BattleTimelineEvent, previousCondition?: string): number {
+function timelineDuration(event: BattleTimelineEvent, previousCondition?: string, speed: BattleAnimationSpeed = DEFAULT_BATTLE_ANIMATION_SPEED): number {
   if (event.type === "damage" || event.type === "heal") {
     const previous = parseHp(previousCondition);
     const next = event.hp || parseHp(event.condition);
     const ratio = previous && next && previous.max > 0 ? Math.abs(previous.current - next.current) / previous.max : 0.25;
-    return fasterBattleAnimationDuration(Math.round(Math.max(900, Math.min(3200, 900 + ratio * 2600))));
+    return battleAnimationDuration(Math.round(Math.max(900, Math.min(3200, 900 + ratio * 2600))), speed);
   }
-  if (event.type === "move") return fasterBattleAnimationDuration(2600);
-  if (event.type === "faint") return fasterBattleAnimationDuration(2600);
-  if (event.type === "switch") return fasterBattleAnimationDuration(2300);
-  if (event.type === "win") return fasterBattleAnimationDuration(2600);
-  return fasterBattleAnimationDuration(2100);
+  if (event.type === "move") return battleAnimationDuration(2600, speed);
+  if (event.type === "faint") return battleAnimationDuration(2600, speed);
+  if (event.type === "switch") return battleAnimationDuration(2300, speed);
+  if (event.type === "win") return battleAnimationDuration(2600, speed);
+  return battleAnimationDuration(2100, speed);
 }
 
-function fasterBattleAnimationDuration(ms: number): number {
-  return Math.max(450, ms - BATTLE_ANIMATION_SPEEDUP_MS);
+function battleAnimationDuration(ms: number, speed: BattleAnimationSpeed = DEFAULT_BATTLE_ANIMATION_SPEED): number {
+  return scaleBattleDuration(Math.max(450, ms - BATTLE_ANIMATION_SPEEDUP_MS), speed, 260);
+}
+
+function scaleBattleDuration(ms: number, speed: BattleAnimationSpeed = DEFAULT_BATTLE_ANIMATION_SPEED, minMs = 160): number {
+  const safeMs = Math.max(0, Math.round(ms));
+  const multiplier = speed === 2 ? 2 : 1;
+  return Math.max(minMs, Math.round(safeMs / multiplier));
+}
+
+function scaleBattleVisualCue(cue: BattleVisualCue, speed: BattleAnimationSpeed): BattleVisualCue {
+  return {...cue, durationMs: scaleBattleDuration(cue.durationMs, speed, 260)};
 }
 
 function battleAnimationClass(event: BattleTimelineEvent | null): string {

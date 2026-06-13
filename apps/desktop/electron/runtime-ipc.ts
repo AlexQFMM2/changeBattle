@@ -41,6 +41,7 @@ export function registerDesktopRuntimeIpc(
   handleIpc("run:rerollStarterCandidate", async (index: number) => api.rerollStarterCandidate(index));
   handleIpc("run:beginChallenge", async (selectedIndexes: number[], seed: number, battles?: number) => api.beginChallenge(selectedIndexes, seed, battles));
   handleIpc("run:continue", async () => api.continueRun());
+  handleIpc("run:battleHint", async () => api.battleHint());
   handleIpc("run:battleChoice", async (choice: string) => api.battleChoice(choice));
   handleIpc("run:autoAdvanceBattle", async () => api.autoAdvanceBattle());
   handleIpc("run:exchange", async (ownIndex: number | null, enemyIndex: number | null) => api.exchange(ownIndex, enemyIndex));

@@ -5739,14 +5739,20 @@ button.party-status-chip {
   100% { opacity: 1; translate: 0 0; }
 }
 
-.player-acting .back-sprite { animation: player-step .38s ease-out; }
-.enemy-acting .front-sprite { animation: enemy-step .38s ease-out; }
-.player-hit .back-sprite { animation: hit-shake .34s ease-in-out; }
-.enemy-hit .front-sprite { animation: hit-shake .34s ease-in-out; }
-.player-heal .back-sprite { animation: heal-pulse .48s ease-in-out; }
-.enemy-heal .front-sprite { animation: heal-pulse .48s ease-in-out; }
-.player-faint .back-sprite { animation: faint-drop .72s ease-in forwards; }
-.enemy-faint .front-sprite { animation: faint-drop .72s ease-in forwards; }
+.player-acting .back-sprite { animation: player-step var(--battle-step-duration, .38s) ease-out; }
+.enemy-acting .front-sprite { animation: enemy-step var(--battle-step-duration, .38s) ease-out; }
+.player-hit .back-sprite { animation: hit-shake var(--battle-hit-duration, .34s) ease-in-out; }
+.enemy-hit .front-sprite { animation: hit-shake var(--battle-hit-duration, .34s) ease-in-out; }
+.player-heal .back-sprite { animation: heal-pulse var(--battle-heal-duration, .48s) ease-in-out; }
+.enemy-heal .front-sprite { animation: heal-pulse var(--battle-heal-duration, .48s) ease-in-out; }
+.player-faint .back-sprite { animation: faint-drop var(--battle-faint-duration, .72s) ease-in forwards; }
+.enemy-faint .front-sprite { animation: faint-drop var(--battle-faint-duration, .72s) ease-in forwards; }
+.battle-layout[data-battle-speed="2"] {
+  --battle-step-duration: .19s;
+  --battle-hit-duration: .17s;
+  --battle-heal-duration: .24s;
+  --battle-faint-duration: .36s;
+}
 .battle-sprites .pokemon-sprite.sprite-fainted { opacity: .25; translate: 0 34px; }
 
 @keyframes message-flow {
@@ -5838,9 +5844,166 @@ button.party-status-chip {
 }
 
 .battle-action-panel {
+  position: relative;
   min-height: 0;
   overflow: hidden;
   animation: enter-right .42s cubic-bezier(.2, .82, .2, 1) both;
+}
+
+.battle-toolbar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.battle-speed-control {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 2px;
+  border: 1px solid rgb(37 51 43 / 72%);
+  border-radius: 5px;
+  background: #25332bdd;
+  padding: 2px;
+  box-shadow: 0 2px 5px #0003;
+}
+
+.battle-speed-control button,
+.battle-toolbar-button {
+  min-width: 0;
+  min-height: 18px;
+  border: 1px solid rgb(37 51 43 / 72%);
+  border-radius: 5px;
+  background: #25332bdd;
+  color: #fffdf5;
+  padding: 0 7px;
+  box-shadow: 0 2px 5px #0003;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.battle-speed-control button {
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.battle-speed-control button.selected {
+  background: #f1c14e;
+  color: #25332b;
+}
+
+.battle-ai-tool {
+  min-width: 48px;
+}
+
+.battle-ai-tool.selected {
+  background: #f1c14e;
+  color: #25332b;
+}
+
+.battle-ai-tool:disabled {
+  opacity: .72;
+}
+
+.battle-ai-hint-layer {
+  z-index: 30;
+  display: grid;
+  place-items: center;
+}
+
+.battle-ai-hint-modal {
+  display: grid;
+  width: min(390px, calc(100% - 20px));
+  max-height: calc(100% - 18px);
+  gap: 7px;
+  border: 2px solid #25332b;
+  border-radius: 5px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 8px;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 42%);
+  overflow: auto;
+}
+
+.battle-ai-hint-modal header,
+.battle-ai-hint-modal footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.battle-ai-hint-modal h2,
+.battle-ai-hint-modal h3,
+.battle-ai-hint-modal p {
+  margin: 0;
+}
+
+.battle-ai-hint-modal h2 {
+  font-size: 13px;
+}
+
+.battle-ai-hint-modal h3 {
+  color: #6d5130;
+  font-size: 10px;
+}
+
+.battle-ai-hint-primary,
+.battle-ai-hint-alt {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgb(37 51 43 / 28%);
+  border-radius: 5px;
+  background: #f7ecd0;
+  padding: 6px;
+}
+
+.battle-ai-hint-primary strong,
+.battle-ai-hint-alt strong {
+  font-size: 11px;
+}
+
+.battle-ai-hint-primary span,
+.battle-ai-hint-alt span {
+  color: #6b5742;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.battle-ai-hint-primary p,
+.battle-ai-hint-alt p,
+.battle-ai-hint-error {
+  color: #3c332b;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.battle-ai-hint-alternatives {
+  display: grid;
+  gap: 5px;
+}
+
+.battle-ai-hint-modal button {
+  min-height: 22px;
+  border: 1px solid #25332b;
+  border-radius: 4px;
+  background: #fff8df;
+  color: #25332b;
+  padding: 2px 8px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.battle-ai-hint-modal button.primary {
+  background: #f1c14e;
 }
 
 .battle-controls-disabled {

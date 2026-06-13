@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {AudioSettings, BagCategoryView, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleAiHint, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   createChangeBattleRuntime,
@@ -4536,6 +4536,13 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   }
 }
 
+async function battleHint(): Promise<BattleAiHint> {
+  if (battleChoiceInFlight) throw new Error("上一条战斗指令仍在处理，请稍等。");
+  const save = await loadSave();
+  if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+  return activeBattle.playerAiHint();
+}
+
 async function autoAdvanceBattle(): Promise<DesktopGameState> {
   if (battleChoiceInFlight) throw new Error("上一条战斗指令仍在处理，请稍等。");
   battleChoiceInFlight = true;
@@ -5642,6 +5649,7 @@ app.whenReady().then(() => {
       enableTestMode,
       startRainbowRocketTestRun,
       continueRun,
+      battleHint,
       battleChoice: submitBattleChoice,
       autoAdvanceBattle,
       exchange: async (ownIndex, enemyIndex) => {

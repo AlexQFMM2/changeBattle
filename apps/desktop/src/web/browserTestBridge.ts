@@ -1,4 +1,4 @@
-import type {AudioSettings, BattleSetting, BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopGameState, LocalSave, PlayerPokemonState, RentalPokemon, RestAction, RestState, SaveBattleRecordsTable, ShopOffer, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleAiHint, BattleSetting, BattleState, BattleTimelineEvent, DesktopDexCategory, DesktopDexEntry, DesktopGameState, LocalSave, PlayerPokemonState, RentalPokemon, RestAction, RestState, SaveBattleRecordsTable, ShopOffer, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {enableTestModeForSave} from "@changebattle/game-runtime";
 import {buildBattleDisplaySteps, type BattleDisplayStep} from "../components/battle/timelineFlow";
@@ -136,6 +136,16 @@ export function installBrowserTestBridge(): void {
       lastAction = `battleChoice:${choice}`;
       const battle = endedBattleForScenario(scenario);
       return setState({screen: "battleMain", save, battle, message: "自动测试胜利", pending_transition: resultForScenario(battle)});
+    },
+    battleHint: async (): Promise<BattleAiHint> => {
+      lastAction = "battleHint";
+      return {
+        choice: "move 1",
+        title: "使用测试招式",
+        reason: "测试环境推荐第一招，方便验证 AI 提示弹窗和执行建议链路。",
+        score: 100,
+        alternatives: [],
+      };
     },
     autoAdvanceBattle: async () => {
       lastAction = "autoAdvanceBattle";

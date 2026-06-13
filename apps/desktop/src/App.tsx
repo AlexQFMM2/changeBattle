@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {createRoot} from "react-dom/client";
 import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "react-router";
-import type {AppStatus, BagCategoryView, BattleState, DesktopGameState, LocalSave, RentalPokemon, RestAction, ResultSummaryState, TrainerCatalogState} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BattleAiHint, BattleState, DesktopGameState, LocalSave, RentalPokemon, RestAction, ResultSummaryState, TrainerCatalogState} from "@changebattle/shared";
 import {useResponsiveCanvas} from "./hooks/useResponsiveCanvas";
 import "./styles.css";
 import {BgmController} from "./components/audio/BgmController";
@@ -26,6 +26,13 @@ installBrowserTestBridge();
 const TRANSITION_ROUTE = "/transition";
 const BATTLE_SCREENS: AppStatus[] = ["battleMain", "moveMenu", "teamMenu", "statusMenu"];
 const HIDDEN_MESSAGE_SCREENS: AppStatus[] = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "battleHistory", "battleSetting", "rentalSelect"];
+const BATTLE_ANIMATION_SPEED_STORAGE_KEY = "changebattle:battle-animation-speed";
+type BattleAnimationSpeed = 1 | 2;
+
+function readBattleAnimationSpeedPreference(): BattleAnimationSpeed {
+  if (typeof window === "undefined") return 1;
+  return window.localStorage.getItem(BATTLE_ANIMATION_SPEED_STORAGE_KEY) === "2" ? 2 : 1;
+}
 
 function saveStarNodeLevel(save: LocalSave | null | undefined, id: string): number {
   return Math.max(0, Math.floor(Number(save?.star_chart?.nodes?.[id] || 0)));
@@ -110,6 +117,7 @@ function RoutedApp() {
   const [loading, setLoading] = useState(false);
   const [appToast, setAppToast] = useState<{id: number; message: string; durationMs?: number} | null>(null);
   const [routeTransition, setRouteTransition] = useState<(RouteTransitionCopy & {id: number; targetScreen: AppStatus; musicScene?: BgmScene}) | null>(null);
+  const [battleAnimationSpeed, setBattleAnimationSpeedState] = useState<BattleAnimationSpeed>(() => readBattleAnimationSpeedPreference());
   const [battleChoicePending, setBattleChoicePending] = useState(false);
   const battleChoicePendingRef = useRef(false);
   const routeTransitionTimerRef = useRef<number | null>(null);
@@ -117,6 +125,11 @@ function RoutedApp() {
 
   function showAppToast(message: string, durationMs = 1400) {
     setAppToast({id: Date.now(), message, durationMs});
+  }
+
+  function setBattleAnimationSpeed(speed: BattleAnimationSpeed) {
+    setBattleAnimationSpeedState(speed);
+    window.localStorage.setItem(BATTLE_ANIMATION_SPEED_STORAGE_KEY, String(speed));
   }
 
   function navigateToScreen(nextScreen: AppStatus, options: {replace?: boolean} = {}) {
@@ -405,6 +418,11 @@ function RoutedApp() {
     }
   }
 
+  async function battleHint(): Promise<BattleAiHint> {
+    if (battleChoicePendingRef.current) throw new Error("上一条战斗指令仍在处理，请稍等。");
+    return window.changeBattle!.battleHint();
+  }
+
   async function finishExchange(ownIndex: number | null, enemyIndex: number | null) {
     await runAction(() => window.changeBattle!.exchange(ownIndex, enemyIndex));
   }
@@ -468,12 +486,12 @@ function RoutedApp() {
     if (screen === "battleSetting") return <BattleSettingPage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
     if (screen === "starterItems") return <StarterItemsView starter={starter} onChoose={chooseStarterItem} onBack={cancelPreparation} />;
     if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={hasStarterItemChoices(starter) ? backToStarterItems : undefined} onReroll={rerollCandidates} onSingleReroll={rerollFocusedCandidate} onInspect={inspectFocusedCandidate} runSeed={seed} wholeRerollsRemaining={starter?.whole_rerolls_remaining ?? 0} singleRerollsRemaining={starter?.single_rerolls_remaining ?? 0} inspectRemaining={inspectRemaining} revealTraining={saveStarNodeLevel(save, "intel_god_eye") >= 3 || inspectedIndexes.has(focusIndex)} inspected={inspectedIndexes.has(focusIndex)} />;
-    if (BATTLE_SCREENS.includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={navigateToScreen} onChoice={battleChoice} onAutoAdvance={autoAdvanceBattle} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={state => transitionToState(state, "battleComplete")} />;
+    if (BATTLE_SCREENS.includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={navigateToScreen} onChoice={battleChoice} onAutoAdvance={autoAdvanceBattle} onBattleHint={battleHint} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={state => transitionToState(state, "battleComplete")} battleAnimationSpeed={battleAnimationSpeed} onBattleAnimationSpeedChange={setBattleAnimationSpeed} />;
     if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
     if (screen === "rest") return <RestView rest={rest} onAction={restAction} />;
     if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} summary={resultSummary} onBack={() => transitionToScreen("mainMenu", "returnHome")} />;
     return null;
-  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, lastBattleSnapshot, battleBag, battleChoicePending, exchange, rest, resultSummary, pendingTransition, message]);
+  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, lastBattleSnapshot, battleBag, battleChoicePending, exchange, rest, resultSummary, pendingTransition, message, battleAnimationSpeed]);
 
   const isBattleScreen = BATTLE_SCREENS.includes(screen);
   const hideTransientMessage = HIDDEN_MESSAGE_SCREENS.includes(screen);

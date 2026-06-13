@@ -1,4 +1,6 @@
 import type {
+  BattleAiHint,
+  BattleAiHintAlternative,
   BattleRequestView,
   BattleSetting,
   BattleSystemId,
@@ -259,7 +261,7 @@ export type BattleAiProfile = {
 export type BattleAiProfileInput = BattleAiProfile["level"] | Partial<BattleAiProfile>;
 type PlannedEnemyChoice = {key: string; choice?: string; promise: Promise<string>; startedAt: number};
 type AiActionKind = "move" | "switch";
-type AiCandidate = {side: SideId; kind: AiActionKind; choice: string; score: number; move?: any; moveRequest?: BattleMoveRequest; switchSlot?: number; pokemon?: RentalPokemon};
+type AiCandidate = {side: SideId; kind: AiActionKind; choice: string; score: number; move?: any; moveRequest?: BattleMoveRequest; moveSlot?: number; battleSystem?: "mega" | "zmove" | "max" | "terastallize"; switchSlot?: number; pokemon?: RentalPokemon};
 type AiPokemonState = {display: RentalPokemon; hp: number; maxHp: number; slot: number; active?: boolean};
 type AiSearchState = {p1: AiPokemonState[]; p2: AiPokemonState[]; active: Record<SideId, number>};
 type BattleAiPersonalityWeights = {damage: number; ko: number; status: number; setup: number; switch: number; defense: number; riskPenalty: number};
@@ -2175,7 +2177,7 @@ export class BattleSession {
   private readonly initialPlayerState?: PlayerPokemonState[];
   private readonly playerSlotKeys: SlotKeySpec[];
   private readonly enemySlotKeys: SlotKeySpec[];
-  private readonly enemyAi: BattleAiProfile;
+  private enemyAi: BattleAiProfile;
   private readonly seed: number | number[];
   private readonly battleSetting: BattleSetting;
   protected stream: any = null;
@@ -2344,6 +2346,28 @@ export class BattleSession {
     this.syncSideState(this.playerSide(), states);
     this.prepareEnemyChoice();
     return this.getState();
+  }
+
+  playerAiHint(): BattleAiHint {
+    const request = this.latestRequests[this.playerSide()];
+    if (!request || request.wait || request.teamPreview) throw new Error("当前不能请求 AI 提示。");
+    const previousAi = this.enemyAi;
+    try {
+      this.enemyAi = battleAiProfile({
+        level: "champion",
+        knowledge: "active_only",
+        personality: "adaptive",
+        randomness: 0,
+        allowSwitch: true,
+        prediction: 0.88,
+      });
+      const candidates = this.playerAiHintCandidates(request);
+      if (!candidates.length) throw new Error("当前没有可推荐的行动。");
+      const alternatives = candidates.slice(0, 3).map(candidate => this.aiCandidateHint(candidate));
+      return {...alternatives[0], alternatives: alternatives.slice(1)};
+    } finally {
+      this.enemyAi = previousAi;
+    }
   }
 
   protected playerSide(): SideId {
@@ -2766,9 +2790,108 @@ export class BattleSession {
     return combined.length ? combined : [{side, kind: "move", choice: "default", score: this.evaluateAiState(state)}];
   }
 
+  private playerAiHintCandidates(request: BattleRequestView): AiCandidate[] {
+    const state = this.playerVisibleAiSearchState();
+    if (!state) return [];
+    if (request.forceSwitch) return this.aiSwitchCandidates(this.playerSide(), state, 6).slice(0, 3);
+    return this.aiActionCandidates(this.playerSide(), state, request, 4, 2, 6);
+  }
+
+  private playerVisibleAiSearchState(): AiSearchState | null {
+    const playerSide = this.playerSide();
+    const enemySide = this.enemySide();
+    const player = this.aiSideState(playerSide, this.displayForBattleSide(playerSide), this.latestRequests[playerSide]);
+    const enemy = this.visibleEnemyAiSideState(enemySide);
+    if (!player.pokemon.length || !enemy.pokemon.length) return null;
+    const state = {
+      p1: playerSide === "p1" ? player.pokemon : enemy.pokemon,
+      p2: playerSide === "p2" ? player.pokemon : enemy.pokemon,
+      active: {
+        p1: playerSide === "p1" ? player.active : enemy.active,
+        p2: playerSide === "p2" ? player.active : enemy.active,
+      },
+    };
+    return state;
+  }
+
+  private visibleEnemyAiSideState(side: SideId): {pokemon: AiPokemonState[]; active: number} {
+    const runtime = this.activeRuntime(side);
+    const display = runtime ? findRentalByRuntime(this.displayForBattleSide(side), runtime) : this.activeDisplay(side);
+    if (!display) return {pokemon: [], active: 0};
+    const hp = parseConditionHp(runtime?.condition);
+    const maxHp = Math.max(1, Number(hp?.max || display.stats?.hp || display.base_stats?.hp || 1));
+    const currentHp = String(runtime?.condition || "").endsWith(" fnt") ? 0 : Number(hp?.current ?? maxHp);
+    return {
+      pokemon: [{
+        display,
+        hp: Math.max(0, Math.min(maxHp, currentHp)),
+        maxHp,
+        slot: 1,
+        active: true,
+      }],
+      active: 0,
+    };
+  }
+
+  private aiCandidateHint(candidate: AiCandidate): BattleAiHintAlternative {
+    return {
+      choice: candidate.choice,
+      title: this.aiCandidateTitle(candidate),
+      reason: this.aiCandidateReason(candidate),
+      score: Math.round(candidate.score),
+    };
+  }
+
+  private aiCandidateTitle(candidate: AiCandidate): string {
+    if (candidate.kind === "switch") {
+      const name = candidate.pokemon ? displayNameForAi(candidate.pokemon) : `第 ${candidate.switchSlot || "?"} 只`;
+      return `换上 ${name}`;
+    }
+    if (candidate.kind === "move") {
+      const moveName = candidate.moveRequest?.move || candidate.move?.name || `第 ${candidate.moveSlot || "?"} 招`;
+      if (candidate.battleSystem === "mega") return `Mega 后使用 ${moveName}`;
+      if (candidate.battleSystem === "zmove") return `释放 Z 招式：${moveName}`;
+      if (candidate.battleSystem === "max") return `极巨化后使用 ${moveName}`;
+      if (candidate.battleSystem === "terastallize") return `太晶化后使用 ${moveName}`;
+      return `使用 ${moveName}`;
+    }
+    return "默认行动";
+  }
+
+  private aiCandidateReason(candidate: AiCandidate): string {
+    if (candidate.kind === "switch") {
+      const name = candidate.pokemon ? displayNameForAi(candidate.pokemon) : `第 ${candidate.switchSlot || "?"} 只`;
+      return `冠军 AI 判断当前站场压力偏高，换上 ${name} 的综合评分更好，可以降低承伤或提高反打空间。`;
+    }
+    if (candidate.kind !== "move" || !candidate.move) return "当前没有找到更稳定的合法行动，建议走默认行动。";
+    const active = this.activeDisplay(candidate.side);
+    const target = this.activeDisplay(candidate.side === "p1" ? "p2" : "p1");
+    const targetHp = this.activeHpValue(candidate.side === "p1" ? "p2" : "p1");
+    const damage = Math.round(this.estimatedMoveDamage(candidate.move, active, target));
+    const effectiveness = this.typeMultiplier(candidate.move.type, target);
+    const parts: string[] = ["冠军 AI 在当前可见局势下给出最高评分。"];
+    if (candidate.move.category === "Status" || !Number(candidate.move.basePower || candidate.move.damage)) {
+      parts.push("这是变化类选择，主要价值在异常、强化、控场或节奏。");
+    } else {
+      parts.push(`预计伤害约 ${Math.max(0, damage)}。`);
+      if (effectiveness >= 2) parts.push("属性克制对手。");
+      else if (effectiveness > 0 && effectiveness < 1) parts.push("属性效果一般偏低。");
+      else if (effectiveness <= 0) parts.push("属性可能无效，需要谨慎。");
+      if (targetHp > 0 && damage >= targetHp) parts.push("有机会直接击倒当前对手。");
+    }
+    if (candidate.battleSystem === "mega") parts.push("同时发动 Mega 提升站场能力。");
+    if (candidate.battleSystem === "zmove") parts.push("同时消耗 Z 招式争取爆发。");
+    if (candidate.battleSystem === "max") parts.push("同时极巨化争取回合压制。");
+    if (candidate.battleSystem === "terastallize") parts.push("同时太晶化改变攻防节奏。");
+    return parts.join("");
+  }
+
   private aiMoveCandidates(side: SideId, active: AiPokemonState, opponent: AiPokemonState, request: BattleRequestView | undefined): AiCandidate[] {
     const dex = this.sim.Dex.mod("gen7");
-    const exactMovesAllowed = side === "p2" || this.enemyAi.knowledge === "party_sets" || this.enemyAi.knowledge === "omniscient";
+    const exactMovesAllowed = side === this.enemySide()
+      || (side === this.playerSide() && Boolean(request?.active?.[0]?.moves?.length))
+      || this.enemyAi.knowledge === "party_sets"
+      || this.enemyAi.knowledge === "omniscient";
     if (exactMovesAllowed && request?.active?.[0]?.moves?.length) {
       const canMegaEvo = this.requestCanMegaEvo(request);
       const canDynamax = this.requestCanDynamax(request);
@@ -2786,12 +2909,12 @@ export class BattleSession {
             moveRequest: entry.moveRequest,
           };
           if (side === "p2" && this.avoidsBattleSystemAi()) return [{...base, choice: `move ${entry.index}`, score}];
-          const candidates = canDynamax && maxMoves[entry.index - 1] ? [{...base, choice: `move ${entry.index} max`, score: score + 78}] : [];
-          if (canTerastallize) candidates.push({...base, choice: `move ${entry.index} terastallize`, score: score + 76});
-          if (canMegaEvo) candidates.push({...base, choice: `move ${entry.index} mega`, score: score + 75});
+          const candidates: AiCandidate[] = canDynamax && maxMoves[entry.index - 1] ? [{...base, choice: `move ${entry.index} max`, score: score + 78, moveSlot: entry.index, battleSystem: "max"}] : [];
+          if (canTerastallize) candidates.push({...base, choice: `move ${entry.index} terastallize`, score: score + 76, moveSlot: entry.index, battleSystem: "terastallize"});
+          if (canMegaEvo) candidates.push({...base, choice: `move ${entry.index} mega`, score: score + 75, moveSlot: entry.index, battleSystem: "mega"});
           const zMove = this.requestCanZMove(request, entry.index - 1);
-          if (zMove) candidates.push({...base, choice: `move ${entry.index} zmove`, score: score + 80});
-          candidates.push({...base, choice: `move ${entry.index}`, score});
+          if (zMove) candidates.push({...base, choice: `move ${entry.index} zmove`, score: score + 80, moveSlot: entry.index, battleSystem: "zmove"});
+          candidates.push({...base, choice: `move ${entry.index}`, score, moveSlot: entry.index});
           return candidates;
         })
         .sort((a, b) => b.score - a.score);
@@ -2806,6 +2929,7 @@ export class BattleSession {
         kind: "move" as const,
         choice: `move ${entry.index}`,
         move: entry.move,
+        moveSlot: entry.index,
         score: this.scoreAiMove(side, entry.move, active, opponent),
       }))
       .sort((a, b) => b.score - a.score);
@@ -4456,6 +4580,10 @@ function findRentalByRuntime(team: RentalPokemon[], runtime: RuntimePokemon | st
   }
   const key = toId(shortIdent(typeof runtime === "string" ? runtime : runtime.ident));
   return team.find(pokemon => toId(pokemon.species) === key || toId(pokemon.name) === key || pokemon.species_id === key);
+}
+
+function displayNameForAi(pokemon: RentalPokemon): string {
+  return pokemon.species_zh || pokemon.name || pokemon.species || pokemon.species_id || "宝可梦";
 }
 
 function addUnique(values: string[], value: string): void {

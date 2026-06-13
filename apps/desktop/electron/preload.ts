@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {AudioSettings, BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleAiHint, BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 const api = {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -84,6 +84,9 @@ const api = {
   },
   continueRun(): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:continue");
+  },
+  battleHint(): Promise<BattleAiHint> {
+    return ipcRenderer.invoke("run:battleHint");
   },
   battleChoice(choice: string): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:battleChoice", choice);

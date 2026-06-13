@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {AudioSettings, BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleAiHint, BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 import type {BattleDisplayStep} from "./components/battle/timelineFlow";
 import type {BrowserTestScenario} from "./web/browserTestBridge";
 
@@ -34,6 +34,7 @@ declare global {
       rerollStarterCandidate(index: number): Promise<DesktopGameState>;
       beginChallenge(selectedIndexes: number[], seed: number, battles?: number): Promise<DesktopGameState>;
       continueRun(): Promise<DesktopGameState>;
+      battleHint(): Promise<BattleAiHint>;
       battleChoice(choice: string): Promise<DesktopGameState>;
       autoAdvanceBattle(): Promise<DesktopGameState>;
       exchange(ownIndex: number | null, enemyIndex: number | null): Promise<DesktopGameState>;
