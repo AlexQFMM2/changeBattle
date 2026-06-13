@@ -98,8 +98,8 @@ export function buildRestState(options: RuntimeRestStateOptions): RestState {
     randomize_all: RANDOMIZE_ALL_COST,
     move_draw: moveDrawCost(run),
     scout_basic: 0,
-    scout_one: 0,
-    scout_all: 0,
+    scout_one: SCOUT_ONE_COST,
+    scout_all: SCOUT_ALL_COST,
     ...(options.costs || {}),
   };
   const support = run.rest_status?.rainbow_rocket_support;
