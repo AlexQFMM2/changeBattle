@@ -662,6 +662,8 @@ export type BagItemView = {
   move_id?: string;
   move_name?: string;
   move_name_zh?: string;
+  move_type?: string;
+  move_type_zh?: string;
   desc?: string;
   desc_zh?: string;
   locked?: boolean;
@@ -722,6 +724,8 @@ export type ShopOffer = ShopItem & {
   move_id?: string;
   move_name?: string;
   move_name_zh?: string;
+  move_type?: string;
+  move_type_zh?: string;
 };
 
 export type ShopKind = "recovery" | "held" | "tm" | "training" | "mega" | "zmove";
@@ -1054,6 +1058,7 @@ export type AbilityOption = {
   name_zh: string;
   desc: string;
   desc_zh: string;
+  hidden?: boolean;
 };
 
 export type NatureOption = {

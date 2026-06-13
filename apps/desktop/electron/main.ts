@@ -25,6 +25,7 @@ import {
   applyArrivalLevelCap as runtimeApplyArrivalLevelCap,
   applyArrivalLevelCapToTeam as runtimeApplyArrivalLevelCapToTeam,
   adjustedStateAfterEdit as runtimeAdjustedStateAfterEdit,
+  applyStalwartRecovery as runtimeApplyStalwartRecovery,
   applyRainbowRocketRestore as runtimeApplyRainbowRocketRestore,
   applyRainbowRocketSupportChoice as runtimeApplyRainbowRocketSupportChoice,
   applyRestConsumableItem as runtimeApplyRestConsumableItem,
@@ -53,6 +54,7 @@ import {
   finishedBattlePerspective as runtimeFinishedBattlePerspective,
   recordTrainerDexEncounter as runtimeRecordTrainerDexEncounter,
   recordBattleOutcomeStats as runtimeRecordBattleOutcomeStats,
+  rememberRunForSoulmate as runtimeRememberRunForSoulmate,
   setRunLeadSlot as runtimeSetRunLeadSlot,
   shinyPokemon as runtimeShinyPokemon,
   spendRunCoins as runtimeSpendRunCoins,
@@ -174,6 +176,9 @@ import {
   talentLevel,
   tmIconAssetForMoveType,
   toId,
+  TRAINING_SHOP_GROUP_WEIGHTS,
+  type TrainingShopGroup,
+  trainingShopGroupForItemId,
   updateRunQuestAfterBattle,
   updateRunQuestAfterRest,
 } from "./run-rules.js";
@@ -1036,14 +1041,8 @@ function isSpecialSystemItemId(itemId: string): boolean {
   return Boolean(gameService.battleSystemForItem(id));
 }
 
-const TRAINING_CONSUMABLE_ITEM_IDS = new Set([
-  "pomegberry", "kelpsyberry", "qualotberry", "hondewberry", "grepaberry", "tamatoberry",
-  "hpup", "protein", "iron", "calcium", "zinc", "carbos",
-  "bottlecap", "goldbottlecap",
-]);
-
 function isTrainingConsumableItemId(itemId: string): boolean {
-  return TRAINING_CONSUMABLE_ITEM_IDS.has(itemKey(itemId));
+  return isTrainingShopItemId(itemId);
 }
 
 async function isOrdinaryHeldItemId(itemId: string): Promise<boolean> {
@@ -1543,13 +1542,6 @@ async function applyArrivalLevelCap(talents: TalentView[] | undefined, rawSet: P
 
 async function applyArrivalLevelCapToTeam(talents: TalentView[] | undefined, team: PokemonSet[], display: RentalPokemon[]): Promise<{team: PokemonSet[]; display: RentalPokemon[]; capped: number}> {
   return runtimeApplyArrivalLevelCapToTeam(talents, team, display, gameService);
-}
-
-function rememberRunForSoulmate(save: LocalSave, run: CurrentRunData): void {
-  save.run_memory = {
-    player_species_ids: Array.from(new Set((run.player_team || []).map(pokemon => toId(pokemon.species || pokemon.name)).filter(Boolean))).slice(0, 6),
-    enemy_species_ids: Array.from(new Set((run.enemy_raw || []).map(pokemon => toId(pokemon.species || pokemon.name)).filter(Boolean))).slice(0, 6),
-  };
 }
 
 function requireProfileSettingsRuntime(): ProfileSettingsRuntimeApi {
@@ -2504,6 +2496,23 @@ function weightedShopBucket<T>(
   return weightedPick(available, rng)?.bucket || null;
 }
 
+function rollTrainingShopOffer(
+  buckets: Partial<Record<TrainingShopGroup, Array<ShopOffer & {weight?: number}>>>,
+  rng: () => number,
+  candidateLimit: number,
+): ShopOffer | null {
+  const groups = (Object.keys(TRAINING_SHOP_GROUP_WEIGHTS) as Array<keyof typeof TRAINING_SHOP_GROUP_WEIGHTS>)
+    .filter(group => (buckets[group] || []).length > 0)
+    .map(group => ({group, weight: TRAINING_SHOP_GROUP_WEIGHTS[group]}));
+  const group = weightedPick(groups, rng)?.group;
+  if (!group) return null;
+  const candidates = shuffleByRng(buckets[group] || [], rng).slice(0, Math.max(1, candidateLimit));
+  const selected = weightedPick(candidates, rng);
+  if (!selected) return null;
+  const {weight: _weight, ...offer} = selected as ShopOffer & {weight?: number};
+  return offer;
+}
+
 function seededRng(seed: number, salt = 0): () => number {
   let state = (Number(seed || 1) ^ salt ^ 0x9e3779b9) >>> 0;
   return () => {
@@ -2566,7 +2575,7 @@ async function itemDetailsById(itemId: string): Promise<ShopItem> {
     const moveId = normalized.slice(3);
     const move = (await gameService.machineMoves()).find(candidate => toId(candidate.id || candidate.name) === moveId);
     const cost = await goodsCost("skill", moveId, 2 * BP_SCALE);
-    return {id: normalized, name: `TM ${move?.name || moveId}`, name_zh: `技能机器 ${move?.name_zh || move?.name || moveId}`, cost, desc: `Teaches ${move?.name || moveId}.`, desc_zh: `让宝可梦学会 ${move?.name_zh || move?.name || moveId}。`, icon_asset: tmIconAssetForMoveType(move?.type)};
+    return {id: normalized, name: `TM ${move?.name || moveId}`, name_zh: `技能机器 ${move?.name_zh || move?.name || moveId}`, cost, desc: `Teaches ${move?.name || moveId}.`, desc_zh: `让宝可梦学会 ${move?.name_zh || move?.name || moveId}。`, icon_asset: tmIconAssetForMoveType(move?.type), move_type: move?.type, move_type_zh: move?.type_zh} as ShopItem & {move_type?: string; move_type_zh?: string};
   }
   const item = (await gameService.itemOptions()).find(option => itemKey(option.id || option.name) === normalized);
   const localItem = LOCAL_ITEM_DETAILS[normalized];
@@ -2587,6 +2596,9 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
     const item = await itemDetailsById(id);
     const normalized = itemKey(item.id || id);
     const meta = run.bag_item_meta?.[normalized];
+    const moveId = isTmItemId(normalized) ? normalized.slice(3) : undefined;
+    const move = moveId ? (await gameService.machineMoves()).find(candidate => toId(candidate.id || candidate.name) === moveId) : undefined;
+    const moveType = meta?.move_type || (item as ShopItem & {move_type?: string}).move_type || move?.type;
     const displayItem = {
       ...item,
       name: meta?.name || item.name,
@@ -2594,12 +2606,11 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
       cost: Math.max(0, Number(meta?.cost ?? item.cost ?? 0)),
       desc: meta?.desc || item.desc,
       desc_zh: meta?.desc_zh || item.desc_zh,
-      icon_asset: meta?.icon_asset || item.icon_asset,
+      icon_asset: moveId ? tmIconAssetForMoveType(moveType) : meta?.icon_asset || item.icon_asset,
     };
     let category = (meta?.category as ItemCategory | undefined) || itemCategory(item);
     if (category === "consumable" && !(await gameService.hasConsumableItemEffect(normalized))) category = "held";
     const sellPrice = sellPriceForItem(displayItem, run);
-    const moveId = isTmItemId(normalized) ? normalized.slice(3) : undefined;
     result[category].push({
       ...displayItem,
       id: normalized,
@@ -2611,6 +2622,8 @@ async function bagCategories(run: CurrentRunData): Promise<BagCategoryView> {
       move_id: meta?.move_id || moveId,
       move_name: meta?.move_name || moveId,
       move_name_zh: meta?.move_name_zh || (moveId ? displayItem.name_zh.replace(/^技能机器\s*/, "") : undefined),
+      move_type: moveType,
+      move_type_zh: meta?.move_type_zh || (item as ShopItem & {move_type_zh?: string}).move_type_zh || move?.type_zh,
     });
   }
   if (battleSettingHasTerastal(run.battle_setting) && run.tera_orb_type) {
@@ -2668,6 +2681,8 @@ function rememberBagItemMeta(run: CurrentRunData, offer: Partial<ShopOffer> | Sh
       move_id: (offer as Partial<ShopOffer>).move_id,
       move_name: (offer as Partial<ShopOffer>).move_name,
       move_name_zh: (offer as Partial<ShopOffer>).move_name_zh,
+      move_type: (offer as Partial<ShopOffer>).move_type,
+      move_type_zh: (offer as Partial<ShopOffer>).move_type_zh,
     },
   };
 }
@@ -2728,6 +2743,8 @@ async function tmOfferFromMove(move: MoveSummary, index: number, source: "shop" 
     move_id: moveId,
     move_name: move.name || moveId,
     move_name_zh: move.name_zh || move.name || moveId,
+    move_type: move.type,
+    move_type_zh: move.type_zh,
   };
 }
 
@@ -2855,6 +2872,24 @@ async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recover
       const entry = itemEntries.find(poolEntry => poolEntry.id === itemKey(item.id || item.name));
       return {...item, offer_id: `shop-item-${index}-${itemKey(item.id || item.name)}`, weight: entry?.weight || 1};
     });
+  const rng = seededRng(Number(run.seed || 1), 0x5100 + Number(run.shop_roll_count || 0) * 97 + Number(run.battle_no || run.next_battle || 0));
+  const count = shopOfferCount(run);
+  const candidateLimit = shopCandidateCount(run);
+  if (kind === "training") {
+    const trainingBuckets: Partial<Record<TrainingShopGroup, Array<ShopOffer & {weight?: number}>>> = {};
+    for (const offer of itemOffers) {
+      const group = trainingShopGroupForItemId(offer.id || offer.name);
+      if (!group) continue;
+      trainingBuckets[group] = [...(trainingBuckets[group] || []), offer];
+    }
+    const result: ShopOffer[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const selected = rollTrainingShopOffer(trainingBuckets, rng, candidateLimit);
+      if (!selected) break;
+      result.push(selected);
+    }
+    return result.map((offer, index) => withShopSlotPricing(run, offer, index));
+  }
   const buckets: Partial<Record<ShopPoolBucket, Array<ShopOffer & {weight?: number}>>> = {
     healing: [],
     held: [],
@@ -2868,10 +2903,7 @@ async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recover
     const bucket = entry ? shopPoolBucketForEntry(entry) : null;
     if (bucket && bucket !== "tm" && SHOP_KIND_CONFIG[kind].buckets.includes(bucket)) buckets[bucket]?.push(offer);
   }
-  const rng = seededRng(Number(run.seed || 1), 0x5100 + Number(run.shop_roll_count || 0) * 97 + Number(run.battle_no || run.next_battle || 0));
-  const count = shopOfferCount(run);
   const result: ShopOffer[] = [];
-  const candidateLimit = shopCandidateCount(run);
   for (let index = 0; index < count; index += 1) {
     const allowedBuckets = SHOP_KIND_CONFIG[kind].buckets;
     const bucket = weightedPick(allowedBuckets.filter(entry => (buckets[entry] || []).length > 0).map(entry => ({bucket: entry, weight: SHOP_BUCKET_WEIGHTS[entry]})), rng)?.bucket;
@@ -3837,27 +3869,6 @@ function normalizePlayerState(run: CurrentRunData): PlayerPokemonState[] {
   return states;
 }
 
-function applyStalwartRecovery(run: CurrentRunData): boolean {
-  if (!hasTalent(run.talents, "exchange_stalwart")) return false;
-  const states = normalizePlayerState(run);
-  let changed = false;
-  for (const state of states) {
-    const maxhp = Math.max(1, Number(state.maxhp || 1));
-    const hp = Math.max(0, Number(state.hp || 0));
-    const targetHp = hp > 0 && !state.fainted
-      ? Math.max(hp, Math.ceil(maxhp / 2))
-      : Math.max(1, Math.ceil(maxhp / 4));
-    if (targetHp !== hp || state.fainted) {
-      state.hp = Math.min(maxhp, targetHp);
-      state.fainted = false;
-      changed = true;
-    }
-    refreshStateCondition(state);
-  }
-  run.player_state = states;
-  return changed;
-}
-
 function normalizeCurrentRun(run: CurrentRunData): CurrentRunData {
   if (run.status === "awaiting_exchange") run.status = "awaiting_rest";
   run.coins = currentCoins(run);
@@ -4271,7 +4282,7 @@ async function settleInterruptedBattle(save: LocalSave, run: CurrentRunData): Pr
   run.battle_no = battleNo;
   const wins = Number(run.wins || 0);
   recordBattleResult(save, "interrupted", run);
-  rememberRunForSoulmate(save, run);
+  runtimeRememberRunForSoulmate(save, run);
   const settled = await settleRunEnd(save, run, {outcome: "loss"});
   save.current_run = null;
   activeBattle = null;
@@ -4305,7 +4316,7 @@ async function startNextBattle(save: LocalSave): Promise<DesktopGameState> {
   const battleNo = prepared.battleNo;
   if (prepared.status === "completed") {
     const {setStreak, bonus} = clearBonus(save, run);
-    rememberRunForSoulmate(save, run);
+    runtimeRememberRunForSoulmate(save, run);
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
@@ -4367,7 +4378,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   });
   if (!effectivePlayerWin) {
     const wins = Number(run.wins || 0);
-    rememberRunForSoulmate(save, run);
+    runtimeRememberRunForSoulmate(save, run);
     const settled = await settleRunEnd(save, run, {outcome: "loss"});
     save.current_run = null;
     const next = await persist(save);
@@ -4382,7 +4393,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   }
   const wins = Number(run.wins || 0) + 1;
   if (!isRainbowRocketRun(run)) addToExchangeBox(run, perspective.exchangeTeam, perspective.exchangeDisplay);
-  const stalwartRecovered = applyStalwartRecovery(run);
+  const stalwartRecovered = runtimeApplyStalwartRecovery(run);
   const allInBonus = run.rest_status?.all_in_pending_next ? addCoins(run, currentCoins(run), "all-in-bonus") : 0;
   const contestBonus = contest.bonusCoins ? addCoins(run, contest.bonusCoins, "contest-bonus") : 0;
   const {villainIntrusionBonus, rainbowRocketBonus} = runtimeApplyBattleSpecialRewardCoins(run);
@@ -4391,7 +4402,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   if (activeBattleNo >= Number(run.battles || DEFAULT_BATTLES)) {
     run.wins = wins;
     const {setStreak, bonus} = clearBonus(save, run);
-    rememberRunForSoulmate(save, run);
+    runtimeRememberRunForSoulmate(save, run);
     const settled = await settleRunEnd(save, run, {completed: true});
     save.current_run = null;
     const next = await persist(save);
@@ -4437,7 +4448,7 @@ async function finishSoulSwapTimeoutLoss(save: LocalSave, state: BattleState): P
     playerSide: "p1",
   });
   const wins = Number(run.wins || 0);
-  rememberRunForSoulmate(save, run);
+  runtimeRememberRunForSoulmate(save, run);
   const settled = await settleRunEnd(save, run, {outcome: "loss"});
   save.current_run = null;
   const next = await persist(save);
@@ -4655,7 +4666,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   }
   if (action.type === "abort") {
     save.stats = {...emptyStats(), ...(save.stats || {}), set_win_streak: 0};
-    rememberRunForSoulmate(save, run);
+    runtimeRememberRunForSoulmate(save, run);
     const settled = await settleRunEnd(save, run);
     refreshStats(save);
     save.current_run = null;

@@ -151,9 +151,15 @@ async function testTrainingItemsAreRestOnlyConsumables(): Promise<void> {
   const {service, session} = await createSession();
   assert.equal(await service.hasConsumableItemEffect("hpup"), true);
   assert.equal(await service.hasBattleConsumableItemEffect("hpup"), false);
+  assert.equal(await service.hasConsumableItemEffect("abilitypatch"), true);
+  assert.equal(await service.hasBattleConsumableItemEffect("abilitypatch"), false);
+  assert.equal(await service.hasConsumableItemEffect("jollymint"), true);
+  assert.equal(await service.hasBattleConsumableItemEffect("jollymint"), false);
   assert.deepEqual(await service.trainingItemEffect("hpup"), {stat_kind: "ev", stat: "hp", amount: 100, scope: "one"});
   assert.deepEqual(await service.trainingItemEffect("bottlecap"), {stat_kind: "iv", stat: undefined, amount: 31, scope: "one"});
   assert.deepEqual(await service.trainingItemEffect("goldbottlecap"), {stat_kind: "iv", stat: undefined, amount: 31, scope: "all"});
+  assert.deepEqual(await service.trainingItemEffect("abilitypatch"), {stat_kind: "ability", amount: 1, scope: "one"});
+  assert.deepEqual(await service.trainingItemEffect("jollymint"), {stat_kind: "nature", nature: "Jolly", amount: 0, scope: "one"});
   const before = session.getState().tracker.turn;
   await assert.rejects(() => session.chooseTrainerItem("hpup", 0), /不能在战斗中主动使用/);
   assert.equal(session.getState().tracker.turn, before);

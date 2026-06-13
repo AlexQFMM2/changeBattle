@@ -1,6 +1,7 @@
 import type {BattleBackgroundView, BattleRecordEntry, BattleRequestView, BattleSetting, BattleState, BossDexRecord, CurrentRunData, LocalSave, PlannedBattleData, PlayerPokemonState, PokemonSet, RentalPokemon, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
-import {WIN_BP_REWARD, addBattleRewardCoins, addCoins, emptyStats, itemKey, refreshStats} from "./run-rules.js";
+import {WIN_BP_REWARD, addBattleRewardCoins, addCoins, emptyStats, hasTalent, itemKey, refreshStats, toId} from "./run-rules.js";
+import {fullStateForPokemon, refreshStateCondition} from "./rest-flow.js";
 
 export const VILLAIN_INTRUSION_BONUS_COINS = 500;
 export const RAINBOW_ROCKET_REWARD_COINS = 2000;
@@ -45,8 +46,8 @@ export type RunRestStatusCarry = NonNullable<CurrentRunData["rest_status"]>;
 
 export type BasicBattleSettlement =
   | {outcome: "loss"; run: CurrentRunData; message: string}
-  | {outcome: "completed"; run: CurrentRunData; wins: number; message: string; coinsEarned: number}
-  | {outcome: "rest"; run: CurrentRunData; wins: number; message: string; coinsEarned: number};
+  | {outcome: "completed"; run: CurrentRunData; wins: number; message: string; coinsEarned: number; stalwartRecovered: boolean}
+  | {outcome: "rest"; run: CurrentRunData; wins: number; message: string; coinsEarned: number; stalwartRecovered: boolean};
 
 export type RuntimeExchangeResult = {
   run: CurrentRunData;
@@ -352,6 +353,41 @@ export function applyFinishedBattlePerspectiveToRun(run: CurrentRunData, perspec
   return run;
 }
 
+export function rememberRunForSoulmate(save: LocalSave, run: CurrentRunData): void {
+  save.run_memory = {
+    player_species_ids: Array.from(new Set((run.player_team || []).map(pokemon => toId(pokemon.species || pokemon.name)).filter(Boolean))).slice(0, 6),
+    enemy_species_ids: Array.from(new Set((run.enemy_raw || []).map(pokemon => toId(pokemon.species || pokemon.name)).filter(Boolean))).slice(0, 6),
+  };
+}
+
+function normalizedRunPlayerState(run: CurrentRunData): PlayerPokemonState[] {
+  const existing = run.player_state || [];
+  const display = run.player_display || [];
+  if (!display.length) return existing;
+  return display.map((pokemon, index) => ({...fullStateForPokemon(pokemon, index + 1), ...(existing[index] || {}), slot: index + 1}));
+}
+
+export function applyStalwartRecovery(run: CurrentRunData): boolean {
+  if (!hasTalent(run.talents, "exchange_stalwart")) return false;
+  const states = normalizedRunPlayerState(run);
+  let changed = false;
+  for (const state of states) {
+    const maxhp = Math.max(1, Number(state.maxhp || 1));
+    const hp = Math.max(0, Number(state.hp || 0));
+    const targetHp = hp > 0 && !state.fainted
+      ? Math.max(hp, Math.ceil(maxhp / 2))
+      : Math.max(1, Math.ceil(maxhp / 4));
+    if (targetHp !== hp || state.fainted) {
+      state.hp = Math.min(maxhp, targetHp);
+      state.fainted = false;
+      changed = true;
+    }
+    refreshStateCondition(state);
+  }
+  run.player_state = states;
+  return changed;
+}
+
 export function applyBattleWinRestTransition(run: CurrentRunData, options: RuntimeBattleWinRestTransitionOptions = {}): CurrentRunData {
   const battleNo = Math.max(1, Math.floor(Number(options.battleNo ?? run.battle_no ?? 1)));
   const wins = Math.max(0, Math.floor(Number(options.wins ?? Number(run.wins || 0) + 1)));
@@ -416,17 +452,20 @@ export function settleBasicBattleResult(save: LocalSave, run: CurrentRunData, st
   const rewardCoins = Math.max(0, Math.floor(Number(options.rewardCoins ?? WIN_BP_REWARD)));
   const gainedBattleCoins = recordBattleOutcomeStats(save, playerWon ? "Player" : state.winner === "tie" ? "tie" : "Enemy", run, {recordTrainerDex: false, winReward: rewardCoins});
   if (!playerWon) {
+    rememberRunForSoulmate(save, run);
     save.current_run = null;
     return {outcome: "loss", run, message: options.lossMessage || "挑战失败。"};
   }
   const battleNo = Number(run.battle_no || 1);
   const wins = Number(run.wins || 0) + 1;
+  const stalwartRecovered = applyStalwartRecovery(run);
   run.wins = wins;
   run.enemy_raw = state.enemy_team || run.enemy_raw;
   run.enemy_display = state.enemy_display || run.enemy_display;
   if (battleNo >= Number(run.battles || options.defaultBattles)) {
+    rememberRunForSoulmate(save, run);
     save.current_run = null;
-    return {outcome: "completed", run, wins, coinsEarned: gainedBattleCoins, message: options.completedMessage?.(wins, gainedBattleCoins) || `挑战通关，完成 ${wins} 连胜。`};
+    return {outcome: "completed", run, wins, coinsEarned: gainedBattleCoins, stalwartRecovered, message: options.completedMessage?.(wins, gainedBattleCoins) || `挑战通关，完成 ${wins} 连胜。`};
   }
   save.current_run = applyBattleWinRestTransition(run, {
     battleNo,
@@ -435,7 +474,7 @@ export function settleBasicBattleResult(save: LocalSave, run: CurrentRunData, st
     enemyDisplay: state.enemy_display || run.enemy_display,
     coinsEarned: gainedBattleCoins,
   });
-  return {outcome: "rest", run, wins, coinsEarned: gainedBattleCoins, message: options.winMessage?.(wins, gainedBattleCoins) || `对局胜利。当前连胜：${wins}`};
+  return {outcome: "rest", run, wins, coinsEarned: gainedBattleCoins, stalwartRecovered, message: options.winMessage?.(wins, gainedBattleCoins) || `对局胜利。当前连胜：${wins}`};
 }
 
 export function recordBattleOutcomeStats(save: LocalSave, winner: string | null, run?: CurrentRunData, options: {

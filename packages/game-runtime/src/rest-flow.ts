@@ -62,13 +62,15 @@ export type RestItemRuntimeService = ArrivalLevelCapRuntimeService & {
   hasConsumableItemEffect(itemId: string): Promise<boolean> | boolean;
   applyConsumableItemEffectToState(itemId: string, state: PlayerPokemonState, moveSlot?: number): Promise<string> | string;
   trainingItemEffect?(itemId: string): Promise<TrainingItemEffect | null> | TrainingItemEffect | null;
+  editOptions?(set: PokemonSet): Promise<PokemonEditOptions> | PokemonEditOptions;
 };
 
 export type TrainingItemEffect = {
-  stat_kind: "iv" | "ev";
+  stat_kind: "iv" | "ev" | "ability" | "nature";
   stat?: StatId;
   amount: number;
   scope: "one" | "all";
+  nature?: string;
 };
 
 export type RuntimeRestStateOptions = {
@@ -420,13 +422,13 @@ async function applyTrainingConsumableItem(
   slot: number,
   effect: TrainingItemEffect,
   selectedStat: StatId | undefined,
-  service: ArrivalLevelCapRuntimeService,
+  service: RestItemRuntimeService,
   dryRun: boolean,
 ): Promise<string> {
   if (slot < 0 || slot >= (run.player_team || []).length) throw new Error("队伍编号无效。");
   const rawSet = clone(run.player_team[slot]) as PokemonSet;
   const stat = effect.scope === "all" ? undefined : effect.stat || selectedStat;
-  if (effect.scope !== "all" && !isStatId(stat)) throw new Error("请选择能力项。");
+  if ((effect.stat_kind === "ev" || effect.stat_kind === "iv") && effect.scope !== "all" && !isStatId(stat)) throw new Error("请选择能力项。");
   const pokemonName = run.player_display?.[slot]?.species_zh || run.player_display?.[slot]?.species || rawSet.species || rawSet.name || "宝可梦";
   let detail = "";
   if (effect.stat_kind === "ev") {
@@ -461,6 +463,26 @@ async function applyTrainingConsumableItem(
       detail = `${statZh(key)}个体值 ${previous} -> 31`;
     }
     rawSet.ivs = ivs;
+  } else if (effect.stat_kind === "ability") {
+    if (!service.editOptions) throw new Error("当前环境不支持修改特性。");
+    const options = await service.editOptions(rawSet);
+    const currentId = toId(rawSet.ability || run.player_display?.[slot]?.ability || "");
+    const target = effect.amount > 0
+      ? options.abilities.find(ability => ability.hidden)
+      : options.abilities.filter(ability => !ability.hidden && toId(ability.name || ability.id) !== currentId)[0];
+    if (!target) throw new Error(effect.amount > 0 ? `${pokemonName} 没有可切换的隐藏特性。` : `${pokemonName} 没有可切换的普通特性。`);
+    if (toId(target.name || target.id) === currentId) throw new Error(`${pokemonName} 已经是 ${target.name_zh || target.name}。`);
+    rawSet.ability = target.name || target.id;
+    detail = `特性变为 ${target.name_zh || target.name}`;
+  } else if (effect.stat_kind === "nature") {
+    if (!service.editOptions) throw new Error("当前环境不支持修改性格。");
+    const options = await service.editOptions(rawSet);
+    const natureId = toId(effect.nature || "");
+    const target = options.natures.find(nature => toId(nature.name || nature.id) === natureId);
+    if (!target) throw new Error("这个薄荷配置无效。");
+    if (toId(rawSet.nature || "Serious") === toId(target.name)) throw new Error(`${pokemonName} 已经是 ${target.name_zh || target.name}性格。`);
+    rawSet.nature = target.name;
+    detail = `性格变为 ${target.name_zh || target.name}`;
   } else {
     throw new Error("这个训练道具配置无效。");
   }

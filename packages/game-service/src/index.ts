@@ -33,6 +33,17 @@ const MAX_GENERATION_ATTEMPTS = 40;
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 const SIDE_NAMES = {p1: "玩家", p2: "对手"} as const;
 const STANDARD_TERA_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
+const TRAINING_ABILITY_EFFECT_ITEM_IDS = ["abilitycapsule", "abilitypatch"] as const;
+const TRAINING_MINT_EFFECT_ITEM_IDS = [
+  "lonelymint", "adamantmint", "naughtymint", "bravemint",
+  "boldmint", "impishmint", "laxmint", "relaxedmint",
+  "modestmint", "mildmint", "rashmint", "quietmint",
+  "calmmint", "gentlemint", "carefulmint", "sassymint",
+  "timidmint", "hastymint", "jollymint", "naivemint",
+  "seriousmint",
+] as const;
+const TRAINING_SPECIAL_EFFECT_ITEM_IDS = new Set<string>([...TRAINING_ABILITY_EFFECT_ITEM_IDS, ...TRAINING_MINT_EFFECT_ITEM_IDS]);
+const MINT_NATURE_BY_ITEM_ID: Record<string, string> = Object.fromEntries(TRAINING_MINT_EFFECT_ITEM_IDS.map(id => [id, id.replace(/mint$/, "")]));
 const PIKASHUNIUM_ALLOWED_PIKACHU_IDS = new Set(["pikachuoriginal", "pikachuhoenn", "pikachusinnoh", "pikachuunova", "pikachukalos", "pikachualola", "pikachupartner"]);
 const PIKASHUNIUM_FALLBACK_PIKACHU_FORM = "Pikachu-Original";
 const MOVE_LEARN_SOURCE_ORDER: MoveLearnSource[] = ["levelup", "machine", "tutor", "egg", "event", "transfer", "other"];
@@ -74,6 +85,29 @@ const LOCAL_DEX_ITEMS = [
   {id: "maxether", name: "Max Ether", name_zh: "PP 单项全补剂", desc: "Fully restores PP to one move.", desc_zh: "让 1 个招式恢复全部 PP。"},
   {id: "elixir", name: "Elixir", name_zh: "PP 多项小补剂", desc: "Restores 10 PP to all moves.", desc_zh: "让所有招式恢复 10 点 PP。"},
   {id: "maxelixir", name: "Max Elixir", name_zh: "PP 多项全补剂", desc: "Fully restores PP to all moves.", desc_zh: "让所有招式恢复全部 PP。"},
+  {id: "abilitycapsule", name: "Ability Capsule", name_zh: "特性胶囊", desc: "Changes to another regular ability.", desc_zh: "将宝可梦的特性切换为另一个普通特性。"},
+  {id: "abilitypatch", name: "Ability Patch", name_zh: "特性膏药", desc: "Changes to the hidden ability.", desc_zh: "将宝可梦的特性切换为隐藏特性。"},
+  {id: "lonelymint", name: "Lonely Mint", name_zh: "怕寂寞薄荷", desc: "Changes nature to Lonely.", desc_zh: "将宝可梦的性格调整为怕寂寞。"},
+  {id: "adamantmint", name: "Adamant Mint", name_zh: "固执薄荷", desc: "Changes nature to Adamant.", desc_zh: "将宝可梦的性格调整为固执。"},
+  {id: "naughtymint", name: "Naughty Mint", name_zh: "顽皮薄荷", desc: "Changes nature to Naughty.", desc_zh: "将宝可梦的性格调整为顽皮。"},
+  {id: "bravemint", name: "Brave Mint", name_zh: "勇敢薄荷", desc: "Changes nature to Brave.", desc_zh: "将宝可梦的性格调整为勇敢。"},
+  {id: "boldmint", name: "Bold Mint", name_zh: "大胆薄荷", desc: "Changes nature to Bold.", desc_zh: "将宝可梦的性格调整为大胆。"},
+  {id: "impishmint", name: "Impish Mint", name_zh: "淘气薄荷", desc: "Changes nature to Impish.", desc_zh: "将宝可梦的性格调整为淘气。"},
+  {id: "laxmint", name: "Lax Mint", name_zh: "乐天薄荷", desc: "Changes nature to Lax.", desc_zh: "将宝可梦的性格调整为乐天。"},
+  {id: "relaxedmint", name: "Relaxed Mint", name_zh: "悠闲薄荷", desc: "Changes nature to Relaxed.", desc_zh: "将宝可梦的性格调整为悠闲。"},
+  {id: "modestmint", name: "Modest Mint", name_zh: "内敛薄荷", desc: "Changes nature to Modest.", desc_zh: "将宝可梦的性格调整为内敛。"},
+  {id: "mildmint", name: "Mild Mint", name_zh: "慢吞吞薄荷", desc: "Changes nature to Mild.", desc_zh: "将宝可梦的性格调整为慢吞吞。"},
+  {id: "rashmint", name: "Rash Mint", name_zh: "马虎薄荷", desc: "Changes nature to Rash.", desc_zh: "将宝可梦的性格调整为马虎。"},
+  {id: "quietmint", name: "Quiet Mint", name_zh: "冷静薄荷", desc: "Changes nature to Quiet.", desc_zh: "将宝可梦的性格调整为冷静。"},
+  {id: "calmmint", name: "Calm Mint", name_zh: "温和薄荷", desc: "Changes nature to Calm.", desc_zh: "将宝可梦的性格调整为温和。"},
+  {id: "gentlemint", name: "Gentle Mint", name_zh: "温顺薄荷", desc: "Changes nature to Gentle.", desc_zh: "将宝可梦的性格调整为温顺。"},
+  {id: "carefulmint", name: "Careful Mint", name_zh: "慎重薄荷", desc: "Changes nature to Careful.", desc_zh: "将宝可梦的性格调整为慎重。"},
+  {id: "sassymint", name: "Sassy Mint", name_zh: "自大薄荷", desc: "Changes nature to Sassy.", desc_zh: "将宝可梦的性格调整为自大。"},
+  {id: "timidmint", name: "Timid Mint", name_zh: "胆小薄荷", desc: "Changes nature to Timid.", desc_zh: "将宝可梦的性格调整为胆小。"},
+  {id: "hastymint", name: "Hasty Mint", name_zh: "急躁薄荷", desc: "Changes nature to Hasty.", desc_zh: "将宝可梦的性格调整为急躁。"},
+  {id: "jollymint", name: "Jolly Mint", name_zh: "爽朗薄荷", desc: "Changes nature to Jolly.", desc_zh: "将宝可梦的性格调整为爽朗。"},
+  {id: "naivemint", name: "Naive Mint", name_zh: "天真薄荷", desc: "Changes nature to Naive.", desc_zh: "将宝可梦的性格调整为天真。"},
+  {id: "seriousmint", name: "Serious Mint", name_zh: "认真薄荷", desc: "Changes nature to Serious.", desc_zh: "将宝可梦的性格调整为认真。"},
 ].map((item, index) => ({...item, sort_order: index + 1}));
 const ITEM_ICON_ALIASES: Record<string, string> = {
   berry: "oranberry",
@@ -241,10 +275,11 @@ type ConsumableItemEffect = {
 };
 
 export type TrainingItemEffect = {
-  stat_kind: "iv" | "ev";
+  stat_kind: "iv" | "ev" | "ability" | "nature";
   stat?: StatId;
   amount: number;
   scope: "one" | "all";
+  nature?: string;
 };
 
 export type GenerateRentalOptions = {
@@ -664,17 +699,21 @@ export class GameService {
   async itemOptions(): Promise<ShopItem[]> {
     await this.loadDisplayData();
     const dex = this.dataDex();
+    const localById = new Map(LOCAL_DEX_ITEMS.map(item => [this.toId(item.id), item]));
     const showdownItems: ShopItem[] = dex.items.all()
       .filter((item: any) => item.exists && this.includeDataEntry(item))
-      .map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        name_zh: this.zh("items", item.name),
-        cost: 500,
-        desc: item.desc || item.shortDesc || "",
-        desc_zh: this.itemDescriptionZh(item),
-        icon_asset: this.itemIconAsset(item.id, item),
-      }));
+      .map((item: any) => {
+        const local = localById.get(this.toId(item.id));
+        return {
+          id: item.id,
+          name: local?.name || item.name,
+          name_zh: local?.name_zh || this.zh("items", item.name),
+          cost: 500,
+          desc: local?.desc || item.desc || item.shortDesc || "",
+          desc_zh: local?.desc_zh || this.itemDescriptionZh(item),
+          icon_asset: (local as {icon_asset?: string} | undefined)?.icon_asset || this.itemIconAsset(item.id, item),
+        };
+      });
     const existing = new Set(showdownItems.map(item => this.toId(item.id)));
     const localItems = LOCAL_DEX_ITEMS
       .filter(item => !existing.has(this.toId(item.id)))
@@ -913,7 +952,7 @@ export class GameService {
     const species = dex.species.get(set.species || set.name);
     const seen = new Set<string>();
     const abilities = [];
-    for (const abilityName of Object.values(species.abilities || {})) {
+    for (const [slot, abilityName] of Object.entries(species.abilities || {})) {
       const ability = dex.abilities.get(abilityName as string);
       const name = ability.exists ? ability.name : String(abilityName || "");
       const id = ability.exists ? ability.id : this.toId(name);
@@ -925,6 +964,7 @@ export class GameService {
         name_zh: this.zh("abilities", name),
         desc: ability.exists ? (ability.desc || ability.shortDesc || "") : "",
         desc_zh: this.detailDescription("abilities", name),
+        hidden: slot === "H",
       });
     }
     const natures = dex.natures.all().map((nature: any) => ({
@@ -958,6 +998,7 @@ export class GameService {
 
   async hasConsumableItemEffect(itemId: string): Promise<boolean> {
     if (REST_SHOP_DISCOUNT_COUPONS[toId(itemId)]) return true;
+    if (TRAINING_SPECIAL_EFFECT_ITEM_IDS.has(toId(itemId))) return true;
     return Boolean((await this.loadConsumableItemEffects()).get(toId(itemId)));
   }
 
@@ -968,6 +1009,15 @@ export class GameService {
   }
 
   async trainingItemEffect(itemId: string): Promise<TrainingItemEffect | null> {
+    const id = toId(itemId);
+    if (id === "abilitycapsule" || id === "abilitypatch") {
+      return {stat_kind: "ability", amount: id === "abilitypatch" ? 1 : 0, scope: "one"};
+    }
+    const mintNature = MINT_NATURE_BY_ITEM_ID[id];
+    if (mintNature) {
+      const nature = this.dataDex().natures.get(mintNature);
+      return {stat_kind: "nature", nature: nature.exists ? nature.name : mintNature, amount: 0, scope: "one"};
+    }
     const effect = (await this.loadConsumableItemEffects()).get(toId(itemId));
     if (!effect?.stat_kind) return null;
     return {

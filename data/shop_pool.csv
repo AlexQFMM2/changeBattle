@@ -82,6 +82,29 @@ carbos,item,consumable,200,2,1,raise speed ev vitamin training
 bottlecap,item,consumable,200,1,1,iv training cap
 goldbottlecap,item,consumable,600,1,1,full iv training cap
 rarecandy,item,consumable,300,1,1,raise level training
+abilitycapsule,item,consumable,500,1,1,change ability training
+abilitypatch,item,consumable,800,1,1,unlock hidden ability training
+lonelymint,item,consumable,300,1,1,nature mint training
+adamantmint,item,consumable,300,1,1,nature mint training
+naughtymint,item,consumable,300,1,1,nature mint training
+bravemint,item,consumable,300,1,1,nature mint training
+boldmint,item,consumable,300,1,1,nature mint training
+impishmint,item,consumable,300,1,1,nature mint training
+laxmint,item,consumable,300,1,1,nature mint training
+relaxedmint,item,consumable,300,1,1,nature mint training
+modestmint,item,consumable,300,1,1,nature mint training
+mildmint,item,consumable,300,1,1,nature mint training
+rashmint,item,consumable,300,1,1,nature mint training
+quietmint,item,consumable,300,1,1,nature mint training
+calmmint,item,consumable,300,1,1,nature mint training
+gentlemint,item,consumable,300,1,1,nature mint training
+carefulmint,item,consumable,300,1,1,nature mint training
+sassymint,item,consumable,300,1,1,nature mint training
+timidmint,item,consumable,300,1,1,nature mint training
+hastymint,item,consumable,300,1,1,nature mint training
+jollymint,item,consumable,300,1,1,nature mint training
+naivemint,item,consumable,300,1,1,nature mint training
+seriousmint,item,consumable,300,1,1,nature mint training
 leftovers,item,held,800,5,1,recover each turn
 blacksludge,item,held,700,3,1,poison recovery
 lifeorb,item,held,900,4,1,damage boost

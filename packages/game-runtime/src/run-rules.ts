@@ -80,7 +80,31 @@ export const TRAINING_EV_BERRY_ITEM_IDS = ["pomegberry", "kelpsyberry", "qualotb
 export const TRAINING_VITAMIN_ITEM_IDS = ["hpup", "protein", "iron", "calcium", "zinc", "carbos"] as const;
 export const TRAINING_CAP_ITEM_IDS = ["bottlecap", "goldbottlecap"] as const;
 export const TRAINING_CANDY_ITEM_IDS = ["rarecandy"] as const;
-export const TRAINING_ITEM_IDS = [...TRAINING_EV_BERRY_ITEM_IDS, ...TRAINING_VITAMIN_ITEM_IDS, ...TRAINING_CAP_ITEM_IDS, ...TRAINING_CANDY_ITEM_IDS] as const;
+export const TRAINING_ABILITY_ITEM_IDS = ["abilitycapsule", "abilitypatch"] as const;
+export const TRAINING_MINT_ITEM_IDS = [
+  "lonelymint", "adamantmint", "naughtymint", "bravemint",
+  "boldmint", "impishmint", "laxmint", "relaxedmint",
+  "modestmint", "mildmint", "rashmint", "quietmint",
+  "calmmint", "gentlemint", "carefulmint", "sassymint",
+  "timidmint", "hastymint", "jollymint", "naivemint",
+  "seriousmint",
+] as const;
+export type TrainingShopGroup = "ev_berry" | "vitamin" | "cap" | "ability" | "mint";
+export const TRAINING_SHOP_GROUP_WEIGHTS: Record<TrainingShopGroup, number> = {
+  ev_berry: 30,
+  vitamin: 30,
+  cap: 10,
+  ability: 10,
+  mint: 20,
+};
+export const TRAINING_ITEM_IDS = [
+  ...TRAINING_EV_BERRY_ITEM_IDS,
+  ...TRAINING_VITAMIN_ITEM_IDS,
+  ...TRAINING_CAP_ITEM_IDS,
+  ...TRAINING_CANDY_ITEM_IDS,
+  ...TRAINING_ABILITY_ITEM_IDS,
+  ...TRAINING_MINT_ITEM_IDS,
+] as const;
 export const TRAINING_ITEM_PRICES: Record<string, number> = {
   pomegberry: 15,
   kelpsyberry: 15,
@@ -97,6 +121,29 @@ export const TRAINING_ITEM_PRICES: Record<string, number> = {
   bottlecap: 200,
   goldbottlecap: 600,
   rarecandy: 300,
+  abilitycapsule: 500,
+  abilitypatch: 800,
+  lonelymint: 300,
+  adamantmint: 300,
+  naughtymint: 300,
+  bravemint: 300,
+  boldmint: 300,
+  impishmint: 300,
+  laxmint: 300,
+  relaxedmint: 300,
+  modestmint: 300,
+  mildmint: 300,
+  rashmint: 300,
+  quietmint: 300,
+  calmmint: 300,
+  gentlemint: 300,
+  carefulmint: 300,
+  sassymint: 300,
+  timidmint: 300,
+  hastymint: 300,
+  jollymint: 300,
+  naivemint: 300,
+  seriousmint: 300,
 };
 const TM_ICON_TYPE_IDS = new Set(["normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel", "fairy"]);
 export const RANDOMIZE_PART_COST = 0.5 * BP_SCALE;
@@ -579,6 +626,17 @@ export function currentCoins(run: CurrentRunData | null | undefined): number {
 export function isTrainingShopItemId(itemId: string | undefined): boolean {
   const id = itemKey(itemId);
   return Boolean(id && (TRAINING_ITEM_IDS as readonly string[]).includes(id));
+}
+
+export function trainingShopGroupForItemId(itemId: string | undefined): TrainingShopGroup | null {
+  const id = itemKey(itemId);
+  if (!id) return null;
+  if ((TRAINING_EV_BERRY_ITEM_IDS as readonly string[]).includes(id)) return "ev_berry";
+  if ((TRAINING_VITAMIN_ITEM_IDS as readonly string[]).includes(id) || (TRAINING_CANDY_ITEM_IDS as readonly string[]).includes(id)) return "vitamin";
+  if ((TRAINING_CAP_ITEM_IDS as readonly string[]).includes(id)) return "cap";
+  if ((TRAINING_ABILITY_ITEM_IDS as readonly string[]).includes(id)) return "ability";
+  if ((TRAINING_MINT_ITEM_IDS as readonly string[]).includes(id)) return "mint";
+  return null;
 }
 
 export function restShopDiscountCoupon(itemId: string | undefined): (typeof REST_SHOP_DISCOUNT_COUPONS)[string] | null {

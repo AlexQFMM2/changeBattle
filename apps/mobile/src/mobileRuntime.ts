@@ -80,6 +80,7 @@ import {
   rainbowRocketUnlocked,
   recordTrainerDexEncounter,
   recordTrainerDexResult,
+  rememberRunForSoulmate,
   rerouteTrainerForRoute,
   resolveBattleCommandOutcome,
   runQuestStatus,
@@ -111,6 +112,9 @@ import {
   takeReplacementRunShowdownId,
   talentLevel,
   toId,
+  TRAINING_SHOP_GROUP_WEIGHTS,
+  type TrainingShopGroup,
+  trainingShopGroupForItemId,
   trainerDexSearch,
   updateRunQuestAfterBattle,
   updateRunQuestAfterRest,
@@ -311,6 +315,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
       });
       if (prepared.status === "no_run") return gameState({screen: "mainMenu", save, message: prepared.message});
       if (prepared.status === "completed") {
+        rememberRunForSoulmate(save, prepared.run);
         save.current_run = null;
         const done = await env.saves.save(save);
         activeBattle = null;
@@ -356,7 +361,8 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         winMessage: (wins, coinsEarned) => `移动端真实战斗胜利，获得 ${coinsEarned} 金币。当前连胜：${wins}`,
         completedMessage: (wins, coinsEarned) => `移动端挑战通关，完成 ${wins} 连胜，获得 ${coinsEarned} 金币。`,
       });
-      const settlementMessage = [settled.message, questMessage].filter(Boolean).join(" ");
+      const stalwartMessage = settled.outcome !== "loss" && settled.stalwartRecovered ? "坚毅不倒已恢复队伍" : "";
+      const settlementMessage = [settled.message, stalwartMessage, questMessage].filter(Boolean).join(" ");
       recordTrainerDexResult(save, run.enemy_trainer?.id, settled.outcome === "loss" ? "loss" : "win", {now: env.now().toISOString()});
       const resultSummary = buildRuntimeResultSummary({
         outcome: settled.outcome === "loss" ? "loss" : "win",
@@ -582,6 +588,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
             return gameState({screen: "battleMain", save, battle: state, battle_bag: await mobileBattleBagCategories(service, run), message: "继续移动端战斗。"});
           }
           if (run.status === "in_battle") {
+            rememberRunForSoulmate(save, run);
             save.current_run = null;
             const next = await env.saves.save(save);
             return gameState({screen: "result", save: next, message: "移动端读档发现战斗未完成，已按失败结算。"});
@@ -663,6 +670,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
               resultSummary,
               defaultBattles: 7,
             }));
+            rememberRunForSoulmate(save, run);
             save.current_run = null;
             const next = await env.saves.save(save);
             activeBattle = null;
@@ -1310,6 +1318,23 @@ function mobileWeightedPick<T extends {weight?: number}>(values: T[], rng: () =>
   return values[values.length - 1] || null;
 }
 
+function mobileRollTrainingShopOffer(
+  buckets: Partial<Record<TrainingShopGroup, Array<ShopOffer & {weight?: number}>>>,
+  rng: () => number,
+  candidateLimit: number,
+): ShopOffer | null {
+  const groups = (Object.keys(TRAINING_SHOP_GROUP_WEIGHTS) as TrainingShopGroup[])
+    .filter(group => (buckets[group] || []).length > 0)
+    .map(group => ({group, weight: TRAINING_SHOP_GROUP_WEIGHTS[group]}));
+  const group = mobileWeightedPick(groups, rng)?.group;
+  if (!group) return null;
+  const candidates = mobileShuffleByRng(buckets[group] || [], rng).slice(0, Math.max(1, candidateLimit));
+  const selected = mobileWeightedPick(candidates, rng);
+  if (!selected) return null;
+  const {weight: _weight, ...offer} = selected as ShopOffer & {weight?: number};
+  return offer;
+}
+
 async function mobileShopOfferFromPoolEntry(service: GameService, entry: MobileShopPoolEntry, index: number, run: CurrentRunData): Promise<ShopOffer | null> {
   if (!mobileBattleSettingAllowsItem(service, entry.id, run)) return null;
   const item = (await service.itemOptions()).find(option => itemKey(option.id || option.name) === entry.id);
@@ -1392,6 +1417,23 @@ async function mobileRollShopOffers(service: GameService, run: CurrentRunData, k
       const entry = itemEntries.find(poolEntry => poolEntry.id === itemKey(item.id || item.name));
       return {...item, offer_id: `shop-item-${index}-${itemKey(item.id || item.name)}`, weight: entry?.weight || 1};
     });
+  const rng = mobileSeededRng(`${run.seed || 1}:mobile-shop:${kind}:${run.shop_roll_count || 0}:${run.battle_no || run.next_battle || 0}`);
+  const candidateLimit = Math.max(1, shopOfferCount(run));
+  if (kind === "training") {
+    const trainingBuckets: Partial<Record<TrainingShopGroup, Array<ShopOffer & {weight?: number}>>> = {};
+    for (const offer of itemOffers) {
+      const group = trainingShopGroupForItemId(offer.id || offer.name);
+      if (!group) continue;
+      trainingBuckets[group] = [...(trainingBuckets[group] || []), offer];
+    }
+    const result: ShopOffer[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const selected = mobileRollTrainingShopOffer(trainingBuckets, rng, candidateLimit);
+      if (!selected) break;
+      result.push(selected);
+    }
+    return result.map((offer, index) => mobileWithShopSlotPricing(run, offer, index));
+  }
   const buckets: Partial<Record<MobileShopPoolBucket, Array<ShopOffer & {weight?: number}>>> = {
     healing: [],
     held: [],
@@ -1405,9 +1447,7 @@ async function mobileRollShopOffers(service: GameService, run: CurrentRunData, k
     const bucket = entry ? mobileShopPoolBucketForEntry(entry) : null;
     if (bucket && bucket !== "tm" && MOBILE_SHOP_KIND_CONFIG[kind].buckets.includes(bucket)) buckets[bucket]?.push(offer);
   }
-  const rng = mobileSeededRng(`${run.seed || 1}:mobile-shop:${kind}:${run.shop_roll_count || 0}:${run.battle_no || run.next_battle || 0}`);
   const result: ShopOffer[] = [];
-  const candidateLimit = Math.max(1, shopOfferCount(run));
   for (let index = 0; index < count; index += 1) {
     const allowedBuckets = MOBILE_SHOP_KIND_CONFIG[kind].buckets;
     const bucket = mobileWeightedPick(allowedBuckets.filter(entry => (buckets[entry] || []).length > 0).map(entry => ({bucket: entry, weight: MOBILE_SHOP_BUCKET_WEIGHTS[entry]})), rng)?.bucket;
@@ -1447,6 +1487,8 @@ function mobileTmOffer(move: MoveSummary, index: number): ShopOffer {
     move_id: moveId,
     move_name: move.name || moveId,
     move_name_zh: move.name_zh || move.name || moveId,
+    move_type: move.type,
+    move_type_zh: move.type_zh,
   };
 }
 
@@ -1467,6 +1509,8 @@ function mobileRememberBagItemMeta(run: CurrentRunData, offer: ShopOffer): void 
       move_id: offer.move_id,
       move_name: offer.move_name,
       move_name_zh: offer.move_name_zh,
+      move_type: offer.move_type,
+      move_type_zh: offer.move_type_zh,
     },
   };
 }
@@ -1476,6 +1520,7 @@ async function mobileItemDetails(service: GameService, itemId: string, meta?: Pa
   if (/^tm:/i.test(id)) {
     const moveId = id.slice(3);
     const move = (await service.machineMoves()).find(candidate => toId(candidate.id || candidate.name) === moveId);
+    const moveType = meta?.move_type || move?.type;
     return {
       ...(meta || {}),
       id,
@@ -1484,7 +1529,9 @@ async function mobileItemDetails(service: GameService, itemId: string, meta?: Pa
       desc: meta?.desc || `Teaches ${meta?.move_name || move?.name || moveId}.`,
       desc_zh: meta?.desc_zh || `让宝可梦学会 ${meta?.move_name_zh || move?.name_zh || meta?.move_name || move?.name || moveId}。`,
       cost: Math.max(0, Number(meta?.cost || 0)),
-      icon_asset: meta?.icon_asset || tmIconAssetForMoveType(move?.type),
+      icon_asset: tmIconAssetForMoveType(moveType),
+      move_type: moveType,
+      move_type_zh: meta?.move_type_zh || move?.type_zh,
     } as ShopItem;
   }
   const found = (await service.itemOptions()).find(item => itemKey(item.id || item.name) === id);
@@ -1518,6 +1565,8 @@ async function mobileBagCategories(service: GameService, run: CurrentRunData): P
       move_id: meta?.move_id || moveId,
       move_name: meta?.move_name || moveId,
       move_name_zh: meta?.move_name_zh || (moveId ? String(item.name_zh || item.name || moveId).replace(/^技能机器\s*/, "") : undefined),
+      move_type: (item as ShopItem & {move_type?: string}).move_type || meta?.move_type,
+      move_type_zh: (item as ShopItem & {move_type_zh?: string}).move_type_zh || meta?.move_type_zh,
     });
   }
   if (mobileBattleSettingHasTerastal(run) && run.tera_orb_type) {
@@ -1827,14 +1876,8 @@ async function mobileIsHpStatusReviveRecoveryItem(service: GameService, itemId: 
   return !["ether", "maxether", "elixir", "maxelixir"].includes(id);
 }
 
-const TRAINING_CONSUMABLE_ITEM_IDS = new Set([
-  "pomegberry", "kelpsyberry", "qualotberry", "hondewberry", "grepaberry", "tamatoberry",
-  "hpup", "protein", "iron", "calcium", "zinc", "carbos",
-  "bottlecap", "goldbottlecap", "rarecandy",
-]);
-
 function isTrainingConsumableItemId(itemId: string): boolean {
-  return TRAINING_CONSUMABLE_ITEM_IDS.has(toId(itemId));
+  return isTrainingShopItemId(itemId);
 }
 
 function mobileStarterBag(purchased: ShopOffer[]): {items: Record<string, number>; meta: Record<string, Partial<ShopOffer>>} {
@@ -1856,6 +1899,8 @@ function mobileStarterBag(purchased: ShopOffer[]): {items: Record<string, number
       move_id: offer.move_id,
       move_name: offer.move_name,
       move_name_zh: offer.move_name_zh,
+      move_type: offer.move_type,
+      move_type_zh: offer.move_type_zh,
     };
   }
   return {items, meta};

@@ -56,6 +56,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   const [activePanel, setActivePanel] = useState<RestWorkspacePanel>(() => new URLSearchParams(location.search).get("scenario") === "rest-shop" ? "shop" : "nightSky");
   const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);
   const [moveEditorMoveSlot, setMoveEditorMoveSlot] = useState(0);
+  const [tmReplaceState, setTmReplaceState] = useState<{item: BagItemView; slot: number} | null>(null);
   const [statsEditorSlot, setStatsEditorSlot] = useState<number | null>(null);
   const [bagTargetSlot, setBagTargetSlot] = useState(0);
   const [talentActionId, setTalentActionId] = useState<string | null>(null);
@@ -180,7 +181,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
           <motion.div className="rest-workspace-panel" initial={{opacity: 0, y: 12, scale: 0.985}} animate={{opacity: 1, y: 0, scale: 1}} exit={{opacity: 0, y: -10, scale: 0.985}} transition={{duration: 0.22, ease: [0.2, 0.8, 0.2, 1]}} key={workspaceKey}>
             {!activePanel ? <div className="rest-workspace-empty" /> : null}
             {activePanel === "exchange" ? <RestExchangeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
-            {activePanel === "bag" ? <BagManageModal embedded rest={rest} initialTarget={bagTargetSlot} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "bag" ? <BagManageModal embedded rest={rest} initialTarget={bagTargetSlot} onClose={() => setActivePanel(null)} onAction={runRestAction} onTmTarget={(item, slot) => setTmReplaceState({item, slot})} /> : null}
             {activePanel === "recycler" ? <ItemRecyclerModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
             {activePanel === "eventDoctor" ? <DoctorEventPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "eventTutor" ? <EventMoveServicePanel embedded rest={rest} service="tutor" onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
@@ -223,6 +224,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
       ) : null}
       {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={2600} onDone={() => setToast(null)} /> : null}
       {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
+      {tmReplaceState ? <TmReplaceModal rest={rest} item={tmReplaceState.item} slot={tmReplaceState.slot} onClose={() => setTmReplaceState(null)} onAction={runRestAction} /> : null}
       {coinLedgerOpen ? <CoinLedgerModal entries={rest.coin_ledger || []} onClose={() => setCoinLedgerOpen(false)} /> : null}
       {eventPanelOpen && rest.rest_event_statuses?.length ? <RestEventInfoPanel statuses={rest.rest_event_statuses} onClose={() => setEventPanelOpen(false)} /> : null}
       {shouldPromptRainbowRocket && rest.rainbow_rocket_support ? <RainbowRocketSupportPrompt rest={rest} onAction={runRestAction} /> : null}
@@ -705,7 +707,7 @@ function isBarterMaterialItem(item?: BagItemView | null): boolean {
   return Boolean(item && item.count > 0 && !item.locked && !item.item_battle_system);
 }
 
-function BagManageModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean; initialTarget?: number}) {
+function BagManageModal({rest, onClose, onAction, onTmTarget, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; onTmTarget?: (item: BagItemView, slot: number) => void; embedded?: boolean; initialTarget?: number}) {
   const items = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
   const [itemId, setItemId] = useState("");
   const selected = items.find(item => item.id === itemId) || null;
@@ -729,13 +731,13 @@ function BagManageModal({rest, onClose, onAction, embedded = false}: {rest: NonN
             </button>
           )) : <p className="bag-empty">背包为空。</p>}
         </div>
-        {selected ? <BagItemTargetModal item={selected} rest={rest} onAction={onAction} onClose={() => setItemId("")} /> : null}
+        {selected ? <BagItemTargetModal item={selected} rest={rest} onAction={onAction} onClose={() => setItemId("")} onTmTarget={onTmTarget} /> : null}
       </section>
     </EmbeddedOrModal>
   );
 }
 
-function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler}) {
+function BagItemTargetModal({item, rest, onClose, onAction, onTmTarget}: {item: BagItemView; rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; onTmTarget?: (item: BagItemView, slot: number) => void}) {
   const [busySlot, setBusySlot] = useState<number | null>(null);
   const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
   const [tmLoading, setTmLoading] = useState(false);
@@ -804,7 +806,7 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
       const ok = isHeld
         ? await Promise.resolve(onAction({type: "equip_item", itemId: item.id, slot}, "道具已携带"))
           : isTm
-            ? await Promise.resolve(onAction({type: "use_tm", itemId: item.id, slot, moveSlot: 0}, "技能机器已使用"))
+            ? (onTmTarget?.(item, slot), onClose(), true)
             : await Promise.resolve(onAction({type: "use_item", itemId: item.id, slot, stat: trainingUi?.scope === "one" ? selectedStat : undefined, context: "rest"}, "道具已使用"));
       if (ok === false) return;
     } finally {
@@ -859,6 +861,120 @@ function BagItemTargetModal({item, rest, onClose, onAction}: {item: BagItemView;
               </div>
             </>
           )}
+        </motion.section>
+      )}
+    </PokopiaModal>
+  );
+}
+
+function TmReplaceModal({rest, item, slot, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; item: BagItemView; slot: number; onClose: () => void; onAction: RestActionHandler}) {
+  const pokemon = rest.player_display[slot] || rest.player_display[0];
+  const state = rest.player_state[slot] || rest.player_state[0];
+  const moveId = tmMoveId(item);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [tmMove, setTmMove] = useState<PricedMove | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setTmMove(null);
+    void window.changeBattle!.learnableMoves(slot).then(moves => {
+      if (cancelled) return;
+      setTmMove(moves.find(move => toId(move.id || move.name) === moveId) || null);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [slot, moveId]);
+
+  async function confirm() {
+    if (busy || selectedSlot === null) return;
+    setBusy(true);
+    try {
+      const ok = await Promise.resolve(onAction({type: "use_tm", itemId: item.id, slot, moveSlot: selectedSlot}, "技能机器已使用"));
+      if (ok !== false) onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const fallbackMove: PricedMove = {
+    id: moveId,
+    name: item.move_name || moveId,
+    name_zh: item.move_name_zh || item.name_zh?.replace(/^技能机器\s*/, "") || moveId,
+    type: item.move_type || "Normal",
+    type_zh: item.move_type_zh || item.move_type || "一般",
+    category: "Status",
+    category_zh: "变化",
+    power: 0,
+    accuracy: null,
+    pp: 0,
+    priority: 0,
+    desc: item.desc || "",
+    desc_zh: item.desc_zh || "",
+    short_desc: item.desc || "",
+    short_desc_zh: item.desc_zh || "",
+    cost: 0,
+  };
+  const displayMove = tmMove || fallbackMove;
+
+  return (
+    <PokopiaModal className="tm-replace-modal" labelledBy="tm-replace-title" onClose={onClose}>
+      {requestClose => (
+        <motion.section className="tm-replace-content" variants={pokopiaItemVariants}>
+          <header>
+            <div>
+              <h2 id="tm-replace-title">技能机器替换</h2>
+              <p>{displayName(pokemon)}：选择要替换的技能</p>
+            </div>
+            <button onClick={() => requestClose()}>关闭</button>
+          </header>
+          <div className="tm-replace-layout">
+            <section className="tm-replace-new-move">
+              <h3>要学习的新技能</h3>
+              <MoveCard
+                size="sheet"
+                className="tm-replace-move-card tm-replace-move-card-readonly"
+                name={displayMove.name_zh || displayMove.name}
+                moveType={displayMove.type || displayMove.type_zh}
+                typeLabel={displayMove.type_zh || displayMove.type || "一般"}
+                category={displayMove.category_zh || displayMove.category || "变化"}
+                pp={displayMove.pp || "--"}
+                power={displayMove.power || "--"}
+                accuracy={displayMove.accuracy ?? "必中"}
+                tabIndex={-1}
+              />
+              <p>{loading ? "读取技能资料中..." : moveDescription(displayMove)}</p>
+            </section>
+            <section className="tm-replace-current-moves">
+              <h3>选择替换目标</h3>
+              <div>
+                {(pokemon?.moves || []).map((move, index) => (
+                  <MoveCard
+                    size="sheet"
+                    className="tm-replace-move-card"
+                    selected={selectedSlot === index}
+                    name={runtimeMoveLabel(pokemon, state?.moves?.[index], index)}
+                    moveType={move.type || move.type_zh}
+                    typeLabel={move.type_zh || move.type || "一般"}
+                    category={move.category_zh || move.category || "变化"}
+                    pp={state?.moves?.[index]?.pp ?? move.pp}
+                    maxPp={state?.moves?.[index]?.maxpp ?? move.pp}
+                    power={move.power || "--"}
+                    accuracy={move.accuracy ?? "必中"}
+                    onClick={() => setSelectedSlot(index)}
+                    key={`tm-replace-${move.id || move.name}-${index}`}
+                  />
+                ))}
+              </div>
+            </section>
+          </div>
+          <footer>
+            <button disabled={busy || selectedSlot === null || !moveId} onClick={() => void confirm()}>{busy ? "替换中" : "确认替换"}</button>
+            <button onClick={() => requestClose()}>取消</button>
+          </footer>
         </motion.section>
       )}
     </PokopiaModal>
@@ -1241,7 +1357,7 @@ function NightSkyModal({rest, onClose, onAction, embedded = false}: {rest: NonNu
   const canScoutOne = Boolean(rumorLevel >= 2 && selectedRow && selectedFuture && Number(selectedRow.revealed || 0) < 1);
   const canScoutAll = Boolean(rumorLevel >= 3 && selectedRow && selectedFuture && !selectedRow.unlocked);
   const scoutOneLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 2 ? "需要 Lv2" : !selectedFuture ? "已挑战" : Number(selectedRow?.revealed || 0) >= 1 ? "已揭示一只" : "免费解锁一只";
-  const scoutAllLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 3 ? "需要 Lv3" : !selectedFuture ? "已挑战" : selectedRow?.unlocked ? "已解锁三只" : `金币解锁三只 ${coinCostLabel(rest.costs.scout_all)}`;
+  const scoutAllLabel = !hasScoutTalent ? "需要小道消息" : rumorLevel < 3 ? "需要 Lv3" : !selectedFuture ? "已挑战" : selectedRow?.unlocked ? "已解锁三只" : `解锁三只（${coinCostLabel(rest.costs.scout_all)}）`;
   return (
     <EmbeddedOrModal embedded={embedded}>
       <section className="shop-modal night-sky-modal night-sky-gallery-modal">
@@ -1764,7 +1880,7 @@ function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, o
               const moveId = move.id || move.name;
               return (
                 <Reorder.Item as="button" value={`${moveId}-${index}`} drag={false} transition={moveDrawLayoutTransition} className={moveCardClassName({moveType: move.type || move.type_zh, size: "draw", selected: selectedMoveId === moveId, className: "quick-dex-move-card move-draw-choice"})} onClick={() => setSelectedMoveId(moveId)} key={`${moveId}-${index}`}>
-                  <MoveCardContent name={move.name_zh || move.name} moveType={move.type || move.type_zh} typeLabel={move.type_zh || move.type || "一般"} category={move.category_zh || move.category || "变化"} pp={move.pp || "--"} power={move.power || "--"} />
+                  <MoveCardContent name={move.name_zh || move.name} moveType={move.type || move.type_zh} typeLabel={move.type_zh || move.type || "一般"} category={move.category_zh || move.category || "变化"} pp={move.pp || "--"} power={move.power || "--"} accuracy={move.accuracy ?? "必中"} />
                 </Reorder.Item>
               );
             }) : order.map(id => (
