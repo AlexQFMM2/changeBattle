@@ -1,6 +1,6 @@
 .rest-main-panel-host {
   --rest-main-panel-host-width: 630px;
-  --rest-main-panel-host-height: 248px;
+  --rest-main-panel-host-height: 232px;
   width: var(--rest-main-panel-host-width);
   height: var(--rest-main-panel-host-height);
   min-width: 0;

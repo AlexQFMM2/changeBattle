@@ -1,0 +1,66 @@
+.shop-kind-tabs {
+  --shop-kind-tabs-height: 34px;
+  --shop-kind-tabs-count: 4;
+  width: 100%;
+  height: var(--shop-kind-tabs-height);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--shop-kind-tabs-count), minmax(0, 1fr));
+  gap: 4px;
+  overflow: hidden;
+}
+
+.shop-kind-tabs button {
+  min-width: 0;
+  height: var(--shop-kind-tabs-height);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 10px;
+  align-items: center;
+  border: 1px solid #a58a58;
+  border-radius: 4px;
+  background: #fffaf0;
+  color: #263329;
+  padding: 3px 5px;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 42%);
+}
+
+.shop-kind-tabs button.selected {
+  border-color: #36a766;
+  background: #f5fff4;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 52%), 0 0 0 1px #60dc7a;
+}
+
+.shop-kind-tabs strong,
+.shop-kind-tabs small {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shop-kind-tabs strong {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #25332b;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.shop-kind-tabs small {
+  color: #6b604a;
+  font-size: 5px;
+  font-weight: 850;
+}
+
+.shop-kind-tabs b {
+  flex: 0 0 auto;
+  border-radius: 3px;
+  background: #e45151;
+  color: #fff8db;
+  padding: 1px 3px;
+  font-size: 5px;
+  line-height: 1;
+}

@@ -1,17 +1,17 @@
 .screen-toast.screen-toast.flow {
-  --screen-toast-left: 10px;
+  --screen-toast-left: 18px;
   --screen-toast-top: 50%;
-  --screen-toast-min-width: 112px;
-  --screen-toast-max-width: 210px;
-  --screen-toast-border-width: 1px;
+  --screen-toast-min-width: 224px;
+  --screen-toast-max-width: 420px;
+  --screen-toast-border-width: 2px;
   --screen-toast-border-color: #c49b55;
-  --screen-toast-border-radius: 3px;
-  --screen-toast-background: rgb(0 0 0 / 58%);
+  --screen-toast-border-radius: 5px;
+  --screen-toast-background: rgb(0 0 0 / 72%);
   --screen-toast-color: #fffdf5;
-  --screen-toast-padding-y: 4px;
-  --screen-toast-padding-x: 6px;
-  --screen-toast-font-size: 7px;
-  --screen-toast-line-height: 1.2;
+  --screen-toast-padding-y: 9px;
+  --screen-toast-padding-x: 12px;
+  --screen-toast-font-size: 14px;
+  --screen-toast-line-height: 1.28;
   position: fixed;
   left: var(--screen-toast-left);
   top: var(--screen-toast-top);

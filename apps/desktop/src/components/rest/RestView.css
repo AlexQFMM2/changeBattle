@@ -1,15 +1,17 @@
 .game-viewport .rest-page {
   --rest-page-header-height: 38px;
   --rest-page-toolbar-height: 30px;
-  --rest-page-workspace-height: 232px;
   --rest-page-gap: 5px;
-  --rest-page-padding: 5px;
+  --rest-page-padding: 8px;
+  --rest-page-content-width: calc(640px - var(--rest-page-padding) * 2);
+  --rest-page-workspace-height: calc(320px - var(--rest-page-padding) * 2 - var(--rest-page-header-height) - var(--rest-page-toolbar-height) - var(--rest-page-gap) * 2);
   width: 640px;
   height: 320px;
   min-width: 640px;
   min-height: 320px;
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: 630px;
+  grid-template-columns: var(--rest-page-content-width);
   grid-template-rows: var(--rest-page-header-height) var(--rest-page-toolbar-height) var(--rest-page-workspace-height);
   gap: var(--rest-page-gap);
   padding: var(--rest-page-padding);
@@ -17,36 +19,36 @@
 }
 
 .game-viewport .rest-header {
-  width: 630px;
+  width: var(--rest-page-content-width);
   height: var(--rest-page-header-height);
   min-height: var(--rest-page-header-height);
   align-self: start;
 }
 
 .game-viewport .rest-toolbar {
-  width: 630px;
+  width: var(--rest-page-content-width);
   height: var(--rest-page-toolbar-height);
   min-height: var(--rest-page-toolbar-height);
   align-self: start;
 }
 
 .game-viewport .rest-main-panel-host {
-  width: 630px;
+  width: var(--rest-page-content-width);
   height: var(--rest-page-workspace-height);
   min-height: var(--rest-page-workspace-height);
 }
 
 .game-viewport .rest-workspace-panel,
 .game-viewport .rest-workspace-empty {
-  width: 630px;
+  width: var(--rest-page-content-width);
   height: var(--rest-page-workspace-height);
-  min-width: 630px;
+  min-width: var(--rest-page-content-width);
   min-height: var(--rest-page-workspace-height);
   overflow: hidden;
 }
 
 .game-viewport .rest-bag-tool-panel {
-  --rest-bag-panel-width: 630px;
+  --rest-bag-panel-width: var(--rest-page-content-width);
   --rest-bag-panel-height: var(--rest-page-workspace-height);
   --rest-bag-panel-list-width: 260px;
   --rest-bag-panel-action-width: calc(var(--rest-bag-panel-width) - var(--rest-bag-panel-list-width) - 4px);

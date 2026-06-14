@@ -647,18 +647,19 @@
 - 选择双方后比较区信息完整。
 - 跳过和确认按钮不遮挡列表。
 
-## 3.13 RestPage 【】
+## 3.13 RestPage 【x】
 
 ### 第一版记录
 
 - 第一版已完成顶部菜单、工具切换栏、工具区 `我的队伍` 的组件拆分、预览登记和真实页接入。
+- 收尾验收已完成：临时常驻入口已隐藏，随机事件/手动天赋入口恢复为按 `rest` 条件展示；医生、等级事件已拆为独立组件。
 - 默认进入休整页选中 `我的队伍`，工具切换栏第一项固定为 `我的队伍`。
 - `我的队伍` 左侧队伍缩略卡使用左图右名/HP 条布局，HP 条复用 `PokemonHpBar`。
 - 选中宝可梦详情已调整为资料/随机数值/描述三列；技能区为 2 行 2 列完整 `MoveCard`。
 - 技能随机改为两段式：先随机候选并确认学习，再选择替换旧技能后确认替换。
 - 背包工具区已完成左右分栏重构；商店、熔炉、交换、进度图、事件服务、技能调整、数值调整等暂走 `RestMainPanelHost` legacy adapter 分支，后续逐个工具区继续拆分。
 - 工具切换栏当前顺序：`我的队伍`、`背包`、`交换`、`商店`、`熔炉`、事件/进度/天赋入口；`背包` 已移动到 `我的队伍` 后。
-- 休整页非阻塞提示继续使用 `ScreenToast`；休整页需要更大提示时通过 `style` 传入 `--screen-toast-*` 变量覆盖，不修改 `ScreenToast.css` 默认值。
+- 非阻塞提示统一使用公共 `ScreenToast`；公共默认尺寸已放大到休整页可读级别，页面仍可通过 `style` 传入 `--screen-toast-*` 变量覆盖位置、宽度、字号和颜色。
 - 本节不标记 `【x】`，等所有工具区完成组件化后再整页验收。
 
 ### 页面职责
@@ -680,6 +681,8 @@
 - `RestPokemonInfoPanel`
 - `RestSelectedPokemonDetail`
 - `RestEventPrompt`
+- `RainbowRocketSupportPanel`
+- `RainbowRocketPokemonCard`
 - `RestBagPanel`
 - `RestShopPanel`
 - `RestForgePanel`
@@ -689,6 +692,8 @@
 - `NightSkyPanel`
 - `ItemRecyclerPanel`
 - `RunTalentPanel`
+- `DoctorEventPanel`
+- `EventLevelPanel`
 
 ### 新增/拆分组件
 
@@ -699,7 +704,8 @@
   - 功能：休整标题、进度、连胜、金币、结束/下一场按钮。
   - 变量：`--rest-header-height`、`--rest-header-button-height`。
 - `RestToolBar.tsx/css` 【x】
-  - 功能：工具区切换；`我的队伍` 固定第一项，后续接背包、商店、熔炉、进度图、天赋、事件入口。
+  - 功能：工具区切换；当前只承载交换、商店、熔炉、事件服务和天赋入口，单行横向滚动。
+  - 注意：`我的队伍 / 背包 / 进度图` 已放入 `RestHeader` 常用工具区，避免工具栏两行占用工作区高度。
   - 变量：`--rest-toolbar-height`、`--rest-toolbar-button-width`。
 - `RestMainPanelHost.tsx/css` 【x】
   - 功能：承载当前打开的工具面板；第一版保留 legacy adapter 分支转接旧工具区。
@@ -725,14 +731,37 @@
 - `RestSelectedPokemonDetail.tsx/css` 【x】
   - 功能：选中宝可梦详情，右侧三列布局：资料/技能、随机花费与数值、选中描述；技能区为 2 行 2 列。
   - 变量：`--rest-selected-pokemon-detail-*`。
-- `RestEventPrompt.tsx/css` 【】
-  - 功能：随机事件提示和选择。
-  - 变量：`--rest-event-prompt-height`。
+- `RestEventPrompt.tsx/css` 【x】
+  - 功能：休整开始前强制奇遇选择弹窗，展示事件卡介绍、效果和风险类型。
+  - 使用：接收 `rest`、`onAction`；只派发 `{ type: "choose_rest_event", eventId }`，不访问其它 runtime API。
+  - 注意：UI 从 `RestView` inline 组件迁出，保持原卡片布局；后续不要在 `RestView.tsx` 里重新内联实现。
+  - 变量：`--rest-event-prompt-*`。
+- `RainbowRocketSupportPanel.tsx/css` 【x】
+  - 功能：彩虹火箭队入侵时的强制支援弹窗，展示当前队伍、工厂支援候选、原赛程支援候选和底部确认操作。
+  - 使用：接收 `rest`、`onAction`；继续派发 `rainbow_rocket_support`、`rainbow_rocket_support_done`、`rainbow_rocket_restore`，不新增 runtime API。
+  - 注意：它不属于普通工具栏工作区；由 `RestView` 在 `rest.rainbow_rocket_support && !completed` 时强制显示，完成前继续禁用下一场。
+  - 变量：`--rainbow-support-*`。
+- `RainbowRocketPokemonCard.tsx/css` 【x】
+  - 功能：彩虹火箭队面板内的宝可梦卡，展示小图、名字、道具/状态、选中态和治疗选中态。
+  - 使用：仅用于彩虹火箭队当前队伍与候选队伍；不要复用旧 `.mini-pokemon-card` 或把样式写回 `styles.css`。
+  - 变量：`--rainbow-rocket-pokemon-card-*`。
 - `RestBagPanel.tsx/css` 【x】
   - 功能：休整背包工具区入口，左侧分类/列表，右侧详情、队伍目标、技能替换流程。
   - 使用：接收 `rest`、`initialTarget`、`onAction`；内部继续派发现有 `use_item`、`equip_item`、`use_tm`，不新增 runtime API。
   - 注意：外层宽度通过 `--rest-bag-panel-*` 控制；不要重新接回旧 `BagManageModal` / `BagLayout` 分支。
   - 变量：`--rest-bag-panel-width`、`--rest-bag-panel-height`、`--rest-bag-panel-list-width`、`--rest-bag-panel-action-width`。
+- `ExchangePokemonCard.tsx/css` 【x】
+  - 功能：交换面板内的固定尺寸宝可梦卡片，展示小图、编号、名字、等级/道具和禁用原因。
+  - 使用：只用于交换类面板；不要复用旧 `.mini-pokemon-card` 样式，避免影响彩虹火箭队等 legacy 面板。
+  - 变量：`--exchange-pokemon-card-*`。
+- `PokemonExchangePanel.tsx/css` 【x】
+  - 功能：通用左右队伍交换面板，左侧己方、右侧对方，双方固定 2 行 3 列，底部一个确认按钮。
+  - 使用：普通交换和骇人奇袭共用；业务 action 由包装组件传入，不在通用面板里判断 action 类型。
+  - 变量：`--pokemon-exchange-panel-*`。
+- `RestExchangePanel.tsx/css` 【x】
+  - 功能：休整普通交换工具区，读取当前己方/敌方队伍、交换费用和已交换敌方槽位。
+  - 使用：确认时继续派发 `{ type: "exchange", ownIndex, enemyIndex }`；孤注一掷归 `RunTalentPanel`，不要放回交换面板。
+  - 变量：`--rest-exchange-panel-*`。
 - `BagFilterTabs.tsx/css` 【x】
   - 功能：背包分类 tab。
   - 使用：只负责显示分类、数量和选中态；分类语义由 `bagModel.ts` 的 `BAG_FILTERS` / `bagFilterForItem` 提供。
@@ -750,36 +779,115 @@
   - 功能：背包右侧操作状态容器，切换详情、队伍目标、技能替换。
   - 使用：只承载 `detail / pokemonPicker / moveReplace` 三种阶段；右侧宽度跟随父 grid，内部尺寸通过 `--bag-container-action-*` 和 `--bag-action-panel-*` 控制。
   - 变量：`--bag-action-panel-*`。
-- `RestShopPanel.tsx/css` 【】
-  - 功能：商店流程。
-  - 变量：`--rest-shop-panel-list-width`。
-- `RestForgePanel.tsx/css` 【】
-  - 功能：熔炉流程。
-  - 变量：`--rest-forge-panel-material-width`。
+- `RestShopPanel.tsx/css` 【x】
+  - 功能：休整商店工具区入口，管理商店分类、抽奖、购买、商品详情和以物易物材料选择。
+  - 使用：接收 `rest`、`shop`、`onRoll`、`onBuy`、`onBarterBuy`；继续派发 `roll_shop`、`buy_shop_offer`、`event_barter_buy`，不新增 runtime API。
+  - 注意：商品列表保持横向 slot 抽奖式 UI；单个商品卡内部使用垂直布局，避免图标、按钮和文本挤压。
+  - 变量：`--rest-shop-panel-*`。
+- `ShopKindTabs.tsx/css` 【x】
+  - 功能：商店分类 tab，展示分类名、说明和折扣标记。
+  - 使用：只负责分类选择显示；商店类型来源由 `RestShopPanel` 按 `shop.available_kinds` 和 fallback 提供。
+  - 变量：`--shop-kind-tabs-*`。
+- `ShopOfferList.tsx/css` 【x】
+  - 功能：商店抽奖 slot / 商品列表，展示待抽取、抽取中、可购买、已购买、连抽奖励状态。
+  - 使用：保留横向 slot 布局；卡片内部为图标、信息、购买/详情按钮的垂直结构。
+  - 变量：`--shop-offer-list-*`。
+- `ShopOfferDetail.tsx/css` 【x】
+  - 功能：商店商品详情弹窗，展示道具说明、分类、价格和技能机器信息。
+  - 使用：只做展示和关闭，不直接改变购买流程。
+  - 变量：`--shop-offer-detail-*`。
+- `BarterMaterialPicker.tsx/css` 【x】
+  - 功能：以物易物材料选择弹窗，最多 3 个材料，校验估值、不找零。
+  - 使用：确认时由 `RestShopPanel` 派发 `event_barter_buy`；不要在 `RestView` 里重写材料选择。
+  - 变量：`--barter-material-picker-*`。
+- `RestForgePanel.tsx/css` 【x】
+  - 功能：休整熔炉工具区入口，管理普通材料选择、普通重铸、特殊重铸和处理中状态。
+  - 使用：接收 `rest`、`onAction`、`onNotice`；继续派发 `forge_items`、`forge_special_item`、`forge_tera_orb`。
+  - 注意：阻挡材料提示必须走公共 `ScreenToast` / `onNotice`，不要在熔炉内部新写提示框。
+  - 变量：`--rest-forge-panel-*`。
+- `ForgeMaterialList.tsx/css` 【x】
+  - 功能：熔炉左侧材料列表，展示图标、名称、数量、已选数量和阻挡原因。
+  - 使用：阻挡判断由 `forgeModel.ts` 的 `blockedNormalForgeReason` 提供。
+  - 变量：`--forge-material-list-*`。
+- `ForgeRecipePreview.tsx/css` 【x】
+  - 功能：熔炉 3 个材料槽、预计产出规则、普通重铸按钮和清空按钮。
+  - 使用：只负责材料槽展示和按钮回调；实际 action 由 `RestForgePanel` 派发。
+  - 变量：`--forge-recipe-preview-*`。
+- `ForgeResultPanel.tsx/css` 【x】
+  - 功能：熔炉特殊重铸区，展示 Mega/Z/太晶珠重铸入口和金币不足禁用态。
+  - 使用：只通过回调触发特殊重铸，不在组件内判断 runtime。
+  - 变量：`--forge-result-panel-*`。
 - `RestPokemonDetail.tsx/css` 【x】
   - 功能：队伍宝可梦详情、卸下道具、查看技能；当前由 `RestSelectedPokemonDetail`、`RestPokemonProfileCard`、`RestPokemonMoveGrid`、`RestPokemonInfoPanel` 组合实现。
   - 变量：使用 `--rest-selected-pokemon-detail-*`、`--rest-pokemon-profile-card-*`、`--rest-pokemon-move-grid-*`、`--rest-pokemon-info-panel-*`。
-- `RestMoveAdjustPanel.tsx/css` 【】
-  - 功能：技能调整、教学、遗传。
-  - 变量：`--rest-move-adjust-panel-card-height`。
-- `RestStatsAdjustPanel.tsx/css` 【】
-  - 功能：能力/努力/个体相关调整。
-  - 变量：`--rest-stats-adjust-panel-row-height`。
-- `NightSkyPanel.tsx/css` 【】
-  - 功能：小道消息/夜观天象。
-  - 变量：`--night-sky-panel-button-width`。
-- `ItemRecyclerPanel.tsx/css` 【】
-  - 功能：道具回收。
-  - 变量：`--item-recycler-panel-row-height`。
-- `RunTalentPanel.tsx/css` 【】
-  - 功能：局内天赋行动。
-  - 变量：`--run-talent-panel-row-height`。
-- 后续事件服务组件 【】：
-  - `DoctorEventPanel` 【】
-  - `EventMoveServicePanel` 【】
-  - `RaidExchangePanel` 【】
-  - `ScoreBetPanel` 【】
-  - `EventLevelPanel` 【】
+- `RestMoveAdjustPanel.tsx/css` 【x】
+  - 功能：技能随机与替换流程；当前由 `MoveAdjustModal` + 公共 `MoveReplacePanel` 承担，不另写第二套替换 UI。
+  - 使用：从 `RestSelectedPokemonDetail` 的技能操作进入，随机候选后弹出已有替换组件确认旧技能槽位。
+  - 变量：沿用 `MoveCard`、`MoveReplacePanel` 和休整弹窗尺寸变量。
+- `RestStatsAdjustPanel.tsx/css` 【x】
+  - 功能：能力/努力/个体相关调整；当前由 `RestSelectedPokemonDetail` 的 `rest-selected-pokemon-stats` 区域实现，展示随机花费项和具体数值。
+  - 变量：使用 `--rest-selected-pokemon-detail-stats-width` 及 `RestSelectedPokemonDetail.css` 内部尺寸变量。
+- `NightSkyPanel.tsx/css` 【x】
+  - 功能：休整工具区的小道消息/进度图面板，展示未来战斗节点、训练师、敌方宝可梦揭示状态和换对手操作。
+  - 使用：接收 `rest`、`embedded`、`onClose`、`onAction`；继续派发 `night_sky_scout`、`reroute_next`，不新增 runtime API。
+  - 注意：当前 UI 从 `RestView` inline 组件迁出；不要在工具区重复写一份夜观天象逻辑。
+  - 变量：`--night-sky-panel-*`。
+- `ItemRecyclerPanel.tsx/css` 【x】
+  - 功能：道具回收商工具区，列出非 locked 背包道具，点击道具直接回收出售。
+  - 使用：接收 `rest`、`embedded`、`onClose`、`onAction`；继续派发 `{ type: "sell_item", itemId }`，不新增 runtime API。
+  - 注意：`RestView` 工具栏只在 `rest.recycler_available` 时展示入口。
+  - 变量：`--item-recycler-panel-*`。
+- `RunTalentPanel.tsx/css` 【x】
+  - 功能：局内手动天赋工具区容器，承载 `不负信赖`、`孤注一掷`、`临阵换将`、`有借有换` 的标题、说明、关闭按钮和内容区。
+  - 使用：`RestView` 只负责传入当前 `talent`、`rest`、`onClose`、`onAction`；具体选择宝可梦、BP 兑换和按钮文案都留在子组件。
+  - 注意：入口只来自真实 `rest.talents`；不要再添加 `exchange_trust` fallback 或临时常驻按钮。
+  - 变量：`--run-talent-panel-*`。
+- `RunTalentPokemonPicker.tsx/css` 【x】
+  - 功能：局内天赋专用队伍目标选择，最多 6 只按 3 列稳定排布，展示小图、名字、等级、异常状态和 HP 条。
+  - 使用：HP 必须复用 `PokemonHpBar`，只通过 `--pokemon-hp-bar-*` 和 `--run-talent-pokemon-picker-*` 调整尺寸；不要重新写血条 DOM。
+  - 变量：`--run-talent-pokemon-picker-*`。
+- `RunTalentActionPanel.tsx/css` 【x】
+  - 功能：按天赋 id 渲染具体行动内容并派发原 action：`trust_level`、`all_in_exchange`、`set_lead`。
+  - 使用：只处理本轮 3 个选宝可梦天赋和 `economy_bp_exchange` 分流；不要在 `RestView` 里恢复这些分支。
+  - 变量：`--run-talent-action-panel-*`。
+- `RunTalentExchangePanel.tsx/css` 【x】
+  - 功能：`有借有换` 的 BP 兑换金币面板，保留 1BP => 50 金币逻辑。
+  - 使用：继续派发 `{ type: "bp_to_coins", bp }`，不新增 runtime 字段。
+  - 变量：`--run-talent-exchange-panel-*`。
+- `EventMoveServicePanel.tsx/css` 【x】
+  - 功能：讲师老奶奶/培育屋爷爷技能服务工具区，左侧选择队伍宝可梦，右侧显示可学习技能。
+  - 使用：接收 `rest`、`service`、`embedded`、`onClose`、`onAction`；可学习技能默认走 `window.changeBattle.learnableMoves(slot)`，组件预览可注入 `learnableMoves` 假数据。
+  - 流程：技能列表只使用普通 `MoveCard` 两列网格；点击技能后点 `确认学习`，弹出已有 `MoveReplacePanel`，确认替换后派发 `{ type: "event_learn_move", service, slot, moveSlot, moveId }`。
+  - 注意：旧 `EventLearnMoveCard` 已废弃，不要再在 `RestView.tsx` 内联技能服务或重写替换槽按钮。
+  - 变量：`--event-move-service-panel-*`。
+- `EventMoveCardGrid.tsx/css` 【x】
+  - 功能：事件技能服务的 2 列技能卡网格，复用 `MoveCard` 展示普通、选中、加载、空状态和长技能名。
+  - 使用：只负责技能列表展示和选中回调；不派发学习 action。
+  - 变量：`--event-move-card-grid-*`。
+- `EventMoveServiceTeamPicker.tsx/css` 【x】
+  - 功能：事件技能服务左侧队伍选择，最多 6 只稳定排布，显示小图、名字和等级。
+  - 使用：只负责队伍目标选择；不要复用旧 `.event-service-team` 全局样式。
+  - 变量：`--event-move-service-team-picker-*`。
+- `ShopClosedNotice.tsx/css` 【x】
+  - 功能：商店关闭/彩虹火箭队占领时的居中提示块，标题、说明、返回按钮三段垂直排列。
+  - 使用：由 `RestShopPanel` 在 `rainbow_rocket`、`shop_disabled` 或无商店状态下渲染；不要继续使用旧 `.shop-occupied-panel`。
+  - 变量：`--shop-closed-notice-*`。
+- 后续事件服务组件 【x】：
+  - `DoctorEventPanel` 【x】
+    - 功能：蹩脚医生兄弟事件工具区，展示哥哥/弟弟两种治疗分支。
+    - 使用：接收 `rest`、`embedded`、`onClose`、`onAction`；继续派发 `{ type: "choose_doctor_treatment", branch }`，不新增 runtime API。
+  - `RaidExchangePanel` 【x】
+    - 功能：骇人奇袭交换工具区，从指定小道消息场次读取敌方队伍，复用 `PokemonExchangePanel`。
+    - 使用：确认时继续派发 `{ type: "event_raid_exchange", ownIndex, enemyIndex }`，不新增 runtime API。
+  - `ScoreBetPanel` 【x】
+    - 功能：重金下注工具区，展示盘口摘要、比分目标、倍率和下注金额调整。
+    - 使用：接收 `rest`、`embedded`、`onClose`、`onAction`；继续派发 `{ type: "event_score_bet_adjust", ... }`，不新增 runtime API。
+    - 注意：`RestView` 工具栏只在 `rest.event_services.score_bet` 时展示入口。
+  - `EventLevelPanel` 【x】
+    - 功能：恋恋不舍等级分配事件工具区，展示队伍并消耗事件等级点。
+    - 使用：接收 `rest`、`embedded`、`onClose`、`onAction`；继续派发 `{ type: "event_apply_level", slot }`，不新增 runtime API。
+  - `RunTalentModal` 【已废弃】
+    - 说明：旧的本局天赋浏览内联面板已删除；手动天赋统一使用 `RunTalentPanel` 组件族。
 
 ### 样式设计
 
@@ -1407,50 +1515,52 @@
 - 字号 `7px`。
 - 变量前缀：`--rest-toolbar-*`。
 
-## 4.14 ShopPanel 【】
+## 4.14 ShopPanel 【x】
 
 ### 功能
 
-商店。
+商店；当前由休整工具区 `RestShopPanel` 组件族实现，保留 slot 抽奖式 UI 和以物易物流转。
 
 ### 子组件
 
-- `ShopKindTabs`
-- `ShopOfferList`
-- `ShopOfferDetail`
-- `BarterMaterialPicker`
+- `RestShopPanel` 【x】
+- `ShopKindTabs` 【x】
+- `ShopOfferList` 【x】
+- `ShopOfferDetail` 【x】
+- `BarterMaterialPicker` 【x】
 
 ### 样式设计
 
-- 左列表宽 `230px`。
-- 右详情宽 `350px`。
-- offer 行高 `30px`。
-- 变量前缀：`--shop-panel-*`。
+- 工具区吃满 `RestMainPanelHost`，默认 `630 x 232`。
+- 分类 tab 单行横向排列。
+- 商品列表保留横向 slot；单张商品卡内部垂直布局，避免图标、文字和按钮挤压。
+- 变量前缀：`--rest-shop-panel-*`、`--shop-kind-tabs-*`、`--shop-offer-list-*`、`--shop-offer-detail-*`、`--barter-material-picker-*`。
 
-## 4.15 ForgePanel 【】
+## 4.15 ForgePanel 【x】
 
 ### 功能
 
-熔炉。
+熔炉；当前由休整工具区 `RestForgePanel` 组件族实现，保留普通三材料重铸和 Mega/Z/太晶珠特殊重铸。
 
 ### 子组件
 
-- `ForgeMaterialList`
-- `ForgeRecipePreview`
-- `ForgeResultPanel`
+- `RestForgePanel` 【x】
+- `ForgeMaterialList` 【x】
+- `ForgeRecipePreview` 【x】
+- `ForgeResultPanel` 【x】
 
 ### 样式设计
 
-- 材料列表宽 `230px`。
-- 结果区宽 `350px`。
-- 材料行高 `24px`。
-- 变量前缀：`--forge-panel-*`。
+- 工具区吃满 `RestMainPanelHost`，默认 `630 x 232`。
+- 左侧材料列表，右侧 3 个材料槽与普通重铸按钮，底部为特殊重铸区。
+- 阻挡材料提示必须走公共 `ScreenToast` / `onNotice`，不重新实现提示框。
+- 变量前缀：`--rest-forge-panel-*`、`--forge-material-list-*`、`--forge-recipe-preview-*`、`--forge-result-panel-*`。
 
-## 4.16 NightSkyPanel 【】
+## 4.16 NightSkyPanel 【x】
 
 ### 功能
 
-小道消息/夜观天象。
+小道消息/夜观天象；当前实现为休整工具区 `NightSkyPanel`，负责未来战斗节点、揭示敌方宝可梦和换对手操作。
 
 ### 子组件
 
@@ -1536,12 +1646,12 @@
 
 ### 样式设计
 
-- 默认样式在 `ScreenToast.css`，保持全局通用小提示尺寸。
+- 默认样式在 `ScreenToast.css`，当前已放大到 640×320 画布内可读的全局非阻塞提示尺寸。
 - 变量前缀：`--screen-toast-*`。
 
 ### 注意事项
 
-- 不要为了某个页面直接修改 `ScreenToast.css` 默认值。
+- 公共默认尺寸需要统一调整时才修改 `ScreenToast.css`；单个页面的局部差异通过 `style` 传 `--screen-toast-*` 变量。
 - 不要在普通组件里重新写黑底提示框；操作反馈统一用 `ScreenToast`。
 - 需要页面特化时只传 CSS 变量，不改组件结构。
 

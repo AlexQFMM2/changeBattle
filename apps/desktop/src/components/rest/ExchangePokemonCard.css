@@ -1,0 +1,103 @@
+.exchange-pokemon-card {
+  --exchange-pokemon-card-height: 54px;
+  --exchange-pokemon-card-sprite-size: 30px;
+  position: relative;
+  width: 100%;
+  height: var(--exchange-pokemon-card-height);
+  min-width: 0;
+  min-height: var(--exchange-pokemon-card-height);
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #b78a46;
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 38%), transparent 50%),
+    #fffaf0;
+  padding: 6px 6px 5px;
+  color: #263329;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 48%);
+  overflow: hidden;
+}
+
+.exchange-pokemon-card.selected {
+  border-color: #36a766;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 44%), transparent 50%),
+    #f5fff4;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 60%), 0 0 0 1px #60dc7a;
+}
+
+.exchange-pokemon-card:disabled {
+  cursor: not-allowed;
+  opacity: .68;
+  filter: grayscale(.2);
+}
+
+.exchange-pokemon-card .pokemon-sprite {
+  --pokemon-sprite-size: var(--exchange-pokemon-card-sprite-size);
+  width: var(--exchange-pokemon-card-sprite-size);
+  height: var(--exchange-pokemon-card-sprite-size);
+  justify-self: center;
+}
+
+.exchange-pokemon-card-index,
+.exchange-pokemon-card em {
+  position: absolute;
+  z-index: 1;
+  height: 11px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  font-size: 6px;
+  font-weight: 950;
+  font-style: normal;
+  line-height: 1;
+}
+
+.exchange-pokemon-card-index {
+  left: 2px;
+  top: 2px;
+  width: 11px;
+  background: #2f2735;
+  color: #f4db84;
+}
+
+.exchange-pokemon-card em {
+  right: 2px;
+  top: 2px;
+  min-width: 20px;
+  border: 1px solid #c6a271;
+  background: #7b5648;
+  color: #fff4d6;
+  padding: 0 4px;
+}
+
+.exchange-pokemon-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.exchange-pokemon-card-copy strong,
+.exchange-pokemon-card-copy small {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exchange-pokemon-card-copy strong {
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.exchange-pokemon-card-copy small {
+  color: #6c6048;
+  font-size: 6px;
+  font-weight: 850;
+}

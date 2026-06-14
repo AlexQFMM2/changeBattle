@@ -1,0 +1,172 @@
+.pokemon-exchange-panel {
+  --pokemon-exchange-panel-width: 100%;
+  --pokemon-exchange-panel-height: 100%;
+  --pokemon-exchange-panel-padding: 6px;
+  --pokemon-exchange-panel-header-height: 32px;
+  --pokemon-exchange-panel-footer-height: 28px;
+  --pokemon-exchange-panel-gap: 6px;
+  --pokemon-exchange-panel-center-width: 34px;
+  width: var(--pokemon-exchange-panel-width);
+  height: var(--pokemon-exchange-panel-height);
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: var(--pokemon-exchange-panel-header-height) minmax(0, 1fr) var(--pokemon-exchange-panel-footer-height);
+  gap: var(--pokemon-exchange-panel-gap);
+  border: 2px solid #6d5a3d;
+  border-radius: 5px;
+  background: #f9f4e8;
+  padding: var(--pokemon-exchange-panel-padding);
+  color: #263329;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 38%);
+  overflow: hidden;
+}
+
+.pokemon-exchange-panel-header {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #d5c08a;
+  padding: 0 0 5px;
+}
+
+.pokemon-exchange-panel-header div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.pokemon-exchange-panel-header h2,
+.pokemon-exchange-panel-header p,
+.pokemon-exchange-team h3,
+.pokemon-exchange-empty {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pokemon-exchange-panel-header h2 {
+  color: #1f2c23;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.pokemon-exchange-panel-header p {
+  color: #596052;
+  font-size: 7px;
+  font-weight: 850;
+}
+
+.pokemon-exchange-panel-header button {
+  width: 58px;
+  height: 22px;
+  min-height: 22px;
+  border-radius: 4px;
+  padding: 0;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.pokemon-exchange-panel-body {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--pokemon-exchange-panel-center-width) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.pokemon-exchange-team {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 14px minmax(0, 1fr);
+  gap: 4px;
+  overflow: hidden;
+}
+
+.pokemon-exchange-team h3 {
+  color: #263329;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.pokemon-exchange-team-grid {
+  --exchange-pokemon-card-height: 52px;
+  --exchange-pokemon-card-sprite-size: 28px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, var(--exchange-pokemon-card-height));
+  align-content: start;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.pokemon-exchange-center {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding-top: 18px;
+  overflow: hidden;
+}
+
+.pokemon-exchange-center span {
+  width: 28px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #9f8556;
+  border-radius: 4px;
+  background: #fffaf0;
+  color: #594735;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 45%);
+}
+
+.pokemon-exchange-panel-footer {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #d5c08a;
+  padding-top: 4px;
+}
+
+.pokemon-exchange-panel-footer button {
+  width: 132px;
+  height: 22px;
+  min-height: 22px;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 8px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pokemon-exchange-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #c9b982;
+  border-radius: 4px;
+  background: #fffaf0;
+  color: #596052;
+  padding: 8px;
+  font-size: 7px;
+  font-weight: 850;
+}

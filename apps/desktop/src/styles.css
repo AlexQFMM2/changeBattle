@@ -6256,240 +6256,6 @@ button.party-status-chip {
   font-size: 8px;
 }
 
-.pokopia-layer[data-phase="expand"] .pokopia-shell.rainbow-support-modal,
-.pokopia-layer[data-phase="exit"] .pokopia-shell.rainbow-support-modal,
-.pokopia-content.rainbow-support-modal,
-.rainbow-support-modal {
-  width: min(608px, calc(100vw - 24px));
-  height: min(292px, calc(100vh - 24px));
-  min-height: 0;
-}
-
-.rainbow-support-content {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: 34px minmax(0, 1fr) 24px;
-  gap: 6px;
-  overflow: hidden;
-  padding: 9px;
-}
-
-.rainbow-support-content > header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-  min-height: 0;
-}
-
-.rainbow-support-content > header > div:first-child {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-}
-
-.rainbow-support-content > header h2,
-.rainbow-support-content > header p {
-  margin: 0;
-}
-
-.rainbow-support-content > header h2 {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  line-height: 1;
-}
-
-.rainbow-support-content > header p {
-  display: none;
-}
-
-.rainbow-warning {
-  display: inline-flex;
-  align-items: center;
-  min-height: 15px;
-  border: 1px solid #442623;
-  border-radius: 3px;
-  padding: 1px 4px;
-  background: #d53c30;
-  color: #fff9d6;
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-.rainbow-warning.compact {
-  background: #343136;
-}
-
-.rainbow-support-progress {
-  display: flex;
-  gap: 4px;
-  min-width: 0;
-}
-
-.rainbow-support-progress span {
-  border: 1px solid #25332b;
-  border-radius: 3px;
-  padding: 2px 5px;
-  background: #fff3bd;
-  font-size: 8px;
-  font-weight: 850;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.rainbow-support-main {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(150px, .95fr) minmax(132px, 1fr) minmax(132px, 1fr);
-  gap: 6px;
-  overflow: hidden;
-}
-
-.rainbow-support-team,
-.rainbow-support-column {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 4px;
-  border: 1px solid rgb(37 51 43 / 30%);
-  border-radius: 5px;
-  padding: 5px;
-  background: #fffdf5;
-  overflow: hidden;
-}
-
-.rainbow-support-column {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.rainbow-support-team h3,
-.rainbow-support-column h3 {
-  margin: 0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-  line-height: 1.05;
-}
-
-.rainbow-support-grid {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: minmax(46px, 1fr);
-  gap: 4px;
-  overflow: hidden;
-}
-
-.rainbow-support-grid.team {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: minmax(46px, 1fr);
-}
-
-.rainbow-support-grid .mini-pokemon-card {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 26px auto auto;
-  justify-items: center;
-  align-items: start;
-  gap: 1px;
-  padding: 3px;
-  text-align: center;
-}
-
-.rainbow-support-grid .mini-pokemon-card .pokemon-sprite {
-  width: 25px;
-  height: 25px;
-}
-
-.rainbow-support-grid .mini-pokemon-card span,
-.rainbow-support-grid .mini-pokemon-card small {
-  grid-column: auto;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 7px;
-  line-height: 1;
-}
-
-.rainbow-support-grid .mini-pokemon-card small {
-  color: #8b302f;
-  font-size: 6px;
-}
-
-.rainbow-support-grid .mini-pokemon-card.restore-selected {
-  outline: 2px solid #4f9e76;
-  outline-offset: -3px;
-}
-
-.rainbow-support-empty {
-  margin: 0;
-  color: #6e675e;
-  font-size: 11px;
-}
-
-.rainbow-restore-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 3px;
-  align-items: center;
-  min-width: 0;
-}
-
-.rainbow-restore-row button {
-  min-width: 0;
-  min-height: 20px;
-  padding: 1px 3px;
-  font-size: 7px;
-  line-height: 1;
-}
-
-.rainbow-restore-row button.selected {
-  background: #25332b;
-  color: #fff8d8;
-}
-
-.rainbow-restore-row small {
-  display: none;
-  min-width: 0;
-  color: #655f55;
-  font-size: 9px;
-}
-
-.rainbow-support-content > footer.command-row {
-  min-height: 0;
-  justify-content: center;
-  gap: 8px;
-}
-
-.rainbow-support-content > footer.command-row button {
-  min-width: 78px;
-  min-height: 22px;
-  padding: 2px 8px;
-  font-size: 8px;
-  line-height: 1;
-}
-
 .rest-workspace .bag-manage-layout {
   gap: 7px;
 }
@@ -19892,17 +19658,20 @@ button.party-status-chip {
 /* Rest page fixed 640x320 layout.
    This is the final layout contract for RestView: no auto-sized main bands. */
 .game-viewport .rest-page {
+  --legacy-rest-page-pad: 8px;
+  --legacy-rest-page-content-width: calc(640px - var(--legacy-rest-page-pad) * 2);
   width: 640px;
   height: 320px;
   min-width: 640px;
   min-height: 320px;
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: 630px;
+  grid-template-columns: var(--legacy-rest-page-content-width);
   grid-template-rows: 80px 40px 180px;
   gap: 5px;
   align-content: start;
   justify-content: start;
-  padding: 5px;
+  padding: var(--legacy-rest-page-pad);
   overflow: hidden;
   background:
     url("./assets/ui/pattern-top.png") left top / 116px 67px repeat-x,
@@ -19910,9 +19679,9 @@ button.party-status-chip {
 }
 
 .game-viewport .rest-header {
-  width: 630px;
+  width: var(--legacy-rest-page-content-width);
   height: 80px;
-  min-width: 630px;
+  min-width: var(--legacy-rest-page-content-width);
   min-height: 80px;
   display: grid;
   grid-template-columns: 388px 154px 70px;
@@ -20013,9 +19782,9 @@ button.party-status-chip {
 }
 
 .game-viewport .rest-talent-action-row {
-  width: 630px;
+  width: var(--legacy-rest-page-content-width);
   height: 40px;
-  min-width: 630px;
+  min-width: var(--legacy-rest-page-content-width);
   min-height: 40px;
   display: grid;
   grid-auto-flow: column;
@@ -20045,25 +19814,27 @@ button.party-status-chip {
 }
 
 .game-viewport .rest-workspace {
-  width: 630px;
+  --legacy-rest-workspace-inner-width: calc(var(--legacy-rest-page-content-width) - var(--legacy-rest-page-pad) * 2);
+  --legacy-rest-workspace-inner-height: calc(180px - var(--legacy-rest-page-pad) * 2);
+  width: var(--legacy-rest-page-content-width);
   height: 180px;
-  min-width: 630px;
+  min-width: var(--legacy-rest-page-content-width);
   min-height: 180px;
   display: grid;
-  grid-template-columns: 620px;
-  grid-template-rows: 180px;
+  grid-template-columns: var(--legacy-rest-workspace-inner-width);
+  grid-template-rows: var(--legacy-rest-workspace-inner-height);
   border: 1px solid #25332b;
   border-radius: 4px;
-  padding: 0 5px;
+  padding: var(--legacy-rest-page-pad);
   overflow: hidden;
 }
 
 .game-viewport .rest-workspace-panel,
 .game-viewport .rest-workspace-empty {
-  width: 620px;
-  height: 180px;
-  min-width: 620px;
-  min-height: 180px;
+  width: var(--legacy-rest-workspace-inner-width);
+  height: var(--legacy-rest-workspace-inner-height);
+  min-width: var(--legacy-rest-workspace-inner-width);
+  min-height: var(--legacy-rest-workspace-inner-height);
   overflow: hidden;
 }
 
@@ -20481,27 +20252,29 @@ button.party-status-chip {
 /* Rest fixed layout v2.
    Component sizing contract: outer components set default CSS variables, inner parts scale from them. */
 .game-viewport .rest-page {
-  --rest-header-height: 40px;
-  --rest-toolbar-height: 20px;
-  --rest-workspace-height: 240px;
+  --rest-header-height: 38px;
+  --rest-toolbar-height: 30px;
   --rest-page-gap: 5px;
-  --rest-page-pad: 5px;
-  grid-template-columns: 630px;
+  --rest-page-pad: 8px;
+  --rest-page-content-width: calc(640px - var(--rest-page-pad) * 2);
+  --rest-workspace-height: calc(320px - var(--rest-page-pad) * 2 - var(--rest-header-height) - var(--rest-toolbar-height) - var(--rest-page-gap) * 2);
+  box-sizing: border-box;
+  grid-template-columns: var(--rest-page-content-width);
   grid-template-rows: var(--rest-header-height) var(--rest-toolbar-height) var(--rest-workspace-height);
   gap: var(--rest-page-gap);
   padding: var(--rest-page-pad);
 }
 
 .game-viewport .rest-header {
-  width: 630px;
+  width: var(--rest-page-content-width);
   height: var(--rest-header-height);
   min-height: var(--rest-header-height);
-  grid-template-columns: 304px 116px 92px;
+  grid-template-columns: minmax(0, 1fr) 250px 176px;
   grid-template-rows: 30px;
   align-items: center;
-  justify-content: space-between;
-  gap: 0;
-  padding: 4px 12px 4px 5px;
+  justify-content: stretch;
+  gap: 6px;
+  padding: 4px 12px 4px 6px;
 }
 
 .game-viewport .rest-header-copy {
@@ -20512,7 +20285,7 @@ button.party-status-chip {
   gap: 6px;
 }
 
-.game-viewport .rest-header h2 {
+.game-viewport .rest-header .rest-header-title h2 {
   font-size: 13px;
 }
 
@@ -20579,7 +20352,7 @@ button.party-status-chip {
 }
 
 .game-viewport .rest-talent-action-row {
-  width: 630px;
+  width: var(--rest-page-content-width);
   height: var(--rest-toolbar-height);
   min-height: var(--rest-toolbar-height);
   grid-template-rows: 14px;
@@ -20595,28 +20368,30 @@ button.party-status-chip {
 }
 
 .game-viewport .rest-workspace {
-  width: 630px;
+  --rest-workspace-inner-width: calc(var(--rest-page-content-width) - var(--rest-page-pad) * 2);
+  --rest-workspace-inner-height: calc(var(--rest-workspace-height) - var(--rest-page-pad) * 2);
+  width: var(--rest-page-content-width);
   height: var(--rest-workspace-height);
   min-height: var(--rest-workspace-height);
-  grid-template-columns: 620px;
-  grid-template-rows: var(--rest-workspace-height);
-  padding: 0 5px;
+  grid-template-columns: var(--rest-workspace-inner-width);
+  grid-template-rows: var(--rest-workspace-inner-height);
+  padding: var(--rest-page-pad);
 }
 
 .game-viewport .rest-workspace-panel,
 .game-viewport .rest-workspace-empty {
-  width: 620px;
-  height: var(--rest-workspace-height);
-  min-height: var(--rest-workspace-height);
+  width: var(--rest-workspace-inner-width, var(--rest-page-content-width));
+  height: var(--rest-workspace-inner-height, var(--rest-workspace-height));
+  min-height: var(--rest-workspace-inner-height, var(--rest-workspace-height));
 }
 
 .game-viewport .rest-workspace .rest-bag-layout.unified-bag-layout {
-  --bag-component-width: 620px;
-  --bag-component-height: 240px;
+  --bag-component-width: var(--rest-workspace-inner-width);
+  --bag-component-height: var(--rest-workspace-inner-height);
   --bag-list-width: 280px;
   --bag-action-width: 340px;
   --bag-action-inner-width: 320px;
-  --bag-action-inner-height: 240px;
+  --bag-action-inner-height: var(--rest-workspace-inner-height);
   width: var(--bag-component-width);
   height: var(--bag-component-height);
   min-width: var(--bag-component-width);

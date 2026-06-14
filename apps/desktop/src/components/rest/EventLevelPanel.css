@@ -1,0 +1,117 @@
+.event-level-panel {
+  --event-level-panel-padding: 8px;
+  --event-level-panel-header-height: 42px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: var(--event-level-panel-header-height) minmax(0, 1fr);
+  gap: 8px;
+  padding: var(--event-level-panel-padding);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(12, 18, 28, 0.72);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.event-level-panel > header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.event-level-panel h2,
+.event-level-panel p {
+  margin: 0;
+}
+
+.event-level-panel h2 {
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.event-level-panel p {
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.event-level-panel > header button {
+  min-height: 24px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.event-level-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.event-level-grid button {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 7px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  text-align: left;
+  overflow: hidden;
+}
+
+.event-level-grid button:not(:disabled):hover {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(124, 58, 237, 0.16);
+}
+
+.event-level-grid button:disabled {
+  opacity: 0.62;
+}
+
+.event-level-grid .pokemon-sprite {
+  grid-row: 1 / 3;
+  width: 32px;
+  height: 32px;
+}
+
+.event-level-grid span {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.event-level-grid strong,
+.event-level-grid small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-level-grid strong {
+  align-self: end;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.event-level-grid small {
+  align-self: start;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 10px;
+}

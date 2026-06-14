@@ -8,9 +8,9 @@
   min-height: 0;
   display: grid;
   grid-template-columns:
-    var(--rest-selected-pokemon-detail-main-width)
-    var(--rest-selected-pokemon-detail-stats-width)
-    minmax(0, var(--rest-selected-pokemon-detail-description-width));
+    minmax(0, var(--rest-selected-pokemon-detail-main-width))
+    minmax(0, var(--rest-selected-pokemon-detail-stats-width))
+    minmax(0, 1fr);
   grid-template-areas: "main stats description";
   gap: 5px;
   overflow: hidden;

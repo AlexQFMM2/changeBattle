@@ -1,0 +1,87 @@
+.forge-recipe-preview {
+  --forge-recipe-preview-button-height: 20px;
+  --forge-recipe-preview-slot-height: 17px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows:
+    calc(var(--forge-recipe-preview-slot-height) * 3 + 6px)
+    minmax(0, 1fr)
+    var(--forge-recipe-preview-button-height);
+  gap: 4px;
+  border: 1px solid #d9bf85;
+  border-radius: 4px;
+  background: #fffaf0;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.forge-recipe-slots {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(3, var(--forge-recipe-preview-slot-height));
+  gap: 3px;
+}
+
+.forge-recipe-slots button {
+  min-width: 0;
+  min-height: var(--forge-recipe-preview-slot-height);
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #b78a46;
+  border-radius: 4px;
+  background: #fffdf5;
+  padding: 1px 5px;
+  color: #263329;
+}
+
+.forge-recipe-slots button:disabled {
+  opacity: .78;
+}
+
+.forge-recipe-slots .item-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.forge-recipe-slots span,
+.forge-recipe-preview p {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+.forge-recipe-slots span {
+  font-size: 7px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.forge-recipe-preview p {
+  margin: 0;
+  color: #6c6048;
+  font-size: 6px;
+  line-height: 1.25;
+}
+
+.forge-recipe-actions {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px;
+  gap: 5px;
+}
+
+.forge-recipe-actions button {
+  height: var(--forge-recipe-preview-button-height);
+  min-height: var(--forge-recipe-preview-button-height);
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 7px;
+  line-height: 1;
+  white-space: nowrap;
+}

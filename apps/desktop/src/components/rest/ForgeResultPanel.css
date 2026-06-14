@@ -1,0 +1,69 @@
+.forge-result-panel {
+  --forge-result-panel-row-height: 32px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 1fr);
+  grid-template-rows: var(--forge-result-panel-row-height);
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.forge-result-panel button {
+  min-width: 0;
+  height: var(--forge-result-panel-row-height);
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-rows: 13px 11px;
+  align-items: center;
+  gap: 2px 5px;
+  border: 1px solid #b78a46;
+  border-radius: 4px;
+  background: #fffaf0;
+  padding: 4px 6px;
+  color: #263329;
+  text-align: left;
+}
+
+.forge-result-panel .item-icon {
+  width: 22px;
+  height: 22px;
+  grid-row: 1 / -1;
+}
+
+.forge-result-panel span,
+.forge-result-panel small,
+.forge-result-panel p {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forge-result-panel span {
+  color: #25332b;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.forge-result-panel small {
+  color: #6c6048;
+  font-size: 6px;
+  font-weight: 850;
+}
+
+.forge-result-panel p {
+  display: grid;
+  place-items: center;
+  height: var(--forge-result-panel-row-height);
+  border: 1px dashed #c9b982;
+  border-radius: 4px;
+  background: #fffaf0;
+  color: #596052;
+  padding: 0 8px;
+  font-size: 7px;
+}

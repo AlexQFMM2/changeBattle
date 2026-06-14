@@ -1,5 +1,5 @@
 import type {CSSProperties} from "react";
-import type {BagCategoryView, BagItemView, BattleRecordEntry, BattleSetting, BattleTurnPokemonState, BattleTurnRecord, DesktopDexEntry, LocalSave, MoveSummary, PlayerPokemonState, RentalPokemon, RestState, ResultSummaryState, ShopItem, ShopOffer, SpriteMapEntry, StarterChoiceState, StarterItemGroup, StarterItemGroupState, TalentView, TrainerCatalogState} from "@changebattle/shared";
+import type {BagCategoryView, BagItemView, BattleRecordEntry, BattleSetting, BattleTurnPokemonState, BattleTurnRecord, DesktopDexEntry, LocalSave, MoveSummary, NightSkyRow, PlayerPokemonState, RentalPokemon, RestEventOption, RestState, ResultSummaryState, ShopItem, ShopOffer, SpriteMapEntry, StarterChoiceState, StarterItemGroup, StarterItemGroupState, TalentView, TrainerCatalogState} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import type {MoveCardData} from "../components/move/MoveCard";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
@@ -519,7 +519,8 @@ function restPreviewState(team: RentalPokemon[], conditions: string[], ppScale =
     bag_categories: bagCategories,
     talents: [],
     shop: {roll_count: 1, next_roll_cost: 20, slot_count: 3, offers: [], purchased_offer_id: null, purchased_offer_counts: {}, purchased_item_counts: {}},
-    night_sky: {rows: Array.from({length: 7}, (_value, index) => ({battle_no: index + 1, label: index === 6 ? "最终战" : "挑战", trainer: {id: `preview-trainer-${index}`, type: index === 6 ? "champion" : "normal", name_zh: index === 6 ? "预览冠军" : "预览训练师"}, trainer_visible: true, revealed: index < 2 ? 3 : 0, enemies: []}))},
+    night_sky: {rows: createNightSkyPreviewRows("normal")},
+    rest_event: {required: true, options: createRestEventPreviewOptions("normal")},
     taken_enemy_slots: [],
     exchange_count: 0,
     costs: {exchange: 0, restore_hp: {1: 20, 2: 30, 3: 40}, restore_pp: {1: 20, 2: 30, 3: 40}, restore_status: {1: 20, 2: 30, 3: 40}, adjust_stats: 100, randomize_part: 50, randomize_all: 150, move_draw: 100, scout_basic: 50, scout_one: 100, scout_all: 200},
@@ -571,6 +572,55 @@ export const restPreviewStateNormal = restPreviewState(restPreviewTeam, ["88/100
 export const restPreviewStateSix = restPreviewState(restPreviewSixTeam, ["88/100", "100/100", "76/100", "66/100", "52/100 par", "100/100"]);
 export const restPreviewStateLowHp = restPreviewState(restPreviewSixTeam, ["18/100", "0 fnt", "44/100 slp", "66/100", "52/100 par", "100/100"], 0.2);
 export const restPreviewStateLong = restPreviewState(restPreviewLongTeam, ["72/100 psn", "100/100", "76/100"], 0.35);
+
+export function restEventStateForPreview(stateId: string): RestState {
+  return {
+    ...restPreviewStateNormal,
+    rest_event: {required: true, options: createRestEventPreviewOptions(stateId)},
+  };
+}
+
+export function nightSkyStateForPreview(stateId: string): RestState {
+  return {
+    ...restPreviewStateNormal,
+    battle_no: stateId === "revealed" ? 2 : 1,
+    talents: stateId === "hiddenTrainer" ? [] : [
+      {id: "intel_rumor", name: "小道消息", category: "intel", desc: "预览中允许揭示未来对手。", level: 3, cost: 0},
+      {id: "intel_reroute", name: "公子驾到", category: "intel", desc: "预览中允许更换未来对手。", level: 1, cost: 0},
+    ],
+    night_sky: {rows: stateId === "empty" ? [] : createNightSkyPreviewRows(stateId)},
+  };
+}
+
+function createRestEventPreviewOptions(stateId: string): RestEventOption[] {
+  const longText = "这是一段非常长的事件描述，用来检查休整奇遇卡片内部滚动和文本换行。它应该停留在卡片内部，不撑破 640 x 320 的游戏画布，也不影响其它事件卡的高度。";
+  const options: RestEventOption[] = [
+    {id: "rest-preview-safe", name: "温和补给", tone: "safe", desc: "获得稳定补给。", intro: "联盟补给员留下了一份可靠的治疗包。", effects: ["获得少量金币。", "随机回复一名队员的 HP。"]},
+    {id: "rest-preview-trade", name: "以物易物", tone: "trade", desc: "交换一件道具。", intro: "旅行商希望用稀有材料换走你的普通道具。", effects: ["失去一个低价值道具。", "获得一个随机携带物。"]},
+    {id: "rest-preview-risk", name: "危险捷径", tone: "risk", desc: "冒险换取奖励。", intro: stateId === "longText" ? longText : "你发现了一条危险但诱人的近路。", effects: stateId === "longText" ? [longText, "下一场胜利时金币奖励提高。"] : ["下一场敌方等级提高。", "胜利后获得额外金币。"]},
+  ];
+  return stateId === "manyOptions" ? [...options, {id: "rest-preview-extra", name: "额外委托", tone: "safe", desc: "额外事件预览。", intro: "用于检查多事件选项时的布局稳定性。", effects: ["不会访问 runtime。"]}] : options;
+}
+
+function createNightSkyPreviewRows(stateId: string): NightSkyRow[] {
+  return Array.from({length: 7}, (_value, index) => {
+    const battleNo = index + 1;
+    const hidden = stateId === "hiddenTrainer" && index >= 2;
+    const revealed = stateId === "revealed" || index < 2 ? 3 : index === 2 ? 1 : 0;
+    const unlocked = stateId === "revealed" || revealed >= 3;
+    const enemies = rentalPreviewCandidates.slice(index % 4, index % 4 + 3);
+    return {
+      battle_no: battleNo,
+      label: battleNo === 7 ? "最终战" : stateId === "longText" ? "名字很长的预览路线训练师挑战" : "挑战",
+      trainer: {id: `preview-trainer-${index}`, type: battleNo === 7 ? "champion" : "normal", name_zh: battleNo === 7 ? "预览冠军" : "预览训练师"},
+      trainer_visible: !hidden,
+      encountered: battleNo <= 1,
+      revealed,
+      unlocked,
+      enemies: enemies.map((enemy, enemyIndex) => enemyIndex < revealed ? enemy : null),
+    };
+  });
+}
 
 export const dexPreviewTrainerUnlocked: DesktopDexEntry = {
   id: "trainer-cynthia",

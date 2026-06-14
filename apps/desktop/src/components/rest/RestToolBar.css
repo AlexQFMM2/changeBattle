@@ -22,7 +22,7 @@
 }
 
 .game-viewport .rest-toolbar.rest-toolbar {
-  width: 630px;
+  width: 100%;
   height: var(--rest-toolbar-height);
   min-height: var(--rest-toolbar-height);
   display: grid;

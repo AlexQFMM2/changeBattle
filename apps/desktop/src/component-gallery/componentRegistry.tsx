@@ -1,5 +1,6 @@
 import type {CSSProperties, ReactNode} from "react";
 import {useState} from "react";
+import type {BagItemView, PricedMove, ShopKind, ShopOffer, ShopState} from "@changebattle/shared";
 import {PageActionBar} from "../components/player/PageActionBar";
 import {PlayerNameEditor} from "../components/player/PlayerNameEditor";
 import {PlayerSettingsPage} from "../components/player/PlayerSettingsPage";
@@ -48,6 +49,37 @@ import {DexSearchBar} from "../components/dex/DexSearchBar";
 import {QuickDexModal} from "../components/dex/QuickDexModal";
 import {RestHeader} from "../components/rest/RestHeader";
 import {RestToolBar} from "../components/rest/RestToolBar";
+import {RestEventPrompt} from "../components/rest/RestEventPrompt";
+import {NightSkyPanel} from "../components/rest/NightSkyPanel";
+import {ExchangePokemonCard} from "../components/rest/ExchangePokemonCard";
+import {PokemonExchangePanel} from "../components/rest/PokemonExchangePanel";
+import {RestExchangePanel} from "../components/rest/RestExchangePanel";
+import {RaidExchangePanel} from "../components/rest/RaidExchangePanel";
+import {BarterMaterialPicker} from "../components/rest/BarterMaterialPicker";
+import {ForgeMaterialList} from "../components/rest/ForgeMaterialList";
+import {ForgeRecipePreview} from "../components/rest/ForgeRecipePreview";
+import {ForgeResultPanel} from "../components/rest/ForgeResultPanel";
+import {RestForgePanel} from "../components/rest/RestForgePanel";
+import {RestShopPanel} from "../components/rest/RestShopPanel";
+import {RainbowRocketPokemonCard} from "../components/rest/RainbowRocketPokemonCard";
+import {RainbowRocketSupportPanel} from "../components/rest/RainbowRocketSupportPanel";
+import {EventMoveCardGrid} from "../components/rest/EventMoveCardGrid";
+import {EventMoveServicePanel} from "../components/rest/EventMoveServicePanel";
+import {EventMoveServiceTeamPicker} from "../components/rest/EventMoveServiceTeamPicker";
+import {ItemRecyclerPanel} from "../components/rest/ItemRecyclerPanel";
+import {RunTalentActionPanel} from "../components/rest/RunTalentActionPanel";
+import {RunTalentExchangePanel} from "../components/rest/RunTalentExchangePanel";
+import {RunTalentPanel} from "../components/rest/RunTalentPanel";
+import {RunTalentPokemonPicker} from "../components/rest/RunTalentPokemonPicker";
+import {DoctorEventPanel} from "../components/rest/DoctorEventPanel";
+import {EventLevelPanel} from "../components/rest/EventLevelPanel";
+import {ShopKindTabs} from "../components/rest/ShopKindTabs";
+import {ShopClosedNotice} from "../components/rest/ShopClosedNotice";
+import {ShopOfferDetail} from "../components/rest/ShopOfferDetail";
+import {ShopOfferList} from "../components/rest/ShopOfferList";
+import {ScoreBetPanel} from "../components/rest/ScoreBetPanel";
+import {blockedNormalForgeReason} from "../components/rest/forgeModel";
+import {DEFAULT_SHOP_KINDS} from "../components/rest/shopModel";
 import {RestMyTeamPanel} from "../components/rest/team/RestMyTeamPanel";
 import {RestPokemonInfoPanel} from "../components/rest/team/RestPokemonInfoPanel";
 import {RestPokemonMoveGrid} from "../components/rest/team/RestPokemonMoveGrid";
@@ -79,7 +111,7 @@ import {RestBagPanel} from "../components/bag/RestBagPanel";
 import {tmFallbackMove} from "../components/bag/bagModel";
 import type {BagFilterKey} from "../components/bag/bagModel";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
-import {bagPreviewItems, battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createBagPreviewCategories, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, playerSettingsManyCatalog, rentalPreviewCandidates, rentalPreviewLongCandidates, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
+import {bagPreviewItems, battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createBagPreviewCategories, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, nightSkyStateForPreview, playerSettingsManyCatalog, rentalPreviewCandidates, rentalPreviewLongCandidates, restEventStateForPreview, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
 import {outcomeLabel} from "../components/result/resultUtils";
 
 export type ComponentPreviewState = {
@@ -406,25 +438,90 @@ function RestHeaderPreview({stateId}: {stateId: string}) {
       battles={stateId === "longText" ? 120 : 7}
       wins={stateId === "longText" ? 88 : 2}
       coins={stateId === "lowCoins" ? 3 : 420}
+      tools={[
+        {id: "myTeam", label: "我的队伍", selected: true},
+        {id: "bag", label: "背包"},
+        {id: "nightSky", label: stateId === "longText" ? "名字很长的进度图" : "进度图", badge: "6/21"},
+      ]}
       nextDisabled={stateId === "nextDisabled"}
       nextTitle={stateId === "nextDisabled" ? "请先处理当前事件" : undefined}
       onOpenCoinLedger={() => undefined}
       onAbort={() => undefined}
       onNext={() => undefined}
+      onSelectTool={() => undefined}
     />
   );
 }
 
 function RestToolBarPreview({stateId}: {stateId: string}) {
   const items = [
-    {id: "myTeam", label: "我的队伍"},
-    {id: "bag", label: "背包"},
+    {id: "exchange", label: "交换"},
     {id: "shop", label: "商店"},
     {id: "forge", label: "熔炉"},
-    ...(stateId === "eventTools" || stateId === "manyTools" ? [{id: "doctor", label: "蹩脚医生", event: true}, {id: "tutor", label: "讲师老奶奶", event: true}, {id: "raid", label: "骇人奇袭", event: true}] : []),
-    {id: "nightSky", label: stateId === "longText" ? "名字很长的进度图工具入口" : "进度图", badge: "6/21"},
+    ...(stateId === "eventTools" || stateId === "manyTools" ? [{id: "doctor", label: "蹩脚医生", event: true}, {id: "tutor", label: "讲师老奶奶", event: true}, {id: "egg", label: "培育屋爷爷", event: true}, {id: "raid", label: "骇人奇袭", event: true}, {id: "score", label: "重金下注", event: true}] : []),
+    ...(stateId === "manyTools" ? [{id: "talent1", label: "不负信赖"}, {id: "talent2", label: "孤注一掷", used: true, badge: "已用"}, {id: "talent3", label: "有借有换"}] : []),
   ];
-  return <RestToolBar items={items} activeId={stateId === "eventTools" ? "doctor" : "myTeam"} onSelect={() => undefined} />;
+  return <RestToolBar items={items} activeId={stateId === "eventTools" ? "doctor" : "exchange"} onSelect={() => undefined} />;
+}
+
+function eventMovePreviewMoves(stateId: string): PricedMove[] {
+  if (stateId === "empty") return [];
+  const pricedMove = (move: Partial<PricedMove> & Pick<PricedMove, "id" | "name" | "name_zh" | "type" | "type_zh" | "category" | "category_zh">): PricedMove => ({
+    power: 80,
+    accuracy: 100,
+    pp: 10,
+    priority: 0,
+    short_desc: "",
+    short_desc_zh: "",
+    desc: "",
+    desc_zh: "",
+    cost: 100,
+    ...move,
+  });
+  const baseMoves = [
+    pricedMove({id: "hurricane", name: "Hurricane", name_zh: "暴风", type: "Flying", type_zh: "飞行", category: "Special", category_zh: "特殊", pp: 10, power: 110, accuracy: 70, desc_zh: "用猛烈的暴风攻击对手。", learn_sources: ["tutor"]}),
+    pricedMove({id: "solar-beam", name: "Solar Beam", name_zh: "日光束", type: "Grass", type_zh: "草", category: "Special", category_zh: "特殊", pp: 10, power: 120, accuracy: 100, desc_zh: "吸收光后释放强烈光束。", learn_sources: ["tutor", "egg"]}),
+    pricedMove({id: "quick-attack", name: "Quick Attack", name_zh: "电光一闪", type: "Normal", type_zh: "一般", category: "Physical", category_zh: "物理", pp: 30, power: 40, accuracy: 100, priority: 1, desc_zh: "以迅雷不及掩耳之势扑向对手。", learn_sources: ["egg"]}),
+    pricedMove({id: "preview-long-event-move", name: "Preview Long Event Move", name_zh: "超长名字测试技能光合作用极限爆发", type: "Psychic", type_zh: "超能力", category: "Special", category_zh: "特殊", pp: 5, power: 90, accuracy: 100, desc_zh: "用于检查长技能名在两列技能卡里的显示。", learn_sources: ["tutor", "egg"]}),
+  ];
+  return stateId === "longMoveName" || stateId === "longName" ? baseMoves.slice(1, 4) : baseMoves.slice(0, 3);
+}
+
+function EventMoveCardGridPreview({stateId}: {stateId: string}) {
+  const moves = eventMovePreviewMoves(stateId);
+  return <EventMoveCardGrid moves={moves} selectedMoveId={stateId === "selected" ? "solar-beam" : "hurricane"} loading={stateId === "loading"} serviceLabel="教授" onSelectMove={() => undefined} />;
+}
+
+function EventMoveServiceTeamPickerPreview({stateId}: {stateId: string}) {
+  const rest = stateId === "longName" ? restPreviewStateLong : stateId === "sixPokemon" ? restPreviewStateSix : restPreviewStateNormal;
+  return <EventMoveServiceTeamPicker team={rest.player_display} selectedSlot={stateId === "selected" ? 1 : 0} onSelectSlot={() => undefined} />;
+}
+
+function EventMoveServicePanelPreview({stateId}: {stateId: string}) {
+  const rest = stateId === "longName" ? restPreviewStateLong : restPreviewStateSix;
+  const moves = eventMovePreviewMoves(stateId);
+  const service = stateId === "egg" ? "egg" : "tutor";
+  return (
+    <EventMoveServicePanel
+      rest={rest}
+      service={service}
+      embedded
+      onClose={() => undefined}
+      onAction={() => undefined}
+      learnableMoves={() => Promise.resolve(moves)}
+      previewMoves={moves}
+      previewLoading={stateId === "loading"}
+      previewInitialStep={stateId === "replaceMove" ? "replace" : "select"}
+    />
+  );
+}
+
+function ShopClosedNoticePreview({stateId}: {stateId: string}) {
+  const title = stateId === "shopDisabled" ? "商店暂时关闭" : "商店已被彩虹火箭队成员占领";
+  const message = stateId === "longText"
+    ? "普通商店暂时关闭。请优先处理工厂支援、技能服务和下一场战斗。这段长文本用于确认提示面板居中、换行和返回按钮位置稳定。"
+    : "普通商店暂时关闭。请优先处理工厂支援、技能服务和下一场战斗。";
+  return <ShopClosedNotice title={title} message={message} onBack={() => undefined} />;
 }
 
 function RestSlotPreview({stateId}: {stateId: string}) {
@@ -463,6 +560,230 @@ function RestSelectedPokemonDetailPreview({stateId}: {stateId: string}) {
   const rest = restStateForPreview(stateId);
   const [focus, setFocus] = useState<RestPokemonFocus>(() => stateId === "move" ? {type: "move", moveIndex: 0} : stateId === "item" ? {type: "item"} : {type: "ability"});
   return <RestSelectedPokemonDetail rest={rest} pokemon={rest.player_display[0]} state={rest.player_state[0]} slot={0} focus={focus} onFocus={setFocus} onMove={() => undefined} onUseItem={() => undefined} onUnequip={() => undefined} onStats={() => undefined} onAction={() => undefined} />;
+}
+
+function rainbowRocketRestStateForPreview(stateId: string) {
+  const base = stateId === "longName" ? restPreviewStateLong : stateId === "teamFull" || stateId === "restoreSelected" ? restPreviewStateSix : restPreviewStateNormal;
+  const factoryDisplay = stateId === "emptyCandidates" ? [] : (stateId === "longName" ? restPreviewStateLong.player_display : restPreviewStateSix.player_display.slice(3, 6));
+  const routeDisplay = stateId === "emptyCandidates" ? [] : (stateId === "longName" ? restPreviewStateLong.player_display : restPreviewStateSix.enemy_display.concat(restPreviewStateSix.player_display).slice(0, 3));
+  return {
+    ...base,
+    player_display: stateId === "teamFull" || stateId === "restoreSelected" || stateId === "longName" ? base.player_display : base.player_display.slice(0, 3),
+    player_state: stateId === "teamFull" || stateId === "restoreSelected" || stateId === "longName" ? base.player_state : base.player_state.slice(0, 3),
+    rainbow_rocket_support: {
+      battle_no: 1,
+      invasion: stateId !== "normalSupport",
+      completed: false,
+      picks_used: stateId === "normalSupport" ? 1 : 0,
+      picks_required: stateId === "normalSupport" ? 1 : 3,
+      max_team_size: 6,
+      factory_display: factoryDisplay,
+      route_display: routeDisplay,
+      route_trainer: {id: "preview-rainbow-route", type: "normal" as const, name_zh: stateId === "longName" ? "名字非常非常长的原赛程训练师" : "原赛程馆主"},
+    },
+    rest_event_statuses: [{id: "rainbow_rocket", label: "彩虹火箭队", detail: "赛程已被劫持：普通奇遇和商店关闭。", tone: "risk" as const}],
+  };
+}
+
+function RainbowRocketPokemonCardPreview({stateId}: {stateId: string}) {
+  const rest = rainbowRocketRestStateForPreview(stateId);
+  const pokemon = stateId === "longName" ? rest.player_display[0] : restPreviewStateSix.player_display[0];
+  return (
+    <RainbowRocketPokemonCard
+      pokemon={pokemon}
+      label={stateId === "longName" ? `1. ${pokemon.species_zh || pokemon.name}` : undefined}
+      detail={stateId === "disabled" ? "不可选择" : stateId === "restoreSelected" ? "治疗目标" : pokemon.item_zh || "无道具"}
+      selected={stateId === "selected"}
+      restoreSelected={stateId === "restoreSelected"}
+      disabled={stateId === "disabled"}
+      onClick={() => undefined}
+    />
+  );
+}
+
+function RainbowRocketSupportPanelPreview({stateId}: {stateId: string}) {
+  return <RainbowRocketSupportPanel rest={rainbowRocketRestStateForPreview(stateId)} onAction={() => undefined} />;
+}
+
+const runTalentPreviewTalents = {
+  trust: {id: "exchange_trust", name: "不负信赖", category: "exchange", desc: "选择 1 只宝可梦提升信赖等级。", level: 1, cost: 0},
+  allIn: {id: "growth_all_in", name: "孤注一掷", category: "growth", desc: "选择 1 只宝可梦进行孤注一掷交换。", level: 1, cost: 0},
+  leadChange: {id: "growth_lead_change", name: "临阵换将", category: "growth", desc: "休整时调整下一场首发。", level: 1, cost: 0},
+  bpExchange: {id: "economy_bp_exchange", name: "有借有换", category: "economy", desc: "对局中可按 1BP => 50金币兑换救急资金。", level: 1, cost: 0},
+};
+
+function runTalentForState(stateId: string) {
+  if (stateId === "allIn") return runTalentPreviewTalents.allIn;
+  if (stateId === "leadChange" || stateId === "fainted") return runTalentPreviewTalents.leadChange;
+  if (stateId === "bpExchange" || stateId === "disabled") return runTalentPreviewTalents.bpExchange;
+  return runTalentPreviewTalents.trust;
+}
+
+function runTalentRestStateForPreview(stateId: string) {
+  const base = stateId === "longName" ? restPreviewStateLong : stateId === "sixPokemon" || stateId === "fainted" ? restPreviewStateLowHp : restPreviewStateSix;
+  return {
+    ...base,
+    talents: Object.values(runTalentPreviewTalents),
+    trust_level_used: stateId === "used" && runTalentForState(stateId).id === "exchange_trust",
+    all_in_used: stateId === "used" && runTalentForState(stateId).id === "growth_all_in",
+    lead_change_used: stateId === "used" && runTalentForState(stateId).id === "growth_lead_change",
+  };
+}
+
+function RunTalentPanelPreview({stateId}: {stateId: string}) {
+  const talent = runTalentForState(stateId);
+  const rest = runTalentRestStateForPreview(stateId);
+  return <RunTalentPanel talent={talent} rest={rest} embedded onClose={() => undefined} onAction={() => undefined} />;
+}
+
+function RunTalentPickerPreview({stateId}: {stateId: string}) {
+  const rest = runTalentRestStateForPreview(stateId);
+  const used = stateId === "used";
+  const entries = rest.player_display.map((pokemon, slot) => ({
+    pokemon,
+    state: rest.player_state[slot],
+    slot,
+    used,
+    disabled: used || stateId === "fainted" && Boolean(rest.player_state[slot]?.fainted),
+    disabledReason: used ? "已使用" : stateId === "fainted" && rest.player_state[slot]?.fainted ? "濒死" : "",
+  }));
+  return <RunTalentPokemonPicker entries={entries} selectedSlot={stateId === "selected" ? 1 : 0} onSelectSlot={() => undefined} />;
+}
+
+function RunTalentActionPanelPreview({stateId}: {stateId: string}) {
+  const talent = runTalentForState(stateId);
+  const rest = runTalentRestStateForPreview(stateId);
+  return <RunTalentActionPanel talent={talent} rest={rest} onAction={() => undefined} />;
+}
+
+function RunTalentExchangePanelPreview({stateId}: {stateId: string}) {
+  return <RunTalentExchangePanel rest={runTalentRestStateForPreview(stateId)} disabled={stateId === "disabled"} onAction={() => undefined} />;
+}
+
+function itemRecyclerRestStateForPreview(stateId: string) {
+  const items = stateId === "empty"
+    ? []
+    : stateId === "lockedItems"
+      ? bagPreviewItems.slice(0, 5).map(item => ({...item, locked: true}))
+      : stateId === "longName"
+        ? [bagItemForState("longName"), ...bagPreviewItems.slice(0, 5)]
+        : stateId === "manyItems"
+          ? [...bagPreviewItems, ...bagPreviewItems.map(item => ({...item, id: `${item.id}-copy`, name_zh: `${item.name_zh || item.name} 备用`}))].filter(item => item.count > 0)
+          : bagPreviewItems.filter(item => item.count > 0).slice(0, 8);
+  return {
+    ...restPreviewStateSix,
+    recycle_receipt_value: stateId === "empty" ? 0 : 240,
+    bag_categories: {
+      consumable: items.filter(item => item.category === "consumable"),
+      held: items.filter(item => item.category === "held"),
+      tm: items.filter(item => item.category === "tm"),
+    },
+  };
+}
+
+function ItemRecyclerPanelPreview({stateId}: {stateId: string}) {
+  return <ItemRecyclerPanel rest={itemRecyclerRestStateForPreview(stateId)} embedded onClose={() => undefined} onAction={() => undefined} />;
+}
+
+function scoreBetRestStateForPreview(stateId: string) {
+  const noBet = stateId === "noBet";
+  return {
+    ...restPreviewStateSix,
+    score_bet: noBet ? undefined : {
+      target_alive: stateId === "maxStake" ? 1 as const : 2 as const,
+      stake: stateId === "maxStake" ? 1200 : 300,
+      multiplier: stateId === "maxStake" ? 5 : 2,
+      multiplier_options: stateId === "manyMultipliers" ? [1.2, 1.5, 2, 3, 4, 5, 8] : [1.5, 2, 3, 5],
+      max_stake: stateId === "maxStake" ? 1200 : 900,
+      payout: stateId === "longText" ? 9999 : undefined,
+    },
+  };
+}
+
+function ScoreBetPanelPreview({stateId}: {stateId: string}) {
+  return <ScoreBetPanel rest={scoreBetRestStateForPreview(stateId)} embedded onClose={() => undefined} onAction={() => undefined} />;
+}
+
+function DoctorEventPanelPreview({stateId}: {stateId: string}) {
+  const rest = stateId === "longText" ? restPreviewStateLong : restPreviewStateSix;
+  return <DoctorEventPanel rest={rest} embedded onClose={() => undefined} onAction={() => undefined} />;
+}
+
+function eventLevelRestStateForPreview(stateId: string) {
+  const base = stateId === "longName" ? restPreviewStateLong : stateId === "sixPokemon" ? restPreviewStateSix : restPreviewStateNormal;
+  return {
+    ...base,
+    event_services: {
+      ...base.event_services,
+      level_points: stateId === "noPoints" ? 0 : 3,
+    },
+  };
+}
+
+function EventLevelPanelPreview({stateId}: {stateId: string}) {
+  return <EventLevelPanel rest={eventLevelRestStateForPreview(stateId)} embedded onClose={() => undefined} onAction={() => undefined} />;
+}
+
+function exchangeRestStateForPreview(stateId: string) {
+  const base = stateId === "longName" ? restPreviewStateLong : restPreviewStateSix;
+  const enemyTeam = stateId === "longName" ? restPreviewStateLong.player_display : restPreviewStateSix.enemy_display.concat(restPreviewStateSix.player_display.slice(0, 3));
+  return {
+    ...base,
+    enemy_display: stateId === "emptyEnemy" ? [] : enemyTeam.slice(0, 6),
+    taken_enemy_slots: stateId === "disabledEnemy" ? [2, 4] : [],
+    costs: {
+      ...base.costs,
+      exchange: stateId === "noCost" ? null : base.costs.exchange,
+    },
+    event_services: {
+      ...base.event_services,
+      raid_exchange: true,
+      raid_exchange_battle_no: 2,
+    },
+    night_sky: {
+      rows: [
+        {
+          battle_no: 2,
+          label: "奇袭预览",
+          trainer: {id: "preview-raid-trainer", type: "normal" as const, name_zh: "奇袭训练师"},
+          trainer_visible: true,
+          encountered: false,
+          revealed: stateId === "emptyEnemy" ? 0 : 6,
+          unlocked: true,
+          enemies: stateId === "emptyEnemy" ? [] : enemyTeam.slice(0, 6),
+        },
+      ],
+    },
+  };
+}
+
+function ExchangePokemonCardPreview({stateId}: {stateId: string}) {
+  const rest = exchangeRestStateForPreview(stateId);
+  return <ExchangePokemonCard pokemon={rest.player_display[0]} index={0} selected={stateId === "selected"} disabled={stateId === "disabled"} disabledReason={stateId === "disabled" ? "已交换" : undefined} onSelect={() => undefined} />;
+}
+
+function PokemonExchangePanelPreview({stateId}: {stateId: string}) {
+  const rest = exchangeRestStateForPreview(stateId);
+  return (
+    <PokemonExchangePanel
+      title={stateId === "longName" ? "名字很长的交换面板标题预览" : "交换宝可梦"}
+      description="左边选择自己的队伍，右边选择对方队伍。"
+      ownTeam={rest.player_display}
+      enemyTeam={rest.enemy_display}
+      enemyDisabledSlots={stateId === "disabledEnemy" ? [{index: 1, reason: "已交换"}, {index: 3, reason: "已交换"}] : []}
+      confirmLabel="确认交换"
+      centerLabel="交换"
+      onConfirm={() => undefined}
+    />
+  );
+}
+
+function RestExchangePanelPreview({stateId}: {stateId: string}) {
+  return <RestExchangePanel rest={exchangeRestStateForPreview(stateId)} onClose={() => undefined} onAction={() => undefined} />;
+}
+
+function RaidExchangePanelPreview({stateId}: {stateId: string}) {
+  return <RaidExchangePanel rest={exchangeRestStateForPreview(stateId)} onClose={() => undefined} onAction={() => undefined} />;
 }
 
 function bagItemForState(stateId: string) {
@@ -551,6 +872,157 @@ function BagActionPanelPreview({stateId}: {stateId: string}) {
       onCancelMoveReplace={() => undefined}
     />
   );
+}
+
+function shopOfferFromItem(item: BagItemView, index: number): ShopOffer {
+  return {
+    ...item,
+    offer_id: `preview-shop-${item.id}-${index}`,
+    cost: Number(item.cost || 80 + index * 25),
+    source: "shop",
+  } as ShopOffer;
+}
+
+function shopOffersForState(stateId: string): ShopOffer[] {
+  if (stateId === "empty") return [];
+  const items = stateId === "longName" ? [bagItemForState("longName"), ...bagPreviewItems.slice(0, 3)] : bagPreviewItems.filter(item => item.count > 0);
+  return items.slice(0, stateId === "bonus" ? 5 : 4).map(shopOfferFromItem);
+}
+
+function shopStateForPreview(stateId: string): ShopState {
+  const offers = shopOffersForState(stateId);
+  const purchasedOffer = stateId === "bought" ? offers[0]?.offer_id || null : null;
+  const activeKind: ShopKind = stateId === "tm" ? "tm" : "recovery";
+  return {
+    kind: activeKind,
+    available_kinds: stateId === "manyKinds" || stateId === "discount" ? DEFAULT_SHOP_KINDS : ["recovery", "held", "tm", "training"],
+    roll_count: 2,
+    next_roll_cost: stateId === "discount" ? 15 : 50,
+    free_rolls_remaining: stateId === "rolling" ? 1 : 0,
+    slot_count: stateId === "empty" ? 3 : Math.max(3, offers.length),
+    offers,
+    offers_by_kind: {
+      recovery: offers.filter(offer => offer.category === "consumable"),
+      held: offers.filter(offer => offer.category === "held"),
+      tm: offers.filter(offer => offer.category === "tm"),
+      training: offers.slice(0, 3),
+    },
+    purchased_offer_id: purchasedOffer,
+    purchased_offer_counts: purchasedOffer ? {[purchasedOffer]: 1} : {},
+    purchased_item_counts: purchasedOffer && offers[0] ? {[offers[0].id]: 1} : {},
+    last_roll_bonus: stateId === "bonus" && offers[1] ? {item_id: offers[1].id, name: offers[1].name, name_zh: offers[1].name_zh, count: 1, match_count: 3} : null,
+  } as ShopState;
+}
+
+function restShopStateForPreview(stateId: string) {
+  const shop = shopStateForPreview(stateId);
+  return {
+    ...restPreviewStateSix,
+    coins: stateId === "closed" ? 20 : 680,
+    shop,
+    shop_kind_discounts: stateId === "discount" ? {recovery: 0.7, held: 0.8} : restPreviewStateSix.shop_kind_discounts,
+    rest_event_statuses: stateId === "barter"
+      ? [{id: "barter", label: "以物易物", name: "以物易物", desc: "预览商店以物易物。"}]
+      : stateId === "closed"
+        ? [{id: "shop_disabled", label: "商店关闭", name: "商店关闭", desc: "预览商店关闭。"}]
+        : [],
+  };
+}
+
+function RestShopPanelPreview({stateId}: {stateId: string}) {
+  const mappedState = stateId === "rolling" ? "normal" : stateId;
+  return <RestShopPanel rest={restShopStateForPreview(mappedState)} shop={restShopStateForPreview(mappedState).shop} onClose={() => undefined} onRoll={() => undefined} onBuy={() => undefined} onBarterBuy={() => undefined} />;
+}
+
+function ShopKindTabsPreview({stateId}: {stateId: string}) {
+  const kinds = stateId === "manyKinds" || stateId === "longText" ? DEFAULT_SHOP_KINDS : ["recovery", "held", "tm", "training"] as ShopKind[];
+  const activeKind = stateId === "discount" ? "held" : "recovery";
+  return <ShopKindTabs kinds={kinds} activeKind={activeKind} discountForKind={kind => stateId === "discount" && kind === "held" ? 0.6 : 1} onSelect={() => undefined} />;
+}
+
+function ShopOfferListPreview({stateId}: {stateId: string}) {
+  const shop = shopStateForPreview(stateId === "offers" ? "normal" : stateId);
+  const offers = stateId === "empty" || stateId === "rolling" ? [] : shop.offers || [];
+  return <ShopOfferList offers={offers} slotCount={shop.slot_count || 3} rolling={stateId === "rolling"} revealed={stateId !== "empty"} shop={shop} barterActive={false} shopDisabled={false} coins={680} buyingOfferId="" bonus={shop.last_roll_bonus} onBuy={() => undefined} onDetail={() => undefined} />;
+}
+
+function ShopOfferDetailPreview({stateId}: {stateId: string}) {
+  const offer = stateId === "tm"
+    ? shopOfferFromItem(bagItemForState("tm"), 0)
+    : stateId === "longText"
+      ? shopOfferFromItem({...bagItemForState("longName"), desc_zh: "这是一段非常非常长的商品说明，用于检查详情弹窗内部换行和按钮位置，不应该撑破 640x320 的组件预览画布。"}, 0)
+      : shopOfferFromItem(bagItemForState("held"), 0);
+  return <ShopOfferDetail offer={offer} onClose={() => undefined} />;
+}
+
+function BarterMaterialPickerPreview({stateId}: {stateId: string}) {
+  const rest = {
+    ...restPreviewStateSix,
+    bag_categories: stateId === "empty" ? {consumable: [], held: [], tm: []} : createBagPreviewCategories(),
+  };
+  const offer = shopOfferFromItem(stateId === "longName" ? bagItemForState("longName") : bagItemForState("held"), 0);
+  return <BarterMaterialPicker rest={rest} offer={{...offer, cost: stateId === "insufficient" ? 9999 : offer.cost}} onClose={() => undefined} onBuy={() => undefined} />;
+}
+
+function forgeCategoriesForState(stateId: string) {
+  const categories = createBagPreviewCategories();
+  if (stateId === "empty") return {consumable: [], held: [], tm: []};
+  if (stateId === "blocked") {
+    categories.held = [
+      ...categories.held,
+      {id: "tera-orb-preview", name: "Tera Orb", name_zh: "太晶珠", count: 1, category: "held", item_battle_system: "terastal", desc_zh: "不能投入普通熔炉。"},
+      {id: "locked-preview", name: "Locked Charm", name_zh: "锁定护符", count: 1, category: "held", locked: true, lock_reason: "预览锁定道具。", desc_zh: "锁定道具不能投入普通熔炉。"},
+    ];
+  }
+  if (stateId === "longName") categories.consumable = [bagItemForState("longName"), ...categories.consumable];
+  return categories;
+}
+
+function forgeItemsForState(stateId: string): BagItemView[] {
+  return Object.values(forgeCategoriesForState(stateId)).flat();
+}
+
+function forgeNormalItemsForState(stateId: string): BagItemView[] {
+  return forgeItemsForState(stateId).filter(item => item.item_battle_system !== "mega" && item.item_battle_system !== "zmove");
+}
+
+function forgeMaterialIdsForState(stateId: string): string[] {
+  const items = forgeNormalItemsForState(stateId).filter(item => !blockedNormalForgeReason(item));
+  if (stateId === "empty") return [];
+  if (stateId === "partial") return items.slice(0, 2).map(item => item.id);
+  if (stateId === "sameKind") return items.filter(item => item.category === "consumable").slice(0, 3).map(item => item.id);
+  if (stateId === "threeMaterials" || stateId === "three" || stateId === "working") return items.slice(0, 3).map(item => item.id);
+  return [];
+}
+
+function forgeRestStateForPreview(stateId: string) {
+  return {
+    ...restPreviewStateSix,
+    coins: stateId === "noCoins" ? 12 : 680,
+    bag_categories: forgeCategoriesForState(stateId),
+  };
+}
+
+function RestForgePanelPreview({stateId}: {stateId: string}) {
+  return <RestForgePanel rest={forgeRestStateForPreview(stateId)} onClose={() => undefined} onAction={() => undefined} onNotice={() => undefined} />;
+}
+
+function ForgeMaterialListPreview({stateId}: {stateId: string}) {
+  const items = forgeNormalItemsForState(stateId);
+  const materialIds = stateId === "selected" ? forgeMaterialIdsForState("threeMaterials") : [];
+  const materialCounts = materialIds.reduce<Record<string, number>>((acc, id) => ({...acc, [id]: Number(acc[id] || 0) + 1}), {});
+  return <ForgeMaterialList items={items} materialCounts={materialCounts} materialsFull={materialIds.length >= 3} blockedReasonForItem={blockedNormalForgeReason} onAddMaterial={() => undefined} onBlocked={() => undefined} />;
+}
+
+function ForgeRecipePreviewStage({stateId}: {stateId: string}) {
+  const items = forgeNormalItemsForState(stateId);
+  return <ForgeRecipePreview items={items} materialIds={forgeMaterialIdsForState(stateId)} working={stateId === "working"} onRemoveMaterial={() => undefined} onForge={() => undefined} onClear={() => undefined} />;
+}
+
+function ForgeResultPanelPreview({stateId}: {stateId: string}) {
+  const items = forgeItemsForState(stateId);
+  const specialItems = stateId === "empty" ? [] : items.filter(item => item.item_battle_system === "mega" || item.item_battle_system === "zmove");
+  return <ForgeResultPanel specialItems={specialItems} teraType={stateId === "tera" ? "电" : undefined} coins={stateId === "noCoins" ? 12 : 680} onForgeSpecial={() => undefined} onForgeTera={() => undefined} />;
 }
 
 export const componentRegistry: ComponentRegistryEntry[] = [
@@ -806,6 +1278,242 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       return (
         <div className="component-gallery-rest-bag-stage">
           <RestBagPanel rest={bagRestStateForPreview(stateId)} initialTarget={0} onAction={() => undefined} learnableMoves={() => Promise.resolve([tmFallbackMove(bagItemForState("tm"))])} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "shop-kind-tabs",
+    name: "商店分类 Tabs",
+    group: "rest",
+    defaultSize: {width: 620, height: 40},
+    componentFile: "apps/desktop/src/components/rest/ShopKindTabs.tsx",
+    cssFile: "apps/desktop/src/components/rest/ShopKindTabs.css",
+    cssVariablePrefix: "--shop-kind-tabs-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "manyKinds", name: "多分类"},
+      {id: "discount", name: "折扣"},
+      {id: "longText", name: "长分类名"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-shop-tabs-stage">
+          <ShopKindTabsPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "shop-offer-list",
+    name: "商店商品格",
+    group: "rest",
+    defaultSize: {width: 620, height: 140},
+    componentFile: "apps/desktop/src/components/rest/ShopOfferList.tsx",
+    cssFile: "apps/desktop/src/components/rest/ShopOfferList.css",
+    cssVariablePrefix: "--shop-offer-list-*",
+    dependencies: ["ItemIcon"],
+    states: [
+      {id: "empty", name: "待抽取"},
+      {id: "rolling", name: "抽取中"},
+      {id: "offers", name: "商品列表"},
+      {id: "bought", name: "已购买"},
+      {id: "bonus", name: "连抽奖励"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-shop-offer-stage">
+          <ShopOfferListPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "shop-offer-detail",
+    name: "商店商品详情",
+    group: "rest",
+    defaultSize: {width: 640, height: 320},
+    componentFile: "apps/desktop/src/components/rest/ShopOfferDetail.tsx",
+    cssFile: "apps/desktop/src/components/rest/ShopOfferDetail.css",
+    cssVariablePrefix: "--shop-offer-detail-*",
+    dependencies: ["ItemIcon", "PokopiaModal"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "tm", name: "技能机器"},
+      {id: "longText", name: "长说明"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-shop-detail-stage">
+          <ShopOfferDetailPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "barter-material-picker",
+    name: "以物易物材料选择",
+    group: "rest",
+    defaultSize: {width: 640, height: 320},
+    componentFile: "apps/desktop/src/components/rest/BarterMaterialPicker.tsx",
+    cssFile: "apps/desktop/src/components/rest/BarterMaterialPicker.css",
+    cssVariablePrefix: "--barter-material-picker-*",
+    dependencies: ["ItemIcon", "PokopiaModal"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "insufficient", name: "估值不足"},
+      {id: "full", name: "材料已满"},
+      {id: "empty", name: "空材料"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-barter-stage">
+          <BarterMaterialPickerPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-shop-panel",
+    name: "休整商店工具区",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/RestShopPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RestShopPanel.css",
+    cssVariablePrefix: "--rest-shop-panel-*",
+    dependencies: ["ShopKindTabs", "ShopOfferList", "ShopOfferDetail", "BarterMaterialPicker"],
+    states: [
+      {id: "normal", name: "默认"},
+      {id: "rolling", name: "抽奖中"},
+      {id: "bought", name: "已购买"},
+      {id: "barter", name: "以物易物"},
+      {id: "closed", name: "商店关闭"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-shop-stage">
+          <RestShopPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "shop-closed-notice",
+    name: "商店关闭提示",
+    group: "rest",
+    defaultSize: {width: 630, height: 150},
+    componentFile: "apps/desktop/src/components/rest/ShopClosedNotice.tsx",
+    cssFile: "apps/desktop/src/components/rest/ShopClosedNotice.css",
+    cssVariablePrefix: "--shop-closed-notice-*",
+    dependencies: [],
+    states: [
+      {id: "rainbowRocket", name: "彩虹火箭队"},
+      {id: "shopDisabled", name: "商店关闭"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-shop-closed-stage">
+          <ShopClosedNoticePreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "forge-material-list",
+    name: "熔炉材料列表",
+    group: "rest",
+    defaultSize: {width: 390, height: 150},
+    componentFile: "apps/desktop/src/components/rest/ForgeMaterialList.tsx",
+    cssFile: "apps/desktop/src/components/rest/ForgeMaterialList.css",
+    cssVariablePrefix: "--forge-material-list-*",
+    dependencies: ["ItemIcon"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "已选"},
+      {id: "blocked", name: "阻挡"},
+      {id: "empty", name: "空列表"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-forge-material-stage">
+          <ForgeMaterialListPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "forge-recipe-preview",
+    name: "熔炉配方预览",
+    group: "rest",
+    defaultSize: {width: 190, height: 150},
+    componentFile: "apps/desktop/src/components/rest/ForgeRecipePreview.tsx",
+    cssFile: "apps/desktop/src/components/rest/ForgeRecipePreview.css",
+    cssVariablePrefix: "--forge-recipe-preview-*",
+    dependencies: ["ItemIcon"],
+    states: [
+      {id: "empty", name: "空槽"},
+      {id: "partial", name: "部分材料"},
+      {id: "three", name: "三材料"},
+      {id: "working", name: "处理中"},
+      {id: "sameKind", name: "同类型材料"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-forge-recipe-stage">
+          <ForgeRecipePreviewStage stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "forge-result-panel",
+    name: "熔炉特殊重铸区",
+    group: "rest",
+    defaultSize: {width: 620, height: 52},
+    componentFile: "apps/desktop/src/components/rest/ForgeResultPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/ForgeResultPanel.css",
+    cssVariablePrefix: "--forge-result-panel-*",
+    dependencies: ["ItemIcon"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "noCoins", name: "金币不足"},
+      {id: "empty", name: "空特殊项"},
+      {id: "tera", name: "太晶珠"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-forge-result-stage">
+          <ForgeResultPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-forge-panel",
+    name: "休整熔炉工具区",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/RestForgePanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RestForgePanel.css",
+    cssVariablePrefix: "--rest-forge-panel-*",
+    dependencies: ["ForgeMaterialList", "ForgeRecipePreview", "ForgeResultPanel"],
+    states: [
+      {id: "normal", name: "默认"},
+      {id: "threeMaterials", name: "三材料"},
+      {id: "special", name: "特殊材料"},
+      {id: "empty", name: "无材料"},
+      {id: "blocked", name: "阻挡材料"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-forge-stage">
+          <RestForgePanelPreview stateId={stateId} />
         </div>
       );
     },
@@ -1866,11 +2574,84 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       {id: "manyTools", name: "多工具"},
       {id: "eventTools", name: "事件工具"},
       {id: "longText", name: "长文本"},
+      {id: "primaryInHeader", name: "常用入口在顶部"},
     ],
     renderPreview(stateId) {
       return (
         <div className="component-gallery-rest-toolbar-stage">
           <RestToolBarPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "event-move-service-panel",
+    name: "事件技能服务面板",
+    group: "rest",
+    defaultSize: {width: 630, height: 214},
+    componentFile: "apps/desktop/src/components/rest/EventMoveServicePanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/EventMoveServicePanel.css",
+    cssVariablePrefix: "--event-move-service-panel-*",
+    dependencies: ["EventMoveServiceTeamPicker", "EventMoveCardGrid", "MoveCard", "MoveReplacePanel"],
+    states: [
+      {id: "tutor", name: "讲师"},
+      {id: "egg", name: "培育"},
+      {id: "replaceMove", name: "替换技能"},
+      {id: "loading", name: "加载中"},
+      {id: "empty", name: "空状态"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-event-move-service-stage">
+          <EventMoveServicePanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "event-move-card-grid",
+    name: "事件技能卡网格",
+    group: "rest",
+    defaultSize: {width: 340, height: 150},
+    componentFile: "apps/desktop/src/components/rest/EventMoveCardGrid.tsx",
+    cssFile: "apps/desktop/src/components/rest/EventMoveCardGrid.css",
+    cssVariablePrefix: "--event-move-card-grid-*",
+    dependencies: ["MoveCard"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "empty", name: "空状态"},
+      {id: "loading", name: "加载中"},
+      {id: "longMoveName", name: "长技能名"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-event-move-card-grid-stage">
+          <EventMoveCardGridPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "event-move-service-team-picker",
+    name: "事件技能队伍选择",
+    group: "rest",
+    defaultSize: {width: 96, height: 134},
+    componentFile: "apps/desktop/src/components/rest/EventMoveServiceTeamPicker.tsx",
+    cssFile: "apps/desktop/src/components/rest/EventMoveServiceTeamPicker.css",
+    cssVariablePrefix: "--event-move-service-team-picker-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "sixPokemon", name: "六只队伍"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-event-move-team-stage">
+          <EventMoveServiceTeamPickerPreview stateId={stateId} />
         </div>
       );
     },
@@ -2037,6 +2818,380 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       return (
         <div className="component-gallery-rest-my-team-stage">
           <RestMyTeamPanel rest={restStateForPreview(stateId)} selectedSlot={0} onSelectSlot={() => undefined} onMove={() => undefined} onUseItem={() => undefined} onUnequip={() => undefined} onStats={() => undefined} onAction={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-event-prompt",
+    name: "休整奇遇提示",
+    group: "rest",
+    defaultSize: {width: 640, height: 320},
+    componentFile: "apps/desktop/src/components/rest/RestEventPrompt.tsx",
+    cssFile: "apps/desktop/src/components/rest/RestEventPrompt.css",
+    cssVariablePrefix: "--rest-event-prompt-*",
+    dependencies: ["PokopiaModal"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "longText", name: "长文本"},
+      {id: "manyOptions", name: "多选项"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-event-stage">
+          <RestEventPrompt rest={restEventStateForPreview(stateId)} onAction={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rainbow-rocket-pokemon-card",
+    name: "彩虹火箭队宝可梦卡",
+    group: "rest",
+    defaultSize: {width: 88, height: 58},
+    componentFile: "apps/desktop/src/components/rest/RainbowRocketPokemonCard.tsx",
+    cssFile: "apps/desktop/src/components/rest/RainbowRocketPokemonCard.css",
+    cssVariablePrefix: "--rainbow-rocket-pokemon-card-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "restoreSelected", name: "治疗选中"},
+      {id: "disabled", name: "禁用"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rainbow-card-stage">
+          <RainbowRocketPokemonCardPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rainbow-rocket-support-panel",
+    name: "彩虹火箭队支援面板",
+    group: "rest",
+    defaultSize: {width: 640, height: 320},
+    componentFile: "apps/desktop/src/components/rest/RainbowRocketSupportPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RainbowRocketSupportPanel.css",
+    cssVariablePrefix: "--rainbow-support-* / --rainbow-rocket-pokemon-card-*",
+    dependencies: ["RainbowRocketPokemonCard", "PokopiaModal"],
+    states: [
+      {id: "invasion", name: "入侵"},
+      {id: "normalSupport", name: "普通支援"},
+      {id: "teamFull", name: "队伍满员"},
+      {id: "restoreSelected", name: "治疗选中"},
+      {id: "emptyCandidates", name: "空候选"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rainbow-support-stage">
+          <RainbowRocketSupportPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "night-sky-panel",
+    name: "小道消息面板",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/NightSkyPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/NightSkyPanel.css",
+    cssVariablePrefix: "--night-sky-panel-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "hiddenTrainer", name: "未知训练师"},
+      {id: "revealed", name: "已揭示"},
+      {id: "empty", name: "空状态"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-night-sky-stage">
+          <NightSkyPanel rest={nightSkyStateForPreview(stateId)} embedded onClose={() => undefined} onAction={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "exchange-pokemon-card",
+    name: "交换宝可梦卡片",
+    group: "rest",
+    defaultSize: {width: 150, height: 54},
+    componentFile: "apps/desktop/src/components/rest/ExchangePokemonCard.tsx",
+    cssFile: "apps/desktop/src/components/rest/ExchangePokemonCard.css",
+    cssVariablePrefix: "--exchange-pokemon-card-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "disabled", name: "禁用"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-exchange-card-stage">
+          <ExchangePokemonCardPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "pokemon-exchange-panel",
+    name: "通用宝可梦交换面板",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/PokemonExchangePanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/PokemonExchangePanel.css",
+    cssVariablePrefix: "--pokemon-exchange-panel-*",
+    dependencies: ["ExchangePokemonCard"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "sixPokemon", name: "六只队伍"},
+      {id: "disabledEnemy", name: "敌方已交换"},
+      {id: "emptyEnemy", name: "空敌方"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-pokemon-exchange-stage">
+          <PokemonExchangePanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-exchange-panel",
+    name: "休整交换面板",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/RestExchangePanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RestExchangePanel.css",
+    cssVariablePrefix: "--rest-exchange-panel-*",
+    dependencies: ["PokemonExchangePanel", "ExchangePokemonCard"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "noCost", name: "无交换费用"},
+      {id: "disabledEnemy", name: "敌方已交换"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-exchange-stage">
+          <RestExchangePanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "raid-exchange-panel",
+    name: "骇人奇袭交换面板",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/RaidExchangePanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RaidExchangePanel.css",
+    cssVariablePrefix: "--raid-exchange-panel-*",
+    dependencies: ["PokemonExchangePanel", "ExchangePokemonCard"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "emptyEnemy", name: "空敌方"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-raid-exchange-stage">
+          <RaidExchangePanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "run-talent-panel",
+    name: "局内天赋工具面板",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/RunTalentPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RunTalentPanel.css",
+    cssVariablePrefix: "--run-talent-panel-*",
+    dependencies: ["RunTalentActionPanel", "RunTalentPokemonPicker", "RunTalentExchangePanel", "PokemonHpBar"],
+    states: [
+      {id: "trust", name: "不负信赖"},
+      {id: "allIn", name: "孤注一掷"},
+      {id: "leadChange", name: "临阵换将"},
+      {id: "bpExchange", name: "有借有换"},
+      {id: "used", name: "已使用"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-run-talent-stage">
+          <RunTalentPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "item-recycler-panel",
+    name: "道具回收商",
+    group: "rest",
+    defaultSize: {width: 630, height: 150},
+    componentFile: "apps/desktop/src/components/rest/ItemRecyclerPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/ItemRecyclerPanel.css",
+    cssVariablePrefix: "--item-recycler-panel-*",
+    dependencies: ["ItemIcon"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "empty", name: "空状态"},
+      {id: "lockedItems", name: "锁定道具"},
+      {id: "longName", name: "长名字"},
+      {id: "manyItems", name: "多道具"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-item-recycler-stage">
+          <ItemRecyclerPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "score-bet-panel",
+    name: "重金下注面板",
+    group: "rest",
+    defaultSize: {width: 630, height: 150},
+    componentFile: "apps/desktop/src/components/rest/ScoreBetPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/ScoreBetPanel.css",
+    cssVariablePrefix: "--score-bet-panel-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "noBet", name: "无盘口"},
+      {id: "maxStake", name: "最高下注"},
+      {id: "manyMultipliers", name: "多赔率"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-score-bet-stage">
+          <ScoreBetPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "doctor-event-panel",
+    name: "蹩脚医生事件",
+    group: "rest",
+    defaultSize: {width: 630, height: 150},
+    componentFile: "apps/desktop/src/components/rest/DoctorEventPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/DoctorEventPanel.css",
+    cssVariablePrefix: "--doctor-event-panel-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "busy", name: "处理中"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-doctor-event-stage">
+          <DoctorEventPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "event-level-panel",
+    name: "等级分配事件",
+    group: "rest",
+    defaultSize: {width: 630, height: 150},
+    componentFile: "apps/desktop/src/components/rest/EventLevelPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/EventLevelPanel.css",
+    cssVariablePrefix: "--event-level-panel-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "noPoints", name: "无点数"},
+      {id: "sixPokemon", name: "六只队伍"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-event-level-stage">
+          <EventLevelPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "run-talent-pokemon-picker",
+    name: "局内天赋队伍选择",
+    group: "rest",
+    defaultSize: {width: 510, height: 114},
+    componentFile: "apps/desktop/src/components/rest/RunTalentPokemonPicker.tsx",
+    cssFile: "apps/desktop/src/components/rest/RunTalentPokemonPicker.css",
+    cssVariablePrefix: "--run-talent-pokemon-picker-*",
+    dependencies: ["PokemonSprite", "PokemonHpBar"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "sixPokemon", name: "六只队伍"},
+      {id: "used", name: "已使用"},
+      {id: "fainted", name: "濒死"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-run-talent-picker-stage">
+          <RunTalentPickerPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "run-talent-action-panel",
+    name: "局内天赋行动内容",
+    group: "rest",
+    defaultSize: {width: 600, height: 178},
+    componentFile: "apps/desktop/src/components/rest/RunTalentActionPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RunTalentActionPanel.css",
+    cssVariablePrefix: "--run-talent-action-panel-*",
+    dependencies: ["RunTalentPokemonPicker", "RunTalentExchangePanel"],
+    states: [
+      {id: "trust", name: "不负信赖"},
+      {id: "allIn", name: "孤注一掷"},
+      {id: "leadChange", name: "临阵换将"},
+      {id: "bpExchange", name: "有借有换"},
+      {id: "disabled", name: "禁用"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-run-talent-action-stage">
+          <RunTalentActionPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "run-talent-exchange-panel",
+    name: "局内天赋 BP 兑换",
+    group: "rest",
+    defaultSize: {width: 560, height: 76},
+    componentFile: "apps/desktop/src/components/rest/RunTalentExchangePanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/RunTalentExchangePanel.css",
+    cssVariablePrefix: "--run-talent-exchange-panel-*",
+    dependencies: [],
+    states: [
+      {id: "bpExchange", name: "普通"},
+      {id: "disabled", name: "禁用"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-run-talent-exchange-stage">
+          <RunTalentExchangePanelPreview stateId={stateId} />
         </div>
       );
     },
