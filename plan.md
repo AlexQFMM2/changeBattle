@@ -276,26 +276,26 @@
 - 长训练师名不撑破输入区域。
 - 头像列表滚动条符合 UI 风格。
 
-## 3.5 TalentConfigPage
+## 3.5 TalentConfigPage 【x】
 
 ### 页面职责
 
 - 星图浏览。
 - 天赋节点查看。
-- 点亮和装备天赋。
+- 点亮和升级天赋节点。
+- 装备天赋交互已废除，本页面不提供装备槽。
 
 ### 组件编排
 
 - `TalentToolbar`
 - `TalentBoardCanvas`
 - `TalentNodeDetailDrawer`
-- `TalentSlotBar`
 
 ### 新增/拆分组件
 
 - `TalentConfigPage.tsx/css`
   - 页面骨架。
-  - 变量：`--talent-config-page-toolbar-height`、`--talent-config-page-slotbar-height`。
+  - 变量：`--talent-config-page-toolbar-height`。
 - `TalentToolbar.tsx/css`
   - 功能：返回、重置视角、实际尺寸、BP 展示。
   - 变量：`--talent-toolbar-height`、`--talent-toolbar-button-width`。
@@ -305,9 +305,6 @@
 - `TalentNodeDetailDrawer.tsx/css`
   - 功能：右侧详情抽屉。
   - 变量：`--talent-node-detail-drawer-width`。
-- `TalentSlotBar.tsx/css`
-  - 功能：已装备天赋槽。
-  - 变量：`--talent-slot-bar-height`、`--talent-slot-bar-cell-width`。
 
 ### 样式设计
 
@@ -361,7 +358,7 @@
 - 长强化说明在详情内滚动，不撑开页面。
 - 升级按钮不因文本变长移动。
 
-## 3.7 BattleHistoryPage
+## 3.7 BattleHistoryPage 【x】
 
 ### 页面职责
 
@@ -400,12 +397,12 @@
 - 点击记录进入对应 `ResultPage`。
 - 单场回合记录只在结算页内查看。
 
-## 3.8 BattleSettingPage
+## 3.8 BattleSettingPage 【x】
 
 ### 页面职责
 
 - 战斗规则设置。
-- 规则预设查看和保存。
+- 地区、规则预设、神战开关先本地编辑，点击保存并返回后持久化。
 
 ### 组件编排
 
@@ -439,8 +436,9 @@
 
 - 规则说明长文本内部滚动。
 - App 横屏下 tab 不换两行。
+- 页面底部提供保存并返回按钮，保存状态在底部动作栏展示。
 
-## 3.9 StarterItemsPage
+## 3.9 StarterItemsPage 【x】
 
 ### 页面职责
 

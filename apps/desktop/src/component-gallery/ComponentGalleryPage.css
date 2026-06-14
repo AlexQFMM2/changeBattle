@@ -480,6 +480,357 @@
   --page-action-bar-button-height: 18px;
 }
 
+.component-gallery-talent-toolbar-stage,
+.component-gallery-talent-board-stage,
+.component-gallery-talent-drawer-stage,
+.component-gallery-talent-page-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #050807;
+}
+
+.component-gallery-talent-toolbar-stage {
+  width: 360px;
+  height: 70px;
+}
+
+.component-gallery-talent-toolbar-stage .talent-toolbar {
+  position: relative;
+  left: auto;
+  top: auto;
+}
+
+.component-gallery-talent-board-stage,
+.component-gallery-talent-page-stage {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-talent-board-stage .talent-board-canvas {
+  --talent-board-node-size: 20px;
+}
+
+.component-gallery-talent-drawer-stage {
+  width: 160px;
+  height: 150px;
+}
+
+.component-gallery-talent-drawer-stage .talent-node-detail-drawer {
+  position: relative;
+  width: 160px;
+  height: 150px;
+  min-width: 160px;
+  inset: auto;
+}
+
+.component-gallery-talent-page-stage .talent-config-page {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-talent-page-stage .talent-toolbar {
+  --talent-toolbar-height: 28px;
+  --talent-toolbar-button-width: 28px;
+  left: 7px;
+  top: 6px;
+  min-height: 28px;
+  grid-template-columns: minmax(88px, auto) auto auto;
+  gap: 4px;
+  padding: 4px 5px 4px 7px;
+}
+
+.component-gallery-talent-page-stage .talent-toolbar-title strong {
+  font-size: 9px;
+}
+
+.component-gallery-talent-page-stage .talent-toolbar-title span {
+  font-size: 6px;
+}
+
+.component-gallery-talent-page-stage .talent-toolbar button {
+  min-height: 16px;
+  padding: 1px 4px;
+  font-size: 6px;
+}
+
+.component-gallery-talent-page-stage .talent-toolbar-zoom button {
+  min-width: 18px;
+  width: 18px;
+  font-size: 8px;
+}
+
+.component-gallery-talent-page-stage .talent-toolbar-zoom button:nth-child(2) {
+  min-width: 24px;
+  width: 24px;
+  font-size: 6px;
+}
+
+.component-gallery-talent-page-stage .talent-board-canvas {
+  --talent-board-node-size: 20px;
+}
+
+.component-gallery-talent-page-stage .talent-node-detail-drawer {
+  --talent-node-detail-drawer-width: 118px;
+  gap: 4px;
+  padding: 8px;
+}
+
+.component-gallery-talent-page-stage .talent-node-detail-body {
+  gap: 4px;
+  padding-top: 20px;
+}
+
+.component-gallery-talent-page-stage .talent-node-detail-body h3 {
+  font-size: 11px;
+}
+
+.component-gallery-talent-page-stage .talent-node-detail-body > p,
+.component-gallery-talent-page-stage .talent-node-detail-body > small,
+.component-gallery-talent-page-stage .talent-node-effect-box p {
+  font-size: 7px;
+}
+
+.component-gallery-talent-page-stage .talent-node-effect-box,
+.component-gallery-talent-page-stage .talent-node-requirements {
+  padding: 4px;
+}
+
+.component-gallery-history-list-stage,
+.component-gallery-history-detail-stage,
+.component-gallery-history-action-stage,
+.component-gallery-history-page-stage {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #e2ebd8;
+}
+
+.component-gallery-history-list-stage {
+  width: 292px;
+  height: 130px;
+}
+
+.component-gallery-history-detail-stage {
+  width: 174px;
+  height: 130px;
+}
+
+.component-gallery-history-action-stage {
+  width: 360px;
+  height: 58px;
+  padding: 8px;
+}
+
+.component-gallery-history-action-stage .history-action-bar {
+  width: 100%;
+}
+
+.component-gallery-history-page-stage {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-history-page-stage .battle-history-page {
+  --battle-history-page-list-width: 292px;
+  --battle-history-page-detail-width: 174px;
+}
+
+.component-gallery-battle-setting-tabs-stage,
+.component-gallery-battle-setting-list-stage,
+.component-gallery-battle-setting-detail-stage,
+.component-gallery-battle-setting-action-stage,
+.component-gallery-battle-setting-page-stage {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #e2ebd8;
+}
+
+.component-gallery-battle-setting-tabs-stage {
+  width: 240px;
+  height: 46px;
+  padding: 10px;
+}
+
+.component-gallery-battle-setting-tabs-stage .battle-rule-tabs {
+  width: 100%;
+}
+
+.component-gallery-battle-setting-list-stage {
+  width: 292px;
+  height: 130px;
+}
+
+.component-gallery-battle-setting-detail-stage {
+  width: 190px;
+  height: 130px;
+}
+
+.component-gallery-battle-setting-action-stage {
+  width: auto;
+  height: auto;
+  padding: 8px;
+}
+
+.component-gallery-battle-setting-action-stage .battle-setting-action-bar {
+  --battle-setting-action-bar-width: 340px;
+}
+
+.component-gallery-battle-setting-page-stage {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-setting-page {
+  --battle-setting-page-tabs-height: 19px;
+  --battle-setting-page-action-height: 28px;
+  --battle-setting-page-list-width: 276px;
+  --battle-setting-page-detail-width: 178px;
+  padding: 4px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-setting-shell {
+  gap: 4px;
+  padding: 4px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-setting-body {
+  gap: 4px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-rule-preset-list {
+  --battle-rule-preset-list-row-height: 24px;
+  gap: 3px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-rule-detail-panel {
+  padding: 6px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-rule-detail-copy {
+  gap: 4px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-rule-detail-copy h3 {
+  font-size: 10px;
+}
+
+.component-gallery-battle-setting-page-stage .battle-rule-detail-copy p {
+  font-size: 6px;
+}
+
+.component-gallery-starter-tabs-stage,
+.component-gallery-starter-list-stage,
+.component-gallery-starter-detail-stage,
+.component-gallery-starter-action-stage,
+.component-gallery-starter-page-stage {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #e2ebd8;
+}
+
+.component-gallery-starter-tabs-stage {
+  width: 370px;
+  height: 48px;
+  padding: 10px;
+}
+
+.component-gallery-starter-tabs-stage .starter-item-tabs {
+  width: 100%;
+}
+
+.component-gallery-starter-list-stage {
+  width: 330px;
+  height: 126px;
+}
+
+.component-gallery-starter-detail-stage {
+  width: 150px;
+  height: 126px;
+}
+
+.component-gallery-starter-action-stage {
+  width: auto;
+  height: auto;
+  padding: 8px;
+}
+
+.component-gallery-starter-action-stage .starter-items-action-bar {
+  --starter-items-action-bar-width: 370px;
+}
+
+.component-gallery-starter-page-stage {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-starter-page-stage .starter-items-page {
+  --starter-items-page-list-width: 310px;
+  --starter-items-page-detail-width: 142px;
+  padding: 4px;
+}
+
+.component-gallery-starter-page-stage .starter-items-shell {
+  grid-template-rows: 26px 20px minmax(0, 1fr) 28px;
+  gap: 4px;
+  padding: 4px;
+}
+
+.component-gallery-starter-page-stage .starter-items-header {
+  padding: 3px 6px;
+}
+
+.component-gallery-starter-page-stage .starter-items-header h2 {
+  font-size: 10px;
+}
+
+.component-gallery-starter-page-stage .starter-item-tabs {
+  --starter-item-tabs-height: 20px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-list {
+  --starter-offer-list-card-height: 45px;
+  gap: 4px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-card {
+  grid-template-columns: 22px 12px minmax(0, 1fr) auto;
+  grid-template-rows: 14px 12px 11px;
+  gap: 1px 4px;
+  padding: 3px 4px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-card .item-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-card strong {
+  font-size: 7px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-card span,
+.component-gallery-starter-page-stage .starter-offer-card small {
+  font-size: 5px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-detail {
+  --starter-offer-detail-icon-size: 22px;
+  gap: 4px;
+  padding: 5px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-detail h3 {
+  font-size: 9px;
+}
+
+.component-gallery-starter-page-stage .starter-offer-detail p {
+  font-size: 6px;
+}
+
 .component-gallery-meta {
   min-width: 0;
   display: grid;

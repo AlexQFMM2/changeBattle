@@ -1,0 +1,53 @@
+.battle-setting-page {
+  --battle-setting-page-tabs-height: 22px;
+  --battle-setting-page-action-height: 28px;
+  --battle-setting-page-list-width: 292px;
+  --battle-setting-page-detail-width: 190px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 7px;
+  background:
+    linear-gradient(90deg, #d9e7d4 0 70%, #c7dac9 70%),
+    repeating-linear-gradient(0deg, #eef4e5, #eef4e5 8px, #e2ebd8 8px, #e2ebd8 16px);
+  overflow: hidden;
+}
+
+.battle-setting-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: var(--battle-setting-page-tabs-height) minmax(0, 1fr) var(--battle-setting-page-action-height);
+  gap: 6px;
+  border: 2px solid #25332b;
+  border-radius: 6px;
+  background: #f7f3e7;
+  padding: 6px;
+  box-shadow: 0 12px 24px #00000024;
+  overflow: hidden;
+}
+
+.battle-setting-shell .battle-rule-tabs {
+  --battle-rule-tabs-height: var(--battle-setting-page-tabs-height);
+}
+
+.battle-setting-body {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(var(--battle-setting-page-list-width), 1fr) var(--battle-setting-page-detail-width);
+  gap: 6px;
+  overflow: hidden;
+}
+
+.battle-setting-shell .battle-rule-detail-panel {
+  --battle-rule-detail-panel-width: var(--battle-setting-page-detail-width);
+}
+
+.battle-setting-shell .battle-setting-action-bar {
+  --battle-setting-action-bar-width: 100%;
+  --battle-setting-action-bar-height: var(--battle-setting-page-action-height);
+}

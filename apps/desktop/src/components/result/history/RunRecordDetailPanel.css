@@ -1,0 +1,163 @@
+.run-record-detail-panel {
+  --run-record-detail-panel-width: 174px;
+  width: var(--run-record-detail-panel-width);
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: 5px;
+  border: 2px solid #25332b;
+  border-radius: 6px;
+  background: #fffdf5;
+  padding: 7px;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 28%), 0 4px 0 rgb(55 42 45 / 20%);
+  overflow: hidden;
+}
+
+.run-record-detail-panel.empty {
+  align-content: center;
+  grid-template-rows: auto auto auto;
+}
+
+.run-record-detail-panel header {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.run-record-detail-panel header span,
+.run-record-detail-panel.empty > span {
+  min-width: 0;
+  overflow: hidden;
+  color: #5f6c57;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-record-detail-panel.win header span {
+  color: #247267;
+}
+
+.run-record-detail-panel.loss header span {
+  color: #b73333;
+}
+
+.run-record-detail-panel.abort header span {
+  color: #8e4c22;
+}
+
+.run-record-detail-panel header strong,
+.run-record-detail-panel.empty strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #25332b;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-record-detail-panel header p,
+.run-record-detail-panel.empty p {
+  min-width: 0;
+  max-height: 22px;
+  margin: 0;
+  overflow: hidden;
+  color: #596052;
+  font-size: 6px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.run-record-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  margin: 0;
+}
+
+.run-record-detail-stats div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #cbd7be;
+  border-radius: 4px;
+  background: #f5f0df;
+  padding: 3px;
+}
+
+.run-record-detail-stats dt,
+.run-record-detail-stats dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-record-detail-stats dt {
+  color: #6d7562;
+  font-size: 5px;
+  font-weight: 900;
+}
+
+.run-record-detail-stats dd {
+  color: #25332b;
+  font-size: 6px;
+  font-weight: 950;
+}
+
+.run-record-detail-rewards {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.run-record-detail-rewards span {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #25332b;
+  color: #fff7d7;
+  padding: 3px 5px;
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-record-detail-team {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 26px);
+  grid-auto-rows: 26px;
+  align-content: start;
+  justify-content: center;
+  gap: 3px;
+  overflow: auto;
+}
+
+.run-record-detail-team .history-pokemon-sprite {
+  --history-pokemon-sprite-size: 26px;
+}
+
+.run-record-detail-team small,
+.run-record-detail-hint {
+  color: #6d7562;
+  font-size: 5px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.run-record-detail-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

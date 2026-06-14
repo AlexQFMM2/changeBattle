@@ -1,0 +1,19 @@
+.history-pokemon-sprite {
+  width: var(--history-pokemon-sprite-size, 18px);
+  height: var(--history-pokemon-sprite-size, 18px);
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.history-pokemon-sprite img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.history-pokemon-sprite.empty,
+.history-pokemon-sprite img.failed {
+  display: none;
+}

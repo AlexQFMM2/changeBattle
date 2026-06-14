@@ -1,0 +1,121 @@
+.starter-offer-list {
+  --starter-offer-list-card-height: 58px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, var(--starter-offer-list-card-height));
+  align-content: start;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.starter-offer-list.empty {
+  place-items: center;
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.starter-offer-slot.empty {
+  min-width: 0;
+  min-height: 0;
+  border: 2px dashed rgb(37 51 43 / 18%);
+  border-radius: 5px;
+}
+
+.starter-offer-card {
+  min-width: 0;
+  min-height: 0;
+  height: var(--starter-offer-list-card-height);
+  display: grid;
+  grid-template-columns: 26px 14px minmax(0, 1fr) auto;
+  grid-template-rows: 18px 15px 13px;
+  align-items: center;
+  gap: 2px 5px;
+  border: 2px solid #25332b;
+  border-radius: 5px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 4px 5px;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 28%), 0 3px 0 rgb(55 42 45 / 18%);
+  text-align: left;
+}
+
+.starter-offer-card:hover,
+.starter-offer-card:focus-visible,
+.starter-offer-card.focused {
+  border-color: #75a7c6;
+  background: #eef8ff;
+  outline: 0;
+}
+
+.starter-offer-card.selected {
+  background: #f5fbf2;
+}
+
+.starter-offer-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.starter-offer-card .item-icon {
+  grid-row: 1 / span 3;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.starter-offer-card > i {
+  width: 12px;
+  height: 12px;
+  display: block;
+  border: 2px solid #25332b;
+  border-radius: 3px;
+  background: #f7f3e7;
+}
+
+.starter-offer-card.selected > i {
+  background: #247267;
+}
+
+.starter-offer-card strong,
+.starter-offer-card span,
+.starter-offer-card small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.starter-offer-card strong {
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.starter-offer-card span {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 4px;
+  color: #b6801d;
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.starter-offer-card b,
+.starter-offer-card em {
+  font-style: normal;
+}
+
+.starter-offer-card small {
+  grid-column: 3 / -1;
+  color: #596052;
+  font-size: 6px;
+  font-weight: 800;
+  line-height: 1;
+}

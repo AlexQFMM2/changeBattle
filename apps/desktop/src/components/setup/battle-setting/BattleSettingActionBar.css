@@ -1,0 +1,82 @@
+.battle-setting-action-bar {
+  --battle-setting-action-bar-width: 340px;
+  --battle-setting-action-bar-height: 28px;
+  --battle-setting-action-bar-button-width: 88px;
+  --battle-setting-action-bar-buttons-width: 94px;
+  width: var(--battle-setting-action-bar-width);
+  height: var(--battle-setting-action-bar-height);
+  min-height: var(--battle-setting-action-bar-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--battle-setting-action-bar-buttons-width);
+  align-items: center;
+  gap: 6px;
+  border: 2px solid #25332b;
+  border-radius: 6px;
+  background: #fffdf5;
+  padding: 3px 4px 3px 7px;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 28%), 0 3px 0 rgb(55 42 45 / 18%);
+}
+
+.battle-setting-action-bar span {
+  min-width: 0;
+  overflow: hidden;
+  color: #596052;
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-setting-action-buttons {
+  min-width: 0;
+  width: var(--battle-setting-action-bar-buttons-width);
+  align-self: center;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+}
+
+.battle-setting-action-bar.saving span {
+  color: #b6801d;
+}
+
+.battle-setting-action-bar.saved span {
+  color: #247267;
+}
+
+.battle-setting-action-bar.error span {
+  color: #b73333;
+}
+
+.battle-setting-action-bar button {
+  min-width: 0;
+  min-height: 0;
+  width: var(--battle-setting-action-bar-button-width);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: 2px solid #25332b;
+  border-radius: 5px;
+  background: #25332b;
+  color: #fff7d7;
+  padding: 0;
+  box-shadow: none;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 16px;
+  height: 16px;
+  text-align: center;
+}
+
+.battle-setting-action-bar button:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.battle-setting-action-bar button:hover,
+.battle-setting-action-bar button:focus-visible {
+  background: #d66b37;
+  outline: 0;
+}

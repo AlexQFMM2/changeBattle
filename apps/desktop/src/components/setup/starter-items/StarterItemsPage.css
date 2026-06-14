@@ -1,0 +1,118 @@
+.starter-items-page {
+  --starter-items-page-list-width: 330px;
+  --starter-items-page-detail-width: 142px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 7px;
+  background:
+    linear-gradient(90deg, #e9efdf 0 68%, #d2e1cf 68%),
+    repeating-linear-gradient(0deg, #eef4e5, #eef4e5 6px, #dfe9d3 6px, #dfe9d3 12px);
+  overflow: hidden;
+}
+
+.starter-items-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 36px 24px minmax(0, 1fr) 28px;
+  gap: 5px;
+  border: 2px solid #25332b;
+  border-radius: 6px;
+  background: #f7f3e7;
+  padding: 6px;
+  box-shadow: 0 12px 24px #00000024;
+  overflow: hidden;
+}
+
+.starter-items-header {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-items: center;
+  border: 2px solid #25332b;
+  border-radius: 6px;
+  background: #fffdf5;
+  padding: 4px 8px;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 28%), 0 3px 0 rgb(55 42 45 / 18%);
+}
+
+.starter-items-header h2,
+.starter-items-header p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.starter-items-header h2 {
+  color: #25332b;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.starter-items-header p {
+  margin-top: 3px;
+  color: #596052;
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.starter-items-body {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(var(--starter-items-page-list-width), 1fr) var(--starter-items-page-detail-width);
+  gap: 6px;
+  overflow: hidden;
+}
+
+.starter-items-shell .starter-items-action-bar {
+  --starter-items-action-bar-width: 100%;
+}
+
+.starter-items-empty {
+  place-self: center;
+  width: 300px;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  border: 2px solid #25332b;
+  border-radius: 6px;
+  background: #fffdf5;
+  padding: 18px;
+  text-align: center;
+}
+
+.starter-items-empty h2,
+.starter-items-empty p {
+  margin: 0;
+}
+
+.starter-items-empty h2 {
+  font-size: 14px;
+}
+
+.starter-items-empty p {
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.starter-items-empty button {
+  min-width: 72px;
+  height: 22px;
+  border: 2px solid #25332b;
+  border-radius: 5px;
+  background: #247267;
+  color: #fff7d7;
+  padding: 0 8px;
+  font-size: 7px;
+  font-weight: 900;
+}
