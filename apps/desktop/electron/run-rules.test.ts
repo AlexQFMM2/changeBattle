@@ -551,8 +551,8 @@ function testPremiumShopHelpers(): void {
 function testTmIconAssets(): void {
   assert.equal(tmIconAssetForMoveType("Bug"), "assets/runtime/items/machinebug/icon.png");
   assert.equal(tmIconAssetForMoveType("Fire"), "assets/runtime/items/machinefire/icon.png");
-  assert.equal(tmIconAssetForMoveType("???"), "assets/placeholders/move.png");
-  assert.equal(tmIconAssetForMoveType(undefined), "assets/placeholders/move.png");
+  assert.equal(tmIconAssetForMoveType("???"), "assets/runtime/items/machinenormal/icon.png");
+  assert.equal(tmIconAssetForMoveType(undefined), "assets/runtime/items/machinenormal/icon.png");
 }
 
 function testPokemonDexDetailTabs(): void {

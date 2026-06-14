@@ -1,17 +1,30 @@
 import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
-import type {AppStatus, BagCategoryView, BagItemView, BattleAiHint, BattleAiHintAlternative, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, BattleTurnPokemonState, BattleTurnRecord, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
+import type {AppStatus, BagCategoryView, BagItemView, BattleAiHint, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, BattleTurnPokemonState, BattleTurnRecord, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
 import {BATTLE_SYSTEM_OPTIONS} from "@changebattle/shared";
 import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {EventInfoModal} from "../feedback/EventInfoModal";
-import {BagLayout} from "../bag/BagLayout";
-import {BagItemDetailPanel} from "../bag/BagItemDetailPanel";
-import {PokemonTeamPicker} from "../bag/PokemonTeamPicker";
+import {BagActionPanel, type BagActionStep} from "../bag/BagActionPanel";
+import {BagFilterTabs} from "../bag/BagFilterTabs";
+import {BagItemList} from "../bag/BagItemList";
+import {BAG_FILTERS, bagFilterForItem, type BagFilterKey} from "../bag/bagModel";
 import {MoveCard} from "../move/MoveCard";
 import {QuickDexModal} from "../dex/QuickDexModal";
-import {BattleSmallImage} from "./BattleSmallImage";
+import {BattleAiHintModal} from "./BattleAiHintModal";
+import {BattleCommandPanel} from "./BattleCommandPanel";
+import {BattleField} from "./BattleField";
+import {BattleFighterPanel} from "./BattleFighterPanel";
+import {BattleMoveMenu} from "./BattleMoveMenu";
+import {BattleMainCommands} from "./BattleMainCommands";
+import {BattlePage} from "./BattlePage";
+import {BattlePartyBoard} from "./BattlePartyBoard";
+import {BattleBagPanel} from "./BattleBagPanel";
+import {BattlePokemonDetail} from "./BattlePokemonDetail";
+import {BattleTeamMenu} from "./BattleTeamMenu";
+import {BattleToolbar} from "./BattleToolbar";
+import {BattleTurnRecordPanel} from "./BattleTurnRecordPanel";
 import {buildBattleDisplaySteps, eventCanMutateDisplayedActive} from "./timelineFlow";
 import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgrounds.csv?raw";
 
@@ -1250,47 +1263,50 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     setBattleDexQuery(query);
   };
   return (
-    <div className={`battle-layout ${dialogue ? "battle-dialogue-active" : ""}`} data-battle-speed={battleSpeed} onClick={dialogue ? advanceBattleDialogue : undefined}>
-      {!dialogue ? <BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => selectPanelMode("statusMenu")} onOpenEnemyDex={battle.show_move_effectiveness ? openBattleDex : undefined} /> : null}
-      <section className={`battle-field ${battleBackgroundUrl ? "has-battle-background" : ""} ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`} style={battleFieldStyle}>
-        <div className="battle-platforms" aria-hidden="true">
-          <i className="battle-platform player-platform" />
-          <i className="battle-platform enemy-platform" />
-        </div>
-        <FieldEffectsOverlay battle={battle} />
-        <BattleEffectLayer cue={currentVisualCue} />
-        {trainerIntroActive ? <TrainerIntroOverlay battle={trainerOverlayBattle} /> : null}
-        <div className="turn-badge">第 {battle.tracker.turn} 回合</div>
-        <BattleToolbar speed={battleSpeed} onSpeedChange={onBattleAnimationSpeedChange} onAiHint={handleAiHint} aiHintLoading={aiHintLoading} aiHintDisabled={aiHintDisabled} aiAutoplayEnabled={aiAutoplayEnabled} aiAutoplayPending={aiAutoplayPending} aiAutoplayDisabled={aiAutoplayToggleDisabled} onAiAutoplayToggle={toggleAiAutoplay} />
-        {battle.battle_event_statuses?.length ? (
-          <div className="battle-event-status-strip">
-            {battle.battle_event_statuses.map(status => (
-              <button className={`tone-${status.tone || "safe"}`} title={status.detail || status.label} onClick={() => setEventInfoStatus(status)} key={`battle-event-${status.id}`}>
-                {status.label}{status.id === "contest" ? ` ${battle.contest_score || 0}` : ""}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <FighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} teraType={displayedActiveSnapshots.p2.tera_type_zh} />
-        <div className="battle-sprites">
-          <PokemonSprite className={`back-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""} ${playerDynamaxClass} ${playerTeraClass}`} pokemon={displayedSubstitutes.p1 ? undefined : displayPlayer} src={playerSprite} variant="back_normal" alt={displayPlayer ? displayName(displayPlayer) : "我方宝可梦"} entrance={!displayedSubstitutes.p1 && introActive} onClick={() => setDetailIndex(activePlayerIndex)} />
-          <PokemonSprite className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""} ${enemyDynamaxClass} ${enemyTeraClass}`} pokemon={displayedSubstitutes.p2 ? undefined : displayEnemy} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} entrance={!displayedSubstitutes.p2 && introActive} />
-        </div>
-        <FighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} teraType={displayedActiveSnapshots.p1.tera_type_zh} onClick={() => setDetailIndex(activePlayerIndex)} />
-        {currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""} ${currentTimelineEvent.effect === "z-move-call" ? "z-move-call" : ""} ${currentTimelineEvent.effect === "z-move-name" ? "z-move-name" : ""} ${currentMoveIsDynamax ? "dynamax-move-name" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.effect === "z-move-name" ? <ZMoveNameCutIn event={currentTimelineEvent} /> : currentMoveIsDynamax ? <DynamaxMoveNameCutIn event={currentTimelineEvent} /> : currentTimelineEvent.text}</div> : null}
-      </section>
-      <section className={`battle-bottom ${dialogue ? "dialogue-bottom-active" : ""} ${panelMode === "moveMenu" && !dialogue ? "move-bottom-active" : ""}`}>
-        {dialogue ? (
-          <BattleDialogueBox dialogue={dialogue} />
-        ) : (
-          <>
-            <div className="battle-log" ref={battleLogRef}><strong>上一回合</strong>{shownEvents.map((event, index) => <p className={event === currentTimelineEvent?.text ? "current-event" : ""} key={`${event}-${index}`}>{event}</p>)}</div>
-            <div className={`battle-action-panel ${panelMode === "moveMenu" ? "move-action-panel" : ""} ${controlsDisabled ? "battle-controls-disabled" : ""}`}>
-              {panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <MainBattleCommands battle={battle} forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onDialgaGrace={() => onChoice("dialga_grace")} onForfeit={() => onChoice("forfeit")} />}
+    <BattlePage
+      dialogueActive={Boolean(dialogue)}
+      speed={battleSpeed}
+      onClick={dialogue ? advanceBattleDialogue : undefined}
+      partyBoard={<BattlePartyBoard battle={battle} playerSlots={playerParty} enemySlots={enemyParty} onOpenStatus={() => selectPanelMode("statusMenu")} onOpenEnemyDex={battle.show_move_effectiveness ? openBattleDex : undefined} />}
+      field={
+        <BattleField
+          className={`${battleBackgroundUrl ? "has-battle-background" : ""} ${trainerIntroActive ? "trainer-intro" : ""} ${introActive ? "battle-intro" : ""} ${battleAnimationClass(currentTimelineEvent)}`}
+          style={battleFieldStyle}
+          turn={battle.tracker.turn}
+          fieldEffects={<FieldEffectsOverlay battle={battle} />}
+          effectLayer={<BattleEffectLayer cue={currentVisualCue} />}
+          trainerIntro={trainerIntroActive ? <TrainerIntroOverlay battle={trainerOverlayBattle} /> : null}
+          toolbar={<BattleToolbar speed={battleSpeed} onSpeedChange={onBattleAnimationSpeedChange} onAiHint={handleAiHint} aiHintLoading={aiHintLoading} aiHintDisabled={aiHintDisabled} aiAutoplayEnabled={aiAutoplayEnabled} aiAutoplayPending={aiAutoplayPending} aiAutoplayDisabled={aiAutoplayToggleDisabled} onAiAutoplayToggle={toggleAiAutoplay} />}
+          eventStatusStrip={battle.battle_event_statuses?.length ? (
+            <div className="battle-event-status-strip">
+              {battle.battle_event_statuses.map(status => (
+                <button className={`tone-${status.tone || "safe"}`} title={status.detail || status.label} onClick={() => setEventInfoStatus(status)} key={`battle-event-${status.id}`}>
+                  {status.label}{status.id === "contest" ? ` ${battle.contest_score || 0}` : ""}
+                </button>
+              ))}
             </div>
-          </>
-        )}
-      </section>
+          ) : null}
+          enemyPanel={<BattleFighterPanel side="enemy" pokemon={displayEnemy} condition={displayConditions.p2} status={battle.tracker.active.p2.status} substitute={displayedSubstitutes.p2} transitionMs={hpTransitionMs.p2} teraType={displayedActiveSnapshots.p2.tera_type_zh} />}
+          sprites={<>
+            <PokemonSprite className={`back-sprite ${displayedSubstitutes.p1 ? "substitute-sprite" : ""} ${faintedSides.p1 ? "sprite-fainted" : ""} ${playerDynamaxClass} ${playerTeraClass}`} pokemon={displayedSubstitutes.p1 ? undefined : displayPlayer} src={playerSprite} variant="back_normal" alt={displayPlayer ? displayName(displayPlayer) : "我方宝可梦"} entrance={!displayedSubstitutes.p1 && introActive} onClick={() => setDetailIndex(activePlayerIndex)} />
+            <PokemonSprite className={`front-sprite ${displayedSubstitutes.p2 ? "substitute-sprite" : ""} ${faintedSides.p2 ? "sprite-fainted" : ""} ${enemyDynamaxClass} ${enemyTeraClass}`} pokemon={displayedSubstitutes.p2 ? undefined : displayEnemy} src={enemySprite} alt={displayEnemy ? displayName(displayEnemy) : "对手宝可梦"} entrance={!displayedSubstitutes.p2 && introActive} />
+          </>}
+          playerPanel={<BattleFighterPanel side="player" pokemon={displayPlayer} condition={displayConditions.p1} status={battle.tracker.active.p1.status} substitute={displayedSubstitutes.p1} transitionMs={hpTransitionMs.p1} teraType={displayedActiveSnapshots.p1.tera_type_zh} onClick={() => setDetailIndex(activePlayerIndex)} />}
+          message={currentTimelineEvent ? <div key={currentTimelineEvent.id} className={`battle-message-pop ${currentTimelineEvent.notice_title ? "structured" : ""} ${currentTimelineEvent.effect === "z-move-call" ? "z-move-call" : ""} ${currentTimelineEvent.effect === "z-move-name" ? "z-move-name" : ""} ${currentMoveIsDynamax ? "dynamax-move-name" : ""}`} style={{"--message-duration": `${messageMs}ms`} as CSSProperties}>{currentTimelineEvent.notice_title ? <><strong>{currentTimelineEvent.notice_title}</strong>{currentTimelineEvent.notice_detail ? <small>{currentTimelineEvent.notice_detail}</small> : null}</> : currentTimelineEvent.effect === "z-move-name" ? <ZMoveNameCutIn event={currentTimelineEvent} /> : currentMoveIsDynamax ? <DynamaxMoveNameCutIn event={currentTimelineEvent} /> : currentTimelineEvent.text}</div> : null}
+        />
+      }
+      bottom={
+        <BattleCommandPanel
+          dialogue={dialogue ? <BattleDialogueBox dialogue={dialogue} /> : undefined}
+          panelMode={panelMode}
+          controlsDisabled={controlsDisabled}
+          shownEvents={shownEvents}
+          currentEventText={currentTimelineEvent?.text}
+          logRef={battleLogRef}
+          actionContent={panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <BattleMainCommands battle={battle} forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onDialgaGrace={() => onChoice("dialga_grace")} onForfeit={() => onChoice("forfeit")} />}
+        />
+      }
+      overlays={<>
       {panelMode === "statusMenu" && !dialogue ? <StatusModal battle={battle} onBack={() => selectPanelMode("battleMain")} /> : null}
       {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} initialIndex={detailInitialIndex} disabled={controlsDisabled} forceSwitch={forceSwitch} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { if (forceSwitch) return; setDetailIndex(null); if (panelMode === "teamMenu") selectPanelMode("battleMain"); }} /> : null}
       {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} disabled={controlsDisabled} onClose={() => setBattleItemOpen(false)} onUse={async (itemId, target, moveSlot, notice) => {
@@ -1306,42 +1322,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
       {eventInfoStatus ? <EventInfoModal status={eventInfoStatus} context="战斗事件" onClose={() => setEventInfoStatus(null)} /> : null}
       {(aiHint || aiHintError) && !dialogue ? <BattleAiHintModal hint={aiHint} error={aiHintError} disabled={controlsDisabled || aiHintLoading} onExecute={executeAiHintChoice} onClose={() => { setAiHint(null); setAiHintError(null); }} /> : null}
       {battleDexQuery ? <QuickDexModal key={battleDexQuery} initialCategory="pokemon" initialQuery={battleDexQuery} onClose={() => setBattleDexQuery(null)} /> : null}
-    </div>
-  );
-}
-
-function BattlePartyBoard({battle, playerSlots, enemySlots, onOpenStatus, onOpenEnemyDex}: {battle: BattleState; playerSlots: PartyStatusSlot[]; enemySlots: PartyStatusSlot[]; onOpenStatus: () => void; onOpenEnemyDex?: (pokemon: RentalPokemon) => void}) {
-  const weather = battle.tracker.weather && battle.tracker.weather !== "无" ? battle.tracker.weather : "无";
-  const field = battle.tracker.field.join(" / ") || "无";
-  const enemyLeft = enemySlots.filter(slot => !statusCode(slot.condition, slot.status).includes("fnt")).length;
-  const enemyTotal = Math.max(1, enemySlots.length);
-  return (
-    <div className="battle-party-board">
-      <PartyStatusColumn side="player" title="我方" slots={playerSlots} />
-      <button className="battle-center-status" onClick={onOpenStatus}>
-        <strong>第 {battle.tracker.turn} 回合</strong>
-        <span>天气 {weather}</span>
-        <span>场地 {field}</span>
-        <span>我方能力 {boostSummary(battle.tracker.boosts.p1)}</span>
-        <span>对手能力 {boostSummary(battle.tracker.boosts.p2)}</span>
-        <small>对手剩余 {enemyLeft}/{enemyTotal}</small>
-      </button>
-      <PartyStatusColumn side="enemy" title="对手" slots={enemySlots} onOpenEnemyDex={onOpenEnemyDex} />
-    </div>
-  );
-}
-
-function PartyStatusColumn({side, title, slots, onOpenEnemyDex}: {side: "player" | "enemy"; title: string; slots: PartyStatusSlot[]; onOpenEnemyDex?: (pokemon: RentalPokemon) => void}) {
-  return (
-    <div className={`party-status-column ${side}`}>
-      <strong>{title}</strong>
-      <div className="party-status-slots" style={{"--party-slot-count": Math.max(1, slots.length)} as CSSProperties}>
-        {slots.map(slot => {
-          const enemyDexClick = side === "enemy" && onOpenEnemyDex && slot.revealed && slot.display ? () => onOpenEnemyDex(slot.display!) : undefined;
-          return <BattleSmallImage slot={slot} side={side} onClick={enemyDexClick || slot.onClick} key={slot.key} />;
-        })}
-      </div>
-    </div>
+      </>}
+    />
   );
 }
 
@@ -1371,14 +1353,6 @@ function BattleDialogueBox({dialogue}: {dialogue: TrainerDialogueState}) {
       <i aria-hidden="true">▼</i>
     </div>
   );
-}
-
-function FighterPanel({pokemon, condition, status, side, substitute, transitionMs, teraType, onClick}: {pokemon?: RentalPokemon; condition?: string; status?: string; side: "player" | "enemy"; substitute?: boolean; transitionMs?: number; teraType?: string; onClick?: () => void}) {
-  const hp = parseHp(condition);
-  const code = statusCode(condition, status);
-  const tone = hpTone(hp);
-  const gender = genderMark(pokemon?.gender);
-  return <div className={`fighter-panel ${side} ${onClick ? "clickable-panel" : ""}`} onClick={onClick}><strong>{pokemon ? displayName(pokemon) : "未知"}</strong><span>Lv{pokemon?.level || 50}{gender ? ` ${gender}` : ""}</span>{code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}{substitute ? <i className="substitute-badge">替身</i> : null}{teraType ? <i className="tera-badge">太晶：{teraType}</i> : null}<div className="hp-line"><i className={`hp-${tone}`} style={{width: `${hp ? Math.max(0, (hp.current / hp.max) * 100) : 0}%`, "--hp-duration": `${transitionMs || 1400}ms`} as CSSProperties} /></div><small>{hp?.text || conditionText(condition)}</small></div>;
 }
 
 function FieldEffectsOverlay({battle}: {battle: BattleState}) {
@@ -1563,6 +1537,12 @@ function effectivenessLabel(multiplier: number): string {
   return "效果一般";
 }
 
+function effectivenessBadgeClass(multiplier: number): string {
+  if (multiplier > 1) return "move-effectiveness-super";
+  if (multiplier < 1) return "move-effectiveness-resist";
+  return "move-effectiveness-normal";
+}
+
 function contestMoveLabel(battle: BattleState, active: RentalPokemon | undefined, moveId: string | undefined): {label: string; tone: "liked" | "disliked"} | null {
   const normalizedMove = toId(moveId);
   const marks = battle.contest_marks;
@@ -1581,110 +1561,6 @@ function contestMoveLabel(battle: BattleState, active: RentalPokemon | undefined
     if (disliked && toId(disliked) === normalizedMove) return {label: "裁判不喜", tone: "disliked"};
   }
   return null;
-}
-
-function MainBattleCommands({battle, forceSwitch, waiting, disabled, setMode, onBag, onDialgaGrace, onForfeit}: {battle: BattleState; forceSwitch: boolean; waiting?: boolean; disabled?: boolean; setMode: (mode: AppStatus) => void; onBag: () => void; onDialgaGrace: () => void; onForfeit: () => void}) {
-  const graceTarget = battle.dialga_grace_target_turn ? `恢复至第 ${battle.dialga_grace_target_turn} 回合` : "等待回合记录";
-  if (waiting) return <div className="command-grid battle-command-grid"><button disabled>战斗继续中</button><button disabled>宝可梦</button><button disabled>背包</button><button disabled>恩典</button><button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button></div>;
-  return (
-    <div className={`command-grid battle-command-grid ${battle.dialga_grace_available || battle.battle_event_statuses?.some(status => status.id === "dialga_grace") ? "has-special-command" : ""}`}>
-      {forceSwitch ? <button disabled={disabled} onClick={() => setMode("teamMenu")}>换人</button> : <button disabled={disabled} onClick={() => setMode("moveMenu")}>战斗</button>}
-      <button disabled={disabled} onClick={() => setMode("teamMenu")}>宝可梦</button>
-      <button disabled={disabled || forceSwitch} onClick={onBag}>背包</button>
-      {battle.battle_event_statuses?.some(status => status.id === "dialga_grace") ? <button className="special-command-button" title={graceTarget} disabled={disabled || !battle.dialga_grace_available} onClick={onDialgaGrace}>恩典</button> : null}
-      <button className="danger-button" disabled={disabled} onClick={onForfeit}>认输</button>
-    </div>
-  );
-}
-
-function BattleToolbar({
-  speed,
-  onSpeedChange,
-  onAiHint,
-  aiHintLoading,
-  aiHintDisabled,
-  aiAutoplayEnabled,
-  aiAutoplayPending,
-  aiAutoplayDisabled,
-  onAiAutoplayToggle,
-}: {
-  speed: BattleAnimationSpeed;
-  onSpeedChange?: (speed: BattleAnimationSpeed) => void;
-  onAiHint?: () => void;
-  aiHintLoading?: boolean;
-  aiHintDisabled?: boolean;
-  aiAutoplayEnabled?: boolean;
-  aiAutoplayPending?: boolean;
-  aiAutoplayDisabled?: boolean;
-  onAiAutoplayToggle?: () => void;
-}) {
-  return (
-    <div className="battle-toolbar" aria-label="战斗辅助工具">
-      <button className="battle-toolbar-button battle-ai-tool" type="button" title="AI 提示" disabled={aiHintDisabled || aiHintLoading} onClick={onAiHint}>{aiHintLoading ? "计算中" : "AI提示"}</button>
-      <div className="battle-speed-control" role="group" aria-label="战斗倍速">
-        {[1, 2].map(value => {
-          const nextSpeed = value as BattleAnimationSpeed;
-          return (
-            <button
-              className={speed === nextSpeed ? "selected" : ""}
-              type="button"
-              aria-pressed={speed === nextSpeed}
-              onClick={() => onSpeedChange?.(nextSpeed)}
-              key={nextSpeed}
-            >
-              {nextSpeed}x
-            </button>
-          );
-        })}
-      </div>
-      <button className={`battle-toolbar-button battle-ai-tool ${aiAutoplayEnabled ? "selected" : ""}`} type="button" title={aiAutoplayEnabled ? "关闭 AI 代打" : "开启 AI 代打"} aria-pressed={Boolean(aiAutoplayEnabled)} disabled={aiAutoplayDisabled} onClick={onAiAutoplayToggle}>{aiAutoplayPending ? "代打中" : "AI代打"}</button>
-    </div>
-  );
-}
-
-function BattleAiHintModal({hint, error, disabled, onExecute, onClose}: {hint: BattleAiHint | null; error: string | null; disabled?: boolean; onExecute: (choice: string) => void | Promise<void>; onClose: () => void}) {
-  const alternatives = hint?.alternatives || [];
-  return (
-    <div className="modal-layer battle-ai-hint-layer">
-      <div className="battle-ai-hint-modal">
-        <header>
-          <h2>AI 提示</h2>
-          <button type="button" onClick={onClose}>关闭</button>
-        </header>
-        {error ? (
-          <p className="battle-ai-hint-error">{error}</p>
-        ) : hint ? (
-          <>
-            <section className="battle-ai-hint-primary">
-              <strong>{hint.title}</strong>
-              <span>指令 {hint.choice_label || hint.choice}</span>
-              <p>{hint.reason}</p>
-            </section>
-            {alternatives.length ? (
-              <section className="battle-ai-hint-alternatives">
-                <h3>备选</h3>
-                {alternatives.map(option => <BattleAiHintAlternativeRow option={option} key={option.choice} />)}
-              </section>
-            ) : null}
-            <footer>
-              <button type="button" onClick={onClose}>先看看</button>
-              <button className="primary" type="button" disabled={disabled} onClick={() => onExecute(hint.choice)}>执行建议</button>
-            </footer>
-          </>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function BattleAiHintAlternativeRow({option}: {option: BattleAiHintAlternative}) {
-  return (
-    <div className="battle-ai-hint-alt">
-      <strong>{option.title}</strong>
-      <span>{option.choice_label || option.choice}</span>
-      <p>{option.reason}</p>
-    </div>
-  );
 }
 
 function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: "zmove" | "mega" | "max" | "terastallize") => void; onBack: () => void}) {
@@ -1720,7 +1596,7 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
   useEffect(() => {
     if (!terastalAvailable && terastalMode) setTerastalMode(false);
   }, [terastalAvailable, terastalMode]);
-  return <div className="move-menu">{moves.map((move, index) => {
+  return <BattleMoveMenu><div className="move-menu">{moves.map((move, index) => {
     const summary = runtimeMoveSummary(moveSummaryFor(active, move), active, battle, "p1");
     const zMove = canZMove[index];
     const maxMove = maxMoves[index];
@@ -1733,7 +1609,7 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
     const contestLabel = contestMoveLabel(battle, active, summary?.id || move.id || move.move);
     const badge = showEffect || contestLabel ? (
       <span className="move-badge-stack">
-        {showEffect ? <span>{effectivenessLabel(multiplier)}</span> : null}
+        {showEffect ? <span className={effectivenessBadgeClass(multiplier)}>{effectivenessLabel(multiplier)}</span> : null}
         {contestLabel ? <span className={`contest-badge contest-${contestLabel.tone}`}>{contestLabel.label}</span> : null}
       </span>
     ) : null;
@@ -1782,14 +1658,14 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
       return <button className={terastalMode ? "selected" : ""} disabled={disabled || !terastalAvailable} title={title} onClick={() => { setTerastalMode(value => !value); setZMode(false); setMegaMode(false); setDynamaxMode(false); }} key={system.id}>{label}</button>;
     }
     return <button disabled title={`${system.name} 未接入`} key={system.id}>{IMPLEMENTED_BATTLE_SYSTEMS.has(system.id) ? system.name : `${system.name} 未接入`}</button>;
-  })}</div> : null}</div></div>;
+  })}</div> : null}</div></div></BattleMoveMenu>;
 }
 
 function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; disabled?: boolean; onSwitch: (index: number) => void; onBack: () => void}) {
   const slots = battleViewFor(battle)?.player.slots || [];
   const [focus, setFocus] = useState(0);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
-  return <div className="team-menu"><div className="team-list">{slots.map((slot, index) => { const display = slot.display; const status = statusCode(slot.condition, slot.status); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={slot.key}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{slot.active ? "▶" : `${slot.slot}.`}</span><strong>{display ? displayName(display) : slot.runtime ? runtimeName(slot.runtime) : "未知"}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(slot.condition)}　{slot.runtime?.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div>;
+  return <BattleTeamMenu><div className="team-menu"><div className="team-list">{slots.map((slot, index) => { const display = slot.display; const status = statusCode(slot.condition, slot.status); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={slot.key}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{slot.active ? "▶" : `${slot.slot}.`}</span><strong>{display ? displayName(display) : slot.runtime ? runtimeName(slot.runtime) : "未知"}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(slot.condition)}　{slot.runtime?.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div></BattleTeamMenu>;
 }
 
 function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwitch, onClose}: {battle: BattleState; initialIndex: number; disabled?: boolean; forceSwitch?: boolean; onSwitch: (index: number) => void; onClose: () => void}) {
@@ -1820,7 +1696,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
   }
 
   return (
-    <div className="modal-layer">
+    <BattlePokemonDetail><div className="modal-layer">
       <section className="pokemon-detail-modal">
         <aside className="detail-team-list">
           {slots.map((entry, index) => {
@@ -1885,7 +1761,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
           </footer>
         </section>
       </section>
-    </div>
+    </div></BattlePokemonDetail>
   );
 }
 
@@ -1947,34 +1823,51 @@ function ppMoveOptionsForSlot(slot: BattleViewSlot | undefined, display: RentalP
 }
 
 function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}: {battle: BattleState; bag: BagCategoryView | null; initialTarget: number; disabled?: boolean; onClose: () => void; onUse: (itemId: string, target: number, moveSlot?: number, notice?: string) => Promise<boolean> | boolean | void}) {
-  const [step, setStep] = useState<"detail" | "pokemon_picker">("detail");
+  const usableItems = useMemo(() => bag?.consumable || [], [bag]);
+  const counts = useMemo(() => Object.fromEntries(BAG_FILTERS.map(entry => [entry.key, usableItems.filter(item => bagFilterForItem(item, entry.key)).length])) as Record<BagFilterKey, number>, [usableItems]);
+  const firstAvailableFilter = BAG_FILTERS.find(entry => counts[entry.key])?.key || "recovery";
+  const [filter, setFilter] = useState<BagFilterKey>(firstAvailableFilter);
+  const items = useMemo(() => usableItems.filter(item => bagFilterForItem(item, filter)), [filter, usableItems]);
+  const [step, setStep] = useState<BagActionStep>("detail");
   const [target, setTarget] = useState(Math.max(0, initialTarget));
-  const [itemId, setItemId] = useState("");
+  const [itemId, setItemId] = useState(() => items[0]?.id || usableItems[0]?.id || "");
   const [ppPicker, setPpPicker] = useState<{item: BagItemView; target: number} | null>(null);
   const [usingItem, setUsingItem] = useState(false);
   const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
-  const items = bag?.consumable || [];
   const selected = items.find(item => item.id === itemId) || items[0];
   const slots = battleViewFor(battle)?.player.slots || [];
-  const targetSlot = slots[target] || slots[0];
-  const targetDisplay = targetSlot?.display || battle.player_display[0];
   const revealItemDetails = Boolean(battle.player_talents?.some(talent => talent.id === "intel_god_eye"));
   const selectedNeedsMove = isSingleMovePpItem(selected);
-  const ppPickerSlot = ppPicker ? slots[ppPicker.target] || slots[0] : targetSlot;
-  const ppPickerDisplay = ppPickerSlot?.display || battle.player_display[ppPicker?.target ?? target] || targetDisplay;
+  const ppPickerSlot = ppPicker ? slots[ppPicker.target] || slots[0] : slots[target] || slots[0];
+  const ppPickerDisplay = ppPickerSlot?.display || battle.player_display[ppPicker?.target ?? target] || battle.player_display[0];
   const ppPickerActiveMoves = ppPickerSlot?.active ? battle.request?.active?.[0]?.moves || [] : [];
   const ppPickerMoveOptions = ppMoveOptionsForSlot(ppPickerSlot, ppPickerDisplay, ppPickerActiveMoves);
   const team = slots.map(entry => {
     const display = entry.display;
+    const itemUnavailable = !selected || selected.count <= 0;
     return {
       pokemon: display,
       condition: entry.condition,
       status: entry.status,
       heldItem: display?.item_zh || display?.item || entry.runtime?.item || "无道具",
-      disabled: Boolean(disabled || usingItem),
-      disabledReason: usingItem ? "处理中" : selectedNeedsMove ? "选择技能" : "使用",
+      disabled: Boolean(disabled || usingItem || itemUnavailable),
+      disabledReason: usingItem ? "处理中" : itemUnavailable ? "没有库存" : selectedNeedsMove ? "选择技能" : "使用",
     };
   });
+
+  useEffect(() => {
+    if (!counts[filter] && filter !== firstAvailableFilter) setFilter(firstAvailableFilter);
+  }, [counts, filter, firstAvailableFilter]);
+
+  useEffect(() => {
+    if (itemId && !items.some(item => item.id === itemId)) setItemId(items[0]?.id || "");
+    if (!itemId && items.length) setItemId(items[0].id);
+  }, [itemId, items]);
+
+  useEffect(() => {
+    setStep("detail");
+    setPpPicker(null);
+  }, [selected?.id]);
 
   function showToast(message: string, tone: "normal" | "danger" = "normal") {
     setToast({id: Date.now(), message, tone});
@@ -2020,42 +1913,42 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
   }
 
   return (
-    <div className="modal-layer">
-      <BagLayout
-        className="battle-bag-modal"
-        title="战斗背包"
-        description="战斗中只能使用消耗类道具。"
-        items={items}
-        selectedId={selected?.id}
-        disabled={usingItem}
-        emptyText="当前没有可在战斗中使用的消耗道具。"
-        onSelect={setItemId}
-        onClose={onClose}
-      >
-        <section className="bag-action-panel battle-bag-action">
-          {selected && step === "detail" ? (
-            <BagItemDetailPanel
-              item={selected}
-              descriptionVisible={revealItemDetails}
-              busy={usingItem}
-              disabled={disabled || usingItem}
-              useLabel={selectedNeedsMove ? "选择目标" : "使用"}
-              disabledReason={selectedNeedsMove ? "使用后选择要恢复 PP 的技能" : undefined}
-              onUse={() => setStep("pokemon_picker")}
-            />
-          ) : null}
-          {selected && step === "pokemon_picker" ? (
-            <>
-              <div className="bag-flow-toolbar">
-                <button disabled={usingItem} onClick={() => setStep("detail")}>返回详情</button>
-                <small>{selectedNeedsMove ? "选择宝可梦后再选择技能" : "点击宝可梦后立即使用"}</small>
-              </div>
-              <PokemonTeamPicker team={team} selectedIndex={target} busyIndex={usingItem ? target : null} title="选择使用对象" onSelect={slot => void submitSelectedItem(slot)} />
-            </>
-          ) : null}
-          {!selected ? <p>当前没有可在战斗中使用的消耗道具。</p> : null}
+    <BattleBagPanel><div className="modal-layer battle-bag-layer">
+      <section className="battle-bag-modal battle-rest-bag-modal">
+        <header className="battle-bag-header">
+          <div>
+            <h2>战斗背包</h2>
+            <p>战斗中只能使用消耗类道具。</p>
+          </div>
+          <button type="button" disabled={usingItem} onClick={onClose}>关闭</button>
+        </header>
+        <section className="rest-bag-tool-panel battle-rest-bag-panel">
+          <aside className="rest-bag-left">
+            <BagFilterTabs activeKey={filter} counts={counts} disabled={usingItem} onSelect={key => { setFilter(key); setStep("detail"); }} />
+            <BagItemList items={items} selectedId={selected?.id} disabled={usingItem} emptyText="当前没有可在战斗中使用的消耗道具。" onSelect={id => { setItemId(id); setStep("detail"); }} />
+          </aside>
+          <BagActionPanel
+            step={step}
+            item={selected || null}
+            targetTeam={team}
+            targetTitle={selectedNeedsMove ? "选择宝可梦后再选择技能" : "点击宝可梦后立即使用"}
+            selectedTarget={target}
+            busyIndex={usingItem ? target : null}
+            descriptionVisible={revealItemDetails}
+            detailDisabled={disabled || usingItem || !selected || selected.count <= 0}
+            detailUseLabel={selectedNeedsMove ? "选择目标" : "使用"}
+            lockedReason={selectedNeedsMove ? "使用后选择要恢复 PP 的技能" : undefined}
+            selectedMoveSlot={null}
+            onUseDetail={() => setStep("pokemonPicker")}
+            onBackToDetail={() => setStep("detail")}
+            onSelectTarget={slot => void submitSelectedItem(slot)}
+            onSelectStat={() => undefined}
+            onSelectMoveSlot={() => undefined}
+            onConfirmMoveReplace={() => undefined}
+            onCancelMoveReplace={() => setStep("pokemonPicker")}
+          />
         </section>
-      </BagLayout>
+      </section>
         {ppPicker ? (
           <div className="battle-pp-picker-layer">
             <section className="battle-pp-picker-modal">
@@ -2083,7 +1976,7 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
           </div>
         ) : null}
       {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={1200} onDone={() => setToast(null)} /> : null}
-    </div>
+    </div></BattleBagPanel>
   );
 }
 
@@ -2110,57 +2003,11 @@ function StatusModal({battle, onBack}: {battle: BattleState; onBack: () => void}
             <div className="status-events">{lastEvents(battle, 14).map((event, index) => <small key={index}>{event}</small>)}</div>
           </>
         ) : (
-          <BattleTurnStatus turns={turns} selectedTurn={selectedTurn} onSelectTurn={turn => setSelectedTurnId(turn.id)} />
+          <BattleTurnRecordPanel turns={turns} selectedTurn={selectedTurn} onSelectTurn={turn => setSelectedTurnId(turn.id)} />
         )}
       </section>
     </div>
   );
-}
-
-function BattleTurnStatus({turns, selectedTurn, onSelectTurn}: {turns: BattleTurnRecord[]; selectedTurn: BattleTurnRecord | null; onSelectTurn: (turn: BattleTurnRecord) => void}) {
-  if (!turns.length) return <div className="status-events"><small>本场战斗还没有回合记录。</small></div>;
-  return (
-    <div className="battle-turn-status">
-      <div className="battle-turn-list">
-        {turns.map(turn => (
-          <button className={selectedTurn?.id === turn.id ? "selected" : ""} onClick={() => onSelectTurn(turn)} key={turn.id}>
-            <strong>{turn.title}</strong>
-            <span>{turn.summary}</span>
-            <small>{battleTurnAliveText(turn.end_state.player_team)} / {battleTurnAliveText(turn.end_state.enemy_team)}</small>
-          </button>
-        ))}
-      </div>
-      {selectedTurn ? (
-        <article className="battle-turn-detail">
-          <strong>{selectedTurn.title}</strong>
-          <p>{selectedTurn.summary}</p>
-          <div className="battle-turn-team-grid">
-            <BattleTurnTeam title="我方" team={selectedTurn.end_state.player_team} />
-            <BattleTurnTeam title="对手" team={selectedTurn.end_state.enemy_team} />
-          </div>
-        </article>
-      ) : null}
-    </div>
-  );
-}
-
-function BattleTurnTeam({title, team}: {title: string; team: BattleTurnPokemonState[]}) {
-  return (
-    <section>
-      <strong>{title}</strong>
-      {team.map(pokemon => (
-        <div className={`${pokemon.active ? "active" : ""} ${pokemon.fainted ? "fainted" : ""}`} key={`${title}-${pokemon.showdown_id || pokemon.slot}`}>
-          <span>{pokemon.active ? "▶" : pokemon.slot}</span>
-          <b>{pokemon.name}</b>
-          <small>{pokemon.hp}/{pokemon.max_hp}{pokemon.status ? ` ${pokemon.status}` : ""}{pokemon.fainted ? " fnt" : ""}</small>
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function battleTurnAliveText(team: BattleTurnPokemonState[]): string {
-  return `${team.filter(pokemon => !pokemon.fainted && pokemon.hp > 0).length}/${Math.max(1, team.length)}`;
 }
 
 function lastEvents(battle: BattleState, limit = 5): string[] {

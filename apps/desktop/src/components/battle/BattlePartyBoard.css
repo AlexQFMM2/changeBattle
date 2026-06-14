@@ -1,0 +1,4 @@
+.battle-party-board {
+  --battle-party-board-width: 100%;
+  --battle-party-board-slot-height: 24px;
+}

@@ -9,7 +9,7 @@ import "./BagActionPanel.css";
 
 export type BagActionStep = "detail" | "pokemonPicker" | "moveReplace";
 
-export function BagActionPanel({step, item, targetTeam, targetTitle, selectedTarget, busyIndex, statOptions = [], selectedStat, trainingUi, lockedReason, detailDisabled, detailUseLabel, targetPokemon, targetState, tmMoveLoading = false, displayMove, selectedMoveSlot, onUseDetail, onBackToDetail, onSelectTarget, onSelectStat, onSelectMoveSlot, onConfirmMoveReplace, onCancelMoveReplace}: {
+export function BagActionPanel({step, item, targetTeam, targetTitle, selectedTarget, busyIndex, statOptions = [], selectedStat, trainingUi, lockedReason, descriptionVisible = true, detailDisabled, detailUseLabel, targetPokemon, targetState, tmMoveLoading = false, displayMove, selectedMoveSlot, onUseDetail, onBackToDetail, onSelectTarget, onSelectStat, onSelectMoveSlot, onConfirmMoveReplace, onCancelMoveReplace}: {
   step: BagActionStep;
   item: BagItemView | null;
   targetTeam: BagTargetPokemonEntry[];
@@ -20,6 +20,7 @@ export function BagActionPanel({step, item, targetTeam, targetTitle, selectedTar
   selectedStat?: StatId;
   trainingUi?: TrainingItemUi;
   lockedReason?: string;
+  descriptionVisible?: boolean;
   detailDisabled?: boolean;
   detailUseLabel?: string;
   targetPokemon?: RentalPokemon;
@@ -54,7 +55,7 @@ export function BagActionPanel({step, item, targetTeam, targetTitle, selectedTar
     <section className={`bag-action-panel step-${step}`}>
       {step === "detail" ? (
         <>
-          <BagItemDetailPanel item={item} disabled={detailDisabled} disabledReason={lockedReason} busy={busyIndex !== null} useLabel={detailUseLabel} onUse={onUseDetail} />
+          <BagItemDetailPanel item={item} descriptionVisible={descriptionVisible} disabled={detailDisabled} disabledReason={lockedReason} busy={busyIndex !== null} useLabel={detailUseLabel} onUse={onUseDetail} />
           {statPicker}
         </>
       ) : null}

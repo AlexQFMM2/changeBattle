@@ -1,6 +1,6 @@
 import type {CSSProperties, ReactNode} from "react";
 import {useState} from "react";
-import type {BagItemView, PricedMove, ShopKind, ShopOffer, ShopState} from "@changebattle/shared";
+import type {BagItemView, BattleState, PricedMove, ShopKind, ShopOffer, ShopState} from "@changebattle/shared";
 import {PageActionBar} from "../components/player/PageActionBar";
 import {PlayerNameEditor} from "../components/player/PlayerNameEditor";
 import {PlayerSettingsPage} from "../components/player/PlayerSettingsPage";
@@ -15,6 +15,19 @@ import {BattleRulePresetList} from "../components/setup/battle-setting/BattleRul
 import {BattleRuleTabs} from "../components/setup/battle-setting/BattleRuleTabs";
 import {BattleSettingActionBar} from "../components/setup/battle-setting/BattleSettingActionBar";
 import {BattleSettingPage} from "../components/setup/battle-setting/BattleSettingPage";
+import {BattleAiHintModal} from "../components/battle/BattleAiHintModal";
+import {BattleCommandPanel} from "../components/battle/BattleCommandPanel";
+import {BattleField} from "../components/battle/BattleField";
+import {BattleFighterPanel} from "../components/battle/BattleFighterPanel";
+import {BattleMainCommands} from "../components/battle/BattleMainCommands";
+import {BattleMoveMenu} from "../components/battle/BattleMoveMenu";
+import {BattlePage} from "../components/battle/BattlePage";
+import {BattlePartyBoard} from "../components/battle/BattlePartyBoard";
+import {BattleBagPanel} from "../components/battle/BattleBagPanel";
+import {BattlePokemonDetail} from "../components/battle/BattlePokemonDetail";
+import {BattleTeamMenu} from "../components/battle/BattleTeamMenu";
+import {BattleToolbar} from "../components/battle/BattleToolbar";
+import {BattleTurnRecordPanel} from "../components/battle/BattleTurnRecordPanel";
 import {RentalActionBar} from "../components/setup/rental-select/RentalActionBar";
 import {RentalCandidateCard} from "../components/setup/rental-select/RentalCandidateCard";
 import {RentalCandidateList} from "../components/setup/rental-select/RentalCandidateList";
@@ -113,6 +126,7 @@ import type {BagFilterKey} from "../components/bag/bagModel";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
 import {bagPreviewItems, battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createBagPreviewCategories, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, nightSkyStateForPreview, playerSettingsManyCatalog, rentalPreviewCandidates, rentalPreviewLongCandidates, restEventStateForPreview, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
 import {outcomeLabel} from "../components/result/resultUtils";
+import type {PartyStatusSlot} from "../lib/ui";
 
 export type ComponentPreviewState = {
   id: string;
@@ -1025,6 +1039,91 @@ function ForgeResultPanelPreview({stateId}: {stateId: string}) {
   return <ForgeResultPanel specialItems={specialItems} teraType={stateId === "tera" ? "电" : undefined} coins={stateId === "noCoins" ? 12 : 680} onForgeSpecial={() => undefined} onForgeTera={() => undefined} />;
 }
 
+function battlePreviewPokemon(stateId: string) {
+  if (stateId === "longName") return restPreviewStateLong.player_display[0] || restPreviewStateNormal.player_display[0];
+  return restPreviewStateLowHp.player_display[0] || restPreviewStateNormal.player_display[0];
+}
+
+function battlePreviewCondition(stateId: string) {
+  if (stateId === "lowHp") return "18/100";
+  if (stateId === "fainted") return "0 fnt";
+  if (stateId === "status") return "74/100 par";
+  return "88/100";
+}
+
+function battlePreviewSlots(stateId: string, side: "player" | "enemy"): PartyStatusSlot[] {
+  const team = (stateId === "longName" ? restPreviewStateLong : restPreviewStateSix).player_display.slice(0, 6);
+  return team.map((pokemon, index) => ({
+    key: `${side}-${pokemon.species_id}-${index}`,
+    label: String(index + 1),
+    showdown_id: pokemon.showdown_id || pokemon.species_id,
+    display: side === "enemy" && index > 2 ? undefined : pokemon,
+    condition: index === 0 ? battlePreviewCondition(stateId) : index === 1 ? "0 fnt" : "100/100",
+    status: index === 0 && stateId === "status" ? "par" : undefined,
+    active: index === 0,
+    revealed: side === "player" || index <= 2,
+  }));
+}
+
+function battlePreviewState(stateId: string): BattleState {
+  const base = restPreviewStateSix;
+  return {
+    tracker: {
+      turn: stateId === "longText" ? 12 : 3,
+      weather: "雨",
+      field: ["电气场地"],
+      side_conditions: {p1: ["光墙"], p2: ["隐形岩"]},
+      boosts: {p1: {atk: 1, def: 0, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0}, p2: {atk: 0, def: -1, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0}},
+      active: {
+        p1: {name: "Pikachu", display_name: "皮卡丘", condition: battlePreviewCondition(stateId), status: stateId === "status" ? "par" : "", showdown_id: "p1a: Pikachu"},
+        p2: {name: "Blastoise", display_name: "水箭龟", condition: "76/100", status: "", showdown_id: "p2a: Blastoise"},
+      },
+    },
+    player_side: "p1",
+    enemy_side: "p2",
+    player_display: base.player_display,
+    enemy_display: base.enemy_display.length ? base.enemy_display : base.player_display.slice(0, 3),
+    recent_events: ["皮卡丘使用十万伏特！", "效果拔群！"],
+    timeline_events: [],
+    request: null,
+    battle_view: undefined,
+    turn_records: resultPreviewRecordWithTurns.turn_records || [],
+  } as unknown as BattleState;
+}
+
+function BattleFighterPanelPreview({stateId}: {stateId: string}) {
+  return <BattleFighterPanel side={stateId === "enemy" ? "enemy" : "player"} pokemon={battlePreviewPokemon(stateId)} condition={battlePreviewCondition(stateId)} status={stateId === "status" ? "par" : undefined} substitute={stateId === "substitute"} teraType={stateId === "tera" ? "电" : undefined} />;
+}
+
+function BattlePartyBoardPreview({stateId}: {stateId: string}) {
+  const battle = battlePreviewState(stateId);
+  return <BattlePartyBoard battle={battle} playerSlots={battlePreviewSlots(stateId, "player")} enemySlots={battlePreviewSlots(stateId, "enemy")} onOpenStatus={() => undefined} onOpenEnemyDex={() => undefined} />;
+}
+
+function BattleFieldPreview({stateId}: {stateId: string}) {
+  return (
+    <BattleField
+      className={stateId === "intro" ? "battle-intro" : ""}
+      turn={stateId === "longText" ? 12 : 3}
+      fieldEffects={<div className="field-effects"><span className="effect-badge"><b>R</b>雨</span></div>}
+      toolbar={<BattleToolbar speed={stateId === "speed2" ? 2 : 1} onSpeedChange={() => undefined} onAiHint={() => undefined} />}
+      enemyPanel={<BattleFighterPanelPreview stateId="enemy" />}
+      playerPanel={<BattleFighterPanelPreview stateId={stateId === "lowHp" ? "lowHp" : "normal"} />}
+      sprites={<span className="component-gallery-battle-sprite-placeholder">VS</span>}
+      message={stateId === "message" ? <div className="battle-message-pop">皮卡丘使用十万伏特！</div> : null}
+    />
+  );
+}
+
+function BattleCommandPanelPreview({stateId}: {stateId: string}) {
+  return <BattleCommandPanel panelMode={stateId === "moveMenu" ? "moveMenu" : "battleMain"} controlsDisabled={stateId === "disabled"} shownEvents={["皮卡丘使用十万伏特！", "效果拔群！"]} currentEventText="效果拔群！" logRef={{current: null}} actionContent={<BattleMainCommands battle={battlePreviewState(stateId)} forceSwitch={stateId === "forceSwitch"} waiting={stateId === "waiting"} setMode={() => undefined} onBag={() => undefined} onDialgaGrace={() => undefined} onForfeit={() => undefined} />} />;
+}
+
+function BattleTurnRecordPanelPreview({stateId}: {stateId: string}) {
+  const turns = stateId === "empty" ? [] : resultPreviewRecordWithTurns.turn_records || [];
+  return <BattleTurnRecordPanel turns={turns} selectedTurn={turns[0] || null} onSelectTurn={() => undefined} />;
+}
+
 export const componentRegistry: ComponentRegistryEntry[] = [
   {
     id: "pokemon-hp-bar",
@@ -1085,6 +1184,251 @@ export const componentRegistry: ComponentRegistryEntry[] = [
           />
         </div>
       );
+    },
+  },
+  {
+    id: "battle-fighter-panel",
+    name: "战斗状态卡",
+    group: "battle",
+    defaultSize: {width: 180, height: 70},
+    componentFile: "apps/desktop/src/components/battle/BattleFighterPanel.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleFighterPanel.css",
+    cssVariablePrefix: "--battle-fighter-panel-*",
+    dependencies: ["PokemonHpBar"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "enemy", name: "敌方"},
+      {id: "lowHp", name: "低血量"},
+      {id: "status", name: "异常"},
+      {id: "substitute", name: "替身"},
+      {id: "tera", name: "太晶"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return <BattleFighterPanelPreview stateId={stateId} />;
+    },
+  },
+  {
+    id: "battle-party-board",
+    name: "战斗队伍栏",
+    group: "battle",
+    defaultSize: {width: 630, height: 48},
+    componentFile: "apps/desktop/src/components/battle/BattlePartyBoard.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattlePartyBoard.css",
+    cssVariablePrefix: "--battle-party-board-*",
+    dependencies: ["BattleSmallImage"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "status", name: "异常"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return <BattlePartyBoardPreview stateId={stateId} />;
+    },
+  },
+  {
+    id: "battle-field",
+    name: "战斗场地",
+    group: "battle",
+    defaultSize: {width: 630, height: 188},
+    componentFile: "apps/desktop/src/components/battle/BattleField.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleField.css",
+    cssVariablePrefix: "--battle-field-*",
+    dependencies: ["BattleFighterPanel", "BattleToolbar"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "lowHp", name: "低血量"},
+      {id: "message", name: "消息"},
+      {id: "intro", name: "入场"},
+      {id: "speed2", name: "2倍速"},
+    ],
+    renderPreview(stateId) {
+      return <BattleFieldPreview stateId={stateId} />;
+    },
+  },
+  {
+    id: "battle-command-panel",
+    name: "战斗指令区",
+    group: "battle",
+    defaultSize: {width: 630, height: 92},
+    componentFile: "apps/desktop/src/components/battle/BattleCommandPanel.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleCommandPanel.css",
+    cssVariablePrefix: "--battle-command-panel-*",
+    dependencies: ["BattleMainCommands"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "waiting", name: "等待"},
+      {id: "forceSwitch", name: "强制换人"},
+      {id: "disabled", name: "禁用"},
+    ],
+    renderPreview(stateId) {
+      return <BattleCommandPanelPreview stateId={stateId} />;
+    },
+  },
+  {
+    id: "battle-ai-hint-modal",
+    name: "战斗 AI 提示",
+    group: "battle",
+    defaultSize: {width: 430, height: 230},
+    componentFile: "apps/desktop/src/components/battle/BattleAiHintModal.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleAiHintModal.css",
+    cssVariablePrefix: "--battle-ai-hint-modal-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "error", name: "错误"},
+      {id: "disabled", name: "禁用"},
+    ],
+    renderPreview(stateId) {
+      const hint = stateId === "error" ? null : {title: "推荐使用十万伏特", choice: "move 1", choice_label: "十万伏特", reason: "预估可以造成稳定击杀。", score: 92, alternatives: [{title: "保守换人", choice: "switch 2", reason: "降低风险。", score: 76}]};
+      return <BattleAiHintModal hint={hint} error={stateId === "error" ? "AI 提示生成失败。" : null} disabled={stateId === "disabled"} onExecute={() => undefined} onClose={() => undefined} />;
+    },
+  },
+  {
+    id: "battle-turn-record-panel",
+    name: "战斗回合记录",
+    group: "battle",
+    defaultSize: {width: 520, height: 180},
+    componentFile: "apps/desktop/src/components/battle/BattleTurnRecordPanel.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleTurnRecordPanel.css",
+    cssVariablePrefix: "--battle-turn-record-panel-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "empty", name: "空状态"},
+    ],
+    renderPreview(stateId) {
+      return <BattleTurnRecordPanelPreview stateId={stateId} />;
+    },
+  },
+  {
+    id: "battle-page",
+    name: "战斗页面骨架",
+    group: "battle",
+    defaultSize: {width: 640, height: 320},
+    componentFile: "apps/desktop/src/components/battle/BattlePage.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattlePage.css",
+    cssVariablePrefix: "--battle-page-*",
+    dependencies: ["BattlePartyBoard", "BattleField", "BattleCommandPanel"],
+    states: [
+      {id: "normal", name: "普通"},
+    ],
+    renderPreview() {
+      return <BattlePage speed={1} partyBoard={<BattlePartyBoardPreview stateId="normal" />} field={<BattleFieldPreview stateId="message" />} bottom={<BattleCommandPanelPreview stateId="normal" />} />;
+    },
+  },
+  {
+    id: "battle-move-menu",
+    name: "战斗招式菜单边界",
+    group: "battle",
+    defaultSize: {width: 410, height: 104},
+    componentFile: "apps/desktop/src/components/battle/BattleMoveMenu.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleMoveMenu.css",
+    cssVariablePrefix: "--battle-move-menu-*",
+    dependencies: ["MoveCard"],
+    states: [{id: "normal", name: "普通"}],
+    renderPreview() {
+      return <BattleMoveMenu><div className="move-menu"><MoveCard {...moveCardPreviewData.battle} onClick={() => undefined} /><MoveCard {...moveCardPreviewData.complete} onClick={() => undefined} /></div></BattleMoveMenu>;
+    },
+  },
+  {
+    id: "battle-team-menu",
+    name: "战斗换人菜单边界",
+    group: "battle",
+    defaultSize: {width: 260, height: 120},
+    componentFile: "apps/desktop/src/components/battle/BattleTeamMenu.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleTeamMenu.css",
+    cssVariablePrefix: "--battle-team-menu-*",
+    dependencies: [],
+    states: [{id: "normal", name: "普通"}],
+    renderPreview() {
+      return <BattleTeamMenu><div className="team-menu"><div className="team-list"><button className="team-summary"><strong>皮卡丘</strong><small>88/100</small></button><button className="team-summary"><strong>妙蛙花</strong><small>100/100</small></button></div></div></BattleTeamMenu>;
+    },
+  },
+  {
+    id: "battle-toolbar",
+    name: "战斗工具栏",
+    group: "battle",
+    defaultSize: {width: 220, height: 34},
+    componentFile: "apps/desktop/src/components/battle/BattleToolbar.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleToolbar.css",
+    cssVariablePrefix: "--battle-toolbar-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "speed2", name: "2倍速"},
+      {id: "aiOn", name: "AI代打"},
+      {id: "loading", name: "计算中"},
+    ],
+    renderPreview(stateId) {
+      return <BattleToolbar speed={stateId === "speed2" ? 2 : 1} aiHintLoading={stateId === "loading"} aiAutoplayEnabled={stateId === "aiOn"} onSpeedChange={() => undefined} onAiHint={() => undefined} onAiAutoplayToggle={() => undefined} />;
+    },
+  },
+  {
+    id: "battle-bag-panel",
+    name: "战斗背包边界",
+    group: "battle",
+    defaultSize: {width: 640, height: 320},
+    componentFile: "apps/desktop/src/components/battle/BattleBagPanel.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattleBagPanel.css",
+    cssVariablePrefix: "--battle-bag-panel-*",
+    dependencies: ["BagFilterTabs", "BagItemList", "BagActionPanel", "BagTargetPokemonList"],
+    states: [{id: "normal", name: "普通"}],
+    renderPreview() {
+      return (
+        <BattleBagPanel>
+          <div className="battle-layout" style={{position: "relative", width: 640, height: 320}}>
+            <div className="modal-layer battle-bag-layer">
+              <section className="battle-bag-modal battle-rest-bag-modal">
+                <header className="battle-bag-header">
+                  <div>
+                    <h2>战斗背包</h2>
+                    <p>战斗中只能使用消耗类道具。</p>
+                  </div>
+                  <button type="button">关闭</button>
+                </header>
+                <section className="rest-bag-tool-panel battle-rest-bag-panel">
+                  <aside className="rest-bag-left">
+                    <BagFilterTabs activeKey="recovery" counts={{recovery: 2, battle: 0, tm: 0, training: 0, system: 0}} onSelect={() => undefined} />
+                    <BagItemList items={[bagItemForState("consumable"), bagItemForState("longName")]} selectedId={bagItemForState("consumable").id} onSelect={() => undefined} />
+                  </aside>
+                  <BagActionPanel
+                    step="detail"
+                    item={bagItemForState("consumable")}
+                    targetTeam={bagTargetTeamForState("normal")}
+                    targetTitle="点击宝可梦后立即使用"
+                    selectedTarget={0}
+                    busyIndex={null}
+                    selectedMoveSlot={null}
+                    detailUseLabel="使用"
+                    onUseDetail={() => undefined}
+                    onBackToDetail={() => undefined}
+                    onSelectTarget={() => undefined}
+                    onSelectStat={() => undefined}
+                    onSelectMoveSlot={() => undefined}
+                    onConfirmMoveReplace={() => undefined}
+                    onCancelMoveReplace={() => undefined}
+                  />
+                </section>
+              </section>
+            </div>
+          </div>
+        </BattleBagPanel>
+      );
+    },
+  },
+  {
+    id: "battle-pokemon-detail",
+    name: "战斗宝可梦详情边界",
+    group: "battle",
+    defaultSize: {width: 320, height: 120},
+    componentFile: "apps/desktop/src/components/battle/BattlePokemonDetail.tsx",
+    cssFile: "apps/desktop/src/components/battle/BattlePokemonDetail.css",
+    cssVariablePrefix: "--battle-pokemon-detail-*",
+    dependencies: ["PokemonSprite"],
+    states: [{id: "normal", name: "普通"}],
+    renderPreview() {
+      return <BattlePokemonDetail><section className="pokemon-detail-modal"><strong>皮卡丘</strong><p>战斗详情边界组件，真实详情由 BattleView 传入。</p></section></BattlePokemonDetail>;
     },
   },
   {

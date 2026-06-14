@@ -1,0 +1,5 @@
+.battle-layout {
+  --battle-page-field-height: 188px;
+  --battle-page-party-width: 100%;
+  --battle-page-command-height: 110px;
+}

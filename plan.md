@@ -525,13 +525,14 @@
 - 小道消息免费/50 金币文案清楚。
 - 候选数量变化不影响底部按钮位置。
 
-## 3.11 BattlePage 【】
+## 3.11 BattlePage 【x】
 
 ### 页面职责
 
 - 展示战斗。
 - 派发出招、换人、道具、AI提示、AI代打、倍速、投降等 action。
 - 播放 timeline 动画，但展示事实以 `battle_view` 为准。
+- 本轮采用保守组件化迁移：timeline 播放、AI 代打、action 字符串协议仍留在 `BattleView.tsx`，UI 外壳和主要面板已拆出独立组件。
 
 ### 组件编排
 
@@ -539,6 +540,7 @@
 - `BattleFighterPanel`
 - `BattlePartyBoard`
 - `BattleMessageBox`
+- `BattleMainCommands`
 - `BattleCommandPanel`
 - `BattleToolbar`
 - `BattleMoveMenu`
@@ -550,43 +552,46 @@
 
 ### 新增/拆分组件
 
-- `BattlePage.tsx/css` 【】
-  - 页面骨架。
+- `BattlePage.tsx/css` 【x】
+  - 页面骨架，承载队伍栏、场地区、底部指令区和弹层。
   - 变量：`--battle-page-field-height`、`--battle-page-party-width`、`--battle-page-command-height`。
-- `BattleField.tsx/css` 【】
-  - 功能：背景、平台、双方 active、视觉效果。
+- `BattleField.tsx/css` 【x】
+  - 功能：背景、平台、双方 active、视觉效果、工具栏和战斗消息浮层挂载。
   - 变量：`--battle-field-width`、`--battle-field-height`、`--battle-field-player-x`、`--battle-field-enemy-x`。
-- `BattleFighterPanel.tsx/css` 【】
-  - 功能：宝可梦大图、名字、HP、状态。
+- `BattleFighterPanel.tsx/css` 【x】
+  - 功能：宝可梦名字、等级、HP、异常、替身、太晶状态；HP 条复用 `PokemonHpBar`。
   - 变量：`--battle-fighter-panel-width`、`--battle-fighter-panel-sprite-size`、`--battle-fighter-panel-hp-width`。
-- `BattlePartyBoard.tsx/css` 【】
-  - 功能：双方队伍小图。
+- `BattlePartyBoard.tsx/css` 【x】
+  - 功能：双方队伍小图和中间天气/场地/能力摘要，继续复用 `BattleSmallImage`。
   - 变量：`--battle-party-board-width`、`--battle-party-board-slot-height`。
-- `BattleMessageBox.tsx/css` 【】
-  - 功能：战斗文本提示。
+- `BattleMessageBox.tsx/css` 【已废弃】
+  - 功能：战斗文本提示当前归入 `BattleField` 的 `message` slot 和 `BattleCommandPanel` 的日志区，不再单独实现。
   - 变量：`--battle-message-box-height`。
-- `BattleCommandPanel.tsx/css` 【】
-  - 功能：底部主指令容器。
+- `BattleCommandPanel.tsx/css` 【x】
+  - 功能：底部日志、对话框和主指令容器。
   - 变量：`--battle-command-panel-height`。
-- `BattleToolbar.tsx/css` 【】
+- `BattleToolbar.tsx/css` 【x】
   - 功能：AI提示、倍速、AI代打。
   - 变量：`--battle-toolbar-height`、`--battle-toolbar-button-width`。
-- `BattleMoveMenu.tsx/css` 【】
-  - 功能：招式选择、Mega/Z/极巨/太晶。
+- `BattleMainCommands.tsx/css` 【x】
+  - 功能：底部主按钮，派发战斗、宝可梦、背包、恩典、认输入口。
+  - 变量：`--battle-command-panel-button-height`。
+- `BattleMoveMenu.tsx/css` 【x】
+  - 功能：招式选择、Mega/Z/极巨/太晶；当前作为保守 adapter 包裹现有招式菜单逻辑，不改伤害估算和指令拼接。
   - 变量：`--battle-move-menu-card-height`。
-- `BattleTeamMenu.tsx/css` 【】
-  - 功能：换人列表。
+- `BattleTeamMenu.tsx/css` 【x】
+  - 功能：换人列表；当前作为保守 adapter 包裹现有 `battle_view.player.slots` 换人逻辑。
   - 变量：`--battle-team-menu-row-height`。
-- `BattleBagPanel.tsx/css` 【】
-  - 功能：战斗背包，复用 `BagContainer`。
+- `BattleBagPanel.tsx/css` 【x】
+  - 功能：战斗背包边界，复用休整背包同款 `BagFilterTabs`、`BagItemList`、`BagActionPanel`、`BagTargetPokemonList`，保持战斗道具协议不变。
   - 变量：`--battle-bag-panel-width`、`--battle-bag-panel-height`。
-- `BattlePokemonDetail.tsx/css` 【】
-  - 功能：战斗中宝可梦详情。
+- `BattlePokemonDetail.tsx/css` 【x】
+  - 功能：战斗中宝可梦详情边界，当前包裹原详情弹窗逻辑。
   - 变量：`--battle-pokemon-detail-width`。
-- `BattleAiHintModal.tsx/css` 【】
+- `BattleAiHintModal.tsx/css` 【x】
   - 功能：冠军 AI 建议、理由、执行建议。
   - 变量：`--battle-ai-hint-modal-width`。
-- `BattleTurnRecordPanel.tsx/css` 【】
+- `BattleTurnRecordPanel.tsx/css` 【x】
   - 功能：本场回合列表和回合详情。
   - 变量：`--battle-turn-record-panel-row-height`。
 
@@ -1404,7 +1409,7 @@
 - 技能教学。
 - 图鉴学习面板。
 
-## 4.9 BattleField 【】
+## 4.9 BattleField 【x】
 
 ### 功能
 
@@ -1425,11 +1430,13 @@
 - 不用百分比漂移。
 - 变量前缀：`--battle-field-*`。
 
-## 4.10 BattleFighterPanel 【】
+## 4.10 BattleFighterPanel 【x】
 
 ### 功能
 
 战斗大图和当前状态。
+
+已落地为 `BattleFighterPanel.tsx/css`，HP 条复用 `PokemonHpBar`，不再在组件内手写 HP DOM。
 
 ### 子组件
 
@@ -1451,11 +1458,13 @@
 - 只接受 `battle_view` slot 数据。
 - timeline 只能覆盖动画状态，不能决定宝可梦身份。
 
-## 4.11 BattlePartyBoard 【】
+## 4.11 BattlePartyBoard 【x】
 
 ### 功能
 
 战斗双方队伍小图栏。
+
+已落地为 `BattlePartyBoard.tsx/css`，队伍格继续复用 `BattleSmallImage`，数据由 `battle_view` 归一化后传入。
 
 ### 子组件
 
@@ -1476,11 +1485,13 @@
 - 当前 active 必须 revealed。
 - 问号只用于未揭示槽位。
 
-## 4.12 BattleCommandPanel 【】
+## 4.12 BattleCommandPanel 【x】
 
 ### 功能
 
 战斗底部指令。
+
+已落地为 `BattleCommandPanel.tsx/css` 和 `BattleMainCommands.tsx/css`；AI 工具栏由 `BattleToolbar.tsx/css` 承担。
 
 ### 子组件
 
