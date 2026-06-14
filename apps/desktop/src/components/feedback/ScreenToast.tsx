@@ -1,18 +1,24 @@
 import {useEffect} from "react";
 import type {CSSProperties} from "react";
 import {createPortal} from "react-dom";
+import "./ScreenToast.css";
 
-export function ScreenToast({message, durationMs = 1000, tone = "normal", onDone}: {message: string; durationMs?: number; tone?: "normal" | "danger"; onDone?: () => void}) {
+export function ScreenToast({message, durationMs = 1000, tone = "normal", inline = false, onDone}: {message: string; durationMs?: number; tone?: "normal" | "danger"; inline?: boolean; onDone?: () => void}) {
   useEffect(() => {
-    if (!onDone) return;
+    if (!onDone || inline) return;
     const timer = window.setTimeout(onDone, durationMs);
     return () => window.clearTimeout(timer);
-  }, [durationMs, onDone]);
+  }, [durationMs, inline, onDone]);
 
-  return createPortal(
+  const toast = (
     <div className={`screen-toast flow ${tone === "danger" ? "danger" : ""}`} style={{"--message-duration": `${durationMs}ms`} as CSSProperties} role="status" aria-live="polite">
       {message}
-    </div>,
+    </div>
+  );
+
+  if (inline) return toast;
+  return createPortal(
+    toast,
     document.body,
   );
 }

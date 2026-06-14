@@ -1,0 +1,175 @@
+.game-viewport .rest-page {
+  --rest-page-header-height: 40px;
+  --rest-page-toolbar-height: 20px;
+  --rest-page-workspace-height: 240px;
+  --rest-page-gap: 5px;
+  --rest-page-padding: 5px;
+  width: 640px;
+  height: 320px;
+  min-width: 640px;
+  min-height: 320px;
+  display: grid;
+  grid-template-columns: 630px;
+  grid-template-rows: var(--rest-page-header-height) var(--rest-page-toolbar-height) var(--rest-page-workspace-height);
+  gap: var(--rest-page-gap);
+  padding: var(--rest-page-padding);
+  overflow: hidden;
+}
+
+.game-viewport .rest-header {
+  width: 630px;
+  height: var(--rest-page-header-height);
+  min-height: var(--rest-page-header-height);
+  display: grid;
+  grid-template-columns: 304px 116px 92px;
+  grid-template-rows: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  padding: 4px 12px 4px 5px;
+}
+
+.game-viewport .rest-header-copy {
+  width: 304px;
+  height: 30px;
+  display: grid;
+  grid-template-columns: 92px 206px;
+  grid-template-rows: 30px;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-header h2 {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.game-viewport .rest-run-stats {
+  width: 206px;
+  height: 16px;
+  display: grid;
+  grid-template-columns: 56px 36px 50px;
+  gap: 4px;
+}
+
+.game-viewport .rest-run-stats span,
+.game-viewport .coin-ledger-trigger {
+  height: 13px;
+  min-height: 13px;
+  padding: 0 3px;
+  font-size: 6px;
+  line-height: 13px;
+}
+
+.game-viewport .rest-team-strip {
+  width: 116px;
+  height: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 30px);
+  grid-auto-columns: 30px;
+  grid-template-rows: 30px;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-team-strip button {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 1px;
+}
+
+.game-viewport .rest-team-strip .pokemon-sprite {
+  width: 24px;
+  height: 24px;
+  --pokemon-sprite-size: 24px;
+}
+
+.game-viewport .rest-top-actions {
+  width: 92px;
+  height: 30px;
+  display: grid;
+  grid-template-columns: 92px;
+  grid-template-rows: 13px 13px;
+  gap: 4px;
+}
+
+.game-viewport .rest-top-actions button {
+  width: 92px;
+  height: 13px;
+  min-height: 13px;
+  padding: 0;
+  font-size: 7px;
+}
+
+.game-viewport .rest-talent-action-row {
+  width: 630px;
+  height: var(--rest-page-toolbar-height);
+  min-height: var(--rest-page-toolbar-height);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  grid-template-rows: 14px;
+  align-content: center;
+  justify-content: start;
+  gap: 3px;
+  padding: 3px 5px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-talent-action-row button {
+  height: 14px;
+  min-height: 14px;
+  padding: 0 5px;
+  font-size: 6px;
+}
+
+.game-viewport .rest-tab-spacer {
+  display: none;
+}
+
+.game-viewport .rest-workspace {
+  width: 630px;
+  height: var(--rest-page-workspace-height);
+  min-height: var(--rest-page-workspace-height);
+  display: grid;
+  grid-template-columns: 620px;
+  grid-template-rows: var(--rest-page-workspace-height);
+  padding: 0 5px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace-panel,
+.game-viewport .rest-workspace-empty {
+  width: 620px;
+  height: var(--rest-page-workspace-height);
+  min-width: 620px;
+  min-height: var(--rest-page-workspace-height);
+  overflow: hidden;
+}
+
+.game-viewport .rest-bag-layout {
+  --bag-container-width: 620px;
+  --bag-container-height: 240px;
+  --bag-container-list-width: 280px;
+  --bag-container-action-width: 340px;
+  --bag-container-action-inner-width: 320px;
+  --bag-container-action-inner-height: 240px;
+  --bag-container-toolbar-height: 24px;
+  --bag-container-filter-width: 270px;
+  --bag-container-filter-height: 18px;
+  --bag-container-filter-button-width: 52px;
+  --bag-container-list-row-height: 36px;
+  --bag-container-list-icon-size: 28px;
+}
+
+.game-viewport .rest-bag-layout .bag-step-pokemon-picker .pokemon-team-picker {
+  --pokemon-team-picker-height: 210px;
+}
+
+.game-viewport .rest-bag-layout .bag-step-pokemon-picker:has(.bag-stat-picker) .pokemon-team-picker {
+  --pokemon-team-picker-height: 176px;
+}

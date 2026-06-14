@@ -1,0 +1,45 @@
+.game-shell {
+  height: 100vh;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  background: #232830;
+}
+
+.game-screen {
+  --game-viewport-width: 640px;
+  --game-viewport-height: 320px;
+  --game-viewport-scale: var(--ui-scale, 1);
+  --ui-scale: 1;
+  --ui-base-width: var(--game-viewport-width);
+  --ui-base-height: var(--game-viewport-height);
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  background: #11161b;
+}
+
+.game-viewport {
+  position: relative;
+  width: var(--game-viewport-width);
+  height: var(--game-viewport-height);
+  overflow: hidden;
+  border: 2px solid #26352d;
+  border-radius: 3px;
+  background: linear-gradient(#e8efdf, #c9d79a);
+  box-shadow: 0 8px 24px #0008;
+  transform: scale(var(--game-viewport-scale));
+  transform-origin: center;
+}
+
+@media (max-width: 1000px) {
+  .game-shell {
+    padding: 8px;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+  }
+}

@@ -2,10 +2,13 @@ import {Fragment, useEffect, useMemo, useRef, useState} from "react";
 import type {CSSProperties} from "react";
 import type {AppStatus, BagCategoryView, BagItemView, BattleAiHint, BattleAiHintAlternative, BattleBackgroundView, BattleMoveRequest, BattleState, BattleTimelineEvent, BattleTurnPokemonState, BattleTurnRecord, DesktopGameState, MoveSummary, RentalPokemon, RestEventStatusView, RuntimePokemon} from "@changebattle/shared";
 import {BATTLE_SYSTEM_OPTIONS} from "@changebattle/shared";
-import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, enemyPartySlots, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, itemCategoryLabel, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, playerPartySlots, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
+import {ItemIcon, PokemonSprite, STAT_ROWS, SUBSTITUTE_DOLL_PATH, abilityDescription, activePokemon, assetUrl, battleDialogueKey, battleEffectEntry, boostEffectKeys, bossDialogueGroups, bossDialogueVariant, bpCostLabel, coinCostLabel, conditionText, cueFromEntry, displayForRuntime, displayName, displayFromActive, eventTargetsDisplayedActive, fieldEffectKeys, findDisplay, findDisplayByShowdownId, firstBattleEffectEntry, hpTone, moveCategoryId, moveCueTargetSide, moveDescription, moveEffectKeys, moveSummaryByName, moveSummaryFor, parseHp, playPokemonCry, runtimeName, statLine, statusCode, statusEffectKeys, statusLabel, timelineFaintedState, toId, trainerDialogueLines, trainerDialogueTitle, trainerDisplayName, trainerImageUrl, typeId, weatherEffectKeys} from "../../lib/ui";
 import type {BattleEffectEntry, BattleVisualCue, PartyStatusSlot, TrainerDialogueMoment, TrainerDialogueState} from "../../lib/ui";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {EventInfoModal} from "../feedback/EventInfoModal";
+import {BagLayout} from "../bag/BagLayout";
+import {BagItemDetailPanel} from "../bag/BagItemDetailPanel";
+import {PokemonTeamPicker} from "../bag/PokemonTeamPicker";
 import {MoveCard} from "../move/MoveCard";
 import {QuickDexModal} from "../dex/QuickDexModal";
 import {BattleSmallImage} from "./BattleSmallImage";
@@ -27,6 +30,8 @@ const FORCED_CONTINUATION_MOVE_IDS = new Set([
 ]);
 
 type ActiveDisplaySnapshot = BattleState["tracker"]["active"]["p1"];
+type BattleViewSide = NonNullable<BattleState["battle_view"]>["player"];
+type BattleViewSlot = BattleViewSide["slots"][number];
 
 type BattleViewProps = {
   battle: BattleState | null;
@@ -363,59 +368,88 @@ function displayedActiveDisplay(battle: BattleState, side: "p1" | "p2", displaye
   return trackerIsDisplayed ? displayFromActive(active, base) || base : base;
 }
 
+function battleViewFor(battle: BattleState | null): BattleState["battle_view"] | undefined {
+  if (!battle) return undefined;
+  if (battle.battle_view) return battle.battle_view;
+  const player = activePokemon(battle, "p1");
+  const enemy = activePokemon(battle, "p2");
+  const playerRows = battle.request?.side?.pokemon || [];
+  const playerSlots = Array.from({length: Math.max(3, battle.player_display.length || playerRows.length)}, (_value, index): BattleViewSlot => {
+    const runtime = playerRows[index];
+    const display = displayForRuntime(battle.player_display, runtime, index) || battle.player_display[index];
+    const active = Boolean(runtime?.active || index === playerRows.findIndex(row => row.active));
+    const condition = runtime?.condition || (active ? battle.tracker.active.p1.condition : "") || "100/100";
+    const hp = parseHp(condition);
+    const status = statusCode(condition);
+    return {
+      key: display?.run_member_id || runtime?.pokeball || runtime?.ident || `player-${index + 1}`,
+      slot: index + 1,
+      showdown_id: runtime?.pokeball || display?.showdown_id,
+      run_member_id: display?.run_member_id,
+      revealed: true,
+      active,
+      fainted: status === "fnt",
+      condition,
+      hp: hp?.current ?? (status === "fnt" ? 0 : 100),
+      max_hp: hp?.max ?? 100,
+      status,
+      moves: [],
+      display: active ? player.display || display : display,
+      runtime,
+    };
+  });
+  const enemyCondition = battle.tracker.active.p2.condition || "100/100";
+  const enemyHp = parseHp(enemyCondition);
+  const enemySlots = battle.enemy_display.map((display, index): BattleViewSlot => {
+    const active = index === 0 || String(display.showdown_id || "").toLowerCase() === String(battle.tracker.active.p2.showdown_id || "").toLowerCase();
+    const condition = active ? enemyCondition : "";
+    const status = statusCode(condition);
+    return {
+      key: display.run_member_id || display.showdown_id || `enemy-${index + 1}`,
+      slot: index + 1,
+      showdown_id: display.showdown_id,
+      run_member_id: display.run_member_id,
+      revealed: active,
+      active,
+      fainted: status === "fnt",
+      condition,
+      hp: active ? enemyHp?.current ?? (status === "fnt" ? 0 : 100) : 0,
+      max_hp: active ? enemyHp?.max ?? 100 : 100,
+      status,
+      moves: [],
+      display: active ? enemy.display || display : undefined,
+    };
+  });
+  return {
+    player: {side: battle.player_side || "p1", active_index: Math.max(0, playerSlots.findIndex(slot => slot.active)), slots: playerSlots},
+    enemy: {side: battle.enemy_side || "p2", active_index: Math.max(0, enemySlots.findIndex(slot => slot.active)), slots: enemySlots},
+  };
+}
+
+function activeBattleViewSlot(side: BattleViewSide | undefined): BattleViewSlot | undefined {
+  if (!side?.slots.length) return undefined;
+  return side.slots[side.active_index] || side.slots.find(slot => slot.active) || side.slots[0];
+}
+
+function battleViewPartySlots(side: BattleViewSide | undefined, onSelect?: (index: number) => void): PartyStatusSlot[] {
+  return (side?.slots || []).map((slot, index) => ({
+    key: slot.key || `${side?.side || "side"}-${slot.slot || index + 1}`,
+    label: String(slot.slot || index + 1),
+    showdown_id: slot.showdown_id,
+    display: slot.revealed ? slot.display : undefined,
+    condition: slot.revealed ? slot.condition : undefined,
+    status: slot.status,
+    active: slot.active,
+    revealed: slot.revealed,
+    onClick: onSelect && slot.revealed ? () => onSelect(index) : undefined,
+  }));
+}
+
 function activeSnapshotsForBattle(battle: BattleState | null): Record<"p1" | "p2", ActiveDisplaySnapshot> {
   return {
     p1: {...(battle?.tracker.active.p1 || {})},
     p2: {...(battle?.tracker.active.p2 || {})},
   };
-}
-
-function timelineIdentityKeys(...values: Array<string | undefined>): Set<string> {
-  const keys = new Set<string>();
-  for (const value of values) {
-    const raw = String(value || "").trim();
-    if (!raw) continue;
-    keys.add(raw.toLowerCase());
-    const id = toId(raw);
-    if (id) keys.add(id);
-  }
-  return keys;
-}
-
-function timelineEventIdentityKeys(event: BattleTimelineEvent): Set<string> {
-  return timelineIdentityKeys(event.target_showdown_id, event.source_showdown_id, event.target_id, event.target, event.source_id, event.source, event.target_species_id);
-}
-
-function timelineKeysIntersect(left: Set<string>, right: Set<string>): boolean {
-  for (const key of left) if (right.has(key)) return true;
-  return false;
-}
-
-function finalTimelineConditionForActive(battle: BattleState | null, side: "p1" | "p2", fallbackName: string, fallbackShowdownId: string, fallbackCondition: string): string {
-  if (!battle) return fallbackCondition;
-  const finalActive = battle.tracker.active[side];
-  const finalKeys = timelineIdentityKeys(fallbackShowdownId, finalActive?.showdown_id, fallbackName, finalActive?.name, finalActive?.display_name, finalActive?.species_id);
-  let displayedKeys = new Set(finalKeys);
-  let latest = fallbackCondition;
-  for (const event of battle.timeline_events || []) {
-    const eventSide = event.targetSide || event.side;
-    if (eventSide !== side) continue;
-    const eventKeys = timelineEventIdentityKeys(event);
-    if (event.type === "switch" && event.targetSide === side) {
-      displayedKeys = eventKeys.size ? eventKeys : displayedKeys;
-      if (event.condition) latest = event.condition;
-      continue;
-    }
-    if (!event.condition) continue;
-    if (event.type === "faint") {
-      latest = event.condition;
-      continue;
-    }
-    if (!eventKeys.size || timelineKeysIntersect(eventKeys, displayedKeys) || timelineKeysIntersect(eventKeys, finalKeys)) {
-      latest = event.condition;
-    }
-  }
-  return latest || fallbackCondition;
 }
 
 function snapshotFromTimelineEvent(current: ActiveDisplaySnapshot, event: BattleTimelineEvent): ActiveDisplaySnapshot {
@@ -501,27 +535,32 @@ function BattleEffectLayer({cue}: {cue: BattleVisualCue | null}) {
 }
 
 export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, onBattleHint, choicePending, pendingTransition, onBattleAnimationDone, battleAnimationSpeed = DEFAULT_BATTLE_ANIMATION_SPEED, onBattleAnimationSpeedChange}: BattleViewProps) {
-  const player = activePokemon(battle, "p1");
-  const enemy = activePokemon(battle, "p2");
+  const battleView = battleViewFor(battle);
+  const playerActiveSlot = activeBattleViewSlot(battleView?.player);
+  const enemyActiveSlot = activeBattleViewSlot(battleView?.enemy);
+  const legacyPlayer = activePokemon(battle, "p1");
+  const legacyEnemy = activePokemon(battle, "p2");
+  const player = {runtime: playerActiveSlot?.runtime || legacyPlayer.runtime, display: playerActiveSlot?.display || legacyPlayer.display, active: battle?.tracker.active.p1};
+  const enemy = {runtime: enemyActiveSlot?.runtime || legacyEnemy.runtime, display: enemyActiveSlot?.display || legacyEnemy.display, active: battle?.tracker.active.p2};
   const finalActiveNames = {
-    p1: battle?.tracker.active.p1.name || runtimeName(player.runtime) || "",
-    p2: battle?.tracker.active.p2.name || "",
+    p1: playerActiveSlot?.display?.species || playerActiveSlot?.display?.name || battle?.tracker.active.p1.name || runtimeName(player.runtime) || "",
+    p2: enemyActiveSlot?.display?.species || enemyActiveSlot?.display?.name || battle?.tracker.active.p2.name || "",
   };
   const finalConditions = {
-    p1: finalTimelineConditionForActive(battle, "p1", finalActiveNames.p1, battle?.tracker.active.p1.showdown_id || player.runtime?.pokeball || "", player.runtime?.condition || battle?.tracker.active.p1.condition || ""),
-    p2: finalTimelineConditionForActive(battle, "p2", finalActiveNames.p2, battle?.tracker.active.p2.showdown_id || "", battle?.tracker.active.p2.condition || ""),
+    p1: playerActiveSlot?.condition || player.runtime?.condition || battle?.tracker.active.p1.condition || "",
+    p2: enemyActiveSlot?.condition || battle?.tracker.active.p2.condition || "",
   };
   const finalActiveShowdownIds = {
-    p1: battle?.tracker.active.p1.showdown_id || player.runtime?.pokeball || "",
-    p2: battle?.tracker.active.p2.showdown_id || "",
+    p1: playerActiveSlot?.showdown_id || player.runtime?.pokeball || battle?.tracker.active.p1.showdown_id || "",
+    p2: enemyActiveSlot?.showdown_id || battle?.tracker.active.p2.showdown_id || "",
   };
   const finalSubstitutes = {
     p1: Boolean(battle?.tracker.active.p1.substitute),
     p2: Boolean(battle?.tracker.active.p2.substitute),
   };
   const finalFaintedSides = {
-    p1: statusCode(finalConditions.p1) === "fnt",
-    p2: statusCode(finalConditions.p2) === "fnt",
+    p1: Boolean(playerActiveSlot?.fainted) || statusCode(finalConditions.p1) === "fnt",
+    p2: Boolean(enemyActiveSlot?.fainted) || statusCode(finalConditions.p2) === "fnt",
   };
   const recentEvents = battle?.recent_events.filter(event => event && !event.startsWith("--- 第")) || [];
   const turnEvents = battle ? lastEvents(battle, 14) : [];
@@ -539,6 +578,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const [displayedActiveShowdownIds, setDisplayedActiveShowdownIds] = useState(finalActiveShowdownIds);
   const [displayedActiveSnapshots, setDisplayedActiveSnapshots] = useState(() => activeSnapshotsForBattle(battle));
   const [displayedSubstitutes, setDisplayedSubstitutes] = useState(finalSubstitutes);
+  const [partyBoardSettleLock, setPartyBoardSettleLock] = useState(false);
   const [hpTransitionMs, setHpTransitionMs] = useState({p1: 1400, p2: 1400});
   const [faintedSides, setFaintedSides] = useState({p1: false, p2: false});
   const [entryRevealLocked, setEntryRevealLocked] = useState(() => Boolean(battle));
@@ -572,6 +612,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const bossDialogueSelection = useRef<{key: string; index: number} | null>(null);
   const pokemonIntroTimer = useRef<number | null>(null);
   const eventTimers = useRef<number[]>([]);
+  const partyBoardSettleTimer = useRef<number | null>(null);
   const battleLogRef = useRef<HTMLDivElement | null>(null);
   const playbackRun = useRef(0);
   const finishRequested = useRef(false);
@@ -606,7 +647,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const aiAutoplayActionBlocked = !onBattleHint
     || baseBattleActionBlocked
     || Boolean(battle?.ended)
-    || Boolean(battle?.request?.teamPreview);
+    || Boolean(battle?.request?.teamPreview)
+    || !aiAutoplayKey;
   const aiAutoplayToggleDisabled = !onBattleHint || Boolean(battle?.ended);
 
   function selectPanelMode(nextMode: AppStatus) {
@@ -872,6 +914,11 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
       setDisplayedActiveShowdownIds(finalActiveShowdownIds);
       setDisplayedActiveSnapshots(activeSnapshotsForBattle(null));
       setDisplayedSubstitutes(finalSubstitutes);
+      setPartyBoardSettleLock(false);
+      if (partyBoardSettleTimer.current) {
+        window.clearTimeout(partyBoardSettleTimer.current);
+        partyBoardSettleTimer.current = null;
+      }
       setDisplayConditions(finalConditions);
       setFaintedSides(finalFaintedSides);
       previousRecentEvents.current = [];
@@ -899,6 +946,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
       return {id: `recent-${playbackRun.current}-${index}`, type: "message", text} as BattleTimelineEvent;
     });
     const added = addedFromRecent.length ? [...addedFromRecent, ...timelinePool] : addedTimeline;
+    const addedNeedsPartySettle = added.some(event => event.type === "faint" || event.type === "switch");
 
     if (!added.length) {
       setShownEvents(turnEvents);
@@ -1068,6 +1116,16 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
       setCurrentVisualCue(null);
       setPlaybackActive(false);
       setShownEvents(lastEvents(activeBattle, 14));
+      if (addedNeedsPartySettle) {
+        setPartyBoardSettleLock(true);
+        if (partyBoardSettleTimer.current) window.clearTimeout(partyBoardSettleTimer.current);
+        partyBoardSettleTimer.current = window.setTimeout(() => {
+          setPartyBoardSettleLock(false);
+          partyBoardSettleTimer.current = null;
+        }, scaleBattleDuration(1600, currentSpeed(), 700));
+      } else {
+        setPartyBoardSettleLock(false);
+      }
       displayConditionsRef.current = finalConditions;
       displayedActiveNamesRef.current = finalActiveNames;
       displayedActiveShowdownIdsRef.current = finalActiveShowdownIds;
@@ -1091,11 +1149,15 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     return () => {
       eventTimers.current.forEach(timer => window.clearTimeout(timer));
       eventTimers.current = [];
+      if (partyBoardSettleTimer.current) {
+        window.clearTimeout(partyBoardSettleTimer.current);
+        partyBoardSettleTimer.current = null;
+      }
     };
   }, [timelineKey, recentKey, dialogue?.kind]);
 
-  const displayPlayer = battle ? displayedActiveDisplay(battle, "p1", displayedActiveNames.p1, displayedActiveShowdownIds.p1, player.display, displayedActiveSnapshots.p1) : player.display;
-  const displayEnemy = battle ? displayedActiveDisplay(battle, "p2", displayedActiveNames.p2, displayedActiveShowdownIds.p2, enemy.display, displayedActiveSnapshots.p2) : enemy.display;
+  const displayPlayer = battle ? displayedActiveDisplay(battle, "p1", displayedActiveNames.p1, displayedActiveShowdownIds.p1, playerActiveSlot?.display || player.display, displayedActiveSnapshots.p1) : player.display;
+  const displayEnemy = battle ? displayedActiveDisplay(battle, "p2", displayedActiveNames.p2, displayedActiveShowdownIds.p2, enemyActiveSlot?.display || enemy.display, displayedActiveSnapshots.p2) : enemy.display;
   const battleCryScopeKey = battle
     ? `${battle.enemy_trainer?.id || ""}:${battle.player_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}:${battle.enemy_display.map(pokemon => pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id).join("|")}`
     : "";
@@ -1148,10 +1210,26 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   if (!battle) return <div className="loading-panel"><strong>正在进入对局...</strong></div>;
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
-  const activePlayerIndex = Math.max(0, battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
-  const playerParty = playerPartySlots(battle, activePlayerIndex, displayConditions.p1, battle.tracker.active.p1.status || "", setDetailIndex, displayPlayer);
-  const rawEnemyParty = enemyPartySlots(battle, displayedActiveNames.p2 || battle.tracker.active.p2.species_id || battle.tracker.active.p2.name || "", displayConditions.p2, battle.tracker.active.p2.status || "", displayEnemy, displayedActiveShowdownIds.p2 || displayedActiveSnapshots.p2.showdown_id);
-  const enemyParty = entryRevealLocked || introActive
+  const activePlayerIndex = Math.max(0, battleView?.player.active_index ?? battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
+  const shouldUsePlaybackPartySnapshot = playbackActive || partyBoardSettleLock;
+  const playbackPlayerShowdownId = displayedActiveShowdownIds.p1;
+  const playbackEnemyShowdownId = displayedActiveShowdownIds.p2;
+  const playerParty = battleViewPartySlots(battleView?.player, setDetailIndex).map(slot => {
+    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && playbackPlayerShowdownId && slot.showdown_id === playbackPlayerShowdownId;
+    if (playbackActiveSlot || (!shouldUsePlaybackPartySnapshot && slot.active)) {
+      return {...slot, active: true, display: displayPlayer || slot.display, condition: displayConditions.p1, status: statusCode(displayConditions.p1, battle.tracker.active.p1.status)};
+    }
+    return shouldUsePlaybackPartySnapshot && slot.active ? {...slot, active: false} : slot;
+  });
+  const rawEnemyParty = battleViewPartySlots(battleView?.enemy).map(slot => {
+    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && playbackEnemyShowdownId && slot.showdown_id === playbackEnemyShowdownId;
+    if (playbackActiveSlot || (!shouldUsePlaybackPartySnapshot && slot.active)) {
+      return {...slot, active: true, display: displayEnemy || slot.display, condition: displayConditions.p2, status: statusCode(displayConditions.p2, battle.tracker.active.p2.status), revealed: true};
+    }
+    return shouldUsePlaybackPartySnapshot && slot.active ? {...slot, active: false} : slot;
+  });
+  const hideActiveEnemyEntry = introActive || trainerIntroActive || Boolean(dialogue?.kind === "intro" && entryRevealLocked);
+  const enemyParty = hideActiveEnemyEntry
     ? rawEnemyParty.map(slot => slot.active ? {...slot, display: undefined, condition: undefined, status: undefined, active: false, revealed: false} : slot)
     : rawEnemyParty;
   const messageDuration = currentTimelineEvent ? timelineDuration(currentTimelineEvent, displayConditions[currentTimelineEvent.targetSide || "p1"], battleSpeed) : scaleBattleDuration(1600, battleSpeed);
@@ -1612,8 +1690,9 @@ function BattleAiHintAlternativeRow({option}: {option: BattleAiHintAlternative})
 function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: "zmove" | "mega" | "max" | "terastallize") => void; onBack: () => void}) {
   const activeRequest = battle.request?.active?.[0];
   const moves = activeRequest?.moves || [];
-  const active = activePokemon(battle, "p1").display;
-  const target = activePokemon(battle, "p2").display;
+  const view = battleViewFor(battle);
+  const active = activeBattleViewSlot(view?.player)?.display || activePokemon(battle, "p1").display;
+  const target = activeBattleViewSlot(view?.enemy)?.display || activePokemon(battle, "p2").display;
   const enabledSystems = battle.battle_setting?.enabled_battle_systems || [];
   const visibleSystems = BATTLE_SYSTEM_OPTIONS.filter(option => enabledSystems.includes(option.id));
   const canZMove = activeRequest?.canZMove || [];
@@ -1707,31 +1786,34 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
 }
 
 function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; disabled?: boolean; onSwitch: (index: number) => void; onBack: () => void}) {
-  const rows = battle.request?.side?.pokemon || [];
+  const slots = battleViewFor(battle)?.player.slots || [];
   const [focus, setFocus] = useState(0);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
-  return <div className="team-menu"><div className="team-list">{rows.map((runtime, index) => { const display = displayForRuntime(battle.player_display, runtime, index); const status = statusCode(runtime.condition); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={runtime.ident}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{runtime.active ? "▶" : `${index + 1}.`}</span><strong>{display ? displayName(display) : runtimeName(runtime)}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(runtime.condition)}　{runtime.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div>;
+  return <div className="team-menu"><div className="team-list">{slots.map((slot, index) => { const display = slot.display; const status = statusCode(slot.condition, slot.status); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={slot.key}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); }}><span>{slot.active ? "▶" : `${slot.slot}.`}</span><strong>{display ? displayName(display) : slot.runtime ? runtimeName(slot.runtime) : "未知"}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(slot.condition)}　{slot.runtime?.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} initialIndex={detailIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div>;
 }
 
 function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwitch, onClose}: {battle: BattleState; initialIndex: number; disabled?: boolean; forceSwitch?: boolean; onSwitch: (index: number) => void; onClose: () => void}) {
-  const rows = battle.request?.side?.pokemon || [];
-  const [selectedIndex, setSelectedIndex] = useState(() => Math.max(0, Math.min(initialIndex, Math.max(0, rows.length - 1))));
+  const slots = battleViewFor(battle)?.player.slots || [];
+  const [selectedIndex, setSelectedIndex] = useState(() => Math.max(0, Math.min(initialIndex, Math.max(0, slots.length - 1))));
   const [tab, setTab] = useState<"basic" | "moves">("basic");
-  const runtime = rows[selectedIndex] || rows[0];
-  const pokemon = displayForRuntime(battle.player_display, runtime, selectedIndex) || battle.player_display[0];
-  const status = statusCode(runtime?.condition);
-  const canSwitch = Boolean(runtime) && !runtime.active && status !== "fnt";
-  const activeMoves = runtime?.active ? battle.request?.active?.[0]?.moves || [] : [];
+  const slot = slots[selectedIndex] || slots[0];
+  const runtime = slot?.runtime;
+  const pokemon = slot?.display || battle.player_display[0];
+  const status = statusCode(slot?.condition, slot?.status);
+  const canSwitch = Boolean(slot) && !slot.active && status !== "fnt";
+  const activeMoves = slot?.active ? battle.request?.active?.[0]?.moves || [] : [];
   const revealTraining = Boolean(battle.player_talents?.some(talent => talent.id === "intel_god_eye"));
   const detailLockedText = "？？？";
 
   useEffect(() => {
-    setSelectedIndex(Math.max(0, Math.min(initialIndex, Math.max(0, rows.length - 1))));
-  }, [initialIndex, rows.length]);
+    setSelectedIndex(Math.max(0, Math.min(initialIndex, Math.max(0, slots.length - 1))));
+  }, [initialIndex, slots.length]);
 
   if (!pokemon) return null;
 
   function ppText(move: MoveSummary): string {
+    const slotMove = (slot?.moves || []).find(entry => toId(entry.id || entry.move) === toId(move.id || move.name));
+    if (slotMove) return `PP ${slotMove.pp}/${slotMove.maxpp}`;
     const runtimeMove = activeMoves.find(entry => toId(entry.id || entry.move) === toId(move.id || move.name));
     if (!runtimeMove) return `PP ${move.pp}`;
     return `PP ${runtimeMove.pp ?? move.pp}/${runtimeMove.maxpp ?? move.pp}`;
@@ -1741,13 +1823,13 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
     <div className="modal-layer">
       <section className="pokemon-detail-modal">
         <aside className="detail-team-list">
-          {rows.map((entry, index) => {
-            const display = displayForRuntime(battle.player_display, entry, index);
-            const code = statusCode(entry.condition);
+          {slots.map((entry, index) => {
+            const display = entry.display;
+            const code = statusCode(entry.condition, entry.status);
             return (
-              <button className={selectedIndex === index ? "selected" : ""} onClick={() => setSelectedIndex(index)} key={`${entry.ident}-${index}`}>
-                <PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} />
-                <span>{entry.active ? "▶ " : ""}{display ? displayName(display) : runtimeName(entry)}</span>
+              <button className={selectedIndex === index ? "selected" : ""} onClick={() => setSelectedIndex(index)} key={entry.key}>
+                <PokemonSprite pokemon={display} alt={display ? displayName(display) : entry.runtime ? runtimeName(entry.runtime) : "未知"} />
+                <span>{entry.active ? "▶ " : ""}{display ? displayName(display) : entry.runtime ? runtimeName(entry.runtime) : "未知"}</span>
                 {code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}
                 <small>{conditionText(entry.condition)}</small>
               </button>
@@ -1777,7 +1859,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
                   <div className="info-strip">
                     <span>性格</span><strong>{pokemon.nature_zh || pokemon.nature || "未知"}</strong>
                     <span>特性</span><strong>{pokemon.ability_zh || pokemon.ability || "未知"}</strong>
-                    <span>HP</span><strong>{conditionText(runtime?.condition)}</strong>
+                    <span>HP</span><strong>{conditionText(slot?.condition)}</strong>
                     <span>道具</span><strong>{pokemon.item_zh || runtime?.item || "无"}</strong>
                     <span>定位</span><strong>{pokemon.role_zh || pokemon.role || "未标注"}</strong>
                   </div>
@@ -1789,7 +1871,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
             ) : (
               <div className="detail-moves">
                 {pokemon.moves.map(move => {
-                  const displayMove = runtime?.active || toId(move.id || move.name) === "judgment"
+                  const displayMove = slot?.active || toId(move.id || move.name) === "judgment"
                     ? runtimeMoveSummary(move, pokemon, battle, "p1") || move
                     : move;
                   return <div className="move-detail" key={move.id}><strong>{displayMove.name_zh || displayMove.name}</strong><span>{displayMove.type_zh}/{displayMove.category_zh}</span><span>威力 {displayMove.power || "--"}</span><span>命中 {displayMove.accuracy ?? "必中"}</span><span>{ppText(displayMove)}</span><p>{revealTraining ? moveDescription(displayMove) : detailLockedText}</p></div>;
@@ -1798,7 +1880,7 @@ function PokemonDetailModal({battle, initialIndex, disabled, forceSwitch, onSwit
             )}
           </div>
           <footer>
-            <button disabled={disabled || !canSwitch} onClick={() => { onSwitch(selectedIndex + 1); onClose(); }}>换人</button>
+            <button disabled={disabled || !canSwitch} onClick={() => { onSwitch(slot?.slot || selectedIndex + 1); onClose(); }}>换人</button>
             <button disabled={forceSwitch} title={forceSwitch ? "必须先换上可战斗的宝可梦" : undefined} onClick={onClose}>关闭</button>
           </footer>
         </section>
@@ -1846,7 +1928,26 @@ function ppMoveOptionsFor(display: RentalPokemon | undefined, activeMoves: Battl
   }));
 }
 
+function ppMoveOptionsForSlot(slot: BattleViewSlot | undefined, display: RentalPokemon | undefined, activeMoves: BattleMoveRequest[]): BattlePpMoveOption[] {
+  if (activeMoves.length) return ppMoveOptionsFor(display, activeMoves);
+  if (slot?.moves?.length) {
+    return slot.moves.map(move => {
+      const summary = moveSummaryByName(display, move.id || move.move);
+      return {
+        slot: move.slot,
+        key: `${move.id || move.move}-${move.slot}`,
+        name: summary?.name_zh || move.move,
+        typeLabel: moveTypeLabel(summary),
+        pp: move.pp,
+        maxpp: move.maxpp,
+      };
+    });
+  }
+  return ppMoveOptionsFor(display, activeMoves);
+}
+
 function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}: {battle: BattleState; bag: BagCategoryView | null; initialTarget: number; disabled?: boolean; onClose: () => void; onUse: (itemId: string, target: number, moveSlot?: number, notice?: string) => Promise<boolean> | boolean | void}) {
+  const [step, setStep] = useState<"detail" | "pokemon_picker">("detail");
   const [target, setTarget] = useState(Math.max(0, initialTarget));
   const [itemId, setItemId] = useState("");
   const [ppPicker, setPpPicker] = useState<{item: BagItemView; target: number} | null>(null);
@@ -1854,32 +1955,50 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
   const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
   const items = bag?.consumable || [];
   const selected = items.find(item => item.id === itemId) || items[0];
-  const rows = battle.request?.side?.pokemon || [];
-  const targetRuntime = rows[target] || rows[0];
-  const targetDisplay = displayForRuntime(battle.player_display, targetRuntime, target) || battle.player_display[0];
-  const activeMoves = targetRuntime?.active ? battle.request?.active?.[0]?.moves || [] : [];
+  const slots = battleViewFor(battle)?.player.slots || [];
+  const targetSlot = slots[target] || slots[0];
+  const targetDisplay = targetSlot?.display || battle.player_display[0];
   const revealItemDetails = Boolean(battle.player_talents?.some(talent => talent.id === "intel_god_eye"));
-  const ppMoveOptions = ppMoveOptionsFor(targetDisplay, activeMoves);
   const selectedNeedsMove = isSingleMovePpItem(selected);
+  const ppPickerSlot = ppPicker ? slots[ppPicker.target] || slots[0] : targetSlot;
+  const ppPickerDisplay = ppPickerSlot?.display || battle.player_display[ppPicker?.target ?? target] || targetDisplay;
+  const ppPickerActiveMoves = ppPickerSlot?.active ? battle.request?.active?.[0]?.moves || [] : [];
+  const ppPickerMoveOptions = ppMoveOptionsForSlot(ppPickerSlot, ppPickerDisplay, ppPickerActiveMoves);
+  const team = slots.map(entry => {
+    const display = entry.display;
+    return {
+      pokemon: display,
+      condition: entry.condition,
+      status: entry.status,
+      heldItem: display?.item_zh || display?.item || entry.runtime?.item || "无道具",
+      disabled: Boolean(disabled || usingItem),
+      disabledReason: usingItem ? "处理中" : selectedNeedsMove ? "选择技能" : "使用",
+    };
+  });
 
   function showToast(message: string, tone: "normal" | "danger" = "normal") {
     setToast({id: Date.now(), message, tone});
   }
 
-  async function submitSelectedItem() {
+  async function submitSelectedItem(targetIndex: number) {
     if (!selected || usingItem) return;
+    setTarget(targetIndex);
     if (selectedNeedsMove) {
-      if (!ppMoveOptions.length) {
+      const slot = slots[targetIndex];
+      const display = slot?.display || battle.player_display[targetIndex];
+      const moves = ppMoveOptionsForSlot(slot, display, slot?.active ? battle.request?.active?.[0]?.moves || [] : []);
+      if (!moves.length) {
         showToast("这个目标没有可选择的技能。", "danger");
         return;
       }
-      setPpPicker({item: selected, target});
+      setPpPicker({item: selected, target: targetIndex});
       return;
     }
     setUsingItem(true);
     try {
-      const ok = await onUse(selected.id, target);
+      const ok = await onUse(selected.id, targetIndex);
       if (ok === false) showToast("道具没有成功使用。", "danger");
+      else setStep("detail");
     } finally {
       setUsingItem(false);
     }
@@ -1891,6 +2010,10 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
     try {
       const ok = await onUse(ppPicker.item.id, ppPicker.target, move.slot, `${move.name} 已恢复`);
       if (ok === false) showToast("道具没有成功使用。", "danger");
+      else {
+        setPpPicker(null);
+        setStep("detail");
+      }
     } finally {
       setUsingItem(false);
     }
@@ -1898,54 +2021,53 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
 
   return (
     <div className="modal-layer">
-      <section className="shop-modal bag-manage-modal bag-flat-modal battle-bag-modal">
-        <header><div><h2>战斗背包</h2><p>战斗中只能使用消耗类道具。</p></div><button disabled={usingItem} onClick={onClose}>关闭</button></header>
-        <div className="bag-manage-layout battle-bag-layout">
-          <div className="bag-flat-grid battle-bag-item-grid">
-            {items.length ? items.map(item => (
-              <button className={`bag-flat-item battle-bag-item ${selected?.id === item.id ? "selected" : ""}`} disabled={usingItem} onClick={() => setItemId(item.id)} key={item.id}>
-                <ItemIcon item={item} />
-                <span>
-                  <strong>{item.name_zh || item.name}</strong>
-                  <small>{revealItemDetails ? item.desc_zh || item.desc || item.name : "？？？"}</small>
-                </span>
-                <b>x{item.count}</b>
-              </button>
-            )) : <p className="bag-empty">当前没有可在战斗中使用的消耗道具。</p>}
-          </div>
-          <section className="bag-action-panel battle-bag-action">
-            {selected ? <>
-              <h3>{selected.name_zh || selected.name}</h3>
-              <p>{itemCategoryLabel(selected.category)}　x{selected.count}</p>
-              <div className="battle-target-list">
-                {rows.map((entry, index) => {
-                  const display = displayForRuntime(battle.player_display, entry, index);
-                  return (
-                    <button className={target === index ? "selected" : ""} disabled={usingItem} onClick={() => setTarget(index)} key={`${entry.ident}-item-target`}>
-                      <PokemonSprite pokemon={display} alt={display ? displayName(display) : runtimeName(entry)} />
-                      <span>{display ? displayName(display) : runtimeName(entry)}</span>
-                      <small>{conditionText(entry.condition)}</small>
-                    </button>
-                  );
-                })}
+      <BagLayout
+        className="battle-bag-modal"
+        title="战斗背包"
+        description="战斗中只能使用消耗类道具。"
+        items={items}
+        selectedId={selected?.id}
+        disabled={usingItem}
+        emptyText="当前没有可在战斗中使用的消耗道具。"
+        onSelect={setItemId}
+        onClose={onClose}
+      >
+        <section className="bag-action-panel battle-bag-action">
+          {selected && step === "detail" ? (
+            <BagItemDetailPanel
+              item={selected}
+              descriptionVisible={revealItemDetails}
+              busy={usingItem}
+              disabled={disabled || usingItem}
+              useLabel={selectedNeedsMove ? "选择目标" : "使用"}
+              disabledReason={selectedNeedsMove ? "使用后选择要恢复 PP 的技能" : undefined}
+              onUse={() => setStep("pokemon_picker")}
+            />
+          ) : null}
+          {selected && step === "pokemon_picker" ? (
+            <>
+              <div className="bag-flow-toolbar">
+                <button disabled={usingItem} onClick={() => setStep("detail")}>返回详情</button>
+                <small>{selectedNeedsMove ? "选择宝可梦后再选择技能" : "点击宝可梦后立即使用"}</small>
               </div>
-              <p className="battle-bag-target-summary">{targetDisplay ? `目标：${displayName(targetDisplay)}` : "选择目标宝可梦"}{selectedNeedsMove ? "　使用后选择技能" : ""}</p>
-              <div className="command-row"><button disabled={disabled || usingItem} onClick={submitSelectedItem}>{usingItem ? "使用中..." : selectedNeedsMove ? "选择技能" : "使用道具"}</button></div>
-            </> : <p>当前没有可在战斗中使用的消耗道具。</p>}
-          </section>
-        </div>
+              <PokemonTeamPicker team={team} selectedIndex={target} busyIndex={usingItem ? target : null} title="选择使用对象" onSelect={slot => void submitSelectedItem(slot)} />
+            </>
+          ) : null}
+          {!selected ? <p>当前没有可在战斗中使用的消耗道具。</p> : null}
+        </section>
+      </BagLayout>
         {ppPicker ? (
           <div className="battle-pp-picker-layer">
             <section className="battle-pp-picker-modal">
               <header>
                 <div>
                   <h3>选择恢复的技能</h3>
-                  <p>{targetDisplay ? displayName(targetDisplay) : "目标宝可梦"} / {ppPicker.item.name_zh || ppPicker.item.name}</p>
+                  <p>{ppPickerDisplay ? displayName(ppPickerDisplay) : "目标宝可梦"} / {ppPicker.item.name_zh || ppPicker.item.name}</p>
                 </div>
                 <button disabled={usingItem} onClick={() => setPpPicker(null)}>关闭</button>
               </header>
               <div className="battle-pp-picker-grid">
-                {ppMoveOptions.map(move => {
+                {ppPickerMoveOptions.map(move => {
                   const ppKnown = typeof move.pp === "number" && typeof move.maxpp === "number";
                   const isFull = ppKnown && move.pp! >= move.maxpp!;
                   return (
@@ -1960,7 +2082,6 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
             </section>
           </div>
         ) : null}
-      </section>
       {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={1200} onDone={() => setToast(null)} /> : null}
     </div>
   );

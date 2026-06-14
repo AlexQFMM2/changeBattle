@@ -1,0 +1,117 @@
+.bag-item-detail-panel.bag-item-detail-panel {
+  --bag-item-detail-width: var(--bag-container-action-inner-width, 320px);
+  --bag-item-detail-height: var(--bag-container-action-inner-height, 180px);
+  --bag-item-detail-hero-height: 70px;
+  --bag-item-detail-footer-height: 24px;
+  --bag-item-detail-gap: 5px;
+  --bag-item-detail-description-height: calc(
+    var(--bag-item-detail-height) -
+    var(--bag-item-detail-hero-height) -
+    var(--bag-item-detail-footer-height) -
+    var(--bag-item-detail-gap) * 2
+  );
+  --bag-item-detail-icon-size: 58px;
+  --bag-item-detail-name-font-size: 9px;
+  --bag-item-detail-meta-font-size: 6px;
+  --bag-item-detail-desc-font-size: 7px;
+  width: var(--bag-item-detail-width);
+  height: var(--bag-item-detail-height);
+  min-width: var(--bag-item-detail-width);
+  min-height: var(--bag-item-detail-height);
+  display: grid;
+  grid-template-columns: var(--bag-item-detail-width);
+  grid-template-rows: var(--bag-item-detail-hero-height) var(--bag-item-detail-description-height) var(--bag-item-detail-footer-height);
+  gap: var(--bag-item-detail-gap);
+  overflow: hidden;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero {
+  width: var(--bag-item-detail-width);
+  height: var(--bag-item-detail-hero-height);
+  display: grid;
+  grid-template-columns: 64px calc(var(--bag-item-detail-width) - 74px);
+  grid-template-rows: 32px 26px;
+  gap: 4px 10px;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-icon {
+  width: var(--bag-item-detail-icon-size);
+  height: var(--bag-item-detail-icon-size);
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  border: 2px solid #25332b;
+  background: #fffdf5;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-icon .item-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong,
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong {
+  height: 28px;
+  display: grid;
+  align-items: center;
+  border: 2px solid #25332b;
+  background: #fffdf5;
+  padding: 0 8px;
+  color: #25332b;
+  font-size: var(--bag-item-detail-name-font-size);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > small {
+  height: 22px;
+  color: #596052;
+  font-size: var(--bag-item-detail-meta-font-size);
+  font-weight: 850;
+  line-height: 22px;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-description {
+  width: var(--bag-item-detail-width);
+  height: var(--bag-item-detail-description-height);
+  display: block;
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  overflow: hidden;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-description > p {
+  margin: 0;
+  color: #25332b;
+  font-size: var(--bag-item-detail-desc-font-size);
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel footer {
+  width: var(--bag-item-detail-width);
+  height: var(--bag-item-detail-footer-height);
+  display: grid;
+  justify-items: end;
+  align-items: center;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-use-button {
+  width: 52px;
+  height: 20px;
+  min-width: 52px;
+  min-height: 20px;
+  padding: 0;
+  border-width: 2px;
+  font-size: 7px;
+  line-height: 1;
+}

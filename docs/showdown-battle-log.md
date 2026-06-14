@@ -6,12 +6,15 @@ For the frontend playback order, animation queue, and scenario references, see [
 
 For stable Pokemon identity, `showdown_id`/`pokeball` transport, side detection, and saveback rules, see [`showdown-identity.md`](./showdown-identity.md).
 
+For local team / Showdown team sync and the battle page display projection, see [`battle-team-state-flow.md`](./battle-team-state-flow.md).
+
 ## Principles
 
 - Do not deduplicate protocol messages by text. If Showdown emits two heal events, both are real events and both should be shown.
 - Do not collapse item, ability, move, drain, weather, hazard, and status messages into one generic result.
 - Do not use Showdown `ident`, Pokemon name, species name, or localized display name as a stable Pokemon identity. They are presentation labels and can collide.
 - `turn`, `upkeep`, `request`, and timestamp messages update UI state only. They should not block the animation queue.
+- Timeline events drive playback and active animation changes; the final battle page display projection is `battle_view`.
 - Damage and heal animations are driven only by `-damage`, `-heal`, and `-sethp` events. The final request state must not make HP jump early.
 - Faint state starts at `faint` and remains visible until the side receives a real `switch`, `drag`, `replace`, `detailschange`, or `-formechange` event.
 - The raw order from Showdown is preserved. The only presentation exception is type effectiveness: `-supereffective` and `-resisted` are shown after the related damage event, matching the in-game feel.

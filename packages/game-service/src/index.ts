@@ -12,6 +12,7 @@ import type {
   BattleTurnPokemonState,
   BattleTurnRecord,
   BattleTracker,
+  BattleViewModel,
   DesktopDexCategory,
   DesktopDexEntry,
   DesktopDexSearchResult,
@@ -602,8 +603,8 @@ export class GameService {
     return {
       species_id: speciesId,
       name,
-      name_zh: this.zh("species", name),
-      sprite: this.spriteMap?.entries[speciesId],
+      name_zh: this.speciesNameZh(species, name),
+      sprite: this.speciesSpriteEntry(species, speciesId),
       types,
       types_zh: types.map(type => this.zh("types", type) || type),
       base_stats: species.baseStats || {},
@@ -616,6 +617,32 @@ export class GameService {
       heightm: Number(species.heightm || 0) || undefined,
       weightkg: Number(species.weightkg || 0) || undefined,
     };
+  }
+
+  private speciesSpriteEntry(species: any, speciesId: string): SpriteMapEntry | undefined {
+    const entries = this.spriteMap?.entries;
+    if (!entries) return undefined;
+    const direct = entries[speciesId];
+    if (direct) return direct;
+    const baseSpeciesId = this.toId(species?.baseSpecies || "");
+    if (baseSpeciesId && baseSpeciesId !== speciesId) return entries[baseSpeciesId];
+    return undefined;
+  }
+
+  private speciesNameZh(species: any, fallbackName: string): string {
+    const name = species?.name || fallbackName;
+    const translated = this.zh("species", name);
+    if (translated && translated !== name) return translated;
+    const baseSpecies = String(species?.baseSpecies || "").trim();
+    const forme = String(species?.forme || "").trim();
+    if (baseSpecies && baseSpecies !== name) {
+      const baseZh = this.zh("species", baseSpecies);
+      if (baseZh && baseZh !== baseSpecies) {
+        const suffix = this.toId(baseSpecies) === "vivillon" && forme ? `${forme}花纹` : forme ? `${forme}形态` : "特殊形态";
+        return `${baseZh}（${suffix}）`;
+      }
+    }
+    return translated || name;
   }
 
   private itemIconAsset(itemId: string | undefined, item?: {name?: string; desc?: string; shortDesc?: string}): string {
@@ -821,10 +848,10 @@ export class GameService {
           const entry = {
             id: species.id,
             name: species.name,
-            name_zh: this.zh("species", species.name),
+            name_zh: this.speciesNameZh(species, species.name),
             category: "pokemon" as const,
             tags: [species.id, String(species.num || ""), ...(species.types || []).map((typeName: string) => this.zh("types", typeName))],
-            sprite: this.spriteMap?.entries[species.id],
+            sprite: this.speciesSpriteEntry(species, species.id),
             types: species.types || [],
             types_zh: (species.types || []).map((typeName: string) => this.zh("types", typeName)),
             base_stats: this.fullStats(species.baseStats || {}, 0),
@@ -988,7 +1015,8 @@ export class GameService {
 
   async getSpriteForSpecies(speciesId: string): Promise<SpriteMapEntry | undefined> {
     const spriteMap = await this.loadSpriteMap();
-    return spriteMap.entries[speciesId];
+    const species = this.dataDex().species.get(speciesId);
+    return spriteMap.entries[speciesId] || this.speciesSpriteEntry(species, species.id || this.toId(speciesId));
   }
 
   async createBattleSession(options: StartBattleOptions): Promise<TrainerItemBattleSession> {
@@ -1253,13 +1281,13 @@ export class GameService {
     const ivs = this.fullStats(set.ivs || {}, 31);
     const evs = this.fullStats(set.evs || {}, 0);
     const speciesId = species.id || this.toId(set.species || set.name);
-    const sprite = this.spriteMap?.entries[speciesId];
+    const sprite = this.speciesSpriteEntry(species, speciesId);
     const baseStats = this.fullStats(species.baseStats || {}, 0);
     const teraType = set.teraType ? String(set.teraType) : "";
     return {
       name: set.name || set.species,
       species: set.species,
-      species_zh: this.zh("species", species.name || set.species),
+      species_zh: this.speciesNameZh(species, species.name || set.species),
       species_id: speciesId,
       level,
       gender: set.gender || "",
@@ -2322,6 +2350,7 @@ export class BattleSession {
       winner: this.winner,
       request: this.latestRequests[this.playerSide()] || null,
       tracker: this.tracker,
+      battle_view: this.buildBattleView(),
       recent_events: this.recentEvents.slice(-30),
       timeline_events: this.timelineEvents.slice(-100),
       turn_records: this.turnRecords,
@@ -2332,6 +2361,104 @@ export class BattleSession {
       player_side: this.playerSide(),
       enemy_side: this.enemySide(),
     };
+  }
+
+  private buildBattleView(): BattleViewModel {
+    return {
+      player: this.buildSideView(this.playerSide()),
+      enemy: this.buildSideView(this.enemySide()),
+    };
+  }
+
+  private buildSideView(side: SideId): BattleViewModel["player"] {
+    const states = this.currentSideState(side);
+    const display = this.displayForBattleSide(side);
+    const request = this.latestRequests[side];
+    const isPlayer = side === this.playerSide();
+    const seenShowdownIds = this.seenShowdownIdsForSide(side);
+    const runtimeByShowdownId = new Map<string, RuntimePokemon>();
+    const runtimeBySlot = new Map<number, RuntimePokemon>();
+    for (let index = 0; index < (request?.side?.pokemon || []).length; index += 1) {
+      const runtime = request!.side.pokemon[index];
+      const id = normalizeShowdownId(runtime.pokeball);
+      if (id) runtimeByShowdownId.set(id, runtime);
+      runtimeBySlot.set(index + 1, runtime);
+    }
+    const trackedActive = this.tracker.active[side] || {};
+    let activeIndex = Math.max(0, states.findIndex(state => state.active));
+    const slots = states.map((state, index) => {
+      const showdownId = normalizeShowdownId(state.showdown_id);
+      const runtime = (showdownId ? runtimeByShowdownId.get(showdownId) : undefined) || runtimeBySlot.get(Number(state.slot)) || runtimeBySlot.get(index + 1);
+      const baseDisplay = findRentalByRuntime(display, state)
+        || (runtime ? findRentalByRuntime(display, runtime) : undefined)
+        || display[index];
+      const active = Boolean(state.active);
+      if (active) activeIndex = index;
+      const displayForSlot = active ? mergeActiveDisplay(trackedActive, baseDisplay, this.service) : baseDisplay;
+      const condition = state.condition || stateCondition(state);
+      const hp = parseConditionHp(condition);
+      const fainted = Boolean(state.fainted || Number(state.hp || 0) <= 0 || /\bfnt\b/i.test(condition));
+      return {
+        key: state.run_member_id || showdownId || `${side}-${state.slot || index + 1}`,
+        slot: Number(state.slot || index + 1),
+        showdown_id: showdownId || undefined,
+        run_member_id: state.run_member_id,
+        revealed: isPlayer || active || Boolean(showdownId && seenShowdownIds.has(showdownId)),
+        active,
+        fainted,
+        condition,
+        hp: Math.max(0, Number(state.hp ?? hp?.current ?? 0)),
+        max_hp: Math.max(1, Number(state.maxhp ?? hp?.max ?? 1)),
+        status: state.status || statusFromCondition(condition),
+        moves: state.moves || [],
+        display: displayForSlot,
+        runtime,
+      };
+    });
+    if (!slots.length && display.length) {
+      for (let index = 0; index < display.length; index += 1) {
+        const pokemon = display[index];
+        slots.push({
+          key: pokemon.run_member_id || pokemon.showdown_id || `${side}-${index + 1}`,
+          slot: index + 1,
+          showdown_id: pokemon.showdown_id,
+          run_member_id: pokemon.run_member_id,
+          revealed: isPlayer || index === 0,
+          active: index === 0,
+          fainted: false,
+          condition: "100/100",
+          hp: 100,
+          max_hp: 100,
+          status: "",
+          moves: [],
+          display: index === 0 ? mergeActiveDisplay(trackedActive, pokemon, this.service) : pokemon,
+          runtime: runtimeBySlot.get(index + 1),
+        });
+      }
+      activeIndex = 0;
+    }
+    return {
+      side,
+      active_index: Math.max(0, activeIndex),
+      slots,
+    };
+  }
+
+  private seenShowdownIdsForSide(side: SideId): Set<string> {
+    const seen = new Set<string>();
+    const activeId = normalizeShowdownId(this.tracker.active[side]?.showdown_id);
+    if (activeId) seen.add(activeId);
+    for (const event of this.timelineEvents) {
+      if (event.side === side) {
+        const sourceId = normalizeShowdownId(event.source_showdown_id);
+        if (sourceId) seen.add(sourceId);
+      }
+      if (event.targetSide === side) {
+        const targetId = normalizeShowdownId(event.target_showdown_id);
+        if (targetId) seen.add(targetId);
+      }
+    }
+    return seen;
   }
 
   getPlayerState(): PlayerPokemonState[] {
@@ -3389,6 +3516,7 @@ export class BattleSession {
     if (!this.stream?.battle) return;
     this.applySideState(side, states);
     this.refreshRequests();
+    this.syncRequestSideState(side, this.currentSideState(side));
     this.updatePpMemory(this.latestRequests[this.playerSide()]);
     if (side === this.playerSide()) this.applyPlayerStateToTracker(this.currentSideState(side));
   }
@@ -3460,7 +3588,41 @@ export class BattleSession {
     }
   }
 
-  private applyPlayerStateToTracker(states: PlayerPokemonState[]): void {
+  protected syncRequestSideState(side: SideId, states: PlayerPokemonState[]): void {
+    if (!this.stream?.battle || !states.length) return;
+    const request = this.latestRequests[side];
+    const requestPokemon = request?.side?.pokemon;
+    if (!requestPokemon?.length) return;
+    const slotKeys = this.slotKeysForSide(side);
+    const stateByShowdownId = new Map<string, PlayerPokemonState>();
+    const stateBySlot = new Map<number, PlayerPokemonState>();
+    for (const state of states) {
+      const showdownId = normalizeShowdownId(state.showdown_id);
+      if (showdownId) stateByShowdownId.set(showdownId, state);
+      stateBySlot.set(Number(state.slot), state);
+    }
+    const usedSlots = new Set<number>();
+    for (let index = 0; index < requestPokemon.length; index += 1) {
+      const runtime = requestPokemon[index];
+      const requestSlot = resolveStateSlot({
+        species: shortIdent(runtime.ident || "") || runtime.details || "",
+        details: runtime.details,
+        showdown_id: normalizeShowdownId(runtime.pokeball),
+        slot: index + 1,
+      } as PlayerPokemonState, slotKeys, usedSlots);
+      const state = (runtime.pokeball ? stateByShowdownId.get(normalizeShowdownId(runtime.pokeball)) : undefined)
+        || stateBySlot.get(requestSlot)
+        || states[index];
+      usedSlots.add(requestSlot);
+      if (!state) continue;
+      runtime.condition = state.condition || stateCondition(state);
+    }
+    const battleSide = this.battleSide(side);
+    battleSide.activeRequest = request;
+    battleSide.emitRequest(request, true);
+  }
+
+  protected applyPlayerStateToTracker(states: PlayerPokemonState[]): void {
     if (!states.length) return;
     const active = states.find(state => state.active) || states[0];
     const runtimeLike = {
@@ -3814,6 +3976,8 @@ export class TrainerItemBattleSession extends BattleSession {
       const targetTurn = Math.max(1, Number(action.targetTurn || 1));
       battle.add('-message', `帝牙卢卡的恩典发动，我方队伍状态恢复为第 ${targetTurn} 回合。`);
       this.applySideState(this.playerSide(), action.restoreStates || []);
+      this.syncRequestSideState(this.playerSide(), this.currentSideState(this.playerSide()));
+      this.applyPlayerStateToTracker(this.currentSideState(this.playerSide()));
       this.lastDialgaGraceActionSeq = Number(action.dialgaGraceActionSeq || 0);
       return undefined;
     };
@@ -3881,6 +4045,96 @@ function withStateStableShowdownIds(states: PlayerPokemonState[] = [], team: Pok
 
 function activeDisplay(service: GameService, rawSpecies: string | undefined): ReturnType<GameService["speciesDisplay"]> {
   return service.speciesDisplay(shortIdent(rawSpecies || "").split(",", 1)[0].trim());
+}
+
+function calculatedDisplayStats(baseStats: Record<string, number>, base?: RentalPokemon): Record<string, number> {
+  if (!base) return {};
+  const level = Number(base.level || 50);
+  const ivs = base.ivs || {};
+  const evs = base.evs || {};
+  const result: Record<string, number> = {};
+  for (const stat of ["hp", "atk", "def", "spa", "spd", "spe"]) {
+    const baseValue = Number(baseStats[stat] || 0);
+    const iv = Number(ivs[stat] ?? 31);
+    const ev = Number(evs[stat] ?? 0);
+    const value = Math.floor(((2 * baseValue + iv + Math.floor(ev / 4)) * level) / 100);
+    if (stat === "hp") {
+      result[stat] = value + level + 10;
+      continue;
+    }
+    let adjusted = value + 5;
+    if (base.nature_plus === stat) adjusted = Math.floor(adjusted * 1.1);
+    if (base.nature_minus === stat) adjusted = Math.floor(adjusted * 0.9);
+    result[stat] = adjusted;
+  }
+  return result;
+}
+
+function rentalFromSpeciesDisplay(display: ReturnType<GameService["speciesDisplay"]>, level = 50): RentalPokemon {
+  return {
+    name: display.name,
+    species: display.name,
+    species_zh: display.name_zh || display.name,
+    species_id: display.species_id,
+    level,
+    gender: display.gender || "",
+    types: display.types || [],
+    types_zh: display.types_zh || [],
+    ability: display.ability || "",
+    ability_zh: display.ability_zh || "",
+    ability_id: display.ability_id || "",
+    ability_desc: display.ability_desc || "",
+    ability_desc_zh: display.ability_desc_zh || "",
+    item: "",
+    item_zh: "",
+    item_id: "",
+    item_desc: "",
+    item_desc_zh: "",
+    moves: [],
+    base_stats: display.base_stats || {},
+    stats: {},
+    evs: {},
+    ivs: {},
+    nature: "",
+    nature_zh: "",
+    nature_plus: "",
+    nature_minus: "",
+    role: "",
+    role_zh: "",
+    sprite: display.sprite,
+    heightm: display.heightm,
+    weightkg: display.weightkg,
+  };
+}
+
+function mergeActiveDisplay(active: BattleTracker["active"]["p1"] | undefined, base: RentalPokemon | undefined, service: GameService): RentalPokemon | undefined {
+  const rawName = active?.name || active?.display_name || active?.species_id || base?.species || base?.name;
+  if (!active?.sprite && !active?.display_name && !active?.species_id) return base || (rawName ? rentalFromSpeciesDisplay(service.speciesDisplay(rawName)) : undefined);
+  const fallback = base || rentalFromSpeciesDisplay(service.speciesDisplay(rawName || "unknown"));
+  const species = active?.name || active?.display_name || fallback.species || fallback.name || rawName || "Unknown";
+  const baseStats = active?.base_stats || fallback.base_stats || {};
+  const stats = active?.base_stats ? calculatedDisplayStats(baseStats, fallback) : fallback.stats || {};
+  const formChanged = Boolean(active?.species_id && fallback.species_id && active.species_id !== fallback.species_id);
+  const useActiveAbility = formChanged || !base;
+  return {
+    ...fallback,
+    name: species,
+    species,
+    species_zh: active?.display_name || fallback.species_zh || species,
+    species_id: active?.species_id || fallback.species_id || toId(species),
+    gender: active?.gender || fallback.gender || "",
+    types: active?.types || fallback.types || [],
+    types_zh: active?.types_zh || fallback.types_zh || [],
+    ability: useActiveAbility ? active?.ability || fallback.ability || "" : fallback.ability || "",
+    ability_zh: useActiveAbility ? active?.ability_zh || fallback.ability_zh || "" : fallback.ability_zh || "",
+    ability_id: useActiveAbility ? active?.ability_id || fallback.ability_id || "" : fallback.ability_id || "",
+    ability_desc: useActiveAbility ? active?.ability_desc || fallback.ability_desc || "" : fallback.ability_desc || "",
+    ability_desc_zh: useActiveAbility ? active?.ability_desc_zh || fallback.ability_desc_zh || "" : fallback.ability_desc_zh || "",
+    base_stats: baseStats,
+    stats,
+    sprite: active?.sprite || fallback.sprite,
+    showdown_id: active?.showdown_id || fallback.showdown_id,
+  };
 }
 
 function protocolGenderFromDetails(value: string | undefined): string {

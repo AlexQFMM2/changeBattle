@@ -1,5 +1,6 @@
 import type {ButtonHTMLAttributes, ReactNode} from "react";
 import {typeId} from "../../lib/ui";
+import "./MoveCard.css";
 
 export type MoveCardSize = "battle" | "sheet" | "dex" | "draw";
 
@@ -51,7 +52,7 @@ export function MoveCardContent({name, moveType, typeLabel, category, pp, maxPp,
   );
 }
 
-export function MoveCard({name, moveType, typeLabel, category, pp, maxPp, power, accuracy, badge, damageRange, meta, size = "sheet", selected, className, ...buttonProps}: MoveCardData & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "type"> & {size?: MoveCardSize; selected?: boolean}) {
+export function MoveCard({name, moveType, typeLabel, category, pp, maxPp, power, accuracy, badge, damageRange, meta, size = "sheet", selected, className, ...buttonProps}: MoveCardData & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "type" | "name"> & {size?: MoveCardSize; selected?: boolean}) {
   return (
     <button {...buttonProps} type="button" className={moveCardClassName({moveType, size, selected, className})}>
       <MoveCardContent name={name} moveType={moveType} typeLabel={typeLabel} category={category} pp={pp} maxPp={maxPp} power={power} accuracy={accuracy} badge={badge} damageRange={damageRange} meta={meta} />

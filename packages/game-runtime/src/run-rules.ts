@@ -1500,7 +1500,7 @@ export function isTmItemId(itemId: string | undefined): boolean {
 
 export function tmIconAssetForMoveType(moveType: string | undefined): string {
   const typeId = toId(moveType);
-  return typeId && TM_ICON_TYPE_IDS.has(typeId) ? `assets/runtime/items/machine${typeId}/icon.png` : "assets/placeholders/move.png";
+  return `assets/runtime/items/machine${typeId && TM_ICON_TYPE_IDS.has(typeId) ? typeId : "normal"}/icon.png`;
 }
 
 export function itemCategory(item: Pick<ShopItem, "id" | "name" | "desc" | "desc_zh"> & Partial<Pick<ShopItem, "name_zh">>): ItemCategory {

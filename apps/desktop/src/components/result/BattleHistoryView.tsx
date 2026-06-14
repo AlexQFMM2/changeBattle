@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState} from "react";
 import type {BattleRecordEntry, ResultSummaryState, SaveBattleRecordsTable} from "@changebattle/shared";
-import {PokemonSprite, displayName, trainerDisplayName} from "../../lib/ui";
+import {PokemonSprite, displayName} from "../../lib/ui";
 import {ResultView} from "./ResultView";
 
 type BattleHistoryViewProps = {
@@ -78,12 +78,15 @@ function BattleHistoryCard({record, onClick}: {record: BattleRecordEntry; onClic
   const summary = record.result_summary as ResultSummaryState | undefined;
   const pokemon = (summary?.used_pokemon?.length ? summary.used_pokemon.map(entry => entry.pokemon) : record.player_team || []).slice(0, 4);
   const outcome = summary?.outcome || record.outcome;
+  const totalBattles = Number(summary?.total_battles || record.total_battles || 0);
+  const progressCount = summary?.progress?.length || totalBattles || record.battle_no || 0;
+  const teamCount = (summary?.used_pokemon?.length || summary?.player_team?.length || record.player_team?.length || pokemon.length || 0);
   return (
     <button className={`battle-history-card ${outcome}`} onClick={onClick}>
       <div className="battle-history-card-main">
-        <span>{outcomeText(outcome)}</span>
+        <span>{outcomeText(outcome)}挑战</span>
         <strong>{summary?.headline || record.message || "挑战结算"}</strong>
-        <small>{formatRecordDate(record.created_at)}　{summary?.subtitle || `第 ${record.battle_no}/${record.total_battles} 场`}</small>
+        <small>{formatRecordDate(record.created_at)}　{summary?.subtitle || wholeRunSubtitle(outcome, progressCount, totalBattles)}</small>
       </div>
       <div className="battle-history-team" aria-label="本局宝可梦">
         {pokemon.map((entry, index) => (
@@ -91,11 +94,18 @@ function BattleHistoryCard({record, onClick}: {record: BattleRecordEntry; onClic
         ))}
       </div>
       <div className="battle-history-meta">
-        <span>{record.battle_no}/{record.total_battles}</span>
-        <small>{record.enemy_trainer ? trainerDisplayName(record.enemy_trainer) : "未知对手"}</small>
+        <span>整局</span>
+        <small>{progressCount ? `${progressCount}${totalBattles ? `/${totalBattles}` : ""} 场战斗` : "查看结算"}{teamCount ? ` · ${teamCount} 只宝可梦` : ""}</small>
       </div>
     </button>
   );
+}
+
+function wholeRunSubtitle(outcome: ResultSummaryState["outcome"] | BattleRecordEntry["outcome"], progressCount: number, totalBattles: number): string {
+  const progress = progressCount ? `${progressCount}${totalBattles ? `/${totalBattles}` : ""} 场` : "本局";
+  if (outcome === "win") return `${progress} · 已通关`;
+  if (outcome === "loss") return `${progress} · 挑战失败`;
+  return `${progress} · 已中断`;
 }
 
 function outcomeText(outcome: ResultSummaryState["outcome"] | BattleRecordEntry["outcome"]): string {

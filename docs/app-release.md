@@ -142,8 +142,8 @@ D:\jdk-21.0.11\bin\keytool.exe -genkeypair -v ^
 当前版本：
 
 ```text
-versionName: 0.7.0
-versionCode: 700
+versionName: 0.7.9
+versionCode: 709
 ```
 
 需要同步检查：
@@ -172,6 +172,7 @@ apps/mobile/android/app/build.gradle
 0.6.12 -> versionCode 612
 0.6.13 -> versionCode 613
 0.7.0 -> versionCode 700
+0.7.9 -> versionCode 709
 1.0.0 -> versionCode 1000
 ```
 

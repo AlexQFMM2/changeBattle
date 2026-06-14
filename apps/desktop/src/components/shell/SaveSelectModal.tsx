@@ -4,6 +4,7 @@ import {AnimatePresence, motion} from "motion/react";
 import {trainerImageUrl} from "../../lib/ui";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {TrainerAvatar} from "./TrainerAvatar";
+import "./SaveSelectPanel.css";
 
 type SaveSlot = {
   index: number;

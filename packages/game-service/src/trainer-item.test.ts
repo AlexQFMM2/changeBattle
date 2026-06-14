@@ -504,6 +504,28 @@ async function testDuplicateSpeciesSwitchKeepsIdentityPairs(): Promise<void> {
   assert.equal(switched.find(state => state.showdown_id === "ultraball")?.active, true, JSON.stringify(switched, null, 2));
 }
 
+async function testBattleViewKeepsInitialDamagedStatus(): Promise<void> {
+  const playerTeam = [{...pokemon("Lopunny", ["Splash"], "Limber"), run_member_id: "lopunny-a", showdown_id: "greatball", pokeball: "greatball"}];
+  const service = createTestService();
+  const playerDisplay = await service.describeTeam(playerTeam);
+  const enemyTeam = [pokemon("Magikarp", ["Splash"], "Swift Swim")];
+  const enemyDisplay = await service.describeTeam(enemyTeam);
+  const baseSession = await service.createBattleSession({playerTeam, enemyTeam, playerDisplay, enemyDisplay, seed: [141, 142, 143, 144]});
+  const baseState = baseSession.getPlayerState()[0];
+  const damagedState: PlayerPokemonState = {
+    ...baseState,
+    hp: Math.max(1, Math.floor(baseState.maxhp / 2)),
+    status: "slp",
+    condition: `${Math.max(1, Math.floor(baseState.maxhp / 2))}/${baseState.maxhp} slp`,
+  };
+  const session = await service.createBattleSession({playerTeam, enemyTeam, playerDisplay, enemyDisplay, playerState: [damagedState], seed: [145, 146, 147, 148]});
+  const state = session.getState();
+  assert.equal(session.getPlayerState()[0].condition, damagedState.condition, JSON.stringify(session.getPlayerState(), null, 2));
+  assert.equal(state.request?.side.pokemon[0]?.condition, damagedState.condition, JSON.stringify(state.request?.side.pokemon, null, 2));
+  assert.equal(state.battle_view?.player.slots[0]?.condition, damagedState.condition, JSON.stringify(state.battle_view?.player.slots, null, 2));
+  assert.equal(state.battle_view?.player.slots[0]?.display?.showdown_id, "greatball", JSON.stringify(state.battle_view?.player.slots[0], null, 2));
+}
+
 async function testDuplicateSpeciesStatusDoesNotBleedIntoRestState(): Promise<void> {
   const playerTeam = [
     {...pokemon("Eevee", ["Splash"], "Run Away"), item: "Flame Orb", run_member_id: "eevee-a", showdown_id: "greatball", pokeball: "greatball"},
@@ -545,6 +567,9 @@ async function testSyncPlayerStateDoesNotApplyStatusToWrongDuplicate(): Promise<
   const states = session.getPlayerState();
   assert.equal(states.find(state => state.showdown_id === "greatball")?.status, "", JSON.stringify(states, null, 2));
   assert.equal(states.find(state => state.showdown_id === "ultraball")?.status, "psn", JSON.stringify(states, null, 2));
+  const viewSlots = session.getState().battle_view?.player.slots || [];
+  assert.equal(viewSlots.find(slot => slot.showdown_id === "greatball")?.status, "", JSON.stringify(viewSlots, null, 2));
+  assert.equal(viewSlots.find(slot => slot.showdown_id === "ultraball")?.status, "psn", JSON.stringify(viewSlots, null, 2));
 }
 
 async function testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive(): Promise<void> {
@@ -561,6 +586,9 @@ async function testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive(): Promi
   const enemyActive = state.tracker.active[state.enemy_side || "p2"];
   assert.equal(enemyActive.showdown_id, "ultraball", JSON.stringify(state.tracker.active, null, 2));
   assert.notEqual(enemyActive.condition, "0 fnt", JSON.stringify(state.tracker.active, null, 2));
+  const enemyViewActive = state.battle_view?.enemy.slots.find(slot => slot.active);
+  assert.equal(enemyViewActive?.showdown_id, "ultraball", JSON.stringify(state.battle_view?.enemy.slots, null, 2));
+  assert.notEqual(enemyViewActive?.condition, "0 fnt", JSON.stringify(state.battle_view?.enemy.slots, null, 2));
 }
 
 async function testClassicBattleFlowScenarios(): Promise<void> {
@@ -620,6 +648,9 @@ async function testClassicBattleFlowScenarios(): Promise<void> {
   const scene8 = await scene8Session.choose("move 1");
   assert.ok(scene8.request?.forceSwitch?.some(Boolean), JSON.stringify(scene8.request, null, 2));
   assert.match(battleText(scene8), /急速折返|U-turn|再生力|Regenerator/i, battleText(scene8));
+  const scene8Hint = scene8Session.playerAiHint();
+  assert.match(scene8Hint.choice, /^switch\s+2$/, JSON.stringify(scene8Hint, null, 2));
+  assert.match(scene8Hint.choice_label || "", /换上第 2 只/, JSON.stringify(scene8Hint, null, 2));
 
   const scene9 = await findSeededState("scene9 waterfall flinch", async seed => {
     const session = await createCustomSession([pokemon("Jirachi", ["Waterfall"], "Serene Grace")], [pokemon("Bulbasaur", ["Tackle"], "Overgrow")], seed);
@@ -682,6 +713,18 @@ async function testDexIncludesFutureMegaFormsWithSprites(): Promise<void> {
   const staraptite = itemResult.entries.find(entry => entry.id === "staraptite");
   assert.ok(staraptite, JSON.stringify(itemResult.entries, null, 2));
   assert.equal(staraptite?.name, "Staraptite");
+}
+
+async function testMissingFormSpritesFallbackToBaseSpecies(): Promise<void> {
+  const service = createTestService();
+  const display = await service.describeTeam([pokemon("Vivillon-Garden", ["Tackle"], "Shield Dust")]);
+  const garden = service.speciesDisplay("Vivillon-Garden");
+  assert.equal(garden.species_id, "vivillongarden");
+  assert.match(garden.name_zh, /^彩粉蝶（Garden花纹）$/);
+  assert.match(garden.sprite?.paths.front_normal || "", /^assets\/runtime\/pokemon\/vivillon\//, JSON.stringify(garden, null, 2));
+  assert.equal(display[0].species_id, "vivillongarden");
+  assert.match(display[0].species_zh, /^彩粉蝶（Garden花纹）$/);
+  assert.match(display[0].sprite?.paths.front_normal || "", /^assets\/runtime\/pokemon\/vivillon\//, JSON.stringify(display[0], null, 2));
 }
 
 async function testZMoveBattleFlow(): Promise<void> {
@@ -815,6 +858,10 @@ async function testMegaBattleFlow(): Promise<void> {
   const active = afterMega.tracker.active[afterMega.player_side || "p1"];
   assert.equal(active.species_id, "charizardmegax", JSON.stringify(active, null, 2));
   assert.ok(active.sprite?.paths?.front_normal || active.sprite?.paths?.back_normal, JSON.stringify(active.sprite, null, 2));
+  const activeView = afterMega.battle_view?.player.slots.find(slot => slot.active);
+  assert.equal(activeView?.display?.species_id, "charizardmegax", JSON.stringify(afterMega.battle_view?.player.slots, null, 2));
+  assert.equal(activeView?.display?.showdown_id, activeView?.showdown_id, JSON.stringify(activeView, null, 2));
+  assert.ok(activeView?.display?.sprite?.paths?.front_normal || activeView?.display?.sprite?.paths?.back_normal, JSON.stringify(activeView?.display?.sprite, null, 2));
   assert.ok(!afterMega.request?.active?.[0]?.canMegaEvo, JSON.stringify(afterMega.request?.active?.[0], null, 2));
 }
 
@@ -894,6 +941,10 @@ async function testDynamaxBattleFlow(): Promise<void> {
   assert.equal(active.gigantamaxed, true, JSON.stringify(active, null, 2));
   assert.equal(active.species_id, "charizardgmax", JSON.stringify(active, null, 2));
   assert.ok(active.sprite?.paths?.front_normal || active.sprite?.paths?.back_normal, JSON.stringify(active.sprite, null, 2));
+  const activeView = afterMax.battle_view?.player.slots.find(slot => slot.active);
+  assert.equal(activeView?.display?.species_id, "charizardgmax", JSON.stringify(afterMax.battle_view?.player.slots, null, 2));
+  assert.equal(activeView?.display?.showdown_id, activeView?.showdown_id, JSON.stringify(activeView, null, 2));
+  assert.ok(activeView?.display?.sprite?.paths?.front_normal || activeView?.display?.sprite?.paths?.back_normal, JSON.stringify(activeView?.display?.sprite, null, 2));
   assert.ok(!afterMax.request?.active?.[0]?.canDynamax, JSON.stringify(afterMax.request?.active?.[0], null, 2));
   let later = afterMax;
   for (let index = 0; index < 4 && later.tracker.active[later.player_side || "p1"].dynamaxed && later.request?.active?.[0]?.moves?.length; index += 1) {
@@ -1091,6 +1142,7 @@ await testSkyAttackAnimationProtocolIsHidden();
 await testBoostAndCantReasonsAreLocalized();
 await testAdvanceIfWaitingContinuesChargingMove();
 await testDuplicateSpeciesSwitchKeepsIdentityPairs();
+await testBattleViewKeepsInitialDamagedStatus();
 await testDuplicateSpeciesStatusDoesNotBleedIntoRestState();
 await testSyncPlayerStateDoesNotApplyStatusToWrongDuplicate();
 await testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive();
@@ -1099,6 +1151,7 @@ await testSpeciesTierCanOverrideGenerationProfile();
 await testMoveLearnSourcesAreClassified();
 await testDexPokemonAbilitiesAndLearnset();
 await testDexIncludesFutureMegaFormsWithSprites();
+await testMissingFormSpritesFallbackToBaseSpecies();
 await testZMoveBattleFlow();
 await testEnemyUsesZMoveWhenAvailable();
 await testZMoveInternalProtocolIsHidden();

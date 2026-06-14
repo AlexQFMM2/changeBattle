@@ -17328,7 +17328,7 @@ button.party-status-chip {
 .battle-event-status-strip {
   position: absolute;
   z-index: 7;
-  top: 28px;
+  top: 64px;
   left: 10px;
   display: flex;
   flex-wrap: wrap;
@@ -18915,6 +18915,63 @@ button.party-status-chip {
   min-height: 0;
   grid-template-columns: minmax(0, 1fr) 220px;
   gap: 7px;
+}
+
+.battle-layout .battle-bag-modal.unified-bag-layout {
+  width: min(760px, calc(100% - 16px));
+  height: min(292px, calc(100% - 16px));
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.battle-layout .battle-bag-modal .unified-bag-header {
+  min-height: 34px;
+  border-bottom-width: 2px;
+  padding: 5px 8px;
+}
+
+.battle-layout .battle-bag-modal .unified-bag-body {
+  grid-template-columns: minmax(220px, 0.95fr) minmax(220px, 1.05fr);
+}
+
+.battle-layout .battle-bag-modal .unified-bag-list {
+  grid-auto-rows: 42px;
+  border-right-width: 2px;
+}
+
+.battle-layout .battle-bag-modal .unified-bag-list-item {
+  height: 42px;
+  grid-template-columns: 28px minmax(0, 1fr) 36px;
+  gap: 6px;
+  border-bottom-width: 2px;
+  padding: 4px 7px;
+}
+
+.battle-layout .battle-bag-modal .unified-bag-list-item .item-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.battle-layout .battle-bag-modal .unified-bag-list-item strong {
+  font-size: 8px;
+}
+
+.battle-layout .battle-bag-modal .unified-bag-list-item small,
+.battle-layout .battle-bag-modal .unified-bag-list-item b {
+  font-size: 6px;
+}
+
+.battle-layout .battle-bag-detail-hero {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.battle-layout .battle-bag-detail-hero .bag-detail-icon {
+  width: 64px;
+  height: 48px;
+  border-width: 2px;
 }
 
 .battle-layout .battle-bag-item-grid {
@@ -20802,6 +20859,1888 @@ button.party-status-chip {
   }
 }
 
+/* Bag filter/list polish. */
+.unified-bag-list-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-width: 0;
+  border-bottom: 3px solid #25332b;
+  background: #fffdf5;
+  padding: 6px;
+}
+
+.bag-filter-tabs {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.bag-filter-tabs button {
+  min-width: 0;
+  min-height: 22px;
+  border: 2px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: inset 0 -2px 0 rgb(37 51 43 / 14%);
+}
+
+.bag-filter-tabs button.selected {
+  border-color: #247267;
+  background: #d6efe2;
+  color: #183e37;
+}
+
+.bag-filter-tabs button:disabled {
+  opacity: .38;
+}
+
+.unified-bag-list .unified-bag-list-item {
+  grid-template-columns: 54px minmax(0, 1fr) 58px;
+  grid-template-rows: 1fr;
+  min-height: 54px;
+}
+
+.unified-bag-list .unified-bag-list-item .item-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.unified-bag-list .unified-bag-list-item span {
+  align-self: center;
+}
+
+.unified-bag-list .unified-bag-list-item strong {
+  font-size: 16px;
+  line-height: 1.05;
+}
+
+.unified-bag-list .unified-bag-list-item b {
+  min-width: 48px;
+  font-size: 13px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  overflow: auto;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1.45;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker,
+.battle-layout .battle-bag-action .pokemon-team-picker {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header,
+.battle-layout .battle-bag-action .pokemon-team-picker header {
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header strong,
+.battle-layout .battle-bag-action .pokemon-team-picker header strong {
+  color: #25332b;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list,
+.battle-layout .battle-bag-action .pokemon-team-picker-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: 56px;
+  align-content: start;
+  gap: 6px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button {
+  min-width: 0;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 64px;
+  grid-template-rows: 16px 9px 14px;
+  align-items: center;
+  gap: 3px 8px;
+  border: 2px solid #247267;
+  border-radius: 6px;
+  background: #d6efe2;
+  padding: 6px 8px;
+  color: #25332b;
+  text-align: left;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button.selected,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button.selected {
+  border-color: #c23f4d;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list .pokemon-sprite,
+.battle-layout .battle-bag-action .pokemon-team-picker-list .pokemon-sprite {
+  width: 34px;
+  height: 34px;
+  --pokemon-sprite-size: 34px;
+  grid-row: 1 / span 3;
+  justify-self: center;
+  align-self: center;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list span,
+.battle-layout .battle-bag-action .pokemon-team-picker-list span {
+  min-width: 0;
+  display: grid;
+  grid-row: 1 / 2;
+  gap: 1px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list strong,
+.battle-layout .battle-bag-action .pokemon-team-picker-list strong {
+  min-width: 0;
+  color: #25332b;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list small,
+.battle-layout .battle-bag-action .pokemon-team-picker-list small {
+  min-width: 0;
+  color: #596052;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp {
+  min-width: 0;
+  height: 9px;
+  grid-column: 2 / 4;
+  grid-row: 2 / 3;
+  display: block;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #d9d2be;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: inherit;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-high,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-high {
+  background: linear-gradient(90deg, #3fbf62, #7ee36d);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-mid,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-mid {
+  background: linear-gradient(90deg, #e6b82e, #ffe16a);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-low,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-low {
+  background: linear-gradient(90deg, #d94a42, #ff7a62);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list em,
+.battle-layout .battle-bag-action .pokemon-team-picker-list em {
+  min-width: 0;
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+  color: #596052;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list > button > b,
+.battle-layout .battle-bag-action .pokemon-team-picker-list > button > b {
+  min-width: 54px;
+  grid-column: 3 / 4;
+  grid-row: 3 / 4;
+  justify-self: end;
+  border: 1px solid #d1bd7d;
+  border-radius: 6px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-list-toolbar {
+    padding: 4px;
+  }
+
+  .bag-filter-tabs {
+    gap: 3px;
+  }
+
+  .bag-filter-tabs button {
+    min-height: 18px;
+    border-width: 1px;
+    font-size: 7px;
+  }
+
+  .unified-bag-list .unified-bag-list-item {
+    height: 38px;
+    grid-template-columns: 34px minmax(0, 1fr) 40px;
+    min-height: 38px;
+    gap: 6px;
+    padding: 3px 6px;
+  }
+
+  .unified-bag-list .unified-bag-list-item .item-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .unified-bag-list .unified-bag-list-item strong {
+    font-size: 9px;
+  }
+
+  .unified-bag-list .unified-bag-list-item b {
+    min-width: 32px;
+    font-size: 8px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+    padding: 0 2px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}
+
+/* Pokemon picker final-final pass: compact target rows with colored HP bars. */
+.rest-workspace .bag-target-pane .pokemon-team-picker,
+.battle-layout .battle-bag-action .pokemon-team-picker {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header,
+.battle-layout .battle-bag-action .pokemon-team-picker header {
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header strong,
+.battle-layout .battle-bag-action .pokemon-team-picker header strong {
+  color: #25332b;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list,
+.battle-layout .battle-bag-action .pokemon-team-picker-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: 56px;
+  align-content: start;
+  gap: 6px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button {
+  min-width: 0;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 64px;
+  grid-template-rows: 16px 9px 14px;
+  align-items: center;
+  gap: 3px 8px;
+  border: 2px solid #247267;
+  border-radius: 6px;
+  background: #d6efe2;
+  padding: 6px 8px;
+  color: #25332b;
+  text-align: left;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button.selected,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button.selected {
+  border-color: #c23f4d;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list .pokemon-sprite,
+.battle-layout .battle-bag-action .pokemon-team-picker-list .pokemon-sprite {
+  width: 34px;
+  height: 34px;
+  --pokemon-sprite-size: 34px;
+  grid-row: 1 / span 3;
+  justify-self: center;
+  align-self: center;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list span,
+.battle-layout .battle-bag-action .pokemon-team-picker-list span {
+  min-width: 0;
+  display: grid;
+  grid-row: 1 / 2;
+  gap: 1px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list strong,
+.battle-layout .battle-bag-action .pokemon-team-picker-list strong {
+  min-width: 0;
+  color: #25332b;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list small,
+.battle-layout .battle-bag-action .pokemon-team-picker-list small {
+  min-width: 0;
+  color: #596052;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp {
+  min-width: 0;
+  height: 9px;
+  grid-column: 2 / 4;
+  grid-row: 2 / 3;
+  display: block;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #d9d2be;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: inherit;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-high,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-high {
+  background: linear-gradient(90deg, #3fbf62, #7ee36d);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-mid,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-mid {
+  background: linear-gradient(90deg, #e6b82e, #ffe16a);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-low,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-low {
+  background: linear-gradient(90deg, #d94a42, #ff7a62);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list em,
+.battle-layout .battle-bag-action .pokemon-team-picker-list em {
+  min-width: 0;
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+  color: #596052;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list > button > b,
+.battle-layout .battle-bag-action .pokemon-team-picker-list > button > b {
+  min-width: 54px;
+  grid-column: 3 / 4;
+  grid-row: 3 / 4;
+  justify-self: end;
+  border: 1px solid #d1bd7d;
+  border-radius: 6px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 2px 5px;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Bag density final-final pass: one-row filters and compact item rows. */
+.unified-bag-list-toolbar {
+  padding: 4px 5px;
+}
+
+.bag-filter-tabs {
+  display: flex;
+  grid-template-columns: none;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bag-filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bag-filter-tabs button {
+  flex: 1 0 auto;
+  min-width: 0;
+  min-height: 24px;
+  border-width: 2px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.unified-bag-list {
+  grid-auto-rows: 38px;
+}
+
+.unified-bag-list .unified-bag-list-item {
+  height: 44px;
+  min-height: 44px;
+  grid-template-columns: 40px minmax(0, 1fr) 50px;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.unified-bag-list .unified-bag-list-item .item-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.unified-bag-list .unified-bag-list-item strong {
+  font-size: 12px;
+  line-height: 1.05;
+}
+
+.unified-bag-list .unified-bag-list-item b {
+  min-width: 40px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-list-toolbar {
+    padding: 3px 4px;
+  }
+
+  .bag-filter-tabs button {
+    min-height: 18px;
+    padding: 0 5px;
+    font-size: 7px;
+  }
+
+  .unified-bag-list {
+    grid-auto-rows: 38px;
+  }
+
+  .unified-bag-list .unified-bag-list-item {
+    height: 38px;
+    min-height: 38px;
+    grid-template-columns: 34px minmax(0, 1fr) 40px;
+    gap: 6px;
+    padding: 3px 6px;
+  }
+
+  .unified-bag-list .unified-bag-list-item .item-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .unified-bag-list .unified-bag-list-item strong {
+    font-size: 9px;
+  }
+
+  .unified-bag-list .unified-bag-list-item b {
+    min-width: 32px;
+    font-size: 8px;
+  }
+}
+
+/* Bag density final-final pass: one-row filters and compact item rows. */
+.unified-bag-list-toolbar {
+  padding: 3px 4px;
+}
+
+.bag-filter-tabs {
+  display: flex;
+  grid-template-columns: none;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bag-filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bag-filter-tabs button {
+  flex: 1 0 auto;
+  min-width: 0;
+  min-height: 18px;
+  border-width: 2px;
+  padding: 0 5px;
+  font-size: 8px;
+}
+
+.unified-bag-list {
+  grid-auto-rows: 38px;
+}
+
+.unified-bag-list .unified-bag-list-item {
+  height: 44px;
+  min-height: 44px;
+  grid-template-columns: 40px minmax(0, 1fr) 50px;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.unified-bag-list .unified-bag-list-item .item-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.unified-bag-list .unified-bag-list-item strong {
+  font-size: 12px;
+  line-height: 1.05;
+}
+
+.unified-bag-list .unified-bag-list-item b {
+  min-width: 40px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-list-toolbar {
+    padding: 3px 4px;
+  }
+
+  .bag-filter-tabs button {
+    min-height: 18px;
+    padding: 0 5px;
+    font-size: 7px;
+  }
+
+  .unified-bag-list {
+    grid-auto-rows: 38px;
+  }
+
+  .unified-bag-list .unified-bag-list-item {
+    height: 38px;
+    min-height: 38px;
+    grid-template-columns: 34px minmax(0, 1fr) 40px;
+    gap: 6px;
+    padding: 3px 6px;
+  }
+
+  .unified-bag-list .unified-bag-list-item .item-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .unified-bag-list .unified-bag-list-item strong {
+    font-size: 9px;
+  }
+
+  .unified-bag-list .unified-bag-list-item b {
+    min-width: 32px;
+    font-size: 8px;
+  }
+}
+
+/* Pokemon picker final pass: stable rows and visible HP fill. */
+.rest-workspace .bag-target-pane .pokemon-team-picker,
+.battle-layout .battle-bag-action .pokemon-team-picker {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header,
+.battle-layout .battle-bag-action .pokemon-team-picker header {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header strong,
+.battle-layout .battle-bag-action .pokemon-team-picker header strong {
+  color: #25332b;
+  font-size: 14px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list,
+.battle-layout .battle-bag-action .pokemon-team-picker-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: 76px;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button {
+  min-width: 0;
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) 88px;
+  grid-template-rows: 20px 12px 18px;
+  align-items: center;
+  gap: 4px 10px;
+  border: 2px solid #247267;
+  border-radius: 7px;
+  background: #d6efe2;
+  padding: 8px 10px;
+  color: #25332b;
+  text-align: left;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button.selected,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button.selected {
+  border-color: #c23f4d;
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 50%);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button:disabled,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button:disabled {
+  opacity: .78;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list .pokemon-sprite,
+.battle-layout .battle-bag-action .pokemon-team-picker-list .pokemon-sprite {
+  width: 48px;
+  height: 48px;
+  --pokemon-sprite-size: 48px;
+  grid-row: 1 / span 3;
+  justify-self: center;
+  align-self: center;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list span,
+.battle-layout .battle-bag-action .pokemon-team-picker-list span {
+  min-width: 0;
+  display: grid;
+  grid-row: 1 / 2;
+  gap: 2px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list strong,
+.battle-layout .battle-bag-action .pokemon-team-picker-list strong {
+  min-width: 0;
+  color: #25332b;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list small,
+.battle-layout .battle-bag-action .pokemon-team-picker-list small {
+  min-width: 0;
+  color: #596052;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp {
+  min-width: 0;
+  height: 12px;
+  grid-column: 2 / 4;
+  grid-row: 2 / 3;
+  display: block;
+  border: 2px solid #25332b;
+  border-radius: 999px;
+  background: #d9d2be;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: inherit;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-high,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-high {
+  background: linear-gradient(90deg, #3fbf62, #7ee36d);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-mid,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-mid {
+  background: linear-gradient(90deg, #e6b82e, #ffe16a);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-low,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-low {
+  background: linear-gradient(90deg, #d94a42, #ff7a62);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list em,
+.battle-layout .battle-bag-action .pokemon-team-picker-list em {
+  min-width: 0;
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+  color: #596052;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list > button > b,
+.battle-layout .battle-bag-action .pokemon-team-picker-list > button > b {
+  min-width: 76px;
+  grid-column: 3 / 4;
+  grid-row: 3 / 4;
+  justify-self: end;
+  border: 2px solid #d1bd7d;
+  border-radius: 7px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list::-webkit-scrollbar,
+.battle-layout .battle-bag-action .pokemon-team-picker-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list::-webkit-scrollbar-track,
+.battle-layout .battle-bag-action .pokemon-team-picker-list::-webkit-scrollbar-track {
+  background: #eef0df;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list::-webkit-scrollbar-thumb,
+.battle-layout .battle-bag-action .pokemon-team-picker-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  background: #7c867a;
+}
+
+@media (max-width: 760px) {
+  .rest-workspace .bag-target-pane .pokemon-team-picker,
+  .battle-layout .battle-bag-action .pokemon-team-picker {
+    gap: 5px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker header strong,
+  .battle-layout .battle-bag-action .pokemon-team-picker header strong {
+    font-size: 10px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker-list,
+  .battle-layout .battle-bag-action .pokemon-team-picker-list {
+    grid-auto-rows: 56px;
+    gap: 5px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker-list button,
+  .battle-layout .battle-bag-action .pokemon-team-picker-list button {
+    min-height: 56px;
+    grid-template-columns: 42px minmax(0, 1fr) 62px;
+    grid-template-rows: 15px 9px 14px;
+    gap: 3px 7px;
+    border-width: 1px;
+    padding: 6px 7px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker-list .pokemon-sprite,
+  .battle-layout .battle-bag-action .pokemon-team-picker-list .pokemon-sprite {
+    width: 34px;
+    height: 34px;
+    --pokemon-sprite-size: 34px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker-list strong,
+  .battle-layout .battle-bag-action .pokemon-team-picker-list strong {
+    font-size: 9px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker-list small,
+  .battle-layout .battle-bag-action .pokemon-team-picker-list small,
+  .rest-workspace .bag-target-pane .pokemon-team-picker-list em,
+  .battle-layout .battle-bag-action .pokemon-team-picker-list em {
+    font-size: 7px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker-hp,
+  .battle-layout .battle-bag-action .pokemon-team-picker-hp {
+    height: 8px;
+    border-width: 1px;
+  }
+
+  .rest-workspace .bag-target-pane .pokemon-team-picker-list > button > b,
+  .battle-layout .battle-bag-action .pokemon-team-picker-list > button > b {
+    min-width: 52px;
+    border-width: 1px;
+    padding: 2px 5px;
+    font-size: 8px;
+  }
+}
+
+/* Bag density final pass: one-line filter bar and smaller list rows. */
+.unified-bag-list-toolbar {
+  padding: 4px 5px;
+}
+
+.bag-filter-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bag-filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bag-filter-tabs button {
+  flex: 1 0 auto;
+  min-width: 0;
+  min-height: 18px;
+  border-width: 2px;
+  padding: 0 5px;
+  font-size: 8px;
+}
+
+.unified-bag-list {
+  grid-auto-rows: 44px;
+}
+
+.unified-bag-list .unified-bag-list-item {
+  height: 44px;
+  min-height: 44px;
+  grid-template-columns: 40px minmax(0, 1fr) 50px;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.unified-bag-list .unified-bag-list-item .item-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.unified-bag-list .unified-bag-list-item strong {
+  font-size: 12px;
+  line-height: 1.05;
+}
+
+.unified-bag-list .unified-bag-list-item b {
+  min-width: 40px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-list-toolbar {
+    padding: 3px 4px;
+  }
+
+  .bag-filter-tabs button {
+    min-height: 18px;
+    padding: 0 5px;
+    font-size: 7px;
+  }
+
+  .unified-bag-list {
+    grid-auto-rows: 38px;
+  }
+
+  .unified-bag-list .unified-bag-list-item {
+    height: 38px;
+    min-height: 38px;
+    grid-template-columns: 34px minmax(0, 1fr) 40px;
+    gap: 6px;
+    padding: 3px 6px;
+  }
+
+  .unified-bag-list .unified-bag-list-item .item-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .unified-bag-list .unified-bag-list-item strong {
+    font-size: 9px;
+  }
+
+  .unified-bag-list .unified-bag-list-item b {
+    min-width: 32px;
+    font-size: 8px;
+  }
+}
+
+/* Final bag layout polish: keep the detail panel visible and tame the list scrollbar. */
+.unified-bag-list {
+  scrollbar-width: thin;
+  scrollbar-color: #5a6659 #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.unified-bag-list::-webkit-scrollbar-track {
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  border-radius: 0;
+  background: #5a6659;
+}
+
+.unified-bag-list::-webkit-scrollbar-button {
+  height: 10px;
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.rest-workspace .bag-target-pane:has(.bag-item-detail-panel),
+.battle-layout .battle-bag-action:has(.bag-item-detail-panel) {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 12px 18px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel,
+.battle-layout .battle-bag-action .bag-item-detail-panel {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 86px minmax(0, 1fr) 34px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-rows: 42px 24px;
+  align-items: center;
+  justify-items: stretch;
+  gap: 8px 14px;
+  border: 0;
+  background: transparent;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon {
+  width: 70px;
+  height: 70px;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  border: 3px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon .item-icon,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon .item-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > strong,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > strong {
+  min-width: 0;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #25332b;
+  border-radius: 0;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 12px;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > small,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > small {
+  min-width: 0;
+  color: #596052;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border: 3px solid #25332b;
+  border-radius: 0;
+  background: #fffdf5;
+  padding: 12px 14px;
+  overflow: auto;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+  margin: 0;
+  color: #25332b;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel footer,
+.battle-layout .battle-bag-action .bag-item-detail-panel footer {
+  min-height: 0;
+  display: grid;
+  place-items: center end;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-use-button,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-use-button {
+  min-width: 118px;
+  min-height: 30px;
+  border: 3px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-use-button:not(:disabled):hover,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-use-button:not(:disabled):hover {
+  background: #e1f2e9;
+}
+
+@media (max-width: 760px) {
+  .rest-workspace .bag-target-pane:has(.bag-item-detail-panel),
+  .battle-layout .battle-bag-action:has(.bag-item-detail-panel) {
+    padding: 8px 10px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel,
+  .battle-layout .battle-bag-action .bag-item-detail-panel {
+    grid-template-rows: 70px minmax(0, 1fr) 28px;
+    gap: 8px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero {
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-rows: 32px 18px;
+    gap: 5px 9px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon {
+    width: 52px;
+    height: 52px;
+    border-width: 2px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon .item-icon,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon .item-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > strong,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > strong {
+    min-height: 30px;
+    border-width: 2px;
+    font-size: 13px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+    border-width: 2px;
+    padding: 8px 9px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+    font-size: 9px;
+    line-height: 1.35;
+  }
+}
+
+/* Bag final pass: filter tabs, simple list rows, plain description text. */
+.unified-bag-list {
+  scrollbar-width: thin;
+  scrollbar-color: #5a6659 #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.unified-bag-list::-webkit-scrollbar-track {
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  border-radius: 0;
+  background: #5a6659;
+}
+
+.unified-bag-list::-webkit-scrollbar-button {
+  height: 10px;
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-width: 0;
+  border-bottom: 3px solid #25332b;
+  background: #fffdf5;
+  padding: 6px;
+}
+
+.bag-filter-tabs {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.bag-filter-tabs button {
+  min-width: 0;
+  min-height: 22px;
+  border: 2px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: inset 0 -2px 0 rgb(37 51 43 / 14%);
+}
+
+.bag-filter-tabs button.selected {
+  border-color: #247267;
+  background: #d6efe2;
+  color: #183e37;
+}
+
+.bag-filter-tabs button:disabled {
+  opacity: .38;
+}
+
+.unified-bag-list .unified-bag-list-item {
+  grid-template-columns: 54px minmax(0, 1fr) 58px;
+  grid-template-rows: 1fr;
+  min-height: 54px;
+}
+
+.unified-bag-list .unified-bag-list-item .item-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.unified-bag-list .unified-bag-list-item span {
+  align-self: center;
+}
+
+.unified-bag-list .unified-bag-list-item strong {
+  font-size: 16px;
+  line-height: 1.05;
+}
+
+.unified-bag-list .unified-bag-list-item b {
+  min-width: 48px;
+  font-size: 13px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  overflow: auto;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-list-toolbar {
+    padding: 4px;
+  }
+
+  .bag-filter-tabs {
+    gap: 3px;
+  }
+
+  .bag-filter-tabs button {
+    min-height: 18px;
+    border-width: 1px;
+    font-size: 7px;
+  }
+
+  .unified-bag-list .unified-bag-list-item {
+    grid-template-columns: 42px minmax(0, 1fr) 46px;
+    min-height: 44px;
+  }
+
+  .unified-bag-list .unified-bag-list-item .item-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .unified-bag-list .unified-bag-list-item strong {
+    font-size: 12px;
+  }
+
+  .unified-bag-list .unified-bag-list-item b {
+    min-width: 38px;
+    font-size: 10px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+    padding: 0 2px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}
+
+/* Bag filter/list final override: left list is icon + name + count only, right desc is plain text. */
+.unified-bag-list {
+  scrollbar-width: thin;
+  scrollbar-color: #5a6659 #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.unified-bag-list::-webkit-scrollbar-track {
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  border-radius: 0;
+  background: #5a6659;
+}
+
+.unified-bag-list::-webkit-scrollbar-button {
+  height: 10px;
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-width: 0;
+  border-bottom: 3px solid #25332b;
+  background: #fffdf5;
+  padding: 6px;
+}
+
+.bag-filter-tabs {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.bag-filter-tabs button {
+  min-width: 0;
+  min-height: 22px;
+  border: 2px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: inset 0 -2px 0 rgb(37 51 43 / 14%);
+}
+
+.bag-filter-tabs button.selected {
+  border-color: #247267;
+  background: #d6efe2;
+  color: #183e37;
+}
+
+.bag-filter-tabs button:disabled {
+  opacity: .38;
+}
+
+.unified-bag-list .unified-bag-list-item {
+  grid-template-columns: 54px minmax(0, 1fr) 58px;
+  grid-template-rows: 1fr;
+  min-height: 54px;
+}
+
+.unified-bag-list .unified-bag-list-item .item-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.unified-bag-list .unified-bag-list-item span {
+  align-self: center;
+}
+
+.unified-bag-list .unified-bag-list-item strong {
+  font-size: 16px;
+  line-height: 1.05;
+}
+
+.unified-bag-list .unified-bag-list-item b {
+  min-width: 48px;
+  font-size: 13px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  overflow: auto;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-list-toolbar {
+    padding: 4px;
+  }
+
+  .bag-filter-tabs {
+    gap: 3px;
+  }
+
+  .bag-filter-tabs button {
+    min-height: 18px;
+    border-width: 1px;
+    font-size: 7px;
+  }
+
+  .unified-bag-list .unified-bag-list-item {
+    grid-template-columns: 42px minmax(0, 1fr) 46px;
+    min-height: 44px;
+  }
+
+  .unified-bag-list .unified-bag-list-item .item-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .unified-bag-list .unified-bag-list-item strong {
+    font-size: 12px;
+  }
+
+  .unified-bag-list .unified-bag-list-item b {
+    min-width: 38px;
+    font-size: 10px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+    padding: 0 2px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}
+
+/* Unified bag components: RestView and BattleView share the same interaction shell. */
+.bag-item-detail-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.bag-item-detail-panel footer {
+  display: grid;
+  justify-items: center;
+}
+
+.bag-detail-disabled-reason {
+  display: block;
+  color: #8a4a20;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.bag-flow-toolbar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #c8b071;
+  border-radius: 4px;
+  background: #fffaf0;
+  padding: 4px 6px;
+}
+
+.bag-flow-toolbar button {
+  min-height: 22px;
+  border: 1px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 8px;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.bag-flow-toolbar small,
+.bag-flow-loading {
+  min-width: 0;
+  margin: 0;
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pokemon-team-picker {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 5px;
+  overflow: hidden;
+}
+
+.pokemon-team-picker header {
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.pokemon-team-picker header strong {
+  color: #25332b;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.pokemon-team-picker-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: 42px;
+  align-content: start;
+  gap: 4px;
+  overflow: auto;
+}
+
+.pokemon-team-picker-list button {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 54px;
+  grid-template-rows: minmax(0, 18px) 6px minmax(0, 12px);
+  align-items: center;
+  gap: 2px 6px;
+  border: 1px solid #394639;
+  border-radius: 5px;
+  background: #fffdf3;
+  padding: 3px 6px;
+  color: #25332b;
+  text-align: left;
+  box-shadow: none;
+}
+
+.pokemon-team-picker-list button.selected {
+  border-color: #247267;
+  background: #d6efe2;
+}
+
+.pokemon-team-picker-list button:disabled {
+  opacity: .72;
+}
+
+.pokemon-team-picker-list .pokemon-sprite {
+  grid-row: 1 / span 3;
+  width: 30px;
+  height: 30px;
+  --pokemon-sprite-size: 30px;
+}
+
+.pokemon-team-picker-list span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.pokemon-team-picker-list strong,
+.pokemon-team-picker-list small,
+.pokemon-team-picker-list em,
+.pokemon-team-picker-list b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: none;
+}
+
+.pokemon-team-picker-list strong {
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.pokemon-team-picker-list small {
+  color: #596052;
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.pokemon-team-picker-hp {
+  min-width: 0;
+  height: 5px;
+  grid-column: 2 / 4;
+  display: block;
+  border: 1px solid #25332b;
+  border-radius: 99px;
+  background: #d9d2be;
+  overflow: hidden;
+}
+
+.pokemon-team-picker-hp b {
+  display: block;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+}
+
+.pokemon-team-picker-list em {
+  color: #596052;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.pokemon-team-picker-list > button > b {
+  justify-self: stretch;
+  border: 1px solid #c8b071;
+  border-radius: 4px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 2px 3px;
+  font-size: 7px;
+  line-height: 1;
+  text-align: center;
+}
+
+.rest-workspace .bag-target-pane {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel,
+.battle-layout .battle-bag-action .bag-item-detail-panel {
+  height: 100%;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker {
+  height: 100%;
+}
+
+.move-replace-panel {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.move-replace-panel header,
+.move-replace-panel footer {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.move-replace-panel h2,
+.move-replace-panel h3,
+.move-replace-panel p {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.move-replace-panel h2 {
+  color: #25332b;
+  font-size: 12px;
+  line-height: 1.05;
+}
+
+.move-replace-panel h3 {
+  color: #25332b;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.move-replace-panel header p,
+.move-replace-panel .move-replace-new-move p {
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.move-replace-panel header button,
+.move-replace-panel footer button {
+  min-height: 22px;
+  border: 1px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 9px;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.move-replace-panel footer button:disabled {
+  opacity: .55;
+}
+
+.move-replace-layout {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 6px;
+  overflow: hidden;
+}
+
+.move-replace-new-move,
+.move-replace-current-moves {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.move-replace-new-move p {
+  display: -webkit-box;
+  min-height: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.move-replace-current-moves > div {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 58px;
+  gap: 5px;
+  overflow: auto;
+}
+
+.move-replace-panel .tm-replace-move-card.move-choice,
+.move-replace-panel .tm-replace-move-card.move-choice:nth-child(2n) {
+  height: 58px;
+  min-height: 0;
+  max-height: 58px;
+}
+
+.battle-layout .battle-bag-action {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.battle-layout .battle-bag-action .pokemon-team-picker-list {
+  grid-auto-rows: 36px;
+}
+
+.battle-layout .battle-bag-action .pokemon-team-picker-list button {
+  grid-template-columns: 30px minmax(0, 1fr) 50px;
+  grid-template-rows: minmax(0, 15px) 5px minmax(0, 10px);
+  padding: 2px 5px;
+}
+
+.battle-layout .battle-bag-action .pokemon-team-picker-list .pokemon-sprite {
+  width: 26px;
+  height: 26px;
+  --pokemon-sprite-size: 26px;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-body,
+  .battle-layout .battle-bag-modal .unified-bag-body {
+    grid-template-columns: minmax(210px, .9fr) minmax(210px, 1.1fr);
+  }
+
+  .unified-bag-list {
+    grid-auto-rows: 44px;
+  }
+
+  .unified-bag-list-item {
+    height: 44px;
+    grid-template-columns: 30px minmax(0, 1fr) 40px;
+    gap: 7px;
+    padding: 4px 8px;
+  }
+
+  .move-replace-layout {
+    grid-template-columns: 120px minmax(0, 1fr);
+  }
+}
+
 .battle-field.has-battle-background {
   background: var(--battle-background-image) center / cover no-repeat;
 }
@@ -21258,7 +23197,7 @@ button.party-status-chip {
 
 .star-chart-page .star-chart-viewport {
   position: absolute;
-  inset: 0 160px 0 0;
+  inset: 0;
   border: 0;
   border-radius: 0;
   background:
@@ -21924,4 +23863,2580 @@ button.party-status-chip {
   .rest-event-info-body article {
     padding: 6px;
   }
+}
+
+/* Manual QA fixes: keep dense rest/battle panels readable at desktop and app sizes. */
+.unified-bag-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-color: #25332b;
+  background: #f8f4ec;
+  padding: 0;
+  overflow: hidden;
+}
+
+.unified-bag-layout:not(:has(.unified-bag-header)) {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.unified-bag-header {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 3px solid #25332b;
+  background: #fffdf5;
+  padding: 8px 12px;
+}
+
+.unified-bag-header h2,
+.unified-bag-header p {
+  margin: 0;
+}
+
+.unified-bag-header h2 {
+  color: #25332b;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.unified-bag-header p {
+  color: #596052;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.unified-bag-body {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1.1fr);
+  overflow: hidden;
+}
+
+.unified-bag-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 54px;
+  align-content: start;
+  gap: 0;
+  border-right: 3px solid #25332b;
+  background: #fffdf5;
+  overflow: auto;
+}
+
+.unified-bag-list-item {
+  min-width: 0;
+  height: 54px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-bottom: 3px solid #25332b;
+  border-radius: 0;
+  background: #fffdf5;
+  padding: 6px 12px;
+  color: #25332b;
+  text-align: left;
+  box-shadow: none;
+}
+
+.unified-bag-list-item.selected,
+.unified-bag-list-item:hover,
+.unified-bag-list-item:focus-visible {
+  background: #e1f2e9;
+  outline: none;
+}
+
+.unified-bag-list-item .item-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.unified-bag-list-item span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.unified-bag-list-item strong,
+.unified-bag-list-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: none;
+}
+
+.unified-bag-list-item strong {
+  color: #25332b;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.unified-bag-list-item small {
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1.18;
+  white-space: nowrap;
+}
+
+.unified-bag-list-item b {
+  justify-self: center;
+  min-width: 34px;
+  border: 1px solid #c8b071;
+  border-radius: 4px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 2px 5px;
+  font-size: 8px;
+  line-height: 1;
+  text-align: center;
+}
+
+.unified-bag-detail {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  overflow: hidden;
+}
+
+.rest-workspace .rest-bag-layout {
+  min-height: 0;
+}
+
+.rest-workspace .bag-detail-pane {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 22px 68px minmax(0, 1fr) 28px;
+  gap: 5px;
+  border: 0;
+  border-left: 3px solid #25332b;
+  border-radius: 0;
+  background: #fffdf5;
+  padding: 7px 10px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane header {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.rest-workspace .bag-target-pane h2,
+.rest-workspace .bag-target-pane p {
+  margin: 0;
+}
+
+.rest-workspace .bag-detail-hero {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-rows: 24px 18px;
+  justify-items: center;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.rest-workspace .bag-detail-icon {
+  width: 50px;
+  height: 50px;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  border: 2px solid #25332b;
+  background: #fffdf5;
+}
+
+.rest-workspace .bag-detail-icon .item-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.rest-workspace .bag-detail-hero > strong {
+  justify-self: stretch;
+  min-width: min(230px, 100%);
+  border: 2px solid #25332b;
+  background: #fffdf5;
+  padding: 3px 8px;
+  color: #25332b;
+  font-size: 11px;
+  line-height: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-detail-hero > small {
+  justify-self: stretch;
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+}
+
+.rest-workspace .bag-detail-description {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(42px, auto) auto auto;
+  align-content: start;
+  gap: 5px;
+  border: 2px solid #25332b;
+  background: #fffdf5;
+  padding: 6px;
+  overflow: auto;
+}
+
+.rest-workspace .bag-detail-description > p {
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.rest-workspace .bag-target-picker {
+  min-height: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.rest-workspace .bag-target-picker > span {
+  color: #5f6c57;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.rest-workspace .bag-target-picker > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.rest-workspace .bag-target-picker button,
+.rest-workspace .bag-selected-target {
+  min-width: 0;
+  display: grid;
+  align-items: center;
+  border: 1px solid #c8b071;
+  border-radius: 4px;
+  background: #fffaf0;
+  padding: 5px;
+}
+
+.rest-workspace .bag-target-picker button {
+  min-height: 32px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 1px 4px;
+  padding: 3px;
+  text-align: left;
+}
+
+.rest-workspace .bag-target-picker button.selected {
+  border-color: #247267;
+  background: #dff3e9;
+}
+
+.rest-workspace .bag-target-picker .pokemon-sprite,
+.rest-workspace .bag-selected-target .pokemon-sprite {
+  width: 22px;
+  height: 22px;
+  grid-row: 1 / span 2;
+}
+
+.rest-workspace .bag-target-picker strong,
+.rest-workspace .bag-target-picker small,
+.rest-workspace .bag-target-picker b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-picker strong {
+  font-size: 7px;
+}
+
+.rest-workspace .bag-target-picker small,
+.rest-workspace .bag-target-picker b {
+  font-size: 6px;
+}
+
+.rest-workspace .bag-selected-target {
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 5px;
+  padding: 3px 5px;
+}
+
+.rest-workspace .bag-selected-target span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.rest-workspace .bag-selected-target strong,
+.rest-workspace .bag-selected-target small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane footer {
+  display: grid;
+  place-items: center;
+}
+
+.rest-workspace .bag-detail-use-button {
+  min-width: 108px;
+  min-height: 24px;
+  border: 2px solid #25332b;
+  background: #fffdf5;
+  color: #25332b;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.rest-workspace .bag-direct-use,
+.rest-workspace .bag-locked-note {
+  align-self: start;
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  border: 1px solid #d1bd7d;
+  border-radius: 5px;
+  background: #fffdf5;
+  padding: 10px;
+}
+
+.rest-workspace .bag-direct-use .item-icon,
+.rest-workspace .bag-locked-note .item-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.rest-workspace .forge-modal {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rest-workspace .forge-grid {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rest-workspace .forge-material-list {
+  min-height: 0;
+  grid-auto-rows: minmax(48px, auto);
+  padding-right: 4px;
+}
+
+.rest-workspace .forge-panel {
+  min-height: 0;
+  align-content: start;
+  overflow: hidden;
+}
+
+.rest-workspace .forge-special-row {
+  min-height: 0;
+  max-height: 68px;
+  grid-auto-rows: 58px;
+}
+
+.rest-workspace .forge-special-row button {
+  min-height: 0;
+}
+
+.rest-workspace .shop-kind-row strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.shop-discount-mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 14px;
+  border: 1px solid #8f2028;
+  border-radius: 999px;
+  background: #ffe08a;
+  color: #8f2028;
+  padding: 0 4px;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.battle-history-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.battle-history-list {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.battle-history-card {
+  min-height: 58px;
+  grid-template-columns: minmax(0, 1fr) minmax(116px, auto) 72px;
+  gap: 8px;
+  padding: 7px 8px;
+  align-items: center;
+}
+
+.battle-history-card-main {
+  gap: 3px;
+}
+
+.battle-history-card-main span,
+.battle-history-meta span {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.battle-history-card-main strong {
+  min-height: 13px;
+  font-size: 12px;
+  line-height: 1.08;
+}
+
+.battle-history-card-main small,
+.battle-history-meta small {
+  font-size: 8px;
+  line-height: 1.15;
+}
+
+.battle-history-team {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 28px);
+  justify-content: end;
+  gap: 3px;
+}
+
+.battle-history-team .pokemon-sprite {
+  width: 28px;
+  height: 28px;
+  --pokemon-sprite-size: 28px;
+}
+
+.battle-event-status-strip {
+  top: 64px;
+}
+
+@media (max-width: 760px) {
+  .rest-workspace .bag-flat-modal {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
+
+  .rest-workspace .bag-target-team {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rest-workspace .forge-grid {
+    grid-template-columns: minmax(0, 1fr) 132px;
+  }
+
+  .rest-workspace .forge-special-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .battle-history-card {
+    min-height: 62px;
+    grid-template-columns: minmax(0, 1fr) 66px;
+    grid-template-rows: auto auto;
+  }
+
+  .battle-history-team {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, 24px);
+    justify-content: start;
+  }
+
+  .battle-history-team .pokemon-sprite {
+    width: 24px;
+    height: 24px;
+    --pokemon-sprite-size: 24px;
+  }
+}
+
+/* Bag UI final override: right detail card + compact themed scrollbar. */
+.unified-bag-list {
+  scrollbar-width: thin;
+  scrollbar-color: #5a6659 #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.unified-bag-list::-webkit-scrollbar-track {
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  border-radius: 0;
+  background: #5a6659;
+}
+
+.unified-bag-list::-webkit-scrollbar-button {
+  height: 10px;
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.rest-workspace .bag-target-pane:has(.bag-item-detail-panel),
+.battle-layout .battle-bag-action:has(.bag-item-detail-panel) {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 12px 18px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel,
+.battle-layout .battle-bag-action .bag-item-detail-panel {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 86px minmax(0, 1fr) 34px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-rows: 42px 24px;
+  align-items: center;
+  justify-items: stretch;
+  gap: 8px 14px;
+  border: 0;
+  background: transparent;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon {
+  width: 70px;
+  height: 70px;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  border: 3px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon .item-icon,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon .item-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > strong,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > strong {
+  min-width: 0;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #25332b;
+  border-radius: 0;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 12px;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > small,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > small {
+  min-width: 0;
+  color: #596052;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border: 3px solid #25332b;
+  border-radius: 0;
+  background: #fffdf5;
+  padding: 12px 14px;
+  overflow: auto;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+  margin: 0;
+  color: #25332b;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel footer,
+.battle-layout .battle-bag-action .bag-item-detail-panel footer {
+  min-height: 0;
+  display: grid;
+  place-items: center end;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-use-button,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-use-button {
+  min-width: 118px;
+  min-height: 30px;
+  border: 3px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-use-button:not(:disabled):hover,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-use-button:not(:disabled):hover {
+  background: #e1f2e9;
+}
+
+@media (max-width: 760px) {
+  .rest-workspace .bag-target-pane:has(.bag-item-detail-panel),
+  .battle-layout .battle-bag-action:has(.bag-item-detail-panel) {
+    padding: 8px 10px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel,
+  .battle-layout .battle-bag-action .bag-item-detail-panel {
+    grid-template-rows: 70px minmax(0, 1fr) 28px;
+    gap: 8px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero {
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-rows: 32px 18px;
+    gap: 5px 9px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon {
+    width: 52px;
+    height: 52px;
+    border-width: 2px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon .item-icon,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon .item-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > strong,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > strong {
+    min-height: 30px;
+    border-width: 2px;
+    font-size: 13px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+    border-width: 2px;
+    padding: 8px 9px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+    font-size: 9px;
+    line-height: 1.35;
+  }
+}
+
+/* Bag final-final pass: this block intentionally stays last. */
+.unified-bag-list {
+  grid-auto-rows: 38px;
+  scrollbar-width: thin;
+  scrollbar-color: #5a6659 #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.unified-bag-list::-webkit-scrollbar-track {
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  border-radius: 0;
+  background: #5a6659;
+}
+
+.unified-bag-list::-webkit-scrollbar-button {
+  height: 10px;
+  border-left: 2px solid #25332b;
+  background: #eef0df;
+}
+
+.unified-bag-list-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-width: 0;
+  border-bottom: 3px solid #25332b;
+  background: #fffdf5;
+  padding: 4px 5px;
+}
+
+.bag-filter-tabs {
+  min-width: 0;
+  display: flex;
+  grid-template-columns: none;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bag-filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.bag-filter-tabs button {
+  flex: 1 0 auto;
+  min-width: 0;
+  min-height: 18px;
+  border: 2px solid #25332b;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 0 5px;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: inset 0 -2px 0 rgb(37 51 43 / 14%);
+}
+
+.bag-filter-tabs button.selected {
+  border-color: #247267;
+  background: #d6efe2;
+  color: #183e37;
+}
+
+.bag-filter-tabs button:disabled {
+  opacity: .38;
+}
+
+.unified-bag-list .unified-bag-list-item {
+  height: 38px;
+  grid-template-columns: 34px minmax(0, 1fr) 40px;
+  grid-template-rows: 1fr;
+  min-height: 38px;
+  gap: 6px;
+  padding: 3px 6px;
+}
+
+.unified-bag-list .unified-bag-list-item .item-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.unified-bag-list .unified-bag-list-item span {
+  align-self: center;
+}
+
+.unified-bag-list .unified-bag-list-item strong {
+  font-size: 9px;
+  line-height: 1.05;
+}
+
+.unified-bag-list .unified-bag-list-item b {
+  min-width: 32px;
+  padding: 2px 4px;
+  font-size: 8px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  overflow: auto;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon {
+  width: 42px;
+  height: 42px;
+  border-width: 2px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon .item-icon,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon .item-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero {
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-rows: 24px 14px;
+  gap: 4px 8px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > strong,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > strong {
+  min-height: 24px;
+  border-width: 2px;
+  padding: 0 8px;
+  font-size: 9px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > small,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > small {
+  font-size: 6px;
+}
+
+.rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-use-button,
+.battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-use-button {
+  min-width: 72px;
+  min-height: 20px;
+  border-width: 2px;
+  font-size: 8px;
+}
+
+@media (max-width: 760px) {
+  .unified-bag-list-toolbar {
+    padding: 3px 4px;
+  }
+
+  .bag-filter-tabs {
+    gap: 3px;
+  }
+
+  .bag-filter-tabs button {
+    min-height: 16px;
+    border-width: 1px;
+    font-size: 6px;
+  }
+
+  .unified-bag-list .unified-bag-list-item {
+    height: 34px;
+    grid-template-columns: 30px minmax(0, 1fr) 34px;
+    min-height: 34px;
+    gap: 5px;
+    padding: 3px 5px;
+  }
+
+  .unified-bag-list .unified-bag-list-item .item-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .unified-bag-list .unified-bag-list-item strong {
+    font-size: 7px;
+  }
+
+  .unified-bag-list .unified-bag-list-item b {
+    min-width: 28px;
+    font-size: 6px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description {
+    padding: 0 2px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-description > p,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-description > p {
+    font-size: 7px;
+    line-height: 1.3;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-icon .item-icon,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-icon .item-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero {
+    grid-template-columns: 38px minmax(0, 1fr);
+    grid-template-rows: 20px 12px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-hero > strong,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-hero > strong {
+    min-height: 20px;
+    font-size: 7px;
+  }
+
+  .rest-workspace .bag-target-pane .bag-item-detail-panel .bag-detail-use-button,
+  .battle-layout .battle-bag-action .bag-item-detail-panel .bag-detail-use-button {
+    min-width: 58px;
+    min-height: 18px;
+    font-size: 7px;
+  }
+}
+
+/* Bag target picker final override: compact one-line Pokemon rows. */
+.rest-workspace .bag-target-pane .pokemon-team-picker,
+.battle-layout .battle-bag-action .pokemon-team-picker {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 5px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header,
+.battle-layout .battle-bag-action .pokemon-team-picker header {
+  min-height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header strong,
+.battle-layout .battle-bag-action .pokemon-team-picker header strong {
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list,
+.battle-layout .battle-bag-action .pokemon-team-picker-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: 60px;
+  align-content: start;
+  gap: 5px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button {
+  min-width: 0;
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 52px;
+  grid-template-rows: 18px 8px 14px;
+  align-items: center;
+  gap: 3px 7px;
+  border: 1px solid #247267;
+  border-radius: 5px;
+  background: #d6efe2;
+  padding: 7px 8px;
+  color: #25332b;
+  text-align: left;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button.selected,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button.selected {
+  border-color: #c23f4d;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 45%);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list .pokemon-sprite,
+.battle-layout .battle-bag-action .pokemon-team-picker-list .pokemon-sprite {
+  width: 28px;
+  height: 28px;
+  --pokemon-sprite-size: 28px;
+  grid-row: 1 / span 3;
+  justify-self: center;
+  align-self: center;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list span,
+.battle-layout .battle-bag-action .pokemon-team-picker-list span {
+  min-width: 0;
+  display: grid;
+  grid-row: 1 / 2;
+  gap: 1px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list strong,
+.battle-layout .battle-bag-action .pokemon-team-picker-list strong {
+  min-width: 0;
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list small,
+.battle-layout .battle-bag-action .pokemon-team-picker-list small {
+  min-width: 0;
+  color: #596052;
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp {
+  min-width: 0;
+  height: 8px;
+  grid-column: 2 / 4;
+  grid-row: 2 / 3;
+  display: block;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #d9d2be;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: inherit;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-high,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-high {
+  background: linear-gradient(90deg, #3fbf62, #7ee36d);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-mid,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-mid {
+  background: linear-gradient(90deg, #e6b82e, #ffe16a);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp b.hp-low,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp b.hp-low {
+  background: linear-gradient(90deg, #d94a42, #ff7a62);
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list em,
+.battle-layout .battle-bag-action .pokemon-team-picker-list em {
+  min-width: 0;
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+  color: #596052;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list > button > b,
+.battle-layout .battle-bag-action .pokemon-team-picker-list > button > b {
+  min-width: 44px;
+  grid-column: 3 / 4;
+  grid-row: 3 / 4;
+  justify-self: end;
+  border: 1px solid #d1bd7d;
+  border-radius: 5px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 2px 4px;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Bag flow exact layout: keep this after older bag overrides.
+   640x320 target: right pane uses fixed flow rows, then gives the list the remaining height. */
+.rest-workspace .bag-target-pane:has(.pokemon-team-picker),
+.battle-layout .battle-bag-action:has(.pokemon-team-picker) {
+  grid-template-rows: 28px minmax(0, 1fr);
+  gap: 6px;
+  padding: 7px 10px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane:has(.bag-stat-picker):has(.pokemon-team-picker) {
+  grid-template-rows: 28px 32px minmax(0, 1fr);
+}
+
+.rest-workspace .bag-target-pane:has(.move-replace-panel),
+.battle-layout .battle-bag-action:has(.move-replace-panel) {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 7px 10px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .bag-flow-toolbar,
+.battle-layout .battle-bag-action .bag-flow-toolbar {
+  height: 28px;
+  min-height: 28px;
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid #c8b071;
+  border-radius: 5px;
+  background: #fffaf0;
+  padding: 2px 6px;
+}
+
+.rest-workspace .bag-target-pane .bag-flow-toolbar button,
+.battle-layout .battle-bag-action .bag-flow-toolbar button {
+  width: 74px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 2px solid #25332b;
+  border-radius: 5px;
+  background: #fffdf5;
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .bag-flow-toolbar small,
+.battle-layout .battle-bag-action .bag-flow-toolbar small {
+  min-width: 0;
+  color: #596052;
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .bag-stat-picker {
+  height: 32px;
+  min-height: 32px;
+  display: grid;
+  grid-template-columns: 38px repeat(6, 1fr);
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker,
+.battle-layout .battle-bag-action .pokemon-team-picker {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 14px minmax(0, 1fr);
+  gap: 5px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header,
+.battle-layout .battle-bag-action .pokemon-team-picker header {
+  height: 14px;
+  min-height: 14px;
+  display: grid;
+  align-items: center;
+  justify-items: end;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker header strong,
+.battle-layout .battle-bag-action .pokemon-team-picker header strong {
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list,
+.battle-layout .battle-bag-action .pokemon-team-picker-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: 44px;
+  align-content: start;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #5a6659 #eef0df;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list::-webkit-scrollbar,
+.battle-layout .battle-bag-action .pokemon-team-picker-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list::-webkit-scrollbar-track,
+.battle-layout .battle-bag-action .pokemon-team-picker-list::-webkit-scrollbar-track {
+  background: #eef0df;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list::-webkit-scrollbar-thumb,
+.battle-layout .battle-bag-action .pokemon-team-picker-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  background: #5a6659;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list button,
+.battle-layout .battle-bag-action .pokemon-team-picker-list button {
+  height: 44px;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 30px 1fr 48px;
+  grid-template-rows: 13px 7px 12px;
+  align-items: center;
+  gap: 2px 6px;
+  border: 1px solid #247267;
+  border-radius: 5px;
+  background: #d6efe2;
+  padding: 5px 6px;
+  color: #25332b;
+  text-align: left;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list .pokemon-sprite,
+.battle-layout .battle-bag-action .pokemon-team-picker-list .pokemon-sprite {
+  width: 26px;
+  height: 26px;
+  --pokemon-sprite-size: 26px;
+  grid-row: 1 / span 3;
+  justify-self: center;
+  align-self: center;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list span,
+.battle-layout .battle-bag-action .pokemon-team-picker-list span {
+  min-width: 0;
+  grid-row: 1 / 2;
+  display: grid;
+  grid-template-rows: 8px 5px;
+  gap: 0;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list strong,
+.battle-layout .battle-bag-action .pokemon-team-picker-list strong {
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list small,
+.battle-layout .battle-bag-action .pokemon-team-picker-list small,
+.rest-workspace .bag-target-pane .pokemon-team-picker-list em,
+.battle-layout .battle-bag-action .pokemon-team-picker-list em {
+  color: #596052;
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-hp,
+.battle-layout .battle-bag-action .pokemon-team-picker-hp {
+  height: 7px;
+  grid-column: 2 / 4;
+  grid-row: 2 / 3;
+  border: 1px solid #25332b;
+  border-radius: 99px;
+  background: #d9d2be;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list em,
+.battle-layout .battle-bag-action .pokemon-team-picker-list em {
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-workspace .bag-target-pane .pokemon-team-picker-list > button > b,
+.battle-layout .battle-bag-action .pokemon-team-picker-list > button > b {
+  min-width: 42px;
+  grid-column: 3 / 4;
+  grid-row: 3 / 4;
+  justify-self: end;
+  border: 1px solid #d1bd7d;
+  border-radius: 5px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 2px 4px;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Bag step-specific final pass. These rules use explicit 640x320 proportions. */
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker {
+  grid-template-rows: 24px minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker:has(.bag-stat-picker) {
+  grid-template-rows: 24px 30px minmax(0, 1fr);
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .bag-flow-toolbar,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .bag-flow-toolbar {
+  height: 24px;
+  min-height: 24px;
+  grid-template-columns: 58px 1fr;
+  gap: 8px;
+  padding: 2px 6px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .bag-flow-toolbar button,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .bag-flow-toolbar button {
+  width: 58px;
+  height: 18px;
+  min-height: 18px;
+  border-width: 2px;
+  border-radius: 4px;
+  padding: 0;
+  font-size: 7px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .bag-flow-toolbar small,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .bag-flow-toolbar small {
+  font-size: 6px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .pokemon-team-picker {
+  grid-template-rows: 13px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker header,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .pokemon-team-picker header {
+  height: 13px;
+  min-height: 13px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .pokemon-team-picker-list {
+  grid-auto-rows: 50px;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list button,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .pokemon-team-picker-list button {
+  height: 50px;
+  min-height: 50px;
+  grid-template-columns: 48px 1fr 46px;
+  grid-template-rows: 14px 8px 12px;
+  gap: 3px 6px;
+  padding: 5px 6px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list .pokemon-sprite,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .pokemon-team-picker-list .pokemon-sprite {
+  width: 42px;
+  height: 42px;
+  --pokemon-sprite-size: 42px;
+  grid-row: 1 / span 3;
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list .pokemon-sprite > img,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .pokemon-team-picker-list .pokemon-sprite > img {
+  width: 42px;
+  height: 42px;
+  transform: scale(1.18);
+}
+
+.rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-hp,
+.battle-layout .battle-bag-action.bag-step-pokemon-picker .pokemon-team-picker-hp {
+  height: 8px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace,
+.battle-layout .battle-bag-action.bag-step-move-replace {
+  grid-template-rows: minmax(0, 1fr);
+  padding: 7px 10px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel {
+  grid-template-rows: 26px minmax(0, 1fr) 24px;
+  gap: 6px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel header,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel header {
+  height: 26px;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel h2,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel h2 {
+  font-size: 9px;
+  line-height: 1;
+  text-align: right;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel header p,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel header p {
+  font-size: 6px;
+  line-height: 1;
+  text-align: right;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel header button,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel header button {
+  width: 38px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0;
+  font-size: 7px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-layout,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-layout {
+  grid-template-columns: 178px 1fr;
+  gap: 10px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-new-move {
+  gap: 5px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-current-moves {
+  gap: 5px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves > div,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-current-moves > div {
+  grid-template-columns: 1fr;
+  grid-auto-rows: 40px;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice,
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice:nth-child(2n),
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice:nth-child(2n) {
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel footer,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel footer {
+  height: 24px;
+  display: grid;
+  grid-template-columns: 74px 44px;
+  justify-content: end;
+  align-items: center;
+  gap: 8px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel footer button,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel footer button {
+  height: 20px;
+  min-height: 20px;
+  padding: 0 8px;
+  font-size: 7px;
+}
+
+/* Move replace final geometry: no title strip, equal skill-card columns, no right scrollbar. */
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel {
+  grid-template-rows: minmax(0, 1fr) 24px;
+  gap: 6px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-layout,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-layout {
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-new-move,
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-current-moves {
+  display: grid;
+  grid-template-rows: 13px minmax(0, auto) minmax(0, 1fr);
+  align-content: start;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves {
+  grid-template-rows: 13px 188px;
+}
+
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-current-moves {
+  grid-template-rows: 13px 188px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel h3,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel h3 {
+  height: 13px;
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 13px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves > div,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-current-moves > div {
+  height: 188px;
+  min-height: 188px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(4, 44px);
+  grid-auto-rows: 44px;
+  gap: 4px;
+  overflow: hidden;
+  padding-right: 0;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice,
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice:nth-child(2n),
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice:nth-child(2n) {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move > .tm-replace-move-card.move-choice,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-new-move > .tm-replace-move-card.move-choice {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-name-row,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-name-row {
+  min-height: 22px;
+  padding: 3px 7px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-meta-row,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-meta-row {
+  min-height: 18px;
+  padding: 2px 7px;
+}
+
+.rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move p,
+.battle-layout .battle-bag-action.bag-step-move-replace .move-replace-new-move p {
+  display: block;
+  max-height: 40px;
+  color: #596052;
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+/* Rest page fixed 640x320 layout.
+   This is the final layout contract for RestView: no auto-sized main bands. */
+.game-viewport .rest-page {
+  width: 640px;
+  height: 320px;
+  min-width: 640px;
+  min-height: 320px;
+  display: grid;
+  grid-template-columns: 630px;
+  grid-template-rows: 80px 40px 180px;
+  gap: 5px;
+  align-content: start;
+  justify-content: start;
+  padding: 5px;
+  overflow: hidden;
+  background:
+    url("./assets/ui/pattern-top.png") left top / 116px 67px repeat-x,
+    linear-gradient(180deg, #786f61, #4c463e);
+}
+
+.game-viewport .rest-header {
+  width: 630px;
+  height: 80px;
+  min-width: 630px;
+  min-height: 80px;
+  display: grid;
+  grid-template-columns: 388px 154px 70px;
+  grid-template-rows: 68px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #25332b;
+  border-radius: 4px;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-header-copy {
+  width: 388px;
+  height: 68px;
+  min-width: 388px;
+  display: grid;
+  grid-template-columns: 104px 274px;
+  grid-template-rows: 68px;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-header h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.game-viewport .rest-run-stats {
+  width: 274px;
+  height: 18px;
+  display: grid;
+  grid-template-columns: 62px 38px 54px;
+  align-items: center;
+  justify-content: start;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-run-stats span,
+.game-viewport .coin-ledger-trigger {
+  width: auto;
+  height: 14px;
+  min-height: 14px;
+  padding: 0 4px;
+  font-size: 6px;
+  line-height: 14px;
+}
+
+.game-viewport .rest-team-strip {
+  width: 154px;
+  height: 42px;
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  grid-auto-columns: 32px;
+  grid-template-rows: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-team-strip button {
+  width: 32px;
+  height: 42px;
+  min-width: 32px;
+  min-height: 42px;
+  padding: 1px;
+  border-width: 1px;
+  border-radius: 4px;
+}
+
+.game-viewport .rest-team-strip .pokemon-sprite {
+  width: 28px;
+  height: 28px;
+  --pokemon-sprite-size: 28px;
+}
+
+.game-viewport .rest-top-actions {
+  width: 70px;
+  height: 50px;
+  display: grid;
+  grid-template-columns: 70px;
+  grid-template-rows: 22px 22px;
+  gap: 6px;
+}
+
+.game-viewport .rest-top-actions button {
+  width: 70px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.game-viewport .rest-talent-action-row {
+  width: 630px;
+  height: 40px;
+  min-width: 630px;
+  min-height: 40px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  grid-template-rows: 28px;
+  align-content: center;
+  justify-content: start;
+  gap: 4px;
+  border: 1px solid #25332b;
+  border-radius: 4px;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-talent-action-row button {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-width: 1px;
+  border-radius: 4px;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.game-viewport .rest-tab-spacer {
+  display: none;
+}
+
+.game-viewport .rest-workspace {
+  width: 630px;
+  height: 180px;
+  min-width: 630px;
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: 620px;
+  grid-template-rows: 180px;
+  border: 1px solid #25332b;
+  border-radius: 4px;
+  padding: 0 5px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace-panel,
+.game-viewport .rest-workspace-empty {
+  width: 620px;
+  height: 180px;
+  min-width: 620px;
+  min-height: 180px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout.unified-bag-layout {
+  width: 620px;
+  height: 180px;
+  min-width: 620px;
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: 620px;
+  grid-template-rows: 180px;
+  border-width: 0;
+  border-radius: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-body {
+  width: 620px;
+  height: 180px;
+  min-width: 620px;
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: 280px 340px;
+  grid-template-rows: 180px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list {
+  width: 280px;
+  height: 180px;
+  min-width: 280px;
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: 280px;
+  grid-template-rows: 30px 150px;
+  grid-auto-rows: 0;
+  align-content: start;
+  border-right: 2px solid #25332b;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list-toolbar {
+  position: static;
+  width: 280px;
+  height: 30px;
+  min-height: 30px;
+  padding: 4px;
+  border-bottom: 2px solid #25332b;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .bag-filter-tabs {
+  width: 270px;
+  height: 20px;
+  display: grid;
+  grid-template-columns: 52px 52px 52px 52px 52px;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .bag-filter-tabs button {
+  width: 52px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0;
+  border-width: 1px;
+  border-radius: 3px;
+  font-size: 7px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list > .unified-bag-list-item,
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list > .bag-empty {
+  grid-row: auto;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list-item {
+  width: 278px;
+  height: 35px;
+  min-height: 35px;
+  display: grid;
+  grid-template-columns: 34px 188px 38px;
+  grid-template-rows: 35px;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px solid #25332b;
+  padding: 0 6px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list-item .item-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list-item strong {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list-item b {
+  min-width: 32px;
+  height: 16px;
+  padding: 0;
+  font-size: 7px;
+  line-height: 14px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-detail {
+  width: 340px;
+  height: 180px;
+  min-width: 340px;
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: 340px;
+  grid-template-rows: 180px;
+  place-items: center;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane {
+  width: 340px;
+  height: 180px;
+  min-width: 340px;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  border-left: 2px solid #25332b;
+  padding: 0;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail {
+  display: grid;
+  grid-template-columns: 340px;
+  grid-template-rows: 180px;
+  place-items: center;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-item-detail-panel {
+  width: 320px;
+  height: 180px;
+  min-width: 320px;
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: 320px;
+  grid-template-rows: 58px 92px 24px;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-hero {
+  width: 320px;
+  height: 58px;
+  display: grid;
+  grid-template-columns: 58px 252px;
+  grid-template-rows: 28px 22px;
+  gap: 4px 10px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-icon {
+  width: 52px;
+  height: 52px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-icon .item-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-hero > strong {
+  width: 252px;
+  height: 28px;
+  min-height: 28px;
+  font-size: 9px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-hero > small {
+  width: 252px;
+  height: 22px;
+  font-size: 6px;
+  line-height: 22px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-description {
+  width: 320px;
+  height: 92px;
+  display: block;
+  padding: 4px 6px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-description > p {
+  margin: 0;
+  font-size: 7px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-item-detail-panel footer {
+  width: 320px;
+  height: 24px;
+  display: grid;
+  justify-items: end;
+  align-items: center;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-use-button {
+  width: 52px;
+  height: 20px;
+  min-width: 52px;
+  min-height: 20px;
+  padding: 0;
+  font-size: 7px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker {
+  display: grid;
+  grid-template-columns: 320px;
+  grid-template-rows: 24px 150px;
+  align-content: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker:has(.bag-stat-picker) {
+  grid-template-rows: 24px 28px 116px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .bag-flow-toolbar {
+  width: 320px;
+  height: 24px;
+  grid-template-columns: 58px 254px;
+  gap: 6px;
+  padding: 2px 4px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .bag-flow-toolbar button {
+  width: 58px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  font-size: 7px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker {
+  width: 320px;
+  height: 150px;
+  display: grid;
+  grid-template-columns: 320px;
+  grid-template-rows: 13px 133px;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker:has(.bag-stat-picker) .pokemon-team-picker {
+  height: 116px;
+  grid-template-rows: 13px 99px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker header {
+  width: 320px;
+  height: 13px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list {
+  width: 320px;
+  height: 133px;
+  display: grid;
+  grid-template-columns: 310px;
+  grid-template-rows: repeat(6, 50px);
+  grid-auto-rows: 50px;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker:has(.bag-stat-picker) .pokemon-team-picker-list {
+  height: 99px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list button {
+  width: 310px;
+  height: 50px;
+  min-height: 50px;
+  grid-template-columns: 44px 198px 48px;
+  grid-template-rows: 14px 8px 12px;
+  gap: 3px 6px;
+  padding: 5px 6px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list .pokemon-sprite,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list .pokemon-sprite > img {
+  width: 40px;
+  height: 40px;
+  --pokemon-sprite-size: 40px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace {
+  display: grid;
+  grid-template-columns: 320px;
+  grid-template-rows: 180px;
+  place-items: center;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel {
+  width: 320px;
+  height: 180px;
+  display: grid;
+  grid-template-columns: 320px;
+  grid-template-rows: 150px 24px;
+  gap: 6px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-layout {
+  width: 320px;
+  height: 150px;
+  display: grid;
+  grid-template-columns: 154px 154px;
+  grid-template-rows: 150px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves {
+  width: 154px;
+  height: 150px;
+  display: grid;
+  grid-template-columns: 154px;
+  grid-template-rows: 13px 44px 80px;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves {
+  grid-template-rows: 13px 132px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves > div {
+  width: 154px;
+  height: 132px;
+  display: grid;
+  grid-template-columns: 154px;
+  grid-template-rows: repeat(4, 30px);
+  gap: 4px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice:nth-child(2n),
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move > .tm-replace-move-card.move-choice {
+  width: 154px;
+  height: 30px;
+  min-height: 30px;
+  max-height: 30px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move > .tm-replace-move-card.move-choice {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-name-row {
+  min-height: 13px;
+  padding: 1px 5px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-name-row strong {
+  font-size: 8px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-name-row i {
+  font-size: 6px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-meta-row {
+  min-height: 10px;
+  gap: 3px;
+  padding: 1px 5px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-meta-row b,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card .move-meta-row em {
+  font-size: 5px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move p {
+  width: 154px;
+  height: 80px;
+  max-height: 80px;
+  font-size: 7px;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel footer {
+  width: 320px;
+  height: 24px;
+  display: grid;
+  grid-template-columns: 74px 44px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel footer button {
+  height: 20px;
+  min-height: 20px;
+  padding: 0 8px;
+  font-size: 7px;
+}
+
+/* Rest fixed layout v2.
+   Component sizing contract: outer components set default CSS variables, inner parts scale from them. */
+.game-viewport .rest-page {
+  --rest-header-height: 40px;
+  --rest-toolbar-height: 20px;
+  --rest-workspace-height: 240px;
+  --rest-page-gap: 5px;
+  --rest-page-pad: 5px;
+  grid-template-columns: 630px;
+  grid-template-rows: var(--rest-header-height) var(--rest-toolbar-height) var(--rest-workspace-height);
+  gap: var(--rest-page-gap);
+  padding: var(--rest-page-pad);
+}
+
+.game-viewport .rest-header {
+  width: 630px;
+  height: var(--rest-header-height);
+  min-height: var(--rest-header-height);
+  grid-template-columns: 304px 116px 92px;
+  grid-template-rows: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  padding: 4px 12px 4px 5px;
+}
+
+.game-viewport .rest-header-copy {
+  width: 304px;
+  height: 30px;
+  grid-template-columns: 92px 206px;
+  grid-template-rows: 30px;
+  gap: 6px;
+}
+
+.game-viewport .rest-header h2 {
+  font-size: 13px;
+}
+
+.game-viewport .rest-run-stats {
+  width: 206px;
+  height: 16px;
+  grid-template-columns: 56px 36px 50px;
+  gap: 4px;
+}
+
+.game-viewport .rest-run-stats span,
+.game-viewport .coin-ledger-trigger {
+  height: 13px;
+  min-height: 13px;
+  padding: 0 3px;
+  font-size: 6px;
+  line-height: 13px;
+}
+
+.game-viewport .rest-team-strip {
+  width: 116px;
+  height: 30px;
+  grid-template-columns: repeat(3, 30px);
+  grid-auto-columns: 30px;
+  grid-template-rows: 30px;
+  gap: 4px;
+}
+
+.game-viewport .rest-team-strip button {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 1px;
+}
+
+.game-viewport .rest-team-strip .pokemon-sprite {
+  width: 24px;
+  height: 24px;
+  --pokemon-sprite-size: 24px;
+}
+
+.game-viewport .rest-team-strip span {
+  width: 8px;
+  height: 8px;
+  font-size: 5px;
+}
+
+.game-viewport .rest-top-actions {
+  width: 92px;
+  height: 30px;
+  grid-template-columns: 92px;
+  grid-template-rows: 13px 13px;
+  gap: 4px;
+}
+
+.game-viewport .rest-top-actions button {
+  width: 92px;
+  height: 13px;
+  min-height: 13px;
+  border-width: 1px;
+  padding: 0;
+  font-size: 7px;
+}
+
+.game-viewport .rest-talent-action-row {
+  width: 630px;
+  height: var(--rest-toolbar-height);
+  min-height: var(--rest-toolbar-height);
+  grid-template-rows: 14px;
+  gap: 3px;
+  padding: 3px 5px;
+}
+
+.game-viewport .rest-talent-action-row button {
+  height: 14px;
+  min-height: 14px;
+  padding: 0 5px;
+  font-size: 6px;
+}
+
+.game-viewport .rest-workspace {
+  width: 630px;
+  height: var(--rest-workspace-height);
+  min-height: var(--rest-workspace-height);
+  grid-template-columns: 620px;
+  grid-template-rows: var(--rest-workspace-height);
+  padding: 0 5px;
+}
+
+.game-viewport .rest-workspace-panel,
+.game-viewport .rest-workspace-empty {
+  width: 620px;
+  height: var(--rest-workspace-height);
+  min-height: var(--rest-workspace-height);
+}
+
+.game-viewport .rest-workspace .rest-bag-layout.unified-bag-layout {
+  --bag-component-width: 620px;
+  --bag-component-height: 240px;
+  --bag-list-width: 280px;
+  --bag-action-width: 340px;
+  --bag-action-inner-width: 320px;
+  --bag-action-inner-height: 240px;
+  width: var(--bag-component-width);
+  height: var(--bag-component-height);
+  min-width: var(--bag-component-width);
+  min-height: var(--bag-component-height);
+  grid-template-columns: var(--bag-component-width);
+  grid-template-rows: var(--bag-component-height);
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-body {
+  width: var(--bag-component-width);
+  height: var(--bag-component-height);
+  min-width: var(--bag-component-width);
+  min-height: var(--bag-component-height);
+  grid-template-columns: var(--bag-list-width) var(--bag-action-width);
+  grid-template-rows: var(--bag-component-height);
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list {
+  width: var(--bag-list-width);
+  height: var(--bag-component-height);
+  min-width: var(--bag-list-width);
+  min-height: var(--bag-component-height);
+  grid-template-columns: var(--bag-list-width);
+  grid-template-rows: 24px 216px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list-toolbar {
+  width: var(--bag-list-width);
+  height: 24px;
+  min-height: 24px;
+  padding: 2px 4px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .bag-filter-tabs {
+  width: 270px;
+  height: 18px;
+  grid-template-columns: 52px 52px 52px 52px 52px;
+  gap: 3px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .bag-filter-tabs button {
+  height: 18px;
+  min-height: 18px;
+  font-size: 7px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-list-item {
+  width: 278px;
+  height: 36px;
+  min-height: 36px;
+  grid-template-rows: 36px;
+}
+
+.game-viewport .rest-workspace .rest-bag-layout .unified-bag-detail,
+.game-viewport .rest-workspace .bag-target-pane {
+  width: var(--bag-action-width);
+  height: var(--bag-component-height);
+  min-width: var(--bag-action-width);
+  min-height: var(--bag-component-height);
+  grid-template-columns: var(--bag-action-width);
+  grid-template-rows: var(--bag-component-height);
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace {
+  grid-template-columns: var(--bag-action-inner-width);
+  grid-template-rows: var(--bag-action-inner-height);
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-item-detail-panel {
+  width: var(--bag-action-inner-width);
+  height: var(--bag-action-inner-height);
+  min-width: var(--bag-action-inner-width);
+  min-height: var(--bag-action-inner-height);
+  grid-template-columns: var(--bag-action-inner-width);
+  grid-template-rows: 70px 136px 24px;
+  gap: 5px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-hero,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-description,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-item-detail-panel footer {
+  width: var(--bag-action-inner-width);
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-hero {
+  height: 70px;
+  grid-template-columns: 64px 246px;
+  grid-template-rows: 32px 26px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-icon {
+  width: 58px;
+  height: 58px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-detail .bag-detail-description {
+  height: 136px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker {
+  grid-template-columns: var(--bag-action-inner-width);
+  grid-template-rows: 24px 210px;
+  align-content: center;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker:has(.bag-stat-picker) {
+  grid-template-rows: 24px 28px 176px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .bag-flow-toolbar,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker header,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list {
+  width: var(--bag-action-inner-width);
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .bag-flow-toolbar {
+  grid-template-columns: 58px 254px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker {
+  height: 210px;
+  grid-template-columns: var(--bag-action-inner-width);
+  grid-template-rows: 13px 193px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker:has(.bag-stat-picker) .pokemon-team-picker {
+  height: 176px;
+  grid-template-rows: 13px 159px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker .pokemon-team-picker-list {
+  height: 193px;
+  grid-template-columns: 310px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-pokemon-picker:has(.bag-stat-picker) .pokemon-team-picker-list {
+  height: 159px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel {
+  width: var(--bag-action-inner-width);
+  height: var(--bag-action-inner-height);
+  grid-template-columns: var(--bag-action-inner-width);
+  grid-template-rows: 210px 24px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-layout {
+  width: var(--bag-action-inner-width);
+  height: 210px;
+  grid-template-columns: 154px 154px;
+  grid-template-rows: 210px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves {
+  width: 154px;
+  height: 210px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move {
+  grid-template-rows: 13px 54px 134px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves {
+  grid-template-rows: 13px 192px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-current-moves > div {
+  width: 154px;
+  height: 192px;
+  grid-template-columns: 154px;
+  grid-template-rows: repeat(4, 45px);
+  gap: 4px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice,
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-panel .tm-replace-move-card.move-choice:nth-child(2n) {
+  width: 154px;
+  height: 45px;
+  min-height: 45px;
+  max-height: 45px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move > .tm-replace-move-card.move-choice {
+  width: 154px;
+  height: 54px;
+  min-height: 54px;
+  max-height: 54px;
+}
+
+.game-viewport .rest-workspace .bag-target-pane.bag-step-move-replace .move-replace-new-move p {
+  width: 154px;
+  height: 134px;
+  max-height: 134px;
 }

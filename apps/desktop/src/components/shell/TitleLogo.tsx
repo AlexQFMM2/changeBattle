@@ -1,5 +1,6 @@
 import {motion} from "motion/react";
 import type {Variants} from "motion/react";
+import "./TitleLogo.css";
 
 const draw: Variants = {
   hidden: {pathLength: 0, opacity: 0},

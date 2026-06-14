@@ -324,6 +324,40 @@ export type BattleTracker = {
   pp: Record<string, Record<string, {name: string; pp?: number; maxpp?: number}>>;
 };
 
+export type BattleViewSlot = {
+  key: string;
+  slot: number;
+  showdown_id?: string;
+  run_member_id?: string;
+  revealed: boolean;
+  active: boolean;
+  fainted: boolean;
+  condition: string;
+  hp: number;
+  max_hp: number;
+  status: string;
+  moves: Array<{
+    slot: number;
+    id: string;
+    move: string;
+    pp: number;
+    maxpp: number;
+  }>;
+  display?: RentalPokemon;
+  runtime?: RuntimePokemon;
+};
+
+export type BattleSideView = {
+  side: BattleSideId;
+  active_index: number;
+  slots: BattleViewSlot[];
+};
+
+export type BattleViewModel = {
+  player: BattleSideView;
+  enemy: BattleSideView;
+};
+
 export type BattleTimelineEventType =
   | "message"
   | "move"
@@ -510,6 +544,7 @@ export type BattleState = {
   request: BattleRequestView | null;
   player_side?: BattleSideId;
   enemy_side?: BattleSideId;
+  battle_view?: BattleViewModel;
   tracker: BattleTracker;
   recent_events: string[];
   timeline_events: BattleTimelineEvent[];
@@ -597,6 +632,7 @@ export type RestState = {
   bag_items: Record<string, number>;
   coin_ledger?: CoinLedgerEntry[];
   bag_categories?: BagCategoryView;
+  shop_kind_discounts?: Partial<Record<ShopKind, number>>;
   talents?: TalentView[];
   shop?: ShopState;
   starter_items?: StarterItemState;

@@ -623,10 +623,26 @@ const ITEM_TYPE_PLATE_ASSETS: Record<string, string> = {
   water: "splashplate",
 };
 
-function itemFallbackAssets(item?: {id?: string; icon_asset?: string; name?: string; name_zh?: string}): string[] {
+function tmMoveTypeFromItem(item?: {id?: string; move_type?: string; name?: string; name_zh?: string}): string {
+  const explicitType = toId(item?.move_type);
+  if (explicitType) return explicitType;
+  const label = `${item?.name || ""} ${item?.name_zh || ""}`.toLowerCase();
+  for (const typeId of new Set(Object.values(TYPE_ID_BY_ZH))) {
+    if (label.includes(`machine${typeId}`) || label.includes(typeId)) return typeId;
+  }
+  return "normal";
+}
+
+function tmMachineIconAsset(item?: {id?: string; move_type?: string; name?: string; name_zh?: string}): string {
+  return `assets/runtime/items/machine${tmMoveTypeFromItem(item)}/icon.png`;
+}
+
+function itemFallbackAssets(item?: {id?: string; icon_asset?: string; name?: string; name_zh?: string; move_type?: string}): string[] {
   const id = toId(item?.id || item?.name || "");
+  const isTm = /^tm:/i.test(String(item?.id || ""));
   const candidates = [item?.icon_asset].filter(Boolean) as string[];
   if (id) {
+    if (isTm) candidates.push(tmMachineIconAsset(item));
     candidates.push(`assets/runtime/items/${id}/icon.png`);
     const alias = ITEM_ICON_ALIASES[id];
     if (alias) candidates.push(`assets/runtime/items/${alias}/icon.png`);
@@ -636,17 +652,16 @@ function itemFallbackAssets(item?: {id?: string; icon_asset?: string; name?: str
     if (id.endsWith("ite") || /进化石|超级石|mega/i.test(`${item?.name || ""} ${item?.name_zh || ""}`)) candidates.push("assets/runtime/items/medichamite/icon.png");
     if (id.includes("stone")) candidates.push("assets/runtime/items/stoneplate/icon.png");
   }
+  if (isTm) candidates.push(tmMachineIconAsset(item));
   candidates.push("assets/placeholders/item.png");
   return Array.from(new Set(candidates));
 }
 
-export function ItemIcon({item}: {item?: {id?: string; icon_asset?: string; name?: string; name_zh?: string}}) {
-  const isTm = /^tm:/i.test(String(item?.id || ""));
-  if (isTm) return <span className="item-icon tm-icon">TM</span>;
+export function ItemIcon({item}: {item?: {id?: string; icon_asset?: string; name?: string; name_zh?: string; move_type?: string}}) {
   return (
     <img
       className="item-icon"
-      src={itemImageUrl(item)}
+      src={itemImageUrl({icon_asset: item?.icon_asset || (/^tm:/i.test(String(item?.id || "")) ? tmMachineIconAsset(item) : undefined)})}
       alt={item?.name_zh || item?.name || "道具"}
       onError={event => {
         const image = event.currentTarget;
@@ -956,6 +971,7 @@ export function enemyDisplayIndex(team: RentalPokemon[], event: BattleTimelineEv
 export type PartyStatusSlot = {
   key: string;
   label: string;
+  showdown_id?: string;
   display?: RentalPokemon;
   condition?: string;
   status?: string;

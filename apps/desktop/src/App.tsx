@@ -1,29 +1,25 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {createRoot} from "react-dom/client";
 import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "react-router";
 import type {AppStatus, BagCategoryView, BattleAiHint, BattleState, DesktopGameState, LocalSave, RentalPokemon, RestAction, ResultSummaryState, TrainerCatalogState} from "@changebattle/shared";
-import {useResponsiveCanvas} from "./hooks/useResponsiveCanvas";
 import "./styles.css";
 import {BgmController} from "./components/audio/BgmController";
 import type {BgmScene} from "./components/audio/musicManifest";
-import {DraggableFloatingButton} from "./components/feedback/DraggableFloatingButton";
 import {ScreenToast} from "./components/feedback/ScreenToast";
 import {QuickDexModal} from "./pages/dex/QuickDexModal";
-import {PlayerSettings} from "./pages/player/PlayerSettings";
-import {BattleHistoryView} from "./pages/result/BattleHistoryView";
-import {ResultView} from "./pages/result/ResultView";
-import {ExchangeView, RestView} from "./pages/rest/RestView";
-import {MainMenu, TitleScreen} from "./pages/shell/ShellScreens";
 import {RouteTransitionPage, routeTransitionCopy, type RouteTransitionCopy, type RouteTransitionReason} from "./pages/shell/RouteTransitionPage";
-import {BattleSettingPage, RentalSelect, StarterItemsView, StarterUpgradePage, TalentConfigView} from "./pages/setup/SetupPages";
-import {BattleView} from "./pages/battle/BattleView";
 import {hasStarterItemChoices, mergeBattleSnapshot, profileFromSelection, userFacingError} from "./lib/ui";
 import {installBrowserTestBridge} from "./web/browserTestBridge";
+import {ComponentGalleryPage} from "./component-gallery/ComponentGalleryPage";
+import {GameViewport} from "./components/shell/GameViewport";
+import {QuickDexButton} from "./components/shell/QuickDexButton";
+import {RouteRenderer} from "./components/shell/RouteRenderer";
 
 installBrowserTestBridge();
 
 const TRANSITION_ROUTE = "/transition";
+const COMPONENT_GALLERY_ROUTE = "/components";
 const BATTLE_SCREENS: AppStatus[] = ["battleMain", "moveMenu", "teamMenu", "statusMenu"];
 const HIDDEN_MESSAGE_SCREENS: AppStatus[] = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "battleHistory", "battleSetting", "rentalSelect"];
 const BATTLE_ANIMATION_SPEED_STORAGE_KEY = "changebattle:battle-animation-speed";
@@ -88,7 +84,6 @@ export function App() {
 function RoutedApp() {
   const location = useLocation();
   const navigate = useNavigate();
-  const responsiveCanvas = useResponsiveCanvas();
   const routePath = normalizeRoute(location.pathname);
   const browserInitialState = window.__changeBattleTest?.getInitialState() || null;
   const routedScreen = screenForRoute(routePath);
@@ -475,23 +470,67 @@ function RoutedApp() {
     navigateToScreen(guardedRedirect, {replace: true});
   }, [guardedRedirect]);
 
-  const content = useMemo(() => {
-    if (screen === "title") return <TitleScreen save={save} catalog={trainerCatalog} defaultAvatarAsset={trainerCatalog.players[0]?.avatar_asset || trainerCatalog.avatars[0]?.avatar_asset} onLoad={loadGame} onNew={() => { setTrainerName("训练师"); }} onCreate={createTitleSave} onDelete={deleteSave} />;
-    if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => navigateToScreen("title")} saveLabel="创建存档" />;
-    if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => navigateToScreen("talentConfig")} onStarterUpgrade={openStarterUpgrade} onHistory={() => navigateToScreen("battleHistory")} onBattleSetting={() => navigateToScreen("battleSetting")} onTitle={() => navigateToScreen("title")} onTestMode={enableTestMode} onRainbowRocketTest={startRainbowRocketTestRun} />;
-    if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} saveLabel="保存设置" />;
-    if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
-    if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
-    if (screen === "battleHistory") return <BattleHistoryView onBack={() => navigateToScreen("mainMenu")} />;
-    if (screen === "battleSetting") return <BattleSettingPage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
-    if (screen === "starterItems") return <StarterItemsView starter={starter} onChoose={chooseStarterItem} onBack={cancelPreparation} />;
-    if (screen === "rentalSelect") return <RentalSelect candidates={candidates} selected={selected} focusIndex={focusIndex} setFocusIndex={setFocusIndex} onToggle={toggleCandidate} onStart={() => beginChallenge()} onBack={hasStarterItemChoices(starter) ? backToStarterItems : undefined} onReroll={rerollCandidates} onSingleReroll={rerollFocusedCandidate} onInspect={inspectFocusedCandidate} runSeed={seed} wholeRerollsRemaining={starter?.whole_rerolls_remaining ?? 0} singleRerollsRemaining={starter?.single_rerolls_remaining ?? 0} inspectRemaining={inspectRemaining} revealTraining={saveStarNodeLevel(save, "intel_god_eye") >= 3 || inspectedIndexes.has(focusIndex)} inspected={inspectedIndexes.has(focusIndex)} />;
-    if (BATTLE_SCREENS.includes(screen)) return <BattleView battle={battle} battleBag={battleBag} mode={screen} setMode={navigateToScreen} onChoice={battleChoice} onAutoAdvance={autoAdvanceBattle} onBattleHint={battleHint} choicePending={battleChoicePending} pendingTransition={pendingTransition} onBattleAnimationDone={state => transitionToState(state, "battleComplete")} battleAnimationSpeed={battleAnimationSpeed} onBattleAnimationSpeedChange={setBattleAnimationSpeed} />;
-    if (screen === "exchange") return <ExchangeView exchange={exchange} onSkip={() => finishExchange(null, null)} onExchange={finishExchange} />;
-    if (screen === "rest") return <RestView rest={rest} onAction={restAction} />;
-    if (screen === "result") return <ResultView message={message} battle={battle || lastBattleSnapshot} summary={resultSummary} onBack={() => transitionToScreen("mainMenu", "returnHome")} />;
-    return null;
-  }, [screen, save, trainerName, trainerCatalog, selectedPlayerId, selectedAvatarAsset, seed, candidates, selected, focusIndex, starter, inspectedIndexes, inspectRemaining, battle, lastBattleSnapshot, battleBag, battleChoicePending, exchange, rest, resultSummary, pendingTransition, message, battleAnimationSpeed]);
+  const content = guardedRedirect ? null : (
+    <RouteRenderer
+      screen={screen}
+      save={save}
+      trainerName={trainerName}
+      setTrainerName={setTrainerName}
+      trainerCatalog={trainerCatalog}
+      selectedPlayerId={selectedPlayerId}
+      setSelectedPlayerId={setSelectedPlayerId}
+      selectedAvatarAsset={selectedAvatarAsset}
+      setSelectedAvatarAsset={setSelectedAvatarAsset}
+      seed={seed}
+      candidates={candidates}
+      selected={selected}
+      focusIndex={focusIndex}
+      setFocusIndex={setFocusIndex}
+      starter={starter}
+      inspectedIndexes={inspectedIndexes}
+      inspectRemaining={inspectRemaining}
+      battle={battle}
+      lastBattleSnapshot={lastBattleSnapshot}
+      battleBag={battleBag}
+      battleChoicePending={battleChoicePending}
+      exchange={exchange}
+      rest={rest}
+      resultSummary={resultSummary}
+      pendingTransition={pendingTransition}
+      message={message}
+      battleAnimationSpeed={battleAnimationSpeed}
+      battleScreens={BATTLE_SCREENS}
+      saveStarNodeLevel={saveStarNodeLevel}
+      hasStarterItemChoices={hasStarterItemChoices}
+      loadGame={loadGame}
+      createTitleSave={createTitleSave}
+      deleteSave={deleteSave}
+      createNewGame={createNewGame}
+      setSave={setSave}
+      navigateToScreen={navigateToScreen}
+      navigateToComponentGallery={() => navigate(COMPONENT_GALLERY_ROUTE)}
+      prepareChallenge={prepareChallenge}
+      openStarterUpgrade={openStarterUpgrade}
+      enableTestMode={enableTestMode}
+      startRainbowRocketTestRun={startRainbowRocketTestRun}
+      chooseStarterItem={chooseStarterItem}
+      cancelPreparation={cancelPreparation}
+      backToStarterItems={backToStarterItems}
+      rerollCandidates={rerollCandidates}
+      rerollFocusedCandidate={rerollFocusedCandidate}
+      inspectFocusedCandidate={inspectFocusedCandidate}
+      toggleCandidate={toggleCandidate}
+      beginChallenge={beginChallenge}
+      battleChoice={battleChoice}
+      autoAdvanceBattle={autoAdvanceBattle}
+      battleHint={battleHint}
+      transitionToState={transitionToState}
+      setBattleAnimationSpeed={setBattleAnimationSpeed}
+      finishExchange={finishExchange}
+      restAction={restAction}
+      transitionToScreen={transitionToScreen}
+    />
+  );
 
   const isBattleScreen = BATTLE_SCREENS.includes(screen);
   const hideTransientMessage = HIDDEN_MESSAGE_SCREENS.includes(screen);
@@ -505,35 +544,34 @@ function RoutedApp() {
   }, [showDexButton, dexOpen]);
 
   const gamePage = (
-    <main className="game-shell">
-      <section className="game-screen" ref={responsiveCanvas.ref} style={responsiveCanvas.style}>
-        <div className="game-viewport">
-          {guardedRedirect ? null : content}
-          {showDexButton ? <DraggableFloatingButton className="floating-dex-button" title="打开图鉴" storageKey="changebattle:floating:dex" onClick={openDex}>图鉴</DraggableFloatingButton> : null}
-          {dexOpen ? <QuickDexModal onClose={() => setDexOpen(false)} /> : null}
-          {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
-          {transientMessage ? <ScreenToast message={transientMessage} /> : null}
-          {appToast ? <ScreenToast key={appToast.id} message={appToast.message} durationMs={appToast.durationMs ?? 1400} onDone={() => setAppToast(null)} /> : null}
-        </div>
-      </section>
-    </main>
+    <GameViewport>
+      {content}
+      {showDexButton ? <QuickDexButton title="打开图鉴" onClick={openDex} /> : null}
+      {dexOpen ? <QuickDexModal onClose={() => setDexOpen(false)} /> : null}
+      {loading ? <div className="loading-overlay">正在进入对局...</div> : null}
+      {transientMessage ? <ScreenToast message={transientMessage} /> : null}
+      {appToast ? <ScreenToast key={appToast.id} message={appToast.message} durationMs={appToast.durationMs ?? 1400} onDone={() => setAppToast(null)} /> : null}
+    </GameViewport>
   );
 
   const transitionPage = routeTransition ? (
-    <main className="game-shell">
-      <section className="game-screen" ref={responsiveCanvas.ref} style={responsiveCanvas.style}>
-        <div className="game-viewport route-transition-viewport">
-          <RouteTransitionPage key={routeTransition.id} title={routeTransition.title} detail={routeTransition.detail} tip={routeTransition.tip} durationMs={routeTransition.durationMs} />
-        </div>
-      </section>
-    </main>
+    <GameViewport viewportClassName="route-transition-viewport">
+      <RouteTransitionPage key={routeTransition.id} title={routeTransition.title} detail={routeTransition.detail} tip={routeTransition.tip} durationMs={routeTransition.durationMs} />
+    </GameViewport>
   ) : <Navigate to={routeForScreen(fallbackScreenForSave(save))} replace />;
+
+  const componentGalleryPage = (
+    <GameViewport>
+      <ComponentGalleryPage onBack={() => navigateToScreen("title")} />
+    </GameViewport>
+  );
 
   return (
     <>
       <BgmController scene={bgmScene} save={save} onSave={setSave} />
       <Routes>
         <Route path={TRANSITION_ROUTE} element={transitionPage} />
+        <Route path={COMPONENT_GALLERY_ROUTE} element={componentGalleryPage} />
         {ROUTE_SCREENS.map(entry => <Route path={entry.route} element={routeTransition ? <Navigate to={TRANSITION_ROUTE} replace /> : gamePage} key={entry.route} />)}
         <Route path="*" element={<Navigate to={routeForScreen("title")} replace />} />
       </Routes>

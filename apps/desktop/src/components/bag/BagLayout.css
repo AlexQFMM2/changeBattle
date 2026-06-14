@@ -1,0 +1,177 @@
+.unified-bag-layout.unified-bag-layout.unified-bag-layout {
+  --bag-container-width: 620px;
+  --bag-container-height: 180px;
+  --bag-container-list-width: 280px;
+  --bag-container-action-width: 340px;
+  --bag-container-action-inner-width: 320px;
+  --bag-container-action-inner-height: var(--bag-container-height);
+  --bag-container-toolbar-height: 24px;
+  --bag-container-filter-width: 270px;
+  --bag-container-filter-height: 18px;
+  --bag-container-filter-button-width: 52px;
+  --bag-container-list-row-height: 36px;
+  --bag-container-list-icon-size: 28px;
+  --bag-container-list-count-width: 32px;
+  --bag-container-list-font-size: 8px;
+  --bag-container-count-font-size: 7px;
+  width: var(--bag-container-width);
+  height: var(--bag-container-height);
+  min-width: var(--bag-container-width);
+  min-height: var(--bag-container-height);
+  display: grid;
+  grid-template-columns: var(--bag-container-width);
+  grid-template-rows: var(--bag-container-height);
+  border-width: 0;
+  border-radius: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-body {
+  width: var(--bag-container-width);
+  height: var(--bag-container-height);
+  min-width: var(--bag-container-width);
+  min-height: var(--bag-container-height);
+  display: grid;
+  grid-template-columns: var(--bag-container-list-width) var(--bag-container-action-width);
+  grid-template-rows: var(--bag-container-height);
+  overflow: hidden;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list {
+  width: var(--bag-container-list-width);
+  height: var(--bag-container-height);
+  min-width: var(--bag-container-list-width);
+  min-height: var(--bag-container-height);
+  display: grid;
+  grid-template-columns: var(--bag-container-list-width);
+  grid-template-rows: var(--bag-container-toolbar-height) calc(var(--bag-container-height) - var(--bag-container-toolbar-height));
+  grid-auto-rows: var(--bag-container-list-row-height);
+  align-content: start;
+  border-right: 2px solid #25332b;
+  background: #fffdf5;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #5a6659 #eef0df;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list::-webkit-scrollbar-track {
+  background: #eef0df;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eef0df;
+  background: #5a6659;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-toolbar {
+  position: static;
+  width: var(--bag-container-list-width);
+  height: var(--bag-container-toolbar-height);
+  min-height: var(--bag-container-toolbar-height);
+  border-bottom: 2px solid #25332b;
+  background: #fffdf5;
+  padding: 2px 4px;
+  overflow: hidden;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .bag-filter-tabs {
+  width: var(--bag-container-filter-width);
+  height: var(--bag-container-filter-height);
+  display: grid;
+  grid-template-columns: repeat(5, var(--bag-container-filter-button-width));
+  grid-template-rows: var(--bag-container-filter-height);
+  gap: 3px;
+  overflow: hidden;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .bag-filter-tabs button {
+  width: var(--bag-container-filter-button-width);
+  height: var(--bag-container-filter-height);
+  min-height: var(--bag-container-filter-height);
+  border-width: 1px;
+  border-radius: 3px;
+  padding: 0;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item {
+  width: calc(var(--bag-container-list-width) - 2px);
+  height: var(--bag-container-list-row-height);
+  min-height: var(--bag-container-list-row-height);
+  display: grid;
+  grid-template-columns: 34px calc(var(--bag-container-list-width) - 92px) var(--bag-container-list-count-width);
+  grid-template-rows: var(--bag-container-list-row-height);
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-bottom: 1px solid #25332b;
+  border-radius: 0;
+  background: #fffdf5;
+  padding: 0 6px;
+  color: #25332b;
+  text-align: left;
+  box-shadow: none;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item.selected,
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item:hover,
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item:focus-visible {
+  background: #d6efe2;
+  outline: none;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item .item-icon {
+  width: var(--bag-container-list-icon-size);
+  height: var(--bag-container-list-icon-size);
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item span,
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item strong {
+  color: #25332b;
+  font-size: var(--bag-container-list-font-size);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-list-item b {
+  justify-self: center;
+  min-width: var(--bag-container-list-count-width);
+  height: 16px;
+  border: 1px solid #c8b071;
+  border-radius: 4px;
+  background: #fff0ac;
+  color: #563615;
+  padding: 0;
+  font-size: var(--bag-container-count-font-size);
+  font-weight: 950;
+  line-height: 14px;
+  text-align: center;
+}
+
+.unified-bag-layout.unified-bag-layout.unified-bag-layout .unified-bag-detail {
+  width: var(--bag-container-action-width);
+  height: var(--bag-container-height);
+  min-width: var(--bag-container-action-width);
+  min-height: var(--bag-container-height);
+  display: grid;
+  grid-template-columns: var(--bag-container-action-width);
+  grid-template-rows: var(--bag-container-height);
+  place-items: center;
+  overflow: hidden;
+}

@@ -8,13 +8,14 @@ ChangeBattle 当前更适合被理解为：
 - 一个以 Electron + React 桌面端为正式主版本、TypeScript runtime/service 为规则支撑的可玩项目。
 - 一套已开始跨 Desktop / Android 复用的本地运行时、数据、资源、发版和 smoke 工具集合。
 
-当前根版本为 `0.7.0`。如果文档与代码冲突，以当前代码为准，并把文档视为待更新。
+当前根版本为 `0.7.9`。如果文档与代码冲突，以当前代码为准，并把文档视为待更新。
 
 ## 使用方式
 
 - 先从这页进入，只选一个最相关的任务继续读。
 - 每次任务默认只补读 `1-2` 篇专题文档。
 - 需要理解整体时，先读本页的项目地图，再按任务进入专题。
+- 需要做页面、弹窗、面板或大型组件时，先读 [`ui-design.md`](./ui-design.md)，再动 UI。
 - 需要发版时，直接进入对应 release 文档，不要顺手重新解释整套游戏规则。
 - 需要改资源时，先确认运行时数据文件、静态资源复制脚本和打包脚本，再决定是否清理目录。
 
@@ -22,6 +23,7 @@ ChangeBattle 当前更适合被理解为：
 
 - 理解平台形态、优先级和技术路线：[`platform-targets.md`](./platform-targets.md)
 - 理解当前游戏规则与体验目标：[`rule.md`](./rule.md)
+- 理解 UI 页面设计、字号比例、640×320 视口和组件边界：[`ui-design.md`](./ui-design.md)
 - 理解休整奇遇事件池：[`restEventRule.md`](./restEventRule.md)
 - 理解随机宝可梦生成规则：[`randomPokemonRule.md`](./randomPokemonRule.md)
 - 理解随机道具、商店与初始道具规则：[`randomItemRule.md`](./randomItemRule.md)
@@ -30,6 +32,7 @@ ChangeBattle 当前更适合被理解为：
 - 理解 Pokemon Showdown 依赖与规则边界：[`showdown.md`](./showdown.md)
 - 理解 Showdown BattleStream 日志解析：[`showdown-battle-log.md`](./showdown-battle-log.md)
 - 理解 Showdown 身份、NPC 预生成和状态回写：[`showdown-identity.md`](./showdown-identity.md)
+- 理解本地队伍 / Showdown 队伍 / `battle_view` 展示投影：[`battle-team-state-flow.md`](./battle-team-state-flow.md)
 - 理解 Showdown 战斗展示播放流程：[`battle-timeline-flow.md`](./battle-timeline-flow.md)
 - 理解 Boss 台词和标签：[`boss_dialogues.md`](./boss_dialogues.md)、[`boss_dialogue_tags.md`](./boss_dialogue_tags.md)
 - 理解招式动画资料抓取：[`52poke_fetching.md`](./52poke_fetching.md)、[`move_animation_references.md`](./move_animation_references.md)
@@ -82,7 +85,7 @@ Showdown 数据、生成、战斗和展示服务层。
 
 - 读取 Showdown 数据、中文展示、宝可梦/招式/道具事实。
 - 生成候选宝可梦、敌方队伍、Boss 队伍、道具、图鉴条目和战斗展示数据。
-- 启动和推进 Showdown battle session，处理 AI、请求、战斗日志和展示状态。
+- 启动和推进 Showdown battle session，处理 AI、请求、战斗日志、`battle_view` 展示投影和展示状态。
 - 承载训练师道具、专属 Z 招式、候选生成等服务层测试。
 
 改“招式能不能点”“AI 为什么用了特殊系统”“闪光图/黑球/战斗 sprite 显示”这类问题，通常需要同时看这里和 UI 展示层。
@@ -282,7 +285,7 @@ Pokemon Showdown 是对战规则、数据和底层 battle engine 的事实源。
 
 ## 默认阅读原则
 
-- 改桌面 UI：先看 `apps/desktop` 代码，再按需读规则文档。
+- 改桌面 UI：先读 [`ui-design.md`](./ui-design.md)，再看 `apps/desktop` 代码，并按需读规则文档。
 - 改 Android App：先看 `apps/mobile`、`packages/game-runtime`、`packages/game-service`，再看 [`app-release.md`](./app-release.md)。
 - 改流程、休整、星图、默认道具：先看 `packages/game-runtime`，再读 `rule.md` 和 `randomItemRule.md`。
 - 改宝可梦、敌人、招式、专属 Z 招式或候选生成：先看 `packages/game-service`，再读 `randomPokemonRule.md`。

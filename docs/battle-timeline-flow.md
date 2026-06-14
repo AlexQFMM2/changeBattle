@@ -2,7 +2,7 @@
 
 这份文档记录 ChangeBattle 桌面端应该如何把 Pokemon Showdown 返回的协议日志展示成战斗流程。
 
-`showdown-battle-log.md` 负责解释协议行和 timeline event 的解析原则；[`showdown-identity.md`](./showdown-identity.md) 负责记录 `showdown_id`、Showdown `pokeball` 传输、side 识别和回写规则；本文负责描述前端播放顺序、动画等待点和 UI 状态提交时机。
+`showdown-battle-log.md` 负责解释协议行和 timeline event 的解析原则；[`showdown-identity.md`](./showdown-identity.md) 负责记录 `showdown_id`、Showdown `pokeball` 传输、side 识别和回写规则；[`battle-team-state-flow.md`](./battle-team-state-flow.md) 负责记录本地队伍、Showdown 队伍和 `battle_view` 展示投影；本文负责描述前端播放顺序、动画等待点和 UI 状态提交时机。
 
 ## 目标
 
@@ -17,7 +17,7 @@ Pokemon Showdown 仍是唯一战斗规则事实源。前端不重算伤害、命
 
 ## 总流程
 
-展示层输入是 Showdown protocol lines 和服务层生成的 timeline events。展示层输出是按顺序播放的 display steps。
+展示层输入是 Showdown protocol lines、服务层生成的 timeline events，以及作为最终展示事实源的 `battle_view`。timeline 只负责播放过程；播放结束后的大图、小图、HP、状态、详情和队伍槽位应回到 `battle_view`。
 
 ```mermaid
 flowchart TD
@@ -45,6 +45,7 @@ flowchart TD
 核心约束：
 
 - 先播放当前 event 的展示步骤，再提交会影响画面的 UI 状态。
+- `battle_view` 是战斗页最终展示源。timeline 可以在播放中临时覆盖 active 快照，但不能重新决定整队槽位、非 active HP、身份或贴图。
 - `damage`、`heal`、`sethp` 只允许更新匹配 `target_showdown_id` 的当前展示宝可梦；不匹配时不得猜测套到当前 active。
 - 能力变化必须使用中文能力名：`atk` 攻击、`def` 防御、`spa` 特攻、`spd` 特防、`spe` 速度、`accuracy` 命中、`evasion` 回避。
 - `cant` 原因必须中文化：畏缩、麻痹、睡眠、冰冻、再充电、着迷、混乱、挑衅、定身等都不能露出 Showdown 原始 id。
@@ -369,9 +370,10 @@ flowchart TD
 
 ## 后续实现提示
 
-- 服务层 timeline event 可以继续保持协议解析职责，但需要明确哪些 event 会拆成多个 display step。
+- 服务层 timeline event 继续保持协议解析职责；需要新增表现时，应明确哪些 event 会拆成多个 display step。
 - 前端播放队列应以 display step 为单位串行执行，而不是直接把每个 timeline event 当成一个不可拆步骤。
 - `showdown_id` 是 HP、状态、濒死、换人和动画目标的身份事实源；没有匹配身份时，只展示文本，不提交 active HP/状态。
+- 队伍最终展示、详情和非 active 状态以 `battle_view` 为准；timeline 只提交播放过程中的 active 动画变化。
 - `request.wait` 时 UI 应显示“战斗继续中”或保持播放态，不让用户再次选择招式。
 - 训练师道具不是 Showdown 原生动作；它由 ChangeBattle 注入 action queue 并 patch `battle.runAction` 产生日志。展示层可以按日志播放，但规则层和测试层必须记住这部分是本项目自定义逻辑。
 - 两回合蓄力招式、再充电、强制换人、多段攻击、道具/特性插入都应通过同一套队列处理，不为单个招式写特殊 UI 分支。

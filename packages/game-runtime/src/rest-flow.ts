@@ -114,6 +114,7 @@ export function buildRestState(options: RuntimeRestStateOptions): RestState {
     player_state: normalizePlayerState(run),
     bag_items: run.bag_items || {},
     coin_ledger: run.coin_ledger || [],
+    shop_kind_discounts: run.rest_status?.shop_kind_discounts || {},
     talents: run.talents || [],
     rainbow_rocket_support: support ? {
       battle_no: support.battle_no,
