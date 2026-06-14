@@ -1,0 +1,83 @@
+.result-round-panel {
+  --battle-round-list-row-height: 22px;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 78px minmax(0, 1fr);
+  gap: 5px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.result-round-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.result-round-panel > header div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.result-round-panel > header strong,
+.result-round-panel > header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-round-panel > header button {
+  padding: 3px 7px;
+  font-size: 10px;
+}
+
+.result-round-list {
+  min-height: 0;
+  display: grid;
+  gap: 3px;
+  overflow: auto;
+}
+
+.result-round-list button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid #8c9d82;
+  background: #fffdf5;
+  color: #25332b;
+  padding: 3px 5px;
+}
+
+.result-round-list button.selected {
+  border-color: #25332b;
+  background: #eef5e5;
+}
+
+.result-round-list i {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.result-round-list span,
+.result-round-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-round-list span {
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.result-round-list small {
+  color: #596052;
+  font-size: 8px;
+}

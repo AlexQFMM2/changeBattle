@@ -1,0 +1,74 @@
+.rest-toolbar {
+  --rest-toolbar-height: 30px;
+  --rest-toolbar-button-height: 22px;
+  --rest-toolbar-gap: 5px;
+  width: 100%;
+  height: var(--rest-toolbar-height);
+  min-height: var(--rest-toolbar-height);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  grid-template-rows: var(--rest-toolbar-button-height);
+  align-content: center;
+  justify-content: start;
+  gap: var(--rest-toolbar-gap);
+  border: 2px solid #6d5a3d;
+  border-radius: 6px;
+  background: #efe6d2;
+  padding: 2px 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.game-viewport .rest-toolbar.rest-toolbar {
+  width: 630px;
+  height: var(--rest-toolbar-height);
+  min-height: var(--rest-toolbar-height);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  grid-template-rows: var(--rest-toolbar-button-height);
+  align-content: center;
+  justify-content: start;
+  gap: var(--rest-toolbar-gap);
+  padding: 3px 7px;
+}
+
+.rest-toolbar button,
+.game-viewport .rest-toolbar.rest-toolbar button {
+  height: var(--rest-toolbar-button-height);
+  min-width: 0;
+  min-height: var(--rest-toolbar-button-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 4px;
+  padding: 0 9px;
+  font-size: 8px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rest-toolbar button.selected {
+  outline: 2px solid rgb(36 89 56 / 42%);
+}
+
+.rest-toolbar button.used {
+  opacity: .58;
+}
+
+.rest-toolbar button small {
+  max-width: 42px;
+  overflow: hidden;
+  font-size: 5px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-toolbar-spacer {
+  width: 1px;
+  height: 1px;
+}

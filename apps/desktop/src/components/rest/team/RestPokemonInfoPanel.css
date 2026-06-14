@@ -1,0 +1,65 @@
+.rest-pokemon-info-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 18px minmax(0, 1fr) 22px;
+  gap: 4px;
+  border: 1px solid #7b6448;
+  border-radius: 5px;
+  background: #f8f5ec;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.rest-pokemon-info-panel nav {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.rest-pokemon-info-panel button {
+  min-height: 0;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.rest-pokemon-info-panel article {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.rest-pokemon-info-panel h3,
+.rest-pokemon-info-panel p {
+  margin: 0;
+}
+
+.rest-pokemon-info-panel h3 {
+  color: #2f2735;
+  font-size: 9px;
+  line-height: 1.15;
+}
+
+.rest-pokemon-info-panel p {
+  margin-top: 5px;
+  color: #4f4a42;
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+.rest-pokemon-info-panel footer {
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.rest-pokemon-info-panel footer button {
+  min-width: 0;
+  max-width: 76px;
+}

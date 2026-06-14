@@ -1,6 +1,7 @@
-import {useRef, useState} from "react";
 import type {CSSProperties} from "react";
-import spritesaurusTransitionVideo from "../../assets/title/spritesaurus-transition.mp4";
+import {RouteTransitionCopyPanel} from "./RouteTransitionCopyPanel";
+import {RouteTransitionVideo} from "./RouteTransitionVideo";
+import "./RouteTransitionPage.css";
 
 const ROUTE_TRANSITION_MIN_MS = 3000;
 const ROUTE_TRANSITION_MAX_MS = 5000;
@@ -83,40 +84,13 @@ export function routeTransitionCopy(targetScreen: string, reason: RouteTransitio
   };
 }
 
-export function RouteTransitionPage({title, detail, tip, durationMs}: RouteTransitionCopy) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [videoPlaying, setVideoPlaying] = useState(false);
+export function RouteTransitionPage({title, detail, tip, durationMs, videoDisabled = false}: RouteTransitionCopy & {videoDisabled?: boolean}) {
   const style = {"--route-transition-duration": `${durationMs}ms`} as CSSProperties;
-  function playVideo() {
-    void videoRef.current?.play().then(() => setVideoPlaying(true)).catch(() => setVideoPlaying(false));
-  }
-
-  function randomizePlaybackStart() {
-    const video = videoRef.current;
-    if (!video || !Number.isFinite(video.duration) || video.duration <= 8) return;
-    video.currentTime = Math.random() * Math.max(0, video.duration - 6);
-    playVideo();
-  }
 
   return (
     <div className="route-transition-page" style={style} aria-live="polite">
-      <video ref={videoRef} className={`route-transition-video ${videoPlaying ? "playing" : ""}`} autoPlay muted loop playsInline preload="auto" controls={false} disablePictureInPicture controlsList="nodownload nofullscreen noplaybackrate" onLoadedMetadata={randomizePlaybackStart} onCanPlay={playVideo}>
-        <source src={spritesaurusTransitionVideo} type="video/mp4" />
-      </video>
-      <div className="route-transition-shade" aria-hidden="true" />
-      <section className="route-transition-loading">
-        <div className="route-transition-copy">
-          <strong>{title}</strong>
-          <span>{detail}</span>
-        </div>
-        <div className="route-transition-progress" aria-label="加载进度">
-          <span />
-        </div>
-        <p className="route-transition-tip">
-          <strong>提示</strong>
-          <span>{tip}</span>
-        </p>
-      </section>
+      <RouteTransitionVideo disabled={videoDisabled} />
+      <RouteTransitionCopyPanel title={title} detail={detail} tip={tip} />
     </div>
   );
 }

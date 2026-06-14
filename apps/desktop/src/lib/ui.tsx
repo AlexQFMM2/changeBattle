@@ -750,7 +750,7 @@ export function hpTone(hp: {current: number; max: number} | null): "high" | "mid
   if (!hp || hp.max <= 0) return "low";
   const ratio = hp.current / hp.max;
   if (ratio > 0.5) return "high";
-  if (ratio > 0.3) return "mid";
+  if (ratio >= 0.2) return "mid";
   return "low";
 }
 

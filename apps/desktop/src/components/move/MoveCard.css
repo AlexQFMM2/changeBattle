@@ -92,6 +92,47 @@
   --move-card-name-font-size: 7px;
 }
 
+.quick-dex-move-card.move-choice,
+.quick-dex-move-card.move-choice:nth-child(2n) {
+  min-width: 0;
+  border-color: #222723;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--move-light), var(--move-main));
+  box-shadow: inset 0 0 0 1px #fff8, inset 0 -3px 0 #0002, 0 1px 0 #1c251f;
+}
+
+.quick-dex-result-move-card.move-choice {
+  min-height: var(--move-card-height);
+}
+
+.quick-dex-move-card.move-choice:hover,
+.quick-dex-move-card.move-choice:focus-visible,
+.quick-dex-list button.quick-dex-result-move-card:hover,
+.quick-dex-list button.quick-dex-result-move-card.selected {
+  border-color: #f5f0cf;
+  background: linear-gradient(#fff9, transparent 48%), linear-gradient(180deg, var(--move-light), var(--move-main));
+  outline: 2px solid rgb(245 240 207 / 74%);
+}
+
+.quick-dex-list button.quick-dex-result-move-card {
+  background: linear-gradient(180deg, var(--move-light), var(--move-main));
+  color: #151714;
+}
+
+.quick-dex-list .quick-dex-move-card > span {
+  grid-row: auto;
+  width: auto;
+  height: auto;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.quick-dex-list .quick-dex-move-card .move-name-row,
+.quick-dex-list .quick-dex-move-card .move-meta-row {
+  display: flex;
+}
+
 .move-card-draw.move-choice,
 .move-draw-choice.quick-dex-move-card.move-card-draw.move-choice,
 .move-draw-choice.quick-dex-move-card.move-card-draw.move-choice:nth-child(2n) {
@@ -211,4 +252,53 @@
 
 .move-card-battle.move-contest-disliked {
   box-shadow: inset 0 0 0 2px rgb(91 76 153 / 70%);
+}
+
+.move-draw-choice.quick-dex-move-card.move-choice {
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr) 16px;
+  border-width: 1px;
+  border-radius: 0;
+  animation: move-card-flip-in .36s cubic-bezier(.2, .82, .2, 1) both;
+}
+
+.move-draw-choice.quick-dex-move-card.move-choice:nth-child(2n) {
+  border-radius: 0;
+}
+
+.move-draw-card-grid.large .move-draw-choice.quick-dex-move-card.move-choice {
+  grid-template-rows: minmax(0, 1fr) 12px;
+}
+
+.move-draw-choice.quick-dex-move-card.move-choice.selected {
+  border-color: #fff7ce;
+  outline: 2px solid #8ee377;
+}
+
+.move-draw-choice .move-name-row {
+  padding: 1px 5px;
+}
+
+.move-draw-choice.quick-dex-move-card.move-choice strong {
+  font-size: 8px;
+}
+
+.move-draw-card-grid.large .move-draw-choice.quick-dex-move-card.move-choice strong {
+  font-size: 6px;
+}
+
+.move-draw-choice .move-meta-row {
+  gap: 4px;
+  padding: 0 5px;
+}
+
+.move-draw-choice .move-meta-row b,
+.move-draw-choice .move-meta-row em {
+  font-size: 7px;
+}
+
+.move-draw-card-grid.large .move-draw-choice .move-meta-row b,
+.move-draw-card-grid.large .move-draw-choice .move-meta-row em {
+  font-size: 5px;
 }

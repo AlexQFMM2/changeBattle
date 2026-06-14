@@ -1,0 +1,30 @@
+.pokemon-hp-bar {
+  --pokemon-hp-bar-width: 96px;
+  --pokemon-hp-bar-height: 6px;
+  width: var(--pokemon-hp-bar-width);
+  height: var(--pokemon-hp-bar-height);
+  min-width: 0;
+  display: block;
+  border: 1px solid #25332b;
+  border-radius: 99px;
+  background: #d9d2be;
+  overflow: hidden;
+}
+
+.pokemon-hp-bar b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.pokemon-hp-bar-high b {
+  background: linear-gradient(90deg, #2fbf5b, #74df6a);
+}
+
+.pokemon-hp-bar-mid b {
+  background: linear-gradient(90deg, #d7bd35, #f0dd62);
+}
+
+.pokemon-hp-bar-low b {
+  background: linear-gradient(90deg, #d94a42, #ff7a62);
+}

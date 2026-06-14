@@ -5362,11 +5362,13 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (action.type === "apply_drawn_move") {
     const slot = action.slot;
     const moveSlot = action.moveSlot;
-    const draws = run.move_draws?.[`${slot}:${moveSlot}`] || [];
+    const drawMoveSlot = action.drawMoveSlot ?? moveSlot;
+    const drawKey = `${slot}:${drawMoveSlot}`;
+    const draws = run.move_draws?.[drawKey] || [];
     const selected = draws.find(move => move.id === toId(action.moveId) || toId(move.name) === toId(action.moveId));
     if (!selected) throw new Error("请选择已抽取的候选技能。");
     await applyMoveToSlot(run, slot, moveSlot, selected.id || selected.name);
-    delete run.move_draws?.[`${slot}:${moveSlot}`];
+    delete run.move_draws?.[drawKey];
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, `已学习 ${selected.name_zh || selected.name}。`);
   }

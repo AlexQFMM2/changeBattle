@@ -1,0 +1,47 @@
+.rest-pokemon-move-grid {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 15px minmax(0, 1fr);
+  gap: 4px;
+  overflow: hidden;
+}
+
+.rest-pokemon-move-grid header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #25332b;
+}
+
+.rest-pokemon-move-grid header strong,
+.rest-pokemon-move-grid header span {
+  font-size: 7px;
+  line-height: 1;
+}
+
+.rest-pokemon-move-grid > div {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(4, 34px);
+  gap: 4px;
+  overflow: hidden;
+}
+
+.rest-pokemon-move-grid .move-card {
+  --move-card-height: 34px;
+  --move-card-name-row-height: 22px;
+  --move-card-meta-row-height: 9px;
+}
+
+.rest-pokemon-move-empty {
+  display: grid;
+  place-items: center;
+  height: 34px;
+  border: 1px dashed #9b8f73;
+  border-radius: 4px;
+  color: #70675d;
+  font-size: 7px;
+  font-weight: 850;
+}

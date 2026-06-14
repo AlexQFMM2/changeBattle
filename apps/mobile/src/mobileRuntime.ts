@@ -942,7 +942,8 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           if (action.type === "apply_drawn_move") {
             const slot = action.slot;
             const moveSlot = action.moveSlot;
-            const drawKey = `${slot}:${moveSlot}`;
+            const drawMoveSlot = action.drawMoveSlot ?? moveSlot;
+            const drawKey = `${slot}:${drawMoveSlot}`;
             const draws = run.move_draws?.[drawKey] || [];
             const selected = draws.find(move => toId(move.id || move.name) === toId(action.moveId));
             if (!selected) throw new Error("请选择已抽取的候选技能。");

@@ -215,6 +215,18 @@
   width: 240px;
 }
 
+.component-gallery-hp-bar-stage {
+  width: 130px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+}
+
+.component-gallery-hp-bar-stage .pokemon-hp-bar {
+  --pokemon-hp-bar-width: 112px;
+  --pokemon-hp-bar-height: 8px;
+}
+
 .component-gallery-shell-stage {
   position: relative;
   width: 100%;
@@ -231,6 +243,158 @@
   width: 100%;
   display: grid;
   place-items: center;
+}
+
+.component-gallery-rest-header-stage,
+.component-gallery-rest-toolbar-stage,
+.component-gallery-rest-slot-stage,
+.component-gallery-rest-mini-card-stage,
+.component-gallery-rest-profile-stage,
+.component-gallery-rest-move-grid-stage,
+.component-gallery-rest-info-stage,
+.component-gallery-rest-selected-detail-stage,
+.component-gallery-rest-my-team-stage {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.component-gallery-rest-header-stage .rest-header,
+.component-gallery-rest-toolbar-stage .rest-toolbar {
+  width: 470px;
+}
+
+.component-gallery-rest-slot-stage {
+  width: 124px;
+  height: 60px;
+}
+
+.component-gallery-rest-slot-stage .rest-pokemon-slot {
+  width: 114px;
+}
+
+.component-gallery-rest-mini-card-stage {
+  width: 120px;
+  height: 90px;
+}
+
+.component-gallery-rest-mini-card-stage .rest-team-mini-card {
+  --rest-team-mini-card-width: 78px;
+  --rest-team-mini-card-height: 35px;
+  --rest-team-mini-card-sprite-size: 15px;
+}
+
+.component-gallery-rest-profile-stage .rest-pokemon-profile-card {
+  width: 136px;
+  height: 140px;
+}
+
+.component-gallery-rest-move-grid-stage {
+  width: 244px;
+  height: 150px;
+}
+
+.component-gallery-rest-move-grid-stage .rest-pokemon-move-grid {
+  width: 232px;
+  height: 140px;
+}
+
+.component-gallery-rest-info-stage {
+  width: 244px;
+  height: 112px;
+}
+
+.component-gallery-rest-info-stage .rest-pokemon-info-panel {
+  width: 232px;
+  height: 100px;
+}
+
+.component-gallery-rest-selected-detail-stage {
+  width: 488px;
+  height: 184px;
+}
+
+.component-gallery-rest-selected-detail-stage .rest-selected-pokemon-detail {
+  --rest-selected-pokemon-detail-main-width: 226px;
+  --rest-selected-pokemon-detail-stats-width: 145px;
+  --rest-selected-pokemon-detail-description-width: 107px;
+  width: 488px;
+  height: 184px;
+}
+
+.component-gallery-rest-selected-detail-stage .rest-selected-pokemon-main {
+  grid-template-rows: 46px 27px 14px minmax(0, 1fr);
+  gap: 3px;
+  padding: 4px;
+}
+
+.component-gallery-rest-selected-detail-stage .rest-selected-pokemon-identity {
+  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-rows: 8px 14px 8px 12px;
+  gap: 1px 4px;
+  padding: 3px;
+}
+
+.component-gallery-rest-selected-detail-stage .rest-selected-pokemon-identity .pokemon-sprite {
+  width: 38px;
+  height: 38px;
+  --pokemon-sprite-size: 38px;
+}
+
+.component-gallery-rest-selected-detail-stage .rest-selected-pokemon-stats {
+  grid-template-rows: 23px 38px 22px minmax(0, 1fr) 18px;
+  gap: 3px;
+  padding: 4px;
+}
+
+.component-gallery-rest-selected-detail-stage .rest-selected-description {
+  grid-template-rows: 16px minmax(0, 1fr) 18px;
+  gap: 3px;
+  padding: 4px;
+}
+
+.component-gallery-rest-my-team-stage {
+  width: 488px;
+  height: 184px;
+}
+
+.component-gallery-rest-my-team-stage .rest-my-team-panel {
+  --rest-my-team-panel-slot-width: 72px;
+  --rest-my-team-panel-detail-width: 392px;
+  width: 480px;
+  height: 178px;
+  gap: 4px;
+  padding: 4px;
+}
+
+.component-gallery-rest-my-team-stage .rest-my-team-slots {
+  grid-template-rows: repeat(6, 26px);
+  gap: 2px;
+}
+
+.component-gallery-rest-my-team-stage .rest-team-mini-card {
+  --rest-team-mini-card-width: 66px;
+  --rest-team-mini-card-height: 26px;
+  --rest-team-mini-card-sprite-size: 11px;
+}
+
+.component-gallery-rest-my-team-stage .rest-selected-pokemon-detail {
+  --rest-selected-pokemon-detail-main-width: 188px;
+  --rest-selected-pokemon-detail-stats-width: 112px;
+  --rest-selected-pokemon-detail-description-width: 82px;
+}
+
+.component-gallery-rest-my-team-stage .rest-selected-pokemon-main {
+  grid-template-rows: 42px 24px 12px minmax(0, 1fr);
+  gap: 2px;
+  padding: 3px;
+}
+
+.component-gallery-rest-my-team-stage .rest-selected-pokemon-stats,
+.component-gallery-rest-my-team-stage .rest-selected-description {
+  padding: 3px;
 }
 
 .component-gallery-title-video-stage {
@@ -828,6 +992,451 @@
 }
 
 .component-gallery-starter-page-stage .starter-offer-detail p {
+  font-size: 6px;
+}
+
+.component-gallery-dex-search-stage,
+.component-gallery-dex-tabs-stage,
+.component-gallery-dex-list-stage,
+.component-gallery-dex-detail-stage,
+.component-gallery-dex-modal-stage,
+.component-gallery-quick-dex-modal-stage {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #e2ebd8;
+}
+
+.component-gallery-dex-search-stage {
+  width: 300px;
+  height: 50px;
+  padding: 10px;
+}
+
+.component-gallery-dex-search-stage .dex-search-bar {
+  width: 100%;
+}
+
+.component-gallery-dex-tabs-stage {
+  width: 390px;
+  height: 76px;
+  padding: 8px;
+}
+
+.component-gallery-dex-list-stage {
+  width: 300px;
+  height: 150px;
+}
+
+.component-gallery-dex-list-stage .dex-result-list {
+  padding: 6px;
+}
+
+.component-gallery-dex-list-stage .dex-result-list button {
+  min-height: 46px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  padding: 4px 6px;
+}
+
+.component-gallery-dex-list-stage .dex-result-list img,
+.component-gallery-dex-list-stage .dex-result-list .shadow-orb {
+  width: 30px;
+  height: 30px;
+}
+
+.component-gallery-dex-detail-stage {
+  width: 330px;
+  height: 150px;
+}
+
+.component-gallery-dex-detail-stage .dex-entry-detail {
+  width: 100%;
+  height: 100%;
+  gap: 6px;
+  padding: 7px;
+}
+
+.component-gallery-dex-detail-stage .dex-entry-detail h3,
+.component-gallery-dex-detail-stage .dex-pokemon-identity h3 {
+  font-size: 13px;
+}
+
+.component-gallery-dex-detail-stage .dex-entry-detail > header img,
+.component-gallery-dex-detail-stage .dex-pokemon-identity img,
+.component-gallery-dex-detail-stage .shadow-orb.large {
+  width: 44px;
+  height: 44px;
+}
+
+.component-gallery-dex-detail-stage .dex-stat-grid,
+.component-gallery-dex-detail-stage .dex-fact-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.component-gallery-dex-detail-stage .dex-stat-grid div,
+.component-gallery-dex-detail-stage .dex-fact-grid p,
+.component-gallery-dex-detail-stage .dex-description {
+  padding: 4px;
+  font-size: 7px;
+}
+
+.component-gallery-dex-modal-stage {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-dex-modal-stage .dex-modal {
+  --dex-modal-width: 488px;
+  --dex-modal-height: 150px;
+  grid-template-rows: 24px 18px 18px minmax(0, 1fr);
+  gap: 4px;
+  border-width: 2px;
+  padding: 5px;
+}
+
+.component-gallery-dex-modal-stage .dex-modal > header {
+  min-height: 0;
+}
+
+.component-gallery-dex-modal-stage .dex-modal h2 {
+  font-size: 10px;
+}
+
+.component-gallery-dex-modal-stage .dex-modal p,
+.component-gallery-dex-modal-stage .dex-modal button,
+.component-gallery-dex-modal-stage .dex-search-input {
+  font-size: 6px;
+}
+
+.component-gallery-dex-modal-stage .dex-tabs {
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.component-gallery-dex-modal-stage .dex-tabs button {
+  min-width: 0;
+  min-height: 18px;
+  padding: 1px 5px;
+}
+
+.component-gallery-dex-modal-stage .dex-search-bar {
+  --dex-search-bar-height: 18px;
+}
+
+.component-gallery-dex-modal-stage .dex-modal-body {
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 5px;
+}
+
+.component-gallery-dex-modal-stage .dex-result-list,
+.component-gallery-dex-modal-stage .dex-entry-detail {
+  border-width: 2px;
+  border-radius: 5px;
+  padding: 5px;
+}
+
+.component-gallery-dex-modal-stage .dex-result-list button {
+  min-height: 34px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  padding: 3px;
+}
+
+.component-gallery-dex-modal-stage .dex-result-list img,
+.component-gallery-dex-modal-stage .shadow-orb {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.component-gallery-dex-modal-stage .dex-entry-detail h3,
+.component-gallery-dex-modal-stage .dex-pokemon-identity h3 {
+  font-size: 10px;
+}
+
+.component-gallery-dex-modal-stage .dex-pokemon-identity img,
+.component-gallery-dex-modal-stage .dex-entry-detail > header img,
+.component-gallery-dex-modal-stage .shadow-orb.large {
+  width: 32px;
+  height: 32px;
+}
+
+.component-gallery-dex-modal-stage .dex-detail-expand-button {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+}
+
+.component-gallery-quick-dex-modal-stage {
+  width: 488px;
+  height: 150px;
+  background: #09120d;
+}
+
+.component-gallery-quick-dex-modal-stage .component-gallery-quick-dex-inline {
+  --quick-dex-modal-width: 488px;
+  --quick-dex-modal-height: 150px;
+}
+
+.component-gallery-quick-dex-modal-stage .quick-dex-content-grid {
+  gap: 4px;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.component-gallery-quick-dex-modal-stage .quick-dex-header h2 {
+  font-size: 10px;
+}
+
+.component-gallery-quick-dex-modal-stage .quick-dex-header p,
+.component-gallery-quick-dex-modal-stage .quick-dex-header button {
+  font-size: 6px;
+}
+
+.component-gallery-quick-dex-modal-stage .quick-dex-mega-tabs button {
+  height: 22px;
+}
+
+.component-gallery-quick-dex-modal-stage .quick-dex-body {
+  grid-template-columns: 160px minmax(0, 1fr);
+}
+
+.component-gallery-quick-dex-modal-stage .quick-dex-detail {
+  padding: 5px;
+}
+
+.component-gallery-result-header-stage,
+.component-gallery-result-settlement-stage,
+.component-gallery-result-team-stage,
+.component-gallery-result-progress-stage,
+.component-gallery-result-round-stage,
+.component-gallery-result-turn-stage,
+.component-gallery-result-page-stage,
+.component-gallery-route-video-stage,
+.component-gallery-route-copy-stage,
+.component-gallery-route-page-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.component-gallery-result-settlement-stage,
+.component-gallery-result-team-stage,
+.component-gallery-result-progress-stage,
+.component-gallery-result-round-stage,
+.component-gallery-result-turn-stage {
+  display: grid;
+  align-content: stretch;
+  background: #f7f3e7;
+  padding: 4px;
+}
+
+.component-gallery-result-team-stage .result-section,
+.component-gallery-result-progress-stage .result-progress-panel,
+.component-gallery-result-round-stage .result-round-panel,
+.component-gallery-result-turn-stage .result-turn-detail {
+  height: 100%;
+}
+
+.component-gallery-result-page-stage .result-screen {
+  width: 488px;
+  height: 150px;
+  padding: 4px;
+}
+
+.component-gallery-result-page-stage .result-panel {
+  gap: 4px;
+  padding: 4px;
+}
+
+.component-gallery-result-page-stage .result-left {
+  grid-template-rows: 24px 48px minmax(0, 1fr);
+  gap: 3px;
+}
+
+.component-gallery-result-page-stage .result-progress-panel {
+  grid-template-rows: auto minmax(0, 1fr) 48px;
+}
+
+.component-gallery-result-page-stage .result-used-browser {
+  display: none;
+}
+
+.component-gallery-result-page-stage .result-pokemon-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.component-gallery-result-page-stage .result-pokemon-detail {
+  grid-template-columns: 40px minmax(0, 1fr);
+}
+
+.component-gallery-result-page-stage .result-pokemon-detail .pokemon-sprite {
+  width: 36px;
+  height: 36px;
+}
+
+.component-gallery-rental-card-stage,
+.component-gallery-rental-list-stage,
+.component-gallery-rental-detail-stage,
+.component-gallery-rental-team-stage,
+.component-gallery-rental-scout-stage,
+.component-gallery-rental-action-stage,
+.component-gallery-rental-page-stage {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  background:
+    url("../assets/ui/pattern-top.png") left top / 116px 67px repeat-x,
+    linear-gradient(180deg, #5d4a5a, #302735);
+  padding: 4px;
+  overflow: hidden;
+}
+
+.component-gallery-rental-card-stage {
+  align-items: start;
+}
+
+.component-gallery-rental-list-stage .rental-candidate-list,
+.component-gallery-rental-detail-stage .rental-pokemon-detail,
+.component-gallery-rental-page-stage .rental-select-page {
+  width: 100%;
+  height: 100%;
+}
+
+.component-gallery-rental-page-stage .rental-select-page {
+  --rental-select-page-candidate-width: 480px;
+  --rental-select-page-detail-width: 360px;
+  --rental-select-page-side-width: 110px;
+  --rental-select-page-action-height: 24px;
+  --rental-select-page-candidate-height: 34px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.component-gallery-rental-page-stage .rental-select-page-main {
+  gap: 4px;
+}
+
+.component-gallery-rental-page-stage .rental-candidate-card-thumbnail {
+  --rental-candidate-card-sprite-size: 24px;
+}
+
+.component-gallery-rental-page-stage .rental-candidate-card-copy small,
+.component-gallery-rental-page-stage .rental-candidate-card-badges {
+  display: none;
+}
+
+.component-gallery-rental-page-stage .rental-candidate-card-main {
+  grid-template-columns: 10px 24px minmax(0, 1fr);
+}
+
+.component-gallery-rental-page-stage .rental-candidate-card-toggle {
+  font-size: 6px;
+  padding: 0 3px;
+}
+
+.component-gallery-rental-page-stage .rental-pokemon-detail .pokemon-profile.compact {
+  grid-template-columns: 70px minmax(0, 1fr);
+}
+
+.component-gallery-rental-page-stage .rental-pokemon-detail .profile-card .pokemon-sprite {
+  width: 34px;
+  height: 34px;
+}
+
+.component-gallery-rental-page-stage .rental-pokemon-detail .moves-panel {
+  max-height: 42px;
+}
+
+.component-gallery-rental-page-stage .rental-team-preview {
+  grid-template-rows: 16px minmax(0, 1fr);
+  padding: 4px;
+}
+
+.component-gallery-rental-page-stage .rental-team-preview-slots {
+  grid-template-columns: repeat(3, minmax(0, 30px));
+}
+
+.component-gallery-rental-page-stage .rental-team-preview-slot {
+  grid-template-rows: 24px 10px;
+}
+
+.component-gallery-rental-page-stage .rental-team-preview-slot .pokemon-sprite {
+  width: 22px;
+  height: 22px;
+}
+
+.component-gallery-rental-page-stage .scout-controls {
+  padding: 4px;
+}
+
+.component-gallery-rental-page-stage .scout-controls header span,
+.component-gallery-rental-page-stage .rental-action-bar span:nth-child(3) {
+  display: none;
+}
+
+.component-gallery-rental-page-stage .scout-controls-buttons {
+  --scout-controls-button-height: 15px;
+}
+
+.component-gallery-route-video-stage,
+.component-gallery-route-page-stage {
+  background:
+    radial-gradient(circle at 50% 35%, rgb(58 77 64 / 45%), transparent 42%),
+    linear-gradient(180deg, #10180f 0%, #050806 100%);
+}
+
+.component-gallery-route-video-stage .route-transition-video,
+.component-gallery-route-video-stage .route-transition-shade,
+.component-gallery-route-page-stage .route-transition-page,
+.component-gallery-route-page-stage .route-transition-video,
+.component-gallery-route-page-stage .route-transition-shade {
+  position: absolute;
+}
+
+.component-gallery-route-copy-stage {
+  background: #050806;
+}
+
+.component-gallery-route-copy-stage .route-transition-loading {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+.component-gallery-route-page-stage .route-transition-page {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-route-page-stage .route-transition-loading {
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  width: calc(100% - 16px);
+  min-height: 48px;
+  grid-template-columns: minmax(78px, .4fr) minmax(100px, .6fr);
+  gap: 6px;
+  padding: 7px;
+}
+
+.component-gallery-route-page-stage .route-transition-tip {
+  grid-column: 1 / -1;
+}
+
+.component-gallery-route-page-stage .route-transition-copy strong {
+  font-size: 11px;
+}
+
+.component-gallery-route-page-stage .route-transition-copy span,
+.component-gallery-route-page-stage .route-transition-tip strong,
+.component-gallery-route-page-stage .route-transition-tip span {
   font-size: 6px;
 }
 

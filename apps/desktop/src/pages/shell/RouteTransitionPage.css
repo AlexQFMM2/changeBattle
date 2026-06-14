@@ -1,0 +1,31 @@
+.route-transition-viewport {
+  border-color: #11161a;
+  background: #050608;
+}
+
+.route-transition-page {
+  --route-transition-page-width: 640px;
+  --route-transition-page-height: 320px;
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 35%, rgb(58 77 64 / 45%), transparent 42%),
+    linear-gradient(180deg, #10180f 0%, #050806 100%);
+}
+
+.route-transition-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #000;
+  pointer-events: none;
+  animation: route-transition-start-mask 1.18s ease forwards;
+}
+
+@keyframes route-transition-start-mask {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; }
+}

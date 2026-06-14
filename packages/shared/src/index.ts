@@ -984,7 +984,7 @@ export type RestAction =
   | {type: "use_item"; itemId: string; slot: number; moveSlot?: number; stat?: StatId; context?: "rest" | "battle"}
   | {type: "use_tm"; itemId: string; slot: number; moveSlot: number}
   | {type: "draw_moves"; slot: number; moveSlot: number}
-  | {type: "apply_drawn_move"; slot: number; moveSlot: number; moveId: string}
+  | {type: "apply_drawn_move"; slot: number; moveSlot: number; moveId: string; drawMoveSlot?: number}
   | {type: "scout_next"; level: "basic" | "one" | "all"}
   | {type: "night_sky_scout"; battleNo: number; level: "one" | "all"}
   | {type: "randomize_stat_part"; slot: number; part: "ability" | "nature" | "ivs" | "evs"}

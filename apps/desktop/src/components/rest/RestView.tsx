@@ -13,6 +13,10 @@ import {MoveReplacePanel} from "../bag/MoveReplacePanel";
 import {PokemonTeamPicker} from "../bag/PokemonTeamPicker";
 import {ItemIcon, PokemonSprite, abilityDescription, coinCostLabel, conditionText, displayName, hpTone, itemCategoryLabel, moveDescription, parseHp, runtimeMoveLabel, statLine, statMarker, statusCode, statusLabel, talentShortText, toId, trainerImageUrl, typeId, userFacingError} from "../../lib/ui";
 import {STAT_ROWS} from "../../lib/ui";
+import {RestHeader} from "./RestHeader";
+import {RestMainPanelHost} from "./RestMainPanelHost";
+import {RestToolBar, type RestToolItem} from "./RestToolBar";
+import {RestMyTeamPanel} from "./team/RestMyTeamPanel";
 import "./RestView.css";
 
 export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameState["exchange"]; onSkip: () => void; onExchange: (ownIndex: number, enemyIndex: number) => void}) {
@@ -59,7 +63,7 @@ function errorMessage(error: unknown): string {
 
 export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAction: RestActionHandler}) {
   const [pokemonModalSlot, setPokemonModalSlot] = useState<number | null>(null);
-  const [activePanel, setActivePanel] = useState<RestWorkspacePanel>(() => new URLSearchParams(location.search).get("scenario") === "rest-shop" ? "shop" : "nightSky");
+  const [activePanel, setActivePanel] = useState<RestWorkspacePanel>(() => new URLSearchParams(location.search).get("scenario") === "rest-shop" ? "shop" : "myTeam");
   const [moveEditorSlot, setMoveEditorSlot] = useState<number | null>(null);
   const [moveEditorMoveSlot, setMoveEditorMoveSlot] = useState(0);
   const [statsEditorSlot, setStatsEditorSlot] = useState<number | null>(null);
@@ -102,6 +106,23 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   const shouldPromptRestEvent = Boolean(rest.rest_event?.required && rest.rest_event.options.length);
   const shouldPromptNamedChallenge = !shouldPromptRestEvent && hasRunTalent(rest, "intel_named_challenge") && Number(rest.battle_no || 0) <= 0 && !rest.named_challenge_decided;
   const shouldPromptRainbowRocket = Boolean(rest.rainbow_rocket_support && !rest.rainbow_rocket_support.completed);
+  const toolItems: RestToolItem[] = [
+    {id: "myTeam", label: "我的队伍"},
+    {id: "exchange", label: "交换"},
+    {id: "bag", label: "背包"},
+    {id: "shop", label: "商店"},
+    {id: "forge", label: "熔炉"},
+    ...(rest.recycler_available ? [{id: "recycler", label: "道具回收商", event: true}] : []),
+    ...(rest.event_services?.doctor ? [{id: "eventDoctor", label: "蹩脚医生", event: true}] : []),
+    ...(rest.event_services?.tutor ? [{id: "eventTutor", label: "讲师老奶奶", event: true}] : []),
+    ...(rest.event_services?.egg ? [{id: "eventEgg", label: "培育屋爷爷", event: true}] : []),
+    ...(rest.event_services?.raid_exchange ? [{id: "raidExchange", label: "骇人奇袭", event: true}] : []),
+    ...(rest.event_services?.score_bet ? [{id: "scoreBet", label: "重金下注", event: true}] : []),
+    ...(Number(rest.event_services?.level_points || 0) > 0 ? [{id: "eventLevel", label: "分配等级", badge: rest.event_services?.level_points, event: true}] : []),
+    {id: "nightSky", label: "进度图", badge: `${revealedSkyCount}/${(nightSkyRows.length || rest.battles) * 3}`},
+    ...manualTalents.map(talent => ({id: `talent:${talent.id}`, label: talent.name, used: runTalentActionUsed(rest, talent.id), badge: runTalentActionUsed(rest, talent.id) ? "已用" : undefined})),
+  ];
+  const activeToolId = activePanel === "talentAction" && talentActionId ? `talent:${talentActionId}` : activePanel === "nightSky" && talentActionId === "intel_reroute" ? "talent:intel_reroute" : activePanel;
 
   function openManualTalent(talent: TalentView) {
     if (runTalentActionUsed(rest as NonNullable<DesktopGameState["rest"]>, talent.id)) return;
@@ -109,9 +130,15 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
     setActivePanel(talent.id === "intel_reroute" ? "nightSky" : "talentAction");
   }
 
-  function openPokemonPanel(slot: number) {
-    setPokemonModalSlot(slot);
-    setActivePanel("pokemon");
+  function selectTool(id: string) {
+    if (id === "bag") setBagTargetSlot(0);
+    if (id.startsWith("talent:")) {
+      const talent = manualTalents.find(entry => entry.id === id.slice("talent:".length));
+      if (talent) openManualTalent(talent);
+      return;
+    }
+    setTalentActionId(null);
+    setActivePanel(id as RestWorkspacePanel);
   }
 
   function unequipItem(slot: number) {
@@ -123,68 +150,19 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
 
   return (
     <div className="rest-page">
-      <header className="rest-header">
-        <div className="rest-header-copy">
-          <h2>休整菜单</h2>
-          <div className="rest-run-stats" aria-label="本局状态">
-            <span>第 {rest.battle_no}/{rest.battles} 场后</span>
-            <span>连胜 {rest.wins}</span>
-            <button className="coin-ledger-trigger" type="button" onClick={() => setCoinLedgerOpen(true)}>金币 {rest.coins ?? 0}</button>
-          </div>
-        </div>
-        <div className="rest-team-strip" aria-label="当前队伍">
-          {rest.player_display.map((pokemon, index) => {
-            const state = rest.player_state[index];
-            const status = statusCode(state?.condition, state?.status);
-            return (
-              <button className={activePanel === "pokemon" && pokemonModalSlot === index ? "selected" : ""} onClick={() => openPokemonPanel(index)} key={`${pokemon.species_id}-rest-strip-${index}`}>
-                <PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} />
-                <span>{index + 1}</span>
-                {status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}
-              </button>
-            );
-          })}
-        </div>
-        <div className="rest-top-actions">
-          <button className="danger-button" onClick={() => setAbortConfirmOpen(true)}>中断挑战</button>
-          <button disabled={shouldPromptRainbowRocket} title={shouldPromptRainbowRocket ? "请先处理彩虹火箭队支援" : undefined} onClick={() => onAction({type: "next"})}>下一场</button>
-        </div>
-      </header>
-      <section className="rest-talent-action-row rest-tab-row">
-        <button className={activePanel === "exchange" ? "selected" : ""} onClick={() => setActivePanel("exchange")}>交换</button>
-        <button className={activePanel === "bag" ? "selected" : ""} onClick={() => { setBagTargetSlot(0); setActivePanel("bag"); }}>背包</button>
-        <button className={activePanel === "shop" ? "selected" : ""} onClick={() => setActivePanel("shop")}>商店</button>
-        <button className={activePanel === "forge" ? "selected" : ""} onClick={() => setActivePanel("forge")}>熔炉</button>
-        {rest.recycler_available ? <button className={`event-button ${activePanel === "recycler" ? "selected" : ""}`} onClick={() => setActivePanel("recycler")}>道具回收商</button> : null}
-        {rest.event_services?.doctor ? <button className={`event-button ${activePanel === "eventDoctor" ? "selected" : ""}`} onClick={() => setActivePanel("eventDoctor")}>蹩脚医生</button> : null}
-        {rest.event_services?.tutor ? <button className={`event-button ${activePanel === "eventTutor" ? "selected" : ""}`} onClick={() => setActivePanel("eventTutor")}>讲师老奶奶</button> : null}
-        {rest.event_services?.egg ? <button className={`event-button ${activePanel === "eventEgg" ? "selected" : ""}`} onClick={() => setActivePanel("eventEgg")}>培育屋爷爷</button> : null}
-        {rest.event_services?.raid_exchange ? <button className={`event-button ${activePanel === "raidExchange" ? "selected" : ""}`} onClick={() => setActivePanel("raidExchange")}>骇人奇袭</button> : null}
-        {rest.event_services?.score_bet ? <button className={`event-button ${activePanel === "scoreBet" ? "selected" : ""}`} onClick={() => setActivePanel("scoreBet")}>重金下注</button> : null}
-        {Number(rest.event_services?.level_points || 0) > 0 ? <button className={`event-button ${activePanel === "eventLevel" ? "selected" : ""}`} onClick={() => setActivePanel("eventLevel")}>分配等级 <small>{rest.event_services?.level_points}</small></button> : null}
-        <button className={activePanel === "nightSky" ? "selected" : ""} onClick={() => setActivePanel("nightSky")}>进度图 <small>{revealedSkyCount}/{(nightSkyRows.length || rest.battles) * 3}</small></button>
-        {manualTalents.map(talent => {
-          const used = runTalentActionUsed(rest, talent.id);
-          const selected = talent.id === "intel_reroute" ? activePanel === "nightSky" && talentActionId === talent.id : activePanel === "talentAction" && talentActionId === talent.id;
-          return (
-            <button className={`manual-talent-button ${selected ? "selected" : ""} ${used ? "used" : ""}`} disabled={used} onClick={() => openManualTalent(talent)} key={`manual-talent-${talent.id}`}>
-              {talent.name}
-              {used ? <small>已用</small> : null}
-            </button>
-          );
-        })}
-        <span className="rest-tab-spacer" />
-      </section>
+      <RestHeader battleNo={rest.battle_no} battles={rest.battles} wins={rest.wins} coins={rest.coins ?? 0} nextDisabled={shouldPromptRainbowRocket} nextTitle={shouldPromptRainbowRocket ? "请先处理彩虹火箭队支援" : undefined} onOpenCoinLedger={() => setCoinLedgerOpen(true)} onAbort={() => setAbortConfirmOpen(true)} onNext={() => onAction({type: "next"})} />
+      <RestToolBar items={toolItems} activeId={activeToolId} onSelect={selectTool} />
       {rest.rest_event_statuses?.length ? (
         <DraggableFloatingButton className="floating-rest-event-button" title="查看特殊事件" storageKey="changebattle:floating:rest-events" onClick={() => setEventPanelOpen(true)}>
           <span>事件</span>
           <b>{rest.rest_event_statuses.length}</b>
         </DraggableFloatingButton>
       ) : null}
-      <section className="rest-workspace" aria-label="休整工作区">
+      <RestMainPanelHost>
         <AnimatePresence mode="wait">
           <motion.div className="rest-workspace-panel" initial={{opacity: 0, y: 12, scale: 0.985}} animate={{opacity: 1, y: 0, scale: 1}} exit={{opacity: 0, y: -10, scale: 0.985}} transition={{duration: 0.22, ease: [0.2, 0.8, 0.2, 1]}} key={workspaceKey}>
             {!activePanel ? <div className="rest-workspace-empty" /> : null}
+            {activePanel === "myTeam" ? <RestMyTeamPanel rest={rest} selectedSlot={pokemonModalSlot ?? 0} onSelectSlot={setPokemonModalSlot} onMove={(slot, moveSlot) => { setMoveEditorSlot(slot); setMoveEditorMoveSlot(moveSlot ?? 0); }} onUseItem={slot => { setBagTargetSlot(slot); setActivePanel("bag"); }} onUnequip={unequipItem} onStats={slot => { setStatsEditorSlot(slot); setActivePanel("statsEditor"); }} onAction={fireAction} /> : null}
             {activePanel === "exchange" ? <RestExchangeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
             {activePanel === "bag" ? <BagManageModal embedded rest={rest} initialTarget={bagTargetSlot} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "recycler" ? <ItemRecyclerModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
@@ -202,7 +180,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
             {activePanel === "statsEditor" && statsEditorSlot !== null ? <StatsAdjustModal embedded rest={rest} initialSlot={statsEditorSlot} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
           </motion.div>
         </AnimatePresence>
-      </section>
+      </RestMainPanelHost>
       {abortConfirmOpen ? (
         <div className="modal-layer">
           <section className="confirm-modal">
@@ -238,7 +216,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   );
 }
 
-type RestWorkspacePanel = "exchange" | "bag" | "recycler" | "eventDoctor" | "eventTutor" | "eventEgg" | "raidExchange" | "scoreBet" | "eventLevel" | "talentAction" | "nightSky" | "shop" | "forge" | "pokemon" | "moveEditor" | "statsEditor" | null;
+type RestWorkspacePanel = "myTeam" | "exchange" | "bag" | "recycler" | "eventDoctor" | "eventTutor" | "eventEgg" | "raidExchange" | "scoreBet" | "eventLevel" | "talentAction" | "nightSky" | "shop" | "forge" | "pokemon" | "moveEditor" | "statsEditor" | null;
 
 function EmbeddedOrModal({embedded, children}: {embedded?: boolean; children: ReactElement}) {
   return embedded ? children : <div className="modal-layer">{children}</div>;
@@ -1813,29 +1791,36 @@ const moveDrawLayoutTransition = {duration: 0.46, ease: [0.2, 0.82, 0.2, 1] as c
 
 function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, onAction}: {rest: NonNullable<DesktopGameState["rest"]>; initialSlot?: number; initialMoveSlot?: number; onClose: () => void; onAction: RestActionHandler}) {
   const slot = initialSlot;
-  const moveSlot = initialMoveSlot;
+  const drawMoveSlot = initialMoveSlot;
   const pokemon = rest.player_display[slot] || rest.player_display[0];
-  const currentMove = pokemon?.moves[moveSlot];
-  const drawKey = `${slot}:${moveSlot}`;
+  const currentMove = pokemon?.moves[drawMoveSlot];
+  const drawKey = `${slot}:${drawMoveSlot}`;
   const serverDraws = rest.move_draws?.[drawKey] || [];
   const serverRoll = Number(rest.move_draw_rolls?.[drawKey] || 0);
   const cardCount = hasRunTalent(rest, "growth_more_choices") ? 16 : 8;
   const [order, setOrder] = useState(() => Array.from({length: cardCount}, (_, index) => `card-${index}`));
+  const [step, setStep] = useState<"draw" | "replace">("draw");
   const [phase, setPhase] = useState<"idle" | "shuffle" | "reveal">("idle");
   const [selectedMoveId, setSelectedMoveId] = useState("");
+  const [selectedReplaceSlot, setSelectedReplaceSlot] = useState<number | null>(null);
+  const [applying, setApplying] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const [revealedMoves, setRevealedMoves] = useState<PricedMove[]>([]);
   const latestDrawRef = useRef({drawKey, roll: serverRoll, draws: serverDraws});
   latestDrawRef.current = {drawKey, roll: serverRoll, draws: serverDraws};
   const revealOrder = revealedMoves.map((move, index) => `${move.id || move.name}-${index}`);
+  const selectedMove = revealedMoves.find(move => toId(move.id || move.name) === toId(selectedMoveId)) || null;
 
   useEffect(() => {
     setOrder(Array.from({length: cardCount}, (_, index) => `card-${index}`));
+    setStep("draw");
     setPhase("idle");
     setSelectedMoveId("");
+    setSelectedReplaceSlot(null);
+    setApplying(false);
     setDrawing(false);
     setRevealedMoves([]);
-  }, [slot, moveSlot, cardCount]);
+  }, [slot, drawMoveSlot, cardCount]);
 
   async function drawCandidates() {
     if (drawing) return;
@@ -1858,10 +1843,12 @@ function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, o
     const startRoll = serverRoll;
     setDrawing(true);
     setSelectedMoveId("");
+    setSelectedReplaceSlot(null);
     setRevealedMoves([]);
+    setStep("draw");
     setPhase("idle");
     setOrder(nextOrder);
-    const drawPromise = Promise.resolve(onAction({type: "draw_moves", slot, moveSlot}));
+    const drawPromise = Promise.resolve(onAction({type: "draw_moves", slot, moveSlot: drawMoveSlot}));
     await wait(MOVE_DRAW_FLIP_BACK_MS);
     setPhase("shuffle");
     await wait(80);
@@ -1888,10 +1875,21 @@ function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, o
     setDrawing(false);
   }
 
-  async function confirm() {
-    if (!selectedMoveId) return;
-    const ok = await Promise.resolve(onAction({type: "apply_drawn_move", slot, moveSlot, moveId: selectedMoveId}));
-    if (ok !== false) onClose();
+  function confirmLearning() {
+    if (!selectedMove) return;
+    setSelectedReplaceSlot(null);
+    setStep("replace");
+  }
+
+  async function confirmReplace() {
+    if (!selectedMove || selectedReplaceSlot === null || applying) return;
+    setApplying(true);
+    try {
+      const ok = await Promise.resolve(onAction({type: "apply_drawn_move", slot, moveSlot: selectedReplaceSlot, moveId: selectedMoveId, drawMoveSlot}));
+      if (ok !== false) onClose();
+    } finally {
+      setApplying(false);
+    }
   }
 
   return (
@@ -1900,30 +1898,47 @@ function MoveAdjustModal({rest, initialSlot = 0, initialMoveSlot = 0, onClose, o
         <motion.section className="move-draw-content" variants={pokopiaItemVariants}>
           <header>
             <div>
-              <h2 id="move-draw-title">更换技能</h2>
-              <p>{displayName(pokemon)}：替换 {currentMove?.name_zh || currentMove?.name || `第 ${moveSlot + 1} 个技能`}</p>
+              <h2 id="move-draw-title">{step === "replace" ? "确认学习" : "技能随机"}</h2>
+              <p>{step === "replace" && selectedMove ? `${displayName(pokemon)} 准备学习 ${selectedMove.name_zh || selectedMove.name}` : `${displayName(pokemon)}：抽取可学习技能${currentMove ? `（参考 ${currentMove.name_zh || currentMove.name}）` : ""}`}</p>
             </div>
             <span>{coinCostLabel(rest.costs.move_draw)}</span>
           </header>
-          <Reorder.Group as="div" axis="y" values={phase === "reveal" ? revealOrder : order} onReorder={phase === "reveal" ? () => undefined : setOrder} className={`move-draw-card-grid ${cardCount > 8 ? "large" : ""} ${phase === "reveal" ? "revealed" : "shuffling"}`}>
-            {phase === "reveal" ? revealedMoves.map((move, index) => {
-              const moveId = move.id || move.name;
-              return (
-                <Reorder.Item as="button" value={`${moveId}-${index}`} drag={false} transition={moveDrawLayoutTransition} className={moveCardClassName({moveType: move.type || move.type_zh, size: "draw", selected: selectedMoveId === moveId, className: "quick-dex-move-card move-draw-choice"})} onClick={() => setSelectedMoveId(moveId)} key={`${moveId}-${index}`}>
-                  <MoveCardContent name={move.name_zh || move.name} moveType={move.type || move.type_zh} typeLabel={move.type_zh || move.type || "一般"} category={move.category_zh || move.category || "变化"} pp={move.pp || "--"} power={move.power || "--"} accuracy={move.accuracy ?? "必中"} />
-                </Reorder.Item>
-              );
-            }) : order.map(id => (
-              <Reorder.Item as="div" value={id} drag={false} transition={moveDrawLayoutTransition} className="move-draw-card-back" key={id}>
-                <i>TM</i>
-              </Reorder.Item>
-            ))}
-          </Reorder.Group>
-          <footer>
-            <button disabled={drawing} onClick={drawCandidates}>{phase === "reveal" ? `继续抽奖（${coinCostLabel(rest.costs.move_draw)}）` : drawing ? "抽奖中" : `开始抽奖（${coinCostLabel(rest.costs.move_draw)}）`}</button>
-            {phase === "reveal" ? <button disabled={!selectedMoveId} onClick={confirm}>确认更换</button> : null}
-            <button onClick={() => requestClose()}>取消更换</button>
-          </footer>
+          {step === "draw" ? (
+            <>
+              <Reorder.Group as="div" axis="y" values={phase === "reveal" ? revealOrder : order} onReorder={phase === "reveal" ? () => undefined : setOrder} className={`move-draw-card-grid ${cardCount > 8 ? "large" : ""} ${phase === "reveal" ? "revealed" : "shuffling"}`}>
+                {phase === "reveal" ? revealedMoves.map((move, index) => {
+                  const moveId = toId(move.id || move.name);
+                  return (
+                    <Reorder.Item as="button" value={`${moveId}-${index}`} drag={false} transition={moveDrawLayoutTransition} className={moveCardClassName({moveType: move.type || move.type_zh, size: "draw", selected: selectedMoveId === moveId, className: "quick-dex-move-card move-draw-choice"})} onClick={() => setSelectedMoveId(moveId)} key={`${moveId}-${index}`}>
+                      <MoveCardContent name={move.name_zh || move.name} moveType={move.type || move.type_zh} typeLabel={move.type_zh || move.type || "一般"} category={move.category_zh || move.category || "变化"} pp={move.pp || "--"} power={move.power || "--"} accuracy={move.accuracy ?? "必中"} />
+                    </Reorder.Item>
+                  );
+                }) : order.map(id => (
+                  <Reorder.Item as="div" value={id} drag={false} transition={moveDrawLayoutTransition} className="move-draw-card-back" key={id}>
+                    <i>TM</i>
+                  </Reorder.Item>
+                ))}
+              </Reorder.Group>
+              <footer>
+                <button disabled={drawing} onClick={drawCandidates}>{phase === "reveal" ? `继续随机（${coinCostLabel(rest.costs.move_draw)}）` : drawing ? "随机中" : `开始随机（${coinCostLabel(rest.costs.move_draw)}）`}</button>
+                {phase === "reveal" ? <button disabled={!selectedMove} onClick={confirmLearning}>确认学习</button> : null}
+                <button onClick={() => requestClose()}>取消</button>
+              </footer>
+            </>
+          ) : selectedMove ? (
+            <div className="move-draw-replace-stage">
+              <MoveReplacePanel
+                pokemon={pokemon}
+                state={rest.player_state[slot]}
+                newMove={selectedMove}
+                selectedMoveSlot={selectedReplaceSlot}
+                busy={applying}
+                onSelectMoveSlot={setSelectedReplaceSlot}
+                onConfirm={() => void confirmReplace()}
+                onCancel={() => setStep("draw")}
+              />
+            </div>
+          ) : null}
         </motion.section>
       )}
     </PokopiaModal>

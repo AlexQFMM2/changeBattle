@@ -1,5 +1,5 @@
 import type {CSSProperties} from "react";
-import type {BattleRecordEntry, BattleSetting, DesktopDexEntry, LocalSave, RentalPokemon, ResultSummaryState, ShopItem, ShopOffer, SpriteMapEntry, StarterChoiceState, StarterItemGroup, StarterItemGroupState, TalentView, TrainerCatalogState} from "@changebattle/shared";
+import type {BattleRecordEntry, BattleSetting, BattleTurnPokemonState, BattleTurnRecord, DesktopDexEntry, LocalSave, MoveSummary, PlayerPokemonState, RentalPokemon, RestState, ResultSummaryState, ShopItem, ShopOffer, SpriteMapEntry, StarterChoiceState, StarterItemGroup, StarterItemGroupState, TalentView, TrainerCatalogState} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import type {MoveCardData} from "../components/move/MoveCard";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
@@ -265,6 +265,84 @@ export const mainMenuLongDiscoveryPreviewCards: MainMenuDexCard[] = [
   {id: "ability-long", label: "很长很长的特性名字", eyebrow: "随机特性", category: "abilities", entry: previewDexEntry("long-ability", "Long Ability", "很长很长的特性名字", "abilities")},
 ];
 
+export const dexPreviewMoves: MoveSummary[] = [
+  {id: "thunderbolt", name: "Thunderbolt", name_zh: "十万伏特", type: "Electric", type_zh: "电", category: "special", category_zh: "特殊", power: 90, accuracy: 100, pp: 15, priority: 0, short_desc: "Preview move.", short_desc_zh: "预览技能。", desc: "Preview move.", desc_zh: "预览技能。", learn_sources: ["levelup", "machine"]},
+  {id: "airslash", name: "Air Slash", name_zh: "空气斩", type: "Flying", type_zh: "飞行", category: "special", category_zh: "特殊", power: 75, accuracy: 95, pp: 15, priority: 0, short_desc: "Preview move.", short_desc_zh: "预览技能。", desc: "Preview move.", desc_zh: "预览技能。", learn_sources: ["egg"]},
+  {id: "superlongpreviewmove", name: "Super Long Preview Move", name_zh: "非常非常长的技能名称测试极限版", type: "Psychic", type_zh: "超能力", category: "status", category_zh: "变化", power: 0, accuracy: null, pp: 5, priority: 0, short_desc: "Long preview move.", short_desc_zh: "很长的预览技能。", desc: "Long preview move.", desc_zh: "很长的预览技能。", learn_sources: ["event"]},
+];
+
+export const dexPreviewPokemon: DesktopDexEntry = {
+  id: "pikachu",
+  name: "Pikachu",
+  name_zh: "皮卡丘",
+  category: "pokemon",
+  desc_zh: "组件预览宝可梦。",
+  types: ["Electric"],
+  types_zh: ["电"],
+  sprite: {
+    species_id: "pikachu",
+    name: "Pikachu",
+    national_dex: 25,
+    sprite_index: 25,
+    base_species: "pikachu",
+    forme: "",
+    confidence: "component-gallery-preview",
+    source: "component-gallery-preview",
+    paths: {front_normal: "assets/pokemon-showdown/gen5/pikachu.png", back_normal: "assets/pokemon-showdown/gen5-back/pikachu.png", front_shiny: "assets/pokemon-showdown/gen5/pikachu.png", back_shiny: "assets/pokemon-showdown/gen5-back/pikachu.png", front_normal_full: "assets/pokemon-showdown/gen5/pikachu.png", front_shiny_full: "assets/pokemon-showdown/gen5/pikachu.png"},
+  },
+  base_stats: {hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90},
+  heightm: 0.4,
+  weightkg: 6,
+  gender_ratio: {M: 0.5, F: 0.5},
+  abilities: [
+    {id: "static", name: "Static", name_zh: "静电", desc_zh: "受到接触攻击时可能麻痹对手。"},
+    {id: "lightningrod", name: "Lightning Rod", name_zh: "避雷针", desc_zh: "吸收电属性招式并提升特攻。", hidden: true},
+  ],
+  learnset: dexPreviewMoves,
+  usage_count: 42,
+};
+
+export const dexPreviewLongPokemon: DesktopDexEntry = {
+  ...dexPreviewPokemon,
+  id: "long-pokemon-preview",
+  name: "Very Long Preview Pokemon Forme",
+  name_zh: "非常非常长的宝可梦形态名称测试",
+  desc_zh: "这是一段非常长的宝可梦说明，用来确认图鉴详情内部滚动稳定，不会撑破 640×320 的窗口布局。",
+};
+
+export const dexPreviewMove: DesktopDexEntry = {
+  id: "hurricane",
+  name: "Hurricane",
+  name_zh: "暴风",
+  category: "moves",
+  desc_zh: "用强烈的风席卷对手进行攻击，有时会使目标混乱。",
+  type: "Flying",
+  type_zh: "飞行",
+  move_category: "Special",
+  move_category_zh: "特殊",
+  power: 110,
+  accuracy: 70,
+  pp: 10,
+  priority: 0,
+};
+
+export const dexPreviewItem: DesktopDexEntry = {
+  id: "leftovers",
+  name: "Leftovers",
+  name_zh: "吃剩的东西",
+  category: "items",
+  desc_zh: "携带后每回合回复少量 HP。用于检查道具说明长文本在详情面板中的展示。",
+  icon_asset: "",
+};
+
+export const dexPreviewAbility: DesktopDexEntry = {
+  id: "intimidate",
+  name: "Intimidate",
+  name_zh: "威吓",
+  category: "abilities",
+  desc_zh: "出场时降低对手的攻击。双打或特殊规则下仍按当前运行时规则结算。",
+};
+
 export const talentPreviewCatalog: TalentView[] = [
   {id: "root_trainer_star", name: "训练家星图", category: "核心", desc: "星图核心，默认点亮。", level: 1, max_level: 1, kind: "root", x: 0, y: 0},
   {id: "starter_angel_fund", name: "天使基金", category: "开局筹备", desc: "开局获得额外金币，提前获得运营空间。", level: 2, max_level: 3, costs: [20, 35, 50], effects: ["开局金币 +400。", "开局金币 +700。", "开局金币 +1000。"], requires: [{id: "root_trainer_star"}], x: -250, y: -105},
@@ -285,6 +363,12 @@ const historySpriteDex: Record<string, number> = {
   blastoise: 9,
   gengar: 94,
   dragonite: 149,
+  garchomp: 445,
+  lucario: 448,
+  gardevoir: 282,
+  metagross: 376,
+  gyarados: 130,
+  sylveon: 700,
 };
 
 function previewPokemonSprite(id: string, name: string): SpriteMapEntry {
@@ -311,6 +395,10 @@ function previewPokemonSprite(id: string, name: string): SpriteMapEntry {
 }
 
 function previewPokemon(id: string, nameZh: string, typesZh: string[] = ["一般"]): RentalPokemon {
+  const moves: MoveSummary[] = [
+    {id: `${id}-strike`, name: "Preview Strike", name_zh: "预览打击", type: "Normal", type_zh: "一般", category: "Physical", category_zh: "物理", power: 80, accuracy: 100, pp: 15, priority: 0, short_desc: "", short_desc_zh: "", desc: "", desc_zh: "稳定输出技能。"},
+    {id: `${id}-blast`, name: "Preview Blast", name_zh: "预览光束", type: "Fire", type_zh: "火", category: "Special", category_zh: "特殊", power: 95, accuracy: 90, pp: 10, priority: 0, short_desc: "", short_desc_zh: "", desc: "", desc_zh: "用于检查技能列表滚动的长说明文本。"},
+  ];
   return {
     run_member_id: `preview-${id}`,
     showdown_id: id,
@@ -332,7 +420,7 @@ function previewPokemon(id: string, nameZh: string, typesZh: string[] = ["一般
     item_id: "",
     item_desc: "",
     item_desc_zh: "",
-    moves: [],
+    moves,
     base_stats: {hp: 80, atk: 80, def: 80, spa: 80, spd: 80, spe: 80},
     stats: {hp: 155, atk: 100, def: 100, spa: 100, spd: 100, spe: 100},
     evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0},
@@ -346,6 +434,163 @@ function previewPokemon(id: string, nameZh: string, typesZh: string[] = ["一般
     sprite: previewPokemonSprite(id, id),
   };
 }
+
+function rentalPreviewPokemon(id: string, nameZh: string, typesZh: string[], extra: Partial<RentalPokemon> = {}): RentalPokemon {
+  return {
+    ...previewPokemon(id, nameZh, typesZh),
+    item_zh: "讲究围巾",
+    item: "choicescarf",
+    item_id: "choicescarf",
+    nature_zh: "爽朗",
+    nature: "Jolly",
+    role_zh: "高速输出",
+    role: "sweeper",
+    ...extra,
+  };
+}
+
+export const rentalPreviewCandidates: RentalPokemon[] = [
+  rentalPreviewPokemon("pikachu", "皮卡丘", ["电"], {item_zh: "电气球"}),
+  rentalPreviewPokemon("charizard", "喷火龙", ["火", "飞行"], {item_zh: "喷火龙进化石X", item_battle_system: "mega"}),
+  rentalPreviewPokemon("venusaur", "妙蛙花", ["草", "毒"], {item_zh: "突击背心"}),
+  rentalPreviewPokemon("blastoise", "水箭龟", ["水"], {item_zh: "水Z", item_battle_system: "zmove"}),
+  rentalPreviewPokemon("gengar", "耿鬼", ["幽灵", "毒"], {is_mythical: true, item_zh: "气势披带"}),
+  rentalPreviewPokemon("dragonite", "快龙", ["龙", "飞行"], {is_legendary: true, item_zh: "弱点保险"}),
+  rentalPreviewPokemon("garchomp", "烈咬陆鲨", ["龙", "地面"], {item_zh: "生命宝珠"}),
+  rentalPreviewPokemon("lucario", "路卡利欧", ["格斗", "钢"], {item_zh: "极巨腕带", item_battle_system: "dynamax"}),
+  rentalPreviewPokemon("gardevoir", "沙奈朵", ["超能力", "妖精"], {item_zh: "太晶珠", item_battle_system: "terastal"}),
+  rentalPreviewPokemon("metagross", "巨金怪", ["钢", "超能力"], {item_zh: "金属膜"}),
+  rentalPreviewPokemon("gyarados", "暴鲤龙", ["水", "飞行"], {item_zh: "文柚果"}),
+  rentalPreviewPokemon("sylveon", "名字非常非常长的仙子伊布候选测试", ["妖精"], {item_zh: "博识眼镜"}),
+];
+
+export const rentalPreviewLongCandidates: RentalPokemon[] = rentalPreviewCandidates.map((pokemon, index) => index === 0
+  ? {...pokemon, species_zh: "名字超级超级长的租赁候选宝可梦测试", item_zh: "名字也很长的特殊携带道具测试"}
+  : pokemon);
+
+function restPreviewMoves(id: string, longText = false): MoveSummary[] {
+  return [
+    {id: `${id}-thunderbolt`, name: "Thunderbolt", name_zh: longText ? "名字非常非常长的十万伏特强化测试" : "十万伏特", type: "Electric", type_zh: "电", category: "Special", category_zh: "特殊", power: 90, accuracy: 100, pp: 15, priority: 0, short_desc: "", short_desc_zh: "", desc: "", desc_zh: "稳定特殊输出。"},
+    {id: `${id}-quick-attack`, name: "Quick Attack", name_zh: "电光一闪", type: "Normal", type_zh: "一般", category: "Physical", category_zh: "物理", power: 40, accuracy: 100, pp: 30, priority: 1, short_desc: "", short_desc_zh: "", desc: "", desc_zh: "先制攻击，用于收尾。"},
+    {id: `${id}-grass-knot`, name: "Grass Knot", name_zh: "打草结", type: "Grass", type_zh: "草", category: "Special", category_zh: "特殊", power: 80, accuracy: 100, pp: 20, priority: 0, short_desc: "", short_desc_zh: "", desc: "", desc_zh: "根据目标体重变化威力。"},
+    {id: `${id}-protect`, name: "Protect", name_zh: "守住", type: "Normal", type_zh: "一般", category: "Status", category_zh: "变化", power: 0, accuracy: 0, pp: 10, priority: 4, short_desc: "", short_desc_zh: "", desc: "", desc_zh: "防住大多数攻击。"},
+  ];
+}
+
+function restPreviewPokemon(id: string, nameZh: string, typesZh: string[], extra: Partial<RentalPokemon> = {}, longMoves = false): RentalPokemon {
+  return {
+    ...rentalPreviewPokemon(id, nameZh, typesZh, extra),
+    moves: restPreviewMoves(id, longMoves),
+  };
+}
+
+function restPreviewPlayerState(pokemon: RentalPokemon, index: number, condition: string, ppScale = 1): PlayerPokemonState {
+  const hp = Number(condition.match(/^(\d+)/)?.[1] || 100);
+  return {
+    run_member_id: pokemon.run_member_id || `preview-rest-${index}`,
+    showdown_id: pokemon.showdown_id || pokemon.species_id,
+    slot: index + 1,
+    ident: `p1: ${pokemon.species}`,
+    details: `${pokemon.species}, L${pokemon.level}`,
+    species: pokemon.species,
+    hp,
+    maxhp: 100,
+    status: condition.includes(" slp") ? "slp" : condition.includes(" par") ? "par" : condition.includes(" psn") ? "psn" : "",
+    fainted: condition.includes("fnt") || hp <= 0,
+    active: index === 0,
+    item: pokemon.item || "",
+    condition,
+    moves: pokemon.moves.map((move, moveIndex) => ({slot: moveIndex + 1, id: move.id, move: move.name, pp: Math.max(0, Math.floor((move.pp || 10) * ppScale)), maxpp: move.pp || 10})),
+  };
+}
+
+function restPreviewState(team: RentalPokemon[], conditions: string[], ppScale = 1): RestState {
+  return {
+    battle_no: 3,
+    battles: 7,
+    wins: 2,
+    battle_points: 268,
+    coins: 420,
+    player_display: team,
+    enemy_display: rentalPreviewCandidates.slice(3, 6),
+    player_state: team.map((pokemon, index) => restPreviewPlayerState(pokemon, index, conditions[index] || "100/100", ppScale)),
+    bag_items: {potion: 2},
+    bag_categories: {consumable: [{id: "potion", name: "Potion", name_zh: "伤药", count: 2, category: "consumable", cost: 20, desc_zh: "回复少量 HP。"}], held: [], tm: []},
+    talents: [],
+    shop: {roll_count: 1, next_roll_cost: 20, slot_count: 3, offers: [], purchased_offer_id: null, purchased_offer_counts: {}, purchased_item_counts: {}},
+    night_sky: {rows: Array.from({length: 7}, (_value, index) => ({battle_no: index + 1, label: index === 6 ? "最终战" : "挑战", trainer: {id: `preview-trainer-${index}`, type: index === 6 ? "champion" : "normal", name_zh: index === 6 ? "预览冠军" : "预览训练师"}, trainer_visible: true, revealed: index < 2 ? 3 : 0, enemies: []}))},
+    taken_enemy_slots: [],
+    exchange_count: 0,
+    costs: {exchange: 0, restore_hp: {1: 20, 2: 30, 3: 40}, restore_pp: {1: 20, 2: 30, 3: 40}, restore_status: {1: 20, 2: 30, 3: 40}, adjust_stats: 100, randomize_part: 50, randomize_all: 150, move_draw: 100, scout_basic: 50, scout_one: 100, scout_all: 200},
+  };
+}
+
+export const restPreviewTeam = [
+  restPreviewPokemon("pikachu", "皮卡丘", ["电"], {item_zh: "电气球", item: "lightball", item_id: "lightball", item_desc_zh: "皮卡丘携带后攻击和特攻提升。"}),
+  restPreviewPokemon("charizard", "喷火龙", ["火", "飞行"], {item_zh: "喷火龙进化石X", item: "charizarditex", item_id: "charizarditex", item_battle_system: "mega"}),
+  restPreviewPokemon("venusaur", "妙蛙花", ["草", "毒"], {item_zh: "突击背心", item: "assaultvest", item_id: "assaultvest"}),
+];
+
+export const restPreviewSixTeam = [
+  ...restPreviewTeam,
+  restPreviewPokemon("blastoise", "水箭龟", ["水"], {item_zh: "文柚果", item: "sitrusberry", item_id: "sitrusberry"}),
+  restPreviewPokemon("gengar", "耿鬼", ["幽灵", "毒"], {item_zh: "气势披带", item: "focussash", item_id: "focussash"}),
+  restPreviewPokemon("dragonite", "快龙", ["龙", "飞行"], {item_zh: "弱点保险", item: "weaknesspolicy", item_id: "weaknesspolicy"}),
+];
+
+export const restPreviewLongTeam = [
+  restPreviewPokemon("sylveon", "名字非常非常长的仙子伊布队伍展示测试", ["妖精"], {item_zh: "名字同样非常非常长的携带道具展示测试", item: "wiseglasses", item_id: "wiseglasses", ability_zh: "很长很长的预览特性名称测试", ability_desc_zh: "这是一段很长的特性说明，用于检查详情面板内部滚动和文本换行，不应该撑破 640x320 的工具区。"}, true),
+  ...restPreviewTeam.slice(1),
+];
+
+export const restPreviewStateNormal = restPreviewState(restPreviewTeam, ["88/100", "100/100", "76/100"]);
+export const restPreviewStateSix = restPreviewState(restPreviewSixTeam, ["88/100", "100/100", "76/100", "66/100", "52/100 par", "100/100"]);
+export const restPreviewStateLowHp = restPreviewState(restPreviewSixTeam, ["18/100", "0 fnt", "44/100 slp", "66/100", "52/100 par", "100/100"], 0.2);
+export const restPreviewStateLong = restPreviewState(restPreviewLongTeam, ["72/100 psn", "100/100", "76/100"], 0.35);
+
+export const dexPreviewTrainerUnlocked: DesktopDexEntry = {
+  id: "trainer-cynthia",
+  name: "Cynthia",
+  name_zh: "竹兰",
+  category: "trainers",
+  desc_zh: "神奥冠军。",
+  unlocked: true,
+  trainer: {id: "cynthia", type: "champion", region: "神奥", role: "冠军", name_zh: "竹兰", name_en: "Cynthia", front_asset: "trainers/front/cynthia.png", front_gif_asset: "trainers/front/cynthia.gif", avatar_asset: "trainers/avatars/cynthia.png"},
+  trainer_tags: ["冠军", "神奥", "特殊事件"],
+  boss_summary: "以烈咬陆鲨为核心的高压冠军队伍，擅长多属性联防和终盘清场。",
+  boss_record: {encounters: 5, completed: 4, wins: 2, losses: 2, last_result: "win", seen_pool_slots: ["1-0", "1-1"], seen_pokemon: {}},
+  boss_pool_rows: [
+    {
+      team_index: 1,
+      slots: [
+        {key: "1-0", team_index: 1, slot: 0, species_id: "garchomp", unlocked: true, pokemon: previewPokemon("garchomp", "烈咬陆鲨", ["龙", "地面"])},
+        {key: "1-1", team_index: 1, slot: 1, species_id: "milotic", unlocked: true, pokemon: previewPokemon("milotic", "美纳斯", ["水"])},
+        {key: "1-2", team_index: 1, slot: 2, species_id: "spiritomb", unlocked: false},
+      ],
+    },
+  ],
+};
+
+export const dexPreviewTrainerLocked: DesktopDexEntry = {
+  id: "trainer-unknown",
+  name: "Unknown Trainer",
+  name_zh: "未知训练师",
+  category: "trainers",
+  desc_zh: "尚未遭遇。遇到后才会显示真实身份、头像和特殊事件标签。",
+  unlocked: false,
+  trainer_tags: ["未知"],
+  boss_record: {encounters: 0, completed: 0, wins: 0, losses: 0, last_result: null, seen_pool_slots: [], seen_pokemon: {}},
+};
+
+export const dexPreviewEntries: DesktopDexEntry[] = [
+  dexPreviewPokemon,
+  dexPreviewLongPokemon,
+  dexPreviewMove,
+  dexPreviewItem,
+  dexPreviewAbility,
+  dexPreviewTrainerUnlocked,
+  dexPreviewTrainerLocked,
+];
 
 const historyPreviewTeam = [
   previewPokemon("pikachu", "皮卡丘", ["电"]),
@@ -387,6 +632,41 @@ function historySummary(outcome: ResultSummaryState["outcome"], headline: string
       };
     }),
     player_team: team,
+  };
+}
+
+function previewTurnPokemon(pokemon: RentalPokemon, slot: number, active = false, fainted = false): BattleTurnPokemonState {
+  return {
+    slot,
+    name: pokemon.species_zh || pokemon.name,
+    species_id: pokemon.species_id,
+    showdown_id: pokemon.showdown_id,
+    hp: fainted ? 0 : 88 - slot * 8,
+    max_hp: 100,
+    hp_text: `${fainted ? 0 : 88 - slot * 8}/100`,
+    active,
+    status: fainted ? "" : slot === 1 ? "par" : "",
+    fainted,
+  };
+}
+
+function previewTurnRecord(id: string, turn: number, summary: string): BattleTurnRecord {
+  return {
+    id,
+    turn,
+    title: turn ? `第 ${turn} 回合` : "开局站位",
+    summary,
+    player_action: {side: "p1", kind: "move", label: turn ? "十万伏特" : "首发确认"},
+    enemy_action: {side: "p2", kind: "move", label: turn ? "地震" : "对手首发"},
+    result_tags: turn % 2 ? ["有效打击"] : ["轮换"],
+    event_texts: [summary],
+    end_state: {
+      player_team: historyPreviewTeam.slice(0, 3).map((pokemon, index) => previewTurnPokemon(pokemon, index + 1, index === 0, turn > 2 && index === 2)),
+      enemy_team: historyPreviewTeam.slice(3, 6).map((pokemon, index) => previewTurnPokemon(pokemon, index + 1, index === 0, turn > 1 && index === 1)),
+      weather: "",
+      field: [],
+      side_conditions: {p1: [], p2: []},
+    },
   };
 }
 
@@ -433,6 +713,46 @@ export const battleHistoryManyPreviewRecords: BattleRecordEntry[] = Array.from({
     result_summary: base.result_summary ? {...base.result_summary, headline: `${base.result_summary.headline} #${index + 1}`} : undefined,
   };
 });
+
+export const resultPreviewSummary = historySummary("win", "冠军路线通关", "7/7 场 · 已通关 · 本局奖励已写入训练师记录");
+
+export const resultLossPreviewSummary = historySummary("loss", "惜败最终战", "6/7 场 · 挑战失败，保留本局已获得奖励", historyPreviewTeam.slice(0, 4));
+
+export const resultAbortPreviewSummary = historySummary("abort", "中途撤退", "4/7 场 · 已中断", historyPreviewTeam.slice(0, 2));
+
+export const resultLongPreviewSummary: ResultSummaryState = {
+  ...historySummary("win", "这是一条非常非常长的结算标题用于检查顶部区域省略表现", "这段副标题同样很长，用来确认结算页标题栏不会把返回按钮挤出 640x320 视口。"),
+  coin_rows: [
+    {label: "基础金币奖励非常长", value: "+2400 金币", detail: "长说明测试：包含天赋、连胜、事件奖励后仍必须省略。"},
+    {label: "额外事件金币奖励", value: "+800 金币", detail: "预览长文本。"},
+  ],
+};
+
+export const resultEmptyPreviewSummary: ResultSummaryState = {
+  outcome: "abort",
+  headline: "暂无结算数据",
+  subtitle: "用于检查空队伍和空进度表现。",
+  rows: [{label: "结算说明", value: "无变动"}],
+  coin_rows: [],
+  used_pokemon: [],
+  progress: [],
+};
+
+export const resultPreviewRecordWithTurns: BattleRecordEntry = {
+  ...historyRecord("preview-result-turns", "win", "2026-06-14T12:00:00.000Z", "冠军路线通关", "7/7 场 · 已通关"),
+  battle_no: 7,
+  turn_records: [
+    previewTurnRecord("preview-turn-start", 0, "双方完成首发站位，皮卡丘面对水箭龟。"),
+    previewTurnRecord("preview-turn-1", 1, "皮卡丘使用十万伏特造成有效打击，对手回合使用地震压低血量。"),
+    previewTurnRecord("preview-turn-2", 2, "玩家换入妙蛙花吃下关键攻击，并准备终盘清场。"),
+  ],
+};
+
+export const resultPreviewRecordNoTurns: BattleRecordEntry = {
+  ...historyRecord("preview-result-no-turns", "loss", "2026-06-14T12:30:00.000Z", "惜败最终战", "6/7 场 · 挑战失败"),
+  battle_no: 6,
+  turn_records: [],
+};
 
 const starterPreviewGroups: Array<{id: StarterItemGroup; name: string}> = [
   {id: "recovery", name: "恢复道具"},

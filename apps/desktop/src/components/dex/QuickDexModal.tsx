@@ -2,28 +2,32 @@ import {useEffect, useMemo, useState} from "react";
 import type {DesktopDexCategory, DesktopDexEntry, MoveSummary} from "@changebattle/shared";
 import {AnimatePresence, motion, type Variants} from "motion/react";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
-import {MoveCard} from "../move/MoveCard";
-import {ItemIcon, STAT_ROWS, assetUrl, trainerImageUrl} from "../../lib/ui";
-import {POKEMON_INFO_TAB_ID, groupLearnsetBySource, pokemonDexDetailTabs} from "./learnsetGroups";
+import {DexCategoryTabs} from "./DexCategoryTabs";
+import {DexDetailPanel} from "./DexDetailPanel";
+import {DexResultList} from "./DexResultList";
+import {DexSearchBar} from "./DexSearchBar";
+import {DEX_TABS, QUICK_DEX_PAGE_SIZE, categoryIndex, type DexAbilitySummary} from "./dexModel";
+import "./QuickDexModal.css";
 
 export type QuickDexCategory = DesktopDexCategory;
-
-const QUICK_DEX_TABS: Array<{id: QuickDexCategory; label: string; hint: string}> = [
-  {id: "pokemon", label: "宝可梦", hint: "属性 / 种族值 / 技能池"},
-  {id: "items", label: "道具", hint: "战斗与养成说明"},
-  {id: "moves", label: "技能", hint: "属性 / 威力 / 命中"},
-  {id: "abilities", label: "特性", hint: "触发效果"},
-  {id: "trainers", label: "训练师", hint: "馆主 / 四天王 / 冠军 / 反派头目"},
-];
-
-const POKEMON_TYPE_FILTERS = ["全部", "一般", "火", "水", "电", "草", "冰", "格斗", "毒", "地面", "飞行", "超能力", "虫", "岩石", "幽灵", "龙", "恶", "钢", "妖精"];
-const QUICK_DEX_PAGE_SIZE = 4;
-type QuickDexAbilitySummary = NonNullable<DesktopDexEntry["abilities"]>[number];
 
 type MegaMenuColumn = {
   title: string;
   items: Array<{label: string; query?: string; typeFilter?: string}>;
 };
+
+export type QuickDexModalPreviewProps = {
+  entries: DesktopDexEntry[];
+  category?: QuickDexCategory;
+  activeMega?: QuickDexCategory | null;
+  loading?: boolean;
+  error?: string | null;
+  expanded?: boolean;
+  query?: string;
+  total?: number;
+};
+
+const POKEMON_TYPE_FILTERS = ["全部", "一般", "火", "水", "电", "草", "冰", "格斗", "毒", "地面", "飞行", "超能力", "虫", "岩石", "幽灵", "龙", "恶", "钢", "妖精"];
 
 const QUICK_DEX_MENUS: Record<QuickDexCategory, MegaMenuColumn[]> = {
   pokemon: [
@@ -59,55 +63,44 @@ const megaContentVariants: Variants = {
   exit: (direction: number) => ({opacity: 0, x: direction ? direction * -30 : 0}),
 };
 
-function dexSpriteUrl(entry: DesktopDexEntry): string {
-  const path = String(entry.sprite?.paths.front_normal || entry.sprite?.paths.front_normal_full || "");
-  return path ? assetUrl(path) || "" : "";
-}
-
-function pokemonMetaLabel(entry: DesktopDexEntry): string {
-  const height = entry.heightm ? `身高 ${entry.heightm}m` : "";
-  const weight = entry.weightkg ? `体重 ${entry.weightkg}kg` : "";
-  const fixedGender = entry.gender === "M" ? "仅雄性" : entry.gender === "F" ? "仅雌性" : entry.gender === "N" ? "无性别" : "";
-  const ratio = entry.gender_ratio && !fixedGender
-    ? `♂ ${Math.round(Number(entry.gender_ratio.M || 0) * 100)}% / ♀ ${Math.round(Number(entry.gender_ratio.F || 0) * 100)}%`
-    : fixedGender;
-  return [height, weight, ratio].filter(Boolean).join("　");
-}
-
-function entrySummary(entry: DesktopDexEntry): string {
-  if (entry.category === "trainers") return entry.boss_summary || entry.desc_zh || "尚未遭遇";
-  if (entry.category === "pokemon") return `${entry.types_zh?.join(" / ") || entry.types?.join(" / ") || "未知属性"}  No.${entry.sprite?.national_dex || "--"}`;
-  if (entry.category === "moves") return `${entry.type_zh || entry.type || "未知"} / ${entry.move_category_zh || entry.move_category || "变化"}  威力 ${entry.power || "--"}  命中 ${entry.accuracy ?? "必中"}`;
-  return entry.desc_zh || "暂无中文说明。";
-}
-
-function categoryIndex(category: QuickDexCategory): number {
-  return QUICK_DEX_TABS.findIndex(tab => tab.id === category);
-}
-
-export function QuickDexModal({initialCategory = "pokemon", initialEntry = null, initialQuery = "", onClose}: {initialCategory?: QuickDexCategory; initialEntry?: DesktopDexEntry | null; initialQuery?: string; onClose: () => void}) {
-  const [category, setCategory] = useState<QuickDexCategory>(initialCategory);
-  const [activeMega, setActiveMega] = useState<QuickDexCategory | null>(null);
-  const [query, setQuery] = useState(initialQuery || initialEntry?.id || "");
+export function QuickDexModal({initialCategory = "pokemon", initialEntry = null, initialQuery = "", onClose, preview}: {initialCategory?: QuickDexCategory; initialEntry?: DesktopDexEntry | null; initialQuery?: string; onClose: () => void; preview?: QuickDexModalPreviewProps}) {
+  const [category, setCategory] = useState<QuickDexCategory>(preview?.category || initialCategory);
+  const [activeMega, setActiveMega] = useState<QuickDexCategory | null>(preview?.activeMega === undefined ? null : preview.activeMega);
+  const [query, setQuery] = useState(preview?.query || initialQuery || initialEntry?.id || "");
   const [typeFilter, setTypeFilter] = useState("全部");
-  const [entries, setEntries] = useState<DesktopDexEntry[]>(initialEntry ? [initialEntry] : []);
-  const [selectedId, setSelectedId] = useState(initialEntry?.id || "");
-  const [total, setTotal] = useState(initialEntry ? 1 : 0);
+  const [entries, setEntries] = useState<DesktopDexEntry[]>(preview?.entries || (initialEntry ? [initialEntry] : []));
+  const [selectedId, setSelectedId] = useState(initialEntry?.id || preview?.entries[0]?.id || "");
+  const [total, setTotal] = useState(preview?.total || preview?.entries.length || (initialEntry ? 1 : 0));
   const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(preview?.loading));
+  const [error, setError] = useState<string | null>(preview?.error || null);
   const [direction, setDirection] = useState(0);
-  const [detailExpanded, setDetailExpanded] = useState(false);
+  const [detailExpanded, setDetailExpanded] = useState(Boolean(preview?.expanded));
   const selected = entries.find(entry => entry.id === selectedId) || entries[0] || initialEntry || null;
-  const activeTab = QUICK_DEX_TABS.find(tab => tab.id === category) || QUICK_DEX_TABS[0];
+  const activeTab = DEX_TABS.find(tab => tab.id === category) || DEX_TABS[0];
   const pageCount = Math.max(1, Math.ceil(total / QUICK_DEX_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
+  const isPreview = Boolean(preview);
   const searchQuery = useMemo(() => {
     if (category !== "pokemon" || typeFilter === "全部") return query;
     return `${query} ${typeFilter}`.trim();
   }, [category, query, typeFilter]);
 
   useEffect(() => {
+    if (!preview) return;
+    setCategory(preview.category || preview.entries[0]?.category || "pokemon");
+    setActiveMega(preview.activeMega === undefined ? null : preview.activeMega);
+    setEntries(preview.entries);
+    setTotal(preview.total || preview.entries.length);
+    setLoading(Boolean(preview.loading));
+    setError(preview.error || null);
+    setDetailExpanded(Boolean(preview.expanded));
+    setQuery(preview.query || "");
+    setSelectedId(preview.entries[0]?.id || "");
+  }, [preview]);
+
+  useEffect(() => {
+    if (isPreview) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -116,9 +109,7 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
         if (cancelled) return;
         const nextEntries = result.entries || [];
         const shouldPinInitial = currentPage === 0 && initialEntry && initialEntry.category === category && !nextEntries.some(entry => entry.id === initialEntry.id);
-        const merged = shouldPinInitial
-          ? [initialEntry, ...nextEntries]
-          : nextEntries;
+        const merged = shouldPinInitial ? [initialEntry, ...nextEntries] : nextEntries;
         setEntries(merged);
         setTotal(result.total || merged.length);
         setSelectedId(current => merged.some(entry => entry.id === current) ? current : merged[0]?.id || "");
@@ -136,7 +127,7 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [category, currentPage, initialEntry, searchQuery]);
+  }, [category, currentPage, initialEntry, isPreview, searchQuery]);
 
   useEffect(() => {
     setPage(0);
@@ -178,7 +169,7 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
     setPage(0);
   }
 
-  function openAbility(ability: QuickDexAbilitySummary) {
+  function openAbility(ability: DexAbilitySummary) {
     setDirection(categoryIndex("abilities") > categoryIndex(category) ? 1 : -1);
     setCategory("abilities");
     setActiveMega(null);
@@ -188,274 +179,78 @@ export function QuickDexModal({initialCategory = "pokemon", initialEntry = null,
     setPage(0);
   }
 
-  return (
-    <PokopiaModal className="quick-dex-modal" labelledBy="quick-dex-title" onClose={onClose}>
-      {requestClose => (
-        <motion.div className="quick-dex-content-grid" variants={pokopiaItemVariants}>
-          <header className="quick-dex-header">
-            <div>
-              <h2 id="quick-dex-title">图鉴</h2>
-              <p>{activeTab.hint}</p>
-            </div>
-            <button onClick={() => requestClose()}>关闭</button>
-          </header>
-          <section className="quick-dex-mega" onMouseLeave={() => setActiveMega(null)}>
-            <nav className="quick-dex-mega-tabs" aria-label="图鉴分类">
-              {QUICK_DEX_TABS.map(tab => (
-                <button className={category === tab.id ? "selected" : ""} onMouseEnter={() => previewCategory(tab.id)} onFocus={() => previewCategory(tab.id)} onClick={() => chooseCategory(tab.id)} key={tab.id}>
-                  {activeMega === tab.id ? <motion.i layoutId="quick-dex-tab-indicator" transition={{type: "spring", stiffness: 500, damping: 35}} /> : null}
-                  <span>
-                    {tab.label}
-                    <motion.b animate={{rotate: activeMega === tab.id ? 180 : 0}} transition={{type: "spring", stiffness: 500, damping: 30}}>⌄</motion.b>
-                  </span>
-                </button>
-              ))}
-            </nav>
-            <AnimatePresence>
-              {activeMega ? (
-                <motion.div className="quick-dex-mega-panel" initial={{opacity: 0, y: -8}} animate={{opacity: 1, y: 0, transition: {type: "spring", stiffness: 500, damping: 35}}} exit={{opacity: 0, y: -8, transition: {duration: 0.15, ease: "easeOut"}}}>
-                  <AnimatePresence mode="popLayout" custom={direction}>
-                    <motion.div className="quick-dex-mega-grid" custom={direction} variants={megaContentVariants} initial="enter" animate="center" exit="exit" transition={{type: "spring", stiffness: 300, damping: 30}} key={activeMega}>
-                      {QUICK_DEX_MENUS[activeMega].map((column, columnIndex) => (
-                        <motion.div className="quick-dex-mega-column" initial={{opacity: 0, y: direction ? 0 : 8}} animate={{opacity: 1, y: 0}} transition={{type: "spring", stiffness: 400, damping: 30, delay: columnIndex * 0.04}} key={column.title}>
-                          <strong>{column.title}</strong>
-                          {column.items.map(item => (
-                            <button className={(category === activeMega && ((item.typeFilter && item.typeFilter === typeFilter) || (item.query !== undefined && item.query === query))) ? "active" : ""} onClick={() => applyMegaItem(activeMega, item)} key={`${column.title}-${item.label}`}>
-                              {item.label}
-                            </button>
-                          ))}
-                        </motion.div>
+  function renderContent(close: () => void) {
+    return (
+    <motion.div className="quick-dex-content-grid" variants={pokopiaItemVariants}>
+      <header className="quick-dex-header">
+        <div>
+          <h2 id="quick-dex-title">图鉴</h2>
+          <p>{activeTab.hint}</p>
+        </div>
+        <button onClick={close}>关闭</button>
+      </header>
+      <section className="quick-dex-mega" onMouseLeave={() => setActiveMega(null)}>
+        <DexCategoryTabs variant="quick" category={category} activeMega={activeMega} onCategoryPreview={previewCategory} onCategoryChange={chooseCategory} />
+        <AnimatePresence>
+          {activeMega ? (
+            <motion.div className="quick-dex-mega-panel" initial={{opacity: 0, y: -8}} animate={{opacity: 1, y: 0, transition: {type: "spring", stiffness: 500, damping: 35}}} exit={{opacity: 0, y: -8, transition: {duration: 0.15, ease: "easeOut"}}}>
+              <AnimatePresence mode="popLayout" custom={direction}>
+                <motion.div className="quick-dex-mega-grid" custom={direction} variants={megaContentVariants} initial="enter" animate="center" exit="exit" transition={{type: "spring", stiffness: 300, damping: 30}} key={activeMega}>
+                  {QUICK_DEX_MENUS[activeMega].map((column, columnIndex) => (
+                    <motion.div className="quick-dex-mega-column" initial={{opacity: 0, y: direction ? 0 : 8}} animate={{opacity: 1, y: 0}} transition={{type: "spring", stiffness: 400, damping: 30, delay: columnIndex * 0.04}} key={column.title}>
+                      <strong>{column.title}</strong>
+                      {column.items.map(item => (
+                        <button className={(category === activeMega && ((item.typeFilter && item.typeFilter === typeFilter) || (item.query !== undefined && item.query === query))) ? "active" : ""} onClick={() => applyMegaItem(activeMega, item)} key={`${column.title}-${item.label}`}>
+                          {item.label}
+                        </button>
                       ))}
                     </motion.div>
-                  </AnimatePresence>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </section>
-          <div className="quick-dex-tools">
-            <input value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} placeholder="搜索名称、英文、属性、说明" />
-            <span>{loading ? "读取中..." : `${entries.length}/${total}`}</span>
-          </div>
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              className={`quick-dex-body ${detailExpanded ? "detail-expanded" : ""}`}
-              custom={direction}
-              variants={{
-                enter: (value: number) => ({opacity: 0, x: value ? value * 28 : 0}),
-                center: {opacity: 1, x: 0},
-                exit: (value: number) => ({opacity: 0, x: value ? value * -28 : 0}),
-              }}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{type: "spring", stiffness: 310, damping: 30}}
-              key={category}
-            >
-              <div className="quick-dex-result-pane">
-                <div className={`quick-dex-list ${category === "moves" ? "move-results" : ""}`}>
-                  {error ? <p className="quick-dex-message">{error}</p> : null}
-                  {!loading && !error && entries.length === 0 ? <p className="quick-dex-message">没有匹配结果。</p> : null}
-                  {entries.map((entry, index) => (
-                    entry.category === "moves" ? (
-                      <MoveCard
-                        size="dex"
-                        className="quick-dex-move-card quick-dex-result-move-card"
-                        selected={selected?.id === entry.id}
-                        name={entry.name_zh || entry.name}
-                        moveType={entry.type || entry.type_zh}
-                        typeLabel={entry.type_zh || entry.type || "一般"}
-                        category={entry.move_category_zh || entry.move_category || "变化"}
-                        pp={entry.pp || "--"}
-                        power={entry.power || "--"}
-                        accuracy={entry.accuracy ?? "必中"}
-                        onClick={() => setSelectedId(entry.id)}
-                        key={`${entry.category}-${entry.id}`}
-                      />
-                    ) : (
-                      <motion.button
-                        className={`${selected?.id === entry.id ? "selected" : ""} ${entry.category === "trainers" && !entry.unlocked ? "locked" : ""}`}
-                        onClick={() => setSelectedId(entry.id)}
-                        initial={{opacity: 0, y: 8}}
-                        animate={{opacity: 1, y: 0}}
-                        transition={{delay: index * 0.025, type: "spring", stiffness: 360, damping: 30}}
-                        key={`${entry.category}-${entry.id}`}
-                      >
-                        {entry.category === "pokemon" && dexSpriteUrl(entry) ? <img src={dexSpriteUrl(entry)} alt={entry.name_zh || entry.name} /> : null}
-                        {entry.category === "items" ? <ItemIcon item={entry} /> : null}
-                        {entry.category === "trainers" ? <QuickTrainerAvatar entry={entry} /> : null}
-                        {entry.category !== "pokemon" && entry.category !== "items" && entry.category !== "trainers" ? <span>特</span> : null}
-                        <strong>{entry.name_zh || entry.name}</strong>
-                        {entry.category === "trainers" && entry.unlocked && entry.trainer_tags?.length ? <QuickTrainerBadges tags={entry.trainer_tags} /> : null}
-                        <small>{entrySummary(entry)}</small>
-                      </motion.button>
-                    )
                   ))}
-                </div>
-                <nav className="quick-dex-pager" aria-label="图鉴翻页">
-                  <button disabled={loading || currentPage <= 0} onClick={() => setPage(value => Math.max(0, value - 1))}>上一页</button>
-                  <span>{currentPage + 1}/{pageCount}</span>
-                  <button disabled={loading || currentPage >= pageCount - 1} onClick={() => setPage(value => Math.min(pageCount - 1, value + 1))}>下一页</button>
-                </nav>
-              </div>
-              <QuickDexDetail entry={selected} expanded={detailExpanded} onToggleExpanded={() => setDetailExpanded(value => !value)} onMoveSelect={openMove} onAbilitySelect={openAbility} />
+                </motion.div>
+              </AnimatePresence>
             </motion.div>
-          </AnimatePresence>
+          ) : null}
+        </AnimatePresence>
+      </section>
+      <DexSearchBar variant="quick" query={query} loading={loading} resultCount={entries.length} total={total} onQueryChange={value => { setQuery(value); setPage(0); }} />
+      <AnimatePresence mode="wait" custom={direction}>
+        <motion.div
+          className={`quick-dex-body ${detailExpanded ? "detail-expanded" : ""}`}
+          custom={direction}
+          variants={{
+            enter: (value: number) => ({opacity: 0, x: value ? value * 28 : 0}),
+            center: {opacity: 1, x: 0},
+            exit: (value: number) => ({opacity: 0, x: value ? value * -28 : 0}),
+          }}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{type: "spring", stiffness: 310, damping: 30}}
+          key={category}
+        >
+          <DexResultList
+            variant="quick"
+            entries={entries}
+            selectedId={selected?.id}
+            loading={loading}
+            error={error}
+            page={currentPage}
+            pageCount={pageCount}
+            category={category}
+            onSelect={entry => setSelectedId(entry.id)}
+            onPageChange={setPage}
+          />
+          <DexDetailPanel variant="quick" entry={selected} expanded={detailExpanded} showTrainerPool={false} onToggleExpanded={() => setDetailExpanded(value => !value)} onMoveSelect={openMove} onAbilitySelect={openAbility} />
         </motion.div>
-      )}
+      </AnimatePresence>
+    </motion.div>
+    );
+  }
+
+  if (isPreview) return <div className="pokopia-content quick-dex-modal component-gallery-quick-dex-inline">{renderContent(onClose)}</div>;
+  return (
+    <PokopiaModal className="quick-dex-modal" labelledBy="quick-dex-title" onClose={onClose}>
+      {requestClose => renderContent(requestClose)}
     </PokopiaModal>
-  );
-}
-
-function QuickTrainerBadges({tags}: {tags: string[]}) {
-  const uniqueTags = Array.from(new Set(tags.filter(Boolean)));
-  if (!uniqueTags.length) return null;
-  return <div className="quick-dex-trainer-badges">{uniqueTags.map(tag => <span key={tag}>{tag}</span>)}</div>;
-}
-
-function QuickTrainerAvatar({entry}: {entry: DesktopDexEntry}) {
-  const image = entry.unlocked ? trainerImageUrl(entry.trainer, "avatar") || trainerImageUrl(entry.trainer, "front") : "";
-  return image ? <img className="quick-dex-trainer-avatar" src={image} alt={entry.name_zh || entry.name} /> : <span>?</span>;
-}
-
-function QuickDexDetail({entry, expanded, onToggleExpanded, onMoveSelect, onAbilitySelect}: {entry: DesktopDexEntry | null; expanded: boolean; onToggleExpanded: () => void; onMoveSelect: (move: MoveSummary) => void; onAbilitySelect: (ability: QuickDexAbilitySummary) => void}) {
-  const [pokemonTab, setPokemonTab] = useState(POKEMON_INFO_TAB_ID);
-  useEffect(() => {
-    setPokemonTab(POKEMON_INFO_TAB_ID);
-  }, [entry?.category, entry?.id]);
-  if (!entry) return <section className="quick-dex-detail empty">选择左侧条目查看详情。</section>;
-  const sprite = dexSpriteUrl(entry);
-  const learnsetGroups = entry.category === "pokemon" ? groupLearnsetBySource(entry.learnset || []) : [];
-  const pokemonTabs = entry.category === "pokemon" ? pokemonDexDetailTabs(entry.learnset || []) : [];
-  const activePokemonTab = pokemonTabs.some(tab => tab.id === pokemonTab) ? pokemonTab : POKEMON_INFO_TAB_ID;
-  const activeLearnsetGroup = learnsetGroups.find(group => group.id === activePokemonTab) || null;
-  const trainerImage = entry.category === "trainers" && entry.unlocked ? trainerImageUrl(entry.trainer, "frontGif") || trainerImageUrl(entry.trainer, "front") || trainerImageUrl(entry.trainer, "avatar") : "";
-  const trainerRecord = entry.category === "trainers" ? entry.boss_record : undefined;
-  const lastTrainerResult = trainerRecord?.last_result === "win" ? "胜利" : trainerRecord?.last_result === "loss" ? "失败" : "未结算";
-  return (
-    <section className={`quick-dex-detail ${entry.category === "pokemon" ? "pokemon" : ""} ${entry.category === "trainers" && !entry.unlocked ? "locked" : ""}`}>
-      {entry.category !== "pokemon" ? (
-        <header>
-          {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : null}
-          {!sprite && entry.category === "items" ? <ItemIcon item={entry} /> : null}
-          {!sprite && entry.category === "trainers" && trainerImage ? <img src={trainerImage} alt={entry.name_zh || entry.name} /> : null}
-          {!sprite && entry.category !== "items" && !(entry.category === "trainers" && trainerImage) ? <span>{entry.category === "moves" ? "技" : entry.category === "trainers" ? "?" : "特"}</span> : null}
-          <div>
-            <h3>{entry.category === "trainers" && !entry.unlocked ? "未知训练师" : entry.name_zh || entry.name}</h3>
-            <p>
-              {entry.category === "trainers"
-                ? entry.unlocked
-                  ? `${entry.trainer?.region || "未知地区"} / ${entry.trainer?.role || "训练师"}`
-                  : entry.desc_zh || "尚未遭遇"
-                : `${entry.name} / ${entry.id}`}
-            </p>
-          </div>
-          <button className="quick-dex-detail-expand-button" onClick={onToggleExpanded} title={expanded ? "还原详情面板" : "放大详情面板"} aria-label={expanded ? "还原详情面板" : "放大详情面板"}>{expanded ? "↙" : "⛶"}</button>
-        </header>
-      ) : null}
-      {entry.category === "trainers" ? (
-        <>
-          {entry.unlocked ? <QuickTrainerBadges tags={entry.trainer_tags || []} /> : null}
-          <div className="quick-dex-trainer-stats">
-            <p><span>交手</span><strong>{trainerRecord?.completed || 0}</strong></p>
-            <p><span>胜</span><strong>{trainerRecord?.wins || 0}</strong></p>
-            <p><span>负</span><strong>{trainerRecord?.losses || 0}</strong></p>
-            <p><span>上次</span><strong>{lastTrainerResult}</strong></p>
-          </div>
-          <p className="quick-dex-description">{entry.unlocked ? entry.boss_summary || "已记录这位训练师的遭遇资料。" : "尚未遭遇。遇到后才会显示真实身份、头像和特殊事件标签。"}</p>
-        </>
-      ) : null}
-      {entry.category === "pokemon" ? (
-        <>
-          <div className="quick-dex-pokemon-tab-bar">
-            <nav className="quick-dex-pokemon-subtabs">
-              {pokemonTabs.map(tab => (
-                <button className={activePokemonTab === tab.id ? "selected" : ""} onClick={() => setPokemonTab(tab.id)} key={`${entry.id}-${tab.id}`}>
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined ? <small>{tab.count}</small> : null}
-                </button>
-              ))}
-            </nav>
-            <button className="quick-dex-detail-expand-button" onClick={onToggleExpanded} title={expanded ? "还原详情面板" : "放大详情面板"} aria-label={expanded ? "还原详情面板" : "放大详情面板"}>{expanded ? "↙" : "⛶"}</button>
-          </div>
-          <div className="quick-dex-pokemon-tab-panel">
-            {activePokemonTab === POKEMON_INFO_TAB_ID ? (
-              <QuickPokemonDexInfo entry={entry} onAbilitySelect={onAbilitySelect} />
-            ) : (
-              <QuickPokemonDexLearnset entry={entry} group={activeLearnsetGroup} onMoveSelect={onMoveSelect} />
-            )}
-          </div>
-        </>
-      ) : null}
-      {entry.category === "moves" ? (
-        <div className="quick-dex-facts">
-          <p>属性 <strong>{entry.type_zh || entry.type || "--"}</strong></p>
-          <p>分类 <strong>{entry.move_category_zh || entry.move_category || "--"}</strong></p>
-          <p>威力 <strong>{entry.power || "--"}</strong></p>
-          <p>命中 <strong>{entry.accuracy ?? "必中"}</strong></p>
-          <p>PP <strong>{entry.pp || "--"}</strong></p>
-          <p>优先度 <strong>{entry.priority || 0}</strong></p>
-        </div>
-      ) : null}
-      {entry.category !== "pokemon" && entry.category !== "trainers" ? <p className="quick-dex-description">{entry.desc_zh || "暂无中文说明。"}</p> : null}
-    </section>
-  );
-}
-
-function QuickPokemonDexInfo({entry, onAbilitySelect}: {entry: DesktopDexEntry; onAbilitySelect: (ability: QuickDexAbilitySummary) => void}) {
-  const sprite = dexSpriteUrl(entry);
-  return (
-    <div className="quick-dex-pokemon-info">
-      <section className="quick-dex-pokemon-identity">
-        {sprite ? <img src={sprite} alt={entry.name_zh || entry.name} /> : null}
-        <div>
-          <h3>{entry.name_zh || entry.name}</h3>
-          <p>{entry.name} / {entry.id}（使用次数{entry.usage_count || 0}）</p>
-        </div>
-      </section>
-      <div className="quick-dex-badges">{(entry.types_zh || entry.types || []).map(type => <span key={type}>{type}</span>)}</div>
-      {pokemonMetaLabel(entry) ? <p className="quick-dex-description">{pokemonMetaLabel(entry)}</p> : null}
-      {entry.base_stats ? <div className="quick-dex-stat-grid">{STAT_ROWS.map(([stat, label]) => <p key={stat}><span>{label}</span><strong>{entry.base_stats?.[stat] || 0}</strong></p>)}</div> : null}
-      <section className="quick-dex-ability-panel">
-        <h4>可能特性</h4>
-        <div>
-          {(entry.abilities || []).map(ability => (
-            <button onClick={() => onAbilitySelect(ability)} key={ability.id}>
-              <strong>{ability.name_zh || ability.name}</strong>
-              {ability.hidden ? <span>隐藏</span> : null}
-              <small>{ability.desc_zh || ability.name}</small>
-            </button>
-          ))}
-          {!entry.abilities?.length ? <small>暂无特性数据。</small> : null}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function QuickPokemonDexLearnset({entry, group, onMoveSelect}: {entry: DesktopDexEntry; group: ReturnType<typeof groupLearnsetBySource>[number] | null; onMoveSelect: (move: MoveSummary) => void}) {
-  if (!group) return <div className="quick-dex-learnset"><small>暂无技能池数据。</small></div>;
-  return (
-    <div className="quick-dex-learnset">
-      <section className="quick-dex-learnset-group">
-        <h4><span>{group.label}</span><small>{group.moves.length}</small></h4>
-        <div>
-          {group.moves.map(move => (
-            <MoveCard
-              size="dex"
-              className="quick-dex-move-card"
-              name={move.name_zh || move.name}
-              moveType={move.type || move.type_zh}
-              typeLabel={move.type_zh || move.type || "一般"}
-              category={move.category_zh || move.category || "变化"}
-              pp={move.pp || "--"}
-              power={move.power || "--"}
-              accuracy={move.accuracy ?? "必中"}
-              onClick={() => onMoveSelect(move)}
-              key={`${entry.id}-${group.id}-${move.id}`}
-            />
-          ))}
-        </div>
-      </section>
-    </div>
   );
 }

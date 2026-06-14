@@ -1,0 +1,186 @@
+.trainer-dex-detail,
+.quick-dex-detail.locked {
+  min-width: 0;
+}
+
+.trainer-dex-detail {
+  position: relative;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.trainer-dex-detail.locked {
+  background: #f7f4ec;
+}
+
+.trainer-dex-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.trainer-dex-badges span {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid #6e4b74;
+  border-radius: 5px;
+  background: #f3e7ff;
+  color: #34243a;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.trainer-dex-badges.compact {
+  gap: 3px;
+  margin-top: 0;
+}
+
+.trainer-dex-badges.compact span {
+  min-height: 16px;
+  border-width: 1px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 9px;
+}
+
+.trainer-dex-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.trainer-dex-stats span {
+  min-width: 0;
+  border: 2px solid #cfd8bd;
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 8px 10px;
+  color: #596052;
+  font-weight: 800;
+}
+
+.trainer-dex-stats strong {
+  display: block;
+  color: #24342b;
+  font-size: 18px;
+}
+
+.trainer-pool-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.trainer-pool-panel h4 {
+  margin: 0;
+}
+
+.trainer-pool-panel > div {
+  min-height: 0;
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.trainer-pool-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 2px solid #cfd8bd;
+  border-radius: 8px;
+  background: #fffdf5;
+  padding: 8px;
+}
+
+.trainer-pool-row > span {
+  font-weight: 900;
+  color: #536052;
+}
+
+.trainer-pool-row > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.trainer-pool-slot {
+  min-width: 0;
+  min-height: 96px;
+  display: grid;
+  grid-template-rows: 58px auto;
+  justify-items: center;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  text-align: center;
+}
+
+.trainer-pool-slot .pokemon-sprite {
+  width: 56px;
+  height: 56px;
+}
+
+.trainer-pool-slot .shadow-orb {
+  grid-row: auto;
+}
+
+.trainer-pool-slot strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.quick-dex-trainer-badges {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.quick-dex-trainer-badges span {
+  min-height: 12px;
+  border: 1px solid rgb(190 149 226 / 45%);
+  border-radius: 3px;
+  background: rgb(111 58 146 / 24%);
+  color: #f6eaff;
+  padding: 1px 4px;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.quick-dex-trainer-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.quick-dex-trainer-stats p {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  border-radius: 5px;
+  background: rgb(0 0 0 / 22%);
+  padding: 4px;
+}
+
+.quick-dex-trainer-stats span {
+  color: #dafee1;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.quick-dex-trainer-stats strong {
+  color: #fff;
+  font-size: 9px;
+}

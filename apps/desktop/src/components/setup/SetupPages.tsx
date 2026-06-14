@@ -1,9 +1,8 @@
 import {useEffect, useMemo, useState} from "react";
-import type {BattleSystemId, DesktopGameState, LocalSave, RentalPokemon, StarterUpgradeView} from "@changebattle/shared";
-import {AnimatePresence, motion} from "motion/react";
-import {PokemonSprite, bpCostLabel, displayName} from "../../lib/ui";
-import {PokemonProfile} from "../pokemon/PokemonProfile";
+import type {DesktopGameState, LocalSave, RentalPokemon, StarterUpgradeView} from "@changebattle/shared";
+import {bpCostLabel} from "../../lib/ui";
 import {BattleSettingPage as BattleSettingPageComponent} from "./battle-setting/BattleSettingPage";
+import {RentalSelectPage} from "./rental-select/RentalSelectPage";
 import {StarterItemsPage} from "./starter-items/StarterItemsPage";
 import {TalentConfigPage} from "./talent/TalentConfigPage";
 
@@ -104,86 +103,25 @@ export function StarterItemsView({starter, onChoose, onBack}: {starter: DesktopG
   return <StarterItemsPage starter={starter} onChoose={onChoose} onBack={onBack} />;
 }
 
-function battleSystemLabel(system: BattleSystemId): string {
-  return ({mega: "Mega", zmove: "Z 招式", dynamax: "极巨化", terastal: "太晶化"} as Record<BattleSystemId, string>)[system] || system;
-}
-
-function rentalSpecialBadges(pokemon: RentalPokemon): string[] {
-  return [
-    pokemon.is_mythical ? "幻兽" : "",
-    !pokemon.is_mythical && pokemon.is_legendary ? "神兽" : "",
-    pokemon.item_battle_system ? battleSystemLabel(pokemon.item_battle_system) : "",
-  ].filter(Boolean);
-}
-
 export function RentalSelect({candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack, onReroll, onSingleReroll, onInspect, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false, inspected = false}: {candidates: RentalPokemon[]; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; onToggle: (index: number) => void; onStart: () => void | Promise<void>; onBack?: () => void | Promise<void>; onReroll?: () => void | Promise<void>; onSingleReroll?: () => void | Promise<void>; onInspect?: () => void; runSeed?: number; wholeRerollsRemaining?: number; singleRerollsRemaining?: number; inspectRemaining?: number; revealTraining?: boolean; inspected?: boolean}) {
-  const pokemon = candidates[focusIndex];
-  if (!pokemon) return <div className="loading-panel"><strong>正在生成租赁候选...</strong></div>;
-  const focusedSelected = selected.includes(focusIndex);
-  const focusedOrigin = (pokemon as RentalPokemon & {starter_origin?: string}).starter_origin || "current";
-  const originLabel = focusedOrigin === "memory" ? "回忆候选" : "本局候选";
-  const visibleSkillBadges = [
-    wholeRerollsRemaining > 0 ? `牌 ${wholeRerollsRemaining}` : "",
-    singleRerollsRemaining > 0 ? `发功 ${singleRerollsRemaining}` : "",
-    inspectRemaining > 0 ? `验牌 ${inspectRemaining}` : ""
-  ].filter(Boolean);
-  const thumbnailColumns = candidates.length <= 6 ? 6 : 12;
   return (
-    <div className="dex-layout rental-select-layout">
-      <section className="rental-gallery-panel">
-        <header className="rental-select-topbar">
-          <div className="rental-run-meta">
-            <span>随机种子 {typeof runSeed === "number" ? runSeed : "--"}</span>
-            <span>候选 {focusIndex + 1}/{candidates.length}</span>
-            <span>{originLabel}</span>
-            <span>已选 {selected.length}/3</span>
-          </div>
-          <div className="rental-skill-actions" aria-label="开局能力">
-            {visibleSkillBadges.length ? (
-              <div className="rental-skill-badges" aria-label="可用技能">
-                {visibleSkillBadges.map(label => <span key={label}>{label}</span>)}
-              </div>
-            ) : null}
-            {onBack ? <button className="rental-utility-button" onClick={onBack}>返回</button> : null}
-            <button className="rental-utility-button" disabled={!onReroll || wholeRerollsRemaining <= 0} onClick={() => void onReroll?.()}>换人 {wholeRerollsRemaining}</button>
-            <button className="rental-utility-button" disabled={!onSingleReroll || singleRerollsRemaining <= 0} onClick={() => void onSingleReroll?.()}>发功 {singleRerollsRemaining}</button>
-            <button className="rental-utility-button" disabled={!onInspect || inspectRemaining <= 0 || inspected} onClick={() => onInspect?.()}>{inspected ? "已验牌" : `验牌 ${inspectRemaining}`}</button>
-          </div>
-          <button className="rental-start-button" disabled={selected.length !== 3} onClick={() => void onStart()}>开始游戏</button>
-        </header>
-        <AnimatePresence mode="wait">
-          <motion.div className="rental-profile-stage" initial={{opacity: 0, x: 16}} animate={{opacity: 1, x: 0}} exit={{opacity: 0, x: -16}} transition={{type: "spring", stiffness: 330, damping: 30}} key={pokemon.run_member_id || pokemon.species_id || focusIndex}>
-            <button className="rental-profile-pick" onClick={() => onToggle(focusIndex)}>{focusedSelected ? "取消选中" : "选中"}</button>
-            <PokemonProfile pokemon={pokemon} selected={focusedSelected} revealTraining={revealTraining} compact />
-          </motion.div>
-        </AnimatePresence>
-        <nav className={`rental-thumbnail-nav columns-${thumbnailColumns} ${candidates.length > 12 ? "overflowing" : ""}`} aria-label="候选宝可梦">
-          {candidates.map((candidate, index) => {
-            const candidateSelected = selected.includes(index);
-            const badges = rentalSpecialBadges(candidate);
-            const hasLegendaryBadge = Boolean(candidate.is_legendary || candidate.is_mythical);
-            const hasSystemBadge = Boolean(candidate.item_battle_system);
-            return (
-              <motion.button
-                className={`rental-thumbnail ${index === focusIndex ? "active" : ""} ${candidateSelected ? "picked" : ""} ${badges.length ? "special-candidate" : ""} ${hasLegendaryBadge ? "legendary-candidate" : ""} ${hasSystemBadge ? "system-candidate" : ""}`}
-                aria-label={`${displayName(candidate)}${badges.length ? `，${badges.join("，")}` : ""}${candidateSelected ? "，已选" : ""}`}
-                title={[displayName(candidate), ...badges].join(" / ")}
-                onClick={() => setFocusIndex(index)}
-                initial={false}
-                animate={{opacity: index === focusIndex ? 1 : 0.62, y: index === focusIndex ? -2 : 0}}
-                whileHover={{scale: 1.05, opacity: 1}}
-                whileTap={{scale: 0.96}}
-                key={`${candidate.species_id}-${index}`}
-              >
-                {index === focusIndex ? <motion.i layoutId="rental-thumbnail-active" transition={{type: "spring", stiffness: 420, damping: 32}} /> : null}
-                {candidateSelected ? <motion.em className="rental-thumbnail-check" initial={{scale: 0.35, opacity: 0}} animate={{scale: 1, opacity: 1}} transition={{type: "spring", stiffness: 520, damping: 24}}>✓</motion.em> : null}
-                {badges.length ? <span className="rental-thumbnail-badges">{badges.slice(0, 2).map(label => <b key={label}>{label}</b>)}</span> : null}
-                <PokemonSprite pokemon={candidate} alt={displayName(candidate)} badge={false} />
-              </motion.button>
-            );
-          })}
-        </nav>
-      </section>
-    </div>
+    <RentalSelectPage
+      candidates={candidates}
+      selected={selected}
+      focusIndex={focusIndex}
+      setFocusIndex={setFocusIndex}
+      onToggle={onToggle}
+      onStart={onStart}
+      onBack={onBack}
+      onReroll={onReroll}
+      onSingleReroll={onSingleReroll}
+      onInspect={onInspect}
+      runSeed={runSeed}
+      wholeRerollsRemaining={wholeRerollsRemaining}
+      singleRerollsRemaining={singleRerollsRemaining}
+      inspectRemaining={inspectRemaining}
+      revealTraining={revealTraining}
+      inspected={inspected}
+    />
   );
 }

@@ -477,7 +477,7 @@
 - 没有 offer 时显示稳定空状态。
 - 长道具名省略，不撑高行。
 
-## 3.10 RentalSelectPage
+## 3.10 RentalSelectPage 【x】
 
 ### 页面职责
 
@@ -606,12 +606,13 @@
 - 战斗结束回写按 `showdown_id / pokeball`，不会 A 覆盖 B。
 - AI 代打在宝可梦死亡后能自动处理强制换人。
 
-## 3.12 ExchangePage
+## 3.12 ExchangePage【转休息页组件 / 不单独实施】
 
 ### 页面职责
 
 - 选择己方和敌方宝可梦交换。
 - 支持跳过交换。
+- 不再作为独立页面实施，后续并入 `## 3.13 RestPage` 的休息页组件体系。
 
 ### 组件编排
 
@@ -648,6 +649,16 @@
 
 ## 3.13 RestPage
 
+### 第一版记录
+
+- 第一版已完成顶部菜单、工具切换栏、工具区 `我的队伍` 的组件拆分、预览登记和真实页接入。
+- 默认进入休整页选中 `我的队伍`，工具切换栏第一项固定为 `我的队伍`。
+- `我的队伍` 左侧队伍缩略卡使用左图右名/HP 条布局，HP 条复用 `PokemonHpBar`。
+- 选中宝可梦详情已调整为资料/随机数值/描述三列；技能区为 2 行 2 列完整 `MoveCard`。
+- 技能随机改为两段式：先随机候选并确认学习，再选择替换旧技能后确认替换。
+- 背包、商店、熔炉、交换、进度图、事件服务、技能调整、数值调整等暂走 `RestMainPanelHost` legacy adapter 分支，后续逐个工具区继续拆分。
+- 本节不标记 `【x】`，等所有工具区完成组件化后再整页验收。
+
 ### 页面职责
 
 - 休整阶段页面骨架。
@@ -657,9 +668,15 @@
 ### 组件编排
 
 - `RestHeader`
-- `RestTeamPanel`
 - `RestToolBar`
 - `RestMainPanelHost`
+- `RestMyTeamPanel`
+- `RestTeamMiniCard`
+- `RestPokemonSlot`
+- `RestPokemonProfileCard`
+- `RestPokemonMoveGrid`
+- `RestPokemonInfoPanel`
+- `RestSelectedPokemonDetail`
 - `RestEventPrompt`
 - `RestBagPanel`
 - `RestShopPanel`
@@ -677,17 +694,35 @@
   - 页面骨架。
   - 变量：`--rest-page-header-height`、`--rest-page-toolbar-height`、`--rest-page-main-height`、`--rest-page-right-padding`。
 - `RestHeader.tsx/css`
-  - 功能：休整标题、金币、BP、按钮。
+  - 功能：休整标题、进度、连胜、金币、结束/下一场按钮。
   - 变量：`--rest-header-height`、`--rest-header-button-height`。
-- `RestTeamPanel.tsx/css`
-  - 功能：当前队伍概览。
-  - 变量：`--rest-team-panel-height`、`--rest-team-panel-card-width`。
 - `RestToolBar.tsx/css`
-  - 功能：背包、商店、熔炉、队伍、天赋、事件入口。
+  - 功能：工具区切换；`我的队伍` 固定第一项，后续接背包、商店、熔炉、进度图、天赋、事件入口。
   - 变量：`--rest-toolbar-height`、`--rest-toolbar-button-width`。
 - `RestMainPanelHost.tsx/css`
-  - 功能：承载当前打开的工具面板。
+  - 功能：承载当前打开的工具面板；第一版保留 legacy adapter 分支转接旧工具区。
   - 变量：`--rest-main-panel-host-width`、`--rest-main-panel-host-height`。
+- `RestMyTeamPanel.tsx/css`
+  - 功能：我的队伍工具区，左侧队伍缩略卡，右侧选中宝可梦详情。
+  - 变量：`--rest-my-team-panel-slot-width`、`--rest-my-team-panel-profile-width`、`--rest-my-team-panel-stats-width`、`--rest-my-team-panel-move-width`。
+- `RestTeamMiniCard.tsx/css`
+  - 功能：队伍小卡，展示编号、小图、名字、HP 条、异常状态、选中态。
+  - 变量：`--rest-team-mini-card-*`。
+- `RestPokemonSlot.tsx/css`
+  - 功能：队伍小格子，展示小图、名字、HP 条、异常状态、选中态。
+  - 变量：`--rest-pokemon-slot-*`。
+- `RestPokemonProfileCard.tsx/css`
+  - 功能：当前宝可梦资料卡，展示大图、HP 条、名字、属性、性格、特性、道具。
+  - 变量：`--rest-pokemon-profile-card-*`。
+- `RestPokemonMoveGrid.tsx/css`
+  - 功能：技能卡网格，复用 `MoveCard`。
+  - 变量：`--rest-pokemon-move-grid-*`。
+- `RestPokemonInfoPanel.tsx/css`
+  - 功能：当前聚焦性格/特性/道具/技能说明和相关操作。
+  - 变量：`--rest-pokemon-info-panel-*`。
+- `RestSelectedPokemonDetail.tsx/css`
+  - 功能：选中宝可梦详情，右侧三列布局：资料/技能、随机花费与数值、选中描述；技能区为 2 行 2 列。
+  - 变量：`--rest-selected-pokemon-detail-*`。
 - `RestEventPrompt.tsx/css`
   - 功能：随机事件提示和选择。
   - 变量：`--rest-event-prompt-height`。
@@ -718,12 +753,20 @@
 - `RunTalentPanel.tsx/css`
   - 功能：局内天赋行动。
   - 变量：`--run-talent-panel-row-height`。
+- 后续事件服务组件：
+  - `DoctorEventPanel`
+  - `EventMoveServicePanel`
+  - `RaidExchangePanel`
+  - `ScoreBetPanel`
+  - `EventLevelPanel`
 
 ### 样式设计
 
 - 顶部栏高度从现状缩小到固定 `28px` 左右。
 - 工具栏高度固定 `24px` 左右。
 - 主内容区吃掉节省出来的高度。
+- `我的队伍` 第一版使用左侧队伍缩略列 + 右侧三列详情。
+- 技能区为 2 行 2 列，使用完整 `MoveCard`。
 - 所有面板在 `RestMainPanelHost` 内部固定布局，不撑开页面。
 - 页面右侧保留明确右边距，例如 `8px`。
 
@@ -734,7 +777,7 @@
 - 640×320 下队伍、工具栏、主面板不挤压。
 - 所有滚动容器高度明确。
 
-## 3.14 ResultPage
+## 3.14 ResultPage 【x】
 
 ### 页面职责
 
@@ -786,7 +829,7 @@
 - 从战绩进入整局结算正确。
 - 点击某场、某回合后详情不撑破页面。
 
-## 3.15 DexModal / QuickDexModal
+## 3.15 DexModal / QuickDexModal 【x】
 
 ### 页面职责
 
@@ -836,7 +879,7 @@
 - 锁定条目、长名字、长说明都不破坏行高。
 - 快捷图鉴和完整图鉴共用详情组件。
 
-## 3.16 RouteTransitionPage
+## 3.16 RouteTransitionPage 【x】
 
 ### 页面职责
 
@@ -869,7 +912,7 @@
 - 过渡文本不遮挡关键画面。
 - 视频加载失败时 fallback 可读。
 
-## 3.17 ComponentGalleryPage
+## 3.17 ComponentGalleryPage 【x】
 
 ### 页面职责
 
@@ -1113,7 +1156,7 @@
 - 战斗详情。
 - 结算队伍。
 
-## 4.8 MoveCard
+## 4.8 MoveCard 【x】
 
 ### 功能
 
@@ -1335,7 +1378,7 @@
 - 开局道具。
 - 结算奖励。
 
-## 4.18 PokemonHpBar
+## 4.18 PokemonHpBar 【x】
 
 ### 功能
 
@@ -1355,7 +1398,7 @@
 - 休整队伍。
 - 结算队伍。
 
-## 4.19 ComponentPreviewCanvas
+## 4.19 ComponentPreviewCanvas 【x】
 
 ### 功能
 

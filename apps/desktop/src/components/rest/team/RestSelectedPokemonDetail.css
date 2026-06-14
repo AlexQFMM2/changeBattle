@@ -1,0 +1,366 @@
+.rest-selected-pokemon-detail {
+  --rest-selected-pokemon-detail-main-width: 246px;
+  --rest-selected-pokemon-detail-stats-width: 154px;
+  --rest-selected-pokemon-detail-description-width: 107px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns:
+    var(--rest-selected-pokemon-detail-main-width)
+    var(--rest-selected-pokemon-detail-stats-width)
+    minmax(0, var(--rest-selected-pokemon-detail-description-width));
+  grid-template-areas: "main stats description";
+  gap: 5px;
+  overflow: hidden;
+}
+
+.rest-selected-pokemon-main,
+.rest-selected-pokemon-stats,
+.rest-selected-description {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #b5a57f;
+  border-radius: 5px;
+  background: #fffdf5;
+  padding: 5px;
+  color: #25332b;
+  overflow: hidden;
+}
+
+.rest-selected-pokemon-main {
+  grid-area: main;
+  display: grid;
+  grid-template-rows: 64px 32px 17px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.rest-selected-pokemon-identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  grid-template-rows: 10px 17px 11px 14px;
+  gap: 2px 7px;
+  border: 2px solid #247267;
+  border-radius: 5px;
+  background: #b8e4b8;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.rest-selected-pokemon-identity > span,
+.rest-selected-pokemon-identity > small,
+.rest-selected-pokemon-identity h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-selected-pokemon-identity > span {
+  color: #fff8e8;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.rest-selected-pokemon-identity .pokemon-sprite {
+  width: 54px;
+  height: 54px;
+  grid-row: 1 / -1;
+  align-self: center;
+  justify-self: center;
+  --pokemon-sprite-size: 54px;
+}
+
+.rest-selected-pokemon-identity h3 {
+  color: #fff8e8;
+  font-size: 12px;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 22%);
+}
+
+.rest-selected-pokemon-identity > small {
+  color: #4d6658;
+  font-size: 7px;
+  font-weight: 850;
+}
+
+.rest-selected-pokemon-types {
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.rest-selected-pokemon-types b {
+  height: 14px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgb(37 51 43 / 34%);
+  border-radius: 3px;
+  background: rgb(255 255 255 / 46%);
+  padding: 0 5px;
+  font-size: 6px;
+  line-height: 1;
+}
+
+.rest-selected-pokemon-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.rest-selected-pokemon-facts button {
+  min-width: 0;
+  min-height: 0;
+  height: 32px;
+  display: grid;
+  grid-template-rows: 9px 15px;
+  gap: 2px;
+  border-radius: 4px;
+  padding: 4px;
+  text-align: left;
+}
+
+.rest-selected-pokemon-facts button.selected {
+  border-color: #36a766;
+  background: #e9f8e6;
+}
+
+.rest-selected-pokemon-facts span,
+.rest-selected-pokemon-facts strong {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-selected-pokemon-facts span {
+  font-size: 6px;
+}
+
+.rest-selected-pokemon-facts strong {
+  font-size: 7px;
+}
+
+.rest-selected-pokemon-hp {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-rows: 8px 7px;
+  gap: 1px 4px;
+  align-items: center;
+}
+
+.rest-selected-pokemon-hp span,
+.rest-selected-pokemon-hp strong {
+  font-size: 6px;
+  line-height: 1;
+}
+
+.rest-selected-pokemon-hp strong {
+  justify-self: end;
+}
+
+.rest-selected-pokemon-hp .rest-selected-pokemon-hp-bar {
+  --pokemon-hp-bar-width: 100%;
+  --pokemon-hp-bar-height: 7px;
+  grid-column: 1 / -1;
+}
+
+.rest-selected-move-row {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  overflow: hidden;
+}
+
+.rest-selected-move-row .move-card {
+  --move-card-height: 39px;
+  --move-card-name-row-height: 18px;
+  --move-card-meta-row-height: 19px;
+  --move-card-name-font-size: 7px;
+  --move-card-meta-font-size: 5px;
+  --move-card-name-padding-x: 5px;
+  --move-card-meta-padding-x: 5px;
+  --move-card-meta-gap: 4px;
+}
+
+.rest-selected-move-empty {
+  height: 100%;
+  border: 1px dashed #9b8f73;
+  border-radius: 4px;
+  background: #f3ead7;
+  color: #70675d;
+  font-size: 7px;
+  font-weight: 850;
+}
+
+.rest-selected-action-footer {
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.rest-selected-pokemon-stats button,
+.rest-selected-description button {
+  height: 19px;
+  min-height: 19px;
+  padding: 0 6px;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.rest-selected-pokemon-stats {
+  grid-area: stats;
+  display: grid;
+  grid-template-rows: 28px 42px 25px minmax(0, 1fr) 21px;
+  gap: 4px;
+}
+
+.rest-selected-reroll-all {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: #2d6d62;
+  background: linear-gradient(180deg, #e9f8e6, #d2ecd1);
+  color: #25332b;
+  font-weight: 950;
+}
+
+.rest-selected-reroll-lines button,
+.rest-selected-reroll-stat-buttons button,
+.rest-selected-action-footer button {
+  border-color: #2d6d62;
+  background: linear-gradient(180deg, #e9f8e6, #d2ecd1);
+  color: #25332b;
+  font-weight: 950;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 55%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-selected-reroll-all span,
+.rest-selected-reroll-all b {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-selected-reroll-lines {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.rest-selected-reroll-lines p {
+  min-width: 0;
+  height: 19px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 4px;
+  align-items: center;
+  margin: 0;
+}
+
+.rest-selected-reroll-lines span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-selected-reroll-lines button {
+  padding: 0 3px;
+  font-size: 5px;
+}
+
+.rest-selected-reroll-lines b,
+.rest-selected-reroll-stat-buttons b {
+  font-size: 5px;
+  white-space: nowrap;
+}
+
+.rest-selected-reroll-stat-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.rest-selected-reroll-stat-buttons button {
+  display: block;
+  padding: 0 3px;
+  font-size: 6px;
+}
+
+.rest-selected-stat-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.rest-selected-stat-list p {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 4px;
+  margin: 0;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.rest-selected-stat-list strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-selected-description {
+  grid-area: description;
+  display: grid;
+  grid-template-rows: 17px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.rest-selected-description h3,
+.rest-selected-description p {
+  margin: 0;
+}
+
+.rest-selected-description h3 {
+  min-width: 0;
+  overflow: hidden;
+  color: #2f2735;
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rest-selected-description p {
+  min-width: 0;
+  min-height: 0;
+  color: #4f4a42;
+  font-size: 7px;
+  line-height: 1.35;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}

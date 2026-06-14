@@ -1,0 +1,129 @@
+.route-transition-loading {
+  --route-transition-copy-panel-width: calc(100% - 36px);
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 14px;
+  z-index: 2;
+  width: var(--route-transition-copy-panel-width);
+  display: grid;
+  grid-template-columns: minmax(116px, .38fr) minmax(160px, .54fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 66px;
+  overflow: hidden;
+  border: 1px solid rgb(248 226 170 / 50%);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 7%), transparent 42%),
+    rgb(13 16 18 / 84%);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 46%);
+  padding: 12px 14px;
+  text-align: left;
+  backdrop-filter: blur(2px);
+}
+
+.route-transition-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.route-transition-copy strong {
+  color: #fff7dc;
+  font-size: 19px;
+  font-weight: 1000;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.route-transition-copy span {
+  color: #e9dcc2;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-transition-progress {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid rgb(255 244 208 / 24%);
+  border-radius: 999px;
+  background: rgb(16 18 19 / 46%);
+}
+
+.route-transition-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e75b51 0%, #f2c65f 46%, #66c08f 100%);
+  transform-origin: left center;
+  animation: route-transition-progress var(--route-transition-duration) linear forwards;
+}
+
+.route-transition-tip {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+}
+
+.route-transition-tip strong {
+  flex: 0 0 auto;
+  color: #9fe4b6;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.route-transition-tip span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #fff9e8;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+@keyframes route-transition-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (max-width: 760px) {
+  .route-transition-loading {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: calc(100% - 16px);
+    grid-template-columns: minmax(92px, .42fr) minmax(110px, .58fr);
+    gap: 8px 10px;
+    min-height: 78px;
+    padding: 9px 10px;
+  }
+
+  .route-transition-copy strong {
+    font-size: 14px;
+  }
+
+  .route-transition-copy span,
+  .route-transition-tip strong {
+    font-size: 8px;
+  }
+
+  .route-transition-tip {
+    grid-column: 1 / -1;
+  }
+
+  .route-transition-tip span {
+    font-size: 9px;
+    line-height: 1.25;
+  }
+}

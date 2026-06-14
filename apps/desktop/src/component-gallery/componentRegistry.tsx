@@ -14,6 +14,13 @@ import {BattleRulePresetList} from "../components/setup/battle-setting/BattleRul
 import {BattleRuleTabs} from "../components/setup/battle-setting/BattleRuleTabs";
 import {BattleSettingActionBar} from "../components/setup/battle-setting/BattleSettingActionBar";
 import {BattleSettingPage} from "../components/setup/battle-setting/BattleSettingPage";
+import {RentalActionBar} from "../components/setup/rental-select/RentalActionBar";
+import {RentalCandidateCard} from "../components/setup/rental-select/RentalCandidateCard";
+import {RentalCandidateList} from "../components/setup/rental-select/RentalCandidateList";
+import {RentalPokemonDetail} from "../components/setup/rental-select/RentalPokemonDetail";
+import {RentalSelectPage} from "../components/setup/rental-select/RentalSelectPage";
+import {RentalTeamPreview} from "../components/setup/rental-select/RentalTeamPreview";
+import {ScoutControls} from "../components/setup/rental-select/ScoutControls";
 import {StarterItemTabs} from "../components/setup/starter-items/StarterItemTabs";
 import {StarterItemsActionBar} from "../components/setup/starter-items/StarterItemsActionBar";
 import {StarterItemsPage} from "../components/setup/starter-items/StarterItemsPage";
@@ -24,7 +31,31 @@ import {BattleHistoryPage} from "../components/result/history/BattleHistoryPage"
 import {HistoryActionBar} from "../components/result/history/HistoryActionBar";
 import {RunRecordDetailPanel} from "../components/result/history/RunRecordDetailPanel";
 import {RunRecordList} from "../components/result/history/RunRecordList";
+import {BattleRoundList} from "../components/result/BattleRoundList";
+import {ResultHeader} from "../components/result/ResultHeader";
+import {ResultPage} from "../components/result/ResultPage";
+import {ResultProgressList, ProgressDetail} from "../components/result/ResultProgressList";
+import {ResultSettlementGrid} from "../components/result/ResultSettlementGrid";
+import {ResultTeamSummary, PokemonResultDetail} from "../components/result/ResultTeamSummary";
+import {TurnDetailPanel} from "../components/result/TurnDetailPanel";
+import {PokemonHpBar} from "../components/common/PokemonHpBar";
 import {MoveCard} from "../components/move/MoveCard";
+import {DexCategoryTabs} from "../components/dex/DexCategoryTabs";
+import {DexDetailPanel} from "../components/dex/DexDetailPanel";
+import {DexModal} from "../components/dex/DexModal";
+import {DexResultList} from "../components/dex/DexResultList";
+import {DexSearchBar} from "../components/dex/DexSearchBar";
+import {QuickDexModal} from "../components/dex/QuickDexModal";
+import {RestHeader} from "../components/rest/RestHeader";
+import {RestToolBar} from "../components/rest/RestToolBar";
+import {RestMyTeamPanel} from "../components/rest/team/RestMyTeamPanel";
+import {RestPokemonInfoPanel} from "../components/rest/team/RestPokemonInfoPanel";
+import {RestPokemonMoveGrid} from "../components/rest/team/RestPokemonMoveGrid";
+import {RestPokemonProfileCard} from "../components/rest/team/RestPokemonProfileCard";
+import {RestPokemonSlot} from "../components/rest/team/RestPokemonSlot";
+import {RestSelectedPokemonDetail} from "../components/rest/team/RestSelectedPokemonDetail";
+import {RestTeamMiniCard} from "../components/rest/team/RestTeamMiniCard";
+import type {RestPokemonFocus} from "../components/rest/team/restTeamModel";
 import {ScreenToast} from "../components/feedback/ScreenToast";
 import {ComponentGalleryButton} from "../components/shell/ComponentGalleryButton";
 import {DiscoveryPanel} from "../components/shell/DiscoveryPanel";
@@ -36,8 +67,12 @@ import {TitleCommandMenu} from "../components/shell/TitleCommandMenu";
 import {TitleLogo} from "../components/shell/TitleLogo";
 import {TitleVideoBackground} from "../components/shell/TitleVideoBackground";
 import {TrainerSummaryPanel} from "../components/shell/TrainerSummaryPanel";
+import {RouteTransitionCopyPanel} from "../pages/shell/RouteTransitionCopyPanel";
+import {RouteTransitionPage, routeTransitionCopy} from "../pages/shell/RouteTransitionPage";
+import {RouteTransitionVideo} from "../pages/shell/RouteTransitionVideo";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
-import {battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createMainMenuPreviewSave, createTitlePreviewSave, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, playerSettingsManyCatalog, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
+import {battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, playerSettingsManyCatalog, rentalPreviewCandidates, rentalPreviewLongCandidates, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
+import {outcomeLabel} from "../components/result/resultUtils";
 
 export type ComponentPreviewState = {
   id: string;
@@ -110,6 +145,49 @@ function BattleHistoryPagePreview({stateId}: {stateId: string}) {
   );
 }
 
+function resultSummaryForState(stateId: string) {
+  if (stateId === "loss") return resultLossPreviewSummary;
+  if (stateId === "abort") return resultAbortPreviewSummary;
+  if (stateId === "longText") return resultLongPreviewSummary;
+  if (stateId === "empty") return resultEmptyPreviewSummary;
+  return resultPreviewSummary;
+}
+
+function resultRecordForState(stateId: string) {
+  if (stateId === "noRounds") return resultPreviewRecordNoTurns;
+  return resultPreviewRecordWithTurns;
+}
+
+function ResultPagePreview({stateId}: {stateId: string}) {
+  const summary = resultSummaryForState(stateId);
+  const record = resultRecordForState(stateId);
+  return <ResultPage message="预览结算" battle={null} summary={summary} onBack={() => undefined} backLabel={stateId === "longText" ? "返回战绩列表" : "返回"} previewRecords={stateId === "empty" ? [] : [record]} />;
+}
+
+function ResultProgressPreview({stateId}: {stateId: string}) {
+  const summary = resultSummaryForState(stateId);
+  const progressRows = summary.progress || [];
+  const record = stateId === "noRounds" ? resultPreviewRecordNoTurns : resultPreviewRecordWithTurns;
+  const selected = progressRows.find(row => row.battle_no === record.battle_no) || progressRows.at(-1) || null;
+  return (
+    <ResultProgressList
+      progressRows={progressRows}
+      selectedBattleNo={selected?.battle_no || 1}
+      selectedProgress={selected}
+      selectedBattleRecord={stateId === "empty" ? null : record}
+      recordsLoaded
+      roundPanelOpen={false}
+      onSelectProgress={() => undefined}
+      onOpenRounds={() => undefined}
+    />
+  );
+}
+
+function BattleRoundPreview({stateId}: {stateId: string}) {
+  const record = stateId === "empty" ? {...resultPreviewRecordNoTurns, turn_records: []} : resultPreviewRecordWithTurns;
+  return <BattleRoundList record={record} selectedTurn={record.turn_records?.[1] || null} onSelectTurn={() => undefined} onBack={() => undefined} />;
+}
+
 function BattleSettingPagePreview({stateId}: {stateId: string}) {
   const setting = stateId === "longText" ? battleSettingGen9PreviewSetting : battleSettingPreviewSetting;
   const status = stateId === "saving" ? "saving" : stateId === "error" ? "error" : "idle";
@@ -174,7 +252,236 @@ function StarterDetailPreview({stateId}: {stateId: string}) {
   return <StarterOfferDetail group={group} offer={offer} selected={stateId === "selected" || purchased} locked={purchased} />;
 }
 
+function rentalCandidatesForState(stateId: string) {
+  if (stateId === "empty" || stateId === "loading") return [];
+  if (stateId === "longText") return rentalPreviewLongCandidates;
+  if (stateId === "manyCandidates") return [...rentalPreviewCandidates, ...rentalPreviewLongCandidates.slice(0, 6)];
+  if (stateId === "sixCandidates") return rentalPreviewCandidates.slice(0, 6);
+  return rentalPreviewCandidates;
+}
+
+function RentalPreviewState({stateId, children}: {stateId: string; children: (value: {candidates: typeof rentalPreviewCandidates; selected: number[]; focusIndex: number; setFocusIndex: (index: number) => void; toggle: (index: number) => void}) => ReactNode}) {
+  const candidates = rentalCandidatesForState(stateId);
+  const [focusIndex, setFocusIndex] = useState(stateId === "battleSystem" ? 1 : 0);
+  const initialSelected = stateId === "ready" || stateId === "full" ? [0, 1, 2] : stateId === "partialSelection" || stateId === "partial" || stateId === "selected" ? [0] : [];
+  const [selected, setSelected] = useState<number[]>(initialSelected);
+  function toggle(index: number) {
+    setSelected(current => current.includes(index) ? current.filter(value => value !== index) : current.length < 3 ? [...current, index] : [...current.slice(0, 2), index]);
+  }
+  return children({candidates, selected, focusIndex, setFocusIndex, toggle});
+}
+
+function RentalCandidateCardPreview({stateId}: {stateId: string}) {
+  const index = stateId === "legendary" ? 5 : stateId === "battleSystem" ? 1 : stateId === "longName" ? 11 : 0;
+  const candidates = stateId === "longName" ? rentalPreviewLongCandidates : rentalPreviewCandidates;
+  const pokemon = candidates[index] || candidates[0];
+  return <RentalCandidateCard pokemon={pokemon} index={index} focused={stateId === "focused"} selected={stateId === "selected"} onFocus={() => undefined} onToggle={() => undefined} />;
+}
+
+function RentalCandidateListPreview({stateId}: {stateId: string}) {
+  return (
+    <RentalPreviewState stateId={stateId}>
+      {({candidates, selected, focusIndex, setFocusIndex, toggle}) => (
+        <RentalCandidateList candidates={candidates} selected={selected} focusIndex={focusIndex} onFocus={setFocusIndex} onToggle={toggle} />
+      )}
+    </RentalPreviewState>
+  );
+}
+
+function RentalPokemonDetailPreview({stateId}: {stateId: string}) {
+  const pokemon = stateId === "longText" ? rentalPreviewLongCandidates[0] : rentalPreviewCandidates[stateId === "selected" ? 1 : 0];
+  return <RentalPokemonDetail pokemon={pokemon} selected={stateId === "selected"} revealTraining={stateId === "revealedTraining"} onToggle={() => undefined} />;
+}
+
+function RentalTeamPreviewStage({stateId}: {stateId: string}) {
+  const candidates = stateId === "longName" ? rentalPreviewLongCandidates : rentalPreviewCandidates;
+  const count = stateId === "empty" ? 0 : stateId === "partial" ? 1 : 3;
+  return <RentalTeamPreview team={candidates.slice(0, count)} />;
+}
+
+function RentalSelectPagePreview({stateId}: {stateId: string}) {
+  return (
+    <RentalPreviewState stateId={stateId}>
+      {({candidates, selected, focusIndex, setFocusIndex, toggle}) => (
+        <RentalSelectPage
+          candidates={stateId === "loading" ? [] : candidates}
+          selected={stateId === "ready" ? [0, 1, 2] : selected}
+          focusIndex={focusIndex}
+          setFocusIndex={setFocusIndex}
+          onToggle={toggle}
+          onStart={() => undefined}
+          onBack={() => undefined}
+          onReroll={() => undefined}
+          onSingleReroll={() => undefined}
+          onInspect={() => undefined}
+          runSeed={260614}
+          wholeRerollsRemaining={stateId === "noScoutCharges" ? 0 : 1}
+          singleRerollsRemaining={stateId === "noScoutCharges" ? 0 : 2}
+          inspectRemaining={stateId === "noScoutCharges" ? 0 : 1}
+          revealTraining={stateId !== "loading"}
+          inspected={stateId === "noScoutCharges"}
+        />
+      )}
+    </RentalPreviewState>
+  );
+}
+
+function dexEntriesForState(stateId: string) {
+  if (stateId === "empty" || stateId === "error") return [];
+  if (stateId === "moves") return [dexPreviewMove, {...dexPreviewMove, id: "thunderbolt", name: "Thunderbolt", name_zh: "十万伏特"}];
+  if (stateId === "items") return [dexPreviewItem];
+  if (stateId === "trainers" || stateId === "trainerUnlocked") return [dexPreviewTrainerUnlocked, dexPreviewTrainerLocked];
+  if (stateId === "trainerLocked") return [dexPreviewTrainerLocked];
+  if (stateId === "longText") return [dexPreviewLongPokemon, {...dexPreviewMove, id: "long-move", name_zh: "非常非常长的技能名字测试"}, dexPreviewAbility];
+  return [dexPreviewPokemon, dexPreviewMove, dexPreviewItem, dexPreviewAbility, dexPreviewTrainerUnlocked];
+}
+
+function dexDetailEntryForState(stateId: string) {
+  if (stateId === "empty") return null;
+  if (stateId === "trainerLocked") return dexPreviewTrainerLocked;
+  if (stateId === "trainerUnlocked") return dexPreviewTrainerUnlocked;
+  if (stateId === "move") return dexPreviewMove;
+  if (stateId === "item") return dexPreviewItem;
+  if (stateId === "ability") return dexPreviewAbility;
+  if (stateId === "longText") return dexPreviewLongPokemon;
+  return dexPreviewPokemon;
+}
+
+function DexResultListPreview({stateId}: {stateId: string}) {
+  const entries = dexEntriesForState(stateId);
+  const [selectedId, setSelectedId] = useState(entries[0]?.id || "");
+  return (
+    <DexResultList
+      entries={entries}
+      selectedId={selectedId || entries[0]?.id}
+      loading={stateId === "loading"}
+      error={stateId === "error" ? "图鉴读取失败：这是一条较长的错误文案。" : null}
+      page={0}
+      pageCount={3}
+      category={entries[0]?.category || "pokemon"}
+      onSelect={entry => setSelectedId(entry.id)}
+      onPageChange={() => undefined}
+    />
+  );
+}
+
+function QuickDexResultListPreview({stateId}: {stateId: string}) {
+  const entries = dexEntriesForState(stateId);
+  const [selectedId, setSelectedId] = useState(entries[0]?.id || "");
+  return (
+    <DexResultList
+      variant="quick"
+      entries={entries}
+      selectedId={selectedId || entries[0]?.id}
+      loading={stateId === "loading"}
+      error={stateId === "error" ? "图鉴读取失败。" : null}
+      page={0}
+      pageCount={3}
+      category={entries[0]?.category || "pokemon"}
+      onSelect={entry => setSelectedId(entry.id)}
+      onPageChange={() => undefined}
+    />
+  );
+}
+
+function restStateForPreview(stateId: string) {
+  if (stateId === "sixPokemon" || stateId === "manyTools") return restPreviewStateSix;
+  if (stateId === "lowHp" || stateId === "fainted" || stateId === "status" || stateId === "lowHpStatus" || stateId === "lowPp") return restPreviewStateLowHp;
+  if (stateId === "longName" || stateId === "longText" || stateId === "longMoveName") return restPreviewStateLong;
+  return restPreviewStateNormal;
+}
+
+function RestHeaderPreview({stateId}: {stateId: string}) {
+  return (
+    <RestHeader
+      battleNo={stateId === "longText" ? 12 : 3}
+      battles={stateId === "longText" ? 120 : 7}
+      wins={stateId === "longText" ? 88 : 2}
+      coins={stateId === "lowCoins" ? 3 : 420}
+      nextDisabled={stateId === "nextDisabled"}
+      nextTitle={stateId === "nextDisabled" ? "请先处理当前事件" : undefined}
+      onOpenCoinLedger={() => undefined}
+      onAbort={() => undefined}
+      onNext={() => undefined}
+    />
+  );
+}
+
+function RestToolBarPreview({stateId}: {stateId: string}) {
+  const items = [
+    {id: "myTeam", label: "我的队伍"},
+    {id: "bag", label: "背包"},
+    {id: "shop", label: "商店"},
+    {id: "forge", label: "熔炉"},
+    ...(stateId === "eventTools" || stateId === "manyTools" ? [{id: "doctor", label: "蹩脚医生", event: true}, {id: "tutor", label: "讲师老奶奶", event: true}, {id: "raid", label: "骇人奇袭", event: true}] : []),
+    {id: "nightSky", label: stateId === "longText" ? "名字很长的进度图工具入口" : "进度图", badge: "6/21"},
+  ];
+  return <RestToolBar items={items} activeId={stateId === "eventTools" ? "doctor" : "myTeam"} onSelect={() => undefined} />;
+}
+
+function RestSlotPreview({stateId}: {stateId: string}) {
+  const rest = restStateForPreview(stateId);
+  const index = stateId === "fainted" ? 1 : stateId === "status" || stateId === "lowHp" ? 2 : 0;
+  return <RestPokemonSlot pokemon={rest.player_display[index] || rest.player_display[0]} state={rest.player_state[index] || rest.player_state[0]} index={index} selected={stateId === "selected"} onSelect={() => undefined} />;
+}
+
+function RestTeamMiniCardPreview({stateId}: {stateId: string}) {
+  const rest = restStateForPreview(stateId);
+  const index = stateId === "fainted" ? 1 : stateId === "status" || stateId === "lowHp" ? 2 : 0;
+  return <RestTeamMiniCard pokemon={rest.player_display[index] || rest.player_display[0]} state={rest.player_state[index] || rest.player_state[0]} index={index} selected={stateId === "selected"} onSelect={() => undefined} />;
+}
+
+function RestProfilePreview({stateId}: {stateId: string}) {
+  const rest = restStateForPreview(stateId);
+  const index = stateId === "noItem" ? 2 : stateId === "lowHp" || stateId === "status" ? 0 : 0;
+  const pokemon = stateId === "noItem" ? {...rest.player_display[index], item: "", item_id: "", item_zh: ""} : rest.player_display[index];
+  return <RestPokemonProfileCard pokemon={pokemon} state={rest.player_state[index]} />;
+}
+
+function RestMoveGridPreview({stateId}: {stateId: string}) {
+  const rest = restStateForPreview(stateId);
+  const [focus, setFocus] = useState<RestPokemonFocus>({type: "move", moveIndex: 0});
+  const pokemon = stateId === "emptyMove" ? {...rest.player_display[0], moves: rest.player_display[0].moves.slice(0, 2)} : rest.player_display[0];
+  return <RestPokemonMoveGrid pokemon={pokemon} state={rest.player_state[0]} focus={focus} onFocus={setFocus} />;
+}
+
+function RestInfoPanelPreview({stateId}: {stateId: string}) {
+  const rest = restStateForPreview(stateId);
+  const [focus, setFocus] = useState<RestPokemonFocus>(() => stateId === "item" ? {type: "item"} : stateId === "move" ? {type: "move", moveIndex: 0} : {type: "ability"});
+  return <RestPokemonInfoPanel pokemon={rest.player_display[0]} focus={focus} onFocus={setFocus} onMove={() => undefined} onUseItem={() => undefined} onUnequip={() => undefined} onStats={() => undefined} />;
+}
+
+function RestSelectedPokemonDetailPreview({stateId}: {stateId: string}) {
+  const rest = restStateForPreview(stateId);
+  const [focus, setFocus] = useState<RestPokemonFocus>(() => stateId === "move" ? {type: "move", moveIndex: 0} : stateId === "item" ? {type: "item"} : {type: "ability"});
+  return <RestSelectedPokemonDetail rest={rest} pokemon={rest.player_display[0]} state={rest.player_state[0]} slot={0} focus={focus} onFocus={setFocus} onMove={() => undefined} onUseItem={() => undefined} onUnequip={() => undefined} onStats={() => undefined} onAction={() => undefined} />;
+}
+
 export const componentRegistry: ComponentRegistryEntry[] = [
+  {
+    id: "pokemon-hp-bar",
+    name: "宝可梦 HP 条",
+    group: "common",
+    defaultSize: {width: 130, height: 32},
+    componentFile: "apps/desktop/src/components/common/PokemonHpBar.tsx",
+    cssFile: "apps/desktop/src/components/common/PokemonHpBar.css",
+    cssVariablePrefix: "--pokemon-hp-bar-*",
+    dependencies: [],
+    states: [
+      {id: "high", name: "高血量"},
+      {id: "mid", name: "中血量"},
+      {id: "low", name: "低血量"},
+      {id: "empty", name: "空血"},
+    ],
+    renderPreview(stateId) {
+      const hp = stateId === "mid" ? 42 : stateId === "low" ? 12 : stateId === "empty" ? 0 : 78;
+      return (
+        <div className="component-gallery-hp-bar-stage">
+          <PokemonHpBar current={hp} max={100} text={`${hp}/100`} />
+        </div>
+      );
+    },
+  },
   {
     id: "move-card",
     name: "技能卡片",
@@ -256,6 +563,155 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       return (
         <div className="component-gallery-toast-stage">
           <ScreenToast message={message} tone={stateId === "danger" ? "danger" : "normal"} durationMs={1600} inline />
+        </div>
+      );
+    },
+  },
+  {
+    id: "dex-search-bar",
+    name: "图鉴搜索栏",
+    group: "dex",
+    defaultSize: {width: 300, height: 50},
+    componentFile: "apps/desktop/src/components/dex/DexSearchBar.tsx",
+    cssFile: "apps/desktop/src/components/dex/DexSearchBar.css",
+    cssVariablePrefix: "--dex-search-bar-*",
+    dependencies: [],
+    states: [
+      {id: "idle", name: "普通"},
+      {id: "loading", name: "读取中"},
+      {id: "longQuery", name: "长搜索"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-dex-search-stage">
+          <DexSearchBar query={stateId === "longQuery" ? "very-long-query-name-type-electric-and-more" : "pikachu"} loading={stateId === "loading"} resultCount={4} total={28} onQueryChange={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "dex-category-tabs",
+    name: "图鉴分类标签",
+    group: "dex",
+    defaultSize: {width: 390, height: 76},
+    componentFile: "apps/desktop/src/components/dex/DexCategoryTabs.tsx",
+    cssFile: "apps/desktop/src/components/dex/DexCategoryTabs.css",
+    cssVariablePrefix: "--dex-category-tabs-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "trainersActive", name: "训练师"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-dex-tabs-stage">
+          <DexCategoryTabs category={stateId === "trainersActive" ? "trainers" : "pokemon"} trainerFilter="champion" onCategoryChange={() => undefined} onTrainerFilterChange={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "dex-result-list",
+    name: "图鉴结果列表",
+    group: "dex",
+    defaultSize: {width: 300, height: 150},
+    componentFile: "apps/desktop/src/components/dex/DexResultList.tsx",
+    cssFile: "apps/desktop/src/components/dex/DexResultList.css",
+    cssVariablePrefix: "--dex-result-list-*",
+    dependencies: ["ItemIcon", "MoveCard", "DexTrainerAvatar"],
+    states: [
+      {id: "pokemon", name: "宝可梦"},
+      {id: "moves", name: "技能"},
+      {id: "items", name: "道具"},
+      {id: "trainers", name: "训练师"},
+      {id: "empty", name: "空状态"},
+      {id: "error", name: "错误"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-dex-list-stage">
+          <DexResultListPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "dex-detail-panel",
+    name: "图鉴详情面板",
+    group: "dex",
+    defaultSize: {width: 330, height: 150},
+    componentFile: "apps/desktop/src/components/dex/DexDetailPanel.tsx",
+    cssFile: "apps/desktop/src/components/dex/DexDetailPanel.css",
+    cssVariablePrefix: "--dex-detail-panel-*",
+    dependencies: ["PokemonDexDetail", "TrainerDexDetail", "MoveDexDetail", "ItemDexDetail"],
+    states: [
+      {id: "pokemon", name: "宝可梦"},
+      {id: "trainerLocked", name: "训练师锁定"},
+      {id: "trainerUnlocked", name: "训练师解锁"},
+      {id: "move", name: "技能"},
+      {id: "item", name: "道具"},
+      {id: "ability", name: "特性"},
+      {id: "empty", name: "空状态"},
+      {id: "expanded", name: "展开"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-dex-detail-stage">
+          <DexDetailPanel entry={dexDetailEntryForState(stateId)} expanded={stateId === "expanded"} onToggleExpanded={() => undefined} onAbilitySelect={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "dex-modal",
+    name: "完整图鉴弹窗",
+    group: "dex",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/components/dex/DexModal.tsx",
+    cssFile: "apps/desktop/src/components/dex/DexModal.css",
+    cssVariablePrefix: "--dex-modal-*",
+    dependencies: ["DexSearchBar", "DexCategoryTabs", "DexResultList", "DexDetailPanel"],
+    states: [
+      {id: "pokemon", name: "宝可梦"},
+      {id: "trainers", name: "训练师"},
+      {id: "moves", name: "技能"},
+      {id: "empty", name: "空状态"},
+      {id: "error", name: "错误"},
+      {id: "expanded", name: "展开"},
+    ],
+    renderPreview(stateId) {
+      const entries = stateId === "expanded" ? [dexPreviewPokemon] : dexEntriesForState(stateId);
+      return (
+        <div className="component-gallery-dex-modal-stage">
+          <DexModal onClose={() => undefined} preview={{entries, category: entries[0]?.category || "pokemon", error: stateId === "error" ? "读取图鉴失败。" : null, expanded: stateId === "expanded"}} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "quick-dex-modal",
+    name: "快捷图鉴弹窗",
+    group: "dex",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/components/dex/QuickDexModal.tsx",
+    cssFile: "apps/desktop/src/components/dex/QuickDexModal.css",
+    cssVariablePrefix: "--quick-dex-modal-*",
+    dependencies: ["DexSearchBar", "DexCategoryTabs", "DexResultList", "DexDetailPanel", "MoveCard"],
+    states: [
+      {id: "pokemon", name: "宝可梦"},
+      {id: "megaMenu", name: "分类菜单"},
+      {id: "moves", name: "技能"},
+      {id: "trainerLocked", name: "训练师锁定"},
+      {id: "expanded", name: "展开"},
+    ],
+    renderPreview(stateId) {
+      const entries = stateId === "expanded" ? [dexPreviewPokemon] : dexEntriesForState(stateId);
+      return (
+        <div className="component-gallery-quick-dex-modal-stage">
+          <QuickDexModal onClose={() => undefined} preview={{entries, category: entries[0]?.category || "pokemon", activeMega: stateId === "megaMenu" ? "pokemon" : null, expanded: stateId === "expanded"}} />
         </div>
       );
     },
@@ -949,6 +1405,634 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       return (
         <div className="component-gallery-starter-page-stage">
           <StarterItemsPage starter={starter} onChoose={() => undefined} onBack={() => undefined} previewNoSubmit />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rental-candidate-card",
+    name: "租赁候选卡",
+    group: "setup",
+    defaultSize: {width: 170, height: 54},
+    componentFile: "apps/desktop/src/components/setup/rental-select/RentalCandidateCard.tsx",
+    cssFile: "apps/desktop/src/components/setup/rental-select/RentalCandidateCard.css",
+    cssVariablePrefix: "--rental-candidate-card-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "focused", name: "聚焦"},
+      {id: "selected", name: "已选"},
+      {id: "legendary", name: "神兽"},
+      {id: "battleSystem", name: "战斗系统"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rental-card-stage">
+          <RentalCandidateCardPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rental-candidate-list",
+    name: "租赁候选列表",
+    group: "setup",
+    defaultSize: {width: 180, height: 210},
+    componentFile: "apps/desktop/src/components/setup/rental-select/RentalCandidateList.tsx",
+    cssFile: "apps/desktop/src/components/setup/rental-select/RentalCandidateList.css",
+    cssVariablePrefix: "--rental-candidate-list-*",
+    dependencies: ["RentalCandidateCard"],
+    states: [
+      {id: "sixCandidates", name: "6 候选"},
+      {id: "twelveCandidates", name: "12 候选"},
+      {id: "manyCandidates", name: "多候选"},
+      {id: "empty", name: "空状态"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rental-list-stage">
+          <RentalCandidateListPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rental-pokemon-detail",
+    name: "租赁宝可梦详情",
+    group: "setup",
+    defaultSize: {width: 292, height: 210},
+    componentFile: "apps/desktop/src/components/setup/rental-select/RentalPokemonDetail.tsx",
+    cssFile: "apps/desktop/src/components/setup/rental-select/RentalPokemonDetail.css",
+    cssVariablePrefix: "--rental-pokemon-detail-*",
+    dependencies: ["PokemonProfile"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "已选"},
+      {id: "hiddenTraining", name: "隐藏训练"},
+      {id: "revealedTraining", name: "揭示训练"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rental-detail-stage">
+          <RentalPokemonDetailPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rental-team-preview",
+    name: "租赁队伍预览",
+    group: "setup",
+    defaultSize: {width: 150, height: 78},
+    componentFile: "apps/desktop/src/components/setup/rental-select/RentalTeamPreview.tsx",
+    cssFile: "apps/desktop/src/components/setup/rental-select/RentalTeamPreview.css",
+    cssVariablePrefix: "--rental-team-preview-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "empty", name: "空队伍"},
+      {id: "partial", name: "部分选择"},
+      {id: "full", name: "已满"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rental-team-stage">
+          <RentalTeamPreviewStage stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "scout-controls",
+    name: "小道消息控制",
+    group: "setup",
+    defaultSize: {width: 150, height: 86},
+    componentFile: "apps/desktop/src/components/setup/rental-select/ScoutControls.tsx",
+    cssFile: "apps/desktop/src/components/setup/rental-select/ScoutControls.css",
+    cssVariablePrefix: "--scout-controls-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "noCharges", name: "无次数"},
+      {id: "inspected", name: "已验牌"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rental-scout-stage">
+          <ScoutControls
+            onBack={() => undefined}
+            onReroll={() => undefined}
+            onSingleReroll={() => undefined}
+            onInspect={() => undefined}
+            wholeRerollsRemaining={stateId === "noCharges" ? 0 : 1}
+            singleRerollsRemaining={stateId === "noCharges" ? 0 : 2}
+            inspectRemaining={stateId === "noCharges" ? 0 : 1}
+            inspected={stateId === "inspected"}
+          />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rental-action-bar",
+    name: "租赁动作条",
+    group: "setup",
+    defaultSize: {width: 488, height: 42},
+    componentFile: "apps/desktop/src/components/setup/rental-select/RentalActionBar.tsx",
+    cssFile: "apps/desktop/src/components/setup/rental-select/RentalActionBar.css",
+    cssVariablePrefix: "--rental-action-bar-*",
+    dependencies: [],
+    states: [
+      {id: "emptySelection", name: "未选择"},
+      {id: "partialSelection", name: "部分选择"},
+      {id: "ready", name: "可开始"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const selectedCount = stateId === "ready" ? 3 : stateId === "partialSelection" ? 1 : 0;
+      return (
+        <div className="component-gallery-rental-action-stage">
+          <RentalActionBar selectedCount={selectedCount} candidateCount={12} focusIndex={0} runSeed={260614} originLabel={stateId === "longText" ? "很长很长的候选来源文案" : "本局候选"} onStart={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rental-select-page",
+    name: "租赁选队页面",
+    group: "setup",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/components/setup/rental-select/RentalSelectPage.tsx",
+    cssFile: "apps/desktop/src/components/setup/rental-select/RentalSelectPage.css",
+    cssVariablePrefix: "--rental-select-page-*",
+    dependencies: ["RentalCandidateList", "RentalPokemonDetail", "RentalTeamPreview", "ScoutControls", "RentalActionBar"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "manyCandidates", name: "多候选"},
+      {id: "ready", name: "可开始"},
+      {id: "noScoutCharges", name: "无次数"},
+      {id: "loading", name: "加载中"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rental-page-stage">
+          <RentalSelectPagePreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-header",
+    name: "休整顶部菜单",
+    group: "rest",
+    defaultSize: {width: 488, height: 52},
+    componentFile: "apps/desktop/src/components/rest/RestHeader.tsx",
+    cssFile: "apps/desktop/src/components/rest/RestHeader.css",
+    cssVariablePrefix: "--rest-header-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "lowCoins", name: "低金币"},
+      {id: "nextDisabled", name: "下一场禁用"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-header-stage">
+          <RestHeaderPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-toolbar",
+    name: "休整工具切换栏",
+    group: "rest",
+    defaultSize: {width: 488, height: 48},
+    componentFile: "apps/desktop/src/components/rest/RestToolBar.tsx",
+    cssFile: "apps/desktop/src/components/rest/RestToolBar.css",
+    cssVariablePrefix: "--rest-toolbar-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "manyTools", name: "多工具"},
+      {id: "eventTools", name: "事件工具"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-toolbar-stage">
+          <RestToolBarPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-pokemon-slot",
+    name: "休整宝可梦格子",
+    group: "rest",
+    defaultSize: {width: 124, height: 60},
+    componentFile: "apps/desktop/src/components/rest/team/RestPokemonSlot.tsx",
+    cssFile: "apps/desktop/src/components/rest/team/RestPokemonSlot.css",
+    cssVariablePrefix: "--rest-pokemon-slot-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "lowHp", name: "低血量"},
+      {id: "fainted", name: "濒死"},
+      {id: "status", name: "异常"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-slot-stage">
+          <RestSlotPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-team-mini-card",
+    name: "休整队伍竖版小卡",
+    group: "rest",
+    defaultSize: {width: 120, height: 90},
+    componentFile: "apps/desktop/src/components/rest/team/RestTeamMiniCard.tsx",
+    cssFile: "apps/desktop/src/components/rest/team/RestTeamMiniCard.css",
+    cssVariablePrefix: "--rest-team-mini-card-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "lowHp", name: "低血量"},
+      {id: "fainted", name: "濒死"},
+      {id: "status", name: "异常"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-mini-card-stage">
+          <RestTeamMiniCardPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-pokemon-profile-card",
+    name: "休整宝可梦资料卡",
+    group: "rest",
+    defaultSize: {width: 154, height: 248},
+    componentFile: "apps/desktop/src/components/rest/team/RestPokemonProfileCard.tsx",
+    cssFile: "apps/desktop/src/components/rest/team/RestPokemonProfileCard.css",
+    cssVariablePrefix: "--rest-pokemon-profile-card-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "lowHp", name: "低血量"},
+      {id: "status", name: "异常"},
+      {id: "noItem", name: "无道具"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-profile-stage">
+          <RestProfilePreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-pokemon-move-grid",
+    name: "休整技能区",
+    group: "rest",
+    defaultSize: {width: 244, height: 170},
+    componentFile: "apps/desktop/src/components/rest/team/RestPokemonMoveGrid.tsx",
+    cssFile: "apps/desktop/src/components/rest/team/RestPokemonMoveGrid.css",
+    cssVariablePrefix: "--rest-pokemon-move-grid-*",
+    dependencies: ["MoveCard"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "lowPp", name: "低 PP"},
+      {id: "longMoveName", name: "长技能名"},
+      {id: "emptyMove", name: "空技能"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-move-grid-stage">
+          <RestMoveGridPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-pokemon-info-panel",
+    name: "休整信息说明面板",
+    group: "rest",
+    defaultSize: {width: 244, height: 96},
+    componentFile: "apps/desktop/src/components/rest/team/RestPokemonInfoPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/team/RestPokemonInfoPanel.css",
+    cssVariablePrefix: "--rest-pokemon-info-panel-*",
+    dependencies: [],
+    states: [
+      {id: "ability", name: "特性"},
+      {id: "item", name: "道具"},
+      {id: "move", name: "技能"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-info-stage">
+          <RestInfoPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-selected-pokemon-detail",
+    name: "休整选中宝可梦详情",
+    group: "rest",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/components/rest/team/RestSelectedPokemonDetail.tsx",
+    cssFile: "apps/desktop/src/components/rest/team/RestSelectedPokemonDetail.css",
+    cssVariablePrefix: "--rest-selected-pokemon-detail-*",
+    dependencies: ["PokemonHpBar", "PokemonSprite", "MoveCard"],
+    states: [
+      {id: "ability", name: "特性"},
+      {id: "item", name: "道具"},
+      {id: "move", name: "技能"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-selected-detail-stage">
+          <RestSelectedPokemonDetailPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-my-team-panel",
+    name: "休整我的队伍",
+    group: "rest",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/components/rest/team/RestMyTeamPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/team/RestMyTeamPanel.css",
+    cssVariablePrefix: "--rest-my-team-panel-*",
+    dependencies: ["RestTeamMiniCard", "RestSelectedPokemonDetail", "PokemonHpBar", "MoveCard"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "sixPokemon", name: "六只队伍"},
+      {id: "lowHpStatus", name: "低血量异常"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-my-team-stage">
+          <RestMyTeamPanel rest={restStateForPreview(stateId)} selectedSlot={0} onSelectSlot={() => undefined} onMove={() => undefined} onUseItem={() => undefined} onUnequip={() => undefined} onStats={() => undefined} onAction={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "result-header",
+    name: "结算标题栏",
+    group: "result",
+    defaultSize: {width: 360, height: 48},
+    componentFile: "apps/desktop/src/components/result/ResultHeader.tsx",
+    cssFile: "apps/desktop/src/components/result/ResultHeader.css",
+    cssVariablePrefix: "--result-header-*",
+    dependencies: [],
+    states: [
+      {id: "win", name: "胜利"},
+      {id: "loss", name: "失败"},
+      {id: "abort", name: "中断"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const summary = resultSummaryForState(stateId);
+      return (
+        <div className="component-gallery-result-header-stage">
+          <ResultHeader outcome={summary.outcome} headline={summary.headline} subtitle={summary.subtitle || outcomeLabel(summary.outcome)} onBack={() => undefined} backLabel={stateId === "longText" ? "返回战绩列表" : "返回"} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "result-settlement-grid",
+    name: "结算收益网格",
+    group: "result",
+    defaultSize: {width: 280, height: 72},
+    componentFile: "apps/desktop/src/components/result/ResultSettlementGrid.tsx",
+    cssFile: "apps/desktop/src/components/result/ResultSettlementGrid.css",
+    cssVariablePrefix: "--result-settlement-grid-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "empty", name: "空状态"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const summary = resultSummaryForState(stateId);
+      return (
+        <div className="component-gallery-result-settlement-stage">
+          <ResultSettlementGrid rows={summary.coin_rows || []} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "result-team-summary",
+    name: "结算队伍摘要",
+    group: "result",
+    defaultSize: {width: 300, height: 98},
+    componentFile: "apps/desktop/src/components/result/ResultTeamSummary.tsx",
+    cssFile: "apps/desktop/src/components/result/ResultTeamSummary.css",
+    cssVariablePrefix: "--result-team-summary-*",
+    dependencies: ["PokemonSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "empty", name: "空队伍"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const summary = resultSummaryForState(stateId);
+      return (
+        <div className="component-gallery-result-team-stage">
+          {stateId === "empty" ? <PokemonResultDetail entry={null} /> : <ResultTeamSummary usedPokemon={summary.used_pokemon || []} />}
+        </div>
+      );
+    },
+  },
+  {
+    id: "result-progress-list",
+    name: "结算挑战进度",
+    group: "result",
+    defaultSize: {width: 190, height: 150},
+    componentFile: "apps/desktop/src/components/result/ResultProgressList.tsx",
+    cssFile: "apps/desktop/src/components/result/ResultProgressList.css",
+    cssVariablePrefix: "--result-progress-list-*",
+    dependencies: ["TrainerSprite"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "noRounds", name: "无回合"},
+      {id: "empty", name: "空状态"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-result-progress-stage">
+          {stateId === "empty" ? <ProgressDetail row={null} /> : <ResultProgressPreview stateId={stateId} />}
+        </div>
+      );
+    },
+  },
+  {
+    id: "battle-round-list",
+    name: "单场回合列表",
+    group: "result",
+    defaultSize: {width: 190, height: 150},
+    componentFile: "apps/desktop/src/components/result/BattleRoundList.tsx",
+    cssFile: "apps/desktop/src/components/result/BattleRoundList.css",
+    cssVariablePrefix: "--battle-round-list-*",
+    dependencies: ["TurnDetailPanel"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "empty", name: "空回合"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-result-round-stage">
+          <BattleRoundPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "turn-detail-panel",
+    name: "回合详情面板",
+    group: "result",
+    defaultSize: {width: 210, height: 92},
+    componentFile: "apps/desktop/src/components/result/TurnDetailPanel.tsx",
+    cssFile: "apps/desktop/src/components/result/TurnDetailPanel.css",
+    cssVariablePrefix: "--turn-detail-panel-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "empty", name: "空状态"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const turn = stateId === "empty" ? null : resultPreviewRecordWithTurns.turn_records?.[stateId === "longText" ? 2 : 1] || null;
+      return (
+        <div className="component-gallery-result-turn-stage">
+          <TurnDetailPanel turn={turn} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "result-page",
+    name: "结算页面",
+    group: "result",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/components/result/ResultPage.tsx",
+    cssFile: "apps/desktop/src/components/result/ResultPage.css",
+    cssVariablePrefix: "--result-page-*",
+    dependencies: ["ResultHeader", "ResultSettlementGrid", "ResultTeamSummary", "ResultProgressList", "BattleRoundList"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "loss", name: "失败"},
+      {id: "abort", name: "中断"},
+      {id: "empty", name: "空状态"},
+      {id: "noRounds", name: "无回合"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-result-page-stage">
+          <ResultPagePreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "route-transition-video",
+    name: "转场视频背景",
+    group: "shell",
+    defaultSize: {width: 360, height: 150},
+    componentFile: "apps/desktop/src/pages/shell/RouteTransitionVideo.tsx",
+    cssFile: "apps/desktop/src/pages/shell/RouteTransitionVideo.css",
+    cssVariablePrefix: "--route-transition-video-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "fallback", name: "无视频"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-route-video-stage">
+          <RouteTransitionVideo disabled={stateId === "fallback"} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "route-transition-copy-panel",
+    name: "转场文案面板",
+    group: "shell",
+    defaultSize: {width: 420, height: 96},
+    componentFile: "apps/desktop/src/pages/shell/RouteTransitionCopyPanel.tsx",
+    cssFile: "apps/desktop/src/pages/shell/RouteTransitionCopyPanel.css",
+    cssVariablePrefix: "--route-transition-copy-panel-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const copy = stateId === "longText"
+        ? {title: "这是一段非常长的转场标题", detail: "正在读取很长很长的路线数据说明", tip: "长提示用于确认中转页底部文案不会遮挡关键画面，也不会把进度条挤出固定区域。"}
+        : routeTransitionCopy("battleMain", "battleStart");
+      return (
+        <div className="component-gallery-route-copy-stage" style={{"--route-transition-duration": "3600ms"} as CSSProperties}>
+          <RouteTransitionCopyPanel title={copy.title} detail={copy.detail} tip={copy.tip} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "route-transition-page",
+    name: "路线中转页",
+    group: "shell",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/pages/shell/RouteTransitionPage.tsx",
+    cssFile: "apps/desktop/src/pages/shell/RouteTransitionPage.css",
+    cssVariablePrefix: "--route-transition-page-*",
+    dependencies: ["RouteTransitionVideo", "RouteTransitionCopyPanel"],
+    states: [
+      {id: "battle", name: "进战斗"},
+      {id: "rest", name: "进休整"},
+      {id: "result", name: "进结算"},
+      {id: "fallback", name: "无视频"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const copy = stateId === "rest"
+        ? routeTransitionCopy("rest", "battleComplete")
+        : stateId === "result"
+          ? routeTransitionCopy("result", "settlement")
+          : stateId === "longText"
+            ? {title: "非常长的路线中转页标题", detail: "正在处理很长很长的转场详情文案", tip: "这条提示非常长，用来确认两行截断和底部区域高度稳定。", durationMs: 4200}
+            : routeTransitionCopy("battleMain", "battleStart");
+      return (
+        <div className="component-gallery-route-page-stage">
+          <RouteTransitionPage {...copy} videoDisabled={stateId === "fallback"} />
         </div>
       );
     },
