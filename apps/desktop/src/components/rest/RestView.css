@@ -45,27 +45,12 @@
   overflow: hidden;
 }
 
-.game-viewport .rest-bag-layout {
-  --bag-container-width: 620px;
-  --bag-container-height: 240px;
-  --bag-container-list-width: 280px;
-  --bag-container-action-width: 340px;
-  --bag-container-action-inner-width: 320px;
-  --bag-container-action-inner-height: 240px;
-  --bag-container-toolbar-height: 24px;
-  --bag-container-filter-width: 270px;
-  --bag-container-filter-height: 18px;
-  --bag-container-filter-button-width: 52px;
-  --bag-container-list-row-height: 36px;
-  --bag-container-list-icon-size: 28px;
-}
-
-.game-viewport .rest-bag-layout .bag-step-pokemon-picker .pokemon-team-picker {
-  --pokemon-team-picker-height: 210px;
-}
-
-.game-viewport .rest-bag-layout .bag-step-pokemon-picker:has(.bag-stat-picker) .pokemon-team-picker {
-  --pokemon-team-picker-height: 176px;
+.game-viewport .rest-bag-tool-panel {
+  --rest-bag-panel-width: 630px;
+  --rest-bag-panel-height: var(--rest-page-workspace-height);
+  --rest-bag-panel-list-width: 260px;
+  --rest-bag-panel-action-width: calc(var(--rest-bag-panel-width) - var(--rest-bag-panel-list-width) - 4px);
+  justify-self: start;
 }
 
 .move-draw-replace-stage {

@@ -227,6 +227,71 @@
   --pokemon-hp-bar-height: 8px;
 }
 
+.component-gallery-bag-filter-stage,
+.component-gallery-bag-list-stage,
+.component-gallery-bag-detail-stage,
+.component-gallery-bag-target-stage,
+.component-gallery-bag-action-stage,
+.component-gallery-rest-bag-stage {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.component-gallery-bag-filter-stage {
+  width: 280px;
+}
+
+.component-gallery-bag-list-stage {
+  width: 280px;
+  height: 142px;
+  border: 2px solid #25332b;
+  background: #fffdf5;
+}
+
+.component-gallery-bag-detail-stage,
+.component-gallery-bag-target-stage,
+.component-gallery-bag-action-stage {
+  width: 340px;
+  height: 150px;
+}
+
+.component-gallery-bag-detail-stage .bag-item-detail-panel {
+  --bag-container-action-inner-width: 320px;
+  --bag-container-action-inner-height: 136px;
+  transform: scale(.9);
+}
+
+.component-gallery-bag-target-stage .bag-target-pokemon-list {
+  --bag-container-action-inner-width: 320px;
+  --bag-container-action-inner-height: 142px;
+  --bag-target-pokemon-list-card-height: 38px;
+}
+
+.component-gallery-bag-action-stage .bag-action-panel {
+  --bag-container-height: 160px;
+  --bag-container-action-width: 340px;
+  --bag-container-action-inner-width: 320px;
+  --bag-container-action-inner-height: 124px;
+  transform: scale(.9);
+}
+
+.component-gallery-bag-action-stage .bag-action-panel.step-moveReplace {
+  --bag-container-height: 168px;
+}
+
+.component-gallery-rest-bag-stage {
+  width: 488px;
+  height: 150px;
+}
+
+.component-gallery-rest-bag-stage .rest-bag-tool-panel {
+  transform: scale(.64);
+  transform-origin: center;
+}
+
 .component-gallery-shell-stage {
   position: relative;
   width: 100%;

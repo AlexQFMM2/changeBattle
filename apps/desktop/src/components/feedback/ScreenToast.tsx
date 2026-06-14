@@ -3,7 +3,7 @@ import type {CSSProperties} from "react";
 import {createPortal} from "react-dom";
 import "./ScreenToast.css";
 
-export function ScreenToast({message, durationMs = 1000, tone = "normal", inline = false, onDone}: {message: string; durationMs?: number; tone?: "normal" | "danger"; inline?: boolean; onDone?: () => void}) {
+export function ScreenToast({message, durationMs = 1000, tone = "normal", inline = false, style, onDone}: {message: string; durationMs?: number; tone?: "normal" | "danger"; inline?: boolean; style?: CSSProperties; onDone?: () => void}) {
   useEffect(() => {
     if (!onDone || inline) return;
     const timer = window.setTimeout(onDone, durationMs);
@@ -11,7 +11,7 @@ export function ScreenToast({message, durationMs = 1000, tone = "normal", inline
   }, [durationMs, inline, onDone]);
 
   const toast = (
-    <div className={`screen-toast flow ${tone === "danger" ? "danger" : ""}`} style={{"--message-duration": `${durationMs}ms`} as CSSProperties} role="status" aria-live="polite">
+    <div className={`screen-toast flow ${tone === "danger" ? "danger" : ""}`} style={{"--message-duration": `${durationMs}ms`, ...style} as CSSProperties} role="status" aria-live="polite">
       {message}
     </div>
   );

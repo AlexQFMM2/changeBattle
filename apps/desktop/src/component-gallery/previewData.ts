@@ -1,5 +1,5 @@
 import type {CSSProperties} from "react";
-import type {BattleRecordEntry, BattleSetting, BattleTurnPokemonState, BattleTurnRecord, DesktopDexEntry, LocalSave, MoveSummary, PlayerPokemonState, RentalPokemon, RestState, ResultSummaryState, ShopItem, ShopOffer, SpriteMapEntry, StarterChoiceState, StarterItemGroup, StarterItemGroupState, TalentView, TrainerCatalogState} from "@changebattle/shared";
+import type {BagCategoryView, BagItemView, BattleRecordEntry, BattleSetting, BattleTurnPokemonState, BattleTurnRecord, DesktopDexEntry, LocalSave, MoveSummary, PlayerPokemonState, RentalPokemon, RestState, ResultSummaryState, ShopItem, ShopOffer, SpriteMapEntry, StarterChoiceState, StarterItemGroup, StarterItemGroupState, TalentView, TrainerCatalogState} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import type {MoveCardData} from "../components/move/MoveCard";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
@@ -505,6 +505,7 @@ function restPreviewPlayerState(pokemon: RentalPokemon, index: number, condition
 }
 
 function restPreviewState(team: RentalPokemon[], conditions: string[], ppScale = 1): RestState {
+  const bagCategories = createBagPreviewCategories();
   return {
     battle_no: 3,
     battles: 7,
@@ -514,8 +515,8 @@ function restPreviewState(team: RentalPokemon[], conditions: string[], ppScale =
     player_display: team,
     enemy_display: rentalPreviewCandidates.slice(3, 6),
     player_state: team.map((pokemon, index) => restPreviewPlayerState(pokemon, index, conditions[index] || "100/100", ppScale)),
-    bag_items: {potion: 2},
-    bag_categories: {consumable: [{id: "potion", name: "Potion", name_zh: "伤药", count: 2, category: "consumable", cost: 20, desc_zh: "回复少量 HP。"}], held: [], tm: []},
+    bag_items: Object.fromEntries(Object.values(bagCategories).flat().map(item => [item.id, item.count])),
+    bag_categories: bagCategories,
     talents: [],
     shop: {roll_count: 1, next_roll_cost: 20, slot_count: 3, offers: [], purchased_offer_id: null, purchased_offer_counts: {}, purchased_item_counts: {}},
     night_sky: {rows: Array.from({length: 7}, (_value, index) => ({battle_no: index + 1, label: index === 6 ? "最终战" : "挑战", trainer: {id: `preview-trainer-${index}`, type: index === 6 ? "champion" : "normal", name_zh: index === 6 ? "预览冠军" : "预览训练师"}, trainer_visible: true, revealed: index < 2 ? 3 : 0, enemies: []}))},
@@ -524,6 +525,29 @@ function restPreviewState(team: RentalPokemon[], conditions: string[], ppScale =
     costs: {exchange: 0, restore_hp: {1: 20, 2: 30, 3: 40}, restore_pp: {1: 20, 2: 30, 3: 40}, restore_status: {1: 20, 2: 30, 3: 40}, adjust_stats: 100, randomize_part: 50, randomize_all: 150, move_draw: 100, scout_basic: 50, scout_one: 100, scout_all: 200},
   };
 }
+
+export function createBagPreviewCategories(): BagCategoryView {
+  return {
+    consumable: [
+      {id: "potion", name: "Potion", name_zh: "伤药", count: 3, category: "consumable", cost: 20, desc_zh: "回复少量 HP。"},
+      {id: "antidote", name: "Antidote", name_zh: "解毒药", count: 2, category: "consumable", cost: 20, desc_zh: "治愈一只宝可梦的中毒状态。"},
+      {id: "maxpotion", name: "Max Potion", name_zh: "全满药", count: 0, category: "consumable", cost: 250, desc_zh: "完全回复 HP。用于检查无库存道具。"},
+      {id: "hpup", name: "HP Up", name_zh: "HP 增强剂", count: 1, category: "consumable", cost: 9800, desc_zh: "提高一只宝可梦的 HP 基础点数。"},
+      {id: "long-name-consumable", name: "Very Long Potion Name", name_zh: "名字非常非常长的恢复道具测试样本", count: 12, category: "consumable", cost: 20, desc_zh: "这段说明很长，用来检查详情面板内部换行，不应该进入左侧列表，也不应该撑破右侧操作区。"},
+    ],
+    held: [
+      {id: "leftovers", name: "Leftovers", name_zh: "剩饭", count: 2, category: "held", cost: 4000, desc_zh: "携带后每回合少量回复 HP。"},
+      {id: "charizarditex", name: "Charizardite X", name_zh: "喷火龙进化石X", count: 1, category: "held", item_battle_system: "mega", cost: 8000, desc_zh: "喷火龙携带后可以 Mega 进化。"},
+      {id: "firiumz", name: "Firium Z", name_zh: "火 Z", count: 1, category: "held", item_battle_system: "zmove", cost: 6000, desc_zh: "火属性 Z 纯晶。"},
+    ],
+    tm: [
+      {id: "tm:thunderbolt", name: "TM Thunderbolt", name_zh: "技能机器 十万伏特", count: 1, category: "tm", move_id: "thunderbolt", move_name: "Thunderbolt", move_name_zh: "十万伏特", move_type: "Electric", move_type_zh: "电", desc_zh: "向对手发出强力电击进行攻击，有时会让对手麻痹。"},
+      {id: "tm:flamethrower", name: "TM Flamethrower", name_zh: "技能机器 喷射火焰", count: 0, category: "tm", move_id: "flamethrower", move_name: "Flamethrower", move_name_zh: "喷射火焰", move_type: "Fire", move_type_zh: "火", desc_zh: "发射烈焰攻击。用于检查无库存技能机器。"},
+    ],
+  };
+}
+
+export const bagPreviewItems: BagItemView[] = Object.values(createBagPreviewCategories()).flat();
 
 export const restPreviewTeam = [
   restPreviewPokemon("pikachu", "皮卡丘", ["电"], {item_zh: "电气球", item: "lightball", item_id: "lightball", item_desc_zh: "皮卡丘携带后攻击和特攻提升。"}),

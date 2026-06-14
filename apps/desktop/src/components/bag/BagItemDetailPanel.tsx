@@ -18,7 +18,8 @@ export function BagItemDetailPanel({item, descriptionVisible = true, busy = fals
       <div className="bag-detail-hero">
         <div className="bag-detail-icon"><ItemIcon item={item} /></div>
         <strong>{item.name_zh || item.name}</strong>
-        <small>{itemCategoryLabel(item.category)}　剩余 x{item.count}</small>
+        <small>{item.name || item.id}</small>
+        <small className="bag-detail-meta"><span>{itemCategoryLabel(item.category)}</span><span>剩余 x{item.count}</span></small>
       </div>
       <div className="bag-detail-description">
         <p>{descriptionVisible ? item.desc_zh || item.desc || item.name : "？？？"}</p>

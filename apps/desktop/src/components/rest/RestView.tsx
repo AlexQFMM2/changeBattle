@@ -1,16 +1,13 @@
 import {useEffect, useRef, useState} from "react";
 import type {CSSProperties, ReactElement} from "react";
-import type {BagItemView, CoinLedgerEntry, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopKind, ShopOffer, StatId, TalentView} from "@changebattle/shared";
-import {REST_SHOP_DISCOUNT_COUPONS} from "@changebattle/shared";
+import type {BagItemView, CoinLedgerEntry, DesktopGameState, PricedMove, RentalPokemon, RestAction, RestEventStatusView, ShopKind, ShopOffer, TalentView} from "@changebattle/shared";
 import {AnimatePresence, motion, Reorder} from "motion/react";
 import {DraggableFloatingButton} from "../feedback/DraggableFloatingButton";
 import {ScreenToast} from "../feedback/ScreenToast";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {MoveCard, MoveCardContent, moveCardClassName} from "../move/MoveCard";
-import {BagLayout} from "../bag/BagLayout";
-import {BagItemDetailPanel} from "../bag/BagItemDetailPanel";
 import {MoveReplacePanel} from "../bag/MoveReplacePanel";
-import {PokemonTeamPicker} from "../bag/PokemonTeamPicker";
+import {RestBagPanel} from "../bag/RestBagPanel";
 import {ItemIcon, PokemonSprite, abilityDescription, coinCostLabel, conditionText, displayName, hpTone, itemCategoryLabel, moveDescription, parseHp, runtimeMoveLabel, statLine, statMarker, statusCode, statusLabel, talentShortText, toId, trainerImageUrl, typeId, userFacingError} from "../../lib/ui";
 import {STAT_ROWS} from "../../lib/ui";
 import {RestHeader} from "./RestHeader";
@@ -28,26 +25,6 @@ export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopG
 
 type RestActionResult = DesktopGameState | boolean | void;
 type RestActionHandler = (action: RestAction, successMessage?: string) => RestActionResult | Promise<RestActionResult>;
-type TrainingItemUi = {scope: "one" | "all"; fixedStat?: StatId};
-
-const TRAINING_ITEM_UI: Record<string, TrainingItemUi> = {
-  pomegberry: {scope: "one", fixedStat: "hp"},
-  kelpsyberry: {scope: "one", fixedStat: "atk"},
-  qualotberry: {scope: "one", fixedStat: "def"},
-  hondewberry: {scope: "one", fixedStat: "spa"},
-  grepaberry: {scope: "one", fixedStat: "spd"},
-  tamatoberry: {scope: "one", fixedStat: "spe"},
-  hpup: {scope: "one", fixedStat: "hp"},
-  protein: {scope: "one", fixedStat: "atk"},
-  iron: {scope: "one", fixedStat: "def"},
-  calcium: {scope: "one", fixedStat: "spa"},
-  zinc: {scope: "one", fixedStat: "spd"},
-  carbos: {scope: "one", fixedStat: "spe"},
-  bottlecap: {scope: "one"},
-  goldbottlecap: {scope: "all"},
-};
-
-const STAT_LABELS = Object.fromEntries(STAT_ROWS) as Record<StatId, string>;
 
 function isDesktopGameStateResult(result: RestActionResult): result is DesktopGameState {
   return Boolean(result && typeof result === "object" && "screen" in result);
@@ -73,6 +50,18 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   const [eventPanelOpen, setEventPanelOpen] = useState(false);
   const [coinLedgerOpen, setCoinLedgerOpen] = useState(false);
   const [toast, setToast] = useState<{id: number; message: string; tone?: "normal" | "danger"} | null>(null);
+  const restToastStyle = {
+    "--screen-toast-left": "14px",
+    "--screen-toast-min-width": "156px",
+    "--screen-toast-max-width": "260px",
+    "--screen-toast-border-width": "2px",
+    "--screen-toast-border-radius": "4px",
+    "--screen-toast-background": "rgb(31 27 29 / 82%)",
+    "--screen-toast-padding-y": "6px",
+    "--screen-toast-padding-x": "9px",
+    "--screen-toast-font-size": "9px",
+    "--screen-toast-line-height": "1.28",
+  } as CSSProperties;
 
   if (!rest) return <div className="loading-panel"><strong>正在整理队伍...</strong></div>;
   const nightSkyRows = rest.night_sky?.rows || [];
@@ -108,8 +97,8 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   const shouldPromptRainbowRocket = Boolean(rest.rainbow_rocket_support && !rest.rainbow_rocket_support.completed);
   const toolItems: RestToolItem[] = [
     {id: "myTeam", label: "我的队伍"},
-    {id: "exchange", label: "交换"},
     {id: "bag", label: "背包"},
+    {id: "exchange", label: "交换"},
     {id: "shop", label: "商店"},
     {id: "forge", label: "熔炉"},
     ...(rest.recycler_available ? [{id: "recycler", label: "道具回收商", event: true}] : []),
@@ -164,7 +153,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
             {!activePanel ? <div className="rest-workspace-empty" /> : null}
             {activePanel === "myTeam" ? <RestMyTeamPanel rest={rest} selectedSlot={pokemonModalSlot ?? 0} onSelectSlot={setPokemonModalSlot} onMove={(slot, moveSlot) => { setMoveEditorSlot(slot); setMoveEditorMoveSlot(moveSlot ?? 0); }} onUseItem={slot => { setBagTargetSlot(slot); setActivePanel("bag"); }} onUnequip={unequipItem} onStats={slot => { setStatsEditorSlot(slot); setActivePanel("statsEditor"); }} onAction={fireAction} /> : null}
             {activePanel === "exchange" ? <RestExchangeModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
-            {activePanel === "bag" ? <BagManageModal embedded rest={rest} initialTarget={bagTargetSlot} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "bag" ? <RestBagPanel rest={rest} initialTarget={bagTargetSlot} onAction={runRestAction} /> : null}
             {activePanel === "recycler" ? <ItemRecyclerModal embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
             {activePanel === "eventDoctor" ? <DoctorEventPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "eventTutor" ? <EventMoveServicePanel embedded rest={rest} service="tutor" onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
@@ -205,7 +194,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
           </section>
         </div>
       ) : null}
-      {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={2600} onDone={() => setToast(null)} /> : null}
+      {toast ? <ScreenToast key={toast.id} message={toast.message} tone={toast.tone} durationMs={2600} style={restToastStyle} onDone={() => setToast(null)} /> : null}
       {moveEditorSlot !== null ? <MoveAdjustModal rest={rest} initialSlot={moveEditorSlot} initialMoveSlot={moveEditorMoveSlot} onClose={() => setMoveEditorSlot(null)} onAction={runRestAction} /> : null}
       {coinLedgerOpen ? <CoinLedgerModal entries={rest.coin_ledger || []} onClose={() => setCoinLedgerOpen(false)} /> : null}
       {eventPanelOpen && rest.rest_event_statuses?.length ? <RestEventInfoPanel statuses={rest.rest_event_statuses} onClose={() => setEventPanelOpen(false)} /> : null}
@@ -675,309 +664,12 @@ function RestExchangeModal({rest, onClose, onAction, embedded = false}: {rest: N
   );
 }
 
-function tmMoveId(item?: BagItemView): string {
-  if (!item) return "";
-  if (item.move_id) return toId(item.move_id);
-  return item.id.startsWith("tm:") ? toId(item.id.slice(3)) : "";
-}
-
 function isLockedBagItem(item?: BagItemView | null): boolean {
   return Boolean(item?.locked);
 }
 
 function isBarterMaterialItem(item?: BagItemView | null): boolean {
   return Boolean(item && item.count > 0 && !item.locked && !item.item_battle_system);
-}
-
-type BagFilterKey = "recovery" | "tm" | "battle" | "training" | "system";
-
-const BAG_FILTERS: Array<{key: BagFilterKey; label: string}> = [
-  {key: "recovery", label: "恢复道具"},
-  {key: "tm", label: "技能机器"},
-  {key: "battle", label: "战斗道具"},
-  {key: "training", label: "训练道具"},
-  {key: "system", label: "系统道具"},
-];
-
-function isTrainingBagItem(item: BagItemView): boolean {
-  const id = toId(item.id);
-  return Boolean(TRAINING_ITEM_UI[id] || id === "rarecandy" || id === "abilitycapsule" || id === "abilitypatch" || id.endsWith("mint"));
-}
-
-function bagFilterForItem(item: BagItemView, filter: BagFilterKey): boolean {
-  const system = Boolean(item.locked || REST_SHOP_DISCOUNT_COUPONS[toId(item.id)]);
-  const training = isTrainingBagItem(item);
-  if (filter === "system") return system;
-  if (filter === "training") return !system && training;
-  if (filter === "tm") return !system && item.category === "tm";
-  if (filter === "battle") return !system && !training && (item.category === "held" || Boolean(item.item_battle_system));
-  if (filter === "recovery") return !system && !training && item.category === "consumable";
-  return true;
-}
-
-function BagManageModal({rest, onClose, onAction, embedded = false, initialTarget = 0}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean; initialTarget?: number}) {
-  const allItems = Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat();
-  const firstAvailableFilter = BAG_FILTERS.find(entry => allItems.some(item => bagFilterForItem(item, entry.key)))?.key || "recovery";
-  const [filter, setFilter] = useState<BagFilterKey>(firstAvailableFilter);
-  const items = allItems.filter(item => bagFilterForItem(item, filter));
-  const [itemId, setItemId] = useState(() => items[0]?.id || allItems[0]?.id || "");
-  const selected = items.find(item => item.id === itemId) || items[0] || null;
-
-  useEffect(() => {
-    if (itemId && !items.some(item => item.id === itemId)) setItemId(items[0]?.id || "");
-    if (!itemId && items.length) setItemId(items[0].id);
-  }, [itemId, items]);
-
-  useEffect(() => {
-    if (!items.length && filter !== firstAvailableFilter) setFilter(firstAvailableFilter);
-  }, [filter, firstAvailableFilter, items.length]);
-
-  const filterToolbar = (
-    <div className="bag-filter-tabs" role="tablist" aria-label="背包分类筛选">
-      {BAG_FILTERS.map(entry => {
-        const count = allItems.filter(item => bagFilterForItem(item, entry.key)).length;
-        return (
-          <button className={filter === entry.key ? "selected" : ""} disabled={!count} role="tab" aria-selected={filter === entry.key} onClick={() => setFilter(entry.key)} type="button" key={entry.key}>
-            <span>{entry.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  return (
-    <EmbeddedOrModal embedded={embedded}>
-      <BagLayout className="bag-manage-modal rest-bag-layout" items={items} selectedId={selected?.id} listToolbar={filterToolbar} onSelect={setItemId}>
-        {selected ? <RestBagItemPanel item={selected} rest={rest} initialTarget={initialTarget} onAction={onAction} onClearSelection={() => setItemId("")} /> : <p className="bag-empty">选择一个道具查看详情。</p>}
-      </BagLayout>
-    </EmbeddedOrModal>
-  );
-}
-
-type RestBagStep = "detail" | "pokemon_picker" | "move_replace";
-
-function tmFallbackMove(item: BagItemView): PricedMove {
-  const moveId = tmMoveId(item);
-  return {
-    id: moveId,
-    name: item.move_name || moveId,
-    name_zh: item.move_name_zh || item.name_zh?.replace(/^技能机器\s*/, "") || moveId,
-    type: item.move_type || "Normal",
-    type_zh: item.move_type_zh || item.move_type || "一般",
-    category: "Status",
-    category_zh: "变化",
-    power: 0,
-    accuracy: null,
-    pp: 0,
-    priority: 0,
-    desc: item.desc || "",
-    desc_zh: item.desc_zh || "",
-    short_desc: item.desc || "",
-    short_desc_zh: item.desc_zh || "",
-    cost: 0,
-  };
-}
-
-function RestBagItemPanel({item, rest, initialTarget, onAction, onClearSelection}: {item: BagItemView; rest: NonNullable<DesktopGameState["rest"]>; initialTarget: number; onAction: RestActionHandler; onClearSelection: () => void}) {
-  const [step, setStep] = useState<RestBagStep>("detail");
-  const [busySlot, setBusySlot] = useState<number | null>(null);
-  const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
-  const [tmLoading, setTmLoading] = useState(false);
-  const [selectedTarget, setSelectedTarget] = useState(() => Math.max(0, Math.min(initialTarget, Math.max(0, rest.player_display.length - 1))));
-  const [selectedMoveSlot, setSelectedMoveSlot] = useState<number | null>(null);
-  const [tmMove, setTmMove] = useState<PricedMove | null>(null);
-  const [tmMoveLoading, setTmMoveLoading] = useState(false);
-  const selectedMoveId = tmMoveId(item);
-  const trainingUi = TRAINING_ITEM_UI[toId(item.id)];
-  const discountCoupon = REST_SHOP_DISCOUNT_COUPONS[toId(item.id)];
-  const [selectedStat, setSelectedStat] = useState<StatId | undefined>(() => trainingUi?.scope === "one" ? trainingUi.fixedStat || "hp" : undefined);
-  const statOptions = trainingUi?.scope === "one"
-    ? trainingUi.fixedStat ? [trainingUi.fixedStat] : STAT_ROWS.map(([stat]) => stat)
-    : [];
-  const locked = isLockedBagItem(item);
-  const isTm = item.category === "tm";
-  const isConsumable = item.category === "consumable";
-  const isHeld = item.category === "held";
-
-  useEffect(() => {
-    if (item.count <= 0) onClearSelection();
-  }, [item.count, onClearSelection]);
-
-  useEffect(() => {
-    setSelectedStat(trainingUi?.scope === "one" ? trainingUi.fixedStat || "hp" : undefined);
-    setStep("detail");
-    setSelectedTarget(Math.max(0, Math.min(initialTarget, Math.max(0, rest.player_display.length - 1))));
-    setSelectedMoveSlot(null);
-    setTmMove(null);
-  }, [item.id, trainingUi?.fixedStat, trainingUi?.scope]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setTmLegalBySlot({});
-    if (!isTm || !selectedMoveId) return () => { cancelled = true; };
-    setTmLoading(true);
-    void Promise.all(rest.player_display.map((_pokemon, index) => window.changeBattle!.learnableMoves(index).then(moves => [index, moves.map(move => toId(move.id || move.name))] as const))).then(entries => {
-      if (!cancelled) setTmLegalBySlot(Object.fromEntries(entries));
-    }).finally(() => {
-      if (!cancelled) setTmLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [isTm, selectedMoveId, rest.player_display]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setTmMove(null);
-    if (!isTm || !selectedMoveId || step !== "move_replace") return () => { cancelled = true; };
-    setTmMoveLoading(true);
-    void window.changeBattle!.learnableMoves(selectedTarget).then(moves => {
-      if (!cancelled) setTmMove(moves.find(move => toId(move.id || move.name) === selectedMoveId) || null);
-    }).finally(() => {
-      if (!cancelled) setTmMoveLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [isTm, selectedMoveId, selectedTarget, step]);
-
-  function alreadyKnows(slot: number): boolean {
-    const pokemon = rest.player_display[slot];
-    return Boolean(selectedMoveId && pokemon?.moves.some(move => toId(move.id || move.name) === selectedMoveId));
-  }
-
-  function canUseOn(slot: number): boolean {
-    if (locked) return false;
-    if (isConsumable && trainingUi?.scope === "one" && !selectedStat) return false;
-    if (!isTm) return item.count > 0;
-    if (!selectedMoveId || alreadyKnows(slot)) return false;
-    return Boolean(tmLegalBySlot[slot]?.includes(selectedMoveId));
-  }
-
-  function targetText(slot: number): string {
-    if (isHeld) {
-      const held = rest.player_display[slot]?.item_zh || rest.player_display[slot]?.item;
-      return held ? `替换 ${held}` : "携带";
-    }
-    if (isTm) {
-      if (tmLoading) return "读取中";
-      if (alreadyKnows(slot)) return "已学会";
-      return canUseOn(slot) ? "学习" : "不能学";
-    }
-    return "使用";
-  }
-
-  function targetDisabledReason(slot: number): string {
-    if (locked) return item.lock_reason || "不可使用";
-    if (busySlot !== null) return busySlot === slot ? "处理中" : "等待";
-    if (item.count <= 0) return "没有库存";
-    if (isConsumable && trainingUi?.scope === "one" && !selectedStat) return "请选择能力项";
-    if (isTm) return targetText(slot);
-    return targetText(slot);
-  }
-
-  async function applyTo(slot: number) {
-    if (busySlot !== null || !canUseOn(slot)) return;
-    if (isTm) {
-      setSelectedTarget(slot);
-      setSelectedMoveSlot(null);
-      setStep("move_replace");
-      return;
-    }
-    setBusySlot(slot);
-    try {
-      const ok = isHeld
-        ? await Promise.resolve(onAction({type: "equip_item", itemId: item.id, slot}, "道具已携带"))
-        : await Promise.resolve(onAction({type: "use_item", itemId: item.id, slot, stat: trainingUi?.scope === "one" ? selectedStat : undefined, context: "rest"}, "道具已使用"));
-      if (ok !== false) setStep("detail");
-    } finally {
-      setBusySlot(null);
-    }
-  }
-
-  async function applyDirect() {
-    if (busySlot !== null) return;
-    setBusySlot(-1);
-    try {
-      const ok = await Promise.resolve(onAction({type: "use_item", itemId: item.id, slot: 0, context: "rest"}, "道具已使用"));
-      if (ok !== false) setStep("detail");
-    } finally {
-      setBusySlot(null);
-    }
-  }
-
-  async function confirmTmReplace() {
-    if (busySlot !== null || selectedMoveSlot === null || !selectedMoveId) return;
-    setBusySlot(selectedTarget);
-    try {
-      const ok = await Promise.resolve(onAction({type: "use_tm", itemId: item.id, slot: selectedTarget, moveSlot: selectedMoveSlot}, "技能机器已使用"));
-      if (ok !== false) setStep("detail");
-    } finally {
-      setBusySlot(null);
-    }
-  }
-
-  const targetPokemon = rest.player_display[selectedTarget] || rest.player_display[0];
-  const targetState = rest.player_state[selectedTarget];
-  const statPicker = trainingUi?.scope === "one" && !locked && !discountCoupon ? (
-    <div className="bag-stat-picker" aria-label="选择能力项">
-      <span>能力项</span>
-      {statOptions.map(stat => (
-        <button className={selectedStat === stat ? "selected" : ""} type="button" onClick={() => setSelectedStat(stat)} key={stat}>
-          {STAT_LABELS[stat]}
-        </button>
-      ))}
-    </div>
-  ) : null;
-  const team = rest.player_display.map((pokemon, index) => {
-    const disabled = !canUseOn(index);
-    return {
-      pokemon,
-      condition: rest.player_state[index]?.condition,
-      status: rest.player_state[index]?.status,
-      heldItem: pokemon.item_zh || pokemon.item || "无道具",
-      disabled,
-      disabledReason: targetDisabledReason(index),
-    };
-  });
-  const detailDisabled = locked || busySlot !== null || item.count <= 0 || (isConsumable && trainingUi?.scope === "one" && !selectedStat);
-  const detailReason = locked ? item.lock_reason || "这是规则提供的特殊道具，只能查看，不能使用、丢弃或交换。" : discountCoupon?.desc_zh;
-  const displayMove = tmMove || tmFallbackMove(item);
-
-  return (
-    <section className={`bag-target-content bag-target-pane bag-step-${step.replace("_", "-")}`}>
-      {step === "detail" ? (
-        <>
-          <BagItemDetailPanel item={item} disabled={detailDisabled} disabledReason={detailReason} busy={busySlot !== null} onUse={() => void (discountCoupon ? applyDirect() : setStep("pokemon_picker"))} />
-          {statPicker}
-        </>
-      ) : null}
-      {step === "pokemon_picker" ? (
-        <>
-          <div className="bag-flow-toolbar">
-            <button onClick={() => setStep("detail")}>返回详情</button>
-            <small>{isTm ? "选择能学习该技能的宝可梦" : isHeld ? "点击宝可梦后立即切换携带道具" : "点击宝可梦后立即使用"}</small>
-          </div>
-          {statPicker}
-          <PokemonTeamPicker team={team} selectedIndex={selectedTarget} busyIndex={busySlot} title={isTm ? "选择学习者" : "选择使用对象"} onSelect={slot => {
-            setSelectedTarget(slot);
-            void applyTo(slot);
-          }} />
-        </>
-      ) : null}
-      {step === "move_replace" && targetPokemon ? (
-        <>
-          {tmMoveLoading ? <p className="bag-flow-loading">读取技能资料中...</p> : null}
-          <MoveReplacePanel
-            pokemon={targetPokemon}
-            state={targetState}
-            newMove={displayMove}
-            selectedMoveSlot={selectedMoveSlot}
-            busy={busySlot !== null}
-            onSelectMoveSlot={setSelectedMoveSlot}
-            onConfirm={() => void confirmTmReplace()}
-            onCancel={() => setStep("pokemon_picker")}
-          />
-        </>
-      ) : null}
-    </section>
-  );
 }
 
 function ItemRecyclerModal({rest, onClose, onAction, embedded = false}: {rest: NonNullable<DesktopGameState["rest"]>; onClose: () => void; onAction: RestActionHandler; embedded?: boolean}) {

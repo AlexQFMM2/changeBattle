@@ -1,90 +1,125 @@
 .bag-item-detail-panel.bag-item-detail-panel {
   --bag-item-detail-width: var(--bag-container-action-inner-width, 320px);
-  --bag-item-detail-height: var(--bag-container-action-inner-height, 180px);
-  --bag-item-detail-hero-height: 70px;
-  --bag-item-detail-footer-height: 24px;
-  --bag-item-detail-gap: 5px;
-  --bag-item-detail-description-height: calc(
-    var(--bag-item-detail-height) -
-    var(--bag-item-detail-hero-height) -
-    var(--bag-item-detail-footer-height) -
-    var(--bag-item-detail-gap) * 2
-  );
-  --bag-item-detail-icon-size: 58px;
-  --bag-item-detail-name-font-size: 9px;
-  --bag-item-detail-meta-font-size: 6px;
-  --bag-item-detail-desc-font-size: 7px;
+  --bag-item-detail-height: var(--bag-container-action-inner-height, 184px);
+  --bag-item-detail-header-height: 58px;
+  --bag-item-detail-footer-height: 40px;
+  --bag-item-detail-icon-size: 48px;
+  --bag-item-detail-gap: 8px;
+  --bag-item-detail-title-font-size: 16px;
+  --bag-item-detail-meta-font-size: 8px;
+  --bag-item-detail-desc-font-size: 10px;
   width: var(--bag-item-detail-width);
   height: var(--bag-item-detail-height);
-  min-width: var(--bag-item-detail-width);
-  min-height: var(--bag-item-detail-height);
+  min-width: 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: var(--bag-item-detail-width);
-  grid-template-rows: var(--bag-item-detail-hero-height) var(--bag-item-detail-description-height) var(--bag-item-detail-footer-height);
+  grid-template-rows:
+    var(--bag-item-detail-header-height)
+    minmax(0, 1fr)
+    var(--bag-item-detail-footer-height);
   gap: var(--bag-item-detail-gap);
   overflow: hidden;
 }
 
 .bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero {
   width: var(--bag-item-detail-width);
-  height: var(--bag-item-detail-hero-height);
+  height: var(--bag-item-detail-header-height);
+  min-width: 0;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 64px calc(var(--bag-item-detail-width) - 74px);
-  grid-template-rows: 32px 26px;
-  gap: 4px 10px;
+  grid-template-columns: var(--bag-item-detail-icon-size) minmax(0, 1fr);
+  grid-template-rows: 26px 14px 12px;
+  align-items: center;
+  gap: 1px 10px;
 }
 
 .bag-item-detail-panel.bag-item-detail-panel .bag-detail-icon {
   width: var(--bag-item-detail-icon-size);
   height: var(--bag-item-detail-icon-size);
-  grid-row: 1 / span 2;
+  grid-column: 1;
+  grid-row: 1 / 3;
   display: grid;
   place-items: center;
-  border: 2px solid #25332b;
-  background: #fffdf5;
+  border: 0;
+  background: transparent;
+}
+
+.rest-bag-tool-panel .bag-item-detail-panel.bag-item-detail-panel .bag-detail-icon,
+.component-gallery-bag-detail-stage .bag-item-detail-panel.bag-item-detail-panel .bag-detail-icon,
+.component-gallery-bag-action-stage .bag-item-detail-panel.bag-item-detail-panel .bag-detail-icon {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .bag-item-detail-panel.bag-item-detail-panel .bag-detail-icon .item-icon {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
 }
 
 .bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong,
-.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > small {
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > small,
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-meta {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong {
+  grid-column: 2;
+  grid-row: 1;
+  color: #25332b;
+  font-size: var(--bag-item-detail-title-font-size);
+  font-weight: 950;
+}
+
+.rest-bag-tool-panel .bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong,
+.component-gallery-bag-detail-stage .bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong,
+.component-gallery-bag-action-stage .bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong {
+  min-height: 0;
+  display: block;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > small:not(.bag-detail-meta) {
+  grid-column: 2;
+  grid-row: 2;
+  color: #596052;
+  font-size: var(--bag-item-detail-meta-font-size);
+  font-weight: 850;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > .bag-detail-meta {
+  grid-column: 2;
+  grid-row: 3;
+  color: #596052;
+  font-size: 7px;
+  font-weight: 850;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-meta span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > strong {
-  height: 28px;
-  display: grid;
-  align-items: center;
-  border: 2px solid #25332b;
-  background: #fffdf5;
-  padding: 0 8px;
-  color: #25332b;
-  font-size: var(--bag-item-detail-name-font-size);
-  font-weight: 950;
-  line-height: 1;
-}
-
-.bag-item-detail-panel.bag-item-detail-panel .bag-detail-hero > small {
-  height: 22px;
-  color: #596052;
-  font-size: var(--bag-item-detail-meta-font-size);
-  font-weight: 850;
-  line-height: 22px;
-}
-
 .bag-item-detail-panel.bag-item-detail-panel .bag-detail-description {
   width: var(--bag-item-detail-width);
-  height: var(--bag-item-detail-description-height);
+  min-width: 0;
+  min-height: 0;
   display: block;
-  border: 0;
   background: transparent;
-  padding: 4px 6px;
+  padding: 2px 4px;
   overflow: hidden;
 }
 
@@ -92,26 +127,60 @@
   margin: 0;
   color: #25332b;
   font-size: var(--bag-item-detail-desc-font-size);
-  font-weight: 850;
-  line-height: 1.25;
+  font-weight: 950;
+  line-height: 1.45;
   text-align: left;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-disabled-reason {
+  display: block;
+  margin-top: 6px;
+  color: #9d2f2f;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1.25;
 }
 
 .bag-item-detail-panel.bag-item-detail-panel footer {
   width: var(--bag-item-detail-width);
   height: var(--bag-item-detail-footer-height);
+  min-width: 0;
   display: grid;
   justify-items: end;
-  align-items: center;
+  align-items: start;
+  padding-top: 2px;
+  padding-right: 14px;
 }
 
 .bag-item-detail-panel.bag-item-detail-panel .bag-detail-use-button {
   width: 52px;
-  height: 20px;
+  height: 26px;
   min-width: 52px;
-  min-height: 20px;
+  min-height: 26px;
+  border: 3px solid #25332b;
+  border-radius: 6px;
+  background: #fffdf5;
+  color: #25332b;
   padding: 0;
-  border-width: 2px;
-  font-size: 7px;
+  font-size: 8px;
+  font-weight: 950;
   line-height: 1;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 0 #3d2d35;
+}
+
+.rest-bag-tool-panel .bag-item-detail-panel.bag-item-detail-panel .bag-detail-use-button,
+.component-gallery-bag-detail-stage .bag-item-detail-panel.bag-item-detail-panel .bag-detail-use-button,
+.component-gallery-bag-action-stage .bag-item-detail-panel.bag-item-detail-panel .bag-detail-use-button {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-use-button:not(:disabled):hover,
+.bag-item-detail-panel.bag-item-detail-panel .bag-detail-use-button:not(:disabled):focus-visible {
+  border-color: #d05264;
+  background: #fff4f2;
+  outline: none;
 }

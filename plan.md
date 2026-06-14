@@ -128,13 +128,13 @@
 
 ### 新增/拆分组件
 
-- `GameViewport.tsx/css`
+- `GameViewport.tsx/css` 【x】
   - 功能：统一 `640 x 320` 画布和外层缩放。
   - 变量：`--game-viewport-width`、`--game-viewport-height`、`--game-viewport-scale`。
-- `RouteRenderer.tsx/css`
+- `RouteRenderer.tsx/css` 【x】
   - 功能：根据 screen 渲染页面，集中处理失效页面 fallback。
   - 变量：`--route-renderer-width`、`--route-renderer-height`。
-- `QuickDexButton.tsx/css`
+- `QuickDexButton.tsx/css` 【x】
   - 功能：固定位置图鉴入口，不拖动。
   - 变量：`--quick-dex-button-size`、`--quick-dex-button-right`、`--quick-dex-button-top`。
 
@@ -165,16 +165,16 @@
 
 ### 新增/拆分组件
 
-- `TitlePage.tsx/css`
+- `TitlePage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--title-page-width`、`--title-page-height`。
-- `TitleVideoBackground.tsx/css`
+- `TitleVideoBackground.tsx/css` 【x】
   - 功能：标题视频背景。
   - 变量：`--title-video-width`、`--title-video-height`。
-- `TitleCommandMenu.tsx/css`
+- `TitleCommandMenu.tsx/css` 【x】
   - 功能：标题页按钮列表。
   - 变量：`--title-command-menu-width`、`--title-command-menu-button-height`、`--title-command-menu-gap`。
-- `SaveSelectPanel.tsx/css`
+- `SaveSelectPanel.tsx/css` 【x】
   - 功能：存档读取/新建/删除。
   - 变量：`--save-select-panel-width`、`--save-select-panel-row-height`。
 
@@ -209,19 +209,19 @@
 
 ### 新增/拆分组件
 
-- `MainMenuPage.tsx/css`
+- `MainMenuPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--main-menu-page-left-width`、`--main-menu-page-right-width`、`--main-menu-page-command-height`。
-- `TrainerSummaryPanel.tsx/css`
+- `TrainerSummaryPanel.tsx/css` 【x】
   - 功能：训练师信息、BP、统计。
   - 变量：`--trainer-summary-panel-width`、`--trainer-summary-panel-height`。
-- `FavoritePokemonPanel.tsx/css`
+- `FavoritePokemonPanel.tsx/css` 【x】
   - 功能：常用/收藏宝可梦展示。
   - 变量：`--favorite-pokemon-panel-card-height`。
-- `DiscoveryPanel.tsx/css`
+- `DiscoveryPanel.tsx/css` 【x】
   - 功能：发现、提示、最近记录。
   - 变量：`--discovery-panel-row-height`。
-- `MainMenuCommandBar.tsx/css`
+- `MainMenuCommandBar.tsx/css` 【x】
   - 功能：主页面按钮。
   - 变量：`--main-menu-command-bar-button-width`、`--main-menu-command-bar-button-height`。
 
@@ -252,16 +252,16 @@
 
 ### 新增/拆分组件
 
-- `PlayerSettingsPage.tsx/css`
+- `PlayerSettingsPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--player-settings-page-form-width`、`--player-settings-page-preview-width`。
-- `PlayerNameEditor.tsx/css`
+- `PlayerNameEditor.tsx/css` 【x】
   - 功能：名字输入。
   - 变量：`--player-name-editor-input-height`。
-- `TrainerAvatarPicker.tsx/css`
+- `TrainerAvatarPicker.tsx/css` 【x】
   - 功能：头像/角色格子选择。
   - 变量：`--trainer-avatar-picker-cell-size`、`--trainer-avatar-picker-grid-height`。
-- `TrainerPreviewPanel.tsx/css`
+- `TrainerPreviewPanel.tsx/css` 【x】
   - 功能：右侧角色预览。
   - 变量：`--trainer-preview-panel-image-size`。
 
@@ -293,16 +293,16 @@
 
 ### 新增/拆分组件
 
-- `TalentConfigPage.tsx/css`
+- `TalentConfigPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--talent-config-page-toolbar-height`。
-- `TalentToolbar.tsx/css`
+- `TalentToolbar.tsx/css` 【x】
   - 功能：返回、重置视角、实际尺寸、BP 展示。
   - 变量：`--talent-toolbar-height`、`--talent-toolbar-button-width`。
-- `TalentBoardCanvas.tsx/css`
+- `TalentBoardCanvas.tsx/css` 【x】
   - 功能：星图节点、连线、拖动缩放。
   - 变量：`--talent-board-canvas-width`、`--talent-board-canvas-height`。
-- `TalentNodeDetailDrawer.tsx/css`
+- `TalentNodeDetailDrawer.tsx/css` 【x】
   - 功能：右侧详情抽屉。
   - 变量：`--talent-node-detail-drawer-width`。
 
@@ -317,7 +317,7 @@
 - 打开/关闭详情，右侧不残留空黑框。
 - 星图可拖动缩放，节点不溢出主画布。
 
-## 3.6 StarterUpgradePage[已废弃]
+## 3.6 StarterUpgradePage 【已废弃】
 
 ### 页面职责
 
@@ -333,16 +333,16 @@
 
 ### 新增/拆分组件
 
-- `StarterUpgradePage.tsx/css`
+- `StarterUpgradePage.tsx/css` 【已废弃】
   - 页面骨架。
   - 变量：`--starter-upgrade-page-list-width`、`--starter-upgrade-page-detail-width`。
-- `StarterUpgradeList.tsx/css`
+- `StarterUpgradeList.tsx/css` 【已废弃】
   - 功能：强化条目列表。
   - 变量：`--starter-upgrade-list-row-height`。
-- `StarterUpgradeDetail.tsx/css`
+- `StarterUpgradeDetail.tsx/css` 【已废弃】
   - 功能：详情、等级、效果、消耗。
   - 变量：`--starter-upgrade-detail-header-height`。
-- `StarterUpgradeActionBar.tsx/css`
+- `StarterUpgradeActionBar.tsx/css` 【已废弃】
   - 功能：返回和升级按钮。
   - 变量：`--starter-upgrade-action-bar-height`。
 
@@ -373,16 +373,16 @@
 
 ### 新增/拆分组件
 
-- `BattleHistoryPage.tsx/css`
+- `BattleHistoryPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--battle-history-page-list-width`、`--battle-history-page-detail-width`。
-- `RunRecordList.tsx/css`
+- `RunRecordList.tsx/css` 【x】
   - 功能：挑战记录列表。
   - 变量：`--run-record-list-row-height`。
-- `RunRecordDetailPanel.tsx/css`
+- `RunRecordDetailPanel.tsx/css` 【x】
   - 功能：记录摘要。
   - 变量：`--run-record-detail-panel-width`。
-- `HistoryActionBar.tsx/css`
+- `HistoryActionBar.tsx/css` 【x】
   - 功能：返回、刷新、进入结算。
   - 变量：`--history-action-bar-height`。
 
@@ -413,16 +413,16 @@
 
 ### 新增/拆分组件
 
-- `BattleSettingPage.tsx/css`
+- `BattleSettingPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--battle-setting-page-tabs-height`、`--battle-setting-page-action-height`。
-- `BattleRuleTabs.tsx/css`
+- `BattleRuleTabs.tsx/css` 【x】
   - 功能：规则分组 tab。
   - 变量：`--battle-rule-tabs-height`、`--battle-rule-tabs-button-width`。
-- `BattleRulePresetList.tsx/css`
+- `BattleRulePresetList.tsx/css` 【x】
   - 功能：预设列表。
   - 变量：`--battle-rule-preset-list-row-height`。
-- `BattleRuleDetailPanel.tsx/css`
+- `BattleRuleDetailPanel.tsx/css` 【x】
   - 功能：预设详情。
   - 变量：`--battle-rule-detail-panel-width`。
 
@@ -453,16 +453,16 @@
 
 ### 新增/拆分组件
 
-- `StarterItemsPage.tsx/css`
+- `StarterItemsPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--starter-items-page-list-width`、`--starter-items-page-detail-width`。
-- `StarterOfferList.tsx/css`
+- `StarterOfferList.tsx/css` 【x】
   - 功能：offer 列表。
   - 变量：`--starter-offer-list-row-height`。
-- `StarterOfferDetail.tsx/css`
+- `StarterOfferDetail.tsx/css` 【x】
   - 功能：offer 详情。
   - 变量：`--starter-offer-detail-icon-size`。
-- `StarterItemsActionBar.tsx/css`
+- `StarterItemsActionBar.tsx/css` 【x】
   - 功能：确认、跳过、返回。
   - 变量：`--starter-items-action-bar-height`。
 
@@ -495,22 +495,22 @@
 
 ### 新增/拆分组件
 
-- `RentalSelectPage.tsx/css`
+- `RentalSelectPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--rental-select-page-candidate-width`、`--rental-select-page-detail-width`、`--rental-select-page-action-height`。
-- `RentalCandidateList.tsx/css`
+- `RentalCandidateList.tsx/css` 【x】
   - 功能：候选列表。
   - 变量：`--rental-candidate-list-card-height`。
-- `RentalCandidateCard.tsx/css`
+- `RentalCandidateCard.tsx/css` 【x】
   - 功能：单只候选卡。
   - 变量：`--rental-candidate-card-sprite-size`。
-- `RentalPokemonDetail.tsx/css`
+- `RentalPokemonDetail.tsx/css` 【x】
   - 功能：当前聚焦宝可梦详情。
   - 变量：`--rental-pokemon-detail-width`。
-- `RentalTeamPreview.tsx/css`
+- `RentalTeamPreview.tsx/css` 【x】
   - 功能：已选队伍预览。
   - 变量：`--rental-team-preview-slot-width`。
-- `ScoutControls.tsx/css`
+- `ScoutControls.tsx/css` 【x】
   - 功能：小道消息按钮和费用展示。
   - 变量：`--scout-controls-button-height`。
 
@@ -525,7 +525,7 @@
 - 小道消息免费/50 金币文案清楚。
 - 候选数量变化不影响底部按钮位置。
 
-## 3.11 BattlePage
+## 3.11 BattlePage 【】
 
 ### 页面职责
 
@@ -550,43 +550,43 @@
 
 ### 新增/拆分组件
 
-- `BattlePage.tsx/css`
+- `BattlePage.tsx/css` 【】
   - 页面骨架。
   - 变量：`--battle-page-field-height`、`--battle-page-party-width`、`--battle-page-command-height`。
-- `BattleField.tsx/css`
+- `BattleField.tsx/css` 【】
   - 功能：背景、平台、双方 active、视觉效果。
   - 变量：`--battle-field-width`、`--battle-field-height`、`--battle-field-player-x`、`--battle-field-enemy-x`。
-- `BattleFighterPanel.tsx/css`
+- `BattleFighterPanel.tsx/css` 【】
   - 功能：宝可梦大图、名字、HP、状态。
   - 变量：`--battle-fighter-panel-width`、`--battle-fighter-panel-sprite-size`、`--battle-fighter-panel-hp-width`。
-- `BattlePartyBoard.tsx/css`
+- `BattlePartyBoard.tsx/css` 【】
   - 功能：双方队伍小图。
   - 变量：`--battle-party-board-width`、`--battle-party-board-slot-height`。
-- `BattleMessageBox.tsx/css`
+- `BattleMessageBox.tsx/css` 【】
   - 功能：战斗文本提示。
   - 变量：`--battle-message-box-height`。
-- `BattleCommandPanel.tsx/css`
+- `BattleCommandPanel.tsx/css` 【】
   - 功能：底部主指令容器。
   - 变量：`--battle-command-panel-height`。
-- `BattleToolbar.tsx/css`
+- `BattleToolbar.tsx/css` 【】
   - 功能：AI提示、倍速、AI代打。
   - 变量：`--battle-toolbar-height`、`--battle-toolbar-button-width`。
-- `BattleMoveMenu.tsx/css`
+- `BattleMoveMenu.tsx/css` 【】
   - 功能：招式选择、Mega/Z/极巨/太晶。
   - 变量：`--battle-move-menu-card-height`。
-- `BattleTeamMenu.tsx/css`
+- `BattleTeamMenu.tsx/css` 【】
   - 功能：换人列表。
   - 变量：`--battle-team-menu-row-height`。
-- `BattleBagPanel.tsx/css`
+- `BattleBagPanel.tsx/css` 【】
   - 功能：战斗背包，复用 `BagContainer`。
   - 变量：`--battle-bag-panel-width`、`--battle-bag-panel-height`。
-- `BattlePokemonDetail.tsx/css`
+- `BattlePokemonDetail.tsx/css` 【】
   - 功能：战斗中宝可梦详情。
   - 变量：`--battle-pokemon-detail-width`。
-- `BattleAiHintModal.tsx/css`
+- `BattleAiHintModal.tsx/css` 【】
   - 功能：冠军 AI 建议、理由、执行建议。
   - 变量：`--battle-ai-hint-modal-width`。
-- `BattleTurnRecordPanel.tsx/css`
+- `BattleTurnRecordPanel.tsx/css` 【】
   - 功能：本场回合列表和回合详情。
   - 变量：`--battle-turn-record-panel-row-height`。
 
@@ -606,7 +606,7 @@
 - 战斗结束回写按 `showdown_id / pokeball`，不会 A 覆盖 B。
 - AI 代打在宝可梦死亡后能自动处理强制换人。
 
-## 3.12 ExchangePage【转休息页组件 / 不单独实施】
+## 3.12 ExchangePage 【已废弃】
 
 ### 页面职责
 
@@ -623,16 +623,16 @@
 
 ### 新增/拆分组件
 
-- `ExchangePage.tsx/css`
+- `ExchangePage.tsx/css` 【已废弃】
   - 页面骨架。
   - 变量：`--exchange-page-list-width`、`--exchange-page-compare-width`。
-- `ExchangePokemonRow.tsx/css`
+- `ExchangePokemonRow.tsx/css` 【已废弃】
   - 功能：交换列表行。
   - 变量：`--exchange-pokemon-row-height`、`--exchange-pokemon-row-sprite-size`。
-- `ExchangeComparePanel.tsx/css`
+- `ExchangeComparePanel.tsx/css` 【已废弃】
   - 功能：双方比较。
   - 变量：`--exchange-compare-panel-width`。
-- `ExchangeActionBar.tsx/css`
+- `ExchangeActionBar.tsx/css` 【已废弃】
   - 功能：确认、跳过。
   - 变量：`--exchange-action-bar-height`。
 
@@ -647,7 +647,7 @@
 - 选择双方后比较区信息完整。
 - 跳过和确认按钮不遮挡列表。
 
-## 3.13 RestPage
+## 3.13 RestPage 【】
 
 ### 第一版记录
 
@@ -656,7 +656,9 @@
 - `我的队伍` 左侧队伍缩略卡使用左图右名/HP 条布局，HP 条复用 `PokemonHpBar`。
 - 选中宝可梦详情已调整为资料/随机数值/描述三列；技能区为 2 行 2 列完整 `MoveCard`。
 - 技能随机改为两段式：先随机候选并确认学习，再选择替换旧技能后确认替换。
-- 背包、商店、熔炉、交换、进度图、事件服务、技能调整、数值调整等暂走 `RestMainPanelHost` legacy adapter 分支，后续逐个工具区继续拆分。
+- 背包工具区已完成左右分栏重构；商店、熔炉、交换、进度图、事件服务、技能调整、数值调整等暂走 `RestMainPanelHost` legacy adapter 分支，后续逐个工具区继续拆分。
+- 工具切换栏当前顺序：`我的队伍`、`背包`、`交换`、`商店`、`熔炉`、事件/进度/天赋入口；`背包` 已移动到 `我的队伍` 后。
+- 休整页非阻塞提示继续使用 `ScreenToast`；休整页需要更大提示时通过 `style` 传入 `--screen-toast-*` 变量覆盖，不修改 `ScreenToast.css` 默认值。
 - 本节不标记 `【x】`，等所有工具区完成组件化后再整页验收。
 
 ### 页面职责
@@ -690,75 +692,94 @@
 
 ### 新增/拆分组件
 
-- `RestPage.tsx/css`
+- `RestPage.tsx/css` 【】
   - 页面骨架。
   - 变量：`--rest-page-header-height`、`--rest-page-toolbar-height`、`--rest-page-main-height`、`--rest-page-right-padding`。
-- `RestHeader.tsx/css`
+- `RestHeader.tsx/css` 【x】
   - 功能：休整标题、进度、连胜、金币、结束/下一场按钮。
   - 变量：`--rest-header-height`、`--rest-header-button-height`。
-- `RestToolBar.tsx/css`
+- `RestToolBar.tsx/css` 【x】
   - 功能：工具区切换；`我的队伍` 固定第一项，后续接背包、商店、熔炉、进度图、天赋、事件入口。
   - 变量：`--rest-toolbar-height`、`--rest-toolbar-button-width`。
-- `RestMainPanelHost.tsx/css`
+- `RestMainPanelHost.tsx/css` 【x】
   - 功能：承载当前打开的工具面板；第一版保留 legacy adapter 分支转接旧工具区。
   - 变量：`--rest-main-panel-host-width`、`--rest-main-panel-host-height`。
-- `RestMyTeamPanel.tsx/css`
+- `RestMyTeamPanel.tsx/css` 【x】
   - 功能：我的队伍工具区，左侧队伍缩略卡，右侧选中宝可梦详情。
   - 变量：`--rest-my-team-panel-slot-width`、`--rest-my-team-panel-profile-width`、`--rest-my-team-panel-stats-width`、`--rest-my-team-panel-move-width`。
-- `RestTeamMiniCard.tsx/css`
+- `RestTeamMiniCard.tsx/css` 【x】
   - 功能：队伍小卡，展示编号、小图、名字、HP 条、异常状态、选中态。
   - 变量：`--rest-team-mini-card-*`。
-- `RestPokemonSlot.tsx/css`
+- `RestPokemonSlot.tsx/css` 【x】
   - 功能：队伍小格子，展示小图、名字、HP 条、异常状态、选中态。
   - 变量：`--rest-pokemon-slot-*`。
-- `RestPokemonProfileCard.tsx/css`
+- `RestPokemonProfileCard.tsx/css` 【x】
   - 功能：当前宝可梦资料卡，展示大图、HP 条、名字、属性、性格、特性、道具。
   - 变量：`--rest-pokemon-profile-card-*`。
-- `RestPokemonMoveGrid.tsx/css`
+- `RestPokemonMoveGrid.tsx/css` 【x】
   - 功能：技能卡网格，复用 `MoveCard`。
   - 变量：`--rest-pokemon-move-grid-*`。
-- `RestPokemonInfoPanel.tsx/css`
+- `RestPokemonInfoPanel.tsx/css` 【x】
   - 功能：当前聚焦性格/特性/道具/技能说明和相关操作。
   - 变量：`--rest-pokemon-info-panel-*`。
-- `RestSelectedPokemonDetail.tsx/css`
+- `RestSelectedPokemonDetail.tsx/css` 【x】
   - 功能：选中宝可梦详情，右侧三列布局：资料/技能、随机花费与数值、选中描述；技能区为 2 行 2 列。
   - 变量：`--rest-selected-pokemon-detail-*`。
-- `RestEventPrompt.tsx/css`
+- `RestEventPrompt.tsx/css` 【】
   - 功能：随机事件提示和选择。
   - 变量：`--rest-event-prompt-height`。
-- `RestBagPanel.tsx/css`
-  - 功能：休整背包，复用 `BagContainer`。
-  - 变量：`--rest-bag-panel-width`、`--rest-bag-panel-height`。
-- `RestShopPanel.tsx/css`
+- `RestBagPanel.tsx/css` 【x】
+  - 功能：休整背包工具区入口，左侧分类/列表，右侧详情、队伍目标、技能替换流程。
+  - 使用：接收 `rest`、`initialTarget`、`onAction`；内部继续派发现有 `use_item`、`equip_item`、`use_tm`，不新增 runtime API。
+  - 注意：外层宽度通过 `--rest-bag-panel-*` 控制；不要重新接回旧 `BagManageModal` / `BagLayout` 分支。
+  - 变量：`--rest-bag-panel-width`、`--rest-bag-panel-height`、`--rest-bag-panel-list-width`、`--rest-bag-panel-action-width`。
+- `BagFilterTabs.tsx/css` 【x】
+  - 功能：背包分类 tab。
+  - 使用：只负责显示分类、数量和选中态；分类语义由 `bagModel.ts` 的 `BAG_FILTERS` / `bagFilterForItem` 提供。
+  - 变量：`--bag-filter-tabs-*`。
+- `BagItemList.tsx/css` 【x】
+  - 功能：道具列表，只显示图标、名称、数量。
+  - 使用：点击行只更新选中道具；不要在列表行内塞说明文本、tooltip 或使用流程。
+  - 变量：`--bag-item-list-*`。
+- `BagTargetPokemonList.tsx/css` 【x】
+  - 功能：背包使用/携带/TM 学习目标队伍列表，最多 6 只，当前为 3 行 2 列，显示小图、名字、携带物、HP 条和 HP 文本。
+  - 使用：HP 必须复用 `PokemonHpBar`，只通过 `--pokemon-hp-bar-*` 变量调整尺寸；不要选择 `.pokemon-hp-bar b` 或其它内部 DOM。
+  - 注意：普通可用目标不显示“使用/选择”徽标；只在 `disabledReason` 或处理中时显示状态提示，避免遮挡 HP。
+  - 变量：`--bag-target-pokemon-list-*`。
+- `BagActionPanel.tsx/css` 【x】
+  - 功能：背包右侧操作状态容器，切换详情、队伍目标、技能替换。
+  - 使用：只承载 `detail / pokemonPicker / moveReplace` 三种阶段；右侧宽度跟随父 grid，内部尺寸通过 `--bag-container-action-*` 和 `--bag-action-panel-*` 控制。
+  - 变量：`--bag-action-panel-*`。
+- `RestShopPanel.tsx/css` 【】
   - 功能：商店流程。
   - 变量：`--rest-shop-panel-list-width`。
-- `RestForgePanel.tsx/css`
+- `RestForgePanel.tsx/css` 【】
   - 功能：熔炉流程。
   - 变量：`--rest-forge-panel-material-width`。
-- `RestPokemonDetail.tsx/css`
-  - 功能：队伍宝可梦详情、卸下道具、查看技能。
-  - 变量：`--rest-pokemon-detail-width`。
-- `RestMoveAdjustPanel.tsx/css`
+- `RestPokemonDetail.tsx/css` 【x】
+  - 功能：队伍宝可梦详情、卸下道具、查看技能；当前由 `RestSelectedPokemonDetail`、`RestPokemonProfileCard`、`RestPokemonMoveGrid`、`RestPokemonInfoPanel` 组合实现。
+  - 变量：使用 `--rest-selected-pokemon-detail-*`、`--rest-pokemon-profile-card-*`、`--rest-pokemon-move-grid-*`、`--rest-pokemon-info-panel-*`。
+- `RestMoveAdjustPanel.tsx/css` 【】
   - 功能：技能调整、教学、遗传。
   - 变量：`--rest-move-adjust-panel-card-height`。
-- `RestStatsAdjustPanel.tsx/css`
+- `RestStatsAdjustPanel.tsx/css` 【】
   - 功能：能力/努力/个体相关调整。
   - 变量：`--rest-stats-adjust-panel-row-height`。
-- `NightSkyPanel.tsx/css`
+- `NightSkyPanel.tsx/css` 【】
   - 功能：小道消息/夜观天象。
   - 变量：`--night-sky-panel-button-width`。
-- `ItemRecyclerPanel.tsx/css`
+- `ItemRecyclerPanel.tsx/css` 【】
   - 功能：道具回收。
   - 变量：`--item-recycler-panel-row-height`。
-- `RunTalentPanel.tsx/css`
+- `RunTalentPanel.tsx/css` 【】
   - 功能：局内天赋行动。
   - 变量：`--run-talent-panel-row-height`。
-- 后续事件服务组件：
-  - `DoctorEventPanel`
-  - `EventMoveServicePanel`
-  - `RaidExchangePanel`
-  - `ScoreBetPanel`
-  - `EventLevelPanel`
+- 后续事件服务组件 【】：
+  - `DoctorEventPanel` 【】
+  - `EventMoveServicePanel` 【】
+  - `RaidExchangePanel` 【】
+  - `ScoreBetPanel` 【】
+  - `EventLevelPanel` 【】
 
 ### 样式设计
 
@@ -772,8 +793,8 @@
 
 ### 功能验收
 
-- 休整页不再直接维护背包、商店、熔炉、技能替换细节。
-- 背包组件和战斗背包共用。
+- 休整页不再直接维护背包流程；商店、熔炉、技能调整等 legacy 工具后续继续拆分。
+- 背包左侧列表不放说明文本，右侧按详情/队伍目标/技能替换切换。
 - 640×320 下队伍、工具栏、主面板不挤压。
 - 所有滚动容器高度明确。
 
@@ -796,25 +817,25 @@
 
 ### 新增/拆分组件
 
-- `ResultPage.tsx/css`
+- `ResultPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--result-page-left-width`、`--result-page-right-width`。
-- `ResultHeader.tsx/css`
+- `ResultHeader.tsx/css` 【x】
   - 功能：胜负、标题、返回按钮。
   - 变量：`--result-header-height`。
-- `ResultSettlementGrid.tsx/css`
+- `ResultSettlementGrid.tsx/css` 【x】
   - 功能：金币、BP、奖励、扣费。
   - 变量：`--result-settlement-grid-row-height`。
-- `ResultTeamSummary.tsx/css`
+- `ResultTeamSummary.tsx/css` 【x】
   - 功能：队伍总结。
   - 变量：`--result-team-summary-row-height`。
-- `ResultProgressList.tsx/css`
+- `ResultProgressList.tsx/css` 【x】
   - 功能：整局进度列表。
   - 变量：`--result-progress-list-row-height`。
-- `BattleRoundList.tsx/css`
+- `BattleRoundList.tsx/css` 【x】
   - 功能：单场战斗列表。
   - 变量：`--battle-round-list-row-height`。
-- `TurnDetailPanel.tsx/css`
+- `TurnDetailPanel.tsx/css` 【x】
   - 功能：回合详情、双方状态。
   - 变量：`--turn-detail-panel-team-row-height`。
 
@@ -849,22 +870,22 @@
 
 ### 新增/拆分组件
 
-- `DexModal.tsx/css`
+- `DexModal.tsx/css` 【x】
   - 弹窗骨架。
   - 变量：`--dex-modal-width`、`--dex-modal-height`。
-- `QuickDexModal.tsx/css`
+- `QuickDexModal.tsx/css` 【x】
   - 快捷弹窗骨架。
   - 变量：`--quick-dex-modal-width`、`--quick-dex-modal-height`。
-- `DexSearchBar.tsx/css`
+- `DexSearchBar.tsx/css` 【x】
   - 功能：搜索输入。
   - 变量：`--dex-search-bar-height`。
-- `DexCategoryTabs.tsx/css`
+- `DexCategoryTabs.tsx/css` 【x】
   - 功能：分类 tab。
   - 变量：`--dex-category-tabs-height`。
-- `DexResultList.tsx/css`
+- `DexResultList.tsx/css` 【x】
   - 功能：左侧结果列表。
   - 变量：`--dex-result-list-width`、`--dex-result-list-row-height`。
-- `DexDetailPanel.tsx/css`
+- `DexDetailPanel.tsx/css` 【x】
   - 功能：右侧详情容器。
   - 变量：`--dex-detail-panel-width`。
 
@@ -892,13 +913,13 @@
 
 ### 新增/拆分组件
 
-- `RouteTransitionPage.tsx/css`
+- `RouteTransitionPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--route-transition-page-width`、`--route-transition-page-height`。
-- `RouteTransitionVideo.tsx/css`
+- `RouteTransitionVideo.tsx/css` 【x】
   - 功能：背景视频。
   - 变量：`--route-transition-video-width`、`--route-transition-video-height`。
-- `RouteTransitionCopyPanel.tsx/css`
+- `RouteTransitionCopyPanel.tsx/css` 【x】
   - 功能：文字提示。
   - 变量：`--route-transition-copy-panel-width`。
 
@@ -927,16 +948,16 @@
 
 ### 新增组件
 
-- `ComponentGalleryPage.tsx/css`
+- `ComponentGalleryPage.tsx/css` 【x】
   - 页面骨架。
   - 变量：`--component-gallery-page-list-width`、`--component-gallery-page-preview-width`。
-- `ComponentGalleryList.tsx/css`
+- `ComponentGalleryList.tsx/css` 【x】
   - 功能：组件列表。
   - 变量：`--component-gallery-list-row-height`。
-- `ComponentPreviewCanvas.tsx/css`
+- `ComponentPreviewCanvas.tsx/css` 【x】
   - 功能：预览画布。
   - 变量：`--component-preview-canvas-width`、`--component-preview-canvas-height`。
-- `ComponentStateControls.tsx/css`
+- `ComponentStateControls.tsx/css` 【x】
   - 功能：切换组件状态。
   - 变量：`--component-state-controls-height`。
 
@@ -953,7 +974,7 @@
 
 # 4. 通用组件清单与设计
 
-## 4.1 BagContainer
+## 4.1 BagContainer 【】
 
 ### 功能
 
@@ -964,6 +985,8 @@
 - `BagFilterTabs`
 - `BagItemList`
 - `BagItemDetailPanel`
+- `BagTargetPokemonList`
+- `BagActionPanel`
 - `PokemonTeamPicker`
 - `MoveReplacePanel`
 
@@ -983,6 +1006,9 @@
 - 携带物：使用后进入队伍选择。
 - 技能机器：先选宝可梦，再进入技能替换。
 - 战斗背包：只展示战斗可用消耗品。
+- 已完成的休整背包组件是后续 `BagContainer` 收敛的事实来源：新背包入口优先复用 `BagFilterTabs`、`BagItemList`、`BagItemDetailPanel`、`BagTargetPokemonList`、`BagActionPanel`，不要重新实现同名 UI。
+- HP 展示统一使用 `PokemonHpBar`；任何背包/队伍目标行只传 `current/max/text/className`，再用 CSS 变量覆盖尺寸。
+- 非阻塞操作反馈统一使用 `ScreenToast`；局部页面需要更大/更靠左/更深色时传 `style={{"--screen-toast-*": "..."}}`，不要直接修改 `ScreenToast.css` 默认值。
 
 ### 假数据状态
 
@@ -995,11 +1021,17 @@
 - 禁用道具。
 - 滚动列表。
 
-## 4.2 BagFilterTabs
+## 4.2 BagFilterTabs 【x】
 
 ### 功能
 
 背包筛选。
+
+### 使用方式
+
+- Props：`activeKey`、`counts`、`disabled`、`onSelect`。
+- 分类来源：`components/bag/bagModel.ts` 的 `BAG_FILTERS`，不要在页面里硬编码分类按钮。
+- 用途：休整背包左侧 tab；后续战斗背包或通用背包继续复用。
 
 ### 筛选项
 
@@ -1016,11 +1048,17 @@
 - 按钮高 `18px`，字号 `6px`。
 - 变量前缀：`--bag-filter-tabs-*`。
 
-## 4.3 BagItemList
+## 4.3 BagItemList 【x】
 
 ### 功能
 
 背包左侧道具列表。
+
+### 使用方式
+
+- Props：`items`、`selectedId`、`disabled`、`emptyText`、`onSelect`。
+- 行内容固定为 `ItemIcon`、名称、数量；点击只选择道具，不直接使用。
+- 不显示说明、分类文案、使用按钮或 hover 详情；这些属于右侧 `BagActionPanel` / `BagItemDetailPanel`。
 
 ### 子组件
 
@@ -1039,12 +1077,19 @@
 
 - 不显示说明文本。
 - hover/selected 不改变行高。
+- 长名字只省略，不撑宽；数量徽标不遮挡名称。
 
-## 4.4 BagItemDetailPanel
+## 4.4 BagItemDetailPanel 【x】
 
 ### 功能
 
 背包右侧详情。
+
+### 使用方式
+
+- Props：`item`、`busy`、`disabled`、`disabledReason`、`useLabel`、`onUse`。
+- 只展示当前道具的图标、标题、分类/数量、说明和底部动作按钮。
+- 使用按钮只负责进入下一阶段，不在本组件里直接调用 runtime。
 
 ### 子组件
 
@@ -1061,7 +1106,67 @@
 - 使用按钮固定底部，高 `20px`。
 - 变量前缀：`--bag-item-detail-*`。
 
-## 4.5 PokemonTeamPicker
+### 注意事项
+
+- 右侧详情布局应参考图鉴式“图标 + 标题 + 元信息 + 说明 + 操作按钮”，不要再加额外黑框或嵌套卡片。
+- 局部宽高通过 `--bag-item-detail-*` 或父级 `--bag-container-action-*` 控制，不要在页面 CSS 里选内部节点硬改。
+
+## 4.4.a BagTargetPokemonList 【x】
+
+### 功能
+
+背包右侧的宝可梦目标列表，用于消耗品使用、携带物替换、技能机器学习目标选择。
+
+### 使用方式
+
+- Props：`team`、`selectedIndex`、`busyIndex`、`title`、`emptyText`、`onSelect`。
+- `team` 条目只提供宝可梦展示、状态、携带物、是否禁用和禁用原因；点击行为由父组件处理。
+- 目标列表最多展示 6 只，当前布局为 3 行 2 列，适合休整页右侧 340px 操作区。
+
+### 子组件
+
+- `PokemonSprite`
+- `PokemonHpBar`
+- `StatusBadge`
+- `HeldItemLabel`
+
+### 样式设计
+
+- 小图、名字、携带物、HP 条、HP 文本在卡片内固定位置。
+- 普通可用目标不显示“使用/选择”徽标，避免遮挡 HP；只在处理中或不可用时显示 `disabledReason`。
+- 变量前缀：`--bag-target-pokemon-list-*`。
+
+### 注意事项
+
+- HP 条必须使用 `PokemonHpBar`，不要重新写血条 DOM。
+- 不要写 `.bag-target-pokemon-list b` 这类宽泛选择器；`PokemonHpBar` 内部使用 `<b>` 作为填充条，外部 CSS 不允许选中它。
+- 需要调整血条尺寸时，在 `.bag-target-hp` 上覆盖 `--pokemon-hp-bar-width`、`--pokemon-hp-bar-height`。
+
+## 4.4.b BagActionPanel 【x】
+
+### 功能
+
+背包右侧操作状态容器，在详情、目标选择、技能替换三个阶段之间切换。
+
+### 使用方式
+
+- Props：`step`、`item`、`targetTeam`、`targetTitle`、`selectedTarget`、`busyIndex`、训练项选项、技能替换数据和各类回调。
+- `detail` 阶段渲染 `BagItemDetailPanel`。
+- `pokemonPicker` 阶段渲染 `BagTargetPokemonList`。
+- `moveReplace` 阶段渲染 `MoveReplacePanel`。
+
+### 样式设计
+
+- 自身 `width: 100%`、`height: 100%`，跟随右侧 grid cell，不写死超出父容器的宽度。
+- 内部宽度通过 `--bag-container-action-inner-width` / `--bag-action-panel-inner-width` 控制。
+- 变量前缀：`--bag-action-panel-*`。
+
+### 注意事项
+
+- 本组件只编排阶段，不直接决定背包业务规则；规则在 `RestBagPanel` / `bagModel.ts`。
+- 不要在页面层直接选择 `BagActionPanel` 内部元素改布局；需要尺寸时覆盖公开变量。
+
+## 4.5 PokemonTeamPicker 【已废弃】
 
 ### 功能
 
@@ -1098,11 +1203,17 @@
 - 一整个队列滚动容器高度足够。
 - 行内文字不换行撑高。
 
-## 4.6 MoveReplacePanel
+## 4.6 MoveReplacePanel 【x】
 
 ### 功能
 
 技能替换。
+
+### 使用方式
+
+- Props：`pokemon`、`state`、`newMove`、`selectedMoveSlot`、`busy`、`onSelectMoveSlot`、`onConfirm`、`onCancel`。
+- 用途：背包技能机器替换、休整页技能随机确认学习后的替换弹窗。
+- 新技能展示在左侧，当前 4 个技能展示在右侧；点击旧技能后再确认替换。
 
 ### 子组件
 
@@ -1126,8 +1237,9 @@
 - 左右技能卡大小一致。
 - 内容居中。
 - 红框类多余区域移除。
+- 后续所有“学习/替换技能”流程都复用本组件，不再重新写替换弹窗。
 
-## 4.7 PokemonProfile / PokemonSummaryCard
+## 4.7 PokemonProfile / PokemonSummaryCard 【】
 
 ### 功能
 
@@ -1184,7 +1296,7 @@
 - 技能教学。
 - 图鉴学习面板。
 
-## 4.9 BattleField
+## 4.9 BattleField 【】
 
 ### 功能
 
@@ -1205,7 +1317,7 @@
 - 不用百分比漂移。
 - 变量前缀：`--battle-field-*`。
 
-## 4.10 BattleFighterPanel
+## 4.10 BattleFighterPanel 【】
 
 ### 功能
 
@@ -1231,7 +1343,7 @@
 - 只接受 `battle_view` slot 数据。
 - timeline 只能覆盖动画状态，不能决定宝可梦身份。
 
-## 4.11 BattlePartyBoard
+## 4.11 BattlePartyBoard 【】
 
 ### 功能
 
@@ -1256,7 +1368,7 @@
 - 当前 active 必须 revealed。
 - 问号只用于未揭示槽位。
 
-## 4.12 BattleCommandPanel
+## 4.12 BattleCommandPanel 【】
 
 ### 功能
 
@@ -1277,7 +1389,7 @@
 - AI提示左，倍速中，AI代打右。
 - 变量前缀：`--battle-command-panel-*`。
 
-## 4.13 RestToolBar
+## 4.13 RestToolBar 【x】
 
 ### 功能
 
@@ -1295,7 +1407,7 @@
 - 字号 `7px`。
 - 变量前缀：`--rest-toolbar-*`。
 
-## 4.14 ShopPanel
+## 4.14 ShopPanel 【】
 
 ### 功能
 
@@ -1315,7 +1427,7 @@
 - offer 行高 `30px`。
 - 变量前缀：`--shop-panel-*`。
 
-## 4.15 ForgePanel
+## 4.15 ForgePanel 【】
 
 ### 功能
 
@@ -1334,7 +1446,7 @@
 - 材料行高 `24px`。
 - 变量前缀：`--forge-panel-*`。
 
-## 4.16 NightSkyPanel
+## 4.16 NightSkyPanel 【】
 
 ### 功能
 
@@ -1357,7 +1469,7 @@
 - `揭示 1 只（免费）`。
 - `解锁 3 只（50 金币）`。
 
-## 4.17 ItemIcon
+## 4.17 ItemIcon 【x】
 
 ### 功能
 
@@ -1384,11 +1496,23 @@
 
 统一 HP 条。
 
+### 使用方式
+
+- Props：`current`、`max`、`text`、`className`。
+- 组件内部按 `current / max` 自动计算填充比例和颜色档位。
+- 外部只通过 `className` 定位容器，再覆盖 `--pokemon-hp-bar-width`、`--pokemon-hp-bar-height` 调整尺寸。
+
 ### 样式设计
 
 - 默认宽 `96px`，高 `4px`。
 - 高血量绿色，中血量黄色，低血量红色。
 - 变量前缀：`--pokemon-hp-bar-*`。
+
+### 注意事项
+
+- 不要重新实现 HP 条；队伍缩略卡、背包目标列表、战斗面板、结算队伍都复用本组件。
+- 不要在外部 CSS 里选择 `.pokemon-hp-bar b`，内部 `<b>` 是填充条实现细节。
+- 如需显示 HP 数字，数字文本放在调用组件自己的节点里；`PokemonHpBar` 只负责条形视觉和 `title`。
 
 ### 使用位置
 
@@ -1397,6 +1521,29 @@
 - 战斗小图。
 - 休整队伍。
 - 结算队伍。
+
+## 4.18.a ScreenToast 【x】
+
+### 功能
+
+全局非阻塞操作提示，例如道具使用成功、技能已更换、操作失败等短提示。
+
+### 使用方式
+
+- Props：`message`、`durationMs`、`tone`、`inline`、`style`、`onDone`。
+- 默认非 inline 时通过 portal 挂到 `document.body`，不参与页面布局。
+- 页面需要局部尺寸或位置时，传 `style` 覆盖 `--screen-toast-*` 变量，例如休整页通过 `RestView` 传更大的 `--screen-toast-font-size` 和 `--screen-toast-min-width`。
+
+### 样式设计
+
+- 默认样式在 `ScreenToast.css`，保持全局通用小提示尺寸。
+- 变量前缀：`--screen-toast-*`。
+
+### 注意事项
+
+- 不要为了某个页面直接修改 `ScreenToast.css` 默认值。
+- 不要在普通组件里重新写黑底提示框；操作反馈统一用 `ScreenToast`。
+- 需要页面特化时只传 CSS 变量，不改组件结构。
 
 ## 4.19 ComponentPreviewCanvas 【x】
 

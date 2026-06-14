@@ -70,8 +70,16 @@ import {TrainerSummaryPanel} from "../components/shell/TrainerSummaryPanel";
 import {RouteTransitionCopyPanel} from "../pages/shell/RouteTransitionCopyPanel";
 import {RouteTransitionPage, routeTransitionCopy} from "../pages/shell/RouteTransitionPage";
 import {RouteTransitionVideo} from "../pages/shell/RouteTransitionVideo";
+import {BagActionPanel, type BagActionStep} from "../components/bag/BagActionPanel";
+import {BagFilterTabs} from "../components/bag/BagFilterTabs";
+import {BagItemDetailPanel} from "../components/bag/BagItemDetailPanel";
+import {BagItemList} from "../components/bag/BagItemList";
+import {BagTargetPokemonList, type BagTargetPokemonEntry} from "../components/bag/BagTargetPokemonList";
+import {RestBagPanel} from "../components/bag/RestBagPanel";
+import {tmFallbackMove} from "../components/bag/bagModel";
+import type {BagFilterKey} from "../components/bag/bagModel";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
-import {battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, playerSettingsManyCatalog, rentalPreviewCandidates, rentalPreviewLongCandidates, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
+import {bagPreviewItems, battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createBagPreviewCategories, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, playerSettingsManyCatalog, rentalPreviewCandidates, rentalPreviewLongCandidates, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
 import {outcomeLabel} from "../components/result/resultUtils";
 
 export type ComponentPreviewState = {
@@ -457,6 +465,94 @@ function RestSelectedPokemonDetailPreview({stateId}: {stateId: string}) {
   return <RestSelectedPokemonDetail rest={rest} pokemon={rest.player_display[0]} state={rest.player_state[0]} slot={0} focus={focus} onFocus={setFocus} onMove={() => undefined} onUseItem={() => undefined} onUnequip={() => undefined} onStats={() => undefined} onAction={() => undefined} />;
 }
 
+function bagItemForState(stateId: string) {
+  if (stateId === "held" || stateId === "heldTarget") return bagPreviewItems.find(item => item.id === "leftovers") || bagPreviewItems[0];
+  if (stateId === "tm" || stateId === "tmTarget" || stateId === "moveReplace") return bagPreviewItems.find(item => item.category === "tm") || bagPreviewItems[0];
+  if (stateId === "locked") return {...bagPreviewItems[0], locked: true, lock_reason: "预览锁定：该道具来自规则，只能查看。"};
+  if (stateId === "noStock") return bagPreviewItems.find(item => item.count === 0) || {...bagPreviewItems[0], count: 0};
+  if (stateId === "longText" || stateId === "longName") return bagPreviewItems.find(item => item.id === "long-name-consumable") || bagPreviewItems[0];
+  return bagPreviewItems.find(item => item.category === "consumable" && item.count > 0) || bagPreviewItems[0];
+}
+
+function bagCountsForState(stateId: string): Record<BagFilterKey, number> {
+  if (stateId === "empty") return {recovery: 0, battle: 0, tm: 0, training: 0, system: 0};
+  return {
+    recovery: createBagPreviewCategories().consumable.length,
+    battle: createBagPreviewCategories().held.length,
+    tm: createBagPreviewCategories().tm.length,
+    training: 1,
+    system: stateId === "disabled" ? 0 : 1,
+  };
+}
+
+function bagItemsForState(stateId: string) {
+  if (stateId === "empty" || stateId === "emptyBag") return [];
+  if (stateId === "held") return createBagPreviewCategories().held;
+  if (stateId === "tm") return createBagPreviewCategories().tm;
+  if (stateId === "longName") return [bagItemForState("longName"), ...createBagPreviewCategories().consumable];
+  if (stateId === "manyCount") return createBagPreviewCategories().consumable.map(item => ({...item, count: item.id === "potion" ? 99 : item.count}));
+  return createBagPreviewCategories().consumable;
+}
+
+function bagTargetTeamForState(stateId: string): BagTargetPokemonEntry[] {
+  const rest = stateId === "longName" ? restPreviewStateLong : stateId === "lowHp" || stateId === "status" ? restPreviewStateLowHp : restPreviewStateSix;
+  return rest.player_display.map((pokemon, index) => ({
+    pokemon,
+    condition: rest.player_state[index]?.condition,
+    status: rest.player_state[index]?.status,
+    heldItem: pokemon.item_zh || pokemon.item || "无道具",
+    disabled: stateId === "disabledTarget" && index > 1,
+    disabledReason: stateId === "disabledTarget" && index > 1 ? "不能学" : index === 1 && stateId === "status" ? "已学会" : "使用",
+  }));
+}
+
+function bagRestStateForPreview(stateId: string) {
+  const base = stateId === "longText" ? restPreviewStateLong : stateId === "emptyBag" ? restPreviewStateNormal : restPreviewStateSix;
+  const categories = stateId === "emptyBag" ? {consumable: [], held: [], tm: []} : createBagPreviewCategories();
+  if (stateId === "heldFlow") categories.consumable = [];
+  if (stateId === "tmFlow") {
+    categories.consumable = [];
+    categories.held = [];
+  }
+  return {
+    ...base,
+    bag_items: Object.fromEntries(Object.values(categories).flat().map(item => [item.id, item.count])),
+    bag_categories: categories,
+  };
+}
+
+function BagActionPanelPreview({stateId}: {stateId: string}) {
+  const rest = restPreviewStateSix;
+  const item = bagItemForState(stateId);
+  const isTm = stateId === "tmTarget" || stateId === "moveReplace";
+  const step: BagActionStep = stateId === "moveReplace" ? "moveReplace" : stateId === "consumableTarget" || stateId === "heldTarget" || stateId === "tmTarget" ? "pokemonPicker" : "detail";
+  const team = bagTargetTeamForState(isTm ? "disabledTarget" : "normal");
+  return (
+    <BagActionPanel
+      step={step}
+      item={item}
+      targetTeam={team}
+      targetTitle={isTm ? "选择学习者" : stateId === "heldTarget" ? "点击宝可梦携带/替换" : "点击宝可梦直接使用"}
+      selectedTarget={0}
+      busyIndex={null}
+      lockedReason={stateId === "detail" ? undefined : item.lock_reason}
+      detailDisabled={stateId === "detail" ? false : item.count <= 0}
+      detailUseLabel={item.category === "tm" ? "立即使用" : item.category === "held" ? "立即携带" : "使用"}
+      targetPokemon={rest.player_display[0]}
+      targetState={rest.player_state[0]}
+      displayMove={item.category === "tm" ? tmFallbackMove(item) : undefined}
+      selectedMoveSlot={stateId === "moveReplace" ? 1 : null}
+      onUseDetail={() => undefined}
+      onBackToDetail={() => undefined}
+      onSelectTarget={() => undefined}
+      onSelectStat={() => undefined}
+      onSelectMoveSlot={() => undefined}
+      onConfirmMoveReplace={() => undefined}
+      onCancelMoveReplace={() => undefined}
+    />
+  );
+}
+
 export const componentRegistry: ComponentRegistryEntry[] = [
   {
     id: "pokemon-hp-bar",
@@ -563,6 +659,153 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       return (
         <div className="component-gallery-toast-stage">
           <ScreenToast message={message} tone={stateId === "danger" ? "danger" : "normal"} durationMs={1600} inline />
+        </div>
+      );
+    },
+  },
+  {
+    id: "bag-filter-tabs",
+    name: "背包分类 Tabs",
+    group: "bag",
+    defaultSize: {width: 280, height: 44},
+    componentFile: "apps/desktop/src/components/bag/BagFilterTabs.tsx",
+    cssFile: "apps/desktop/src/components/bag/BagFilterTabs.css",
+    cssVariablePrefix: "--bag-filter-tabs-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "longText", name: "长分类名"},
+      {id: "empty", name: "空分类"},
+      {id: "disabled", name: "禁用"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-bag-filter-stage">
+          <BagFilterTabs activeKey={stateId === "empty" ? "recovery" : "battle"} counts={bagCountsForState(stateId)} disabled={stateId === "disabled"} onSelect={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "bag-item-list",
+    name: "背包道具列表",
+    group: "bag",
+    defaultSize: {width: 280, height: 180},
+    componentFile: "apps/desktop/src/components/bag/BagItemList.tsx",
+    cssFile: "apps/desktop/src/components/bag/BagItemList.css",
+    cssVariablePrefix: "--bag-item-list-*",
+    dependencies: ["ItemIcon"],
+    states: [
+      {id: "recovery", name: "恢复道具"},
+      {id: "held", name: "携带物"},
+      {id: "tm", name: "技能机器"},
+      {id: "empty", name: "空背包"},
+      {id: "longName", name: "长名字"},
+      {id: "manyCount", name: "多数量"},
+    ],
+    renderPreview(stateId) {
+      const items = bagItemsForState(stateId);
+      return (
+        <div className="component-gallery-bag-list-stage">
+          <BagItemList items={items} selectedId={items[0]?.id} onSelect={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "bag-item-detail-panel",
+    name: "背包道具详情",
+    group: "bag",
+    defaultSize: {width: 340, height: 218},
+    componentFile: "apps/desktop/src/components/bag/BagItemDetailPanel.tsx",
+    cssFile: "apps/desktop/src/components/bag/BagItemDetailPanel.css",
+    cssVariablePrefix: "--bag-item-detail-*",
+    dependencies: ["ItemIcon"],
+    states: [
+      {id: "consumable", name: "消耗品"},
+      {id: "held", name: "携带物"},
+      {id: "tm", name: "技能机器"},
+      {id: "locked", name: "锁定"},
+      {id: "noStock", name: "无库存"},
+      {id: "longText", name: "长说明"},
+    ],
+    renderPreview(stateId) {
+      const item = bagItemForState(stateId);
+      return (
+        <div className="component-gallery-bag-detail-stage">
+          <BagItemDetailPanel item={item} disabled={stateId === "locked" || stateId === "noStock"} disabledReason={stateId === "locked" ? item.lock_reason : stateId === "noStock" ? "没有库存" : undefined} useLabel={item.category === "tm" ? "立即使用" : item.category === "held" ? "立即携带" : "使用"} onUse={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "bag-target-pokemon-list",
+    name: "背包目标队伍列表",
+    group: "bag",
+    defaultSize: {width: 340, height: 218},
+    componentFile: "apps/desktop/src/components/bag/BagTargetPokemonList.tsx",
+    cssFile: "apps/desktop/src/components/bag/BagTargetPokemonList.css",
+    cssVariablePrefix: "--bag-target-pokemon-list-*",
+    dependencies: ["PokemonSprite", "PokemonHpBar"],
+    states: [
+      {id: "sixPokemon", name: "六只队伍"},
+      {id: "lowHp", name: "低血量"},
+      {id: "status", name: "异常状态"},
+      {id: "disabledTarget", name: "不可用目标"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-bag-target-stage">
+          <BagTargetPokemonList team={bagTargetTeamForState(stateId)} selectedIndex={0} title={stateId === "disabledTarget" ? "选择学习者" : "点击宝可梦直接使用"} onSelect={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "bag-action-panel",
+    name: "背包操作面板",
+    group: "bag",
+    defaultSize: {width: 340, height: 232},
+    componentFile: "apps/desktop/src/components/bag/BagActionPanel.tsx",
+    cssFile: "apps/desktop/src/components/bag/BagActionPanel.css",
+    cssVariablePrefix: "--bag-action-panel-*",
+    dependencies: ["BagItemDetailPanel", "BagTargetPokemonList", "MoveReplacePanel"],
+    states: [
+      {id: "detail", name: "详情"},
+      {id: "consumableTarget", name: "消耗品选目标"},
+      {id: "heldTarget", name: "携带物选目标"},
+      {id: "tmTarget", name: "技能机器选目标"},
+      {id: "moveReplace", name: "技能替换"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-bag-action-stage">
+          <BagActionPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "rest-bag-panel",
+    name: "休整背包工具区",
+    group: "rest",
+    defaultSize: {width: 640, height: 260},
+    componentFile: "apps/desktop/src/components/bag/RestBagPanel.tsx",
+    cssFile: "apps/desktop/src/components/bag/RestBagPanel.css",
+    cssVariablePrefix: "--rest-bag-panel-*",
+    dependencies: ["BagFilterTabs", "BagItemList", "BagActionPanel"],
+    states: [
+      {id: "normal", name: "默认"},
+      {id: "emptyBag", name: "空背包"},
+      {id: "consumableFlow", name: "消耗品流程"},
+      {id: "heldFlow", name: "携带物流程"},
+      {id: "tmFlow", name: "技能机器流程"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-bag-stage">
+          <RestBagPanel rest={bagRestStateForPreview(stateId)} initialTarget={0} onAction={() => undefined} learnableMoves={() => Promise.resolve([tmFallbackMove(bagItemForState("tm"))])} />
         </div>
       );
     },
