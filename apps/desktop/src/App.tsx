@@ -351,10 +351,6 @@ function RoutedApp() {
     setInspectRemaining(current => Math.max(0, current - 1));
   }
 
-  function openStarterUpgrade() {
-    navigateToScreen("starterUpgrade");
-  }
-
   async function cancelPreparation() {
     await runAction(() => window.changeBattle!.cancelPreparation());
   }
@@ -510,7 +506,6 @@ function RoutedApp() {
       navigateToScreen={navigateToScreen}
       navigateToComponentGallery={() => navigate(COMPONENT_GALLERY_ROUTE)}
       prepareChallenge={prepareChallenge}
-      openStarterUpgrade={openStarterUpgrade}
       enableTestMode={enableTestMode}
       startRainbowRocketTestRun={startRainbowRocketTestRun}
       chooseStarterItem={chooseStarterItem}

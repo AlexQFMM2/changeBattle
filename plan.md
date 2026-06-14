@@ -190,7 +190,7 @@
 - 640×320 下标题、按钮、存档弹窗不重叠。
 - App 横屏下按钮命中区域稳定。
 
-## 3.3 MainMenuPage
+## 3.3 MainMenuPage 【x】
 
 ### 页面职责
 
@@ -236,7 +236,7 @@
 - `查看组件` 入口存在。
 - 主页字号和 `docs/ui-design.md` 一致。
 
-## 3.4 PlayerSettingsPage
+## 3.4 PlayerSettingsPage 【x】
 
 ### 页面职责
 
@@ -320,7 +320,7 @@
 - 打开/关闭详情，右侧不残留空黑框。
 - 星图可拖动缩放，节点不溢出主画布。
 
-## 3.6 StarterUpgradePage
+## 3.6 StarterUpgradePage[已废弃]
 
 ### 页面职责
 

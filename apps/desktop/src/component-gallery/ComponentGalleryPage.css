@@ -346,6 +346,140 @@
   font-size: 10px;
 }
 
+.component-gallery-main-menu-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, #10201a, #050807);
+}
+
+.component-gallery-main-menu-stage .trainer-summary-panel,
+.component-gallery-main-menu-stage .favorite-pokemon-panel,
+.component-gallery-main-menu-stage .discovery-panel,
+.component-gallery-main-menu-stage .main-menu-command-bar {
+  position: relative;
+  inset: auto;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+}
+
+.component-gallery-main-menu-stage .trainer-summary-panel {
+  --trainer-summary-panel-width: 220px;
+}
+
+.component-gallery-main-menu-stage .favorite-pokemon-panel {
+  --favorite-pokemon-panel-width: 156px;
+}
+
+.component-gallery-main-menu-stage .discovery-panel {
+  --discovery-panel-width: 176px;
+}
+
+.component-gallery-main-menu-stage .main-menu-command-bar {
+  --main-menu-command-bar-width: 178px;
+}
+
+.component-gallery-main-menu-button-stage {
+  width: 150px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 36%) 40%, rgb(0 0 0 / 62%) 100%);
+  padding: 8px;
+}
+
+.component-gallery-main-menu-button-stage .component-gallery-button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  padding: 1px 2px;
+  box-shadow: none;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: right;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 68%);
+}
+
+.component-gallery-player-field-stage,
+.component-gallery-player-preview-stage,
+.component-gallery-player-picker-stage,
+.component-gallery-player-action-stage,
+.component-gallery-player-page-stage {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.component-gallery-player-field-stage {
+  width: 150px;
+}
+
+.component-gallery-player-preview-stage {
+  width: 122px;
+}
+
+.component-gallery-player-picker-stage {
+  width: 220px;
+  height: 142px;
+}
+
+.component-gallery-player-picker-stage .trainer-avatar-picker {
+  width: 100%;
+  height: 100%;
+}
+
+.component-gallery-player-action-stage {
+  width: 190px;
+}
+
+.component-gallery-player-page-stage {
+  width: 488px;
+  height: 150px;
+  background: #9a8c80;
+}
+
+.component-gallery-player-page-stage .player-settings-page {
+  --player-settings-page-form-width: 108px;
+  --player-settings-page-preview-width: 84px;
+  grid-template-rows: 22px minmax(0, 1fr) 22px;
+  gap: 4px;
+  padding: 7px 9px 6px;
+}
+
+.component-gallery-player-page-stage .player-settings-page-header h2 {
+  font-size: 12px;
+}
+
+.component-gallery-player-page-stage .trainer-avatar-picker {
+  --trainer-avatar-picker-grid-height: 86px;
+  padding: 5px;
+}
+
+.component-gallery-player-page-stage .player-settings-page-form {
+  padding: 5px;
+  gap: 5px;
+}
+
+.component-gallery-player-page-stage .player-settings-page-form .trainer-preview-panel {
+  --trainer-preview-panel-image-size: 46px;
+  padding: 5px;
+  gap: 3px;
+}
+
+.component-gallery-player-page-stage .player-name-editor {
+  --player-name-editor-input-height: 19px;
+}
+
+.component-gallery-player-page-stage .page-action-bar {
+  --page-action-bar-button-height: 18px;
+}
+
 .component-gallery-meta {
   min-width: 0;
   display: grid;

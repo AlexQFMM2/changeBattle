@@ -1,0 +1,21 @@
+.page-action-bar {
+  --page-action-bar-button-height: 22px;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: nowrap;
+}
+
+.page-action-bar button {
+  height: var(--page-action-bar-button-height);
+  min-height: var(--page-action-bar-button-height);
+  max-width: 104px;
+  min-width: 56px;
+  overflow: hidden;
+  padding: 2px 8px;
+  font-size: 8px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

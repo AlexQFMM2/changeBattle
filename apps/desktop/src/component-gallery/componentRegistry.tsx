@@ -1,12 +1,24 @@
 import type {CSSProperties, ReactNode} from "react";
+import {useState} from "react";
+import {PageActionBar} from "../components/player/PageActionBar";
+import {PlayerNameEditor} from "../components/player/PlayerNameEditor";
+import {PlayerSettingsPage} from "../components/player/PlayerSettingsPage";
+import {TrainerAvatarPicker} from "../components/player/TrainerAvatarPicker";
+import {TrainerPreviewPanel} from "../components/player/TrainerPreviewPanel";
 import {MoveCard} from "../components/move/MoveCard";
 import {ScreenToast} from "../components/feedback/ScreenToast";
+import {ComponentGalleryButton} from "../components/shell/ComponentGalleryButton";
+import {DiscoveryPanel} from "../components/shell/DiscoveryPanel";
+import {FavoritePokemonPanel} from "../components/shell/FavoritePokemonPanel";
+import {MainMenuCommandBar, type MainMenuCommandItem} from "../components/shell/MainMenuCommandBar";
 import {QuickDexButton} from "../components/shell/QuickDexButton";
 import {SaveSelectPanel} from "../components/shell/SaveSelectPanel";
 import {TitleCommandMenu} from "../components/shell/TitleCommandMenu";
 import {TitleLogo} from "../components/shell/TitleLogo";
 import {TitleVideoBackground} from "../components/shell/TitleVideoBackground";
-import {createTitlePreviewSave, moveCardPreviewData, titlePreviewCatalog} from "./previewData";
+import {TrainerSummaryPanel} from "../components/shell/TrainerSummaryPanel";
+import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
+import {createMainMenuPreviewSave, createTitlePreviewSave, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, playerSettingsManyCatalog, titlePreviewCatalog} from "./previewData";
 
 export type ComponentPreviewState = {
   id: string;
@@ -39,6 +51,11 @@ const moveCardStates: ComponentPreviewState[] = [
   {id: "wide", name: "宽版尺寸"},
   {id: "tall", name: "高版尺寸"},
 ];
+
+function DiscoveryPanelPreview({cards}: {cards: MainMenuDexCard[]}) {
+  const [items, setItems] = useState(cards);
+  return <DiscoveryPanel cards={items} onCardsChange={setItems} onOpenCard={() => undefined} />;
+}
 
 export const componentRegistry: ComponentRegistryEntry[] = [
   {
@@ -216,6 +233,258 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       return (
         <div className="component-gallery-save-select-stage">
           <SaveSelectPanel active save={save} catalog={titlePreviewCatalog} defaultAvatarAsset={titlePreviewCatalog.players[0]?.avatar_asset} onBack={() => undefined} onLoad={() => undefined} onNew={() => undefined} onCreate={async () => save} onDelete={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "trainer-summary-panel",
+    name: "训练师摘要面板",
+    group: "shell",
+    defaultSize: {width: 260, height: 64},
+    componentFile: "apps/desktop/src/components/shell/TrainerSummaryPanel.tsx",
+    cssFile: "apps/desktop/src/components/shell/TrainerSummaryPanel.css",
+    cssVariablePrefix: "--trainer-summary-panel-*",
+    dependencies: ["TrainerAvatar", "motion/react"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "emptySave", name: "无存档"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      const save = stateId === "emptySave" ? null : createMainMenuPreviewSave(stateId === "longName" ? "很长很长的训练师名字测试" : "小遥", 268);
+      return (
+        <div className="component-gallery-main-menu-stage">
+          <TrainerSummaryPanel save={save} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "favorite-pokemon-panel",
+    name: "常用宝可梦面板",
+    group: "shell",
+    defaultSize: {width: 190, height: 98},
+    componentFile: "apps/desktop/src/components/shell/FavoritePokemonPanel.tsx",
+    cssFile: "apps/desktop/src/components/shell/FavoritePokemonPanel.css",
+    cssVariablePrefix: "--favorite-pokemon-panel-*",
+    dependencies: ["motion/react"],
+    states: [
+      {id: "filled", name: "有数据"},
+      {id: "empty", name: "空状态"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const cards = stateId === "empty" ? [] : stateId === "longText" ? mainMenuLongFavoritePreviewCards : mainMenuFavoritePreviewCards;
+      return (
+        <div className="component-gallery-main-menu-stage">
+          <FavoritePokemonPanel cards={cards} onOpenCard={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "discovery-panel",
+    name: "发现面板",
+    group: "shell",
+    defaultSize: {width: 210, height: 126},
+    componentFile: "apps/desktop/src/components/shell/DiscoveryPanel.tsx",
+    cssFile: "apps/desktop/src/components/shell/DiscoveryPanel.css",
+    cssVariablePrefix: "--discovery-panel-*",
+    dependencies: ["ItemIcon", "motion/react"],
+    states: [
+      {id: "filled", name: "有数据"},
+      {id: "fewItems", name: "少量数据"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      const cards = stateId === "fewItems" ? mainMenuDiscoveryPreviewCards.slice(0, 2) : stateId === "longText" ? mainMenuLongDiscoveryPreviewCards : mainMenuDiscoveryPreviewCards;
+      return (
+        <div className="component-gallery-main-menu-stage">
+          <DiscoveryPanelPreview cards={cards} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "main-menu-command-bar",
+    name: "主页命令栏",
+    group: "shell",
+    defaultSize: {width: 220, height: 220},
+    componentFile: "apps/desktop/src/components/shell/MainMenuCommandBar.tsx",
+    cssFile: "apps/desktop/src/components/shell/MainMenuCommandBar.css",
+    cssVariablePrefix: "--main-menu-command-bar-*",
+    dependencies: ["ComponentGalleryButton", "motion/react"],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "withGallery", name: "带组件入口"},
+      {id: "longLabels", name: "长标签"},
+    ],
+    renderPreview(stateId) {
+      const items: MainMenuCommandItem[] = stateId === "longLabels"
+        ? [
+            {label: "继续一场名字很长的挑战", action: () => undefined},
+            {label: "训练家星图扩展测试", action: () => undefined},
+            {label: "玩家设置长标签测试", action: () => undefined},
+            {label: "回到主页", action: () => undefined},
+          ]
+        : [
+            {label: "开始游戏", action: () => undefined},
+            {label: "训练家星图", action: () => undefined},
+            {label: "玩家设置", action: () => undefined},
+            {label: "战绩", action: () => undefined},
+            {label: "对局偏好", action: () => undefined},
+            {label: "图鉴", action: () => undefined, instant: true},
+          ];
+      return (
+        <div className="component-gallery-main-menu-stage">
+          <MainMenuCommandBar items={items} showComponentGallery={stateId === "withGallery"} onChoose={() => undefined} onComponentGallery={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "component-gallery-button",
+    name: "查看组件按钮",
+    group: "shell",
+    defaultSize: {width: 150, height: 44},
+    componentFile: "apps/desktop/src/components/shell/ComponentGalleryButton.tsx",
+    cssFile: "apps/desktop/src/components/shell/ComponentGalleryButton.css",
+    cssVariablePrefix: "--component-gallery-button-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "disabled", name: "禁用"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-main-menu-button-stage">
+          <ComponentGalleryButton disabled={stateId === "disabled"} onClick={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "player-name-editor",
+    name: "玩家昵称编辑",
+    group: "player",
+    defaultSize: {width: 122, height: 34},
+    componentFile: "apps/desktop/src/components/player/PlayerNameEditor.tsx",
+    cssFile: "apps/desktop/src/components/player/PlayerNameEditor.css",
+    cssVariablePrefix: "--player-name-editor-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "longName", name: "长名字"},
+      {id: "disabled", name: "禁用"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-player-field-stage">
+          <PlayerNameEditor value={stateId === "longName" ? "很长很长的训练师名字测试" : "小遥"} disabled={stateId === "disabled"} onChange={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "trainer-preview-panel",
+    name: "训练师预览面板",
+    group: "player",
+    defaultSize: {width: 122, height: 118},
+    componentFile: "apps/desktop/src/components/player/TrainerPreviewPanel.tsx",
+    cssFile: "apps/desktop/src/components/player/TrainerPreviewPanel.css",
+    cssVariablePrefix: "--trainer-preview-panel-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "emptyPlayer", name: "空角色"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-player-preview-stage">
+          <TrainerPreviewPanel name={stateId === "longName" ? "很长很长的训练师名字测试" : "小遥"} player={stateId === "emptyPlayer" ? undefined : titlePreviewCatalog.players[0]} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "trainer-avatar-picker",
+    name: "训练师头像选择器",
+    group: "player",
+    defaultSize: {width: 220, height: 150},
+    componentFile: "apps/desktop/src/components/player/TrainerAvatarPicker.tsx",
+    cssFile: "apps/desktop/src/components/player/TrainerAvatarPicker.css",
+    cssVariablePrefix: "--trainer-avatar-picker-*",
+    dependencies: [],
+    states: [
+      {id: "players", name: "角色"},
+      {id: "avatars", name: "头像"},
+      {id: "empty", name: "空状态"},
+      {id: "manyItems", name: "多项目"},
+    ],
+    renderPreview(stateId) {
+      const mode = stateId === "avatars" || stateId === "manyItems" ? "avatars" : "players";
+      const items = stateId === "empty" ? [] : stateId === "manyItems" ? playerSettingsManyCatalog.avatars : mode === "avatars" ? titlePreviewCatalog.avatars : titlePreviewCatalog.players;
+      const selectedId = mode === "avatars" ? titlePreviewCatalog.avatars[0]?.avatar_asset : titlePreviewCatalog.players[0]?.id;
+      return (
+        <div className="component-gallery-player-picker-stage">
+          <TrainerAvatarPicker title={mode === "avatars" ? "头像" : "玩家角色"} mode={mode} items={items} selectedId={selectedId} onSelect={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "page-action-bar",
+    name: "页面动作条",
+    group: "player",
+    defaultSize: {width: 180, height: 28},
+    componentFile: "apps/desktop/src/components/player/PageActionBar.tsx",
+    cssFile: "apps/desktop/src/components/player/PageActionBar.css",
+    cssVariablePrefix: "--page-action-bar-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "disabledSave", name: "禁用保存"},
+      {id: "longLabels", name: "长标签"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-player-action-stage">
+          <PageActionBar saveLabel={stateId === "longLabels" ? "保存当前训练师资料" : "保存设置"} backLabel={stateId === "longLabels" ? "返回上一页" : "返回"} saveDisabled={stateId === "disabledSave"} onSave={() => undefined} onBack={() => undefined} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "player-settings-page",
+    name: "玩家设置页",
+    group: "player",
+    defaultSize: {width: 488, height: 150},
+    componentFile: "apps/desktop/src/components/player/PlayerSettingsPage.tsx",
+    cssFile: "apps/desktop/src/components/player/PlayerSettingsPage.css",
+    cssVariablePrefix: "--player-settings-page-*",
+    dependencies: ["PlayerNameEditor", "TrainerPreviewPanel", "TrainerAvatarPicker", "PageActionBar"],
+    states: [
+      {id: "newGame", name: "新建存档"},
+      {id: "editSave", name: "编辑存档"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      const save = stateId === "newGame" ? null : createMainMenuPreviewSave(stateId === "longName" ? "很长很长的训练师名字测试" : "小遥", 268);
+      return (
+        <div className="component-gallery-player-page-stage">
+          <PlayerSettingsPage
+            title={stateId === "newGame" ? "训练师登记" : "玩家设置"}
+            save={save}
+            name={stateId === "longName" ? "很长很长的训练师名字测试" : "小遥"}
+            catalog={stateId === "longName" ? playerSettingsManyCatalog : titlePreviewCatalog}
+            selectedPlayerId="may"
+            selectedAvatarAsset={titlePreviewCatalog.avatars[0]?.avatar_asset}
+            onSave={() => undefined}
+            onBack={() => undefined}
+            saveLabel={stateId === "newGame" ? "创建存档" : "保存设置"}
+          />
         </div>
       );
     },

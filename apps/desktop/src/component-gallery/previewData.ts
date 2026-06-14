@@ -1,6 +1,7 @@
 import type {CSSProperties} from "react";
-import type {LocalSave, TrainerCatalogState} from "@changebattle/shared";
+import type {DesktopDexEntry, LocalSave, ShopItem, TrainerCatalogState} from "@changebattle/shared";
 import type {MoveCardData} from "../components/move/MoveCard";
+import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
 
 export const moveCardPreviewData: Record<string, MoveCardData & {size?: "battle" | "sheet" | "dex" | "draw"; selected?: boolean; disabled?: boolean; className?: string; previewWidth?: number; style?: CSSProperties}> = {
   dex: {
@@ -147,6 +148,27 @@ export const titlePreviewCatalog: TrainerCatalogState = {
   ],
 };
 
+export const playerSettingsManyCatalog: TrainerCatalogState = {
+  players: [
+    ...titlePreviewCatalog.players,
+    {id: "dawn", type: "player", name_en: "Dawn", name_zh: "小光", avatar_asset: "trainers/avatars/dawn.png", front_asset: "trainers/front/dawn.png", front_gif_asset: "trainers/front/dawn.gif"},
+    {id: "hilbert", type: "player", name_en: "Hilbert", name_zh: "斗也", avatar_asset: "trainers/avatars/hilbert.png", front_asset: "trainers/front/hilbert.png", front_gif_asset: "trainers/front/hilbert.gif"},
+    {id: "rosa", type: "player", name_en: "Rosa", name_zh: "鸣依", avatar_asset: "trainers/avatars/rosa.png", front_asset: "trainers/front/rosa.png", front_gif_asset: "trainers/front/rosa.gif"},
+    {id: "serena", type: "player", name_en: "Serena", name_zh: "莎莉娜", avatar_asset: "trainers/avatars/serena.png", front_asset: "trainers/front/serena.png", front_gif_asset: "trainers/front/serena.gif"},
+  ],
+  avatars: [
+    ...titlePreviewCatalog.avatars,
+    {id: "avatar-dawn", type: "avatar", name_en: "Dawn", name_zh: "小光", avatar_asset: "trainers/avatars/dawn.png"},
+    {id: "avatar-hilbert", type: "avatar", name_en: "Hilbert", name_zh: "斗也", avatar_asset: "trainers/avatars/hilbert.png"},
+    {id: "avatar-rosa", type: "avatar", name_en: "Rosa", name_zh: "鸣依", avatar_asset: "trainers/avatars/rosa.png"},
+    {id: "avatar-serena", type: "avatar", name_en: "Serena", name_zh: "莎莉娜", avatar_asset: "trainers/avatars/serena.png"},
+    {id: "avatar-lyra", type: "avatar", name_en: "Lyra", name_zh: "琴音", avatar_asset: "trainers/avatars/lyra.png"},
+    {id: "avatar-ethan", type: "avatar", name_en: "Ethan", name_zh: "响", avatar_asset: "trainers/avatars/ethan.png"},
+    {id: "avatar-gloria", type: "avatar", name_en: "Gloria", name_zh: "小优", avatar_asset: "trainers/avatars/gloria.png"},
+    {id: "avatar-victor", type: "avatar", name_en: "Victor", name_zh: "胜", avatar_asset: "trainers/avatars/victor.png"},
+  ],
+};
+
 export function createTitlePreviewSave(name = "小遥", battlePoints = 128): LocalSave {
   return {
     version: 1,
@@ -169,3 +191,61 @@ export function createTitlePreviewSave(name = "小遥", battlePoints = 128): Loc
     updated_at: "2026-06-14T00:00:00.000Z",
   };
 }
+
+export function createMainMenuPreviewSave(name = "小遥", battlePoints = 268): LocalSave {
+  return {
+    ...createTitlePreviewSave(name, battlePoints),
+    stats: {
+      battle_points: battlePoints,
+      battles: 42,
+      wins: 29,
+      losses: 13,
+      rank_status: "normal",
+    },
+    run_memory: {
+      player_species_ids: ["pikachu", "charizard", "venusaur"],
+    },
+  };
+}
+
+function previewDexEntry(id: string, name: string, nameZh: string, category: DesktopDexEntry["category"]): DesktopDexEntry {
+  return {id, name, name_zh: nameZh, category};
+}
+
+function previewShopItem(id: string, name: string, nameZh: string): ShopItem {
+  return {
+    id,
+    name,
+    name_zh: nameZh,
+    desc: "Preview item",
+    desc_zh: "预览道具",
+    cost: 120,
+    icon_asset: "",
+  };
+}
+
+export const mainMenuFavoritePreviewCards: MainMenuDexCard[] = [
+  {id: "favorite-pikachu", label: "皮卡丘", eyebrow: "最常用", category: "pokemon", entry: previewDexEntry("pikachu", "Pikachu", "皮卡丘", "pokemon")},
+  {id: "favorite-charizard", label: "喷火龙", eyebrow: "常用 2", category: "pokemon", entry: previewDexEntry("charizard", "Charizard", "喷火龙", "pokemon")},
+  {id: "favorite-venusaur", label: "妙蛙花", eyebrow: "常用 3", category: "pokemon", entry: previewDexEntry("venusaur", "Venusaur", "妙蛙花", "pokemon")},
+];
+
+export const mainMenuLongFavoritePreviewCards: MainMenuDexCard[] = [
+  {id: "favorite-long-1", label: "超级长名字宝可梦展示测试", eyebrow: "最常用但是很长", category: "pokemon", entry: previewDexEntry("long-pokemon-1", "Long Pokemon", "超级长名字宝可梦展示测试", "pokemon")},
+  {id: "favorite-long-2", label: "名字很长的喷火龙形态", eyebrow: "常用 2", category: "pokemon", entry: previewDexEntry("long-pokemon-2", "Long Charizard", "名字很长的喷火龙形态", "pokemon")},
+  {id: "favorite-long-3", label: "妙蛙花特殊形态测试", eyebrow: "常用 3", category: "pokemon", entry: previewDexEntry("long-pokemon-3", "Long Venusaur", "妙蛙花特殊形态测试", "pokemon")},
+];
+
+export const mainMenuDiscoveryPreviewCards: MainMenuDexCard[] = [
+  {id: "item-leftovers", label: "吃剩的东西", eyebrow: "随机道具", category: "items", entry: previewDexEntry("leftovers", "Leftovers", "吃剩的东西", "items"), shopItem: previewShopItem("leftovers", "Leftovers", "吃剩的东西")},
+  {id: "pokemon-eevee", label: "伊布", eyebrow: "随机宝可梦", category: "pokemon", entry: previewDexEntry("eevee", "Eevee", "伊布", "pokemon")},
+  {id: "tm-thunderbolt", label: "十万伏特", eyebrow: "技能机器", category: "moves", entry: previewDexEntry("thunderbolt", "Thunderbolt", "十万伏特", "moves")},
+  {id: "ability-intimidate", label: "威吓", eyebrow: "随机特性", category: "abilities", entry: previewDexEntry("intimidate", "Intimidate", "威吓", "abilities")},
+];
+
+export const mainMenuLongDiscoveryPreviewCards: MainMenuDexCard[] = [
+  {id: "item-long", label: "名字非常长的随机道具测试", eyebrow: "随机道具标签很长", category: "items", entry: previewDexEntry("long-item", "Long Item", "名字非常长的随机道具测试", "items"), shopItem: previewShopItem("long-item", "Long Item", "名字非常长的随机道具测试")},
+  {id: "pokemon-long", label: "名字非常长的随机宝可梦", eyebrow: "随机宝可梦", category: "pokemon", entry: previewDexEntry("long-pokemon", "Long Pokemon", "名字非常长的随机宝可梦", "pokemon")},
+  {id: "tm-long", label: "超长技能机器名字测试", eyebrow: "技能机器", category: "moves", entry: previewDexEntry("long-move", "Long Move", "超长技能机器名字测试", "moves")},
+  {id: "ability-long", label: "很长很长的特性名字", eyebrow: "随机特性", category: "abilities", entry: previewDexEntry("long-ability", "Long Ability", "很长很长的特性名字", "abilities")},
+];
