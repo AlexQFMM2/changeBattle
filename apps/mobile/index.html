@@ -15,19 +15,60 @@
     </script>
     <script>
       (function () {
-        if (/[?&]novconsole=1\b/.test(window.location.search)) return;
-        var script = document.createElement("script");
-        script.src = "https://s2.d2scdn.com/u/qiuzhen/2024/01/23/xLzaZj9WsceVzhFFuYAN4n/vconsole.min.js";
-        script.onload = function () {
-          if (!window.VConsole) return;
-          window.__changeBattleVConsole = new window.VConsole();
-          window.__changeBattleVConsole.setOption("maxLogNumber", 5000);
-          console.info("[changebattle:vconsole] ready");
+        var storageKey = "changebattle:vconsole-enabled";
+        var scriptUrl = "https://s2.d2scdn.com/u/qiuzhen/2024/01/23/xLzaZj9WsceVzhFFuYAN4n/vconsole.min.js";
+        var loading = false;
+
+        function isEnabled() {
+          if (/[?&]vconsole=1\b/.test(window.location.search)) return true;
+          if (/[?&]novconsole=1\b/.test(window.location.search)) return false;
+          return window.localStorage.getItem(storageKey) === "1";
+        }
+
+        function setEnabled(enabled) {
+          window.localStorage.setItem(storageKey, enabled ? "1" : "0");
+          if (enabled) {
+            loadVConsole();
+            return;
+          }
+          if (window.__changeBattleVConsole && typeof window.__changeBattleVConsole.destroy === "function") {
+            window.__changeBattleVConsole.destroy();
+          }
+          window.__changeBattleVConsole = null;
+          console.info("[changebattle:vconsole] disabled");
+        }
+
+        function loadVConsole() {
+          if (window.__changeBattleVConsole || loading) return;
+          if (window.VConsole) {
+            window.__changeBattleVConsole = new window.VConsole();
+            window.__changeBattleVConsole.setOption("maxLogNumber", 5000);
+            console.info("[changebattle:vconsole] ready");
+            return;
+          }
+          loading = true;
+          var script = document.createElement("script");
+          script.src = scriptUrl;
+          script.onload = function () {
+            loading = false;
+            if (!isEnabled() || !window.VConsole) return;
+            window.__changeBattleVConsole = new window.VConsole();
+            window.__changeBattleVConsole.setOption("maxLogNumber", 5000);
+            console.info("[changebattle:vconsole] ready");
+          };
+          script.onerror = function () {
+            loading = false;
+            console.warn("[changebattle:vconsole] failed to load");
+          };
+          document.head.appendChild(script);
+        }
+
+        window.__changeBattleDebug = {
+          isVConsoleEnabled: isEnabled,
+          setVConsoleEnabled: setEnabled,
         };
-        script.onerror = function () {
-          console.warn("[changebattle:vconsole] failed to load");
-        };
-        document.head.appendChild(script);
+
+        if (isEnabled()) loadVConsole();
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

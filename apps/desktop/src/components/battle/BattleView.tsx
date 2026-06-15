@@ -95,6 +95,32 @@ function isForceSwitchRequest(request: BattleState["request"]): boolean {
   return Boolean(request?.forceSwitch?.some(Boolean));
 }
 
+function normalizedShowdownId(value: string | undefined): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+function runtimeMatchesSlot(runtime: RuntimePokemon | undefined, slot: BattleViewSlot | undefined): boolean {
+  if (!runtime || !slot) return false;
+  const runtimeId = normalizedShowdownId(runtime.pokeball);
+  if (runtimeId && runtimeId === normalizedShowdownId(slot.showdown_id || slot.runtime?.pokeball || slot.display?.showdown_id)) return true;
+  const runtimeIdent = toId(runtime.ident || runtime.details);
+  const slotIdent = toId(slot.runtime?.ident || slot.runtime?.details || slot.display?.species || slot.display?.name);
+  return Boolean(runtimeIdent && slotIdent && runtimeIdent === slotIdent);
+}
+
+function switchChoiceIndexForSlot(battle: BattleState, slot: BattleViewSlot | undefined): number | null {
+  if (!slot) return null;
+  const requestPokemon = battle.request?.side?.pokemon || [];
+  const byId = normalizedShowdownId(slot.showdown_id || slot.runtime?.pokeball || slot.display?.showdown_id);
+  if (byId) {
+    const index = requestPokemon.findIndex(runtime => normalizedShowdownId(runtime.pokeball) === byId);
+    if (index >= 0) return index + 1;
+  }
+  const runtimeIndex = requestPokemon.findIndex(runtime => runtimeMatchesSlot(runtime, slot));
+  if (runtimeIndex >= 0) return runtimeIndex + 1;
+  return slot.slot || null;
+}
+
 function aiAutoplayRequestKey(battle: BattleState | null): string {
   if (!battle?.request || battle.request.wait || battle.request.teamPreview || battle.ended) return "";
   const activeMoves = (battle.request.active?.[0]?.moves || [])
@@ -1751,7 +1777,8 @@ function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disab
   const pokemon = slot?.display || battle.player_display[0];
   const status = statusCode(slot?.condition, slot?.status);
   const selectedSlot = slot?.slot;
-  const canSwitch = Boolean(selectedSlot) && Boolean(slot) && !slot.active && status !== "fnt";
+  const switchChoiceIndex = switchChoiceIndexForSlot(battle, slot);
+  const canSwitch = Boolean(switchChoiceIndex) && Boolean(slot) && !slot.active && status !== "fnt";
   const activeMoves = slot?.active ? battle.request?.active?.[0]?.moves || [] : [];
   const revealTraining = Boolean(battle.player_talents?.some(talent => talent.id === "intel_god_eye"));
   const detailLockedText = "？？？";
@@ -1763,8 +1790,20 @@ function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disab
   if (!pokemon) return null;
 
   async function submitSwitch() {
-    if (!selectedSlot || disabled || switchSubmitting || !canSwitch) return;
-    await Promise.resolve(onSwitch(selectedSlot));
+    if (!switchChoiceIndex || disabled || switchSubmitting || !canSwitch) return;
+    battleDebugLog("resolve switch target", {
+      uiSlot: selectedSlot,
+      submittedSwitchIndex: switchChoiceIndex,
+      targetShowdownId: normalizedShowdownId(slot?.showdown_id || slot?.runtime?.pokeball || pokemon.showdown_id),
+      requestOrder: (battle.request?.side?.pokemon || []).map((entry, index) => ({
+        switchIndex: index + 1,
+        ident: entry.ident,
+        pokeball: entry.pokeball,
+        active: Boolean(entry.active),
+        condition: entry.condition,
+      })),
+    });
+    await Promise.resolve(onSwitch(switchChoiceIndex));
   }
 
   function ppText(move: MoveSummary): string {

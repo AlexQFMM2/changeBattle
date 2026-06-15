@@ -6,6 +6,15 @@ import {BGM_SCENE_LABELS, MUSIC_MANIFEST, type BgmScene, type MusicTrack} from "
 
 const CROSSFADE_MS = 1800;
 
+type ChangeBattleDebugBridge = {
+  isVConsoleEnabled?: () => boolean;
+  setVConsoleEnabled?: (enabled: boolean) => void;
+};
+
+function changeBattleDebugBridge(): ChangeBattleDebugBridge | undefined {
+  return (window as Window & {__changeBattleDebug?: ChangeBattleDebugBridge}).__changeBattleDebug;
+}
+
 function normalizedSettings(settings?: Partial<AudioSettings> | null): AudioSettings {
   const volume = Number(settings?.bgm_volume ?? DEFAULT_AUDIO_SETTINGS.bgm_volume);
   return {
@@ -21,16 +30,22 @@ function randomTrack(scene: BgmScene, previousId?: string): MusicTrack | null {
   return pool[Math.floor(Math.random() * pool.length)] || tracks[0];
 }
 
+function clampedVolume(volume: number): number {
+  return Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : 0));
+}
+
 function fadeAudio(audio: HTMLAudioElement, from: number, to: number, durationMs: number, onDone?: () => void): number {
   const startedAt = performance.now();
+  const fromVolume = clampedVolume(from);
+  const toVolume = clampedVolume(to);
   const tick = (now: number) => {
     const progress = Math.min(1, (now - startedAt) / Math.max(1, durationMs));
-    audio.volume = from + (to - from) * progress;
+    audio.volume = clampedVolume(fromVolume + (toVolume - fromVolume) * progress);
     if (progress < 1) {
       frame = window.requestAnimationFrame(tick);
       return;
     }
-    audio.volume = to;
+    audio.volume = toVolume;
     onDone?.();
   };
   let frame = window.requestAnimationFrame(tick);
@@ -42,6 +57,8 @@ export function BgmController({scene, save, onSave}: {scene: BgmScene; save: Loc
   const [open, setOpen] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<MusicTrack | null>(null);
   const [needsGesture, setNeedsGesture] = useState(false);
+  const [debugAvailable, setDebugAvailable] = useState(() => Boolean(changeBattleDebugBridge()));
+  const [debugEnabled, setDebugEnabled] = useState(() => Boolean(changeBattleDebugBridge()?.isVConsoleEnabled?.()));
   const audioRefs = useRef<[HTMLAudioElement | null, HTMLAudioElement | null]>([null, null]);
   const activeIndexRef = useRef(0);
   const sceneRef = useRef(scene);
@@ -65,6 +82,12 @@ export function BgmController({scene, save, onSave}: {scene: BgmScene; save: Loc
   useEffect(() => {
     if (save?.audio_settings) setSettings(normalizedSettings(save.audio_settings));
   }, [save?.audio_settings]);
+
+  useEffect(() => {
+    const bridge = changeBattleDebugBridge();
+    setDebugAvailable(Boolean(bridge));
+    setDebugEnabled(Boolean(bridge?.isVConsoleEnabled?.()));
+  }, []);
 
   useEffect(() => {
     audioRefs.current = [new Audio(), new Audio()];
@@ -250,6 +273,11 @@ export function BgmController({scene, save, onSave}: {scene: BgmScene; save: Loc
     if (result?.settings) setSettings(normalizedSettings(result.settings));
   }
 
+  function setDebugConsoleEnabled(enabled: boolean) {
+    setDebugEnabled(enabled);
+    changeBattleDebugBridge()?.setVConsoleEnabled?.(enabled);
+  }
+
   const sceneLabel = BGM_SCENE_LABELS[scene];
   const volumePercent = useMemo(() => Math.round(settings.bgm_volume * 100), [settings.bgm_volume]);
 
@@ -270,6 +298,12 @@ export function BgmController({scene, save, onSave}: {scene: BgmScene; save: Loc
             <span>音量 {volumePercent}%</span>
             <input type="range" min={0} max={100} value={volumePercent} onChange={event => void persistSettings({...settings, bgm_volume: Number(event.target.value) / 100})} />
           </label>
+          {debugAvailable ? (
+            <label className="bgm-toggle-row">
+              <span>打开调试</span>
+              <input type="checkbox" checked={debugEnabled} onChange={event => setDebugConsoleEnabled(event.target.checked)} />
+            </label>
+          ) : null}
           <p><span>{sceneLabel}</span><strong>{currentTrack?.title || (settings.bgm_enabled ? "等待播放" : "已关闭")}</strong></p>
           {needsGesture && settings.bgm_enabled ? <small>点击任意位置后开始播放</small> : null}
         </section>
