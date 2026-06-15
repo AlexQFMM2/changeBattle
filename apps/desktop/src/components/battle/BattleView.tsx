@@ -108,17 +108,22 @@ function runtimeMatchesSlot(runtime: RuntimePokemon | undefined, slot: BattleVie
   return Boolean(runtimeIdent && slotIdent && runtimeIdent === slotIdent);
 }
 
-function switchChoiceIndexForSlot(battle: BattleState, slot: BattleViewSlot | undefined): number | null {
+function battleRequestIndexForSlot(battle: BattleState, slot: BattleViewSlot | undefined): number | null {
   if (!slot) return null;
   const requestPokemon = battle.request?.side?.pokemon || [];
   const byId = normalizedShowdownId(slot.showdown_id || slot.runtime?.pokeball || slot.display?.showdown_id);
   if (byId) {
     const index = requestPokemon.findIndex(runtime => normalizedShowdownId(runtime.pokeball) === byId);
-    if (index >= 0) return index + 1;
+    if (index >= 0) return index;
   }
   const runtimeIndex = requestPokemon.findIndex(runtime => runtimeMatchesSlot(runtime, slot));
-  if (runtimeIndex >= 0) return runtimeIndex + 1;
-  return slot.slot || null;
+  if (runtimeIndex >= 0) return runtimeIndex;
+  return slot.slot ? slot.slot - 1 : null;
+}
+
+function switchChoiceIndexForSlot(battle: BattleState, slot: BattleViewSlot | undefined): number | null {
+  const requestIndex = battleRequestIndexForSlot(battle, slot);
+  return requestIndex === null ? null : requestIndex + 1;
 }
 
 function aiAutoplayRequestKey(battle: BattleState | null): string {
@@ -2001,6 +2006,26 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
     setToast({id: Date.now(), message, tone});
   }
 
+  function itemTargetBattleIndexFor(uiTargetIndex: number): number {
+    const slot = slots[uiTargetIndex];
+    const requestIndex = battleRequestIndexForSlot(battle, slot);
+    const submittedBattleIndex = requestIndex ?? uiTargetIndex;
+    battleDebugLog("resolve item target", {
+      itemId: selected?.id,
+      uiTargetIndex,
+      submittedBattleIndex,
+      targetShowdownId: normalizedShowdownId(slot?.showdown_id || slot?.runtime?.pokeball || slot?.display?.showdown_id),
+      requestOrder: (battle.request?.side?.pokemon || []).map((entry, index) => ({
+        battleIndex: index,
+        ident: entry.ident,
+        pokeball: entry.pokeball,
+        active: Boolean(entry.active),
+        condition: entry.condition,
+      })),
+    });
+    return submittedBattleIndex;
+  }
+
   async function submitSelectedItem(targetIndex: number) {
     if (!selected || usingItem) return;
     setTarget(targetIndex);
@@ -2017,7 +2042,7 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
     }
     setUsingItem(true);
     try {
-      const ok = await onUse(selected.id, targetIndex);
+      const ok = await onUse(selected.id, itemTargetBattleIndexFor(targetIndex));
       if (ok === false) showToast("道具没有成功使用。", "danger");
       else setStep("detail");
     } finally {
@@ -2029,7 +2054,7 @@ function BattleItemModal({battle, bag, initialTarget, disabled, onClose, onUse}:
     if (!ppPicker || usingItem) return;
     setUsingItem(true);
     try {
-      const ok = await onUse(ppPicker.item.id, ppPicker.target, move.slot, `${move.name} 已恢复`);
+      const ok = await onUse(ppPicker.item.id, itemTargetBattleIndexFor(ppPicker.target), move.slot, `${move.name} 已恢复`);
       if (ok === false) showToast("道具没有成功使用。", "danger");
       else {
         setPpPicker(null);

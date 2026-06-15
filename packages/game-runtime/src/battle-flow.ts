@@ -1,6 +1,6 @@
 import type {BattleBackgroundView, BattleRecordEntry, BattleRequestView, BattleSetting, BattleState, BossDexRecord, CurrentRunData, LocalSave, PlannedBattleData, PlayerPokemonState, PokemonSet, RentalPokemon, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
-import {WIN_BP_REWARD, addBattleRewardCoins, addCoins, emptyStats, hasTalent, itemKey, refreshStats, toId} from "./run-rules.js";
+import {RECYCLE_RECEIPT_RATE, WIN_BP_REWARD, addBattleRewardCoins, addBp, addCoins, addRunBp, coinsToBp, convertibleCoinsForSettlement, currentCoins, emptyStats, hasTalent, itemKey, portfolioBonus, recordCoinLedger, refreshStats, refundableBagBaseBpFromCosts, settleProphetFirstMover, toId} from "./run-rules.js";
 import {fullStateForPokemon, refreshStateCondition} from "./rest-flow.js";
 
 export const VILLAIN_INTRUSION_BONUS_COINS = 500;
@@ -45,7 +45,7 @@ export type RuntimeBattleSessionOptions<TEnemyAi = unknown> = {
 export type RunRestStatusCarry = NonNullable<CurrentRunData["rest_status"]>;
 
 export type BasicBattleSettlement =
-  | {outcome: "loss"; run: CurrentRunData; message: string}
+  | {outcome: "loss"; run: CurrentRunData; message: string; settled: RuntimeSettledRunEnd}
   | {outcome: "completed"; run: CurrentRunData; wins: number; message: string; coinsEarned: number; stalwartRecovered: boolean}
   | {outcome: "rest"; run: CurrentRunData; wins: number; message: string; coinsEarned: number; stalwartRecovered: boolean};
 
@@ -457,6 +457,7 @@ export function settleBasicBattleResult(save: LocalSave, run: CurrentRunData, st
   playerWon?: boolean;
   defaultBattles: number;
   rewardCoins?: number;
+  itemCosts?: Record<string, number>;
   winMessage?: (wins: number, coinsEarned: number) => string;
   lossMessage?: string;
   completedMessage?: (wins: number, coinsEarned: number) => string;
@@ -467,8 +468,9 @@ export function settleBasicBattleResult(save: LocalSave, run: CurrentRunData, st
   const gainedBattleCoins = recordBattleOutcomeStats(save, playerWon ? "Player" : state.winner === "tie" ? "tie" : "Enemy", run, {recordTrainerDex: false, winReward: rewardCoins});
   if (!playerWon) {
     rememberRunForSoulmate(save, run);
+    const settled = settleRuntimeRunEnd(save, run, {outcome: "loss", itemCosts: options.itemCosts});
     save.current_run = null;
-    return {outcome: "loss", run, message: options.lossMessage || "挑战失败。"};
+    return {outcome: "loss", run, settled, message: options.lossMessage || "挑战失败。"};
   }
   const battleNo = Number(run.battle_no || 1);
   const wins = Number(run.wins || 0) + 1;
@@ -689,6 +691,24 @@ export function emptyRuntimeSettlement(): RuntimeSettledRunEnd {
     excludedCoins: 0,
     convertedBp: 0,
   };
+}
+
+export function settleRuntimeRunEnd(save: LocalSave, run: CurrentRunData, options: {itemCosts?: Record<string, number>; refundBag?: boolean; completed?: boolean; outcome?: "normal" | "loss"} = {}): RuntimeSettledRunEnd {
+  const paidBack = settleProphetFirstMover(save, run);
+  const refundBase = options.refundBag === false ? 0 : refundableBagBaseBpFromCosts(run, options.itemCosts || {}, options.outcome || "normal");
+  const refundGained = refundBase ? addRunBp(save, run, refundBase) : 0;
+  const receiptBase = Number(run.recycle_receipt_value || 0) + refundBase;
+  const receiptBonus = hasTalent(run.talents, "economy_recycle_receipt") && receiptBase > 0 ? addRunBp(save, run, Math.floor(receiptBase * RECYCLE_RECEIPT_RATE)) : 0;
+  const portfolio = portfolioBonus(run);
+  const portfolioGained = options.completed && portfolio.bonus > 0 ? addRunBp(save, run, portfolio.bonus) : 0;
+  const {convertibleCoins: convertedCoins, excludedCoins} = convertibleCoinsForSettlement(run);
+  const convertedBp = coinsToBp(convertedCoins);
+  if (convertedBp > 0) addBp(save, convertedBp);
+  const beforeSettlementCoins = currentCoins(run);
+  if (beforeSettlementCoins > 0) recordCoinLedger(run, "spend", beforeSettlementCoins, beforeSettlementCoins, 0, "settlement", "结算折算");
+  run.coins = 0;
+  run.non_convertible_coins = 0;
+  return {paidBack, refundBase, refundGained, receiptBonus, portfolioBonus: portfolioGained, portfolioTypes: portfolio.types, convertedCoins, excludedCoins, convertedBp};
 }
 
 export function buildRuntimeBattleRecord(options: {

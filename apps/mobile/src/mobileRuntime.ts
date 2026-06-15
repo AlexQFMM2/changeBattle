@@ -109,6 +109,7 @@ import {
   SCOUT_ONE_COST,
   SCORE_BET_MIN_STAKE,
   settleBasicBattleResult,
+  settleRuntimeRunEnd,
   starterChoiceState,
   starterProfilesForStreak,
   starterSpeciesTiersForStreak,
@@ -385,11 +386,13 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         timelineEvents: state.timeline_events || [],
         playerSide: "p1",
       });
+      const itemCosts = mobilePlayerWon ? undefined : await mobileItemCostMap(await loadGameService(), run);
       const settled = settleBasicBattleResult(save, run, state, {
         playerState: perspective.playerState,
         playerWon: mobilePlayerWon,
         defaultBattles: 7,
         rewardCoins: mobileBattleRewardCoins(run),
+        itemCosts,
         lossMessage: "移动端挑战失败。",
         winMessage: (wins, coinsEarned) => `移动端真实战斗胜利，获得 ${coinsEarned} 金币。当前连胜：${wins}`,
         completedMessage: (wins, coinsEarned) => `移动端挑战通关，完成 ${wins} 连胜，获得 ${coinsEarned} 金币。`,
@@ -404,6 +407,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         wins: settled.outcome === "loss" ? Number(run.wins || 0) : Number(settled.wins || run.wins || 0),
         run,
         battle: state,
+        settled: settled.outcome === "loss" ? settled.settled : undefined,
         battleReward: settled.outcome === "loss" ? undefined : settled.coinsEarned,
         defaultBattles: 7,
       });
@@ -700,6 +704,10 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
             return questMessage ? {...nextState, message: [questMessage, nextState.message].filter(Boolean).join(" ")} : nextState;
           }
           if (action.type === "abort") {
+            const service = await loadGameService();
+            rememberRunForSoulmate(save, run);
+            const settled = settleRuntimeRunEnd(save, run, {itemCosts: await mobileItemCostMap(service, run)});
+            const message = `挑战已中止。本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP。`;
             const resultSummary = buildRuntimeResultSummary({
               outcome: "abort",
               headline: "挑战中断",
@@ -707,23 +715,23 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
               wins: Number(run.wins || 0),
               run,
               battle: activeBattleState,
+              settled,
               defaultBattles: 7,
             });
             await env.saves.appendBattleRecord(buildRuntimeRunRecord({
               id: env.uuid.randomUUID(),
               createdAt: env.now().toISOString(),
               run,
-              message: "挑战已中止。",
+              message,
               outcome: "abort",
               resultSummary,
               defaultBattles: 7,
             }));
-            rememberRunForSoulmate(save, run);
             save.current_run = null;
             const next = await env.saves.save(save);
             activeBattle = null;
             activeBattleState = null;
-            return gameState({screen: "mainMenu", save: next, message: "挑战已中止。"});
+            return gameState({screen: "result", save: next, message, result_summary: resultSummary});
           }
           if (action.type === "choose_rest_event") {
             const message = applyBasicRestEventChoice(save, run, action.eventId);
@@ -1591,6 +1599,17 @@ async function mobileItemDetails(service: GameService, itemId: string, meta?: Pa
     id,
     cost: Math.max(0, Number(meta?.cost ?? found?.cost ?? 0)),
   } as ShopItem;
+}
+
+async function mobileItemCostMap(service: GameService, run: CurrentRunData): Promise<Record<string, number>> {
+  const costs: Record<string, number> = {};
+  await Promise.all(Object.entries(run.bag_items || {}).map(async ([rawId, rawCount]) => {
+    if (Math.max(0, Number(rawCount || 0)) <= 0) return;
+    const id = itemKey(rawId);
+    const item = await mobileItemDetails(service, id, run.bag_item_meta?.[id]);
+    costs[id] = Math.max(0, Number(item.cost || 0));
+  }));
+  return costs;
 }
 
 async function mobileBagCategories(service: GameService, run: CurrentRunData): Promise<BagCategoryView> {

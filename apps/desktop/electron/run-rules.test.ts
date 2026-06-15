@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type {BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
-import {normalEnemySpeciesTiersForBattle} from "@changebattle/game-runtime";
+import {normalEnemySpeciesTiersForBattle, settleBasicBattleResult} from "@changebattle/game-runtime";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
 import {pokemonDexDetailTabs} from "../src/components/dex/learnsetGroups.ts";
 import {debugPokemon} from "../src/lib/ui.tsx";
@@ -325,6 +325,21 @@ function testEconomyTalents(): void {
   assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 500, excludedCoins: 400});
   spendCoins(angelRun, 400);
   assert.deepEqual(convertibleCoinsForSettlement(angelRun), {convertibleCoins: 500, excludedCoins: 0});
+
+  const lossSave = save(0);
+  const lossRun = run([], {coins: 2000, bag_items: {potion: 2}, recycle_receipt_value: 100});
+  lossSave.current_run = lossRun;
+  const lossSettlement = settleBasicBattleResult(lossSave, lossRun, {winner: "Enemy"} as any, {
+    playerWon: false,
+    defaultBattles: 7,
+    itemCosts: {potion: 200},
+  });
+  assert.equal(lossSettlement.outcome, "loss");
+  assert.equal(lossSettlement.settled.refundBase, 40);
+  assert.equal(lossSettlement.settled.convertedCoins, 2040);
+  assert.equal(lossSettlement.settled.convertedBp, 20);
+  assert.equal(currentCoins(lossRun), 0);
+  assert.equal(lossSave.current_run, null);
 }
 
 function testCoinLedgerAndTrainingRules(): void {
