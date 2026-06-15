@@ -42,6 +42,10 @@ const FORCED_CONTINUATION_MOVE_IDS = new Set([
   "outrage", "thrash", "petaldance", "rollout", "iceball", "uproar", "bravebird",
 ]);
 
+function battleDebugLog(message: string, data?: unknown): void {
+  if (import.meta.env.VITE_CHANGEBATTLE_MOBILE === "1") console.info(`[changebattle:switch] ${message}`, data);
+}
+
 type ActiveDisplaySnapshot = BattleState["tracker"]["active"]["p1"];
 type BattleViewSide = NonNullable<BattleState["battle_view"]>["player"];
 type BattleViewSlot = BattleViewSide["slots"][number];
@@ -677,6 +681,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   function openPokemonDetail(index: number) {
     setDetailIndex(index);
     setDetailSelectedIndex(index);
+    battleDebugLog("open detail", {index});
   }
 
   function closePokemonDetail() {
@@ -688,9 +693,21 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
 
   async function handleDetailSwitch(slot: number): Promise<boolean | void> {
     if (switchChoiceSubmitting) return false;
+    const view = battleViewFor(battle);
+    const selectedSlot = view?.player.slots.find(entry => entry.slot === slot);
+    battleDebugLog("submit switch", {
+      slot,
+      selectedIndex: detailSelectedIndex,
+      name: selectedSlot?.display ? displayName(selectedSlot.display) : selectedSlot?.runtime ? runtimeName(selectedSlot.runtime) : selectedSlot?.key,
+      active: selectedSlot?.active,
+      condition: selectedSlot?.condition,
+      requestKey: battleRequestKey,
+      forceSwitch,
+    });
     setSwitchChoiceSubmitting(true);
     setSwitchChoiceRequestKey(battleRequestKey);
     const ok = await Promise.resolve(onChoice(`switch ${slot}`));
+    battleDebugLog("switch choice returned", {slot, ok});
     if (ok === false) {
       setSwitchChoiceSubmitting(false);
       setSwitchChoiceRequestKey("");
@@ -711,6 +728,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
 
   useEffect(() => {
     if (!switchChoiceSubmitting || choicePending || battleRequestKey === switchChoiceRequestKey) return;
+    battleDebugLog("clear submitting after request change", {battleRequestKey, switchChoiceRequestKey, forceSwitch});
     setSwitchChoiceSubmitting(false);
     setSwitchChoiceRequestKey("");
     if (forceSwitch) return;
@@ -1026,6 +1044,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     }
 
     if (switchChoiceSubmitting) {
+      battleDebugLog("close detail before playback", {timelineEvents: added.map(event => ({type: event.type, text: event.text, targetSide: event.targetSide, target: event.target}))});
       setSwitchChoiceSubmitting(false);
       setSwitchChoiceRequestKey("");
       closePokemonDetail();
@@ -1764,7 +1783,16 @@ function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disab
             const display = entry.display;
             const code = statusCode(entry.condition, entry.status);
             return (
-              <button className={clampedSelectedIndex === index ? "selected" : ""} disabled={disabled || switchSubmitting} onClick={() => onSelectedIndexChange(index)} key={entry.key}>
+              <button className={clampedSelectedIndex === index ? "selected" : ""} disabled={disabled || switchSubmitting} onClick={() => {
+                battleDebugLog("select detail slot", {
+                  index,
+                  slot: entry.slot,
+                  name: display ? displayName(display) : entry.runtime ? runtimeName(entry.runtime) : entry.key,
+                  active: entry.active,
+                  condition: entry.condition,
+                });
+                onSelectedIndexChange(index);
+              }} key={entry.key}>
                 <PokemonSprite pokemon={display} alt={display ? displayName(display) : entry.runtime ? runtimeName(entry.runtime) : "未知"} />
                 <span>{entry.active ? "▶ " : ""}{display ? displayName(display) : entry.runtime ? runtimeName(entry.runtime) : "未知"}</span>
                 {code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}

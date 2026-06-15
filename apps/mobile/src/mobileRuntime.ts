@@ -141,6 +141,35 @@ type MobileShopPoolEntry = {
   enabled: boolean;
   notes?: string;
 };
+
+function mobileBattleDebugSnapshot(battle: BattleState | null | undefined) {
+  const request = battle?.request;
+  return {
+    turn: battle?.tracker?.turn,
+    requestWait: Boolean(request?.wait),
+    forceSwitch: request?.forceSwitch || null,
+    active: {
+      p1: battle?.tracker?.active?.p1,
+      p2: battle?.tracker?.active?.p2,
+    },
+    sidePokemon: (request?.side?.pokemon || []).map((pokemon, index) => ({
+      slot: index + 1,
+      ident: pokemon.ident,
+      pokeball: pokemon.pokeball,
+      active: Boolean(pokemon.active),
+      condition: pokemon.condition,
+    })),
+    playerSlots: (battle?.battle_view?.player?.slots || []).map(slot => ({
+      slot: slot.slot,
+      name: slot.display?.species_zh || slot.display?.name || slot.runtime?.details || slot.key,
+      active: Boolean(slot.active),
+      condition: slot.condition,
+      showdownId: slot.showdown_id,
+    })),
+    recent: (battle?.recent_events || []).slice(-5),
+  };
+}
+
 const MOBILE_SHOP_BUCKET_WEIGHTS: Record<MobileShopPoolBucket, number> = {
   healing: 65,
   pp: 15,
@@ -615,6 +644,10 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
           const run = save.current_run as CurrentRunData;
           const service = await loadGameService();
+          console.info("[changebattle:switch] mobile battleChoice:start", {
+            choice,
+            before: mobileBattleDebugSnapshot(activeBattleState || activeBattle.getState()),
+          });
           const result = await executeBattleChoice(run, activeBattle, choice, {
             hasConsumableItemEffect: itemId => service.hasBattleConsumableItemEffect(itemId),
             isHpStatusReviveRecoveryItem: itemId => mobileIsHpStatusReviveRecoveryItem(service, itemId),
@@ -622,6 +655,12 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           const outcome = resolveBattleCommandOutcome(result);
           const {state} = outcome;
           activeBattleState = decorateMobileBattleState(state, run);
+          console.info("[changebattle:switch] mobile battleChoice:result", {
+            choice,
+            status: outcome.status,
+            shouldPersist: outcome.shouldPersist,
+            after: mobileBattleDebugSnapshot(activeBattleState),
+          });
           const nextSave = outcome.shouldPersist ? await env.saves.save(save) : save;
           if (outcome.status === "ongoing") return gameState({screen: "battleMain", save: nextSave, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(service, nextSave.current_run as CurrentRunData)});
           return finishMobileBattle(state);

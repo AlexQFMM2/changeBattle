@@ -13,6 +13,23 @@
       window.globalThis = window.globalThis || window;
       window.process = window.process || {env: {}};
     </script>
+    <script>
+      (function () {
+        if (/[?&]novconsole=1\b/.test(window.location.search)) return;
+        var script = document.createElement("script");
+        script.src = "https://s2.d2scdn.com/u/qiuzhen/2024/01/23/xLzaZj9WsceVzhFFuYAN4n/vconsole.min.js";
+        script.onload = function () {
+          if (!window.VConsole) return;
+          window.__changeBattleVConsole = new window.VConsole();
+          window.__changeBattleVConsole.setOption("maxLogNumber", 5000);
+          console.info("[changebattle:vconsole] ready");
+        };
+        script.onerror = function () {
+          console.warn("[changebattle:vconsole] failed to load");
+        };
+        document.head.appendChild(script);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
