@@ -600,6 +600,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const [dialogue, setDialogue] = useState<TrainerDialogueState | null>(null);
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const [detailSelectedIndex, setDetailSelectedIndex] = useState<number | null>(null);
+  const [switchChoiceSubmitting, setSwitchChoiceSubmitting] = useState(false);
+  const [switchChoiceRequestKey, setSwitchChoiceRequestKey] = useState("");
   const [itemTargetIndex, setItemTargetIndex] = useState(0);
   const [battleItemOpen, setBattleItemOpen] = useState(false);
   const [battleItemToast, setBattleItemToast] = useState<{id: number; message: string} | null>(null);
@@ -642,6 +644,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   ));
   const requestWaiting = Boolean(battle?.request?.wait) || isForcedContinuationRequest(battle?.request || null);
   const forceSwitch = isForceSwitchRequest(battle?.request || null);
+  const battleRequestKey = aiAutoplayRequestKey(battle);
   const aiAutoplayKey = aiAutoplayRequestKey(battle);
   const baseBattleActionBlocked = Boolean(choicePending)
     || autoAdvancePending
@@ -679,6 +682,21 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   function closePokemonDetail() {
     setDetailIndex(null);
     setDetailSelectedIndex(null);
+    setSwitchChoiceSubmitting(false);
+    setSwitchChoiceRequestKey("");
+  }
+
+  async function handleDetailSwitch(slot: number): Promise<boolean | void> {
+    if (switchChoiceSubmitting) return false;
+    setSwitchChoiceSubmitting(true);
+    setSwitchChoiceRequestKey(battleRequestKey);
+    const ok = await Promise.resolve(onChoice(`switch ${slot}`));
+    if (ok === false) {
+      setSwitchChoiceSubmitting(false);
+      setSwitchChoiceRequestKey("");
+      return false;
+    }
+    return ok;
   }
 
   function currentActivePlayerIndex(): number {
@@ -690,6 +708,15 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   useEffect(() => {
     battleSpeedRef.current = battleSpeed;
   }, [battleSpeed]);
+
+  useEffect(() => {
+    if (!switchChoiceSubmitting || choicePending || battleRequestKey === switchChoiceRequestKey) return;
+    setSwitchChoiceSubmitting(false);
+    setSwitchChoiceRequestKey("");
+    if (forceSwitch) return;
+    closePokemonDetail();
+    if (panelMode === "teamMenu") selectPanelMode("battleMain");
+  }, [switchChoiceSubmitting, switchChoiceRequestKey, choicePending, battleRequestKey, forceSwitch, panelMode]);
 
   async function triggerAutoAdvance(key: string) {
     if (!onAutoAdvance || autoAdvanceInFlight.current || lastAutoAdvanceKey.current === key) return;
@@ -996,6 +1023,13 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
         void triggerAutoAdvance(`idle:${timelineKey}:${recentKey}:${battle.tracker.turn}`);
       }
       return;
+    }
+
+    if (switchChoiceSubmitting) {
+      setSwitchChoiceSubmitting(false);
+      setSwitchChoiceRequestKey("");
+      closePokemonDetail();
+      if (panelMode === "teamMenu") selectPanelMode("battleMain");
     }
 
     const activeBattle = battle;
@@ -1328,7 +1362,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
       }
       overlays={<>
       {panelMode === "statusMenu" && !dialogue ? <StatusModal battle={battle} onBack={() => selectPanelMode("battleMain")} /> : null}
-      {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} selectedIndex={controlledDetailIndex} onSelectedIndexChange={setDetailSelectedIndex} disabled={controlsDisabled} forceSwitch={forceSwitch} onSwitch={index => onChoice(`switch ${index}`)} onClose={() => { closePokemonDetail(); if (panelMode === "teamMenu") selectPanelMode("battleMain"); }} /> : null}
+      {detailOpen && !dialogue ? <PokemonDetailModal battle={battle} selectedIndex={controlledDetailIndex} onSelectedIndexChange={setDetailSelectedIndex} disabled={controlsDisabled} forceSwitch={forceSwitch} switchSubmitting={switchChoiceSubmitting} onSwitch={handleDetailSwitch} onClose={() => { closePokemonDetail(); if (panelMode === "teamMenu") selectPanelMode("battleMain"); }} /> : null}
       {battleItemOpen && !dialogue ? <BattleItemModal battle={battle} bag={battleBag} initialTarget={itemTargetIndex} disabled={controlsDisabled} onClose={() => setBattleItemOpen(false)} onUse={async (itemId, target, moveSlot, notice) => {
         const ok = await onChoice(`item ${itemId} ${target + 1}${moveSlot ? ` ${moveSlot}` : ""}`);
         if (ok) {
@@ -1689,11 +1723,10 @@ function TeamMenu({battle, disabled, onSwitch, onBack}: {battle: BattleState; di
   return <BattleTeamMenu><div className="team-menu"><div className="team-list">{slots.map((slot, index) => { const display = slot.display; const status = statusCode(slot.condition, slot.status); return <div className={`team-row ${focus === index ? "selected" : ""}`} key={slot.key}><button className="team-summary" disabled={disabled} onClick={() => { setFocus(index); setDetailIndex(index); setDetailSelectedIndex(index); }}><span>{slot.active ? "▶" : `${slot.slot}.`}</span><strong>{display ? displayName(display) : slot.runtime ? runtimeName(slot.runtime) : "未知"}</strong>{status ? <i className={`status-badge ${status}`}>{statusLabel(status)}</i> : null}<small>{conditionText(slot.condition)}　{slot.runtime?.item || ""}</small></button></div>; })}<button disabled={disabled} onClick={onBack}>返回</button></div>{detailIndex !== null ? <PokemonDetailModal battle={battle} selectedIndex={detailSelectedIndex} onSelectedIndexChange={setDetailSelectedIndex} disabled={disabled} onSwitch={onSwitch} onClose={() => setDetailIndex(null)} /> : null}</div></BattleTeamMenu>;
 }
 
-function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disabled, forceSwitch, onSwitch, onClose}: {battle: BattleState; selectedIndex: number; onSelectedIndexChange: (index: number) => void; disabled?: boolean; forceSwitch?: boolean; onSwitch: (index: number) => Promise<boolean> | boolean | void; onClose: () => void}) {
+function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disabled, forceSwitch, switchSubmitting, onSwitch, onClose}: {battle: BattleState; selectedIndex: number; onSelectedIndexChange: (index: number) => void; disabled?: boolean; forceSwitch?: boolean; switchSubmitting?: boolean; onSwitch: (index: number) => Promise<boolean | void> | boolean | void; onClose: () => void}) {
   const slots = battleViewFor(battle)?.player.slots || [];
   const clampedSelectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, slots.length - 1)));
   const [tab, setTab] = useState<"basic" | "moves">("basic");
-  const [submittingSwitch, setSubmittingSwitch] = useState(false);
   const slot = slots[clampedSelectedIndex] || slots[0];
   const runtime = slot?.runtime;
   const pokemon = slot?.display || battle.player_display[0];
@@ -1711,14 +1744,8 @@ function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disab
   if (!pokemon) return null;
 
   async function submitSwitch() {
-    if (!selectedSlot || disabled || submittingSwitch || !canSwitch) return;
-    setSubmittingSwitch(true);
-    const ok = await Promise.resolve(onSwitch(selectedSlot));
-    if (ok !== false) {
-      onClose();
-      return;
-    }
-    setSubmittingSwitch(false);
+    if (!selectedSlot || disabled || switchSubmitting || !canSwitch) return;
+    await Promise.resolve(onSwitch(selectedSlot));
   }
 
   function ppText(move: MoveSummary): string {
@@ -1737,7 +1764,7 @@ function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disab
             const display = entry.display;
             const code = statusCode(entry.condition, entry.status);
             return (
-              <button className={clampedSelectedIndex === index ? "selected" : ""} onClick={() => onSelectedIndexChange(index)} key={entry.key}>
+              <button className={clampedSelectedIndex === index ? "selected" : ""} disabled={disabled || switchSubmitting} onClick={() => onSelectedIndexChange(index)} key={entry.key}>
                 <PokemonSprite pokemon={display} alt={display ? displayName(display) : entry.runtime ? runtimeName(entry.runtime) : "未知"} />
                 <span>{entry.active ? "▶ " : ""}{display ? displayName(display) : entry.runtime ? runtimeName(entry.runtime) : "未知"}</span>
                 {code ? <i className={`status-badge ${code}`}>{statusLabel(code)}</i> : null}
@@ -1790,8 +1817,8 @@ function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disab
             )}
           </div>
           <footer>
-            <button disabled={disabled || submittingSwitch || !canSwitch} onClick={() => void submitSwitch()}>{submittingSwitch ? "换人中" : "换人"}</button>
-            <button disabled={forceSwitch} title={forceSwitch ? "必须先换上可战斗的宝可梦" : undefined} onClick={onClose}>关闭</button>
+            <button disabled={disabled || switchSubmitting || !canSwitch} onClick={() => void submitSwitch()}>{switchSubmitting ? "换人中" : "换人"}</button>
+            <button disabled={forceSwitch || switchSubmitting} title={forceSwitch ? "必须先换上可战斗的宝可梦" : undefined} onClick={onClose}>关闭</button>
           </footer>
         </section>
       </section>
