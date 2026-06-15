@@ -80,6 +80,7 @@ import {EventMoveCardGrid} from "../components/rest/EventMoveCardGrid";
 import {EventMoveServicePanel} from "../components/rest/EventMoveServicePanel";
 import {EventMoveServiceTeamPicker} from "../components/rest/EventMoveServiceTeamPicker";
 import {ItemRecyclerPanel} from "../components/rest/ItemRecyclerPanel";
+import {ProfiteerShopPanel} from "../components/rest/ProfiteerShopPanel";
 import {RunTalentActionPanel} from "../components/rest/RunTalentActionPanel";
 import {RunTalentExchangePanel} from "../components/rest/RunTalentExchangePanel";
 import {RunTalentPanel} from "../components/rest/RunTalentPanel";
@@ -124,7 +125,7 @@ import {RestBagPanel} from "../components/bag/RestBagPanel";
 import {tmFallbackMove} from "../components/bag/bagModel";
 import type {BagFilterKey} from "../components/bag/bagModel";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
-import {bagPreviewItems, battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createBagPreviewCategories, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, nightSkyStateForPreview, playerSettingsManyCatalog, rentalPreviewCandidates, rentalPreviewLongCandidates, restEventStateForPreview, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
+import {bagPreviewItems, battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createBagPreviewCategories, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, nightSkyStateForPreview, playerSettingsManyCatalog, profiteerRestStateForPreview, rentalPreviewCandidates, rentalPreviewLongCandidates, restEventStateForPreview, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
 import {outcomeLabel} from "../components/result/resultUtils";
 import type {PartyStatusSlot} from "../lib/ui";
 
@@ -948,6 +949,10 @@ function RestShopPanelPreview({stateId}: {stateId: string}) {
   return <RestShopPanel rest={restShopStateForPreview(mappedState)} shop={restShopStateForPreview(mappedState).shop} onClose={() => undefined} onRoll={() => undefined} onBuy={() => undefined} onBarterBuy={() => undefined} />;
 }
 
+function ProfiteerShopPanelPreview({stateId}: {stateId: string}) {
+  return <ProfiteerShopPanel rest={profiteerRestStateForPreview(stateId)} embedded onClose={() => undefined} onAction={() => undefined} />;
+}
+
 function ShopKindTabsPreview({stateId}: {stateId: string}) {
   const kinds = stateId === "manyKinds" || stateId === "longText" ? DEFAULT_SHOP_KINDS : ["recovery", "held", "tm", "training"] as ShopKind[];
   const activeKind = stateId === "discount" ? "held" : "recovery";
@@ -1740,6 +1745,30 @@ export const componentRegistry: ComponentRegistryEntry[] = [
       return (
         <div className="component-gallery-rest-shop-stage">
           <RestShopPanelPreview stateId={stateId} />
+        </div>
+      );
+    },
+  },
+  {
+    id: "profiteer-shop-panel",
+    name: "乘火打劫工作区",
+    group: "rest",
+    defaultSize: {width: 630, height: 232},
+    componentFile: "apps/desktop/src/components/rest/ProfiteerShopPanel.tsx",
+    cssFile: "apps/desktop/src/components/rest/ProfiteerShopPanel.css",
+    cssVariablePrefix: "--profiteer-shop-panel-*",
+    dependencies: ["ShopOfferList", "ShopOfferDetail"],
+    states: [
+      {id: "normal", name: "基础三格"},
+      {id: "expanded", name: "扩充七格"},
+      {id: "poor", name: "金币不足"},
+      {id: "bought", name: "已买标记"},
+      {id: "longName", name: "长名字"},
+    ],
+    renderPreview(stateId) {
+      return (
+        <div className="component-gallery-rest-shop-stage">
+          <ProfiteerShopPanelPreview stateId={stateId} />
         </div>
       );
     },

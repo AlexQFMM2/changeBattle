@@ -122,6 +122,7 @@ import {
   exchangeStateRatio,
   hasTalent,
   applyRestShopKindDiscount,
+  restShopKindDiscount,
   isPremiumHeldShopEntry,
   isTaskRewardItemId,
   isTrainingShopItemId,
@@ -134,6 +135,8 @@ import {
   normalizeStarterUpgrades,
   normalizeStarChart,
   portfolioBonus,
+  profiteerShopItemIds,
+  profiteerShopPrice,
   premiumMachineMoveCandidates,
   pricedForRun,
   pricedForShop,
@@ -676,12 +679,12 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "power_outage_profiteer",
     name: "乘火打劫",
-    desc: "本次恢复减半、商店涨价，但商品质量提高。",
-    detail: "回复商店必出复活草和全复药；战斗道具和技能机器会偏高质量。",
+    desc: "本次恢复减半，普通商店停电关闭，但出现高价补给工作区。",
+    detail: "乘火打劫工作区固定售卖关键恢复道具，价格为基础价 1.5 倍。",
     tone: "risk",
     async apply(_save, run) {
-      run.rest_status = {...(run.rest_status || {}), event_recovery_multiplier: 0.5, event_shop_price_multiplier: 1.5, event_premium_shop_goods: true};
-      return "乘火打劫：本次休整恢复减半，商店价格上涨，但商品质量提高。";
+      run.rest_status = {...(run.rest_status || {}), event_recovery_multiplier: 0.5, event_shop_disabled: true, event_profiteer_shop_available: true};
+      return "乘火打劫：本次休整恢复减半，普通商店因停电关闭；乘火打劫工作区已开放。";
     },
   },
   {
@@ -1293,7 +1296,7 @@ async function rerandomizeFutureBattles(save: LocalSave, run: CurrentRunData): P
 }
 
 async function replaceEscapedPokemon(save: LocalSave, run: CurrentRunData): Promise<string> {
-  const rng = eventRng(run, "last_minute_escape");
+  const rng = eventRng(run, "last_minute_escape", Number(run.rest_status?.rest_event_nonce || 0));
   const slot = Math.floor(rng() * run.player_team.length);
   const oldRaw = JSON.parse(JSON.stringify(run.player_team[slot])) as PokemonSet;
   const oldDisplay = JSON.parse(JSON.stringify(run.player_display[slot])) as RentalPokemon;
@@ -1325,6 +1328,7 @@ async function replaceEscapedPokemon(save: LocalSave, run: CurrentRunData): Prom
   moveInvestments[slot] = [0, 0, 0, 0];
   run.bp_investments = investments;
   run.move_investments = moveInvestments;
+  run.rest_status = {...(run.rest_status || {}), rest_event_nonce: Number(run.rest_status?.rest_event_nonce || 0) + 1};
   return `临阵脱逃：${oldName} 离队，工厂补发了新的 ${nextDisplay.species_zh || nextDisplay.species || oldName}${capped.capped ? "，等级已受徽章权限压制" : ""}。`;
 }
 
@@ -2729,7 +2733,13 @@ function pricedShopOfferForRun(run: CurrentRunData, offer: ShopOffer, extraPurch
   const surcharge = purchased * SHOP_REPEAT_PURCHASE_SURCHARGE;
   const eventPriced = Math.ceil((Math.max(0, Math.floor(Number(offer.cost || 0))) + surcharge) * eventShopPriceMultiplier(run));
   const cost = shopKind ? applyRestShopKindDiscount(run, shopKind, eventPriced) : eventPriced;
-  return {...offer, cost};
+  const discount = shopKind ? restShopKindDiscount(run, shopKind) : 1;
+  return {
+    ...offer,
+    cost,
+    original_cost: cost < eventPriced ? eventPriced : undefined,
+    discount_label: cost < eventPriced ? `${Math.round(discount * 10)}折` : undefined,
+  };
 }
 
 function pricedShopOffersForRun(run: CurrentRunData): ShopOffer[] {
@@ -2879,6 +2889,28 @@ async function premiumRecoveryShopOffers(run: CurrentRunData, existingOffers: Sh
   const rest = existingOffers.filter(offer => !guaranteedIds.has(itemKey(offer.id || offer.name)));
   const count = Math.max(guaranteedOffers.length, shopOfferCount(run));
   return [...guaranteedOffers, ...rest].slice(0, count);
+}
+
+async function profiteerShopOffersForRun(run: CurrentRunData): Promise<ShopOffer[]> {
+  const ids = profiteerShopItemIds(run);
+  return Promise.all(ids.map(async (id, index) => {
+    const item = await itemDetailsById(id);
+    const baseCost = await itemBaseCostById(id);
+    return {
+      ...item,
+      id,
+      cost: profiteerShopPrice(baseCost),
+      original_cost: baseCost,
+      discount_label: "1.5倍",
+      offer_id: `profiteer-${index}-${id}`,
+      category: itemCategory(item),
+      source: "shop",
+    } satisfies ShopOffer;
+  }));
+}
+
+async function findProfiteerShopOffer(run: CurrentRunData, offerId: string): Promise<ShopOffer | null> {
+  return (await profiteerShopOffersForRun(run)).find(offer => offer.offer_id === offerId) || null;
 }
 
 async function rollShopOffers(run: CurrentRunData, shopKind: ShopKind = "recovery"): Promise<ShopOffer[]> {
@@ -4094,7 +4126,8 @@ async function applyRestDelayedEffects(run: CurrentRunData): Promise<string[]> {
 function restEventStatuses(run: CurrentRunData): RestState["rest_event_statuses"] {
   const status = run.rest_status || {};
   const entries: RestState["rest_event_statuses"] = [];
-  if (status.event_shop_disabled) entries.push({id: "shop_disabled", label: "商店关闭", detail: "本次休整不能使用商店。", tone: "risk"});
+  if (status.event_shop_disabled) entries.push({id: "shop_disabled", label: "商店关闭", detail: status.event_profiteer_shop_available ? "当前商店因为停电而关闭了。" : "本次休整不能使用商店。", tone: "risk"});
+  if (status.event_profiteer_shop_available) entries.push({id: "profiteer_shop", label: "乘火打劫", detail: "临时补给工作区开放，商品固定且价格为基础价 1.5 倍。", tone: "trade"});
   if (Number(status.event_shop_price_multiplier || 1) > 1) entries.push({id: "shop_price", label: `商店 x${Number(status.event_shop_price_multiplier).toFixed(1)}`, detail: "本次商店抽奖与购买价格提高。", tone: "risk"});
   if (Number(status.event_recovery_multiplier || 1) < 1) entries.push({id: "recovery_down", label: status.event_hungry ? "饥饿" : "恢复减半", detail: status.event_hungry ? "本次休整和下一战背包恢复道具效果减半。" : "背包和事件恢复效果减半。", tone: "risk"});
   if (status.event_low_tier_recovery_disabled) entries.push({id: "low_recovery_disabled", label: "低级恢复失效", detail: "低级回复药、状态药和树果不能使用。", tone: "risk"});
@@ -4157,6 +4190,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
     bag_items: run.bag_items || {},
     bag_categories: await bagCategories(run),
     talents: run.talents || [],
+    profiteer_shop_offers: run.rest_status?.event_profiteer_shop_available ? await profiteerShopOffersForRun(run) : [],
     shop: {
       kind: shopKind,
       title: SHOP_KIND_CONFIG[shopKind].title,
@@ -4229,6 +4263,7 @@ async function restState(save: LocalSave, run: CurrentRunData, message?: string)
       raid_exchange_battle_no: run.rest_status?.event_raid_exchange_battle_no,
       level_points: Math.max(0, Number(run.rest_status?.event_level_points || 0)),
       score_bet: Boolean(run.rest_status?.event_score_bet_next),
+      profiteer_shop: Boolean(run.rest_status?.event_profiteer_shop_available),
     },
     taken_enemy_slots: run.rest_status?.taken_enemy_slots || [],
     exchange_count: exchangeCount,
@@ -5221,7 +5256,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   }
 
   if (action.type === "buy_item") {
-    if (run.rest_status?.event_shop_disabled) throw new Error("本次休整没有商店。");
+    if (run.rest_status?.event_shop_disabled) throw new Error(run.rest_status?.event_profiteer_shop_available ? "当前商店因为停电而关闭了，请使用乘火打劫工作区。" : "本次休整没有商店。");
     if (run.rest_status?.event_barter_active) throw new Error("以物易物期间不能使用金币购买，请投入背包道具交换。");
     const itemId = itemKey(action.itemId);
     const cost = await itemBaseCostById(itemId);
@@ -5235,7 +5270,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   if (action.type === "roll_shop") {
     const snapshot = JSON.parse(JSON.stringify(run)) as CurrentRunData;
     try {
-      if (run.rest_status?.event_shop_disabled) throw new Error("本次休整没有商店。");
+      if (run.rest_status?.event_shop_disabled) throw new Error(run.rest_status?.event_profiteer_shop_available ? "当前商店因为停电而关闭了，请使用乘火打劫工作区。" : "本次休整没有商店。");
       const shopKind = normalizeShopKind(action.shopKind);
       assertShopKindAvailable(run, shopKind);
       const cost = run.rest_status?.event_barter_active ? 0 : shopNextRollCostForKind(run, shopKind);
@@ -5270,6 +5305,7 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
   }
 
   if (action.type === "buy_shop_offer") {
+    if (run.rest_status?.event_shop_disabled) throw new Error(run.rest_status?.event_profiteer_shop_available ? "当前商店因为停电而关闭了，请使用乘火打劫工作区。" : "本次休整没有商店。");
     if (run.rest_status?.event_barter_active) throw new Error("以物易物期间不能使用金币购买，请投入背包道具交换。");
     const found = findRunShopOffer(run, action.offerId);
     if (!found) throw new Error("商品不存在，请先刷新商店。");
@@ -5284,6 +5320,19 @@ async function handleRestAction(action: RestAction): Promise<DesktopGameState> {
     run.shop_purchased_offer_id = offer.offer_id;
     const next = await persist(save);
     return await restState(next, next.current_run as CurrentRunData, `已购买 ${offer.name_zh || offer.name}，${spent.message}。`);
+  }
+
+  if (action.type === "event_profiteer_buy") {
+    if (!run.rest_status?.event_profiteer_shop_available) throw new Error("当前没有乘火打劫工作区。");
+    const offer = await findProfiteerShopOffer(run, action.offerId);
+    if (!offer) throw new Error("乘火打劫商品不存在。");
+    const itemId = itemKey(offer.id || offer.name);
+    const spent = spendRunBp(save, run, Number(offer.cost || 0), `shop-buy:profiteer:${itemId}`, {alreadyPriced: true});
+    run.bag_items = {...(run.bag_items || {}), [itemId]: Number(run.bag_items?.[itemId] || 0) + 1};
+    rememberBagItemMeta(run, offer);
+    run.shop_purchased_item_counts = {...(run.shop_purchased_item_counts || {}), [itemId]: shopItemPurchaseCount(run, itemId) + 1};
+    const next = await persist(save);
+    return await restState(next, next.current_run as CurrentRunData, `乘火打劫：已购买 ${offer.name_zh || offer.name}，${spent.message}。`);
   }
 
   if (action.type === "event_barter_buy") {

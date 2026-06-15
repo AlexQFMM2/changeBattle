@@ -573,6 +573,51 @@ export const restPreviewStateSix = restPreviewState(restPreviewSixTeam, ["88/100
 export const restPreviewStateLowHp = restPreviewState(restPreviewSixTeam, ["18/100", "0 fnt", "44/100 slp", "66/100", "52/100 par", "100/100"], 0.2);
 export const restPreviewStateLong = restPreviewState(restPreviewLongTeam, ["72/100 psn", "100/100", "76/100"], 0.35);
 
+function profiteerPreviewOffer(id: string, index: number, name: string, cost: number, originalCost: number, desc: string): ShopOffer {
+  return {
+    id,
+    offer_id: `profiteer-${index}-${id}`,
+    name,
+    name_zh: name,
+    desc,
+    desc_zh: desc,
+    cost,
+    original_cost: originalCost,
+    discount_label: "1.5倍",
+    category: "consumable",
+    source: "shop",
+  };
+}
+
+export function profiteerRestStateForPreview(stateId: string): RestState {
+  const longName = stateId === "longName";
+  const offers = [
+    profiteerPreviewOffer("maxpotion", 0, longName ? "名字非常非常长的全满药应急补给测试" : "全满药", 240, 160, "恢复全部 HP，但不解除异常状态。"),
+    profiteerPreviewOffer("revive", 1, "活力碎片", 180, 120, "让濒死宝可梦复活，并恢复一半 HP。"),
+    profiteerPreviewOffer("fullheal", 2, "万灵药", 45, 30, "解除异常状态。"),
+    ...(stateId === "expanded" || stateId === "longName" ? [
+      profiteerPreviewOffer("maxether", 3, "PP 单项全补剂", 45, 30, "让 1 个招式恢复全部 PP。"),
+      profiteerPreviewOffer("maxelixir", 4, "PP 多项全补剂", 75, 50, "让所有招式恢复全部 PP。"),
+      profiteerPreviewOffer("fullrestore", 5, "全复药", 300, 200, "恢复全部 HP，并解除异常状态。"),
+      profiteerPreviewOffer("revivalherb", 6, "复活草", 240, 160, "让濒死宝可梦复活，并恢复全部 HP。"),
+    ] : []),
+  ];
+  return {
+    ...restPreviewStateSix,
+    coins: stateId === "poor" ? 30 : 680,
+    event_services: {...restPreviewStateSix.event_services, profiteer_shop: true},
+    profiteer_shop_offers: offers,
+    shop: {
+      ...restPreviewStateSix.shop!,
+      purchased_item_counts: stateId === "bought" ? {maxpotion: 1} : {},
+    },
+    rest_event_statuses: [
+      {id: "shop_disabled", label: "商店关闭", detail: "当前商店因为停电而关闭了。", tone: "risk"},
+      {id: "profiteer_shop", label: "乘火打劫", detail: "临时补给工作区开放。", tone: "trade"},
+    ],
+  };
+}
+
 export function restEventStateForPreview(stateId: string): RestState {
   return {
     ...restPreviewStateNormal,

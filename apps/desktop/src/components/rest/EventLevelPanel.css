@@ -1,57 +1,81 @@
 .event-level-panel {
-  --event-level-panel-padding: 8px;
-  --event-level-panel-header-height: 42px;
-  width: 100%;
-  height: 100%;
+  --event-level-panel-width: 100%;
+  --event-level-panel-height: 100%;
+  --event-level-panel-padding: 6px;
+  --event-level-panel-header-height: 38px;
+  width: var(--event-level-panel-width);
+  height: var(--event-level-panel-height);
+  min-width: 0;
   min-height: 0;
   display: grid;
   grid-template-rows: var(--event-level-panel-header-height) minmax(0, 1fr);
-  gap: 8px;
+  gap: 6px;
   padding: var(--event-level-panel-padding);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(12, 18, 28, 0.72);
+  border: 2px solid #6d5a3d;
+  border-radius: 5px;
+  background: #f9f4e8;
+  color: #263329;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 38%);
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .event-level-panel > header {
   min-width: 0;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 7px;
+  border-bottom: 1px solid #d5c08a;
+  padding-bottom: 5px;
+}
+
+.event-level-panel > header div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 
 .event-level-panel h2,
 .event-level-panel p {
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .event-level-panel h2 {
-  font-size: 15px;
-  line-height: 1.15;
+  color: #1f2c23;
+  font-size: 12px;
+  font-weight: 950;
 }
 
 .event-level-panel p {
-  margin-top: 3px;
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 11px;
-  line-height: 1.25;
+  color: #596052;
+  font-size: 7px;
+  font-weight: 850;
 }
 
 .event-level-panel > header button {
-  min-height: 24px;
-  padding: 0 10px;
+  height: 22px;
+  min-height: 22px;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 8px;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .event-level-grid {
+  min-width: 0;
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  gap: 5px;
 }
 
 .event-level-grid button {
@@ -59,22 +83,23 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 12px;
   align-items: center;
-  column-gap: 7px;
-  padding: 7px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: inherit;
+  column-gap: 6px;
+  border: 1px solid #d9bf85;
+  border-radius: 4px;
+  background: #fffaf0;
+  color: #263329;
+  padding: 5px 6px;
   text-align: left;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 45%);
   overflow: hidden;
 }
 
 .event-level-grid button:not(:disabled):hover {
-  border-color: rgba(167, 139, 250, 0.55);
-  background: rgba(124, 58, 237, 0.16);
+  border-color: #b78a46;
+  background: #fff3d7;
 }
 
 .event-level-grid button:disabled {
@@ -83,16 +108,19 @@
 
 .event-level-grid .pokemon-sprite {
   grid-row: 1 / 3;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 .event-level-grid span {
   position: absolute;
   top: 3px;
   left: 4px;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 9px;
+  color: #8a7758;
+  font-size: 6px;
+  font-weight: 950;
   line-height: 1;
 }
 
@@ -106,12 +134,16 @@
 
 .event-level-grid strong {
   align-self: end;
-  font-size: 12px;
-  line-height: 1.15;
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .event-level-grid small {
   align-self: start;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 10px;
+  color: #6c6048;
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
 }

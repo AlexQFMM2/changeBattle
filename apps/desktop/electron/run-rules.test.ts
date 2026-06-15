@@ -55,6 +55,8 @@ import {
   normalizeTalentViews,
   portfolioBonus,
   portfolioSpendTypeForLabel,
+  profiteerShopItemIds,
+  profiteerShopPrice,
   premiumMachineMoveCandidates,
   pricedForShop,
   recordPortfolioSpend,
@@ -394,6 +396,16 @@ function testRestShopDiscountCoupons(): void {
   assert.throws(() => barterRunShopOffer(taskRun, {id: "leftovers", name: "Leftovers", name_zh: "剩饭", desc: "", desc_zh: "", cost: 100, category: "held", offer_id: "leftovers-offer"}, [{item: {id: "tmcoupon", name: "TM Coupon", name_zh: "技能机器商店折扣券", desc: "", desc_zh: "", cost: 100}}]), /任务奖励道具不能用于以物易物/);
 }
 
+function testProfiteerShopRules(): void {
+  const baseRun = run();
+  assert.deepEqual(profiteerShopItemIds(baseRun), ["maxpotion", "revive", "fullheal"]);
+  assert.deepEqual(profiteerShopItemIds(run([], {talents: [talentAtLevel("growth_more_choices", 1)]})), ["maxpotion", "revive", "fullheal", "maxether"]);
+  assert.deepEqual(profiteerShopItemIds(run([], {talents: [talentAtLevel("growth_more_choices", 4)]})), ["maxpotion", "revive", "fullheal", "maxether", "maxelixir", "fullrestore", "revivalherb"]);
+  assert.equal(profiteerShopPrice(160), 240);
+  assert.equal(profiteerShopPrice(15), 23);
+  assert.equal(profiteerShopPrice(0), 0);
+}
+
 function testRunQuests(): void {
   const aceRun = run([], {coins: 0});
   assert.match(startRunQuest(aceRun, "ace_trial"), /王牌试炼/);
@@ -656,6 +668,7 @@ testIntelTalents();
 testEconomyTalents();
 testCoinLedgerAndTrainingRules();
 testRestShopDiscountCoupons();
+testProfiteerShopRules();
 testRunQuests();
 testScoreBetRules();
 testDefaultsAndHelpers();

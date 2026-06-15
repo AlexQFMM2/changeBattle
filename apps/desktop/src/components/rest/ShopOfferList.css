@@ -59,6 +59,7 @@
 .shop-offer-card strong,
 .shop-offer-card span,
 .shop-offer-card b,
+.shop-offer-card del,
 .shop-offer-card i {
   min-width: 0;
   overflow: hidden;
@@ -88,6 +89,7 @@
 }
 
 .shop-offer-card b,
+.shop-offer-card del,
 .shop-offer-card i {
   flex: 0 1 auto;
   border-radius: 3px;
@@ -96,6 +98,11 @@
   font-size: 5px;
   font-style: normal;
   font-weight: 950;
+}
+
+.shop-offer-card del {
+  color: #8f7760;
+  text-decoration-thickness: 1px;
 }
 
 .shop-offer-card-actions {

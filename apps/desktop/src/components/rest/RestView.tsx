@@ -23,6 +23,7 @@ import {RestForgePanel} from "./RestForgePanel";
 import {RainbowRocketSupportPanel} from "./RainbowRocketSupportPanel";
 import {EventMoveServicePanel} from "./EventMoveServicePanel";
 import {ItemRecyclerPanel} from "./ItemRecyclerPanel";
+import {ProfiteerShopPanel} from "./ProfiteerShopPanel";
 import {ScoreBetPanel} from "./ScoreBetPanel";
 import {DoctorEventPanel} from "./DoctorEventPanel";
 import {EventLevelPanel} from "./EventLevelPanel";
@@ -121,6 +122,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
     ...(rest.event_services?.egg ? [{id: "eventEgg", label: "培育屋爷爷", event: true}] : []),
     ...(rest.event_services?.raid_exchange ? [{id: "raidExchange", label: "骇人奇袭", event: true}] : []),
     ...(rest.event_services?.score_bet ? [{id: "scoreBet", label: "重金下注", event: true}] : []),
+    ...(rest.event_services?.profiteer_shop ? [{id: "profiteerShop", label: "乘火打劫", event: true}] : []),
     ...(Number(rest.event_services?.level_points || 0) > 0 ? [{id: "eventLevel", label: "分配等级", badge: rest.event_services?.level_points, event: true}] : []),
     ...manualTalents.map(talent => ({id: `talent:${talent.id}`, label: talent.name, used: runTalentActionUsed(rest, talent.id), badge: runTalentActionUsed(rest, talent.id) ? "已用" : undefined})),
   ];
@@ -173,6 +175,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
             {activePanel === "eventEgg" ? <EventMoveServicePanel embedded rest={rest} service="egg" onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "raidExchange" ? <RaidExchangePanel rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "scoreBet" ? <ScoreBetPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
+            {activePanel === "profiteerShop" ? <ProfiteerShopPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "eventLevel" ? <EventLevelPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={runRestAction} /> : null}
             {activePanel === "talentAction" && activeTalentAction ? <RunTalentPanel embedded talent={activeTalentAction} rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
             {activePanel === "nightSky" ? <NightSkyPanel embedded rest={rest} onClose={() => setActivePanel(null)} onAction={fireAction} /> : null}
@@ -218,7 +221,7 @@ export function RestView({rest, onAction}: {rest: DesktopGameState["rest"]; onAc
   );
 }
 
-type RestWorkspacePanel = "myTeam" | "exchange" | "bag" | "recycler" | "eventDoctor" | "eventTutor" | "eventEgg" | "raidExchange" | "scoreBet" | "eventLevel" | "talentAction" | "nightSky" | "shop" | "forge" | "pokemon" | "moveEditor" | "statsEditor" | null;
+type RestWorkspacePanel = "myTeam" | "exchange" | "bag" | "recycler" | "eventDoctor" | "eventTutor" | "eventEgg" | "raidExchange" | "scoreBet" | "profiteerShop" | "eventLevel" | "talentAction" | "nightSky" | "shop" | "forge" | "pokemon" | "moveEditor" | "statsEditor" | null;
 
 function EmbeddedOrModal({embedded, children}: {embedded?: boolean; children: ReactElement}) {
   return embedded ? children : <div className="modal-layer">{children}</div>;

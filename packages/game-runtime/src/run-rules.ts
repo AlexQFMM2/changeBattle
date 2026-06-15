@@ -1363,6 +1363,19 @@ export function shopCandidateCount(run: CurrentRunData): number {
   return SHOP_CANDIDATE_COUNT + Math.max(0, Math.min(4, talentLevel(run.talents, "growth_more_choices")));
 }
 
+export const PROFITEER_SHOP_PRICE_MULTIPLIER = 1.5;
+export const PROFITEER_SHOP_BASE_ITEM_IDS = ["maxpotion", "revive", "fullheal"] as const;
+export const PROFITEER_SHOP_EXPANDED_ITEM_IDS = ["maxether", "maxelixir", "fullrestore", "revivalherb"] as const;
+
+export function profiteerShopItemIds(run: CurrentRunData): string[] {
+  const extraCount = Math.max(0, Math.min(PROFITEER_SHOP_EXPANDED_ITEM_IDS.length, talentLevel(run.talents, "growth_more_choices")));
+  return [...PROFITEER_SHOP_BASE_ITEM_IDS, ...PROFITEER_SHOP_EXPANDED_ITEM_IDS.slice(0, extraCount)];
+}
+
+export function profiteerShopPrice(baseCost: number): number {
+  return Math.ceil(Math.max(0, Math.floor(Number(baseCost || 0))) * PROFITEER_SHOP_PRICE_MULTIPLIER);
+}
+
 export function isPremiumHeldShopEntry(entry: {kind?: string; category?: ItemCategory; cost?: number}, isSpecialBattleItem = false): boolean {
   return entry.kind === "item" && entry.category === "held" && !isSpecialBattleItem && Math.max(0, Number(entry.cost || 0)) >= PREMIUM_HELD_ITEM_MIN_COST;
 }

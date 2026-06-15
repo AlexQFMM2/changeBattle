@@ -25,6 +25,7 @@ export function RestShopPanel({rest, shop, onClose, onRoll, onBuy, onBarterBuy}:
   const bonus = shop?.last_roll_bonus || null;
   const barterActive = hasRestEventStatus(rest, "barter");
   const shopDisabled = hasRestEventStatus(rest, "shop_disabled");
+  const profiteerActive = hasRestEventStatus(rest, "profiteer_shop");
   const rainbowRocketActive = hasRestEventStatus(rest, "rainbow_rocket");
   const occupiedByRainbowRocket = rainbowRocketActive || shopDisabled || !shop;
   const rollCost = barterActive ? 0 : activeKind === shopKind ? Number(shop?.next_roll_cost || 0) : Number(shop?.free_rolls_remaining || 0) > 0 ? 0 : SHOP_KIND_VIEW[shopKind].cost;
@@ -74,7 +75,11 @@ export function RestShopPanel({rest, shop, onClose, onRoll, onBuy, onBarterBuy}:
   if (occupiedByRainbowRocket) {
     return (
       <section className="rest-shop-panel rest-shop-panel-closed">
-        <ShopClosedNotice onBack={onClose} />
+        <ShopClosedNotice
+          title={profiteerActive ? "宝可梦中心停电" : undefined}
+          message={profiteerActive ? "当前商店因为停电而关闭了。请使用休整工具栏里的乘火打劫工作区购买应急补给。" : undefined}
+          onBack={onClose}
+        />
       </section>
     );
   }

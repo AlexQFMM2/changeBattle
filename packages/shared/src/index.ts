@@ -633,6 +633,7 @@ export type RestState = {
   coin_ledger?: CoinLedgerEntry[];
   bag_categories?: BagCategoryView;
   shop_kind_discounts?: Partial<Record<ShopKind, number>>;
+  profiteer_shop_offers?: ShopOffer[];
   talents?: TalentView[];
   shop?: ShopState;
   starter_items?: StarterItemState;
@@ -690,6 +691,7 @@ export type RestState = {
     raid_exchange_battle_no?: number;
     level_points?: number;
     score_bet?: boolean;
+    profiteer_shop?: boolean;
   };
   taken_enemy_slots: number[];
   exchange_count: number;
@@ -819,6 +821,8 @@ export type ShopOffer = ShopItem & {
   offer_id: string;
   category: ItemCategory;
   icon_asset?: string;
+  original_cost?: number;
+  discount_label?: string;
   discount?: number;
   discountable?: boolean;
   source?: "shop" | "starter";
@@ -953,6 +957,7 @@ export type RestAction =
   | {type: "choose_doctor_treatment"; branch: "status" | "hp"}
   | {type: "event_learn_move"; service: "tutor" | "egg"; slot: number; moveSlot: number; moveId: string}
   | {type: "event_barter_buy"; offerId: string; itemIds: string[]}
+  | {type: "event_profiteer_buy"; offerId: string}
   | {type: "event_raid_exchange"; ownIndex: number; enemyIndex: number}
   | {type: "rainbow_rocket_support"; source: "factory" | "route"; candidateIndex: number; targetIndex?: number | null}
   | {type: "rainbow_rocket_support_done"}
@@ -1315,6 +1320,8 @@ export type CurrentRunData = {
     } | null;
     named_challenge_decided?: boolean;
     event_shop_disabled?: boolean;
+    event_profiteer_shop_available?: boolean;
+    rest_event_nonce?: number;
     event_shop_price_multiplier?: number;
     event_premium_shop_goods?: boolean;
     event_recovery_multiplier?: number;

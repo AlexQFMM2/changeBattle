@@ -17,7 +17,13 @@ export function ShopOfferList({offers, slotCount, rolling, revealed, shop, barte
             <ItemIcon item={offer} />
             <div>
               <strong>{offer.name_zh || offer.name}</strong>
-              <span><b>{coinCostLabel(offer.cost)}</b>{isBonus ? <i>{bonus?.match_count} 连</i> : null}{purchaseCount ? <i>已买 x{purchaseCount}</i> : itemPurchaseCount ? <i>同道具 x{itemPurchaseCount}</i> : null}</span>
+              <span>
+                <b>{coinCostLabel(offer.cost)}</b>
+                {offer.original_cost && Number(offer.original_cost) > Number(offer.cost || 0) ? <del>{coinCostLabel(offer.original_cost)}</del> : null}
+                {offer.discount_label ? <i>{offer.discount_label}</i> : null}
+                {isBonus ? <i>{bonus?.match_count} 连</i> : null}
+                {purchaseCount ? <i>已买 x{purchaseCount}</i> : itemPurchaseCount ? <i>同道具 x{itemPurchaseCount}</i> : null}
+              </span>
             </div>
             <div className="shop-offer-card-actions">
               <button type="button" disabled={Boolean(buyingOfferId) || !canAffordItem || shopDisabled} onClick={() => onBuy(offer.offer_id)}>{shopDisabled ? "关闭" : isBuying ? "购买中" : barterActive ? "交换" : purchaseCount ? "再买" : "购买"}</button>
