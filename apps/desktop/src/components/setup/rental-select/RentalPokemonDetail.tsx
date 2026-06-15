@@ -14,7 +14,7 @@ export function RentalPokemonDetail({pokemon, selected, revealTraining, onToggle
   return (
     <section className="rental-pokemon-detail">
       <button className="rental-pokemon-detail-toggle" type="button" onClick={onToggle}>{selected ? "取消选中" : "选中"}</button>
-      <PokemonProfile pokemon={pokemon} selected={selected} revealTraining={revealTraining} compact />
+      <PokemonProfile pokemon={pokemon} selected={selected} revealTraining={revealTraining} compact movePresentation="card" />
     </section>
   );
 }

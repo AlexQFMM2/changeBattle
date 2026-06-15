@@ -147,9 +147,55 @@
 
 .rental-pokemon-detail .moves-panel {
   gap: 3px;
-  max-height: 80px;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  overflow: visible;
+}
+
+.rental-pokemon-detail .move-card-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 30px);
+  gap: 4px;
+}
+
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice,
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice:nth-child(2n) {
+  --move-card-height: 30px;
+  --move-card-name-row-height: 17px;
+  --move-card-meta-row-height: 11px;
+  --move-card-name-gap: 3px;
+  --move-card-name-padding-x: 4px;
+  --move-card-meta-gap: 3px;
+  --move-card-meta-padding-x: 4px;
+  --move-card-name-font-size: 6px;
+  --move-card-badge-min-height: 8px;
+  --move-card-badge-font-size: 5px;
+  --move-card-meta-font-size: 5px;
+  --move-card-type-min-height: 7px;
+  height: var(--move-card-height);
+  min-height: var(--move-card-height);
+  max-height: var(--move-card-height);
+  grid-template-rows: var(--move-card-name-row-height) var(--move-card-meta-row-height);
+  padding: 1px;
+  overflow: hidden;
+}
+
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-name-row,
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-meta-row {
+  min-height: 0;
+}
+
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-name-row {
+  height: var(--move-card-name-row-height);
+}
+
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-meta-row {
+  height: var(--move-card-meta-row-height);
+}
+
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-name-row strong,
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-name-row i,
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-meta-row b,
+.rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-meta-row em {
+  line-height: 1;
 }
 
 .rental-pokemon-detail .move-detail {

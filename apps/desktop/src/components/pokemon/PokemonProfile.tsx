@@ -1,5 +1,6 @@
 import type {BattleSystemId, RentalPokemon, RuntimePokemon} from "@changebattle/shared";
 import {PokemonSprite, STAT_ROWS, conditionText, displayName, moveDescription, statLine} from "../../lib/ui";
+import {MoveCard} from "../move/MoveCard";
 
 const BATTLE_SYSTEM_LABELS: Record<BattleSystemId, string> = {
   mega: "Mega",
@@ -20,7 +21,9 @@ function learnSourceLabel(move: RentalPokemon["moves"][number]): string {
   return (move.learn_source_labels || []).join(" / ");
 }
 
-export function PokemonProfile({pokemon, selected = false, runtime, compact = false, revealTraining = false}: {pokemon: RentalPokemon; selected?: boolean; runtime?: RuntimePokemon; compact?: boolean; revealTraining?: boolean}) {
+export type PokemonProfileMovePresentation = "detail" | "card";
+
+export function PokemonProfile({pokemon, selected = false, runtime, compact = false, revealTraining = false, movePresentation = "detail"}: {pokemon: RentalPokemon; selected?: boolean; runtime?: RuntimePokemon; compact?: boolean; revealTraining?: boolean; movePresentation?: PokemonProfileMovePresentation}) {
   const specialLabels = specialPokemonLabels(pokemon);
   const hasSpecialItem = Boolean(pokemon.item_battle_system);
   const itemLabel = pokemon.item_zh || "无";
@@ -50,7 +53,25 @@ export function PokemonProfile({pokemon, selected = false, runtime, compact = fa
         </div>
         {hasSpecialItem ? <div className="profile-item-hint">{itemTitle}</div> : null}
         <div className="stat-grid">{STAT_ROWS.map(([stat, label]) => <div key={stat}><span>{label}</span><strong>{statLine(pokemon, stat, revealTraining)}</strong></div>)}</div>
-        <div className="moves-panel">{pokemon.moves.map(move => <div className="move-detail" key={move.id}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span>{learnSourceLabel(move) ? <span>来源 {learnSourceLabel(move)}</span> : null}<p>{revealTraining ? moveDescription(move) : "？？？"}</p></div>)}</div>
+        <div className={`moves-panel ${movePresentation === "card" ? "move-card-panel" : ""}`}>
+          {pokemon.moves.map((move, index) => (
+            movePresentation === "card" ? (
+              <MoveCard
+                className="profile-move-card"
+                size="sheet"
+                name={move.name_zh || move.name || `技能 ${index + 1}`}
+                moveType={move.type || move.type_zh}
+                typeLabel={move.type_zh || move.type || "一般"}
+                category={move.category_zh || move.category || "变化"}
+                power={move.power || "--"}
+                accuracy={move.accuracy ?? "必中"}
+                key={`profile-card-${move.id || move.name || index}`}
+              />
+            ) : (
+              <div className="move-detail" key={`profile-detail-${move.id || move.name || index}`}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span>{learnSourceLabel(move) ? <span>来源 {learnSourceLabel(move)}</span> : null}<p>{revealTraining ? moveDescription(move) : "？？？"}</p></div>
+            )
+          ))}
+        </div>
       </section>
     </div>
   );

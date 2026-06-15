@@ -1315,6 +1315,8 @@ button:hover:not(:disabled), button.selected {
   width: var(--pokemon-sprite-size, 64px);
   height: var(--pokemon-sprite-size, 64px);
   isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .pokemon-sprite > img {
@@ -1323,6 +1325,10 @@ button:hover:not(:disabled), button.selected {
   height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 .pokemon-sprite.is-shiny {
@@ -1645,7 +1651,18 @@ input, select { min-height: 22px; min-width: 110px; padding: 4px 6px; border: 2p
   grid-template-rows: 48px minmax(0, 1fr) 72px;
   position: relative;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
 }
+
+.battle-layout input,
+.battle-layout textarea,
+.battle-layout select,
+.battle-layout [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .battle-field {
   --battle-mon-size: 62px;
   --battle-substitute-size: 46px;
@@ -1665,6 +1682,8 @@ input, select { min-height: 22px; min-width: 110px; padding: 4px 6px; border: 2p
   --battle-enemy-y: calc(var(--battle-enemy-top) + var(--battle-mon-size) * .5);
   position: relative;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
   background:
     linear-gradient(180deg, rgba(255,255,255,.72), rgba(238,243,236,.2) 46%, rgba(231,238,229,.58)),
     repeating-linear-gradient(0deg, #f9faf5 0 4px, #eef1f5 4px 8px, #e5ebef 8px 12px);
@@ -1708,7 +1727,7 @@ input, select { min-height: 22px; min-width: 110px; padding: 4px 6px; border: 2p
 .battle-field.trainer-intro .battle-platforms {
   opacity: 0;
 }
-.battle-sprites { position: absolute; inset: 0; z-index: 2; }
+.battle-sprites { position: absolute; inset: 0; z-index: 2; user-select: none; -webkit-user-select: none; }
 .battle-sprites .pokemon-sprite { position: absolute; width: var(--battle-mon-size); height: var(--battle-mon-size); }
 .battle-sprites .pokemon-sprite.clickable-sprite { cursor: pointer; }
 .back-sprite { left: var(--battle-player-left); bottom: var(--battle-player-bottom); transform: scale(var(--battle-player-scale)); transform-origin: bottom center; }

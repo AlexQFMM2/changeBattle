@@ -1595,8 +1595,30 @@
   height: 34px;
 }
 
-.component-gallery-rental-page-stage .rental-pokemon-detail .moves-panel {
-  max-height: 42px;
+.component-gallery-rental-page-stage .rental-pokemon-detail .move-card-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 18px);
+  gap: 2px;
+}
+
+.component-gallery-rental-page-stage .rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice,
+.component-gallery-rental-page-stage .rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice:nth-child(2n) {
+  --move-card-height: 18px;
+  --move-card-name-row-height: 10px;
+  --move-card-meta-row-height: 7px;
+  --move-card-name-font-size: 4px;
+  --move-card-badge-min-height: 4px;
+  --move-card-badge-font-size: 3px;
+  --move-card-meta-font-size: 3px;
+  --move-card-type-min-height: 3px;
+  height: var(--move-card-height);
+  grid-template-rows: var(--move-card-name-row-height) var(--move-card-meta-row-height);
+}
+
+.component-gallery-rental-page-stage .rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-name-row,
+.component-gallery-rental-page-stage .rental-pokemon-detail .profile-move-card.move-card-sheet.move-choice .move-meta-row {
+  min-height: 0;
+  line-height: 1;
 }
 
 .component-gallery-rental-page-stage .rental-team-preview {

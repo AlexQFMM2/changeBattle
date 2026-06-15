@@ -541,7 +541,7 @@ export function PokemonSprite({pokemon, src, alt, variant = "front_normal", clas
   const image = src || pokemonImageUrl(pokemon, variant);
   return (
     <span className={`pokemon-sprite ${className} ${shiny ? "is-shiny" : ""} ${shiny && entrance ? "shiny-entrance" : ""} ${onClick ? "clickable-sprite" : ""}`} onClick={onClick}>
-      {image ? <img src={image} alt={alt} /> : <i className="shadow-orb">?</i>}
+      {image ? <img src={image} alt={alt} draggable={false} onDragStart={event => event.preventDefault()} /> : <i className="shadow-orb">?</i>}
       {shiny && badge ? <i className={`shiny-badge ${badge === "full" ? "full" : ""}`}>{badgeText}</i> : null}
     </span>
   );

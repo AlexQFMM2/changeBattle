@@ -794,6 +794,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   useEffect(() => {
     const battlePresent = Boolean(battle);
     if (battlePresent && !previousBattlePresent.current) {
+      window.getSelection()?.removeAllRanges();
       const dialogueBattle = battle;
       const enemy = dialogueBattle?.enemy_trainer;
       introDialoguePending.current = true;
