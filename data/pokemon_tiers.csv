@@ -879,6 +879,7 @@ annihilape,Annihilape,Annihilape,Fighting|Ghost,535,280,,0,,0,580,5,,auto-score,
 hydrapple,Hydrapple,Hydrapple,Grass|Dragon,540,296,,0,,0,585,5,,auto-score,
 smeargle,Smeargle,Smeargle,Normal,250,135,88,0,Focus Sash,0,651,6,,showdown-randbats+auto-score,tactical+320
 ditto,Ditto,Ditto,Normal,288,144,83,0,Choice Scarf,0,704,6,,showdown-randbats+auto-score,tactical+320
+kubfu,Kubfu,Kubfu,Fighting,385,170,,0,,0,430,6,,auto-score,nfe
 wobbuffet,Wobbuffet,Wobbuffet,Psychic,405,306,95,0,Custap Berry,0,625,6,,showdown-randbats+auto-score,tactical+160
 mimikyu,Mimikyu,Mimikyu,Ghost|Fairy,476,240,73,0,Mimikium Z,0,602,6,,showdown-randbats+auto-score,
 scolipede,Scolipede,Scolipede,Bug|Poison,485,218,80,0,Life Orb,0,590,6,,showdown-randbats+auto-score,
@@ -1002,6 +1003,8 @@ togekiss,Togekiss,Togekiss,Fairy|Flying,545,295,81,0,Leftovers,0,647,6,,showdown
 gholdengo,Gholdengo,Gholdengo,Steel|Ghost,550,273,,0,,0,595,6,,auto-score,
 kingambit,Kingambit,Kingambit,Dark|Steel,550,305,,0,,0,595,6,,auto-score,
 ursaluna,Ursaluna,Ursaluna,Ground|Normal,550,315,,0,,0,595,6,,auto-score,
+urshifu,Urshifu,Urshifu,Fighting|Dark,550,260,,0,,0,685,6,,auto-score,
+urshifurapidstrike,Urshifu-Rapid-Strike,Urshifu,Fighting|Water,550,260,,0,,0,685,6,,auto-score,
 volcarona,Volcarona,Volcarona,Bug|Fire,550,255,76,0,Firium Z,0,667,6,,showdown-randbats+auto-score,
 floetteeternal,Floette-Eternal,Floette,Fairy,551,269,83,0,Choice Scarf,0,647,6,,showdown-randbats+auto-score,
 florges,Florges,Florges,Fairy,552,300,85,0,Leftovers,0,642,6,,showdown-randbats+auto-score,
@@ -1054,7 +1057,6 @@ tyranitar,Tyranitar,Tyranitar,Rock|Dark,600,310,80,0,Leftovers,0,705,6,,showdown
 slaking,Slaking,Slaking,Normal,670,315,84,0,Choice Scarf,0,763,6,,showdown-randbats+auto-score,
 cosmog,Cosmog,Cosmog,Psychic,200,105,,0,,0,245,10,,auto-score,nfe|legendary
 meltan,Meltan,Meltan,Steel,300,146,,0,,0,435,10,,auto-score,mythical
-kubfu,Kubfu,Kubfu,Fighting,385,170,,0,,0,430,10,,auto-score,nfe|legendary
 cosmoem,Cosmoem,Cosmoem,Psychic,400,305,,43,,0,488,10,,auto-score,nfe|legendary|eviolite-bulk+43
 terapagos,Terapagos,Terapagos,Normal,450,260,,0,,0,585,10,,auto-score,legendary
 phione,Phione,Phione,Water,480,240,93,0,Leftovers,0,636,10,,showdown-randbats+auto-score,mythical
@@ -1062,8 +1064,6 @@ zygarde10,Zygarde-10%,Zygarde,Dragon|Ground,486,210,81,0,Choice Band,0,678,10,,s
 calyrex,Calyrex,Calyrex,Psychic|Grass,500,260,,0,,0,635,10,,auto-score,legendary
 typenull,Type: Null,Type: Null,Normal,534,285,85,33,Eviolite,40,697,10,,showdown-randbats+auto-score,nfe|legendary|eviolite-bulk+33|eviolite-randset
 ogerpon,Ogerpon,Ogerpon,Grass,550,260,,0,,0,685,10,,auto-score,legendary
-urshifu,Urshifu,Urshifu,Fighting|Dark,550,260,,0,,0,685,10,,auto-score,legendary
-urshifurapidstrike,Urshifu-Rapid-Strike,Urshifu,Fighting|Water,550,260,,0,,0,685,10,,auto-score,legendary
 fezandipiti,Fezandipiti,Fezandipiti,Poison|Fairy,555,295,,0,,0,690,10,,auto-score,legendary
 munkidori,Munkidori,Munkidori,Poison|Psychic,555,244,,0,,0,690,10,,auto-score,legendary
 okidogi,Okidogi,Okidogi,Poison|Fighting,555,289,,0,,0,690,10,,auto-score,legendary

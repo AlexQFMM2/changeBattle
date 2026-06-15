@@ -142,8 +142,8 @@ D:\jdk-21.0.11\bin\keytool.exe -genkeypair -v ^
 当前版本：
 
 ```text
-versionName: 0.8.1
-versionCode: 801
+versionName: 0.8.2
+versionCode: 802
 ```
 
 需要同步检查：
@@ -175,6 +175,7 @@ apps/mobile/android/app/build.gradle
 0.7.9 -> versionCode 709
 0.8.0 -> versionCode 800
 0.8.1 -> versionCode 801
+0.8.2 -> versionCode 802
 1.0.0 -> versionCode 1000
 ```
 

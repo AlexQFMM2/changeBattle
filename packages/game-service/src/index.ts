@@ -53,6 +53,7 @@ const TRAINING_SPECIAL_EFFECT_ITEM_IDS = new Set<string>([...TRAINING_ABILITY_EF
 const MINT_NATURE_BY_ITEM_ID: Record<string, string> = Object.fromEntries(TRAINING_MINT_EFFECT_ITEM_IDS.map(id => [id, id.replace(/mint$/, "")]));
 const PIKASHUNIUM_ALLOWED_PIKACHU_IDS = new Set(["pikachuoriginal", "pikachuhoenn", "pikachusinnoh", "pikachuunova", "pikachukalos", "pikachualola", "pikachupartner"]);
 const PIKASHUNIUM_FALLBACK_PIKACHU_FORM = "Pikachu-Original";
+const NON_LEGENDARY_TAGGED_SPECIES = new Set(["kubfu", "urshifu", "urshifurapidstrike"]);
 const MOVE_LEARN_SOURCE_ORDER: MoveLearnSource[] = ["levelup", "machine", "tutor", "egg", "event", "transfer", "other"];
 const MOVE_LEARN_SOURCE_LABELS: Record<MoveLearnSource, string> = {
   levelup: "自学",
@@ -1646,6 +1647,7 @@ export class GameService {
   }
 
   private isLegendarySpecies(speciesId: string): boolean {
+    if (NON_LEGENDARY_TAGGED_SPECIES.has(this.toId(speciesId))) return false;
     const species = this.dataDex().species.get(speciesId);
     const tags = (species?.tags || []) as string[];
     return Boolean(species?.isLegendary || species?.isMythical || tags.some(tag => /legendary|mythical/i.test(String(tag))));

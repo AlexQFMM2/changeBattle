@@ -909,9 +909,15 @@ function testRayquazaMegaPoolGate(): void {
   const tierForSpecies = (service as unknown as {tierForSpecies: (speciesId: string) => number | null}).tierForSpecies.bind(service);
   assert.equal(tierForSpecies("ditto"), 6);
   assert.equal(tierForSpecies("smeargle"), 6);
+  assert.equal(tierForSpecies("kubfu"), 6);
+  assert.equal(tierForSpecies("urshifu"), 6);
+  assert.equal(tierForSpecies("urshifurapidstrike"), 6);
   assert.equal(tierForSpecies("arceus"), 10);
   assert.equal(allowed("dragonite", {...DEFAULT_BATTLE_SETTING, legendary_battle: false}, new Set(), "normal"), true);
   assert.equal(allowed("dragonite", {...DEFAULT_BATTLE_SETTING, legendary_battle: true}, new Set(), "normal"), true);
+  assert.equal(allowed("kubfu", {...GEN8_ALL_GENERATIONS_SETTING, legendary_battle: false}, new Set(), "normal"), true);
+  assert.equal(allowed("urshifu", {...GEN8_ALL_GENERATIONS_SETTING, legendary_battle: false}, new Set(), "normal"), true);
+  assert.equal(allowed("urshifurapidstrike", {...GEN8_ALL_GENERATIONS_SETTING, legendary_battle: false}, new Set(), "normal"), true);
   assert.equal(allowed("arceus", {...DEFAULT_BATTLE_SETTING, legendary_battle: false}, new Set(), "normal"), false);
   assert.equal(allowed("arceusfire", {...DEFAULT_BATTLE_SETTING, legendary_battle: false}, new Set(), "normal"), false);
   assert.equal(allowed("arceusfire", {...DEFAULT_BATTLE_SETTING, legendary_battle: true}, new Set(), "normal"), true);

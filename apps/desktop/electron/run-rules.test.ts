@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type {BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
+import {normalEnemySpeciesTiersForBattle} from "@changebattle/game-runtime";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
 import {pokemonDexDetailTabs} from "../src/components/dex/learnsetGroups.ts";
 import {debugPokemon} from "../src/lib/ui.tsx";
@@ -658,6 +659,22 @@ function testRookieAiRules(): void {
   assert.equal((soulSwapEnemyAiProfile() as any).personality, "soul_sick");
 }
 
+function testNormalEnemySpeciesTierRules(): void {
+  assert.deepEqual(normalEnemySpeciesTiersForBattle(0, 1, 1), [3, 4, 4]);
+  assert.deepEqual(normalEnemySpeciesTiersForBattle(0, 1, 2), [3, 4, 5]);
+  assert.deepEqual(normalEnemySpeciesTiersForBattle(0, 4, 1), [3, 4, 5]);
+  assert.deepEqual(normalEnemySpeciesTiersForBattle(0, 4, 2), [3, 4, 6]);
+  assert.deepEqual(normalEnemySpeciesTiersForBattle(1, 4, 1), [4, 5, 6]);
+  assert.deepEqual(normalEnemySpeciesTiersForBattle(1, 4, 2), [3, 5, 6]);
+
+  const stable = normalEnemySpeciesTiersForBattle(0, 4, 1234);
+  assert.deepEqual(normalEnemySpeciesTiersForBattle(0, 4, 1234), stable);
+  assert.equal(stable[0], 3);
+  assert.equal(stable[1], 4);
+  assert.ok([5, 6].includes(stable[2]), JSON.stringify(stable));
+  assert.notDeepEqual(normalEnemySpeciesTiersForBattle(0, 4, 1235), stable);
+}
+
 testTalentCatalog();
 testEnableTestMode();
 await testAllInExchangePenalty();
@@ -681,5 +698,6 @@ testBattleTimelineEntryOrdering();
 testBattleTimelineMissSkipsMoveVisual();
 testSoulSwapRules();
 testRookieAiRules();
+testNormalEnemySpeciesTierRules();
 
 console.log("Desk talent rule tests passed.");

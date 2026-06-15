@@ -121,11 +121,15 @@ export function normalEnemyProfilesForBattle(setStreak: number, battleNo: number
   return ["tier1", "tier1", "tier2"];
 }
 
-export function normalEnemySpeciesTiersForBattle(setStreak: number, battleNo: number): RuntimeSpeciesTier[] {
+function pickSpeciesTierChoice(choices: RuntimeSpeciesTier[], seed: number | string, setStreak: number, battleNo: number, slot: number, stage: string): RuntimeSpeciesTier {
+  return pickStable(choices, seed || 0, setStreak, battleNo, slot, stage, "normal_enemy_species_tier") || choices[0] || 3;
+}
+
+export function normalEnemySpeciesTiersForBattle(setStreak: number, battleNo: number, seed: number | string = 0): RuntimeSpeciesTier[] {
   const nextBoss = routeBossForBattle(setStreak, battleNo < 3 ? 3 : 7);
-  if (nextBoss.type === "champion" || nextBoss.stage.includes("tier3")) return [4, 5, 5];
-  if (nextBoss.stage === "tier2") return [4, 4, 5];
-  return [3, 4, 4];
+  if (nextBoss.type === "champion" || nextBoss.stage.includes("tier3")) return [pickSpeciesTierChoice([4, 3], seed, setStreak, battleNo, 0, "before_tier3"), 5, 6];
+  if (nextBoss.stage === "tier2") return [3, 4, pickSpeciesTierChoice([5, 6], seed, setStreak, battleNo, 2, "before_tier2")];
+  return [3, 4, pickSpeciesTierChoice([4, 5], seed, setStreak, battleNo, 2, "early")];
 }
 
 export function profilesForRoute(route: PlannedBattleRoute): RuntimeGenerationProfile[] {
@@ -262,7 +266,7 @@ export async function buildPlannedBattle(options: {
   const routeSalt = route.type === "normal" ? 100 : route.type === "champion" ? 700 : route.stage.includes("tier3") ? 603 : route.stage === "tier2" ? 602 : 601;
   const bossTeam = route.type === "normal" ? null : pickTeamPoolSelection(bossTeamPools, enemyTrainer, run, battleNo, "boss");
   const profiles = bossTeam?.profiles || (route.type === "normal" ? normalEnemyProfilesForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : profilesForRoute(route));
-  const speciesTiers = route.type === "normal" ? normalEnemySpeciesTiersForBattle(Number(save.stats?.set_win_streak || 0), battleNo) : undefined;
+  const speciesTiers = route.type === "normal" ? normalEnemySpeciesTiersForBattle(Number(save.stats?.set_win_streak || 0), battleNo, run.seed || 0) : undefined;
   const enemyGenerated = await service.generateRentalCandidates(service.deriveSeed(Number(run.seed), routeSalt + battleNo), "gen9randombattle", profiles.length, {
     profiles,
     speciesTiers,

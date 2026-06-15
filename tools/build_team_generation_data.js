@@ -28,6 +28,12 @@ const GENERIC_NPC_ALIASES = new Set([
 const LEGENDARY_TIER = 10;
 const BATTLE_RULE_PRESETS = ["none", "gen7", "gen8", "gen9"];
 const BATTLE_RULE_MAX_GENERATION = {none: 9, gen7: 7, gen8: 8, gen9: 9};
+const NON_LEGENDARY_TAGGED_SPECIES = new Set(["kubfu", "urshifu", "urshifurapidstrike"]);
+const FORCED_SPECIES_TIERS = new Map([
+  ["kubfu", 6],
+  ["urshifu", 6],
+  ["urshifurapidstrike", 6],
+]);
 const TACTICAL_SCORE_BONUS = new Map([
   ["ditto", 320],
   ["smeargle", 320],
@@ -142,6 +148,7 @@ function speciesTagText(species) {
 }
 
 function isLegendarySpecies(species) {
+  if (NON_LEGENDARY_TAGGED_SPECIES.has(species.id)) return false;
   return /legendary/.test(speciesTagText(species));
 }
 
@@ -207,7 +214,7 @@ function speciesRows() {
   });
   const tierById = new Map(sorted.map(row => [row.species_id, row.tier]));
   return candidates
-    .map(row => ({...row, tier: tierById.get(row.species_id) || row.tier}))
+    .map(row => ({...row, tier: FORCED_SPECIES_TIERS.get(row.species_id) || tierById.get(row.species_id) || row.tier}))
     .sort((a, b) => Number(a.tier) - Number(b.tier) || Number(a.bst) - Number(b.bst) || a.species.localeCompare(b.species));
 }
 

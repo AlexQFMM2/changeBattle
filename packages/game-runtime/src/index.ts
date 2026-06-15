@@ -54,6 +54,7 @@ export {
   buildVillainIntrusionPlannedBattle,
   chooseTrainerForRoute,
   normalEnemyProfilesForBattle,
+  normalEnemySpeciesTiersForBattle,
   loadRuntimeTeamPools,
   parseTeamPoolRows,
   pickStable,
