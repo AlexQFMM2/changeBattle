@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {AudioSettings, BagCategoryView, BattleAiHint, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleAiHint, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   createChangeBattleRuntime,
@@ -54,6 +54,7 @@ import {
   finishedBattlePerspective as runtimeFinishedBattlePerspective,
   recordTrainerDexEncounter as runtimeRecordTrainerDexEncounter,
   recordBattleOutcomeStats as runtimeRecordBattleOutcomeStats,
+  recordRuntimeBattleStats as runtimeRecordRuntimeBattleStats,
   rememberRunForSoulmate as runtimeRememberRunForSoulmate,
   setRunLeadSlot as runtimeSetRunLeadSlot,
   shinyPokemon as runtimeShinyPokemon,
@@ -1912,208 +1913,15 @@ function settlementText(settled: Awaited<ReturnType<typeof settleRunEnd>>): stri
 
 type SettledRunEnd = Awaited<ReturnType<typeof settleRunEnd>>;
 
-function resultPokemonKey(pokemon: Pick<RentalPokemon, "run_member_id" | "showdown_id" | "species_id" | "name">): string {
+function runPokemonAppearanceKey(pokemon: Pick<RentalPokemon, "run_member_id" | "showdown_id" | "species_id" | "name">): string {
   return pokemon.run_member_id || pokemon.showdown_id || pokemon.species_id || toId(pokemon.name);
-}
-
-function emptyResultPokemonStats(): Omit<ResultPokemonSummary, "pokemon"> {
-  return {kills: 0, deaths: 0, assists: 0, damage_dealt: 0, damage_taken: 0};
 }
 
 function rememberRunPokemonAppearances(run: CurrentRunData, team: RentalPokemon[] | undefined): void {
   if (!team?.length) return;
-  const existing = new Map((run.used_pokemon_display || []).map(pokemon => [resultPokemonKey(pokemon), pokemon]));
-  for (const pokemon of team) existing.set(resultPokemonKey(pokemon), pokemon);
+  const existing = new Map((run.used_pokemon_display || []).map(pokemon => [runPokemonAppearanceKey(pokemon), pokemon]));
+  for (const pokemon of team) existing.set(runPokemonAppearanceKey(pokemon), pokemon);
   run.used_pokemon_display = Array.from(existing.values());
-}
-
-function mergeResultPokemonStats(target: Omit<ResultPokemonSummary, "pokemon">, source: Partial<Omit<ResultPokemonSummary, "pokemon">>): Omit<ResultPokemonSummary, "pokemon"> {
-  return {
-    kills: Number(target.kills || 0) + Number(source.kills || 0),
-    deaths: Number(target.deaths || 0) + Number(source.deaths || 0),
-    assists: Number(target.assists || 0) + Number(source.assists || 0),
-    damage_dealt: Number(target.damage_dealt || 0) + Number(source.damage_dealt || 0),
-    damage_taken: Number(target.damage_taken || 0) + Number(source.damage_taken || 0),
-  };
-}
-
-function timelineHpKey(event: BattleTimelineEvent): string {
-  return `${event.targetSide || ""}:${event.target_showdown_id || event.target_id || event.target || ""}`;
-}
-
-function timelinePokemonKey(event: BattleTimelineEvent): string {
-  const id = toId(String(event.target_showdown_id || event.target_id || event.target || ""));
-  return event.targetSide && id ? `${event.targetSide}:${id}` : "";
-}
-
-function timelineCurrentHp(event: BattleTimelineEvent): number | null {
-  if (event.hp) return Math.max(0, Number(event.hp.current || 0));
-  if (/\bfnt\b/i.test(String(event.condition || ""))) return 0;
-  return null;
-}
-
-function rememberTimelineHp(event: BattleTimelineEvent, knownHp: Map<string, number>): void {
-  const id = timelineHpKey(event);
-  const current = timelineCurrentHp(event);
-  if (current === null || id.endsWith(":")) return;
-  knownHp.set(id, current);
-}
-
-function hpDelta(event: BattleTimelineEvent, knownHp: Map<string, number>): number {
-  const id = timelineHpKey(event);
-  const current = timelineCurrentHp(event);
-  if (current === null || id.endsWith(":")) return 0;
-  const previous = knownHp.has(id) ? Number(knownHp.get(id) || 0) : Math.max(current, Number(event.hp?.max || current || 0));
-  knownHp.set(id, current);
-  return Math.max(0, previous - current);
-}
-
-function statEventToStats(event: ResultPokemonStatEvent): Partial<Omit<ResultPokemonSummary, "pokemon">> {
-  if (event.kind === "kill") return {kills: event.value};
-  if (event.kind === "death") return {deaths: event.value};
-  if (event.kind === "assist") return {assists: event.value};
-  if (event.kind === "damage_dealt") return {damage_dealt: event.value};
-  if (event.kind === "damage_taken") return {damage_taken: event.value};
-  return {};
-}
-
-function aggregatePokemonStatEvents(events: ResultPokemonStatEvent[] | undefined): Record<string, Omit<ResultPokemonSummary, "pokemon">> {
-  const stats: Record<string, Omit<ResultPokemonSummary, "pokemon">> = {};
-  for (const event of events || []) {
-    const key = String(event.pokemon_key || "");
-    const value = Math.max(0, Number(event.value || 0));
-    if (!key || !value) continue;
-    stats[key] = mergeResultPokemonStats(stats[key] || emptyResultPokemonStats(), statEventToStats({...event, value}));
-  }
-  return stats;
-}
-
-function statEventSource(event: BattleTimelineEvent): ResultPokemonStatEvent["source"] {
-  const effect = toId(event.effect || "");
-  if (!effect) return event.type === "damage" ? "move" : "unknown";
-  if (["spikes", "stealthrock", "toxicspikes", "stickyweb"].includes(effect)) return "field";
-  if (["brn", "psn", "tox", "confusion", "leechseed", "curse", "nightmare"].includes(effect)) return "status";
-  if (event.type === "item") return "item";
-  if (event.type === "ability") return "ability";
-  return "unknown";
-}
-
-function collectBattlePokemonStatEvents(run: CurrentRunData, battle: BattleState): ResultPokemonStatEvent[] {
-  const byShowdownId = new Map<string, string>();
-  const byIdent = new Map<string, string>();
-  const duplicateIdents = new Set<string>();
-  const addIdent = (value: unknown, key: string): void => {
-    const id = toId(String(value || ""));
-    if (!id) return;
-    const existing = byIdent.get(id);
-    if (existing && existing !== key) {
-      duplicateIdents.add(id);
-      byIdent.delete(id);
-    } else if (!duplicateIdents.has(id)) {
-      byIdent.set(id, key);
-    }
-  };
-  battle.player_display.forEach(pokemon => {
-    const key = resultPokemonKey(pokemon);
-    if (pokemon.showdown_id) byShowdownId.set(pokemon.showdown_id, key);
-    addIdent(pokemon.species_id, key);
-    addIdent(pokemon.species, key);
-    addIdent(pokemon.name, key);
-  });
-  const battleNo = Math.max(1, Number(run.battle_no || run.next_battle || 0));
-  const statEvents: ResultPokemonStatEvent[] = [];
-  const pushStatEvent = (pokemonKey: string, timelineEvent: BattleTimelineEvent, kind: ResultPokemonStatEvent["kind"], value: number, targetKey = "", source: ResultPokemonStatEvent["source"] = "unknown"): void => {
-    const normalizedValue = Math.max(0, Math.floor(Number(value || 0)));
-    if (!pokemonKey || !normalizedValue) return;
-    statEvents.push({
-      battle_no: battleNo,
-      turn: Math.max(1, Number(timelineEvent.turn || battle.tracker?.turn || 1)),
-      pokemon_key: pokemonKey,
-      target_key: targetKey || undefined,
-      kind,
-      value: normalizedValue,
-      source,
-    });
-  };
-  const contributorsByEnemy = new Map<string, Set<string>>();
-  const knownHp = new Map<string, number>();
-  let lastPlayerAttackerKey = "";
-  for (const event of battle.timeline_events || []) {
-    if (event.type === "switch") {
-      rememberTimelineHp(event, knownHp);
-      continue;
-    }
-    if (event.type === "heal" && event.hp) {
-      rememberTimelineHp(event, knownHp);
-      continue;
-    }
-    if (event.type === "move" && event.side === "p1") {
-      const key = byShowdownId.get(event.source_showdown_id || "") || byIdent.get(toId(event.source_id || event.source || ""));
-      if (key) lastPlayerAttackerKey = key;
-      continue;
-    }
-    if (event.type === "damage") {
-      const delta = hpDelta(event, knownHp);
-      if (delta <= 0) continue;
-      if (event.targetSide === "p2" && lastPlayerAttackerKey) {
-        const targetKey = timelinePokemonKey(event);
-        pushStatEvent(lastPlayerAttackerKey, event, "damage_dealt", delta, targetKey, statEventSource(event));
-        if (targetKey) {
-          const contributors = contributorsByEnemy.get(targetKey) || new Set<string>();
-          contributors.add(lastPlayerAttackerKey);
-          contributorsByEnemy.set(targetKey, contributors);
-        }
-      } else if (event.targetSide === "p1") {
-        const key = byShowdownId.get(event.target_showdown_id || "") || byIdent.get(toId(event.target_id || event.target || ""));
-        if (key) pushStatEvent(key, event, "damage_taken", delta, timelinePokemonKey(event), statEventSource(event));
-      }
-      continue;
-    }
-    if (event.type === "faint") {
-      if (event.targetSide === "p2" && lastPlayerAttackerKey) {
-        const targetKey = timelinePokemonKey(event);
-        pushStatEvent(lastPlayerAttackerKey, event, "kill", 1, targetKey, "unknown");
-        for (const contributorKey of contributorsByEnemy.get(targetKey) || []) {
-          if (contributorKey !== lastPlayerAttackerKey) pushStatEvent(contributorKey, event, "assist", 1, targetKey, "unknown");
-        }
-        if (targetKey) contributorsByEnemy.delete(targetKey);
-      } else if (event.targetSide === "p1") {
-        const key = byShowdownId.get(event.target_showdown_id || "") || byIdent.get(toId(event.target_id || event.target || ""));
-        if (key) pushStatEvent(key, event, "death", 1, timelinePokemonKey(event), "unknown");
-      }
-    }
-  }
-  return statEvents;
-}
-
-function recordRunBattleStats(run: CurrentRunData, battle: BattleState): ResultPokemonStatEvent[] {
-  rememberRunPokemonAppearances(run, battle.player_display);
-  const statEvents = collectBattlePokemonStatEvents(run, battle);
-  run.used_pokemon_stat_events = [...(run.used_pokemon_stat_events || []), ...statEvents];
-  return statEvents;
-}
-
-function resultUsedPokemon(run: CurrentRunData | null | undefined, fallbackTeam: RentalPokemon[]): ResultPokemonSummary[] {
-  const seen = new Map<string, RentalPokemon>();
-  for (const pokemon of [...(run?.used_pokemon_display || []), ...(run?.player_display || []), ...(run?.exchange_box?.display || []), ...fallbackTeam]) {
-    seen.set(resultPokemonKey(pokemon), pokemon);
-  }
-  const eventStats = aggregatePokemonStatEvents(run?.used_pokemon_stat_events);
-  return Array.from(seen.entries()).map(([key, pokemon]) => ({
-    pokemon,
-    ...mergeResultPokemonStats(run?.used_pokemon_stats?.[key] || emptyResultPokemonStats(), eventStats[key] || emptyResultPokemonStats()),
-  }));
-}
-
-function battlePokemonSummaries(run: CurrentRunData, battle: BattleState, events: ResultPokemonStatEvent[]): ResultPokemonSummary[] {
-  const eventStats = aggregatePokemonStatEvents(events);
-  return battle.player_display.map(pokemon => {
-    const key = resultPokemonKey(pokemon);
-    return {
-      pokemon,
-      ...mergeResultPokemonStats(run.used_pokemon_stats?.[key] || emptyResultPokemonStats(), eventStats[key] || emptyResultPokemonStats()),
-    };
-  });
 }
 
 function buildBattleRecord(options: {run: CurrentRunData; battle: BattleState; message: string; outcome: BattleRecordEntry["outcome"]; statEvents: ResultPokemonStatEvent[]; resultSummary?: ResultSummaryState}): BattleRecordEntry {
@@ -4441,7 +4249,7 @@ async function finishBattleState(save: LocalSave, state: BattleState): Promise<D
   const effectiveWinner = effectivePlayerWin ? "Player" : state.winner === "tie" ? "tie" : "Enemy";
   const scoreBetText = settleActiveScoreBet(run, effectivePlayerWin, aliveStateCount(playerPerspectiveState), aliveStateCount(enemyPerspectiveState));
   const winBp = recordBattleResult(save, effectiveWinner, run);
-  const statEvents = recordRunBattleStats(run, state);
+  const statEvents = runtimeRecordRuntimeBattleStats(run, state);
   const questMessage = updateRunQuestAfterBattle(run, {
     playerWon: effectivePlayerWin,
     playerState: playerPerspectiveState,
@@ -4512,7 +4320,7 @@ async function finishSoulSwapTimeoutLoss(save: LocalSave, state: BattleState): P
   run.player_state = playerPerspectiveState;
   const scoreBetText = settleActiveScoreBet(run, false, aliveStateCount(playerPerspectiveState), aliveStateCount(enemyPerspectiveState));
   recordBattleResult(save, "Enemy", run);
-  const statEvents = recordRunBattleStats(run, state);
+  const statEvents = runtimeRecordRuntimeBattleStats(run, state);
   const questMessage = updateRunQuestAfterBattle(run, {
     playerWon: false,
     playerState: playerPerspectiveState,

@@ -1,4 +1,4 @@
-import type {BattleBackgroundView, BattleRecordEntry, BattleRequestView, BattleSetting, BattleState, BossDexRecord, CurrentRunData, LocalSave, PlannedBattleData, PlayerPokemonState, PokemonSet, RentalPokemon, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BattleBackgroundView, BattleRecordEntry, BattleRequestView, BattleSetting, BattleState, BattleTimelineEvent, BossDexRecord, CoinLedgerEntry, CurrentRunData, LocalSave, PlannedBattleData, PlayerPokemonState, PokemonSet, RentalPokemon, ResultPokemonStatEvent, ResultPokemonSummary, ResultSummaryState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {RECYCLE_RECEIPT_RATE, WIN_BP_REWARD, addBattleRewardCoins, addBp, addCoins, addRunBp, coinsToBp, convertibleCoinsForSettlement, currentCoins, emptyStats, hasTalent, itemKey, portfolioBonus, recordCoinLedger, refreshStats, refundableBagBaseBpFromCosts, settleProphetFirstMover, toId} from "./run-rules.js";
 import {fullStateForPokemon, refreshStateCondition} from "./rest-flow.js";
@@ -711,6 +711,156 @@ export function settleRuntimeRunEnd(save: LocalSave, run: CurrentRunData, option
   return {paidBack, refundBase, refundGained, receiptBonus, portfolioBonus: portfolioGained, portfolioTypes: portfolio.types, convertedCoins, excludedCoins, convertedBp};
 }
 
+function rememberRunPokemonAppearances(run: CurrentRunData, team: RentalPokemon[] | undefined): void {
+  if (!team?.length) return;
+  const existing = new Map((run.used_pokemon_display || []).map(pokemon => [resultPokemonKey(pokemon), pokemon]));
+  for (const pokemon of team) existing.set(resultPokemonKey(pokemon), pokemon);
+  run.used_pokemon_display = Array.from(existing.values());
+}
+
+function timelineHpKey(event: BattleTimelineEvent): string {
+  return `${event.targetSide || ""}:${event.target_showdown_id || event.target_id || event.target || ""}`;
+}
+
+function timelinePokemonKey(event: BattleTimelineEvent): string {
+  const id = toId(String(event.target_showdown_id || event.target_id || event.target || ""));
+  return event.targetSide && id ? `${event.targetSide}:${id}` : "";
+}
+
+function timelineCurrentHp(event: BattleTimelineEvent): number | null {
+  if (event.hp) return Math.max(0, Number(event.hp.current || 0));
+  if (/\bfnt\b/i.test(String(event.condition || ""))) return 0;
+  return null;
+}
+
+function rememberTimelineHp(event: BattleTimelineEvent, knownHp: Map<string, number>): void {
+  const id = timelineHpKey(event);
+  const current = timelineCurrentHp(event);
+  if (current === null || id.endsWith(":")) return;
+  knownHp.set(id, current);
+}
+
+function hpDelta(event: BattleTimelineEvent, knownHp: Map<string, number>): number {
+  const id = timelineHpKey(event);
+  const current = timelineCurrentHp(event);
+  if (current === null || id.endsWith(":")) return 0;
+  const previous = knownHp.has(id) ? Number(knownHp.get(id) || 0) : Math.max(current, Number(event.hp?.max || current || 0));
+  knownHp.set(id, current);
+  return Math.max(0, previous - current);
+}
+
+function statEventSource(event: BattleTimelineEvent): ResultPokemonStatEvent["source"] {
+  const effect = toId(event.effect || "");
+  if (!effect) return event.type === "damage" ? "move" : "unknown";
+  if (["spikes", "stealthrock", "toxicspikes", "stickyweb"].includes(effect)) return "field";
+  if (["brn", "psn", "tox", "confusion", "leechseed", "curse", "nightmare"].includes(effect)) return "status";
+  if (event.type === "item") return "item";
+  if (event.type === "ability") return "ability";
+  return "unknown";
+}
+
+function collectRuntimeBattlePokemonStatEvents(run: CurrentRunData, battle: BattleState): ResultPokemonStatEvent[] {
+  const byShowdownId = new Map<string, string>();
+  const byIdent = new Map<string, string>();
+  const duplicateIdents = new Set<string>();
+  const addIdent = (value: unknown, key: string): void => {
+    const id = toId(String(value || ""));
+    if (!id) return;
+    const existing = byIdent.get(id);
+    if (existing && existing !== key) {
+      duplicateIdents.add(id);
+      byIdent.delete(id);
+    } else if (!duplicateIdents.has(id)) {
+      byIdent.set(id, key);
+    }
+  };
+  for (const pokemon of battle.player_display || []) {
+    const key = resultPokemonKey(pokemon);
+    if (pokemon.showdown_id) byShowdownId.set(pokemon.showdown_id, key);
+    if (pokemon.showdown_id) byShowdownId.set(toId(pokemon.showdown_id), key);
+    addIdent(pokemon.species_id, key);
+    addIdent(pokemon.species, key);
+    addIdent(pokemon.name, key);
+  }
+  const battleNo = Math.max(1, Number(run.battle_no || run.next_battle || 0));
+  const statEvents: ResultPokemonStatEvent[] = [];
+  const pushStatEvent = (pokemonKey: string, timelineEvent: BattleTimelineEvent, kind: ResultPokemonStatEvent["kind"], value: number, targetKey = "", source: ResultPokemonStatEvent["source"] = "unknown"): void => {
+    const normalizedValue = Math.max(0, Math.floor(Number(value || 0)));
+    if (!pokemonKey || !normalizedValue) return;
+    statEvents.push({
+      battle_no: battleNo,
+      turn: Math.max(1, Number(timelineEvent.turn || battle.tracker?.turn || 1)),
+      pokemon_key: pokemonKey,
+      target_key: targetKey || undefined,
+      kind,
+      value: normalizedValue,
+      source,
+    });
+  };
+  const contributorsByEnemy = new Map<string, Set<string>>();
+  const knownHp = new Map<string, number>();
+  let lastPlayerAttackerKey = "";
+  for (const event of battle.timeline_events || []) {
+    if (event.type === "switch") {
+      rememberTimelineHp(event, knownHp);
+      continue;
+    }
+    if (event.type === "heal" && event.hp) {
+      rememberTimelineHp(event, knownHp);
+      continue;
+    }
+    if (event.type === "move" && event.side === "p1") {
+      const key = byShowdownId.get(event.source_showdown_id || "")
+        || byShowdownId.get(toId(event.source_showdown_id || ""))
+        || byIdent.get(toId(event.source_id || event.source || ""));
+      if (key) lastPlayerAttackerKey = key;
+      continue;
+    }
+    if (event.type === "damage") {
+      const delta = hpDelta(event, knownHp);
+      if (delta <= 0) continue;
+      if (event.targetSide === "p2" && lastPlayerAttackerKey) {
+        const targetKey = timelinePokemonKey(event);
+        pushStatEvent(lastPlayerAttackerKey, event, "damage_dealt", delta, targetKey, statEventSource(event));
+        if (targetKey) {
+          const contributors = contributorsByEnemy.get(targetKey) || new Set<string>();
+          contributors.add(lastPlayerAttackerKey);
+          contributorsByEnemy.set(targetKey, contributors);
+        }
+      } else if (event.targetSide === "p1") {
+        const key = byShowdownId.get(event.target_showdown_id || "")
+          || byShowdownId.get(toId(event.target_showdown_id || ""))
+          || byIdent.get(toId(event.target_id || event.target || ""));
+        if (key) pushStatEvent(key, event, "damage_taken", delta, timelinePokemonKey(event), statEventSource(event));
+      }
+      continue;
+    }
+    if (event.type === "faint") {
+      if (event.targetSide === "p2" && lastPlayerAttackerKey) {
+        const targetKey = timelinePokemonKey(event);
+        pushStatEvent(lastPlayerAttackerKey, event, "kill", 1, targetKey, "unknown");
+        for (const contributorKey of contributorsByEnemy.get(targetKey) || []) {
+          if (contributorKey !== lastPlayerAttackerKey) pushStatEvent(contributorKey, event, "assist", 1, targetKey, "unknown");
+        }
+        if (targetKey) contributorsByEnemy.delete(targetKey);
+      } else if (event.targetSide === "p1") {
+        const key = byShowdownId.get(event.target_showdown_id || "")
+          || byShowdownId.get(toId(event.target_showdown_id || ""))
+          || byIdent.get(toId(event.target_id || event.target || ""));
+        if (key) pushStatEvent(key, event, "death", 1, timelinePokemonKey(event), "unknown");
+      }
+    }
+  }
+  return statEvents;
+}
+
+export function recordRuntimeBattleStats(run: CurrentRunData, battle: BattleState): ResultPokemonStatEvent[] {
+  rememberRunPokemonAppearances(run, battle.player_display);
+  const statEvents = collectRuntimeBattlePokemonStatEvents(run, battle);
+  run.used_pokemon_stat_events = [...(run.used_pokemon_stat_events || []), ...statEvents];
+  return statEvents;
+}
+
 export function buildRuntimeBattleRecord(options: {
   id: string;
   createdAt: string;
@@ -779,6 +929,22 @@ function markResultSummaryBattleRecord(summary: ResultSummaryState | undefined, 
   };
 }
 
+function coinLedgerTotal(ledger: CoinLedgerEntry[], predicate: (entry: CoinLedgerEntry) => boolean): number {
+  return ledger.reduce((sum, entry) => sum + (predicate(entry) ? Math.max(0, Number(entry.amount || 0)) : 0), 0);
+}
+
+function extraSettlementSummary(settled: RuntimeSettledRunEnd): {value: string; detail: string} {
+  const parts: string[] = [];
+  if (settled.refundGained) parts.push(`道具返还 ${settled.refundGained}`);
+  if (settled.receiptBonus) parts.push(`回收票据 ${settled.receiptBonus}`);
+  if (settled.portfolioBonus) parts.push(`投资组合 ${settled.portfolioBonus}`);
+  if (settled.excludedCoins) parts.push(`天使基金排除 ${settled.excludedCoins}`);
+  return {
+    value: parts.length ? `${parts.reduce((sum, part) => sum + Number(part.match(/\d+$/)?.[0] || 0), 0)}金币` : "无",
+    detail: parts.length ? parts.join(" / ") : "本局没有额外结算项",
+  };
+}
+
 export function buildRuntimeResultSummary(options: {
   outcome: ResultSummaryState["outcome"];
   headline: string;
@@ -793,16 +959,21 @@ export function buildRuntimeResultSummary(options: {
   defaultBattles: number;
 }): ResultSummaryState {
   const settled = options.settled || emptyRuntimeSettlement();
-  const coinRows: ResultSummaryState["coin_rows"] = [];
-  if (options.battleReward !== undefined) coinRows.push({label: "本场胜利奖励", value: `${options.battleReward}金币`, detail: "击败本场训练师获得"});
-  if (options.clearBonus !== undefined) coinRows.push({label: "连续通关奖励", value: `${options.clearBonus}金币`, detail: "完成整轮挑战获得"});
-  if (options.allInBonus) coinRows.push({label: "孤注一掷翻倍", value: `${options.allInBonus}金币`, detail: "获胜后按当前金币翻倍"});
-  coinRows.push(
-    {label: "道具卖出总计", value: `${settled.refundGained}金币`, detail: "结算时按当前背包返还比例折算"},
-    {label: "回收票据", value: `${settled.receiptBonus}金币`, detail: "按本局回收流水追加"},
-    {label: "投资组合", value: `${settled.portfolioBonus}金币`, detail: settled.portfolioTypes.length ? settled.portfolioTypes.join(" / ") : "本局未触发"},
-    {label: "天使基金不折算", value: `${settled.excludedCoins}金币`, detail: "开局基金剩余部分不进入 BP 折算"},
-  );
+  const coinLedger = [...(options.run?.coin_ledger || [])];
+  const incomeTotal = coinLedgerTotal(coinLedger, entry => entry.type === "gain");
+  const spendTotal = coinLedgerTotal(coinLedger, entry => entry.type === "spend" && entry.reason !== "settlement");
+  const extra = extraSettlementSummary(settled);
+  const incomeDetail = [
+    options.battleReward !== undefined ? `本场奖励 ${options.battleReward}` : "",
+    options.clearBonus !== undefined ? `通关奖励 ${options.clearBonus}` : "",
+    options.allInBonus ? `孤注一掷 ${options.allInBonus}` : "",
+  ].filter(Boolean).join(" / ");
+  const coinRows: ResultSummaryState["coin_rows"] = [
+    {label: "本局收入流水", value: `${incomeTotal}金币`, detail: incomeDetail || "来自战斗奖励、商店返利、事件奖励与结算增益"},
+    {label: "本局支出流水", value: `${spendTotal}金币`, detail: "不包含最终结算折算清零"},
+    {label: "金币折算 BP", value: `${settled.convertedCoins}金币 -> ${settled.convertedBp}BP`, detail: "结算时向下取整"},
+    {label: "额外结算", value: extra.value, detail: extra.detail},
+  ];
   const bpRows: ResultSummaryState["bp_rows"] = [
     {label: "金币折算 BP", value: `${settled.convertedCoins}金币 -> ${settled.convertedBp}BP`, detail: "结算时向下取整"},
   ];
@@ -823,6 +994,7 @@ export function buildRuntimeResultSummary(options: {
     rows,
     coin_rows: coinRows,
     bp_rows: bpRows,
+    coin_ledger: coinLedger,
     talents: options.battle?.player_talents?.length ? options.battle.player_talents : options.run?.talents || [],
     used_pokemon: resultUsedPokemon(options.run, playerTeam),
     progress: resultProgressRows({run: options.run, wins: options.wins, outcome: options.outcome, battle: options.battle, defaultBattles: options.defaultBattles}),

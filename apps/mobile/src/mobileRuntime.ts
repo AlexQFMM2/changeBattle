@@ -79,6 +79,7 @@ import {
   rainbowRocketRollHits,
   rainbowRocketSupportRequired,
   rainbowRocketUnlocked,
+  recordRuntimeBattleStats,
   recordTrainerDexEncounter,
   recordTrainerDexResult,
   rememberRunForSoulmate,
@@ -380,9 +381,11 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
       const perspective = finishedBattlePerspective(run, state, activeBattle);
       applyFinishedBattlePerspectiveToRun(run, perspective);
       const mobilePlayerWon = perspective.playerWonByBattleState;
+      const statEvents = recordRuntimeBattleStats(run, state);
       const questMessage = updateRunQuestAfterBattle(run, {
         playerWon: mobilePlayerWon,
         playerState: perspective.playerState,
+        statEvents,
         timelineEvents: state.timeline_events || [],
         playerSide: "p1",
       });
@@ -418,6 +421,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         battle: state,
         message: settlementMessage,
         outcome: settled.outcome === "loss" ? "loss" : "win",
+        statEvents,
         resultSummary,
         defaultBattles: 7,
       }));

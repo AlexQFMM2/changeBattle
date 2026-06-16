@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type {BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
-import {normalEnemySpeciesTiersForBattle, settleBasicBattleResult} from "@changebattle/game-runtime";
+import {buildRuntimeResultSummary, normalEnemySpeciesTiersForBattle, recordRuntimeBattleStats, settleBasicBattleResult} from "@changebattle/game-runtime";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
 import {pokemonDexDetailTabs} from "../src/components/dex/learnsetGroups.ts";
 import {debugPokemon} from "../src/lib/ui.tsx";
@@ -340,6 +340,22 @@ function testEconomyTalents(): void {
   assert.equal(lossSettlement.settled.convertedBp, 20);
   assert.equal(currentCoins(lossRun), 0);
   assert.equal(lossSave.current_run, null);
+
+  const summaryRun = run([], {coins: 0});
+  addCoins(summaryRun, 500, "battle-reward:base", "战斗对局奖励");
+  spendCoins(summaryRun, 120, "shop-buy:potion", "商店购买");
+  const summary = buildRuntimeResultSummary({
+    outcome: "win",
+    headline: "通关",
+    wins: 7,
+    run: summaryRun,
+    settled: {paidBack: 0, refundBase: 0, refundGained: 0, receiptBonus: 0, portfolioBonus: 0, portfolioTypes: [], convertedCoins: 380, excludedCoins: 0, convertedBp: 3},
+    defaultBattles: 7,
+  });
+  assert.equal(summary.coin_ledger?.length, 2);
+  assert.equal(summary.coin_rows?.find(row => row.label === "本局收入流水")?.value, "500金币");
+  assert.equal(summary.coin_rows?.find(row => row.label === "本局支出流水")?.value, "120金币");
+  assert.equal(summary.coin_rows?.find(row => row.label === "金币折算 BP")?.value, "380金币 -> 3BP");
 }
 
 function testCoinLedgerAndTrainingRules(): void {
@@ -617,6 +633,29 @@ function testBattleTimelineMissSkipsMoveVisual(): void {
   assert.deepEqual(buildBattleDisplaySteps(events).map(step => `${step.kind}:${step.event?.id}`), ["message:m1", "message:x1", "visual:x1"]);
 }
 
+function testRuntimeBattleStats(): void {
+  const battleRun = run([], {battle_no: 2, player_display: [{name: "狼人", species_id: "lycanroc", showdown_id: "lycanroc", level: 50} as any]});
+  const battle = {
+    ...battleStateAtTurn(3, true),
+    winner: "Player",
+    player_display: battleRun.player_display,
+    enemy_display: [{name: "对手", species_id: "watchog", showdown_id: "watchog", level: 50} as any],
+    timeline_events: [
+      {id: "m1", type: "move", text: "狼人 使用 尖石攻击。", side: "p1", source: "狼人", source_id: "Lycanroc", source_showdown_id: "lycanroc", turn: 1},
+      {id: "d1", type: "damage", text: "对手 HP: 40/100", targetSide: "p2", target: "对手", target_id: "Watchog", target_showdown_id: "watchog", hp: {current: 40, max: 100, text: "40/100"}, turn: 1},
+      {id: "m2", type: "move", text: "对手 使用 撞击。", side: "p2", source: "对手", source_id: "Watchog", source_showdown_id: "watchog", turn: 2},
+      {id: "d2", type: "damage", text: "狼人 HP: 70/100", targetSide: "p1", target: "狼人", target_id: "Lycanroc", target_showdown_id: "lycanroc", hp: {current: 70, max: 100, text: "70/100"}, turn: 2},
+      {id: "m3", type: "move", text: "狼人 使用 咬碎。", side: "p1", source: "狼人", source_id: "Lycanroc", source_showdown_id: "lycanroc", turn: 3},
+      {id: "d3", type: "damage", text: "对手 HP: 0/100", targetSide: "p2", target: "对手", target_id: "Watchog", target_showdown_id: "watchog", hp: {current: 0, max: 100, text: "0/100"}, turn: 3},
+      {id: "f1", type: "faint", text: "对手倒下了。", targetSide: "p2", target: "对手", target_id: "Watchog", target_showdown_id: "watchog", turn: 3},
+    ],
+  } as BattleState;
+  const events = recordRuntimeBattleStats(battleRun, battle);
+  assert.deepEqual(events.map(event => [event.kind, event.value]), [["damage_dealt", 60], ["damage_taken", 30], ["damage_dealt", 40], ["kill", 1]]);
+  const summary = buildRuntimeResultSummary({outcome: "win", headline: "通关", wins: 7, run: battleRun, battle, defaultBattles: 7});
+  assert.deepEqual(summary.used_pokemon?.map(entry => [entry.kills, entry.damage_dealt, entry.damage_taken]), [[1, 100, 30]]);
+}
+
 function battleStateAtTurn(turn: number, ended = false): BattleState {
   return {
     ended,
@@ -711,6 +750,7 @@ testTmIconAssets();
 testPokemonDexDetailTabs();
 testBattleTimelineEntryOrdering();
 testBattleTimelineMissSkipsMoveVisual();
+testRuntimeBattleStats();
 testSoulSwapRules();
 testRookieAiRules();
 testNormalEnemySpeciesTierRules();

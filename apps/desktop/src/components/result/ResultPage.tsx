@@ -21,7 +21,7 @@ export function ResultPage({message, battle, summary, onBack, backLabel = "返�
   const playerWon = summary ? summary.outcome === "win" : battle ? playerWonBattleResult(battle) : false;
   const outcome = summary?.outcome || (playerWon ? "win" : "loss");
   const rows = summary?.rows?.length ? summary.rows : [{label: "结算说明", value: message}];
-  const coinRows = (summary?.coin_rows?.length ? summary.coin_rows : rows.filter(row => row.value.includes("金币"))).filter(row => !row.value.includes("BP") && row.label !== "金币折算 BP");
+  const coinRows = (summary?.coin_rows?.length ? summary.coin_rows : rows.filter(row => row.value.includes("金币"))).filter(row => !row.value.includes("BP") || row.label === "金币折算 BP");
   const usedPokemon = summary?.used_pokemon?.length ? summary.used_pokemon : fallbackUsedPokemon(summary, battle);
   const progressRows = summary?.progress?.length ? summary.progress : fallbackProgress(summary, battle, outcome);
   const defaultProgressNo = progressRows.find(row => row.battle_no === 7)?.battle_no || progressRows.at(-1)?.battle_no || 1;
@@ -86,7 +86,7 @@ export function ResultPage({message, battle, summary, onBack, backLabel = "返�
             onBack={onBack}
             backLabel={backLabel}
           />
-          <ResultSettlementGrid rows={coinRows} />
+          <ResultSettlementGrid rows={coinRows} bpRows={summary?.bp_rows || []} ledger={summary?.coin_ledger || []} />
           <ResultTeamSummary usedPokemon={usedPokemon} />
         </main>
         <ResultProgressList

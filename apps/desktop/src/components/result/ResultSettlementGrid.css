@@ -1,5 +1,6 @@
 .result-settlement-grid {
   --result-settlement-grid-row-height: 28px;
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -94,4 +95,140 @@
   color: #596052;
   font-size: 6px;
   line-height: 1;
+}
+
+.result-rows > header button,
+.result-ledger-overlay button {
+  border: 1px solid #25332b;
+  border-radius: 3px;
+  background: #f9d65b;
+  color: #25332b;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  padding: 3px 6px;
+  box-shadow: 0 2px 0 rgb(55 42 45 / 35%);
+}
+
+.result-rows > header button {
+  flex: 0 0 auto;
+}
+
+.result-ledger-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgb(13 20 16 / 58%);
+}
+
+.result-ledger-overlay > section {
+  width: min(430px, calc(100% - 28px));
+  height: min(214px, calc(100% - 28px));
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 22px minmax(0, 1fr);
+  gap: 5px;
+  border: 2px solid #25332b;
+  border-radius: 5px;
+  background: #fffdf5;
+  box-shadow: 0 8px 0 rgb(55 42 45 / 35%);
+  padding: 6px;
+}
+
+.result-ledger-overlay header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-ledger-overlay header strong {
+  color: #25332b;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.result-ledger-overlay header span {
+  min-width: 0;
+  color: #5f6c57;
+  font-size: 7px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-ledger-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-width: thin;
+}
+
+.result-ledger-list article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 62px;
+  grid-template-rows: 12px 10px;
+  gap: 1px 5px;
+  align-items: center;
+  border: 1px solid #cbd7be;
+  background: #f7f3e7;
+  padding: 3px 5px;
+}
+
+.result-ledger-list article.gain b {
+  color: #b6801d;
+}
+
+.result-ledger-list article.spend b {
+  color: #7f4a45;
+}
+
+.result-ledger-list b,
+.result-ledger-list strong,
+.result-ledger-list span,
+.result-ledger-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.result-ledger-list b {
+  grid-row: 1 / span 2;
+  font-size: 7px;
+}
+
+.result-ledger-list strong {
+  color: #25332b;
+  font-size: 7px;
+}
+
+.result-ledger-list span {
+  color: #5f6c57;
+  font-size: 6px;
+  text-align: right;
+}
+
+.result-ledger-list small {
+  grid-column: 2 / -1;
+  color: #596052;
+  font-size: 6px;
+}
+
+.result-ledger-list p {
+  margin: 0;
+  color: #596052;
+  font-size: 8px;
+  font-weight: 900;
 }

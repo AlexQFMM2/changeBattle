@@ -1065,6 +1065,7 @@ export type ResultSummaryState = {
   rows: ResultSummaryRow[];
   coin_rows?: ResultSummaryRow[];
   bp_rows?: ResultSummaryRow[];
+  coin_ledger?: CoinLedgerEntry[];
   talents?: TalentView[];
   used_pokemon?: ResultPokemonSummary[];
   progress?: ResultProgressRow[];
