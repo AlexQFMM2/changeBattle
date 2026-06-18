@@ -7,12 +7,15 @@ type BagItemDetailPanelProps = {
   descriptionVisible?: boolean;
   busy?: boolean;
   useLabel?: string;
+  actions?: Array<{key: string; label: string; disabled?: boolean; disabledReason?: string; onUse: () => void}>;
   disabled?: boolean;
   disabledReason?: string;
   onUse: () => void;
 };
 
-export function BagItemDetailPanel({item, descriptionVisible = true, busy = false, useLabel = "使用", disabled = false, disabledReason, onUse}: BagItemDetailPanelProps) {
+export function BagItemDetailPanel({item, descriptionVisible = true, busy = false, useLabel = "使用", actions, disabled = false, disabledReason, onUse}: BagItemDetailPanelProps) {
+  const resolvedActions = actions?.length ? actions : [{key: "use", label: useLabel, disabled, disabledReason, onUse}];
+  const firstDisabledReason = resolvedActions.find(action => action.disabled && action.disabledReason)?.disabledReason || disabledReason;
   return (
     <section className="bag-item-detail-panel">
       <div className="bag-detail-hero">
@@ -23,10 +26,16 @@ export function BagItemDetailPanel({item, descriptionVisible = true, busy = fals
       </div>
       <div className="bag-detail-description">
         <p>{descriptionVisible ? item.desc_zh || item.desc || item.name : "？？？"}</p>
-        {disabledReason ? <small className="bag-detail-disabled-reason">{disabledReason}</small> : null}
+        {firstDisabledReason ? <small className="bag-detail-disabled-reason">{firstDisabledReason}</small> : null}
       </div>
       <footer>
-        <button className="bag-detail-use-button" disabled={busy || disabled} onClick={onUse}>{busy ? "处理中" : useLabel}</button>
+        <div className="bag-detail-action-row">
+          {resolvedActions.map(action => (
+            <button className="bag-detail-use-button" disabled={busy || action.disabled} onClick={action.onUse} key={action.key}>
+              {busy ? "处理中" : action.label}
+            </button>
+          ))}
+        </div>
       </footer>
     </section>
   );

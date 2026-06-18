@@ -1078,8 +1078,7 @@ async function isHpStatusReviveRecoveryItem(itemId: string): Promise<boolean> {
   const id = itemKey(itemId);
   if (isTrainingConsumableItemId(id)) return false;
   if (isTmItemId(id) || isBerryItemId(id)) return true;
-  if (!(await gameService.hasConsumableItemEffect(id))) return false;
-  return !["ether", "maxether", "elixir", "maxelixir"].includes(id);
+  return gameService.hasConsumableItemEffect(id);
 }
 
 function isLowTierRecoveryItem(itemId: string): boolean {

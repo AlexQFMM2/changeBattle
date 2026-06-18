@@ -60,6 +60,30 @@ export function tmMoveId(item?: BagItemView): string {
   return item.id.startsWith("tm:") ? toId(item.id.slice(3)) : "";
 }
 
+function stripMachinePrefix(value: string | undefined): string {
+  return String(value || "").replace(/^tm\s*/i, "").replace(/^技能机器\s*/, "").trim();
+}
+
+export function tmMoveSearchQuery(item?: BagItemView): string {
+  if (!item) return "";
+  return tmMoveId(item) || stripMachinePrefix(item.move_name || item.move_name_zh || item.name_zh || item.name);
+}
+
+export function resolveTmMoveIdForSlot(item: BagItemView | undefined, learnableMoves: PricedMove[]): string {
+  if (!item) return "";
+  const explicit = tmMoveId(item);
+  if (explicit) return explicit;
+  const rawLabels = [item.move_name, item.move_name_zh, item.name, item.name_zh].map(stripMachinePrefix).filter(Boolean);
+  const idLabels = new Set(rawLabels.map(toId).filter(Boolean));
+  const textLabels = new Set(rawLabels.map(label => label.toLowerCase()));
+  const match = learnableMoves.find(move => {
+    const moveId = toId(move.id || move.name);
+    if (moveId && idLabels.has(moveId)) return true;
+    return [move.name, move.name_zh].map(label => stripMachinePrefix(label).toLowerCase()).some(label => label && textLabels.has(label));
+  });
+  return match ? toId(match.id || match.name) : "";
+}
+
 export function tmFallbackMove(item: BagItemView): PricedMove {
   const moveId = tmMoveId(item);
   return {

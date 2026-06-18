@@ -25,6 +25,7 @@ import {BattlePokemonDetail} from "./BattlePokemonDetail";
 import {BattleTeamMenu} from "./BattleTeamMenu";
 import {BattleToolbar} from "./BattleToolbar";
 import {BattleTurnRecordPanel} from "./BattleTurnRecordPanel";
+import {cloneBattleViewSnapshot, dedupeBattleViewPartySnapshot} from "./battlePartySnapshot";
 import {buildBattleDisplaySteps, eventCanMutateDisplayedActive} from "./timelineFlow";
 import battleBackgroundCsv from "../../../../../assets/battle-backgrounds/backgrounds.csv?raw";
 
@@ -49,6 +50,7 @@ function battleDebugLog(message: string, data?: unknown): void {
 type ActiveDisplaySnapshot = BattleState["tracker"]["active"]["p1"];
 type BattleViewSide = NonNullable<BattleState["battle_view"]>["player"];
 type BattleViewSlot = BattleViewSide["slots"][number];
+type BattleViewModel = NonNullable<BattleState["battle_view"]>;
 
 type BattleViewProps = {
   battle: BattleState | null;
@@ -627,6 +629,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const [displayedActiveSnapshots, setDisplayedActiveSnapshots] = useState(() => activeSnapshotsForBattle(battle));
   const [displayedSubstitutes, setDisplayedSubstitutes] = useState(finalSubstitutes);
   const [partyBoardSettleLock, setPartyBoardSettleLock] = useState(false);
+  const [partyBoardPlaybackSnapshot, setPartyBoardPlaybackSnapshot] = useState<BattleViewModel | undefined>(() => dedupeBattleViewPartySnapshot(cloneBattleViewSnapshot(battleView)));
   const [hpTransitionMs, setHpTransitionMs] = useState({p1: 1400, p2: 1400});
   const [faintedSides, setFaintedSides] = useState({p1: false, p2: false});
   const [entryRevealLocked, setEntryRevealLocked] = useState(() => Boolean(battle));
@@ -657,6 +660,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const displayedActiveShowdownIdsRef = useRef(displayedActiveShowdownIds);
   const displayedActiveSnapshotsRef = useRef(displayedActiveSnapshots);
   const displayedSubstitutesRef = useRef(displayedSubstitutes);
+  const lastSettledBattleViewRef = useRef<BattleViewModel | undefined>(dedupeBattleViewPartySnapshot(cloneBattleViewSnapshot(battleView)));
   const previousBattlePresent = useRef(false);
   const introDialoguePending = useRef(false);
   const forceSwitchPanelOpen = useRef(false);
@@ -1013,6 +1017,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     });
 
     if (!battle) {
+      lastSettledBattleViewRef.current = undefined;
+      setPartyBoardPlaybackSnapshot(undefined);
       setShownEvents(turnEvents);
       setCurrentTimelineEvent(null);
       setCurrentVisualCue(null);
@@ -1057,6 +1063,9 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     const addedNeedsPartySettle = added.some(event => event.type === "faint" || event.type === "switch");
 
     if (!added.length) {
+      const settledSnapshot = dedupeBattleViewPartySnapshot(cloneBattleViewSnapshot(battleViewFor(battle)));
+      lastSettledBattleViewRef.current = settledSnapshot;
+      setPartyBoardPlaybackSnapshot(undefined);
       setShownEvents(turnEvents);
       setCurrentTimelineEvent(null);
       setCurrentVisualCue(null);
@@ -1083,8 +1092,10 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     }
 
     const activeBattle = battle;
+    const playbackSnapshot = cloneBattleViewSnapshot(lastSettledBattleViewRef.current) || dedupeBattleViewPartySnapshot(cloneBattleViewSnapshot(battleViewFor(activeBattle)));
     async function playQueue() {
       const currentSpeed = () => battleSpeedRef.current;
+      setPartyBoardPlaybackSnapshot(playbackSnapshot);
       setPlaybackActive(true);
       if (trainerIntroActive) {
         await wait(scaleBattleDuration(1750, currentSpeed()));
@@ -1237,6 +1248,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
         if (partyBoardSettleTimer.current) window.clearTimeout(partyBoardSettleTimer.current);
         partyBoardSettleTimer.current = window.setTimeout(() => {
           setPartyBoardSettleLock(false);
+          setPartyBoardPlaybackSnapshot(undefined);
           partyBoardSettleTimer.current = null;
         }, scaleBattleDuration(1600, currentSpeed(), 700));
       } else {
@@ -1254,11 +1266,14 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
       setDisplayedActiveSnapshots(finalSnapshots);
       setDisplayedSubstitutes(finalSubstitutes);
       setFaintedSides(timelineFaintedState(timelineEvents, finalFaintedSides));
+      const settledSnapshot = dedupeBattleViewPartySnapshot(cloneBattleViewSnapshot(battleViewFor(activeBattle)));
+      lastSettledBattleViewRef.current = settledSnapshot;
       if (activeBattle.ended && pendingTransition && !finishRequested.current) {
         beginBattleOutro(activeBattle, pendingTransition);
       } else if ((activeBattle.request?.wait || isForcedContinuationRequest(activeBattle.request)) && !pendingTransition) {
         void triggerAutoAdvance(`play:${timelineKey}:${recentKey}:${activeBattle.tracker.turn}`);
       }
+      if (!addedNeedsPartySettle) setPartyBoardPlaybackSnapshot(undefined);
     }
 
     void playQueue();
@@ -1328,17 +1343,22 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battleView?.player.active_index ?? battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
   const shouldUsePlaybackPartySnapshot = playbackActive || partyBoardSettleLock;
+  const partyBoardBattleView = shouldUsePlaybackPartySnapshot && partyBoardPlaybackSnapshot ? partyBoardPlaybackSnapshot : battleView;
   const playbackPlayerShowdownId = displayedActiveShowdownIds.p1;
   const playbackEnemyShowdownId = displayedActiveShowdownIds.p2;
-  const playerParty = battleViewPartySlots(battleView?.player, openPokemonDetail).map(slot => {
-    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && playbackPlayerShowdownId && slot.showdown_id === playbackPlayerShowdownId;
+  const basePlayerParty = battleViewPartySlots(partyBoardBattleView?.player, openPokemonDetail);
+  const baseEnemyParty = battleViewPartySlots(partyBoardBattleView?.enemy);
+  const playbackPlayerHasShowdownMatch = Boolean(playbackPlayerShowdownId && basePlayerParty.some(slot => slot.showdown_id === playbackPlayerShowdownId));
+  const playbackEnemyHasShowdownMatch = Boolean(playbackEnemyShowdownId && baseEnemyParty.some(slot => slot.showdown_id === playbackEnemyShowdownId));
+  const playerParty = basePlayerParty.map(slot => {
+    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && (playbackPlayerHasShowdownMatch ? slot.showdown_id === playbackPlayerShowdownId : Boolean(slot.active));
     if (playbackActiveSlot || (!shouldUsePlaybackPartySnapshot && slot.active)) {
       return {...slot, active: true, display: displayPlayer || slot.display, condition: displayConditions.p1, status: statusCode(displayConditions.p1, battle.tracker.active.p1.status)};
     }
     return shouldUsePlaybackPartySnapshot && slot.active ? {...slot, active: false} : slot;
   });
-  const rawEnemyParty = battleViewPartySlots(battleView?.enemy).map(slot => {
-    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && playbackEnemyShowdownId && slot.showdown_id === playbackEnemyShowdownId;
+  const rawEnemyParty = baseEnemyParty.map(slot => {
+    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && (playbackEnemyHasShowdownMatch ? slot.showdown_id === playbackEnemyShowdownId : Boolean(slot.active));
     if (playbackActiveSlot || (!shouldUsePlaybackPartySnapshot && slot.active)) {
       return {...slot, active: true, display: displayEnemy || slot.display, condition: displayConditions.p2, status: statusCode(displayConditions.p2, battle.tracker.active.p2.status), revealed: true};
     }

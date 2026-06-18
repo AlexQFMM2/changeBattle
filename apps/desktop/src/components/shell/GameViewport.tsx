@@ -4,12 +4,14 @@ import "./GameViewport.css";
 
 export function GameViewport({children, viewportClassName = "", screenClassName = "", style}: {children: ReactNode; viewportClassName?: string; screenClassName?: string; style?: CSSProperties}) {
   const responsiveCanvas = useResponsiveCanvas();
+  const version = import.meta.env.VITE_CHANGEBATTLE_VERSION;
 
   return (
     <main className="game-shell">
       <section className={`game-screen ${screenClassName}`.trim()} ref={responsiveCanvas.ref} style={{...responsiveCanvas.style, ...style}}>
         <div className={`game-viewport ${viewportClassName}`.trim()}>
           {children}
+          {version ? <span className="game-version-badge" aria-label={`版本 ${version}`}>v{version}</span> : null}
         </div>
       </section>
     </main>

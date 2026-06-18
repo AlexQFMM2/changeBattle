@@ -54,12 +54,12 @@
 }
 
 .move-card-battle.move-choice {
-  --move-card-height: 34px;
+  --move-card-height: 38px;
   --move-card-name-row-height: 22px;
-  --move-card-meta-row-height: 9px;
+  --move-card-meta-row-height: 13px;
   --move-card-name-gap: 5px;
   --move-card-name-padding-x: 5px;
-  --move-card-meta-gap: 6px;
+  --move-card-meta-gap: 3px;
   --move-card-meta-padding-x: 5px;
   --move-card-name-font-size: 8px;
   --move-card-name-line-height: 1.1;
@@ -70,9 +70,10 @@
 }
 
 .move-card-sheet.move-choice {
-  --move-card-height: 30px;
-  --move-card-name-row-height: 18px;
-  --move-card-meta-row-height: 10px;
+  --move-card-height: 34px;
+  --move-card-name-row-height: 19px;
+  --move-card-meta-row-height: 12px;
+  --move-card-meta-gap: 2px;
 }
 
 .move-card-dex.move-choice,
@@ -187,7 +188,9 @@
 }
 
 .move-card .move-meta-row {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  align-items: center;
   gap: var(--move-card-meta-gap);
   border-top: 1px solid rgb(0 0 0 / 22%);
   background: linear-gradient(180deg, rgb(0 0 0 / 28%), rgb(0 0 0 / 42%));
@@ -220,6 +223,7 @@
 
 .move-card .move-meta-row em {
   font-style: normal;
+  text-align: center;
 }
 
 .move-card .move-badge-stack {

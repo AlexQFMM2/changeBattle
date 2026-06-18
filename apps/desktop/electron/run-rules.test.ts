@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import type {BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, ShopOffer, TalentView} from "@changebattle/shared";
+import type {BagItemView, BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, PricedMove, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
 import {buildRuntimeResultSummary, normalEnemySpeciesTiersForBattle, recordRuntimeBattleStats, settleBasicBattleResult} from "@changebattle/game-runtime";
+import {cloneBattleViewSnapshot, dedupeBattleViewPartySnapshot} from "../src/components/battle/battlePartySnapshot.ts";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
+import {resolveTmMoveIdForSlot, tmMoveSearchQuery} from "../src/components/bag/bagModel.ts";
 import {pokemonDexDetailTabs} from "../src/components/dex/learnsetGroups.ts";
 import {debugPokemon} from "../src/lib/ui.tsx";
 import {
@@ -416,6 +418,10 @@ function testRestShopDiscountCoupons(): void {
   assert.equal(currentCoins(couponRun), 490);
   assert.equal(couponRun.coin_ledger?.[0]?.amount, 10);
   assert.equal(couponRun.coin_ledger?.[0]?.label, "商店购买");
+  assert.equal(couponRun.shop_purchased_item_counts?.potion, 1);
+  assert.equal(couponRun.shop_purchased_offer_counts?.["offer-potion"], 1);
+  const nextDisplayedCost = applyRestShopKindDiscount(couponRun, "recovery", 20 + 10);
+  assert.equal(nextDisplayedCost, 15);
 
   const taskRun = run([], {
     coins: 100,
@@ -633,6 +639,34 @@ function testBattleTimelineMissSkipsMoveVisual(): void {
   assert.deepEqual(buildBattleDisplaySteps(events).map(step => `${step.kind}:${step.event?.id}`), ["message:m1", "message:x1", "visual:x1"]);
 }
 
+function testBattlePartySnapshotHelpers(): void {
+  const view = {
+    player: {
+      side: "p1",
+      active_index: 0,
+      slots: [
+        {key: "a", slot: 1, showdown_id: "ball-a", run_member_id: "member-a", revealed: true, active: true, fainted: false, condition: "100/100", hp: 100, max_hp: 100, status: "", moves: []},
+        {key: "dup-key", slot: 2, showdown_id: "ball-b", run_member_id: "member-b", revealed: true, active: false, fainted: false, condition: "100/100", hp: 100, max_hp: 100, status: "", moves: []},
+        {key: "dup-key", slot: 3, showdown_id: "ball-c", run_member_id: "member-c", revealed: true, active: false, fainted: false, condition: "100/100", hp: 100, max_hp: 100, status: "", moves: []},
+      ],
+    },
+    enemy: {
+      side: "p2",
+      active_index: 0,
+      slots: [
+        {key: "enemy-a", slot: 1, showdown_id: "enemy-ball", run_member_id: "enemy-a", revealed: true, active: true, fainted: false, condition: "100/100", hp: 100, max_hp: 100, status: "", moves: []},
+        {key: "enemy-b", slot: 2, showdown_id: "enemy-ball", run_member_id: "enemy-b", revealed: true, active: false, fainted: false, condition: "", hp: 0, max_hp: 100, status: "", moves: []},
+      ],
+    },
+  } as NonNullable<BattleState["battle_view"]>;
+  const cloned = cloneBattleViewSnapshot(view)!;
+  cloned.player.slots[0].condition = "1/100";
+  assert.equal(view.player.slots[0].condition, "100/100");
+  const deduped = dedupeBattleViewPartySnapshot(view)!;
+  assert.deepEqual(deduped.player.slots.map(slot => slot.key), ["a", "dup-key"]);
+  assert.deepEqual(deduped.enemy.slots.map(slot => slot.key), ["enemy-a"]);
+}
+
 function testRuntimeBattleStats(): void {
   const battleRun = run([], {battle_no: 2, player_display: [{name: "狼人", species_id: "lycanroc", showdown_id: "lycanroc", level: 50} as any]});
   const battle = {
@@ -729,6 +763,18 @@ function testNormalEnemySpeciesTierRules(): void {
   assert.notDeepEqual(normalEnemySpeciesTiersForBattle(0, 4, 1235), stable);
 }
 
+function testTmBagMoveResolutionUsesTargetMoveQuery(): void {
+  const sunnyDay = {id: "sunnyday", name: "Sunny Day", name_zh: "大晴天", power: 0, cost: 300, learn_sources: ["machine"]} as PricedMove;
+  const legacyChineseTm = {id: "tm:", name: "TM", name_zh: "技能机器 大晴天", count: 1, category: "tm"} as BagItemView;
+  const normalTm = {...legacyChineseTm, id: "tm:sunnyday", move_id: "sunnyday"} as BagItemView;
+  const fillerMoves = Array.from({length: 60}, (_, index) => ({id: `power${index}`, name: `Power ${index}`, name_zh: `强力${index}`, power: 100 - index, cost: 100}) as PricedMove);
+
+  assert.equal(tmMoveSearchQuery(normalTm), "sunnyday");
+  assert.equal(tmMoveSearchQuery(legacyChineseTm), "大晴天");
+  assert.equal(resolveTmMoveIdForSlot(legacyChineseTm, [sunnyDay]), "sunnyday");
+  assert.equal(resolveTmMoveIdForSlot(legacyChineseTm, fillerMoves), "");
+}
+
 testTalentCatalog();
 testEnableTestMode();
 await testAllInExchangePenalty();
@@ -750,7 +796,9 @@ testTmIconAssets();
 testPokemonDexDetailTabs();
 testBattleTimelineEntryOrdering();
 testBattleTimelineMissSkipsMoveVisual();
+testBattlePartySnapshotHelpers();
 testRuntimeBattleStats();
+testTmBagMoveResolutionUsesTargetMoveQuery();
 testSoulSwapRules();
 testRookieAiRules();
 testNormalEnemySpeciesTierRules();

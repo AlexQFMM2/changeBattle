@@ -685,6 +685,15 @@ async function testMoveLearnSourcesAreClassified(): Promise<void> {
   assert.ok(machineMoves.every(move => move.learn_sources?.includes("machine")), JSON.stringify(machineMoves.slice(0, 5), null, 2));
 }
 
+async function testVictreebelCanLearnSunnyDayByMachine(): Promise<void> {
+  const service = createTestService();
+  const moves = await service.learnableMoves(pokemon("Victreebel", ["Vine Whip"], "Chlorophyll"));
+  const sunnyDay = moves.find(move => move.id === "sunnyday");
+  assert.ok(sunnyDay, "Victreebel should be able to learn Sunny Day");
+  assert.ok(sunnyDay.learn_sources?.includes("machine"), JSON.stringify(sunnyDay, null, 2));
+  assert.ok(moves.findIndex(move => move.id === "sunnyday") >= 60, "Sunny Day should cover low-power machine moves beyond the default UI page");
+}
+
 async function testDexPokemonAbilitiesAndLearnset(): Promise<void> {
   const service = createTestService();
   const result = await service.dexSearch("pokemon", "妙蛙草", 0, 4);
@@ -1155,6 +1164,7 @@ await testEnemyDuplicateSpeciesFaintDoesNotBleedIntoNextActive();
 await testClassicBattleFlowScenarios();
 await testSpeciesTierCanOverrideGenerationProfile();
 await testMoveLearnSourcesAreClassified();
+await testVictreebelCanLearnSunnyDayByMachine();
 await testDexPokemonAbilitiesAndLearnset();
 await testDexIncludesFutureMegaFormsWithSprites();
 await testMissingFormSpritesFallbackToBaseSpecies();

@@ -1,6 +1,7 @@
 import {resolve} from "node:path";
 import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
+import pkg from "../../package.json";
 
 const projectRoot = resolve(__dirname, "../..");
 
@@ -9,6 +10,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     global: "globalThis",
+    "import.meta.env.VITE_CHANGEBATTLE_VERSION": JSON.stringify(pkg.version),
     "import.meta.env.VITE_CHANGEBATTLE_MANUAL_MOUNT": JSON.stringify("1"),
     "import.meta.env.VITE_CHANGEBATTLE_MOBILE": JSON.stringify("1"),
   },

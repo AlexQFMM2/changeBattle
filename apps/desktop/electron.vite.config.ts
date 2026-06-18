@@ -1,6 +1,7 @@
 import {resolve} from "node:path";
 import {defineConfig, externalizeDepsPlugin} from "electron-vite";
 import react from "@vitejs/plugin-react";
+import pkg from "../../package.json";
 
 const projectRoot = resolve(__dirname, "../..");
 
@@ -36,6 +37,9 @@ export default defineConfig({
   renderer: {
     root: __dirname,
     plugins: [react()],
+    define: {
+      "import.meta.env.VITE_CHANGEBATTLE_VERSION": JSON.stringify(pkg.version),
+    },
     resolve: {
       alias: {
         "@changebattle/shared": resolve(projectRoot, "packages/shared/src"),

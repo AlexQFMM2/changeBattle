@@ -1,5 +1,5 @@
 .battle-bottom .move-menu {
-  --battle-move-menu-card-height: 25px;
+  --battle-move-menu-card-height: 32px;
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -14,18 +14,18 @@
 .battle-bottom .move-card-battle.move-choice,
 .battle-bottom .move-card-battle.move-choice:nth-child(2n) {
   --move-card-height: var(--battle-move-menu-card-height);
-  --move-card-name-row-height: 15px;
-  --move-card-meta-row-height: 8px;
+  --move-card-name-row-height: 18px;
+  --move-card-meta-row-height: 12px;
   --move-card-name-gap: 3px;
   --move-card-name-padding-x: 4px;
-  --move-card-meta-gap: 3px;
+  --move-card-meta-gap: 2px;
   --move-card-meta-padding-x: 4px;
-  --move-card-name-font-size: 6px;
+  --move-card-name-font-size: 7px;
   --move-card-name-line-height: 1;
   --move-card-badge-min-height: 7px;
   --move-card-badge-padding-x: 2px;
   --move-card-badge-font-size: 5px;
-  --move-card-meta-font-size: 5px;
+  --move-card-meta-font-size: 6px;
   width: 100%;
   height: var(--battle-move-menu-card-height);
   align-self: stretch;

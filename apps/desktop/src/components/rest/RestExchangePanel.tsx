@@ -7,7 +7,7 @@ import "./RestExchangePanel.css";
 export function RestExchangePanel({rest, onClose, onAction}: {rest: RestState; onClose: () => void; onAction: RestActionHandler}) {
   const disabledSlots = (rest.taken_enemy_slots || []).map(slot => ({index: Math.max(0, Number(slot) - 1), reason: "已交换"}));
   const canExchange = rest.costs.exchange !== null && rest.enemy_display.length > 0;
-  const costLabel = coinCostLabel(rest.costs.exchange);
+  const costLabel = rest.costs.exchange === null || rest.costs.exchange === undefined ? "不可交换" : coinCostLabel(rest.costs.exchange);
   return (
     <PokemonExchangePanel
       title="交换宝可梦"
@@ -15,7 +15,7 @@ export function RestExchangePanel({rest, onClose, onAction}: {rest: RestState; o
       ownTeam={rest.player_display}
       enemyTeam={rest.enemy_display}
       enemyDisabledSlots={disabledSlots}
-      confirmLabel={`确认交换（${costLabel}）`}
+      confirmLabel={canExchange ? `确认交换（${costLabel}）` : "不可交换"}
       confirmDisabled={!canExchange}
       centerLabel="交换"
       className="rest-exchange-panel"

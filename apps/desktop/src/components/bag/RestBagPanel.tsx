@@ -3,22 +3,25 @@ import type {BagItemView, DesktopGameState, PricedMove, RestAction, StatId} from
 import {REST_SHOP_DISCOUNT_COUPONS} from "@changebattle/shared";
 import {STAT_ROWS} from "../../lib/ui";
 import {toId} from "../../lib/ui";
-import {BagActionPanel, type BagActionStep} from "./BagActionPanel";
+import {BagActionPanel, type BagActionStep, type BagDetailAction} from "./BagActionPanel";
 import {BagFilterTabs} from "./BagFilterTabs";
 import {BagItemList} from "./BagItemList";
-import {BAG_FILTERS, TRAINING_ITEM_UI, bagFilterForItem, isLockedBagItem, tmFallbackMove, tmMoveId} from "./bagModel";
+import {BAG_FILTERS, TRAINING_ITEM_UI, bagFilterForItem, isLockedBagItem, resolveTmMoveIdForSlot, tmFallbackMove, tmMoveId, tmMoveSearchQuery} from "./bagModel";
 import type {BagFilterKey} from "./bagModel";
 import "./RestBagPanel.css";
 
 type RestState = NonNullable<DesktopGameState["rest"]>;
 type RestActionResult = DesktopGameState | boolean | void;
 type RestActionHandler = (action: RestAction, successMessage?: string) => RestActionResult | Promise<RestActionResult>;
+type BagUseAction = "use" | "equip" | "tm";
+
+const SINGLE_MOVE_PP_ITEMS = new Set(["ether", "maxether", "leppaberry"]);
 
 function isDesktopGameStateResult(result: RestActionResult): result is DesktopGameState {
   return Boolean(result && typeof result === "object" && "screen" in result);
 }
 
-export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}: {rest: RestState; initialTarget?: number; onAction: RestActionHandler; learnableMoves?: (slot: number) => Promise<PricedMove[]>}) {
+export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}: {rest: RestState; initialTarget?: number; onAction: RestActionHandler; learnableMoves?: (slot: number, query?: string) => Promise<PricedMove[]>}) {
   const allItems = useMemo(() => Object.values(rest.bag_categories || {consumable: [], held: [], tm: []}).flat(), [rest.bag_categories]);
   const counts = useMemo(() => Object.fromEntries(BAG_FILTERS.map(entry => [entry.key, allItems.filter(item => bagFilterForItem(item, entry.key)).length])) as Record<BagFilterKey, number>, [allItems]);
   const firstAvailableFilter = BAG_FILTERS.find(entry => counts[entry.key])?.key || "recovery";
@@ -28,20 +31,27 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
   const selected = items.find(item => item.id === itemId) || items[0] || null;
   const [step, setStep] = useState<BagActionStep>("detail");
   const [busySlot, setBusySlot] = useState<number | null>(null);
+  const [selectedAction, setSelectedAction] = useState<BagUseAction>("use");
   const [selectedTarget, setSelectedTarget] = useState(() => Math.max(0, Math.min(initialTarget, Math.max(0, rest.player_display.length - 1))));
   const [selectedMoveSlot, setSelectedMoveSlot] = useState<number | null>(null);
-  const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, string[]>>({});
+  const [tmLegalBySlot, setTmLegalBySlot] = useState<Record<number, PricedMove[]>>({});
   const [tmLoading, setTmLoading] = useState(false);
   const [tmMove, setTmMove] = useState<PricedMove | null>(null);
   const [tmMoveLoading, setTmMoveLoading] = useState(false);
   const selectedMoveId = tmMoveId(selected || undefined);
+  const selectedMoveQuery = tmMoveSearchQuery(selected || undefined);
   const trainingUi = selected ? TRAINING_ITEM_UI[toId(selected.id)] : undefined;
   const [selectedStat, setSelectedStat] = useState<StatId | undefined>(() => trainingUi?.scope === "one" ? trainingUi.fixedStat || "hp" : undefined);
   const statOptions = trainingUi?.scope === "one" ? trainingUi.fixedStat ? [trainingUi.fixedStat] : STAT_ROWS.map(([stat]) => stat) : [];
   const locked = isLockedBagItem(selected);
   const isTm = selected?.category === "tm";
+  const selectedId = selected ? toId(selected.id) : "";
   const isConsumable = selected?.category === "consumable";
   const isHeld = selected?.category === "held";
+  const isBerry = Boolean(selectedId && selectedId.endsWith("berry"));
+  const canUseAsConsumable = Boolean(selected && isConsumable);
+  const canEquipAsHeld = Boolean(selected && (isHeld || isBerry));
+  const needsPpMove = Boolean(selected && SINGLE_MOVE_PP_ITEMS.has(selectedId));
 
   useEffect(() => {
     if (!items.length && filter !== firstAvailableFilter) setFilter(firstAvailableFilter);
@@ -57,53 +67,62 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
     setStep("detail");
     setSelectedTarget(Math.max(0, Math.min(initialTarget, Math.max(0, rest.player_display.length - 1))));
     setSelectedMoveSlot(null);
+    setSelectedAction(isTm ? "tm" : canUseAsConsumable ? "use" : "equip");
     setTmMove(null);
-  }, [initialTarget, selected?.id, trainingUi?.fixedStat, trainingUi?.scope, rest.player_display.length]);
+  }, [canUseAsConsumable, initialTarget, isTm, selected?.id, trainingUi?.fixedStat, trainingUi?.scope, rest.player_display.length]);
 
   useEffect(() => {
     let cancelled = false;
     setTmLegalBySlot({});
-    if (!isTm || !selectedMoveId) return () => { cancelled = true; };
-    const loader = learnableMoves || ((slot: number) => window.changeBattle?.learnableMoves(slot) || Promise.resolve([]));
+    if (!isTm) return () => { cancelled = true; };
+    const loader = learnableMoves || ((slot: number, query?: string) => window.changeBattle?.learnableMoves(slot, query) || Promise.resolve([]));
     setTmLoading(true);
-    void Promise.all(rest.player_display.map((_pokemon, index) => loader(index).then(moves => [index, moves.map(move => toId(move.id || move.name))] as const))).then(entries => {
+    void Promise.all(rest.player_display.map((_pokemon, index) => loader(index, selectedMoveQuery).then(moves => [index, moves] as const))).then(entries => {
       if (!cancelled) setTmLegalBySlot(Object.fromEntries(entries));
     }).finally(() => {
       if (!cancelled) setTmLoading(false);
     });
     return () => { cancelled = true; };
-  }, [isTm, learnableMoves, selectedMoveId, rest.player_display]);
+  }, [isTm, learnableMoves, selected?.id, selectedMoveId, selectedMoveQuery, rest.player_display]);
 
   useEffect(() => {
     let cancelled = false;
     setTmMove(null);
-    if (!isTm || !selectedMoveId || step !== "moveReplace") return () => { cancelled = true; };
-    const loader = learnableMoves || ((slot: number) => window.changeBattle?.learnableMoves(slot) || Promise.resolve([]));
+    if (!isTm || step !== "moveReplace") return () => { cancelled = true; };
+    const loader = learnableMoves || ((slot: number, query?: string) => window.changeBattle?.learnableMoves(slot, query) || Promise.resolve([]));
     setTmMoveLoading(true);
-    void loader(selectedTarget).then(moves => {
-      if (!cancelled) setTmMove(moves.find(move => toId(move.id || move.name) === selectedMoveId) || null);
+    void loader(selectedTarget, selectedMoveQuery).then(moves => {
+      const moveId = selectedTmMoveIdForSlot(selectedTarget);
+      if (!cancelled) setTmMove(moves.find(move => toId(move.id || move.name) === moveId) || null);
     }).finally(() => {
       if (!cancelled) setTmMoveLoading(false);
     });
     return () => { cancelled = true; };
-  }, [isTm, learnableMoves, selectedMoveId, selectedTarget, step]);
+  }, [isTm, learnableMoves, selected?.id, selectedMoveId, selectedMoveQuery, selectedTarget, step, tmLegalBySlot]);
+
+  function selectedTmMoveIdForSlot(slot: number): string {
+    return resolveTmMoveIdForSlot(selected || undefined, tmLegalBySlot[slot] || []);
+  }
 
   function alreadyKnows(slot: number): boolean {
     const pokemon = rest.player_display[slot];
-    return Boolean(selectedMoveId && pokemon?.moves.some(move => toId(move.id || move.name) === selectedMoveId));
+    const moveId = selectedTmMoveIdForSlot(slot);
+    return Boolean(moveId && pokemon?.moves.some(move => toId(move.id || move.name) === moveId));
   }
 
   function canUseOn(slot: number): boolean {
     if (!selected || locked) return false;
-    if (isConsumable && trainingUi?.scope === "one" && !selectedStat) return false;
-    if (!isTm) return selected.count > 0;
-    if (!selectedMoveId || alreadyKnows(slot)) return false;
-    return Boolean(tmLegalBySlot[slot]?.includes(selectedMoveId));
+    if (selectedAction === "equip") return canEquipAsHeld && selected.count > 0;
+    if (selectedAction === "use" && trainingUi?.scope === "one" && !selectedStat) return false;
+    if (!isTm) return canUseAsConsumable && selected.count > 0;
+    const moveId = selectedTmMoveIdForSlot(slot);
+    if (!moveId || alreadyKnows(slot)) return false;
+    return Boolean(tmLegalBySlot[slot]?.some(move => toId(move.id || move.name) === moveId));
   }
 
   function targetText(slot: number): string {
     if (!selected) return "不可用";
-    if (isHeld) {
+    if (selectedAction === "equip") {
       const held = rest.player_display[slot]?.item_zh || rest.player_display[slot]?.item;
       return held ? `替换 ${held}` : "携带";
     }
@@ -120,7 +139,9 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
     if (locked) return selected.lock_reason || "不可使用";
     if (busySlot !== null) return busySlot === slot ? "处理中" : "等待";
     if (selected.count <= 0) return "没有库存";
-    if (isConsumable && trainingUi?.scope === "one" && !selectedStat) return "请选择能力项";
+    if (selectedAction === "use" && !canUseAsConsumable) return "不能作为消耗道具使用";
+    if (selectedAction === "equip" && !canEquipAsHeld) return "不能携带";
+    if (selectedAction === "use" && trainingUi?.scope === "one" && !selectedStat) return "请选择能力项";
     if (isTm) {
       if (tmLoading) return "读取中";
       if (alreadyKnows(slot)) return "已学会";
@@ -148,16 +169,37 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
       setStep("moveReplace");
       return;
     }
+    if (selectedAction === "use" && needsPpMove) {
+      setSelectedTarget(slot);
+      setStep("ppMovePicker");
+      return;
+    }
     setBusySlot(slot);
     try {
-      const result = isHeld
+      const result = selectedAction === "equip"
         ? await Promise.resolve(onAction({type: "equip_item", itemId: selected.id, slot}, "道具已携带"))
         : await Promise.resolve(onAction({type: "use_item", itemId: selected.id, slot, stat: trainingUi?.scope === "one" ? selectedStat : undefined, context: "rest"}, "道具已使用"));
       if (result !== false) {
         const nextRest = isDesktopGameStateResult(result) ? result.rest : null;
         const nextItem = itemsFromRest(nextRest).find(entry => entry.id === selected.id);
-        if (isHeld) setStep("detail");
+        if (selectedAction === "equip") setStep("detail");
         else if ((nextItem?.count ?? selected.count - 1) <= 0) selectNextItemAfterUse(selected, nextRest);
+        else setStep("pokemonPicker");
+      }
+    } finally {
+      setBusySlot(null);
+    }
+  }
+
+  async function confirmPpMove(moveSlot: number) {
+    if (!selected || busySlot !== null || selectedAction !== "use" || !needsPpMove) return;
+    setBusySlot(selectedTarget);
+    try {
+      const result = await Promise.resolve(onAction({type: "use_item", itemId: selected.id, slot: selectedTarget, moveSlot, context: "rest"}, "PP 已恢复"));
+      if (result !== false) {
+        const nextRest = isDesktopGameStateResult(result) ? result.rest : null;
+        const nextItem = itemsFromRest(nextRest).find(entry => entry.id === selected.id);
+        if ((nextItem?.count ?? selected.count - 1) <= 0) selectNextItemAfterUse(selected, nextRest);
         else setStep("pokemonPicker");
       }
     } finally {
@@ -181,7 +223,8 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
   }
 
   async function confirmTmReplace() {
-    if (!selected || busySlot !== null || selectedMoveSlot === null || !selectedMoveId) return;
+    const moveId = selectedTmMoveIdForSlot(selectedTarget);
+    if (!selected || busySlot !== null || selectedMoveSlot === null || !moveId) return;
     setBusySlot(selectedTarget);
     try {
       const result = await Promise.resolve(onAction({type: "use_tm", itemId: selected.id, slot: selectedTarget, moveSlot: selectedMoveSlot}, "技能机器已使用"));
@@ -206,10 +249,14 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
     disabled: !canUseOn(index),
     disabledReason: targetDisabledReason(index),
   }));
-  const detailDisabled = !selected || locked || busySlot !== null || selected.count <= 0 || (isConsumable && trainingUi?.scope === "one" && !selectedStat);
+  const detailDisabled = !selected || locked || busySlot !== null || selected.count <= 0 || (selectedAction === "use" && trainingUi?.scope === "one" && !selectedStat);
   const lockedReason = selected && locked ? selected.lock_reason || "这是规则提供的特殊道具，只能查看，不能使用、丢弃或交换。" : selected ? REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)]?.desc_zh : undefined;
-  const detailUseLabel = selected?.category === "tm" ? "立即使用" : selected?.category === "held" ? "立即携带" : "使用";
-  const targetTitle = isTm ? "选择学习者" : isHeld ? "点击宝可梦携带/替换" : "点击宝可梦直接使用";
+  const detailUseLabel = selected?.category === "tm" ? "立即使用" : selectedAction === "equip" ? "携带" : canUseAsConsumable ? "对宝可梦使用" : "使用";
+  const detailActions: BagDetailAction[] = [];
+  if (selected && isTm) detailActions.push({key: "tm", label: "立即使用", disabled: detailDisabled, disabledReason: lockedReason, onUse: () => { setSelectedAction("tm"); setStep("pokemonPicker"); }});
+  if (selected && !isTm && canUseAsConsumable) detailActions.push({key: "use", label: REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)] ? "使用" : "对宝可梦使用", disabled: detailDisabled, disabledReason: lockedReason, onUse: () => { setSelectedAction("use"); REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)] ? void applyDirect() : setStep("pokemonPicker"); }});
+  if (selected && !isTm && canEquipAsHeld) detailActions.push({key: "equip", label: "携带", disabled: locked || busySlot !== null || selected.count <= 0, disabledReason: lockedReason, onUse: () => { setSelectedAction("equip"); setStep("pokemonPicker"); }});
+  const targetTitle = isTm ? "选择学习者" : selectedAction === "equip" ? "点击宝可梦携带/替换" : needsPpMove ? "选择宝可梦后选择技能" : "点击宝可梦直接使用";
   const displayMove = selected ? tmMove || tmFallbackMove(selected) : undefined;
 
   return (
@@ -231,6 +278,7 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
         lockedReason={lockedReason}
         detailDisabled={detailDisabled}
         detailUseLabel={detailUseLabel}
+        detailActions={detailActions}
         targetPokemon={targetPokemon}
         targetState={targetState}
         tmMoveLoading={tmMoveLoading}
@@ -243,6 +291,7 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
         onSelectMoveSlot={setSelectedMoveSlot}
         onConfirmMoveReplace={() => void confirmTmReplace()}
         onCancelMoveReplace={() => setStep("pokemonPicker")}
+        onConfirmPpMove={slot => void confirmPpMove(slot)}
       />
     </section>
   );

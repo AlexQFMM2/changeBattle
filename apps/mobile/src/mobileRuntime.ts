@@ -71,6 +71,7 @@ import {
   itemCategory,
   isTrainingShopItemId,
   applyRestShopKindDiscount,
+  restShopKindDiscount,
   hasTalent,
   partialStateForPokemon,
   prepareRunForNextBattleAfterRest,
@@ -403,6 +404,10 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
       const stalwartMessage = settled.outcome !== "loss" && settled.stalwartRecovered ? "坚毅不倒已恢复队伍" : "";
       const settlementMessage = [settled.message, stalwartMessage, questMessage].filter(Boolean).join(" ");
       recordTrainerDexResult(save, run.enemy_trainer?.id, settled.outcome === "loss" ? "loss" : "win", {now: env.now().toISOString()});
+      const completedSettlement = settled.outcome === "completed"
+        ? settleRuntimeRunEnd(save, run, {itemCosts: await mobileItemCostMap(await loadGameService(), run), completed: true})
+        : undefined;
+      const completedSettlementText = completedSettlement ? ` 本局 ${completedSettlement.convertedCoins}金币折算为 ${completedSettlement.convertedBp}BP。` : "";
       const resultSummary = buildRuntimeResultSummary({
         outcome: settled.outcome === "loss" ? "loss" : "win",
         headline: settled.outcome === "loss" ? "挑战失败" : settled.outcome === "completed" ? "通关" : "战斗胜利",
@@ -410,7 +415,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         wins: settled.outcome === "loss" ? Number(run.wins || 0) : Number(settled.wins || run.wins || 0),
         run,
         battle: state,
-        settled: settled.outcome === "loss" ? settled.settled : undefined,
+        settled: settled.outcome === "loss" ? settled.settled : completedSettlement,
         battleReward: settled.outcome === "loss" ? undefined : settled.coinsEarned,
         defaultBattles: 7,
       });
@@ -419,7 +424,7 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         createdAt: env.now().toISOString(),
         run,
         battle: state,
-        message: settlementMessage,
+        message: `${settlementMessage}${completedSettlementText}`,
         outcome: settled.outcome === "loss" ? "loss" : "win",
         statEvents,
         resultSummary,
@@ -433,10 +438,12 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         return gameState({screen: "battleMain", save: next, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), run), message: settlementMessage, pending_transition: transition});
       }
       if (settled.outcome === "completed") {
+        save.current_run = null;
         const done = await env.saves.save(save);
         activeBattle = null;
-        const transition = gameState({screen: "result", save: done, battle: activeBattleState, message: settlementMessage, result_summary: resultSummary});
-        return gameState({screen: "battleMain", save: done, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), run), message: settlementMessage, pending_transition: transition});
+        const message = `${settlementMessage}${completedSettlementText}`;
+        const transition = gameState({screen: "result", save: done, battle: activeBattleState, message, result_summary: resultSummary});
+        return gameState({screen: "battleMain", save: done, battle: activeBattleState, battle_bag: await mobileBattleBagCategories(await loadGameService(), run), message, pending_transition: transition});
       }
       activeBattle = null;
       const transition = await mobileRestGameState(save, settlementMessage, activeBattleState);
@@ -1318,8 +1325,17 @@ function mobileShopNextRollCost(run: CurrentRunData, kind: MobileShopKind): numb
 }
 
 function mobilePricedShopOffer(run: CurrentRunData, offer: ShopOffer, kind: MobileShopKind): ShopOffer {
-  const eventPriced = Math.ceil(Math.max(0, Math.floor(Number(offer.cost || 0))) * mobileEventShopPriceMultiplier(run));
-  return {...offer, cost: applyRestShopKindDiscount(run, kind, eventPriced)};
+  const itemId = itemKey(offer.id || offer.name);
+  const purchased = Math.max(0, Math.floor(Number(run.shop_purchased_item_counts?.[itemId] || 0)));
+  const eventPriced = Math.ceil((Math.max(0, Math.floor(Number(offer.cost || 0))) + purchased * 10) * mobileEventShopPriceMultiplier(run));
+  const cost = applyRestShopKindDiscount(run, kind, eventPriced);
+  const discount = restShopKindDiscount(run, kind);
+  return {
+    ...offer,
+    cost,
+    original_cost: cost < eventPriced ? eventPriced : undefined,
+    discount_label: cost < eventPriced ? `${Math.round(discount * 10)}折` : undefined,
+  };
 }
 
 function mobileShopPoolBucketForEntry(entry: MobileShopPoolEntry): MobileShopPoolBucket | null {
@@ -1944,8 +1960,7 @@ async function mobileIsHpStatusReviveRecoveryItem(service: GameService, itemId: 
   const id = toId(itemId);
   if (isTrainingConsumableItemId(id)) return false;
   if (/^tm:/i.test(String(itemId || "")) || /berry/i.test(id)) return true;
-  if (!(await service.hasConsumableItemEffect(id))) return false;
-  return !["ether", "maxether", "elixir", "maxelixir"].includes(id);
+  return service.hasConsumableItemEffect(id);
 }
 
 function isTrainingConsumableItemId(itemId: string): boolean {

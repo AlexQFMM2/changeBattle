@@ -36,6 +36,22 @@
   transform-origin: center;
 }
 
+.game-version-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  z-index: 80;
+  color: rgb(37 51 43 / 68%);
+  background: rgb(255 253 245 / 72%);
+  border: 1px solid rgb(38 53 45 / 30%);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
 @media (max-width: 1000px) {
   .game-shell {
     padding: 8px;
