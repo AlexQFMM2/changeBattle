@@ -17,12 +17,10 @@ export type TitleScreenProps = {
   onNew: () => void;
   onCreate: (name: string, playerId: string, avatarAsset: string) => Promise<LocalSave | null>;
   onDelete: () => void | Promise<void>;
-  onComponentGallery?: () => void;
 };
 
-export function TitlePage({save, catalog, defaultAvatarAsset, onLoad, onNew, onCreate, onDelete, onComponentGallery}: TitleScreenProps) {
+export function TitlePage({save, catalog, defaultAvatarAsset, onLoad, onNew, onCreate, onDelete}: TitleScreenProps) {
   const [savePickerOpen, setSavePickerOpen] = useState(false);
-  const showComponentGallery = Boolean(onComponentGallery && (import.meta.env.DEV || window.__changeBattleTest));
 
   function startNewSave() {
     onNew();
@@ -39,7 +37,7 @@ export function TitlePage({save, catalog, defaultAvatarAsset, onLoad, onNew, onC
         <motion.section className="title-slide-pane title-home-page" animate={{x: savePickerOpen ? "112%" : "0%", opacity: savePickerOpen ? 0 : 1}} transition={{type: "spring", stiffness: 210, damping: 30}}>
           <aside className="title-menu-panel">
             <TitleLogo />
-            <TitleCommandMenu showComponentGallery={showComponentGallery} onLoadSave={() => setSavePickerOpen(true)} onNewGame={startNewSave} onComponentGallery={onComponentGallery} />
+            <TitleCommandMenu onLoadSave={() => setSavePickerOpen(true)} onNewGame={startNewSave} />
             <TitleSaveStrip save={save} defaultAvatarAsset={defaultAvatarAsset} />
           </aside>
         </motion.section>

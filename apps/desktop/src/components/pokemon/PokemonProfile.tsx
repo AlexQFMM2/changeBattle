@@ -21,6 +21,13 @@ function learnSourceLabel(move: RentalPokemon["moves"][number]): string {
   return (move.learn_source_labels || []).join(" / ");
 }
 
+function movePp(move: RentalPokemon["moves"][number]): {pp?: number; maxPp?: number} {
+  return {
+    pp: move.pp,
+    maxPp: move.pp,
+  };
+}
+
 export type PokemonProfileMovePresentation = "detail" | "card";
 
 export function PokemonProfile({pokemon, selected = false, runtime, compact = false, revealTraining = false, movePresentation = "detail"}: {pokemon: RentalPokemon; selected?: boolean; runtime?: RuntimePokemon; compact?: boolean; revealTraining?: boolean; movePresentation?: PokemonProfileMovePresentation}) {
@@ -63,12 +70,14 @@ export function PokemonProfile({pokemon, selected = false, runtime, compact = fa
                 moveType={move.type || move.type_zh}
                 typeLabel={move.type_zh || move.type || "一般"}
                 category={move.category_zh || move.category || "变化"}
+                pp={movePp(move).pp}
+                maxPp={movePp(move).maxPp}
                 power={move.power || "--"}
                 accuracy={move.accuracy ?? "必中"}
                 key={`profile-card-${move.id || move.name || index}`}
               />
             ) : (
-              <div className="move-detail" key={`profile-detail-${move.id || move.name || index}`}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span>{learnSourceLabel(move) ? <span>来源 {learnSourceLabel(move)}</span> : null}<p>{revealTraining ? moveDescription(move) : "？？？"}</p></div>
+              <div className="move-detail" key={`profile-detail-${move.id || move.name || index}`}><strong>{move.name_zh}</strong><span>{move.type_zh}/{move.category_zh}</span><span>PP {movePp(move).pp}/{movePp(move).maxPp}</span><span>威力 {move.power || "--"}</span><span>命中 {move.accuracy ?? "必中"}</span>{learnSourceLabel(move) ? <span>来源 {learnSourceLabel(move)}</span> : null}<p>{revealTraining ? moveDescription(move) : "？？？"}</p></div>
             )
           ))}
         </div>

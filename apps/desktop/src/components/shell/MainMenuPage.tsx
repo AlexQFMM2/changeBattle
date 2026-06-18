@@ -18,14 +18,12 @@ export type MainMenuPageProps = {
   onTitle: () => void;
   onTestMode: () => void;
   onRainbowRocketTest?: () => void;
-  onComponentGallery?: () => void;
 };
 
-export function MainMenuPage({save, onStart, onTalent, onUserInfo, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest, onComponentGallery}: MainMenuPageProps) {
+export function MainMenuPage({save, onStart, onTalent, onUserInfo, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest}: MainMenuPageProps) {
   const [leaving, setLeaving] = useState(false);
   const [quickDexOpen, setQuickDexOpen] = useState(false);
   const actionTimerRef = useRef<number | null>(null);
-  const showComponentGallery = Boolean(onComponentGallery && (import.meta.env.DEV || window.__changeBattleTest));
   const menuItems: MainMenuCommandItem[] = [
     {label: save?.current_run ? "继续游戏" : "开始游戏", action: onStart},
     {label: "训练家星图", action: onTalent},
@@ -58,11 +56,6 @@ export function MainMenuPage({save, onStart, onTalent, onUserInfo, onHistory, on
     }, 680);
   }
 
-  function openComponentGallery() {
-    if (!onComponentGallery || leaving) return;
-    onComponentGallery();
-  }
-
   return (
     <AnimatedPage className="main-menu-page">
       <video className="main-menu-video-bg" autoPlay muted loop playsInline controls={false} disablePictureInPicture controlsList="nodownload nofullscreen noplaybackrate" aria-hidden="true">
@@ -72,7 +65,7 @@ export function MainMenuPage({save, onStart, onTalent, onUserInfo, onHistory, on
       <div className="main-menu-shade" aria-hidden="true" />
       <TrainerSummaryPanel save={save} leaving={leaving} />
       <MainMenuHome save={save} leaving={leaving} />
-      <MainMenuCommandBar items={menuItems} leaving={leaving} showComponentGallery={showComponentGallery} onChoose={choose} onComponentGallery={openComponentGallery} />
+      <MainMenuCommandBar items={menuItems} leaving={leaving} onChoose={choose} />
       {quickDexOpen ? <QuickDexModal onClose={() => setQuickDexOpen(false)} /> : null}
     </AnimatedPage>
   );

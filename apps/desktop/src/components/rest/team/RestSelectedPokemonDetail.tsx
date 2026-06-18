@@ -3,7 +3,7 @@ import {PokemonHpBar} from "../../common/PokemonHpBar";
 import {MoveCard} from "../../move/MoveCard";
 import {PokemonSprite, coinCostLabel, displayName} from "../../../lib/ui";
 import type {RestPokemonFocus} from "./restTeamModel";
-import {restPokemonFocusBody, restPokemonFocusTitle, restPokemonHpModel, restPokemonMoveLabel, restPokemonStatRows} from "./restTeamModel";
+import {restPokemonHpModel, restPokemonMoveLabel, restPokemonStatRows} from "./restTeamModel";
 import "./RestSelectedPokemonDetail.css";
 
 type RestState = NonNullable<DesktopGameState["rest"]>;
@@ -81,10 +81,6 @@ export function RestSelectedPokemonDetail({rest, pokemon, state, slot, focus, on
         </footer>
       </section>
 
-      <section className="rest-selected-description">
-        <h3>{restPokemonFocusTitle(pokemon, focus)}</h3>
-        <p>{restPokemonFocusBody(pokemon, focus)}</p>
-      </section>
     </section>
   );
 }

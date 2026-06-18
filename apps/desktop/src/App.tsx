@@ -11,7 +11,6 @@ import {QuickDexModal} from "./pages/dex/QuickDexModal";
 import {RouteTransitionPage, routeTransitionCopy, type RouteTransitionCopy, type RouteTransitionReason} from "./pages/shell/RouteTransitionPage";
 import {hasStarterItemChoices, mergeBattleSnapshot, profileFromSelection, userFacingError} from "./lib/ui";
 import {installBrowserTestBridge} from "./web/browserTestBridge";
-import {ComponentGalleryPage} from "./component-gallery/ComponentGalleryPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {QuickDexButton} from "./components/shell/QuickDexButton";
 import {RouteRenderer} from "./components/shell/RouteRenderer";
@@ -19,7 +18,6 @@ import {RouteRenderer} from "./components/shell/RouteRenderer";
 installBrowserTestBridge();
 
 const TRANSITION_ROUTE = "/transition";
-const COMPONENT_GALLERY_ROUTE = "/components";
 const BATTLE_SCREENS: AppStatus[] = ["battleMain", "moveMenu", "teamMenu", "statusMenu"];
 const HIDDEN_MESSAGE_SCREENS: AppStatus[] = ["rest", "title", "mainMenu", "talentConfig", "starterUpgrade", "battleHistory", "battleSetting", "rentalSelect"];
 const BATTLE_ANIMATION_SPEED_STORAGE_KEY = "changebattle:battle-animation-speed";
@@ -504,7 +502,6 @@ function RoutedApp() {
       createNewGame={createNewGame}
       setSave={setSave}
       navigateToScreen={navigateToScreen}
-      navigateToComponentGallery={() => navigate(COMPONENT_GALLERY_ROUTE)}
       prepareChallenge={prepareChallenge}
       enableTestMode={enableTestMode}
       startRainbowRocketTestRun={startRainbowRocketTestRun}
@@ -539,7 +536,7 @@ function RoutedApp() {
   }, [showDexButton, dexOpen]);
 
   const gamePage = (
-    <GameViewport>
+    <GameViewport showVersion={screen === "title"}>
       {content}
       {showDexButton ? <QuickDexButton title="打开图鉴" onClick={openDex} /> : null}
       {dexOpen ? <QuickDexModal onClose={() => setDexOpen(false)} /> : null}
@@ -555,18 +552,11 @@ function RoutedApp() {
     </GameViewport>
   ) : <Navigate to={routeForScreen(fallbackScreenForSave(save))} replace />;
 
-  const componentGalleryPage = (
-    <GameViewport>
-      <ComponentGalleryPage onBack={() => navigateToScreen("title")} />
-    </GameViewport>
-  );
-
   return (
     <>
       <BgmController scene={bgmScene} save={save} onSave={setSave} />
       <Routes>
         <Route path={TRANSITION_ROUTE} element={transitionPage} />
-        <Route path={COMPONENT_GALLERY_ROUTE} element={componentGalleryPage} />
         {ROUTE_SCREENS.map(entry => <Route path={entry.route} element={routeTransition ? <Navigate to={TRANSITION_ROUTE} replace /> : gamePage} key={entry.route} />)}
         <Route path="*" element={<Navigate to={routeForScreen("title")} replace />} />
       </Routes>

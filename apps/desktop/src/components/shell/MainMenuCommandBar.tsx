@@ -1,5 +1,4 @@
 import {motion, type Variants} from "motion/react";
-import {ComponentGalleryButton} from "./ComponentGalleryButton";
 import "./MainMenuCommandBar.css";
 
 export type MainMenuCommandItem = {
@@ -24,7 +23,7 @@ const mainMenuItemVariants: Variants = {
   }),
 };
 
-export function MainMenuCommandBar({items, leaving = false, showComponentGallery = false, onChoose, onComponentGallery}: {items: MainMenuCommandItem[]; leaving?: boolean; showComponentGallery?: boolean; onChoose: (item: MainMenuCommandItem) => void; onComponentGallery?: () => void}) {
+export function MainMenuCommandBar({items, leaving = false, onChoose}: {items: MainMenuCommandItem[]; leaving?: boolean; onChoose: (item: MainMenuCommandItem) => void}) {
   return (
     <motion.nav className={`main-menu-command-bar ${leaving ? "leaving" : ""}`} aria-label="主页菜单" initial="hidden" animate={leaving ? "leaving" : "visible"}>
       {items.map((item, index) => (
@@ -32,11 +31,6 @@ export function MainMenuCommandBar({items, leaving = false, showComponentGallery
           {item.label}
         </motion.button>
       ))}
-      {showComponentGallery && onComponentGallery ? (
-        <motion.span custom={items.length} variants={mainMenuItemVariants}>
-          <ComponentGalleryButton onClick={onComponentGallery} />
-        </motion.span>
-      ) : null}
     </motion.nav>
   );
 }

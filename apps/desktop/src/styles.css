@@ -4910,6 +4910,10 @@ button.party-status-chip {
   gap: 8px;
 }
 
+.detail-moves .move-card {
+  width: 100%;
+}
+
 .detail-moves .move-detail {
   grid-template-columns: minmax(110px, 1.2fr) minmax(92px, .85fr) 74px 74px 82px;
 }
@@ -14159,15 +14163,28 @@ button.party-status-chip {
 }
 
 .battle-layout .detail-moves {
-  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
 }
 
-.battle-layout .detail-moves .move-detail {
-  grid-template-columns: minmax(70px, 1fr) 44px 36px 36px 38px;
-  gap: 3px;
-  border-width: 1px;
-  border-radius: 3px;
-  padding: 3px;
+.battle-layout .detail-moves .battle-detail-move-card.move-card-sheet.move-choice,
+.battle-layout .detail-moves .battle-detail-move-card.move-card-sheet.move-choice:nth-child(2n) {
+  --move-card-height: 38px;
+  --move-card-name-row-height: 21px;
+  --move-card-meta-row-height: 14px;
+  --move-card-name-gap: 4px;
+  --move-card-name-padding-x: 5px;
+  --move-card-meta-gap: 4px;
+  --move-card-meta-padding-x: 5px;
+  --move-card-name-font-size: 7px;
+  --move-card-badge-font-size: 6px;
+  --move-card-meta-font-size: 6px;
+  --move-card-type-min-width: 18px;
+  --move-card-type-min-height: 9px;
+  height: var(--move-card-height);
+  min-height: var(--move-card-height);
+  opacity: 1;
+  cursor: default;
 }
 
 .battle-layout .battle-bag-modal {

@@ -2072,18 +2072,15 @@ export const componentRegistry: ComponentRegistryEntry[] = [
     dependencies: [],
     states: [
       {id: "normal", name: "普通"},
-      {id: "withGallery", name: "带预览入口"},
       {id: "disabledLongText", name: "禁用长文本"},
     ],
     renderPreview(stateId) {
       return (
         <div className="component-gallery-title-menu-stage">
           <TitleCommandMenu
-            showComponentGallery={stateId === "withGallery"}
             disabledLongText={stateId === "disabledLongText"}
             onLoadSave={() => undefined}
             onNewGame={() => undefined}
-            onComponentGallery={() => undefined}
             onExit={() => undefined}
           />
         </div>
@@ -2211,10 +2208,9 @@ export const componentRegistry: ComponentRegistryEntry[] = [
     componentFile: "apps/desktop/src/components/shell/MainMenuCommandBar.tsx",
     cssFile: "apps/desktop/src/components/shell/MainMenuCommandBar.css",
     cssVariablePrefix: "--main-menu-command-bar-*",
-    dependencies: ["ComponentGalleryButton", "motion/react"],
+    dependencies: ["motion/react"],
     states: [
       {id: "normal", name: "普通"},
-      {id: "withGallery", name: "带组件入口"},
       {id: "longLabels", name: "长标签"},
     ],
     renderPreview(stateId) {
@@ -2235,7 +2231,7 @@ export const componentRegistry: ComponentRegistryEntry[] = [
           ];
       return (
         <div className="component-gallery-main-menu-stage">
-          <MainMenuCommandBar items={items} showComponentGallery={stateId === "withGallery"} onChoose={() => undefined} onComponentGallery={() => undefined} />
+          <MainMenuCommandBar items={items} onChoose={() => undefined} />
         </div>
       );
     },

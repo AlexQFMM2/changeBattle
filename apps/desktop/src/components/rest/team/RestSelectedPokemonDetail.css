@@ -1,7 +1,6 @@
 .rest-selected-pokemon-detail {
-  --rest-selected-pokemon-detail-main-width: 246px;
+  --rest-selected-pokemon-detail-main-width: 1fr;
   --rest-selected-pokemon-detail-stats-width: 154px;
-  --rest-selected-pokemon-detail-description-width: 107px;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -9,16 +8,14 @@
   display: grid;
   grid-template-columns:
     minmax(0, var(--rest-selected-pokemon-detail-main-width))
-    minmax(0, var(--rest-selected-pokemon-detail-stats-width))
-    minmax(0, 1fr);
-  grid-template-areas: "main stats description";
+    minmax(0, var(--rest-selected-pokemon-detail-stats-width));
+  grid-template-areas: "main stats";
   gap: 5px;
   overflow: hidden;
 }
 
 .rest-selected-pokemon-main,
-.rest-selected-pokemon-stats,
-.rest-selected-description {
+.rest-selected-pokemon-stats {
   min-width: 0;
   min-height: 0;
   border: 1px solid #b5a57f;
@@ -184,10 +181,10 @@
   --move-card-name-row-height: 18px;
   --move-card-meta-row-height: 19px;
   --move-card-name-font-size: 7px;
-  --move-card-meta-font-size: 4px;
+  --move-card-meta-font-size: 6px;
   --move-card-name-padding-x: 5px;
-  --move-card-meta-padding-x: 5px;
-  --move-card-meta-gap: 4px;
+  --move-card-meta-padding-x: 6px;
+  --move-card-meta-gap: 6px;
 }
 
 .rest-selected-move-empty {
@@ -209,8 +206,7 @@
   overflow: hidden;
 }
 
-.rest-selected-pokemon-stats button,
-.rest-selected-description button {
+.rest-selected-pokemon-stats button {
   height: 19px;
   min-height: 19px;
   padding: 0 6px;
@@ -331,36 +327,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.rest-selected-description {
-  grid-area: description;
-  display: grid;
-  grid-template-rows: 17px minmax(0, 1fr);
-  gap: 4px;
-}
-
-.rest-selected-description h3,
-.rest-selected-description p {
-  margin: 0;
-}
-
-.rest-selected-description h3 {
-  min-width: 0;
-  overflow: hidden;
-  color: #2f2735;
-  font-size: 9px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rest-selected-description p {
-  min-width: 0;
-  min-height: 0;
-  color: #4f4a42;
-  font-size: 7px;
-  line-height: 1.35;
-  overflow-y: auto;
-  scrollbar-width: thin;
 }

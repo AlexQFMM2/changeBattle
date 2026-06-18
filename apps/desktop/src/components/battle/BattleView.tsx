@@ -481,11 +481,15 @@ function activeBattleViewSlot(side: BattleViewSide | undefined): BattleViewSlot 
   return side.slots[side.active_index] || side.slots.find(slot => slot.active) || side.slots[0];
 }
 
+function battleViewSlotShowdownId(slot: BattleViewSlot | undefined): string | undefined {
+  return slot?.showdown_id || slot?.runtime?.pokeball || slot?.display?.showdown_id;
+}
+
 function battleViewPartySlots(side: BattleViewSide | undefined, onSelect?: (index: number) => void): PartyStatusSlot[] {
   return (side?.slots || []).map((slot, index) => ({
     key: slot.key || `${side?.side || "side"}-${slot.slot || index + 1}`,
     label: String(slot.slot || index + 1),
-    showdown_id: slot.showdown_id,
+    showdown_id: battleViewSlotShowdownId(slot),
     display: slot.revealed ? slot.display : undefined,
     condition: slot.revealed ? slot.condition : undefined,
     status: slot.status,
@@ -601,8 +605,8 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     p2: enemyActiveSlot?.condition || battle?.tracker.active.p2.condition || "",
   };
   const finalActiveShowdownIds = {
-    p1: playerActiveSlot?.showdown_id || player.runtime?.pokeball || battle?.tracker.active.p1.showdown_id || "",
-    p2: enemyActiveSlot?.showdown_id || battle?.tracker.active.p2.showdown_id || "",
+    p1: battleViewSlotShowdownId(playerActiveSlot) || player.runtime?.pokeball || battle?.tracker.active.p1.showdown_id || "",
+    p2: battleViewSlotShowdownId(enemyActiveSlot) || battle?.tracker.active.p2.showdown_id || "",
   };
   const finalSubstitutes = {
     p1: Boolean(battle?.tracker.active.p1.substitute),
@@ -1093,6 +1097,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
 
     const activeBattle = battle;
     const playbackSnapshot = cloneBattleViewSnapshot(lastSettledBattleViewRef.current) || dedupeBattleViewPartySnapshot(cloneBattleViewSnapshot(battleViewFor(activeBattle)));
+    setPartyBoardPlaybackSnapshot(playbackSnapshot);
     async function playQueue() {
       const currentSpeed = () => battleSpeedRef.current;
       setPartyBoardPlaybackSnapshot(playbackSnapshot);
@@ -1191,7 +1196,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
             const nextNames = {...displayedActiveNamesRef.current, [event.targetSide]: event.target_id};
             displayedActiveNamesRef.current = nextNames;
             setDisplayedActiveNames(nextNames);
-            const nextShowdownIds = {...displayedActiveShowdownIdsRef.current, [event.targetSide]: event.target_showdown_id || ""};
+            const nextShowdownIds = {...displayedActiveShowdownIdsRef.current, [event.targetSide]: event.target_showdown_id || displayedActiveShowdownIdsRef.current[event.targetSide] || ""};
             displayedActiveShowdownIdsRef.current = nextShowdownIds;
             setDisplayedActiveShowdownIds(nextShowdownIds);
             const nextSnapshots = {...displayedActiveSnapshotsRef.current, [event.targetSide]: snapshotFromTimelineEvent(displayedActiveSnapshotsRef.current[event.targetSide], event)};
@@ -1342,27 +1347,21 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
   const playerSprite = displayedSubstitutes.p1 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const enemySprite = displayedSubstitutes.p2 ? assetUrl(SUBSTITUTE_DOLL_PATH) : undefined;
   const activePlayerIndex = Math.max(0, battleView?.player.active_index ?? battle.request?.side?.pokemon?.findIndex(pokemon => pokemon.active) ?? 0);
-  const shouldUsePlaybackPartySnapshot = playbackActive || partyBoardSettleLock;
+  const shouldUsePlaybackPartySnapshot = hasQueuedPlayback || playbackActive || partyBoardSettleLock;
   const partyBoardBattleView = shouldUsePlaybackPartySnapshot && partyBoardPlaybackSnapshot ? partyBoardPlaybackSnapshot : battleView;
-  const playbackPlayerShowdownId = displayedActiveShowdownIds.p1;
-  const playbackEnemyShowdownId = displayedActiveShowdownIds.p2;
   const basePlayerParty = battleViewPartySlots(partyBoardBattleView?.player, openPokemonDetail);
   const baseEnemyParty = battleViewPartySlots(partyBoardBattleView?.enemy);
-  const playbackPlayerHasShowdownMatch = Boolean(playbackPlayerShowdownId && basePlayerParty.some(slot => slot.showdown_id === playbackPlayerShowdownId));
-  const playbackEnemyHasShowdownMatch = Boolean(playbackEnemyShowdownId && baseEnemyParty.some(slot => slot.showdown_id === playbackEnemyShowdownId));
-  const playerParty = basePlayerParty.map(slot => {
-    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && (playbackPlayerHasShowdownMatch ? slot.showdown_id === playbackPlayerShowdownId : Boolean(slot.active));
-    if (playbackActiveSlot || (!shouldUsePlaybackPartySnapshot && slot.active)) {
+  const playerParty = shouldUsePlaybackPartySnapshot ? basePlayerParty : basePlayerParty.map(slot => {
+    if (slot.active) {
       return {...slot, active: true, display: displayPlayer || slot.display, condition: displayConditions.p1, status: statusCode(displayConditions.p1, battle.tracker.active.p1.status)};
     }
-    return shouldUsePlaybackPartySnapshot && slot.active ? {...slot, active: false} : slot;
+    return slot;
   });
-  const rawEnemyParty = baseEnemyParty.map(slot => {
-    const playbackActiveSlot = shouldUsePlaybackPartySnapshot && (playbackEnemyHasShowdownMatch ? slot.showdown_id === playbackEnemyShowdownId : Boolean(slot.active));
-    if (playbackActiveSlot || (!shouldUsePlaybackPartySnapshot && slot.active)) {
+  const rawEnemyParty = shouldUsePlaybackPartySnapshot ? baseEnemyParty : baseEnemyParty.map(slot => {
+    if (slot.active) {
       return {...slot, active: true, display: displayEnemy || slot.display, condition: displayConditions.p2, status: statusCode(displayConditions.p2, battle.tracker.active.p2.status), revealed: true};
     }
-    return shouldUsePlaybackPartySnapshot && slot.active ? {...slot, active: false} : slot;
+    return slot;
   });
   const hideActiveEnemyEntry = introActive || trainerIntroActive || Boolean(dialogue?.kind === "intro" && entryRevealLocked);
   const enemyParty = hideActiveEnemyEntry
@@ -1903,7 +1902,23 @@ function PokemonDetailModal({battle, selectedIndex, onSelectedIndexChange, disab
                   const displayMove = slot?.active || toId(move.id || move.name) === "judgment"
                     ? runtimeMoveSummary(move, pokemon, battle, "p1") || move
                     : move;
-                  return <div className="move-detail" key={move.id}><strong>{displayMove.name_zh || displayMove.name}</strong><span>{displayMove.type_zh}/{displayMove.category_zh}</span><span>威力 {displayMove.power || "--"}</span><span>命中 {displayMove.accuracy ?? "必中"}</span><span>{ppText(displayMove)}</span><p>{revealTraining ? moveDescription(displayMove) : detailLockedText}</p></div>;
+                  const pp = ppText(displayMove).replace(/^PP\s*/, "").split("/");
+                  return (
+                    <MoveCard
+                      className="battle-detail-move-card"
+                      size="sheet"
+                      name={displayMove.name_zh || displayMove.name}
+                      moveType={displayMove.type || displayMove.type_zh}
+                      typeLabel={displayMove.type_zh || displayMove.type || "一般"}
+                      category={displayMove.category_zh || displayMove.category || "变化"}
+                      pp={pp[0] || displayMove.pp || "--"}
+                      maxPp={pp[1] || displayMove.pp}
+                      power={displayMove.power || "--"}
+                      accuracy={displayMove.accuracy ?? "必中"}
+                      disabled
+                      key={move.id}
+                    />
+                  );
                 })}
               </div>
             )}

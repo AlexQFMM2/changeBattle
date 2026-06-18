@@ -435,9 +435,8 @@
 }
 
 .component-gallery-rest-selected-detail-stage .rest-selected-pokemon-detail {
-  --rest-selected-pokemon-detail-main-width: 226px;
+  --rest-selected-pokemon-detail-main-width: 1fr;
   --rest-selected-pokemon-detail-stats-width: 145px;
-  --rest-selected-pokemon-detail-description-width: 107px;
   width: 488px;
   height: 184px;
 }
@@ -463,12 +462,6 @@
 
 .component-gallery-rest-selected-detail-stage .rest-selected-pokemon-stats {
   grid-template-rows: 23px 38px 22px minmax(0, 1fr) 18px;
-  gap: 3px;
-  padding: 4px;
-}
-
-.component-gallery-rest-selected-detail-stage .rest-selected-description {
-  grid-template-rows: 16px minmax(0, 1fr) 18px;
   gap: 3px;
   padding: 4px;
 }
@@ -499,9 +492,8 @@
 }
 
 .component-gallery-rest-my-team-stage .rest-selected-pokemon-detail {
-  --rest-selected-pokemon-detail-main-width: 188px;
+  --rest-selected-pokemon-detail-main-width: 1fr;
   --rest-selected-pokemon-detail-stats-width: 112px;
-  --rest-selected-pokemon-detail-description-width: 82px;
 }
 
 .component-gallery-rest-my-team-stage .rest-selected-pokemon-main {
@@ -510,8 +502,7 @@
   padding: 3px;
 }
 
-.component-gallery-rest-my-team-stage .rest-selected-pokemon-stats,
-.component-gallery-rest-my-team-stage .rest-selected-description {
+.component-gallery-rest-my-team-stage .rest-selected-pokemon-stats {
   padding: 3px;
 }
 
