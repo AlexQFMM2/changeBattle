@@ -78,7 +78,7 @@ export {BASIC_REST_EVENT_OPTIONS, RAINBOW_ROCKET_FACTORY_SUPPORT_COUNT, RAINBOW_
 export type {TrainerDexSearchOptions} from "./dex-search.js";
 export {bossSummary, decorateDexUsageCounts, pokemonUsageKey, trainerDexSearch, trainerDexTags, trainerDexTypeLabel} from "./dex-search.js";
 export type {BattleTrainingDexProfile, BattleTrainingLegalityIssue, BattleTrainingLegalitySummary, BattleTrainingRunOptions, BattleTrainingSessionBuild, TrainingEditorTab, TrainingSide} from "./battle-training.js";
-export {TRAINING_BATTLE_BACKGROUND, TRAINING_MAX_TEAM_SIZE, TRAINING_STAT_IDS, TRAINING_STAT_LABELS, TRAINING_TERA_TYPES, assignTrainingEnemyShowdownIds, assignTrainingPlayerShowdownIds, buildTrainingBattleSession, buildTrainingBattleSessionOptions, buildTrainingRun, checkTrainingPokemonLegality, configWithTeams, defaultTrainingConfig, normalizeTrainingConfig, normalizeTrainingPokemon, normalizeTrainingTeam, trainingDisplayName, trainingPokemon, trainingPokemonSet, trainingSeed, trainingStats, trainingTeamSets} from "./battle-training.js";
+export {TRAINING_BATTLE_BACKGROUND, TRAINING_MAX_TEAM_SIZE, TRAINING_STAT_IDS, TRAINING_STAT_LABELS, TRAINING_TERA_TYPES, assignTrainingEnemyShowdownIds, assignTrainingPlayerShowdownIds, buildTrainingBattleSession, buildTrainingBattleSessionOptions, buildTrainingRun, checkTrainingPokemonLegality, configWithTeams, defaultTrainingConfig, normalizeTrainingConfig, normalizeTrainingPokemon, normalizeTrainingTeam, rentalPokemonToTrainingPokemon, trainingDisplayName, trainingPokemon, trainingPokemonSet, trainingSeed, trainingStats, trainingTeamSets} from "./battle-training.js";
 export type {ChangeBattleRuntimeParts} from "./runtime.js";
 export {createChangeBattleRuntime} from "./runtime.js";
 export * from "./run-rules.js";

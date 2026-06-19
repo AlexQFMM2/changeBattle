@@ -1,8 +1,8 @@
 import {useState} from "react";
-import type {BattleTrainingPokemonConfig} from "@changebattle/shared";
+import type {BattleTrainingPokemonConfig, DesktopDexEntry, NatureOption} from "@changebattle/shared";
 import type {BattleTrainingLegalitySummary} from "@changebattle/game-runtime";
 import {BattleTrainingDexPicker} from "./BattleTrainingDexPicker";
-import {STAT_IDS, STAT_LABELS, TERA_TYPES, type StatId, type TrainingEditorTab, type TrainingSide} from "./battleTrainingModel";
+import {STAT_IDS, STAT_LABELS, type StatId, type TrainingEditorTab, type TrainingSide} from "./battleTrainingModel";
 import "./BattleTrainingPokemonEditor.css";
 
 const TABS: Array<{id: TrainingEditorTab; label: string}> = [
@@ -11,12 +11,14 @@ const TABS: Array<{id: TrainingEditorTab; label: string}> = [
   {id: "stats", label: "数值"},
 ];
 
-export function BattleTrainingPokemonEditor({side, title, pokemon, legality, onPatch, onMove, onStat}: {
+export function BattleTrainingPokemonEditor({side, title, pokemon, legality, natures = [], onPatch, onSpecies, onMove, onStat}: {
   side: TrainingSide;
   title: string;
   pokemon: BattleTrainingPokemonConfig;
   legality?: BattleTrainingLegalitySummary;
+  natures?: NatureOption[];
   onPatch: (patch: Partial<BattleTrainingPokemonConfig>) => void;
+  onSpecies: (species: string, speciesLabel: string, entry?: DesktopDexEntry) => void;
   onMove: (index: number, value: string, displayValue: string) => void;
   onStat: (bucket: "ivs" | "evs", stat: StatId, value: string) => void;
 }) {
@@ -33,14 +35,13 @@ export function BattleTrainingPokemonEditor({side, title, pokemon, legality, onP
       {tab === "base" ? (
         <div className="battle-training-editor-base">
           {legality?.issues.some(issue => issue.type === "ability") ? <p className="battle-training-legality-note">{legality.issues.filter(issue => issue.type === "ability").map(issue => issue.label).join("、")} 非法但可用</p> : null}
-          <BattleTrainingDexPicker category="pokemon" label="物种" value={pokemon.species} displayValue={pokemon.speciesLabel} onChange={(species, speciesLabel) => onPatch({species, speciesLabel, name: pokemon.name === pokemon.species || pokemon.name === pokemon.speciesLabel ? speciesLabel : pokemon.name})} />
+          <BattleTrainingDexPicker category="pokemon" label="物种" value={pokemon.species} displayValue={pokemon.speciesLabel} onChange={onSpecies} />
           <label>昵称<input value={pokemon.name || ""} onChange={event => onPatch({name: event.target.value})} /></label>
           <label>等级<input type="number" min={1} max={100} value={pokemon.level} onChange={event => onPatch({level: clampLevel(event.target.value)})} /></label>
           <label>性别<select value={pokemon.gender || ""} onChange={event => onPatch({gender: event.target.value as BattleTrainingPokemonConfig["gender"]})}><option value="">默认</option><option value="M">雄</option><option value="F">雌</option><option value="N">无</option></select></label>
           <BattleTrainingDexPicker category="abilities" label="特性" value={pokemon.ability} displayValue={pokemon.abilityLabel} onChange={(ability, abilityLabel) => onPatch({ability, abilityLabel})} />
           <BattleTrainingDexPicker category="items" label="道具" value={pokemon.item || ""} displayValue={pokemon.itemLabel} onChange={(item, itemLabel) => onPatch({item, itemLabel})} />
-          <label>性格<input value={pokemon.nature} onChange={event => onPatch({nature: event.target.value})} /></label>
-          <label>太晶<select value={pokemon.teraType || ""} onChange={event => onPatch({teraType: event.target.value})}><option value="">默认</option>{TERA_TYPES.map(type => <option value={type} key={type}>{type}</option>)}</select></label>
+          <label>性格<select value={pokemon.nature || "Serious"} onChange={event => onPatch({nature: event.target.value})}>{natureOptions(natures, pokemon.nature).map(nature => <option value={nature.name} key={nature.id || nature.name}>{nature.name_zh || nature.name}</option>)}</select></label>
         </div>
       ) : null}
       {tab === "moves" ? (
@@ -63,6 +64,12 @@ export function BattleTrainingPokemonEditor({side, title, pokemon, legality, onP
       ) : null}
     </section>
   );
+}
+
+function natureOptions(natures: NatureOption[], current?: string): NatureOption[] {
+  const options = natures.length ? natures : [{id: "serious", name: "Serious", name_zh: "认真", plus: "", minus: "", plus_zh: "", minus_zh: ""}];
+  if (!current || options.some(nature => nature.name === current)) return options;
+  return [{id: current.toLowerCase(), name: current, name_zh: current, plus: "", minus: "", plus_zh: "", minus_zh: ""}, ...options];
 }
 
 function clampLevel(value: string): number {

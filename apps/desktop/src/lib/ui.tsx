@@ -756,7 +756,7 @@ export function hpTone(hp: {current: number; max: number} | null): "high" | "mid
 
 export function statusCode(condition?: string, explicit?: string): string {
   const raw = String(explicit || condition || "").trim();
-  if (raw.includes(" fnt") || raw === "fnt" || raw.startsWith("0 ")) return "fnt";
+  if (raw.includes(" fnt") || raw === "fnt" || raw.startsWith("0 ") || raw.includes("濒死")) return "fnt";
   const tokens = raw.split(/[\s,;/]+/).map(toId).filter(Boolean);
   if (tokens.includes("confusion") || tokens.includes("confused") || raw.includes("混乱")) return "confusion";
   for (const code of ["brn", "par", "psn", "tox", "slp", "frz"]) {

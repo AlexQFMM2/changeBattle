@@ -88,6 +88,7 @@ import {
   rememberRunForSoulmate,
   rerouteTrainerForRoute,
   resolveBattleCommandOutcome,
+  rentalPokemonToTrainingPokemon,
   runQuestStatus,
   pricedForRun,
   createTrainerProfileTools,
@@ -576,6 +577,24 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           activeTrainingConfig = training.config;
           activeBattleState = decorateMobileBattleState(activeBattle.getState(), training.run);
           return gameState({screen: "battleTraining", save, battle: activeBattleState, battle_bag: trainingBattleBag(), message: "训练场战斗已开始。"});
+        },
+        generateBattleTrainingPokemon: async (species, seed = Date.now()) => {
+          const service = await loadGameService();
+          const speciesId = String(species || "").trim();
+          if (!speciesId) throw new Error("请选择物种。");
+          const generated = await service.generateRentalCandidates(service.deriveSeed(Number(seed || Date.now()), 0x7a11), "gen9randombattle", 1, {
+            speciesIds: [speciesId],
+            purpose: "normal",
+            battleSetting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING),
+          });
+          const raw = generated.team[0];
+          const display = generated.display[0];
+          if (!raw || !display) throw new Error(`无法为 ${speciesId} 生成训练配置。`);
+          return rentalPokemonToTrainingPokemon(display, raw);
+        },
+        battleTrainingOptions: async () => {
+          const options = await (await loadGameService()).editOptions({species: "Pikachu", name: "Pikachu", ability: "Static", moves: ["Tackle"], nature: "Serious", level: 50});
+          return {natures: options.natures};
         },
         startRainbowRocketTestRun: async () => {
           const save = await ensureSave();

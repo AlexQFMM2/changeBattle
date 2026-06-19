@@ -216,6 +216,26 @@ export function trainingPokemonSet(config: BattleTrainingPokemonConfig, fallback
   };
 }
 
+export function rentalPokemonToTrainingPokemon(pokemon: RentalPokemon, raw?: PokemonSet): BattleTrainingPokemonConfig {
+  return normalizeTrainingPokemon({
+    species: raw?.species || pokemon.species || pokemon.species_id,
+    speciesLabel: pokemon.species_zh || pokemon.species || raw?.species,
+    name: pokemon.species_zh || pokemon.name || raw?.name || raw?.species,
+    level: Number(raw?.level || pokemon.level || 50),
+    gender: (raw?.gender || pokemon.gender || "") as BattleTrainingPokemonConfig["gender"],
+    ability: raw?.ability || pokemon.ability || pokemon.ability_id || "",
+    abilityLabel: pokemon.ability_zh || pokemon.ability || raw?.ability || "",
+    item: raw?.item || pokemon.item || pokemon.item_id || "",
+    itemLabel: pokemon.item_zh || pokemon.item || raw?.item || "",
+    nature: raw?.nature || pokemon.nature || "Serious",
+    teraType: raw?.teraType || pokemon.tera_type || "",
+    moves: (raw?.moves || pokemon.moves?.map(move => move.name || move.id) || []).slice(0, 4),
+    moveLabels: (pokemon.moves || []).map(move => move.name_zh || move.name || move.id).slice(0, 4),
+    ivs: normalizeStatRecord(raw?.ivs || pokemon.ivs, 31, 31),
+    evs: normalizeStatRecord(raw?.evs || pokemon.evs, 0, 255),
+  });
+}
+
 export function buildTrainingRun(options: BattleTrainingRunOptions): CurrentRunData {
   const config = normalizeTrainingConfig(options.config);
   const setting = normalizeBattleSetting({...DEFAULT_BATTLE_SETTING, ...(config.battleSetting || {})});

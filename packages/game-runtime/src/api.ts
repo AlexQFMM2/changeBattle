@@ -3,6 +3,8 @@ import type {
   BattleAiHint,
   BattleSetting,
   BattleTrainingConfig,
+  BattleTrainingOptions,
+  BattleTrainingPokemonConfig,
   BattleState,
   DesktopDexCategory,
   DesktopDexSearchResult,
@@ -32,6 +34,8 @@ export type ChangeBattleRuntimeApi = {
   enableTestMode(): Promise<LocalSave>;
   startRainbowRocketTestRun?(): Promise<DesktopGameState>;
   startBattleTraining(config: BattleTrainingConfig): Promise<DesktopGameState>;
+  generateBattleTrainingPokemon(species: string, seed?: number): Promise<BattleTrainingPokemonConfig>;
+  battleTrainingOptions(): Promise<BattleTrainingOptions>;
   getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   updateBattleSetting(setting: Partial<BattleSetting>): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}>;

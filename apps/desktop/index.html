@@ -21,6 +21,7 @@
 
         function setEnabled(enabled) {
           window.localStorage.setItem(storageKey, enabled ? "1" : "0");
+          window.dispatchEvent(new CustomEvent("changebattle:vconsole-change", { detail: { enabled: !!enabled } }));
           if (enabled) {
             loadVConsole();
             return;

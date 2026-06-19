@@ -5,6 +5,8 @@ import type {
   BattleSetting,
   BattleState,
   BattleTrainingConfig,
+  BattleTrainingOptions,
+  BattleTrainingPokemonConfig,
   CurrentRunData,
   DesktopDexCategory,
   DesktopDexSearchResult,
@@ -36,6 +38,8 @@ export type DesktopRuntimeApiDeps = {
   enableTestMode(): Promise<LocalSave>;
   startRainbowRocketTestRun?(): Promise<DesktopGameState>;
   startBattleTraining(config: BattleTrainingConfig): Promise<DesktopGameState>;
+  generateBattleTrainingPokemon(species: string, seed?: number): Promise<BattleTrainingPokemonConfig>;
+  battleTrainingOptions(): Promise<BattleTrainingOptions>;
   getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   updateBattleSetting(setting: Partial<BattleSetting>): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}>;
@@ -84,6 +88,8 @@ export function createDesktopRuntimeApi(deps: DesktopRuntimeApiDeps): ChangeBatt
     enableTestMode: deps.enableTestMode,
     startRainbowRocketTestRun: deps.startRainbowRocketTestRun,
     startBattleTraining: deps.startBattleTraining,
+    generateBattleTrainingPokemon: deps.generateBattleTrainingPokemon,
+    battleTrainingOptions: deps.battleTrainingOptions,
     getBattleSetting: deps.getBattleSetting,
     updateBattleSetting: deps.updateBattleSetting,
     getAudioSettings: deps.getAudioSettings,

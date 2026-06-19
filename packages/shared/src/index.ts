@@ -1478,6 +1478,10 @@ export type BattleTrainingConfig = {
   battleSetting?: Partial<BattleSetting>;
 };
 
+export type BattleTrainingOptions = {
+  natures: NatureOption[];
+};
+
 export type LocalSave = {
   version: 1;
   bp_scale?: number;

@@ -282,6 +282,7 @@ export function BgmController({scene, save, onSave}: {scene: BgmScene; save: Loc
   function setDebugConsoleEnabled(enabled: boolean) {
     setDebugEnabled(enabled);
     changeBattleDebugBridge()?.setVConsoleEnabled?.(enabled);
+    window.dispatchEvent(new CustomEvent("changebattle:vconsole-change", {detail: {enabled}}));
   }
 
   const sceneLabel = BGM_SCENE_LABELS[scene];

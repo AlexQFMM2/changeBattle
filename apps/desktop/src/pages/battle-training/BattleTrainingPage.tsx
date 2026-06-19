@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import type {BattleAiHint, BattleState, BattleTrainingConfig, BattleTrainingPokemonConfig, DesktopDexEntry, DesktopGameState} from "@changebattle/shared";
+import type {BattleAiHint, BattleState, BattleTrainingConfig, BattleTrainingOptions, BattleTrainingPokemonConfig, DesktopDexEntry, DesktopGameState} from "@changebattle/shared";
 import {BattleView} from "../battle/BattleView";
 import {BattleTrainingPokemonEditor} from "../../components/battle-training/BattleTrainingPokemonEditor";
 import {BattleTrainingPresetBar} from "../../components/battle-training/BattleTrainingPresetBar";
@@ -36,6 +36,8 @@ export function BattleTrainingPage({battle, battleBag, choicePending, onBattleSt
   const [activeSide, setActiveSide] = useState<TrainingSide>("player");
   const [logs, setLogs] = useState<TrainingLogEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [options, setOptions] = useState<BattleTrainingOptions>({natures: []});
+  const [generatingSlot, setGeneratingSlot] = useState<string | null>(null);
   const playerTeam = useMemo(() => normalizeTrainingTeam(config, "player"), [config]);
   const enemyTeam = useMemo(() => normalizeTrainingTeam(config, "enemy"), [config]);
   const activeConfig = useMemo(() => cloneTrainingConfig(configWithTeams(config, playerTeam, enemyTeam)), [config, playerTeam, enemyTeam]);
@@ -61,6 +63,10 @@ export function BattleTrainingPage({battle, battleBag, choicePending, onBattleSt
       });
     }
   }, [dexProfiles, playerTeam, enemyTeam]);
+
+  useEffect(() => {
+    void window.changeBattle?.battleTrainingOptions().then(setOptions).catch(() => setOptions({natures: []}));
+  }, []);
 
   function patchTeam(side: TrainingSide, updater: (team: BattleTrainingPokemonConfig[]) => BattleTrainingPokemonConfig[], selectIndex?: number) {
     setConfig(current => {
@@ -88,6 +94,19 @@ export function BattleTrainingPage({battle, battleBag, choicePending, onBattleSt
     }));
   }
 
+  function patchSpecies(side: TrainingSide, index: number, species: string, speciesLabel: string, entry?: DesktopDexEntry) {
+    patchPokemon(side, index, {species, speciesLabel, name: activeTeam[index]?.name === activeTeam[index]?.species || activeTeam[index]?.name === activeTeam[index]?.speciesLabel ? speciesLabel : activeTeam[index]?.name});
+    if (!entry) return;
+    const speciesId = entry.id || entry.name || species;
+    const slotKey = `${side}:${index}`;
+    setGeneratingSlot(slotKey);
+    void window.changeBattle?.generateBattleTrainingPokemon(speciesId, Date.now()).then(generated => {
+      patchTeam(side, team => team.map((pokemon, pokemonIndex) => pokemonIndex === index ? normalizeTrainingPokemon({...generated, name: generated.speciesLabel || generated.species}, pokemon) : pokemon));
+    }).catch(error => {
+      appendLog({kind: "error", error: error instanceof Error ? error.message : String(error)});
+    }).finally(() => setGeneratingSlot(current => current === slotKey ? null : current));
+  }
+
   function patchStat(side: TrainingSide, index: number, bucket: "ivs" | "evs", stat: StatId, value: string) {
     const limit = bucket === "ivs" ? 31 : 255;
     const next = Math.max(0, Math.min(limit, Math.floor(Number(value || 0))));
@@ -105,6 +124,17 @@ export function BattleTrainingPage({battle, battleBag, choicePending, onBattleSt
       copy.name = `${copy.name || copy.species} 复制`;
       return [...team.slice(0, index + 1), copy, ...team.slice(index + 1)];
     }, Math.min(index + 1, 5));
+  }
+
+  function movePokemon(side: TrainingSide, index: number, direction: -1 | 1) {
+    patchTeam(side, team => {
+      const targetIndex = index + direction;
+      if (!team[index] || targetIndex < 0 || targetIndex >= team.length) return team;
+      const next = [...team];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    }, Math.max(0, Math.min(index + direction, (side === "player" ? playerTeam : enemyTeam).length - 1)));
+    setActiveSide(side);
   }
 
   function removePokemon(side: TrainingSide, index: number) {
@@ -167,12 +197,9 @@ export function BattleTrainingPage({battle, battleBag, choicePending, onBattleSt
   }
 
   if (started && battle) {
+    const resultLabel = trainingBattleResultLabel(battle);
     return (
       <section className="battle-training-page training-live">
-        <div className="battle-training-live-toolbar">
-          <button type="button" onClick={() => setStarted(false)}>编辑</button>
-          <button type="button" onClick={onBack}>主页</button>
-        </div>
         <BattleView
           battle={battle}
           battleBag={battleBag || {consumable: [], held: [], tm: []}}
@@ -187,6 +214,13 @@ export function BattleTrainingPage({battle, battleBag, choicePending, onBattleSt
           battleAnimationSpeed={battleAnimationSpeed}
           onBattleAnimationSpeedChange={onBattleAnimationSpeedChange}
         />
+        {battle.ended ? (
+          <div className="battle-training-result-panel">
+            <strong>{resultLabel}</strong>
+            <span>训练战斗已结束，请返回上一页继续调整队伍。</span>
+            <button type="button" onClick={() => setStarted(false)}>返回上一页</button>
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -199,17 +233,19 @@ export function BattleTrainingPage({battle, battleBag, choicePending, onBattleSt
         onBack={onBack}
       />
       <div className="battle-training-layout">
-        <BattleTrainingTeamPanel title="我方队伍" side="player" team={playerTeam} legalities={playerLegalities} selectedIndex={selectedPlayer} onSelect={index => { setSelected(current => ({...current, player: index})); setActiveSide("player"); }} onAdd={() => { addPokemon("player"); setActiveSide("player"); }} onDuplicate={index => duplicatePokemon("player", index)} onRemove={index => removePokemon("player", index)} onClear={() => clearTeam("player")} />
+        <BattleTrainingTeamPanel title="我方队伍" side="player" team={playerTeam} legalities={playerLegalities} selectedIndex={selectedPlayer} onSelect={index => { setSelected(current => ({...current, player: index})); setActiveSide("player"); }} onAdd={() => { addPokemon("player"); setActiveSide("player"); }} onMove={(index, direction) => movePokemon("player", index, direction)} onDuplicate={index => duplicatePokemon("player", index)} onRemove={index => removePokemon("player", index)} onClear={() => clearTeam("player")} />
         <BattleTrainingPokemonEditor
-          title={`${activeSide === "player" ? "我方" : "对方"}：${activePokemon?.name || activePokemon?.speciesLabel || activePokemon?.species || "宝可梦"}`}
+          title={`${activeSide === "player" ? "我方" : "对方"}：${generatingSlot === `${activeSide}:${activeIndex}` ? "生成中" : activePokemon?.name || activePokemon?.speciesLabel || activePokemon?.species || "宝可梦"}`}
           side={activeSide}
           pokemon={activePokemon}
           legality={activeLegality}
+          natures={options.natures}
           onPatch={patch => patchPokemon(activeSide, activeIndex, patch)}
+          onSpecies={(species, speciesLabel, entry) => patchSpecies(activeSide, activeIndex, species, speciesLabel, entry)}
           onMove={(index, value, displayValue) => patchMove(activeSide, activeIndex, index, value, displayValue)}
           onStat={(bucket, stat, value) => patchStat(activeSide, activeIndex, bucket, stat, value)}
         />
-        <BattleTrainingTeamPanel title="对方队伍" side="enemy" team={enemyTeam} legalities={enemyLegalities} selectedIndex={selectedEnemy} onSelect={index => { setSelected(current => ({...current, enemy: index})); setActiveSide("enemy"); }} onAdd={() => { addPokemon("enemy"); setActiveSide("enemy"); }} onDuplicate={index => duplicatePokemon("enemy", index)} onRemove={index => removePokemon("enemy", index)} onClear={() => clearTeam("enemy")} />
+        <BattleTrainingTeamPanel title="对方队伍" side="enemy" team={enemyTeam} legalities={enemyLegalities} selectedIndex={selectedEnemy} onSelect={index => { setSelected(current => ({...current, enemy: index})); setActiveSide("enemy"); }} onAdd={() => { addPokemon("enemy"); setActiveSide("enemy"); }} onMove={(index, direction) => movePokemon("enemy", index, direction)} onDuplicate={index => duplicatePokemon("enemy", index)} onRemove={index => removePokemon("enemy", index)} onClear={() => clearTeam("enemy")} />
       </div>
     </section>
   );
@@ -236,6 +272,13 @@ function bestPokemonEntry(entries: DesktopDexEntry[], pokemon: BattleTrainingPok
   const wanted = compactId(pokemon.species);
   return entries.find(entry => compactId(entry.name) === wanted || compactId(entry.id) === wanted || compactId(entry.name_zh) === compactId(pokemon.speciesLabel))
     || entries[0];
+}
+
+function trainingBattleResultLabel(battle: BattleState): string {
+  const winner = String(battle.winner || "").toLowerCase();
+  if (!battle.ended) return "";
+  if (!winner || winner === "tie") return "训练平局";
+  return ["enemy", "opponent", "对手"].includes(winner) ? "训练失败" : "训练胜利";
 }
 
 function compactId(value: unknown): string {

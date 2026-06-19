@@ -63,11 +63,12 @@
 .battle-training-editor-base,
 .battle-training-editor-moves {
   min-height: 0;
-  overflow: visible;
+  overflow: auto;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
   align-content: start;
+  padding-right: 2px;
 }
 
 .battle-training-legality-note {
@@ -107,8 +108,15 @@
   background: #0f1416;
   color: #fffaf0;
   padding: 1px 5px;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1;
+}
+
+.battle-training-editor-base select option {
+  background: #0f1416;
+  color: #fffaf0;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .battle-training-editor-stats {

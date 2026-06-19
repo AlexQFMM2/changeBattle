@@ -81,6 +81,24 @@ export function installBrowserTestBridge(): void {
       lastAction = "startBattleTraining";
       return setState({screen: "battleTraining", save, battle: battleForScenario(), battle_bag: {consumable: [], held: [], tm: []}, message: "自动测试训练场"});
     },
+    generateBattleTrainingPokemon: async species => ({
+      species,
+      speciesLabel: species,
+      name: species,
+      level: 50,
+      gender: "M",
+      ability: "Static",
+      abilityLabel: "静电",
+      item: "",
+      itemLabel: "",
+      nature: "Serious",
+      teraType: "",
+      moves: ["Tackle"],
+      moveLabels: ["撞击"],
+      ivs: {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31},
+      evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0},
+    }),
+    battleTrainingOptions: async () => ({natures: [{id: "serious", name: "Serious", name_zh: "认真", plus: "", minus: "", plus_zh: "", minus_zh: ""}]}),
     getBattleSetting: async () => ({setting: normalizeBattleSetting(save.battle_setting), save}),
     updateBattleSetting: async (setting: BattleSetting) => {
       lastAction = "updateBattleSetting";

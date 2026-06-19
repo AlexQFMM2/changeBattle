@@ -3,7 +3,7 @@ import type {BattleTrainingLegalitySummary} from "@changebattle/game-runtime";
 import {TRAINING_MAX_TEAM_SIZE, type TrainingSide} from "./battleTrainingModel";
 import "./BattleTrainingTeamPanel.css";
 
-export function BattleTrainingTeamPanel({title, side, team, legalities = [], selectedIndex, onSelect, onAdd, onDuplicate, onRemove, onClear}: {
+export function BattleTrainingTeamPanel({title, side, team, legalities = [], selectedIndex, onSelect, onAdd, onMove, onDuplicate, onRemove, onClear}: {
   title: string;
   side: TrainingSide;
   team: BattleTrainingPokemonConfig[];
@@ -11,15 +11,23 @@ export function BattleTrainingTeamPanel({title, side, team, legalities = [], sel
   selectedIndex: number;
   onSelect: (index: number) => void;
   onAdd: () => void;
+  onMove: (index: number, direction: -1 | 1) => void;
   onDuplicate: (index: number) => void;
   onRemove: (index: number) => void;
   onClear: () => void;
 }) {
   const canAdd = team.length < TRAINING_MAX_TEAM_SIZE;
+  const selectedPokemon = team[selectedIndex];
+  const canMoveUp = Boolean(selectedPokemon) && selectedIndex > 0;
+  const canMoveDown = Boolean(selectedPokemon) && selectedIndex < team.length - 1;
   return (
     <section className={`battle-training-team-panel ${side}`}>
       <header>
         <strong>{title}</strong>
+        <div className="battle-training-team-order">
+          <button type="button" disabled={!canMoveUp} aria-label={`${title}上移`} onClick={() => onMove(selectedIndex, -1)}>↑</button>
+          <button type="button" disabled={!canMoveDown} aria-label={`${title}下移`} onClick={() => onMove(selectedIndex, 1)}>↓</button>
+        </div>
         <span>{team.length}/{TRAINING_MAX_TEAM_SIZE}</span>
       </header>
       <div className="battle-training-team-list">

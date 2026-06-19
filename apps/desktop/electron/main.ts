@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {AudioSettings, BagCategoryView, BattleAiHint, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BattleTrainingConfig, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleAiHint, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BattleTrainingConfig, BattleTrainingOptions, BattleTrainingPokemonConfig, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   createChangeBattleRuntime,
@@ -69,6 +69,7 @@ import {
   rainbowRocketRollHits as runtimeRainbowRocketRollHits,
   rainbowRocketUnlocked as runtimeRainbowRocketUnlocked,
   rainbowRocketSupportRequired as runtimeRainbowRocketSupportRequired,
+  rentalPokemonToTrainingPokemon,
   trainerDexSearch as runtimeTrainerDexSearch,
   trainingTeamSets,
   validateStatAdjustments as runtimeValidateStatAdjustments,
@@ -1871,6 +1872,25 @@ async function startBattleTraining(config: BattleTrainingConfig): Promise<Deskto
     battle_bag: {consumable: [], held: [], tm: []},
     message: "训练场战斗已开始。",
   });
+}
+
+async function generateBattleTrainingPokemon(species: string, seed = Date.now()): Promise<BattleTrainingPokemonConfig> {
+  const speciesId = String(species || "").trim();
+  if (!speciesId) throw new Error("请选择物种。");
+  const generated = await gameService.generateRentalCandidates(gameService.deriveSeed(Number(seed || Date.now()), 0x7a11), "gen9randombattle", 1, {
+    speciesIds: [speciesId],
+    purpose: "normal",
+    battleSetting: normalizeBattleSetting(DEFAULT_BATTLE_SETTING),
+  });
+  const raw = generated.team[0];
+  const display = generated.display[0];
+  if (!raw || !display) throw new Error(`无法为 ${speciesId} 生成训练配置。`);
+  return rentalPokemonToTrainingPokemon(display, raw);
+}
+
+async function battleTrainingOptions(): Promise<BattleTrainingOptions> {
+  const options = await gameService.editOptions({species: "Pikachu", name: "Pikachu", ability: "Static", moves: ["Tackle"], nature: "Serious", level: 50});
+  return {natures: options.natures};
 }
 
 function starterChoiceState(starter: PendingStarterState) {
@@ -5569,6 +5589,8 @@ app.whenReady().then(() => {
       enableTestMode,
       startRainbowRocketTestRun,
       startBattleTraining,
+      generateBattleTrainingPokemon,
+      battleTrainingOptions,
       continueRun,
       battleHint,
       battleChoice: submitBattleChoice,

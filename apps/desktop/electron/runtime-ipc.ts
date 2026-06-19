@@ -20,6 +20,8 @@ export function registerDesktopRuntimeIpc(
   handleIpc("save:testMode", async () => api.enableTestMode());
   if (api.startRainbowRocketTestRun) handleIpc("run:rainbowRocketTest", async () => api.startRainbowRocketTestRun!());
   if (api.startBattleTraining) handleIpc("training:startBattle", async (config: BattleTrainingConfig) => api.startBattleTraining!(config));
+  handleIpc("training:generatePokemon", async (species: string, seed?: number) => api.generateBattleTrainingPokemon(species, seed));
+  handleIpc("training:options", async () => api.battleTrainingOptions());
   if (options.e2ePatchSave) {
     handleIpc("e2e:patchSave", async (patch: Partial<LocalSave>) => options.e2ePatchSave!(patch));
   }

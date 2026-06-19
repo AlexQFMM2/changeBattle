@@ -8,6 +8,10 @@ import {MainMenuHome} from "./MainMenuHome";
 import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import "./MainMenuPage.css";
 
+type ChangeBattleDebugBridge = {
+  isVConsoleEnabled?: () => boolean;
+};
+
 export type MainMenuPageProps = {
   save: LocalSave | null;
   onStart: () => void;
@@ -24,8 +28,8 @@ export type MainMenuPageProps = {
 export function MainMenuPage({save, onStart, onTraining, onTalent, onUserInfo, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest}: MainMenuPageProps) {
   const [leaving, setLeaving] = useState(false);
   const [quickDexOpen, setQuickDexOpen] = useState(false);
+  const [debugMenuVisible, setDebugMenuVisible] = useState(() => isDebugMenuVisible());
   const actionTimerRef = useRef<number | null>(null);
-  const debugMenuVisible = isDebugMenuVisible();
   const menuItems: MainMenuCommandItem[] = [
     {label: save?.current_run ? "继续游戏" : "开始游戏", action: onStart},
     {label: "战斗训练场", action: onTraining},
@@ -42,6 +46,16 @@ export function MainMenuPage({save, onStart, onTraining, onTalent, onUserInfo, o
   useEffect(() => {
     return () => {
       if (actionTimerRef.current !== null) window.clearTimeout(actionTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => setDebugMenuVisible(isDebugMenuVisible());
+    window.addEventListener("changebattle:vconsole-change", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("changebattle:vconsole-change", refresh);
+      window.removeEventListener("storage", refresh);
     };
   }, []);
 
@@ -75,7 +89,7 @@ export function MainMenuPage({save, onStart, onTraining, onTalent, onUserInfo, o
 }
 
 function isDebugMenuVisible(): boolean {
-  if (import.meta.env.DEV) return true;
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem("changebattle:debug-menu") === "1";
+  const bridge = (window as Window & {__changeBattleDebug?: ChangeBattleDebugBridge}).__changeBattleDebug;
+  return Boolean(bridge?.isVConsoleEnabled?.());
 }

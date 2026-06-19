@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type {AudioSettings, BattleAiHint, BattleSetting, BattleState, BattleTrainingConfig, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleAiHint, BattleSetting, BattleState, BattleTrainingConfig, BattleTrainingOptions, BattleTrainingPokemonConfig, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 import type {BattleDisplayStep} from "./components/battle/timelineFlow";
 import type {BrowserTestScenario} from "./web/browserTestBridge";
 
@@ -17,6 +17,8 @@ declare global {
       enableTestMode(): Promise<LocalSave>;
       startRainbowRocketTestRun?(): Promise<DesktopGameState>;
       startBattleTraining(config: BattleTrainingConfig): Promise<DesktopGameState>;
+      generateBattleTrainingPokemon(species: string, seed?: number): Promise<BattleTrainingPokemonConfig>;
+      battleTrainingOptions(): Promise<BattleTrainingOptions>;
       getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
       updateBattleSetting(setting: BattleSetting): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
       getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}>;

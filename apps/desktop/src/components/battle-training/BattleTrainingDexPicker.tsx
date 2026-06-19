@@ -16,7 +16,7 @@ export function BattleTrainingDexPicker({category, label, value, displayValue, p
   value: string;
   displayValue?: string;
   placeholder?: string;
-  onChange: (value: string, displayValue: string) => void;
+  onChange: (value: string, displayValue: string, entry?: DesktopDexEntry) => void;
 }) {
   const [query, setQuery] = useState(displayValue || value);
   const [results, setResults] = useState<DesktopDexEntry[]>([]);
@@ -51,7 +51,7 @@ export function BattleTrainingDexPicker({category, label, value, displayValue, p
   function choose(entry: DesktopDexEntry) {
     const nextValue = entry.name || entry.id;
     const nextLabel = entry.name_zh || entry.name || entry.id;
-    onChange(nextValue, nextLabel);
+    onChange(nextValue, nextLabel, entry);
     setQuery(nextLabel);
     setOpen(false);
   }

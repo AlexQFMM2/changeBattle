@@ -1148,12 +1148,12 @@ function trainingPreviewTeam(stateId: string) {
 
 function BattleTrainingTeamPanelPreview({stateId}: {stateId: string}) {
   const team = trainingPreviewTeam(stateId);
-  return <BattleTrainingTeamPanel title="我方队伍" side="player" team={team} selectedIndex={stateId === "selected" ? 1 : 0} onSelect={() => undefined} onAdd={() => undefined} onDuplicate={() => undefined} onRemove={() => undefined} onClear={() => undefined} />;
+  return <BattleTrainingTeamPanel title="我方队伍" side="player" team={team} selectedIndex={stateId === "selected" ? 1 : 0} onSelect={() => undefined} onAdd={() => undefined} onMove={() => undefined} onDuplicate={() => undefined} onRemove={() => undefined} onClear={() => undefined} />;
 }
 
 function BattleTrainingPokemonEditorPreview({stateId}: {stateId: string}) {
   const pokemon = stateId === "longText" ? trainingPreviewTeam("longText")[0] : normalizeTrainingTeam(gigaImpactPreset(), stateId === "enemy" ? "enemy" : "player")[0];
-  return <BattleTrainingPokemonEditor title={stateId === "enemy" ? "对方编辑" : "我方编辑"} side={stateId === "enemy" ? "enemy" : "player"} pokemon={pokemon} onPatch={() => undefined} onMove={() => undefined} onStat={(_: "ivs" | "evs", __: StatId) => undefined} />;
+  return <BattleTrainingPokemonEditor title={stateId === "enemy" ? "对方编辑" : "我方编辑"} side={stateId === "enemy" ? "enemy" : "player"} pokemon={pokemon} onPatch={() => undefined} onSpecies={() => undefined} onMove={() => undefined} onStat={(_: "ivs" | "evs", __: StatId) => undefined} />;
 }
 
 function BattleTrainingLogDrawerPreview({stateId}: {stateId: string}) {
