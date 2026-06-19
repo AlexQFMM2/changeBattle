@@ -27,6 +27,65 @@ body::before {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+.battle-training-page {
+  padding: 4px;
+  gap: 3px;
+}
+
+.battle-training-layout {
+  grid-template-columns: 136px minmax(0, 1fr) 136px;
+  gap: 3px;
+}
+
+.battle-training-preset-bar {
+  height: 26px;
+  padding: 3px 5px;
+}
+
+.battle-training-preset-title strong {
+  font-size: 12px;
+}
+
+.battle-training-team-panel {
+  padding: 3px;
+  grid-template-rows: 17px minmax(0, 1fr) 20px;
+}
+
+.battle-training-team-slot {
+  height: 27px;
+}
+
+.battle-training-pokemon-editor {
+  padding: 3px;
+  grid-template-rows: 21px minmax(0, 1fr);
+}
+
+.battle-training-pokemon-editor header {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.battle-training-pokemon-editor header strong {
+  font-size: 7px;
+}
+
+.battle-training-illegal-badge {
+  display: none;
+}
+
+.battle-training-pokemon-editor nav {
+  gap: 1px;
+}
+
+.battle-training-pokemon-editor nav button {
+  width: 24px;
+  padding: 0;
+}
+
+.battle-training-editor-base,
+.battle-training-editor-moves {
+  gap: 4px;
+}
+
 .star-chart-hud {
   left: max(8px, env(safe-area-inset-left));
   top: max(8px, env(safe-area-inset-top));

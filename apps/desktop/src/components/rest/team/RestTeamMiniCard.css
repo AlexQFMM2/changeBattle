@@ -9,7 +9,7 @@
   min-height: var(--rest-team-mini-card-height);
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) 6px;
+  grid-template-rows: 9px 7px 5px;
   justify-items: center;
   align-items: center;
   gap: 3px 4px;
@@ -105,11 +105,27 @@
   font-weight: 950;
 }
 
+.rest-team-mini-card-level {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
+  align-self: center;
+  max-width: calc(var(--rest-team-mini-card-width) - 34px);
+  min-width: 0;
+  overflow: hidden;
+  color: #596052;
+  font-size: 5px;
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .rest-team-mini-card .rest-team-mini-card-hp {
   --pokemon-hp-bar-width: 100%;
   --pokemon-hp-bar-height: 5px;
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 3;
   width: 100%;
   align-self: start;
 }

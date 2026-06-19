@@ -1,0 +1,73 @@
+.battle-training-preset-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid #40514a;
+  border-radius: 5px;
+  background: #111918;
+  padding: 3px 5px;
+  color: #f6efe4;
+}
+
+.battle-training-preset-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.battle-training-preset-title strong {
+  flex: 0 0 auto;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.battle-training-preset-title label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  color: #c9d1c7;
+  font-size: 6px;
+}
+
+.battle-training-preset-title input {
+  width: 62px;
+  height: 18px;
+  border: 1px solid #4f5a58;
+  border-radius: 3px;
+  background: #0b1011;
+  color: #fffaf0;
+  padding: 1px 4px;
+  font-size: 8px;
+}
+
+.battle-training-preset-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.battle-training-preset-actions button {
+  height: 20px;
+  border: 1px solid #53635b;
+  border-radius: 3px;
+  background: #1e2927;
+  color: #f8f1e6;
+  padding: 0 6px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.battle-training-preset-actions button.primary {
+  border-color: #cfb05f;
+  background: #405033;
+}
+
+.battle-training-preset-actions button:disabled {
+  opacity: .55;
+}

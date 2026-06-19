@@ -1,5 +1,5 @@
 import type {ChangeBattleRuntimeApi} from "@changebattle/game-runtime";
-import type {AudioSettings, BattleSetting, DesktopDexCategory, LocalSave, RestAction, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleSetting, BattleTrainingConfig, DesktopDexCategory, LocalSave, RestAction, TrainerProfile} from "@changebattle/shared";
 
 export type DesktopIpcHandler = (channel: string, handler: (...args: any[]) => Promise<unknown> | unknown) => void;
 
@@ -19,6 +19,7 @@ export function registerDesktopRuntimeIpc(
   handleIpc("save:battleRecords", async () => api.battleRecords());
   handleIpc("save:testMode", async () => api.enableTestMode());
   if (api.startRainbowRocketTestRun) handleIpc("run:rainbowRocketTest", async () => api.startRainbowRocketTestRun!());
+  if (api.startBattleTraining) handleIpc("training:startBattle", async (config: BattleTrainingConfig) => api.startBattleTraining!(config));
   if (options.e2ePatchSave) {
     handleIpc("e2e:patchSave", async (patch: Partial<LocalSave>) => options.e2ePatchSave!(patch));
   }

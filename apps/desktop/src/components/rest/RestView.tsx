@@ -29,13 +29,14 @@ import {DoctorEventPanel} from "./DoctorEventPanel";
 import {EventLevelPanel} from "./EventLevelPanel";
 import type {RestActionHandler, RestActionResult} from "./restActionTypes";
 import {RestMyTeamPanel} from "./team/RestMyTeamPanel";
+import {restPokemonLevelLabel} from "./team/restTeamModel";
 import "./RestView.css";
 
 export function ExchangeView({exchange, onSkip, onExchange}: {exchange: DesktopGameState["exchange"]; onSkip: () => void; onExchange: (ownIndex: number, enemyIndex: number) => void}) {
   const [own, setOwn] = useState(0);
   const [enemy, setEnemy] = useState(0);
   if (!exchange) return null;
-  return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns exchange-columns-with-label"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div><div className="exchange-center-label" aria-hidden="true"><span>交换</span></div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{pokemon.item_zh || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
+  return <div className="exchange-page"><h2>胜利后交换</h2><div className="exchange-columns exchange-columns-with-label"><div><h3>你的队伍</h3>{exchange.player_display.map((pokemon, index) => <button className={`exchange-card ${own === index ? "selected" : ""}`} onClick={() => setOwn(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{restPokemonLevelLabel(pokemon)} · {pokemon.item_zh || pokemon.item || "无道具"}</small></button>)}</div><div className="exchange-center-label" aria-hidden="true"><span>交换</span></div><div><h3>敌方队伍</h3>{exchange.enemy_display.map((pokemon, index) => <button className={`exchange-card ${enemy === index ? "selected" : ""}`} onClick={() => setEnemy(index)} key={pokemon.species_id}><PokemonSprite pokemon={pokemon} alt={displayName(pokemon)} /><span>{displayName(pokemon)}</span><small>{restPokemonLevelLabel(pokemon)} · {pokemon.item_zh || pokemon.item || "无道具"}</small></button>)}</div></div><div className="command-row"><button onClick={() => onExchange(own, enemy)}>交换</button><button onClick={onSkip}>跳过</button></div></div>;
 }
 
 function isDesktopGameStateResult(result: RestActionResult): result is DesktopGameState {
@@ -397,7 +398,7 @@ function RestPokemonModal({rest, initialSlot, onClose, onMove, onUseItem, onUneq
     <EmbeddedOrModal embedded={embedded}>
       <section className={`rest-pokemon-modal ${embedded ? "embedded-single" : ""}`}>
         {!embedded ? <aside className="detail-team-list">
-          {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-rest-detail`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span><small>{conditionText(rest.player_state[index]?.condition)}</small></button>)}
+          {rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-rest-detail`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span><small>{restPokemonLevelLabel(entry)} · {conditionText(rest.player_state[index]?.condition)}</small></button>)}
         </aside> : null}
         <main className="rest-pokemon-detail">
           {!embedded ? <header>
@@ -666,7 +667,7 @@ function StatsAdjustModal({rest, initialSlot = 0, onClose, onAction, embedded = 
       <section className="rest-edit-modal stats-editor">
         <header><h2>重置数值</h2><button onClick={onClose}>关闭</button></header>
         <div className="editor-layout">
-          <aside className="editor-side-list">{rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-stats-editor`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span></button>)}</aside>
+          <aside className="editor-side-list">{rest.player_display.map((entry, index) => <button className={slot === index ? "selected" : ""} onClick={() => setSlot(index)} key={`${entry.species_id}-stats-editor`}><PokemonSprite pokemon={entry} alt={displayName(entry)} /><span>{displayName(entry)}</span><small>{restPokemonLevelLabel(entry)}</small></button>)}</aside>
           <section className="editor-main stats-editor-main">
             <header className="stats-editor-title">
               <h3>{displayName(pokemon)}</h3>

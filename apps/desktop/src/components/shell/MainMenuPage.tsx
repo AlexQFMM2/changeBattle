@@ -11,28 +11,31 @@ import "./MainMenuPage.css";
 export type MainMenuPageProps = {
   save: LocalSave | null;
   onStart: () => void;
+  onTraining: () => void;
   onTalent: () => void;
   onUserInfo: () => void;
   onHistory: () => void;
   onBattleSetting: () => void;
   onTitle: () => void;
-  onTestMode: () => void;
+  onTestMode?: () => void;
   onRainbowRocketTest?: () => void;
 };
 
-export function MainMenuPage({save, onStart, onTalent, onUserInfo, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest}: MainMenuPageProps) {
+export function MainMenuPage({save, onStart, onTraining, onTalent, onUserInfo, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest}: MainMenuPageProps) {
   const [leaving, setLeaving] = useState(false);
   const [quickDexOpen, setQuickDexOpen] = useState(false);
   const actionTimerRef = useRef<number | null>(null);
+  const debugMenuVisible = isDebugMenuVisible();
   const menuItems: MainMenuCommandItem[] = [
     {label: save?.current_run ? "继续游戏" : "开始游戏", action: onStart},
+    {label: "战斗训练场", action: onTraining},
     {label: "训练家星图", action: onTalent},
     {label: "玩家设置", action: onUserInfo},
     {label: "战绩", action: onHistory},
     {label: "对局偏好", action: onBattleSetting},
     {label: "图鉴", action: () => setQuickDexOpen(true), instant: true},
-    {label: "测试模式", action: onTestMode},
-    ...(onRainbowRocketTest ? [{label: "彩虹火箭队测试", action: onRainbowRocketTest}] : []),
+    ...(debugMenuVisible && onTestMode ? [{label: "测试模式", action: onTestMode}] : []),
+    ...(debugMenuVisible && onRainbowRocketTest ? [{label: "彩虹火箭队测试", action: onRainbowRocketTest}] : []),
     {label: "回到主页", action: onTitle},
   ];
 
@@ -69,4 +72,10 @@ export function MainMenuPage({save, onStart, onTalent, onUserInfo, onHistory, on
       {quickDexOpen ? <QuickDexModal onClose={() => setQuickDexOpen(false)} /> : null}
     </AnimatedPage>
   );
+}
+
+function isDebugMenuVisible(): boolean {
+  if (import.meta.env.DEV) return true;
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem("changebattle:debug-menu") === "1";
 }

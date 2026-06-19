@@ -1419,6 +1419,7 @@ export type AppStatus =
   | "title"
   | "newGame"
   | "mainMenu"
+  | "battleTraining"
   | "userInfo"
   | "talentConfig"
   | "starterUpgrade"
@@ -1448,6 +1449,33 @@ export type DesktopGameState = {
   toast_message?: string;
   result_summary?: ResultSummaryState | null;
   pending_transition?: DesktopGameState | null;
+};
+
+export type BattleTrainingPokemonConfig = {
+  species: string;
+  speciesLabel?: string;
+  name?: string;
+  level: number;
+  gender?: "M" | "F" | "N" | "";
+  ability: string;
+  abilityLabel?: string;
+  item?: string;
+  itemLabel?: string;
+  nature: string;
+  teraType?: string;
+  moves: string[];
+  moveLabels?: string[];
+  ivs: Record<StatId, number>;
+  evs: Record<StatId, number>;
+};
+
+export type BattleTrainingConfig = {
+  player?: BattleTrainingPokemonConfig;
+  enemy?: BattleTrainingPokemonConfig;
+  playerTeam?: BattleTrainingPokemonConfig[];
+  enemyTeam?: BattleTrainingPokemonConfig[];
+  seed: number;
+  battleSetting?: Partial<BattleSetting>;
 };
 
 export type LocalSave = {

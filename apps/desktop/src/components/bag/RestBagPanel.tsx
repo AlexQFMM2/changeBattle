@@ -6,7 +6,7 @@ import {toId} from "../../lib/ui";
 import {BagActionPanel, type BagActionStep, type BagDetailAction} from "./BagActionPanel";
 import {BagFilterTabs} from "./BagFilterTabs";
 import {BagItemList} from "./BagItemList";
-import {BAG_FILTERS, TRAINING_ITEM_UI, bagFilterForItem, isLockedBagItem, resolveTmMoveIdForSlot, tmFallbackMove, tmMoveId, tmMoveSearchQuery} from "./bagModel";
+import {BAG_FILTERS, TRAINING_ITEM_UI, bagFilterForItem, isLockedBagItem, isTrainingBagItem, resolveTmMoveIdForSlot, tmFallbackMove, tmMoveId, tmMoveSearchQuery} from "./bagModel";
 import type {BagFilterKey} from "./bagModel";
 import "./RestBagPanel.css";
 
@@ -49,8 +49,9 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
   const isConsumable = selected?.category === "consumable";
   const isHeld = selected?.category === "held";
   const isBerry = Boolean(selectedId && selectedId.endsWith("berry"));
-  const canUseAsConsumable = Boolean(selected && isConsumable);
-  const canEquipAsHeld = Boolean(selected && (isHeld || isBerry));
+  const isTrainingItem = Boolean(selected && isTrainingBagItem(selected));
+  const canUseOnPokemon = Boolean(selected && (isConsumable || isTrainingItem));
+  const canEquipAsHeld = Boolean(selected && !isTrainingItem && (isHeld || isBerry));
   const needsPpMove = Boolean(selected && SINGLE_MOVE_PP_ITEMS.has(selectedId));
 
   useEffect(() => {
@@ -67,9 +68,9 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
     setStep("detail");
     setSelectedTarget(Math.max(0, Math.min(initialTarget, Math.max(0, rest.player_display.length - 1))));
     setSelectedMoveSlot(null);
-    setSelectedAction(isTm ? "tm" : canUseAsConsumable ? "use" : "equip");
+    setSelectedAction(isTm ? "tm" : canUseOnPokemon ? "use" : "equip");
     setTmMove(null);
-  }, [canUseAsConsumable, initialTarget, isTm, selected?.id, trainingUi?.fixedStat, trainingUi?.scope, rest.player_display.length]);
+  }, [canUseOnPokemon, initialTarget, isTm, selected?.id, trainingUi?.fixedStat, trainingUi?.scope, rest.player_display.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +115,7 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
     if (!selected || locked) return false;
     if (selectedAction === "equip") return canEquipAsHeld && selected.count > 0;
     if (selectedAction === "use" && trainingUi?.scope === "one" && !selectedStat) return false;
-    if (!isTm) return canUseAsConsumable && selected.count > 0;
+    if (!isTm) return canUseOnPokemon && selected.count > 0;
     const moveId = selectedTmMoveIdForSlot(slot);
     if (!moveId || alreadyKnows(slot)) return false;
     return Boolean(tmLegalBySlot[slot]?.some(move => toId(move.id || move.name) === moveId));
@@ -139,7 +140,7 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
     if (locked) return selected.lock_reason || "不可使用";
     if (busySlot !== null) return busySlot === slot ? "处理中" : "等待";
     if (selected.count <= 0) return "没有库存";
-    if (selectedAction === "use" && !canUseAsConsumable) return "不能作为消耗道具使用";
+    if (selectedAction === "use" && !canUseOnPokemon) return "不能对宝可梦使用";
     if (selectedAction === "equip" && !canEquipAsHeld) return "不能携带";
     if (selectedAction === "use" && trainingUi?.scope === "one" && !selectedStat) return "请选择能力项";
     if (isTm) {
@@ -251,10 +252,10 @@ export function RestBagPanel({rest, initialTarget = 0, onAction, learnableMoves}
   }));
   const detailDisabled = !selected || locked || busySlot !== null || selected.count <= 0 || (selectedAction === "use" && trainingUi?.scope === "one" && !selectedStat);
   const lockedReason = selected && locked ? selected.lock_reason || "这是规则提供的特殊道具，只能查看，不能使用、丢弃或交换。" : selected ? REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)]?.desc_zh : undefined;
-  const detailUseLabel = selected?.category === "tm" ? "立即使用" : selectedAction === "equip" ? "携带" : canUseAsConsumable ? "对宝可梦使用" : "使用";
+  const detailUseLabel = selected?.category === "tm" ? "立即使用" : selectedAction === "equip" ? "携带" : canUseOnPokemon ? "对宝可梦使用" : "使用";
   const detailActions: BagDetailAction[] = [];
   if (selected && isTm) detailActions.push({key: "tm", label: "立即使用", disabled: detailDisabled, disabledReason: lockedReason, onUse: () => { setSelectedAction("tm"); setStep("pokemonPicker"); }});
-  if (selected && !isTm && canUseAsConsumable) detailActions.push({key: "use", label: REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)] ? "使用" : "对宝可梦使用", disabled: detailDisabled, disabledReason: lockedReason, onUse: () => { setSelectedAction("use"); REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)] ? void applyDirect() : setStep("pokemonPicker"); }});
+  if (selected && !isTm && canUseOnPokemon) detailActions.push({key: "use", label: REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)] ? "使用" : "对宝可梦使用", disabled: detailDisabled, disabledReason: lockedReason, onUse: () => { setSelectedAction("use"); REST_SHOP_DISCOUNT_COUPONS[toId(selected.id)] ? void applyDirect() : setStep("pokemonPicker"); }});
   if (selected && !isTm && canEquipAsHeld) detailActions.push({key: "equip", label: "携带", disabled: locked || busySlot !== null || selected.count <= 0, disabledReason: lockedReason, onUse: () => { setSelectedAction("equip"); setStep("pokemonPicker"); }});
   const targetTitle = isTm ? "选择学习者" : selectedAction === "equip" ? "点击宝可梦携带/替换" : needsPpMove ? "选择宝可梦后选择技能" : "点击宝可梦直接使用";
   const displayMove = selected ? tmMove || tmFallbackMove(selected) : undefined;

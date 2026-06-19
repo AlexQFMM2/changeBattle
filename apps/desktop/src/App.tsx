@@ -23,6 +23,43 @@ const HIDDEN_MESSAGE_SCREENS: AppStatus[] = ["rest", "title", "mainMenu", "talen
 const BATTLE_ANIMATION_SPEED_STORAGE_KEY = "changebattle:battle-animation-speed";
 type BattleAnimationSpeed = 1 | 2;
 
+function appBattleDebugLog(message: string, data?: unknown): void {
+  if (data === undefined) console.info(`[changebattle:battle] ${message}`);
+  else console.info(`[changebattle:battle] ${message}`, data);
+}
+
+function battleStateDebugSnapshot(state: BattleState | null): unknown {
+  if (!state) return null;
+  return {
+    ended: state.ended,
+    winner: state.winner,
+    turn: state.tracker.turn,
+    request: {
+      wait: state.request?.wait,
+      forceSwitch: state.request?.forceSwitch,
+      teamPreview: state.request?.teamPreview,
+      activeMoves: state.request?.active?.[0]?.moves?.map((move, index) => ({
+        index: index + 1,
+        id: move.id,
+        move: move.move,
+        pp: move.pp,
+        maxpp: move.maxpp,
+        disabled: move.disabled,
+        target: move.target,
+      })),
+      side: state.request?.side?.pokemon?.map((pokemon, index) => ({
+        index: index + 1,
+        ident: pokemon.ident,
+        condition: pokemon.condition,
+        active: pokemon.active,
+        pokeball: pokemon.pokeball,
+      })),
+    },
+    timelineCount: state.timeline_events.length,
+    recentEvents: state.recent_events.slice(-5),
+  };
+}
+
 function readBattleAnimationSpeedPreference(): BattleAnimationSpeed {
   if (typeof window === "undefined") return 1;
   return window.localStorage.getItem(BATTLE_ANIMATION_SPEED_STORAGE_KEY) === "2" ? 2 : 1;
@@ -35,6 +72,7 @@ const SCREEN_ROUTES: Record<AppStatus, string> = {
   title: "/",
   newGame: "/new",
   mainMenu: "/main",
+  battleTraining: "/battle/training",
   userInfo: "/user",
   talentConfig: "/talents",
   starterUpgrade: "/starter-upgrades",
@@ -384,26 +422,70 @@ function RoutedApp() {
   }
 
   async function battleChoice(choice: string): Promise<boolean> {
-    if (battleChoicePendingRef.current) return false;
+    if (battleChoicePendingRef.current) {
+      appBattleDebugLog("battle choice 被 pending 阻止", {
+        choice,
+        screen,
+        pending: battleChoicePendingRef.current,
+        battle: battleStateDebugSnapshot(battle),
+      });
+      return false;
+    }
+    const startedAt = performance.now();
+    appBattleDebugLog("battle choice start", {
+      choice,
+      screen,
+      battle: battleStateDebugSnapshot(battle),
+    });
     battleChoicePendingRef.current = true;
     setBattleChoicePending(true);
     try {
-      return await runAction(() => window.changeBattle!.battleChoice(choice), undefined, false);
+      const ok = await runAction(() => window.changeBattle!.battleChoice(choice), undefined, false);
+      appBattleDebugLog("battle choice finished", {
+        choice,
+        ok,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+      return ok;
     } finally {
       battleChoicePendingRef.current = false;
       setBattleChoicePending(false);
+      appBattleDebugLog("battle choice pending cleared", {
+        choice,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
     }
   }
 
   async function autoAdvanceBattle(): Promise<boolean> {
-    if (battleChoicePendingRef.current) return false;
+    if (battleChoicePendingRef.current) {
+      appBattleDebugLog("auto advance 被 pending 阻止", {
+        screen,
+        pending: battleChoicePendingRef.current,
+        battle: battleStateDebugSnapshot(battle),
+      });
+      return false;
+    }
+    const startedAt = performance.now();
+    appBattleDebugLog("auto advance start", {
+      screen,
+      battle: battleStateDebugSnapshot(battle),
+    });
     battleChoicePendingRef.current = true;
     setBattleChoicePending(true);
     try {
-      return await runAction(() => window.changeBattle!.autoAdvanceBattle(), undefined, false);
+      const ok = await runAction(() => window.changeBattle!.autoAdvanceBattle(), undefined, false);
+      appBattleDebugLog("auto advance finished", {
+        ok,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+      return ok;
     } finally {
       battleChoicePendingRef.current = false;
       setBattleChoicePending(false);
+      appBattleDebugLog("auto advance pending cleared", {
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
     }
   }
 
@@ -517,6 +599,7 @@ function RoutedApp() {
       autoAdvanceBattle={autoAdvanceBattle}
       battleHint={battleHint}
       transitionToState={transitionToState}
+      applyState={applyState}
       setBattleAnimationSpeed={setBattleAnimationSpeed}
       finishExchange={finishExchange}
       restAction={restAction}

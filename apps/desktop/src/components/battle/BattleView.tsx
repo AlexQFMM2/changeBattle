@@ -44,13 +44,32 @@ const FORCED_CONTINUATION_MOVE_IDS = new Set([
 ]);
 
 function battleDebugLog(message: string, data?: unknown): void {
-  if (import.meta.env.VITE_CHANGEBATTLE_MOBILE === "1") console.info(`[changebattle:switch] ${message}`, data);
+  if (data === undefined) console.info(`[changebattle:battle] ${message}`);
+  else console.info(`[changebattle:battle] ${message}`, data);
 }
 
 type ActiveDisplaySnapshot = BattleState["tracker"]["active"]["p1"];
 type BattleViewSide = NonNullable<BattleState["battle_view"]>["player"];
 type BattleViewSlot = BattleViewSide["slots"][number];
 type BattleViewModel = NonNullable<BattleState["battle_view"]>;
+type BattleMoveChoiceMode = "zmove" | "mega" | "max" | "terastallize";
+type BattleMoveClickDebugContext = {
+  choice: string;
+  index: number;
+  mode?: BattleMoveChoiceMode;
+  moveName: string;
+  moveId?: string;
+  moveRequest: Pick<BattleMoveRequest, "id" | "move" | "pp" | "maxpp" | "disabled" | "target">;
+  active?: {name?: string; species?: string; showdownId?: string; condition?: string};
+  target?: {name?: string; species?: string; showdownId?: string; condition?: string};
+  disabled: boolean;
+  disabledReasons: {
+    controls?: boolean;
+    move?: boolean;
+    zMove?: boolean;
+    dynamaxMove?: boolean;
+  };
+};
 
 type BattleViewProps = {
   battle: BattleState | null;
@@ -717,6 +736,44 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     setPanelMode(normalizedMode);
   }
 
+  async function handleMoveChoice(index: number, mode?: BattleMoveChoiceMode, context?: BattleMoveClickDebugContext): Promise<boolean | void> {
+    const choice = `move ${index}${mode ? ` ${mode}` : ""}`;
+    const startedAt = performance.now();
+    battleDebugLog(`提交技能指令：${context?.moveName || choice}`, {
+      choice,
+      move: context,
+      turn: battle?.tracker.turn,
+      requestKey: battleRequestKey,
+      panelMode,
+      controlsDisabled,
+      choicePending,
+      requestWaiting,
+      forceSwitch,
+      playbackActive,
+      hasQueuedPlayback,
+      introActive,
+      trainerIntroActive,
+      dialogueActive: Boolean(dialogue),
+    });
+    try {
+      const ok = await Promise.resolve(onChoice(choice));
+      battleDebugLog(`技能指令返回：${context?.moveName || choice}`, {
+        choice,
+        ok,
+        elapsedMs: Math.round(performance.now() - startedAt),
+        nextPanelMode: panelMode,
+      });
+      return ok;
+    } catch (error) {
+      battleDebugLog(`技能指令异常：${context?.moveName || choice}`, {
+        choice,
+        error: userFacingBattleError(error),
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+      throw error;
+    }
+  }
+
   function openPokemonDetail(index: number) {
     setDetailIndex(index);
     setDetailSelectedIndex(index);
@@ -1100,8 +1157,26 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
     setPartyBoardPlaybackSnapshot(playbackSnapshot);
     async function playQueue() {
       const currentSpeed = () => battleSpeedRef.current;
+      const playbackStartedAt = performance.now();
       setPartyBoardPlaybackSnapshot(playbackSnapshot);
       setPlaybackActive(true);
+      battleDebugLog("战斗动画流程开始", {
+        runId,
+        turn: activeBattle.tracker.turn,
+        addedEvents: added.map(event => ({
+          id: event.id,
+          type: event.type,
+          text: event.text,
+          side: event.side,
+          targetSide: event.targetSide,
+          target: event.target,
+          move: event.move,
+        })),
+        partySnapshot: {
+          playerSlots: playbackSnapshot?.player.slots.length || 0,
+          enemySlots: playbackSnapshot?.enemy.slots.length || 0,
+        },
+      });
       if (trainerIntroActive) {
         await wait(scaleBattleDuration(1750, currentSpeed()));
         if (playbackRun.current !== runId) return;
@@ -1122,6 +1197,22 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
         const event = step.event;
         const duration = timelineDuration(event, displayConditionsRef.current[event.targetSide || "p1"], currentSpeed());
         const targetIsDisplayedActive = eventCanMutateDisplayedActive(event, displayedActiveNamesRef.current, displayedActiveShowdownIdsRef.current);
+        battleDebugLog("战斗动画流程 step", {
+          runId,
+          kind: step.kind,
+          duration,
+          event: {
+            id: event.id,
+            type: event.type,
+            text: event.text,
+            side: event.side,
+            targetSide: event.targetSide,
+            target: event.target,
+            move: event.move,
+            condition: event.condition,
+          },
+          targetIsDisplayedActive,
+        });
         if (step.kind === "message") {
           if (isZPowerEvent(event)) {
             const side = event.side || event.targetSide || "p1";
@@ -1244,6 +1335,15 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
       if (playbackRun.current !== runId) return;
       await wait(scaleBattleDuration(420, currentSpeed()));
       if (playbackRun.current !== runId) return;
+      battleDebugLog("战斗动画流程结束", {
+        runId,
+        turn: activeBattle.tracker.turn,
+        elapsedMs: Math.round(performance.now() - playbackStartedAt),
+        ended: activeBattle.ended,
+        requestWait: activeBattle.request?.wait,
+        forceSwitch: activeBattle.request?.forceSwitch,
+        addedNeedsPartySettle,
+      });
       setCurrentTimelineEvent(null);
       setCurrentVisualCue(null);
       setPlaybackActive(false);
@@ -1426,7 +1526,7 @@ export function BattleView({battle, battleBag, mode, onChoice, onAutoAdvance, on
           shownEvents={shownEvents}
           currentEventText={currentTimelineEvent?.text}
           logRef={battleLogRef}
-          actionContent={panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={(index, mode) => onChoice(`move ${index}${mode ? ` ${mode}` : ""}`)} onBack={() => selectPanelMode("battleMain")} /> : <BattleMainCommands battle={battle} forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onDialgaGrace={() => onChoice("dialga_grace")} onForfeit={() => onChoice("forfeit")} />}
+          actionContent={panelMode === "moveMenu" && !requestWaiting && !forceSwitch ? <MoveMenu battle={battle} disabled={controlsDisabled} onMove={handleMoveChoice} onBack={() => selectPanelMode("battleMain")} /> : <BattleMainCommands battle={battle} forceSwitch={forceSwitch} waiting={requestWaiting || autoAdvancePending} disabled={controlsDisabled} setMode={selectPanelMode} onBag={() => { setItemTargetIndex(activePlayerIndex); setBattleItemOpen(true); }} onDialgaGrace={() => onChoice("dialga_grace")} onForfeit={() => onChoice("forfeit")} />}
         />
       }
       overlays={<>
@@ -1686,12 +1786,14 @@ function contestMoveLabel(battle: BattleState, active: RentalPokemon | undefined
   return null;
 }
 
-function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: "zmove" | "mega" | "max" | "terastallize") => void; onBack: () => void}) {
+function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disabled?: boolean; onMove: (index: number, mode?: BattleMoveChoiceMode, context?: BattleMoveClickDebugContext) => Promise<boolean | void> | boolean | void; onBack: () => void}) {
   const activeRequest = battle.request?.active?.[0];
   const moves = activeRequest?.moves || [];
   const view = battleViewFor(battle);
-  const active = activeBattleViewSlot(view?.player)?.display || activePokemon(battle, "p1").display;
-  const target = activeBattleViewSlot(view?.enemy)?.display || activePokemon(battle, "p2").display;
+  const activeSlot = activeBattleViewSlot(view?.player);
+  const targetSlot = activeBattleViewSlot(view?.enemy);
+  const active = activeSlot?.display || activePokemon(battle, "p1").display;
+  const target = targetSlot?.display || activePokemon(battle, "p2").display;
   const enabledSystems = battle.battle_setting?.enabled_battle_systems || [];
   const visibleSystems = BATTLE_SYSTEM_OPTIONS.filter(option => enabledSystems.includes(option.id));
   const canZMove = activeRequest?.canZMove || [];
@@ -1736,11 +1838,14 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
         {contestLabel ? <span className={`contest-badge contest-${contestLabel.tone}`}>{contestLabel.label}</span> : null}
       </span>
     ) : null;
+    const mode: BattleMoveChoiceMode | undefined = zMode ? "zmove" : megaMode ? "mega" : dynamaxMode ? "max" : terastalMode ? "terastallize" : undefined;
     const moveName = zMode && zMove
       ? zMoveDisplayLabel(zMove.move, active)
       : (dynamaxMode || showMaxMoves) && maxMove
         ? dynamaxMoveDisplayLabel(maxMove.move, active)
         : summary?.name_zh || move.move;
+    const moveDisabled = Boolean(disabled || move.disabled || zMoveDisabled || dynamaxMoveDisabled);
+    const choice = `move ${index + 1}${mode ? ` ${mode}` : ""}`;
     const displayedAccuracy = (zMode && zMove) || ((dynamaxMode || showMaxMoves) && maxMove)
       ? "必中"
       : summary ? summary.accuracy ?? "必中" : undefined;
@@ -1757,8 +1862,46 @@ function MoveMenu({battle, disabled, onMove, onBack}: {battle: BattleState; disa
         maxPp={move.maxpp}
         power={summary?.power || "--"}
         accuracy={displayedAccuracy}
-        disabled={disabled || move.disabled || zMoveDisabled || dynamaxMoveDisabled}
-        onClick={() => onMove(index + 1, zMode ? "zmove" : megaMode ? "mega" : dynamaxMode ? "max" : terastalMode ? "terastallize" : undefined)}
+        disabled={moveDisabled}
+        onClick={() => {
+          const context: BattleMoveClickDebugContext = {
+            choice,
+            index: index + 1,
+            mode,
+            moveName,
+            moveId: summary?.id || move.id,
+            moveRequest: {id: move.id, move: move.move, pp: move.pp, maxpp: move.maxpp, disabled: move.disabled, target: move.target},
+            active: {
+              name: active ? displayName(active) : activeSlot?.display?.name,
+              species: active?.species || active?.species_zh || activeSlot?.display?.species,
+              showdownId: active?.showdown_id || activeSlot?.showdown_id,
+              condition: activeSlot?.condition || battle.tracker.active.p1.condition,
+            },
+            target: {
+              name: target ? displayName(target) : targetSlot?.display?.name,
+              species: target?.species || target?.species_zh || targetSlot?.display?.species,
+              showdownId: target?.showdown_id || targetSlot?.showdown_id,
+              condition: targetSlot?.condition || battle.tracker.active.p2.condition,
+            },
+            disabled: moveDisabled,
+            disabledReasons: {
+              controls: Boolean(disabled),
+              move: Boolean(move.disabled),
+              zMove: zMoveDisabled,
+              dynamaxMove: dynamaxMoveDisabled,
+            },
+          };
+          battleDebugLog(`玩家点击技能：${moveName}`, {
+            ...context,
+            turn: battle.tracker.turn,
+            request: {
+              wait: battle.request?.wait,
+              forceSwitch: battle.request?.forceSwitch,
+              activeMoveCount: moves.length,
+            },
+          });
+          void onMove(index + 1, mode, context);
+        }}
         key={move.id || index}
       />
     );

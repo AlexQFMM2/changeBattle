@@ -224,3 +224,18 @@ flowchart TD
 - 回写字段包括 HP、max HP、异常状态、PP、濒死状态和是否当前上场。
 - 本地静态展示资料不能覆盖 Showdown 回写的战斗状态。
 - 如果战后需要恢复普通形态，那是 species/display 层逻辑，不影响 HP、PP、异常和 `showdown_id` 绑定。
+
+## 战斗训练场正式化约束
+
+战斗训练场如果从调试入口升级为正式功能，不能只做桌面端。Desktop 和 App/Mobile 必须共用同一套训练配置、身份分配和战斗启动规则，避免两端行为漂移。
+
+正式化时的约束：
+
+- 训练场配置应进入共享 runtime/API 层，而不是只挂在 Electron IPC 上。
+- Desktop 和 Mobile 都应通过同一个 `BattleTrainingConfig` 生成临时 run。
+- 临时 run 必须和正式休整页进入战斗一样，写入 `player_team`、`player_display`、`player_state`，并保证 raw/display/state 三份数据共享稳定 `showdown_id`。
+- 创建 Showdown 战斗前必须把 `showdown_id` 写入 `PokemonSet.pokeball`，并把 `player_state` 作为 `initialPlayerState` 传给 `BattleSession`。
+- 训练场战斗 UI 仍以 `battle_view` 为唯一最终展示源；不能让 Desktop 或 Mobile 单独从 `player_display` / `enemy_display` 拼队伍栏。
+- 训练场可以不写正式存档、金币、BP、战绩和休整状态，但身份同步、队伍槽位、HP/异常/PP 规则必须和正式战斗一致。
+
+当前桌面训练场仍是先行验证入口；后续接入正式功能时，应把桌面已有入口下沉为共享 runtime 能力，再在 Mobile 提供等价入口和 640x320 横屏 UI。

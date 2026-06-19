@@ -2391,8 +2391,10 @@ export class BattleSession {
     const slots = states.map((state, index) => {
       const showdownId = normalizeShowdownId(state.showdown_id);
       const runtime = (showdownId ? runtimeByShowdownId.get(showdownId) : undefined) || runtimeBySlot.get(Number(state.slot)) || runtimeBySlot.get(index + 1);
-      const baseDisplay = findRentalByRuntime(display, state)
-        || (runtime ? findRentalByRuntime(display, runtime) : undefined)
+      const slotIndex = Math.max(0, Number(state.slot || index + 1) - 1);
+      const baseDisplay = (showdownId ? display.find(pokemon => normalizeShowdownId(pokemon.showdown_id) === showdownId) : undefined)
+        || (runtime?.pokeball ? display.find(pokemon => normalizeShowdownId(pokemon.showdown_id) === normalizeShowdownId(runtime.pokeball)) : undefined)
+        || display[slotIndex]
         || display[index];
       const active = Boolean(state.active);
       if (active) activeIndex = index;
@@ -2438,6 +2440,32 @@ export class BattleSession {
         });
       }
       activeIndex = 0;
+    } else if (display.length > slots.length) {
+      const usedKeys = new Set(slots.flatMap(slot => [normalizeShowdownId(slot.showdown_id), slot.run_member_id, String(slot.slot || "")].filter(Boolean)));
+      for (let index = 0; index < display.length; index += 1) {
+        const pokemon = display[index];
+        const keyCandidates = [normalizeShowdownId(pokemon.showdown_id), pokemon.run_member_id, String(index + 1)].filter(Boolean);
+        if (keyCandidates.some(key => usedKeys.has(key))) continue;
+        slots.push({
+          key: pokemon.run_member_id || pokemon.showdown_id || `${side}-${index + 1}`,
+          slot: index + 1,
+          showdown_id: pokemon.showdown_id,
+          run_member_id: pokemon.run_member_id,
+          revealed: isPlayer,
+          active: false,
+          fainted: false,
+          condition: "100/100",
+          hp: 100,
+          max_hp: 100,
+          status: "",
+          moves: [],
+          display: isPlayer ? pokemon : undefined,
+          runtime: runtimeBySlot.get(index + 1),
+        });
+        for (const key of keyCandidates) usedKeys.add(key);
+      }
+      slots.sort((left, right) => Number(left.slot || 0) - Number(right.slot || 0));
+      activeIndex = Math.max(0, slots.findIndex(slot => slot.active));
     }
     return {
       side,
@@ -4511,6 +4539,12 @@ function normalizeMoveSlot(moveSlot?: number): number {
   return Math.max(0, Number(moveSlot || 0));
 }
 
+function ppMoveTargetForSlot(moves: PlayerPokemonState["moves"], moveSlot?: number) {
+  const slot = normalizeMoveSlot(moveSlot);
+  if (!slot) return null;
+  return moves.find(move => Number(move.slot) === slot) || null;
+}
+
 function parseStatId(value: unknown): StatId | undefined {
   const id = toId(String(value || ""));
   return (STAT_IDS as readonly string[]).includes(id) ? id as StatId : undefined;
@@ -4550,10 +4584,9 @@ function applyConsumableEffectToMutableState(effect: ConsumableItemEffect, state
 
   if (effect.pp_scope) {
     const moves = state.moves || [];
-    const slot = normalizeMoveSlot(moveSlot);
     const targets = effect.pp_scope === "all"
       ? moves
-      : slot ? moves.filter(move => move.slot === slot) : moves.filter(move => move.pp < move.maxpp).slice(0, 1);
+      : [ppMoveTargetForSlot(moves, moveSlot)].filter((move): move is NonNullable<typeof move> => Boolean(move));
     if (!targets.length) throw new Error("请选择需要恢复 PP 的技能。");
     let restored = 0;
     for (const move of targets) {

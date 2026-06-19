@@ -124,6 +124,12 @@ import {BagTargetPokemonList, type BagTargetPokemonEntry} from "../components/ba
 import {RestBagPanel} from "../components/bag/RestBagPanel";
 import {tmFallbackMove} from "../components/bag/bagModel";
 import type {BagFilterKey} from "../components/bag/bagModel";
+import {BattleTrainingDexPicker} from "../components/battle-training/BattleTrainingDexPicker";
+import {BattleTrainingLogDrawer} from "../components/battle-training/BattleTrainingLogDrawer";
+import {BattleTrainingPokemonEditor} from "../components/battle-training/BattleTrainingPokemonEditor";
+import {BattleTrainingPresetBar, fullTeamPreset, gigaImpactPreset} from "../components/battle-training/BattleTrainingPresetBar";
+import {BattleTrainingTeamPanel} from "../components/battle-training/BattleTrainingTeamPanel";
+import {defaultTrainingConfig, normalizeTrainingTeam, trainingPokemon, type StatId} from "../components/battle-training/battleTrainingModel";
 import type {MainMenuDexCard} from "../components/shell/mainMenuTypes";
 import {bagPreviewItems, battleHistoryLongPreviewRecords, battleHistoryManyPreviewRecords, battleHistoryPreviewRecords, battleSettingGen9PreviewSetting, battleSettingMinRegionsPreviewSetting, battleSettingPreviewSetting, createBagPreviewCategories, createMainMenuPreviewSave, createTitlePreviewSave, dexPreviewAbility, dexPreviewEntries, dexPreviewItem, dexPreviewLongPokemon, dexPreviewMove, dexPreviewPokemon, dexPreviewTrainerLocked, dexPreviewTrainerUnlocked, mainMenuDiscoveryPreviewCards, mainMenuFavoritePreviewCards, mainMenuLongDiscoveryPreviewCards, mainMenuLongFavoritePreviewCards, moveCardPreviewData, nightSkyStateForPreview, playerSettingsManyCatalog, profiteerRestStateForPreview, rentalPreviewCandidates, rentalPreviewLongCandidates, restEventStateForPreview, restPreviewStateLong, restPreviewStateLowHp, restPreviewStateNormal, restPreviewStateSix, resultAbortPreviewSummary, resultEmptyPreviewSummary, resultLongPreviewSummary, resultLossPreviewSummary, resultPreviewRecordNoTurns, resultPreviewRecordWithTurns, resultPreviewSummary, starterItemsEmptyPreviewState, starterItemsPreviewState, starterItemsPurchasedPreviewState, talentLockedPreviewCatalog, talentPreviewCatalog, titlePreviewCatalog} from "./previewData";
 import {outcomeLabel} from "../components/result/resultUtils";
@@ -1129,6 +1135,35 @@ function BattleTurnRecordPanelPreview({stateId}: {stateId: string}) {
   return <BattleTurnRecordPanel turns={turns} selectedTurn={turns[0] || null} onSelectTurn={() => undefined} />;
 }
 
+function trainingPreviewTeam(stateId: string) {
+  if (stateId === "empty") return [];
+  if (stateId === "full") return fullTeamPreset().playerTeam!.concat([
+    trainingPokemon("Snorlax", "Thick Fat", ["Body Slam"]),
+    trainingPokemon("Gengar", "Levitate", ["Shadow Ball"]),
+    trainingPokemon("Dragonite", "Inner Focus", ["Extreme Speed"]),
+  ]).slice(0, 6);
+  if (stateId === "longText") return [trainingPokemon("VeryLongCustomPokemonNameForPreview", "VeryLongAbilityNameForPreview", ["VeryLongMoveNameForPreview"])];
+  return normalizeTrainingTeam(fullTeamPreset(), "player");
+}
+
+function BattleTrainingTeamPanelPreview({stateId}: {stateId: string}) {
+  const team = trainingPreviewTeam(stateId);
+  return <BattleTrainingTeamPanel title="我方队伍" side="player" team={team} selectedIndex={stateId === "selected" ? 1 : 0} onSelect={() => undefined} onAdd={() => undefined} onDuplicate={() => undefined} onRemove={() => undefined} onClear={() => undefined} />;
+}
+
+function BattleTrainingPokemonEditorPreview({stateId}: {stateId: string}) {
+  const pokemon = stateId === "longText" ? trainingPreviewTeam("longText")[0] : normalizeTrainingTeam(gigaImpactPreset(), stateId === "enemy" ? "enemy" : "player")[0];
+  return <BattleTrainingPokemonEditor title={stateId === "enemy" ? "对方编辑" : "我方编辑"} side={stateId === "enemy" ? "enemy" : "player"} pokemon={pokemon} onPatch={() => undefined} onMove={() => undefined} onStat={(_: "ivs" | "evs", __: StatId) => undefined} />;
+}
+
+function BattleTrainingLogDrawerPreview({stateId}: {stateId: string}) {
+  const logs = stateId === "empty" ? [] : [
+    {id: 1, kind: "choice" as const, choice: "move 1", elapsedMs: 42, before: {turn: 1, request: "before"}, after: {turn: 2, timeline: ["拉达使用终极冲击"]}},
+    {id: 2, kind: "auto" as const, elapsedMs: 18, after: {request: "recharge"}},
+  ];
+  return <BattleTrainingLogDrawer logs={logs} open={stateId !== "closed"} compact={stateId === "compact"} onToggle={() => undefined} onExport={() => undefined} />;
+}
+
 export const componentRegistry: ComponentRegistryEntry[] = [
   {
     id: "pokemon-hp-bar",
@@ -1189,6 +1224,97 @@ export const componentRegistry: ComponentRegistryEntry[] = [
           />
         </div>
       );
+    },
+  },
+  {
+    id: "battle-training-team-panel",
+    name: "战斗训练场队伍面板",
+    group: "battle-training",
+    defaultSize: {width: 94, height: 214},
+    componentFile: "apps/desktop/src/components/battle-training/BattleTrainingTeamPanel.tsx",
+    cssFile: "apps/desktop/src/components/battle-training/BattleTrainingTeamPanel.css",
+    cssVariablePrefix: "--battle-training-team-panel-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "selected", name: "选中"},
+      {id: "full", name: "满队伍"},
+      {id: "empty", name: "空状态"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return <BattleTrainingTeamPanelPreview stateId={stateId} />;
+    },
+  },
+  {
+    id: "battle-training-pokemon-editor",
+    name: "战斗训练场宝可梦编辑器",
+    group: "battle-training",
+    defaultSize: {width: 220, height: 214},
+    componentFile: "apps/desktop/src/components/battle-training/BattleTrainingPokemonEditor.tsx",
+    cssFile: "apps/desktop/src/components/battle-training/BattleTrainingPokemonEditor.css",
+    cssVariablePrefix: "--battle-training-pokemon-editor-*",
+    dependencies: ["BattleTrainingDexPicker"],
+    states: [
+      {id: "normal", name: "我方"},
+      {id: "enemy", name: "对方"},
+      {id: "longText", name: "长文本"},
+    ],
+    renderPreview(stateId) {
+      return <BattleTrainingPokemonEditorPreview stateId={stateId} />;
+    },
+  },
+  {
+    id: "battle-training-dex-picker",
+    name: "战斗训练场搜索选择器",
+    group: "battle-training",
+    defaultSize: {width: 128, height: 76},
+    componentFile: "apps/desktop/src/components/battle-training/BattleTrainingDexPicker.tsx",
+    cssFile: "apps/desktop/src/components/battle-training/BattleTrainingDexPicker.css",
+    cssVariablePrefix: "--battle-training-dex-picker-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "empty", name: "无结果"},
+    ],
+    renderPreview(stateId) {
+      return <BattleTrainingDexPicker category="pokemon" label="物种" value={stateId === "empty" ? "zzzzzz" : "Pikachu"} onChange={() => undefined} />;
+    },
+  },
+  {
+    id: "battle-training-preset-bar",
+    name: "战斗训练场预设栏",
+    group: "battle-training",
+    defaultSize: {width: 630, height: 28},
+    componentFile: "apps/desktop/src/components/battle-training/BattleTrainingPresetBar.tsx",
+    cssFile: "apps/desktop/src/components/battle-training/BattleTrainingPresetBar.css",
+    cssVariablePrefix: "--battle-training-preset-bar-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "普通"},
+      {id: "disabled", name: "启动中"},
+    ],
+    renderPreview(stateId) {
+      return <BattleTrainingPresetBar submitting={stateId === "disabled"} onStart={() => undefined} onBack={() => undefined} />;
+    },
+  },
+  {
+    id: "battle-training-log-drawer",
+    name: "战斗训练场记录抽屉",
+    group: "battle-training",
+    defaultSize: {width: 214, height: 128},
+    componentFile: "apps/desktop/src/components/battle-training/BattleTrainingLogDrawer.tsx",
+    cssFile: "apps/desktop/src/components/battle-training/BattleTrainingLogDrawer.css",
+    cssVariablePrefix: "--battle-training-log-drawer-*",
+    dependencies: [],
+    states: [
+      {id: "normal", name: "展开"},
+      {id: "closed", name: "收起"},
+      {id: "empty", name: "空状态"},
+      {id: "compact", name: "战斗浮层"},
+    ],
+    renderPreview(stateId) {
+      return <BattleTrainingLogDrawerPreview stateId={stateId} />;
     },
   },
   {

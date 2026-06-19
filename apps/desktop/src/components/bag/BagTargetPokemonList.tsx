@@ -1,6 +1,7 @@
 import type {RentalPokemon} from "@changebattle/shared";
 import {PokemonHpBar} from "../common/PokemonHpBar";
 import {PokemonSprite, conditionText, displayName, parseHp, statusCode, statusLabel} from "../../lib/ui";
+import {restPokemonLevelLabel} from "../rest/team/restTeamModel";
 import "./BagTargetPokemonList.css";
 
 export type BagTargetPokemonEntry = {
@@ -30,7 +31,7 @@ export function BagTargetPokemonList({team, selectedIndex, busyIndex = null, tit
               <PokemonSprite pokemon={entry.pokemon} alt={entry.pokemon ? displayName(entry.pokemon) : "未知"} />
               <strong>{entry.pokemon ? displayName(entry.pokemon) : "未知"}</strong>
               {code ? <em>{statusLabel(code)}</em> : null}
-              <small>{entry.heldItem || "无道具"}</small>
+              <small>{entry.pokemon ? `${restPokemonLevelLabel(entry.pokemon)} · ` : ""}{entry.heldItem || "无道具"}</small>
               <PokemonHpBar current={current} max={max} text={hp?.text || conditionText(entry.condition)} className="bag-target-hp" />
               <span className="bag-target-hp-text">{hp?.text || conditionText(entry.condition) || `${current}/${max}`}</span>
               {targetBadge ? <span className="bag-target-badge">{targetBadge}</span> : null}

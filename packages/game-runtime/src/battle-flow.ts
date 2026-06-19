@@ -6,6 +6,36 @@ import {fullStateForPokemon, refreshStateCondition} from "./rest-flow.js";
 export const VILLAIN_INTRUSION_BONUS_COINS = 500;
 export const RAINBOW_ROCKET_REWARD_COINS = 2000;
 
+function runtimeBattleDebugLog(message: string, data?: unknown): void {
+  if (data === undefined) console.info(`[changebattle:battle] ${message}`);
+  else console.info(`[changebattle:battle] ${message}`, data);
+}
+
+function runtimeBattleDebugSnapshot(state: BattleState | null | undefined): unknown {
+  if (!state) return null;
+  return {
+    ended: state.ended,
+    winner: state.winner,
+    turn: state.tracker.turn,
+    request: {
+      wait: state.request?.wait,
+      forceSwitch: state.request?.forceSwitch,
+      teamPreview: state.request?.teamPreview,
+      activeMoves: state.request?.active?.[0]?.moves?.map((move, index) => ({
+        index: index + 1,
+        id: move.id,
+        move: move.move,
+        pp: move.pp,
+        maxpp: move.maxpp,
+        disabled: move.disabled,
+        target: move.target,
+      })),
+    },
+    timelineCount: state.timeline_events.length,
+    recentEvents: state.recent_events.slice(-5),
+  };
+}
+
 export type RuntimeBattleRoute = {
   type: PlannedBattleData["route_type"];
   stage: string;
@@ -302,34 +332,57 @@ export async function executeBattleChoice(run: CurrentRunData, session: RuntimeB
   hasConsumableItemEffect(itemId: string): Promise<boolean> | boolean;
   isHpStatusReviveRecoveryItem?(itemId: string): Promise<boolean> | boolean;
 }): Promise<RuntimeBattleChoiceResult> {
-  assertBattleChoiceAllowed(choice, run, session.getState());
-  if (choice === "dialga_grace") {
-    if (!run.rest_status?.event_dialga_grace_active || run.rest_status.event_dialga_grace_used) throw new Error("帝牙卢卡的恩典当前不可用。");
-    if (!session.useDialgaGrace) throw new Error("当前战斗不支持帝牙卢卡的恩典。");
-    const state = await session.useDialgaGrace();
-    run.rest_status = {...(run.rest_status || {}), event_dialga_grace_used: true};
-    run.player_state = session.getPlayerState();
-    return {state, shouldPersist: true};
-  }
-  if (choice.startsWith("item ")) {
-    const itemUse = await prepareTrainerItemUse(run, choice, {
-      playerStateLength: session.getPlayerState().length,
-      hasConsumableItemEffect: options.hasConsumableItemEffect,
-      isHpStatusReviveRecoveryItem: options.isHpStatusReviveRecoveryItem,
+  const startedAt = Date.now();
+  const before = session.getState();
+  runtimeBattleDebugLog("runtime executeBattleChoice start", {
+    choice,
+    before: runtimeBattleDebugSnapshot(before),
+  });
+  try {
+    assertBattleChoiceAllowed(choice, run, before);
+    let result: RuntimeBattleChoiceResult;
+    if (choice === "dialga_grace") {
+      if (!run.rest_status?.event_dialga_grace_active || run.rest_status.event_dialga_grace_used) throw new Error("帝牙卢卡的恩典当前不可用。");
+      if (!session.useDialgaGrace) throw new Error("当前战斗不支持帝牙卢卡的恩典。");
+      const state = await session.useDialgaGrace();
+      run.rest_status = {...(run.rest_status || {}), event_dialga_grace_used: true};
+      run.player_state = session.getPlayerState();
+      result = {state, shouldPersist: true};
+    } else if (choice.startsWith("item ")) {
+      const itemUse = await prepareTrainerItemUse(run, choice, {
+        playerStateLength: session.getPlayerState().length,
+        hasConsumableItemEffect: options.hasConsumableItemEffect,
+        isHpStatusReviveRecoveryItem: options.isHpStatusReviveRecoveryItem,
+      });
+      if (!itemUse) throw new Error("战斗道具指令无效。");
+      const state = await session.chooseTrainerItem(itemUse.itemId, itemUse.slot, itemUse.moveSlot, itemUse.recoveryMultiplier);
+      run.rest_status = {
+        ...(run.rest_status || {}),
+        battle_item_uses_current: Math.max(0, Math.floor(Number(run.rest_status?.battle_item_uses_current || 0))) + 1,
+      };
+      run.player_state = session.getPlayerState();
+      result = {state, shouldPersist: true};
+    } else {
+      result = {
+        state: choice === "forfeit" ? session.forfeit() : await session.choose(choice),
+        shouldPersist: false,
+      };
+    }
+    runtimeBattleDebugLog("runtime executeBattleChoice result", {
+      choice,
+      shouldPersist: result.shouldPersist,
+      elapsedMs: Date.now() - startedAt,
+      after: runtimeBattleDebugSnapshot(result.state),
     });
-    if (!itemUse) throw new Error("战斗道具指令无效。");
-    const state = await session.chooseTrainerItem(itemUse.itemId, itemUse.slot, itemUse.moveSlot, itemUse.recoveryMultiplier);
-    run.rest_status = {
-      ...(run.rest_status || {}),
-      battle_item_uses_current: Math.max(0, Math.floor(Number(run.rest_status?.battle_item_uses_current || 0))) + 1,
-    };
-    run.player_state = session.getPlayerState();
-    return {state, shouldPersist: true};
+    return result;
+  } catch (error) {
+    runtimeBattleDebugLog("runtime executeBattleChoice error", {
+      choice,
+      elapsedMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error || "unknown error"),
+    });
+    throw error;
   }
-  return {
-    state: choice === "forfeit" ? session.forfeit() : await session.choose(choice),
-    shouldPersist: false,
-  };
 }
 
 export async function executeBattleAutoAdvance(session: RuntimeBattleSessionLike): Promise<BattleState> {

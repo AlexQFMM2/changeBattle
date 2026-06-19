@@ -15,6 +15,12 @@ function changeBattleDebugBridge(): ChangeBattleDebugBridge | undefined {
   return (window as Window & {__changeBattleDebug?: ChangeBattleDebugBridge}).__changeBattleDebug;
 }
 
+function debugControlsVisible(): boolean {
+  if (import.meta.env.DEV) return true;
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem("changebattle:debug-menu") === "1";
+}
+
 function normalizedSettings(settings?: Partial<AudioSettings> | null): AudioSettings {
   const volume = Number(settings?.bgm_volume ?? DEFAULT_AUDIO_SETTINGS.bgm_volume);
   return {
@@ -298,7 +304,7 @@ export function BgmController({scene, save, onSave}: {scene: BgmScene; save: Loc
             <span>音量 {volumePercent}%</span>
             <input type="range" min={0} max={100} value={volumePercent} onChange={event => void persistSettings({...settings, bgm_volume: Number(event.target.value) / 100})} />
           </label>
-          {debugAvailable ? (
+          {debugAvailable && debugControlsVisible() ? (
             <label className="bgm-toggle-row">
               <span>打开调试</span>
               <input type="checkbox" checked={debugEnabled} onChange={event => setDebugConsoleEnabled(event.target.checked)} />

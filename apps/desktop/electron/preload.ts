@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {AudioSettings, BattleAiHint, BattleSetting, BattleState, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BattleAiHint, BattleSetting, BattleState, BattleTrainingConfig, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, LocalSave, PokemonEditOptions, PricedMove, RestAction, SaveBattleRecordsTable, ShopItem, StarChartState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerProfile} from "@changebattle/shared";
 
 const api = {
   generateCandidates(seed?: number): Promise<GeneratedTeam> {
@@ -30,6 +30,9 @@ const api = {
   },
   startRainbowRocketTestRun(): Promise<DesktopGameState> {
     return ipcRenderer.invoke("run:rainbowRocketTest");
+  },
+  startBattleTraining(config: BattleTrainingConfig): Promise<DesktopGameState> {
+    return ipcRenderer.invoke("training:startBattle", config);
   },
   getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}> {
     return ipcRenderer.invoke("battleSetting:get");

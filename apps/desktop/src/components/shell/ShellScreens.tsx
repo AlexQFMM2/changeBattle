@@ -6,6 +6,6 @@ export function TitleScreen({save, catalog, defaultAvatarAsset, onLoad, onNew, o
   return <TitlePage save={save} catalog={catalog} defaultAvatarAsset={defaultAvatarAsset} onLoad={onLoad} onNew={onNew} onCreate={onCreate} onDelete={onDelete} />;
 }
 
-export function MainMenu({save, onStart, onTalent, onUserInfo, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest}: {save: LocalSave | null; onStart: () => void; onTalent: () => void; onUserInfo: () => void; onHistory: () => void; onBattleSetting: () => void; onTitle: () => void; onTestMode: () => void; onRainbowRocketTest?: () => void}) {
-  return <MainMenuPage save={save} onStart={onStart} onTalent={onTalent} onUserInfo={onUserInfo} onHistory={onHistory} onBattleSetting={onBattleSetting} onTitle={onTitle} onTestMode={onTestMode} onRainbowRocketTest={onRainbowRocketTest} />;
+export function MainMenu({save, onStart, onTraining, onTalent, onUserInfo, onHistory, onBattleSetting, onTitle, onTestMode, onRainbowRocketTest}: {save: LocalSave | null; onStart: () => void; onTraining: () => void; onTalent: () => void; onUserInfo: () => void; onHistory: () => void; onBattleSetting: () => void; onTitle: () => void; onTestMode?: () => void; onRainbowRocketTest?: () => void}) {
+  return <MainMenuPage save={save} onStart={onStart} onTraining={onTraining} onTalent={onTalent} onUserInfo={onUserInfo} onHistory={onHistory} onBattleSetting={onBattleSetting} onTitle={onTitle} onTestMode={onTestMode} onRainbowRocketTest={onRainbowRocketTest} />;
 }

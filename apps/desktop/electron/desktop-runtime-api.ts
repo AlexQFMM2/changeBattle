@@ -4,6 +4,7 @@ import type {
   BattleAiHint,
   BattleSetting,
   BattleState,
+  BattleTrainingConfig,
   CurrentRunData,
   DesktopDexCategory,
   DesktopDexSearchResult,
@@ -34,6 +35,7 @@ export type DesktopRuntimeApiDeps = {
   battleRecords(): Promise<SaveBattleRecordsTable>;
   enableTestMode(): Promise<LocalSave>;
   startRainbowRocketTestRun?(): Promise<DesktopGameState>;
+  startBattleTraining(config: BattleTrainingConfig): Promise<DesktopGameState>;
   getBattleSetting(): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   updateBattleSetting(setting: Partial<BattleSetting>): Promise<{setting: BattleSetting; save?: LocalSave | null}>;
   getAudioSettings(): Promise<{settings: AudioSettings; save?: LocalSave | null}>;
@@ -81,6 +83,7 @@ export function createDesktopRuntimeApi(deps: DesktopRuntimeApiDeps): ChangeBatt
     battleRecords: deps.battleRecords,
     enableTestMode: deps.enableTestMode,
     startRainbowRocketTestRun: deps.startRainbowRocketTestRun,
+    startBattleTraining: deps.startBattleTraining,
     getBattleSetting: deps.getBattleSetting,
     updateBattleSetting: deps.updateBattleSetting,
     getAudioSettings: deps.getAudioSettings,

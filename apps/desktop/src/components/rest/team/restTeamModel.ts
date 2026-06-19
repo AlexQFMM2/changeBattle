@@ -24,6 +24,12 @@ export function restPokemonStatusLabel(state?: PlayerPokemonState): string {
   return status ? statusLabel(status) : "";
 }
 
+export function restPokemonLevelLabel(pokemon?: RentalPokemon): string {
+  const rawLevel = Number(pokemon?.level || 0);
+  if (!Number.isFinite(rawLevel) || rawLevel <= 0) return "Lv?";
+  return `Lv${Math.max(1, Math.floor(rawLevel))}`;
+}
+
 export function restPokemonFocusTitle(pokemon: RentalPokemon, focus: RestPokemonFocus): string {
   if (focus.type === "move") {
     const move = pokemon.moves[focus.moveIndex];

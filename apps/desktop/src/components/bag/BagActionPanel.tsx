@@ -89,6 +89,7 @@ export function BagActionPanel({step, item, targetTeam, targetTitle, selectedTar
           <div className="bag-pp-move-grid">
             {(targetPokemon.moves || []).map((move, index) => {
               const current = targetState?.moves?.[index];
+              const moveSlot = typeof current?.slot === "number" ? current.slot : index + 1;
               const pp = current?.pp ?? move.pp;
               const maxPp = current?.maxpp ?? move.pp;
               const full = typeof pp === "number" && typeof maxPp === "number" && pp >= maxPp;
@@ -105,7 +106,7 @@ export function BagActionPanel({step, item, targetTeam, targetTitle, selectedTar
                   maxPp={maxPp ?? "--"}
                   power={move.power || "--"}
                   accuracy={move.accuracy ?? "必中"}
-                  onClick={() => onConfirmPpMove?.(index)}
+                  onClick={() => onConfirmPpMove?.(moveSlot)}
                   key={`pp-restore-${move.id || move.name}-${index}`}
                 />
               );

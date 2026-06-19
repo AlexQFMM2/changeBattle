@@ -1,0 +1,80 @@
+.battle-training-log-drawer {
+  border: 1px solid #4b5b55;
+  border-radius: 5px;
+  background: #111817;
+  color: #f5efe4;
+  padding: 3px;
+}
+
+.battle-training-log-drawer.compact {
+  position: absolute;
+  z-index: 74;
+  right: 4px;
+  bottom: 4px;
+  width: 214px;
+  max-height: 128px;
+  background: rgb(12 16 17 / 94%);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 38%);
+}
+
+.battle-training-log-drawer header {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.battle-training-log-drawer header strong {
+  margin-right: auto;
+  font-size: 8px;
+}
+
+.battle-training-log-drawer header span {
+  color: #c5d0c6;
+  font-size: 6px;
+}
+
+.battle-training-log-drawer header button {
+  height: 17px;
+  border: 1px solid #53635b;
+  border-radius: 3px;
+  background: #1e2927;
+  color: #f8f1e6;
+  padding: 0 5px;
+  font-size: 8px;
+}
+
+.battle-training-log-list {
+  max-height: 98px;
+  overflow: auto;
+  margin-top: 3px;
+  padding-right: 1px;
+}
+
+.battle-training-log-list details {
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  padding: 3px 0;
+}
+
+.battle-training-log-list summary {
+  cursor: pointer;
+  color: #e7d199;
+  font-size: 8px;
+}
+
+.battle-training-log-list pre {
+  overflow: auto;
+  max-height: 62px;
+  margin: 3px 0 0;
+  padding: 4px;
+  border-radius: 3px;
+  background: #080c0d;
+  color: #dce6ef;
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+.battle-training-log-list p {
+  margin: 4px 0 0;
+  color: #c7d0c6;
+  font-size: 7px;
+}

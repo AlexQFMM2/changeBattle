@@ -77,6 +77,10 @@ export function installBrowserTestBridge(): void {
       save = enableTestModeForSave({...save});
       return save;
     },
+    startBattleTraining: async () => {
+      lastAction = "startBattleTraining";
+      return setState({screen: "battleTraining", save, battle: battleForScenario(), battle_bag: {consumable: [], held: [], tm: []}, message: "自动测试训练场"});
+    },
     getBattleSetting: async () => ({setting: normalizeBattleSetting(save.battle_setting), save}),
     updateBattleSetting: async (setting: BattleSetting) => {
       lastAction = "updateBattleSetting";

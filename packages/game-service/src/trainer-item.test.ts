@@ -1137,6 +1137,81 @@ async function testItemOptionsIncludeLocalRecoveryItems(): Promise<void> {
   }
 }
 
+async function testSingleMovePpItemUsesSelectedMoveSlot(): Promise<void> {
+  const service = createTestService();
+  const state: PlayerPokemonState = {
+    showdown_id: "p1",
+    slot: 1,
+    ident: "p1: Pikachu",
+    details: "Pikachu",
+    species: "Pikachu",
+    hp: 100,
+    maxhp: 100,
+    status: "",
+    fainted: false,
+    active: true,
+    item: "",
+    condition: "100/100",
+    moves: [
+      {slot: 1, id: "tackle", move: "Tackle", pp: 12, maxpp: 35},
+      {slot: 2, id: "quickattack", move: "Quick Attack", pp: 8, maxpp: 30},
+      {slot: 3, id: "thunderbolt", move: "Thunderbolt", pp: 5, maxpp: 24},
+    ],
+  };
+
+  await service.applyConsumableItemEffectToState("ether", state, 3);
+
+  assert.equal(state.moves[0].pp, 12, "first move PP should not change");
+  assert.equal(state.moves[1].pp, 8, "second move PP should not change");
+  assert.equal(state.moves[2].pp, 15, "selected third move should gain ether PP");
+  await assert.rejects(
+    () => service.applyConsumableItemEffectToState("ether", state),
+    /请选择需要恢复 PP 的技能/,
+  );
+}
+
+async function testEnemyRechargeMoveContinuesAfterPlayerChoice(): Promise<void> {
+  const service = createTestService();
+  const playerTeam = [pokemon("Golem", ["Tackle"], "Sturdy")];
+  const enemyTeam = [pokemon("Raticate", ["Giga Impact"], "Run Away")];
+  const playerDisplay = await service.describeTeam(playerTeam);
+  const enemyDisplay = await service.describeTeam(enemyTeam);
+  const session = await service.createBattleSession({
+    playerTeam,
+    enemyTeam,
+    playerDisplay,
+    enemyDisplay,
+    seed: [11, 22, 33, 44],
+  });
+
+  const afterGigaImpact = await session.choose("move 1");
+  assert.equal(afterGigaImpact.ended, false, JSON.stringify(afterGigaImpact.recent_events, null, 2));
+  assert.equal((session as unknown as {latestRequests: Record<string, BattleState["request"]>}).latestRequests.p2?.active?.[0]?.moves?.[0]?.id, "recharge");
+
+  const afterRechargeTurn = await session.choose("move 1");
+  assert.equal(afterRechargeTurn.ended, false, JSON.stringify(afterRechargeTurn.recent_events, null, 2));
+  assert.ok(afterRechargeTurn.recent_events.some(text => text.includes("再充电") && text.includes("无法行动")), JSON.stringify(afterRechargeTurn.recent_events, null, 2));
+  assert.equal(afterRechargeTurn.request?.active?.[0]?.moves?.[0]?.id, "tackle");
+}
+
+async function testBattleViewKeepsFullTeamDisplayByShowdownId(): Promise<void> {
+  const service = createTestService();
+  const playerTeam = [
+    pokemon("Golem", ["Tackle"], "Sturdy"),
+    ...Array.from({length: 5}, () => pokemon("Pikachu", ["Tackle"], "Static")),
+  ];
+  const enemyTeam = [pokemon("Raticate", ["Tackle"], "Run Away")];
+  const playerDisplay = await service.describeTeam(playerTeam);
+  const enemyDisplay = await service.describeTeam(enemyTeam);
+  const session = await service.createBattleSession({playerTeam, enemyTeam, playerDisplay, enemyDisplay, seed: [51, 52, 53, 54]});
+  const slots = session.getState().battle_view?.player.slots || [];
+  assert.equal(slots.length, 6);
+  assert.equal(slots[0].display?.species, "Golem");
+  assert.deepEqual(slots.slice(1).map(slot => slot.display?.species), ["Pikachu", "Pikachu", "Pikachu", "Pikachu", "Pikachu"]);
+  assert.equal(new Set(slots.map(slot => slot.showdown_id)).size, 6);
+}
+
+
 await testUnknownMoveRejected();
 await testTrainerItemActsBeforeEnemyMove();
 await testInvalidItemDoesNotAdvanceTurn();
@@ -1189,4 +1264,7 @@ testDedicatedMegaStoneGuarantee();
 testRayquazaMegaPoolGate();
 testBattleSystemItemClassification();
 await testItemOptionsIncludeLocalRecoveryItems();
+await testSingleMovePpItemUsesSelectedMoveSlot();
+await testEnemyRechargeMoveContinuesAfterPlayerChoice();
+await testBattleViewKeepsFullTeamDisplayByShowdownId();
 console.log("Trainer item battle tests passed.");

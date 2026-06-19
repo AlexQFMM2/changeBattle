@@ -1,6 +1,7 @@
 import type {RentalPokemon} from "@changebattle/shared";
 import {PokemonSprite, conditionText, displayName, hpTone, parseHp, statusCode, statusLabel} from "../../lib/ui";
 import type {CSSProperties} from "react";
+import {restPokemonLevelLabel} from "../rest/team/restTeamModel";
 import "./PokemonTeamPicker.css";
 
 export type PokemonTeamPickerEntry = {
@@ -36,7 +37,7 @@ export function PokemonTeamPicker({team, selectedIndex, busyIndex = null, onSele
               <PokemonSprite pokemon={entry.pokemon} alt={entry.pokemon ? displayName(entry.pokemon) : "未知"} />
               <span>
                 <strong>{entry.pokemon ? displayName(entry.pokemon) : "未知"}</strong>
-                <small>{conditionText(entry.condition)}{code ? ` ${statusLabel(code)}` : ""}</small>
+                <small>{entry.pokemon ? `${restPokemonLevelLabel(entry.pokemon)} · ` : ""}{conditionText(entry.condition)}{code ? ` ${statusLabel(code)}` : ""}</small>
               </span>
               <i className="pokemon-team-picker-hp"><b className={`hp-${hpTone(hp)}`} style={{width: `${hpPercent}%`} as CSSProperties} /></i>
               <em>{entry.heldItem || "无道具"}</em>

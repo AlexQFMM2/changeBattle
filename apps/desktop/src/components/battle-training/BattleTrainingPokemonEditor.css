@@ -1,0 +1,139 @@
+.battle-training-pokemon-editor {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 22px minmax(0, 1fr);
+  gap: 4px;
+  border: 1px solid #53625d;
+  border-radius: 5px;
+  background: #141b1d;
+  padding: 4px;
+  color: #f5efe4;
+}
+
+.battle-training-pokemon-editor header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.battle-training-pokemon-editor header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.battle-training-pokemon-editor nav {
+  display: flex;
+  gap: 2px;
+}
+
+.battle-training-pokemon-editor nav button {
+  height: 18px;
+  border: 1px solid #465653;
+  border-radius: 3px;
+  background: #1d2728;
+  color: #dbe3d8;
+  padding: 0 5px;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.battle-training-pokemon-editor nav button.active {
+  border-color: #c7aa62;
+  background: #334036;
+  color: #fff8e7;
+}
+
+.battle-training-illegal-badge {
+  border: 1px solid #d2a24b;
+  border-radius: 3px;
+  background: #5c311c;
+  color: #fff;
+  padding: 2px 4px;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.battle-training-editor-base,
+.battle-training-editor-moves {
+  min-height: 0;
+  overflow: visible;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  align-content: start;
+}
+
+.battle-training-legality-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid #8b6330;
+  border-radius: 3px;
+  background: #3a2418;
+  color: #fff;
+  padding: 3px 5px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.battle-training-editor-base label,
+.battle-training-editor-stats label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: #d8d0c2;
+  font-size: 6px;
+  line-height: 1;
+}
+
+.battle-training-editor-base input,
+.battle-training-editor-base select,
+.battle-training-editor-stats input {
+  min-width: 0;
+  height: 18px;
+  border: 1px solid #4f5a58;
+  border-radius: 3px;
+  background: #0f1416;
+  color: #fffaf0;
+  padding: 1px 5px;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.battle-training-editor-stats {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+}
+
+.battle-training-editor-stat-head,
+.battle-training-editor-stat-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+}
+
+.battle-training-editor-stat-head span {
+  color: #d5bf7d;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.battle-training-editor-stat-row span {
+  color: #dbe3d8;
+  font-size: 8px;
+}

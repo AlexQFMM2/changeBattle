@@ -6,6 +6,7 @@ import {ExchangeView, RestView} from "../../pages/rest/RestView";
 import {MainMenu, TitleScreen} from "../../pages/shell/ShellScreens";
 import {BattleSettingPage, RentalSelect, StarterItemsView, StarterUpgradePage, TalentConfigView} from "../../pages/setup/SetupPages";
 import {BattleView} from "../../pages/battle/BattleView";
+import {BattleTrainingPage} from "../../pages/battle-training/BattleTrainingPage";
 import type {RouteTransitionReason} from "../../pages/shell/RouteTransitionPage";
 import "./RouteRenderer.css";
 
@@ -63,6 +64,7 @@ export type RouteRendererProps = {
   autoAdvanceBattle: () => Promise<boolean>;
   battleHint: () => Promise<BattleAiHint>;
   transitionToState: (state: DesktopGameState, reason: RouteTransitionReason, options?: {showToastMessage?: boolean}) => void;
+  applyState: (state: DesktopGameState, options?: {showToastMessage?: boolean}) => void;
   setBattleAnimationSpeed: (speed: BattleAnimationSpeed) => void;
   finishExchange: (ownIndex: number | null, enemyIndex: number | null) => void;
   restAction: (action: RestAction) => Promise<DesktopGameState | false>;
@@ -122,6 +124,7 @@ export function RouteRenderer(props: RouteRendererProps) {
     autoAdvanceBattle,
     battleHint,
     transitionToState,
+    applyState,
     setBattleAnimationSpeed,
     finishExchange,
     restAction,
@@ -130,7 +133,8 @@ export function RouteRenderer(props: RouteRendererProps) {
 
   if (screen === "title") return <TitleScreen save={save} catalog={trainerCatalog} defaultAvatarAsset={trainerCatalog.players[0]?.avatar_asset || trainerCatalog.avatars[0]?.avatar_asset} onLoad={loadGame} onNew={() => { setTrainerName("训练师"); }} onCreate={createTitleSave} onDelete={deleteSave} />;
   if (screen === "newGame") return <PlayerSettings title="训练师登记" name={trainerName} setName={setTrainerName} catalog={trainerCatalog} selectedPlayerId={selectedPlayerId} setSelectedPlayerId={setSelectedPlayerId} selectedAvatarAsset={selectedAvatarAsset} setSelectedAvatarAsset={setSelectedAvatarAsset} onSave={createNewGame} onBack={() => navigateToScreen("title")} saveLabel="创建存档" />;
-  if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTalent={() => navigateToScreen("talentConfig")} onUserInfo={() => navigateToScreen("userInfo")} onHistory={() => navigateToScreen("battleHistory")} onBattleSetting={() => navigateToScreen("battleSetting")} onTitle={() => navigateToScreen("title")} onTestMode={enableTestMode} onRainbowRocketTest={startRainbowRocketTestRun} />;
+  if (screen === "mainMenu") return <MainMenu save={save} onStart={prepareChallenge} onTraining={() => navigateToScreen("battleTraining")} onTalent={() => navigateToScreen("talentConfig")} onUserInfo={() => navigateToScreen("userInfo")} onHistory={() => navigateToScreen("battleHistory")} onBattleSetting={() => navigateToScreen("battleSetting")} onTitle={() => navigateToScreen("title")} onTestMode={enableTestMode} onRainbowRocketTest={startRainbowRocketTestRun} />;
+  if (screen === "battleTraining") return <BattleTrainingPage battle={battle} battleBag={battleBag} choicePending={battleChoicePending} onBattleState={state => applyState(state, {showToastMessage: false})} onBack={() => navigateToScreen("mainMenu")} battleAnimationSpeed={battleAnimationSpeed} onBattleAnimationSpeedChange={setBattleAnimationSpeed} />;
   if (screen === "userInfo") return <PlayerSettings title="玩家设置" save={save} name={save?.trainer.name || trainerName} catalog={trainerCatalog} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} saveLabel="保存设置" />;
   if (screen === "talentConfig") return <TalentConfigView save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;
   if (screen === "starterUpgrade") return <StarterUpgradePage save={save} onSaved={setSave} onBack={() => navigateToScreen("mainMenu")} />;

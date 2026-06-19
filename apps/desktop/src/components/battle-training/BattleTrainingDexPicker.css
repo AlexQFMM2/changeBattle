@@ -1,0 +1,74 @@
+.battle-training-dex-picker {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: #d8d0c2;
+  font-size: 6px;
+  line-height: 1;
+}
+
+.battle-training-dex-picker input {
+  min-width: 0;
+  height: 18px;
+  border: 1px solid #4f5a58;
+  border-radius: 3px;
+  background: #0f1416;
+  color: #fffaf0;
+  padding: 1px 5px;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.battle-training-dex-picker-popover {
+  position: absolute;
+  z-index: 82;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 96px;
+  overflow: auto;
+  border: 1px solid #6f7666;
+  border-radius: 4px;
+  background: #121817;
+  padding: 3px;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 32%);
+}
+
+.battle-training-dex-picker-popover button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #f6efe2;
+  padding: 2px 3px;
+  text-align: left;
+}
+
+.battle-training-dex-picker-popover button:hover {
+  background: #27322c;
+}
+
+.battle-training-dex-picker-popover strong,
+.battle-training-dex-picker-popover small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-training-dex-picker-popover strong {
+  font-size: 8px;
+}
+
+.battle-training-dex-picker-popover small,
+.battle-training-dex-picker-popover p {
+  margin: 0;
+  color: #b7c0b6;
+  font-size: 6px;
+}

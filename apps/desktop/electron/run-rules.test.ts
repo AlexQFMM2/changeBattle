@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import type {BagItemView, BattleState, BattleTimelineEvent, CurrentRunData, LocalSave, PricedMove, ShopOffer, TalentView} from "@changebattle/shared";
 import {DEFAULT_BATTLE_SETTING, normalizeBattleSetting} from "@changebattle/shared";
-import {buildRuntimeResultSummary, normalEnemySpeciesTiersForBattle, recordRuntimeBattleStats, settleBasicBattleResult} from "@changebattle/game-runtime";
+import {buildRuntimeResultSummary, buildTrainingBattleSession, checkTrainingPokemonLegality, normalEnemySpeciesTiersForBattle, recordRuntimeBattleStats, settleBasicBattleResult} from "@changebattle/game-runtime";
 import {cloneBattleViewSnapshot, dedupeBattleViewPartySnapshot} from "../src/components/battle/battlePartySnapshot.ts";
 import {buildBattleDisplaySteps} from "../src/components/battle/timelineFlow.ts";
 import {resolveTmMoveIdForSlot, tmMoveSearchQuery} from "../src/components/bag/bagModel.ts";
+import {configWithTeams, defaultTrainingConfig, normalizeTrainingTeam, trainingPokemon} from "../src/components/battle-training/battleTrainingModel.ts";
 import {pokemonDexDetailTabs} from "../src/components/dex/learnsetGroups.ts";
 import {debugPokemon} from "../src/lib/ui.tsx";
 import {
@@ -775,6 +776,91 @@ function testTmBagMoveResolutionUsesTargetMoveQuery(): void {
   assert.equal(resolveTmMoveIdForSlot(legacyChineseTm, fillerMoves), "");
 }
 
+function testBattleTrainingTeamConfigHelpers(): void {
+  const legacy = defaultTrainingConfig();
+  delete legacy.playerTeam;
+  delete legacy.enemyTeam;
+  assert.equal(normalizeTrainingTeam(legacy, "player").length, 1);
+  assert.equal(normalizeTrainingTeam(legacy, "enemy")[0].moves[0], "Giga Impact");
+
+  const playerTeam = Array.from({length: 7}, (_, index) => trainingPokemon(`Pikachu${index}`, "Static", ["Tackle"]));
+  const enemyTeam = [
+    trainingPokemon("Raticate", "Run Away", ["Giga Impact"]),
+    trainingPokemon("Golem", "Sturdy", ["Tackle"]),
+  ];
+  const config = configWithTeams(defaultTrainingConfig(), playerTeam, enemyTeam);
+  assert.equal(normalizeTrainingTeam(config, "player").length, 6);
+  assert.equal(normalizeTrainingTeam(config, "enemy").length, 2);
+  assert.equal(config.player?.species, "Pikachu0");
+  assert.equal(config.enemy?.species, "Raticate");
+}
+
+function testSharedBattleTrainingRuntimeHelpers(): void {
+  const config = configWithTeams(defaultTrainingConfig(), [
+    trainingPokemon("Golem", "Sturdy", ["Tackle"]),
+    ...Array.from({length: 5}, () => trainingPokemon("Pikachu", "Static", ["Tackle"])),
+  ], [trainingPokemon("Raticate", "Run Away", ["Tackle"])]);
+  const playerDisplay = normalizeTrainingTeam(config, "player").map((pokemon, index) => ({
+    run_member_id: `player-${index}`,
+    name: pokemon.name || pokemon.species,
+    species: pokemon.species,
+    species_zh: pokemon.speciesLabel || pokemon.species,
+    species_id: pokemon.species.toLowerCase(),
+    level: pokemon.level,
+    gender: pokemon.gender || "",
+    types: [],
+    types_zh: [],
+    ability: pokemon.ability,
+    ability_zh: pokemon.abilityLabel || pokemon.ability,
+    ability_id: pokemon.ability.toLowerCase(),
+    ability_desc: "",
+    ability_desc_zh: "",
+    item: "",
+    item_zh: "",
+    item_id: "",
+    item_desc: "",
+    item_desc_zh: "",
+    moves: [],
+    base_stats: {},
+    stats: {hp: 100},
+    evs: {},
+    ivs: {},
+    nature: pokemon.nature,
+    nature_zh: pokemon.nature,
+    nature_plus: "",
+    nature_minus: "",
+    role: "",
+    role_zh: "",
+  }));
+  const enemyDisplay = normalizeTrainingTeam(config, "enemy").map((pokemon, index) => ({
+    ...playerDisplay[0],
+    run_member_id: `enemy-${index}`,
+    name: pokemon.name || pokemon.species,
+    species: pokemon.species,
+    species_zh: pokemon.speciesLabel || pokemon.species,
+    species_id: pokemon.species.toLowerCase(),
+    ability: pokemon.ability,
+    ability_zh: pokemon.abilityLabel || pokemon.ability,
+    ability_id: pokemon.ability.toLowerCase(),
+  }));
+  const training = buildTrainingBattleSession({config, playerDisplay, enemyDisplay});
+  assert.equal(training.run.player_team.length, 6);
+  assert.equal(training.run.player_display.length, 6);
+  assert.deepEqual(training.run.player_team.map(set => set.showdown_id), training.run.player_display.map(display => display.showdown_id));
+  assert.equal(new Set(training.run.player_team.map(set => set.showdown_id)).size, 6);
+  assert.equal(training.options.playerTeam, training.run.player_team);
+  assert.equal(training.options.enemyTeam, training.run.enemy_raw);
+
+  const illegal = checkTrainingPokemonLegality(trainingPokemon("Charizard", "Levitate", ["Surf", "Flamethrower"]), {
+    speciesId: "charizard",
+    abilities: ["Blaze", "Solar Power"],
+    moves: ["Flamethrower", "Fly"],
+  });
+  assert.equal(illegal.legal, false);
+  assert.ok(illegal.issues.some(issue => issue.type === "move" && issue.value === "Surf"), JSON.stringify(illegal.issues, null, 2));
+  assert.ok(illegal.issues.some(issue => issue.type === "ability" && issue.value === "Levitate"), JSON.stringify(illegal.issues, null, 2));
+}
+
 testTalentCatalog();
 testEnableTestMode();
 await testAllInExchangePenalty();
@@ -799,6 +885,8 @@ testBattleTimelineMissSkipsMoveVisual();
 testBattlePartySnapshotHelpers();
 testRuntimeBattleStats();
 testTmBagMoveResolutionUsesTargetMoveQuery();
+testBattleTrainingTeamConfigHelpers();
+testSharedBattleTrainingRuntimeHelpers();
 testSoulSwapRules();
 testRookieAiRules();
 testNormalEnemySpeciesTierRules();

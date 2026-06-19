@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import path from "node:path";
 import {GameService, type BattleAiPersonality, type BattleAiProfileInput, type TrainerItemBattleSession} from "@changebattle/game-service";
-import type {AudioSettings, BagCategoryView, BattleAiHint, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {AudioSettings, BagCategoryView, BattleAiHint, BattleBackgroundView, BattleRecordEntry, BattleRulePreset, BattleSetting, BattleState, BattleTimelineEvent, BattleTrainingConfig, BossDexPoolRow, BossDexRecord, BossDexSeenPokemon, CurrentRunData, DesktopDexCategory, DesktopDexSearchResult, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PlayerPokemonState, PokemonEditOptions, PokemonSet, PricedMove, RentalPokemon, RestAction, RestEventOption, RestScoreBetState, RestState, ResultPokemonStatEvent, ResultSummaryState, ShopItem, ShopKind, ShopOffer, StarChartState, StarterItemGroup, StarterItemGroupState, StarterUpgradeState, StarterUpgradeView, TalentView, TrainerCatalogState, TrainerNpcType, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {DEFAULT_AUDIO_SETTINGS, DEFAULT_BATTLE_SETTING, SHOWDOWN_ID_POOL, normalizeBattleSetting} from "@changebattle/shared";
 import {
   createChangeBattleRuntime,
@@ -34,6 +34,8 @@ import {
   buildRuntimeBattleRecord,
   buildRuntimeResultSummary,
   buildRuntimeRunRecord,
+  buildTrainingBattleSession,
+  buildTrainingRun,
   completeRainbowRocketSupport as runtimeCompleteRainbowRocketSupport,
   decorateDexUsageCounts as runtimeDecorateDexUsageCounts,
   ensureRainbowRocketSupport as runtimeEnsureRainbowRocketSupport,
@@ -68,6 +70,7 @@ import {
   rainbowRocketUnlocked as runtimeRainbowRocketUnlocked,
   rainbowRocketSupportRequired as runtimeRainbowRocketSupportRequired,
   trainerDexSearch as runtimeTrainerDexSearch,
+  trainingTeamSets,
   validateStatAdjustments as runtimeValidateStatAdjustments,
   pokemonUsageKey as runtimePokemonUsageKey,
   type PreparationRuntimeApi,
@@ -338,6 +341,8 @@ let pendingStarter: PendingStarterState | null = null;
 let configuredTalents: TalentView[] = [];
 let activeBattle: TrainerItemBattleSession | null = null;
 let activeBattleNo = 0;
+let activeBattleMode: "run" | "training" = "run";
+let activeTrainingConfig: BattleTrainingConfig | null = null;
 let battleChoiceInFlight = false;
 let goodsCache: Map<string, {item_type: string; item_id: string; item_cost: number}> | null = null;
 let shopPoolCache: ShopPoolEntry[] | null = null;
@@ -523,7 +528,7 @@ const REST_EVENT_COPY: Record<string, RestEventCopy> = {
   },
   safe_airline: {
     intro: "为了前往下一个赛区，你们搭上一趟手续严格的安全航空。工作人员认真检查了每一个瓶瓶罐罐。",
-    effects: ["落地时全队恢复到满状态。", "本次休整普通战斗携带道具会被托运。", "宝可梦身上的普通战斗道具也会卸下托运。", "托运道具会在下次休整归还到背包。"],
+    effects: ["选择后立刻全队恢复到满状态。", "本次休整普通战斗携带道具会被托运。", "宝可梦身上的普通战斗道具也会卸下托运。", "托运道具会在下次休整归还到背包。"],
   },
   barter_village: {
     intro: "这个村落的商家不信任任何流通货币。金币在这里买不到东西，只有背包里的实物才算数。",
@@ -724,13 +729,13 @@ const REST_EVENT_DEFINITIONS: RestEventDefinition[] = [
   {
     id: "safe_airline",
     name: "安全航空",
-    desc: "落地后全队恢复满状态，但普通战斗携带道具会被托运。",
+    desc: "立刻让全队恢复满状态，但普通战斗携带道具会被托运。",
     detail: "会卸下宝可梦身上的普通战斗道具；下次休整归还到背包。",
     tone: "trade",
     async apply(_save, run) {
       const count = await checkBattleItems(run);
       const restored = fullRestoreParty(run);
-      return `安全航空：${restored} 只宝可梦落地后恢复满状态，${count} 个普通战斗道具已托运，下次休整归还到背包。`;
+      return `安全航空：${restored} 只宝可梦已立刻恢复满状态，${count} 个普通战斗道具已托运，下次休整归还到背包。`;
     },
   },
   {
@@ -1837,6 +1842,35 @@ function decorateBattleState(state: BattleState, run?: CurrentRunData | null): B
     contest_score: contestScore,
     contest_marks: run.rest_status?.event_contest_active,
   };
+}
+
+async function startBattleTraining(config: BattleTrainingConfig): Promise<DesktopGameState> {
+  const save = await loadSave().catch(() => null);
+  const playerTeam = trainingTeamSets(config, "player");
+  const enemyTeam = trainingTeamSets(config, "enemy");
+  const [playerDisplay, enemyDisplay] = await Promise.all([
+    gameService.describeTeam(playerTeam),
+    gameService.describeTeam(enemyTeam),
+  ]);
+  const training = buildTrainingBattleSession({
+    save,
+    config,
+    playerDisplay,
+    enemyDisplay,
+    playerTrainer: save?.trainer ? trainerFromProfile(save.trainer) : undefined,
+    battleBackground: FALLBACK_BATTLE_BACKGROUND,
+  });
+  activeBattle = await gameService.createBattleSession(training.options);
+  activeBattleNo = 1;
+  activeBattleMode = "training";
+  activeTrainingConfig = training.config;
+  return gameState({
+    screen: "battleTraining",
+    save,
+    battle: decorateBattleState(activeBattle.getState(), training.run),
+    battle_bag: {consumable: [], held: [], tm: []},
+    message: "训练场战斗已开始。",
+  });
 }
 
 function starterChoiceState(starter: PendingStarterState) {
@@ -4145,10 +4179,14 @@ async function cancelPreparation(): Promise<DesktopGameState> {
 }
 
 async function beginChallenge(selectedIndexes: number[], runSeed: number, battles = DEFAULT_BATTLES): Promise<DesktopGameState> {
+  activeBattleMode = "run";
+  activeTrainingConfig = null;
   return requireRunPlanningRuntime().beginChallenge(selectedIndexes, runSeed, battles);
 }
 
 async function continueRun(): Promise<DesktopGameState> {
+  activeBattleMode = "run";
+  activeTrainingConfig = null;
   const save = await loadSave();
   if (!save?.current_run) return gameState({screen: "mainMenu", save, message: "当前没有进行中的挑战。"});
   if (save.current_run.status === "in_battle") return await settleInterruptedBattle(save, save.current_run);
@@ -4167,6 +4205,8 @@ async function settleInterruptedBattle(save: LocalSave, run: CurrentRunData): Pr
   save.current_run = null;
   activeBattle = null;
   activeBattleNo = 0;
+  activeBattleMode = "run";
+  activeTrainingConfig = null;
   const next = await persist(save);
   const enemyName = run.enemy_trainer?.name_zh || run.enemy_trainer?.name_en || "本场对手";
   const message = `读档时发现第 ${battleNo} 场战斗未完成，判定挑战失败。对手：${enemyName}。连胜：${wins}${settlementText(settled)}；本局 ${settled.convertedCoins}金币折算为 ${settled.convertedBp}BP${settled.paidBack ? `，临时BP扣回 ${settled.paidBack}BP` : ""}`;
@@ -4357,7 +4397,20 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
   battleChoiceInFlight = true;
   try {
     const save = await loadSave();
-    if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+    if (!activeBattle) throw new Error("当前没有正在进行的对战。");
+    if (activeBattleMode === "training") {
+      if (!activeTrainingConfig) throw new Error("训练场配置丢失。");
+      const snapshot = activeBattle.getState();
+      const run = buildTrainingRun({save, config: activeTrainingConfig, playerDisplay: snapshot.player_display || [], enemyDisplay: snapshot.enemy_display || [], playerTrainer: save?.trainer ? trainerFromProfile(save.trainer) : undefined, battleBackground: FALLBACK_BATTLE_BACKGROUND});
+      const result = await runtimeExecuteBattleChoice(run, activeBattle, choice, {
+        hasConsumableItemEffect: itemId => gameService.hasBattleConsumableItemEffect(itemId),
+        isHpStatusReviveRecoveryItem,
+      });
+      const state = result.state;
+      const nextRun = buildTrainingRun({save, config: activeTrainingConfig, playerDisplay: state.player_display || [], enemyDisplay: state.enemy_display || [], playerTrainer: save?.trainer ? trainerFromProfile(save.trainer) : undefined, battleBackground: FALLBACK_BATTLE_BACKGROUND});
+      return gameState({screen: "battleTraining", save, battle: decorateBattleState(state, nextRun), battle_bag: {consumable: [], held: [], tm: []}, message: state.ended ? "训练场战斗结束。" : "训练场战斗推进。"});
+    }
+    if (!save?.current_run) throw new Error("当前没有正在进行的对战。");
     const run = save.current_run as CurrentRunData;
     const result = await runtimeExecuteBattleChoice(run, activeBattle, choice, {
       hasConsumableItemEffect: itemId => gameService.hasBattleConsumableItemEffect(itemId),
@@ -4380,6 +4433,7 @@ async function submitBattleChoice(choice: string): Promise<DesktopGameState> {
 
 async function battleHint(): Promise<BattleAiHint> {
   if (battleChoiceInFlight) throw new Error("上一条战斗指令仍在处理，请稍等。");
+  if (activeBattleMode === "training") throw new Error("训练场暂不提供 AI 提示。");
   const save = await loadSave();
   if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
   return activeBattle.playerAiHint();
@@ -4390,7 +4444,14 @@ async function autoAdvanceBattle(): Promise<DesktopGameState> {
   battleChoiceInFlight = true;
   try {
     const save = await loadSave();
-    if (!save?.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+    if (!activeBattle) throw new Error("当前没有正在进行的对战。");
+    if (activeBattleMode === "training") {
+      if (!activeTrainingConfig) throw new Error("训练场配置丢失。");
+      const state = await runtimeExecuteBattleAutoAdvance(activeBattle);
+      const run = buildTrainingRun({save, config: activeTrainingConfig, playerDisplay: state.player_display || [], enemyDisplay: state.enemy_display || [], playerTrainer: save?.trainer ? trainerFromProfile(save.trainer) : undefined, battleBackground: FALLBACK_BATTLE_BACKGROUND});
+      return gameState({screen: "battleTraining", save, battle: decorateBattleState(state, run), battle_bag: {consumable: [], held: [], tm: []}, message: state.ended ? "训练场战斗结束。" : "训练场自动推进。"});
+    }
+    if (!save?.current_run) throw new Error("当前没有正在进行的对战。");
     const state = await runtimeExecuteBattleAutoAdvance(activeBattle);
     const outcome = runtimeResolveBattleCommandOutcome(state);
     if (shouldForceSoulSwapTimeout(save.current_run as CurrentRunData, state)) {
@@ -5507,6 +5568,7 @@ app.whenReady().then(() => {
       generateCandidates: async seed => gameService.generateRentalCandidates(seed || Date.now()),
       enableTestMode,
       startRainbowRocketTestRun,
+      startBattleTraining,
       continueRun,
       battleHint,
       battleChoice: submitBattleChoice,

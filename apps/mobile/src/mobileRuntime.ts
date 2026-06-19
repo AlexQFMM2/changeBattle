@@ -15,6 +15,8 @@ import {
   buildPlannedBattle,
   buildRainbowRocketPlannedBattles,
   buildStartBattleSessionOptions,
+  buildTrainingBattleSession,
+  buildTrainingRun,
   buildPlannedBattles,
   createChangeBattleRuntime,
   createPreparationRuntime,
@@ -117,6 +119,8 @@ import {
   starterSpeciesTiersForStreak,
   takeReplacementRunShowdownId,
   talentLevel,
+  TRAINING_BATTLE_BACKGROUND,
+  trainingTeamSets,
   toId,
   TRAINING_SHOP_GROUP_WEIGHTS,
   type TrainingShopGroup,
@@ -128,7 +132,7 @@ import {
   villainIntrusionRollHits,
 } from "@changebattle/game-runtime";
 import {DEFAULT_BATTLE_SETTING, REST_SHOP_DISCOUNT_COUPONS, normalizeBattleSetting} from "@changebattle/shared";
-import type {BagCategoryView, BattleBackgroundView, BattleState, CurrentRunData, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PokemonSet, RentalPokemon, RestState, ShopItem, ShopKind, ShopOffer, ShopState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
+import type {BagCategoryView, BattleBackgroundView, BattleState, BattleTrainingConfig, CurrentRunData, DesktopGameState, GeneratedTeam, ItemCategory, LocalSave, MoveSummary, PlannedBattleData, PokemonSet, RentalPokemon, RestState, ShopItem, ShopKind, ShopOffer, ShopState, TrainerNpcView, TrainerProfile} from "@changebattle/shared";
 import {createMobileRuntimeEnvironment} from "./mobileRuntimeEnv";
 import shopPoolCsv from "../../../data/shop_pool.csv?raw";
 
@@ -256,7 +260,10 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
     let preparationState: PreparationRuntimeState = {pendingCandidates: null, pendingStarter: null};
     let activeBattle: TrainerItemBattleSession | null = null;
     let activeBattleState: BattleState | null = null;
+    let activeBattleMode: "run" | "training" = "run";
+    let activeTrainingConfig: BattleTrainingConfig | null = null;
     const gameState = (partial: Partial<DesktopGameState>): DesktopGameState => ({screen: "mainMenu", save: null, ...partial} as DesktopGameState);
+    const trainingBattleBag = (): BagCategoryView => ({consumable: [], held: [], tm: []});
     const decorateMobileBattleState = (state: BattleState, run?: CurrentRunData | null): BattleState => {
       if (!run) return state;
       const playerTalents = run.talents || [];
@@ -327,6 +334,8 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
       starterSpeciesTiersForStreak,
     });
     const startMobileNextBattle = async (save: LocalSave, service?: GameService): Promise<DesktopGameState> => {
+      activeBattleMode = "run";
+      activeTrainingConfig = null;
       const battleService = service || await loadGameService();
       const bossTeamPools = await loadBossTeamPools();
       const rainbowRocketTeamPools = await loadRainbowRocketTeamPools();
@@ -545,6 +554,29 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           const save = await ensureSave();
           return env.saves.save(enableTestModeForSave(save));
         },
+        startBattleTraining: async config => {
+          const save = await ensureSave();
+          const service = await loadGameService();
+          const playerTeam = trainingTeamSets(config, "player");
+          const enemyTeam = trainingTeamSets(config, "enemy");
+          const [playerDisplay, enemyDisplay] = await Promise.all([
+            service.describeTeam(playerTeam),
+            service.describeTeam(enemyTeam),
+          ]);
+          const training = buildTrainingBattleSession({
+            save,
+            config,
+            playerDisplay,
+            enemyDisplay,
+            playerTrainer: trainerTools.trainerFromProfile(save.trainer),
+            battleBackground: TRAINING_BATTLE_BACKGROUND,
+          });
+          activeBattle = await service.createBattleSession(training.options);
+          activeBattleMode = "training";
+          activeTrainingConfig = training.config;
+          activeBattleState = decorateMobileBattleState(activeBattle.getState(), training.run);
+          return gameState({screen: "battleTraining", save, battle: activeBattleState, battle_bag: trainingBattleBag(), message: "训练场战斗已开始。"});
+        },
         startRainbowRocketTestRun: async () => {
           const save = await ensureSave();
           const service = await loadGameService();
@@ -623,11 +655,15 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
           preparationState = {pendingCandidates: null, pendingStarter: null};
           activeBattle = null;
           activeBattleState = null;
+          activeBattleMode = "run";
+          activeTrainingConfig = null;
           return mobileRestGameState(testSave, "测试：彩虹火箭队入侵已启动。");
         },
         continueRun: async () => {
           const save = await ensureSave();
           const run = save.current_run as CurrentRunData | null;
+          activeBattleMode = "run";
+          activeTrainingConfig = null;
           if (!run) return gameState({screen: "mainMenu", save, message: `欢迎回来，${save.trainer.name}。`});
           if (run.status === "awaiting_rest") return mobileRestGameState(save, "继续移动端休整。");
           if (run.status === "in_battle" && activeBattle) {
@@ -651,12 +687,42 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         },
         battleHint: async () => {
           const save = await ensureSave();
+          if (activeBattleMode === "training") throw new Error("训练场暂不提供 AI 提示。");
           if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
           return activeBattle.playerAiHint();
         },
         battleChoice: async choice => {
           const save = await ensureSave();
-          if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+          if (!activeBattle) throw new Error("当前没有正在进行的对战。");
+          if (activeBattleMode === "training") {
+            if (!activeTrainingConfig) throw new Error("训练场配置丢失。");
+            const service = await loadGameService();
+            const snapshot = activeBattle.getState();
+            const run = buildTrainingRun({
+              save,
+              config: activeTrainingConfig,
+              playerDisplay: snapshot.player_display || [],
+              enemyDisplay: snapshot.enemy_display || [],
+              playerTrainer: trainerTools.trainerFromProfile(save.trainer),
+              battleBackground: TRAINING_BATTLE_BACKGROUND,
+            });
+            const result = await executeBattleChoice(run, activeBattle, choice, {
+              hasConsumableItemEffect: itemId => service.hasBattleConsumableItemEffect(itemId),
+              isHpStatusReviveRecoveryItem: itemId => mobileIsHpStatusReviveRecoveryItem(service, itemId),
+            });
+            const state = result.state;
+            const nextRun = buildTrainingRun({
+              save,
+              config: activeTrainingConfig,
+              playerDisplay: state.player_display || [],
+              enemyDisplay: state.enemy_display || [],
+              playerTrainer: trainerTools.trainerFromProfile(save.trainer),
+              battleBackground: TRAINING_BATTLE_BACKGROUND,
+            });
+            activeBattleState = decorateMobileBattleState(state, nextRun);
+            return gameState({screen: "battleTraining", save, battle: activeBattleState, battle_bag: trainingBattleBag(), message: state.ended ? "训练场战斗结束。" : "训练场战斗推进。"});
+          }
+          if (!save.current_run) throw new Error("当前没有正在进行的对战。");
           const run = save.current_run as CurrentRunData;
           const service = await loadGameService();
           console.info("[changebattle:switch] mobile battleChoice:start", {
@@ -682,7 +748,22 @@ export function createMobileRuntime(): ChangeBattleRuntimeApi {
         },
         autoAdvanceBattle: async () => {
           const save = await ensureSave();
-          if (!save.current_run || !activeBattle) throw new Error("当前没有正在进行的对战。");
+          if (!activeBattle) throw new Error("当前没有正在进行的对战。");
+          if (activeBattleMode === "training") {
+            if (!activeTrainingConfig) throw new Error("训练场配置丢失。");
+            const state = await executeBattleAutoAdvance(activeBattle);
+            const run = buildTrainingRun({
+              save,
+              config: activeTrainingConfig,
+              playerDisplay: state.player_display || [],
+              enemyDisplay: state.enemy_display || [],
+              playerTrainer: trainerTools.trainerFromProfile(save.trainer),
+              battleBackground: TRAINING_BATTLE_BACKGROUND,
+            });
+            activeBattleState = decorateMobileBattleState(state, run);
+            return gameState({screen: "battleTraining", save, battle: activeBattleState, battle_bag: trainingBattleBag(), message: state.ended ? "训练场战斗结束。" : "训练场自动推进。"});
+          }
+          if (!save.current_run) throw new Error("当前没有正在进行的对战。");
           const run = save.current_run as CurrentRunData;
           const service = await loadGameService();
           const state = await executeBattleAutoAdvance(activeBattle);
