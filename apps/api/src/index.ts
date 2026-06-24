@@ -238,4 +238,6 @@ function clone<T>(value: T): T {
 }
 
 export type ChangeBattleV2Api = ReturnType<typeof createChangeBattleV2Api>;
+export {useDexHook} from "./useDexHook.js";
+export type {AbilityInfo, ItemInfo, MoveInfo, PokemonInfo, UseDexHookOptions} from "./useDexHook.js";
 export type * from "@changebattle-v2/showdown-dex-core";

@@ -9,6 +9,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@changebattle-v2/showdown-dex-core": "workspace:*"
+    "@changebattle-v2/showdown-dex-core": "workspace:*",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0"
   }
 }
