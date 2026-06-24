@@ -1,17 +1,15 @@
 {
-  "name": "@changebattle-v2/desktop",
+  "name": "@changebattle-v2/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "out/main.js",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 5181",
+    "dev": "vite --host 127.0.0.1 --port 5180",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@changebattle-v2/api": "workspace:*",
     "@vitejs/plugin-react": "^5.0.0",
-    "electron": "^38.0.0",
     "vite": "^7.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

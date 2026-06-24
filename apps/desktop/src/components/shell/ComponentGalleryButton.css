@@ -1,6 +1,0 @@
-.component-gallery-button {
-  --component-gallery-button-width: 100%;
-  --component-gallery-button-height: 20px;
-  width: var(--component-gallery-button-width);
-  min-height: var(--component-gallery-button-height);
-}

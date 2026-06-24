@@ -9,9 +9,9 @@ const api = createChangeBattleV2Api({
 });
 
 export function App({runtime}: AppProps) {
-  let status = "等待 Desktop adapter 注入 Showdown Dex 数据";
+  let status = "等待注入 Showdown Dex 数据";
   try {
-    api.searchDex({query: "venusaur", limit: 5});
+    api.searchDex({query: "fire", limit: 5});
     status = "Dex Core ready";
   } catch (error) {
     status = error instanceof Error ? error.message : String(error);
@@ -22,19 +22,19 @@ export function App({runtime}: AppProps) {
       <section className="hero-panel">
         <p className="eyebrow">{runtime.toUpperCase()} ADAPTER</p>
         <h1>ChangeBattle V2 Dex</h1>
-        <p className="summary">Desktop 当前只保留适配器职责。真实 Showdown 数据注入后，和 Web 共用同一个 Dex Core。</p>
+        <p className="summary">干净的新图鉴基座。Web/Desktop 只做适配器，共用函数放在 <code>apps/api</code>，核心 Dex 能力放在 <code>showdown-dex-core</code>。</p>
         <div className="status-row">
           <span>Core 状态</span>
           <strong>{status}</strong>
         </div>
       </section>
       <section className="work-panel">
-        <h2>Desktop Adapter</h2>
+        <h2>第一阶段</h2>
         <ul>
-          <li>加载本地 Showdown runtime</li>
-          <li>注入 Dex Core</li>
-          <li>处理桌面资源前缀</li>
-          <li>不维护独立图鉴逻辑</li>
+          <li>接入 Showdown Dex 数据源</li>
+          <li>实现搜索、详情、图片解析、能力计算</li>
+          <li>重做主页图鉴弹窗</li>
+          <li>只覆盖 Web 和 Desktop</li>
         </ul>
       </section>
     </main>

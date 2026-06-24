@@ -1,36 +1,15 @@
 {
-  "name": "change-battle",
-  "version": "0.9.2",
+  "name": "change-battle-v2",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "desktop:dev": "pnpm --filter @changebattle/desktop dev",
-    "web:dev": "pnpm --filter @changebattle/desktop web:dev",
-    "mobile:dev": "pnpm --filter @changebattle/mobile dev",
-    "mobile:build:web": "pnpm --filter @changebattle/mobile build",
-    "mobile:sync": "pnpm --filter @changebattle/mobile sync",
-    "mobile:android": "pnpm --filter @changebattle/mobile android",
-    "mobile:apk": "pnpm --filter @changebattle/mobile apk",
-    "mobile:apk:release": "pnpm --filter @changebattle/mobile apk:release",
-    "mobile:showdown:bundle": "node tools/build_mobile_showdown_bundle.mjs",
-    "mobile:showdown:smoke": "node tools/mobile_showdown_smoke.mjs",
-    "desktop:build": "pnpm --filter @changebattle/desktop build",
-    "desktop:test:talents": "pnpm --filter @changebattle/desktop test:talents",
-    "game:test:trainer-items": "pnpm --filter @changebattle/game-service test:trainer-items",
-    "assets:import-pokemon-pack": "python3 tools/import_pokemon_pack_assets.py && python3 tools/build_sprite_index_map.py && python3 tools/build_resource_registries.py",
-    "assets:build-registry": "python3 tools/build_resource_registries.py",
-    "effects:validate": "node tools/validate_battle_effect_assets.mjs",
-    "moves:build-animation-targets": "node tools/build_move_animation_targets.mjs",
-    "moves:fetch-animations": "node tools/fetch_52poke_move_animations.mjs",
-    "moves:observe-animations": "node tools/observe_move_animations.mjs",
-    "rainbow:fetch-resources": "node tools/fetch_rainbow_rocket_resources.mjs",
-    "rainbow:build-data": "node tools/build_rainbow_rocket_data.mjs",
-    "desktop:release:win": "python3 tools/package_desktop_release.py",
+    "web:dev": "pnpm --filter @changebattle-v2/web dev",
+    "desktop:dev": "pnpm --filter @changebattle-v2/desktop dev",
     "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "esbuild": "^0.25.12",
     "typescript": "^5.9.3"
   }
 }
