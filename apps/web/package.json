@@ -10,9 +10,11 @@
   "dependencies": {
     "@changebattle-v2/api": "workspace:*",
     "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.0.0",
+    "motion": "^12.41.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router": "^8.0.1",
+    "vite": "^7.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

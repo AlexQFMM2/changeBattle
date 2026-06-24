@@ -1,0 +1,70 @@
+.main-menu-page {
+  --main-menu-page-left-width: 190px;
+  --main-menu-page-right-width: 220px;
+  --main-menu-page-command-height: 20px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #050807;
+}
+
+.main-menu-video-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: saturate(1.08) contrast(1.04) brightness(.88);
+}
+
+.main-menu-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 12%), rgb(0 0 0 / 20%) 55%, rgb(0 0 0 / 36%)),
+    linear-gradient(90deg, rgb(0 0 0 / 18%), transparent 48%, rgb(0 0 0 / 22%));
+  pointer-events: none;
+}
+
+.main-menu-page .main-menu-command-bar {
+  --main-menu-command-bar-button-height: var(--main-menu-page-command-height);
+}
+
+.main-menu-notice {
+  position: absolute;
+  right: 24px;
+  bottom: 172px;
+  z-index: 3;
+  box-sizing: border-box;
+  min-width: 136px;
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 46%);
+  background:
+    linear-gradient(180deg, rgb(31 36 48 / 94%), rgb(12 16 26 / 92%));
+  box-shadow:
+    0 8px 18px rgb(0 0 0 / 28%),
+    inset 0 0 0 1px rgb(255 255 255 / 10%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 68%);
+  pointer-events: none;
+  animation: main-menu-notice-in .18s ease-out both;
+}
+
+@keyframes main-menu-notice-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

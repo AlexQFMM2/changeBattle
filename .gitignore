@@ -6,3 +6,6 @@ out/
 coverage/
 *.log
 .DS_Store
+
+# Local generated/copied assets; keep out of git.
+assets/

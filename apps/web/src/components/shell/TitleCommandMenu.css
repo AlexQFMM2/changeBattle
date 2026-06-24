@@ -1,0 +1,77 @@
+.title-command-menu {
+  --title-command-menu-width: 130px;
+  --title-command-menu-button-height: 20px;
+  --title-command-menu-gap: 7px;
+  --title-command-menu-font-size: 13px;
+  position: relative;
+  z-index: 1;
+  width: var(--title-command-menu-width);
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  justify-content: stretch;
+  gap: var(--title-command-menu-gap);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.title-command-menu button,
+.title-command-menu .title-menu-item {
+  position: relative;
+  width: 100%;
+  min-height: var(--title-command-menu-button-height);
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgb(239 231 200 / 42%);
+  padding: 2px 3px;
+  box-shadow: none;
+  font-size: var(--title-command-menu-font-size);
+  font-weight: 950;
+  line-height: 1;
+  text-align: left;
+  text-shadow: 0 2px 0 #060407;
+}
+
+.title-command-menu .title-menu-item::before {
+  content: ">";
+  color: transparent;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.title-command-menu .title-menu-item span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-command-menu .title-menu-item:hover:not(:disabled),
+.title-command-menu .title-menu-item.primary {
+  color: #fff7dc;
+  outline: 0;
+  background: transparent;
+}
+
+.title-command-menu .title-menu-item:hover:not(:disabled)::before,
+.title-command-menu .title-menu-item.primary::before {
+  color: #89e36f;
+  text-shadow: 0 0 7px rgb(137 227 111 / 76%);
+}
+
+.title-command-menu .title-menu-item:disabled {
+  opacity: .48;
+}
+
+.title-command-menu .title-menu-item.quiet {
+  color: rgb(239 231 200 / 36%);
+}

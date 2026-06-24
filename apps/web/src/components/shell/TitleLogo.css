@@ -1,0 +1,80 @@
+.title-logo {
+  --title-logo-width: 196px;
+  --title-logo-subtitle-font-size: 10px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: var(--title-logo-width);
+  display: grid;
+  gap: 2px;
+}
+
+.title-logo svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 3px 0 rgb(4 12 9 / 78%));
+}
+
+.title-logo-kicker,
+.title-logo-word {
+  font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  letter-spacing: 0;
+  paint-order: stroke fill;
+}
+
+.title-logo-kicker {
+  fill: #b7df96;
+  stroke: rgb(6 18 12 / 72%);
+  stroke-width: 1.1px;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.title-logo-word {
+  fill: url("#titleLogoGold");
+  stroke: rgb(5 13 12 / 86%);
+  stroke-width: 2.2px;
+  font-size: 28px;
+  font-weight: 950;
+}
+
+.title-logo-stroke,
+.title-logo-accent {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: url("#titleLogoGlow");
+}
+
+.title-logo-stroke {
+  stroke: #8ee377;
+  stroke-width: 2.6px;
+}
+
+.title-logo-stroke.shadow {
+  stroke: rgb(5 13 12 / 78%);
+  stroke-width: 5px;
+  filter: none;
+}
+
+.title-logo-accent {
+  stroke: #f4db84;
+  stroke-width: 1.7px;
+  opacity: .86;
+}
+
+.title-logo-accent.short {
+  stroke: #79cfa7;
+  stroke-width: 1.3px;
+}
+
+.title-logo p {
+  margin: -3px 0 0;
+  color: #f8eed0;
+  font-size: var(--title-logo-subtitle-font-size);
+  line-height: 1.15;
+  font-weight: 900;
+  text-shadow: 0 2px 0 #07100c;
+}
