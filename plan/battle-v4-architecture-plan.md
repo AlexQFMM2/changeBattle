@@ -127,6 +127,77 @@ packages/showdown-battle-core/
 
 `packages/showdown-battle-core` 只做官方资源适配，不放业务状态、不放 UI、不放 GameRun 逻辑。
 
+## Showdown Client Battle Page Architecture To Imitate
+
+V4 说“全面模仿 Showdown Client 战斗页架构”，不是复制官方 `panel-battle.tsx` 的 UI 页面，而是模仿它的职责拆分。官方 client 的关键链路可以概括为：
+
+```txt
+server room message
+-> BattleRoom.receiveLine
+   -> |request|: receiveRequest(request)
+      -> BattleChoiceBuilder(request)
+      -> render command controls
+   -> other battle protocol line
+      -> Battle.add(raw line)
+      -> Battle / Side / Pokemon update
+      -> BattleScene animation/log update
+```
+
+本项目 V4 对应关系：
+
+| Showdown Client | V4 对应模块 | V4 规则 |
+| --- | --- | --- |
+| `BattleRoom` | `BattleGameControllerV4` | 接 raw frame、分发 request/protocol、驱动状态机，不放 UI 组件 |
+| `receiveRequest` | `BattleCommandRuntimeV4.receiveRequest` | 只更新 command/request，不生成动画 |
+| `BattleChoiceBuilder` | `BattleChoiceBuilderV4` | request -> choice string，支持 doubles/multi/pass/target |
+| `Battle.add` | `BattleProtocolRuntimeV4.applyLine` | raw protocol -> protocol fact/runtime event |
+| `Battle / Side / Pokemon` | `BattleProtocolStateV4` | p1/p2/p3/p4 side、active binding、team state |
+| `BattleScene` | `BattleEventAdapterV4 + AnimationQueueV4` | 只表现 runtime event，不创造事实 |
+| `panel-battle.tsx` controls | V2 战斗页 command UI | 只读 command state 和 view model，提交 choice |
+
+V4 的核心抄法是：
+
+```txt
+request 与 protocol line 分流
+choice builder 与 protocol runtime 分离
+battle state 与 scene/UI 分离
+scene/animation 只能消费 battle state diff
+```
+
+不能抄的是：
+
+- 不抄官方房间系统、聊天、网络层、Preact 页面和全局 `PS`。
+- 不直接复制 AGPL `panel-battle.tsx` 页面。
+- 不保留官方 replay 兼容里可能存在的名字兜底到 V4 事实层。
+- 不让 React UI 拥有 active 身份判断权。
+
+V4 自己的战斗页分层固定为：
+
+```txt
+BattleGameControllerV4
+  receives raw Showdown frames
+  owns BattleGameV4 aggregate
+
+BattleProtocolRuntimeV4
+  owns protocol facts
+  consumes all non-request battle lines
+
+BattleCommandRuntimeV4
+  owns current request and choice draft
+  consumes only |request| JSON
+
+BattleEventAdapterV4
+  maps protocol runtime events to animation scripts
+
+BattleViewModelProjectorV4
+  projects protocol/view/command/debug into V2 UI shape
+
+V2 Battle UI
+  renders scene + command panel
+  submits user choice
+  never mutates facts
+```
+
 ## Object Structure
 
 ### Showdown Identity
@@ -317,6 +388,601 @@ type BattleV4RuntimeEvent =
 ```
 
 Runtime event 是动画 adapter 的输入，不是 UI 事实源。事实源仍是 `BattleProtocolStateV4`。
+
+## RunGame / BattleGame / LocalTeam Design
+
+V4 需要明确两层游戏对象：
+
+```txt
+RunGameV4：一次游玩流程 / 一次训练场场景 / 一次正式 roguelike run
+BattleGameV4：RunGame 里的某一场 Showdown battle
+```
+
+`RunGameV4` 是长期上下文，负责保存玩家、队伍、背包、训练场配置、正式流程进度、路线节点、战后奖励和连续战斗状态。`BattleGameV4` 是短期上下文，只负责一场战斗内的协议、动画、指令、debug。一个 `RunGameV4` 可以创建多个 `BattleGameV4`，比如训练场连续试三场、正式流程连续遇敌、车轮战下一名敌人上场、失败后重试。
+
+### Top Level Aggregate
+
+```ts
+type RunGameV4 = {
+  id: string;
+  source: "training" | "official" | "debug";
+  status:
+    | "editing"
+    | "ready"
+    | "inBattle"
+    | "settling"
+    | "betweenBattles"
+    | "ended";
+
+  players: Record<ShowdownPlayerId, RunPlayerV4>;
+  currentBattleId: string | null;
+  battles: Record<string, BattleGameV4Summary>;
+
+  route?: RoguelikeRouteStateV4;
+  training?: TrainingScenarioV4;
+  official?: OfficialRunStateV4;
+  debug: RunGameDebugStateV4;
+};
+```
+
+`RunGameV4` 不持有 Showdown raw protocol 的完整状态；完整协议状态在当前 `BattleGameV4` 内。`RunGameV4.battles` 只留摘要、结果和 debug 路径索引，避免长期对象越来越重。
+
+### Run Player
+
+```ts
+type RunPlayerV4 = {
+  playerId: ShowdownPlayerId;
+  profileId: string;
+  name: string;
+  avatar: string;
+  controller: "local" | "ai" | "remote" | "script";
+  alliance: "near" | "far";
+
+  localTeam: LocalTeamV4;
+  bag: BagStateV4;
+};
+```
+
+训练场里 `p1/p3/p2/p4` 都可以是 `RunPlayerV4`。区别只在 controller 和 alliance：
+
+- singles：`p1 local near`，`p2 ai far`。
+- doubles：`p1 local near`，`p2 ai far`，每边一名 player 但各自两个 active。
+- multi/co-op：`p1 local near`，`p3 ai/script near`，`p2 ai far`，`p4 ai far`。
+
+multi 不能把 `p3` 合并进 `p1`，也不能把 `p4` 合并进 `p2`。Showdown 的四个 player side 必须保留到 runtime。
+
+## Roguelike / Wheel Battle Requirements
+
+最终目标是宝可梦培养 + 车轮战 roguelike，所以 V4 一开始就要避免“打一场就结束”的对象设计。
+
+### Run Scope vs Battle Scope
+
+| 数据 | 所属层 | 持久性 | 说明 |
+| --- | --- | --- | --- |
+| 路线节点、关卡序列、随机种子 | `RunGameV4.route` | 整个 run | 决定下一场打谁、奖励是什么 |
+| 玩家长期队伍、背包、临时 buff | `RunGameV4.players` | 整个 run | 多场 battle 之间延续 |
+| 当前敌人队伍快照 | `BattleGameV4` 输入 | 单场 battle | 从 route encounter 生成 |
+| raw protocol、request、active binding | `BattleGameV4` | 单场 battle | 战斗结束后归档 debug |
+| HP/status/经验/道具消耗写回 | `BattleResultPatchV4` | 战后一次性应用 | 不允许战斗中直接改 RunGame |
+
+### Roguelike Route Shape
+
+```ts
+type RoguelikeRouteStateV4 = {
+  seed: string | number[];
+  currentNodeId: string;
+  nodes: Record<string, RoguelikeNodeV4>;
+  completedNodeIds: string[];
+  pendingRewardIds: string[];
+  runModifiers: RunModifierV4[];
+};
+
+type RoguelikeNodeV4 = {
+  id: string;
+  type: "battle" | "elite" | "boss" | "rest" | "shop" | "event" | "reward";
+  encounter?: EncounterDraftV4;
+  nextNodeIds: string[];
+};
+```
+
+训练场第一版可以不做路线 UI，但 `RunGameV4` 要预留 route 字段；这样后面从训练场切到正式 roguelike 时，战斗创建流程不用推倒重来。
+
+### Wheel Battle Shape
+
+车轮战不要设计成“一场 BattleGame 里强行塞多波敌人”。默认设计是：
+
+```txt
+RunGameV4
+  -> BattleGameV4 #1 enemy wave A
+  -> settlement patch
+  -> optional reward/rest/shop decision
+  -> BattleGameV4 #2 enemy wave B
+  -> settlement patch
+  -> ...
+```
+
+也就是说，车轮战是 `RunGameV4` 连续创建多个 `BattleGameV4`。每一场仍然是标准 Showdown battle，这样 protocol runtime 不需要理解“第几波敌人”。如果未来要做“同一场内增援”，那也必须先确认 Showdown protocol 是否能自然表达；不能在 UI 层假装换一批敌人。
+
+### Persistence Policy
+
+不同模式使用同一套 patch 机制，但应用策略不同：
+
+| 模式 | HP/status 写回 | 经验/成长 | 道具消耗 | 用途 |
+| --- | --- | --- | --- | --- |
+| `training` | 默认不写回，可手动保存结果 | 默认不写回 | 默认不写回 | 快速验证流程 |
+| `debug` | 不写回 | 不写回 | 不写回 | 重放/排错 |
+| `official` | 写回 | 写回 | 写回 | 正式 roguelike run |
+
+红线：训练场为了测试可以“看起来连续”，但不能绕过 `BattleResultPatchV4` 直接改 `LocalTeamV4`。
+
+## LocalTeam Lifecycle
+
+V1 的 `localTeam / showdownTeam / runtimeTeam / viewTeam` 不应该继续由训练页同时维护。V4 改成单源派生：
+
+```txt
+LocalTeamV4        # RunGame 长期队伍，战斗前后唯一需要回写的队伍源
+-> BattleTeamInput # 创建 BattleGame 时的一次性输入快照
+-> ShowdownTeam    # pack 给 Showdown BattleStream 的队伍格式
+-> BattlePokemonV4 # 战斗内实体，由 protocol runtime 维护
+-> BattleViewModel # UI 投影，不回写 LocalTeam
+```
+
+### LocalTeamV4
+
+`LocalTeamV4` 是非战斗态队伍，训练页和正式流程都编辑它。它可以保存项目自己的字段，但不能保存 Showdown active ident。
+
+```ts
+type LocalTeamV4 = {
+  id: string;
+  name: string;
+  pokemon: LocalPokemonV4[];
+};
+
+type LocalPokemonV4 = {
+  localPokemonId: string;
+  speciesId: string;
+  nickname?: string;
+  level: number;
+  gender?: "M" | "F" | "N";
+  shiny?: boolean;
+  itemId?: string;
+  abilityId?: string;
+  nature: string;
+  moves: string[];
+  evs: StatTable;
+  ivs: StatTable;
+
+  experience?: number;
+  friendship?: number;
+  persistentHp?: number;
+  persistentStatus?: string | null;
+};
+```
+
+### BattleTeamInput
+
+创建战斗时从 `LocalTeamV4` 冻结出快照，避免战斗中训练页继续编辑导致状态漂移。
+
+```ts
+type BattleTeamInputV4 = {
+  playerId: ShowdownPlayerId;
+  sourceTeamId: string;
+  pokemon: BattlePokemonInputV4[];
+};
+
+type BattlePokemonInputV4 = {
+  localPokemonId: string;
+  teamIndex: number;
+  set: PokemonSetDraftV4;
+  showdownSet: ShowdownPackedSetV4;
+  showdownIdentityToken: string;
+};
+```
+
+### Pokeball / Showdown ID Mapping
+
+使用 pokeball 携带唯一 ID 映射成 `showdownIdentityToken` 的方案继续保留，而且应该成为 V4 的标准 source map。它解决的是“这只长期宝可梦进入 Showdown 后，战后怎么准确回写到 LocalTeam”的问题。
+
+固定链路：
+
+```txt
+LocalPokemonV4.localPokemonId
+-> TeamCompilerV4 writes showdownIdentityToken into Showdown set metadata / pokeball marker
+-> BattleTeamInputV4 records localPokemonId + showdownIdentityToken
+-> BattleGameV4 creates BattlePokemonV4
+-> protocol runtime attaches switch/drag/replace confirmed Pokemon to BattlePokemonV4
+-> BattleSettlementBuilderV4 uses localPokemonId/showdownIdentityToken source map for writeback
+```
+
+建议字段：
+
+```ts
+type PokemonSourceMapV4 = {
+  playerId: ShowdownPlayerId;
+  localTeamId: string;
+  localPokemonId: string;
+  teamIndex: number;
+  showdownIdentityToken: string;
+  battlePokemonId: string;
+};
+```
+
+生成规则：
+
+- `showdownIdentityToken` 在创建 `BattleTeamInputV4` 时生成或复用。
+- 同一个 `RunGameV4` 内，同一只 `LocalPokemonV4` 的 token 应该稳定，方便连续战斗追踪。
+- token 必须写入 Showdown team 中 V4 可回读的位置；V1 使用 pokeball 的做法可以保留。
+- token 不能依赖中文名、昵称、物种名、图片名或队伍顺序。
+
+使用边界：
+
+| 可以用 `showdownIdentityToken` 做什么 | 不能用 `showdownIdentityToken` 做什么 |
+| --- | --- |
+| 战斗创建时建立 `localPokemonId -> battlePokemonId` source map | 替代 `p1a/p2b` 判断场上目标 |
+| 战后把 HP/status/经验/奖励回写到 `LocalTeamV4` | 在 `move/damage/faint` 事件中猜 seat |
+| debug 里确认某个 BattlePokemon 来自哪只长期宝可梦 | 从 request.active 顺序推导 active binding |
+| 多场车轮战中追踪同一只长期宝可梦 | 没有 `switch/drag/replace` 时切换模型 |
+
+一句话：`showdownIdentityToken` 是长期身份，`ShowdownActiveId` 是场上位置。V4 允许长期身份帮助回写，但所有动画目标、seat、active binding 必须以 protocol ident 为准。
+
+### 战斗内不再维护三份队伍
+
+V4 战斗页内部只允许三类状态：
+
+| 状态 | 归属 | 生命周期 | 是否回写 LocalTeam |
+| --- | --- | --- | --- |
+| `BattlePokemonV4` | `BattleGameV4.teams` | 一场战斗 | 只在结算阶段生成 patch |
+| `BattleProtocolStateV4` | `BattleProtocolRuntimeV4` | 一场战斗 | 不直接回写 |
+| `BattleViewModelV4` | projector 输出 | 可随时重算 | 不回写 |
+
+也就是说，`showdownTeam` 是创建时产物，`runtimeTeam` 是 `BattlePokemonV4 + protocol`，`viewTeam` 是投影结果。训练页不维护 `runtimeTeam/viewTeam`，战斗页不直接改 `LocalTeam`。
+
+## RunGame To BattleGame Flow
+
+## Transition Page / Battle Loading Stage
+
+中转页是 V4 必须保留的独立阶段。它不是单纯的 loading 画面，而是用来承接重任务、降低玩家卡顿感、并把错误挡在战斗页之外的 `BattlePreparationStageV4`。
+
+固定入口：
+
+```txt
+训练页 / 路线节点 / 正式遭遇
+-> 中转页 BattleTransitionPage
+-> 战斗页 BattlePageV4
+```
+
+中转页负责做这些重任务：
+
+| 任务 | 说明 |
+| --- | --- |
+| 冻结队伍 | 从 `LocalTeamV4` 生成 `BattleTeamInputV4`，建立 `PokemonSourceMapV4` |
+| 编译 Showdown team | pack 队伍、写入 pokeball/showdownIdentityToken、校验招式/特性/道具 |
+| 创建 BattleGame | 生成 `BattleGameV4`、participants、初始 debug 目录 |
+| 启动 BattleStream | 创建 Showdown session，写入 players/teams/rules/seed |
+| 首帧协议检查 | 等到 start/player/poke/switch/request 等关键 raw protocol 到达 |
+| 资源预热 | 预加载场地背景、BGM、出场宝可梦立绘、小图、招式音效/特效索引 |
+| Debug 自检 | 输出 `initial-self-check.json`，检查 p1/p2/p3/p4、seat map、source map |
+| 错误阻断 | 编译失败、protocol 缺关键字段、资源严重缺失时停在中转页，不进入战斗页 |
+
+中转页状态建议：
+
+```ts
+type BattlePreparationStateV4 = {
+  runGameId: string;
+  battleId: string | null;
+  source: BattleV4Source;
+  phase:
+    | "freezingTeam"
+    | "compilingTeam"
+    | "creatingBattle"
+    | "openingStream"
+    | "waitingFirstProtocol"
+    | "preloadingAssets"
+    | "selfChecking"
+    | "ready"
+    | "failed";
+  progress: number;
+  currentLabel: string;
+  warnings: BattlePreparationWarningV4[];
+  error?: BattleV4InvariantError;
+};
+```
+
+### Transition Page Flow
+
+```mermaid
+flowchart TD
+  A[User clicks Start Battle] --> B[BattleTransitionPage mounted]
+  B --> C[Freeze LocalTeamV4]
+  C --> D[Compile Showdown teams]
+  D --> E[Create BattleGameV4]
+  E --> F[Open BattleStream]
+  F --> G[Wait first raw protocol frames]
+  G --> H[Apply initial protocol lines]
+  H --> I[Preload visible assets]
+  I --> J[Write initial-self-check.json]
+  J --> K{Ready?}
+  K -->|yes| L[Navigate BattlePageV4]
+  K -->|no| M[Show blocking debug error]
+```
+
+### Sequence Diagram: Transition To Battle Page
+
+```mermaid
+sequenceDiagram
+  participant UI as Training/Route UI
+  participant T as BattleTransitionPage
+  participant Factory as BattleGameFactoryV4
+  participant Stream as Showdown BattleStream
+  participant Assets as AssetPreloaderV4
+  participant Store as BattleGameStoreV4
+  participant BattleUI as BattlePageV4
+
+  UI->>T: navigate with runGameId + scenario/node
+  T->>Factory: prepareBattle(runGameId, scenarioOrNodeId)
+  Factory->>Factory: freeze teams + compile Showdown sets
+  Factory->>Stream: create battle session
+  Stream-->>Factory: initial raw protocol frames
+  Factory->>Store: create BattleGameV4 + apply initial lines
+  T->>Assets: preload first visible scene assets
+  Assets-->>T: preload result
+  T->>Store: run initial self-check
+  Store-->>T: ready or blocked
+  T->>BattleUI: navigate only when BattleGameV4 is ready
+```
+
+### UX Rules
+
+- 训练页点击开始后立即进入中转页，避免用户误以为按钮没反应。
+- 中转页要显示当前阶段，比如“编译队伍 / 连接 Showdown / 预加载立绘 / 检查 seat”。
+- 中转页可以展示提示、玩家头像、对战双方、模式和规则，但不能展示伪造的场上状态。
+- 战斗页只接收 ready 的 `battleId`；不在战斗页里做队伍 pack、BattleStream 首帧等待、首屏资源批量加载。
+- 如果失败，中转页显示可复制/导出的 debug 信息和 raw self-check，不让玩家进入半初始化战斗页。
+
+### Performance Rules
+
+- 重 CPU/IO 任务优先放中转页：team compile、Dex 校验、Showdown session 创建、debug 文件初始化、首屏资源预加载。
+- 战斗页只做轻量订阅和渲染，不做大规模同步计算。
+- 首帧必须预加载：当前背景、BGM、双方 active 宝可梦 front/back/icon、HP 卡资源、command 面板依赖图标。
+- 后续队伍替补、招式特效、叫声可以分批 lazy preload，不能阻塞进入战斗。
+- 中转页预热失败分等级：关键资源失败可 blocked；非关键图片失败只 warning 并使用 fallback。
+
+### Flow Chart
+
+```mermaid
+flowchart TD
+  A[Home / Training / Route Node] --> B[Scenario or Encounter Draft]
+  B --> C[RunGameV4 created or updated]
+  C --> C2[BattleTransitionPage]
+  C2 --> D[Freeze LocalTeamV4 into BattleTeamInputV4]
+  D --> E[Pack Showdown teams]
+  E --> F[Create BattleGameV4]
+  F --> G[Open Showdown BattleStream session]
+  G --> H[Receive raw protocol frames]
+  H --> I{Frame type}
+  I -->|request| J[BattleCommandRuntimeV4]
+  I -->|protocol lines| K[BattleProtocolRuntimeV4]
+  K --> L[BattleEventAdapterV4]
+  L --> M[AnimationQueueV4]
+  J --> N[BattleViewModelProjectorV4]
+  K --> N
+  M --> N
+  N --> O[V2 Battle UI]
+  O -->|choice| P[BattleChoiceBuilderV4]
+  P --> Q[write choose to BattleStream]
+  Q --> H
+  K -->|win/tie| R[Battle ended]
+  M -->|queue empty| S[Settlement builder]
+  R --> S
+  S --> T[Apply BattleResultPatch to RunGameV4 LocalTeam]
+  T --> U{Run has next node?}
+  U -->|yes| A
+  U -->|no| V[Run ended / return home]
+```
+
+### Sequence Diagram: Enter Battle
+
+```mermaid
+sequenceDiagram
+  participant UI as Training/Route UI
+  participant Run as RunGameStoreV4
+  participant Factory as BattleGameFactoryV4
+  participant Team as TeamCompilerV4
+  participant Stream as Showdown BattleStream
+  participant Battle as BattleGameControllerV4
+
+  UI->>Run: save TrainingScenarioV4 or select route node
+  UI->>Factory: createBattleFromRun(runGameId, scenarioOrNodeId)
+  Factory->>Run: read players + LocalTeamV4
+  Factory->>Team: freeze LocalTeamV4 to BattleTeamInputV4
+  Team-->>Factory: Showdown packed teams + battlePokemon source map
+  Factory->>Stream: create session(format, seed, players, packed teams)
+  Factory->>Battle: create BattleGameV4(source, participants, team inputs)
+  Stream-->>Battle: raw protocol frames
+  Battle->>Battle: split request/protocol lines
+  Battle-->>UI: BattleViewModelV4
+```
+
+进入战斗页时延续的不是 `viewTeam`，而是 `LocalTeamV4` 的冻结快照和 `localPokemonId -> battlePokemonId` 映射。战斗页第一帧显示什么，必须等 Showdown protocol 的 `switch/drag/replace` 或开局出场 line 确认。
+
+### Sequence Diagram: Choice And Animation
+
+```mermaid
+sequenceDiagram
+  participant Stream as Showdown BattleStream
+  participant Ctrl as BattleGameControllerV4
+  participant Cmd as BattleCommandRuntimeV4
+  participant Proto as BattleProtocolRuntimeV4
+  participant Anim as AnimationQueueV4
+  participant UI as V2 Battle UI
+
+  Stream-->>Ctrl: |request| {...}
+  Ctrl->>Cmd: receiveRequest(request)
+  Cmd-->>UI: command.phase + availableActions
+  UI->>Cmd: draft/select action
+  Cmd->>Cmd: BattleChoiceBuilderV4 builds choice string
+  Cmd->>Stream: >p1 move 1 / switch 3 / pass
+  Stream-->>Ctrl: |move| / |-damage| / |faint| / |turn|
+  Ctrl->>Proto: applyLine(raw line)
+  Proto-->>Ctrl: runtime events + protocol state
+  Ctrl->>Anim: enqueue events
+  Anim-->>UI: play scripts + commit checkpoints
+  UI-->>Ctrl: animation checkpoint consumed
+  Ctrl-->>UI: updated BattleViewModelV4
+```
+
+这里 `request` 只负责让 UI 知道能点什么。伤害、濒死、换人、替身、状态都必须等 protocol line 到达后再展示和 commit。
+
+### Sequence Diagram: Battle End And LocalTeam Writeback
+
+```mermaid
+sequenceDiagram
+  participant Stream as Showdown BattleStream
+  participant Battle as BattleGameControllerV4
+  participant Anim as AnimationQueueV4
+  participant Settle as BattleSettlementBuilderV4
+  participant Run as RunGameStoreV4
+  participant UI as Home/Training/Route UI
+
+  Stream-->>Battle: |win| or |tie|
+  Battle->>Battle: status = ended, runtime ended = true
+  Battle->>Anim: wait until queue empty
+  Anim-->>Battle: all animation checkpoints consumed
+  Battle->>Settle: build result from BattleGameV4 + source maps
+  Settle-->>Battle: BattleResultPatchV4
+  Battle->>Run: applyBattleResultPatch(runGameId, patch)
+  Run->>Run: update LocalTeamV4 / bag / run summary / route progress
+  Run-->>UI: next route node or return destination
+```
+
+写回只能发生一次，并且必须满足两个条件：
+
+```txt
+runtime 收到 end/win/tie
+animation queue 已消费完
+```
+
+如果 protocol 已结束但动画还没播完，不能提前回首页；如果动画播完但 runtime 没结束，不能结算。
+
+## Battle Result Writeback
+
+V4 战斗结束不允许战斗页到处直接改 `LocalTeam`，统一产出 patch：
+
+```ts
+type BattleResultPatchV4 = {
+  battleId: string;
+  runGameId: string;
+  outcome: "win" | "lose" | "tie" | "forfeit" | "blocked";
+  winnerPlayerIds: ShowdownPlayerId[];
+
+  pokemonPatches: Array<{
+    playerId: ShowdownPlayerId;
+    localPokemonId: string;
+    hp?: number;
+    status?: string | null;
+    experienceDelta?: number;
+    friendshipDelta?: number;
+  }>;
+
+  bagPatches: Array<{
+    playerId: ShowdownPlayerId;
+    itemId: string;
+    delta: number;
+  }>;
+
+  rewardPatches: Array<RunRewardPatchV4>;
+  routePatch?: RunRoutePatchV4;
+  debugFolder?: string;
+};
+```
+
+训练场第一版可以选择不写回 HP/status，只记录 battle summary；正式流程再打开持久 HP、经验、道具消耗。无论训练场还是正式流程，都必须通过同一个 `BattleSettlementBuilderV4` 产出 patch，只是 patch 内容可以为空。
+
+### Writeback Rules
+
+- `LocalTeamV4` 只在 `applyBattleResultPatch` 中改变。
+- `BattleGameV4` 内部不能保存 `LocalTeamV4` 引用，只保存 source map。
+- `BattlePokemonV4.localPokemonId` 只用于结束回写，不用于 active target 解析。
+- `faint` 后是否持久化为 0 HP，由 run mode 决定；protocol runtime 只记录战斗事实。
+- 训练场默认不污染用户长期资料；需要“保存训练结果”时再显式应用 patch。
+- 正式流程必须写回道具消耗、HP/status、经验、奖励、路线进度，但只能在结算阶段写一次。
+
+## Training Scenario V4
+
+训练页的职责是创建一个可重复的 battle scenario，而不是预先造战斗 runtime。
+
+更准确地说，训练页是 `BattleGameV4` 的快速验证台：
+
+```txt
+训练页不等于正式 roguelike 玩法
+训练页负责快速构造 BattleGameV4 输入
+训练页负责暴露 debug 面板和极端 case
+训练页用来证明 battle core 能打完、能解释、能复现
+```
+
+所以训练页第一优先级不是做奖励、地图、养成、剧情，而是让我们能用最少点击验证：
+
+- singles/doubles/multi 的 player/seat 是否正确。
+- `standard/gen7/gen8/gen9` 的 request/choice 是否正确。
+- 自定义队伍能否正确 pack 给 Showdown。
+- raw protocol 能否完整展示和导出。
+- runtime state、activeBindings、uiSeatMap 是否符合预期。
+- animation queue 是否只消费 protocol fact。
+- 战斗结束是否能产出 `BattleResultPatchV4`，即使训练模式默认不应用 patch。
+
+```ts
+type TrainingModeV4 = "singles" | "doubles" | "multi";
+type BattleRuleSetV4 = "standard" | "gen7-mega-z" | "gen8-dynamax" | "gen9-tera";
+
+type TrainingScenarioV4 = {
+  id: string;
+  name: string;
+  mode: TrainingModeV4;
+  ruleSet: BattleRuleSetV4;
+  formatId: string;
+  seed?: string | number[];
+  players: TrainingPlayerDraftV4[];
+};
+
+type TrainingPlayerDraftV4 = {
+  playerId: ShowdownPlayerId;
+  name: string;
+  avatar: string;
+  controller: "local" | "ai" | "script";
+  alliance: "near" | "far";
+  team: LocalTeamV4;
+  bag: BagStateV4;
+};
+```
+
+训练页可以展示和编辑队伍、头像、规则、AI 控制，但它不能生成：
+
+- `BattleProtocolStateV4`
+- `activeBindings`
+- `BattleViewModelV4`
+- `AnimationQueueV4`
+- `viewTeam`
+
+这些只能由创建战斗后的 `BattleGameV4` 和 raw protocol 产生。
+
+### Training Mode Mapping
+
+| Training mode | Showdown format/game type | Players | UI seats |
+| --- | --- | --- | --- |
+| `singles` | singles format | `p1` vs `p2` | `p1a nearA`, `p2a farA` |
+| `doubles` | doubles format | `p1` vs `p2` | `p1a nearA`, `p1b nearB`, `p2a farA`, `p2b farB` |
+| `multi` | multi battle format | `p1+p3` vs `p2+p4` | `p1a nearA`, `p3b nearB`, `p2a farA`, `p4b farB` 初始假设，以 fixture 校准 |
+
+特殊系统不是 UI flag，而是 Showdown format/ruleset 的一部分：
+
+| Rule set | Meaning | Showdown/V4 handling |
+| --- | --- | --- |
+| `standard` | 无 Mega/Z/极巨/太晶特殊系统 | 选择普通 format 或禁用对应 mechanics |
+| `gen7-mega-z` | Mega + Z 招式 | choice layer 展示 mega/z 选项，protocol runtime 等 Showdown fact |
+| `gen8-dynamax` | 极巨化 | choice layer 展示 dynamax 选项，visual flags 等 protocol |
+| `gen9-tera` | 太晶化 | choice layer 展示 tera 选项，visual flags 等 protocol |
+
+训练页不直接决定某只宝可梦“已经 Mega/极巨/太晶”。它只决定 format/ruleset 和可选配置，真正发生与否由 choice 和 protocol 确认。
 
 ## Red Lines
 

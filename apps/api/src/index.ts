@@ -1,4 +1,5 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
+import {createBrowserTrainingRunAdapter, createTrainingRunApi, type TrainingRunStorageAdapter} from "./training.js";
 
 export type TrainerCatalogEntryV2 = {
   id: string;
@@ -47,6 +48,7 @@ export type ChangeBattleV2ApiOptions = {
   resourcePrefix?: string;
   translate?: (table: string, value: string) => string;
   userProfileAdapter?: UserProfileStorageAdapter;
+  trainingRunAdapter?: TrainingRunStorageAdapter;
 };
 
 const USER_PROFILE_VERSION = 1 as const;
@@ -107,6 +109,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     translate: options.translate,
   });
   const userProfiles = options.userProfileAdapter || createBrowserUserProfileAdapter();
+  const trainingRuns = createTrainingRunApi(dex, options.trainingRunAdapter || createBrowserTrainingRunAdapter());
 
   return {
     dex,
@@ -126,6 +129,15 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       return userProfiles.saveUserProfile(next);
     },
     deleteUserProfile: () => userProfiles.deleteUserProfile(),
+    loadTrainingRun: () => trainingRuns.loadTrainingRun(),
+    saveTrainingRun: trainingRuns.saveTrainingRun,
+    deleteTrainingRun: trainingRuns.deleteTrainingRun,
+    createTrainingRunGame: trainingRuns.createTrainingRunGame,
+    createDefaultTrainingScenario: trainingRuns.createDefaultTrainingScenario,
+    updateTrainingScenario: trainingRuns.updateTrainingScenario,
+    randomizeTrainingScenario: trainingRuns.randomizeTrainingScenario,
+    randomizeTrainingTeam: trainingRuns.randomizeTeam,
+    createTrainingNpcCatalog: trainingRuns.createTrainingNpcCatalog,
   };
 }
 
@@ -240,4 +252,6 @@ function clone<T>(value: T): T {
 export type ChangeBattleV2Api = ReturnType<typeof createChangeBattleV2Api>;
 export {useDexHook} from "./useDexHook.js";
 export type {AbilityInfo, ItemInfo, MoveInfo, PokemonInfo, UseDexHookOptions} from "./useDexHook.js";
+export {createBrowserTrainingRunAdapter, createTrainingNpcCatalog, createTrainingRunApi} from "./training.js";
+export type * from "./training.js";
 export type * from "@changebattle-v2/showdown-dex-core";

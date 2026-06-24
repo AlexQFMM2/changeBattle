@@ -2,9 +2,11 @@ import {useEffect, useMemo, useState} from "react";
 import {HashRouter, Navigate, Route, Routes, useNavigate} from "react-router";
 import {
   createBrowserUserProfileAdapter,
+  createBrowserTrainingRunAdapter,
   createChangeBattleV2Api,
   createDesktopUserProfileAdapter,
   type DesktopUserProfileBridge,
+  type TrainingRunGameV4,
   type UserProfileDraftV2,
   type UserProfileV2,
 } from "@changebattle-v2/api";
@@ -13,6 +15,8 @@ import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
 import {TitlePage} from "./components/shell/TitlePage";
+import {TrainingConfigPage} from "./components/training/TrainingConfigPage";
+import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
 
 type AppProps = {
   runtime: "web" | "desktop";
@@ -36,6 +40,7 @@ function RoutedApp({runtime}: AppProps) {
   const navigate = useNavigate();
   const api = useMemo(() => createChangeBattleV2Api({
     userProfileAdapter: createUserProfileAdapter(runtime),
+    trainingRunAdapter: createBrowserTrainingRunAdapter(`changebattle-v2:${runtime}:training-run`),
   }), [runtime]);
   const catalog = useMemo(() => api.getTrainerCatalog(), [api]);
   const [profile, setProfile] = useState<UserProfileV2 | null>(null);
@@ -43,6 +48,7 @@ function RoutedApp({runtime}: AppProps) {
   const [message, setMessage] = useState("正在读取本地资料...");
   const [editingProfile, setEditingProfile] = useState<UserProfileV2 | null>(null);
   const [dexOpen, setDexOpen] = useState(false);
+  const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +69,24 @@ function RoutedApp({runtime}: AppProps) {
       cancelled = true;
     };
   }, [api]);
+
+  useEffect(() => {
+    if (!profile) {
+      setTrainingRun(null);
+      return;
+    }
+    let cancelled = false;
+    api.loadTrainingRun()
+      .then(next => {
+        if (!cancelled) setTrainingRun(next);
+      })
+      .catch(() => {
+        if (!cancelled) setTrainingRun(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, profile]);
 
   async function createOrUpdateProfile(draft: UserProfileDraftV2) {
     const next = editingProfile
@@ -92,6 +116,16 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/user");
   }
 
+  async function createTrainingRunAndOpenConfig() {
+    if (!profile) {
+      navigate("/", {replace: true});
+      return;
+    }
+    const next = await api.saveTrainingRun(api.createTrainingRunGame(profile));
+    setTrainingRun(next);
+    navigate("/training/config", {replace: true});
+  }
+
   const titlePage = (
     <TitlePage
       profile={profile}
@@ -110,6 +144,7 @@ function RoutedApp({runtime}: AppProps) {
         profile={profile}
         catalog={catalog.trainers}
         onOpenDex={() => setDexOpen(true)}
+        onTraining={() => navigate("/training/transition")}
         onUserInfo={startEdit}
         onTitle={() => navigate("/", {replace: true})}
       />
@@ -128,12 +163,31 @@ function RoutedApp({runtime}: AppProps) {
     />
   );
 
+  const trainingTransitionPage = profile ? (
+    <TrainingRunTransitionPage onReady={() => void createTrainingRunAndOpenConfig()} />
+  ) : <Navigate to="/" replace />;
+
+  const trainingConfigPage = profile ? (
+    trainingRun ? (
+      <TrainingConfigPage
+        api={api}
+        run={trainingRun}
+        onRunChange={setTrainingRun}
+        onBack={() => navigate("/main", {replace: true})}
+      />
+    ) : (
+      <TrainingRunTransitionPage onReady={() => void createTrainingRunAndOpenConfig()} />
+    )
+  ) : <Navigate to="/" replace />;
+
   return (
     <GameViewport showVersion>
       <Routes>
         <Route path="/" element={titlePage} />
         <Route path="/main" element={mainPage} />
         <Route path="/user" element={settingsPage} />
+        <Route path="/training/transition" element={trainingTransitionPage} />
+        <Route path="/training/config" element={trainingConfigPage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </GameViewport>

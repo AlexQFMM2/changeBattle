@@ -1,0 +1,161 @@
+.training-transition-page {
+  --training-transition-duration: 1800ms;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #050807;
+  color: #fffdf5;
+}
+
+.training-transition-video-fallback {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 26% 44%, rgb(77 116 87 / 45%), transparent 28%),
+    radial-gradient(circle at 70% 40%, rgb(142 94 62 / 36%), transparent 30%),
+    linear-gradient(135deg, #111a18, #060807 48%, #17100d);
+  filter: saturate(1.12) contrast(1.06);
+}
+
+.training-transition-video-fallback span,
+.training-transition-video-fallback i {
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+  background: rgb(255 247 211 / 10%);
+  box-shadow: 0 0 34px rgb(255 242 190 / 16%);
+  animation: training-transition-drift var(--training-transition-duration) ease-in-out infinite alternate;
+}
+
+.training-transition-video-fallback span {
+  left: 72px;
+  top: 54px;
+  width: 170px;
+  height: 170px;
+}
+
+.training-transition-video-fallback i {
+  right: 74px;
+  bottom: 18px;
+  width: 130px;
+  height: 130px;
+  animation-delay: .22s;
+}
+
+.training-transition-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 28%), rgb(0 0 0 / 14%) 40%, rgb(0 0 0 / 62%)),
+    linear-gradient(90deg, rgb(0 0 0 / 46%), transparent 52%, rgb(0 0 0 / 34%));
+}
+
+.training-transition-loading {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  z-index: 2;
+  width: 288px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid rgb(236 207 134 / 72%);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(28 35 35 / 91%), rgb(8 12 13 / 94%));
+  box-shadow:
+    0 12px 28px rgb(0 0 0 / 42%),
+    inset 0 0 0 1px rgb(255 255 255 / 8%);
+}
+
+.training-transition-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.training-transition-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff8e7;
+  font-size: 14px;
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow: 0 2px 0 rgb(0 0 0 / 54%);
+}
+
+.training-transition-copy span {
+  color: #d9c17b;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.training-transition-progress {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 42%);
+}
+
+.training-transition-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7bbf75, #e6c873);
+  animation: training-transition-progress var(--training-transition-duration) ease-in-out both;
+}
+
+.training-transition-tip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+}
+
+.training-transition-tip strong {
+  color: #f0d37e;
+  font-size: 6px;
+  line-height: 1.25;
+}
+
+.training-transition-tip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #dce4da;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+@keyframes training-transition-progress {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes training-transition-drift {
+  from {
+    transform: translate3d(-8px, 4px, 0) scale(.96);
+    opacity: .52;
+  }
+  to {
+    transform: translate3d(10px, -5px, 0) scale(1.04);
+    opacity: .86;
+  }
+}
+
