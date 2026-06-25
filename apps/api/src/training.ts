@@ -11,6 +11,7 @@ export type TrainingRuleSetV4 = "standard" | "gen7" | "gen8" | "gen9";
 export type TrainingControllerV4 = "local" | "ai" | "script";
 export type TrainingAllianceV4 = "near" | "far";
 export type TrainingGenderV4 = "M" | "F" | "N";
+export type TrainingStatusV4 = "" | "brn" | "par" | "psn" | "tox" | "slp" | "frz";
 
 export type TrainingUserProfileInputV4 = {
   id: string;
@@ -72,6 +73,9 @@ export type LocalPokemonV4 = {
   moves: TrainingMoveSlotV4[];
   evs: StatTableV4;
   ivs: StatTableV4;
+  entryHp: number;
+  entryStatus: TrainingStatusV4;
+  maxHp: number;
   spriteUrl?: string;
   shinySpriteUrl?: string;
   iconUrl?: string;
@@ -87,6 +91,8 @@ export type TrainingMoveSlotV4 = {
   power: number;
   accuracy: number | null;
   pp: number;
+  maxPp: number;
+  remainingPp: number;
 };
 
 export type StatTableV4 = Record<DexStatId, number>;
@@ -133,6 +139,19 @@ const PLAYER_SPECIES = ["pikachu", "eevee", "lucario", "charizard", "gardevoir",
 const ENEMY_SPECIES = ["raticate", "arbok", "golem", "machamp", "gengar", "gyarados", "snorlax", "tyranitar"];
 const ALLY_SPECIES = ["eevee", "raichu", "blastoise", "venusaur", "arcanine", "lapras", "scizor", "togekiss"];
 const FALLBACK_MOVES = ["tackle", "quickattack", "protect", "rest"];
+const RANDOM_NATURES = [
+  "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
+  "Bold", "Docile", "Relaxed", "Impish", "Lax",
+  "Timid", "Hasty", "Serious", "Jolly", "Naive",
+  "Modest", "Mild", "Quiet", "Bashful", "Rash",
+  "Calm", "Gentle", "Sassy", "Careful", "Quirky",
+];
+const RANDOM_ITEMS = [
+  "", "leftovers", "choicescarf", "choiceband", "choicespecs", "lifeorb",
+  "focussash", "assaultvest", "sitrusberry", "lumberry", "heavydutyboots",
+  "rockyhelmet", "eviolite", "expertbelt", "airballoon",
+];
+const RANDOM_STATUS: TrainingStatusV4[] = ["", "", "", "", "brn", "par", "psn", "tox", "slp", "frz"];
 
 const NPC_CATALOG: TrainingNpcV4[] = [
   {
@@ -242,7 +261,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
 
   function randomizeTeam(playerId: ShowdownPlayerIdV4, size: number, preferredSpeciesIds?: string[]): LocalTeamV4 {
     const pool = preferredSpeciesIds?.length ? preferredSpeciesIds : speciesPoolFor(playerId);
-    const pokemon = Array.from({length: Math.max(1, Math.min(6, size))}, (_, index) => createPokemon(pool[index % pool.length] || pick(pool), index));
+    const pokemon = Array.from({length: Math.max(1, Math.min(6, size))}, (_, index) => createPokemon(pick(pool), index, true));
     return {id: createId(`team-${playerId}`), name: `${playerId.toUpperCase()} 队伍`, pokemon};
   }
 
@@ -323,10 +342,14 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     return {playerId, name, avatar, controller, alliance, localTeam, bag: {items: []}};
   }
 
-  function createPokemon(speciesId: string, index: number): LocalPokemonV4 {
+  function createPokemon(speciesId: string, index: number, randomized = false): LocalPokemonV4 {
     const detail = pokemonDetail(speciesId);
-    const ability = detail.abilities[0];
-    const moves = selectMoves(detail.learnset);
+    const ability = randomized ? pick(detail.abilities) || detail.abilities[0] : detail.abilities[0];
+    const nature = randomized ? pick(RANDOM_NATURES) : DEFAULT_NATURE;
+    const moves = selectMoves(detail.learnset, randomized);
+    const evs = emptyStats(0);
+    const ivs = emptyStats(31);
+    const maxHp = calculateMaxHp(detail.id, 50, nature, evs, ivs);
     return {
       localPokemonId: createId(`pokemon-${index + 1}`),
       speciesId: detail.id,
@@ -334,15 +357,18 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       nameZh: detail.nameZh,
       level: 50,
       gender: "N",
-      shiny: false,
-      itemId: DEFAULT_ITEM_ID,
+      shiny: randomized ? Math.random() < 0.12 : false,
+      itemId: randomized ? pick(RANDOM_ITEMS) : DEFAULT_ITEM_ID,
       abilityId: ability?.id || "",
       abilityName: ability?.name || "",
       abilityNameZh: ability?.nameZh || ability?.name || "",
-      nature: DEFAULT_NATURE,
+      nature,
       moves,
-      evs: emptyStats(0),
-      ivs: emptyStats(31),
+      evs,
+      ivs,
+      entryHp: randomized ? randomHp(maxHp) : maxHp,
+      entryStatus: randomized ? pick(RANDOM_STATUS) : "",
+      maxHp,
       spriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
       shinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
       iconUrl: detail.sprites.iconUrl,
@@ -355,23 +381,34 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     const ability = detail.abilities.find(entry => entry.id === pokemon.abilityId) || detail.abilities[0];
     const moves = (pokemon.moves || []).filter(move => move.moveId).slice(0, 4).map(move => normalizeMoveSlot(move.moveId));
     while (moves.length < 4) moves.push(selectMoves(detail.learnset)[moves.length] || fallbackMove(moves.length));
+    const evs = normalizeStats(pokemon.evs, 0);
+    const ivs = normalizeStats(pokemon.ivs, 31);
+    const level = clampInt(pokemon.level, 1, 100, 50);
+    const nature = pokemon.nature || DEFAULT_NATURE;
+    const maxHp = calculateMaxHp(detail.id, level, nature, evs, ivs);
     return {
       ...pokemon,
       localPokemonId: pokemon.localPokemonId || createId(`pokemon-${index + 1}`),
       speciesId: detail.id,
       name: detail.name,
       nameZh: detail.nameZh,
-      level: clampInt(pokemon.level, 1, 100, 50),
+      level,
       gender: pokemon.gender || "N",
       shiny: Boolean(pokemon.shiny),
       itemId: pokemon.itemId || "",
       abilityId: ability?.id || "",
       abilityName: ability?.name || "",
       abilityNameZh: ability?.nameZh || ability?.name || "",
-      nature: pokemon.nature || DEFAULT_NATURE,
-      moves,
-      evs: normalizeStats(pokemon.evs, 0),
-      ivs: normalizeStats(pokemon.ivs, 31),
+      nature,
+      moves: moves.map((move, moveIndex) => {
+        const previous = pokemon.moves?.[moveIndex];
+        return normalizeMovePp(move, previous?.moveId === move.moveId ? previous.remainingPp : undefined);
+      }),
+      evs,
+      ivs,
+      entryHp: clampInt(pokemon.entryHp ?? maxHp, 0, maxHp, maxHp),
+      entryStatus: normalizeStatus(pokemon.entryStatus),
+      maxHp,
       spriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
       shinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
       iconUrl: detail.sprites.iconUrl,
@@ -379,11 +416,14 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     };
   }
 
-  function selectMoves(learnset: DexMoveSummary[]): TrainingMoveSlotV4[] {
+  function selectMoves(learnset: DexMoveSummary[], randomized = false): TrainingMoveSlotV4[] {
     const usable = learnset.filter(move => move.id && move.pp > 0);
-    const selected = [...usable.slice(0, 2), ...shuffle(usable.slice(2)).slice(0, 2)].slice(0, 4);
+    const selected = randomized ? shuffle(usable).slice(0, 4) : [...usable.slice(0, 2), ...shuffle(usable.slice(2)).slice(0, 2)].slice(0, 4);
     while (selected.length < 4) selected.push(moveSummary(FALLBACK_MOVES[selected.length] || "tackle"));
-    return selected.map(moveSlot);
+    return selected.map(move => {
+      const slot = moveSlot(move);
+      return randomized ? {...slot, remainingPp: randomPp(slot.maxPp)} : slot;
+    });
   }
 
   function moveSlot(move: DexMoveSummary): TrainingMoveSlotV4 {
@@ -396,6 +436,8 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       power: move.power,
       accuracy: move.accuracy,
       pp: move.pp,
+      maxPp: move.pp,
+      remainingPp: move.pp,
     };
   }
 
@@ -416,8 +458,19 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
         power: 0,
         accuracy: null,
         pp: 0,
+        maxPp: 0,
+        remainingPp: 0,
       };
     }
+  }
+
+  function normalizeMovePp(move: TrainingMoveSlotV4, remainingPp: number | undefined): TrainingMoveSlotV4 {
+    const maxPp = clampInt(move.maxPp ?? move.pp, 0, 99, move.pp);
+    return {...move, maxPp, remainingPp: clampInt(remainingPp ?? maxPp, 0, maxPp, maxPp)};
+  }
+
+  function calculateMaxHp(speciesId: string, level: number, nature: string, evs: StatTableV4, ivs: StatTableV4): number {
+    return dex.calculatePokemonStats({speciesId, level, nature, evs, ivs}).stats.hp;
   }
 
   function moveSummary(moveId: string): DexMoveSummary {
@@ -510,6 +563,10 @@ function normalizeStats(stats: Partial<StatTableV4> | undefined, fallback: numbe
   return Object.fromEntries(STAT_IDS.map(stat => [stat, clampInt(stats?.[stat], 0, stat === "hp" ? 252 : 252, fallback)])) as StatTableV4;
 }
 
+function normalizeStatus(status: unknown): TrainingStatusV4 {
+  return ["brn", "par", "psn", "tox", "slp", "frz"].includes(String(status)) ? String(status) as TrainingStatusV4 : "";
+}
+
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   const next = Math.round(Number(value));
   if (!Number.isFinite(next)) return fallback;
@@ -524,6 +581,20 @@ function createId(prefix: string): string {
 
 function pick<T>(values: T[]): T {
   return values[Math.floor(Math.random() * values.length)] || values[0]!;
+}
+
+function randomHp(maxHp: number): number {
+  const roll = Math.random();
+  if (roll < 0.08) return 0;
+  if (roll < 0.16) return 1;
+  if (roll < 0.34) return Math.max(1, Math.floor(maxHp / 2));
+  return Math.max(1, Math.floor(maxHp * (0.35 + Math.random() * 0.65)));
+}
+
+function randomPp(maxPp: number): number {
+  if (maxPp <= 0) return 0;
+  if (Math.random() < 0.65) return maxPp;
+  return Math.floor(Math.random() * (maxPp + 1));
 }
 
 function shuffle<T>(values: T[]): T[] {

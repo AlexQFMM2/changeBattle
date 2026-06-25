@@ -20,6 +20,40 @@
   color: var(--training-config-page-text);
 }
 
+.training-config-page > .training-randomizing-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 29px;
+  z-index: 45;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  min-width: 78px;
+  height: 22px;
+  border: 1px solid #d5bd6e;
+  border-radius: 5px;
+  background: #151d1bcc;
+  color: #fff5d8;
+  box-shadow: 0 6px 18px #00000070;
+  font-size: 8px;
+  font-weight: 1000;
+  letter-spacing: 0;
+  pointer-events: none;
+  animation: training-randomizing-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes training-randomizing-pulse {
+  from {
+    opacity: 0.74;
+    transform: translateX(-50%) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
 .training-config-page * {
   box-sizing: border-box;
   scrollbar-width: thin;
@@ -142,7 +176,7 @@
 }
 
 .training-pokemon-editor {
-  grid-template-rows: 20px minmax(0, 1fr);
+  grid-template-rows: 18px 20px minmax(0, 1fr);
   gap: 4px;
 }
 
@@ -274,7 +308,11 @@
 .training-editor-fields input,
 .training-editor-fields select,
 .training-editor-preview input,
-.training-editor-preview select {
+.training-editor-preview select,
+.training-stat-row input,
+.training-move-row input,
+.training-entry-editor input,
+.training-entry-editor select {
   min-width: 0;
   height: 18px;
   border: 1px solid #4f5a58;
@@ -362,6 +400,37 @@
   gap: 5px;
 }
 
+.training-editor-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #2f403a;
+  border-radius: 4px;
+  background: #0f1515;
+  padding: 2px;
+}
+
+.training-editor-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 14px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #c5d0c7;
+  padding: 0 3px;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.training-editor-tabs button.active {
+  background: #cfb05f;
+  color: #17231f;
+}
+
 .training-editor-preview {
   min-width: 0;
   display: grid;
@@ -419,11 +488,102 @@
   padding-right: 2px;
 }
 
-.training-move-grid {
-  grid-column: 1 / -1;
+.training-stats-editor,
+.training-moves-editor,
+.training-entry-editor {
+  min-height: 0;
+  overflow: auto;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  align-content: start;
+  padding-right: 2px;
+}
+
+.training-stats-editor header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  color: #d7bd78;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.training-stat-head,
+.training-stat-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+}
+
+.training-stat-head span {
+  color: #d7bd78;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.training-stat-row span,
+.training-move-row label span,
+.training-entry-editor label span {
+  color: #d8d0c2;
+  font-size: 6px;
+  line-height: 1;
+}
+
+.training-stat-row input {
+  font-size: 8px;
+}
+
+.training-move-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
   gap: 5px;
+  align-items: start;
+  min-width: 0;
+}
+
+.training-move-row label,
+.training-entry-editor label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.training-move-row small,
+.training-entry-editor small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #d7bd78;
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.training-entry-editor strong {
+  color: #fff8e7;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.training-entry-hp-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.training-entry-hp-actions button {
+  height: 18px;
+  border: 1px solid #53635b;
+  border-radius: 3px;
+  background: #1e2927;
+  color: #f8f1e6;
+  padding: 0 3px;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .training-pokemon-editor.empty {
@@ -450,4 +610,10 @@
   color: #dce4da;
   font-size: 7px;
   font-weight: 900;
+}
+
+.training-config-actions button:disabled,
+.training-team-panel > button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }

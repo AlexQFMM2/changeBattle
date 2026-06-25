@@ -9,8 +9,12 @@ import type {
   TrainingPlayerDraftV4,
   TrainingRuleSetV4,
   TrainingRunGameV4,
+  StatTableV4,
+  TrainingMoveSlotV4,
+  TrainingStatusV4,
 } from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {TrainingDexSelect, type TrainingDexSelectOption} from "./TrainingDexSelect";
 import "./TrainingConfigPage.css";
 
 export type TrainingConfigPageProps = {
@@ -33,11 +37,41 @@ const RULE_LABEL: Record<TrainingRuleSetV4, string> = {
   gen9: "Gen9",
 };
 
+const STAT_LABEL: Record<keyof StatTableV4, string> = {
+  hp: "HP",
+  atk: "攻击",
+  def: "防御",
+  spa: "特攻",
+  spd: "特防",
+  spe: "速度",
+};
+
+const STATUS_LABEL: Record<TrainingStatusV4, string> = {
+  "": "无异常",
+  brn: "灼伤",
+  par: "麻痹",
+  psn: "中毒",
+  tox: "剧毒",
+  slp: "睡眠",
+  frz: "冰冻",
+};
+
+const NATURE_OPTIONS = [
+  ["Hardy", "勤奋"], ["Lonely", "怕寂寞"], ["Brave", "勇敢"], ["Adamant", "固执"], ["Naughty", "顽皮"],
+  ["Bold", "大胆"], ["Docile", "坦率"], ["Relaxed", "悠闲"], ["Impish", "淘气"], ["Lax", "乐天"],
+  ["Timid", "胆小"], ["Hasty", "急躁"], ["Serious", "认真"], ["Jolly", "爽朗"], ["Naive", "天真"],
+  ["Modest", "内敛"], ["Mild", "慢吞吞"], ["Quiet", "冷静"], ["Bashful", "害羞"], ["Rash", "马虎"],
+  ["Calm", "温和"], ["Gentle", "温顺"], ["Sassy", "自大"], ["Careful", "慎重"], ["Quirky", "浮躁"],
+] as const;
+
+const NATURE_LABEL = Object.fromEntries(NATURE_OPTIONS.map(([id, label]) => [id, label])) as Record<string, string>;
+
 export function TrainingConfigPage({api, run, onRunChange, onBack}: TrainingConfigPageProps) {
   const npcs = useMemo(() => api.createTrainingNpcCatalog(), [api]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<ShowdownPlayerIdV4>("p1");
   const [selectedPokemonId, setSelectedPokemonId] = useState(run.scenario.players[0]?.localTeam.pokemon[0]?.localPokemonId || "");
   const [message, setMessage] = useState("训练配置已就绪。");
+  const [randomizing, setRandomizing] = useState(false);
   const players = run.scenario.players;
   const selectedPlayer = players.find(player => player.playerId === selectedPlayerId) || players[0]!;
   const selectedPokemon = selectedPlayer.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || selectedPlayer.localTeam.pokemon[0] || null;
@@ -77,26 +111,39 @@ export function TrainingConfigPage({api, run, onRunChange, onBack}: TrainingConf
     patchScenario({players, selectedNpcIds: {...run.scenario.selectedNpcIds, [playerId]: npcId}}, `已选择 ${npc.name}。`);
   }
 
+  function runRandomizer(work: () => void) {
+    setRandomizing(true);
+    setMessage("正在随机...");
+    window.setTimeout(() => {
+      work();
+      setRandomizing(false);
+    }, 120);
+  }
+
   function randomizeAllTeams() {
-    const size = teamSizeForMode(run.scenario.mode);
-    const players = run.scenario.players.map(player => ({...player, localTeam: api.randomizeTrainingTeam(player.playerId, size)}));
-    const next = api.updateTrainingScenario(run, {players});
-    commit(next, "已按当前规则随机全部队伍。");
-    const player = next.scenario.players.find(entry => entry.playerId === selectedPlayer.playerId) || next.scenario.players[0];
-    if (player) {
-      setSelectedPlayerId(player.playerId);
-      setSelectedPokemonId(player.localTeam.pokemon[0]?.localPokemonId || "");
-    }
+    runRandomizer(() => {
+      const size = teamSizeForMode(run.scenario.mode);
+      const players = run.scenario.players.map(player => ({...player, localTeam: api.randomizeTrainingTeam(player.playerId, size)}));
+      const next = api.updateTrainingScenario(run, {players});
+      commit(next, "已按当前规则随机全部队伍。");
+      const player = next.scenario.players.find(entry => entry.playerId === selectedPlayer.playerId) || next.scenario.players[0];
+      if (player) {
+        setSelectedPlayerId(player.playerId);
+        setSelectedPokemonId(player.localTeam.pokemon[0]?.localPokemonId || "");
+      }
+    });
   }
 
   function randomizePlayerTeam(playerId: ShowdownPlayerIdV4) {
-    const size = teamSizeForMode(run.scenario.mode);
-    const players = run.scenario.players.map(player => player.playerId === playerId ? {...player, localTeam: api.randomizeTrainingTeam(playerId, size)} : player);
-    const next = api.updateTrainingScenario(run, {players});
-    commit(next, "队伍已随机。");
-    const player = next.scenario.players.find(entry => entry.playerId === playerId);
-    setSelectedPlayerId(playerId);
-    setSelectedPokemonId(player?.localTeam.pokemon[0]?.localPokemonId || "");
+    runRandomizer(() => {
+      const size = teamSizeForMode(run.scenario.mode);
+      const players = run.scenario.players.map(player => player.playerId === playerId ? {...player, localTeam: api.randomizeTrainingTeam(playerId, size)} : player);
+      const next = api.updateTrainingScenario(run, {players});
+      commit(next, "队伍已随机。");
+      const player = next.scenario.players.find(entry => entry.playerId === playerId);
+      setSelectedPlayerId(playerId);
+      setSelectedPokemonId(player?.localTeam.pokemon[0]?.localPokemonId || "");
+    });
   }
 
   function movePokemon(playerId: ShowdownPlayerIdV4, pokemonId: string, direction: -1 | 1) {
@@ -153,7 +200,7 @@ export function TrainingConfigPage({api, run, onRunChange, onBack}: TrainingConf
           }}
           onNpc={setNpc}
         />
-        <TrainingPokemonEditor pokemon={selectedPokemon} onPatch={patch => selectedPokemon ? patchPokemon(selectedPokemon.localPokemonId, patch) : undefined} />
+        <TrainingPokemonEditor api={api} pokemon={selectedPokemon} onPatch={patch => selectedPokemon ? patchPokemon(selectedPokemon.localPokemonId, patch) : undefined} />
         <TrainingTeamPanel
           player={selectedPlayer}
           selectedPokemonId={selectedPokemon?.localPokemonId || ""}
@@ -164,12 +211,13 @@ export function TrainingConfigPage({api, run, onRunChange, onBack}: TrainingConf
       </div>
       <footer className="training-config-actions">
         <span>{message}</span>
-        <button type="button" onClick={() => randomizePlayerTeam(selectedPlayer.playerId)}>快速随机</button>
-        <button type="button" onClick={randomizeAllTeams}>随机全部</button>
+        <button type="button" disabled={randomizing} onClick={() => randomizePlayerTeam(selectedPlayer.playerId)}>快速随机</button>
+        <button type="button" disabled={randomizing} onClick={randomizeAllTeams}>随机全部</button>
         <button type="button" onClick={() => void save()}>保存配置</button>
         <button type="button" className="primary" onClick={() => void save(run, "BattleGame V4 待接入。")}>开始战斗</button>
         <button type="button" onClick={onBack}>返回</button>
       </footer>
+      {randomizing ? <div className="training-randomizing-toast" role="status">正在随机...</div> : null}
     </motion.section>
   );
 }
@@ -284,7 +332,8 @@ function TrainingTeamPanel({player, selectedPokemonId, onSelect, onRandomize, on
   );
 }
 
-function TrainingPokemonEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4 | null; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+function TrainingPokemonEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api; pokemon: LocalPokemonV4 | null; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+  const [tab, setTab] = useState<"base" | "stats" | "moves" | "entry">("base");
   if (!pokemon) {
     return (
       <section className="training-pokemon-editor empty">
@@ -298,6 +347,16 @@ function TrainingPokemonEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4 | nu
         <strong>{pokemon.nameZh}</strong>
         <span>ID: {pokemon.speciesId}</span>
       </header>
+      <nav className="training-editor-tabs" aria-label="宝可梦编辑标签">
+        {[
+          ["base", "基础"],
+          ["stats", "能力"],
+          ["moves", "招式"],
+          ["entry", "进场"],
+        ].map(([id, label]) => (
+          <button className={tab === id ? "active" : ""} type="button" onClick={() => setTab(id as typeof tab)} key={id}>{label}</button>
+        ))}
+      </nav>
       <div className="training-editor-body">
         <div className="training-editor-preview">
           <ImageWithFallback src={(pokemon.shiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl) || pokemon.iconUrl || ""} alt={pokemon.nameZh} />
@@ -318,39 +377,117 @@ function TrainingPokemonEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4 | nu
             <span>闪光</span>
           </label>
         </div>
-        <div className="training-editor-fields">
-          <label>
-            <span>种类</span>
-            <input value={pokemon.speciesId} onChange={event => onPatch({speciesId: event.target.value})} />
-            <small>{pokemon.nameZh}</small>
-          </label>
-          <label>
-            <span>特性</span>
-            <input value={pokemon.abilityId} onChange={event => onPatch({abilityId: event.target.value})} />
-            <small>{pokemon.abilityNameZh}</small>
-          </label>
-          <label>
-            <span>道具</span>
-            <input value={pokemon.itemId} onChange={event => onPatch({itemId: event.target.value})} placeholder="none" />
-          </label>
-          <label>
-            <span>性格</span>
-            <input value={pokemon.nature} onChange={event => onPatch({nature: event.target.value})} />
-          </label>
-          <div className="training-move-grid">
-            {pokemon.moves.map((move, index) => (
-              <label key={`${move.moveId}-${index}`}>
-                <span>招式 {index + 1}</span>
-                <input value={move.moveId} onChange={event => {
-                  const moves = pokemon.moves.map((entry, moveIndex) => moveIndex === index ? {...entry, moveId: event.target.value, name: event.target.value, nameZh: event.target.value} : entry);
-                  onPatch({moves});
-                }} />
-                <small>{move.nameZh}</small>
-              </label>
-            ))}
-          </div>
-        </div>
+        {tab === "base" ? <TrainingBaseEditor api={api} pokemon={pokemon} onPatch={onPatch} /> : null}
+        {tab === "stats" ? <TrainingStatsEditor pokemon={pokemon} onPatch={onPatch} /> : null}
+        {tab === "moves" ? <TrainingMovesEditor api={api} pokemon={pokemon} onPatch={onPatch} /> : null}
+        {tab === "entry" ? <TrainingEntryEditor pokemon={pokemon} onPatch={onPatch} /> : null}
       </div>
     </section>
   );
+}
+
+function TrainingBaseEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api; pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+  const abilityOptions = useMemo<TrainingDexSelectOption[]>(() => {
+    try {
+      return api.getPokemonDetail(pokemon.speciesId).abilities.map(ability => ({id: ability.id, name: ability.name, nameZh: ability.nameZh, subtitle: ability.hidden ? "隐藏特性" : "常规特性"}));
+    } catch {
+      return [];
+    }
+  }, [api, pokemon.speciesId]);
+  const itemDisplay = useMemo(() => {
+    if (!pokemon.itemId) return "无道具";
+    try {
+      return api.getItemDetail(pokemon.itemId).nameZh;
+    } catch {
+      return pokemon.itemId;
+    }
+  }, [api, pokemon.itemId]);
+  return (
+    <div className="training-editor-fields">
+      <TrainingDexSelect api={api} category="pokemon" label="宝可梦" value={pokemon.speciesId} display={pokemon.nameZh} onSelect={speciesId => onPatch({speciesId})} />
+      <TrainingDexSelect api={api} category="abilities" label="特性" value={pokemon.abilityId} display={pokemon.abilityNameZh} fixedOptions={abilityOptions} onSelect={abilityId => onPatch({abilityId})} />
+      <TrainingDexSelect api={api} category="items" label="道具" value={pokemon.itemId} display={itemDisplay} allowEmpty emptyLabel="无道具" onSelect={itemId => onPatch({itemId})} />
+      <label>
+        <span>性格</span>
+        <select value={pokemon.nature} onChange={event => onPatch({nature: event.target.value})}>
+          {NATURE_OPTIONS.map(([id, label]) => <option value={id} key={id}>{label}</option>)}
+        </select>
+        <small>{NATURE_LABEL[pokemon.nature] || "未选择"}</small>
+      </label>
+    </div>
+  );
+}
+
+function TrainingStatsEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+  const evTotal = statKeys().reduce((sum, stat) => sum + (pokemon.evs[stat] || 0), 0);
+  return (
+    <div className="training-stats-editor">
+      <header>
+        <span>EV 合计 {evTotal}/510</span>
+        <span>HP {pokemon.maxHp}</span>
+      </header>
+      <div className="training-stat-head">
+        <span>能力</span>
+        <span>努力值</span>
+        <span>个体值</span>
+      </div>
+      {statKeys().map(stat => (
+        <div className="training-stat-row" key={stat}>
+          <span>{STAT_LABEL[stat]}</span>
+          <input type="number" min={0} max={252} value={pokemon.evs[stat]} onChange={event => onPatch({evs: {...pokemon.evs, [stat]: Number(event.target.value)}})} />
+          <input type="number" min={0} max={31} value={pokemon.ivs[stat]} onChange={event => onPatch({ivs: {...pokemon.ivs, [stat]: Number(event.target.value)}})} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TrainingMovesEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api; pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+  function patchMove(index: number, patch: Partial<TrainingMoveSlotV4>) {
+    onPatch({moves: pokemon.moves.map((move, moveIndex) => moveIndex === index ? {...move, ...patch} : move)});
+  }
+
+  return (
+    <div className="training-moves-editor">
+      {pokemon.moves.map((move, index) => (
+        <div className="training-move-row" key={`${move.moveId}-${index}`}>
+          <TrainingDexSelect api={api} category="moves" label={`招式 ${index + 1}`} value={move.moveId} display={move.nameZh} onSelect={moveId => patchMove(index, {moveId})} />
+          <label>
+            <span>剩余 PP</span>
+            <input type="number" min={0} max={move.maxPp} value={move.remainingPp} onChange={event => patchMove(index, {remainingPp: Number(event.target.value)})} />
+            <small>最大 {move.maxPp || move.pp}</small>
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TrainingEntryEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+  return (
+    <div className="training-entry-editor">
+      <strong>{pokemon.nameZh} 进场状态</strong>
+      <label>
+        <span>进场 HP</span>
+        <input type="number" min={0} max={pokemon.maxHp} value={pokemon.entryHp} onChange={event => onPatch({entryHp: Number(event.target.value)})} />
+        <small>最大 HP {pokemon.maxHp}</small>
+      </label>
+      <div className="training-entry-hp-actions">
+        <button type="button" onClick={() => onPatch({entryHp: pokemon.maxHp})}>满血</button>
+        <button type="button" onClick={() => onPatch({entryHp: Math.floor(pokemon.maxHp / 2)})}>半血</button>
+        <button type="button" onClick={() => onPatch({entryHp: 1})}>1 HP</button>
+        <button type="button" onClick={() => onPatch({entryHp: 0})}>濒死</button>
+      </div>
+      <label>
+        <span>进场异常</span>
+        <select value={pokemon.entryStatus} onChange={event => onPatch({entryStatus: event.target.value as TrainingStatusV4})}>
+          {(Object.keys(STATUS_LABEL) as TrainingStatusV4[]).map(status => <option value={status} key={status || "none"}>{STATUS_LABEL[status]}</option>)}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+function statKeys(): Array<keyof StatTableV4> {
+  return ["hp", "atk", "def", "spa", "spd", "spe"];
 }
