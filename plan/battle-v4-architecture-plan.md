@@ -398,7 +398,25 @@ RunGameV4：一次游玩流程 / 一次训练场场景 / 一次正式 roguelike 
 BattleGameV4：RunGame 里的某一场 Showdown battle
 ```
 
-`RunGameV4` 是长期上下文，负责保存玩家、队伍、背包、训练场配置、正式流程进度、路线节点、战后奖励和连续战斗状态。`BattleGameV4` 是短期上下文，只负责一场战斗内的协议、动画、指令、debug。一个 `RunGameV4` 可以创建多个 `BattleGameV4`，比如训练场连续试三场、正式流程连续遇敌、车轮战下一名敌人上场、失败后重试。
+`RunGameV4` 是长期上下文，负责保存玩家、队伍、背包、训练场配置、正式流程进度、流程节点、战后奖励和连续战斗状态。`BattleGameV4` 是短期上下文，只负责一场战斗内的协议、动画、指令、debug。一个 `RunGameV4` 可以按 `gameMap` 顺序创建多个 `BattleGameV4`，比如训练场连续试两场、正式流程连续遇敌、车轮战下一名敌人上场、失败后进入结算。
+
+核心共识：
+
+```txt
+创建 RunGame 时：
+  所有 RunPlayerV4 先实例化
+  每个 Player 的 localTeam / bag 先实例化
+  gameMap 节点顺序、对手、模式、规则全部确定
+  每个节点的 battleGame 初始为 null
+
+进入某个 battle 节点时：
+  中转页读取 currentNode + run.players
+  创建 BattleGameV4
+  回填 currentNode.battleGame
+  currentNode.state = running
+```
+
+也就是说，`RunGameV4` 创建时确定“路线和每一局怎么打”，但不提前创建 Showdown BattleStream、protocol runtime、动画队列这些重对象。`BattleGameV4` 只在进入当前节点前创建。
 
 ### Top Level Aggregate
 
@@ -407,25 +425,27 @@ type RunGameV4 = {
   id: string;
   source: "training" | "official" | "debug";
   status:
+    | "creating"
     | "editing"
-    | "ready"
-    | "inBattle"
+    | "resting"
+    | "battlePreparing"
+    | "battling"
     | "settling"
-    | "betweenBattles"
-    | "ended";
+    | "ended"
+    | "blocked";
 
   players: Record<ShowdownPlayerId, RunPlayerV4>;
-  currentBattleId: string | null;
-  battles: Record<string, BattleGameV4Summary>;
+  currentNodeId: string | null;
+  gameMap: RunGameNodeV4[];
 
-  route?: RoguelikeRouteStateV4;
   training?: TrainingScenarioV4;
   official?: OfficialRunStateV4;
+  result: RunGameResultV4 | null;
   debug: RunGameDebugStateV4;
 };
 ```
 
-`RunGameV4` 不持有 Showdown raw protocol 的完整状态；完整协议状态在当前 `BattleGameV4` 内。`RunGameV4.battles` 只留摘要、结果和 debug 路径索引，避免长期对象越来越重。
+`RunGameV4` 可以在当前节点里持有当前 `BattleGameV4`，但 `gameMap` 创建时所有 `battleGame` 必须为 `null`。训练场第一阶段每个 run 最多 1-2 场，可以直接把完整 `BattleGameV4` 回填到当前节点，方便 debug；后续如果对象太重，再拆成 `activeBattleGame + gameMap[].battleGameRef`。
 
 ### Run Player
 
@@ -451,6 +471,178 @@ type RunPlayerV4 = {
 
 multi 不能把 `p3` 合并进 `p1`，也不能把 `p4` 合并进 `p2`。Showdown 的四个 player side 必须保留到 runtime。
 
+### Game Map Node
+
+`gameMap` 是 RunGame 的流程表。训练场第一版只需要 `battle` 节点；正式 roguelike 后续可以扩展 `rest/shop/event/reward`，但战斗流程先按 battle 节点跑通。
+
+```ts
+type RunGameNodeV4 = {
+  id: string;
+  index: number;
+  kind: "battle";
+
+  state:
+    | "locked"       // 还没轮到
+    | "ready"        // 当前可进入
+    | "preparing"    // 中转页正在创建 BattleGame
+    | "running"      // BattleGame 正在跑
+    | "won"
+    | "lost"
+    | "skipped"
+    | "blocked";
+
+  p1: ShowdownPlayerId | null;
+  p2: ShowdownPlayerId | null;
+  p3: ShowdownPlayerId | null;
+  p4: ShowdownPlayerId | null;
+
+  mode: BattleV4Mode;
+  ruleSet: BattleRuleSetV4;
+  seed: string | number[];
+
+  battleGame: BattleGameV4 | null;
+
+  createdAt?: string;
+  startedAt?: string;
+  endedAt?: string;
+};
+```
+
+节点里的 `p1/p2/p3/p4` 是 `run.players` 的引用，不是 Player 副本：
+
+```txt
+node.p1 = "p1"
+run.players[node.p1] = 真正的 RunPlayerV4
+```
+
+这样战斗结束后 patch 回 `run.players.p1.localTeam`，下一场天然继承状态。`gameMap` 节点不得复制长期 Player、LocalTeam、bag 状态，除非后续明确设计“固定快照挑战”节点。
+
+### Game Map Creation Examples
+
+训练场单打两场：
+
+```ts
+type ExampleSingleTrainingRun = {
+  players: {
+    p1: RunPlayerV4; // local near
+    p2: RunPlayerV4; // enemy A
+    p3: RunPlayerV4; // optional unused/ally placeholder
+    p4: RunPlayerV4; // enemy B
+  };
+  currentNodeId: "battle-1";
+  gameMap: [
+    {
+      id: "battle-1";
+      index: 0;
+      kind: "battle";
+      state: "ready";
+      p1: "p1";
+      p2: "p2";
+      p3: null;
+      p4: null;
+      mode: "singles";
+      ruleSet: "gen9-tera";
+      battleGame: null;
+    },
+    {
+      id: "battle-2";
+      index: 1;
+      kind: "battle";
+      state: "locked";
+      p1: "p1";
+      p2: "p4";
+      p3: null;
+      p4: null;
+      mode: "singles";
+      ruleSet: "gen9-tera";
+      battleGame: null;
+    },
+  ];
+};
+```
+
+训练场合作：
+
+```ts
+type ExampleCoopTrainingNode = {
+  id: "battle-1";
+  state: "ready";
+  p1: "p1"; // local near
+  p3: "p3"; // ally near
+  p2: "p2"; // enemy far
+  p4: "p4"; // enemy far
+  mode: "multi";
+  ruleSet: "gen9-tera";
+  battleGame: null;
+};
+```
+
+### BattleGame Creation Policy
+
+`battleGame` 初始值固定为 `null`：
+
+```txt
+RunGame created
+-> gameMap[].battleGame = null
+```
+
+只有当前节点进入中转页时才能创建：
+
+```txt
+currentNode.state === ready
+currentNode.battleGame === null
+-> BattleTransitionPage / BattleGameFactoryV4
+-> createBattleGameFromRunNode(runGame, currentNode)
+-> currentNode.battleGame = battleGame
+-> currentNode.state = running
+-> runGame.status = battling
+```
+
+禁止为所有 `gameMap` 节点提前创建 BattleGame。提前创建会导致 Showdown session、raw protocol、request、动画队列、source map 和长期队伍状态过早分叉。
+
+### Post Battle Route Decision
+
+战斗结束后，中转页或 RunGame controller 只做一个纯判断：
+
+```txt
+BattleGame ended
+-> animation queue consumed
+-> build BattleResultPatchV4
+-> apply patch to run.players[pX].localTeam / bag
+-> currentNode.state = won/lost/blocked
+-> currentNode.battleGame.status = ended/blocked
+-> decide next route
+```
+
+判断规则：
+
+```ts
+type RunGameRouteDecisionV4 =
+  | {route: "rest"; nextNodeId: string; reason: "next-battle"}
+  | {route: "settlement"; outcome: "win"; reason: "all-battles-won"}
+  | {route: "settlement"; outcome: "loss"; reason: "battle-lost" | "battle-blocked" | "abandoned"};
+
+function resolvePostBattleRoute(run: RunGameV4, node: RunGameNodeV4): RunGameRouteDecisionV4 {
+  if (node.state === "lost") return {route: "settlement", outcome: "loss", reason: "battle-lost"};
+  if (node.state === "blocked") return {route: "settlement", outcome: "loss", reason: "battle-blocked"};
+
+  const next = run.gameMap.find(entry => entry.index > node.index && entry.kind === "battle" && entry.state === "locked");
+  if (!next) return {route: "settlement", outcome: "win", reason: "all-battles-won"};
+
+  return {route: "rest", nextNodeId: next.id, reason: "next-battle"};
+}
+```
+
+流程语义：
+
+```txt
+是否胜利？
+  否 -> 结算页（失败）
+  是 -> 是否所有小场全部结束？
+        是 -> 结算页（胜利）
+        否 -> 解锁下一 node -> 休整页
+```
+
 ## Roguelike / Wheel Battle Requirements
 
 最终目标是宝可梦培养 + 车轮战 roguelike，所以 V4 一开始就要避免“打一场就结束”的对象设计。
@@ -459,13 +651,14 @@ multi 不能把 `p3` 合并进 `p1`，也不能把 `p4` 合并进 `p2`。Showdow
 
 | 数据 | 所属层 | 持久性 | 说明 |
 | --- | --- | --- | --- |
-| 路线节点、关卡序列、随机种子 | `RunGameV4.route` | 整个 run | 决定下一场打谁、奖励是什么 |
+| 流程节点、关卡序列、随机种子 | `RunGameV4.gameMap` | 整个 run | 决定每一小场打谁、规则是什么、当前走到哪 |
+| 正式路线草稿、地图分支 | `OfficialRunStateV4` | 整个 run | 正式 roguelike 可用它生成或更新 `gameMap` |
 | 玩家长期队伍、背包、临时 buff | `RunGameV4.players` | 整个 run | 多场 battle 之间延续 |
-| 当前敌人队伍快照 | `BattleGameV4` 输入 | 单场 battle | 从 route encounter 生成 |
+| 当前敌人和队伍 | `RunGameV4.players` + `gameMap` 引用 | 整个 run | 创建 RunGame 时先确定，BattleGame 进入节点时再读取 |
 | raw protocol、request、active binding | `BattleGameV4` | 单场 battle | 战斗结束后归档 debug |
 | HP/status/经验/道具消耗写回 | `BattleResultPatchV4` | 战后一次性应用 | 不允许战斗中直接改 RunGame |
 
-### Roguelike Route Shape
+### Official Route Draft Shape
 
 ```ts
 type RoguelikeRouteStateV4 = {
@@ -485,7 +678,7 @@ type RoguelikeNodeV4 = {
 };
 ```
 
-训练场第一版可以不做路线 UI，但 `RunGameV4` 要预留 route 字段；这样后面从训练场切到正式 roguelike 时，战斗创建流程不用推倒重来。
+训练场第一版不做路线 UI，直接生成 `gameMap`。正式 roguelike 后续可以先生成 `RoguelikeRouteStateV4` 或地图草稿，再把玩家选择过的路线节点落成 `RunGameV4.gameMap`。无论来源是训练场还是正式路线，进入战斗时都只认 `currentNodeId + gameMap + run.players`。
 
 ### Wheel Battle Shape
 
@@ -693,17 +886,19 @@ type BattlePreparationStateV4 = {
 ```mermaid
 flowchart TD
   A[User clicks Start Battle] --> B[BattleTransitionPage mounted]
-  B --> C[Freeze LocalTeamV4]
-  C --> D[Compile Showdown teams]
-  D --> E[Create BattleGameV4]
-  E --> F[Open BattleStream]
-  F --> G[Wait first raw protocol frames]
-  G --> H[Apply initial protocol lines]
-  H --> I[Preload visible assets]
-  I --> J[Write initial-self-check.json]
-  J --> K{Ready?}
-  K -->|yes| L[Navigate BattlePageV4]
-  K -->|no| M[Show blocking debug error]
+  B --> C[Read current gameMap node]
+  C --> D[Freeze participating LocalTeamV4]
+  D --> E[Compile Showdown teams]
+  E --> F[Create BattleGameV4]
+  F --> G[Backfill node.battleGame]
+  G --> H[Open BattleStream]
+  H --> I[Wait first raw protocol frames]
+  I --> J[Apply initial protocol lines]
+  J --> K[Preload visible assets]
+  K --> L[Write initial-self-check.json]
+  L --> M{Ready?}
+  M -->|yes| N[Navigate BattlePageV4]
+  M -->|no| O[Show blocking debug error]
 ```
 
 ### Sequence Diagram: Transition To Battle Page
@@ -734,6 +929,7 @@ sequenceDiagram
 ### UX Rules
 
 - 训练页点击开始后立即进入中转页，避免用户误以为按钮没反应。
+- Web/Desktop 的页面路由不等于 `gameMap` 节点。正常 V2 训练流程应保持简洁：`首页 -> 训练配置页 -> 进入休整区中转页 -> 休整页`。`/training/transition` 只作为旧入口兼容或冷启动初始化，不作为玩家主路径；`gameMap` 只记录已经固化的对局节点，不把配置页、读图页、休整页塞成流程节点。
 - 中转页要显示当前阶段，比如“编译队伍 / 连接 Showdown / 预加载立绘 / 检查 seat”。
 - 中转页可以展示提示、玩家头像、对战双方、模式和规则，但不能展示伪造的场上状态。
 - 战斗页只接收 ready 的 `battleId`；不在战斗页里做队伍 pack、BattleStream 首帧等待、首屏资源批量加载。
@@ -754,7 +950,7 @@ flowchart TD
   A[Home / Training / Route Node] --> B[Scenario or Encounter Draft]
   B --> C[RunGameV4 created or updated]
   C --> C2[BattleTransitionPage]
-  C2 --> D[Freeze LocalTeamV4 into BattleTeamInputV4]
+  C2 --> D[Read current gameMap node + RunPlayers]
   D --> E[Pack Showdown teams]
   E --> F[Create BattleGameV4]
   F --> G[Open Showdown BattleStream session]
@@ -775,7 +971,7 @@ flowchart TD
   M -->|queue empty| S[Settlement builder]
   R --> S
   S --> T[Apply BattleResultPatch to RunGameV4 LocalTeam]
-  T --> U{Run has next node?}
+  T --> U{gameMap has next battle node?}
   U -->|yes| A
   U -->|no| V[Run ended / return home]
 ```
@@ -791,9 +987,9 @@ sequenceDiagram
   participant Stream as Showdown BattleStream
   participant Battle as BattleGameControllerV4
 
-  UI->>Run: save TrainingScenarioV4 or select route node
-  UI->>Factory: createBattleFromRun(runGameId, scenarioOrNodeId)
-  Factory->>Run: read players + LocalTeamV4
+  UI->>Run: save TrainingScenarioV4 or enter current gameMap node
+  UI->>Factory: createBattleFromRunNode(runGameId, nodeId)
+  Factory->>Run: read current node + players + LocalTeamV4
   Factory->>Team: freeze LocalTeamV4 to BattleTeamInputV4
   Team-->>Factory: Showdown packed teams + battlePokemon source map
   Factory->>Stream: create session(format, seed, players, packed teams)
@@ -851,8 +1047,8 @@ sequenceDiagram
   Battle->>Settle: build result from BattleGameV4 + source maps
   Settle-->>Battle: BattleResultPatchV4
   Battle->>Run: applyBattleResultPatch(runGameId, patch)
-  Run->>Run: update LocalTeamV4 / bag / run summary / route progress
-  Run-->>UI: next route node or return destination
+  Run->>Run: update LocalTeamV4 / bag / node state / currentNodeId
+  Run-->>UI: rest page, settlement page, or blocked debug page
 ```
 
 写回只能发生一次，并且必须满足两个条件：
@@ -955,13 +1151,16 @@ type TrainingPlayerDraftV4 = {
 };
 ```
 
-训练页可以展示和编辑队伍、头像、规则、AI 控制，但它不能生成：
+训练页可以展示和编辑队伍、头像、规则、AI 控制，并在点击开始时创建 `RunGameV4.players` 和 `RunGameV4.gameMap`。`gameMap` 里每个节点会确定 p1/p2/p3/p4、模式、规则、seed 和顺序，但 `battleGame` 必须保持 `null`，直到该节点进入中转页。
+
+训练页不能生成：
 
 - `BattleProtocolStateV4`
 - `activeBindings`
 - `BattleViewModelV4`
 - `AnimationQueueV4`
 - `viewTeam`
+- `BattleGameV4`
 
 这些只能由创建战斗后的 `BattleGameV4` 和 raw protocol 产生。
 
@@ -1001,6 +1200,10 @@ type TrainingPlayerDraftV4 = {
 - 严禁前端修改事实状态；前端只提交 choice、播放动画、触发 commit checkpoint。
 - 严禁为了兼容 V3 旧路径保留双数据源；V4 战斗页只读 V4 runtime/view。
 - 严禁先接正式流程再验证训练场；训练场三模式不稳，不进入正式 GameRun 接入。
+- 严禁 `gameMap` 节点复制长期 Player/LocalTeam/bag 状态；节点只能引用 `run.players`。
+- 严禁创建 `RunGameV4` 时提前创建所有 `BattleGameV4`；`gameMap[].battleGame` 初始必须是 `null`。
+- 严禁非当前节点创建或回填 `battleGame`；只有中转页/Factory 进入当前 ready 节点时可以创建。
+- 严禁 BattleGame 战斗中直接修改 `RunGameV4.players`；只能在结算阶段通过 `BattleResultPatchV4` 回写。
 
 ## Implementation Phases
 

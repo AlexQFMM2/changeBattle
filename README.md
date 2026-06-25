@@ -17,6 +17,7 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
 - `apps/api`：Web/Desktop 共用的应用层 API facade，后续公共函数都放这里。
+- `packages/showdown-battle-core`：Node-side BattleStream service。真实战斗逻辑在这里运行，Web/Desktop 只通过 HTTP adapter 读 snapshot / 提交 choice。
 - `apps/web`：Web 端适配器、V1 风格首屏/首页、QuickDex 图鉴弹窗。
 - `apps/desktop`：Desktop 端适配器，复用 Web UI。
 
@@ -32,14 +33,21 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 当前明确不做：
 
 - app 端。
-- Battle V4 正式接入。
+- 正式 roguelike GameRun 奖励、商店、结算。
 - GameRun / 战斗进度 / 背包 / 统计等完整存档。
 - 旧 `dexSearch` 兼容。
+
+当前 Battle V4 首轮：
+
+- 训练场休整页可以进入真实 Battle V4 中转页。
+- Battle service 使用 Showdown `BattleStream` 创建 session，保留 raw protocol/request/debug。
+- 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志。
+- 单打已打通核心 smoke；双打/合作使用同一 session API 和合法随机 AI 推进，后续继续补完整目标选择与动画。
 
 下一步：
 
 - 搬训练页，先复用 V1 UI，数据和公共函数放到 `apps/api`。
-- 训练页稳定后进入 Battle V4 战斗页：训练场优先，三模式稳定后再接正式流程。
+- 继续把旧 `battle-v2` 的目标选择、换人面板、日志弹窗、倍速/调试按钮细节迁到 `battle-v4`，并补战斗结束后的 HP/异常/PP 精准继承。
 
 详细路线见 `docs/training-and-battle-roadmap.md`。
 
@@ -53,7 +61,10 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 
 ```bash
 pnpm install
+pnpm battle:dev
 pnpm web:dev
 pnpm desktop:dev
 pnpm typecheck
 ```
+
+`./start_desk` 会自动尝试启动本地 battle service（默认 `127.0.0.1:5191`），再启动桌面端。Web 端手测真实战斗时需要另开一个终端运行 `pnpm battle:dev`。

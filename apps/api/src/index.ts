@@ -1,5 +1,6 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, type TrainingRunStorageAdapter} from "./training.js";
+import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 
 export type TrainerCatalogEntryV2 = {
   id: string;
@@ -41,7 +42,9 @@ export type UserProfileStorageAdapter = {
   deleteUserProfile(): Promise<void>;
 };
 
-export type DesktopUserProfileBridge = UserProfileStorageAdapter;
+export type DesktopUserProfileBridge = UserProfileStorageAdapter & {
+  getUserProfilePath?: () => Promise<string>;
+};
 
 export type ChangeBattleV2ApiOptions = {
   dex?: ShowdownDexLike;
@@ -49,6 +52,8 @@ export type ChangeBattleV2ApiOptions = {
   translate?: (table: string, value: string) => string;
   userProfileAdapter?: UserProfileStorageAdapter;
   trainingRunAdapter?: TrainingRunStorageAdapter;
+  battleServiceClient?: BattleServiceClientV4;
+  battleServiceUrl?: string;
 };
 
 const USER_PROFILE_VERSION = 1 as const;
@@ -110,6 +115,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
   });
   const userProfiles = options.userProfileAdapter || createBrowserUserProfileAdapter();
   const trainingRuns = createTrainingRunApi(dex, options.trainingRunAdapter || createBrowserTrainingRunAdapter());
+  const battleService = options.battleServiceClient || createBattleServiceClient(options.battleServiceUrl);
 
   return {
     dex,
@@ -135,9 +141,14 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     createTrainingRunGame: trainingRuns.createTrainingRunGame,
     createDefaultTrainingScenario: trainingRuns.createDefaultTrainingScenario,
     updateTrainingScenario: trainingRuns.updateTrainingScenario,
+    createTrainingRunFromScenario: trainingRuns.createTrainingRunFromScenario,
+    enterTrainingRest: trainingRuns.enterTrainingRest,
+    getCurrentTrainingNode: trainingRuns.getCurrentTrainingNode,
+    getNextTrainingNode: trainingRuns.getNextTrainingNode,
     randomizeTrainingScenario: trainingRuns.randomizeTrainingScenario,
     randomizeTrainingTeam: trainingRuns.randomizeTeam,
     createTrainingNpcCatalog: trainingRuns.createTrainingNpcCatalog,
+    battleService,
   };
 }
 
@@ -252,6 +263,8 @@ function clone<T>(value: T): T {
 export type ChangeBattleV2Api = ReturnType<typeof createChangeBattleV2Api>;
 export {useDexHook} from "./useDexHook.js";
 export type {AbilityInfo, ItemInfo, MoveInfo, PokemonInfo, UseDexHookOptions} from "./useDexHook.js";
+export * from "./battle.js";
+export * from "./training.js";
 export {createBrowserTrainingRunAdapter, createTrainingNpcCatalog, createTrainingRunApi} from "./training.js";
 export type * from "./training.js";
 export type * from "@changebattle-v2/showdown-dex-core";

@@ -10,11 +10,14 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
+    minWidth: 960,
+    minHeight: 640,
+    backgroundColor: "#f4f0e8",
     title: "ChangeBattle V2 Dex",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "../preload/preload.cjs"),
     },
   });
 
@@ -27,12 +30,14 @@ async function createWindow() {
 
 ipcMain.handle("userProfile:load", async () => {
   const filePath = userProfilePath();
+  console.info(`[changebattle-v2:desktop] loading profile from ${filePath}`);
   if (!existsSync(filePath)) return null;
   return JSON.parse(await readFile(filePath, "utf8")) as UserProfileV2;
 });
 
 ipcMain.handle("userProfile:save", async (_event: IpcMainInvokeEvent, profile: UserProfileV2) => {
   const filePath = userProfilePath();
+  console.info(`[changebattle-v2:desktop] saving profile to ${filePath}`);
   await mkdir(path.dirname(filePath), {recursive: true});
   await writeFile(filePath, `${JSON.stringify(profile, null, 2)}\n`, "utf8");
   return profile;
@@ -41,6 +46,8 @@ ipcMain.handle("userProfile:save", async (_event: IpcMainInvokeEvent, profile: U
 ipcMain.handle("userProfile:delete", async () => {
   await rm(userProfilePath(), {force: true});
 });
+
+ipcMain.handle("userProfile:path", async () => userProfilePath());
 
 function userProfilePath(): string {
   return path.join(app.getPath("userData"), "profile", "user-profile.json");

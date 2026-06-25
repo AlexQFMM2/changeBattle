@@ -4,8 +4,6 @@
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -89,8 +87,18 @@ p {
   border-radius: 3px;
   background: linear-gradient(#e8efdf, #c9d79a);
   box-shadow: 0 8px 24px #0008;
-  transform: scale(var(--game-viewport-scale));
-  transform-origin: center;
+  zoom: var(--game-viewport-scale);
+  image-rendering: pixelated;
+  -webkit-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+}
+
+@supports not (zoom: 1) {
+  .game-viewport {
+    zoom: 1;
+    transform: scale(var(--game-viewport-scale));
+    transform-origin: center;
+  }
 }
 
 .game-version-badge {
@@ -394,9 +402,20 @@ p {
 
 .page-action-bar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   padding: 0;
+}
+
+.page-action-error {
+  min-width: 0;
+  flex: 1;
+  color: #ffdf9b;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: left;
 }
 
 .page-action-bar button,

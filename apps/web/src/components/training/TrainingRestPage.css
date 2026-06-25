@@ -1,0 +1,1200 @@
+.training-rest-page {
+  --training-rest-page-padding: 8px;
+  --training-rest-header-height: 38px;
+  --training-rest-gap: 5px;
+  --training-rest-workspace-height: calc(320px - var(--training-rest-page-padding) * 2 - var(--training-rest-header-height) - var(--training-rest-gap));
+  width: 640px;
+  height: 320px;
+  min-width: 640px;
+  min-height: 320px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: var(--training-rest-header-height) var(--training-rest-workspace-height);
+  gap: var(--training-rest-gap);
+  padding: var(--training-rest-page-padding);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #efe8d8 0%, #d8ccb8 100%);
+  color: #263528;
+}
+
+.training-rest-page * {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #8c8060 #efe8d8;
+}
+
+.training-rest-page *::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.training-rest-page *::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #8c8060;
+}
+
+.training-rest-header {
+  --training-rest-header-stats-width: 210px;
+  --training-rest-header-actions-width: 188px;
+  --training-rest-header-button-height: 20px;
+  width: 100%;
+  height: var(--training-rest-header-height);
+  min-height: var(--training-rest-header-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--training-rest-header-stats-width) var(--training-rest-header-actions-width);
+  align-items: center;
+  gap: 6px;
+  border: 2px solid #6d5a3d;
+  border-radius: 6px;
+  background: #f9f4e8;
+  padding: 4px 12px 4px 6px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 38%), 0 3px 0 rgb(55 42 45 / 34%);
+}
+
+.training-rest-header-title,
+.training-rest-header-stats,
+.training-rest-header-actions {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.training-rest-header-title {
+  gap: 8px;
+}
+
+.training-rest-header-title h2 {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #1f2c23;
+  font-size: 14px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-header-tools {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.training-rest-header-tools button,
+.training-rest-header-actions button {
+  height: var(--training-rest-header-button-height);
+  min-height: var(--training-rest-header-button-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #6d5a3d;
+  border-radius: 4px;
+  background: #fffdf5;
+  color: #263528;
+  padding: 0 7px;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 rgb(55 42 45 / 18%);
+}
+
+.training-rest-header-tools button.selected {
+  outline: 2px solid rgb(36 89 56 / 42%);
+  background: #c1e6e2;
+}
+
+.training-rest-header-stats {
+  width: var(--training-rest-header-stats-width);
+  justify-content: center;
+  gap: 4px;
+}
+
+.training-rest-header-stats span {
+  width: auto;
+  height: var(--training-rest-header-button-height);
+  min-height: var(--training-rest-header-button-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #b8a77e;
+  border-radius: 4px;
+  background: #fffdf5;
+  padding: 0 6px;
+  color: #263528;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.training-rest-header-stats span:last-child {
+  min-width: 62px;
+}
+
+.training-rest-header-actions {
+  justify-content: end;
+  gap: 6px;
+}
+
+.training-rest-header-actions button {
+  width: 54px;
+  min-width: 0;
+  padding: 0;
+  font-size: 8px;
+}
+
+.training-rest-header-actions .danger-button {
+  width: 66px;
+  border-color: #9b4f45;
+}
+
+.training-rest-header-actions .save-button.changed {
+  border-color: #2d6d62;
+  background: #d2ecd1;
+}
+
+.training-rest-main-panel-host {
+  width: 100%;
+  height: var(--training-rest-workspace-height);
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+.training-rest-workspace-panel {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.training-rest-pokemon-panel {
+  --training-rest-team-slot-width: 86px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--training-rest-team-slot-width) minmax(0, 1fr);
+  gap: 7px;
+  border: 2px solid #263528;
+  border-radius: 6px;
+  background: #f8f5ec;
+  padding: 5px;
+  color: #25332b;
+  overflow: hidden;
+}
+
+.training-rest-team-sidebar {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 22px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.training-rest-team-sidebar-header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  color: #3b2d1e;
+}
+
+.training-rest-team-sidebar-header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.training-rest-team-order {
+  display: grid;
+  grid-template-columns: repeat(2, 18px);
+  gap: 3px;
+}
+
+.training-rest-team-order button {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  border: 2px solid #6d5a3d;
+  border-radius: 4px;
+  background: #fffdf5;
+  padding: 0;
+  color: #263528;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-team-order button:disabled {
+  opacity: .42;
+}
+
+.training-rest-team-slots {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(6, 35px);
+  align-content: start;
+  justify-items: center;
+  gap: 3px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.training-rest-team-mini-card {
+  --training-rest-mini-card-width: 78px;
+  --training-rest-mini-card-height: 35px;
+  --training-rest-mini-card-sprite-size: 18px;
+  position: relative;
+  width: var(--training-rest-mini-card-width);
+  height: var(--training-rest-mini-card-height);
+  min-width: var(--training-rest-mini-card-width);
+  min-height: var(--training-rest-mini-card-height);
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: 9px 7px 5px;
+  justify-items: center;
+  align-items: center;
+  gap: 3px 4px;
+  border: 2px solid #b78a46;
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 34%), transparent 44%),
+    #fffaf0;
+  color: #25332b;
+  padding: 5px 5px 4px;
+  overflow: hidden;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 58%);
+}
+
+.training-rest-team-mini-card.selected {
+  border-color: #36a766;
+  outline: 2px solid #60dc7a;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 42%), transparent 44%),
+    #fffdf5;
+}
+
+.training-rest-team-mini-card.status-fnt {
+  filter: grayscale(.6);
+  opacity: .74;
+}
+
+.training-rest-team-mini-card-index {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: #2f2735;
+  color: #f4db84;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-team-mini-card em {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  z-index: 1;
+  min-width: 14px;
+  height: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #b8d9d0;
+  border-radius: 4px;
+  background: #62b9dc;
+  color: #fff;
+  padding: 0 3px;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 18%);
+}
+
+.training-rest-team-mini-card img {
+  width: var(--training-rest-mini-card-sprite-size);
+  height: var(--training-rest-mini-card-sprite-size);
+  grid-row: 1 / -1;
+  grid-column: 1;
+  align-self: center;
+  justify-self: center;
+  object-fit: contain;
+}
+
+.training-rest-pokemon-icon {
+  display: block;
+  width: 40px;
+  height: 30px;
+  overflow: hidden;
+  background-size: auto;
+  image-rendering: auto;
+}
+
+.training-rest-team-mini-card .training-rest-pokemon-icon {
+  grid-row: 1 / -1;
+  grid-column: 1;
+  align-self: center;
+  justify-self: center;
+  transform: scale(.52);
+  transform-origin: center;
+}
+
+.training-rest-team-mini-card strong,
+.training-rest-team-mini-card-level {
+  grid-column: 2;
+  justify-self: start;
+  max-width: calc(var(--training-rest-mini-card-width) - 34px);
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-team-mini-card strong {
+  grid-row: 1;
+  align-self: end;
+  color: #25332b;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-team-mini-card-level {
+  grid-row: 2;
+  align-self: center;
+  color: #596052;
+  font-size: 5px;
+  font-weight: 950;
+}
+
+.training-rest-mini-hp {
+  position: relative;
+  grid-column: 2;
+  grid-row: 3;
+  align-self: start;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #c8c0ad;
+}
+
+.training-rest-mini-hp::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--training-rest-hp-rate);
+  background: #62c276;
+}
+
+.training-rest-selected-pokemon-detail {
+  --training-rest-selected-stats-width: 154px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--training-rest-selected-stats-width));
+  gap: 5px;
+  overflow: hidden;
+}
+
+.training-rest-selected-pokemon-main,
+.training-rest-selected-pokemon-stats {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #b5a57f;
+  border-radius: 5px;
+  background: #fffdf5;
+  padding: 5px;
+  color: #25332b;
+  overflow: hidden;
+}
+
+.training-rest-selected-pokemon-main {
+  display: grid;
+  grid-template-rows: 64px 30px 16px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.training-rest-selected-pokemon-identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  grid-template-rows: 10px 17px 11px 14px;
+  gap: 2px 7px;
+  border: 2px solid #247267;
+  border-radius: 5px;
+  background: #bce8bb;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.training-rest-selected-pokemon-identity img {
+  width: 54px;
+  height: 54px;
+  grid-row: 1 / -1;
+  align-self: center;
+  justify-self: center;
+  object-fit: contain;
+}
+
+.training-rest-selected-pokemon-identity span,
+.training-rest-selected-pokemon-identity small,
+.training-rest-selected-pokemon-identity h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-selected-pokemon-identity span {
+  color: #fff8e8;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.training-rest-selected-pokemon-identity h3 {
+  color: #fff8e8;
+  font-size: 12px;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 22%);
+}
+
+.training-rest-selected-pokemon-identity small {
+  color: #4d6658;
+  font-size: 7px;
+  font-weight: 850;
+}
+
+.training-rest-selected-pokemon-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.training-rest-selected-pokemon-facts div {
+  min-width: 0;
+  min-height: 0;
+  height: 32px;
+  display: grid;
+  grid-template-rows: 9px 15px;
+  gap: 2px;
+  border: 2px solid #6d5a3d;
+  border-radius: 4px;
+  background: #fffdf5;
+  padding: 4px;
+  color: #25332b;
+  text-align: left;
+}
+
+.training-rest-selected-pokemon-facts div.selected {
+  border-color: #36a766;
+  background: #e9f8e6;
+}
+
+.training-rest-selected-pokemon-facts span,
+.training-rest-selected-pokemon-facts strong {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-selected-pokemon-facts span {
+  font-size: 6px;
+}
+
+.training-rest-selected-pokemon-facts strong {
+  font-size: 7px;
+}
+
+.training-rest-selected-pokemon-hp {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-rows: 8px 7px;
+  gap: 1px 4px;
+  align-items: center;
+}
+
+.training-rest-selected-pokemon-hp span,
+.training-rest-selected-pokemon-hp strong {
+  font-size: 6px;
+  line-height: 1;
+}
+
+.training-rest-selected-pokemon-hp strong {
+  justify-self: end;
+}
+
+.training-rest-selected-pokemon-hp i {
+  position: relative;
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #c8c0ad;
+}
+
+.training-rest-selected-pokemon-hp i::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--training-rest-hp-rate);
+  background: linear-gradient(90deg, #62c276, #e1d45b);
+}
+
+.training-rest-selected-move-row {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  overflow: hidden;
+}
+
+.training-rest-move-card {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 18px 10px 9px;
+  border: 2px solid #7b6448;
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, #f9f7ef 0 48%, #6d6a5e 48% 100%);
+  overflow: hidden;
+}
+
+.training-rest-move-card strong,
+.training-rest-move-card span,
+.training-rest-move-card small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 5px;
+  line-height: 1;
+}
+
+.training-rest-move-card strong {
+  align-self: center;
+  color: #25332b;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-move-card span,
+.training-rest-move-card small {
+  color: #fffdf5;
+  font-size: 6px;
+  font-weight: 850;
+}
+
+.training-rest-selected-pokemon-stats {
+  display: grid;
+  grid-template-rows: 40px minmax(0, 1fr);
+  gap: 4px;
+}
+
+.training-rest-reroll-lines {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.training-rest-reroll-lines p {
+  min-width: 0;
+  height: 18px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  border: 1px solid #cfd8bd;
+  border-radius: 4px;
+  background: #f4f2e9;
+  padding: 0 5px;
+  margin: 0;
+}
+
+.training-rest-reroll-lines span,
+.training-rest-reroll-lines strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #25332b;
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-reroll-lines span {
+  color: #596052;
+}
+
+.training-rest-reroll-lines strong {
+  text-align: right;
+}
+
+.training-rest-selected-pokemon-stats dl {
+  min-height: 0;
+  margin: 0;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  overflow: hidden;
+}
+
+.training-rest-selected-pokemon-stats dl div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.training-rest-selected-pokemon-stats dt,
+.training-rest-selected-pokemon-stats dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.training-rest-selected-pokemon-stats dt {
+  color: #596052;
+}
+
+.training-rest-selected-pokemon-stats dd {
+  color: #25332b;
+}
+
+.training-rest-bag-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 0;
+  border: 2px solid #263528;
+  border-radius: 6px;
+  background: #fffdf5;
+  padding: 0;
+  overflow: hidden;
+}
+
+.training-rest-bag-left {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 34px minmax(0, 1fr);
+  border-right: 2px solid #263528;
+  background: #fffdf5;
+  overflow: hidden;
+}
+
+.training-rest-bag-tabs {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px;
+  overflow: hidden;
+}
+
+.training-rest-bag-tabs span {
+  width: 46px;
+  height: 22px;
+  min-height: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #c8bd9d;
+  border-radius: 5px;
+  background: #fffdf5;
+  color: #263528;
+  padding: 0 6px;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-bag-tabs span.selected {
+  border: 2px solid #cf6178;
+  background: #d8f2e7;
+}
+
+.training-rest-bag-tabs b {
+  font-size: 7px;
+}
+
+.training-rest-bag-list {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  background: #fffdf5;
+  padding: 7px;
+}
+
+.training-rest-bag-list p {
+  margin: 0;
+  border: 1px dashed #9b8f73;
+  border-radius: 4px;
+  background: #f3ead7;
+  color: #70675d;
+  padding: 38px 8px;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.training-rest-bag-list article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 36px;
+  grid-template-rows: 18px 12px;
+  align-items: center;
+  gap: 2px 7px;
+  min-height: 42px;
+  border: 2px solid #cf6178;
+  border-radius: 0;
+  background: #d8f2e7;
+  color: #25332b;
+  padding: 6px;
+  text-align: left;
+}
+
+.training-rest-bag-list strong,
+.training-rest-bag-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-bag-list strong {
+  grid-column: 2;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.training-rest-bag-list span {
+  grid-column: 3;
+  grid-row: 1 / -1;
+  display: grid;
+  place-items: center;
+  height: 22px;
+  border: 1px solid #e0c675;
+  border-radius: 5px;
+  background: #fff0a8;
+  color: #886039;
+  font-size: 8px;
+  font-weight: 1000;
+  text-align: right;
+}
+
+.training-rest-bag-list small {
+  grid-column: 2;
+  color: #596052;
+  font-size: 7px;
+}
+
+.training-rest-bag-item-icon {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  color: #6d8c48;
+  font-size: 20px;
+}
+
+.training-rest-bag-detail,
+.training-rest-empty {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: #fffdf5;
+  padding: 18px 18px;
+  color: #25332b;
+  overflow: hidden;
+}
+
+.training-rest-bag-detail-title {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.training-rest-bag-detail-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  color: #6d8c48;
+  font-size: 30px;
+}
+
+.training-rest-bag-detail-title div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.training-rest-bag-detail strong,
+.training-rest-empty {
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.training-rest-bag-detail span,
+.training-rest-bag-detail small,
+.training-rest-bag-detail em {
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+  font-style: normal;
+}
+
+.training-rest-bag-detail p {
+  margin: 8px 0 0;
+  color: #263528;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1.55;
+}
+
+.training-rest-progress-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border: 2px solid #263528;
+  border-radius: 6px;
+  background: #f8f5ec;
+  padding: 6px;
+  overflow: hidden;
+}
+
+.training-rest-progress-gallery {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 30px;
+  gap: 5px;
+}
+
+.training-rest-progress-main {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 126px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.training-rest-progress-stage,
+.training-rest-progress-detail {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #b5a57f;
+  border-radius: 5px;
+  background: #fffdf5;
+  padding: 6px;
+  overflow: hidden;
+}
+
+.training-rest-progress-stage {
+  display: grid;
+  gap: 4px;
+  background: #f3f0e8;
+}
+
+.training-rest-progress-trainer {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: end;
+  justify-items: center;
+  overflow: hidden;
+}
+
+.training-rest-progress-trainer img {
+  max-width: 100%;
+  max-height: 126px;
+  object-fit: contain;
+  image-rendering: auto;
+  filter: drop-shadow(0 3px 0 rgb(0 0 0 / 16%));
+}
+
+.training-rest-progress-trainer i {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border: 1px dashed #aeb9a2;
+  border-radius: 4px;
+  color: #596052;
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.training-rest-progress-trainer small {
+  max-width: 100%;
+  overflow: hidden;
+  color: #263329;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-progress-detail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+}
+
+.training-rest-progress-detail strong,
+.training-rest-progress-detail span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-progress-detail strong {
+  color: #25332b;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.training-rest-progress-detail span {
+  color: #596052;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.training-rest-progress-enemies {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.training-rest-progress-pokemon {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #cfd8bd;
+  border-radius: 4px;
+  background: #eef4e5;
+  padding: 4px 5px;
+  min-height: 70px;
+}
+
+.training-rest-progress-pokemon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.training-rest-progress-pokemon .training-rest-pokemon-icon {
+  align-self: center;
+  justify-self: center;
+  transform: scale(.74);
+  transform-origin: center;
+}
+
+.training-rest-progress-pokemon > span:not(.training-rest-pokemon-icon) {
+  color: #263329;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-progress-thumb-nav {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 2px 4px;
+}
+
+.training-rest-progress-thumb-nav button {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: #fff6d0;
+  color: #25332b;
+  font-size: 7px;
+  font-weight: 950;
+  padding: 2px;
+  box-shadow: inset 0 0 0 2px #75643e, 0 2px 0 #2d232a;
+}
+
+.training-rest-progress-thumb-nav button.active {
+  outline: 0;
+  background: #a3e3ee;
+}
+
+.training-rest-progress-thumb-nav button img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.training-rest-progress-thumb-nav button.next {
+  background: #b9e8b4;
+  box-shadow: inset 0 0 0 2px #3d6f49, 0 2px 0 #2d232a;
+}
+
+.training-rest-progress-thumb-nav button.completed {
+  background: rgb(255 246 208 / 80%);
+  opacity: .8;
+}
+
+.training-rest-progress-list {
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.training-rest-progress-list article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  border: 1px solid #cfd8bd;
+  border-radius: 4px;
+  background: #f6f3e9;
+  padding: 5px;
+}
+
+.training-rest-progress-list article.state-ready {
+  border-color: #36a766;
+  background: #e9f8e6;
+}
+
+.training-rest-progress-list article b {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #263528;
+  color: #fffdf5;
+  font-size: 8px;
+}
+
+.training-rest-progress-list article div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.training-rest-progress-list strong,
+.training-rest-progress-list span,
+.training-rest-progress-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-progress-list strong {
+  color: #263329;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.training-rest-progress-list span,
+.training-rest-progress-list small {
+  color: #596052;
+  font-size: 6px;
+  font-weight: 850;
+}
+
+.training-rest-toast {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  z-index: 20;
+  max-width: 360px;
+  min-height: 24px;
+  border: 2px solid #6d5a3d;
+  border-radius: 6px;
+  background: #fffdf5;
+  color: #263528;
+  padding: 4px 10px;
+  font-size: 8px;
+  font-weight: 950;
+  box-shadow: 0 3px 0 rgb(55 42 45 / 34%);
+}

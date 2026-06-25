@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
     loadUserProfile: (): Promise<UserProfileV2 | null> => ipcRenderer.invoke("userProfile:load"),
     saveUserProfile: (profile: UserProfileV2): Promise<UserProfileV2> => ipcRenderer.invoke("userProfile:save", profile),
     deleteUserProfile: (): Promise<void> => ipcRenderer.invoke("userProfile:delete"),
+    getUserProfilePath: (): Promise<string> => ipcRenderer.invoke("userProfile:path"),
   },
 });

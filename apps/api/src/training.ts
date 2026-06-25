@@ -12,6 +12,8 @@ export type TrainingControllerV4 = "local" | "ai" | "script";
 export type TrainingAllianceV4 = "near" | "far";
 export type TrainingGenderV4 = "M" | "F" | "N";
 export type TrainingStatusV4 = "" | "brn" | "par" | "psn" | "tox" | "slp" | "frz";
+export type TrainingRunStatusV4 = "configuring" | "resting" | "battlePreparing" | "battling" | "settling" | "ended" | "blocked";
+export type TrainingRunNodeStateV4 = "locked" | "ready" | "preparing" | "running" | "won" | "lost" | "skipped" | "blocked";
 
 export type TrainingUserProfileInputV4 = {
   id: string;
@@ -23,12 +25,44 @@ export type TrainingRunGameV4 = {
   version: 1;
   id: string;
   source: "training";
-  status: "configuring";
+  status: TrainingRunStatusV4;
   profileId: string;
   createdAt: string;
   updatedAt: string;
   scenario: TrainingScenarioV4;
+  players: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+  currentNodeId: string | null;
+  gameMap: TrainingRunGameNodeV4[];
+  result: TrainingRunResultV4 | null;
 };
+
+export type TrainingBattleGamePlaceholderV4 = {
+  id: string;
+  status: "creating" | "running" | "ended" | "blocked";
+} | null;
+
+export type TrainingRunGameNodeV4 = {
+  id: string;
+  index: number;
+  state: TrainingRunNodeStateV4;
+  p1: ShowdownPlayerIdV4 | null;
+  p2: ShowdownPlayerIdV4 | null;
+  p3: ShowdownPlayerIdV4 | null;
+  p4: ShowdownPlayerIdV4 | null;
+  mode: TrainingModeV4;
+  ruleSet: TrainingRuleSetV4;
+  seed: string;
+  participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+  battleGame: TrainingBattleGamePlaceholderV4;
+  createdAt?: string;
+  startedAt?: string;
+  endedAt?: string;
+};
+
+export type TrainingRunResultV4 = {
+  outcome: "win" | "loss" | "abandoned";
+  reason: string;
+} | null;
 
 export type TrainingScenarioV4 = {
   id: string;
@@ -78,6 +112,10 @@ export type LocalPokemonV4 = {
   maxHp: number;
   spriteUrl?: string;
   shinySpriteUrl?: string;
+  frontSpriteUrl?: string;
+  backSpriteUrl?: string;
+  frontShinySpriteUrl?: string;
+  backShinySpriteUrl?: string;
   iconUrl?: string;
   iconStyle?: string;
 };
@@ -124,6 +162,10 @@ export type TrainingRunApi = {
   createTrainingRunGame(profile: TrainingUserProfileInputV4): TrainingRunGameV4;
   createDefaultTrainingScenario(profile: TrainingUserProfileInputV4): TrainingScenarioV4;
   updateTrainingScenario(run: TrainingRunGameV4, patch: Partial<TrainingScenarioV4>): TrainingRunGameV4;
+  createTrainingRunFromScenario(run: TrainingRunGameV4): TrainingRunGameV4;
+  enterTrainingRest(run: TrainingRunGameV4): TrainingRunGameV4;
+  getCurrentTrainingNode(run: TrainingRunGameV4): TrainingRunGameNodeV4 | null;
+  getNextTrainingNode(run: TrainingRunGameV4): TrainingRunGameNodeV4 | null;
   randomizeTrainingScenario(run: TrainingRunGameV4, options?: {includeRuleSet?: boolean; includeMode?: boolean}): TrainingRunGameV4;
   randomizeTeam(playerId: ShowdownPlayerIdV4, size: number, preferredSpeciesIds?: string[]): LocalTeamV4;
   createTrainingNpcCatalog(): TrainingNpcV4[];
@@ -220,6 +262,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
 
   function createTrainingRunGame(profile: TrainingUserProfileInputV4): TrainingRunGameV4 {
     const now = new Date().toISOString();
+    const scenario = createDefaultTrainingScenario(profile);
     return {
       version: TRAINING_RUN_VERSION,
       id: createId("training-run"),
@@ -228,16 +271,63 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       profileId: profile.id,
       createdAt: now,
       updatedAt: now,
-      scenario: createDefaultTrainingScenario(profile),
+      scenario,
+      players: playersRecordFromScenario(scenario),
+      currentNodeId: null,
+      gameMap: [],
+      result: null,
     };
   }
 
   function updateTrainingScenario(run: TrainingRunGameV4, patch: Partial<TrainingScenarioV4>): TrainingRunGameV4 {
+    const scenario = normalizeScenario({...run.scenario, ...patch}, profileFromRun(run));
     return normalizeRun({
       ...run,
+      status: "configuring",
       updatedAt: new Date().toISOString(),
-      scenario: normalizeScenario({...run.scenario, ...patch}, profileFromRun(run)),
+      scenario,
+      players: playersRecordFromScenario(scenario),
+      currentNodeId: null,
+      gameMap: [],
+      result: null,
     });
+  }
+
+  function createTrainingRunFromScenario(run: TrainingRunGameV4): TrainingRunGameV4 {
+    const profile = profileFromRun(run);
+    const scenario = normalizeScenario(run.scenario, profile);
+    const players = playersRecordFromScenario(scenario);
+    const gameMap = createGameMapFromScenarioForRun(scenario);
+    return normalizeRun({
+      ...run,
+      status: "resting",
+      updatedAt: new Date().toISOString(),
+      scenario,
+      players,
+      currentNodeId: gameMap[0]?.id || null,
+      gameMap,
+      result: null,
+    });
+  }
+
+  function enterTrainingRest(run: TrainingRunGameV4): TrainingRunGameV4 {
+    const next = run.gameMap?.length ? run : createTrainingRunFromScenario(run);
+    return normalizeRun({
+      ...next,
+      status: "resting",
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  function getCurrentTrainingNode(run: TrainingRunGameV4): TrainingRunGameNodeV4 | null {
+    const normalized = normalizeRun(run);
+    return normalized.gameMap.find(node => node.id === normalized.currentNodeId) || normalized.gameMap.find(node => node.state === "ready") || null;
+  }
+
+  function getNextTrainingNode(run: TrainingRunGameV4): TrainingRunGameNodeV4 | null {
+    const normalized = normalizeRun(run);
+    const current = getCurrentTrainingNode(normalized);
+    return normalized.gameMap.find(node => node.index > (current?.index ?? -1) && node.state === "locked") || null;
   }
 
   function randomizeTrainingScenario(run: TrainingRunGameV4, options: {includeRuleSet?: boolean; includeMode?: boolean} = {}): TrainingRunGameV4 {
@@ -256,7 +346,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       selectedNpcIds: mode === "coop" ? {p2: enemy.id, p3: ally.id, p4: pick(enemyNpcs()).id} : {p2: enemy.id},
       players: playersForMode(mode, profile, enemy, ally, true),
     }, profile);
-    return normalizeRun({...run, scenario, updatedAt: new Date().toISOString()});
+    return normalizeRun({...run, status: "configuring", scenario, players: playersRecordFromScenario(scenario), gameMap: [], currentNodeId: null, result: null, updatedAt: new Date().toISOString()});
   }
 
   function randomizeTeam(playerId: ShowdownPlayerIdV4, size: number, preferredSpeciesIds?: string[]): LocalTeamV4 {
@@ -280,15 +370,26 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
   }
 
   function normalizeRun(run: TrainingRunGameV4): TrainingRunGameV4 {
+    const scenario = normalizeScenario(run.scenario, profileFromRun(run));
+    const players = normalizePlayersRecord(run.players, scenario);
+    const hasGameMap = Array.isArray(run.gameMap) && run.gameMap.length > 0;
+    const gameMap = hasGameMap ? normalizeGameMap(run.gameMap, scenario) : [];
+    const currentNodeId = run.currentNodeId && gameMap.some(node => node.id === run.currentNodeId)
+      ? run.currentNodeId
+      : gameMap.find(node => node.state === "ready" || node.state === "running" || node.state === "preparing")?.id || null;
     return {
       version: TRAINING_RUN_VERSION,
       id: run.id || createId("training-run"),
       source: "training",
-      status: "configuring",
+      status: normalizeRunStatus(run.status, gameMap),
       profileId: run.profileId || "",
       createdAt: run.createdAt || new Date().toISOString(),
       updatedAt: run.updatedAt || run.createdAt || new Date().toISOString(),
-      scenario: normalizeScenario(run.scenario, profileFromRun(run)),
+      scenario,
+      players,
+      currentNodeId,
+      gameMap,
+      result: run.result || null,
     };
   }
 
@@ -371,6 +472,10 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       maxHp,
       spriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
       shinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      frontSpriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      backSpriteUrl: detail.sprites.backUrl || detail.sprites.fallbackBackUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      frontShinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      backShinySpriteUrl: detail.sprites.backShinyUrl || detail.sprites.fallbackBackShinyUrl || detail.sprites.backUrl || detail.sprites.fallbackBackUrl || detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.iconUrl,
       iconUrl: detail.sprites.iconUrl,
       iconStyle: detail.sprites.iconStyle,
     };
@@ -411,6 +516,10 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       maxHp,
       spriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
       shinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      frontSpriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      backSpriteUrl: detail.sprites.backUrl || detail.sprites.fallbackBackUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      frontShinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      backShinySpriteUrl: detail.sprites.backShinyUrl || detail.sprites.fallbackBackShinyUrl || detail.sprites.backUrl || detail.sprites.fallbackBackUrl || detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.iconUrl,
       iconUrl: detail.sprites.iconUrl,
       iconStyle: detail.sprites.iconStyle,
     };
@@ -490,6 +599,44 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     return {name: p1?.name || "训练师", avatarAsset: p1?.avatar || "/npc/avatars/6-asset-a73f3e71.webp"};
   }
 
+  function createGameMapFromScenarioForRun(scenario: TrainingScenarioV4): TrainingRunGameNodeV4[] {
+    const ids = playerIdsForMode(scenario.mode);
+    const basePlayers = playersRecordFromScenario(scenario);
+    const p1 = basePlayers.p1!;
+    const p3 = basePlayers.p3;
+    const selectedEnemy = basePlayers.p2!;
+    const selectedAlly = basePlayers.p3;
+    const selectedEnemy2 = basePlayers.p4;
+    const enemyPool = enemyNpcs();
+    const allyPool = allyNpcs();
+    return Array.from({length: scenario.battleCount}, (_, index) => {
+      const enemyNpc = index === 0
+        ? undefined
+        : enemyPool[(index - 1) % enemyPool.length];
+      const enemy2Npc = index === 0
+        ? undefined
+        : enemyPool[index % enemyPool.length];
+      const allyNpc = index === 0
+        ? undefined
+        : allyPool[index % allyPool.length];
+      const p2 = index === 0
+        ? selectedEnemy
+        : createPlayer("p2", enemyNpc?.name || selectedEnemy.name, enemyNpc?.avatar || selectedEnemy.avatar, "ai", "far", randomizeTeam("p2", defaultTeamSize(scenario.mode), enemyNpc?.signatureSpeciesIds));
+      const nodeP3 = ids.includes("p3")
+        ? (index === 0 && selectedAlly ? selectedAlly : createPlayer("p3", allyNpc?.name || p3?.name || "队友", allyNpc?.avatar || p3?.avatar || "/npc/avatars/11-asset-fdb7e61e.webp", "script", "near", randomizeTeam("p3", defaultTeamSize(scenario.mode), allyNpc?.signatureSpeciesIds)))
+        : undefined;
+      const nodeP4 = ids.includes("p4")
+        ? (index === 0 && selectedEnemy2 ? selectedEnemy2 : createPlayer("p4", enemy2Npc?.name || "对手", enemy2Npc?.avatar || "/npc/avatars/blue-asset-8ef926da.webp", "ai", "far", randomizeTeam("p4", defaultTeamSize(scenario.mode), enemy2Npc?.signatureSpeciesIds)))
+        : undefined;
+      return createGameMapNode(scenario, index, {
+        p1,
+        p2,
+        ...(nodeP3 ? {p3: nodeP3} : {}),
+        ...(nodeP4 ? {p4: nodeP4} : {}),
+      });
+    });
+  }
+
   return {
     loadTrainingRun: async () => {
       const run = await storage.loadTrainingRun();
@@ -500,6 +647,10 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     createTrainingRunGame,
     createDefaultTrainingScenario,
     updateTrainingScenario,
+    createTrainingRunFromScenario,
+    enterTrainingRest,
+    getCurrentTrainingNode,
+    getNextTrainingNode,
     randomizeTrainingScenario,
     randomizeTeam,
     createTrainingNpcCatalog,
@@ -529,6 +680,97 @@ export function createTrainingNpcCatalog(): TrainingNpcV4[] {
 
 function playerIdsForMode(mode: TrainingModeV4): ShowdownPlayerIdV4[] {
   return mode === "coop" ? ["p1", "p2", "p3", "p4"] : ["p1", "p2"];
+}
+
+function playersRecordFromScenario(scenario: TrainingScenarioV4): Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> {
+  return Object.fromEntries(scenario.players.map(player => [player.playerId, player])) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+}
+
+function normalizePlayersRecord(players: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> | undefined, scenario: TrainingScenarioV4): Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> {
+  const fromScenario = playersRecordFromScenario(scenario);
+  return Object.fromEntries(playerIdsForMode(scenario.mode).map(playerId => [playerId, players?.[playerId] || fromScenario[playerId]]).filter(([, player]) => Boolean(player))) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+}
+
+function createGameMapFromScenario(scenario: TrainingScenarioV4): TrainingRunGameNodeV4[] {
+  const ids = playerIdsForMode(scenario.mode);
+  const players = playersRecordFromScenario(scenario);
+  return Array.from({length: scenario.battleCount}, (_, index) => createGameMapNode(scenario, index, {
+    p1: players.p1!,
+    p2: players.p2!,
+    ...(ids.includes("p3") && players.p3 ? {p3: players.p3} : {}),
+    ...(ids.includes("p4") && players.p4 ? {p4: players.p4} : {}),
+  }));
+}
+
+function normalizeGameMap(nodes: TrainingRunGameNodeV4[], scenario: TrainingScenarioV4): TrainingRunGameNodeV4[] {
+  const ids = playerIdsForMode(scenario.mode);
+  const scenarioPlayers = playersRecordFromScenario(scenario);
+  const normalized: TrainingRunGameNodeV4[] = nodes.slice(0, scenario.battleCount).map((node, index) => ({
+    id: node.id || createId(`training-node-${index + 1}`),
+    index,
+    state: normalizeNodeState(node.state, index),
+    p1: "p1" as ShowdownPlayerIdV4,
+    p2: "p2" as ShowdownPlayerIdV4,
+    p3: ids.includes("p3") ? "p3" as ShowdownPlayerIdV4 : null,
+    p4: ids.includes("p4") ? "p4" as ShowdownPlayerIdV4 : null,
+    mode: scenario.mode,
+    ruleSet: scenario.ruleSet,
+    seed: node.seed || createId(`training-seed-${index + 1}`),
+    participants: normalizeNodeParticipants(node.participants, scenarioPlayers, ids),
+    battleGame: node.battleGame || null,
+    createdAt: node.createdAt,
+    startedAt: node.startedAt,
+    endedAt: node.endedAt,
+  }));
+  while (normalized.length < scenario.battleCount) {
+    const [node] = createGameMapFromScenario({...scenario, battleCount: 1});
+    normalized.push({...node!, id: createId(`training-node-${normalized.length + 1}`), index: normalized.length, state: normalized.length === 0 ? "ready" : "locked"});
+  }
+  if (!normalized.some(node => ["ready", "preparing", "running"].includes(node.state)) && normalized[0]) {
+    normalized[0] = {...normalized[0], state: "ready"};
+  }
+  return normalized;
+}
+
+function createGameMapNode(
+  scenario: TrainingScenarioV4,
+  index: number,
+  participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>,
+): TrainingRunGameNodeV4 {
+  const ids = playerIdsForMode(scenario.mode);
+  return {
+    id: createId(`training-node-${index + 1}`),
+    index,
+    state: index === 0 ? "ready" : "locked",
+    p1: "p1",
+    p2: "p2",
+    p3: ids.includes("p3") ? "p3" : null,
+    p4: ids.includes("p4") ? "p4" : null,
+    mode: scenario.mode,
+    ruleSet: scenario.ruleSet,
+    seed: createId(`training-seed-${index + 1}`),
+    participants: normalizeNodeParticipants(participants, participants, ids),
+    battleGame: null,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function normalizeNodeParticipants(
+  participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> | undefined,
+  fallback: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>,
+  ids: ShowdownPlayerIdV4[],
+): Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> {
+  return Object.fromEntries(ids.map(playerId => [playerId, participants?.[playerId] || fallback[playerId]]).filter(([, player]) => Boolean(player))) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+}
+
+function normalizeRunStatus(status: unknown, gameMap: TrainingRunGameNodeV4[]): TrainingRunStatusV4 {
+  if (["configuring", "resting", "battlePreparing", "battling", "settling", "ended", "blocked"].includes(String(status))) return status as TrainingRunStatusV4;
+  return gameMap.length ? "resting" : "configuring";
+}
+
+function normalizeNodeState(state: unknown, index: number): TrainingRunNodeStateV4 {
+  if (["locked", "ready", "preparing", "running", "won", "lost", "skipped", "blocked"].includes(String(state))) return state as TrainingRunNodeStateV4;
+  return index === 0 ? "ready" : "locked";
 }
 
 function defaultTeamSize(mode: TrainingModeV4): number {

@@ -36,6 +36,29 @@
 
 全部参考v1就行了
 
+## 训练自定义
+
+训练页，用于快速验证完整流程
+
+具体参考v1
+
+支持，单打、双打、合作三个模式； 无特殊系统、gen7（mega+z）、gen8(极巨化)、gen9（太晶化）;
+
+自定义队伍，进入游戏
+
+主要是用于初始化runGame.Player1、2、3、4
+
+PLayer结构可以延续v1
+
+{
+
+name
+avatar
+localTeam(原来V1三个team还需要么 ， showdownTeam，runtimeTeam，ViewTeam)
+bag
+
+}
+
 ## 战斗页相关
 
 战斗准备页

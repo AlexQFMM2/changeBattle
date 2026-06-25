@@ -15,6 +15,7 @@ export function PlayerSettingsPage({title, profile, catalog, onSave, onBack, sav
   const [trainerId, setTrainerId] = useState(initialTrainer.id);
   const [avatarAsset, setAvatarAsset] = useState(profile?.avatarAsset || initialTrainer.avatarAsset);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const trainer = catalog.find(entry => entry.id === trainerId) || initialTrainer;
 
   function chooseTrainer(next: TrainerCatalogEntryV2) {
@@ -24,8 +25,11 @@ export function PlayerSettingsPage({title, profile, catalog, onSave, onBack, sav
 
   async function save() {
     setSaving(true);
+    setError("");
     try {
       await onSave({name, trainerId, avatarAsset});
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "保存资料失败。");
     } finally {
       setSaving(false);
     }
@@ -54,6 +58,7 @@ export function PlayerSettingsPage({title, profile, catalog, onSave, onBack, sav
       </section>
       <footer className="page-action-bar">
         <button type="button" onClick={onBack}>返回</button>
+        {error ? <span className="page-action-error" role="alert">{error}</span> : null}
         <button type="button" disabled={saving || !name.trim()} onClick={() => void save()}>{saving ? "保存中..." : saveLabel}</button>
       </footer>
     </main>
