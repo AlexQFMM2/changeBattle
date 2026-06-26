@@ -498,6 +498,71 @@ const NATIVE_MOVE_ANIMS = new Set([
   "weatherball",
   "wingattack",
   "wonderroom",
+  "afteryou",
+  "agility",
+  "allyswitch",
+  "aromatherapy",
+  "attract",
+  "auroraveil",
+  "babydolleyes",
+  "banefulbunker",
+  "bellydrum",
+  "bide",
+  "celebrate",
+  "chillyreception",
+  "coil",
+  "conversion",
+  "curse",
+  "defensecurl",
+  "detect",
+  "doodle",
+  "doubleteam",
+  "dragonbreath",
+  "encore",
+  "faketears",
+  "flash",
+  "flail",
+  "flipturn",
+  "focusenergy",
+  "followme",
+  "foresight",
+  "gyroball",
+  "hail",
+  "harden",
+  "howl",
+  "ingrain",
+  "instruct",
+  "irondefense",
+  "kinesis",
+  "leer",
+  "lifedew",
+  "magiccoat",
+  "matblock",
+  "metronome",
+  "mimic",
+  "mist",
+  "mortalspin",
+  "populationbomb",
+  "painsplit",
+  "powertrick",
+  "ragepowder",
+  "recycle",
+  "refresh",
+  "shiftgear",
+  "shockwave",
+  "sketch",
+  "snowscape",
+  "splash",
+  "stockpile",
+  "sunnyday",
+  "swagger",
+  "swallow",
+  "tailwhip",
+  "taunt",
+  "teleport",
+  "topsyturvy",
+  "transform",
+  "uturn",
   "worryseed",
 ]);
 
@@ -873,6 +938,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "rapidspin":
   case "gyroball":
     return stepsForOtherAnimation("spinattack", actor, target);
+  case "mortalspin":
+    return spinWithElementSteps(actor, target, "poisonwisp");
   case "accelerock":
   case "aquajet":
   case "iceshard":
@@ -882,8 +949,6 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
     return nativeFastStrikeSteps(actor, target, animationKey);
   case "flipturn":
     return spinWithElementSteps(actor, target, "waterwisp");
-  case "mortalspin":
-    return spinWithElementSteps(actor, target, "poisonwisp");
   case "icespinner":
     return spinWithElementSteps(actor, target, "iceball");
   case "voltswitch":
@@ -917,16 +982,44 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "healblock":
   case "smokescreen":
   case "forestscurse":
+  case "taunt":
+  case "swagger":
+  case "encore":
+  case "attract":
+  case "babydolleyes":
+  case "faketears":
+  case "tailwhip":
+  case "leer":
+  case "kinesis":
+  case "flash":
+  case "followme":
+  case "foresight":
+  case "doodle":
+  case "topsyturvy":
+  case "ragepowder":
+  case "afteryou":
+  case "allyswitch":
+  case "instruct":
     return nativeUtilityStatusSteps(actor, target, animationKey);
   case "junglehealing":
   case "healbell":
   case "healingwish":
   case "healpulse":
+  case "aromatherapy":
+  case "lifedew":
+  case "refresh":
     return nativeP2HealingSteps(actor, target, animationKey);
   case "tailwind":
     return nativeTailwindSteps(actor);
   case "substitute":
     return nativeSubstituteSteps(actor);
+  case "transform":
+  case "conversion":
+  case "mimic":
+  case "sketch":
+  case "teleport":
+  case "recycle":
+    return formChangeSteps(actor, animationKey);
   case "spikes":
   case "toxicspikes":
   case "stickyweb":
@@ -935,6 +1028,10 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "weatherball":
     return nativeWeatherTerrainPulseSteps(actor, target, animationKey);
   case "raindance":
+  case "sunnyday":
+  case "hail":
+  case "snowscape":
+  case "chillyreception":
   case "grassyterrain":
   case "electricterrain":
   case "mistyterrain":
@@ -954,6 +1051,24 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "nastyplot":
   case "shellsmash":
   case "teeterdance":
+  case "agility":
+  case "doubleteam":
+  case "metronome":
+  case "splash":
+  case "celebrate":
+  case "bellydrum":
+  case "focusenergy":
+  case "harden":
+  case "defensecurl":
+  case "irondefense":
+  case "howl":
+  case "curse":
+  case "shiftgear":
+  case "stockpile":
+  case "swallow":
+  case "ingrain":
+  case "coil":
+  case "powertrick":
     return nativeBoostDanceSteps(actor, animationKey);
   case "reflect":
   case "lightscreen":
@@ -962,6 +1077,12 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "spikyshield":
   case "craftyshield":
   case "burningbulwark":
+  case "auroraveil":
+  case "mist":
+  case "detect":
+  case "banefulbunker":
+  case "matblock":
+  case "magiccoat":
     return nativeShieldGuardSteps(actor, animationKey);
   case "earthquake":
   case "magnitude":
@@ -976,6 +1097,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
     return nativeRecoverSteps(actor, "recover");
   case "rest":
     return nativeRestSteps(actor);
+  case "painsplit":
+    return nativePainSplitSteps(actor, target);
   case "thunderbolt":
     return nativeThunderboltSteps(actor, target);
   case "psychic":
@@ -1009,6 +1132,10 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "stokedsparksurfer":
   case "extremeevoboost":
     return nativeZMoveSparkSteps(actor, target, animationKey);
+  case "flail":
+  case "populationbomb":
+  case "bide":
+    return stepsForOtherAnimation("contactattack", actor, target);
   case "rockslide":
   case "rockblast":
   case "stoneedge":
@@ -1658,6 +1785,17 @@ function nativeP2HealingSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpri
     showEffectStep("wisp", {...actor, x: actor.x + 24, y: actor.y + 20, scale: .5, opacity: .48}, {...actor, x: actor.x - 16, y: actor.y - 46, scale: 1.4, opacity: 0}, 720, {fade: "both"}),
     actorAnimStep(actor, {scale: actorOnly ? 1.08 : 1.04, y: actor.y - 6}, 200, "decel"),
     {type: "healAnim", actor, heal: null},
+  ];
+}
+
+function nativePainSplitSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#aa44ff", durationMs: 720, opacity: .26},
+    showEffectStep("wisp", {...actor, scale: .45, opacity: .58}, {...target, scale: 1.35, opacity: .12}, 560, {fade: "both"}),
+    showEffectStep("wisp", {...target, scale: .45, opacity: .54}, {...actor, scale: 1.35, opacity: .12}, 640, {fade: "both"}),
+    showEffectStep("mistball", {...actor, scale: .9, opacity: .2}, {...target, scale: 1.8, opacity: 0}, 700, {fade: "both"}),
+    actorAnimStep(actor, {scale: 1.04, y: actor.y - 4}, 180, "decel"),
+    actorAnimStep(target, {scale: .97, y: target.y + 4}, 180, "swing"),
   ];
 }
 
