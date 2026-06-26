@@ -73,6 +73,70 @@
   background: linear-gradient(180deg, rgb(5 12 22 / 8%), rgb(4 8 15 / 22%) 72%);
 }
 
+.battle-v4-side-condition-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.battle-v4-side-condition-group {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.battle-v4-side-condition-group.side-far {
+  top: 68px;
+  justify-content: flex-end;
+}
+
+.battle-v4-side-condition-group.side-near {
+  bottom: 72px;
+  justify-content: flex-start;
+}
+
+.battle-v4-side-condition-group span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 2px 7px;
+  border: 1px solid rgb(207 238 255 / 62%);
+  border-radius: 4px;
+  background: rgb(8 17 27 / 68%);
+  box-shadow: 0 0 12px rgb(126 201 255 / 18%), inset 0 0 10px rgb(255 255 255 / 8%);
+  color: #e9f7ff;
+  font-size: 11px;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 68%);
+}
+
+.battle-v4-side-condition-group .condition-reflect,
+.battle-v4-side-condition-group .condition-lightscreen,
+.battle-v4-side-condition-group .condition-auroraveil,
+.battle-v4-side-condition-group .condition-safeguard,
+.battle-v4-side-condition-group .condition-mist {
+  border-color: rgb(160 232 255 / 72%);
+  background: linear-gradient(90deg, rgb(44 112 154 / 70%), rgb(114 72 170 / 54%));
+}
+
+.battle-v4-side-condition-group .condition-stealthrock,
+.battle-v4-side-condition-group .condition-spikes,
+.battle-v4-side-condition-group .condition-toxicspikes,
+.battle-v4-side-condition-group .condition-stickyweb {
+  border-color: rgb(244 202 126 / 70%);
+  background: linear-gradient(90deg, rgb(92 65 42 / 72%), rgb(40 35 32 / 62%));
+}
+
+.battle-v4-side-condition-group .condition-tailwind {
+  border-color: rgb(188 240 255 / 76%);
+  background: linear-gradient(90deg, rgb(52 116 154 / 70%), rgb(26 61 92 / 58%));
+}
+
 .battle-v4-weather-layer {
   position: absolute;
   inset: 0;

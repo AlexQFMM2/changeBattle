@@ -3,7 +3,7 @@ import type {AppDebugConfigV4, BattleCommandActionV4, BattleCommandDraftV4, Batt
 import {addBattleCommandChoiceV4, applyBattleSessionToRun, battleDebugLog, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
-import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals} from "./battleV4Playback";
+import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
@@ -354,6 +354,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         activeTimelineStep={playback.activeTimelineStep}
         renderedTimelineSteps={playback.renderedTimelineSteps}
         persistentFieldVisuals={playback.persistentFieldVisuals}
+        persistentSideConditionVisuals={playback.persistentSideConditionVisuals}
         api={api}
       />
       <header className="battle-v4-hud">
@@ -430,7 +431,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   );
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
@@ -439,6 +440,7 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
   renderedTimelineSteps?: ShowdownAnimationStepV4[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
+  persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   api: ChangeBattleV2Api;
 }) {
   const nearSlots = useMemo(() => sortSlotsForArena(near, "near"), [near]);
@@ -449,6 +451,7 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
     <div className="battle-v4-arena" aria-label="战斗场地">
       <div className="battle-v4-scene-overlay" />
       <BattleV4PersistentFieldLayer visuals={persistentFieldVisuals} />
+      <BattleV4SideConditionLayer visuals={persistentSideConditionVisuals} />
       <BattleV4WeatherBurstLayer animation={activeAnimation || null} visuals={visuals} />
       <BattleV4Messagebar message={messagebar || ""} kind={activeAnimation?.kind || ""} />
       <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} fxVisuals={fxVisuals} />
@@ -473,6 +476,30 @@ function sortSlotsForArena(slots: BattleViewSlotV4[], side: "near" | "far"): Bat
     const bRank = b.position === "B" ? 1 : 0;
     return side === "far" ? bRank - aRank : aRank - bRank;
   });
+}
+
+function BattleV4SideConditionLayer({visuals}: {visuals: BattleV4PersistentSideConditionVisuals}) {
+  const all = [...visuals.far, ...visuals.near];
+  if (!all.length) return null;
+  return (
+    <div className="battle-v4-side-condition-layer" aria-hidden="true">
+      <BattleV4SideConditionGroup side="far" items={visuals.far} />
+      <BattleV4SideConditionGroup side="near" items={visuals.near} />
+    </div>
+  );
+}
+
+function BattleV4SideConditionGroup({side, items}: {side: "near" | "far"; items: BattleV4SideConditionVisualV4[]}) {
+  if (!items.length) return null;
+  return (
+    <div className={`battle-v4-side-condition-group side-${side}`}>
+      {items.map(item => (
+        <span className={`condition-${item.id}`} key={`${item.side}-${item.id}`}>
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function BattleV4PersistentFieldLayer({visuals}: {visuals: BattleV4PersistentFieldVisuals}) {

@@ -64,7 +64,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [x] `scene.damageAnim` | priority: P0 | source: SceneCore | adapter: native | notes: damage feedback waits for checkpoint HP commit + typecheck
 - [x] `scene.healAnim` | priority: P0 | source: SceneCore | adapter: native | notes: heal feedback waits for checkpoint HP commit + typecheck
 - [x] `scene.updateWeather` | priority: P0 | source: SceneCore | adapter: native | notes: persistent weather/terrain/room layer updated at checkpoint + typecheck
-- [ ] `scene.sideConditionsLeft` | priority: P2 | source: SceneCore | adapter: pending | notes: 展示屏障、撒菱、顺风等 side condition
+- [x] `scene.sideConditionsLeft` | priority: P2 | source: SceneCore | adapter: native | notes: persistent side condition layer for walls hazards tailwind + preview/manual/typecheck
 
 ## Persistent Weather / Terrain / Room CSS Classes
 

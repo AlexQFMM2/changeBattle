@@ -119,6 +119,23 @@ export type BattleV4PersistentFieldVisuals = {
   missingFxAssets: string[];
 };
 
+export type BattleV4SideConditionSideV4 = "near" | "far";
+
+export type BattleV4SideConditionVisualV4 = {
+  id: string;
+  label: string;
+  side: BattleV4SideConditionSideV4;
+  sourceRawLine: string;
+  adapterFidelity: ShowdownAnimationFidelityV4;
+};
+
+export type BattleV4PersistentSideConditionVisuals = {
+  near: BattleV4SideConditionVisualV4[];
+  far: BattleV4SideConditionVisualV4[];
+  sourceRawLine: string;
+  adapterFidelity: ShowdownAnimationFidelityV4;
+};
+
 export type BattlePlaybackDebugV4 = {
   lastConsumedRawIndex: number;
   hasProtocolState: boolean;
@@ -163,6 +180,7 @@ export type BattlePlaybackDebugV4 = {
     activeTimelineStep: ShowdownAnimationStepV4 | null;
     renderedTimelineSteps: ShowdownAnimationStepV4[];
     persistentFieldVisuals: BattleV4PersistentFieldVisuals;
+    persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   };
   persistentWeatherState: BattleV4PersistentFieldVisuals;
   renderedWeatherLayer: string;
@@ -172,6 +190,7 @@ export type BattlePlaybackDebugV4 = {
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
+  persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   timelineExecutionProbe: {
     activeTimelineId: string;
     activeTimelineStepIndex: number;
@@ -192,6 +211,7 @@ export type BattlePlaybackStateV4 = {
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
+  persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   hasProtocolState: boolean;
   debug: BattlePlaybackDebugV4;
 };
@@ -254,6 +274,13 @@ export const EMPTY_PERSISTENT_FIELD_VISUALS: BattleV4PersistentFieldVisuals = {
   adapterFidelity: "fallback",
   renderedWeatherLayer: "",
   missingFxAssets: [],
+};
+
+export const EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS: BattleV4PersistentSideConditionVisuals = {
+  near: [],
+  far: [],
+  sourceRawLine: "",
+  adapterFidelity: "fallback",
 };
 
 const WEATHER_VIDEO_IDS: Record<string, string> = {
@@ -377,6 +404,9 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
     case "-fieldstart":
     case "-fieldend":
       return [animationEvent(event, "weather", 1050, message)];
+    case "-sidestart":
+    case "-sideend":
+      return [animationEvent(event, "result", 820, message)];
     case "detailschange":
     case "-formechange":
     case "-transform":
@@ -429,6 +459,7 @@ export function useBattleV4Playback(
   const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
   const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
   const [persistentFieldVisuals, setPersistentFieldVisuals] = useState<BattleV4PersistentFieldVisuals>(EMPTY_PERSISTENT_FIELD_VISUALS);
+  const [persistentSideConditionVisuals, setPersistentSideConditionVisuals] = useState<BattleV4PersistentSideConditionVisuals>(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
   const [hasProtocolState, setHasProtocolState] = useState(false);
   const sessionRef = useRef("");
@@ -462,6 +493,7 @@ export function useBattleV4Playback(
       setActiveTimelineStepIndex(-1);
       setRenderedTimelineSteps([]);
       setPersistentFieldVisuals(EMPTY_PERSISTENT_FIELD_VISUALS);
+      setPersistentSideConditionVisuals(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
       setMessagebar(null);
       setHasProtocolState(false);
       hasProtocolStateRef.current = false;
@@ -537,6 +569,7 @@ export function useBattleV4Playback(
       if (skipAnimations) {
         setVisibleSlots(viewModel.slots);
         setPersistentFieldVisuals(current => derivePersistentFieldVisualsFromProtocol(nextProtocolEvents, current));
+        setPersistentSideConditionVisuals(current => derivePersistentSideConditionVisualsFromProtocol(nextProtocolEvents, current));
         hasProtocolStateRef.current = true;
         setHasProtocolState(true);
         setAnimationConsumption(consumed => [
@@ -565,6 +598,7 @@ export function useBattleV4Playback(
       setActiveTimelineStepIndex(-1);
       setRenderedTimelineSteps([]);
       setPersistentFieldVisuals(derivePersistentFieldVisualsFromRawLog(snapshot?.rawLog || []));
+      setPersistentSideConditionVisuals(derivePersistentSideConditionVisualsFromRawLog(snapshot?.rawLog || []));
       setVisibleSlots(viewModel.slots);
       hasProtocolStateRef.current = true;
       setHasProtocolState(true);
@@ -626,6 +660,7 @@ export function useBattleV4Playback(
     setRenderedTimelineSteps(stepsSoFar => [...stepsSoFar, step].slice(-32));
     if (step.type === "checkpoint") {
       setPersistentFieldVisuals(current => applyPersistentFieldCheckpoint(current, event));
+      setPersistentSideConditionVisuals(current => applyPersistentSideConditionCheckpoint(current, event));
       setVisibleSlots(slots => {
         const nextSlots = applyAnimationCheckpoint(slots, event, viewModelRef.current, snapshotRef.current);
         setAnimationConsumption(consumed => [...consumed, {
@@ -663,6 +698,7 @@ export function useBattleV4Playback(
     activeTimelineStepIndex,
     renderedTimelineSteps,
     persistentFieldVisuals,
+    persistentSideConditionVisuals,
     hasProtocolState: shouldUseProtocolState,
     debug: {
       lastConsumedRawIndex: rawIndexRef.current,
@@ -685,6 +721,7 @@ export function useBattleV4Playback(
         activeTimelineStep,
         renderedTimelineSteps,
         persistentFieldVisuals,
+        persistentSideConditionVisuals,
       },
       persistentWeatherState: persistentFieldVisuals,
       renderedWeatherLayer: persistentFieldVisuals.renderedWeatherLayer,
@@ -694,6 +731,7 @@ export function useBattleV4Playback(
       activeTimelineStepIndex,
       renderedTimelineSteps,
       persistentFieldVisuals,
+      persistentSideConditionVisuals,
       timelineExecutionProbe: {
         activeTimelineId: activeAnimation?.animationTimeline.id || "",
         activeTimelineStepIndex,
@@ -964,6 +1002,10 @@ export function derivePersistentFieldVisualsFromRawLog(rawLog: string[]): Battle
   return derivePersistentFieldVisualsFromProtocol(projectBattleProtocolEventsV4(rawLog, 0), EMPTY_PERSISTENT_FIELD_VISUALS);
 }
 
+export function derivePersistentSideConditionVisualsFromRawLog(rawLog: string[]): BattleV4PersistentSideConditionVisuals {
+  return derivePersistentSideConditionVisualsFromProtocol(projectBattleProtocolEventsV4(rawLog, 0), EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
+}
+
 export function derivePersistentFieldVisualsFromProtocol(
   events: BattleProtocolEventV4[],
   initial: BattleV4PersistentFieldVisuals = EMPTY_PERSISTENT_FIELD_VISUALS,
@@ -971,9 +1013,37 @@ export function derivePersistentFieldVisualsFromProtocol(
   return events.reduce((current, event) => applyPersistentFieldProtocolEvent(current, event), initial);
 }
 
+export function derivePersistentSideConditionVisualsFromProtocol(
+  events: BattleProtocolEventV4[],
+  initial: BattleV4PersistentSideConditionVisuals = EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS,
+): BattleV4PersistentSideConditionVisuals {
+  return events.reduce((current, event) => applyPersistentSideConditionProtocolEvent(current, event), initial);
+}
+
 function applyPersistentFieldCheckpoint(current: BattleV4PersistentFieldVisuals, event: BattleAnimationEventV4): BattleV4PersistentFieldVisuals {
   if (event.kind !== "weather") return current;
   return applyPersistentFieldProtocolEvent(current, {
+    sequence: event.sequence,
+    rawLine: event.rawLine,
+    args: event.args,
+    kwArgs: event.kwArgs,
+    eventType: event.args[0] || "",
+    turn: 0,
+    playerId: "",
+    seat: event.actorSeat,
+    targetSeat: event.targetSeat,
+    actorName: event.actorName,
+    targetName: event.targetName,
+    moveId: event.moveId,
+    moveName: event.moveName,
+    condition: event.condition,
+    status: event.status,
+  });
+}
+
+function applyPersistentSideConditionCheckpoint(current: BattleV4PersistentSideConditionVisuals, event: BattleAnimationEventV4): BattleV4PersistentSideConditionVisuals {
+  if (event.args[0] !== "-sidestart" && event.args[0] !== "-sideend") return current;
+  return applyPersistentSideConditionProtocolEvent(current, {
     sequence: event.sequence,
     rawLine: event.rawLine,
     args: event.args,
@@ -1035,6 +1105,54 @@ function applyPersistentFieldProtocolEvent(current: BattleV4PersistentFieldVisua
     return refreshPersistentLayerResource(next);
   }
   return current;
+}
+
+function applyPersistentSideConditionProtocolEvent(current: BattleV4PersistentSideConditionVisuals, event: BattleProtocolEventV4): BattleV4PersistentSideConditionVisuals {
+  if (event.eventType !== "-sidestart" && event.eventType !== "-sideend") return current;
+  const conditionId = normalizeSideConditionId(toId(cleanEffect(event.args[2] || event.args[1])));
+  if (!conditionId) return current;
+  const side = sideConditionSideForEvent(event);
+  const list = current[side];
+  const nextList = event.eventType === "-sideend"
+    ? list.filter(item => item.id !== conditionId)
+    : upsertSideConditionVisual(list, {
+      id: conditionId,
+      label: sideConditionLabel(conditionId),
+      side,
+      sourceRawLine: event.rawLine,
+      adapterFidelity: "native",
+    });
+  return {
+    ...current,
+    [side]: nextList,
+    sourceRawLine: event.rawLine,
+    adapterFidelity: "native",
+  };
+}
+
+function upsertSideConditionVisual(list: BattleV4SideConditionVisualV4[], item: BattleV4SideConditionVisualV4): BattleV4SideConditionVisualV4[] {
+  return [...list.filter(existing => existing.id !== item.id), item].slice(-8);
+}
+
+function sideConditionSideForEvent(event: BattleProtocolEventV4): BattleV4SideConditionSideV4 {
+  const sideArg = event.args[1] || event.kwArgs.of || "";
+  if (/^p2/i.test(sideArg)) return "far";
+  if (/^p4/i.test(sideArg)) return "far";
+  return "near";
+}
+
+function normalizeSideConditionId(id: string): string {
+  if (id === "stealthrock") return "stealthrock";
+  if (id === "spikes") return "spikes";
+  if (id === "toxicspikes") return "toxicspikes";
+  if (id === "stickyweb") return "stickyweb";
+  if (id === "reflect") return "reflect";
+  if (id === "lightscreen") return "lightscreen";
+  if (id === "auroraveil") return "auroraveil";
+  if (id === "safeguard") return "safeguard";
+  if (id === "mist") return "mist";
+  if (id === "tailwind") return "tailwind";
+  return "";
 }
 
 function refreshPersistentLayerResource(state: BattleV4PersistentFieldVisuals): BattleV4PersistentFieldVisuals {
@@ -1405,6 +1523,10 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
     return fieldStartMessage(event);
   case "-fieldend":
     return `${fieldLabel(toId(cleanEffect(event.args[1])))}消失了。`;
+  case "-sidestart":
+    return `${sideConditionLabel(normalizeSideConditionId(toId(cleanEffect(event.args[2] || event.args[1]))))}展开了。`;
+  case "-sideend":
+    return `${sideConditionLabel(normalizeSideConditionId(toId(cleanEffect(event.args[2] || event.args[1]))))}消失了。`;
   case "detailschange":
     return `${name}的样子改变了！`;
   case "-formechange":
@@ -1568,6 +1690,22 @@ function fieldLabel(field: string): string {
     gravity: "重力",
   };
   return labels[field] || cleanEffect(field) || "环境";
+}
+
+function sideConditionLabel(condition: string): string {
+  const labels: Record<string, string> = {
+    reflect: "反射壁",
+    lightscreen: "光墙",
+    auroraveil: "极光幕",
+    safeguard: "神秘守护",
+    mist: "白雾",
+    stealthrock: "隐形岩",
+    spikes: "撒菱",
+    toxicspikes: "毒菱",
+    stickyweb: "黏黏网",
+    tailwind: "顺风",
+  };
+  return labels[condition] || cleanEffect(condition) || "场地状态";
 }
 
 function statusMessage(status: string): string {
