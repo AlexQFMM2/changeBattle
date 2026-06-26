@@ -40,6 +40,8 @@ type RuntimeSession = {
   stream: BattleStreamLike;
   streams: PlayerStreamsLike;
   snapshot: BattleServiceSnapshotV4;
+  lastRequests: Partial<Record<ShowdownPlayerIdV4, BattleServiceRequestV4>>;
+  invalidChoiceStreaks: Partial<Record<ShowdownPlayerIdV4, {requestKey: string; count: number}>>;
   closed: boolean;
 };
 
@@ -101,7 +103,7 @@ export function createInMemoryBattleService(): BattleServiceApiV4 {
       return submitChoice(input);
     },
     async getSnapshot(sessionId) {
-      return clone(getSession(sessionId).snapshot);
+      return getSnapshot(sessionId);
     },
     async closeSession(sessionId) {
       const session = sessions.get(sessionId);
@@ -124,6 +126,8 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
     stream,
     streams,
     closed: false,
+    lastRequests: {},
+    invalidChoiceStreaks: {},
     snapshot: {
       id,
       runId: compiled.runId,
@@ -139,7 +143,7 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
       requests: {},
       active: [],
       rawLog: [],
-      debug: {inputLog: [], lastChoices: []},
+      debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}},
       createdAt: now,
       updatedAt: now,
     },
@@ -163,23 +167,24 @@ export async function submitChoice(input: BattleServiceSubmitChoiceInputV4): Pro
   if (session.snapshot.status === "ended") return clone(session.snapshot);
   const choice = input.choice.trim();
   if (!choice) throw new Error("choice 不能为空。");
-  session.snapshot.debug.lastChoices.push({playerId: input.playerId, choice, at: new Date().toISOString()});
   if (choice === "forfeit") {
     session.snapshot.debug.inputLog.push(`>forcelose ${input.playerId}`);
     await session.streams.omniscient.write(`>forcelose ${input.playerId}`);
   } else {
-    session.snapshot.debug.inputLog.push(`>${input.playerId} ${choice}`);
-    await session.streams[input.playerId].write(choice);
+    await writePlayerChoice(session, input.playerId, choice, "human");
   }
   touch(session);
-  await waitForRequests(session, 600);
+  await waitForRequests(session, 700);
   await submitTeamPreviewChoices(session);
   await submitAiChoices(session);
+  await waitForRequests(session, 700);
   return clone(session.snapshot);
 }
 
 export async function getSnapshot(sessionId: string): Promise<BattleServiceSnapshotV4> {
-  return clone(getSession(sessionId).snapshot);
+  const session = getSession(sessionId);
+  await flushReadyAutoChoices(session);
+  return clone(session.snapshot);
 }
 
 export async function closeSession(sessionId: string): Promise<void> {
@@ -194,26 +199,80 @@ export function randomLegalChoice(request: BattleServiceRequestV4 | undefined): 
     return `team ${Array.from({length: count}, (_, index) => index + 1).join(",")}`;
   }
   if (request.forceSwitch?.some(Boolean)) {
-    const choices = request.forceSwitch.map(mustSwitch => mustSwitch ? legalSwitchChoice(request) : "pass");
+    const reservedSwitches = new Set<number>();
+    const choices = request.forceSwitch.map(mustSwitch => mustSwitch ? legalSwitchChoice(request, reservedSwitches) : "pass");
     return choices.join(", ");
   }
   if (request.active?.length) {
-    return request.active.map(active => {
+    const activeRequests = fixedActiveRequests(request);
+    const needsTargetableMoves = Boolean(request.targetable || activeRequests.length > 1);
+    return activeRequests.map((active, activeIndex) => {
+      if (!active) return "pass";
       const moves = (active.moves || []).map((move, index) => ({move, index})).filter(entry => !entry.move.disabled && (entry.move.pp ?? 1) > 0);
       if (!moves.length) return "move 1";
       const picked = moves[Math.floor(Math.random() * moves.length)]!;
-      return `move ${picked.index + 1}`;
+      return `move ${picked.index + 1}${defaultTargetSuffix(request, activeIndex, picked.move, needsTargetableMoves)}`;
     }).join(", ");
   }
   return "pass";
 }
 
-function legalSwitchChoice(request: BattleServiceRequestV4): string {
+function fixedActiveRequests(request: BattleServiceRequestV4): NonNullable<BattleServiceRequestV4["active"]> {
+  return (request.active || []).map((active, index) => sidePokemonCanCommand(request.side?.pokemon?.[index]) ? active : null);
+}
+
+function sidePokemonCanCommand(pokemon: NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number] | undefined): boolean {
+  if (!pokemon) return true;
+  return !pokemon.fainted && !pokemon.commanding && !conditionIsFainted(pokemon.condition);
+}
+
+function conditionIsFainted(condition: string | undefined): boolean {
+  return Boolean(condition?.includes("fnt") || /^\s*0(?:\D|$)/.test(condition || ""));
+}
+
+function defaultTargetSuffix(request: BattleServiceRequestV4, activeIndex: number, move: {id?: string; target?: string}, targetable: boolean): string {
+  if (!targetable || !moveNeedsExplicitTarget(move.target)) return "";
+  if (normalizeMoveTarget(move.id) === "recharge") return "";
+  const target = normalizeMoveTarget(move.target);
+  if (target === "adjacentally" || target === "adjacentallyorself") {
+    const allyIndex = request.active?.findIndex((active, index) => index !== activeIndex && Boolean(active)) ?? -1;
+    return allyIndex >= 0 ? ` -${allyIndex + 1}` : "";
+  }
+  const foeCount = Math.max(1, request.active?.length || 1);
+  return ` +${Math.min(activeIndex + 1, foeCount)}`;
+}
+
+function moveNeedsExplicitTarget(target: string | undefined): boolean {
+  if (!target) return false;
+  const id = normalizeMoveTarget(target);
+  return id === "normal" ||
+    id === "any" ||
+    id === "adjacentally" ||
+    id === "adjacentallyorself" ||
+    id === "adjacentfoe";
+}
+
+function normalizeMoveTarget(value: string | undefined): string {
+  return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
+}
+
+function legalSwitchChoice(request: BattleServiceRequestV4, reservedSwitches = new Set<number>()): string {
+  const reservedActiveSlots = request.forceSwitch?.length || request.active?.length || 0;
   const candidates = (request.side?.pokemon || [])
     .map((pokemon, index) => ({pokemon, index}))
-    .filter(entry => !entry.pokemon.active && !entry.pokemon.condition.includes("fnt"));
+    .filter(entry => indexIsSwitchableBench(entry.index, reservedActiveSlots, entry.pokemon) && !reservedSwitches.has(entry.index + 1));
   const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  if (picked) reservedSwitches.add(picked.index + 1);
   return picked ? `switch ${picked.index + 1}` : "pass";
+}
+
+function indexIsSwitchableBench(index: number, reservedActiveSlots: number, pokemon: NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number]): boolean {
+  return index >= reservedActiveSlots && !pokemon.active && !pokemon.condition.includes("fnt");
+}
+
+async function flushReadyAutoChoices(session: RuntimeSession): Promise<void> {
+  await submitTeamPreviewChoices(session);
+  await submitAiChoices(session);
 }
 
 async function submitAiChoices(session: RuntimeSession): Promise<void> {
@@ -224,9 +283,7 @@ async function submitAiChoices(session: RuntimeSession): Promise<void> {
     if (!pending.length) return;
     for (const entry of pending) {
       if (!entry.choice) continue;
-      session.snapshot.debug.lastChoices.push({playerId: entry.playerId, choice: entry.choice, at: new Date().toISOString()});
-      session.snapshot.debug.inputLog.push(`>${entry.playerId} ${entry.choice}`);
-      await session.streams[entry.playerId].write(entry.choice);
+      await writePlayerChoice(session, entry.playerId, entry.choice, "ai");
     }
     touch(session);
     await waitForRequests(session, 700);
@@ -286,12 +343,27 @@ async function submitTeamPreviewChoices(session: RuntimeSession): Promise<void> 
     if (!pending.length) return;
     for (const entry of pending) {
       if (!entry.choice) continue;
-      session.snapshot.debug.lastChoices.push({playerId: entry.playerId, choice: entry.choice, at: new Date().toISOString()});
-      session.snapshot.debug.inputLog.push(`>${entry.playerId} ${entry.choice}`);
-      await session.streams[entry.playerId].write(entry.choice);
+      await writePlayerChoice(session, entry.playerId, entry.choice, "team-preview");
     }
     touch(session);
     await waitForRequests(session, 700);
+  }
+}
+
+async function writePlayerChoice(session: RuntimeSession, playerId: ShowdownPlayerIdV4, choice: string, source: "human" | "ai" | "team-preview"): Promise<void> {
+  session.snapshot.debug.lastChoices.push({playerId, choice, at: new Date().toISOString()});
+  session.snapshot.debug.inputLog.push(`>${playerId} ${choice}`);
+  if (session.snapshot.requests[playerId]) session.lastRequests[playerId] = clone(session.snapshot.requests[playerId]);
+  delete session.snapshot.requests[playerId];
+  try {
+    await session.streams[playerId].write(choice);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    session.snapshot.status = "blocked";
+    session.snapshot.error = `[${source}] ${playerId} choice failed: ${choice}; ${message}`;
+    session.snapshot.debug.inputLog.push(`[BattleV4][error] ${session.snapshot.error}`);
+    touch(session);
+    throw error;
   }
 }
 
@@ -327,8 +399,12 @@ async function readPlayerStream(session: RuntimeSession, playerId: ShowdownPlaye
     for await (const chunk of session.streams[playerId]) {
       if (session.closed) return;
       const request = requestFromChunk(chunk);
+      recordPlayerStreamChunk(session, playerId, chunk, Boolean(request));
       if (request) {
         session.snapshot.requests[playerId] = request;
+        session.lastRequests[playerId] = clone(request);
+        rememberLatestSidePokemon(session, playerId, request);
+        delete session.invalidChoiceStreaks[playerId];
         touch(session);
       }
     }
@@ -336,6 +412,59 @@ async function readPlayerStream(session: RuntimeSession, playerId: ShowdownPlaye
     session.snapshot.status = "blocked";
     session.snapshot.error = error instanceof Error ? error.message : String(error);
     touch(session);
+  }
+}
+
+function rememberLatestSidePokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4, request: BattleServiceRequestV4): void {
+  const pokemon = request.side?.pokemon;
+  if (!pokemon?.length) return;
+  session.snapshot.debug.latestSidePokemon = {
+    ...(session.snapshot.debug.latestSidePokemon || {}),
+    [playerId]: clone(pokemon),
+  };
+}
+
+function recordPlayerStreamChunk(session: RuntimeSession, playerId: ShowdownPlayerIdV4, chunk: string, request: boolean): void {
+  session.snapshot.debug.playerStreams.push({
+    playerId,
+    at: new Date().toISOString(),
+    chunk,
+    request,
+    lines: chunk.split("\n").filter(Boolean),
+  });
+  session.snapshot.debug.playerStreams = session.snapshot.debug.playerStreams.slice(-200);
+  const invalidLine = chunk.split("\n").find(line => line.includes("[Invalid choice]") || line.startsWith("|error|"));
+  if (invalidLine) {
+    session.snapshot.error = invalidLine;
+    const previousRequest = session.lastRequests[playerId];
+    if (previousRequest) session.snapshot.requests[playerId] = clone(previousRequest);
+    session.snapshot.debug.inputLog.push(`[BattleV4][player-stream-error][${playerId}] ${invalidLine}`);
+    recordInvalidChoice(session, playerId, invalidLine, previousRequest);
+  }
+  touch(session);
+}
+
+function recordInvalidChoice(session: RuntimeSession, playerId: ShowdownPlayerIdV4, invalidLine: string, request: BattleServiceRequestV4 | undefined): void {
+  const requestKey = request ? JSON.stringify({
+    rqid: request.rqid,
+    wait: request.wait,
+    teamPreview: request.teamPreview,
+    forceSwitch: request.forceSwitch,
+    active: request.active?.map((active, index) => ({
+      exists: Boolean(active),
+      condition: request.side?.pokemon?.[index]?.condition,
+      active: request.side?.pokemon?.[index]?.active,
+      moves: active?.moves?.map(move => ({id: move.id, target: move.target, disabled: move.disabled, pp: move.pp})),
+    })),
+  }) : "missing";
+  const previous = session.invalidChoiceStreaks[playerId];
+  const count = previous?.requestKey === requestKey ? previous.count + 1 : 1;
+  session.invalidChoiceStreaks[playerId] = {requestKey, count};
+  session.snapshot.debug.inputLog.push(`[BattleV4][invalid-choice][${playerId}] count=${count} ${invalidLine}`);
+  if (count >= 3) {
+    session.snapshot.status = "blocked";
+    session.snapshot.error = `[${playerId}] repeated invalid choice (${count}): ${invalidLine}`;
+    session.snapshot.debug.inputLog.push(`[BattleV4][blocked] repeated invalid choice for ${playerId}; request=${requestKey}`);
   }
 }
 

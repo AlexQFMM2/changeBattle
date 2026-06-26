@@ -106,6 +106,8 @@ export type BattleServiceSidePokemonV4 = {
   details: string;
   condition: string;
   active?: boolean;
+  fainted?: boolean;
+  commanding?: boolean;
   stats?: Record<string, number>;
   moves?: string[];
   baseAbility?: string;
@@ -116,8 +118,10 @@ export type BattleServiceSidePokemonV4 = {
 };
 
 export type BattleServiceRequestV4 = {
+  rqid?: number;
   wait?: boolean;
   teamPreview?: boolean;
+  targetable?: boolean;
   active?: Array<{
     moves?: BattleServiceMoveRequestV4[];
     trapped?: boolean;
@@ -126,7 +130,7 @@ export type BattleServiceRequestV4 = {
     canUltraBurst?: boolean | string;
     canDynamax?: boolean | string;
     canTerastallize?: boolean | string;
-  }>;
+  } | null>;
   forceSwitch?: boolean[];
   side?: {
     id: ShowdownPlayerIdV4;
@@ -166,6 +170,8 @@ export type BattleServiceSnapshotV4 = {
   debug: {
     inputLog: string[];
     lastChoices: Array<{playerId: ShowdownPlayerIdV4; choice: string; at: string}>;
+    playerStreams: Array<{playerId: ShowdownPlayerIdV4; at: string; chunk: string; request: boolean; lines: string[]}>;
+    latestSidePokemon?: Partial<Record<ShowdownPlayerIdV4, BattleServiceSidePokemonV4[]>>;
   };
   createdAt: string;
   updatedAt: string;

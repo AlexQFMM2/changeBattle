@@ -5,6 +5,7 @@ import {
   createBattleGameFromTrainingNode,
   isBattleCommandDraftDoneV4,
   normalizeBattleRequestV4,
+  projectBattleViewModelV4,
   stringifyBattleCommandDraftV4,
   type BattleRequestV4,
   type BattleSessionSnapshotV4,
@@ -186,7 +187,7 @@ const endedSnapshot: BattleSessionSnapshotV4 = {
   },
   active: [],
   rawLog: ["|win|P1"],
-  debug: {inputLog: [], lastChoices: []},
+  debug: {inputLog: [], lastChoices: [], playerStreams: []},
   createdAt: "2026-06-26T00:00:00.000Z",
   updatedAt: "2026-06-26T00:00:00.000Z",
 };
@@ -213,6 +214,106 @@ assert(syncedTeam[0]?.level === 30 && syncedTeam[0].entryHp === 25 && syncedTeam
 assert(syncedTeam[1]?.level === 40 && syncedTeam[1].entryHp === 50 && syncedTeam[1].entryStatus === "par", "slot 2 sync mismatch");
 assert(syncedTeam[2]?.level === 50 && syncedTeam[2].entryHp === 100 && syncedTeam[2].entryStatus === "slp", "slot 3 sync mismatch");
 
+const latestSidePokemonSnapshot: BattleSessionSnapshotV4 = {
+  ...endedSnapshot,
+  requests: {},
+  active: [
+    {
+      ident: "p1a: Pikachu",
+      playerId: "p1",
+      slot: "p1a",
+      species: "Pikachu",
+      details: "Pikachu, L30",
+      condition: "0 fnt",
+      hp: 0,
+      maxHp: 100,
+      status: "fnt",
+      fainted: true,
+    },
+  ],
+  debug: {
+    ...endedSnapshot.debug,
+    latestSidePokemon: {
+      p1: [
+        sidePokemon(mapping[0]!.showdownIdentityToken, "67/100", true),
+        sidePokemon(mapping[1]!.showdownIdentityToken, "50/100 par", false),
+        sidePokemon(mapping[2]!.showdownIdentityToken, "100/100 slp", false),
+      ],
+    },
+  },
+};
+const latestSideSynced = applyBattleSessionToRun(run, latestSidePokemonSnapshot);
+const latestSideTeam = latestSideSynced.players.p1?.localTeam.pokemon || [];
+assert(latestSideTeam[0]?.entryHp === 0, "active overlay should sync fainted active when ended request is missing");
+assert(latestSideTeam[1]?.entryHp === 50 && latestSideTeam[1].entryStatus === "par", "latest side cache should sync bench status");
+
+const protocolActiveSnapshot: BattleSessionSnapshotV4 = {
+  ...endedSnapshot,
+  status: "running",
+  mode: "doubles",
+  winner: null,
+  requests: {},
+  active: [
+    {
+      ident: "p1a: Pikachu",
+      playerId: "p1",
+      slot: "p1a",
+      species: "Pikachu",
+      details: "Pikachu, L50",
+      condition: "25/100 brn",
+      hp: 25,
+      maxHp: 100,
+      status: "brn",
+      fainted: false,
+    },
+    {
+      ident: "p1b: Raichu",
+      playerId: "p1",
+      slot: "p1b",
+      species: "Raichu",
+      details: "Raichu, L50",
+      condition: "80/100",
+      hp: 80,
+      maxHp: 100,
+      status: "",
+      fainted: false,
+    },
+  ],
+  players: [{
+    ...sessionP1,
+    draft: {
+      ...sessionP1.draft,
+      localTeam: {
+        ...sessionP1.draft.localTeam,
+        pokemon: [
+          {...p1Team[0]!, speciesId: "charizard", name: "Charizard", nameZh: "喷火龙"},
+          {...p1Team[1]!, speciesId: "dragonite", name: "Dragonite", nameZh: "快龙"},
+          {...p1Team[2]!, speciesId: "pikachu", name: "Pikachu", nameZh: "皮卡丘"},
+          {...pikachu("raichu-active", 50, 100, 80, ""), speciesId: "raichu", name: "Raichu", nameZh: "雷丘"},
+        ],
+      },
+    },
+    teamMapping: [
+      {...mapping[0]!, speciesId: "charizard", displayName: "喷火龙"},
+      {...mapping[1]!, speciesId: "dragonite", displayName: "快龙"},
+      {...mapping[2]!, speciesId: "pikachu", displayName: "皮卡丘"},
+      {
+        playerId: "p1",
+        teamIndex: 3,
+        choiceIndex: 4,
+        localPokemonId: "raichu-active",
+        showdownIdentityToken: "masterball",
+        showdownId: "masterball",
+        pokeballId: "masterball",
+        speciesId: "raichu",
+        displayName: "雷丘",
+      },
+    ],
+  }],
+};
+const activeNames = projectBattleViewModelV4(protocolActiveSnapshot, "p1").nearTeam.map(slot => slot.speciesId).join(",");
+assert(activeNames === "pikachu,raichu", `protocol active mapping should ignore empty requests, got ${activeNames}`);
+
 const singlesMove = normalizeBattleRequestV4(moveRequest(1), "p1", "singles");
 assert(singlesMove.requestType === "move", "singles move requestType mismatch");
 assert(singlesMove.requestLength === 1, "singles move requestLength mismatch");
@@ -223,6 +324,34 @@ const doublesMove = normalizeBattleRequestV4(moveRequest(2), "p1", "doubles");
 assert(doublesMove.requestType === "move", "doubles move requestType mismatch");
 assert(doublesMove.requestLength === 2, "doubles move requestLength mismatch");
 assert(doublesMove.activeIndex === 0, "doubles move activeIndex mismatch");
+assert(doublesMove.targetable, "doubles move should be targetable like Showdown client fixRequest");
+
+const faintedDoublesMove = normalizeBattleRequestV4({
+  ...moveRequest(2),
+  active: [
+    {moves: [{move: "Shadow Punch", id: "shadowpunch", pp: 20, maxpp: 20, target: "normal"}]},
+    {moves: [{move: "Aqua Tail", id: "aquatail", pp: 16, maxpp: 16, target: "normal"}]},
+  ],
+  side: {
+    id: "p1",
+    name: "P1",
+    pokemon: [
+      sidePokemon("token-1", "0 fnt", true),
+      sidePokemon("token-2", "80/100", true),
+      sidePokemon("token-3", "90/100", false),
+    ],
+  },
+}, "p1", "doubles");
+assert(faintedDoublesMove.requestLength === 2, "fainted doubles requestLength should stay aligned to active length");
+assert(faintedDoublesMove.activeRequests[0] === null, "fainted active should normalize to null");
+assert(faintedDoublesMove.activeRequests[1], "live second active should remain actionable");
+assert(faintedDoublesMove.activeIndex === 1, "fainted doubles activeIndex should advance to live slot");
+let faintedDoublesDraft = createBattleCommandDraftV4(faintedDoublesMove);
+assert(faintedDoublesDraft.choices[0] === "pass", "fainted doubles draft should auto-pass first slot");
+assert(faintedDoublesDraft.activeIndex === 1, "fainted doubles draft should operate second slot");
+faintedDoublesDraft = addBattleCommandChoiceV4(faintedDoublesDraft, faintedDoublesMove, "move 1 +2");
+assert(isBattleCommandDraftDoneV4(faintedDoublesDraft), "fainted doubles second choice should complete draft");
+assert(stringifyBattleCommandDraftV4(faintedDoublesDraft) === "pass, move 1 +2", "fainted doubles final choice mismatch");
 
 const coopMove = normalizeBattleRequestV4({
   ...moveRequest(1),
@@ -253,11 +382,14 @@ assert(stringifyBattleCommandDraftV4(singlesDraft) === "move 1", "singles move f
 
 let doublesDraft = createBattleCommandDraftV4(doublesMove);
 doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 1");
-assert(!isBattleCommandDraftDoneV4(doublesDraft), "doubles first move should not be done");
+assert(doublesDraft.currentMove?.baseChoice === "move 1", "doubles naked move should wait for explicit target");
+assert(!doublesDraft.choices.length, "doubles naked move should not commit before target");
+doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 1 +1");
+assert(!isBattleCommandDraftDoneV4(doublesDraft), "doubles first targeted move should not be done");
 assert(doublesDraft.activeIndex === 1, "doubles activeIndex should advance to second active");
-doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 2");
+doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 2 +2");
 assert(isBattleCommandDraftDoneV4(doublesDraft), "doubles second move should be done");
-assert(stringifyBattleCommandDraftV4(doublesDraft) === "move 1, move 2", "doubles move final choice mismatch");
+assert(stringifyBattleCommandDraftV4(doublesDraft) === "move 1 +1, move 2 +2", "doubles move final choice mismatch");
 
 let doublesTargetDraft = createBattleCommandDraftV4(doublesMove);
 doublesTargetDraft = addBattleCommandChoiceV4(doublesTargetDraft, doublesMove, "move 1 +2");
@@ -266,8 +398,8 @@ assert(doublesTargetDraft.choices[0] === "move 1 +2", "doubles target choice mis
 
 let mixedDraft = createBattleCommandDraftV4(doublesMove);
 mixedDraft = addBattleCommandChoiceV4(mixedDraft, doublesMove, "switch 3");
-mixedDraft = addBattleCommandChoiceV4(mixedDraft, doublesMove, "move 1");
-assert(stringifyBattleCommandDraftV4(mixedDraft) === "switch 3, move 1", "doubles mixed final choice mismatch");
+mixedDraft = addBattleCommandChoiceV4(mixedDraft, doublesMove, "move 1 +1");
+assert(stringifyBattleCommandDraftV4(mixedDraft) === "switch 3, move 1 +1", "doubles mixed final choice mismatch");
 
 const forceSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(forceSwitch), forceSwitch, "switch 3");
 assert(isBattleCommandDraftDoneV4(forceSwitchDraft), "forceSwitch [true,false] should be done");
@@ -282,6 +414,17 @@ assert(repeatedSwitchDraft.choices.join(", ") === "switch 3", "repeated switch c
 const waitDraft = createBattleCommandDraftV4(waitRequest);
 assert(isBattleCommandDraftDoneV4(waitDraft), "wait draft should be done");
 assert(stringifyBattleCommandDraftV4(waitDraft) === "", "wait draft should stringify empty");
+
+const rechargeMove = normalizeBattleRequestV4({
+  ...moveRequest(2),
+  active: [
+    {moves: [{move: "Recharge", id: "recharge"}]},
+    {moves: [{move: "Aqua Tail", id: "aquatail", pp: 16, maxpp: 16, target: "normal"}]},
+  ],
+}, "p1", "doubles");
+const rechargeDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(rechargeMove), rechargeMove, "move 1");
+assert(rechargeDraft.choices[0] === "move 1", "recharge should not wait for target");
+assert(!rechargeDraft.currentMove, "recharge should not set currentMove target picker");
 
 function moveRequest(activeLength: number): BattleRequestV4 {
   return {

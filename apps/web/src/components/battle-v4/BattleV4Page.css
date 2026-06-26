@@ -51,37 +51,59 @@
 }
 
 .battle-v4-pokemon {
+  --battle-v4-model-width: 84px;
+  --battle-v4-model-height: 68px;
   position: absolute;
-  width: 150px;
-  height: 118px;
+  width: 96px;
+  height: 82px;
+}
+
+.battle-v4-pokemon.far {
+  --battle-v4-model-width: 62px;
+  --battle-v4-model-height: 52px;
+}
+
+.battle-v4-pokemon.species-charizard {
+  --battle-v4-model-width: 118px;
+  --battle-v4-model-height: 94px;
+}
+
+.battle-v4-pokemon.far.species-charizard {
+  --battle-v4-model-width: 78px;
+  --battle-v4-model-height: 62px;
+}
+
+.battle-v4-pokemon.species-dragonite {
+  --battle-v4-model-width: 76px;
+  --battle-v4-model-height: 62px;
 }
 
 .battle-v4-pokemon.far.a {
-  right: 136px;
-  top: 86px;
+  right: 76px;
+  top: 54px;
 }
 
 .battle-v4-pokemon.far.b {
-  right: 238px;
-  top: 104px;
+  right: 208px;
+  top: 54px;
 }
 
 .battle-v4-pokemon.near.a {
-  left: 92px;
-  bottom: 62px;
+  left: 38px;
+  bottom: 76px;
 }
 
 .battle-v4-pokemon.near.b {
-  left: 215px;
-  bottom: 82px;
+  left: 196px;
+  bottom: 76px;
 }
 
 .battle-v4-pokemon img {
   position: absolute;
   left: 50%;
   bottom: 0;
-  max-width: 138px;
-  max-height: 116px;
+  max-width: var(--battle-v4-model-width);
+  max-height: var(--battle-v4-model-height);
   transform: translateX(-50%);
   image-rendering: pixelated;
   filter: drop-shadow(0 8px 3px rgb(0 0 0 / 22%));
@@ -90,6 +112,28 @@
 .battle-v4-pokemon.fainted {
   opacity: .45;
   filter: grayscale(1);
+}
+
+.battle-v4-pokemon.commanding::before {
+  content: "";
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: 1px;
+  height: 9px;
+  border: 1px solid rgb(177 255 39 / 78%);
+  border-radius: 999px;
+  background: radial-gradient(ellipse at center, rgb(194 255 65 / 66%) 0 28%, rgb(102 224 47 / 38%) 48%, transparent 74%);
+  box-shadow:
+    0 0 0 1px rgb(177 255 39 / 34%),
+    0 0 10px rgb(177 255 39 / 58%);
+  filter: blur(.2px);
+}
+
+.battle-v4-pokemon.commanding img {
+  filter:
+    drop-shadow(0 8px 3px rgb(0 0 0 / 22%))
+    drop-shadow(0 0 6px rgb(177 255 39 / 48%));
 }
 
 .battle-v4-hud {
@@ -152,6 +196,15 @@
     0 0 0 2px rgb(174 255 39 / 82%),
     0 0 12px rgb(174 255 39 / 48%),
     inset 0 0 0 1px rgb(255 255 255 / 22%);
+}
+
+.battle-v4-hp-panel.commanding {
+  border-color: #d8ff4a;
+  box-shadow:
+    0 2px 0 rgb(0 0 0 / 38%),
+    0 0 0 2px rgb(190 255 58 / 88%),
+    0 0 14px rgb(190 255 58 / 52%),
+    inset 0 0 0 1px rgb(255 255 255 / 25%);
 }
 
 .battle-v4-hp-panel.compact {
@@ -308,6 +361,21 @@
   margin-left: 6px;
   color: #ffe17e;
   font-size: 13px;
+}
+
+.battle-v4-command-progress {
+  min-width: 96px;
+  max-width: 164px;
+  padding: 4px 8px;
+  border: 1px solid rgb(190 255 58 / 58%);
+  border-radius: 999px;
+  background: rgb(16 28 24 / 76%);
+  box-shadow: 0 0 10px rgb(177 255 39 / 24%), inset 0 0 0 1px rgb(255 255 255 / 12%);
+  color: #e7ff95;
+  font-size: 9px;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
 }
 
 .battle-v4-command-status {

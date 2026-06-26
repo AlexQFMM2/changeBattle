@@ -65,6 +65,7 @@ export type BattleRequestV4 = {
       details: string;
       condition: string;
       active?: boolean;
+      commanding?: boolean;
       moves?: string[];
       item?: string;
       ability?: string;
@@ -295,6 +296,8 @@ export type BattleSessionSnapshotV4 = {
   debug: {
     inputLog: string[];
     lastChoices: Array<{playerId: ShowdownPlayerIdV4; choice: string; at: string}>;
+    playerStreams: Array<{playerId: ShowdownPlayerIdV4; at: string; chunk: string; request: boolean; lines: string[]}>;
+    latestSidePokemon?: Partial<Record<ShowdownPlayerIdV4, RequestSidePokemonV4[]>>;
   };
   createdAt: string;
   updatedAt: string;
@@ -508,10 +511,10 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
   const nextPlayers = {...players};
   for (const snapshotPlayer of snapshot.players) {
     const runPlayer = nextPlayers[snapshotPlayer.playerId];
-    const rows = snapshot.requests[snapshotPlayer.playerId]?.side?.pokemon || [];
+    const rows = battleSyncRowsForPlayer(snapshot, snapshotPlayer);
     if (!runPlayer || !rows.length) continue;
     const nextTeam = [...runPlayer.localTeam.pokemon];
-    rows.forEach((row, requestIndex) => {
+    rows.forEach(({row, source}, requestIndex) => {
       const resolved = resolveLocalPokemonFromRequestRow(row, snapshotPlayer.teamMapping, snapshotPlayer.draft.localTeam.pokemon, requestIndex);
       if (!resolved.mapping || !resolved.localPokemon || resolved.fallbackReason !== "token") {
         battleDebugLog(true, "error", "sync-local-team-unresolved", {
@@ -552,6 +555,7 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
         before: {hp: current.entryHp, status: current.entryStatus},
         after: {hp: updated.entryHp, status: updated.entryStatus},
         sourceCondition: row.condition,
+        source,
         fallbackReason: resolved.fallbackReason,
       });
     });
@@ -564,6 +568,57 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
     };
   }
   return changed ? nextPlayers : players;
+}
+
+function battleSyncRowsForPlayer(snapshot: BattleSessionSnapshotV4, snapshotPlayer: BattleServicePlayerInputV4): Array<{row: RequestSidePokemonV4; source: "request" | "latestSidePokemon" | "active-overlay"}> {
+  const requestRows = snapshot.requests[snapshotPlayer.playerId]?.side?.pokemon;
+  const baseSource: "request" | "latestSidePokemon" = requestRows?.length ? "request" : "latestSidePokemon";
+  const baseRows = requestRows?.length ? requestRows : snapshot.debug.latestSidePokemon?.[snapshotPlayer.playerId] || [];
+  const rows = baseRows.map(row => ({...row}));
+  const sources: Array<"request" | "latestSidePokemon" | "active-overlay"> = rows.map(() => baseSource);
+  const mapping = snapshotPlayer.teamMapping || [];
+  const usedActiveRowIndices = new Set<number>();
+  for (const active of snapshot.active.filter(entry => entry.playerId === snapshotPlayer.playerId)) {
+    const activeName = active.ident.split(":").pop() || "";
+    const activeRowIndex = rows.findIndex((row, index) => !usedActiveRowIndices.has(index) && row.active && (
+      toId(row.details.split(",")[0] || "") === toId(active.species) ||
+      toId(row.name || "") === toId(active.species) ||
+      toId(row.ident.split(":").pop() || "") === toId(activeName)
+    ));
+    const mappingEntry = activeRowIndex >= 0
+      ? mapping.find(entry => entry.teamIndex === activeRowIndex || entry.choiceIndex === activeRowIndex + 1)
+      : mapping.find(entry =>
+      toId(entry.speciesId) === toId(active.species) ||
+      toId(entry.displayName) === toId(active.species) ||
+      toId(entry.displayName) === toId(activeName)
+    );
+    if (!mappingEntry) continue;
+    const index = activeRowIndex >= 0 ? activeRowIndex : mappingEntry.teamIndex;
+    usedActiveRowIndices.add(index);
+    const currentRow = rows[index];
+    if (currentRow) {
+      rows[index] = {
+        ...currentRow,
+        ident: currentRow.ident || active.ident,
+        details: currentRow.details || active.details,
+        condition: active.condition,
+        active: !active.fainted,
+        fainted: active.fainted,
+      };
+      sources[index] = "active-overlay";
+    } else {
+      rows[index] = {
+        ident: active.ident.replace(/^p[1-4][a-z]:/i, `${snapshotPlayer.playerId}:`),
+        details: active.details,
+        condition: active.condition,
+        active: !active.fainted,
+        fainted: active.fainted,
+        pokeball: mappingEntry.showdownIdentityToken,
+      };
+      sources[index] = "active-overlay";
+    }
+  }
+  return rows.map((row, index) => ({row, source: sources[index] || baseSource}));
 }
 
 function parseSideCondition(condition: string | undefined, maxHp: number): {hp: number; status: LocalPokemonV4["entryStatus"]} {
@@ -694,6 +749,16 @@ export function addBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: B
   if (normalized.isDone || request.requestType === "wait") return normalized;
   const parsed = parseBattleCommandChoiceV4(input);
   if (!parsed) return normalized;
+  if (parsed.kind === "move" && moveChoiceNeedsExplicitTarget(request, normalized.activeIndex, parsed)) {
+    return {
+      ...normalized,
+      currentMove: {
+        moveIndex: parsed.index - 1,
+        baseChoice: `move ${parsed.index}`,
+        requiresTarget: true,
+      },
+    };
+  }
   if (parsed.kind === "switch" && normalized.alreadySwitchingIn.includes(parsed.index)) {
     return normalized;
   }
@@ -796,6 +861,22 @@ function draftMatchesRequest(draft: BattleCommandDraftV4, request: BattleNormali
     draft.requestLength === request.requestLength;
 }
 
+function moveChoiceNeedsExplicitTarget(request: BattleNormalizedRequestV4, activeIndex: number, choice: Extract<ParsedBattleCommandChoiceV4, {kind: "move"}>): boolean {
+  if (!request.targetable || choice.target) return false;
+  const move = request.activeRequests[activeIndex]?.moves?.[choice.index - 1];
+  if (!move?.target || toId(move.id) === "recharge") return false;
+  const target = normalizeChoiceTarget(move.target);
+  return target === "normal" ||
+    target === "any" ||
+    target === "adjacentally" ||
+    target === "adjacentallyorself" ||
+    target === "adjacentfoe";
+}
+
+function normalizeChoiceTarget(value: string | undefined): string {
+  return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
+}
+
 function shouldAutoPassChoiceSlot(request: BattleNormalizedRequestV4, index: number): boolean {
   if (request.requestType === "wait") return true;
   if (request.requestType === "switch") return request.forceSwitch[index] === false;
@@ -837,9 +918,9 @@ function buildTargetActions(request: BattleNormalizedRequestV4): BattleTargetAct
 
 export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4): BattleNormalizedRequestV4 {
   const requestType = requestTypeFor(request);
-  const activeRequests = request.active || [];
-  const forceSwitch = request.forceSwitch || [];
   const sidePokemon = request.side?.pokemon || [];
+  const activeRequests = fixedActiveRequestsForNormalizedRequest(request, sidePokemon);
+  const forceSwitch = request.forceSwitch || [];
   const requestLength = requestLengthForNormalizedRequest(request, requestType);
   return {
     playerId,
@@ -847,9 +928,9 @@ export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: Sho
     requestType,
     rqid: request.rqid,
     noCancel: Boolean(request.noCancel || request.wait),
-    targetable: Boolean(request.targetable),
+    targetable: Boolean(request.targetable || requestType === "move" && activeRequests.length > 1),
     requestLength,
-    activeIndex: firstActionableActiveIndex(request, requestType),
+    activeIndex: firstActionableActiveIndex(request, requestType, activeRequests),
     activeRequests,
     forceSwitch,
     sidePokemon,
@@ -857,6 +938,19 @@ export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: Sho
     choiceIndexByTeamIndex: Object.fromEntries(sidePokemon.map((_, index) => [index, index + 1])),
     rawRequest: request,
   };
+}
+
+function fixedActiveRequestsForNormalizedRequest(request: BattleRequestV4, sidePokemon: RequestSidePokemonV4[]): Array<BattleActiveRequestV4 | null> {
+  return (request.active || []).map((active, index) => sidePokemonCanCommand(sidePokemon[index]) ? active : null);
+}
+
+function sidePokemonCanCommand(pokemon: RequestSidePokemonV4 | undefined): boolean {
+  if (!pokemon) return true;
+  return !pokemon.fainted && !pokemon.commanding && !conditionIsFainted(pokemon.condition);
+}
+
+function conditionIsFainted(condition: string | undefined): boolean {
+  return Boolean(condition?.includes("fnt") || /^\s*0(?:\D|$)/.test(condition || ""));
 }
 
 function requestTypeFor(request: BattleRequestV4): BattleRequestTypeV4 {
@@ -873,13 +967,13 @@ function requestLengthForNormalizedRequest(request: BattleRequestV4, requestType
   return request.active?.length || 0;
 }
 
-function firstActionableActiveIndex(request: BattleRequestV4, requestType: BattleRequestTypeV4): number {
+function firstActionableActiveIndex(request: BattleRequestV4, requestType: BattleRequestTypeV4, activeRequests?: Array<BattleActiveRequestV4 | null>): number {
   if (requestType === "switch") {
     const index = request.forceSwitch?.findIndex(Boolean) ?? -1;
     return index >= 0 ? index : 0;
   }
   if (requestType === "wait" || requestType === "team") return 0;
-  const index = request.active?.findIndex(active => Boolean(active));
+  const index = (activeRequests || request.active)?.findIndex(active => Boolean(active));
   return index && index > 0 ? index : 0;
 }
 
@@ -939,8 +1033,8 @@ function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {
       return playerActives.map((active, index) => {
         const rowIndex = findRequestRowIndexForActive(requestRows, active, index);
         const row = rowIndex >= 0 ? requestRows[rowIndex]! : null;
-        const resolved = resolveLocalPokemonFromRequestRow(row, player.teamMapping, team, rowIndex >= 0 ? rowIndex : index);
-        const activePokemon = resolved.localPokemon || findTeamPokemon(team, active.species) || team[index] || team[0];
+        const resolved = row ? resolveLocalPokemonFromRequestRow(row, player.teamMapping, team, rowIndex) : null;
+        const activePokemon = resolved?.localPokemon || resolveLocalPokemonFromActive(active, player.teamMapping, team);
         return activePokemon ? pokemonToSlot(player.playerId, side, activePokemon, active, true, team, seatForActive(player.playerId, active, index), playerActives) : null;
       }).filter(Boolean) as BattleViewSlotV4[];
     }
@@ -1007,6 +1101,26 @@ function firstLargeSprite(...values: Array<string | undefined>): string {
 function findTeamPokemon(team: LocalPokemonV4[], species: string): LocalPokemonV4 | undefined {
   const wanted = toId(species);
   return team.find(pokemon => toId(pokemon.name) === wanted || toId(pokemon.nameZh) === wanted || toId(pokemon.speciesId) === wanted);
+}
+
+function resolveLocalPokemonFromActive(active: BattleActivePokemonV4, mapping: ShowdownTeamPokemonMappingV4[] | undefined, team: LocalPokemonV4[]): LocalPokemonV4 | null {
+  const activeSpecies = toId(active.species || active.details.split(",")[0] || active.ident.split(":").pop() || "");
+  const activeName = toId(active.ident.split(":").pop() || "");
+  const activeDetailSpecies = toId(active.details.split(",")[0] || "");
+  const activeTokens = new Set([activeSpecies, activeName, activeDetailSpecies].filter(Boolean));
+  const mappingEntry = (mapping || []).find(entry =>
+    activeTokens.has(toId(entry.speciesId)) ||
+    activeTokens.has(toId(entry.displayName))
+  );
+  if (mappingEntry) {
+    return team.find(pokemon => pokemon.localPokemonId === mappingEntry.localPokemonId) || team[mappingEntry.teamIndex] || null;
+  }
+  return team.find(pokemon =>
+    activeTokens.has(toId(pokemon.speciesId)) ||
+    activeTokens.has(toId(pokemon.name)) ||
+    activeTokens.has(toId(pokemon.nameZh)) ||
+    activeTokens.has(toId(pokemon.nickname))
+  ) || null;
 }
 
 function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState()): BattleServicePlayerInputV4 {

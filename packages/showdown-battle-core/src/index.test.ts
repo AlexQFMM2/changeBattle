@@ -1,5 +1,5 @@
 import {createBattleSession, randomLegalChoice, submitChoice} from "./index.js";
-import type {BattleServiceSessionInputV4} from "./types.js";
+import type {BattleServiceRequestV4, BattleServiceSessionInputV4} from "./types.js";
 
 const pikachu = {
   species: "Pikachu",
@@ -66,7 +66,81 @@ async function doublesSmoke() {
   const previewChoice = randomLegalChoice(snapshot.requests.p1);
   const next = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: previewChoice});
   if ((next.requests.p1?.active || []).length !== 2) throw new Error("missing doubles active request");
+  const afterTurn = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: randomLegalChoice(next.requests.p1)});
+  if (afterTurn.status === "running" && afterTurn.requests.p1?.wait) {
+    throw new Error("doubles submit returned wait request instead of next actionable request");
+  }
+  if (afterTurn.status === "running" && !afterTurn.requests.p1) {
+    throw new Error("doubles submit returned no p1 request");
+  }
   console.log("showdown-battle-core doubles smoke ok");
+}
+
+function rechargeChoiceSmoke() {
+  const request: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [{move: "Recharge", id: "recharge"}]},
+      {moves: [{move: "Aqua Tail", id: "aquatail", pp: 16, maxpp: 16, target: "normal"}]},
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Gengar", details: "Gengar, L50", condition: "83/135", active: true},
+        {ident: "p2: Gyarados", details: "Gyarados, L50", condition: "170/170", active: true},
+      ],
+    },
+  };
+  const choice = randomLegalChoice(request);
+  const [rechargeChoice] = choice.split(",").map(part => part.trim());
+  if (rechargeChoice !== "move 1") throw new Error(`recharge should not receive a target: ${choice}`);
+  console.log("showdown-battle-core recharge choice smoke ok");
+}
+
+function faintedDoublesActiveChoiceSmoke() {
+  const request: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [{move: "Shadow Punch", id: "shadowpunch", pp: 20, maxpp: 20, target: "normal"}]},
+      {moves: [{move: "Aqua Tail", id: "aquatail", pp: 16, maxpp: 16, target: "normal"}]},
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Gengar", details: "Gengar, L50", condition: "0 fnt", active: true, fainted: true},
+        {ident: "p2: Gyarados", details: "Gyarados, L50", condition: "65/170", active: true},
+      ],
+    },
+  };
+  const choice = randomLegalChoice(request);
+  if (choice !== "pass, move 1 +2") {
+    throw new Error(`fainted doubles active should pass and target from live slot: ${choice}`);
+  }
+  console.log("showdown-battle-core fainted doubles active choice smoke ok");
+}
+
+function duplicateForceSwitchChoiceSmoke() {
+  const request: BattleServiceRequestV4 = {
+    forceSwitch: [true, true],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Gengar", details: "Gengar, L50", condition: "0 fnt", active: true, fainted: true},
+        {ident: "p2: Gyarados", details: "Gyarados, L50", condition: "0 fnt", active: true, fainted: true},
+        {ident: "p2: Snorlax", details: "Snorlax, L50", condition: "235/235", active: false},
+        {ident: "p2: Raticate", details: "Raticate, L50", condition: "120/120", active: false},
+      ],
+    },
+  };
+  const choice = randomLegalChoice(request);
+  const choices = choice.split(",").map(part => part.trim());
+  if (choices.length !== 2 || !choices.includes("switch 3") || !choices.includes("switch 4")) {
+    throw new Error(`force switch should choose different bench slots: ${choice}`);
+  }
+  console.log("showdown-battle-core duplicate force switch choice smoke ok");
 }
 
 async function duplicateSpeciesDoublesSmoke() {
@@ -177,6 +251,9 @@ async function sleepCantMoveSmoke() {
 
 void smoke()
   .then(doublesSmoke)
+  .then(rechargeChoiceSmoke)
+  .then(faintedDoublesActiveChoiceSmoke)
+  .then(duplicateForceSwitchChoiceSmoke)
   .then(duplicateSpeciesDoublesSmoke)
   .then(initialStateSmoke)
   .then(residualStatusSmoke)

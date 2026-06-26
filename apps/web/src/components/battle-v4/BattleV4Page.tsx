@@ -119,6 +119,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [commandMode, setCommandMode] = useState<"command" | "moves">("command");
   const [pendingMoveAction, setPendingMoveAction] = useState<MoveActionV4 | null>(null);
   const [commandDraft, setCommandDraft] = useState<BattleCommandDraftV4 | null>(null);
+  const [choiceStatus, setChoiceStatus] = useState("");
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
   const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
@@ -147,6 +148,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     setCommandDraft(rawViewModel.command.normalizedRequest ? createBattleCommandDraftV4(rawViewModel.command.normalizedRequest) : null);
     setCommandMode("command");
     setPendingMoveAction(null);
+    setChoiceStatus("");
     if (rawViewModel.command.requestType === "switch" && rawViewModel.status === "running") {
       setSwitchPanelOpen(true);
       return;
@@ -162,6 +164,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     async function tick() {
       if (!sessionId) {
         setMessage("缺少战斗 session，请从休整页重新进入。");
+        return;
+      }
+      if (busy) {
+        timer = window.setTimeout(tick, 250);
         return;
       }
       try {
@@ -185,7 +191,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, onRunChange, run, sessionId]);
+  }, [api, busy, onRunChange, run, sessionId]);
 
   async function submitChoice(choice: string) {
     if (!choice || busy || !sessionId) return;
@@ -195,12 +201,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       choice,
     });
     setBusy(true);
+    setChoiceStatus(`提交中：${choice}`);
     setMessage(`提交指令：${choice}`);
     try {
       const next = await api.battleService.submitChoice(sessionId, "p1", choice);
       setSnapshot(next);
       setCommandDraft(null);
       setSwitchPanelOpen(false);
+      setChoiceStatus(`提交成功：${choice}`);
       setMessage("");
       battleDebugLog(debugConfig, "snapshot", "after-submit", snapshotDebugSummary(next));
     } catch (error) {
@@ -235,6 +243,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       void submitChoice(finalChoice);
       return;
     }
+    setChoiceStatus(`选择 ${after.choices.filter(Boolean).length}/${after.requestLength} 完成`);
     setCommandMode(after.requestType === "move" ? "moves" : "command");
     if (after.requestType === "switch") setSwitchPanelOpen(true);
   }
@@ -242,6 +251,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   function draftMoveAction(action: MoveActionV4) {
     const normalizedRequest = viewModel?.command.normalizedRequest;
     if (!normalizedRequest) return;
+    if (isUntargetedLockedMove(action.move)) {
+      applyDraftChoice(action.choice);
+      return;
+    }
     const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
     const requiresTarget = true;
     const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget);
@@ -257,16 +270,17 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
 
   return (
     <section className="battle-v4-page">
-      <BattleArena near={viewModel?.nearTeam || []} far={viewModel?.farTeam || []} />
+      <BattleArena near={viewModel?.nearTeam || []} far={viewModel?.farTeam || []} commandActiveIndex={viewModel?.command.activeIndex || 0} />
       <header className="battle-v4-hud">
         <button type="button" onClick={() => setDebugOpen(true)}>记录</button>
+        <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft)} disabled={!snapshot}>导出诊断</button>
       </header>
       <BattleCommandDock
         api={api}
         viewModel={viewModel}
         snapshot={snapshot}
         busy={busy}
-        message={message}
+        message={choiceStatus || message}
         actions={viewModel?.command.actions || []}
         mode={viewModel?.mode || "singles"}
         requestType={viewModel?.command.requestType || "none"}
@@ -310,7 +324,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   );
 }
 
-function BattleArena({near, far}: {near: BattleViewSlotV4[]; far: BattleViewSlotV4[]}) {
+function BattleArena({near, far, commandActiveIndex = 0}: {near: BattleViewSlotV4[]; far: BattleViewSlotV4[]; commandActiveIndex?: number}) {
   return (
     <div className="battle-v4-arena" aria-label="战斗场地">
       <div className="battle-v4-scene-overlay" />
@@ -318,30 +332,30 @@ function BattleArena({near, far}: {near: BattleViewSlotV4[]; far: BattleViewSlot
         {far.map(slot => <BattleHpPanel slot={slot} compact key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
       <div className="battle-v4-player-panels">
-        {near.map(slot => <BattleHpPanel slot={slot} current={slot.active} key={`${slot.playerId}-${slot.position}-hp`} />)}
+        {near.map((slot, index) => <BattleHpPanel slot={slot} current={slot.active} commanding={index === commandActiveIndex} key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
       <div className="battle-v4-model-layer">
         {far.map(slot => <BattlePokemonSlot slot={slot} key={`${slot.playerId}-${slot.position}`} />)}
-        {near.map(slot => <BattlePokemonSlot slot={slot} key={`${slot.playerId}-${slot.position}`} />)}
+        {near.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} key={`${slot.playerId}-${slot.position}`} />)}
       </div>
     </div>
   );
 }
 
-function BattlePokemonSlot({slot}: {slot: BattleViewSlotV4}) {
+function BattlePokemonSlot({slot, commanding = false}: {slot: BattleViewSlotV4; commanding?: boolean}) {
   return (
-    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} ${slot.fainted ? "fainted" : ""}`}>
+    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""}`}>
       <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={slot.nameZh || slot.name} />
     </article>
   );
 }
 
-function BattleHpPanel({slot, compact = false, current = false}: {slot: BattleViewSlotV4; compact?: boolean; current?: boolean}) {
+function BattleHpPanel({slot, compact = false, current = false, commanding = false}: {slot: BattleViewSlotV4; compact?: boolean; current?: boolean; commanding?: boolean}) {
   const hpRate = slot.maxHp ? Math.max(0, Math.min(100, slot.hp / slot.maxHp * 100)) : 0;
   const status = statusBadge(slot.status);
   const identity = slotIdentityLabel(slot);
   return (
-    <section className={`battle-v4-hp-panel ${slot.side} ${slot.position.toLowerCase()} ${compact ? "compact" : ""} ${current ? "current" : ""}`} title={identity ? `ID: ${identity}` : undefined}>
+    <section className={`battle-v4-hp-panel ${slot.side} ${slot.position.toLowerCase()} ${compact ? "compact" : ""} ${current ? "current" : ""} ${commanding ? "commanding" : ""}`} title={identity ? `ID: ${identity}` : undefined}>
       <div className="battle-v4-hp-portrait">
         <BattleV4Icon src={slot.iconUrl || slot.frontSpriteUrl || slot.spriteUrl} iconStyle={slot.iconStyle} alt={slot.nameZh || slot.name} />
       </div>
@@ -379,6 +393,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   const canInspectSwitch = requestType === "move" && Boolean(snapshot?.requests.p1?.side?.pokemon?.length);
   const moveActions = actions.filter((action): action is Extract<BattleCommandActionV4, {kind: "move"}> => action.kind === "move");
   const moveCards = useMemo(() => moveActions.map(action => buildBattleV4MoveCard(action, api, viewModel?.farTeam || [])), [api, moveActions, viewModel?.farTeam]);
+  const commandStatus = commandStatusText(viewModel, busy, message);
   if (requestType === "switch") {
     return (
       <section className="battle-v4-command-dock waiting" aria-label="等待换人">
@@ -387,9 +402,12 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
     );
   }
   if (requestType !== "move") {
+    const waitingLabel = requestType === "wait" ? "等待对手行动 / wait request" : "等待行动";
+    const diagnosis = battleV4StallDiagnosis(snapshot);
+    const diagnosisLabel = diagnosis.includes("no-obvious-stall-signal") ? "" : ` · ${diagnosis.join(" / ")}`;
     return (
       <section className="battle-v4-command-dock waiting" aria-label="等待指令">
-        <span>{busy ? "提交中..." : message || snapshot?.error || "等待行动"}</span>
+        <span>{busy ? "提交中..." : message || snapshot?.error || `${waitingLabel}${diagnosisLabel}`}</span>
       </section>
     );
   }
@@ -397,6 +415,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
     return (
       <section className="battle-v4-move-dock" aria-label="技能指令">
         <div className="battle-v4-side-hints">
+          <span className="battle-v4-command-progress">{commandStatus}</span>
           <button type="button" onClick={() => onCommandModeChange("command")}>返回</button>
           <button type="button" onClick={() => {}}>招式说明</button>
         </div>
@@ -428,6 +447,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   }
   return (
     <section className="battle-v4-command-dock" aria-label="战斗指令">
+      <span className="battle-v4-command-progress">{commandStatus}</span>
       <button className="battle-v4-main-command fight" type="button" disabled={busy || !moveActions.length} onClick={() => onCommandModeChange("moves")}>
         <img src="/battle/command-buttons/fight.webp" alt="" />
         <span>战斗</span>
@@ -449,7 +469,8 @@ function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit
   onSubmit: (choice: string) => void;
 }) {
   const moveCard = useMemo(() => buildBattleV4MoveCard(action, api, viewModel.farTeam), [action, api, viewModel.farTeam]);
-  const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, Boolean(request?.targetable), api), [viewModel, action, moveCard.detail, request?.targetable, api]);
+  const targetable = Boolean(viewModel.command.normalizedRequest?.targetable || request?.targetable);
+  const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, targetable, api), [viewModel, action, moveCard.detail, targetable, api]);
   return (
     <section className="battle-v4-target-modal" aria-label="攻击对象选择">
       <div className="battle-v4-target-modal-top" />
@@ -461,7 +482,7 @@ function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit
             target={target}
             key={target.key}
             onSelect={next => {
-              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && (request?.targetable || viewModel.mode !== "singles"));
+              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && moveNeedsExplicitTargetForShowdown(action.move.target || moveCard.detail?.target, targetable));
               const choice = shouldUseTargetSuffix ? `${action.choice} ${next.choiceSuffix}` : action.choice;
               onSubmit(choice);
             }}
@@ -505,6 +526,18 @@ function BattleV4TargetCard({target, onSelect}: {target: BattleV4TargetCardView;
 
 function isDisabledAction(action: BattleCommandActionV4): boolean {
   return action.kind === "move" ? Boolean(action.move.disabled || action.move.pp === 0) : Boolean(action.disabled);
+}
+
+function commandStatusText(viewModel: BattleViewModelV4 | null, busy: boolean, message: string): string {
+  if (busy) return message || "提交中...";
+  const command = viewModel?.command;
+  if (!command || command.requestType === "none") return "等待 request";
+  if (command.waiting) return "等待对局推进";
+  const doneCount = command.choices.filter(Boolean).length;
+  const total = Math.max(1, command.requestLength);
+  if (command.isDone) return `已完成 ${doneCount}/${total}`;
+  const activeName = command.activePokemon?.name || `第 ${command.activeIndex + 1} 只`;
+  return `已选 ${doneCount}/${total} · 操作 ${activeName}`;
 }
 
 function StatusBadge({badge, className = "battle-v4-status-badge"}: {badge: BattleV4StatusBadge; className?: string}) {
@@ -644,6 +677,20 @@ function targetChoiceSuffix(active: BattleViewSlotV4 | null, target: BattleViewS
 
 function normalizeMoveTarget(value: string | undefined): string {
   return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
+}
+
+function moveNeedsExplicitTargetForShowdown(target: string | undefined, targetable: boolean): boolean {
+  if (!targetable) return false;
+  const id = normalizeMoveTarget(target);
+  return id === "normal" ||
+    id === "any" ||
+    id === "adjacentally" ||
+    id === "adjacentallyorself" ||
+    id === "adjacentfoe";
+}
+
+function isUntargetedLockedMove(move: BattleMoveRequestV4): boolean {
+  return toId(move.id || move.move) === "recharge" || !move.target;
 }
 
 function typeIdFor(value: string | undefined): string {
@@ -1026,6 +1073,13 @@ function snapshotDebugSummary(snapshot: BattleSessionSnapshotV4) {
     turn: snapshot.turn,
     winner: snapshot.winner,
     request: request ? requestDebugSummary(command) : null,
+    requests: Object.fromEntries(Object.entries(snapshot.requests).map(([playerId, playerRequest]) => [
+      playerId,
+      playerRequest ? summarizeRawRequest(playerRequest) : null,
+    ])),
+    lastChoices: snapshot.debug.lastChoices.slice(-12),
+    inputLogTail: snapshot.debug.inputLog.slice(-12),
+    playerStreamTail: snapshot.debug.playerStreams.slice(-20),
     activeSlots: snapshot.active.map(active => ({
       ident: active.ident,
       playerId: active.playerId,
@@ -1041,6 +1095,96 @@ function snapshotDebugSummary(snapshot: BattleSessionSnapshotV4) {
   };
 }
 
+function summarizeRawRequest(request: BattleRequestV4) {
+  return {
+    wait: Boolean(request.wait),
+    teamPreview: Boolean(request.teamPreview),
+    targetable: Boolean(request.targetable),
+    rqid: request.rqid,
+    activeLength: request.active?.length || 0,
+    forceSwitch: request.forceSwitch || null,
+    side: request.side ? {
+      id: request.side.id,
+      pokemon: request.side.pokemon.map((pokemon, index) => ({
+        index,
+        ident: pokemon.ident,
+        details: pokemon.details,
+        condition: pokemon.condition,
+        active: Boolean(pokemon.active),
+        fainted: Boolean(pokemon.fainted),
+        pokeball: pokemon.pokeball || "",
+      })),
+    } : null,
+  };
+}
+
+function battleV4StallDiagnosis(snapshot: BattleSessionSnapshotV4 | null): string[] {
+  if (!snapshot) return ["missing-snapshot"];
+  const diagnosis: string[] = [];
+  const p1 = snapshot.requests.p1;
+  const aiRequests = Object.entries(snapshot.requests)
+    .filter(([playerId]) => playerId !== "p1")
+    .filter(([, request]) => request && !request.wait);
+  if (snapshot.status === "running" && !p1) diagnosis.push("p1-request-missing");
+  if (p1?.wait) diagnosis.push("p1-wait-request");
+  for (const [playerId, request] of aiRequests) {
+    if (request?.forceSwitch?.some(Boolean)) diagnosis.push(`${playerId}-pending-force-switch`);
+    else if (request?.teamPreview) diagnosis.push(`${playerId}-pending-team-preview`);
+    else diagnosis.push(`${playerId}-pending-action`);
+  }
+  const lastRaw = snapshot.rawLog.slice(-20);
+  if (lastRaw.some(line => line.startsWith("|faint|"))) diagnosis.push("recent-faint");
+  if (lastRaw.some(line => line.startsWith("|turn|"))) diagnosis.push(`last-turn-${snapshot.turn}`);
+  return diagnosis.length ? diagnosis : ["no-obvious-stall-signal"];
+}
+
+function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null) {
+  const command = snapshot ? projectBattleViewModelV4(snapshot, "p1", draft).command : null;
+  return {
+    exportedAt: new Date().toISOString(),
+    diagnosis: battleV4StallDiagnosis(snapshot),
+    snapshotSummary: snapshot ? snapshotDebugSummary(snapshot) : null,
+    draft,
+    p1RawRequest: command?.request || null,
+    p1NormalizedRequest: command ? requestDebugSummary(command) : null,
+    allRequests: snapshot?.requests || {},
+    players: snapshot?.players.map(player => ({
+      playerId: player.playerId,
+      controller: player.controller,
+      alliance: player.alliance,
+      teamMapping: player.teamMapping || [],
+      team: player.team.map((pokemon, index) => ({
+        index,
+        species: pokemon.species,
+        name: pokemon.name,
+        pokeball: pokemon.pokeball,
+        entryHp: pokemon.entryHp,
+        entryStatus: pokemon.entryStatus,
+      })),
+    })) || [],
+    active: snapshot?.active || [],
+    lastChoices: snapshot?.debug.lastChoices || [],
+    inputLog: snapshot?.debug.inputLog || [],
+    playerStreams: snapshot?.debug.playerStreams || [],
+    playerStreamTail: snapshot?.debug.playerStreams.slice(-80) || [],
+    rawLog: snapshot?.rawLog || [],
+  };
+}
+
+function exportBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null) {
+  if (!snapshot) return;
+  const diagnostics = buildBattleV4Diagnostics(snapshot, draft);
+  const blob = new Blob([JSON.stringify(diagnostics, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `battle-v4-diagnostics-${snapshot.id}-turn-${snapshot.turn}-${Date.now()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function toId(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
@@ -1049,17 +1193,27 @@ function BattleV4DebugModal({snapshot, draft, onClose}: {snapshot: BattleSession
   const command = snapshot ? projectBattleViewModelV4(snapshot, "p1", draft).command : null;
   const rawRequest = command?.request || null;
   const normalizedRequest = command ? requestDebugSummary(command) : null;
+  const diagnostics = buildBattleV4Diagnostics(snapshot, draft);
   return (
     <div className="battle-v4-debug-modal">
       <section>
         <header>
           <strong>BattleStream Debug</strong>
+          <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, draft)} disabled={!snapshot}>导出诊断</button>
           <button type="button" onClick={onClose}>关闭</button>
         </header>
         <div className="battle-v4-debug-content">
           <article>
+            <h3>Diagnosis</h3>
+            <pre>{JSON.stringify(diagnostics.diagnosis, null, 2)}</pre>
+          </article>
+          <article>
             <h3>Raw Request</h3>
             <pre>{rawRequest ? JSON.stringify(rawRequest, null, 2) : "暂无 request"}</pre>
+          </article>
+          <article>
+            <h3>All Requests</h3>
+            <pre>{snapshot ? JSON.stringify(snapshot.requests, null, 2) : "暂无 requests"}</pre>
           </article>
           <article>
             <h3>Normalized Request</h3>
@@ -1068,6 +1222,18 @@ function BattleV4DebugModal({snapshot, draft, onClose}: {snapshot: BattleSession
           <article>
             <h3>Draft</h3>
             <pre>{draft ? JSON.stringify(draft, null, 2) : "暂无 draft"}</pre>
+          </article>
+          <article>
+            <h3>Last Choices</h3>
+            <pre>{snapshot?.debug.lastChoices.length ? JSON.stringify(snapshot.debug.lastChoices.slice(-12), null, 2) : "暂无提交记录"}</pre>
+          </article>
+          <article>
+            <h3>Input Log</h3>
+            <pre>{snapshot?.debug.inputLog.slice(-20).join("\n\n") || "暂无 input log"}</pre>
+          </article>
+          <article>
+            <h3>Player Streams</h3>
+            <pre>{snapshot?.debug.playerStreams.length ? JSON.stringify(snapshot.debug.playerStreams.slice(-40), null, 2) : "暂无 player stream"}</pre>
           </article>
           <article>
             <h3>Raw Protocol</h3>
