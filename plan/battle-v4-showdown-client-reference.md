@@ -1663,23 +1663,23 @@ type BattleCommandDraftV4 = {
 
 实现步骤：
 
-- [ ] 技能按钮使用 V1/reference 样式，不使用 Showdown 原版按钮样式。
-- [ ] 点击技能后进入目标确认面板，参考 `image-2.png`。
-- [ ] 普通 singles 确认目标后提交 `move N`。
-- [ ] request 明确 targetable 时，确认目标后提交 `move N +1/-1`。
-- [ ] 主动换人入口只在 singles + move request + 非 wait/busy/end 显示。
-- [ ] 强制换人 request 自动打开换人面板，不能返回。
-- [ ] 换人确认提交 `switch N`，N 来自 request.side.pokemon 的 1-based choiceIndex。
-- [ ] 换人面板展示 localTeam 详情、pokeball、icon、HP、状态、禁用原因。
-- [ ] 记录窗口能看到每次最终提交 choice。
+- [x] 技能按钮使用 V1/reference 样式，不使用 Showdown 原版按钮样式。
+- [x] 点击技能后进入目标确认面板，参考 `image-2.png`。
+- [x] 普通 singles 确认目标后提交 `move N`。
+- [x] request 明确 targetable 时，确认目标后提交 `move N +1/-1`。
+- [x] 主动换人入口只在 singles + move request + 非 wait/busy/end 显示。
+- [x] 强制换人 request 自动打开换人面板，不能返回。
+- [x] 换人确认提交 `switch N`，N 来自 request.side.pokemon 的 1-based choiceIndex。
+- [x] 换人面板展示 localTeam 详情、pokeball、icon、HP、状态、禁用原因。
+- [x] 记录窗口能看到每次最终提交 choice。
 
 验收：
 
-- [ ] 单打技能推进 3 回合。
-- [ ] 单打主动换人成功。
-- [ ] 单打强制换人成功。
-- [ ] 当前出战/倒下/trapped 不可选。
-- [ ] UI 不出现初始队伍预览。
+- [x] 单打技能推进 3 回合。
+- [x] 单打主动换人成功。
+- [x] 单打强制换人成功。
+- [x] 当前出战/倒下/trapped 不可选。
+- [x] UI 不出现初始队伍预览。
 
 ### Phase 6: Doubles UI Closure
 
@@ -1691,24 +1691,24 @@ type BattleCommandDraftV4 = {
 
 实现步骤：
 
-- [ ] 双打进入战斗页时固定显示每方 2 个 active slot。
-- [ ] move request 下先显示 `activeIndex = 0` 的宝可梦技能。
-- [ ] 第一只选择技能或换人后不提交，显示已选择摘要。
-- [ ] 自动切到 `activeIndex = 1`。
-- [ ] 第二只选择后提交完整 choice string。
-- [ ] 目标面板显示对面 `+1/+2` 和己方 `-1/-2`。
-- [ ] 根据 move target 禁用非法目标。
-- [ ] 双打主动换人不能选择当前出战、倒下、已被另一 active 选中的后备。
-- [ ] 双打强制换人支持两个 slot 逐个选择。
-- [ ] 记录窗口最终 choice 示例：`move 1 +1, move 2 -1` 或 `switch 3, move 1`。
+- [x] 双打进入战斗页时固定显示每方 2 个 active slot。
+- [x] move request 下先显示 `activeIndex = 0` 的宝可梦技能。
+- [x] 第一只选择技能或换人后不提交，显示已选择摘要。
+- [x] 自动切到 `activeIndex = 1`。
+- [x] 第二只选择后提交完整 choice string。
+- [x] 目标面板显示对面 `+1/+2` 和己方 `-1/-2`。
+- [x] 根据 move target 禁用非法目标。
+- [x] 双打主动换人不能选择当前出战、倒下、已被另一 active 选中的后备。
+- [x] 双打强制换人支持两个 slot 逐个选择。
+- [x] 记录窗口最终 choice 示例：`move 1 +1, move 2 -1` 或 `switch 3, move 1`。
 
 验收：
 
-- [ ] 双打两只宝可梦可分别选择不同技能。
-- [ ] 双打可分别选择不同目标。
-- [ ] 双打可一只换人、一只攻击。
-- [ ] 双打 force switch 两个 slot 可分别换不同后备。
-- [ ] 不再出现永远停在 1 号位的问题。
+- [x] 双打两只宝可梦可分别选择不同技能。
+- [x] 双打可分别选择不同目标。
+- [x] 双打可一只换人、一只攻击。
+- [x] 双打 force switch 两个 slot 可分别换不同后备。
+- [x] 不再出现永远停在 1 号位的问题。
 
 ### Phase 7: Coop / Multi UI Closure
 
@@ -1720,21 +1720,21 @@ type BattleCommandDraftV4 = {
 
 实现步骤：
 
-- [ ] coop 模式显示每方两个玩家 active：near local + near ally，far opponent + far opponent ally。
-- [ ] 本地玩家身份由 session/playerId 决定，不能硬编码 p1。
-- [ ] p1 本地时，只处理 p1 request；p3 队伍/active 只读。
-- [ ] p3 本地时，只处理 p3 request；p1 队伍/active 只读。
-- [ ] ally 队伍可以显示 pokeball、状态、icon，但没有确认交换按钮。
-- [ ] target picker 中 ally active 如果合法可作为目标。
-- [ ] 不把 p1 和 p3 的 choice 合并提交。
-- [ ] 记录窗口能区分本地 playerId 提交的 choice。
+- [x] coop 模式显示每方两个玩家 active：near local + near ally，far opponent + far opponent ally。
+- [ ] 本地玩家身份由 session/playerId 决定，不能硬编码 p1。（联机/切换本地玩家视角后续功能再做）
+- [x] p1 本地时，只处理 p1 request；p3 队伍/active 只读。
+- [ ] p3 本地时，只处理 p3 request；p1 队伍/active 只读。（联机/切换本地玩家视角后续功能再做）
+- [x] ally 队伍可以显示 pokeball、状态、icon，但没有确认交换按钮。
+- [x] target picker 中 ally active 如果合法可作为目标。
+- [x] 不把 p1 和 p3 的 choice 合并提交。
+- [x] 记录窗口能区分本地 playerId 提交的 choice。
 
 验收：
 
-- [ ] coop 下本地玩家只能控制自己的 1 只 active。
-- [ ] ally 不会出现在 switch 可选候选中。
-- [ ] ally 可以作为目标时能被选中。
-- [ ] p1/p3 seat、active、队伍栏展示正确。
+- [x] coop 下本地玩家只能控制自己的 1 只 active。
+- [x] ally 不会出现在 switch 可选候选中。
+- [x] ally 可以作为目标时能被选中。
+- [x] p1/p3 seat、active、队伍栏展示正确。
 
 ### Phase 8: Raw Protocol Text Preparation
 
@@ -1746,20 +1746,20 @@ type BattleCommandDraftV4 = {
 
 实现步骤：
 
-- [ ] 保留每条 raw protocol line。
-- [ ] request line 不进 animation queue，只更新 command state。
-- [ ] 非 request line 进入 protocol runtime/record。
-- [ ] 接入 `BattleTextParser.parseBattleLine()` 或 V4 adapter。
-- [ ] 先生成 battle message events，不急着播放动画。
-- [ ] 文本事件包含 raw line、args、kwArgs、message、turn。
-- [ ] UI 文字提示区域按 reference/V1 样式展示。
-- [ ] debug 面板能切换 raw/protocol/message 三种视图。
+- [x] 保留每条 raw protocol line。
+- [x] request line 不进 animation queue，只更新 command state。
+- [x] 非 request line 进入 protocol runtime/record。
+- [x] 接入 `BattleTextParser.parseBattleLine()` 或 V4 adapter。
+- [x] 先生成 battle message events，不急着播放动画。
+- [x] 文本事件包含 raw line、args、kwArgs、message、turn。
+- [x] UI 文字提示区域按 reference/V1 样式展示。
+- [x] debug 面板能切换 raw/protocol/message 三种视图。
 
 验收：
 
-- [ ] 使用技能、换人、倒下、伤害、回复能产生文本事件。
-- [ ] 文本事件顺序与 raw protocol 顺序一致。
-- [ ] 不从 snapshot 差异猜文字。
+- [x] 使用技能、换人、倒下、伤害、回复能产生文本事件。
+- [x] 文本事件顺序与 raw protocol 顺序一致。
+- [x] 不从 snapshot 差异猜文字。
 
 ### Phase 9: Animation Queue Preparation
 
@@ -1783,17 +1783,17 @@ type BattleCommandDraftV4 = {
 
 实现步骤：
 
-- [ ] protocol line 转 animation event，不由 UI 直接创建事实。
-- [ ] moveid 映射到 V4 animation preset。
-- [ ] 未实现 moveid fallback 到通用 hit。
-- [ ] 每个 animation event 有 checkpoint，播放完再 commit UI 状态。
-- [ ] 可配置跳过动画，直接 seek 到最新状态。
+- [x] protocol line 转 animation event，不由 UI 直接创建事实。
+- [x] moveid 映射到 V4 animation preset。（当前为 Showdown-like 基础 preset，完整 move 表后续扩展）
+- [x] 未实现 moveid fallback 到通用 hit。
+- [x] 每个 animation event 有 checkpoint，播放完再 commit UI 状态。
+- [x] 可配置跳过动画，直接 seek 到最新状态。
 
 验收：
 
-- [ ] 换人、攻击、伤害、倒下有最小动画顺序。
-- [ ] 跳过动画后状态和记录一致。
-- [ ] 动画不会改变 protocol fact。
+- [x] 换人、攻击、伤害、倒下有最小动画顺序。
+- [x] 跳过动画后状态和记录一致。
+- [x] 动画不会改变 protocol fact。
 
 ### Global Test Plan
 

@@ -1,0 +1,2873 @@
+{
+  "generatedAt": "2026-06-24T14:19:03.979Z",
+  "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon",
+  "missingFile": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/missing-sprites.json",
+  "resetHint": "Delete every copied[].targetPath to restore the pure Showdown mirror; keep missing-sprites.json as the authoritative 404 list.",
+  "copiedCount": 318,
+  "unavailableCount": 0,
+  "copied": [
+    {
+      "id": "blastoise-gmax",
+      "speciesId": "blastoisegmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/blastoise-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/blastoise-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/blastoisegmax/back_normal-c158ec52.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "blastoise-gmax",
+      "speciesId": "blastoisegmax",
+      "dir": "ani",
+      "target": "sprites/ani/blastoise-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/blastoise-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/blastoisegmax/front_normal-009f438a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "venusaur-gmax",
+      "speciesId": "venusaurgmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/venusaur-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/venusaur-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/venusaurgmax/back_shiny-a27c13c0.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "venusaur-gmax",
+      "speciesId": "venusaurgmax",
+      "dir": "ani",
+      "target": "sprites/ani/venusaur-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/venusaur-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/venusaurgmax/front_normal-a117d713.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "venusaur-gmax",
+      "speciesId": "venusaurgmax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/venusaur-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/venusaur-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/venusaurgmax/front_shiny-29eedad3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "venusaur-gmax",
+      "speciesId": "venusaurgmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/venusaur-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/venusaur-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/venusaurgmax/back_normal-c8665b42.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "blastoise-gmax",
+      "speciesId": "blastoisegmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/blastoise-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/blastoise-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/blastoisegmax/back_shiny-fda09413.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "blastoise-gmax",
+      "speciesId": "blastoisegmax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/blastoise-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/blastoise-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/blastoisegmax/front_shiny-ef5bf090.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-libre",
+      "speciesId": "pikachulibre",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-libre.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-libre.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachulibre/back_shiny-7704e61d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-original",
+      "speciesId": "pikachuoriginal",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-original.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-original.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuoriginal/front_shiny-e74222ec.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-libre",
+      "speciesId": "pikachulibre",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/pikachu-libre.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/pikachu-libre.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachulibre/back_normal-f44a80fb.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-original",
+      "speciesId": "pikachuoriginal",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-original.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-original.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuoriginal/back_shiny-52f40919.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-hoenn",
+      "speciesId": "pikachuhoenn",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-hoenn.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-hoenn.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuhoenn/front_shiny-34d6e3f2.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-hoenn",
+      "speciesId": "pikachuhoenn",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-hoenn.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-hoenn.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuhoenn/back_shiny-8f0d381d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-sinnoh",
+      "speciesId": "pikachusinnoh",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-sinnoh.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-sinnoh.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachusinnoh/back_shiny-b02d0abb.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-unova",
+      "speciesId": "pikachuunova",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-unova.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-unova.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuunova/front_shiny-da939a61.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-kalos",
+      "speciesId": "pikachukalos",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-kalos.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-kalos.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachukalos/front_shiny-c2de61ba.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-alola",
+      "speciesId": "pikachualola",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-alola.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-alola.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachualola/front_shiny-87fd9225.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-alola",
+      "speciesId": "pikachualola",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-alola.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-alola.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachualola/back_shiny-69da2089.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-unova",
+      "speciesId": "pikachuunova",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-unova.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-unova.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuunova/back_shiny-adaa90d2.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-kalos",
+      "speciesId": "pikachukalos",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-kalos.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-kalos.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachukalos/back_shiny-0c0f45d5.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-starter",
+      "speciesId": "pikachustarter",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-starter.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-starter.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachustarter/back_shiny-5cd8a464.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-world",
+      "speciesId": "pikachuworld",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/pikachu-world.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/pikachu-world.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuworld/back_normal-b60622b9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-world",
+      "speciesId": "pikachuworld",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-world.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-world.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuworld/front_shiny-4cf7e5f5.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-world",
+      "speciesId": "pikachuworld",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pikachu-world.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pikachu-world.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuworld/back_shiny-240cb654.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-world",
+      "speciesId": "pikachuworld",
+      "dir": "ani",
+      "target": "sprites/ani/pikachu-world.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/pikachu-world.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachuworld/front_normal-76298d4d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "raichu-megax",
+      "speciesId": "raichumegax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/raichu-megax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/raichu-megax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/raichumegax/back_shiny-c01c3a33.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "raichu-megax",
+      "speciesId": "raichumegax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/raichu-megax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/raichu-megax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/raichumegax/front_shiny-6fa45434.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-sinnoh",
+      "speciesId": "pikachusinnoh",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-sinnoh.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-sinnoh.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachusinnoh/front_shiny-1ce5b12c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "raichu-megay",
+      "speciesId": "raichumegay",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/raichu-megay.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/raichu-megay.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/raichumegay/back_shiny-ca6880bf.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "raichu-megay",
+      "speciesId": "raichumegay",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/raichu-megay.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/raichu-megay.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/raichumegay/front_shiny-0e2131e0.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pikachu-starter",
+      "speciesId": "pikachustarter",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pikachu-starter.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pikachu-starter.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pikachustarter/front_shiny-9b0eaa09.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "raichu-megay",
+      "speciesId": "raichumegay",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/raichu-megay.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/raichu-megay.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/raichumegay/back_normal-ee735cec.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "raichu-megax",
+      "speciesId": "raichumegax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/raichu-megax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/raichu-megax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/raichumegax/back_normal-e563e0d2.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "eevee-starter",
+      "speciesId": "eeveestarter",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/eevee-starter.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/eevee-starter.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/eeveestarter/front_shiny-8c4b40a7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "eevee-starter",
+      "speciesId": "eeveestarter",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/eevee-starter.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/eevee-starter.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/eeveestarter/back_shiny-48b708a4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pichu-spikyeared",
+      "speciesId": "pichuspikyeared",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pichu-spikyeared.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pichu-spikyeared.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pichuspikyeared/front_shiny-1df11bf8.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pichu-spikyeared",
+      "speciesId": "pichuspikyeared",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/pichu-spikyeared.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/pichu-spikyeared.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pichuspikyeared/back_normal-c9075163.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pichu-spikyeared",
+      "speciesId": "pichuspikyeared",
+      "dir": "ani",
+      "target": "sprites/ani/pichu-spikyeared.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/pichu-spikyeared.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pichuspikyeared/front_normal-ad0ebbde.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pichu-spikyeared",
+      "speciesId": "pichuspikyeared",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pichu-spikyeared.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pichu-spikyeared.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pichuspikyeared/back_shiny-2b3e5336.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chimecho-mega",
+      "speciesId": "chimechomega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/chimecho-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/chimecho-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chimechomega/back_normal-eaa68989.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chimecho-mega",
+      "speciesId": "chimechomega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/chimecho-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/chimecho-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chimechomega/front_shiny-ad9c1296.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chimecho-mega",
+      "speciesId": "chimechomega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/chimecho-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/chimecho-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chimechomega/back_shiny-a03dbde2.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "absol-megaz",
+      "speciesId": "absolmegaz",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/absol-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/absol-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/absolmegaz/back_normal-30c6ce33.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "absol-megaz",
+      "speciesId": "absolmegaz",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/absol-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/absol-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/absolmegaz/front_shiny-ed58343b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "absol-megaz",
+      "speciesId": "absolmegaz",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/absol-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/absol-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/absolmegaz/back_shiny-0a7f4bb3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "absol-megaz",
+      "speciesId": "absolmegaz",
+      "dir": "ani",
+      "target": "sprites/ani/absol-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/absol-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/absolmegaz/front_normal-6ee1910f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "staraptor-mega",
+      "speciesId": "staraptormega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/staraptor-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/staraptor-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/staraptormega/back_normal-104dd388.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "staraptor-mega",
+      "speciesId": "staraptormega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/staraptor-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/staraptor-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/staraptormega/back_shiny-2f3ec341.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "staraptor-mega",
+      "speciesId": "staraptormega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/staraptor-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/staraptor-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/staraptormega/front_shiny-ec06bbb1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "garchomp-megaz",
+      "speciesId": "garchompmegaz",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/garchomp-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/garchomp-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/garchompmegaz/front_shiny-fc421251.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "garchomp-megaz",
+      "speciesId": "garchompmegaz",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/garchomp-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/garchomp-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/garchompmegaz/back_shiny-1733bb31.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "garchomp-megaz",
+      "speciesId": "garchompmegaz",
+      "dir": "ani",
+      "target": "sprites/ani/garchomp-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/garchomp-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/garchompmegaz/front_normal-4e5ad43a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "garchomp-megaz",
+      "speciesId": "garchompmegaz",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/garchomp-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/garchomp-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/garchompmegaz/back_normal-9737cc45.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "lucario-megaz",
+      "speciesId": "lucariomegaz",
+      "dir": "ani",
+      "target": "sprites/ani/lucario-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/lucario-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/lucariomegaz/front_normal-d7465db7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "lucario-megaz",
+      "speciesId": "lucariomegaz",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/lucario-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/lucario-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/lucariomegaz/back_normal-82df290b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "lucario-megaz",
+      "speciesId": "lucariomegaz",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/lucario-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/lucario-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/lucariomegaz/back_shiny-47a86940.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "lucario-megaz",
+      "speciesId": "lucariomegaz",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/lucario-megaz.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/lucario-megaz.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/lucariomegaz/front_shiny-ccc35c20.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "dialga-origin",
+      "speciesId": "dialgaorigin",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/dialga-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/dialga-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/dialgaorigin/front_shiny-33a445dd.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "dialga-origin",
+      "speciesId": "dialgaorigin",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/dialga-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/dialga-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/dialgaorigin/back_normal-bdad7fd0.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "dialga-origin",
+      "speciesId": "dialgaorigin",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/dialga-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/dialga-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/dialgaorigin/back_shiny-42549c5f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "palkia-origin",
+      "speciesId": "palkiaorigin",
+      "dir": "ani",
+      "target": "sprites/ani/palkia-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/palkia-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/palkiaorigin/front_normal-1c91b05e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "palkia-origin",
+      "speciesId": "palkiaorigin",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/palkia-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/palkia-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/palkiaorigin/back_normal-f8acf56f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "palkia-origin",
+      "speciesId": "palkiaorigin",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/palkia-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/palkia-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/palkiaorigin/back_shiny-3b1ffe22.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "palkia-origin",
+      "speciesId": "palkiaorigin",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/palkia-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/palkia-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/palkiaorigin/front_shiny-88a49a09.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "heatran-mega",
+      "speciesId": "heatranmega",
+      "dir": "ani",
+      "target": "sprites/ani/heatran-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/heatran-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/heatranmega/front_normal-80801d7f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "heatran-mega",
+      "speciesId": "heatranmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/heatran-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/heatran-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/heatranmega/back_normal-5ec0c8d0.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "heatran-mega",
+      "speciesId": "heatranmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/heatran-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/heatran-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/heatranmega/front_shiny-54475f2f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "heatran-mega",
+      "speciesId": "heatranmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/heatran-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/heatran-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/heatranmega/back_shiny-f6bf6238.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "dialga-origin",
+      "speciesId": "dialgaorigin",
+      "dir": "ani",
+      "target": "sprites/ani/dialga-origin.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/dialga-origin.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/dialgaorigin/front_normal-3ae03adc.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "darkrai-mega",
+      "speciesId": "darkraimega",
+      "dir": "ani",
+      "target": "sprites/ani/darkrai-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/darkrai-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/darkraimega/front_normal-c849ce08.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "darkrai-mega",
+      "speciesId": "darkraimega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/darkrai-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/darkrai-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/darkraimega/back_normal-7f70e9a4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "darkrai-mega",
+      "speciesId": "darkraimega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/darkrai-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/darkrai-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/darkraimega/back_shiny-7059ea45.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "darkrai-mega",
+      "speciesId": "darkraimega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/darkrai-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/darkrai-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/darkraimega/front_shiny-f2966382.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "excadrill-mega",
+      "speciesId": "excadrillmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/excadrill-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/excadrill-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/excadrillmega/front_shiny-aabaa344.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "excadrill-mega",
+      "speciesId": "excadrillmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/excadrill-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/excadrill-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/excadrillmega/back_shiny-8b29ed8f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "excadrill-mega",
+      "speciesId": "excadrillmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/excadrill-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/excadrill-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/excadrillmega/back_normal-c0a815fe.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scolipede-mega",
+      "speciesId": "scolipedemega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/scolipede-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/scolipede-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scolipedemega/back_shiny-2c10ebd2.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scolipede-mega",
+      "speciesId": "scolipedemega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/scolipede-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/scolipede-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scolipedemega/front_shiny-c3e83f23.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scolipede-mega",
+      "speciesId": "scolipedemega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/scolipede-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/scolipede-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scolipedemega/back_normal-eb3b304e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scrafty-mega",
+      "speciesId": "scraftymega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/scrafty-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/scrafty-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scraftymega/front_shiny-fe9e43b7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scrafty-mega",
+      "speciesId": "scraftymega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/scrafty-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/scrafty-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scraftymega/back_shiny-43bd5c9c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scrafty-mega",
+      "speciesId": "scraftymega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/scrafty-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/scrafty-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scraftymega/back_normal-c6ad8982.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "eelektross-mega",
+      "speciesId": "eelektrossmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/eelektross-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/eelektross-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/eelektrossmega/front_shiny-e850f327.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "eelektross-mega",
+      "speciesId": "eelektrossmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/eelektross-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/eelektross-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/eelektrossmega/back_normal-6fa9f17a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "eelektross-mega",
+      "speciesId": "eelektrossmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/eelektross-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/eelektross-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/eelektrossmega/back_shiny-038ecd7c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chandelure-mega",
+      "speciesId": "chandeluremega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/chandelure-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/chandelure-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chandeluremega/back_normal-a6ade512.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chandelure-mega",
+      "speciesId": "chandeluremega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/chandelure-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/chandelure-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chandeluremega/front_shiny-b8283ab8.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chandelure-mega",
+      "speciesId": "chandeluremega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/chandelure-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/chandelure-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chandeluremega/back_shiny-33b786b7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "golurk-mega",
+      "speciesId": "golurkmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/golurk-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/golurk-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/golurkmega/front_shiny-359b5fb0.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "golurk-mega",
+      "speciesId": "golurkmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/golurk-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/golurk-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/golurkmega/back_normal-22f8d359.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "golurk-mega",
+      "speciesId": "golurkmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/golurk-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/golurk-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/golurkmega/back_shiny-88e16276.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chesnaught-mega",
+      "speciesId": "chesnaughtmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/chesnaught-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/chesnaught-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chesnaughtmega/back_normal-d465bd56.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chesnaught-mega",
+      "speciesId": "chesnaughtmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/chesnaught-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/chesnaught-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chesnaughtmega/front_shiny-997d2ad4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chesnaught-mega",
+      "speciesId": "chesnaughtmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/chesnaught-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/chesnaught-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chesnaughtmega/back_shiny-4843bbb7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "delphox-mega",
+      "speciesId": "delphoxmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/delphox-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/delphox-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/delphoxmega/back_normal-980d02d3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "delphox-mega",
+      "speciesId": "delphoxmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/delphox-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/delphox-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/delphoxmega/front_shiny-d7e0cdcc.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "delphox-mega",
+      "speciesId": "delphoxmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/delphox-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/delphox-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/delphoxmega/back_shiny-6446557a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "greninja-mega",
+      "speciesId": "greninjamega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/greninja-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/greninja-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/greninjamega/back_shiny-af920ff5.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "greninja-mega",
+      "speciesId": "greninjamega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/greninja-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/greninja-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/greninjamega/back_normal-872d9c87.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "greninja-mega",
+      "speciesId": "greninjamega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/greninja-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/greninja-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/greninjamega/front_shiny-f877dba4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pyroar-mega",
+      "speciesId": "pyroarmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/pyroar-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/pyroar-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pyroarmega/back_normal-58930ff1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pyroar-mega",
+      "speciesId": "pyroarmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pyroar-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pyroar-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pyroarmega/back_shiny-31e78956.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pyroar-mega",
+      "speciesId": "pyroarmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pyroar-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pyroar-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pyroarmega/front_shiny-565dff8c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "floette-mega",
+      "speciesId": "floettemega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/floette-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/floette-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/floettemega/back_shiny-26f06039.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "floette-mega",
+      "speciesId": "floettemega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/floette-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/floette-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/floettemega/front_shiny-f3af7311.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "floette-mega",
+      "speciesId": "floettemega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/floette-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/floette-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/floettemega/back_normal-d8032e24.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "meowstic-mmega",
+      "speciesId": "meowsticmmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/meowstic-mmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/meowstic-mmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/meowsticmmega/back_normal-469fa741.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "meowstic-mmega",
+      "speciesId": "meowsticmmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/meowstic-mmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/meowstic-mmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/meowsticmmega/front_shiny-91a7471e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "meowstic-mmega",
+      "speciesId": "meowsticmmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/meowstic-mmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/meowstic-mmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/meowsticmmega/back_shiny-158aa5e8.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "meowstic-fmega",
+      "speciesId": "meowsticfmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/meowstic-fmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/meowstic-fmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/meowsticfmega/back_normal-2e04bde3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "meowstic-fmega",
+      "speciesId": "meowsticfmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/meowstic-fmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/meowstic-fmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/meowsticfmega/back_shiny-3fb706ec.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "meowstic-fmega",
+      "speciesId": "meowsticfmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/meowstic-fmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/meowstic-fmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/meowsticfmega/front_shiny-233becd5.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "malamar-mega",
+      "speciesId": "malamarmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/malamar-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/malamar-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/malamarmega/back_normal-9788dd40.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "malamar-mega",
+      "speciesId": "malamarmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/malamar-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/malamar-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/malamarmega/front_shiny-fd7bcc78.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "malamar-mega",
+      "speciesId": "malamarmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/malamar-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/malamar-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/malamarmega/back_shiny-791c233d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "barbaracle-mega",
+      "speciesId": "barbaraclemega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/barbaracle-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/barbaracle-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/barbaraclemega/back_normal-fe928fd6.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "barbaracle-mega",
+      "speciesId": "barbaraclemega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/barbaracle-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/barbaracle-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/barbaraclemega/front_shiny-3ef83404.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "barbaracle-mega",
+      "speciesId": "barbaraclemega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/barbaracle-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/barbaracle-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/barbaraclemega/back_shiny-2378a130.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "dragalge-mega",
+      "speciesId": "dragalgemega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/dragalge-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/dragalge-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/dragalgemega/back_normal-3d7d81ef.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "dragalge-mega",
+      "speciesId": "dragalgemega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/dragalge-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/dragalge-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/dragalgemega/front_shiny-d63b05db.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "dragalge-mega",
+      "speciesId": "dragalgemega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/dragalge-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/dragalge-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/dragalgemega/back_shiny-066c16f4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "hawlucha-mega",
+      "speciesId": "hawluchamega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/hawlucha-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/hawlucha-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/hawluchamega/back_normal-5c4b055d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "hawlucha-mega",
+      "speciesId": "hawluchamega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/hawlucha-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/hawlucha-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/hawluchamega/front_shiny-2dad931b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "hawlucha-mega",
+      "speciesId": "hawluchamega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/hawlucha-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/hawlucha-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/hawluchamega/back_shiny-82581926.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zygarde-mega",
+      "speciesId": "zygardemega",
+      "dir": "ani",
+      "target": "sprites/ani/zygarde-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/zygarde-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zygardemega/front_normal-728c0636.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zygarde-mega",
+      "speciesId": "zygardemega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/zygarde-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/zygarde-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zygardemega/front_shiny-4cf3f5ad.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zygarde-mega",
+      "speciesId": "zygardemega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/zygarde-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/zygarde-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zygardemega/back_normal-ba136770.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zygarde-mega",
+      "speciesId": "zygardemega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/zygarde-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/zygarde-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zygardemega/back_shiny-80e25a06.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "crabominable-mega",
+      "speciesId": "crabominablemega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/crabominable-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/crabominable-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/crabominablemega/front_shiny-59cdfa6d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "crabominable-mega",
+      "speciesId": "crabominablemega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/crabominable-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/crabominable-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/crabominablemega/back_shiny-e70c1391.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "crabominable-mega",
+      "speciesId": "crabominablemega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/crabominable-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/crabominable-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/crabominablemega/back_normal-fdec1f9a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "golisopod-mega",
+      "speciesId": "golisopodmega",
+      "dir": "ani",
+      "target": "sprites/ani/golisopod-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/golisopod-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/golisopodmega/front_normal-8f8e4ed4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "golisopod-mega",
+      "speciesId": "golisopodmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/golisopod-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/golisopod-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/golisopodmega/back_normal-7838919c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "golisopod-mega",
+      "speciesId": "golisopodmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/golisopod-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/golisopod-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/golisopodmega/front_shiny-464448fb.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "golisopod-mega",
+      "speciesId": "golisopodmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/golisopod-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/golisopod-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/golisopodmega/back_shiny-58a2031a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "drampa-mega",
+      "speciesId": "drampamega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/drampa-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/drampa-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/drampamega/back_normal-43f00f72.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "drampa-mega",
+      "speciesId": "drampamega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/drampa-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/drampa-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/drampamega/back_shiny-67981b21.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "drampa-mega",
+      "speciesId": "drampamega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/drampa-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/drampa-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/drampamega/front_shiny-4d6f830d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-mega",
+      "speciesId": "magearnamega",
+      "dir": "ani",
+      "target": "sprites/ani/magearna-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/magearna-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnamega/front_normal-ac1a068b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-mega",
+      "speciesId": "magearnamega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/magearna-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/magearna-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnamega/back_normal-46e378d8.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-originalmega",
+      "speciesId": "magearnaoriginalmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/magearna-originalmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/magearna-originalmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnaoriginalmega/back_normal-c60edb1b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-mega",
+      "speciesId": "magearnamega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/magearna-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/magearna-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnamega/front_shiny-c97c4a87.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-originalmega",
+      "speciesId": "magearnaoriginalmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/magearna-originalmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/magearna-originalmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnaoriginalmega/front_shiny-440af0c9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-mega",
+      "speciesId": "magearnamega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/magearna-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/magearna-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnamega/back_shiny-5dfe59c8.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-originalmega",
+      "speciesId": "magearnaoriginalmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/magearna-originalmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/magearna-originalmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnaoriginalmega/back_shiny-03d7d9f1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "magearna-originalmega",
+      "speciesId": "magearnaoriginalmega",
+      "dir": "ani",
+      "target": "sprites/ani/magearna-originalmega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/magearna-originalmega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/magearnaoriginalmega/front_normal-b460b94d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zeraora-mega",
+      "speciesId": "zeraoramega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/zeraora-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/zeraora-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zeraoramega/front_shiny-f49c1e07.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zeraora-mega",
+      "speciesId": "zeraoramega",
+      "dir": "ani",
+      "target": "sprites/ani/zeraora-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/zeraora-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zeraoramega/front_normal-b8f0439c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zeraora-mega",
+      "speciesId": "zeraoramega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/zeraora-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/zeraora-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zeraoramega/back_normal-4fcc6de1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "zeraora-mega",
+      "speciesId": "zeraoramega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/zeraora-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/zeraora-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/zeraoramega/back_shiny-b9769ff7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "rillaboom-gmax",
+      "speciesId": "rillaboomgmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/rillaboom-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/rillaboom-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/rillaboomgmax/back_normal-c7325312.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "rillaboom-gmax",
+      "speciesId": "rillaboomgmax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/rillaboom-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/rillaboom-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/rillaboomgmax/front_shiny-ad24ea0d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "rillaboom-gmax",
+      "speciesId": "rillaboomgmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/rillaboom-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/rillaboom-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/rillaboomgmax/back_shiny-c4890c53.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "rillaboom-gmax",
+      "speciesId": "rillaboomgmax",
+      "dir": "ani",
+      "target": "sprites/ani/rillaboom-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/rillaboom-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/rillaboomgmax/front_normal-1e397c87.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "cinderace-gmax",
+      "speciesId": "cinderacegmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/cinderace-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/cinderace-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/cinderacegmax/back_normal-2d99751d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "cinderace-gmax",
+      "speciesId": "cinderacegmax",
+      "dir": "ani",
+      "target": "sprites/ani/cinderace-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/cinderace-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/cinderacegmax/front_normal-5ff59089.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "cinderace-gmax",
+      "speciesId": "cinderacegmax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/cinderace-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/cinderace-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/cinderacegmax/front_shiny-2fb53231.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "cinderace-gmax",
+      "speciesId": "cinderacegmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/cinderace-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/cinderace-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/cinderacegmax/back_shiny-d19e3002.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "inteleon-gmax",
+      "speciesId": "inteleongmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/inteleon-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/inteleon-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/inteleongmax/back_normal-ae9ad773.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "inteleon-gmax",
+      "speciesId": "inteleongmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/inteleon-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/inteleon-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/inteleongmax/back_shiny-49920b55.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "toxtricity-lowkeygmax",
+      "speciesId": "toxtricitylowkeygmax",
+      "dir": "ani",
+      "target": "sprites/ani/toxtricity-lowkeygmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/toxtricity-lowkeygmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/toxtricitylowkeygmax/front_normal-7fd6c3f1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "toxtricity-lowkeygmax",
+      "speciesId": "toxtricitylowkeygmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/toxtricity-lowkeygmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/toxtricity-lowkeygmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/toxtricitylowkeygmax/back_normal-22bf455d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "toxtricity-lowkeygmax",
+      "speciesId": "toxtricitylowkeygmax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/toxtricity-lowkeygmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/toxtricity-lowkeygmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/toxtricitylowkeygmax/front_shiny-67732c3f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "toxtricity-lowkeygmax",
+      "speciesId": "toxtricitylowkeygmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/toxtricity-lowkeygmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/toxtricity-lowkeygmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/toxtricitylowkeygmax/back_shiny-5329976b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "falinks-mega",
+      "speciesId": "falinksmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/falinks-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/falinks-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/falinksmega/front_shiny-3a65edb7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "falinks-mega",
+      "speciesId": "falinksmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/falinks-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/falinks-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/falinksmega/back_normal-c0541032.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "falinks-mega",
+      "speciesId": "falinksmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/falinks-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/falinks-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/falinksmega/back_shiny-586c022e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-gmax",
+      "speciesId": "urshifugmax",
+      "dir": "ani",
+      "target": "sprites/ani/urshifu-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/urshifu-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifugmax/front_normal-adb8ad13.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-gmax",
+      "speciesId": "urshifugmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/urshifu-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/urshifu-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifugmax/back_normal-0c81354d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-rapidstrikegmax",
+      "speciesId": "urshifurapidstrikegmax",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/urshifu-rapidstrikegmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/urshifu-rapidstrikegmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifurapidstrikegmax/back_normal-abceb0b1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-rapidstrikegmax",
+      "speciesId": "urshifurapidstrikegmax",
+      "dir": "ani",
+      "target": "sprites/ani/urshifu-rapidstrikegmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/urshifu-rapidstrikegmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifurapidstrikegmax/front_normal-384fb09b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-rapidstrikegmax",
+      "speciesId": "urshifurapidstrikegmax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/urshifu-rapidstrikegmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/urshifu-rapidstrikegmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifurapidstrikegmax/front_shiny-2f21d386.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-gmax",
+      "speciesId": "urshifugmax",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/urshifu-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/urshifu-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifugmax/front_shiny-3e34fad2.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-rapidstrikegmax",
+      "speciesId": "urshifurapidstrikegmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/urshifu-rapidstrikegmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/urshifu-rapidstrikegmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifurapidstrikegmax/back_shiny-c1dfb36b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "urshifu-gmax",
+      "speciesId": "urshifugmax",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/urshifu-gmax.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/urshifu-gmax.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/urshifugmax/back_shiny-f44389ea.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scovillain-mega",
+      "speciesId": "scovillainmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/scovillain-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/scovillain-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scovillainmega/back_normal-166cc6d5.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scovillain-mega",
+      "speciesId": "scovillainmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/scovillain-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/scovillain-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scovillainmega/back_shiny-8bd4fa99.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "scovillain-mega",
+      "speciesId": "scovillainmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/scovillain-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/scovillain-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/scovillainmega/front_shiny-024f2c85.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "glimmora-mega",
+      "speciesId": "glimmoramega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/glimmora-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/glimmora-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/glimmoramega/back_normal-f0cc2842.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "glimmora-mega",
+      "speciesId": "glimmoramega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/glimmora-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/glimmora-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/glimmoramega/back_shiny-a63482e9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "glimmora-mega",
+      "speciesId": "glimmoramega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/glimmora-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/glimmora-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/glimmoramega/front_shiny-874401f4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-curlymega",
+      "speciesId": "tatsugiricurlymega",
+      "dir": "ani",
+      "target": "sprites/ani/tatsugiri-curlymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/tatsugiri-curlymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiricurlymega/front_normal-89040ef6.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-curlymega",
+      "speciesId": "tatsugiricurlymega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/tatsugiri-curlymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/tatsugiri-curlymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiricurlymega/front_shiny-988bc2bb.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-curlymega",
+      "speciesId": "tatsugiricurlymega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/tatsugiri-curlymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/tatsugiri-curlymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiricurlymega/back_normal-e4530640.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-curlymega",
+      "speciesId": "tatsugiricurlymega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/tatsugiri-curlymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/tatsugiri-curlymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiricurlymega/back_shiny-07bee7ac.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-droopymega",
+      "speciesId": "tatsugiridroopymega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/tatsugiri-droopymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/tatsugiri-droopymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiridroopymega/front_shiny-7e612eae.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-droopymega",
+      "speciesId": "tatsugiridroopymega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/tatsugiri-droopymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/tatsugiri-droopymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiridroopymega/back_normal-d46c1517.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-droopymega",
+      "speciesId": "tatsugiridroopymega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/tatsugiri-droopymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/tatsugiri-droopymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiridroopymega/back_shiny-1e3287ec.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-stretchymega",
+      "speciesId": "tatsugiristretchymega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/tatsugiri-stretchymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/tatsugiri-stretchymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiristretchymega/back_normal-f82c0cf6.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-stretchymega",
+      "speciesId": "tatsugiristretchymega",
+      "dir": "ani",
+      "target": "sprites/ani/tatsugiri-stretchymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/tatsugiri-stretchymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiristretchymega/front_normal-ae2f81c6.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-stretchymega",
+      "speciesId": "tatsugiristretchymega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/tatsugiri-stretchymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/tatsugiri-stretchymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiristretchymega/front_shiny-5926e37c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-droopymega",
+      "speciesId": "tatsugiridroopymega",
+      "dir": "ani",
+      "target": "sprites/ani/tatsugiri-droopymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/tatsugiri-droopymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiridroopymega/front_normal-43f411e9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tatsugiri-stretchymega",
+      "speciesId": "tatsugiristretchymega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/tatsugiri-stretchymega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/tatsugiri-stretchymega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tatsugiristretchymega/back_shiny-0c8853f9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "irontreads",
+      "speciesId": "irontreads",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/irontreads.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/irontreads.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/irontreads/back_normal-63c678aa.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "irontreads",
+      "speciesId": "irontreads",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/irontreads.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/irontreads.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/irontreads/front_shiny-72746d54.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "irontreads",
+      "speciesId": "irontreads",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/irontreads.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/irontreads.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/irontreads/back_shiny-9e551ddc.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "irontreads",
+      "speciesId": "irontreads",
+      "dir": "ani",
+      "target": "sprites/ani/irontreads.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/irontreads.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/irontreads/front_normal-29f9375b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironbundle",
+      "speciesId": "ironbundle",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironbundle.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironbundle.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironbundle/back_normal-07cb50b3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironhands",
+      "speciesId": "ironhands",
+      "dir": "ani",
+      "target": "sprites/ani/ironhands.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironhands.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironhands/front_normal-54e93aeb.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironhands",
+      "speciesId": "ironhands",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironhands.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironhands.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironhands/back_normal-fe06580b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironbundle",
+      "speciesId": "ironbundle",
+      "dir": "ani",
+      "target": "sprites/ani/ironbundle.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironbundle.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironbundle/front_normal-065b134b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironhands",
+      "speciesId": "ironhands",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironhands.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironhands.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironhands/front_shiny-35ceb54a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironhands",
+      "speciesId": "ironhands",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironhands.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironhands.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironhands/back_shiny-3a923e56.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironbundle",
+      "speciesId": "ironbundle",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironbundle.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironbundle.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironbundle/front_shiny-5c1fe5c4.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironbundle",
+      "speciesId": "ironbundle",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironbundle.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironbundle.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironbundle/back_shiny-d455b71d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironjugulis",
+      "speciesId": "ironjugulis",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironjugulis.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironjugulis.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironjugulis/back_normal-08120826.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironjugulis",
+      "speciesId": "ironjugulis",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironjugulis.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironjugulis.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironjugulis/front_shiny-0ecc6e82.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironjugulis",
+      "speciesId": "ironjugulis",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironjugulis.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironjugulis.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironjugulis/back_shiny-914df492.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironjugulis",
+      "speciesId": "ironjugulis",
+      "dir": "ani",
+      "target": "sprites/ani/ironjugulis.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironjugulis.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironjugulis/front_normal-193fc7e2.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironmoth",
+      "speciesId": "ironmoth",
+      "dir": "ani",
+      "target": "sprites/ani/ironmoth.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironmoth.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironmoth/front_normal-07973a76.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironmoth",
+      "speciesId": "ironmoth",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironmoth.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironmoth.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironmoth/front_shiny-73f7bc8f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironmoth",
+      "speciesId": "ironmoth",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironmoth.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironmoth.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironmoth/back_shiny-12ad4a13.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironthorns",
+      "speciesId": "ironthorns",
+      "dir": "ani",
+      "target": "sprites/ani/ironthorns.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironthorns.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironthorns/front_normal-32627192.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironmoth",
+      "speciesId": "ironmoth",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironmoth.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironmoth.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironmoth/back_normal-51320915.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironthorns",
+      "speciesId": "ironthorns",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironthorns.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironthorns.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironthorns/front_shiny-4af2148c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironthorns",
+      "speciesId": "ironthorns",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironthorns.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironthorns.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironthorns/back_shiny-a8207c15.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "baxcalibur-mega",
+      "speciesId": "baxcaliburmega",
+      "dir": "ani",
+      "target": "sprites/ani/baxcalibur-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/baxcalibur-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/baxcaliburmega/front_normal-5a6c100e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "baxcalibur-mega",
+      "speciesId": "baxcaliburmega",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/baxcalibur-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/baxcalibur-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/baxcaliburmega/back_normal-c942f569.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "baxcalibur-mega",
+      "speciesId": "baxcaliburmega",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/baxcalibur-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/baxcalibur-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/baxcaliburmega/front_shiny-ad642d0d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironthorns",
+      "speciesId": "ironthorns",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironthorns.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironthorns.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironthorns/back_normal-7face0fc.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "baxcalibur-mega",
+      "speciesId": "baxcaliburmega",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/baxcalibur-mega.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/baxcalibur-mega.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/baxcaliburmega/back_shiny-811d5e6a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "wochien",
+      "speciesId": "wochien",
+      "dir": "ani",
+      "target": "sprites/ani/wochien.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/wochien.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/wochien/front_normal-d29d8a00.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "wochien",
+      "speciesId": "wochien",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/wochien.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/wochien.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/wochien/back_normal-2ce26ddb.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "wochien",
+      "speciesId": "wochien",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/wochien.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/wochien.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/wochien/back_shiny-ff1b5fde.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chienpao",
+      "speciesId": "chienpao",
+      "dir": "ani",
+      "target": "sprites/ani/chienpao.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/chienpao.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chienpao/front_normal-8f1105c1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "wochien",
+      "speciesId": "wochien",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/wochien.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/wochien.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/wochien/front_shiny-5e69a03d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chienpao",
+      "speciesId": "chienpao",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/chienpao.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/chienpao.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chienpao/back_normal-e1d167ff.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tinglu",
+      "speciesId": "tinglu",
+      "dir": "ani",
+      "target": "sprites/ani/tinglu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/tinglu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tinglu/front_normal-d0816928.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chienpao",
+      "speciesId": "chienpao",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/chienpao.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/chienpao.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chienpao/front_shiny-dd58e129.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tinglu",
+      "speciesId": "tinglu",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/tinglu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/tinglu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tinglu/back_normal-907579e3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tinglu",
+      "speciesId": "tinglu",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/tinglu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/tinglu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tinglu/front_shiny-d1aa9e4a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chienpao",
+      "speciesId": "chienpao",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/chienpao.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/chienpao.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chienpao/back_shiny-cab47d0a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chiyu",
+      "speciesId": "chiyu",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/chiyu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/chiyu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chiyu/back_normal-5465d052.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chiyu",
+      "speciesId": "chiyu",
+      "dir": "ani",
+      "target": "sprites/ani/chiyu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/chiyu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chiyu/front_normal-2bd15bb6.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironvaliant",
+      "speciesId": "ironvaliant",
+      "dir": "ani",
+      "target": "sprites/ani/ironvaliant.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironvaliant.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironvaliant/front_normal-26cacc02.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironvaliant",
+      "speciesId": "ironvaliant",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironvaliant.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironvaliant.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironvaliant/back_normal-0df9a24c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironvaliant",
+      "speciesId": "ironvaliant",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironvaliant.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironvaliant.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironvaliant/front_shiny-2e935d10.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironvaliant",
+      "speciesId": "ironvaliant",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironvaliant.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironvaliant.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironvaliant/back_shiny-d6cbfd89.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "miraidon",
+      "speciesId": "miraidon",
+      "dir": "ani",
+      "target": "sprites/ani/miraidon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/miraidon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/miraidon/front_normal-975cb517.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "miraidon",
+      "speciesId": "miraidon",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/miraidon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/miraidon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/miraidon/front_shiny-ab08f2b1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "miraidon",
+      "speciesId": "miraidon",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/miraidon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/miraidon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/miraidon/back_normal-0e050e28.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "miraidon",
+      "speciesId": "miraidon",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/miraidon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/miraidon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/miraidon/back_shiny-3b3bc97b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chiyu",
+      "speciesId": "chiyu",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/chiyu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/chiyu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chiyu/back_shiny-d6de8b58.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironleaves",
+      "speciesId": "ironleaves",
+      "dir": "ani",
+      "target": "sprites/ani/ironleaves.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironleaves.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironleaves/front_normal-c8dd4a3c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironleaves",
+      "speciesId": "ironleaves",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironleaves.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironleaves.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironleaves/back_normal-7374432a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironleaves",
+      "speciesId": "ironleaves",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironleaves.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironleaves.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironleaves/front_shiny-f2ce1fa9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironleaves",
+      "speciesId": "ironleaves",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironleaves.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironleaves.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironleaves/back_shiny-440cf083.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "chiyu",
+      "speciesId": "chiyu",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/chiyu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/chiyu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/chiyu/front_shiny-79e9d054.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "tinglu",
+      "speciesId": "tinglu",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/tinglu.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/tinglu.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/tinglu/back_shiny-f7e5e22e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "okidogi",
+      "speciesId": "okidogi",
+      "dir": "ani",
+      "target": "sprites/ani/okidogi.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/okidogi.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/okidogi/front_normal-27fe145e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "okidogi",
+      "speciesId": "okidogi",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/okidogi.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/okidogi.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/okidogi/back_shiny-cbb10467.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "okidogi",
+      "speciesId": "okidogi",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/okidogi.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/okidogi.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/okidogi/front_shiny-3c97e647.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "munkidori",
+      "speciesId": "munkidori",
+      "dir": "ani",
+      "target": "sprites/ani/munkidori.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/munkidori.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/munkidori/front_normal-49a4d514.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "munkidori",
+      "speciesId": "munkidori",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/munkidori.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/munkidori.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/munkidori/back_normal-c5156168.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "munkidori",
+      "speciesId": "munkidori",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/munkidori.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/munkidori.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/munkidori/front_shiny-ffb54c49.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "fezandipiti",
+      "speciesId": "fezandipiti",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/fezandipiti.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/fezandipiti.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/fezandipiti/back_normal-f400ccf3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "fezandipiti",
+      "speciesId": "fezandipiti",
+      "dir": "ani",
+      "target": "sprites/ani/fezandipiti.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/fezandipiti.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/fezandipiti/front_normal-97d202a1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "okidogi",
+      "speciesId": "okidogi",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/okidogi.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/okidogi.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/okidogi/back_normal-512280e9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "fezandipiti",
+      "speciesId": "fezandipiti",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/fezandipiti.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/fezandipiti.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/fezandipiti/back_shiny-83b9dc28.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon",
+      "speciesId": "ogerpon",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpon/front_normal-b252f34b.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "fezandipiti",
+      "speciesId": "fezandipiti",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/fezandipiti.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/fezandipiti.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/fezandipiti/front_shiny-25009b97.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon",
+      "speciesId": "ogerpon",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpon/back_normal-04a6dafd.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "munkidori",
+      "speciesId": "munkidori",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/munkidori.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/munkidori.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/munkidori/back_shiny-b1b89ff5.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon",
+      "speciesId": "ogerpon",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpon/back_shiny-1fb9458f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspring",
+      "speciesId": "ogerponwellspring",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon-wellspring.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon-wellspring.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspring/front_normal-9670dbfa.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspring",
+      "speciesId": "ogerponwellspring",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon-wellspring.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon-wellspring.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspring/back_shiny-7f0d41e1.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflame",
+      "speciesId": "ogerponhearthflame",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon-hearthflame.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon-hearthflame.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflame/front_normal-39a8a3d6.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon",
+      "speciesId": "ogerpon",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpon/front_shiny-b1402b32.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflame",
+      "speciesId": "ogerponhearthflame",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon-hearthflame.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon-hearthflame.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflame/back_normal-9c3c3f24.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspring",
+      "speciesId": "ogerponwellspring",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon-wellspring.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon-wellspring.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspring/back_normal-d97fe5f7.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflame",
+      "speciesId": "ogerponhearthflame",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon-hearthflame.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon-hearthflame.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflame/back_shiny-eefcf158.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflame",
+      "speciesId": "ogerponhearthflame",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon-hearthflame.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon-hearthflame.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflame/front_shiny-f4640703.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstone",
+      "speciesId": "ogerponcornerstone",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon-cornerstone.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon-cornerstone.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstone/front_shiny-8847e4ae.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstone",
+      "speciesId": "ogerponcornerstone",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon-cornerstone.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon-cornerstone.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstone/back_shiny-25b2ac71.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstone",
+      "speciesId": "ogerponcornerstone",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon-cornerstone.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon-cornerstone.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstone/front_normal-59dee10f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-tealtera",
+      "speciesId": "ogerpontealtera",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon-tealtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon-tealtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpontealtera/back_shiny-bae7f58c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspringtera",
+      "speciesId": "ogerponwellspringtera",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon-wellspringtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon-wellspringtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspringtera/front_normal-07fbdc04.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstone",
+      "speciesId": "ogerponcornerstone",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon-cornerstone.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon-cornerstone.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstone/back_normal-ae1cf5ab.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspringtera",
+      "speciesId": "ogerponwellspringtera",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon-wellspringtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon-wellspringtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspringtera/back_normal-26cc3024.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspringtera",
+      "speciesId": "ogerponwellspringtera",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon-wellspringtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon-wellspringtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspringtera/back_shiny-e9cf3f59.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspringtera",
+      "speciesId": "ogerponwellspringtera",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon-wellspringtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon-wellspringtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspringtera/front_shiny-be0d6644.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflametera",
+      "speciesId": "ogerponhearthflametera",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon-hearthflametera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon-hearthflametera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflametera/front_normal-88296cfa.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-tealtera",
+      "speciesId": "ogerpontealtera",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon-tealtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon-tealtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpontealtera/back_normal-724afe09.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflametera",
+      "speciesId": "ogerponhearthflametera",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon-hearthflametera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon-hearthflametera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflametera/back_shiny-e8d2808a.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflametera",
+      "speciesId": "ogerponhearthflametera",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon-hearthflametera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon-hearthflametera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflametera/back_normal-cb2e5f60.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-hearthflametera",
+      "speciesId": "ogerponhearthflametera",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon-hearthflametera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon-hearthflametera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponhearthflametera/front_shiny-8732363f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-tealtera",
+      "speciesId": "ogerpontealtera",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon-tealtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon-tealtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpontealtera/front_shiny-86edb100.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstonetera",
+      "speciesId": "ogerponcornerstonetera",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ogerpon-cornerstonetera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ogerpon-cornerstonetera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstonetera/back_shiny-887e21c9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstonetera",
+      "speciesId": "ogerponcornerstonetera",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon-cornerstonetera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon-cornerstonetera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstonetera/front_shiny-434d9baf.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstonetera",
+      "speciesId": "ogerponcornerstonetera",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon-cornerstonetera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon-cornerstonetera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstonetera/front_normal-9c26b4cb.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-cornerstonetera",
+      "speciesId": "ogerponcornerstonetera",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ogerpon-cornerstonetera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ogerpon-cornerstonetera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponcornerstonetera/back_normal-34392d0c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-tealtera",
+      "speciesId": "ogerpontealtera",
+      "dir": "ani",
+      "target": "sprites/ani/ogerpon-tealtera.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ogerpon-tealtera.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerpontealtera/front_normal-6fbdf22f.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironboulder",
+      "speciesId": "ironboulder",
+      "dir": "ani",
+      "target": "sprites/ani/ironboulder.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironboulder.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironboulder/front_normal-e097dd98.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironboulder",
+      "speciesId": "ironboulder",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironboulder.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironboulder.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironboulder/back_normal-95b5b00e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironboulder",
+      "speciesId": "ironboulder",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironboulder.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironboulder.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironboulder/back_shiny-9cd8b072.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ogerpon-wellspring",
+      "speciesId": "ogerponwellspring",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ogerpon-wellspring.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ogerpon-wellspring.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ogerponwellspring/front_shiny-a095aad0.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironcrown",
+      "speciesId": "ironcrown",
+      "dir": "ani",
+      "target": "sprites/ani/ironcrown.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/ironcrown.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironcrown/front_normal-faa6fb06.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironcrown",
+      "speciesId": "ironcrown",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/ironcrown.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/ironcrown.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironcrown/back_normal-54dbd4c3.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironboulder",
+      "speciesId": "ironboulder",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironboulder.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironboulder.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironboulder/front_shiny-c78d3731.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironcrown",
+      "speciesId": "ironcrown",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/ironcrown.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/ironcrown.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironcrown/back_shiny-e240a4fc.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos",
+      "speciesId": "terapagos",
+      "dir": "ani",
+      "target": "sprites/ani/terapagos.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/terapagos.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagos/front_normal-661bafce.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "ironcrown",
+      "speciesId": "ironcrown",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/ironcrown.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/ironcrown.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/ironcrown/front_shiny-c549b2f9.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos",
+      "speciesId": "terapagos",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/terapagos.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/terapagos.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagos/back_normal-0a6b1973.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos",
+      "speciesId": "terapagos",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/terapagos.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/terapagos.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagos/front_shiny-3cfb6546.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-terastal",
+      "speciesId": "terapagosterastal",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/terapagos-terastal.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/terapagos-terastal.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosterastal/front_shiny-d20e2e66.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-terastal",
+      "speciesId": "terapagosterastal",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/terapagos-terastal.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/terapagos-terastal.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosterastal/back_normal-081f879d.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-stellar",
+      "speciesId": "terapagosstellar",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/terapagos-stellar.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/terapagos-stellar.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosstellar/back_normal-bed49e82.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-stellar",
+      "speciesId": "terapagosstellar",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/terapagos-stellar.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/terapagos-stellar.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosstellar/front_shiny-080a5448.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos",
+      "speciesId": "terapagos",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/terapagos.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/terapagos.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagos/back_shiny-890d241e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pecharunt",
+      "speciesId": "pecharunt",
+      "dir": "ani-back",
+      "target": "sprites/ani-back/pecharunt.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back/pecharunt.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pecharunt/back_normal-cc7fc697.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pecharunt",
+      "speciesId": "pecharunt",
+      "dir": "ani",
+      "target": "sprites/ani/pecharunt.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/pecharunt.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pecharunt/front_normal-9ac31d9c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-terastal",
+      "speciesId": "terapagosterastal",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/terapagos-terastal.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/terapagos-terastal.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosterastal/back_shiny-a95b0c9c.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pecharunt",
+      "speciesId": "pecharunt",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/pecharunt.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/pecharunt.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pecharunt/back_shiny-aa712452.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-stellar",
+      "speciesId": "terapagosstellar",
+      "dir": "ani",
+      "target": "sprites/ani/terapagos-stellar.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/terapagos-stellar.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosstellar/front_normal-6ab1e764.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-stellar",
+      "speciesId": "terapagosstellar",
+      "dir": "ani-back-shiny",
+      "target": "sprites/ani-back-shiny/terapagos-stellar.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-back-shiny/terapagos-stellar.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosstellar/back_shiny-cfe164c8.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "terapagos-terastal",
+      "speciesId": "terapagosterastal",
+      "dir": "ani",
+      "target": "sprites/ani/terapagos-terastal.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani/terapagos-terastal.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/terapagosterastal/front_normal-be41a25e.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    },
+    {
+      "id": "pecharunt",
+      "speciesId": "pecharunt",
+      "dir": "ani-shiny",
+      "target": "sprites/ani-shiny/pecharunt.gif",
+      "targetPath": "/home/alexqfmm/workPlace/pokemon/changeBattleV2/assets/showdown/sprites/ani-shiny/pecharunt.gif",
+      "source": "/home/alexqfmm/workPlace/pokemon/changeBattle/assets/runtime/pokemon/pecharunt/front_shiny-c6382202.png",
+      "note": "runtime PNG copied into V2 missing Showdown sprite path; remove using this manifest to reset"
+    }
+  ],
+  "unavailable": []
+}

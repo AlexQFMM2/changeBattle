@@ -1,0 +1,8214 @@
+{
+  "source": "https://play.pokemonshowdown.com",
+  "generatedAt": "2026-06-24T14:05:25.038Z",
+  "dirs": [
+    "ani",
+    "ani-back",
+    "ani-shiny",
+    "ani-back-shiny"
+  ],
+  "iconSheets": [
+    "pokemonicons-sheet.png",
+    "pokemonicons-pokeball-sheet.png",
+    "itemicons-sheet.png"
+  ],
+  "count": 1366,
+  "sprites": [
+    {
+      "id": "bulbasaur",
+      "speciesId": "bulbasaur",
+      "name": "Bulbasaur",
+      "baseSpecies": "Bulbasaur"
+    },
+    {
+      "id": "ivysaur",
+      "speciesId": "ivysaur",
+      "name": "Ivysaur",
+      "baseSpecies": "Ivysaur"
+    },
+    {
+      "id": "venusaur",
+      "speciesId": "venusaur",
+      "name": "Venusaur",
+      "baseSpecies": "Venusaur"
+    },
+    {
+      "id": "venusaur-mega",
+      "speciesId": "venusaurmega",
+      "name": "Venusaur-Mega",
+      "baseSpecies": "Venusaur"
+    },
+    {
+      "id": "venusaur-gmax",
+      "speciesId": "venusaurgmax",
+      "name": "Venusaur-Gmax",
+      "baseSpecies": "Venusaur"
+    },
+    {
+      "id": "charmander",
+      "speciesId": "charmander",
+      "name": "Charmander",
+      "baseSpecies": "Charmander"
+    },
+    {
+      "id": "charmeleon",
+      "speciesId": "charmeleon",
+      "name": "Charmeleon",
+      "baseSpecies": "Charmeleon"
+    },
+    {
+      "id": "charizard",
+      "speciesId": "charizard",
+      "name": "Charizard",
+      "baseSpecies": "Charizard"
+    },
+    {
+      "id": "charizard-megax",
+      "speciesId": "charizardmegax",
+      "name": "Charizard-Mega-X",
+      "baseSpecies": "Charizard"
+    },
+    {
+      "id": "charizard-megay",
+      "speciesId": "charizardmegay",
+      "name": "Charizard-Mega-Y",
+      "baseSpecies": "Charizard"
+    },
+    {
+      "id": "charizard-gmax",
+      "speciesId": "charizardgmax",
+      "name": "Charizard-Gmax",
+      "baseSpecies": "Charizard"
+    },
+    {
+      "id": "squirtle",
+      "speciesId": "squirtle",
+      "name": "Squirtle",
+      "baseSpecies": "Squirtle"
+    },
+    {
+      "id": "wartortle",
+      "speciesId": "wartortle",
+      "name": "Wartortle",
+      "baseSpecies": "Wartortle"
+    },
+    {
+      "id": "blastoise",
+      "speciesId": "blastoise",
+      "name": "Blastoise",
+      "baseSpecies": "Blastoise"
+    },
+    {
+      "id": "blastoise-mega",
+      "speciesId": "blastoisemega",
+      "name": "Blastoise-Mega",
+      "baseSpecies": "Blastoise"
+    },
+    {
+      "id": "blastoise-gmax",
+      "speciesId": "blastoisegmax",
+      "name": "Blastoise-Gmax",
+      "baseSpecies": "Blastoise"
+    },
+    {
+      "id": "caterpie",
+      "speciesId": "caterpie",
+      "name": "Caterpie",
+      "baseSpecies": "Caterpie"
+    },
+    {
+      "id": "metapod",
+      "speciesId": "metapod",
+      "name": "Metapod",
+      "baseSpecies": "Metapod"
+    },
+    {
+      "id": "butterfree",
+      "speciesId": "butterfree",
+      "name": "Butterfree",
+      "baseSpecies": "Butterfree"
+    },
+    {
+      "id": "butterfree-gmax",
+      "speciesId": "butterfreegmax",
+      "name": "Butterfree-Gmax",
+      "baseSpecies": "Butterfree"
+    },
+    {
+      "id": "weedle",
+      "speciesId": "weedle",
+      "name": "Weedle",
+      "baseSpecies": "Weedle"
+    },
+    {
+      "id": "kakuna",
+      "speciesId": "kakuna",
+      "name": "Kakuna",
+      "baseSpecies": "Kakuna"
+    },
+    {
+      "id": "beedrill",
+      "speciesId": "beedrill",
+      "name": "Beedrill",
+      "baseSpecies": "Beedrill"
+    },
+    {
+      "id": "beedrill-mega",
+      "speciesId": "beedrillmega",
+      "name": "Beedrill-Mega",
+      "baseSpecies": "Beedrill"
+    },
+    {
+      "id": "pidgey",
+      "speciesId": "pidgey",
+      "name": "Pidgey",
+      "baseSpecies": "Pidgey"
+    },
+    {
+      "id": "pidgeotto",
+      "speciesId": "pidgeotto",
+      "name": "Pidgeotto",
+      "baseSpecies": "Pidgeotto"
+    },
+    {
+      "id": "pidgeot",
+      "speciesId": "pidgeot",
+      "name": "Pidgeot",
+      "baseSpecies": "Pidgeot"
+    },
+    {
+      "id": "pidgeot-mega",
+      "speciesId": "pidgeotmega",
+      "name": "Pidgeot-Mega",
+      "baseSpecies": "Pidgeot"
+    },
+    {
+      "id": "rattata",
+      "speciesId": "rattata",
+      "name": "Rattata",
+      "baseSpecies": "Rattata"
+    },
+    {
+      "id": "rattata-alola",
+      "speciesId": "rattataalola",
+      "name": "Rattata-Alola",
+      "baseSpecies": "Rattata"
+    },
+    {
+      "id": "raticate",
+      "speciesId": "raticate",
+      "name": "Raticate",
+      "baseSpecies": "Raticate"
+    },
+    {
+      "id": "raticate-alola",
+      "speciesId": "raticatealolatotem",
+      "name": "Raticate-Alola-Totem",
+      "baseSpecies": "Raticate"
+    },
+    {
+      "id": "spearow",
+      "speciesId": "spearow",
+      "name": "Spearow",
+      "baseSpecies": "Spearow"
+    },
+    {
+      "id": "fearow",
+      "speciesId": "fearow",
+      "name": "Fearow",
+      "baseSpecies": "Fearow"
+    },
+    {
+      "id": "ekans",
+      "speciesId": "ekans",
+      "name": "Ekans",
+      "baseSpecies": "Ekans"
+    },
+    {
+      "id": "arbok",
+      "speciesId": "arbok",
+      "name": "Arbok",
+      "baseSpecies": "Arbok"
+    },
+    {
+      "id": "pikachu",
+      "speciesId": "pikachu",
+      "name": "Pikachu",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-cosplay",
+      "speciesId": "pikachucosplay",
+      "name": "Pikachu-Cosplay",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-rockstar",
+      "speciesId": "pikachurockstar",
+      "name": "Pikachu-Rock-Star",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-belle",
+      "speciesId": "pikachubelle",
+      "name": "Pikachu-Belle",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-popstar",
+      "speciesId": "pikachupopstar",
+      "name": "Pikachu-Pop-Star",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-phd",
+      "speciesId": "pikachuphd",
+      "name": "Pikachu-PhD",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-libre",
+      "speciesId": "pikachulibre",
+      "name": "Pikachu-Libre",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-original",
+      "speciesId": "pikachuoriginal",
+      "name": "Pikachu-Original",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-hoenn",
+      "speciesId": "pikachuhoenn",
+      "name": "Pikachu-Hoenn",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-sinnoh",
+      "speciesId": "pikachusinnoh",
+      "name": "Pikachu-Sinnoh",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-unova",
+      "speciesId": "pikachuunova",
+      "name": "Pikachu-Unova",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-kalos",
+      "speciesId": "pikachukalos",
+      "name": "Pikachu-Kalos",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-alola",
+      "speciesId": "pikachualola",
+      "name": "Pikachu-Alola",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-partner",
+      "speciesId": "pikachupartner",
+      "name": "Pikachu-Partner",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-starter",
+      "speciesId": "pikachustarter",
+      "name": "Pikachu-Starter",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-gmax",
+      "speciesId": "pikachugmax",
+      "name": "Pikachu-Gmax",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "pikachu-world",
+      "speciesId": "pikachuworld",
+      "name": "Pikachu-World",
+      "baseSpecies": "Pikachu"
+    },
+    {
+      "id": "raichu",
+      "speciesId": "raichu",
+      "name": "Raichu",
+      "baseSpecies": "Raichu"
+    },
+    {
+      "id": "raichu-alola",
+      "speciesId": "raichualola",
+      "name": "Raichu-Alola",
+      "baseSpecies": "Raichu"
+    },
+    {
+      "id": "raichu-megax",
+      "speciesId": "raichumegax",
+      "name": "Raichu-Mega-X",
+      "baseSpecies": "Raichu"
+    },
+    {
+      "id": "raichu-megay",
+      "speciesId": "raichumegay",
+      "name": "Raichu-Mega-Y",
+      "baseSpecies": "Raichu"
+    },
+    {
+      "id": "sandshrew",
+      "speciesId": "sandshrew",
+      "name": "Sandshrew",
+      "baseSpecies": "Sandshrew"
+    },
+    {
+      "id": "sandshrew-alola",
+      "speciesId": "sandshrewalola",
+      "name": "Sandshrew-Alola",
+      "baseSpecies": "Sandshrew"
+    },
+    {
+      "id": "sandslash",
+      "speciesId": "sandslash",
+      "name": "Sandslash",
+      "baseSpecies": "Sandslash"
+    },
+    {
+      "id": "sandslash-alola",
+      "speciesId": "sandslashalola",
+      "name": "Sandslash-Alola",
+      "baseSpecies": "Sandslash"
+    },
+    {
+      "id": "nidoranf",
+      "speciesId": "nidoranf",
+      "name": "Nidoran-F",
+      "baseSpecies": "Nidoran-F"
+    },
+    {
+      "id": "nidorina",
+      "speciesId": "nidorina",
+      "name": "Nidorina",
+      "baseSpecies": "Nidorina"
+    },
+    {
+      "id": "nidoqueen",
+      "speciesId": "nidoqueen",
+      "name": "Nidoqueen",
+      "baseSpecies": "Nidoqueen"
+    },
+    {
+      "id": "nidoranm",
+      "speciesId": "nidoranm",
+      "name": "Nidoran-M",
+      "baseSpecies": "Nidoran-M"
+    },
+    {
+      "id": "nidorino",
+      "speciesId": "nidorino",
+      "name": "Nidorino",
+      "baseSpecies": "Nidorino"
+    },
+    {
+      "id": "nidoking",
+      "speciesId": "nidoking",
+      "name": "Nidoking",
+      "baseSpecies": "Nidoking"
+    },
+    {
+      "id": "clefairy",
+      "speciesId": "clefairy",
+      "name": "Clefairy",
+      "baseSpecies": "Clefairy"
+    },
+    {
+      "id": "clefable",
+      "speciesId": "clefable",
+      "name": "Clefable",
+      "baseSpecies": "Clefable"
+    },
+    {
+      "id": "clefable-mega",
+      "speciesId": "clefablemega",
+      "name": "Clefable-Mega",
+      "baseSpecies": "Clefable"
+    },
+    {
+      "id": "vulpix",
+      "speciesId": "vulpix",
+      "name": "Vulpix",
+      "baseSpecies": "Vulpix"
+    },
+    {
+      "id": "vulpix-alola",
+      "speciesId": "vulpixalola",
+      "name": "Vulpix-Alola",
+      "baseSpecies": "Vulpix"
+    },
+    {
+      "id": "ninetales",
+      "speciesId": "ninetales",
+      "name": "Ninetales",
+      "baseSpecies": "Ninetales"
+    },
+    {
+      "id": "ninetales-alola",
+      "speciesId": "ninetalesalola",
+      "name": "Ninetales-Alola",
+      "baseSpecies": "Ninetales"
+    },
+    {
+      "id": "jigglypuff",
+      "speciesId": "jigglypuff",
+      "name": "Jigglypuff",
+      "baseSpecies": "Jigglypuff"
+    },
+    {
+      "id": "wigglytuff",
+      "speciesId": "wigglytuff",
+      "name": "Wigglytuff",
+      "baseSpecies": "Wigglytuff"
+    },
+    {
+      "id": "zubat",
+      "speciesId": "zubat",
+      "name": "Zubat",
+      "baseSpecies": "Zubat"
+    },
+    {
+      "id": "golbat",
+      "speciesId": "golbat",
+      "name": "Golbat",
+      "baseSpecies": "Golbat"
+    },
+    {
+      "id": "oddish",
+      "speciesId": "oddish",
+      "name": "Oddish",
+      "baseSpecies": "Oddish"
+    },
+    {
+      "id": "gloom",
+      "speciesId": "gloom",
+      "name": "Gloom",
+      "baseSpecies": "Gloom"
+    },
+    {
+      "id": "vileplume",
+      "speciesId": "vileplume",
+      "name": "Vileplume",
+      "baseSpecies": "Vileplume"
+    },
+    {
+      "id": "paras",
+      "speciesId": "paras",
+      "name": "Paras",
+      "baseSpecies": "Paras"
+    },
+    {
+      "id": "parasect",
+      "speciesId": "parasect",
+      "name": "Parasect",
+      "baseSpecies": "Parasect"
+    },
+    {
+      "id": "venonat",
+      "speciesId": "venonat",
+      "name": "Venonat",
+      "baseSpecies": "Venonat"
+    },
+    {
+      "id": "venomoth",
+      "speciesId": "venomoth",
+      "name": "Venomoth",
+      "baseSpecies": "Venomoth"
+    },
+    {
+      "id": "diglett",
+      "speciesId": "diglett",
+      "name": "Diglett",
+      "baseSpecies": "Diglett"
+    },
+    {
+      "id": "diglett-alola",
+      "speciesId": "diglettalola",
+      "name": "Diglett-Alola",
+      "baseSpecies": "Diglett"
+    },
+    {
+      "id": "dugtrio",
+      "speciesId": "dugtrio",
+      "name": "Dugtrio",
+      "baseSpecies": "Dugtrio"
+    },
+    {
+      "id": "dugtrio-alola",
+      "speciesId": "dugtrioalola",
+      "name": "Dugtrio-Alola",
+      "baseSpecies": "Dugtrio"
+    },
+    {
+      "id": "meowth",
+      "speciesId": "meowth",
+      "name": "Meowth",
+      "baseSpecies": "Meowth"
+    },
+    {
+      "id": "meowth-alola",
+      "speciesId": "meowthalola",
+      "name": "Meowth-Alola",
+      "baseSpecies": "Meowth"
+    },
+    {
+      "id": "meowth-galar",
+      "speciesId": "meowthgalar",
+      "name": "Meowth-Galar",
+      "baseSpecies": "Meowth"
+    },
+    {
+      "id": "meowth-gmax",
+      "speciesId": "meowthgmax",
+      "name": "Meowth-Gmax",
+      "baseSpecies": "Meowth"
+    },
+    {
+      "id": "persian",
+      "speciesId": "persian",
+      "name": "Persian",
+      "baseSpecies": "Persian"
+    },
+    {
+      "id": "persian-alola",
+      "speciesId": "persianalola",
+      "name": "Persian-Alola",
+      "baseSpecies": "Persian"
+    },
+    {
+      "id": "psyduck",
+      "speciesId": "psyduck",
+      "name": "Psyduck",
+      "baseSpecies": "Psyduck"
+    },
+    {
+      "id": "golduck",
+      "speciesId": "golduck",
+      "name": "Golduck",
+      "baseSpecies": "Golduck"
+    },
+    {
+      "id": "mankey",
+      "speciesId": "mankey",
+      "name": "Mankey",
+      "baseSpecies": "Mankey"
+    },
+    {
+      "id": "primeape",
+      "speciesId": "primeape",
+      "name": "Primeape",
+      "baseSpecies": "Primeape"
+    },
+    {
+      "id": "growlithe",
+      "speciesId": "growlithe",
+      "name": "Growlithe",
+      "baseSpecies": "Growlithe"
+    },
+    {
+      "id": "growlithe-hisui",
+      "speciesId": "growlithehisui",
+      "name": "Growlithe-Hisui",
+      "baseSpecies": "Growlithe"
+    },
+    {
+      "id": "arcanine",
+      "speciesId": "arcanine",
+      "name": "Arcanine",
+      "baseSpecies": "Arcanine"
+    },
+    {
+      "id": "arcanine-hisui",
+      "speciesId": "arcaninehisui",
+      "name": "Arcanine-Hisui",
+      "baseSpecies": "Arcanine"
+    },
+    {
+      "id": "poliwag",
+      "speciesId": "poliwag",
+      "name": "Poliwag",
+      "baseSpecies": "Poliwag"
+    },
+    {
+      "id": "poliwhirl",
+      "speciesId": "poliwhirl",
+      "name": "Poliwhirl",
+      "baseSpecies": "Poliwhirl"
+    },
+    {
+      "id": "poliwrath",
+      "speciesId": "poliwrath",
+      "name": "Poliwrath",
+      "baseSpecies": "Poliwrath"
+    },
+    {
+      "id": "abra",
+      "speciesId": "abra",
+      "name": "Abra",
+      "baseSpecies": "Abra"
+    },
+    {
+      "id": "kadabra",
+      "speciesId": "kadabra",
+      "name": "Kadabra",
+      "baseSpecies": "Kadabra"
+    },
+    {
+      "id": "alakazam",
+      "speciesId": "alakazam",
+      "name": "Alakazam",
+      "baseSpecies": "Alakazam"
+    },
+    {
+      "id": "alakazam-mega",
+      "speciesId": "alakazammega",
+      "name": "Alakazam-Mega",
+      "baseSpecies": "Alakazam"
+    },
+    {
+      "id": "machop",
+      "speciesId": "machop",
+      "name": "Machop",
+      "baseSpecies": "Machop"
+    },
+    {
+      "id": "machoke",
+      "speciesId": "machoke",
+      "name": "Machoke",
+      "baseSpecies": "Machoke"
+    },
+    {
+      "id": "machamp",
+      "speciesId": "machamp",
+      "name": "Machamp",
+      "baseSpecies": "Machamp"
+    },
+    {
+      "id": "machamp-gmax",
+      "speciesId": "machampgmax",
+      "name": "Machamp-Gmax",
+      "baseSpecies": "Machamp"
+    },
+    {
+      "id": "bellsprout",
+      "speciesId": "bellsprout",
+      "name": "Bellsprout",
+      "baseSpecies": "Bellsprout"
+    },
+    {
+      "id": "weepinbell",
+      "speciesId": "weepinbell",
+      "name": "Weepinbell",
+      "baseSpecies": "Weepinbell"
+    },
+    {
+      "id": "victreebel",
+      "speciesId": "victreebel",
+      "name": "Victreebel",
+      "baseSpecies": "Victreebel"
+    },
+    {
+      "id": "victreebel-mega",
+      "speciesId": "victreebelmega",
+      "name": "Victreebel-Mega",
+      "baseSpecies": "Victreebel"
+    },
+    {
+      "id": "tentacool",
+      "speciesId": "tentacool",
+      "name": "Tentacool",
+      "baseSpecies": "Tentacool"
+    },
+    {
+      "id": "tentacruel",
+      "speciesId": "tentacruel",
+      "name": "Tentacruel",
+      "baseSpecies": "Tentacruel"
+    },
+    {
+      "id": "geodude",
+      "speciesId": "geodude",
+      "name": "Geodude",
+      "baseSpecies": "Geodude"
+    },
+    {
+      "id": "geodude-alola",
+      "speciesId": "geodudealola",
+      "name": "Geodude-Alola",
+      "baseSpecies": "Geodude"
+    },
+    {
+      "id": "graveler",
+      "speciesId": "graveler",
+      "name": "Graveler",
+      "baseSpecies": "Graveler"
+    },
+    {
+      "id": "graveler-alola",
+      "speciesId": "graveleralola",
+      "name": "Graveler-Alola",
+      "baseSpecies": "Graveler"
+    },
+    {
+      "id": "golem",
+      "speciesId": "golem",
+      "name": "Golem",
+      "baseSpecies": "Golem"
+    },
+    {
+      "id": "golem-alola",
+      "speciesId": "golemalola",
+      "name": "Golem-Alola",
+      "baseSpecies": "Golem"
+    },
+    {
+      "id": "ponyta",
+      "speciesId": "ponyta",
+      "name": "Ponyta",
+      "baseSpecies": "Ponyta"
+    },
+    {
+      "id": "ponyta-galar",
+      "speciesId": "ponytagalar",
+      "name": "Ponyta-Galar",
+      "baseSpecies": "Ponyta"
+    },
+    {
+      "id": "rapidash",
+      "speciesId": "rapidash",
+      "name": "Rapidash",
+      "baseSpecies": "Rapidash"
+    },
+    {
+      "id": "rapidash-galar",
+      "speciesId": "rapidashgalar",
+      "name": "Rapidash-Galar",
+      "baseSpecies": "Rapidash"
+    },
+    {
+      "id": "slowpoke",
+      "speciesId": "slowpoke",
+      "name": "Slowpoke",
+      "baseSpecies": "Slowpoke"
+    },
+    {
+      "id": "slowpoke-galar",
+      "speciesId": "slowpokegalar",
+      "name": "Slowpoke-Galar",
+      "baseSpecies": "Slowpoke"
+    },
+    {
+      "id": "slowbro",
+      "speciesId": "slowbro",
+      "name": "Slowbro",
+      "baseSpecies": "Slowbro"
+    },
+    {
+      "id": "slowbro-mega",
+      "speciesId": "slowbromega",
+      "name": "Slowbro-Mega",
+      "baseSpecies": "Slowbro"
+    },
+    {
+      "id": "slowbro-galar",
+      "speciesId": "slowbrogalar",
+      "name": "Slowbro-Galar",
+      "baseSpecies": "Slowbro"
+    },
+    {
+      "id": "magnemite",
+      "speciesId": "magnemite",
+      "name": "Magnemite",
+      "baseSpecies": "Magnemite"
+    },
+    {
+      "id": "magneton",
+      "speciesId": "magneton",
+      "name": "Magneton",
+      "baseSpecies": "Magneton"
+    },
+    {
+      "id": "farfetchd",
+      "speciesId": "farfetchd",
+      "name": "Farfetch’d",
+      "baseSpecies": "Farfetch’d"
+    },
+    {
+      "id": "farfetchd-galar",
+      "speciesId": "farfetchdgalar",
+      "name": "Farfetch’d-Galar",
+      "baseSpecies": "Farfetch’d"
+    },
+    {
+      "id": "doduo",
+      "speciesId": "doduo",
+      "name": "Doduo",
+      "baseSpecies": "Doduo"
+    },
+    {
+      "id": "dodrio",
+      "speciesId": "dodrio",
+      "name": "Dodrio",
+      "baseSpecies": "Dodrio"
+    },
+    {
+      "id": "seel",
+      "speciesId": "seel",
+      "name": "Seel",
+      "baseSpecies": "Seel"
+    },
+    {
+      "id": "dewgong",
+      "speciesId": "dewgong",
+      "name": "Dewgong",
+      "baseSpecies": "Dewgong"
+    },
+    {
+      "id": "grimer",
+      "speciesId": "grimer",
+      "name": "Grimer",
+      "baseSpecies": "Grimer"
+    },
+    {
+      "id": "grimer-alola",
+      "speciesId": "grimeralola",
+      "name": "Grimer-Alola",
+      "baseSpecies": "Grimer"
+    },
+    {
+      "id": "muk",
+      "speciesId": "muk",
+      "name": "Muk",
+      "baseSpecies": "Muk"
+    },
+    {
+      "id": "muk-alola",
+      "speciesId": "mukalola",
+      "name": "Muk-Alola",
+      "baseSpecies": "Muk"
+    },
+    {
+      "id": "shellder",
+      "speciesId": "shellder",
+      "name": "Shellder",
+      "baseSpecies": "Shellder"
+    },
+    {
+      "id": "cloyster",
+      "speciesId": "cloyster",
+      "name": "Cloyster",
+      "baseSpecies": "Cloyster"
+    },
+    {
+      "id": "gastly",
+      "speciesId": "gastly",
+      "name": "Gastly",
+      "baseSpecies": "Gastly"
+    },
+    {
+      "id": "haunter",
+      "speciesId": "haunter",
+      "name": "Haunter",
+      "baseSpecies": "Haunter"
+    },
+    {
+      "id": "gengar",
+      "speciesId": "gengar",
+      "name": "Gengar",
+      "baseSpecies": "Gengar"
+    },
+    {
+      "id": "gengar-mega",
+      "speciesId": "gengarmega",
+      "name": "Gengar-Mega",
+      "baseSpecies": "Gengar"
+    },
+    {
+      "id": "gengar-gmax",
+      "speciesId": "gengargmax",
+      "name": "Gengar-Gmax",
+      "baseSpecies": "Gengar"
+    },
+    {
+      "id": "onix",
+      "speciesId": "onix",
+      "name": "Onix",
+      "baseSpecies": "Onix"
+    },
+    {
+      "id": "drowzee",
+      "speciesId": "drowzee",
+      "name": "Drowzee",
+      "baseSpecies": "Drowzee"
+    },
+    {
+      "id": "hypno",
+      "speciesId": "hypno",
+      "name": "Hypno",
+      "baseSpecies": "Hypno"
+    },
+    {
+      "id": "krabby",
+      "speciesId": "krabby",
+      "name": "Krabby",
+      "baseSpecies": "Krabby"
+    },
+    {
+      "id": "kingler",
+      "speciesId": "kingler",
+      "name": "Kingler",
+      "baseSpecies": "Kingler"
+    },
+    {
+      "id": "kingler-gmax",
+      "speciesId": "kinglergmax",
+      "name": "Kingler-Gmax",
+      "baseSpecies": "Kingler"
+    },
+    {
+      "id": "voltorb",
+      "speciesId": "voltorb",
+      "name": "Voltorb",
+      "baseSpecies": "Voltorb"
+    },
+    {
+      "id": "voltorb-hisui",
+      "speciesId": "voltorbhisui",
+      "name": "Voltorb-Hisui",
+      "baseSpecies": "Voltorb"
+    },
+    {
+      "id": "electrode",
+      "speciesId": "electrode",
+      "name": "Electrode",
+      "baseSpecies": "Electrode"
+    },
+    {
+      "id": "electrode-hisui",
+      "speciesId": "electrodehisui",
+      "name": "Electrode-Hisui",
+      "baseSpecies": "Electrode"
+    },
+    {
+      "id": "exeggcute",
+      "speciesId": "exeggcute",
+      "name": "Exeggcute",
+      "baseSpecies": "Exeggcute"
+    },
+    {
+      "id": "exeggutor",
+      "speciesId": "exeggutor",
+      "name": "Exeggutor",
+      "baseSpecies": "Exeggutor"
+    },
+    {
+      "id": "exeggutor-alola",
+      "speciesId": "exeggutoralola",
+      "name": "Exeggutor-Alola",
+      "baseSpecies": "Exeggutor"
+    },
+    {
+      "id": "cubone",
+      "speciesId": "cubone",
+      "name": "Cubone",
+      "baseSpecies": "Cubone"
+    },
+    {
+      "id": "marowak",
+      "speciesId": "marowak",
+      "name": "Marowak",
+      "baseSpecies": "Marowak"
+    },
+    {
+      "id": "marowak-alola",
+      "speciesId": "marowakalolatotem",
+      "name": "Marowak-Alola-Totem",
+      "baseSpecies": "Marowak"
+    },
+    {
+      "id": "hitmonlee",
+      "speciesId": "hitmonlee",
+      "name": "Hitmonlee",
+      "baseSpecies": "Hitmonlee"
+    },
+    {
+      "id": "hitmonchan",
+      "speciesId": "hitmonchan",
+      "name": "Hitmonchan",
+      "baseSpecies": "Hitmonchan"
+    },
+    {
+      "id": "lickitung",
+      "speciesId": "lickitung",
+      "name": "Lickitung",
+      "baseSpecies": "Lickitung"
+    },
+    {
+      "id": "koffing",
+      "speciesId": "koffing",
+      "name": "Koffing",
+      "baseSpecies": "Koffing"
+    },
+    {
+      "id": "weezing",
+      "speciesId": "weezing",
+      "name": "Weezing",
+      "baseSpecies": "Weezing"
+    },
+    {
+      "id": "weezing-galar",
+      "speciesId": "weezinggalar",
+      "name": "Weezing-Galar",
+      "baseSpecies": "Weezing"
+    },
+    {
+      "id": "rhyhorn",
+      "speciesId": "rhyhorn",
+      "name": "Rhyhorn",
+      "baseSpecies": "Rhyhorn"
+    },
+    {
+      "id": "rhydon",
+      "speciesId": "rhydon",
+      "name": "Rhydon",
+      "baseSpecies": "Rhydon"
+    },
+    {
+      "id": "chansey",
+      "speciesId": "chansey",
+      "name": "Chansey",
+      "baseSpecies": "Chansey"
+    },
+    {
+      "id": "tangela",
+      "speciesId": "tangela",
+      "name": "Tangela",
+      "baseSpecies": "Tangela"
+    },
+    {
+      "id": "kangaskhan",
+      "speciesId": "kangaskhan",
+      "name": "Kangaskhan",
+      "baseSpecies": "Kangaskhan"
+    },
+    {
+      "id": "kangaskhan-mega",
+      "speciesId": "kangaskhanmega",
+      "name": "Kangaskhan-Mega",
+      "baseSpecies": "Kangaskhan"
+    },
+    {
+      "id": "horsea",
+      "speciesId": "horsea",
+      "name": "Horsea",
+      "baseSpecies": "Horsea"
+    },
+    {
+      "id": "seadra",
+      "speciesId": "seadra",
+      "name": "Seadra",
+      "baseSpecies": "Seadra"
+    },
+    {
+      "id": "goldeen",
+      "speciesId": "goldeen",
+      "name": "Goldeen",
+      "baseSpecies": "Goldeen"
+    },
+    {
+      "id": "seaking",
+      "speciesId": "seaking",
+      "name": "Seaking",
+      "baseSpecies": "Seaking"
+    },
+    {
+      "id": "staryu",
+      "speciesId": "staryu",
+      "name": "Staryu",
+      "baseSpecies": "Staryu"
+    },
+    {
+      "id": "starmie",
+      "speciesId": "starmie",
+      "name": "Starmie",
+      "baseSpecies": "Starmie"
+    },
+    {
+      "id": "starmie-mega",
+      "speciesId": "starmiemega",
+      "name": "Starmie-Mega",
+      "baseSpecies": "Starmie"
+    },
+    {
+      "id": "mrmime",
+      "speciesId": "mrmime",
+      "name": "Mr. Mime",
+      "baseSpecies": "Mr. Mime"
+    },
+    {
+      "id": "mrmime-galar",
+      "speciesId": "mrmimegalar",
+      "name": "Mr. Mime-Galar",
+      "baseSpecies": "Mr. Mime"
+    },
+    {
+      "id": "scyther",
+      "speciesId": "scyther",
+      "name": "Scyther",
+      "baseSpecies": "Scyther"
+    },
+    {
+      "id": "jynx",
+      "speciesId": "jynx",
+      "name": "Jynx",
+      "baseSpecies": "Jynx"
+    },
+    {
+      "id": "electabuzz",
+      "speciesId": "electabuzz",
+      "name": "Electabuzz",
+      "baseSpecies": "Electabuzz"
+    },
+    {
+      "id": "magmar",
+      "speciesId": "magmar",
+      "name": "Magmar",
+      "baseSpecies": "Magmar"
+    },
+    {
+      "id": "pinsir",
+      "speciesId": "pinsir",
+      "name": "Pinsir",
+      "baseSpecies": "Pinsir"
+    },
+    {
+      "id": "pinsir-mega",
+      "speciesId": "pinsirmega",
+      "name": "Pinsir-Mega",
+      "baseSpecies": "Pinsir"
+    },
+    {
+      "id": "tauros",
+      "speciesId": "tauros",
+      "name": "Tauros",
+      "baseSpecies": "Tauros"
+    },
+    {
+      "id": "tauros-paldeacombat",
+      "speciesId": "taurospaldeacombat",
+      "name": "Tauros-Paldea-Combat",
+      "baseSpecies": "Tauros"
+    },
+    {
+      "id": "tauros-paldeablaze",
+      "speciesId": "taurospaldeablaze",
+      "name": "Tauros-Paldea-Blaze",
+      "baseSpecies": "Tauros"
+    },
+    {
+      "id": "tauros-paldeaaqua",
+      "speciesId": "taurospaldeaaqua",
+      "name": "Tauros-Paldea-Aqua",
+      "baseSpecies": "Tauros"
+    },
+    {
+      "id": "magikarp",
+      "speciesId": "magikarp",
+      "name": "Magikarp",
+      "baseSpecies": "Magikarp"
+    },
+    {
+      "id": "gyarados",
+      "speciesId": "gyarados",
+      "name": "Gyarados",
+      "baseSpecies": "Gyarados"
+    },
+    {
+      "id": "gyarados-mega",
+      "speciesId": "gyaradosmega",
+      "name": "Gyarados-Mega",
+      "baseSpecies": "Gyarados"
+    },
+    {
+      "id": "lapras",
+      "speciesId": "lapras",
+      "name": "Lapras",
+      "baseSpecies": "Lapras"
+    },
+    {
+      "id": "lapras-gmax",
+      "speciesId": "laprasgmax",
+      "name": "Lapras-Gmax",
+      "baseSpecies": "Lapras"
+    },
+    {
+      "id": "ditto",
+      "speciesId": "ditto",
+      "name": "Ditto",
+      "baseSpecies": "Ditto"
+    },
+    {
+      "id": "eevee",
+      "speciesId": "eevee",
+      "name": "Eevee",
+      "baseSpecies": "Eevee"
+    },
+    {
+      "id": "eevee-starter",
+      "speciesId": "eeveestarter",
+      "name": "Eevee-Starter",
+      "baseSpecies": "Eevee"
+    },
+    {
+      "id": "eevee-gmax",
+      "speciesId": "eeveegmax",
+      "name": "Eevee-Gmax",
+      "baseSpecies": "Eevee"
+    },
+    {
+      "id": "vaporeon",
+      "speciesId": "vaporeon",
+      "name": "Vaporeon",
+      "baseSpecies": "Vaporeon"
+    },
+    {
+      "id": "jolteon",
+      "speciesId": "jolteon",
+      "name": "Jolteon",
+      "baseSpecies": "Jolteon"
+    },
+    {
+      "id": "flareon",
+      "speciesId": "flareon",
+      "name": "Flareon",
+      "baseSpecies": "Flareon"
+    },
+    {
+      "id": "porygon",
+      "speciesId": "porygon",
+      "name": "Porygon",
+      "baseSpecies": "Porygon"
+    },
+    {
+      "id": "omanyte",
+      "speciesId": "omanyte",
+      "name": "Omanyte",
+      "baseSpecies": "Omanyte"
+    },
+    {
+      "id": "omastar",
+      "speciesId": "omastar",
+      "name": "Omastar",
+      "baseSpecies": "Omastar"
+    },
+    {
+      "id": "kabuto",
+      "speciesId": "kabuto",
+      "name": "Kabuto",
+      "baseSpecies": "Kabuto"
+    },
+    {
+      "id": "kabutops",
+      "speciesId": "kabutops",
+      "name": "Kabutops",
+      "baseSpecies": "Kabutops"
+    },
+    {
+      "id": "aerodactyl",
+      "speciesId": "aerodactyl",
+      "name": "Aerodactyl",
+      "baseSpecies": "Aerodactyl"
+    },
+    {
+      "id": "aerodactyl-mega",
+      "speciesId": "aerodactylmega",
+      "name": "Aerodactyl-Mega",
+      "baseSpecies": "Aerodactyl"
+    },
+    {
+      "id": "snorlax",
+      "speciesId": "snorlax",
+      "name": "Snorlax",
+      "baseSpecies": "Snorlax"
+    },
+    {
+      "id": "snorlax-gmax",
+      "speciesId": "snorlaxgmax",
+      "name": "Snorlax-Gmax",
+      "baseSpecies": "Snorlax"
+    },
+    {
+      "id": "articuno",
+      "speciesId": "articuno",
+      "name": "Articuno",
+      "baseSpecies": "Articuno"
+    },
+    {
+      "id": "articuno-galar",
+      "speciesId": "articunogalar",
+      "name": "Articuno-Galar",
+      "baseSpecies": "Articuno"
+    },
+    {
+      "id": "zapdos",
+      "speciesId": "zapdos",
+      "name": "Zapdos",
+      "baseSpecies": "Zapdos"
+    },
+    {
+      "id": "zapdos-galar",
+      "speciesId": "zapdosgalar",
+      "name": "Zapdos-Galar",
+      "baseSpecies": "Zapdos"
+    },
+    {
+      "id": "moltres",
+      "speciesId": "moltres",
+      "name": "Moltres",
+      "baseSpecies": "Moltres"
+    },
+    {
+      "id": "moltres-galar",
+      "speciesId": "moltresgalar",
+      "name": "Moltres-Galar",
+      "baseSpecies": "Moltres"
+    },
+    {
+      "id": "dratini",
+      "speciesId": "dratini",
+      "name": "Dratini",
+      "baseSpecies": "Dratini"
+    },
+    {
+      "id": "dragonair",
+      "speciesId": "dragonair",
+      "name": "Dragonair",
+      "baseSpecies": "Dragonair"
+    },
+    {
+      "id": "dragonite",
+      "speciesId": "dragonite",
+      "name": "Dragonite",
+      "baseSpecies": "Dragonite"
+    },
+    {
+      "id": "dragonite-mega",
+      "speciesId": "dragonitemega",
+      "name": "Dragonite-Mega",
+      "baseSpecies": "Dragonite"
+    },
+    {
+      "id": "mewtwo",
+      "speciesId": "mewtwo",
+      "name": "Mewtwo",
+      "baseSpecies": "Mewtwo"
+    },
+    {
+      "id": "mewtwo-megax",
+      "speciesId": "mewtwomegax",
+      "name": "Mewtwo-Mega-X",
+      "baseSpecies": "Mewtwo"
+    },
+    {
+      "id": "mewtwo-megay",
+      "speciesId": "mewtwomegay",
+      "name": "Mewtwo-Mega-Y",
+      "baseSpecies": "Mewtwo"
+    },
+    {
+      "id": "mew",
+      "speciesId": "mew",
+      "name": "Mew",
+      "baseSpecies": "Mew"
+    },
+    {
+      "id": "chikorita",
+      "speciesId": "chikorita",
+      "name": "Chikorita",
+      "baseSpecies": "Chikorita"
+    },
+    {
+      "id": "bayleef",
+      "speciesId": "bayleef",
+      "name": "Bayleef",
+      "baseSpecies": "Bayleef"
+    },
+    {
+      "id": "meganium",
+      "speciesId": "meganium",
+      "name": "Meganium",
+      "baseSpecies": "Meganium"
+    },
+    {
+      "id": "meganium-mega",
+      "speciesId": "meganiummega",
+      "name": "Meganium-Mega",
+      "baseSpecies": "Meganium"
+    },
+    {
+      "id": "cyndaquil",
+      "speciesId": "cyndaquil",
+      "name": "Cyndaquil",
+      "baseSpecies": "Cyndaquil"
+    },
+    {
+      "id": "quilava",
+      "speciesId": "quilava",
+      "name": "Quilava",
+      "baseSpecies": "Quilava"
+    },
+    {
+      "id": "typhlosion",
+      "speciesId": "typhlosion",
+      "name": "Typhlosion",
+      "baseSpecies": "Typhlosion"
+    },
+    {
+      "id": "typhlosion-hisui",
+      "speciesId": "typhlosionhisui",
+      "name": "Typhlosion-Hisui",
+      "baseSpecies": "Typhlosion"
+    },
+    {
+      "id": "totodile",
+      "speciesId": "totodile",
+      "name": "Totodile",
+      "baseSpecies": "Totodile"
+    },
+    {
+      "id": "croconaw",
+      "speciesId": "croconaw",
+      "name": "Croconaw",
+      "baseSpecies": "Croconaw"
+    },
+    {
+      "id": "feraligatr",
+      "speciesId": "feraligatr",
+      "name": "Feraligatr",
+      "baseSpecies": "Feraligatr"
+    },
+    {
+      "id": "feraligatr-mega",
+      "speciesId": "feraligatrmega",
+      "name": "Feraligatr-Mega",
+      "baseSpecies": "Feraligatr"
+    },
+    {
+      "id": "sentret",
+      "speciesId": "sentret",
+      "name": "Sentret",
+      "baseSpecies": "Sentret"
+    },
+    {
+      "id": "furret",
+      "speciesId": "furret",
+      "name": "Furret",
+      "baseSpecies": "Furret"
+    },
+    {
+      "id": "hoothoot",
+      "speciesId": "hoothoot",
+      "name": "Hoothoot",
+      "baseSpecies": "Hoothoot"
+    },
+    {
+      "id": "noctowl",
+      "speciesId": "noctowl",
+      "name": "Noctowl",
+      "baseSpecies": "Noctowl"
+    },
+    {
+      "id": "ledyba",
+      "speciesId": "ledyba",
+      "name": "Ledyba",
+      "baseSpecies": "Ledyba"
+    },
+    {
+      "id": "ledian",
+      "speciesId": "ledian",
+      "name": "Ledian",
+      "baseSpecies": "Ledian"
+    },
+    {
+      "id": "spinarak",
+      "speciesId": "spinarak",
+      "name": "Spinarak",
+      "baseSpecies": "Spinarak"
+    },
+    {
+      "id": "ariados",
+      "speciesId": "ariados",
+      "name": "Ariados",
+      "baseSpecies": "Ariados"
+    },
+    {
+      "id": "crobat",
+      "speciesId": "crobat",
+      "name": "Crobat",
+      "baseSpecies": "Crobat"
+    },
+    {
+      "id": "chinchou",
+      "speciesId": "chinchou",
+      "name": "Chinchou",
+      "baseSpecies": "Chinchou"
+    },
+    {
+      "id": "lanturn",
+      "speciesId": "lanturn",
+      "name": "Lanturn",
+      "baseSpecies": "Lanturn"
+    },
+    {
+      "id": "pichu",
+      "speciesId": "pichu",
+      "name": "Pichu",
+      "baseSpecies": "Pichu"
+    },
+    {
+      "id": "pichu-spikyeared",
+      "speciesId": "pichuspikyeared",
+      "name": "Pichu-Spiky-eared",
+      "baseSpecies": "Pichu"
+    },
+    {
+      "id": "cleffa",
+      "speciesId": "cleffa",
+      "name": "Cleffa",
+      "baseSpecies": "Cleffa"
+    },
+    {
+      "id": "igglybuff",
+      "speciesId": "igglybuff",
+      "name": "Igglybuff",
+      "baseSpecies": "Igglybuff"
+    },
+    {
+      "id": "togepi",
+      "speciesId": "togepi",
+      "name": "Togepi",
+      "baseSpecies": "Togepi"
+    },
+    {
+      "id": "togetic",
+      "speciesId": "togetic",
+      "name": "Togetic",
+      "baseSpecies": "Togetic"
+    },
+    {
+      "id": "natu",
+      "speciesId": "natu",
+      "name": "Natu",
+      "baseSpecies": "Natu"
+    },
+    {
+      "id": "xatu",
+      "speciesId": "xatu",
+      "name": "Xatu",
+      "baseSpecies": "Xatu"
+    },
+    {
+      "id": "mareep",
+      "speciesId": "mareep",
+      "name": "Mareep",
+      "baseSpecies": "Mareep"
+    },
+    {
+      "id": "flaaffy",
+      "speciesId": "flaaffy",
+      "name": "Flaaffy",
+      "baseSpecies": "Flaaffy"
+    },
+    {
+      "id": "ampharos",
+      "speciesId": "ampharos",
+      "name": "Ampharos",
+      "baseSpecies": "Ampharos"
+    },
+    {
+      "id": "ampharos-mega",
+      "speciesId": "ampharosmega",
+      "name": "Ampharos-Mega",
+      "baseSpecies": "Ampharos"
+    },
+    {
+      "id": "bellossom",
+      "speciesId": "bellossom",
+      "name": "Bellossom",
+      "baseSpecies": "Bellossom"
+    },
+    {
+      "id": "marill",
+      "speciesId": "marill",
+      "name": "Marill",
+      "baseSpecies": "Marill"
+    },
+    {
+      "id": "azumarill",
+      "speciesId": "azumarill",
+      "name": "Azumarill",
+      "baseSpecies": "Azumarill"
+    },
+    {
+      "id": "sudowoodo",
+      "speciesId": "sudowoodo",
+      "name": "Sudowoodo",
+      "baseSpecies": "Sudowoodo"
+    },
+    {
+      "id": "politoed",
+      "speciesId": "politoed",
+      "name": "Politoed",
+      "baseSpecies": "Politoed"
+    },
+    {
+      "id": "hoppip",
+      "speciesId": "hoppip",
+      "name": "Hoppip",
+      "baseSpecies": "Hoppip"
+    },
+    {
+      "id": "skiploom",
+      "speciesId": "skiploom",
+      "name": "Skiploom",
+      "baseSpecies": "Skiploom"
+    },
+    {
+      "id": "jumpluff",
+      "speciesId": "jumpluff",
+      "name": "Jumpluff",
+      "baseSpecies": "Jumpluff"
+    },
+    {
+      "id": "aipom",
+      "speciesId": "aipom",
+      "name": "Aipom",
+      "baseSpecies": "Aipom"
+    },
+    {
+      "id": "sunkern",
+      "speciesId": "sunkern",
+      "name": "Sunkern",
+      "baseSpecies": "Sunkern"
+    },
+    {
+      "id": "sunflora",
+      "speciesId": "sunflora",
+      "name": "Sunflora",
+      "baseSpecies": "Sunflora"
+    },
+    {
+      "id": "yanma",
+      "speciesId": "yanma",
+      "name": "Yanma",
+      "baseSpecies": "Yanma"
+    },
+    {
+      "id": "wooper",
+      "speciesId": "wooper",
+      "name": "Wooper",
+      "baseSpecies": "Wooper"
+    },
+    {
+      "id": "wooper-paldea",
+      "speciesId": "wooperpaldea",
+      "name": "Wooper-Paldea",
+      "baseSpecies": "Wooper"
+    },
+    {
+      "id": "quagsire",
+      "speciesId": "quagsire",
+      "name": "Quagsire",
+      "baseSpecies": "Quagsire"
+    },
+    {
+      "id": "espeon",
+      "speciesId": "espeon",
+      "name": "Espeon",
+      "baseSpecies": "Espeon"
+    },
+    {
+      "id": "umbreon",
+      "speciesId": "umbreon",
+      "name": "Umbreon",
+      "baseSpecies": "Umbreon"
+    },
+    {
+      "id": "murkrow",
+      "speciesId": "murkrow",
+      "name": "Murkrow",
+      "baseSpecies": "Murkrow"
+    },
+    {
+      "id": "slowking",
+      "speciesId": "slowking",
+      "name": "Slowking",
+      "baseSpecies": "Slowking"
+    },
+    {
+      "id": "slowking-galar",
+      "speciesId": "slowkinggalar",
+      "name": "Slowking-Galar",
+      "baseSpecies": "Slowking"
+    },
+    {
+      "id": "misdreavus",
+      "speciesId": "misdreavus",
+      "name": "Misdreavus",
+      "baseSpecies": "Misdreavus"
+    },
+    {
+      "id": "unown",
+      "speciesId": "unown",
+      "name": "Unown",
+      "baseSpecies": "Unown"
+    },
+    {
+      "id": "wobbuffet",
+      "speciesId": "wobbuffet",
+      "name": "Wobbuffet",
+      "baseSpecies": "Wobbuffet"
+    },
+    {
+      "id": "girafarig",
+      "speciesId": "girafarig",
+      "name": "Girafarig",
+      "baseSpecies": "Girafarig"
+    },
+    {
+      "id": "pineco",
+      "speciesId": "pineco",
+      "name": "Pineco",
+      "baseSpecies": "Pineco"
+    },
+    {
+      "id": "forretress",
+      "speciesId": "forretress",
+      "name": "Forretress",
+      "baseSpecies": "Forretress"
+    },
+    {
+      "id": "dunsparce",
+      "speciesId": "dunsparce",
+      "name": "Dunsparce",
+      "baseSpecies": "Dunsparce"
+    },
+    {
+      "id": "gligar",
+      "speciesId": "gligar",
+      "name": "Gligar",
+      "baseSpecies": "Gligar"
+    },
+    {
+      "id": "steelix",
+      "speciesId": "steelix",
+      "name": "Steelix",
+      "baseSpecies": "Steelix"
+    },
+    {
+      "id": "steelix-mega",
+      "speciesId": "steelixmega",
+      "name": "Steelix-Mega",
+      "baseSpecies": "Steelix"
+    },
+    {
+      "id": "snubbull",
+      "speciesId": "snubbull",
+      "name": "Snubbull",
+      "baseSpecies": "Snubbull"
+    },
+    {
+      "id": "granbull",
+      "speciesId": "granbull",
+      "name": "Granbull",
+      "baseSpecies": "Granbull"
+    },
+    {
+      "id": "qwilfish",
+      "speciesId": "qwilfish",
+      "name": "Qwilfish",
+      "baseSpecies": "Qwilfish"
+    },
+    {
+      "id": "qwilfish-hisui",
+      "speciesId": "qwilfishhisui",
+      "name": "Qwilfish-Hisui",
+      "baseSpecies": "Qwilfish"
+    },
+    {
+      "id": "scizor",
+      "speciesId": "scizor",
+      "name": "Scizor",
+      "baseSpecies": "Scizor"
+    },
+    {
+      "id": "scizor-mega",
+      "speciesId": "scizormega",
+      "name": "Scizor-Mega",
+      "baseSpecies": "Scizor"
+    },
+    {
+      "id": "shuckle",
+      "speciesId": "shuckle",
+      "name": "Shuckle",
+      "baseSpecies": "Shuckle"
+    },
+    {
+      "id": "heracross",
+      "speciesId": "heracross",
+      "name": "Heracross",
+      "baseSpecies": "Heracross"
+    },
+    {
+      "id": "heracross-mega",
+      "speciesId": "heracrossmega",
+      "name": "Heracross-Mega",
+      "baseSpecies": "Heracross"
+    },
+    {
+      "id": "sneasel",
+      "speciesId": "sneasel",
+      "name": "Sneasel",
+      "baseSpecies": "Sneasel"
+    },
+    {
+      "id": "sneasel-hisui",
+      "speciesId": "sneaselhisui",
+      "name": "Sneasel-Hisui",
+      "baseSpecies": "Sneasel"
+    },
+    {
+      "id": "teddiursa",
+      "speciesId": "teddiursa",
+      "name": "Teddiursa",
+      "baseSpecies": "Teddiursa"
+    },
+    {
+      "id": "ursaring",
+      "speciesId": "ursaring",
+      "name": "Ursaring",
+      "baseSpecies": "Ursaring"
+    },
+    {
+      "id": "slugma",
+      "speciesId": "slugma",
+      "name": "Slugma",
+      "baseSpecies": "Slugma"
+    },
+    {
+      "id": "magcargo",
+      "speciesId": "magcargo",
+      "name": "Magcargo",
+      "baseSpecies": "Magcargo"
+    },
+    {
+      "id": "swinub",
+      "speciesId": "swinub",
+      "name": "Swinub",
+      "baseSpecies": "Swinub"
+    },
+    {
+      "id": "piloswine",
+      "speciesId": "piloswine",
+      "name": "Piloswine",
+      "baseSpecies": "Piloswine"
+    },
+    {
+      "id": "corsola",
+      "speciesId": "corsola",
+      "name": "Corsola",
+      "baseSpecies": "Corsola"
+    },
+    {
+      "id": "corsola-galar",
+      "speciesId": "corsolagalar",
+      "name": "Corsola-Galar",
+      "baseSpecies": "Corsola"
+    },
+    {
+      "id": "remoraid",
+      "speciesId": "remoraid",
+      "name": "Remoraid",
+      "baseSpecies": "Remoraid"
+    },
+    {
+      "id": "octillery",
+      "speciesId": "octillery",
+      "name": "Octillery",
+      "baseSpecies": "Octillery"
+    },
+    {
+      "id": "delibird",
+      "speciesId": "delibird",
+      "name": "Delibird",
+      "baseSpecies": "Delibird"
+    },
+    {
+      "id": "mantine",
+      "speciesId": "mantine",
+      "name": "Mantine",
+      "baseSpecies": "Mantine"
+    },
+    {
+      "id": "skarmory",
+      "speciesId": "skarmory",
+      "name": "Skarmory",
+      "baseSpecies": "Skarmory"
+    },
+    {
+      "id": "skarmory-mega",
+      "speciesId": "skarmorymega",
+      "name": "Skarmory-Mega",
+      "baseSpecies": "Skarmory"
+    },
+    {
+      "id": "houndour",
+      "speciesId": "houndour",
+      "name": "Houndour",
+      "baseSpecies": "Houndour"
+    },
+    {
+      "id": "houndoom",
+      "speciesId": "houndoom",
+      "name": "Houndoom",
+      "baseSpecies": "Houndoom"
+    },
+    {
+      "id": "houndoom-mega",
+      "speciesId": "houndoommega",
+      "name": "Houndoom-Mega",
+      "baseSpecies": "Houndoom"
+    },
+    {
+      "id": "kingdra",
+      "speciesId": "kingdra",
+      "name": "Kingdra",
+      "baseSpecies": "Kingdra"
+    },
+    {
+      "id": "phanpy",
+      "speciesId": "phanpy",
+      "name": "Phanpy",
+      "baseSpecies": "Phanpy"
+    },
+    {
+      "id": "donphan",
+      "speciesId": "donphan",
+      "name": "Donphan",
+      "baseSpecies": "Donphan"
+    },
+    {
+      "id": "porygon2",
+      "speciesId": "porygon2",
+      "name": "Porygon2",
+      "baseSpecies": "Porygon2"
+    },
+    {
+      "id": "stantler",
+      "speciesId": "stantler",
+      "name": "Stantler",
+      "baseSpecies": "Stantler"
+    },
+    {
+      "id": "smeargle",
+      "speciesId": "smeargle",
+      "name": "Smeargle",
+      "baseSpecies": "Smeargle"
+    },
+    {
+      "id": "tyrogue",
+      "speciesId": "tyrogue",
+      "name": "Tyrogue",
+      "baseSpecies": "Tyrogue"
+    },
+    {
+      "id": "hitmontop",
+      "speciesId": "hitmontop",
+      "name": "Hitmontop",
+      "baseSpecies": "Hitmontop"
+    },
+    {
+      "id": "smoochum",
+      "speciesId": "smoochum",
+      "name": "Smoochum",
+      "baseSpecies": "Smoochum"
+    },
+    {
+      "id": "elekid",
+      "speciesId": "elekid",
+      "name": "Elekid",
+      "baseSpecies": "Elekid"
+    },
+    {
+      "id": "magby",
+      "speciesId": "magby",
+      "name": "Magby",
+      "baseSpecies": "Magby"
+    },
+    {
+      "id": "miltank",
+      "speciesId": "miltank",
+      "name": "Miltank",
+      "baseSpecies": "Miltank"
+    },
+    {
+      "id": "blissey",
+      "speciesId": "blissey",
+      "name": "Blissey",
+      "baseSpecies": "Blissey"
+    },
+    {
+      "id": "raikou",
+      "speciesId": "raikou",
+      "name": "Raikou",
+      "baseSpecies": "Raikou"
+    },
+    {
+      "id": "entei",
+      "speciesId": "entei",
+      "name": "Entei",
+      "baseSpecies": "Entei"
+    },
+    {
+      "id": "suicune",
+      "speciesId": "suicune",
+      "name": "Suicune",
+      "baseSpecies": "Suicune"
+    },
+    {
+      "id": "larvitar",
+      "speciesId": "larvitar",
+      "name": "Larvitar",
+      "baseSpecies": "Larvitar"
+    },
+    {
+      "id": "pupitar",
+      "speciesId": "pupitar",
+      "name": "Pupitar",
+      "baseSpecies": "Pupitar"
+    },
+    {
+      "id": "tyranitar",
+      "speciesId": "tyranitar",
+      "name": "Tyranitar",
+      "baseSpecies": "Tyranitar"
+    },
+    {
+      "id": "tyranitar-mega",
+      "speciesId": "tyranitarmega",
+      "name": "Tyranitar-Mega",
+      "baseSpecies": "Tyranitar"
+    },
+    {
+      "id": "lugia",
+      "speciesId": "lugia",
+      "name": "Lugia",
+      "baseSpecies": "Lugia"
+    },
+    {
+      "id": "hooh",
+      "speciesId": "hooh",
+      "name": "Ho-Oh",
+      "baseSpecies": "Ho-Oh"
+    },
+    {
+      "id": "celebi",
+      "speciesId": "celebi",
+      "name": "Celebi",
+      "baseSpecies": "Celebi"
+    },
+    {
+      "id": "treecko",
+      "speciesId": "treecko",
+      "name": "Treecko",
+      "baseSpecies": "Treecko"
+    },
+    {
+      "id": "grovyle",
+      "speciesId": "grovyle",
+      "name": "Grovyle",
+      "baseSpecies": "Grovyle"
+    },
+    {
+      "id": "sceptile",
+      "speciesId": "sceptile",
+      "name": "Sceptile",
+      "baseSpecies": "Sceptile"
+    },
+    {
+      "id": "sceptile-mega",
+      "speciesId": "sceptilemega",
+      "name": "Sceptile-Mega",
+      "baseSpecies": "Sceptile"
+    },
+    {
+      "id": "torchic",
+      "speciesId": "torchic",
+      "name": "Torchic",
+      "baseSpecies": "Torchic"
+    },
+    {
+      "id": "combusken",
+      "speciesId": "combusken",
+      "name": "Combusken",
+      "baseSpecies": "Combusken"
+    },
+    {
+      "id": "blaziken",
+      "speciesId": "blaziken",
+      "name": "Blaziken",
+      "baseSpecies": "Blaziken"
+    },
+    {
+      "id": "blaziken-mega",
+      "speciesId": "blazikenmega",
+      "name": "Blaziken-Mega",
+      "baseSpecies": "Blaziken"
+    },
+    {
+      "id": "mudkip",
+      "speciesId": "mudkip",
+      "name": "Mudkip",
+      "baseSpecies": "Mudkip"
+    },
+    {
+      "id": "marshtomp",
+      "speciesId": "marshtomp",
+      "name": "Marshtomp",
+      "baseSpecies": "Marshtomp"
+    },
+    {
+      "id": "swampert",
+      "speciesId": "swampert",
+      "name": "Swampert",
+      "baseSpecies": "Swampert"
+    },
+    {
+      "id": "swampert-mega",
+      "speciesId": "swampertmega",
+      "name": "Swampert-Mega",
+      "baseSpecies": "Swampert"
+    },
+    {
+      "id": "poochyena",
+      "speciesId": "poochyena",
+      "name": "Poochyena",
+      "baseSpecies": "Poochyena"
+    },
+    {
+      "id": "mightyena",
+      "speciesId": "mightyena",
+      "name": "Mightyena",
+      "baseSpecies": "Mightyena"
+    },
+    {
+      "id": "zigzagoon",
+      "speciesId": "zigzagoon",
+      "name": "Zigzagoon",
+      "baseSpecies": "Zigzagoon"
+    },
+    {
+      "id": "zigzagoon-galar",
+      "speciesId": "zigzagoongalar",
+      "name": "Zigzagoon-Galar",
+      "baseSpecies": "Zigzagoon"
+    },
+    {
+      "id": "linoone",
+      "speciesId": "linoone",
+      "name": "Linoone",
+      "baseSpecies": "Linoone"
+    },
+    {
+      "id": "linoone-galar",
+      "speciesId": "linoonegalar",
+      "name": "Linoone-Galar",
+      "baseSpecies": "Linoone"
+    },
+    {
+      "id": "wurmple",
+      "speciesId": "wurmple",
+      "name": "Wurmple",
+      "baseSpecies": "Wurmple"
+    },
+    {
+      "id": "silcoon",
+      "speciesId": "silcoon",
+      "name": "Silcoon",
+      "baseSpecies": "Silcoon"
+    },
+    {
+      "id": "beautifly",
+      "speciesId": "beautifly",
+      "name": "Beautifly",
+      "baseSpecies": "Beautifly"
+    },
+    {
+      "id": "cascoon",
+      "speciesId": "cascoon",
+      "name": "Cascoon",
+      "baseSpecies": "Cascoon"
+    },
+    {
+      "id": "dustox",
+      "speciesId": "dustox",
+      "name": "Dustox",
+      "baseSpecies": "Dustox"
+    },
+    {
+      "id": "lotad",
+      "speciesId": "lotad",
+      "name": "Lotad",
+      "baseSpecies": "Lotad"
+    },
+    {
+      "id": "lombre",
+      "speciesId": "lombre",
+      "name": "Lombre",
+      "baseSpecies": "Lombre"
+    },
+    {
+      "id": "ludicolo",
+      "speciesId": "ludicolo",
+      "name": "Ludicolo",
+      "baseSpecies": "Ludicolo"
+    },
+    {
+      "id": "seedot",
+      "speciesId": "seedot",
+      "name": "Seedot",
+      "baseSpecies": "Seedot"
+    },
+    {
+      "id": "nuzleaf",
+      "speciesId": "nuzleaf",
+      "name": "Nuzleaf",
+      "baseSpecies": "Nuzleaf"
+    },
+    {
+      "id": "shiftry",
+      "speciesId": "shiftry",
+      "name": "Shiftry",
+      "baseSpecies": "Shiftry"
+    },
+    {
+      "id": "taillow",
+      "speciesId": "taillow",
+      "name": "Taillow",
+      "baseSpecies": "Taillow"
+    },
+    {
+      "id": "swellow",
+      "speciesId": "swellow",
+      "name": "Swellow",
+      "baseSpecies": "Swellow"
+    },
+    {
+      "id": "wingull",
+      "speciesId": "wingull",
+      "name": "Wingull",
+      "baseSpecies": "Wingull"
+    },
+    {
+      "id": "pelipper",
+      "speciesId": "pelipper",
+      "name": "Pelipper",
+      "baseSpecies": "Pelipper"
+    },
+    {
+      "id": "ralts",
+      "speciesId": "ralts",
+      "name": "Ralts",
+      "baseSpecies": "Ralts"
+    },
+    {
+      "id": "kirlia",
+      "speciesId": "kirlia",
+      "name": "Kirlia",
+      "baseSpecies": "Kirlia"
+    },
+    {
+      "id": "gardevoir",
+      "speciesId": "gardevoir",
+      "name": "Gardevoir",
+      "baseSpecies": "Gardevoir"
+    },
+    {
+      "id": "gardevoir-mega",
+      "speciesId": "gardevoirmega",
+      "name": "Gardevoir-Mega",
+      "baseSpecies": "Gardevoir"
+    },
+    {
+      "id": "surskit",
+      "speciesId": "surskit",
+      "name": "Surskit",
+      "baseSpecies": "Surskit"
+    },
+    {
+      "id": "masquerain",
+      "speciesId": "masquerain",
+      "name": "Masquerain",
+      "baseSpecies": "Masquerain"
+    },
+    {
+      "id": "shroomish",
+      "speciesId": "shroomish",
+      "name": "Shroomish",
+      "baseSpecies": "Shroomish"
+    },
+    {
+      "id": "breloom",
+      "speciesId": "breloom",
+      "name": "Breloom",
+      "baseSpecies": "Breloom"
+    },
+    {
+      "id": "slakoth",
+      "speciesId": "slakoth",
+      "name": "Slakoth",
+      "baseSpecies": "Slakoth"
+    },
+    {
+      "id": "vigoroth",
+      "speciesId": "vigoroth",
+      "name": "Vigoroth",
+      "baseSpecies": "Vigoroth"
+    },
+    {
+      "id": "slaking",
+      "speciesId": "slaking",
+      "name": "Slaking",
+      "baseSpecies": "Slaking"
+    },
+    {
+      "id": "nincada",
+      "speciesId": "nincada",
+      "name": "Nincada",
+      "baseSpecies": "Nincada"
+    },
+    {
+      "id": "ninjask",
+      "speciesId": "ninjask",
+      "name": "Ninjask",
+      "baseSpecies": "Ninjask"
+    },
+    {
+      "id": "shedinja",
+      "speciesId": "shedinja",
+      "name": "Shedinja",
+      "baseSpecies": "Shedinja"
+    },
+    {
+      "id": "whismur",
+      "speciesId": "whismur",
+      "name": "Whismur",
+      "baseSpecies": "Whismur"
+    },
+    {
+      "id": "loudred",
+      "speciesId": "loudred",
+      "name": "Loudred",
+      "baseSpecies": "Loudred"
+    },
+    {
+      "id": "exploud",
+      "speciesId": "exploud",
+      "name": "Exploud",
+      "baseSpecies": "Exploud"
+    },
+    {
+      "id": "makuhita",
+      "speciesId": "makuhita",
+      "name": "Makuhita",
+      "baseSpecies": "Makuhita"
+    },
+    {
+      "id": "hariyama",
+      "speciesId": "hariyama",
+      "name": "Hariyama",
+      "baseSpecies": "Hariyama"
+    },
+    {
+      "id": "azurill",
+      "speciesId": "azurill",
+      "name": "Azurill",
+      "baseSpecies": "Azurill"
+    },
+    {
+      "id": "nosepass",
+      "speciesId": "nosepass",
+      "name": "Nosepass",
+      "baseSpecies": "Nosepass"
+    },
+    {
+      "id": "skitty",
+      "speciesId": "skitty",
+      "name": "Skitty",
+      "baseSpecies": "Skitty"
+    },
+    {
+      "id": "delcatty",
+      "speciesId": "delcatty",
+      "name": "Delcatty",
+      "baseSpecies": "Delcatty"
+    },
+    {
+      "id": "sableye",
+      "speciesId": "sableye",
+      "name": "Sableye",
+      "baseSpecies": "Sableye"
+    },
+    {
+      "id": "sableye-mega",
+      "speciesId": "sableyemega",
+      "name": "Sableye-Mega",
+      "baseSpecies": "Sableye"
+    },
+    {
+      "id": "mawile",
+      "speciesId": "mawile",
+      "name": "Mawile",
+      "baseSpecies": "Mawile"
+    },
+    {
+      "id": "mawile-mega",
+      "speciesId": "mawilemega",
+      "name": "Mawile-Mega",
+      "baseSpecies": "Mawile"
+    },
+    {
+      "id": "aron",
+      "speciesId": "aron",
+      "name": "Aron",
+      "baseSpecies": "Aron"
+    },
+    {
+      "id": "lairon",
+      "speciesId": "lairon",
+      "name": "Lairon",
+      "baseSpecies": "Lairon"
+    },
+    {
+      "id": "aggron",
+      "speciesId": "aggron",
+      "name": "Aggron",
+      "baseSpecies": "Aggron"
+    },
+    {
+      "id": "aggron-mega",
+      "speciesId": "aggronmega",
+      "name": "Aggron-Mega",
+      "baseSpecies": "Aggron"
+    },
+    {
+      "id": "meditite",
+      "speciesId": "meditite",
+      "name": "Meditite",
+      "baseSpecies": "Meditite"
+    },
+    {
+      "id": "medicham",
+      "speciesId": "medicham",
+      "name": "Medicham",
+      "baseSpecies": "Medicham"
+    },
+    {
+      "id": "medicham-mega",
+      "speciesId": "medichammega",
+      "name": "Medicham-Mega",
+      "baseSpecies": "Medicham"
+    },
+    {
+      "id": "electrike",
+      "speciesId": "electrike",
+      "name": "Electrike",
+      "baseSpecies": "Electrike"
+    },
+    {
+      "id": "manectric",
+      "speciesId": "manectric",
+      "name": "Manectric",
+      "baseSpecies": "Manectric"
+    },
+    {
+      "id": "manectric-mega",
+      "speciesId": "manectricmega",
+      "name": "Manectric-Mega",
+      "baseSpecies": "Manectric"
+    },
+    {
+      "id": "plusle",
+      "speciesId": "plusle",
+      "name": "Plusle",
+      "baseSpecies": "Plusle"
+    },
+    {
+      "id": "minun",
+      "speciesId": "minun",
+      "name": "Minun",
+      "baseSpecies": "Minun"
+    },
+    {
+      "id": "volbeat",
+      "speciesId": "volbeat",
+      "name": "Volbeat",
+      "baseSpecies": "Volbeat"
+    },
+    {
+      "id": "illumise",
+      "speciesId": "illumise",
+      "name": "Illumise",
+      "baseSpecies": "Illumise"
+    },
+    {
+      "id": "roselia",
+      "speciesId": "roselia",
+      "name": "Roselia",
+      "baseSpecies": "Roselia"
+    },
+    {
+      "id": "gulpin",
+      "speciesId": "gulpin",
+      "name": "Gulpin",
+      "baseSpecies": "Gulpin"
+    },
+    {
+      "id": "swalot",
+      "speciesId": "swalot",
+      "name": "Swalot",
+      "baseSpecies": "Swalot"
+    },
+    {
+      "id": "carvanha",
+      "speciesId": "carvanha",
+      "name": "Carvanha",
+      "baseSpecies": "Carvanha"
+    },
+    {
+      "id": "sharpedo",
+      "speciesId": "sharpedo",
+      "name": "Sharpedo",
+      "baseSpecies": "Sharpedo"
+    },
+    {
+      "id": "sharpedo-mega",
+      "speciesId": "sharpedomega",
+      "name": "Sharpedo-Mega",
+      "baseSpecies": "Sharpedo"
+    },
+    {
+      "id": "wailmer",
+      "speciesId": "wailmer",
+      "name": "Wailmer",
+      "baseSpecies": "Wailmer"
+    },
+    {
+      "id": "wailord",
+      "speciesId": "wailord",
+      "name": "Wailord",
+      "baseSpecies": "Wailord"
+    },
+    {
+      "id": "numel",
+      "speciesId": "numel",
+      "name": "Numel",
+      "baseSpecies": "Numel"
+    },
+    {
+      "id": "camerupt",
+      "speciesId": "camerupt",
+      "name": "Camerupt",
+      "baseSpecies": "Camerupt"
+    },
+    {
+      "id": "camerupt-mega",
+      "speciesId": "cameruptmega",
+      "name": "Camerupt-Mega",
+      "baseSpecies": "Camerupt"
+    },
+    {
+      "id": "torkoal",
+      "speciesId": "torkoal",
+      "name": "Torkoal",
+      "baseSpecies": "Torkoal"
+    },
+    {
+      "id": "spoink",
+      "speciesId": "spoink",
+      "name": "Spoink",
+      "baseSpecies": "Spoink"
+    },
+    {
+      "id": "grumpig",
+      "speciesId": "grumpig",
+      "name": "Grumpig",
+      "baseSpecies": "Grumpig"
+    },
+    {
+      "id": "spinda",
+      "speciesId": "spinda",
+      "name": "Spinda",
+      "baseSpecies": "Spinda"
+    },
+    {
+      "id": "trapinch",
+      "speciesId": "trapinch",
+      "name": "Trapinch",
+      "baseSpecies": "Trapinch"
+    },
+    {
+      "id": "vibrava",
+      "speciesId": "vibrava",
+      "name": "Vibrava",
+      "baseSpecies": "Vibrava"
+    },
+    {
+      "id": "flygon",
+      "speciesId": "flygon",
+      "name": "Flygon",
+      "baseSpecies": "Flygon"
+    },
+    {
+      "id": "cacnea",
+      "speciesId": "cacnea",
+      "name": "Cacnea",
+      "baseSpecies": "Cacnea"
+    },
+    {
+      "id": "cacturne",
+      "speciesId": "cacturne",
+      "name": "Cacturne",
+      "baseSpecies": "Cacturne"
+    },
+    {
+      "id": "swablu",
+      "speciesId": "swablu",
+      "name": "Swablu",
+      "baseSpecies": "Swablu"
+    },
+    {
+      "id": "altaria",
+      "speciesId": "altaria",
+      "name": "Altaria",
+      "baseSpecies": "Altaria"
+    },
+    {
+      "id": "altaria-mega",
+      "speciesId": "altariamega",
+      "name": "Altaria-Mega",
+      "baseSpecies": "Altaria"
+    },
+    {
+      "id": "zangoose",
+      "speciesId": "zangoose",
+      "name": "Zangoose",
+      "baseSpecies": "Zangoose"
+    },
+    {
+      "id": "seviper",
+      "speciesId": "seviper",
+      "name": "Seviper",
+      "baseSpecies": "Seviper"
+    },
+    {
+      "id": "lunatone",
+      "speciesId": "lunatone",
+      "name": "Lunatone",
+      "baseSpecies": "Lunatone"
+    },
+    {
+      "id": "solrock",
+      "speciesId": "solrock",
+      "name": "Solrock",
+      "baseSpecies": "Solrock"
+    },
+    {
+      "id": "barboach",
+      "speciesId": "barboach",
+      "name": "Barboach",
+      "baseSpecies": "Barboach"
+    },
+    {
+      "id": "whiscash",
+      "speciesId": "whiscash",
+      "name": "Whiscash",
+      "baseSpecies": "Whiscash"
+    },
+    {
+      "id": "corphish",
+      "speciesId": "corphish",
+      "name": "Corphish",
+      "baseSpecies": "Corphish"
+    },
+    {
+      "id": "crawdaunt",
+      "speciesId": "crawdaunt",
+      "name": "Crawdaunt",
+      "baseSpecies": "Crawdaunt"
+    },
+    {
+      "id": "baltoy",
+      "speciesId": "baltoy",
+      "name": "Baltoy",
+      "baseSpecies": "Baltoy"
+    },
+    {
+      "id": "claydol",
+      "speciesId": "claydol",
+      "name": "Claydol",
+      "baseSpecies": "Claydol"
+    },
+    {
+      "id": "lileep",
+      "speciesId": "lileep",
+      "name": "Lileep",
+      "baseSpecies": "Lileep"
+    },
+    {
+      "id": "cradily",
+      "speciesId": "cradily",
+      "name": "Cradily",
+      "baseSpecies": "Cradily"
+    },
+    {
+      "id": "anorith",
+      "speciesId": "anorith",
+      "name": "Anorith",
+      "baseSpecies": "Anorith"
+    },
+    {
+      "id": "armaldo",
+      "speciesId": "armaldo",
+      "name": "Armaldo",
+      "baseSpecies": "Armaldo"
+    },
+    {
+      "id": "feebas",
+      "speciesId": "feebas",
+      "name": "Feebas",
+      "baseSpecies": "Feebas"
+    },
+    {
+      "id": "milotic",
+      "speciesId": "milotic",
+      "name": "Milotic",
+      "baseSpecies": "Milotic"
+    },
+    {
+      "id": "castform",
+      "speciesId": "castform",
+      "name": "Castform",
+      "baseSpecies": "Castform"
+    },
+    {
+      "id": "castform-sunny",
+      "speciesId": "castformsunny",
+      "name": "Castform-Sunny",
+      "baseSpecies": "Castform"
+    },
+    {
+      "id": "castform-rainy",
+      "speciesId": "castformrainy",
+      "name": "Castform-Rainy",
+      "baseSpecies": "Castform"
+    },
+    {
+      "id": "castform-snowy",
+      "speciesId": "castformsnowy",
+      "name": "Castform-Snowy",
+      "baseSpecies": "Castform"
+    },
+    {
+      "id": "kecleon",
+      "speciesId": "kecleon",
+      "name": "Kecleon",
+      "baseSpecies": "Kecleon"
+    },
+    {
+      "id": "shuppet",
+      "speciesId": "shuppet",
+      "name": "Shuppet",
+      "baseSpecies": "Shuppet"
+    },
+    {
+      "id": "banette",
+      "speciesId": "banette",
+      "name": "Banette",
+      "baseSpecies": "Banette"
+    },
+    {
+      "id": "banette-mega",
+      "speciesId": "banettemega",
+      "name": "Banette-Mega",
+      "baseSpecies": "Banette"
+    },
+    {
+      "id": "duskull",
+      "speciesId": "duskull",
+      "name": "Duskull",
+      "baseSpecies": "Duskull"
+    },
+    {
+      "id": "dusclops",
+      "speciesId": "dusclops",
+      "name": "Dusclops",
+      "baseSpecies": "Dusclops"
+    },
+    {
+      "id": "tropius",
+      "speciesId": "tropius",
+      "name": "Tropius",
+      "baseSpecies": "Tropius"
+    },
+    {
+      "id": "chimecho",
+      "speciesId": "chimecho",
+      "name": "Chimecho",
+      "baseSpecies": "Chimecho"
+    },
+    {
+      "id": "chimecho-mega",
+      "speciesId": "chimechomega",
+      "name": "Chimecho-Mega",
+      "baseSpecies": "Chimecho"
+    },
+    {
+      "id": "absol",
+      "speciesId": "absol",
+      "name": "Absol",
+      "baseSpecies": "Absol"
+    },
+    {
+      "id": "absol-mega",
+      "speciesId": "absolmega",
+      "name": "Absol-Mega",
+      "baseSpecies": "Absol"
+    },
+    {
+      "id": "absol-megaz",
+      "speciesId": "absolmegaz",
+      "name": "Absol-Mega-Z",
+      "baseSpecies": "Absol"
+    },
+    {
+      "id": "wynaut",
+      "speciesId": "wynaut",
+      "name": "Wynaut",
+      "baseSpecies": "Wynaut"
+    },
+    {
+      "id": "snorunt",
+      "speciesId": "snorunt",
+      "name": "Snorunt",
+      "baseSpecies": "Snorunt"
+    },
+    {
+      "id": "glalie",
+      "speciesId": "glalie",
+      "name": "Glalie",
+      "baseSpecies": "Glalie"
+    },
+    {
+      "id": "glalie-mega",
+      "speciesId": "glaliemega",
+      "name": "Glalie-Mega",
+      "baseSpecies": "Glalie"
+    },
+    {
+      "id": "spheal",
+      "speciesId": "spheal",
+      "name": "Spheal",
+      "baseSpecies": "Spheal"
+    },
+    {
+      "id": "sealeo",
+      "speciesId": "sealeo",
+      "name": "Sealeo",
+      "baseSpecies": "Sealeo"
+    },
+    {
+      "id": "walrein",
+      "speciesId": "walrein",
+      "name": "Walrein",
+      "baseSpecies": "Walrein"
+    },
+    {
+      "id": "clamperl",
+      "speciesId": "clamperl",
+      "name": "Clamperl",
+      "baseSpecies": "Clamperl"
+    },
+    {
+      "id": "huntail",
+      "speciesId": "huntail",
+      "name": "Huntail",
+      "baseSpecies": "Huntail"
+    },
+    {
+      "id": "gorebyss",
+      "speciesId": "gorebyss",
+      "name": "Gorebyss",
+      "baseSpecies": "Gorebyss"
+    },
+    {
+      "id": "relicanth",
+      "speciesId": "relicanth",
+      "name": "Relicanth",
+      "baseSpecies": "Relicanth"
+    },
+    {
+      "id": "luvdisc",
+      "speciesId": "luvdisc",
+      "name": "Luvdisc",
+      "baseSpecies": "Luvdisc"
+    },
+    {
+      "id": "bagon",
+      "speciesId": "bagon",
+      "name": "Bagon",
+      "baseSpecies": "Bagon"
+    },
+    {
+      "id": "shelgon",
+      "speciesId": "shelgon",
+      "name": "Shelgon",
+      "baseSpecies": "Shelgon"
+    },
+    {
+      "id": "salamence",
+      "speciesId": "salamence",
+      "name": "Salamence",
+      "baseSpecies": "Salamence"
+    },
+    {
+      "id": "salamence-mega",
+      "speciesId": "salamencemega",
+      "name": "Salamence-Mega",
+      "baseSpecies": "Salamence"
+    },
+    {
+      "id": "beldum",
+      "speciesId": "beldum",
+      "name": "Beldum",
+      "baseSpecies": "Beldum"
+    },
+    {
+      "id": "metang",
+      "speciesId": "metang",
+      "name": "Metang",
+      "baseSpecies": "Metang"
+    },
+    {
+      "id": "metagross",
+      "speciesId": "metagross",
+      "name": "Metagross",
+      "baseSpecies": "Metagross"
+    },
+    {
+      "id": "metagross-mega",
+      "speciesId": "metagrossmega",
+      "name": "Metagross-Mega",
+      "baseSpecies": "Metagross"
+    },
+    {
+      "id": "regirock",
+      "speciesId": "regirock",
+      "name": "Regirock",
+      "baseSpecies": "Regirock"
+    },
+    {
+      "id": "regice",
+      "speciesId": "regice",
+      "name": "Regice",
+      "baseSpecies": "Regice"
+    },
+    {
+      "id": "registeel",
+      "speciesId": "registeel",
+      "name": "Registeel",
+      "baseSpecies": "Registeel"
+    },
+    {
+      "id": "latias",
+      "speciesId": "latias",
+      "name": "Latias",
+      "baseSpecies": "Latias"
+    },
+    {
+      "id": "latias-mega",
+      "speciesId": "latiasmega",
+      "name": "Latias-Mega",
+      "baseSpecies": "Latias"
+    },
+    {
+      "id": "latios",
+      "speciesId": "latios",
+      "name": "Latios",
+      "baseSpecies": "Latios"
+    },
+    {
+      "id": "latios-mega",
+      "speciesId": "latiosmega",
+      "name": "Latios-Mega",
+      "baseSpecies": "Latios"
+    },
+    {
+      "id": "kyogre",
+      "speciesId": "kyogre",
+      "name": "Kyogre",
+      "baseSpecies": "Kyogre"
+    },
+    {
+      "id": "kyogre-primal",
+      "speciesId": "kyogreprimal",
+      "name": "Kyogre-Primal",
+      "baseSpecies": "Kyogre"
+    },
+    {
+      "id": "groudon",
+      "speciesId": "groudon",
+      "name": "Groudon",
+      "baseSpecies": "Groudon"
+    },
+    {
+      "id": "groudon-primal",
+      "speciesId": "groudonprimal",
+      "name": "Groudon-Primal",
+      "baseSpecies": "Groudon"
+    },
+    {
+      "id": "rayquaza",
+      "speciesId": "rayquaza",
+      "name": "Rayquaza",
+      "baseSpecies": "Rayquaza"
+    },
+    {
+      "id": "rayquaza-mega",
+      "speciesId": "rayquazamega",
+      "name": "Rayquaza-Mega",
+      "baseSpecies": "Rayquaza"
+    },
+    {
+      "id": "jirachi",
+      "speciesId": "jirachi",
+      "name": "Jirachi",
+      "baseSpecies": "Jirachi"
+    },
+    {
+      "id": "deoxys",
+      "speciesId": "deoxys",
+      "name": "Deoxys",
+      "baseSpecies": "Deoxys"
+    },
+    {
+      "id": "deoxys-attack",
+      "speciesId": "deoxysattack",
+      "name": "Deoxys-Attack",
+      "baseSpecies": "Deoxys"
+    },
+    {
+      "id": "deoxys-defense",
+      "speciesId": "deoxysdefense",
+      "name": "Deoxys-Defense",
+      "baseSpecies": "Deoxys"
+    },
+    {
+      "id": "deoxys-speed",
+      "speciesId": "deoxysspeed",
+      "name": "Deoxys-Speed",
+      "baseSpecies": "Deoxys"
+    },
+    {
+      "id": "turtwig",
+      "speciesId": "turtwig",
+      "name": "Turtwig",
+      "baseSpecies": "Turtwig"
+    },
+    {
+      "id": "grotle",
+      "speciesId": "grotle",
+      "name": "Grotle",
+      "baseSpecies": "Grotle"
+    },
+    {
+      "id": "torterra",
+      "speciesId": "torterra",
+      "name": "Torterra",
+      "baseSpecies": "Torterra"
+    },
+    {
+      "id": "chimchar",
+      "speciesId": "chimchar",
+      "name": "Chimchar",
+      "baseSpecies": "Chimchar"
+    },
+    {
+      "id": "monferno",
+      "speciesId": "monferno",
+      "name": "Monferno",
+      "baseSpecies": "Monferno"
+    },
+    {
+      "id": "infernape",
+      "speciesId": "infernape",
+      "name": "Infernape",
+      "baseSpecies": "Infernape"
+    },
+    {
+      "id": "piplup",
+      "speciesId": "piplup",
+      "name": "Piplup",
+      "baseSpecies": "Piplup"
+    },
+    {
+      "id": "prinplup",
+      "speciesId": "prinplup",
+      "name": "Prinplup",
+      "baseSpecies": "Prinplup"
+    },
+    {
+      "id": "empoleon",
+      "speciesId": "empoleon",
+      "name": "Empoleon",
+      "baseSpecies": "Empoleon"
+    },
+    {
+      "id": "starly",
+      "speciesId": "starly",
+      "name": "Starly",
+      "baseSpecies": "Starly"
+    },
+    {
+      "id": "staravia",
+      "speciesId": "staravia",
+      "name": "Staravia",
+      "baseSpecies": "Staravia"
+    },
+    {
+      "id": "staraptor",
+      "speciesId": "staraptor",
+      "name": "Staraptor",
+      "baseSpecies": "Staraptor"
+    },
+    {
+      "id": "staraptor-mega",
+      "speciesId": "staraptormega",
+      "name": "Staraptor-Mega",
+      "baseSpecies": "Staraptor"
+    },
+    {
+      "id": "bidoof",
+      "speciesId": "bidoof",
+      "name": "Bidoof",
+      "baseSpecies": "Bidoof"
+    },
+    {
+      "id": "bibarel",
+      "speciesId": "bibarel",
+      "name": "Bibarel",
+      "baseSpecies": "Bibarel"
+    },
+    {
+      "id": "kricketot",
+      "speciesId": "kricketot",
+      "name": "Kricketot",
+      "baseSpecies": "Kricketot"
+    },
+    {
+      "id": "kricketune",
+      "speciesId": "kricketune",
+      "name": "Kricketune",
+      "baseSpecies": "Kricketune"
+    },
+    {
+      "id": "shinx",
+      "speciesId": "shinx",
+      "name": "Shinx",
+      "baseSpecies": "Shinx"
+    },
+    {
+      "id": "luxio",
+      "speciesId": "luxio",
+      "name": "Luxio",
+      "baseSpecies": "Luxio"
+    },
+    {
+      "id": "luxray",
+      "speciesId": "luxray",
+      "name": "Luxray",
+      "baseSpecies": "Luxray"
+    },
+    {
+      "id": "budew",
+      "speciesId": "budew",
+      "name": "Budew",
+      "baseSpecies": "Budew"
+    },
+    {
+      "id": "roserade",
+      "speciesId": "roserade",
+      "name": "Roserade",
+      "baseSpecies": "Roserade"
+    },
+    {
+      "id": "cranidos",
+      "speciesId": "cranidos",
+      "name": "Cranidos",
+      "baseSpecies": "Cranidos"
+    },
+    {
+      "id": "rampardos",
+      "speciesId": "rampardos",
+      "name": "Rampardos",
+      "baseSpecies": "Rampardos"
+    },
+    {
+      "id": "shieldon",
+      "speciesId": "shieldon",
+      "name": "Shieldon",
+      "baseSpecies": "Shieldon"
+    },
+    {
+      "id": "bastiodon",
+      "speciesId": "bastiodon",
+      "name": "Bastiodon",
+      "baseSpecies": "Bastiodon"
+    },
+    {
+      "id": "burmy",
+      "speciesId": "burmy",
+      "name": "Burmy",
+      "baseSpecies": "Burmy"
+    },
+    {
+      "id": "wormadam",
+      "speciesId": "wormadam",
+      "name": "Wormadam",
+      "baseSpecies": "Wormadam"
+    },
+    {
+      "id": "wormadam-sandy",
+      "speciesId": "wormadamsandy",
+      "name": "Wormadam-Sandy",
+      "baseSpecies": "Wormadam"
+    },
+    {
+      "id": "wormadam-trash",
+      "speciesId": "wormadamtrash",
+      "name": "Wormadam-Trash",
+      "baseSpecies": "Wormadam"
+    },
+    {
+      "id": "mothim",
+      "speciesId": "mothim",
+      "name": "Mothim",
+      "baseSpecies": "Mothim"
+    },
+    {
+      "id": "combee",
+      "speciesId": "combee",
+      "name": "Combee",
+      "baseSpecies": "Combee"
+    },
+    {
+      "id": "vespiquen",
+      "speciesId": "vespiquen",
+      "name": "Vespiquen",
+      "baseSpecies": "Vespiquen"
+    },
+    {
+      "id": "pachirisu",
+      "speciesId": "pachirisu",
+      "name": "Pachirisu",
+      "baseSpecies": "Pachirisu"
+    },
+    {
+      "id": "buizel",
+      "speciesId": "buizel",
+      "name": "Buizel",
+      "baseSpecies": "Buizel"
+    },
+    {
+      "id": "floatzel",
+      "speciesId": "floatzel",
+      "name": "Floatzel",
+      "baseSpecies": "Floatzel"
+    },
+    {
+      "id": "cherubi",
+      "speciesId": "cherubi",
+      "name": "Cherubi",
+      "baseSpecies": "Cherubi"
+    },
+    {
+      "id": "cherrim",
+      "speciesId": "cherrim",
+      "name": "Cherrim",
+      "baseSpecies": "Cherrim"
+    },
+    {
+      "id": "cherrim-sunshine",
+      "speciesId": "cherrimsunshine",
+      "name": "Cherrim-Sunshine",
+      "baseSpecies": "Cherrim"
+    },
+    {
+      "id": "shellos",
+      "speciesId": "shellos",
+      "name": "Shellos",
+      "baseSpecies": "Shellos"
+    },
+    {
+      "id": "gastrodon",
+      "speciesId": "gastrodon",
+      "name": "Gastrodon",
+      "baseSpecies": "Gastrodon"
+    },
+    {
+      "id": "ambipom",
+      "speciesId": "ambipom",
+      "name": "Ambipom",
+      "baseSpecies": "Ambipom"
+    },
+    {
+      "id": "drifloon",
+      "speciesId": "drifloon",
+      "name": "Drifloon",
+      "baseSpecies": "Drifloon"
+    },
+    {
+      "id": "drifblim",
+      "speciesId": "drifblim",
+      "name": "Drifblim",
+      "baseSpecies": "Drifblim"
+    },
+    {
+      "id": "buneary",
+      "speciesId": "buneary",
+      "name": "Buneary",
+      "baseSpecies": "Buneary"
+    },
+    {
+      "id": "lopunny",
+      "speciesId": "lopunny",
+      "name": "Lopunny",
+      "baseSpecies": "Lopunny"
+    },
+    {
+      "id": "lopunny-mega",
+      "speciesId": "lopunnymega",
+      "name": "Lopunny-Mega",
+      "baseSpecies": "Lopunny"
+    },
+    {
+      "id": "mismagius",
+      "speciesId": "mismagius",
+      "name": "Mismagius",
+      "baseSpecies": "Mismagius"
+    },
+    {
+      "id": "honchkrow",
+      "speciesId": "honchkrow",
+      "name": "Honchkrow",
+      "baseSpecies": "Honchkrow"
+    },
+    {
+      "id": "glameow",
+      "speciesId": "glameow",
+      "name": "Glameow",
+      "baseSpecies": "Glameow"
+    },
+    {
+      "id": "purugly",
+      "speciesId": "purugly",
+      "name": "Purugly",
+      "baseSpecies": "Purugly"
+    },
+    {
+      "id": "chingling",
+      "speciesId": "chingling",
+      "name": "Chingling",
+      "baseSpecies": "Chingling"
+    },
+    {
+      "id": "stunky",
+      "speciesId": "stunky",
+      "name": "Stunky",
+      "baseSpecies": "Stunky"
+    },
+    {
+      "id": "skuntank",
+      "speciesId": "skuntank",
+      "name": "Skuntank",
+      "baseSpecies": "Skuntank"
+    },
+    {
+      "id": "bronzor",
+      "speciesId": "bronzor",
+      "name": "Bronzor",
+      "baseSpecies": "Bronzor"
+    },
+    {
+      "id": "bronzong",
+      "speciesId": "bronzong",
+      "name": "Bronzong",
+      "baseSpecies": "Bronzong"
+    },
+    {
+      "id": "bonsly",
+      "speciesId": "bonsly",
+      "name": "Bonsly",
+      "baseSpecies": "Bonsly"
+    },
+    {
+      "id": "mimejr",
+      "speciesId": "mimejr",
+      "name": "Mime Jr.",
+      "baseSpecies": "Mime Jr."
+    },
+    {
+      "id": "happiny",
+      "speciesId": "happiny",
+      "name": "Happiny",
+      "baseSpecies": "Happiny"
+    },
+    {
+      "id": "chatot",
+      "speciesId": "chatot",
+      "name": "Chatot",
+      "baseSpecies": "Chatot"
+    },
+    {
+      "id": "spiritomb",
+      "speciesId": "spiritomb",
+      "name": "Spiritomb",
+      "baseSpecies": "Spiritomb"
+    },
+    {
+      "id": "gible",
+      "speciesId": "gible",
+      "name": "Gible",
+      "baseSpecies": "Gible"
+    },
+    {
+      "id": "gabite",
+      "speciesId": "gabite",
+      "name": "Gabite",
+      "baseSpecies": "Gabite"
+    },
+    {
+      "id": "garchomp",
+      "speciesId": "garchomp",
+      "name": "Garchomp",
+      "baseSpecies": "Garchomp"
+    },
+    {
+      "id": "garchomp-mega",
+      "speciesId": "garchompmega",
+      "name": "Garchomp-Mega",
+      "baseSpecies": "Garchomp"
+    },
+    {
+      "id": "garchomp-megaz",
+      "speciesId": "garchompmegaz",
+      "name": "Garchomp-Mega-Z",
+      "baseSpecies": "Garchomp"
+    },
+    {
+      "id": "munchlax",
+      "speciesId": "munchlax",
+      "name": "Munchlax",
+      "baseSpecies": "Munchlax"
+    },
+    {
+      "id": "riolu",
+      "speciesId": "riolu",
+      "name": "Riolu",
+      "baseSpecies": "Riolu"
+    },
+    {
+      "id": "lucario",
+      "speciesId": "lucario",
+      "name": "Lucario",
+      "baseSpecies": "Lucario"
+    },
+    {
+      "id": "lucario-mega",
+      "speciesId": "lucariomega",
+      "name": "Lucario-Mega",
+      "baseSpecies": "Lucario"
+    },
+    {
+      "id": "lucario-megaz",
+      "speciesId": "lucariomegaz",
+      "name": "Lucario-Mega-Z",
+      "baseSpecies": "Lucario"
+    },
+    {
+      "id": "hippopotas",
+      "speciesId": "hippopotas",
+      "name": "Hippopotas",
+      "baseSpecies": "Hippopotas"
+    },
+    {
+      "id": "hippowdon",
+      "speciesId": "hippowdon",
+      "name": "Hippowdon",
+      "baseSpecies": "Hippowdon"
+    },
+    {
+      "id": "skorupi",
+      "speciesId": "skorupi",
+      "name": "Skorupi",
+      "baseSpecies": "Skorupi"
+    },
+    {
+      "id": "drapion",
+      "speciesId": "drapion",
+      "name": "Drapion",
+      "baseSpecies": "Drapion"
+    },
+    {
+      "id": "croagunk",
+      "speciesId": "croagunk",
+      "name": "Croagunk",
+      "baseSpecies": "Croagunk"
+    },
+    {
+      "id": "toxicroak",
+      "speciesId": "toxicroak",
+      "name": "Toxicroak",
+      "baseSpecies": "Toxicroak"
+    },
+    {
+      "id": "carnivine",
+      "speciesId": "carnivine",
+      "name": "Carnivine",
+      "baseSpecies": "Carnivine"
+    },
+    {
+      "id": "finneon",
+      "speciesId": "finneon",
+      "name": "Finneon",
+      "baseSpecies": "Finneon"
+    },
+    {
+      "id": "lumineon",
+      "speciesId": "lumineon",
+      "name": "Lumineon",
+      "baseSpecies": "Lumineon"
+    },
+    {
+      "id": "mantyke",
+      "speciesId": "mantyke",
+      "name": "Mantyke",
+      "baseSpecies": "Mantyke"
+    },
+    {
+      "id": "snover",
+      "speciesId": "snover",
+      "name": "Snover",
+      "baseSpecies": "Snover"
+    },
+    {
+      "id": "abomasnow",
+      "speciesId": "abomasnow",
+      "name": "Abomasnow",
+      "baseSpecies": "Abomasnow"
+    },
+    {
+      "id": "abomasnow-mega",
+      "speciesId": "abomasnowmega",
+      "name": "Abomasnow-Mega",
+      "baseSpecies": "Abomasnow"
+    },
+    {
+      "id": "weavile",
+      "speciesId": "weavile",
+      "name": "Weavile",
+      "baseSpecies": "Weavile"
+    },
+    {
+      "id": "magnezone",
+      "speciesId": "magnezone",
+      "name": "Magnezone",
+      "baseSpecies": "Magnezone"
+    },
+    {
+      "id": "lickilicky",
+      "speciesId": "lickilicky",
+      "name": "Lickilicky",
+      "baseSpecies": "Lickilicky"
+    },
+    {
+      "id": "rhyperior",
+      "speciesId": "rhyperior",
+      "name": "Rhyperior",
+      "baseSpecies": "Rhyperior"
+    },
+    {
+      "id": "tangrowth",
+      "speciesId": "tangrowth",
+      "name": "Tangrowth",
+      "baseSpecies": "Tangrowth"
+    },
+    {
+      "id": "electivire",
+      "speciesId": "electivire",
+      "name": "Electivire",
+      "baseSpecies": "Electivire"
+    },
+    {
+      "id": "magmortar",
+      "speciesId": "magmortar",
+      "name": "Magmortar",
+      "baseSpecies": "Magmortar"
+    },
+    {
+      "id": "togekiss",
+      "speciesId": "togekiss",
+      "name": "Togekiss",
+      "baseSpecies": "Togekiss"
+    },
+    {
+      "id": "yanmega",
+      "speciesId": "yanmega",
+      "name": "Yanmega",
+      "baseSpecies": "Yanmega"
+    },
+    {
+      "id": "leafeon",
+      "speciesId": "leafeon",
+      "name": "Leafeon",
+      "baseSpecies": "Leafeon"
+    },
+    {
+      "id": "glaceon",
+      "speciesId": "glaceon",
+      "name": "Glaceon",
+      "baseSpecies": "Glaceon"
+    },
+    {
+      "id": "gliscor",
+      "speciesId": "gliscor",
+      "name": "Gliscor",
+      "baseSpecies": "Gliscor"
+    },
+    {
+      "id": "mamoswine",
+      "speciesId": "mamoswine",
+      "name": "Mamoswine",
+      "baseSpecies": "Mamoswine"
+    },
+    {
+      "id": "porygonz",
+      "speciesId": "porygonz",
+      "name": "Porygon-Z",
+      "baseSpecies": "Porygon-Z"
+    },
+    {
+      "id": "gallade",
+      "speciesId": "gallade",
+      "name": "Gallade",
+      "baseSpecies": "Gallade"
+    },
+    {
+      "id": "gallade-mega",
+      "speciesId": "gallademega",
+      "name": "Gallade-Mega",
+      "baseSpecies": "Gallade"
+    },
+    {
+      "id": "probopass",
+      "speciesId": "probopass",
+      "name": "Probopass",
+      "baseSpecies": "Probopass"
+    },
+    {
+      "id": "dusknoir",
+      "speciesId": "dusknoir",
+      "name": "Dusknoir",
+      "baseSpecies": "Dusknoir"
+    },
+    {
+      "id": "froslass",
+      "speciesId": "froslass",
+      "name": "Froslass",
+      "baseSpecies": "Froslass"
+    },
+    {
+      "id": "froslass-mega",
+      "speciesId": "froslassmega",
+      "name": "Froslass-Mega",
+      "baseSpecies": "Froslass"
+    },
+    {
+      "id": "rotom",
+      "speciesId": "rotom",
+      "name": "Rotom",
+      "baseSpecies": "Rotom"
+    },
+    {
+      "id": "rotom-heat",
+      "speciesId": "rotomheat",
+      "name": "Rotom-Heat",
+      "baseSpecies": "Rotom"
+    },
+    {
+      "id": "rotom-wash",
+      "speciesId": "rotomwash",
+      "name": "Rotom-Wash",
+      "baseSpecies": "Rotom"
+    },
+    {
+      "id": "rotom-frost",
+      "speciesId": "rotomfrost",
+      "name": "Rotom-Frost",
+      "baseSpecies": "Rotom"
+    },
+    {
+      "id": "rotom-fan",
+      "speciesId": "rotomfan",
+      "name": "Rotom-Fan",
+      "baseSpecies": "Rotom"
+    },
+    {
+      "id": "rotom-mow",
+      "speciesId": "rotommow",
+      "name": "Rotom-Mow",
+      "baseSpecies": "Rotom"
+    },
+    {
+      "id": "uxie",
+      "speciesId": "uxie",
+      "name": "Uxie",
+      "baseSpecies": "Uxie"
+    },
+    {
+      "id": "mesprit",
+      "speciesId": "mesprit",
+      "name": "Mesprit",
+      "baseSpecies": "Mesprit"
+    },
+    {
+      "id": "azelf",
+      "speciesId": "azelf",
+      "name": "Azelf",
+      "baseSpecies": "Azelf"
+    },
+    {
+      "id": "dialga",
+      "speciesId": "dialga",
+      "name": "Dialga",
+      "baseSpecies": "Dialga"
+    },
+    {
+      "id": "dialga-origin",
+      "speciesId": "dialgaorigin",
+      "name": "Dialga-Origin",
+      "baseSpecies": "Dialga"
+    },
+    {
+      "id": "palkia",
+      "speciesId": "palkia",
+      "name": "Palkia",
+      "baseSpecies": "Palkia"
+    },
+    {
+      "id": "palkia-origin",
+      "speciesId": "palkiaorigin",
+      "name": "Palkia-Origin",
+      "baseSpecies": "Palkia"
+    },
+    {
+      "id": "heatran",
+      "speciesId": "heatran",
+      "name": "Heatran",
+      "baseSpecies": "Heatran"
+    },
+    {
+      "id": "heatran-mega",
+      "speciesId": "heatranmega",
+      "name": "Heatran-Mega",
+      "baseSpecies": "Heatran"
+    },
+    {
+      "id": "regigigas",
+      "speciesId": "regigigas",
+      "name": "Regigigas",
+      "baseSpecies": "Regigigas"
+    },
+    {
+      "id": "giratina",
+      "speciesId": "giratina",
+      "name": "Giratina",
+      "baseSpecies": "Giratina"
+    },
+    {
+      "id": "giratina-origin",
+      "speciesId": "giratinaorigin",
+      "name": "Giratina-Origin",
+      "baseSpecies": "Giratina"
+    },
+    {
+      "id": "cresselia",
+      "speciesId": "cresselia",
+      "name": "Cresselia",
+      "baseSpecies": "Cresselia"
+    },
+    {
+      "id": "phione",
+      "speciesId": "phione",
+      "name": "Phione",
+      "baseSpecies": "Phione"
+    },
+    {
+      "id": "manaphy",
+      "speciesId": "manaphy",
+      "name": "Manaphy",
+      "baseSpecies": "Manaphy"
+    },
+    {
+      "id": "darkrai",
+      "speciesId": "darkrai",
+      "name": "Darkrai",
+      "baseSpecies": "Darkrai"
+    },
+    {
+      "id": "darkrai-mega",
+      "speciesId": "darkraimega",
+      "name": "Darkrai-Mega",
+      "baseSpecies": "Darkrai"
+    },
+    {
+      "id": "shaymin",
+      "speciesId": "shaymin",
+      "name": "Shaymin",
+      "baseSpecies": "Shaymin"
+    },
+    {
+      "id": "shaymin-sky",
+      "speciesId": "shayminsky",
+      "name": "Shaymin-Sky",
+      "baseSpecies": "Shaymin"
+    },
+    {
+      "id": "arceus",
+      "speciesId": "arceus",
+      "name": "Arceus",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-bug",
+      "speciesId": "arceusbug",
+      "name": "Arceus-Bug",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-dark",
+      "speciesId": "arceusdark",
+      "name": "Arceus-Dark",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-dragon",
+      "speciesId": "arceusdragon",
+      "name": "Arceus-Dragon",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-electric",
+      "speciesId": "arceuselectric",
+      "name": "Arceus-Electric",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-fairy",
+      "speciesId": "arceusfairy",
+      "name": "Arceus-Fairy",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-fighting",
+      "speciesId": "arceusfighting",
+      "name": "Arceus-Fighting",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-fire",
+      "speciesId": "arceusfire",
+      "name": "Arceus-Fire",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-flying",
+      "speciesId": "arceusflying",
+      "name": "Arceus-Flying",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-ghost",
+      "speciesId": "arceusghost",
+      "name": "Arceus-Ghost",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-grass",
+      "speciesId": "arceusgrass",
+      "name": "Arceus-Grass",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-ground",
+      "speciesId": "arceusground",
+      "name": "Arceus-Ground",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-ice",
+      "speciesId": "arceusice",
+      "name": "Arceus-Ice",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-poison",
+      "speciesId": "arceuspoison",
+      "name": "Arceus-Poison",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-psychic",
+      "speciesId": "arceuspsychic",
+      "name": "Arceus-Psychic",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-rock",
+      "speciesId": "arceusrock",
+      "name": "Arceus-Rock",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-steel",
+      "speciesId": "arceussteel",
+      "name": "Arceus-Steel",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "arceus-water",
+      "speciesId": "arceuswater",
+      "name": "Arceus-Water",
+      "baseSpecies": "Arceus"
+    },
+    {
+      "id": "victini",
+      "speciesId": "victini",
+      "name": "Victini",
+      "baseSpecies": "Victini"
+    },
+    {
+      "id": "snivy",
+      "speciesId": "snivy",
+      "name": "Snivy",
+      "baseSpecies": "Snivy"
+    },
+    {
+      "id": "servine",
+      "speciesId": "servine",
+      "name": "Servine",
+      "baseSpecies": "Servine"
+    },
+    {
+      "id": "serperior",
+      "speciesId": "serperior",
+      "name": "Serperior",
+      "baseSpecies": "Serperior"
+    },
+    {
+      "id": "tepig",
+      "speciesId": "tepig",
+      "name": "Tepig",
+      "baseSpecies": "Tepig"
+    },
+    {
+      "id": "pignite",
+      "speciesId": "pignite",
+      "name": "Pignite",
+      "baseSpecies": "Pignite"
+    },
+    {
+      "id": "emboar",
+      "speciesId": "emboar",
+      "name": "Emboar",
+      "baseSpecies": "Emboar"
+    },
+    {
+      "id": "emboar-mega",
+      "speciesId": "emboarmega",
+      "name": "Emboar-Mega",
+      "baseSpecies": "Emboar"
+    },
+    {
+      "id": "oshawott",
+      "speciesId": "oshawott",
+      "name": "Oshawott",
+      "baseSpecies": "Oshawott"
+    },
+    {
+      "id": "dewott",
+      "speciesId": "dewott",
+      "name": "Dewott",
+      "baseSpecies": "Dewott"
+    },
+    {
+      "id": "samurott",
+      "speciesId": "samurott",
+      "name": "Samurott",
+      "baseSpecies": "Samurott"
+    },
+    {
+      "id": "samurott-hisui",
+      "speciesId": "samurotthisui",
+      "name": "Samurott-Hisui",
+      "baseSpecies": "Samurott"
+    },
+    {
+      "id": "patrat",
+      "speciesId": "patrat",
+      "name": "Patrat",
+      "baseSpecies": "Patrat"
+    },
+    {
+      "id": "watchog",
+      "speciesId": "watchog",
+      "name": "Watchog",
+      "baseSpecies": "Watchog"
+    },
+    {
+      "id": "lillipup",
+      "speciesId": "lillipup",
+      "name": "Lillipup",
+      "baseSpecies": "Lillipup"
+    },
+    {
+      "id": "herdier",
+      "speciesId": "herdier",
+      "name": "Herdier",
+      "baseSpecies": "Herdier"
+    },
+    {
+      "id": "stoutland",
+      "speciesId": "stoutland",
+      "name": "Stoutland",
+      "baseSpecies": "Stoutland"
+    },
+    {
+      "id": "purrloin",
+      "speciesId": "purrloin",
+      "name": "Purrloin",
+      "baseSpecies": "Purrloin"
+    },
+    {
+      "id": "liepard",
+      "speciesId": "liepard",
+      "name": "Liepard",
+      "baseSpecies": "Liepard"
+    },
+    {
+      "id": "pansage",
+      "speciesId": "pansage",
+      "name": "Pansage",
+      "baseSpecies": "Pansage"
+    },
+    {
+      "id": "simisage",
+      "speciesId": "simisage",
+      "name": "Simisage",
+      "baseSpecies": "Simisage"
+    },
+    {
+      "id": "pansear",
+      "speciesId": "pansear",
+      "name": "Pansear",
+      "baseSpecies": "Pansear"
+    },
+    {
+      "id": "simisear",
+      "speciesId": "simisear",
+      "name": "Simisear",
+      "baseSpecies": "Simisear"
+    },
+    {
+      "id": "panpour",
+      "speciesId": "panpour",
+      "name": "Panpour",
+      "baseSpecies": "Panpour"
+    },
+    {
+      "id": "simipour",
+      "speciesId": "simipour",
+      "name": "Simipour",
+      "baseSpecies": "Simipour"
+    },
+    {
+      "id": "munna",
+      "speciesId": "munna",
+      "name": "Munna",
+      "baseSpecies": "Munna"
+    },
+    {
+      "id": "musharna",
+      "speciesId": "musharna",
+      "name": "Musharna",
+      "baseSpecies": "Musharna"
+    },
+    {
+      "id": "pidove",
+      "speciesId": "pidove",
+      "name": "Pidove",
+      "baseSpecies": "Pidove"
+    },
+    {
+      "id": "tranquill",
+      "speciesId": "tranquill",
+      "name": "Tranquill",
+      "baseSpecies": "Tranquill"
+    },
+    {
+      "id": "unfezant",
+      "speciesId": "unfezant",
+      "name": "Unfezant",
+      "baseSpecies": "Unfezant"
+    },
+    {
+      "id": "blitzle",
+      "speciesId": "blitzle",
+      "name": "Blitzle",
+      "baseSpecies": "Blitzle"
+    },
+    {
+      "id": "zebstrika",
+      "speciesId": "zebstrika",
+      "name": "Zebstrika",
+      "baseSpecies": "Zebstrika"
+    },
+    {
+      "id": "roggenrola",
+      "speciesId": "roggenrola",
+      "name": "Roggenrola",
+      "baseSpecies": "Roggenrola"
+    },
+    {
+      "id": "boldore",
+      "speciesId": "boldore",
+      "name": "Boldore",
+      "baseSpecies": "Boldore"
+    },
+    {
+      "id": "gigalith",
+      "speciesId": "gigalith",
+      "name": "Gigalith",
+      "baseSpecies": "Gigalith"
+    },
+    {
+      "id": "woobat",
+      "speciesId": "woobat",
+      "name": "Woobat",
+      "baseSpecies": "Woobat"
+    },
+    {
+      "id": "swoobat",
+      "speciesId": "swoobat",
+      "name": "Swoobat",
+      "baseSpecies": "Swoobat"
+    },
+    {
+      "id": "drilbur",
+      "speciesId": "drilbur",
+      "name": "Drilbur",
+      "baseSpecies": "Drilbur"
+    },
+    {
+      "id": "excadrill",
+      "speciesId": "excadrill",
+      "name": "Excadrill",
+      "baseSpecies": "Excadrill"
+    },
+    {
+      "id": "excadrill-mega",
+      "speciesId": "excadrillmega",
+      "name": "Excadrill-Mega",
+      "baseSpecies": "Excadrill"
+    },
+    {
+      "id": "audino",
+      "speciesId": "audino",
+      "name": "Audino",
+      "baseSpecies": "Audino"
+    },
+    {
+      "id": "audino-mega",
+      "speciesId": "audinomega",
+      "name": "Audino-Mega",
+      "baseSpecies": "Audino"
+    },
+    {
+      "id": "timburr",
+      "speciesId": "timburr",
+      "name": "Timburr",
+      "baseSpecies": "Timburr"
+    },
+    {
+      "id": "gurdurr",
+      "speciesId": "gurdurr",
+      "name": "Gurdurr",
+      "baseSpecies": "Gurdurr"
+    },
+    {
+      "id": "conkeldurr",
+      "speciesId": "conkeldurr",
+      "name": "Conkeldurr",
+      "baseSpecies": "Conkeldurr"
+    },
+    {
+      "id": "tympole",
+      "speciesId": "tympole",
+      "name": "Tympole",
+      "baseSpecies": "Tympole"
+    },
+    {
+      "id": "palpitoad",
+      "speciesId": "palpitoad",
+      "name": "Palpitoad",
+      "baseSpecies": "Palpitoad"
+    },
+    {
+      "id": "seismitoad",
+      "speciesId": "seismitoad",
+      "name": "Seismitoad",
+      "baseSpecies": "Seismitoad"
+    },
+    {
+      "id": "throh",
+      "speciesId": "throh",
+      "name": "Throh",
+      "baseSpecies": "Throh"
+    },
+    {
+      "id": "sawk",
+      "speciesId": "sawk",
+      "name": "Sawk",
+      "baseSpecies": "Sawk"
+    },
+    {
+      "id": "sewaddle",
+      "speciesId": "sewaddle",
+      "name": "Sewaddle",
+      "baseSpecies": "Sewaddle"
+    },
+    {
+      "id": "swadloon",
+      "speciesId": "swadloon",
+      "name": "Swadloon",
+      "baseSpecies": "Swadloon"
+    },
+    {
+      "id": "leavanny",
+      "speciesId": "leavanny",
+      "name": "Leavanny",
+      "baseSpecies": "Leavanny"
+    },
+    {
+      "id": "venipede",
+      "speciesId": "venipede",
+      "name": "Venipede",
+      "baseSpecies": "Venipede"
+    },
+    {
+      "id": "whirlipede",
+      "speciesId": "whirlipede",
+      "name": "Whirlipede",
+      "baseSpecies": "Whirlipede"
+    },
+    {
+      "id": "scolipede",
+      "speciesId": "scolipede",
+      "name": "Scolipede",
+      "baseSpecies": "Scolipede"
+    },
+    {
+      "id": "scolipede-mega",
+      "speciesId": "scolipedemega",
+      "name": "Scolipede-Mega",
+      "baseSpecies": "Scolipede"
+    },
+    {
+      "id": "cottonee",
+      "speciesId": "cottonee",
+      "name": "Cottonee",
+      "baseSpecies": "Cottonee"
+    },
+    {
+      "id": "whimsicott",
+      "speciesId": "whimsicott",
+      "name": "Whimsicott",
+      "baseSpecies": "Whimsicott"
+    },
+    {
+      "id": "petilil",
+      "speciesId": "petilil",
+      "name": "Petilil",
+      "baseSpecies": "Petilil"
+    },
+    {
+      "id": "lilligant",
+      "speciesId": "lilligant",
+      "name": "Lilligant",
+      "baseSpecies": "Lilligant"
+    },
+    {
+      "id": "lilligant-hisui",
+      "speciesId": "lilliganthisui",
+      "name": "Lilligant-Hisui",
+      "baseSpecies": "Lilligant"
+    },
+    {
+      "id": "basculin",
+      "speciesId": "basculin",
+      "name": "Basculin",
+      "baseSpecies": "Basculin"
+    },
+    {
+      "id": "basculin-bluestriped",
+      "speciesId": "basculinbluestriped",
+      "name": "Basculin-Blue-Striped",
+      "baseSpecies": "Basculin"
+    },
+    {
+      "id": "basculin-whitestriped",
+      "speciesId": "basculinwhitestriped",
+      "name": "Basculin-White-Striped",
+      "baseSpecies": "Basculin"
+    },
+    {
+      "id": "sandile",
+      "speciesId": "sandile",
+      "name": "Sandile",
+      "baseSpecies": "Sandile"
+    },
+    {
+      "id": "krokorok",
+      "speciesId": "krokorok",
+      "name": "Krokorok",
+      "baseSpecies": "Krokorok"
+    },
+    {
+      "id": "krookodile",
+      "speciesId": "krookodile",
+      "name": "Krookodile",
+      "baseSpecies": "Krookodile"
+    },
+    {
+      "id": "darumaka",
+      "speciesId": "darumaka",
+      "name": "Darumaka",
+      "baseSpecies": "Darumaka"
+    },
+    {
+      "id": "darumaka-galar",
+      "speciesId": "darumakagalar",
+      "name": "Darumaka-Galar",
+      "baseSpecies": "Darumaka"
+    },
+    {
+      "id": "darmanitan",
+      "speciesId": "darmanitan",
+      "name": "Darmanitan",
+      "baseSpecies": "Darmanitan"
+    },
+    {
+      "id": "darmanitan-zen",
+      "speciesId": "darmanitanzen",
+      "name": "Darmanitan-Zen",
+      "baseSpecies": "Darmanitan"
+    },
+    {
+      "id": "darmanitan-galar",
+      "speciesId": "darmanitangalar",
+      "name": "Darmanitan-Galar",
+      "baseSpecies": "Darmanitan"
+    },
+    {
+      "id": "darmanitan-galarzen",
+      "speciesId": "darmanitangalarzen",
+      "name": "Darmanitan-Galar-Zen",
+      "baseSpecies": "Darmanitan"
+    },
+    {
+      "id": "maractus",
+      "speciesId": "maractus",
+      "name": "Maractus",
+      "baseSpecies": "Maractus"
+    },
+    {
+      "id": "dwebble",
+      "speciesId": "dwebble",
+      "name": "Dwebble",
+      "baseSpecies": "Dwebble"
+    },
+    {
+      "id": "crustle",
+      "speciesId": "crustle",
+      "name": "Crustle",
+      "baseSpecies": "Crustle"
+    },
+    {
+      "id": "scraggy",
+      "speciesId": "scraggy",
+      "name": "Scraggy",
+      "baseSpecies": "Scraggy"
+    },
+    {
+      "id": "scrafty",
+      "speciesId": "scrafty",
+      "name": "Scrafty",
+      "baseSpecies": "Scrafty"
+    },
+    {
+      "id": "scrafty-mega",
+      "speciesId": "scraftymega",
+      "name": "Scrafty-Mega",
+      "baseSpecies": "Scrafty"
+    },
+    {
+      "id": "sigilyph",
+      "speciesId": "sigilyph",
+      "name": "Sigilyph",
+      "baseSpecies": "Sigilyph"
+    },
+    {
+      "id": "yamask",
+      "speciesId": "yamask",
+      "name": "Yamask",
+      "baseSpecies": "Yamask"
+    },
+    {
+      "id": "yamask-galar",
+      "speciesId": "yamaskgalar",
+      "name": "Yamask-Galar",
+      "baseSpecies": "Yamask"
+    },
+    {
+      "id": "cofagrigus",
+      "speciesId": "cofagrigus",
+      "name": "Cofagrigus",
+      "baseSpecies": "Cofagrigus"
+    },
+    {
+      "id": "tirtouga",
+      "speciesId": "tirtouga",
+      "name": "Tirtouga",
+      "baseSpecies": "Tirtouga"
+    },
+    {
+      "id": "carracosta",
+      "speciesId": "carracosta",
+      "name": "Carracosta",
+      "baseSpecies": "Carracosta"
+    },
+    {
+      "id": "archen",
+      "speciesId": "archen",
+      "name": "Archen",
+      "baseSpecies": "Archen"
+    },
+    {
+      "id": "archeops",
+      "speciesId": "archeops",
+      "name": "Archeops",
+      "baseSpecies": "Archeops"
+    },
+    {
+      "id": "trubbish",
+      "speciesId": "trubbish",
+      "name": "Trubbish",
+      "baseSpecies": "Trubbish"
+    },
+    {
+      "id": "garbodor",
+      "speciesId": "garbodor",
+      "name": "Garbodor",
+      "baseSpecies": "Garbodor"
+    },
+    {
+      "id": "garbodor-gmax",
+      "speciesId": "garbodorgmax",
+      "name": "Garbodor-Gmax",
+      "baseSpecies": "Garbodor"
+    },
+    {
+      "id": "zorua",
+      "speciesId": "zorua",
+      "name": "Zorua",
+      "baseSpecies": "Zorua"
+    },
+    {
+      "id": "zorua-hisui",
+      "speciesId": "zoruahisui",
+      "name": "Zorua-Hisui",
+      "baseSpecies": "Zorua"
+    },
+    {
+      "id": "zoroark",
+      "speciesId": "zoroark",
+      "name": "Zoroark",
+      "baseSpecies": "Zoroark"
+    },
+    {
+      "id": "zoroark-hisui",
+      "speciesId": "zoroarkhisui",
+      "name": "Zoroark-Hisui",
+      "baseSpecies": "Zoroark"
+    },
+    {
+      "id": "minccino",
+      "speciesId": "minccino",
+      "name": "Minccino",
+      "baseSpecies": "Minccino"
+    },
+    {
+      "id": "cinccino",
+      "speciesId": "cinccino",
+      "name": "Cinccino",
+      "baseSpecies": "Cinccino"
+    },
+    {
+      "id": "gothita",
+      "speciesId": "gothita",
+      "name": "Gothita",
+      "baseSpecies": "Gothita"
+    },
+    {
+      "id": "gothorita",
+      "speciesId": "gothorita",
+      "name": "Gothorita",
+      "baseSpecies": "Gothorita"
+    },
+    {
+      "id": "gothitelle",
+      "speciesId": "gothitelle",
+      "name": "Gothitelle",
+      "baseSpecies": "Gothitelle"
+    },
+    {
+      "id": "solosis",
+      "speciesId": "solosis",
+      "name": "Solosis",
+      "baseSpecies": "Solosis"
+    },
+    {
+      "id": "duosion",
+      "speciesId": "duosion",
+      "name": "Duosion",
+      "baseSpecies": "Duosion"
+    },
+    {
+      "id": "reuniclus",
+      "speciesId": "reuniclus",
+      "name": "Reuniclus",
+      "baseSpecies": "Reuniclus"
+    },
+    {
+      "id": "ducklett",
+      "speciesId": "ducklett",
+      "name": "Ducklett",
+      "baseSpecies": "Ducklett"
+    },
+    {
+      "id": "swanna",
+      "speciesId": "swanna",
+      "name": "Swanna",
+      "baseSpecies": "Swanna"
+    },
+    {
+      "id": "vanillite",
+      "speciesId": "vanillite",
+      "name": "Vanillite",
+      "baseSpecies": "Vanillite"
+    },
+    {
+      "id": "vanillish",
+      "speciesId": "vanillish",
+      "name": "Vanillish",
+      "baseSpecies": "Vanillish"
+    },
+    {
+      "id": "vanilluxe",
+      "speciesId": "vanilluxe",
+      "name": "Vanilluxe",
+      "baseSpecies": "Vanilluxe"
+    },
+    {
+      "id": "deerling",
+      "speciesId": "deerling",
+      "name": "Deerling",
+      "baseSpecies": "Deerling"
+    },
+    {
+      "id": "sawsbuck",
+      "speciesId": "sawsbuck",
+      "name": "Sawsbuck",
+      "baseSpecies": "Sawsbuck"
+    },
+    {
+      "id": "emolga",
+      "speciesId": "emolga",
+      "name": "Emolga",
+      "baseSpecies": "Emolga"
+    },
+    {
+      "id": "karrablast",
+      "speciesId": "karrablast",
+      "name": "Karrablast",
+      "baseSpecies": "Karrablast"
+    },
+    {
+      "id": "escavalier",
+      "speciesId": "escavalier",
+      "name": "Escavalier",
+      "baseSpecies": "Escavalier"
+    },
+    {
+      "id": "foongus",
+      "speciesId": "foongus",
+      "name": "Foongus",
+      "baseSpecies": "Foongus"
+    },
+    {
+      "id": "amoonguss",
+      "speciesId": "amoonguss",
+      "name": "Amoonguss",
+      "baseSpecies": "Amoonguss"
+    },
+    {
+      "id": "frillish",
+      "speciesId": "frillish",
+      "name": "Frillish",
+      "baseSpecies": "Frillish"
+    },
+    {
+      "id": "jellicent",
+      "speciesId": "jellicent",
+      "name": "Jellicent",
+      "baseSpecies": "Jellicent"
+    },
+    {
+      "id": "alomomola",
+      "speciesId": "alomomola",
+      "name": "Alomomola",
+      "baseSpecies": "Alomomola"
+    },
+    {
+      "id": "joltik",
+      "speciesId": "joltik",
+      "name": "Joltik",
+      "baseSpecies": "Joltik"
+    },
+    {
+      "id": "galvantula",
+      "speciesId": "galvantula",
+      "name": "Galvantula",
+      "baseSpecies": "Galvantula"
+    },
+    {
+      "id": "ferroseed",
+      "speciesId": "ferroseed",
+      "name": "Ferroseed",
+      "baseSpecies": "Ferroseed"
+    },
+    {
+      "id": "ferrothorn",
+      "speciesId": "ferrothorn",
+      "name": "Ferrothorn",
+      "baseSpecies": "Ferrothorn"
+    },
+    {
+      "id": "klink",
+      "speciesId": "klink",
+      "name": "Klink",
+      "baseSpecies": "Klink"
+    },
+    {
+      "id": "klang",
+      "speciesId": "klang",
+      "name": "Klang",
+      "baseSpecies": "Klang"
+    },
+    {
+      "id": "klinklang",
+      "speciesId": "klinklang",
+      "name": "Klinklang",
+      "baseSpecies": "Klinklang"
+    },
+    {
+      "id": "tynamo",
+      "speciesId": "tynamo",
+      "name": "Tynamo",
+      "baseSpecies": "Tynamo"
+    },
+    {
+      "id": "eelektrik",
+      "speciesId": "eelektrik",
+      "name": "Eelektrik",
+      "baseSpecies": "Eelektrik"
+    },
+    {
+      "id": "eelektross",
+      "speciesId": "eelektross",
+      "name": "Eelektross",
+      "baseSpecies": "Eelektross"
+    },
+    {
+      "id": "eelektross-mega",
+      "speciesId": "eelektrossmega",
+      "name": "Eelektross-Mega",
+      "baseSpecies": "Eelektross"
+    },
+    {
+      "id": "elgyem",
+      "speciesId": "elgyem",
+      "name": "Elgyem",
+      "baseSpecies": "Elgyem"
+    },
+    {
+      "id": "beheeyem",
+      "speciesId": "beheeyem",
+      "name": "Beheeyem",
+      "baseSpecies": "Beheeyem"
+    },
+    {
+      "id": "litwick",
+      "speciesId": "litwick",
+      "name": "Litwick",
+      "baseSpecies": "Litwick"
+    },
+    {
+      "id": "lampent",
+      "speciesId": "lampent",
+      "name": "Lampent",
+      "baseSpecies": "Lampent"
+    },
+    {
+      "id": "chandelure",
+      "speciesId": "chandelure",
+      "name": "Chandelure",
+      "baseSpecies": "Chandelure"
+    },
+    {
+      "id": "chandelure-mega",
+      "speciesId": "chandeluremega",
+      "name": "Chandelure-Mega",
+      "baseSpecies": "Chandelure"
+    },
+    {
+      "id": "axew",
+      "speciesId": "axew",
+      "name": "Axew",
+      "baseSpecies": "Axew"
+    },
+    {
+      "id": "fraxure",
+      "speciesId": "fraxure",
+      "name": "Fraxure",
+      "baseSpecies": "Fraxure"
+    },
+    {
+      "id": "haxorus",
+      "speciesId": "haxorus",
+      "name": "Haxorus",
+      "baseSpecies": "Haxorus"
+    },
+    {
+      "id": "cubchoo",
+      "speciesId": "cubchoo",
+      "name": "Cubchoo",
+      "baseSpecies": "Cubchoo"
+    },
+    {
+      "id": "beartic",
+      "speciesId": "beartic",
+      "name": "Beartic",
+      "baseSpecies": "Beartic"
+    },
+    {
+      "id": "cryogonal",
+      "speciesId": "cryogonal",
+      "name": "Cryogonal",
+      "baseSpecies": "Cryogonal"
+    },
+    {
+      "id": "shelmet",
+      "speciesId": "shelmet",
+      "name": "Shelmet",
+      "baseSpecies": "Shelmet"
+    },
+    {
+      "id": "accelgor",
+      "speciesId": "accelgor",
+      "name": "Accelgor",
+      "baseSpecies": "Accelgor"
+    },
+    {
+      "id": "stunfisk",
+      "speciesId": "stunfisk",
+      "name": "Stunfisk",
+      "baseSpecies": "Stunfisk"
+    },
+    {
+      "id": "stunfisk-galar",
+      "speciesId": "stunfiskgalar",
+      "name": "Stunfisk-Galar",
+      "baseSpecies": "Stunfisk"
+    },
+    {
+      "id": "mienfoo",
+      "speciesId": "mienfoo",
+      "name": "Mienfoo",
+      "baseSpecies": "Mienfoo"
+    },
+    {
+      "id": "mienshao",
+      "speciesId": "mienshao",
+      "name": "Mienshao",
+      "baseSpecies": "Mienshao"
+    },
+    {
+      "id": "druddigon",
+      "speciesId": "druddigon",
+      "name": "Druddigon",
+      "baseSpecies": "Druddigon"
+    },
+    {
+      "id": "golett",
+      "speciesId": "golett",
+      "name": "Golett",
+      "baseSpecies": "Golett"
+    },
+    {
+      "id": "golurk",
+      "speciesId": "golurk",
+      "name": "Golurk",
+      "baseSpecies": "Golurk"
+    },
+    {
+      "id": "golurk-mega",
+      "speciesId": "golurkmega",
+      "name": "Golurk-Mega",
+      "baseSpecies": "Golurk"
+    },
+    {
+      "id": "pawniard",
+      "speciesId": "pawniard",
+      "name": "Pawniard",
+      "baseSpecies": "Pawniard"
+    },
+    {
+      "id": "bisharp",
+      "speciesId": "bisharp",
+      "name": "Bisharp",
+      "baseSpecies": "Bisharp"
+    },
+    {
+      "id": "bouffalant",
+      "speciesId": "bouffalant",
+      "name": "Bouffalant",
+      "baseSpecies": "Bouffalant"
+    },
+    {
+      "id": "rufflet",
+      "speciesId": "rufflet",
+      "name": "Rufflet",
+      "baseSpecies": "Rufflet"
+    },
+    {
+      "id": "braviary",
+      "speciesId": "braviary",
+      "name": "Braviary",
+      "baseSpecies": "Braviary"
+    },
+    {
+      "id": "braviary-hisui",
+      "speciesId": "braviaryhisui",
+      "name": "Braviary-Hisui",
+      "baseSpecies": "Braviary"
+    },
+    {
+      "id": "vullaby",
+      "speciesId": "vullaby",
+      "name": "Vullaby",
+      "baseSpecies": "Vullaby"
+    },
+    {
+      "id": "mandibuzz",
+      "speciesId": "mandibuzz",
+      "name": "Mandibuzz",
+      "baseSpecies": "Mandibuzz"
+    },
+    {
+      "id": "heatmor",
+      "speciesId": "heatmor",
+      "name": "Heatmor",
+      "baseSpecies": "Heatmor"
+    },
+    {
+      "id": "durant",
+      "speciesId": "durant",
+      "name": "Durant",
+      "baseSpecies": "Durant"
+    },
+    {
+      "id": "deino",
+      "speciesId": "deino",
+      "name": "Deino",
+      "baseSpecies": "Deino"
+    },
+    {
+      "id": "zweilous",
+      "speciesId": "zweilous",
+      "name": "Zweilous",
+      "baseSpecies": "Zweilous"
+    },
+    {
+      "id": "hydreigon",
+      "speciesId": "hydreigon",
+      "name": "Hydreigon",
+      "baseSpecies": "Hydreigon"
+    },
+    {
+      "id": "larvesta",
+      "speciesId": "larvesta",
+      "name": "Larvesta",
+      "baseSpecies": "Larvesta"
+    },
+    {
+      "id": "volcarona",
+      "speciesId": "volcarona",
+      "name": "Volcarona",
+      "baseSpecies": "Volcarona"
+    },
+    {
+      "id": "cobalion",
+      "speciesId": "cobalion",
+      "name": "Cobalion",
+      "baseSpecies": "Cobalion"
+    },
+    {
+      "id": "terrakion",
+      "speciesId": "terrakion",
+      "name": "Terrakion",
+      "baseSpecies": "Terrakion"
+    },
+    {
+      "id": "virizion",
+      "speciesId": "virizion",
+      "name": "Virizion",
+      "baseSpecies": "Virizion"
+    },
+    {
+      "id": "tornadus",
+      "speciesId": "tornadus",
+      "name": "Tornadus",
+      "baseSpecies": "Tornadus"
+    },
+    {
+      "id": "tornadus-therian",
+      "speciesId": "tornadustherian",
+      "name": "Tornadus-Therian",
+      "baseSpecies": "Tornadus"
+    },
+    {
+      "id": "thundurus",
+      "speciesId": "thundurus",
+      "name": "Thundurus",
+      "baseSpecies": "Thundurus"
+    },
+    {
+      "id": "thundurus-therian",
+      "speciesId": "thundurustherian",
+      "name": "Thundurus-Therian",
+      "baseSpecies": "Thundurus"
+    },
+    {
+      "id": "reshiram",
+      "speciesId": "reshiram",
+      "name": "Reshiram",
+      "baseSpecies": "Reshiram"
+    },
+    {
+      "id": "zekrom",
+      "speciesId": "zekrom",
+      "name": "Zekrom",
+      "baseSpecies": "Zekrom"
+    },
+    {
+      "id": "landorus",
+      "speciesId": "landorus",
+      "name": "Landorus",
+      "baseSpecies": "Landorus"
+    },
+    {
+      "id": "landorus-therian",
+      "speciesId": "landorustherian",
+      "name": "Landorus-Therian",
+      "baseSpecies": "Landorus"
+    },
+    {
+      "id": "kyurem",
+      "speciesId": "kyurem",
+      "name": "Kyurem",
+      "baseSpecies": "Kyurem"
+    },
+    {
+      "id": "kyurem-black",
+      "speciesId": "kyuremblack",
+      "name": "Kyurem-Black",
+      "baseSpecies": "Kyurem"
+    },
+    {
+      "id": "kyurem-white",
+      "speciesId": "kyuremwhite",
+      "name": "Kyurem-White",
+      "baseSpecies": "Kyurem"
+    },
+    {
+      "id": "keldeo",
+      "speciesId": "keldeo",
+      "name": "Keldeo",
+      "baseSpecies": "Keldeo"
+    },
+    {
+      "id": "keldeo-resolute",
+      "speciesId": "keldeoresolute",
+      "name": "Keldeo-Resolute",
+      "baseSpecies": "Keldeo"
+    },
+    {
+      "id": "meloetta",
+      "speciesId": "meloetta",
+      "name": "Meloetta",
+      "baseSpecies": "Meloetta"
+    },
+    {
+      "id": "meloetta-pirouette",
+      "speciesId": "meloettapirouette",
+      "name": "Meloetta-Pirouette",
+      "baseSpecies": "Meloetta"
+    },
+    {
+      "id": "genesect",
+      "speciesId": "genesect",
+      "name": "Genesect",
+      "baseSpecies": "Genesect"
+    },
+    {
+      "id": "genesect-douse",
+      "speciesId": "genesectdouse",
+      "name": "Genesect-Douse",
+      "baseSpecies": "Genesect"
+    },
+    {
+      "id": "genesect-shock",
+      "speciesId": "genesectshock",
+      "name": "Genesect-Shock",
+      "baseSpecies": "Genesect"
+    },
+    {
+      "id": "genesect-burn",
+      "speciesId": "genesectburn",
+      "name": "Genesect-Burn",
+      "baseSpecies": "Genesect"
+    },
+    {
+      "id": "genesect-chill",
+      "speciesId": "genesectchill",
+      "name": "Genesect-Chill",
+      "baseSpecies": "Genesect"
+    },
+    {
+      "id": "chespin",
+      "speciesId": "chespin",
+      "name": "Chespin",
+      "baseSpecies": "Chespin"
+    },
+    {
+      "id": "quilladin",
+      "speciesId": "quilladin",
+      "name": "Quilladin",
+      "baseSpecies": "Quilladin"
+    },
+    {
+      "id": "chesnaught",
+      "speciesId": "chesnaught",
+      "name": "Chesnaught",
+      "baseSpecies": "Chesnaught"
+    },
+    {
+      "id": "chesnaught-mega",
+      "speciesId": "chesnaughtmega",
+      "name": "Chesnaught-Mega",
+      "baseSpecies": "Chesnaught"
+    },
+    {
+      "id": "fennekin",
+      "speciesId": "fennekin",
+      "name": "Fennekin",
+      "baseSpecies": "Fennekin"
+    },
+    {
+      "id": "braixen",
+      "speciesId": "braixen",
+      "name": "Braixen",
+      "baseSpecies": "Braixen"
+    },
+    {
+      "id": "delphox",
+      "speciesId": "delphox",
+      "name": "Delphox",
+      "baseSpecies": "Delphox"
+    },
+    {
+      "id": "delphox-mega",
+      "speciesId": "delphoxmega",
+      "name": "Delphox-Mega",
+      "baseSpecies": "Delphox"
+    },
+    {
+      "id": "froakie",
+      "speciesId": "froakie",
+      "name": "Froakie",
+      "baseSpecies": "Froakie"
+    },
+    {
+      "id": "frogadier",
+      "speciesId": "frogadier",
+      "name": "Frogadier",
+      "baseSpecies": "Frogadier"
+    },
+    {
+      "id": "greninja",
+      "speciesId": "greninjabond",
+      "name": "Greninja-Bond",
+      "baseSpecies": "Greninja"
+    },
+    {
+      "id": "greninja-ash",
+      "speciesId": "greninjaash",
+      "name": "Greninja-Ash",
+      "baseSpecies": "Greninja"
+    },
+    {
+      "id": "greninja-mega",
+      "speciesId": "greninjamega",
+      "name": "Greninja-Mega",
+      "baseSpecies": "Greninja"
+    },
+    {
+      "id": "bunnelby",
+      "speciesId": "bunnelby",
+      "name": "Bunnelby",
+      "baseSpecies": "Bunnelby"
+    },
+    {
+      "id": "diggersby",
+      "speciesId": "diggersby",
+      "name": "Diggersby",
+      "baseSpecies": "Diggersby"
+    },
+    {
+      "id": "fletchling",
+      "speciesId": "fletchling",
+      "name": "Fletchling",
+      "baseSpecies": "Fletchling"
+    },
+    {
+      "id": "fletchinder",
+      "speciesId": "fletchinder",
+      "name": "Fletchinder",
+      "baseSpecies": "Fletchinder"
+    },
+    {
+      "id": "talonflame",
+      "speciesId": "talonflame",
+      "name": "Talonflame",
+      "baseSpecies": "Talonflame"
+    },
+    {
+      "id": "scatterbug",
+      "speciesId": "scatterbug",
+      "name": "Scatterbug",
+      "baseSpecies": "Scatterbug"
+    },
+    {
+      "id": "spewpa",
+      "speciesId": "spewpa",
+      "name": "Spewpa",
+      "baseSpecies": "Spewpa"
+    },
+    {
+      "id": "vivillon",
+      "speciesId": "vivillon",
+      "name": "Vivillon",
+      "baseSpecies": "Vivillon"
+    },
+    {
+      "id": "vivillon-fancy",
+      "speciesId": "vivillonfancy",
+      "name": "Vivillon-Fancy",
+      "baseSpecies": "Vivillon"
+    },
+    {
+      "id": "vivillon-pokeball",
+      "speciesId": "vivillonpokeball",
+      "name": "Vivillon-Pokeball",
+      "baseSpecies": "Vivillon"
+    },
+    {
+      "id": "litleo",
+      "speciesId": "litleo",
+      "name": "Litleo",
+      "baseSpecies": "Litleo"
+    },
+    {
+      "id": "pyroar",
+      "speciesId": "pyroar",
+      "name": "Pyroar",
+      "baseSpecies": "Pyroar"
+    },
+    {
+      "id": "pyroar-mega",
+      "speciesId": "pyroarmega",
+      "name": "Pyroar-Mega",
+      "baseSpecies": "Pyroar"
+    },
+    {
+      "id": "flabebe",
+      "speciesId": "flabebe",
+      "name": "Flabébé",
+      "baseSpecies": "Flabébé"
+    },
+    {
+      "id": "floette",
+      "speciesId": "floette",
+      "name": "Floette",
+      "baseSpecies": "Floette"
+    },
+    {
+      "id": "floette-eternal",
+      "speciesId": "floetteeternal",
+      "name": "Floette-Eternal",
+      "baseSpecies": "Floette"
+    },
+    {
+      "id": "floette-mega",
+      "speciesId": "floettemega",
+      "name": "Floette-Mega",
+      "baseSpecies": "Floette"
+    },
+    {
+      "id": "florges",
+      "speciesId": "florges",
+      "name": "Florges",
+      "baseSpecies": "Florges"
+    },
+    {
+      "id": "skiddo",
+      "speciesId": "skiddo",
+      "name": "Skiddo",
+      "baseSpecies": "Skiddo"
+    },
+    {
+      "id": "gogoat",
+      "speciesId": "gogoat",
+      "name": "Gogoat",
+      "baseSpecies": "Gogoat"
+    },
+    {
+      "id": "pancham",
+      "speciesId": "pancham",
+      "name": "Pancham",
+      "baseSpecies": "Pancham"
+    },
+    {
+      "id": "pangoro",
+      "speciesId": "pangoro",
+      "name": "Pangoro",
+      "baseSpecies": "Pangoro"
+    },
+    {
+      "id": "furfrou",
+      "speciesId": "furfrou",
+      "name": "Furfrou",
+      "baseSpecies": "Furfrou"
+    },
+    {
+      "id": "espurr",
+      "speciesId": "espurr",
+      "name": "Espurr",
+      "baseSpecies": "Espurr"
+    },
+    {
+      "id": "meowstic",
+      "speciesId": "meowstic",
+      "name": "Meowstic",
+      "baseSpecies": "Meowstic"
+    },
+    {
+      "id": "meowstic-f",
+      "speciesId": "meowsticf",
+      "name": "Meowstic-F",
+      "baseSpecies": "Meowstic"
+    },
+    {
+      "id": "meowstic-mmega",
+      "speciesId": "meowsticmmega",
+      "name": "Meowstic-M-Mega",
+      "baseSpecies": "Meowstic"
+    },
+    {
+      "id": "meowstic-fmega",
+      "speciesId": "meowsticfmega",
+      "name": "Meowstic-F-Mega",
+      "baseSpecies": "Meowstic"
+    },
+    {
+      "id": "honedge",
+      "speciesId": "honedge",
+      "name": "Honedge",
+      "baseSpecies": "Honedge"
+    },
+    {
+      "id": "doublade",
+      "speciesId": "doublade",
+      "name": "Doublade",
+      "baseSpecies": "Doublade"
+    },
+    {
+      "id": "aegislash",
+      "speciesId": "aegislash",
+      "name": "Aegislash",
+      "baseSpecies": "Aegislash"
+    },
+    {
+      "id": "aegislash-blade",
+      "speciesId": "aegislashblade",
+      "name": "Aegislash-Blade",
+      "baseSpecies": "Aegislash"
+    },
+    {
+      "id": "spritzee",
+      "speciesId": "spritzee",
+      "name": "Spritzee",
+      "baseSpecies": "Spritzee"
+    },
+    {
+      "id": "aromatisse",
+      "speciesId": "aromatisse",
+      "name": "Aromatisse",
+      "baseSpecies": "Aromatisse"
+    },
+    {
+      "id": "swirlix",
+      "speciesId": "swirlix",
+      "name": "Swirlix",
+      "baseSpecies": "Swirlix"
+    },
+    {
+      "id": "slurpuff",
+      "speciesId": "slurpuff",
+      "name": "Slurpuff",
+      "baseSpecies": "Slurpuff"
+    },
+    {
+      "id": "inkay",
+      "speciesId": "inkay",
+      "name": "Inkay",
+      "baseSpecies": "Inkay"
+    },
+    {
+      "id": "malamar",
+      "speciesId": "malamar",
+      "name": "Malamar",
+      "baseSpecies": "Malamar"
+    },
+    {
+      "id": "malamar-mega",
+      "speciesId": "malamarmega",
+      "name": "Malamar-Mega",
+      "baseSpecies": "Malamar"
+    },
+    {
+      "id": "binacle",
+      "speciesId": "binacle",
+      "name": "Binacle",
+      "baseSpecies": "Binacle"
+    },
+    {
+      "id": "barbaracle",
+      "speciesId": "barbaracle",
+      "name": "Barbaracle",
+      "baseSpecies": "Barbaracle"
+    },
+    {
+      "id": "barbaracle-mega",
+      "speciesId": "barbaraclemega",
+      "name": "Barbaracle-Mega",
+      "baseSpecies": "Barbaracle"
+    },
+    {
+      "id": "skrelp",
+      "speciesId": "skrelp",
+      "name": "Skrelp",
+      "baseSpecies": "Skrelp"
+    },
+    {
+      "id": "dragalge",
+      "speciesId": "dragalge",
+      "name": "Dragalge",
+      "baseSpecies": "Dragalge"
+    },
+    {
+      "id": "dragalge-mega",
+      "speciesId": "dragalgemega",
+      "name": "Dragalge-Mega",
+      "baseSpecies": "Dragalge"
+    },
+    {
+      "id": "clauncher",
+      "speciesId": "clauncher",
+      "name": "Clauncher",
+      "baseSpecies": "Clauncher"
+    },
+    {
+      "id": "clawitzer",
+      "speciesId": "clawitzer",
+      "name": "Clawitzer",
+      "baseSpecies": "Clawitzer"
+    },
+    {
+      "id": "helioptile",
+      "speciesId": "helioptile",
+      "name": "Helioptile",
+      "baseSpecies": "Helioptile"
+    },
+    {
+      "id": "heliolisk",
+      "speciesId": "heliolisk",
+      "name": "Heliolisk",
+      "baseSpecies": "Heliolisk"
+    },
+    {
+      "id": "tyrunt",
+      "speciesId": "tyrunt",
+      "name": "Tyrunt",
+      "baseSpecies": "Tyrunt"
+    },
+    {
+      "id": "tyrantrum",
+      "speciesId": "tyrantrum",
+      "name": "Tyrantrum",
+      "baseSpecies": "Tyrantrum"
+    },
+    {
+      "id": "amaura",
+      "speciesId": "amaura",
+      "name": "Amaura",
+      "baseSpecies": "Amaura"
+    },
+    {
+      "id": "aurorus",
+      "speciesId": "aurorus",
+      "name": "Aurorus",
+      "baseSpecies": "Aurorus"
+    },
+    {
+      "id": "sylveon",
+      "speciesId": "sylveon",
+      "name": "Sylveon",
+      "baseSpecies": "Sylveon"
+    },
+    {
+      "id": "hawlucha",
+      "speciesId": "hawlucha",
+      "name": "Hawlucha",
+      "baseSpecies": "Hawlucha"
+    },
+    {
+      "id": "hawlucha-mega",
+      "speciesId": "hawluchamega",
+      "name": "Hawlucha-Mega",
+      "baseSpecies": "Hawlucha"
+    },
+    {
+      "id": "dedenne",
+      "speciesId": "dedenne",
+      "name": "Dedenne",
+      "baseSpecies": "Dedenne"
+    },
+    {
+      "id": "carbink",
+      "speciesId": "carbink",
+      "name": "Carbink",
+      "baseSpecies": "Carbink"
+    },
+    {
+      "id": "goomy",
+      "speciesId": "goomy",
+      "name": "Goomy",
+      "baseSpecies": "Goomy"
+    },
+    {
+      "id": "sliggoo",
+      "speciesId": "sliggoo",
+      "name": "Sliggoo",
+      "baseSpecies": "Sliggoo"
+    },
+    {
+      "id": "sliggoo-hisui",
+      "speciesId": "sliggoohisui",
+      "name": "Sliggoo-Hisui",
+      "baseSpecies": "Sliggoo"
+    },
+    {
+      "id": "goodra",
+      "speciesId": "goodra",
+      "name": "Goodra",
+      "baseSpecies": "Goodra"
+    },
+    {
+      "id": "goodra-hisui",
+      "speciesId": "goodrahisui",
+      "name": "Goodra-Hisui",
+      "baseSpecies": "Goodra"
+    },
+    {
+      "id": "klefki",
+      "speciesId": "klefki",
+      "name": "Klefki",
+      "baseSpecies": "Klefki"
+    },
+    {
+      "id": "phantump",
+      "speciesId": "phantump",
+      "name": "Phantump",
+      "baseSpecies": "Phantump"
+    },
+    {
+      "id": "trevenant",
+      "speciesId": "trevenant",
+      "name": "Trevenant",
+      "baseSpecies": "Trevenant"
+    },
+    {
+      "id": "pumpkaboo",
+      "speciesId": "pumpkaboo",
+      "name": "Pumpkaboo",
+      "baseSpecies": "Pumpkaboo"
+    },
+    {
+      "id": "pumpkaboo-small",
+      "speciesId": "pumpkaboosmall",
+      "name": "Pumpkaboo-Small",
+      "baseSpecies": "Pumpkaboo"
+    },
+    {
+      "id": "pumpkaboo-large",
+      "speciesId": "pumpkaboolarge",
+      "name": "Pumpkaboo-Large",
+      "baseSpecies": "Pumpkaboo"
+    },
+    {
+      "id": "pumpkaboo-super",
+      "speciesId": "pumpkaboosuper",
+      "name": "Pumpkaboo-Super",
+      "baseSpecies": "Pumpkaboo"
+    },
+    {
+      "id": "gourgeist",
+      "speciesId": "gourgeist",
+      "name": "Gourgeist",
+      "baseSpecies": "Gourgeist"
+    },
+    {
+      "id": "gourgeist-small",
+      "speciesId": "gourgeistsmall",
+      "name": "Gourgeist-Small",
+      "baseSpecies": "Gourgeist"
+    },
+    {
+      "id": "gourgeist-large",
+      "speciesId": "gourgeistlarge",
+      "name": "Gourgeist-Large",
+      "baseSpecies": "Gourgeist"
+    },
+    {
+      "id": "gourgeist-super",
+      "speciesId": "gourgeistsuper",
+      "name": "Gourgeist-Super",
+      "baseSpecies": "Gourgeist"
+    },
+    {
+      "id": "bergmite",
+      "speciesId": "bergmite",
+      "name": "Bergmite",
+      "baseSpecies": "Bergmite"
+    },
+    {
+      "id": "avalugg",
+      "speciesId": "avalugg",
+      "name": "Avalugg",
+      "baseSpecies": "Avalugg"
+    },
+    {
+      "id": "avalugg-hisui",
+      "speciesId": "avalugghisui",
+      "name": "Avalugg-Hisui",
+      "baseSpecies": "Avalugg"
+    },
+    {
+      "id": "noibat",
+      "speciesId": "noibat",
+      "name": "Noibat",
+      "baseSpecies": "Noibat"
+    },
+    {
+      "id": "noivern",
+      "speciesId": "noivern",
+      "name": "Noivern",
+      "baseSpecies": "Noivern"
+    },
+    {
+      "id": "xerneas",
+      "speciesId": "xerneas",
+      "name": "Xerneas",
+      "baseSpecies": "Xerneas"
+    },
+    {
+      "id": "xerneas-neutral",
+      "speciesId": "xerneasneutral",
+      "name": "Xerneas-Neutral",
+      "baseSpecies": "Xerneas"
+    },
+    {
+      "id": "yveltal",
+      "speciesId": "yveltal",
+      "name": "Yveltal",
+      "baseSpecies": "Yveltal"
+    },
+    {
+      "id": "zygarde",
+      "speciesId": "zygarde",
+      "name": "Zygarde",
+      "baseSpecies": "Zygarde"
+    },
+    {
+      "id": "zygarde-10",
+      "speciesId": "zygarde10",
+      "name": "Zygarde-10%",
+      "baseSpecies": "Zygarde"
+    },
+    {
+      "id": "zygarde-complete",
+      "speciesId": "zygardecomplete",
+      "name": "Zygarde-Complete",
+      "baseSpecies": "Zygarde"
+    },
+    {
+      "id": "zygarde-mega",
+      "speciesId": "zygardemega",
+      "name": "Zygarde-Mega",
+      "baseSpecies": "Zygarde"
+    },
+    {
+      "id": "diancie",
+      "speciesId": "diancie",
+      "name": "Diancie",
+      "baseSpecies": "Diancie"
+    },
+    {
+      "id": "diancie-mega",
+      "speciesId": "dianciemega",
+      "name": "Diancie-Mega",
+      "baseSpecies": "Diancie"
+    },
+    {
+      "id": "hoopa",
+      "speciesId": "hoopa",
+      "name": "Hoopa",
+      "baseSpecies": "Hoopa"
+    },
+    {
+      "id": "hoopa-unbound",
+      "speciesId": "hoopaunbound",
+      "name": "Hoopa-Unbound",
+      "baseSpecies": "Hoopa"
+    },
+    {
+      "id": "volcanion",
+      "speciesId": "volcanion",
+      "name": "Volcanion",
+      "baseSpecies": "Volcanion"
+    },
+    {
+      "id": "rowlet",
+      "speciesId": "rowlet",
+      "name": "Rowlet",
+      "baseSpecies": "Rowlet"
+    },
+    {
+      "id": "dartrix",
+      "speciesId": "dartrix",
+      "name": "Dartrix",
+      "baseSpecies": "Dartrix"
+    },
+    {
+      "id": "decidueye",
+      "speciesId": "decidueye",
+      "name": "Decidueye",
+      "baseSpecies": "Decidueye"
+    },
+    {
+      "id": "decidueye-hisui",
+      "speciesId": "decidueyehisui",
+      "name": "Decidueye-Hisui",
+      "baseSpecies": "Decidueye"
+    },
+    {
+      "id": "litten",
+      "speciesId": "litten",
+      "name": "Litten",
+      "baseSpecies": "Litten"
+    },
+    {
+      "id": "torracat",
+      "speciesId": "torracat",
+      "name": "Torracat",
+      "baseSpecies": "Torracat"
+    },
+    {
+      "id": "incineroar",
+      "speciesId": "incineroar",
+      "name": "Incineroar",
+      "baseSpecies": "Incineroar"
+    },
+    {
+      "id": "popplio",
+      "speciesId": "popplio",
+      "name": "Popplio",
+      "baseSpecies": "Popplio"
+    },
+    {
+      "id": "brionne",
+      "speciesId": "brionne",
+      "name": "Brionne",
+      "baseSpecies": "Brionne"
+    },
+    {
+      "id": "primarina",
+      "speciesId": "primarina",
+      "name": "Primarina",
+      "baseSpecies": "Primarina"
+    },
+    {
+      "id": "pikipek",
+      "speciesId": "pikipek",
+      "name": "Pikipek",
+      "baseSpecies": "Pikipek"
+    },
+    {
+      "id": "trumbeak",
+      "speciesId": "trumbeak",
+      "name": "Trumbeak",
+      "baseSpecies": "Trumbeak"
+    },
+    {
+      "id": "toucannon",
+      "speciesId": "toucannon",
+      "name": "Toucannon",
+      "baseSpecies": "Toucannon"
+    },
+    {
+      "id": "yungoos",
+      "speciesId": "yungoos",
+      "name": "Yungoos",
+      "baseSpecies": "Yungoos"
+    },
+    {
+      "id": "gumshoos",
+      "speciesId": "gumshoostotem",
+      "name": "Gumshoos-Totem",
+      "baseSpecies": "Gumshoos"
+    },
+    {
+      "id": "grubbin",
+      "speciesId": "grubbin",
+      "name": "Grubbin",
+      "baseSpecies": "Grubbin"
+    },
+    {
+      "id": "charjabug",
+      "speciesId": "charjabug",
+      "name": "Charjabug",
+      "baseSpecies": "Charjabug"
+    },
+    {
+      "id": "vikavolt",
+      "speciesId": "vikavolttotem",
+      "name": "Vikavolt-Totem",
+      "baseSpecies": "Vikavolt"
+    },
+    {
+      "id": "crabrawler",
+      "speciesId": "crabrawler",
+      "name": "Crabrawler",
+      "baseSpecies": "Crabrawler"
+    },
+    {
+      "id": "crabominable",
+      "speciesId": "crabominable",
+      "name": "Crabominable",
+      "baseSpecies": "Crabominable"
+    },
+    {
+      "id": "crabominable-mega",
+      "speciesId": "crabominablemega",
+      "name": "Crabominable-Mega",
+      "baseSpecies": "Crabominable"
+    },
+    {
+      "id": "oricorio",
+      "speciesId": "oricorio",
+      "name": "Oricorio",
+      "baseSpecies": "Oricorio"
+    },
+    {
+      "id": "oricorio-pompom",
+      "speciesId": "oricoriopompom",
+      "name": "Oricorio-Pom-Pom",
+      "baseSpecies": "Oricorio"
+    },
+    {
+      "id": "oricorio-pau",
+      "speciesId": "oricoriopau",
+      "name": "Oricorio-Pa'u",
+      "baseSpecies": "Oricorio"
+    },
+    {
+      "id": "oricorio-sensu",
+      "speciesId": "oricoriosensu",
+      "name": "Oricorio-Sensu",
+      "baseSpecies": "Oricorio"
+    },
+    {
+      "id": "cutiefly",
+      "speciesId": "cutiefly",
+      "name": "Cutiefly",
+      "baseSpecies": "Cutiefly"
+    },
+    {
+      "id": "ribombee",
+      "speciesId": "ribombeetotem",
+      "name": "Ribombee-Totem",
+      "baseSpecies": "Ribombee"
+    },
+    {
+      "id": "rockruff",
+      "speciesId": "rockruffdusk",
+      "name": "Rockruff-Dusk",
+      "baseSpecies": "Rockruff"
+    },
+    {
+      "id": "lycanroc",
+      "speciesId": "lycanroc",
+      "name": "Lycanroc",
+      "baseSpecies": "Lycanroc"
+    },
+    {
+      "id": "lycanroc-midnight",
+      "speciesId": "lycanrocmidnight",
+      "name": "Lycanroc-Midnight",
+      "baseSpecies": "Lycanroc"
+    },
+    {
+      "id": "lycanroc-dusk",
+      "speciesId": "lycanrocdusk",
+      "name": "Lycanroc-Dusk",
+      "baseSpecies": "Lycanroc"
+    },
+    {
+      "id": "wishiwashi",
+      "speciesId": "wishiwashi",
+      "name": "Wishiwashi",
+      "baseSpecies": "Wishiwashi"
+    },
+    {
+      "id": "wishiwashi-school",
+      "speciesId": "wishiwashischool",
+      "name": "Wishiwashi-School",
+      "baseSpecies": "Wishiwashi"
+    },
+    {
+      "id": "mareanie",
+      "speciesId": "mareanie",
+      "name": "Mareanie",
+      "baseSpecies": "Mareanie"
+    },
+    {
+      "id": "toxapex",
+      "speciesId": "toxapex",
+      "name": "Toxapex",
+      "baseSpecies": "Toxapex"
+    },
+    {
+      "id": "mudbray",
+      "speciesId": "mudbray",
+      "name": "Mudbray",
+      "baseSpecies": "Mudbray"
+    },
+    {
+      "id": "mudsdale",
+      "speciesId": "mudsdale",
+      "name": "Mudsdale",
+      "baseSpecies": "Mudsdale"
+    },
+    {
+      "id": "dewpider",
+      "speciesId": "dewpider",
+      "name": "Dewpider",
+      "baseSpecies": "Dewpider"
+    },
+    {
+      "id": "araquanid",
+      "speciesId": "araquanidtotem",
+      "name": "Araquanid-Totem",
+      "baseSpecies": "Araquanid"
+    },
+    {
+      "id": "fomantis",
+      "speciesId": "fomantis",
+      "name": "Fomantis",
+      "baseSpecies": "Fomantis"
+    },
+    {
+      "id": "lurantis",
+      "speciesId": "lurantistotem",
+      "name": "Lurantis-Totem",
+      "baseSpecies": "Lurantis"
+    },
+    {
+      "id": "morelull",
+      "speciesId": "morelull",
+      "name": "Morelull",
+      "baseSpecies": "Morelull"
+    },
+    {
+      "id": "shiinotic",
+      "speciesId": "shiinotic",
+      "name": "Shiinotic",
+      "baseSpecies": "Shiinotic"
+    },
+    {
+      "id": "salandit",
+      "speciesId": "salandit",
+      "name": "Salandit",
+      "baseSpecies": "Salandit"
+    },
+    {
+      "id": "salazzle",
+      "speciesId": "salazzletotem",
+      "name": "Salazzle-Totem",
+      "baseSpecies": "Salazzle"
+    },
+    {
+      "id": "stufful",
+      "speciesId": "stufful",
+      "name": "Stufful",
+      "baseSpecies": "Stufful"
+    },
+    {
+      "id": "bewear",
+      "speciesId": "bewear",
+      "name": "Bewear",
+      "baseSpecies": "Bewear"
+    },
+    {
+      "id": "bounsweet",
+      "speciesId": "bounsweet",
+      "name": "Bounsweet",
+      "baseSpecies": "Bounsweet"
+    },
+    {
+      "id": "steenee",
+      "speciesId": "steenee",
+      "name": "Steenee",
+      "baseSpecies": "Steenee"
+    },
+    {
+      "id": "tsareena",
+      "speciesId": "tsareena",
+      "name": "Tsareena",
+      "baseSpecies": "Tsareena"
+    },
+    {
+      "id": "comfey",
+      "speciesId": "comfey",
+      "name": "Comfey",
+      "baseSpecies": "Comfey"
+    },
+    {
+      "id": "oranguru",
+      "speciesId": "oranguru",
+      "name": "Oranguru",
+      "baseSpecies": "Oranguru"
+    },
+    {
+      "id": "passimian",
+      "speciesId": "passimian",
+      "name": "Passimian",
+      "baseSpecies": "Passimian"
+    },
+    {
+      "id": "wimpod",
+      "speciesId": "wimpod",
+      "name": "Wimpod",
+      "baseSpecies": "Wimpod"
+    },
+    {
+      "id": "golisopod",
+      "speciesId": "golisopod",
+      "name": "Golisopod",
+      "baseSpecies": "Golisopod"
+    },
+    {
+      "id": "golisopod-mega",
+      "speciesId": "golisopodmega",
+      "name": "Golisopod-Mega",
+      "baseSpecies": "Golisopod"
+    },
+    {
+      "id": "sandygast",
+      "speciesId": "sandygast",
+      "name": "Sandygast",
+      "baseSpecies": "Sandygast"
+    },
+    {
+      "id": "palossand",
+      "speciesId": "palossand",
+      "name": "Palossand",
+      "baseSpecies": "Palossand"
+    },
+    {
+      "id": "pyukumuku",
+      "speciesId": "pyukumuku",
+      "name": "Pyukumuku",
+      "baseSpecies": "Pyukumuku"
+    },
+    {
+      "id": "typenull",
+      "speciesId": "typenull",
+      "name": "Type: Null",
+      "baseSpecies": "Type: Null"
+    },
+    {
+      "id": "silvally",
+      "speciesId": "silvally",
+      "name": "Silvally",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-bug",
+      "speciesId": "silvallybug",
+      "name": "Silvally-Bug",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-dark",
+      "speciesId": "silvallydark",
+      "name": "Silvally-Dark",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-dragon",
+      "speciesId": "silvallydragon",
+      "name": "Silvally-Dragon",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-electric",
+      "speciesId": "silvallyelectric",
+      "name": "Silvally-Electric",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-fairy",
+      "speciesId": "silvallyfairy",
+      "name": "Silvally-Fairy",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-fighting",
+      "speciesId": "silvallyfighting",
+      "name": "Silvally-Fighting",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-fire",
+      "speciesId": "silvallyfire",
+      "name": "Silvally-Fire",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-flying",
+      "speciesId": "silvallyflying",
+      "name": "Silvally-Flying",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-ghost",
+      "speciesId": "silvallyghost",
+      "name": "Silvally-Ghost",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-grass",
+      "speciesId": "silvallygrass",
+      "name": "Silvally-Grass",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-ground",
+      "speciesId": "silvallyground",
+      "name": "Silvally-Ground",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-ice",
+      "speciesId": "silvallyice",
+      "name": "Silvally-Ice",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-poison",
+      "speciesId": "silvallypoison",
+      "name": "Silvally-Poison",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-psychic",
+      "speciesId": "silvallypsychic",
+      "name": "Silvally-Psychic",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-rock",
+      "speciesId": "silvallyrock",
+      "name": "Silvally-Rock",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-steel",
+      "speciesId": "silvallysteel",
+      "name": "Silvally-Steel",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "silvally-water",
+      "speciesId": "silvallywater",
+      "name": "Silvally-Water",
+      "baseSpecies": "Silvally"
+    },
+    {
+      "id": "minior",
+      "speciesId": "minior",
+      "name": "Minior",
+      "baseSpecies": "Minior"
+    },
+    {
+      "id": "minior-meteor",
+      "speciesId": "miniormeteor",
+      "name": "Minior-Meteor",
+      "baseSpecies": "Minior"
+    },
+    {
+      "id": "komala",
+      "speciesId": "komala",
+      "name": "Komala",
+      "baseSpecies": "Komala"
+    },
+    {
+      "id": "turtonator",
+      "speciesId": "turtonator",
+      "name": "Turtonator",
+      "baseSpecies": "Turtonator"
+    },
+    {
+      "id": "togedemaru",
+      "speciesId": "togedemarutotem",
+      "name": "Togedemaru-Totem",
+      "baseSpecies": "Togedemaru"
+    },
+    {
+      "id": "mimikyu",
+      "speciesId": "mimikyutotem",
+      "name": "Mimikyu-Totem",
+      "baseSpecies": "Mimikyu"
+    },
+    {
+      "id": "mimikyu-busted",
+      "speciesId": "mimikyubustedtotem",
+      "name": "Mimikyu-Busted-Totem",
+      "baseSpecies": "Mimikyu"
+    },
+    {
+      "id": "bruxish",
+      "speciesId": "bruxish",
+      "name": "Bruxish",
+      "baseSpecies": "Bruxish"
+    },
+    {
+      "id": "drampa",
+      "speciesId": "drampa",
+      "name": "Drampa",
+      "baseSpecies": "Drampa"
+    },
+    {
+      "id": "drampa-mega",
+      "speciesId": "drampamega",
+      "name": "Drampa-Mega",
+      "baseSpecies": "Drampa"
+    },
+    {
+      "id": "dhelmise",
+      "speciesId": "dhelmise",
+      "name": "Dhelmise",
+      "baseSpecies": "Dhelmise"
+    },
+    {
+      "id": "jangmoo",
+      "speciesId": "jangmoo",
+      "name": "Jangmo-o",
+      "baseSpecies": "Jangmo-o"
+    },
+    {
+      "id": "hakamoo",
+      "speciesId": "hakamoo",
+      "name": "Hakamo-o",
+      "baseSpecies": "Hakamo-o"
+    },
+    {
+      "id": "kommoo",
+      "speciesId": "kommoototem",
+      "name": "Kommo-o-Totem",
+      "baseSpecies": "Kommo-o"
+    },
+    {
+      "id": "tapukoko",
+      "speciesId": "tapukoko",
+      "name": "Tapu Koko",
+      "baseSpecies": "Tapu Koko"
+    },
+    {
+      "id": "tapulele",
+      "speciesId": "tapulele",
+      "name": "Tapu Lele",
+      "baseSpecies": "Tapu Lele"
+    },
+    {
+      "id": "tapubulu",
+      "speciesId": "tapubulu",
+      "name": "Tapu Bulu",
+      "baseSpecies": "Tapu Bulu"
+    },
+    {
+      "id": "tapufini",
+      "speciesId": "tapufini",
+      "name": "Tapu Fini",
+      "baseSpecies": "Tapu Fini"
+    },
+    {
+      "id": "cosmog",
+      "speciesId": "cosmog",
+      "name": "Cosmog",
+      "baseSpecies": "Cosmog"
+    },
+    {
+      "id": "cosmoem",
+      "speciesId": "cosmoem",
+      "name": "Cosmoem",
+      "baseSpecies": "Cosmoem"
+    },
+    {
+      "id": "solgaleo",
+      "speciesId": "solgaleo",
+      "name": "Solgaleo",
+      "baseSpecies": "Solgaleo"
+    },
+    {
+      "id": "lunala",
+      "speciesId": "lunala",
+      "name": "Lunala",
+      "baseSpecies": "Lunala"
+    },
+    {
+      "id": "nihilego",
+      "speciesId": "nihilego",
+      "name": "Nihilego",
+      "baseSpecies": "Nihilego"
+    },
+    {
+      "id": "buzzwole",
+      "speciesId": "buzzwole",
+      "name": "Buzzwole",
+      "baseSpecies": "Buzzwole"
+    },
+    {
+      "id": "pheromosa",
+      "speciesId": "pheromosa",
+      "name": "Pheromosa",
+      "baseSpecies": "Pheromosa"
+    },
+    {
+      "id": "xurkitree",
+      "speciesId": "xurkitree",
+      "name": "Xurkitree",
+      "baseSpecies": "Xurkitree"
+    },
+    {
+      "id": "celesteela",
+      "speciesId": "celesteela",
+      "name": "Celesteela",
+      "baseSpecies": "Celesteela"
+    },
+    {
+      "id": "kartana",
+      "speciesId": "kartana",
+      "name": "Kartana",
+      "baseSpecies": "Kartana"
+    },
+    {
+      "id": "guzzlord",
+      "speciesId": "guzzlord",
+      "name": "Guzzlord",
+      "baseSpecies": "Guzzlord"
+    },
+    {
+      "id": "necrozma",
+      "speciesId": "necrozma",
+      "name": "Necrozma",
+      "baseSpecies": "Necrozma"
+    },
+    {
+      "id": "necrozma-duskmane",
+      "speciesId": "necrozmaduskmane",
+      "name": "Necrozma-Dusk-Mane",
+      "baseSpecies": "Necrozma"
+    },
+    {
+      "id": "necrozma-dawnwings",
+      "speciesId": "necrozmadawnwings",
+      "name": "Necrozma-Dawn-Wings",
+      "baseSpecies": "Necrozma"
+    },
+    {
+      "id": "necrozma-ultra",
+      "speciesId": "necrozmaultra",
+      "name": "Necrozma-Ultra",
+      "baseSpecies": "Necrozma"
+    },
+    {
+      "id": "magearna",
+      "speciesId": "magearna",
+      "name": "Magearna",
+      "baseSpecies": "Magearna"
+    },
+    {
+      "id": "magearna-original",
+      "speciesId": "magearnaoriginal",
+      "name": "Magearna-Original",
+      "baseSpecies": "Magearna"
+    },
+    {
+      "id": "magearna-mega",
+      "speciesId": "magearnamega",
+      "name": "Magearna-Mega",
+      "baseSpecies": "Magearna"
+    },
+    {
+      "id": "magearna-originalmega",
+      "speciesId": "magearnaoriginalmega",
+      "name": "Magearna-Original-Mega",
+      "baseSpecies": "Magearna"
+    },
+    {
+      "id": "marshadow",
+      "speciesId": "marshadow",
+      "name": "Marshadow",
+      "baseSpecies": "Marshadow"
+    },
+    {
+      "id": "poipole",
+      "speciesId": "poipole",
+      "name": "Poipole",
+      "baseSpecies": "Poipole"
+    },
+    {
+      "id": "naganadel",
+      "speciesId": "naganadel",
+      "name": "Naganadel",
+      "baseSpecies": "Naganadel"
+    },
+    {
+      "id": "stakataka",
+      "speciesId": "stakataka",
+      "name": "Stakataka",
+      "baseSpecies": "Stakataka"
+    },
+    {
+      "id": "blacephalon",
+      "speciesId": "blacephalon",
+      "name": "Blacephalon",
+      "baseSpecies": "Blacephalon"
+    },
+    {
+      "id": "zeraora",
+      "speciesId": "zeraora",
+      "name": "Zeraora",
+      "baseSpecies": "Zeraora"
+    },
+    {
+      "id": "zeraora-mega",
+      "speciesId": "zeraoramega",
+      "name": "Zeraora-Mega",
+      "baseSpecies": "Zeraora"
+    },
+    {
+      "id": "meltan",
+      "speciesId": "meltan",
+      "name": "Meltan",
+      "baseSpecies": "Meltan"
+    },
+    {
+      "id": "melmetal",
+      "speciesId": "melmetal",
+      "name": "Melmetal",
+      "baseSpecies": "Melmetal"
+    },
+    {
+      "id": "melmetal-gmax",
+      "speciesId": "melmetalgmax",
+      "name": "Melmetal-Gmax",
+      "baseSpecies": "Melmetal"
+    },
+    {
+      "id": "grookey",
+      "speciesId": "grookey",
+      "name": "Grookey",
+      "baseSpecies": "Grookey"
+    },
+    {
+      "id": "thwackey",
+      "speciesId": "thwackey",
+      "name": "Thwackey",
+      "baseSpecies": "Thwackey"
+    },
+    {
+      "id": "rillaboom",
+      "speciesId": "rillaboom",
+      "name": "Rillaboom",
+      "baseSpecies": "Rillaboom"
+    },
+    {
+      "id": "rillaboom-gmax",
+      "speciesId": "rillaboomgmax",
+      "name": "Rillaboom-Gmax",
+      "baseSpecies": "Rillaboom"
+    },
+    {
+      "id": "scorbunny",
+      "speciesId": "scorbunny",
+      "name": "Scorbunny",
+      "baseSpecies": "Scorbunny"
+    },
+    {
+      "id": "raboot",
+      "speciesId": "raboot",
+      "name": "Raboot",
+      "baseSpecies": "Raboot"
+    },
+    {
+      "id": "cinderace",
+      "speciesId": "cinderace",
+      "name": "Cinderace",
+      "baseSpecies": "Cinderace"
+    },
+    {
+      "id": "cinderace-gmax",
+      "speciesId": "cinderacegmax",
+      "name": "Cinderace-Gmax",
+      "baseSpecies": "Cinderace"
+    },
+    {
+      "id": "sobble",
+      "speciesId": "sobble",
+      "name": "Sobble",
+      "baseSpecies": "Sobble"
+    },
+    {
+      "id": "drizzile",
+      "speciesId": "drizzile",
+      "name": "Drizzile",
+      "baseSpecies": "Drizzile"
+    },
+    {
+      "id": "inteleon",
+      "speciesId": "inteleon",
+      "name": "Inteleon",
+      "baseSpecies": "Inteleon"
+    },
+    {
+      "id": "inteleon-gmax",
+      "speciesId": "inteleongmax",
+      "name": "Inteleon-Gmax",
+      "baseSpecies": "Inteleon"
+    },
+    {
+      "id": "skwovet",
+      "speciesId": "skwovet",
+      "name": "Skwovet",
+      "baseSpecies": "Skwovet"
+    },
+    {
+      "id": "greedent",
+      "speciesId": "greedent",
+      "name": "Greedent",
+      "baseSpecies": "Greedent"
+    },
+    {
+      "id": "rookidee",
+      "speciesId": "rookidee",
+      "name": "Rookidee",
+      "baseSpecies": "Rookidee"
+    },
+    {
+      "id": "corvisquire",
+      "speciesId": "corvisquire",
+      "name": "Corvisquire",
+      "baseSpecies": "Corvisquire"
+    },
+    {
+      "id": "corviknight",
+      "speciesId": "corviknight",
+      "name": "Corviknight",
+      "baseSpecies": "Corviknight"
+    },
+    {
+      "id": "corviknight-gmax",
+      "speciesId": "corviknightgmax",
+      "name": "Corviknight-Gmax",
+      "baseSpecies": "Corviknight"
+    },
+    {
+      "id": "blipbug",
+      "speciesId": "blipbug",
+      "name": "Blipbug",
+      "baseSpecies": "Blipbug"
+    },
+    {
+      "id": "dottler",
+      "speciesId": "dottler",
+      "name": "Dottler",
+      "baseSpecies": "Dottler"
+    },
+    {
+      "id": "orbeetle",
+      "speciesId": "orbeetle",
+      "name": "Orbeetle",
+      "baseSpecies": "Orbeetle"
+    },
+    {
+      "id": "orbeetle-gmax",
+      "speciesId": "orbeetlegmax",
+      "name": "Orbeetle-Gmax",
+      "baseSpecies": "Orbeetle"
+    },
+    {
+      "id": "nickit",
+      "speciesId": "nickit",
+      "name": "Nickit",
+      "baseSpecies": "Nickit"
+    },
+    {
+      "id": "thievul",
+      "speciesId": "thievul",
+      "name": "Thievul",
+      "baseSpecies": "Thievul"
+    },
+    {
+      "id": "gossifleur",
+      "speciesId": "gossifleur",
+      "name": "Gossifleur",
+      "baseSpecies": "Gossifleur"
+    },
+    {
+      "id": "eldegoss",
+      "speciesId": "eldegoss",
+      "name": "Eldegoss",
+      "baseSpecies": "Eldegoss"
+    },
+    {
+      "id": "wooloo",
+      "speciesId": "wooloo",
+      "name": "Wooloo",
+      "baseSpecies": "Wooloo"
+    },
+    {
+      "id": "dubwool",
+      "speciesId": "dubwool",
+      "name": "Dubwool",
+      "baseSpecies": "Dubwool"
+    },
+    {
+      "id": "chewtle",
+      "speciesId": "chewtle",
+      "name": "Chewtle",
+      "baseSpecies": "Chewtle"
+    },
+    {
+      "id": "drednaw",
+      "speciesId": "drednaw",
+      "name": "Drednaw",
+      "baseSpecies": "Drednaw"
+    },
+    {
+      "id": "drednaw-gmax",
+      "speciesId": "drednawgmax",
+      "name": "Drednaw-Gmax",
+      "baseSpecies": "Drednaw"
+    },
+    {
+      "id": "yamper",
+      "speciesId": "yamper",
+      "name": "Yamper",
+      "baseSpecies": "Yamper"
+    },
+    {
+      "id": "boltund",
+      "speciesId": "boltund",
+      "name": "Boltund",
+      "baseSpecies": "Boltund"
+    },
+    {
+      "id": "rolycoly",
+      "speciesId": "rolycoly",
+      "name": "Rolycoly",
+      "baseSpecies": "Rolycoly"
+    },
+    {
+      "id": "carkol",
+      "speciesId": "carkol",
+      "name": "Carkol",
+      "baseSpecies": "Carkol"
+    },
+    {
+      "id": "coalossal",
+      "speciesId": "coalossal",
+      "name": "Coalossal",
+      "baseSpecies": "Coalossal"
+    },
+    {
+      "id": "coalossal-gmax",
+      "speciesId": "coalossalgmax",
+      "name": "Coalossal-Gmax",
+      "baseSpecies": "Coalossal"
+    },
+    {
+      "id": "applin",
+      "speciesId": "applin",
+      "name": "Applin",
+      "baseSpecies": "Applin"
+    },
+    {
+      "id": "flapple",
+      "speciesId": "flapple",
+      "name": "Flapple",
+      "baseSpecies": "Flapple"
+    },
+    {
+      "id": "flapple-gmax",
+      "speciesId": "flapplegmax",
+      "name": "Flapple-Gmax",
+      "baseSpecies": "Flapple"
+    },
+    {
+      "id": "appletun",
+      "speciesId": "appletun",
+      "name": "Appletun",
+      "baseSpecies": "Appletun"
+    },
+    {
+      "id": "appletun-gmax",
+      "speciesId": "appletungmax",
+      "name": "Appletun-Gmax",
+      "baseSpecies": "Appletun"
+    },
+    {
+      "id": "silicobra",
+      "speciesId": "silicobra",
+      "name": "Silicobra",
+      "baseSpecies": "Silicobra"
+    },
+    {
+      "id": "sandaconda",
+      "speciesId": "sandaconda",
+      "name": "Sandaconda",
+      "baseSpecies": "Sandaconda"
+    },
+    {
+      "id": "sandaconda-gmax",
+      "speciesId": "sandacondagmax",
+      "name": "Sandaconda-Gmax",
+      "baseSpecies": "Sandaconda"
+    },
+    {
+      "id": "cramorant",
+      "speciesId": "cramorant",
+      "name": "Cramorant",
+      "baseSpecies": "Cramorant"
+    },
+    {
+      "id": "cramorant-gulping",
+      "speciesId": "cramorantgulping",
+      "name": "Cramorant-Gulping",
+      "baseSpecies": "Cramorant"
+    },
+    {
+      "id": "cramorant-gorging",
+      "speciesId": "cramorantgorging",
+      "name": "Cramorant-Gorging",
+      "baseSpecies": "Cramorant"
+    },
+    {
+      "id": "arrokuda",
+      "speciesId": "arrokuda",
+      "name": "Arrokuda",
+      "baseSpecies": "Arrokuda"
+    },
+    {
+      "id": "barraskewda",
+      "speciesId": "barraskewda",
+      "name": "Barraskewda",
+      "baseSpecies": "Barraskewda"
+    },
+    {
+      "id": "toxel",
+      "speciesId": "toxel",
+      "name": "Toxel",
+      "baseSpecies": "Toxel"
+    },
+    {
+      "id": "toxtricity",
+      "speciesId": "toxtricity",
+      "name": "Toxtricity",
+      "baseSpecies": "Toxtricity"
+    },
+    {
+      "id": "toxtricity-lowkey",
+      "speciesId": "toxtricitylowkey",
+      "name": "Toxtricity-Low-Key",
+      "baseSpecies": "Toxtricity"
+    },
+    {
+      "id": "toxtricity-gmax",
+      "speciesId": "toxtricitygmax",
+      "name": "Toxtricity-Gmax",
+      "baseSpecies": "Toxtricity"
+    },
+    {
+      "id": "toxtricity-lowkeygmax",
+      "speciesId": "toxtricitylowkeygmax",
+      "name": "Toxtricity-Low-Key-Gmax",
+      "baseSpecies": "Toxtricity"
+    },
+    {
+      "id": "sizzlipede",
+      "speciesId": "sizzlipede",
+      "name": "Sizzlipede",
+      "baseSpecies": "Sizzlipede"
+    },
+    {
+      "id": "centiskorch",
+      "speciesId": "centiskorch",
+      "name": "Centiskorch",
+      "baseSpecies": "Centiskorch"
+    },
+    {
+      "id": "centiskorch-gmax",
+      "speciesId": "centiskorchgmax",
+      "name": "Centiskorch-Gmax",
+      "baseSpecies": "Centiskorch"
+    },
+    {
+      "id": "clobbopus",
+      "speciesId": "clobbopus",
+      "name": "Clobbopus",
+      "baseSpecies": "Clobbopus"
+    },
+    {
+      "id": "grapploct",
+      "speciesId": "grapploct",
+      "name": "Grapploct",
+      "baseSpecies": "Grapploct"
+    },
+    {
+      "id": "sinistea",
+      "speciesId": "sinistea",
+      "name": "Sinistea",
+      "baseSpecies": "Sinistea"
+    },
+    {
+      "id": "sinistea-antique",
+      "speciesId": "sinisteaantique",
+      "name": "Sinistea-Antique",
+      "baseSpecies": "Sinistea"
+    },
+    {
+      "id": "polteageist",
+      "speciesId": "polteageist",
+      "name": "Polteageist",
+      "baseSpecies": "Polteageist"
+    },
+    {
+      "id": "polteageist-antique",
+      "speciesId": "polteageistantique",
+      "name": "Polteageist-Antique",
+      "baseSpecies": "Polteageist"
+    },
+    {
+      "id": "hatenna",
+      "speciesId": "hatenna",
+      "name": "Hatenna",
+      "baseSpecies": "Hatenna"
+    },
+    {
+      "id": "hattrem",
+      "speciesId": "hattrem",
+      "name": "Hattrem",
+      "baseSpecies": "Hattrem"
+    },
+    {
+      "id": "hatterene",
+      "speciesId": "hatterene",
+      "name": "Hatterene",
+      "baseSpecies": "Hatterene"
+    },
+    {
+      "id": "hatterene-gmax",
+      "speciesId": "hatterenegmax",
+      "name": "Hatterene-Gmax",
+      "baseSpecies": "Hatterene"
+    },
+    {
+      "id": "impidimp",
+      "speciesId": "impidimp",
+      "name": "Impidimp",
+      "baseSpecies": "Impidimp"
+    },
+    {
+      "id": "morgrem",
+      "speciesId": "morgrem",
+      "name": "Morgrem",
+      "baseSpecies": "Morgrem"
+    },
+    {
+      "id": "grimmsnarl",
+      "speciesId": "grimmsnarl",
+      "name": "Grimmsnarl",
+      "baseSpecies": "Grimmsnarl"
+    },
+    {
+      "id": "grimmsnarl-gmax",
+      "speciesId": "grimmsnarlgmax",
+      "name": "Grimmsnarl-Gmax",
+      "baseSpecies": "Grimmsnarl"
+    },
+    {
+      "id": "obstagoon",
+      "speciesId": "obstagoon",
+      "name": "Obstagoon",
+      "baseSpecies": "Obstagoon"
+    },
+    {
+      "id": "perrserker",
+      "speciesId": "perrserker",
+      "name": "Perrserker",
+      "baseSpecies": "Perrserker"
+    },
+    {
+      "id": "cursola",
+      "speciesId": "cursola",
+      "name": "Cursola",
+      "baseSpecies": "Cursola"
+    },
+    {
+      "id": "sirfetchd",
+      "speciesId": "sirfetchd",
+      "name": "Sirfetch’d",
+      "baseSpecies": "Sirfetch’d"
+    },
+    {
+      "id": "mrrime",
+      "speciesId": "mrrime",
+      "name": "Mr. Rime",
+      "baseSpecies": "Mr. Rime"
+    },
+    {
+      "id": "runerigus",
+      "speciesId": "runerigus",
+      "name": "Runerigus",
+      "baseSpecies": "Runerigus"
+    },
+    {
+      "id": "milcery",
+      "speciesId": "milcery",
+      "name": "Milcery",
+      "baseSpecies": "Milcery"
+    },
+    {
+      "id": "alcremie",
+      "speciesId": "alcremie",
+      "name": "Alcremie",
+      "baseSpecies": "Alcremie"
+    },
+    {
+      "id": "alcremie-gmax",
+      "speciesId": "alcremiegmax",
+      "name": "Alcremie-Gmax",
+      "baseSpecies": "Alcremie"
+    },
+    {
+      "id": "falinks",
+      "speciesId": "falinks",
+      "name": "Falinks",
+      "baseSpecies": "Falinks"
+    },
+    {
+      "id": "falinks-mega",
+      "speciesId": "falinksmega",
+      "name": "Falinks-Mega",
+      "baseSpecies": "Falinks"
+    },
+    {
+      "id": "pincurchin",
+      "speciesId": "pincurchin",
+      "name": "Pincurchin",
+      "baseSpecies": "Pincurchin"
+    },
+    {
+      "id": "snom",
+      "speciesId": "snom",
+      "name": "Snom",
+      "baseSpecies": "Snom"
+    },
+    {
+      "id": "frosmoth",
+      "speciesId": "frosmoth",
+      "name": "Frosmoth",
+      "baseSpecies": "Frosmoth"
+    },
+    {
+      "id": "stonjourner",
+      "speciesId": "stonjourner",
+      "name": "Stonjourner",
+      "baseSpecies": "Stonjourner"
+    },
+    {
+      "id": "eiscue",
+      "speciesId": "eiscue",
+      "name": "Eiscue",
+      "baseSpecies": "Eiscue"
+    },
+    {
+      "id": "eiscue-noice",
+      "speciesId": "eiscuenoice",
+      "name": "Eiscue-Noice",
+      "baseSpecies": "Eiscue"
+    },
+    {
+      "id": "indeedee",
+      "speciesId": "indeedee",
+      "name": "Indeedee",
+      "baseSpecies": "Indeedee"
+    },
+    {
+      "id": "indeedee-f",
+      "speciesId": "indeedeef",
+      "name": "Indeedee-F",
+      "baseSpecies": "Indeedee"
+    },
+    {
+      "id": "morpeko",
+      "speciesId": "morpeko",
+      "name": "Morpeko",
+      "baseSpecies": "Morpeko"
+    },
+    {
+      "id": "morpeko-hangry",
+      "speciesId": "morpekohangry",
+      "name": "Morpeko-Hangry",
+      "baseSpecies": "Morpeko"
+    },
+    {
+      "id": "cufant",
+      "speciesId": "cufant",
+      "name": "Cufant",
+      "baseSpecies": "Cufant"
+    },
+    {
+      "id": "copperajah",
+      "speciesId": "copperajah",
+      "name": "Copperajah",
+      "baseSpecies": "Copperajah"
+    },
+    {
+      "id": "copperajah-gmax",
+      "speciesId": "copperajahgmax",
+      "name": "Copperajah-Gmax",
+      "baseSpecies": "Copperajah"
+    },
+    {
+      "id": "dracozolt",
+      "speciesId": "dracozolt",
+      "name": "Dracozolt",
+      "baseSpecies": "Dracozolt"
+    },
+    {
+      "id": "arctozolt",
+      "speciesId": "arctozolt",
+      "name": "Arctozolt",
+      "baseSpecies": "Arctozolt"
+    },
+    {
+      "id": "dracovish",
+      "speciesId": "dracovish",
+      "name": "Dracovish",
+      "baseSpecies": "Dracovish"
+    },
+    {
+      "id": "arctovish",
+      "speciesId": "arctovish",
+      "name": "Arctovish",
+      "baseSpecies": "Arctovish"
+    },
+    {
+      "id": "duraludon",
+      "speciesId": "duraludon",
+      "name": "Duraludon",
+      "baseSpecies": "Duraludon"
+    },
+    {
+      "id": "duraludon-gmax",
+      "speciesId": "duraludongmax",
+      "name": "Duraludon-Gmax",
+      "baseSpecies": "Duraludon"
+    },
+    {
+      "id": "dreepy",
+      "speciesId": "dreepy",
+      "name": "Dreepy",
+      "baseSpecies": "Dreepy"
+    },
+    {
+      "id": "drakloak",
+      "speciesId": "drakloak",
+      "name": "Drakloak",
+      "baseSpecies": "Drakloak"
+    },
+    {
+      "id": "dragapult",
+      "speciesId": "dragapult",
+      "name": "Dragapult",
+      "baseSpecies": "Dragapult"
+    },
+    {
+      "id": "zacian",
+      "speciesId": "zacian",
+      "name": "Zacian",
+      "baseSpecies": "Zacian"
+    },
+    {
+      "id": "zacian-crowned",
+      "speciesId": "zaciancrowned",
+      "name": "Zacian-Crowned",
+      "baseSpecies": "Zacian"
+    },
+    {
+      "id": "zamazenta",
+      "speciesId": "zamazenta",
+      "name": "Zamazenta",
+      "baseSpecies": "Zamazenta"
+    },
+    {
+      "id": "zamazenta-crowned",
+      "speciesId": "zamazentacrowned",
+      "name": "Zamazenta-Crowned",
+      "baseSpecies": "Zamazenta"
+    },
+    {
+      "id": "eternatus",
+      "speciesId": "eternatus",
+      "name": "Eternatus",
+      "baseSpecies": "Eternatus"
+    },
+    {
+      "id": "eternatus-eternamax",
+      "speciesId": "eternatuseternamax",
+      "name": "Eternatus-Eternamax",
+      "baseSpecies": "Eternatus"
+    },
+    {
+      "id": "kubfu",
+      "speciesId": "kubfu",
+      "name": "Kubfu",
+      "baseSpecies": "Kubfu"
+    },
+    {
+      "id": "urshifu",
+      "speciesId": "urshifu",
+      "name": "Urshifu",
+      "baseSpecies": "Urshifu"
+    },
+    {
+      "id": "urshifu-rapidstrike",
+      "speciesId": "urshifurapidstrike",
+      "name": "Urshifu-Rapid-Strike",
+      "baseSpecies": "Urshifu"
+    },
+    {
+      "id": "urshifu-gmax",
+      "speciesId": "urshifugmax",
+      "name": "Urshifu-Gmax",
+      "baseSpecies": "Urshifu"
+    },
+    {
+      "id": "urshifu-rapidstrikegmax",
+      "speciesId": "urshifurapidstrikegmax",
+      "name": "Urshifu-Rapid-Strike-Gmax",
+      "baseSpecies": "Urshifu"
+    },
+    {
+      "id": "zarude",
+      "speciesId": "zarude",
+      "name": "Zarude",
+      "baseSpecies": "Zarude"
+    },
+    {
+      "id": "zarude-dada",
+      "speciesId": "zarudedada",
+      "name": "Zarude-Dada",
+      "baseSpecies": "Zarude"
+    },
+    {
+      "id": "regieleki",
+      "speciesId": "regieleki",
+      "name": "Regieleki",
+      "baseSpecies": "Regieleki"
+    },
+    {
+      "id": "regidrago",
+      "speciesId": "regidrago",
+      "name": "Regidrago",
+      "baseSpecies": "Regidrago"
+    },
+    {
+      "id": "glastrier",
+      "speciesId": "glastrier",
+      "name": "Glastrier",
+      "baseSpecies": "Glastrier"
+    },
+    {
+      "id": "spectrier",
+      "speciesId": "spectrier",
+      "name": "Spectrier",
+      "baseSpecies": "Spectrier"
+    },
+    {
+      "id": "calyrex",
+      "speciesId": "calyrex",
+      "name": "Calyrex",
+      "baseSpecies": "Calyrex"
+    },
+    {
+      "id": "calyrex-ice",
+      "speciesId": "calyrexice",
+      "name": "Calyrex-Ice",
+      "baseSpecies": "Calyrex"
+    },
+    {
+      "id": "calyrex-shadow",
+      "speciesId": "calyrexshadow",
+      "name": "Calyrex-Shadow",
+      "baseSpecies": "Calyrex"
+    },
+    {
+      "id": "wyrdeer",
+      "speciesId": "wyrdeer",
+      "name": "Wyrdeer",
+      "baseSpecies": "Wyrdeer"
+    },
+    {
+      "id": "kleavor",
+      "speciesId": "kleavor",
+      "name": "Kleavor",
+      "baseSpecies": "Kleavor"
+    },
+    {
+      "id": "ursaluna",
+      "speciesId": "ursaluna",
+      "name": "Ursaluna",
+      "baseSpecies": "Ursaluna"
+    },
+    {
+      "id": "ursaluna-bloodmoon",
+      "speciesId": "ursalunabloodmoon",
+      "name": "Ursaluna-Bloodmoon",
+      "baseSpecies": "Ursaluna"
+    },
+    {
+      "id": "basculegion",
+      "speciesId": "basculegion",
+      "name": "Basculegion",
+      "baseSpecies": "Basculegion"
+    },
+    {
+      "id": "basculegion-f",
+      "speciesId": "basculegionf",
+      "name": "Basculegion-F",
+      "baseSpecies": "Basculegion"
+    },
+    {
+      "id": "sneasler",
+      "speciesId": "sneasler",
+      "name": "Sneasler",
+      "baseSpecies": "Sneasler"
+    },
+    {
+      "id": "overqwil",
+      "speciesId": "overqwil",
+      "name": "Overqwil",
+      "baseSpecies": "Overqwil"
+    },
+    {
+      "id": "enamorus",
+      "speciesId": "enamorus",
+      "name": "Enamorus",
+      "baseSpecies": "Enamorus"
+    },
+    {
+      "id": "enamorus-therian",
+      "speciesId": "enamorustherian",
+      "name": "Enamorus-Therian",
+      "baseSpecies": "Enamorus"
+    },
+    {
+      "id": "sprigatito",
+      "speciesId": "sprigatito",
+      "name": "Sprigatito",
+      "baseSpecies": "Sprigatito"
+    },
+    {
+      "id": "floragato",
+      "speciesId": "floragato",
+      "name": "Floragato",
+      "baseSpecies": "Floragato"
+    },
+    {
+      "id": "meowscarada",
+      "speciesId": "meowscarada",
+      "name": "Meowscarada",
+      "baseSpecies": "Meowscarada"
+    },
+    {
+      "id": "fuecoco",
+      "speciesId": "fuecoco",
+      "name": "Fuecoco",
+      "baseSpecies": "Fuecoco"
+    },
+    {
+      "id": "crocalor",
+      "speciesId": "crocalor",
+      "name": "Crocalor",
+      "baseSpecies": "Crocalor"
+    },
+    {
+      "id": "skeledirge",
+      "speciesId": "skeledirge",
+      "name": "Skeledirge",
+      "baseSpecies": "Skeledirge"
+    },
+    {
+      "id": "quaxly",
+      "speciesId": "quaxly",
+      "name": "Quaxly",
+      "baseSpecies": "Quaxly"
+    },
+    {
+      "id": "quaxwell",
+      "speciesId": "quaxwell",
+      "name": "Quaxwell",
+      "baseSpecies": "Quaxwell"
+    },
+    {
+      "id": "quaquaval",
+      "speciesId": "quaquaval",
+      "name": "Quaquaval",
+      "baseSpecies": "Quaquaval"
+    },
+    {
+      "id": "lechonk",
+      "speciesId": "lechonk",
+      "name": "Lechonk",
+      "baseSpecies": "Lechonk"
+    },
+    {
+      "id": "oinkologne",
+      "speciesId": "oinkologne",
+      "name": "Oinkologne",
+      "baseSpecies": "Oinkologne"
+    },
+    {
+      "id": "oinkologne-f",
+      "speciesId": "oinkolognef",
+      "name": "Oinkologne-F",
+      "baseSpecies": "Oinkologne"
+    },
+    {
+      "id": "tarountula",
+      "speciesId": "tarountula",
+      "name": "Tarountula",
+      "baseSpecies": "Tarountula"
+    },
+    {
+      "id": "spidops",
+      "speciesId": "spidops",
+      "name": "Spidops",
+      "baseSpecies": "Spidops"
+    },
+    {
+      "id": "nymble",
+      "speciesId": "nymble",
+      "name": "Nymble",
+      "baseSpecies": "Nymble"
+    },
+    {
+      "id": "lokix",
+      "speciesId": "lokix",
+      "name": "Lokix",
+      "baseSpecies": "Lokix"
+    },
+    {
+      "id": "pawmi",
+      "speciesId": "pawmi",
+      "name": "Pawmi",
+      "baseSpecies": "Pawmi"
+    },
+    {
+      "id": "pawmo",
+      "speciesId": "pawmo",
+      "name": "Pawmo",
+      "baseSpecies": "Pawmo"
+    },
+    {
+      "id": "pawmot",
+      "speciesId": "pawmot",
+      "name": "Pawmot",
+      "baseSpecies": "Pawmot"
+    },
+    {
+      "id": "tandemaus",
+      "speciesId": "tandemaus",
+      "name": "Tandemaus",
+      "baseSpecies": "Tandemaus"
+    },
+    {
+      "id": "maushold",
+      "speciesId": "maushold",
+      "name": "Maushold",
+      "baseSpecies": "Maushold"
+    },
+    {
+      "id": "maushold-four",
+      "speciesId": "mausholdfour",
+      "name": "Maushold-Four",
+      "baseSpecies": "Maushold"
+    },
+    {
+      "id": "fidough",
+      "speciesId": "fidough",
+      "name": "Fidough",
+      "baseSpecies": "Fidough"
+    },
+    {
+      "id": "dachsbun",
+      "speciesId": "dachsbun",
+      "name": "Dachsbun",
+      "baseSpecies": "Dachsbun"
+    },
+    {
+      "id": "smoliv",
+      "speciesId": "smoliv",
+      "name": "Smoliv",
+      "baseSpecies": "Smoliv"
+    },
+    {
+      "id": "dolliv",
+      "speciesId": "dolliv",
+      "name": "Dolliv",
+      "baseSpecies": "Dolliv"
+    },
+    {
+      "id": "arboliva",
+      "speciesId": "arboliva",
+      "name": "Arboliva",
+      "baseSpecies": "Arboliva"
+    },
+    {
+      "id": "squawkabilly",
+      "speciesId": "squawkabilly",
+      "name": "Squawkabilly",
+      "baseSpecies": "Squawkabilly"
+    },
+    {
+      "id": "squawkabilly-blue",
+      "speciesId": "squawkabillyblue",
+      "name": "Squawkabilly-Blue",
+      "baseSpecies": "Squawkabilly"
+    },
+    {
+      "id": "squawkabilly-yellow",
+      "speciesId": "squawkabillyyellow",
+      "name": "Squawkabilly-Yellow",
+      "baseSpecies": "Squawkabilly"
+    },
+    {
+      "id": "squawkabilly-white",
+      "speciesId": "squawkabillywhite",
+      "name": "Squawkabilly-White",
+      "baseSpecies": "Squawkabilly"
+    },
+    {
+      "id": "nacli",
+      "speciesId": "nacli",
+      "name": "Nacli",
+      "baseSpecies": "Nacli"
+    },
+    {
+      "id": "naclstack",
+      "speciesId": "naclstack",
+      "name": "Naclstack",
+      "baseSpecies": "Naclstack"
+    },
+    {
+      "id": "garganacl",
+      "speciesId": "garganacl",
+      "name": "Garganacl",
+      "baseSpecies": "Garganacl"
+    },
+    {
+      "id": "charcadet",
+      "speciesId": "charcadet",
+      "name": "Charcadet",
+      "baseSpecies": "Charcadet"
+    },
+    {
+      "id": "armarouge",
+      "speciesId": "armarouge",
+      "name": "Armarouge",
+      "baseSpecies": "Armarouge"
+    },
+    {
+      "id": "ceruledge",
+      "speciesId": "ceruledge",
+      "name": "Ceruledge",
+      "baseSpecies": "Ceruledge"
+    },
+    {
+      "id": "tadbulb",
+      "speciesId": "tadbulb",
+      "name": "Tadbulb",
+      "baseSpecies": "Tadbulb"
+    },
+    {
+      "id": "bellibolt",
+      "speciesId": "bellibolt",
+      "name": "Bellibolt",
+      "baseSpecies": "Bellibolt"
+    },
+    {
+      "id": "wattrel",
+      "speciesId": "wattrel",
+      "name": "Wattrel",
+      "baseSpecies": "Wattrel"
+    },
+    {
+      "id": "kilowattrel",
+      "speciesId": "kilowattrel",
+      "name": "Kilowattrel",
+      "baseSpecies": "Kilowattrel"
+    },
+    {
+      "id": "maschiff",
+      "speciesId": "maschiff",
+      "name": "Maschiff",
+      "baseSpecies": "Maschiff"
+    },
+    {
+      "id": "mabosstiff",
+      "speciesId": "mabosstiff",
+      "name": "Mabosstiff",
+      "baseSpecies": "Mabosstiff"
+    },
+    {
+      "id": "shroodle",
+      "speciesId": "shroodle",
+      "name": "Shroodle",
+      "baseSpecies": "Shroodle"
+    },
+    {
+      "id": "grafaiai",
+      "speciesId": "grafaiai",
+      "name": "Grafaiai",
+      "baseSpecies": "Grafaiai"
+    },
+    {
+      "id": "bramblin",
+      "speciesId": "bramblin",
+      "name": "Bramblin",
+      "baseSpecies": "Bramblin"
+    },
+    {
+      "id": "brambleghast",
+      "speciesId": "brambleghast",
+      "name": "Brambleghast",
+      "baseSpecies": "Brambleghast"
+    },
+    {
+      "id": "toedscool",
+      "speciesId": "toedscool",
+      "name": "Toedscool",
+      "baseSpecies": "Toedscool"
+    },
+    {
+      "id": "toedscruel",
+      "speciesId": "toedscruel",
+      "name": "Toedscruel",
+      "baseSpecies": "Toedscruel"
+    },
+    {
+      "id": "klawf",
+      "speciesId": "klawf",
+      "name": "Klawf",
+      "baseSpecies": "Klawf"
+    },
+    {
+      "id": "capsakid",
+      "speciesId": "capsakid",
+      "name": "Capsakid",
+      "baseSpecies": "Capsakid"
+    },
+    {
+      "id": "scovillain",
+      "speciesId": "scovillain",
+      "name": "Scovillain",
+      "baseSpecies": "Scovillain"
+    },
+    {
+      "id": "scovillain-mega",
+      "speciesId": "scovillainmega",
+      "name": "Scovillain-Mega",
+      "baseSpecies": "Scovillain"
+    },
+    {
+      "id": "rellor",
+      "speciesId": "rellor",
+      "name": "Rellor",
+      "baseSpecies": "Rellor"
+    },
+    {
+      "id": "rabsca",
+      "speciesId": "rabsca",
+      "name": "Rabsca",
+      "baseSpecies": "Rabsca"
+    },
+    {
+      "id": "flittle",
+      "speciesId": "flittle",
+      "name": "Flittle",
+      "baseSpecies": "Flittle"
+    },
+    {
+      "id": "espathra",
+      "speciesId": "espathra",
+      "name": "Espathra",
+      "baseSpecies": "Espathra"
+    },
+    {
+      "id": "tinkatink",
+      "speciesId": "tinkatink",
+      "name": "Tinkatink",
+      "baseSpecies": "Tinkatink"
+    },
+    {
+      "id": "tinkatuff",
+      "speciesId": "tinkatuff",
+      "name": "Tinkatuff",
+      "baseSpecies": "Tinkatuff"
+    },
+    {
+      "id": "tinkaton",
+      "speciesId": "tinkaton",
+      "name": "Tinkaton",
+      "baseSpecies": "Tinkaton"
+    },
+    {
+      "id": "wiglett",
+      "speciesId": "wiglett",
+      "name": "Wiglett",
+      "baseSpecies": "Wiglett"
+    },
+    {
+      "id": "wugtrio",
+      "speciesId": "wugtrio",
+      "name": "Wugtrio",
+      "baseSpecies": "Wugtrio"
+    },
+    {
+      "id": "bombirdier",
+      "speciesId": "bombirdier",
+      "name": "Bombirdier",
+      "baseSpecies": "Bombirdier"
+    },
+    {
+      "id": "finizen",
+      "speciesId": "finizen",
+      "name": "Finizen",
+      "baseSpecies": "Finizen"
+    },
+    {
+      "id": "palafin",
+      "speciesId": "palafin",
+      "name": "Palafin",
+      "baseSpecies": "Palafin"
+    },
+    {
+      "id": "palafin-hero",
+      "speciesId": "palafinhero",
+      "name": "Palafin-Hero",
+      "baseSpecies": "Palafin"
+    },
+    {
+      "id": "varoom",
+      "speciesId": "varoom",
+      "name": "Varoom",
+      "baseSpecies": "Varoom"
+    },
+    {
+      "id": "revavroom",
+      "speciesId": "revavroom",
+      "name": "Revavroom",
+      "baseSpecies": "Revavroom"
+    },
+    {
+      "id": "cyclizar",
+      "speciesId": "cyclizar",
+      "name": "Cyclizar",
+      "baseSpecies": "Cyclizar"
+    },
+    {
+      "id": "orthworm",
+      "speciesId": "orthworm",
+      "name": "Orthworm",
+      "baseSpecies": "Orthworm"
+    },
+    {
+      "id": "glimmet",
+      "speciesId": "glimmet",
+      "name": "Glimmet",
+      "baseSpecies": "Glimmet"
+    },
+    {
+      "id": "glimmora",
+      "speciesId": "glimmora",
+      "name": "Glimmora",
+      "baseSpecies": "Glimmora"
+    },
+    {
+      "id": "glimmora-mega",
+      "speciesId": "glimmoramega",
+      "name": "Glimmora-Mega",
+      "baseSpecies": "Glimmora"
+    },
+    {
+      "id": "greavard",
+      "speciesId": "greavard",
+      "name": "Greavard",
+      "baseSpecies": "Greavard"
+    },
+    {
+      "id": "houndstone",
+      "speciesId": "houndstone",
+      "name": "Houndstone",
+      "baseSpecies": "Houndstone"
+    },
+    {
+      "id": "flamigo",
+      "speciesId": "flamigo",
+      "name": "Flamigo",
+      "baseSpecies": "Flamigo"
+    },
+    {
+      "id": "cetoddle",
+      "speciesId": "cetoddle",
+      "name": "Cetoddle",
+      "baseSpecies": "Cetoddle"
+    },
+    {
+      "id": "cetitan",
+      "speciesId": "cetitan",
+      "name": "Cetitan",
+      "baseSpecies": "Cetitan"
+    },
+    {
+      "id": "veluza",
+      "speciesId": "veluza",
+      "name": "Veluza",
+      "baseSpecies": "Veluza"
+    },
+    {
+      "id": "dondozo",
+      "speciesId": "dondozo",
+      "name": "Dondozo",
+      "baseSpecies": "Dondozo"
+    },
+    {
+      "id": "tatsugiri",
+      "speciesId": "tatsugiri",
+      "name": "Tatsugiri",
+      "baseSpecies": "Tatsugiri"
+    },
+    {
+      "id": "tatsugiri-droopy",
+      "speciesId": "tatsugiridroopy",
+      "name": "Tatsugiri-Droopy",
+      "baseSpecies": "Tatsugiri"
+    },
+    {
+      "id": "tatsugiri-stretchy",
+      "speciesId": "tatsugiristretchy",
+      "name": "Tatsugiri-Stretchy",
+      "baseSpecies": "Tatsugiri"
+    },
+    {
+      "id": "tatsugiri-curlymega",
+      "speciesId": "tatsugiricurlymega",
+      "name": "Tatsugiri-Curly-Mega",
+      "baseSpecies": "Tatsugiri"
+    },
+    {
+      "id": "tatsugiri-droopymega",
+      "speciesId": "tatsugiridroopymega",
+      "name": "Tatsugiri-Droopy-Mega",
+      "baseSpecies": "Tatsugiri"
+    },
+    {
+      "id": "tatsugiri-stretchymega",
+      "speciesId": "tatsugiristretchymega",
+      "name": "Tatsugiri-Stretchy-Mega",
+      "baseSpecies": "Tatsugiri"
+    },
+    {
+      "id": "annihilape",
+      "speciesId": "annihilape",
+      "name": "Annihilape",
+      "baseSpecies": "Annihilape"
+    },
+    {
+      "id": "clodsire",
+      "speciesId": "clodsire",
+      "name": "Clodsire",
+      "baseSpecies": "Clodsire"
+    },
+    {
+      "id": "farigiraf",
+      "speciesId": "farigiraf",
+      "name": "Farigiraf",
+      "baseSpecies": "Farigiraf"
+    },
+    {
+      "id": "dudunsparce",
+      "speciesId": "dudunsparce",
+      "name": "Dudunsparce",
+      "baseSpecies": "Dudunsparce"
+    },
+    {
+      "id": "dudunsparce-threesegment",
+      "speciesId": "dudunsparcethreesegment",
+      "name": "Dudunsparce-Three-Segment",
+      "baseSpecies": "Dudunsparce"
+    },
+    {
+      "id": "kingambit",
+      "speciesId": "kingambit",
+      "name": "Kingambit",
+      "baseSpecies": "Kingambit"
+    },
+    {
+      "id": "greattusk",
+      "speciesId": "greattusk",
+      "name": "Great Tusk",
+      "baseSpecies": "Great Tusk"
+    },
+    {
+      "id": "screamtail",
+      "speciesId": "screamtail",
+      "name": "Scream Tail",
+      "baseSpecies": "Scream Tail"
+    },
+    {
+      "id": "brutebonnet",
+      "speciesId": "brutebonnet",
+      "name": "Brute Bonnet",
+      "baseSpecies": "Brute Bonnet"
+    },
+    {
+      "id": "fluttermane",
+      "speciesId": "fluttermane",
+      "name": "Flutter Mane",
+      "baseSpecies": "Flutter Mane"
+    },
+    {
+      "id": "slitherwing",
+      "speciesId": "slitherwing",
+      "name": "Slither Wing",
+      "baseSpecies": "Slither Wing"
+    },
+    {
+      "id": "sandyshocks",
+      "speciesId": "sandyshocks",
+      "name": "Sandy Shocks",
+      "baseSpecies": "Sandy Shocks"
+    },
+    {
+      "id": "irontreads",
+      "speciesId": "irontreads",
+      "name": "Iron Treads",
+      "baseSpecies": "Iron Treads"
+    },
+    {
+      "id": "ironbundle",
+      "speciesId": "ironbundle",
+      "name": "Iron Bundle",
+      "baseSpecies": "Iron Bundle"
+    },
+    {
+      "id": "ironhands",
+      "speciesId": "ironhands",
+      "name": "Iron Hands",
+      "baseSpecies": "Iron Hands"
+    },
+    {
+      "id": "ironjugulis",
+      "speciesId": "ironjugulis",
+      "name": "Iron Jugulis",
+      "baseSpecies": "Iron Jugulis"
+    },
+    {
+      "id": "ironmoth",
+      "speciesId": "ironmoth",
+      "name": "Iron Moth",
+      "baseSpecies": "Iron Moth"
+    },
+    {
+      "id": "ironthorns",
+      "speciesId": "ironthorns",
+      "name": "Iron Thorns",
+      "baseSpecies": "Iron Thorns"
+    },
+    {
+      "id": "frigibax",
+      "speciesId": "frigibax",
+      "name": "Frigibax",
+      "baseSpecies": "Frigibax"
+    },
+    {
+      "id": "arctibax",
+      "speciesId": "arctibax",
+      "name": "Arctibax",
+      "baseSpecies": "Arctibax"
+    },
+    {
+      "id": "baxcalibur",
+      "speciesId": "baxcalibur",
+      "name": "Baxcalibur",
+      "baseSpecies": "Baxcalibur"
+    },
+    {
+      "id": "baxcalibur-mega",
+      "speciesId": "baxcaliburmega",
+      "name": "Baxcalibur-Mega",
+      "baseSpecies": "Baxcalibur"
+    },
+    {
+      "id": "gimmighoul",
+      "speciesId": "gimmighoul",
+      "name": "Gimmighoul",
+      "baseSpecies": "Gimmighoul"
+    },
+    {
+      "id": "gimmighoul-roaming",
+      "speciesId": "gimmighoulroaming",
+      "name": "Gimmighoul-Roaming",
+      "baseSpecies": "Gimmighoul"
+    },
+    {
+      "id": "gholdengo",
+      "speciesId": "gholdengo",
+      "name": "Gholdengo",
+      "baseSpecies": "Gholdengo"
+    },
+    {
+      "id": "wochien",
+      "speciesId": "wochien",
+      "name": "Wo-Chien",
+      "baseSpecies": "Wo-Chien"
+    },
+    {
+      "id": "chienpao",
+      "speciesId": "chienpao",
+      "name": "Chien-Pao",
+      "baseSpecies": "Chien-Pao"
+    },
+    {
+      "id": "tinglu",
+      "speciesId": "tinglu",
+      "name": "Ting-Lu",
+      "baseSpecies": "Ting-Lu"
+    },
+    {
+      "id": "chiyu",
+      "speciesId": "chiyu",
+      "name": "Chi-Yu",
+      "baseSpecies": "Chi-Yu"
+    },
+    {
+      "id": "roaringmoon",
+      "speciesId": "roaringmoon",
+      "name": "Roaring Moon",
+      "baseSpecies": "Roaring Moon"
+    },
+    {
+      "id": "ironvaliant",
+      "speciesId": "ironvaliant",
+      "name": "Iron Valiant",
+      "baseSpecies": "Iron Valiant"
+    },
+    {
+      "id": "koraidon",
+      "speciesId": "koraidon",
+      "name": "Koraidon",
+      "baseSpecies": "Koraidon"
+    },
+    {
+      "id": "miraidon",
+      "speciesId": "miraidon",
+      "name": "Miraidon",
+      "baseSpecies": "Miraidon"
+    },
+    {
+      "id": "walkingwake",
+      "speciesId": "walkingwake",
+      "name": "Walking Wake",
+      "baseSpecies": "Walking Wake"
+    },
+    {
+      "id": "ironleaves",
+      "speciesId": "ironleaves",
+      "name": "Iron Leaves",
+      "baseSpecies": "Iron Leaves"
+    },
+    {
+      "id": "dipplin",
+      "speciesId": "dipplin",
+      "name": "Dipplin",
+      "baseSpecies": "Dipplin"
+    },
+    {
+      "id": "poltchageist",
+      "speciesId": "poltchageist",
+      "name": "Poltchageist",
+      "baseSpecies": "Poltchageist"
+    },
+    {
+      "id": "poltchageist-artisan",
+      "speciesId": "poltchageistartisan",
+      "name": "Poltchageist-Artisan",
+      "baseSpecies": "Poltchageist"
+    },
+    {
+      "id": "sinistcha",
+      "speciesId": "sinistcha",
+      "name": "Sinistcha",
+      "baseSpecies": "Sinistcha"
+    },
+    {
+      "id": "sinistcha-masterpiece",
+      "speciesId": "sinistchamasterpiece",
+      "name": "Sinistcha-Masterpiece",
+      "baseSpecies": "Sinistcha"
+    },
+    {
+      "id": "okidogi",
+      "speciesId": "okidogi",
+      "name": "Okidogi",
+      "baseSpecies": "Okidogi"
+    },
+    {
+      "id": "munkidori",
+      "speciesId": "munkidori",
+      "name": "Munkidori",
+      "baseSpecies": "Munkidori"
+    },
+    {
+      "id": "fezandipiti",
+      "speciesId": "fezandipiti",
+      "name": "Fezandipiti",
+      "baseSpecies": "Fezandipiti"
+    },
+    {
+      "id": "ogerpon",
+      "speciesId": "ogerpon",
+      "name": "Ogerpon",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "ogerpon-wellspring",
+      "speciesId": "ogerponwellspring",
+      "name": "Ogerpon-Wellspring",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "ogerpon-hearthflame",
+      "speciesId": "ogerponhearthflame",
+      "name": "Ogerpon-Hearthflame",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "ogerpon-cornerstone",
+      "speciesId": "ogerponcornerstone",
+      "name": "Ogerpon-Cornerstone",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "ogerpon-tealtera",
+      "speciesId": "ogerpontealtera",
+      "name": "Ogerpon-Teal-Tera",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "ogerpon-wellspringtera",
+      "speciesId": "ogerponwellspringtera",
+      "name": "Ogerpon-Wellspring-Tera",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "ogerpon-hearthflametera",
+      "speciesId": "ogerponhearthflametera",
+      "name": "Ogerpon-Hearthflame-Tera",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "ogerpon-cornerstonetera",
+      "speciesId": "ogerponcornerstonetera",
+      "name": "Ogerpon-Cornerstone-Tera",
+      "baseSpecies": "Ogerpon"
+    },
+    {
+      "id": "archaludon",
+      "speciesId": "archaludon",
+      "name": "Archaludon",
+      "baseSpecies": "Archaludon"
+    },
+    {
+      "id": "hydrapple",
+      "speciesId": "hydrapple",
+      "name": "Hydrapple",
+      "baseSpecies": "Hydrapple"
+    },
+    {
+      "id": "gougingfire",
+      "speciesId": "gougingfire",
+      "name": "Gouging Fire",
+      "baseSpecies": "Gouging Fire"
+    },
+    {
+      "id": "ragingbolt",
+      "speciesId": "ragingbolt",
+      "name": "Raging Bolt",
+      "baseSpecies": "Raging Bolt"
+    },
+    {
+      "id": "ironboulder",
+      "speciesId": "ironboulder",
+      "name": "Iron Boulder",
+      "baseSpecies": "Iron Boulder"
+    },
+    {
+      "id": "ironcrown",
+      "speciesId": "ironcrown",
+      "name": "Iron Crown",
+      "baseSpecies": "Iron Crown"
+    },
+    {
+      "id": "terapagos",
+      "speciesId": "terapagos",
+      "name": "Terapagos",
+      "baseSpecies": "Terapagos"
+    },
+    {
+      "id": "terapagos-terastal",
+      "speciesId": "terapagosterastal",
+      "name": "Terapagos-Terastal",
+      "baseSpecies": "Terapagos"
+    },
+    {
+      "id": "terapagos-stellar",
+      "speciesId": "terapagosstellar",
+      "name": "Terapagos-Stellar",
+      "baseSpecies": "Terapagos"
+    },
+    {
+      "id": "pecharunt",
+      "speciesId": "pecharunt",
+      "name": "Pecharunt",
+      "baseSpecies": "Pecharunt"
+    }
+  ]
+}
