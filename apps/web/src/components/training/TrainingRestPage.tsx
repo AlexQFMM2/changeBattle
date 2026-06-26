@@ -5,11 +5,13 @@ import type {
   DexStatId,
   LocalPokemonV4,
   ShowdownPlayerIdV4,
+  TrainingMoveSlotV4,
   TrainingRunGameNodeV4,
   TrainingRunGameV4,
   TrainingPlayerDraftV4,
 } from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import "../dex/MoveCard.css";
 import "./TrainingRestPage.css";
 
 export type TrainingRestPageProps = {
@@ -278,11 +280,7 @@ function TrainingRestPokemonDetail({api, pokemon}: {api: ChangeBattleV2Api; poke
         </div>
         <div className="training-rest-selected-move-row">
           {pokemon.moves.map((move, index) => (
-            <div className="training-rest-move-card" key={`${move.moveId}-${index}`}>
-              <strong>{move.nameZh || move.name}</strong>
-              <span>{move.type} · {move.category}</span>
-              <small>PP {move.remainingPp}/{move.maxPp}</small>
-            </div>
+            <TrainingRestMoveCard move={move} key={`${move.moveId}-${index}`} />
           ))}
         </div>
       </section>
@@ -304,8 +302,38 @@ function TrainingRestPokemonDetail({api, pokemon}: {api: ChangeBattleV2Api; poke
   );
 }
 
+function TrainingRestMoveCard({move}: {move: TrainingMoveSlotV4}) {
+  const typeId = toId(move.type || "normal") || "normal";
+  return (
+    <div className={`training-rest-move-card move-card move-choice move-card-dex quick-dex-move-card move-type-${typeId}`}>
+      <span className="move-name-row">
+        <strong>{move.nameZh || move.name || move.moveId}</strong>
+        <i>{categoryLabel(move.category)}</i>
+      </span>
+      <span className="move-meta-row">
+        <b>{move.type || "?"}</b>
+        <em>威 {move.power || "-"}</em>
+        <em>命 {move.accuracy ?? "-"}</em>
+        <em>PP {move.remainingPp}/{move.maxPp || move.pp || "-"}</em>
+      </span>
+    </div>
+  );
+}
+
 function natureLabel(nature: string): string {
   return NATURE_LABEL[nature] || nature || "未知";
+}
+
+function categoryLabel(category: string): string {
+  const id = toId(category);
+  if (id === "physical") return "物理";
+  if (id === "special") return "特殊";
+  if (id === "status") return "变化";
+  return category || "?";
+}
+
+function toId(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function styleFromCss(css: string): CSSProperties {

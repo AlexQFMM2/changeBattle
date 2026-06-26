@@ -587,40 +587,38 @@
 }
 
 .training-rest-move-card {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: 18px 10px 9px;
-  border: 2px solid #7b6448;
-  border-radius: 5px;
-  background:
-    linear-gradient(180deg, #f9f7ef 0 48%, #6d6a5e 48% 100%);
-  overflow: hidden;
+  --move-card-height: 100%;
+  --move-card-name-row-height: minmax(0, 1fr);
+  --move-card-meta-row-height: 19px;
+  --move-card-border-width: 2px;
+  --move-card-border-radius: 5px;
+  --move-card-padding: 1px;
+  --move-card-name-gap: 5px;
+  --move-card-name-padding-x: 8px;
+  --move-card-meta-gap: 5px;
+  --move-card-meta-padding-x: 8px;
+  --move-card-name-font-size: 9px;
+  --move-card-meta-font-size: 8px;
+  --move-card-badge-min-height: 12px;
+  --move-card-badge-padding-x: 5px;
+  --move-card-badge-font-size: 7px;
+  --move-card-type-min-width: 22px;
+  --move-card-type-min-height: 12px;
+  border-color: #6c5436;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 78%), inset 0 -4px 0 rgb(0 0 0 / 18%);
 }
 
-.training-rest-move-card strong,
-.training-rest-move-card span,
-.training-rest-move-card small {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 5px;
-  line-height: 1;
-}
-
-.training-rest-move-card strong {
-  align-self: center;
-  color: #25332b;
-  font-size: 7px;
+.training-rest-move-card.move-card .move-name-row strong {
+  font-size: var(--move-card-name-font-size);
   font-weight: 950;
 }
 
-.training-rest-move-card span,
-.training-rest-move-card small {
-  color: #fffdf5;
-  font-size: 6px;
-  font-weight: 850;
+.training-rest-move-card.move-card .move-meta-row {
+  grid-template-columns: auto repeat(2, minmax(0, 1fr)) minmax(42px, 1.35fr);
+}
+
+.training-rest-move-card.move-card .move-meta-row em:last-child {
+  text-align: right;
 }
 
 .training-rest-selected-pokemon-stats {
