@@ -1,6 +1,14 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import type {AppDebugConfigV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
 import {battleDebugLog} from "@changebattle-v2/api";
+import {
+  effectSpriteForShowdownAnimationV4,
+  projectShowdownAnimationTimelineV4,
+  selectShowdownAnimationKeyV4,
+  type ShowdownAnimationSourceV4,
+  type ShowdownAnimationStepV4,
+  type ShowdownAnimationTimelineV4,
+} from "./battleV4ShowdownAnimationAdapter";
 
 export type BattleProtocolArgsV4 = [string, ...string[]];
 export type BattleProtocolKwArgsV4 = Record<string, string>;
@@ -80,6 +88,10 @@ export type BattleAnimationEventV4 = {
   status: string;
   durationMs: number;
   effectSprite: string;
+  selectedAnimationKey: string;
+  animationSource: ShowdownAnimationSourceV4;
+  animationTimeline: ShowdownAnimationTimelineV4;
+  timelineSteps: ShowdownAnimationTimelineV4["steps"];
   message: string;
   resultText: string;
   resultTone: "good" | "bad" | "neutral" | "status" | "weather" | "";
@@ -102,6 +114,11 @@ export type BattlePlaybackDebugV4 = {
     at: string;
     visibleSlotSeatsBefore?: string[];
     visibleSlotSeatsAfter?: string[];
+    selectedAnimationKey?: string;
+    timelineSteps?: ShowdownAnimationTimelineV4["steps"];
+    consumedCheckpoints?: string[];
+    activeTimelineStepIndex?: number;
+    activeTimelineStep?: ShowdownAnimationStepV4 | null;
   }>;
   rawIncrements: Array<{
     at: string;
@@ -113,6 +130,7 @@ export type BattlePlaybackDebugV4 = {
     messageEventCount: number;
     animationEventCount: number;
     animationKinds: BattleAnimationKindV4[];
+    selectedAnimationKeys: string[];
   }>;
   renderProbe: {
     visibleSlotSeats: string[];
@@ -120,6 +138,21 @@ export type BattlePlaybackDebugV4 = {
     activeAnimationSeat: string;
     activeAnimationKind: string;
     activeAnimationCheckpointId: string;
+    activeTimelineId: string;
+    activeTimelineStepIndex: number;
+    activeTimelineStep: ShowdownAnimationStepV4 | null;
+    renderedTimelineSteps: ShowdownAnimationStepV4[];
+  };
+  activeTimelineId: string;
+  activeTimelineStep: ShowdownAnimationStepV4 | null;
+  activeTimelineStepIndex: number;
+  renderedTimelineSteps: ShowdownAnimationStepV4[];
+  timelineExecutionProbe: {
+    activeTimelineId: string;
+    activeTimelineStepIndex: number;
+    activeTimelineStepType: string;
+    renderedStepCount: number;
+    consumedCheckpointCount: number;
   };
   queueLength: number;
   skipAnimations: boolean;
@@ -130,6 +163,9 @@ export type BattlePlaybackStateV4 = {
   farTeam: BattleViewSlotV4[];
   messagebar: BattleMessageEventV4 | null;
   activeAnimation: BattleAnimationEventV4 | null;
+  activeTimelineStep: ShowdownAnimationStepV4 | null;
+  activeTimelineStepIndex: number;
+  renderedTimelineSteps: ShowdownAnimationStepV4[];
   hasProtocolState: boolean;
   debug: BattlePlaybackDebugV4;
 };
@@ -139,6 +175,9 @@ export type BattleV4PreviewPlaybackState = {
   farTeam: BattleViewSlotV4[];
   messagebar: BattleMessageEventV4 | null;
   activeAnimation: BattleAnimationEventV4 | null;
+  activeTimelineStep: ShowdownAnimationStepV4 | null;
+  activeTimelineStepIndex: number;
+  renderedTimelineSteps: ShowdownAnimationStepV4[];
   playing: boolean;
   done: boolean;
   debug: {
@@ -146,6 +185,7 @@ export type BattleV4PreviewPlaybackState = {
     messageEvents: BattleMessageEventV4[];
     animationEvents: BattleAnimationEventV4[];
     animationKinds: BattleAnimationKindV4[];
+    selectedAnimationKeys: string[];
   };
 };
 
@@ -172,8 +212,8 @@ const RAW_NO_DEFAULT_COMMANDS = new Set([
 
 const THREE_PART_COMMANDS = new Set(["c", "chat", "uhtml", "uhtmlchange", "queryresponse", "showteam"]);
 const FOUR_PART_COMMANDS = new Set(["c:", "pm"]);
-const MIN_ANIMATION_DURATION_MS = 1000;
 const ANIMATION_GAP_MS = 500;
+const TIMELINE_STEP_DEFAULT_MS = 700;
 
 export function parseBattleProtocolLineV4(rawLine: string): {args: BattleProtocolArgsV4; kwArgs: BattleProtocolKwArgsV4} {
   if (!rawLine.startsWith("|")) return {args: ["", rawLine], kwArgs: {}};
@@ -276,6 +316,7 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
     case "-miss":
     case "-fail":
     case "-activate":
+    case "-enditem":
       return [animationEvent(event, "result", 820, message)];
     case "-status":
     case "-curestatus":
@@ -306,6 +347,9 @@ export function useBattleV4Playback(
   const [rawIncrements, setRawIncrements] = useState<BattlePlaybackDebugV4["rawIncrements"]>([]);
   const [queue, setQueue] = useState<BattleAnimationEventV4[]>([]);
   const [activeAnimation, setActiveAnimation] = useState<BattleAnimationEventV4 | null>(null);
+  const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
+  const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
+  const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
   const [hasProtocolState, setHasProtocolState] = useState(false);
   const sessionRef = useRef("");
@@ -335,6 +379,9 @@ export function useBattleV4Playback(
       setRawIncrements([]);
       setQueue([]);
       setActiveAnimation(null);
+      setActiveTimelineStep(null);
+      setActiveTimelineStepIndex(-1);
+      setRenderedTimelineSteps([]);
       setMessagebar(null);
       setHasProtocolState(false);
       hasProtocolStateRef.current = false;
@@ -361,6 +408,7 @@ export function useBattleV4Playback(
       messageEventCount: nextMessageEvents.length,
       animationEventCount: nextAnimationEvents.length,
       animationKinds: nextAnimationEvents.map(event => event.kind),
+      selectedAnimationKeys: nextAnimationEvents.map(event => event.selectedAnimationKey),
     };
     setRawIncrements(items => [...items, rawIncrement].slice(-80));
     if (nextProtocolEvents.length) {
@@ -383,6 +431,9 @@ export function useBattleV4Playback(
         actorSeat: event.actorSeat,
         targetSeat: event.targetSeat,
         effectSprite: event.effectSprite,
+        selectedAnimationKey: event.selectedAnimationKey,
+        animationSource: event.animationSource,
+        timelineSteps: event.timelineSteps,
         rawLine: event.rawLine,
       })),
     });
@@ -402,7 +453,15 @@ export function useBattleV4Playback(
         setHasProtocolState(true);
         setAnimationConsumption(consumed => [
           ...consumed,
-          ...nextAnimationEvents.map(event => ({checkpointId: event.checkpointId, kind: event.kind, rawLine: event.rawLine, at: new Date().toISOString()})),
+          ...nextAnimationEvents.map(event => ({
+            checkpointId: event.checkpointId,
+            kind: event.kind,
+            rawLine: event.rawLine,
+            at: new Date().toISOString(),
+            selectedAnimationKey: event.selectedAnimationKey,
+            timelineSteps: event.timelineSteps,
+            consumedCheckpoints: event.animationTimeline.checkpoints,
+          })),
         ].slice(-240));
       } else {
         setQueue(items => [...items, ...nextAnimationEvents]);
@@ -414,6 +473,9 @@ export function useBattleV4Playback(
     if (skipAnimations && viewModel) {
       setQueue([]);
       setActiveAnimation(null);
+      setActiveTimelineStep(null);
+      setActiveTimelineStepIndex(-1);
+      setRenderedTimelineSteps([]);
       setVisibleSlots(viewModel.slots);
       hasProtocolStateRef.current = true;
       setHasProtocolState(true);
@@ -428,12 +490,18 @@ export function useBattleV4Playback(
     playingRef.current = true;
     setQueue(rest);
     setActiveAnimation(event);
+    setActiveTimelineStepIndex(0);
+    setActiveTimelineStep(event.timelineSteps[0] || null);
+    setRenderedTimelineSteps([]);
     battleDebugLog(debugConfig, "protocol", "playback-consume-animation", {
       checkpointId: event.checkpointId,
       kind: event.kind,
       actorSeat: event.actorSeat,
       targetSeat: event.targetSeat,
       effectSprite: event.effectSprite,
+      selectedAnimationKey: event.selectedAnimationKey,
+      animationSource: event.animationSource,
+      timelineSteps: event.timelineSteps,
       rawLine: event.rawLine,
       remaining: rest.length,
     });
@@ -453,30 +521,44 @@ export function useBattleV4Playback(
   useEffect(() => {
     if (!activeAnimation || skipAnimations) return;
     const event = activeAnimation;
-    const duration = Math.max(MIN_ANIMATION_DURATION_MS, event.durationMs);
-    const checkpointTimer = window.setTimeout(() => {
+    const steps = event.timelineSteps.length ? event.timelineSteps : event.animationTimeline.steps;
+    const step = steps[activeTimelineStepIndex] || null;
+    if (!step) {
+      const releaseTimer = window.setTimeout(() => {
+        setActiveAnimation(null);
+        setActiveTimelineStep(null);
+        setActiveTimelineStepIndex(-1);
+        setRenderedTimelineSteps([]);
+        playingRef.current = false;
+      }, ANIMATION_GAP_MS);
+      return () => window.clearTimeout(releaseTimer);
+    }
+    setActiveTimelineStep(step);
+    setRenderedTimelineSteps(stepsSoFar => [...stepsSoFar, step].slice(-32));
+    if (step.type === "checkpoint") {
       setVisibleSlots(slots => {
         const nextSlots = applyAnimationCheckpoint(slots, event, viewModelRef.current, snapshotRef.current);
         setAnimationConsumption(consumed => [...consumed, {
-          checkpointId: event.checkpointId,
+          checkpointId: step.checkpointId,
           kind: event.kind,
           rawLine: event.rawLine,
           at: new Date().toISOString(),
+          selectedAnimationKey: event.selectedAnimationKey,
+          timelineSteps: event.timelineSteps,
+          consumedCheckpoints: [step.checkpointId],
+          activeTimelineStepIndex,
+          activeTimelineStep: step,
           visibleSlotSeatsBefore: slots.map(formatVisibleSlotSeat),
           visibleSlotSeatsAfter: nextSlots.map(formatVisibleSlotSeat),
         }].slice(-240));
         return nextSlots;
       });
-    }, duration);
-    const releaseTimer = window.setTimeout(() => {
-      setActiveAnimation(null);
-      playingRef.current = false;
-    }, duration + ANIMATION_GAP_MS);
-    return () => {
-      window.clearTimeout(checkpointTimer);
-      window.clearTimeout(releaseTimer);
-    };
-  }, [activeAnimation, skipAnimations]);
+    }
+    const stepTimer = window.setTimeout(() => {
+      setActiveTimelineStepIndex(index => index + 1);
+    }, timelineStepDurationMs(step));
+    return () => window.clearTimeout(stepTimer);
+  }, [activeAnimation, activeTimelineStepIndex, skipAnimations]);
 
   const hasProtocolFacts = Boolean(snapshot && snapshot.rawLog.length > initialPlaybackRawIndex(snapshot.rawLog));
   const shouldUseProtocolState = hasProtocolState || hasProtocolFacts || skipAnimations;
@@ -487,6 +569,9 @@ export function useBattleV4Playback(
     farTeam: visibleFarTeam,
     messagebar,
     activeAnimation,
+    activeTimelineStep,
+    activeTimelineStepIndex,
+    renderedTimelineSteps,
     hasProtocolState: shouldUseProtocolState,
     debug: {
       lastConsumedRawIndex: rawIndexRef.current,
@@ -504,6 +589,21 @@ export function useBattleV4Playback(
         activeAnimationSeat: activeAnimation ? activeAnimation.targetSeat || activeAnimation.actorSeat : "",
         activeAnimationKind: activeAnimation?.kind || "",
         activeAnimationCheckpointId: activeAnimation?.checkpointId || "",
+        activeTimelineId: activeAnimation?.animationTimeline.id || "",
+        activeTimelineStepIndex,
+        activeTimelineStep,
+        renderedTimelineSteps,
+      },
+      activeTimelineId: activeAnimation?.animationTimeline.id || "",
+      activeTimelineStep,
+      activeTimelineStepIndex,
+      renderedTimelineSteps,
+      timelineExecutionProbe: {
+        activeTimelineId: activeAnimation?.animationTimeline.id || "",
+        activeTimelineStepIndex,
+        activeTimelineStepType: activeTimelineStep?.type || "",
+        renderedStepCount: renderedTimelineSteps.length,
+        consumedCheckpointCount: animationConsumption.reduce((count, item) => count + (item.consumedCheckpoints?.length || 0), 0),
       },
       queueLength: queue.length,
       skipAnimations,
@@ -525,6 +625,9 @@ export function useBattleV4PreviewPlayback(
   const [visibleSlots, setVisibleSlots] = useState<BattleViewSlotV4[]>(initialSlots);
   const [queue, setQueue] = useState<BattleAnimationEventV4[]>([]);
   const [activeAnimation, setActiveAnimation] = useState<BattleAnimationEventV4 | null>(null);
+  const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
+  const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
+  const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
   const [done, setDone] = useState(false);
   const playingRef = useRef(false);
@@ -533,6 +636,9 @@ export function useBattleV4PreviewPlayback(
     setVisibleSlots(initialSlots);
     setQueue(projected.animationEvents);
     setActiveAnimation(null);
+    setActiveTimelineStep(null);
+    setActiveTimelineStepIndex(-1);
+    setRenderedTimelineSteps([]);
     setMessagebar(null);
     setDone(projected.animationEvents.length === 0);
     playingRef.current = false;
@@ -545,6 +651,9 @@ export function useBattleV4PreviewPlayback(
     playingRef.current = true;
     setQueue(rest);
     setActiveAnimation(event);
+    setActiveTimelineStepIndex(0);
+    setActiveTimelineStep(event.timelineSteps[0] || null);
+    setRenderedTimelineSteps([]);
     if (event.message) {
       setMessagebar({
         sequence: event.sequence,
@@ -561,20 +670,29 @@ export function useBattleV4PreviewPlayback(
   useEffect(() => {
     if (!activeAnimation) return;
     const event = activeAnimation;
-    const duration = Math.max(MIN_ANIMATION_DURATION_MS, event.durationMs);
-    const checkpointTimer = window.setTimeout(() => {
+    const steps = event.timelineSteps.length ? event.timelineSteps : event.animationTimeline.steps;
+    const step = steps[activeTimelineStepIndex] || null;
+    if (!step) {
+      const releaseTimer = window.setTimeout(() => {
+        setActiveAnimation(null);
+        setActiveTimelineStep(null);
+        setActiveTimelineStepIndex(-1);
+        setRenderedTimelineSteps([]);
+        playingRef.current = false;
+        if (!queue.length) setDone(true);
+      }, ANIMATION_GAP_MS);
+      return () => window.clearTimeout(releaseTimer);
+    }
+    setActiveTimelineStep(step);
+    setRenderedTimelineSteps(stepsSoFar => [...stepsSoFar, step].slice(-32));
+    if (step.type === "checkpoint") {
       setVisibleSlots(slots => applyAnimationCheckpoint(slots, event, null, null));
-    }, duration);
-    const releaseTimer = window.setTimeout(() => {
-      setActiveAnimation(null);
-      playingRef.current = false;
-      if (!queue.length) setDone(true);
-    }, duration + ANIMATION_GAP_MS);
-    return () => {
-      window.clearTimeout(checkpointTimer);
-      window.clearTimeout(releaseTimer);
-    };
-  }, [activeAnimation, queue.length]);
+    }
+    const stepTimer = window.setTimeout(() => {
+      setActiveTimelineStepIndex(index => index + 1);
+    }, timelineStepDurationMs(step));
+    return () => window.clearTimeout(stepTimer);
+  }, [activeAnimation, activeTimelineStepIndex, queue.length]);
 
   const nearTeam = useMemo(() => visibleSlots.filter(slot => slot.side === "near"), [visibleSlots]);
   const farTeam = useMemo(() => visibleSlots.filter(slot => slot.side === "far"), [visibleSlots]);
@@ -583,6 +701,9 @@ export function useBattleV4PreviewPlayback(
     farTeam,
     messagebar,
     activeAnimation,
+    activeTimelineStep,
+    activeTimelineStepIndex,
+    renderedTimelineSteps,
     playing: Boolean(activeAnimation || queue.length),
     done,
     debug: {
@@ -590,6 +711,7 @@ export function useBattleV4PreviewPlayback(
       messageEvents: projected.messageEvents,
       animationEvents: projected.animationEvents,
       animationKinds: projected.animationEvents.map(event => event.kind),
+      selectedAnimationKeys: projected.animationEvents.map(event => event.selectedAnimationKey),
     },
   };
 }
@@ -626,6 +748,15 @@ function buildProtocolEvent(
   };
 }
 
+function timelineStepDurationMs(step: ShowdownAnimationStepV4): number {
+  if (step.type === "checkpoint") return 0;
+  if (step.type === "wait" || step.type === "delay") return Math.max(0, step.durationMs);
+  if (step.type === "showEffect" || step.type === "actorAnim" || step.type === "backgroundEffect") {
+    return Math.max(160, step.durationMs);
+  }
+  return TIMELINE_STEP_DEFAULT_MS;
+}
+
 function targetArgForEvent(eventType: string, args: BattleProtocolArgsV4): string {
   if (eventType === "move" || eventType === "-anim") return args[3] || "";
   if (eventType === "-transform") return args[2] || "";
@@ -636,8 +767,20 @@ function targetArgForEvent(eventType: string, args: BattleProtocolArgsV4): strin
 
 function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV4, durationMs: number, message: string): BattleAnimationEventV4 {
   const result = resultForProtocolEvent(event);
+  const selection = selectShowdownAnimationKeyV4(event, kind);
+  const effectSprite = effectSpriteForShowdownAnimationV4(selection.animationKey, kind, event);
+  const checkpointId = `${event.sequence}-${kind}`;
+  const animationTimeline = projectShowdownAnimationTimelineV4(selection.animationKey, {
+    event,
+    kind,
+    checkpointId,
+    message,
+    resultText: result.text,
+    resultTone: result.tone,
+    durationMs,
+  });
   return {
-    checkpointId: `${event.sequence}-${kind}`,
+    checkpointId,
     sequence: event.sequence,
     kind,
     rawLine: event.rawLine,
@@ -652,7 +795,11 @@ function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV
     condition: event.condition,
     status: event.status,
     durationMs,
-    effectSprite: effectSpriteForMove(event.moveId, kind),
+    effectSprite,
+    selectedAnimationKey: selection.animationKey,
+    animationSource: selection.source,
+    animationTimeline,
+    timelineSteps: animationTimeline.steps,
     message,
     resultText: result.text,
     resultTone: result.tone,
@@ -1016,7 +1163,9 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
   case "-damage":
     return `${name}受到了伤害。`;
   case "-heal":
-    return `${name}回复了体力。`;
+    return healMessage(event, name);
+  case "-enditem":
+    return endItemMessage(event, name);
   case "-ability":
     return `${name}的${cleanEffect(event.args[2] || "特性")}发动了！`;
   case "-weather":
@@ -1073,27 +1222,6 @@ function parseCondition(condition: string): {hp: number; maxHp: number; status: 
   return {hp, maxHp, status: toId(match[3] || ""), fainted: hp <= 0};
 }
 
-function effectSpriteForMove(moveId: string, kind: BattleAnimationKindV4): string {
-  if (kind === "damage" || kind === "hit") return "impact";
-  if (kind === "heal") return "shine";
-  if (kind === "status" || kind === "result" || kind === "ability") return "wisp";
-  if (kind === "transform") return "shine";
-  if (kind === "weather") return "shine";
-  if (kind === "switchIn" || kind === "switchOut") return "pokeball";
-  if (!moveId) return "impact";
-  if (/eruption/.test(moveId)) return "fireball";
-  if (/fire|flame|burn|blast|heat|flare|pyro/.test(moveId)) return "fireball";
-  if (/water|aqua|hydro|surf|steam/.test(moveId)) return "waterwisp";
-  if (/thunder|volt|spark|shock|electro|bolt/.test(moveId)) return "electroball";
-  if (/ice|snow|freeze|blizzard/.test(moveId)) return "iceball";
-  if (/leaf|grass|seed|petal|vine/.test(moveId)) return "leaf1";
-  if (/poison|sludge|toxic|venom/.test(moveId)) return "poisonwisp";
-  if (/shadow|ghost|dark|night/.test(moveId)) return "shadowball";
-  if (/psych|confusion|psy/.test(moveId)) return "mistball";
-  if (/slash|cut|claw/.test(moveId)) return "leftslash";
-  return "impact";
-}
-
 function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; tone: BattleAnimationEventV4["resultTone"]} {
   switch (event.eventType) {
   case "-ability":
@@ -1119,6 +1247,8 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
     return {text: "失败", tone: "neutral"};
   case "-activate":
     return {text: cleanEffect(event.args[2] || "发动"), tone: "neutral"};
+  case "-enditem":
+    return {text: `吃掉${cleanEffect(event.args[2] || "道具")}`, tone: "good"};
   case "-status":
     return {text: resultTextForStatus(event.status), tone: "status"};
   case "-curestatus":
@@ -1127,10 +1257,33 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
     return {text: resultTextForStatus(toId(event.args[2])) || "无法行动", tone: "neutral"};
   case "-damage":
   case "-heal":
-    return {text: "", tone: event.eventType === "-heal" ? "good" : "bad"};
+    return {text: healResultText(event), tone: event.eventType === "-heal" ? "good" : "bad"};
   default:
     return {text: "", tone: ""};
   }
+}
+
+function healMessage(event: BattleProtocolEventV4, name: string): string {
+  const source = healSourceText(event);
+  return source ? `${name}因${source}回复了体力。` : `${name}回复了体力。`;
+}
+
+function healResultText(event: BattleProtocolEventV4): string {
+  const source = healSourceText(event);
+  return source ? `${source}恢复` : "";
+}
+
+function endItemMessage(event: BattleProtocolEventV4, name: string): string {
+  const item = cleanEffect(event.args[2] || "道具");
+  return event.kwArgs.eat ? `${name}吃掉了${item}。` : `${name}的${item}生效了。`;
+}
+
+function healSourceText(event: BattleProtocolEventV4): string {
+  const from = event.kwArgs.from || "";
+  if (/^item:/i.test(from)) return cleanEffect(from);
+  if (/^ability:/i.test(from)) return cleanEffect(from);
+  if (/^move:/i.test(from)) return cleanEffect(from);
+  return cleanEffect(from);
 }
 
 function weatherMessage(event: BattleProtocolEventV4): string {

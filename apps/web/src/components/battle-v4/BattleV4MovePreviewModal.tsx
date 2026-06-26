@@ -2,6 +2,8 @@ import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {useBattleV4PreviewPlayback, type BattleAnimationEventV4, type BattleProtocolSeatV4} from "./battleV4Playback";
+import {getBattleV4ActiveTimelineVisuals, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
+import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
 import "./BattleV4MovePreviewModal.css";
 
@@ -20,6 +22,7 @@ export function BattleV4MovePreviewModal({move, initialMode = "singles", onClose
   const playback = useBattleV4PreviewPlayback(rawLines, slots, `${move.id}-${mode}-${replaySeed}`);
   const message = localizePreviewMessage(playback.messagebar?.message || "", playback.activeAnimation, move);
   const animationKindsLabel = playback.debug.animationKinds.join(",");
+  const selectedAnimationKeysLabel = playback.debug.selectedAnimationKeys.join(",");
 
   useEffect(() => {
     console.info("[BattleV4][move-preview]", {
@@ -27,8 +30,10 @@ export function BattleV4MovePreviewModal({move, initialMode = "singles", onClose
       mode,
       rawLines,
       animationKinds: animationKindsLabel.split(",").filter(Boolean),
+      selectedAnimationKeys: selectedAnimationKeysLabel.split(",").filter(Boolean),
+      animationTimelines: playback.debug.animationEvents.map(event => event.animationTimeline),
     });
-  }, [animationKindsLabel, mode, move.id, rawLines]);
+  }, [animationKindsLabel, mode, move.id, rawLines, selectedAnimationKeysLabel, playback.debug.animationEvents]);
 
   function chooseMode(nextMode: BattleV4MovePreviewMode) {
     setMode(nextMode);
@@ -59,6 +64,7 @@ export function BattleV4MovePreviewModal({move, initialMode = "singles", onClose
           far={playback.farTeam}
           message={message}
           animation={playback.activeAnimation}
+          activeTimelineStep={playback.activeTimelineStep}
         />
         <footer className={`battle-v4-preview-meta move-type-${typeIdFor(move.typeId || move.type)}`}>
           <span>{move.type}</span>
@@ -95,20 +101,23 @@ export function buildBattleV4MovePreviewScript(move: DexMoveDetail, mode: Battle
   return lines;
 }
 
-function PreviewArena({near, far, message, animation}: {
+function PreviewArena({near, far, message, animation, activeTimelineStep}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   message: string;
   animation: BattleAnimationEventV4 | null;
+  activeTimelineStep?: ShowdownAnimationStepV4 | null;
 }) {
   const nearSlots = sortPreviewSlots(near, "near");
   const farSlots = sortPreviewSlots(far, "far");
+  const visuals = useMemo(() => getBattleV4ActiveTimelineVisuals(animation, activeTimelineStep || null), [animation, activeTimelineStep]);
   return (
     <div className="battle-v4-preview-arena battle-v4-arena" aria-label="预览战斗场地">
       <div className="battle-v4-scene-overlay" />
       {message ? <div className={`battle-v4-messagebar kind-${animation?.kind || "message"}`}><span>{message}</span></div> : null}
-      <PreviewFx animation={animation} />
-      <PreviewResult animation={animation} />
+      <PreviewWeather animation={animation} visuals={visuals} />
+      <PreviewFx animation={animation} visuals={visuals} />
+      <PreviewResult animation={animation} visuals={visuals} />
       <div className="battle-v4-enemy-panels">
         {farSlots.map(slot => <PreviewHpPanel slot={slot} compact key={`${slot.seat}-hp`} />)}
       </div>
@@ -116,43 +125,59 @@ function PreviewArena({near, far, message, animation}: {
         {nearSlots.map((slot, index) => <PreviewHpPanel slot={slot} current={slot.active} commanding={index === 0} key={`${slot.seat}-hp`} />)}
       </div>
       <div className="battle-v4-model-layer">
-        {farSlots.map(slot => <PreviewPokemonSlot slot={slot} animation={animation} key={slot.seat} />)}
-        {nearSlots.map((slot, index) => <PreviewPokemonSlot slot={slot} commanding={index === 0} animation={animation} key={slot.seat} />)}
+        {farSlots.map(slot => <PreviewPokemonSlot slot={slot} animation={animation} visuals={visuals} key={slot.seat} />)}
+        {nearSlots.map((slot, index) => <PreviewPokemonSlot slot={slot} commanding={index === 0} animation={animation} visuals={visuals} key={slot.seat} />)}
       </div>
     </div>
   );
 }
 
-function PreviewFx({animation}: {animation: BattleAnimationEventV4 | null}) {
-  if (!animation || animation.kind === "turn" || animation.kind === "message") return null;
-  const targetClass = animation.targetSeat ? `target-${animation.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+function PreviewWeather({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+  if (!animation || !visuals.background.visible) return null;
+  const style = {
+    "--battle-v4-background-color": visuals.background.color,
+    "--battle-v4-background-opacity": String(visuals.background.opacity),
+    "--battle-v4-background-duration": `${visuals.background.durationMs}ms`,
+  } as CSSProperties;
   return (
-    <div className={`battle-v4-fx-layer ${targetClass} kind-${animation.kind}`} aria-hidden="true">
-      <i className="battle-v4-fx-sprite" style={{"--battle-v4-fx-image": `url("/showdown/fx/${animation.effectSprite}.png")`} as CSSProperties} />
+    <div className={`battle-v4-weather-layer weather-${visuals.background.weatherId || "effect"}`} style={style} aria-hidden="true">
+      <span>{visuals.background.label}</span>
     </div>
   );
 }
 
-function PreviewResult({animation}: {animation: BattleAnimationEventV4 | null}) {
-  if (!animation?.resultText && animation?.kind !== "damage") return null;
-  const seat = animation.targetSeat || animation.actorSeat || "";
-  const text = animation.kind === "damage" ? "-35%" : animation.resultText;
+function PreviewFx({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+  if (!animation || !visuals.fx.visible) return null;
+  const targetClass = visuals.fx.targetSeat ? `target-${visuals.fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+  return (
+    <div className={`battle-v4-fx-layer ${targetClass} kind-${visuals.fx.kind || animation.kind}`} aria-hidden="true">
+      <i className="battle-v4-fx-sprite" style={visuals.fx.style} />
+    </div>
+  );
+}
+
+function PreviewResult({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+  if (!animation || !visuals.result.visible) return null;
+  const seat = visuals.result.targetSeat || animation.targetSeat || animation.actorSeat || "";
+  const text = visuals.result.text;
   if (!text) return null;
   return (
-    <div className={`battle-v4-result-pop target-${seat.toLowerCase() || "center"} tone-${animation.resultTone || "neutral"} kind-${animation.kind}`} aria-hidden="true">
+    <div className={`battle-v4-result-pop target-${seat.toLowerCase() || "center"} tone-${visuals.result.tone || "neutral"} kind-${visuals.result.kind || animation.kind}`} aria-hidden="true">
       {text}
     </div>
   );
 }
 
-function PreviewPokemonSlot({slot, commanding = false, animation}: {
+function PreviewPokemonSlot({slot, commanding = false, animation, visuals}: {
   slot: BattleViewSlotV4;
   commanding?: boolean;
   animation: BattleAnimationEventV4 | null;
+  visuals: BattleV4TimelineVisuals;
 }) {
-  const animationClass = previewPokemonAnimationClass(slot.seat, animation);
+  const timelineActor = visuals.actor?.seat === slot.seat ? visuals.actor : null;
+  const animationClass = timelineActor?.className || previewPokemonAnimationClass(slot.seat, animation);
   return (
-    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${typeIdFor(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${animationClass}`}>
+    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${typeIdFor(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${animationClass}`} style={timelineActor?.style}>
       <ImageWithFallback src={slot.spriteUrl || slot.frontSpriteUrl || slot.iconUrl} fallback={slot.iconUrl || "/showdown/sprites/pokemonicons-sheet.png"} alt={slot.nameZh || slot.name} />
     </article>
   );

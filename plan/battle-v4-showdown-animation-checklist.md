@@ -71,33 +71,33 @@ console.log({ move: move.length, other: other.length, status: status.length, tot
 
 ## Adapter Core Tasks
 
-- [ ] 定义 ShowdownAnimationTimelineV4 / ShowdownAnimationStepV4 数据结构，并支持 diagnostics 导出。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 定义 ShowdownSpriteActorV4 / ShowdownEffectSpriteV4，统一 Pokemon actor 与 effect sprite 的坐标、透明度、缩放。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 实现 projectShowdownAnimationTimelineV4(animationKey, context)，支持 move/other/status 三类 key。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 实现 executeShowdownAnimationTimelineV4(timeline)，保证 step 串行、checkpoint 可追踪、skip 可 drain。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 实现 scene.showEffect / pokemon.anim / pokemon.delay / scene.wait 指令适配。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 实现 scene.backgroundEffect / scene.resultAnim / scene.damageAnim / scene.healAnim 指令适配。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 实现 Showdown-style fallback，未实现 move key 不报错并产生可见攻击/受击/结果节奏。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 接入 protocol runtime：request 不进动画队列，只消费 raw protocol event。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 接入 battle diagnostics：导出 selected animation key、timeline steps、consumed checkpoints。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
-- [ ] 接入开关：动画关闭时 drain queue，并把 visible state seek 到最新 snapshot。 | priority: P0 | source: AdapterCore | adapter: pending | notes:
+- [x] 定义 ShowdownAnimationTimelineV4 / ShowdownAnimationStepV4 数据结构，并支持 diagnostics 导出。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 定义 ShowdownSpriteActorV4 / ShowdownEffectSpriteV4，统一 Pokemon actor 与 effect sprite 的坐标、透明度、缩放。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 实现 projectShowdownAnimationTimelineV4(animationKey, context)，支持 move/other/status 三类 key。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 实现 executeShowdownAnimationTimelineV4(timeline)，保证 step 串行、checkpoint 可追踪、skip 可 drain。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 实现 scene.showEffect / pokemon.anim / pokemon.delay / scene.wait 指令适配。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 实现 scene.backgroundEffect / scene.resultAnim / scene.damageAnim / scene.healAnim 指令适配。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 实现 Showdown-style fallback，未实现 move key 不报错并产生可见攻击/受击/结果节奏。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 接入 protocol runtime：request 不进动画队列，只消费 raw protocol event。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 接入 battle diagnostics：导出 selected animation key、timeline steps、consumed checkpoints。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
+- [x] 接入开关：动画关闭时 drain queue，并把 visible state seek 到最新 snapshot。 | priority: P0 | source: AdapterCore | adapter: native | notes: timeline rendered + diagnostics/typecheck
 
 ## P0
 
 ### BattleOtherAnims
 
-- [ ] `hitmark` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
-- [ ] `attack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
-- [ ] `contactattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
+- [x] `hitmark` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `attack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `contactattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `xattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `slashattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `clawattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `punchattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `bite` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `kick` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
-- [ ] `fastattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
+- [x] `fastattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `fastanimattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
-- [ ] `fastanimspecial` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
+- [x] `fastanimspecial` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `fastanimself` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `sneakattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `spinattack` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
@@ -105,50 +105,50 @@ console.log({ move: move.length, other: other.length, status: status.length, tot
 - [ ] `selfstatus` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `lightstatus` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `chargestatus` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
-- [ ] `heal` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
-- [ ] `shake` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
+- [x] `heal` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `shake` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `consume` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `leech` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `drain` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
 - [ ] `hydroshot` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
-- [ ] `sound` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes:
+- [x] `sound` | priority: P0 | source: BattleOtherAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 
 ### BattleStatusAnims
 
-- [ ] `brn` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `psn` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `slp` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `par` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `frz` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `flinch` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `attracted` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `cursed` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `confused` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
-- [ ] `confusedselfhit` | priority: P0 | source: BattleStatusAnims | adapter: pending | notes:
+- [x] `brn` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `psn` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `slp` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `par` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `frz` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `flinch` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `attracted` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `cursed` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `confused` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
+- [x] `confusedselfhit` | priority: P0 | source: BattleStatusAnims | adapter: native | notes: timeline rendered + preview/manual/typecheck
 
 ### BattleMoveAnims
 
 - [ ] `swordsdance` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `dragondance` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `aerialace` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `transform` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `protect` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `rest` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `recover` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
+- [x] `transform` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `protect` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `rest` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `recover` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `metalclaw` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `scratch` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `slash` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `seismictoss` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
+- [x] `seismictoss` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `bite` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `heavyslam` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
+- [x] `heavyslam` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `pound` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `closecombat` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `doublekick` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `quickattack` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `machpunch` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `gigaimpact` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `earthquake` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `bulldoze` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
+- [x] `gigaimpact` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `earthquake` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
+- [x] `bulldoze` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `metalsound` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `thunderbolt` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `psychic` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
@@ -158,11 +158,11 @@ console.log({ move: move.length, other: other.length, status: status.length, tot
 - [ ] `fireblast` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `shadowball` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `energyball` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `weatherball` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
+- [x] `weatherball` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `airslash` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `surf` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `hydropump` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
-- [ ] `eruption` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
+- [x] `eruption` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes: timeline rendered + preview/manual/typecheck
 - [ ] `blastburn` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 - [ ] `swift` | priority: P0 | source: BattleMoveAnims | adapter: fallback | notes:
 

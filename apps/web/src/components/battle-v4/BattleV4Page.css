@@ -35,14 +35,17 @@
   padding-top: 116px;
   padding-left: 36px;
   opacity: .92;
-  animation: battle-v4-weather-pulse .9s ease-out both;
+  animation: battle-v4-weather-pulse var(--battle-v4-background-duration, .9s) ease-out both;
 }
 
 .battle-v4-weather-layer::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 30%, rgb(255 245 144 / 46%) 0 16%, rgb(255 167 42 / 22%) 38%, transparent 74%);
+  background:
+    radial-gradient(circle at 50% 30%, rgb(255 245 144 / 46%) 0 16%, rgb(255 167 42 / 22%) 38%, transparent 74%),
+    linear-gradient(180deg, var(--battle-v4-background-color, #f3d45a), transparent);
+  opacity: var(--battle-v4-background-opacity, .42);
   mix-blend-mode: screen;
 }
 
@@ -145,7 +148,8 @@
   filter:
     drop-shadow(0 0 6px rgb(255 255 255 / 70%))
     drop-shadow(0 4px 8px rgb(0 0 0 / 35%));
-  animation: battle-v4-fx-pop .55s ease-out both;
+  opacity: var(--battle-v4-fx-opacity, 1);
+  animation: battle-v4-fx-pop var(--battle-v4-fx-duration, .55s) ease-out both;
 }
 
 .battle-v4-fx-layer::before,
@@ -163,7 +167,7 @@
   box-shadow:
     0 0 18px rgb(255 255 255 / 72%),
     0 0 32px rgb(255 218 73 / 48%);
-  animation: battle-v4-fx-ring .58s ease-out both;
+  animation: battle-v4-fx-ring var(--battle-v4-fx-duration, .58s) ease-out both;
 }
 
 .battle-v4-fx-layer::after {
@@ -172,7 +176,7 @@
   box-shadow:
     0 0 22px rgb(255 255 255 / 85%),
     0 0 46px rgb(255 99 72 / 70%);
-  animation: battle-v4-fx-flash .24s ease-out both;
+  animation: battle-v4-fx-flash calc(var(--battle-v4-fx-duration, .58s) * .42) ease-out both;
 }
 
 .battle-v4-animation-probe {
@@ -213,12 +217,12 @@
 
 .battle-v4-fx-layer.kind-moveStart .battle-v4-fx-sprite,
 .battle-v4-fx-layer.kind-moveEffect .battle-v4-fx-sprite {
-  animation: battle-v4-fx-project .62s ease-out both;
+  animation: battle-v4-fx-project var(--battle-v4-fx-duration, .62s) ease-out both;
 }
 
 .battle-v4-fx-layer.kind-damage .battle-v4-fx-sprite,
 .battle-v4-fx-layer.kind-faint .battle-v4-fx-sprite {
-  animation: battle-v4-fx-impact .48s ease-out both;
+  animation: battle-v4-fx-impact var(--battle-v4-fx-duration, .48s) ease-out both;
 }
 
 .battle-v4-fx-layer.kind-heal .battle-v4-fx-sprite,
@@ -227,7 +231,7 @@
 .battle-v4-fx-layer.kind-weather .battle-v4-fx-sprite,
 .battle-v4-fx-layer.kind-transform .battle-v4-fx-sprite,
 .battle-v4-fx-layer.kind-result .battle-v4-fx-sprite {
-  animation: battle-v4-fx-rise .58s ease-out both;
+  animation: battle-v4-fx-rise var(--battle-v4-fx-duration, .58s) ease-out both;
 }
 
 .battle-v4-result-pop {
@@ -393,6 +397,26 @@
 
 .battle-v4-pokemon.anim-switch-out img {
   animation: battle-v4-pokemon-switch-out .26s ease-in both;
+}
+
+.battle-v4-pokemon.anim-timeline-actor img {
+  opacity: var(--battle-v4-actor-opacity, 1);
+  animation: battle-v4-pokemon-timeline var(--battle-v4-actor-duration, .42s) ease-in-out both;
+}
+
+.battle-v4-pokemon.anim-timeline-actor::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  z-index: -1;
+  width: 78px;
+  height: 22px;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgb(255 255 255 / 70%) 0 18%, rgb(177 255 39 / 42%) 45%, transparent 72%);
+  box-shadow: 0 0 14px rgb(177 255 39 / 46%);
+  transform: translateX(-50%);
+  animation: battle-v4-pokemon-action-ring var(--battle-v4-actor-duration, .42s) ease-out both;
 }
 
 .battle-v4-pokemon.anim-move-start::after,
@@ -585,6 +609,27 @@
 @keyframes battle-v4-pokemon-switch-out {
   0% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
   100% { transform: translateX(-50%) translateY(14px) scale(.28); opacity: 0; }
+}
+
+@keyframes battle-v4-pokemon-timeline {
+  0% {
+    transform: translateX(-50%) translate(0, 0) scale(1);
+    filter: brightness(1) drop-shadow(0 8px 3px rgb(0 0 0 / 22%));
+  }
+  45% {
+    transform:
+      translateX(-50%)
+      translate(var(--battle-v4-actor-x, 0), var(--battle-v4-actor-y, 0))
+      scale(calc(var(--battle-v4-actor-scale, 1) * var(--battle-v4-actor-xscale, 1)), calc(var(--battle-v4-actor-scale, 1) * var(--battle-v4-actor-yscale, 1)));
+    filter:
+      brightness(1.45)
+      drop-shadow(0 8px 3px rgb(0 0 0 / 22%))
+      drop-shadow(0 0 10px rgb(255 255 255 / 70%));
+  }
+  100% {
+    transform: translateX(-50%) translate(0, 0) scale(1);
+    filter: brightness(1) drop-shadow(0 8px 3px rgb(0 0 0 / 22%));
+  }
 }
 
 .battle-v4-weather {

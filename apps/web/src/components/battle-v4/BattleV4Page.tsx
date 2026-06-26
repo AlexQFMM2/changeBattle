@@ -4,6 +4,8 @@ import {addBattleCommandChoiceV4, applyBattleSessionToRun, battleDebugLog, creat
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4} from "./battleV4Playback";
+import {getBattleV4ActiveTimelineVisuals, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
+import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
 
 export type BattleV4PageProps = {
@@ -183,6 +185,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   );
   const playbackHasRuntimeState = playback.hasProtocolState;
   const playbackBlockingCommands = Boolean(!skipAnimations && (playback.activeAnimation || playback.debug.queueLength));
+  const shouldShowResultPanel = Boolean(snapshot?.status === "ended" && !playbackBlockingCommands);
   const shouldShowSwitchPanel = Boolean(!playbackBlockingCommands && snapshot && viewModel && (
     viewModel.command.requestType === "switch" || (switchPanelOpen && viewModel.command.requestType === "move")
   ));
@@ -348,6 +351,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         commandActiveIndex={viewModel?.command.activeIndex || 0}
         messagebar={playbackMessage}
         activeAnimation={playback.activeAnimation}
+        activeTimelineStep={playback.activeTimelineStep}
         api={api}
       />
       <header className="battle-v4-hud">
@@ -397,7 +401,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onConfirm={applyDraftChoice}
         />
       ) : null}
-      {snapshot?.status === "ended" ? (
+      {shouldShowResultPanel && snapshot ? (
         <div className="battle-v4-result-panel">
           <strong>{snapshot.winner === "p1" || snapshot.winner === "p3" ? "训练胜利" : "训练失败"}</strong>
           <span>节点状态已回写，返回休整区查看下一场。</span>
@@ -424,23 +428,25 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   );
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
   messagebar?: string;
   activeAnimation?: BattleAnimationEventV4 | null;
+  activeTimelineStep?: ShowdownAnimationStepV4 | null;
   api: ChangeBattleV2Api;
 }) {
   const nearSlots = useMemo(() => sortSlotsForArena(near, "near"), [near]);
   const farSlots = useMemo(() => sortSlotsForArena(far, "far"), [far]);
+  const visuals = useMemo(() => getBattleV4ActiveTimelineVisuals(activeAnimation || null, activeTimelineStep || null), [activeAnimation, activeTimelineStep]);
   return (
     <div className="battle-v4-arena" aria-label="战斗场地">
       <div className="battle-v4-scene-overlay" />
-      <BattleV4WeatherLayer animation={activeAnimation || null} />
+      <BattleV4WeatherLayer animation={activeAnimation || null} visuals={visuals} />
       <BattleV4Messagebar message={messagebar || ""} kind={activeAnimation?.kind || ""} />
-      <BattleV4FxLayer animation={activeAnimation || null} key={activeAnimation?.checkpointId || "fx-idle"} />
-      <BattleV4ResultLayer animation={activeAnimation || null} api={api} key={`${activeAnimation?.checkpointId || "result-idle"}-result`} />
+      <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} key={`${activeAnimation?.checkpointId || "fx-idle"}-${activeTimelineStep?.type || "none"}`} />
+      <BattleV4ResultLayer animation={activeAnimation || null} visuals={visuals} api={api} key={`${activeAnimation?.checkpointId || "result-idle"}-${activeTimelineStep?.type || "none"}-result`} />
       <div className="battle-v4-enemy-panels">
         {farSlots.map(slot => <BattleHpPanel slot={slot} compact key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
@@ -448,8 +454,8 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
         {nearSlots.map((slot, index) => <BattleHpPanel slot={slot} current={slot.active} commanding={index === commandActiveIndex} key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
       <div className="battle-v4-model-layer">
-        {farSlots.map(slot => <BattlePokemonSlot slot={slot} animation={activeAnimation || null} key={`${slot.playerId}-${slot.position}`} />)}
-        {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} key={`${slot.playerId}-${slot.position}`} />)}
+        {farSlots.map(slot => <BattlePokemonSlot slot={slot} animation={activeAnimation || null} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
+        {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
       </div>
     </div>
   );
@@ -463,23 +469,28 @@ function sortSlotsForArena(slots: BattleViewSlotV4[], side: "near" | "far"): Bat
   });
 }
 
-function BattleV4WeatherLayer({animation}: {animation: BattleAnimationEventV4 | null}) {
-  if (!animation || animation.kind !== "weather" || !animation.weatherId || animation.weatherId === "none") return null;
+function BattleV4WeatherLayer({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+  if (!visuals.background.visible) return null;
+  const style = {
+    "--battle-v4-background-color": visuals.background.color,
+    "--battle-v4-background-opacity": String(visuals.background.opacity),
+    "--battle-v4-background-duration": `${visuals.background.durationMs}ms`,
+  } as CSSProperties;
   return (
-    <div className={`battle-v4-weather-layer weather-${animation.weatherId}`} aria-hidden="true">
-      <span>{animation.resultText || "天气"}</span>
+    <div className={`battle-v4-weather-layer weather-${visuals.background.weatherId || animation?.weatherId || "effect"}`} style={style} aria-hidden="true">
+      <span>{visuals.background.label}</span>
     </div>
   );
 }
 
-function BattleV4ResultLayer({animation, api}: {animation: BattleAnimationEventV4 | null; api: ChangeBattleV2Api}) {
-  if (!animation) return null;
-  const text = localizeBattleV4ResultText(animation.resultText || (animation.kind === "damage" || animation.kind === "heal" ? animation.hpLabel : ""), animation, api);
+function BattleV4ResultLayer({animation, visuals, api}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals; api: ChangeBattleV2Api}) {
+  if (!animation || !visuals.result.visible) return null;
+  const text = localizeBattleV4ResultText(visuals.result.text, animation, api);
   if (!text) return null;
-  const seat = animation.kind === "ability" || animation.kind === "weather" ? animation.actorSeat : animation.targetSeat || animation.actorSeat;
+  const seat = visuals.result.targetSeat || animation.targetSeat || animation.actorSeat;
   const targetClass = seat ? `target-${seat.toLowerCase()}` : "target-center";
   return (
-    <div className={`battle-v4-result-pop ${targetClass} tone-${animation.resultTone || "neutral"} kind-${animation.kind}`} aria-hidden="true">
+    <div className={`battle-v4-result-pop ${targetClass} tone-${visuals.result.tone || "neutral"} kind-${visuals.result.kind || animation.kind}`} aria-hidden="true">
       {text}
     </div>
   );
@@ -494,21 +505,21 @@ function BattleV4Messagebar({message, kind}: {message: string; kind: string}) {
   );
 }
 
-function BattleV4FxLayer({animation}: {animation: BattleAnimationEventV4 | null}) {
-  if (!animation || animation.kind === "turn" || animation.kind === "message") return null;
-  const targetClass = animation.targetSeat ? `target-${animation.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
-  const style = {"--battle-v4-fx-image": `url("/showdown/fx/${animation.effectSprite}.png")`} as CSSProperties;
+function BattleV4FxLayer({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+  if (!animation || !visuals.fx.visible) return null;
+  const targetClass = visuals.fx.targetSeat ? `target-${visuals.fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
   return (
-    <div className={`battle-v4-fx-layer ${targetClass} kind-${animation.kind}`} aria-hidden="true">
-      <i className="battle-v4-fx-sprite" style={style} />
+    <div className={`battle-v4-fx-layer ${targetClass} kind-${visuals.fx.kind || animation.kind}`} aria-hidden="true">
+      <i className="battle-v4-fx-sprite" style={visuals.fx.style} />
     </div>
   );
 }
 
-function BattlePokemonSlot({slot, commanding = false, animation}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null}) {
-  const animationClass = battlePokemonAnimationClass(slot.seat, animation || null);
+function BattlePokemonSlot({slot, commanding = false, animation, visuals}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+  const timelineActor = visuals.actor?.seat === slot.seat ? visuals.actor : null;
+  const animationClass = timelineActor?.className || battlePokemonAnimationClass(slot.seat, animation || null);
   return (
-    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${animationClass}`}>
+    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${animationClass}`} style={timelineActor?.style}>
       <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={slot.nameZh || slot.name} />
     </article>
   );
@@ -764,14 +775,14 @@ function localizeBattleV4PlaybackMessage(message: string, animation: BattleAnima
       ? `${localizeProtocolPokemonName(animation.actorName, api)}的日照让阳光变强了！`
       : "阳光变强了！";
   }
-  return localizeProtocolPokemonMentions(localizeProtocolMoveMentions(message, api), api);
+  return localizeProtocolItemMentions(localizeProtocolPokemonMentions(localizeProtocolMoveMentions(message, api), api), api);
 }
 
 function localizeBattleV4ResultText(text: string, animation: BattleAnimationEventV4, api: ChangeBattleV2Api): string {
   if (!text) return "";
   if (animation.kind === "ability") return localizeProtocolAbilityName(text, api);
   if (animation.kind === "transform") return localizeProtocolPokemonName(text, api);
-  return localizeProtocolMoveMentions(localizeProtocolPokemonMentions(text, api), api);
+  return localizeProtocolItemMentions(localizeProtocolMoveMentions(localizeProtocolPokemonMentions(text, api), api), api);
 }
 
 function localizeProtocolPokemonMentions(text: string, api: ChangeBattleV2Api): string {
@@ -780,6 +791,10 @@ function localizeProtocolPokemonMentions(text: string, api: ChangeBattleV2Api): 
 
 function localizeProtocolMoveMentions(text: string, api: ChangeBattleV2Api): string {
   return text.replace(/\b[A-Z][A-Za-z0-9' -]+\b/g, match => localizeProtocolMoveName(match, api));
+}
+
+function localizeProtocolItemMentions(text: string, api: ChangeBattleV2Api): string {
+  return text.replace(/\b[A-Z][A-Za-z0-9' -]+\b/g, match => localizeProtocolItemName(match, api));
 }
 
 function localizeProtocolPokemonName(name: string, api: ChangeBattleV2Api): string {
@@ -797,6 +812,17 @@ function localizeProtocolMoveName(name: string, api: ChangeBattleV2Api): string 
   if (!id) return name;
   try {
     const detail = api.getMoveDetail(id);
+    return detail.nameZh || detail.name || name;
+  } catch {
+    return name;
+  }
+}
+
+function localizeProtocolItemName(name: string, api: ChangeBattleV2Api): string {
+  const id = toId(name);
+  if (!id) return name;
+  try {
+    const detail = api.getItemDetail(id);
     return detail.nameZh || detail.name || name;
   } catch {
     return name;
@@ -1623,6 +1649,11 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
       skipAnimations: playbackDebug.skipAnimations,
       currentAnimation: playbackDebug.currentAnimation,
       currentMessage: playbackDebug.currentMessage,
+      activeTimelineId: playbackDebug.activeTimelineId,
+      activeTimelineStep: playbackDebug.activeTimelineStep,
+      activeTimelineStepIndex: playbackDebug.activeTimelineStepIndex,
+      renderedTimelineSteps: playbackDebug.renderedTimelineSteps,
+      timelineExecutionProbe: playbackDebug.timelineExecutionProbe,
       renderProbe: playbackDebug.renderProbe,
     } : null,
   };
