@@ -563,6 +563,50 @@ const NATIVE_MOVE_ANIMS = new Set([
   "topsyturvy",
   "transform",
   "uturn",
+  "acupressure",
+  "acidarmor",
+  "aerialace",
+  "autotomize",
+  "barrier",
+  "batonpass",
+  "bugbuzz",
+  "charge",
+  "cosmicpower",
+  "cottonguard",
+  "defendorder",
+  "doomdesire",
+  "embargo",
+  "endure",
+  "explosion",
+  "geomancy",
+  "growth",
+  "happyhour",
+  "haze",
+  "luckychant",
+  "lunarblessing",
+  "magnetrise",
+  "meditate",
+  "milkdrink",
+  "minimize",
+  "moonlight",
+  "morningsun",
+  "odorsleuth",
+  "quash",
+  "quickguard",
+  "roost",
+  "sandstorm",
+  "sharpen",
+  "skillswap",
+  "snatch",
+  "softboiled",
+  "storedpower",
+  "switcheroo",
+  "tailglow",
+  "takeheart",
+  "tearfullook",
+  "trick",
+  "wideguard",
+  "withdraw",
   "worryseed",
 ]);
 
@@ -918,6 +962,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   switch (animationKey) {
   case "bravebird":
   case "acrobatics":
+  case "aerialace":
   case "flyingpress":
   case "steelwing":
   case "wingattack":
@@ -1000,6 +1045,11 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "afteryou":
   case "allyswitch":
   case "instruct":
+  case "quash":
+  case "tearfullook":
+  case "odorsleuth":
+  case "embargo":
+  case "haze":
     return nativeUtilityStatusSteps(actor, target, animationKey);
   case "junglehealing":
   case "healbell":
@@ -1008,6 +1058,12 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "aromatherapy":
   case "lifedew":
   case "refresh":
+  case "roost":
+  case "softboiled":
+  case "milkdrink":
+  case "morningsun":
+  case "moonlight":
+  case "lunarblessing":
     return nativeP2HealingSteps(actor, target, animationKey);
   case "tailwind":
     return nativeTailwindSteps(actor);
@@ -1019,6 +1075,10 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "sketch":
   case "teleport":
   case "recycle":
+  case "batonpass":
+  case "trick":
+  case "switcheroo":
+  case "skillswap":
     return formChangeSteps(actor, animationKey);
   case "spikes":
   case "toxicspikes":
@@ -1032,6 +1092,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "hail":
   case "snowscape":
   case "chillyreception":
+  case "sandstorm":
   case "grassyterrain":
   case "electricterrain":
   case "mistyterrain":
@@ -1069,6 +1130,25 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "ingrain":
   case "coil":
   case "powertrick":
+  case "acupressure":
+  case "autotomize":
+  case "cottonguard":
+  case "defendorder":
+  case "meditate":
+  case "sharpen":
+  case "withdraw":
+  case "acidarmor":
+  case "barrier":
+  case "cosmicpower":
+  case "charge":
+  case "luckychant":
+  case "geomancy":
+  case "magnetrise":
+  case "minimize":
+  case "growth":
+  case "tailglow":
+  case "takeheart":
+  case "happyhour":
     return nativeBoostDanceSteps(actor, animationKey);
   case "reflect":
   case "lightscreen":
@@ -1083,6 +1163,9 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "banefulbunker":
   case "matblock":
   case "magiccoat":
+  case "quickguard":
+  case "wideguard":
+  case "endure":
     return nativeShieldGuardSteps(actor, animationKey);
   case "earthquake":
   case "magnitude":
@@ -1102,6 +1185,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "thunderbolt":
     return nativeThunderboltSteps(actor, target);
   case "psychic":
+    return nativePsychicSteps(actor, target);
+  case "storedpower":
     return nativePsychicSteps(actor, target);
   case "icebeam":
     return nativeIceBeamSteps(actor, target);
@@ -1136,6 +1221,10 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "populationbomb":
   case "bide":
     return stepsForOtherAnimation("contactattack", actor, target);
+  case "explosion":
+    return explosionSteps(actor, target, "#ff7845", "impact");
+  case "doomdesire":
+    return beamSteps(actor, target, "shine", "#fff4a8");
   case "rockslide":
   case "rockblast":
   case "stoneedge":
