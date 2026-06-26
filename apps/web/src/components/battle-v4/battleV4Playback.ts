@@ -299,6 +299,9 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
       return [animationEvent(event, "ability", 1050, message)];
     case "-weather":
       return [animationEvent(event, "weather", 1250, message)];
+    case "-fieldstart":
+    case "-fieldend":
+      return [animationEvent(event, "weather", 1050, message)];
     case "detailschange":
     case "-formechange":
     case "-transform":
@@ -724,11 +727,11 @@ function buildProtocolEvent(
   turn: number,
 ): BattleProtocolEventV4 {
   const eventType = args[0] || "";
-  const actor = eventType === "-weather" ? kwArgs.of || args[1] || "" : args[1] || "";
+  const actor = eventType === "-weather" || eventType === "-fieldstart" || eventType === "-fieldend" ? kwArgs.of || args[1] || "" : args[1] || "";
   const target = targetArgForEvent(eventType, args);
   const actorParts = parsePokemonProtocolIdent(actor);
   const targetParts = parsePokemonProtocolIdent(target);
-  const moveName = eventType === "move" || eventType === "-anim" ? args[2] || "" : kwArgs.move || args[3] || "";
+  const moveName = moveNameForProtocolEvent(eventType, args, kwArgs);
   return {
     sequence,
     rawLine,
@@ -763,6 +766,13 @@ function targetArgForEvent(eventType: string, args: BattleProtocolArgsV4): strin
   if (eventType === "-miss") return args[2] || "";
   if (eventType === "-supereffective" || eventType === "-resisted" || eventType === "-crit" || eventType === "-immune" || eventType === "-fail" || eventType === "-activate") return args[1] || "";
   return args[1] || "";
+}
+
+function moveNameForProtocolEvent(eventType: string, args: BattleProtocolArgsV4, kwArgs: BattleProtocolKwArgsV4): string {
+  if (eventType === "move" || eventType === "-anim") return args[2] || "";
+  if (eventType === "-weather") return cleanEffect(kwArgs.from || args[1] || "");
+  if (eventType === "-fieldstart" || eventType === "-fieldend") return cleanEffect(args[1] || kwArgs.from || "");
+  return kwArgs.move || args[3] || "";
 }
 
 function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV4, durationMs: number, message: string): BattleAnimationEventV4 {
@@ -803,7 +813,7 @@ function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV
     message,
     resultText: result.text,
     resultTone: result.tone,
-    weatherId: event.eventType === "-weather" ? toId(event.args[1]) : "",
+    weatherId: event.eventType === "-weather" ? toId(event.args[1]) : event.eventType === "-fieldstart" || event.eventType === "-fieldend" ? toId(cleanEffect(event.args[1])) : "",
     hpLabel: "",
   };
 }
@@ -1118,7 +1128,9 @@ function initialPlaybackRawIndex(rawLines: string[]): number {
       args[0] === "move" ||
       args[0] === "faint" ||
       args[0] === "-ability" ||
-      args[0] === "-weather";
+      args[0] === "-weather" ||
+      args[0] === "-fieldstart" ||
+      args[0] === "-fieldend";
   });
   return firstBattleEvent >= 0 ? firstBattleEvent : rawLines.length;
 }
@@ -1170,6 +1182,10 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
     return `${name}的${cleanEffect(event.args[2] || "特性")}发动了！`;
   case "-weather":
     return weatherMessage(event);
+  case "-fieldstart":
+    return fieldStartMessage(event);
+  case "-fieldend":
+    return `${fieldLabel(toId(cleanEffect(event.args[1])))}消失了。`;
   case "detailschange":
     return `${name}的样子改变了！`;
   case "-formechange":
@@ -1228,6 +1244,9 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
     return {text: cleanEffect(event.args[2] || "特性"), tone: "good"};
   case "-weather":
     return {text: weatherLabel(toId(event.args[1])), tone: "weather"};
+  case "-fieldstart":
+  case "-fieldend":
+    return {text: fieldLabel(toId(cleanEffect(event.args[1]))), tone: "weather"};
   case "detailschange":
   case "-formechange":
     return {text: cleanSpeciesForme(event.args[2] || "形态变化"), tone: "good"};
@@ -1297,6 +1316,13 @@ function weatherMessage(event: BattleProtocolEventV4): string {
   return `${weatherLabel(weather)}开始了！`;
 }
 
+function fieldStartMessage(event: BattleProtocolEventV4): string {
+  const field = toId(cleanEffect(event.args[1]));
+  if (field.endsWith("terrain")) return `${fieldLabel(field)}展开了！`;
+  if (field.endsWith("room") || field === "gravity") return `${fieldLabel(field)}扭曲了空间！`;
+  return `${fieldLabel(field)}开始了！`;
+}
+
 function weatherLabel(weather: string): string {
   const labels: Record<string, string> = {
     sunnyday: "晴天",
@@ -1309,6 +1335,20 @@ function weatherLabel(weather: string): string {
     deltastream: "乱流",
   };
   return labels[weather] || cleanEffect(weather) || "天气";
+}
+
+function fieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    electricterrain: "电气场地",
+    grassyterrain: "青草场地",
+    mistyterrain: "薄雾场地",
+    psychicterrain: "精神场地",
+    trickroom: "戏法空间",
+    magicroom: "魔法空间",
+    wonderroom: "奇妙空间",
+    gravity: "重力",
+  };
+  return labels[field] || cleanEffect(field) || "环境";
 }
 
 function statusMessage(status: string): string {

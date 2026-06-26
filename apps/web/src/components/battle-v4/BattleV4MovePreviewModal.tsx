@@ -8,32 +8,53 @@ import "./BattleV4Page.css";
 import "./BattleV4MovePreviewModal.css";
 
 export type BattleV4MovePreviewMode = "singles" | "doubles";
+export type BattleV4EnvironmentPreviewEntry = {
+  id: string;
+  name: string;
+  nameZh: string;
+  group: "weather" | "terrain" | "room";
+  groupLabel: string;
+  protocolId: string;
+  moveId?: string;
+  sourceType: "move" | "ability" | "placeholder";
+  sourceLabel: string;
+  description: string;
+  tags: string[];
+};
 
-export function BattleV4MovePreviewModal({move, initialMode = "singles", onClose}: {
+export function BattleV4MovePreviewModal({move, environment, initialMode = "singles", onClose}: {
   api: ChangeBattleV2Api;
-  move: DexMoveDetail;
+  move?: DexMoveDetail;
+  environment?: BattleV4EnvironmentPreviewEntry;
   initialMode?: BattleV4MovePreviewMode;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<BattleV4MovePreviewMode>(initialMode);
   const [replaySeed, setReplaySeed] = useState(0);
   const slots = useMemo(() => buildBattleV4MovePreviewSlots(mode), [mode]);
-  const rawLines = useMemo(() => buildBattleV4MovePreviewScript(move, mode), [mode, move]);
-  const playback = useBattleV4PreviewPlayback(rawLines, slots, `${move.id}-${mode}-${replaySeed}`);
-  const message = localizePreviewMessage(playback.messagebar?.message || "", playback.activeAnimation, move);
+  const subject = useMemo(
+    () => environment ? {kind: "environment" as const, environment} : {kind: "move" as const, move: move!},
+    [environment, move],
+  );
+  const subjectId = subject.kind === "environment" ? subject.environment.id : subject.move.id;
+  const subjectName = subject.kind === "environment" ? subject.environment.nameZh : subject.move.nameZh || subject.move.name;
+  const rawLines = useMemo(() => subject.kind === "environment" ? buildBattleV4EnvironmentPreviewScript(subject.environment, mode) : buildBattleV4MovePreviewScript(subject.move, mode), [mode, subject]);
+  const playback = useBattleV4PreviewPlayback(rawLines, slots, `${subject.kind}-${subjectId}-${mode}-${replaySeed}`);
+  const message = localizePreviewMessage(playback.messagebar?.message || "", playback.activeAnimation, subject);
   const animationKindsLabel = playback.debug.animationKinds.join(",");
   const selectedAnimationKeysLabel = playback.debug.selectedAnimationKeys.join(",");
 
   useEffect(() => {
     console.info("[BattleV4][move-preview]", {
-      moveId: move.id,
+      subjectKind: subject.kind,
+      subjectId,
       mode,
       rawLines,
       animationKinds: animationKindsLabel.split(",").filter(Boolean),
       selectedAnimationKeys: selectedAnimationKeysLabel.split(",").filter(Boolean),
       animationTimelines: playback.debug.animationEvents.map(event => event.animationTimeline),
     });
-  }, [animationKindsLabel, mode, move.id, rawLines, selectedAnimationKeysLabel, playback.debug.animationEvents]);
+  }, [animationKindsLabel, mode, subject.kind, subjectId, rawLines, selectedAnimationKeysLabel, playback.debug.animationEvents]);
 
   function chooseMode(nextMode: BattleV4MovePreviewMode) {
     setMode(nextMode);
@@ -41,12 +62,12 @@ export function BattleV4MovePreviewModal({move, initialMode = "singles", onClose
   }
 
   return (
-    <div className="battle-v4-preview-layer" role="dialog" aria-modal="true" aria-label="技能动画预览">
+    <div className="battle-v4-preview-layer" role="dialog" aria-modal="true" aria-label="动画预览">
       <section className="battle-v4-preview-modal">
         <header className="battle-v4-preview-header">
           <div>
             <span>动画预览</span>
-            <h3>{move.nameZh || move.name}</h3>
+            <h3>{subjectName}</h3>
           </div>
           <button type="button" onClick={onClose}>关闭</button>
         </header>
@@ -66,16 +87,49 @@ export function BattleV4MovePreviewModal({move, initialMode = "singles", onClose
           animation={playback.activeAnimation}
           activeTimelineStep={playback.activeTimelineStep}
         />
-        <footer className={`battle-v4-preview-meta move-type-${typeIdFor(move.typeId || move.type)}`}>
-          <span>{move.type}</span>
-          <span>{move.category}</span>
-          <span>威力 {move.power || "-"}</span>
-          <span>命中 {move.accuracy ?? "必中"}</span>
+        <footer className={`battle-v4-preview-meta move-type-${subject.kind === "move" ? typeIdFor(subject.move.typeId || subject.move.type) : "status"}`}>
+          {subject.kind === "move" ? (
+            <>
+              <span>{subject.move.type}</span>
+              <span>{subject.move.category}</span>
+              <span>威力 {subject.move.power || "-"}</span>
+              <span>命中 {subject.move.accuracy ?? "必中"}</span>
+            </>
+          ) : (
+            <>
+              <span>{subject.environment.groupLabel}</span>
+              <span>{subject.environment.sourceLabel}</span>
+              <span>{subject.environment.protocolId}</span>
+              <span>环境预览</span>
+            </>
+          )}
           <span>{mode === "doubles" ? "双打 / 合作" : "单打"}</span>
         </footer>
       </section>
     </div>
   );
+}
+
+export function buildBattleV4EnvironmentPreviewScript(entry: BattleV4EnvironmentPreviewEntry, mode: BattleV4MovePreviewMode): string[] {
+  const lines = [
+    "|start",
+    "|switch|p1a: Smeargle|Smeargle, L50|100/100",
+    "|switch|p2a: Blissey|Blissey, L50|100/100",
+  ];
+  if (mode === "doubles") {
+    lines.push(
+      "|switch|p1b: Ditto|Ditto, L50|100/100",
+      "|switch|p2b: Chansey|Chansey, L50|100/100",
+    );
+  }
+  if (entry.group === "weather") {
+    const source = entry.sourceType === "ability" ? `[from] ability: ${entry.name}` : `[from] move: ${entry.name}`;
+    lines.push(`|-weather|${entry.protocolId}|${source}|[of] p1a: Smeargle`);
+  } else {
+    const source = entry.sourceType === "move" ? `move: ${entry.name}` : entry.name;
+    lines.push(`|-fieldstart|${source}|[of] p1a: Smeargle`);
+  }
+  return lines;
 }
 
 export function buildBattleV4MovePreviewScript(move: DexMoveDetail, mode: BattleV4MovePreviewMode): string[] {
@@ -273,16 +327,28 @@ function previewPokemonAnimationClass(seat: BattleProtocolSeatV4, animation: Bat
   return "";
 }
 
-function localizePreviewMessage(message: string, animation: BattleAnimationEventV4 | null, move: DexMoveDetail): string {
+function localizePreviewMessage(
+  message: string,
+  animation: BattleAnimationEventV4 | null,
+  subject: {kind: "move"; move: DexMoveDetail} | {kind: "environment"; environment: BattleV4EnvironmentPreviewEntry},
+): string {
   if (!message || !animation) return message;
-  if (animation.kind === "moveStart" || animation.kind === "moveEffect") return `图图犬使用了${move.nameZh || move.name}！`;
-  return message
+  if (subject.kind === "move" && (animation.kind === "moveStart" || animation.kind === "moveEffect")) return `图图犬使用了${subject.move.nameZh || subject.move.name}！`;
+  if (subject.kind === "environment" && (animation.kind === "weather" || animation.kind === "result")) return environmentPreviewMessage(subject.environment);
+  let localized = message
     .replace(/\bSmeargle\b/g, "图图犬")
     .replace(/\bBlissey\b/g, "吉利蛋")
     .replace(/\bDitto\b/g, "百变怪")
     .replace(/\bChansey\b/g, "吉利蛋")
-    .replace(new RegExp(`\\b${escapeRegExp(move.name)}\\b`, "g"), move.nameZh || move.name)
     .replace(/\bmove:\s*/gi, "");
+  if (subject.kind === "move") localized = localized.replace(new RegExp(`\\b${escapeRegExp(subject.move.name)}\\b`, "g"), subject.move.nameZh || subject.move.name);
+  return localized;
+}
+
+function environmentPreviewMessage(entry: BattleV4EnvironmentPreviewEntry): string {
+  if (entry.group === "weather") return `天气变成了${entry.nameZh}！`;
+  if (entry.group === "terrain") return `${entry.nameZh}展开了！`;
+  return `${entry.nameZh}扭曲了空间！`;
 }
 
 function previewMoveTargetIdent(move: DexMoveDetail): string {

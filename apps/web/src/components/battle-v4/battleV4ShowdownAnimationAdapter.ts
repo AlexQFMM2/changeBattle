@@ -98,11 +98,52 @@ const FIRST_BATCH_OTHER_ANIMS = new Set([
   "hitmark",
   "attack",
   "contactattack",
+  "xattack",
+  "slashattack",
+  "clawattack",
+  "punchattack",
+  "bite",
+  "kick",
   "fastattack",
+  "fastanimattack",
   "fastanimspecial",
+  "fastanimself",
+  "sneakattack",
+  "spinattack",
+  "bound",
+  "selfstatus",
+  "lightstatus",
+  "chargestatus",
   "heal",
   "shake",
+  "consume",
+  "leech",
+  "drain",
+  "hydroshot",
   "sound",
+]);
+
+const SUPPORTED_OTHER_ANIMS = new Set([
+  ...FIRST_BATCH_OTHER_ANIMS,
+  "shiny",
+  "flight",
+  "dance",
+  "gravity",
+  "futuresighthit",
+  "doomdesirehit",
+  "itemoff",
+  "anger",
+  "bidecharge",
+  "bideunleash",
+  "spectralthiefboost",
+  "schoolingin",
+  "schoolingout",
+  "primalalpha",
+  "primalomega",
+  "megaevo",
+  "zpower",
+  "powerconstruct",
+  "ultraburst",
 ]);
 
 const FIRST_BATCH_STATUS_ANIMS = new Set([
@@ -118,7 +159,33 @@ const FIRST_BATCH_STATUS_ANIMS = new Set([
   "confusedselfhit",
 ]);
 
+const SUPPORTED_STATUS_ANIMS = FIRST_BATCH_STATUS_ANIMS;
+
 const FIRST_BATCH_MOVE_ANIMS = new Set([
+  "bravebird",
+  "acrobatics",
+  "flyingpress",
+  "steelwing",
+  "wingattack",
+  "dualwingbeat",
+  "dragonbreath",
+  "dragonpulse",
+  "focusblast",
+  "aurasphere",
+  "uturn",
+  "flipturn",
+  "rapidspin",
+  "gyroball",
+  "mortalspin",
+  "icespinner",
+  "voltswitch",
+  "thunderwave",
+  "shockwave",
+  "discharge",
+  "bugbuzz",
+  "swordsdance",
+  "dragondance",
+  "aerialace",
   "eruption",
   "weatherball",
   "earthquake",
@@ -126,11 +193,81 @@ const FIRST_BATCH_MOVE_ANIMS = new Set([
   "gigaimpact",
   "heavyslam",
   "seismictoss",
+  "crushclaw",
+  "falseswipe",
+  "direclaw",
+  "dragonclaw",
+  "furycutter",
+  "cut",
+  "nightslash",
+  "shadowclaw",
+  "holdback",
+  "knockdown",
+  "peck",
+  "drillpeck",
+  "irontail",
+  "superfang",
+  "bugbite",
+  "crunch",
+  "pursuit",
+  "metalclaw",
+  "scratch",
+  "slash",
+  "bite",
+  "pound",
+  "closecombat",
+  "doublekick",
+  "quickattack",
+  "machpunch",
+  "metalsound",
+  "thunderbolt",
+  "psychic",
+  "icebeam",
+  "flamethrower",
+  "rockslide",
+  "fireblast",
+  "shadowball",
+  "energyball",
+  "airslash",
+  "surf",
+  "hydropump",
+  "blastburn",
+  "swift",
   "transform",
   "protect",
   "recover",
   "rest",
 ]);
+
+const SUPPORTED_MOVE_ANIMS = new Set([
+  ...FIRST_BATCH_MOVE_ANIMS,
+  ..."taunt instruct quash swagger quiverdance victorydance agility doubleteam metronome teeterdance splash encore attract raindance sunnyday hail snowscape chillyreception sandstorm gravity trickroom magicroom wonderroom afteryou allyswitch babydolleyes faketears tearfullook featherdance followme foresight mimic sketch doodle odorsleuth celebrate playnice tailwhip leer kinesis electricterrain grassyterrain mistyterrain lifedew junglehealing topsyturvy embargo healblock flash tailwind orderup technoblast painsplit flail explosion populationbomb auroraveil reflect safeguard lightscreen mist bellydrum aromatherapy healbell magiccoat detect kingsshield spikyshield burningbulwark banefulbunker craftyshield matblock quickguard wideguard endure bide focusenergy rockpolish harden defensecurl irondefense howl acupressure curse autotomize shiftgear bulkup shellsmash stockpile swallow ingrain aquaring coil conversion powertrick ragepowder refresh recycle doomdesire teleport cottonguard defendorder meditate sharpen withdraw roost softboiled milkdrink happyhour snatch acidarmor barrier morningsun moonlight lunarblessing cosmicpower charge luckychant geomancy magnetrise substitute batonpass calmmind nastyplot minimize growth tailglow takeheart trick switcheroo skillswap shadowforce bounce dig dive fly skydrop skullbash skyattack hiddenpower storedpower haze seedflare powerwhip woodhammer ivycudgel ivycudgelwater ivycudgelfire ivycudgelrock multiattack blazekick lowkick stomp thunderouskick tropkick jumpkick highjumpkick ironhead heartstamp slam dragontail reversal punishment forcepalm circlethrow knockoff assurance chipaway bodyslam bloodmoon gigatonhammer steamroller clamp wakeupslap smellingsalts karatechop crosschop lick visegrip headbutt block xscissor crosspoison facade guillotine return leafblade thrash pluck bind dualchop doublehit doubleslap endeavor playrough strength hammerarm icehammer skyuppercut meteormash shadowpunch ragefist focuspunch drainpunch dynamicpunch cometpunch megapunch poweruppunch dizzypunch needlearm rocksmash hornleech absorb megadrain gigadrain bitterblade leechlife extremespeed suckerpunch astonish rollout accelerock bulletpunch wickedblow vacuumwave jetpunch assist mirrormove naturepower copycat sleeptalk megahorn firepunch icepunch thunderpunch poisonfang psychicfangs icefang firefang thunderfang wildcharge spark zapcannon armorcannon torchsong chloroblast hyperbeam shelltrap spinout matchagotcha flamecharge flareblitz burnup beakblast vcreate outrage ragingfury boltstrike fusionflare fusionbolt zenheadbutt fakeout covet feint thief shadowsneak feintattack struggle tickle earthpower drillrun poisongas smog clearsmog bonemerang boneclub shadowbone whirlwind hurricane springtidestorm wildboltstorm sandsearstorm ominouswind magmastorm firespin leaftornado roar round yawn sing perishsong partingshot nobleroar disarmingvoice growl screech snore synchronoise sonicboom eerieimpulse supersonic confide defog grasswhistle hypervoice boomburst heatwave snarl thunder thundercage meanlook nightshade fairylock rockblast geargrind iciclespear tailslap furyswipes furyattack bulletseed spikecannon twineedle razorshell aquastep aquacutter wavecrash crabhammer aquajet iceshard watershuriken freezingglare freezedry icywind ancientpower powergem chargebeam psybeam twinbeam toxic spicyextract sludge sludgewave smokescreen sludgebomb syrupbomb mudbomb magnetbomb seedbomb willowisp confuseray lovelykiss rockwrecker stoneedge avalanche triplearrows thousandarrows thousandwaves iciclecrash spore judgment psystrike hex infernalparade darkpulse fierywrath terrainpulse naturesmadness ruination electroball moonblast mistball present iceball flowertrick wish healingwish stealthrock gmaxsteelsurge spikes toxicspikes stickyweb leechseed mysticalpower psyshock barbbarrage esperwing sandtomb saltcure flashcannon lusterpurge grassknot aeroblast aircutter dracometeor makeitrain brine octazooka waterpledge soak watersport scald steameruption waterpulse bubblebeam muddywater mudshot lavaplume dragonenergy waterspout solarbeam electroshot solarblade lightofruin meteorbeam blizzard sheercold glaciallance freezeshock iceburn razorwind overheat sacredfire blueflare electroweb fling worryseed rockthrow paraboliccharge drainingkiss oblivionwing signalbeam simplebeam triattack tripleaxel hypnosis darkvoid roaroftime spacialrend sacredsword secretsword psychocut precipiceblades originpulse dragonascent diamondstorm dazzlinggleam mistyexplosion payday leafstorm petaldance petalblizzard magicalleaf leafage gunkshot hyperspacehole hyperspacefury poisonjab psychoboost bestow finalgambit forestscurse trickortreat healpulse spite lockon mindreader memento spiritshackle brutalswing revelationdance prismaticlaser firstimpression shoreup firelash powertrip smartstrike spotlight anchorshot clangingscales spectralthief plasmafists collisioncourse electrodrift sunsteelstrike moongeistbeam astralbarrage photongeyser coreenforcer gigavolthavoc infernooverdrive alloutpummeling supersonicskystrike aciddownpour blackholeeclipse continentalcrush neverendingnightmare corkscrewcrash twinkletackle pulverizingpancake stokedsparksurfer catastropika sinisterarrowraid oceanicoperetta extremeevoboost guardianofalola splinteredstormshards letssnuggleforever clangoroussoulblaze soulstealing7starstrike searingsunrazesmash supercellslam psychicnoise fishiousrend stompingtantrum temperflare terastarstorm thunderclap mightycleave spiritbreak stoneaxe malignantchain hardpress dragoncheer upperhand revivalblessing blazingtorque combattorque magicaltorque noxioustorque wickedtorque tachyoncutter ficklebeam ficklebeamallout".split(" "),
+]);
+
+const MOVE_NATIVE_OTHER_MAP: Record<string, string> = {
+  aerialace: "slashattack",
+  crushclaw: "clawattack",
+  falseswipe: "slashattack",
+  direclaw: "clawattack",
+  dragonclaw: "clawattack",
+  furycutter: "slashattack",
+  cut: "slashattack",
+  holdback: "contactattack",
+  knockdown: "contactattack",
+  peck: "contactattack",
+  drillpeck: "contactattack",
+  irontail: "contactattack",
+  metalclaw: "clawattack",
+  scratch: "slashattack",
+  slash: "slashattack",
+  bite: "bite",
+  pound: "contactattack",
+  closecombat: "punchattack",
+  doublekick: "kick",
+  quickattack: "fastattack",
+  machpunch: "punchattack",
+  metalsound: "sound",
+};
 
 export function selectShowdownAnimationKeyV4(event: BattleProtocolEventV4, kind: BattleAnimationKindV4): ShowdownAnimationKeySelectionV4 {
   const moveId = toId(event.moveId || event.moveName);
@@ -138,17 +275,21 @@ export function selectShowdownAnimationKeyV4(event: BattleProtocolEventV4, kind:
   if (kind === "damage" || kind === "hit") return {animationKey: "hitmark", source: "BattleOtherAnims", fallback: false};
   if (kind === "heal") return {animationKey: "heal", source: "BattleOtherAnims", fallback: false};
   if (kind === "status") {
-    const key = FIRST_BATCH_STATUS_ANIMS.has(status) ? status : statusFallbackForEvent(event);
-    return {animationKey: key, source: FIRST_BATCH_STATUS_ANIMS.has(key) ? "BattleStatusAnims" : "BattleOtherAnims", fallback: !FIRST_BATCH_STATUS_ANIMS.has(key)};
+    const key = SUPPORTED_STATUS_ANIMS.has(status) ? status : statusFallbackForEvent(event);
+    return {animationKey: key, source: SUPPORTED_STATUS_ANIMS.has(key) ? "BattleStatusAnims" : "BattleOtherAnims", fallback: !SUPPORTED_STATUS_ANIMS.has(key)};
   }
   if (kind === "result") return {animationKey: resultAnimationKeyForEvent(event), source: "BattleOtherAnims", fallback: true};
-  if (kind === "moveStart") return {animationKey: moveId || "attack", source: moveId && FIRST_BATCH_MOVE_ANIMS.has(moveId) ? "BattleMoveAnims" : "fallback", fallback: !FIRST_BATCH_MOVE_ANIMS.has(moveId)};
+  if (kind === "moveStart") return {animationKey: moveId || "attack", source: moveId && SUPPORTED_MOVE_ANIMS.has(moveId) ? "BattleMoveAnims" : "fallback", fallback: !SUPPORTED_MOVE_ANIMS.has(moveId)};
   if (kind === "moveEffect") {
-    if (moveId && FIRST_BATCH_MOVE_ANIMS.has(moveId)) return {animationKey: moveId, source: "BattleMoveAnims", fallback: true};
+    if (moveId && SUPPORTED_MOVE_ANIMS.has(moveId)) return {animationKey: moveId, source: "BattleMoveAnims", fallback: false};
     const fallbackKey = fallbackMoveAnimationKey(event);
     return {animationKey: fallbackKey, source: "BattleOtherAnims", fallback: true};
   }
-  if (kind === "ability" || kind === "weather") return {animationKey: "lightstatus", source: "BattleOtherAnims", fallback: true};
+  if (kind === "ability") return {animationKey: "lightstatus", source: "BattleOtherAnims", fallback: true};
+  if (kind === "weather") {
+    const key = toId(event.args[0] === "-weather" ? event.args[1] : cleanEffect(event.args[1]));
+    return {animationKey: key || "lightstatus", source: key && (SUPPORTED_MOVE_ANIMS.has(key) || key === "desolateland" || key === "primordialsea" || key === "deltastream") ? "BattleMoveAnims" : "BattleOtherAnims", fallback: false};
+  }
   if (kind === "transform") return {animationKey: moveId === "transform" ? "transform" : "shiny", source: moveId === "transform" ? "BattleMoveAnims" : "BattleOtherAnims", fallback: moveId !== "transform"};
   if (kind === "switchIn" || kind === "switchOut" || kind === "faint") return {animationKey: kind, source: "native", fallback: false};
   return {animationKey: kind || "message", source: "native", fallback: true};
@@ -166,7 +307,7 @@ export function projectShowdownAnimationTimelineV4(animationKey: string, context
   return {
     id: `${context.event.sequence}-${context.kind}-${animationKey}`,
     animationKey,
-    source: selection.source,
+    source: sourceForAnimationKey(animationKey, context.kind, selection.source),
     protocolSequence: context.event.sequence,
     turn: context.event.turn || null,
     actorSeat: context.event.seat,
@@ -174,7 +315,7 @@ export function projectShowdownAnimationTimelineV4(animationKey: string, context
     effectSprite,
     steps,
     checkpoints: checkpoints.length ? checkpoints : [checkpointId],
-    fallback: selection.fallback,
+    fallback: fallbackForAnimationKey(animationKey, context.kind, selection.fallback),
   };
 }
 
@@ -213,29 +354,37 @@ function stepsForAnimation(
   target: ShowdownSpriteActorV4,
   context: ShowdownAnimationContextV4,
 ): ShowdownAnimationStepV4[] {
-  const checkpoint = {type: "checkpoint" as const, checkpointId: context.checkpointId};
+  const checkpoint = checkpointStep(context.checkpointId);
   if (context.kind === "moveStart") {
     return [
-      {type: "actorAnim", actor, props: {y: actor.y - 12, scale: 1.08}, durationMs: 260, easing: "easeOut"},
-      {type: "wait", durationMs: 140},
+      actorAnimStep(actor, {y: actor.y - 12, scale: 1.08}, 260, "easeOut"),
+      waitStep(140),
       checkpoint,
     ];
   }
   if (context.kind === "moveEffect") {
+    const delegatedOther = MOVE_NATIVE_OTHER_MAP[animationKey];
+    if (delegatedOther) return [...stepsForOtherAnimation(delegatedOther, actor, target), checkpoint];
+    const nativeMoveSteps = stepsForNativeMove(animationKey, actor, target);
+    if (nativeMoveSteps.length) return [...nativeMoveSteps, checkpoint];
     return [
       ...backgroundStepsForMove(animationKey),
-      {type: "showEffect", effectId: effectSprite, from: actor, to: target, durationMs: Math.max(420, context.durationMs - 220), easing: "easeOut", fade: "both", sprite: effectSpriteFor(effectSprite, actor)},
-      {type: "actorAnim", actor: target, props: {x: target.x + (target.side === "far" ? 10 : -10)}, durationMs: 180, easing: "easeInOut"},
+      showEffectStep(effectSprite, actor, target, Math.max(420, context.durationMs - 220), {easing: "easeOut", fade: "both"}),
+      actorAnimStep(target, {x: target.x + (target.side === "far" ? 10 : -10)}, 180, "easeInOut"),
       checkpoint,
     ];
   }
-  if (context.kind === "damage") return [{type: "showEffect", effectId: "hitmark", from: target, to: target, durationMs: 280, fade: "both", sprite: effectSpriteFor("impact", target)}, {type: "damageAnim", actor: target, damage: null}, checkpoint];
-  if (context.kind === "heal") return [{type: "showEffect", effectId: "heal", from: actor, to: actor, durationMs: 520, fade: "both", sprite: effectSpriteFor("shine", actor)}, {type: "healAnim", actor, heal: null}, checkpoint];
-  if (context.kind === "status") return [{type: "showEffect", effectId: animationKey, from: actor, to: actor, durationMs: 520, fade: "both", sprite: effectSpriteFor(effectSprite, actor)}, {type: "resultAnim", actor, text: context.resultText, tone: "status"}, checkpoint];
-  if (context.kind === "result") return [{type: "resultAnim", actor: target, text: context.resultText, tone: context.resultTone}, {type: "wait", durationMs: 220}, checkpoint];
-  if (context.kind === "ability" || context.kind === "weather") return [{type: "backgroundEffect", color: context.kind === "weather" ? "#f3d45a" : "#b7ff27", durationMs: 560, opacity: .42}, {type: "resultAnim", actor, text: context.resultText, tone: context.kind === "weather" ? "weather" : "good"}, checkpoint];
-  if (context.kind === "transform") return [{type: "showEffect", effectId: "shine", from: actor, to: actor, durationMs: 560, fade: "both", sprite: effectSpriteFor("shine", actor)}, {type: "actorAnim", actor, props: {scale: 1.18, opacity: .72}, durationMs: 420, easing: "easeInOut"}, checkpoint];
-  return [{type: "wait", durationMs: Math.max(180, context.durationMs)}, checkpoint];
+  if (context.kind === "damage") return [showEffectStep("hitmark", target, target, 280, {spriteId: "impact", fade: "both"}), {type: "damageAnim", actor: target, damage: null}, checkpoint];
+  if (context.kind === "heal") return [...stepsForOtherAnimation("heal", actor, actor), {type: "healAnim", actor, heal: null}, checkpoint];
+  if (context.kind === "status") return [...stepsForOtherAnimation(animationKey, actor, actor, effectSprite), {type: "resultAnim", actor, text: context.resultText, tone: "status"}, checkpoint];
+  if (context.kind === "result") {
+    if (SUPPORTED_OTHER_ANIMS.has(animationKey)) return [...stepsForOtherAnimation(animationKey, target, target), {type: "resultAnim", actor: target, text: context.resultText, tone: context.resultTone}, checkpoint];
+    return [{type: "resultAnim", actor: target, text: context.resultText, tone: context.resultTone}, waitStep(220), checkpoint];
+  }
+  if (context.kind === "weather") return [...environmentSteps(animationKey, actor), {type: "resultAnim", actor, text: context.resultText, tone: "weather"}, checkpoint];
+  if (context.kind === "ability") return [{type: "backgroundEffect", color: "#b7ff27", durationMs: 560, opacity: .42}, {type: "resultAnim", actor, text: context.resultText, tone: "good"}, checkpoint];
+  if (context.kind === "transform") return [showEffectStep("shine", actor, actor, 560, {fade: "both"}), actorAnimStep(actor, {scale: 1.18, opacity: .72}, 420, "easeInOut"), checkpoint];
+  return [waitStep(Math.max(180, context.durationMs)), checkpoint];
 }
 
 function backgroundStepsForMove(animationKey: string): ShowdownAnimationStepV4[] {
@@ -244,6 +393,491 @@ function backgroundStepsForMove(animationKey: string): ShowdownAnimationStepV4[]
   if (/thunder|volt|spark|electro/.test(animationKey)) return [{type: "backgroundEffect", color: "#ffe35a", durationMs: 360, opacity: .3}];
   if (/water|hydro|surf/.test(animationKey)) return [{type: "backgroundEffect", color: "#4aa5ff", durationMs: 360, opacity: .24}];
   return [];
+}
+
+function stepsForOtherAnimation(animationKey: string, actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, fallbackSprite = "wisp"): ShowdownAnimationStepV4[] {
+  switch (animationKey) {
+  case "hitmark":
+    return [showEffectStep("hitmark", target, target, 280, {spriteId: "impact", fade: "both"})];
+  case "attack":
+    return [actorAnimStep(actor, {x: leftOf(target, -18), y: target.y + 16, z: behind(target, -18)}, 280, "ballistic"), actorAnimStep(target, {x: leftOf(target, 10)}, 180, "swing")];
+  case "contactattack":
+    return [actorAnimStep(actor, {x: target.x, y: target.y + 12, z: behind(target, -18)}, 260, "ballistic"), showEffectStep("impact", target, {...target, scale: 1.6, opacity: 0}, 260, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, 12)}, 180, "swing")];
+  case "xattack":
+    return [
+      showEffectStep("wisp", target, {...target, x: leftOf(target, -20), z: behind(target, 20), scale: 3, opacity: 0}, 700),
+      showEffectStep("wisp", target, {...target, x: leftOf(target, 20), z: behind(target, 20), scale: 3, opacity: 0}, 860),
+      actorAnimStep(actor, {x: leftOf(target, -30), y: target.y + 64, z: behind(target, -30)}, 300, "ballistic"),
+      actorAnimStep(actor, {x: leftOf(target, 28), y: target.y + 5, z: target.z}, 110),
+      actorAnimStep(target, {z: behind(target, 20)}, 220, "swing"),
+    ];
+  case "slashattack":
+    return [
+      actorAnimStep(actor, {x: target.x, y: target.y + 58, z: behind(target, -30)}, 320, "ballistic"),
+      actorAnimStep(actor, {x: target.x, y: target.y + 5, z: target.z}, 110),
+      showEffectStep("rightslash", target, {...target, scale: 3, opacity: 0}, 360, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 20)}, 220, "swing"),
+    ];
+  case "clawattack":
+    return [
+      actorAnimStep(actor, {x: leftOf(target, -30), y: target.y + 58, z: behind(target, -30)}, 300, "ballistic"),
+      actorAnimStep(actor, {x: leftOf(target, 28), y: target.y + 5, z: target.z}, 90),
+      showEffectStep("leftclaw", target, {...target, x: target.x - 12, y: target.y + 8, scale: 2.5, opacity: 0}, 330, {fade: "both"}),
+      showEffectStep("rightclaw", target, {...target, x: target.x + 12, y: target.y - 8, scale: 2.5, opacity: 0}, 420, {fade: "both"}),
+      actorAnimStep(target, {x: leftOf(target, -10), z: behind(target, 15)}, 180, "swing"),
+    ];
+  case "punchattack":
+    return [
+      showEffectStep("wisp", target, {...target, x: leftOf(target, -20), z: behind(target, 20), scale: 3, opacity: 0}, 430),
+      showEffectStep("fist", target, {...target, x: leftOf(target, -20), z: behind(target, 20), scale: 2, opacity: 0}, 480),
+      actorAnimStep(actor, {x: leftOf(target, 20), y: target.y, z: behind(target, -20)}, 320, "ballistic2Under"),
+      actorAnimStep(target, {x: leftOf(target, -15), z: behind(target, 15)}, 180, "swing"),
+    ];
+  case "bite":
+    return [
+      showEffectStep("topbite", {...target, y: target.y + 42, opacity: 0}, {...target, y: target.y + 10, opacity: 1, scale: .5}, 260, {fade: "in"}),
+      showEffectStep("bottombite", {...target, y: target.y - 42, opacity: 0}, {...target, y: target.y - 10, opacity: 1, scale: .5}, 260, {fade: "in"}),
+      actorAnimStep(target, {scale: .94, y: target.y + 3}, 180, "swing"),
+    ];
+  case "kick":
+    return [showEffectStep("foot", target, {...target, y: target.y - 20, z: behind(target, 15), scale: 2, opacity: 0}, 420), actorAnimStep(target, {x: leftOf(target, 10)}, 180, "swing")];
+  case "fastattack":
+    return [actorAnimStep(actor, {x: leftOf(target, -18), y: target.y + 6, z: behind(target, -28), opacity: .85}, 120, "accel"), showEffectStep("wisp", actor, target, 220, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, 12)}, 160, "swing")];
+  case "fastanimattack":
+    return [actorAnimStep(actor, {z: behind(actor, -70)}, 120, "decel"), actorAnimStep(target, {z: behind(target, 30)}, 160, "decel")];
+  case "fastanimspecial":
+    return [showEffectStep("shine", actor, target, 260, {fade: "both"}), actorAnimStep(target, {scale: .96}, 160, "decel")];
+  case "fastanimself":
+    return [actorAnimStep(actor, {scale: 1.5}, 120, "decel"), actorAnimStep(actor, {scale: 1}, 170, "accel")];
+  case "sneakattack":
+    return [
+      actorAnimStep(actor, {x: leftOf(actor, -20), z: behind(actor, -20), opacity: 0}, 180),
+      actorAnimStep(actor, {x: target.x, y: target.y, z: behind(target, 40), opacity: 1}, 260),
+      showEffectStep("shadowball", target, {...target, scale: 1.8, opacity: 0}, 360, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 25)}, 180, "swing"),
+    ];
+  case "spinattack":
+    return [actorAnimStep(actor, {x: target.x, y: target.y, scale: 1.18, xscale: -1}, 360, "swing"), showEffectStep("wisp", target, {...target, scale: 2.2, opacity: 0}, 420), actorAnimStep(target, {z: behind(target, 20)}, 180)];
+  case "bound":
+    return [showEffectStep("wisp", target, {...target, scale: 2.4, opacity: 0}, 480), actorAnimStep(target, {scale: .86, y: target.y + 6}, 260, "swing")];
+  case "selfstatus":
+    return [showEffectStep("wisp", {...actor, scale: 2, opacity: .2}, {...actor, scale: 0, opacity: 1}, 300), showEffectStep("wisp", {...actor, scale: 2, opacity: .2}, {...actor, scale: 0, opacity: 1}, 500)];
+  case "lightstatus":
+    return [showEffectStep("electroball", {...actor, scale: 2, opacity: .1}, {...actor, scale: 0, opacity: .5}, 600)];
+  case "chargestatus":
+    return [
+      showEffectStep("electroball", {...actor, x: actor.x - 54, y: actor.y + 34, scale: .7, opacity: .7}, {...actor, scale: .2, opacity: .2}, 320, {fade: "both"}),
+      showEffectStep("electroball", {...actor, x: actor.x + 52, y: actor.y - 5, scale: .7, opacity: .7}, {...actor, scale: .2, opacity: .2}, 420, {fade: "both"}),
+      showEffectStep("electroball", {...actor, x: actor.x - 35, y: actor.y - 45, scale: .7, opacity: .7}, {...actor, scale: .2, opacity: .2}, 520, {fade: "both"}),
+    ];
+  case "consume":
+    return [showEffectStep("wisp", {...actor, x: leftOf(actor, -25), y: actor.y + 40, z: behind(actor, -20), scale: .5}, {...actor, x: leftOf(actor, -15), y: actor.y + 35, scale: 0, opacity: .2}, 500, {fade: "both"}), actorAnimStep(actor, {y: actor.y + 5, yscale: 1.1}, 280, "swing")];
+  case "heal":
+    return [showEffectStep("shine", actor, actor, 520, {fade: "both"}), showEffectStep("wisp", {...actor, y: actor.y - 20, scale: .4, opacity: .75}, {...actor, y: actor.y + 30, scale: 0, opacity: .15}, 460, {fade: "both"})];
+  case "shake":
+    return [actorAnimStep(actor, {x: actor.x - 8}, 80, "swing"), actorAnimStep(actor, {x: actor.x + 8}, 80, "swing"), actorAnimStep(actor, {x: actor.x}, 80, "swing")];
+  case "leech":
+  case "drain":
+    return [
+      showEffectStep("energyball", {...target, x: target.x - 28, y: target.y - 34, scale: .35, opacity: .7}, {...actor, opacity: .1}, 500, {fade: "both"}),
+      showEffectStep("energyball", {...target, x: target.x + 32, y: target.y - 26, scale: .35, opacity: .7}, {...actor, opacity: .1}, 600, {fade: "both"}),
+      actorAnimStep(actor, {scale: 1.08}, 200, "decel"),
+    ];
+  case "hydroshot":
+    return [
+      showEffectStep("waterwisp", actor, {...target, x: target.x + 10, y: target.y + 5, z: behind(target, 30), scale: 1, opacity: .6}, 360, {fade: "both"}),
+      showEffectStep("waterwisp", actor, {...target, x: target.x - 10, y: target.y + 2, z: behind(target, 30), scale: 1, opacity: .6}, 450, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 20)}, 180, "swing"),
+    ];
+  case "sound":
+    return [showEffectStep("sound", actor, {...target, scale: 1.6, opacity: 0}, 520, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, 8)}, 160, "swing")];
+  case "shiny":
+  case "megaevo":
+  case "powerconstruct":
+  case "ultraburst":
+    return formChangeSteps(actor, animationKey);
+  case "flight":
+    return flightSteps(actor, target, animationKey);
+  case "dance":
+    return danceSteps(actor);
+  case "gravity":
+    return roomSteps(actor, "#6b4aa8", "gravity");
+  case "futuresighthit":
+  case "doomdesirehit":
+    return beamSteps(actor, target, animationKey === "doomdesirehit" ? "shine" : "mistball", "#fff1a6");
+  case "itemoff":
+    return [showEffectStep("item", actor, {...target, y: target.y - 30, opacity: 0}, 520, {fade: "both"}), ...stepsForOtherAnimation("contactattack", actor, target)];
+  case "anger":
+    return [showEffectStep("angry", actor, {...actor, y: actor.y - 24, scale: 1.4, opacity: 0}, 520, {fade: "both"}), ...stepsForOtherAnimation("shake", actor, actor)];
+  case "bidecharge":
+    return boostSteps(actor, "wisp", "#ffda4d");
+  case "bideunleash":
+    return explosionSteps(actor, target, "#ffda4d", "impact");
+  case "spectralthiefboost":
+    return ghostDarkSteps(actor, target, "shadowball");
+  case "schoolingin":
+  case "schoolingout":
+    return formChangeSteps(actor, animationKey);
+  case "primalalpha":
+    return primalSteps(actor, "#d93131", "alpha");
+  case "primalomega":
+    return primalSteps(actor, "#315fff", "omega");
+  case "zpower":
+    return zMoveSteps(actor, target, "#050505");
+  default:
+    return [showEffectStep(fallbackSprite, actor, target, 520, {fade: "both"}), actorAnimStep(target, {x: target.x + (target.side === "far" ? 10 : -10)}, 180, "easeInOut")];
+  }
+}
+
+function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  switch (animationKey) {
+  case "bravebird":
+  case "acrobatics":
+  case "flyingpress":
+  case "steelwing":
+  case "wingattack":
+  case "dualwingbeat":
+    return flightSteps(actor, target, animationKey);
+  case "dragonbreath":
+    return pulseProjectileSteps(actor, target, "poisonwisp", {count: 3, background: "#5f44aa", compact: true});
+  case "dragonpulse":
+    return pulseProjectileSteps(actor, target, "shadowball", {count: 5, background: "#5f44aa", secondarySprite: "poisonwisp"});
+  case "focusblast":
+    return pulseProjectileSteps(actor, target, "electroball", {count: 2, background: "#b84038", charge: true});
+  case "aurasphere":
+    return pulseProjectileSteps(actor, target, "wisp", {count: 3, background: "#124763", charge: true});
+  case "uturn":
+  case "rapidspin":
+  case "gyroball":
+    return stepsForOtherAnimation("spinattack", actor, target);
+  case "flipturn":
+    return spinWithElementSteps(actor, target, "waterwisp");
+  case "mortalspin":
+    return spinWithElementSteps(actor, target, "poisonwisp");
+  case "icespinner":
+    return spinWithElementSteps(actor, target, "iceball");
+  case "voltswitch":
+    return [...electricWaveSteps(actor, target, {projectile: true}), actorAnimStep(actor, {z: behind(actor, 15)}, 200, "decel"), actorAnimStep(actor, {z: behind(target, -170), opacity: .75}, 120, "accel")];
+  case "thunderwave":
+    return electricWaveSteps(actor, target, {wide: true, status: true});
+  case "shockwave":
+    return electricWaveSteps(actor, target, {wide: true, projectile: true});
+  case "discharge":
+    return electricWaveSteps(actor, target, {wide: true, background: "#ffe35a"});
+  case "bugbuzz":
+    return [showEffectStep("sound", actor, {...target, scale: 1.9, opacity: 0}, 520, {fade: "both"}), showEffectStep("wisp", {...target, scale: .5, opacity: .4}, {...target, scale: 2.4, opacity: 0}, 580, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, 10)}, 180, "swing")];
+  case "swordsdance":
+    return [showEffectStep("sword", actor, {...actor, y: actor.y + 28, scale: 1.5, opacity: 0}, 520, {fade: "both"}), actorAnimStep(actor, {scale: 1.12}, 280, "swing")];
+  case "dragondance":
+    return [{type: "backgroundEffect", color: "#7c4dff", durationMs: 520, opacity: .22}, showEffectStep("rainbow", actor, {...actor, scale: 1.8, opacity: 0}, 620, {fade: "both"}), actorAnimStep(actor, {x: leftOf(actor, 12), scale: 1.1}, 320, "swing")];
+  case "thunderbolt":
+    return [{type: "backgroundEffect", color: "#000000", durationMs: 600, opacity: .2}, showEffectStep("lightning", {...target, y: target.y + 150, yscale: 0, xscale: 2}, {...target, y: target.y + 50, yscale: 1, xscale: 1.5, opacity: .8}, 260, {fade: "both"}), showEffectStep("lightning", {...target, x: target.x - 15, y: target.y + 150, yscale: 0, xscale: 2}, {...target, y: target.y + 50, yscale: 1, xscale: 1.5, opacity: .8}, 460, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, -8)}, 180, "swing")];
+  case "psychic":
+    return [{type: "backgroundEffect", color: "#aa44ff", durationMs: 620, opacity: .34}, actorAnimStep(target, {scale: 1.24}, 180, "decel"), actorAnimStep(target, {scale: 1.4}, 220, "decel"), showEffectStep("mistball", target, {...target, scale: 2, opacity: 0}, 520, {fade: "both"})];
+  case "icebeam":
+    return [showEffectStep("iceball", actor, target, 420, {fade: "both"}), showEffectStep("icicle", {...target, y: target.y + 70, opacity: .8}, {...target, y: target.y + 8, opacity: 0, scale: .8}, 520, {fade: "both"}), actorAnimStep(target, {scale: .96}, 200)];
+  case "flamethrower":
+  case "fireblast":
+  case "blastburn":
+    return [{type: "backgroundEffect", color: "#ff652f", durationMs: animationKey === "blastburn" ? 780 : 520, opacity: animationKey === "blastburn" ? .42 : .28}, showEffectStep(animationKey === "fireblast" ? "flareball" : "fireball", actor, target, animationKey === "blastburn" ? 780 : 520, {fade: "both"}), showEffectStep("fireball", {...target, x: target.x - 12}, {...target, scale: 2.1, opacity: 0}, 450, {fade: "both"})];
+  case "rockslide":
+    return [showEffectStep("rocks", {...target, y: target.y + 85, opacity: .85}, target, 460, {fade: "both"}), showEffectStep("rock1", {...target, x: target.x - 28, y: target.y + 70}, {...target, x: target.x - 8, y: target.y + 5}, 420, {fade: "both"}), showEffectStep("rock2", {...target, x: target.x + 32, y: target.y + 82}, {...target, x: target.x + 8, y: target.y + 8}, 500, {fade: "both"}), actorAnimStep(target, {z: behind(target, 25)}, 180)];
+  case "shadowball":
+    return [{type: "backgroundEffect", color: "#240038", durationMs: 520, opacity: .22}, showEffectStep("shadowball", actor, target, 560, {fade: "both"}), showEffectStep("blackwisp", target, {...target, scale: 1.7, opacity: 0}, 440, {fade: "both"})];
+  case "energyball":
+    return [showEffectStep("energyball", actor, target, 560, {fade: "both"}), showEffectStep("leaf1", target, {...target, x: target.x + 18, y: target.y + 12, opacity: 0}, 420, {fade: "both"})];
+  case "airslash":
+    return [showEffectStep("rightslash", actor, target, 380, {fade: "both"}), showEffectStep("feather", {...target, y: target.y + 20}, {...target, y: target.y - 26, opacity: 0}, 520, {fade: "both"}), actorAnimStep(target, {z: behind(target, 18)}, 180)];
+  case "surf":
+    return [{type: "backgroundEffect", color: "#3d9dff", durationMs: 620, opacity: .28}, showEffectStep("waterwisp", {...actor, scale: 1.3}, {...target, scale: 2.2, opacity: .15}, 620, {fade: "both"}), showEffectStep("waterwisp", {...target, x: target.x - 24, scale: .7}, {...target, x: target.x + 26, scale: 1.4, opacity: 0}, 560, {fade: "both"})];
+  case "hydropump":
+    return stepsForOtherAnimation("hydroshot", actor, target);
+  case "swift":
+    return [showEffectStep("shine", actor, target, 360, {fade: "both"}), showEffectStep("shine", {...actor, x: actor.x + 16}, {...target, x: target.x - 18, opacity: .2}, 460, {fade: "both"}), showEffectStep("shine", {...actor, x: actor.x - 18}, {...target, x: target.x + 22, opacity: .2}, 540, {fade: "both"})];
+  case "nightslash":
+    return darkSlashSteps(actor, target, "rightslash");
+  case "shadowclaw":
+    return [{type: "backgroundEffect", color: "#000000", durationMs: 700, opacity: .3}, ...stepsForOtherAnimation("clawattack", actor, target)];
+  case "superfang":
+  case "bugbite":
+    return [...stepsForOtherAnimation("bite", actor, target), ...stepsForOtherAnimation("contactattack", actor, target)];
+  case "crunch":
+    return darkBiteSteps(actor, target);
+  case "pursuit":
+    return [showEffectStep("shadowball", {...target, scale: 0, opacity: .2}, {...target, scale: 1.5, opacity: 0}, 520, {fade: "both"}), actorAnimStep(actor, {x: leftOf(target, 20), y: target.y, z: behind(target, -20)}, 300, "ballistic2Under"), actorAnimStep(target, {x: leftOf(target, 10)}, 180, "swing")];
+  default:
+    return SUPPORTED_MOVE_ANIMS.has(animationKey) ? presetRouterSteps(animationKey, actor, target) : [];
+  }
+}
+
+function flightSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, animationKey: string): ShowdownAnimationStepV4[] {
+  const isSteel = animationKey === "steelwing";
+  return [
+    actorAnimStep(actor, {y: actor.y - 72, z: behind(actor, 40), opacity: .82}, 220, "decel"),
+    showEffectStep("feather", {...actor, y: actor.y - 44, scale: .8, opacity: .8}, {...actor, y: actor.y - 92, opacity: 0}, 360, {fade: "both"}),
+    actorAnimStep(actor, {x: target.x, y: target.y + 12, z: behind(target, -24), scale: animationKey === "flyingpress" ? 1.18 : 1}, 260, "accel"),
+    showEffectStep(isSteel ? "leftslash" : "rightslash", target, {...target, scale: 2.4, opacity: 0}, 360, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 22)}, 180, "swing"),
+  ];
+}
+
+function darkSlashSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, slashSprite: string): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#000000", durationMs: 700, opacity: .3},
+    showEffectStep(slashSprite, {...target, x: target.x + 5, y: target.y + 20}, {...target, scale: 3, opacity: 0}, 360, {fade: "both"}),
+    showEffectStep(slashSprite, {...target, x: target.x - 5, y: target.y - 20}, {...target, scale: 3, opacity: 0}, 460, {fade: "both"}),
+    ...stepsForOtherAnimation("contactattack", actor, target),
+  ];
+}
+
+function darkBiteSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#000000", durationMs: 800, opacity: .3},
+    showEffectStep("topbite", {...target, y: target.y + 70, scale: .65, opacity: 0}, {...target, y: target.y + 20, opacity: 1}, 360, {fade: "in"}),
+    showEffectStep("bottombite", {...target, y: target.y - 70, scale: .65, opacity: 0}, {...target, y: target.y - 20, opacity: 1}, 360, {fade: "in"}),
+    ...stepsForOtherAnimation("contactattack", actor, target),
+  ];
+}
+
+function spinWithElementSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, spriteId: string): ShowdownAnimationStepV4[] {
+  return [
+    showEffectStep(spriteId, {...actor, scale: 1.4, opacity: .55}, {...target, y: target.y + 42, z: behind(target, -30), opacity: .75}, 420, {fade: "both"}),
+    showEffectStep(spriteId, {...target, y: target.y + 42, z: behind(target, -30), scale: 1.5, opacity: .75}, {...target, y: target.y + 5, z: target.z, opacity: 1}, 520, {fade: "both"}),
+    ...stepsForOtherAnimation("spinattack", actor, target),
+  ];
+}
+
+function electricWaveSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, options: {wide?: boolean; projectile?: boolean; status?: boolean; background?: string} = {}): ShowdownAnimationStepV4[] {
+  const steps: ShowdownAnimationStepV4[] = [];
+  if (options.background) steps.push({type: "backgroundEffect", color: options.background, durationMs: 520, opacity: .24});
+  if (options.wide) {
+    steps.push(showEffectStep("electroball", {...actor, scale: 1, opacity: .2}, {...actor, scale: 8, opacity: .1}, 600, {fade: "both"}));
+    steps.push(showEffectStep("electroball", {...actor, scale: 1, opacity: .2}, {...actor, scale: 8, opacity: .1}, 760, {fade: "both"}));
+  }
+  if (options.projectile) steps.push(showEffectStep("electroball", {...actor, opacity: .8}, {...target, opacity: .7}, 420, {fade: "both"}));
+  steps.push(showEffectStep("electroball", {...target, scale: options.status ? 1 : 0, opacity: .3}, {...target, scale: options.status ? 4 : 3, opacity: 0}, 520, {fade: "both"}));
+  steps.push(actorAnimStep(target, {x: leftOf(target, 8)}, 160, "swing"));
+  return steps;
+}
+
+function pulseProjectileSteps(
+  actor: ShowdownSpriteActorV4,
+  target: ShowdownSpriteActorV4,
+  spriteId: string,
+  options: {count?: number; background?: string; secondarySprite?: string; charge?: boolean; compact?: boolean} = {},
+): ShowdownAnimationStepV4[] {
+  const count = options.count || 3;
+  const steps: ShowdownAnimationStepV4[] = [];
+  if (options.background) steps.push({type: "backgroundEffect", color: options.background, durationMs: options.compact ? 480 : 700, opacity: options.compact ? .2 : .34});
+  if (options.charge) steps.push(showEffectStep(spriteId, {...actor, scale: 2.8, opacity: .25}, {...actor, scale: .65, opacity: .85}, 340, {fade: "both"}));
+  for (let i = 0; i < count; i++) {
+    const drift = (i - Math.floor(count / 2)) * 12;
+    steps.push(showEffectStep(spriteId, {...actor, x: actor.x + drift, scale: .35 + i * .05, opacity: .65}, {...target, x: target.x - drift, scale: 1.15, opacity: .1}, 360 + i * 70, {fade: "both"}));
+    if (options.secondarySprite) steps.push(showEffectStep(options.secondarySprite, {...actor, x: actor.x - drift, scale: .3, opacity: .35}, {...target, x: target.x + drift, scale: 1.7, opacity: 0}, 420 + i * 70, {fade: "both"}));
+  }
+  steps.push(actorAnimStep(target, {z: behind(target, 18)}, 180, "swing"));
+  return steps;
+}
+
+function presetRouterSteps(animationKey: string, actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  const preset = movePresetForKey(animationKey);
+  switch (preset) {
+  case "contact": return stepsForOtherAnimation("contactattack", actor, target);
+  case "slash": return stepsForOtherAnimation("slashattack", actor, target);
+  case "claw": return stepsForOtherAnimation("clawattack", actor, target);
+  case "bite": return [...stepsForOtherAnimation("bite", actor, target), ...stepsForOtherAnimation("contactattack", actor, target)];
+  case "punch": return stepsForOtherAnimation("punchattack", actor, target);
+  case "kick": return stepsForOtherAnimation("kick", actor, target);
+  case "fast": return stepsForOtherAnimation("fastattack", actor, target);
+  case "spin": return stepsForOtherAnimation("spinattack", actor, target);
+  case "drain": return stepsForOtherAnimation("drain", actor, target);
+  case "heal": return healPresetSteps(actor);
+  case "status": return statusPresetSteps(actor, target, animationKey);
+  case "dance": return danceSteps(actor);
+  case "shield": return shieldSteps(actor, animationKey);
+  case "terrain": return terrainSteps(actor, animationKey);
+  case "weather": return weatherSteps(actor, animationKey);
+  case "room": return roomSteps(actor, "#6b4aa8", animationKey);
+  case "fireProjectile": return fireSteps(actor, target, animationKey);
+  case "waterProjectile": return waterSteps(actor, target, animationKey);
+  case "electricWave": return electricSteps(actor, target, animationKey);
+  case "iceProjectile": return iceSteps(actor, target, animationKey);
+  case "grassProjectile": return grassSteps(actor, target, animationKey);
+  case "rockProjectile": return rockSteps(actor, target, animationKey);
+  case "groundImpact": return groundSteps(actor, target, animationKey);
+  case "psychicPulse": return psychicSteps(actor, target, animationKey);
+  case "ghostDarkPulse": return ghostDarkSteps(actor, target, "shadowball");
+  case "poisonCloud": return poisonSteps(actor, target, animationKey);
+  case "soundWave": return soundSteps(actor, target);
+  case "beam": return beamSteps(actor, target, effectSpriteIdForMove(animationKey), "#f4f7ff");
+  case "explosion": return explosionSteps(actor, target, "#ff7845", "impact");
+  case "transformForm": return formChangeSteps(actor, animationKey);
+  case "zMove": return zMoveSteps(actor, target, "#050505");
+  default: return projectileSteps(actor, target, effectSpriteIdForMove(animationKey), "#f4f7ff");
+  }
+}
+
+function movePresetForKey(key: string): string {
+  if (/gigavolthavoc|infernooverdrive|alloutpummeling|supersonicskystrike|aciddownpour|blackholeeclipse|continentalcrush|neverendingnightmare|corkscrewcrash|twinkletackle|pulverizingpancake|stokedsparksurfer|catastropika|sinisterarrowraid|oceanicoperetta|extremeevoboost|guardianofalola|splinteredstormshards|letssnuggleforever|clangoroussoulblaze|soulstealing7starstrike|searingsunrazesmash/.test(key)) return "zMove";
+  if (/explosion|mistyexplosion|finalgambit|selfdestruct|mindblown/.test(key)) return "explosion";
+  if (/recover|rest|roost|softboiled|milkdrink|morningsun|moonlight|lunarblessing|shoreup|wish|healingwish|revivalblessing|healpulse|lifedew|junglehealing|aromatherapy|healbell|refresh/.test(key)) return "heal";
+  if (/drain|leech|absorb|oblivionwing|paraboliccharge|drainingkiss|hornleech|bitterblade|matchagotcha/.test(key)) return "drain";
+  if (/protect|detect|shield|guard|endure|matblock|banefulbunker|spikyshield|burningbulwark|craftyshield|kingsshield|auroraveil|reflect|lightscreen|safeguard|mist/.test(key)) return "shield";
+  if (/terrain/.test(key)) return "terrain";
+  if (/raindance|sunnyday|hail|snowscape|sandstorm|chillyreception/.test(key)) return "weather";
+  if (/trickroom|magicroom|wonderroom|gravity/.test(key)) return "room";
+  if (/dance|agility|doubleteam|splash|celebrate|teeter|metronome|tailglow|growth|howl|focusenergy|calmmind|nastyplot|bulkup|shellsmash|coil|geomancy|rockpolish|irondefense|harden|defensecurl|stockpile|charge|bellydrum|acupressure|sharpen|withdraw|meditate|cosmicpower|shiftgear|autotomize|dragoncheer/.test(key)) return "dance";
+  if (/taunt|swagger|encore|attract|followme|foresight|mimic|sketch|doodle|odorsleuth|playnice|tailwhip|leer|kinesis|topsyturvy|embargo|healblock|flash|tailwind|babydolleyes|faketears|tearfullook|featherdance|tickle|worryseed|hypnosis|darkvoid|lovelykiss|spore|yawn|sing|confuseray|willowisp|toxic|poisongas|smokescreen|partingshot|nobleroar|growl|screech|confide|defog|grasswhistle|supersonic|eerieimpulse|lockon|mindreader|spite|memento|forestscurse|trickortreat|spotlight|upperhand/.test(key)) return "status";
+  if (/punch|fist|comet|mega|dynamic|shadowpunch|meteormash|hammer|skyuppercut|forcepalm|karatechop|crosschop|rocksmash/.test(key)) return "punch";
+  if (/kick|stomp|tropkick|lowkick|jumpkick|highjumpkick/.test(key)) return "kick";
+  if (/claw|furycutter|cut|slash|xscissor|leafblade|psychocut|mightycleave|tachyoncutter|aircutter|spacialrend|sacredsword|secretsword|precipiceblades|bitterblade|firelash|stoneaxe|razorshell|aquacutter|smartstrike/.test(key)) return /claw/.test(key) ? "claw" : "slash";
+  if (/bite|fang|crunch|jaw/.test(key)) return "bite";
+  if (/quick|speed|sneak|suckerpunch|accelerock|bulletpunch|vacuumwave|jetpunch|firstimpression|thunderclap|aquajet|iceshard|watershuriken|shadowsneak|feint|fakeout/.test(key)) return "fast";
+  if (/spin|rollout|gyroball|steamroller|iceball|tripleaxel|brutalswing/.test(key)) return "spin";
+  if (/fire|flame|burn|flare|heat|overheat|eruption|lava|vcreate|blueflare|sacredfire|pyro|torch|blazing|temperflare/.test(key)) return "fireProjectile";
+  if (/water|hydro|aqua|surf|brine|bubble|scald|steam|muddywater|originpulse|fishiousrend|soak|watersport|wavecrash|crabhammer|octazooka/.test(key)) return "waterProjectile";
+  if (/thunder|volt|spark|electro|zap|chargebeam|discharge|bolt|plasma|parabolic|wildcharge|supercell/.test(key)) return "electricWave";
+  if (/ice|freeze|frost|blizzard|glacial|sheercold|avalanche|icicle|freezy|freezing|freezedry|icywind/.test(key)) return "iceProjectile";
+  if (/leaf|grass|seed|petal|wood|powerwhip|chloroblast|flower|magicalleaf|leafstorm|leafage|grassknot|seedflare/.test(key)) return "grassProjectile";
+  if (/rock|stone|diamondstorm|ancientpower|powergem|continental|saltcure/.test(key)) return "rockProjectile";
+  if (/earth|ground|mud|sand|bone|dig|drillrun|stomping|thousand|land|precipice/.test(key)) return "groundImpact";
+  if (/psych|psy|confusion|mind|dream|storedpower|mysticalpower|lusterpurge|mistball|esper|photongeyser|prismatic|ficklebeam/.test(key)) return "psychicPulse";
+  if (/shadow|ghost|dark|night|hex|spirit|astral|moongeist|hyperspace|wicked|malignant|blackhole|sinister|spectral|thief|knockoff|assurance|punishment|powertrip/.test(key)) return "ghostDarkPulse";
+  if (/poison|toxic|sludge|venom|gunk|acid|smog|barb|noxious|malignantchain/.test(key)) return "poisonCloud";
+  if (/sound|voice|song|buzz|boomburst|roar|round|snore|sonic|synchronoise|perishsong|hypervoice|clang|psychicnoise/.test(key)) return "soundWave";
+  if (/beam|laser|cannon|pulse|blast|ball|meteor|judgment|techno|doomdesire|future|prismatic|coreenforcer|roaroftime|lightofruin|solarbeam|electroshot|hyperbeam|flashcannon|aeroblast|moonblast|signalbeam|simplebeam|triattack/.test(key)) return "beam";
+  if (/transform|conversion|substitute|batonpass|teleport|switcheroo|skillswap|recycle|snatch|bestow|fling|item|schooling|powerconstruct|mega|ultra|primal|revelationdance|terastarstorm/.test(key)) return "transformForm";
+  if (/spin|bind|clamp|wrap|whirlpool|firespin|sandtomb|magmastorm|leaftornado|hurricane|whirlwind|storm/.test(key)) return "spin";
+  return "contact";
+}
+
+function statusPresetSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (/tail|leer|fake|tear|feather|growl|screech|confide|defog/.test(key)) return [showEffectStep("wisp", actor, target, 420, {fade: "both"}), {type: "resultAnim", actor: target, text: "", tone: "bad"}, ...stepsForOtherAnimation("shake", target, target)];
+  if (/hypnosis|sleep|yawn|sing|kiss|spore|darkvoid/.test(key)) return [showEffectStep("wisp", {...actor, scale: .5, opacity: .5}, {...target, scale: 2, opacity: 0}, 620, {fade: "both"}), actorAnimStep(target, {y: target.y + 5, opacity: .85}, 180, "swing")];
+  return [showEffectStep(effectSpriteIdForMove(key), actor, target, 520, {fade: "both"}), actorAnimStep(target, {scale: .97}, 160, "swing")];
+}
+
+function boostSteps(actor: ShowdownSpriteActorV4, spriteId = "wisp", color = "#f4f7ff"): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color, durationMs: 420, opacity: .18}, showEffectStep(spriteId, {...actor, scale: 1.7, opacity: .2}, {...actor, scale: .25, opacity: .85}, 420, {fade: "both"}), actorAnimStep(actor, {scale: 1.08, y: actor.y - 8}, 220, "decel")];
+}
+
+function danceSteps(actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [showEffectStep("shine", actor, {...actor, scale: 1.45, opacity: 0}, 420, {fade: "both"}), actorAnimStep(actor, {x: leftOf(actor, 12), scale: 1.08}, 160, "swing"), actorAnimStep(actor, {x: leftOf(actor, -12)}, 160, "swing"), actorAnimStep(actor, {x: actor.x, scale: 1}, 160, "swing")];
+}
+
+function shieldSteps(actor: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const color = /aurora|reflect|screen|safeguard/.test(key) ? "#a6e8ff" : "#64d58a";
+  return [{type: "backgroundEffect", color, durationMs: 480, opacity: .18}, showEffectStep("shine", {...actor, scale: 1.8, opacity: .4}, {...actor, scale: 2.5, opacity: 0}, 520, {fade: "both"}), actorAnimStep(actor, {scale: 1.04}, 180, "decel")];
+}
+
+function terrainSteps(actor: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const color = key.includes("electric") ? "#ffe35a" : key.includes("grassy") ? "#68d878" : key.includes("misty") ? "#e5a8ff" : "#9bc7ff";
+  return [{type: "backgroundEffect", color, durationMs: 720, opacity: .32}, showEffectStep("wisp", {...actor, y: actor.y + 35, scale: 2, opacity: .3}, {...actor, y: actor.y + 5, scale: 3, opacity: 0}, 620, {fade: "both"})];
+}
+
+function weatherSteps(actor: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const color = key.includes("rain") ? "#4aa5ff" : key.includes("sun") ? "#ffd45a" : key.includes("sand") ? "#c9a46b" : "#d8f6ff";
+  const sprite = key.includes("rain") ? "waterwisp" : key.includes("sand") ? "mudwisp" : key.includes("hail") || key.includes("snow") ? "icicle" : "shine";
+  return [{type: "backgroundEffect", color, durationMs: 760, opacity: .34}, showEffectStep(sprite, {...actor, y: actor.y + 60, scale: 1.2, opacity: .7}, {...actor, y: actor.y - 30, scale: 2, opacity: 0}, 640, {fade: "both"})];
+}
+
+function roomSteps(actor: ShowdownSpriteActorV4, color: string, key: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color, durationMs: 760, opacity: .34}, showEffectStep(key.includes("gravity") ? "weather-gravity" : "wisp", {...actor, scale: 2, opacity: .2}, {...actor, scale: 3.2, opacity: 0}, 620, {fade: "both"})];
+}
+
+function environmentSteps(key: string, actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  if (key.endsWith("terrain")) return terrainSteps(actor, key);
+  if (key.endsWith("room") || key === "gravity") return roomSteps(actor, "#6b4aa8", key);
+  return weatherSteps(actor, key);
+}
+
+function healPresetSteps(actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [...stepsForOtherAnimation("heal", actor, actor), {type: "healAnim", actor, heal: null}];
+}
+
+function fireSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color: "#ff652f", durationMs: /blast|vcreate|overheat|eruption/.test(key) ? 760 : 520, opacity: .3}, ...projectileSteps(actor, target, /blue/.test(key) ? "bluefireball" : /blast|flare/.test(key) ? "flareball" : "fireball", "#ff652f")];
+}
+
+function waterSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (/surf|muddywater|wavecrash|waterspout/.test(key)) return [{type: "backgroundEffect", color: "#3d9dff", durationMs: 660, opacity: .28}, showEffectStep("waterwisp", {...actor, scale: 1.4}, {...target, scale: 2.3, opacity: .12}, 620, {fade: "both"}), actorAnimStep(target, {z: behind(target, 20)}, 180, "swing")];
+  return projectileSteps(actor, target, "waterwisp", "#3d9dff");
+}
+
+function electricSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  return electricWaveSteps(actor, target, {wide: /discharge|web|cage|wave/.test(key), projectile: !/discharge|wave/.test(key), background: "#ffe35a"});
+}
+
+function iceSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  return [showEffectStep(/icicle|glacial/.test(key) ? "icicle" : "iceball", actor, target, 480, {fade: "both"}), showEffectStep("icicle", {...target, y: target.y + 70, opacity: .8}, {...target, y: target.y + 8, opacity: 0, scale: .8}, 520, {fade: "both"}), actorAnimStep(target, {scale: .96}, 200)];
+}
+
+function grassSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (/petal|flower/.test(key)) return [showEffectStep("petal", actor, target, 520, {fade: "both"}), showEffectStep("petal", {...target, x: target.x - 24}, {...target, x: target.x + 24, opacity: 0}, 560, {fade: "both"})];
+  return [showEffectStep(/seed/.test(key) ? "energyball" : "leaf1", actor, target, 520, {fade: "both"}), showEffectStep("leaf2", target, {...target, x: target.x + 18, y: target.y + 12, opacity: 0}, 420, {fade: "both"})];
+}
+
+function rockSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  return [showEffectStep(/gem|diamond/.test(key) ? "shine" : "rocks", {...target, y: target.y + 85, opacity: .85}, target, 460, {fade: "both"}), showEffectStep("rock1", {...target, x: target.x - 28, y: target.y + 70}, {...target, x: target.x - 8, y: target.y + 5}, 420, {fade: "both"}), actorAnimStep(target, {z: behind(target, 25)}, 180)];
+}
+
+function groundSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color: "#b98442", durationMs: 460, opacity: .24}, showEffectStep(/bone/.test(key) ? "bone" : "mudwisp", actor, {...target, y: target.y + 10}, 520, {fade: "both"}), actorAnimStep(target, {y: target.y + 8, z: behind(target, 25)}, 180, "swing")];
+}
+
+function psychicSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color: "#aa44ff", durationMs: 620, opacity: .3}, ...pulseProjectileSteps(actor, target, /beam|laser|fickle/.test(key) ? "mistball" : "wisp", {count: 3, secondarySprite: "mistball"})];
+}
+
+function ghostDarkSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, spriteId = "shadowball"): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color: "#22002f", durationMs: 620, opacity: .25}, showEffectStep(spriteId, actor, target, 560, {fade: "both"}), showEffectStep("blackwisp", target, {...target, scale: 1.7, opacity: 0}, 440, {fade: "both"}), actorAnimStep(target, {z: behind(target, 18)}, 180, "swing")];
+}
+
+function poisonSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  return [showEffectStep(/gunk|sludge|bomb/.test(key) ? "poisonwisp" : "poisoncaltrop", actor, target, 520, {fade: "both"}), showEffectStep("poisonwisp", target, {...target, scale: 2, opacity: 0}, 520, {fade: "both"}), actorAnimStep(target, {scale: .96}, 180)];
+}
+
+function soundSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [showEffectStep("sound", actor, {...target, scale: 1.8, opacity: 0}, 520, {fade: "both"}), showEffectStep("wisp", {...target, scale: .5, opacity: .4}, {...target, scale: 2.4, opacity: 0}, 580, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, 10)}, 180, "swing")];
+}
+
+function beamSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, spriteId: string, color: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color, durationMs: 460, opacity: .2}, showEffectStep(spriteId, {...actor, scale: .45, opacity: .75}, {...target, scale: 1.3, opacity: .15}, 560, {fade: "both"}), showEffectStep("impact", target, {...target, scale: 1.8, opacity: 0}, 320, {fade: "both"}), actorAnimStep(target, {z: behind(target, 18)}, 180, "swing")];
+}
+
+function projectileSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, spriteId: string, color: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color, durationMs: 360, opacity: .14}, showEffectStep(spriteId, actor, target, 520, {fade: "both"}), showEffectStep("impact", target, {...target, scale: 1.5, opacity: 0}, 280, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, 8)}, 160, "swing")];
+}
+
+function explosionSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, color: string, spriteId: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color, durationMs: 760, opacity: .42}, showEffectStep(spriteId, {...target, scale: .4, opacity: .9}, {...target, scale: 3.5, opacity: 0}, 680, {fade: "both"}), actorAnimStep(target, {z: behind(target, 30)}, 220, "swing")];
+}
+
+function zMoveSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, color: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color, durationMs: 860, opacity: .55}, showEffectStep("z-symbol", {...actor, scale: .8, opacity: .8}, {...actor, scale: 2.2, opacity: 0}, 520, {fade: "both"}), showEffectStep(effectSpriteIdForMove(target.ident), actor, target, 620, {fade: "both"}), showEffectStep("impact", target, {...target, scale: 2.4, opacity: 0}, 460, {fade: "both"}), actorAnimStep(target, {z: behind(target, 28)}, 220, "swing")];
+}
+
+function primalSteps(actor: ShowdownSpriteActorV4, color: string, spriteId: string): ShowdownAnimationStepV4[] {
+  return [{type: "backgroundEffect", color, durationMs: 900, opacity: .38}, showEffectStep(spriteId, {...actor, scale: .6, opacity: .9}, {...actor, scale: 2.4, opacity: 0}, 720, {fade: "both"}), actorAnimStep(actor, {scale: 1.16}, 260, "decel")];
+}
+
+function formChangeSteps(actor: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const sprite = key.includes("mega") ? "alpha" : key.includes("ultra") ? "ultra" : "shine";
+  return [{type: "backgroundEffect", color: "#fff4a8", durationMs: 620, opacity: .24}, showEffectStep(sprite, {...actor, scale: .8, opacity: .8}, {...actor, scale: 2.2, opacity: 0}, 620, {fade: "both"}), actorAnimStep(actor, {scale: 1.14, opacity: .72}, 260, "easeInOut")];
+}
+
+function effectSpriteIdForMove(key: string): string {
+  if (/fire|flame|burn|blast|flare|heat|eruption|lava|torch|blueflare/.test(key)) return key.includes("blue") ? "bluefireball" : "fireball";
+  if (/water|hydro|aqua|surf|bubble|brine|steam|soak|pulse|muddywater/.test(key)) return "waterwisp";
+  if (/thunder|volt|spark|electro|zap|charge|bolt/.test(key)) return "electroball";
+  if (/ice|freeze|blizzard|glacial|snow|hail/.test(key)) return "iceball";
+  if (/leaf|grass|seed|petal|flower|wood/.test(key)) return "leaf1";
+  if (/rock|stone|ancient|gem|diamond/.test(key)) return "rock1";
+  if (/poison|toxic|sludge|venom|gunk|acid|smog/.test(key)) return "poisonwisp";
+  if (/shadow|dark|ghost|night|hex|spirit/.test(key)) return "shadowball";
+  if (/psych|psy|mind|beam|laser|mist|confusion/.test(key)) return "mistball";
+  if (/sound|voice|song|buzz|roar/.test(key)) return "sound";
+  return "wisp";
 }
 
 function fallbackMoveAnimationKey(event: BattleProtocolEventV4): string {
@@ -323,10 +957,67 @@ function effectSpriteFor(effectId: string, actor: ShowdownSpriteActorV4): Showdo
   };
 }
 
+function showEffectStep(
+  effectId: string,
+  from: ShowdownSpriteActorV4,
+  to: ShowdownSpriteActorV4,
+  durationMs: number,
+  options: {easing?: string; fade?: "in" | "out" | "both" | "none"; spriteId?: string} = {},
+): ShowdownAnimationStepV4 {
+  return {
+    type: "showEffect",
+    effectId,
+    from,
+    to,
+    durationMs,
+    easing: options.easing || "linear",
+    fade: options.fade || "both",
+    sprite: effectSpriteFor(options.spriteId || effectId, from),
+  };
+}
+
+function actorAnimStep(actor: ShowdownSpriteActorV4, props: ShowdownActorAnimPropsV4, durationMs: number, easing?: string): ShowdownAnimationStepV4 {
+  return {type: "actorAnim", actor, props, durationMs, easing};
+}
+
+function waitStep(durationMs: number): ShowdownAnimationStepV4 {
+  return {type: "wait", durationMs};
+}
+
+function checkpointStep(checkpointId: string): ShowdownAnimationStepV4 {
+  return {type: "checkpoint", checkpointId};
+}
+
+function leftOf(actor: ShowdownSpriteActorV4, offset: number): number {
+  return actor.side === "far" ? actor.x - offset : actor.x + offset;
+}
+
+function behind(actor: ShowdownSpriteActorV4, offset: number): number {
+  return actor.z + offset;
+}
+
+function sourceForAnimationKey(animationKey: string, kind: BattleAnimationKindV4, fallbackSource: ShowdownAnimationSourceV4): ShowdownAnimationSourceV4 {
+  if ((kind === "moveEffect" || kind === "moveStart") && SUPPORTED_MOVE_ANIMS.has(animationKey)) return "BattleMoveAnims";
+  if (SUPPORTED_STATUS_ANIMS.has(animationKey)) return "BattleStatusAnims";
+  if (SUPPORTED_OTHER_ANIMS.has(animationKey)) return "BattleOtherAnims";
+  return fallbackSource;
+}
+
+function fallbackForAnimationKey(animationKey: string, kind: BattleAnimationKindV4, fallback: boolean): boolean {
+  if ((kind === "moveEffect" || kind === "moveStart") && SUPPORTED_MOVE_ANIMS.has(animationKey)) return false;
+  if (SUPPORTED_STATUS_ANIMS.has(animationKey)) return false;
+  if (SUPPORTED_OTHER_ANIMS.has(animationKey)) return false;
+  return fallback;
+}
+
 function wait(durationMs: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, Math.max(0, durationMs)));
 }
 
 function toId(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function cleanEffect(value: string): string {
+  return String(value || "").replace(/^(move|ability|item):/i, "").trim();
 }
