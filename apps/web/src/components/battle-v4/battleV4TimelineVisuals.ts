@@ -10,6 +10,7 @@ export type BattleV4TimelineVisuals = {
     effectSprite: string;
     durationMs: number;
     style: CSSProperties;
+    className: string;
   };
   result: {
     visible: boolean;
@@ -33,6 +34,8 @@ export type BattleV4TimelineVisuals = {
   } | null;
 };
 
+export type BattleV4TimelineFxVisual = BattleV4TimelineVisuals["fx"] & {key: string};
+
 export function getBattleV4ActiveTimelineVisuals(
   animation: BattleAnimationEventV4 | null,
   step: ShowdownAnimationStepV4 | null,
@@ -47,6 +50,7 @@ export function getBattleV4ActiveTimelineVisuals(
       effectSprite: animation?.effectSprite || "impact",
       durationMs: animation?.durationMs || 600,
       style: fxStyle(animation?.effectSprite || "impact", animation?.durationMs || 600),
+      className: "",
     },
     result: {
       visible: Boolean(animation?.resultText || fallbackKind === "damage" || fallbackKind === "heal"),
@@ -77,7 +81,8 @@ export function getBattleV4ActiveTimelineVisuals(
         kind: animation.kind,
         effectSprite,
         durationMs: step.durationMs,
-        style: fxStyle(effectSprite, step.durationMs, step.sprite.scale, step.sprite.opacity),
+        style: fxStyle(effectSprite, step.durationMs, step.from, step.to),
+        className: step.from.x !== step.to.x || step.from.y !== step.to.y ? "is-projectile" : "",
       },
       result: {...visuals.result, visible: false},
     };
@@ -155,12 +160,51 @@ export function getBattleV4ActiveTimelineVisuals(
   };
 }
 
-function fxStyle(effectSprite: string, durationMs: number, scale = 1, opacity = 1): CSSProperties {
+export function getBattleV4ActiveTimelineFxVisuals(
+  animation: BattleAnimationEventV4 | null,
+  steps: ShowdownAnimationStepV4[],
+): BattleV4TimelineFxVisual[] {
+  if (!animation) return [];
+  const visuals: BattleV4TimelineFxVisual[] = [];
+  steps.forEach((step, index) => {
+    if (step.type !== "showEffect") return;
+    const effectSprite = step.sprite.effectId || step.effectId || animation.effectSprite || "impact";
+    visuals.push({
+      key: `${animation.checkpointId}-${index}-${effectSprite}`,
+      visible: true,
+      targetSeat: step.to.seat || animation.targetSeat || animation.actorSeat,
+      kind: animation.kind,
+      effectSprite,
+      durationMs: step.durationMs,
+      style: fxStyle(effectSprite, step.durationMs, step.from, step.to),
+      className: step.from.x !== step.to.x || step.from.y !== step.to.y ? "is-projectile" : "",
+    });
+  });
+  return visuals.slice(-6);
+}
+
+function fxStyle(
+  effectSprite: string,
+  durationMs: number,
+  from?: {x: number; y: number; scale?: number; opacity?: number},
+  to?: {x: number; y: number; scale?: number; opacity?: number},
+): CSSProperties {
+  const fromX = from && to ? from.x - to.x : 0;
+  const fromY = from && to ? from.y - to.y : 0;
+  const fromScale = typeof from?.scale === "number" ? from.scale : 1;
+  const toScale = typeof to?.scale === "number" ? to.scale : fromScale;
+  const fromOpacity = typeof from?.opacity === "number" ? from.opacity : 1;
+  const toOpacity = typeof to?.opacity === "number" ? to.opacity : fromOpacity;
   return {
     "--battle-v4-fx-image": `url("/showdown/fx/${effectSprite}.png")`,
     "--battle-v4-fx-duration": `${durationMs}ms`,
-    "--battle-v4-fx-scale": String(scale),
-    "--battle-v4-fx-opacity": String(opacity),
+    "--battle-v4-fx-from-x": `${fromX}px`,
+    "--battle-v4-fx-from-y": `${fromY}px`,
+    "--battle-v4-fx-from-scale": String(fromScale),
+    "--battle-v4-fx-to-scale": String(toScale),
+    "--battle-v4-fx-from-opacity": String(fromOpacity),
+    "--battle-v4-fx-to-opacity": String(toOpacity),
+    "--battle-v4-fx-opacity": String(Math.max(fromOpacity, toOpacity)),
   } as CSSProperties;
 }
 

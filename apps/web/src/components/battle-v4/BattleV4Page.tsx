@@ -4,7 +4,7 @@ import {addBattleCommandChoiceV4, applyBattleSessionToRun, battleDebugLog, creat
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals} from "./battleV4Playback";
-import {getBattleV4ActiveTimelineVisuals, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
+import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
 
@@ -352,6 +352,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         messagebar={playbackMessage}
         activeAnimation={playback.activeAnimation}
         activeTimelineStep={playback.activeTimelineStep}
+        renderedTimelineSteps={playback.renderedTimelineSteps}
         persistentFieldVisuals={playback.persistentFieldVisuals}
         api={api}
       />
@@ -429,26 +430,28 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   );
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, persistentFieldVisuals, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
   messagebar?: string;
   activeAnimation?: BattleAnimationEventV4 | null;
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
+  renderedTimelineSteps?: ShowdownAnimationStepV4[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   api: ChangeBattleV2Api;
 }) {
   const nearSlots = useMemo(() => sortSlotsForArena(near, "near"), [near]);
   const farSlots = useMemo(() => sortSlotsForArena(far, "far"), [far]);
   const visuals = useMemo(() => getBattleV4ActiveTimelineVisuals(activeAnimation || null, activeTimelineStep || null), [activeAnimation, activeTimelineStep]);
+  const fxVisuals = useMemo(() => getBattleV4ActiveTimelineFxVisuals(activeAnimation || null, renderedTimelineSteps), [activeAnimation, renderedTimelineSteps]);
   return (
     <div className="battle-v4-arena" aria-label="战斗场地">
       <div className="battle-v4-scene-overlay" />
       <BattleV4PersistentFieldLayer visuals={persistentFieldVisuals} />
       <BattleV4WeatherBurstLayer animation={activeAnimation || null} visuals={visuals} />
       <BattleV4Messagebar message={messagebar || ""} kind={activeAnimation?.kind || ""} />
-      <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} key={`${activeAnimation?.checkpointId || "fx-idle"}-${activeTimelineStep?.type || "none"}`} />
+      <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} fxVisuals={fxVisuals} />
       <BattleV4ResultLayer animation={activeAnimation || null} visuals={visuals} api={api} key={`${activeAnimation?.checkpointId || "result-idle"}-${activeTimelineStep?.type || "none"}-result`} />
       <div className="battle-v4-enemy-panels">
         {farSlots.map(slot => <BattleHpPanel slot={slot} compact key={`${slot.playerId}-${slot.position}-hp`} />)}
@@ -478,7 +481,10 @@ function BattleV4PersistentFieldLayer({visuals}: {visuals: BattleV4PersistentFie
   return (
     <div className={`battle-v4-persistent-field-layer field-${activeId} fidelity-${visuals.adapterFidelity}`} aria-hidden="true">
       {visuals.resourceKind === "video" ? (
-        <video src={visuals.resourcePath} muted autoPlay loop playsInline />
+        <video muted autoPlay loop playsInline>
+          <source src={visuals.resourcePath} type="video/webm" />
+          <source src={visuals.resourcePath.replace(/\.webm$/i, ".mp4")} type="video/mp4" />
+        </video>
       ) : (
         <i style={{backgroundImage: `url("${visuals.resourcePath}")`}} />
       )}
@@ -522,13 +528,21 @@ function BattleV4Messagebar({message, kind}: {message: string; kind: string}) {
   );
 }
 
-function BattleV4FxLayer({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
-  if (!animation || !visuals.fx.visible) return null;
-  const targetClass = visuals.fx.targetSeat ? `target-${visuals.fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+function BattleV4FxLayer({animation, visuals, fxVisuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals; fxVisuals: BattleV4TimelineFxVisual[]}) {
+  if (!animation) return null;
+  const activeFx = fxVisuals.length ? fxVisuals : visuals.fx.visible ? [{...visuals.fx, key: "active"}] : [];
+  if (!activeFx.length) return null;
   return (
-    <div className={`battle-v4-fx-layer ${targetClass} kind-${visuals.fx.kind || animation.kind}`} aria-hidden="true">
-      <i className="battle-v4-fx-sprite" style={visuals.fx.style} />
-    </div>
+    <>
+      {activeFx.map(fx => {
+        const targetClass = fx.targetSeat ? `target-${fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+        return (
+          <div className={`battle-v4-fx-layer ${targetClass} kind-${fx.kind || animation.kind} ${fx.className}`} aria-hidden="true" key={fx.key}>
+            <i className="battle-v4-fx-sprite" style={fx.style} />
+          </div>
+        );
+      })}
+    </>
   );
 }
 

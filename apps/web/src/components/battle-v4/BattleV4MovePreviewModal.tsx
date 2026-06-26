@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {useBattleV4PreviewPlayback, type BattleAnimationEventV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals} from "./battleV4Playback";
-import {getBattleV4ActiveTimelineVisuals, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
+import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
 import "./BattleV4MovePreviewModal.css";
@@ -87,6 +87,7 @@ export function BattleV4MovePreviewModal({move, environment, initialMode = "sing
           message={message}
           animation={playback.activeAnimation}
           activeTimelineStep={playback.activeTimelineStep}
+          renderedTimelineSteps={playback.renderedTimelineSteps}
           persistentFieldVisuals={playback.persistentFieldVisuals}
         />
         <footer className={`battle-v4-preview-meta move-type-${subject.kind === "move" ? typeIdFor(subject.move.typeId || subject.move.type) : "status"}`}>
@@ -157,24 +158,26 @@ export function buildBattleV4MovePreviewScript(move: DexMoveDetail, mode: Battle
   return lines;
 }
 
-function PreviewArena({near, far, message, animation, activeTimelineStep, persistentFieldVisuals}: {
+function PreviewArena({near, far, message, animation, activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   message: string;
   animation: BattleAnimationEventV4 | null;
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
+  renderedTimelineSteps?: ShowdownAnimationStepV4[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
 }) {
   const nearSlots = sortPreviewSlots(near, "near");
   const farSlots = sortPreviewSlots(far, "far");
   const visuals = useMemo(() => getBattleV4ActiveTimelineVisuals(animation, activeTimelineStep || null), [animation, activeTimelineStep]);
+  const fxVisuals = useMemo(() => getBattleV4ActiveTimelineFxVisuals(animation, renderedTimelineSteps), [animation, renderedTimelineSteps]);
   return (
     <div className="battle-v4-preview-arena battle-v4-arena" aria-label="预览战斗场地">
       <div className="battle-v4-scene-overlay" />
       {message ? <div className={`battle-v4-messagebar kind-${animation?.kind || "message"}`}><span>{message}</span></div> : null}
       <PreviewPersistentField visuals={persistentFieldVisuals} />
       <PreviewWeather animation={animation} visuals={visuals} />
-      <PreviewFx animation={animation} visuals={visuals} />
+      <PreviewFx animation={animation} visuals={visuals} fxVisuals={fxVisuals} />
       <PreviewResult animation={animation} visuals={visuals} />
       <div className="battle-v4-enemy-panels">
         {farSlots.map(slot => <PreviewHpPanel slot={slot} compact key={`${slot.seat}-hp`} />)}
@@ -196,7 +199,10 @@ function PreviewPersistentField({visuals}: {visuals: BattleV4PersistentFieldVisu
   return (
     <div className={`battle-v4-persistent-field-layer field-${activeId} fidelity-${visuals.adapterFidelity}`} aria-hidden="true">
       {visuals.resourceKind === "video" ? (
-        <video src={visuals.resourcePath} muted autoPlay loop playsInline />
+        <video muted autoPlay loop playsInline>
+          <source src={visuals.resourcePath} type="video/webm" />
+          <source src={visuals.resourcePath.replace(/\.webm$/i, ".mp4")} type="video/mp4" />
+        </video>
       ) : (
         <i style={{backgroundImage: `url("${visuals.resourcePath}")`}} />
       )}
@@ -218,13 +224,21 @@ function PreviewWeather({animation, visuals}: {animation: BattleAnimationEventV4
   );
 }
 
-function PreviewFx({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
-  if (!animation || !visuals.fx.visible) return null;
-  const targetClass = visuals.fx.targetSeat ? `target-${visuals.fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+function PreviewFx({animation, visuals, fxVisuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals; fxVisuals: BattleV4TimelineFxVisual[]}) {
+  if (!animation) return null;
+  const activeFx = fxVisuals.length ? fxVisuals : visuals.fx.visible ? [{...visuals.fx, key: "active"}] : [];
+  if (!activeFx.length) return null;
   return (
-    <div className={`battle-v4-fx-layer ${targetClass} kind-${visuals.fx.kind || animation.kind}`} aria-hidden="true">
-      <i className="battle-v4-fx-sprite" style={visuals.fx.style} />
-    </div>
+    <>
+      {activeFx.map(fx => {
+        const targetClass = fx.targetSeat ? `target-${fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+        return (
+          <div className={`battle-v4-fx-layer ${targetClass} kind-${fx.kind || animation.kind} ${fx.className}`} aria-hidden="true" key={fx.key}>
+            <i className="battle-v4-fx-sprite" style={fx.style} />
+          </div>
+        );
+      })}
+    </>
   );
 }
 

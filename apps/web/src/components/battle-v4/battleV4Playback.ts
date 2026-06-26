@@ -852,7 +852,7 @@ function buildProtocolEvent(
 function timelineStepDurationMs(step: ShowdownAnimationStepV4): number {
   if (step.type === "checkpoint") return 0;
   if (step.type === "wait" || step.type === "delay") return Math.max(0, step.durationMs);
-  if (step.type === "showEffect") return Math.max(160, step.durationMs + (step.delayMs || 0));
+  if (step.type === "showEffect") return Math.max(60, typeof step.delayMs === "number" ? step.delayMs : step.durationMs);
   if (step.type === "actorAnim" || step.type === "backgroundEffect") {
     return Math.max(160, step.durationMs);
   }
@@ -1062,6 +1062,8 @@ function persistentLayerResource(id: string, kind: "weather" | "field"): {path: 
 }
 
 function normalizeWeatherId(id: string): string {
+  if (id === "sun") return "sunnyday";
+  if (id === "rain") return "raindance";
   if (id === "snow") return "snowscape";
   return id;
 }

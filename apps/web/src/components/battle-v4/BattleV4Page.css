@@ -268,6 +268,15 @@
   animation: battle-v4-fx-project var(--battle-v4-fx-duration, .62s) ease-out both;
 }
 
+.battle-v4-fx-layer.is-projectile .battle-v4-fx-sprite {
+  animation: battle-v4-fx-travel var(--battle-v4-fx-duration, .62s) ease-out both;
+}
+
+.battle-v4-fx-layer.is-projectile::before,
+.battle-v4-fx-layer.is-projectile::after {
+  display: none;
+}
+
 .battle-v4-fx-layer.kind-damage .battle-v4-fx-sprite,
 .battle-v4-fx-layer.kind-faint .battle-v4-fx-sprite {
   animation: battle-v4-fx-impact var(--battle-v4-fx-duration, .48s) ease-out both;
@@ -588,6 +597,26 @@
   0% { opacity: 0; transform: translate(-24px, 16px) scale(.28) rotate(-12deg); }
   28% { opacity: 1; transform: translate(-8px, 4px) scale(1.02) rotate(4deg); }
   100% { opacity: 0; transform: translate(24px, -14px) scale(1.18) rotate(14deg); }
+}
+
+@keyframes battle-v4-fx-travel {
+  0% {
+    opacity: var(--battle-v4-fx-from-opacity, .4);
+    transform:
+      translate(var(--battle-v4-fx-from-x, 0), var(--battle-v4-fx-from-y, 0))
+      scale(var(--battle-v4-fx-from-scale, .4));
+    filter: brightness(1.18);
+  }
+  72% {
+    opacity: var(--battle-v4-fx-to-opacity, .75);
+    transform: translate(0, 0) scale(var(--battle-v4-fx-to-scale, 1));
+    filter: brightness(1.32);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(calc(var(--battle-v4-fx-to-scale, 1) * 1.35));
+    filter: brightness(1.5);
+  }
 }
 
 @keyframes battle-v4-fx-impact {
