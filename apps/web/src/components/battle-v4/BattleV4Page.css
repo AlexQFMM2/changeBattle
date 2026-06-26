@@ -1013,12 +1013,40 @@ button.battle-v4-switch-card:hover {
   border-bottom: 1px solid rgb(255 255 255 / 12%);
 }
 
+.battle-v4-debug-content {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.battle-v4-debug-content article {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 5px;
+  background: rgb(255 255 255 / 4%);
+}
+
+.battle-v4-debug-content h3 {
+  margin: 0;
+  padding: 7px 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  color: #fff;
+  font-size: 10px;
+}
+
 .battle-v4-debug-modal pre {
   margin: 0;
-  padding: 12px;
+  padding: 8px;
   overflow: auto;
   color: #d8e4ff;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.45;
   white-space: pre-wrap;
 }

@@ -1527,15 +1527,15 @@ type ShowdownTeamPokemonMappingV4 = {
 
 实现步骤：
 
-- [ ] 保留并投影 `rqid`。
-- [ ] 保留并投影 `noCancel`。
-- [ ] 保留并投影 `targetable`。
-- [ ] 保留并投影 `chosenTeamSize`。
-- [ ] 保留并投影 `ally`。
-- [ ] `request.side.pokemon` 作为 switch/team choice index 的唯一来源。
-- [ ] `request.ally.pokemon` 只进入 readonly display，不生成 switch choice。
-- [ ] wait request 下 `actions`、`switchActions`、`targetActions` 全部为空。
-- [ ] 记录窗口能同时看到 raw request 和 normalized request。
+- [x] 保留并投影 `rqid`。
+- [x] 保留并投影 `noCancel`。
+- [x] 保留并投影 `targetable`。
+- [x] 保留并投影 `chosenTeamSize`。
+- [x] 保留并投影 `ally`。
+- [x] `request.side.pokemon` 作为 switch/team choice index 的唯一来源。
+- [x] `request.ally.pokemon` 只进入 readonly display，不生成 switch choice。
+- [x] wait request 下 `actions`、`switchActions`、`targetActions` 全部为空。
+- [x] 记录窗口能同时看到 raw request 和 normalized request。
 
 模式约束：
 
@@ -1545,10 +1545,10 @@ type ShowdownTeamPokemonMappingV4 = {
 
 验收：
 
-- [ ] singles requestLength 与 Showdown request 一致。
-- [ ] doubles requestLength 与 Showdown request 一致。
-- [ ] coop requestLength 只按本地 request 决定。
-- [ ] coop 下 ally 队伍展示但不生成可提交 action。
+- [x] singles requestLength 与 Showdown request 一致。
+- [x] doubles requestLength 与 Showdown request 一致。
+- [x] coop requestLength 只按本地 request 决定。
+- [x] coop 下 ally 队伍展示但不生成可提交 action。
 
 ### Phase 3: BattleChoice Draft Core
 
@@ -1582,35 +1582,35 @@ type BattleCommandDraftV4 = {
 
 实现步骤：
 
-- [ ] 实现 `createBattleCommandDraftV4(request, mode, playerId)`。
-- [ ] 实现 `draft.index()` 返回当前本地需要操作的 active index。
-- [ ] 实现 `draft.requestLength()`：
+- [x] 实现 `createBattleCommandDraftV4(request, mode, playerId)`。
+- [x] 实现 `draft.index()` 返回当前本地需要操作的 active index。
+- [x] 实现 `draft.requestLength()`：
   - move: `request.active.length`
   - switch: `request.forceSwitch.length`
   - team: `chosenTeamSize`
   - wait: `0`
-- [ ] 实现 `addChoice("move N")`。
-- [ ] 实现 `addChoice("move N +1/-1/+2/-2")`。
-- [ ] 实现 `addChoice("switch N")`。
-- [ ] 实现 `addChoice("team N")`。
-- [ ] 实现 `parseChoice()` 和 `stringChoice()`，输出 Showdown 兼容 choice string。
-- [ ] 实现 `fillPasses()`：
+- [x] 实现 `addChoice("move N")`。
+- [x] 实现 `addChoice("move N +1/-1/+2/-2")`。
+- [x] 实现 `addChoice("switch N")`。
+- [x] 实现 `addChoice("team N")`。
+- [x] 实现 `parseChoice()` 和 `stringChoice()`，输出 Showdown 兼容 choice string。
+- [x] 实现 `fillPasses()`：
   - 空 active 自动 pass。
   - forceSwitch false slot 自动 pass。
   - 已不能操作 slot 自动 pass。
-- [ ] 实现 `alreadySwitchingIn`，防止双打/强制换人重复换同一后备。
-- [ ] 实现 `isDone()`，只有 done 后提交。
-- [ ] 实现 `toString()`，使用 `", "` join。
-- [ ] request/rqid 变化时自动重置 draft。
-- [ ] cancel/返回等价于新建 draft；已提交后的 undo 后续单独处理。
+- [x] 实现 `alreadySwitchingIn`，防止双打/强制换人重复换同一后备。
+- [x] 实现 `isDone()`，只有 done 后提交。
+- [x] 实现 `toString()`，使用 `", "` join。
+- [x] request/rqid 变化时自动重置 draft。
+- [x] cancel/返回等价于新建 draft；已提交后的 undo 后续单独处理。
 
 验收：
 
-- [ ] singles：`move 1` -> done -> `move 1`。
-- [ ] doubles：第一只 `move 1` -> not done；第二只 `move 2` -> done -> `move 1, move 2`。
-- [ ] doubles target：`move 1` 需要目标时进入 currentMove；`move 1 +2` 后完成当前 active。
-- [ ] forceSwitch `[true,false]` 自动包含 pass。
-- [ ] 重复 switch 同一只会被阻止。
+- [x] singles：`move 1` -> done -> `move 1`。
+- [x] doubles：第一只 `move 1` -> not done；第二只 `move 2` -> done -> `move 1, move 2`。
+- [x] doubles target：`move 1` 需要目标时进入 currentMove；`move 1 +2` 后完成当前 active。
+- [x] forceSwitch `[true,false]` 自动包含 pass。
+- [x] 重复 switch 同一只会被阻止。
 
 ### Phase 4: Command View Model
 
@@ -1637,21 +1637,21 @@ type BattleCommandDraftV4 = {
 
 实现步骤：
 
-- [ ] move request 下 `actions` 只展示当前 active 的技能。
-- [ ] move request 下 `switchActions` 展示当前 active 可主动换人的候选。
-- [ ] switch request 下 `switchActions` 指向当前 force-switch slot 的候选。
-- [ ] target actions 根据当前 move target 生成：
+- [x] move request 下 `actions` 只展示当前 active 的技能。
+- [x] move request 下 `switchActions` 展示当前 active 可主动换人的候选。
+- [x] switch request 下 `switchActions` 指向当前 force-switch slot 的候选。
+- [x] target actions 根据当前 move target 生成：
   - singles 普通确认目标：只生成对面 active 确认项，提交仍是 `move N`。
   - targetable/doubles：生成 `+1/+2/-1/-2`。
   - coop：ally 可作为 target 显示，但 ally 不可被代操作。
-- [ ] view model 携带 resolver 后的展示信息：icon、sprite、pokeball、nameZh、status、hp。
-- [ ] view model 不硬编码 p1；local player 必须来自 session/playerId。
+- [x] view model 携带 resolver 后的展示信息：icon、sprite、pokeball、nameZh、status、hp。
+- [x] view model 不硬编码 p1；local player 必须来自 session/playerId。
 
 验收：
 
-- [ ] 双打不会同时显示两只宝可梦的技能。
-- [ ] 选择第一只后 UI 能知道下一只是谁。
-- [ ] coop 下 ally 信息只读且不会出现在 switchActions。
+- [x] 双打不会同时显示两只宝可梦的技能。
+- [x] 选择第一只后 UI 能知道下一只是谁。
+- [x] coop 下 ally 信息只读且不会出现在 switchActions。
 
 ### Phase 5: Singles UI Closure
 

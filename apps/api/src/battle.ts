@@ -93,6 +93,50 @@ export type BattleRequestV4 = {
 
 export type RequestSidePokemonV4 = NonNullable<BattleRequestV4["side"]>["pokemon"][number];
 
+export type BattleNormalizedRequestV4 = {
+  playerId: ShowdownPlayerIdV4;
+  mode: TrainingModeV4;
+  requestType: BattleRequestTypeV4;
+  rqid?: number;
+  noCancel: boolean;
+  targetable: boolean;
+  requestLength: number;
+  activeIndex: number;
+  activeRequests: Array<BattleActiveRequestV4 | null>;
+  forceSwitch: boolean[];
+  sidePokemon: RequestSidePokemonV4[];
+  readonlyAlly: BattleRequestV4["ally"] | null;
+  choiceIndexByTeamIndex: Record<number, number>;
+  rawRequest: BattleRequestV4;
+};
+
+export type BattleCommandDraftV4 = {
+  playerId: ShowdownPlayerIdV4;
+  mode: TrainingModeV4;
+  requestType: BattleRequestTypeV4;
+  rqid?: number;
+  requestLength: number;
+  activeIndex: number;
+  choices: string[];
+  currentMove: null | {
+    moveIndex: number;
+    baseChoice: string;
+    requiresTarget: boolean;
+  };
+  alreadySwitchingIn: number[];
+  noCancel: boolean;
+  isDone: boolean;
+};
+
+export type BattleTargetActionV4 = {
+  label: string;
+  choiceSuffix: string;
+  targetSlot: "far-1" | "far-2" | "near-1" | "near-2";
+  side: "near" | "far";
+  position: 1 | 2;
+  disabled?: boolean;
+};
+
 export type ShowdownTeamPokemonMappingV4 = {
   playerId: ShowdownPlayerIdV4;
   teamIndex: number;
@@ -267,12 +311,20 @@ export type BattleCommandStateV4 = {
   teamPreview: boolean;
   forceSwitch: boolean;
   requestType: BattleRequestTypeV4 | "none";
+  rqid?: number;
   activeIndex: number;
   requestLength: number;
   activePokemon: {ident: string; name: string; details: string; condition: string} | null;
+  choices: string[];
+  isDone: boolean;
+  currentMove: BattleCommandDraftV4["currentMove"];
+  waitingForTarget: boolean;
+  readonlyAllies: BattleNormalizedRequestV4["readonlyAlly"];
   actions: BattleCommandActionV4[];
   switchActions: Array<Extract<BattleCommandActionV4, {kind: "switch"}>>;
+  targetActions: BattleTargetActionV4[];
   request: BattleRequestV4 | null;
+  normalizedRequest: BattleNormalizedRequestV4 | null;
 };
 
 export type BattleViewSlotV4 = {
@@ -403,7 +455,7 @@ export function createBattleGameFromTrainingNode(run: TrainingRunGameV4, node: T
   };
 }
 
-export function projectBattleViewModelV4(snapshot: BattleSessionSnapshotV4, localPlayerId: ShowdownPlayerIdV4 = "p1"): BattleViewModelV4 {
+export function projectBattleViewModelV4(snapshot: BattleSessionSnapshotV4, localPlayerId: ShowdownPlayerIdV4 = "p1", draft?: BattleCommandDraftV4 | null): BattleViewModelV4 {
   const slots = buildViewSlots(snapshot);
   return {
     sessionId: snapshot.id,
@@ -415,7 +467,7 @@ export function projectBattleViewModelV4(snapshot: BattleSessionSnapshotV4, loca
     slots,
     nearTeam: slots.filter(slot => slot.side === "near"),
     farTeam: slots.filter(slot => slot.side === "far"),
-    command: buildCommandState(snapshot.requests[localPlayerId] || null, localPlayerId, snapshot.mode),
+    command: buildCommandState(snapshot.requests[localPlayerId] || null, localPlayerId, snapshot.mode, draft),
     rawLog: snapshot.rawLog.slice(-120),
     error: snapshot.error,
   };
@@ -530,33 +582,43 @@ function normalizeBattleStatus(status: string): LocalPokemonV4["entryStatus"] {
   return "";
 }
 
-function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4): BattleCommandStateV4 {
+function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4, draft?: BattleCommandDraftV4 | null): BattleCommandStateV4 {
   if (!request) return emptyCommandState(playerId);
-  const requestType = requestTypeFor(request);
-  const activeIndex = firstActionableActiveIndex(request);
-  const requestLength = request.forceSwitch?.length || request.active?.length || (mode === "doubles" ? 2 : 1);
-  const switchActions = requestType === "move" || requestType === "switch" ? buildSwitchActions(request) : [];
+  const normalizedRequest = normalizeBattleRequestV4(request, playerId, mode);
+  const commandDraft = draft && draftMatchesRequest(draft, normalizedRequest) ? fillBattleCommandPassesV4(draft, normalizedRequest) : createBattleCommandDraftV4(normalizedRequest);
+  const {requestType, requestLength} = normalizedRequest;
+  const activeIndex = commandDraft.activeIndex;
+  const switchActions = requestType === "move" || requestType === "switch" ? buildSwitchActions(normalizedRequest, commandDraft) : [];
+  const targetActions = buildTargetActions(normalizedRequest);
   const base = {
     playerId,
     waiting: requestType === "wait",
     teamPreview: requestType === "team",
     forceSwitch: requestType === "switch",
     requestType,
+    rqid: normalizedRequest.rqid,
     activeIndex,
     requestLength,
     activePokemon: activePokemonForRequest(request, activeIndex),
+    choices: commandDraft.choices,
+    isDone: commandDraft.isDone,
+    currentMove: commandDraft.currentMove,
+    waitingForTarget: Boolean(commandDraft.currentMove),
+    readonlyAllies: normalizedRequest.readonlyAlly,
     switchActions,
+    targetActions,
     request,
+    normalizedRequest,
   };
 
   if (requestType === "wait") return {...base, actions: []};
   if (requestType === "team") {
     return {
       ...base,
-      actions: (request.side?.pokemon || []).map((pokemon, index) => ({
+      actions: normalizedRequest.sidePokemon.map((pokemon, index) => ({
         kind: "team" as const,
         label: pokemon.name || pokemon.details.split(",")[0] || pokemon.ident,
-        choice: buildTeamChoice(request, index),
+        choice: buildTeamChoice(normalizedRequest, index),
         pokemonIndex: index,
         disabled: Boolean(pokemon.fainted),
       })).filter(action => !action.disabled),
@@ -565,17 +627,17 @@ function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPl
   if (requestType === "switch") {
     return {
       ...base,
-      actions: buildSwitchActions(request),
+      actions: buildSwitchActions(normalizedRequest, commandDraft),
     };
   }
 
-  const currentActive = request.active?.[activeIndex];
+  const currentActive = normalizedRequest.activeRequests[activeIndex];
   return {
     ...base,
     actions: (currentActive?.moves || []).map((move, moveIndex) => ({
       kind: "move" as const,
       label: move.move,
-      choice: buildMoveChoice(request, activeIndex, moveIndex),
+      choice: buildMoveChoice(normalizedRequest, moveIndex),
       activeIndex,
       moveIndex,
       move,
@@ -590,12 +652,210 @@ function emptyCommandState(playerId: ShowdownPlayerIdV4): BattleCommandStateV4 {
     teamPreview: false,
     forceSwitch: false,
     requestType: "none",
+    rqid: undefined,
     activeIndex: 0,
     requestLength: 0,
     activePokemon: null,
+    choices: [],
+    isDone: false,
+    currentMove: null,
+    waitingForTarget: false,
+    readonlyAllies: null,
     actions: [],
     switchActions: [],
+    targetActions: [],
     request: null,
+    normalizedRequest: null,
+  };
+}
+
+export function createBattleCommandDraftV4(request: BattleNormalizedRequestV4): BattleCommandDraftV4 {
+  return fillBattleCommandPassesV4({
+    playerId: request.playerId,
+    mode: request.mode,
+    requestType: request.requestType,
+    rqid: request.rqid,
+    requestLength: request.requestLength,
+    activeIndex: request.requestType === "switch" ? firstPendingSwitchIndex([], request) : firstPendingChoiceIndex([], request),
+    choices: [],
+    currentMove: null,
+    alreadySwitchingIn: [],
+    noCancel: request.noCancel,
+    isDone: request.requestLength === 0,
+  }, request);
+}
+
+export function resetBattleCommandDraftV4(request: BattleNormalizedRequestV4): BattleCommandDraftV4 {
+  return createBattleCommandDraftV4(request);
+}
+
+export function addBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4, input: string): BattleCommandDraftV4 {
+  const normalized = fillBattleCommandPassesV4(draftMatchesRequest(draft, request) ? draft : createBattleCommandDraftV4(request), request);
+  if (normalized.isDone || request.requestType === "wait") return normalized;
+  const parsed = parseBattleCommandChoiceV4(input);
+  if (!parsed) return normalized;
+  if (parsed.kind === "switch" && normalized.alreadySwitchingIn.includes(parsed.index)) {
+    return normalized;
+  }
+  const choices = [...normalized.choices];
+  const activeIndex = normalized.activeIndex;
+  choices[activeIndex] = stringifyParsedChoice(parsed);
+  const alreadySwitchingIn = parsed.kind === "switch"
+    ? [...normalized.alreadySwitchingIn, parsed.index]
+    : normalized.alreadySwitchingIn;
+  return fillBattleCommandPassesV4({
+    ...normalized,
+    choices,
+    currentMove: null,
+    alreadySwitchingIn,
+  }, request);
+}
+
+export function setBattleCommandCurrentMoveV4(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4, moveIndex: number, requiresTarget: boolean): BattleCommandDraftV4 {
+  const normalized = fillBattleCommandPassesV4(draftMatchesRequest(draft, request) ? draft : createBattleCommandDraftV4(request), request);
+  return {
+    ...normalized,
+    currentMove: {
+      moveIndex,
+      baseChoice: `move ${moveIndex + 1}`,
+      requiresTarget,
+    },
+  };
+}
+
+export function fillBattleCommandPassesV4(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4): BattleCommandDraftV4 {
+  const choices = draft.choices.slice(0, request.requestLength);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let index = 0; index < request.requestLength; index += 1) {
+      if (choices[index]) continue;
+      if (shouldAutoPassChoiceSlot(request, index)) {
+        choices[index] = "pass";
+        changed = true;
+      }
+    }
+  }
+  const alreadySwitchingIn = choices
+    .map(choice => parseBattleCommandChoiceV4(choice))
+    .filter((choice): choice is Extract<ParsedBattleCommandChoiceV4, {kind: "switch"}> => choice?.kind === "switch")
+    .map(choice => choice.index);
+  const activeIndex = request.requestType === "switch" ? firstPendingSwitchIndex(choices, request) : firstPendingChoiceIndex(choices, request);
+  const isDone = request.requestLength === 0 || choices.filter(Boolean).length >= request.requestLength;
+  return {
+    ...draft,
+    playerId: request.playerId,
+    mode: request.mode,
+    requestType: request.requestType,
+    rqid: request.rqid,
+    requestLength: request.requestLength,
+    activeIndex,
+    choices,
+    alreadySwitchingIn,
+    noCancel: request.noCancel,
+    isDone,
+  };
+}
+
+export function isBattleCommandDraftDoneV4(draft: BattleCommandDraftV4): boolean {
+  return draft.isDone;
+}
+
+export function stringifyBattleCommandDraftV4(draft: BattleCommandDraftV4): string {
+  return draft.choices.slice(0, draft.requestLength).join(", ");
+}
+
+type ParsedBattleCommandChoiceV4 =
+  | {kind: "move"; index: number; target?: string}
+  | {kind: "switch"; index: number}
+  | {kind: "team"; index: number}
+  | {kind: "pass"};
+
+function parseBattleCommandChoiceV4(input: string | undefined): ParsedBattleCommandChoiceV4 | null {
+  const parts = String(input || "").trim().split(/\s+/).filter(Boolean);
+  const kind = parts[0];
+  if (kind === "pass") return {kind: "pass"};
+  if (kind !== "move" && kind !== "switch" && kind !== "team") return null;
+  const index = Number(parts[1]);
+  if (!Number.isFinite(index) || index <= 0) return null;
+  if (kind === "move") return {kind, index, target: parts[2]};
+  return {kind, index};
+}
+
+function stringifyParsedChoice(choice: ParsedBattleCommandChoiceV4): string {
+  if (choice.kind === "pass") return "pass";
+  if (choice.kind === "move") return ["move", choice.index, choice.target].filter(Boolean).join(" ");
+  return `${choice.kind} ${choice.index}`;
+}
+
+function draftMatchesRequest(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4): boolean {
+  return draft.playerId === request.playerId &&
+    draft.mode === request.mode &&
+    draft.requestType === request.requestType &&
+    draft.rqid === request.rqid &&
+    draft.requestLength === request.requestLength;
+}
+
+function shouldAutoPassChoiceSlot(request: BattleNormalizedRequestV4, index: number): boolean {
+  if (request.requestType === "wait") return true;
+  if (request.requestType === "switch") return request.forceSwitch[index] === false;
+  if (request.requestType === "move") return !request.activeRequests[index];
+  return false;
+}
+
+function firstPendingChoiceIndex(choices: string[], request: BattleNormalizedRequestV4): number {
+  for (let index = 0; index < request.requestLength; index += 1) {
+    if (!choices[index] && !shouldAutoPassChoiceSlot(request, index)) return index;
+  }
+  return Math.max(0, request.requestLength - 1);
+}
+
+function firstPendingSwitchIndex(choices: string[], request: BattleNormalizedRequestV4): number {
+  for (let index = 0; index < request.requestLength; index += 1) {
+    if (!choices[index] && request.forceSwitch[index]) return index;
+  }
+  return firstPendingChoiceIndex(choices, request);
+}
+
+function buildTargetActions(request: BattleNormalizedRequestV4): BattleTargetActionV4[] {
+  if (request.requestType !== "move") return [];
+  const activeCount = Math.max(1, request.activeRequests.length);
+  const farTargets: BattleTargetActionV4[] = activeCount > 1 || request.mode !== "singles" || request.targetable
+    ? [
+      {label: "对方 1", choiceSuffix: "+1", targetSlot: "far-1", side: "far", position: 1},
+      {label: "对方 2", choiceSuffix: "+2", targetSlot: "far-2", side: "far", position: 2},
+    ]
+    : [{label: "对方", choiceSuffix: "", targetSlot: "far-1", side: "far", position: 1}];
+  const nearTargets: BattleTargetActionV4[] = activeCount > 1 || request.mode !== "singles" || request.targetable
+    ? [
+      {label: "己方 1", choiceSuffix: "-1", targetSlot: "near-1", side: "near", position: 1},
+      {label: "己方 2", choiceSuffix: "-2", targetSlot: "near-2", side: "near", position: 2},
+    ]
+    : [];
+  return [...farTargets, ...nearTargets];
+}
+
+export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4): BattleNormalizedRequestV4 {
+  const requestType = requestTypeFor(request);
+  const activeRequests = request.active || [];
+  const forceSwitch = request.forceSwitch || [];
+  const sidePokemon = request.side?.pokemon || [];
+  const requestLength = requestLengthForNormalizedRequest(request, requestType);
+  return {
+    playerId,
+    mode,
+    requestType,
+    rqid: request.rqid,
+    noCancel: Boolean(request.noCancel || request.wait),
+    targetable: Boolean(request.targetable),
+    requestLength,
+    activeIndex: firstActionableActiveIndex(request, requestType),
+    activeRequests,
+    forceSwitch,
+    sidePokemon,
+    readonlyAlly: request.ally || null,
+    choiceIndexByTeamIndex: Object.fromEntries(sidePokemon.map((_, index) => [index, index + 1])),
+    rawRequest: request,
   };
 }
 
@@ -606,11 +866,19 @@ function requestTypeFor(request: BattleRequestV4): BattleRequestTypeV4 {
   return "move";
 }
 
-function firstActionableActiveIndex(request: BattleRequestV4): number {
-  if (request.forceSwitch) {
-    const index = request.forceSwitch.findIndex(Boolean);
+function requestLengthForNormalizedRequest(request: BattleRequestV4, requestType: BattleRequestTypeV4): number {
+  if (requestType === "wait") return 0;
+  if (requestType === "team") return request.chosenTeamSize || request.maxChosenTeamSize || 0;
+  if (requestType === "switch") return request.forceSwitch?.length || 0;
+  return request.active?.length || 0;
+}
+
+function firstActionableActiveIndex(request: BattleRequestV4, requestType: BattleRequestTypeV4): number {
+  if (requestType === "switch") {
+    const index = request.forceSwitch?.findIndex(Boolean) ?? -1;
     return index >= 0 ? index : 0;
   }
+  if (requestType === "wait" || requestType === "team") return 0;
   const index = request.active?.findIndex(active => Boolean(active));
   return index && index > 0 ? index : 0;
 }
@@ -626,52 +894,37 @@ function activePokemonForRequest(request: BattleRequestV4, index: number): Battl
   };
 }
 
-function buildTeamChoice(request: BattleRequestV4, firstIndex: number): string {
-  const teamSize = request.chosenTeamSize || request.maxChosenTeamSize || (request.side?.pokemon.length ? 1 : 0);
+function buildTeamChoice(request: BattleNormalizedRequestV4, firstIndex: number): string {
+  const teamSize = request.requestLength || (request.sidePokemon.length ? 1 : 0);
   const picked = [firstIndex + 1];
-  for (let index = 0; picked.length < teamSize && index < (request.side?.pokemon.length || 0); index += 1) {
+  for (let index = 0; picked.length < teamSize && index < request.sidePokemon.length; index += 1) {
     if (index !== firstIndex) picked.push(index + 1);
   }
   return `team ${picked.join(",")}`;
 }
 
-function buildMoveChoice(request: BattleRequestV4, activeIndex: number, moveIndex: number): string {
-  const active = request.active || [];
-  const parts = active.map((entry, index) => {
-    if (!entry) return "pass";
-    if (index === activeIndex) return `move ${moveIndex + 1}`;
-    const fallback = (entry.moves || []).findIndex(move => !move.disabled && (move.pp ?? 1) > 0);
-    return `move ${fallback >= 0 ? fallback + 1 : 1}`;
-  });
-  return parts.length ? parts.join(", ") : `move ${moveIndex + 1}`;
+function buildMoveChoice(request: BattleNormalizedRequestV4, moveIndex: number): string {
+  // Phase 2 intentionally emits a partial choice for every mode. Phase 3 will
+  // assemble multi-active choices with BattleCommandDraftV4.
+  return `move ${moveIndex + 1}`;
 }
 
-function buildSwitchActions(request: BattleRequestV4): Array<Extract<BattleCommandActionV4, {kind: "switch"}>> {
-  const requestLength = request.forceSwitch?.length || request.active?.length || 1;
-  const trapped = request.active?.[0]?.trapped;
-  const sidePokemon = request.side?.pokemon || [];
+function buildSwitchActions(request: BattleNormalizedRequestV4, draft?: BattleCommandDraftV4 | null): Array<Extract<BattleCommandActionV4, {kind: "switch"}>> {
+  const requestLength = request.requestLength || 1;
+  const trapped = request.activeRequests[request.activeIndex]?.trapped;
+  const sidePokemon = request.sidePokemon;
   const hasActiveFlags = sidePokemon.some(pokemon => pokemon.active);
   return sidePokemon.map((pokemon, index) => ({
     kind: "switch" as const,
     label: pokemon.name || pokemon.details.split(",")[0] || pokemon.ident,
     choice: buildSwitchChoice(request, index),
     pokemonIndex: index,
-    disabled: Boolean(trapped || (hasActiveFlags ? pokemon.active : index < requestLength) || pokemon.fainted || pokemon.condition.includes("fnt")),
+    disabled: Boolean(trapped || draft?.alreadySwitchingIn.includes(index + 1) || (hasActiveFlags ? pokemon.active : index < requestLength) || pokemon.fainted || pokemon.condition.includes("fnt")),
   })).filter(action => !action.disabled);
 }
 
-function buildSwitchChoice(request: BattleRequestV4, switchIndex: number): string {
-  if (!request.forceSwitch || request.forceSwitch.length <= 1) return `switch ${switchIndex + 1}`;
-  let usedSwitch = false;
-  return request.forceSwitch.map(mustSwitch => {
-    if (!mustSwitch) return "pass";
-    if (!usedSwitch) {
-      usedSwitch = true;
-      return `switch ${switchIndex + 1}`;
-    }
-    const fallback = (request.side?.pokemon || []).findIndex((pokemon, index) => index >= request.forceSwitch!.length && index !== switchIndex && !pokemon.fainted && !pokemon.condition.includes("fnt"));
-    return fallback >= 0 ? `switch ${fallback + 1}` : "pass";
-  }).join(", ");
+function buildSwitchChoice(request: BattleNormalizedRequestV4, switchIndex: number): string {
+  return `switch ${switchIndex + 1}`;
 }
 
 function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {

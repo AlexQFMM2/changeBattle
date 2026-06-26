@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BattleCommandActionV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
-import {applyBattleSessionToRun, battleDebugLog, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, applyBattleSessionToRun, battleDebugLog, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "./BattleV4Page.css";
 
@@ -118,8 +118,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [switchPanelOpen, setSwitchPanelOpen] = useState(false);
   const [commandMode, setCommandMode] = useState<"command" | "moves">("command");
   const [pendingMoveAction, setPendingMoveAction] = useState<MoveActionV4 | null>(null);
-  const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
-  const requestResetKey = useMemo(() => requestKeyForCommand(viewModel?.command.request || null, viewModel?.command.requestType || "none"), [viewModel?.command.request, viewModel?.command.requestType]);
+  const [commandDraft, setCommandDraft] = useState<BattleCommandDraftV4 | null>(null);
+  const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
+  const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
+  const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -136,22 +138,23 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
 
   useEffect(() => {
     if (!viewModel?.command.request) return;
-    battleDebugLog(debugConfig, "request", "normalize-summary", requestDebugSummary(viewModel.command.request, viewModel.command.requestType));
+    battleDebugLog(debugConfig, "request", "normalize-summary", requestDebugSummary(viewModel.command));
   }, [debugConfig, requestResetKey, viewModel?.command.request, viewModel?.command.requestType]);
 
   useEffect(() => {
-    if (!viewModel) return;
-    const requestType = viewModel.command.requestType;
+    if (!rawViewModel) return;
+    const requestType = rawViewModel.command.requestType;
+    setCommandDraft(rawViewModel.command.normalizedRequest ? createBattleCommandDraftV4(rawViewModel.command.normalizedRequest) : null);
     setCommandMode("command");
     setPendingMoveAction(null);
-    if (viewModel.mode === "singles" && requestType === "switch" && viewModel.status === "running") {
+    if (rawViewModel.command.requestType === "switch" && rawViewModel.status === "running") {
       setSwitchPanelOpen(true);
       return;
     }
-    if (viewModel.mode !== "singles" || viewModel.status !== "running" || (requestType !== "move" && requestType !== "switch")) {
+    if (rawViewModel.status !== "running" || (requestType !== "move" && requestType !== "switch")) {
       setSwitchPanelOpen(false);
     }
-  }, [requestResetKey, viewModel?.mode, viewModel?.status]);
+  }, [requestResetKey, rawViewModel?.status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,6 +199,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     try {
       const next = await api.battleService.submitChoice(sessionId, "p1", choice);
       setSnapshot(next);
+      setCommandDraft(null);
       setSwitchPanelOpen(false);
       setMessage("");
       battleDebugLog(debugConfig, "snapshot", "after-submit", snapshotDebugSummary(next));
@@ -210,6 +214,45 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     } finally {
       setBusy(false);
     }
+  }
+
+  function applyDraftChoice(input: string) {
+    const normalizedRequest = viewModel?.command.normalizedRequest;
+    if (!normalizedRequest) return;
+    const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
+    const after = addBattleCommandChoiceV4(before, normalizedRequest, input);
+    const finalChoice = stringifyBattleCommandDraftV4(after);
+    battleDebugLog(debugConfig, "draft", "add-choice", {
+      before,
+      input,
+      after,
+      isDone: isBattleCommandDraftDoneV4(after),
+      finalChoice,
+    });
+    setPendingMoveAction(null);
+    setCommandDraft(after);
+    if (isBattleCommandDraftDoneV4(after)) {
+      void submitChoice(finalChoice);
+      return;
+    }
+    setCommandMode(after.requestType === "move" ? "moves" : "command");
+    if (after.requestType === "switch") setSwitchPanelOpen(true);
+  }
+
+  function draftMoveAction(action: MoveActionV4) {
+    const normalizedRequest = viewModel?.command.normalizedRequest;
+    if (!normalizedRequest) return;
+    const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
+    const requiresTarget = true;
+    const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget);
+    battleDebugLog(debugConfig, "draft", "current-move", {
+      before,
+      input: action.choice,
+      after,
+      requiresTarget,
+    });
+    setCommandDraft(after);
+    setPendingMoveAction(action);
   }
 
   return (
@@ -230,8 +273,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         commandMode={commandMode}
         onCommandModeChange={setCommandMode}
         onOpenSwitch={() => setSwitchPanelOpen(true)}
-        onSubmit={choice => void submitChoice(choice)}
-        onMoveDraft={setPendingMoveAction}
+        onSubmit={applyDraftChoice}
+        onMoveDraft={draftMoveAction}
       />
       {pendingMoveAction && viewModel ? (
         <BattleV4TargetPanel
@@ -240,10 +283,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           action={pendingMoveAction}
           request={viewModel.command.request}
           onClose={() => setPendingMoveAction(null)}
-          onSubmit={choice => void submitChoice(choice)}
+          onSubmit={applyDraftChoice}
         />
       ) : null}
-      {switchPanelOpen && snapshot && viewModel?.mode === "singles" && (viewModel.command.requestType === "move" || viewModel.command.requestType === "switch") ? (
+      {switchPanelOpen && snapshot && viewModel && (viewModel.command.requestType === "move" || viewModel.command.requestType === "switch") ? (
         <BattleV4SwitchPanel
           api={api}
           snapshot={snapshot}
@@ -252,7 +295,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           busy={busy}
           debugConfig={debugConfig}
           onClose={() => setSwitchPanelOpen(false)}
-          onConfirm={choice => void submitChoice(choice)}
+          onConfirm={applyDraftChoice}
         />
       ) : null}
       {snapshot?.status === "ended" ? (
@@ -262,7 +305,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           <button type="button" onClick={onBackToRest}>返回休整区</button>
         </div>
       ) : null}
-      {debugOpen ? <BattleV4DebugModal snapshot={snapshot} onClose={() => setDebugOpen(false)} /> : null}
+      {debugOpen ? <BattleV4DebugModal snapshot={snapshot} draft={commandDraft} onClose={() => setDebugOpen(false)} /> : null}
     </section>
   );
 }
@@ -333,7 +376,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   onSubmit: (choice: string) => void;
   onMoveDraft: (action: MoveActionV4) => void;
 }) {
-  const canInspectSwitch = mode === "singles" && requestType === "move" && Boolean(snapshot?.requests.p1?.side?.pokemon?.length);
+  const canInspectSwitch = requestType === "move" && Boolean(snapshot?.requests.p1?.side?.pokemon?.length);
   const moveActions = actions.filter((action): action is Extract<BattleCommandActionV4, {kind: "move"}> => action.kind === "move");
   const moveCards = useMemo(() => moveActions.map(action => buildBattleV4MoveCard(action, api, viewModel?.farTeam || [])), [api, moveActions, viewModel?.farTeam]);
   if (requestType === "switch") {
@@ -363,7 +406,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
               className={`battle-v4-move-card type-${card.typeId} effect-${card.effectivenessTone}`}
               type="button"
               disabled={busy || isDisabledAction(card.action)}
-              onClick={() => mode === "singles" ? onMoveDraft(card.action) : onSubmit(card.action.choice)}
+              onClick={() => onMoveDraft(card.action)}
               key={`${card.action.choice}-${card.id}`}
             >
               <span className="battle-v4-move-type">{card.typeLabel}</span>
@@ -418,7 +461,8 @@ function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit
             target={target}
             key={target.key}
             onSelect={next => {
-              const choice = request?.targetable && next.choiceSuffix ? `${action.choice} ${next.choiceSuffix}` : action.choice;
+              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && (request?.targetable || viewModel.mode !== "singles"));
+              const choice = shouldUseTargetSuffix ? `${action.choice} ${next.choiceSuffix}` : action.choice;
               onSubmit(choice);
             }}
           />
@@ -947,17 +991,24 @@ function requestKeyForCommand(request: BattleRequestV4 | null, requestType: stri
   return `${requestType}:${moves}:${switches}:${side}`;
 }
 
-function requestDebugSummary(request: BattleRequestV4, requestType: string) {
+function requestDebugSummary(command: BattleViewModelV4["command"]) {
+  const request = command.request;
+  const normalized = command.normalizedRequest;
+  if (!request) return null;
   return {
-    requestType,
+    requestType: normalized?.requestType || command.requestType,
     rqid: request.rqid,
-    targetable: request.targetable,
+    noCancel: normalized?.noCancel ?? Boolean(request.noCancel),
+    targetable: normalized?.targetable ?? Boolean(request.targetable),
+    requestLength: normalized?.requestLength ?? command.requestLength,
+    activeIndex: normalized?.activeIndex ?? command.activeIndex,
     activeLength: request.active?.length || 0,
     forceSwitch: request.forceSwitch || null,
-    ally: Boolean(request.ally),
-    sidePokemon: (request.side?.pokemon || []).map((pokemon, index) => ({
+    ally: Boolean(normalized?.readonlyAlly || request.ally),
+    readonlyAllyPokemon: normalized?.readonlyAlly?.pokemon?.length || 0,
+    sidePokemon: (normalized?.sidePokemon || request.side?.pokemon || []).map((pokemon, index) => ({
       requestIndex: index,
-      choiceIndex: index + 1,
+      choiceIndex: normalized?.choiceIndexByTeamIndex?.[index] || index + 1,
       ident: pokemon.ident,
       details: pokemon.details,
       condition: pokemon.condition,
@@ -969,11 +1020,12 @@ function requestDebugSummary(request: BattleRequestV4, requestType: string) {
 
 function snapshotDebugSummary(snapshot: BattleSessionSnapshotV4) {
   const request = snapshot.requests.p1 || null;
+  const command = projectBattleViewModelV4(snapshot, "p1").command;
   return {
     status: snapshot.status,
     turn: snapshot.turn,
     winner: snapshot.winner,
-    request: request ? requestDebugSummary(request, request.requestType || requestTypeForDebug(request)) : null,
+    request: request ? requestDebugSummary(command) : null,
     activeSlots: snapshot.active.map(active => ({
       ident: active.ident,
       playerId: active.playerId,
@@ -989,18 +1041,14 @@ function snapshotDebugSummary(snapshot: BattleSessionSnapshotV4) {
   };
 }
 
-function requestTypeForDebug(request: BattleRequestV4): string {
-  if (request.wait) return "wait";
-  if (request.teamPreview) return "team";
-  if (request.forceSwitch) return "switch";
-  return "move";
-}
-
 function toId(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function BattleV4DebugModal({snapshot, onClose}: {snapshot: BattleSessionSnapshotV4 | null; onClose: () => void}) {
+function BattleV4DebugModal({snapshot, draft, onClose}: {snapshot: BattleSessionSnapshotV4 | null; draft: BattleCommandDraftV4 | null; onClose: () => void}) {
+  const command = snapshot ? projectBattleViewModelV4(snapshot, "p1", draft).command : null;
+  const rawRequest = command?.request || null;
+  const normalizedRequest = command ? requestDebugSummary(command) : null;
   return (
     <div className="battle-v4-debug-modal">
       <section>
@@ -1008,7 +1056,24 @@ function BattleV4DebugModal({snapshot, onClose}: {snapshot: BattleSessionSnapsho
           <strong>BattleStream Debug</strong>
           <button type="button" onClick={onClose}>关闭</button>
         </header>
-        <pre>{snapshot?.rawLog.slice(-80).join("\n") || "暂无日志"}</pre>
+        <div className="battle-v4-debug-content">
+          <article>
+            <h3>Raw Request</h3>
+            <pre>{rawRequest ? JSON.stringify(rawRequest, null, 2) : "暂无 request"}</pre>
+          </article>
+          <article>
+            <h3>Normalized Request</h3>
+            <pre>{normalizedRequest ? JSON.stringify(normalizedRequest, null, 2) : "暂无 normalized request"}</pre>
+          </article>
+          <article>
+            <h3>Draft</h3>
+            <pre>{draft ? JSON.stringify(draft, null, 2) : "暂无 draft"}</pre>
+          </article>
+          <article>
+            <h3>Raw Protocol</h3>
+            <pre>{snapshot?.rawLog.slice(-80).join("\n") || "暂无日志"}</pre>
+          </article>
+        </div>
       </section>
     </div>
   );

@@ -1,6 +1,12 @@
 import {
+  addBattleCommandChoiceV4,
   applyBattleSessionToRun,
+  createBattleCommandDraftV4,
   createBattleGameFromTrainingNode,
+  isBattleCommandDraftDoneV4,
+  normalizeBattleRequestV4,
+  stringifyBattleCommandDraftV4,
+  type BattleRequestV4,
   type BattleSessionSnapshotV4,
 } from "./battle.js";
 import type {LocalPokemonV4, ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4} from "./training.js";
@@ -206,5 +212,98 @@ assert(syncedTeam.map(pokemon => pokemon.localPokemonId).join(",") === "pika-30,
 assert(syncedTeam[0]?.level === 30 && syncedTeam[0].entryHp === 25 && syncedTeam[0].entryStatus === "brn", "slot 1 sync mismatch");
 assert(syncedTeam[1]?.level === 40 && syncedTeam[1].entryHp === 50 && syncedTeam[1].entryStatus === "par", "slot 2 sync mismatch");
 assert(syncedTeam[2]?.level === 50 && syncedTeam[2].entryHp === 100 && syncedTeam[2].entryStatus === "slp", "slot 3 sync mismatch");
+
+const singlesMove = normalizeBattleRequestV4(moveRequest(1), "p1", "singles");
+assert(singlesMove.requestType === "move", "singles move requestType mismatch");
+assert(singlesMove.requestLength === 1, "singles move requestLength mismatch");
+assert(singlesMove.activeIndex === 0, "singles move activeIndex mismatch");
+assert(singlesMove.choiceIndexByTeamIndex[1] === 2, "singles choice index mapping mismatch");
+
+const doublesMove = normalizeBattleRequestV4(moveRequest(2), "p1", "doubles");
+assert(doublesMove.requestType === "move", "doubles move requestType mismatch");
+assert(doublesMove.requestLength === 2, "doubles move requestLength mismatch");
+assert(doublesMove.activeIndex === 0, "doubles move activeIndex mismatch");
+
+const coopMove = normalizeBattleRequestV4({
+  ...moveRequest(1),
+  ally: {id: "p3", name: "Ally", pokemon: [sidePokemon("ally-token", "100/100", true)]},
+}, "p1", "coop");
+assert(coopMove.requestType === "move", "coop move requestType mismatch");
+assert(coopMove.requestLength === 1, "coop move requestLength mismatch");
+assert(coopMove.readonlyAlly?.pokemon.length === 1, "coop readonly ally missing");
+assert(coopMove.sidePokemon.length === 3, "coop local side pokemon mismatch");
+
+const forceSwitch = normalizeBattleRequestV4({...moveRequest(2), active: undefined, forceSwitch: [true, false]}, "p1", "doubles");
+assert(forceSwitch.requestType === "switch", "forceSwitch requestType mismatch");
+assert(forceSwitch.requestLength === 2, "forceSwitch requestLength mismatch");
+assert(forceSwitch.activeIndex === 0, "forceSwitch activeIndex mismatch");
+
+const teamPreview = normalizeBattleRequestV4({...moveRequest(1), active: undefined, teamPreview: true, chosenTeamSize: 3}, "p1", "singles");
+assert(teamPreview.requestType === "team", "teamPreview requestType mismatch");
+assert(teamPreview.requestLength === 3, "teamPreview requestLength mismatch");
+
+const waitRequest = normalizeBattleRequestV4({...moveRequest(1), active: undefined, wait: true}, "p1", "singles");
+assert(waitRequest.requestType === "wait", "wait requestType mismatch");
+assert(waitRequest.requestLength === 0, "wait requestLength mismatch");
+assert(waitRequest.noCancel, "wait should be noCancel");
+
+const singlesDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(singlesMove), singlesMove, "move 1");
+assert(isBattleCommandDraftDoneV4(singlesDraft), "singles move draft should be done");
+assert(stringifyBattleCommandDraftV4(singlesDraft) === "move 1", "singles move final choice mismatch");
+
+let doublesDraft = createBattleCommandDraftV4(doublesMove);
+doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 1");
+assert(!isBattleCommandDraftDoneV4(doublesDraft), "doubles first move should not be done");
+assert(doublesDraft.activeIndex === 1, "doubles activeIndex should advance to second active");
+doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 2");
+assert(isBattleCommandDraftDoneV4(doublesDraft), "doubles second move should be done");
+assert(stringifyBattleCommandDraftV4(doublesDraft) === "move 1, move 2", "doubles move final choice mismatch");
+
+let doublesTargetDraft = createBattleCommandDraftV4(doublesMove);
+doublesTargetDraft = addBattleCommandChoiceV4(doublesTargetDraft, doublesMove, "move 1 +2");
+assert(!isBattleCommandDraftDoneV4(doublesTargetDraft), "doubles target first move should not be done");
+assert(doublesTargetDraft.choices[0] === "move 1 +2", "doubles target choice mismatch");
+
+let mixedDraft = createBattleCommandDraftV4(doublesMove);
+mixedDraft = addBattleCommandChoiceV4(mixedDraft, doublesMove, "switch 3");
+mixedDraft = addBattleCommandChoiceV4(mixedDraft, doublesMove, "move 1");
+assert(stringifyBattleCommandDraftV4(mixedDraft) === "switch 3, move 1", "doubles mixed final choice mismatch");
+
+const forceSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(forceSwitch), forceSwitch, "switch 3");
+assert(isBattleCommandDraftDoneV4(forceSwitchDraft), "forceSwitch [true,false] should be done");
+assert(stringifyBattleCommandDraftV4(forceSwitchDraft) === "switch 3, pass", "forceSwitch pass choice mismatch");
+
+const doubleForceSwitch = normalizeBattleRequestV4({...moveRequest(2), active: undefined, forceSwitch: [true, true]}, "p1", "doubles");
+let repeatedSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(doubleForceSwitch), doubleForceSwitch, "switch 3");
+repeatedSwitchDraft = addBattleCommandChoiceV4(repeatedSwitchDraft, doubleForceSwitch, "switch 3");
+assert(!isBattleCommandDraftDoneV4(repeatedSwitchDraft), "repeated switch should be blocked");
+assert(repeatedSwitchDraft.choices.join(", ") === "switch 3", "repeated switch choices mismatch");
+
+const waitDraft = createBattleCommandDraftV4(waitRequest);
+assert(isBattleCommandDraftDoneV4(waitDraft), "wait draft should be done");
+assert(stringifyBattleCommandDraftV4(waitDraft) === "", "wait draft should stringify empty");
+
+function moveRequest(activeLength: number): BattleRequestV4 {
+  return {
+    requestType: "move",
+    rqid: 7,
+    targetable: activeLength > 1,
+    active: Array.from({length: activeLength}, () => ({
+      moves: [
+        {move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"},
+        {move: "Quick Attack", id: "quickattack", pp: 30, maxpp: 30, target: "normal"},
+      ],
+    })),
+    side: {
+      id: "p1",
+      name: "P1",
+      pokemon: [
+        sidePokemon("token-1", "100/100", activeLength >= 1),
+        sidePokemon("token-2", "80/100", activeLength >= 2),
+        sidePokemon("token-3", "90/100", false),
+      ],
+    },
+  };
+}
 
 console.log("identity sync smoke ok");
