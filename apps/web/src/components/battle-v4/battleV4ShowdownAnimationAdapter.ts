@@ -760,6 +760,85 @@ const NATIVE_MOVE_ANIMS = new Set([
   "yawn",
   "zapcannon",
   "zenheadbutt",
+  "ancientpower",
+  "avalanche",
+  "barbbarrage",
+  "brine",
+  "chargebeam",
+  "confuseray",
+  "crabhammer",
+  "dazzlinggleam",
+  "diamondstorm",
+  "dragonascent",
+  "dragonenergy",
+  "dracometeor",
+  "drainingkiss",
+  "energyball",
+  "flashcannon",
+  "fling",
+  "flowertrick",
+  "freezingglare",
+  "glaciallance",
+  "gmaxsteelsurge",
+  "gunkshot",
+  "hex",
+  "hypnosis",
+  "iciclecrash",
+  "icywind",
+  "infernalparade",
+  "judgment",
+  "lavaplume",
+  "lightofruin",
+  "lovelykiss",
+  "lusterpurge",
+  "magnetbomb",
+  "makeitrain",
+  "meteorbeam",
+  "mistball",
+  "mistyexplosion",
+  "mysticalpower",
+  "naturesmadness",
+  "octazooka",
+  "originpulse",
+  "paraboliccharge",
+  "payday",
+  "powergem",
+  "present",
+  "psybeam",
+  "psyshock",
+  "psystrike",
+  "razorwind",
+  "roaroftime",
+  "ruination",
+  "sacredsword",
+  "saltcure",
+  "sandtomb",
+  "scald",
+  "secretsword",
+  "sheercold",
+  "signalbeam",
+  "simplebeam",
+  "sludge",
+  "sludgebomb",
+  "sludgewave",
+  "soak",
+  "solarbeam",
+  "solarblade",
+  "spacialrend",
+  "spicyextract",
+  "spore",
+  "swift",
+  "syrupbomb",
+  "thousandarrows",
+  "thousandwaves",
+  "toxic",
+  "triattack",
+  "triplearrows",
+  "tripleaxel",
+  "twinbeam",
+  "wavecrash",
+  "willowisp",
+  "wish",
   "worryseed",
 ]);
 
@@ -1239,11 +1318,20 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "confide":
   case "defog":
   case "meanlook":
+  case "toxic":
+  case "spicyextract":
+  case "willowisp":
+  case "confuseray":
+  case "lovelykiss":
+  case "spore":
+  case "hypnosis":
+  case "soak":
     return nativeUtilityStatusSteps(actor, target, animationKey);
   case "junglehealing":
   case "healbell":
   case "healingwish":
   case "healpulse":
+  case "wish":
   case "aromatherapy":
   case "lifedew":
   case "refresh":
@@ -1401,6 +1489,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "shelltrap":
   case "matchagotcha":
   case "magmastorm":
+  case "lavaplume":
     return nativeFireProjectileSteps(actor, target, animationKey);
   case "technoblast":
   case "ivycudgelwater":
@@ -1414,6 +1503,23 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "hiddenpower":
   case "hyperbeam":
   case "gigaimpact":
+  case "judgment":
+  case "chargebeam":
+  case "psybeam":
+  case "twinbeam":
+  case "signalbeam":
+  case "simplebeam":
+  case "flashcannon":
+  case "lusterpurge":
+  case "mistball":
+  case "mysticalpower":
+  case "psyshock":
+  case "psystrike":
+  case "lightofruin":
+  case "roaroftime":
+  case "dracometeor":
+  case "dragonenergy":
+  case "meteorbeam":
     return nativeSpecialWeaponSteps(actor, target, animationKey);
   case "gigavolthavoc":
   case "stokedsparksurfer":
@@ -1463,6 +1569,10 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "struggle":
   case "outrage":
     return stepsForOtherAnimation("contactattack", actor, target);
+  case "present":
+  case "payday":
+  case "fling":
+    return nativeThrownItemSteps(actor, target, animationKey);
   case "rollout":
   case "spinout":
     return spinWithElementSteps(actor, target, animationKey === "rollout" ? "rocks" : "impact");
@@ -1491,10 +1601,19 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "poisongas":
   case "smog":
   case "clearsmog":
+  case "sludge":
+  case "sludgewave":
+  case "sludgebomb":
+  case "barbbarrage":
+  case "gunkshot":
     return nativePoisonMoveSteps(actor, target, animationKey);
   case "drillrun":
   case "bonemerang":
   case "boneclub":
+  case "triplearrows":
+  case "thousandarrows":
+  case "thousandwaves":
+  case "sandtomb":
     return nativeGroundWeaponSteps(actor, target, animationKey);
   case "whirlwind":
   case "springtidestorm":
@@ -1503,6 +1622,9 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "ominouswind":
     return nativeWindStormSteps(actor, target, animationKey);
   case "nightshade":
+  case "hex":
+  case "infernalparade":
+  case "fierywrath":
     return nativeShadowSpecialSteps(actor, target, animationKey);
   case "bloodmoon":
     return beamSteps(actor, target, "mistball", "#cc2f44");
@@ -1519,6 +1641,11 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "rocksmash":
   case "stealthrock":
   case "precipiceblades":
+  case "ancientpower":
+  case "powergem":
+  case "diamondstorm":
+  case "saltcure":
+  case "gmaxsteelsurge":
     return nativeRockGroundSetupSteps(actor, target, animationKey);
   case "shadowball":
   case "darkpulse":
@@ -1536,6 +1663,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "magicalleaf":
   case "petaldance":
     return nativeGrassMoveSteps(actor, target, animationKey);
+  case "solarbeam":
+    return beamSteps(actor, target, "energyball", "#69d879");
   case "bulletseed":
   case "seedbomb":
   case "leechseed":
@@ -1558,18 +1687,36 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "waterpledge":
   case "watersport":
   case "watershuriken":
+  case "wavecrash":
+  case "crabhammer":
+  case "brine":
+  case "octazooka":
+  case "scald":
+  case "originpulse":
     return nativeWaterMoveSteps(actor, target, animationKey);
   case "blizzard":
   case "freezedry":
   case "iceball":
   case "freezeshock":
   case "iceburn":
+  case "freezingglare":
+  case "icywind":
+  case "avalanche":
+  case "iciclecrash":
+  case "sheercold":
+  case "glaciallance":
     return nativeIceStormSteps(actor, target, animationKey);
   case "leafblade":
   case "firelash":
   case "stoneaxe":
   case "aquacutter":
   case "razorshell":
+  case "flowertrick":
+  case "solarblade":
+  case "razorwind":
+  case "spacialrend":
+  case "sacredsword":
+  case "secretsword":
   case "falseswipe":
   case "furycutter":
   case "scratch":
@@ -1614,6 +1761,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "skyuppercut":
   case "meteormash":
   case "ragefist":
+  case "tripleaxel":
     return nativePunchKickSteps(actor, target, animationKey);
   case "powerwhip":
   case "woodhammer":
@@ -1626,6 +1774,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "gigadrain":
   case "bitterblade":
   case "leechlife":
+  case "paraboliccharge":
+  case "drainingkiss":
     return stepsForOtherAnimation("drain", actor, target);
   case "superfang":
     return [...stepsForOtherAnimation("bite", actor, target), ...stepsForOtherAnimation("contactattack", actor, target)];
@@ -1642,6 +1792,21 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
     return stepsForOtherAnimation("hydroshot", actor, target);
   case "swift":
     return [showEffectStep("shine", actor, target, 360, {fade: "both"}), showEffectStep("shine", {...actor, x: actor.x + 16}, {...target, x: target.x - 18, opacity: .2}, 460, {fade: "both"}), showEffectStep("shine", {...actor, x: actor.x - 18}, {...target, x: target.x + 22, opacity: .2}, 540, {fade: "both"})];
+  case "triattack":
+    return nativeTriAttackSteps(actor, target);
+  case "dazzlinggleam":
+  case "naturesmadness":
+  case "ruination":
+    return nativeFairyLightSteps(actor, target, animationKey);
+  case "magnetbomb":
+  case "makeitrain":
+    return nativeMetalProjectileSteps(actor, target, animationKey);
+  case "mistyexplosion":
+    return explosionSteps(actor, target, "#ffc7f5", "mistball");
+  case "dragonascent":
+    return nativeFlyingStrikeSteps(actor, target, animationKey);
+  case "syrupbomb":
+    return nativeSeedLeafSteps(actor, target, animationKey);
   case "nightslash":
     return darkSlashSteps(actor, target, "rightslash");
   case "shadowclaw":
@@ -2006,6 +2171,42 @@ function nativeEarthPowerSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpr
 }
 
 function nativeWaterMoveSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "wavecrash") {
+    return [
+      {type: "backgroundEffect", color: "#3d9dff", durationMs: 760, opacity: .3},
+      showEffectStep("waterwisp", {...actor, scale: 1.5, opacity: .36}, {...actor, scale: 2.8, opacity: 0}, 320, {fade: "both"}),
+      actorAnimStep(actor, {x: target.x, y: target.y + 12, z: behind(target, -26), scale: 1.12}, 280, "accel"),
+      showEffectStep("waterwisp", {...target, scale: .8, opacity: .72}, {...target, scale: 2.7, opacity: 0}, 440, {fade: "both", explode: true}),
+      actorAnimStep(target, {z: behind(target, 26), x: leftOf(target, 14)}, 180, "swing"),
+    ];
+  }
+  if (key === "crabhammer") {
+    return [
+      {type: "backgroundEffect", color: "#3d9dff", durationMs: 560, opacity: .2},
+      showEffectStep("waterwisp", {...actor, scale: .52, opacity: .62}, {...target, scale: 1.25, opacity: .12}, 360, {fade: "both"}),
+      actorAnimStep(actor, {x: target.x, y: target.y + 10, z: behind(target, -22)}, 240, "accel"),
+      showEffectStep("impact", {...target, scale: .6, opacity: .78}, {...target, scale: 2.2, opacity: 0}, 320, {fade: "both"}),
+      actorAnimStep(target, {x: leftOf(target, 12), z: behind(target, 20)}, 170, "swing"),
+    ];
+  }
+  if (key === "originpulse") {
+    return [
+      {type: "backgroundEffect", color: "#3d9dff", durationMs: 840, opacity: .34},
+      showEffectStep("waterwisp", {...actor, x: actor.x - 22, scale: .55, opacity: .74}, {...target, x: target.x + 20, scale: 1.45, opacity: .12}, 620, {fade: "both"}),
+      showEffectStep("waterwisp", {...actor, x: actor.x + 22, scale: .5, opacity: .68}, {...target, x: target.x - 20, scale: 1.45, opacity: .12}, 700, {fade: "both"}),
+      showEffectStep("impact", {...target, scale: .65, opacity: .65}, {...target, scale: 2.4, opacity: 0}, 400, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 24)}, 180, "swing"),
+    ];
+  }
+  if (key === "scald" || key === "brine" || key === "octazooka") {
+    const muddy = key === "octazooka";
+    return [
+      {type: "backgroundEffect", color: key === "scald" ? "#9de7ff" : muddy ? "#8b7650" : "#3d9dff", durationMs: 620, opacity: .24},
+      showEffectStep(muddy ? "mudwisp" : "waterwisp", {...actor, scale: .5, opacity: .72}, {...target, scale: 1.35, opacity: .14}, 560, {fade: "both"}),
+      showEffectStep(key === "scald" ? "wisp" : "impact", {...target, scale: .55, opacity: .52}, {...target, scale: 2.1, opacity: 0}, 420, {fade: "both"}),
+      actorAnimStep(target, {x: leftOf(target, 8), z: behind(target, 18)}, 160, "swing"),
+    ];
+  }
   if (key === "waterspout" || key === "muddywater") {
     const color = key === "muddywater" ? "#8b7650" : "#3d9dff";
     return [
@@ -2033,6 +2234,25 @@ function nativeWaterMoveSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpri
 }
 
 function nativeIceStormSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "icywind" || key === "freezingglare") {
+    return [
+      {type: "backgroundEffect", color: "#d8f6ff", durationMs: 700, opacity: .26},
+      showEffectStep("iceball", {...actor, scale: .5, opacity: .62}, {...target, scale: 1.5, opacity: .08}, 620, {fade: "both"}),
+      showEffectStep("wisp", {...target, x: target.x - 54, y: target.y + 50, scale: .55, opacity: .38}, {...target, x: target.x + 24, y: target.y - 34, scale: 2, opacity: 0}, 700, {fade: "both"}),
+      actorAnimStep(target, {scale: .94, opacity: .86, x: leftOf(target, 10)}, 190, "swing"),
+      actorAnimStep(target, {scale: 1, opacity: 1, x: target.x}, 180, "swing"),
+    ];
+  }
+  if (key === "sheercold" || key === "glaciallance" || key === "iciclecrash") {
+    return [
+      {type: "backgroundEffect", color: "#d8f6ff", durationMs: 820, opacity: .34},
+      showEffectStep("icicle", {...target, x: target.x - 32, y: target.y + 110, opacity: .86}, {...target, x: target.x - 8, y: target.y + 6, opacity: .08, scale: 1.1}, 580, {fade: "both"}),
+      showEffectStep("icicle", {...target, x: target.x + 30, y: target.y + 104, opacity: .78}, {...target, x: target.x + 8, y: target.y + 4, opacity: .08, scale: 1.1}, 660, {fade: "both"}),
+      showEffectStep("iceball", {...actor, scale: .55, opacity: .58}, {...target, scale: 1.5, opacity: .08}, 620, {fade: "both"}),
+      actorAnimStep(target, {scale: .92, opacity: .82, z: behind(target, 22)}, 190, "swing"),
+      actorAnimStep(target, {scale: 1, opacity: 1, z: target.z}, 180, "swing"),
+    ];
+  }
   return [
     {type: "backgroundEffect", color: "#d8f6ff", durationMs: key === "blizzard" ? 860 : 620, opacity: key === "blizzard" ? .34 : .24},
     showEffectStep("iceball", {...actor, scale: .7, opacity: .55}, {...target, scale: 1.8, opacity: .08}, 620, {fade: "both"}),
@@ -2378,6 +2598,20 @@ function nativeSpecialWeaponSteps(actor: ShowdownSpriteActorV4, target: Showdown
       actorAnimStep(target, {x: leftOf(target, 16), z: behind(target, 30)}, 180, "swing"),
     ];
   }
+  if (/beam|cannon|purge|mistball|psystrike|psyshock|mysticalpower|judgment|lightofruin|roaroftime|dracometeor|dragonenergy|meteorbeam/.test(key)) {
+    const dragon = /dragon|draco|roaroftime/.test(key);
+    const psychic = /psy|mist|luster|mystical/.test(key);
+    const steel = /flashcannon/.test(key);
+    const rock = /meteorbeam/.test(key);
+    const sprite = dragon ? "shadowball" : psychic ? "mistball" : steel ? "impact" : rock ? "rocks" : /charge/.test(key) ? "electroball" : "shine";
+    const color = dragon ? "#5f44aa" : psychic ? "#aa44ff" : steel ? "#d9f3ff" : rock ? "#8c7255" : /charge/.test(key) ? "#ffe35a" : "#f4f7ff";
+    return [
+      {type: "backgroundEffect", color, durationMs: /draco|roaroftime|lightofruin/.test(key) ? 820 : 620, opacity: /draco|roaroftime/.test(key) ? .36 : .24},
+      showEffectStep(sprite, {...actor, scale: .45, opacity: .74}, {...target, scale: 1.45, opacity: .12}, 560, {fade: "both"}),
+      showEffectStep(dragon ? "wisp" : "impact", {...target, scale: .55, opacity: .6}, {...target, scale: dragon ? 2.5 : 2, opacity: 0}, 420, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 20), x: leftOf(target, 8)}, 170, "swing"),
+    ];
+  }
   if (key === "technoblast") {
     return beamSteps(actor, target, "shine", "#f4f7ff");
   }
@@ -2505,6 +2739,18 @@ function nativeDarkContactSteps(actor: ShowdownSpriteActorV4, target: ShowdownSp
   ];
 }
 
+function nativeThrownItemSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const coin = key === "payday";
+  const gift = key === "present";
+  const sprite = coin ? "shine" : gift ? "pokeball" : "impact";
+  return [
+    {type: "backgroundEffect", color: coin ? "#ffd45a" : gift ? "#ffc7f5" : "#f4d28a", durationMs: 540, opacity: .18},
+    showEffectStep(sprite, {...actor, y: actor.y - 8, scale: .5, opacity: .78}, {...target, y: target.y + 6, scale: 1.15, opacity: .18}, 520, {fade: "both", easing: "ballistic2Under"}),
+    showEffectStep(coin ? "shine" : "impact", {...target, scale: .55, opacity: .7}, {...target, scale: 2, opacity: 0}, 320, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 8), z: behind(target, 16)}, 150, "swing"),
+  ];
+}
+
 function nativePoisonMoveSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
   if (key === "poisonfang") {
     return [
@@ -2553,6 +2799,38 @@ function nativeWindStormSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpri
     showEffectStep(electric ? "lightning" : "impact", {...target, scale: .4, opacity: .46}, {...target, scale: 1.8, opacity: 0}, 360, {fade: "both"}),
     actorAnimStep(target, {y: target.y - 10, x: leftOf(target, 10), z: behind(target, 22)}, 180, "swing"),
     actorAnimStep(target, {y: target.y, x: target.x, z: target.z}, 180, "swing"),
+  ];
+}
+
+function nativeTriAttackSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#f4f7ff", durationMs: 680, opacity: .22},
+    showEffectStep("fireball", {...actor, x: actor.x - 18, scale: .42, opacity: .72}, {...target, x: target.x + 18, scale: 1.15, opacity: .12}, 500, {fade: "both"}),
+    showEffectStep("iceball", {...actor, x: actor.x + 18, scale: .42, opacity: .68}, {...target, x: target.x - 18, scale: 1.15, opacity: .12}, 560, {fade: "both"}),
+    showEffectStep("electroball", {...actor, scale: .38, opacity: .64}, {...target, scale: 1.2, opacity: .1}, 620, {fade: "both"}),
+    showEffectStep("impact", {...target, scale: .55, opacity: .66}, {...target, scale: 2.2, opacity: 0}, 360, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 20), x: leftOf(target, 10)}, 170, "swing"),
+  ];
+}
+
+function nativeFairyLightSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const dark = key === "ruination" || key === "naturesmadness";
+  return [
+    {type: "backgroundEffect", color: dark ? "#22002f" : "#ffd6fb", durationMs: 760, opacity: dark ? .34 : .28},
+    showEffectStep(dark ? "blackwisp" : "shine", {...actor, scale: .55, opacity: .62}, {...target, scale: 1.55, opacity: .1}, 580, {fade: "both"}),
+    showEffectStep(dark ? "mistball" : "rainbow", {...target, scale: .75, opacity: .5}, {...target, scale: 2.8, opacity: 0}, 620, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 20), y: target.y - 8}, 180, "swing"),
+  ];
+}
+
+function nativeMetalProjectileSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const rain = key === "makeitrain";
+  return [
+    {type: "backgroundEffect", color: rain ? "#ffd45a" : "#d9f3ff", durationMs: rain ? 760 : 560, opacity: rain ? .26 : .2},
+    showEffectStep(rain ? "shine" : "impact", {...actor, x: actor.x - 10, scale: .42, opacity: .7}, {...target, x: target.x + 18, y: target.y + 8, scale: 1.2, opacity: .14}, 460, {fade: "both"}),
+    showEffectStep(rain ? "shine" : "impact", {...actor, x: actor.x + 12, scale: .38, opacity: .62}, {...target, x: target.x - 18, y: target.y + 10, scale: 1.2, opacity: .12}, 540, {fade: "both", delayMs: 60}),
+    showEffectStep("impact", {...target, scale: .5, opacity: .62}, {...target, scale: 1.9, opacity: 0}, 300, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 10), z: behind(target, 18)}, 160, "swing"),
   ];
 }
 
@@ -2610,6 +2888,25 @@ function nativeSeedLeafSteps(actor: ShowdownSpriteActorV4, target: ShowdownSprit
 }
 
 function nativeRockGroundSetupSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "powergem" || key === "diamondstorm" || key === "ancientpower" || key === "saltcure") {
+    const gem = key === "powergem" || key === "diamondstorm";
+    return [
+      {type: "backgroundEffect", color: gem ? "#d9f3ff" : "#8c7255", durationMs: key === "diamondstorm" ? 820 : 640, opacity: gem ? .24 : .22},
+      showEffectStep(gem ? "shine" : "rocks", {...actor, scale: .45, opacity: .72}, {...target, scale: 1.35, opacity: .12}, 520, {fade: "both"}),
+      showEffectStep(gem ? "shine" : "rock1", {...target, x: target.x - 24, y: target.y + 74, scale: .7, opacity: .68}, {...target, x: target.x - 8, y: target.y + 6, scale: 1.4, opacity: 0}, 520, {fade: "both"}),
+      showEffectStep(gem ? "shine" : "rock2", {...target, x: target.x + 24, y: target.y + 76, scale: .7, opacity: .62}, {...target, x: target.x + 8, y: target.y + 6, scale: 1.4, opacity: 0}, 600, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 20), x: leftOf(target, 8)}, 170, "swing"),
+    ];
+  }
+  if (key === "gmaxsteelsurge") {
+    return [
+      {type: "backgroundEffect", color: "#d9f3ff", durationMs: 760, opacity: .26},
+      showEffectStep("caltrop", {...target, x: target.x - 50, y: target.y + 94, scale: .48, opacity: .76}, {...target, x: target.x - 36, y: target.y + 28, scale: 1.05, opacity: .48}, 560, {fade: "both"}),
+      showEffectStep("caltrop", {...target, x: target.x + 46, y: target.y + 98, scale: .48, opacity: .7}, {...target, x: target.x + 32, y: target.y + 30, scale: 1.05, opacity: .42}, 660, {fade: "both"}),
+      showEffectStep("impact", {...target, scale: .6, opacity: .55}, {...target, scale: 2.2, opacity: 0}, 360, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 20)}, 170, "swing"),
+    ];
+  }
   if (key === "stealthrock") {
     return [
       {type: "backgroundEffect", color: "#8c7255", durationMs: 620, opacity: .2},
