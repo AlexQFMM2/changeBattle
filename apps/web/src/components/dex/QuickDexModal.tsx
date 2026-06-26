@@ -12,6 +12,7 @@ import type {
   DexSearchRow,
   DexStatsResult,
 } from "@changebattle-v2/api";
+import {BattleV4MovePreviewModal} from "../battle-v4/BattleV4MovePreviewModal";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import "./DexCategoryTabs.css";
 import "./DexSearchBar.css";
@@ -67,6 +68,7 @@ export function QuickDexModal({api, onClose}: {api: ChangeBattleV2Api; onClose: 
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [level, setLevel] = useState(50);
   const [pokemonTab, setPokemonTab] = useState<PokemonTabId>("summary");
+  const [previewMove, setPreviewMove] = useState<DexMoveDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -209,7 +211,7 @@ export function QuickDexModal({api, onClose}: {api: ChangeBattleV2Api; onClose: 
                   onPlayCry={() => playCry(detail.detail.cryUrl)}
                 />
               ) : null}
-              {detail?.category === "moves" ? <MoveDetail detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} /> : null}
+              {detail?.category === "moves" ? <MoveDetail detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} onPreviewMove={setPreviewMove} /> : null}
               {detail?.category === "abilities" ? <AbilityDetail detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} /> : null}
               {detail?.category === "items" ? <ItemDetail detail={detail.detail} /> : null}
               {!detail ? <p className="quick-dex-detail empty">{loading ? "正在读取详情..." : error || "选择左侧条目查看详情。"}</p> : null}
@@ -221,9 +223,12 @@ export function QuickDexModal({api, onClose}: {api: ChangeBattleV2Api; onClose: 
   }
 
   return (
-    <PokopiaModal className="quick-dex-modal" labelledBy="quick-dex-title" onClose={onClose}>
-      {requestClose => renderContent(requestClose)}
-    </PokopiaModal>
+    <>
+      <PokopiaModal className="quick-dex-modal" labelledBy="quick-dex-title" onClose={onClose}>
+        {requestClose => renderContent(requestClose)}
+      </PokopiaModal>
+      {previewMove ? <BattleV4MovePreviewModal api={api} move={previewMove} initialMode="singles" onClose={() => setPreviewMove(null)} /> : null}
+    </>
   );
 }
 
@@ -365,10 +370,15 @@ function SpriteGrid({detail}: {detail: DexPokemonDetail}) {
   );
 }
 
-function MoveDetail({detail, onPokemonClick}: {detail: DexMoveDetail; onPokemonClick: (id: string) => void}) {
+function MoveDetail({detail, onPokemonClick, onPreviewMove}: {detail: DexMoveDetail; onPokemonClick: (id: string) => void; onPreviewMove: (move: DexMoveDetail) => void}) {
   return (
     <div className="quick-dex-pokemon-info">
-      <DetailTitle title={detail.nameZh || detail.name} eyebrow={detail.name} tags={[detail.type, detail.category]} />
+      <DetailTitle
+        title={detail.nameZh || detail.name}
+        eyebrow={detail.name}
+        tags={[detail.type, detail.category]}
+        action={<button className="quick-dex-detail-action" type="button" onClick={() => onPreviewMove(detail)}>动画预览</button>}
+      />
       <div className="quick-dex-badges">
         <span>威力 {detail.power || "-"}</span>
         <span>命中 {detail.accuracy ?? "-"}</span>

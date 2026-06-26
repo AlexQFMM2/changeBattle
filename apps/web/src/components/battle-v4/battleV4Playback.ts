@@ -6,6 +6,18 @@ export type BattleProtocolArgsV4 = [string, ...string[]];
 export type BattleProtocolKwArgsV4 = Record<string, string>;
 export type BattleProtocolSeatV4 = "p1A" | "p1B" | "p2A" | "p2B" | "";
 
+type BattleVisibleSlotV4 = BattleViewSlotV4 & {
+  baseSpeciesId?: string;
+  volatileFormeSpeciesId?: string;
+  transformedSpeciesId?: string;
+  oldSpriteState?: BattleSlotSpriteStateV4;
+};
+
+type BattleSlotSpriteStateV4 = Pick<
+  BattleViewSlotV4,
+  "speciesId" | "spriteUrl" | "frontSpriteUrl" | "backSpriteUrl" | "frontShinySpriteUrl" | "backShinySpriteUrl" | "iconUrl" | "iconStyle"
+>;
+
 export type BattleProtocolEventV4 = {
   sequence: number;
   rawLine: string;
@@ -122,6 +134,21 @@ export type BattlePlaybackStateV4 = {
   debug: BattlePlaybackDebugV4;
 };
 
+export type BattleV4PreviewPlaybackState = {
+  nearTeam: BattleViewSlotV4[];
+  farTeam: BattleViewSlotV4[];
+  messagebar: BattleMessageEventV4 | null;
+  activeAnimation: BattleAnimationEventV4 | null;
+  playing: boolean;
+  done: boolean;
+  debug: {
+    protocolEvents: BattleProtocolEventV4[];
+    messageEvents: BattleMessageEventV4[];
+    animationEvents: BattleAnimationEventV4[];
+    animationKinds: BattleAnimationKindV4[];
+  };
+};
+
 const RAW_NO_DEFAULT_COMMANDS = new Set([
   "chatmsg",
   "chatmsg-raw",
@@ -236,6 +263,8 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
     case "-formechange":
     case "-transform":
       return [animationEvent(event, "transform", 1100, message)];
+    case "-end":
+      return shouldAnimateVolatileEnd(event) ? [animationEvent(event, "transform", 900, message)] : [];
     case "-damage":
       return [animationEvent(event, "damage", 760, message)];
     case "-heal":
@@ -482,6 +511,89 @@ export function useBattleV4Playback(
   };
 }
 
+export function useBattleV4PreviewPlayback(
+  rawLines: string[],
+  initialSlots: BattleViewSlotV4[],
+  seed: string,
+): BattleV4PreviewPlaybackState {
+  const projected = useMemo(() => {
+    const protocolEvents = projectBattleProtocolEventsV4(rawLines, 0);
+    const messageEvents = projectBattleMessageEventsV4(protocolEvents);
+    const animationEvents = projectBattleAnimationEventsV4(protocolEvents);
+    return {protocolEvents, messageEvents, animationEvents};
+  }, [rawLines]);
+  const [visibleSlots, setVisibleSlots] = useState<BattleViewSlotV4[]>(initialSlots);
+  const [queue, setQueue] = useState<BattleAnimationEventV4[]>([]);
+  const [activeAnimation, setActiveAnimation] = useState<BattleAnimationEventV4 | null>(null);
+  const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
+  const [done, setDone] = useState(false);
+  const playingRef = useRef(false);
+
+  useEffect(() => {
+    setVisibleSlots(initialSlots);
+    setQueue(projected.animationEvents);
+    setActiveAnimation(null);
+    setMessagebar(null);
+    setDone(projected.animationEvents.length === 0);
+    playingRef.current = false;
+  }, [initialSlots, projected.animationEvents, seed]);
+
+  useEffect(() => {
+    if (playingRef.current || activeAnimation || !queue.length) return;
+    const [event, ...rest] = queue;
+    if (!event) return;
+    playingRef.current = true;
+    setQueue(rest);
+    setActiveAnimation(event);
+    if (event.message) {
+      setMessagebar({
+        sequence: event.sequence,
+        rawLine: event.rawLine,
+        args: [event.kind],
+        kwArgs: {},
+        eventType: event.kind,
+        message: event.message,
+        turn: 0,
+      });
+    }
+  }, [activeAnimation, queue]);
+
+  useEffect(() => {
+    if (!activeAnimation) return;
+    const event = activeAnimation;
+    const duration = Math.max(MIN_ANIMATION_DURATION_MS, event.durationMs);
+    const checkpointTimer = window.setTimeout(() => {
+      setVisibleSlots(slots => applyAnimationCheckpoint(slots, event, null, null));
+    }, duration);
+    const releaseTimer = window.setTimeout(() => {
+      setActiveAnimation(null);
+      playingRef.current = false;
+      if (!queue.length) setDone(true);
+    }, duration + ANIMATION_GAP_MS);
+    return () => {
+      window.clearTimeout(checkpointTimer);
+      window.clearTimeout(releaseTimer);
+    };
+  }, [activeAnimation, queue.length]);
+
+  const nearTeam = useMemo(() => visibleSlots.filter(slot => slot.side === "near"), [visibleSlots]);
+  const farTeam = useMemo(() => visibleSlots.filter(slot => slot.side === "far"), [visibleSlots]);
+  return {
+    nearTeam,
+    farTeam,
+    messagebar,
+    activeAnimation,
+    playing: Boolean(activeAnimation || queue.length),
+    done,
+    debug: {
+      protocolEvents: projected.protocolEvents,
+      messageEvents: projected.messageEvents,
+      animationEvents: projected.animationEvents,
+      animationKinds: projected.animationEvents.map(event => event.kind),
+    },
+  };
+}
+
 function buildProtocolEvent(
   sequence: number,
   rawLine: string,
@@ -516,6 +628,7 @@ function buildProtocolEvent(
 
 function targetArgForEvent(eventType: string, args: BattleProtocolArgsV4): string {
   if (eventType === "move" || eventType === "-anim") return args[3] || "";
+  if (eventType === "-transform") return args[2] || "";
   if (eventType === "-miss") return args[2] || "";
   if (eventType === "-supereffective" || eventType === "-resisted" || eventType === "-crit" || eventType === "-immune" || eventType === "-fail" || eventType === "-activate") return args[1] || "";
   return args[1] || "";
@@ -558,7 +671,7 @@ function applyAnimationCheckpoint(
     const nextSlot = slotFromSwitchEvent(event, snapshot, viewModel);
     if (!nextSlot) return slots;
     const withoutSeat = slots.filter(slot => slot.seat !== nextSlot.seat);
-    return [...withoutSeat, nextSlot].sort(compareSlotsForView);
+    return [...withoutSeat, resetSlotFormeState(nextSlot)].sort(compareSlotsForView);
   }
   if (event.kind === "faint") return patchSlot(slots, event.actorSeat, slot => ({...slot, hp: 0, status: "fnt", fainted: true}));
   if (event.kind === "damage" || event.kind === "heal") {
@@ -580,40 +693,134 @@ function applyAnimationCheckpoint(
     }));
   }
   if (event.kind === "transform") {
-    return patchSlot(slots, event.actorSeat, slot => patchSlotForme(slot, event));
+    return patchSlot(slots, event.actorSeat, slot => patchSlotForme(slot, event, slots));
   }
   return slots;
 }
 
-function patchSlotForme(slot: BattleViewSlotV4, event: BattleAnimationEventV4): BattleViewSlotV4 {
-  const speciesId = transformedSpeciesIdForEvent(event);
+function patchSlotForme(slot: BattleViewSlotV4, event: BattleAnimationEventV4, slots: BattleViewSlotV4[]): BattleViewSlotV4 {
+  const currentSlot = ensureVisibleSlotState(slot);
+  if (event.rawLine.startsWith("|-end|")) return restoreSlotFormeState(currentSlot);
+  const targetSlot = event.rawLine.startsWith("|-transform|")
+    ? slots.find(entry => entry.seat === event.targetSeat)
+    : undefined;
+  const speciesId = transformedSpeciesIdForEvent(event, targetSlot);
   if (!speciesId) return slot;
-  const spriteId = showdownSpriteIdForSpecies(speciesId);
-  const name = cleanSpeciesForme(event.args[2] || speciesId);
-  const frontSpriteUrl = `/showdown/sprites/ani/${spriteId}.gif`;
-  const backSpriteUrl = `/showdown/sprites/ani-back/${spriteId}.gif`;
-  const frontShinySpriteUrl = `/showdown/sprites/ani-shiny/${spriteId}.gif`;
-  const backShinySpriteUrl = `/showdown/sprites/ani-back-shiny/${spriteId}.gif`;
+  const isTransform = event.rawLine.startsWith("|-transform|");
+  const isPermanent = event.rawLine.startsWith("|detailschange|");
+  const nextSlot: BattleVisibleSlotV4 = {
+    ...currentSlot,
+    baseSpeciesId: isPermanent ? speciesId : currentSlot.baseSpeciesId || currentSlot.speciesId,
+    volatileFormeSpeciesId: isPermanent ? undefined : speciesId,
+    transformedSpeciesId: isTransform ? speciesId : undefined,
+    oldSpriteState: isPermanent ? undefined : currentSlot.oldSpriteState || spriteStateFromSlot(currentSlot),
+  };
+  if (!isTransform) {
+    const name = cleanSpeciesForme(event.args[2] || speciesId);
+    nextSlot.name = name;
+    nextSlot.nameZh = name;
+  }
+  return applySlotSpriteForme(nextSlot, speciesId, targetSlot);
+}
+
+function transformedSpeciesIdForEvent(event: BattleAnimationEventV4, targetSlot?: BattleViewSlotV4): string {
+  if (event.rawLine.startsWith("|detailschange|")) return toId((event.args[2] || "").split(",")[0]);
+  if (event.rawLine.startsWith("|-formechange|")) return toId(event.args[2] || "");
+  if (event.rawLine.startsWith("|-transform|")) {
+    return toId(event.args[3] || currentSpeciesForme(targetSlot) || event.targetName || "");
+  }
+  return "";
+}
+
+function shouldAnimateVolatileEnd(event: BattleProtocolEventV4): boolean {
+  if (event.eventType !== "-end") return false;
+  const effectId = toId(event.args[2]);
+  return effectId === "formechange" || effectId === "transform" || effectId === "dynamax";
+}
+
+function ensureVisibleSlotState(slot: BattleViewSlotV4): BattleVisibleSlotV4 {
+  const state = slot as BattleVisibleSlotV4;
+  if (!state.baseSpeciesId) state.baseSpeciesId = state.speciesId;
+  return state;
+}
+
+function resetSlotFormeState(slot: BattleViewSlotV4): BattleVisibleSlotV4 {
+  const state = slot as BattleVisibleSlotV4;
+  return {
+    ...state,
+    baseSpeciesId: state.speciesId,
+    volatileFormeSpeciesId: undefined,
+    transformedSpeciesId: undefined,
+    oldSpriteState: undefined,
+  };
+}
+
+function restoreSlotFormeState(slot: BattleVisibleSlotV4): BattleVisibleSlotV4 {
+  if (!slot.oldSpriteState) {
+    return {
+      ...slot,
+      baseSpeciesId: slot.baseSpeciesId || slot.speciesId,
+      volatileFormeSpeciesId: undefined,
+      transformedSpeciesId: undefined,
+    };
+  }
+  return {
+    ...slot,
+    ...slot.oldSpriteState,
+    baseSpeciesId: slot.baseSpeciesId || slot.oldSpriteState.speciesId,
+    volatileFormeSpeciesId: undefined,
+    transformedSpeciesId: undefined,
+    oldSpriteState: undefined,
+  };
+}
+
+function applySlotSpriteForme(slot: BattleVisibleSlotV4, speciesId: string, targetSlot?: BattleViewSlotV4): BattleViewSlotV4 {
+  const fallback = spriteUrlsForSpecies(speciesId);
+  const target = targetSlot ? ensureVisibleSlotState(targetSlot) : undefined;
+  const frontSpriteUrl = firstLargeSprite(target?.frontSpriteUrl, fallback.frontSpriteUrl);
+  const backSpriteUrl = firstLargeSprite(target?.backSpriteUrl, fallback.backSpriteUrl, target?.frontSpriteUrl, fallback.frontSpriteUrl);
+  const frontShinySpriteUrl = firstLargeSprite(target?.frontShinySpriteUrl, fallback.frontShinySpriteUrl, frontSpriteUrl);
+  const backShinySpriteUrl = firstLargeSprite(target?.backShinySpriteUrl, fallback.backShinySpriteUrl, backSpriteUrl);
   return {
     ...slot,
     speciesId,
-    name,
-    nameZh: name,
     spriteUrl: slot.side === "near" ? backSpriteUrl : frontSpriteUrl,
     frontSpriteUrl,
     backSpriteUrl,
     frontShinySpriteUrl,
     backShinySpriteUrl,
-    iconUrl: "/showdown/sprites/pokemonicons-sheet.png",
+    iconUrl: target?.iconUrl || "/showdown/sprites/pokemonicons-sheet.png",
+    iconStyle: target?.iconStyle || slot.iconStyle,
+  };
+}
+
+function spriteStateFromSlot(slot: BattleViewSlotV4): BattleSlotSpriteStateV4 {
+  return {
+    speciesId: slot.speciesId,
+    spriteUrl: slot.spriteUrl,
+    frontSpriteUrl: slot.frontSpriteUrl,
+    backSpriteUrl: slot.backSpriteUrl,
+    frontShinySpriteUrl: slot.frontShinySpriteUrl,
+    backShinySpriteUrl: slot.backShinySpriteUrl,
+    iconUrl: slot.iconUrl,
     iconStyle: slot.iconStyle,
   };
 }
 
-function transformedSpeciesIdForEvent(event: BattleAnimationEventV4): string {
-  if (event.rawLine.startsWith("|detailschange|")) return toId((event.args[2] || "").split(",")[0]);
-  if (event.rawLine.startsWith("|-formechange|")) return toId(event.args[2] || "");
-  if (event.rawLine.startsWith("|-transform|")) return toId(event.args[3] || event.args[2] || "");
-  return "";
+function spriteUrlsForSpecies(speciesId: string): Pick<BattleViewSlotV4, "frontSpriteUrl" | "backSpriteUrl" | "frontShinySpriteUrl" | "backShinySpriteUrl"> {
+  const spriteId = showdownSpriteIdForSpecies(speciesId);
+  return {
+    frontSpriteUrl: `/showdown/sprites/ani/${spriteId}.gif`,
+    backSpriteUrl: `/showdown/sprites/ani-back/${spriteId}.gif`,
+    frontShinySpriteUrl: `/showdown/sprites/ani-shiny/${spriteId}.gif`,
+    backShinySpriteUrl: `/showdown/sprites/ani-back-shiny/${spriteId}.gif`,
+  };
+}
+
+function currentSpeciesForme(slot?: BattleViewSlotV4): string {
+  if (!slot) return "";
+  const state = ensureVisibleSlotState(slot);
+  return state.volatileFormeSpeciesId || state.transformedSpeciesId || state.speciesId;
 }
 
 function showdownSpriteIdForSpecies(speciesId: string): string {
@@ -750,7 +957,8 @@ function patchSlot(slots: BattleViewSlotV4[], seat: BattleProtocolSeatV4, patch:
 }
 
 function formatVisibleSlotSeat(slot: BattleViewSlotV4): string {
-  return `${slot.seat}:${slot.name || slot.speciesId}${slot.fainted ? ":fnt" : ""}:${slot.hp}/${slot.maxHp}`;
+  const speciesSuffix = slot.speciesId && toId(slot.name) !== toId(slot.speciesId) ? `[${slot.speciesId}]` : "";
+  return `${slot.seat}:${slot.name || slot.speciesId}${speciesSuffix}${slot.fainted ? ":fnt" : ""}:${slot.hp}/${slot.maxHp}`;
 }
 
 function initialPlaybackRawIndex(rawLines: string[]): number {
@@ -896,7 +1104,7 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
   case "-formechange":
     return {text: cleanSpeciesForme(event.args[2] || "形态变化"), tone: "good"};
   case "-transform":
-    return {text: "变身", tone: "good"};
+    return {text: "Transformed", tone: "good"};
   case "-crit":
     return {text: "击中要害", tone: "bad"};
   case "-supereffective":

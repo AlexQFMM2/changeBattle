@@ -216,3 +216,21 @@
   border-color: rgb(193 255 177 / 72%);
   background: rgb(89 222 123 / 18%);
 }
+
+.quick-dex-detail-action {
+  min-height: 23px;
+  border: 1px solid rgb(142 227 119 / 48%);
+  border-radius: 5px;
+  background: rgb(49 128 70 / 34%);
+  color: #f2fff4;
+  padding: 3px 8px;
+  font-size: 8px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.quick-dex-detail-action:hover,
+.quick-dex-detail-action:focus-visible {
+  border-color: rgb(204 255 174 / 78%);
+  background: rgb(89 222 123 / 22%);
+}

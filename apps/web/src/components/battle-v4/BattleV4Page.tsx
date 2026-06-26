@@ -2,6 +2,7 @@ import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {addBattleCommandChoiceV4, applyBattleSessionToRun, battleDebugLog, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4} from "./battleV4Playback";
 import "./BattleV4Page.css";
 
@@ -172,6 +173,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [commandDraft, setCommandDraft] = useState<BattleCommandDraftV4 | null>(null);
   const [choiceStatus, setChoiceStatus] = useState("");
   const [skipAnimations, setSkipAnimations] = useState(false);
+  const [previewMove, setPreviewMove] = useState<DexMoveDetail | null>(null);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
   const playback = useBattleV4Playback(snapshot, viewModel, {skipAnimations, debugConfig});
@@ -181,6 +183,9 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   );
   const playbackHasRuntimeState = playback.hasProtocolState;
   const playbackBlockingCommands = Boolean(!skipAnimations && (playback.activeAnimation || playback.debug.queueLength));
+  const shouldShowSwitchPanel = Boolean(!playbackBlockingCommands && snapshot && viewModel && (
+    viewModel.command.requestType === "switch" || (switchPanelOpen && viewModel.command.requestType === "move")
+  ));
   const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
 
   useEffect(() => {
@@ -220,7 +225,6 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   useEffect(() => {
     if (!playbackBlockingCommands) return;
     setPendingMoveAction(null);
-    setSwitchPanelOpen(false);
   }, [playbackBlockingCommands]);
 
   useEffect(() => {
@@ -292,6 +296,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   function applyDraftChoice(input: string) {
     const normalizedRequest = viewModel?.command.normalizedRequest;
     if (!normalizedRequest) return;
+    const inputKind = input.trim().split(/\s+/)[0] || "";
     const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
     const after = addBattleCommandChoiceV4(before, normalizedRequest, input);
     const finalChoice = stringifyBattleCommandDraftV4(after);
@@ -304,7 +309,9 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     });
     setPendingMoveAction(null);
     setCommandDraft(after);
+    if (inputKind === "switch") setSwitchPanelOpen(false);
     if (isBattleCommandDraftDoneV4(after)) {
+      setCommandMode("command");
       void submitChoice(finalChoice);
       return;
     }
@@ -364,6 +371,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onOpenSwitch={() => setSwitchPanelOpen(true)}
           onSubmit={applyDraftChoice}
           onMoveDraft={draftMoveAction}
+          onPreviewMove={setPreviewMove}
         />
       ) : null}
       {!playbackBlockingCommands && pendingMoveAction && viewModel ? (
@@ -376,7 +384,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onSubmit={applyDraftChoice}
         />
       ) : null}
-      {!playbackBlockingCommands && switchPanelOpen && snapshot && viewModel && (viewModel.command.requestType === "move" || viewModel.command.requestType === "switch") ? (
+      {shouldShowSwitchPanel && snapshot && viewModel ? (
         <BattleV4SwitchPanel
           api={api}
           snapshot={snapshot}
@@ -404,6 +412,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         />
       ) : null}
       {debugOpen ? <BattleV4DebugModal snapshot={snapshot} draft={commandDraft} playbackDebug={playback.debug} onClose={() => setDebugOpen(false)} /> : null}
+      {previewMove ? (
+        <BattleV4MovePreviewModal
+          api={api}
+          move={previewMove}
+          initialMode={viewModel?.mode === "singles" ? "singles" : "doubles"}
+          onClose={() => setPreviewMove(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -538,7 +554,7 @@ function BattleHpPanel({slot, compact = false, current = false, commanding = fal
   );
 }
 
-function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, onSubmit, onMoveDraft}: {
+function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, onSubmit, onMoveDraft, onPreviewMove}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4 | null;
   snapshot: BattleSessionSnapshotV4 | null;
@@ -552,14 +568,21 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   onOpenSwitch: () => void;
   onSubmit: (choice: string) => void;
   onMoveDraft: (action: MoveActionV4) => void;
+  onPreviewMove: (move: DexMoveDetail) => void;
 }) {
   const canInspectSwitch = requestType === "move" && Boolean(snapshot?.requests.p1?.side?.pokemon?.length);
+  const [previewMoveId, setPreviewMoveId] = useState("");
   const moveActions = actions.filter((action): action is Extract<BattleCommandActionV4, {kind: "move"}> => action.kind === "move");
   const moveCards = useMemo(() => moveActions.map(action => buildBattleV4MoveCard(action, api, viewModel?.farTeam || [])), [api, moveActions, viewModel?.farTeam]);
+  const previewCard = moveCards.find(card => card.id === previewMoveId && card.detail) ||
+    moveCards.find(card => card.detail && !isDisabledAction(card.action)) ||
+    moveCards.find(card => card.detail);
   const commandStatus = commandStatusText(viewModel, busy, message, api);
   if (requestType === "switch") {
     return (
-      <section className="battle-v4-command-dock waiting" aria-label="等待换人">
+      <section className="battle-v4-command-dock waiting action" aria-label="等待换人" role="button" tabIndex={0} onClick={onOpenSwitch} onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") onOpenSwitch();
+      }}>
         <span>{busy ? "提交中..." : message || "请选择要换上的宝可梦"}</span>
       </section>
     );
@@ -580,7 +603,9 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
         <div className="battle-v4-side-hints">
           <span className="battle-v4-command-progress">{commandStatus}</span>
           <button type="button" onClick={() => onCommandModeChange("command")}>返回</button>
-          <button type="button" onClick={() => {}}>招式说明</button>
+          <button type="button" disabled={!previewCard?.detail} onClick={() => {
+            if (previewCard?.detail) onPreviewMove(previewCard.detail);
+          }}>动画预览</button>
         </div>
         <div className="battle-v4-move-list">
           {moveCards.length ? moveCards.map(card => (
@@ -588,6 +613,8 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
               className={`battle-v4-move-card type-${card.typeId} effect-${card.effectivenessTone}`}
               type="button"
               disabled={busy || isDisabledAction(card.action)}
+              onMouseEnter={() => setPreviewMoveId(card.id)}
+              onFocus={() => setPreviewMoveId(card.id)}
               onClick={() => onMoveDraft(card.action)}
               key={`${card.action.choice}-${card.id}`}
             >
@@ -992,7 +1019,9 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
 }) {
   const candidates = useMemo(() => buildSwitchCandidates(snapshot, switchActions, debugConfig), [snapshot, switchActions, debugConfig]);
   const panelTeams = useMemo(() => buildSwitchPanelTeams(snapshot, candidates), [snapshot, candidates]);
-  const flatCandidates = useMemo(() => panelTeams.flatMap(team => team.candidates), [panelTeams]);
+  const enemies = useMemo(() => buildNonCoopEnemySwitchCandidates(snapshot), [snapshot]);
+  const isCoop = snapshot.mode === "coop";
+  const flatCandidates = useMemo(() => isCoop ? panelTeams.flatMap(team => team.candidates) : [...candidates, ...enemies], [candidates, enemies, isCoop, panelTeams]);
   const firstSelectable = flatCandidates.find(candidate => candidate.canSwitch);
   const [selectedKey, setSelectedKey] = useState(firstSelectable?.key || flatCandidates.find(candidate => candidate.row || candidate.localPokemon)?.key || flatCandidates[0]?.key || "");
   const selected = flatCandidates.find(candidate => candidate.key === selectedKey) || firstSelectable || flatCandidates[0] || null;
@@ -1004,8 +1033,6 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
     if (selectedKey && flatCandidates.some(candidate => candidate.key === selectedKey)) return;
     setSelectedKey(firstSelectable?.key || flatCandidates.find(candidate => candidate.row || candidate.localPokemon)?.key || flatCandidates[0]?.key || "");
   }, [firstSelectable?.key, flatCandidates, selectedKey]);
-  const enemies = useMemo(() => buildNonCoopEnemySwitchCandidates(snapshot), [snapshot]);
-  const isCoop = snapshot.mode === "coop";
   return (
     <section className={`battle-v4-switch-selector ${isCoop ? "coop" : ""}`} aria-label="换人选择">
       <div className="battle-v4-switch-title">
@@ -1632,7 +1659,7 @@ function BattleV4StatusModal({snapshot, slots, onClose}: {
   const fieldItems = [status.weather, ...status.fields].filter((item): item is BattleV4FieldStatus => Boolean(item));
   return (
     <div className="battle-v4-status-modal" role="dialog" aria-modal="true" aria-label="对局状态">
-      <section>
+      <section className="battle-v4-status-window">
         <header>
           <span>
             <strong>对局状态</strong>

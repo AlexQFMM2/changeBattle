@@ -778,6 +778,15 @@
   text-align: center;
 }
 
+.battle-v4-command-dock.waiting.action {
+  cursor: pointer;
+}
+
+.battle-v4-command-dock.waiting.action:hover {
+  border-color: rgb(190 255 58 / 70%);
+  box-shadow: 0 0 12px rgb(177 255 39 / 24%), inset 0 0 0 1px rgb(255 255 255 / 22%);
+}
+
 .battle-v4-command-timer {
   justify-self: end;
   font-size: 9px;
@@ -1641,9 +1650,10 @@ button.battle-v4-switch-card:hover {
   background: rgb(0 0 0 / 42%);
 }
 
-.battle-v4-status-modal section {
-  width: 470px;
-  max-height: 286px;
+.battle-v4-status-window {
+  box-sizing: border-box;
+  width: min(560px, calc(100% - 44px));
+  max-height: 270px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -1657,29 +1667,29 @@ button.battle-v4-switch-card:hover {
   text-shadow: 0 1px 0 rgb(0 0 0 / 58%);
 }
 
-.battle-v4-status-modal header {
+.battle-v4-status-window > header {
   min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border-bottom: 1px solid rgb(255 255 255 / 13%);
   background: rgb(255 255 255 / 5%);
 }
 
-.battle-v4-status-modal header span {
+.battle-v4-status-window > header span {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
 
-.battle-v4-status-modal header strong {
-  font-size: 13px;
+.battle-v4-status-window > header strong {
+  font-size: 12px;
   font-weight: 1000;
 }
 
-.battle-v4-status-modal header small {
+.battle-v4-status-window > header small {
   color: rgb(224 236 255 / 66%);
   font-size: 8px;
   font-weight: 900;
@@ -1699,9 +1709,9 @@ button.battle-v4-switch-card:hover {
 .battle-v4-status-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-columns: 142px minmax(0, 1fr);
   gap: 8px;
-  padding: 9px;
+  padding: 8px;
   overflow: hidden;
 }
 
@@ -1736,14 +1746,17 @@ button.battle-v4-switch-card:hover {
   min-width: 0;
   min-height: 0;
   display: grid;
-  gap: 6px;
+  align-content: start;
+  gap: 5px;
   overflow: auto;
   padding-right: 2px;
 }
 
 .battle-v4-status-field {
   min-width: 0;
+  min-height: 58px;
   display: grid;
+  align-content: space-between;
   gap: 2px;
   padding: 7px 8px;
   border: 1px solid rgb(255 255 255 / 18%);
@@ -1778,10 +1791,12 @@ button.battle-v4-switch-card:hover {
 }
 
 .battle-v4-status-slot {
+  box-sizing: border-box;
   min-width: 0;
+  width: 100%;
   display: grid;
   gap: 5px;
-  padding: 6px;
+  padding: 5px 6px;
   border: 1px solid rgb(255 255 255 / 16%);
   border-radius: 6px;
   background: linear-gradient(135deg, rgb(43 72 150 / 64%), rgb(18 27 60 / 72%));
@@ -1794,9 +1809,13 @@ button.battle-v4-switch-card:hover {
 .battle-v4-status-slot-head {
   min-width: 0;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+}
+
+.battle-v4-status-slot-head .battle-v4-picon {
+  transform: scale(.68);
 }
 
 .battle-v4-status-slot-head span {
@@ -1829,17 +1848,18 @@ button.battle-v4-switch-card:hover {
 .battle-v4-boost-list {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 3px;
 }
 
 .battle-v4-boost-list span {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
+  justify-items: center;
   align-items: center;
   gap: 2px;
-  padding: 2px 4px;
+  padding: 2px 3px;
   border-radius: 3px;
   background: rgb(255 255 255 / 7%);
   color: rgb(230 237 255 / 58%);
@@ -1861,7 +1881,7 @@ button.battle-v4-switch-card:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 1000;
 }
 

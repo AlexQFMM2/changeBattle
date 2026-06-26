@@ -1,0 +1,179 @@
+.battle-v4-preview-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 520;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 54%);
+  backdrop-filter: blur(2px);
+}
+
+.battle-v4-preview-modal {
+  width: 566px;
+  max-width: calc(100% - 24px);
+  display: grid;
+  grid-template-rows: auto auto 260px auto;
+  gap: 7px;
+  border: 2px solid rgb(71 190 107 / 72%);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgb(20 35 28 / 98%), rgb(7 12 11 / 98%));
+  box-shadow:
+    0 20px 56px rgb(0 0 0 / 62%),
+    inset 0 0 0 1px rgb(255 255 255 / 10%),
+    0 0 0 2px rgb(5 38 18 / 50%);
+  padding: 9px;
+  color: #fff;
+  text-shadow: none;
+}
+
+.battle-v4-preview-header,
+.battle-v4-preview-toolbar,
+.battle-v4-preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.battle-v4-preview-header h3,
+.battle-v4-preview-header span {
+  margin: 0;
+}
+
+.battle-v4-preview-header span {
+  display: block;
+  color: #aaf0b5;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.battle-v4-preview-header h3 {
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.battle-v4-preview-header button,
+.battle-v4-preview-toolbar button {
+  min-height: 22px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  padding: 3px 10px;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.battle-v4-preview-header button:hover,
+.battle-v4-preview-toolbar button:hover,
+.battle-v4-preview-toolbar button:focus-visible {
+  border-color: rgb(190 255 58 / 72%);
+  background: rgb(77 184 87 / 22%);
+}
+
+.battle-v4-preview-toolbar button:disabled {
+  opacity: .55;
+}
+
+.battle-v4-preview-segments {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgb(142 227 119 / 28%);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 24%);
+}
+
+.battle-v4-preview-segments button {
+  min-height: 20px;
+  border-color: transparent;
+  border-radius: 5px;
+  background: transparent;
+}
+
+.battle-v4-preview-segments button.selected {
+  border-color: rgb(190 255 58 / 62%);
+  background: linear-gradient(180deg, rgb(92 199 105 / 72%), rgb(23 112 53 / 76%));
+}
+
+.battle-v4-preview-arena {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 10px;
+  background: #0f1c2a url("/battle-backgrounds/champion-stage.png") center / cover no-repeat;
+  isolation: isolate;
+}
+
+.battle-v4-preview-arena .battle-v4-messagebar {
+  left: 24px;
+  top: 118px;
+  width: 240px;
+}
+
+.battle-v4-preview-arena .battle-v4-enemy-panels {
+  right: 7px;
+  top: 12px;
+}
+
+.battle-v4-preview-arena .battle-v4-player-panels {
+  left: 12px;
+  bottom: 10px;
+}
+
+.battle-v4-preview-arena .battle-v4-pokemon.far.a {
+  right: 60px;
+  top: 42px;
+}
+
+.battle-v4-preview-arena .battle-v4-pokemon.far.b {
+  right: 182px;
+  top: 42px;
+}
+
+.battle-v4-preview-arena .battle-v4-pokemon.near.a {
+  left: 28px;
+  bottom: 62px;
+}
+
+.battle-v4-preview-arena .battle-v4-pokemon.near.b {
+  left: 170px;
+  bottom: 62px;
+}
+
+.battle-v4-preview-arena .battle-v4-fx-layer.target-p1a { left: 68px; top: 157px; }
+.battle-v4-preview-arena .battle-v4-fx-layer.target-p1b { left: 210px; top: 157px; }
+.battle-v4-preview-arena .battle-v4-fx-layer.target-p2a { left: 435px; top: 78px; }
+.battle-v4-preview-arena .battle-v4-fx-layer.target-p2b { left: 313px; top: 78px; }
+
+.battle-v4-preview-arena .battle-v4-result-pop.target-p1a { left: 68px; top: 122px; }
+.battle-v4-preview-arena .battle-v4-result-pop.target-p1b { left: 210px; top: 122px; }
+.battle-v4-preview-arena .battle-v4-result-pop.target-p2a { left: 435px; top: 48px; }
+.battle-v4-preview-arena .battle-v4-result-pop.target-p2b { left: 313px; top: 48px; }
+
+.battle-v4-preview-meta {
+  justify-content: start;
+  flex-wrap: wrap;
+}
+
+.battle-v4-preview-meta span {
+  min-height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  color: #f4fff6;
+  padding: 2px 8px;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.quick-dex-modal .battle-v4-preview-layer {
+  position: fixed;
+  z-index: 500;
+}
