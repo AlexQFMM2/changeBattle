@@ -280,10 +280,28 @@ const MOVE_NATIVE_OTHER_MAP: Record<string, string> = {
 };
 
 const MOVE_ALIAS_ASSIGNMENTS: Record<string, string> = {
+  amnesia: "rest",
+  aurorabeam: "icebeam",
+  confusion: "psychic",
+  ember: "flamethrower",
+  extrasensory: "psychic",
+  firepledge: "flamethrower",
   magnitude: "earthquake",
   fissure: "earthquake",
   landswrath: "earthquake",
+  healorder: "recover",
+  incinerate: "flamethrower",
+  maximumpsybreaker: "psychic",
+  mysticalfire: "flamethrower",
   phantomforce: "shadowforce",
+  rocktomb: "rockslide",
+  shatteredpsyche: "psychic",
+  slackoff: "rest",
+  synthesis: "recover",
+  terablastelectric: "thunderbolt",
+  terablastfire: "flamethrower",
+  terablastice: "icebeam",
+  terablastpsychic: "psychic",
 };
 
 const MOVE_COMPOSITE_ASSIGNMENTS: Record<string, string[]> = {

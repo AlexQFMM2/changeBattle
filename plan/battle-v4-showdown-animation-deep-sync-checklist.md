@@ -788,14 +788,14 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `10000000voltthunderbolt -> triattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key 10000000voltthunderbolt; target triattack
 - [ ] `acid -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acid; target sludge
 - [ ] `acidspray -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acidspray; target sludge
-- [ ] `amnesia -> rest` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key amnesia; target rest
+- [x] `amnesia -> rest` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key amnesia; target rest + preview/manual/typecheck
 - [ ] `appleacid -> energyball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key appleacid; target energyball
 - [ ] `aquatail -> crabhammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aquatail; target crabhammer
 - [ ] `armthrust -> smellingsalts` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key armthrust; target smellingsalts
 - [ ] `aromaticmist -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aromaticmist; target mistyterrain
 - [ ] `attackorder -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key attackorder; target bulletseed
 - [ ] `aurawheel -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aurawheel; target discharge
-- [ ] `aurorabeam -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aurorabeam; target icebeam
+- [x] `aurorabeam -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key aurorabeam; target icebeam + preview/manual/typecheck
 - [ ] `axekick -> highjumpkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key axekick; target highjumpkick
 - [ ] `barrage -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key barrage; target magnetbomb
 - [ ] `beatup -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key beatup; target slam
@@ -823,7 +823,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `clangoroussoul -> extremeevoboost` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key clangoroussoul; target extremeevoboost
 - [ ] `coaching -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key coaching; target bulkup
 - [ ] `comeuppance -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key comeuppance; target darkpulse
-- [ ] `confusion -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key confusion; target psychic
+- [x] `confusion -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key confusion; target psychic + preview/manual/typecheck
 - [ ] `constrict -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key constrict; target bind
 - [ ] `conversion2 -> conversion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key conversion2; target conversion
 - [ ] `corrosivegas -> poisongas` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key corrosivegas; target poisongas
@@ -850,18 +850,18 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `eeriespell -> psyshock` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eeriespell; target psyshock
 - [ ] `eggbomb -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eggbomb; target magnetbomb
 - [ ] `electrify -> thunderwave` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key electrify; target thunderwave
-- [ ] `ember -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ember; target flamethrower
+- [x] `ember -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key ember; target flamethrower + preview/manual/typecheck
 - [ ] `entrainment -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key entrainment; target painsplit
 - [ ] `eternabeam -> roaroftime` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eternabeam; target roaroftime
 - [ ] `expandingforce -> psybeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key expandingforce; target psybeam
-- [ ] `extrasensory -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key extrasensory; target psychic
+- [x] `extrasensory -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key extrasensory; target psychic + preview/manual/typecheck
 - [ ] `fairywind -> dazzlinggleam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fairywind; target dazzlinggleam
 - [ ] `falsesurrender -> feintattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key falsesurrender; target feintattack
 - [ ] `fellstinger -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fellstinger; target bulletseed
 - [ ] `fierydance -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fierydance; target magmastorm
 - [ ] `filletaway -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key filletaway; target bulkup
 - [ ] `firelash -> multiattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key firelash; target multiattack
-- [ ] `firepledge -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key firepledge; target flamethrower
+- [x] `firepledge -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key firepledge; target flamethrower + preview/manual/typecheck
 - [x] `fissure -> earthquake` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: selected key retained; aliasTargetKey earthquake; native earthquake timeline + typecheck
 - [ ] `flameburst -> shelltrap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flameburst; target shelltrap
 - [ ] `flamewheel -> flamecharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flamewheel; target flamecharge
@@ -909,7 +909,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `headcharge -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headcharge; target gigaimpact
 - [x] `headlongrush -> closecombat + earthpower` | priority: P2 | source: BattleMoveAlias | adapter: preset | notes: compositeTargets recorded in diagnostics; selected key retained + typecheck
 - [ ] `headsmash -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headsmash; target gigaimpact
-- [ ] `healorder -> recover` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key healorder; target recover
+- [x] `healorder -> recover` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key healorder; target recover + preview/manual/typecheck
 - [ ] `heartswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heartswap; target skillswap
 - [ ] `heatcrash -> flareblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heatcrash; target flareblitz
 - [ ] `helpinghand -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key helpinghand; target painsplit
@@ -924,7 +924,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `hyperdrill -> drillrun` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperdrill; target drillrun
 - [ ] `hyperfang -> superfang` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperfang; target superfang
 - [ ] `imprison -> embargo` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key imprison; target embargo
-- [ ] `incinerate -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key incinerate; target flamethrower
+- [x] `incinerate -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key incinerate; target flamethrower + preview/manual/typecheck
 - [ ] `inferno -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key inferno; target magmastorm
 - [ ] `infestation -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key infestation; target bulletseed
 - [ ] `iondeluge -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key iondeluge; target electricterrain
@@ -953,7 +953,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `maxgeyser -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxgeyser; target hydrovortex
 - [ ] `maxguard -> banefulbunker` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maxguard; target banefulbunker
 - [ ] `maxhailstorm -> subzeroslammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxhailstorm; target subzeroslammer
-- [ ] `maximumpsybreaker -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maximumpsybreaker; target psychic
+- [x] `maximumpsybreaker -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key maximumpsybreaker; target psychic + preview/manual/typecheck
 - [ ] `maxknuckle -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxknuckle; target alloutpummeling
 - [ ] `maxlightning -> gigavolthavoc` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxlightning; target gigavolthavoc
 - [ ] `maxmindstorm -> shatteredpsyche` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxmindstorm; target shatteredpsyche
@@ -978,7 +978,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `mountaingale -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mountaingale; target powergem
 - [ ] `mudslap -> mudshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudslap; target mudshot
 - [ ] `mudsport -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudsport; target mudbomb
-- [ ] `mysticalfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mysticalfire; target flamethrower
+- [x] `mysticalfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key mysticalfire; target flamethrower + preview/manual/typecheck
 - [ ] `naturalgift -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key naturalgift; target technoblast
 - [ ] `nightdaze -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightdaze; target darkpulse
 - [ ] `nightmare -> nightshade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightmare; target nightshade
@@ -1019,7 +1019,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `revenge -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key revenge; target slam
 - [ ] `risingvoltage -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key risingvoltage; target discharge
 - [ ] `rockclimb -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rockclimb; target slam
-- [ ] `rocktomb -> rockslide` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rocktomb; target rockslide
+- [x] `rocktomb -> rockslide` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key rocktomb; target rockslide + preview/manual/typecheck
 - [ ] `roleplay -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key roleplay; target painsplit
 - [ ] `rollingkick -> doublekick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rollingkick; target doublekick
 - [ ] `rototiller -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rototiller; target electricterrain
@@ -1032,14 +1032,14 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `secretpower -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key secretpower; target technoblast
 - [ ] `selfdestruct -> explosion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key selfdestruct; target explosion
 - [ ] `shadowstrike -> shadowforce` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shadowstrike; target shadowforce
-- [ ] `shatteredpsyche -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shatteredpsyche; target psychic
+- [x] `shatteredpsyche -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key shatteredpsyche; target psychic + preview/manual/typecheck
 - [ ] `shedtail -> substitute` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shedtail; target substitute
 - [ ] `shellsidearmphysical -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmphysical; target poisonjab
 - [ ] `shellsidearmspecial -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmspecial; target sludgebomb
 - [ ] `shelter -> withdraw` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shelter; target withdraw
 - [ ] `silverwind -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key silverwind; target whirlwind
 - [ ] `skittersmack -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key skittersmack; target megahorn
-- [ ] `slackoff -> rest` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key slackoff; target rest
+- [x] `slackoff -> rest` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key slackoff; target rest + preview/manual/typecheck
 - [ ] `sleeppowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sleeppowder; target spore
 - [ ] `smackdown -> rockblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key smackdown; target rockblast
 - [ ] `snaptrap -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key snaptrap; target magicalleaf
@@ -1063,7 +1063,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `surgingstrikes -> aquajet` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key surgingstrikes; target aquajet
 - [ ] `sweetkiss -> lovelykiss` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetkiss; target lovelykiss
 - [ ] `sweetscent -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetscent; target mistyterrain
-- [ ] `synthesis -> recover` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key synthesis; target recover
+- [x] `synthesis -> recover` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key synthesis; target recover + preview/manual/typecheck
 - [ ] `tackle -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tackle; target slam
 - [ ] `takedown -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key takedown; target gigaimpact
 - [ ] `tarshot -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tarshot; target mudbomb
@@ -1074,18 +1074,18 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `terablastbug -> bugbuzz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastbug; target bugbuzz
 - [ ] `terablastdark -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdark; target darkpulse
 - [ ] `terablastdragon -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdragon; target dragonpulse
-- [ ] `terablastelectric -> thunderbolt` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastelectric; target thunderbolt
+- [x] `terablastelectric -> thunderbolt` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastelectric; target thunderbolt + preview/manual/typecheck
 - [ ] `terablastfairy -> moonblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfairy; target moonblast
 - [ ] `terablastfighting -> focusblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfighting; target focusblast
-- [ ] `terablastfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfire; target flamethrower
+- [x] `terablastfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastfire; target flamethrower + preview/manual/typecheck
 - [ ] `terablastflying -> aeroblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastflying; target aeroblast
 - [ ] `terablastghost -> infernalparade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastghost; target infernalparade
 - [ ] `terablastgrass -> seedflare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastgrass; target seedflare
 - [ ] `terablastground -> earthpower` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastground; target earthpower
-- [ ] `terablastice -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastice; target icebeam
+- [x] `terablastice -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastice; target icebeam + preview/manual/typecheck
 - [ ] `terablastnormal -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastnormal; target technoblast
 - [ ] `terablastpoison -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastpoison; target sludgebomb
-- [ ] `terablastpsychic -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastpsychic; target psychic
+- [x] `terablastpsychic -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastpsychic; target psychic + preview/manual/typecheck
 - [ ] `terablastrock -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastrock; target powergem
 - [ ] `terablaststeel -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststeel; target flashcannon
 - [ ] `terablaststellar -> dracometeor` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststellar; target dracometeor
