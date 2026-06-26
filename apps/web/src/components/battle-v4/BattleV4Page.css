@@ -602,6 +602,69 @@
   line-height: 12px;
 }
 
+.battle-v4-switch-selector.coop {
+  grid-template-columns: 168px 1fr 168px;
+}
+
+.battle-v4-switch-team-stack {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-list {
+  grid-template-rows: 14px repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  min-height: 0;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 7px;
+  background: rgb(7 14 28 / 30%);
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-list h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 8px;
+  line-height: 14px;
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-team.self h3,
+.battle-v4-switch-selector.coop .battle-v4-switch-team.ally h3 {
+  background: linear-gradient(90deg, rgb(43 117 232 / 84%), rgb(55 190 245 / 58%));
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-team.foe h3 {
+  background: linear-gradient(90deg, rgb(218 48 87 / 86%), rgb(174 39 135 / 58%));
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-team.near .battle-v4-switch-card {
+  background: linear-gradient(90deg, rgb(46 113 222 / 88%), rgb(46 158 219 / 82%));
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-team.far .battle-v4-switch-card {
+  background: linear-gradient(90deg, rgb(198 45 79 / 88%), rgb(137 38 113 / 82%));
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-team.self .battle-v4-switch-card.operable {
+  border-color: rgb(210 251 255 / 84%);
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-card.readonly {
+  cursor: pointer;
+}
+
+.battle-v4-switch-selector.coop .battle-v4-switch-card.readonly:not(.selected) {
+  opacity: .86;
+}
+
 .battle-v4-switch-card {
   position: relative;
   min-width: 0;

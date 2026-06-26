@@ -723,6 +723,14 @@ type SwitchCandidateV4 = {
   reason: string;
 };
 
+type SwitchPanelTeamV4 = {
+  playerId: string;
+  title: string;
+  side: "near" | "far";
+  relation: "self" | "ally" | "foe";
+  candidates: SwitchCandidateV4[];
+};
+
 function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, debugConfig, onClose, onConfirm}: {
   api: ChangeBattleV2Api;
   snapshot: BattleSessionSnapshotV4;
@@ -734,32 +742,53 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
   onConfirm: (choice: string) => void;
 }) {
   const candidates = useMemo(() => buildSwitchCandidates(snapshot, switchActions, debugConfig), [snapshot, switchActions, debugConfig]);
-  const firstSelectable = candidates.find(candidate => candidate.canSwitch);
-  const [selectedKey, setSelectedKey] = useState(firstSelectable?.key || candidates.find(candidate => candidate.row || candidate.localPokemon)?.key || candidates[0]?.key || "");
-  const selected = candidates.find(candidate => candidate.key === selectedKey) || firstSelectable || candidates[0] || null;
+  const panelTeams = useMemo(() => buildSwitchPanelTeams(snapshot, candidates), [snapshot, candidates]);
+  const flatCandidates = panelTeams.flatMap(team => team.candidates);
+  const firstSelectable = flatCandidates.find(candidate => candidate.canSwitch);
+  const [selectedKey, setSelectedKey] = useState(firstSelectable?.key || flatCandidates.find(candidate => candidate.row || candidate.localPokemon)?.key || flatCandidates[0]?.key || "");
+  const selected = flatCandidates.find(candidate => candidate.key === selectedKey) || firstSelectable || flatCandidates[0] || null;
   const enemies = useMemo(() => buildEnemyRows(snapshot), [snapshot]);
+  const isCoop = snapshot.mode === "coop";
   return (
-    <section className="battle-v4-switch-selector" aria-label="换人选择">
+    <section className={`battle-v4-switch-selector ${isCoop ? "coop" : ""}`} aria-label="换人选择">
       <div className="battle-v4-switch-title">
         <span>查看状态</span>
         <strong>{forceSwitch ? "必须换人" : "选择交换对象"}</strong>
       </div>
-      <aside className="battle-v4-switch-list ally-list" aria-label="我方队伍">
-        <h3>我方队伍</h3>
-        {candidates.map(candidate => (
-          <BattleV4SwitchPartyCard
-            candidate={candidate}
-            selected={candidate.key === selected?.key}
-            onSelect={setSelectedKey}
-            key={candidate.key}
-          />
-        ))}
-      </aside>
+      {isCoop ? (
+        <>
+          <aside className="battle-v4-switch-team-stack left" aria-label="P1 和 P2 队伍">
+            {panelTeams.filter(team => team.playerId === "p1" || team.playerId === "p2").map(team => (
+              <BattleV4SwitchTeamList team={team} selectedKey={selected?.key || ""} onSelect={setSelectedKey} key={team.playerId} />
+            ))}
+          </aside>
+        </>
+      ) : (
+        <aside className="battle-v4-switch-list ally-list" aria-label="我方队伍">
+          <h3>我方队伍</h3>
+          {candidates.map(candidate => (
+            <BattleV4SwitchPartyCard
+              candidate={candidate}
+              selected={candidate.key === selected?.key}
+              onSelect={setSelectedKey}
+              key={candidate.key}
+            />
+          ))}
+        </aside>
+      )}
       <BattleV4SwitchDetailPanel api={api} candidate={selected} />
-      <aside className="battle-v4-switch-list enemy-list" aria-label="敌方队伍">
-        <h3>敌方队伍</h3>
-        {enemies.map((pokemon, index) => <BattleV4EnemyPartyCard pokemon={pokemon} index={index} key={pokemon?.localPokemonId || index} />)}
-      </aside>
+      {isCoop ? (
+        <aside className="battle-v4-switch-team-stack right" aria-label="P3 和 P4 队伍">
+          {panelTeams.filter(team => team.playerId === "p3" || team.playerId === "p4").map(team => (
+            <BattleV4SwitchTeamList team={team} selectedKey={selected?.key || ""} onSelect={setSelectedKey} key={team.playerId} />
+          ))}
+        </aside>
+      ) : (
+        <aside className="battle-v4-switch-list enemy-list" aria-label="敌方队伍">
+          <h3>敌方队伍</h3>
+          {enemies.map((pokemon, index) => <BattleV4EnemyPartyCard pokemon={pokemon} index={index} key={pokemon?.localPokemonId || index} />)}
+        </aside>
+      )}
       <footer className="battle-v4-switch-footer">
         <button type="button" disabled={busy || forceSwitch} onClick={onClose}>返回</button>
         {selected?.canSwitch && selected.action ? (
@@ -768,6 +797,22 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
           </button>
         ) : <span>{selected?.reason || "不可交换"}</span>}
       </footer>
+    </section>
+  );
+}
+
+function BattleV4SwitchTeamList({team, selectedKey, onSelect}: {team: SwitchPanelTeamV4; selectedKey: string; onSelect: (key: string) => void}) {
+  return (
+    <section className={`battle-v4-switch-list battle-v4-switch-team ${team.side} ${team.relation}`} aria-label={`${team.title}队伍`}>
+      <h3>{team.title}</h3>
+      {team.candidates.map(candidate => (
+        <BattleV4SwitchPartyCard
+          candidate={candidate}
+          selected={candidate.key === selectedKey}
+          onSelect={onSelect}
+          key={candidate.key}
+        />
+      ))}
     </section>
   );
 }
@@ -783,7 +828,7 @@ function BattleV4SwitchPartyCard({candidate, selected, onSelect}: {
   const identity = switchCandidateIdentity(candidate);
   return (
     <button
-      className={`battle-v4-switch-card ally owned ${selected ? "selected" : ""} ${candidate.active ? "active" : ""} ${candidate.fainted ? "fainted" : ""} ${candidate.status && !candidate.fainted ? "statused" : ""}`}
+      className={`battle-v4-switch-card ${candidate.canSwitch ? "operable" : "readonly"} ${selected ? "selected" : ""} ${candidate.active ? "active" : ""} ${candidate.fainted ? "fainted" : ""} ${candidate.status && !candidate.fainted ? "statused" : ""}`}
       type="button"
       onClick={() => onSelect(candidate.key)}
       title={[candidate.reason, identity ? `ID: ${identity}` : ""].filter(Boolean).join(" · ")}
@@ -964,6 +1009,84 @@ function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions:
       canSwitch: Boolean(action && !reason),
       reason,
     };
+  });
+}
+
+function buildSwitchPanelTeams(snapshot: BattleSessionSnapshotV4, selfCandidates: SwitchCandidateV4[]): SwitchPanelTeamV4[] {
+  const playerIds = ["p1", "p2", "p3", "p4"] as const;
+  const titles: Record<(typeof playerIds)[number], string> = {
+    p1: "P1 队伍",
+    p2: "P2 队伍",
+    p3: "P3 队伍",
+    p4: "P4 队伍",
+  };
+  return playerIds.map(playerId => {
+    const relation = playerId === "p1" ? "self" : playerId === "p3" ? "ally" : "foe";
+    const side = playerId === "p1" || playerId === "p3" ? "near" : "far";
+    const candidates = playerId === "p1"
+      ? selfCandidates.slice(0, 2)
+      : buildReadonlySwitchCandidatesForPlayer(snapshot, playerId, playerId === "p3" ? "ally" : "foe");
+    return {
+      playerId,
+      title: titles[playerId],
+      side,
+      relation,
+      candidates,
+    };
+  });
+}
+
+function buildReadonlySwitchCandidatesForPlayer(
+  snapshot: BattleSessionSnapshotV4,
+  playerId: "p2" | "p3" | "p4",
+  relation: "ally" | "foe",
+): SwitchCandidateV4[] {
+  const player = snapshot.players.find(entry => entry.playerId === playerId);
+  const localTeam = player?.draft.localTeam.pokemon || [];
+  const rows = snapshot.requests[playerId]?.side?.pokemon || snapshot.debug.latestSidePokemon?.[playerId] || [];
+  const mapping = player?.teamMapping || [];
+  const count = Math.max(2, Math.min(2, localTeam.length || rows.length || 2));
+  return Array.from({length: count}, (_, index) => {
+    const row = rows[index] || null;
+    const resolved = resolveLocalPokemonFromRequestRow(row, mapping, localTeam, index);
+    const localPokemon = resolved.localPokemon || localTeam[index] || null;
+    const label = localPokemon?.nameZh || localPokemon?.name || row?.name || row?.details?.split(",")[0] || row?.ident || `空位 ${index + 1}`;
+    const status = rowStatus(row) || localPokemon?.entryStatus || "";
+    const hp = hpFromCondition(row?.condition, localPokemon?.entryHp || 0);
+    const maxHp = maxHpFromCondition(row?.condition, localPokemon?.maxHp || 0);
+    const active = Boolean(row?.active || activeContainsPokemon(snapshot, playerId, localPokemon, row));
+    const fainted = Boolean(row?.fainted || row?.condition?.includes("fnt") || localPokemon && localPokemon.entryHp <= 0);
+    return {
+      key: `${playerId}-${row?.ident || localPokemon?.localPokemonId || index}`,
+      index,
+      row,
+      localPokemon,
+      action: null,
+      label,
+      status,
+      hp,
+      maxHp,
+      active,
+      fainted,
+      canSwitch: false,
+      reason: relation === "ally" ? "队友只读" : "对方只读",
+    };
+  });
+}
+
+function activeContainsPokemon(
+  snapshot: BattleSessionSnapshotV4,
+  playerId: string,
+  pokemon: LocalPokemonV4 | null,
+  row: RequestPokemonV4 | null,
+): boolean {
+  const token = pokemon?.showdownIdentityToken || pokemon?.showdownId || pokemon?.pokeballId || row?.pokeball || "";
+  const names = new Set([pokemon?.speciesId, pokemon?.name, pokemon?.nameZh, pokemon?.nickname, row?.details, row?.ident, row?.name].map(value => toId(value || "")).filter(Boolean));
+  return snapshot.active.some(active => {
+    if (active.playerId !== playerId || active.fainted) return false;
+    if (token && active.ident.includes(token)) return true;
+    const activeNames = [active.species, active.details, active.ident].map(value => toId(value || ""));
+    return activeNames.some(value => names.has(value));
   });
 }
 
