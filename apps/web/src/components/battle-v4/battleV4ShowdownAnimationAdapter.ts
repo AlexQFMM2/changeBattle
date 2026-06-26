@@ -335,6 +335,7 @@ const NATIVE_MOVE_ANIMS = new Set([
   "electroweb",
   "esperwing",
   "eruption",
+  "extremeevoboost",
   "firepunch",
   "fireblast",
   "firefang",
@@ -433,14 +434,21 @@ const NATIVE_MOVE_ANIMS = new Set([
   "dragondance",
   "electricterrain",
   "fairylock",
+  "featherdance",
+  "forestscurse",
   "firespin",
   "gigavolthavoc",
   "grassyterrain",
   "gravity",
+  "healbell",
+  "healblock",
+  "healingwish",
+  "healpulse",
   "icespinner",
   "ivycudgelfire",
   "ivycudgelrock",
   "ivycudgelwater",
+  "junglehealing",
   "kingsshield",
   "leaftornado",
   "lightscreen",
@@ -452,14 +460,24 @@ const NATIVE_MOVE_ANIMS = new Set([
   "quiverdance",
   "raindance",
   "reflect",
+  "revelationdance",
   "rockpolish",
   "safeguard",
   "shellsmash",
+  "smokescreen",
+  "spikes",
   "spikyshield",
   "stokedsparksurfer",
+  "stickyweb",
+  "substitute",
+  "tailwind",
   "technoblast",
+  "teeterdance",
+  "terrainpulse",
   "trickroom",
+  "toxicspikes",
   "victorydance",
+  "weatherball",
   "wingattack",
   "wonderroom",
   "worryseed",
@@ -877,7 +895,27 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "worryseed":
   case "fairylock":
   case "aquaring":
+  case "featherdance":
+  case "healblock":
+  case "smokescreen":
+  case "forestscurse":
     return nativeUtilityStatusSteps(actor, target, animationKey);
+  case "junglehealing":
+  case "healbell":
+  case "healingwish":
+  case "healpulse":
+    return nativeP2HealingSteps(actor, target, animationKey);
+  case "tailwind":
+    return nativeTailwindSteps(actor);
+  case "substitute":
+    return nativeSubstituteSteps(actor);
+  case "spikes":
+  case "toxicspikes":
+  case "stickyweb":
+    return nativeFieldHazardSetupSteps(actor, target, animationKey);
+  case "terrainpulse":
+  case "weatherball":
+    return nativeWeatherTerrainPulseSteps(actor, target, animationKey);
   case "raindance":
   case "grassyterrain":
   case "electricterrain":
@@ -897,6 +935,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "calmmind":
   case "nastyplot":
   case "shellsmash":
+  case "teeterdance":
     return nativeBoostDanceSteps(actor, animationKey);
   case "reflect":
   case "lightscreen":
@@ -950,6 +989,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
     return nativeSpecialWeaponSteps(actor, target, animationKey);
   case "gigavolthavoc":
   case "stokedsparksurfer":
+  case "extremeevoboost":
     return nativeZMoveSparkSteps(actor, target, animationKey);
   case "rockslide":
   case "rockblast":
@@ -1059,6 +1099,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
     return darkBiteSteps(actor, target);
   case "pursuit":
     return [showEffectStep("shadowball", {...target, scale: 0, opacity: .2}, {...target, scale: 1.5, opacity: 0}, 520, {fade: "both"}), actorAnimStep(actor, {x: leftOf(target, 20), y: target.y, z: behind(target, -20)}, 300, "ballistic2Under"), actorAnimStep(target, {x: leftOf(target, 10)}, 180, "swing")];
+  case "revelationdance":
+    return nativeRevelationDanceSteps(actor, target);
   default:
     return SUPPORTED_MOVE_ANIMS.has(animationKey) ? presetRouterSteps(animationKey, actor, target) : [];
   }
@@ -1517,6 +1559,33 @@ function nativePunchKickSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpri
 }
 
 function nativeUtilityStatusSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "featherdance") {
+    return [
+      {type: "backgroundEffect", color: "#d8f3ff", durationMs: 680, opacity: .18},
+      showEffectStep("feather", {...actor, x: actor.x - 32, y: actor.y - 26, opacity: .72}, {...target, x: target.x + 18, y: target.y - 20, scale: 1.6, opacity: 0}, 620, {fade: "both", easing: "ballistic2"}),
+      showEffectStep("feather", {...actor, x: actor.x + 22, y: actor.y - 18, opacity: .64}, {...target, x: target.x - 24, y: target.y - 12, scale: 1.5, opacity: 0}, 700, {fade: "both", easing: "ballistic2back"}),
+      {type: "resultAnim", actor: target, text: "", tone: "bad"},
+      actorAnimStep(target, {scale: .96, y: target.y + 5}, 190, "swing"),
+    ];
+  }
+  if (key === "smokescreen" || key === "healblock") {
+    const smoke = key === "smokescreen";
+    return [
+      {type: "backgroundEffect", color: smoke ? "#24212a" : "#7b2bb8", durationMs: 680, opacity: smoke ? .32 : .24},
+      showEffectStep(smoke ? "blackwisp" : "mistball", {...actor, scale: .55, opacity: .56}, {...target, scale: 2.25, opacity: 0}, 660, {fade: "both"}),
+      showEffectStep("wisp", {...target, scale: .7, opacity: .36}, {...target, scale: 2.6, opacity: 0}, 620, {fade: "both"}),
+      actorAnimStep(target, {opacity: smoke ? .76 : .9, scale: .96}, 220, "swing"),
+    ];
+  }
+  if (key === "forestscurse") {
+    return [
+      {type: "backgroundEffect", color: "#174b25", durationMs: 720, opacity: .28},
+      showEffectStep("leaf1", {...target, x: target.x - 42, y: target.y + 58, opacity: .72}, {...target, x: target.x - 8, y: target.y - 20, scale: 1.8, opacity: 0}, 680, {fade: "both"}),
+      showEffectStep("leaf2", {...target, x: target.x + 38, y: target.y + 58, opacity: .66}, {...target, x: target.x + 6, y: target.y - 24, scale: 1.8, opacity: 0}, 760, {fade: "both"}),
+      showEffectStep("blackwisp", {...target, scale: .5, opacity: .38}, {...target, scale: 2.1, opacity: 0}, 620, {fade: "both"}),
+      actorAnimStep(target, {scale: .97}, 180, "swing"),
+    ];
+  }
   if (key === "aquaring") {
     return [
       {type: "backgroundEffect", color: "#3d9dff", durationMs: 680, opacity: .2},
@@ -1548,6 +1617,87 @@ function nativeUtilityStatusSteps(actor: ShowdownSpriteActorV4, target: Showdown
     showEffectStep("wisp", {...actor, scale: .45, opacity: .5}, {...target, scale: 1.6, opacity: 0}, 560, {fade: "both"}),
     showEffectStep("shine", {...target, scale: .8, opacity: .5}, {...target, scale: 2.1, opacity: 0}, 520, {fade: "both"}),
     actorAnimStep(target, {x: leftOf(target, 8)}, 150, "swing"),
+  ];
+}
+
+function nativeP2HealingSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "healpulse") {
+    return [
+      {type: "backgroundEffect", color: "#8dffb0", durationMs: 680, opacity: .2},
+      showEffectStep("wisp", {...actor, scale: .45, opacity: .62}, {...target, scale: 1.55, opacity: .08}, 620, {fade: "both"}),
+      showEffectStep("shine", {...target, y: target.y + 36, scale: 1.2, opacity: .28}, {...target, y: target.y - 26, scale: 2.1, opacity: 0}, 640, {fade: "both"}),
+      actorAnimStep(target, {scale: 1.06}, 180, "decel"),
+      {type: "healAnim", actor: target, heal: null},
+    ];
+  }
+  const actorOnly = key === "junglehealing" || key === "healbell" || key === "healingwish";
+  const color = key === "junglehealing" ? "#69d879" : key === "healingwish" ? "#ffc7f5" : "#d8fff0";
+  const sprite = key === "junglehealing" ? "leaf1" : key === "healbell" ? "sound" : "shine";
+  return [
+    {type: "backgroundEffect", color, durationMs: key === "healingwish" ? 820 : 680, opacity: .24},
+    showEffectStep(sprite, {...actor, y: actor.y + 34, scale: 1.1, opacity: .42}, {...actor, y: actor.y - 34, scale: 2.2, opacity: 0}, 700, {fade: "both"}),
+    showEffectStep("wisp", {...actor, x: actor.x - 24, y: actor.y + 20, scale: .5, opacity: .55}, {...actor, x: actor.x + 16, y: actor.y - 46, scale: 1.4, opacity: 0}, 640, {fade: "both"}),
+    showEffectStep("wisp", {...actor, x: actor.x + 24, y: actor.y + 20, scale: .5, opacity: .48}, {...actor, x: actor.x - 16, y: actor.y - 46, scale: 1.4, opacity: 0}, 720, {fade: "both"}),
+    actorAnimStep(actor, {scale: actorOnly ? 1.08 : 1.04, y: actor.y - 6}, 200, "decel"),
+    {type: "healAnim", actor, heal: null},
+  ];
+}
+
+function nativeTailwindSteps(actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#bfefff", durationMs: 760, opacity: .22},
+    showEffectStep("wisp", {...actor, x: actor.x - 80, y: actor.y + 44, scale: .7, opacity: .42}, {...actor, x: actor.x + 82, y: actor.y - 18, scale: 2.2, opacity: 0}, 700, {fade: "both"}),
+    showEffectStep("feather", {...actor, x: actor.x - 58, y: actor.y + 10, opacity: .68}, {...actor, x: actor.x + 70, y: actor.y - 52, scale: 1.4, opacity: 0}, 760, {fade: "both"}),
+    actorAnimStep(actor, {y: actor.y - 8, scale: 1.05}, 190, "decel"),
+  ];
+}
+
+function nativeSubstituteSteps(actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#8dffb0", durationMs: 620, opacity: .18},
+    showEffectStep("pokeball", {...actor, y: actor.y - 8, scale: .55, opacity: .75}, {...actor, y: actor.y + 12, scale: 1.25, opacity: 0}, 420, {fade: "both"}),
+    showEffectStep("shine", {...actor, scale: .8, opacity: .65}, {...actor, scale: 2.6, opacity: 0}, 560, {fade: "both", explode: true}),
+    actorAnimStep(actor, {opacity: .55, scale: .88}, 180, "decel"),
+    actorAnimStep(actor, {opacity: 1, scale: 1}, 180, "swing"),
+  ];
+}
+
+function nativeFieldHazardSetupSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const toxic = key === "toxicspikes";
+  const web = key === "stickyweb";
+  const sprite = web ? "web" : toxic ? "poisoncaltrop" : "caltrop";
+  const color = web ? "#f4f7ff" : toxic ? "#8c40c8" : "#8c7255";
+  return [
+    {type: "backgroundEffect", color, durationMs: 620, opacity: .2},
+    showEffectStep(sprite, {...target, x: target.x - 58, y: target.y + 96, scale: .48, opacity: .78}, {...target, x: target.x - 42, y: target.y + 34, scale: web ? 1.25 : .96, opacity: .42}, 580, {fade: "both"}),
+    showEffectStep(sprite, {...target, x: target.x + 48, y: target.y + 100, scale: .48, opacity: .72}, {...target, x: target.x + 32, y: target.y + 36, scale: web ? 1.22 : .94, opacity: .38}, 680, {fade: "both"}),
+    showEffectStep(web ? "wisp" : "rocks", {...target, y: target.y + 92, opacity: .34}, {...target, y: target.y + 24, scale: 1.6, opacity: 0}, 680, {fade: "both"}),
+    actorAnimStep(actor, {scale: 1.04}, 170, "decel"),
+  ];
+}
+
+function nativeWeatherTerrainPulseSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const weather = key === "weatherball";
+  const color = weather ? "#d8f6ff" : "#68d878";
+  const primary = weather ? "shine" : "wisp";
+  return [
+    {type: "backgroundEffect", color, durationMs: 620, opacity: .22},
+    showEffectStep(primary, {...actor, scale: .42, opacity: .72}, {...target, scale: 1.45, opacity: .12}, 560, {fade: "both"}),
+    showEffectStep(weather ? "waterwisp" : "leaf1", {...actor, x: actor.x + 16, scale: .35, opacity: .48}, {...target, x: target.x - 18, scale: 1.2, opacity: 0}, 640, {fade: "both"}),
+    showEffectStep("impact", target, {...target, scale: 1.9, opacity: 0}, 300, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 18)}, 170, "swing"),
+  ];
+}
+
+function nativeRevelationDanceSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#ffcf5a", durationMs: 760, opacity: .26},
+    showEffectStep("rainbow", {...actor, scale: 1.2, opacity: .38}, {...actor, scale: 2.4, opacity: 0}, 520, {fade: "both"}),
+    actorAnimStep(actor, {x: leftOf(actor, 14), scale: 1.08}, 160, "swing"),
+    actorAnimStep(actor, {x: leftOf(actor, -14), scale: 1.08}, 160, "swing"),
+    showEffectStep("shine", {...actor, scale: .45, opacity: .72}, {...target, scale: 1.45, opacity: .1}, 560, {fade: "both"}),
+    showEffectStep("impact", target, {...target, scale: 2, opacity: 0}, 300, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 10), z: behind(target, 18)}, 170, "swing"),
   ];
 }
 

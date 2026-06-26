@@ -185,7 +185,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `agility` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `doubleteam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `metronome` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `teeterdance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `teeterdance` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `splash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `encore` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `attract` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
@@ -204,7 +204,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `babydolleyes` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `faketears` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `tearfullook` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `featherdance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `featherdance` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `followme` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `foresight` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `mimic` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
@@ -220,12 +220,12 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [x] `grassyterrain` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `mistyterrain` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `lifedew` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `junglehealing` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `junglehealing` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `topsyturvy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `embargo` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `healblock` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `healblock` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `flash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `tailwind` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `tailwind` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `aerialace` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `bravebird` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `acrobatics` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
@@ -262,7 +262,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `transform` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `bellydrum` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `aromatherapy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `healbell` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `healbell` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `magiccoat` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `protect` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: shield burst native timeline + preview/manual/typecheck
 - [ ] `detect` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
@@ -321,7 +321,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `luckychant` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `geomancy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `magnetrise` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `substitute` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `substitute` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `batonpass` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `calmmind` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `nastyplot` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
@@ -580,7 +580,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `spicyextract` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `sludge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `sludgewave` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `smokescreen` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `smokescreen` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `sludgebomb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `syrupbomb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `mudbomb` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
@@ -606,7 +606,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `infernalparade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `darkpulse` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `fierywrath` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `terrainpulse` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `terrainpulse` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `naturesmadness` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `ruination` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `energyball` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
@@ -615,15 +615,15 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `mistball` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `present` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `iceball` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `weatherball` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `weatherball` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `flowertrick` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `wish` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `healingwish` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `healingwish` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `stealthrock` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `gmaxsteelsurge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `spikes` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `toxicspikes` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `stickyweb` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `spikes` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `toxicspikes` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `stickyweb` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `leechseed` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `mysticalpower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `psyshock` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
@@ -709,16 +709,16 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [x] `psychoboost` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `bestow` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `finalgambit` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `forestscurse` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `forestscurse` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `trickortreat` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `healpulse` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `healpulse` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `spite` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `lockon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `mindreader` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `memento` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `spiritshackle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `brutalswing` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `revelationdance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `revelationdance` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `prismaticlaser` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `firstimpression` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `shoreup` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
@@ -752,7 +752,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [ ] `catastropika` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `sinisterarrowraid` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `oceanicoperetta` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `extremeevoboost` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `extremeevoboost` | priority: P2 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `guardianofalola` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `splinteredstormshards` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [ ] `letssnuggleforever` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
