@@ -39,6 +39,10 @@ export type BattleServiceSessionStatusV4 = "creating" | "running" | "ended" | "b
 export type BattleServicePokemonSetV4 = {
   species: string;
   name: string;
+  pokeball?: string;
+  entryHp?: number;
+  entryStatus?: string;
+  maxHp?: number;
   item?: string;
   ability: string;
   moves: string[];
@@ -51,6 +55,23 @@ export type BattleServicePokemonSetV4 = {
   teraType?: string;
 };
 
+export type ShowdownTeamPokemonMappingV4 = {
+  playerId: ShowdownPlayerIdV4;
+  teamIndex: number;
+  choiceIndex: number;
+  localPokemonId: string;
+  showdownIdentityToken: string;
+  showdownId: string;
+  pokeballId: string;
+  speciesId: string;
+  displayName: string;
+};
+
+export type ShowdownIdPoolStateV4 = {
+  used: string[];
+  available: string[];
+};
+
 export type BattleServicePlayerInputV4 = {
   playerId: ShowdownPlayerIdV4;
   name: string;
@@ -58,6 +79,7 @@ export type BattleServicePlayerInputV4 = {
   alliance: "near" | "far";
   team: BattleServicePokemonSetV4[];
   draft: TrainingPlayerDraftV4;
+  teamMapping?: ShowdownTeamPokemonMappingV4[];
 };
 
 export type BattleServiceSessionInputV4 = {
@@ -67,6 +89,7 @@ export type BattleServiceSessionInputV4 = {
   ruleSet: TrainingRuleSetV4;
   seed: string;
   players: BattleServicePlayerInputV4[];
+  showdownIdPool?: ShowdownIdPoolStateV4;
 };
 
 export type BattleServiceMoveRequestV4 = {
@@ -136,6 +159,7 @@ export type BattleServiceSnapshotV4 = {
   winner: ShowdownPlayerIdV4 | null;
   error: string | null;
   players: BattleServicePlayerInputV4[];
+  showdownIdPool?: ShowdownIdPoolStateV4;
   requests: Partial<Record<ShowdownPlayerIdV4, BattleServiceRequestV4>>;
   active: BattleServiceActivePokemonV4[];
   rawLog: string[];
@@ -161,6 +185,10 @@ export type BattleServiceApiV4 = {
 };
 
 export type LocalPokemonLikeForBattleV4 = {
+  localPokemonId?: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
   speciesId: string;
   name: string;
   nameZh: string;
@@ -174,4 +202,7 @@ export type LocalPokemonLikeForBattleV4 = {
   nature: string;
   evs: Record<string, number>;
   ivs: Record<string, number>;
+  entryHp?: number;
+  entryStatus?: string;
+  maxHp?: number;
 };

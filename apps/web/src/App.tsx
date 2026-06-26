@@ -5,6 +5,7 @@ import {
   createBrowserTrainingRunAdapter,
   createChangeBattleV2Api,
   createDesktopUserProfileAdapter,
+  type AppDebugConfigV4,
   type DesktopUserProfileBridge,
   type TrainingRunGameV4,
   type UserProfileDraftV2,
@@ -23,6 +24,16 @@ import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransi
 
 type AppProps = {
   runtime: "web" | "desktop";
+};
+
+const isDebug = true;
+const APP_DEBUG_CONFIG_V4: AppDebugConfigV4 = {
+  isDebug,
+  battle: true,
+  command: true,
+  mapping: true,
+  protocol: true,
+  ui: true,
 };
 
 type ChangeBattleV2Window = Window & {
@@ -279,6 +290,7 @@ function RoutedApp({runtime}: AppProps) {
         api={api}
         run={trainingRun}
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:battle-session`) || ""}
+        debugConfig={APP_DEBUG_CONFIG_V4}
         onRunChange={setTrainingRun}
         onBackToRest={() => navigate("/training/rest", {replace: true})}
       />

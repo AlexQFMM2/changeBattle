@@ -7,6 +7,7 @@ import type {
   TrainingRunGameNodeV4,
   TrainingRunGameV4,
 } from "./training.js";
+import {battleDebugLog} from "./battleDebug.js";
 
 export type BattleRequestTypeV4 = "move" | "switch" | "team" | "wait";
 
@@ -69,6 +70,7 @@ export type BattleRequestV4 = {
       ability?: string;
       name?: string;
       fainted?: boolean;
+      pokeball?: string;
     }>;
   };
   ally?: {
@@ -84,9 +86,101 @@ export type BattleRequestV4 = {
       ability?: string;
       name?: string;
       fainted?: boolean;
+      pokeball?: string;
     }>;
   };
 };
+
+export type RequestSidePokemonV4 = NonNullable<BattleRequestV4["side"]>["pokemon"][number];
+
+export type ShowdownTeamPokemonMappingV4 = {
+  playerId: ShowdownPlayerIdV4;
+  teamIndex: number;
+  choiceIndex: number;
+  localPokemonId: string;
+  showdownIdentityToken: string;
+  showdownId: string;
+  pokeballId: string;
+  speciesId: string;
+  displayName: string;
+};
+
+export type ShowdownIdPoolStateV4 = {
+  used: string[];
+  available: string[];
+};
+
+export type LocalPokemonResolutionV4 = {
+  localPokemon: LocalPokemonV4 | null;
+  mapping: ShowdownTeamPokemonMappingV4 | null;
+  teamIndex: number;
+  choiceIndex: number;
+  token: string;
+  fallbackReason: string;
+};
+
+export function resolveLocalPokemonFromRequestRow(
+  row: RequestSidePokemonV4 | null | undefined,
+  mapping: ShowdownTeamPokemonMappingV4[] | null | undefined,
+  localTeam: LocalPokemonV4[],
+  index: number,
+): LocalPokemonResolutionV4 {
+  const safeMapping = mapping || [];
+  const choiceIndex = index + 1;
+  const rowToken = toId(row?.pokeball || "");
+  if (rowToken) {
+    const byToken = safeMapping.find(entry =>
+      toId(entry.showdownIdentityToken) === rowToken ||
+      toId(entry.showdownId) === rowToken ||
+      toId(entry.pokeballId) === rowToken
+    );
+    if (byToken) {
+      return resolutionFromMapping(byToken, localTeam, "token");
+    }
+  }
+
+  const byIndex = safeMapping.find(entry => entry.choiceIndex === choiceIndex || entry.teamIndex === index);
+  if (byIndex) {
+    return resolutionFromMapping(byIndex, localTeam, rowToken ? "token-miss-index" : "index");
+  }
+
+  if (row) {
+    const wanted = new Set([row.name, row.ident.split(":").pop() || "", row.details.split(",")[0] || ""].map(value => toId(value)).filter(Boolean));
+    const localPokemon = localTeam.find(pokemon => [pokemon.speciesId, pokemon.name, pokemon.nameZh, pokemon.nickname].some(value => wanted.has(toId(value || "")))) || null;
+    if (localPokemon) {
+      return {
+        localPokemon,
+        mapping: null,
+        teamIndex: localTeam.indexOf(localPokemon),
+        choiceIndex,
+        token: rowToken,
+        fallbackReason: "name-species",
+      };
+    }
+  }
+
+  const byLocalIndex = localTeam[index] || null;
+  return {
+    localPokemon: byLocalIndex,
+    mapping: null,
+    teamIndex: byLocalIndex ? index : -1,
+    choiceIndex,
+    token: rowToken,
+    fallbackReason: byLocalIndex ? "local-index" : "unresolved",
+  };
+}
+
+function resolutionFromMapping(mapping: ShowdownTeamPokemonMappingV4, localTeam: LocalPokemonV4[], fallbackReason: string): LocalPokemonResolutionV4 {
+  const localPokemon = localTeam.find(pokemon => pokemon.localPokemonId === mapping.localPokemonId) || localTeam[mapping.teamIndex] || null;
+  return {
+    localPokemon,
+    mapping,
+    teamIndex: mapping.teamIndex,
+    choiceIndex: mapping.choiceIndex,
+    token: mapping.showdownIdentityToken,
+    fallbackReason,
+  };
+}
 
 export type BattleServicePlayerInputV4 = {
   playerId: ShowdownPlayerIdV4;
@@ -95,11 +189,16 @@ export type BattleServicePlayerInputV4 = {
   alliance: "near" | "far";
   team: BattlePokemonSetV4[];
   draft: TrainingPlayerDraftV4;
+  teamMapping?: ShowdownTeamPokemonMappingV4[];
 };
 
 export type BattlePokemonSetV4 = {
   species: string;
   name: string;
+  pokeball?: string;
+  entryHp?: number;
+  entryStatus?: string;
+  maxHp?: number;
   item?: string;
   ability: string;
   moves: string[];
@@ -118,6 +217,7 @@ export type BattleSessionCreateInputV4 = {
   ruleSet: TrainingRuleSetV4;
   seed: string;
   players: BattleServicePlayerInputV4[];
+  showdownIdPool: ShowdownIdPoolStateV4;
 };
 
 export type BattleActivePokemonV4 = {
@@ -144,6 +244,7 @@ export type BattleSessionSnapshotV4 = {
   winner: ShowdownPlayerIdV4 | null;
   error: string | null;
   players: BattleServicePlayerInputV4[];
+  showdownIdPool?: ShowdownIdPoolStateV4;
   requests: Partial<Record<ShowdownPlayerIdV4, BattleRequestV4>>;
   active: BattleActivePokemonV4[];
   rawLog: string[];
@@ -170,6 +271,7 @@ export type BattleCommandStateV4 = {
   requestLength: number;
   activePokemon: {ident: string; name: string; details: string; condition: string} | null;
   actions: BattleCommandActionV4[];
+  switchActions: Array<Extract<BattleCommandActionV4, {kind: "switch"}>>;
   request: BattleRequestV4 | null;
 };
 
@@ -178,6 +280,10 @@ export type BattleViewSlotV4 = {
   playerId: ShowdownPlayerIdV4;
   side: "near" | "far";
   position: "A" | "B";
+  localPokemonId: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
   active: boolean;
   fainted: boolean;
   name: string;
@@ -193,6 +299,7 @@ export type BattleViewSlotV4 = {
   frontShinySpriteUrl: string;
   backShinySpriteUrl: string;
   iconUrl: string;
+  iconStyle?: string;
   teamBallStates: Array<"normal" | "status" | "fainted" | "empty">;
 };
 
@@ -220,6 +327,33 @@ export type BattleServiceClientV4 = {
 
 export const DEFAULT_BATTLE_SERVICE_URL = "http://127.0.0.1:5191";
 
+export const SHOWDOWN_ID_POOL_V4 = [
+  "pokeball",
+  "greatball",
+  "ultraball",
+  "masterball",
+  "premierball",
+  "luxuryball",
+  "duskball",
+  "healball",
+  "quickball",
+  "timerball",
+  "repeatball",
+  "netball",
+  "nestball",
+  "diveball",
+  "cherishball",
+  "fastball",
+  "friendball",
+  "heavyball",
+  "levelball",
+  "loveball",
+  "lureball",
+  "moonball",
+  "dreamball",
+  "beastball",
+] as const;
+
 export function createBattleServiceClient(baseUrl = DEFAULT_BATTLE_SERVICE_URL): BattleServiceClientV4 {
   const root = baseUrl.replace(/\/$/, "");
   return {
@@ -240,10 +374,12 @@ export function createBattleServiceClient(baseUrl = DEFAULT_BATTLE_SERVICE_URL):
 
 export function createBattleGameFromTrainingNode(run: TrainingRunGameV4, node: TrainingRunGameNodeV4): {battleGame: BattleGameV4; sessionInput: BattleSessionCreateInputV4} {
   const now = new Date().toISOString();
+  const showdownIdPool = createShowdownIdPoolState();
+  const usedShowdownIdentityTokens = new Set(showdownIdPool.used);
   const players = playerIdsForNode(node)
     .map(playerId => node.participants?.[playerId] || run.players[playerId])
     .filter(Boolean)
-    .map(player => compilePlayer(player!));
+    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool));
   return {
     battleGame: {
       id: createId("battle-game"),
@@ -262,6 +398,7 @@ export function createBattleGameFromTrainingNode(run: TrainingRunGameV4, node: T
       ruleSet: node.ruleSet,
       seed: node.seed,
       players,
+      showdownIdPool,
     },
   };
 }
@@ -286,6 +423,7 @@ export function projectBattleViewModelV4(snapshot: BattleSessionSnapshotV4, loca
 
 export function applyBattleSessionToRun(run: TrainingRunGameV4, snapshot: BattleSessionSnapshotV4): TrainingRunGameV4 {
   const won = snapshot.winner === "p1" || snapshot.winner === "p3";
+  const syncedPlayers = snapshot.status === "ended" ? syncLocalTeamsFromBattleSnapshot(run.players, snapshot) : run.players;
   const nextGameMap = run.gameMap.map(node => {
     if (node.id !== snapshot.nodeId) return node;
     return {
@@ -305,6 +443,7 @@ export function applyBattleSessionToRun(run: TrainingRunGameV4, snapshot: Battle
   return {
     ...run,
     status: snapshot.status === "ended" ? (won ? "resting" : "ended") : "battling",
+    players: syncedPlayers,
     currentNodeId: snapshot.status === "ended" && won ? (nextGameMap[currentIndex + 1]?.id || run.currentNodeId) : run.currentNodeId,
     gameMap: nextGameMap,
     result: snapshot.status === "ended" && !won ? {outcome: "loss", reason: "训练场战斗失败"} : run.result,
@@ -312,11 +451,91 @@ export function applyBattleSessionToRun(run: TrainingRunGameV4, snapshot: Battle
   };
 }
 
+function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"], snapshot: BattleSessionSnapshotV4): TrainingRunGameV4["players"] {
+  let changed = false;
+  const nextPlayers = {...players};
+  for (const snapshotPlayer of snapshot.players) {
+    const runPlayer = nextPlayers[snapshotPlayer.playerId];
+    const rows = snapshot.requests[snapshotPlayer.playerId]?.side?.pokemon || [];
+    if (!runPlayer || !rows.length) continue;
+    const nextTeam = [...runPlayer.localTeam.pokemon];
+    rows.forEach((row, requestIndex) => {
+      const resolved = resolveLocalPokemonFromRequestRow(row, snapshotPlayer.teamMapping, snapshotPlayer.draft.localTeam.pokemon, requestIndex);
+      if (!resolved.mapping || !resolved.localPokemon || resolved.fallbackReason !== "token") {
+        battleDebugLog(true, "error", "sync-local-team-unresolved", {
+          playerId: snapshotPlayer.playerId,
+          requestIndex,
+          row,
+          fallbackReason: resolved.fallbackReason,
+          resolvedLocalPokemonId: resolved.localPokemon?.localPokemonId || null,
+        });
+        return;
+      }
+      const targetIndex = resolved.mapping.teamIndex;
+      const current = nextTeam[targetIndex];
+      if (!current || current.localPokemonId !== resolved.mapping.localPokemonId) {
+        battleDebugLog(true, "error", "sync-local-team-unresolved", {
+          playerId: snapshotPlayer.playerId,
+          requestIndex,
+          teamIndex: targetIndex,
+          expectedLocalPokemonId: resolved.mapping.localPokemonId,
+          actualLocalPokemonId: current?.localPokemonId || null,
+          fallbackReason: "run-team-mismatch",
+        });
+        return;
+      }
+      const parsed = parseSideCondition(row.condition, current.maxHp);
+      const updated = {
+        ...current,
+        entryHp: parsed.hp,
+        entryStatus: parsed.status,
+      };
+      nextTeam[targetIndex] = updated;
+      changed = true;
+      battleDebugLog(true, "mapping", "sync-local-team-after-battle", {
+        playerId: snapshotPlayer.playerId,
+        teamIndex: targetIndex,
+        localPokemonId: current.localPokemonId,
+        showdownIdentityToken: resolved.mapping.showdownIdentityToken,
+        before: {hp: current.entryHp, status: current.entryStatus},
+        after: {hp: updated.entryHp, status: updated.entryStatus},
+        sourceCondition: row.condition,
+        fallbackReason: resolved.fallbackReason,
+      });
+    });
+    nextPlayers[snapshotPlayer.playerId] = {
+      ...runPlayer,
+      localTeam: {
+        ...runPlayer.localTeam,
+        pokemon: nextTeam,
+      },
+    };
+  }
+  return changed ? nextPlayers : players;
+}
+
+function parseSideCondition(condition: string | undefined, maxHp: number): {hp: number; status: LocalPokemonV4["entryStatus"]} {
+  if (!condition) return {hp: maxHp, status: ""};
+  if (condition.includes("fnt")) return {hp: 0, status: ""};
+  const [hpText, statusText = ""] = condition.split(" ");
+  const [hpRaw] = (hpText || "").split("/");
+  return {
+    hp: Math.max(0, Math.min(maxHp, Number(hpRaw) || 0)),
+    status: normalizeBattleStatus(statusText),
+  };
+}
+
+function normalizeBattleStatus(status: string): LocalPokemonV4["entryStatus"] {
+  if (status === "brn" || status === "par" || status === "psn" || status === "tox" || status === "slp" || status === "frz") return status;
+  return "";
+}
+
 function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4): BattleCommandStateV4 {
   if (!request) return emptyCommandState(playerId);
   const requestType = requestTypeFor(request);
   const activeIndex = firstActionableActiveIndex(request);
   const requestLength = request.forceSwitch?.length || request.active?.length || (mode === "doubles" ? 2 : 1);
+  const switchActions = requestType === "move" || requestType === "switch" ? buildSwitchActions(request) : [];
   const base = {
     playerId,
     waiting: requestType === "wait",
@@ -326,6 +545,7 @@ function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPl
     activeIndex,
     requestLength,
     activePokemon: activePokemonForRequest(request, activeIndex),
+    switchActions,
     request,
   };
 
@@ -374,6 +594,7 @@ function emptyCommandState(playerId: ShowdownPlayerIdV4): BattleCommandStateV4 {
     requestLength: 0,
     activePokemon: null,
     actions: [],
+    switchActions: [],
     request: null,
   };
 }
@@ -428,12 +649,14 @@ function buildMoveChoice(request: BattleRequestV4, activeIndex: number, moveInde
 function buildSwitchActions(request: BattleRequestV4): Array<Extract<BattleCommandActionV4, {kind: "switch"}>> {
   const requestLength = request.forceSwitch?.length || request.active?.length || 1;
   const trapped = request.active?.[0]?.trapped;
-  return (request.side?.pokemon || []).map((pokemon, index) => ({
+  const sidePokemon = request.side?.pokemon || [];
+  const hasActiveFlags = sidePokemon.some(pokemon => pokemon.active);
+  return sidePokemon.map((pokemon, index) => ({
     kind: "switch" as const,
     label: pokemon.name || pokemon.details.split(",")[0] || pokemon.ident,
     choice: buildSwitchChoice(request, index),
     pokemonIndex: index,
-    disabled: Boolean(trapped || index < requestLength || pokemon.fainted || pokemon.condition.includes("fnt")),
+    disabled: Boolean(trapped || (hasActiveFlags ? pokemon.active : index < requestLength) || pokemon.fainted || pokemon.condition.includes("fnt")),
   })).filter(action => !action.disabled);
 }
 
@@ -458,9 +681,13 @@ function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {
       .filter(active => active.playerId === player.playerId)
       .sort((a, b) => a.slot.localeCompare(b.slot));
     const team = player.draft.localTeam.pokemon;
+    const requestRows = snapshot.requests[player.playerId]?.side?.pokemon || [];
     if (playerActives.length) {
       return playerActives.map((active, index) => {
-        const activePokemon = findTeamPokemon(team, active.species) || team[index] || team[0];
+        const rowIndex = findRequestRowIndexForActive(requestRows, active, index);
+        const row = rowIndex >= 0 ? requestRows[rowIndex]! : null;
+        const resolved = resolveLocalPokemonFromRequestRow(row, player.teamMapping, team, rowIndex >= 0 ? rowIndex : index);
+        const activePokemon = resolved.localPokemon || findTeamPokemon(team, active.species) || team[index] || team[0];
         return activePokemon ? pokemonToSlot(player.playerId, side, activePokemon, active, true, team, seatForActive(player.playerId, active, index), playerActives) : null;
       }).filter(Boolean) as BattleViewSlotV4[];
     }
@@ -477,6 +704,10 @@ function pokemonToSlot(playerId: ShowdownPlayerIdV4, side: "near" | "far", pokem
     playerId,
     side,
     position: seat.endsWith("B") ? "B" : "A",
+    localPokemonId: pokemon.localPokemonId,
+    showdownIdentityToken: pokemon.showdownIdentityToken,
+    showdownId: pokemon.showdownId,
+    pokeballId: pokemon.pokeballId,
     active: isActive,
     fainted: active?.fainted ?? pokemon.entryHp <= 0,
     name: pokemon.name,
@@ -494,6 +725,7 @@ function pokemonToSlot(playerId: ShowdownPlayerIdV4, side: "near" | "far", pokem
     frontShinySpriteUrl: firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl),
     backShinySpriteUrl: firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl),
     iconUrl: pokemon.iconUrl || pokemon.spriteUrl || "",
+    iconStyle: pokemon.iconStyle,
     teamBallStates: buildTeamBallStates(team, actives),
   };
 }
@@ -524,14 +756,19 @@ function findTeamPokemon(team: LocalPokemonV4[], species: string): LocalPokemonV
   return team.find(pokemon => toId(pokemon.name) === wanted || toId(pokemon.nameZh) === wanted || toId(pokemon.speciesId) === wanted);
 }
 
-function compilePlayer(player: TrainingPlayerDraftV4): BattleServicePlayerInputV4 {
+function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState()): BattleServicePlayerInputV4 {
+  const identity = createPlayerBattleIdentity(player, usedShowdownIdentityTokens, showdownIdPool);
   return {
     playerId: player.playerId,
     name: player.name,
     controller: player.controller,
     alliance: player.alliance,
-    team: player.localTeam.pokemon.map(compilePokemon),
-    draft: player,
+    team: identity.localTeam.pokemon.map(compilePokemon),
+    draft: {
+      ...player,
+      localTeam: identity.localTeam,
+    },
+    teamMapping: identity.teamMapping,
   };
 }
 
@@ -539,6 +776,10 @@ function compilePokemon(pokemon: LocalPokemonV4): BattlePokemonSetV4 {
   return {
     species: pokemon.speciesId,
     name: pokemon.nickname || pokemon.name || pokemon.nameZh,
+    pokeball: pokemon.showdownIdentityToken || pokemon.showdownId || pokemon.pokeballId,
+    entryHp: pokemon.entryHp,
+    entryStatus: pokemon.entryStatus,
+    maxHp: pokemon.maxHp,
     item: pokemon.itemId || undefined,
     ability: pokemon.abilityId || "No Ability",
     moves: pokemon.moves.map(move => move.moveId).filter(Boolean).slice(0, 4),
@@ -549,6 +790,63 @@ function compilePokemon(pokemon: LocalPokemonV4): BattlePokemonSetV4 {
     shiny: pokemon.shiny,
     level: pokemon.level,
   };
+}
+
+function createPlayerBattleIdentity(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string>, showdownIdPool: ShowdownIdPoolStateV4): {localTeam: TrainingPlayerDraftV4["localTeam"]; teamMapping: ShowdownTeamPokemonMappingV4[]} {
+  const pokemon = player.localTeam.pokemon.map((entry, teamIndex) => {
+    const showdownIdentityToken = takeShowdownIdentityToken(usedShowdownIdentityTokens, showdownIdPool);
+    return {
+      ...entry,
+      showdownIdentityToken,
+      showdownId: showdownIdentityToken,
+      pokeballId: showdownIdentityToken,
+    };
+  });
+  return {
+    localTeam: {
+      ...player.localTeam,
+      pokemon,
+    },
+    teamMapping: pokemon.map((entry, teamIndex) => ({
+      playerId: player.playerId,
+      teamIndex,
+      choiceIndex: teamIndex + 1,
+      localPokemonId: entry.localPokemonId,
+      showdownIdentityToken: entry.showdownIdentityToken!,
+      showdownId: entry.showdownId!,
+      pokeballId: entry.pokeballId!,
+      speciesId: entry.speciesId,
+      displayName: entry.nickname || entry.nameZh || entry.name || entry.speciesId,
+    })),
+  };
+}
+
+function createShowdownIdPoolState(): ShowdownIdPoolStateV4 {
+  return {
+    used: [],
+    available: [...SHOWDOWN_ID_POOL_V4],
+  };
+}
+
+function takeShowdownIdentityToken(used: Set<string>, pool: ShowdownIdPoolStateV4): string {
+  const token = pool.available.find(candidate => !used.has(candidate));
+  if (!token) throw new Error("Showdown ID pool exhausted while creating Battle V4 session.");
+  used.add(token);
+  pool.used = [...pool.used, token];
+  pool.available = pool.available.filter(candidate => candidate !== token);
+  return token;
+}
+
+function findRequestRowIndexForActive(requestRows: RequestSidePokemonV4[], active: BattleActivePokemonV4, fallbackIndex: number): number {
+  const activeName = toId(active.species || active.ident.split(":").pop() || "");
+  const activeIdentName = toId(active.ident.split(":").pop() || "");
+  const activeRowIndex = requestRows.findIndex(row => row.active && (
+    toId(row.details.split(",")[0] || "") === activeName ||
+    toId(row.name || "") === activeName ||
+    toId(row.ident.split(":").pop() || "") === activeIdentName
+  ));
+  if (activeRowIndex >= 0) return activeRowIndex;
+  return requestRows[fallbackIndex] ? fallbackIndex : -1;
 }
 
 function playerIdsForNode(node: TrainingRunGameNodeV4): ShowdownPlayerIdV4[] {
@@ -587,6 +885,6 @@ function createId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function toId(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+function toId(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }

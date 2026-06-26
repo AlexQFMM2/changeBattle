@@ -11,6 +11,8 @@ import type {
   BattleServiceSessionInputV4,
   BattleServiceSnapshotV4,
   BattleServiceSubmitChoiceInputV4,
+  ShowdownIdPoolStateV4,
+  ShowdownTeamPokemonMappingV4,
   ShowdownPlayerIdV4,
   LocalPokemonLikeForBattleV4,
 } from "./types.js";
@@ -43,14 +45,42 @@ type RuntimeSession = {
 
 const sessions = new Map<string, RuntimeSession>();
 const HUMAN_PLAYERS = new Set<ShowdownPlayerIdV4>(["p1"]);
+const SHOWDOWN_ID_POOL_V4 = [
+  "pokeball",
+  "greatball",
+  "ultraball",
+  "masterball",
+  "premierball",
+  "luxuryball",
+  "duskball",
+  "healball",
+  "quickball",
+  "timerball",
+  "repeatball",
+  "netball",
+  "nestball",
+  "diveball",
+  "cherishball",
+  "fastball",
+  "friendball",
+  "heavyball",
+  "levelball",
+  "loveball",
+  "lureball",
+  "moonball",
+  "dreamball",
+  "beastball",
+] as const;
 
 export function compileBattleSessionInput(input: BattleServiceCreateInputV4 | BattleServiceSessionInputV4): BattleServiceSessionInputV4 {
   if ("nodeId" in input) return input;
   const nodePlayers = input.node.participants || {};
+  const showdownIdPool = createShowdownIdPoolState();
+  const usedShowdownIdentityTokens = new Set(showdownIdPool.used);
   const players = playerIdsForNode(input.node)
     .map(playerId => nodePlayers[playerId] || input.players[playerId])
     .filter(Boolean)
-    .map(player => compilePlayer(player!));
+    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool));
   return {
     runId: input.runId,
     nodeId: input.node.id,
@@ -58,6 +88,7 @@ export function compileBattleSessionInput(input: BattleServiceCreateInputV4 | Ba
     ruleSet: input.node.ruleSet,
     seed: input.node.seed,
     players,
+    showdownIdPool,
   };
 }
 
@@ -104,6 +135,7 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
       winner: null,
       error: null,
       players: compiled.players,
+      showdownIdPool: compiled.showdownIdPool,
       requests: {},
       active: [],
       rawLog: [],
@@ -119,7 +151,9 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
   await streams.omniscient.write(startInput);
   session.snapshot.status = "running";
   touch(session);
+  await applyInitialPokemonState(session, compiled);
   await waitForRequests(session, 900);
+  await submitTeamPreviewChoices(session);
   await submitAiChoices(session);
   return clone(session.snapshot);
 }
@@ -139,6 +173,7 @@ export async function submitChoice(input: BattleServiceSubmitChoiceInputV4): Pro
   }
   touch(session);
   await waitForRequests(session, 600);
+  await submitTeamPreviewChoices(session);
   await submitAiChoices(session);
   return clone(session.snapshot);
 }
@@ -198,8 +233,70 @@ async function submitAiChoices(session: RuntimeSession): Promise<void> {
   }
 }
 
+async function applyInitialPokemonState(session: RuntimeSession, input: BattleServiceSessionInputV4): Promise<void> {
+  const commands: string[] = [];
+  for (const player of input.players) {
+    for (const [index, pokemon] of player.team.entries()) {
+      const slot = index + 1;
+      const hp = normalizeInitialHp(pokemon);
+      if (hp !== null) commands.push(`>editbattle hp ${player.playerId}, ${slot}, ${hp}`);
+      const status = normalizeInitialStatus(pokemon.entryStatus);
+      if (status) commands.push(`>eval ${initialStatusEval(player.playerId, slot, status)}`);
+    }
+  }
+  if (!commands.length) return;
+  const inputLog = commands.join("\n");
+  session.snapshot.debug.inputLog.push(inputLog);
+  await session.streams.omniscient.write(inputLog);
+  touch(session);
+  await new Promise(resolve => setTimeout(resolve, 25));
+}
+
+function normalizeInitialHp(pokemon: BattleServicePokemonSetV4): number | null {
+  if (pokemon.entryHp === undefined || pokemon.entryHp === null) return null;
+  const fallbackMax = Math.max(1, Number(pokemon.maxHp || pokemon.entryHp || 1));
+  const hp = Math.max(0, Math.min(fallbackMax, Math.round(Number(pokemon.entryHp))));
+  return hp < fallbackMax ? hp : null;
+}
+
+function normalizeInitialStatus(status: string | undefined): string {
+  const value = String(status || "").toLowerCase();
+  return value === "brn" || value === "par" || value === "psn" || value === "tox" || value === "slp" || value === "frz" ? value : "";
+}
+
+function initialStatusEval(playerId: ShowdownPlayerIdV4, slot: number, status: string): string {
+  const sideIndex = Number(playerId.slice(1)) - 1;
+  const pokemonIndex = Math.max(0, slot - 1);
+  const duration = status === "slp" ? "; p.statusState.time = 2; p.statusState.startTime = 2" : "";
+  return [
+    `const p = battle.sides[${sideIndex}].pokemon[${pokemonIndex}]`,
+    `p.status = '${status}'`,
+    `p.statusState = battle.initEffectState({id: '${status}', target: p})${duration}`,
+    `if (p.isActive) battle.add('-status', p, '${status}', '[silent]')`,
+    "'ok'",
+  ].join("; ");
+}
+
+async function submitTeamPreviewChoices(session: RuntimeSession): Promise<void> {
+  for (let guard = 0; guard < 4 && session.snapshot.status === "running"; guard += 1) {
+    const pending = session.snapshot.players
+      .map(player => ({playerId: player.playerId, request: session.snapshot.requests[player.playerId]}))
+      .filter(entry => entry.request?.teamPreview)
+      .map(entry => ({playerId: entry.playerId, choice: randomLegalChoice(entry.request)}));
+    if (!pending.length) return;
+    for (const entry of pending) {
+      if (!entry.choice) continue;
+      session.snapshot.debug.lastChoices.push({playerId: entry.playerId, choice: entry.choice, at: new Date().toISOString()});
+      session.snapshot.debug.inputLog.push(`>${entry.playerId} ${entry.choice}`);
+      await session.streams[entry.playerId].write(entry.choice);
+    }
+    touch(session);
+    await waitForRequests(session, 700);
+  }
+}
+
 function shouldAutoChoose(request: BattleServiceRequestV4 | undefined): boolean {
-  return Boolean(request && !request.wait);
+  return Boolean(request && !request.wait && !request.teamPreview);
 }
 
 function attachReaders(session: RuntimeSession): void {
@@ -354,14 +451,19 @@ function buildStartInput(input: BattleServiceSessionInputV4): string {
   return lines.join("\n");
 }
 
-function compilePlayer(player: TrainingPlayerDraftV4): BattleServicePlayerInputV4 {
+function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState()): BattleServicePlayerInputV4 {
+  const identity = createPlayerBattleIdentity(player, usedShowdownIdentityTokens, showdownIdPool);
   return {
     playerId: player.playerId,
     name: player.name || player.playerId,
     controller: player.controller,
     alliance: player.alliance,
-    team: player.localTeam.pokemon.map(compilePokemonSet),
-    draft: player,
+    team: identity.localTeam.pokemon.map(compilePokemonSet),
+    draft: {
+      ...player,
+      localTeam: identity.localTeam,
+    },
+    teamMapping: identity.teamMapping,
   };
 }
 
@@ -369,6 +471,10 @@ function compilePokemonSet(pokemon: LocalPokemonLikeForBattleV4): BattleServiceP
   return {
     species: pokemon.speciesId,
     name: pokemon.nickname || pokemon.name || pokemon.nameZh || pokemon.speciesId,
+    pokeball: pokemon.showdownIdentityToken || pokemon.showdownId || pokemon.pokeballId,
+    entryHp: pokemon.entryHp,
+    entryStatus: pokemon.entryStatus,
+    maxHp: pokemon.maxHp,
     item: pokemon.itemId || undefined,
     ability: pokemon.abilityId || "No Ability",
     moves: pokemon.moves.map((move: {moveId: string}) => move.moveId).filter(Boolean).slice(0, 4),
@@ -379,6 +485,61 @@ function compilePokemonSet(pokemon: LocalPokemonLikeForBattleV4): BattleServiceP
     shiny: pokemon.shiny,
     level: pokemon.level || 50,
   };
+}
+
+function createPlayerBattleIdentity(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string>, showdownIdPool: ShowdownIdPoolStateV4): {localTeam: TrainingPlayerDraftV4["localTeam"]; teamMapping: ShowdownTeamPokemonMappingV4[]} {
+  const pokemon = player.localTeam.pokemon.map((entry, teamIndex) => {
+    const existingToken = normalizeIdentityToken(entry.showdownIdentityToken || entry.showdownId || entry.pokeballId);
+    const showdownIdentityToken = existingToken && !usedShowdownIdentityTokens.has(existingToken)
+      ? existingToken
+      : takeShowdownIdentityToken(usedShowdownIdentityTokens, showdownIdPool);
+    usedShowdownIdentityTokens.add(showdownIdentityToken);
+    if (!showdownIdPool.used.includes(showdownIdentityToken)) showdownIdPool.used = [...showdownIdPool.used, showdownIdentityToken];
+    showdownIdPool.available = showdownIdPool.available.filter(candidate => candidate !== showdownIdentityToken);
+    return {
+      ...entry,
+      showdownIdentityToken,
+      showdownId: showdownIdentityToken,
+      pokeballId: showdownIdentityToken,
+    };
+  });
+  return {
+    localTeam: {
+      ...player.localTeam,
+      pokemon,
+    },
+    teamMapping: pokemon.map((entry, teamIndex) => ({
+      playerId: player.playerId,
+      teamIndex,
+      choiceIndex: teamIndex + 1,
+      localPokemonId: entry.localPokemonId || `${player.playerId}-${teamIndex + 1}`,
+      showdownIdentityToken: entry.showdownIdentityToken!,
+      showdownId: entry.showdownId!,
+      pokeballId: entry.pokeballId!,
+      speciesId: entry.speciesId,
+      displayName: entry.nickname || entry.nameZh || entry.name || entry.speciesId,
+    })),
+  };
+}
+
+function createShowdownIdPoolState(): ShowdownIdPoolStateV4 {
+  return {
+    used: [],
+    available: [...SHOWDOWN_ID_POOL_V4],
+  };
+}
+
+function takeShowdownIdentityToken(used: Set<string>, pool: ShowdownIdPoolStateV4): string {
+  const token = pool.available.find(candidate => !used.has(candidate));
+  if (!token) throw new Error("Showdown ID pool exhausted while creating Battle V4 session.");
+  used.add(token);
+  pool.used = [...pool.used, token];
+  pool.available = pool.available.filter(candidate => candidate !== token);
+  return token;
+}
+
+function normalizeIdentityToken(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function playerIdsForNode(node: TrainingRunGameNodeV4): ShowdownPlayerIdV4[] {

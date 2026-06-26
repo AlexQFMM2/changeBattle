@@ -264,6 +264,7 @@ export type ChangeBattleV2Api = ReturnType<typeof createChangeBattleV2Api>;
 export {useDexHook} from "./useDexHook.js";
 export type {AbilityInfo, ItemInfo, MoveInfo, PokemonInfo, UseDexHookOptions} from "./useDexHook.js";
 export * from "./battle.js";
+export * from "./battleDebug.js";
 export * from "./training.js";
 export {createBrowserTrainingRunAdapter, createTrainingNpcCatalog, createTrainingRunApi} from "./training.js";
 export type * from "./training.js";

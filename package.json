@@ -8,6 +8,7 @@
     "battle:dev": "./start_desk --battle-only",
     "desk:dev": "./start_desk",
     "desktop:dev": "pnpm --filter @changebattle-v2/desktop dev",
+    "test:identity-sync": "pnpm --filter @changebattle-v2/api test:identity-sync",
     "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {

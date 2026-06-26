@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
+    "test:identity-sync": "tsc -p tsconfig.test.json && node dist-test/identity-sync-smoke.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

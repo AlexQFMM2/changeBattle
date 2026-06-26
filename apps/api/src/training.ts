@@ -92,6 +92,9 @@ export type LocalTeamV4 = {
 
 export type LocalPokemonV4 = {
   localPokemonId: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
   speciesId: string;
   name: string;
   nameZh: string;
