@@ -680,6 +680,86 @@ const NATIVE_MOVE_ANIMS = new Set([
   "wakeupslap",
   "woodhammer",
   "xscissor",
+  "armorcannon",
+  "assist",
+  "bonemerang",
+  "boneclub",
+  "boomburst",
+  "bounce",
+  "boltstrike",
+  "clearsmog",
+  "confide",
+  "copycat",
+  "covet",
+  "defog",
+  "drillrun",
+  "dualschop",
+  "eerieimpulse",
+  "fakeout",
+  "feint",
+  "feintattack",
+  "fusionbolt",
+  "furyswipes",
+  "furyattack",
+  "geargrind",
+  "gigaimpact",
+  "growl",
+  "hiddenpower",
+  "hyperbeam",
+  "iciclespear",
+  "ironhead",
+  "magmastorm",
+  "matchagotcha",
+  "meanlook",
+  "megahorn",
+  "metalsound",
+  "mirrormove",
+  "naturepower",
+  "nightshade",
+  "nobleroar",
+  "ominouswind",
+  "outrage",
+  "partingshot",
+  "perishsong",
+  "playrough",
+  "poisongas",
+  "poisonfang",
+  "punishment",
+  "pursuit",
+  "razorshell",
+  "ragingfury",
+  "roar",
+  "rollout",
+  "round",
+  "sandsearstorm",
+  "screech",
+  "shelltrap",
+  "sing",
+  "sleeptalk",
+  "smog",
+  "snarl",
+  "snore",
+  "sonicboom",
+  "spinout",
+  "spikecannon",
+  "springtidestorm",
+  "struggle",
+  "supersonic",
+  "synchronoise",
+  "tailslap",
+  "thief",
+  "tickle",
+  "torchsong",
+  "twineedle",
+  "vacuumwave",
+  "vcreate",
+  "wickedblow",
+  "whirlwind",
+  "wildboltstorm",
+  "wildcharge",
+  "yawn",
+  "zapcannon",
+  "zenheadbutt",
   "worryseed",
 ]);
 
@@ -1101,6 +1181,17 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "disarmingvoice":
   case "grasswhistle":
   case "psychicnoise":
+  case "boomburst":
+  case "roar":
+  case "round":
+  case "snore":
+  case "synchronoise":
+  case "sonicboom":
+  case "metalsound":
+  case "supersonic":
+  case "snarl":
+  case "perishsong":
+  case "sing":
     return nativeSoundVoiceSteps(actor, target, animationKey);
   case "playnice":
   case "worryseed":
@@ -1133,6 +1224,21 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "odorsleuth":
   case "embargo":
   case "haze":
+  case "assist":
+  case "mirrormove":
+  case "naturepower":
+  case "copycat":
+  case "sleeptalk":
+  case "tickle":
+  case "yawn":
+  case "partingshot":
+  case "nobleroar":
+  case "growl":
+  case "screech":
+  case "eerieimpulse":
+  case "confide":
+  case "defog":
+  case "meanlook":
     return nativeUtilityStatusSteps(actor, target, animationKey);
   case "junglehealing":
   case "healbell":
@@ -1277,6 +1383,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "icebeam":
     return nativeIceBeamSteps(actor, target);
   case "flamethrower":
+  case "armorcannon":
   case "fireblast":
   case "blastburn":
   case "overheat":
@@ -1288,6 +1395,12 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "heatwave":
   case "eruption":
   case "temperflare":
+  case "torchsong":
+  case "vcreate":
+  case "ragingfury":
+  case "shelltrap":
+  case "matchagotcha":
+  case "magmastorm":
     return nativeFireProjectileSteps(actor, target, animationKey);
   case "technoblast":
   case "ivycudgelwater":
@@ -1298,6 +1411,9 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "brutalswing":
   case "firespin":
   case "leaftornado":
+  case "hiddenpower":
+  case "hyperbeam":
+  case "gigaimpact":
     return nativeSpecialWeaponSteps(actor, target, animationKey);
   case "gigavolthavoc":
   case "stokedsparksurfer":
@@ -1339,7 +1455,55 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "doubleslap":
   case "endeavor":
   case "strength":
+  case "playrough":
+  case "zenheadbutt":
+  case "fakeout":
+  case "covet":
+  case "feint":
+  case "struggle":
+  case "outrage":
     return stepsForOtherAnimation("contactattack", actor, target);
+  case "rollout":
+  case "spinout":
+    return spinWithElementSteps(actor, target, animationKey === "rollout" ? "rocks" : "impact");
+  case "dualschop":
+  case "megahorn":
+  case "geargrind":
+  case "iciclespear":
+  case "tailslap":
+  case "furyswipes":
+  case "furyattack":
+  case "spikecannon":
+  case "twineedle":
+    return nativeMultiHitPhysicalSteps(actor, target, animationKey);
+  case "wickedblow":
+  case "thief":
+  case "feintattack":
+    return nativeDarkContactSteps(actor, target, animationKey);
+  case "vacuumwave":
+    return pulseProjectileSteps(actor, target, "wisp", {count: 2, background: "#d8f4ff", compact: true});
+  case "zapcannon":
+  case "wildcharge":
+  case "boltstrike":
+  case "fusionbolt":
+    return nativeElectricMoveSteps(actor, target, animationKey);
+  case "poisonfang":
+  case "poisongas":
+  case "smog":
+  case "clearsmog":
+    return nativePoisonMoveSteps(actor, target, animationKey);
+  case "drillrun":
+  case "bonemerang":
+  case "boneclub":
+    return nativeGroundWeaponSteps(actor, target, animationKey);
+  case "whirlwind":
+  case "springtidestorm":
+  case "wildboltstorm":
+  case "sandsearstorm":
+  case "ominouswind":
+    return nativeWindStormSteps(actor, target, animationKey);
+  case "nightshade":
+    return nativeShadowSpecialSteps(actor, target, animationKey);
   case "bloodmoon":
     return beamSteps(actor, target, "mistball", "#cc2f44");
   case "explosion":
@@ -1405,6 +1569,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "firelash":
   case "stoneaxe":
   case "aquacutter":
+  case "razorshell":
   case "falseswipe":
   case "furycutter":
   case "scratch":
@@ -2185,6 +2350,34 @@ function nativeShieldGuardSteps(actor: ShowdownSpriteActorV4, key: string): Show
 }
 
 function nativeSpecialWeaponSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "hiddenpower") {
+    return [
+      {type: "backgroundEffect", color: "#f4f7ff", durationMs: 620, opacity: .22},
+      showEffectStep("shine", {...actor, scale: 1.8, opacity: .22}, {...actor, scale: .45, opacity: .82}, 300, {fade: "both"}),
+      showEffectStep("wisp", {...actor, scale: .38, opacity: .7}, {...target, scale: 1.25, opacity: .12}, 520, {fade: "both"}),
+      showEffectStep("shine", {...target, scale: .65, opacity: .58}, {...target, scale: 2.2, opacity: 0}, 480, {fade: "both"}),
+      actorAnimStep(target, {z: behind(target, 18)}, 180, "swing"),
+    ];
+  }
+  if (key === "hyperbeam") {
+    return [
+      {type: "backgroundEffect", color: "#fff0aa", durationMs: 840, opacity: .34},
+      showEffectStep("shine", {...actor, scale: 2.2, opacity: .22}, {...actor, scale: .55, opacity: .85}, 320, {fade: "both"}),
+      showEffectStep("hyperbeam", {...actor, scale: .6, opacity: .82}, {...target, scale: 1.65, opacity: .12}, 720, {fade: "both"}),
+      showEffectStep("impact", {...target, scale: .6, opacity: .8}, {...target, scale: 2.8, opacity: 0}, 420, {fade: "both", explode: true}),
+      actorAnimStep(target, {z: behind(target, 28), x: leftOf(target, 12)}, 190, "swing"),
+    ];
+  }
+  if (key === "gigaimpact") {
+    return [
+      {type: "backgroundEffect", color: "#f4d28a", durationMs: 820, opacity: .3},
+      showEffectStep("impact", {...actor, scale: 1.7, opacity: .24}, {...actor, scale: 2.6, opacity: 0}, 300, {fade: "both"}),
+      actorAnimStep(actor, {x: target.x, y: target.y + 10, z: behind(target, -28), scale: 1.18}, 280, "accel"),
+      showEffectStep("impact", {...target, scale: .6, opacity: .86}, {...target, scale: 3, opacity: 0}, 440, {fade: "both", explode: true}),
+      showEffectStep("shine", {...target, scale: .8, opacity: .58}, {...target, scale: 2.5, opacity: 0}, 420, {fade: "both"}),
+      actorAnimStep(target, {x: leftOf(target, 16), z: behind(target, 30)}, 180, "swing"),
+    ];
+  }
   if (key === "technoblast") {
     return beamSteps(actor, target, "shine", "#f4f7ff");
   }
@@ -2279,6 +2472,87 @@ function nativeElementalContactSteps(actor: ShowdownSpriteActorV4, target: Showd
     showEffectStep(impactSprite, {...target, scale: .55, opacity: .7}, {...target, scale: key === "flareblitz" ? 2.6 : 2, opacity: 0}, 420, {fade: "both"}),
     showEffectStep("impact", target, {...target, scale: 1.8, opacity: 0}, 260, {fade: "both"}),
     actorAnimStep(target, {x: leftOf(target, 14), z: behind(target, 22)}, 170, "swing"),
+  ];
+}
+
+function nativeMultiHitPhysicalSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const ice = key === "iciclespear";
+  const steel = key === "geargrind" || key === "spikecannon";
+  const bug = key === "twineedle" || key === "megahorn";
+  const sprite = ice ? "icicle" : steel ? "impact" : bug ? "poisoncaltrop" : /chop|swipe/.test(key) ? "rightslash" : "impact";
+  const color = ice ? "#d8f6ff" : steel ? "#d9f3ff" : bug ? "#8ee66c" : "#f4d28a";
+  return [
+    {type: "backgroundEffect", color, durationMs: 680, opacity: .22},
+    showEffectStep(sprite, {...actor, x: actor.x - 12, scale: .48, opacity: .72}, {...target, x: target.x + 18, scale: 1.25, opacity: .12}, 360, {fade: "both"}),
+    showEffectStep(sprite, {...actor, x: actor.x + 14, scale: .44, opacity: .66}, {...target, x: target.x - 16, scale: 1.22, opacity: .12}, 440, {fade: "both", delayMs: 60}),
+    showEffectStep(sprite, {...actor, scale: .42, opacity: .6}, {...target, scale: 1.25, opacity: .1}, 520, {fade: "both", delayMs: 80}),
+    showEffectStep("impact", {...target, scale: .45, opacity: .64}, {...target, scale: 1.8, opacity: 0}, 280, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 10), z: behind(target, 18)}, 120, "swing"),
+    actorAnimStep(target, {x: leftOf(target, -8), z: target.z}, 120, "swing"),
+    actorAnimStep(target, {x: target.x}, 120, "swing"),
+  ];
+}
+
+function nativeDarkContactSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const sneaky = key === "thief" || key === "feintattack";
+  return [
+    {type: "backgroundEffect", color: "#05000a", durationMs: 640, opacity: .32},
+    ...(sneaky ? [actorAnimStep(actor, {opacity: .42, z: behind(actor, 42)}, 180, "decel")] : []),
+    showEffectStep("blackwisp", {...actor, scale: .55, opacity: .5}, {...target, scale: 1.6, opacity: 0}, 520, {fade: "both"}),
+    actorAnimStep(actor, {x: target.x, y: target.y + 10, z: behind(target, -24)}, 240, "accel"),
+    showEffectStep("rightslash", {...target, x: target.x - 10, y: target.y + 12, opacity: .72}, {...target, scale: 2.5, opacity: 0}, 340, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 12), z: behind(target, 20)}, 170, "swing"),
+  ];
+}
+
+function nativePoisonMoveSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "poisonfang") {
+    return [
+      {type: "backgroundEffect", color: "#8c40c8", durationMs: 560, opacity: .24},
+      showEffectStep("poisonwisp", {...actor, scale: .45, opacity: .56}, {...target, scale: 1.2, opacity: .1}, 380, {fade: "both"}),
+      ...nativeFangSteps(actor, target, "poisonfang"),
+    ];
+  }
+  const clear = key === "clearsmog";
+  return [
+    {type: "backgroundEffect", color: clear ? "#d8f4ff" : "#5b326f", durationMs: 700, opacity: clear ? .18 : .32},
+    showEffectStep(clear ? "wisp" : "poisonwisp", {...actor, scale: .65, opacity: .5}, {...target, scale: 2.3, opacity: 0}, 680, {fade: "both"}),
+    showEffectStep(clear ? "shine" : "blackwisp", {...target, scale: .65, opacity: .34}, {...target, scale: 2.4, opacity: 0}, 620, {fade: "both"}),
+    actorAnimStep(target, {opacity: clear ? .92 : .82, scale: .96}, 190, "swing"),
+  ];
+}
+
+function nativeGroundWeaponSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "drillrun") {
+    return [
+      {type: "backgroundEffect", color: "#b98442", durationMs: 620, opacity: .22},
+      showEffectStep("mudwisp", {...actor, scale: .45, opacity: .55}, {...target, scale: 1.4, opacity: .08}, 420, {fade: "both"}),
+      ...stepsForOtherAnimation("spinattack", actor, target),
+      actorAnimStep(target, {z: behind(target, 20)}, 170, "swing"),
+    ];
+  }
+  return [
+    {type: "backgroundEffect", color: "#b98442", durationMs: 620, opacity: .24},
+    showEffectStep("bone", {...actor, x: actor.x - 8, scale: .72, opacity: .78}, {...target, x: target.x + 18, scale: 1.15, opacity: .18}, 460, {fade: "both"}),
+    showEffectStep(key === "bonemerang" ? "bone" : "impact", {...target, x: target.x - 20, scale: .55, opacity: .65}, {...target, x: target.x + 18, scale: 1.6, opacity: 0}, 500, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 10), z: behind(target, 18)}, 170, "swing"),
+  ];
+}
+
+function nativeWindStormSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const electric = key === "wildboltstorm";
+  const sand = key === "sandsearstorm";
+  const fire = key === "magmastorm";
+  const dark = key === "ominouswind";
+  const color = electric ? "#ffe35a" : sand ? "#c9a46b" : fire ? "#ff652f" : dark ? "#22002f" : "#bfefff";
+  const sprite = electric ? "electroball" : sand ? "mudwisp" : fire ? "fireball" : dark ? "blackwisp" : "wisp";
+  return [
+    {type: "backgroundEffect", color, durationMs: 820, opacity: dark ? .34 : .26},
+    showEffectStep(sprite, {...target, x: target.x - 68, y: target.y + 78, scale: .62, opacity: .62}, {...target, x: target.x + 26, y: target.y - 42, scale: 2.1, opacity: 0}, 720, {easing: "ballistic2", fade: "both"}),
+    showEffectStep(sprite, {...target, x: target.x + 62, y: target.y + 72, scale: .58, opacity: .56}, {...target, x: target.x - 24, y: target.y - 34, scale: 2, opacity: 0}, 780, {easing: "ballistic2back", fade: "both"}),
+    showEffectStep(electric ? "lightning" : "impact", {...target, scale: .4, opacity: .46}, {...target, scale: 1.8, opacity: 0}, 360, {fade: "both"}),
+    actorAnimStep(target, {y: target.y - 10, x: leftOf(target, 10), z: behind(target, 22)}, 180, "swing"),
+    actorAnimStep(target, {y: target.y, x: target.x, z: target.z}, 180, "swing"),
   ];
 }
 
