@@ -607,6 +607,79 @@ const NATIVE_MOVE_ANIMS = new Set([
   "trick",
   "wideguard",
   "withdraw",
+  "absorb",
+  "assurance",
+  "astonish",
+  "bind",
+  "bitterblade",
+  "block",
+  "bloodmoon",
+  "bodyslam",
+  "chipaway",
+  "circlethrow",
+  "clamp",
+  "crosschop",
+  "crosspoison",
+  "cut",
+  "dig",
+  "dive",
+  "doublehit",
+  "doubleslap",
+  "dragontail",
+  "drillpeck",
+  "endeavor",
+  "extremespeed",
+  "facade",
+  "falseswipe",
+  "fly",
+  "forcepalm",
+  "furycutter",
+  "gigadrain",
+  "gigatonhammer",
+  "guillotine",
+  "hammerarm",
+  "headbutt",
+  "heartstamp",
+  "heavyslam",
+  "holdback",
+  "hornleech",
+  "irontail",
+  "ivycudgel",
+  "karatechop",
+  "knockdown",
+  "knockoff",
+  "leechlife",
+  "lick",
+  "megadrain",
+  "meteormash",
+  "multiattack",
+  "needlearm",
+  "orderup",
+  "peck",
+  "pluck",
+  "pound",
+  "powerwhip",
+  "quickattack",
+  "ragefist",
+  "return",
+  "reversal",
+  "scratch",
+  "seismictoss",
+  "skullbash",
+  "skydrop",
+  "skyattack",
+  "skyuppercut",
+  "slam",
+  "smellingsalts",
+  "steamroller",
+  "stomp",
+  "strength",
+  "superfang",
+  "thrash",
+  "visegrip",
+  "wakeupslap",
+  "woodhammer",
+  "xscissor",
   "worryseed",
 ]);
 
@@ -970,6 +1043,13 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "aeroblast":
   case "aircutter":
   case "hurricane":
+  case "fly":
+  case "bounce":
+  case "skyattack":
+  case "skydrop":
+  case "peck":
+  case "drillpeck":
+  case "pluck":
     return nativeFlyingStrikeSteps(actor, target, animationKey);
   case "dragonbreath":
     return pulseProjectileSteps(actor, target, "poisonwisp", {count: 3, background: "#5f44aa", compact: true});
@@ -982,6 +1062,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "uturn":
   case "rapidspin":
   case "gyroball":
+  case "steamroller":
     return stepsForOtherAnimation("spinattack", actor, target);
   case "mortalspin":
     return spinWithElementSteps(actor, target, "poisonwisp");
@@ -991,6 +1072,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "shadowsneak":
   case "jetpunch":
   case "aquastep":
+  case "extremespeed":
+  case "quickattack":
     return nativeFastStrikeSteps(actor, target, animationKey);
   case "flipturn":
     return spinWithElementSteps(actor, target, "waterwisp");
@@ -1080,6 +1163,9 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "switcheroo":
   case "skillswap":
     return formChangeSteps(actor, animationKey);
+  case "dig":
+  case "dive":
+    return nativeDiveDigSteps(actor, target, animationKey);
   case "spikes":
   case "toxicspikes":
   case "stickyweb":
@@ -1220,7 +1306,42 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "flail":
   case "populationbomb":
   case "bide":
+  case "orderup":
+  case "multiattack":
+  case "seismictoss":
+  case "holdback":
+  case "knockdown":
+  case "stomp":
+  case "ironhead":
+  case "heartstamp":
+  case "slam":
+  case "dragontail":
+  case "reversal":
+  case "punishment":
+  case "circlethrow":
+  case "knockoff":
+  case "assurance":
+  case "chipaway":
+  case "bodyslam":
+  case "gigatonhammer":
+  case "heavyslam":
+  case "pound":
+  case "wakeupslap":
+  case "smellingsalts":
+  case "lick":
+  case "visegrip":
+  case "headbutt":
+  case "block":
+  case "facade":
+  case "return":
+  case "thrash":
+  case "doublehit":
+  case "doubleslap":
+  case "endeavor":
+  case "strength":
     return stepsForOtherAnimation("contactattack", actor, target);
+  case "bloodmoon":
+    return beamSteps(actor, target, "mistball", "#cc2f44");
   case "explosion":
     return explosionSteps(actor, target, "#ff7845", "impact");
   case "doomdesire":
@@ -1284,6 +1405,14 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "firelash":
   case "stoneaxe":
   case "aquacutter":
+  case "falseswipe":
+  case "furycutter":
+  case "scratch":
+  case "cut":
+  case "irontail":
+  case "xscissor":
+  case "crosspoison":
+  case "guillotine":
     return nativeClawSlashSteps(actor, target, animationKey);
   case "psychicfangs":
   case "firefang":
@@ -1313,7 +1442,33 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "suckerpunch":
   case "icepunch":
   case "thunderpunch":
+  case "forcepalm":
+  case "karatechop":
+  case "crosschop":
+  case "hammerarm":
+  case "skyuppercut":
+  case "meteormash":
+  case "ragefist":
     return nativePunchKickSteps(actor, target, animationKey);
+  case "powerwhip":
+  case "woodhammer":
+  case "ivycudgel":
+  case "needlearm":
+    return nativeSeedLeafSteps(actor, target, animationKey);
+  case "hornleech":
+  case "absorb":
+  case "megadrain":
+  case "gigadrain":
+  case "bitterblade":
+  case "leechlife":
+    return stepsForOtherAnimation("drain", actor, target);
+  case "superfang":
+    return [...stepsForOtherAnimation("bite", actor, target), ...stepsForOtherAnimation("contactattack", actor, target)];
+  case "astonish":
+    return ghostDarkSteps(actor, target, "shadowball");
+  case "bind":
+  case "clamp":
+    return stepsForOtherAnimation("bound", actor, target);
   case "airslash":
     return [showEffectStep("rightslash", actor, target, 380, {fade: "both"}), showEffectStep("feather", {...target, y: target.y + 20}, {...target, y: target.y - 26, opacity: 0}, 520, {fade: "both"}), actorAnimStep(target, {z: behind(target, 18)}, 180)];
   case "surf":
@@ -1885,6 +2040,20 @@ function nativePainSplitSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpri
     showEffectStep("mistball", {...actor, scale: .9, opacity: .2}, {...target, scale: 1.8, opacity: 0}, 700, {fade: "both"}),
     actorAnimStep(actor, {scale: 1.04, y: actor.y - 4}, 180, "decel"),
     actorAnimStep(target, {scale: .97, y: target.y + 4}, 180, "swing"),
+  ];
+}
+
+function nativeDiveDigSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const water = key === "dive";
+  const sprite = water ? "waterwisp" : "mudwisp";
+  const color = water ? "#3d9dff" : "#8c7255";
+  return [
+    {type: "backgroundEffect", color, durationMs: 720, opacity: .26},
+    actorAnimStep(actor, {opacity: .28, y: actor.y + 22, z: behind(actor, 40)}, 220, "decel"),
+    showEffectStep(sprite, {...actor, y: actor.y + 36, scale: .65, opacity: .58}, {...target, y: target.y + 22, scale: 1.6, opacity: .08}, 620, {fade: "both"}),
+    actorAnimStep(actor, {x: target.x, y: target.y + 16, z: behind(target, -24), opacity: 1}, 240, "accel"),
+    showEffectStep("impact", target, {...target, scale: 2.1, opacity: 0}, 320, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 22), x: leftOf(target, 10)}, 180, "swing"),
   ];
 }
 

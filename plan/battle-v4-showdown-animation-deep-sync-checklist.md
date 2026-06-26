@@ -234,7 +234,7 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [x] `wingattack` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `dualwingbeat` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `dragonbreath` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `orderup` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `orderup` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `dragonpulse` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `focusblast` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `aurasphere` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
@@ -335,101 +335,101 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [x] `recover` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: recovery particles + healAnim native timeline + preview/manual/typecheck
 - [x] `shadowforce` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `bounce` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `dig` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `dive` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `fly` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `skydrop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `skullbash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `skyattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `dig` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `dive` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `fly` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `skydrop` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `skullbash` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `skyattack` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `hiddenpower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `storedpower` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `haze` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `seedflare` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `powerwhip` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `woodhammer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `ivycudgel` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `powerwhip` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `woodhammer` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `ivycudgel` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `ivycudgelwater` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `ivycudgelfire` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `ivycudgelrock` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `crushclaw` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `falseswipe` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `falseswipe` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `direclaw` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `dragonclaw` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `metalclaw` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `furycutter` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `scratch` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `cut` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `furycutter` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `scratch` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `cut` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `slash` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `nightslash` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `shadowclaw` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `multiattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `holdback` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `knockdown` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `seismictoss` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `peck` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `drillpeck` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `irontail` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `multiattack` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `holdback` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `knockdown` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `seismictoss` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `peck` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `drillpeck` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `irontail` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `bite` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `superfang` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `superfang` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `bugbite` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `crunch` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `pursuit` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `blazekick` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `lowkick` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `stomp` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `stomp` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `thunderouskick` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `tropkick` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `jumpkick` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `highjumpkick` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `ironhead` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `heartstamp` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `slam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `dragontail` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `reversal` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `heartstamp` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `slam` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `dragontail` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `reversal` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `punishment` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `forcepalm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `circlethrow` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `knockoff` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `assurance` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `chipaway` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `bodyslam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `bloodmoon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `gigatonhammer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `heavyslam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `steamroller` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `pound` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `clamp` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `wakeupslap` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `smellingsalts` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `karatechop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `crosschop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `lick` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `visegrip` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `headbutt` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `block` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `xscissor` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `crosspoison` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `facade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `guillotine` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `return` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `forcepalm` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `circlethrow` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `knockoff` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `assurance` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `chipaway` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `bodyslam` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `bloodmoon` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `gigatonhammer` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `heavyslam` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `steamroller` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `pound` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `clamp` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `wakeupslap` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `smellingsalts` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `karatechop` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `crosschop` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `lick` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `visegrip` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `headbutt` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `block` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `xscissor` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `crosspoison` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `facade` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `guillotine` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `return` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `leafblade` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `thrash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `pluck` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `bind` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `thrash` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `pluck` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `bind` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `dualchop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `doublehit` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `doubleslap` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `doublehit` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `doubleslap` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `closecombat` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `doublekick` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `endeavor` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `endeavor` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `playrough` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `strength` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `hammerarm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `strength` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `hammerarm` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `icehammer` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `skyuppercut` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `meteormash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `skyuppercut` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `meteormash` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `shadowpunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `ragefist` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `ragefist` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `focuspunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `drainpunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `dynamicpunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
@@ -437,18 +437,18 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 - [x] `megapunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `poweruppunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `dizzypunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `needlearm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `needlearm` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `rocksmash` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `hornleech` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `absorb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `megadrain` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `gigadrain` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `bitterblade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `leechlife` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `extremespeed` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
-- [ ] `quickattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `hornleech` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `absorb` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `megadrain` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `gigadrain` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `bitterblade` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `leechlife` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `extremespeed` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
+- [x] `quickattack` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `suckerpunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
-- [ ] `astonish` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `astonish` | priority: P3 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [ ] `rollout` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
 - [x] `accelerock` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
 - [x] `bulletpunch` | priority: P1 | source: BattleMoveAnims | adapter: native | notes: native move timeline + preview/manual/typecheck
