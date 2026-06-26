@@ -3,7 +3,7 @@ import type {AppDebugConfigV4, BattleCommandActionV4, BattleCommandDraftV4, Batt
 import {addBattleCommandChoiceV4, applyBattleSessionToRun, battleDebugLog, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
-import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4} from "./battleV4Playback";
+import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineVisuals, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
@@ -352,6 +352,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         messagebar={playbackMessage}
         activeAnimation={playback.activeAnimation}
         activeTimelineStep={playback.activeTimelineStep}
+        persistentFieldVisuals={playback.persistentFieldVisuals}
         api={api}
       />
       <header className="battle-v4-hud">
@@ -428,13 +429,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   );
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, persistentFieldVisuals, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
   messagebar?: string;
   activeAnimation?: BattleAnimationEventV4 | null;
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
+  persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   api: ChangeBattleV2Api;
 }) {
   const nearSlots = useMemo(() => sortSlotsForArena(near, "near"), [near]);
@@ -443,7 +445,8 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
   return (
     <div className="battle-v4-arena" aria-label="战斗场地">
       <div className="battle-v4-scene-overlay" />
-      <BattleV4WeatherLayer animation={activeAnimation || null} visuals={visuals} />
+      <BattleV4PersistentFieldLayer visuals={persistentFieldVisuals} />
+      <BattleV4WeatherBurstLayer animation={activeAnimation || null} visuals={visuals} />
       <BattleV4Messagebar message={messagebar || ""} kind={activeAnimation?.kind || ""} />
       <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} key={`${activeAnimation?.checkpointId || "fx-idle"}-${activeTimelineStep?.type || "none"}`} />
       <BattleV4ResultLayer animation={activeAnimation || null} visuals={visuals} api={api} key={`${activeAnimation?.checkpointId || "result-idle"}-${activeTimelineStep?.type || "none"}-result`} />
@@ -469,7 +472,21 @@ function sortSlotsForArena(slots: BattleViewSlotV4[], side: "near" | "far"): Bat
   });
 }
 
-function BattleV4WeatherLayer({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+function BattleV4PersistentFieldLayer({visuals}: {visuals: BattleV4PersistentFieldVisuals}) {
+  const activeId = visuals.weatherId || visuals.terrainId || visuals.roomId || (visuals.gravityActive ? "gravity" : "");
+  if (!activeId || !visuals.resourcePath) return null;
+  return (
+    <div className={`battle-v4-persistent-field-layer field-${activeId} fidelity-${visuals.adapterFidelity}`} aria-hidden="true">
+      {visuals.resourceKind === "video" ? (
+        <video src={visuals.resourcePath} muted autoPlay loop playsInline />
+      ) : (
+        <i style={{backgroundImage: `url("${visuals.resourcePath}")`}} />
+      )}
+    </div>
+  );
+}
+
+function BattleV4WeatherBurstLayer({animation, visuals}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
   if (!visuals.background.visible) return null;
   const style = {
     "--battle-v4-background-color": visuals.background.color,

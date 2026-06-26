@@ -1,0 +1,1115 @@
+# Battle V4 Showdown Animation Deep Sync Checklist
+
+## Count Verification
+
+提取日期：2026-06-26
+
+固定参考源：
+
+- `pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.com/src/battle.ts`
+- `pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.com/src/battle-animations.ts`
+- `pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.com/src/battle-animations-moves.ts`
+- `pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.com/style/battle.css`
+- `pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.com/fx`
+
+数量校验：
+
+```txt
+BattleMoveAnims top-level = 608
+BattleMove simple alias assignments = 326
+BattleMove special/composite assignments = 2
+BattleMove assignments total = 328
+BattleOtherAnims = 45
+BattleStatusAnims = 10
+Weather CSS classes = 18
+Weather fx resources = 21
+SceneCore ops = 10
+Checklist total = 1040
+```
+
+说明：此前粗略估算 alias/max/gmax 为 327；源码精确提取结果为 326 个 simple alias，再加 2 个非简单 assignment：`phantomforce -> shadowforce (anim + prepareAnim)` 与 `headlongrush -> closecombat + earthpower`，总 assignment 328。
+
+执行项格式：
+
+```md
+CHECKBOX `key` | priority: P0/P1/P2/P3 | source: BattleMoveAnims/BattleMoveAlias/BattleOtherAnims/BattleStatusAnims/WeatherLayer/SceneCore | adapter: exact/native/preset/fallback/pending | notes:
+```
+
+适配保真度：
+
+- `fallback`：只保证不空、不报错。
+- `preset`：按类型族群近似，不能视为 Showdown 复刻完成。
+- `native`：手写 V4 timeline，接近 Showdown 节奏。
+- `exact`：按 Showdown 原始 scene 指令逐步翻译。
+
+## Extraction Script
+
+```js
+const fs = require('fs');
+const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.com';
+// tableKeys() 从 export const BattleMoveAnims/BattleOtherAnims/BattleStatusAnims 抽取 top-level keys。
+// moveAssignments() 从 BattleMoveAnims['x'] assignments 抽取 simple alias、prepare alias、composite assignment。
+// weatherClasses() 从 style/battle.css 抽取 *.weather class。
+// weatherFx() 从 fx/ 抽取 weather-* 资源。
+```
+
+## SceneCore Ops
+
+- [x] `showEffect` | priority: P0 | source: SceneCore | adapter: native | notes: supports from/to/duration/delay/easing/fade/explode in V4 timeline + typecheck
+- [x] `pokemon.anim` | priority: P0 | source: SceneCore | adapter: native | notes: multi-step actor x/y/z/scale/opacity/xscale/yscale timeline + typecheck
+- [x] `pokemon.delay` | priority: P0 | source: SceneCore | adapter: native | notes: delay step participates in scheduler + typecheck
+- [x] `scene.wait` | priority: P0 | source: SceneCore | adapter: native | notes: wait step participates in scheduler + typecheck
+- [x] `scene.backgroundEffect` | priority: P0 | source: SceneCore | adapter: native | notes: transient backgroundEffect retained for startup flashes + typecheck
+- [x] `scene.resultAnim` | priority: P0 | source: SceneCore | adapter: native | notes: localized result timeline layer + typecheck
+- [x] `scene.damageAnim` | priority: P0 | source: SceneCore | adapter: native | notes: damage feedback waits for checkpoint HP commit + typecheck
+- [x] `scene.healAnim` | priority: P0 | source: SceneCore | adapter: native | notes: heal feedback waits for checkpoint HP commit + typecheck
+- [x] `scene.updateWeather` | priority: P0 | source: SceneCore | adapter: native | notes: persistent weather/terrain/room layer updated at checkpoint + typecheck
+- [ ] `scene.sideConditionsLeft` | priority: P2 | source: SceneCore | adapter: pending | notes: 展示屏障、撒菱、顺风等 side condition
+
+## Persistent Weather / Terrain / Room CSS Classes
+
+- [ ] `sunweather` | priority: P0 | source: WeatherLayer | adapter: pending | notes: Showdown CSS persistent layer class
+- [x] `sunnydayweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-gen6-sunnyday video fallback chain + typecheck
+- [ ] `desolatelandweather` | priority: P1 | source: WeatherLayer | adapter: pending | notes: Showdown CSS persistent layer class
+- [ ] `rainweather` | priority: P0 | source: WeatherLayer | adapter: pending | notes: Showdown CSS persistent layer class
+- [x] `raindanceweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-gen6-raindance video fallback chain + typecheck
+- [ ] `primordialseaweather` | priority: P1 | source: WeatherLayer | adapter: pending | notes: Showdown CSS persistent layer class
+- [x] `sandstormweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-gen6-sandstorm video fallback chain + typecheck
+- [x] `snowscapeweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer maps snow/snowscape to hail video fallback chain + typecheck
+- [x] `hailweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-gen6-hail video fallback chain + typecheck
+- [ ] `deltastreamweather` | priority: P1 | source: WeatherLayer | adapter: pending | notes: Showdown CSS persistent layer class
+- [x] `mistyterrainweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-mistyterrain.png + typecheck
+- [x] `electricterrainweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-electricterrain.png + typecheck
+- [x] `grassyterrainweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-grassyterrain.png + typecheck
+- [x] `psychicterrainweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-psychicterrain.png + typecheck
+- [x] `gravityweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-gravity.png + typecheck
+- [x] `magicroomweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-magicroom.png + typecheck
+- [x] `trickroomweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-trickroom.png + typecheck
+- [x] `wonderroomweather` | priority: P0 | source: WeatherLayer | adapter: native | notes: persistent layer uses weather-wonderroom.png + typecheck
+
+## Weather FX Resources
+
+- [ ] `weather-electricterrain.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-hail.mp4` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-hail.webm` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-raindance.mp4` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-raindance.webm` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-sandstorm.mp4` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-sandstorm.webm` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-sunnyday.mp4` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gen6-sunnyday.webm` | priority: P0 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-grassyterrain.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-gravity.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-hail.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-magicroom.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-mistyterrain.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-psychicterrain.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-raindance.jpg` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-sandstorm.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-strongwind.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-sunnyday.jpg` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-trickroom.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+- [ ] `weather-wonderroom.png` | priority: P1 | source: WeatherLayer | adapter: pending | notes: asset must render or fallback cleanly
+
+## BattleOtherAnims
+
+- [ ] `hitmark` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `attack` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `contactattack` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `xattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `slashattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `clawattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `punchattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `bite` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `kick` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `fastattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `fastanimattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `fastanimspecial` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `fastanimself` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `sneakattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `spinattack` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `bound` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `selfstatus` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `lightstatus` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `chargestatus` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `heal` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `shiny` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `flight` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `shake` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `dance` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `consume` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `leech` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `drain` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `hydroshot` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `sound` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `gravity` | priority: P0 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `futuresighthit` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `doomdesirehit` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `itemoff` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `anger` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `bidecharge` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `bideunleash` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `spectralthiefboost` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `schoolingin` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `schoolingout` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `primalalpha` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `primalomega` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `megaevo` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `zpower` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `powerconstruct` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `ultraburst` | priority: P1 | source: BattleOtherAnims | adapter: pending | notes: deep sync exact/native target
+
+## BattleStatusAnims
+
+- [ ] `brn` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `psn` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `slp` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `par` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `frz` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `flinch` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `attracted` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `cursed` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `confused` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+- [ ] `confusedselfhit` | priority: P1 | source: BattleStatusAnims | adapter: pending | notes: deep sync exact/native target
+
+## BattleMoveAnims Top-Level
+
+- [ ] `taunt` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `instruct` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `quash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `swagger` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `swordsdance` | priority: P0 | source: BattleMoveAnims | adapter: exact | notes: multi-sword exact-style timeline + preview/manual/typecheck
+- [ ] `quiverdance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `victorydance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragondance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `agility` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `doubleteam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `metronome` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `teeterdance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `splash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `encore` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `attract` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `raindance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sunnyday` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hail` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `snowscape` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `chillyreception` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sandstorm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gravity` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `trickroom` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `magicroom` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wonderroom` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `afteryou` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `allyswitch` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `babydolleyes` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `faketears` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tearfullook` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `featherdance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `followme` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `foresight` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mimic` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sketch` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `doodle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `odorsleuth` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `celebrate` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `playnice` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tailwhip` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `leer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `kinesis` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `electricterrain` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `grassyterrain` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mistyterrain` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lifedew` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `junglehealing` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `topsyturvy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `embargo` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `healblock` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tailwind` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aerialace` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bravebird` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `acrobatics` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flyingpress` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `steelwing` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wingattack` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dualwingbeat` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragonbreath` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `orderup` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragonpulse` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `focusblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aurasphere` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `technoblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `painsplit` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flail` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `uturn` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flipturn` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `rapidspin` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gyroball` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mortalspin` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `icespinner` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `voltswitch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thunderwave` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shockwave` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `discharge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bugbuzz` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `explosion` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `populationbomb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `auroraveil` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `reflect` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `safeguard` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lightscreen` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mist` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `transform` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bellydrum` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aromatherapy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `healbell` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `magiccoat` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `protect` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: shield burst native timeline + preview/manual/typecheck
+- [ ] `detect` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `kingsshield` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spikyshield` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `burningbulwark` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `banefulbunker` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `craftyshield` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `matblock` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `quickguard` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wideguard` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `endure` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bide` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `focusenergy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `rockpolish` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `harden` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `defensecurl` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `irondefense` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `rest` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: sleep recovery particles + healAnim native timeline + preview/manual/typecheck
+- [ ] `howl` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `acupressure` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `curse` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `autotomize` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shiftgear` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bulkup` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shellsmash` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stockpile` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `swallow` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ingrain` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aquaring` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `coil` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `conversion` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `powertrick` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ragepowder` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `refresh` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `recycle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `doomdesire` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `teleport` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `cottonguard` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `defendorder` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `meditate` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sharpen` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `withdraw` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `roost` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `softboiled` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `milkdrink` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `happyhour` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `snatch` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `acidarmor` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `barrier` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `morningsun` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `moonlight` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lunarblessing` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `cosmicpower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `charge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `luckychant` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `geomancy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `magnetrise` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `substitute` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `batonpass` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `calmmind` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `nastyplot` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `minimize` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `growth` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tailglow` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `takeheart` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `trick` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `switcheroo` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `skillswap` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `recover` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: recovery particles + healAnim native timeline + preview/manual/typecheck
+- [ ] `shadowforce` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bounce` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dig` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dive` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fly` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `skydrop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `skullbash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `skyattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hiddenpower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `storedpower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `haze` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `seedflare` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `powerwhip` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `woodhammer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ivycudgel` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ivycudgelwater` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ivycudgelfire` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ivycudgelrock` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `crushclaw` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `falseswipe` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `direclaw` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragonclaw` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `metalclaw` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `furycutter` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `scratch` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `cut` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `slash` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `nightslash` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shadowclaw` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `multiattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `holdback` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `knockdown` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `seismictoss` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `peck` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `drillpeck` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `irontail` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bite` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `superfang` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bugbite` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `crunch` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `pursuit` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `blazekick` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lowkick` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stomp` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thunderouskick` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tropkick` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `jumpkick` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `highjumpkick` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ironhead` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `heartstamp` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `slam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragontail` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `reversal` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `punishment` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `forcepalm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `circlethrow` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `knockoff` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `assurance` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `chipaway` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bodyslam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bloodmoon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gigatonhammer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `heavyslam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `steamroller` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `pound` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `clamp` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wakeupslap` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `smellingsalts` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `karatechop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `crosschop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lick` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `visegrip` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `headbutt` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `block` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `xscissor` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `crosspoison` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `facade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `guillotine` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `return` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `leafblade` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thrash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `pluck` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bind` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dualchop` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `doublehit` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `doubleslap` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `closecombat` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `doublekick` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `endeavor` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `playrough` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `strength` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hammerarm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `icehammer` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `skyuppercut` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `meteormash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shadowpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ragefist` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `focuspunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `drainpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dynamicpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `cometpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `megapunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `poweruppunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dizzypunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `needlearm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `rocksmash` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hornleech` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `absorb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `megadrain` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gigadrain` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bitterblade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `leechlife` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `extremespeed` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `quickattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `suckerpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `astonish` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `rollout` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `accelerock` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bulletpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `machpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wickedblow` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `vacuumwave` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `jetpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `assist` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mirrormove` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `naturepower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `copycat` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sleeptalk` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `megahorn` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `firepunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `icepunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thunderpunch` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `poisonfang` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `psychicfangs` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `icefang` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `firefang` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thunderfang` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wildcharge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spark` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `zapcannon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `armorcannon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `torchsong` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `chloroblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hyperbeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gigaimpact` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shelltrap` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spinout` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `matchagotcha` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flamecharge` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flareblitz` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `burnup` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `beakblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `vcreate` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `outrage` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ragingfury` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `boltstrike` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fusionflare` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fusionbolt` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `zenheadbutt` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fakeout` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `covet` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `feint` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thief` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shadowsneak` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `feintattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `struggle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `earthquake` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: background + ground impact + target shake native timeline + preview/manual/typecheck
+- [x] `bulldoze` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: ground charge + impact native timeline + preview/manual/typecheck
+- [ ] `tickle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `earthpower` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `drillrun` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `poisongas` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `smog` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `clearsmog` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bonemerang` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `boneclub` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shadowbone` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `whirlwind` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hurricane` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `springtidestorm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wildboltstorm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sandsearstorm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ominouswind` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `magmastorm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `firespin` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `leaftornado` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `roar` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `round` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `yawn` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sing` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `perishsong` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `partingshot` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `nobleroar` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `disarmingvoice` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `growl` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `screech` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `snore` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `synchronoise` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sonicboom` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `eerieimpulse` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `metalsound` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `supersonic` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `confide` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `defog` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `grasswhistle` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hypervoice` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `boomburst` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `heatwave` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `snarl` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thunder` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `thunderbolt` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: projectile + lightning strikes native timeline + preview/manual/typecheck
+- [ ] `thundercage` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `psychic` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: psychic lift/pulse native timeline + preview/manual/typecheck
+- [ ] `meanlook` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `nightshade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fairylock` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `rockblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `geargrind` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `iciclespear` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tailslap` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `furyswipes` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `furyattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bulletseed` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spikecannon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `twineedle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `razorshell` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aquastep` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aquacutter` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wavecrash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `crabhammer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aquajet` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `iceshard` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `watershuriken` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `icebeam` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: ice beam + icicle native timeline + preview/manual/typecheck
+- [ ] `freezingglare` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `freezedry` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `icywind` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ancientpower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `powergem` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `chargebeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `psybeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `twinbeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `flamethrower` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: fire projectile + burn burst native timeline + preview/manual/typecheck
+- [ ] `toxic` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spicyextract` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sludge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sludgewave` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `smokescreen` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sludgebomb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `syrupbomb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mudbomb` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `magnetbomb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `seedbomb` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `willowisp` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `confuseray` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lovelykiss` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `rockwrecker` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stoneedge` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `rockslide` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: falling rocks native timeline + preview/manual/typecheck
+- [ ] `avalanche` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `triplearrows` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thousandarrows` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thousandwaves` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `iciclecrash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spore` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fireblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `judgment` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `psystrike` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shadowball` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hex` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `infernalparade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `darkpulse` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fierywrath` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `terrainpulse` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `naturesmadness` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ruination` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `energyball` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `electroball` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `moonblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mistball` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `present` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `iceball` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `weatherball` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flowertrick` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wish` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `healingwish` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stealthrock` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gmaxsteelsurge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spikes` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `toxicspikes` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stickyweb` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `leechseed` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mysticalpower` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `psyshock` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `barbbarrage` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `esperwing` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sandtomb` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `saltcure` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `flashcannon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lusterpurge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `grassknot` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aeroblast` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `airslash` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aircutter` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dracometeor` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `makeitrain` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `brine` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `octazooka` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `waterpledge` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `soak` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `watersport` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `scald` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `steameruption` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `waterpulse` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bubblebeam` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [x] `surf` | priority: P0 | source: BattleMoveAnims | adapter: native | notes: multi-wave native timeline + preview/manual/typecheck
+- [ ] `hydropump` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `muddywater` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mudshot` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lavaplume` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragonenergy` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `eruption` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `waterspout` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `solarbeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `electroshot` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `solarblade` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lightofruin` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `meteorbeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `blizzard` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sheercold` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `glaciallance` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `freezeshock` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `iceburn` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `razorwind` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `overheat` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `blastburn` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sacredfire` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `blueflare` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `electroweb` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fling` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `worryseed` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `rockthrow` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `paraboliccharge` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `drainingkiss` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `oblivionwing` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `signalbeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `simplebeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `triattack` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tripleaxel` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hypnosis` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `darkvoid` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `roaroftime` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spacialrend` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sacredsword` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `secretsword` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `psychocut` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `precipiceblades` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `originpulse` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragonascent` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `diamondstorm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dazzlinggleam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mistyexplosion` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `payday` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `swift` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `leafstorm` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `petaldance` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `petalblizzard` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `magicalleaf` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `leafage` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gunkshot` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hyperspacehole` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hyperspacefury` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `poisonjab` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `psychoboost` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `bestow` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `finalgambit` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `forestscurse` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `trickortreat` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `healpulse` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spite` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `lockon` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mindreader` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `memento` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spiritshackle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `brutalswing` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `revelationdance` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `prismaticlaser` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `firstimpression` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `shoreup` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `firelash` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `powertrip` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `smartstrike` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spotlight` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `anchorshot` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `clangingscales` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spectralthief` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `plasmafists` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `collisioncourse` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `electrodrift` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sunsteelstrike` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `moongeistbeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `astralbarrage` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `photongeyser` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `coreenforcer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `gigavolthavoc` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `infernooverdrive` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `alloutpummeling` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `supersonicskystrike` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `aciddownpour` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `blackholeeclipse` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `continentalcrush` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `neverendingnightmare` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `corkscrewcrash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `twinkletackle` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `pulverizingpancake` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stokedsparksurfer` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `catastropika` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `sinisterarrowraid` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `oceanicoperetta` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `extremeevoboost` | priority: P2 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `guardianofalola` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `splinteredstormshards` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `letssnuggleforever` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `clangoroussoulblaze` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `soulstealing7starstrike` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `searingsunrazesmash` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `supercellslam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `psychicnoise` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `fishiousrend` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stompingtantrum` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `temperflare` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `terastarstorm` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `thunderclap` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `mightycleave` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `spiritbreak` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `stoneaxe` | priority: P1 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `malignantchain` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `hardpress` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `dragoncheer` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `upperhand` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `revivalblessing` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `blazingtorque` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `combattorque` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `magicaltorque` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `noxioustorque` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `wickedtorque` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `tachyoncutter` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ficklebeam` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+- [ ] `ficklebeamallout` | priority: P3 | source: BattleMoveAnims | adapter: pending | notes: deep sync exact/native target; existing preset may already play
+
+## BattleMove Assignments / Max / GMax
+
+- [ ] `10000000voltthunderbolt -> triattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key 10000000voltthunderbolt; target triattack
+- [ ] `acid -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acid; target sludge
+- [ ] `acidspray -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acidspray; target sludge
+- [ ] `amnesia -> rest` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key amnesia; target rest
+- [ ] `appleacid -> energyball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key appleacid; target energyball
+- [ ] `aquatail -> crabhammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aquatail; target crabhammer
+- [ ] `armthrust -> smellingsalts` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key armthrust; target smellingsalts
+- [ ] `aromaticmist -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aromaticmist; target mistyterrain
+- [ ] `attackorder -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key attackorder; target bulletseed
+- [ ] `aurawheel -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aurawheel; target discharge
+- [ ] `aurorabeam -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aurorabeam; target icebeam
+- [ ] `axekick -> highjumpkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key axekick; target highjumpkick
+- [ ] `barrage -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key barrage; target magnetbomb
+- [ ] `beatup -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key beatup; target slam
+- [ ] `behemothbash -> smartstrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key behemothbash; target smartstrike
+- [ ] `behemothblade -> smartstrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key behemothblade; target smartstrike
+- [ ] `belch -> gunkshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key belch; target gunkshot
+- [ ] `bittermalice -> spectralthief` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bittermalice; target spectralthief
+- [ ] `bleakwindstorm -> hurricane` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bleakwindstorm; target hurricane
+- [ ] `bloomdoom -> petaldance` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bloomdoom; target petaldance
+- [ ] `bodypress -> heavyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bodypress; target heavyslam
+- [ ] `boltbeak -> spark` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key boltbeak; target spark
+- [ ] `bonerush -> boneclub` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bonerush; target boneclub
+- [ ] `branchpoke -> vinewhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key branchpoke; target vinewhip
+- [ ] `breakingswipe -> dragonclaw` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key breakingswipe; target dragonclaw
+- [ ] `breakneckblitz -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key breakneckblitz; target gigaimpact
+- [ ] `brickbreak -> karatechop` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key brickbreak; target karatechop
+- [ ] `bubble -> bubblebeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bubble; target bubblebeam
+- [ ] `burningjealousy -> heatwave` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key burningjealousy; target heatwave
+- [ ] `camouflage -> tailglow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key camouflage; target tailglow
+- [ ] `captivate -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key captivate; target attract
+- [ ] `ceaselessedge -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ceaselessedge; target nightslash
+- [ ] `charm -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key charm; target attract
+- [ ] `chatter -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key chatter; target hypervoice
+- [ ] `chillingwater -> waterpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key chillingwater; target waterpulse
+- [ ] `clangoroussoul -> extremeevoboost` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key clangoroussoul; target extremeevoboost
+- [ ] `coaching -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key coaching; target bulkup
+- [ ] `comeuppance -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key comeuppance; target darkpulse
+- [ ] `confusion -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key confusion; target psychic
+- [ ] `constrict -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key constrict; target bind
+- [ ] `conversion2 -> conversion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key conversion2; target conversion
+- [ ] `corrosivegas -> poisongas` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key corrosivegas; target poisongas
+- [ ] `cottonspore -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key cottonspore; target spore
+- [ ] `counter -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key counter; target slam
+- [ ] `courtchange -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key courtchange; target skillswap
+- [ ] `crushgrip -> quash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key crushgrip; target quash
+- [ ] `darkestlariat -> flareblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key darkestlariat; target flareblitz
+- [ ] `decorate -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key decorate; target spore
+- [ ] `destinybond -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key destinybond; target painsplit
+- [ ] `devastatingdrake -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key devastatingdrake; target dragonpulse
+- [ ] `disable -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key disable; target meanlook
+- [ ] `doubleedge -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleedge; target gigaimpact
+- [ ] `doubleshock -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleshock; target wildcharge
+- [ ] `doubleslap -> wakeupslap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleslap; target wakeupslap
+- [ ] `dragondarts -> dragonbreath` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragondarts; target dragonbreath
+- [ ] `dragonhammer -> heavyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonhammer; target heavyslam
+- [ ] `dragonrage -> dragonbreath` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonrage; target dragonbreath
+- [ ] `dragonrush -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonrush; target gigaimpact
+- [ ] `dreameater -> drainingkiss` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dreameater; target drainingkiss
+- [ ] `drumbeating -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key drumbeating; target magicalleaf
+- [ ] `dynamaxcannon -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dynamaxcannon; target dragonpulse
+- [ ] `echoedvoice -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key echoedvoice; target hypervoice
+- [ ] `eeriespell -> psyshock` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eeriespell; target psyshock
+- [ ] `eggbomb -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eggbomb; target magnetbomb
+- [ ] `electrify -> thunderwave` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key electrify; target thunderwave
+- [ ] `ember -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ember; target flamethrower
+- [ ] `entrainment -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key entrainment; target painsplit
+- [ ] `eternabeam -> roaroftime` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eternabeam; target roaroftime
+- [ ] `expandingforce -> psybeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key expandingforce; target psybeam
+- [ ] `extrasensory -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key extrasensory; target psychic
+- [ ] `fairywind -> dazzlinggleam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fairywind; target dazzlinggleam
+- [ ] `falsesurrender -> feintattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key falsesurrender; target feintattack
+- [ ] `fellstinger -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fellstinger; target bulletseed
+- [ ] `fierydance -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fierydance; target magmastorm
+- [ ] `filletaway -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key filletaway; target bulkup
+- [ ] `firelash -> multiattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key firelash; target multiattack
+- [ ] `firepledge -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key firepledge; target flamethrower
+- [x] `fissure -> earthquake` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: selected key retained; aliasTargetKey earthquake; native earthquake timeline + typecheck
+- [ ] `flameburst -> shelltrap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flameburst; target shelltrap
+- [ ] `flamewheel -> flamecharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flamewheel; target flamecharge
+- [ ] `flatter -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flatter; target attract
+- [ ] `fleurcannon -> diamondstorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fleurcannon; target diamondstorm
+- [ ] `floralhealing -> healpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key floralhealing; target healpulse
+- [ ] `flowershield -> grassyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flowershield; target grassyterrain
+- [ ] `foulplay -> psyshock` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key foulplay; target psyshock
+- [ ] `frenzyplant -> leafstorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frenzyplant; target leafstorm
+- [ ] `frostbreath -> freezedry` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frostbreath; target freezedry
+- [ ] `frustration -> thrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frustration; target thrash
+- [ ] `futuresight -> doomdesire` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key futuresight; target doomdesire
+- [ ] `gastroacid -> toxic` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gastroacid; target toxic
+- [ ] `gearup -> shiftgear` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gearup; target shiftgear
+- [ ] `genesissupernova -> psychoboost` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key genesissupernova; target psychoboost
+- [ ] `glaciate -> freezedry` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glaciate; target freezedry
+- [ ] `glaiverush -> outrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glaiverush; target outrage
+- [ ] `glare -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glare; target meanlook
+- [ ] `gmaxbefuddle -> savagespinout` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxbefuddle; target savagespinout
+- [ ] `gmaxcannonade -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcannonade; target hydrovortex
+- [ ] `gmaxcentiferno -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcentiferno; target infernooverdrive
+- [ ] `gmaxcuddle -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcuddle; target breakneckblitz
+- [ ] `gmaxdepletion -> devastatingdrake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxdepletion; target devastatingdrake
+- [ ] `gmaxdrumsolo -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxdrumsolo; target bloomdoom
+- [ ] `gmaxfinale -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxfinale; target twinkletackle
+- [ ] `gmaxfireball -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxfireball; target infernooverdrive
+- [ ] `gmaxgravitas -> shatteredpsyche` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxgravitas; target shatteredpsyche
+- [ ] `gmaxhydrosnipe -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxhydrosnipe; target hydrovortex
+- [ ] `gmaxmalodor -> aciddownpour` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxmalodor; target aciddownpour
+- [ ] `gmaxoneblow -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxoneblow; target alloutpummeling
+- [ ] `gmaxrapidflow -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxrapidflow; target alloutpummeling
+- [ ] `gmaxreplenish -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxreplenish; target breakneckblitz
+- [ ] `gmaxresonance -> subzeroslammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxresonance; target subzeroslammer
+- [ ] `gmaxsandblast -> tectonicrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsandblast; target tectonicrage
+- [ ] `gmaxsmite -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsmite; target twinkletackle
+- [ ] `gmaxsnooze -> maliciousmoonsault` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsnooze; target maliciousmoonsault
+- [ ] `gmaxvinelash -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxvinelash; target bloomdoom
+- [ ] `grasspledge -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grasspledge; target magicalleaf
+- [ ] `grassyglide -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grassyglide; target powerwhip
+- [ ] `gravapple -> energyball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gravapple; target energyball
+- [ ] `grudge -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grudge; target meanlook
+- [ ] `guardsplit -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key guardsplit; target skillswap
+- [ ] `guardswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key guardswap; target skillswap
+- [ ] `gust -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gust; target whirlwind
+- [ ] `headcharge -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headcharge; target gigaimpact
+- [x] `headlongrush -> closecombat + earthpower` | priority: P2 | source: BattleMoveAlias | adapter: preset | notes: compositeTargets recorded in diagnostics; selected key retained + typecheck
+- [ ] `headsmash -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headsmash; target gigaimpact
+- [ ] `healorder -> recover` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key healorder; target recover
+- [ ] `heartswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heartswap; target skillswap
+- [ ] `heatcrash -> flareblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heatcrash; target flareblitz
+- [ ] `helpinghand -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key helpinghand; target painsplit
+- [ ] `highhorsepower -> stomp` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key highhorsepower; target stomp
+- [ ] `holdhands -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key holdhands; target painsplit
+- [ ] `honeclaws -> rockpolish` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key honeclaws; target rockpolish
+- [ ] `hornattack -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hornattack; target megahorn
+- [ ] `horndrill -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key horndrill; target gigaimpact
+- [ ] `hydrocannon -> hydropump` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrocannon; target hydropump
+- [ ] `hydrosteam -> steameruption` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrosteam; target steameruption
+- [ ] `hydrovortex -> originpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrovortex; target originpulse
+- [ ] `hyperdrill -> drillrun` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperdrill; target drillrun
+- [ ] `hyperfang -> superfang` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperfang; target superfang
+- [ ] `imprison -> embargo` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key imprison; target embargo
+- [ ] `incinerate -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key incinerate; target flamethrower
+- [ ] `inferno -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key inferno; target magmastorm
+- [ ] `infestation -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key infestation; target bulletseed
+- [ ] `iondeluge -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key iondeluge; target electricterrain
+- [ ] `jawlock -> crunch` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key jawlock; target crunch
+- [ ] `kowtowcleave -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key kowtowcleave; target nightslash
+- [x] `landswrath -> earthquake` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: selected key retained; aliasTargetKey earthquake; native earthquake timeline + typecheck
+- [ ] `laserfocus -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key laserfocus; target meanlook
+- [ ] `lashout -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lashout; target nightslash
+- [ ] `lastresort -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lastresort; target gigaimpact
+- [ ] `lastrespects -> memento` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lastrespects; target memento
+- [ ] `lightthatburnsthesky -> fusionflare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lightthatburnsthesky; target fusionflare
+- [ ] `liquidation -> crabhammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key liquidation; target crabhammer
+- [ ] `lowsweep -> lowkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lowsweep; target lowkick
+- [ ] `luminacrash -> esperwing` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key luminacrash; target esperwing
+- [ ] `lunardance -> moonlight` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lunardance; target moonlight
+- [ ] `lunge -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lunge; target megahorn
+- [ ] `magicpowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magicpowder; target spore
+- [ ] `magikarpsrevenge -> outrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magikarpsrevenge; target outrage
+- [ ] `magneticflux -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magneticflux; target electricterrain
+- [x] `magnitude -> earthquake` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: selected key retained; aliasTargetKey earthquake; native earthquake timeline + typecheck
+- [ ] `maliciousmoonsault -> pulverizingpancake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maliciousmoonsault; target pulverizingpancake
+- [ ] `maxairstream -> supersonicskystrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxairstream; target supersonicskystrike
+- [ ] `maxdarkness -> maliciousmoonsault` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxdarkness; target maliciousmoonsault
+- [ ] `maxflare -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxflare; target infernooverdrive
+- [ ] `maxflutterby -> savagespinout` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxflutterby; target savagespinout
+- [ ] `maxgeyser -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxgeyser; target hydrovortex
+- [ ] `maxguard -> banefulbunker` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maxguard; target banefulbunker
+- [ ] `maxhailstorm -> subzeroslammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxhailstorm; target subzeroslammer
+- [ ] `maximumpsybreaker -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maximumpsybreaker; target psychic
+- [ ] `maxknuckle -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxknuckle; target alloutpummeling
+- [ ] `maxlightning -> gigavolthavoc` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxlightning; target gigavolthavoc
+- [ ] `maxmindstorm -> shatteredpsyche` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxmindstorm; target shatteredpsyche
+- [ ] `maxooze -> aciddownpour` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxooze; target aciddownpour
+- [ ] `maxovergrowth -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxovergrowth; target bloomdoom
+- [ ] `maxphantasm -> neverendingnightmare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxphantasm; target neverendingnightmare
+- [ ] `maxquake -> tectonicrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxquake; target tectonicrage
+- [ ] `maxrockfall -> continentalcrush` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxrockfall; target continentalcrush
+- [ ] `maxstarfall -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxstarfall; target twinkletackle
+- [ ] `maxsteelspike -> corkscrewcrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxsteelspike; target corkscrewcrash
+- [ ] `maxstrike -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxstrike; target breakneckblitz
+- [ ] `maxwyrmwind -> devastatingdrake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxwyrmwind; target devastatingdrake
+- [ ] `mefirst -> mimic` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mefirst; target mimic
+- [ ] `megakick -> jumpkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key megakick; target jumpkick
+- [ ] `menacingmoonrazemaelstrom -> moongeistbeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key menacingmoonrazemaelstrom; target moongeistbeam
+- [ ] `metalburst -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key metalburst; target flashcannon
+- [ ] `meteorassault -> aurasphere` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key meteorassault; target aurasphere
+- [ ] `mindblown -> iceball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mindblown; target iceball
+- [ ] `miracleeye -> mindreader` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key miracleeye; target mindreader
+- [ ] `mirrorcoat -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mirrorcoat; target flashcannon
+- [ ] `mirrorshot -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mirrorshot; target flashcannon
+- [ ] `mountaingale -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mountaingale; target powergem
+- [ ] `mudslap -> mudshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudslap; target mudshot
+- [ ] `mudsport -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudsport; target mudbomb
+- [ ] `mysticalfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mysticalfire; target flamethrower
+- [ ] `naturalgift -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key naturalgift; target technoblast
+- [ ] `nightdaze -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightdaze; target darkpulse
+- [ ] `nightmare -> nightshade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightmare; target nightshade
+- [ ] `noretreat -> stockpile` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key noretreat; target stockpile
+- [ ] `nuzzle -> spark` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nuzzle; target spark
+- [ ] `obstruct -> kingsshield` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key obstruct; target kingsshield
+- [ ] `octolock -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key octolock; target bind
+- [ ] `overdrive -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key overdrive; target discharge
+- [ ] `paleowave -> muddywater` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key paleowave; target muddywater
+- [ ] `payback -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key payback; target slam
+- [x] `phantomforce -> shadowforce` | priority: P3 | source: BattleMoveAlias | adapter: preset | notes: assignment registry records prepare-alias target; selected key retained + typecheck
+- [ ] `pinmissile -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pinmissile; target bulletseed
+- [ ] `poisonpowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisonpowder; target spore
+- [ ] `poisonsting -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisonsting; target poisonjab
+- [ ] `poisontail -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisontail; target poisonjab
+- [ ] `polarflare -> torchsong` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key polarflare; target torchsong
+- [ ] `pollenpuff -> revelationdance` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pollenpuff; target revelationdance
+- [ ] `poltergeist -> neverendingnightmare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poltergeist; target neverendingnightmare
+- [ ] `pounce -> bodyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pounce; target bodyslam
+- [ ] `powder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powder; target spore
+- [ ] `powdersnow -> icywind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powdersnow; target icywind
+- [ ] `powershift -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powershift; target skillswap
+- [ ] `powersplit -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powersplit; target skillswap
+- [ ] `powerswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powerswap; target skillswap
+- [ ] `psyblade -> psychocut` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psyblade; target psychocut
+- [ ] `psychicterrain -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychicterrain; target mistyterrain
+- [ ] `psychoshift -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychoshift; target painsplit
+- [ ] `psychup -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychup; target painsplit
+- [ ] `psywave -> psybeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psywave; target psybeam
+- [ ] `purify -> weatherball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key purify; target weatherball
+- [ ] `pyroball -> flameburst` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pyroball; target flameburst
+- [ ] `rage -> thrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rage; target thrash
+- [ ] `ragingbull -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ragingbull; target gigaimpact
+- [ ] `razorleaf -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key razorleaf; target magicalleaf
+- [ ] `reflecttype -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key reflecttype; target painsplit
+- [ ] `relicsong -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key relicsong; target hypervoice
+- [ ] `retaliate -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key retaliate; target closecombat
+- [ ] `revenge -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key revenge; target slam
+- [ ] `risingvoltage -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key risingvoltage; target discharge
+- [ ] `rockclimb -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rockclimb; target slam
+- [ ] `rocktomb -> rockslide` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rocktomb; target rockslide
+- [ ] `roleplay -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key roleplay; target painsplit
+- [ ] `rollingkick -> doublekick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rollingkick; target doublekick
+- [ ] `rototiller -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rototiller; target electricterrain
+- [ ] `sandattack -> mudshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sandattack; target mudshot
+- [ ] `savagespinout -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key savagespinout; target electroweb
+- [ ] `scaleshot -> clangingscales` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scaleshot; target clangingscales
+- [ ] `scaryface -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scaryface; target meanlook
+- [ ] `scorchingsands -> earthpower` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scorchingsands; target earthpower
+- [ ] `searingshot -> shelltrap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key searingshot; target shelltrap
+- [ ] `secretpower -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key secretpower; target technoblast
+- [ ] `selfdestruct -> explosion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key selfdestruct; target explosion
+- [ ] `shadowstrike -> shadowforce` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shadowstrike; target shadowforce
+- [ ] `shatteredpsyche -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shatteredpsyche; target psychic
+- [ ] `shedtail -> substitute` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shedtail; target substitute
+- [ ] `shellsidearmphysical -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmphysical; target poisonjab
+- [ ] `shellsidearmspecial -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmspecial; target sludgebomb
+- [ ] `shelter -> withdraw` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shelter; target withdraw
+- [ ] `silverwind -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key silverwind; target whirlwind
+- [ ] `skittersmack -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key skittersmack; target megahorn
+- [ ] `slackoff -> rest` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key slackoff; target rest
+- [ ] `sleeppowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sleeppowder; target spore
+- [ ] `smackdown -> rockblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key smackdown; target rockblast
+- [ ] `snaptrap -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key snaptrap; target magicalleaf
+- [ ] `snipeshot -> waterpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key snipeshot; target waterpulse
+- [ ] `sparklingaria -> bubblebeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sparklingaria; target bubblebeam
+- [ ] `speedswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key speedswap; target skillswap
+- [ ] `spiderweb -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key spiderweb; target electroweb
+- [ ] `spitup -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key spitup; target magnetbomb
+- [ ] `steelbeam -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key steelbeam; target magnetbomb
+- [ ] `steelroller -> steamroller` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key steelroller; target steamroller
+- [ ] `stormthrow -> circlethrow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stormthrow; target circlethrow
+- [ ] `strangesteam -> dazzlinggleam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strangesteam; target dazzlinggleam
+- [ ] `strengthsap -> leechlife` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strengthsap; target leechlife
+- [ ] `stringshot -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stringshot; target electroweb
+- [ ] `strugglebug -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strugglebug; target bulletseed
+- [ ] `stuffcheeks -> stockpile` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stuffcheeks; target stockpile
+- [ ] `stunspore -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stunspore; target spore
+- [ ] `submission -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key submission; target closecombat
+- [ ] `subzeroslammer -> sheercold` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key subzeroslammer; target sheercold
+- [ ] `superpower -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key superpower; target closecombat
+- [ ] `surgingstrikes -> aquajet` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key surgingstrikes; target aquajet
+- [ ] `sweetkiss -> lovelykiss` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetkiss; target lovelykiss
+- [ ] `sweetscent -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetscent; target mistyterrain
+- [ ] `synthesis -> recover` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key synthesis; target recover
+- [ ] `tackle -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tackle; target slam
+- [ ] `takedown -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key takedown; target gigaimpact
+- [ ] `tarshot -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tarshot; target mudbomb
+- [ ] `teatime -> healbell` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key teatime; target healbell
+- [ ] `tectonicrage -> precipiceblades` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tectonicrage; target precipiceblades
+- [ ] `telekinesis -> kinesis` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key telekinesis; target kinesis
+- [ ] `terablast -> scald` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablast; target scald
+- [ ] `terablastbug -> bugbuzz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastbug; target bugbuzz
+- [ ] `terablastdark -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdark; target darkpulse
+- [ ] `terablastdragon -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdragon; target dragonpulse
+- [ ] `terablastelectric -> thunderbolt` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastelectric; target thunderbolt
+- [ ] `terablastfairy -> moonblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfairy; target moonblast
+- [ ] `terablastfighting -> focusblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfighting; target focusblast
+- [ ] `terablastfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfire; target flamethrower
+- [ ] `terablastflying -> aeroblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastflying; target aeroblast
+- [ ] `terablastghost -> infernalparade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastghost; target infernalparade
+- [ ] `terablastgrass -> seedflare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastgrass; target seedflare
+- [ ] `terablastground -> earthpower` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastground; target earthpower
+- [ ] `terablastice -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastice; target icebeam
+- [ ] `terablastnormal -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastnormal; target technoblast
+- [ ] `terablastpoison -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastpoison; target sludgebomb
+- [ ] `terablastpsychic -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastpsychic; target psychic
+- [ ] `terablastrock -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastrock; target powergem
+- [ ] `terablaststeel -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststeel; target flashcannon
+- [ ] `terablaststellar -> dracometeor` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststellar; target dracometeor
+- [ ] `terablastwater -> hydropump` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastwater; target hydropump
+- [ ] `throatchop -> karatechop` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key throatchop; target karatechop
+- [ ] `thundershock -> electroball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key thundershock; target electroball
+- [ ] `tidyup -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tidyup; target bulkup
+- [ ] `torment -> swagger` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key torment; target swagger
+- [ ] `toxicthread -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key toxicthread; target electroweb
+- [ ] `trailblaze -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key trailblaze; target powerwhip
+- [ ] `tripledive -> dive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tripledive; target dive
+- [ ] `triplekick -> doublekick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key triplekick; target doublekick
+- [ ] `trumpcard -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key trumpcard; target gigaimpact
+- [ ] `twister -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key twister; target whirlwind
+- [ ] `uproar -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key uproar; target hypervoice
+- [ ] `venomdrench -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key venomdrench; target sludge
+- [ ] `venoshock -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key venoshock; target sludgebomb
+- [ ] `vinewhip -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key vinewhip; target powerwhip
+- [ ] `vitalthrow -> circlethrow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key vitalthrow; target circlethrow
+- [ ] `volttackle -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key volttackle; target wildcharge
+- [ ] `waterfall -> aquajet` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key waterfall; target aquajet
+- [ ] `watergun -> watersport` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key watergun; target watersport
+- [ ] `whirlpool -> watersport` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key whirlpool; target watersport
+- [ ] `workup -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key workup; target bulkup
+- [ ] `wrap -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key wrap; target bind
+- [ ] `wringout -> forcepalm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key wringout; target forcepalm
+- [ ] `zingzap -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key zingzap; target wildcharge

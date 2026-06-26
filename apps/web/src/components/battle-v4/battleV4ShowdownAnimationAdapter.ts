@@ -1,6 +1,7 @@
 import type {BattleAnimationKindV4, BattleProtocolEventV4, BattleProtocolSeatV4} from "./battleV4Playback";
 
 export type ShowdownAnimationSourceV4 = "BattleMoveAnims" | "BattleOtherAnims" | "BattleStatusAnims" | "fallback" | "native";
+export type ShowdownAnimationFidelityV4 = "fallback" | "preset" | "native" | "exact";
 
 export type ShowdownActorAnimPropsV4 = Partial<{
   x: number;
@@ -40,7 +41,7 @@ export type ShowdownEffectSpriteV4 = {
 };
 
 export type ShowdownAnimationStepV4 =
-  | {type: "showEffect"; effectId: string; from: ShowdownSpriteActorV4; to: ShowdownSpriteActorV4; durationMs: number; easing?: string; fade?: "in" | "out" | "both" | "none"; sprite: ShowdownEffectSpriteV4}
+  | {type: "showEffect"; effectId: string; from: ShowdownSpriteActorV4; to: ShowdownSpriteActorV4; durationMs: number; delayMs?: number; easing?: string; fade?: "in" | "out" | "both" | "none"; explode?: boolean; sprite: ShowdownEffectSpriteV4}
   | {type: "actorAnim"; actor: ShowdownSpriteActorV4; props: ShowdownActorAnimPropsV4; durationMs: number; easing?: string}
   | {type: "delay"; actor?: ShowdownSpriteActorV4; durationMs: number}
   | {type: "wait"; durationMs: number}
@@ -62,6 +63,12 @@ export type ShowdownAnimationTimelineV4 = {
   steps: ShowdownAnimationStepV4[];
   checkpoints: string[];
   fallback: boolean;
+  adapterFidelity: ShowdownAnimationFidelityV4;
+  sourceKey: string;
+  aliasTargetKey: string;
+  compositeTargets: string[];
+  showdownInstructionCount: number;
+  missingFxAssets: string[];
 };
 
 export type ShowdownAnimationContextV4 = {
@@ -92,6 +99,9 @@ export type ShowdownAnimationKeySelectionV4 = {
   animationKey: string;
   source: ShowdownAnimationSourceV4;
   fallback: boolean;
+  sourceKey: string;
+  aliasTargetKey: string;
+  compositeTargets: string[];
 };
 
 const FIRST_BATCH_OTHER_ANIMS = new Set([
@@ -269,34 +279,55 @@ const MOVE_NATIVE_OTHER_MAP: Record<string, string> = {
   metalsound: "sound",
 };
 
+const MOVE_ALIAS_ASSIGNMENTS: Record<string, string> = {
+  magnitude: "earthquake",
+  fissure: "earthquake",
+  landswrath: "earthquake",
+  phantomforce: "shadowforce",
+};
+
+const MOVE_COMPOSITE_ASSIGNMENTS: Record<string, string[]> = {
+  headlongrush: ["closecombat", "earthpower"],
+};
+
 export function selectShowdownAnimationKeyV4(event: BattleProtocolEventV4, kind: BattleAnimationKindV4): ShowdownAnimationKeySelectionV4 {
   const moveId = toId(event.moveId || event.moveName);
   const status = toId(event.status || event.args[2]);
-  if (kind === "damage" || kind === "hit") return {animationKey: "hitmark", source: "BattleOtherAnims", fallback: false};
-  if (kind === "heal") return {animationKey: "heal", source: "BattleOtherAnims", fallback: false};
+  const aliasedMoveId = MOVE_ALIAS_ASSIGNMENTS[moveId] || moveId;
+  if (kind === "damage" || kind === "hit") return selection("hitmark", "BattleOtherAnims", false);
+  if (kind === "heal") return selection("heal", "BattleOtherAnims", false);
   if (kind === "status") {
     const key = SUPPORTED_STATUS_ANIMS.has(status) ? status : statusFallbackForEvent(event);
-    return {animationKey: key, source: SUPPORTED_STATUS_ANIMS.has(key) ? "BattleStatusAnims" : "BattleOtherAnims", fallback: !SUPPORTED_STATUS_ANIMS.has(key)};
+    return selection(key, SUPPORTED_STATUS_ANIMS.has(key) ? "BattleStatusAnims" : "BattleOtherAnims", !SUPPORTED_STATUS_ANIMS.has(key));
   }
-  if (kind === "result") return {animationKey: resultAnimationKeyForEvent(event), source: "BattleOtherAnims", fallback: true};
-  if (kind === "moveStart") return {animationKey: moveId || "attack", source: moveId && SUPPORTED_MOVE_ANIMS.has(moveId) ? "BattleMoveAnims" : "fallback", fallback: !SUPPORTED_MOVE_ANIMS.has(moveId)};
+  if (kind === "result") return selection(resultAnimationKeyForEvent(event), "BattleOtherAnims", true);
+  if (kind === "moveStart") {
+    if (moveId && MOVE_ALIAS_ASSIGNMENTS[moveId]) return selection(moveId, "BattleMoveAnims", false, moveId, aliasedMoveId);
+    return selection(aliasedMoveId || "attack", aliasedMoveId && SUPPORTED_MOVE_ANIMS.has(aliasedMoveId) ? "BattleMoveAnims" : "fallback", !SUPPORTED_MOVE_ANIMS.has(aliasedMoveId), moveId);
+  }
   if (kind === "moveEffect") {
-    if (moveId && SUPPORTED_MOVE_ANIMS.has(moveId)) return {animationKey: moveId, source: "BattleMoveAnims", fallback: false};
+    const compositeTargets = MOVE_COMPOSITE_ASSIGNMENTS[moveId] || [];
+    if (moveId && compositeTargets.length) return selection(moveId, "BattleMoveAnims", false, moveId, "", compositeTargets);
+    if (moveId && MOVE_ALIAS_ASSIGNMENTS[moveId]) return selection(moveId, "BattleMoveAnims", false, moveId, aliasedMoveId);
+    if (aliasedMoveId && SUPPORTED_MOVE_ANIMS.has(aliasedMoveId)) return selection(aliasedMoveId, "BattleMoveAnims", false, moveId);
     const fallbackKey = fallbackMoveAnimationKey(event);
-    return {animationKey: fallbackKey, source: "BattleOtherAnims", fallback: true};
+    return selection(fallbackKey, "BattleOtherAnims", true);
   }
-  if (kind === "ability") return {animationKey: "lightstatus", source: "BattleOtherAnims", fallback: true};
+  if (kind === "ability") return selection("lightstatus", "BattleOtherAnims", true);
   if (kind === "weather") {
     const key = toId(event.args[0] === "-weather" ? event.args[1] : cleanEffect(event.args[1]));
-    return {animationKey: key || "lightstatus", source: key && (SUPPORTED_MOVE_ANIMS.has(key) || key === "desolateland" || key === "primordialsea" || key === "deltastream") ? "BattleMoveAnims" : "BattleOtherAnims", fallback: false};
+    return selection(key || "lightstatus", key && (SUPPORTED_MOVE_ANIMS.has(key) || key === "desolateland" || key === "primordialsea" || key === "deltastream") ? "BattleMoveAnims" : "BattleOtherAnims", false);
   }
-  if (kind === "transform") return {animationKey: moveId === "transform" ? "transform" : "shiny", source: moveId === "transform" ? "BattleMoveAnims" : "BattleOtherAnims", fallback: moveId !== "transform"};
-  if (kind === "switchIn" || kind === "switchOut" || kind === "faint") return {animationKey: kind, source: "native", fallback: false};
-  return {animationKey: kind || "message", source: "native", fallback: true};
+  if (kind === "transform") return selection(moveId === "transform" ? "transform" : "shiny", moveId === "transform" ? "BattleMoveAnims" : "BattleOtherAnims", moveId !== "transform");
+  if (kind === "switchIn" || kind === "switchOut" || kind === "faint") return selection(kind, "native", false);
+  return selection(kind || "message", "native", true);
 }
 
 export function projectShowdownAnimationTimelineV4(animationKey: string, context: ShowdownAnimationContextV4): ShowdownAnimationTimelineV4 {
   const selection = selectShowdownAnimationKeyV4(context.event, context.kind);
+  const sourceKey = selection.sourceKey || animationKey;
+  const aliasTargetKey = selection.aliasTargetKey;
+  const compositeTargets = selection.compositeTargets;
   const actor = actorForSeat(context.event.seat, context.event.actorName);
   const targetSeat = context.event.targetSeat || context.event.seat;
   const target = actorForSeat(targetSeat, context.event.targetName || context.event.actorName);
@@ -316,6 +347,12 @@ export function projectShowdownAnimationTimelineV4(animationKey: string, context
     steps,
     checkpoints: checkpoints.length ? checkpoints : [checkpointId],
     fallback: fallbackForAnimationKey(animationKey, context.kind, selection.fallback),
+    adapterFidelity: fidelityForAnimationKey(animationKey, context.kind, selection.fallback),
+    sourceKey,
+    aliasTargetKey,
+    compositeTargets,
+    showdownInstructionCount: showdownInstructionCountForAnimationKey(animationKey, context.kind, steps),
+    missingFxAssets: missingFxAssetsForSteps(steps),
   };
 }
 
@@ -567,21 +604,34 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "bugbuzz":
     return [showEffectStep("sound", actor, {...target, scale: 1.9, opacity: 0}, 520, {fade: "both"}), showEffectStep("wisp", {...target, scale: .5, opacity: .4}, {...target, scale: 2.4, opacity: 0}, 580, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, 10)}, 180, "swing")];
   case "swordsdance":
-    return [showEffectStep("sword", actor, {...actor, y: actor.y + 28, scale: 1.5, opacity: 0}, 520, {fade: "both"}), actorAnimStep(actor, {scale: 1.12}, 280, "swing")];
+    return exactSwordsDanceSteps(actor);
   case "dragondance":
     return [{type: "backgroundEffect", color: "#7c4dff", durationMs: 520, opacity: .22}, showEffectStep("rainbow", actor, {...actor, scale: 1.8, opacity: 0}, 620, {fade: "both"}), actorAnimStep(actor, {x: leftOf(actor, 12), scale: 1.1}, 320, "swing")];
+  case "earthquake":
+  case "magnitude":
+  case "fissure":
+  case "landswrath":
+    return nativeEarthquakeSteps(actor, target, animationKey);
+  case "bulldoze":
+    return nativeBulldozeSteps(actor, target);
+  case "protect":
+    return nativeProtectSteps(actor);
+  case "recover":
+    return nativeRecoverSteps(actor, "recover");
+  case "rest":
+    return nativeRestSteps(actor);
   case "thunderbolt":
-    return [{type: "backgroundEffect", color: "#000000", durationMs: 600, opacity: .2}, showEffectStep("lightning", {...target, y: target.y + 150, yscale: 0, xscale: 2}, {...target, y: target.y + 50, yscale: 1, xscale: 1.5, opacity: .8}, 260, {fade: "both"}), showEffectStep("lightning", {...target, x: target.x - 15, y: target.y + 150, yscale: 0, xscale: 2}, {...target, y: target.y + 50, yscale: 1, xscale: 1.5, opacity: .8}, 460, {fade: "both"}), actorAnimStep(target, {x: leftOf(target, -8)}, 180, "swing")];
+    return nativeThunderboltSteps(actor, target);
   case "psychic":
-    return [{type: "backgroundEffect", color: "#aa44ff", durationMs: 620, opacity: .34}, actorAnimStep(target, {scale: 1.24}, 180, "decel"), actorAnimStep(target, {scale: 1.4}, 220, "decel"), showEffectStep("mistball", target, {...target, scale: 2, opacity: 0}, 520, {fade: "both"})];
+    return nativePsychicSteps(actor, target);
   case "icebeam":
-    return [showEffectStep("iceball", actor, target, 420, {fade: "both"}), showEffectStep("icicle", {...target, y: target.y + 70, opacity: .8}, {...target, y: target.y + 8, opacity: 0, scale: .8}, 520, {fade: "both"}), actorAnimStep(target, {scale: .96}, 200)];
+    return nativeIceBeamSteps(actor, target);
   case "flamethrower":
   case "fireblast":
   case "blastburn":
-    return [{type: "backgroundEffect", color: "#ff652f", durationMs: animationKey === "blastburn" ? 780 : 520, opacity: animationKey === "blastburn" ? .42 : .28}, showEffectStep(animationKey === "fireblast" ? "flareball" : "fireball", actor, target, animationKey === "blastburn" ? 780 : 520, {fade: "both"}), showEffectStep("fireball", {...target, x: target.x - 12}, {...target, scale: 2.1, opacity: 0}, 450, {fade: "both"})];
+    return nativeFireProjectileSteps(actor, target, animationKey);
   case "rockslide":
-    return [showEffectStep("rocks", {...target, y: target.y + 85, opacity: .85}, target, 460, {fade: "both"}), showEffectStep("rock1", {...target, x: target.x - 28, y: target.y + 70}, {...target, x: target.x - 8, y: target.y + 5}, 420, {fade: "both"}), showEffectStep("rock2", {...target, x: target.x + 32, y: target.y + 82}, {...target, x: target.x + 8, y: target.y + 8}, 500, {fade: "both"}), actorAnimStep(target, {z: behind(target, 25)}, 180)];
+    return nativeRockSlideSteps(actor, target);
   case "shadowball":
     return [{type: "backgroundEffect", color: "#240038", durationMs: 520, opacity: .22}, showEffectStep("shadowball", actor, target, 560, {fade: "both"}), showEffectStep("blackwisp", target, {...target, scale: 1.7, opacity: 0}, 440, {fade: "both"})];
   case "energyball":
@@ -589,7 +639,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "airslash":
     return [showEffectStep("rightslash", actor, target, 380, {fade: "both"}), showEffectStep("feather", {...target, y: target.y + 20}, {...target, y: target.y - 26, opacity: 0}, 520, {fade: "both"}), actorAnimStep(target, {z: behind(target, 18)}, 180)];
   case "surf":
-    return [{type: "backgroundEffect", color: "#3d9dff", durationMs: 620, opacity: .28}, showEffectStep("waterwisp", {...actor, scale: 1.3}, {...target, scale: 2.2, opacity: .15}, 620, {fade: "both"}), showEffectStep("waterwisp", {...target, x: target.x - 24, scale: .7}, {...target, x: target.x + 26, scale: 1.4, opacity: 0}, 560, {fade: "both"})];
+    return nativeSurfSteps(actor, target);
   case "hydropump":
     return stepsForOtherAnimation("hydroshot", actor, target);
   case "swift":
@@ -677,6 +727,144 @@ function pulseProjectileSteps(
   }
   steps.push(actorAnimStep(target, {z: behind(target, 18)}, 180, "swing"));
   return steps;
+}
+
+function exactSwordsDanceSteps(actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  const high = actor.y - 58;
+  const mid = actor.y - 12;
+  return [
+    ...stepsForOtherAnimation("shake", actor, actor),
+    showEffectStep("sword", {...actor, x: actor.x + 50, y: mid, scale: .5, opacity: 1}, {...actor, x: actor.x - 50, y: mid, scale: 1, opacity: .35}, 220, {easing: "ballistic2", fade: "out"}),
+    showEffectStep("sword", {...actor, x: actor.x - 50, y: mid, scale: .5, opacity: 1}, {...actor, x: actor.x + 50, y: mid, scale: 1, opacity: .35}, 220, {easing: "ballistic2back", fade: "out"}),
+    waitStep(80),
+    showEffectStep("sword", {...actor, x: actor.x + 36, y: actor.y + 8, scale: .55, opacity: .95}, {...actor, x: actor.x - 22, y: high, scale: 1.18, opacity: 0}, 520, {easing: "ballistic2", fade: "out"}),
+    showEffectStep("sword", {...actor, x: actor.x - 36, y: actor.y + 8, scale: .55, opacity: .95}, {...actor, x: actor.x + 22, y: high, scale: 1.18, opacity: 0}, 520, {easing: "ballistic2back", fade: "out"}),
+    waitStep(80),
+    showEffectStep("sword", {...actor, x: actor.x, y: actor.y + 16, scale: .72, opacity: .9}, {...actor, x: actor.x, y: high - 8, scale: 1.34, opacity: 0}, 620, {easing: "ballistic2Under", fade: "out"}),
+    actorAnimStep(actor, {y: actor.y - 8, scale: 1.08}, 220, "decel"),
+    actorAnimStep(actor, {y: actor.y, scale: 1}, 220, "swing"),
+  ];
+}
+
+function nativeEarthquakeSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const isFissure = key === "fissure";
+  return [
+    {type: "backgroundEffect", color: isFissure ? "#3d2615" : "#9b6a35", durationMs: 920, opacity: isFissure ? .46 : .34},
+    actorAnimStep(actor, {x: leftOf(actor, -10), y: actor.y + 6}, 120, "swing"),
+    actorAnimStep(actor, {x: leftOf(actor, 12), y: actor.y - 4}, 120, "swing"),
+    showEffectStep("mudwisp", {...target, x: target.x - 52, y: target.y + 76, scale: .7, opacity: .55}, {...target, x: target.x - 22, y: target.y + 14, scale: 2.1, opacity: 0}, 520, {easing: "ballistic2Under", fade: "both"}),
+    showEffectStep("impact", {...target, x: target.x + 8, y: target.y + 58, scale: .35, opacity: .55}, {...target, x: target.x + 8, y: target.y + 8, scale: 2.2, opacity: 0}, 440, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 14), y: target.y - 8, z: behind(target, 20)}, 110, "swing"),
+    showEffectStep("rocks", {...target, x: target.x + 44, y: target.y + 84, scale: .82, opacity: .72}, {...target, x: target.x + 12, y: target.y + 4, scale: 1.3, opacity: .12}, 520, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, -12), y: target.y + 8}, 110, "swing"),
+    showEffectStep("mudwisp", {...target, x: target.x + 42, y: target.y + 72, scale: .7, opacity: .48}, {...target, x: target.x + 8, y: target.y + 10, scale: 2.4, opacity: 0}, 620, {fade: "both"}),
+    actorAnimStep(target, {x: target.x, y: target.y, z: target.z}, 160, "swing"),
+  ];
+}
+
+function nativeBulldozeSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#b98442", durationMs: 720, opacity: .28},
+    actorAnimStep(actor, {x: leftOf(target, -34), y: target.y + 24, z: behind(target, -28)}, 340, "ballistic2Under"),
+    showEffectStep("mudwisp", {...target, y: target.y + 68, scale: .8, opacity: .55}, {...target, y: target.y + 8, scale: 2.1, opacity: 0}, 520, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 16), z: behind(target, 18)}, 180, "swing"),
+  ];
+}
+
+function nativeProtectSteps(actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#61d889", durationMs: 520, opacity: .18},
+    showEffectStep("shine", {...actor, scale: 1.6, opacity: .28}, {...actor, scale: 2.6, opacity: 0}, 620, {fade: "both"}),
+    showEffectStep("wisp", {...actor, y: actor.y + 18, scale: 2.2, opacity: .22}, {...actor, y: actor.y - 10, scale: 3.2, opacity: 0}, 520, {fade: "both"}),
+    actorAnimStep(actor, {scale: 1.04}, 180, "decel"),
+  ];
+}
+
+function nativeRecoverSteps(actor: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const color = key === "rest" ? "#a7c8ff" : "#8dffb0";
+  return [
+    {type: "backgroundEffect", color, durationMs: 680, opacity: .24},
+    showEffectStep("shine", {...actor, y: actor.y + 36, scale: 1.4, opacity: .18}, {...actor, y: actor.y - 24, scale: 2.2, opacity: 0}, 620, {fade: "both"}),
+    showEffectStep("wisp", {...actor, x: actor.x - 18, y: actor.y + 24, scale: .5, opacity: .56}, {...actor, x: actor.x + 12, y: actor.y - 42, scale: 1.3, opacity: 0}, 620, {fade: "both"}),
+    showEffectStep("wisp", {...actor, x: actor.x + 18, y: actor.y + 24, scale: .5, opacity: .56}, {...actor, x: actor.x - 12, y: actor.y - 42, scale: 1.3, opacity: 0}, 720, {fade: "both"}),
+    actorAnimStep(actor, {scale: 1.08}, 180, "decel"),
+    {type: "healAnim", actor, heal: null},
+  ];
+}
+
+function nativeRestSteps(actor: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    ...nativeRecoverSteps(actor, "rest"),
+    showEffectStep("wisp", {...actor, y: actor.y - 18, scale: .4, opacity: .35}, {...actor, y: actor.y - 52, scale: 1.2, opacity: 0}, 760, {fade: "both"}),
+    actorAnimStep(actor, {y: actor.y + 8, opacity: .82}, 240, "swing"),
+  ];
+}
+
+function nativeThunderboltSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#05070d", durationMs: 700, opacity: .34},
+    showEffectStep("electroball", {...actor, scale: .45, opacity: .6}, {...target, scale: 1.4, opacity: .18}, 420, {fade: "both"}),
+    showEffectStep("lightning", {...target, y: target.y + 160, yscale: 0, xscale: 2.2, opacity: .92}, {...target, y: target.y + 44, yscale: 1.2, xscale: 1.35, opacity: .72}, 260, {fade: "both"}),
+    showEffectStep("lightning", {...target, x: target.x - 18, y: target.y + 150, yscale: 0, xscale: 1.7, opacity: .86}, {...target, x: target.x + 8, y: target.y + 40, yscale: 1, xscale: 1.15, opacity: .62}, 420, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, -10)}, 90, "swing"),
+    actorAnimStep(target, {x: leftOf(target, 10)}, 90, "swing"),
+    actorAnimStep(target, {x: target.x}, 90, "swing"),
+  ];
+}
+
+function nativePsychicSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#aa44ff", durationMs: 760, opacity: .34},
+    showEffectStep("mistball", {...actor, scale: .4, opacity: .35}, {...target, scale: 1.65, opacity: .18}, 540, {fade: "both"}),
+    actorAnimStep(target, {y: target.y - 18, scale: 1.16}, 180, "decel"),
+    showEffectStep("wisp", {...target, scale: 1.1, opacity: .22}, {...target, scale: 3.1, opacity: 0}, 620, {fade: "both"}),
+    actorAnimStep(target, {x: leftOf(target, 14), y: target.y - 8, scale: 1.22}, 130, "swing"),
+    actorAnimStep(target, {x: leftOf(target, -14), y: target.y + 4, scale: 1.08}, 130, "swing"),
+    actorAnimStep(target, {x: target.x, y: target.y, scale: 1}, 160, "swing"),
+  ];
+}
+
+function nativeIceBeamSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#bfefff", durationMs: 520, opacity: .2},
+    showEffectStep("iceball", {...actor, scale: .35, opacity: .72}, {...target, scale: 1.15, opacity: .15}, 440, {fade: "both"}),
+    showEffectStep("icicle", {...target, x: target.x - 22, y: target.y + 78, opacity: .85}, {...target, x: target.x - 8, y: target.y + 8, opacity: .08, scale: .85}, 520, {fade: "both"}),
+    showEffectStep("icicle", {...target, x: target.x + 24, y: target.y + 72, opacity: .75}, {...target, x: target.x + 8, y: target.y + 4, opacity: .08, scale: .85}, 620, {fade: "both"}),
+    actorAnimStep(target, {scale: .94, opacity: .9}, 180, "swing"),
+    actorAnimStep(target, {scale: 1, opacity: 1}, 180, "swing"),
+  ];
+}
+
+function nativeFireProjectileSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  const sprite = key === "fireblast" ? "flareball" : key.includes("blue") ? "bluefireball" : "fireball";
+  return [
+    {type: "backgroundEffect", color: "#ff652f", durationMs: key === "blastburn" ? 860 : 620, opacity: key === "blastburn" ? .42 : .3},
+    showEffectStep(sprite, {...actor, scale: .5, opacity: .78}, {...target, scale: 1.28, opacity: .18}, key === "blastburn" ? 720 : 520, {fade: "both"}),
+    showEffectStep("fireball", {...target, x: target.x - 18, y: target.y + 10, scale: .7, opacity: .52}, {...target, x: target.x + 14, y: target.y - 16, scale: 2.2, opacity: 0}, 520, {fade: "both"}),
+    showEffectStep("fireball", {...target, x: target.x + 18, y: target.y + 18, scale: .62, opacity: .45}, {...target, x: target.x - 10, y: target.y - 18, scale: 2.1, opacity: 0}, 620, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 18)}, 170, "swing"),
+  ];
+}
+
+function nativeRockSlideSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#8c7255", durationMs: 640, opacity: .22},
+    showEffectStep("rocks", {...target, y: target.y + 95, opacity: .85}, target, 520, {fade: "both"}),
+    showEffectStep("rock1", {...target, x: target.x - 42, y: target.y + 84, scale: .9}, {...target, x: target.x - 10, y: target.y + 8, scale: 1.1, opacity: .1}, 420, {fade: "both"}),
+    showEffectStep("rock2", {...target, x: target.x + 38, y: target.y + 92, scale: .9}, {...target, x: target.x + 10, y: target.y + 6, scale: 1.1, opacity: .1}, 520, {fade: "both"}),
+    showEffectStep("rock3", {...target, x: target.x + 4, y: target.y + 110, scale: .78}, {...target, x: target.x + 2, y: target.y + 12, scale: 1.06, opacity: .1}, 620, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 25), x: leftOf(target, 8)}, 180, "swing"),
+  ];
+}
+
+function nativeSurfSteps(actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
+  return [
+    {type: "backgroundEffect", color: "#3d9dff", durationMs: 760, opacity: .3},
+    showEffectStep("waterwisp", {...actor, x: actor.x - 24, y: actor.y + 20, scale: 1.3, opacity: .45}, {...target, x: target.x - 34, y: target.y + 22, scale: 2.4, opacity: .12}, 620, {fade: "both"}),
+    showEffectStep("waterwisp", {...actor, x: actor.x + 18, y: actor.y + 30, scale: 1.1, opacity: .4}, {...target, x: target.x + 32, y: target.y + 12, scale: 2.2, opacity: .1}, 720, {fade: "both"}),
+    showEffectStep("waterwisp", {...target, x: target.x - 30, y: target.y + 44, scale: .9, opacity: .5}, {...target, x: target.x + 30, y: target.y - 12, scale: 1.6, opacity: 0}, 620, {fade: "both"}),
+    actorAnimStep(target, {z: behind(target, 22), y: target.y - 6}, 180, "swing"),
+  ];
 }
 
 function presetRouterSteps(animationKey: string, actor: ShowdownSpriteActorV4, target: ShowdownSpriteActorV4): ShowdownAnimationStepV4[] {
@@ -962,7 +1150,7 @@ function showEffectStep(
   from: ShowdownSpriteActorV4,
   to: ShowdownSpriteActorV4,
   durationMs: number,
-  options: {easing?: string; fade?: "in" | "out" | "both" | "none"; spriteId?: string} = {},
+  options: {easing?: string; fade?: "in" | "out" | "both" | "none"; spriteId?: string; delayMs?: number; explode?: boolean} = {},
 ): ShowdownAnimationStepV4 {
   return {
     type: "showEffect",
@@ -970,8 +1158,10 @@ function showEffectStep(
     from,
     to,
     durationMs,
+    delayMs: options.delayMs,
     easing: options.easing || "linear",
     fade: options.fade || "both",
+    explode: options.explode,
     sprite: effectSpriteFor(options.spriteId || effectId, from),
   };
 }
@@ -1008,6 +1198,64 @@ function fallbackForAnimationKey(animationKey: string, kind: BattleAnimationKind
   if (SUPPORTED_STATUS_ANIMS.has(animationKey)) return false;
   if (SUPPORTED_OTHER_ANIMS.has(animationKey)) return false;
   return fallback;
+}
+
+function selection(
+  animationKey: string,
+  source: ShowdownAnimationSourceV4,
+  fallback: boolean,
+  sourceKey = animationKey,
+  explicitAliasTarget = "",
+  compositeTargets: string[] = [],
+): ShowdownAnimationKeySelectionV4 {
+  const aliasTargetKey = explicitAliasTarget || (sourceKey && animationKey !== sourceKey ? animationKey : "");
+  return {
+    animationKey,
+    source,
+    fallback,
+    sourceKey: sourceKey || animationKey,
+    aliasTargetKey,
+    compositeTargets,
+  };
+}
+
+function fidelityForAnimationKey(animationKey: string, kind: BattleAnimationKindV4, fallback: boolean): ShowdownAnimationFidelityV4 {
+  if (fallback) return "fallback";
+  if (kind === "weather") return "native";
+  if (kind === "status" && SUPPORTED_STATUS_ANIMS.has(animationKey)) return "native";
+  if (animationKey === "swordsdance") return "exact";
+  if (/^(earthquake|magnitude|fissure|landswrath|bulldoze|protect|recover|rest|thunderbolt|flamethrower|icebeam|surf|rockslide|psychic)$/.test(animationKey)) return "native";
+  if (MOVE_NATIVE_OTHER_MAP[animationKey] || SUPPORTED_OTHER_ANIMS.has(animationKey)) return "native";
+  if (SUPPORTED_MOVE_ANIMS.has(animationKey)) return "preset";
+  if (kind === "switchIn" || kind === "switchOut" || kind === "faint" || kind === "transform") return "native";
+  return "preset";
+}
+
+function showdownInstructionCountForAnimationKey(animationKey: string, kind: BattleAnimationKindV4, steps: ShowdownAnimationStepV4[]): number {
+  if (animationKey === "swordsdance") return 7;
+  if (/^(earthquake|magnitude|fissure|landswrath)$/.test(animationKey)) return 10;
+  if (kind === "weather") return 3;
+  return steps.filter(step => step.type !== "checkpoint").length;
+}
+
+const KNOWN_FX_SPRITES = new Set([
+  "alpha", "angry", "blackwisp", "bluefireball", "bone", "bottombite", "caltrop", "electroball",
+  "energyball", "feather", "fireball", "fist", "fist1", "flareball", "foot", "gear", "greenmetal1",
+  "greenmetal2", "hitmark", "hitmarker", "icicle", "icicle-pink", "iceball", "impact", "item",
+  "leaf1", "leaf2", "leftchop", "leftclaw", "leftslash", "lightning", "mistball", "moon", "mudwisp",
+  "omega", "petal", "poisoncaltrop", "poisonwisp", "pokeball", "rainbow", "rightchop", "rightclaw",
+  "rightslash", "rock1", "rock2", "rock3", "rocks", "shadowball", "shell", "shine", "sound", "stare",
+  "sword", "topbite", "ultra", "waterwisp", "weather-gravity", "web", "wisp", "z-symbol"
+]);
+
+function missingFxAssetsForSteps(steps: ShowdownAnimationStepV4[]): string[] {
+  const missing = new Set<string>();
+  for (const step of steps) {
+    if (step.type !== "showEffect") continue;
+    const id = step.sprite.effectId || step.effectId;
+    if (id && !KNOWN_FX_SPRITES.has(id)) missing.add(`/showdown/fx/${id}.png`);
+  }
+  return [...missing];
 }
 
 function wait(durationMs: number): Promise<void> {

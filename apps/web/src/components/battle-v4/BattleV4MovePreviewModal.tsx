@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
-import {useBattleV4PreviewPlayback, type BattleAnimationEventV4, type BattleProtocolSeatV4} from "./battleV4Playback";
+import {useBattleV4PreviewPlayback, type BattleAnimationEventV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineVisuals, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
@@ -53,8 +53,9 @@ export function BattleV4MovePreviewModal({move, environment, initialMode = "sing
       animationKinds: animationKindsLabel.split(",").filter(Boolean),
       selectedAnimationKeys: selectedAnimationKeysLabel.split(",").filter(Boolean),
       animationTimelines: playback.debug.animationEvents.map(event => event.animationTimeline),
+      persistentFieldVisuals: playback.persistentFieldVisuals,
     });
-  }, [animationKindsLabel, mode, subject.kind, subjectId, rawLines, selectedAnimationKeysLabel, playback.debug.animationEvents]);
+  }, [animationKindsLabel, mode, subject.kind, subjectId, rawLines, selectedAnimationKeysLabel, playback.debug.animationEvents, playback.persistentFieldVisuals]);
 
   function chooseMode(nextMode: BattleV4MovePreviewMode) {
     setMode(nextMode);
@@ -86,6 +87,7 @@ export function BattleV4MovePreviewModal({move, environment, initialMode = "sing
           message={message}
           animation={playback.activeAnimation}
           activeTimelineStep={playback.activeTimelineStep}
+          persistentFieldVisuals={playback.persistentFieldVisuals}
         />
         <footer className={`battle-v4-preview-meta move-type-${subject.kind === "move" ? typeIdFor(subject.move.typeId || subject.move.type) : "status"}`}>
           {subject.kind === "move" ? (
@@ -155,12 +157,13 @@ export function buildBattleV4MovePreviewScript(move: DexMoveDetail, mode: Battle
   return lines;
 }
 
-function PreviewArena({near, far, message, animation, activeTimelineStep}: {
+function PreviewArena({near, far, message, animation, activeTimelineStep, persistentFieldVisuals}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   message: string;
   animation: BattleAnimationEventV4 | null;
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
+  persistentFieldVisuals: BattleV4PersistentFieldVisuals;
 }) {
   const nearSlots = sortPreviewSlots(near, "near");
   const farSlots = sortPreviewSlots(far, "far");
@@ -169,6 +172,7 @@ function PreviewArena({near, far, message, animation, activeTimelineStep}: {
     <div className="battle-v4-preview-arena battle-v4-arena" aria-label="预览战斗场地">
       <div className="battle-v4-scene-overlay" />
       {message ? <div className={`battle-v4-messagebar kind-${animation?.kind || "message"}`}><span>{message}</span></div> : null}
+      <PreviewPersistentField visuals={persistentFieldVisuals} />
       <PreviewWeather animation={animation} visuals={visuals} />
       <PreviewFx animation={animation} visuals={visuals} />
       <PreviewResult animation={animation} visuals={visuals} />
@@ -182,6 +186,20 @@ function PreviewArena({near, far, message, animation, activeTimelineStep}: {
         {farSlots.map(slot => <PreviewPokemonSlot slot={slot} animation={animation} visuals={visuals} key={slot.seat} />)}
         {nearSlots.map((slot, index) => <PreviewPokemonSlot slot={slot} commanding={index === 0} animation={animation} visuals={visuals} key={slot.seat} />)}
       </div>
+    </div>
+  );
+}
+
+function PreviewPersistentField({visuals}: {visuals: BattleV4PersistentFieldVisuals}) {
+  const activeId = visuals.weatherId || visuals.terrainId || visuals.roomId || (visuals.gravityActive ? "gravity" : "");
+  if (!activeId || !visuals.resourcePath) return null;
+  return (
+    <div className={`battle-v4-persistent-field-layer field-${activeId} fidelity-${visuals.adapterFidelity}`} aria-hidden="true">
+      {visuals.resourceKind === "video" ? (
+        <video src={visuals.resourcePath} muted autoPlay loop playsInline />
+      ) : (
+        <i style={{backgroundImage: `url("${visuals.resourcePath}")`}} />
+      )}
     </div>
   );
 }

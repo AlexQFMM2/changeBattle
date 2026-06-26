@@ -25,6 +25,54 @@
   pointer-events: none;
 }
 
+.battle-v4-persistent-field-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: .56;
+  mix-blend-mode: screen;
+}
+
+.battle-v4-persistent-field-layer video,
+.battle-v4-persistent-field-layer i {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.battle-v4-persistent-field-layer.field-sandstorm,
+.battle-v4-persistent-field-layer.field-hail,
+.battle-v4-persistent-field-layer.field-snowscape {
+  opacity: .72;
+  mix-blend-mode: normal;
+}
+
+.battle-v4-persistent-field-layer.field-electricterrain,
+.battle-v4-persistent-field-layer.field-grassyterrain,
+.battle-v4-persistent-field-layer.field-mistyterrain,
+.battle-v4-persistent-field-layer.field-psychicterrain,
+.battle-v4-persistent-field-layer.field-trickroom,
+.battle-v4-persistent-field-layer.field-magicroom,
+.battle-v4-persistent-field-layer.field-wonderroom,
+.battle-v4-persistent-field-layer.field-gravity {
+  opacity: .48;
+}
+
+.battle-v4-persistent-field-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(5 12 22 / 8%), rgb(4 8 15 / 22%) 72%);
+}
+
 .battle-v4-weather-layer {
   position: absolute;
   inset: 0;
@@ -34,7 +82,7 @@
   place-items: start start;
   padding-top: 116px;
   padding-left: 36px;
-  opacity: .92;
+  opacity: .62;
   animation: battle-v4-weather-pulse var(--battle-v4-background-duration, .9s) ease-out both;
 }
 

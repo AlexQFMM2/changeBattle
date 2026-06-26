@@ -8,6 +8,7 @@ import {
   type ShowdownAnimationSourceV4,
   type ShowdownAnimationStepV4,
   type ShowdownAnimationTimelineV4,
+  type ShowdownAnimationFidelityV4,
 } from "./battleV4ShowdownAnimationAdapter";
 
 export type BattleProtocolArgsV4 = [string, ...string[]];
@@ -91,12 +92,31 @@ export type BattleAnimationEventV4 = {
   selectedAnimationKey: string;
   animationSource: ShowdownAnimationSourceV4;
   animationTimeline: ShowdownAnimationTimelineV4;
+  adapterFidelity: ShowdownAnimationFidelityV4;
+  sourceKey: string;
+  aliasTargetKey: string;
+  compositeTargets: string[];
+  showdownInstructionCount: number;
+  missingFxAssets: string[];
   timelineSteps: ShowdownAnimationTimelineV4["steps"];
   message: string;
   resultText: string;
   resultTone: "good" | "bad" | "neutral" | "status" | "weather" | "";
   weatherId: string;
   hpLabel: string;
+};
+
+export type BattleV4PersistentFieldVisuals = {
+  weatherId: string;
+  terrainId: string;
+  roomId: string;
+  gravityActive: boolean;
+  sourceRawLine: string;
+  resourcePath: string;
+  resourceKind: "video" | "image" | "";
+  adapterFidelity: ShowdownAnimationFidelityV4;
+  renderedWeatherLayer: string;
+  missingFxAssets: string[];
 };
 
 export type BattlePlaybackDebugV4 = {
@@ -142,11 +162,16 @@ export type BattlePlaybackDebugV4 = {
     activeTimelineStepIndex: number;
     activeTimelineStep: ShowdownAnimationStepV4 | null;
     renderedTimelineSteps: ShowdownAnimationStepV4[];
+    persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   };
+  persistentWeatherState: BattleV4PersistentFieldVisuals;
+  renderedWeatherLayer: string;
+  missingFxAssets: string[];
   activeTimelineId: string;
   activeTimelineStep: ShowdownAnimationStepV4 | null;
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
+  persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   timelineExecutionProbe: {
     activeTimelineId: string;
     activeTimelineStepIndex: number;
@@ -166,6 +191,7 @@ export type BattlePlaybackStateV4 = {
   activeTimelineStep: ShowdownAnimationStepV4 | null;
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
+  persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   hasProtocolState: boolean;
   debug: BattlePlaybackDebugV4;
 };
@@ -178,6 +204,7 @@ export type BattleV4PreviewPlaybackState = {
   activeTimelineStep: ShowdownAnimationStepV4 | null;
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
+  persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   playing: boolean;
   done: boolean;
   debug: {
@@ -186,6 +213,7 @@ export type BattleV4PreviewPlaybackState = {
     animationEvents: BattleAnimationEventV4[];
     animationKinds: BattleAnimationKindV4[];
     selectedAnimationKeys: string[];
+    persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   };
 };
 
@@ -214,6 +242,53 @@ const THREE_PART_COMMANDS = new Set(["c", "chat", "uhtml", "uhtmlchange", "query
 const FOUR_PART_COMMANDS = new Set(["c:", "pm"]);
 const ANIMATION_GAP_MS = 500;
 const TIMELINE_STEP_DEFAULT_MS = 700;
+
+export const EMPTY_PERSISTENT_FIELD_VISUALS: BattleV4PersistentFieldVisuals = {
+  weatherId: "",
+  terrainId: "",
+  roomId: "",
+  gravityActive: false,
+  sourceRawLine: "",
+  resourcePath: "",
+  resourceKind: "",
+  adapterFidelity: "fallback",
+  renderedWeatherLayer: "",
+  missingFxAssets: [],
+};
+
+const WEATHER_VIDEO_IDS: Record<string, string> = {
+  sunnyday: "sunnyday",
+  desolateland: "sunnyday",
+  raindance: "raindance",
+  primordialsea: "raindance",
+  sandstorm: "sandstorm",
+  hail: "hail",
+  snow: "hail",
+  snowscape: "hail",
+};
+
+const WEATHER_IMAGE_IDS: Record<string, string> = {
+  sunnyday: "weather-sunnyday.jpg",
+  desolateland: "weather-sunnyday.jpg",
+  raindance: "weather-raindance.jpg",
+  primordialsea: "weather-raindance.jpg",
+  sandstorm: "weather-sandstorm.png",
+  hail: "weather-hail.png",
+  snow: "weather-hail.png",
+  snowscape: "weather-hail.png",
+  deltastream: "weather-strongwind.png",
+};
+
+const FIELD_IMAGE_IDS: Record<string, string> = {
+  electricterrain: "weather-electricterrain.png",
+  grassyterrain: "weather-grassyterrain.png",
+  mistyterrain: "weather-mistyterrain.png",
+  psychicterrain: "weather-psychicterrain.png",
+  trickroom: "weather-trickroom.png",
+  magicroom: "weather-magicroom.png",
+  wonderroom: "weather-wonderroom.png",
+  gravity: "weather-gravity.png",
+};
 
 export function parseBattleProtocolLineV4(rawLine: string): {args: BattleProtocolArgsV4; kwArgs: BattleProtocolKwArgsV4} {
   if (!rawLine.startsWith("|")) return {args: ["", rawLine], kwArgs: {}};
@@ -353,6 +428,7 @@ export function useBattleV4Playback(
   const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
   const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
   const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
+  const [persistentFieldVisuals, setPersistentFieldVisuals] = useState<BattleV4PersistentFieldVisuals>(EMPTY_PERSISTENT_FIELD_VISUALS);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
   const [hasProtocolState, setHasProtocolState] = useState(false);
   const sessionRef = useRef("");
@@ -385,6 +461,7 @@ export function useBattleV4Playback(
       setActiveTimelineStep(null);
       setActiveTimelineStepIndex(-1);
       setRenderedTimelineSteps([]);
+      setPersistentFieldVisuals(EMPTY_PERSISTENT_FIELD_VISUALS);
       setMessagebar(null);
       setHasProtocolState(false);
       hasProtocolStateRef.current = false;
@@ -436,9 +513,16 @@ export function useBattleV4Playback(
         effectSprite: event.effectSprite,
         selectedAnimationKey: event.selectedAnimationKey,
         animationSource: event.animationSource,
+        adapterFidelity: event.animationTimeline.adapterFidelity,
+        sourceKey: event.animationTimeline.sourceKey,
+        aliasTargetKey: event.animationTimeline.aliasTargetKey,
+        compositeTargets: event.animationTimeline.compositeTargets,
+        showdownInstructionCount: event.animationTimeline.showdownInstructionCount,
+        missingFxAssets: event.animationTimeline.missingFxAssets,
         timelineSteps: event.timelineSteps,
         rawLine: event.rawLine,
       })),
+      persistentFieldVisuals,
     });
     rawIndexRef.current = snapshot.rawLog.length;
     if (nextProtocolEvents.length) setProtocolEvents(events => [...events, ...nextProtocolEvents].slice(-240));
@@ -452,6 +536,7 @@ export function useBattleV4Playback(
       setAnimationEvents(events => [...events, ...nextAnimationEvents].slice(-240));
       if (skipAnimations) {
         setVisibleSlots(viewModel.slots);
+        setPersistentFieldVisuals(current => derivePersistentFieldVisualsFromProtocol(nextProtocolEvents, current));
         hasProtocolStateRef.current = true;
         setHasProtocolState(true);
         setAnimationConsumption(consumed => [
@@ -470,7 +555,7 @@ export function useBattleV4Playback(
         setQueue(items => [...items, ...nextAnimationEvents]);
       }
     }
-  }, [snapshot, viewModel, skipAnimations]);
+  }, [snapshot, viewModel, skipAnimations, debugConfig]);
 
   useEffect(() => {
     if (skipAnimations && viewModel) {
@@ -479,12 +564,13 @@ export function useBattleV4Playback(
       setActiveTimelineStep(null);
       setActiveTimelineStepIndex(-1);
       setRenderedTimelineSteps([]);
+      setPersistentFieldVisuals(derivePersistentFieldVisualsFromRawLog(snapshot?.rawLog || []));
       setVisibleSlots(viewModel.slots);
       hasProtocolStateRef.current = true;
       setHasProtocolState(true);
       playingRef.current = false;
     }
-  }, [skipAnimations, viewModel]);
+  }, [skipAnimations, viewModel, snapshot]);
 
   useEffect(() => {
     if (playingRef.current || activeAnimation || skipAnimations || !queue.length) return;
@@ -539,6 +625,7 @@ export function useBattleV4Playback(
     setActiveTimelineStep(step);
     setRenderedTimelineSteps(stepsSoFar => [...stepsSoFar, step].slice(-32));
     if (step.type === "checkpoint") {
+      setPersistentFieldVisuals(current => applyPersistentFieldCheckpoint(current, event));
       setVisibleSlots(slots => {
         const nextSlots = applyAnimationCheckpoint(slots, event, viewModelRef.current, snapshotRef.current);
         setAnimationConsumption(consumed => [...consumed, {
@@ -575,6 +662,7 @@ export function useBattleV4Playback(
     activeTimelineStep,
     activeTimelineStepIndex,
     renderedTimelineSteps,
+    persistentFieldVisuals,
     hasProtocolState: shouldUseProtocolState,
     debug: {
       lastConsumedRawIndex: rawIndexRef.current,
@@ -596,11 +684,16 @@ export function useBattleV4Playback(
         activeTimelineStepIndex,
         activeTimelineStep,
         renderedTimelineSteps,
+        persistentFieldVisuals,
       },
+      persistentWeatherState: persistentFieldVisuals,
+      renderedWeatherLayer: persistentFieldVisuals.renderedWeatherLayer,
+      missingFxAssets: persistentFieldVisuals.missingFxAssets,
       activeTimelineId: activeAnimation?.animationTimeline.id || "",
       activeTimelineStep,
       activeTimelineStepIndex,
       renderedTimelineSteps,
+      persistentFieldVisuals,
       timelineExecutionProbe: {
         activeTimelineId: activeAnimation?.animationTimeline.id || "",
         activeTimelineStepIndex,
@@ -631,6 +724,7 @@ export function useBattleV4PreviewPlayback(
   const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
   const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
   const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
+  const [persistentFieldVisuals, setPersistentFieldVisuals] = useState<BattleV4PersistentFieldVisuals>(EMPTY_PERSISTENT_FIELD_VISUALS);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
   const [done, setDone] = useState(false);
   const playingRef = useRef(false);
@@ -642,6 +736,7 @@ export function useBattleV4PreviewPlayback(
     setActiveTimelineStep(null);
     setActiveTimelineStepIndex(-1);
     setRenderedTimelineSteps([]);
+    setPersistentFieldVisuals(EMPTY_PERSISTENT_FIELD_VISUALS);
     setMessagebar(null);
     setDone(projected.animationEvents.length === 0);
     playingRef.current = false;
@@ -689,6 +784,7 @@ export function useBattleV4PreviewPlayback(
     setActiveTimelineStep(step);
     setRenderedTimelineSteps(stepsSoFar => [...stepsSoFar, step].slice(-32));
     if (step.type === "checkpoint") {
+      setPersistentFieldVisuals(current => applyPersistentFieldCheckpoint(current, event));
       setVisibleSlots(slots => applyAnimationCheckpoint(slots, event, null, null));
     }
     const stepTimer = window.setTimeout(() => {
@@ -707,6 +803,7 @@ export function useBattleV4PreviewPlayback(
     activeTimelineStep,
     activeTimelineStepIndex,
     renderedTimelineSteps,
+    persistentFieldVisuals,
     playing: Boolean(activeAnimation || queue.length),
     done,
     debug: {
@@ -715,6 +812,7 @@ export function useBattleV4PreviewPlayback(
       animationEvents: projected.animationEvents,
       animationKinds: projected.animationEvents.map(event => event.kind),
       selectedAnimationKeys: projected.animationEvents.map(event => event.selectedAnimationKey),
+      persistentFieldVisuals,
     },
   };
 }
@@ -754,7 +852,8 @@ function buildProtocolEvent(
 function timelineStepDurationMs(step: ShowdownAnimationStepV4): number {
   if (step.type === "checkpoint") return 0;
   if (step.type === "wait" || step.type === "delay") return Math.max(0, step.durationMs);
-  if (step.type === "showEffect" || step.type === "actorAnim" || step.type === "backgroundEffect") {
+  if (step.type === "showEffect") return Math.max(160, step.durationMs + (step.delayMs || 0));
+  if (step.type === "actorAnim" || step.type === "backgroundEffect") {
     return Math.max(160, step.durationMs);
   }
   return TIMELINE_STEP_DEFAULT_MS;
@@ -809,6 +908,12 @@ function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV
     selectedAnimationKey: selection.animationKey,
     animationSource: selection.source,
     animationTimeline,
+    adapterFidelity: animationTimeline.adapterFidelity,
+    sourceKey: animationTimeline.sourceKey,
+    aliasTargetKey: animationTimeline.aliasTargetKey,
+    compositeTargets: animationTimeline.compositeTargets,
+    showdownInstructionCount: animationTimeline.showdownInstructionCount,
+    missingFxAssets: animationTimeline.missingFxAssets,
     timelineSteps: animationTimeline.steps,
     message,
     resultText: result.text,
@@ -853,6 +958,118 @@ function applyAnimationCheckpoint(
     return patchSlot(slots, event.actorSeat, slot => patchSlotForme(slot, event, slots));
   }
   return slots;
+}
+
+export function derivePersistentFieldVisualsFromRawLog(rawLog: string[]): BattleV4PersistentFieldVisuals {
+  return derivePersistentFieldVisualsFromProtocol(projectBattleProtocolEventsV4(rawLog, 0), EMPTY_PERSISTENT_FIELD_VISUALS);
+}
+
+export function derivePersistentFieldVisualsFromProtocol(
+  events: BattleProtocolEventV4[],
+  initial: BattleV4PersistentFieldVisuals = EMPTY_PERSISTENT_FIELD_VISUALS,
+): BattleV4PersistentFieldVisuals {
+  return events.reduce((current, event) => applyPersistentFieldProtocolEvent(current, event), initial);
+}
+
+function applyPersistentFieldCheckpoint(current: BattleV4PersistentFieldVisuals, event: BattleAnimationEventV4): BattleV4PersistentFieldVisuals {
+  if (event.kind !== "weather") return current;
+  return applyPersistentFieldProtocolEvent(current, {
+    sequence: event.sequence,
+    rawLine: event.rawLine,
+    args: event.args,
+    kwArgs: event.kwArgs,
+    eventType: event.args[0] || "",
+    turn: 0,
+    playerId: "",
+    seat: event.actorSeat,
+    targetSeat: event.targetSeat,
+    actorName: event.actorName,
+    targetName: event.targetName,
+    moveId: event.moveId,
+    moveName: event.moveName,
+    condition: event.condition,
+    status: event.status,
+  });
+}
+
+function applyPersistentFieldProtocolEvent(current: BattleV4PersistentFieldVisuals, event: BattleProtocolEventV4): BattleV4PersistentFieldVisuals {
+  if (event.eventType === "-weather") {
+    const weatherId = normalizeWeatherId(toId(event.args[1]));
+    if (!weatherId || weatherId === "none") return {...current, weatherId: "", sourceRawLine: event.rawLine, ...resourceFieldsForPersistentLayer("", current.terrainId || current.roomId || (current.gravityActive ? "gravity" : ""))};
+    const resource = persistentLayerResource(weatherId, "weather");
+    return {
+      ...current,
+      weatherId,
+      sourceRawLine: event.rawLine,
+      resourcePath: resource.path,
+      resourceKind: resource.kind,
+      renderedWeatherLayer: weatherId,
+      adapterFidelity: "native",
+      missingFxAssets: resource.missing ? [resource.missing] : [],
+    };
+  }
+  if (event.eventType === "-fieldstart") {
+    const fieldId = normalizeFieldId(toId(cleanEffect(event.args[1])));
+    if (!fieldId) return current;
+    const resource = persistentLayerResource(fieldId, "field");
+    const next = {
+      ...current,
+      sourceRawLine: event.rawLine,
+      resourcePath: resource.path,
+      resourceKind: resource.kind,
+      renderedWeatherLayer: current.weatherId || fieldId,
+      adapterFidelity: "native" as ShowdownAnimationFidelityV4,
+      missingFxAssets: resource.missing ? [resource.missing] : [],
+    };
+    if (fieldId.endsWith("terrain")) return {...next, terrainId: fieldId};
+    if (fieldId === "gravity") return {...next, gravityActive: true};
+    if (fieldId.endsWith("room")) return {...next, roomId: fieldId};
+    return next;
+  }
+  if (event.eventType === "-fieldend") {
+    const fieldId = normalizeFieldId(toId(cleanEffect(event.args[1])));
+    const next = {...current, sourceRawLine: event.rawLine, adapterFidelity: "native" as ShowdownAnimationFidelityV4};
+    if (fieldId.endsWith("terrain")) return refreshPersistentLayerResource({...next, terrainId: ""});
+    if (fieldId === "gravity") return refreshPersistentLayerResource({...next, gravityActive: false});
+    if (fieldId.endsWith("room")) return refreshPersistentLayerResource({...next, roomId: ""});
+    return refreshPersistentLayerResource(next);
+  }
+  return current;
+}
+
+function refreshPersistentLayerResource(state: BattleV4PersistentFieldVisuals): BattleV4PersistentFieldVisuals {
+  const activeId = state.weatherId || state.terrainId || state.roomId || (state.gravityActive ? "gravity" : "");
+  return {...state, ...resourceFieldsForPersistentLayer(state.weatherId, activeId), renderedWeatherLayer: activeId};
+}
+
+function resourceFieldsForPersistentLayer(weatherId: string, activeId: string): Pick<BattleV4PersistentFieldVisuals, "resourcePath" | "resourceKind" | "missingFxAssets"> {
+  if (!activeId) return {resourcePath: "", resourceKind: "", missingFxAssets: []};
+  const resource = persistentLayerResource(activeId, weatherId ? "weather" : "field");
+  return {resourcePath: resource.path, resourceKind: resource.kind, missingFxAssets: resource.missing ? [resource.missing] : []};
+}
+
+function persistentLayerResource(id: string, kind: "weather" | "field"): {path: string; kind: "video" | "image" | ""; missing: string} {
+  if (kind === "weather") {
+    const videoId = WEATHER_VIDEO_IDS[id];
+    if (videoId) return {path: `/showdown/fx/weather-gen6-${videoId}.webm`, kind: "video", missing: ""};
+    const image = WEATHER_IMAGE_IDS[id];
+    if (image) return {path: `/showdown/fx/${image}`, kind: "image", missing: ""};
+    return {path: "", kind: "", missing: `/showdown/fx/weather-${id}.png`};
+  }
+  const image = FIELD_IMAGE_IDS[id];
+  if (image) return {path: `/showdown/fx/${image}`, kind: "image", missing: ""};
+  return {path: "", kind: "", missing: `/showdown/fx/weather-${id}.png`};
+}
+
+function normalizeWeatherId(id: string): string {
+  if (id === "snow") return "snowscape";
+  return id;
+}
+
+function normalizeFieldId(id: string): string {
+  if (id === "electricterrain" || id === "grassyterrain" || id === "mistyterrain" || id === "psychicterrain") return id;
+  if (id === "trickroom" || id === "magicroom" || id === "wonderroom" || id === "gravity") return id;
+  return id;
 }
 
 function patchSlotForme(slot: BattleViewSlotV4, event: BattleAnimationEventV4, slots: BattleViewSlotV4[]): BattleViewSlotV4 {
