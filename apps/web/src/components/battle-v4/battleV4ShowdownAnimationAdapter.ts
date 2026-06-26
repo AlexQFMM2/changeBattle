@@ -839,6 +839,71 @@ const NATIVE_MOVE_ANIMS = new Set([
   "wavecrash",
   "willowisp",
   "wish",
+  "aciddownpour",
+  "alloutpummeling",
+  "anchorshot",
+  "astralbarrage",
+  "bestow",
+  "blackholeeclipse",
+  "blazingtorque",
+  "catastropika",
+  "clangingscales",
+  "clangoroussoulblaze",
+  "collisioncourse",
+  "combattorque",
+  "continentalcrush",
+  "coreenforcer",
+  "corkscrewcrash",
+  "ficklebeam",
+  "ficklebeamallout",
+  "fierywrath",
+  "finalgambit",
+  "firstimpression",
+  "fishiousrend",
+  "guardianofalola",
+  "hardpress",
+  "hyperspacefury",
+  "hyperspacehole",
+  "infernooverdrive",
+  "letssnuggleforever",
+  "lockon",
+  "magicaltorque",
+  "malignantchain",
+  "memento",
+  "mightycleave",
+  "mindreader",
+  "moongeistbeam",
+  "neverendingnightmare",
+  "noxioustorque",
+  "oceanicoperetta",
+  "photongeyser",
+  "plasmafists",
+  "poisonjab",
+  "powertrip",
+  "prismaticlaser",
+  "pulverizingpancake",
+  "revivalblessing",
+  "searingsunrazesmash",
+  "shoreup",
+  "sinisterarrowraid",
+  "smartstrike",
+  "spectralthief",
+  "spiritbreak",
+  "spiritshackle",
+  "spite",
+  "splinteredstormshards",
+  "spotlight",
+  "stompingtantrum",
+  "soulstealing7starstrike",
+  "sunsteelstrike",
+  "supercellslam",
+  "supersonicskystrike",
+  "tachyoncutter",
+  "terastarstorm",
+  "trickortreat",
+  "twinkletackle",
+  "upperhand",
+  "wickedtorque",
   "worryseed",
 ]);
 
@@ -1291,6 +1356,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "kinesis":
   case "flash":
   case "followme":
+  case "spotlight":
   case "foresight":
   case "doodle":
   case "topsyturvy":
@@ -1318,6 +1384,14 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "confide":
   case "defog":
   case "meanlook":
+  case "bestow":
+  case "trickortreat":
+  case "spite":
+  case "lockon":
+  case "mindreader":
+  case "memento":
+  case "dragoncheer":
+  case "upperhand":
   case "toxic":
   case "spicyextract":
   case "willowisp":
@@ -1341,6 +1415,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "morningsun":
   case "moonlight":
   case "lunarblessing":
+  case "shoreup":
+  case "revivalblessing":
     return nativeP2HealingSteps(actor, target, animationKey);
   case "tailwind":
     return nativeTailwindSteps(actor);
@@ -1520,6 +1596,12 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "dracometeor":
   case "dragonenergy":
   case "meteorbeam":
+  case "prismaticlaser":
+  case "photongeyser":
+  case "coreenforcer":
+  case "moongeistbeam":
+  case "ficklebeam":
+  case "ficklebeamallout":
     return nativeSpecialWeaponSteps(actor, target, animationKey);
   case "gigavolthavoc":
   case "stokedsparksurfer":
@@ -1568,6 +1650,7 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "feint":
   case "struggle":
   case "outrage":
+  case "hardpress":
     return stepsForOtherAnimation("contactattack", actor, target);
   case "present":
   case "payday":
@@ -1606,6 +1689,9 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "sludgebomb":
   case "barbbarrage":
   case "gunkshot":
+  case "poisonjab":
+  case "malignantchain":
+  case "noxioustorque":
     return nativePoisonMoveSteps(actor, target, animationKey);
   case "drillrun":
   case "bonemerang":
@@ -1614,6 +1700,8 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "thousandarrows":
   case "thousandwaves":
   case "sandtomb":
+  case "stompingtantrum":
+  case "collisioncourse":
     return nativeGroundWeaponSteps(actor, target, animationKey);
   case "whirlwind":
   case "springtidestorm":
@@ -1625,6 +1713,12 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
   case "hex":
   case "infernalparade":
   case "fierywrath":
+  case "hyperspacehole":
+  case "hyperspacefury":
+  case "spiritshackle":
+  case "powertrip":
+  case "spectralthief":
+  case "astralbarrage":
     return nativeShadowSpecialSteps(actor, target, animationKey);
   case "bloodmoon":
     return beamSteps(actor, target, "mistball", "#cc2f44");
@@ -1800,13 +1894,64 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
     return nativeFairyLightSteps(actor, target, animationKey);
   case "magnetbomb":
   case "makeitrain":
+  case "sunsteelstrike":
     return nativeMetalProjectileSteps(actor, target, animationKey);
   case "mistyexplosion":
     return explosionSteps(actor, target, "#ffc7f5", "mistball");
   case "dragonascent":
     return nativeFlyingStrikeSteps(actor, target, animationKey);
+  case "supersonicskystrike":
+  case "sinisterarrowraid":
+    return zMoveSteps(actor, target, "#bfefff");
   case "syrupbomb":
     return nativeSeedLeafSteps(actor, target, animationKey);
+  case "smartstrike":
+  case "anchorshot":
+  case "mightycleave":
+  case "tachyoncutter":
+    return nativeClawSlashSteps(actor, target, animationKey);
+  case "firstimpression":
+    return nativeFastStrikeSteps(actor, target, animationKey);
+  case "plasmafists":
+  case "supercellslam":
+  case "catastropika":
+    return nativeElectricMoveSteps(actor, target, animationKey);
+  case "blazingtorque":
+  case "infernooverdrive":
+  case "searingsunrazesmash":
+    return nativeFireProjectileSteps(actor, target, animationKey);
+  case "combattorque":
+  case "alloutpummeling":
+    return nativePunchKickSteps(actor, target, animationKey);
+  case "clangingscales":
+  case "clangoroussoulblaze":
+    return nativeSoundVoiceSteps(actor, target, animationKey);
+  case "fishiousrend":
+    return nativeWaterMoveSteps(actor, target, "wavecrash");
+  case "spiritbreak":
+  case "twinkletackle":
+  case "letssnuggleforever":
+  case "guardianofalola":
+  case "magicaltorque":
+    return nativeFairyLightSteps(actor, target, animationKey);
+  case "continentalcrush":
+  case "splinteredstormshards":
+    return zMoveSteps(actor, target, "#8c7255");
+  case "wickedtorque":
+  case "blackholeeclipse":
+  case "neverendingnightmare":
+  case "soulstealing7starstrike":
+    return zMoveSteps(actor, target, "#05000a");
+  case "aciddownpour":
+    return zMoveSteps(actor, target, "#8c40c8");
+  case "corkscrewcrash":
+    return zMoveSteps(actor, target, "#d9f3ff");
+  case "pulverizingpancake":
+    return zMoveSteps(actor, target, "#f4d28a");
+  case "oceanicoperetta":
+    return zMoveSteps(actor, target, "#3d9dff");
+  case "terastarstorm":
+    return zMoveSteps(actor, target, "#f4f7ff");
   case "nightslash":
     return darkSlashSteps(actor, target, "rightslash");
   case "shadowclaw":
