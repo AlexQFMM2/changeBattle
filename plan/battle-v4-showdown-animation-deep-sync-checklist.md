@@ -785,331 +785,331 @@ const root = 'pokemonShowdownAbout/pokemonShowdownClient/play.pokemonshowdown.co
 
 ## BattleMove Assignments / Max / GMax
 
-- [ ] `10000000voltthunderbolt -> triattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key 10000000voltthunderbolt; target triattack
-- [ ] `acid -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acid; target sludge
-- [ ] `acidspray -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acidspray; target sludge
+- [x] `10000000voltthunderbolt -> triattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key 10000000voltthunderbolt; target triattack
+- [x] `acid -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acid; target sludge
+- [x] `acidspray -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key acidspray; target sludge
 - [x] `amnesia -> rest` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key amnesia; target rest + preview/manual/typecheck
-- [ ] `appleacid -> energyball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key appleacid; target energyball
-- [ ] `aquatail -> crabhammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aquatail; target crabhammer
-- [ ] `armthrust -> smellingsalts` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key armthrust; target smellingsalts
-- [ ] `aromaticmist -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aromaticmist; target mistyterrain
-- [ ] `attackorder -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key attackorder; target bulletseed
-- [ ] `aurawheel -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aurawheel; target discharge
+- [x] `appleacid -> energyball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key appleacid; target energyball
+- [x] `aquatail -> crabhammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aquatail; target crabhammer
+- [x] `armthrust -> smellingsalts` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key armthrust; target smellingsalts
+- [x] `aromaticmist -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aromaticmist; target mistyterrain
+- [x] `attackorder -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key attackorder; target bulletseed
+- [x] `aurawheel -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key aurawheel; target discharge
 - [x] `aurorabeam -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key aurorabeam; target icebeam + preview/manual/typecheck
-- [ ] `axekick -> highjumpkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key axekick; target highjumpkick
-- [ ] `barrage -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key barrage; target magnetbomb
-- [ ] `beatup -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key beatup; target slam
-- [ ] `behemothbash -> smartstrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key behemothbash; target smartstrike
-- [ ] `behemothblade -> smartstrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key behemothblade; target smartstrike
-- [ ] `belch -> gunkshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key belch; target gunkshot
-- [ ] `bittermalice -> spectralthief` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bittermalice; target spectralthief
-- [ ] `bleakwindstorm -> hurricane` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bleakwindstorm; target hurricane
-- [ ] `bloomdoom -> petaldance` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bloomdoom; target petaldance
-- [ ] `bodypress -> heavyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bodypress; target heavyslam
-- [ ] `boltbeak -> spark` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key boltbeak; target spark
-- [ ] `bonerush -> boneclub` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bonerush; target boneclub
-- [ ] `branchpoke -> vinewhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key branchpoke; target vinewhip
-- [ ] `breakingswipe -> dragonclaw` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key breakingswipe; target dragonclaw
-- [ ] `breakneckblitz -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key breakneckblitz; target gigaimpact
-- [ ] `brickbreak -> karatechop` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key brickbreak; target karatechop
-- [ ] `bubble -> bubblebeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bubble; target bubblebeam
-- [ ] `burningjealousy -> heatwave` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key burningjealousy; target heatwave
-- [ ] `camouflage -> tailglow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key camouflage; target tailglow
-- [ ] `captivate -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key captivate; target attract
-- [ ] `ceaselessedge -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ceaselessedge; target nightslash
-- [ ] `charm -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key charm; target attract
-- [ ] `chatter -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key chatter; target hypervoice
-- [ ] `chillingwater -> waterpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key chillingwater; target waterpulse
-- [ ] `clangoroussoul -> extremeevoboost` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key clangoroussoul; target extremeevoboost
-- [ ] `coaching -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key coaching; target bulkup
-- [ ] `comeuppance -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key comeuppance; target darkpulse
+- [x] `axekick -> highjumpkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key axekick; target highjumpkick
+- [x] `barrage -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key barrage; target magnetbomb
+- [x] `beatup -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key beatup; target slam
+- [x] `behemothbash -> smartstrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key behemothbash; target smartstrike
+- [x] `behemothblade -> smartstrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key behemothblade; target smartstrike
+- [x] `belch -> gunkshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key belch; target gunkshot
+- [x] `bittermalice -> spectralthief` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bittermalice; target spectralthief
+- [x] `bleakwindstorm -> hurricane` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bleakwindstorm; target hurricane
+- [x] `bloomdoom -> petaldance` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bloomdoom; target petaldance
+- [x] `bodypress -> heavyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bodypress; target heavyslam
+- [x] `boltbeak -> spark` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key boltbeak; target spark
+- [x] `bonerush -> boneclub` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bonerush; target boneclub
+- [x] `branchpoke -> vinewhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key branchpoke; target vinewhip
+- [x] `breakingswipe -> dragonclaw` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key breakingswipe; target dragonclaw
+- [x] `breakneckblitz -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key breakneckblitz; target gigaimpact
+- [x] `brickbreak -> karatechop` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key brickbreak; target karatechop
+- [x] `bubble -> bubblebeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key bubble; target bubblebeam
+- [x] `burningjealousy -> heatwave` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key burningjealousy; target heatwave
+- [x] `camouflage -> tailglow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key camouflage; target tailglow
+- [x] `captivate -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key captivate; target attract
+- [x] `ceaselessedge -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ceaselessedge; target nightslash
+- [x] `charm -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key charm; target attract
+- [x] `chatter -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key chatter; target hypervoice
+- [x] `chillingwater -> waterpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key chillingwater; target waterpulse
+- [x] `clangoroussoul -> extremeevoboost` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key clangoroussoul; target extremeevoboost
+- [x] `coaching -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key coaching; target bulkup
+- [x] `comeuppance -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key comeuppance; target darkpulse
 - [x] `confusion -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key confusion; target psychic + preview/manual/typecheck
-- [ ] `constrict -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key constrict; target bind
-- [ ] `conversion2 -> conversion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key conversion2; target conversion
-- [ ] `corrosivegas -> poisongas` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key corrosivegas; target poisongas
-- [ ] `cottonspore -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key cottonspore; target spore
-- [ ] `counter -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key counter; target slam
-- [ ] `courtchange -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key courtchange; target skillswap
-- [ ] `crushgrip -> quash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key crushgrip; target quash
-- [ ] `darkestlariat -> flareblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key darkestlariat; target flareblitz
-- [ ] `decorate -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key decorate; target spore
-- [ ] `destinybond -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key destinybond; target painsplit
-- [ ] `devastatingdrake -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key devastatingdrake; target dragonpulse
-- [ ] `disable -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key disable; target meanlook
-- [ ] `doubleedge -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleedge; target gigaimpact
-- [ ] `doubleshock -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleshock; target wildcharge
-- [ ] `doubleslap -> wakeupslap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleslap; target wakeupslap
-- [ ] `dragondarts -> dragonbreath` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragondarts; target dragonbreath
-- [ ] `dragonhammer -> heavyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonhammer; target heavyslam
-- [ ] `dragonrage -> dragonbreath` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonrage; target dragonbreath
-- [ ] `dragonrush -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonrush; target gigaimpact
-- [ ] `dreameater -> drainingkiss` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dreameater; target drainingkiss
-- [ ] `drumbeating -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key drumbeating; target magicalleaf
-- [ ] `dynamaxcannon -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dynamaxcannon; target dragonpulse
-- [ ] `echoedvoice -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key echoedvoice; target hypervoice
-- [ ] `eeriespell -> psyshock` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eeriespell; target psyshock
-- [ ] `eggbomb -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eggbomb; target magnetbomb
-- [ ] `electrify -> thunderwave` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key electrify; target thunderwave
+- [x] `constrict -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key constrict; target bind
+- [x] `conversion2 -> conversion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key conversion2; target conversion
+- [x] `corrosivegas -> poisongas` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key corrosivegas; target poisongas
+- [x] `cottonspore -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key cottonspore; target spore
+- [x] `counter -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key counter; target slam
+- [x] `courtchange -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key courtchange; target skillswap
+- [x] `crushgrip -> quash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key crushgrip; target quash
+- [x] `darkestlariat -> flareblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key darkestlariat; target flareblitz
+- [x] `decorate -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key decorate; target spore
+- [x] `destinybond -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key destinybond; target painsplit
+- [x] `devastatingdrake -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key devastatingdrake; target dragonpulse
+- [x] `disable -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key disable; target meanlook
+- [x] `doubleedge -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleedge; target gigaimpact
+- [x] `doubleshock -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleshock; target wildcharge
+- [x] `doubleslap -> wakeupslap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key doubleslap; target wakeupslap
+- [x] `dragondarts -> dragonbreath` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragondarts; target dragonbreath
+- [x] `dragonhammer -> heavyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonhammer; target heavyslam
+- [x] `dragonrage -> dragonbreath` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonrage; target dragonbreath
+- [x] `dragonrush -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dragonrush; target gigaimpact
+- [x] `dreameater -> drainingkiss` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dreameater; target drainingkiss
+- [x] `drumbeating -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key drumbeating; target magicalleaf
+- [x] `dynamaxcannon -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key dynamaxcannon; target dragonpulse
+- [x] `echoedvoice -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key echoedvoice; target hypervoice
+- [x] `eeriespell -> psyshock` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eeriespell; target psyshock
+- [x] `eggbomb -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eggbomb; target magnetbomb
+- [x] `electrify -> thunderwave` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key electrify; target thunderwave
 - [x] `ember -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key ember; target flamethrower + preview/manual/typecheck
-- [ ] `entrainment -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key entrainment; target painsplit
-- [ ] `eternabeam -> roaroftime` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eternabeam; target roaroftime
-- [ ] `expandingforce -> psybeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key expandingforce; target psybeam
+- [x] `entrainment -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key entrainment; target painsplit
+- [x] `eternabeam -> roaroftime` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key eternabeam; target roaroftime
+- [x] `expandingforce -> psybeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key expandingforce; target psybeam
 - [x] `extrasensory -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key extrasensory; target psychic + preview/manual/typecheck
-- [ ] `fairywind -> dazzlinggleam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fairywind; target dazzlinggleam
-- [ ] `falsesurrender -> feintattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key falsesurrender; target feintattack
-- [ ] `fellstinger -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fellstinger; target bulletseed
-- [ ] `fierydance -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fierydance; target magmastorm
-- [ ] `filletaway -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key filletaway; target bulkup
-- [ ] `firelash -> multiattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key firelash; target multiattack
+- [x] `fairywind -> dazzlinggleam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fairywind; target dazzlinggleam
+- [x] `falsesurrender -> feintattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key falsesurrender; target feintattack
+- [x] `fellstinger -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fellstinger; target bulletseed
+- [x] `fierydance -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fierydance; target magmastorm
+- [x] `filletaway -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key filletaway; target bulkup
+- [x] `firelash -> multiattack` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key firelash; target multiattack
 - [x] `firepledge -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key firepledge; target flamethrower + preview/manual/typecheck
 - [x] `fissure -> earthquake` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: selected key retained; aliasTargetKey earthquake; native earthquake timeline + typecheck
-- [ ] `flameburst -> shelltrap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flameburst; target shelltrap
-- [ ] `flamewheel -> flamecharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flamewheel; target flamecharge
-- [ ] `flatter -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flatter; target attract
-- [ ] `fleurcannon -> diamondstorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fleurcannon; target diamondstorm
-- [ ] `floralhealing -> healpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key floralhealing; target healpulse
-- [ ] `flowershield -> grassyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flowershield; target grassyterrain
-- [ ] `foulplay -> psyshock` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key foulplay; target psyshock
-- [ ] `frenzyplant -> leafstorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frenzyplant; target leafstorm
-- [ ] `frostbreath -> freezedry` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frostbreath; target freezedry
-- [ ] `frustration -> thrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frustration; target thrash
-- [ ] `futuresight -> doomdesire` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key futuresight; target doomdesire
-- [ ] `gastroacid -> toxic` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gastroacid; target toxic
-- [ ] `gearup -> shiftgear` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gearup; target shiftgear
-- [ ] `genesissupernova -> psychoboost` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key genesissupernova; target psychoboost
-- [ ] `glaciate -> freezedry` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glaciate; target freezedry
-- [ ] `glaiverush -> outrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glaiverush; target outrage
-- [ ] `glare -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glare; target meanlook
-- [ ] `gmaxbefuddle -> savagespinout` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxbefuddle; target savagespinout
-- [ ] `gmaxcannonade -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcannonade; target hydrovortex
-- [ ] `gmaxcentiferno -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcentiferno; target infernooverdrive
-- [ ] `gmaxcuddle -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcuddle; target breakneckblitz
-- [ ] `gmaxdepletion -> devastatingdrake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxdepletion; target devastatingdrake
-- [ ] `gmaxdrumsolo -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxdrumsolo; target bloomdoom
-- [ ] `gmaxfinale -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxfinale; target twinkletackle
-- [ ] `gmaxfireball -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxfireball; target infernooverdrive
-- [ ] `gmaxgravitas -> shatteredpsyche` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxgravitas; target shatteredpsyche
-- [ ] `gmaxhydrosnipe -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxhydrosnipe; target hydrovortex
-- [ ] `gmaxmalodor -> aciddownpour` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxmalodor; target aciddownpour
-- [ ] `gmaxoneblow -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxoneblow; target alloutpummeling
-- [ ] `gmaxrapidflow -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxrapidflow; target alloutpummeling
-- [ ] `gmaxreplenish -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxreplenish; target breakneckblitz
-- [ ] `gmaxresonance -> subzeroslammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxresonance; target subzeroslammer
-- [ ] `gmaxsandblast -> tectonicrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsandblast; target tectonicrage
-- [ ] `gmaxsmite -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsmite; target twinkletackle
-- [ ] `gmaxsnooze -> maliciousmoonsault` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsnooze; target maliciousmoonsault
-- [ ] `gmaxvinelash -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxvinelash; target bloomdoom
-- [ ] `grasspledge -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grasspledge; target magicalleaf
-- [ ] `grassyglide -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grassyglide; target powerwhip
-- [ ] `gravapple -> energyball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gravapple; target energyball
-- [ ] `grudge -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grudge; target meanlook
-- [ ] `guardsplit -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key guardsplit; target skillswap
-- [ ] `guardswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key guardswap; target skillswap
-- [ ] `gust -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gust; target whirlwind
-- [ ] `headcharge -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headcharge; target gigaimpact
+- [x] `flameburst -> shelltrap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flameburst; target shelltrap
+- [x] `flamewheel -> flamecharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flamewheel; target flamecharge
+- [x] `flatter -> attract` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flatter; target attract
+- [x] `fleurcannon -> diamondstorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key fleurcannon; target diamondstorm
+- [x] `floralhealing -> healpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key floralhealing; target healpulse
+- [x] `flowershield -> grassyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key flowershield; target grassyterrain
+- [x] `foulplay -> psyshock` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key foulplay; target psyshock
+- [x] `frenzyplant -> leafstorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frenzyplant; target leafstorm
+- [x] `frostbreath -> freezedry` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frostbreath; target freezedry
+- [x] `frustration -> thrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key frustration; target thrash
+- [x] `futuresight -> doomdesire` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key futuresight; target doomdesire
+- [x] `gastroacid -> toxic` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gastroacid; target toxic
+- [x] `gearup -> shiftgear` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gearup; target shiftgear
+- [x] `genesissupernova -> psychoboost` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key genesissupernova; target psychoboost
+- [x] `glaciate -> freezedry` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glaciate; target freezedry
+- [x] `glaiverush -> outrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glaiverush; target outrage
+- [x] `glare -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key glare; target meanlook
+- [x] `gmaxbefuddle -> savagespinout` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxbefuddle; target savagespinout
+- [x] `gmaxcannonade -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcannonade; target hydrovortex
+- [x] `gmaxcentiferno -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcentiferno; target infernooverdrive
+- [x] `gmaxcuddle -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxcuddle; target breakneckblitz
+- [x] `gmaxdepletion -> devastatingdrake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxdepletion; target devastatingdrake
+- [x] `gmaxdrumsolo -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxdrumsolo; target bloomdoom
+- [x] `gmaxfinale -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxfinale; target twinkletackle
+- [x] `gmaxfireball -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxfireball; target infernooverdrive
+- [x] `gmaxgravitas -> shatteredpsyche` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxgravitas; target shatteredpsyche
+- [x] `gmaxhydrosnipe -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxhydrosnipe; target hydrovortex
+- [x] `gmaxmalodor -> aciddownpour` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxmalodor; target aciddownpour
+- [x] `gmaxoneblow -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxoneblow; target alloutpummeling
+- [x] `gmaxrapidflow -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxrapidflow; target alloutpummeling
+- [x] `gmaxreplenish -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxreplenish; target breakneckblitz
+- [x] `gmaxresonance -> subzeroslammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxresonance; target subzeroslammer
+- [x] `gmaxsandblast -> tectonicrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsandblast; target tectonicrage
+- [x] `gmaxsmite -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsmite; target twinkletackle
+- [x] `gmaxsnooze -> maliciousmoonsault` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxsnooze; target maliciousmoonsault
+- [x] `gmaxvinelash -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key gmaxvinelash; target bloomdoom
+- [x] `grasspledge -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grasspledge; target magicalleaf
+- [x] `grassyglide -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grassyglide; target powerwhip
+- [x] `gravapple -> energyball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gravapple; target energyball
+- [x] `grudge -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key grudge; target meanlook
+- [x] `guardsplit -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key guardsplit; target skillswap
+- [x] `guardswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key guardswap; target skillswap
+- [x] `gust -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key gust; target whirlwind
+- [x] `headcharge -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headcharge; target gigaimpact
 - [x] `headlongrush -> closecombat + earthpower` | priority: P2 | source: BattleMoveAlias | adapter: preset | notes: compositeTargets recorded in diagnostics; selected key retained + typecheck
-- [ ] `headsmash -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headsmash; target gigaimpact
+- [x] `headsmash -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key headsmash; target gigaimpact
 - [x] `healorder -> recover` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key healorder; target recover + preview/manual/typecheck
-- [ ] `heartswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heartswap; target skillswap
-- [ ] `heatcrash -> flareblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heatcrash; target flareblitz
-- [ ] `helpinghand -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key helpinghand; target painsplit
-- [ ] `highhorsepower -> stomp` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key highhorsepower; target stomp
-- [ ] `holdhands -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key holdhands; target painsplit
-- [ ] `honeclaws -> rockpolish` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key honeclaws; target rockpolish
-- [ ] `hornattack -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hornattack; target megahorn
-- [ ] `horndrill -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key horndrill; target gigaimpact
-- [ ] `hydrocannon -> hydropump` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrocannon; target hydropump
-- [ ] `hydrosteam -> steameruption` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrosteam; target steameruption
-- [ ] `hydrovortex -> originpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrovortex; target originpulse
-- [ ] `hyperdrill -> drillrun` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperdrill; target drillrun
-- [ ] `hyperfang -> superfang` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperfang; target superfang
-- [ ] `imprison -> embargo` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key imprison; target embargo
+- [x] `heartswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heartswap; target skillswap
+- [x] `heatcrash -> flareblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key heatcrash; target flareblitz
+- [x] `helpinghand -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key helpinghand; target painsplit
+- [x] `highhorsepower -> stomp` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key highhorsepower; target stomp
+- [x] `holdhands -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key holdhands; target painsplit
+- [x] `honeclaws -> rockpolish` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key honeclaws; target rockpolish
+- [x] `hornattack -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hornattack; target megahorn
+- [x] `horndrill -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key horndrill; target gigaimpact
+- [x] `hydrocannon -> hydropump` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrocannon; target hydropump
+- [x] `hydrosteam -> steameruption` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrosteam; target steameruption
+- [x] `hydrovortex -> originpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hydrovortex; target originpulse
+- [x] `hyperdrill -> drillrun` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperdrill; target drillrun
+- [x] `hyperfang -> superfang` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key hyperfang; target superfang
+- [x] `imprison -> embargo` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key imprison; target embargo
 - [x] `incinerate -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key incinerate; target flamethrower + preview/manual/typecheck
-- [ ] `inferno -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key inferno; target magmastorm
-- [ ] `infestation -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key infestation; target bulletseed
-- [ ] `iondeluge -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key iondeluge; target electricterrain
-- [ ] `jawlock -> crunch` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key jawlock; target crunch
-- [ ] `kowtowcleave -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key kowtowcleave; target nightslash
+- [x] `inferno -> magmastorm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key inferno; target magmastorm
+- [x] `infestation -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key infestation; target bulletseed
+- [x] `iondeluge -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key iondeluge; target electricterrain
+- [x] `jawlock -> crunch` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key jawlock; target crunch
+- [x] `kowtowcleave -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key kowtowcleave; target nightslash
 - [x] `landswrath -> earthquake` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: selected key retained; aliasTargetKey earthquake; native earthquake timeline + typecheck
-- [ ] `laserfocus -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key laserfocus; target meanlook
-- [ ] `lashout -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lashout; target nightslash
-- [ ] `lastresort -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lastresort; target gigaimpact
-- [ ] `lastrespects -> memento` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lastrespects; target memento
-- [ ] `lightthatburnsthesky -> fusionflare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lightthatburnsthesky; target fusionflare
-- [ ] `liquidation -> crabhammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key liquidation; target crabhammer
-- [ ] `lowsweep -> lowkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lowsweep; target lowkick
-- [ ] `luminacrash -> esperwing` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key luminacrash; target esperwing
-- [ ] `lunardance -> moonlight` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lunardance; target moonlight
-- [ ] `lunge -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lunge; target megahorn
-- [ ] `magicpowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magicpowder; target spore
-- [ ] `magikarpsrevenge -> outrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magikarpsrevenge; target outrage
-- [ ] `magneticflux -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magneticflux; target electricterrain
+- [x] `laserfocus -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key laserfocus; target meanlook
+- [x] `lashout -> nightslash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lashout; target nightslash
+- [x] `lastresort -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lastresort; target gigaimpact
+- [x] `lastrespects -> memento` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lastrespects; target memento
+- [x] `lightthatburnsthesky -> fusionflare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lightthatburnsthesky; target fusionflare
+- [x] `liquidation -> crabhammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key liquidation; target crabhammer
+- [x] `lowsweep -> lowkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lowsweep; target lowkick
+- [x] `luminacrash -> esperwing` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key luminacrash; target esperwing
+- [x] `lunardance -> moonlight` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lunardance; target moonlight
+- [x] `lunge -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key lunge; target megahorn
+- [x] `magicpowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magicpowder; target spore
+- [x] `magikarpsrevenge -> outrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magikarpsrevenge; target outrage
+- [x] `magneticflux -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key magneticflux; target electricterrain
 - [x] `magnitude -> earthquake` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: selected key retained; aliasTargetKey earthquake; native earthquake timeline + typecheck
-- [ ] `maliciousmoonsault -> pulverizingpancake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maliciousmoonsault; target pulverizingpancake
-- [ ] `maxairstream -> supersonicskystrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxairstream; target supersonicskystrike
-- [ ] `maxdarkness -> maliciousmoonsault` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxdarkness; target maliciousmoonsault
-- [ ] `maxflare -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxflare; target infernooverdrive
-- [ ] `maxflutterby -> savagespinout` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxflutterby; target savagespinout
-- [ ] `maxgeyser -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxgeyser; target hydrovortex
-- [ ] `maxguard -> banefulbunker` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maxguard; target banefulbunker
-- [ ] `maxhailstorm -> subzeroslammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxhailstorm; target subzeroslammer
+- [x] `maliciousmoonsault -> pulverizingpancake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maliciousmoonsault; target pulverizingpancake
+- [x] `maxairstream -> supersonicskystrike` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxairstream; target supersonicskystrike
+- [x] `maxdarkness -> maliciousmoonsault` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxdarkness; target maliciousmoonsault
+- [x] `maxflare -> infernooverdrive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxflare; target infernooverdrive
+- [x] `maxflutterby -> savagespinout` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxflutterby; target savagespinout
+- [x] `maxgeyser -> hydrovortex` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxgeyser; target hydrovortex
+- [x] `maxguard -> banefulbunker` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key maxguard; target banefulbunker
+- [x] `maxhailstorm -> subzeroslammer` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxhailstorm; target subzeroslammer
 - [x] `maximumpsybreaker -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key maximumpsybreaker; target psychic + preview/manual/typecheck
-- [ ] `maxknuckle -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxknuckle; target alloutpummeling
-- [ ] `maxlightning -> gigavolthavoc` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxlightning; target gigavolthavoc
-- [ ] `maxmindstorm -> shatteredpsyche` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxmindstorm; target shatteredpsyche
-- [ ] `maxooze -> aciddownpour` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxooze; target aciddownpour
-- [ ] `maxovergrowth -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxovergrowth; target bloomdoom
-- [ ] `maxphantasm -> neverendingnightmare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxphantasm; target neverendingnightmare
-- [ ] `maxquake -> tectonicrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxquake; target tectonicrage
-- [ ] `maxrockfall -> continentalcrush` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxrockfall; target continentalcrush
-- [ ] `maxstarfall -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxstarfall; target twinkletackle
-- [ ] `maxsteelspike -> corkscrewcrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxsteelspike; target corkscrewcrash
-- [ ] `maxstrike -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxstrike; target breakneckblitz
-- [ ] `maxwyrmwind -> devastatingdrake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxwyrmwind; target devastatingdrake
-- [ ] `mefirst -> mimic` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mefirst; target mimic
-- [ ] `megakick -> jumpkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key megakick; target jumpkick
-- [ ] `menacingmoonrazemaelstrom -> moongeistbeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key menacingmoonrazemaelstrom; target moongeistbeam
-- [ ] `metalburst -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key metalburst; target flashcannon
-- [ ] `meteorassault -> aurasphere` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key meteorassault; target aurasphere
-- [ ] `mindblown -> iceball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mindblown; target iceball
-- [ ] `miracleeye -> mindreader` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key miracleeye; target mindreader
-- [ ] `mirrorcoat -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mirrorcoat; target flashcannon
-- [ ] `mirrorshot -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mirrorshot; target flashcannon
-- [ ] `mountaingale -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mountaingale; target powergem
-- [ ] `mudslap -> mudshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudslap; target mudshot
-- [ ] `mudsport -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudsport; target mudbomb
+- [x] `maxknuckle -> alloutpummeling` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxknuckle; target alloutpummeling
+- [x] `maxlightning -> gigavolthavoc` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxlightning; target gigavolthavoc
+- [x] `maxmindstorm -> shatteredpsyche` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxmindstorm; target shatteredpsyche
+- [x] `maxooze -> aciddownpour` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxooze; target aciddownpour
+- [x] `maxovergrowth -> bloomdoom` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxovergrowth; target bloomdoom
+- [x] `maxphantasm -> neverendingnightmare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxphantasm; target neverendingnightmare
+- [x] `maxquake -> tectonicrage` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxquake; target tectonicrage
+- [x] `maxrockfall -> continentalcrush` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxrockfall; target continentalcrush
+- [x] `maxstarfall -> twinkletackle` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxstarfall; target twinkletackle
+- [x] `maxsteelspike -> corkscrewcrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxsteelspike; target corkscrewcrash
+- [x] `maxstrike -> breakneckblitz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxstrike; target breakneckblitz
+- [x] `maxwyrmwind -> devastatingdrake` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: simple-alias; selected key maxwyrmwind; target devastatingdrake
+- [x] `mefirst -> mimic` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mefirst; target mimic
+- [x] `megakick -> jumpkick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key megakick; target jumpkick
+- [x] `menacingmoonrazemaelstrom -> moongeistbeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key menacingmoonrazemaelstrom; target moongeistbeam
+- [x] `metalburst -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key metalburst; target flashcannon
+- [x] `meteorassault -> aurasphere` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key meteorassault; target aurasphere
+- [x] `mindblown -> iceball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mindblown; target iceball
+- [x] `miracleeye -> mindreader` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key miracleeye; target mindreader
+- [x] `mirrorcoat -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mirrorcoat; target flashcannon
+- [x] `mirrorshot -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mirrorshot; target flashcannon
+- [x] `mountaingale -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mountaingale; target powergem
+- [x] `mudslap -> mudshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudslap; target mudshot
+- [x] `mudsport -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key mudsport; target mudbomb
 - [x] `mysticalfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key mysticalfire; target flamethrower + preview/manual/typecheck
-- [ ] `naturalgift -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key naturalgift; target technoblast
-- [ ] `nightdaze -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightdaze; target darkpulse
-- [ ] `nightmare -> nightshade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightmare; target nightshade
-- [ ] `noretreat -> stockpile` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key noretreat; target stockpile
-- [ ] `nuzzle -> spark` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nuzzle; target spark
-- [ ] `obstruct -> kingsshield` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key obstruct; target kingsshield
-- [ ] `octolock -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key octolock; target bind
-- [ ] `overdrive -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key overdrive; target discharge
-- [ ] `paleowave -> muddywater` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key paleowave; target muddywater
-- [ ] `payback -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key payback; target slam
+- [x] `naturalgift -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key naturalgift; target technoblast
+- [x] `nightdaze -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightdaze; target darkpulse
+- [x] `nightmare -> nightshade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nightmare; target nightshade
+- [x] `noretreat -> stockpile` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key noretreat; target stockpile
+- [x] `nuzzle -> spark` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key nuzzle; target spark
+- [x] `obstruct -> kingsshield` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key obstruct; target kingsshield
+- [x] `octolock -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key octolock; target bind
+- [x] `overdrive -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key overdrive; target discharge
+- [x] `paleowave -> muddywater` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key paleowave; target muddywater
+- [x] `payback -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key payback; target slam
 - [x] `phantomforce -> shadowforce` | priority: P3 | source: BattleMoveAlias | adapter: preset | notes: assignment registry records prepare-alias target; selected key retained + typecheck
-- [ ] `pinmissile -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pinmissile; target bulletseed
-- [ ] `poisonpowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisonpowder; target spore
-- [ ] `poisonsting -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisonsting; target poisonjab
-- [ ] `poisontail -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisontail; target poisonjab
-- [ ] `polarflare -> torchsong` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key polarflare; target torchsong
-- [ ] `pollenpuff -> revelationdance` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pollenpuff; target revelationdance
-- [ ] `poltergeist -> neverendingnightmare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poltergeist; target neverendingnightmare
-- [ ] `pounce -> bodyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pounce; target bodyslam
-- [ ] `powder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powder; target spore
-- [ ] `powdersnow -> icywind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powdersnow; target icywind
-- [ ] `powershift -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powershift; target skillswap
-- [ ] `powersplit -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powersplit; target skillswap
-- [ ] `powerswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powerswap; target skillswap
-- [ ] `psyblade -> psychocut` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psyblade; target psychocut
-- [ ] `psychicterrain -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychicterrain; target mistyterrain
-- [ ] `psychoshift -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychoshift; target painsplit
-- [ ] `psychup -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychup; target painsplit
-- [ ] `psywave -> psybeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psywave; target psybeam
-- [ ] `purify -> weatherball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key purify; target weatherball
-- [ ] `pyroball -> flameburst` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pyroball; target flameburst
-- [ ] `rage -> thrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rage; target thrash
-- [ ] `ragingbull -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ragingbull; target gigaimpact
-- [ ] `razorleaf -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key razorleaf; target magicalleaf
-- [ ] `reflecttype -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key reflecttype; target painsplit
-- [ ] `relicsong -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key relicsong; target hypervoice
-- [ ] `retaliate -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key retaliate; target closecombat
-- [ ] `revenge -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key revenge; target slam
-- [ ] `risingvoltage -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key risingvoltage; target discharge
-- [ ] `rockclimb -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rockclimb; target slam
+- [x] `pinmissile -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pinmissile; target bulletseed
+- [x] `poisonpowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisonpowder; target spore
+- [x] `poisonsting -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisonsting; target poisonjab
+- [x] `poisontail -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poisontail; target poisonjab
+- [x] `polarflare -> torchsong` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key polarflare; target torchsong
+- [x] `pollenpuff -> revelationdance` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pollenpuff; target revelationdance
+- [x] `poltergeist -> neverendingnightmare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key poltergeist; target neverendingnightmare
+- [x] `pounce -> bodyslam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pounce; target bodyslam
+- [x] `powder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powder; target spore
+- [x] `powdersnow -> icywind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powdersnow; target icywind
+- [x] `powershift -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powershift; target skillswap
+- [x] `powersplit -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powersplit; target skillswap
+- [x] `powerswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key powerswap; target skillswap
+- [x] `psyblade -> psychocut` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psyblade; target psychocut
+- [x] `psychicterrain -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychicterrain; target mistyterrain
+- [x] `psychoshift -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychoshift; target painsplit
+- [x] `psychup -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psychup; target painsplit
+- [x] `psywave -> psybeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key psywave; target psybeam
+- [x] `purify -> weatherball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key purify; target weatherball
+- [x] `pyroball -> flameburst` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key pyroball; target flameburst
+- [x] `rage -> thrash` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rage; target thrash
+- [x] `ragingbull -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key ragingbull; target gigaimpact
+- [x] `razorleaf -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key razorleaf; target magicalleaf
+- [x] `reflecttype -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key reflecttype; target painsplit
+- [x] `relicsong -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key relicsong; target hypervoice
+- [x] `retaliate -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key retaliate; target closecombat
+- [x] `revenge -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key revenge; target slam
+- [x] `risingvoltage -> discharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key risingvoltage; target discharge
+- [x] `rockclimb -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rockclimb; target slam
 - [x] `rocktomb -> rockslide` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key rocktomb; target rockslide + preview/manual/typecheck
-- [ ] `roleplay -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key roleplay; target painsplit
-- [ ] `rollingkick -> doublekick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rollingkick; target doublekick
-- [ ] `rototiller -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rototiller; target electricterrain
-- [ ] `sandattack -> mudshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sandattack; target mudshot
-- [ ] `savagespinout -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key savagespinout; target electroweb
-- [ ] `scaleshot -> clangingscales` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scaleshot; target clangingscales
-- [ ] `scaryface -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scaryface; target meanlook
-- [ ] `scorchingsands -> earthpower` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scorchingsands; target earthpower
-- [ ] `searingshot -> shelltrap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key searingshot; target shelltrap
-- [ ] `secretpower -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key secretpower; target technoblast
-- [ ] `selfdestruct -> explosion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key selfdestruct; target explosion
-- [ ] `shadowstrike -> shadowforce` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shadowstrike; target shadowforce
+- [x] `roleplay -> painsplit` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key roleplay; target painsplit
+- [x] `rollingkick -> doublekick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rollingkick; target doublekick
+- [x] `rototiller -> electricterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key rototiller; target electricterrain
+- [x] `sandattack -> mudshot` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sandattack; target mudshot
+- [x] `savagespinout -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key savagespinout; target electroweb
+- [x] `scaleshot -> clangingscales` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scaleshot; target clangingscales
+- [x] `scaryface -> meanlook` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scaryface; target meanlook
+- [x] `scorchingsands -> earthpower` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key scorchingsands; target earthpower
+- [x] `searingshot -> shelltrap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key searingshot; target shelltrap
+- [x] `secretpower -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key secretpower; target technoblast
+- [x] `selfdestruct -> explosion` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key selfdestruct; target explosion
+- [x] `shadowstrike -> shadowforce` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shadowstrike; target shadowforce
 - [x] `shatteredpsyche -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key shatteredpsyche; target psychic + preview/manual/typecheck
-- [ ] `shedtail -> substitute` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shedtail; target substitute
-- [ ] `shellsidearmphysical -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmphysical; target poisonjab
-- [ ] `shellsidearmspecial -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmspecial; target sludgebomb
-- [ ] `shelter -> withdraw` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shelter; target withdraw
-- [ ] `silverwind -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key silverwind; target whirlwind
-- [ ] `skittersmack -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key skittersmack; target megahorn
+- [x] `shedtail -> substitute` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shedtail; target substitute
+- [x] `shellsidearmphysical -> poisonjab` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmphysical; target poisonjab
+- [x] `shellsidearmspecial -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shellsidearmspecial; target sludgebomb
+- [x] `shelter -> withdraw` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key shelter; target withdraw
+- [x] `silverwind -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key silverwind; target whirlwind
+- [x] `skittersmack -> megahorn` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key skittersmack; target megahorn
 - [x] `slackoff -> rest` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key slackoff; target rest + preview/manual/typecheck
-- [ ] `sleeppowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sleeppowder; target spore
-- [ ] `smackdown -> rockblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key smackdown; target rockblast
-- [ ] `snaptrap -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key snaptrap; target magicalleaf
-- [ ] `snipeshot -> waterpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key snipeshot; target waterpulse
-- [ ] `sparklingaria -> bubblebeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sparklingaria; target bubblebeam
-- [ ] `speedswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key speedswap; target skillswap
-- [ ] `spiderweb -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key spiderweb; target electroweb
-- [ ] `spitup -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key spitup; target magnetbomb
-- [ ] `steelbeam -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key steelbeam; target magnetbomb
-- [ ] `steelroller -> steamroller` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key steelroller; target steamroller
-- [ ] `stormthrow -> circlethrow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stormthrow; target circlethrow
-- [ ] `strangesteam -> dazzlinggleam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strangesteam; target dazzlinggleam
-- [ ] `strengthsap -> leechlife` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strengthsap; target leechlife
-- [ ] `stringshot -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stringshot; target electroweb
-- [ ] `strugglebug -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strugglebug; target bulletseed
-- [ ] `stuffcheeks -> stockpile` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stuffcheeks; target stockpile
-- [ ] `stunspore -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stunspore; target spore
-- [ ] `submission -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key submission; target closecombat
-- [ ] `subzeroslammer -> sheercold` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key subzeroslammer; target sheercold
-- [ ] `superpower -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key superpower; target closecombat
-- [ ] `surgingstrikes -> aquajet` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key surgingstrikes; target aquajet
-- [ ] `sweetkiss -> lovelykiss` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetkiss; target lovelykiss
-- [ ] `sweetscent -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetscent; target mistyterrain
+- [x] `sleeppowder -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sleeppowder; target spore
+- [x] `smackdown -> rockblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key smackdown; target rockblast
+- [x] `snaptrap -> magicalleaf` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key snaptrap; target magicalleaf
+- [x] `snipeshot -> waterpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key snipeshot; target waterpulse
+- [x] `sparklingaria -> bubblebeam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sparklingaria; target bubblebeam
+- [x] `speedswap -> skillswap` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key speedswap; target skillswap
+- [x] `spiderweb -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key spiderweb; target electroweb
+- [x] `spitup -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key spitup; target magnetbomb
+- [x] `steelbeam -> magnetbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key steelbeam; target magnetbomb
+- [x] `steelroller -> steamroller` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key steelroller; target steamroller
+- [x] `stormthrow -> circlethrow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stormthrow; target circlethrow
+- [x] `strangesteam -> dazzlinggleam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strangesteam; target dazzlinggleam
+- [x] `strengthsap -> leechlife` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strengthsap; target leechlife
+- [x] `stringshot -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stringshot; target electroweb
+- [x] `strugglebug -> bulletseed` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key strugglebug; target bulletseed
+- [x] `stuffcheeks -> stockpile` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stuffcheeks; target stockpile
+- [x] `stunspore -> spore` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key stunspore; target spore
+- [x] `submission -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key submission; target closecombat
+- [x] `subzeroslammer -> sheercold` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key subzeroslammer; target sheercold
+- [x] `superpower -> closecombat` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key superpower; target closecombat
+- [x] `surgingstrikes -> aquajet` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key surgingstrikes; target aquajet
+- [x] `sweetkiss -> lovelykiss` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetkiss; target lovelykiss
+- [x] `sweetscent -> mistyterrain` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key sweetscent; target mistyterrain
 - [x] `synthesis -> recover` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key synthesis; target recover + preview/manual/typecheck
-- [ ] `tackle -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tackle; target slam
-- [ ] `takedown -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key takedown; target gigaimpact
-- [ ] `tarshot -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tarshot; target mudbomb
-- [ ] `teatime -> healbell` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key teatime; target healbell
-- [ ] `tectonicrage -> precipiceblades` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tectonicrage; target precipiceblades
-- [ ] `telekinesis -> kinesis` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key telekinesis; target kinesis
-- [ ] `terablast -> scald` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablast; target scald
-- [ ] `terablastbug -> bugbuzz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastbug; target bugbuzz
-- [ ] `terablastdark -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdark; target darkpulse
-- [ ] `terablastdragon -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdragon; target dragonpulse
+- [x] `tackle -> slam` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tackle; target slam
+- [x] `takedown -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key takedown; target gigaimpact
+- [x] `tarshot -> mudbomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tarshot; target mudbomb
+- [x] `teatime -> healbell` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key teatime; target healbell
+- [x] `tectonicrage -> precipiceblades` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tectonicrage; target precipiceblades
+- [x] `telekinesis -> kinesis` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key telekinesis; target kinesis
+- [x] `terablast -> scald` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablast; target scald
+- [x] `terablastbug -> bugbuzz` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastbug; target bugbuzz
+- [x] `terablastdark -> darkpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdark; target darkpulse
+- [x] `terablastdragon -> dragonpulse` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastdragon; target dragonpulse
 - [x] `terablastelectric -> thunderbolt` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastelectric; target thunderbolt + preview/manual/typecheck
-- [ ] `terablastfairy -> moonblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfairy; target moonblast
-- [ ] `terablastfighting -> focusblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfighting; target focusblast
+- [x] `terablastfairy -> moonblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfairy; target moonblast
+- [x] `terablastfighting -> focusblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastfighting; target focusblast
 - [x] `terablastfire -> flamethrower` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastfire; target flamethrower + preview/manual/typecheck
-- [ ] `terablastflying -> aeroblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastflying; target aeroblast
-- [ ] `terablastghost -> infernalparade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastghost; target infernalparade
-- [ ] `terablastgrass -> seedflare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastgrass; target seedflare
-- [ ] `terablastground -> earthpower` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastground; target earthpower
+- [x] `terablastflying -> aeroblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastflying; target aeroblast
+- [x] `terablastghost -> infernalparade` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastghost; target infernalparade
+- [x] `terablastgrass -> seedflare` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastgrass; target seedflare
+- [x] `terablastground -> earthpower` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastground; target earthpower
 - [x] `terablastice -> icebeam` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastice; target icebeam + preview/manual/typecheck
-- [ ] `terablastnormal -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastnormal; target technoblast
-- [ ] `terablastpoison -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastpoison; target sludgebomb
+- [x] `terablastnormal -> technoblast` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastnormal; target technoblast
+- [x] `terablastpoison -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastpoison; target sludgebomb
 - [x] `terablastpsychic -> psychic` | priority: P2 | source: BattleMoveAlias | adapter: native | notes: alias registry to native target; selected key terablastpsychic; target psychic + preview/manual/typecheck
-- [ ] `terablastrock -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastrock; target powergem
-- [ ] `terablaststeel -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststeel; target flashcannon
-- [ ] `terablaststellar -> dracometeor` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststellar; target dracometeor
-- [ ] `terablastwater -> hydropump` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastwater; target hydropump
-- [ ] `throatchop -> karatechop` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key throatchop; target karatechop
-- [ ] `thundershock -> electroball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key thundershock; target electroball
-- [ ] `tidyup -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tidyup; target bulkup
-- [ ] `torment -> swagger` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key torment; target swagger
-- [ ] `toxicthread -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key toxicthread; target electroweb
-- [ ] `trailblaze -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key trailblaze; target powerwhip
-- [ ] `tripledive -> dive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tripledive; target dive
-- [ ] `triplekick -> doublekick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key triplekick; target doublekick
-- [ ] `trumpcard -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key trumpcard; target gigaimpact
-- [ ] `twister -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key twister; target whirlwind
-- [ ] `uproar -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key uproar; target hypervoice
-- [ ] `venomdrench -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key venomdrench; target sludge
-- [ ] `venoshock -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key venoshock; target sludgebomb
-- [ ] `vinewhip -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key vinewhip; target powerwhip
-- [ ] `vitalthrow -> circlethrow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key vitalthrow; target circlethrow
-- [ ] `volttackle -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key volttackle; target wildcharge
-- [ ] `waterfall -> aquajet` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key waterfall; target aquajet
-- [ ] `watergun -> watersport` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key watergun; target watersport
-- [ ] `whirlpool -> watersport` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key whirlpool; target watersport
-- [ ] `workup -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key workup; target bulkup
-- [ ] `wrap -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key wrap; target bind
-- [ ] `wringout -> forcepalm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key wringout; target forcepalm
-- [ ] `zingzap -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key zingzap; target wildcharge
+- [x] `terablastrock -> powergem` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastrock; target powergem
+- [x] `terablaststeel -> flashcannon` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststeel; target flashcannon
+- [x] `terablaststellar -> dracometeor` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablaststellar; target dracometeor
+- [x] `terablastwater -> hydropump` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key terablastwater; target hydropump
+- [x] `throatchop -> karatechop` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key throatchop; target karatechop
+- [x] `thundershock -> electroball` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key thundershock; target electroball
+- [x] `tidyup -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tidyup; target bulkup
+- [x] `torment -> swagger` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key torment; target swagger
+- [x] `toxicthread -> electroweb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key toxicthread; target electroweb
+- [x] `trailblaze -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key trailblaze; target powerwhip
+- [x] `tripledive -> dive` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key tripledive; target dive
+- [x] `triplekick -> doublekick` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key triplekick; target doublekick
+- [x] `trumpcard -> gigaimpact` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key trumpcard; target gigaimpact
+- [x] `twister -> whirlwind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key twister; target whirlwind
+- [x] `uproar -> hypervoice` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key uproar; target hypervoice
+- [x] `venomdrench -> sludge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key venomdrench; target sludge
+- [x] `venoshock -> sludgebomb` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key venoshock; target sludgebomb
+- [x] `vinewhip -> powerwhip` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key vinewhip; target powerwhip
+- [x] `vitalthrow -> circlethrow` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key vitalthrow; target circlethrow
+- [x] `volttackle -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key volttackle; target wildcharge
+- [x] `waterfall -> aquajet` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key waterfall; target aquajet
+- [x] `watergun -> watersport` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key watergun; target watersport
+- [x] `whirlpool -> watersport` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key whirlpool; target watersport
+- [x] `workup -> bulkup` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key workup; target bulkup
+- [x] `wrap -> bind` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key wrap; target bind
+- [x] `wringout -> forcepalm` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key wringout; target forcepalm
+- [x] `zingzap -> wildcharge` | priority: P3 | source: BattleMoveAlias | adapter: pending | notes: anim-alias; selected key zingzap; target wildcharge
