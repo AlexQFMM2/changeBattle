@@ -65,6 +65,7 @@ function RoutedApp({runtime}: AppProps) {
   const [message, setMessage] = useState("正在读取本地资料...");
   const [editingProfile, setEditingProfile] = useState<UserProfileV2 | null>(null);
   const [dexOpen, setDexOpen] = useState(false);
+  const [dexInitialPokemonId, setDexInitialPokemonId] = useState<string | null>(null);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [battleSessionId, setBattleSessionId] = useState("");
 
@@ -165,10 +166,21 @@ function RoutedApp({runtime}: AppProps) {
       navigate("/", {replace: true});
       return;
     }
-    const loaded = await api.loadTrainingRun();
-    const next = loaded || await api.saveTrainingRun(api.createTrainingRunGame(profile));
+    await api.deleteTrainingRun();
+    const next = await api.saveTrainingRun(api.createTrainingRunGame(profile));
     setTrainingRun(next);
     navigate("/training/config", {replace: true});
+  }
+
+  async function continueTrainingRun() {
+    const current = trainingRun || await api.loadTrainingRun();
+    if (!current) {
+      setMessage("没有可继续的训练存档。");
+      return;
+    }
+    const saved = await api.saveTrainingRun(api.enterTrainingRest(current));
+    setTrainingRun(saved);
+    navigate("/training/rest-new", {replace: true});
   }
 
   async function startTrainingRun(run: TrainingRunGameV4) {
@@ -204,6 +216,11 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/training/battle", {replace: true});
   }
 
+  function openDex(initialPokemonId: string | null = null) {
+    setDexInitialPokemonId(initialPokemonId);
+    setDexOpen(true);
+  }
+
   const titlePage = (
     <TitlePage
       profile={profile}
@@ -221,12 +238,13 @@ function RoutedApp({runtime}: AppProps) {
       <MainMenuPage
         profile={profile}
         catalog={catalog.trainers}
-        onOpenDex={() => setDexOpen(true)}
+        hasTrainingRun={Boolean(trainingRun)}
+        onOpenDex={() => openDex()}
         onTraining={() => void createTrainingRunAndOpenConfig()}
+        onContinueTraining={() => void continueTrainingRun()}
         onUserInfo={startEdit}
         onTitle={() => navigate("/", {replace: true})}
       />
-      {dexOpen ? <QuickDexModal api={api} onClose={() => setDexOpen(false)} /> : null}
     </>
   ) : <Navigate to="/" replace />;
 
@@ -287,6 +305,8 @@ function RoutedApp({runtime}: AppProps) {
         onRunChange={setTrainingRun}
         onBackToConfig={() => navigate("/training/config", {replace: true})}
         onStartBattle={startBattleFromRest}
+        onOpenDex={() => openDex()}
+        onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
       />
     ) : (
       <TrainingRunTransitionPage onReady={() => void enterTrainingRest()} />
@@ -337,6 +357,7 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/battle" element={trainingBattlePage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {dexOpen ? <QuickDexModal api={api} initialPokemonId={dexInitialPokemonId} onClose={() => setDexOpen(false)} /> : null}
     </GameViewport>
   );
 }

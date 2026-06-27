@@ -35,6 +35,7 @@ export type TrainingRunGameV4 = {
   currentNodeId: string | null;
   gameMap: TrainingRunGameNodeV4[];
   result: TrainingRunResultV4 | null;
+  restPreviewUnlocks?: Record<string, true>;
 };
 
 export type TrainingBattleGamePlaceholderV4 = {
@@ -436,6 +437,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       currentNodeId,
       gameMap,
       result: run.result || null,
+      restPreviewUnlocks: normalizeRestPreviewUnlocks(run.restPreviewUnlocks),
     };
   }
 
@@ -917,6 +919,11 @@ function normalizeRunStatus(status: unknown, gameMap: TrainingRunGameNodeV4[]): 
 function normalizeNodeState(state: unknown, index: number): TrainingRunNodeStateV4 {
   if (["locked", "ready", "preparing", "running", "won", "lost", "skipped", "blocked"].includes(String(state))) return state as TrainingRunNodeStateV4;
   return index === 0 ? "ready" : "locked";
+}
+
+function normalizeRestPreviewUnlocks(value: unknown): Record<string, true> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([, unlocked]) => unlocked).map(([key]) => [key, true])) as Record<string, true>;
 }
 
 function defaultTeamSize(mode: TrainingModeV4): number {

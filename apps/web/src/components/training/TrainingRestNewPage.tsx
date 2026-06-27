@@ -11,12 +11,16 @@ export type TrainingRestNewPageProps = {
   onRunChange: (run: TrainingRunGameV4) => void;
   onBackToConfig: () => void;
   onStartBattle: () => void;
+  onOpenDex: () => void;
+  onOpenPokemonDex: (speciesId: string) => void;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
+  const [unlockTarget, setUnlockTarget] = useState<PreviewPokemonEntry | null>(null);
+  const [message, setMessage] = useState("休整中心已就绪。");
   const preview = buildNextOpponentPreview(run);
   const p1Team = run.players.p1?.localTeam || null;
 
@@ -35,6 +39,26 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     onRunChange(nextRun);
     const saved = await api.saveTrainingRun(nextRun);
     onRunChange(saved);
+    setMessage("队伍调整已保存。");
+  }
+
+  async function saveRunGameSnapshot() {
+    const saved = await api.saveTrainingRun({...run, updatedAt: new Date().toISOString()});
+    onRunChange(saved);
+    setMessage("RunGame 快照已保存。");
+  }
+
+  async function unlockPreviewPokemon(target: PreviewPokemonEntry) {
+    const nextRun = {
+      ...run,
+      restPreviewUnlocks: {...(run.restPreviewUnlocks || {}), [target.unlockKey]: true as const},
+      updatedAt: new Date().toISOString(),
+    };
+    onRunChange(nextRun);
+    const saved = await api.saveTrainingRun(nextRun);
+    onRunChange(saved);
+    setUnlockTarget(null);
+    setMessage(`${target.pokemon.nameZh || target.pokemon.name} 已解锁。`);
   }
 
   function selectAction(action: string) {
@@ -43,8 +67,16 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       setTeamPanelOpen(true);
       return;
     }
-    if (["我的背包", "保存"].includes(action)) {
+    if (["我的背包", "图鉴", "保存"].includes(action)) {
       setTeamPanelOpen(false);
+    }
+    if (action === "图鉴") {
+      onOpenDex();
+      return;
+    }
+    if (action === "保存") {
+      void saveRunGameSnapshot();
+      return;
     }
     if (action === "结束休整") {
       onStartBattle();
@@ -64,7 +96,16 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       <img className="training-rest-new-bg" src="/training/rest-center-bg.png" alt="休整中心背景预览" />
       <section className="training-rest-new-notice-region left" aria-label="休整菜单区域" />
       <section className={`training-rest-new-notice-region right mode-${preview.mode}`} aria-label="下一场对手预览">
-        <NextOpponentPreview preview={preview} />
+        <NextOpponentPreview
+          preview={preview}
+          run={run}
+          onLockedPokemonClick={setUnlockTarget}
+          onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)}
+        />
+      </section>
+      <section className="training-rest-new-left-action-panel" aria-label="休整图鉴与功能入口">
+        <RestPaperAction label="图鉴" iconSrc="/ui/book.png" active={activeAction === "图鉴"} onClick={() => selectAction("图鉴")} />
+        {Array.from({length: 7}, (_, index) => <RestPaperAction label="未开放" iconText="?" disabled key={index} />)}
       </section>
       <span className="training-rest-new-region training-rest-new-board-title left">休整菜单</span>
       <span className="training-rest-new-region training-rest-new-board-title right">下一场预览</span>
@@ -82,6 +123,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           ))}
         </div>
       </nav>
+      <div className="training-rest-new-save-message" role="status">{message}</div>
       <TrainingRestNewTeamPanel
         api={api}
         open={teamPanelOpen}
@@ -101,7 +143,42 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           </div>
         </div>
       ) : null}
+      {unlockTarget ? (
+        <div className="training-rest-new-confirm" role="dialog" aria-label="确认解锁预览">
+          <div>
+            <strong>是否解锁？</strong>
+            <span>解锁后会显示这只宝可梦，并可打开图鉴详情。</span>
+            <footer>
+              <button type="button" onClick={() => setUnlockTarget(null)}>取消</button>
+              <button type="button" onClick={() => void unlockPreviewPokemon(unlockTarget)}>解锁</button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </motion.section>
+  );
+}
+
+function RestPaperAction({
+  label,
+  iconSrc,
+  iconText,
+  active = false,
+  disabled = false,
+  onClick,
+}: {
+  label: string;
+  iconSrc?: string;
+  iconText?: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button className={active ? "active" : ""} type="button" onClick={onClick} disabled={disabled}>
+      {iconSrc ? <img src={iconSrc} alt="" draggable={false} /> : <span>{iconText || "?"}</span>}
+      <strong>{label}</strong>
+    </button>
   );
 }
 
@@ -110,13 +187,30 @@ type NextOpponentPreviewModel = {
   trainer: TrainingPlayerDraftV4 | null;
   allies: TrainingPlayerDraftV4[];
   rank: string;
+  nodeId: string;
 };
 
-function NextOpponentPreview({preview}: {preview: NextOpponentPreviewModel}) {
+type PreviewPokemonEntry = {
+  pokemon: PreviewPokemon;
+  playerId: ShowdownPlayerIdV4;
+  unlockKey: string;
+};
+
+function NextOpponentPreview({
+  preview,
+  run,
+  onLockedPokemonClick,
+  onUnlockedPokemonClick,
+}: {
+  preview: NextOpponentPreviewModel;
+  run: TrainingRunGameV4;
+  onLockedPokemonClick: (entry: PreviewPokemonEntry) => void;
+  onUnlockedPokemonClick: (pokemon: PreviewPokemon) => void;
+}) {
   const trainer = preview.trainer;
   const trainers = preview.allies.length ? preview.allies.slice(0, 2) : trainer ? [trainer] : [];
-  const pokemon = trainers.flatMap(entry => entry.localTeam.pokemon).slice(0, 4);
-  const coopTeams = trainers.slice(0, 2).map(entry => entry.localTeam.pokemon.slice(0, 2));
+  const pokemon = trainers.flatMap(entry => previewEntriesForPlayer(preview.nodeId, entry)).slice(0, 4);
+  const coopTeams = trainers.slice(0, 2).map(entry => previewEntriesForPlayer(preview.nodeId, entry).slice(0, 2));
   return (
     <div className="training-rest-next-preview">
       <div className={`training-rest-next-npc-grid count-${Math.max(1, trainers.length)}`}>
@@ -139,9 +233,13 @@ function NextOpponentPreview({preview}: {preview: NextOpponentPreviewModel}) {
           {coopTeams.map((team, index) => (
             <div className="training-rest-next-coop-column" key={`${trainers[index]?.playerId || "team"}-${index}`}>
               {team.map(entry => (
-                <div className="training-rest-next-pokemon-card" key={entry.localPokemonId}>
-                  <TrainingRestNewPokemonIcon pokemon={entry} />
-                </div>
+                <PreviewPokemonCard
+                  entry={entry}
+                  unlocked={Boolean(run.restPreviewUnlocks?.[entry.unlockKey])}
+                  onLockedClick={onLockedPokemonClick}
+                  onUnlockedClick={onUnlockedPokemonClick}
+                  key={entry.unlockKey}
+                />
               ))}
             </div>
           ))}
@@ -149,13 +247,40 @@ function NextOpponentPreview({preview}: {preview: NextOpponentPreviewModel}) {
       ) : (
         <div className="training-rest-next-pokemon-grid">
           {pokemon.map(entry => (
-            <div className="training-rest-next-pokemon-card" key={entry.localPokemonId}>
-              <TrainingRestNewPokemonIcon pokemon={entry} />
-            </div>
+            <PreviewPokemonCard
+              entry={entry}
+              unlocked={Boolean(run.restPreviewUnlocks?.[entry.unlockKey])}
+              onLockedClick={onLockedPokemonClick}
+              onUnlockedClick={onUnlockedPokemonClick}
+              key={entry.unlockKey}
+            />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function PreviewPokemonCard({
+  entry,
+  unlocked,
+  onLockedClick,
+  onUnlockedClick,
+}: {
+  entry: PreviewPokemonEntry;
+  unlocked: boolean;
+  onLockedClick: (entry: PreviewPokemonEntry) => void;
+  onUnlockedClick: (pokemon: PreviewPokemon) => void;
+}) {
+  return (
+    <button
+      className={`training-rest-next-pokemon-card ${unlocked ? "unlocked" : "locked"}`}
+      type="button"
+      onClick={() => unlocked ? onUnlockedClick(entry.pokemon) : onLockedClick(entry)}
+      aria-label={unlocked ? `查看${entry.pokemon.nameZh || entry.pokemon.name}图鉴` : "解锁未知宝可梦预览"}
+    >
+      {unlocked ? <TrainingRestNewPokemonIcon pokemon={entry.pokemon} /> : <span className="training-rest-next-unknown">未知</span>}
+    </button>
   );
 }
 
@@ -164,7 +289,15 @@ function buildNextOpponentPreview(run: TrainingRunGameV4): NextOpponentPreviewMo
   const mode = current?.mode || run.scenario.mode;
   const farIds = [current?.p2, current?.p4].filter(Boolean) as ShowdownPlayerIdV4[];
   const allies = farIds.map(playerId => current?.participants[playerId] || run.players[playerId]).filter(isPlayerDraft);
-  return {mode, trainer: allies[0] || null, allies, rank: aiRankLabel(current?.index || 0)};
+  return {mode, trainer: allies[0] || null, allies, rank: aiRankLabel(current?.index || 0), nodeId: current?.id || run.currentNodeId || "preview"};
+}
+
+function previewEntriesForPlayer(nodeId: string, player: TrainingPlayerDraftV4): PreviewPokemonEntry[] {
+  return player.localTeam.pokemon.map(pokemon => ({
+    pokemon,
+    playerId: player.playerId,
+    unlockKey: `${nodeId}:${player.playerId}:${pokemon.localPokemonId}`,
+  }));
 }
 
 function isPlayerDraft(player: TrainingPlayerDraftV4 | undefined): player is TrainingPlayerDraftV4 {

@@ -24,8 +24,8 @@
   --rest-new-paper-right-y: 75px;
   --rest-new-paper-right-w: 110px;
   --rest-new-paper-right-h: 168px;
-  --rest-new-notice-debug-region: 1;
-  --rest-new-card-debug-region: 1;
+  --rest-new-notice-debug-region: 0;
+  --rest-new-card-debug-region: 0;
   --rest-new-notice-left-x: 120px;
   --rest-new-notice-left-y: 64px;
   --rest-new-notice-left-w: 100px;
@@ -63,6 +63,124 @@
   image-rendering: auto;
 }
 
+.training-rest-new-save-message {
+  position: absolute;
+  left: 224px;
+  bottom: 18px;
+  z-index: 3;
+  width: 192px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  color: #f4ead6;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+  text-shadow:
+    0 1px 0 #120b07,
+    0 0 5px rgb(255 232 170 / 42%);
+  pointer-events: none;
+}
+
+.training-rest-new-left-action-panel {
+  position: absolute;
+  left: var(--rest-new-notice-left-x);
+  top: var(--rest-new-notice-left-y);
+  z-index: 3;
+  width: var(--rest-new-notice-left-w);
+  height: var(--rest-new-notice-left-h);
+  display: grid;
+  grid-template-columns: repeat(2, 35px);
+  grid-template-rows: repeat(4, 34px);
+  justify-content: center;
+  align-content: center;
+  gap: 5px 7px;
+  padding: 9px 6px;
+}
+
+.training-rest-new-left-action-panel button {
+  position: relative;
+  width: 35px;
+  height: 34px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 7px;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: url('/board/pinned-paper.png') center / 100% 100% no-repeat;
+  color: #2e2519;
+  padding: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: filter .12s ease, outline-color .12s ease, transform .12s ease;
+}
+
+.training-rest-new-left-action-panel button:hover,
+.training-rest-new-left-action-panel button:focus-visible,
+.training-rest-new-left-action-panel button.active {
+  outline: 2px solid #36aef7;
+  outline-offset: 1px;
+  filter: brightness(1.08);
+}
+
+.training-rest-new-left-action-panel button:disabled {
+  cursor: default;
+  opacity: .58;
+  filter: grayscale(.22);
+}
+
+.training-rest-new-left-action-panel button:disabled:hover,
+.training-rest-new-left-action-panel button:disabled:focus-visible {
+  outline: 0;
+  filter: grayscale(.22);
+}
+
+.training-rest-new-left-action-panel button:active {
+  transform: translateY(1px);
+}
+
+.training-rest-new-left-action-panel img,
+.training-rest-new-left-action-panel span,
+.training-rest-new-left-action-panel strong {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.training-rest-new-left-action-panel img {
+  align-self: end;
+  width: 20px;
+  height: 19px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 34%));
+}
+
+.training-rest-new-left-action-panel span {
+  align-self: end;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  background: #4a4035;
+  color: #e6d6b8;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-new-left-action-panel strong {
+  align-self: start;
+  color: #423527;
+  font-size: 5px;
+  font-weight: 950;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 52%);
+}
+
 .training-rest-ui-panel {
   border: 18px solid transparent;
   border-image-source: url('/board/rest-panel-frame.png');
@@ -93,6 +211,7 @@
   width: var(--rest-new-notice-right-w);
   height: var(--rest-new-notice-right-h);
   padding: 17px 10px 10px;
+  pointer-events: auto;
 }
 
 .training-rest-next-preview {
@@ -125,10 +244,38 @@
   min-width: 0;
   display: grid;
   place-items: center;
+  border: 0;
+  border-radius: 0;
   background: url('/board/pinned-paper.png') center / 100% 100% no-repeat;
   color: #2e2519;
   overflow: hidden;
   box-shadow: inset 0 0 0 calc(var(--rest-new-card-debug-region) * 1px) rgb(89 204 255 / 0.94);
+  cursor: pointer;
+  transition: filter .12s ease, outline-color .12s ease, transform .12s ease;
+}
+
+.training-rest-next-pokemon-card:hover,
+.training-rest-next-pokemon-card:focus-visible {
+  outline: 2px solid #36aef7;
+  outline-offset: 1px;
+  filter: brightness(1.08);
+}
+
+.training-rest-next-pokemon-card.unlocked:hover,
+.training-rest-next-pokemon-card.unlocked:focus-visible {
+  outline-color: #e84545;
+}
+
+.training-rest-next-pokemon-card:active {
+  transform: translateY(1px);
+}
+
+.training-rest-next-unknown {
+  color: #5e5347;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 46%);
 }
 
 .training-rest-next-npc-card {
