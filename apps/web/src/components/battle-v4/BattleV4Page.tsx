@@ -810,7 +810,7 @@ function BattleV4BagItemIcon({api, item}: {api: ChangeBattleV2Api; item: PlayerI
   return item.image ? <ImageWithFallback src={item.image} alt="" fallback="◇" /> : <span className="battle-v4-bag-item-icon">◇</span>;
 }
 
-function lockedSpecialSystemsForCommand(choices: string[]): Set<BattleSpecialSystemV4> {
+function lockedSpecialSystemsForCommand(choices: unknown[]): Set<BattleSpecialSystemV4> {
   const locked = new Set<BattleSpecialSystemV4>();
   for (const choice of choices) {
     const system = battleSpecialSystemForChoiceV4(specialChoiceFromChoiceString(choice));
@@ -819,8 +819,10 @@ function lockedSpecialSystemsForCommand(choices: string[]): Set<BattleSpecialSys
   return locked;
 }
 
-function specialChoiceFromChoiceString(choice: string): BattleSpecialChoiceV4 | null {
+function specialChoiceFromChoiceString(choice: unknown): BattleSpecialChoiceV4 | null {
+  if (typeof choice !== "string") return null;
   const tokens = choice.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return null;
   const id = String(tokens[2] || "").toLowerCase();
   if (id === "mega" || id === "megax" || id === "megay" || id === "ultra" || id === "zmove" || id === "terastallize") return id;
   if (id === "max" || id === "dynamax") return "max";
@@ -1567,7 +1569,7 @@ function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions:
     else if (trapped) reason = "无法逃脱";
     else if (!action) reason = "无法定位";
     return {
-      key: row?.ident || localPokemon?.localPokemonId || String(index),
+      key: switchCandidateKey("p1", index, row, localPokemon),
       index,
       row,
       localPokemon,
@@ -1630,7 +1632,7 @@ function buildReadonlySwitchCandidatesForPlayer(
     const active = Boolean(row?.active || activeContainsPokemon(snapshot, playerId, localPokemon, row));
     const fainted = Boolean(row?.fainted || row?.condition?.includes("fnt") || localPokemon && localPokemon.entryHp <= 0);
     return {
-      key: `${playerId}-${row?.ident || localPokemon?.localPokemonId || index}`,
+      key: switchCandidateKey(playerId, index, row, localPokemon),
       index,
       row,
       localPokemon,
@@ -1654,14 +1656,30 @@ function activeContainsPokemon(
   pokemon: LocalPokemonV4 | null,
   row: RequestPokemonV4 | null,
 ): boolean {
-  const token = pokemon?.showdownIdentityToken || pokemon?.showdownId || pokemon?.pokeballId || row?.pokeball || "";
-  const names = new Set([pokemon?.speciesId, pokemon?.name, pokemon?.nameZh, pokemon?.nickname, row?.details, row?.ident, row?.name].map(value => toId(value || "")).filter(Boolean));
+  const tokens = strictPokemonIdentityTokens(pokemon, row);
+  if (!tokens.size) return false;
   return snapshot.active.some(active => {
     if (active.playerId !== playerId || active.fainted) return false;
-    if (token && active.ident.includes(token)) return true;
-    const activeNames = [active.species, active.details, active.ident].map(value => toId(value || ""));
-    return activeNames.some(value => names.has(value));
+    return strictActiveIdentityTokens(active).some(token => tokens.has(token));
   });
+}
+
+function strictPokemonIdentityTokens(pokemon: LocalPokemonV4 | null, row: RequestPokemonV4 | null): Set<string> {
+  return new Set([
+    pokemon?.showdownIdentityToken,
+    pokemon?.showdownId,
+    pokemon?.pokeballId,
+    row?.pokeball,
+  ].map(value => toId(value || "")).filter(Boolean));
+}
+
+function strictActiveIdentityTokens(active: BattleSessionSnapshotV4["active"][number]): string[] {
+  return [
+    active.showdownIdentityToken,
+    active.showdownId,
+    active.pokeballId,
+    active.pokeball,
+  ].map(value => toId(value || "")).filter(Boolean);
 }
 
 function buildNonCoopEnemySwitchCandidates(snapshot: BattleSessionSnapshotV4): SwitchCandidateV4[] {
@@ -1671,7 +1689,7 @@ function buildNonCoopEnemySwitchCandidates(snapshot: BattleSessionSnapshotV4): S
     const pokemon = team[index] || null;
     const status = pokemon?.entryHp && pokemon.entryHp > 0 ? pokemon.entryStatus : pokemon ? "fnt" : "";
     return {
-      key: `p2-enemy-${pokemon?.localPokemonId || index}`,
+      key: switchCandidateKey("p2", index, null, pokemon),
       index,
       row: null,
       localPokemon: pokemon,
@@ -1722,6 +1740,13 @@ function switchCandidateIdentity(candidate: SwitchCandidateV4): string {
   const localId = candidate.localPokemon?.localPokemonId || "";
   if (token && localId) return `${shortIdentity(token)} · ${shortIdentity(localId)}`;
   return shortIdentity(token || localId);
+}
+
+function switchCandidateKey(playerId: string, index: number, row: RequestPokemonV4 | null, pokemon: LocalPokemonV4 | null): string {
+  const token = pokemon?.showdownIdentityToken || pokemon?.showdownId || pokemon?.pokeballId || row?.pokeball || "";
+  const normalizedToken = toId(token);
+  if (normalizedToken) return `${playerId}-${normalizedToken}`;
+  return `${playerId}-empty-${index}`;
 }
 
 function shortIdentity(value: string): string {

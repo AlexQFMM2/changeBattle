@@ -40,7 +40,9 @@ export type BattleProtocolEventV4 = {
   turn: number;
   playerId?: string;
   seat: BattleProtocolSeatV4;
+  seatExplicit: boolean;
   targetSeat: BattleProtocolSeatV4;
+  targetSeatExplicit: boolean;
   actorName: string;
   targetName: string;
   moveId: string;
@@ -84,7 +86,9 @@ export type BattleAnimationEventV4 = {
   args: BattleProtocolArgsV4;
   kwArgs: BattleProtocolKwArgsV4;
   actorSeat: BattleProtocolSeatV4;
+  actorSeatExplicit: boolean;
   targetSeat: BattleProtocolSeatV4;
+  targetSeatExplicit: boolean;
   actorName: string;
   targetName: string;
   moveId: string;
@@ -457,7 +461,7 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
 }
 
 function isDuplicateSpecialFormeAnnouncement(previous: BattleProtocolEventV4 | undefined, event: BattleProtocolEventV4): boolean {
-  if (!previous || previous.seat !== event.seat) return false;
+  if (!previous || !previous.seatExplicit || !event.seatExplicit || previous.seat !== event.seat) return false;
   return previous.eventType === "detailschange" || previous.eventType === "-formechange";
 }
 
@@ -898,7 +902,9 @@ function buildProtocolEvent(
     turn,
     playerId: actorParts.playerId,
     seat: actorParts.seat,
+    seatExplicit: actorParts.seatExplicit,
     targetSeat: targetParts.seat,
+    targetSeatExplicit: targetParts.seatExplicit,
     actorName: actorParts.name || actor,
     targetName: targetParts.name || target,
     moveId: toId(moveName),
@@ -961,7 +967,9 @@ function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV
     args: event.args,
     kwArgs: event.kwArgs,
     actorSeat: event.seat,
+    actorSeatExplicit: event.seatExplicit,
     targetSeat: event.targetSeat || event.seat,
+    targetSeatExplicit: event.targetSeatExplicit || event.seatExplicit,
     actorName: event.actorName,
     targetName: event.targetName,
     moveId: event.moveId,
@@ -1020,7 +1028,8 @@ function applyAnimationCheckpoint(
     }));
   }
   if (event.kind === "transform") {
-    return patchSlot(slots, event.actorSeat, slot => patchSpecialSlotState(patchSlotForme(slot, event, slots), event));
+    const seat = resolveTransformEventSeat(event, slots);
+    return patchSlot(slots, seat, slot => patchSpecialSlotState(patchSlotForme(slot, event, slots), event));
   }
   return slots;
 }
@@ -1039,9 +1048,10 @@ export function deriveSpecialSystemSlotsFromRawLog(slots: BattleViewSlotV4[], ra
 
 export function deriveSpecialSystemSlotsFromProtocol(slots: BattleViewSlotV4[], events: BattleProtocolEventV4[]): BattleViewSlotV4[] {
   return events.reduce((current, event) => {
-    if (!event.seat || !shouldApplySpecialSystemProtocolEvent(event)) return current;
+    if (!shouldApplySpecialSystemProtocolEvent(event)) return current;
     const animation = animationEvent(event, "transform", 0, "");
-    return patchSlot(current, event.seat, slot => patchSpecialSlotState(patchSlotForme(slot, animation, current), animation));
+    const seat = resolveTransformEventSeat(animation, current);
+    return patchSlot(current, seat, slot => patchSpecialSlotState(patchSlotForme(slot, animation, current), animation));
   }, slots);
 }
 
@@ -1079,7 +1089,9 @@ function applyPersistentFieldCheckpoint(current: BattleV4PersistentFieldVisuals,
     turn: 0,
     playerId: "",
     seat: event.actorSeat,
+    seatExplicit: event.actorSeatExplicit,
     targetSeat: event.targetSeat,
+    targetSeatExplicit: event.targetSeatExplicit,
     actorName: event.actorName,
     targetName: event.targetName,
     moveId: event.moveId,
@@ -1100,7 +1112,9 @@ function applyPersistentSideConditionCheckpoint(current: BattleV4PersistentSideC
     turn: 0,
     playerId: "",
     seat: event.actorSeat,
+    seatExplicit: event.actorSeatExplicit,
     targetSeat: event.targetSeat,
+    targetSeatExplicit: event.targetSeatExplicit,
     actorName: event.actorName,
     targetName: event.targetName,
     moveId: event.moveId,
@@ -1238,6 +1252,57 @@ function normalizeFieldId(id: string): string {
   if (id === "electricterrain" || id === "grassyterrain" || id === "mistyterrain" || id === "psychicterrain") return id;
   if (id === "trickroom" || id === "magicroom" || id === "wonderroom" || id === "gravity") return id;
   return id;
+}
+
+function resolveTransformEventSeat(event: BattleAnimationEventV4, slots: BattleViewSlotV4[]): BattleProtocolSeatV4 {
+  if (event.actorSeatExplicit && event.actorSeat) return event.actorSeat;
+  const parsed = parsePokemonProtocolIdent(event.args[1] || "");
+  const playerId = parsed.playerId;
+  const eventNameId = toId(parsed.name || event.actorName);
+  const eventRootId = speciesRootId(eventNameId);
+  if (!playerId || !eventRootId) return event.actorSeat || "";
+  const scored = slots
+    .filter(slot => slot.playerId === playerId)
+    .map(slot => ({slot, score: scoreTransformSlotCandidate(slot, eventNameId, eventRootId)}))
+    .filter(entry => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+  if (!scored.length) return "";
+  if (scored[1] && scored[1].score === scored[0]!.score) return "";
+  return scored[0]!.slot.seat;
+}
+
+function scoreTransformSlotCandidate(slot: BattleViewSlotV4, eventNameId: string, eventRootId: string): number {
+  const state = ensureVisibleSlotState(slot);
+  const slotIds = [
+    slot.name,
+    slot.nameZh,
+    slot.speciesId,
+    state.baseSpeciesId,
+    state.volatileFormeSpeciesId,
+    state.transformedSpeciesId,
+    currentSpeciesForme(slot),
+  ].map(value => toId(value || "")).filter(Boolean);
+  const exact = slotIds.some(id => id === eventNameId);
+  const sameRoot = slotIds.some(id => speciesRootId(id) === eventRootId);
+  if (!exact && !sameRoot) return 0;
+  return (exact ? 20 : 10)
+    + (slot.fainted ? 5 : 0)
+    + (state.specialFormeKind ? 4 : 0)
+    + (state.oldSpriteState ? 2 : 0)
+    + (state.volatileFormeSpeciesId || state.transformedSpeciesId ? 2 : 0);
+}
+
+function speciesRootId(id: string): string {
+  return toId(id)
+    .replace(/megax$/, "")
+    .replace(/megay$/, "")
+    .replace(/mega$/, "")
+    .replace(/primal$/, "")
+    .replace(/gmax$/, "")
+    .replace(/alola$/, "")
+    .replace(/galar$/, "")
+    .replace(/hisui$/, "")
+    .replace(/paldea$/, "");
 }
 
 function patchSlotForme(slot: BattleViewSlotV4, event: BattleAnimationEventV4, slots: BattleViewSlotV4[]): BattleViewSlotV4 {
@@ -1584,14 +1649,15 @@ function initialPlaybackRawIndex(rawLines: string[]): number {
   return firstBattleEvent >= 0 ? firstBattleEvent : rawLines.length;
 }
 
-function parsePokemonProtocolIdent(value: string): {playerId?: string; seat: BattleProtocolSeatV4; name: string} {
+function parsePokemonProtocolIdent(value: string): {playerId?: string; seat: BattleProtocolSeatV4; seatExplicit: boolean; name: string} {
   const match = /^(p[1-4])([a-z])?:\s*(.*)$/i.exec(value || "");
-  if (!match) return {seat: "", name: value || ""};
+  if (!match) return {seat: "", seatExplicit: false, name: value || ""};
   const playerId = match[1]!.toLowerCase();
-  const position = (match[2] || "a").toLowerCase();
+  const position = (match[2] || "").toLowerCase();
   return {
     playerId,
-    seat: seatForProtocolSlot(playerId, position),
+    seat: position ? seatForProtocolSlot(playerId, position) : "",
+    seatExplicit: Boolean(position),
     name: match[3] || "",
   };
 }

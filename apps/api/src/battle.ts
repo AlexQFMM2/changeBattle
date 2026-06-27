@@ -307,6 +307,11 @@ export type BattleActivePokemonV4 = {
   ident: string;
   playerId: ShowdownPlayerIdV4;
   slot: string;
+  localPokemonId?: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
+  pokeball?: string;
   species: string;
   details: string;
   condition: string;

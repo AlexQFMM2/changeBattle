@@ -562,10 +562,12 @@ function upsertActive(session: RuntimeSession, ident: string, details: string, c
   const nextCondition = condition || "0/1";
   const hp = parseCondition(nextCondition);
   const existing = session.snapshot.active.find(active => active.slot === parsed.slot);
+  const identity = activeIdentityFromRequest(session, parsed.playerId, parsed.slot);
   const next = {
     ident: parsed.ident,
     playerId: parsed.playerId,
     slot: parsed.slot,
+    ...identity,
     species: details.split(",")[0]?.trim() || parsed.name,
     details,
     condition: nextCondition,
@@ -577,6 +579,51 @@ function upsertActive(session: RuntimeSession, ident: string, details: string, c
   session.snapshot.active = existing
     ? session.snapshot.active.map(active => active.slot === parsed.slot ? {...active, ...next} : active)
     : [...session.snapshot.active.filter(active => active.slot !== parsed.slot), next];
+}
+
+function activeIdentityFromRequest(session: RuntimeSession, playerId: ShowdownPlayerIdV4, slot: string): {
+  localPokemonId?: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
+  pokeball?: string;
+} {
+  const player = session.snapshot.players.find(entry => entry.playerId === playerId);
+  const row = activeSidePokemonRow(session, playerId, slot);
+  const pokeball = row?.pokeball || "";
+  const token = normalizeIdentityToken(pokeball);
+  const mapping = token
+    ? player?.teamMapping?.find(entry =>
+      normalizeIdentityToken(entry.showdownIdentityToken) === token ||
+      normalizeIdentityToken(entry.showdownId) === token ||
+      normalizeIdentityToken(entry.pokeballId) === token
+    )
+    : null;
+  return {
+    localPokemonId: mapping?.localPokemonId,
+    showdownIdentityToken: mapping?.showdownIdentityToken || token || undefined,
+    showdownId: mapping?.showdownId || token || undefined,
+    pokeballId: mapping?.pokeballId || token || undefined,
+    pokeball: pokeball || token || undefined,
+  };
+}
+
+function activeSidePokemonRow(session: RuntimeSession, playerId: ShowdownPlayerIdV4, slot: string) {
+  const activeIndex = activeIndexFromSlot(slot);
+  const rows = session.snapshot.requests[playerId]?.side?.pokemon || session.snapshot.debug.latestSidePokemon?.[playerId] || [];
+  const activeRows = rows.filter(row => row.active && row.pokeball);
+  if (activeRows.length === 1) return activeRows[0] || null;
+  return activeRows.find(row => activeIndexFromIdent(row.ident) === activeIndex) || null;
+}
+
+function activeIndexFromIdent(ident: string): number {
+  const parsed = parseIdent(ident);
+  return parsed ? activeIndexFromSlot(parsed.slot) : 0;
+}
+
+function activeIndexFromSlot(slot: string): number {
+  const suffix = slot.replace(/^p[1-4]/i, "").toLowerCase();
+  return suffix ? Math.max(0, suffix.charCodeAt(0) - 97) : 0;
 }
 
 function patchActiveCondition(session: RuntimeSession, ident: string, condition: string): void {
