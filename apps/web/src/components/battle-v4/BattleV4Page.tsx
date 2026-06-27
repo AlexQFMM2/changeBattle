@@ -773,7 +773,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
     );
   }
   return (
-    <section className="battle-v4-command-dock" aria-label="战斗指令">
+    <section className="battle-v4-command-dock command" aria-label="战斗指令">
       <span className="battle-v4-command-progress">{commandStatus}</span>
       <button className="battle-v4-main-command fight" type="button" disabled={busy || !moveActions.length} onClick={() => onCommandModeChange("moves")}>
         <img src="/battle/command-buttons/fight.webp" alt="" />
