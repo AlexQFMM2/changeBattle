@@ -20,6 +20,10 @@ type BattleVisibleSlotV4 = BattleViewSlotV4 & {
   volatileFormeSpeciesId?: string;
   transformedSpeciesId?: string;
   oldSpriteState?: BattleSlotSpriteStateV4;
+  teraType?: string;
+  terastallized?: boolean;
+  dynamaxActive?: boolean;
+  specialFormeKind?: "mega" | "primal" | "ultra" | "";
 };
 
 type BattleSlotSpriteStateV4 = Pick<
@@ -383,7 +387,7 @@ export function projectBattleMessageEventsV4(events: BattleProtocolEventV4[]): B
 
 export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]): BattleAnimationEventV4[] {
   const messages = new Map(projectBattleMessageEventsV4(events).map(event => [event.sequence, event.message]));
-  return events.flatMap(event => {
+  return events.flatMap((event, index) => {
     const message = messages.get(event.sequence) || "";
     switch (event.eventType) {
     case "switch":
@@ -411,6 +415,18 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
     case "-formechange":
     case "-transform":
       return [animationEvent(event, "transform", 1100, message)];
+    case "-zpower":
+      return [animationEvent(event, "transform", 1050, message)];
+    case "-mega":
+    case "-primal":
+    case "-burst":
+      return isDuplicateSpecialFormeAnnouncement(events[index - 1], event) ? [] : [animationEvent(event, "transform", 1180, message)];
+    case "-terastallize":
+      return [animationEvent(event, "transform", 1180, message)];
+    case "-start":
+      return shouldAnimateVolatileStart(event) ? [animationEvent(event, "transform", 1180, message)] : [];
+    case "custom":
+      return isEndTerastallizeEvent(event) ? [animationEvent(event, "transform", 780, message)] : message ? [animationEvent(event, "message", 360, message)] : [];
     case "-end":
       return shouldAnimateVolatileEnd(event) ? [animationEvent(event, "transform", 900, message)] : [];
     case "-damage":
@@ -438,6 +454,11 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
       return message ? [animationEvent(event, "message", 360, message)] : [];
     }
   });
+}
+
+function isDuplicateSpecialFormeAnnouncement(previous: BattleProtocolEventV4 | undefined, event: BattleProtocolEventV4): boolean {
+  if (!previous || previous.seat !== event.seat) return false;
+  return previous.eventType === "detailschange" || previous.eventType === "-formechange";
 }
 
 export function useBattleV4Playback(
@@ -567,7 +588,7 @@ export function useBattleV4Playback(
     if (nextAnimationEvents.length) {
       setAnimationEvents(events => [...events, ...nextAnimationEvents].slice(-240));
       if (skipAnimations) {
-        setVisibleSlots(viewModel.slots);
+        setVisibleSlots(deriveSpecialSystemSlotsFromProtocol(viewModel.slots, nextProtocolEvents));
         setPersistentFieldVisuals(current => derivePersistentFieldVisualsFromProtocol(nextProtocolEvents, current));
         setPersistentSideConditionVisuals(current => derivePersistentSideConditionVisualsFromProtocol(nextProtocolEvents, current));
         hasProtocolStateRef.current = true;
@@ -599,7 +620,7 @@ export function useBattleV4Playback(
       setRenderedTimelineSteps([]);
       setPersistentFieldVisuals(derivePersistentFieldVisualsFromRawLog(snapshot?.rawLog || []));
       setPersistentSideConditionVisuals(derivePersistentSideConditionVisualsFromRawLog(snapshot?.rawLog || []));
-      setVisibleSlots(viewModel.slots);
+      setVisibleSlots(deriveSpecialSystemSlotsFromRawLog(viewModel.slots, snapshot?.rawLog || []));
       hasProtocolStateRef.current = true;
       setHasProtocolState(true);
       playingRef.current = false;
@@ -863,7 +884,7 @@ function buildProtocolEvent(
   turn: number,
 ): BattleProtocolEventV4 {
   const eventType = args[0] || "";
-  const actor = eventType === "-weather" || eventType === "-fieldstart" || eventType === "-fieldend" ? kwArgs.of || args[1] || "" : args[1] || "";
+  const actor = actorArgForEvent(eventType, args, kwArgs);
   const target = targetArgForEvent(eventType, args);
   const actorParts = parsePokemonProtocolIdent(actor);
   const targetParts = parsePokemonProtocolIdent(target);
@@ -885,6 +906,12 @@ function buildProtocolEvent(
     condition: conditionArgFor(args),
     status: statusArgFor(args, kwArgs),
   };
+}
+
+function actorArgForEvent(eventType: string, args: BattleProtocolArgsV4, kwArgs: BattleProtocolKwArgsV4): string {
+  if (eventType === "-weather" || eventType === "-fieldstart" || eventType === "-fieldend") return kwArgs.of || args[1] || "";
+  if (eventType === "custom" && toId(args[1]) === "endterastallize") return args[2] || "";
+  return args[1] || "";
 }
 
 function timelineStepDurationMs(step: ShowdownAnimationStepV4): number {
@@ -993,7 +1020,7 @@ function applyAnimationCheckpoint(
     }));
   }
   if (event.kind === "transform") {
-    return patchSlot(slots, event.actorSeat, slot => patchSlotForme(slot, event, slots));
+    return patchSlot(slots, event.actorSeat, slot => patchSpecialSlotState(patchSlotForme(slot, event, slots), event));
   }
   return slots;
 }
@@ -1004,6 +1031,27 @@ export function derivePersistentFieldVisualsFromRawLog(rawLog: string[]): Battle
 
 export function derivePersistentSideConditionVisualsFromRawLog(rawLog: string[]): BattleV4PersistentSideConditionVisuals {
   return derivePersistentSideConditionVisualsFromProtocol(projectBattleProtocolEventsV4(rawLog, 0), EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
+}
+
+export function deriveSpecialSystemSlotsFromRawLog(slots: BattleViewSlotV4[], rawLog: string[]): BattleViewSlotV4[] {
+  return deriveSpecialSystemSlotsFromProtocol(slots, projectBattleProtocolEventsV4(rawLog, 0));
+}
+
+export function deriveSpecialSystemSlotsFromProtocol(slots: BattleViewSlotV4[], events: BattleProtocolEventV4[]): BattleViewSlotV4[] {
+  return events.reduce((current, event) => {
+    if (!event.seat || !shouldApplySpecialSystemProtocolEvent(event)) return current;
+    const animation = animationEvent(event, "transform", 0, "");
+    return patchSlot(current, event.seat, slot => patchSpecialSlotState(patchSlotForme(slot, animation, current), animation));
+  }, slots);
+}
+
+function shouldApplySpecialSystemProtocolEvent(event: BattleProtocolEventV4): boolean {
+  if (event.eventType === "detailschange" || event.eventType === "-formechange" || event.eventType === "-transform") return true;
+  if (event.eventType === "-mega" || event.eventType === "-primal" || event.eventType === "-burst" || event.eventType === "-zpower" || event.eventType === "-terastallize") return true;
+  if (event.eventType === "-start" && toId(event.args[2]) === "dynamax") return true;
+  if (event.eventType === "-end" && toId(event.args[2]) === "dynamax") return true;
+  if (event.eventType === "custom" && isEndTerastallizeEvent(event)) return true;
+  return false;
 }
 
 export function derivePersistentFieldVisualsFromProtocol(
@@ -1194,6 +1242,8 @@ function normalizeFieldId(id: string): string {
 
 function patchSlotForme(slot: BattleViewSlotV4, event: BattleAnimationEventV4, slots: BattleViewSlotV4[]): BattleViewSlotV4 {
   const currentSlot = ensureVisibleSlotState(slot);
+  if (event.rawLine.startsWith("|-terastallize|") || event.rawLine.startsWith("|-zpower|")) return currentSlot;
+  if (event.rawLine.startsWith("|-start|") && toId(event.args[2]) === "dynamax") return currentSlot;
   if (event.rawLine.startsWith("|-end|")) return restoreSlotFormeState(currentSlot);
   const targetSlot = event.rawLine.startsWith("|-transform|")
     ? slots.find(entry => entry.seat === event.targetSeat)
@@ -1217,6 +1267,43 @@ function patchSlotForme(slot: BattleViewSlotV4, event: BattleAnimationEventV4, s
   return applySlotSpriteForme(nextSlot, speciesId, targetSlot);
 }
 
+function patchSpecialSlotState(slot: BattleViewSlotV4, event: BattleAnimationEventV4): BattleViewSlotV4 {
+  const current = ensureVisibleSlotState(slot);
+  if (event.rawLine.startsWith("|-terastallize|")) {
+    return {
+      ...current,
+      teraType: event.args[2] || "",
+      terastallized: true,
+      specialFormeKind: current.specialFormeKind || "",
+    };
+  }
+  if (event.rawLine.startsWith("|custom|-endterastallize|")) {
+    return {...current, teraType: "", terastallized: false};
+  }
+  if (event.rawLine.startsWith("|-start|") && toId(event.args[2]) === "dynamax") {
+    return {...current, dynamaxActive: true};
+  }
+  if (event.rawLine.startsWith("|-end|") && toId(event.args[2]) === "dynamax") {
+    return {...current, dynamaxActive: false};
+  }
+  if (event.rawLine.startsWith("|-mega|")) return {...current, specialFormeKind: "mega"};
+  if (event.rawLine.startsWith("|-primal|")) return {...current, specialFormeKind: "primal"};
+  if (event.rawLine.startsWith("|-burst|")) return {...current, specialFormeKind: "ultra"};
+  if (event.rawLine.startsWith("|detailschange|")) {
+    const kind = specialFormeKindForDetails(event.args[2] || "");
+    return kind ? {...current, specialFormeKind: kind} : current;
+  }
+  return current;
+}
+
+function specialFormeKindForDetails(details: string): BattleVisibleSlotV4["specialFormeKind"] {
+  const id = toId(details);
+  if (id.includes("mega")) return "mega";
+  if (id.includes("primal")) return "primal";
+  if (id.includes("ultra")) return "ultra";
+  return "";
+}
+
 function transformedSpeciesIdForEvent(event: BattleAnimationEventV4, targetSlot?: BattleViewSlotV4): string {
   if (event.rawLine.startsWith("|detailschange|")) return toId((event.args[2] || "").split(",")[0]);
   if (event.rawLine.startsWith("|-formechange|")) return toId(event.args[2] || "");
@@ -1230,6 +1317,15 @@ function shouldAnimateVolatileEnd(event: BattleProtocolEventV4): boolean {
   if (event.eventType !== "-end") return false;
   const effectId = toId(event.args[2]);
   return effectId === "formechange" || effectId === "transform" || effectId === "dynamax";
+}
+
+function shouldAnimateVolatileStart(event: BattleProtocolEventV4): boolean {
+  if (event.eventType !== "-start") return false;
+  return toId(event.args[2]) === "dynamax";
+}
+
+function isEndTerastallizeEvent(event: BattleProtocolEventV4 | BattleAnimationEventV4): boolean {
+  return event.rawLine.startsWith("|custom|-endterastallize|") || toId(event.args[1]) === "endterastallize";
 }
 
 function ensureVisibleSlotState(slot: BattleViewSlotV4): BattleVisibleSlotV4 {
@@ -1327,8 +1423,19 @@ function showdownSpriteIdForSpecies(speciesId: string): string {
     wishiwashischool: "wishiwashi-school",
     darmanitanzen: "darmanitan-zen",
     palafinhero: "palafin-hero",
+    kyogreprimal: "kyogre-primal",
+    groudonprimal: "groudon-primal",
+    necrozmaultra: "necrozma-ultra",
   };
   if (known[speciesId]) return known[speciesId]!;
+  const megaMatch = /^(.+?)mega([xy])?$/.exec(speciesId);
+  if (megaMatch) return `${megaMatch[1]}-mega${megaMatch[2] || ""}`;
+  const gmaxMatch = /^(.+?)gmax$/.exec(speciesId);
+  if (gmaxMatch) return `${gmaxMatch[1]}-gmax`;
+  const primalMatch = /^(.+?)primal$/.exec(speciesId);
+  if (primalMatch) return `${primalMatch[1]}-primal`;
+  const ultraMatch = /^(.+?)ultra$/.exec(speciesId);
+  if (ultraMatch) return `${ultraMatch[1]}-ultra`;
   return speciesId.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 }
 
@@ -1452,7 +1559,12 @@ function patchSlot(slots: BattleViewSlotV4[], seat: BattleProtocolSeatV4, patch:
 
 function formatVisibleSlotSeat(slot: BattleViewSlotV4): string {
   const speciesSuffix = slot.speciesId && toId(slot.name) !== toId(slot.speciesId) ? `[${slot.speciesId}]` : "";
-  return `${slot.seat}:${slot.name || slot.speciesId}${speciesSuffix}${slot.fainted ? ":fnt" : ""}:${slot.hp}/${slot.maxHp}`;
+  const special = [
+    slot.terastallized ? `tera=${slot.teraType || "?"}` : "",
+    slot.dynamaxActive ? "dynamax" : "",
+    slot.specialFormeKind ? `forme=${slot.specialFormeKind}` : "",
+  ].filter(Boolean).join(",");
+  return `${slot.seat}:${slot.name || slot.speciesId}${speciesSuffix}${slot.fainted ? ":fnt" : ""}:${slot.hp}/${slot.maxHp}${special ? `:${special}` : ""}`;
 }
 
 function initialPlaybackRawIndex(rawLines: string[]): number {
@@ -1527,6 +1639,20 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
     return `${sideConditionLabel(normalizeSideConditionId(toId(cleanEffect(event.args[2] || event.args[1]))))}展开了。`;
   case "-sideend":
     return `${sideConditionLabel(normalizeSideConditionId(toId(cleanEffect(event.args[2] || event.args[1]))))}消失了。`;
+  case "-zpower":
+    return `${name}释放了 Z 力量！`;
+  case "-mega":
+    return `${name}进行了 Mega 进化！`;
+  case "-primal":
+    return `${name}发生了原始回归！`;
+  case "-burst":
+    return `${name}进行了究极爆发！`;
+  case "-terastallize":
+    return `${name}太晶化成${event.args[2] || "未知"}属性！`;
+  case "-start":
+    return toId(event.args[2]) === "dynamax" ? `${name}极巨化了！` : "";
+  case "-end":
+    return toId(event.args[2]) === "dynamax" ? `${name}恢复了原本大小。` : "";
   case "detailschange":
     return `${name}的样子改变了！`;
   case "-formechange":
@@ -1588,6 +1714,22 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
   case "-fieldstart":
   case "-fieldend":
     return {text: fieldLabel(toId(cleanEffect(event.args[1]))), tone: "weather"};
+  case "-zpower":
+    return {text: "Z 力量", tone: "good"};
+  case "-mega":
+    return {text: "Mega 进化", tone: "good"};
+  case "-primal":
+    return {text: "原始回归", tone: "good"};
+  case "-burst":
+    return {text: "究极爆发", tone: "good"};
+  case "-terastallize":
+    return {text: `${event.args[2] || ""} 太晶`, tone: "good"};
+  case "-start":
+    if (toId(event.args[2]) === "dynamax") return {text: "极巨化", tone: "good"};
+    return {text: "", tone: ""};
+  case "-end":
+    if (toId(event.args[2]) === "dynamax") return {text: "极巨化结束", tone: "neutral"};
+    return {text: "", tone: ""};
   case "detailschange":
   case "-formechange":
     return {text: cleanSpeciesForme(event.args[2] || "形态变化"), tone: "good"};

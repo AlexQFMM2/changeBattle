@@ -17,6 +17,9 @@ import type {
   LocalPokemonLikeForBattleV4,
 } from "./types.js";
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
+import {filterShowdownChoiceForRuleSetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
+
+export * from "./showdownCommand.js";
 
 const require = createRequire(import.meta.url);
 const vendorRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../vendor/showdown");
@@ -165,8 +168,11 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
 export async function submitChoice(input: BattleServiceSubmitChoiceInputV4): Promise<BattleServiceSnapshotV4> {
   const session = getSession(input.sessionId);
   if (session.snapshot.status === "ended") return clone(session.snapshot);
-  const choice = input.choice.trim();
+  const choice = sanitizeChoiceForRuleSet(input.choice.trim(), session.snapshot.ruleSet, session.snapshot.mode);
   if (!choice) throw new Error("choice 不能为空。");
+  if (choice !== input.choice.trim()) {
+    session.snapshot.debug.inputLog.push(`[BattleV4][ruleset-special-filter] ${session.snapshot.ruleSet} sanitized choice: ${input.choice.trim()} -> ${choice}`);
+  }
   if (choice === "forfeit") {
     session.snapshot.debug.inputLog.push(`>forcelose ${input.playerId}`);
     await session.streams.omniscient.write(`>forcelose ${input.playerId}`);
@@ -401,9 +407,10 @@ async function readPlayerStream(session: RuntimeSession, playerId: ShowdownPlaye
       const request = requestFromChunk(chunk);
       recordPlayerStreamChunk(session, playerId, chunk, Boolean(request));
       if (request) {
-        session.snapshot.requests[playerId] = request;
-        session.lastRequests[playerId] = clone(request);
-        rememberLatestSidePokemon(session, playerId, request);
+        const sanitizedRequest = sanitizeRequestForRuleSet(request, session.snapshot.ruleSet, session.snapshot.mode);
+        session.snapshot.requests[playerId] = sanitizedRequest;
+        session.lastRequests[playerId] = clone(sanitizedRequest);
+        rememberLatestSidePokemon(session, playerId, sanitizedRequest);
         delete session.invalidChoiceStreaks[playerId];
         touch(session);
       }
@@ -477,6 +484,43 @@ function requestFromChunk(chunk: string): BattleServiceRequestV4 | null {
   } catch {
     return null;
   }
+}
+
+function sanitizeRequestForRuleSet(request: BattleServiceRequestV4, ruleSet: string, mode: string): BattleServiceRequestV4 {
+  if (!request.active?.length) return request;
+  return {
+    ...request,
+    active: request.active.map(active => {
+      if (!active) return active;
+      const allowed = allowedSpecialSystemsForRuleSet(ruleSet, mode);
+      return {
+        ...active,
+        canMegaEvo: allowed.mega ? active.canMegaEvo : false,
+        canMegaEvoX: allowed.mega ? active.canMegaEvoX : false,
+        canMegaEvoY: allowed.mega ? active.canMegaEvoY : false,
+        canUltraBurst: allowed.mega ? active.canUltraBurst : false,
+        canZMove: allowed.zmove ? active.canZMove : undefined,
+        zMoves: allowed.zmove ? active.zMoves : undefined,
+        canDynamax: allowed.max ? active.canDynamax : false,
+        maxMoves: allowed.max ? active.maxMoves : undefined,
+        gigantamax: allowed.max ? active.gigantamax : false,
+        canTerastallize: allowed.tera ? active.canTerastallize : false,
+      };
+    }),
+  };
+}
+
+function sanitizeChoiceForRuleSet(choice: string, ruleSet: string, mode: string): string {
+  return filterShowdownChoiceForRuleSetV4(choice, ruleSet, mode);
+}
+
+function allowedSpecialSystemsForRuleSet(ruleSet: string, mode: string): {mega: boolean; zmove: boolean; max: boolean; tera: boolean} {
+  return {
+    mega: showdownSpecialSystemAllowedForRuleSetV4("mega", ruleSet, mode),
+    zmove: showdownSpecialSystemAllowedForRuleSetV4("zmove", ruleSet, mode),
+    max: showdownSpecialSystemAllowedForRuleSetV4("max", ruleSet, mode),
+    tera: showdownSpecialSystemAllowedForRuleSetV4("terastallize", ruleSet, mode),
+  };
 }
 
 function applyRawChunk(session: RuntimeSession, chunk: string): void {

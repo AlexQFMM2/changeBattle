@@ -124,12 +124,18 @@ export type BattleServiceRequestV4 = {
   targetable?: boolean;
   active?: Array<{
     moves?: BattleServiceMoveRequestV4[];
+    maxMoves?: BattleServiceMoveRequestV4[] | {gigantamax?: boolean; maxMoves?: BattleServiceMoveRequestV4[]};
+    zMoves?: Array<BattleServiceMoveRequestV4 | null>;
     trapped?: boolean;
     maybeTrapped?: boolean;
     canMegaEvo?: boolean | string;
+    canMegaEvoX?: boolean | string;
+    canMegaEvoY?: boolean | string;
     canUltraBurst?: boolean | string;
     canDynamax?: boolean | string;
     canTerastallize?: boolean | string;
+    canZMove?: Array<BattleServiceMoveRequestV4 | null>;
+    gigantamax?: boolean;
   } | null>;
   forceSwitch?: boolean[];
   side?: {

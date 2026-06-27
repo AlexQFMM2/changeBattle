@@ -5,6 +5,16 @@
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./showdownCommand": {
+      "types": "./src/showdownCommand.ts",
+      "default": "./src/showdownCommand.ts"
+    }
+  },
   "scripts": {
     "dev": "tsc -p tsconfig.json && node dist/server.js",
     "start": "node dist/server.js",

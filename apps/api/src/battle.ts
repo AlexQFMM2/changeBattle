@@ -1,4 +1,19 @@
 import type {
+  ShowdownSpecialChoiceV4,
+  ShowdownSpecialSystemV4,
+  ShowdownParsedChoiceV4,
+} from "@changebattle-v2/showdown-battle-core/showdownCommand";
+import {
+  appendShowdownSpecialChoiceSuffixV4,
+  parseShowdownChoiceCommandV4,
+  showdownSpecialChoiceAllowedForRuleSetV4,
+  showdownSpecialChoiceSuffixV4,
+  showdownSpecialSystemAllowedForRuleSetV4,
+  showdownSpecialSystemForChoiceV4,
+  stringifyShowdownChoiceCommandV4,
+  withShowdownMoveTargetSuffixV4,
+} from "@changebattle-v2/showdown-battle-core/showdownCommand";
+import type {
   LocalPokemonV4,
   ShowdownPlayerIdV4,
   TrainingModeV4,
@@ -29,10 +44,29 @@ export type BattleMoveRequestV4 = {
   maxpp?: number;
   target?: string;
   disabled?: boolean;
+  zMove?: BattleMoveRequestV4 | null;
+  maxMove?: BattleMoveRequestV4 | null;
+};
+
+export type BattleSpecialChoiceV4 = ShowdownSpecialChoiceV4;
+export type BattleSpecialSystemV4 = ShowdownSpecialSystemV4;
+
+export type BattleSpecialChoiceOptionV4 = {
+  id: BattleSpecialChoiceV4;
+  label: string;
+  choiceSuffix: string;
+  activeIndex: number;
+  moveIndex: number;
+  moveName?: string;
+  typeLabel?: string;
+  ruleAllowed: boolean;
+  disabled?: boolean;
 };
 
 export type BattleActiveRequestV4 = {
   moves?: BattleMoveRequestV4[];
+  maxMoves?: BattleMoveRequestV4[];
+  zMoves?: Array<BattleMoveRequestV4 | null>;
   trapped?: boolean;
   maybeTrapped?: boolean;
   maybeDisabled?: boolean;
@@ -43,6 +77,8 @@ export type BattleActiveRequestV4 = {
   canMegaEvoY?: boolean;
   canUltraBurst?: boolean;
   canTerastallize?: string;
+  canZMove?: Array<BattleMoveRequestV4 | null>;
+  gigantamax?: boolean;
 };
 
 export type BattleRequestV4 = {
@@ -97,6 +133,7 @@ export type RequestSidePokemonV4 = NonNullable<BattleRequestV4["side"]>["pokemon
 export type BattleNormalizedRequestV4 = {
   playerId: ShowdownPlayerIdV4;
   mode: TrainingModeV4;
+  ruleSet: TrainingRuleSetV4;
   requestType: BattleRequestTypeV4;
   rqid?: number;
   noCancel: boolean;
@@ -123,6 +160,7 @@ export type BattleCommandDraftV4 = {
     moveIndex: number;
     baseChoice: string;
     requiresTarget: boolean;
+    selectedSpecial?: BattleSpecialChoiceV4 | null;
   };
   alreadySwitchingIn: number[];
   noCancel: boolean;
@@ -305,7 +343,7 @@ export type BattleSessionSnapshotV4 = {
 
 export type BattleCommandActionV4 =
   | {kind: "team"; label: string; choice: string; pokemonIndex: number; disabled?: boolean}
-  | {kind: "move"; label: string; choice: string; activeIndex: number; moveIndex: number; move: BattleMoveRequestV4}
+  | {kind: "move"; label: string; choice: string; activeIndex: number; moveIndex: number; move: BattleMoveRequestV4; specialOptions: BattleSpecialChoiceOptionV4[]}
   | {kind: "switch"; label: string; choice: string; pokemonIndex: number; disabled?: boolean};
 
 export type BattleCommandStateV4 = {
@@ -355,6 +393,10 @@ export type BattleViewSlotV4 = {
   backShinySpriteUrl: string;
   iconUrl: string;
   iconStyle?: string;
+  teraType?: string;
+  terastallized?: boolean;
+  dynamaxActive?: boolean;
+  specialFormeKind?: "mega" | "primal" | "ultra" | "";
   teamBallStates: Array<"normal" | "status" | "fainted" | "empty">;
 };
 
@@ -470,7 +512,7 @@ export function projectBattleViewModelV4(snapshot: BattleSessionSnapshotV4, loca
     slots,
     nearTeam: slots.filter(slot => slot.side === "near"),
     farTeam: slots.filter(slot => slot.side === "far"),
-    command: buildCommandState(snapshot.requests[localPlayerId] || null, localPlayerId, snapshot.mode, draft),
+    command: buildCommandState(snapshot.requests[localPlayerId] || null, localPlayerId, snapshot.mode, snapshot.ruleSet, draft),
     rawLog: snapshot.rawLog.slice(-120),
     error: snapshot.error,
   };
@@ -637,9 +679,9 @@ function normalizeBattleStatus(status: string): LocalPokemonV4["entryStatus"] {
   return "";
 }
 
-function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4, draft?: BattleCommandDraftV4 | null): BattleCommandStateV4 {
+function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4, ruleSet: TrainingRuleSetV4, draft?: BattleCommandDraftV4 | null): BattleCommandStateV4 {
   if (!request) return emptyCommandState(playerId);
-  const normalizedRequest = normalizeBattleRequestV4(request, playerId, mode);
+  const normalizedRequest = normalizeBattleRequestV4(request, playerId, mode, ruleSet);
   const commandDraft = draft && draftMatchesRequest(draft, normalizedRequest) ? fillBattleCommandPassesV4(draft, normalizedRequest) : createBattleCommandDraftV4(normalizedRequest);
   const {requestType, requestLength} = normalizedRequest;
   const activeIndex = commandDraft.activeIndex;
@@ -696,6 +738,7 @@ function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPl
       activeIndex,
       moveIndex,
       move,
+      specialOptions: buildSpecialChoiceOptions(normalizedRequest, activeIndex, moveIndex),
     })).filter(action => !action.move.disabled && (action.move.pp ?? 1) > 0),
   };
 }
@@ -754,8 +797,9 @@ export function addBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: B
       ...normalized,
       currentMove: {
         moveIndex: parsed.index - 1,
-        baseChoice: `move ${parsed.index}`,
+        baseChoice: stringifyParsedChoice({...parsed, target: undefined}),
         requiresTarget: true,
+        selectedSpecial: parsed.special || null,
       },
     };
   }
@@ -776,14 +820,16 @@ export function addBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: B
   }, request);
 }
 
-export function setBattleCommandCurrentMoveV4(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4, moveIndex: number, requiresTarget: boolean): BattleCommandDraftV4 {
+export function setBattleCommandCurrentMoveV4(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4, moveIndex: number, requiresTarget: boolean, selectedSpecial?: BattleSpecialChoiceV4 | null): BattleCommandDraftV4 {
   const normalized = fillBattleCommandPassesV4(draftMatchesRequest(draft, request) ? draft : createBattleCommandDraftV4(request), request);
+  const special = selectedSpecial ? ` ${showdownSpecialChoiceSuffixV4(selectedSpecial)}` : "";
   return {
     ...normalized,
     currentMove: {
       moveIndex,
-      baseChoice: `move ${moveIndex + 1}`,
+      baseChoice: `move ${moveIndex + 1}${special}`,
       requiresTarget,
+      selectedSpecial: selectedSpecial || null,
     },
   };
 }
@@ -830,27 +876,81 @@ export function stringifyBattleCommandDraftV4(draft: BattleCommandDraftV4): stri
   return draft.choices.slice(0, draft.requestLength).join(", ");
 }
 
-type ParsedBattleCommandChoiceV4 =
-  | {kind: "move"; index: number; target?: string}
-  | {kind: "switch"; index: number}
-  | {kind: "team"; index: number}
-  | {kind: "pass"};
+type ParsedBattleCommandChoiceV4 = Extract<ShowdownParsedChoiceV4, {kind: "move" | "switch" | "team" | "pass"}>;
 
 function parseBattleCommandChoiceV4(input: string | undefined): ParsedBattleCommandChoiceV4 | null {
-  const parts = String(input || "").trim().split(/\s+/).filter(Boolean);
-  const kind = parts[0];
-  if (kind === "pass") return {kind: "pass"};
-  if (kind !== "move" && kind !== "switch" && kind !== "team") return null;
-  const index = Number(parts[1]);
-  if (!Number.isFinite(index) || index <= 0) return null;
-  if (kind === "move") return {kind, index, target: parts[2]};
-  return {kind, index};
+  const parsed = parseShowdownChoiceCommandV4(input);
+  if (!parsed || (parsed.kind !== "move" && parsed.kind !== "switch" && parsed.kind !== "team" && parsed.kind !== "pass")) return null;
+  return parsed;
 }
 
 function stringifyParsedChoice(choice: ParsedBattleCommandChoiceV4): string {
-  if (choice.kind === "pass") return "pass";
-  if (choice.kind === "move") return ["move", choice.index, choice.target].filter(Boolean).join(" ");
-  return `${choice.kind} ${choice.index}`;
+  return stringifyShowdownChoiceCommandV4(choice);
+}
+
+export function appendBattleSpecialChoiceSuffixV4(choice: string, special?: BattleSpecialChoiceV4 | null): string {
+  return appendShowdownSpecialChoiceSuffixV4(choice, special);
+}
+
+export function withBattleMoveTargetSuffixV4(choice: string, target?: string): string {
+  return withShowdownMoveTargetSuffixV4(choice, target);
+}
+
+export function battleSpecialSystemForChoiceV4(choice?: BattleSpecialChoiceV4 | null): BattleSpecialSystemV4 | null {
+  return showdownSpecialSystemForChoiceV4(choice);
+}
+
+export function battleSpecialSystemAllowedForRuleSetV4(system: BattleSpecialSystemV4, ruleSet?: string, mode?: string): boolean {
+  return showdownSpecialSystemAllowedForRuleSetV4(system, ruleSet, mode);
+}
+
+function buildSpecialChoiceOptions(request: BattleNormalizedRequestV4, activeIndex: number, moveIndex: number): BattleSpecialChoiceOptionV4[] {
+  const active = request.activeRequests[activeIndex];
+  if (!active) return [];
+  const options: BattleSpecialChoiceOptionV4[] = [];
+  const withRuleAllowed = (option: Omit<BattleSpecialChoiceOptionV4, "ruleAllowed">): BattleSpecialChoiceOptionV4 => ({
+    ...option,
+    ruleAllowed: showdownSpecialChoiceAllowedForRuleSetV4(option.id, request.ruleSet, request.mode),
+  });
+  if (active.canDynamax) {
+    const maxMove = active.maxMoves?.[moveIndex] || active.moves?.[moveIndex]?.maxMove || null;
+    options.push(withRuleAllowed({
+      id: "max",
+      label: active.gigantamax ? "超极巨" : "极巨",
+      choiceSuffix: "max",
+      activeIndex,
+      moveIndex,
+      moveName: maxMove?.move || maxMove?.id,
+      disabled: Boolean(maxMove?.disabled),
+    }));
+  }
+  if (active.canMegaEvo) options.push(withRuleAllowed({id: "mega", label: "Mega", choiceSuffix: "mega", activeIndex, moveIndex}));
+  if (active.canMegaEvoX) options.push(withRuleAllowed({id: "megax", label: "Mega X", choiceSuffix: "megax", activeIndex, moveIndex}));
+  if (active.canMegaEvoY) options.push(withRuleAllowed({id: "megay", label: "Mega Y", choiceSuffix: "megay", activeIndex, moveIndex}));
+  if (active.canUltraBurst) options.push(withRuleAllowed({id: "ultra", label: "究极爆发", choiceSuffix: "ultra", activeIndex, moveIndex}));
+  const zMove = active.zMoves?.[moveIndex] || active.moves?.[moveIndex]?.zMove || null;
+  if (zMove) {
+    options.push(withRuleAllowed({
+      id: "zmove",
+      label: "Z招式",
+      choiceSuffix: "zmove",
+      activeIndex,
+      moveIndex,
+      moveName: zMove.move || zMove.id,
+      disabled: Boolean(zMove.disabled),
+    }));
+  }
+  if (active.canTerastallize) {
+    options.push(withRuleAllowed({
+      id: "terastallize",
+      label: "太晶",
+      choiceSuffix: "terastallize",
+      activeIndex,
+      moveIndex,
+      typeLabel: String(active.canTerastallize),
+    }));
+  }
+  return options;
 }
 
 function draftMatchesRequest(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4): boolean {
@@ -916,7 +1016,7 @@ function buildTargetActions(request: BattleNormalizedRequestV4): BattleTargetAct
   return [...farTargets, ...nearTargets];
 }
 
-export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4): BattleNormalizedRequestV4 {
+export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4, ruleSet: TrainingRuleSetV4): BattleNormalizedRequestV4 {
   const requestType = requestTypeFor(request);
   const sidePokemon = request.side?.pokemon || [];
   const activeRequests = fixedActiveRequestsForNormalizedRequest(request, sidePokemon);
@@ -925,6 +1025,7 @@ export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: Sho
   return {
     playerId,
     mode,
+    ruleSet,
     requestType,
     rqid: request.rqid,
     noCancel: Boolean(request.noCancel || request.wait),
@@ -941,7 +1042,33 @@ export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: Sho
 }
 
 function fixedActiveRequestsForNormalizedRequest(request: BattleRequestV4, sidePokemon: RequestSidePokemonV4[]): Array<BattleActiveRequestV4 | null> {
-  return (request.active || []).map((active, index) => sidePokemonCanCommand(sidePokemon[index]) ? active : null);
+  return (request.active || []).map((active, index) => sidePokemonCanCommand(sidePokemon[index]) ? normalizeActiveRequestSpecials(active) : null);
+}
+
+function normalizeActiveRequestSpecials(active: BattleActiveRequestV4 | null | undefined): BattleActiveRequestV4 | null {
+  if (!active) return null;
+  const rawMaxMoves = (active as unknown as {maxMoves?: BattleMoveRequestV4[] | {gigantamax?: boolean; maxMoves?: BattleMoveRequestV4[]}}).maxMoves;
+  const rawMaxMoveObject = !Array.isArray(rawMaxMoves) && rawMaxMoves ? rawMaxMoves : null;
+  const maxMoves = Array.isArray(rawMaxMoves) ? rawMaxMoves : rawMaxMoveObject?.maxMoves || [];
+  const zMoves = active.zMoves || active.canZMove || [];
+  const moves = (active.moves || []).map((move, index) => ({
+    ...move,
+    maxMove: maxMoves[index] || move.maxMove || null,
+    zMove: zMoves[index] || move.zMove || null,
+  }));
+  return {
+    ...active,
+    moves,
+    maxMoves,
+    zMoves,
+    gigantamax: Boolean(active.gigantamax || rawMaxMoveObject?.gigantamax),
+    canDynamax: Boolean(active.canDynamax),
+    canMegaEvo: Boolean(active.canMegaEvo),
+    canMegaEvoX: Boolean(active.canMegaEvoX),
+    canMegaEvoY: Boolean(active.canMegaEvoY),
+    canUltraBurst: Boolean(active.canUltraBurst),
+    canTerastallize: typeof active.canTerastallize === "string" ? active.canTerastallize : active.canTerastallize ? "Tera" : "",
+  };
 }
 
 function sidePokemonCanCommand(pokemon: RequestSidePokemonV4 | undefined): boolean {

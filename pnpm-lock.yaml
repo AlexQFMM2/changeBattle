@@ -17,6 +17,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@changebattle-v2/showdown-battle-core':
+        specifier: workspace:*
+        version: link:../../packages/showdown-battle-core
       '@changebattle-v2/showdown-dex-core':
         specifier: workspace:*
         version: link:../../packages/showdown-dex-core
@@ -95,6 +98,8 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.17)
+
+  packages/showdown-battle-core: {}
 
   packages/showdown-dex-core: {}
 

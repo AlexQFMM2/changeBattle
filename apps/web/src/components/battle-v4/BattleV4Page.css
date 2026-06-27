@@ -205,10 +205,10 @@
 
 .battle-v4-messagebar {
   position: absolute;
-  left: 34px;
-  top: 146px;
+  left: 46px;
+  top: 86px;
   z-index: 54;
-  width: 255px;
+  width: 245px;
   transform: none;
   pointer-events: none;
   text-align: left;
@@ -438,9 +438,38 @@
   --battle-v4-model-height: 94px;
 }
 
+.battle-v4-pokemon.species-charizardmegax,
+.battle-v4-pokemon.species-charizardmegay,
+.battle-v4-pokemon.species-charizardgmax {
+  --battle-v4-model-width: 132px;
+  --battle-v4-model-height: 104px;
+}
+
 .battle-v4-pokemon.far.species-charizard {
   --battle-v4-model-width: 78px;
   --battle-v4-model-height: 62px;
+}
+
+.battle-v4-pokemon.far.species-charizardmegax,
+.battle-v4-pokemon.far.species-charizardmegay,
+.battle-v4-pokemon.far.species-charizardgmax {
+  --battle-v4-model-width: 86px;
+  --battle-v4-model-height: 68px;
+}
+
+.battle-v4-pokemon.species-venusaurmega,
+.battle-v4-pokemon.species-blastoisemega,
+.battle-v4-pokemon.species-venusaurgmax,
+.battle-v4-pokemon.species-blastoisegmax {
+  --battle-v4-model-width: 116px;
+  --battle-v4-model-height: 92px;
+}
+
+.battle-v4-pokemon.species-kyogreprimal,
+.battle-v4-pokemon.species-groudonprimal,
+.battle-v4-pokemon.species-necrozmaultra {
+  --battle-v4-model-width: 126px;
+  --battle-v4-model-height: 102px;
 }
 
 .battle-v4-pokemon.species-dragonite {
@@ -538,6 +567,19 @@
   box-shadow: 0 0 14px rgb(177 255 39 / 46%);
   transform: translateX(-50%);
   animation: battle-v4-pokemon-action-ring var(--battle-v4-actor-duration, .42s) ease-out both;
+}
+
+.battle-v4-pokemon.special-dynamax img {
+  transform-origin: center bottom;
+  filter: drop-shadow(0 0 12px rgb(197 48 106 / 62%)) drop-shadow(0 2px 2px rgb(0 0 0 / 65%));
+}
+
+.battle-v4-pokemon.special-dynamax:not(.anim-timeline-actor) img {
+  transform: scale(1.16);
+}
+
+.battle-v4-pokemon.special-tera img {
+  filter: drop-shadow(0 0 10px rgb(178 244 255 / 58%)) drop-shadow(0 2px 2px rgb(0 0 0 / 62%));
 }
 
 .battle-v4-pokemon.anim-move-start::after,
@@ -2156,6 +2198,45 @@ button.battle-v4-switch-card:hover {
   font-size: 7px;
 }
 
+.battle-v4-special-badges {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.battle-v4-special-badges i {
+  min-width: 12px;
+  height: 11px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 2px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 48%);
+}
+
+.battle-v4-special-badges .special-mega,
+.battle-v4-special-badges .special-primal {
+  background: #d69028;
+}
+
+.battle-v4-special-badges .special-ultra {
+  background: #7a5df0;
+}
+
+.battle-v4-special-badges .special-tera {
+  background: #28a8d6;
+}
+
+.battle-v4-special-badges .special-dynamax {
+  background: #bc2d63;
+}
+
 .battle-v4-command-dock {
   top: 164px;
   right: 24px;
@@ -2164,10 +2245,10 @@ button.battle-v4-switch-card:hover {
 }
 
 .battle-v4-command-progress {
-  min-width: 64px;
-  max-width: 92px;
+  min-width: 92px;
+  max-width: 138px;
   padding: 3px 5px;
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .battle-v4-main-command.fight {
@@ -2231,6 +2312,29 @@ button.battle-v4-switch-card:hover {
   gap: 5px;
 }
 
+.battle-v4-special-button-panel {
+  position: absolute;
+  right: 194px;
+  top: 10px;
+  width: 48px;
+  height: 206px;
+  z-index: 4;
+}
+
+.battle-v4-special-button-bar {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.battle-v4-move-card-wrap {
+  width: 184px;
+  position: relative;
+  min-height: 38px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .battle-v4-move-card {
   --battle-v4-move-accent: #8986ff;
   --battle-v4-move-accent-dark: #3d3196;
@@ -2250,6 +2354,212 @@ button.battle-v4-switch-card:hover {
     0 2px 0 rgb(0 0 0 / 44%),
     0 5px 11px rgb(0 0 0 / 28%),
     inset 0 0 0 1px rgb(255 255 255 / 18%);
+}
+
+.battle-v4-special-main-button,
+.battle-v4-special-button {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  padding: 3px;
+  border: 2px solid rgb(224 242 255 / 78%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 36% 28%, rgb(255 255 255 / 42%) 0 15%, transparent 16%),
+    linear-gradient(135deg, #4cb9ff 0%, #1265c4 52%, #062663 100%);
+  color: #fff;
+  box-shadow:
+    0 2px 0 rgb(0 0 0 / 42%),
+    0 0 9px rgb(69 176 255 / 36%),
+    inset 0 0 0 2px rgb(255 255 255 / 18%);
+  font-size: 13px;
+  font-weight: 1000;
+  line-height: 1;
+  opacity: .45;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 68%);
+  white-space: nowrap;
+  transform-origin: center;
+  transition: opacity .16s ease, transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .16s ease, background .16s ease;
+}
+
+.battle-v4-special-main-button {
+  position: absolute;
+  left: 3px;
+  top: 82px;
+  z-index: 2;
+}
+
+.battle-v4-special-main-button.available {
+  opacity: 1;
+}
+
+.battle-v4-special-main-button span {
+  display: block;
+}
+
+.battle-v4-special-main-button img,
+.battle-v4-special-button img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 54%));
+}
+
+.battle-v4-special-button span {
+  position: absolute;
+  left: 48px;
+  min-width: 46px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: rgb(7 20 48 / 76%);
+  color: #fff;
+  font-size: 9px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-5px);
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.battle-v4-special-button:hover span,
+.battle-v4-special-button:focus-visible span {
+  display: block;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.battle-v4-special-notice {
+  position: absolute;
+  left: 50px;
+  top: 170px;
+  width: 118px;
+  min-height: 26px;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 7px;
+  background: rgb(8 12 24 / 64%);
+  color: rgb(225 235 255 / 72%);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: center;
+  transform: translateY(4px);
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.battle-v4-special-notice.show {
+  border-color: rgb(236 255 134 / 48%);
+  color: #fff;
+  opacity: 1;
+  box-shadow: 0 0 9px rgb(177 255 73 / 20%);
+  transform: translateY(0);
+}
+
+.battle-v4-special-button.rule-on {
+  border-color: rgb(240 255 215 / 82%);
+  opacity: .62;
+  box-shadow:
+    0 2px 0 rgb(0 0 0 / 42%),
+    0 0 8px rgb(69 176 255 / 32%),
+    inset 0 0 0 2px rgb(255 255 255 / 16%);
+}
+
+.battle-v4-special-button.available {
+  opacity: 1;
+}
+
+.battle-v4-special-button.special-mega.rule-on {
+  background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / 42%) 0 15%, transparent 16%), linear-gradient(135deg, #4cb9ff 0%, #1265c4 52%, #062663 100%);
+}
+
+.battle-v4-special-button.special-zmove.rule-on {
+  background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / 42%) 0 15%, transparent 16%), linear-gradient(135deg, #4cb9ff 0%, #1265c4 52%, #062663 100%);
+}
+
+.battle-v4-special-button.special-max.rule-on {
+  background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / 42%) 0 15%, transparent 16%), linear-gradient(135deg, #4cb9ff 0%, #1265c4 52%, #062663 100%);
+}
+
+.battle-v4-special-button.special-terastallize.rule-on {
+  background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / 42%) 0 15%, transparent 16%), linear-gradient(135deg, #4cb9ff 0%, #1265c4 52%, #062663 100%);
+}
+
+.battle-v4-special-main-button.selected,
+.battle-v4-special-button.selected {
+  border-color: #ecff86;
+  background:
+    radial-gradient(circle at 36% 28%, rgb(255 255 255 / 44%) 0 15%, transparent 16%),
+    linear-gradient(135deg, #a3e95d 0%, #4aa92d 52%, #15591e 100%);
+  box-shadow:
+    0 2px 0 rgb(0 0 0 / 42%),
+    0 0 0 2px rgb(191 255 60 / 70%),
+    0 0 14px rgb(177 255 73 / 58%),
+    inset 0 0 0 2px rgb(255 255 255 / 22%);
+}
+
+.battle-v4-move-card.special-ready {
+  border-color: #ecff86;
+  box-shadow:
+    0 2px 0 rgb(0 0 0 / 44%),
+    0 0 0 1px rgb(191 255 60 / 62%),
+    0 0 10px rgb(177 255 73 / 36%),
+    inset 0 0 0 1px rgb(255 255 255 / 22%);
+}
+
+.battle-v4-special-button:hover,
+.battle-v4-special-main-button:hover,
+.battle-v4-special-main-button:focus-visible,
+.battle-v4-special-button:focus-visible {
+  outline: 0;
+  border-color: #ecff86;
+  box-shadow: 0 0 0 2px rgb(191 255 60 / 55%), 0 0 10px rgb(177 255 73 / 36%);
+}
+
+.battle-v4-special-button {
+  position: absolute;
+  left: 3px;
+  top: 82px;
+  pointer-events: none;
+  transform: translateY(0) scale(.54);
+  opacity: 0;
+  filter: grayscale(1) brightness(.72) saturate(.25);
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button {
+  pointer-events: auto;
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button {
+  opacity: .55;
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button.rule-on {
+  opacity: .76;
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button.available,
+.battle-v4-special-button-panel.expanded .battle-v4-special-button.selected {
+  opacity: 1;
+  filter: none;
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(1) {
+  transform: translateY(-76px) scale(.78);
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(2) {
+  transform: translateY(-38px) scale(.78);
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(3) {
+  transform: translateY(38px) scale(.78);
+}
+
+.battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(4) {
+  transform: translateY(76px) scale(.78);
 }
 
 .battle-v4-move-card:hover,

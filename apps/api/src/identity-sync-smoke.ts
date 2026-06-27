@@ -7,6 +7,8 @@ import {
   normalizeBattleRequestV4,
   projectBattleViewModelV4,
   stringifyBattleCommandDraftV4,
+  appendBattleSpecialChoiceSuffixV4,
+  withBattleMoveTargetSuffixV4,
   type BattleRequestV4,
   type BattleSessionSnapshotV4,
 } from "./battle.js";
@@ -314,13 +316,13 @@ const protocolActiveSnapshot: BattleSessionSnapshotV4 = {
 const activeNames = projectBattleViewModelV4(protocolActiveSnapshot, "p1").nearTeam.map(slot => slot.speciesId).join(",");
 assert(activeNames === "pikachu,raichu", `protocol active mapping should ignore empty requests, got ${activeNames}`);
 
-const singlesMove = normalizeBattleRequestV4(moveRequest(1), "p1", "singles");
+const singlesMove = normalizeBattleRequestV4(moveRequest(1), "p1", "singles", "standard");
 assert(singlesMove.requestType === "move", "singles move requestType mismatch");
 assert(singlesMove.requestLength === 1, "singles move requestLength mismatch");
 assert(singlesMove.activeIndex === 0, "singles move activeIndex mismatch");
 assert(singlesMove.choiceIndexByTeamIndex[1] === 2, "singles choice index mapping mismatch");
 
-const doublesMove = normalizeBattleRequestV4(moveRequest(2), "p1", "doubles");
+const doublesMove = normalizeBattleRequestV4(moveRequest(2), "p1", "doubles", "standard");
 assert(doublesMove.requestType === "move", "doubles move requestType mismatch");
 assert(doublesMove.requestLength === 2, "doubles move requestLength mismatch");
 assert(doublesMove.activeIndex === 0, "doubles move activeIndex mismatch");
@@ -341,7 +343,7 @@ const faintedDoublesMove = normalizeBattleRequestV4({
       sidePokemon("token-3", "90/100", false),
     ],
   },
-}, "p1", "doubles");
+}, "p1", "doubles", "standard");
 assert(faintedDoublesMove.requestLength === 2, "fainted doubles requestLength should stay aligned to active length");
 assert(faintedDoublesMove.activeRequests[0] === null, "fainted active should normalize to null");
 assert(faintedDoublesMove.activeRequests[1], "live second active should remain actionable");
@@ -356,22 +358,22 @@ assert(stringifyBattleCommandDraftV4(faintedDoublesDraft) === "pass, move 1 +2",
 const coopMove = normalizeBattleRequestV4({
   ...moveRequest(1),
   ally: {id: "p3", name: "Ally", pokemon: [sidePokemon("ally-token", "100/100", true)]},
-}, "p1", "coop");
+}, "p1", "coop", "standard");
 assert(coopMove.requestType === "move", "coop move requestType mismatch");
 assert(coopMove.requestLength === 1, "coop move requestLength mismatch");
 assert(coopMove.readonlyAlly?.pokemon.length === 1, "coop readonly ally missing");
 assert(coopMove.sidePokemon.length === 3, "coop local side pokemon mismatch");
 
-const forceSwitch = normalizeBattleRequestV4({...moveRequest(2), active: undefined, forceSwitch: [true, false]}, "p1", "doubles");
+const forceSwitch = normalizeBattleRequestV4({...moveRequest(2), active: undefined, forceSwitch: [true, false]}, "p1", "doubles", "standard");
 assert(forceSwitch.requestType === "switch", "forceSwitch requestType mismatch");
 assert(forceSwitch.requestLength === 2, "forceSwitch requestLength mismatch");
 assert(forceSwitch.activeIndex === 0, "forceSwitch activeIndex mismatch");
 
-const teamPreview = normalizeBattleRequestV4({...moveRequest(1), active: undefined, teamPreview: true, chosenTeamSize: 3}, "p1", "singles");
+const teamPreview = normalizeBattleRequestV4({...moveRequest(1), active: undefined, teamPreview: true, chosenTeamSize: 3}, "p1", "singles", "standard");
 assert(teamPreview.requestType === "team", "teamPreview requestType mismatch");
 assert(teamPreview.requestLength === 3, "teamPreview requestLength mismatch");
 
-const waitRequest = normalizeBattleRequestV4({...moveRequest(1), active: undefined, wait: true}, "p1", "singles");
+const waitRequest = normalizeBattleRequestV4({...moveRequest(1), active: undefined, wait: true}, "p1", "singles", "standard");
 assert(waitRequest.requestType === "wait", "wait requestType mismatch");
 assert(waitRequest.requestLength === 0, "wait requestLength mismatch");
 assert(waitRequest.noCancel, "wait should be noCancel");
@@ -379,6 +381,8 @@ assert(waitRequest.noCancel, "wait should be noCancel");
 const singlesDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(singlesMove), singlesMove, "move 1");
 assert(isBattleCommandDraftDoneV4(singlesDraft), "singles move draft should be done");
 assert(stringifyBattleCommandDraftV4(singlesDraft) === "move 1", "singles move final choice mismatch");
+assert(appendBattleSpecialChoiceSuffixV4("move 1", "max") === "move 1 max", "special suffix should match Showdown client order");
+assert(withBattleMoveTargetSuffixV4("move 1 max", "+1") === "move 1 max +1", "target suffix should stay after special suffix");
 
 let doublesDraft = createBattleCommandDraftV4(doublesMove);
 doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 1");
@@ -405,7 +409,7 @@ const forceSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(for
 assert(isBattleCommandDraftDoneV4(forceSwitchDraft), "forceSwitch [true,false] should be done");
 assert(stringifyBattleCommandDraftV4(forceSwitchDraft) === "switch 3, pass", "forceSwitch pass choice mismatch");
 
-const doubleForceSwitch = normalizeBattleRequestV4({...moveRequest(2), active: undefined, forceSwitch: [true, true]}, "p1", "doubles");
+const doubleForceSwitch = normalizeBattleRequestV4({...moveRequest(2), active: undefined, forceSwitch: [true, true]}, "p1", "doubles", "standard");
 let repeatedSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(doubleForceSwitch), doubleForceSwitch, "switch 3");
 repeatedSwitchDraft = addBattleCommandChoiceV4(repeatedSwitchDraft, doubleForceSwitch, "switch 3");
 assert(!isBattleCommandDraftDoneV4(repeatedSwitchDraft), "repeated switch should be blocked");
@@ -421,7 +425,7 @@ const rechargeMove = normalizeBattleRequestV4({
     {moves: [{move: "Recharge", id: "recharge"}]},
     {moves: [{move: "Aqua Tail", id: "aquatail", pp: 16, maxpp: 16, target: "normal"}]},
   ],
-}, "p1", "doubles");
+}, "p1", "doubles", "standard");
 const rechargeDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(rechargeMove), rechargeMove, "move 1");
 assert(rechargeDraft.choices[0] === "move 1", "recharge should not wait for target");
 assert(!rechargeDraft.currentMove, "recharge should not set currentMove target picker");

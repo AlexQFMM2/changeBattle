@@ -1,4 +1,12 @@
-import {createBattleSession, randomLegalChoice, submitChoice} from "./index.js";
+import {
+  appendShowdownSpecialChoiceSuffixV4,
+  createBattleSession,
+  filterShowdownChoiceForRuleSetV4,
+  parseShowdownChoiceCommandV4,
+  randomLegalChoice,
+  submitChoice,
+  withShowdownMoveTargetSuffixV4,
+} from "./index.js";
 import type {BattleServiceRequestV4, BattleServiceSessionInputV4} from "./types.js";
 
 const pikachu = {
@@ -26,6 +34,15 @@ const bulbasaur = {
   name: "Bulbasaur",
   ability: "Overgrow",
   moves: ["Tackle", "Growl", "Protect", "Rest"],
+};
+
+const charizard = {
+  ...pikachu,
+  species: "Charizard",
+  name: "Charizard",
+  ability: "Blaze",
+  item: "Charizardite X",
+  moves: ["Flamethrower", "Air Slash", "Protect", "Rest"],
 };
 
 async function smoke() {
@@ -249,6 +266,48 @@ async function sleepCantMoveSmoke() {
   console.log("showdown-battle-core sleep cant move smoke ok");
 }
 
+async function rulesetSpecialSystemFilterSmoke() {
+  const input: BattleServiceSessionInputV4 = {
+    runId: "test-run",
+    nodeId: "test-node-ruleset-special-filter",
+    mode: "singles",
+    ruleSet: "gen8",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [charizard, eevee], draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  };
+  const snapshot = await createBattleSession(input);
+  const active = snapshot.requests.p1?.active?.[0];
+  if (!active) throw new Error("missing gen8 active request");
+  if (active.canMegaEvo || active.canMegaEvoX || active.canMegaEvoY || active.canZMove || active.zMoves) {
+    throw new Error(`gen8 request leaked Mega/Z options: ${JSON.stringify(active)}`);
+  }
+  const next = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: "move 1 mega"});
+  if (!next.debug.inputLog.some(line => line.includes("[BattleV4][ruleset-special-filter] gen8 sanitized choice: move 1 mega -> move 1"))) {
+    throw new Error("gen8 illegal Mega suffix was not sanitized");
+  }
+  console.log("showdown-battle-core ruleset special filter smoke ok");
+}
+
+function showdownCommandReferenceSmoke() {
+  const parsed = parseShowdownChoiceCommandV4("move 1 max +1");
+  if (!parsed || parsed.kind !== "move" || parsed.index !== 1 || parsed.special !== "max" || parsed.target !== "+1") {
+    throw new Error(`failed to parse canonical max choice: ${JSON.stringify(parsed)}`);
+  }
+  if (parseShowdownChoiceCommandV4("move 1 +1 max")) {
+    throw new Error("old target-before-special move order should not parse in V4 command helpers");
+  }
+  const withSpecial = appendShowdownSpecialChoiceSuffixV4("move 1", "zmove");
+  if (withSpecial !== "move 1 zmove") throw new Error(`unexpected special order: ${withSpecial}`);
+  const withTarget = withShowdownMoveTargetSuffixV4(withSpecial, "+1");
+  if (withTarget !== "move 1 zmove +1") throw new Error(`unexpected target order: ${withTarget}`);
+  const filtered = filterShowdownChoiceForRuleSetV4("move 1 mega +1, move 2", "gen8", "doubles");
+  if (filtered !== "move 1 +1, move 2") throw new Error(`unexpected gen8 filtered choice: ${filtered}`);
+  console.log("showdown command reference smoke ok");
+}
+
 void smoke()
   .then(doublesSmoke)
   .then(rechargeChoiceSmoke)
@@ -257,4 +316,6 @@ void smoke()
   .then(duplicateSpeciesDoublesSmoke)
   .then(initialStateSmoke)
   .then(residualStatusSmoke)
-  .then(sleepCantMoveSmoke);
+  .then(sleepCantMoveSmoke)
+  .then(rulesetSpecialSystemFilterSmoke)
+  .then(showdownCommandReferenceSmoke);

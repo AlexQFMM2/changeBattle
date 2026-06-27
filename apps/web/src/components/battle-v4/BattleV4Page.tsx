@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, applyBattleSessionToRun, battleDebugLog, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemAllowedForRuleSetV4, battleSpecialSystemForChoiceV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
@@ -31,6 +31,9 @@ type BattleV4StatusBadge = {
 type BattleV4MoveCardView = {
   action: MoveActionV4;
   detail: DexMoveDetail | null;
+  baseMove: BattleMoveRequestV4;
+  displayedMove: BattleMoveRequestV4;
+  selectedSpecial: BattleSpecialChoiceV4 | null;
   id: string;
   name: string;
   typeId: string;
@@ -121,6 +124,25 @@ const FIELD_LABELS: Record<string, string> = {
   gravity: "重力",
 };
 
+const POKEMON_FORM_LABELS: Array<[RegExp, string]> = [
+  [/-mega-x$/i, "Mega X"],
+  [/-mega-y$/i, "Mega Y"],
+  [/-mega$/i, "Mega"],
+  [/-primal$/i, "原始回归"],
+  [/-ultra$/i, "究极爆发"],
+  [/-gmax$/i, "超极巨"],
+  [/-g-max$/i, "超极巨"],
+];
+
+const POKEMON_FORM_ID_SUFFIXES: Array<[string, string]> = [
+  ["megax", "Mega X"],
+  ["megay", "Mega Y"],
+  ["mega", "Mega"],
+  ["primal", "原始回归"],
+  ["ultra", "究极爆发"],
+  ["gmax", "超极巨"],
+];
+
 const TYPE_CHART: Record<string, Record<string, number>> = {
   normal: {rock: 0.5, ghost: 0, steel: 0.5},
   fire: {fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2},
@@ -167,14 +189,13 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
   const [busy, setBusy] = useState(false);
-  const [debugOpen, setDebugOpen] = useState(false);
   const [battleStatusOpen, setBattleStatusOpen] = useState(false);
   const [switchPanelOpen, setSwitchPanelOpen] = useState(false);
   const [commandMode, setCommandMode] = useState<"command" | "moves">("command");
   const [pendingMoveAction, setPendingMoveAction] = useState<MoveActionV4 | null>(null);
   const [commandDraft, setCommandDraft] = useState<BattleCommandDraftV4 | null>(null);
   const [choiceStatus, setChoiceStatus] = useState("");
-  const [skipAnimations, setSkipAnimations] = useState(false);
+  const skipAnimations = false;
   const [previewMove, setPreviewMove] = useState<DexMoveDetail | null>(null);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
@@ -323,24 +344,27 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     if (after.requestType === "switch") setSwitchPanelOpen(true);
   }
 
-  function draftMoveAction(action: MoveActionV4) {
+  function draftMoveAction(action: MoveActionV4, selectedSpecial?: BattleSpecialChoiceV4 | null) {
     const normalizedRequest = viewModel?.command.normalizedRequest;
     if (!normalizedRequest) return;
+    const choice = appendBattleSpecialChoiceSuffixV4(action.choice, selectedSpecial || null);
+    const draftedAction = {...action, choice};
     if (isUntargetedLockedMove(action.move)) {
-      applyDraftChoice(action.choice);
+      applyDraftChoice(choice);
       return;
     }
     const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
     const requiresTarget = true;
-    const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget);
+    const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget, selectedSpecial || null);
     battleDebugLog(debugConfig, "draft", "current-move", {
       before,
-      input: action.choice,
+      input: choice,
       after,
       requiresTarget,
+      selectedSpecial,
     });
     setCommandDraft(after);
-    setPendingMoveAction(action);
+    setPendingMoveAction(draftedAction);
   }
 
   return (
@@ -358,10 +382,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         api={api}
       />
       <header className="battle-v4-hud">
-        <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>查看状态</button>
-        <button type="button" onClick={() => setDebugOpen(true)}>记录</button>
+        <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
         <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug)} disabled={!snapshot}>导出诊断</button>
-        <button type="button" onClick={() => setSkipAnimations(value => !value)}>{skipAnimations ? "播放动画" : "跳过动画"}</button>
       </header>
       {!playbackBlockingCommands ? (
         <BattleCommandDock
@@ -379,6 +401,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onSubmit={applyDraftChoice}
           onMoveDraft={draftMoveAction}
           onPreviewMove={setPreviewMove}
+          onUnavailableSpecial={setChoiceStatus}
         />
       ) : null}
       {!playbackBlockingCommands && pendingMoveAction && viewModel ? (
@@ -415,10 +438,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         <BattleV4StatusModal
           snapshot={snapshot}
           slots={playbackHasRuntimeState ? [...playback.nearTeam, ...playback.farTeam] : viewModel?.slots || []}
+          api={api}
           onClose={() => setBattleStatusOpen(false)}
         />
       ) : null}
-      {debugOpen ? <BattleV4DebugModal snapshot={snapshot} draft={commandDraft} playbackDebug={playback.debug} onClose={() => setDebugOpen(false)} /> : null}
       {previewMove ? (
         <BattleV4MovePreviewModal
           api={api}
@@ -576,9 +599,11 @@ function BattleV4FxLayer({animation, visuals, fxVisuals}: {animation: BattleAnim
 function BattlePokemonSlot({slot, commanding = false, animation, visuals}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
   const timelineActor = visuals.actor?.seat === slot.seat ? visuals.actor : null;
   const animationClass = timelineActor?.className || battlePokemonAnimationClass(slot.seat, animation || null);
+  const specialClass = slot.dynamaxActive ? "special-dynamax" : slot.terastallized ? "special-tera" : "";
+  const displayName = battleSlotDisplayName(slot);
   return (
-    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${animationClass}`} style={timelineActor?.style}>
-      <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={slot.nameZh || slot.name} />
+    <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${specialClass} ${animationClass}`} style={timelineActor?.style}>
+      <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={displayName} />
     </article>
   );
 }
@@ -602,14 +627,16 @@ function BattleHpPanel({slot, compact = false, current = false, commanding = fal
   const hpRate = slot.maxHp ? Math.max(0, Math.min(100, slot.hp / slot.maxHp * 100)) : 0;
   const status = statusBadge(slot.status);
   const identity = slotIdentityLabel(slot);
+  const displayName = battleSlotDisplayName(slot);
   return (
     <section className={`battle-v4-hp-panel ${slot.side} ${slot.position.toLowerCase()} ${compact ? "compact" : ""} ${current ? "current" : ""} ${commanding ? "commanding" : ""}`} title={identity ? `ID: ${identity}` : undefined}>
       <div className="battle-v4-hp-portrait">
-        <BattleV4Icon src={slot.iconUrl || slot.frontSpriteUrl || slot.spriteUrl} iconStyle={slot.iconStyle} alt={slot.nameZh || slot.name} />
+        <BattleV4Icon src={slot.iconUrl || slot.frontSpriteUrl || slot.spriteUrl} iconStyle={slot.iconStyle} alt={displayName} />
       </div>
       <div className="battle-v4-hp-main">
         <div className="battle-v4-hp-name-row">
-          <strong>{slot.nameZh || slot.name}</strong>
+          <strong>{displayName}</strong>
+          <SpecialSystemBadges slot={slot} />
           {status ? <StatusBadge badge={status} /> : null}
           <em>Lv.{slot.level}</em>
         </div>
@@ -623,7 +650,22 @@ function BattleHpPanel({slot, compact = false, current = false, commanding = fal
   );
 }
 
-function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, onSubmit, onMoveDraft, onPreviewMove}: {
+function SpecialSystemBadges({slot}: {slot: BattleViewSlotV4}) {
+  const badges: Array<{key: string; label: string; title: string}> = [];
+  if (slot.specialFormeKind === "mega") badges.push({key: "mega", label: "M", title: "Mega 进化"});
+  if (slot.specialFormeKind === "primal") badges.push({key: "primal", label: "P", title: "原始回归"});
+  if (slot.specialFormeKind === "ultra") badges.push({key: "ultra", label: "U", title: "究极爆发"});
+  if (slot.terastallized) badges.push({key: "tera", label: typeShortLabel(slot.teraType || "T"), title: `${slot.teraType || "未知"}太晶`});
+  if (slot.dynamaxActive) badges.push({key: "dynamax", label: "D", title: "极巨化"});
+  if (!badges.length) return null;
+  return (
+    <span className="battle-v4-special-badges">
+      {badges.map(badge => <i className={`special-${badge.key}`} title={badge.title} key={badge.key}>{badge.label}</i>)}
+    </span>
+  );
+}
+
+function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4 | null;
   snapshot: BattleSessionSnapshotV4 | null;
@@ -636,17 +678,32 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   onCommandModeChange: (mode: "command" | "moves") => void;
   onOpenSwitch: () => void;
   onSubmit: (choice: string) => void;
-  onMoveDraft: (action: MoveActionV4) => void;
+  onMoveDraft: (action: MoveActionV4, selectedSpecial?: BattleSpecialChoiceV4 | null) => void;
   onPreviewMove: (move: DexMoveDetail) => void;
+  onUnavailableSpecial: (message: string) => void;
 }) {
   const canInspectSwitch = requestType === "move" && Boolean(snapshot?.requests.p1?.side?.pokemon?.length);
   const [previewMoveId, setPreviewMoveId] = useState("");
+  const [selectedSpecial, setSelectedSpecial] = useState<BattleSpecialChoiceV4 | null>(null);
   const moveActions = actions.filter((action): action is Extract<BattleCommandActionV4, {kind: "move"}> => action.kind === "move");
-  const moveCards = useMemo(() => moveActions.map(action => buildBattleV4MoveCard(action, api, viewModel?.farTeam || [])), [api, moveActions, viewModel?.farTeam]);
+  const lockedSpecialSystems = useMemo(() => lockedSpecialSystemsForCommand(viewModel?.command.choices || []), [viewModel?.command.choices]);
+  const selectedSystem = battleSpecialSystemForChoiceV4(selectedSpecial);
+  const activeSpecial = selectedSystem && lockedSpecialSystems.has(selectedSystem) ? null : selectedSpecial;
+  const moveCards = useMemo(() => moveActions.map(action => buildBattleV4MoveCard(action, api, viewModel?.farTeam || [], selectedSpecialForAction(action, activeSpecial, lockedSpecialSystems))), [api, moveActions, viewModel?.farTeam, activeSpecial, lockedSpecialSystems]);
+  const specialOptions = useMemo(() => uniqueSpecialOptionsForActions(moveActions), [moveActions]);
   const previewCard = moveCards.find(card => card.id === previewMoveId && card.detail) ||
     moveCards.find(card => card.detail && !isDisabledAction(card.action)) ||
     moveCards.find(card => card.detail);
   const commandStatus = commandStatusText(viewModel, busy, message, api);
+  useEffect(() => {
+    if (!selectedSpecial) return;
+    const system = battleSpecialSystemForChoiceV4(selectedSpecial);
+    if (system && lockedSpecialSystems.has(system)) {
+      setSelectedSpecial(null);
+      return;
+    }
+    if (!specialOptions.some(option => option.id === selectedSpecial)) setSelectedSpecial(null);
+  }, [selectedSpecial, specialOptions, lockedSpecialSystems]);
   if (requestType === "switch") {
     return (
       <section className="battle-v4-command-dock waiting action" aria-label="等待换人" role="button" tabIndex={0} onClick={onOpenSwitch} onKeyDown={event => {
@@ -678,29 +735,40 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
         </div>
         <div className="battle-v4-move-list">
           {moveCards.length ? moveCards.map(card => (
-            <button
-              className={`battle-v4-move-card type-${card.typeId} effect-${card.effectivenessTone}`}
-              type="button"
-              disabled={busy || isDisabledAction(card.action)}
-              onMouseEnter={() => setPreviewMoveId(card.id)}
-              onFocus={() => setPreviewMoveId(card.id)}
-              onClick={() => onMoveDraft(card.action)}
-              key={`${card.action.choice}-${card.id}`}
-            >
-              <span className="battle-v4-move-type">{card.typeLabel}</span>
-              <span className="battle-v4-move-body">
-                <strong>{card.name}</strong>
-                <span className="battle-v4-move-meta">
-                  <i>{card.categoryLabel}</i>
-                  <i>威力 {card.powerLabel}</i>
-                  <i>命中 {card.accuracyLabel}</i>
+            <div className={`battle-v4-move-card-wrap ${card.action.specialOptions.length ? "has-specials" : ""}`} key={`${card.action.choice}-${card.id}`}>
+              <button
+                className={`battle-v4-move-card type-${card.typeId} effect-${card.effectivenessTone} ${card.selectedSpecial ? "special-ready" : ""}`}
+                type="button"
+                disabled={busy || isDisabledAction(card.action) || specialDisplayedMoveDisabled(card)}
+                onMouseEnter={() => setPreviewMoveId(card.id)}
+                onFocus={() => setPreviewMoveId(card.id)}
+                onClick={() => onMoveDraft(card.action, card.selectedSpecial)}
+              >
+                <span className="battle-v4-move-type">{card.typeLabel}</span>
+                <span className="battle-v4-move-body">
+                  <strong>{card.name}</strong>
+                  <span className="battle-v4-move-meta">
+                    <i>{card.categoryLabel}</i>
+                    <i>威力 {card.powerLabel}</i>
+                    <i>命中 {card.accuracyLabel}</i>
+                  </span>
                 </span>
-              </span>
-              <span className="battle-v4-move-pp">{card.ppLabel}</span>
-              <span className="battle-v4-move-effect">{card.effectivenessLabel}</span>
-            </button>
+                <span className="battle-v4-move-pp">{card.ppLabel}</span>
+                <span className="battle-v4-move-effect">{card.effectivenessLabel}</span>
+              </button>
+            </div>
           )) : <p>{message || "等待 Showdown request..."}</p>}
         </div>
+        <BattleV4SpecialChoiceBar
+          options={specialOptions}
+          selected={selectedSpecial}
+          busy={busy}
+          lockedSystems={lockedSpecialSystems}
+          mode={viewModel?.command.normalizedRequest?.mode}
+          ruleSet={viewModel?.command.normalizedRequest?.ruleSet}
+          onChoose={setSelectedSpecial}
+          onUnavailable={onUnavailableSpecial}
+        />
       </section>
     );
   }
@@ -719,6 +787,154 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   );
 }
 
+const SPECIAL_SYSTEM_BUTTONS: Array<{system: BattleSpecialSystemV4; label: string; icon: string; choices: BattleSpecialChoiceV4[]}> = [
+  {system: "mega", label: "mega", icon: "/specIcon/mega2.png", choices: ["mega", "megax", "megay", "ultra"]},
+  {system: "zmove", label: "Z招式", icon: "/specIcon/Z2.png", choices: ["zmove"]},
+  {system: "max", label: "极巨化", icon: "/specIcon/jjh2.png", choices: ["max"]},
+  {system: "terastallize", label: "太晶化", icon: "/specIcon/tjh2.png", choices: ["terastallize"]},
+];
+
+function BattleV4SpecialChoiceBar({options, selected, busy, lockedSystems, mode, ruleSet, onChoose, onUnavailable}: {
+  options: BattleSpecialChoiceOptionV4[];
+  selected: BattleSpecialChoiceV4 | null;
+  busy: boolean;
+  lockedSystems: Set<BattleSpecialSystemV4>;
+  mode?: string;
+  ruleSet?: string;
+  onChoose: (special: BattleSpecialChoiceV4 | null) => void;
+  onUnavailable: (message: string) => void;
+}) {
+  const [notice, setNotice] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const buttons = SPECIAL_SYSTEM_BUTTONS.map(button => {
+    const systemOptions = options.filter(option => button.choices.includes(option.id));
+    const ruleAllowed = battleSpecialSystemAllowedForRuleSetV4(button.system, ruleSet, mode);
+    const available = systemOptions.find(option => option.ruleAllowed && !option.disabled);
+    const locked = lockedSystems.has(button.system);
+    const representative = available || systemOptions[0] || null;
+    return {...button, ruleAllowed, available, representative, locked};
+  });
+  const selectedButton = buttons.find(button => selected && button.choices.includes(selected));
+  const hasAvailable = buttons.some(button => button.available);
+  return (
+    <div className={`battle-v4-special-button-panel ${expanded ? "expanded" : ""}`} aria-label="特殊系统">
+      <button
+        className={`battle-v4-special-main-button ${selectedButton ? "selected" : ""} ${hasAvailable ? "available" : ""}`}
+        type="button"
+        disabled={busy}
+        title={expanded ? "收起特殊系统" : "展开特殊系统"}
+        aria-label={expanded ? "收起特殊系统" : "展开特殊系统"}
+        aria-expanded={expanded}
+        onClick={() => setExpanded(value => !value)}
+      >
+        {selectedButton ? <img src={selectedButton.icon} alt="" /> : <span>特</span>}
+      </button>
+      <div className="battle-v4-special-button-bar">
+      {buttons.map(button => {
+        const active = Boolean(selected && button.choices.includes(selected));
+        const reason = unavailableSpecialReason(button.system, button.ruleAllowed, button.available || null, button.representative, button.locked);
+        const detail = specialSystemDetailLabel(button.label, button.available || button.representative || null);
+        const title = active ? `关闭${button.label}` : reason || `启用${detail}`;
+        return (
+          <button
+            className={`battle-v4-special-button special-${button.system} ${button.ruleAllowed ? "rule-on" : "rule-off"} ${button.available ? "available" : "unavailable"} ${button.locked ? "locked" : ""} ${active ? "selected" : ""}`}
+            type="button"
+            disabled={busy}
+            title={title}
+            aria-label={title}
+            key={button.system}
+            onClick={() => {
+              const nextNotice = active ? `已取消${button.label}` : reason || `已选择${detail}`;
+              if (active) {
+              onChoose(null);
+              setNotice(nextNotice);
+              onUnavailable(nextNotice);
+              setExpanded(false);
+              return;
+            }
+            if (reason) {
+                setNotice(reason);
+                onUnavailable(reason);
+              return;
+            }
+            onChoose(button.available?.id || null);
+            setNotice(nextNotice);
+            onUnavailable(nextNotice);
+            setExpanded(false);
+          }}
+        >
+            <img src={button.icon} alt="" />
+            <span>{button.label}</span>
+          </button>
+        );
+      })}
+      </div>
+      <p className={`battle-v4-special-notice ${notice ? "show" : ""}`}>{notice || "按 Showdown 请求显示可用特殊系统"}</p>
+    </div>
+  );
+}
+
+function uniqueSpecialOptionsForActions(actions: MoveActionV4[]): BattleSpecialChoiceOptionV4[] {
+  const byId = new Map<string, BattleSpecialChoiceOptionV4>();
+  const options: BattleSpecialChoiceOptionV4[] = [];
+  for (const action of actions) {
+    for (const option of action.specialOptions) {
+      const existing = byId.get(option.id);
+      if (existing && (!option.ruleAllowed || option.disabled || (existing.ruleAllowed && !existing.disabled))) continue;
+      byId.set(option.id, option);
+    }
+  }
+  for (const button of SPECIAL_SYSTEM_BUTTONS) {
+    for (const choice of button.choices) {
+      const option = byId.get(choice);
+      if (option) options.push(option);
+    }
+  }
+  return options;
+}
+
+function lockedSpecialSystemsForCommand(choices: string[]): Set<BattleSpecialSystemV4> {
+  const locked = new Set<BattleSpecialSystemV4>();
+  for (const choice of choices) {
+    const system = battleSpecialSystemForChoiceV4(specialChoiceFromChoiceString(choice));
+    if (system) locked.add(system);
+  }
+  return locked;
+}
+
+function specialChoiceFromChoiceString(choice: string): BattleSpecialChoiceV4 | null {
+  const tokens = choice.trim().split(/\s+/).filter(Boolean);
+  const id = String(tokens[2] || "").toLowerCase();
+  if (id === "mega" || id === "megax" || id === "megay" || id === "ultra" || id === "zmove" || id === "terastallize") return id;
+  if (id === "max" || id === "dynamax") return "max";
+  return null;
+}
+
+function selectedSpecialForAction(action: MoveActionV4, selected: BattleSpecialChoiceV4 | null, lockedSystems = new Set<BattleSpecialSystemV4>()): BattleSpecialChoiceV4 | null {
+  if (!selected) return null;
+  const system = battleSpecialSystemForChoiceV4(selected);
+  if (system && lockedSystems.has(system)) return null;
+  return action.specialOptions.some(option => option.id === selected && option.ruleAllowed && !option.disabled) ? selected : null;
+}
+
+function unavailableSpecialReason(system: BattleSpecialSystemV4, ruleAllowed: boolean, option: BattleSpecialChoiceOptionV4 | null, representative: BattleSpecialChoiceOptionV4 | null, locked: boolean): string {
+  const name = system === "mega" ? "Mega/究极爆发" :
+    system === "zmove" ? "Z招式" :
+    system === "max" ? "极巨化" :
+    "太晶化";
+  if (!ruleAllowed) return `${name}当前规则不可用`;
+  if (locked) return `${name}本回合已选择，不能让第二只同时使用`;
+  if (!representative) return `${name}没有出现在本次 Showdown request 中`;
+  if (!option) return `${name}当前不可用：${representative.moveName || representative.label || "对应招式"}被禁用或已不可选`;
+  return "";
+}
+
+function specialSystemDetailLabel(label: string, option: BattleSpecialChoiceOptionV4 | null): string {
+  if (!option) return label;
+  const detail = [option.label, option.moveName, option.typeLabel].filter(Boolean).join(" · ");
+  return detail || label;
+}
+
 function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4;
@@ -727,7 +943,7 @@ function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit
   onClose: () => void;
   onSubmit: (choice: string) => void;
 }) {
-  const moveCard = useMemo(() => buildBattleV4MoveCard(action, api, viewModel.farTeam), [action, api, viewModel.farTeam]);
+  const moveCard = useMemo(() => buildBattleV4MoveCard(action, api, viewModel.farTeam, specialChoiceFromChoiceString(action.choice)), [action, api, viewModel.farTeam]);
   const targetable = Boolean(viewModel.command.normalizedRequest?.targetable || request?.targetable);
   const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, targetable, api), [viewModel, action, moveCard.detail, targetable, api]);
   return (
@@ -741,8 +957,8 @@ function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit
             target={target}
             key={target.key}
             onSelect={next => {
-              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && moveNeedsExplicitTargetForShowdown(action.move.target || moveCard.detail?.target, targetable));
-              const choice = shouldUseTargetSuffix ? `${action.choice} ${next.choiceSuffix}` : action.choice;
+              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && moveNeedsExplicitTargetForShowdown(moveCard.displayedMove.target || moveCard.detail?.target || action.move.target, targetable));
+              const choice = shouldUseTargetSuffix ? withBattleMoveTargetSuffixV4(action.choice, next.choiceSuffix) : action.choice;
               onSubmit(choice);
             }}
           />
@@ -758,6 +974,7 @@ function BattleV4TargetCard({target, onSelect}: {target: BattleV4TargetCardView;
   if (!slot) return <button className="battle-v4-target-card empty" type="button" disabled />;
   const hpRate = slot.maxHp ? Math.max(0, Math.min(100, slot.hp / slot.maxHp * 100)) : 0;
   const status = statusBadge(slot.status);
+  const displayName = battleSlotDisplayName(slot);
   return (
     <button
       className={`battle-v4-target-card side-${slot.side} effect-${target.effectivenessTone} ${target.affected ? "affected" : ""} ${target.selectable ? "selectable" : "not-selectable"}`}
@@ -768,10 +985,10 @@ function BattleV4TargetCard({target, onSelect}: {target: BattleV4TargetCardView;
       {target.selectable ? <span className="battle-v4-target-arrow">›</span> : null}
       <span className="battle-v4-target-effect">{target.effectivenessLabel}</span>
       <span className="battle-v4-target-sprite">
-        <BattleV4Icon src={slot.iconUrl || slot.frontSpriteUrl || slot.spriteUrl} iconStyle={slot.iconStyle} alt={slot.nameZh || slot.name} />
+        <BattleV4Icon src={slot.iconUrl || slot.frontSpriteUrl || slot.spriteUrl} iconStyle={slot.iconStyle} alt={displayName} />
       </span>
       <span className="battle-v4-target-info">
-        <strong>{slot.nameZh || slot.name}</strong>
+        <strong>{displayName}</strong>
         <span className="battle-v4-target-hp"><i><b style={{width: `${hpRate}%`}} /></i></span>
         <span className="battle-v4-target-meta">
           <b>{slot.side === "far" ? `${Math.round(hpRate)}%` : `${slot.hp}/${slot.maxHp}`}</b>
@@ -856,13 +1073,19 @@ function localizeProtocolItemMentions(text: string, api: ChangeBattleV2Api): str
 }
 
 function localizeProtocolPokemonName(name: string, api: ChangeBattleV2Api): string {
-  const id = toId(name);
+  const normalizedName = normalizeProtocolDisplayName(name);
+  const id = toId(normalizedName);
   if (!id) return name;
+  const formName = localizeProtocolPokemonFormName(normalizedName, api);
+  if (formName) return formName;
   try {
-    return api.getPokemonDetail(id).nameZh || api.getPokemonDetail(id).name || name;
+    const detail = api.getPokemonDetail(id);
+    const localized = detail.nameZh || detail.name || "";
+    if (localized && localized !== detail.name && localized !== normalizedName) return localized;
   } catch {
-    return name;
+    // Fall through to form-aware fallback below.
   }
+  return localizeProtocolPokemonFormName(normalizedName, api) || normalizedName || name;
 }
 
 function localizeProtocolMoveName(name: string, api: ChangeBattleV2Api): string {
@@ -887,6 +1110,54 @@ function localizeProtocolItemName(name: string, api: ChangeBattleV2Api): string 
   }
 }
 
+function normalizeProtocolDisplayName(name: string): string {
+  return String(name || "")
+    .replace(/^move:\s*/i, "")
+    .replace(/^ability:\s*/i, "")
+    .replace(/^item:\s*/i, "")
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .trim();
+}
+
+function localizeProtocolPokemonFormName(name: string, api: ChangeBattleV2Api): string | null {
+  for (const [pattern, formLabel] of POKEMON_FORM_LABELS) {
+    if (!pattern.test(name)) continue;
+    const baseName = name.replace(pattern, "");
+    const baseId = toId(baseName);
+    if (!baseId) return `${baseName} ${formLabel}`;
+    try {
+      const baseDetail = api.getPokemonDetail(baseId);
+      return `${baseDetail.nameZh || baseDetail.name || baseName} ${formLabel}`;
+    } catch {
+      return `${baseName} ${formLabel}`;
+    }
+  }
+  return null;
+}
+
+function battleSlotDisplayName(slot: BattleViewSlotV4): string {
+  return localizePokemonFormDisplayName(slot.nameZh || slot.name, slot.speciesId || slot.name);
+}
+
+function localizePokemonFormDisplayName(preferredName: string, speciesName: string): string {
+  const normalizedSpecies = normalizeProtocolDisplayName(speciesName);
+  const normalizedPreferred = normalizeProtocolDisplayName(preferredName);
+  for (const [pattern, formLabel] of POKEMON_FORM_LABELS) {
+    if (!pattern.test(normalizedSpecies)) continue;
+    if (new RegExp(`${formLabel.replace(/\s+/g, "[-\\s]?")}$`, "i").test(normalizedPreferred)) return normalizedPreferred;
+    const baseSpecies = normalizedSpecies.replace(pattern, "");
+    const baseName = normalizedPreferred && normalizedPreferred !== normalizedSpecies ? normalizedPreferred : baseSpecies;
+    return `${baseName} ${formLabel}`;
+  }
+  const speciesId = toId(normalizedSpecies);
+  for (const [suffix, formLabel] of POKEMON_FORM_ID_SUFFIXES) {
+    if (!speciesId.endsWith(suffix)) continue;
+    if (new RegExp(`${formLabel.replace(/\s+/g, "[-\\s]?")}$`, "i").test(normalizedPreferred)) return normalizedPreferred;
+    return `${normalizedPreferred || preferredName || speciesName} ${formLabel}`;
+  }
+  return normalizedPreferred || preferredName || speciesName;
+}
+
 function localizeProtocolAbilityName(name: string, api: ChangeBattleV2Api): string {
   const id = toId(name);
   if (!id) return name;
@@ -902,10 +1173,16 @@ function StatusBadge({badge, className = "battle-v4-status-badge"}: {badge: Batt
   return <i className={`${className} status-${badge.className}`} title={badge.title}>{badge.label}</i>;
 }
 
-function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, targetSlots: BattleViewSlotV4[]): BattleV4MoveCardView {
-  const detail = moveDetailFor(api, action.move);
-  const id = toId(detail?.id || action.move.id || action.move.move || action.label);
-  const typeId = typeIdFor(detail?.typeId || detail?.type || action.move.id || "");
+function typeShortLabel(type: string): string {
+  const id = toId(type);
+  return TYPE_SHORT_LABEL[id] || String(type || "?").slice(0, 1).toUpperCase();
+}
+
+function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, targetSlots: BattleViewSlotV4[], selectedSpecial: BattleSpecialChoiceV4 | null = null): BattleV4MoveCardView {
+  const displayedMove = displayedMoveForSpecial(action.move, selectedSpecial);
+  const detail = moveDetailFor(api, displayedMove);
+  const id = toId(detail?.id || displayedMove.id || displayedMove.move || action.label);
+  const typeId = typeIdFor(detail?.typeId || detail?.type || displayedMove.id || "");
   const category = detail?.categoryId || detail?.category || "";
   const categoryId = toId(category);
   const effectiveness = moveEffectiveness(detail, api, targetSlots);
@@ -914,8 +1191,11 @@ function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, tar
   return {
     action,
     detail,
+    baseMove: action.move,
+    displayedMove,
+    selectedSpecial,
     id,
-    name: detail?.nameZh || detail?.name || action.label || action.move.move || action.move.id || "技能",
+    name: detail?.nameZh || detail?.name || displayedMove.move || displayedMove.id || action.label || "技能",
     typeId: typeId || "unknown",
     typeLabel: TYPE_SHORT_LABEL[typeId] || detail?.type || "?",
     categoryLabel: categoryLabel(categoryId, detail?.category),
@@ -927,6 +1207,16 @@ function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, tar
   };
 }
 
+function displayedMoveForSpecial(move: BattleMoveRequestV4, selectedSpecial: BattleSpecialChoiceV4 | null): BattleMoveRequestV4 {
+  if (selectedSpecial === "zmove" && move.zMove) return move.zMove;
+  if (selectedSpecial === "max" && move.maxMove) return move.maxMove;
+  return move;
+}
+
+function specialDisplayedMoveDisabled(card: BattleV4MoveCardView): boolean {
+  return Boolean(card.selectedSpecial && card.displayedMove.disabled);
+}
+
 function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActionV4, detail: DexMoveDetail | null, targetable: boolean, api: ChangeBattleV2Api): BattleV4TargetCardView[] {
   const active = viewModel.nearTeam[action.activeIndex] || viewModel.nearTeam.find(slot => slot.active) || viewModel.nearTeam[0] || null;
   const slots: Array<BattleViewSlotV4 | null> = [
@@ -935,7 +1225,7 @@ function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActi
     viewModel.nearTeam[0] || null,
     viewModel.nearTeam[1] || null,
   ];
-  const target = normalizeMoveTarget(action.move.target || detail?.target || "normal");
+  const target = normalizeMoveTarget(detail?.target || action.move.target || "normal");
   return slots.map((slot, index) => {
     if (!slot) {
       return {key: `empty-${index}`, slot: null, selectable: false, affected: false, choiceSuffix: "", effectivenessLabel: "效果一般", effectivenessTone: "normal"};
@@ -1120,7 +1410,7 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
   return (
     <section className={`battle-v4-switch-selector ${isCoop ? "coop" : ""}`} aria-label="换人选择">
       <div className="battle-v4-switch-title">
-        <button type="button" onClick={onOpenStatus}>查看状态</button>
+        <button type="button" onClick={onOpenStatus}>场地状态</button>
         <strong>{forceSwitch ? "必须换人" : "选择交换对象"}</strong>
       </div>
       {isCoop ? (
@@ -1592,6 +1882,22 @@ function requestDebugSummary(command: BattleViewModelV4["command"]) {
   };
 }
 
+function buildSpecialMoveDisplayDiagnostics(snapshot: BattleSessionSnapshotV4 | null) {
+  const request = snapshot?.requests.p1;
+  return (request?.active || []).map((active, activeIndex) => ({
+    activeIndex,
+    moves: (active?.moves || []).map((move, moveIndex) => ({
+      moveIndex,
+      baseMoveId: move.id || toId(move.move),
+      baseMoveName: move.move || move.id,
+      zMoveId: move.zMove?.id || toId(move.zMove?.move || ""),
+      zMoveName: move.zMove?.move || move.zMove?.id || "",
+      maxMoveId: move.maxMove?.id || toId(move.maxMove?.move || ""),
+      maxMoveName: move.maxMove?.move || move.maxMove?.id || "",
+    })),
+  }));
+}
+
 function snapshotDebugSummary(snapshot: BattleSessionSnapshotV4) {
   const request = snapshot.requests.p1 || null;
   const command = projectBattleViewModelV4(snapshot, "p1").command;
@@ -1692,6 +1998,8 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
     active: snapshot?.active || [],
     lastChoices: snapshot?.debug.lastChoices || [],
     inputLog: snapshot?.debug.inputLog || [],
+    selectedSpecialChoiceSuffix: draft?.currentMove?.selectedSpecial || null,
+    specialMoveDisplayOptions: buildSpecialMoveDisplayDiagnostics(snapshot),
     playerStreams: snapshot?.debug.playerStreams || [],
     playerStreamTail: snapshot?.debug.playerStreams.slice(-80) || [],
     rawLog: snapshot?.rawLog || [],
@@ -1700,6 +2008,17 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
     animationEvents: playbackDebug?.animationEvents || [],
     animationConsumption: playbackDebug?.animationConsumption || [],
     rawIncrements: playbackDebug?.rawIncrements || [],
+    specialSystemState: playbackDebug?.renderProbe.visibleSlotSeats || [],
+    specialSystemEvents: (playbackDebug?.protocolEvents || []).filter(event =>
+      event.eventType === "-zpower" ||
+      event.eventType === "-mega" ||
+      event.eventType === "-primal" ||
+      event.eventType === "-burst" ||
+      event.eventType === "-terastallize" ||
+      event.rawLine.startsWith("|custom|-endterastallize|") ||
+      (event.eventType === "-start" && toId(event.args[2]) === "dynamax") ||
+      (event.eventType === "-end" && toId(event.args[2]) === "dynamax")
+    ),
     playback: playbackDebug ? {
       lastConsumedRawIndex: playbackDebug.lastConsumedRawIndex,
       hasProtocolState: playbackDebug.hasProtocolState,
@@ -1735,9 +2054,10 @@ function toId(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function BattleV4StatusModal({snapshot, slots, onClose}: {
+function BattleV4StatusModal({snapshot, slots, api, onClose}: {
   snapshot: BattleSessionSnapshotV4 | null;
   slots: BattleViewSlotV4[];
+  api: ChangeBattleV2Api;
   onClose: () => void;
 }) {
   const status = useMemo(() => projectBattleV4BattleStatus(snapshot), [snapshot]);
@@ -1777,12 +2097,13 @@ function BattleV4StatusModal({snapshot, slots, onClose}: {
                 const boosts = status.boostsBySeat[slot.seat] || {};
                 const visibleBoosts = BOOST_STAT_ROWS.filter(([stat]) => boosts[stat]);
                 const badge = statusBadge(slot.fainted ? "fnt" : slot.status);
+                const displayName = battleSlotDisplayName(slot);
                 return (
                   <section className={`battle-v4-status-slot ${slot.side}`} key={`${slot.seat}-${slot.localPokemonId}`}>
                     <div className="battle-v4-status-slot-head">
-                      <BattleV4Icon src={slot.iconUrl || slot.frontSpriteUrl || slot.spriteUrl} iconStyle={slot.iconStyle} alt={slot.nameZh || slot.name} />
+                      <BattleV4Icon src={slot.iconUrl || slot.frontSpriteUrl || slot.spriteUrl} iconStyle={slot.iconStyle} alt={displayName} />
                       <span>
-                        <strong>{slot.nameZh || slot.name}</strong>
+                        <strong>{localizeProtocolPokemonName(displayName, api)}</strong>
                         <small>{slot.seat} · Lv.{slot.level}</small>
                       </span>
                       {badge ? <StatusBadge badge={badge} /> : <em>正常</em>}
@@ -1833,7 +2154,7 @@ function projectBattleV4BattleStatus(snapshot: BattleSessionSnapshotV4 | null): 
       continue;
     }
     if (command === "-weather") {
-      const id = toId(args[1]);
+      const id = protocolEffectId(args[1]);
       if (!id || id === "none") {
         status.weather = null;
       } else if (kwArgs.upkeep && status.weather?.id === id) {
@@ -1841,7 +2162,7 @@ function projectBattleV4BattleStatus(snapshot: BattleSessionSnapshotV4 | null): 
       } else {
         status.weather = {
           id,
-          label: WEATHER_LABELS[id] || args[1] || id,
+          label: weatherStatusLabel(id, args[1]),
           category: "weather",
           remaining: defaultWeatherTurns(id),
           note: "持续中",
@@ -1850,11 +2171,11 @@ function projectBattleV4BattleStatus(snapshot: BattleSessionSnapshotV4 | null): 
       continue;
     }
     if (command === "-fieldstart") {
-      const id = toId(args[1]);
+      const id = protocolEffectId(args[1]);
       if (!id) continue;
       const next = {
         id,
-        label: FIELD_LABELS[id] || args[1] || id,
+        label: fieldStatusLabel(id, args[1]),
         category: fieldCategory(id),
         remaining: defaultFieldTurns(id, Boolean(kwArgs.persistent)),
         note: "持续中",
@@ -1868,13 +2189,25 @@ function projectBattleV4BattleStatus(snapshot: BattleSessionSnapshotV4 | null): 
       continue;
     }
     if (command === "-fieldend") {
-      const id = toId(args[1]);
+      const id = protocolEffectId(args[1]);
       status.fields = status.fields.filter(item => item.id !== id);
       continue;
     }
     applyBoostProtocol(status.boostsBySeat, args);
   }
   return status;
+}
+
+function protocolEffectId(value: unknown): string {
+  return toId(normalizeProtocolDisplayName(String(value || "")));
+}
+
+function weatherStatusLabel(id: string, raw: unknown): string {
+  return WEATHER_LABELS[id] || normalizeProtocolDisplayName(String(raw || "")) || id;
+}
+
+function fieldStatusLabel(id: string, raw: unknown): string {
+  return FIELD_LABELS[id] || normalizeProtocolDisplayName(String(raw || "")) || id;
 }
 
 function applyBoostProtocol(boostsBySeat: BattleV4BattleStatus["boostsBySeat"], args: string[]) {

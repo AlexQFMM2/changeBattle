@@ -152,6 +152,8 @@ const SUPPORTED_OTHER_ANIMS = new Set([
   "primalomega",
   "megaevo",
   "zpower",
+  "teratransform",
+  "dynamaxtransform",
   "powerconstruct",
   "ultraburst",
 ]);
@@ -1251,9 +1253,40 @@ export function selectShowdownAnimationKeyV4(event: BattleProtocolEventV4, kind:
     const key = toId(event.args[0] === "-weather" ? event.args[1] : cleanEffect(event.args[1]));
     return selection(key || "lightstatus", key && (SUPPORTED_MOVE_ANIMS.has(key) || key === "desolateland" || key === "primordialsea" || key === "deltastream") ? "BattleMoveAnims" : "BattleOtherAnims", false);
   }
-  if (kind === "transform") return selection(moveId === "transform" ? "transform" : "shiny", moveId === "transform" ? "BattleMoveAnims" : "BattleOtherAnims", moveId !== "transform");
+  if (kind === "transform") return selection(transformAnimationKeyForEvent(event), transformAnimationSourceForEvent(event), false);
   if (kind === "switchIn" || kind === "switchOut" || kind === "faint") return selection(kind, "native", false);
   return selection(kind || "message", "native", true);
+}
+
+function transformAnimationKeyForEvent(event: BattleProtocolEventV4): string {
+  if (event.eventType === "-zpower") return "zpower";
+  if (event.eventType === "-mega") return "megaevo";
+  if (event.eventType === "-primal") return primalAnimationKeyForEvent(event);
+  if (event.eventType === "-burst") return "ultraburst";
+  if (event.eventType === "-terastallize") return "teratransform";
+  if (event.eventType === "custom" && (event.rawLine.startsWith("|custom|-endterastallize|") || toId(event.args[1]) === "endterastallize")) return "teratransform";
+  if (event.eventType === "-start" && toId(event.args[2]) === "dynamax") return "dynamaxtransform";
+  if (event.eventType === "-end" && toId(event.args[2]) === "dynamax") return "dynamaxtransform";
+  if (event.eventType === "detailschange" && /mega/i.test(event.args[2] || "")) return "megaevo";
+  if (event.eventType === "-transform" || moveIdForTransformEvent(event) === "transform") return "transform";
+  return "shiny";
+}
+
+function transformAnimationSourceForEvent(event: BattleProtocolEventV4): ShowdownAnimationSourceV4 {
+  const key = transformAnimationKeyForEvent(event);
+  if (key === "transform") return "BattleMoveAnims";
+  if (SUPPORTED_OTHER_ANIMS.has(key)) return "BattleOtherAnims";
+  return "native";
+}
+
+function primalAnimationKeyForEvent(event: BattleProtocolEventV4): string {
+  const text = `${event.args.join(" ")} ${event.actorName}`.toLowerCase();
+  if (text.includes("kyogre") || text.includes("blue") || text.includes("alpha")) return "primalalpha";
+  return "primalomega";
+}
+
+function moveIdForTransformEvent(event: BattleProtocolEventV4): string {
+  return toId(event.moveId || event.moveName);
 }
 
 export function projectShowdownAnimationTimelineV4(animationKey: string, context: ShowdownAnimationContextV4): ShowdownAnimationTimelineV4 {
@@ -1466,6 +1499,8 @@ function stepsForOtherAnimation(animationKey: string, actor: ShowdownSpriteActor
   case "megaevo":
   case "powerconstruct":
   case "ultraburst":
+  case "teratransform":
+  case "dynamaxtransform":
     return formChangeSteps(actor, animationKey);
   case "flight":
     return flightSteps(actor, target, animationKey);
@@ -3641,6 +3676,22 @@ function primalSteps(actor: ShowdownSpriteActorV4, color: string, spriteId: stri
 }
 
 function formChangeSteps(actor: ShowdownSpriteActorV4, key: string): ShowdownAnimationStepV4[] {
+  if (key === "teratransform") {
+    return [
+      {type: "backgroundEffect", color: "#d8f6ff", durationMs: 820, opacity: .34},
+      showEffectStep("shine", {...actor, scale: .55, opacity: .75}, {...actor, scale: 2.8, opacity: 0}, 620, {fade: "both"}),
+      showEffectStep("z-symbol", {...actor, y: actor.y - 26, scale: .42, opacity: .82}, {...actor, y: actor.y - 42, scale: 1.4, opacity: 0}, 680, {fade: "both"}),
+      actorAnimStep(actor, {scale: 1.12, y: actor.y - 8}, 260, "easeInOut"),
+    ];
+  }
+  if (key === "dynamaxtransform") {
+    return [
+      {type: "backgroundEffect", color: "#7b1438", durationMs: 940, opacity: .48},
+      showEffectStep("blackwisp", {...actor, scale: 1.2, opacity: .3}, {...actor, scale: 4, opacity: 0}, 760, {fade: "both"}),
+      showEffectStep("impact", {...actor, y: actor.y + 36, scale: .55, opacity: .85}, {...actor, y: actor.y + 36, scale: 2.8, opacity: 0}, 620, {fade: "both"}),
+      actorAnimStep(actor, {scale: 1.28, y: actor.y - 16}, 360, "decel"),
+    ];
+  }
   const sprite = key.includes("mega") ? "alpha" : key.includes("ultra") ? "ultra" : "shine";
   return [{type: "backgroundEffect", color: "#fff4a8", durationMs: 620, opacity: .24}, showEffectStep(sprite, {...actor, scale: .8, opacity: .8}, {...actor, scale: 2.2, opacity: 0}, 620, {fade: "both"}), actorAnimStep(actor, {scale: 1.14, opacity: .72}, 260, "easeInOut")];
 }
