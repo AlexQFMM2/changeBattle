@@ -295,11 +295,56 @@
   align-items: start;
 }
 
+.quick-dex-description.muted {
+  margin-top: 5px;
+  color: #b7dabe;
+}
+
+.item-detail-usage {
+  align-content: start;
+}
+
+.item-detail-meta-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.item-detail-meta-grid span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 5px;
+  background: rgb(0 0 0 / 16%);
+  padding: 5px;
+}
+
+.item-detail-meta-grid b {
+  color: #c8ffd0;
+  font-size: 7px;
+}
+
+.item-detail-meta-grid em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 850;
+}
+
 .item-icon {
   display: block;
   width: 24px;
   height: 24px;
+  object-fit: contain;
   image-rendering: pixelated;
+}
+
+img.item-icon {
+  background: transparent;
 }
 
 .quick-dex-list .quick-dex-list-item-icon {

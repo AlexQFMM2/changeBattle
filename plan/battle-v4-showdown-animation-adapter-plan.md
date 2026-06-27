@@ -1,5 +1,7 @@
 # Battle V4 Showdown Animation Adapter Plan
 
+> 状态：已全部完成。当前文档保留为第一阶段 Adapter 接入设计记录；后续精修以 `battle-v4-showdown-animation-deep-sync-plan.md` 和 checklist 为准。
+
 ## Summary
 
 本计划用于把 Pokemon Showdown client 的动画系统系统化接入 Battle V4。目标不是把原版 jQuery `BattleScene` 直接挂进 React 页面，而是实现一层 `ShowdownAnimationAdapterV4`：

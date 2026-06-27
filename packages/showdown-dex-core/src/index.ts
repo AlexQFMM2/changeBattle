@@ -6,7 +6,8 @@ import {ZhCnOverrides} from "./data/i18n/zh-cn-overrides.js";
 export type DexCategory = "pokemon" | "moves" | "abilities" | "items" | "trainers";
 export type DexStatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
 export type DexLearnSource = "levelup" | "machine" | "tutor" | "egg" | "event" | "transfer" | "other";
-export type DexItemKind = "recovery" | "training" | "system" | "special" | "held" | "battle" | "other";
+export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "system" | "valuable" | "special" | "held" | "battle" | "other";
+export type DexItemSource = "showdown" | "v1-game" | "overlay" | "system";
 
 export type DexSearchRequest = {
   category?: DexCategory | "all";
@@ -134,6 +135,19 @@ export type DexItemDetail = {
   kind: DexItemKind;
   kindLabel: string;
   description: string;
+  source?: DexItemSource;
+  sourceLabel?: string;
+  effectSummary?: string;
+  canBattleUse?: boolean;
+  canUse?: boolean;
+  canUseToPokemon?: boolean;
+  canTake?: boolean;
+  canSale?: boolean;
+  cost?: number;
+  futureInstanceCompatible?: boolean;
+  moveId?: string;
+  moveName?: string;
+  moveNameZh?: string;
   iconUrl?: string;
   iconStyle?: string;
 };
@@ -175,14 +189,89 @@ export type ShowdownDexService = ReturnType<typeof createShowdownDexService>;
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_RESOURCE_PREFIX = "/showdown/";
 const ITEM_KIND_LABEL: Record<DexItemKind, string> = {
+  berry: "树果",
   recovery: "恢复道具",
+  revive: "复活道具",
+  pp: "PP 道具",
+  tm: "技能机器",
   training: "训练道具",
   system: "系统道具",
+  valuable: "贵重/剧情道具",
   special: "特殊道具",
   held: "携带道具",
   battle: "战斗道具",
   other: "其他道具",
 };
+const ITEM_SOURCE_LABEL: Record<DexItemSource, string> = {
+  showdown: "Showdown",
+  "v1-game": "V1 游戏道具",
+  overlay: "Showdown + V1",
+  system: "系统道具",
+};
+
+type ItemRegistryEntry = {
+  id: string;
+  name: string;
+  nameZh: string;
+  kind: DexItemKind;
+  source: DexItemSource;
+  description: string;
+  effectSummary?: string;
+  iconAsset?: string;
+  canBattleUse: boolean;
+  canUse: boolean;
+  canUseToPokemon: boolean;
+  canTake: boolean;
+  canSale: boolean;
+  cost: number;
+  futureInstanceCompatible: boolean;
+  tags?: string[];
+};
+
+const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
+  v1Item("potion", "Potion", "回复药", "recovery", "恢复 20 点 HP。", {cost: 300, canBattleUse: true}),
+  v1Item("superpotion", "Super Potion", "好伤药", "recovery", "恢复 60 点 HP。", {cost: 700, canBattleUse: true}),
+  v1Item("hyperpotion", "Hyper Potion", "绝好伤药", "recovery", "恢复 120 点 HP。", {cost: 1200, canBattleUse: true}),
+  v1Item("maxpotion", "Max Potion", "全满药", "recovery", "恢复全部 HP。", {cost: 2500, canBattleUse: true}),
+  v1Item("fullrestore", "Full Restore", "全复药", "recovery", "恢复全部 HP，并解除异常状态。", {cost: 3000, canBattleUse: true}),
+  v1Item("freshwater", "Fresh Water", "美味之水", "recovery", "恢复 30 点 HP。", {cost: 200, canBattleUse: true}),
+  v1Item("sodapop", "Soda Pop", "劲爽汽水", "recovery", "恢复 50 点 HP。", {cost: 300, canBattleUse: true}),
+  v1Item("lemonade", "Lemonade", "果汁牛奶", "recovery", "恢复 70 点 HP。", {cost: 350, canBattleUse: true}),
+  v1Item("moomoomilk", "Moomoo Milk", "哞哞鲜奶", "recovery", "恢复 100 点 HP。", {cost: 500, canBattleUse: true}),
+  v1Item("fullheal", "Full Heal", "万灵药", "recovery", "解除异常状态。", {cost: 600, canBattleUse: true}),
+  v1Item("healpowder", "Heal Powder", "万能粉", "recovery", "解除异常状态。", {cost: 450, canBattleUse: true}),
+  v1Item("antidote", "Antidote", "解毒药", "recovery", "解除中毒状态。", {cost: 100, canBattleUse: true}),
+  v1Item("burnheal", "Burn Heal", "灼伤药", "recovery", "解除灼伤状态。", {cost: 250, canBattleUse: true}),
+  v1Item("iceheal", "Ice Heal", "解冻药", "recovery", "解除冰冻状态。", {cost: 250, canBattleUse: true}),
+  v1Item("awakening", "Awakening", "解眠药", "recovery", "解除睡眠状态。", {cost: 250, canBattleUse: true}),
+  v1Item("paralyzeheal", "Paralyze Heal", "解麻药", "recovery", "解除麻痹状态。", {cost: 200, canBattleUse: true}),
+  v1Item("energypowder", "Energy Powder", "元气粉", "recovery", "恢复 60 点 HP。", {cost: 500, canBattleUse: true}),
+  v1Item("energyroot", "Energy Root", "元气根", "recovery", "恢复 120 点 HP。", {cost: 800, canBattleUse: true}),
+  v1Item("revive", "Revive", "活力碎片", "revive", "让濒死宝可梦复活，并恢复一半 HP。", {cost: 1500, canBattleUse: true}),
+  v1Item("maxrevive", "Max Revive", "活力块", "revive", "让濒死宝可梦复活，并恢复全部 HP。", {cost: 4000, canBattleUse: true}),
+  v1Item("revivalherb", "Revival Herb", "复活草", "revive", "让濒死宝可梦复活，并恢复全部 HP。", {cost: 2800, canBattleUse: true}),
+  v1Item("ether", "Ether", "PP 单项小补剂", "pp", "让 1 个招式恢复 10 点 PP。", {cost: 1200, canBattleUse: true}),
+  v1Item("maxether", "Max Ether", "PP 单项全补剂", "pp", "让 1 个招式恢复全部 PP。", {cost: 2000, canBattleUse: true}),
+  v1Item("elixir", "Elixir", "PP 多项小补剂", "pp", "让所有招式恢复 10 点 PP。", {cost: 3000, canBattleUse: true}),
+  v1Item("maxelixir", "Max Elixir", "PP 多项全补剂", "pp", "让所有招式恢复全部 PP。", {cost: 4500, canBattleUse: true}),
+  v1Item("rarecandy", "Rare Candy", "神奇糖果", "training", "休整页使用，使宝可梦提升 1 级。", {cost: 4800, canBattleUse: false}),
+  v1Item("hpup", "HP Up", "HP 增强剂", "training", "休整页使用，提升 HP 努力值 100 点。", {cost: 10000, canBattleUse: false}),
+  v1Item("protein", "Protein", "攻击增强剂", "training", "休整页使用，提升攻击努力值 100 点。", {cost: 10000, canBattleUse: false}),
+  v1Item("iron", "Iron", "防御增强剂", "training", "休整页使用，提升防御努力值 100 点。", {cost: 10000, canBattleUse: false}),
+  v1Item("calcium", "Calcium", "特攻增强剂", "training", "休整页使用，提升特攻努力值 100 点。", {cost: 10000, canBattleUse: false}),
+  v1Item("zinc", "Zinc", "特防增强剂", "training", "休整页使用，提升特防努力值 100 点。", {cost: 10000, canBattleUse: false}),
+  v1Item("carbos", "Carbos", "速度增强剂", "training", "休整页使用，提升速度努力值 100 点。", {cost: 10000, canBattleUse: false}),
+  v1Item("ppup", "PP Up", "PP 提升剂", "training", "提高 1 个招式的 PP 上限。", {cost: 9800, canBattleUse: false}),
+  v1Item("ppmax", "PP Max", "PP 极限提升剂", "training", "将 1 个招式的 PP 上限提升到最大。", {cost: 16000, canBattleUse: false}),
+  v1Item("bottlecap", "Bottle Cap", "银色王冠", "training", "休整页使用，指定 1 项个体值提升到 31。", {cost: 12000, canBattleUse: false}),
+  v1Item("goldbottlecap", "Gold Bottle Cap", "金色王冠", "training", "休整页使用，全部个体值提升到 31。", {cost: 30000, canBattleUse: false}),
+  v1Item("system-mega-stone", "Generic Mega Stone", "通用Mega石", "system", "准备阶段映射为真实 Mega 石；战斗中是否可 Mega 由 Showdown request 决定。", {source: "system", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/medichamite/icon.png", tags: ["Mega", "mega进化", "超级进化"]}),
+  v1Item("system-z-crystal", "Generic Z-Crystal", "通用Z纯晶", "system", "准备阶段映射为真实 Z 纯晶；战斗中是否可使用 Z 招式由 Showdown request 决定。", {source: "system", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/electriumz/icon.png", tags: ["Z招式", "Z-Move", "纯晶"]}),
+  v1Item("system-dynamax-band", "Dynamax Band", "极巨化手环", "system", "玩家级系统资格，不占宝可梦携带道具；极巨化入口由 Showdown request 决定。", {source: "system", canUse: false, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/redorb/icon.png", tags: ["极巨化", "Dynamax", "Max"]}),
+  v1Item("system-tera-orb", "Generic Tera Orb", "通用太晶珠", "system", "玩家级系统资格，不占宝可梦携带道具；太晶属性来自后续配置。", {source: "system", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/adamantcrystal/icon.png", tags: ["太晶化", "Terastallize", "太晶珠"]}),
+];
+
+const V1_GAME_ITEM_BY_ID = new Map(V1_GAME_ITEM_ENTRIES.map(entry => [toID(entry.id), entry]));
 
 export function createShowdownDexService(options: ShowdownDexServiceOptions = {}) {
   const dex = options.dex || createLocalShowdownDex();
@@ -266,11 +355,17 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
 
   function getItemDetail(id: string): DexItemDetail {
     const activeDex = requireDex();
+    if (isTmItemId(id)) {
+      const moveId = id.slice(3);
+      const move = activeDex.moves.get(moveId);
+      assertExists(move, "Move", moveId);
+      return tmItemDetail(activeDex, move);
+    }
     const item = activeDex.items.get(id);
+    const overlay = V1_GAME_ITEM_BY_ID.get(toID(id));
+    if (!item?.exists && overlay) return registryItemDetail(overlay);
     assertExists(item, "Item", id);
-    const kind: DexItemKind = "battle";
-    const icon = resolveItemIcon(item.id);
-    return {id: item.id, name: item.name, nameZh: translate("items", item.name), kind, kindLabel: ITEM_KIND_LABEL[kind], description: translatedDescription("items", item.name, item.desc || item.shortDesc || ""), iconUrl: icon.url, iconStyle: icon.style};
+    return showdownItemDetail(item, overlay);
   }
 
   function getPokemonLearnset(speciesId: string): DexMoveSummary[] {
@@ -359,6 +454,11 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     return {url: `${resourcePrefix}sprites/itemicons-sheet.png`, style: `background:transparent url(${resourcePrefix}sprites/itemicons-sheet.png?v1) no-repeat scroll -${left}px -${top}px`};
   }
 
+  function resolveRegistryItemIcon(asset: string) {
+    const path = asset.replace(/^assets\//, "").replace(/^\/+/, "");
+    return {url: `${resourcePrefix.replace(/showdown\/$/, "")}${path}`, style: undefined as string | undefined};
+  }
+
   function resolvePokemonIcon(speciesId: string) {
     const species = requireDex().species.get(speciesId);
     const id = species?.id || toID(speciesId);
@@ -374,11 +474,131 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     if (category === "pokemon") return activeDex.species.all().filter(includeSpecies).map(species => pokemonRow(activeDex, species));
     if (category === "moves") return activeDex.moves.all().filter(entry => entry.exists).map(move => ({id: move.id, category: "moves", name: move.name, nameZh: translate("moves", move.name), subtitle: `${translate("types", move.type || "")} / ${translate("categories", move.category || "")}`, description: translatedDescription("moves", move.name, move.shortDesc || move.desc || ""), tags: [move.id, move.name, translate("moves", move.name), move.type, translate("types", move.type || ""), move.category, translate("categories", move.category || "")].filter(Boolean)}));
     if (category === "abilities") return activeDex.abilities.all().filter(entry => entry.exists).map(ability => ({id: ability.id, category: "abilities", name: ability.name, nameZh: translate("abilities", ability.name), subtitle: "特性", description: translatedDescription("abilities", ability.name, ability.shortDesc || ability.desc || ""), tags: [ability.id, ability.name, translate("abilities", ability.name)]}));
-    if (category === "items") return activeDex.items.all().filter(entry => entry.exists).map(item => {
-      const icon = resolveItemIcon(item.id);
-      return {id: item.id, category: "items", name: item.name, nameZh: translate("items", item.name), subtitle: ITEM_KIND_LABEL.battle, description: translatedDescription("items", item.name, item.shortDesc || item.desc || ""), tags: [item.id, item.name, translate("items", item.name), "battle", ITEM_KIND_LABEL.battle].filter(Boolean), iconUrl: icon.url, iconStyle: icon.style};
-    });
+    if (category === "items") return itemRows(activeDex);
     return [];
+  }
+
+  function itemRows(activeDex: ShowdownDexLike): DexSearchRow[] {
+    const rows = new Map<string, DexSearchRow>();
+    for (const item of activeDex.items.all().filter(entry => entry.exists)) {
+      const overlay = V1_GAME_ITEM_BY_ID.get(item.id);
+      rows.set(item.id, itemDetailToRow(showdownItemDetail(item, overlay)));
+    }
+    for (const entry of V1_GAME_ITEM_ENTRIES) {
+      if (!rows.has(entry.id)) rows.set(entry.id, itemDetailToRow(registryItemDetail(entry)));
+    }
+    for (const move of activeDex.moves.all().filter(entry => entry.exists && includeDataEntry(entry))) {
+      const detail = tmItemDetail(activeDex, move);
+      rows.set(detail.id, itemDetailToRow(detail));
+    }
+    return Array.from(rows.values());
+  }
+
+  function showdownItemDetail(item: any, overlay?: ItemRegistryEntry): DexItemDetail {
+    const kind = overlay?.kind || itemKind(item);
+    const icon = overlay?.iconAsset ? resolveRegistryItemIcon(overlay.iconAsset) : resolveItemIcon(item.id);
+    const source: DexItemSource = overlay ? "overlay" : "showdown";
+    const description = overlay?.description || translatedDescription("items", item.name, item.desc || item.shortDesc || "");
+    return {
+      id: item.id,
+      name: item.name,
+      nameZh: overlay?.nameZh || translate("items", item.name),
+      kind,
+      kindLabel: ITEM_KIND_LABEL[kind],
+      description,
+      source,
+      sourceLabel: ITEM_SOURCE_LABEL[source],
+      effectSummary: overlay?.effectSummary || description,
+      canBattleUse: overlay?.canBattleUse ?? false,
+      canUse: overlay?.canUse ?? false,
+      canUseToPokemon: overlay?.canUseToPokemon ?? false,
+      canTake: overlay?.canTake ?? true,
+      canSale: overlay?.canSale ?? true,
+      cost: overlay?.cost ?? 500,
+      futureInstanceCompatible: true,
+      iconUrl: icon.url,
+      iconStyle: icon.style,
+    };
+  }
+
+  function registryItemDetail(entry: ItemRegistryEntry): DexItemDetail {
+    const icon = resolveRegistryItemIcon(entry.iconAsset || `runtime/items/${entry.id}/icon.png`);
+    return {
+      id: entry.id,
+      name: entry.name,
+      nameZh: entry.nameZh,
+      kind: entry.kind,
+      kindLabel: ITEM_KIND_LABEL[entry.kind],
+      description: entry.description,
+      source: entry.source,
+      sourceLabel: ITEM_SOURCE_LABEL[entry.source],
+      effectSummary: entry.effectSummary || entry.description,
+      canBattleUse: entry.canBattleUse,
+      canUse: entry.canUse,
+      canUseToPokemon: entry.canUseToPokemon,
+      canTake: entry.canTake,
+      canSale: entry.canSale,
+      cost: entry.cost,
+      futureInstanceCompatible: entry.futureInstanceCompatible,
+      iconUrl: icon.url,
+      iconStyle: icon.style,
+    };
+  }
+
+  function tmItemDetail(activeDex: ShowdownDexLike, move: any): DexItemDetail {
+    const typeName = move.type || "Normal";
+    const typeZh = translate("types", typeName);
+    const moveNameZh = translate("moves", move.name);
+    const icon = resolveRegistryItemIcon(`runtime/items/machine${toID(typeName) || "normal"}/icon.png`);
+    return {
+      id: `tm:${move.id}`,
+      name: `TM ${move.name}`,
+      nameZh: `技能机器：${moveNameZh || move.name}`,
+      kind: "tm",
+      kindLabel: ITEM_KIND_LABEL.tm,
+      description: `让宝可梦学会 ${moveNameZh || move.name}。`,
+      source: "v1-game",
+      sourceLabel: ITEM_SOURCE_LABEL["v1-game"],
+      effectSummary: `技能机器模板。属性：${typeZh || typeName}，威力：${Number(move.basePower || 0) || "-"}，命中：${move.accuracy === true ? "-" : Number(move.accuracy || 0) || "-"}。`,
+      canBattleUse: false,
+      canUse: true,
+      canUseToPokemon: true,
+      canTake: false,
+      canSale: true,
+      cost: defaultTmCost(move),
+      futureInstanceCompatible: true,
+      moveId: move.id,
+      moveName: move.name,
+      moveNameZh,
+      iconUrl: icon.url,
+      iconStyle: icon.style,
+    };
+  }
+
+  function itemDetailToRow(detail: DexItemDetail): DexSearchRow {
+    return {
+      id: detail.id,
+      category: "items",
+      name: detail.name,
+      nameZh: detail.nameZh,
+      subtitle: detail.kindLabel,
+      description: detail.description,
+      tags: [
+        detail.id,
+        detail.name,
+        detail.nameZh,
+        detail.kind,
+        detail.kindLabel,
+        detail.sourceLabel || "",
+        detail.effectSummary || "",
+        detail.moveId || "",
+        detail.moveName || "",
+        detail.moveNameZh || "",
+        ...(V1_GAME_ITEM_BY_ID.get(detail.id)?.tags || []),
+      ].filter(Boolean),
+      iconUrl: detail.iconUrl,
+      iconStyle: detail.iconStyle,
+    };
   }
 
   function pokemonRow(activeDex: ShowdownDexLike, species: any): DexSearchRow {
@@ -518,6 +738,8 @@ function rankRow(row: DexSearchRow, query: string): number | null {
   if (parts.some(part => part === needle) || ids.some(id => id === needleId)) return 0;
   if (parts.some(part => part.startsWith(needle)) || (needleId && ids.some(id => id.startsWith(needleId)))) return 1;
   if (parts.some(part => part.includes(needle)) || (needleId && ids.some(id => id.includes(needleId)))) return 2;
+  const tokens = needle.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1 && tokens.every(token => parts.some(part => part.includes(token)))) return 3;
   return null;
 }
 
@@ -527,11 +749,60 @@ function categoryOrder(category: DexCategory): number {
 
 function itemKind(item: any): DexItemKind {
   const id = toID(item?.id || item?.name);
-  if (/potion|restore|revive|heal|ether|elixir|water|sodapop|lemonade|milk|herb|powder|root|antidote|awakening/.test(id)) return "recovery";
+  if (item?.isBerry || id.endsWith("berry")) return "berry";
+  if (/revive|revivalherb|sacredash/.test(id)) return "revive";
+  if (/ether|elixir|ppup|ppmax/.test(id)) return "pp";
+  if (/potion|restore|heal|water|sodapop|lemonade|milk|herb|powder|root|antidote|awakening|burnheal|iceheal|paralyzeheal/.test(id)) return "recovery";
   if (/mint|abilitycapsule|abilitypatch|protein|iron|calcium|zinc|carbos|hpup/.test(id)) return "training";
-  if (/ticket|pass|coupon|key/.test(id)) return "system";
+  if (/ticket|pass|coupon|key|charm|flute|rod|bike|bicycle|coin|case/.test(id)) return "valuable";
   if (item?.megaStone || item?.zMove || item?.zMoveType || /iumz|ite$|itex$|itey$|max|tera/.test(id)) return "special";
-  return "other";
+  if (item?.fling || item?.onPlate || item?.onDrive || item?.onMemory || item?.onGem || item?.onTakeItem || item?.onStart || item?.onResidual || item?.onModifyAtk || item?.onModifySpA || item?.onModifySpe || item?.onModifyMove || item?.onBasePower) return "held";
+  return "battle";
+}
+
+function v1Item(
+  id: string,
+  name: string,
+  nameZh: string,
+  kind: DexItemKind,
+  description: string,
+  options: Partial<Omit<ItemRegistryEntry, "id" | "name" | "nameZh" | "kind" | "description">> = {},
+): ItemRegistryEntry {
+  return {
+    id,
+    name,
+    nameZh,
+    kind,
+    source: options.source || "v1-game",
+    description,
+    effectSummary: options.effectSummary || description,
+    iconAsset: options.iconAsset || `runtime/items/${id}/icon.png`,
+    canBattleUse: options.canBattleUse ?? false,
+    canUse: options.canUse ?? true,
+    canUseToPokemon: options.canUseToPokemon ?? kind !== "system",
+    canTake: options.canTake ?? false,
+    canSale: options.canSale ?? true,
+    cost: options.cost ?? 500,
+    futureInstanceCompatible: options.futureInstanceCompatible ?? true,
+    tags: options.tags || [],
+  };
+}
+
+function isTmItemId(id: string): boolean {
+  return /^tm:/i.test(String(id || ""));
+}
+
+function includeDataEntry(entry: any): boolean {
+  return entry?.exists && (!entry.isNonstandard || entry.isNonstandard === "Past" || entry.isNonstandard === "Future");
+}
+
+function defaultTmCost(move: any): number {
+  const power = Number(move?.basePower || 0);
+  if (power >= 120) return 800;
+  if (power > 90) return 650;
+  if (power > 60) return 500;
+  if (power > 30) return 400;
+  return 300;
 }
 
 function assertExists(entry: any, label: string, id: string): void {

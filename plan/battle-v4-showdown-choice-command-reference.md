@@ -1,5 +1,7 @@
 # Battle V4 Showdown Choice Command Reference
 
+> 状态：已全部完成。合法 Showdown choice 指令表与 `showdownCommand.ts` helper 已接入；后续仅作为参考维护。
+
 ## Scope
 
 This is the Battle V4 reference table for player choices sent to the local Pokemon Showdown engine. It is based on the local Showdown client and simulator sources, not memory.

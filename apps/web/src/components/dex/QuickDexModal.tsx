@@ -218,7 +218,7 @@ export function QuickDexModal({api, onClose}: {api: ChangeBattleV2Api; onClose: 
               <div className={`quick-dex-list ${category === "moves" ? "move-results" : ""}`}>
                 {rows.map(row => (
                   <button type="button" className={row.id === selected?.id ? "selected" : ""} onClick={() => setSelected(row)} key={`${row.category}-${row.id}`}>
-                    {row.sprite?.iconUrl ? <PokemonIcon row={row} /> : row.iconStyle ? <span className="item-icon quick-dex-list-item-icon" style={styleFromCss(row.iconStyle)} /> : <span>{categoryIconForRow(row)}</span>}
+                    {row.sprite?.iconUrl ? <PokemonIcon row={row} /> : row.iconUrl || row.iconStyle ? <DexItemIcon iconUrl={row.iconUrl} iconStyle={row.iconStyle} className="quick-dex-list-item-icon" /> : <span>{categoryIconForRow(row)}</span>}
                     <strong>{row.nameZh || row.name}</strong>
                     <small>{row.subtitle || row.name}</small>
                   </button>
@@ -469,15 +469,48 @@ function AbilityDetail({detail, onPokemonClick}: {detail: DexAbilityDetail; onPo
 }
 
 function ItemDetail({detail}: {detail: DexItemDetail}) {
+  const usageBadges = [
+    booleanBadge("战斗中使用", detail.canBattleUse),
+    booleanBadge("直接使用", detail.canUse),
+    booleanBadge("对宝可梦使用", detail.canUseToPokemon),
+    booleanBadge("可携带", detail.canTake),
+    booleanBadge("可售卖", detail.canSale),
+    detail.futureInstanceCompatible ? "实例系统兼容" : "",
+  ].filter(Boolean);
   return (
     <div className="quick-dex-pokemon-info">
-      <DetailTitle title={detail.nameZh || detail.name} eyebrow={detail.name} tags={[detail.kindLabel]} />
+      <DetailTitle title={detail.nameZh || detail.name} eyebrow={detail.name} tags={[detail.kindLabel, detail.sourceLabel || ""]} />
       <div className="item-detail-head">
-        {detail.iconUrl ? <span className="item-icon" style={detail.iconStyle ? styleFromCss(detail.iconStyle) : {backgroundImage: `url(${detail.iconUrl})`}} /> : null}
-        <p className="quick-dex-description">{detail.description || "暂无说明。"}</p>
+        {detail.iconUrl || detail.iconStyle ? <DexItemIcon iconUrl={detail.iconUrl} iconStyle={detail.iconStyle} /> : null}
+        <div>
+          <p className="quick-dex-description">{detail.description || "暂无说明。"}</p>
+          {detail.effectSummary && detail.effectSummary !== detail.description ? <p className="quick-dex-description muted">{detail.effectSummary}</p> : null}
+        </div>
+      </div>
+      <div className="quick-dex-badges item-detail-usage">
+        {usageBadges.map(value => <span key={value}>{value}</span>)}
+      </div>
+      <div className="item-detail-meta-grid">
+        <span><b>ID</b><em>{detail.id}</em></span>
+        <span><b>分类</b><em>{detail.kindLabel}</em></span>
+        <span><b>来源</b><em>{detail.sourceLabel || detail.source || "Showdown"}</em></span>
+        <span><b>成本</b><em>{detail.cost ?? "-"}</em></span>
+        {detail.moveName || detail.moveNameZh ? <span><b>对应技能</b><em>{detail.moveNameZh || detail.moveName}</em></span> : null}
       </div>
     </div>
   );
+}
+
+function booleanBadge(label: string, value: boolean | undefined): string {
+  if (value === undefined) return "";
+  return `${label}${value ? "：是" : "：否"}`;
+}
+
+function DexItemIcon({iconUrl, iconStyle, className = ""}: {iconUrl?: string; iconStyle?: string; className?: string}) {
+  const classNames = ["item-icon", className].filter(Boolean).join(" ");
+  if (iconStyle) return <span className={classNames} style={styleFromCss(iconStyle)} />;
+  if (iconUrl) return <img className={classNames} src={iconUrl} alt="" loading="lazy" />;
+  return null;
 }
 
 function EnvironmentDetail({

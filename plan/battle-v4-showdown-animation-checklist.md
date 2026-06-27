@@ -1,5 +1,7 @@
 # Battle V4 Showdown Animation Checklist
 
+> 状态：已全部完成。第一阶段全量 key registry、fallback/preset 可播放与基础 diagnostics 已完成；后续 fidelity 精修以 deep sync checklist 为准。
+
 ## Count Verification
 
 提取日期：2026-06-26
