@@ -1,8 +1,9 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemAllowedForRuleSetV4, battleSpecialSystemForChoiceV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemForChoiceV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
+import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
@@ -28,23 +29,7 @@ type BattleV4StatusBadge = {
   className: string;
 };
 
-type BattleV4MoveCardView = {
-  action: MoveActionV4;
-  detail: DexMoveDetail | null;
-  baseMove: BattleMoveRequestV4;
-  displayedMove: BattleMoveRequestV4;
-  selectedSpecial: BattleSpecialChoiceV4 | null;
-  id: string;
-  name: string;
-  typeId: string;
-  typeLabel: string;
-  categoryLabel: string;
-  powerLabel: string;
-  accuracyLabel: string;
-  ppLabel: string;
-  effectivenessLabel: string;
-  effectivenessTone: "none" | "bad" | "weak" | "normal" | "good" | "great";
-};
+type BattleV4MoveCardView = BattleV4SkillCommandMoveCardView;
 
 type BattleV4TargetCardView = {
   key: string;
@@ -743,51 +728,26 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   }
   if (commandMode === "moves") {
     return (
-      <section className="battle-v4-move-dock" aria-label="技能指令">
-        <div className="battle-v4-side-hints">
-          <span className="battle-v4-command-progress">{commandStatus}</span>
-          <button type="button" onClick={() => onCommandModeChange("command")}>返回</button>
-          <button type="button" disabled={!previewCard?.detail} onClick={() => {
-            if (previewCard?.detail) onPreviewMove(previewCard.detail);
-          }}>动画预览</button>
-        </div>
-        <div className="battle-v4-move-list">
-          {moveCards.length ? moveCards.map(card => (
-            <div className={`battle-v4-move-card-wrap ${card.action.specialOptions.length ? "has-specials" : ""}`} key={`${card.action.choice}-${card.id}`}>
-              <button
-                className={`battle-v4-move-card type-${card.typeId} effect-${card.effectivenessTone} ${card.selectedSpecial ? "special-ready" : ""}`}
-                type="button"
-                disabled={busy || isDisabledAction(card.action) || specialDisplayedMoveDisabled(card)}
-                onMouseEnter={() => setPreviewMoveId(card.id)}
-                onFocus={() => setPreviewMoveId(card.id)}
-                onClick={() => onMoveDraft(card.action, card.selectedSpecial)}
-              >
-                <span className="battle-v4-move-type">{card.typeLabel}</span>
-                <span className="battle-v4-move-body">
-                  <strong>{card.name}</strong>
-                  <span className="battle-v4-move-meta">
-                    <i>{card.categoryLabel}</i>
-                    <i>威力 {card.powerLabel}</i>
-                    <i>命中 {card.accuracyLabel}</i>
-                  </span>
-                </span>
-                <span className="battle-v4-move-pp">{card.ppLabel}</span>
-                <span className="battle-v4-move-effect">{card.effectivenessLabel}</span>
-              </button>
-            </div>
-          )) : <p>{message || "等待 Showdown request..."}</p>}
-        </div>
-        <BattleV4SpecialChoiceBar
-          options={specialOptions}
-          selected={selectedSpecial}
-          busy={busy}
-          lockedSystems={lockedSpecialSystems}
-          mode={viewModel?.command.normalizedRequest?.mode}
-          ruleSet={viewModel?.command.normalizedRequest?.ruleSet}
-          onChoose={setSelectedSpecial}
-          onUnavailable={onUnavailableSpecial}
-        />
-      </section>
+      <BattleV4SkillCommandPanel
+        commandStatus={commandStatus}
+        message={message}
+        busy={busy}
+        moveCards={moveCards}
+        previewCard={previewCard}
+        specialOptions={specialOptions}
+        selectedSpecial={selectedSpecial}
+        lockedSystems={lockedSpecialSystems}
+        mode={viewModel?.command.normalizedRequest?.mode}
+        ruleSet={viewModel?.command.normalizedRequest?.ruleSet}
+        onBack={() => onCommandModeChange("command")}
+        onPreviewMove={onPreviewMove}
+        onMoveDraft={onMoveDraft}
+        onPreviewMoveIdChange={setPreviewMoveId}
+        onChooseSpecial={setSelectedSpecial}
+        onUnavailableSpecial={onUnavailableSpecial}
+        isDisabledAction={isDisabledAction}
+        isSpecialDisplayedMoveDisabled={specialDisplayedMoveDisabled}
+      />
     );
   }
   return (
@@ -797,14 +757,16 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
         <img src="/battle/command-buttons/fight.webp" alt="" />
         <span>战斗</span>
       </button>
-      <button className="battle-v4-main-command switch" type="button" disabled={busy || !canInspectSwitch} onClick={onOpenSwitch}>
-        <img src="/battle/command-buttons/switch.webp" alt="" />
-        <span>宝可梦</span>
-      </button>
-      <button className={`battle-v4-main-command bag ${battleBagOpen ? "active" : ""}`} type="button" disabled={busy} onClick={onOpenBattleBag} title={battleBag.battleBagEnabled ? "查看战斗背包" : "战斗背包未开启"}>
-        <span className="battle-v4-main-command-fallback-icon">包</span>
-        <span>背包</span>
-      </button>
+      <div className="battle-v4-secondary-commands">
+        <button className="battle-v4-main-command switch" type="button" disabled={busy || !canInspectSwitch} onClick={onOpenSwitch}>
+          <img src="/battle/command-buttons/switch.webp" alt="" />
+          <span>宝可梦</span>
+        </button>
+        <button className={`battle-v4-main-command bag ${battleBagOpen ? "active" : ""}`} type="button" disabled={busy} onClick={onOpenBattleBag} title={battleBag.battleBagEnabled ? "查看战斗背包" : "战斗背包未开启"}>
+          <span className="battle-v4-main-command-fallback-icon">包</span>
+          <span>背包</span>
+        </button>
+      </div>
     </section>
   );
 }
@@ -848,112 +810,6 @@ function BattleV4BagItemIcon({api, item}: {api: ChangeBattleV2Api; item: PlayerI
   return item.image ? <ImageWithFallback src={item.image} alt="" fallback="◇" /> : <span className="battle-v4-bag-item-icon">◇</span>;
 }
 
-const SPECIAL_SYSTEM_BUTTONS: Array<{system: BattleSpecialSystemV4; label: string; icon: string; choices: BattleSpecialChoiceV4[]}> = [
-  {system: "mega", label: "mega", icon: "/specIcon/mega2.png", choices: ["mega", "megax", "megay", "ultra"]},
-  {system: "zmove", label: "Z招式", icon: "/specIcon/Z2.png", choices: ["zmove"]},
-  {system: "max", label: "极巨化", icon: "/specIcon/jjh2.png", choices: ["max"]},
-  {system: "terastallize", label: "太晶化", icon: "/specIcon/tjh2.png", choices: ["terastallize"]},
-];
-
-function BattleV4SpecialChoiceBar({options, selected, busy, lockedSystems, mode, ruleSet, onChoose, onUnavailable}: {
-  options: BattleSpecialChoiceOptionV4[];
-  selected: BattleSpecialChoiceV4 | null;
-  busy: boolean;
-  lockedSystems: Set<BattleSpecialSystemV4>;
-  mode?: string;
-  ruleSet?: string;
-  onChoose: (special: BattleSpecialChoiceV4 | null) => void;
-  onUnavailable: (message: string) => void;
-}) {
-  const [notice, setNotice] = useState("");
-  const [expanded, setExpanded] = useState(false);
-  const buttons = SPECIAL_SYSTEM_BUTTONS.map(button => {
-    const systemOptions = options.filter(option => button.choices.includes(option.id));
-    const ruleAllowed = battleSpecialSystemAllowedForRuleSetV4(button.system, ruleSet, mode);
-    const available = systemOptions.find(option => option.ruleAllowed && !option.disabled);
-    const locked = lockedSystems.has(button.system);
-    const representative = available || systemOptions[0] || null;
-    return {...button, ruleAllowed, available, representative, locked};
-  });
-  const selectedButton = buttons.find(button => selected && button.choices.includes(selected));
-  const hasAvailable = buttons.some(button => button.available);
-  return (
-    <div className={`battle-v4-special-button-panel ${expanded ? "expanded" : ""}`} aria-label="特殊系统">
-      <button
-        className={`battle-v4-special-main-button ${selectedButton ? "selected" : ""} ${hasAvailable ? "available" : ""}`}
-        type="button"
-        disabled={busy}
-        title={expanded ? "收起特殊系统" : "展开特殊系统"}
-        aria-label={expanded ? "收起特殊系统" : "展开特殊系统"}
-        aria-expanded={expanded}
-        onClick={() => setExpanded(value => !value)}
-      >
-        {selectedButton ? <img src={selectedButton.icon} alt="" /> : <span>特</span>}
-      </button>
-      <div className="battle-v4-special-button-bar">
-      {buttons.map(button => {
-        const active = Boolean(selected && button.choices.includes(selected));
-        const reason = unavailableSpecialReason(button.system, button.ruleAllowed, button.available || null, button.representative, button.locked);
-        const detail = specialSystemDetailLabel(button.label, button.available || button.representative || null);
-        const title = active ? `关闭${button.label}` : reason || `启用${detail}`;
-        return (
-          <button
-            className={`battle-v4-special-button special-${button.system} ${button.ruleAllowed ? "rule-on" : "rule-off"} ${button.available ? "available" : "unavailable"} ${button.locked ? "locked" : ""} ${active ? "selected" : ""}`}
-            type="button"
-            disabled={busy}
-            title={title}
-            aria-label={title}
-            key={button.system}
-            onClick={() => {
-              const nextNotice = active ? `已取消${button.label}` : reason || `已选择${detail}`;
-              if (active) {
-              onChoose(null);
-              setNotice(nextNotice);
-              onUnavailable(nextNotice);
-              setExpanded(false);
-              return;
-            }
-            if (reason) {
-                setNotice(reason);
-                onUnavailable(reason);
-              return;
-            }
-            onChoose(button.available?.id || null);
-            setNotice(nextNotice);
-            onUnavailable(nextNotice);
-            setExpanded(false);
-          }}
-        >
-            <img src={button.icon} alt="" />
-            <span>{button.label}</span>
-          </button>
-        );
-      })}
-      </div>
-      <p className={`battle-v4-special-notice ${notice ? "show" : ""}`}>{notice || "按 Showdown 请求显示可用特殊系统"}</p>
-    </div>
-  );
-}
-
-function uniqueSpecialOptionsForActions(actions: MoveActionV4[]): BattleSpecialChoiceOptionV4[] {
-  const byId = new Map<string, BattleSpecialChoiceOptionV4>();
-  const options: BattleSpecialChoiceOptionV4[] = [];
-  for (const action of actions) {
-    for (const option of action.specialOptions) {
-      const existing = byId.get(option.id);
-      if (existing && (!option.ruleAllowed || option.disabled || (existing.ruleAllowed && !existing.disabled))) continue;
-      byId.set(option.id, option);
-    }
-  }
-  for (const button of SPECIAL_SYSTEM_BUTTONS) {
-    for (const choice of button.choices) {
-      const option = byId.get(choice);
-      if (option) options.push(option);
-    }
-  }
-  return options;
-}
-
 function lockedSpecialSystemsForCommand(choices: string[]): Set<BattleSpecialSystemV4> {
   const locked = new Set<BattleSpecialSystemV4>();
   for (const choice of choices) {
@@ -976,24 +832,6 @@ function selectedSpecialForAction(action: MoveActionV4, selected: BattleSpecialC
   const system = battleSpecialSystemForChoiceV4(selected);
   if (system && lockedSystems.has(system)) return null;
   return action.specialOptions.some(option => option.id === selected && option.ruleAllowed && !option.disabled) ? selected : null;
-}
-
-function unavailableSpecialReason(system: BattleSpecialSystemV4, ruleAllowed: boolean, option: BattleSpecialChoiceOptionV4 | null, representative: BattleSpecialChoiceOptionV4 | null, locked: boolean): string {
-  const name = system === "mega" ? "Mega/究极爆发" :
-    system === "zmove" ? "Z招式" :
-    system === "max" ? "极巨化" :
-    "太晶化";
-  if (!ruleAllowed) return `${name}当前规则不可用`;
-  if (locked) return `${name}本回合已选择，不能让第二只同时使用`;
-  if (!representative) return `${name}没有出现在本次 Showdown request 中`;
-  if (!option) return `${name}当前不可用：${representative.moveName || representative.label || "对应招式"}被禁用或已不可选`;
-  return "";
-}
-
-function specialSystemDetailLabel(label: string, option: BattleSpecialChoiceOptionV4 | null): string {
-  if (!option) return label;
-  const detail = [option.label, option.moveName, option.typeLabel].filter(Boolean).join(" · ");
-  return detail || label;
 }
 
 function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit}: {

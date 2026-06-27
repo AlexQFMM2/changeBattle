@@ -1327,75 +1327,6 @@
   object-fit: contain;
 }
 
-.battle-v4-move-dock {
-  position: absolute;
-  right: 6px;
-  top: 84px;
-  z-index: 58;
-  width: 184px;
-  display: grid;
-  gap: 6px;
-  color: #fff;
-}
-
-.battle-v4-side-hints {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-}
-
-.battle-v4-side-hints button {
-  min-width: 86px;
-  height: 19px;
-  border: 0;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgb(14 19 33 / 76%), rgb(28 34 58 / 66%));
-  color: #fff;
-  font-size: 9px;
-  font-weight: 1000;
-}
-
-.battle-v4-move-list {
-  display: grid;
-  gap: 7px;
-}
-
-.battle-v4-move-card {
-  min-width: 0;
-  min-height: 40px;
-  display: grid;
-  grid-template-columns: 37px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px 4px 5px;
-  border: 2px solid rgb(255 255 255 / 74%);
-  border-radius: 999px 8px 8px 999px;
-  background: linear-gradient(100deg, #8167ff 0%, #4e34da 35%, #150d42 100%);
-  box-shadow: 0 2px 0 rgb(0 0 0 / 36%), inset 0 0 0 1px rgb(255 255 255 / 16%);
-  color: #fff;
-  text-align: left;
-  text-shadow: 0 1px 0 rgb(0 0 0 / 72%);
-}
-
-.battle-v4-move-card:disabled {
-  opacity: .55;
-}
-
-.battle-v4-move-card strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-  font-weight: 1000;
-}
-
-.battle-v4-move-card em {
-  font-size: 14px;
-  font-style: italic;
-  font-weight: 1000;
-}
-
 .battle-v4-move-type {
   height: 24px;
   display: grid;
@@ -2472,13 +2403,21 @@ button.battle-v4-switch-card:hover {
 
 .battle-v4-command-dock.command {
   left: auto;
-  right: 24px;
+  right: 16px;
   top: auto;
-  bottom: 96px;
+  bottom: 18px;
   width: 104px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 50px 38px;
+  justify-content: center;
+  align-items: center;
+  justify-items: center;
+  gap: 4px;
 }
 
 .battle-v4-command-progress {
+  grid-column: 1 / -1;
+  justify-self: end;
   min-width: 92px;
   max-width: 138px;
   padding: 3px 5px;
@@ -2486,24 +2425,29 @@ button.battle-v4-switch-card:hover {
 }
 
 .battle-v4-main-command.fight {
-  width: 50px;
-  height: 50px;
+  grid-column: 1;
+  grid-row: 2;
+  width: 52px;
+  height: 52px;
   padding: 7px 5px 8px;
   font-size: 10px;
 }
 
-.battle-v4-main-command.switch {
-  width: 46px;
-  height: 46px;
-  padding: 6px 5px 7px;
-  font-size: 9px;
+.battle-v4-secondary-commands {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: center;
+  display: grid;
+  grid-template-columns: repeat(2, 38px);
+  gap: 5px;
 }
 
+.battle-v4-main-command.switch,
 .battle-v4-main-command.bag {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   padding: 5px 4px 6px;
-  font-size: 8px;
+  font-size: 7px;
 }
 
 .battle-v4-main-command img {
@@ -2518,21 +2462,40 @@ button.battle-v4-switch-card:hover {
 }
 
 .battle-v4-move-dock {
+  position: absolute;
   right: 8px;
-  top: 94px;
-  width: 238px;
-  justify-items: end;
+  top: auto;
+  bottom: 5px;
+  left: auto;
+  width: 232px;
+  height: 184px;
+  display: block;
+  color: #fff;
+  pointer-events: none;
 }
 
 .battle-v4-side-hints {
-  width: 238px;
-  grid-template-columns: 28px 1fr;
+  position: absolute;
+  right: 0;
+  bottom: 152px;
+  width: 174px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
   align-items: center;
   justify-items: end;
   gap: 4px;
+  pointer-events: auto;
 }
 
-.battle-v4-side-hints button:first-child {
+.battle-v4-side-hints .battle-v4-command-progress {
+  grid-column: 1;
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+}
+
+.battle-v4-back-command {
+  grid-column: 2;
   width: 28px;
   min-width: 28px;
   height: 28px;
@@ -2544,28 +2507,34 @@ button.battle-v4-switch-card:hover {
   font-size: 0;
 }
 
-.battle-v4-side-hints button:first-child::before {
+.battle-v4-back-command::before {
   content: "‹";
   font-size: 22px;
   line-height: 1;
 }
 
-.battle-v4-side-hints button:last-child {
+.battle-v4-preview-command {
   display: none;
 }
 
 .battle-v4-move-list {
-  width: 184px;
-  gap: 5px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 174px;
+  display: grid;
+  gap: 4px;
+  pointer-events: auto;
 }
 
 .battle-v4-special-button-panel {
   position: absolute;
-  right: 194px;
-  top: 10px;
+  right: 184px;
+  bottom: 34px;
   width: 48px;
-  height: 206px;
+  height: 116px;
   z-index: 4;
+  pointer-events: auto;
 }
 
 .battle-v4-special-button-bar {
@@ -2575,9 +2544,9 @@ button.battle-v4-switch-card:hover {
 }
 
 .battle-v4-move-card-wrap {
-  width: 184px;
+  width: 174px;
   position: relative;
-  min-height: 38px;
+  min-height: 34px;
   display: flex;
   justify-content: flex-end;
 }
@@ -2587,11 +2556,11 @@ button.battle-v4-switch-card:hover {
   --battle-v4-move-accent-dark: #3d3196;
   position: relative;
   box-sizing: border-box;
-  width: 184px;
-  min-height: 38px;
-  grid-template-columns: 30px minmax(0, 1fr) 35px;
-  gap: 4px;
-  padding: 4px 6px 9px 5px;
+  width: 174px;
+  min-height: 34px;
+  grid-template-columns: 27px minmax(0, 1fr) 31px;
+  gap: 3px;
+  padding: 3px 5px 7px 4px;
   border: 2px solid rgb(235 229 255 / 86%);
   border-radius: 999px 7px 7px 999px;
   background:
@@ -2633,7 +2602,7 @@ button.battle-v4-switch-card:hover {
 .battle-v4-special-main-button {
   position: absolute;
   left: 3px;
-  top: 82px;
+  top: 36px;
   z-index: 2;
 }
 
@@ -2768,7 +2737,7 @@ button.battle-v4-switch-card:hover {
 .battle-v4-special-button {
   position: absolute;
   left: 3px;
-  top: 82px;
+  top: 36px;
   pointer-events: none;
   transform: translateY(0) scale(.54);
   opacity: 0;
@@ -2794,19 +2763,19 @@ button.battle-v4-switch-card:hover {
 }
 
 .battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(1) {
-  transform: translateY(-76px) scale(.78);
+  transform: translateY(-54px) scale(.72);
 }
 
 .battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(2) {
-  transform: translateY(-38px) scale(.78);
+  transform: translateY(-27px) scale(.72);
 }
 
 .battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(3) {
-  transform: translateY(38px) scale(.78);
+  transform: translateY(27px) scale(.72);
 }
 
 .battle-v4-special-button-panel.expanded .battle-v4-special-button:nth-child(4) {
-  transform: translateY(76px) scale(.78);
+  transform: translateY(54px) scale(.72);
 }
 
 .battle-v4-move-card:hover,
@@ -2821,20 +2790,20 @@ button.battle-v4-switch-card:hover {
 }
 
 .battle-v4-move-type {
-  width: 25px;
-  height: 25px;
+  width: 23px;
+  height: 23px;
   border-radius: 999px;
   background: rgb(255 255 255 / 82%);
   color: var(--battle-v4-move-accent-dark);
   box-shadow: inset 0 -2px 0 rgb(0 0 0 / 16%), 0 1px 2px rgb(0 0 0 / 34%);
-  font-size: 12px;
+  font-size: 11px;
   text-shadow: none;
 }
 
 .battle-v4-move-body {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .battle-v4-move-body strong {
@@ -2842,7 +2811,7 @@ button.battle-v4-switch-card:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 1000;
   line-height: 1;
 }
@@ -2867,7 +2836,7 @@ button.battle-v4-switch-card:hover {
 .battle-v4-move-pp {
   min-width: 0;
   justify-self: end;
-  font-size: 12px;
+  font-size: 10px;
   font-style: italic;
   font-weight: 1000;
 }
@@ -2875,7 +2844,7 @@ button.battle-v4-switch-card:hover {
 .battle-v4-move-effect {
   position: absolute;
   right: 14px;
-  bottom: -5px;
+  bottom: -4px;
   max-width: 112px;
   padding: 2px 8px 2px 10px;
   overflow: hidden;

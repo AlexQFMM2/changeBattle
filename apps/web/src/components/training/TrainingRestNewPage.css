@@ -1920,6 +1920,21 @@
   display: none;
 }
 
+.training-rest-new-pokemon-hp i::before {
+  background: linear-gradient(90deg, #d94a36 0%, #e2c43a 52%, #58c86d 100%);
+}
+
+.training-rest-new-stat-row.stat-tone-hp { --rest-new-stat-main: #49b86b; --rest-new-stat-end: #b9d84d; }
+.training-rest-new-stat-row.stat-tone-atk { --rest-new-stat-main: #d9c541; --rest-new-stat-end: #efd85b; }
+.training-rest-new-stat-row.stat-tone-def { --rest-new-stat-main: #e9872c; --rest-new-stat-end: #f1b13c; }
+.training-rest-new-stat-row.stat-tone-spa { --rest-new-stat-main: #4088d8; --rest-new-stat-end: #6db7ef; }
+.training-rest-new-stat-row.stat-tone-spd { --rest-new-stat-main: #2856b8; --rest-new-stat-end: #527add; }
+.training-rest-new-stat-row.stat-tone-spe { --rest-new-stat-main: #7d4bd4; --rest-new-stat-end: #b06ae8; }
+
+.training-rest-new-stat-row dd strong i::before {
+  background: linear-gradient(90deg, var(--rest-new-stat-main, #e98229), var(--rest-new-stat-end, #d9ba31));
+}
+
 .training-rest-new-team-close {
   right: -18px;
   top: -17px;

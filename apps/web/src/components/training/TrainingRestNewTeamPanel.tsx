@@ -238,7 +238,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, o
             const statMax = Math.max(maxPotentialStats[stat] || calculated[stat] || 1, 1);
             const statRate = Math.max(4, Math.min(100, calculated[stat] / statMax * 100));
             return (
-              <div key={stat}>
+              <div className={`training-rest-new-stat-row stat-tone-${stat}`} key={stat}>
                 <dt>{label}</dt>
                 <dd>
                   <strong style={{"--rest-new-stat-rate": `${statRate}%`} as CSSProperties}>
