@@ -69,6 +69,7 @@ const NATURE_OPTIONS = [
 ] as const;
 
 const NATURE_LABEL = Object.fromEntries(NATURE_OPTIONS.map(([id, label]) => [id, label])) as Record<string, string>;
+const TEST_BAG_ITEM_IDS = ["leftovers", "lifeorb", "oranberry", "potion", "ether", "rarecandy", "tm:thunderbolt", "system-mega-stone", "system-z-crystal", "system-tera-orb"];
 
 export function TrainingConfigPage({api, run, onRunChange, onStartRun, onStartRunNew, onBack}: TrainingConfigPageProps) {
   const npcs = useMemo(() => api.createTrainingNpcCatalog(), [api]);
@@ -234,6 +235,24 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onStartRu
     patchPlayerBag(playerId, {...bag, battleBagEnabled: enabled}, enabled ? "战斗背包开关已开启。" : "战斗背包开关已关闭。");
   }
 
+  function seedTestBag(playerId: ShowdownPlayerIdV4) {
+    const player = run.scenario.players.find(entry => entry.playerId === playerId);
+    if (!player) return;
+    const bag = api.normalizeBagState(player.bag);
+    const openSlots = Math.max(0, bag.maxSize - bag.items.length);
+    if (!openSlots) {
+      setMessage(`背包已满：${bag.items.length}/${bag.maxSize}。`);
+      return;
+    }
+    const additions = TEST_BAG_ITEM_IDS.slice(0, openSlots).map(itemID => api.createItemInstance(itemID));
+    const skipped = TEST_BAG_ITEM_IDS.length - additions.length;
+    patchPlayerBag(
+      playerId,
+      {...bag, items: [...bag.items, ...additions]},
+      skipped > 0 ? `测试道具已添加 ${additions.length} 个，容量不足跳过 ${skipped} 个。` : "测试背包已生成。",
+    );
+  }
+
   return (
     <motion.section className="training-config-page" initial={{opacity: 0, y: 12}} animate={{opacity: 1, y: 0}} transition={{type: "spring", stiffness: 300, damping: 30}}>
       <TrainingRuleBar
@@ -281,6 +300,7 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onStartRu
             onDelete={instanceId => deleteBagItem("p1", instanceId)}
             onPatchItem={(instanceId, patch) => patchBagItem("p1", instanceId, patch)}
             onToggleBattleBag={enabled => toggleBattleBag("p1", enabled)}
+            onSeedTestBag={() => seedTestBag("p1")}
           />
         ) : (
           <>
@@ -327,13 +347,14 @@ function TrainingDesignTabs({players, activeTab, onTeamTab, onBagTab}: {
   );
 }
 
-function TrainingBagPanel({api, player, onAdd, onDelete, onPatchItem, onToggleBattleBag}: {
+function TrainingBagPanel({api, player, onAdd, onDelete, onPatchItem, onToggleBattleBag, onSeedTestBag}: {
   api: ChangeBattleV2Api;
   player: TrainingPlayerDraftV4;
   onAdd: (itemID: string) => void;
   onDelete: (instanceId: string) => void;
   onPatchItem: (instanceId: string, patch: Partial<PlayerItemInstanceV4>) => void;
   onToggleBattleBag: (enabled: boolean) => void;
+  onSeedTestBag: () => void;
 }) {
   const bag = api.normalizeBagState(player.bag);
   const [selectedId, setSelectedId] = useState(bag.items[0]?.id || "");
@@ -359,6 +380,7 @@ function TrainingBagPanel({api, player, onAdd, onDelete, onPatchItem, onToggleBa
         <span>允许战斗页使用背包道具</span>
       </label>
       <TrainingDexSelect api={api} category="items" label="添加" value="" display={addDisplay} onSelect={itemID => onAdd(itemID)} />
+      <button className="training-bag-seed-button" type="button" onClick={onSeedTestBag}>生成测试背包</button>
       <div className="training-bag-list">
         {bag.items.length ? bag.items.map(item => (
           <button className={item.id === selected?.id ? "selected" : ""} type="button" onClick={() => setSelectedId(item.id)} key={item.id}>

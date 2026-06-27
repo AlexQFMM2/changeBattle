@@ -3,6 +3,7 @@ import {motion} from "motion/react";
 import type {ChangeBattleV2Api, DexStatId, LocalPokemonV4, StatTableV4, TrainingMoveSlotV4, TrainingPlayerDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "../dex/MoveCard.css";
+import "./TrainingRestNewTeamPanel.css";
 
 export type TrainingRestNewTeamPanelProps = {
   api: ChangeBattleV2Api;
@@ -273,7 +274,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, o
 function LockButton({locked, onClick}: {locked: boolean; onClick: () => void}) {
   return (
     <button className={`training-rest-new-lock-button ${locked ? "locked" : ""}`} type="button" onClick={onClick} aria-label={locked ? "取消锁定" : "锁定"}>
-      <img src={locked ? "/ui/lock/lock.png" : "/ui/lock/unlock.png"} alt="" draggable={false} />
+      <span aria-hidden="true" />
     </button>
   );
 }

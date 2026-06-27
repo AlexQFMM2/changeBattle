@@ -1,0 +1,18 @@
+.training-rest-next-preview-canvas {
+  position: absolute;
+  inset: 0;
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+  background: #1e1711;
+}
+
+.training-rest-next-preview-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 28%)),
+    url('/training/rest-center-bg.png') center / cover no-repeat,
+    #2b2119;
+  opacity: .92;
+}

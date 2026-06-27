@@ -1,6 +1,6 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经完成 V1 风格首屏/首页迁移，并先把图鉴做成 V2 的稳定数据入口；下一阶段准备迁训练页，再进入 Battle V4 战斗页。
+一个干净的新基座。当前阶段已经完成 V1 风格首屏/首页、训练配置页、Battle V4 战斗页主体接入，并正在完善正式 GameRun 的新休整页。
 
 ## Repository / Branch
 
@@ -29,25 +29,36 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - 本地 Showdown 资源：3D 四向立绘、小图 sheet、道具小图 sheet。
 - 对 Showdown 缺失的 V2 sprite 路径，按 `missing-sprites.json` 从旧 runtime 精确补图，并用 `runtime-overrides.json` 标记可重置范围。
 - 中文图鉴数据：中文名、中文说明、中文搜索、属性/分类/性格等基础翻译。
+- 训练配置页：训练师、队伍、背包测试道具和训练场入口。
+- RunGame 存档入口：主页支持发现存档后继续游戏；重新开始训练场会清理旧 RunGame。
+- Battle V4 训练场/战斗页主体：Showdown BattleStream session、request/choice、战斗 UI 壳、核心 singles/doubles/coop 流程接入。
+- 新休整页基础流程：我的队伍、我的背包、图鉴、下一场预览、结束休整、放弃比赛。
+- 休整页图鉴接入：左侧公告栏图鉴入口、下一场未知宝可梦解锁、已解锁后打开 QuickDex 对应详情。
+- 休整页背包 V1：独立背包面板、测试背包生成、道具详情、队伍选择、携带/更替、普通道具丢弃；恢复/TM/训练/重铸入口保留。
+- 休整页手动保存策略：队伍、背包、预览解锁等交互只更新内存草稿，只有小黑板“保存”写入 RunGame 快照。
+- 休整页组件边界规范化：队伍、背包、公告栏、下一场预览、小黑板、标题牌、确认弹窗均拆为独立组件和独立 CSS，并接入组件预览目录。
 
 当前明确不做：
 
 - app 端。
 - 正式 roguelike GameRun 奖励、商店、结算。
-- GameRun / 战斗进度 / 背包 / 统计等完整存档。
+- 完整 roguelike 经济、奖励、商店、统计和结算存档。
 - 旧 `dexSearch` 兼容。
 
-当前 Battle V4 首轮：
+当前 Battle V4 / Rest V4 进度：
 
 - 训练场休整页可以进入真实 Battle V4 中转页。
 - Battle service 使用 Showdown `BattleStream` 创建 session，保留 raw protocol/request/debug。
 - 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志。
 - 单打已打通核心 smoke；双打/合作使用同一 session API 和合法随机 AI 推进，后续继续补完整目标选择与动画。
+- 当前主要工作点已经从战斗页转到新休整页：继续完善背包、队伍、图鉴、商店/奖励等休整交互。
 
 下一步：
 
-- 搬训练页，先复用 V1 UI，数据和公共函数放到 `apps/api`。
-- 继续把旧 `battle-v2` 的目标选择、换人面板、日志弹窗、倍速/调试按钮细节迁到 `battle-v4`，并补战斗结束后的 HP/异常/PP 精准继承。
+- 继续完善休整页背包：恢复道具、PP 药、技能机器、训练道具、系统道具重铸和消耗/有效回合规则。
+- 完善休整页队伍与图鉴联动，并继续按 `docs/ui-design.md` 拆组件、补 preview。
+- 补战斗结束后的 HP/异常/PP/携带道具消耗精准继承。
+- 继续把旧 `battle-v2` 的目标选择、换人面板、日志弹窗、倍速/调试按钮细节迁到 `battle-v4`。
 
 详细路线见 `docs/training-and-battle-roadmap.md`。
 

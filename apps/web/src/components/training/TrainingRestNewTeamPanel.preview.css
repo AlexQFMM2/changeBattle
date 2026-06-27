@@ -1,0 +1,19 @@
+.training-rest-new-team-preview-canvas {
+  position: absolute;
+  inset: 0;
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+  background: #1e1711;
+  color: #fff8e8;
+}
+
+.training-rest-new-team-preview-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 28%)),
+    url('/training/rest-center-bg.png') center / cover no-repeat,
+    #2b2119;
+  opacity: .92;
+}

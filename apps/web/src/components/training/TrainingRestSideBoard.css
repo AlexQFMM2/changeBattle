@@ -1,0 +1,60 @@
+.training-rest-new-side-board {
+  display: grid;
+  place-items: center;
+}
+
+.training-rest-new-side-board.left {
+  --region-left: var(--rest-new-left-board-x);
+  --region-top: var(--rest-new-left-board-y);
+  --region-width: var(--rest-new-left-board-w);
+  --region-height: var(--rest-new-left-board-h);
+}
+
+.training-rest-new-side-board.right {
+  --region-left: var(--rest-new-right-board-x);
+  --region-top: var(--rest-new-right-board-y);
+  --region-width: var(--rest-new-right-board-w);
+  --region-height: var(--rest-new-right-board-h);
+}
+
+.training-rest-new-side-board div {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 11px;
+}
+
+.training-rest-new-side-board button {
+  min-width: 0;
+  height: 14px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #f4ead6;
+  padding: 0 2px;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+  text-shadow:
+    0 1px 0 #000,
+    0 0 4px rgb(255 238 198 / 34%);
+}
+
+.training-rest-new-side-board button.active {
+  color: #69d3ff;
+  text-shadow:
+    0 1px 0 #001321,
+    0 0 6px rgb(105 211 255 / 70%);
+}
+
+.training-rest-new-side-board button.danger {
+  color: #ff9a8a;
+}
+
+.training-rest-new-side-board button.danger.active {
+  color: #ff5c4f;
+  text-shadow:
+    0 1px 0 #2a0705,
+    0 0 6px rgb(255 92 79 / 70%);
+}

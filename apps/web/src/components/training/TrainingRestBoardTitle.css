@@ -1,0 +1,27 @@
+.training-rest-new-board-title {
+  display: grid;
+  place-items: center;
+  color: #f4ead6;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow:
+    0 2px 0 #1d1710,
+    0 0 5px rgb(255 232 170 / 36%);
+  pointer-events: none;
+}
+
+.training-rest-new-board-title.left {
+  --region-left: var(--rest-new-title-left-x);
+  --region-top: var(--rest-new-title-left-y);
+  --region-width: var(--rest-new-title-left-w);
+  --region-height: var(--rest-new-title-left-h);
+}
+
+.training-rest-new-board-title.right {
+  --region-left: var(--rest-new-title-right-x);
+  --region-top: var(--rest-new-title-right-y);
+  --region-width: var(--rest-new-title-right-w);
+  --region-height: var(--rest-new-title-right-h);
+}

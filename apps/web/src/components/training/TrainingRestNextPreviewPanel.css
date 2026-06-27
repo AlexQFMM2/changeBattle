@@ -1,0 +1,200 @@
+.training-rest-next-panel {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  left: var(--rest-new-notice-right-x);
+  top: var(--rest-new-notice-right-y);
+  width: var(--rest-new-notice-right-w);
+  height: var(--rest-new-notice-right-h);
+  padding: 17px 10px 10px;
+  background: rgb(24 132 255 / calc(var(--rest-new-notice-debug-region) * 0.22));
+  box-shadow: inset 0 0 0 calc(var(--rest-new-notice-debug-region) * 2px) rgb(89 204 255 / 0.88);
+  pointer-events: auto;
+}
+
+.training-rest-next-preview {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 52px minmax(0, 1fr);
+  justify-items: center;
+  gap: 5px;
+}
+
+.training-rest-next-npc-grid {
+  min-width: 0;
+  height: 52px;
+  display: grid;
+  justify-content: center;
+  align-content: center;
+  gap: 5px;
+}
+
+.training-rest-next-npc-grid.count-1 {
+  grid-template-columns: 72px;
+}
+
+.training-rest-next-npc-grid.count-2 {
+  grid-template-columns: repeat(2, 39px);
+}
+
+.training-rest-next-pokemon-card {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: url('/board/pinned-paper.png') center / 100% 100% no-repeat;
+  color: #2e2519;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 calc(var(--rest-new-card-debug-region) * 1px) rgb(89 204 255 / 0.94);
+  cursor: pointer;
+  transform-origin: center;
+  transition: filter .12s ease, transform .12s ease;
+}
+
+.training-rest-next-pokemon-card:hover,
+.training-rest-next-pokemon-card:focus-visible {
+  filter: brightness(1.08);
+  transform: scale(1.1);
+}
+
+.training-rest-next-pokemon-card:active {
+  transform: scale(1.1) translateY(1px);
+}
+
+.training-rest-next-unknown {
+  color: #5e5347;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 46%);
+}
+
+.training-rest-next-npc-card {
+  width: 100%;
+  height: 52px;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 8px 7px;
+  justify-items: center;
+  align-items: end;
+  color: #f4ead6;
+  text-shadow:
+    0 1px 0 #120b07,
+    0 0 4px rgb(255 236 184 / 42%);
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+}
+
+.training-rest-next-npc-card img {
+  max-width: 50px;
+  max-height: 36px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 0 rgb(0 0 0 / 42%));
+}
+
+.training-rest-next-npc-grid.count-2 .training-rest-next-npc-card {
+  grid-template-rows: minmax(0, 1fr) 7px 6px;
+}
+
+.training-rest-next-npc-grid.count-2 .training-rest-next-npc-card img {
+  max-width: 34px;
+  max-height: 32px;
+}
+
+.training-rest-next-npc-grid.count-2 .training-rest-next-npc-card strong {
+  font-size: 5px;
+}
+
+.training-rest-next-npc-grid.count-2 .training-rest-next-npc-card small {
+  font-size: 5px;
+}
+
+.training-rest-next-npc-card strong,
+.training-rest-next-npc-card small {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-next-npc-card strong {
+  font-size: 6px;
+  font-weight: 950;
+}
+
+.training-rest-next-npc-card small {
+  color: #69d3ff;
+  font-size: 5px;
+  font-weight: 950;
+}
+
+.training-rest-next-pokemon-grid {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  justify-content: center;
+  align-content: center;
+  gap: 5px;
+}
+
+.training-rest-next-panel.mode-coop .training-rest-next-pokemon-grid {
+  grid-template-columns: 28px;
+  grid-auto-rows: 28px;
+}
+
+.training-rest-next-panel.mode-singles .training-rest-next-pokemon-grid,
+.training-rest-next-panel.mode-doubles .training-rest-next-pokemon-grid {
+  grid-template-columns: repeat(2, 28px);
+  grid-auto-rows: 28px;
+  gap: 6px 10px;
+}
+
+.training-rest-next-coop-teams {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  justify-content: center;
+  align-content: center;
+  gap: 10px;
+}
+
+.training-rest-next-coop-column {
+  display: grid;
+  grid-template-columns: 28px;
+  grid-auto-rows: 28px;
+  gap: 6px;
+}
+
+.training-rest-next-pokemon-card {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.training-rest-next-pokemon-card img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  transform: translate(-50%, -42%);
+}
+
+.training-rest-next-picon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 30px;
+  display: block;
+  transform: translate(-50%, -46%) scale(.55);
+  transform-origin: center;
+}

@@ -1,0 +1,107 @@
+.component-gallery-page {
+  position: relative;
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+  background: #11161b;
+  color: #fff8e8;
+}
+
+.component-gallery-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.component-gallery-toolbar {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 30;
+  width: 112px;
+  display: grid;
+  gap: 5px;
+  border: 2px solid rgb(138 97 55 / 88%);
+  border-radius: 6px;
+  background: rgb(34 25 18 / 88%);
+  padding: 6px;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 225 154 / 24%),
+    0 4px 0 rgb(0 0 0 / 28%);
+}
+
+.component-gallery-toolbar header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 4px;
+  align-items: center;
+}
+
+.component-gallery-toolbar header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f4ead6;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 #000;
+}
+
+.component-gallery-toolbar header button,
+.component-gallery-list button {
+  min-width: 0;
+  border: 1px solid #8a6137;
+  border-radius: 4px;
+  background: rgb(255 250 237 / 94%);
+  color: #25332b;
+  font-weight: 950;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 24%);
+}
+
+.component-gallery-toolbar header button {
+  height: 16px;
+  padding: 0 2px;
+  font-size: 6px;
+  line-height: 1;
+}
+
+.component-gallery-list {
+  display: grid;
+  gap: 4px;
+}
+
+.component-gallery-list button {
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  text-align: left;
+}
+
+.component-gallery-list button.active {
+  border-color: #43c9ee;
+  outline: 1px solid #64e179;
+}
+
+.component-gallery-list strong,
+.component-gallery-list span {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+}
+
+.component-gallery-list strong {
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.component-gallery-list span {
+  display: -webkit-box;
+  color: #5b4a37;
+  font-size: 5px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

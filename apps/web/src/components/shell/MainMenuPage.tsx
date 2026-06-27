@@ -5,11 +5,12 @@ import {MainMenuCommandBar, type MainMenuCommandItem} from "./MainMenuCommandBar
 import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import "./MainMenuPage.css";
 
-export function MainMenuPage({profile, catalog, hasTrainingRun = false, onOpenDex, onTraining, onContinueTraining, onUserInfo, onTitle}: {
+export function MainMenuPage({profile, catalog, hasTrainingRun = false, onOpenDex, onOpenComponents, onTraining, onContinueTraining, onUserInfo, onTitle}: {
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
   hasTrainingRun?: boolean;
   onOpenDex: () => void;
+  onOpenComponents: () => void;
   onTraining: () => void;
   onContinueTraining?: () => void;
   onUserInfo: () => void;
@@ -20,6 +21,7 @@ export function MainMenuPage({profile, catalog, hasTrainingRun = false, onOpenDe
   const actionTimerRef = useRef<number | null>(null);
   const items: MainMenuCommandItem[] = [
     {label: "图鉴", action: onOpenDex, instant: true},
+    {label: "查看组件", action: onOpenComponents},
     ...(hasTrainingRun && onContinueTraining ? [{label: "继续游戏", action: onContinueTraining}] : []),
     {label: "训练场", action: onTraining},
     {label: "玩家设置", action: onUserInfo},

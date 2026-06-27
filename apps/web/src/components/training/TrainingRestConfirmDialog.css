@@ -1,0 +1,61 @@
+.training-rest-new-confirm {
+  position: absolute;
+  z-index: 2;
+}
+
+.training-rest-new-confirm {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(16 12 10 / 46%);
+}
+
+.training-rest-new-confirm div {
+  width: 220px;
+  display: grid;
+  gap: 8px;
+  border: 2px solid #9f7652;
+  border-radius: 6px;
+  background: rgb(32 24 18 / 94%);
+  padding: 13px;
+  color: #f4ead6;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 42%);
+}
+
+.training-rest-new-confirm strong {
+  font-size: 14px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.training-rest-new-confirm span {
+  color: #d8c8aa;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.training-rest-new-confirm footer {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.training-rest-new-confirm button {
+  height: 24px;
+  min-width: 58px;
+  border: 2px solid #8d6d4d;
+  border-radius: 5px;
+  background: #f3ead8;
+  color: #2c241a;
+  padding: 0 10px;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.training-rest-new-confirm button.danger {
+  border-color: #bb493d;
+  background: #b73931;
+  color: #fff3ea;
+}

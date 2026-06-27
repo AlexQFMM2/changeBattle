@@ -231,6 +231,21 @@
   grid-column: 1;
 }
 
+.training-bag-seed-button {
+  grid-column: 2;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid #665136;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #3f3527, #211a14);
+  color: #f6df9a;
+  padding: 0 8px;
+  font-size: 8px;
+  font-weight: 1000;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .training-team-panel.enemy {
   border-color: #5a4445;
   background: #171113;

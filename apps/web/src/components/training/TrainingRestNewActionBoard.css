@@ -1,0 +1,104 @@
+.training-rest-new-left-action-panel {
+  position: absolute;
+  left: var(--rest-new-notice-left-x);
+  top: var(--rest-new-notice-left-y);
+  z-index: 3;
+  width: var(--rest-new-notice-left-w);
+  height: var(--rest-new-notice-left-h);
+  display: grid;
+  grid-template-columns: repeat(2, 35px);
+  grid-template-rows: repeat(4, 34px);
+  justify-content: center;
+  align-content: center;
+  gap: 5px 7px;
+  padding: 9px 6px;
+}
+
+.training-rest-new-left-action-panel button {
+  position: relative;
+  z-index: 1;
+  width: 35px;
+  height: 34px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 7px;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: url('/board/pinned-paper.png') center / 100% 100% no-repeat;
+  color: #2e2519;
+  padding: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  transform-origin: center;
+  transition: filter .12s ease, transform .12s ease;
+  will-change: transform;
+}
+
+.training-rest-new-left-action-panel button:hover,
+.training-rest-new-left-action-panel button:focus-visible {
+  z-index: 2;
+  filter: brightness(1.08);
+  transform: scale(1.1);
+}
+
+.training-rest-new-left-action-panel button.active {
+  filter: brightness(1.08);
+}
+
+.training-rest-new-left-action-panel button:disabled {
+  cursor: default;
+  opacity: .58;
+  filter: grayscale(.22);
+}
+
+.training-rest-new-left-action-panel button:disabled:hover,
+.training-rest-new-left-action-panel button:disabled:focus-visible {
+  z-index: 2;
+  filter: grayscale(.22) brightness(1.08);
+  transform: scale(1.1);
+}
+
+.training-rest-new-left-action-panel button:active {
+  transform: scale(1.1) translateY(1px);
+}
+
+.training-rest-new-left-action-panel img,
+.training-rest-new-left-action-panel span,
+.training-rest-new-left-action-panel strong {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.training-rest-new-left-action-panel img {
+  align-self: end;
+  width: 20px;
+  height: 19px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 34%));
+}
+
+.training-rest-new-left-action-panel span {
+  align-self: end;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  background: #4a4035;
+  color: #e6d6b8;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-new-left-action-panel strong {
+  align-self: start;
+  color: #423527;
+  font-size: 5px;
+  font-weight: 950;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 52%);
+}

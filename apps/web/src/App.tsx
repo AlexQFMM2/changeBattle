@@ -14,6 +14,7 @@ import {
 import {QuickDexModal} from "./components/dex/QuickDexModal";
 import {BattleV4Page} from "./components/battle-v4/BattleV4Page";
 import {TrainingBattleTransitionPage} from "./components/battle-v4/TrainingBattleTransitionPage";
+import {ComponentGalleryPage} from "./components/gallery/ComponentGalleryPage";
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
@@ -240,6 +241,7 @@ function RoutedApp({runtime}: AppProps) {
         catalog={catalog.trainers}
         hasTrainingRun={Boolean(trainingRun)}
         onOpenDex={() => openDex()}
+        onOpenComponents={() => navigate("/components")}
         onTraining={() => void createTrainingRunAndOpenConfig()}
         onContinueTraining={() => void continueTrainingRun()}
         onUserInfo={startEdit}
@@ -256,6 +258,13 @@ function RoutedApp({runtime}: AppProps) {
       onBack={() => navigate(profile ? "/main" : "/", {replace: true})}
       onSave={createOrUpdateProfile}
       saveLabel="保存资料"
+    />
+  );
+
+  const componentGalleryPage = (
+    <ComponentGalleryPage
+      api={api}
+      onBack={() => navigate(profile ? "/main" : "/", {replace: true})}
     />
   );
 
@@ -347,6 +356,7 @@ function RoutedApp({runtime}: AppProps) {
       <Routes>
         <Route path="/" element={titlePage} />
         <Route path="/main" element={mainPage} />
+        <Route path="/components" element={componentGalleryPage} />
         <Route path="/user" element={settingsPage} />
         <Route path="/training/transition" element={<Navigate to="/training/config" replace />} />
         <Route path="/training/config" element={trainingConfigPage} />
