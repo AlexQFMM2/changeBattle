@@ -8,6 +8,7 @@ import {
   projectBattleViewModelV4,
   stringifyBattleCommandDraftV4,
   appendBattleSpecialChoiceSuffixV4,
+  undoBattleCommandChoiceV4,
   withBattleMoveTargetSuffixV4,
   type BattleRequestV4,
   type BattleSessionSnapshotV4,
@@ -441,6 +442,10 @@ assert(!doublesDraft.choices.length, "doubles naked move should not commit befor
 doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 1 +1");
 assert(!isBattleCommandDraftDoneV4(doublesDraft), "doubles first targeted move should not be done");
 assert(doublesDraft.activeIndex === 1, "doubles activeIndex should advance to second active");
+doublesDraft = undoBattleCommandChoiceV4(doublesDraft, doublesMove);
+assert(!doublesDraft.choices[0], "doubles undo should clear first choice");
+assert(doublesDraft.activeIndex === 0, "doubles undo should return to first active");
+doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 1 +1");
 doublesDraft = addBattleCommandChoiceV4(doublesDraft, doublesMove, "move 2 +2");
 assert(isBattleCommandDraftDoneV4(doublesDraft), "doubles second move should be done");
 assert(stringifyBattleCommandDraftV4(doublesDraft) === "move 1 +1, move 2 +2", "doubles move final choice mismatch");

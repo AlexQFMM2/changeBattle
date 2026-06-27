@@ -825,6 +825,22 @@ export function addBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: B
   }, request);
 }
 
+export function undoBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4): BattleCommandDraftV4 {
+  const normalized = fillBattleCommandPassesV4(draftMatchesRequest(draft, request) ? draft : createBattleCommandDraftV4(request), request);
+  if (normalized.currentMove) return {...normalized, currentMove: null};
+  const choices = normalized.choices.slice();
+  for (let index = Math.min(choices.length, request.requestLength) - 1; index >= 0; index -= 1) {
+    if (!choices[index] || shouldAutoPassChoiceSlot(request, index)) continue;
+    choices[index] = "";
+    return fillBattleCommandPassesV4({
+      ...normalized,
+      choices,
+      currentMove: null,
+    }, request);
+  }
+  return normalized;
+}
+
 export function setBattleCommandCurrentMoveV4(draft: BattleCommandDraftV4, request: BattleNormalizedRequestV4, moveIndex: number, requiresTarget: boolean, selectedSpecial?: BattleSpecialChoiceV4 | null): BattleCommandDraftV4 {
   const normalized = fillBattleCommandPassesV4(draftMatchesRequest(draft, request) ? draft : createBattleCommandDraftV4(request), request);
   const special = selectedSpecial ? ` ${showdownSpecialChoiceSuffixV4(selectedSpecial)}` : "";

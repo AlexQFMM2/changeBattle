@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemForChoiceV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemForChoiceV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
@@ -355,6 +355,23 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     setPendingMoveAction(draftedAction);
   }
 
+  function undoDraftChoice() {
+    const normalizedRequest = viewModel?.command.normalizedRequest;
+    if (!normalizedRequest || !commandDraft) return;
+    const before = fillBattleCommandPassesV4(commandDraft, normalizedRequest);
+    const after = undoBattleCommandChoiceV4(before, normalizedRequest);
+    battleDebugLog(debugConfig, "draft", "undo-choice", {
+      before,
+      after,
+    });
+    setPendingMoveAction(null);
+    setBattleBagOpen(false);
+    setSwitchPanelOpen(false);
+    setCommandMode("command");
+    setCommandDraft(after);
+    setChoiceStatus(`已返回：选择 ${after.choices.filter(Boolean).length}/${after.requestLength} 完成`);
+  }
+
   return (
     <section className="battle-v4-page">
       <BattleArena
@@ -395,6 +412,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
             }
             setBattleBagOpen(value => !value);
           }}
+          canUndoChoice={canUndoBattleCommandChoice(commandDraft, viewModel?.command.normalizedRequest || null)}
+          onUndoChoice={undoDraftChoice}
           onSubmit={applyDraftChoice}
           onMoveDraft={draftMoveAction}
           onPreviewMove={setPreviewMove}
@@ -665,7 +684,7 @@ function SpecialSystemBadges({slot}: {slot: BattleViewSlotV4}) {
   );
 }
 
-function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, battleBag, battleBagOpen, onOpenBattleBag, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
+function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, battleBag, battleBagOpen, onOpenBattleBag, canUndoChoice, onUndoChoice, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4 | null;
   snapshot: BattleSessionSnapshotV4 | null;
@@ -680,6 +699,8 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   battleBag: BagStateV4;
   battleBagOpen: boolean;
   onOpenBattleBag: () => void;
+  canUndoChoice: boolean;
+  onUndoChoice: () => void;
   onSubmit: (choice: string) => void;
   onMoveDraft: (action: MoveActionV4, selectedSpecial?: BattleSpecialChoiceV4 | null) => void;
   onPreviewMove: (move: DexMoveDetail) => void;
@@ -753,6 +774,11 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   return (
     <section className="battle-v4-command-dock command" aria-label="战斗指令">
       <span className="battle-v4-command-progress">{commandStatus}</span>
+      {canUndoChoice ? (
+        <button className="battle-v4-command-undo" type="button" disabled={busy} onClick={onUndoChoice}>
+          返回上一步
+        </button>
+      ) : null}
       <button className="battle-v4-main-command fight" type="button" disabled={busy || !moveActions.length} onClick={() => onCommandModeChange("moves")}>
         <img src="/battle/command-buttons/fight.webp" alt="" />
         <span>战斗</span>
@@ -827,6 +853,15 @@ function specialChoiceFromChoiceString(choice: unknown): BattleSpecialChoiceV4 |
   if (id === "mega" || id === "megax" || id === "megay" || id === "ultra" || id === "zmove" || id === "terastallize") return id;
   if (id === "max" || id === "dynamax") return "max";
   return null;
+}
+
+function canUndoBattleCommandChoice(draft: BattleCommandDraftV4 | null, request: BattleNormalizedRequestV4 | null): boolean {
+  if (!draft || !request) return false;
+  if (draft.currentMove) return true;
+  return draft.choices.some(choice => {
+    const normalized = choice.trim();
+    return normalized && normalized !== "pass";
+  });
 }
 
 function selectedSpecialForAction(action: MoveActionV4, selected: BattleSpecialChoiceV4 | null, lockedSystems = new Set<BattleSpecialSystemV4>()): BattleSpecialChoiceV4 | null {

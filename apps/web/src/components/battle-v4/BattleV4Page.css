@@ -2424,6 +2424,25 @@ button.battle-v4-switch-card:hover {
   font-size: 8px;
 }
 
+.battle-v4-command-undo {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  min-width: 62px;
+  height: 20px;
+  border: 1px solid rgba(210, 232, 255, .72);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(56, 86, 148, .92), rgba(31, 45, 92, .92));
+  color: #f4f0dc;
+  font-size: 8px;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+}
+
+.battle-v4-command-undo:disabled {
+  opacity: .55;
+}
+
 .battle-v4-main-command.fight {
   grid-column: 1;
   grid-row: 2;
