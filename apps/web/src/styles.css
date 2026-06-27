@@ -12,12 +12,33 @@
 
 html,
 body,
+#root,
+#root * {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+html,
+body,
 #root {
   width: 100%;
   min-width: 320px;
   height: 100%;
   min-height: 100vh;
   margin: 0;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+img,
+svg,
+canvas {
+  -webkit-user-drag: none;
+  user-drag: none;
+  user-select: none;
 }
 
 button,

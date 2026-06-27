@@ -24,6 +24,7 @@ export type TrainingConfigPageProps = {
   run: TrainingRunGameV4;
   onRunChange: (run: TrainingRunGameV4) => void;
   onStartRun: (run: TrainingRunGameV4) => void | Promise<void>;
+  onStartRunNew: (run: TrainingRunGameV4) => void | Promise<void>;
   onBack: () => void;
 };
 
@@ -69,7 +70,7 @@ const NATURE_OPTIONS = [
 
 const NATURE_LABEL = Object.fromEntries(NATURE_OPTIONS.map(([id, label]) => [id, label])) as Record<string, string>;
 
-export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: TrainingConfigPageProps) {
+export function TrainingConfigPage({api, run, onRunChange, onStartRun, onStartRunNew, onBack}: TrainingConfigPageProps) {
   const npcs = useMemo(() => api.createTrainingNpcCatalog(), [api]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<ShowdownPlayerIdV4>("p1");
   const [selectedPokemonId, setSelectedPokemonId] = useState(run.scenario.players[0]?.localTeam.pokemon[0]?.localPokemonId || "");
@@ -300,6 +301,7 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: 
         <button type="button" disabled={randomizing} onClick={randomizeAllTeams}>随机全部</button>
         <button type="button" onClick={() => void save()}>保存配置</button>
         <button type="button" className="primary" disabled={randomizing} onClick={() => void onStartRun(run)}>开始战斗</button>
+        <button type="button" className="primary alt" disabled={randomizing} onClick={() => void onStartRunNew(run)}>开始游戏（新）</button>
         <button type="button" onClick={onBack}>返回</button>
       </footer>
       {randomizing ? <div className="training-randomizing-toast" role="status">正在随机...</div> : null}

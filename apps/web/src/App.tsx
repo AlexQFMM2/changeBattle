@@ -19,6 +19,7 @@ import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
 import {TitlePage} from "./components/shell/TitlePage";
 import {TrainingConfigPage} from "./components/training/TrainingConfigPage";
+import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
 import {TrainingRestPage} from "./components/training/TrainingRestPage";
 import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
 
@@ -176,6 +177,12 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/training/run-transition", {replace: true});
   }
 
+  async function startTrainingRunNew(run: TrainingRunGameV4) {
+    const saved = await api.saveTrainingRun(api.createTrainingRunFromScenario(run));
+    setTrainingRun(saved);
+    navigate("/training/rest-new", {replace: true});
+  }
+
   async function enterTrainingRest() {
     const current = trainingRun || await api.loadTrainingRun();
     if (!current) {
@@ -241,6 +248,7 @@ function RoutedApp({runtime}: AppProps) {
         run={trainingRun}
         onRunChange={setTrainingRun}
         onStartRun={startTrainingRun}
+        onStartRunNew={startTrainingRunNew}
         onBack={() => navigate("/main", {replace: true})}
       />
     ) : (
@@ -263,6 +271,18 @@ function RoutedApp({runtime}: AppProps) {
         api={api}
         run={trainingRun}
         onRunChange={setTrainingRun}
+        onBackToConfig={() => navigate("/training/config", {replace: true})}
+        onStartBattle={startBattleFromRest}
+      />
+    ) : (
+      <TrainingRunTransitionPage onReady={() => void enterTrainingRest()} />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const trainingRestNewPage = profile ? (
+    trainingRun ? (
+      <TrainingRestNewPage
+        run={trainingRun}
         onBackToConfig={() => navigate("/training/config", {replace: true})}
         onStartBattle={startBattleFromRest}
       />
@@ -310,6 +330,7 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/config" element={trainingConfigPage} />
         <Route path="/training/run-transition" element={trainingRunTransitionPage} />
         <Route path="/training/rest" element={trainingRestPage} />
+        <Route path="/training/rest-new" element={trainingRestNewPage} />
         <Route path="/training/battle-transition" element={trainingBattleTransitionPage} />
         <Route path="/training/battle" element={trainingBattlePage} />
         <Route path="*" element={<Navigate to="/" replace />} />

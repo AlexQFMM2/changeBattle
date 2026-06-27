@@ -257,7 +257,7 @@ const NPC_CATALOG: TrainingNpcV4[] = [
     id: "red",
     name: "赤红",
     title: "高强度轮换",
-    avatar: "/npc/avatars/red-asset-18b76b7d.webp",
+    avatar: "/npc/boss/red-red-c813612f.gif",
     alliance: "far",
     preferredTypes: ["Electric", "Water", "Normal"],
     signatureSpeciesIds: ["pikachu", "snorlax", "lapras"],
