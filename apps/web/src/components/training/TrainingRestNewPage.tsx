@@ -1,22 +1,51 @@
 import {useState, type CSSProperties} from "react";
 import {motion} from "motion/react";
-import type {ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import "./TrainingRestNewPage.css";
 
 export type TrainingRestNewPageProps = {
+  api: ChangeBattleV2Api;
   run: TrainingRunGameV4;
+  onRunChange: (run: TrainingRunGameV4) => void;
   onBackToConfig: () => void;
   onStartBattle: () => void;
 };
 
-export function TrainingRestNewPage({run, onBackToConfig, onStartBattle}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
+  const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const preview = buildNextOpponentPreview(run);
+  const p1Team = run.players.p1?.localTeam || null;
+
+  async function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
+    const p1 = run.players.p1;
+    if (!p1) return;
+    const nextP1 = {...p1, localTeam};
+    const nextPlayers = {...run.players, p1: nextP1};
+    const nextScenarioPlayers = run.scenario.players.map(player => player.playerId === "p1" ? nextP1 : player);
+    const nextRun = {
+      ...run,
+      players: nextPlayers,
+      scenario: {...run.scenario, players: nextScenarioPlayers},
+      updatedAt: new Date().toISOString(),
+    };
+    onRunChange(nextRun);
+    const saved = await api.saveTrainingRun(nextRun);
+    onRunChange(saved);
+  }
 
   function selectAction(action: string) {
     setActiveAction(action);
+    if (action === "我的队伍") {
+      setTeamPanelOpen(true);
+      return;
+    }
+    if (["我的背包", "保存"].includes(action)) {
+      setTeamPanelOpen(false);
+    }
     if (action === "结束休整") {
       onStartBattle();
       return;
@@ -53,6 +82,13 @@ export function TrainingRestNewPage({run, onBackToConfig, onStartBattle}: Traini
           ))}
         </div>
       </nav>
+      <TrainingRestNewTeamPanel
+        api={api}
+        open={teamPanelOpen}
+        localTeam={p1Team}
+        onClose={() => setTeamPanelOpen(false)}
+        onLocalTeamChange={nextTeam => void updateP1Team(nextTeam)}
+      />
       {abandonOpen ? (
         <div className="training-rest-new-confirm" role="dialog" aria-label="确认放弃比赛">
           <div>

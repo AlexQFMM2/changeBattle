@@ -166,6 +166,17 @@ export type DexStatsResult = {
   stats: Record<DexStatId, number>;
 };
 
+export type DexPokemonMaxStatsInput = {
+  speciesId: string;
+  level?: number;
+};
+
+export type DexPokemonMaxStatsResult = {
+  speciesId: string;
+  level: number;
+  stats: Record<DexStatId, number>;
+};
+
 export type ShowdownDexLike = {
   species: {
     get(id: string): any;
@@ -407,15 +418,23 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     const nature = String(input.nature || "Serious");
     const natureData = activeDex.natures?.get(nature) || {};
     const stats = Object.fromEntries(STAT_IDS.map(stat => {
-      const base = Number(species.baseStats?.[stat] || 0);
-      const iv = clamp(Number(input.ivs?.[stat] ?? 31), 0, 31);
-      const ev = clamp(Number(input.evs?.[stat] ?? 0), 0, 252);
-      if (stat === "hp") return [stat, species.id === "shedinja" ? 1 : Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + level + 10];
-      const neutral = Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + 5;
-      const modifier = natureData.plus === stat ? 1.1 : natureData.minus === stat ? 0.9 : 1;
-      return [stat, Math.floor(neutral * modifier)];
+      const iv = Number(input.ivs?.[stat] ?? 31);
+      const ev = Number(input.evs?.[stat] ?? 0);
+      return [stat, calculatePokemonStat(species, stat, level, iv, ev, natureData)];
     })) as Record<DexStatId, number>;
     return {level, nature, stats};
+  }
+
+  function getPokemonMaxStats(input: DexPokemonMaxStatsInput): DexPokemonMaxStatsResult {
+    const activeDex = requireDex();
+    const species = activeDex.species.get(input.speciesId);
+    assertExists(species, "Pokemon", input.speciesId);
+    const level = clamp(Number(input.level || 100), 1, 100);
+    const stats = Object.fromEntries(STAT_IDS.map(stat => {
+      const natureData = stat === "hp" ? {} : {plus: stat};
+      return [stat, calculatePokemonStat(species, stat, level, 31, 255, natureData)];
+    })) as Record<DexStatId, number>;
+    return {speciesId: species.id, level, stats};
   }
 
   function resolvePokemonSprites(input: {speciesId: string}): DexPokemonSprites {
@@ -616,6 +635,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     getPokemonLearnset,
     getMoveLearners,
     calculatePokemonStats,
+    getPokemonMaxStats,
     resolvePokemonSprites,
     resolveTypeIcon,
     resolveCategoryIcon,
@@ -828,6 +848,16 @@ function defaultTmCost(move: any): number {
 
 function assertExists(entry: any, label: string, id: string): void {
   if (!entry?.exists) throw new Error(`${label} not found: ${id}`);
+}
+
+function calculatePokemonStat(species: any, stat: DexStatId, level: number, ivInput: number, evInput: number, natureData: any): number {
+  const base = Number(species.baseStats?.[stat] || 0);
+  const iv = clamp(ivInput, 0, 31);
+  const ev = clamp(evInput, 0, 255);
+  if (stat === "hp") return species.id === "shedinja" ? 1 : Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + level + 10;
+  const neutral = Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + 5;
+  const modifier = natureData.plus === stat ? 1.1 : natureData.minus === stat ? 0.9 : 1;
+  return Math.floor(neutral * modifier);
 }
 
 function clamp(value: number, min: number, max: number): number {

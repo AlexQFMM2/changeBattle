@@ -112,6 +112,7 @@ export type LocalPokemonV4 = {
   moves: TrainingMoveSlotV4[];
   evs: StatTableV4;
   ivs: StatTableV4;
+  locks?: LocalPokemonLocksV4;
   entryHp: number;
   entryStatus: TrainingStatusV4;
   maxHp: number;
@@ -123,6 +124,12 @@ export type LocalPokemonV4 = {
   backShinySpriteUrl?: string;
   iconUrl?: string;
   iconStyle?: string;
+};
+
+export type LocalPokemonLocksV4 = {
+  ivs?: Partial<Record<DexStatId, boolean>>;
+  evs?: Partial<Record<DexStatId, boolean>>;
+  moves?: Record<number, boolean>;
 };
 
 export type TrainingMoveSlotV4 = {

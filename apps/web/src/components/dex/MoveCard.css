@@ -1,3 +1,9 @@
+.move-card {
+  --move-main: #b9b1a2;
+  --move-dark: #6d665d;
+  --move-light: #e8e2d7;
+}
+
 .move-type-normal { --move-main: #b9b1a2; --move-dark: #6d665d; --move-light: #e8e2d7; }
 .move-type-fire { --move-main: #e46a3a; --move-dark: #8b321f; --move-light: #ffb08a; }
 .move-type-water { --move-main: #4f95df; --move-dark: #23528f; --move-light: #9fcbff; }
@@ -16,6 +22,25 @@
 .move-type-dark { --move-main: #6e625a; --move-dark: #352d2a; --move-light: #b1a49b; }
 .move-type-steel { --move-main: #9ca8bd; --move-dark: #596274; --move-light: #d5dce8; }
 .move-type-fairy { --move-main: #e28cb9; --move-dark: #934d72; --move-light: #ffc6df; }
+.move-type-一般,
+.move-type-普通 { --move-main: #b9b1a2; --move-dark: #6d665d; --move-light: #e8e2d7; }
+.move-type-火 { --move-main: #e46a3a; --move-dark: #8b321f; --move-light: #ffb08a; }
+.move-type-水 { --move-main: #4f95df; --move-dark: #23528f; --move-light: #9fcbff; }
+.move-type-电 { --move-main: #f0c83f; --move-dark: #94721d; --move-light: #ffe891; }
+.move-type-草 { --move-main: #70bf57; --move-dark: #347b32; --move-light: #b7e99f; }
+.move-type-冰 { --move-main: #78cdd2; --move-dark: #327b82; --move-light: #c3f1f3; }
+.move-type-格斗 { --move-main: #c85542; --move-dark: #762a26; --move-light: #ee9a86; }
+.move-type-毒 { --move-main: #a767bf; --move-dark: #63346f; --move-light: #d9a7e8; }
+.move-type-地面 { --move-main: #d0a856; --move-dark: #80622a; --move-light: #efd28d; }
+.move-type-飞行 { --move-main: #86a5e5; --move-dark: #4a5f9a; --move-light: #c5d5ff; }
+.move-type-超能力 { --move-main: #dd5c91; --move-dark: #8b2d58; --move-light: #ffa8cb; }
+.move-type-虫 { --move-main: #9dbb36; --move-dark: #5b6d21; --move-light: #d0e678; }
+.move-type-岩石 { --move-main: #b79a54; --move-dark: #6b552b; --move-light: #dfc987; }
+.move-type-幽灵 { --move-main: #7767a8; --move-dark: #46396f; --move-light: #b8a8e0; }
+.move-type-龙 { --move-main: #6d6ce0; --move-dark: #39358b; --move-light: #aba9ff; }
+.move-type-恶 { --move-main: #6e625a; --move-dark: #352d2a; --move-light: #b1a49b; }
+.move-type-钢 { --move-main: #9ca8bd; --move-dark: #596274; --move-light: #d5dce8; }
+.move-type-妖精 { --move-main: #e28cb9; --move-dark: #934d72; --move-light: #ffc6df; }
 
 .move-card.move-choice,
 .move-card.move-choice:nth-child(2n) {

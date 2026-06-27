@@ -282,7 +282,9 @@ function RoutedApp({runtime}: AppProps) {
   const trainingRestNewPage = profile ? (
     trainingRun ? (
       <TrainingRestNewPage
+        api={api}
         run={trainingRun}
+        onRunChange={setTrainingRun}
         onBackToConfig={() => navigate("/training/config", {replace: true})}
         onStartBattle={startBattleFromRest}
       />

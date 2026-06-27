@@ -22,6 +22,10 @@ const level50 = dex.calculatePokemonStats({speciesId: "venusaur", level: 50});
 const level100 = dex.calculatePokemonStats({speciesId: "venusaur", level: 100});
 assert.ok(level100.stats.hp > level50.stats.hp);
 assert.ok(level100.stats.spa > level50.stats.spa);
+const venusaurMax50 = dex.getPokemonMaxStats({speciesId: "venusaur", level: 50});
+assert.equal(venusaurMax50.stats.hp, dex.calculatePokemonStats({speciesId: "venusaur", level: 50, ivs: {hp: 31}, evs: {hp: 255}}).stats.hp);
+assert.equal(venusaurMax50.stats.atk, dex.calculatePokemonStats({speciesId: "venusaur", level: 50, nature: "Lonely", ivs: {atk: 31}, evs: {atk: 255}}).stats.atk);
+assert.ok(venusaurMax50.stats.atk > dex.calculatePokemonStats({speciesId: "venusaur", level: 50, nature: "Serious", ivs: {atk: 31}, evs: {atk: 255}}).stats.atk);
 
 const megahorn = dex.getMoveDetail("megahorn");
 assert.equal(megahorn.id, "megahorn");
