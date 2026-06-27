@@ -1,8 +1,10 @@
-import {useMemo, useState} from "react";
+import {useMemo, useState, type CSSProperties} from "react";
 import {motion} from "motion/react";
 import type {
   ChangeBattleV2Api,
+  BagStateV4,
   LocalPokemonV4,
+  PlayerItemInstanceV4,
   ShowdownPlayerIdV4,
   TrainingModeV4,
   TrainingNpcV4,
@@ -71,6 +73,7 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: 
   const npcs = useMemo(() => api.createTrainingNpcCatalog(), [api]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<ShowdownPlayerIdV4>("p1");
   const [selectedPokemonId, setSelectedPokemonId] = useState(run.scenario.players[0]?.localTeam.pokemon[0]?.localPokemonId || "");
+  const [activeDesignTab, setActiveDesignTab] = useState<string>("team:p1");
   const [message, setMessage] = useState("训练配置已就绪。");
   const [randomizing, setRandomizing] = useState(false);
   const players = run.scenario.players;
@@ -93,13 +96,21 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: 
   }
 
   function setMode(mode: TrainingModeV4) {
-    const next = api.updateTrainingScenario(run, {mode});
+    const players = run.scenario.players.map(player => ({...player, bag: api.ensureDefaultSystemItemsForRuleSet(player.bag, run.scenario.ruleSet)}));
+    const next = api.updateTrainingScenario(run, {mode, players});
     commit(next, `已切换为${MODE_LABEL[mode]}。`);
     const first = next.scenario.players[0];
     if (first) {
       setSelectedPlayerId(first.playerId);
+      setActiveDesignTab(`team:${first.playerId}`);
       setSelectedPokemonId(first.localTeam.pokemon[0]?.localPokemonId || "");
     }
+  }
+
+  function setRuleSet(ruleSet: TrainingRuleSetV4) {
+    const players = run.scenario.players.map(player => ({...player, bag: api.ensureDefaultSystemItemsForRuleSet(player.bag, ruleSet)}));
+    const next = api.updateTrainingScenario(run, {ruleSet, players});
+    commit(next, `规则已切换为 ${RULE_LABEL[ruleSet]}。`);
   }
 
   function setNpc(playerId: ShowdownPlayerIdV4, npcId: string) {
@@ -178,6 +189,50 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: 
     commit(next, "宝可梦配置已更新。");
   }
 
+  function patchPlayerBag(playerId: ShowdownPlayerIdV4, bag: BagStateV4, nextMessage = "背包已更新。") {
+    const players = run.scenario.players.map(player => player.playerId === playerId ? {...player, bag: api.normalizeBagState(bag)} : player);
+    const next = api.updateTrainingScenario(run, {players});
+    commit(next, nextMessage);
+  }
+
+  function addBagItem(playerId: ShowdownPlayerIdV4, itemID: string) {
+    const player = run.scenario.players.find(entry => entry.playerId === playerId);
+    if (!player) return;
+    const bag = api.normalizeBagState(player.bag);
+    if (bag.items.length >= bag.maxSize) {
+      setMessage(`背包已满：${bag.items.length}/${bag.maxSize}。`);
+      return;
+    }
+    const instance = api.createItemInstance(itemID);
+    patchPlayerBag(playerId, {...bag, items: [...bag.items, instance]}, `已添加 ${instance.name}。`);
+  }
+
+  function deleteBagItem(playerId: ShowdownPlayerIdV4, instanceId: string) {
+    const player = run.scenario.players.find(entry => entry.playerId === playerId);
+    if (!player) return;
+    const bag = api.normalizeBagState(player.bag);
+    const item = bag.items.find(entry => entry.id === instanceId);
+    if (item && isManagedSystemItem(item)) {
+      setMessage("系统战斗道具由规则自动管理，不能手动删除。");
+      return;
+    }
+    patchPlayerBag(playerId, {...bag, items: bag.items.filter(item => item.id !== instanceId)}, "道具实例已删除。");
+  }
+
+  function patchBagItem(playerId: ShowdownPlayerIdV4, instanceId: string, patch: Partial<PlayerItemInstanceV4>) {
+    const player = run.scenario.players.find(entry => entry.playerId === playerId);
+    if (!player) return;
+    const bag = api.normalizeBagState(player.bag);
+    patchPlayerBag(playerId, {...bag, items: bag.items.map(item => item.id === instanceId ? {...item, ...patch} : item)}, "道具实例已更新。");
+  }
+
+  function toggleBattleBag(playerId: ShowdownPlayerIdV4, enabled: boolean) {
+    const player = run.scenario.players.find(entry => entry.playerId === playerId);
+    if (!player) return;
+    const bag = api.normalizeBagState(player.bag);
+    patchPlayerBag(playerId, {...bag, battleBagEnabled: enabled}, enabled ? "战斗背包开关已开启。" : "战斗背包开关已关闭。");
+  }
+
   return (
     <motion.section className="training-config-page" initial={{opacity: 0, y: 12}} animate={{opacity: 1, y: 0}} transition={{type: "spring", stiffness: 300, damping: 30}}>
       <TrainingRuleBar
@@ -185,10 +240,25 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: 
         ruleSet={run.scenario.ruleSet}
         battleCount={run.scenario.battleCount}
         onMode={setMode}
-        onRuleSet={ruleSet => patchScenario({ruleSet}, `规则已切换为 ${RULE_LABEL[ruleSet]}。`)}
+        onRuleSet={setRuleSet}
         onBattleCount={battleCount => patchScenario({battleCount}, `对局数量：${battleCount}。`)}
       />
-      <div className="training-config-layout">
+      <TrainingDesignTabs
+        players={players}
+        activeTab={activeDesignTab}
+        onTeamTab={player => {
+          setActiveDesignTab(`team:${player.playerId}`);
+          setSelectedPlayerId(player.playerId);
+          setSelectedPokemonId(player.localTeam.pokemon[0]?.localPokemonId || "");
+        }}
+        onBagTab={() => {
+          const p1 = players.find(player => player.playerId === "p1") || players[0];
+          if (!p1) return;
+          setActiveDesignTab("bag:p1");
+          setSelectedPlayerId(p1.playerId);
+        }}
+      />
+      <div className={`training-config-layout ${activeDesignTab === "bag:p1" ? "bag-mode" : ""}`}>
         <TrainingPlayersPanel
           players={players}
           npcs={npcs}
@@ -196,19 +266,33 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: 
           selectedNpcIds={run.scenario.selectedNpcIds}
           mode={run.scenario.mode}
           onSelectPlayer={player => {
+            setActiveDesignTab(`team:${player.playerId}`);
             setSelectedPlayerId(player.playerId);
             setSelectedPokemonId(player.localTeam.pokemon[0]?.localPokemonId || "");
           }}
           onNpc={setNpc}
         />
-        <TrainingPokemonEditor api={api} pokemon={selectedPokemon} onPatch={patch => selectedPokemon ? patchPokemon(selectedPokemon.localPokemonId, patch) : undefined} />
-        <TrainingTeamPanel
-          player={selectedPlayer}
-          selectedPokemonId={selectedPokemon?.localPokemonId || ""}
-          onSelect={pokemon => setSelectedPokemonId(pokemon.localPokemonId)}
-          onRandomize={() => randomizePlayerTeam(selectedPlayer.playerId)}
-          onMove={(pokemonId, direction) => movePokemon(selectedPlayer.playerId, pokemonId, direction)}
-        />
+        {activeDesignTab === "bag:p1" ? (
+          <TrainingBagPanel
+            api={api}
+            player={players.find(player => player.playerId === "p1") || selectedPlayer}
+            onAdd={itemID => addBagItem("p1", itemID)}
+            onDelete={instanceId => deleteBagItem("p1", instanceId)}
+            onPatchItem={(instanceId, patch) => patchBagItem("p1", instanceId, patch)}
+            onToggleBattleBag={enabled => toggleBattleBag("p1", enabled)}
+          />
+        ) : (
+          <>
+          <TrainingPokemonEditor api={api} pokemon={selectedPokemon} onPatch={patch => selectedPokemon ? patchPokemon(selectedPokemon.localPokemonId, patch) : undefined} />
+          <TrainingTeamPanel
+            player={selectedPlayer}
+            selectedPokemonId={selectedPokemon?.localPokemonId || ""}
+            onSelect={pokemon => setSelectedPokemonId(pokemon.localPokemonId)}
+            onRandomize={() => randomizePlayerTeam(selectedPlayer.playerId)}
+            onMove={(pokemonId, direction) => movePokemon(selectedPlayer.playerId, pokemonId, direction)}
+          />
+          </>
+        )}
       </div>
       <footer className="training-config-actions">
         <span>{message}</span>
@@ -221,6 +305,137 @@ export function TrainingConfigPage({api, run, onRunChange, onStartRun, onBack}: 
       {randomizing ? <div className="training-randomizing-toast" role="status">正在随机...</div> : null}
     </motion.section>
   );
+}
+
+function TrainingDesignTabs({players, activeTab, onTeamTab, onBagTab}: {
+  players: TrainingPlayerDraftV4[];
+  activeTab: string;
+  onTeamTab: (player: TrainingPlayerDraftV4) => void;
+  onBagTab: () => void;
+}) {
+  return (
+    <nav className="training-design-tabs" aria-label="训练设计标签">
+      {players.map(player => (
+        <button className={activeTab === `team:${player.playerId}` ? "active" : ""} type="button" onClick={() => onTeamTab(player)} key={`team-${player.playerId}`}>
+          {player.playerId.toUpperCase()}队伍设计
+        </button>
+      ))}
+      <button className={activeTab === "bag:p1" ? "active" : ""} type="button" onClick={onBagTab}>P1背包设计</button>
+    </nav>
+  );
+}
+
+function TrainingBagPanel({api, player, onAdd, onDelete, onPatchItem, onToggleBattleBag}: {
+  api: ChangeBattleV2Api;
+  player: TrainingPlayerDraftV4;
+  onAdd: (itemID: string) => void;
+  onDelete: (instanceId: string) => void;
+  onPatchItem: (instanceId: string, patch: Partial<PlayerItemInstanceV4>) => void;
+  onToggleBattleBag: (enabled: boolean) => void;
+}) {
+  const bag = api.normalizeBagState(player.bag);
+  const [selectedId, setSelectedId] = useState(bag.items[0]?.id || "");
+  const selected = bag.items.find(item => item.id === selectedId) || bag.items[0] || null;
+  const selectedDetail = useMemo(() => {
+    if (!selected) return null;
+    try {
+      return api.getItemDetail(selected.itemID);
+    } catch {
+      return null;
+    }
+  }, [api, selected]);
+  const addDisplay = bag.items.length >= bag.maxSize ? `容量已满 ${bag.items.length}/${bag.maxSize}` : "搜索并添加道具";
+  const selectedIsManagedSystemItem = Boolean(selected && isManagedSystemItem(selected));
+  return (
+    <section className="training-bag-panel">
+      <header>
+        <strong>背包管理</strong>
+        <span>{bag.items.length}/{bag.maxSize}</span>
+      </header>
+      <label className="training-bag-toggle">
+        <input type="checkbox" checked={Boolean(bag.battleBagEnabled)} onChange={event => onToggleBattleBag(event.target.checked)} />
+        <span>允许战斗页使用背包道具</span>
+      </label>
+      <TrainingDexSelect api={api} category="items" label="添加" value="" display={addDisplay} onSelect={itemID => onAdd(itemID)} />
+      <div className="training-bag-list">
+        {bag.items.length ? bag.items.map(item => (
+          <button className={item.id === selected?.id ? "selected" : ""} type="button" onClick={() => setSelectedId(item.id)} key={item.id}>
+            <BagItemIcon api={api} item={item} />
+            <strong>{item.name}</strong>
+            <small>{bagItemListText(api, item)}</small>
+          </button>
+        )) : <p>背包为空。</p>}
+      </div>
+      {selected ? (
+        <div className="training-bag-detail">
+          <div className="training-bag-detail-title">
+            <BagItemIcon api={api} item={selected} />
+            <div>
+              <strong>{selected.name}</strong>
+              <small>{selectedDetail?.description || selected.itemID}</small>
+            </div>
+          </div>
+          <div className="training-bag-edit-grid">
+            <label><span>价格</span><input type="number" value={selected.cost} onChange={event => onPatchItem(selected.id, {cost: Number(event.target.value)})} /></label>
+            <label><span>获取回合</span><input type="number" value={selected.getRound} onChange={event => onPatchItem(selected.id, {getRound: Number(event.target.value)})} /></label>
+            <label><span>有效回合</span><input type="number" value={selected.effectRound ?? ""} placeholder="不限" onChange={event => onPatchItem(selected.id, {effectRound: nullableNumberFromInput(event.currentTarget.value)})} /></label>
+            <label><span>使用次数</span><input type="number" value={selected.useCount} onChange={event => onPatchItem(selected.id, {useCount: Number(event.target.value)})} /></label>
+            <label><span>最大次数</span><input type="number" value={selected.maxUseCount ?? ""} placeholder="不限" onChange={event => onPatchItem(selected.id, {maxUseCount: nullableNumberFromInput(event.currentTarget.value)})} /></label>
+            <label className="training-bag-mini-check"><input type="checkbox" checked={selected.canSale} onChange={event => onPatchItem(selected.id, {canSale: event.target.checked})} /><span>可售卖</span></label>
+          </div>
+          <div className="training-bag-flags">
+            <span>{selected.canBattleUse ? "可战斗使用" : "不可战斗使用"}</span>
+            <span>{selected.canUse ? "可直接使用" : "不可直接使用"}</span>
+            <span>{selected.canUseToPokemon ? "可对宝可梦使用" : "不可对宝可梦使用"}</span>
+            <span>{selected.canTake ? "可携带" : "不可携带"}</span>
+          </div>
+          <button type="button" className="danger" disabled={selectedIsManagedSystemItem} title={selectedIsManagedSystemItem ? "系统战斗道具由规则自动管理，不能手动删除" : "删除实例"} onClick={() => onDelete(selected.id)}>
+            {selectedIsManagedSystemItem ? "规则自动管理" : "删除实例"}
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function BagItemIcon({api, item}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4}) {
+  try {
+    const detail = api.getItemDetail(item.itemID);
+    if (detail.iconStyle) return <span className="training-bag-item-icon item-icon" aria-hidden="true" style={styleFromCss(detail.iconStyle)} />;
+    if (detail.iconUrl) return <ImageWithFallback src={detail.iconUrl} alt="" fallback="◇" />;
+  } catch {
+    // Fall back to instance image or text marker.
+  }
+  return item.image ? <ImageWithFallback src={item.image} alt="" fallback="◇" /> : <span className="training-bag-item-icon">◇</span>;
+}
+
+function nullableNumberFromInput(value: string): number | null {
+  if (!value.trim()) return null;
+  const next = Number(value);
+  return Number.isFinite(next) ? next : null;
+}
+
+function isManagedSystemItem(item: PlayerItemInstanceV4): boolean {
+  return item.itemID.startsWith("system-");
+}
+
+function bagItemListText(api: ChangeBattleV2Api, item: PlayerItemInstanceV4): string {
+  try {
+    const detail = api.getItemDetail(item.itemID);
+    return detail.description || detail.effectSummary || detail.kindLabel || item.name;
+  } catch {
+    return item.name;
+  }
+}
+
+function styleFromCss(css: string): CSSProperties {
+  const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
+  if (!match) return {};
+  return {
+    backgroundImage: `url(${match[1]})`,
+    backgroundPosition: `${match[2]}px ${match[3]}px`,
+    backgroundRepeat: "no-repeat",
+  };
 }
 
 function teamSizeForMode(mode: TrainingModeV4): number {

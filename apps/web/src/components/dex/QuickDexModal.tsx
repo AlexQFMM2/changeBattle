@@ -475,7 +475,7 @@ function ItemDetail({detail}: {detail: DexItemDetail}) {
     booleanBadge("对宝可梦使用", detail.canUseToPokemon),
     booleanBadge("可携带", detail.canTake),
     booleanBadge("可售卖", detail.canSale),
-    detail.futureInstanceCompatible ? "实例系统兼容" : "",
+    detail.futureInstanceCompatible ? "可放入背包" : "",
   ].filter(Boolean);
   return (
     <div className="quick-dex-pokemon-info">

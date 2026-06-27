@@ -4,6 +4,7 @@ import type {
   ChangeBattleV2Api,
   DexStatId,
   LocalPokemonV4,
+  PlayerItemInstanceV4,
   ShowdownPlayerIdV4,
   TrainingMoveSlotV4,
   TrainingRunGameNodeV4,
@@ -158,7 +159,7 @@ export function TrainingRestPage({api, run, onRunChange, onBackToConfig, onStart
       <main className="training-rest-main-panel-host">
         <section className="training-rest-workspace-panel">
           {activePanel === "pokemon" ? <TrainingRestPokemonPanel api={api} team={team} selectedSlot={selectedSlot} selected={selected} onSelectSlot={setSelectedSlot} onMoveSlot={moveP1TeamSlot} /> : null}
-          {activePanel === "bag" ? <TrainingRestBagPanel api={api} run={normalizedRun} ownerId="p1" /> : null}
+          {activePanel === "bag" ? <TrainingRestBagPanel api={api} run={normalizedRun} ownerId="p1" onRunChange={updateRunDraft} onToast={setToast} /> : null}
           {activePanel === "progress" ? <TrainingRestProgressPanel run={normalizedRun} /> : null}
         </section>
       </main>
@@ -356,76 +357,257 @@ function TrainingRestPokemonSprite({pokemon, kind}: {pokemon: LocalPokemonV4; ki
   return <ImageWithFallback src={src} alt={pokemon.nameZh} fallback={pokemon.nameZh.slice(0, 1) || "?"} />;
 }
 
-function TrainingRestBagPanel({api, run, ownerId}: {api: ChangeBattleV2Api; run: TrainingRunGameV4; ownerId: ShowdownPlayerIdV4}) {
-  const items = run.players[ownerId]?.bag.items || [];
-  const first = items[0] || null;
+function TrainingRestBagPanel({api, run, ownerId, onRunChange, onToast}: {
+  api: ChangeBattleV2Api;
+  run: TrainingRunGameV4;
+  ownerId: ShowdownPlayerIdV4;
+  onRunChange: (run: TrainingRunGameV4) => void;
+  onToast: (message: string | null) => void;
+}) {
+  const owner = run.players[ownerId];
+  const team = owner?.localTeam.pokemon || [];
+  const bag = api.normalizeBagState(owner?.bag);
+  const items = bag.items;
+  const [selectedId, setSelectedId] = useState(items[0]?.id || "");
+  const [equipItemId, setEquipItemId] = useState<string | null>(null);
+  const selected = items.find(item => item.id === selectedId) || items[0] || null;
+  const equipItem = equipItemId ? items.find(item => item.id === equipItemId) || null : null;
+  const heldBy = useMemo(() => buildHeldItemOwnerMap(team), [team]);
+
+  function showToast(message: string) {
+    onToast(message);
+    window.setTimeout(() => onToast(null), 1800);
+  }
+
+  function requestEquip(item: PlayerItemInstanceV4) {
+    const eligibility = getBagItemEquipEligibility(api, item);
+    if (!eligibility.canEquip) {
+      showToast(eligibility.reason);
+      return;
+    }
+    if (!team.length) {
+      showToast("当前队伍里还没有可携带道具的宝可梦。");
+      return;
+    }
+    setEquipItemId(item.id);
+  }
+
+  function confirmEquip(item: PlayerItemInstanceV4, targetPokemonId: string) {
+    if (!owner) return;
+    const target = team.find(pokemon => pokemon.localPokemonId === targetPokemonId);
+    if (!target) {
+      showToast("请选择要携带道具的宝可梦。");
+      return;
+    }
+    const nextPokemon = team.map(pokemon => {
+      if (pokemon.localPokemonId === targetPokemonId) {
+        return {...pokemon, itemId: item.itemID, heldItemInstanceId: item.id};
+      }
+      if (pokemon.heldItemInstanceId === item.id) {
+        return {...pokemon, itemId: "", heldItemInstanceId: undefined};
+      }
+      return pokemon;
+    });
+    const nextPlayer = {...owner, localTeam: {...owner.localTeam, pokemon: nextPokemon}};
+    const nextPlayers = {...run.players, [ownerId]: nextPlayer};
+    const nextScenarioPlayers = run.scenario.players.map(player => player.playerId === ownerId ? nextPlayer : player);
+    onRunChange({
+      ...run,
+      players: nextPlayers,
+      scenario: {...run.scenario, players: nextScenarioPlayers},
+      updatedAt: new Date().toISOString(),
+    });
+    setEquipItemId(null);
+    showToast(`已让 ${target.nameZh || target.name} 携带 ${item.name}。`);
+  }
+
   return (
     <div className="training-rest-bag-panel">
       <aside className="training-rest-bag-left">
         <nav className="training-rest-bag-tabs" aria-label="背包分类">
-          <span className="selected">恢复<b>{items.length}</b></span>
+          <span className="selected">全部<b>{items.length}/{bag.maxSize}</b></span>
+          {bag.battleBagEnabled ? <span>战斗<b>开</b></span> : <span>战斗<b>关</b></span>}
         </nav>
         <div className="training-rest-bag-list">
-          {items.length ? items.map(item => <TrainingRestBagItem api={api} itemId={item.itemId} count={item.count} key={item.itemId} />) : <p>背包为空。</p>}
+          {items.length ? items.map(item => <TrainingRestBagItem api={api} item={item} heldBy={heldBy.get(item.id)} selected={item.id === selected?.id} onSelect={() => setSelectedId(item.id)} key={item.id} />) : <p>背包为空。</p>}
         </div>
       </aside>
       <aside className="training-rest-bag-detail">
-        {first ? <TrainingRestBagDetail api={api} itemId={first.itemId} count={first.count} /> : (
+        {selected ? <TrainingRestBagDetail api={api} item={selected} heldBy={heldBy.get(selected.id)} onEquip={() => requestEquip(selected)} /> : (
           <>
             <strong>背包工作区</strong>
-            <span>道具使用会在后续接入休整行为。</span>
+            <span>道具使用后续接入；本页先展示实例详情。</span>
           </>
         )}
       </aside>
+      {equipItem ? (
+        <TrainingRestEquipItemModal
+          api={api}
+          item={equipItem}
+          team={team}
+          heldBy={heldBy.get(equipItem.id)}
+          onCancel={() => setEquipItemId(null)}
+          onConfirm={pokemonId => confirmEquip(equipItem, pokemonId)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function TrainingRestBagItem({api, itemId, count}: {api: ChangeBattleV2Api; itemId: string; count: number}) {
-  let name = itemId;
+function TrainingRestBagItem({api, item, heldBy, selected, onSelect}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4; heldBy?: LocalPokemonV4; selected: boolean; onSelect: () => void}) {
   let desc = "暂无说明。";
   try {
-    const detail = api.getItemDetail(itemId);
-    name = detail.nameZh || detail.name;
-    desc = detail.description || desc;
+    const detail = api.getItemDetail(item.itemID);
+    desc = detail.description || detail.effectSummary || desc;
   } catch {
-    // Keep stable item id if Dex has no data.
+    desc = item.name;
   }
   return (
-    <article>
-      <span className="training-rest-bag-item-icon">◇</span>
-      <strong>{name}</strong>
-      <span>x{count}</span>
-      <small>{desc}</small>
-    </article>
+    <button className={selected ? "selected" : ""} type="button" onClick={onSelect}>
+      <TrainingRestBagItemIcon api={api} item={item} />
+      <strong>{item.name}</strong>
+      <small>{heldBy ? `已携带：${heldBy.nameZh || heldBy.name}` : desc}</small>
+    </button>
   );
 }
 
-function TrainingRestBagDetail({api, itemId, count}: {api: ChangeBattleV2Api; itemId: string; count: number}) {
-  let name = itemId;
-  let english = itemId;
+function TrainingRestBagDetail({api, item, heldBy, onEquip}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4; heldBy?: LocalPokemonV4; onEquip: () => void}) {
   let desc = "暂无说明。";
+  let summary = "";
+  let kind = "道具";
   try {
-    const detail = api.getItemDetail(itemId);
-    name = detail.nameZh || detail.name;
-    english = detail.name;
+    const detail = api.getItemDetail(item.itemID);
     desc = detail.description || desc;
+    summary = detail.effectSummary && detail.effectSummary !== detail.description ? detail.effectSummary : "";
+    kind = detail.kindLabel || kind;
   } catch {
     // Keep stable item id if Dex has no data.
   }
   return (
     <>
       <div className="training-rest-bag-detail-title">
-        <span className="training-rest-bag-detail-icon">◇</span>
+        <TrainingRestBagItemIcon api={api} item={item} large />
         <div>
-          <strong>{name}</strong>
-          <small>{english}</small>
-          <em>消耗道具　剩余 x{count}</em>
+          <strong>{item.name}</strong>
+          <small>{kind}</small>
         </div>
       </div>
       <p>{desc}</p>
+      {summary ? <p className="muted">{summary}</p> : null}
+      {heldBy ? <p className="muted">当前由 {heldBy.nameZh || heldBy.name} 携带。</p> : null}
+      <div className="training-rest-bag-actions">
+        <button type="button" onClick={onEquip}>携带</button>
+      </div>
     </>
   );
+}
+
+function TrainingRestEquipItemModal({api, item, team, heldBy, onCancel, onConfirm}: {
+  api: ChangeBattleV2Api;
+  item: PlayerItemInstanceV4;
+  team: LocalPokemonV4[];
+  heldBy?: LocalPokemonV4;
+  onCancel: () => void;
+  onConfirm: (pokemonId: string) => void;
+}) {
+  const [selectedPokemonId, setSelectedPokemonId] = useState(heldBy?.localPokemonId || team[0]?.localPokemonId || "");
+  const selected = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || null;
+  return (
+    <div className="training-rest-equip-modal" role="dialog" aria-label="选择携带道具的宝可梦">
+      <div className="training-rest-equip-modal-card">
+        <header className="training-rest-equip-modal-header">
+          <TrainingRestBagItemIcon api={api} item={item} />
+          <div>
+            <strong>选择携带对象</strong>
+            <span>{item.name}</span>
+          </div>
+        </header>
+        <div className="training-rest-equip-team-grid">
+          {team.map(pokemon => (
+            <TrainingRestEquipPokemonCard
+              api={api}
+              pokemon={pokemon}
+              selected={pokemon.localPokemonId === selectedPokemonId}
+              holdingThis={pokemon.heldItemInstanceId === item.id}
+              onSelect={() => setSelectedPokemonId(pokemon.localPokemonId)}
+              key={pokemon.localPokemonId}
+            />
+          ))}
+        </div>
+        <footer className="training-rest-equip-modal-actions">
+          <button type="button" onClick={onCancel}>取消</button>
+          <button type="button" disabled={!selected} onClick={() => selected ? onConfirm(selected.localPokemonId) : undefined}>
+            {selected?.itemId && selected.heldItemInstanceId !== item.id ? "确认替换" : "确认携带"}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function TrainingRestEquipPokemonCard({api, pokemon, selected, holdingThis, onSelect}: {
+  api: ChangeBattleV2Api;
+  pokemon: LocalPokemonV4;
+  selected: boolean;
+  holdingThis: boolean;
+  onSelect: () => void;
+}) {
+  const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
+  const currentItem = itemName(api, pokemon.itemId);
+  const replaceText = pokemon.itemId && !holdingThis ? `将替换：${currentItem}` : pokemon.itemId ? currentItem : "无道具";
+  return (
+    <button className={`training-rest-equip-pokemon-card ${selected ? "selected" : ""} ${holdingThis ? "holding" : ""}`} type="button" onClick={onSelect}>
+      {holdingThis ? <em>已携带</em> : null}
+      <TrainingRestPokemonSprite pokemon={pokemon} kind="icon" />
+      <span className="training-rest-equip-pokemon-info">
+        <strong>{pokemon.nameZh || pokemon.name}</strong>
+        <small>Lv.{pokemon.level} · {replaceText}</small>
+        <i className="training-rest-equip-hp"><b style={{width: `${hpRate}%`}} /></i>
+      </span>
+    </button>
+  );
+}
+
+function buildHeldItemOwnerMap(team: LocalPokemonV4[]): Map<string, LocalPokemonV4> {
+  const map = new Map<string, LocalPokemonV4>();
+  for (const pokemon of team) {
+    if (pokemon.heldItemInstanceId) map.set(pokemon.heldItemInstanceId, pokemon);
+  }
+  return map;
+}
+
+function getBagItemEquipEligibility(api: ChangeBattleV2Api, item: PlayerItemInstanceV4): {canEquip: boolean; reason: string} {
+  if (item.type === "system-battle") return {canEquip: false, reason: "系统战斗道具需要先完成重铸，后续接入。"};
+  try {
+    const detail = api.getItemDetail(item.itemID);
+    if (item.canTake || detail.canTake || ["battle", "held", "berry"].includes(detail.kind)) return {canEquip: true, reason: ""};
+  } catch {
+    // Fall back to instance flags below.
+  }
+  if (item.canTake || ["battle", "held", "berry"].includes(item.type)) return {canEquip: true, reason: ""};
+  return {canEquip: false, reason: "这个道具不能作为携带道具使用。"};
+}
+
+function itemName(api: ChangeBattleV2Api, itemId: string): string {
+  if (!itemId) return "无道具";
+  try {
+    const detail = api.getItemDetail(itemId);
+    return detail.nameZh || detail.name || itemId;
+  } catch {
+    return itemId;
+  }
+}
+
+function TrainingRestBagItemIcon({api, item, large = false}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4; large?: boolean}) {
+  const className = large ? "training-rest-bag-detail-icon item-icon" : "training-rest-bag-item-icon item-icon";
+  try {
+    const detail = api.getItemDetail(item.itemID);
+    if (detail.iconStyle) return <span className={className} aria-hidden="true" style={styleFromCss(detail.iconStyle)} />;
+    if (detail.iconUrl) return <ImageWithFallback src={detail.iconUrl} alt="" fallback="◇" />;
+  } catch {
+    // Keep stable fallback below.
+  }
+  return item.image ? <ImageWithFallback src={item.image} alt="" fallback="◇" /> : <span className={className}>◇</span>;
 }
 
 function TrainingRestProgressPanel({run}: {run: TrainingRunGameV4}) {

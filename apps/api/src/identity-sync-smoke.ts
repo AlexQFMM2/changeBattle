@@ -12,6 +12,7 @@ import {
   type BattleRequestV4,
   type BattleSessionSnapshotV4,
 } from "./battle.js";
+import {createTrainingRunApi} from "./training.js";
 import type {LocalPokemonV4, ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4} from "./training.js";
 
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
@@ -88,7 +89,7 @@ function player(playerId: ShowdownPlayerIdV4, pokemon: LocalPokemonV4[]): Traini
       name: `${playerId} team`,
       pokemon,
     },
-    bag: {items: []},
+    bag: {maxSize: 50, items: []},
   };
 }
 
@@ -104,6 +105,55 @@ const p2Team = [
 ];
 const p1 = player("p1", p1Team);
 const p2 = player("p2", p2Team);
+const trainingApi = createTrainingRunApi({
+  getItemDetail(id: string) {
+    const system = id.startsWith("system-");
+    return {
+      id,
+      name: id,
+      nameZh: id,
+      kind: system ? "system-battle" : "recovery",
+      categoryLabel: system ? "系统战斗道具" : "恢复道具",
+      source: system ? "system" : "v1-game",
+      description: id,
+      effectSummary: id,
+      cost: system ? 0 : 300,
+      canSale: !system,
+      canBattleUse: false,
+      canUse: !system,
+      canUseToPokemon: !system,
+      canTake: false,
+      futureInstanceCompatible: true,
+      iconUrl: "",
+      iconStyle: "",
+    };
+  },
+} as unknown as Parameters<typeof createTrainingRunApi>[0]);
+const normalizedEmptyBag = trainingApi.normalizeBagState({items: []});
+assert(normalizedEmptyBag.maxSize === 50, "bag default maxSize mismatch");
+const duplicatedA = trainingApi.createItemInstance("potion");
+const duplicatedB = trainingApi.createItemInstance("potion");
+assert(duplicatedA.itemID === duplicatedB.itemID && duplicatedA.id !== duplicatedB.id, "same itemID instances must not stack");
+const gen7Bag = trainingApi.normalizeBagState({maxSize: 50, items: []}, "gen7");
+assert(gen7Bag.items.some(item => item.itemID === "system-mega-stone"), "gen7 missing default Mega system item");
+assert(gen7Bag.items.some(item => item.itemID === "system-z-crystal"), "gen7 missing default Z system item");
+const gen7Again = trainingApi.ensureDefaultSystemItemsForRuleSet(gen7Bag, "gen7");
+assert(gen7Again.items.filter(item => item.itemID === "system-mega-stone").length === 1, "gen7 should not duplicate Mega system item");
+const gen8Bag = trainingApi.normalizeBagState({maxSize: 50, items: []}, "gen8");
+assert(gen8Bag.items.some(item => item.itemID === "system-dynamax-band"), "gen8 missing default Dynamax Band");
+const gen7ToGen8Bag = trainingApi.ensureDefaultSystemItemsForRuleSet(gen7Bag, "gen8");
+assert(gen7ToGen8Bag.items.some(item => item.itemID === "system-dynamax-band"), "gen7 -> gen8 should add Dynamax Band");
+assert(!gen7ToGen8Bag.items.some(item => item.itemID === "system-mega-stone"), "gen7 -> gen8 should remove Mega system item");
+assert(!gen7ToGen8Bag.items.some(item => item.itemID === "system-z-crystal"), "gen7 -> gen8 should remove Z system item");
+const gen9Bag = trainingApi.normalizeBagState({maxSize: 50, items: []}, "gen9");
+assert(gen9Bag.items.some(item => item.itemID === "system-tera-orb"), "gen9 missing default Tera Orb");
+const gen8ToGen9Bag = trainingApi.ensureDefaultSystemItemsForRuleSet(gen8Bag, "gen9");
+assert(gen8ToGen9Bag.items.some(item => item.itemID === "system-tera-orb"), "gen8 -> gen9 should add Tera Orb");
+assert(!gen8ToGen9Bag.items.some(item => item.itemID === "system-dynamax-band"), "gen8 -> gen9 should remove Dynamax Band");
+const standardBag = trainingApi.normalizeBagState({maxSize: 50, items: []}, "standard");
+assert(standardBag.items.length === 0, "standard should not receive default system items");
+const gen9ToStandardBag = trainingApi.ensureDefaultSystemItemsForRuleSet(gen9Bag, "standard");
+assert(gen9ToStandardBag.items.length === 0, "gen9 -> standard should remove managed system items");
 const node: TrainingRunGameNodeV4 = {
   id: "identity-node",
   index: 0,

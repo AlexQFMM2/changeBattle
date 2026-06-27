@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import {HashRouter, Navigate, Route, Routes, useNavigate} from "react-router";
+import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "react-router";
 import {
   createBrowserUserProfileAdapter,
   createBrowserTrainingRunAdapter,
@@ -52,6 +52,7 @@ export function App({runtime}: AppProps) {
 
 function RoutedApp({runtime}: AppProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const api = useMemo(() => createChangeBattleV2Api({
     userProfileAdapter: createUserProfileAdapter(runtime),
     trainingRunAdapter: createBrowserTrainingRunAdapter(`changebattle-v2:${runtime}:training-run`),
@@ -300,7 +301,7 @@ function RoutedApp({runtime}: AppProps) {
   ) : <Navigate to="/" replace />;
 
   return (
-    <GameViewport showVersion>
+    <GameViewport showVersion={location.pathname === "/"}>
       <Routes>
         <Route path="/" element={titlePage} />
         <Route path="/main" element={mainPage} />

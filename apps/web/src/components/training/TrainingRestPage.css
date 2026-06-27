@@ -707,6 +707,7 @@
 }
 
 .training-rest-bag-panel {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -740,7 +741,7 @@
 }
 
 .training-rest-bag-tabs span {
-  width: 46px;
+  width: 70px;
   height: 22px;
   min-height: 22px;
   display: grid;
@@ -789,10 +790,10 @@
   font-weight: 850;
 }
 
-.training-rest-bag-list article {
+.training-rest-bag-list button {
   min-width: 0;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 36px;
+  grid-template-columns: 40px minmax(0, 1fr);
   grid-template-rows: 18px 12px;
   align-items: center;
   gap: 2px 7px;
@@ -803,6 +804,11 @@
   color: #25332b;
   padding: 6px;
   text-align: left;
+}
+
+.training-rest-bag-list button.selected {
+  outline: 2px solid rgb(38 53 40 / 52%);
+  background: #c1e6e2;
 }
 
 .training-rest-bag-list strong,
@@ -817,21 +823,6 @@
   grid-column: 2;
   font-size: 9px;
   font-weight: 950;
-}
-
-.training-rest-bag-list span {
-  grid-column: 3;
-  grid-row: 1 / -1;
-  display: grid;
-  place-items: center;
-  height: 22px;
-  border: 1px solid #e0c675;
-  border-radius: 5px;
-  background: #fff0a8;
-  color: #886039;
-  font-size: 8px;
-  font-weight: 1000;
-  text-align: right;
 }
 
 .training-rest-bag-list small {
@@ -850,6 +841,20 @@
   justify-self: center;
   color: #6d8c48;
   font-size: 20px;
+}
+
+.training-rest-bag-item-icon.item-icon,
+.training-rest-bag-detail-icon.item-icon {
+  background-size: auto;
+}
+
+.training-rest-bag-list img {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  justify-self: center;
 }
 
 .training-rest-bag-detail,
@@ -873,6 +878,12 @@
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
+}
+
+.training-rest-bag-detail-title img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
 }
 
 .training-rest-bag-detail-icon {
@@ -911,6 +922,247 @@
   font-size: 10px;
   font-weight: 950;
   line-height: 1.55;
+}
+
+.training-rest-bag-detail p.muted {
+  margin-top: 0;
+  color: #596052;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.training-rest-bag-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.training-rest-bag-actions button {
+  height: 24px;
+  min-width: 64px;
+  border: 2px solid #2f6d5f;
+  border-radius: 5px;
+  background: #d7f0d2;
+  color: #25332b;
+  padding: 0 12px;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 2px 0 rgb(55 42 45 / 22%);
+}
+
+.training-rest-equip-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  display: grid;
+  place-items: center;
+  background: rgb(37 51 43 / 48%);
+  padding: 8px;
+}
+
+.training-rest-equip-modal-card {
+  width: min(482px, 100%);
+  max-height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 42px minmax(0, 1fr) 32px;
+  gap: 6px;
+  border: 2px solid #263528;
+  border-radius: 6px;
+  background: #fffdf5;
+  padding: 7px;
+  box-shadow: 0 5px 0 rgb(40 31 36 / 42%);
+  overflow: hidden;
+}
+
+.training-rest-equip-modal-header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 2px solid #cf6178;
+  border-radius: 5px;
+  background: #d8f2e7;
+  padding: 4px 8px;
+}
+
+.training-rest-equip-modal-header .training-rest-bag-item-icon,
+.training-rest-equip-modal-header img {
+  width: 30px;
+  height: 30px;
+}
+
+.training-rest-equip-modal-header div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.training-rest-equip-modal-header strong,
+.training-rest-equip-modal-header span {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-equip-modal-header strong {
+  color: #25332b;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.training-rest-equip-modal-header span {
+  color: #596052;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.training-rest-equip-team-grid {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  gap: 6px;
+  padding: 1px;
+}
+
+.training-rest-equip-pokemon-card {
+  position: relative;
+  min-width: 0;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  border: 2px solid #6d5a3d;
+  border-radius: 5px;
+  background: #f4efdf;
+  color: #25332b;
+  padding: 5px;
+  text-align: left;
+  overflow: hidden;
+}
+
+.training-rest-equip-pokemon-card.selected {
+  border-color: #2e7e67;
+  background: #c1e6e2;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 70%);
+}
+
+.training-rest-equip-pokemon-card.holding {
+  border-color: #cf6178;
+  background: #f6e5dc;
+}
+
+.training-rest-equip-pokemon-card > img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.training-rest-equip-pokemon-card .training-rest-pokemon-icon {
+  align-self: center;
+  justify-self: center;
+  transform: scale(.68);
+  transform-origin: center;
+}
+
+.training-rest-equip-pokemon-card em {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: #2f6d5f;
+  color: #fffdf5;
+  padding: 0 5px;
+  font-size: 6px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-equip-pokemon-info {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 12px 13px 7px;
+  gap: 2px;
+}
+
+.training-rest-equip-pokemon-info strong,
+.training-rest-equip-pokemon-info small {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-equip-pokemon-info strong {
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.training-rest-equip-pokemon-info small {
+  color: #596052;
+  font-size: 6px;
+  font-weight: 900;
+}
+
+.training-rest-equip-hp {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #c8c0ad;
+}
+
+.training-rest-equip-hp b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #62c276;
+}
+
+.training-rest-equip-modal-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 7px;
+}
+
+.training-rest-equip-modal-actions button {
+  height: 24px;
+  min-width: 72px;
+  border: 2px solid #6d5a3d;
+  border-radius: 5px;
+  background: #fffdf5;
+  color: #263528;
+  padding: 0 10px;
+  font-size: 8px;
+  font-weight: 950;
+  box-shadow: 0 2px 0 rgb(55 42 45 / 20%);
+}
+
+.training-rest-equip-modal-actions button:last-child {
+  border-color: #2f6d5f;
+  background: #d7f0d2;
+}
+
+.training-rest-equip-modal-actions button:disabled {
+  opacity: .5;
 }
 
 .training-rest-progress-panel {

@@ -12,7 +12,7 @@
   min-height: 0;
   overflow: hidden;
   display: grid;
-  grid-template-rows: 28px minmax(0, 1fr) 24px;
+  grid-template-rows: 28px 24px minmax(0, 1fr) 24px;
   gap: 4px;
   box-sizing: border-box;
   padding: var(--training-config-page-padding);
@@ -147,9 +147,47 @@
   gap: 4px;
 }
 
+.training-config-layout.bag-mode {
+  grid-template-columns: 128px minmax(0, 1fr);
+}
+
+.training-design-tabs {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: auto hidden;
+  border: 1px solid var(--training-config-page-border);
+  border-radius: 5px;
+  background: var(--training-config-page-panel);
+  padding: 3px 5px;
+}
+
+.training-design-tabs button {
+  flex: 0 0 auto;
+  height: 17px;
+  border: 1px solid #53635b;
+  border-radius: 3px;
+  background: #1e2927;
+  color: #f8f1e6;
+  padding: 0 8px;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.training-design-tabs button.active {
+  border-color: var(--training-config-page-gold);
+  background: #405033;
+  color: #fff8e7;
+}
+
 .training-players-panel,
 .training-team-panel,
-.training-pokemon-editor {
+.training-pokemon-editor,
+.training-bag-panel {
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -170,6 +208,24 @@
   gap: 3px;
 }
 
+.training-bag-panel {
+  grid-template-rows: 20px 22px 32px minmax(0, 1fr);
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 5px;
+}
+
+.training-config-layout.bag-mode .training-bag-panel {
+  grid-column: 2;
+}
+
+.training-bag-panel > header {
+  grid-column: 1 / 3;
+}
+
+.training-bag-panel > .training-dex-select {
+  grid-column: 1;
+}
+
 .training-team-panel.enemy {
   border-color: #5a4445;
   background: #171113;
@@ -182,7 +238,8 @@
 
 .training-players-panel header,
 .training-team-panel header,
-.training-pokemon-editor header {
+.training-pokemon-editor header,
+.training-bag-panel header {
   min-width: 0;
   display: flex;
   align-items: center;
@@ -192,7 +249,8 @@
 
 .training-players-panel header strong,
 .training-team-panel header strong,
-.training-pokemon-editor header strong {
+.training-pokemon-editor header strong,
+.training-bag-panel header strong {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -204,7 +262,8 @@
 
 .training-players-panel header span,
 .training-team-panel header span,
-.training-pokemon-editor header span {
+.training-pokemon-editor header span,
+.training-bag-panel header span {
   color: #c8d0c4;
   font-size: 6px;
   font-weight: 900;
@@ -312,7 +371,8 @@
 .training-stat-row input,
 .training-move-row input,
 .training-entry-editor input,
-.training-entry-editor select {
+.training-entry-editor select,
+.training-bag-edit-grid input {
   min-width: 0;
   height: 18px;
   border: 1px solid #4f5a58;
@@ -338,6 +398,223 @@
   color: #f7f0e5;
   padding: 2px 3px;
   text-align: left;
+}
+
+.training-bag-toggle {
+  grid-column: 1 / 3;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #2f403a;
+  border-radius: 4px;
+  background: #101817;
+  color: #d8d0c2;
+  padding: 2px 5px;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.training-bag-toggle input {
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  accent-color: #74ca78;
+}
+
+.training-bag-list {
+  grid-column: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+}
+
+.training-bag-list button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: 11px 10px;
+  align-items: center;
+  gap: 0 4px;
+  min-height: 27px;
+  border: 1px solid #2f403a;
+  border-radius: 4px;
+  background: var(--training-config-page-panel-2);
+  color: #f7f0e5;
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.training-bag-list button.selected {
+  border-color: var(--training-config-page-gold);
+  background: #25342d;
+}
+
+.training-bag-list img,
+.training-bag-detail-title img,
+.training-bag-item-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.training-bag-list .training-bag-item-icon,
+.training-bag-list img {
+  grid-row: 1 / 3;
+}
+
+.training-bag-list strong,
+.training-bag-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-bag-list strong {
+  color: #fff;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-bag-list small {
+  color: #cbd7cc;
+  font-size: 6px;
+}
+
+.training-bag-list p {
+  margin: 0;
+  border: 1px dashed #40514a;
+  border-radius: 4px;
+  color: #cbd7cc;
+  padding: 8px 5px;
+  text-align: center;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.training-bag-detail {
+  grid-column: 2;
+  grid-row: 3 / 5;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  border: 1px solid #2a3834;
+  border-radius: 4px;
+  background: #0f1515;
+  padding: 5px;
+}
+
+.training-bag-detail-title {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+}
+
+.training-bag-detail-title div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.training-bag-detail-title strong,
+.training-bag-detail-title small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-bag-detail-title strong {
+  color: #fff8e7;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-bag-detail-title small {
+  color: #cbd7cc;
+  font-size: 6px;
+}
+
+.training-bag-edit-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.training-bag-edit-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  color: #d8d0c2;
+  font-size: 6px;
+  line-height: 1;
+}
+
+.training-bag-edit-grid input {
+  height: 16px;
+  padding: 1px 4px;
+  font-size: 7px;
+}
+
+.training-bag-mini-check {
+  display: flex !important;
+  align-items: center;
+  gap: 3px;
+}
+
+.training-bag-mini-check input {
+  width: 10px;
+  height: 10px;
+  margin: 0;
+  accent-color: #74ca78;
+}
+
+.training-bag-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+}
+
+.training-bag-flags span {
+  border: 1px solid #43564f;
+  border-radius: 3px;
+  background: #101817;
+  color: #d9e2d8;
+  padding: 2px 3px;
+  font-size: 5px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.training-bag-detail > button.danger {
+  height: 16px;
+  border: 1px solid #7a4c47;
+  border-radius: 3px;
+  background: #321a1b;
+  color: #ffd9d4;
+  padding: 0 5px;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.training-bag-detail > button.danger:disabled {
+  cursor: not-allowed;
+  border-color: #4c5b55;
+  background: #18231f;
+  color: #9da9a0;
+  opacity: .72;
 }
 
 .training-team-list b {

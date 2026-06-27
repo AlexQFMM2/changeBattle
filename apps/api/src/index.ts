@@ -148,6 +148,9 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     randomizeTrainingScenario: trainingRuns.randomizeTrainingScenario,
     randomizeTrainingTeam: trainingRuns.randomizeTeam,
     createTrainingNpcCatalog: trainingRuns.createTrainingNpcCatalog,
+    createItemInstance: trainingRuns.createItemInstance,
+    normalizeBagState: trainingRuns.normalizeBagState,
+    ensureDefaultSystemItemsForRuleSet: trainingRuns.ensureDefaultSystemItemsForRuleSet,
     battleService,
   };
 }

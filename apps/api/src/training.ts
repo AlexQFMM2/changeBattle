@@ -1,4 +1,5 @@
 import type {
+  DexItemDetail,
   DexMoveSummary,
   DexPokemonDetail,
   DexStatId,
@@ -103,6 +104,7 @@ export type LocalPokemonV4 = {
   gender: TrainingGenderV4;
   shiny: boolean;
   itemId: string;
+  heldItemInstanceId?: string;
   abilityId: string;
   abilityName: string;
   abilityNameZh: string;
@@ -138,8 +140,30 @@ export type TrainingMoveSlotV4 = {
 
 export type StatTableV4 = Record<DexStatId, number>;
 
+export type PlayerItemTypeV4 = "system" | "system-battle" | "held" | "medicine" | "berry" | "training" | "battle" | "tm" | "key" | "misc";
+
+export type PlayerItemInstanceV4 = {
+  id: string;
+  itemID: string;
+  name: string;
+  image: string;
+  cost: number;
+  canSale: boolean;
+  type: PlayerItemTypeV4;
+  canBattleUse: boolean;
+  canUse: boolean;
+  canUseToPokemon: boolean;
+  canTake: boolean;
+  effectRound: number | null;
+  getRound: number;
+  maxUseCount: number | null;
+  useCount: number;
+};
+
 export type BagStateV4 = {
-  items: Array<{itemId: string; count: number}>;
+  maxSize: number;
+  items: PlayerItemInstanceV4[];
+  battleBagEnabled?: boolean;
 };
 
 export type TrainingNpcV4 = {
@@ -171,11 +195,15 @@ export type TrainingRunApi = {
   getNextTrainingNode(run: TrainingRunGameV4): TrainingRunGameNodeV4 | null;
   randomizeTrainingScenario(run: TrainingRunGameV4, options?: {includeRuleSet?: boolean; includeMode?: boolean}): TrainingRunGameV4;
   randomizeTeam(playerId: ShowdownPlayerIdV4, size: number, preferredSpeciesIds?: string[]): LocalTeamV4;
+  createItemInstance: (itemID: string, options?: Partial<PlayerItemInstanceV4>) => PlayerItemInstanceV4;
+  normalizeBagState: (bag: unknown, ruleSet?: TrainingRuleSetV4) => BagStateV4;
+  ensureDefaultSystemItemsForRuleSet: (bag: BagStateV4, ruleSet: TrainingRuleSetV4) => BagStateV4;
   createTrainingNpcCatalog(): TrainingNpcV4[];
 };
 
 const TRAINING_RUN_VERSION = 1 as const;
 const DEFAULT_TRAINING_RUN_KEY = "changebattle-v2:web:training-run";
+const DEFAULT_BAG_MAX_SIZE = 50;
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_NATURE = "Serious";
 const DEFAULT_ITEM_ID = "";
@@ -197,6 +225,14 @@ const RANDOM_ITEMS = [
   "rockyhelmet", "eviolite", "expertbelt", "airballoon",
 ];
 const RANDOM_STATUS: TrainingStatusV4[] = ["", "", "", "", "brn", "par", "psn", "tox", "slp", "frz"];
+
+const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
+  standard: [],
+  gen7: ["system-mega-stone", "system-z-crystal"],
+  gen8: ["system-dynamax-band"],
+  gen9: ["system-tera-orb"],
+};
+const MANAGED_SYSTEM_ITEM_IDS = new Set(Object.values(DEFAULT_SYSTEM_ITEMS_BY_RULE_SET).flat());
 
 const NPC_CATALOG: TrainingNpcV4[] = [
   {
@@ -401,23 +437,28 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     const playerMap = new Map((scenario.players || []).map(player => [player.playerId, player]));
     const enemy = npcById(scenario.selectedNpcIds?.p2) || enemyNpcs()[0]!;
     const ally = npcById(scenario.selectedNpcIds?.p3) || allyNpcs()[0]!;
+    const ruleSet = scenario.ruleSet || "standard";
     const players = playerIdsForMode(mode).map(playerId => {
       const existing = playerMap.get(playerId);
-      if (existing) return normalizePlayer(existing, mode);
-      if (playerId === "p1") return createPlayer("p1", profile.name, profile.avatarAsset, "local", "near", randomizeTeam("p1", defaultTeamSize(mode)));
-      if (playerId === "p3") return createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", defaultTeamSize(mode), ally.signatureSpeciesIds));
+      if (existing) return withRuleSetBag(normalizePlayer(existing, mode), ruleSet);
+      if (playerId === "p1") return withRuleSetBag(createPlayer("p1", profile.name, profile.avatarAsset, "local", "near", randomizeTeam("p1", defaultTeamSize(mode))), ruleSet);
+      if (playerId === "p3") return withRuleSetBag(createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", defaultTeamSize(mode), ally.signatureSpeciesIds)), ruleSet);
       const npc = playerId === "p4" ? pick(enemyNpcs()) : enemy;
-      return createPlayer(playerId, npc.name, npc.avatar, "ai", "far", randomizeTeam(playerId, defaultTeamSize(mode), npc.signatureSpeciesIds));
+      return withRuleSetBag(createPlayer(playerId, npc.name, npc.avatar, "ai", "far", randomizeTeam(playerId, defaultTeamSize(mode), npc.signatureSpeciesIds)), ruleSet);
     });
     return {
       id: scenario.id || createId("training-scenario"),
       name: scenario.name || "训练场测试",
       mode,
-      ruleSet: scenario.ruleSet || "standard",
+      ruleSet,
       battleCount: scenario.battleCount === 2 ? 2 : 1,
       selectedNpcIds: scenario.selectedNpcIds || {p2: enemy.id},
       players,
     };
+  }
+
+  function withRuleSetBag(player: TrainingPlayerDraftV4, ruleSet: TrainingRuleSetV4): TrainingPlayerDraftV4 {
+    return {...player, bag: ensureDefaultSystemItemsForRuleSetV4(normalizeBagStateV4(player.bag), ruleSet)};
   }
 
   function normalizePlayer(player: TrainingPlayerDraftV4, mode: TrainingModeV4): TrainingPlayerDraftV4 {
@@ -438,12 +479,12 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
         name: player.localTeam?.name || `${player.playerId.toUpperCase()} 队伍`,
         pokemon: filled.slice(0, 6),
       },
-      bag: player.bag || {items: []},
+      bag: normalizeBagStateV4(player.bag, undefined),
     };
   }
 
   function createPlayer(playerId: ShowdownPlayerIdV4, name: string, avatar: string, controller: TrainingControllerV4, alliance: TrainingAllianceV4, localTeam: LocalTeamV4): TrainingPlayerDraftV4 {
-    return {playerId, name, avatar, controller, alliance, localTeam, bag: {items: []}};
+    return {playerId, name, avatar, controller, alliance, localTeam, bag: normalizeBagStateV4(undefined)};
   }
 
   function createPokemon(speciesId: string, index: number, randomized = false): LocalPokemonV4 {
@@ -463,6 +504,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       gender: "N",
       shiny: randomized ? Math.random() < 0.12 : false,
       itemId: randomized ? pick(RANDOM_ITEMS) : DEFAULT_ITEM_ID,
+      heldItemInstanceId: undefined,
       abilityId: ability?.id || "",
       abilityName: ability?.name || "",
       abilityNameZh: ability?.nameZh || ability?.name || "",
@@ -504,6 +546,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       gender: pokemon.gender || "N",
       shiny: Boolean(pokemon.shiny),
       itemId: pokemon.itemId || "",
+      heldItemInstanceId: pokemon.itemId ? pokemon.heldItemInstanceId || undefined : undefined,
       abilityId: ability?.id || "",
       abilityName: ability?.name || "",
       abilityNameZh: ability?.nameZh || ability?.name || "",
@@ -526,6 +569,96 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       iconUrl: detail.sprites.iconUrl,
       iconStyle: detail.sprites.iconStyle,
     };
+  }
+
+  function createItemInstanceV4(itemID: string, options: Partial<PlayerItemInstanceV4> = {}): PlayerItemInstanceV4 {
+    const normalizedItemID = normalizeItemID(itemID);
+    const detail = getItemDetailSafe(normalizedItemID);
+    const name = options.name || detail?.nameZh || detail?.name || normalizedItemID;
+    return {
+      id: options.id || createId("item"),
+      itemID: options.itemID || normalizedItemID,
+      name,
+      image: options.image || detail?.iconUrl || "",
+      cost: normalizeNullableNumber(options.cost, detail?.cost ?? 0) ?? 0,
+      canSale: options.canSale ?? detail?.canSale ?? true,
+      type: options.type || playerItemTypeFromDetail(detail),
+      canBattleUse: options.canBattleUse ?? detail?.canBattleUse ?? false,
+      canUse: options.canUse ?? detail?.canUse ?? false,
+      canUseToPokemon: options.canUseToPokemon ?? detail?.canUseToPokemon ?? false,
+      canTake: options.canTake ?? detail?.canTake ?? false,
+      effectRound: normalizeNullableNumber(options.effectRound, null) ?? null,
+      getRound: normalizeNullableNumber(options.getRound, 0) ?? 0,
+      maxUseCount: normalizeNullableNumber(options.maxUseCount, null) ?? null,
+      useCount: normalizeNullableNumber(options.useCount, 0) ?? 0,
+    };
+  }
+
+  function normalizeBagStateV4(bag: unknown, ruleSet?: TrainingRuleSetV4): BagStateV4 {
+    const raw = isRecord(bag) ? bag : {};
+    const maxSize = Math.max(1, Math.floor(Number(raw.maxSize || DEFAULT_BAG_MAX_SIZE)));
+    const items = normalizeBagItems(raw.items).slice(0, maxSize);
+    const normalized: BagStateV4 = {maxSize, items, battleBagEnabled: Boolean(raw.battleBagEnabled)};
+    return ruleSet ? ensureDefaultSystemItemsForRuleSetV4(normalized, ruleSet) : normalized;
+  }
+
+  function ensureDefaultSystemItemsForRuleSetV4(bag: BagStateV4, ruleSet: TrainingRuleSetV4): BagStateV4 {
+    const normalized = normalizeBagStateV4(bag);
+    const managedItems = new Set(DEFAULT_SYSTEM_ITEMS_BY_RULE_SET[ruleSet]);
+    const retainedItems = normalized.items.filter(item => !MANAGED_SYSTEM_ITEM_IDS.has(item.itemID) || managedItems.has(item.itemID));
+    const existing = new Set(retainedItems.map(item => item.itemID));
+    const additions = DEFAULT_SYSTEM_ITEMS_BY_RULE_SET[ruleSet].filter(itemID => !existing.has(itemID));
+    if (!additions.length && retainedItems.length === normalized.items.length) return normalized;
+    const openSlots = Math.max(0, normalized.maxSize - retainedItems.length);
+    const nextItems = [...retainedItems, ...additions.slice(0, openSlots).map(itemID => createItemInstanceV4(itemID))];
+    return {...normalized, items: nextItems};
+  }
+
+  function normalizeBagItems(items: unknown): PlayerItemInstanceV4[] {
+    if (!Array.isArray(items)) return [];
+    return items.flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+      const instanceItemID = normalizeItemID(item.itemID);
+      if (!instanceItemID) return [];
+      return [createItemInstanceV4(instanceItemID, {
+        id: typeof item.id === "string" && item.id ? item.id : createId(`item-${index + 1}`),
+        name: typeof item.name === "string" ? item.name : undefined,
+        image: typeof item.image === "string" ? item.image : undefined,
+        cost: normalizeNullableNumber(item.cost, undefined) ?? undefined,
+        canSale: typeof item.canSale === "boolean" ? item.canSale : undefined,
+        type: normalizePlayerItemType(item.type),
+        canBattleUse: typeof item.canBattleUse === "boolean" ? item.canBattleUse : undefined,
+        canUse: typeof item.canUse === "boolean" ? item.canUse : undefined,
+        canUseToPokemon: typeof item.canUseToPokemon === "boolean" ? item.canUseToPokemon : undefined,
+        canTake: typeof item.canTake === "boolean" ? item.canTake : undefined,
+        effectRound: normalizeNullableNumber(item.effectRound, null),
+        getRound: normalizeNullableNumber(item.getRound, 0) ?? 0,
+        maxUseCount: normalizeNullableNumber(item.maxUseCount, null),
+        useCount: normalizeNullableNumber(item.useCount, 0) ?? 0,
+      })];
+    });
+  }
+
+  function getItemDetailSafe(itemID: string): DexItemDetail | null {
+    try {
+      return dex.getItemDetail(itemID);
+    } catch {
+      return null;
+    }
+  }
+
+  function playerItemTypeFromDetail(detail: DexItemDetail | null): PlayerItemTypeV4 {
+    if (!detail) return "misc";
+    if (detail.kind === "system") return "system";
+    if (detail.kind === "system-battle") return "system-battle";
+    if (detail.kind === "berry") return "berry";
+    if (detail.kind === "recovery" || detail.kind === "revive" || detail.kind === "pp") return "medicine";
+    if (detail.kind === "training") return "training";
+    if (detail.kind === "tm") return "tm";
+    if (detail.kind === "held" || detail.kind === "special") return "held";
+    if (detail.kind === "battle") return "battle";
+    if (detail.kind === "valuable") return "key";
+    return "misc";
   }
 
   function selectMoves(learnset: DexMoveSummary[], randomized = false): TrainingMoveSlotV4[] {
@@ -656,6 +789,9 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     getNextTrainingNode,
     randomizeTrainingScenario,
     randomizeTeam,
+    createItemInstance: createItemInstanceV4,
+    normalizeBagState: normalizeBagStateV4,
+    ensureDefaultSystemItemsForRuleSet: ensureDefaultSystemItemsForRuleSetV4,
     createTrainingNpcCatalog,
   };
 }
@@ -816,6 +952,34 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
   const next = Math.round(Number(value));
   if (!Number.isFinite(next)) return fallback;
   return Math.max(min, Math.min(max, next));
+}
+
+function normalizeNullableNumber(value: unknown, fallback: number | null | undefined): number | null | undefined {
+  if (value === null) return null;
+  if (value === undefined || value === "") return fallback;
+  const next = Math.round(Number(value));
+  return Number.isFinite(next) ? next : fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function normalizeItemID(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (/^tm:/i.test(raw)) return `tm:${toID(raw.slice(3))}`;
+  if (/^system-/i.test(raw)) return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "");
+  return toID(raw);
+}
+
+function toID(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function normalizePlayerItemType(value: unknown): PlayerItemTypeV4 | undefined {
+  const text = String(value || "");
+  const allowed: PlayerItemTypeV4[] = ["system", "system-battle", "held", "medicine", "berry", "training", "battle", "tm", "key", "misc"];
+  return allowed.includes(text as PlayerItemTypeV4) ? text as PlayerItemTypeV4 : undefined;
 }
 
 function createId(prefix: string): string {

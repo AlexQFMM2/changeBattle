@@ -66,7 +66,7 @@ assert.equal(thunderboltTm.moveId, "thunderbolt");
 assert.ok(thunderboltTm.nameZh.includes("十万伏特"));
 
 const dynamaxBand = dex.getItemDetail("system-dynamax-band");
-assert.equal(dynamaxBand.kindLabel, "系统道具");
+assert.equal(dynamaxBand.kindLabel, "系统战斗道具");
 assert.equal(dynamaxBand.canTake, false);
 
 const search = dex.searchDex({category: "pokemon", query: "venusaur", limit: 5});

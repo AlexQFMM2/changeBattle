@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemAllowedForRuleSetV4, battleSpecialSystemForChoiceV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
@@ -191,6 +191,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [busy, setBusy] = useState(false);
   const [battleStatusOpen, setBattleStatusOpen] = useState(false);
   const [switchPanelOpen, setSwitchPanelOpen] = useState(false);
+  const [battleBagOpen, setBattleBagOpen] = useState(false);
   const [commandMode, setCommandMode] = useState<"command" | "moves">("command");
   const [pendingMoveAction, setPendingMoveAction] = useState<MoveActionV4 | null>(null);
   const [commandDraft, setCommandDraft] = useState<BattleCommandDraftV4 | null>(null);
@@ -211,6 +212,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     viewModel.command.requestType === "switch" || (switchPanelOpen && viewModel.command.requestType === "move")
   ));
   const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
+  const activeBattleBag = api.normalizeBagState(run.players.p1?.bag);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -236,6 +238,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     setCommandDraft(rawViewModel.command.normalizedRequest ? createBattleCommandDraftV4(rawViewModel.command.normalizedRequest) : null);
     setCommandMode("command");
     setPendingMoveAction(null);
+    setBattleBagOpen(false);
     setChoiceStatus("");
     if (rawViewModel.command.requestType === "switch" && rawViewModel.status === "running") {
       setSwitchPanelOpen(true);
@@ -398,6 +401,15 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           commandMode={commandMode}
           onCommandModeChange={setCommandMode}
           onOpenSwitch={() => setSwitchPanelOpen(true)}
+          battleBag={activeBattleBag}
+          battleBagOpen={battleBagOpen}
+          onOpenBattleBag={() => {
+            if (!activeBattleBag.battleBagEnabled) {
+              setChoiceStatus("战斗背包未开启。");
+              return;
+            }
+            setBattleBagOpen(value => !value);
+          }}
           onSubmit={applyDraftChoice}
           onMoveDraft={draftMoveAction}
           onPreviewMove={setPreviewMove}
@@ -426,6 +438,9 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onClose={() => setSwitchPanelOpen(false)}
           onConfirm={applyDraftChoice}
         />
+      ) : null}
+      {!playbackBlockingCommands && battleBagOpen ? (
+        <BattleV4BagPanel api={api} bag={activeBattleBag} onClose={() => setBattleBagOpen(false)} />
       ) : null}
       {shouldShowResultPanel && snapshot ? (
         <div className="battle-v4-result-panel">
@@ -665,7 +680,7 @@ function SpecialSystemBadges({slot}: {slot: BattleViewSlotV4}) {
   );
 }
 
-function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
+function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, battleBag, battleBagOpen, onOpenBattleBag, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4 | null;
   snapshot: BattleSessionSnapshotV4 | null;
@@ -677,6 +692,9 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   commandMode: "command" | "moves";
   onCommandModeChange: (mode: "command" | "moves") => void;
   onOpenSwitch: () => void;
+  battleBag: BagStateV4;
+  battleBagOpen: boolean;
+  onOpenBattleBag: () => void;
   onSubmit: (choice: string) => void;
   onMoveDraft: (action: MoveActionV4, selectedSpecial?: BattleSpecialChoiceV4 | null) => void;
   onPreviewMove: (move: DexMoveDetail) => void;
@@ -783,8 +801,51 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
         <img src="/battle/command-buttons/switch.webp" alt="" />
         <span>宝可梦</span>
       </button>
+      <button className={`battle-v4-main-command bag ${battleBagOpen ? "active" : ""}`} type="button" disabled={busy} onClick={onOpenBattleBag} title={battleBag.battleBagEnabled ? "查看战斗背包" : "战斗背包未开启"}>
+        <span className="battle-v4-main-command-fallback-icon">包</span>
+        <span>背包</span>
+      </button>
     </section>
   );
+}
+
+function BattleV4BagPanel({api, bag, onClose}: {api: ChangeBattleV2Api; bag: BagStateV4; onClose: () => void}) {
+  const usableItems = bag.items.filter(item => item.canBattleUse);
+  return (
+    <aside className="battle-v4-bag-panel" aria-label="战斗背包">
+      <header>
+        <strong>战斗背包</strong>
+        <span>{usableItems.length}/{bag.items.length}</span>
+        <button type="button" onClick={onClose}>关闭</button>
+      </header>
+      <div className="battle-v4-bag-list">
+        {usableItems.length ? usableItems.map(item => <BattleV4BagItem api={api} item={item} key={item.id} />) : <p>没有可战斗使用的道具。</p>}
+      </div>
+      <small>本批只读展示，不提交道具指令。</small>
+    </aside>
+  );
+}
+
+function BattleV4BagItem({api, item}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4}) {
+  return (
+    <article>
+      <BattleV4BagItemIcon api={api} item={item} />
+      <strong>{item.name}</strong>
+      <span>{item.maxUseCount == null ? `使用 ${item.useCount}` : `使用 ${item.useCount}/${item.maxUseCount}`}</span>
+      <small>{item.itemID}</small>
+    </article>
+  );
+}
+
+function BattleV4BagItemIcon({api, item}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4}) {
+  try {
+    const detail = api.getItemDetail(item.itemID);
+    if (detail.iconStyle) return <span className="battle-v4-bag-item-icon item-icon" aria-hidden="true" style={styleFromCss(detail.iconStyle)} />;
+    if (detail.iconUrl) return <ImageWithFallback src={detail.iconUrl} alt="" fallback="◇" />;
+  } catch {
+    // Keep fallback below.
+  }
+  return item.image ? <ImageWithFallback src={item.image} alt="" fallback="◇" /> : <span className="battle-v4-bag-item-icon">◇</span>;
 }
 
 const SPECIAL_SYSTEM_BUTTONS: Array<{system: BattleSpecialSystemV4; label: string; icon: string; choices: BattleSpecialChoiceV4[]}> = [

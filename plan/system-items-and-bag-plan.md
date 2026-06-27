@@ -1,5 +1,26 @@
 # System Items And Bag Plan
 
+## Current Batch Status
+
+本轮已接入“背包实例 + 训练页编辑 + 默认系统战斗道具发放 + 休整页展示 + Battle V4 背包占位”第一批。
+
+已完成边界：
+
+- `BagStateV4` 升级为 `{ maxSize, items, battleBagEnabled }`，默认容量 50。
+- `PlayerItemInstanceV4` 采用非堆叠实例模型，同种道具也生成不同实例 id。
+- 开发期不兼容旧 `{ itemId, count }` 堆叠格式；背包只接受 `PlayerItemInstanceV4.itemID` 实例格式。
+- `gen7 / gen8 / gen9 / standard` 按当前规则补发默认系统战斗道具：Gen7 发通用 Mega 石 + 通用 Z 纯晶，Gen8 发极巨化手环，Gen9 发通用太晶珠，standard 不发。
+- 训练配置页可按玩家编辑背包、添加 Dex 道具、删除实例、编辑成本/回合/使用次数字段，并保存战斗背包开关。
+- 休整页可查看背包容量、实例列表和完整字段详情。
+- Battle V4 主指令区增加“背包”入口；未开启时提示，开启后展示只读可战斗使用道具列表。
+
+未完成边界：
+
+- 不实现道具真实使用效果。
+- 不实现商店、出售、扩容、消耗。
+- 不实现战斗中 `item ...` choice。
+- 不实现系统战斗道具映射成真实 Mega 石、Z 纯晶或太晶属性配置。
+
 ## Summary
 
 本计划用于把特殊系统资格从 Battle V4 前端硬编码中抽出来，沉到玩家背包与道具实例系统中。
@@ -13,14 +34,14 @@
 战斗里能不能点 Mega/Z/极巨/太晶 -> Showdown request can* 字段
 ```
 
-Battle V4 指令 UI 后续不再按我们自己的 `gen7/gen8/gen9` 逻辑硬过滤特殊系统按钮；它只相信 Showdown request。我们的规则系统只负责战斗前生成系统道具、映射真实携带物、注入 Showdown set。
+Battle V4 指令 UI 后续不再按我们自己的 `gen7/gen8/gen9` 逻辑硬过滤特殊系统按钮；它只相信 Showdown request。我们的规则系统只负责战斗前生成系统战斗道具、映射真实携带物、注入 Showdown set。
 
 ## Principles
 
 - 所有道具都是实例，不堆叠。两个相同道具也有不同 `id / getRound / useCount`。
 - 静态道具定义和玩家道具实例分离。`itemID` 是查图鉴、图标、默认效果与行为的稳定 key。
-- 系统道具控制特殊系统资格；Showdown request 控制战斗中是否可用。
-- Mega / Z 需要真实携带物，因此由通用系统道具映射成真实 Mega 石 / Z 纯晶。
+- 系统战斗道具控制特殊系统资格；Showdown request 控制战斗中是否可用。
+- Mega / Z 需要真实携带物，因此由通用系统战斗道具映射成真实 Mega 石 / Z 纯晶。
 - 极巨化手环 / 通用太晶珠是 player 级资格，不占宝可梦携带道具。
 - 合作模式不在 UI 层写死特殊系统限制；P1/P2 各自 request 和各自 bag 独立决定。
 
@@ -133,7 +154,7 @@ type SpecialSystemKindV4 =
 
 ## Default System Items
 
-新增 web/dex 可见系统道具：
+新增 web/dex 可见系统战斗道具：
 
 ```ts
 const DEFAULT_SYSTEM_ITEMS = [
@@ -185,11 +206,11 @@ const DEFAULT_SYSTEM_ITEMS = [
 
 第一版不修改 dex-core 公共 `DexCategory`，避免影响训练选择器等已有调用。和之前 `环境` 分类一样，先在 `QuickDexModal` 内接本地 registry。
 
-系统道具详情展示：
+系统战斗道具详情展示：
 
 - 名称 / 英文名
 - 图标 / 图片
-- 类型：系统道具
+- 类型：系统战斗道具
 - 是否可售卖
 - 是否可战斗中使用
 - 是否可直接使用
@@ -224,7 +245,7 @@ type PlayerSpecialSystemLoadoutV4 = {
 };
 ```
 
-唯一性由系统道具实例保证：
+唯一性由系统战斗道具实例保证：
 
 - 一个 player 同一场只分配一个 Mega 系统资格。
 - 一个 player 同一场只分配一个 Z 系统资格。
@@ -241,11 +262,11 @@ type PlayerSpecialSystemLoadoutV4 = {
    - 找到 `system-mega-stone` 实例。
    - 找到目标宝可梦。
    - 将目标宝可梦 Showdown item 写成真实 `mappedItemId`。
-   - 系统道具实例 `useCount += 1`。
+   - 系统战斗道具实例 `useCount += 1`。
 4. Z：
    - 找到 `system-z-crystal` 实例。
    - 将目标宝可梦 Showdown item 写成真实 `mappedItemId`。
-   - 系统道具实例 `useCount += 1`。
+   - 系统战斗道具实例 `useCount += 1`。
 5. 极巨化：
    - 不写宝可梦 item。
    - 是否出现 `canDynamax/maxMoves` 由 Showdown format 和 request 决定。
@@ -263,7 +284,7 @@ Battle V4 特殊按钮只根据 Showdown request 渲染：
 - 极巨化：`canDynamax / maxMoves`
 - 太晶化：`canTerastallize`
 
-不再用我们自己的 gen 判断来隐藏按钮。`battleSpecialSystemAllowedForRuleSetV4()` 只保留给准备页推荐、默认系统道具生成、规则说明或非 Showdown 前置校验。
+不再用我们自己的 gen 判断来隐藏按钮。`battleSpecialSystemAllowedForRuleSetV4()` 只保留给准备页推荐、默认系统战斗道具生成、规则说明或非 Showdown 前置校验。
 
 灰色按钮仍可点击，并显示原因：
 
@@ -295,7 +316,7 @@ function itemInstanceExpired(item: PlayerItemInstanceV4, currentRound: number): 
 
 使用次数原则：
 
-- Mega/Z 系统道具映射进战斗时计 1 次。
+- Mega/Z 系统战斗道具映射进战斗时计 1 次。
 - 普通携带战斗道具如果后续设计为计划报废，进入战斗携带可计 1 次。
 - 极巨化手环 / 太晶珠第一版可设为永久道具：`maxUseCount = null`。
 

@@ -6,7 +6,7 @@ import {ZhCnOverrides} from "./data/i18n/zh-cn-overrides.js";
 export type DexCategory = "pokemon" | "moves" | "abilities" | "items" | "trainers";
 export type DexStatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
 export type DexLearnSource = "levelup" | "machine" | "tutor" | "egg" | "event" | "transfer" | "other";
-export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "system" | "valuable" | "special" | "held" | "battle" | "other";
+export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "system" | "system-battle" | "valuable" | "special" | "held" | "battle" | "other";
 export type DexItemSource = "showdown" | "v1-game" | "overlay" | "system";
 
 export type DexSearchRequest = {
@@ -196,6 +196,7 @@ const ITEM_KIND_LABEL: Record<DexItemKind, string> = {
   tm: "技能机器",
   training: "训练道具",
   system: "系统道具",
+  "system-battle": "系统战斗道具",
   valuable: "贵重/剧情道具",
   special: "特殊道具",
   held: "携带道具",
@@ -233,7 +234,7 @@ const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   v1Item("superpotion", "Super Potion", "好伤药", "recovery", "恢复 60 点 HP。", {cost: 700, canBattleUse: true}),
   v1Item("hyperpotion", "Hyper Potion", "绝好伤药", "recovery", "恢复 120 点 HP。", {cost: 1200, canBattleUse: true}),
   v1Item("maxpotion", "Max Potion", "全满药", "recovery", "恢复全部 HP。", {cost: 2500, canBattleUse: true}),
-  v1Item("fullrestore", "Full Restore", "全复药", "recovery", "恢复全部 HP，并解除异常状态。", {cost: 3000, canBattleUse: true}),
+  v1Item("fullrestore", "Full Restore", "全复药", "recovery", "恢复指定宝可梦全部 HP，并解除其异常状态。", {cost: 3000, canBattleUse: true}),
   v1Item("freshwater", "Fresh Water", "美味之水", "recovery", "恢复 30 点 HP。", {cost: 200, canBattleUse: true}),
   v1Item("sodapop", "Soda Pop", "劲爽汽水", "recovery", "恢复 50 点 HP。", {cost: 300, canBattleUse: true}),
   v1Item("lemonade", "Lemonade", "果汁牛奶", "recovery", "恢复 70 点 HP。", {cost: 350, canBattleUse: true}),
@@ -265,10 +266,10 @@ const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   v1Item("ppmax", "PP Max", "PP 极限提升剂", "training", "将 1 个招式的 PP 上限提升到最大。", {cost: 16000, canBattleUse: false}),
   v1Item("bottlecap", "Bottle Cap", "银色王冠", "training", "休整页使用，指定 1 项个体值提升到 31。", {cost: 12000, canBattleUse: false}),
   v1Item("goldbottlecap", "Gold Bottle Cap", "金色王冠", "training", "休整页使用，全部个体值提升到 31。", {cost: 30000, canBattleUse: false}),
-  v1Item("system-mega-stone", "Generic Mega Stone", "通用Mega石", "system", "准备阶段映射为真实 Mega 石；战斗中是否可 Mega 由 Showdown request 决定。", {source: "system", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/medichamite/icon.png", tags: ["Mega", "mega进化", "超级进化"]}),
-  v1Item("system-z-crystal", "Generic Z-Crystal", "通用Z纯晶", "system", "准备阶段映射为真实 Z 纯晶；战斗中是否可使用 Z 招式由 Showdown request 决定。", {source: "system", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/electriumz/icon.png", tags: ["Z招式", "Z-Move", "纯晶"]}),
-  v1Item("system-dynamax-band", "Dynamax Band", "极巨化手环", "system", "玩家级系统资格，不占宝可梦携带道具；极巨化入口由 Showdown request 决定。", {source: "system", canUse: false, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/redorb/icon.png", tags: ["极巨化", "Dynamax", "Max"]}),
-  v1Item("system-tera-orb", "Generic Tera Orb", "通用太晶珠", "system", "玩家级系统资格，不占宝可梦携带道具；太晶属性来自后续配置。", {source: "system", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "runtime/items/adamantcrystal/icon.png", tags: ["太晶化", "Terastallize", "太晶珠"]}),
+  v1Item("system-mega-stone", "Universal Mega Ore", "通用Mega石", "system-battle", "工厂自研的 Mega 原石，十分贵重，蕴含一切进化的可能性。只要敲下一小块，就能加工成任意宝可梦需要的 Mega 石。", {source: "system", effectSummary: "拥有后，可在准备阶段为一只适合的宝可梦制作并配置专属 Mega 石。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/mega2.png", tags: ["Mega", "mega进化", "超级进化", "系统战斗道具"]}),
+  v1Item("system-z-crystal", "Universal Z-Crystal", "通用Z纯晶", "system-battle", "工厂调律后的 Z 纯晶，内部折射着各种属性的光。把它切割成合适形状后，就能成为训练师与宝可梦释放 Z 招式的核心。", {source: "system", effectSummary: "拥有后，可在准备阶段加工成适合队伍的 Z 纯晶。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/Z2.png", tags: ["Z招式", "Z-Move", "纯晶", "系统战斗道具"]}),
+  v1Item("system-dynamax-band", "Prototype Dynamax Band", "极巨化手环", "system-battle", "工厂复刻的极巨化手环，内置能量稳定器。它会在适合的场地中与宝可梦产生共鸣，让训练师获得启动极巨化的资格。", {source: "system", effectSummary: "拥有后，可在支持极巨化的规则中使用极巨化。", canUse: false, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/jjh2.png", tags: ["极巨化", "Dynamax", "Max", "系统战斗道具"]}),
+  v1Item("system-tera-orb", "Universal Tera Orb", "通用太晶珠", "system-battle", "工厂制造的通用太晶珠，外壳会随训练师设定的属性折射出不同色彩。充能完成后，可引导宝可梦释放太晶化的光。", {source: "system", effectSummary: "拥有后，可在支持太晶化的规则中配置并使用太晶化。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/tjh2.png", tags: ["太晶化", "Terastallize", "太晶珠", "系统战斗道具"]}),
 ];
 
 const V1_GAME_ITEM_BY_ID = new Map(V1_GAME_ITEM_ENTRIES.map(entry => [toID(entry.id), entry]));
@@ -556,7 +557,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       nameZh: `技能机器：${moveNameZh || move.name}`,
       kind: "tm",
       kindLabel: ITEM_KIND_LABEL.tm,
-      description: `让宝可梦学会 ${moveNameZh || move.name}。`,
+      description: `工厂刻录的技能机器，外壳会随招式属性显示不同颜色；使用后可以让宝可梦学会 ${moveNameZh || move.name}。`,
       source: "v1-game",
       sourceLabel: ITEM_SOURCE_LABEL["v1-game"],
       effectSummary: `技能机器模板。属性：${typeZh || typeName}，威力：${Number(move.basePower || 0) || "-"}，命中：${move.accuracy === true ? "-" : Number(move.accuracy || 0) || "-"}。`,
@@ -768,24 +769,44 @@ function v1Item(
   description: string,
   options: Partial<Omit<ItemRegistryEntry, "id" | "name" | "nameZh" | "kind" | "description">> = {},
 ): ItemRegistryEntry {
+  const displayDescription = factoryItemDescription(nameZh, kind, description);
   return {
     id,
     name,
     nameZh,
     kind,
     source: options.source || "v1-game",
-    description,
+    description: displayDescription,
     effectSummary: options.effectSummary || description,
     iconAsset: options.iconAsset || `runtime/items/${id}/icon.png`,
     canBattleUse: options.canBattleUse ?? false,
     canUse: options.canUse ?? true,
-    canUseToPokemon: options.canUseToPokemon ?? kind !== "system",
+    canUseToPokemon: options.canUseToPokemon ?? (kind !== "system" && kind !== "system-battle"),
     canTake: options.canTake ?? false,
     canSale: options.canSale ?? true,
     cost: options.cost ?? 500,
     futureInstanceCompatible: options.futureInstanceCompatible ?? true,
     tags: options.tags || [],
   };
+}
+
+function factoryItemDescription(nameZh: string, kind: DexItemKind, description: string): string {
+  const text = description.trim();
+  if (!text || text.includes("工厂")) return text || "暂无说明。";
+  const action = text.replace(/。+$/, "");
+  if (kind === "recovery" || kind === "revive" || kind === "pp") {
+    return `工厂特供的 ${nameZh}，以成本价提供给所有训练师；使用后可以${action}。`;
+  }
+  if (kind === "training") {
+    return `工厂训练部配发的 ${nameZh}，用于训练场休整；使用后可以${action}。`;
+  }
+  if (kind === "battle") {
+    return `工厂战术部准备的 ${nameZh}，用于短时间调整战斗节奏；使用后可以${action}。`;
+  }
+  if (kind === "valuable" || kind === "system") {
+    return `工厂登记在册的 ${nameZh}，属于重要功能道具；${action}。`;
+  }
+  return text;
 }
 
 function isTmItemId(id: string): boolean {
