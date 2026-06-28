@@ -424,6 +424,7 @@ function RoutedApp({runtime}: AppProps) {
         setFormalRun(run);
         navigate("/formal/starter-select", {replace: true});
       }}
+      onBack={() => navigate("/main", {replace: true})}
     />
   ) : <Navigate to="/" replace />;
 

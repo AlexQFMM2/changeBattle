@@ -5,6 +5,7 @@ import type {
   DexStatId,
   ShowdownDexService,
 } from "@changebattle-v2/showdown-dex-core";
+import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -20,8 +21,8 @@ import {
 
 export type FormalGameModeV4 = "singles" | "doubles" | "coop";
 export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "ended";
-export type FormalStarterRoleV4 = "weather" | "trick-room" | "offense" | "defensive-pivot" | "balanced";
-export type PokemonSpeciesRankV4 = "rank1" | "rank2" | "rank3" | "rank4" | "rank5" | "rank6" | "legendary";
+export type FormalStarterRoleV4 = "weather" | "trick-room" | "offense" | "support" | "defense" | "speed-control" | "disruption" | "flex-offense" | "flex-defense" | "balanced";
+export type PokemonSpeciesRankV4 = FormalPokemonSpeciesRankData;
 export type PokemonPowerProfileV4 = "rookie" | "normal" | "elite" | "boss" | "champion";
 export type CoopPartnerPreferenceV4 = "offense" | "defense" | "support" | "balanced";
 
@@ -34,6 +35,7 @@ export type FormalStarterCandidateDiagnosticsV4 = {
   filters: {
     allowedGenerations: number[];
     legendaryBattle: boolean;
+    battleBagEnabled: boolean;
     ruleSet: TrainingRuleSetV4;
   };
   messages: string[];
@@ -163,14 +165,17 @@ const STARTER_ROLE_PLAN: FormalStarterRoleV4[] = [
   "trick-room",
   "offense",
   "offense",
-  "defensive-pivot",
-  "balanced",
-  "balanced",
-  "balanced",
-  "balanced",
-  "balanced",
+  "support",
+  "defense",
+  "speed-control",
+  "disruption",
+  "flex-defense",
+  "flex-offense",
 ];
-const FALLBACK_SPECIES = ["pikachu", "eevee", "lucario", "charizard", "gardevoir", "dragonite", "greninja", "venusaur", "arcanine", "lapras"];
+const STARTER_ALLOWED_RANKS = new Set<PokemonSpeciesRankV4>(["rank4", "rank5", "rank6"]);
+const STARTER_MAX_LEGENDARY_CANDIDATES = 1;
+export const FORMAL_STARTER_SHINY_RATE = 1 / 30;
+const FALLBACK_SPECIES = ["lucario", "charizard", "gardevoir", "dragonite", "greninja", "venusaur", "arcanine", "lapras", "gyarados", "snorlax"];
 const FALLBACK_MOVES = ["tackle", "quickattack", "protect", "rest"];
 const NATURES = [
   "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
@@ -206,18 +211,16 @@ const NATURE_ZH: Record<string, string> = {
   Careful: "慎重",
   Quirky: "浮躁",
 };
-const LEGENDARY_DEX_NUMBERS = new Set([
-  144, 145, 146, 150, 151, 243, 244, 245, 249, 250, 251, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386,
-  480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 638, 639, 640, 641, 642, 643, 644,
-  645, 646, 647, 648, 649, 716, 717, 718, 719, 720, 721, 772, 773, 785, 786, 787, 788, 789, 790, 791, 792, 800,
-  801, 802, 807, 808, 809, 888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898, 905, 1001, 1002, 1003, 1004,
-  1007, 1008, 1014, 1015, 1016, 1017, 1024, 1025,
-]);
 const ROLE_TYPE_HINTS: Record<FormalStarterRoleV4, string[]> = {
   weather: ["Water", "Fire", "Rock", "Ice", "Ground", "Grass"],
   "trick-room": ["Psychic", "Ghost", "Fairy", "Rock", "Steel"],
   offense: ["Dragon", "Fire", "Electric", "Fighting", "Dark", "Flying"],
-  "defensive-pivot": ["Steel", "Water", "Grass", "Poison", "Ground"],
+  support: ["Fairy", "Grass", "Psychic", "Water", "Normal"],
+  defense: ["Steel", "Water", "Grass", "Poison", "Ground"],
+  "speed-control": ["Electric", "Flying", "Psychic", "Fairy", "Bug"],
+  disruption: ["Poison", "Ghost", "Dark", "Steel", "Ground", "Grass"],
+  "flex-defense": ["Steel", "Water", "Grass", "Poison", "Ground"],
+  "flex-offense": ["Dragon", "Fire", "Electric", "Fighting", "Dark", "Flying"],
   balanced: [],
 };
 
@@ -340,6 +343,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         filters: {
           allowedGenerations: candidateBattlePreference.allowedGenerations,
           legendaryBattle: candidateBattlePreference.legendaryBattle,
+          battleBagEnabled: candidateBattlePreference.battleBagEnabled,
           ruleSet: candidateBattlePreference.ruleSet,
         },
         messages: [],
@@ -419,17 +423,19 @@ export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: 
   count?: number;
 }): FormalStarterCandidateV4[] {
   const battlePreference = normalizeBattlePreferenceV4(input.battlePreference);
-  const count = clampInt(input.count, 1, 12, 10);
+  const count = clampInt(input.count, 1, 10, 10);
   const rng = createRng(`${input.seed}:${input.mode}:${input.streak}:${battlePreference.ruleSet}`);
   const rows = collectPokemonRows(dex, battlePreference);
   const roles = Array.from({length: count}, (_value, index) => STARTER_ROLE_PLAN[index] || "balanced");
   const used = new Set<string>();
+  let legendaryCount = 0;
   return roles.map((role, index) => {
     const rolePool = filterRowsForRole(rows, role);
-    const pool = rolePool.length ? rolePool : rows;
+    const pool = filterLegendaryQuota(rolePool.length ? rolePool : rows, battlePreference, legendaryCount);
     const unused = pool.filter(row => !used.has(row.id));
     const selectedRow = pickOne(unused.length ? unused : pool, rng) || fallbackRow(index);
     used.add(selectedRow.id);
+    if (selectedRow.rank === "legendary") legendaryCount += 1;
     const detail = safePokemonDetail(dex, selectedRow.id);
     const speciesRank = speciesRankForDetail(detail);
     const powerProfile = powerProfileForStreak(input.streak, index);
@@ -456,6 +462,7 @@ export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: 
         filters: {
           allowedGenerations: battlePreference.allowedGenerations,
           legendaryBattle: battlePreference.legendaryBattle,
+          battleBagEnabled: battlePreference.battleBagEnabled,
           ruleSet: battlePreference.ruleSet,
         },
         messages: [
@@ -629,8 +636,10 @@ function collectPokemonRows(dex: ShowdownDexService, battlePreference: BattlePre
     const detail = safePokemonDetail(dex, row.id);
     const generation = generationForDexNum(detail.num);
     const rank = speciesRankForDetail(detail);
+    if (!isRandomGeneratableSpeciesFormV4(row.id, detail)) return [];
     if (!allowedGenerations.has(generation)) return [];
     if (!battlePreference.legendaryBattle && rank === "legendary") return [];
+    if (rank !== "legendary" && !STARTER_ALLOWED_RANKS.has(rank)) return [];
     return [{...row, rank, generation}];
   });
 }
@@ -638,14 +647,25 @@ function collectPokemonRows(dex: ShowdownDexService, battlePreference: BattlePre
 function filterRowsForRole<T extends DexSearchRow & {rank: PokemonSpeciesRankV4}>(rows: T[], role: FormalStarterRoleV4): T[] {
   const typeHints = ROLE_TYPE_HINTS[role] || [];
   return rows.filter(row => {
-    const rankOk = role === "balanced" || row.rank === "rank3" || row.rank === "rank4" || row.rank === "rank5" || row.rank === "rank6";
+    const rankOk = row.rank === "legendary" || STARTER_ALLOWED_RANKS.has(row.rank);
     const typeOk = !typeHints.length || typeHints.some(type => row.tags.includes(type) || row.tags.includes(type.toLowerCase()));
     if (role === "trick-room") return rankOk && typeOk;
-    if (role === "defensive-pivot") return rankOk && typeOk;
+    if (role === "support") return rankOk && typeOk;
+    if (role === "defense") return rankOk && typeOk;
+    if (role === "speed-control") return rankOk && typeOk;
+    if (role === "disruption") return rankOk && typeOk;
+    if (role === "flex-defense") return rankOk && typeOk;
+    if (role === "flex-offense") return rankOk && typeOk;
     if (role === "offense") return rankOk && typeOk;
     if (role === "weather") return rankOk && typeOk;
     return rankOk;
   });
+}
+
+function filterLegendaryQuota<T extends DexSearchRow & {rank: PokemonSpeciesRankV4}>(rows: T[], battlePreference: BattlePreferenceV4, currentLegendaryCount: number): T[] {
+  if (!battlePreference.legendaryBattle) return rows.filter(row => row.rank !== "legendary");
+  if (currentLegendaryCount >= STARTER_MAX_LEGENDARY_CANDIDATES) return rows.filter(row => row.rank !== "legendary");
+  return rows;
 }
 
 function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail, options: {
@@ -670,7 +690,7 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
     nameZh: detail.nameZh,
     level,
     gender: "N",
-    shiny: options.rng() < 0.02,
+    shiny: options.rng() < FORMAL_STARTER_SHINY_RATE,
     itemId: "",
     heldItemInstanceId: undefined,
     abilityId: ability?.id || "",
@@ -699,8 +719,11 @@ function normalizeMovesForDetail(dex: ShowdownDexService, detail: DexPokemonDeta
   const damaging = learnset.filter(move => move.power > 0 && move.pp > 0);
   const support = learnset.filter(move => move.power === 0 && move.pp > 0);
   const selected: DexMoveSummary[] = [];
-  if (role === "offense") selected.push(...shuffle(damaging, rng).slice(0, 3), ...shuffle(support, rng).slice(0, 1));
-  else if (role === "defensive-pivot") selected.push(...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2));
+  if (role === "offense" || role === "flex-offense") selected.push(...shuffle(damaging, rng).slice(0, 3), ...shuffle(support, rng).slice(0, 1));
+  else if (role === "defense" || role === "flex-defense") selected.push(...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2));
+  else if (role === "support") selected.push(...preferMoves(learnset, ["protect", "wish", "healbell", "aromatherapy", "helpinghand", "reflect", "lightscreen"], rng).slice(0, 3), ...shuffle(damaging, rng).slice(0, 1));
+  else if (role === "speed-control") selected.push(...preferMoves(learnset, ["tailwind", "thunderwave", "icywind", "electroweb", "trickroom"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2));
+  else if (role === "disruption") selected.push(...preferMoves(learnset, ["stealthrock", "spikes", "toxicspikes", "stickyweb", "toxic", "willowisp", "taunt"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2));
   else if (role === "trick-room") selected.push(...preferMoves(learnset, ["trickroom", "protect"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2));
   else if (role === "weather") selected.push(...preferMoves(learnset, ["raindance", "sunnyday", "sandstorm", "snowscape", "hail"], rng).slice(0, 1), ...shuffle(damaging, rng).slice(0, 3));
   else selected.push(...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2));
@@ -739,14 +762,55 @@ function preferMoves(moves: DexMoveSummary[], preferredIds: string[], rng: () =>
 }
 
 function speciesRankForDetail(detail: DexPokemonDetail): PokemonSpeciesRankV4 {
-  if (LEGENDARY_DEX_NUMBERS.has(detail.num)) return "legendary";
-  const bst = STAT_IDS.reduce((sum, stat) => sum + Number(detail.baseStats[stat] || 0), 0);
-  if (bst < 250) return "rank1";
-  if (bst < 340) return "rank2";
-  if (bst < 430) return "rank3";
-  if (bst < 500) return "rank4";
-  if (bst < 570) return "rank5";
-  return "rank6";
+  const direct = FormalPokemonSpeciesRankById[detail.id];
+  if (direct) return direct;
+  const baseId = toID(detail.baseSpecies || detail.name);
+  return FormalPokemonSpeciesRankById[baseId] || "rank4";
+}
+
+export function isRandomGeneratableSpeciesFormV4(speciesId: string, detail: DexPokemonDetail): boolean {
+  const id = toID(speciesId || detail.id);
+  const forme = toID(detail.forme || "");
+  if (!id || detail.num <= 0) return false;
+  if (detail.isNonstandard && detail.isNonstandard !== "Past" && detail.isNonstandard !== "Future") return false;
+  if (detail.isMega || forme.includes("mega") || id.endsWith("mega") || id.includes("megax") || id.includes("megay")) return false;
+  if (forme.includes("gmax") || id.endsWith("gmax") || id.includes("gmax")) return false;
+  if (detail.battleOnly || forme.includes("ultra") || forme.includes("totem") || forme.includes("tera") || forme.includes("terastal") || forme.includes("stellar")) return false;
+  if (detail.changesFrom && !isAllowedRegionalOrStableVariant(forme)) return false;
+  if (isBlockedBattleForm(id, forme)) return false;
+  return true;
+}
+
+function isAllowedRegionalOrStableVariant(forme: string): boolean {
+  return forme === "alola" || forme === "galar" || forme === "hisui" || forme === "paldea";
+}
+
+function isBlockedBattleForm(id: string, forme: string): boolean {
+  const blockedFormes = [
+    "zen",
+    "galarzen",
+    "school",
+    "blade",
+    "busted",
+    "complete",
+    "ash",
+    "sunshine",
+    "sunny",
+    "rainy",
+    "snowy",
+    "meteor",
+    "gulping",
+    "gorging",
+    "hangry",
+    "noice",
+    "hero",
+    "crowned",
+    "eternamax",
+    "terastal",
+    "stellar",
+  ];
+  if (blockedFormes.some(blocked => forme === blocked || forme.includes(blocked))) return true;
+  return id.includes("totem") || id.includes("eternamax") || id.includes("ultra") || id.includes("crowned");
 }
 
 function powerProfileForStreak(streak: number, index: number): PokemonPowerProfileV4 {
@@ -771,10 +835,12 @@ function ivsForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): 
 
 function evsForPowerProfile(profile: PokemonPowerProfileV4, role: FormalStarterRoleV4, rng: () => number): StatTableV4 {
   const budget = profile === "rookie" ? 120 : profile === "normal" ? 240 : profile === "elite" ? 420 : profile === "boss" ? 500 : 508;
-  const priority: DexStatId[] = role === "defensive-pivot"
+  const priority: DexStatId[] = role === "defense" || role === "flex-defense" || role === "support" || role === "disruption"
     ? ["hp", "def", "spd", "atk", "spa", "spe"]
     : role === "trick-room"
       ? ["hp", "atk", "spa", "def", "spd", "spe"]
+      : role === "speed-control"
+        ? ["spe", "hp", "def", "spd", "atk", "spa"]
       : ["spe", "atk", "spa", "hp", "def", "spd"];
   const evs = Object.fromEntries(STAT_IDS.map(stat => [stat, 0])) as StatTableV4;
   let remaining = budget;
@@ -845,7 +911,7 @@ function normalizeCoopPartnerPreference(value: unknown): CoopPartnerPreferenceV4
 }
 
 function normalizeStarterRole(value: unknown): FormalStarterRoleV4 {
-  return value === "weather" || value === "trick-room" || value === "offense" || value === "defensive-pivot" || value === "balanced" ? value : "balanced";
+  return value === "weather" || value === "trick-room" || value === "offense" || value === "support" || value === "defense" || value === "speed-control" || value === "disruption" || value === "flex-offense" || value === "flex-defense" || value === "balanced" ? value : "balanced";
 }
 
 function normalizeSpeciesRank(value: unknown): PokemonSpeciesRankV4 {
@@ -872,7 +938,12 @@ function starterRoleLabel(role: FormalStarterRoleV4): string {
   if (role === "weather") return "天气组件";
   if (role === "trick-room") return "空间组件";
   if (role === "offense") return "进攻核心";
-  if (role === "defensive-pivot") return "防御中转";
+  if (role === "support") return "辅助手";
+  if (role === "defense") return "防御手";
+  if (role === "speed-control") return "速度控制";
+  if (role === "disruption") return "干扰撒场";
+  if (role === "flex-defense") return "防辅补位";
+  if (role === "flex-offense") return "攻击补位";
   return "平衡补位";
 }
 

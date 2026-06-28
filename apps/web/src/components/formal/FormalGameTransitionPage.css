@@ -1,4 +1,4 @@
-.formal-starter-select-page {
+.formal-game-transition-wrap {
   position: relative;
   width: 100%;
   height: 100%;
@@ -7,11 +7,11 @@
   overflow: hidden;
 }
 
-.formal-starter-select-back {
+.formal-game-transition-back {
   position: absolute;
   left: 14px;
   top: 12px;
-  z-index: 8;
+  z-index: 4;
   min-width: 62px;
   min-height: 22px;
   border: 1px solid rgb(236 207 134 / 72%);
@@ -28,24 +28,10 @@
   line-height: 1;
 }
 
-.formal-starter-select-back:hover,
-.formal-starter-select-back:focus-visible {
+.formal-game-transition-back:hover,
+.formal-game-transition-back:focus-visible {
   border-color: #f0d37e;
   color: #fffdf5;
   outline: 0;
   filter: brightness(1.08);
-}
-
-.formal-starter-select-error {
-  position: absolute;
-  right: 14px;
-  bottom: 48px;
-  z-index: 5;
-  border: 1px solid #f5d08c;
-  border-radius: 4px;
-  background: rgb(52 28 31 / 92%);
-  color: #ffeec8;
-  padding: 8px 10px;
-  font-size: 12px;
-  font-weight: 900;
 }

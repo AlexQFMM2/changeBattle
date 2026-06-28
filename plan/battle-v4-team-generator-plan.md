@@ -153,6 +153,27 @@ pokemonFilter: {
 
 如果过滤池太小，Showdown 可能因为兼容性规则生成不满队伍。正式接 NPC 前需要为每个 NPC 池做 fixture，避免剧情队伍池过窄。
 
+## Formal Game Species Rules
+
+正式游戏随机物种池在进入 Showdown 或本地开局候选生成前，先走 V2 公共过滤：
+
+- 从 V1 `pokemon_tiers.csv` 迁移出的 `speciesRank` 作为物种强度/稀有度来源，V2 新代码不再使用 `tier` 命名。
+- 究极异兽、波荡水等高规格特殊传说/悖谬物种按游戏体验归入 `speciesRank=legendary`。
+- `battlePreference.allowedGenerations` 是地区限制，所有正式随机池都要读取 runGame 固化快照，而不是读取当前全局 profile。
+- `battlePreference.legendaryBattle=false` 时排除 `legendary`；开启时可进入池子，但由具体生成场景限制数量。
+- `battlePreference.ruleSet` 作为战斗系统快照保存和参与生成种子；开局随机池不直接允许 Mega/Gmax/战斗形态作为初始物种。
+- `battlePreference.battleBagEnabled` 随 run 保存，但与随机物种池无关。
+- `isRandomGeneratableSpeciesFormV4` 作为正式随机池公共合法形态过滤 helper：允许基础形态和地区形态，严格排除 Mega、Gmax、Ultra、Totem、战斗变化形态、系统变化形态和不可作为初始物种的特殊形态。
+
+玩家开局候选是更窄的一层：
+
+- 普通候选只从 `rank4/rank5/rank6` 抽取，`rank1/rank2/rank3` 不进入玩家初始候选池。
+- 玩家候选默认不携带道具，不创建背包实例，不绑定 `heldItemInstanceId`。
+- 神战开启时 `legendary` 可进入玩家候选池，但首版最多 1 只。
+- 闪光概率固定为 `1/30`。
+- 基础 6 只角色固定为：天气组件、空间组件、攻击手、攻击手、辅助手、防御手。
+- 星图随机扩展到 10 只时，第 7-10 位为：速度控制/节奏手、干扰/场地/撒场手、第二防御或辅助补位、泛用攻击或队伍短板补位。
+
 ## Archetype Scoring
 
 `teamArchetype` 表示常见队伍类型。第一版支持：

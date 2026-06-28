@@ -25,6 +25,24 @@
 - [x] API adapter 通过 typecheck 验证模型契约。
 - [x] 记录架构文档。
 
+## 正式游戏随机池规则
+
+- [x] 迁移 V1 `pokemon_tiers.csv` 为 V2 `speciesRank` 可 import 数据。
+- [x] 将究极异兽、波荡水等高规格特殊传说/悖谬物种归入 `legendary`。
+- [x] 新增 `isRandomGeneratableSpeciesFormV4` 合法形态过滤。
+- [x] 合法形态过滤允许基础形态和地区形态。
+- [x] 合法形态过滤排除 Mega、Gmax、Ultra、Totem、战斗变化形态和系统变化形态。
+- [x] 玩家开局候选读取 runGame 固化的 `battlePreference` 快照。
+- [x] 玩家开局候选按 `allowedGenerations` 过滤地区。
+- [x] 玩家开局候选按 `legendaryBattle` 控制神兽池。
+- [x] 玩家开局普通候选只允许 `rank4/rank5/rank6`。
+- [x] 玩家开局候选默认无携带道具、无背包实例绑定。
+- [x] 玩家开局候选闪光概率为 `1/30`。
+- [x] 玩家基础 6 只角色为天气、空间、攻击、攻击、辅助、防御。
+- [x] 玩家星图随机扩展 7-10 位角色为速度控制、干扰/场地、第二防御或辅助、泛用攻击补位。
+- [ ] 普通 NPC 随机队伍复用 `speciesRank` 和合法形态过滤。
+- [ ] 普通 NPC 随机队伍按 runGame `battlePreference` 快照处理地区、神战和战斗系统。
+
 ## 暂不做
 
 - [ ] 不接训练配置页按钮。

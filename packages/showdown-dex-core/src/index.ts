@@ -28,9 +28,16 @@ import {
   type BossTrainerPresetTeamPreviewData,
   type BossTrainerPresetTeamPreviewPokemonData,
 } from "./data/boss-preset-team-previews.js";
+import {
+  PokemonSpeciesRankById,
+  PokemonSpeciesRankEntries,
+  type PokemonSpeciesRankData,
+  type PokemonSpeciesRankEntryData,
+} from "./data/pokemon-species-ranks.js";
 
 export {BossTrainerPresetMatrixSummaries, BossTrainerPresetTeamCount, BossTrainerPresetTeamsDataFile};
-export type {BossTrainerPresetMatrixSummaryData, BossTrainerPresetTeamData, BossTrainerPresetTeamPreviewData, BossTrainerPresetTeamPreviewPokemonData};
+export {PokemonSpeciesRankById, PokemonSpeciesRankEntries};
+export type {BossTrainerPresetMatrixSummaryData, BossTrainerPresetTeamData, BossTrainerPresetTeamPreviewData, BossTrainerPresetTeamPreviewPokemonData, PokemonSpeciesRankData, PokemonSpeciesRankEntryData};
 
 export type DexCategory = "pokemon" | "moves" | "abilities" | "items" | "trainers";
 export type DexStatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
@@ -114,6 +121,15 @@ export type DexPokemonDetail = {
   name: string;
   nameZh: string;
   num: number;
+  baseSpecies?: string;
+  forme?: string;
+  cosmeticFormes?: string[];
+  otherFormes?: string[];
+  battleOnly?: string | string[];
+  changesFrom?: string;
+  isMega?: boolean;
+  canGigantamax?: string;
+  isNonstandard?: string | null;
   types: string[];
   heightm?: number;
   weightkg?: number;
@@ -564,6 +580,15 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       name: species.name,
       nameZh: translate("pokemon", species.name),
       num: Number(species.num || 0),
+      baseSpecies: species.baseSpecies || species.name,
+      forme: species.forme || "",
+      cosmeticFormes: species.cosmeticFormes || [],
+      otherFormes: species.otherFormes || [],
+      battleOnly: species.battleOnly,
+      changesFrom: species.changesFrom,
+      isMega: Boolean(species.isMega),
+      canGigantamax: species.canGigantamax,
+      isNonstandard: species.isNonstandard || null,
       types: species.types || [],
       baseStats: normalizeStats(species.baseStats || {}),
       abilities: Object.entries(species.abilities || {}).map(([slot, value]) => {
