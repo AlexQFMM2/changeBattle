@@ -155,6 +155,16 @@ const standardBag = trainingApi.normalizeBagState({maxSize: 50, items: []}, "sta
 assert(standardBag.items.length === 0, "standard should not receive default system items");
 const gen9ToStandardBag = trainingApi.ensureDefaultSystemItemsForRuleSet(gen9Bag, "standard");
 assert(gen9ToStandardBag.items.length === 0, "gen9 -> standard should remove managed system items");
+const mappedMega = trainingApi.normalizeBagState({items: [{
+  itemID: "system-mega-stone",
+  mappedItemId: "charizarditex",
+  mappedItemName: "Charizardite X",
+  mappedItemNameZh: "喷火龙X进化石",
+  mappedItemIconUrl: "/items/charizarditex.png",
+  systemReforgeKind: "mega",
+}]});
+assert(mappedMega.items[0]?.mappedItemId === "charizarditex", "mappedItemId should survive bag normalize");
+assert(mappedMega.items[0]?.mappedItemNameZh === "喷火龙X进化石", "mappedItemNameZh should survive bag normalize");
 const node: TrainingRunGameNodeV4 = {
   id: "identity-node",
   index: 0,
@@ -211,6 +221,23 @@ for (const token of mapping.map(entry => entry.showdownIdentityToken)) {
   assert(sessionInput.showdownIdPool.used.includes(token), `pool missing used token ${token}`);
   assert(!sessionInput.showdownIdPool.available.includes(token), `pool still has available token ${token}`);
 }
+
+const systemMega = trainingApi.createItemInstance("system-mega-stone", {id: "system-mega-1", mappedItemId: "charizarditex", mappedItemName: "Charizardite X", mappedItemNameZh: "喷火龙X进化石", systemReforgeKind: "mega"});
+const systemTera = trainingApi.createItemInstance("system-tera-orb", {id: "system-tera-1", mappedTeraType: "Fairy", mappedTeraTypeZh: "妖精", systemReforgeKind: "tera"});
+const mappedPlayer = player("p1", [{...p1Team[0]!, itemId: "charizarditex", heldItemInstanceId: undefined}]);
+mappedPlayer.bag = {maxSize: 50, items: [systemMega, systemTera]};
+const mappedNode = {...node, participants: {...node.participants, p1: mappedPlayer}, ruleSet: "gen9" as const};
+const mappedRun = {...run, players: {...run.players, p1: mappedPlayer}, gameMap: [mappedNode]};
+const {sessionInput: mappedSessionInput} = createBattleGameFromTrainingNode(mappedRun, mappedNode);
+const mappedSessionP1 = mappedSessionInput.players.find(entry => entry.playerId === "p1");
+assert(mappedSessionP1?.team[0]?.item === "charizarditex", "system Mega should compile to mapped item");
+assert(mappedSessionP1?.team[0]?.teraType === "Fairy", "system Tera orb should compile to teraType");
+const unreforgedSystemPlayer = player("p1", [{...p1Team[0]!, itemId: "system-mega-stone", heldItemInstanceId: systemMega.id}]);
+unreforgedSystemPlayer.bag = {maxSize: 50, items: [trainingApi.createItemInstance("system-mega-stone", {id: systemMega.id})]};
+const unreforgedNode = {...node, participants: {...node.participants, p1: unreforgedSystemPlayer}, ruleSet: "gen7" as const};
+const unreforgedRun = {...run, players: {...run.players, p1: unreforgedSystemPlayer}, gameMap: [unreforgedNode]};
+const {sessionInput: unreforgedSessionInput} = createBattleGameFromTrainingNode(unreforgedRun, unreforgedNode);
+assert(!unreforgedSessionInput.players.find(entry => entry.playerId === "p1")?.team[0]?.item, "unmapped system item should not compile as held item");
 
 const endedSnapshot: BattleSessionSnapshotV4 = {
   id: "identity-session",

@@ -166,6 +166,34 @@ export type DexItemDetail = {
   iconStyle?: string;
 };
 
+export type DexSystemReforgeKind = "mega" | "z-crystal" | "tera";
+
+export type DexSystemBattleReforgePokemonInput = {
+  speciesId: string;
+  name?: string;
+  nameZh?: string;
+  moves?: Array<{moveId?: string; id?: string; type?: string; typeId?: string}>;
+};
+
+export type DexSystemBattleReforgeOption = {
+  id: string;
+  kind: DexSystemReforgeKind;
+  name: string;
+  nameZh: string;
+  description: string;
+  iconUrl?: string;
+  iconStyle?: string;
+  mappedItemId?: string;
+  mappedTeraType?: string;
+  mappedTeraTypeZh?: string;
+  type?: string;
+  typeZh?: string;
+  appliesTo?: string[];
+  requiredMoveId?: string;
+  requiredMoveName?: string;
+  requiredMoveNameZh?: string;
+};
+
 export type DexStatsInput = {
   speciesId: string;
   level?: number;
@@ -213,6 +241,28 @@ export type ShowdownDexService = ReturnType<typeof createShowdownDexService>;
 
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_RESOURCE_PREFIX = "/showdown/";
+const TYPE_IDS = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
+const TYPE_ID_BY_ZH: Record<string, string> = {
+  一般: "normal",
+  普通: "normal",
+  火: "fire",
+  水: "water",
+  电: "electric",
+  草: "grass",
+  冰: "ice",
+  格斗: "fighting",
+  毒: "poison",
+  地面: "ground",
+  飞行: "flying",
+  超能力: "psychic",
+  虫: "bug",
+  岩石: "rock",
+  幽灵: "ghost",
+  龙: "dragon",
+  恶: "dark",
+  钢: "steel",
+  妖精: "fairy",
+};
 const ITEM_KIND_LABEL: Record<DexItemKind, string> = {
   berry: "树果",
   recovery: "恢复道具",
@@ -334,10 +384,10 @@ const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   v1Item("bottlecap", "Bottle Cap", "银色王冠", "training", "休整页使用，指定 1 项个体值提升到 31。", {cost: 12000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "silver"}}),
   v1Item("goldbottlecap", "Gold Bottle Cap", "金色王冠", "training", "休整页使用，全部个体值提升到 31。", {cost: 30000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "gold"}}),
   v1Item("graybottlecap", "Gray Bottle Cap", "灰色王冠", "training", "休整页使用，使 1 项个体值降低到 0。", {cost: 8000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "gray"}, iconAsset: "runtime/items/goldbottlecap/icon.png"}),
-  v1Item("system-mega-stone", "Universal Mega Ore", "通用Mega石", "system-battle", "工厂自研的 Mega 原石，十分贵重，蕴含一切进化的可能性。只要敲下一小块，就能加工成任意宝可梦需要的 Mega 石。", {source: "system", effectSummary: "拥有后，可在准备阶段为一只适合的宝可梦制作并配置专属 Mega 石。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/mega2.png", tags: ["Mega", "mega进化", "超级进化", "系统战斗道具"]}),
-  v1Item("system-z-crystal", "Universal Z-Crystal", "通用Z纯晶", "system-battle", "工厂调律后的 Z 纯晶，内部折射着各种属性的光。把它切割成合适形状后，就能成为训练师与宝可梦释放 Z 招式的核心。", {source: "system", effectSummary: "拥有后，可在准备阶段加工成适合队伍的 Z 纯晶。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/Z2.png", tags: ["Z招式", "Z-Move", "纯晶", "系统战斗道具"]}),
-  v1Item("system-dynamax-band", "Prototype Dynamax Band", "极巨化手环", "system-battle", "工厂复刻的极巨化手环，内置能量稳定器。它会在适合的场地中与宝可梦产生共鸣，让训练师获得启动极巨化的资格。", {source: "system", effectSummary: "拥有后，可在支持极巨化的规则中使用极巨化。", canUse: false, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/jjh2.png", tags: ["极巨化", "Dynamax", "Max", "系统战斗道具"]}),
-  v1Item("system-tera-orb", "Universal Tera Orb", "通用太晶珠", "system-battle", "工厂制造的通用太晶珠，外壳会随训练师设定的属性折射出不同色彩。充能完成后，可引导宝可梦释放太晶化的光。", {source: "system", effectSummary: "拥有后，可在支持太晶化的规则中配置并使用太晶化。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/tjh2.png", tags: ["太晶化", "Terastallize", "太晶珠", "系统战斗道具"]}),
+  v1Item("system-mega-stone", "Universal Mega Ore", "通用Mega石", "system-battle", "工厂制造的幻之 Mega 石，只要对你的宝可梦使用，就能回应你的心。", {source: "system", effectSummary: "重铸并使用后，可让一只适合的宝可梦携带专属 Mega 石。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/mega2.png", tags: ["Mega", "mega进化", "超级进化", "系统战斗道具"]}),
+  v1Item("system-z-crystal", "Universal Z-Crystal", "通用Z纯晶", "system-battle", "工厂制造的幻之 Z 纯晶，可以让宝可梦发挥出任何能用的 Z 招式。", {source: "system", effectSummary: "重铸并使用后，可让一只适合的宝可梦携带对应 Z 纯晶。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/Z2.png", tags: ["Z招式", "Z-Move", "纯晶", "系统战斗道具"]}),
+  v1Item("system-dynamax-band", "Prototype Dynamax Band", "极巨化手环", "system-battle", "工厂和加勒尔联盟合作的极巨化手环，蕴含在任何地区都能极巨化的能量。", {source: "system", effectSummary: "拥有后，可在支持极巨化的规则中使用极巨化。", canUse: false, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/jjh2.png", tags: ["极巨化", "Dynamax", "Max", "系统战斗道具"]}),
+  v1Item("system-tera-orb", "Universal Tera Orb", "通用太晶珠", "system-battle", "工厂自研的太晶珠，蕴含一切属性的力量。", {source: "system", effectSummary: "重铸后，可在支持太晶化的规则中配置并使用太晶化。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/tjh2.png", tags: ["太晶化", "Terastallize", "太晶珠", "系统战斗道具"]}),
 ];
 
 const V1_GAME_ITEM_BY_ID = new Map(V1_GAME_ITEM_ENTRIES.map(entry => [toID(entry.id), entry]));
@@ -440,6 +490,14 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
   function getTmItemDetail(moveIdOrTmId: string): DexItemDetail {
     const normalized = normalizeTmItemId(moveIdOrTmId);
     return getItemDetail(normalized);
+  }
+
+  function getSystemBattleReforgeOptions(itemId: string, pokemon: DexSystemBattleReforgePokemonInput | null | undefined): DexSystemBattleReforgeOption[] {
+    const normalized = toID(itemId);
+    if (normalized === "systemmegastone") return megaReforgeOptions(pokemon);
+    if (normalized === "systemzcrystal") return zCrystalReforgeOptions(pokemon);
+    if (normalized === "systemteraorb") return teraReforgeOptions();
+    return [];
   }
 
   function getPokemonLearnset(speciesId: string): DexMoveSummary[] {
@@ -695,6 +753,90 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     };
   }
 
+  function megaReforgeOptions(pokemon: DexSystemBattleReforgePokemonInput | null | undefined): DexSystemBattleReforgeOption[] {
+    if (!pokemon?.speciesId) return [];
+    const activeDex = requireDex();
+    const species = activeDex.species.get(pokemon.speciesId);
+    const speciesNames = new Set([species?.name, species?.baseSpecies, pokemon.speciesId, pokemon.name].filter(Boolean).map(value => String(value)));
+    return activeDex.items.all()
+      .filter(item => item?.exists && item.megaStone && itemAppliesToAny(item, speciesNames))
+      .map(item => itemReforgeOption(item, "mega"))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function zCrystalReforgeOptions(pokemon: DexSystemBattleReforgePokemonInput | null | undefined): DexSystemBattleReforgeOption[] {
+    const activeDex = requireDex();
+    const moveIds = new Set((pokemon?.moves || []).map(move => toID(move.moveId || move.id)).filter(Boolean));
+    const moveTypes = new Set((pokemon?.moves || []).map(move => moveTypeIdForReforge(activeDex, move)).filter(Boolean));
+    const species = pokemon?.speciesId ? activeDex.species.get(pokemon.speciesId) : null;
+    const speciesNames = new Set([species?.name, species?.baseSpecies, pokemon?.speciesId, pokemon?.name].filter(Boolean).map(value => String(value)));
+    return activeDex.items.all()
+      .filter(item => item?.exists && (item.zMove || item.zMoveType))
+      .filter(item => {
+        if (item.zMoveFrom) return moveIds.has(toID(item.zMoveFrom)) && itemAppliesToAny(item, speciesNames);
+        if (item.itemUser?.length && !itemAppliesToAny(item, speciesNames)) return false;
+        return Boolean(item.zMoveType && moveTypes.has(toID(item.zMoveType)));
+      })
+      .map(item => itemReforgeOption(item, "z-crystal", item.zMoveType || "", item.zMoveFrom || ""))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function teraReforgeOptions(): DexSystemBattleReforgeOption[] {
+    return TYPE_IDS.map(type => {
+      const typeId = toID(type);
+      const typeZh = translate("types", type);
+      return {
+        id: `tera:${typeId}`,
+        kind: "tera",
+        name: `${type} Tera`,
+        nameZh: `${typeZh}太晶`,
+        description: `把通用太晶珠调律为${typeZh}属性。`,
+        mappedTeraType: type,
+        mappedTeraTypeZh: typeZh,
+        type,
+        typeZh,
+      };
+    });
+  }
+
+  function itemReforgeOption(item: any, kind: DexSystemReforgeKind, type = "", requiredMove = ""): DexSystemBattleReforgeOption {
+    const detail = showdownItemDetail(item);
+    const move = requiredMove ? requireDex().moves.get(requiredMove) : null;
+    const typeZh = type ? translate("types", type) : "";
+    return {
+      id: `${kind}:${item.id}`,
+      kind,
+      name: item.name,
+      nameZh: detail.nameZh || item.name,
+      description: detail.effectSummary || detail.description,
+      iconUrl: detail.iconUrl,
+      iconStyle: detail.iconStyle,
+      mappedItemId: item.id,
+      type: type || undefined,
+      typeZh: typeZh || undefined,
+      appliesTo: Array.isArray(item.itemUser) ? item.itemUser : [],
+      requiredMoveId: move?.id || (requiredMove ? toID(requiredMove) : undefined),
+      requiredMoveName: move?.name || requiredMove || undefined,
+      requiredMoveNameZh: move?.name ? translate("moves", move.name) : undefined,
+    };
+  }
+
+  function itemAppliesToAny(item: any, speciesNames: Set<string>): boolean {
+    if (!speciesNames.size) return false;
+    if (Array.isArray(item.itemUser) && item.itemUser.some((name: string) => speciesNames.has(name))) return true;
+    const megaStone = item.megaStone || {};
+    return Object.keys(megaStone).some(name => speciesNames.has(name)) || Object.values(megaStone).some(name => speciesNames.has(String(name)));
+  }
+
+  function moveTypeIdForReforge(activeDex: ShowdownDexLike, move: {moveId?: string; id?: string; type?: string; typeId?: string}): string {
+    const raw = String(move.typeId || move.type || "").trim();
+    const explicit = toID(raw) || TYPE_ID_BY_ZH[raw] || "";
+    if (explicit) return explicit;
+    const moveId = toID(move.moveId || move.id);
+    const detail = moveId ? activeDex.moves.get(moveId) : null;
+    return toID(detail?.type || "");
+  }
+
   function pokemonRow(activeDex: ShowdownDexLike, species: any): DexSearchRow {
     const types = (species.types || []) as string[];
     return {id: species.id, category: "pokemon", name: species.name, nameZh: translate("pokemon", species.name), subtitle: `${types.map(type => translate("types", type)).join(" / ")} No.${species.num || "--"}`, tags: [species.id, species.name, translate("pokemon", species.name), String(species.num || ""), ...types, ...types.map(type => translate("types", type))].filter(Boolean), sprite: resolvePokemonSprites({speciesId: species.id})};
@@ -707,6 +849,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     getAbilityDetail,
     getItemDetail,
     getTmItemDetail,
+    getSystemBattleReforgeOptions,
     getPokemonLearnset,
     getPokemonLearnsetGroups,
     getPokemonSkillsBySource,

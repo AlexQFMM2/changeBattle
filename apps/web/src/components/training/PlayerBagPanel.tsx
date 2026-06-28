@@ -159,12 +159,12 @@ export function PlayerBagPanel({
                       <div className="training-rest-new-bag-detail-title">
                         <PlayerBagItemIcon api={api} item={selectedItem} large />
                         <div>
-                          <strong>{selectedItem.name}</strong>
+                          <strong>{displayItemName(selectedItem)}</strong>
                           <small>{selectedDetail?.kindLabel || itemTypeLabel(selectedItem.type)}</small>
                         </div>
                       </div>
                       <div className="training-rest-new-bag-description">
-                        {selectedDetail?.description || selectedDetail?.effectSummary || "暂无道具介绍。"}
+                        {itemDescription(selectedItem, selectedDetail)}
                       </div>
                     </>
                   ) : (
@@ -188,7 +188,7 @@ export function PlayerBagPanel({
                           className="training-rest-new-bag-held-shortcut"
                           role="button"
                           tabIndex={0}
-                          title={`查看${target.heldItem.name}`}
+                          title={`查看${displayItemName(target.heldItem)}`}
                           onClick={event => {
                             event.stopPropagation();
                             selectBagItem(target.heldItem!.id);
@@ -207,7 +207,7 @@ export function PlayerBagPanel({
                         {target.status && target.status !== "" ? `${target.status} · ` : ""}Lv.{target.level ?? "?"}
                       </small>
                       <small className={`training-rest-new-bag-pokemon-held-label ${target.heldItem ? "has-item" : "empty"}`}>
-                        {target.heldItem?.name || "无道具"}
+                        {target.heldItem ? displayItemName(target.heldItem) : "无道具"}
                       </small>
                       {isBattle && target.battleIdLabel ? <em className="training-rest-new-bag-battle-id">{target.battleIdLabel}</em> : null}
                       <i style={{"--training-rest-new-bag-hp-rate": `${hpRate(target.hp, target.maxHp)}%`} as CSSProperties} />
@@ -253,7 +253,7 @@ export function PlayerBagPanel({
                   key={item.id}
                 >
                   <PlayerBagItemIcon api={api} item={item} />
-                  <strong>{item.name}</strong>
+                  <strong>{displayItemName(item)}</strong>
                 </button>
               );
             }) : <span className="training-rest-new-bag-strip-empty">{emptyItemText || (isBattle ? "没有可用道具" : "当前背包为空")}</span>}
@@ -274,6 +274,12 @@ export function PlayerBagPanel({
   );
 }
 
+export function displayItemName(item: PlayerItemInstanceV4 | null | undefined): string {
+  if (!item) return "";
+  const mapped = item.mappedItemNameZh || item.mappedItemName || item.mappedTeraTypeZh || item.mappedTeraType || "";
+  return mapped ? `${item.name}（${mapped}）` : item.name;
+}
+
 export function itemDetailFor(api: ChangeBattleV2Api, item: PlayerItemInstanceV4 | null): DexItemDetail | null {
   if (!item) return null;
   try {
@@ -281,6 +287,10 @@ export function itemDetailFor(api: ChangeBattleV2Api, item: PlayerItemInstanceV4
   } catch {
     return null;
   }
+}
+
+function itemDescription(_item: PlayerItemInstanceV4, detail: DexItemDetail | null): string {
+  return detail?.description || detail?.effectSummary || "暂无道具介绍。";
 }
 
 export function PlayerBagItemIcon({api, item, large = false}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4; large?: boolean}) {

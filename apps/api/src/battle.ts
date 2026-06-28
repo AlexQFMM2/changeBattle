@@ -291,6 +291,7 @@ export type BattlePokemonSetV4 = {
   gender?: string;
   shiny?: boolean;
   level: number;
+  teraType?: string;
 };
 
 export type BattleSessionCreateInputV4 = {
@@ -1330,12 +1331,13 @@ function resolveLocalPokemonFromActive(active: BattleActivePokemonV4, mapping: S
 function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState()): BattleServicePlayerInputV4 {
   const identity = createPlayerBattleIdentity(player, usedShowdownIdentityTokens, showdownIdPool);
   const bagItems = player.bag?.items || [];
+  const teraType = playerTeraTypeForBattle(bagItems);
   return {
     playerId: player.playerId,
     name: player.name,
     controller: player.controller,
     alliance: player.alliance,
-    team: identity.localTeam.pokemon.map(pokemon => compilePokemon(pokemon, bagItems)),
+    team: identity.localTeam.pokemon.map(pokemon => compilePokemon(pokemon, bagItems, teraType)),
     draft: {
       ...player,
       localTeam: identity.localTeam,
@@ -1344,7 +1346,7 @@ function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens
   };
 }
 
-function compilePokemon(pokemon: LocalPokemonV4, bagItems: TrainingPlayerDraftV4["bag"]["items"] = []): BattlePokemonSetV4 {
+function compilePokemon(pokemon: LocalPokemonV4, bagItems: TrainingPlayerDraftV4["bag"]["items"] = [], teraType = ""): BattlePokemonSetV4 {
   const heldItem = heldItemIdForBattle(pokemon, bagItems);
   return {
     species: pokemon.speciesId,
@@ -1362,17 +1364,34 @@ function compilePokemon(pokemon: LocalPokemonV4, bagItems: TrainingPlayerDraftV4
     gender: pokemon.gender === "N" ? undefined : pokemon.gender,
     shiny: pokemon.shiny,
     level: pokemon.level,
+    teraType: teraType || undefined,
   };
 }
 
 function heldItemIdForBattle(pokemon: LocalPokemonV4, bagItems: TrainingPlayerDraftV4["bag"]["items"]): string {
   if (pokemon.heldItemInstanceId) {
     const instance = bagItems.find(item => item.id === pokemon.heldItemInstanceId);
-    return instance?.itemID || "";
+    return battleMappedHeldItemId(instance);
   }
   if (!pokemon.itemId) return "";
   const matchedInstance = bagItems.find(item => item.itemID === pokemon.itemId);
-  return matchedInstance ? pokemon.itemId : "";
+  return matchedInstance ? battleMappedHeldItemId(matchedInstance) : rawHeldItemIdForBattle(pokemon.itemId);
+}
+
+function battleMappedHeldItemId(item: TrainingPlayerDraftV4["bag"]["items"][number] | undefined): string {
+  if (!item) return "";
+  if (item.itemID === "system-mega-stone" || item.itemID === "system-z-crystal") return typeof item.mappedItemId === "string" ? item.mappedItemId : "";
+  if (String(item.itemID || "").startsWith("system-")) return "";
+  return item.itemID || "";
+}
+
+function playerTeraTypeForBattle(bagItems: TrainingPlayerDraftV4["bag"]["items"]): string {
+  const teraOrb = bagItems.find(item => item.itemID === "system-tera-orb" && typeof item.mappedTeraType === "string" && item.mappedTeraType);
+  return typeof teraOrb?.mappedTeraType === "string" ? teraOrb.mappedTeraType : "";
+}
+
+function rawHeldItemIdForBattle(itemId: string): string {
+  return String(itemId || "").startsWith("system-") ? "" : itemId;
 }
 
 function createPlayerBattleIdentity(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string>, showdownIdPool: ShowdownIdPoolStateV4): {localTeam: TrainingPlayerDraftV4["localTeam"]; teamMapping: ShowdownTeamPokemonMappingV4[]} {

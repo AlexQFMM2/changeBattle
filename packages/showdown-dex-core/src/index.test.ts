@@ -81,6 +81,17 @@ const dynamaxBand = dex.getItemDetail("system-dynamax-band");
 assert.equal(dynamaxBand.kindLabel, "系统战斗道具");
 assert.equal(dynamaxBand.canTake, false);
 
+const charizardMegaOptions = dex.getSystemBattleReforgeOptions("system-mega-stone", {speciesId: "charizard", moves: []});
+assert.ok(charizardMegaOptions.some(option => option.mappedItemId === "charizarditex"));
+assert.ok(charizardMegaOptions.some(option => option.mappedItemId === "charizarditey"));
+assert.equal(dex.getSystemBattleReforgeOptions("system-mega-stone", {speciesId: "pikachu", moves: []}).length, 0);
+const fireZOptions = dex.getSystemBattleReforgeOptions("system-z-crystal", {speciesId: "charizard", moves: [{moveId: "flamethrower", type: "火"}]});
+assert.ok(fireZOptions.some(option => option.mappedItemId === "firiumz"));
+const snorlaxZOptions = dex.getSystemBattleReforgeOptions("system-z-crystal", {speciesId: "snorlax", moves: [{moveId: "gigaimpact"}]});
+assert.ok(snorlaxZOptions.some(option => option.mappedItemId === "snorliumz"));
+const teraOptions = dex.getSystemBattleReforgeOptions("system-tera-orb", {speciesId: "pikachu", moves: []});
+assert.ok(teraOptions.some(option => option.mappedTeraType === "Fairy"));
+
 const search = dex.searchDex({category: "pokemon", query: "venusaur", limit: 5});
 assert.ok(search.rows.some(row => row.id === "venusaur"));
 

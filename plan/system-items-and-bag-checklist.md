@@ -14,7 +14,7 @@ Battle V4 request-driven UI batch = 1
 Diagnostics batch = 1
 ```
 
-本清单追踪系统战斗道具、道具实例体系、统一背包组件，以及已经接入的恢复/训练/TM 道具效果。商店经济、系统重铸和完整携带道具触发规则仍在后续批次追踪。
+本清单追踪系统战斗道具、道具实例体系、统一背包组件，以及已经接入的恢复/训练/TM/系统重铸道具效果。商店经济和完整携带道具触发规则仍在后续批次追踪。
 
 ## Current Batch: Bag Instance + Training UI + Rest UI + Battle Bag Effects
 
@@ -42,13 +42,13 @@ Diagnostics batch = 1
 - [x] Battle V4 支持恢复类道具占用当前 active 行动槽并先手结算。 | priority: P0 | source: battle-service | adapter: native | notes: submitTrainerItem + item-effects smoke + typecheck
 - [x] Battle V4 使用道具成功后消耗对应 `Player.bag` 实例。 | priority: P0 | source: battle-service | adapter: native | notes: recovery item path implemented
 - [x] Battle V4 场上 HP 恢复输出 heal 事件。 | priority: P1 | source: battle-animation | adapter: native | notes: existing timeline can play heal animation
-- [ ] 系统战斗道具 Mega/Z/太晶重铸列表。 | priority: P1 | source: future-rest-ui | adapter: pending | notes:
+- [x] 系统战斗道具 Mega/Z/太晶重铸列表。 | priority: P1 | source: rest-ui | adapter: native | notes: independent reforge panel + mapped item/tera fields
 - [ ] 携带/战斗道具有效回合、使用次数报废和自动销毁。 | priority: P1 | source: future-item-lifecycle | adapter: pending | notes:
 
 ## P0: Types And Registry
 
 - [x] 新增 `PlayerBagV4` 类型。 | priority: P0 | source: data-model | adapter: native | notes: actual exported type is `BagStateV4`
-- [x] 新增 `PlayerItemInstanceV4` 类型，字段包含 `id/itemID/name/image/cost/canSale/type/canBattleUse/canUse/canUseToPokemon/canTake/effectRound/getRound/maxUseCount/useCount`。 | priority: P0 | source: data-model | adapter: native | notes: implemented
+- [x] 新增 `PlayerItemInstanceV4` 类型，字段包含 `id/itemID/name/image/cost/canSale/type/canBattleUse/canUse/canUseToPokemon/canTake/effectRound/getRound/maxUseCount/useCount`，并扩展系统重铸映射字段。 | priority: P0 | source: data-model | adapter: native | notes: mappedItemId/mappedTeraType/systemReforgeKind preserved by normalize
 - [x] 新增 `PlayerItemTypeV4` 枚举或 union。 | priority: P0 | source: data-model | adapter: native | notes: union implemented
 - [ ] 新增 `ItemDefinitionV4` 静态定义类型。 | priority: P0 | source: data-model | adapter: pending | notes:
 - [ ] 新增 `SpecialSystemKindV4` 类型：`mega/zmove/dynamax/terastallize`。 | priority: P0 | source: data-model | adapter: pending | notes:
@@ -95,24 +95,24 @@ Diagnostics batch = 1
 ## P1: Special System Loadout
 
 - [ ] 新增 `PlayerSpecialSystemLoadoutV4` 类型。 | priority: P1 | source: loadout | adapter: pending | notes:
-- [ ] 支持通用Mega石分配到单只宝可梦。 | priority: P1 | source: loadout | adapter: pending | notes:
-- [ ] 支持通用Mega石映射为真实 Mega 石 `mappedItemId`。 | priority: P1 | source: loadout | adapter: pending | notes:
-- [ ] 支持通用Z纯晶分配到单只宝可梦。 | priority: P1 | source: loadout | adapter: pending | notes:
-- [ ] 支持通用Z纯晶映射为真实 Z 纯晶 `mappedItemId`。 | priority: P1 | source: loadout | adapter: pending | notes:
+- [x] 支持通用Mega石分配到单只宝可梦。 | priority: P1 | source: loadout | adapter: native | notes: rest bag equip after reforge
+- [x] 支持通用Mega石映射为真实 Mega 石 `mappedItemId`。 | priority: P1 | source: loadout | adapter: native | notes: options filtered by selected pokemon
+- [x] 支持通用Z纯晶分配到单只宝可梦。 | priority: P1 | source: loadout | adapter: native | notes: rest bag equip after reforge
+- [x] 支持通用Z纯晶映射为真实 Z 纯晶 `mappedItemId`。 | priority: P1 | source: loadout | adapter: native | notes: type crystals by move type + exclusive crystals by pokemon/move
 - [ ] 支持极巨化手环 player 级资格。 | priority: P1 | source: loadout | adapter: pending | notes:
-- [ ] 支持通用太晶珠 player 级资格与 `teraType` 配置。 | priority: P1 | source: loadout | adapter: pending | notes:
+- [x] 支持通用太晶珠 player 级资格与 `teraType` 配置。 | priority: P1 | source: loadout | adapter: native | notes: mappedTeraType stored on system item instance
 - [ ] 校验一个 player 同一场只能分配一个 Mega 系统资格。 | priority: P1 | source: validation | adapter: pending | notes:
 - [ ] 校验一个 player 同一场只能分配一个 Z 系统资格。 | priority: P1 | source: validation | adapter: pending | notes:
 - [ ] 校验太晶珠属性存在且可序列化到 Showdown set。 | priority: P1 | source: validation | adapter: pending | notes:
 
 ## P1: Showdown Team Compilation
 
-- [ ] 编译 Showdown team 时将通用Mega石映射成真实 Mega 石 item。 | priority: P1 | source: showdown-compile | adapter: pending | notes:
-- [ ] 编译 Showdown team 时将通用Z纯晶映射成真实 Z 纯晶 item。 | priority: P1 | source: showdown-compile | adapter: pending | notes:
+- [x] 编译 Showdown team 时将通用Mega石映射成真实 Mega 石 item。 | priority: P1 | source: showdown-compile | adapter: native | notes: held system item uses mappedItemId
+- [x] 编译 Showdown team 时将通用Z纯晶映射成真实 Z 纯晶 item。 | priority: P1 | source: showdown-compile | adapter: native | notes: held system item uses mappedItemId
 - [ ] Mega/Z 映射时更新对应系统战斗道具实例 `useCount += 1`。 | priority: P1 | source: showdown-compile | adapter: pending | notes:
 - [ ] 极巨化手环不占宝可梦 item。 | priority: P1 | source: showdown-compile | adapter: pending | notes:
-- [ ] 通用太晶珠不占宝可梦 item。 | priority: P1 | source: showdown-compile | adapter: pending | notes:
-- [ ] 通用太晶珠属性写入 Showdown set `teraType`。 | priority: P1 | source: showdown-compile | adapter: pending | notes:
+- [x] 通用太晶珠不占宝可梦 item。 | priority: P1 | source: showdown-compile | adapter: native | notes: system-tera-orb never compiled as held item
+- [x] 通用太晶珠属性写入 Showdown set `teraType`。 | priority: P1 | source: showdown-compile | adapter: native | notes: player bag mappedTeraType applied to team sets
 - [ ] 编译结果 diagnostics 输出 mapped item 与 generated set item。 | priority: P1 | source: diagnostics | adapter: pending | notes:
 
 ## P0: Battle V4 Request-Driven Special UI
@@ -149,4 +149,4 @@ Diagnostics batch = 1
 ## Non-Goals
 
 - [ ] 第一版不实现完整商店。 | priority: P3 | source: non-goal | adapter: pending | notes:
-- [ ] 第一版不实现全部普通道具效果。 | priority: P3 | source: non-goal | adapter: pending | notes: recovery + training + TM implemented; system reforging pending
+- [ ] 第一版不实现全部普通道具效果。 | priority: P3 | source: non-goal | adapter: pending | notes: recovery + training + TM + system reforging implemented

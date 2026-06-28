@@ -2,6 +2,7 @@ import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} f
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, type TrainingRunStorageAdapter} from "./training.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 export * from "./itemEffects.js";
+export type {DexSystemBattleReforgeOption, DexSystemBattleReforgePokemonInput, DexSystemReforgeKind} from "@changebattle-v2/showdown-dex-core";
 
 export type TrainerCatalogEntryV2 = {
   id: string;
@@ -126,6 +127,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getAbilityDetail: (id: string) => dex.getAbilityDetail(id),
     getItemDetail: (id: string) => dex.getItemDetail(id),
     getTmItemDetail: (moveIdOrTmId: string) => dex.getTmItemDetail(moveIdOrTmId),
+    getSystemBattleReforgeOptions: (itemId: string, pokemon: Parameters<typeof dex.getSystemBattleReforgeOptions>[1]) => dex.getSystemBattleReforgeOptions(itemId, pokemon),
     getPokemonLearnset: (speciesId: string) => dex.getPokemonLearnset(speciesId),
     getPokemonSkillsBySource: (speciesId: string, source: Parameters<typeof dex.getPokemonSkillsBySource>[1]) => dex.getPokemonSkillsBySource(speciesId, source),
     getPokemonSelfLearnSkills: (speciesId: string) => dex.getPokemonSelfLearnSkills(speciesId),

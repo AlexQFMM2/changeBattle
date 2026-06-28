@@ -166,6 +166,13 @@ export type PlayerItemInstanceV4 = {
   getRound: number;
   maxUseCount: number | null;
   useCount: number;
+  mappedItemId?: string;
+  mappedItemName?: string;
+  mappedItemNameZh?: string;
+  mappedItemIconUrl?: string;
+  mappedTeraType?: string;
+  mappedTeraTypeZh?: string;
+  systemReforgeKind?: "mega" | "z-crystal" | "tera";
 };
 
 export type BagStateV4 = {
@@ -626,6 +633,13 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       getRound: normalizeNullableNumber(options.getRound, 0) ?? 0,
       maxUseCount: normalizeNullableNumber(options.maxUseCount, null) ?? null,
       useCount: normalizeNullableNumber(options.useCount, 0) ?? 0,
+      mappedItemId: normalizeOptionalId(options.mappedItemId),
+      mappedItemName: normalizeOptionalText(options.mappedItemName),
+      mappedItemNameZh: normalizeOptionalText(options.mappedItemNameZh),
+      mappedItemIconUrl: normalizeOptionalText(options.mappedItemIconUrl),
+      mappedTeraType: normalizeOptionalText(options.mappedTeraType),
+      mappedTeraTypeZh: normalizeOptionalText(options.mappedTeraTypeZh),
+      systemReforgeKind: normalizeSystemReforgeKind(options.systemReforgeKind),
     };
   }
 
@@ -670,6 +684,13 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
         getRound: normalizeNullableNumber(item.getRound, 0) ?? 0,
         maxUseCount: normalizeNullableNumber(item.maxUseCount, null),
         useCount: normalizeNullableNumber(item.useCount, 0) ?? 0,
+        mappedItemId: typeof item.mappedItemId === "string" ? item.mappedItemId : undefined,
+        mappedItemName: typeof item.mappedItemName === "string" ? item.mappedItemName : undefined,
+        mappedItemNameZh: typeof item.mappedItemNameZh === "string" ? item.mappedItemNameZh : undefined,
+        mappedItemIconUrl: typeof item.mappedItemIconUrl === "string" ? item.mappedItemIconUrl : undefined,
+        mappedTeraType: typeof item.mappedTeraType === "string" ? item.mappedTeraType : undefined,
+        mappedTeraTypeZh: typeof item.mappedTeraTypeZh === "string" ? item.mappedTeraTypeZh : undefined,
+        systemReforgeKind: normalizeSystemReforgeKind(item.systemReforgeKind),
       })];
     });
   }
@@ -1010,6 +1031,22 @@ function normalizeItemID(value: unknown): string {
   if (/^tm:/i.test(raw)) return `tm:${toID(raw.slice(3))}`;
   if (/^system-/i.test(raw)) return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "");
   return toID(raw);
+}
+
+function normalizeOptionalId(value: unknown): string | undefined {
+  const raw = String(value || "").trim();
+  if (!raw) return undefined;
+  if (/^tm:/i.test(raw)) return `tm:${toID(raw.slice(3))}`;
+  return toID(raw);
+}
+
+function normalizeOptionalText(value: unknown): string | undefined {
+  const text = String(value || "").trim();
+  return text || undefined;
+}
+
+function normalizeSystemReforgeKind(value: unknown): PlayerItemInstanceV4["systemReforgeKind"] {
+  return value === "mega" || value === "z-crystal" || value === "tera" ? value : undefined;
 }
 
 function toID(value: unknown): string {

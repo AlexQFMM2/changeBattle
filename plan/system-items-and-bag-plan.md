@@ -2,7 +2,7 @@
 
 ## Current Batch Status
 
-截至 2026-06-28，背包已从“实例展示/占位”推进到“统一组件 + 休整页常用道具可用 + Battle V4 恢复道具可用”的阶段。
+截至 2026-06-28，背包已从“实例展示/占位”推进到“统一组件 + 休整页常用道具可用 + Battle V4 恢复道具可用 + 系统战斗道具重铸可用”的阶段。
 
 已完成边界：
 
@@ -17,6 +17,9 @@
 - 休整页恢复类道具已可立即使用：HP 药、复活、状态恢复、PP 药、树果恢复；成功后消耗道具实例。
 - 休整页训练道具已可立即使用：EV 增减、性格薄荷、特性胶囊/膏药、神奇糖果、银色/金色/灰色王冠；成功后消耗道具实例。
 - 休整页技能机器已可立即使用：使用图鉴 machine 学习来源校验合法性，弹出独立技能替换面板，确认后替换技能并消耗 TM 实例。
+- 休整页系统战斗道具已可重铸：通用 Mega 石按选中宝可梦列出可用 Mega 石，通用 Z 纯晶按宝可梦和当前技能列出属性/专属 Z，通用太晶珠列出合法太晶属性。
+- 系统重铸不消耗通用系统道具实例；重铸结果写入 `mappedItemId / mappedTeraType / systemReforgeKind` 等实例字段。
+- 进入战斗编队时，通用 Mega/Z 会映射为 Showdown 真实携带物；通用太晶珠不占携带物，并把 `mappedTeraType` 写入 Showdown set `teraType`。
 - 图鉴技能来源已沉为 API：自学、教授、遗传、技能机器可分别获取；训练随机技能只从自学池抽取。
 - 休整页背包操作只更新内存 runGame 草稿，不自动保存；小黑板“保存”仍是唯一落盘入口。
 - Battle V4 主指令区增加“背包”入口；开启后只展示 `canBattleUse=true` 的道具。
@@ -29,8 +32,6 @@
 - 不实现商店、出售、扩容、消耗。
 - 不实现训练道具在战斗页使用。
 - 不实现技能机器在战斗页使用。
-- 不实现系统战斗道具重铸：通用 Mega 石、Z 纯晶、太晶珠仍只保留入口。
-- 不实现系统战斗道具映射成真实 Mega 石、Z 纯晶或太晶属性配置。
 - 不完整实现携带/战斗道具的有效回合、使用次数报废和自动销毁。
 
 ## Current Bag Feature Matrix
@@ -38,7 +39,7 @@
 | 场景 | 已完成 | 未完成 |
 | --- | --- | --- |
 | 训练配置页 | 背包实例编辑、测试背包生成、容量限制、战斗背包开关 | 正式奖励/商店来源、出售、扩容 |
-| 休整页背包 | 统一面板、完整背包、携带/更替/卸下、丢弃、恢复类使用、训练道具使用、TM 替换技能、成功 toast | 系统道具重铸、携带道具过期/报废 |
+| 休整页背包 | 统一面板、完整背包、携带/更替/卸下、丢弃、恢复类使用、训练道具使用、TM 替换技能、系统道具重铸、成功 toast | 携带道具过期/报废 |
 | Battle V4 背包 | 统一面板、只展示 `canBattleUse`、恢复类道具占行动槽并先手结算 | 训练道具、TM、系统重铸、AI 使用道具 |
 | 道具效果 | 结构化 `recoveryEffect` 和 `trainingEffect`，不从中文描述硬解析 | 完整商店经济、所有 Showdown 道具特殊效果 |
 | 数据保存 | 休整页只改草稿，手动保存落盘；战斗结束回写消耗和状态 | 更细的携带道具战斗内触发统计 |
@@ -105,6 +106,14 @@ type PlayerItemInstanceV4 = {
 
   maxUseCount: number | null;
   useCount: number;
+
+  mappedItemId?: string;
+  mappedItemName?: string;
+  mappedItemNameZh?: string;
+  mappedItemIconUrl?: string;
+  mappedTeraType?: string;
+  mappedTeraTypeZh?: string;
+  systemReforgeKind?: "mega" | "z-crystal" | "tera";
 };
 ```
 
@@ -122,6 +131,7 @@ type PlayerItemInstanceV4 = {
 - `canTake`：是否能被宝可梦直接携带。
 - `effectRound / getRound`：按回合报废或过期。
 - `maxUseCount / useCount`：按使用次数报废。战斗携带类道具进入战斗携带可计 1 次。
+- `mapped* / systemReforgeKind`：系统战斗道具重铸结果。Mega/Z 使用 `mappedItemId` 映射真实 Showdown item；太晶珠使用 `mappedTeraType` 写入 Showdown set。
 
 建议把用户草案中的 `getIcon` 改名为 `cost`，因为注释语义是“获取花了多少钱”。
 

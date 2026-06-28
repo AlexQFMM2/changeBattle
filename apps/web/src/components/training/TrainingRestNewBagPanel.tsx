@@ -1,8 +1,9 @@
 import {useMemo, useState} from "react";
-import type {ChangeBattleV2Api, DexItemDetail, LocalPokemonV4, PlayerItemInstanceV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DexItemDetail, DexSystemBattleReforgeOption, LocalPokemonV4, PlayerItemInstanceV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmMoveIdForItemV4, tmUseFailureReasonV4} from "@changebattle-v2/api";
 import {PlayerBagPanel, itemDetailFor, type PlayerBagAction, type PlayerBagPokemonTarget} from "./PlayerBagPanel";
 import {PokemonMoveReplacePanel} from "./PokemonMoveReplacePanel";
+import {PokemonSystemReforgePanel} from "./PokemonSystemReforgePanel";
 
 export type TrainingRestNewBagPanelProps = {
   api: ChangeBattleV2Api;
@@ -21,6 +22,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const team = p1?.localTeam.pokemon || [];
   const [selection, setSelection] = useState<{item: PlayerItemInstanceV4 | null; target: PlayerBagPokemonTarget | null}>({item: bag.items[0] || null, target: null});
   const [tmReplace, setTmReplace] = useState<{item: PlayerItemInstanceV4; pokemonId: string} | null>(null);
+  const [systemReforge, setSystemReforge] = useState<{item: PlayerItemInstanceV4; pokemonId: string} | null>(null);
   const selectedItem = selection.item;
   const selectedPokemon = selection.target ? team.find(pokemon => pokemon.localPokemonId === selection.target?.key) || null : team[0] || null;
   const selectedDetail = useMemo(() => itemDetailFor(api, selectedItem), [api, selectedItem]);
@@ -32,24 +34,29 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const tmFailureReason = canUseTm ? tmUseFailureReasonV4({item: selectedItem, detail: selectedDetail, pokemon: selectedPokemon, machineMoves: selectedMachineMoves}) : "";
   const canUseItem = canUseRecovery || canUseTraining || (canUseTm && !tmFailureReason);
   const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail));
-  const selectedHeldItem = selectedPokemon ? itemForPokemon(bag.items, selectedPokemon) : null;
+  const selectedHeldItem = selectedPokemon ? itemForPokemon(api, bag.items, selectedPokemon) : null;
   const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId));
   const heldItemIds = useMemo(() => buildHeldItemIds(team), [team]);
-  const targets = useMemo(() => team.map(pokemonToTarget(bag.items)), [bag.items, team]);
+  const targets = useMemo(() => team.map(pokemonToTarget(api, bag.items)), [api, bag.items, team]);
   const tmReplaceItem = tmReplace ? bag.items.find(item => item.id === tmReplace.item.id) || null : null;
   const tmReplacePokemon = tmReplace ? team.find(pokemon => pokemon.localPokemonId === tmReplace.pokemonId) || null : null;
   const tmReplaceDetail = useMemo(() => itemDetailFor(api, tmReplaceItem), [api, tmReplaceItem]);
   const tmReplaceMoveId = tmMoveIdForItemV4(tmReplaceItem, tmReplaceDetail);
   const tmReplaceMove = useMemo(() => tmReplaceMoveId ? moveDetailFor(api, tmReplaceMoveId) : null, [api, tmReplaceMoveId]);
+  const systemReforgeItem = systemReforge ? bag.items.find(item => item.id === systemReforge.item.id) || null : null;
+  const systemReforgePokemon = systemReforge ? team.find(pokemon => pokemon.localPokemonId === systemReforge.pokemonId) || null : null;
+  const systemReforgeOptions = useMemo(() => systemReforgeItem && systemReforgePokemon ? api.getSystemBattleReforgeOptions(systemReforgeItem.itemID, systemReforgePokemon) : [], [api, systemReforgeItem, systemReforgePokemon]);
 
   function equipSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon || !equipEligibility.canEquip) return;
+    const heldItemPatch = heldItemPatchForEquip(selectedItem);
     const nextTeam = {
       ...p1.localTeam,
       pokemon: p1.localTeam.pokemon.map(pokemon => {
         if (pokemon.localPokemonId === selectedPokemon.localPokemonId) {
-          return {...pokemon, itemId: selectedItem.itemID, heldItemInstanceId: selectedItem.id};
+          return {...pokemon, ...heldItemPatch};
         }
+        if (systemExclusiveKind(selectedItem) && pokemonHasSystemExclusiveKind(pokemon, selectedItem.systemReforgeKind)) return {...pokemon, itemId: "", heldItemInstanceId: undefined};
         if (pokemon.heldItemInstanceId === selectedItem.id) {
           return {...pokemon, itemId: "", heldItemInstanceId: undefined};
         }
@@ -58,6 +65,39 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     };
     const nextRun = patchP1(run, {...p1, localTeam: nextTeam});
     onRunDraftChange(nextRun, "背包已更新，记得手动保存。");
+  }
+
+  function openSystemReforge() {
+    if (!selectedItem || !selectedPokemon || !isRecastCandidate(selectedItem)) return;
+    setSystemReforge({item: selectedItem, pokemonId: selectedPokemon.localPokemonId});
+  }
+
+  function confirmSystemReforge(option: DexSystemBattleReforgeOption) {
+    if (!p1 || !systemReforgeItem || !systemReforgePokemon) return;
+    const nextSystemItem = applySystemReforgeOption(systemReforgeItem, option);
+    const nextBag = {
+      ...bag,
+      items: bag.items.map(item => item.id === systemReforgeItem.id ? nextSystemItem : item),
+    };
+    const nextTeam = option.kind === "mega" || option.kind === "z-crystal"
+      ? {
+        ...p1.localTeam,
+        pokemon: p1.localTeam.pokemon.map(pokemon => {
+          if (pokemon.localPokemonId === systemReforgePokemon.localPokemonId) {
+            return {...pokemon, itemId: option.mappedItemId || "", heldItemInstanceId: undefined};
+          }
+          if (pokemonHasSystemExclusiveKind(pokemon, option.kind)) return {...pokemon, itemId: "", heldItemInstanceId: undefined};
+          return pokemon;
+        }),
+      }
+      : p1.localTeam;
+    const nextRun = patchP1(run, {...p1, bag: nextBag, localTeam: nextTeam});
+    setSystemReforge(null);
+    const message = option.kind === "mega" || option.kind === "z-crystal"
+      ? `${systemReforgePokemon.nameZh || systemReforgePokemon.name} 已携带 ${option.nameZh || option.name}。`
+      : `${systemReforgeItem.name} 已重铸为 ${option.nameZh || option.name}。`;
+    onNotice?.(message);
+    onRunDraftChange(nextRun, `${message} 记得手动保存。`);
   }
 
   function untakeSelectedPokemonItem() {
@@ -69,8 +109,8 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
         : pokemon),
     };
     const nextRun = patchP1(run, {...p1, localTeam: nextTeam});
-    const itemName = selectedHeldItem?.name || "携带道具";
-    onRunDraftChange(nextRun, `${selectedPokemon.nameZh || selectedPokemon.name} 已卸下${itemName}，记得手动保存。`);
+    const heldName = selectedHeldItem?.name || itemName(api, selectedPokemon.itemId) || "携带道具";
+    onRunDraftChange(nextRun, `${selectedPokemon.nameZh || selectedPokemon.name} 已卸下${heldName}，记得手动保存。`);
   }
 
   function discardSelectedItem() {
@@ -171,9 +211,9 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     },
     {
       key: "recast",
-      label: "重铸",
-      disabled: !selectedItem || !isRecastCandidate(selectedItem, selectedDetail),
-      onClick: () => onRunDraftChange(run, "重铸功能后续开放。"),
+      label: selectedItem && selectedItem.itemID !== "system-tera-orb" && isRecastCandidate(selectedItem) ? "重铸并使用" : "重铸",
+      disabled: !selectedItem || !isRecastCandidate(selectedItem),
+      onClick: openSystemReforge,
     },
     {
       key: "discard",
@@ -196,6 +236,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
         actions={actions}
         onClose={() => {
           setTmReplace(null);
+          setSystemReforge(null);
           onClose();
         }}
         onSelectionChange={nextSelection => {
@@ -211,6 +252,16 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
           newMove={tmReplaceMove}
           onCancel={() => setTmReplace(null)}
           onConfirm={confirmTmReplace}
+        />
+      ) : null}
+      {open && systemReforgeItem && systemReforgePokemon ? (
+        <PokemonSystemReforgePanel
+          pokemon={systemReforgePokemon}
+          item={systemReforgeItem}
+          options={systemReforgeOptions}
+          emptyReason={systemReforgeEmptyReason(systemReforgeItem)}
+          onCancel={() => setSystemReforge(null)}
+          onConfirm={confirmSystemReforge}
         />
       ) : null}
     </>
@@ -233,6 +284,8 @@ function patchP1(run: TrainingRunGameV4, p1: TrainingPlayerDraftV4): TrainingRun
 }
 
 function getBagItemEquipEligibility(item: PlayerItemInstanceV4, detail: DexItemDetail | null): {canEquip: boolean; reason: string} {
+  if (isRecastCandidate(item) && !systemItemReadyToEquip(item)) return {canEquip: false, reason: "请先重铸这个系统战斗道具。"};
+  if (item.itemID === "system-tera-orb") return {canEquip: false, reason: "太晶珠是玩家级配置，不需要给宝可梦携带。"};
   if (item.canTake || detail?.canTake || (detail && EQUIPPABLE_ITEM_KINDS.has(detail.kind))) return {canEquip: true, reason: ""};
   if (["battle", "held", "berry"].includes(item.type)) return {canEquip: true, reason: ""};
   return {canEquip: false, reason: "该道具当前不能携带。"};
@@ -250,8 +303,52 @@ function isSystemItem(item: PlayerItemInstanceV4, detail: DexItemDetail | null):
   return item.type === "system" || item.type === "system-battle" || item.itemID.startsWith("system-") || detail?.source === "system";
 }
 
-function isRecastCandidate(item: PlayerItemInstanceV4, detail: DexItemDetail | null): boolean {
-  return item.itemID === "system-mega-stone" || item.itemID === "system-z-crystal" || item.itemID === "system-tera-orb" || detail?.kind === "system-battle";
+function isRecastCandidate(item: PlayerItemInstanceV4): boolean {
+  return item.itemID === "system-mega-stone" || item.itemID === "system-z-crystal" || item.itemID === "system-tera-orb";
+}
+
+function systemItemReadyToEquip(item: PlayerItemInstanceV4): boolean {
+  if (item.itemID === "system-mega-stone" || item.itemID === "system-z-crystal") return Boolean(item.mappedItemId);
+  if (item.itemID === "system-tera-orb") return Boolean(item.mappedTeraType);
+  return true;
+}
+
+function heldItemPatchForEquip(item: PlayerItemInstanceV4): Pick<LocalPokemonV4, "itemId" | "heldItemInstanceId"> {
+  if ((item.itemID === "system-mega-stone" || item.itemID === "system-z-crystal") && item.mappedItemId) {
+    return {itemId: item.mappedItemId, heldItemInstanceId: undefined};
+  }
+  return {itemId: item.itemID, heldItemInstanceId: item.id};
+}
+
+function systemExclusiveKind(item: PlayerItemInstanceV4): PlayerItemInstanceV4["systemReforgeKind"] {
+  return item.systemReforgeKind === "mega" || item.systemReforgeKind === "z-crystal" ? item.systemReforgeKind : undefined;
+}
+
+function pokemonHasSystemExclusiveKind(pokemon: LocalPokemonV4, kind: PlayerItemInstanceV4["systemReforgeKind"]): boolean {
+  if (!kind || !pokemon.itemId) return false;
+  if (kind === "mega") return /ite(?:x|y)?$/.test(pokemon.itemId);
+  if (kind === "z-crystal") return /iumz$/.test(pokemon.itemId);
+  return false;
+}
+
+function applySystemReforgeOption(item: PlayerItemInstanceV4, option: DexSystemBattleReforgeOption): PlayerItemInstanceV4 {
+  return {
+    ...item,
+    mappedItemId: option.mappedItemId,
+    mappedItemName: option.mappedItemId ? option.name : undefined,
+    mappedItemNameZh: option.mappedItemId ? option.nameZh : undefined,
+    mappedItemIconUrl: option.iconUrl,
+    mappedTeraType: option.mappedTeraType,
+    mappedTeraTypeZh: option.mappedTeraTypeZh,
+    systemReforgeKind: option.kind,
+  };
+}
+
+function systemReforgeEmptyReason(item: PlayerItemInstanceV4): string {
+  if (item.itemID === "system-mega-stone") return "当前宝可梦没有可用 Mega 石。";
+  if (item.itemID === "system-z-crystal") return "当前宝可梦与技能没有可用 Z 纯晶。";
+  if (item.itemID === "system-tera-orb") return "当前没有可用太晶属性。";
+  return "当前没有可用重铸选项。";
 }
 
 function pokemonDetailFor(api: ChangeBattleV2Api, pokemon: LocalPokemonV4) {
@@ -284,7 +381,7 @@ function calculateMaxHp(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): number
   }
 }
 
-function pokemonToTarget(items: PlayerItemInstanceV4[]): (pokemon: LocalPokemonV4) => PlayerBagPokemonTarget {
+function pokemonToTarget(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[]): (pokemon: LocalPokemonV4) => PlayerBagPokemonTarget {
   return pokemon => ({
     key: pokemon.localPokemonId,
     name: pokemon.name,
@@ -296,12 +393,51 @@ function pokemonToTarget(items: PlayerItemInstanceV4[]): (pokemon: LocalPokemonV
     iconUrl: pokemon.iconUrl,
     spriteUrl: pokemon.spriteUrl,
     iconStyle: pokemon.iconStyle,
-    heldItem: itemForPokemon(items, pokemon),
+    heldItem: itemForPokemon(api, items, pokemon),
   });
 }
 
-function itemForPokemon(items: PlayerItemInstanceV4[], pokemon: LocalPokemonV4): PlayerItemInstanceV4 | null {
+function itemForPokemon(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[], pokemon: LocalPokemonV4): PlayerItemInstanceV4 | null {
   if (pokemon.heldItemInstanceId) return items.find(item => item.id === pokemon.heldItemInstanceId) || null;
-  if (pokemon.itemId) return items.find(item => item.itemID === pokemon.itemId) || null;
+  if (pokemon.itemId) return items.find(item => item.itemID === pokemon.itemId) || displayItemInstance(api, pokemon.itemId);
   return null;
+}
+
+function displayItemInstance(api: ChangeBattleV2Api, itemId: string): PlayerItemInstanceV4 {
+  let name = itemId;
+  let image = "";
+  try {
+    const detail = api.getItemDetail(itemId);
+    name = detail.nameZh || detail.name || itemId;
+    image = detail.iconUrl || "";
+  } catch {
+    // Keep item id as fallback display.
+  }
+  return {
+    id: `display-${itemId}`,
+    itemID: itemId,
+    name,
+    image,
+    cost: 0,
+    canSale: false,
+    type: "held",
+    canBattleUse: false,
+    canUse: false,
+    canUseToPokemon: false,
+    canTake: true,
+    effectRound: null,
+    getRound: 0,
+    maxUseCount: null,
+    useCount: 0,
+  };
+}
+
+function itemName(api: ChangeBattleV2Api, itemId: string): string {
+  if (!itemId) return "";
+  try {
+    const detail = api.getItemDetail(itemId);
+    return detail.nameZh || detail.name || itemId;
+  } catch {
+    return itemId;
+  }
 }
