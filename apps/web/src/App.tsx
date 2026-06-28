@@ -7,6 +7,8 @@ import {
   createDesktopUserProfileAdapter,
   type AppDebugConfigV4,
   type DesktopUserProfileBridge,
+  type FormalGameModeV4,
+  type FormalGameRunV4,
   type TrainingRunGameV4,
   type UserProfileDraftV2,
   type UserProfileV2,
@@ -18,6 +20,9 @@ import {BattlePreferencePage} from "./components/battle-preference/BattlePrefere
 import {BattleV4Page} from "./components/battle-v4/BattleV4Page";
 import {TrainingBattleTransitionPage} from "./components/battle-v4/TrainingBattleTransitionPage";
 import {ComponentGalleryPage} from "./components/gallery/ComponentGalleryPage";
+import {FormalGamePendingPage} from "./components/formal/FormalGamePendingPage";
+import {FormalGameTransitionPage} from "./components/formal/FormalGameTransitionPage";
+import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPage";
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
@@ -74,6 +79,7 @@ function RoutedApp({runtime}: AppProps) {
   const [dexInitialQuery, setDexInitialQuery] = useState<string | null>(null);
   const [dexInitialRow, setDexInitialRow] = useState<DexSearchRow | null>(null);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
+  const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
   const [battleSessionId, setBattleSessionId] = useState("");
 
   useEffect(() => {
@@ -116,6 +122,7 @@ function RoutedApp({runtime}: AppProps) {
   useEffect(() => {
     if (!profile) {
       setTrainingRun(null);
+      setFormalRun(null);
       return;
     }
     let cancelled = false;
@@ -125,6 +132,24 @@ function RoutedApp({runtime}: AppProps) {
       })
       .catch(() => {
         if (!cancelled) setTrainingRun(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, profile]);
+
+  useEffect(() => {
+    if (!profile) {
+      setFormalRun(null);
+      return;
+    }
+    let cancelled = false;
+    api.loadFormalGameRun()
+      .then(next => {
+        if (!cancelled) setFormalRun(next);
+      })
+      .catch(() => {
+        if (!cancelled) setFormalRun(null);
       });
     return () => {
       cancelled = true;
@@ -177,6 +202,14 @@ function RoutedApp({runtime}: AppProps) {
     const next = await api.saveTrainingRun(api.createTrainingRunGame(profile));
     setTrainingRun(next);
     navigate("/training/config", {replace: true});
+  }
+
+  function startFormalGame(mode: FormalGameModeV4) {
+    if (!profile) {
+      navigate("/", {replace: true});
+      return;
+    }
+    navigate(`/formal/transition/${mode}`, {replace: true});
   }
 
   async function continueTrainingRun() {
@@ -262,6 +295,7 @@ function RoutedApp({runtime}: AppProps) {
         onOpenDex={() => openDex()}
         onOpenDexCard={openDexCard}
         onTraining={() => void createTrainingRunAndOpenConfig()}
+        onFormalGame={startFormalGame}
         onContinueTraining={() => void continueTrainingRun()}
         onBattlePreference={() => navigate("/battle-preference")}
         onUserInfo={startEdit}
@@ -380,6 +414,41 @@ function RoutedApp({runtime}: AppProps) {
     )
   ) : <Navigate to="/" replace />;
 
+  const formalMode = parseFormalMode(location.pathname.split("/").pop());
+  const formalTransitionPage = profile ? (
+    <FormalGameTransitionPage
+      api={api}
+      profile={profile}
+      mode={formalMode}
+      onRunReady={run => {
+        setFormalRun(run);
+        navigate("/formal/starter-select", {replace: true});
+      }}
+    />
+  ) : <Navigate to="/" replace />;
+
+  const formalStarterSelectPage = profile ? (
+    formalRun && formalRun.starterCandidates.length ? (
+      <FormalStarterSelectPage
+        api={api}
+        run={formalRun}
+        onRunChange={setFormalRun}
+        onDone={() => navigate("/formal/pending", {replace: true})}
+        onBack={() => navigate("/main", {replace: true})}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const formalPendingPage = profile ? (
+    formalRun ? (
+      <FormalGamePendingPage run={formalRun} onBack={() => navigate("/main", {replace: true})} />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
   return (
     <GameViewport showVersion={location.pathname === "/"}>
       <Routes>
@@ -395,6 +464,9 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/rest-new" element={trainingRestNewPage} />
         <Route path="/training/battle-transition" element={trainingBattleTransitionPage} />
         <Route path="/training/battle" element={trainingBattlePage} />
+        <Route path="/formal/transition/:mode" element={formalTransitionPage} />
+        <Route path="/formal/starter-select" element={formalStarterSelectPage} />
+        <Route path="/formal/pending" element={formalPendingPage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {dexOpen ? (
@@ -409,6 +481,10 @@ function RoutedApp({runtime}: AppProps) {
       ) : null}
     </GameViewport>
   );
+}
+
+function parseFormalMode(value: unknown): FormalGameModeV4 {
+  return value === "doubles" || value === "coop" ? value : "singles";
 }
 
 function TrainingConfigBootstrap({onReady}: {onReady: () => void}) {

@@ -1,0 +1,84 @@
+.rental-candidate-list {
+  --rental-candidate-list-card-height: 54px;
+  --rental-candidate-list-columns: 6;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: var(--rental-candidate-list-card-height);
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1px 2px 1px 1px;
+  scrollbar-width: thin;
+}
+
+.rental-candidate-list.empty {
+  place-items: center;
+  border: 1px solid rgb(79 57 31 / 36%);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 48%), rgb(255 246 218 / 86%)),
+    #fff8df;
+  padding: 10px;
+  text-align: center;
+}
+
+.rental-candidate-list.empty strong {
+  color: #25332b;
+  font-size: 10px;
+}
+
+.rental-candidate-list.empty span {
+  color: #6b5c46;
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+.rental-candidate-list.thumbnail {
+  --rental-candidate-list-card-height: 42px;
+  grid-auto-rows: auto;
+  grid-template-columns: repeat(var(--rental-candidate-list-columns), minmax(0, 1fr));
+  align-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 8px solid transparent;
+  border-image-source: url('/board/rest-panel-frame.png');
+  border-image-slice: 58 fill;
+  border-image-width: 8px;
+  border-image-repeat: stretch;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 20%), rgb(255 239 189 / 24%)),
+    #4c394c;
+  padding: 2px 5px;
+  overflow: hidden;
+}
+
+.rental-candidate-list.thumbnail.columns-6 {
+  --rental-candidate-list-columns: 6;
+}
+
+.rental-candidate-list.thumbnail.columns-7 {
+  --rental-candidate-list-columns: 7;
+}
+
+.rental-candidate-list.thumbnail.columns-8 {
+  --rental-candidate-list-columns: 8;
+}
+
+.rental-candidate-list.thumbnail.columns-9 {
+  --rental-candidate-list-columns: 9;
+}
+
+.rental-candidate-list.thumbnail.columns-10 {
+  --rental-candidate-list-columns: 10;
+}
+
+.rental-candidate-list.thumbnail.columns-11 {
+  --rental-candidate-list-columns: 11;
+  gap: 4px;
+}
+
+.rental-candidate-list.thumbnail.columns-12 {
+  --rental-candidate-list-columns: 12;
+  gap: 4px;
+}

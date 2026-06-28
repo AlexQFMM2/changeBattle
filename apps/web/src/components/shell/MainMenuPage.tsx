@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, TrainerCatalogEntryV2, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, FormalGameModeV4, TrainerCatalogEntryV2, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {AnimatedPage} from "../motion/Animated";
 import {MainMenuCommandBar, type MainMenuCommandItem} from "./MainMenuCommandBar";
 import {MainMenuHome} from "./MainMenuHome";
@@ -7,7 +7,7 @@ import type {MainMenuQuickDexSeed} from "./mainMenuTypes";
 import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import "./MainMenuPage.css";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun = false, onOpenDex, onOpenDexCard, onTraining, onContinueTraining, onBattlePreference, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueTraining, onBattlePreference, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -16,6 +16,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun
   onOpenDex: () => void;
   onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
+  onFormalGame: (mode: FormalGameModeV4) => void;
   onContinueTraining?: () => void;
   onBattlePreference: () => void;
   onUserInfo: () => void;
@@ -35,9 +36,9 @@ export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun
     {label: "回到主页", action: onTitle},
   ];
   const gameMenuItems: MainMenuCommandItem[] = [
-    {label: "单打-AI", action: () => showNotice("单打-AI 接下来开放"), instant: true},
-    {label: "双打-AI", action: () => showNotice("双打-AI 接下来开放"), instant: true},
-    {label: "合作-AI", action: () => showNotice("合作-AI 接下来开放"), instant: true},
+    {label: "单打-AI", action: () => onFormalGame("singles"), instant: true},
+    {label: "双打-AI", action: () => onFormalGame("doubles"), instant: true},
+    {label: "合作-AI", action: () => onFormalGame("coop"), instant: true},
     {label: "合作-玩家", action: () => showNotice("合作-玩家 后续开发"), instant: true},
     {label: "训练场", action: onTraining},
     {label: "返回", action: closeGameMenu, instant: true},

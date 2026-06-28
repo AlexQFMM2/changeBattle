@@ -1,5 +1,6 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
+import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -71,6 +72,7 @@ export type ChangeBattleV2ApiOptions = {
   translate?: (table: string, value: string) => string;
   userProfileAdapter?: UserProfileStorageAdapter;
   trainingRunAdapter?: TrainingRunStorageAdapter;
+  formalGameRunAdapter?: FormalGameRunStorageAdapter;
   battleServiceClient?: BattleServiceClientV4;
   battleServiceUrl?: string;
 };
@@ -134,6 +136,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
   });
   const userProfiles = options.userProfileAdapter || createBrowserUserProfileAdapter();
   const trainingRuns = createTrainingRunApi(dex, options.trainingRunAdapter || createBrowserTrainingRunAdapter());
+  const formalRuns = createFormalGameRunApi(dex, options.formalGameRunAdapter || createBrowserFormalGameRunAdapter());
   const battleService = options.battleServiceClient || createBattleServiceClient(options.battleServiceUrl);
 
   return {
@@ -174,6 +177,13 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     loadTrainingRun: () => trainingRuns.loadTrainingRun(),
     saveTrainingRun: trainingRuns.saveTrainingRun,
     deleteTrainingRun: trainingRuns.deleteTrainingRun,
+    loadFormalGameRun: () => formalRuns.loadFormalGameRun(),
+    saveFormalGameRun: formalRuns.saveFormalGameRun,
+    deleteFormalGameRun: formalRuns.deleteFormalGameRun,
+    createFormalGameRun: formalRuns.createFormalGameRun,
+    prepareFormalStarterCandidates: formalRuns.prepareFormalStarterCandidates,
+    selectFormalStarterPokemon: formalRuns.selectFormalStarterPokemon,
+    selectedCountForFormalMode: formalRuns.selectedCountForFormalMode,
     createTrainingRunGame: trainingRuns.createTrainingRunGame,
     createDefaultTrainingScenario: trainingRuns.createDefaultTrainingScenario,
     updateTrainingScenario: trainingRuns.updateTrainingScenario,
@@ -310,6 +320,7 @@ export type {AbilityInfo, ItemInfo, MoveInfo, PokemonInfo, UseDexHookOptions} fr
 export * from "./battle.js";
 export * from "./battleDebug.js";
 export * from "./teamGenerator.js";
+export * from "./formalGame.js";
 export * from "./training.js";
 export {createBrowserTrainingRunAdapter, createTrainingNpcCatalog, createTrainingRunApi} from "./training.js";
 export type * from "./training.js";
