@@ -203,6 +203,36 @@ type BattleAiDecisionDebugV4 = {
 
 调参优先看 debug，不靠猜。后续可以把对局日志转成离线样本，逐步调整权重。
 
+## Future Tuning Guide
+
+后续细调不需要推翻架构，主要从 4 个入口进入：
+
+- 偏好权重：`PREFERENCE_WEIGHTS`。调整进攻/防守/辅助/平衡训练师在同一局面下更偏向哪些 feature。进攻主要看 `damage / ko / typeAdvantage / special`，防守主要看 `survival / protect / recovery / switch / item`，辅助主要看 `support / room / terrain / weather / statStage / ability`。
+- 等级参数：`AI_LEVEL_CONFIG`。调整 `searchDepth / perSlotTopN / turnTopK / randomNoise / mistakeRate`。菜鸟更乱就提高随机扰动和失误率；冠军更稳就降低扰动、提高候选宽度。
+- feature 原始分：`featuresForMove / movePowerEstimate / estimateKoScore / estimateStabScore / estimateTypeAdvantageScore / specialScore / longTermFeatureScore`。例如不会补刀就调 `ko`，太爱太晶就调 `special`，不重视属性克制就调 `typeAdvantage`。
+- 决策 debug：`snapshot.debug.aiDecisions`。每次看 `topCandidates[].features` 和 `selectedScore`，先确认 AI 为什么这么选，再决定改权重还是改 feature。
+
+推荐调参流程：
+
+```txt
+跑一局或 fixture
+-> 查看 debug.aiDecisions
+-> 判断选择是否符合预期
+-> 调整 feature 或 preference weight
+-> 重跑纯函数 fixture 和 battle-core smoke
+```
+
+建议后续追加的典型 fixture：
+
+- 残血时应该回复/守住，满血不应无脑 Rest。
+- 能击杀时优先击杀。
+- 电系招式优先打暴鲤龙等明显克制目标。
+- 双打能集火残血目标。
+- 不重复使用同一特殊系统。
+- 有空间收益时更愿意开戏法空间。
+- 有天气收益时更愿意开雨/晴等天气。
+- 濒死时避免无脑强化。
+
 ## Test Plan
 
 - `pnpm --dir changeBattleV2 --filter @changebattle-v2/showdown-battle-core test`

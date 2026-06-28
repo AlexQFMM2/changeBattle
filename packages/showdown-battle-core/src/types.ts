@@ -1,11 +1,36 @@
 export type ShowdownPlayerIdV4 = "p1" | "p2" | "p3" | "p4";
 export type TrainingModeV4 = "singles" | "doubles" | "coop";
 export type TrainingRuleSetV4 = "standard" | "gen7" | "gen8" | "gen9";
+export type BattleAiLevelV4 = "rookie" | "normal" | "elite" | "gymLeader" | "eliteFour" | "champion";
+export type BattleAiPreferenceV4 = "offense" | "defense" | "support" | "balanced";
+export type BattleAiProfileV4 = {
+  level: BattleAiLevelV4;
+  preference?: BattleAiPreferenceV4;
+};
+export type BattleAiFeatureVectorV4 = Record<string, number>;
+export type BattleAiDecisionDebugV4 = {
+  playerId: ShowdownPlayerIdV4;
+  rqid?: number;
+  requestKey: string;
+  level: BattleAiLevelV4;
+  preference: BattleAiPreferenceV4;
+  elapsedMs: number;
+  timedOut: boolean;
+  candidateCount: number;
+  selectedChoice: string;
+  selectedScore: number;
+  topCandidates: Array<{
+    choice: string;
+    score: number;
+    features: BattleAiFeatureVectorV4;
+  }>;
+};
 export type TrainingPlayerDraftV4 = {
   playerId: ShowdownPlayerIdV4;
   name: string;
   avatar: string;
   controller: "local" | "ai" | "script";
+  aiProfile?: BattleAiProfileV4;
   alliance: "near" | "far";
   localTeam: {
     id: string;
@@ -88,6 +113,7 @@ export type BattleServicePlayerInputV4 = {
   playerId: ShowdownPlayerIdV4;
   name: string;
   controller: "local" | "ai" | "script";
+  aiProfile?: BattleAiProfileV4;
   alliance: "near" | "far";
   team: BattleServicePokemonSetV4[];
   draft: TrainingPlayerDraftV4;
@@ -195,6 +221,7 @@ export type BattleServiceSnapshotV4 = {
     lastChoices: Array<{playerId: ShowdownPlayerIdV4; choice: string; at: string}>;
     playerStreams: Array<{playerId: ShowdownPlayerIdV4; at: string; chunk: string; request: boolean; lines: string[]}>;
     latestSidePokemon?: Partial<Record<ShowdownPlayerIdV4, BattleServiceSidePokemonV4[]>>;
+    aiDecisions?: BattleAiDecisionDebugV4[];
   };
   createdAt: string;
   updatedAt: string;

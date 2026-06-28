@@ -12,6 +12,7 @@ import type {
   BattleServiceSnapshotV4,
   BattleServiceSubmitChoiceInputV4,
   BattleServiceSubmitTrainerItemInputV4,
+  BattleAiDecisionDebugV4,
   ShowdownIdPoolStateV4,
   ShowdownTeamPokemonMappingV4,
   ShowdownPlayerIdV4,
@@ -19,8 +20,10 @@ import type {
 } from "./types.js";
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
 import {filterShowdownChoiceForRuleSetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
+import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, normalizeBattleAiProfileV4, type BattleAiChoiceResultV4} from "./ai.js";
 
 export * from "./showdownCommand.js";
+export * from "./ai.js";
 
 const require = createRequire(import.meta.url);
 const vendorRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../vendor/showdown");
@@ -46,7 +49,17 @@ type RuntimeSession = {
   snapshot: BattleServiceSnapshotV4;
   lastRequests: Partial<Record<ShowdownPlayerIdV4, BattleServiceRequestV4>>;
   invalidChoiceStreaks: Partial<Record<ShowdownPlayerIdV4, {requestKey: string; count: number}>>;
+  aiTasks: Partial<Record<ShowdownPlayerIdV4, RuntimeAiTask>>;
   closed: boolean;
+};
+
+type RuntimeAiTask = {
+  requestKey: string;
+  startedAt: number;
+  deadlineAt: number;
+  done: boolean;
+  result?: BattleAiChoiceResultV4;
+  promise: Promise<void>;
 };
 
 type TrainerItemRuntimeAction = {
@@ -63,7 +76,7 @@ type RecoveryEffect = {
 };
 
 const sessions = new Map<string, RuntimeSession>();
-const HUMAN_PLAYERS = new Set<ShowdownPlayerIdV4>(["p1"]);
+const AI_THINK_TIME_MS = 10_000;
 const SHOWDOWN_ID_POOL_V4 = [
   "pokeball",
   "greatball",
@@ -161,6 +174,7 @@ export function createInMemoryBattleService(): BattleServiceApiV4 {
       const session = sessions.get(sessionId);
       if (session) {
         session.closed = true;
+        session.aiTasks = {};
         sessions.delete(sessionId);
       }
     },
@@ -180,6 +194,7 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
     closed: false,
     lastRequests: {},
     invalidChoiceStreaks: {},
+    aiTasks: {},
     snapshot: {
       id,
       runId: compiled.runId,
@@ -195,7 +210,7 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
       requests: {},
       active: [],
       rawLog: [],
-      debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}},
+      debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, aiDecisions: []},
       createdAt: now,
       updatedAt: now,
     },
@@ -289,33 +304,16 @@ export async function getSnapshot(sessionId: string): Promise<BattleServiceSnaps
 }
 
 export async function closeSession(sessionId: string): Promise<void> {
-  sessions.delete(sessionId);
+  const session = sessions.get(sessionId);
+  if (session) {
+    session.closed = true;
+    session.aiTasks = {};
+    sessions.delete(sessionId);
+  }
 }
 
 export function randomLegalChoice(request: BattleServiceRequestV4 | undefined): string {
-  if (!request) return "pass";
-  if (request.wait) return "";
-  if (request.teamPreview) {
-    const count = request.side?.pokemon?.length || 1;
-    return `team ${Array.from({length: count}, (_, index) => index + 1).join(",")}`;
-  }
-  if (request.forceSwitch?.some(Boolean)) {
-    const reservedSwitches = new Set<number>();
-    const choices = request.forceSwitch.map(mustSwitch => mustSwitch ? legalSwitchChoice(request, reservedSwitches) : "pass");
-    return choices.join(", ");
-  }
-  if (request.active?.length) {
-    const activeRequests = fixedActiveRequests(request);
-    const needsTargetableMoves = Boolean(request.targetable || activeRequests.length > 1);
-    return activeRequests.map((active, activeIndex) => {
-      if (!active) return "pass";
-      const moves = (active.moves || []).map((move, index) => ({move, index})).filter(entry => !entry.move.disabled && (entry.move.pp ?? 1) > 0);
-      if (!moves.length) return "move 1";
-      const picked = moves[Math.floor(Math.random() * moves.length)]!;
-      return `move ${picked.index + 1}${defaultTargetSuffix(request, activeIndex, picked.move, needsTargetableMoves)}`;
-    }).join(", ");
-  }
-  return "pass";
+  return fallbackLegalChoiceV4(request);
 }
 
 function fixedActiveRequests(request: BattleServiceRequestV4): NonNullable<BattleServiceRequestV4["active"]> {
@@ -373,22 +371,137 @@ function indexIsSwitchableBench(index: number, reservedActiveSlots: number, poke
 
 async function flushReadyAutoChoices(session: RuntimeSession): Promise<void> {
   await submitTeamPreviewChoices(session);
+  scheduleAiChoices(session);
   await submitAiChoices(session);
 }
 
 async function submitAiChoices(session: RuntimeSession): Promise<void> {
   for (let guard = 0; guard < 10 && session.snapshot.status === "running"; guard += 1) {
-    const pending = session.snapshot.players
-      .filter(player => !HUMAN_PLAYERS.has(player.playerId) && shouldAutoChoose(session.snapshot.requests[player.playerId]))
-      .map(player => ({playerId: player.playerId, choice: randomLegalChoice(session.snapshot.requests[player.playerId])}));
+    scheduleAiChoices(session);
+    await Promise.resolve();
+    const pending = readyAiChoices(session);
     if (!pending.length) return;
     for (const entry of pending) {
       if (!entry.choice) continue;
+      appendAiDecisionDebug(session, entry.debug);
       await writePlayerChoice(session, entry.playerId, entry.choice, "ai");
+      delete session.aiTasks[entry.playerId];
     }
     touch(session);
     await waitForRequests(session, 700);
   }
+}
+
+function scheduleAiChoices(session: RuntimeSession): void {
+  for (const player of session.snapshot.players) {
+    const request = session.snapshot.requests[player.playerId];
+    if (!isAiPlayer(player) || !shouldAutoChoose(request)) {
+      delete session.aiTasks[player.playerId];
+      continue;
+    }
+    const requestKey = battleAiRequestKeyV4(player.playerId, request);
+    const existing = session.aiTasks[player.playerId];
+    if (existing?.requestKey === requestKey) continue;
+    const startedAt = Date.now();
+    const task: RuntimeAiTask = {
+      requestKey,
+      startedAt,
+      deadlineAt: startedAt + AI_THINK_TIME_MS,
+      done: false,
+      promise: Promise.resolve().then(() => {
+        const result = chooseAiBattleChoiceV4({
+          request,
+          snapshot: clone(session.snapshot),
+          playerId: player.playerId,
+          aiProfile: normalizeBattleAiProfileV4(player.aiProfile || player.draft?.aiProfile),
+          rngSeed: `${session.snapshot.runId}:${session.snapshot.nodeId}:${session.snapshot.turn}`,
+          timeBudgetMs: AI_THINK_TIME_MS,
+        });
+        task.result = result;
+        task.done = true;
+      }).catch(error => {
+        const message = error instanceof Error ? error.message : String(error);
+        const choice = fallbackLegalChoiceV4(request);
+        const profile = normalizeBattleAiProfileV4(player.aiProfile || player.draft?.aiProfile);
+        task.result = {
+          choice,
+          elapsedMs: Date.now() - startedAt,
+          timedOut: true,
+          debug: {
+            playerId: player.playerId,
+            rqid: request?.rqid,
+            requestKey,
+            level: profile.level,
+            preference: profile.preference,
+            elapsedMs: Date.now() - startedAt,
+            timedOut: true,
+            candidateCount: 0,
+            selectedChoice: choice,
+            selectedScore: 0,
+            topCandidates: [],
+          },
+        };
+        task.done = true;
+        session.snapshot.debug.inputLog.push(`[BattleV4][ai-error][${player.playerId}] ${message}`);
+      }),
+    };
+    session.aiTasks[player.playerId] = task;
+  }
+}
+
+function readyAiChoices(session: RuntimeSession): Array<{playerId: ShowdownPlayerIdV4; choice: string; debug: BattleAiDecisionDebugV4}> {
+  const now = Date.now();
+  const entries: Array<{playerId: ShowdownPlayerIdV4; choice: string; debug: BattleAiDecisionDebugV4}> = [];
+  for (const player of session.snapshot.players) {
+    const request = session.snapshot.requests[player.playerId];
+    const task = session.aiTasks[player.playerId];
+    if (!isAiPlayer(player) || !request || !task) continue;
+    const requestKey = battleAiRequestKeyV4(player.playerId, request);
+    if (task.requestKey !== requestKey) {
+      delete session.aiTasks[player.playerId];
+      continue;
+    }
+    if (!task.done && now < task.deadlineAt) continue;
+    const result = task.result || timeoutAiResult(player, request, task);
+    entries.push({playerId: player.playerId, choice: result.choice, debug: result.debug});
+  }
+  return entries;
+}
+
+function timeoutAiResult(player: BattleServicePlayerInputV4, request: BattleServiceRequestV4, task: RuntimeAiTask): BattleAiChoiceResultV4 {
+  const choice = fallbackLegalChoiceV4(request);
+  const profile = normalizeBattleAiProfileV4(player.aiProfile || player.draft?.aiProfile);
+  return {
+    choice,
+    elapsedMs: Date.now() - task.startedAt,
+    timedOut: true,
+    debug: {
+      playerId: player.playerId,
+      rqid: request.rqid,
+      requestKey: task.requestKey,
+      level: profile.level,
+      preference: profile.preference,
+      elapsedMs: Date.now() - task.startedAt,
+      timedOut: true,
+      candidateCount: 0,
+      selectedChoice: choice,
+      selectedScore: 0,
+      topCandidates: [],
+    },
+  };
+}
+
+function appendAiDecisionDebug(session: RuntimeSession, debug: BattleAiDecisionDebugV4): void {
+  session.snapshot.debug.aiDecisions = [...(session.snapshot.debug.aiDecisions || []), debug].slice(-100);
+  session.snapshot.debug.inputLog.push(`[BattleV4][ai-choice][${debug.playerId}] ${debug.selectedChoice} score=${debug.selectedScore} candidates=${debug.candidateCount} elapsed=${debug.elapsedMs}ms${debug.timedOut ? " timeout" : ""}`);
+}
+
+function isAiPlayer(player: BattleServicePlayerInputV4): boolean {
+  return player.controller === "ai";
+}
+
+function isLocalPlayer(player: BattleServicePlayerInputV4): boolean {
+  return player.controller === "local";
 }
 
 async function applyInitialPokemonState(session: RuntimeSession, input: BattleServiceSessionInputV4): Promise<void> {
@@ -507,6 +620,7 @@ async function readPlayerStream(session: RuntimeSession, playerId: ShowdownPlaye
         session.lastRequests[playerId] = clone(sanitizedRequest);
         rememberLatestSidePokemon(session, playerId, sanitizedRequest);
         delete session.invalidChoiceStreaks[playerId];
+        delete session.aiTasks[playerId];
         touch(session);
       }
     }
@@ -1031,6 +1145,7 @@ function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens
     playerId: player.playerId,
     name: player.name || player.playerId,
     controller: player.controller,
+    aiProfile: player.aiProfile,
     alliance: player.alliance,
     team: identity.localTeam.pokemon.map(compilePokemonSet),
     draft: {
@@ -1153,7 +1268,7 @@ async function waitForRequests(session: RuntimeSession, timeoutMs: number): Prom
   const start = Date.now();
   while (Date.now() - start < timeoutMs && session.snapshot.status === "running") {
     await new Promise(resolve => setTimeout(resolve, 25));
-    if (session.snapshot.players.some(player => shouldAutoChoose(session.snapshot.requests[player.playerId]) || HUMAN_PLAYERS.has(player.playerId) && session.snapshot.requests[player.playerId] && !session.snapshot.requests[player.playerId]?.wait)) {
+    if (session.snapshot.players.some(player => shouldAutoChoose(session.snapshot.requests[player.playerId]) || isLocalPlayer(player) && session.snapshot.requests[player.playerId] && !session.snapshot.requests[player.playerId]?.wait)) {
       return;
     }
   }

@@ -1,5 +1,6 @@
 import {
   appendShowdownSpecialChoiceSuffixV4,
+  chooseAiBattleChoiceV4,
   createBattleSession,
   filterShowdownChoiceForRuleSetV4,
   parseShowdownChoiceCommandV4,
@@ -7,7 +8,7 @@ import {
   submitChoice,
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
-import type {BattleServiceRequestV4, BattleServiceSessionInputV4} from "./types.js";
+import type {BattleAiLevelV4, BattleAiPreferenceV4, BattleServiceRequestV4, BattleServiceSessionInputV4, BattleServiceSnapshotV4} from "./types.js";
 
 const pikachu = {
   species: "Pikachu",
@@ -80,8 +81,9 @@ async function doublesSmoke() {
   };
   const snapshot = await createBattleSession(input);
   if (!snapshot.rawLog.some(line => line === "|gametype|doubles")) throw new Error("missing doubles gametype");
-  const previewChoice = randomLegalChoice(snapshot.requests.p1);
-  const next = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: previewChoice});
+  const next = snapshot.requests.p1?.active?.length
+    ? snapshot
+    : await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: randomLegalChoice(snapshot.requests.p1)});
   if ((next.requests.p1?.active || []).length !== 2) throw new Error("missing doubles active request");
   const afterTurn = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: randomLegalChoice(next.requests.p1)});
   if (afterTurn.status === "running" && afterTurn.requests.p1?.wait) {
@@ -308,6 +310,148 @@ function showdownCommandReferenceSmoke() {
   console.log("showdown command reference smoke ok");
 }
 
+function aiPureChoiceSmoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 7,
+    targetable: true,
+    active: [
+      {
+        canTerastallize: "Fire",
+        moves: [
+          {move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"},
+          {move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"},
+          {move: "Rain Dance", id: "raindance", pp: 5, maxpp: 5, target: "all"},
+          {move: "Swords Dance", id: "swordsdance", pp: 20, maxpp: 20, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Pikachu", details: "Pikachu, L50", condition: "80/100", active: true, ability: "Static", item: "Light Ball"},
+        {ident: "p2: Eevee", details: "Eevee, L50", condition: "100/100", active: false},
+      ],
+    },
+  };
+  const snapshot = aiSnapshot("gen9", "singles", request);
+  const levels: BattleAiLevelV4[] = ["rookie", "normal", "elite", "gymLeader", "eliteFour", "champion"];
+  const preferences: BattleAiPreferenceV4[] = ["offense", "defense", "support", "balanced"];
+  for (const level of levels) {
+    for (const preference of preferences) {
+      const result = chooseAiBattleChoiceV4({
+        request,
+        snapshot,
+        playerId: "p2",
+        aiProfile: {level, preference},
+        rngSeed: `${level}-${preference}`,
+        timeBudgetMs: 10_000,
+      });
+      if (!result.choice || !result.choice.split(",").every(part => parseShowdownChoiceCommandV4(part.trim()))) {
+        throw new Error(`AI produced unparsable choice for ${level}/${preference}: ${result.choice}`);
+      }
+      if (result.elapsedMs >= 10_000) throw new Error(`AI exceeded budget for ${level}/${preference}`);
+      if (result.debug.candidateCount <= 0) throw new Error(`AI produced no candidates for ${level}/${preference}`);
+      const featureKeys = Object.keys(result.debug.topCandidates[0]?.features || {});
+      for (const key of ["damage", "weather", "terrain", "room", "statStage", "ability", "item"]) {
+        if (!featureKeys.includes(key)) throw new Error(`AI debug missing feature ${key}`);
+      }
+    }
+  }
+  console.log("showdown-battle-core ai pure choice smoke ok");
+}
+
+function aiSpecialSystemSmoke() {
+  const gen7Request: BattleServiceRequestV4 = {
+    rqid: 8,
+    active: [
+      {
+        canMegaEvo: true,
+        canZMove: [{move: "Gigavolt Havoc", id: "gigavolthavoc", target: "normal"}],
+        moves: [{move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"}],
+      },
+    ],
+    side: {id: "p2", name: "B", pokemon: [{ident: "p2: Pikachu", details: "Pikachu, L50", condition: "100/100", active: true}]},
+  };
+  const gen7 = chooseAiBattleChoiceV4({
+    request: gen7Request,
+    snapshot: aiSnapshot("gen7", "singles", gen7Request),
+    playerId: "p2",
+    aiProfile: {level: "champion", preference: "offense"},
+    rngSeed: "gen7-special",
+  });
+  if (!gen7.debug.topCandidates.some(entry => entry.choice.includes("mega") || entry.choice.includes("zmove"))) {
+    throw new Error(`AI did not generate Gen7 special candidates: ${JSON.stringify(gen7.debug.topCandidates)}`);
+  }
+
+  const gen8 = chooseAiBattleChoiceV4({
+    request: gen7Request,
+    snapshot: aiSnapshot("gen8", "singles", gen7Request),
+    playerId: "p2",
+    aiProfile: {level: "champion", preference: "offense"},
+    rngSeed: "gen8-filter",
+  });
+  if (gen8.debug.topCandidates.some(entry => entry.choice.includes("mega") || entry.choice.includes("zmove"))) {
+    throw new Error(`AI leaked Gen7 special candidates in Gen8: ${JSON.stringify(gen8.debug.topCandidates)}`);
+  }
+  console.log("showdown-battle-core ai special system smoke ok");
+}
+
+function aiForceSwitchSmoke() {
+  const request: BattleServiceRequestV4 = {
+    forceSwitch: [true, true],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Gengar", details: "Gengar, L50", condition: "0 fnt", active: true, fainted: true},
+        {ident: "p2: Gyarados", details: "Gyarados, L50", condition: "0 fnt", active: true, fainted: true},
+        {ident: "p2: Snorlax", details: "Snorlax, L50", condition: "235/235", active: false},
+        {ident: "p2: Raticate", details: "Raticate, L50", condition: "120/120", active: false},
+      ],
+    },
+  };
+  const result = chooseAiBattleChoiceV4({
+    request,
+    snapshot: aiSnapshot("gen9", "doubles", request),
+    playerId: "p2",
+    aiProfile: {level: "elite", preference: "balanced"},
+    rngSeed: "force-switch",
+  });
+  const choices = result.choice.split(",").map(part => part.trim());
+  if (choices.length !== 2 || !choices.includes("switch 3") || !choices.includes("switch 4")) {
+    throw new Error(`AI force switch should choose unique bench slots: ${result.choice}`);
+  }
+  console.log("showdown-battle-core ai force switch smoke ok");
+}
+
+function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: BattleServiceSessionInputV4["mode"], request: BattleServiceRequestV4): BattleServiceSnapshotV4 {
+  return {
+    id: "ai-test-session",
+    runId: "ai-test-run",
+    nodeId: "ai-test-node",
+    status: "running",
+    mode,
+    ruleSet,
+    turn: 1,
+    winner: null,
+    error: null,
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [pikachu, eevee], draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+    requests: {p2: request},
+    active: [
+      {ident: "p1a: Gyarados", playerId: "p1", slot: "p1a", species: "Gyarados", details: "Gyarados, L50", condition: "65/170", hp: 65, maxHp: 170, status: "", fainted: false},
+      {ident: "p2a: Pikachu", playerId: "p2", slot: "p2a", species: "Pikachu", details: "Pikachu, L50", condition: "80/100", hp: 80, maxHp: 100, status: "", fainted: false},
+    ],
+    rawLog: [],
+    debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, aiDecisions: []},
+    createdAt: "2026-06-28T00:00:00.000Z",
+    updatedAt: "2026-06-28T00:00:00.000Z",
+  };
+}
+
 void smoke()
   .then(doublesSmoke)
   .then(rechargeChoiceSmoke)
@@ -318,4 +462,7 @@ void smoke()
   .then(residualStatusSmoke)
   .then(sleepCantMoveSmoke)
   .then(rulesetSpecialSystemFilterSmoke)
-  .then(showdownCommandReferenceSmoke);
+  .then(showdownCommandReferenceSmoke)
+  .then(aiPureChoiceSmoke)
+  .then(aiSpecialSystemSmoke)
+  .then(aiForceSwitchSmoke);
