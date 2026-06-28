@@ -200,7 +200,6 @@
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 6px;
   overflow: hidden;
-  border-left: 2px solid rgb(94 61 33 / 80%);
   padding: 7px 2px 6px 12px;
 }
 
@@ -232,7 +231,7 @@
 .training-rest-new-bag-pokemon-level {
   grid-column: 2;
   grid-row: 1;
-  align-self: center;
+  align-self: start;
   justify-self: start;
   width: 100%;
   min-width: 0;
@@ -245,6 +244,49 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-shadow: 0 1px 0 rgb(255 255 255 / 62%);
+}
+
+.training-rest-new-bag-pokemon-held-label {
+  position: absolute;
+  left: 40px;
+  right: 24px;
+  top: 21px;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #32281d;
+  font-size: 5px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 62%);
+}
+
+.training-rest-new-bag-pokemon-held-label.empty {
+  color: #7a7164;
+}
+
+.training-rest-new-bag-battle-id {
+  position: absolute;
+  right: 4px;
+  bottom: 9px;
+  z-index: 2;
+  max-width: 48px;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #141814;
+  color: #d8ff4f;
+  padding: 1px 3px;
+  font-size: 5px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 #000;
 }
 
 .training-rest-new-bag-pokemon-list img {
@@ -336,7 +378,6 @@
   justify-content: center;
   gap: 8px;
   align-items: center;
-  border-top: 2px solid rgb(94 61 33 / 80%);
   padding-top: 6px;
 }
 

@@ -35,10 +35,14 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     const nextP1 = {...p1, localTeam};
     const nextPlayers = {...run.players, p1: nextP1};
     const nextScenarioPlayers = run.scenario.players.map(player => player.playerId === "p1" ? nextP1 : player);
+    const nextGameMap = run.gameMap.map(node => node.id === run.currentNodeId
+      ? {...node, participants: {...node.participants, p1: nextP1}}
+      : node);
     const nextRun = {
       ...run,
       players: nextPlayers,
       scenario: {...run.scenario, players: nextScenarioPlayers},
+      gameMap: nextGameMap,
       updatedAt: new Date().toISOString(),
     };
     onRunChange(nextRun);

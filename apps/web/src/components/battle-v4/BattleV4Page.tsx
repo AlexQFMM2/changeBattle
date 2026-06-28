@@ -7,6 +7,7 @@ import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
+import {PlayerBagPanel, type PlayerBagAction, type PlayerBagPokemonTarget} from "../training/PlayerBagPanel";
 import "./BattleV4Page.css";
 
 export type BattleV4PageProps = {
@@ -405,13 +406,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onOpenSwitch={() => setSwitchPanelOpen(true)}
           battleBag={activeBattleBag}
           battleBagOpen={battleBagOpen}
-          onOpenBattleBag={() => {
-            if (!activeBattleBag.battleBagEnabled) {
-              setChoiceStatus("战斗背包未开启。");
-              return;
-            }
-            setBattleBagOpen(value => !value);
-          }}
+          onOpenBattleBag={() => setBattleBagOpen(value => !value)}
           canUndoChoice={canUndoBattleCommandChoice(commandDraft, viewModel?.command.normalizedRequest || null)}
           onUndoChoice={undoDraftChoice}
           onSubmit={applyDraftChoice}
@@ -444,7 +439,13 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         />
       ) : null}
       {!playbackBlockingCommands && battleBagOpen ? (
-        <BattleV4BagPanel api={api} bag={activeBattleBag} onClose={() => setBattleBagOpen(false)} />
+        <BattleV4BagPanel
+          api={api}
+          bag={activeBattleBag}
+          snapshot={snapshot}
+          onClose={() => setBattleBagOpen(false)}
+          onUnavailable={setChoiceStatus}
+        />
       ) : null}
       {shouldShowResultPanel && snapshot ? (
         <div className="battle-v4-result-panel">
@@ -788,7 +789,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
           <img src="/battle/command-buttons/switch.webp" alt="" />
           <span>宝可梦</span>
         </button>
-        <button className={`battle-v4-main-command bag ${battleBagOpen ? "active" : ""}`} type="button" disabled={busy} onClick={onOpenBattleBag} title={battleBag.battleBagEnabled ? "查看战斗背包" : "战斗背包未开启"}>
+        <button className={`battle-v4-main-command bag ${battleBagOpen ? "active" : ""}`} type="button" disabled={busy} onClick={onOpenBattleBag} title="查看战斗背包">
           <span className="battle-v4-main-command-fallback-icon">包</span>
           <span>背包</span>
         </button>
@@ -797,43 +798,40 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   );
 }
 
-function BattleV4BagPanel({api, bag, onClose}: {api: ChangeBattleV2Api; bag: BagStateV4; onClose: () => void}) {
-  const usableItems = bag.items.filter(item => item.canBattleUse);
+function BattleV4BagPanel({api, bag, snapshot, onClose, onUnavailable}: {
+  api: ChangeBattleV2Api;
+  bag: BagStateV4;
+  snapshot: BattleSessionSnapshotV4 | null;
+  onClose: () => void;
+  onUnavailable: (message: string) => void;
+}) {
+  const targets = useMemo(() => snapshot ? buildBattleBagTargets(api, bag.items, snapshot) : [], [api, bag.items, snapshot]);
+  const actions: PlayerBagAction[] = [{
+    key: "use",
+    label: "立即使用",
+    disabled: true,
+    title: "道具使用后续开放",
+    onClick: () => onUnavailable("道具使用后续开放。"),
+  }];
   return (
-    <aside className="battle-v4-bag-panel" aria-label="战斗背包">
-      <header>
-        <strong>战斗背包</strong>
-        <span>{usableItems.length}/{bag.items.length}</span>
-        <button type="button" onClick={onClose}>关闭</button>
-      </header>
-      <div className="battle-v4-bag-list">
-        {usableItems.length ? usableItems.map(item => <BattleV4BagItem api={api} item={item} key={item.id} />) : <p>没有可战斗使用的道具。</p>}
-      </div>
-      <small>本批只读展示，不提交道具指令。</small>
-    </aside>
+    <div className="battle-v4-player-bag-layer">
+      <PlayerBagPanel
+        api={api}
+        open
+        title="战斗背包"
+        drawerTitle="战斗道具"
+        items={bag.items}
+        maxSize={bag.maxSize}
+        isBattle
+        pokemonTargets={targets}
+        actions={actions}
+        emptyItemText="没有可战斗使用的道具"
+        emptyTargetText="暂无可选择宝可梦"
+        footerNote="本批只展示战斗可用道具，使用效果后续开放。"
+        onClose={onClose}
+      />
+    </div>
   );
-}
-
-function BattleV4BagItem({api, item}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4}) {
-  return (
-    <article>
-      <BattleV4BagItemIcon api={api} item={item} />
-      <strong>{item.name}</strong>
-      <span>{item.maxUseCount == null ? `使用 ${item.useCount}` : `使用 ${item.useCount}/${item.maxUseCount}`}</span>
-      <small>{item.itemID}</small>
-    </article>
-  );
-}
-
-function BattleV4BagItemIcon({api, item}: {api: ChangeBattleV2Api; item: PlayerItemInstanceV4}) {
-  try {
-    const detail = api.getItemDetail(item.itemID);
-    if (detail.iconStyle) return <span className="battle-v4-bag-item-icon item-icon" aria-hidden="true" style={styleFromCss(detail.iconStyle)} />;
-    if (detail.iconUrl) return <ImageWithFallback src={detail.iconUrl} alt="" fallback="◇" />;
-  } catch {
-    // Keep fallback below.
-  }
-  return item.image ? <ImageWithFallback src={item.image} alt="" fallback="◇" /> : <span className="battle-v4-bag-item-icon">◇</span>;
 }
 
 function lockedSpecialSystemsForCommand(choices: unknown[]): Set<BattleSpecialSystemV4> {
@@ -843,6 +841,73 @@ function lockedSpecialSystemsForCommand(choices: unknown[]): Set<BattleSpecialSy
     if (system) locked.add(system);
   }
   return locked;
+}
+
+function buildBattleBagTargets(api: ChangeBattleV2Api, bagItems: PlayerItemInstanceV4[], snapshot: BattleSessionSnapshotV4): PlayerBagPokemonTarget[] {
+  const player = snapshot.players.find(entry => entry.playerId === "p1");
+  const localTeam = player?.draft.localTeam.pokemon || [];
+  const mapping = player?.teamMapping || [];
+  const rows = snapshot.requests.p1?.side?.pokemon || snapshot.debug.latestSidePokemon?.p1 || [];
+  return rows.slice(0, 4).map((row, index) => {
+    const resolved = resolveLocalPokemonFromRequestRow(row, mapping, localTeam, index);
+    const pokemon = resolved.localPokemon || localTeam[index] || null;
+    const hp = hpFromCondition(row.condition, pokemon?.entryHp || 0);
+    const maxHp = maxHpFromCondition(row.condition, pokemon?.maxHp || 0);
+    const name = pokemon?.name || row.details.split(",")[0] || row.ident;
+    return {
+      key: row.pokeball || resolved.token || pokemon?.showdownIdentityToken || pokemon?.showdownId || pokemon?.pokeballId || `battle-target-${index}`,
+      name,
+      nameZh: pokemon?.nameZh || name,
+      level: pokemon?.level || levelFromDetails(row.details),
+      hp,
+      maxHp,
+      status: rowStatus(row),
+      iconUrl: pokemon?.iconUrl,
+      spriteUrl: pokemon?.spriteUrl || pokemon?.frontSpriteUrl || "",
+      iconStyle: pokemon?.iconStyle,
+      heldItem: heldItemForBattleTarget(api, bagItems, pokemon, row.item),
+      battleIdLabel: row.pokeball || resolved.token || "",
+    };
+  });
+}
+
+function heldItemForBattleTarget(api: ChangeBattleV2Api, bagItems: PlayerItemInstanceV4[], pokemon: LocalPokemonV4 | null, requestItemId?: string): PlayerItemInstanceV4 | null {
+  if (pokemon?.heldItemInstanceId) {
+    const byInstance = bagItems.find(item => item.id === pokemon.heldItemInstanceId);
+    if (byInstance) return byInstance;
+  }
+  const itemId = requestItemId || pokemon?.itemId || "";
+  if (!itemId) return null;
+  return bagItems.find(item => item.itemID === itemId) || displayItemInstance(api, itemId);
+}
+
+function displayItemInstance(api: ChangeBattleV2Api, itemId: string): PlayerItemInstanceV4 {
+  let name = itemId;
+  let image = "";
+  try {
+    const detail = api.getItemDetail(itemId);
+    name = detail.nameZh || detail.name || itemId;
+    image = detail.iconUrl || "";
+  } catch {
+    // Keep the raw Showdown id visible when the dex has no item detail.
+  }
+  return {
+    id: `battle-display-${itemId}`,
+    itemID: itemId,
+    name,
+    image,
+    cost: 0,
+    canSale: false,
+    type: "held",
+    canBattleUse: false,
+    canUse: false,
+    canUseToPokemon: false,
+    canTake: true,
+    effectRound: null,
+    getRound: 0,
+    maxUseCount: null,
+    useCount: 0,
+  };
 }
 
 function specialChoiceFromChoiceString(choice: unknown): BattleSpecialChoiceV4 | null {
@@ -1353,7 +1418,7 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
         <>
           <aside className="battle-v4-switch-team-stack left" aria-label="P1 和 P2 队伍">
             {panelTeams.filter(team => team.playerId === "p1" || team.playerId === "p2").map(team => (
-              <BattleV4SwitchTeamList team={team} selectedKey={selected?.key || ""} onSelect={setSelectedKey} key={team.playerId} />
+              <BattleV4SwitchTeamList api={api} team={team} selectedKey={selected?.key || ""} onSelect={setSelectedKey} key={team.playerId} />
             ))}
           </aside>
         </>
@@ -1362,6 +1427,7 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
           <h3>我方队伍</h3>
           {candidates.map(candidate => (
             <BattleV4SwitchPartyCard
+              api={api}
               candidate={candidate}
               selected={candidate.key === selected?.key}
               onSelect={setSelectedKey}
@@ -1374,7 +1440,7 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
       {isCoop ? (
         <aside className="battle-v4-switch-team-stack right" aria-label="P3 和 P4 队伍">
           {panelTeams.filter(team => team.playerId === "p3" || team.playerId === "p4").map(team => (
-            <BattleV4SwitchTeamList team={team} selectedKey={selected?.key || ""} onSelect={setSelectedKey} key={team.playerId} />
+            <BattleV4SwitchTeamList api={api} team={team} selectedKey={selected?.key || ""} onSelect={setSelectedKey} key={team.playerId} />
           ))}
         </aside>
       ) : (
@@ -1382,6 +1448,7 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
           <h3>敌方队伍</h3>
           {enemies.map(candidate => (
             <BattleV4SwitchPartyCard
+              api={api}
               candidate={candidate}
               selected={candidate.key === selected?.key}
               onSelect={setSelectedKey}
@@ -1402,12 +1469,13 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
   );
 }
 
-function BattleV4SwitchTeamList({team, selectedKey, onSelect}: {team: SwitchPanelTeamV4; selectedKey: string; onSelect: (key: string) => void}) {
+function BattleV4SwitchTeamList({api, team, selectedKey, onSelect}: {api: ChangeBattleV2Api; team: SwitchPanelTeamV4; selectedKey: string; onSelect: (key: string) => void}) {
   return (
     <section className={`battle-v4-switch-list battle-v4-switch-team ${team.side} ${team.relation}`} aria-label={`${team.title}队伍`}>
       <h3>{team.title}</h3>
       {team.candidates.map(candidate => (
         <BattleV4SwitchPartyCard
+          api={api}
           candidate={candidate}
           selected={candidate.key === selectedKey}
           onSelect={onSelect}
@@ -1418,7 +1486,8 @@ function BattleV4SwitchTeamList({team, selectedKey, onSelect}: {team: SwitchPane
   );
 }
 
-function BattleV4SwitchPartyCard({candidate, selected, onSelect}: {
+function BattleV4SwitchPartyCard({api, candidate, selected, onSelect}: {
+  api: ChangeBattleV2Api;
   candidate: SwitchCandidateV4;
   selected: boolean;
   onSelect: (key: string) => void;
@@ -1427,6 +1496,7 @@ function BattleV4SwitchPartyCard({candidate, selected, onSelect}: {
   const status = statusBadge(candidate.status);
   const hpRate = candidate.maxHp ? Math.max(0, Math.min(100, candidate.hp / candidate.maxHp * 100)) : 0;
   const identity = switchCandidateIdentity(candidate);
+  const heldItemName = battleHeldItemName(api, pokemon, candidate.row);
   return (
     <button
       className={`battle-v4-switch-card ${candidate.relation} ${candidate.canSwitch ? "operable" : "readonly"} ${selected ? "selected" : ""} ${candidate.active ? "active" : ""} ${candidate.fainted ? "fainted" : ""} ${candidate.status && !candidate.fainted ? "statused" : ""}`}
@@ -1443,7 +1513,7 @@ function BattleV4SwitchPartyCard({candidate, selected, onSelect}: {
           <i><b style={{width: `${hpRate}%`}} /></i>
           <b>{candidate.maxHp ? `${candidate.hp}/${candidate.maxHp}` : candidate.row?.condition || "--"}</b>
         </span>
-        <small>{pokemon?.itemId || candidate.row?.item || "无道具"}</small>
+        <small>{heldItemName}</small>
       </span>
       {candidate.active ? <em className="battle-v4-switch-mark active">出战</em> : null}
       {status ? <StatusBadge badge={status} className="battle-v4-switch-mark status" /> : null}
@@ -1539,8 +1609,8 @@ function BattleV4SwitchDetailPanel({api, candidate}: {api: ChangeBattleV2Api; ca
         </span>
         <span>
           <b>持有物</b>
-          <strong>{pokemon.itemId || "无"}</strong>
-          <em>{pokemon.itemId ? "已携带道具" : "没有持有道具"}</em>
+          <strong>{battleHeldItemName(api, pokemon, candidate.row)}</strong>
+          <em>{battleHeldItemId(pokemon, candidate.row) ? "已携带道具" : "没有持有道具"}</em>
         </span>
       </div>
       <div className="battle-v4-switch-stats">
@@ -1760,6 +1830,26 @@ function maxHpFromCondition(condition: string | undefined, fallback: number): nu
   if (!condition) return fallback;
   const match = condition.match(/^(\d+)\/(\d+)/);
   return match ? Number(match[2]) : fallback;
+}
+
+function levelFromDetails(details: string | undefined): number {
+  const match = details?.match(/\bL(\d+)\b/i);
+  return match ? Number(match[1]) : 50;
+}
+
+function battleHeldItemId(pokemon: LocalPokemonV4 | null | undefined, row: RequestPokemonV4 | null): string {
+  return row?.item || pokemon?.itemId || "";
+}
+
+function battleHeldItemName(api: ChangeBattleV2Api, pokemon: LocalPokemonV4 | null | undefined, row: RequestPokemonV4 | null): string {
+  const itemId = battleHeldItemId(pokemon, row);
+  if (!itemId) return "无道具";
+  try {
+    const detail = api.getItemDetail(itemId);
+    return detail.nameZh || detail.name || itemId;
+  } catch {
+    return itemId;
+  }
 }
 
 function slotIdentityLabel(slot: BattleViewSlotV4): string {

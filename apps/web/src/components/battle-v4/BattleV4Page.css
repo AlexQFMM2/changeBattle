@@ -1207,124 +1207,33 @@
   filter: drop-shadow(0 1px 1px rgb(0 0 0 / 58%));
 }
 
-.battle-v4-bag-panel {
+.battle-v4-player-bag-layer {
   position: absolute;
-  right: 132px;
-  bottom: 88px;
+  inset: 0;
   z-index: 59;
-  width: 178px;
-  max-height: 172px;
-  display: grid;
-  grid-template-rows: 24px minmax(0, 1fr) 16px;
-  gap: 5px;
-  border: 1px solid rgb(192 255 111 / 58%);
-  border-radius: 6px;
-  background: rgb(12 19 25 / 92%);
-  box-shadow: 0 8px 20px rgb(0 0 0 / 38%), inset 0 0 0 1px rgb(255 255 255 / 10%);
-  color: #f8fff4;
-  padding: 6px;
+  pointer-events: none;
 }
 
-.battle-v4-bag-panel header {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 5px;
+.battle-v4-player-bag-layer .training-rest-new-bag-panel {
+  --training-rest-new-bag-panel-left: 48px;
+  --training-rest-new-bag-panel-top: 24px;
 }
 
-.battle-v4-bag-panel header strong,
-.battle-v4-bag-panel header span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 9px;
-  font-weight: 1000;
+.battle-v4-player-bag-layer .training-rest-new-bag-drawer {
+  top: 254px;
 }
 
-.battle-v4-bag-panel header span {
-  color: #c9ff85;
-  font-size: 8px;
-}
-
-.battle-v4-bag-panel header button {
-  height: 18px;
-  border: 1px solid rgb(255 255 255 / 28%);
-  border-radius: 4px;
-  background: rgb(255 255 255 / 10%);
-  color: #fff;
-  padding: 0 5px;
-  font-size: 7px;
-  font-weight: 950;
-}
-
-.battle-v4-bag-list {
-  min-height: 0;
-  overflow: auto;
-  display: grid;
-  align-content: start;
-  gap: 4px;
-}
-
-.battle-v4-bag-list article {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
-  grid-template-rows: 13px 11px;
-  align-items: center;
-  gap: 0 5px;
-  border: 1px solid rgb(255 255 255 / 17%);
-  border-radius: 5px;
-  background: rgb(255 255 255 / 8%);
-  padding: 4px;
-}
-
-.battle-v4-bag-list strong,
-.battle-v4-bag-list span,
-.battle-v4-bag-list small {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.battle-v4-bag-list strong {
-  color: #fff;
-  font-size: 8px;
-  font-weight: 1000;
-}
-
-.battle-v4-bag-list span {
-  color: #ffeaa0;
-  font-size: 6px;
-  font-weight: 950;
-}
-
-.battle-v4-bag-list small {
-  grid-column: 2 / 4;
-  color: #bfd0c4;
+.battle-v4-player-bag-layer .training-rest-new-bag-footer-note {
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: 260px;
+  transform: translateX(-50%);
+  color: #6a563e;
   font-size: 6px;
   font-weight: 850;
-}
-
-.battle-v4-bag-list p,
-.battle-v4-bag-panel > small {
-  margin: 0;
-  color: #cbd6cf;
-  font-size: 7px;
-  font-weight: 900;
-  line-height: 1.25;
-}
-
-.battle-v4-bag-item-icon,
-.battle-v4-bag-list img {
-  grid-row: 1 / 3;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  object-fit: contain;
+  line-height: 1;
+  text-align: center;
 }
 
 .battle-v4-move-type {

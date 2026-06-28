@@ -477,6 +477,8 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     while (filled.length < minSize) {
       filled.push(createPokemon(pick(speciesPoolFor(player.playerId)), filled.length));
     }
+    const bag = normalizeBagStateV4(player.bag, undefined);
+    const synced = syncPokemonHeldItemsToBag(filled.slice(0, 6), bag);
     return {
       playerId: player.playerId,
       name: player.name || player.playerId,
@@ -486,9 +488,32 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       localTeam: {
         id: player.localTeam?.id || createId(`team-${player.playerId}`),
         name: player.localTeam?.name || `${player.playerId.toUpperCase()} 队伍`,
-        pokemon: filled.slice(0, 6),
+        pokemon: synced.pokemon,
       },
-      bag: normalizeBagStateV4(player.bag, undefined),
+      bag: synced.bag,
+    };
+  }
+
+  function syncPokemonHeldItemsToBag(pokemon: LocalPokemonV4[], bag: BagStateV4): {pokemon: LocalPokemonV4[]; bag: BagStateV4} {
+    const items = [...bag.items];
+    const usedInstanceIds = new Set<string>();
+    const nextPokemon = pokemon.map(entry => {
+      if (!entry.itemId) return {...entry, heldItemInstanceId: undefined};
+      const currentInstance = entry.heldItemInstanceId
+        ? items.find(item => item.id === entry.heldItemInstanceId && item.itemID === entry.itemId && !usedInstanceIds.has(item.id))
+        : null;
+      const instance = currentInstance || items.find(item => item.itemID === entry.itemId && !usedInstanceIds.has(item.id)) || createItemInstanceV4(entry.itemId);
+      if (!items.some(item => item.id === instance.id)) items.push(instance);
+      usedInstanceIds.add(instance.id);
+      return {...entry, heldItemInstanceId: instance.id};
+    });
+    return {
+      pokemon: nextPokemon,
+      bag: {
+        ...bag,
+        items,
+        maxSize: Math.max(bag.maxSize, items.length),
+      },
     };
   }
 
