@@ -1,5 +1,11 @@
 # System Items And Bag Checklist
 
+## Plan Status
+
+已完成 / 已收口。
+
+本清单的主体目标已经完成：统一背包组件、休整页恢复/训练/TM/系统重铸、Battle V4 恢复道具、系统战斗道具映射均已接入。剩余未勾选项归入后续计划，不阻塞背包 V1 收口。
+
 ## Count Verification
 
 初始范围：
@@ -36,6 +42,7 @@ Diagnostics batch = 1
 - [x] 训练配置页初始随机技能和休整页随机技能只从自学池抽取。 | priority: P0 | source: training-team | adapter: native | notes: no TM/egg/tutor leakage into random free moves
 - [x] 休整页支持 TM 技能机器立即使用与独立技能替换弹窗。 | priority: P0 | source: item-effects | adapter: native | notes: machine learnset legality + consumes TM instance on success
 - [x] 休整页背包成功使用道具显示非阻塞 toast。 | priority: P2 | source: rest-ui | adapter: native | notes: persistent status still used for failure/manual-save reminder
+- [x] 休整页背包动作按钮按当前道具能力显示，不可用动作隐藏。 | priority: P2 | source: rest-ui | adapter: native | notes: recovery items do not show take, system items show reforge/recast-use
 - [x] Battle V4 主指令区新增“背包”按钮。 | priority: P1 | source: battle-v4-ui | adapter: native | notes: placeholder only + typecheck
 - [x] Battle V4 `battleBagEnabled=false` 点击提示“战斗背包未开启”。 | priority: P1 | source: battle-v4-ui | adapter: native | notes: no item choice submitted + typecheck
 - [x] Battle V4 `battleBagEnabled=true` 显示可战斗使用道具列表。 | priority: P1 | source: battle-v4-ui | adapter: native | notes: shared PlayerBagPanel filters canBattleUse + typecheck

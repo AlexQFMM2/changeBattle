@@ -222,7 +222,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       disabled: !selectedItem || !canDiscard,
       onClick: discardSelectedItem,
     },
-  ];
+  ].filter(action => actionVisibleForItem(action.key, selectedItem, selectedDetail, {canUntake, canUseItem, canDiscard}));
 
   return (
     <>
@@ -305,6 +305,21 @@ function isSystemItem(item: PlayerItemInstanceV4, detail: DexItemDetail | null):
 
 function isRecastCandidate(item: PlayerItemInstanceV4): boolean {
   return item.itemID === "system-mega-stone" || item.itemID === "system-z-crystal" || item.itemID === "system-tera-orb";
+}
+
+function actionVisibleForItem(
+  key: string,
+  item: PlayerItemInstanceV4 | null,
+  detail: DexItemDetail | null,
+  state: {canUntake: boolean; canUseItem: boolean; canDiscard: boolean},
+): boolean {
+  if (!item) return false;
+  if (key === "take") return getBagItemEquipEligibility(item, detail).canEquip;
+  if (key === "untake") return state.canUntake;
+  if (key === "use") return state.canUseItem;
+  if (key === "recast") return isRecastCandidate(item);
+  if (key === "discard") return state.canDiscard;
+  return true;
 }
 
 function systemItemReadyToEquip(item: PlayerItemInstanceV4): boolean {
