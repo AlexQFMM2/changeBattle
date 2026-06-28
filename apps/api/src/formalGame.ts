@@ -1936,11 +1936,14 @@ function normalizeSettlementReason(reason: unknown): FormalSettlementReasonV4 {
 function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, existingKeys: Set<string>): TrainingBattleLogEntryV4[] {
   const entries: TrainingBattleLogEntryV4[] = [];
   let currentMove: {playerId?: ShowdownPlayerIdV4; pokemonKey?: string; pokemonName?: string; moveId?: string; moveName?: string} | null = null;
+  const hpMaxByBattleKey = buildBattleHpMaxMap(snapshot);
   const hpByBattleKey = new Map<string, {hp: number; maxHp: number}>();
+  const maybePush = (entry: TrainingBattleLogEntryV4) => {
+    if (!existingKeys.has(entry.key)) entries.push(entry);
+  };
   for (let index = 0; index < snapshot.rawLog.length; index += 1) {
     const rawLine = snapshot.rawLog[index] || "";
     const key = `${snapshot.id}:${index}:${rawLine}`;
-    if (existingKeys.has(key)) continue;
     const parts = rawLine.split("|");
     const command = parts[1] || "";
     if (command === "turn") {
@@ -1957,7 +1960,7 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
         moveId: toID(moveName),
         moveName,
       };
-      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+      maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "move",
         sourcePlayerId: actor.playerId,
         sourcePokemonKey: actor.key,
@@ -1968,15 +1971,22 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
       }));
       continue;
     }
+    if (command === "switch" || command === "drag") {
+      const target = parseBattleIdent(parts[2]);
+      const hpState = hpStateFromProtocol(parts[4] || "", target.key ? hpMaxByBattleKey.get(target.key) : undefined);
+      if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
+      continue;
+    }
     if (command === "-damage") {
       const target = parseBattleIdent(parts[2]);
-      const hpState = hpStateFromProtocol(parts[3] || "");
+      const maxHp = target.key ? hpMaxByBattleKey.get(target.key) : undefined;
+      const hpState = hpStateFromProtocol(parts[3] || "", maxHp);
       const previousHp = target.key ? hpByBattleKey.get(target.key)?.hp : undefined;
       const damage = hpState
         ? previousHp === undefined ? Math.max(0, hpState.maxHp - hpState.hp) : Math.max(0, previousHp - hpState.hp)
         : parts[3]?.includes("fnt") ? 1 : 0;
       if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
-      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+      maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "damage",
         damage,
         sourcePlayerId: currentMove?.playerId,
@@ -1993,13 +2003,14 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
     }
     if (command === "-heal") {
       const target = parseBattleIdent(parts[2]);
-      const hpState = hpStateFromProtocol(parts[3] || "");
+      const maxHp = target.key ? hpMaxByBattleKey.get(target.key) : undefined;
+      const hpState = hpStateFromProtocol(parts[3] || "", maxHp);
       const previousHp = target.key ? hpByBattleKey.get(target.key)?.hp : undefined;
       const healing = hpState
         ? previousHp === undefined ? 0 : Math.max(0, hpState.hp - previousHp)
         : 0;
       if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
-      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+      maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "heal",
         healing,
         targetPlayerId: target.playerId,
@@ -2011,7 +2022,8 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
     }
     if (command === "faint") {
       const target = parseBattleIdent(parts[2]);
-      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+      if (target.key) hpByBattleKey.set(target.key, {hp: 0, maxHp: hpByBattleKey.get(target.key)?.maxHp || hpMaxByBattleKey.get(target.key) || 0});
+      maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "faint",
         sourcePlayerId: currentMove?.playerId,
         sourcePokemonKey: currentMove?.pokemonKey,
@@ -2024,10 +2036,68 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
       continue;
     }
     if (command === "win") {
-      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {eventType: "win", directness: "unknown"}));
+      maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {eventType: "win", directness: "unknown"}));
     }
   }
   return entries;
+}
+
+function buildBattleHpMaxMap(snapshot: BattleSessionSnapshotV4): Map<string, number> {
+  const result = new Map<string, number>();
+  const add = (key: string, maxHp: unknown) => {
+    const normalizedKey = normalizeBattlePokemonKey(key);
+    const hp = Math.round(Number(maxHp));
+    if (normalizedKey && Number.isFinite(hp) && hp > 0) result.set(normalizedKey, hp);
+  };
+  const addAliases = (playerId: ShowdownPlayerIdV4, position: string, pokemon: LocalPokemonV4 | undefined) => {
+    if (!pokemon) return;
+    const slot = `${playerId}${position || "a"}`;
+    const names = [
+      pokemon.nickname,
+      pokemon.nameZh,
+      pokemon.name,
+      pokemon.speciesId,
+      pokemon.showdownIdentityToken,
+      pokemon.showdownId,
+      pokemon.pokeballId,
+      pokemon.localPokemonId,
+    ];
+    names.forEach(name => add(`${slot}:${battleKeyNameId(name)}`, pokemon.maxHp));
+  };
+  snapshot.players.forEach(player => {
+    player.draft.localTeam.pokemon.forEach((pokemon, teamIndex) => {
+      const mapping = player.teamMapping?.find(entry => entry.localPokemonId === pokemon.localPokemonId || entry.teamIndex === teamIndex);
+      const position = teamIndex === 1 ? "b" : "a";
+      addAliases(player.playerId, position, pokemon);
+      addAliases(player.playerId, "a", pokemon);
+      if (mapping) {
+        add(`${player.playerId}${position}:${battleKeyNameId(mapping.displayName)}`, pokemon.maxHp);
+        add(`${player.playerId}a:${battleKeyNameId(mapping.displayName)}`, pokemon.maxHp);
+        add(`${player.playerId}${position}:${battleKeyNameId(mapping.showdownIdentityToken)}`, pokemon.maxHp);
+        add(`${player.playerId}a:${battleKeyNameId(mapping.showdownIdentityToken)}`, pokemon.maxHp);
+        add(`${player.playerId}${position}:${battleKeyNameId(mapping.showdownId)}`, pokemon.maxHp);
+        add(`${player.playerId}a:${battleKeyNameId(mapping.showdownId)}`, pokemon.maxHp);
+      }
+    });
+  });
+  snapshot.active.forEach(active => {
+    const ident = parseBattleIdent(active.ident);
+    add(ident.key, active.maxHp);
+    const position = ident.key.match(/^(p[1-4][a-d]):/)?.[1]?.slice(2) || active.slot || "a";
+    const pokemon = snapshot.players.find(player => player.playerId === active.playerId)?.draft.localTeam.pokemon.find(entry =>
+      entry.localPokemonId === active.localPokemonId ||
+      entry.showdownIdentityToken === active.showdownIdentityToken ||
+      entry.showdownId === active.showdownId ||
+      entry.pokeballId === active.pokeballId ||
+      entry.speciesId === active.species
+    );
+    addAliases(active.playerId, position, pokemon);
+    add(`${active.playerId}${position || "a"}:${battleKeyNameId(active.showdownIdentityToken || "")}`, active.maxHp);
+    add(`${active.playerId}${position || "a"}:${battleKeyNameId(active.showdownId || "")}`, active.maxHp);
+    add(`${active.playerId}${position || "a"}:${battleKeyNameId(active.pokeballId || "")}`, active.maxHp);
+    add(`${active.playerId}${position || "a"}:${battleKeyNameId(active.species || "")}`, active.maxHp);
+  });
+  return result;
 }
 
 function createBattleLogEntry(
@@ -2069,18 +2139,41 @@ function parseBattleIdent(value: string | undefined): {playerId?: ShowdownPlayer
   const name = (match?.[3] || raw).trim();
   return {
     playerId,
-    key: playerId ? `${playerId}${position}:${toID(name)}` : toID(name),
+    key: playerId ? normalizeBattlePokemonKey(`${playerId}${position}:${battleKeyNameId(name)}`) : battleKeyNameId(name),
     name,
   };
 }
 
-function hpStateFromProtocol(condition: string): {hp: number; maxHp: number} | null {
+function normalizeBattlePokemonKey(key: string): string {
+  const match = String(key || "").match(/^(p[1-4][a-d]):(.+)$/i);
+  if (!match) return battleKeyNameId(key);
+  return `${match[1].toLowerCase()}:${battleKeyNameId(match[2])}`;
+}
+
+function battleKeyNameId(value: unknown): string {
+  const ascii = toID(value);
+  if (ascii) return ascii;
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function hpStateFromProtocol(condition: string, trueMaxHp?: number): {hp: number; maxHp: number} | null {
+  if (condition.includes("fnt")) {
+    const maxHp = Math.max(0, Math.round(Number(trueMaxHp || 0)));
+    return maxHp > 0 ? {hp: 0, maxHp} : null;
+  }
   const match = condition.match(/^(\d+)\/(\d+)/);
   if (!match) return null;
-  const hp = Number(match[1]);
-  const maxHp = Number(match[2]);
-  if (!Number.isFinite(hp) || !Number.isFinite(maxHp)) return null;
-  return {hp, maxHp};
+  const protocolHp = Number(match[1]);
+  const protocolMaxHp = Number(match[2]);
+  if (!Number.isFinite(protocolHp) || !Number.isFinite(protocolMaxHp) || protocolMaxHp <= 0) return null;
+  const maxHp = Math.round(Number(trueMaxHp || 0));
+  if (maxHp > 0 && maxHp !== protocolMaxHp) {
+    return {
+      hp: Math.max(0, Math.min(maxHp, Math.round(protocolHp / protocolMaxHp * maxHp))),
+      maxHp,
+    };
+  }
+  return {hp: protocolHp, maxHp: protocolMaxHp};
 }
 
 function buildSettlementPokemonStats(run: FormalGameRunV4): FormalSettlementPokemonStatsV4[] {
@@ -2184,10 +2277,17 @@ function buildPlayerBattleKeyMap(run: FormalGameRunV4): Map<string, string> {
   const playerPokemon = collectPlayerSettlementPokemon(run);
   const add = (pokemon: LocalPokemonV4 | undefined, settlementKey = pokemon ? settlementPokemonKey(pokemon) : "") => {
     if (!pokemon) return;
-    const nameId = toID(pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId);
-    ["a", "b", "c", "d"].forEach(position => result.set(`p1${position}:${nameId}`, settlementKey));
-    if (pokemon.showdownIdentityToken) result.set(`p1a:${toID(pokemon.showdownIdentityToken)}`, settlementKey);
-    if (pokemon.showdownId) result.set(`p1a:${toID(pokemon.showdownId)}`, settlementKey);
+    const aliases = [
+      pokemon.nickname,
+      pokemon.nameZh,
+      pokemon.name,
+      pokemon.speciesId,
+      pokemon.localPokemonId,
+      pokemon.showdownIdentityToken,
+      pokemon.showdownId,
+      pokemon.pokeballId,
+    ].map(battleKeyNameId).filter(Boolean);
+    ["a", "b", "c", "d"].forEach(position => aliases.forEach(alias => result.set(`p1${position}:${alias}`, settlementKey)));
     result.set(settlementKey, settlementKey);
   };
   playerPokemon.forEach(pokemon => add(pokemon));

@@ -307,8 +307,32 @@ const withDuplicateCoinLog = api.appendCoinLogEntryV4(withCoinLog, {amount: -10,
 assert(withDuplicateCoinLog.restRunSnapshot?.coinLog?.length === 1, "coin log should dedupe by key");
 
 const firstPlayerPokemon = withCoinLog.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
-const firstEnemyPokemon = withCoinLog.roundPlan[0]!.participants.p2!.localTeam.pokemon[0]!;
-const battleSnapshot = {
+const firstEnemyPokemon = {...withCoinLog.roundPlan[0]!.participants.p2!.localTeam.pokemon[0]!, maxHp: 200};
+const battlePlayers = [
+  {
+    playerId: "p1",
+    name: "P1",
+    controller: "local",
+    alliance: "near",
+    team: [],
+    draft: withCoinLog.restRunSnapshot!.players.p1!,
+  },
+  {
+    playerId: "p2",
+    name: "P2",
+    controller: "ai",
+    alliance: "far",
+    team: [],
+    draft: {
+      ...withCoinLog.roundPlan[0]!.participants.p2!,
+      localTeam: {
+        ...withCoinLog.roundPlan[0]!.participants.p2!.localTeam,
+        pokemon: [firstEnemyPokemon],
+      },
+    },
+  },
+];
+const battleSnapshotBase = {
   id: "formal-smoke-session",
   runId: withCoinLog.restRunSnapshot!.id,
   nodeId: withCoinLog.roundPlan[0]!.id,
@@ -318,23 +342,38 @@ const battleSnapshot = {
   turn: 2,
   winner: "p1",
   error: null,
-  players: [],
+  players: battlePlayers,
   requests: {},
   active: [],
+  debug: {inputLog: [], lastChoices: [], playerStreams: []},
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+const battleSnapshotPartial = {
+  ...battleSnapshotBase,
+  status: "running",
   rawLog: [
     `|move|p1a: ${firstPlayerPokemon.nameZh}|Tackle|p2a: ${firstEnemyPokemon.nameZh}`,
+    `|-damage|p2a: ${firstEnemyPokemon.nameZh}|80/100`,
+  ],
+} as never;
+const battleSnapshot = {
+  ...battleSnapshotBase,
+  rawLog: [
+    `|move|p1a: ${firstPlayerPokemon.nameZh}|Tackle|p2a: ${firstEnemyPokemon.nameZh}`,
+    `|-damage|p2a: ${firstEnemyPokemon.nameZh}|80/100`,
     `|-damage|p2a: ${firstEnemyPokemon.nameZh}|50/100`,
     `|faint|p2a: ${firstEnemyPokemon.nameZh}`,
     "|win|P1",
   ],
-  debug: {inputLog: [], lastChoices: [], playerStreams: []},
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
 } as never;
-const withBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, battleSnapshot);
+const withPartialBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, battleSnapshotPartial);
+const withBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withPartialBattleLog, battleSnapshot);
 assert((withBattleLog.restRunSnapshot?.battleLog?.length || 0) >= 3, "battle log should append protocol entries");
 const withDuplicateBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withBattleLog, battleSnapshot);
 assert(withDuplicateBattleLog.restRunSnapshot?.battleLog?.length === withBattleLog.restRunSnapshot?.battleLog?.length, "battle log should dedupe snapshot lines");
+const loggedDamage = (withBattleLog.restRunSnapshot?.battleLog || []).filter(entry => entry.eventType === "damage").reduce((sum, entry) => sum + (entry.damage || 0), 0);
+assert(loggedDamage === 100, "battle log should replay rawLog HP baseline and scale public percentage HP to true max HP");
 const wonRestRun = {
   ...withBattleLog.restRunSnapshot!,
   gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),

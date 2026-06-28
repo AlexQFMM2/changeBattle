@@ -1014,8 +1014,8 @@ function applyAnimationCheckpoint(
     if (!parsed) return slots;
     return patchSlot(slots, event.actorSeat, slot => ({
       ...slot,
-      hp: parsed.hp,
-      maxHp: parsed.maxHp || slot.maxHp,
+      hp: scaleProtocolHpForSlot(parsed, slot),
+      maxHp: slot.maxHp || parsed.maxHp,
       status: parsed.status || slot.status,
       fainted: parsed.fainted,
     }));
@@ -1520,6 +1520,7 @@ function slotFromSwitchEvent(
   const pokemon = resolveLocalPokemonForProtocolSwitch(parsed, team);
   if (!pokemon) return viewModel?.slots.find(slot => slot.seat === event.actorSeat) || null;
   const condition = parseCondition(parsed.condition || "");
+  const conditionHp = condition ? scaleProtocolHpForMaxHp(condition, pokemon.maxHp) : null;
   return {
     seat: event.actorSeat,
     playerId,
@@ -1535,8 +1536,8 @@ function slotFromSwitchEvent(
     nameZh: pokemon.nameZh,
     speciesId: pokemon.speciesId,
     level: parsed.level || pokemon.level,
-    hp: condition?.hp ?? pokemon.entryHp,
-    maxHp: condition?.maxHp || pokemon.maxHp,
+    hp: conditionHp ?? pokemon.entryHp,
+    maxHp: pokemon.maxHp || condition?.maxHp || 0,
     status: condition?.status || pokemon.entryStatus,
     spriteUrl: side === "near"
       ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
@@ -1633,13 +1634,13 @@ function formatVisibleSlotSeat(slot: BattleViewSlotV4): string {
 }
 
 function initialPlaybackRawIndex(rawLines: string[]): number {
-  const startIndex = rawLines.findIndex(line => line === "|start");
-  if (startIndex >= 0) return startIndex;
   const firstBattleEvent = rawLines.findIndex(line => {
     const {args} = parseBattleProtocolLineV4(line || "");
     return args[0] === "switch" ||
       args[0] === "drag" ||
       args[0] === "move" ||
+      args[0] === "-damage" ||
+      args[0] === "-heal" ||
       args[0] === "faint" ||
       args[0] === "-ability" ||
       args[0] === "-weather" ||
@@ -1647,6 +1648,18 @@ function initialPlaybackRawIndex(rawLines: string[]): number {
       args[0] === "-fieldend";
   });
   return firstBattleEvent >= 0 ? firstBattleEvent : rawLines.length;
+}
+
+function scaleProtocolHpForSlot(parsed: {hp: number; maxHp: number; status: string; fainted: boolean}, slot: BattleViewSlotV4): number {
+  if (parsed.fainted) return 0;
+  return scaleProtocolHpForMaxHp(parsed, slot.maxHp) ?? parsed.hp;
+}
+
+function scaleProtocolHpForMaxHp(parsed: {hp: number; maxHp: number; fainted: boolean}, trueMaxHp: number): number | null {
+  if (parsed.fainted) return 0;
+  if (!trueMaxHp || !parsed.maxHp) return null;
+  if (parsed.maxHp === trueMaxHp) return parsed.hp;
+  return Math.max(0, Math.min(trueMaxHp, Math.round(parsed.hp / parsed.maxHp * trueMaxHp)));
 }
 
 function parsePokemonProtocolIdent(value: string): {playerId?: string; seat: BattleProtocolSeatV4; seatExplicit: boolean; name: string} {
