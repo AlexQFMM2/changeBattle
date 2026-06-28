@@ -42,6 +42,7 @@ export type ShowdownPokemonFilterV4 = {
 export type ShowdownRandomTeamGeneratorInputV4 = {
   ruleSet?: TrainingRuleSetV4;
   mode?: TrainingModeV4;
+  formatOverride?: string;
   seed?: string | number | number[];
   teamSize?: number;
   playerId?: ShowdownPlayerIdV4;
@@ -58,6 +59,7 @@ export type ShowdownRandomTeamGeneratorDiagnosticsV4 = {
   resolvedRuleSet: Exclude<TrainingRuleSetV4, "standard">;
   requestedMode: TrainingModeV4;
   formatId: string | null;
+  fallbackFormatId?: string;
   seed: number[] | null;
   teamSize: number | null;
   pokemonFilter: {
@@ -158,7 +160,8 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
   const requestedRuleSet = input.ruleSet || "standard";
   const resolvedRuleSet = requestedRuleSet === "standard" ? "gen9" : requestedRuleSet;
   const requestedMode = input.mode || "singles";
-  const formatId = FORMAT_BY_RULESET_MODE[resolvedRuleSet][requestedMode];
+  const nativeFormatId = FORMAT_BY_RULESET_MODE[resolvedRuleSet][requestedMode];
+  const formatId = input.formatOverride || nativeFormatId;
   const seed = normalizeSeed(input.seed);
   const pokemonFilter = normalizePokemonFilter(input.pokemonFilter);
   const teamArchetype = input.teamArchetype || "balanced";
@@ -171,6 +174,7 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
     resolvedRuleSet,
     requestedMode,
     formatId,
+    fallbackFormatId: input.formatOverride && input.formatOverride !== nativeFormatId ? input.formatOverride : undefined,
     seed,
     teamSize: input.teamSize ? clampInt(input.teamSize, 1, 6) : null,
     pokemonFilter: null,
@@ -186,6 +190,9 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
   }
 
   try {
+    if (input.formatOverride && input.formatOverride !== nativeFormatId) {
+      diagnostics.messages.push(`${resolvedRuleSet} ${requestedMode} 使用 fallback format: ${input.formatOverride}`);
+    }
     const teamsApi = await getShowdownTeams();
     let best: {team: ShowdownRandomTeamPokemonSetV4[]; score: number; matchedPoolSize: number} | null = null;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -230,6 +237,14 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
     diagnostics.elapsedMs = Date.now() - startedAt;
     return {formatId, pokemonSets: [], packedTeam: "", exportedTeam: "", diagnostics};
   }
+}
+
+export async function serializeShowdownTeamV4(team: ShowdownRandomTeamPokemonSetV4[]): Promise<{packedTeam: string; exportedTeam: string}> {
+  const teamsApi = await getShowdownTeams();
+  return {
+    packedTeam: teamsApi.pack(team),
+    exportedTeam: teamsApi.export(team),
+  };
 }
 
 export function resolveShowdownRandomTeamFormatV4(ruleSet: TrainingRuleSetV4 = "standard", mode: TrainingModeV4 = "singles"): string | null {

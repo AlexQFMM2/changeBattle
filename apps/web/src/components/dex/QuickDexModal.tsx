@@ -11,6 +11,7 @@ import type {
   DexPokemonLink,
   DexSearchRow,
   DexStatsResult,
+  DexTrainerDetail,
 } from "@changebattle-v2/api";
 import {BattleV4MovePreviewModal, type BattleV4EnvironmentPreviewEntry} from "../battle-v4/BattleV4MovePreviewModal";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
@@ -22,14 +23,18 @@ import "./PokemonDexDetail.css";
 import "./MoveCard.css";
 import "./QuickDexModal.css";
 
-type QuickDexBaseCategory = Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items">;
+type QuickDexBaseCategory = Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items" | "trainers">;
 type QuickDexCategory = QuickDexBaseCategory | "environment";
 type PokemonTabId = (typeof POKEMON_TABS)[number]["id"];
+type TrainerFilterId = (typeof TRAINER_FILTERS)[number]["id"];
+type TrainerDetailTabId = (typeof TRAINER_DETAIL_TABS)[number]["id"];
+type TrainerTeamModeId = (typeof TRAINER_TEAM_MODES)[number]["id"];
 type DetailState =
   | {category: "pokemon"; detail: DexPokemonDetail; stats: DexStatsResult}
   | {category: "moves"; detail: DexMoveDetail}
   | {category: "abilities"; detail: DexAbilityDetail}
   | {category: "items"; detail: DexItemDetail}
+  | {category: "trainers"; detail: DexTrainerDetail}
   | {category: "environment"; detail: BattleV4EnvironmentPreviewEntry; moveDetail?: DexMoveDetail};
 
 const CATEGORIES: Array<{id: QuickDexCategory; label: string; hint: string}> = [
@@ -37,8 +42,34 @@ const CATEGORIES: Array<{id: QuickDexCategory; label: string; hint: string}> = [
   {id: "moves", label: "技能", hint: "威力、命中、目标、学习者"},
   {id: "abilities", label: "特性", hint: "效果说明与拥有者"},
   {id: "items", label: "战斗道具", hint: "Showdown 道具说明"},
+  {id: "trainers", label: "训练师", hint: "馆主 / 四天王 / 冠军 / 反派头目"},
   {id: "environment", label: "环境", hint: "天气、场地、空间与战场环境"},
 ];
+const TRAINER_FILTERS = [
+  {id: "all", label: "全部", query: ""},
+  {id: "gym", label: "馆主", query: "type:gym"},
+  {id: "elite4", label: "四天王", query: "type:elite4"},
+  {id: "champion", label: "冠军", query: "type:champion"},
+  {id: "villain", label: "反派头目", query: "type:villain"},
+  {id: "special", label: "特殊事件", query: "event:special"},
+] as const;
+const TRAINER_DETAIL_TABS = [
+  {id: "intro", label: "NPC介绍"},
+  {id: "dialogue", label: "台词"},
+  {id: "preference", label: "偏好队伍"},
+  {id: "teams", label: "队伍"},
+] as const;
+const TRAINER_TEAM_MODES = [
+  {id: "singles", label: "单打"},
+  {id: "doubles", label: "双打"},
+  {id: "coop", label: "合作"},
+] as const;
+const TRAINER_RULESET_LABELS: Record<string, string> = {
+  none: "无特殊系统",
+  gen7: "Gen7",
+  gen8: "Gen8",
+  gen9: "Gen9",
+};
 
 const PAGE_SIZE = 18;
 const STAT_LABELS: Record<string, string> = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
@@ -90,6 +121,7 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [level, setLevel] = useState(50);
   const [pokemonTab, setPokemonTab] = useState<PokemonTabId>("summary");
+  const [trainerFilter, setTrainerFilter] = useState<TrainerFilterId>("all");
   const [previewMove, setPreviewMove] = useState<DexMoveDetail | null>(null);
   const [previewEnvironment, setPreviewEnvironment] = useState<BattleV4EnvironmentPreviewEntry | null>(null);
   const [loading, setLoading] = useState(false);
@@ -131,7 +163,7 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
           setSelected(current => result.rows.find(row => row.id === current?.id) || result.rows[0] || null);
           return;
         }
-        const result = api.searchDex({category, query, offset: page * PAGE_SIZE, limit: PAGE_SIZE});
+        const result = api.searchDex({category, query: searchQueryForCategory(category, query, trainerFilter), offset: page * PAGE_SIZE, limit: PAGE_SIZE});
         if (cancelled) return;
         setRows(result.rows);
         setTotal(result.total);
@@ -150,7 +182,7 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, category, page, query]);
+  }, [api, category, page, query, trainerFilter]);
 
   useEffect(() => {
     if (!selected) {
@@ -178,6 +210,7 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
     setSelected(null);
     setDetail(null);
     setPokemonTab("summary");
+    if (next !== "trainers") setTrainerFilter("all");
   }
 
   function jumpTo(row: DexSearchRow) {
@@ -231,6 +264,15 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
           <input value={query} placeholder={`搜索${activeCategory.label}`} onChange={event => { setQuery(event.target.value); setPage(0); }} />
           <span>{loading ? "检索中" : `${total} 条`}</span>
         </div>
+        {category === "trainers" ? (
+          <nav className="quick-dex-filter-tabs" aria-label="训练师筛选">
+            {TRAINER_FILTERS.map(item => (
+              <button type="button" className={trainerFilter === item.id ? "selected" : ""} onClick={() => { setTrainerFilter(item.id); setPage(0); setSelected(null); }} key={item.id}>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        ) : <div className="quick-dex-filter-tabs hidden" aria-hidden="true" />}
 
         <AnimatePresence mode="wait">
           <motion.div className="quick-dex-body" key={category} initial={{opacity: 0, x: 14}} animate={{opacity: 1, x: 0}} exit={{opacity: 0, x: -14}}>
@@ -273,6 +315,7 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
               {detail?.category === "moves" ? <MoveDetail detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} onPreviewMove={setPreviewMove} /> : null}
               {detail?.category === "abilities" ? <AbilityDetail detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} /> : null}
               {detail?.category === "items" ? <ItemDetail detail={detail.detail} /> : null}
+              {detail?.category === "trainers" ? <TrainerDetail api={api} detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} /> : null}
               {detail?.category === "environment" ? (
                 <EnvironmentDetail
                   detail={detail.detail}
@@ -318,6 +361,7 @@ function loadDetail(api: ChangeBattleV2Api, row: DexSearchRow, level: number): D
   }
   if (row.category === "moves") return {category: "moves", detail: api.getMoveDetail(row.id)};
   if (row.category === "abilities") return {category: "abilities", detail: api.getAbilityDetail(row.id)};
+  if (row.category === "trainers") return {category: "trainers", detail: api.getTrainerDetail(row.id)};
   return {category: "items", detail: api.getItemDetail(row.id)};
 }
 
@@ -524,6 +568,200 @@ function ItemDetail({detail}: {detail: DexItemDetail}) {
   );
 }
 
+function TrainerDetail({api, detail, onPokemonClick}: {api: ChangeBattleV2Api; detail: DexTrainerDetail; onPokemonClick: (id: string) => void}) {
+  const [tab, setTab] = useState<TrainerDetailTabId>("intro");
+  const [teamMode, setTeamMode] = useState<TrainerTeamModeId>("singles");
+  const dialogueLines = trainerDialogueLines(detail);
+  const preferredPokemon = trainerPreferredPokemonCards(api, detail);
+  const visiblePresetTeams = detail.presetTeamPreviews.filter(team => team.mode === teamMode);
+  return (
+    <div className="quick-dex-pokemon-info quick-dex-trainer-info">
+      <nav className="quick-dex-trainer-tabs" aria-label="训练师详情">
+        {TRAINER_DETAIL_TABS.map(item => (
+          <button type="button" className={tab === item.id ? "selected" : ""} onClick={() => setTab(item.id)} key={item.id}>{item.label}</button>
+        ))}
+      </nav>
+
+      {tab === "intro" ? (
+        <>
+          <div className="quick-dex-trainer-identity">
+            <div className="quick-dex-trainer-portrait">
+              <img src={detail.frontGifAsset || detail.frontAsset || detail.avatarAsset} alt={detail.nameZh || detail.name} loading="lazy" onError={event => {
+                if (detail.frontAsset && event.currentTarget.src !== detail.frontAsset) event.currentTarget.src = detail.frontAsset;
+                else if (detail.avatarAsset && event.currentTarget.src !== detail.avatarAsset) event.currentTarget.src = detail.avatarAsset;
+              }} />
+            </div>
+            <div>
+              <h3>{detail.nameZh || detail.name}</h3>
+              <p>{detail.name}</p>
+              <TagCloud values={[detail.region || "未知地区", detail.trainerTypeLabel, detail.role, detail.isBoss ? "Boss" : "NPC"]} />
+            </div>
+          </div>
+
+          <div className="quick-dex-badges">
+            <span>台词 {detail.dialogueStateCount}</span>
+            <span>候选队伍 {detail.presetTeamPreviews.length || detail.teamPoolCount}</span>
+            <span>来源 {detail.sourceType}</span>
+          </div>
+
+          <div className="item-detail-meta-grid">
+            <span><b>ID</b><em>{detail.id}</em></span>
+            <span><b>类型</b><em>{detail.trainerTypeLabel}</em></span>
+            <span><b>地区</b><em>{detail.region || "-"}</em></span>
+            <span><b>身份</b><em>{detail.role || "-"}</em></span>
+          </div>
+        </>
+      ) : null}
+
+      {tab === "dialogue" ? (
+        dialogueLines.length ? (
+          <div className="quick-dex-trainer-dialogues">
+            {dialogueLines.map(line => (
+              <p key={`${line.state}-${line.kind}-${line.text}`}><strong>{line.label}</strong>{line.text}</p>
+            ))}
+          </div>
+        ) : <p className="quick-dex-description">暂无台词资料。</p>
+      ) : null}
+
+      {tab === "preference" ? (
+        <>
+          {detail.bossProfile?.teamPreferences.length ? (
+            <div className="quick-dex-trainer-profile-panel">
+              <strong>擅长队伍</strong>
+              <p>{detail.bossProfile.teamPreferences.map(trainerArchetypeLabel).join(" / ")}</p>
+            </div>
+          ) : null}
+          <div className="quick-dex-learnset-group">
+            <h4>{detail.bossProfile ? "偏好宝可梦" : "代表宝可梦"} <small>{preferredPokemon.length}</small></h4>
+            <div>
+              {preferredPokemon.length ? preferredPokemon.map(pokemon => (
+                <button className="quick-dex-link-card with-icon" type="button" onClick={() => onPokemonClick(pokemon.id)} key={pokemon.id}>
+                  {pokemon.sprite ? <PokemonIcon row={{id: pokemon.id, category: "pokemon", name: pokemon.name, nameZh: pokemon.nameZh, tags: [], sprite: pokemon.sprite}} /> : null}
+                  <strong>{pokemon.nameZh || pokemon.name}</strong>
+                  <small>{pokemon.meta}</small>
+                </button>
+              )) : <small className="quick-dex-description">暂无代表宝可梦。</small>}
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {tab === "teams" ? (
+        <>
+          <nav className="quick-dex-trainer-tabs compact" aria-label="队伍模式">
+            {TRAINER_TEAM_MODES.map(item => (
+              <button type="button" className={teamMode === item.id ? "selected" : ""} onClick={() => setTeamMode(item.id)} key={item.id}>{item.label}</button>
+            ))}
+          </nav>
+          {visiblePresetTeams.length ? (
+            <div className="quick-dex-trainer-preset-rules">
+              {Object.entries(TRAINER_RULESET_LABELS).map(([ruleSet, label]) => {
+                const teams = visiblePresetTeams.filter(team => team.ruleSetPreset === ruleSet);
+                if (!teams.length) return null;
+                return (
+                  <section className="quick-dex-trainer-rule-section" key={ruleSet}>
+                    <h4>{label}<small>{teams.length} 队</small></h4>
+                    <div className="quick-dex-trainer-preset-grid">
+                      {teams.map(team => (
+                        <div className="quick-dex-trainer-preset-card" key={`${team.ruleSetPreset}-${team.mode}-${team.variantIndex}`}>
+                          <strong>#{team.variantIndex} · {trainerArchetypeLabel(team.teamArchetype)}</strong>
+                          <div>
+                            {team.pokemon.map(pokemon => (
+                              <button type="button" title={`${pokemon.speciesZh || pokemon.species}${pokemon.item ? ` / ${pokemon.item}` : ""}`} onClick={() => onPokemonClick(pokemon.speciesId)} key={`${team.ruleSetPreset}-${team.mode}-${team.variantIndex}-${pokemon.speciesId}`}>
+                                {pokemon.sprite ? <PokemonIcon row={{id: pokemon.speciesId, category: "pokemon", name: pokemon.species, nameZh: pokemon.speciesZh, tags: [], sprite: pokemon.sprite}} /> : null}
+                                <span>{pokemon.speciesZh || pokemon.species}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : <p className="quick-dex-description">暂无该模式的预制队伍。</p>}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function trainerDialogueLines(detail: DexTrainerDetail): Array<{state: string; kind: string; label: string; text: string}> {
+  const states = ["first_meeting", "default", "rematch", "after_player_win", "after_player_loss"];
+  const result: Array<{state: string; kind: string; label: string; text: string}> = [];
+  const stateLabels: Record<string, string> = {
+    first_meeting: "初次见面",
+    default: "平时",
+    rematch: "再战",
+    after_player_win: "玩家获胜后",
+    after_player_loss: "玩家落败后",
+  };
+  const kindLabels: Record<string, string> = {intro: "开场", defeat: "战败", victory: "胜利"};
+  for (const state of states) {
+    const lines = detail.dialogues[state] || [];
+    for (const line of lines) {
+      for (const kind of ["intro", "defeat", "victory"] as const) {
+        for (const text of line[kind] || []) {
+          if (!text || result.some(entry => entry.text === text)) continue;
+          result.push({state, kind, label: `${stateLabels[state] || state} · ${kindLabels[kind]}`, text});
+          if (result.length >= 12) return result;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function trainerPreferredPokemonCards(api: ChangeBattleV2Api, detail: DexTrainerDetail): Array<{id: string; name: string; nameZh: string; meta: string; sprite?: DexSearchRow["sprite"]}> {
+  const representativeById = new Map(detail.representativePokemon.map(pokemon => [pokemon.speciesId, pokemon]));
+  const ids = detail.bossProfile?.preferredSpeciesIds.length ? detail.bossProfile.preferredSpeciesIds.slice(0, 12) : detail.representativePokemon.slice(0, 12).map(pokemon => pokemon.speciesId);
+  return ids.map(id => {
+    const representative = representativeById.get(id);
+    const dexPokemon = representative ? null : safePokemonDetail(api, id);
+    return {
+      id,
+      name: representative?.species || dexPokemon?.name || id,
+      nameZh: representative?.speciesZh || dexPokemon?.nameZh || id,
+      meta: representative ? `代表 ${representative.count}` : "扩展偏好",
+      sprite: representative?.sprite || dexPokemon?.sprites,
+    };
+  });
+}
+
+function safePokemonDetail(api: ChangeBattleV2Api, id: string): DexPokemonDetail | null {
+  try {
+    return api.getPokemonDetail(id);
+  } catch {
+    return null;
+  }
+}
+
+function trainerPreferenceLabel(value: string): string {
+  return {offense: "进攻", defense: "防守", support: "辅助", balanced: "均衡"}[value] || value;
+}
+
+function trainerAiLevelLabel(value: string): string {
+  return {gymLeader: "馆主", eliteFour: "四天王", champion: "冠军"}[value] || value;
+}
+
+function trainerArchetypeLabel(value: string): string {
+  return {
+    balanced: "平衡",
+    rain: "雨天",
+    sun: "晴天",
+    sand: "沙暴",
+    snow: "雪天",
+    "trick-room": "空间",
+    tailwind: "顺风",
+    terrain: "场地",
+    "hazard-stack": "撒钉",
+    "poison-stall": "毒守",
+    "baton-pass": "接力",
+    "setup-offense": "强化攻",
+  }[value] || value;
+}
+
 function booleanBadge(label: string, value: boolean | undefined): string {
   if (value === undefined) return "";
   return `${label}${value ? "：是" : "：否"}`;
@@ -667,6 +905,12 @@ function searchEnvironmentEntries(query: string, offset: number, limit: number):
     rows: entries.slice(offset, offset + limit).map(environmentToSearchRow),
     total: entries.length,
   };
+}
+
+function searchQueryForCategory(category: QuickDexCategory, query: string, trainerFilter: TrainerFilterId): string {
+  if (category !== "trainers") return query;
+  const filter = TRAINER_FILTERS.find(item => item.id === trainerFilter)?.query || "";
+  return [filter, query].filter(Boolean).join(" ");
 }
 
 function environmentToSearchRow(entry: BattleV4EnvironmentPreviewEntry): DexSearchRow {

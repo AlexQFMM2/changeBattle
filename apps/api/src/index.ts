@@ -2,8 +2,23 @@ import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} f
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
+import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 export * from "./itemEffects.js";
-export type {DexSystemBattleReforgeOption, DexSystemBattleReforgePokemonInput, DexSystemReforgeKind} from "@changebattle-v2/showdown-dex-core";
+export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
+export type {
+  DexTrainerDetail,
+  DexTrainerBossProfile,
+  DexTrainerDialogueLine,
+  DexTrainerDialogueSet,
+  DexTrainerRepresentative,
+  DexTrainerSummary,
+  DexTrainerTeamPokemon,
+  DexTrainerTeamPoolSummary,
+  DexTrainerType,
+  DexSystemBattleReforgeOption,
+  DexSystemBattleReforgePokemonInput,
+  DexSystemReforgeKind,
+} from "@changebattle-v2/showdown-dex-core";
 
 export type TrainerCatalogEntryV2 = {
   id: string;
@@ -129,6 +144,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getAbilityDetail: (id: string) => dex.getAbilityDetail(id),
     getItemDetail: (id: string) => dex.getItemDetail(id),
     getTmItemDetail: (moveIdOrTmId: string) => dex.getTmItemDetail(moveIdOrTmId),
+    getTrainerDetail: (trainerId: string) => dex.getTrainerDetail(trainerId),
     getSystemBattleReforgeOptions: (itemId: string, pokemon: Parameters<typeof dex.getSystemBattleReforgeOptions>[1]) => dex.getSystemBattleReforgeOptions(itemId, pokemon),
     getPokemonLearnset: (speciesId: string) => dex.getPokemonLearnset(speciesId),
     getPokemonSkillsBySource: (speciesId: string, source: Parameters<typeof dex.getPokemonSkillsBySource>[1]) => dex.getPokemonSkillsBySource(speciesId, source),
@@ -168,6 +184,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     randomizeTrainingScenario: trainingRuns.randomizeTrainingScenario,
     randomizeTrainingTeam: trainingRuns.randomizeTeam,
     generateRandomBattleTeamPreviewV4: (input: RandomBattleTeamPreviewInputV4 = {}) => generateRandomBattleTeamPreviewV4(dex, input),
+    generateBossTrainerPresetTeamsV4: (input: Parameters<typeof generateBossTrainerPresetTeamsV4>[1] = {}) => generateBossTrainerPresetTeamsV4(dex, input),
     createTrainingNpcCatalog: trainingRuns.createTrainingNpcCatalog,
     createItemInstance: trainingRuns.createItemInstance,
     normalizeBagState: trainingRuns.normalizeBagState,

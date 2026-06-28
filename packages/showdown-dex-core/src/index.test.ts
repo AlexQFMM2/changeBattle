@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import {createShowdownDexService} from "./index.js";
+import fs from "node:fs";
+import {BossTrainerPresetMatrixSummaries, BossTrainerPresetTeamCount, createShowdownDexService, type BossTrainerPresetTeamData} from "./index.js";
 
 const dex = createShowdownDexService();
 
@@ -112,5 +113,106 @@ assert.ok(tmSearch.rows.some(row => row.id === "tm:thunderbolt"));
 
 const systemItemSearch = dex.searchDex({category: "items", query: "极巨化", limit: 20});
 assert.ok(systemItemSearch.rows.some(row => row.id === "system-dynamax-band"));
+
+const trainerSearch = dex.searchDex({category: "trainers", limit: 20});
+assert.ok(trainerSearch.rows.length > 0);
+assert.ok(trainerSearch.rows.every(row => row.category === "trainers"));
+
+const gymTrainerSearch = dex.searchDex({category: "trainers", query: "type:gym", limit: 100});
+assert.ok(gymTrainerSearch.rows.some(row => row.id === "gym:关都地区:小刚:1"));
+assert.ok(gymTrainerSearch.rows.every(row => row.tags.includes("type:gym")));
+
+const elite4TrainerSearch = dex.searchDex({category: "trainers", query: "type:elite4", limit: 100});
+assert.ok(elite4TrainerSearch.rows.length > 0);
+assert.ok(elite4TrainerSearch.rows.every(row => row.tags.includes("type:elite4")));
+
+const championTrainerSearch = dex.searchDex({category: "trainers", query: "type:champion", limit: 100});
+assert.ok(championTrainerSearch.rows.length > 0);
+assert.ok(championTrainerSearch.rows.every(row => row.tags.includes("type:champion")));
+
+const villainTrainerSearch = dex.searchDex({category: "trainers", query: "type:villain", limit: 100});
+assert.ok(villainTrainerSearch.rows.some(row => row.id === "villain:彩虹火箭队:坂木:1"));
+assert.ok(villainTrainerSearch.rows.every(row => row.tags.includes("type:villain")));
+
+const specialTrainerSearch = dex.searchDex({category: "trainers", query: "event:special", limit: 100});
+assert.ok(specialTrainerSearch.rows.some(row => row.id === "villain:彩虹火箭队:坂木:1"));
+
+const allTrainerSearch = dex.searchDex({category: "all", query: "小刚", limit: 20});
+assert.ok(allTrainerSearch.rows.some(row => row.category === "trainers" && row.id === "gym:关都地区:小刚:1"));
+
+const brock = dex.getTrainerDetail("gym:关都地区:小刚:1");
+assert.equal(brock.nameZh, "小刚");
+assert.equal(brock.trainerType, "gym");
+assert.equal(brock.isBoss, true);
+assert.ok(brock.frontAsset.startsWith("/npc/"));
+assert.ok(brock.avatarAsset.startsWith("/npc/"));
+assert.ok(Object.keys(brock.dialogues).length > 0);
+assert.ok(brock.representativePokemon.length > 0);
+assert.ok(brock.teamPools.length > 0);
+assert.equal(brock.bossProfile?.aiLevel, "gymLeader");
+assert.ok(brock.bossProfile?.teamPreferences.length);
+assert.ok((brock.bossProfile?.preferredSpeciesIds.length || 0) >= 12);
+assert.ok((brock.bossProfile?.originalPreferredSpeciesIds.length || 0) > 0);
+assert.equal(brock.presetTeamPreviews.length, 36);
+assert.ok(brock.presetTeamPreviews.every(team => team.pokemon.length === 6));
+assert.ok(brock.presetTeamPreviews.some(team => team.mode === "singles" && team.ruleSetPreset === "gen9"));
+assert.ok(brock.presetTeamPreviews.flatMap(team => team.pokemon).every(pokemon => pokemon.sprite?.iconStyle));
+
+const giovanni = dex.getTrainerDetail("villain:彩虹火箭队:坂木:1");
+assert.equal(giovanni.trainerType, "villain");
+assert.equal(giovanni.isBoss, true);
+assert.ok(Object.keys(giovanni.dialogues).length > 0);
+assert.ok(giovanni.teamPools.length > 0);
+assert.equal(giovanni.bossProfile?.aiLevel, "champion");
+assert.equal(giovanni.bossProfile?.powerProfile, "champion");
+assert.ok((giovanni.bossProfile?.preferredSpeciesIds.length || 0) >= 12);
+
+const BossTrainerPresetTeams = JSON.parse(fs.readFileSync(new URL("../src/data/boss-preset-teams.json", import.meta.url), "utf8")) as BossTrainerPresetTeamData[];
+assert.ok(BossTrainerPresetTeams.length > 0);
+assert.equal(BossTrainerPresetTeamCount, BossTrainerPresetTeams.length);
+const bossTrainerIds = dex.searchDex({category: "trainers", query: "boss", limit: 100}).rows
+  .filter(row => row.tags.some(tag => ["type:gym", "type:elite4", "type:champion", "type:villain"].includes(tag)))
+  .map(row => row.id);
+for (const trainerId of bossTrainerIds) {
+  const summary = BossTrainerPresetMatrixSummaries[trainerId];
+  assert.ok(summary, `missing boss preset summary for ${trainerId}`);
+  assert.equal(summary.expectedCount, 36);
+  assert.equal(summary.generatedCount, 36);
+  assert.deepEqual(summary.missingKeys, []);
+  assert.equal(summary.ruleSetCounts.none, 9);
+  assert.equal(summary.ruleSetCounts.gen7, 9);
+  assert.equal(summary.ruleSetCounts.gen8, 9);
+  assert.equal(summary.ruleSetCounts.gen9, 9);
+  assert.equal(summary.modeCounts.singles, 12);
+  assert.equal(summary.modeCounts.doubles, 12);
+  assert.equal(summary.modeCounts.coop, 12);
+}
+for (const team of BossTrainerPresetTeams) {
+  assert.equal(team.pokemonSets.length, 6, `team ${team.seed} does not have 6 pokemon`);
+  for (const pokemon of team.pokemonSets) {
+    assert.ok(pokemon.species, `missing species in ${team.seed}`);
+    assert.ok(pokemon.ability, `missing ability in ${team.seed}`);
+    assert.ok(pokemon.moves.length, `missing moves in ${team.seed}`);
+    assert.ok(pokemon.nature, `missing nature in ${team.seed}`);
+    assert.ok(pokemon.level, `missing level in ${team.seed}`);
+  }
+  if (team.ruleSetPreset === "none") {
+    assert.ok(team.diagnostics.cleanedSpecialSystemForNone);
+    assert.ok(team.pokemonSets.every(pokemon => !pokemon.teraType && !pokemon.gigantamax && !pokemon.dynamaxLevel), `none preset keeps special fields in ${team.seed}`);
+  }
+  if (team.ruleSetPreset === "gen7" && team.mode !== "singles") {
+    assert.equal(team.diagnostics.fallbackFormatId, "[Gen 7] Random Battle");
+  }
+}
+const teamsByTrainer = new Map<string, typeof BossTrainerPresetTeams>();
+for (const team of BossTrainerPresetTeams) {
+  const list = teamsByTrainer.get(team.trainerId) || [];
+  list.push(team);
+  teamsByTrainer.set(team.trainerId, list);
+}
+for (const [trainerId, teams] of teamsByTrainer) {
+  assert.ok(teams.some(team => team.diagnostics.preferredSpeciesHitCount > 0), `no preferred species hit for ${trainerId}`);
+}
+assert.equal(dex.getTrainerDetail("gym:关都地区:小刚:1").bossPresetMatrix?.generatedCount, 36);
 
 console.log("showdown-dex-core tests passed");

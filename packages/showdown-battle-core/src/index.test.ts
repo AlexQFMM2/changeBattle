@@ -464,6 +464,19 @@ async function randomTeamGeneratorSmoke() {
   if (unavailable.diagnostics.ok || unavailable.pokemonSets.length || !unavailable.diagnostics.messages.length) {
     throw new Error(`gen7 doubles should return explicit unavailable diagnostics: ${JSON.stringify(unavailable)}`);
   }
+  const gen7DoublesFallback = await generateShowdownRandomTeamV4({
+    ruleSet: "gen7",
+    mode: "doubles",
+    formatOverride: "[Gen 7] Random Battle",
+    seed: "gen7-doubles-fallback",
+    teamSize: 6,
+  });
+  if (!gen7DoublesFallback.diagnostics.ok || gen7DoublesFallback.pokemonSets.length !== 6) {
+    throw new Error(`gen7 doubles fallback should generate a full team: ${JSON.stringify(gen7DoublesFallback.diagnostics)}`);
+  }
+  if (gen7DoublesFallback.diagnostics.fallbackFormatId !== "[Gen 7] Random Battle") {
+    throw new Error(`gen7 doubles fallback diagnostics missing format: ${JSON.stringify(gen7DoublesFallback.diagnostics)}`);
+  }
 
   const allowedSpecies = ["pelipper", "torkoal", "tyranitar", "hatterene", "glimmora", "toxapex", "dragonite", "leafeon"];
   const filtered = await generateShowdownRandomTeamV4({

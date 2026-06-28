@@ -32,13 +32,13 @@
 }
 
 .dex-category-tabs.quick {
-  --dex-category-tabs-height: 31px;
+  --dex-category-tabs-height: 20px;
 }
 
 .quick-dex-mega-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
 }
 
 .dex-category-tabs.quick button {
@@ -49,10 +49,10 @@
   align-content: center;
   gap: 2px;
   border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 6px;
+  border-radius: 4px;
   background: rgb(255 255 255 / 7%);
   color: #d9ffe0;
-  padding: 3px 5px;
+  padding: 2px 4px;
   overflow: hidden;
 }
 
@@ -72,8 +72,12 @@
 }
 
 .quick-dex-mega-tabs button span {
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 950;
+}
+
+.quick-dex-mega-tabs button span b {
+  display: none;
 }
 
 .quick-dex-mega-tabs button small {

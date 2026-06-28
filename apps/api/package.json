@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
+    "test:boss-team-generator": "tsc -p tsconfig.test.json && node dist-test/boss-team-generator-smoke.js",
     "test:battle-preference": "tsc -p tsconfig.test.json && node dist-test/battle-preference-smoke.js",
     "test:identity-sync": "tsc -p tsconfig.test.json && node dist-test/identity-sync-smoke.js",
     "test:item-effects": "tsc -p tsconfig.test.json && node dist-test/item-effects-smoke.js",

@@ -2,6 +2,35 @@ import {createLocalShowdownDex} from "./localDex.js";
 import {BattlePokemonIconIndexes} from "./data/pokemon-icon-indexes.js";
 import {ZhCnDetails} from "./data/i18n/zh-cn-details.js";
 import {ZhCnOverrides} from "./data/i18n/zh-cn-overrides.js";
+import {
+  TrainerData,
+  TrainerBossProfiles,
+  TrainerDialogues,
+  TrainerRepresentatives,
+  TrainerTeamPools,
+  type TrainerBossProfileData,
+  type TrainerDataEntry,
+  type TrainerDialogueLineData,
+  type TrainerDialogueSetData,
+  type TrainerRepresentativeData,
+  type TrainerTeamPoolData,
+  type TrainerTeamPokemonData,
+} from "./data/trainers.js";
+import {
+  BossTrainerPresetMatrixSummaries,
+  BossTrainerPresetTeamCount,
+  BossTrainerPresetTeamsDataFile,
+  type BossTrainerPresetMatrixSummaryData,
+  type BossTrainerPresetTeamData,
+} from "./data/boss-preset-teams.js";
+import {
+  BossTrainerPresetTeamPreviewsCompact,
+  type BossTrainerPresetTeamPreviewData,
+  type BossTrainerPresetTeamPreviewPokemonData,
+} from "./data/boss-preset-team-previews.js";
+
+export {BossTrainerPresetMatrixSummaries, BossTrainerPresetTeamCount, BossTrainerPresetTeamsDataFile};
+export type {BossTrainerPresetMatrixSummaryData, BossTrainerPresetTeamData, BossTrainerPresetTeamPreviewData, BossTrainerPresetTeamPreviewPokemonData};
 
 export type DexCategory = "pokemon" | "moves" | "abilities" | "items" | "trainers";
 export type DexStatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
@@ -164,6 +193,103 @@ export type DexItemDetail = {
   moveNameZh?: string;
   iconUrl?: string;
   iconStyle?: string;
+};
+
+export type DexTrainerType = "normal" | "gym" | "elite4" | "champion" | "villain" | "player" | "avatar";
+
+export type DexTrainerDialogueLine = {
+  intro: string[];
+  defeat: string[];
+  victory: string[];
+};
+
+export type DexTrainerDialogueSet = Record<string, DexTrainerDialogueLine[]>;
+
+export type DexTrainerRepresentative = {
+  speciesId: string;
+  species: string;
+  speciesZh: string;
+  count: number;
+  sourceNames: string[];
+  sprite?: DexPokemonSprites;
+};
+
+export type DexTrainerTeamPokemon = {
+  slot: number;
+  speciesId: string;
+  species: string;
+  speciesZh: string;
+  sourceSpeciesRank: string;
+  sourceStageRank: string;
+  sourcePowerProfile: string;
+  sprite?: DexPokemonSprites;
+};
+
+export type DexTrainerTeamPoolSummary = {
+  poolId: string;
+  battleRulePreset: string;
+  trainerId: string;
+  trainerNameZh: string;
+  teamIndex: number;
+  source: string;
+  pokemon: DexTrainerTeamPokemon[];
+};
+
+export type DexTrainerBossProfile = {
+  trainerId: string;
+  battlePreference: "offense" | "defense" | "support" | "balanced";
+  aiLevel: "gymLeader" | "eliteFour" | "champion";
+  powerProfile: "boss" | "champion";
+  teamPreferences: Array<"balanced" | "rain" | "sun" | "sand" | "snow" | "trick-room" | "tailwind" | "terrain" | "hazard-stack" | "poison-stall" | "baton-pass" | "setup-offense">;
+  originalPreferredSpeciesIds: string[];
+  preferredSpeciesIds: string[];
+  diagnostics: {
+    source: string;
+    representativeCount: number;
+    expandedCount: number;
+    expansionSources: string[];
+    inferredFrom: string[];
+    messages: string[];
+  };
+};
+
+export type DexTrainerSummary = {
+  id: string;
+  trainerType: DexTrainerType;
+  trainerTypeLabel: string;
+  sourceType: string;
+  region: string;
+  role: string;
+  sourceTier: string;
+  name: string;
+  nameZh: string;
+  frontAsset: string;
+  frontGifAsset?: string;
+  backAsset?: string;
+  avatarAsset: string;
+  teamPoolIds: string[];
+  notes: string[];
+  bossProfile?: DexTrainerBossProfile;
+  bossPresetMatrix?: BossTrainerPresetMatrixSummaryData;
+  representativePokemon: DexTrainerRepresentative[];
+  teamPoolCount: number;
+  dialogueStateCount: number;
+  isBoss: boolean;
+};
+
+export type DexTrainerDetail = DexTrainerSummary & {
+  dialogues: DexTrainerDialogueSet;
+  teamPools: DexTrainerTeamPoolSummary[];
+  teamPoolPresetCounts: Record<string, number>;
+  presetTeamPreviews: DexTrainerPresetTeamPreview[];
+};
+
+export type DexTrainerPresetTeamPreviewPokemon = BossTrainerPresetTeamPreviewPokemonData & {
+  sprite?: DexPokemonSprites;
+};
+
+export type DexTrainerPresetTeamPreview = Omit<BossTrainerPresetTeamPreviewData, "pokemon"> & {
+  pokemon: DexTrainerPresetTeamPreviewPokemon[];
 };
 
 export type DexSystemReforgeKind = "mega" | "z-crystal" | "tera";
@@ -391,6 +517,18 @@ const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
 ];
 
 const V1_GAME_ITEM_BY_ID = new Map(V1_GAME_ITEM_ENTRIES.map(entry => [toID(entry.id), entry]));
+const TRAINER_TYPE_LABEL: Record<DexTrainerType, string> = {
+  normal: "路人训练师",
+  gym: "馆主",
+  elite4: "四天王",
+  champion: "冠军",
+  villain: "反派头目",
+  player: "玩家",
+  avatar: "头像",
+};
+const BOSS_TRAINER_TYPES = new Set<DexTrainerType>(["gym", "elite4", "champion", "villain"]);
+const TRAINER_BY_ID = new Map<string, TrainerDataEntry>(TrainerData.map(trainer => [trainer.id, trainer]));
+const TRAINER_TEAM_POOLS_BY_TRAINER = groupByTrainerTeamPools(TrainerTeamPools);
 
 export function createShowdownDexService(options: ShowdownDexServiceOptions = {}) {
   const dex = options.dex || createLocalShowdownDex();
@@ -407,7 +545,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     const query = String(request.query || "");
     const offset = Math.max(0, Number(request.offset || 0));
     const limit = Math.max(1, Math.min(100, Number(request.limit || 20)));
-    const categories: DexCategory[] = category === "all" ? ["pokemon", "moves", "abilities", "items"] : [category];
+    const categories: DexCategory[] = category === "all" ? ["pokemon", "moves", "abilities", "items", "trainers"] : [category];
     const rows = categories.flatMap(current => rowsForCategory(activeDex, current));
     const ranked = rows
       .map(row => ({row, rank: rankRow(row, query)}))
@@ -490,6 +628,24 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
   function getTmItemDetail(moveIdOrTmId: string): DexItemDetail {
     const normalized = normalizeTmItemId(moveIdOrTmId);
     return getItemDetail(normalized);
+  }
+
+  function getTrainerDetail(trainerId: string): DexTrainerDetail {
+    const trainer = TRAINER_BY_ID.get(trainerId);
+    if (!trainer) throw new Error(`Trainer not found: ${trainerId}`);
+    const summary = trainerSummary(trainer);
+    const teamPools = (TRAINER_TEAM_POOLS_BY_TRAINER.get(trainer.id) || []).map(teamPoolSummary);
+    const teamPoolPresetCounts = teamPools.reduce<Record<string, number>>((acc, pool) => {
+      acc[pool.battleRulePreset] = (acc[pool.battleRulePreset] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      ...summary,
+      dialogues: normalizeTrainerDialogues(TrainerDialogues[trainer.id]),
+      teamPools,
+      teamPoolPresetCounts,
+      presetTeamPreviews: trainerPresetTeamPreviews(trainer.id),
+    };
   }
 
   function getSystemBattleReforgeOptions(itemId: string, pokemon: DexSystemBattleReforgePokemonInput | null | undefined): DexSystemBattleReforgeOption[] {
@@ -623,7 +779,117 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     if (category === "moves") return activeDex.moves.all().filter(entry => entry.exists).map(move => ({id: move.id, category: "moves", name: move.name, nameZh: translate("moves", move.name), subtitle: `${translate("types", move.type || "")} / ${translate("categories", move.category || "")}`, description: translatedDescription("moves", move.name, move.shortDesc || move.desc || ""), tags: [move.id, move.name, translate("moves", move.name), move.type, translate("types", move.type || ""), move.category, translate("categories", move.category || "")].filter(Boolean)}));
     if (category === "abilities") return activeDex.abilities.all().filter(entry => entry.exists).map(ability => ({id: ability.id, category: "abilities", name: ability.name, nameZh: translate("abilities", ability.name), subtitle: "特性", description: translatedDescription("abilities", ability.name, ability.shortDesc || ability.desc || ""), tags: [ability.id, ability.name, translate("abilities", ability.name)]}));
     if (category === "items") return itemRows(activeDex);
+    if (category === "trainers") return trainerRows();
     return [];
+  }
+
+  function trainerRows(): DexSearchRow[] {
+    return TrainerData.map(trainer => {
+      const summary = trainerSummary(trainer);
+      const dialoguePreview = firstTrainerDialogueLine(summary.id);
+      return {
+        id: summary.id,
+        category: "trainers",
+        name: summary.name,
+        nameZh: summary.nameZh,
+        subtitle: [summary.region || "未知地区", summary.trainerTypeLabel, summary.role].filter(Boolean).join(" / "),
+        description: dialoguePreview || trainerDescription(summary),
+        tags: trainerTags(summary),
+        iconUrl: summary.avatarAsset || summary.frontGifAsset || summary.frontAsset,
+      };
+    });
+  }
+
+  function trainerSummary(trainer: TrainerDataEntry): DexTrainerSummary {
+    const trainerType = trainer.trainerType as DexTrainerType;
+    const representativePokemon = (TrainerRepresentatives[trainer.id] || []).slice(0, 12).map(representativeSummary);
+    const teamPoolCount = TRAINER_TEAM_POOLS_BY_TRAINER.get(trainer.id)?.length || 0;
+    const dialogueStateCount = Object.keys(TrainerDialogues[trainer.id] || {}).length;
+    return {
+      id: trainer.id,
+      trainerType,
+      trainerTypeLabel: TRAINER_TYPE_LABEL[trainerType] || trainerType,
+      sourceType: trainer.sourceType,
+      region: trainer.region,
+      role: trainer.role,
+      sourceTier: trainer.sourceTier,
+      name: trainer.name,
+      nameZh: trainer.nameZh,
+      frontAsset: trainer.frontAsset,
+      frontGifAsset: trainer.frontGifAsset || undefined,
+      backAsset: trainer.backAsset || undefined,
+      avatarAsset: trainer.avatarAsset || trainer.frontGifAsset || trainer.frontAsset,
+      teamPoolIds: trainer.teamPoolIds,
+      notes: trainer.notes,
+      bossProfile: normalizeBossProfile(TrainerBossProfiles[trainer.id]),
+      bossPresetMatrix: BossTrainerPresetMatrixSummaries[trainer.id],
+      representativePokemon,
+      teamPoolCount,
+      dialogueStateCount,
+      isBoss: BOSS_TRAINER_TYPES.has(trainerType),
+    };
+  }
+
+  function representativeSummary(entry: TrainerRepresentativeData): DexTrainerRepresentative {
+    return {
+      speciesId: entry.speciesId,
+      species: entry.species,
+      speciesZh: translate("pokemon", entry.species),
+      count: entry.count,
+      sourceNames: entry.sourceNames,
+      sprite: resolvePokemonSprites({speciesId: entry.speciesId}),
+    };
+  }
+
+  function teamPoolSummary(entry: TrainerTeamPoolData): DexTrainerTeamPoolSummary {
+    return {
+      poolId: entry.poolId,
+      battleRulePreset: entry.battleRulePreset,
+      trainerId: entry.trainerId,
+      trainerNameZh: entry.trainerNameZh,
+      teamIndex: entry.teamIndex,
+      source: entry.source,
+      pokemon: entry.pokemon.map(teamPokemonSummary),
+    };
+  }
+
+  function teamPokemonSummary(entry: TrainerTeamPokemonData): DexTrainerTeamPokemon {
+    return {
+      slot: entry.slot,
+      speciesId: entry.speciesId,
+      species: entry.species,
+      speciesZh: translate("pokemon", entry.species),
+      sourceSpeciesRank: entry.sourceSpeciesRank,
+      sourceStageRank: entry.sourceStageRank,
+      sourcePowerProfile: entry.sourcePowerProfile,
+      sprite: resolvePokemonSprites({speciesId: entry.speciesId}),
+    };
+  }
+
+  function trainerPresetTeamPreviews(trainerId: string): DexTrainerPresetTeamPreview[] {
+    return BossTrainerPresetTeamPreviewsCompact
+      .filter(([currentTrainerId]) => currentTrainerId === trainerId)
+      .map(([currentTrainerId, ruleSetPreset, mode, variantIndex, teamArchetype, pokemon]) => ({
+        trainerId: currentTrainerId,
+        ruleSetPreset,
+        mode,
+        variantIndex,
+        teamArchetype,
+        pokemon: pokemon.map(([species, item, ability, level]) => {
+          const speciesData = requireDex().species.get(species);
+          const speciesId = speciesData?.id || toID(species);
+          const speciesName = speciesData?.name || species;
+          return {
+            speciesId,
+            species: speciesName,
+            speciesZh: translate("pokemon", speciesName),
+            item,
+            ability,
+            level,
+            sprite: resolvePokemonSprites({speciesId}),
+          };
+        }),
+      }));
   }
 
   function itemRows(activeDex: ShowdownDexLike): DexSearchRow[] {
@@ -849,6 +1115,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     getAbilityDetail,
     getItemDetail,
     getTmItemDetail,
+    getTrainerDetail,
     getSystemBattleReforgeOptions,
     getPokemonLearnset,
     getPokemonLearnsetGroups,
@@ -891,6 +1158,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
   function formesFor(speciesId: string): DexPokemonLink[] {
     const activeDex = requireDex();
     const species = activeDex.species.get(speciesId);
+    if (!species?.exists) return [];
     const ids = [species.baseSpecies, ...(species.otherFormes || []), ...(species.cosmeticFormes || [])].filter(Boolean);
     return Array.from(new Set(ids.map(toID)))
       .map(id => activeDex.species.get(id))
@@ -911,6 +1179,95 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
 
 export function toID(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function groupByTrainerTeamPools(teamPools: TrainerTeamPoolData[]): Map<string, TrainerTeamPoolData[]> {
+  const result = new Map<string, TrainerTeamPoolData[]>();
+  for (const pool of teamPools) {
+    const current = result.get(pool.trainerId) || [];
+    current.push(pool);
+    result.set(pool.trainerId, current);
+  }
+  for (const pools of result.values()) {
+    pools.sort((a, b) => a.battleRulePreset.localeCompare(b.battleRulePreset) || a.poolId.localeCompare(b.poolId) || a.teamIndex - b.teamIndex);
+  }
+  return result;
+}
+
+function normalizeTrainerDialogues(dialogues: TrainerDialogueSetData | undefined): DexTrainerDialogueSet {
+  const result: DexTrainerDialogueSet = {};
+  for (const [state, lines] of Object.entries(dialogues || {})) {
+    result[state] = lines.map(normalizeTrainerDialogueLine);
+  }
+  return result;
+}
+
+function normalizeTrainerDialogueLine(line: TrainerDialogueLineData): DexTrainerDialogueLine {
+  return {
+    intro: Array.isArray(line.intro) ? line.intro : [],
+    defeat: Array.isArray(line.defeat) ? line.defeat : [],
+    victory: Array.isArray(line.victory) ? line.victory : [],
+  };
+}
+
+function normalizeBossProfile(profile: TrainerBossProfileData | undefined): DexTrainerBossProfile | undefined {
+  if (!profile) return undefined;
+  return {
+    trainerId: profile.trainerId,
+    battlePreference: profile.battlePreference,
+    aiLevel: profile.aiLevel,
+    powerProfile: profile.powerProfile,
+    teamPreferences: Array.isArray(profile.teamPreferences) ? profile.teamPreferences : ["balanced"],
+    originalPreferredSpeciesIds: Array.isArray(profile.originalPreferredSpeciesIds) ? profile.originalPreferredSpeciesIds : [],
+    preferredSpeciesIds: Array.isArray(profile.preferredSpeciesIds) ? profile.preferredSpeciesIds : [],
+    diagnostics: {
+      source: profile.diagnostics?.source || "unknown",
+      representativeCount: Number(profile.diagnostics?.representativeCount || 0),
+      expandedCount: Number(profile.diagnostics?.expandedCount || 0),
+      expansionSources: Array.isArray(profile.diagnostics?.expansionSources) ? profile.diagnostics.expansionSources : [],
+      inferredFrom: Array.isArray(profile.diagnostics?.inferredFrom) ? profile.diagnostics.inferredFrom : [],
+      messages: Array.isArray(profile.diagnostics?.messages) ? profile.diagnostics.messages : [],
+    },
+  };
+}
+
+function firstTrainerDialogueLine(trainerId: string): string {
+  const dialogues = normalizeTrainerDialogues(TrainerDialogues[trainerId]);
+  const order = ["first_meeting", "default", "rematch", "after_player_win", "after_player_loss"];
+  for (const state of order) {
+    const line = dialogues[state]?.[0];
+    const text = line?.intro?.[0] || line?.defeat?.[0] || line?.victory?.[0];
+    if (text) return text;
+  }
+  return "";
+}
+
+function trainerDescription(summary: DexTrainerSummary): string {
+  if (summary.isBoss) {
+    const poolLabel = summary.teamPoolCount ? `${summary.teamPoolCount} 个固定队伍候选` : "固定队伍候选待补";
+    const representativeLabel = summary.representativePokemon.length ? `代表宝可梦 ${summary.representativePokemon.slice(0, 3).map(entry => entry.speciesZh || entry.species).join(" / ")}` : "代表宝可梦待补";
+    return `${summary.trainerTypeLabel} · ${poolLabel} · ${representativeLabel}`;
+  }
+  return [summary.region, summary.role || summary.trainerTypeLabel, summary.notes[0] || ""].filter(Boolean).join(" · ") || summary.trainerTypeLabel;
+}
+
+function trainerTags(summary: DexTrainerSummary): string[] {
+  const tags = [
+    summary.id,
+    summary.name,
+    summary.nameZh,
+    summary.region,
+    summary.role,
+    summary.trainerType,
+    summary.trainerTypeLabel,
+    `type:${summary.trainerType}`,
+    summary.isBoss ? "boss" : "",
+    summary.trainerType === "villain" ? "event:special" : "",
+    ...summary.notes,
+    ...summary.teamPoolIds,
+    ...summary.representativePokemon.flatMap(entry => [entry.speciesId, entry.species, entry.speciesZh]),
+  ];
+  return Array.from(new Set(tags.filter(Boolean)));
 }
 
 function includeSpecies(species: any): boolean {
