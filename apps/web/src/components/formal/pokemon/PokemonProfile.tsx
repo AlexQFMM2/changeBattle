@@ -54,7 +54,6 @@ function FormalPokemonBasic({pokemon}: {pokemon: RentalPokemon}) {
       </div>
       <div className="formal-pokemon-basic-facts">
         <div><span>全国图鉴</span><strong>No.{pokemon.sprite?.national_dex || "?"}</strong></div>
-        <div><span>定位</span><strong>{pokemon.role_zh || pokemon.role || "候选"}</strong></div>
         <div><span>身高</span><strong>{pokemon.heightm ? `${pokemon.heightm}m` : "--"}</strong></div>
         <div><span>体重</span><strong>{pokemon.weightkg ? `${pokemon.weightkg}kg` : "--"}</strong></div>
       </div>

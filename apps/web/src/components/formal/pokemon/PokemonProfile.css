@@ -341,21 +341,21 @@
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, 46px);
-  gap: 5px;
+  grid-template-rows: repeat(2, 34px);
+  gap: 4px;
   align-content: start;
 }
 
 .formal-profile-move-card.move-card-sheet.move-choice,
 .formal-profile-move-card.move-card-sheet.move-choice:nth-child(2n) {
-  --move-card-height: 46px;
-  --move-card-name-row-height: 27px;
-  --move-card-meta-row-height: 16px;
+  --move-card-height: 34px;
+  --move-card-name-row-height: 19px;
+  --move-card-meta-row-height: 13px;
   --move-card-name-gap: 3px;
-  --move-card-name-padding-x: 5px;
+  --move-card-name-padding-x: 4px;
   --move-card-meta-gap: 2px;
   --move-card-meta-padding-x: 4px;
-  --move-card-name-font-size: 7px;
+  --move-card-name-font-size: 6px;
   --move-card-meta-font-size: 5.5px;
   --move-card-badge-min-height: 8px;
   --move-card-badge-font-size: 5px;
@@ -365,6 +365,26 @@
   min-height: var(--move-card-height);
   max-height: var(--move-card-height);
   grid-template-rows: var(--move-card-name-row-height) var(--move-card-meta-row-height);
-  border-color: #6c5436;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 78%), inset 0 -4px 0 rgb(0 0 0 / 18%);
+  padding: 1px;
+  overflow: hidden;
+}
+
+.formal-profile-move-card.move-card-sheet.move-choice .move-name-row,
+.formal-profile-move-card.move-card-sheet.move-choice .move-meta-row {
+  min-height: 0;
+}
+
+.formal-profile-move-card.move-card-sheet.move-choice .move-name-row {
+  height: var(--move-card-name-row-height);
+}
+
+.formal-profile-move-card.move-card-sheet.move-choice .move-meta-row {
+  height: var(--move-card-meta-row-height);
+}
+
+.formal-profile-move-card.move-card-sheet.move-choice .move-name-row strong,
+.formal-profile-move-card.move-card-sheet.move-choice .move-name-row i,
+.formal-profile-move-card.move-card-sheet.move-choice .move-meta-row b,
+.formal-profile-move-card.move-card-sheet.move-choice .move-meta-row em {
+  line-height: 1;
 }

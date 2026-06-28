@@ -26,6 +26,7 @@ import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPa
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
+import {TalentConfigPage} from "./components/star-chart/TalentConfigPage";
 import {TitlePage} from "./components/shell/TitlePage";
 import {TrainingConfigPage} from "./components/training/TrainingConfigPage";
 import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
@@ -212,6 +213,17 @@ function RoutedApp({runtime}: AppProps) {
     navigate(`/formal/transition/${mode}`, {replace: true});
   }
 
+  async function enableTestMode() {
+    if (!profile) return;
+    try {
+      const next = await api.enableTestMode(profile);
+      setProfile(next);
+      setMessage("测试模式已开启：BP 99999。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "测试模式开启失败。");
+    }
+  }
+
   async function continueTrainingRun() {
     const current = trainingRun || await api.loadTrainingRun();
     if (!current) {
@@ -297,6 +309,8 @@ function RoutedApp({runtime}: AppProps) {
         onTraining={() => void createTrainingRunAndOpenConfig()}
         onFormalGame={startFormalGame}
         onContinueTraining={() => void continueTrainingRun()}
+        onStarChart={() => navigate("/star-chart")}
+        onTestMode={() => void enableTestMode()}
         onBattlePreference={() => navigate("/battle-preference")}
         onUserInfo={startEdit}
         onTitle={() => navigate("/", {replace: true})}
@@ -324,6 +338,15 @@ function RoutedApp({runtime}: AppProps) {
 
   const battlePreferencePage = profile ? (
     <BattlePreferencePage
+      api={api}
+      profile={profile}
+      onProfileChange={setProfile}
+      onBack={() => navigate("/main", {replace: true})}
+    />
+  ) : <Navigate to="/" replace />;
+
+  const starChartPage = profile ? (
+    <TalentConfigPage
       api={api}
       profile={profile}
       onProfileChange={setProfile}
@@ -457,6 +480,7 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/main" element={mainPage} />
         <Route path="/components" element={componentGalleryPage} />
         <Route path="/user" element={settingsPage} />
+        <Route path="/star-chart" element={starChartPage} />
         <Route path="/battle-preference" element={battlePreferencePage} />
         <Route path="/training/transition" element={<Navigate to="/training/config" replace />} />
         <Route path="/training/config" element={trainingConfigPage} />

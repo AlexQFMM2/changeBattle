@@ -7,7 +7,7 @@ import type {MainMenuQuickDexSeed} from "./mainMenuTypes";
 import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import "./MainMenuPage.css";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueTraining, onBattlePreference, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueTraining, onStarChart, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -18,6 +18,8 @@ export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun
   onTraining: () => void;
   onFormalGame: (mode: FormalGameModeV4) => void;
   onContinueTraining?: () => void;
+  onStarChart: () => void;
+  onTestMode: () => void;
   onBattlePreference: () => void;
   onUserInfo: () => void;
   onTitle: () => void;
@@ -30,9 +32,11 @@ export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun
   const mainMenuItems: MainMenuCommandItem[] = [
     ...(hasTrainingRun && onContinueTraining ? [{label: "继续游戏(训练场)", action: onContinueTraining}] : []),
     {label: "开始新游戏", action: () => setGameMenuOpen(true), instant: true},
+    {label: "训练家星图", action: onStarChart},
     {label: "对局偏好", action: onBattlePreference},
     {label: "玩家设置", action: onUserInfo},
     {label: "图鉴", action: onOpenDex, instant: true},
+    {label: "测试模式", action: enableTestMode, instant: true},
     {label: "回到主页", action: onTitle},
   ];
   const gameMenuItems: MainMenuCommandItem[] = [
@@ -84,6 +88,11 @@ export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun
     setNotice(message);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     noticeTimerRef.current = window.setTimeout(() => setNotice(null), 1400);
+  }
+
+  function enableTestMode() {
+    onTestMode();
+    showNotice("测试模式已开启：BP 99999");
   }
 
   return (

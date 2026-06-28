@@ -1,0 +1,213 @@
+.talent-board-canvas {
+  --talent-board-canvas-width: 100%;
+  --talent-board-canvas-height: 100%;
+  --talent-board-node-size: 30px;
+  position: absolute;
+  inset: 0;
+  width: var(--talent-board-canvas-width);
+  height: var(--talent-board-canvas-height);
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 18% 18%, rgb(94 150 104 / 28%) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 22%, rgb(239 193 75 / 22%) 0 1px, transparent 2px),
+    radial-gradient(circle at 45% 75%, rgb(255 255 255 / 16%) 0 1px, transparent 2px),
+    linear-gradient(180deg, rgb(13 18 14 / 36%), rgb(5 8 7 / 74%)),
+    linear-gradient(135deg, #1b2a19 0%, #28301b 42%, #4a3519 100%);
+  background-size: 46px 46px, 58px 58px, 36px 36px, auto, auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.talent-board-canvas:active {
+  cursor: grabbing;
+}
+
+.talent-board-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 52%, rgb(255 216 86 / 10%), transparent 36%),
+    linear-gradient(90deg, rgb(0 0 0 / 18%), transparent 35%, transparent 68%, rgb(0 0 0 / 18%));
+  pointer-events: none;
+}
+
+.talent-board-canvas-inner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+}
+
+.talent-board-links {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.talent-board-links path {
+  fill: none;
+  stroke: rgb(92 94 78 / 52%);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 0 rgb(23 26 19 / 70%));
+}
+
+.talent-board-links path.trunk {
+  stroke-width: 10;
+}
+
+.talent-board-links path.branch {
+  stroke-width: 6;
+}
+
+.talent-board-links path.available {
+  stroke: rgb(210 174 59 / 46%);
+  filter: drop-shadow(0 2px 0 rgb(64 43 12 / 55%));
+}
+
+.talent-board-links path.active {
+  stroke: rgb(244 213 88 / 88%);
+  filter: drop-shadow(0 0 7px rgb(255 229 115 / 56%)) drop-shadow(0 2px 0 rgb(64 43 12 / 75%));
+}
+
+.talent-board-links path.locked {
+  stroke: rgb(88 92 82 / 44%);
+  filter: drop-shadow(0 2px 0 rgb(20 22 18 / 62%));
+}
+
+.talent-board-node {
+  --node-color: #f0d36b;
+  --progress: .05;
+  --progress-pct: 0%;
+  position: absolute;
+  width: var(--talent-board-node-size);
+  height: var(--talent-board-node-size);
+  padding: 0;
+  border: 2px solid rgb(42 48 30 / 82%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgb(255 255 255 / 52%) 0 11%, transparent 13%),
+    radial-gradient(circle at 50% 54%, #9aa196 0 48%, #626b62 49% 72%, #30382f 73% 100%);
+  box-shadow: 0 4px 0 rgb(24 27 22 / 72%), 0 0 0 4px rgb(82 91 75 / 28%);
+  display: block;
+  transform: translate(-50%, -50%);
+}
+
+.talent-board-node::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px solid rgb(166 174 160 / 34%);
+  opacity: .48;
+  pointer-events: none;
+}
+
+.talent-board-node::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgb(255 255 255 / 28%), transparent 48%);
+  pointer-events: none;
+}
+
+.talent-board-node.root {
+  width: calc(var(--talent-board-node-size) + 6px);
+  height: calc(var(--talent-board-node-size) + 6px);
+  border-radius: 9px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  box-shadow: 0 5px 0 rgb(24 27 22 / 72%), 0 0 0 5px rgb(82 91 75 / 30%);
+}
+
+.talent-board-node.root::after {
+  border-radius: 8px;
+}
+
+.talent-board-node.maxed,
+.talent-board-node.active {
+  background:
+    radial-gradient(circle at 35% 28%, rgb(255 255 255 / 78%) 0 11%, transparent 13%),
+    linear-gradient(0deg, color-mix(in srgb, var(--node-color) 92%, #fff) 0 var(--progress-pct), #727b71 var(--progress-pct) 100%);
+  box-shadow: 0 4px 0 rgb(63 44 12 / 68%), 0 0 0 4px rgb(255 230 112 / 44%), 0 0 18px color-mix(in srgb, var(--node-color) 62%, transparent);
+}
+
+.talent-board-node.maxed::before,
+.talent-board-node.active::before {
+  border-color: color-mix(in srgb, var(--node-color) 72%, transparent);
+  opacity: calc(.28 + var(--progress) * .52);
+}
+
+.talent-board-node.available {
+  animation: talent-board-available-pulse 1.65s ease-in-out infinite;
+}
+
+.talent-board-node.locked {
+  filter: grayscale(.82) brightness(.66);
+  opacity: .68;
+  box-shadow: 0 4px 0 rgb(33 29 18 / 70%), 0 0 0 4px rgb(47 52 38 / 44%);
+}
+
+.talent-board-node.locked::before,
+.talent-board-node.locked::after {
+  content: "";
+  position: absolute;
+  width: 15px;
+  height: 9px;
+  border: 2px solid rgb(225 229 220 / 72%);
+  border-radius: 999px;
+  background: transparent;
+  opacity: .9;
+  pointer-events: none;
+}
+
+.talent-board-node.locked::before {
+  left: 2px;
+  top: 9px;
+  transform: rotate(-34deg);
+}
+
+.talent-board-node.locked::after {
+  right: 2px;
+  top: 11px;
+  transform: rotate(-34deg);
+}
+
+.talent-board-node.preview {
+  border-style: dashed;
+  opacity: .72;
+  filter: grayscale(.35) saturate(.8);
+}
+
+.talent-board-node.selected {
+  outline: 0;
+  box-shadow: 0 4px 0 rgb(63 44 12 / 68%), 0 0 0 6px rgb(255 244 177 / 58%), 0 0 26px color-mix(in srgb, var(--node-color) 72%, transparent);
+  z-index: 3;
+}
+
+.talent-board-node.available.selected,
+.talent-board-node.locked.selected {
+  box-shadow: 0 4px 0 rgb(33 29 18 / 70%), 0 0 0 6px rgb(255 244 177 / 42%), 0 0 18px rgb(255 244 177 / 24%);
+}
+
+.talent-board-node.root.selected {
+  box-shadow: 0 5px 0 rgb(63 44 12 / 68%), 0 0 0 7px rgb(255 244 177 / 60%), 0 0 30px rgb(255 222 85 / 68%);
+}
+
+.talent-board-node.starter { --node-color: #ffb856; }
+.talent-board-node.gear { --node-color: #4ad86c; }
+.talent-board-node.intel { --node-color: #62c7ff; }
+.talent-board-node.exchange { --node-color: #54e0c8; }
+.talent-board-node.growth { --node-color: #bb80ff; }
+.talent-board-node.economy { --node-color: #ff8658; }
+.talent-board-node.event { --node-color: #b8b0a4; }
+
+@keyframes talent-board-available-pulse {
+  0%, 100% { box-shadow: 0 4px 0 rgb(24 27 22 / 72%), 0 0 0 4px rgb(140 148 132 / 28%); }
+  50% { box-shadow: 0 4px 0 rgb(24 27 22 / 72%), 0 0 0 6px rgb(238 232 184 / 38%), 0 0 16px rgb(238 232 184 / 22%); }
+}

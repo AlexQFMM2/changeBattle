@@ -6,6 +6,7 @@ import type {
   ShowdownDexService,
 } from "@changebattle-v2/showdown-dex-core";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
+import {cloneStarChartV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -70,6 +71,7 @@ export type FormalGameRunV4 = {
   seed: string;
   streak: number;
   battlePreference: BattlePreferenceV4;
+  starChartSnapshot: StarChartStateV4;
   coopPartnerPreference?: CoopPartnerPreferenceV4;
   starterCandidates: FormalStarterCandidateV4[];
   selectedStarterIndexes: number[];
@@ -86,10 +88,14 @@ export type FormalGameRunApi = {
   loadFormalGameRun(): Promise<FormalGameRunV4 | null>;
   saveFormalGameRun(run: FormalGameRunV4): Promise<FormalGameRunV4>;
   deleteFormalGameRun(): Promise<void>;
-  createFormalGameRun(profile: TrainingUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4;
+  createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4;
   prepareFormalStarterCandidates(run: FormalGameRunV4, options?: {count?: number; seed?: string}): FormalGameRunV4;
   selectFormalStarterPokemon(run: FormalGameRunV4, selectedIndexes: number[]): FormalGameRunV4;
   selectedCountForFormalMode(mode: FormalGameModeV4): number;
+};
+
+export type FormalGameUserProfileInputV4 = TrainingUserProfileInputV4 & {
+  starChart?: StarChartStateV4 | null;
 };
 
 export type FormalRentalMoveViewV4 = {
@@ -225,7 +231,7 @@ const ROLE_TYPE_HINTS: Record<FormalStarterRoleV4, string[]> = {
 };
 
 export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalGameRunStorageAdapter = createBrowserFormalGameRunAdapter()): FormalGameRunApi {
-  function createFormalGameRun(profile: TrainingUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4 {
+  function createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4 {
     const now = new Date().toISOString();
     const mode = normalizeFormalMode(options.mode);
     const run: FormalGameRunV4 = {
@@ -240,6 +246,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       seed: options.seed || createId("formal-seed"),
       streak: Math.max(0, Math.floor(Number(options.streak || 0))),
       battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
+      starChartSnapshot: cloneStarChartV4(profile.starChart),
       coopPartnerPreference: mode === "coop" ? normalizeCoopPartnerPreference(options.coopPartnerPreference) : undefined,
       starterCandidates: [],
       selectedStarterIndexes: [],
@@ -256,7 +263,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       streak: normalized.streak,
       battlePreference: normalized.battlePreference,
       seed,
-      count: options.count || 10,
+      count: options.count || starterCandidateCountForStarChart(normalized.starChartSnapshot),
     });
     return normalizeFormalRun({
       ...normalized,
@@ -318,6 +325,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       seed: run.seed || createId("formal-seed"),
       streak: Math.max(0, Math.floor(Number(run.streak || 0))),
       battlePreference,
+      starChartSnapshot: cloneStarChartV4(run.starChartSnapshot),
       coopPartnerPreference: mode === "coop" ? normalizeCoopPartnerPreference(run.coopPartnerPreference) : undefined,
       starterCandidates,
       selectedStarterIndexes,

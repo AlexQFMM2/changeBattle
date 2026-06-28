@@ -4,6 +4,15 @@ import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, type FormalGa
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
+import {
+  enableTestModeForProfileV4,
+  getStarChartCatalogV4,
+  normalizeBattlePointsV4,
+  normalizeStarChartV4,
+  starterCandidateCountForStarChart,
+  unlockStarChartNodeForProfileV4,
+  type StarChartStateV4,
+} from "./starChart.js";
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
 export type {
@@ -48,6 +57,8 @@ export type UserProfileV2 = {
   createdAt: string;
   updatedAt: string;
   battlePreference: BattlePreferenceV4;
+  battlePoints: number;
+  starChart: StarChartStateV4;
 };
 
 export type UserProfileDraftV2 = {
@@ -173,6 +184,10 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       });
       return userProfiles.saveUserProfile(next);
     },
+    getStarChartCatalog: (profile: UserProfileV2) => getStarChartCatalogV4(profile),
+    unlockStarChartNode: async (profile: UserProfileV2, nodeId: string) => userProfiles.saveUserProfile(normalizeProfile(unlockStarChartNodeForProfileV4(profile, nodeId))),
+    enableTestMode: async (profile: UserProfileV2) => userProfiles.saveUserProfile(normalizeProfile(enableTestModeForProfileV4(profile))),
+    starterCandidateCountForStarChart,
     deleteUserProfile: () => userProfiles.deleteUserProfile(),
     loadTrainingRun: () => trainingRuns.loadTrainingRun(),
     saveTrainingRun: trainingRuns.saveTrainingRun,
@@ -218,6 +233,8 @@ export function createDefaultUserProfile(draft: UserProfileDraftV2 = {}, now = n
     createdAt,
     updatedAt: createdAt,
     battlePreference: normalizeBattlePreferenceV4(),
+    battlePoints: 0,
+    starChart: normalizeStarChartV4(),
   };
 }
 
@@ -235,6 +252,8 @@ export function updateUserProfile(profile: UserProfileV2, draft: UserProfileDraf
     createdAt: profile.createdAt,
     updatedAt: now.toISOString(),
     battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
+    battlePoints: normalizeBattlePointsV4(profile.battlePoints),
+    starChart: normalizeStarChartV4(profile.starChart),
   };
 }
 
@@ -297,6 +316,8 @@ function normalizeProfile(profile: UserProfileV2): UserProfileV2 {
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: profile.updatedAt || profile.createdAt || new Date().toISOString(),
     battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
+    battlePoints: normalizeBattlePointsV4(profile.battlePoints),
+    starChart: normalizeStarChartV4(profile.starChart),
   };
 }
 
@@ -321,6 +342,7 @@ export * from "./battle.js";
 export * from "./battleDebug.js";
 export * from "./teamGenerator.js";
 export * from "./formalGame.js";
+export * from "./starChart.js";
 export * from "./training.js";
 export {createBrowserTrainingRunAdapter, createTrainingNpcCatalog, createTrainingRunApi} from "./training.js";
 export type * from "./training.js";

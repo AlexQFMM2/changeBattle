@@ -1,5 +1,12 @@
 import type {DexPokemonDetail, DexSearchRequest, DexSearchResult} from "@changebattle-v2/showdown-dex-core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi} from "./formalGame.js";
+import {
+  enableTestModeForProfileV4,
+  normalizeStarChartV4,
+  starterCandidateCountForStarChart,
+  unlockStarChartNodeForProfileV4,
+  type StarChartStateV4,
+} from "./starChart.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -127,10 +134,24 @@ function moveDetail(id: string) {
   };
 }
 
+function allMoreChoicesChart(): StarChartStateV4 {
+  return {
+    nodes: {
+      root_trainer_star: 1,
+      starter_more_choices_1: 1,
+      starter_more_choices_2: 1,
+      starter_more_choices_3: 1,
+      starter_more_choices_4: 1,
+    },
+  };
+}
+
 const profile = {
   id: "formal-profile",
   name: "正式游戏测试",
   avatarAsset: "/avatar.png",
+  battlePoints: 0,
+  starChart: normalizeStarChartV4(),
   battlePreference: normalizeBattlePreferenceV4({
     allowedGenerations: [1, 2, 3],
     ruleSet: "standard",
@@ -149,7 +170,7 @@ profile.battlePreference = normalizeBattlePreferenceV4({
 const prepared = api.prepareFormalStarterCandidates(run);
 const preparedAgain = api.prepareFormalStarterCandidates(run);
 
-assert(prepared.starterCandidates.length === 10, "formal starter candidates should default to 10");
+assert(prepared.starterCandidates.length === 6, "root-only star chart should default formal starter candidates to 6");
 assert(api.prepareFormalStarterCandidates(run, {count: 12}).starterCandidates.length === 10, "random formal starter candidates should cap at 10");
 assert(api.selectedCountForFormalMode("singles") === 3, "singles should select 3");
 assert(api.selectedCountForFormalMode("doubles") === 4, "doubles should select 4");
@@ -169,14 +190,67 @@ assert(prepared.starterCandidates.every(candidate => ["rank4", "rank5", "rank6"]
 assert(prepared.starterCandidates.every(candidate => !["squirtle", "charizardmegax", "charizardgmax", "walkingwake", "blacephalon"].includes(candidate.pokemon.speciesId)), "starter filters should remove low rank, legendary, mega, and gmax species");
 assert(prepared.starterCandidates.some(candidate => candidate.pokemon.speciesId === "ninetalesalola"), "regional forms should be allowed");
 assert(prepared.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(",") === preparedAgain.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(","), "same seed should be stable");
-assert(prepared.starterCandidates.slice(0, 6).map(candidate => candidate.role).join(",") === "weather,trick-room,offense,offense,support,defense", "base six starter roles should match formal plan");
-assert(prepared.starterCandidates.slice(6, 10).map(candidate => candidate.role).join(",") === "speed-control,disruption,flex-defense,flex-offense", "extended starter roles should match formal plan");
-for (const role of ["weather", "trick-room", "offense", "support", "defense", "speed-control", "disruption", "flex-defense", "flex-offense"]) {
+assert(prepared.starterCandidates.map(candidate => candidate.role).join(",") === "weather,trick-room,offense,offense,support,defense", "base six starter roles should match formal plan");
+for (const role of ["weather", "trick-room", "offense", "support", "defense"]) {
   assert(prepared.starterCandidates.some(candidate => candidate.role === role), `missing starter role ${role}`);
 }
 
+let starProfile = {...profile, battlePoints: 100, starChart: normalizeStarChartV4()};
+assert(starterCandidateCountForStarChart(starProfile.starChart) === 6, "root-only star chart should grant 6 starter candidates");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_1");
+assert(starProfile.battlePoints === 90, "more choices I should cost 10 BP");
+assert(starterCandidateCountForStarChart(starProfile.starChart) === 7, "more choices I should grant 7 starter candidates");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_2");
+assert(starProfile.battlePoints === 78, "more choices II should cost 12 BP");
+assert(starterCandidateCountForStarChart(starProfile.starChart) === 8, "more choices II should grant 8 starter candidates");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_3");
+assert(starProfile.battlePoints === 63, "more choices III should cost 15 BP");
+assert(starterCandidateCountForStarChart(starProfile.starChart) === 9, "more choices III should grant 9 starter candidates");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_4");
+assert(starProfile.battlePoints === 43, "more choices IV should cost 20 BP");
+assert(starterCandidateCountForStarChart(starProfile.starChart) === 10, "more choices IV should grant 10 starter candidates");
+
+const fullStarRun = api.createFormalGameRun(starProfile, {mode: "singles", seed: "formal-smoke-full-star-seed"});
+const fullStarPrepared = api.prepareFormalStarterCandidates(fullStarRun);
+assert(fullStarPrepared.starterCandidates.length === 10, "full more choices star chart should prepare 10 candidates");
+assert(fullStarPrepared.starterCandidates.slice(6, 10).map(candidate => candidate.role).join(",") === "speed-control,disruption,flex-defense,flex-offense", "extended starter roles should match formal plan");
+
+const frozenRun = api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-frozen-star-seed"});
+const changedAfterRun = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "starter_more_choices_1");
+assert(starterCandidateCountForStarChart(changedAfterRun.starChart) === 7, "changed profile should have 7 starter candidates");
+assert(api.prepareFormalStarterCandidates(frozenRun).starterCandidates.length === 6, "formal run should freeze star chart snapshot at creation");
+
+let failedStarUnlock = false;
+try {
+  unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "starter_more_choices_2");
+} catch {
+  failedStarUnlock = true;
+}
+assert(failedStarUnlock, "star chart should reject unlock when prerequisite is missing");
+
+failedStarUnlock = false;
+try {
+  unlockStarChartNodeForProfileV4(profile, "starter_more_choices_1");
+} catch {
+  failedStarUnlock = true;
+}
+assert(failedStarUnlock, "star chart should reject unlock when BP is insufficient");
+
+failedStarUnlock = false;
+try {
+  unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_1");
+} catch {
+  failedStarUnlock = true;
+}
+assert(failedStarUnlock, "star chart should reject repeated unlock");
+
+const testModeProfile = enableTestModeForProfileV4(profile);
+assert(testModeProfile.battlePoints === 99999, "test mode should set BP to 99999");
+assert(starterCandidateCountForStarChart(testModeProfile.starChart) === 6, "test mode should not unlock star chart nodes");
+
 const legendaryProfile = {
   ...profile,
+  starChart: allMoreChoicesChart(),
   battlePreference: normalizeBattlePreferenceV4({
     allowedGenerations: [1, 2, 3, 7, 9],
     ruleSet: "standard",

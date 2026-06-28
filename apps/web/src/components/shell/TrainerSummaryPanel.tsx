@@ -20,7 +20,7 @@ export function TrainerSummaryPanel({profile, catalog, leaving = false}: {profil
         <strong>{profile.name}</strong>
         <small>ID {trainer?.id || "--"}</small>
       </div>
-      <p><b>0</b><span>BP</span></p>
+      <p><b>{profile.battlePoints}</b><span>BP</span></p>
       <p><b>0%</b><span>胜率</span></p>
     </motion.section>
   );
