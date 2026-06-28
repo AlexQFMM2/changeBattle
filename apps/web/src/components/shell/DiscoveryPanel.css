@@ -1,0 +1,110 @@
+.discovery-panel {
+  --discovery-panel-width: 176px;
+  --discovery-panel-row-height: 45px;
+  position: absolute;
+  left: 14px;
+  bottom: 15px;
+  z-index: 2;
+  width: var(--discovery-panel-width);
+  display: grid;
+  gap: 5px;
+  padding: 7px;
+  color: #fff;
+  background: linear-gradient(90deg, rgb(0 0 0 / 62%), rgb(0 0 0 / 34%));
+  border-left: 2px solid rgb(82 222 133 / 72%);
+}
+
+.discovery-panel header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.discovery-panel header strong {
+  color: #fff;
+  font-size: 8px;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 70%);
+}
+
+.discovery-panel header span {
+  color: rgb(222 255 232 / 74%);
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.discovery-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.discovery-card {
+  width: 78px;
+  min-width: 0;
+  height: var(--discovery-panel-row-height);
+  display: grid;
+  grid-template-columns: 21px minmax(0, 1fr);
+  grid-template-rows: 1fr auto auto;
+  align-items: center;
+  gap: 1px 4px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 14%), rgb(0 0 0 / 24%));
+  color: #fff;
+  padding: 4px;
+  cursor: grab;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 22%);
+}
+
+.discovery-card:active {
+  cursor: grabbing;
+}
+
+.discovery-icon {
+  grid-row: 1 / span 3;
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  color: #caffd4;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.discovery-icon img,
+.discovery-icon .item-icon {
+  width: 21px;
+  height: 21px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.discovery-card small,
+.discovery-card strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.discovery-card small {
+  color: rgb(196 255 211 / 74%);
+  font-size: 5px;
+  font-weight: 850;
+}
+
+.discovery-card strong {
+  color: #fff;
+  font-size: 7px;
+  font-weight: 950;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 72%);
+}

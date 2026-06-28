@@ -1,5 +1,4 @@
 import type {TrainingModeV4, TrainingRuleSetV4, ShowdownPlayerIdV4} from "./types.js";
-import showdownVendor from "../vendor/showdown/sim/index.js";
 
 export type ShowdownRandomTeamPokemonSetV4 = {
   name: string;
@@ -84,7 +83,7 @@ export type ShowdownRandomTeamGeneratorResultV4 = {
   diagnostics: ShowdownRandomTeamGeneratorDiagnosticsV4;
 };
 
-const showdown = showdownVendor as {
+type ShowdownTeamsApiV4 = {
   Teams: {
     generate(format: string, options?: {seed?: number[] | null} | null): ShowdownRandomTeamPokemonSetV4[];
     getGenerator(format: string, seed?: number[] | null): ShowdownRandomTeamGeneratorLikeV4;
@@ -92,6 +91,21 @@ const showdown = showdownVendor as {
     export(team: ShowdownRandomTeamPokemonSetV4[]): string;
   };
 };
+
+let showdownTeamsPromise: Promise<ShowdownTeamsApiV4["Teams"]> | null = null;
+
+async function getShowdownTeams(): Promise<ShowdownTeamsApiV4["Teams"]> {
+  if (typeof window !== "undefined") {
+    throw new Error("Showdown 随机队伍生成器只能在 Node 环境运行；浏览器启动路径不会加载 vendor。");
+  }
+  showdownTeamsPromise ||= import("../vendor/showdown/sim/index.js").then(module => {
+    const loaded = module as unknown as Partial<ShowdownTeamsApiV4> & {default?: Partial<ShowdownTeamsApiV4>};
+    if (loaded.default?.Teams) return loaded.default.Teams;
+    if (!loaded.Teams) throw new Error("Showdown Teams vendor 未加载。");
+    return loaded.Teams;
+  });
+  return showdownTeamsPromise;
+}
 
 type ShowdownRandomSetDataV4 = {
   level?: number;
@@ -139,7 +153,7 @@ const FORMAT_BY_RULESET_MODE: Record<Exclude<TrainingRuleSetV4, "standard">, Rec
   },
 };
 
-export function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGeneratorInputV4 = {}): ShowdownRandomTeamGeneratorResultV4 {
+export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGeneratorInputV4 = {}): Promise<ShowdownRandomTeamGeneratorResultV4> {
   const startedAt = Date.now();
   const requestedRuleSet = input.ruleSet || "standard";
   const resolvedRuleSet = requestedRuleSet === "standard" ? "gen9" : requestedRuleSet;
@@ -172,9 +186,10 @@ export function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGeneratorI
   }
 
   try {
+    const teamsApi = await getShowdownTeams();
     let best: {team: ShowdownRandomTeamPokemonSetV4[]; score: number; matchedPoolSize: number} | null = null;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const generator = showdown.Teams.getGenerator(formatId, seedForAttempt(seed, attempt));
+      const generator = teamsApi.getGenerator(formatId, seedForAttempt(seed, attempt));
       const poolDiagnostics = applyGeneratorPoolFilters(generator, {
         mode: requestedMode,
         pokemonFilter,
@@ -199,8 +214,8 @@ export function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGeneratorI
     }
     const generated = best?.team || [];
     const pokemonSets = input.teamSize ? generated.slice(0, clampInt(input.teamSize, 1, 6)) : generated;
-    const packedTeam = showdown.Teams.pack(pokemonSets);
-    const exportedTeam = showdown.Teams.export(pokemonSets);
+    const packedTeam = teamsApi.pack(pokemonSets);
+    const exportedTeam = teamsApi.export(pokemonSets);
     diagnostics.ok = pokemonSets.length > 0;
     diagnostics.teamSize = pokemonSets.length;
     if (diagnostics.archetype && best) {

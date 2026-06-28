@@ -13,7 +13,7 @@ import {
   type BattleRequestV4,
   type BattleSessionSnapshotV4,
 } from "./battle.js";
-import {createTrainingRunApi} from "./training.js";
+import {createTrainingRunApi, normalizeBattlePreferenceV4} from "./training.js";
 import type {LocalPokemonV4, ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4} from "./training.js";
 
 const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
@@ -200,6 +200,7 @@ const run: TrainingRunGameV4 = {
   currentNodeId: node.id,
   gameMap: [node],
   result: null,
+  battlePreference: normalizeBattlePreferenceV4({ruleSet: "gen9"}),
 };
 
 const {sessionInput} = createBattleGameFromTrainingNode(run, node);

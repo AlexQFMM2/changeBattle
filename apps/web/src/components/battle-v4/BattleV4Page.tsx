@@ -199,6 +199,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   ));
   const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
   const activeBattleBag = api.normalizeBagState(run.players.p1?.bag);
+  const battleBagEnabled = Boolean(run.battlePreference?.battleBagEnabled && activeBattleBag.battleBagEnabled);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -408,8 +409,16 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onCommandModeChange={setCommandMode}
           onOpenSwitch={() => setSwitchPanelOpen(true)}
           battleBag={activeBattleBag}
+          battleBagEnabled={battleBagEnabled}
           battleBagOpen={battleBagOpen}
-          onOpenBattleBag={() => setBattleBagOpen(value => !value)}
+          onOpenBattleBag={() => {
+            if (!battleBagEnabled) {
+              setChoiceStatus("当前对局偏好已关闭战斗背包。");
+              setBattleBagOpen(false);
+              return;
+            }
+            setBattleBagOpen(value => !value);
+          }}
           canUndoChoice={canUndoBattleCommandChoice(commandDraft, viewModel?.command.normalizedRequest || null)}
           onUndoChoice={undoDraftChoice}
           onSubmit={applyDraftChoice}
@@ -441,7 +450,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onConfirm={applyDraftChoice}
         />
       ) : null}
-      {!playbackBlockingCommands && battleBagOpen ? (
+      {!playbackBlockingCommands && battleBagEnabled && battleBagOpen ? (
         <BattleV4BagPanel
           api={api}
           bag={activeBattleBag}
@@ -691,7 +700,7 @@ function SpecialSystemBadges({slot}: {slot: BattleViewSlotV4}) {
   );
 }
 
-function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, battleBag, battleBagOpen, onOpenBattleBag, canUndoChoice, onUndoChoice, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
+function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, battleBag, battleBagEnabled, battleBagOpen, onOpenBattleBag, canUndoChoice, onUndoChoice, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4 | null;
   snapshot: BattleSessionSnapshotV4 | null;
@@ -704,6 +713,7 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   onCommandModeChange: (mode: "command" | "moves") => void;
   onOpenSwitch: () => void;
   battleBag: BagStateV4;
+  battleBagEnabled: boolean;
   battleBagOpen: boolean;
   onOpenBattleBag: () => void;
   canUndoChoice: boolean;
@@ -795,10 +805,12 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
           <img src="/battle/command-buttons/switch.webp" alt="" />
           <span>宝可梦</span>
         </button>
-        <button className={`battle-v4-main-command bag ${battleBagOpen ? "active" : ""}`} type="button" disabled={busy} onClick={onOpenBattleBag} title="查看战斗背包">
-          <span className="battle-v4-main-command-fallback-icon">包</span>
-          <span>背包</span>
-        </button>
+        {battleBagEnabled ? (
+          <button className={`battle-v4-main-command bag ${battleBagOpen ? "active" : ""}`} type="button" disabled={busy} onClick={onOpenBattleBag} title="查看战斗背包">
+            <span className="battle-v4-main-command-fallback-icon">包</span>
+            <span>背包</span>
+          </button>
+        ) : null}
       </div>
     </section>
   );

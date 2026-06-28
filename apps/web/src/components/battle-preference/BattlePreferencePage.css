@@ -1,0 +1,235 @@
+.battle-preference-page {
+  --battle-preference-page-width: 640px;
+  --battle-preference-page-height: 320px;
+  --battle-preference-page-shell-width: 560px;
+  --battle-preference-page-shell-height: 250px;
+  --battle-preference-page-gap: 6px;
+  --battle-preference-page-pad: 9px;
+  --battle-preference-page-tab-height: 22px;
+  --battle-preference-page-action-height: 18px;
+  width: var(--battle-preference-page-width);
+  height: var(--battle-preference-page-height);
+  padding: 20px 40px;
+  display: grid;
+  place-items: center;
+  color: #fffdf5;
+  background:
+    radial-gradient(circle at 22% 0%, rgb(74 105 126 / 28%), transparent 34%),
+    linear-gradient(180deg, #111820 0%, #0a0f13 100%);
+  overflow: hidden;
+}
+
+.battle-preference-shell {
+  width: var(--battle-preference-page-shell-width);
+  height: var(--battle-preference-page-shell-height);
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: var(--battle-preference-page-gap);
+  padding: var(--battle-preference-page-pad);
+  border: 1px solid rgb(255 253 245 / 18%);
+  border-radius: 6px;
+  background: rgb(14 18 24 / 92%);
+  box-shadow: 0 8px 18px rgb(0 0 0 / 38%);
+}
+
+.battle-preference-header {
+  min-height: 32px;
+}
+
+.battle-preference-header h2 {
+  margin: 0;
+  color: #fffdf5;
+  font-size: 14px;
+  font-weight: 950;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.battle-preference-header span {
+  display: block;
+  margin-top: 4px;
+  color: rgb(255 253 245 / 66%);
+  font-size: 6px;
+  line-height: 1.35;
+}
+
+.battle-preference-tabs {
+  height: var(--battle-preference-page-tab-height);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.battle-preference-tabs button,
+.battle-preference-list button,
+.battle-preference-actions button {
+  min-width: 0;
+  border: 1px solid rgb(255 253 245 / 16%);
+  border-radius: 4px;
+  color: #fffdf5;
+  background: rgb(255 253 245 / 8%);
+  cursor: pointer;
+}
+
+.battle-preference-tabs button {
+  height: var(--battle-preference-page-tab-height);
+  padding: 0 5px;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.battle-preference-tabs button.active,
+.battle-preference-list button.selected {
+  border-color: rgb(106 218 151 / 78%);
+  background: rgb(35 96 67 / 60%);
+  box-shadow: inset 0 0 0 1px rgb(106 218 151 / 20%);
+}
+
+.battle-preference-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 255px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.battle-preference-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(87 130 103 / 80%) rgb(255 253 245 / 10%);
+}
+
+.battle-preference-list::-webkit-scrollbar,
+.battle-preference-detail::-webkit-scrollbar {
+  width: 8px;
+}
+
+.battle-preference-list::-webkit-scrollbar-track,
+.battle-preference-detail::-webkit-scrollbar-track {
+  background: rgb(255 253 245 / 8%);
+  border-radius: 999px;
+}
+
+.battle-preference-list::-webkit-scrollbar-thumb,
+.battle-preference-detail::-webkit-scrollbar-thumb {
+  background: rgb(87 130 103 / 80%);
+  border-radius: 999px;
+}
+
+.battle-preference-list button {
+  height: 42px;
+  padding: 5px 7px;
+  text-align: left;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+}
+
+.battle-preference-list button strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fffdf5;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-preference-list button span {
+  min-width: 0;
+  overflow: hidden;
+  color: rgb(255 253 245 / 68%);
+  font-size: 6px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-preference-detail {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid rgb(255 253 245 / 12%);
+  border-radius: 5px;
+  background: rgb(0 0 0 / 20%);
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(87 130 103 / 80%) rgb(255 253 245 / 10%);
+}
+
+.battle-preference-detail span {
+  color: rgb(255 253 245 / 58%);
+  font-size: 5px;
+  line-height: 1.2;
+}
+
+.battle-preference-detail strong {
+  color: #fffdf5;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.battle-preference-detail p {
+  margin: 0;
+  color: rgb(255 253 245 / 78%);
+  font-size: 7px;
+  line-height: 1.55;
+}
+
+.battle-preference-detail small {
+  margin-top: 2px;
+  color: rgb(255 253 245 / 52%);
+  font-size: 5px;
+  line-height: 1.4;
+}
+
+.battle-preference-actions {
+  height: var(--battle-preference-page-action-height);
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 70px;
+  gap: 7px;
+  align-items: center;
+}
+
+.battle-preference-actions button {
+  height: var(--battle-preference-page-action-height);
+  padding: 0 6px;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.battle-preference-actions button:last-child {
+  border-color: rgb(106 218 151 / 72%);
+  background: rgb(46 133 82 / 78%);
+}
+
+.battle-preference-actions button:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.battle-preference-actions span {
+  min-width: 0;
+  overflow: hidden;
+  color: rgb(255 253 245 / 68%);
+  font-size: 6px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-preference-actions span.error {
+  color: #ffb5a9;
+}

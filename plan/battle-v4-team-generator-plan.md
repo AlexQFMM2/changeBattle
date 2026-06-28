@@ -32,7 +32,7 @@ TeamGenerationInput
 
 ## Core API
 
-核心函数在 `@changebattle-v2/showdown-battle-core/teamGenerator`：
+核心函数在 `@changebattle-v2/showdown-battle-core/teamGenerator`，这是 **Node/backend-only** 能力。前端可以 import 类型和 API facade，但不能在浏览器启动路径静态加载 Showdown vendor；真实生成时按需动态加载 vendor。
 
 ```ts
 type ShowdownTeamArchetypeV4 =
@@ -104,7 +104,7 @@ type ShowdownRandomTeamGeneratorResultV4 = {
 API 层额外暴露：
 
 ```ts
-generateRandomBattleTeamPreviewV4(input)
+generateRandomBattleTeamPreviewV4(input): Promise<RandomBattleTeamPreviewResultV4>
 convertShowdownSetToLocalPokemonV4(set, index)
 convertShowdownTeamToLocalTeamV4(...)
 ```

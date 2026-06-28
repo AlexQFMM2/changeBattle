@@ -1,42 +1,63 @@
 import {useEffect, useRef, useState} from "react";
-import type {TrainerCatalogEntryV2, UserProfileV2} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, TrainerCatalogEntryV2, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {AnimatedPage} from "../motion/Animated";
 import {MainMenuCommandBar, type MainMenuCommandItem} from "./MainMenuCommandBar";
+import {MainMenuHome} from "./MainMenuHome";
+import type {MainMenuQuickDexSeed} from "./mainMenuTypes";
 import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import "./MainMenuPage.css";
 
-export function MainMenuPage({profile, catalog, hasTrainingRun = false, onOpenDex, onOpenComponents, onTraining, onContinueTraining, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun = false, onOpenDex, onOpenDexCard, onTraining, onContinueTraining, onBattlePreference, onUserInfo, onTitle}: {
+  api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
+  trainingRun: TrainingRunGameV4 | null;
   hasTrainingRun?: boolean;
   onOpenDex: () => void;
-  onOpenComponents: () => void;
+  onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
   onContinueTraining?: () => void;
+  onBattlePreference: () => void;
   onUserInfo: () => void;
   onTitle: () => void;
 }) {
   const [leaving, setLeaving] = useState(false);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const actionTimerRef = useRef<number | null>(null);
-  const items: MainMenuCommandItem[] = [
-    {label: "图鉴", action: onOpenDex, instant: true},
-    {label: "查看组件", action: onOpenComponents},
-    ...(hasTrainingRun && onContinueTraining ? [{label: "继续游戏", action: onContinueTraining}] : []),
-    {label: "训练场", action: onTraining},
+  const noticeTimerRef = useRef<number | null>(null);
+  const mainMenuItems: MainMenuCommandItem[] = [
+    ...(hasTrainingRun && onContinueTraining ? [{label: "继续游戏(训练场)", action: onContinueTraining}] : []),
+    {label: "开始新游戏", action: () => setGameMenuOpen(true), instant: true},
+    {label: "对局偏好", action: onBattlePreference},
     {label: "玩家设置", action: onUserInfo},
+    {label: "图鉴", action: onOpenDex, instant: true},
     {label: "回到主页", action: onTitle},
   ];
+  const gameMenuItems: MainMenuCommandItem[] = [
+    {label: "单打-AI", action: () => showNotice("单打-AI 接下来开放"), instant: true},
+    {label: "双打-AI", action: () => showNotice("双打-AI 接下来开放"), instant: true},
+    {label: "合作-AI", action: () => showNotice("合作-AI 接下来开放"), instant: true},
+    {label: "合作-玩家", action: () => showNotice("合作-玩家 后续开发"), instant: true},
+    {label: "训练场", action: onTraining},
+    {label: "返回", action: closeGameMenu, instant: true},
+  ];
+  const items = gameMenuOpen ? gameMenuItems : mainMenuItems;
 
   useEffect(() => {
     return () => {
       if (actionTimerRef.current !== null) window.clearTimeout(actionTimerRef.current);
+      if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     };
   }, []);
 
   function choose(item: MainMenuCommandItem) {
     if (leaving) return;
     if (item.instant) {
+      if (actionTimerRef.current !== null) {
+        window.clearTimeout(actionTimerRef.current);
+        actionTimerRef.current = null;
+      }
       item.action();
       return;
     }
@@ -48,6 +69,22 @@ export function MainMenuPage({profile, catalog, hasTrainingRun = false, onOpenDe
     }, 680);
   }
 
+  function closeGameMenu() {
+    if (actionTimerRef.current !== null) {
+      window.clearTimeout(actionTimerRef.current);
+      actionTimerRef.current = null;
+    }
+    setLeaving(false);
+    setGameMenuOpen(false);
+    setNotice(null);
+  }
+
+  function showNotice(message: string) {
+    setNotice(message);
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), 1400);
+  }
+
   return (
     <AnimatedPage className="main-menu-page">
       <video className="main-menu-video-bg" autoPlay muted loop playsInline controls={false} aria-hidden="true">
@@ -56,7 +93,8 @@ export function MainMenuPage({profile, catalog, hasTrainingRun = false, onOpenDe
       <div className="video-startup-mask" aria-hidden="true" />
       <div className="main-menu-shade" aria-hidden="true" />
       <TrainerSummaryPanel profile={profile} catalog={catalog} leaving={leaving} />
-      <MainMenuCommandBar items={items} leaving={leaving} onChoose={choose} />
+      <MainMenuHome api={api} profile={profile} run={trainingRun} leaving={leaving} onOpenDexCard={onOpenDexCard} />
+      <MainMenuCommandBar key={gameMenuOpen ? "new-game-menu" : "main-menu"} items={items} leaving={leaving} onChoose={choose} />
       {notice ? <div className="main-menu-notice" role="status">{notice}</div> : null}
     </AnimatedPage>
   );

@@ -80,9 +80,9 @@ const ENVIRONMENT_ENTRIES: BattleV4EnvironmentPreviewEntry[] = [
   environmentEntry("gravity", "Gravity", "重力", "room", "Gravity", "gravity", "move", "技能：重力", "重力增强，影响飞行/漂浮与部分招式命中。"),
 ];
 
-export function QuickDexModal({api, initialPokemonId = null, onClose}: {api: ChangeBattleV2Api; initialPokemonId?: string | null; onClose: () => void}) {
-  const [category, setCategory] = useState<QuickDexCategory>("pokemon");
-  const [query, setQuery] = useState("");
+export function QuickDexModal({api, initialPokemonId = null, initialCategory, initialQuery, initialRow, onClose}: {api: ChangeBattleV2Api; initialPokemonId?: string | null; initialCategory?: QuickDexCategory; initialQuery?: string | null; initialRow?: DexSearchRow | null; onClose: () => void}) {
+  const [category, setCategory] = useState<QuickDexCategory>(initialCategory || "pokemon");
+  const [query, setQuery] = useState(initialQuery || initialPokemonId || "");
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<DexSearchRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -106,6 +106,16 @@ export function QuickDexModal({api, initialPokemonId = null, onClose}: {api: Cha
     setDetail(null);
     setPokemonTab("summary");
   }, [initialPokemonId]);
+
+  useEffect(() => {
+    if (!initialCategory && !initialQuery && !initialRow) return;
+    setCategory(initialCategory || (initialRow?.category as QuickDexCategory) || "pokemon");
+    setQuery(initialQuery || initialRow?.id || "");
+    setPage(0);
+    setSelected(initialRow || null);
+    setDetail(null);
+    setPokemonTab("summary");
+  }, [initialCategory, initialQuery, initialRow]);
 
   useEffect(() => {
     let cancelled = false;

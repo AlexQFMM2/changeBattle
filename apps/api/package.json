@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
+    "test:battle-preference": "tsc -p tsconfig.test.json && node dist-test/battle-preference-smoke.js",
     "test:identity-sync": "tsc -p tsconfig.test.json && node dist-test/identity-sync-smoke.js",
     "test:item-effects": "tsc -p tsconfig.test.json && node dist-test/item-effects-smoke.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"

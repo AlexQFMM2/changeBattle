@@ -1,5 +1,5 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
-import {createBrowserTrainingRunAdapter, createTrainingRunApi, type TrainingRunStorageAdapter} from "./training.js";
+import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 export * from "./itemEffects.js";
@@ -31,6 +31,7 @@ export type UserProfileV2 = {
   backAsset?: string;
   createdAt: string;
   updatedAt: string;
+  battlePreference: BattlePreferenceV4;
 };
 
 export type UserProfileDraftV2 = {
@@ -145,6 +146,14 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       const next = updateUserProfile(profile, draft);
       return userProfiles.saveUserProfile(next);
     },
+    updateBattlePreference: async (profile: UserProfileV2, battlePreference: Partial<BattlePreferenceV4>) => {
+      const next = normalizeProfile({
+        ...profile,
+        battlePreference: normalizeBattlePreferenceV4(battlePreference),
+        updatedAt: new Date().toISOString(),
+      });
+      return userProfiles.saveUserProfile(next);
+    },
     deleteUserProfile: () => userProfiles.deleteUserProfile(),
     loadTrainingRun: () => trainingRuns.loadTrainingRun(),
     saveTrainingRun: trainingRuns.saveTrainingRun,
@@ -181,6 +190,7 @@ export function createDefaultUserProfile(draft: UserProfileDraftV2 = {}, now = n
     backAsset: trainer.backAsset,
     createdAt,
     updatedAt: createdAt,
+    battlePreference: normalizeBattlePreferenceV4(),
   };
 }
 
@@ -197,6 +207,7 @@ export function updateUserProfile(profile: UserProfileV2, draft: UserProfileDraf
     backAsset: trainer.backAsset,
     createdAt: profile.createdAt,
     updatedAt: now.toISOString(),
+    battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
   };
 }
 
@@ -258,6 +269,7 @@ function normalizeProfile(profile: UserProfileV2): UserProfileV2 {
     backAsset: profile.backAsset || trainer.backAsset,
     createdAt: profile.createdAt || new Date().toISOString(),
     updatedAt: profile.updatedAt || profile.createdAt || new Date().toISOString(),
+    battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
   };
 }
 

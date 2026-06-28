@@ -15,11 +15,21 @@ export type TrainingGenderV4 = "M" | "F" | "N";
 export type TrainingStatusV4 = "" | "brn" | "par" | "psn" | "tox" | "slp" | "frz";
 export type TrainingRunStatusV4 = "configuring" | "resting" | "battlePreparing" | "battling" | "settling" | "ended" | "blocked";
 export type TrainingRunNodeStateV4 = "locked" | "ready" | "preparing" | "running" | "won" | "lost" | "skipped" | "blocked";
+export type BattleSystemPreferenceV4 = "mega" | "zmove" | "dynamax" | "terastal";
+
+export type BattlePreferenceV4 = {
+  allowedGenerations: number[];
+  ruleSet: TrainingRuleSetV4;
+  enabledBattleSystems: BattleSystemPreferenceV4[];
+  legendaryBattle: boolean;
+  battleBagEnabled: boolean;
+};
 
 export type TrainingUserProfileInputV4 = {
   id: string;
   name: string;
   avatarAsset: string;
+  battlePreference?: Partial<BattlePreferenceV4>;
 };
 
 export type TrainingRunGameV4 = {
@@ -35,6 +45,7 @@ export type TrainingRunGameV4 = {
   currentNodeId: string | null;
   gameMap: TrainingRunGameNodeV4[];
   result: TrainingRunResultV4 | null;
+  battlePreference: BattlePreferenceV4;
   restPreviewUnlocks?: Record<string, true>;
 };
 
@@ -219,6 +230,36 @@ export type TrainingRunApi = {
 const TRAINING_RUN_VERSION = 1 as const;
 const DEFAULT_TRAINING_RUN_KEY = "changebattle-v2:web:training-run";
 const DEFAULT_BAG_MAX_SIZE = 50;
+export const BATTLE_GENERATION_OPTIONS_V4 = [
+  {generation: 1, region: "关都"},
+  {generation: 2, region: "城都"},
+  {generation: 3, region: "丰缘"},
+  {generation: 4, region: "神奥"},
+  {generation: 5, region: "合众"},
+  {generation: 6, region: "卡洛斯"},
+  {generation: 7, region: "阿罗拉"},
+  {generation: 8, region: "伽勒尔"},
+  {generation: 9, region: "帕底亚"},
+] as const;
+export const BATTLE_SYSTEM_OPTIONS_V4: Array<{id: BattleSystemPreferenceV4; name: string}> = [
+  {id: "mega", name: "Mega"},
+  {id: "zmove", name: "Z 招式"},
+  {id: "dynamax", name: "极巨化"},
+  {id: "terastal", name: "太晶化"},
+];
+export const BATTLE_RULE_PRESET_OPTIONS_V4: Array<{id: TrainingRuleSetV4; name: string; systems: BattleSystemPreferenceV4[]; maxGeneration?: number}> = [
+  {id: "standard", name: "无特殊系统", systems: []},
+  {id: "gen7", name: "第七世代规则", systems: ["mega", "zmove"], maxGeneration: 7},
+  {id: "gen8", name: "第八世代规则", systems: ["dynamax"], maxGeneration: 8},
+  {id: "gen9", name: "第九世代规则", systems: ["terastal"], maxGeneration: 9},
+];
+export const DEFAULT_BATTLE_PREFERENCE_V4: BattlePreferenceV4 = {
+  allowedGenerations: [1, 2, 3, 4, 5, 6, 7],
+  ruleSet: "standard",
+  enabledBattleSystems: [],
+  legendaryBattle: false,
+  battleBagEnabled: true,
+};
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_NATURE = "Serious";
 const DEFAULT_ITEM_ID = "";
@@ -248,6 +289,28 @@ const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   gen9: ["system-tera-orb"],
 };
 const MANAGED_SYSTEM_ITEM_IDS = new Set(Object.values(DEFAULT_SYSTEM_ITEMS_BY_RULE_SET).flat());
+
+export function battleSystemsForRuleSetV4(ruleSet: TrainingRuleSetV4): BattleSystemPreferenceV4[] {
+  return [...(BATTLE_RULE_PRESET_OPTIONS_V4.find(option => option.id === ruleSet)?.systems || [])];
+}
+
+export function normalizeBattlePreferenceV4(input?: Partial<BattlePreferenceV4> | null): BattlePreferenceV4 {
+  const validGenerations = new Set<number>(BATTLE_GENERATION_OPTIONS_V4.map(option => option.generation));
+  const allowedGenerations = Array.from(new Set((input?.allowedGenerations || DEFAULT_BATTLE_PREFERENCE_V4.allowedGenerations)
+    .map(value => Math.floor(Number(value)))
+    .filter(value => validGenerations.has(value))))
+    .sort((a, b) => a - b);
+  const ruleSet = BATTLE_RULE_PRESET_OPTIONS_V4.some(option => option.id === input?.ruleSet)
+    ? input!.ruleSet as TrainingRuleSetV4
+    : DEFAULT_BATTLE_PREFERENCE_V4.ruleSet;
+  return {
+    allowedGenerations: allowedGenerations.length >= 3 ? allowedGenerations : [...DEFAULT_BATTLE_PREFERENCE_V4.allowedGenerations],
+    ruleSet,
+    enabledBattleSystems: battleSystemsForRuleSetV4(ruleSet),
+    legendaryBattle: Boolean(input?.legendaryBattle),
+    battleBagEnabled: typeof input?.battleBagEnabled === "boolean" ? input.battleBagEnabled : DEFAULT_BATTLE_PREFERENCE_V4.battleBagEnabled,
+  };
+}
 
 const NPC_CATALOG: TrainingNpcV4[] = [
   {
@@ -300,22 +363,24 @@ const NPC_CATALOG: TrainingNpcV4[] = [
 export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingRunStorageAdapter = createBrowserTrainingRunAdapter()): TrainingRunApi {
   function createDefaultTrainingScenario(profile: TrainingUserProfileInputV4): TrainingScenarioV4 {
     const enemyNpc = enemyNpcs()[0]!;
+    const battlePreference = normalizeBattlePreferenceV4(profile.battlePreference);
     return normalizeScenario({
       id: createId("training-scenario"),
       name: "训练场测试",
       mode: "singles",
-      ruleSet: "standard",
+      ruleSet: battlePreference.ruleSet,
       battleCount: 1,
       selectedNpcIds: {p2: enemyNpc.id},
       players: [
         createPlayer("p1", profile.name, profile.avatarAsset, "local", "near", randomizeTeam("p1", 3)),
         createPlayer("p2", enemyNpc.name, enemyNpc.avatar, "ai", "far", randomizeTeam("p2", 3, enemyNpc.signatureSpeciesIds)),
       ],
-    }, profile);
+    }, profile, battlePreference);
   }
 
   function createTrainingRunGame(profile: TrainingUserProfileInputV4): TrainingRunGameV4 {
     const now = new Date().toISOString();
+    const battlePreference = normalizeBattlePreferenceV4(profile.battlePreference);
     const scenario = createDefaultTrainingScenario(profile);
     return {
       version: TRAINING_RUN_VERSION,
@@ -330,13 +395,16 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       currentNodeId: null,
       gameMap: [],
       result: null,
+      battlePreference,
     };
   }
 
   function updateTrainingScenario(run: TrainingRunGameV4, patch: Partial<TrainingScenarioV4>): TrainingRunGameV4 {
-    const scenario = normalizeScenario({...run.scenario, ...patch}, profileFromRun(run));
+    const battlePreference = normalizeBattlePreferenceV4(run.battlePreference);
+    const scenario = normalizeScenario({...run.scenario, ...patch}, profileFromRun(run), battlePreference);
     return normalizeRun({
       ...run,
+      battlePreference: {...battlePreference, ruleSet: scenario.ruleSet, enabledBattleSystems: battleSystemsForRuleSetV4(scenario.ruleSet)},
       status: "configuring",
       updatedAt: new Date().toISOString(),
       scenario,
@@ -349,11 +417,13 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
 
   function createTrainingRunFromScenario(run: TrainingRunGameV4): TrainingRunGameV4 {
     const profile = profileFromRun(run);
-    const scenario = normalizeScenario(run.scenario, profile);
+    const battlePreference = normalizeBattlePreferenceV4(run.battlePreference);
+    const scenario = normalizeScenario(run.scenario, profile, battlePreference);
     const players = playersRecordFromScenario(scenario);
     const gameMap = createGameMapFromScenarioForRun(scenario);
     return normalizeRun({
       ...run,
+      battlePreference: {...battlePreference, ruleSet: scenario.ruleSet, enabledBattleSystems: battleSystemsForRuleSetV4(scenario.ruleSet)},
       status: "resting",
       updatedAt: new Date().toISOString(),
       scenario,
@@ -392,6 +462,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     const profile = profileFromRun(run);
     const enemy = pick(enemyNpcs());
     const ally = pick(allyNpcs());
+    const battlePreference = normalizeBattlePreferenceV4(run.battlePreference);
     const scenario = normalizeScenario({
       ...run.scenario,
       mode,
@@ -399,8 +470,8 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       battleCount: Math.random() > 0.5 ? 2 : 1,
       selectedNpcIds: mode === "coop" ? {p2: enemy.id, p3: ally.id, p4: pick(enemyNpcs()).id} : {p2: enemy.id},
       players: playersForMode(mode, profile, enemy, ally, true),
-    }, profile);
-    return normalizeRun({...run, status: "configuring", scenario, players: playersRecordFromScenario(scenario), gameMap: [], currentNodeId: null, result: null, updatedAt: new Date().toISOString()});
+    }, profile, battlePreference);
+    return normalizeRun({...run, battlePreference: {...battlePreference, ruleSet: scenario.ruleSet, enabledBattleSystems: battleSystemsForRuleSetV4(scenario.ruleSet)}, status: "configuring", scenario, players: playersRecordFromScenario(scenario), gameMap: [], currentNodeId: null, result: null, updatedAt: new Date().toISOString()});
   }
 
   function randomizeTeam(playerId: ShowdownPlayerIdV4, size: number, preferredSpeciesIds?: string[]): LocalTeamV4 {
@@ -424,7 +495,8 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
   }
 
   function normalizeRun(run: TrainingRunGameV4): TrainingRunGameV4 {
-    const scenario = normalizeScenario(run.scenario, profileFromRun(run));
+    const battlePreference = normalizeBattlePreferenceV4(run.battlePreference || {ruleSet: run.scenario?.ruleSet});
+    const scenario = normalizeScenario(run.scenario, profileFromRun(run), battlePreference);
     const players = normalizePlayersRecord(run.players, scenario);
     const hasGameMap = Array.isArray(run.gameMap) && run.gameMap.length > 0;
     const gameMap = hasGameMap ? normalizeGameMap(run.gameMap, scenario) : [];
@@ -444,23 +516,24 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       currentNodeId,
       gameMap,
       result: run.result || null,
+      battlePreference: {...battlePreference, ruleSet: scenario.ruleSet, enabledBattleSystems: battleSystemsForRuleSetV4(scenario.ruleSet)},
       restPreviewUnlocks: normalizeRestPreviewUnlocks(run.restPreviewUnlocks),
     };
   }
 
-  function normalizeScenario(scenario: TrainingScenarioV4, profile: Pick<TrainingUserProfileInputV4, "name" | "avatarAsset">): TrainingScenarioV4 {
+  function normalizeScenario(scenario: TrainingScenarioV4, profile: Pick<TrainingUserProfileInputV4, "name" | "avatarAsset">, battlePreference = normalizeBattlePreferenceV4()): TrainingScenarioV4 {
     const mode = scenario.mode || "singles";
     const playerMap = new Map((scenario.players || []).map(player => [player.playerId, player]));
     const enemy = npcById(scenario.selectedNpcIds?.p2) || enemyNpcs()[0]!;
     const ally = npcById(scenario.selectedNpcIds?.p3) || allyNpcs()[0]!;
-    const ruleSet = scenario.ruleSet || "standard";
+    const ruleSet = scenario.ruleSet || battlePreference.ruleSet;
     const players = playerIdsForMode(mode).map(playerId => {
       const existing = playerMap.get(playerId);
-      if (existing) return withRuleSetBag(normalizePlayer(existing, mode), ruleSet);
-      if (playerId === "p1") return withRuleSetBag(createPlayer("p1", profile.name, profile.avatarAsset, "local", "near", randomizeTeam("p1", defaultTeamSize(mode))), ruleSet);
-      if (playerId === "p3") return withRuleSetBag(createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", defaultTeamSize(mode), ally.signatureSpeciesIds)), ruleSet);
+      if (existing) return withRuleSetBag(normalizePlayer(existing, mode), ruleSet, battlePreference);
+      if (playerId === "p1") return withRuleSetBag(createPlayer("p1", profile.name, profile.avatarAsset, "local", "near", randomizeTeam("p1", defaultTeamSize(mode))), ruleSet, battlePreference);
+      if (playerId === "p3") return withRuleSetBag(createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", defaultTeamSize(mode), ally.signatureSpeciesIds)), ruleSet, battlePreference);
       const npc = playerId === "p4" ? pick(enemyNpcs()) : enemy;
-      return withRuleSetBag(createPlayer(playerId, npc.name, npc.avatar, "ai", "far", randomizeTeam(playerId, defaultTeamSize(mode), npc.signatureSpeciesIds)), ruleSet);
+      return withRuleSetBag(createPlayer(playerId, npc.name, npc.avatar, "ai", "far", randomizeTeam(playerId, defaultTeamSize(mode), npc.signatureSpeciesIds)), ruleSet, battlePreference);
     });
     return {
       id: scenario.id || createId("training-scenario"),
@@ -473,8 +546,9 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     };
   }
 
-  function withRuleSetBag(player: TrainingPlayerDraftV4, ruleSet: TrainingRuleSetV4): TrainingPlayerDraftV4 {
-    return {...player, bag: ensureDefaultSystemItemsForRuleSetV4(normalizeBagStateV4(player.bag), ruleSet)};
+  function withRuleSetBag(player: TrainingPlayerDraftV4, ruleSet: TrainingRuleSetV4, battlePreference = normalizeBattlePreferenceV4()): TrainingPlayerDraftV4 {
+    const bag = ensureDefaultSystemItemsForRuleSetV4(normalizeBagStateV4(player.bag), ruleSet);
+    return {...player, bag: {...bag, battleBagEnabled: battlePreference.battleBagEnabled}};
   }
 
   function normalizePlayer(player: TrainingPlayerDraftV4, mode: TrainingModeV4): TrainingPlayerDraftV4 {

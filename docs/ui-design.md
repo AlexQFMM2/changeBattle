@@ -82,6 +82,11 @@ ChangeBattle 的 UI 不是网页后台，也不是普通响应式网页。所有
 - 筛选、分页、标签栏必须单行优先；内容过多时横向滚动或缩写，不要默认换两行。
 - 组件内文字超出时使用省略号或内部滚动，不能撑破 `640 x 320` 布局。
 
+## 首页组件规则
+
+- 首页左侧推荐区复用 V1 `FavoritePokemonPanel` 与 `DiscoveryPanel`。这两个组件的 JSX 结构、CSS class、motion variants、hover/tap 动画、Reorder 行为和点击回调语义不允许改动。
+- V2 只能在外层容器做数据适配，例如把 V2 图鉴搜索结果转换成 `MainMenuDexCard`，以及把卡片点击映射到 V2 `QuickDexModal`。
+
 ## 背包类 UI 规则
 
 - 背包左侧：筛选条 + 道具列表。

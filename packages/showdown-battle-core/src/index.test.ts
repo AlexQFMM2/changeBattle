@@ -427,9 +427,9 @@ function aiForceSwitchSmoke() {
   console.log("showdown-battle-core ai force switch smoke ok");
 }
 
-function randomTeamGeneratorSmoke() {
-  const first = generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
-  const second = generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
+async function randomTeamGeneratorSmoke() {
+  const first = await generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
+  const second = await generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
   if (!first.diagnostics.ok) throw new Error(`gen9 singles random team failed: ${first.diagnostics.messages.join("; ")}`);
   if (first.pokemonSets.length !== 6) throw new Error(`expected default 6 pokemon, got ${first.pokemonSets.length}`);
   if (first.packedTeam !== second.packedTeam) throw new Error("same seed should generate stable packed team");
@@ -451,7 +451,7 @@ function randomTeamGeneratorSmoke() {
     ["standard", "singles"],
   ];
   for (const [ruleSet, mode] of cases) {
-    const result = generateShowdownRandomTeamV4({ruleSet, mode, seed: `${ruleSet}-${mode}`});
+    const result = await generateShowdownRandomTeamV4({ruleSet, mode, seed: `${ruleSet}-${mode}`});
     if (!result.diagnostics.ok) {
       throw new Error(`${ruleSet}/${mode} random team failed: ${result.diagnostics.messages.join("; ")}`);
     }
@@ -460,13 +460,13 @@ function randomTeamGeneratorSmoke() {
     }
   }
 
-  const unavailable = generateShowdownRandomTeamV4({ruleSet: "gen7", mode: "doubles", seed: "gen7-doubles"});
+  const unavailable = await generateShowdownRandomTeamV4({ruleSet: "gen7", mode: "doubles", seed: "gen7-doubles"});
   if (unavailable.diagnostics.ok || unavailable.pokemonSets.length || !unavailable.diagnostics.messages.length) {
     throw new Error(`gen7 doubles should return explicit unavailable diagnostics: ${JSON.stringify(unavailable)}`);
   }
 
   const allowedSpecies = ["pelipper", "torkoal", "tyranitar", "hatterene", "glimmora", "toxapex", "dragonite", "leafeon"];
-  const filtered = generateShowdownRandomTeamV4({
+  const filtered = await generateShowdownRandomTeamV4({
     ruleSet: "gen9",
     mode: "singles",
     seed: "filtered-team",
@@ -480,7 +480,7 @@ function randomTeamGeneratorSmoke() {
   }
   if (!filtered.diagnostics.pokemonFilter?.matchedSpeciesIds.length) throw new Error("missing pokemon filter diagnostics");
 
-  const rain = generateShowdownRandomTeamV4({
+  const rain = await generateShowdownRandomTeamV4({
     ruleSet: "gen9",
     mode: "singles",
     seed: "rain-team",

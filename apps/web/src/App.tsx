@@ -10,8 +10,11 @@ import {
   type TrainingRunGameV4,
   type UserProfileDraftV2,
   type UserProfileV2,
+  type DexSearchRow,
+  type DexCategory,
 } from "@changebattle-v2/api";
 import {QuickDexModal} from "./components/dex/QuickDexModal";
+import {BattlePreferencePage} from "./components/battle-preference/BattlePreferencePage";
 import {BattleV4Page} from "./components/battle-v4/BattleV4Page";
 import {TrainingBattleTransitionPage} from "./components/battle-v4/TrainingBattleTransitionPage";
 import {ComponentGalleryPage} from "./components/gallery/ComponentGalleryPage";
@@ -67,6 +70,9 @@ function RoutedApp({runtime}: AppProps) {
   const [editingProfile, setEditingProfile] = useState<UserProfileV2 | null>(null);
   const [dexOpen, setDexOpen] = useState(false);
   const [dexInitialPokemonId, setDexInitialPokemonId] = useState<string | null>(null);
+  const [dexInitialCategory, setDexInitialCategory] = useState<Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items"> | undefined>(undefined);
+  const [dexInitialQuery, setDexInitialQuery] = useState<string | null>(null);
+  const [dexInitialRow, setDexInitialRow] = useState<DexSearchRow | null>(null);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [battleSessionId, setBattleSessionId] = useState("");
 
@@ -219,6 +225,17 @@ function RoutedApp({runtime}: AppProps) {
 
   function openDex(initialPokemonId: string | null = null) {
     setDexInitialPokemonId(initialPokemonId);
+    setDexInitialCategory(undefined);
+    setDexInitialQuery(null);
+    setDexInitialRow(null);
+    setDexOpen(true);
+  }
+
+  function openDexCard(seed: {category: Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items">; query: string; entry: DexSearchRow}) {
+    setDexInitialPokemonId(null);
+    setDexInitialCategory(seed.category);
+    setDexInitialQuery(seed.query);
+    setDexInitialRow(seed.entry);
     setDexOpen(true);
   }
 
@@ -237,13 +254,16 @@ function RoutedApp({runtime}: AppProps) {
   const mainPage = profile ? (
     <>
       <MainMenuPage
+        api={api}
         profile={profile}
         catalog={catalog.trainers}
+        trainingRun={trainingRun}
         hasTrainingRun={Boolean(trainingRun)}
         onOpenDex={() => openDex()}
-        onOpenComponents={() => navigate("/components")}
+        onOpenDexCard={openDexCard}
         onTraining={() => void createTrainingRunAndOpenConfig()}
         onContinueTraining={() => void continueTrainingRun()}
+        onBattlePreference={() => navigate("/battle-preference")}
         onUserInfo={startEdit}
         onTitle={() => navigate("/", {replace: true})}
       />
@@ -267,6 +287,15 @@ function RoutedApp({runtime}: AppProps) {
       onBack={() => navigate(profile ? "/main" : "/", {replace: true})}
     />
   );
+
+  const battlePreferencePage = profile ? (
+    <BattlePreferencePage
+      api={api}
+      profile={profile}
+      onProfileChange={setProfile}
+      onBack={() => navigate("/main", {replace: true})}
+    />
+  ) : <Navigate to="/" replace />;
 
   const trainingConfigPage = profile ? (
     trainingRun ? (
@@ -358,6 +387,7 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/main" element={mainPage} />
         <Route path="/components" element={componentGalleryPage} />
         <Route path="/user" element={settingsPage} />
+        <Route path="/battle-preference" element={battlePreferencePage} />
         <Route path="/training/transition" element={<Navigate to="/training/config" replace />} />
         <Route path="/training/config" element={trainingConfigPage} />
         <Route path="/training/run-transition" element={trainingRunTransitionPage} />
@@ -367,7 +397,16 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/battle" element={trainingBattlePage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {dexOpen ? <QuickDexModal api={api} initialPokemonId={dexInitialPokemonId} onClose={() => setDexOpen(false)} /> : null}
+      {dexOpen ? (
+        <QuickDexModal
+          api={api}
+          initialPokemonId={dexInitialPokemonId}
+          initialCategory={dexInitialCategory}
+          initialQuery={dexInitialQuery}
+          initialRow={dexInitialRow}
+          onClose={() => setDexOpen(false)}
+        />
+      ) : null}
     </GameViewport>
   );
 }

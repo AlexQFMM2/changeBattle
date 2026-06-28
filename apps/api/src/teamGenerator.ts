@@ -27,8 +27,8 @@ export type RandomBattleTeamPreviewResultV4 = ShowdownRandomTeamGeneratorResultV
 
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 
-export function generateRandomBattleTeamPreviewV4(dex: ShowdownDexService, input: RandomBattleTeamPreviewInputV4 = {}): RandomBattleTeamPreviewResultV4 {
-  const generated = generateShowdownRandomTeamV4(input);
+export async function generateRandomBattleTeamPreviewV4(dex: ShowdownDexService, input: RandomBattleTeamPreviewInputV4 = {}): Promise<RandomBattleTeamPreviewResultV4> {
+  const generated = await generateShowdownRandomTeamV4(input);
   const adapterDiagnostics = createAdapterDiagnostics();
   const localTeam = input.includeLocalTeam === false
     ? null
