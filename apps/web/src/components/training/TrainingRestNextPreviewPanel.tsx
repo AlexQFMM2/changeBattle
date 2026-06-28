@@ -61,7 +61,7 @@ function NextOpponentPreview({
       <div className={`training-rest-next-npc-grid count-${Math.max(1, trainers.length)}`}>
         {trainers.length ? trainers.map(entry => (
           <div className="training-rest-next-npc-card" key={entry.playerId}>
-            <ImageWithFallback src={fullBodyTrainerImage(entry)} alt="" fallback="?" />
+            <ImageWithFallback src={entry.avatar} alt="" fallback="?" />
             <strong>{entry.name || "未知对手"}</strong>
             <small>{preview.rank}</small>
           </div>
@@ -155,15 +155,6 @@ function aiRankLabel(index: number): string {
   if (index >= 3) return "馆主";
   if (index >= 2) return "精英";
   return "菜鸟";
-}
-
-function fullBodyTrainerImage(trainer: TrainingPlayerDraftV4): string {
-  if (trainer.name === "赤红") return "/npc/boss/red-red-c813612f.gif";
-  if (trainer.name === "小茂") return "/npc/boss/blue-bluehgss-43e96b09.gif";
-  if (trainer.name === "竹兰") return "/npc/avatars/cynthia-vscynthia-7b500adf.png";
-  if (trainer.name === "共平") return "/npc/avatars/11-asset-fdb7e61e.webp";
-  if (trainer.name === "鸣依") return "/npc/avatars/6-asset-a73f3e71.webp";
-  return trainer.avatar;
 }
 
 function TrainingRestNewPokemonIcon({pokemon}: {pokemon: PreviewPokemon}) {

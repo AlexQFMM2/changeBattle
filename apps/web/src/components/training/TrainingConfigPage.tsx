@@ -476,7 +476,7 @@ function teamSizeForMode(mode: TrainingModeV4): number {
 function TrainingRuleBar({mode, ruleSet, battleCount, onMode, onRuleSet, onBattleCount}: {
   mode: TrainingModeV4;
   ruleSet: TrainingRuleSetV4;
-  battleCount: 1 | 2;
+  battleCount: number;
   onMode: (mode: TrainingModeV4) => void;
   onRuleSet: (ruleSet: TrainingRuleSetV4) => void;
   onBattleCount: (count: 1 | 2) => void;

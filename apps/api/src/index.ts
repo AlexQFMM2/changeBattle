@@ -198,6 +198,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     createFormalGameRun: formalRuns.createFormalGameRun,
     prepareFormalStarterCandidates: formalRuns.prepareFormalStarterCandidates,
     selectFormalStarterPokemon: formalRuns.selectFormalStarterPokemon,
+    prepareFormalRoundPlan: formalRuns.prepareFormalRoundPlan,
     selectedCountForFormalMode: formalRuns.selectedCountForFormalMode,
     createTrainingRunGame: trainingRuns.createTrainingRunGame,
     createDefaultTrainingScenario: trainingRuns.createDefaultTrainingScenario,

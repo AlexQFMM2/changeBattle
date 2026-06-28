@@ -275,4 +275,23 @@ assert(selected.status === "roundPlanPending", "selected run should wait for rou
 assert(selected.playerTeam?.pokemon.length === 3, "selected player team should contain 3 pokemon");
 assert(selected.playerTeam.pokemon.every(pokemon => pokemon.itemId === ""), "selected player team should stay itemless");
 
+const roundPlanned = api.prepareFormalRoundPlan(selected);
+assert(roundPlanned.status === "resting", "formal round plan should enter resting status");
+assert(roundPlanned.roundPlan.length === 7, "formal round plan should create seven rounds");
+assert(roundPlanned.restRunSnapshot?.gameMap.length === 7, "formal rest snapshot should expose seven map nodes");
+assert(roundPlanned.restRunSnapshot?.currentNodeId === roundPlanned.restRunSnapshot?.gameMap[0]?.id, "formal rest snapshot should point at first round");
+assert(roundPlanned.roundPlan[0]?.participants.p1?.localTeam.pokemon.every(pokemon => pokemon.itemId === ""), "formal player team should remain itemless in round plan");
+assert(roundPlanned.roundPlan.every(round => (round.participants.p2?.localTeam.pokemon.length || 0) === 6), "formal opponents should have full six pokemon teams");
+assert(roundPlanned.roundPlan.every(round => {
+  const team = round.participants.p2?.localTeam.pokemon || [];
+  return new Set(team.map(pokemon => pokemon.speciesId)).size === team.length;
+}), "formal opponent teams should avoid internal duplicate species");
+
+const coopPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "coop", seed: "formal-smoke-coop-seed"}));
+const coopSelected = api.selectFormalStarterPokemon(coopPrepared, [0, 1]);
+const coopPlanned = api.prepareFormalRoundPlan(coopSelected);
+assert(coopPlanned.roundPlan.length === 7, "coop formal plan should still create seven rounds");
+assert(coopPlanned.roundPlan.flatMap(round => round.npcs).length === 21, "coop formal plan should create 14 opponents and 7 allies");
+assert(coopPlanned.roundPlan.every(round => round.participants.p2 && round.participants.p3 && round.participants.p4), "coop formal rounds should include p2/p3/p4");
+
 console.log("[formal-game-smoke] ok");

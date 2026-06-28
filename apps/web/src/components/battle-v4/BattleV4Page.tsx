@@ -17,6 +17,7 @@ export type BattleV4PageProps = {
   debugConfig?: AppDebugConfigV4;
   onRunChange: (run: TrainingRunGameV4) => void;
   onBackToRest: () => void;
+  onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
 };
 
 type SwitchActionV4 = Extract<BattleCommandActionV4, {kind: "switch"}>;
@@ -171,7 +172,7 @@ const TYPE_SHORT_LABEL: Record<string, string> = {
   fairy: "妖",
 };
 
-export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest}: BattleV4PageProps) {
+export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest, onSaveRunSnapshot}: BattleV4PageProps) {
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
   const [busy, setBusy] = useState(false);
@@ -260,8 +261,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         setMessage("");
         if (next.status === "ended" || next.status === "blocked") {
           const patched = applyBattleSessionToRun(run, next);
-          await api.saveTrainingRun(patched);
-          if (!cancelled) onRunChange(patched);
+          const saved = onSaveRunSnapshot ? await onSaveRunSnapshot(patched) : await api.saveTrainingRun(patched);
+          if (!cancelled) onRunChange(saved);
           return;
         }
       } catch (error) {
@@ -274,7 +275,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, busy, onRunChange, run, sessionId]);
+  }, [api, busy, onRunChange, onSaveRunSnapshot, run, sessionId]);
 
   async function submitChoice(choice: string, trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"] = []) {
     if (!choice || busy || !sessionId) return;

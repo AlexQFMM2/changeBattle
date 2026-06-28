@@ -22,6 +22,7 @@ import {TrainingBattleTransitionPage} from "./components/battle-v4/TrainingBattl
 import {ComponentGalleryPage} from "./components/gallery/ComponentGalleryPage";
 import {FormalGamePendingPage} from "./components/formal/FormalGamePendingPage";
 import {FormalGameTransitionPage} from "./components/formal/FormalGameTransitionPage";
+import {FormalRoundTransitionPage} from "./components/formal/FormalRoundTransitionPage";
 import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPage";
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
@@ -262,10 +263,20 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/training/battle-transition", {replace: true});
   }
 
+  function startFormalBattleFromRest() {
+    navigate("/formal/battle-transition", {replace: true});
+  }
+
   function enterBattle(sessionId: string) {
     setBattleSessionId(sessionId);
     window.sessionStorage?.setItem(`changebattle-v2:${runtime}:battle-session`, sessionId);
     navigate("/training/battle", {replace: true});
+  }
+
+  function enterFormalBattle(sessionId: string) {
+    setBattleSessionId(sessionId);
+    window.sessionStorage?.setItem(`changebattle-v2:${runtime}:formal-battle-session`, sessionId);
+    navigate("/formal/battle", {replace: true});
   }
 
   function openDex(initialPokemonId: string | null = null) {
@@ -457,7 +468,7 @@ function RoutedApp({runtime}: AppProps) {
         api={api}
         run={formalRun}
         onRunChange={setFormalRun}
-        onDone={() => navigate("/formal/pending", {replace: true})}
+        onDone={() => navigate("/formal/round-transition", {replace: true})}
         onBack={() => navigate("/main", {replace: true})}
       />
     ) : (
@@ -468,6 +479,85 @@ function RoutedApp({runtime}: AppProps) {
   const formalPendingPage = profile ? (
     formalRun ? (
       <FormalGamePendingPage run={formalRun} onBack={() => navigate("/main", {replace: true})} />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const formalRoundTransitionPage = profile ? (
+    formalRun?.playerTeam ? (
+      <FormalRoundTransitionPage
+        api={api}
+        run={formalRun}
+        onRunReady={run => {
+          setFormalRun(run);
+          navigate("/formal/rest", {replace: true});
+        }}
+        onBack={() => navigate("/main", {replace: true})}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const formalRestPage = profile ? (
+    formalRun?.restRunSnapshot ? (
+      <TrainingRestNewPage
+        api={api}
+        run={formalRun.restRunSnapshot}
+        onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
+        onSaveRunSnapshot={async restRunSnapshot => {
+          if (!formalRun) return restRunSnapshot;
+          const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
+          setFormalRun(saved);
+          return saved.restRunSnapshot || restRunSnapshot;
+        }}
+        onBackToConfig={() => navigate("/main", {replace: true})}
+        onStartBattle={startFormalBattleFromRest}
+        onOpenDex={() => openDex()}
+        onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const formalBattleTransitionPage = profile ? (
+    formalRun?.restRunSnapshot ? (
+      <TrainingBattleTransitionPage
+        api={api}
+        run={formalRun.restRunSnapshot}
+        onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
+        onSaveRunSnapshot={async restRunSnapshot => {
+          if (!formalRun) return restRunSnapshot;
+          const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
+          setFormalRun(saved);
+          return saved.restRunSnapshot || restRunSnapshot;
+        }}
+        onReady={enterFormalBattle}
+        onBackToRest={() => navigate("/formal/rest", {replace: true})}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const formalBattlePage = profile ? (
+    formalRun?.restRunSnapshot ? (
+      <BattleV4Page
+        api={api}
+        run={formalRun.restRunSnapshot}
+        sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
+        debugConfig={APP_DEBUG_CONFIG_V4}
+        onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
+        onSaveRunSnapshot={async restRunSnapshot => {
+          if (!formalRun) return restRunSnapshot;
+          const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
+          setFormalRun(saved);
+          return saved.restRunSnapshot || restRunSnapshot;
+        }}
+        onBackToRest={() => navigate("/formal/rest", {replace: true})}
+      />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -491,6 +581,10 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/battle" element={trainingBattlePage} />
         <Route path="/formal/transition/:mode" element={formalTransitionPage} />
         <Route path="/formal/starter-select" element={formalStarterSelectPage} />
+        <Route path="/formal/round-transition" element={formalRoundTransitionPage} />
+        <Route path="/formal/rest" element={formalRestPage} />
+        <Route path="/formal/battle-transition" element={formalBattleTransitionPage} />
+        <Route path="/formal/battle" element={formalBattlePage} />
         <Route path="/formal/pending" element={formalPendingPage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

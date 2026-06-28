@@ -501,7 +501,7 @@ export function createBattleGameFromTrainingNode(run: TrainingRunGameV4, node: T
   const showdownIdPool = createShowdownIdPoolState();
   const usedShowdownIdentityTokens = new Set(showdownIdPool.used);
   const players = playerIdsForNode(node)
-    .map(playerId => run.players[playerId] || node.participants?.[playerId])
+    .map(playerId => playerId === "p1" ? run.players[playerId] || node.participants?.[playerId] : node.participants?.[playerId] || run.players[playerId])
     .filter(Boolean)
     .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool));
   return {

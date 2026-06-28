@@ -82,7 +82,7 @@ export type TrainingScenarioV4 = {
   name: string;
   mode: TrainingModeV4;
   ruleSet: TrainingRuleSetV4;
-  battleCount: 1 | 2;
+  battleCount: number;
   players: TrainingPlayerDraftV4[];
   selectedNpcIds: Partial<Record<ShowdownPlayerIdV4, string>>;
 };
@@ -540,7 +540,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       name: scenario.name || "训练场测试",
       mode,
       ruleSet,
-      battleCount: scenario.battleCount === 2 ? 2 : 1,
+      battleCount: normalizeBattleCount(scenario.battleCount),
       selectedNpcIds: scenario.selectedNpcIds || {p2: enemy.id},
       players,
     };
@@ -1035,6 +1035,10 @@ function normalizeNodeParticipants(
 function normalizeRunStatus(status: unknown, gameMap: TrainingRunGameNodeV4[]): TrainingRunStatusV4 {
   if (["configuring", "resting", "battlePreparing", "battling", "settling", "ended", "blocked"].includes(String(status))) return status as TrainingRunStatusV4;
   return gameMap.length ? "resting" : "configuring";
+}
+
+function normalizeBattleCount(value: unknown): number {
+  return clampInt(value, 1, 7, 1);
 }
 
 function normalizeNodeState(state: unknown, index: number): TrainingRunNodeStateV4 {

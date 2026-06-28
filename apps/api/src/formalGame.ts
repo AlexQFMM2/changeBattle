@@ -3,6 +3,7 @@ import type {
   DexPokemonDetail,
   DexSearchRow,
   DexStatId,
+  DexTrainerDetail,
   ShowdownDexService,
 } from "@changebattle-v2/showdown-dex-core";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
@@ -10,22 +11,59 @@ import {cloneStarChartV4, starterCandidateCountForStarChart, type StarChartState
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
+  type BagStateV4,
   type LocalPokemonV4,
   type LocalTeamV4,
+  type ShowdownPlayerIdV4,
   type StatTableV4,
   type TrainingGenderV4,
+  type TrainingPlayerDraftV4,
   type TrainingMoveSlotV4,
   type TrainingRuleSetV4,
+  type TrainingRunGameNodeV4,
+  type TrainingRunGameV4,
   type TrainingStatusV4,
   type TrainingUserProfileInputV4,
 } from "./training.js";
 
 export type FormalGameModeV4 = "singles" | "doubles" | "coop";
-export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "ended";
+export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "roundPlanning" | "resting" | "ended";
 export type FormalStarterRoleV4 = "weather" | "trick-room" | "offense" | "support" | "defense" | "speed-control" | "disruption" | "flex-offense" | "flex-defense" | "balanced";
 export type PokemonSpeciesRankV4 = FormalPokemonSpeciesRankData;
 export type PokemonPowerProfileV4 = "rookie" | "normal" | "elite" | "boss" | "champion";
 export type CoopPartnerPreferenceV4 = "offense" | "defense" | "support" | "balanced";
+export type FormalNpcTypeV4 = "rookie" | "normal" | "elite" | "gym" | "elite4" | "champion" | "villain";
+export type FormalNpcBattlePreferenceV4 = "offense" | "defense" | "support" | "balanced";
+export type FormalNpcTeamPreferenceV4 = "balanced" | "rain" | "sun" | "sand" | "snow" | "trick-room" | "tailwind" | "terrain" | "hazard-stack" | "poison-stall" | "setup-offense";
+
+export type FormalRoundNpcSnapshotV4 = {
+  id: string;
+  trainerId: string;
+  trainerType: FormalNpcTypeV4;
+  name: string;
+  avatar: string;
+  playerId: ShowdownPlayerIdV4;
+  battlePreference: FormalNpcBattlePreferenceV4;
+  teamPreference: FormalNpcTeamPreferenceV4;
+  powerProfile: PokemonPowerProfileV4;
+  isBoss: boolean;
+  diagnostics: string[];
+};
+
+export type FormalRoundPlanV4 = {
+  id: string;
+  index: number;
+  mode: FormalGameModeV4;
+  ruleSet: TrainingRuleSetV4;
+  difficulty: FormalNpcTypeV4;
+  seed: string;
+  npcs: FormalRoundNpcSnapshotV4[];
+  participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+  diagnostics: string[];
+};
+
+type FormalBossTrainerCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "avatarAsset" | "bossProfile" | "presetTeamPreviews">;
+type FormalTrainerVisualCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "frontAsset" | "frontGifAsset" | "avatarAsset">;
 
 export type FormalStarterCandidateDiagnosticsV4 = {
   role: FormalStarterRoleV4;
@@ -76,6 +114,10 @@ export type FormalGameRunV4 = {
   starterCandidates: FormalStarterCandidateV4[];
   selectedStarterIndexes: number[];
   playerTeam: LocalTeamV4 | null;
+  roundPlan: FormalRoundPlanV4[];
+  restRunSnapshot: TrainingRunGameV4 | null;
+  currentRoundIndex: number;
+  money: number;
 };
 
 export type FormalGameRunStorageAdapter = {
@@ -91,6 +133,7 @@ export type FormalGameRunApi = {
   createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4;
   prepareFormalStarterCandidates(run: FormalGameRunV4, options?: {count?: number; seed?: string}): FormalGameRunV4;
   selectFormalStarterPokemon(run: FormalGameRunV4, selectedIndexes: number[]): FormalGameRunV4;
+  prepareFormalRoundPlan(run: FormalGameRunV4): FormalGameRunV4;
   selectedCountForFormalMode(mode: FormalGameModeV4): number;
 };
 
@@ -181,8 +224,26 @@ const STARTER_ROLE_PLAN: FormalStarterRoleV4[] = [
 const STARTER_ALLOWED_RANKS = new Set<PokemonSpeciesRankV4>(["rank4", "rank5", "rank6"]);
 const STARTER_MAX_LEGENDARY_CANDIDATES = 1;
 export const FORMAL_STARTER_SHINY_RATE = 1 / 30;
+const FORMAL_ROUND_COUNT = 7;
+const FORMAL_STARTING_MONEY = 3000;
 const FALLBACK_SPECIES = ["lucario", "charizard", "gardevoir", "dragonite", "greninja", "venusaur", "arcanine", "lapras", "gyarados", "snorlax"];
 const FALLBACK_MOVES = ["tackle", "quickattack", "protect", "rest"];
+const NPC_ITEMS = ["leftovers", "choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "sitrusberry", "lumberry", "rockyhelmet", "assaultvest", "heavydutyboots"];
+const NPC_BATTLE_PREFERENCES: FormalNpcBattlePreferenceV4[] = ["offense", "defense", "support", "balanced"];
+const NPC_TEAM_PREFERENCES: FormalNpcTeamPreferenceV4[] = ["rain", "sun", "sand", "snow", "trick-room", "tailwind", "terrain", "hazard-stack", "poison-stall", "setup-offense", "balanced"];
+const ROUND_DISTRIBUTIONS: Record<"0" | "1" | "2" | "3", FormalNpcTypeV4[]> = {
+  "0": ["rookie", "normal", "gym", "normal", "normal", "elite", "gym"],
+  "1": ["normal", "elite", "gym", "elite", "gym", "elite", "elite4"],
+  "2": ["elite", "elite", "elite4", "elite", "gym", "elite4", "champion"],
+  "3": ["elite", "gym", "elite", "elite4", "elite4", "elite4", "champion"],
+};
+const NORMAL_NPC_NAMES = {
+  rookie: ["短裤少年", "迷你裙", "捕虫少年", "露营少年", "学生"],
+  normal: ["精英训练家", "宝可梦巡护员", "背包客", "空手道王", "大姐姐"],
+  elite: ["王牌训练家", "资深训练家", "战术教练", "对战女郎", "道馆助教"],
+  ally: ["精英队友", "战术搭档", "支援训练家", "合作专家", "双打拍档"],
+} as const;
+const DEFAULT_TRAINER_AVATAR = "/npc/avatars/1-asset-18b76b7d.webp";
 const NATURES = [
   "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
   "Bold", "Docile", "Relaxed", "Impish", "Lax",
@@ -251,6 +312,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       starterCandidates: [],
       selectedStarterIndexes: [],
       playerTeam: null,
+      roundPlan: [],
+      restRunSnapshot: null,
+      currentRoundIndex: 0,
+      money: FORMAL_STARTING_MONEY,
     };
     return normalizeFormalRun(run);
   }
@@ -272,6 +337,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       starterCandidates: candidates,
       selectedStarterIndexes: [],
       playerTeam: null,
+      roundPlan: [],
+      restRunSnapshot: null,
+      currentRoundIndex: 0,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -304,6 +372,85 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       status: "roundPlanPending",
       selectedStarterIndexes: uniqueIndexes,
       playerTeam,
+      roundPlan: [],
+      restRunSnapshot: null,
+      currentRoundIndex: 0,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  function prepareFormalRoundPlan(run: FormalGameRunV4): FormalGameRunV4 {
+    const normalized = normalizeFormalRun(run);
+    if (!normalized.playerTeam?.pokemon.length) {
+      throw new Error("需要先确认初始队伍。");
+    }
+    const rng = createRng(`${normalized.seed}:round-plan:${normalized.mode}:${normalized.streak}`);
+    const usedNpcSpecies = new Set<string>();
+    const player = createFormalPlayerDraft(normalized);
+    const distribution = roundDistributionForStreak(normalized.streak);
+    const roundPlan: FormalRoundPlanV4[] = distribution.map((difficulty, index) => {
+      const seed = `${normalized.seed}:round:${index + 1}`;
+      const roundRng = createRng(seed);
+      const roundDifficulty = maybeReplaceChampionWithVillain(difficulty, roundRng);
+      const participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> = {p1: player};
+      const npcs: FormalRoundNpcSnapshotV4[] = [];
+      const diagnostics: string[] = [];
+      const enemyTypes = normalized.mode === "coop" ? [roundDifficulty, roundDifficulty] : [roundDifficulty];
+      enemyTypes.forEach((trainerType, enemyIndex) => {
+        const playerId = enemyIndex === 0 ? "p2" : "p4";
+        const built = createFormalNpcParticipant({
+          run: normalized,
+          trainerType,
+          playerId,
+          roundIndex: index,
+          slotIndex: enemyIndex,
+          alliance: "far",
+          controller: "ai",
+          usedNpcSpecies,
+          rng: roundRng,
+        });
+        participants[playerId] = built.player;
+        npcs.push(built.npc);
+        diagnostics.push(...built.diagnostics);
+      });
+      if (normalized.mode === "coop") {
+        const built = createFormalNpcParticipant({
+          run: normalized,
+          trainerType: "elite",
+          playerId: "p3",
+          roundIndex: index,
+          slotIndex: 2,
+          alliance: "near",
+          controller: "script",
+          usedNpcSpecies,
+          rng: roundRng,
+          partnerPreference: normalized.coopPartnerPreference,
+        });
+        participants.p3 = built.player;
+        npcs.push(built.npc);
+        diagnostics.push("coop-ally:elite");
+        diagnostics.push(...built.diagnostics);
+      }
+      return {
+        id: `formal-round-${index + 1}`,
+        index,
+        mode: normalized.mode,
+        ruleSet: normalized.battlePreference.ruleSet,
+        difficulty: roundDifficulty,
+        seed,
+        npcs,
+        participants,
+        diagnostics,
+      };
+    });
+    const restRunSnapshot = createFormalRestRunSnapshot(normalized, player, roundPlan);
+    return normalizeFormalRun({
+      ...normalized,
+      status: "resting",
+      roundPlan,
+      restRunSnapshot,
+      currentRoundIndex: 0,
+      money: normalized.money || FORMAL_STARTING_MONEY,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -330,6 +477,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       starterCandidates,
       selectedStarterIndexes,
       playerTeam: run.playerTeam ? normalizePlayerTeam(run.playerTeam) : null,
+      roundPlan: Array.isArray(run.roundPlan) ? run.roundPlan.map(normalizeRoundPlan) : [],
+      restRunSnapshot: run.restRunSnapshot ? normalizeFormalRestRunSnapshot(run.restRunSnapshot) : null,
+      currentRoundIndex: clampInt(run.currentRoundIndex, 0, FORMAL_ROUND_COUNT - 1, 0),
+      money: clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY),
     };
   }
 
@@ -401,6 +552,372 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     };
   }
 
+  function createFormalPlayerDraft(run: FormalGameRunV4): TrainingPlayerDraftV4 {
+    const team = run.playerTeam || {id: `formal-player-team-${run.id}`, name: "正式游戏初始队伍", pokemon: []};
+    return {
+      playerId: "p1",
+      name: "玩家",
+      avatar: "/npc/avatars/6-asset-a73f3e71.webp",
+      controller: "local",
+      alliance: "near",
+      localTeam: {
+        ...team,
+        pokemon: team.pokemon.map((pokemon, index) => ({
+          ...pokemon,
+          localPokemonId: `formal-p1-${index + 1}-${pokemon.speciesId}`,
+          itemId: "",
+          heldItemInstanceId: undefined,
+          entryHp: pokemon.maxHp,
+          entryStatus: "",
+        })),
+      },
+      bag: createEmptyBag(run.battlePreference.battleBagEnabled),
+    };
+  }
+
+  function createFormalNpcParticipant(input: {
+    run: FormalGameRunV4;
+    trainerType: FormalNpcTypeV4;
+    playerId: ShowdownPlayerIdV4;
+    roundIndex: number;
+    slotIndex: number;
+    alliance: "near" | "far";
+    controller: "ai" | "script";
+    usedNpcSpecies: Set<string>;
+    rng: () => number;
+    partnerPreference?: CoopPartnerPreferenceV4;
+  }): {player: TrainingPlayerDraftV4; npc: FormalRoundNpcSnapshotV4; diagnostics: string[]} {
+    const diagnostics: string[] = [];
+    const isBoss = isBossTrainerType(input.trainerType);
+    const battlePreference = input.partnerPreference || pickOne(NPC_BATTLE_PREFERENCES, input.rng) || "balanced";
+    const teamPreference = teamPreferenceForNpc(input.trainerType, battlePreference, input.rng);
+    const boss = isBoss ? selectBossTrainer(input.trainerType, input.rng) : null;
+    const visual = boss ? null : selectTrainerVisual(input.rng, input.controller === "script");
+    const name = boss?.nameZh || visual?.nameZh || normalNpcName(input.trainerType, input.controller === "script", input.rng);
+    const avatar = boss?.avatarAsset || fullBodyTrainerAsset(visual) || DEFAULT_TRAINER_AVATAR;
+    const teamResult = boss
+      ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, input.usedNpcSpecies, input.rng)
+      : createNpcLocalTeam(input.run, {
+        playerId: input.playerId,
+        teamPreference,
+        battlePreference,
+        trainerType: input.trainerType,
+        usedNpcSpecies: input.usedNpcSpecies,
+        rng: input.rng,
+      });
+    diagnostics.push(...teamResult.diagnostics);
+    const npc: FormalRoundNpcSnapshotV4 = {
+      id: `formal-npc-${input.roundIndex + 1}-${input.playerId}`,
+      trainerId: boss?.id || `generated:${input.trainerType}:${input.roundIndex + 1}:${input.playerId}`,
+      trainerType: input.trainerType,
+      name,
+      avatar,
+      playerId: input.playerId,
+      battlePreference,
+      teamPreference,
+      powerProfile: powerProfileForNpc(input.trainerType),
+      isBoss,
+      diagnostics,
+    };
+    return {
+      npc,
+      diagnostics,
+      player: {
+        playerId: input.playerId,
+        name,
+        avatar,
+        controller: input.controller,
+        alliance: input.alliance,
+        localTeam: teamResult.team,
+        bag: createEmptyBag(input.run.battlePreference.battleBagEnabled),
+      },
+    };
+  }
+
+  function createBossLocalTeam(
+    run: FormalGameRunV4,
+    boss: FormalBossTrainerCandidateV4,
+    playerId: ShowdownPlayerIdV4,
+    fallbackTeamPreference: FormalNpcTeamPreferenceV4,
+    usedNpcSpecies: Set<string>,
+    rng: () => number,
+  ): {team: LocalTeamV4; diagnostics: string[]} {
+    const diagnostics: string[] = [`boss:${boss.id}`];
+    const ruleSetPreset = run.battlePreference.ruleSet === "standard" ? "none" : run.battlePreference.ruleSet;
+    const previews = boss.presetTeamPreviews
+      .filter(team => team.mode === run.mode && team.ruleSetPreset === ruleSetPreset)
+      .filter(team => team.pokemon.length >= 6)
+      .filter(team => run.battlePreference.legendaryBattle || team.pokemon.every(pokemon => speciesRankForDetail(safePokemon(pokemon.speciesId)) !== "legendary"))
+      .filter(team => team.pokemon.every(pokemon => run.battlePreference.allowedGenerations.includes(generationForDexNum(safePokemon(pokemon.speciesId).num))));
+    const candidates = previews.length ? previews : boss.presetTeamPreviews.filter(team => team.mode === run.mode).filter(team => team.pokemon.length >= 6);
+    if (!previews.length) diagnostics.push("boss-static-filter-relaxed");
+    const selected = [...candidates].sort((a, b) => {
+      const overlapA = a.pokemon.filter(pokemon => usedNpcSpecies.has(baseSpeciesId(pokemon.speciesId))).length;
+      const overlapB = b.pokemon.filter(pokemon => usedNpcSpecies.has(baseSpeciesId(pokemon.speciesId))).length;
+      if (overlapA !== overlapB) return overlapA - overlapB;
+      return stableScore(`${a.trainerId}:${a.ruleSetPreset}:${a.mode}:${a.variantIndex}`) - stableScore(`${b.trainerId}:${b.ruleSetPreset}:${b.mode}:${b.variantIndex}`);
+    })[0];
+    if (!selected) {
+      diagnostics.push("boss-static-missing-generated-fallback");
+      return createNpcLocalTeam(run, {
+        playerId,
+        teamPreference: fallbackTeamPreference,
+        battlePreference: boss.bossProfile?.battlePreference || "balanced",
+        trainerType: boss.trainerType as FormalNpcTypeV4,
+        usedNpcSpecies,
+        rng,
+      });
+    }
+    const pokemon = selected.pokemon.slice(0, 6).map((entry, index) => {
+      const detail = safePokemon(entry.speciesId);
+      const role = roleForTeamPreference(selected.teamArchetype as FormalNpcTeamPreferenceV4, index);
+      const local = createStarterPokemon(dex, detail, {
+        index,
+        role,
+        powerProfile: powerProfileForNpc(boss.trainerType as FormalNpcTypeV4),
+        rng,
+        seed: `${run.seed}:${boss.id}:${selected.variantIndex}`,
+      });
+      const item = itemIdFromName(entry.item) || pickOne(NPC_ITEMS, rng) || "";
+      usedNpcSpecies.add(baseSpeciesId(detail.id));
+      return {
+        ...local,
+        localPokemonId: `${playerId}-boss-${index + 1}-${detail.id}`,
+        itemId: item,
+        heldItemInstanceId: undefined,
+        level: clampInt(entry.level, 1, 100, local.level),
+        abilityName: entry.ability || local.abilityName,
+        abilityNameZh: entry.ability || local.abilityNameZh,
+      };
+    });
+    diagnostics.push(`boss-static:${selected.ruleSetPreset}:${selected.mode}:${selected.variantIndex}`);
+    diagnostics.push(`team-archetype:${selected.teamArchetype}`);
+    return {team: {id: `formal-team-${playerId}-${boss.id}`, name: `${boss.nameZh} 队伍`, pokemon}, diagnostics};
+  }
+
+  function createNpcLocalTeam(run: FormalGameRunV4, input: {
+    playerId: ShowdownPlayerIdV4;
+    teamPreference: FormalNpcTeamPreferenceV4;
+    battlePreference: FormalNpcBattlePreferenceV4;
+    trainerType: FormalNpcTypeV4;
+    usedNpcSpecies: Set<string>;
+    rng: () => number;
+  }): {team: LocalTeamV4; diagnostics: string[]} {
+    const diagnostics = [`npc-theme:${input.teamPreference}`, `npc-ai:${input.battlePreference}`];
+    const rows = collectPokemonRows(dex, run.battlePreference);
+    const themed = filterRowsForNpcTeam(rows, input.teamPreference, input.battlePreference);
+    const pool = themed.length >= 6 ? themed : rows;
+    const selected: Array<DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number}> = [];
+    const usedInTeam = new Set<string>();
+    for (let index = 0; index < 6; index += 1) {
+      const role = roleForTeamPreference(input.teamPreference, index);
+      const rolePool = filterRowsForRole(pool, role);
+      const candidates = (rolePool.length ? rolePool : pool)
+        .filter(row => !usedInTeam.has(baseSpeciesId(row.id)))
+        .filter(row => !input.usedNpcSpecies.has(baseSpeciesId(row.id)));
+      const relaxed = (rolePool.length ? rolePool : pool).filter(row => !usedInTeam.has(baseSpeciesId(row.id)));
+      const picked = pickOne(candidates.length ? candidates : relaxed, input.rng) || fallbackRow(index);
+      if (!candidates.length) diagnostics.push(`species-dedupe-relaxed:${index + 1}`);
+      selected.push(picked);
+      usedInTeam.add(baseSpeciesId(picked.id));
+      input.usedNpcSpecies.add(baseSpeciesId(picked.id));
+    }
+    const powerProfile = powerProfileForNpc(input.trainerType);
+    const pokemon = selected.map((row, index) => {
+      const detail = safePokemon(row.id);
+      const local = createStarterPokemon(dex, detail, {
+        index,
+        role: roleForTeamPreference(input.teamPreference, index),
+        powerProfile,
+        rng: input.rng,
+        seed: `${run.seed}:${input.playerId}:${input.teamPreference}`,
+      });
+      return {
+        ...local,
+        localPokemonId: `${input.playerId}-npc-${index + 1}-${detail.id}`,
+        itemId: pickOne(NPC_ITEMS, input.rng) || "",
+        heldItemInstanceId: undefined,
+      };
+    });
+    return {
+      diagnostics,
+      team: {
+        id: `formal-team-${input.playerId}-${input.teamPreference}`,
+        name: `${input.playerId.toUpperCase()} ${teamPreferenceLabel(input.teamPreference)}`,
+        pokemon,
+      },
+    };
+  }
+
+  function createFormalRestRunSnapshot(run: FormalGameRunV4, player: TrainingPlayerDraftV4, roundPlan: FormalRoundPlanV4[]): TrainingRunGameV4 {
+    const first = roundPlan[0];
+    const firstParticipants = first?.participants || {p1: player};
+    const scenarioPlayers = ["p1", "p2", "p3", "p4"]
+      .map(playerId => firstParticipants[playerId as ShowdownPlayerIdV4])
+      .filter(Boolean) as TrainingPlayerDraftV4[];
+    const scenario = {
+      id: `formal-scenario-${run.id}`,
+      name: "正式游戏",
+      mode: run.mode,
+      ruleSet: run.battlePreference.ruleSet,
+      battleCount: FORMAL_ROUND_COUNT,
+      selectedNpcIds: Object.fromEntries(roundPlan[0]?.npcs.map(npc => [npc.playerId, npc.trainerId]) || []) as Partial<Record<ShowdownPlayerIdV4, string>>,
+      players: scenarioPlayers,
+    };
+    const gameMap: TrainingRunGameNodeV4[] = roundPlan.map(round => ({
+      id: round.id,
+      index: round.index,
+      state: round.index === 0 ? "ready" : "locked",
+      p1: "p1",
+      p2: "p2",
+      p3: run.mode === "coop" ? "p3" : null,
+      p4: run.mode === "coop" ? "p4" : null,
+      mode: round.mode,
+      ruleSet: round.ruleSet,
+      seed: round.seed,
+      participants: round.participants,
+      battleGame: null,
+      createdAt: new Date().toISOString(),
+    }));
+    return {
+      version: 1,
+      id: `formal-rest-${run.id}`,
+      source: "training",
+      status: "resting",
+      profileId: run.profileId,
+      createdAt: run.createdAt,
+      updatedAt: new Date().toISOString(),
+      scenario,
+      players: firstParticipants,
+      currentNodeId: gameMap[0]?.id || null,
+      gameMap,
+      result: null,
+      battlePreference: run.battlePreference,
+      restPreviewUnlocks: {},
+    };
+  }
+
+  function normalizeRoundPlan(round: FormalRoundPlanV4): FormalRoundPlanV4 {
+    return {
+      id: round.id || createId("formal-round"),
+      index: clampInt(round.index, 0, FORMAL_ROUND_COUNT - 1, 0),
+      mode: normalizeFormalMode(round.mode),
+      ruleSet: normalizeBattlePreferenceV4({ruleSet: round.ruleSet}).ruleSet,
+      difficulty: normalizeNpcType(round.difficulty),
+      seed: round.seed || createId("formal-round-seed"),
+      npcs: Array.isArray(round.npcs) ? round.npcs.map(normalizeNpcSnapshot) : [],
+      participants: round.participants || {},
+      diagnostics: Array.isArray(round.diagnostics) ? round.diagnostics.map(String) : [],
+    };
+  }
+
+  function normalizeNpcSnapshot(npc: FormalRoundNpcSnapshotV4): FormalRoundNpcSnapshotV4 {
+    return {
+      id: npc.id || createId("formal-npc"),
+      trainerId: npc.trainerId || npc.id || "generated:npc",
+      trainerType: normalizeNpcType(npc.trainerType),
+      name: npc.name || "训练家",
+      avatar: npc.avatar || DEFAULT_TRAINER_AVATAR,
+      playerId: normalizePlayerId(npc.playerId),
+      battlePreference: normalizeNpcBattlePreference(npc.battlePreference),
+      teamPreference: normalizeNpcTeamPreference(npc.teamPreference),
+      powerProfile: normalizePowerProfile(npc.powerProfile),
+      isBoss: Boolean(npc.isBoss),
+      diagnostics: Array.isArray(npc.diagnostics) ? npc.diagnostics.map(String) : [],
+    };
+  }
+
+  function normalizeFormalRestRunSnapshot(snapshot: TrainingRunGameV4): TrainingRunGameV4 {
+    const players = normalizeFormalRestPlayers(snapshot.players || {});
+    const gameMap = Array.isArray(snapshot.gameMap)
+      ? snapshot.gameMap.map(node => ({...node, participants: normalizeFormalRestPlayers(node.participants || {})}))
+      : [];
+    return {
+      ...snapshot,
+      version: 1,
+      source: "training",
+      status: "resting",
+      currentNodeId: snapshot.currentNodeId || gameMap[0]?.id || null,
+      gameMap,
+      players,
+      restPreviewUnlocks: snapshot.restPreviewUnlocks || {},
+      battlePreference: normalizeBattlePreferenceV4(snapshot.battlePreference),
+    };
+  }
+
+  function normalizeFormalRestPlayers(players: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>): Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> {
+    return Object.fromEntries(Object.entries(players).map(([playerId, player]) => {
+      const typedPlayerId = normalizePlayerId(playerId);
+      if (!player || typedPlayerId === "p1" || player.controller === "local") return [typedPlayerId, player];
+      return [typedPlayerId, {...player, avatar: normalizeNpcFullBodyAvatar(player.avatar, `${player.name}:${typedPlayerId}`)}];
+    }).filter(([, player]) => Boolean(player))) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+  }
+
+  function normalizeNpcFullBodyAvatar(avatar: string, seed: string): string {
+    if (avatar && !avatar.includes("/npc/avatars/")) return avatar;
+    const visual = selectTrainerVisual(createRng(`npc-visual:${seed}`), false);
+    return fullBodyTrainerAsset(visual) || avatar || DEFAULT_TRAINER_AVATAR;
+  }
+
+  function selectBossTrainer(trainerType: FormalNpcTypeV4, rng: () => number): FormalBossTrainerCandidateV4 | null {
+    try {
+      const result = dex.searchDex({category: "trainers", query: `type:${trainerType}`, limit: 100});
+      const rows = result.rows.filter(row => row.category === "trainers");
+      const candidates = rows.flatMap(row => {
+        try {
+          const detail = dex.getTrainerDetail(row.id);
+          if (detail.trainerType !== trainerType) return [];
+          if (!detail.presetTeamPreviews?.length && !detail.bossProfile) return [];
+          return [{
+            id: detail.id,
+            trainerType: detail.trainerType,
+            nameZh: detail.nameZh,
+            avatarAsset: detail.frontGifAsset || detail.frontAsset || detail.avatarAsset,
+            bossProfile: detail.bossProfile,
+            presetTeamPreviews: detail.presetTeamPreviews || [],
+          }];
+        } catch {
+          return [];
+        }
+      });
+      return pickOne(candidates, rng) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function selectTrainerVisual(rng: () => number, preferPlayer = false): FormalTrainerVisualCandidateV4 | null {
+    const normal = trainerVisualsByType("normal");
+    const player = trainerVisualsByType("player");
+    const primary = preferPlayer ? player : normal.filter(entry => fullBodyTrainerAsset(entry));
+    const fallback = preferPlayer ? normal : player;
+    return pickOne(primary.length ? primary : fallback, rng) || null;
+  }
+
+  function trainerVisualsByType(type: "normal" | "player"): FormalTrainerVisualCandidateV4[] {
+    try {
+      const result = dex.searchDex({category: "trainers", query: `type:${type}`, limit: 300});
+      return result.rows.flatMap(row => {
+        try {
+          const detail = dex.getTrainerDetail(row.id);
+          if (detail.trainerType !== type) return [];
+          return [{
+            id: detail.id,
+            trainerType: detail.trainerType,
+            nameZh: detail.nameZh,
+            frontAsset: detail.frontAsset,
+            frontGifAsset: detail.frontGifAsset,
+            avatarAsset: detail.avatarAsset,
+          }];
+        } catch {
+          return [];
+        }
+      });
+    } catch {
+      return [];
+    }
+  }
+
   function safePokemon(speciesId: string): DexPokemonDetail {
     try {
       return dex.getPokemonDetail(speciesId);
@@ -419,6 +936,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     createFormalGameRun,
     prepareFormalStarterCandidates,
     selectFormalStarterPokemon,
+    prepareFormalRoundPlan,
     selectedCountForFormalMode,
   };
 }
@@ -904,12 +1422,132 @@ function fallbackRow(index: number): DexSearchRow & {rank: PokemonSpeciesRankV4;
   };
 }
 
+function roundDistributionForStreak(streak: number): FormalNpcTypeV4[] {
+  if (streak <= 0) return ROUND_DISTRIBUTIONS["0"];
+  if (streak === 1) return ROUND_DISTRIBUTIONS["1"];
+  if (streak === 2) return ROUND_DISTRIBUTIONS["2"];
+  return ROUND_DISTRIBUTIONS["3"];
+}
+
+function maybeReplaceChampionWithVillain(type: FormalNpcTypeV4, rng: () => number): FormalNpcTypeV4 {
+  if (type !== "champion") return type;
+  return rng() < 0.25 ? "villain" : "champion";
+}
+
+function isBossTrainerType(type: FormalNpcTypeV4): boolean {
+  return type === "gym" || type === "elite4" || type === "champion" || type === "villain";
+}
+
+function powerProfileForNpc(type: FormalNpcTypeV4): PokemonPowerProfileV4 {
+  if (type === "rookie") return "rookie";
+  if (type === "normal") return "normal";
+  if (type === "elite") return "elite";
+  if (type === "champion" || type === "villain") return "champion";
+  return "boss";
+}
+
+function teamPreferenceForNpc(type: FormalNpcTypeV4, battlePreference: FormalNpcBattlePreferenceV4, rng: () => number): FormalNpcTeamPreferenceV4 {
+  if (type === "champion") return pickOne(["balanced", "setup-offense", "tailwind", "terrain"], rng) || "balanced";
+  if (type === "villain") return pickOne(["poison-stall", "hazard-stack", "setup-offense", "balanced"], rng) || "balanced";
+  if (type === "gym") return pickOne(["rain", "sun", "sand", "snow", "terrain", "balanced"], rng) || "balanced";
+  if (type === "elite4") return pickOne(["trick-room", "tailwind", "hazard-stack", "setup-offense", "balanced"], rng) || "balanced";
+  if (battlePreference === "offense") return pickOne(["setup-offense", "tailwind", "rain", "sun"], rng) || "setup-offense";
+  if (battlePreference === "defense") return pickOne(["sand", "snow", "poison-stall", "balanced"], rng) || "balanced";
+  if (battlePreference === "support") return pickOne(["trick-room", "terrain", "hazard-stack", "tailwind"], rng) || "balanced";
+  return pickOne(NPC_TEAM_PREFERENCES, rng) || "balanced";
+}
+
+function roleForTeamPreference(teamPreference: FormalNpcTeamPreferenceV4, index: number): FormalStarterRoleV4 {
+  if (teamPreference === "trick-room") return index < 2 ? "trick-room" : index < 4 ? "offense" : "defense";
+  if (teamPreference === "tailwind") return index === 0 ? "speed-control" : index < 4 ? "offense" : "support";
+  if (teamPreference === "hazard-stack" || teamPreference === "poison-stall") return index < 2 ? "disruption" : index < 4 ? "defense" : "offense";
+  if (teamPreference === "setup-offense") return index < 4 ? "offense" : index === 4 ? "speed-control" : "support";
+  if (teamPreference === "rain" || teamPreference === "sun" || teamPreference === "sand" || teamPreference === "snow") return index === 0 ? "weather" : index < 4 ? "offense" : "defense";
+  if (teamPreference === "terrain") return index === 0 ? "support" : index < 4 ? "offense" : "defense";
+  return index < 2 ? "offense" : index < 4 ? "defense" : "support";
+}
+
+function filterRowsForNpcTeam<T extends DexSearchRow & {rank: PokemonSpeciesRankV4}>(rows: T[], teamPreference: FormalNpcTeamPreferenceV4, battlePreference: FormalNpcBattlePreferenceV4): T[] {
+  const roleHints = [
+    ...ROLE_TYPE_HINTS[roleForTeamPreference(teamPreference, 0)],
+    ...ROLE_TYPE_HINTS[roleForTeamPreference(teamPreference, 1)],
+    ...teamPreferenceTypeHints(teamPreference),
+  ];
+  const uniqueHints = Array.from(new Set(roleHints));
+  if (!uniqueHints.length && battlePreference === "balanced") return rows;
+  return rows.filter(row => uniqueHints.some(type => row.tags.includes(type) || row.tags.includes(type.toLowerCase())));
+}
+
+function teamPreferenceTypeHints(teamPreference: FormalNpcTeamPreferenceV4): string[] {
+  if (teamPreference === "rain") return ["Water", "Electric", "Flying", "Grass"];
+  if (teamPreference === "sun") return ["Fire", "Grass", "Ground", "Dragon"];
+  if (teamPreference === "sand") return ["Rock", "Ground", "Steel"];
+  if (teamPreference === "snow") return ["Ice", "Water", "Steel"];
+  if (teamPreference === "terrain") return ["Electric", "Grass", "Psychic", "Fairy"];
+  return [];
+}
+
+function normalNpcName(type: FormalNpcTypeV4, ally: boolean, rng: () => number): string {
+  if (ally) return pickOne([...NORMAL_NPC_NAMES.ally], rng) || "精英队友";
+  if (type === "rookie") return pickOne([...NORMAL_NPC_NAMES.rookie], rng) || "新人训练家";
+  if (type === "elite") return pickOne([...NORMAL_NPC_NAMES.elite], rng) || "精英训练家";
+  return pickOne([...NORMAL_NPC_NAMES.normal], rng) || "路人训练家";
+}
+
+function createEmptyBag(battleBagEnabled: boolean): BagStateV4 {
+  return {maxSize: 50, items: [], battleBagEnabled};
+}
+
+function fullBodyTrainerAsset(trainer: FormalTrainerVisualCandidateV4 | null | undefined): string {
+  return trainer?.frontGifAsset || trainer?.frontAsset || "";
+}
+
+function baseSpeciesId(speciesId: string): string {
+  const id = toID(speciesId);
+  return id
+    .replace(/mega(x|y)?$/, "")
+    .replace(/gmax$/, "")
+    .replace(/alola$/, "")
+    .replace(/galar$/, "")
+    .replace(/hisui$/, "")
+    .replace(/paldea$/, "");
+}
+
+function itemIdFromName(name: string | undefined): string {
+  return toID(name || "");
+}
+
+function stableScore(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(31, hash) + value.charCodeAt(index) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function teamPreferenceLabel(preference: FormalNpcTeamPreferenceV4): string {
+  const labels: Record<FormalNpcTeamPreferenceV4, string> = {
+    balanced: "平衡队",
+    rain: "雨天队",
+    sun: "晴天队",
+    sand: "沙暴队",
+    snow: "雪天队",
+    "trick-room": "空间队",
+    tailwind: "顺风队",
+    terrain: "场地队",
+    "hazard-stack": "撒场队",
+    "poison-stall": "消耗队",
+    "setup-offense": "强化攻队",
+  };
+  return labels[preference] || preference;
+}
+
 function normalizeFormalMode(mode: unknown): FormalGameModeV4 {
   return mode === "doubles" || mode === "coop" ? mode : "singles";
 }
 
 function normalizeFormalStatus(status: unknown, candidateCount: number): FormalGameStatusV4 {
-  if (status === "starterSelected" || status === "roundPlanPending" || status === "ended") return status;
+  if (status === "starterSelected" || status === "roundPlanPending" || status === "roundPlanning" || status === "resting" || status === "ended") return status;
   if (status === "starterSelecting") return candidateCount ? "starterSelecting" : "starterPreparing";
   return "starterPreparing";
 }
@@ -928,6 +1566,22 @@ function normalizeSpeciesRank(value: unknown): PokemonSpeciesRankV4 {
 
 function normalizePowerProfile(value: unknown): PokemonPowerProfileV4 {
   return value === "rookie" || value === "normal" || value === "elite" || value === "boss" || value === "champion" ? value : "normal";
+}
+
+function normalizeNpcType(value: unknown): FormalNpcTypeV4 {
+  return value === "rookie" || value === "normal" || value === "elite" || value === "gym" || value === "elite4" || value === "champion" || value === "villain" ? value : "normal";
+}
+
+function normalizeNpcBattlePreference(value: unknown): FormalNpcBattlePreferenceV4 {
+  return value === "offense" || value === "defense" || value === "support" || value === "balanced" ? value : "balanced";
+}
+
+function normalizeNpcTeamPreference(value: unknown): FormalNpcTeamPreferenceV4 {
+  return value === "balanced" || value === "rain" || value === "sun" || value === "sand" || value === "snow" || value === "trick-room" || value === "tailwind" || value === "terrain" || value === "hazard-stack" || value === "poison-stall" || value === "setup-offense" ? value : "balanced";
+}
+
+function normalizePlayerId(value: unknown): ShowdownPlayerIdV4 {
+  return value === "p1" || value === "p2" || value === "p3" || value === "p4" ? value : "p2";
 }
 
 function normalizeGender(gender: unknown): TrainingGenderV4 {

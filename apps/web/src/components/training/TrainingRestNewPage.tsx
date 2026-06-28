@@ -19,9 +19,10 @@ export type TrainingRestNewPageProps = {
   onStartBattle: () => void;
   onOpenDex: () => void;
   onOpenPokemonDex: (speciesId: string) => void;
+  onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [bagPanelOpen, setBagPanelOpen] = useState(false);
@@ -52,7 +53,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   }
 
   async function saveRunGameSnapshot() {
-    const saved = await api.saveTrainingRun({...run, updatedAt: new Date().toISOString()});
+    const draft = {...run, updatedAt: new Date().toISOString()};
+    const saved = onSaveRunSnapshot ? await onSaveRunSnapshot(draft) : await api.saveTrainingRun(draft);
     onRunChange(saved);
     setMessage("RunGame 快照已保存。");
   }

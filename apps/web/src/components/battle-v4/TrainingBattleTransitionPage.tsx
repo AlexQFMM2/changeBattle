@@ -9,9 +9,10 @@ export type TrainingBattleTransitionPageProps = {
   onRunChange: (run: TrainingRunGameV4) => void;
   onReady: (sessionId: string) => void;
   onBackToRest: () => void;
+  onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
 };
 
-export function TrainingBattleTransitionPage({api, run, onRunChange, onReady, onBackToRest}: TrainingBattleTransitionPageProps) {
+export function TrainingBattleTransitionPage({api, run, onRunChange, onReady, onBackToRest, onSaveRunSnapshot}: TrainingBattleTransitionPageProps) {
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
@@ -39,17 +40,17 @@ export function TrainingBattleTransitionPage({api, run, onRunChange, onReady, on
         gameMap: run.gameMap.map(entry => entry.id === node.id ? {...entry, state: "preparing" as const, battleGame: {id: battleGame.id, status: "creating" as const}} : entry),
         updatedAt: new Date().toISOString(),
       };
-      await api.saveTrainingRun(preparing);
-      onRunChange(preparing);
+      const savedPreparing = onSaveRunSnapshot ? await onSaveRunSnapshot(preparing) : await api.saveTrainingRun(preparing);
+      onRunChange(savedPreparing);
       const snapshot = await api.battleService.createBattleSession(sessionInput);
       const battling = {
-        ...preparing,
+        ...savedPreparing,
         status: "battling" as const,
-        gameMap: preparing.gameMap.map(entry => entry.id === node.id ? {...entry, state: "running" as const, startedAt: new Date().toISOString(), battleGame: {id: battleGame.id, status: "running" as const}} : entry),
+        gameMap: savedPreparing.gameMap.map(entry => entry.id === node.id ? {...entry, state: "running" as const, startedAt: new Date().toISOString(), battleGame: {id: battleGame.id, status: "running" as const}} : entry),
         updatedAt: new Date().toISOString(),
       };
-      await api.saveTrainingRun(battling);
-      onRunChange(battling);
+      const savedBattling = onSaveRunSnapshot ? await onSaveRunSnapshot(battling) : await api.saveTrainingRun(battling);
+      onRunChange(savedBattling);
       onReady(snapshot.id);
     })().catch(async error => {
       const node = api.getCurrentTrainingNode(run);
@@ -59,12 +60,12 @@ export function TrainingBattleTransitionPage({api, run, onRunChange, onReady, on
         gameMap: run.gameMap.map(entry => entry.id === node?.id ? {...entry, state: "blocked" as const, battleGame: {id: entry.battleGame?.id || "battle-game-blocked", status: "blocked" as const}} : entry),
         updatedAt: new Date().toISOString(),
       };
-      await api.saveTrainingRun(blocked).catch(() => undefined);
-      onRunChange(blocked);
+      const savedBlocked = await Promise.resolve(onSaveRunSnapshot ? onSaveRunSnapshot(blocked) : api.saveTrainingRun(blocked)).catch(() => blocked);
+      onRunChange(savedBlocked);
       console.error(error);
       onBackToRest();
     });
-  }, [api, onBackToRest, onReady, onRunChange, run]);
+  }, [api, onBackToRest, onReady, onRunChange, onSaveRunSnapshot, run]);
 
   return (
     <TrainingRunTransitionPage
