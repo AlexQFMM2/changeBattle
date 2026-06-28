@@ -13,6 +13,10 @@
     "./showdownCommand": {
       "types": "./src/showdownCommand.ts",
       "default": "./src/showdownCommand.ts"
+    },
+    "./teamGenerator": {
+      "types": "./src/teamGenerator.ts",
+      "default": "./src/teamGenerator.ts"
     }
   },
   "scripts": {

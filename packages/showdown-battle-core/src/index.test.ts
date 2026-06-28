@@ -3,8 +3,10 @@ import {
   chooseAiBattleChoiceV4,
   createBattleSession,
   filterShowdownChoiceForRuleSetV4,
+  generateShowdownRandomTeamV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
+  resolveShowdownRandomTeamFormatV4,
   submitChoice,
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
@@ -425,6 +427,73 @@ function aiForceSwitchSmoke() {
   console.log("showdown-battle-core ai force switch smoke ok");
 }
 
+function randomTeamGeneratorSmoke() {
+  const first = generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
+  const second = generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
+  if (!first.diagnostics.ok) throw new Error(`gen9 singles random team failed: ${first.diagnostics.messages.join("; ")}`);
+  if (first.pokemonSets.length !== 6) throw new Error(`expected default 6 pokemon, got ${first.pokemonSets.length}`);
+  if (first.packedTeam !== second.packedTeam) throw new Error("same seed should generate stable packed team");
+  for (const set of first.pokemonSets) {
+    if (!set.species || !set.ability || !set.nature || !set.level || !set.moves?.length) {
+      throw new Error(`generated incomplete pokemon set: ${JSON.stringify(set)}`);
+    }
+  }
+  if (!first.packedTeam || !first.exportedTeam) throw new Error("missing packed/exported team output");
+
+  const cases: Array<[BattleServiceSessionInputV4["ruleSet"], BattleServiceSessionInputV4["mode"]]> = [
+    ["gen9", "singles"],
+    ["gen9", "doubles"],
+    ["gen9", "coop"],
+    ["gen8", "singles"],
+    ["gen8", "doubles"],
+    ["gen8", "coop"],
+    ["gen7", "singles"],
+    ["standard", "singles"],
+  ];
+  for (const [ruleSet, mode] of cases) {
+    const result = generateShowdownRandomTeamV4({ruleSet, mode, seed: `${ruleSet}-${mode}`});
+    if (!result.diagnostics.ok) {
+      throw new Error(`${ruleSet}/${mode} random team failed: ${result.diagnostics.messages.join("; ")}`);
+    }
+    if (!result.formatId || result.formatId !== resolveShowdownRandomTeamFormatV4(ruleSet, mode)) {
+      throw new Error(`format mismatch for ${ruleSet}/${mode}: ${result.formatId}`);
+    }
+  }
+
+  const unavailable = generateShowdownRandomTeamV4({ruleSet: "gen7", mode: "doubles", seed: "gen7-doubles"});
+  if (unavailable.diagnostics.ok || unavailable.pokemonSets.length || !unavailable.diagnostics.messages.length) {
+    throw new Error(`gen7 doubles should return explicit unavailable diagnostics: ${JSON.stringify(unavailable)}`);
+  }
+
+  const allowedSpecies = ["pelipper", "torkoal", "tyranitar", "hatterene", "glimmora", "toxapex", "dragonite", "leafeon"];
+  const filtered = generateShowdownRandomTeamV4({
+    ruleSet: "gen9",
+    mode: "singles",
+    seed: "filtered-team",
+    teamSize: 3,
+    pokemonFilter: {speciesIds: allowedSpecies},
+  });
+  if (!filtered.diagnostics.ok) throw new Error(`filtered team failed: ${filtered.diagnostics.messages.join("; ")}`);
+  const allowed = new Set(allowedSpecies);
+  if (!filtered.pokemonSets.every(set => allowed.has(String(set.species || "").toLowerCase().replace(/[^a-z0-9]+/g, "")))) {
+    throw new Error(`filtered team leaked species outside pool: ${filtered.pokemonSets.map(set => set.species).join(", ")}`);
+  }
+  if (!filtered.diagnostics.pokemonFilter?.matchedSpeciesIds.length) throw new Error("missing pokemon filter diagnostics");
+
+  const rain = generateShowdownRandomTeamV4({
+    ruleSet: "gen9",
+    mode: "singles",
+    seed: "rain-team",
+    teamArchetype: "rain",
+    archetypeAttempts: 8,
+  });
+  if (!rain.diagnostics.ok) throw new Error(`rain team failed: ${rain.diagnostics.messages.join("; ")}`);
+  if (!rain.diagnostics.archetype || rain.diagnostics.archetype.bestScore <= 0 || rain.diagnostics.archetype.matchedPoolSize <= 0) {
+    throw new Error(`rain archetype diagnostics missing score: ${JSON.stringify(rain.diagnostics.archetype)}`);
+  }
+  console.log("showdown-battle-core random team generator smoke ok");
+}
+
 function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: BattleServiceSessionInputV4["mode"], request: BattleServiceRequestV4): BattleServiceSnapshotV4 {
   return {
     id: "ai-test-session",
@@ -465,4 +534,5 @@ void smoke()
   .then(showdownCommandReferenceSmoke)
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)
-  .then(aiForceSwitchSmoke);
+  .then(aiForceSwitchSmoke)
+  .then(randomTeamGeneratorSmoke);

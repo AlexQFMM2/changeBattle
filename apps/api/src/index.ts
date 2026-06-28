@@ -1,6 +1,7 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, type TrainingRunStorageAdapter} from "./training.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
+import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 export * from "./itemEffects.js";
 export type {DexSystemBattleReforgeOption, DexSystemBattleReforgePokemonInput, DexSystemReforgeKind} from "@changebattle-v2/showdown-dex-core";
 
@@ -157,6 +158,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getNextTrainingNode: trainingRuns.getNextTrainingNode,
     randomizeTrainingScenario: trainingRuns.randomizeTrainingScenario,
     randomizeTrainingTeam: trainingRuns.randomizeTeam,
+    generateRandomBattleTeamPreviewV4: (input: RandomBattleTeamPreviewInputV4 = {}) => generateRandomBattleTeamPreviewV4(dex, input),
     createTrainingNpcCatalog: trainingRuns.createTrainingNpcCatalog,
     createItemInstance: trainingRuns.createItemInstance,
     normalizeBagState: trainingRuns.normalizeBagState,
@@ -278,6 +280,7 @@ export {useDexHook} from "./useDexHook.js";
 export type {AbilityInfo, ItemInfo, MoveInfo, PokemonInfo, UseDexHookOptions} from "./useDexHook.js";
 export * from "./battle.js";
 export * from "./battleDebug.js";
+export * from "./teamGenerator.js";
 export * from "./training.js";
 export {createBrowserTrainingRunAdapter, createTrainingNpcCatalog, createTrainingRunApi} from "./training.js";
 export type * from "./training.js";

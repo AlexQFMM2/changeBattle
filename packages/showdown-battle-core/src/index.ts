@@ -24,6 +24,7 @@ import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, nor
 
 export * from "./showdownCommand.js";
 export * from "./ai.js";
+export * from "./teamGenerator.js";
 
 const require = createRequire(import.meta.url);
 const vendorRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../vendor/showdown");
