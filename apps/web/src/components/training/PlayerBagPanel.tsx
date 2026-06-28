@@ -32,7 +32,6 @@ export type PlayerBagPanelProps = {
   api: ChangeBattleV2Api;
   open: boolean;
   title?: string;
-  drawerTitle?: string;
   items: PlayerItemInstanceV4[];
   maxSize: number;
   isBattle?: boolean;
@@ -50,7 +49,6 @@ export function PlayerBagPanel({
   api,
   open,
   title = "我的背包",
-  drawerTitle = "背包道具",
   items,
   maxSize,
   isBattle = false,
@@ -243,7 +241,6 @@ export function PlayerBagPanel({
         animate={open ? {y: 0, opacity: 1} : {y: "110%", opacity: 0}}
         transition={{duration: 0.18}}
       >
-        <div className="training-rest-new-bag-drawer-title">{drawerTitle}</div>
         <div className="training-rest-new-bag-strip-wrap">
           <div className="training-rest-new-bag-strip" ref={bagStripRef} onScroll={updateScrollState}>
             {visibleItems.length ? visibleItems.map(item => {
@@ -290,8 +287,9 @@ export function PlayerBagItemIcon({api, item, large = false}: {api: ChangeBattle
   const className = large ? "training-rest-new-bag-detail-icon" : "training-rest-new-bag-item-icon";
   try {
     const detail = api.getItemDetail(item.itemID);
-    if (detail.iconStyle) return <span className={className} aria-hidden="true"><span className="training-rest-new-bag-sprite-icon" style={styleFromCss(detail.iconStyle)} /></span>;
-    if (detail.iconUrl) return <span className={className}><ImageWithFallback src={detail.iconUrl} alt="" fallback="◇" /></span>;
+    const spriteStyle = detail.iconStyle ? spriteStyleFromCss(detail.iconStyle) : null;
+    if (spriteStyle) return <span className={className} aria-hidden="true"><span className="training-rest-new-bag-sprite-icon" style={spriteStyle} /></span>;
+    if (detail.iconUrl) return <span className={className} style={styleOnlyFromCss(detail.iconStyle)}><ImageWithFallback src={detail.iconUrl} alt="" fallback="◇" /></span>;
   } catch {
     // Fall back to instance image or text marker.
   }
@@ -299,7 +297,8 @@ export function PlayerBagItemIcon({api, item, large = false}: {api: ChangeBattle
 }
 
 function PlayerBagPokemonIcon({target}: {target: PlayerBagPokemonTarget}) {
-  if (target.iconStyle) return <span className="training-rest-new-bag-pokemon-icon picon" aria-hidden="true" style={styleFromCss(target.iconStyle)} />;
+  const iconStyle = target.iconStyle ? spriteStyleFromCss(target.iconStyle) : null;
+  if (iconStyle) return <span className="training-rest-new-bag-pokemon-icon picon" aria-hidden="true" style={iconStyle} />;
   const src = target.spriteUrl || target.iconUrl || "";
   return <ImageWithFallback src={src} alt="" fallback={(target.nameZh || target.name).slice(0, 1) || "?"} />;
 }
@@ -329,12 +328,18 @@ function itemTypeLabel(type: PlayerItemInstanceV4["type"]): string {
   return labels[type] || type;
 }
 
-function styleFromCss(css: string): CSSProperties {
+function spriteStyleFromCss(css: string): CSSProperties | null {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
-  if (!match) return {};
+  if (!match) return null;
   return {
     backgroundImage: `url(${match[1]})`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };
+}
+
+function styleOnlyFromCss(css: string | undefined): CSSProperties | undefined {
+  if (!css) return undefined;
+  const filter = /filter:\s*([^;]+)/.exec(css)?.[1]?.trim();
+  return filter ? {filter} : undefined;
 }

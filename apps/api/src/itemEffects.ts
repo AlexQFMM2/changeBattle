@@ -1,11 +1,24 @@
-import type {DexItemDetail, DexItemRecoveryEffect} from "@changebattle-v2/showdown-dex-core";
-import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4, TrainingMoveSlotV4, TrainingStatusV4} from "./training.js";
+import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexPokemonDetail, DexStatId} from "@changebattle-v2/showdown-dex-core";
+import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4, StatTableV4, TrainingMoveSlotV4, TrainingStatusV4} from "./training.js";
 
 export type ConsumableItemApplyResultV4 =
   | {ok: true; pokemon: LocalPokemonV4; bag: BagStateV4; message: string; hpRecovered: number; ppRecovered: number; statusCured: boolean; revived: boolean; healedMoveIndex: number | null}
   | {ok: false; reason: string};
 
+export type TrainingItemApplyResultV4 =
+  | {ok: true; pokemon: LocalPokemonV4; bag: BagStateV4; message: string}
+  | {ok: false; reason: string};
+
 const RECOVERABLE_STATUS = new Set<TrainingStatusV4>(["brn", "par", "psn", "tox", "slp", "frz"]);
+const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
+const STAT_LABELS: Record<DexStatId, string> = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
+const NATURE_NAMES = [
+  "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
+  "Bold", "Docile", "Relaxed", "Impish", "Lax",
+  "Timid", "Hasty", "Serious", "Jolly", "Naive",
+  "Modest", "Mild", "Quiet", "Bashful", "Rash",
+  "Calm", "Gentle", "Sassy", "Careful", "Quirky",
+];
 
 export function canUseRecoveryItemV4(item: PlayerItemInstanceV4 | null | undefined, detail: DexItemDetail | null | undefined): boolean {
   return Boolean(item && recoveryEffectForItemV4(item, detail));
@@ -92,6 +105,73 @@ export function clearConsumedItemFromTeamV4(team: LocalPokemonV4[], item: Player
   return team.map(pokemon => clearHeldReferenceIfConsumed(pokemon, item));
 }
 
+export function canUseTrainingItemV4(item: PlayerItemInstanceV4 | null | undefined, detail: DexItemDetail | null | undefined): boolean {
+  return Boolean(item && trainingEffectForItemV4(item, detail));
+}
+
+export function trainingEffectForItemV4(item: PlayerItemInstanceV4 | null | undefined, detail: DexItemDetail | null | undefined): DexItemTrainingEffect | null {
+  if (detail?.trainingEffect) return detail.trainingEffect;
+  const id = normalizeItemId(item?.itemID || detail?.id || "");
+  return FALLBACK_TRAINING_EFFECTS[id] || null;
+}
+
+export function applyTrainingItemToPokemonV4(input: {
+  item: PlayerItemInstanceV4;
+  detail?: DexItemDetail | null;
+  pokemon: LocalPokemonV4;
+  bag: BagStateV4;
+  pokemonDetail?: DexPokemonDetail | null;
+  calculateMaxHp?: (pokemon: LocalPokemonV4) => number;
+}): TrainingItemApplyResultV4 {
+  const effect = trainingEffectForItemV4(input.item, input.detail);
+  if (!effect) return {ok: false, reason: "该道具当前不能训练使用。"};
+  const before = input.pokemon;
+  let next = clonePokemon(before);
+  let message = "";
+
+  if (effect.kind === "ev") {
+    const nextEvs = applyEvEffect(before.evs, effect);
+    if (!nextEvs) return {ok: false, reason: `${STAT_LABELS[effect.stat]}努力值当前不需要这个道具。`};
+    next = {...next, evs: nextEvs};
+    message = `${before.nameZh || before.name} 的${STAT_LABELS[effect.stat]}努力值变为 ${nextEvs[effect.stat]}。`;
+  } else if (effect.kind === "nature") {
+    if (before.nature === effect.nature) return {ok: false, reason: "目标已经是这个性格。"};
+    next = {...next, nature: effect.nature};
+    message = `${before.nameZh || before.name} 的性格调整为 ${effect.nature}。`;
+  } else if (effect.kind === "ability") {
+    const ability = nextAbilityForEffect(before, input.pokemonDetail || null, effect.mode);
+    if (!ability) return {ok: false, reason: effect.mode === "patch" ? "目标没有可切换的隐藏特性。" : "目标没有可切换的普通特性。"};
+    next = {...next, abilityId: ability.id, abilityName: ability.name, abilityNameZh: ability.nameZh || ability.name};
+    message = `${before.nameZh || before.name} 的特性变为 ${next.abilityNameZh || next.abilityName || next.abilityId}。`;
+  } else if (effect.kind === "iv") {
+    const nextIvs = applyIvEffect(before.ivs, effect.mode);
+    if (!nextIvs) return {ok: false, reason: "目标个体值当前不需要这个道具。"};
+    next = {...next, ivs: nextIvs};
+    message = `${before.nameZh || before.name} 的个体值已调整。`;
+  } else if (effect.kind === "level") {
+    if (before.level >= 100) return {ok: false, reason: "目标等级已满。"};
+    const level = Math.min(100, before.level + Math.max(1, effect.amount));
+    const oldMaxHp = Math.max(1, before.maxHp);
+    const oldHp = before.entryHp;
+    next = {...next, level};
+    const nextMaxHp = input.calculateMaxHp?.(next) || before.maxHp;
+    next = {
+      ...next,
+      maxHp: nextMaxHp,
+      entryHp: oldHp <= 0 ? 0 : Math.max(1, Math.min(nextMaxHp, Math.round(nextMaxHp * oldHp / oldMaxHp))),
+    };
+    message = `${before.nameZh || before.name} 升到了 Lv.${level}。`;
+  }
+
+  const nextBag = consumeItemInstance(input.bag, input.item.id);
+  return {
+    ok: true,
+    pokemon: clearHeldReferenceIfConsumed(next, input.item),
+    bag: nextBag,
+    message,
+  };
+}
+
 function applyPpRecovery(moves: TrainingMoveSlotV4[], effect: NonNullable<DexItemRecoveryEffect["pp"]>): {moves: TrainingMoveSlotV4[]; recovered: number; moveIndex: number | null} {
   if (effect.scope === "all") {
     let recovered = 0;
@@ -140,6 +220,52 @@ function statusMatches(effect: NonNullable<DexItemRecoveryEffect["cureStatus"]>,
   if (!RECOVERABLE_STATUS.has(status)) return false;
   if (effect === "all") return true;
   return effect.includes(status as Exclude<TrainingStatusV4, "">);
+}
+
+function applyEvEffect(evs: StatTableV4, effect: Extract<DexItemTrainingEffect, {kind: "ev"}>): StatTableV4 | null {
+  const current = clampInt(evs[effect.stat], 0, 252);
+  const total = STAT_IDS.reduce((sum, stat) => sum + clampInt(evs[stat], 0, 252), 0);
+  let nextValue = current;
+  if (effect.mode === "add") {
+    const desired = effect.target !== undefined ? Math.max(current, effect.target) : current + Math.max(0, effect.amount || 0);
+    const allowedByTotal = Math.max(0, 510 - total);
+    nextValue = Math.min(252, desired, current + allowedByTotal);
+  } else {
+    const desired = effect.target !== undefined ? Math.min(current, effect.target) : current - Math.max(0, effect.amount || 0);
+    nextValue = Math.max(0, desired);
+  }
+  if (nextValue === current) return null;
+  return {...evs, [effect.stat]: nextValue};
+}
+
+function nextAbilityForEffect(pokemon: LocalPokemonV4, detail: DexPokemonDetail | null, mode: "capsule" | "patch"): DexPokemonDetail["abilities"][number] | null {
+  const abilities = detail?.abilities || [];
+  if (mode === "patch") {
+    const hidden = abilities.find(ability => ability.hidden);
+    if (!hidden || hidden.id === pokemon.abilityId) return null;
+    return hidden;
+  }
+  const ordinary = abilities.filter(ability => !ability.hidden);
+  if (ordinary.length < 2) return null;
+  const currentIndex = ordinary.findIndex(ability => ability.id === pokemon.abilityId);
+  return ordinary[(currentIndex + 1 + ordinary.length) % ordinary.length] || null;
+}
+
+function applyIvEffect(ivs: StatTableV4, mode: "silver" | "gold" | "gray"): StatTableV4 | null {
+  if (mode === "gold") {
+    if (STAT_IDS.every(stat => ivs[stat] >= 31)) return null;
+    return Object.fromEntries(STAT_IDS.map(stat => [stat, 31])) as StatTableV4;
+  }
+  if (mode === "gray") {
+    const stat = STAT_IDS
+      .filter(candidate => ivs[candidate] > 0)
+      .sort((a, b) => ivs[b] - ivs[a] || STAT_IDS.indexOf(a) - STAT_IDS.indexOf(b))[0];
+    return stat ? {...ivs, [stat]: 0} : null;
+  }
+  const stat = STAT_IDS
+    .filter(candidate => ivs[candidate] < 31)
+    .sort((a, b) => ivs[a] - ivs[b] || STAT_IDS.indexOf(a) - STAT_IDS.indexOf(b))[0];
+  return stat ? {...ivs, [stat]: 31} : null;
 }
 
 function consumeItemInstance(bag: BagStateV4, itemInstanceId: string): BagStateV4 {
@@ -211,4 +337,30 @@ const FALLBACK_RECOVERY_EFFECTS: Record<string, DexItemRecoveryEffect> = {
   sitrusberry: {hp: {kind: "fraction", numerator: 1, denominator: 4}},
   leppaberry: {pp: {scope: "one", amount: 10}},
   lumberry: {cureStatus: "all"},
+};
+
+const FALLBACK_TRAINING_EFFECTS: Record<string, DexItemTrainingEffect> = {
+  ...Object.fromEntries(STAT_IDS.flatMap(stat => [
+    [`ev${stat}max`, {kind: "ev", stat, mode: "add", target: 252}],
+    [`ev${stat}large`, {kind: "ev", stat, mode: "add", target: 100}],
+    [`ev${stat}plus`, {kind: "ev", stat, mode: "add", amount: 10}],
+    [`ev${stat}small`, {kind: "ev", stat, mode: "add", amount: 1}],
+    [`ev${stat}zero`, {kind: "ev", stat, mode: "reduce", target: 0}],
+    [`ev${stat}downlarge`, {kind: "ev", stat, mode: "reduce", target: 100}],
+    [`ev${stat}down`, {kind: "ev", stat, mode: "reduce", amount: 10}],
+    [`ev${stat}downsmall`, {kind: "ev", stat, mode: "reduce", amount: 1}],
+  ])) as Record<string, DexItemTrainingEffect>,
+  ...Object.fromEntries(NATURE_NAMES.map(nature => [`${normalizeItemId(nature)}mint`, {kind: "nature", nature}])) as Record<string, DexItemTrainingEffect>,
+  rarecandy: {kind: "level", amount: 1},
+  hpup: {kind: "ev", stat: "hp", mode: "add", target: 100},
+  protein: {kind: "ev", stat: "atk", mode: "add", target: 100},
+  iron: {kind: "ev", stat: "def", mode: "add", target: 100},
+  calcium: {kind: "ev", stat: "spa", mode: "add", target: 100},
+  zinc: {kind: "ev", stat: "spd", mode: "add", target: 100},
+  carbos: {kind: "ev", stat: "spe", mode: "add", target: 100},
+  abilitycapsule: {kind: "ability", mode: "capsule"},
+  abilitypatch: {kind: "ability", mode: "patch"},
+  bottlecap: {kind: "iv", mode: "silver"},
+  goldbottlecap: {kind: "iv", mode: "gold"},
+  graybottlecap: {kind: "iv", mode: "gray"},
 };

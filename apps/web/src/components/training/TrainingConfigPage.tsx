@@ -69,7 +69,12 @@ const NATURE_OPTIONS = [
 ] as const;
 
 const NATURE_LABEL = Object.fromEntries(NATURE_OPTIONS.map(([id, label]) => [id, label])) as Record<string, string>;
-const TEST_BAG_ITEM_IDS = ["leftovers", "lifeorb", "oranberry", "potion", "ether", "rarecandy", "tm:thunderbolt", "system-mega-stone", "system-z-crystal", "system-tera-orb"];
+const TEST_BAG_ITEM_IDS = [
+  "leftovers", "lifeorb", "oranberry", "potion", "ether",
+  "ev-hp-plus", "ev-atk-down", "adamantmint", "abilitycapsule", "abilitypatch",
+  "rarecandy", "bottlecap", "goldbottlecap", "graybottlecap",
+  "tm:thunderbolt", "system-mega-stone", "system-z-crystal", "system-tera-orb",
+];
 
 export function TrainingConfigPage({api, run, onRunChange, onStartRun, onStartRunNew, onBack}: TrainingConfigPageProps) {
   const npcs = useMemo(() => api.createTrainingNpcCatalog(), [api]);

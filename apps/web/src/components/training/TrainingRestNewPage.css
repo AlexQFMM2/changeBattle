@@ -38,11 +38,11 @@
   --rest-new-team-detail-y: 42px;
   --rest-new-team-detail-w: 544px;
   --rest-new-team-detail-h: 218px;
-  --rest-new-team-drawer-x: 100px;
+  --rest-new-team-drawer-x: 36px;
   --rest-new-team-drawer-y: 272px;
-  --rest-new-team-drawer-w: 440px;
+  --rest-new-team-drawer-w: 568px;
   --rest-new-team-drawer-h: 60px;
-  --rest-new-team-slot-w: 64px;
+  --rest-new-team-slot-w: 83px;
   --rest-new-team-slot-h: 42px;
   position: relative;
   width: 640px;
@@ -81,6 +81,16 @@
     0 1px 0 #120b07,
     0 0 5px rgb(255 232 170 / 42%);
   pointer-events: none;
+}
+
+.training-rest-new-panel-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: default;
 }
 
 .training-rest-new-region {

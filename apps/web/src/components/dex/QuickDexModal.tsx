@@ -518,8 +518,9 @@ function booleanBadge(label: string, value: boolean | undefined): string {
 
 function DexItemIcon({iconUrl, iconStyle, className = ""}: {iconUrl?: string; iconStyle?: string; className?: string}) {
   const classNames = ["item-icon", className].filter(Boolean).join(" ");
-  if (iconStyle) return <span className={classNames} style={styleFromCss(iconStyle)} />;
-  if (iconUrl) return <img className={classNames} src={iconUrl} alt="" loading="lazy" />;
+  const spriteStyle = iconStyle ? spriteStyleFromCss(iconStyle) : null;
+  if (spriteStyle) return <span className={classNames} style={spriteStyle} />;
+  if (iconUrl) return <img className={classNames} src={iconUrl} alt="" loading="lazy" style={styleOnlyFromCss(iconStyle)} />;
   return null;
 }
 
@@ -672,7 +673,17 @@ function normalizeSearchText(value: string): string {
 }
 
 function styleFromCss(css: string): CSSProperties {
+  return spriteStyleFromCss(css) || {};
+}
+
+function spriteStyleFromCss(css: string): CSSProperties | null {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
-  if (!match) return {};
+  if (!match) return null;
   return {backgroundImage: `url(${match[1]})`, backgroundPosition: `${match[2]}px ${match[3]}px`, backgroundRepeat: "no-repeat"};
+}
+
+function styleOnlyFromCss(css: string | undefined): CSSProperties | undefined {
+  if (!css) return undefined;
+  const filter = /filter:\s*([^;]+)/.exec(css)?.[1]?.trim();
+  return filter ? {filter} : undefined;
 }

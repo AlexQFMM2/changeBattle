@@ -14,6 +14,12 @@ export type DexItemRecoveryEffect = {
   pp?: {scope: "one" | "all"; amount?: number; full?: boolean};
   cureStatus?: "all" | Array<"brn" | "par" | "psn" | "tox" | "slp" | "frz">;
 };
+export type DexItemTrainingEffect =
+  | {kind: "ev"; stat: DexStatId; mode: "add" | "reduce"; amount?: number; target?: number}
+  | {kind: "nature"; nature: string}
+  | {kind: "ability"; mode: "capsule" | "patch"}
+  | {kind: "iv"; mode: "silver" | "gold" | "gray"}
+  | {kind: "level"; amount: number};
 
 export type DexSearchRequest = {
   category?: DexCategory | "all";
@@ -145,6 +151,7 @@ export type DexItemDetail = {
   sourceLabel?: string;
   effectSummary?: string;
   recoveryEffect?: DexItemRecoveryEffect;
+  trainingEffect?: DexItemTrainingEffect;
   canBattleUse?: boolean;
   canUse?: boolean;
   canUseToPokemon?: boolean;
@@ -237,6 +244,7 @@ type ItemRegistryEntry = {
   description: string;
   effectSummary?: string;
   recoveryEffect?: DexItemRecoveryEffect;
+  trainingEffect?: DexItemTrainingEffect;
   iconAsset?: string;
   canBattleUse: boolean;
   canUse: boolean;
@@ -247,6 +255,38 @@ type ItemRegistryEntry = {
   futureInstanceCompatible: boolean;
   tags?: string[];
 };
+
+const TRAINING_STAT_ITEMS: Array<{stat: DexStatId; label: string; english: string; iconId: string}> = [
+  {stat: "hp", label: "HP", english: "HP", iconId: "hpup"},
+  {stat: "atk", label: "攻击", english: "Attack", iconId: "protein"},
+  {stat: "def", label: "防御", english: "Defense", iconId: "iron"},
+  {stat: "spa", label: "特攻", english: "Sp. Atk", iconId: "calcium"},
+  {stat: "spd", label: "特防", english: "Sp. Def", iconId: "zinc"},
+  {stat: "spe", label: "速度", english: "Speed", iconId: "carbos"},
+];
+
+const NATURE_MINT_ITEMS: Array<{nature: string; label: string}> = [
+  ["Hardy", "勤奋"], ["Lonely", "怕寂寞"], ["Brave", "勇敢"], ["Adamant", "固执"], ["Naughty", "顽皮"],
+  ["Bold", "大胆"], ["Docile", "坦率"], ["Relaxed", "悠闲"], ["Impish", "淘气"], ["Lax", "乐天"],
+  ["Timid", "胆小"], ["Hasty", "急躁"], ["Serious", "认真"], ["Jolly", "爽朗"], ["Naive", "天真"],
+  ["Modest", "内敛"], ["Mild", "慢吞吞"], ["Quiet", "冷静"], ["Bashful", "害羞"], ["Rash", "马虎"],
+  ["Calm", "温和"], ["Gentle", "温顺"], ["Sassy", "自大"], ["Careful", "慎重"], ["Quirky", "浮躁"],
+].map(([nature, label]) => ({nature, label}));
+
+const EV_TRAINING_ITEM_ENTRIES = TRAINING_STAT_ITEMS.flatMap(({stat, label, english, iconId}) => [
+  v1Item(`ev-${stat}-max`, `${english} Max Serum`, `${label}全满提升剂`, "training", `使${label}努力值提升到 252。`, {cost: 18000, trainingEffect: {kind: "ev", stat, mode: "add", target: 252}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+  v1Item(`ev-${stat}-large`, `${english} Large Serum`, `${label}大提升剂`, "training", `使${label}努力值至少提升到 100。`, {cost: 10000, trainingEffect: {kind: "ev", stat, mode: "add", target: 100}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+  v1Item(`ev-${stat}-plus`, `${english} Serum`, `${label}提升剂`, "training", `使${label}努力值提升 10 点。`, {cost: 3000, trainingEffect: {kind: "ev", stat, mode: "add", amount: 10}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+  v1Item(`ev-${stat}-small`, `${english} Micro Serum`, `${label}小提升剂`, "training", `使${label}努力值提升 1 点。`, {cost: 500, trainingEffect: {kind: "ev", stat, mode: "add", amount: 1}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+  v1Item(`ev-${stat}-zero`, `${english} Reset Tonic`, `${label}清零药`, "training", `使${label}努力值降低到 0。`, {cost: 3000, trainingEffect: {kind: "ev", stat, mode: "reduce", target: 0}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+  v1Item(`ev-${stat}-down-large`, `${english} Large Down Tonic`, `${label}大降低药`, "training", `使${label}努力值降低到 100。`, {cost: 2000, trainingEffect: {kind: "ev", stat, mode: "reduce", target: 100}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+  v1Item(`ev-${stat}-down`, `${english} Down Tonic`, `${label}降低药`, "training", `使${label}努力值降低 10 点。`, {cost: 1000, trainingEffect: {kind: "ev", stat, mode: "reduce", amount: 10}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+  v1Item(`ev-${stat}-down-small`, `${english} Micro Down Tonic`, `${label}小降低药`, "training", `使${label}努力值降低 1 点。`, {cost: 200, trainingEffect: {kind: "ev", stat, mode: "reduce", amount: 1}, iconAsset: `runtime/items/${iconId}/icon.png`}),
+]);
+
+const NATURE_MINT_ENTRIES = NATURE_MINT_ITEMS.map(({nature, label}) =>
+  v1Item(`${toID(nature)}mint`, `${nature} Mint`, `${label}薄荷`, "training", `把宝可梦性格调整为${label}。`, {cost: 12000, trainingEffect: {kind: "nature", nature}, iconAsset: natureMintIconAsset(nature)})
+);
 
 const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   v1Item("potion", "Potion", "回复药", "recovery", "恢复 20 点 HP。", {cost: 300, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 20}}}),
@@ -278,17 +318,22 @@ const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   v1Item("sitrusberry", "Sitrus Berry", "文柚果", "berry", "恢复最大 HP 的 1/4。", {cost: 160, canBattleUse: true, canTake: true, recoveryEffect: {hp: {kind: "fraction", numerator: 1, denominator: 4}}}),
   v1Item("leppaberry", "Leppa Berry", "苹野果", "berry", "让 1 个招式恢复 10 点 PP。", {cost: 160, canBattleUse: true, canTake: true, recoveryEffect: {pp: {scope: "one", amount: 10}}}),
   v1Item("lumberry", "Lum Berry", "木子果", "berry", "解除异常状态。", {cost: 240, canBattleUse: true, canTake: true, recoveryEffect: {cureStatus: "all"}}),
-  v1Item("rarecandy", "Rare Candy", "神奇糖果", "training", "休整页使用，使宝可梦提升 1 级。", {cost: 4800, canBattleUse: false}),
-  v1Item("hpup", "HP Up", "HP 增强剂", "training", "休整页使用，提升 HP 努力值 100 点。", {cost: 10000, canBattleUse: false}),
-  v1Item("protein", "Protein", "攻击增强剂", "training", "休整页使用，提升攻击努力值 100 点。", {cost: 10000, canBattleUse: false}),
-  v1Item("iron", "Iron", "防御增强剂", "training", "休整页使用，提升防御努力值 100 点。", {cost: 10000, canBattleUse: false}),
-  v1Item("calcium", "Calcium", "特攻增强剂", "training", "休整页使用，提升特攻努力值 100 点。", {cost: 10000, canBattleUse: false}),
-  v1Item("zinc", "Zinc", "特防增强剂", "training", "休整页使用，提升特防努力值 100 点。", {cost: 10000, canBattleUse: false}),
-  v1Item("carbos", "Carbos", "速度增强剂", "training", "休整页使用，提升速度努力值 100 点。", {cost: 10000, canBattleUse: false}),
+  ...EV_TRAINING_ITEM_ENTRIES,
+  ...NATURE_MINT_ENTRIES,
+  v1Item("rarecandy", "Rare Candy", "神奇糖果", "training", "休整页使用，使宝可梦提升 1 级。", {cost: 4800, canBattleUse: false, trainingEffect: {kind: "level", amount: 1}}),
+  v1Item("hpup", "HP Up", "HP 增强剂", "training", "休整页使用，提升 HP 努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "hp", mode: "add", target: 100}}),
+  v1Item("protein", "Protein", "攻击增强剂", "training", "休整页使用，提升攻击努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "atk", mode: "add", target: 100}}),
+  v1Item("iron", "Iron", "防御增强剂", "training", "休整页使用，提升防御努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "def", mode: "add", target: 100}}),
+  v1Item("calcium", "Calcium", "特攻增强剂", "training", "休整页使用，提升特攻努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "spa", mode: "add", target: 100}}),
+  v1Item("zinc", "Zinc", "特防增强剂", "training", "休整页使用，提升特防努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "spd", mode: "add", target: 100}}),
+  v1Item("carbos", "Carbos", "速度增强剂", "training", "休整页使用，提升速度努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "spe", mode: "add", target: 100}}),
   v1Item("ppup", "PP Up", "PP 提升剂", "training", "提高 1 个招式的 PP 上限。", {cost: 9800, canBattleUse: false}),
   v1Item("ppmax", "PP Max", "PP 极限提升剂", "training", "将 1 个招式的 PP 上限提升到最大。", {cost: 16000, canBattleUse: false}),
-  v1Item("bottlecap", "Bottle Cap", "银色王冠", "training", "休整页使用，指定 1 项个体值提升到 31。", {cost: 12000, canBattleUse: false}),
-  v1Item("goldbottlecap", "Gold Bottle Cap", "金色王冠", "training", "休整页使用，全部个体值提升到 31。", {cost: 30000, canBattleUse: false}),
+  v1Item("abilitycapsule", "Ability Capsule", "特性胶囊", "training", "休整页使用，在普通特性之间切换。", {cost: 16000, canBattleUse: false, trainingEffect: {kind: "ability", mode: "capsule"}}),
+  v1Item("abilitypatch", "Ability Patch", "特性膏药", "training", "休整页使用，切换为隐藏特性。", {cost: 32000, canBattleUse: false, trainingEffect: {kind: "ability", mode: "patch"}}),
+  v1Item("bottlecap", "Bottle Cap", "银色王冠", "training", "休整页使用，指定 1 项个体值提升到 31。", {cost: 12000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "silver"}}),
+  v1Item("goldbottlecap", "Gold Bottle Cap", "金色王冠", "training", "休整页使用，全部个体值提升到 31。", {cost: 30000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "gold"}}),
+  v1Item("graybottlecap", "Gray Bottle Cap", "灰色王冠", "training", "休整页使用，使 1 项个体值降低到 0。", {cost: 8000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "gray"}, iconAsset: "runtime/items/goldbottlecap/icon.png"}),
   v1Item("system-mega-stone", "Universal Mega Ore", "通用Mega石", "system-battle", "工厂自研的 Mega 原石，十分贵重，蕴含一切进化的可能性。只要敲下一小块，就能加工成任意宝可梦需要的 Mega 石。", {source: "system", effectSummary: "拥有后，可在准备阶段为一只适合的宝可梦制作并配置专属 Mega 石。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/mega2.png", tags: ["Mega", "mega进化", "超级进化", "系统战斗道具"]}),
   v1Item("system-z-crystal", "Universal Z-Crystal", "通用Z纯晶", "system-battle", "工厂调律后的 Z 纯晶，内部折射着各种属性的光。把它切割成合适形状后，就能成为训练师与宝可梦释放 Z 招式的核心。", {source: "system", effectSummary: "拥有后，可在准备阶段加工成适合队伍的 Z 纯晶。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/Z2.png", tags: ["Z招式", "Z-Move", "纯晶", "系统战斗道具"]}),
   v1Item("system-dynamax-band", "Prototype Dynamax Band", "极巨化手环", "system-battle", "工厂复刻的极巨化手环，内置能量稳定器。它会在适合的场地中与宝可梦产生共鸣，让训练师获得启动极巨化的资格。", {source: "system", effectSummary: "拥有后，可在支持极巨化的规则中使用极巨化。", canUse: false, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/jjh2.png", tags: ["极巨化", "Dynamax", "Max", "系统战斗道具"]}),
@@ -542,6 +587,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       sourceLabel: ITEM_SOURCE_LABEL[source],
       effectSummary: overlay?.effectSummary || description,
       recoveryEffect: overlay?.recoveryEffect,
+      trainingEffect: overlay?.trainingEffect,
       canBattleUse: overlay?.canBattleUse ?? false,
       canUse: overlay?.canUse ?? false,
       canUseToPokemon: overlay?.canUseToPokemon ?? false,
@@ -550,7 +596,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       cost: overlay?.cost ?? 500,
       futureInstanceCompatible: true,
       iconUrl: icon.url,
-      iconStyle: icon.style,
+      iconStyle: grayBottleCapStyle(item.id, icon.style),
     };
   }
 
@@ -567,6 +613,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       sourceLabel: ITEM_SOURCE_LABEL[entry.source],
       effectSummary: entry.effectSummary || entry.description,
       recoveryEffect: entry.recoveryEffect,
+      trainingEffect: entry.trainingEffect,
       canBattleUse: entry.canBattleUse,
       canUse: entry.canUse,
       canUseToPokemon: entry.canUseToPokemon,
@@ -575,7 +622,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       cost: entry.cost,
       futureInstanceCompatible: entry.futureInstanceCompatible,
       iconUrl: icon.url,
-      iconStyle: icon.style,
+      iconStyle: grayBottleCapStyle(entry.id, icon.style),
     };
   }
 
@@ -795,6 +842,17 @@ function itemKind(item: any): DexItemKind {
   return "battle";
 }
 
+function grayBottleCapStyle(itemId: string, style?: string): string | undefined {
+  if (toID(itemId) !== "graybottlecap") return style;
+  return [style, "filter: grayscale(1) brightness(0.72) contrast(1.15)"].filter(Boolean).join("; ");
+}
+
+function natureMintIconAsset(nature: string): string {
+  const id = toID(nature);
+  const v1MintIconId = ["hardy", "docile", "bashful", "quirky"].includes(id) ? "seriousmint" : `${id}mint`;
+  return `runtime/items/${v1MintIconId}/icon.png`;
+}
+
 function v1Item(
   id: string,
   name: string,
@@ -813,6 +871,7 @@ function v1Item(
     description: displayDescription,
     effectSummary: options.effectSummary || description,
     recoveryEffect: options.recoveryEffect,
+    trainingEffect: options.trainingEffect,
     iconAsset: options.iconAsset || `runtime/items/${id}/icon.png`,
     canBattleUse: options.canBattleUse ?? false,
     canUse: options.canUse ?? true,

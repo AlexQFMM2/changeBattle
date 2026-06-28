@@ -8,6 +8,7 @@ import {TrainingRestNewActionBoard} from "./TrainingRestNewActionBoard";
 import {TrainingRestNewBagPanel} from "./TrainingRestNewBagPanel";
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
+import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
 import "./TrainingRestNewPage.css";
 
 export type TrainingRestNewPageProps = {
@@ -27,6 +28,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [unlockTarget, setUnlockTarget] = useState<PreviewPokemonEntry | null>(null);
   const [message, setMessage] = useState("休整中心已就绪。");
+  const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
   const p1Team = run.players.p1?.localTeam || null;
 
   function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
@@ -58,6 +60,37 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   function updateRunGameDraft(nextRun: TrainingRunGameV4, nextMessage: string) {
     onRunChange(nextRun);
     setMessage(nextMessage);
+  }
+
+  function showNotice(nextMessage: string, tone: TrainingRestToastTone = "normal") {
+    setToast({id: Date.now(), message: nextMessage, tone});
+  }
+
+  function closeFloatingPanels() {
+    setTeamPanelOpen(false);
+    setBagPanelOpen(false);
+  }
+
+  function validateBattleLead(): string | null {
+    const mode = api.getCurrentTrainingNode(run)?.mode || run.scenario.mode;
+    const pokemon = p1Team?.pokemon || [];
+    const requiredLeadCount = mode === "doubles" ? 2 : 1;
+    const leads = pokemon.slice(0, requiredLeadCount);
+    if (leads.length < requiredLeadCount) return mode === "doubles" ? "双打需要至少两只首发宝可梦。" : "当前队伍没有可首发宝可梦。";
+    const faintedLead = leads.find(entry => entry.entryHp <= 0);
+    if (!faintedLead) return null;
+    const name = faintedLead.nameZh || faintedLead.name;
+    return mode === "doubles" ? `双打首发两只不能有濒死宝可梦：${name}。` : `首发不能是濒死宝可梦：${name}。`;
+  }
+
+  function startBattleAfterValidation() {
+    const error = validateBattleLead();
+    if (error) {
+      setMessage(error);
+      showNotice(error, "danger");
+      return;
+    }
+    onStartBattle();
   }
 
   function unlockPreviewPokemon(target: PreviewPokemonEntry) {
@@ -96,7 +129,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     if (action === "结束休整") {
-      onStartBattle();
+      startBattleAfterValidation();
       return;
     }
     if (action === "放弃比赛") setAbandonOpen(true);
@@ -123,11 +156,19 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       />
       <TrainingRestSideBoard
         side="right"
-        actions={[{label: "结束休整"}, {label: "放弃比赛", danger: true}]}
+        actions={[{label: "结束休整", primary: true}, {label: "放弃比赛", danger: true}]}
         activeAction={activeAction}
         onAction={selectAction}
       />
       <div className="training-rest-new-save-message" role="status">{message}</div>
+      {teamPanelOpen || bagPanelOpen ? (
+        <button
+          className="training-rest-new-panel-scrim"
+          type="button"
+          aria-label="关闭当前面板"
+          onClick={closeFloatingPanels}
+        />
+      ) : null}
       <TrainingRestNewTeamPanel
         api={api}
         open={teamPanelOpen}
@@ -141,7 +182,17 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         run={run}
         onClose={() => setBagPanelOpen(false)}
         onRunDraftChange={updateRunGameDraft}
+        onNotice={showNotice}
       />
+      {toast ? (
+        <TrainingRestToast
+          key={toast.id}
+          message={toast.message}
+          tone={toast.tone}
+          durationMs={1800}
+          onDone={() => setToast(current => current?.id === toast.id ? null : current)}
+        />
+      ) : null}
       {abandonOpen ? (
         <TrainingRestConfirmDialog
           title="是否放弃？"

@@ -121,6 +121,18 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
     });
   }
 
+  function movePokemon(fromIndex: number, direction: -1 | 1) {
+    if (!localTeam) return;
+    const toIndex = fromIndex + direction;
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= localTeam.pokemon.length || toIndex >= localTeam.pokemon.length) return;
+    const nextPokemon = [...localTeam.pokemon];
+    const [moved] = nextPokemon.splice(fromIndex, 1);
+    if (!moved) return;
+    nextPokemon.splice(toIndex, 0, moved);
+    setSelectedPokemonId(moved.localPokemonId);
+    onLocalTeamChange({...localTeam, pokemon: nextPokemon});
+  }
+
   return (
     <>
       <motion.section
@@ -148,14 +160,17 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
         animate={open ? {y: 0, opacity: 1} : {y: "110%", opacity: 0}}
         transition={{duration: 0.18}}
       >
-        <div className="training-rest-new-team-drawer-title">我的队伍</div>
         <div className="training-rest-new-team-slots">
           {team.length ? team.slice(0, 6).map((pokemon, index) => (
             <TrainingRestNewTeamSlot
               pokemon={pokemon}
               index={index}
+              canMoveUp={index > 0}
+              canMoveDown={index < Math.min(team.length, 6) - 1}
               selected={pokemon.localPokemonId === selectedPokemon?.localPokemonId}
               onSelect={() => setSelectedPokemonId(pokemon.localPokemonId)}
+              onMoveUp={() => movePokemon(index, -1)}
+              onMoveDown={() => movePokemon(index, 1)}
               key={pokemon.localPokemonId}
             />
           )) : <span className="training-rest-new-team-empty compact">暂无宝可梦</span>}
@@ -165,18 +180,68 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
   );
 }
 
-function TrainingRestNewTeamSlot({pokemon, index, selected, onSelect}: {pokemon: LocalPokemonV4; index: number; selected: boolean; onSelect: () => void}) {
+function TrainingRestNewTeamSlot({
+  pokemon,
+  index,
+  canMoveUp,
+  canMoveDown,
+  selected,
+  onSelect,
+  onMoveUp,
+  onMoveDown,
+}: {
+  pokemon: LocalPokemonV4;
+  index: number;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  selected: boolean;
+  onSelect: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}) {
   const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
   const status = STATUS_LABEL[pokemon.entryStatus] || pokemon.entryStatus || "";
   return (
-    <button className={`training-rest-new-team-slot ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""}`} type="button" onClick={onSelect}>
+    <div
+      className={`training-rest-new-team-slot ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""}`}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSelect();
+      }}
+    >
       <span className="training-rest-new-team-slot-index">{index + 1}</span>
+      <span className="training-rest-new-team-order-controls" aria-label="调整队伍顺序">
+        <button
+          type="button"
+          disabled={!canMoveUp}
+          aria-label={`${pokemon.nameZh || pokemon.name}上移`}
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            onMoveUp();
+          }}
+        >▲</button>
+        <button
+          type="button"
+          disabled={!canMoveDown}
+          aria-label={`${pokemon.nameZh || pokemon.name}下移`}
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            onMoveDown();
+          }}
+        >▼</button>
+      </span>
       {status && status !== "正常" ? <em>{status}</em> : null}
       <TrainingRestNewPokemonSprite pokemon={pokemon} kind="icon" />
       <strong>{pokemon.nameZh || pokemon.name}</strong>
       <small>Lv.{pokemon.level}</small>
       <i style={{"--rest-new-hp-rate": `${hpRate}%`} as CSSProperties} />
-    </button>
+    </div>
   );
 }
 

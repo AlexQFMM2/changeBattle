@@ -1,6 +1,6 @@
 import {useMemo, useState} from "react";
 import type {ChangeBattleV2Api, DexItemDetail, LocalPokemonV4, PlayerItemInstanceV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
-import {applyRecoveryItemToPokemonV4, canUseRecoveryItemV4, clearConsumedItemFromTeamV4} from "@changebattle-v2/api";
+import {applyRecoveryItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4} from "@changebattle-v2/api";
 import {PlayerBagPanel, itemDetailFor, type PlayerBagAction, type PlayerBagPokemonTarget} from "./PlayerBagPanel";
 
 export type TrainingRestNewBagPanelProps = {
@@ -9,11 +9,12 @@ export type TrainingRestNewBagPanelProps = {
   run: TrainingRunGameV4;
   onClose: () => void;
   onRunDraftChange: (run: TrainingRunGameV4, message: string) => void;
+  onNotice?: (message: string, tone?: "normal" | "danger") => void;
 };
 
 const EQUIPPABLE_ITEM_KINDS = new Set(["battle", "held", "berry", "special"]);
 
-export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChange}: TrainingRestNewBagPanelProps) {
+export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChange, onNotice}: TrainingRestNewBagPanelProps) {
   const p1 = run.players.p1 || null;
   const bag = useMemo(() => api.normalizeBagState(p1?.bag), [api, p1?.bag]);
   const team = p1?.localTeam.pokemon || [];
@@ -23,6 +24,8 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const selectedDetail = useMemo(() => itemDetailFor(api, selectedItem), [api, selectedItem]);
   const equipEligibility = selectedItem ? getBagItemEquipEligibility(selectedItem, selectedDetail) : {canEquip: false, reason: "请选择道具"};
   const canUseRecovery = canUseRecoveryItemV4(selectedItem, selectedDetail);
+  const canUseTraining = canUseTrainingItemV4(selectedItem, selectedDetail);
+  const canUseItem = canUseRecovery || canUseTraining;
   const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail));
   const selectedHeldItem = selectedPokemon ? itemForPokemon(bag.items, selectedPokemon) : null;
   const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId));
@@ -74,14 +77,23 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   }
 
   function useSelectedItem() {
-    if (!p1 || !selectedItem || !selectedPokemon || !canUseRecovery) return;
-    const result = applyRecoveryItemToPokemonV4({
-      item: selectedItem,
-      detail: selectedDetail,
-      pokemon: selectedPokemon,
-      bag,
-      team,
-    });
+    if (!p1 || !selectedItem || !selectedPokemon || !canUseItem) return;
+    const result = canUseRecovery
+      ? applyRecoveryItemToPokemonV4({
+        item: selectedItem,
+        detail: selectedDetail,
+        pokemon: selectedPokemon,
+        bag,
+        team,
+      })
+      : applyTrainingItemToPokemonV4({
+        item: selectedItem,
+        detail: selectedDetail,
+        pokemon: selectedPokemon,
+        bag,
+        pokemonDetail: pokemonDetailFor(api, selectedPokemon),
+        calculateMaxHp: pokemon => calculateMaxHp(api, pokemon),
+      });
     if (!result.ok) {
       onRunDraftChange(run, result.reason);
       return;
@@ -92,6 +104,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       pokemon: consumedClearedTeam.map(pokemon => pokemon.localPokemonId === selectedPokemon.localPokemonId ? result.pokemon : pokemon),
     };
     const nextRun = patchP1(run, {...p1, bag: result.bag, localTeam: nextTeam});
+    onNotice?.(result.message);
     onRunDraftChange(nextRun, `${result.message} 记得手动保存。`);
   }
 
@@ -113,8 +126,8 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     {
       key: "use",
       label: "立即使用",
-      disabled: !selectedItem || !selectedPokemon || !canUseRecovery,
-      title: canUseRecovery ? "对选中宝可梦立即使用" : "该道具当前不能立即使用。",
+      disabled: !selectedItem || !selectedPokemon || !canUseItem,
+      title: canUseItem ? "对选中宝可梦立即使用" : "该道具当前不能立即使用。",
       onClick: useSelectedItem,
     },
     {
@@ -187,6 +200,28 @@ function isSystemItem(item: PlayerItemInstanceV4, detail: DexItemDetail | null):
 
 function isRecastCandidate(item: PlayerItemInstanceV4, detail: DexItemDetail | null): boolean {
   return item.itemID === "system-mega-stone" || item.itemID === "system-z-crystal" || item.itemID === "system-tera-orb" || detail?.kind === "system-battle";
+}
+
+function pokemonDetailFor(api: ChangeBattleV2Api, pokemon: LocalPokemonV4) {
+  try {
+    return api.getPokemonDetail(pokemon.speciesId);
+  } catch {
+    return null;
+  }
+}
+
+function calculateMaxHp(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): number {
+  try {
+    return api.dex.calculatePokemonStats({
+      speciesId: pokemon.speciesId,
+      level: pokemon.level,
+      nature: pokemon.nature,
+      evs: pokemon.evs,
+      ivs: pokemon.ivs,
+    }).stats.hp;
+  } catch {
+    return pokemon.maxHp;
+  }
 }
 
 function pokemonToTarget(items: PlayerItemInstanceV4[]): (pokemon: LocalPokemonV4) => PlayerBagPokemonTarget {

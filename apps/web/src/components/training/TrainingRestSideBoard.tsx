@@ -4,6 +4,7 @@ export type TrainingRestSideBoardSide = "left" | "right";
 
 export type TrainingRestSideBoardAction = {
   label: string;
+  primary?: boolean;
   danger?: boolean;
 };
 
@@ -23,7 +24,7 @@ export function TrainingRestSideBoard({
       <div>
         {actions.map(action => (
           <button
-            className={`${activeAction === action.label ? "active" : ""} ${action.danger ? "danger" : ""}`}
+            className={`${activeAction === action.label ? "active" : ""} ${action.primary ? "primary" : ""} ${action.danger ? "danger" : ""}`}
             type="button"
             onClick={() => onAction(action.label)}
             key={action.label}

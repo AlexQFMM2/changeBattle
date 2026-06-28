@@ -847,7 +847,6 @@ function BattleV4BagPanel({api, bag, snapshot, request, commandDraft, onClose, o
         api={api}
         open
         title="战斗背包"
-        drawerTitle="战斗道具"
         items={bag.items}
         maxSize={bag.maxSize}
         isBattle
