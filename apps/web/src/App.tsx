@@ -9,6 +9,7 @@ import {
   type DesktopUserProfileBridge,
   type FormalGameModeV4,
   type FormalGameRunV4,
+  type FormalSettlementReasonV4,
   type TrainingRunGameV4,
   type UserProfileDraftV2,
   type UserProfileV2,
@@ -21,6 +22,8 @@ import {BattleV4Page} from "./components/battle-v4/BattleV4Page";
 import {TrainingBattleTransitionPage} from "./components/battle-v4/TrainingBattleTransitionPage";
 import {ComponentGalleryPage} from "./components/gallery/ComponentGalleryPage";
 import {FormalGamePendingPage} from "./components/formal/FormalGamePendingPage";
+import {FormalSettlementPage} from "./components/formal/FormalSettlementPage";
+import {FormalSettlementTransitionPage} from "./components/formal/FormalSettlementTransitionPage";
 import {FormalGameTransitionPage} from "./components/formal/FormalGameTransitionPage";
 import {FormalRoundTransitionPage} from "./components/formal/FormalRoundTransitionPage";
 import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPage";
@@ -236,6 +239,44 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/training/rest-new", {replace: true});
   }
 
+  async function continueFormalRun() {
+    const current = formalRun || await api.loadFormalGameRun();
+    if (!current) {
+      setMessage("没有可继续的正式游戏存档。");
+      return;
+    }
+    setFormalRun(current);
+    if (current.settlement) {
+      navigate("/formal/settlement", {replace: true});
+      return;
+    }
+    if (current.restRunSnapshot) {
+      if (current.restRunSnapshot.status === "ended") {
+        enterFormalSettlement(current.restRunSnapshot.result?.outcome === "loss" ? "loss" : "complete");
+        return;
+      }
+      navigate("/formal/rest", {replace: true});
+      return;
+    }
+    if (current.playerTeam) {
+      navigate("/formal/round-transition", {replace: true});
+      return;
+    }
+    if (current.starterCandidates.length) {
+      navigate("/formal/starter-select", {replace: true});
+      return;
+    }
+    navigate(`/formal/transition/${current.mode}`, {replace: true});
+  }
+
+  async function continueSavedRunGame() {
+    if (formalRun) {
+      await continueFormalRun();
+      return;
+    }
+    await continueTrainingRun();
+  }
+
   async function startTrainingRun(run: TrainingRunGameV4) {
     const saved = await api.saveTrainingRun(api.createTrainingRunFromScenario(run));
     setTrainingRun(saved);
@@ -279,6 +320,10 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/formal/battle", {replace: true});
   }
 
+  function enterFormalSettlement(reason: FormalSettlementReasonV4) {
+    navigate(`/formal/settlement-transition?reason=${reason}`, {replace: true});
+  }
+
   function openDex(initialPokemonId: string | null = null) {
     setDexInitialPokemonId(initialPokemonId);
     setDexInitialCategory(undefined);
@@ -307,6 +352,7 @@ function RoutedApp({runtime}: AppProps) {
     />
   );
 
+  const continueGameLabel = continueGameLabelFor(formalRun, trainingRun);
   const mainPage = profile ? (
     <>
       <MainMenuPage
@@ -314,12 +360,12 @@ function RoutedApp({runtime}: AppProps) {
         profile={profile}
         catalog={catalog.trainers}
         trainingRun={trainingRun}
-        hasTrainingRun={Boolean(trainingRun)}
+        continueGameLabel={continueGameLabel}
         onOpenDex={() => openDex()}
         onOpenDexCard={openDexCard}
         onTraining={() => void createTrainingRunAndOpenConfig()}
         onFormalGame={startFormalGame}
-        onContinueTraining={() => void continueTrainingRun()}
+        onContinueGame={continueGameLabel ? () => void continueSavedRunGame() : undefined}
         onStarChart={() => navigate("/star-chart")}
         onTestMode={() => void enableTestMode()}
         onBattlePreference={() => navigate("/battle-preference")}
@@ -513,9 +559,11 @@ function RoutedApp({runtime}: AppProps) {
           return saved.restRunSnapshot || restRunSnapshot;
         }}
         onBackToConfig={() => navigate("/main", {replace: true})}
+        onAbandonRun={() => enterFormalSettlement("abandon")}
         onStartBattle={startFormalBattleFromRest}
         onOpenDex={() => openDex()}
         onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
+        moneyAmount={formalRun.money}
       />
     ) : (
       <Navigate to="/main" replace />
@@ -556,7 +604,53 @@ function RoutedApp({runtime}: AppProps) {
           setFormalRun(saved);
           return saved.restRunSnapshot || restRunSnapshot;
         }}
-        onBackToRest={() => navigate("/formal/rest", {replace: true})}
+        onBattleSnapshot={async snapshot => {
+          if (!formalRun) return null;
+          const withLog = api.appendBattleLogEntriesFromSnapshotV4(formalRun, snapshot);
+          const saved = await api.saveFormalGameRun(withLog);
+          setFormalRun(saved);
+          return saved.restRunSnapshot;
+        }}
+        onSurrenderSettlement={() => enterFormalSettlement("surrender")}
+        onBackToRest={() => {
+          if (formalRun?.restRunSnapshot?.status === "ended") {
+            enterFormalSettlement(formalRun.restRunSnapshot.result?.outcome === "loss" ? "loss" : "complete");
+            return;
+          }
+          navigate("/formal/rest", {replace: true});
+        }}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const settlementReason = parseSettlementReason(new URLSearchParams(location.search).get("reason"));
+  const formalSettlementTransitionPage = profile ? (
+    formalRun ? (
+      <FormalSettlementTransitionPage
+        api={api}
+        run={formalRun}
+        profile={profile}
+        reason={settlementReason}
+        onSettled={(run, nextProfile) => {
+          setFormalRun(run);
+          setProfile(nextProfile);
+          navigate("/formal/settlement", {replace: true});
+        }}
+        onBack={() => navigate("/main", {replace: true})}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const formalSettlementPage = profile ? (
+    formalRun?.settlement ? (
+      <FormalSettlementPage
+        run={formalRun}
+        profile={profile}
+        onBackToMain={() => navigate("/main", {replace: true})}
       />
     ) : (
       <Navigate to="/main" replace />
@@ -585,6 +679,8 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/formal/rest" element={formalRestPage} />
         <Route path="/formal/battle-transition" element={formalBattleTransitionPage} />
         <Route path="/formal/battle" element={formalBattlePage} />
+        <Route path="/formal/settlement-transition" element={formalSettlementTransitionPage} />
+        <Route path="/formal/settlement" element={formalSettlementPage} />
         <Route path="/formal/pending" element={formalPendingPage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -604,6 +700,22 @@ function RoutedApp({runtime}: AppProps) {
 
 function parseFormalMode(value: unknown): FormalGameModeV4 {
   return value === "doubles" || value === "coop" ? value : "singles";
+}
+
+function continueGameLabelFor(formalRun: FormalGameRunV4 | null, trainingRun: TrainingRunGameV4 | null): string | undefined {
+  if (formalRun) return `继续游戏（${formalModeLabel(formalRun.mode)}）`;
+  if (trainingRun) return "继续游戏（训练场）";
+  return undefined;
+}
+
+function formalModeLabel(mode: FormalGameModeV4): string {
+  if (mode === "doubles") return "双打-AI";
+  if (mode === "coop") return "合作-AI";
+  return "单打-AI";
+}
+
+function parseSettlementReason(value: unknown): FormalSettlementReasonV4 {
+  return value === "complete" || value === "loss" || value === "surrender" || value === "abandon" ? value : "loss";
 }
 
 function TrainingConfigBootstrap({onReady}: {onReady: () => void}) {

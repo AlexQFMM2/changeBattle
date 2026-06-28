@@ -7,17 +7,17 @@ import type {MainMenuQuickDexSeed} from "./mainMenuTypes";
 import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import "./MainMenuPage.css";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueTraining, onStarChart, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
   trainingRun: TrainingRunGameV4 | null;
-  hasTrainingRun?: boolean;
+  continueGameLabel?: string;
   onOpenDex: () => void;
   onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
   onFormalGame: (mode: FormalGameModeV4) => void;
-  onContinueTraining?: () => void;
+  onContinueGame?: () => void;
   onStarChart: () => void;
   onTestMode: () => void;
   onBattlePreference: () => void;
@@ -30,7 +30,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, hasTrainingRun
   const actionTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
   const mainMenuItems: MainMenuCommandItem[] = [
-    ...(hasTrainingRun && onContinueTraining ? [{label: "继续游戏(训练场)", action: onContinueTraining}] : []),
+    ...(continueGameLabel && onContinueGame ? [{label: continueGameLabel, action: onContinueGame}] : []),
     {label: "开始新游戏", action: () => setGameMenuOpen(true), instant: true},
     {label: "训练家星图", action: onStarChart},
     {label: "对局偏好", action: onBattlePreference},

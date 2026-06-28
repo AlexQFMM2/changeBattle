@@ -1,6 +1,7 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, type FormalGameRunStorageAdapter} from "./formalGame.js";
+import type {FormalGameSettlementV4} from "./formalGame.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -199,6 +200,10 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     prepareFormalStarterCandidates: formalRuns.prepareFormalStarterCandidates,
     selectFormalStarterPokemon: formalRuns.selectFormalStarterPokemon,
     prepareFormalRoundPlan: formalRuns.prepareFormalRoundPlan,
+    appendCoinLogEntryV4: formalRuns.appendCoinLogEntryV4,
+    appendBattleLogEntriesFromSnapshotV4: formalRuns.appendBattleLogEntriesFromSnapshotV4,
+    prepareFormalSettlement: formalRuns.prepareFormalSettlement,
+    claimFormalSettlementBp: async (profile: UserProfileV2, settlement: FormalGameSettlementV4) => userProfiles.saveUserProfile(claimFormalSettlementBp(profile, settlement)),
     selectedCountForFormalMode: formalRuns.selectedCountForFormalMode,
     createTrainingRunGame: trainingRuns.createTrainingRunGame,
     createDefaultTrainingScenario: trainingRuns.createDefaultTrainingScenario,
@@ -256,6 +261,15 @@ export function updateUserProfile(profile: UserProfileV2, draft: UserProfileDraf
     battlePoints: normalizeBattlePointsV4(profile.battlePoints),
     starChart: normalizeStarChartV4(profile.starChart),
   };
+}
+
+export function claimFormalSettlementBp(profile: UserProfileV2, settlement: FormalGameSettlementV4, now = new Date()): UserProfileV2 {
+  if (settlement.claimedAt) return normalizeProfile(profile);
+  return normalizeProfile({
+    ...profile,
+    battlePoints: normalizeBattlePointsV4(profile.battlePoints) + Math.max(0, Math.round(Number(settlement.bpGained || 0))),
+    updatedAt: now.toISOString(),
+  });
 }
 
 export function createBrowserUserProfileAdapter(storageKey = DEFAULT_BROWSER_PROFILE_KEY): UserProfileStorageAdapter {

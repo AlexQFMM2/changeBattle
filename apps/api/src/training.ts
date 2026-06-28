@@ -47,6 +47,44 @@ export type TrainingRunGameV4 = {
   result: TrainingRunResultV4 | null;
   battlePreference: BattlePreferenceV4;
   restPreviewUnlocks?: Record<string, true>;
+  coinLog?: TrainingCoinLogEntryV4[];
+  battleLog?: TrainingBattleLogEntryV4[];
+};
+
+export type TrainingCoinLogEntryV4 = {
+  id: string;
+  key: string;
+  at: string;
+  roundIndex: number;
+  kind: "income" | "expense" | "adjustment";
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  source: string;
+  label: string;
+};
+
+export type TrainingBattleLogEntryV4 = {
+  id: string;
+  key: string;
+  at: string;
+  sessionId: string;
+  nodeId: string;
+  turn: number;
+  rawLogIndex: number;
+  eventType: "move" | "damage" | "heal" | "faint" | "win" | "other";
+  damage?: number;
+  healing?: number;
+  sourcePlayerId?: ShowdownPlayerIdV4;
+  sourcePokemonKey?: string;
+  sourcePokemonName?: string;
+  targetPlayerId?: ShowdownPlayerIdV4;
+  targetPokemonKey?: string;
+  targetPokemonName?: string;
+  moveId?: string;
+  moveName?: string;
+  directness?: "direct" | "indirect" | "unknown";
+  rawLine: string;
 };
 
 export type TrainingBattleGamePlaceholderV4 = {
@@ -396,6 +434,8 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       gameMap: [],
       result: null,
       battlePreference,
+      coinLog: [],
+      battleLog: [],
     };
   }
 
@@ -518,6 +558,8 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       result: run.result || null,
       battlePreference: {...battlePreference, ruleSet: scenario.ruleSet, enabledBattleSystems: battleSystemsForRuleSetV4(scenario.ruleSet)},
       restPreviewUnlocks: normalizeRestPreviewUnlocks(run.restPreviewUnlocks),
+      coinLog: normalizeCoinLog(run.coinLog),
+      battleLog: normalizeBattleLog(run.battleLog),
     };
   }
 
@@ -1051,6 +1093,70 @@ function normalizeRestPreviewUnlocks(value: unknown): Record<string, true> {
   return Object.fromEntries(Object.entries(value).filter(([, unlocked]) => unlocked).map(([key]) => [key, true])) as Record<string, true>;
 }
 
+function normalizeCoinLog(value: unknown): TrainingCoinLogEntryV4[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry, index) => {
+    if (!isRecord(entry)) return [];
+    const amount = Math.round(Number(entry.amount || 0));
+    const balanceBefore = Math.round(Number(entry.balanceBefore || 0));
+    const balanceAfter = Math.round(Number(entry.balanceAfter ?? balanceBefore + amount));
+    const kind = entry.kind === "income" || entry.kind === "expense" || entry.kind === "adjustment"
+      ? entry.kind
+      : amount < 0 ? "expense" : amount > 0 ? "income" : "adjustment";
+    const key = String(entry.key || entry.id || `coin-${index}`).trim();
+    return [{
+      id: String(entry.id || key || createId("coin-log")),
+      key: key || createId("coin-log-key"),
+      at: String(entry.at || new Date().toISOString()),
+      roundIndex: clampInt(entry.roundIndex, 0, 999, 0),
+      kind,
+      amount,
+      balanceBefore,
+      balanceAfter,
+      source: String(entry.source || "unknown"),
+      label: String(entry.label || "金币变动"),
+    }];
+  });
+}
+
+function normalizeBattleLog(value: unknown): TrainingBattleLogEntryV4[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry, index) => {
+    if (!isRecord(entry)) return [];
+    const eventType = ["move", "damage", "heal", "faint", "win", "other"].includes(String(entry.eventType))
+      ? entry.eventType as TrainingBattleLogEntryV4["eventType"]
+      : "other";
+    const sourcePlayerId = normalizeShowdownPlayerId(entry.sourcePlayerId);
+    const targetPlayerId = normalizeShowdownPlayerId(entry.targetPlayerId);
+    const directness = entry.directness === "direct" || entry.directness === "indirect" || entry.directness === "unknown"
+      ? entry.directness
+      : undefined;
+    const key = String(entry.key || entry.id || `battle-${index}`).trim();
+    return [{
+      id: String(entry.id || key || createId("battle-log")),
+      key: key || createId("battle-log-key"),
+      at: String(entry.at || new Date().toISOString()),
+      sessionId: String(entry.sessionId || ""),
+      nodeId: String(entry.nodeId || ""),
+      turn: clampInt(entry.turn, 0, 999, 0),
+      rawLogIndex: clampInt(entry.rawLogIndex, 0, 99999, index),
+      eventType,
+      damage: normalizeOptionalPositiveNumber(entry.damage),
+      healing: normalizeOptionalPositiveNumber(entry.healing),
+      sourcePlayerId,
+      sourcePokemonKey: normalizeOptionalText(entry.sourcePokemonKey),
+      sourcePokemonName: normalizeOptionalText(entry.sourcePokemonName),
+      targetPlayerId,
+      targetPokemonKey: normalizeOptionalText(entry.targetPokemonKey),
+      targetPokemonName: normalizeOptionalText(entry.targetPokemonName),
+      moveId: normalizeOptionalId(entry.moveId),
+      moveName: normalizeOptionalText(entry.moveName),
+      directness,
+      rawLine: String(entry.rawLine || ""),
+    }];
+  });
+}
+
 function defaultTeamSize(mode: TrainingModeV4): number {
   if (mode === "singles") return 3;
   if (mode === "doubles") return 4;
@@ -1125,6 +1231,16 @@ function normalizeOptionalText(value: unknown): string | undefined {
 
 function normalizeSystemReforgeKind(value: unknown): PlayerItemInstanceV4["systemReforgeKind"] {
   return value === "mega" || value === "z-crystal" || value === "tera" ? value : undefined;
+}
+
+function normalizeShowdownPlayerId(value: unknown): ShowdownPlayerIdV4 | undefined {
+  return value === "p1" || value === "p2" || value === "p3" || value === "p4" ? value : undefined;
+}
+
+function normalizeOptionalPositiveNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const next = Math.max(0, Math.round(Number(value)));
+  return Number.isFinite(next) ? next : undefined;
 }
 
 function toID(value: unknown): string {

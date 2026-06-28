@@ -1,16 +1,44 @@
 import "./TrainingRestNewActionBoard.css";
 
+export type TrainingRestNewActionEntry = {
+  label: string;
+  iconSrc?: string;
+  iconText?: string;
+  disabled?: boolean;
+  action?: string;
+};
+
 export type TrainingRestNewActionBoardProps = {
   activeAction: string;
   onAction: (action: string) => void;
+  entries?: TrainingRestNewActionEntry[];
 };
 
-export function TrainingRestNewActionBoard({activeAction, onAction}: TrainingRestNewActionBoardProps) {
-  const active = activeAction === "图鉴";
+const DEFAULT_REST_ACTION_ENTRIES: TrainingRestNewActionEntry[] = [
+  {label: "图鉴", iconSrc: "/ui/book.png", action: "图鉴"},
+  {label: "交换", iconSrc: "/aboutIcon/exchange.png", action: "交换"},
+  {label: "商店", iconSrc: "/aboutIcon/shop.png", action: "商店"},
+  {label: "抽奖机", iconSrc: "/aboutIcon/lottery.png", action: "抽奖机"},
+  {label: "遗传", iconSrc: "/aboutIcon/daycare-grandpa.png", action: "培育屋爷爷"},
+  {label: "教授", iconSrc: "/aboutIcon/tutor-grandma.png", action: "教授奶奶"},
+  {label: "未开放", iconText: "?", disabled: true},
+  {label: "未开放", iconText: "?", disabled: true},
+];
+
+export function TrainingRestNewActionBoard({activeAction, onAction, entries = DEFAULT_REST_ACTION_ENTRIES}: TrainingRestNewActionBoardProps) {
   return (
     <section className="training-rest-new-left-action-panel" aria-label="休整图鉴与功能入口">
-      <RestPaperAction label="图鉴" iconSrc="/ui/book.png" active={active} onClick={() => onAction("图鉴")} />
-      {Array.from({length: 7}, (_, index) => <RestPaperAction label="未开放" iconText="?" disabled key={index} />)}
+      {entries.slice(0, 8).map((entry, index) => (
+        <RestPaperAction
+          label={entry.label}
+          iconSrc={entry.iconSrc}
+          iconText={entry.iconText}
+          active={activeAction === (entry.action || entry.label)}
+          disabled={entry.disabled}
+          onClick={entry.disabled ? undefined : () => onAction(entry.action || entry.label)}
+          key={`${entry.label}-${index}`}
+        />
+      ))}
     </section>
   );
 }

@@ -18,6 +18,8 @@ export type BattleV4PageProps = {
   onRunChange: (run: TrainingRunGameV4) => void;
   onBackToRest: () => void;
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
+  onBattleSnapshot?: (snapshot: BattleSessionSnapshotV4) => Promise<TrainingRunGameV4 | null | void> | TrainingRunGameV4 | null | void;
+  onSurrenderSettlement?: () => void;
 };
 
 type SwitchActionV4 = Extract<BattleCommandActionV4, {kind: "switch"}>;
@@ -172,7 +174,7 @@ const TYPE_SHORT_LABEL: Record<string, string> = {
   fairy: "妖",
 };
 
-export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest, onSaveRunSnapshot}: BattleV4PageProps) {
+export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest, onSaveRunSnapshot, onBattleSnapshot, onSurrenderSettlement}: BattleV4PageProps) {
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
   const [busy, setBusy] = useState(false);
@@ -185,6 +187,11 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [choiceStatus, setChoiceStatus] = useState("");
   const skipAnimations = false;
   const [previewMove, setPreviewMove] = useState<DexMoveDetail | null>(null);
+  const [surrenderOpen, setSurrenderOpen] = useState(false);
+  const [surrenderApproved, setSurrenderApproved] = useState(false);
+  const [surrenderAllyApproved, setSurrenderAllyApproved] = useState(false);
+  const [surrenderRemainingMs, setSurrenderRemainingMs] = useState(30000);
+  const [surrenderSubmitting, setSurrenderSubmitting] = useState(false);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
   const playback = useBattleV4Playback(snapshot, viewModel, {skipAnimations, debugConfig});
@@ -201,6 +208,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
   const activeBattleBag = api.normalizeBagState(run.players.p1?.bag);
   const battleBagEnabled = Boolean(run.battlePreference?.battleBagEnabled && activeBattleBag.battleBagEnabled);
+  const surrenderParticipants = useMemo(() => {
+    const player = run.players.p1;
+    const ally = run.scenario.mode === "coop" ? run.players.p3 : null;
+    return [
+      {id: "p1", name: player?.name || "玩家", avatar: player?.avatar || ""},
+      ...(ally ? [{id: "p3", name: ally.name || "AI 队友", avatar: ally.avatar || ""}] : []),
+    ];
+  }, [run.players.p1, run.players.p3, run.scenario.mode]);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -243,6 +258,42 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   }, [playbackBlockingCommands]);
 
   useEffect(() => {
+    if (!surrenderOpen) return;
+    setSurrenderRemainingMs(30000);
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, 30000 - (Date.now() - startedAt));
+      setSurrenderRemainingMs(remaining);
+      if (remaining <= 0) {
+        window.clearInterval(timer);
+        if (!surrenderSubmitting) {
+          setSurrenderOpen(false);
+          setSurrenderApproved(false);
+          setSurrenderAllyApproved(false);
+          setChoiceStatus("投降确认超时，继续战斗。");
+        }
+      }
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [surrenderOpen, surrenderSubmitting]);
+
+  useEffect(() => {
+    if (!surrenderOpen || run.scenario.mode !== "coop") return;
+    const timer = window.setTimeout(() => setSurrenderAllyApproved(true), 800);
+    return () => window.clearTimeout(timer);
+  }, [run.scenario.mode, surrenderOpen]);
+
+  useEffect(() => {
+    if (!surrenderOpen || surrenderSubmitting || !surrenderApproved) return;
+    if (run.scenario.mode === "coop" && !surrenderAllyApproved) return;
+    setSurrenderSubmitting(true);
+    const timer = window.setTimeout(() => {
+      void submitSurrender();
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [run.scenario.mode, surrenderAllyApproved, surrenderApproved, surrenderOpen, surrenderSubmitting]);
+
+  useEffect(() => {
     let cancelled = false;
     let timer = 0;
     async function tick() {
@@ -259,8 +310,11 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         if (cancelled) return;
         setSnapshot(next);
         setMessage("");
+        const loggedRun = await onBattleSnapshot?.(next);
+        if (!cancelled && loggedRun) onRunChange(loggedRun);
         if (next.status === "ended" || next.status === "blocked") {
-          const patched = applyBattleSessionToRun(run, next);
+          const sourceRun = loggedRun || run;
+          const patched = applyBattleSessionToRun(sourceRun, next);
           const saved = onSaveRunSnapshot ? await onSaveRunSnapshot(patched) : await api.saveTrainingRun(patched);
           if (!cancelled) onRunChange(saved);
           return;
@@ -275,7 +329,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, busy, onRunChange, onSaveRunSnapshot, run, sessionId]);
+  }, [api, busy, onBattleSnapshot, onRunChange, onSaveRunSnapshot, run, sessionId]);
 
   async function submitChoice(choice: string, trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"] = []) {
     if (!choice || busy || !sessionId) return;
@@ -308,6 +362,36 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     } finally {
       setBusy(false);
     }
+  }
+
+  async function submitSurrender() {
+    if (!sessionId) {
+      onSurrenderSettlement?.();
+      return;
+    }
+    setChoiceStatus("投降已确认，正在结束战斗...");
+    try {
+      const next = await api.battleService.submitChoice(sessionId, "p1", "forfeit");
+      setSnapshot(next);
+      const loggedRun = await onBattleSnapshot?.(next);
+      if (loggedRun) onRunChange(loggedRun);
+    } catch (error) {
+      battleDebugLog(debugConfig, "error", "surrender-forfeit-failed", {
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      onSurrenderSettlement?.();
+    }
+  }
+
+  function openSurrenderDialog() {
+    if (!onSurrenderSettlement || snapshot?.status === "ended") return;
+    setSurrenderApproved(false);
+    setSurrenderAllyApproved(run.scenario.mode !== "coop");
+    setSurrenderRemainingMs(30000);
+    setSurrenderSubmitting(false);
+    setSurrenderOpen(true);
   }
 
   function applyDraftChoice(input: string) {
@@ -395,6 +479,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       <header className="battle-v4-hud">
         <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
         <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug)} disabled={!snapshot}>导出诊断</button>
+        {onSurrenderSettlement ? <button className="danger" type="button" onClick={openSurrenderDialog} disabled={!snapshot || surrenderOpen}>投降</button> : null}
       </header>
       {!playbackBlockingCommands ? (
         <BattleCommandDock
@@ -486,7 +571,72 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           onClose={() => setPreviewMove(null)}
         />
       ) : null}
+      {surrenderOpen ? (
+        <BattleV4SurrenderDialog
+          participants={surrenderParticipants}
+          playerApproved={surrenderApproved}
+          allyApproved={surrenderAllyApproved}
+          remainingMs={surrenderRemainingMs}
+          submitting={surrenderSubmitting}
+          onTogglePlayer={() => setSurrenderApproved(value => !value)}
+          onCancel={() => {
+            if (surrenderSubmitting) return;
+            setSurrenderOpen(false);
+            setSurrenderApproved(false);
+            setSurrenderAllyApproved(false);
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function BattleV4SurrenderDialog({participants, playerApproved, allyApproved, remainingMs, submitting, onTogglePlayer, onCancel}: {
+  participants: Array<{id: string; name: string; avatar: string}>;
+  playerApproved: boolean;
+  allyApproved: boolean;
+  remainingMs: number;
+  submitting: boolean;
+  onTogglePlayer: () => void;
+  onCancel: () => void;
+}) {
+  const progress = Math.max(0, Math.min(100, remainingMs / 30000 * 100));
+  const approvedById = new Map<string, boolean>([["p1", playerApproved], ["p3", allyApproved]]);
+  const titleName = participants[0]?.name || "玩家";
+  return (
+    <div className="battle-v4-surrender-modal" role="dialog" aria-label="投降确认">
+      <section>
+        <header>
+          {participants[0]?.avatar ? <img src={participants[0].avatar} alt="" /> : <i />}
+          <strong>{titleName} 发起了投降</strong>
+        </header>
+        <div className="battle-v4-surrender-checks">
+          {participants.map(participant => {
+            const approved = Boolean(approvedById.get(participant.id));
+            return (
+              <button
+                type="button"
+                className={approved ? "approved" : ""}
+                disabled={participant.id !== "p1" || submitting}
+                onClick={participant.id === "p1" ? onTogglePlayer : undefined}
+                key={participant.id}
+              >
+                {participant.avatar ? <img src={participant.avatar} alt="" /> : <i />}
+                <span>{participant.name}</span>
+                <b>{approved ? "✓" : "○"}</b>
+              </button>
+            );
+          })}
+        </div>
+        <div className="battle-v4-surrender-progress" aria-label="投降确认倒计时">
+          <b style={{width: `${progress}%`}} />
+        </div>
+        <footer>
+          <span>{submitting ? "全员同意，5 秒后进入失败结算..." : `等待确认 ${Math.ceil(remainingMs / 1000)}s`}</span>
+          <button type="button" disabled={submitting} onClick={onCancel}>取消</button>
+        </footer>
+      </section>
+    </div>
   );
 }
 

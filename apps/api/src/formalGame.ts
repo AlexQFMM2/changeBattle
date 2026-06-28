@@ -12,8 +12,11 @@ import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
   type BagStateV4,
+  type TrainingBattleLogEntryV4,
+  type TrainingCoinLogEntryV4,
   type LocalPokemonV4,
   type LocalTeamV4,
+  type PlayerItemInstanceV4,
   type ShowdownPlayerIdV4,
   type StatTableV4,
   type TrainingGenderV4,
@@ -25,6 +28,7 @@ import {
   type TrainingStatusV4,
   type TrainingUserProfileInputV4,
 } from "./training.js";
+import type {BattleSessionSnapshotV4} from "./battle.js";
 
 export type FormalGameModeV4 = "singles" | "doubles" | "coop";
 export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "roundPlanning" | "resting" | "ended";
@@ -118,6 +122,50 @@ export type FormalGameRunV4 = {
   restRunSnapshot: TrainingRunGameV4 | null;
   currentRoundIndex: number;
   money: number;
+  settlement: FormalGameSettlementV4 | null;
+};
+
+export type FormalSettlementReasonV4 = "complete" | "loss" | "surrender" | "abandon";
+
+export type FormalGameSettlementV4 = {
+  id: string;
+  outcome: "win" | "loss" | "abandoned";
+  reason: FormalSettlementReasonV4;
+  bpGained: number;
+  wonRounds: number;
+  coinSummary: {
+    income: number;
+    expense: number;
+    net: number;
+    balance: number;
+  };
+  pokemonStats: FormalSettlementPokemonStatsV4[];
+  mvpPokemonKey: string;
+  diagnostics: string[];
+  createdAt: string;
+  claimedAt?: string;
+};
+
+export type FormalSettlementPokemonStatsV4 = {
+  pokemonKey: string;
+  localPokemonId: string;
+  speciesId: string;
+  name: string;
+  nameZh: string;
+  iconUrl?: string;
+  iconStyle?: string;
+  spriteUrl?: string;
+  shiny: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damageDealt: number;
+  damageTaken: number;
+  healing: number;
+  usedRounds: number[];
+  kdaScore: number;
+  mvpScore: number;
+  isMvp: boolean;
 };
 
 export type FormalGameRunStorageAdapter = {
@@ -134,7 +182,19 @@ export type FormalGameRunApi = {
   prepareFormalStarterCandidates(run: FormalGameRunV4, options?: {count?: number; seed?: string}): FormalGameRunV4;
   selectFormalStarterPokemon(run: FormalGameRunV4, selectedIndexes: number[]): FormalGameRunV4;
   prepareFormalRoundPlan(run: FormalGameRunV4): FormalGameRunV4;
+  appendCoinLogEntryV4(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4;
+  appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4;
+  prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
   selectedCountForFormalMode(mode: FormalGameModeV4): number;
+};
+
+export type FormalCoinLogInputV4 = {
+  key?: string;
+  amount: number;
+  source: string;
+  label: string;
+  roundIndex?: number;
+  at?: string;
 };
 
 export type FormalGameUserProfileInputV4 = TrainingUserProfileInputV4 & {
@@ -228,7 +288,16 @@ const FORMAL_ROUND_COUNT = 7;
 const FORMAL_STARTING_MONEY = 3000;
 const FALLBACK_SPECIES = ["lucario", "charizard", "gardevoir", "dragonite", "greninja", "venusaur", "arcanine", "lapras", "gyarados", "snorlax"];
 const FALLBACK_MOVES = ["tackle", "quickattack", "protect", "rest"];
-const NPC_ITEMS = ["leftovers", "choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "sitrusberry", "lumberry", "rockyhelmet", "assaultvest", "heavydutyboots"];
+const NPC_ROOKIE_ITEMS = ["", "", "", "oranberry", "sitrusberry", "lumberry"];
+const NPC_NORMAL_ITEMS = ["oranberry", "sitrusberry", "lumberry", "leftovers", "rockyhelmet"];
+const NPC_ELITE_ITEMS = ["sitrusberry", "lumberry", "leftovers", "rockyhelmet", "expertbelt", "airballoon", "focussash"];
+const NPC_BOSS_ITEMS = ["leftovers", "choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "sitrusberry", "lumberry", "rockyhelmet", "assaultvest", "heavydutyboots"];
+const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
+  standard: [],
+  gen7: ["system-mega-stone", "system-z-crystal"],
+  gen8: ["system-dynamax-band"],
+  gen9: ["system-tera-orb"],
+};
 const NPC_BATTLE_PREFERENCES: FormalNpcBattlePreferenceV4[] = ["offense", "defense", "support", "balanced"];
 const NPC_TEAM_PREFERENCES: FormalNpcTeamPreferenceV4[] = ["rain", "sun", "sand", "snow", "trick-room", "tailwind", "terrain", "hazard-stack", "poison-stall", "setup-offense", "balanced"];
 const ROUND_DISTRIBUTIONS: Record<"0" | "1" | "2" | "3", FormalNpcTypeV4[]> = {
@@ -316,6 +385,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restRunSnapshot: null,
       currentRoundIndex: 0,
       money: FORMAL_STARTING_MONEY,
+      settlement: null,
     };
     return normalizeFormalRun(run);
   }
@@ -340,6 +410,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       roundPlan: [],
       restRunSnapshot: null,
       currentRoundIndex: 0,
+      settlement: null,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -375,6 +446,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       roundPlan: [],
       restRunSnapshot: null,
       currentRoundIndex: 0,
+      settlement: null,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -451,7 +523,108 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restRunSnapshot,
       currentRoundIndex: 0,
       money: normalized.money || FORMAL_STARTING_MONEY,
+      settlement: null,
       updatedAt: new Date().toISOString(),
+    });
+  }
+
+  function appendCoinLogEntryV4(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4 {
+    const normalized = normalizeFormalRun(run);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    if (!restRunSnapshot) return normalized;
+    const amount = Math.round(Number(entry.amount || 0));
+    const balanceBefore = normalized.money;
+    const balanceAfter = clampInt(balanceBefore + amount, 0, 999999, balanceBefore);
+    const now = entry.at || new Date().toISOString();
+    const logEntry: TrainingCoinLogEntryV4 = {
+      id: createId("coin-log"),
+      key: entry.key || `${entry.source}:${entry.roundIndex ?? normalized.currentRoundIndex}:${now}:${amount}`,
+      at: now,
+      roundIndex: clampInt(entry.roundIndex, 0, FORMAL_ROUND_COUNT - 1, normalized.currentRoundIndex),
+      kind: amount > 0 ? "income" : amount < 0 ? "expense" : "adjustment",
+      amount,
+      balanceBefore,
+      balanceAfter,
+      source: entry.source || "formal",
+      label: entry.label || "金币变动",
+    };
+    const existingKeys = new Set((restRunSnapshot.coinLog || []).map(item => item.key));
+    const coinLog = existingKeys.has(logEntry.key) ? restRunSnapshot.coinLog || [] : [...(restRunSnapshot.coinLog || []), logEntry];
+    return normalizeFormalRun({
+      ...normalized,
+      money: balanceAfter,
+      restRunSnapshot: {
+        ...restRunSnapshot,
+        coinLog,
+        updatedAt: now,
+      },
+      updatedAt: now,
+    });
+  }
+
+  function appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4 {
+    const normalized = normalizeFormalRun(run);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    if (!restRunSnapshot) return normalized;
+    const existingKeys = new Set((restRunSnapshot.battleLog || []).map(entry => entry.key));
+    const parsed = parseBattleLogEntriesFromSnapshot(snapshot, existingKeys);
+    if (!parsed.length) return normalized;
+    const now = new Date().toISOString();
+    return normalizeFormalRun({
+      ...normalized,
+      restRunSnapshot: {
+        ...restRunSnapshot,
+        battleLog: [...(restRunSnapshot.battleLog || []), ...parsed],
+        updatedAt: now,
+      },
+      updatedAt: now,
+    });
+  }
+
+  function prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4 {
+    const normalized = normalizeFormalRun(run);
+    if (normalized.settlement) return normalized;
+    const restRunSnapshot = normalized.restRunSnapshot;
+    const now = new Date().toISOString();
+    const wonRounds = restRunSnapshot?.gameMap.filter(node => node.state === "won").length || 0;
+    const completedAll = Boolean(restRunSnapshot?.gameMap.length && wonRounds >= restRunSnapshot.gameMap.length);
+    const outcome = reason === "abandon" ? "abandoned" : completedAll ? "win" : "loss";
+    const coinLog = restRunSnapshot?.coinLog || [];
+    const income = coinLog.filter(entry => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0);
+    const expense = coinLog.filter(entry => entry.amount < 0).reduce((sum, entry) => sum + Math.abs(entry.amount), 0);
+    const pokemonStats = buildSettlementPokemonStats(normalized);
+    const mvp = pokemonStats[0] || null;
+    const settlement: FormalGameSettlementV4 = {
+      id: createId("formal-settlement"),
+      outcome,
+      reason,
+      bpGained: calculateSettlementBp(normalized),
+      wonRounds,
+      coinSummary: {
+        income,
+        expense,
+        net: income - expense,
+        balance: normalized.money,
+      },
+      pokemonStats,
+      mvpPokemonKey: mvp?.pokemonKey || "",
+      diagnostics: pokemonStats.length ? [] : ["no-player-pokemon-stats"],
+      createdAt: now,
+    };
+    return normalizeFormalRun({
+      ...normalized,
+      status: "ended",
+      settlement,
+      restRunSnapshot: restRunSnapshot ? {
+        ...restRunSnapshot,
+        status: "ended",
+        result: {
+          outcome,
+          reason: settlementReasonLabel(reason),
+        },
+        updatedAt: now,
+      } : null,
+      updatedAt: now,
     });
   }
 
@@ -481,6 +654,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restRunSnapshot: run.restRunSnapshot ? normalizeFormalRestRunSnapshot(run.restRunSnapshot) : null,
       currentRoundIndex: clampInt(run.currentRoundIndex, 0, FORMAL_ROUND_COUNT - 1, 0),
       money: clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY),
+      settlement: normalizeSettlement(run.settlement),
     };
   }
 
@@ -571,7 +745,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
           entryStatus: "",
         })),
       },
-      bag: createEmptyBag(run.battlePreference.battleBagEnabled),
+      bag: createFormalBag(run.battlePreference.battleBagEnabled, run.battlePreference.ruleSet),
     };
   }
 
@@ -591,17 +765,19 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const isBoss = isBossTrainerType(input.trainerType);
     const battlePreference = input.partnerPreference || pickOne(NPC_BATTLE_PREFERENCES, input.rng) || "balanced";
     const teamPreference = teamPreferenceForNpc(input.trainerType, battlePreference, input.rng);
+    const powerProfile = powerProfileForFormalRoundNpc(input.trainerType, input.run.streak, input.roundIndex, input.controller === "script");
     const boss = isBoss ? selectBossTrainer(input.trainerType, input.rng) : null;
     const visual = boss ? null : selectTrainerVisual(input.rng, input.controller === "script");
     const name = boss?.nameZh || visual?.nameZh || normalNpcName(input.trainerType, input.controller === "script", input.rng);
     const avatar = boss?.avatarAsset || fullBodyTrainerAsset(visual) || DEFAULT_TRAINER_AVATAR;
     const teamResult = boss
-      ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, input.usedNpcSpecies, input.rng)
+      ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, powerProfile, input.usedNpcSpecies, input.rng)
       : createNpcLocalTeam(input.run, {
         playerId: input.playerId,
         teamPreference,
         battlePreference,
         trainerType: input.trainerType,
+        powerProfile,
         usedNpcSpecies: input.usedNpcSpecies,
         rng: input.rng,
       });
@@ -615,7 +791,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       playerId: input.playerId,
       battlePreference,
       teamPreference,
-      powerProfile: powerProfileForNpc(input.trainerType),
+      powerProfile,
       isBoss,
       diagnostics,
     };
@@ -629,7 +805,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         controller: input.controller,
         alliance: input.alliance,
         localTeam: teamResult.team,
-        bag: createEmptyBag(input.run.battlePreference.battleBagEnabled),
+        bag: createFormalBag(input.run.battlePreference.battleBagEnabled, input.run.battlePreference.ruleSet),
       },
     };
   }
@@ -639,6 +815,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     boss: FormalBossTrainerCandidateV4,
     playerId: ShowdownPlayerIdV4,
     fallbackTeamPreference: FormalNpcTeamPreferenceV4,
+    powerProfile: PokemonPowerProfileV4,
     usedNpcSpecies: Set<string>,
     rng: () => number,
   ): {team: LocalTeamV4; diagnostics: string[]} {
@@ -664,28 +841,30 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         teamPreference: fallbackTeamPreference,
         battlePreference: boss.bossProfile?.battlePreference || "balanced",
         trainerType: boss.trainerType as FormalNpcTypeV4,
+        powerProfile,
         usedNpcSpecies,
         rng,
       });
     }
-    const pokemon = selected.pokemon.slice(0, 6).map((entry, index) => {
+    const battleTeamSize = selectedCountForFormalMode(run.mode);
+    const pokemon = selected.pokemon.slice(0, battleTeamSize).map((entry, index) => {
       const detail = safePokemon(entry.speciesId);
       const role = roleForTeamPreference(selected.teamArchetype as FormalNpcTeamPreferenceV4, index);
       const local = createStarterPokemon(dex, detail, {
         index,
         role,
-        powerProfile: powerProfileForNpc(boss.trainerType as FormalNpcTypeV4),
+        powerProfile,
         rng,
         seed: `${run.seed}:${boss.id}:${selected.variantIndex}`,
       });
-      const item = itemIdFromName(entry.item) || pickOne(NPC_ITEMS, rng) || "";
+      const item = itemIdFromName(entry.item) || pickOne(NPC_BOSS_ITEMS, rng) || "";
       usedNpcSpecies.add(baseSpeciesId(detail.id));
       return {
         ...local,
         localPokemonId: `${playerId}-boss-${index + 1}-${detail.id}`,
         itemId: item,
         heldItemInstanceId: undefined,
-        level: clampInt(entry.level, 1, 100, local.level),
+        level: local.level,
         abilityName: entry.ability || local.abilityName,
         abilityNameZh: entry.ability || local.abilityNameZh,
       };
@@ -700,6 +879,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     teamPreference: FormalNpcTeamPreferenceV4;
     battlePreference: FormalNpcBattlePreferenceV4;
     trainerType: FormalNpcTypeV4;
+    powerProfile: PokemonPowerProfileV4;
     usedNpcSpecies: Set<string>;
     rng: () => number;
   }): {team: LocalTeamV4; diagnostics: string[]} {
@@ -709,7 +889,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const pool = themed.length >= 6 ? themed : rows;
     const selected: Array<DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number}> = [];
     const usedInTeam = new Set<string>();
-    for (let index = 0; index < 6; index += 1) {
+    const battleTeamSize = selectedCountForFormalMode(run.mode);
+    for (let index = 0; index < battleTeamSize; index += 1) {
       const role = roleForTeamPreference(input.teamPreference, index);
       const rolePool = filterRowsForRole(pool, role);
       const candidates = (rolePool.length ? rolePool : pool)
@@ -722,20 +903,19 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       usedInTeam.add(baseSpeciesId(picked.id));
       input.usedNpcSpecies.add(baseSpeciesId(picked.id));
     }
-    const powerProfile = powerProfileForNpc(input.trainerType);
     const pokemon = selected.map((row, index) => {
       const detail = safePokemon(row.id);
       const local = createStarterPokemon(dex, detail, {
         index,
         role: roleForTeamPreference(input.teamPreference, index),
-        powerProfile,
+        powerProfile: input.powerProfile,
         rng: input.rng,
         seed: `${run.seed}:${input.playerId}:${input.teamPreference}`,
       });
       return {
         ...local,
         localPokemonId: `${input.playerId}-npc-${index + 1}-${detail.id}`,
-        itemId: pickOne(NPC_ITEMS, input.rng) || "",
+        itemId: pickNpcItemForPowerProfile(input.powerProfile, input.rng),
         heldItemInstanceId: undefined,
       };
     });
@@ -794,6 +974,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       result: null,
       battlePreference: run.battlePreference,
       restPreviewUnlocks: {},
+      coinLog: [],
+      battleLog: [],
     };
   }
 
@@ -937,6 +1119,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     prepareFormalStarterCandidates,
     selectFormalStarterPokemon,
     prepareFormalRoundPlan,
+    appendCoinLogEntryV4,
+    appendBattleLogEntriesFromSnapshotV4,
+    prepareFormalSettlement,
     selectedCountForFormalMode,
   };
 }
@@ -1242,20 +1427,43 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
 
 function normalizeMovesForDetail(dex: ShowdownDexService, detail: DexPokemonDetail, role: FormalStarterRoleV4, powerProfile: PokemonPowerProfileV4, rng: () => number): TrainingMoveSlotV4[] {
   const learnset = dex.getPokemonSelfLearnSkills(detail.id);
-  const damaging = learnset.filter(move => move.power > 0 && move.pp > 0);
-  const support = learnset.filter(move => move.power === 0 && move.pp > 0);
-  const selected: DexMoveSummary[] = [];
-  if (role === "offense" || role === "flex-offense") selected.push(...shuffle(damaging, rng).slice(0, 3), ...shuffle(support, rng).slice(0, 1));
-  else if (role === "defense" || role === "flex-defense") selected.push(...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2));
-  else if (role === "support") selected.push(...preferMoves(learnset, ["protect", "wish", "healbell", "aromatherapy", "helpinghand", "reflect", "lightscreen"], rng).slice(0, 3), ...shuffle(damaging, rng).slice(0, 1));
-  else if (role === "speed-control") selected.push(...preferMoves(learnset, ["tailwind", "thunderwave", "icywind", "electroweb", "trickroom"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2));
-  else if (role === "disruption") selected.push(...preferMoves(learnset, ["stealthrock", "spikes", "toxicspikes", "stickyweb", "toxic", "willowisp", "taunt"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2));
-  else if (role === "trick-room") selected.push(...preferMoves(learnset, ["trickroom", "protect"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2));
-  else if (role === "weather") selected.push(...preferMoves(learnset, ["raindance", "sunnyday", "sandstorm", "snowscape", "hail"], rng).slice(0, 1), ...shuffle(damaging, rng).slice(0, 3));
-  else selected.push(...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2));
-  const qualitySelected = powerProfile === "rookie" ? selected.slice(0, 4) : shuffle(selected, rng).slice(0, 4);
-  const moveIds = qualitySelected.map(move => move.id);
+  const roleMoves = preferredMovesForRole(learnset, role, rng);
+  const fallbackPool = learnset.length ? learnset : FALLBACK_MOVES.map(moveId => safeMove(dex, moveId));
+  let selected: DexMoveSummary[];
+  if (powerProfile === "rookie") {
+    selected = shuffle(fallbackPool, rng).slice(0, 4);
+  } else if (powerProfile === "normal") {
+    const goodCount = randomInt(1, 2, rng);
+    const goodMoves = roleMoves.slice(0, goodCount);
+    const randomMoves = shuffle(fallbackPool.filter(move => !goodMoves.some(good => good.id === move.id)), rng).slice(0, 4 - goodMoves.length);
+    selected = [...goodMoves, ...randomMoves];
+  } else {
+    selected = roleMoves.slice(0, 4);
+  }
+  const moveIds = uniqueById(selected).map(move => move.id);
   return normalizeMoves(dex, moveIds, 4);
+}
+
+function preferredMovesForRole(moves: DexMoveSummary[], role: FormalStarterRoleV4, rng: () => number): DexMoveSummary[] {
+  const damaging = moves.filter(move => move.power > 0 && move.pp > 0);
+  const support = moves.filter(move => move.power === 0 && move.pp > 0);
+  if (role === "offense" || role === "flex-offense") return uniqueById([...shuffle(damaging, rng).slice(0, 3), ...shuffle(support, rng).slice(0, 1), ...shuffle(moves, rng)]);
+  if (role === "defense" || role === "flex-defense") return uniqueById([...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2), ...shuffle(moves, rng)]);
+  if (role === "support") return uniqueById([...preferMoves(moves, ["protect", "wish", "healbell", "aromatherapy", "helpinghand", "reflect", "lightscreen"], rng).slice(0, 3), ...shuffle(damaging, rng).slice(0, 1), ...shuffle(moves, rng)]);
+  if (role === "speed-control") return uniqueById([...preferMoves(moves, ["tailwind", "thunderwave", "icywind", "electroweb", "trickroom"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
+  if (role === "disruption") return uniqueById([...preferMoves(moves, ["stealthrock", "spikes", "toxicspikes", "stickyweb", "toxic", "willowisp", "taunt"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
+  if (role === "trick-room") return uniqueById([...preferMoves(moves, ["trickroom", "protect"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
+  if (role === "weather") return uniqueById([...preferMoves(moves, ["raindance", "sunnyday", "sandstorm", "snowscape", "hail"], rng).slice(0, 1), ...shuffle(damaging, rng).slice(0, 3), ...shuffle(moves, rng)]);
+  return uniqueById([...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2), ...shuffle(moves, rng)]);
+}
+
+function uniqueById<T extends {id: string}>(moves: T[]): T[] {
+  const seen = new Set<string>();
+  return moves.filter(move => {
+    if (seen.has(move.id)) return false;
+    seen.add(move.id);
+    return true;
+  });
 }
 
 function normalizeMoves(dex: ShowdownDexService, moveIds: string[], count: number): TrainingMoveSlotV4[] {
@@ -1347,20 +1555,19 @@ function powerProfileForStreak(streak: number, index: number): PokemonPowerProfi
 }
 
 function levelForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): number {
-  if (profile === "rookie") return randomInt(45, 50, rng);
-  if (profile === "normal") return randomInt(45, 50, rng);
-  if (profile === "elite") return randomInt(50, 54, rng);
-  if (profile === "boss") return 55;
-  return randomInt(58, 60, rng);
+  const rule = powerProfileRule(profile);
+  return randomInt(rule.level[0], rule.level[1], rng);
 }
 
 function ivsForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): StatTableV4 {
-  const range = profile === "rookie" ? [8, 20] : profile === "normal" ? [16, 25] : profile === "elite" ? [24, 31] : [28, 31];
-  return Object.fromEntries(STAT_IDS.map(stat => [stat, profile === "champion" ? 31 : randomInt(range[0], range[1], rng)])) as StatTableV4;
+  const rule = powerProfileRule(profile);
+  const total = randomInt(rule.ivTotal[0], rule.ivTotal[1], rng);
+  return distributeStatBudget(total, 31, STAT_IDS, rng);
 }
 
 function evsForPowerProfile(profile: PokemonPowerProfileV4, role: FormalStarterRoleV4, rng: () => number): StatTableV4 {
-  const budget = profile === "rookie" ? 120 : profile === "normal" ? 240 : profile === "elite" ? 420 : profile === "boss" ? 500 : 508;
+  const rule = powerProfileRule(profile);
+  const budget = randomInt(rule.evTotal[0], rule.evTotal[1], rng);
   const priority: DexStatId[] = role === "defense" || role === "flex-defense" || role === "support" || role === "disruption"
     ? ["hp", "def", "spd", "atk", "spa", "spe"]
     : role === "trick-room"
@@ -1368,13 +1575,34 @@ function evsForPowerProfile(profile: PokemonPowerProfileV4, role: FormalStarterR
       : role === "speed-control"
         ? ["spe", "hp", "def", "spd", "atk", "spa"]
       : ["spe", "atk", "spa", "hp", "def", "spd"];
+  return distributeStatBudget(budget, 252, priority, rng);
+}
+
+function powerProfileRule(profile: PokemonPowerProfileV4): {level: [number, number]; ivTotal: [number, number]; evTotal: [number, number]} {
+  if (profile === "rookie") return {level: [45, 50], ivTotal: [0, 50], evTotal: [0, 100]};
+  if (profile === "normal") return {level: [49, 53], ivTotal: [40, 70], evTotal: [80, 200]};
+  if (profile === "elite") return {level: [52, 55], ivTotal: [60, 120], evTotal: [180, 300]};
+  if (profile === "boss") return {level: [56, 60], ivTotal: [120, 160], evTotal: [300, 420]};
+  return {level: [61, 65], ivTotal: [186, 186], evTotal: [510, 510]};
+}
+
+function distributeStatBudget(total: number, statCap: number, priority: DexStatId[], rng: () => number): StatTableV4 {
   const evs = Object.fromEntries(STAT_IDS.map(stat => [stat, 0])) as StatTableV4;
-  let remaining = budget;
-  for (const stat of priority) {
-    if (remaining <= 0) break;
-    const value = Math.min(252, remaining, randomInt(40, 160, rng));
-    evs[stat] = value;
-    remaining -= value;
+  const order = [...priority, ...STAT_IDS.filter(stat => !priority.includes(stat))];
+  let remaining = Math.max(0, Math.min(total, statCap * STAT_IDS.length));
+  while (remaining > 0) {
+    let progressed = false;
+    for (const stat of order) {
+      const open = statCap - evs[stat];
+      if (open <= 0) continue;
+      const maxAdd = Math.min(open, remaining);
+      const add = maxAdd <= 8 ? maxAdd : randomInt(1, Math.min(maxAdd, 48), rng);
+      evs[stat] += add;
+      remaining -= add;
+      progressed = true;
+      if (remaining <= 0) break;
+    }
+    if (!progressed) break;
   }
   return evs;
 }
@@ -1438,11 +1666,17 @@ function isBossTrainerType(type: FormalNpcTypeV4): boolean {
   return type === "gym" || type === "elite4" || type === "champion" || type === "villain";
 }
 
-function powerProfileForNpc(type: FormalNpcTypeV4): PokemonPowerProfileV4 {
+function powerProfileForFormalRoundNpc(type: FormalNpcTypeV4, streak: number, roundIndex: number, isCoopAlly = false): PokemonPowerProfileV4 {
+  if (isCoopAlly) return "elite";
   if (type === "rookie") return "rookie";
   if (type === "normal") return "normal";
   if (type === "elite") return "elite";
+  const safeStreak = Math.max(0, Math.floor(Number(streak || 0)));
+  if (safeStreak <= 0) return "elite";
+  if (safeStreak === 1) return type === "gym" ? "elite" : "boss";
+  if (safeStreak === 2) return "boss";
   if (type === "champion" || type === "villain") return "champion";
+  if (roundIndex >= 5 && type === "elite4") return "champion";
   return "boss";
 }
 
@@ -1494,8 +1728,43 @@ function normalNpcName(type: FormalNpcTypeV4, ally: boolean, rng: () => number):
   return pickOne([...NORMAL_NPC_NAMES.normal], rng) || "路人训练家";
 }
 
-function createEmptyBag(battleBagEnabled: boolean): BagStateV4 {
-  return {maxSize: 50, items: [], battleBagEnabled};
+function pickNpcItemForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): string {
+  if (profile === "rookie") return pickOne(NPC_ROOKIE_ITEMS, rng) || "";
+  if (profile === "normal") return pickOne(NPC_NORMAL_ITEMS, rng) || "";
+  if (profile === "elite") return pickOne(NPC_ELITE_ITEMS, rng) || "";
+  return pickOne(NPC_BOSS_ITEMS, rng) || "";
+}
+
+function createFormalBag(battleBagEnabled: boolean, ruleSet: TrainingRuleSetV4): BagStateV4 {
+  const items = DEFAULT_SYSTEM_ITEMS_BY_RULE_SET[ruleSet].map(createFormalSystemItem);
+  return {maxSize: 50, items, battleBagEnabled};
+}
+
+function createFormalSystemItem(itemID: string): PlayerItemInstanceV4 {
+  const names: Record<string, string> = {
+    "system-mega-stone": "Mega系统",
+    "system-z-crystal": "Z招式系统",
+    "system-dynamax-band": "极巨化系统",
+    "system-tera-orb": "太晶系统",
+  };
+  return {
+    id: `formal-${itemID}`,
+    itemID,
+    name: names[itemID] || itemID,
+    image: "",
+    cost: 0,
+    canSale: false,
+    type: "system",
+    canBattleUse: false,
+    canUse: false,
+    canUseToPokemon: false,
+    canTake: false,
+    effectRound: null,
+    getRound: 0,
+    maxUseCount: null,
+    useCount: 0,
+    systemReforgeKind: itemID === "system-mega-stone" ? "mega" : itemID === "system-z-crystal" ? "z-crystal" : itemID === "system-tera-orb" ? "tera" : undefined,
+  };
 }
 
 function fullBodyTrainerAsset(trainer: FormalTrainerVisualCandidateV4 | null | undefined): string {
@@ -1607,6 +1876,373 @@ function starterRoleLabel(role: FormalStarterRoleV4): string {
   if (role === "flex-defense") return "防辅补位";
   if (role === "flex-offense") return "攻击补位";
   return "平衡补位";
+}
+
+function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefined): FormalGameSettlementV4 | null {
+  if (!settlement) return null;
+  const reason = normalizeSettlementReason(settlement.reason);
+  const outcome = settlement.outcome === "win" || settlement.outcome === "loss" || settlement.outcome === "abandoned"
+    ? settlement.outcome
+    : reason === "abandon" ? "abandoned" : "loss";
+  const pokemonStats = Array.isArray(settlement.pokemonStats) ? settlement.pokemonStats.map(normalizeSettlementPokemonStats) : [];
+  return {
+    id: settlement.id || createId("formal-settlement"),
+    outcome,
+    reason,
+    bpGained: clampInt(settlement.bpGained, 0, 999999, 0),
+    wonRounds: clampInt(settlement.wonRounds, 0, FORMAL_ROUND_COUNT, 0),
+    coinSummary: {
+      income: clampInt(settlement.coinSummary?.income, 0, 999999, 0),
+      expense: clampInt(settlement.coinSummary?.expense, 0, 999999, 0),
+      net: clampInt(settlement.coinSummary?.net, -999999, 999999, 0),
+      balance: clampInt(settlement.coinSummary?.balance, 0, 999999, 0),
+    },
+    pokemonStats,
+    mvpPokemonKey: settlement.mvpPokemonKey || pokemonStats[0]?.pokemonKey || "",
+    diagnostics: Array.isArray(settlement.diagnostics) ? settlement.diagnostics.map(String) : [],
+    createdAt: settlement.createdAt || new Date().toISOString(),
+    claimedAt: settlement.claimedAt || undefined,
+  };
+}
+
+function normalizeSettlementPokemonStats(stats: FormalSettlementPokemonStatsV4): FormalSettlementPokemonStatsV4 {
+  return {
+    pokemonKey: String(stats.pokemonKey || stats.localPokemonId || stats.speciesId || createId("pokemon-stat")),
+    localPokemonId: String(stats.localPokemonId || ""),
+    speciesId: String(stats.speciesId || ""),
+    name: String(stats.name || stats.nameZh || stats.speciesId || ""),
+    nameZh: String(stats.nameZh || stats.name || stats.speciesId || ""),
+    iconUrl: stats.iconUrl || undefined,
+    iconStyle: stats.iconStyle || undefined,
+    spriteUrl: stats.spriteUrl || undefined,
+    shiny: Boolean(stats.shiny),
+    kills: clampInt(stats.kills, 0, 999, 0),
+    deaths: clampInt(stats.deaths, 0, 999, 0),
+    assists: clampInt(stats.assists, 0, 999, 0),
+    damageDealt: clampInt(stats.damageDealt, 0, 999999, 0),
+    damageTaken: clampInt(stats.damageTaken, 0, 999999, 0),
+    healing: clampInt(stats.healing, 0, 999999, 0),
+    usedRounds: Array.isArray(stats.usedRounds) ? Array.from(new Set(stats.usedRounds.map(round => clampInt(round, 0, FORMAL_ROUND_COUNT - 1, 0)))) : [],
+    kdaScore: Number.isFinite(Number(stats.kdaScore)) ? Number(stats.kdaScore) : 0,
+    mvpScore: Number.isFinite(Number(stats.mvpScore)) ? Number(stats.mvpScore) : 0,
+    isMvp: Boolean(stats.isMvp),
+  };
+}
+
+function normalizeSettlementReason(reason: unknown): FormalSettlementReasonV4 {
+  return reason === "complete" || reason === "loss" || reason === "surrender" || reason === "abandon" ? reason : "loss";
+}
+
+function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, existingKeys: Set<string>): TrainingBattleLogEntryV4[] {
+  const entries: TrainingBattleLogEntryV4[] = [];
+  let currentMove: {playerId?: ShowdownPlayerIdV4; pokemonKey?: string; pokemonName?: string; moveId?: string; moveName?: string} | null = null;
+  const hpByBattleKey = new Map<string, {hp: number; maxHp: number}>();
+  for (let index = 0; index < snapshot.rawLog.length; index += 1) {
+    const rawLine = snapshot.rawLog[index] || "";
+    const key = `${snapshot.id}:${index}:${rawLine}`;
+    if (existingKeys.has(key)) continue;
+    const parts = rawLine.split("|");
+    const command = parts[1] || "";
+    if (command === "turn") {
+      currentMove = null;
+      continue;
+    }
+    if (command === "move") {
+      const actor = parseBattleIdent(parts[2]);
+      const moveName = parts[3] || "";
+      currentMove = {
+        playerId: actor.playerId,
+        pokemonKey: actor.key,
+        pokemonName: actor.name,
+        moveId: toID(moveName),
+        moveName,
+      };
+      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+        eventType: "move",
+        sourcePlayerId: actor.playerId,
+        sourcePokemonKey: actor.key,
+        sourcePokemonName: actor.name,
+        moveId: toID(moveName),
+        moveName,
+        directness: "direct",
+      }));
+      continue;
+    }
+    if (command === "-damage") {
+      const target = parseBattleIdent(parts[2]);
+      const hpState = hpStateFromProtocol(parts[3] || "");
+      const previousHp = target.key ? hpByBattleKey.get(target.key)?.hp : undefined;
+      const damage = hpState
+        ? previousHp === undefined ? Math.max(0, hpState.maxHp - hpState.hp) : Math.max(0, previousHp - hpState.hp)
+        : parts[3]?.includes("fnt") ? 1 : 0;
+      if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
+      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+        eventType: "damage",
+        damage,
+        sourcePlayerId: currentMove?.playerId,
+        sourcePokemonKey: currentMove?.pokemonKey,
+        sourcePokemonName: currentMove?.pokemonName,
+        targetPlayerId: target.playerId,
+        targetPokemonKey: target.key,
+        targetPokemonName: target.name,
+        moveId: currentMove?.moveId,
+        moveName: currentMove?.moveName,
+        directness: currentMove ? "direct" : "indirect",
+      }));
+      continue;
+    }
+    if (command === "-heal") {
+      const target = parseBattleIdent(parts[2]);
+      const hpState = hpStateFromProtocol(parts[3] || "");
+      const previousHp = target.key ? hpByBattleKey.get(target.key)?.hp : undefined;
+      const healing = hpState
+        ? previousHp === undefined ? 0 : Math.max(0, hpState.hp - previousHp)
+        : 0;
+      if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
+      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+        eventType: "heal",
+        healing,
+        targetPlayerId: target.playerId,
+        targetPokemonKey: target.key,
+        targetPokemonName: target.name,
+        directness: "unknown",
+      }));
+      continue;
+    }
+    if (command === "faint") {
+      const target = parseBattleIdent(parts[2]);
+      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {
+        eventType: "faint",
+        sourcePlayerId: currentMove?.playerId,
+        sourcePokemonKey: currentMove?.pokemonKey,
+        sourcePokemonName: currentMove?.pokemonName,
+        targetPlayerId: target.playerId,
+        targetPokemonKey: target.key,
+        targetPokemonName: target.name,
+        directness: currentMove ? "direct" : "indirect",
+      }));
+      continue;
+    }
+    if (command === "win") {
+      entries.push(createBattleLogEntry(snapshot, index, rawLine, key, {eventType: "win", directness: "unknown"}));
+    }
+  }
+  return entries;
+}
+
+function createBattleLogEntry(
+  snapshot: BattleSessionSnapshotV4,
+  rawLogIndex: number,
+  rawLine: string,
+  key: string,
+  patch: Partial<TrainingBattleLogEntryV4>,
+): TrainingBattleLogEntryV4 {
+  return {
+    id: createId("battle-log"),
+    key,
+    at: snapshot.updatedAt || new Date().toISOString(),
+    sessionId: snapshot.id,
+    nodeId: snapshot.nodeId,
+    turn: snapshot.turn,
+    rawLogIndex,
+    eventType: patch.eventType || "other",
+    damage: patch.damage,
+    healing: patch.healing,
+    sourcePlayerId: patch.sourcePlayerId,
+    sourcePokemonKey: patch.sourcePokemonKey,
+    sourcePokemonName: patch.sourcePokemonName,
+    targetPlayerId: patch.targetPlayerId,
+    targetPokemonKey: patch.targetPokemonKey,
+    targetPokemonName: patch.targetPokemonName,
+    moveId: patch.moveId,
+    moveName: patch.moveName,
+    directness: patch.directness,
+    rawLine,
+  };
+}
+
+function parseBattleIdent(value: string | undefined): {playerId?: ShowdownPlayerIdV4; key: string; name: string} {
+  const raw = String(value || "");
+  const match = raw.match(/^(p[1-4])([a-d])?:\s*(.+)$/i);
+  const playerId = normalizeShowdownPlayerId(match?.[1]?.toLowerCase());
+  const position = (match?.[2] || "a").toLowerCase();
+  const name = (match?.[3] || raw).trim();
+  return {
+    playerId,
+    key: playerId ? `${playerId}${position}:${toID(name)}` : toID(name),
+    name,
+  };
+}
+
+function hpStateFromProtocol(condition: string): {hp: number; maxHp: number} | null {
+  const match = condition.match(/^(\d+)\/(\d+)/);
+  if (!match) return null;
+  const hp = Number(match[1]);
+  const maxHp = Number(match[2]);
+  if (!Number.isFinite(hp) || !Number.isFinite(maxHp)) return null;
+  return {hp, maxHp};
+}
+
+function buildSettlementPokemonStats(run: FormalGameRunV4): FormalSettlementPokemonStatsV4[] {
+  const playerPokemon = collectPlayerSettlementPokemon(run);
+  const pokemonByKey = new Map<string, LocalPokemonV4>();
+  playerPokemon.forEach(pokemon => pokemonByKey.set(settlementPokemonKey(pokemon), pokemon));
+  const stats = new Map<string, FormalSettlementPokemonStatsV4>();
+  const ensureStat = (key: string | undefined) => {
+    if (!key) return null;
+    const pokemon = pokemonByKey.get(key);
+    if (!pokemon) return null;
+    const existing = stats.get(key);
+    if (existing) return existing;
+    const created: FormalSettlementPokemonStatsV4 = {
+      pokemonKey: key,
+      localPokemonId: pokemon.localPokemonId,
+      speciesId: pokemon.speciesId,
+      name: pokemon.name,
+      nameZh: pokemon.nameZh || pokemon.name,
+      iconUrl: pokemon.iconUrl,
+      iconStyle: pokemon.iconStyle,
+      spriteUrl: pokemon.frontSpriteUrl || pokemon.spriteUrl || pokemon.iconUrl,
+      shiny: Boolean(pokemon.shiny),
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      healing: 0,
+      usedRounds: [],
+      kdaScore: 0,
+      mvpScore: 0,
+      isMvp: false,
+    };
+    stats.set(key, created);
+    return created;
+  };
+  const localByBattleKey = buildPlayerBattleKeyMap(run);
+  for (const entry of run.restRunSnapshot?.battleLog || []) {
+    const sourceKey = entry.sourcePokemonKey ? localByBattleKey.get(entry.sourcePokemonKey) : undefined;
+    const targetKey = entry.targetPokemonKey ? localByBattleKey.get(entry.targetPokemonKey) : undefined;
+    if (entry.eventType === "damage" && entry.damage) {
+      const sourceStat = ensureStat(sourceKey);
+      if (sourceStat) {
+        const stat = sourceStat;
+        stat.damageDealt += entry.directness === "direct" ? entry.damage : 0;
+        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
+      }
+      const targetStat = ensureStat(targetKey);
+      if (targetStat) {
+        const stat = targetStat;
+        stat.damageTaken += entry.damage;
+        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
+      }
+    }
+    const healingTargetStat = entry.eventType === "heal" && entry.healing ? ensureStat(targetKey) : null;
+    if (healingTargetStat && entry.healing) {
+      const stat = healingTargetStat;
+      stat.healing += entry.healing;
+      addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
+    }
+    if (entry.eventType === "faint") {
+      const sourceStat = sourceKey !== targetKey ? ensureStat(sourceKey) : null;
+      if (sourceStat) {
+        const stat = sourceStat;
+        stat.kills += 1;
+        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
+      }
+      const targetStat = ensureStat(targetKey);
+      if (targetStat) {
+        const stat = targetStat;
+        stat.deaths += 1;
+        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
+      }
+    }
+  }
+  const values = Array.from(stats.values());
+  values.forEach(stat => {
+    stat.kdaScore = (stat.kills + stat.assists * 0.5 + 1) / Math.max(1, stat.deaths);
+    stat.mvpScore = stat.kills * 120 + stat.assists * 40 - stat.deaths * 35 + stat.damageDealt + stat.damageTaken * 0.35 + stat.healing * 0.25 + stat.usedRounds.length * 10;
+  });
+  values.sort((a, b) => b.mvpScore - a.mvpScore || b.damageDealt - a.damageDealt || b.damageTaken - a.damageTaken || a.nameZh.localeCompare(b.nameZh));
+  if (values[0]) values[0].isMvp = true;
+  return values;
+}
+
+function collectPlayerSettlementPokemon(run: FormalGameRunV4): LocalPokemonV4[] {
+  const byId = new Map<string, LocalPokemonV4>();
+  const add = (pokemon: LocalPokemonV4 | undefined) => {
+    if (!pokemon) return;
+    byId.set(pokemon.localPokemonId || pokemon.speciesId, pokemon);
+  };
+  const selectedPokemon = run.playerTeam?.pokemon || [];
+  const sourcePokemon = selectedPokemon.length ? selectedPokemon : (run.restRunSnapshot?.players.p1?.localTeam.pokemon || []);
+  sourcePokemon.forEach(add);
+  return Array.from(byId.values());
+}
+
+function buildPlayerBattleKeyMap(run: FormalGameRunV4): Map<string, string> {
+  const result = new Map<string, string>();
+  const playerPokemon = collectPlayerSettlementPokemon(run);
+  const add = (pokemon: LocalPokemonV4 | undefined, settlementKey = pokemon ? settlementPokemonKey(pokemon) : "") => {
+    if (!pokemon) return;
+    const nameId = toID(pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId);
+    ["a", "b", "c", "d"].forEach(position => result.set(`p1${position}:${nameId}`, settlementKey));
+    if (pokemon.showdownIdentityToken) result.set(`p1a:${toID(pokemon.showdownIdentityToken)}`, settlementKey);
+    if (pokemon.showdownId) result.set(`p1a:${toID(pokemon.showdownId)}`, settlementKey);
+    result.set(settlementKey, settlementKey);
+  };
+  playerPokemon.forEach(pokemon => add(pokemon));
+  const unused = new Set(playerPokemon.map(pokemon => settlementPokemonKey(pokemon)));
+  const mapSnapshotPokemon = (pokemon: LocalPokemonV4 | undefined, index: number) => {
+    if (!pokemon) return;
+    let match = playerPokemon[index];
+    if (!match || match.speciesId !== pokemon.speciesId) {
+      match = playerPokemon.find(candidate => unused.has(settlementPokemonKey(candidate)) && candidate.speciesId === pokemon.speciesId) || match;
+    }
+    if (!match) return;
+    const key = settlementPokemonKey(match);
+    unused.delete(key);
+    add(pokemon, key);
+  };
+  run.restRunSnapshot?.players.p1?.localTeam.pokemon.forEach(mapSnapshotPokemon);
+  return result;
+}
+
+function settlementPokemonKey(pokemon: LocalPokemonV4): string {
+  return pokemon.localPokemonId || `${pokemon.speciesId}:${toID(pokemon.nameZh || pokemon.name)}`;
+}
+
+function addUsedRound(stat: FormalSettlementPokemonStatsV4, roundIndex: number) {
+  if (!stat.usedRounds.includes(roundIndex)) stat.usedRounds.push(roundIndex);
+}
+
+function roundIndexForNode(run: FormalGameRunV4, nodeId: string): number {
+  const node = run.restRunSnapshot?.gameMap.find(entry => entry.id === nodeId) || run.roundPlan.find(entry => entry.id === nodeId);
+  return clampInt(node?.index, 0, FORMAL_ROUND_COUNT - 1, run.currentRoundIndex);
+}
+
+function calculateSettlementBp(run: FormalGameRunV4): number {
+  const wonNodeIds = new Set((run.restRunSnapshot?.gameMap || []).filter(node => node.state === "won").map(node => node.id));
+  return run.roundPlan
+    .filter(round => wonNodeIds.has(round.id))
+    .reduce((sum, round) => sum + Math.round(bpCoefficientForNpcType(round.difficulty) * Math.max(1, run.streak + 1)), 0);
+}
+
+function bpCoefficientForNpcType(type: FormalNpcTypeV4): number {
+  if (type === "gym") return 1;
+  if (type === "elite4") return 1.5;
+  if (type === "champion" || type === "villain") return 1.8;
+  return 0.5;
+}
+
+function settlementReasonLabel(reason: FormalSettlementReasonV4): string {
+  if (reason === "complete") return "正式游戏通关结算";
+  if (reason === "surrender") return "玩家投降";
+  if (reason === "abandon") return "休整页放弃比赛";
+  return "正式游戏战斗失败";
+}
+
+function normalizeShowdownPlayerId(value: unknown): ShowdownPlayerIdV4 | undefined {
+  return value === "p1" || value === "p2" || value === "p3" || value === "p4" ? value : undefined;
 }
 
 function hasBrowserStorage(): boolean {

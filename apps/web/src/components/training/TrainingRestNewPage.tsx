@@ -20,9 +20,11 @@ export type TrainingRestNewPageProps = {
   onOpenDex: () => void;
   onOpenPokemonDex: (speciesId: string) => void;
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
+  onAbandonRun?: () => void;
+  moneyAmount?: number;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [bagPanelOpen, setBagPanelOpen] = useState(false);
@@ -126,6 +128,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       onOpenDex();
       return;
     }
+    if (["交换", "商店", "抽奖机", "培育屋爷爷", "教授奶奶"].includes(action)) {
+      setMessage(`${action} 后续开放。`);
+      showNotice(`${action} 后续开放。`);
+      return;
+    }
     if (action === "保存") {
       void saveRunGameSnapshot();
       return;
@@ -148,6 +155,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       <img className="training-rest-new-bg" src="/training/rest-center-bg.png" alt="休整中心背景预览" />
       <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={setUnlockTarget} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
       <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} />
+      {typeof moneyAmount === "number" ? (
+        <div className="training-rest-new-money-pill" aria-label="当前金币">
+          <img src="/aboutIcon/coin.png" alt="" />
+          <strong>{Math.max(0, Math.floor(moneyAmount)).toLocaleString()}</strong>
+        </div>
+      ) : null}
       <TrainingRestBoardTitle side="left">休整菜单</TrainingRestBoardTitle>
       <TrainingRestBoardTitle side="right">下一场预览</TrainingRestBoardTitle>
       <TrainingRestSideBoard
@@ -198,12 +211,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       {abandonOpen ? (
         <TrainingRestConfirmDialog
           title="是否放弃？"
-          message="当前只是确认弹窗预览，暂不执行实际效果。"
+          message={onAbandonRun ? "当前正式 run 会进入结算页，已完成的胜场会结算 BP。" : "当前只是确认弹窗预览，暂不执行实际效果。"}
           confirmLabel="放弃"
           danger
           ariaLabel="确认放弃比赛"
           onCancel={() => setAbandonOpen(false)}
-          onConfirm={onBackToConfig}
+          onConfirm={onAbandonRun || onBackToConfig}
         />
       ) : null}
       {unlockTarget ? (
