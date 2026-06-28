@@ -105,8 +105,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
 
   function randomizeMoves(pokemon: LocalPokemonV4) {
     updatePokemon(pokemon.localPokemonId, current => {
-      const detail = api.getPokemonDetail(current.speciesId);
-      return {...current, moves: randomMoveSlots(api, detail.learnset, current.moves, current.locks?.moves)};
+      return {...current, moves: randomMoveSlots(api, api.getPokemonSelfLearnSkills(current.speciesId), current.moves, current.locks?.moves)};
     });
   }
 

@@ -1,7 +1,8 @@
 import {useMemo, useState} from "react";
 import type {ChangeBattleV2Api, DexItemDetail, LocalPokemonV4, PlayerItemInstanceV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
-import {applyRecoveryItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4} from "@changebattle-v2/api";
+import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmMoveIdForItemV4, tmUseFailureReasonV4} from "@changebattle-v2/api";
 import {PlayerBagPanel, itemDetailFor, type PlayerBagAction, type PlayerBagPokemonTarget} from "./PlayerBagPanel";
+import {PokemonMoveReplacePanel} from "./PokemonMoveReplacePanel";
 
 export type TrainingRestNewBagPanelProps = {
   api: ChangeBattleV2Api;
@@ -19,18 +20,27 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const bag = useMemo(() => api.normalizeBagState(p1?.bag), [api, p1?.bag]);
   const team = p1?.localTeam.pokemon || [];
   const [selection, setSelection] = useState<{item: PlayerItemInstanceV4 | null; target: PlayerBagPokemonTarget | null}>({item: bag.items[0] || null, target: null});
+  const [tmReplace, setTmReplace] = useState<{item: PlayerItemInstanceV4; pokemonId: string} | null>(null);
   const selectedItem = selection.item;
   const selectedPokemon = selection.target ? team.find(pokemon => pokemon.localPokemonId === selection.target?.key) || null : team[0] || null;
   const selectedDetail = useMemo(() => itemDetailFor(api, selectedItem), [api, selectedItem]);
   const equipEligibility = selectedItem ? getBagItemEquipEligibility(selectedItem, selectedDetail) : {canEquip: false, reason: "请选择道具"};
   const canUseRecovery = canUseRecoveryItemV4(selectedItem, selectedDetail);
   const canUseTraining = canUseTrainingItemV4(selectedItem, selectedDetail);
-  const canUseItem = canUseRecovery || canUseTraining;
+  const canUseTm = canUseTmItemV4(selectedItem, selectedDetail);
+  const selectedMachineMoves = useMemo(() => selectedPokemon ? api.getPokemonMachineSkills(selectedPokemon.speciesId) : [], [api, selectedPokemon]);
+  const tmFailureReason = canUseTm ? tmUseFailureReasonV4({item: selectedItem, detail: selectedDetail, pokemon: selectedPokemon, machineMoves: selectedMachineMoves}) : "";
+  const canUseItem = canUseRecovery || canUseTraining || (canUseTm && !tmFailureReason);
   const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail));
   const selectedHeldItem = selectedPokemon ? itemForPokemon(bag.items, selectedPokemon) : null;
   const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId));
   const heldItemIds = useMemo(() => buildHeldItemIds(team), [team]);
   const targets = useMemo(() => team.map(pokemonToTarget(bag.items)), [bag.items, team]);
+  const tmReplaceItem = tmReplace ? bag.items.find(item => item.id === tmReplace.item.id) || null : null;
+  const tmReplacePokemon = tmReplace ? team.find(pokemon => pokemon.localPokemonId === tmReplace.pokemonId) || null : null;
+  const tmReplaceDetail = useMemo(() => itemDetailFor(api, tmReplaceItem), [api, tmReplaceItem]);
+  const tmReplaceMoveId = tmMoveIdForItemV4(tmReplaceItem, tmReplaceDetail);
+  const tmReplaceMove = useMemo(() => tmReplaceMoveId ? moveDetailFor(api, tmReplaceMoveId) : null, [api, tmReplaceMoveId]);
 
   function equipSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon || !equipEligibility.canEquip) return;
@@ -78,6 +88,10 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
 
   function useSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon || !canUseItem) return;
+    if (canUseTm) {
+      setTmReplace({item: selectedItem, pokemonId: selectedPokemon.localPokemonId});
+      return;
+    }
     const result = canUseRecovery
       ? applyRecoveryItemToPokemonV4({
         item: selectedItem,
@@ -108,6 +122,31 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     onRunDraftChange(nextRun, `${result.message} 记得手动保存。`);
   }
 
+  function confirmTmReplace(moveSlot: number) {
+    if (!p1 || !tmReplaceItem || !tmReplacePokemon) return;
+    const result = applyTmItemToPokemonV4({
+      item: tmReplaceItem,
+      detail: tmReplaceDetail,
+      pokemon: tmReplacePokemon,
+      bag,
+      machineMoves: api.getPokemonMachineSkills(tmReplacePokemon.speciesId),
+      moveSlot,
+    });
+    if (!result.ok) {
+      onRunDraftChange(run, result.reason);
+      return;
+    }
+    const consumedClearedTeam = clearConsumedItemFromTeamV4(p1.localTeam.pokemon, tmReplaceItem);
+    const nextTeam = {
+      ...p1.localTeam,
+      pokemon: consumedClearedTeam.map(pokemon => pokemon.localPokemonId === tmReplacePokemon.localPokemonId ? result.pokemon : pokemon),
+    };
+    const nextRun = patchP1(run, {...p1, bag: result.bag, localTeam: nextTeam});
+    setTmReplace(null);
+    onNotice?.(result.message);
+    onRunDraftChange(nextRun, `${result.message} 记得手动保存。`);
+  }
+
   const actions: PlayerBagAction[] = [
     {
       key: "take",
@@ -127,7 +166,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       key: "use",
       label: "立即使用",
       disabled: !selectedItem || !selectedPokemon || !canUseItem,
-      title: canUseItem ? "对选中宝可梦立即使用" : "该道具当前不能立即使用。",
+      title: canUseItem ? "对选中宝可梦立即使用" : tmFailureReason || "该道具当前不能立即使用。",
       onClick: useSelectedItem,
     },
     {
@@ -146,22 +185,35 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   ];
 
   return (
-    <PlayerBagPanel
-      api={api}
-      open={open}
-      items={bag.items}
-      maxSize={bag.maxSize}
-      pokemonTargets={targets}
-      heldItemIds={heldItemIds}
-      actions={actions}
-      onClose={onClose}
-      onSelectionChange={nextSelection => {
-        setSelection(current => {
-          if (current.item?.id === nextSelection.item?.id && current.target?.key === nextSelection.target?.key) return current;
-          return nextSelection;
-        });
-      }}
-    />
+    <>
+      <PlayerBagPanel
+        api={api}
+        open={open}
+        items={bag.items}
+        maxSize={bag.maxSize}
+        pokemonTargets={targets}
+        heldItemIds={heldItemIds}
+        actions={actions}
+        onClose={() => {
+          setTmReplace(null);
+          onClose();
+        }}
+        onSelectionChange={nextSelection => {
+          setSelection(current => {
+            if (current.item?.id === nextSelection.item?.id && current.target?.key === nextSelection.target?.key) return current;
+            return nextSelection;
+          });
+        }}
+      />
+      {open && tmReplacePokemon && tmReplaceMove ? (
+        <PokemonMoveReplacePanel
+          pokemon={tmReplacePokemon}
+          newMove={tmReplaceMove}
+          onCancel={() => setTmReplace(null)}
+          onConfirm={confirmTmReplace}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -205,6 +257,14 @@ function isRecastCandidate(item: PlayerItemInstanceV4, detail: DexItemDetail | n
 function pokemonDetailFor(api: ChangeBattleV2Api, pokemon: LocalPokemonV4) {
   try {
     return api.getPokemonDetail(pokemon.speciesId);
+  } catch {
+    return null;
+  }
+}
+
+function moveDetailFor(api: ChangeBattleV2Api, moveId: string) {
+  try {
+    return api.getMoveDetail(moveId);
   } catch {
     return null;
   }

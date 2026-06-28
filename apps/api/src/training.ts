@@ -525,7 +525,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     const detail = pokemonDetail(speciesId);
     const ability = randomized ? pick(detail.abilities) || detail.abilities[0] : detail.abilities[0];
     const nature = randomized ? pick(RANDOM_NATURES) : DEFAULT_NATURE;
-    const moves = selectMoves(detail.learnset, randomized);
+    const moves = selectMoves(dex.getPokemonSelfLearnSkills(detail.id), randomized);
     const evs = emptyStats(0);
     const ivs = emptyStats(31);
     const maxHp = calculateMaxHp(detail.id, 50, nature, evs, ivs);
@@ -564,7 +564,8 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     const detail = pokemonDetail(pokemon.speciesId || DEFAULT_SPECIES[index % DEFAULT_SPECIES.length]!);
     const ability = detail.abilities.find(entry => entry.id === pokemon.abilityId) || detail.abilities[0];
     const moves = (pokemon.moves || []).filter(move => move.moveId).slice(0, 4).map(move => normalizeMoveSlot(move.moveId));
-    while (moves.length < 4) moves.push(selectMoves(detail.learnset)[moves.length] || fallbackMove(moves.length));
+    const selfLearnMoves = selectMoves(dex.getPokemonSelfLearnSkills(detail.id));
+    while (moves.length < 4) moves.push(selfLearnMoves[moves.length] || fallbackMove(moves.length));
     const evs = normalizeStats(pokemon.evs, 0);
     const ivs = normalizeStats(pokemon.ivs, 31);
     const level = clampInt(pokemon.level, 1, 100, 50);

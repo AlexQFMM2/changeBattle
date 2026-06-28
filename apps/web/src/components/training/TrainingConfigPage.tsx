@@ -73,7 +73,7 @@ const TEST_BAG_ITEM_IDS = [
   "leftovers", "lifeorb", "oranberry", "potion", "ether",
   "ev-hp-plus", "ev-atk-down", "adamantmint", "abilitycapsule", "abilitypatch",
   "rarecandy", "bottlecap", "goldbottlecap", "graybottlecap",
-  "tm:thunderbolt", "system-mega-stone", "system-z-crystal", "system-tera-orb",
+  "tm:thunderbolt", "tm:protect", "system-mega-stone", "system-z-crystal", "system-tera-orb",
 ];
 
 export function TrainingConfigPage({api, run, onRunChange, onStartRun, onStartRunNew, onBack}: TrainingConfigPageProps) {

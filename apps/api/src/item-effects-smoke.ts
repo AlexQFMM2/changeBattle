@@ -1,7 +1,7 @@
 import {strict as assert} from "node:assert";
-import type {DexPokemonDetail} from "@changebattle-v2/showdown-dex-core";
+import type {DexMoveSummary, DexPokemonDetail} from "@changebattle-v2/showdown-dex-core";
 import {createBattleCommandDraftV4, normalizeBattleRequestV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4} from "./battle.js";
-import {applyRecoveryItemToPokemonV4, applyTrainingItemToPokemonV4} from "./itemEffects.js";
+import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4} from "./training.js";
 
 const pokemon = makePokemon();
@@ -113,6 +113,38 @@ if (grayResult.ok) {
   assert.equal(grayResult.bag.items.length, 0);
 }
 
+const tm = item("tm:voltswitch", "技能机器：伏特替换", {type: "tm", canBattleUse: false, canTake: false});
+const tmMove = moveSummary("voltswitch", {nameZh: "伏特替换", type: "电", category: "特殊", power: 70, accuracy: 100, pp: 20});
+const tmResult = applyTmItemToPokemonV4({
+  item: tm,
+  detail: {id: "tm:voltswitch", name: "TM Volt Switch", nameZh: "技能机器：伏特替换", kind: "tm", kindLabel: "技能机器", description: "", moveId: "voltswitch"},
+  pokemon: makePokemon(),
+  bag: bagWith(tm),
+  machineMoves: [tmMove],
+  moveSlot: 2,
+});
+assert.equal(tmResult.ok, true);
+if (tmResult.ok) {
+  assert.equal(tmResult.pokemon.moves[2]!.moveId, "voltswitch");
+  assert.equal(tmResult.pokemon.moves[2]!.remainingPp, 20);
+  assert.equal(tmResult.bag.items.length, 0);
+}
+
+const duplicateTm = item("tm:thunderbolt", "技能机器：十万伏特", {type: "tm", canBattleUse: false, canTake: false});
+assert.match(tmUseFailureReasonV4({
+  item: duplicateTm,
+  detail: {id: "tm:thunderbolt", name: "TM Thunderbolt", nameZh: "技能机器：十万伏特", kind: "tm", kindLabel: "技能机器", description: "", moveId: "thunderbolt"},
+  pokemon: makePokemon(),
+  machineMoves: [moveSummary("thunderbolt")],
+}), /已经学会/);
+const illegalTm = item("tm:flamethrower", "技能机器：喷射火焰", {type: "tm", canBattleUse: false, canTake: false});
+assert.match(tmUseFailureReasonV4({
+  item: illegalTm,
+  detail: {id: "tm:flamethrower", name: "TM Flamethrower", nameZh: "技能机器：喷射火焰", kind: "tm", kindLabel: "技能机器", description: "", moveId: "flamethrower"},
+  pokemon: makePokemon(),
+  machineMoves: [moveSummary("voltswitch")],
+}), /无法通过技能机器/);
+
 const request = normalizeBattleRequestV4({
   active: [{moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35}]}],
   side: {id: "p1", name: "P1", pokemon: [{ident: "p1: Pikachu", details: "Pikachu, L50", condition: "40/100", pokeball: "pokeball"}]},
@@ -181,6 +213,21 @@ function makePokemon(): LocalPokemonV4 {
 
 function move(moveId: string, pp: number): LocalPokemonV4["moves"][number] {
   return {moveId, name: moveId, nameZh: moveId, type: "Normal", category: "Physical", power: 40, accuracy: 100, pp, maxPp: pp, remainingPp: pp};
+}
+
+function moveSummary(moveId: string, options: Partial<DexMoveSummary> = {}): DexMoveSummary {
+  return {
+    id: moveId,
+    name: options.name || moveId,
+    nameZh: options.nameZh || moveId,
+    type: options.type || "Normal",
+    category: options.category || "Physical",
+    power: options.power ?? 40,
+    accuracy: options.accuracy ?? 100,
+    pp: options.pp ?? 10,
+    priority: options.priority ?? 0,
+    learnSources: options.learnSources || ["machine"],
+  };
 }
 
 function fakePokemonDetail(): DexPokemonDetail {

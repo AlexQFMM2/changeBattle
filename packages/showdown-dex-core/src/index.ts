@@ -393,7 +393,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       cryUrl: resolvePokemonCry(species.id),
       sprites: resolvePokemonSprites({speciesId: species.id}),
       learnset: getPokemonLearnset(species.id),
-      learnsetGroups: groupLearnset(getPokemonLearnset(species.id)),
+      learnsetGroups: getPokemonLearnsetGroups(species.id),
     };
   }
 
@@ -437,6 +437,11 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     return showdownItemDetail(item, overlay);
   }
 
+  function getTmItemDetail(moveIdOrTmId: string): DexItemDetail {
+    const normalized = normalizeTmItemId(moveIdOrTmId);
+    return getItemDetail(normalized);
+  }
+
   function getPokemonLearnset(speciesId: string): DexMoveSummary[] {
     const activeDex = requireDex();
     const seen = new Map<string, Set<DexLearnSource>>();
@@ -450,6 +455,14 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       }
     }
     return Array.from(seen.entries()).map(([moveId, sources]) => moveSummary(activeDex, activeDex.moves.get(moveId), Array.from(sources), translate));
+  }
+
+  function getPokemonLearnsetGroups(speciesId: string): Record<DexLearnSource, DexMoveSummary[]> {
+    return groupLearnset(getPokemonLearnset(speciesId));
+  }
+
+  function getPokemonSkillsBySource(speciesId: string, source: DexLearnSource): DexMoveSummary[] {
+    return getPokemonLearnsetGroups(speciesId)[source] || [];
   }
 
   function getMoveLearners(moveId: string): Array<{pokemon: DexSearchRow; sources: DexLearnSource[]}> {
@@ -693,7 +706,14 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     getMoveDetail,
     getAbilityDetail,
     getItemDetail,
+    getTmItemDetail,
     getPokemonLearnset,
+    getPokemonLearnsetGroups,
+    getPokemonSkillsBySource,
+    getPokemonSelfLearnSkills: (speciesId: string) => getPokemonSkillsBySource(speciesId, "levelup"),
+    getPokemonTutorSkills: (speciesId: string) => getPokemonSkillsBySource(speciesId, "tutor"),
+    getPokemonEggSkills: (speciesId: string) => getPokemonSkillsBySource(speciesId, "egg"),
+    getPokemonMachineSkills: (speciesId: string) => getPokemonSkillsBySource(speciesId, "machine"),
     getMoveLearners,
     calculatePokemonStats,
     getPokemonMaxStats,
@@ -905,6 +925,11 @@ function factoryItemDescription(nameZh: string, kind: DexItemKind, description: 
 
 function isTmItemId(id: string): boolean {
   return /^tm:/i.test(String(id || ""));
+}
+
+function normalizeTmItemId(moveIdOrTmId: string): string {
+  const raw = String(moveIdOrTmId || "").trim();
+  return isTmItemId(raw) ? `tm:${toID(raw.slice(3))}` : `tm:${toID(raw)}`;
 }
 
 function includeDataEntry(entry: any): boolean {

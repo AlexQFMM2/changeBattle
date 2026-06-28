@@ -13,6 +13,7 @@ const TEST_BAG_ITEM_IDS = [
   "ether",
   "rarecandy",
   "tm:thunderbolt",
+  "tm:protect",
   "system-mega-stone",
   "system-z-crystal",
   "system-tera-orb",

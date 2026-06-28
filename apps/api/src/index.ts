@@ -125,6 +125,13 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getMoveDetail: (id: string) => dex.getMoveDetail(id),
     getAbilityDetail: (id: string) => dex.getAbilityDetail(id),
     getItemDetail: (id: string) => dex.getItemDetail(id),
+    getTmItemDetail: (moveIdOrTmId: string) => dex.getTmItemDetail(moveIdOrTmId),
+    getPokemonLearnset: (speciesId: string) => dex.getPokemonLearnset(speciesId),
+    getPokemonSkillsBySource: (speciesId: string, source: Parameters<typeof dex.getPokemonSkillsBySource>[1]) => dex.getPokemonSkillsBySource(speciesId, source),
+    getPokemonSelfLearnSkills: (speciesId: string) => dex.getPokemonSelfLearnSkills(speciesId),
+    getPokemonTutorSkills: (speciesId: string) => dex.getPokemonTutorSkills(speciesId),
+    getPokemonEggSkills: (speciesId: string) => dex.getPokemonEggSkills(speciesId),
+    getPokemonMachineSkills: (speciesId: string) => dex.getPokemonMachineSkills(speciesId),
     getTrainerCatalog: () => clone(TRAINER_CATALOG),
     loadUserProfile: () => userProfiles.loadUserProfile(),
     createUserProfile: async (draft: UserProfileDraftV2 = {}) => {

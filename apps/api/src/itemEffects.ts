@@ -1,4 +1,4 @@
-import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexPokemonDetail, DexStatId} from "@changebattle-v2/showdown-dex-core";
+import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexMoveSummary, DexPokemonDetail, DexStatId} from "@changebattle-v2/showdown-dex-core";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4, StatTableV4, TrainingMoveSlotV4, TrainingStatusV4} from "./training.js";
 
 export type ConsumableItemApplyResultV4 =
@@ -7,6 +7,10 @@ export type ConsumableItemApplyResultV4 =
 
 export type TrainingItemApplyResultV4 =
   | {ok: true; pokemon: LocalPokemonV4; bag: BagStateV4; message: string}
+  | {ok: false; reason: string};
+
+export type TmItemApplyResultV4 =
+  | {ok: true; pokemon: LocalPokemonV4; bag: BagStateV4; message: string; moveSlot: number}
   | {ok: false; reason: string};
 
 const RECOVERABLE_STATUS = new Set<TrainingStatusV4>(["brn", "par", "psn", "tox", "slp", "frz"]);
@@ -172,6 +176,66 @@ export function applyTrainingItemToPokemonV4(input: {
   };
 }
 
+export function canUseTmItemV4(item: PlayerItemInstanceV4 | null | undefined, detail: DexItemDetail | null | undefined): boolean {
+  return Boolean(tmMoveIdForItemV4(item, detail));
+}
+
+export function tmMoveIdForItemV4(item: PlayerItemInstanceV4 | null | undefined, detail: DexItemDetail | null | undefined): string {
+  if (detail?.kind === "tm" && detail.moveId) return normalizeItemId(detail.moveId);
+  const itemId = normalizeItemId(item?.itemID || detail?.id || "");
+  return itemId.startsWith("tm") ? itemId.slice(2) : "";
+}
+
+export function canPokemonLearnTmMoveV4(pokemon: LocalPokemonV4, moveId: string, machineMoves: DexMoveSummary[]): boolean {
+  const normalizedMoveId = normalizeItemId(moveId);
+  return Boolean(normalizedMoveId && machineMoves.some(move => normalizeItemId(move.id) === normalizedMoveId));
+}
+
+export function tmUseFailureReasonV4(input: {
+  item: PlayerItemInstanceV4 | null | undefined;
+  detail?: DexItemDetail | null;
+  pokemon?: LocalPokemonV4 | null;
+  machineMoves?: DexMoveSummary[];
+}): string {
+  const moveId = tmMoveIdForItemV4(input.item, input.detail);
+  if (!moveId) return "该道具不是技能机器。";
+  if (!input.pokemon) return "请选择宝可梦。";
+  if (input.pokemon.moves.some(move => normalizeItemId(move.moveId) === moveId)) return "目标已经学会这个招式。";
+  if (!canPokemonLearnTmMoveV4(input.pokemon, moveId, input.machineMoves || [])) return "目标无法通过技能机器学习这个招式。";
+  return "";
+}
+
+export function applyTmItemToPokemonV4(input: {
+  item: PlayerItemInstanceV4;
+  detail?: DexItemDetail | null;
+  pokemon: LocalPokemonV4;
+  bag: BagStateV4;
+  machineMoves: DexMoveSummary[];
+  moveSlot: number;
+}): TmItemApplyResultV4 {
+  const reason = tmUseFailureReasonV4(input);
+  if (reason) return {ok: false, reason};
+  const moveId = tmMoveIdForItemV4(input.item, input.detail);
+  const move = input.machineMoves.find(entry => normalizeItemId(entry.id) === moveId);
+  if (!move) return {ok: false, reason: "目标无法通过技能机器学习这个招式。"};
+  const moveSlot = clampInt(input.moveSlot, 0, 3);
+  const nextMove = moveSlotFromDexMove(move);
+  const nextPokemon = clearHeldReferenceIfConsumed({
+    ...clonePokemon(input.pokemon),
+    moves: input.pokemon.moves.map((current, index) => index === moveSlot ? nextMove : current),
+  }, input.item);
+  const nextBag = consumeItemInstance(input.bag, input.item.id);
+  const pokemonName = input.pokemon.nameZh || input.pokemon.name;
+  const moveName = move.nameZh || move.name || move.id;
+  return {
+    ok: true,
+    pokemon: nextPokemon,
+    bag: nextBag,
+    moveSlot,
+    message: `${pokemonName} 学会了 ${moveName}。`,
+  };
+}
+
 function applyPpRecovery(moves: TrainingMoveSlotV4[], effect: NonNullable<DexItemRecoveryEffect["pp"]>): {moves: TrainingMoveSlotV4[]; recovered: number; moveIndex: number | null} {
   if (effect.scope === "all") {
     let recovered = 0;
@@ -192,6 +256,21 @@ function applyPpRecovery(moves: TrainingMoveSlotV4[], effect: NonNullable<DexIte
     moves: moves.map((move, index) => index === moveIndex ? {...move, remainingPp: nextPp} : move),
     recovered,
     moveIndex,
+  };
+}
+
+function moveSlotFromDexMove(move: DexMoveSummary): TrainingMoveSlotV4 {
+  return {
+    moveId: move.id,
+    name: move.name,
+    nameZh: move.nameZh,
+    type: move.type,
+    category: move.category,
+    power: move.power,
+    accuracy: move.accuracy,
+    pp: move.pp,
+    maxPp: move.pp,
+    remainingPp: move.pp,
   };
 }
 

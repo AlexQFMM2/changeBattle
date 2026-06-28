@@ -246,6 +246,7 @@ export function QuickDexModal({api, initialPokemonId = null, onClose}: {api: Cha
             <section className="quick-dex-detail">
               {detail?.category === "pokemon" ? (
                 <PokemonDetail
+                  api={api}
                   detail={detail.detail}
                   stats={detail.stats}
                   level={level}
@@ -316,6 +317,7 @@ function PokemonIcon({row}: {row: DexSearchRow}) {
 }
 
 function PokemonDetail({
+  api,
   detail,
   stats,
   level,
@@ -328,6 +330,7 @@ function PokemonDetail({
   onMoveClick,
   onPlayCry,
 }: {
+  api: ChangeBattleV2Api;
   detail: DexPokemonDetail;
   stats: DexStatsResult;
   level: number;
@@ -341,10 +344,10 @@ function PokemonDetail({
   onPlayCry: () => void;
 }) {
   const moveGroups: Record<string, DexMoveSummary[]> = {
-    levelup: detail.learnsetGroups.levelup,
-    tutor: detail.learnsetGroups.tutor,
-    machine: detail.learnsetGroups.machine,
-    egg: detail.learnsetGroups.egg,
+    levelup: api.getPokemonSelfLearnSkills(detail.id),
+    tutor: api.getPokemonTutorSkills(detail.id),
+    machine: api.getPokemonMachineSkills(detail.id),
+    egg: api.getPokemonEggSkills(detail.id),
     other: otherMoves,
   };
 

@@ -14,9 +14,9 @@ Battle V4 request-driven UI batch = 1
 Diagnostics batch = 1
 ```
 
-本清单只追踪系统战斗道具与道具实例体系，不追踪普通药品、树果、商店经济与完整战斗背包。
+本清单追踪系统战斗道具、道具实例体系、统一背包组件，以及已经接入的恢复/训练/TM 道具效果。商店经济、系统重铸和完整携带道具触发规则仍在后续批次追踪。
 
-## Current Batch: Bag Instance + Training UI + Rest UI + Battle Placeholder
+## Current Batch: Bag Instance + Training UI + Rest UI + Battle Bag Effects
 
 - [x] `BagStateV4` 采用 `{ maxSize, items, battleBagEnabled }`，默认容量 50。 | priority: P0 | source: training-model | adapter: native | notes: implemented + typecheck
 - [x] 训练配置页新增背包管理，可添加 Dex 道具实例。 | priority: P0 | source: training-config-ui | adapter: native | notes: non-stack item instances + typecheck
@@ -24,12 +24,26 @@ Diagnostics batch = 1
 - [x] 训练配置页支持编辑 `cost/effectRound/getRound/maxUseCount/useCount/canSale`。 | priority: P1 | source: training-config-ui | adapter: native | notes: instance fields + typecheck
 - [x] 训练配置页支持保存 `battleBagEnabled` 开关。 | priority: P1 | source: training-config-ui | adapter: native | notes: placeholder switch + typecheck
 - [x] 训练配置页容量按 `当前数量/最大容量` 显示并阻止超容量添加。 | priority: P0 | source: training-config-ui | adapter: native | notes: maxSize 50 + typecheck
+- [x] 训练配置页支持生成测试背包，覆盖恢复、PP、树果、训练、TM、携带和系统道具。 | priority: P1 | source: training-config-ui | adapter: native | notes: expanded seed items
 - [x] 切换规则或 normalize 时按 ruleSet 补发默认系统战斗道具。 | priority: P0 | source: rule-defaults | adapter: native | notes: gen7/gen8/gen9/standard + typecheck
 - [x] 休整页背包从 count 展示切换为实例列表。 | priority: P0 | source: rest-ui | adapter: native | notes: non-stack item detail + typecheck
 - [x] 休整页详情展示完整实例字段。 | priority: P0 | source: rest-ui | adapter: native | notes: id/itemID/type/cost/flags/rounds/useCount + typecheck
+- [x] 休整页和 Battle V4 共用 `PlayerBagPanel`。 | priority: P0 | source: shared-ui | adapter: native | notes: rest uses full bag, battle filters canBattleUse
+- [x] 休整页支持携带、替换、卸下和丢弃普通道具。 | priority: P0 | source: rest-ui | adapter: native | notes: updates draft only, no autosave
+- [x] 休整页支持恢复类道具立即使用：HP、复活、状态、PP、树果恢复。 | priority: P0 | source: item-effects | adapter: native | notes: consumes item instance on success
+- [x] 休整页支持训练道具立即使用：EV、性格、特性、等级、IV 王冠。 | priority: P0 | source: item-effects | adapter: native | notes: consumes item instance on success
+- [x] 图鉴/API 支持按学习来源获取技能：自学、教授、遗传、技能机器。 | priority: P0 | source: dex-api | adapter: native | notes: shared source for TM legality and future NPC move services
+- [x] 训练配置页初始随机技能和休整页随机技能只从自学池抽取。 | priority: P0 | source: training-team | adapter: native | notes: no TM/egg/tutor leakage into random free moves
+- [x] 休整页支持 TM 技能机器立即使用与独立技能替换弹窗。 | priority: P0 | source: item-effects | adapter: native | notes: machine learnset legality + consumes TM instance on success
+- [x] 休整页背包成功使用道具显示非阻塞 toast。 | priority: P2 | source: rest-ui | adapter: native | notes: persistent status still used for failure/manual-save reminder
 - [x] Battle V4 主指令区新增“背包”按钮。 | priority: P1 | source: battle-v4-ui | adapter: native | notes: placeholder only + typecheck
 - [x] Battle V4 `battleBagEnabled=false` 点击提示“战斗背包未开启”。 | priority: P1 | source: battle-v4-ui | adapter: native | notes: no item choice submitted + typecheck
-- [x] Battle V4 `battleBagEnabled=true` 显示只读可战斗使用道具列表。 | priority: P1 | source: battle-v4-ui | adapter: native | notes: placeholder only + typecheck
+- [x] Battle V4 `battleBagEnabled=true` 显示可战斗使用道具列表。 | priority: P1 | source: battle-v4-ui | adapter: native | notes: shared PlayerBagPanel filters canBattleUse + typecheck
+- [x] Battle V4 支持恢复类道具占用当前 active 行动槽并先手结算。 | priority: P0 | source: battle-service | adapter: native | notes: submitTrainerItem + item-effects smoke + typecheck
+- [x] Battle V4 使用道具成功后消耗对应 `Player.bag` 实例。 | priority: P0 | source: battle-service | adapter: native | notes: recovery item path implemented
+- [x] Battle V4 场上 HP 恢复输出 heal 事件。 | priority: P1 | source: battle-animation | adapter: native | notes: existing timeline can play heal animation
+- [ ] 系统战斗道具 Mega/Z/太晶重铸列表。 | priority: P1 | source: future-rest-ui | adapter: pending | notes:
+- [ ] 携带/战斗道具有效回合、使用次数报废和自动销毁。 | priority: P1 | source: future-item-lifecycle | adapter: pending | notes:
 
 ## P0: Types And Registry
 
@@ -124,6 +138,7 @@ Diagnostics batch = 1
 
 - [x] `pnpm --dir changeBattleV2 --filter @changebattle-v2/web typecheck`。 | priority: P0 | source: verification | adapter: passed | notes:
 - [x] `pnpm --dir changeBattleV2 typecheck`。 | priority: P0 | source: verification | adapter: passed | notes:
+- [x] `pnpm --dir changeBattleV2 --filter @changebattle-v2/api test:item-effects`。 | priority: P0 | source: verification | adapter: passed | notes: recovery + training item smoke
 - [x] `pnpm --dir changeBattleV2 test:identity-sync`。 | priority: P1 | source: verification | adapter: passed | notes:
 - [x] `pnpm --dir changeBattleV2 --filter @changebattle-v2/showdown-battle-core test`。 | priority: P1 | source: verification | adapter: passed | notes:
 - [ ] 手动验收 Gen7：Mega/Z 由系统战斗道具映射后 Showdown request 返回入口。 | priority: P1 | source: manual | adapter: pending | notes:
@@ -134,5 +149,4 @@ Diagnostics batch = 1
 ## Non-Goals
 
 - [ ] 第一版不实现完整商店。 | priority: P3 | source: non-goal | adapter: pending | notes:
-- [ ] 第一版不实现战斗背包药品使用。 | priority: P3 | source: non-goal | adapter: pending | notes:
-- [ ] 第一版不实现全部普通道具效果。 | priority: P3 | source: non-goal | adapter: pending | notes:
+- [ ] 第一版不实现全部普通道具效果。 | priority: P3 | source: non-goal | adapter: pending | notes: recovery + training + TM implemented; system reforging pending
