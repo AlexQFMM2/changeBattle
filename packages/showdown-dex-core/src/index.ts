@@ -8,6 +8,12 @@ export type DexStatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
 export type DexLearnSource = "levelup" | "machine" | "tutor" | "egg" | "event" | "transfer" | "other";
 export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "system" | "system-battle" | "valuable" | "special" | "held" | "battle" | "other";
 export type DexItemSource = "showdown" | "v1-game" | "overlay" | "system";
+export type DexItemRecoveryEffect = {
+  hp?: {kind: "fixed"; amount: number} | {kind: "full"} | {kind: "fraction"; numerator: number; denominator: number};
+  revive?: "half" | "full";
+  pp?: {scope: "one" | "all"; amount?: number; full?: boolean};
+  cureStatus?: "all" | Array<"brn" | "par" | "psn" | "tox" | "slp" | "frz">;
+};
 
 export type DexSearchRequest = {
   category?: DexCategory | "all";
@@ -138,6 +144,7 @@ export type DexItemDetail = {
   source?: DexItemSource;
   sourceLabel?: string;
   effectSummary?: string;
+  recoveryEffect?: DexItemRecoveryEffect;
   canBattleUse?: boolean;
   canUse?: boolean;
   canUseToPokemon?: boolean;
@@ -229,6 +236,7 @@ type ItemRegistryEntry = {
   source: DexItemSource;
   description: string;
   effectSummary?: string;
+  recoveryEffect?: DexItemRecoveryEffect;
   iconAsset?: string;
   canBattleUse: boolean;
   canUse: boolean;
@@ -241,31 +249,35 @@ type ItemRegistryEntry = {
 };
 
 const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
-  v1Item("potion", "Potion", "回复药", "recovery", "恢复 20 点 HP。", {cost: 300, canBattleUse: true}),
-  v1Item("superpotion", "Super Potion", "好伤药", "recovery", "恢复 60 点 HP。", {cost: 700, canBattleUse: true}),
-  v1Item("hyperpotion", "Hyper Potion", "绝好伤药", "recovery", "恢复 120 点 HP。", {cost: 1200, canBattleUse: true}),
-  v1Item("maxpotion", "Max Potion", "全满药", "recovery", "恢复全部 HP。", {cost: 2500, canBattleUse: true}),
-  v1Item("fullrestore", "Full Restore", "全复药", "recovery", "恢复指定宝可梦全部 HP，并解除其异常状态。", {cost: 3000, canBattleUse: true}),
-  v1Item("freshwater", "Fresh Water", "美味之水", "recovery", "恢复 30 点 HP。", {cost: 200, canBattleUse: true}),
-  v1Item("sodapop", "Soda Pop", "劲爽汽水", "recovery", "恢复 50 点 HP。", {cost: 300, canBattleUse: true}),
-  v1Item("lemonade", "Lemonade", "果汁牛奶", "recovery", "恢复 70 点 HP。", {cost: 350, canBattleUse: true}),
-  v1Item("moomoomilk", "Moomoo Milk", "哞哞鲜奶", "recovery", "恢复 100 点 HP。", {cost: 500, canBattleUse: true}),
-  v1Item("fullheal", "Full Heal", "万灵药", "recovery", "解除异常状态。", {cost: 600, canBattleUse: true}),
-  v1Item("healpowder", "Heal Powder", "万能粉", "recovery", "解除异常状态。", {cost: 450, canBattleUse: true}),
-  v1Item("antidote", "Antidote", "解毒药", "recovery", "解除中毒状态。", {cost: 100, canBattleUse: true}),
-  v1Item("burnheal", "Burn Heal", "灼伤药", "recovery", "解除灼伤状态。", {cost: 250, canBattleUse: true}),
-  v1Item("iceheal", "Ice Heal", "解冻药", "recovery", "解除冰冻状态。", {cost: 250, canBattleUse: true}),
-  v1Item("awakening", "Awakening", "解眠药", "recovery", "解除睡眠状态。", {cost: 250, canBattleUse: true}),
-  v1Item("paralyzeheal", "Paralyze Heal", "解麻药", "recovery", "解除麻痹状态。", {cost: 200, canBattleUse: true}),
-  v1Item("energypowder", "Energy Powder", "元气粉", "recovery", "恢复 60 点 HP。", {cost: 500, canBattleUse: true}),
-  v1Item("energyroot", "Energy Root", "元气根", "recovery", "恢复 120 点 HP。", {cost: 800, canBattleUse: true}),
-  v1Item("revive", "Revive", "活力碎片", "revive", "让濒死宝可梦复活，并恢复一半 HP。", {cost: 1500, canBattleUse: true}),
-  v1Item("maxrevive", "Max Revive", "活力块", "revive", "让濒死宝可梦复活，并恢复全部 HP。", {cost: 4000, canBattleUse: true}),
-  v1Item("revivalherb", "Revival Herb", "复活草", "revive", "让濒死宝可梦复活，并恢复全部 HP。", {cost: 2800, canBattleUse: true}),
-  v1Item("ether", "Ether", "PP 单项小补剂", "pp", "让 1 个招式恢复 10 点 PP。", {cost: 1200, canBattleUse: true}),
-  v1Item("maxether", "Max Ether", "PP 单项全补剂", "pp", "让 1 个招式恢复全部 PP。", {cost: 2000, canBattleUse: true}),
-  v1Item("elixir", "Elixir", "PP 多项小补剂", "pp", "让所有招式恢复 10 点 PP。", {cost: 3000, canBattleUse: true}),
-  v1Item("maxelixir", "Max Elixir", "PP 多项全补剂", "pp", "让所有招式恢复全部 PP。", {cost: 4500, canBattleUse: true}),
+  v1Item("potion", "Potion", "回复药", "recovery", "恢复 20 点 HP。", {cost: 300, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 20}}}),
+  v1Item("superpotion", "Super Potion", "好伤药", "recovery", "恢复 60 点 HP。", {cost: 700, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 60}}}),
+  v1Item("hyperpotion", "Hyper Potion", "绝好伤药", "recovery", "恢复 120 点 HP。", {cost: 1200, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 120}}}),
+  v1Item("maxpotion", "Max Potion", "全满药", "recovery", "恢复全部 HP。", {cost: 2500, canBattleUse: true, recoveryEffect: {hp: {kind: "full"}}}),
+  v1Item("fullrestore", "Full Restore", "全复药", "recovery", "恢复指定宝可梦全部 HP，并解除其异常状态。", {cost: 3000, canBattleUse: true, recoveryEffect: {hp: {kind: "full"}, cureStatus: "all"}}),
+  v1Item("freshwater", "Fresh Water", "美味之水", "recovery", "恢复 30 点 HP。", {cost: 200, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 30}}}),
+  v1Item("sodapop", "Soda Pop", "劲爽汽水", "recovery", "恢复 50 点 HP。", {cost: 300, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 50}}}),
+  v1Item("lemonade", "Lemonade", "果汁牛奶", "recovery", "恢复 70 点 HP。", {cost: 350, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 70}}}),
+  v1Item("moomoomilk", "Moomoo Milk", "哞哞鲜奶", "recovery", "恢复 100 点 HP。", {cost: 500, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 100}}}),
+  v1Item("fullheal", "Full Heal", "万灵药", "recovery", "解除异常状态。", {cost: 600, canBattleUse: true, recoveryEffect: {cureStatus: "all"}}),
+  v1Item("healpowder", "Heal Powder", "万能粉", "recovery", "解除异常状态。", {cost: 450, canBattleUse: true, recoveryEffect: {cureStatus: "all"}}),
+  v1Item("antidote", "Antidote", "解毒药", "recovery", "解除中毒状态。", {cost: 100, canBattleUse: true, recoveryEffect: {cureStatus: ["psn", "tox"]}}),
+  v1Item("burnheal", "Burn Heal", "灼伤药", "recovery", "解除灼伤状态。", {cost: 250, canBattleUse: true, recoveryEffect: {cureStatus: ["brn"]}}),
+  v1Item("iceheal", "Ice Heal", "解冻药", "recovery", "解除冰冻状态。", {cost: 250, canBattleUse: true, recoveryEffect: {cureStatus: ["frz"]}}),
+  v1Item("awakening", "Awakening", "解眠药", "recovery", "解除睡眠状态。", {cost: 250, canBattleUse: true, recoveryEffect: {cureStatus: ["slp"]}}),
+  v1Item("paralyzeheal", "Paralyze Heal", "解麻药", "recovery", "解除麻痹状态。", {cost: 200, canBattleUse: true, recoveryEffect: {cureStatus: ["par"]}}),
+  v1Item("energypowder", "Energy Powder", "元气粉", "recovery", "恢复 60 点 HP。", {cost: 500, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 60}}}),
+  v1Item("energyroot", "Energy Root", "元气根", "recovery", "恢复 120 点 HP。", {cost: 800, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 120}}}),
+  v1Item("revive", "Revive", "活力碎片", "revive", "让濒死宝可梦复活，并恢复一半 HP。", {cost: 1500, canBattleUse: true, recoveryEffect: {revive: "half"}}),
+  v1Item("maxrevive", "Max Revive", "活力块", "revive", "让濒死宝可梦复活，并恢复全部 HP。", {cost: 4000, canBattleUse: true, recoveryEffect: {revive: "full"}}),
+  v1Item("revivalherb", "Revival Herb", "复活草", "revive", "让濒死宝可梦复活，并恢复全部 HP。", {cost: 2800, canBattleUse: true, recoveryEffect: {revive: "full"}}),
+  v1Item("ether", "Ether", "PP 单项小补剂", "pp", "让 1 个招式恢复 10 点 PP。", {cost: 1200, canBattleUse: true, recoveryEffect: {pp: {scope: "one", amount: 10}}}),
+  v1Item("maxether", "Max Ether", "PP 单项全补剂", "pp", "让 1 个招式恢复全部 PP。", {cost: 2000, canBattleUse: true, recoveryEffect: {pp: {scope: "one", full: true}}}),
+  v1Item("elixir", "Elixir", "PP 多项小补剂", "pp", "让所有招式恢复 10 点 PP。", {cost: 3000, canBattleUse: true, recoveryEffect: {pp: {scope: "all", amount: 10}}}),
+  v1Item("maxelixir", "Max Elixir", "PP 多项全补剂", "pp", "让所有招式恢复全部 PP。", {cost: 4500, canBattleUse: true, recoveryEffect: {pp: {scope: "all", full: true}}}),
+  v1Item("oranberry", "Oran Berry", "橙橙果", "berry", "恢复 10 点 HP。", {cost: 80, canBattleUse: true, canTake: true, recoveryEffect: {hp: {kind: "fixed", amount: 10}}}),
+  v1Item("sitrusberry", "Sitrus Berry", "文柚果", "berry", "恢复最大 HP 的 1/4。", {cost: 160, canBattleUse: true, canTake: true, recoveryEffect: {hp: {kind: "fraction", numerator: 1, denominator: 4}}}),
+  v1Item("leppaberry", "Leppa Berry", "苹野果", "berry", "让 1 个招式恢复 10 点 PP。", {cost: 160, canBattleUse: true, canTake: true, recoveryEffect: {pp: {scope: "one", amount: 10}}}),
+  v1Item("lumberry", "Lum Berry", "木子果", "berry", "解除异常状态。", {cost: 240, canBattleUse: true, canTake: true, recoveryEffect: {cureStatus: "all"}}),
   v1Item("rarecandy", "Rare Candy", "神奇糖果", "training", "休整页使用，使宝可梦提升 1 级。", {cost: 4800, canBattleUse: false}),
   v1Item("hpup", "HP Up", "HP 增强剂", "training", "休整页使用，提升 HP 努力值 100 点。", {cost: 10000, canBattleUse: false}),
   v1Item("protein", "Protein", "攻击增强剂", "training", "休整页使用，提升攻击努力值 100 点。", {cost: 10000, canBattleUse: false}),
@@ -529,6 +541,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       source,
       sourceLabel: ITEM_SOURCE_LABEL[source],
       effectSummary: overlay?.effectSummary || description,
+      recoveryEffect: overlay?.recoveryEffect,
       canBattleUse: overlay?.canBattleUse ?? false,
       canUse: overlay?.canUse ?? false,
       canUseToPokemon: overlay?.canUseToPokemon ?? false,
@@ -553,6 +566,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       source: entry.source,
       sourceLabel: ITEM_SOURCE_LABEL[entry.source],
       effectSummary: entry.effectSummary || entry.description,
+      recoveryEffect: entry.recoveryEffect,
       canBattleUse: entry.canBattleUse,
       canUse: entry.canUse,
       canUseToPokemon: entry.canUseToPokemon,
@@ -798,6 +812,7 @@ function v1Item(
     source: options.source || "v1-game",
     description: displayDescription,
     effectSummary: options.effectSummary || description,
+    recoveryEffect: options.recoveryEffect,
     iconAsset: options.iconAsset || `runtime/items/${id}/icon.png`,
     canBattleUse: options.canBattleUse ?? false,
     canUse: options.canUse ?? true,

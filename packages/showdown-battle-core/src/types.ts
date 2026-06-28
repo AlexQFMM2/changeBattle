@@ -12,7 +12,19 @@ export type TrainingPlayerDraftV4 = {
     name: string;
     pokemon: LocalPokemonLikeForBattleV4[];
   };
-  bag: {items: Array<{itemId: string; count: number}>};
+  bag: {
+    maxSize?: number;
+    items: Array<{
+      id?: string;
+      itemID?: string;
+      itemId?: string;
+      name?: string;
+      canBattleUse?: boolean;
+      type?: string;
+      [key: string]: unknown;
+    }>;
+    [key: string]: unknown;
+  };
 };
 export type TrainingRunGameNodeV4 = {
   id: string;
@@ -194,9 +206,21 @@ export type BattleServiceSubmitChoiceInputV4 = {
   choice: string;
 };
 
+export type BattleServiceSubmitTrainerItemInputV4 = {
+  sessionId: string;
+  playerId: ShowdownPlayerIdV4;
+  choice: string;
+  trainerItems: Array<{
+    activeIndex: number;
+    itemInstanceId: string;
+    targetKey: string;
+  }>;
+};
+
 export type BattleServiceApiV4 = {
   createBattleSession(input: BattleServiceCreateInputV4 | BattleServiceSessionInputV4): Promise<BattleServiceSnapshotV4>;
   submitChoice(input: BattleServiceSubmitChoiceInputV4): Promise<BattleServiceSnapshotV4>;
+  submitTrainerItem(input: BattleServiceSubmitTrainerItemInputV4): Promise<BattleServiceSnapshotV4>;
   getSnapshot(sessionId: string): Promise<BattleServiceSnapshotV4>;
   closeSession(sessionId: string): Promise<void>;
 };
@@ -222,4 +246,5 @@ export type LocalPokemonLikeForBattleV4 = {
   entryHp?: number;
   entryStatus?: string;
   maxHp?: number;
+  heldItemInstanceId?: string;
 };

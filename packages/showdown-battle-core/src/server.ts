@@ -27,6 +27,7 @@ const server = http.createServer(async (request, response) => {
     }
     const sessionMatch = /^\/sessions\/([^/]+)$/.exec(url.pathname);
     const choiceMatch = /^\/sessions\/([^/]+)\/choice$/.exec(url.pathname);
+    const trainerItemMatch = /^\/sessions\/([^/]+)\/trainer-item$/.exec(url.pathname);
     if (request.method === "GET" && sessionMatch) {
       sendJson(response, 200, await service.getSnapshot(decodeURIComponent(sessionMatch[1]!)));
       return;
@@ -42,6 +43,16 @@ const server = http.createServer(async (request, response) => {
         sessionId: decodeURIComponent(choiceMatch[1]!),
         playerId: body.playerId,
         choice: body.choice,
+      }));
+      return;
+    }
+    if (request.method === "POST" && trainerItemMatch) {
+      const body = await readJson(request);
+      sendJson(response, 200, await service.submitTrainerItem({
+        sessionId: decodeURIComponent(trainerItemMatch[1]!),
+        playerId: body.playerId,
+        choice: body.choice,
+        trainerItems: body.trainerItems || [],
       }));
       return;
     }

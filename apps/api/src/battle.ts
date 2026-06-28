@@ -351,6 +351,19 @@ export type BattleCommandActionV4 =
   | {kind: "move"; label: string; choice: string; activeIndex: number; moveIndex: number; move: BattleMoveRequestV4; specialOptions: BattleSpecialChoiceOptionV4[]}
   | {kind: "switch"; label: string; choice: string; pokemonIndex: number; disabled?: boolean};
 
+export type BattleTrainerItemChoiceV4 = {
+  kind: "traineritem";
+  itemInstanceId: string;
+  targetKey: string;
+};
+
+export type BattleTrainerItemSubmitV4 = {
+  sessionId: string;
+  playerId: ShowdownPlayerIdV4;
+  choice: string;
+  trainerItems: Array<BattleTrainerItemChoiceV4 & {activeIndex: number}>;
+};
+
 export type BattleCommandStateV4 = {
   playerId: ShowdownPlayerIdV4;
   waiting: boolean;
@@ -423,6 +436,7 @@ export type BattleViewModelV4 = {
 export type BattleServiceClientV4 = {
   createBattleSession(input: BattleSessionCreateInputV4): Promise<BattleSessionSnapshotV4>;
   submitChoice(sessionId: string, playerId: ShowdownPlayerIdV4, choice: string): Promise<BattleSessionSnapshotV4>;
+  submitTrainerItem(input: BattleTrainerItemSubmitV4): Promise<BattleSessionSnapshotV4>;
   getSnapshot(sessionId: string): Promise<BattleSessionSnapshotV4>;
   closeSession(sessionId: string): Promise<void>;
 };
@@ -464,6 +478,13 @@ export function createBattleServiceClient(baseUrl = DEFAULT_BATTLE_SERVICE_URL):
     },
     async submitChoice(sessionId, playerId, choice) {
       return requestJson(`${root}/sessions/${encodeURIComponent(sessionId)}/choice`, {method: "POST", body: JSON.stringify({playerId, choice})});
+    },
+    async submitTrainerItem(input) {
+      return requestJson(`${root}/sessions/${encodeURIComponent(input.sessionId)}/trainer-item`, {method: "POST", body: JSON.stringify({
+        playerId: input.playerId,
+        choice: input.choice,
+        trainerItems: input.trainerItems,
+      })});
     },
     async getSnapshot(sessionId) {
       return requestJson(`${root}/sessions/${encodeURIComponent(sessionId)}`);
@@ -560,7 +581,17 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
     const runPlayer = nextPlayers[snapshotPlayer.playerId];
     const rows = battleSyncRowsForPlayer(snapshot, snapshotPlayer);
     if (!runPlayer || !rows.length) continue;
-    const nextTeam = [...runPlayer.localTeam.pokemon];
+    const snapshotTeamById = new Map(snapshotPlayer.draft.localTeam.pokemon.map(pokemon => [pokemon.localPokemonId, pokemon]));
+    const nextTeam = runPlayer.localTeam.pokemon.map(pokemon => {
+      const snapshotPokemon = snapshotTeamById.get(pokemon.localPokemonId);
+      if (!snapshotPokemon) return pokemon;
+      return {
+        ...pokemon,
+        moves: snapshotPokemon.moves || pokemon.moves,
+        itemId: snapshotPokemon.itemId,
+        heldItemInstanceId: snapshotPokemon.heldItemInstanceId,
+      };
+    });
     rows.forEach(({row, source}, requestIndex) => {
       const resolved = resolveLocalPokemonFromRequestRow(row, snapshotPlayer.teamMapping, snapshotPlayer.draft.localTeam.pokemon, requestIndex);
       if (!resolved.mapping || !resolved.localPokemon || resolved.fallbackReason !== "token") {
@@ -608,6 +639,7 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
     });
     nextPlayers[snapshotPlayer.playerId] = {
       ...runPlayer,
+      bag: snapshotPlayer.draft.bag || runPlayer.bag,
       localTeam: {
         ...runPlayer.localTeam,
         pokemon: nextTeam,
@@ -897,16 +929,40 @@ export function stringifyBattleCommandDraftV4(draft: BattleCommandDraftV4): stri
   return draft.choices.slice(0, draft.requestLength).join(", ");
 }
 
-type ParsedBattleCommandChoiceV4 = Extract<ShowdownParsedChoiceV4, {kind: "move" | "switch" | "team" | "pass"}>;
+type ParsedBattleCommandChoiceV4 = Extract<ShowdownParsedChoiceV4, {kind: "move" | "switch" | "team" | "pass"}> | BattleTrainerItemChoiceV4;
 
 function parseBattleCommandChoiceV4(input: string | undefined): ParsedBattleCommandChoiceV4 | null {
+  const trainerItem = parseBattleTrainerItemChoiceV4(input);
+  if (trainerItem) return trainerItem;
   const parsed = parseShowdownChoiceCommandV4(input);
   if (!parsed || (parsed.kind !== "move" && parsed.kind !== "switch" && parsed.kind !== "team" && parsed.kind !== "pass")) return null;
   return parsed;
 }
 
 function stringifyParsedChoice(choice: ParsedBattleCommandChoiceV4): string {
+  if (choice.kind === "traineritem") return stringifyBattleTrainerItemChoiceV4(choice);
   return stringifyShowdownChoiceCommandV4(choice);
+}
+
+export function parseBattleTrainerItemChoiceV4(input: string | undefined): BattleTrainerItemChoiceV4 | null {
+  const parts = String(input || "").trim().split(/\s+/).filter(Boolean);
+  if (parts[0] !== "traineritem" || !parts[1] || !parts[2] || parts.length !== 3) return null;
+  return {kind: "traineritem", itemInstanceId: parts[1], targetKey: parts[2]};
+}
+
+export function stringifyBattleTrainerItemChoiceV4(choice: BattleTrainerItemChoiceV4): string {
+  return `traineritem ${choice.itemInstanceId} ${choice.targetKey}`;
+}
+
+export function splitBattleTrainerItemChoicesV4(draft: BattleCommandDraftV4): {choice: string; trainerItems: Array<BattleTrainerItemChoiceV4 & {activeIndex: number}>} {
+  const trainerItems: Array<BattleTrainerItemChoiceV4 & {activeIndex: number}> = [];
+  const choices = draft.choices.slice(0, draft.requestLength).map((choice, activeIndex) => {
+    const trainerItem = parseBattleTrainerItemChoiceV4(choice);
+    if (!trainerItem) return choice;
+    trainerItems.push({...trainerItem, activeIndex});
+    return "pass";
+  });
+  return {choice: choices.join(", "), trainerItems};
 }
 
 export function appendBattleSpecialChoiceSuffixV4(choice: string, special?: BattleSpecialChoiceV4 | null): string {

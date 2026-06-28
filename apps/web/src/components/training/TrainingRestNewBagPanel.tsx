@@ -1,5 +1,6 @@
 import {useMemo, useState} from "react";
 import type {ChangeBattleV2Api, DexItemDetail, LocalPokemonV4, PlayerItemInstanceV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import {applyRecoveryItemToPokemonV4, canUseRecoveryItemV4, clearConsumedItemFromTeamV4} from "@changebattle-v2/api";
 import {PlayerBagPanel, itemDetailFor, type PlayerBagAction, type PlayerBagPokemonTarget} from "./PlayerBagPanel";
 
 export type TrainingRestNewBagPanelProps = {
@@ -21,6 +22,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const selectedPokemon = selection.target ? team.find(pokemon => pokemon.localPokemonId === selection.target?.key) || null : team[0] || null;
   const selectedDetail = useMemo(() => itemDetailFor(api, selectedItem), [api, selectedItem]);
   const equipEligibility = selectedItem ? getBagItemEquipEligibility(selectedItem, selectedDetail) : {canEquip: false, reason: "请选择道具"};
+  const canUseRecovery = canUseRecoveryItemV4(selectedItem, selectedDetail);
   const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail));
   const selectedHeldItem = selectedPokemon ? itemForPokemon(bag.items, selectedPokemon) : null;
   const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId));
@@ -71,6 +73,28 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     onRunDraftChange(nextRun, "背包已更新，记得手动保存。");
   }
 
+  function useSelectedItem() {
+    if (!p1 || !selectedItem || !selectedPokemon || !canUseRecovery) return;
+    const result = applyRecoveryItemToPokemonV4({
+      item: selectedItem,
+      detail: selectedDetail,
+      pokemon: selectedPokemon,
+      bag,
+      team,
+    });
+    if (!result.ok) {
+      onRunDraftChange(run, result.reason);
+      return;
+    }
+    const consumedClearedTeam = clearConsumedItemFromTeamV4(p1.localTeam.pokemon, selectedItem);
+    const nextTeam = {
+      ...p1.localTeam,
+      pokemon: consumedClearedTeam.map(pokemon => pokemon.localPokemonId === selectedPokemon.localPokemonId ? result.pokemon : pokemon),
+    };
+    const nextRun = patchP1(run, {...p1, bag: result.bag, localTeam: nextTeam});
+    onRunDraftChange(nextRun, `${result.message} 记得手动保存。`);
+  }
+
   const actions: PlayerBagAction[] = [
     {
       key: "take",
@@ -89,8 +113,9 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     {
       key: "use",
       label: "立即使用",
-      disabled: !selectedItem || !selectedItem.canUse,
-      onClick: () => onRunDraftChange(run, "道具使用后续开放。"),
+      disabled: !selectedItem || !selectedPokemon || !canUseRecovery,
+      title: canUseRecovery ? "对选中宝可梦立即使用" : "该道具当前不能立即使用。",
+      onClick: useSelectedItem,
     },
     {
       key: "recast",

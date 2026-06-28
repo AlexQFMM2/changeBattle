@@ -11,6 +11,7 @@ import type {
   BattleServiceSessionInputV4,
   BattleServiceSnapshotV4,
   BattleServiceSubmitChoiceInputV4,
+  BattleServiceSubmitTrainerItemInputV4,
   ShowdownIdPoolStateV4,
   ShowdownTeamPokemonMappingV4,
   ShowdownPlayerIdV4,
@@ -48,6 +49,19 @@ type RuntimeSession = {
   closed: boolean;
 };
 
+type TrainerItemRuntimeAction = {
+  activeIndex: number;
+  itemInstanceId: string;
+  targetKey: string;
+};
+
+type RecoveryEffect = {
+  hp?: {kind: "fixed"; amount: number} | {kind: "full"} | {kind: "fraction"; numerator: number; denominator: number};
+  revive?: "half" | "full";
+  pp?: {scope: "one" | "all"; amount?: number; full?: boolean};
+  cureStatus?: "all" | string[];
+};
+
 const sessions = new Map<string, RuntimeSession>();
 const HUMAN_PLAYERS = new Set<ShowdownPlayerIdV4>(["p1"]);
 const SHOWDOWN_ID_POOL_V4 = [
@@ -77,6 +91,38 @@ const SHOWDOWN_ID_POOL_V4 = [
   "beastball",
 ] as const;
 
+const RECOVERY_EFFECTS: Record<string, RecoveryEffect> = {
+  potion: {hp: {kind: "fixed", amount: 20}},
+  superpotion: {hp: {kind: "fixed", amount: 60}},
+  hyperpotion: {hp: {kind: "fixed", amount: 120}},
+  maxpotion: {hp: {kind: "full"}},
+  fullrestore: {hp: {kind: "full"}, cureStatus: "all"},
+  freshwater: {hp: {kind: "fixed", amount: 30}},
+  sodapop: {hp: {kind: "fixed", amount: 50}},
+  lemonade: {hp: {kind: "fixed", amount: 70}},
+  moomoomilk: {hp: {kind: "fixed", amount: 100}},
+  fullheal: {cureStatus: "all"},
+  healpowder: {cureStatus: "all"},
+  antidote: {cureStatus: ["psn", "tox"]},
+  burnheal: {cureStatus: ["brn"]},
+  iceheal: {cureStatus: ["frz"]},
+  awakening: {cureStatus: ["slp"]},
+  paralyzeheal: {cureStatus: ["par"]},
+  energypowder: {hp: {kind: "fixed", amount: 60}},
+  energyroot: {hp: {kind: "fixed", amount: 120}},
+  revive: {revive: "half"},
+  maxrevive: {revive: "full"},
+  revivalherb: {revive: "full"},
+  ether: {pp: {scope: "one", amount: 10}},
+  maxether: {pp: {scope: "one", full: true}},
+  elixir: {pp: {scope: "all", amount: 10}},
+  maxelixir: {pp: {scope: "all", full: true}},
+  oranberry: {hp: {kind: "fixed", amount: 10}},
+  sitrusberry: {hp: {kind: "fraction", numerator: 1, denominator: 4}},
+  leppaberry: {pp: {scope: "one", amount: 10}},
+  lumberry: {cureStatus: "all"},
+};
+
 export function compileBattleSessionInput(input: BattleServiceCreateInputV4 | BattleServiceSessionInputV4): BattleServiceSessionInputV4 {
   if ("nodeId" in input) return input;
   const nodePlayers = input.node.participants || {};
@@ -104,6 +150,9 @@ export function createInMemoryBattleService(): BattleServiceApiV4 {
     },
     async submitChoice(input) {
       return submitChoice(input);
+    },
+    async submitTrainerItem(input) {
+      return submitTrainerItem(input);
     },
     async getSnapshot(sessionId) {
       return getSnapshot(sessionId);
@@ -178,6 +227,52 @@ export async function submitChoice(input: BattleServiceSubmitChoiceInputV4): Pro
     await session.streams.omniscient.write(`>forcelose ${input.playerId}`);
   } else {
     await writePlayerChoice(session, input.playerId, choice, "human");
+  }
+  touch(session);
+  await waitForRequests(session, 700);
+  await submitTeamPreviewChoices(session);
+  await submitAiChoices(session);
+  await waitForRequests(session, 700);
+  return clone(session.snapshot);
+}
+
+export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInputV4): Promise<BattleServiceSnapshotV4> {
+  const session = getSession(input.sessionId);
+  if (session.snapshot.status === "ended") return clone(session.snapshot);
+  const choice = sanitizeChoiceForRuleSet(input.choice.trim(), session.snapshot.ruleSet, session.snapshot.mode);
+  if (!choice) throw new Error("choice 不能为空。");
+  const trainerItems = input.trainerItems || [];
+  if (!trainerItems.length) throw new Error("战斗道具指令无效。");
+  const battle = (session.stream as any).battle;
+  const side = battleSide(session, input.playerId);
+  if (!battle || !side) throw new Error("当前对战尚未开始。");
+  const request = session.snapshot.requests[input.playerId];
+  if (!request || request.wait) throw new Error("现在不能使用道具。");
+  if (request.forceSwitch?.some(Boolean)) throw new Error("当前必须换人，不能使用战斗道具。");
+  if (!request.active?.length) throw new Error("当前不是出招阶段，不能使用战斗道具。");
+  installTrainerItemRunAction(session);
+  const actions = trainerItems.map(action => buildTrainerItemAction(session, input.playerId, action));
+  side.clearChoice();
+  let accepted = side.choose(choice);
+  if (!accepted && choice.split(",").some(part => part.trim() === "pass")) {
+    const fallbackChoice = choice.split(",").map((part, index) => part.trim() === "pass" && actions.some(action => action.requestActiveIndex === index) ? "move 1" : part.trim()).join(", ");
+    side.clearChoice();
+    accepted = side.choose(fallbackChoice);
+    if (accepted) session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item-placeholder] ${choice} -> ${fallbackChoice}`);
+  }
+  if (!accepted) throw new Error(side.choice?.error || "战斗道具占位指令无效。");
+  const sideActions = side.choice.actions || [];
+  for (const trainerAction of actions) {
+    const existingIndex = sideActions.findIndex((entry: any) => entry?.pokemon === trainerAction.pokemon);
+    if (existingIndex >= 0) sideActions[existingIndex] = trainerAction;
+    else sideActions.splice(Math.min(trainerAction.requestActiveIndex, sideActions.length), 0, trainerAction);
+  }
+  side.choice.actions = sideActions;
+  session.snapshot.debug.lastChoices.push({playerId: input.playerId, choice: `[trainer-item] ${choice}`, at: new Date().toISOString()});
+  session.snapshot.debug.inputLog.push(`>${input.playerId} ${choice} [trainer-item]`);
+  if (battle.allChoicesDone()) {
+    battle.commitChoices();
+    battle.sendUpdates();
   }
   touch(session);
   await waitForRequests(session, 700);
@@ -556,6 +651,265 @@ function applyRawChunk(session: RuntimeSession, chunk: string): void {
   }
 }
 
+function buildTrainerItemAction(session: RuntimeSession, playerId: ShowdownPlayerIdV4, action: TrainerItemRuntimeAction): any {
+  const player = session.snapshot.players.find(entry => entry.playerId === playerId);
+  if (!player) throw new Error(`玩家不存在：${playerId}`);
+  const side = battleSide(session, playerId);
+  if (!side) throw new Error("当前对战尚未开始。");
+  const activeIndex = Math.max(0, Math.floor(Number(action.activeIndex || 0)));
+  const active = side.active?.[activeIndex];
+  if (!active || active.fainted || active.hp <= 0) throw new Error("当前宝可梦无法行动，不能使用战斗道具。");
+  const item = findBagItem(player.draft.bag?.items || [], action.itemInstanceId);
+  if (!item) throw new Error("背包中找不到这个道具。");
+  if (item.canBattleUse === false) throw new Error("这个道具不能在战斗中使用。");
+  const itemId = normalizeIdentityToken(item.itemID || item.itemId || "");
+  const effect = RECOVERY_EFFECTS[itemId];
+  if (!effect) throw new Error("这个道具当前不能立即使用。");
+  const resolved = resolveTrainerItemTarget(session, player, action.targetKey);
+  if (!resolved.localPokemon) throw new Error("找不到目标宝可梦。");
+  const battlePokemon = findBattlePokemon(session, playerId, resolved.mapping?.teamIndex ?? resolved.teamIndex, action.targetKey);
+  const validation = applyTrainerItemEffectToLocalPokemon(resolved.localPokemon, effect);
+  if (!validation.ok) throw new Error(validation.reason);
+  return {
+    choice: "trainerItem",
+    requestActiveIndex: activeIndex,
+    pokemon: active,
+    target: battlePokemon,
+    targetLocalPokemonId: resolved.localPokemon.localPokemonId,
+    itemInstanceId: action.itemInstanceId,
+    itemId,
+    itemName: item.name || item.itemID || item.itemId || "道具",
+    effect,
+    playerId,
+    order: 102,
+    priority: 0,
+    speed: 1,
+  };
+}
+
+function executeTrainerItemAction(session: RuntimeSession, playerId: ShowdownPlayerIdV4, action: any): void {
+  const player = session.snapshot.players.find(entry => entry.playerId === playerId);
+  if (!player) throw new Error(`玩家不存在：${playerId}`);
+  const item = findBagItem(player.draft.bag?.items || [], action.itemInstanceId);
+  if (!item) throw new Error("背包中找不到这个道具。");
+  const localPokemon = player.draft.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === action.targetLocalPokemonId);
+  if (!localPokemon) throw new Error("找不到目标宝可梦。");
+  const result = applyTrainerItemEffectToLocalPokemon(localPokemon, action.effect);
+  if (!result.ok) throw new Error(result.reason);
+
+  const nextTeam = player.draft.localTeam.pokemon.map(pokemon => {
+    const cleared = clearConsumedItemReference(pokemon, item);
+    return cleared.localPokemonId === result.pokemon.localPokemonId ? {...result.pokemon} : cleared;
+  });
+  const nextBag = {
+    ...player.draft.bag,
+    items: (player.draft.bag?.items || []).filter(entry => (entry.id || entry.itemID || entry.itemId) !== action.itemInstanceId),
+  };
+  player.draft = {
+    ...player.draft,
+    localTeam: {...player.draft.localTeam, pokemon: nextTeam},
+    bag: nextBag,
+  };
+
+  if (action.target) applyTrainerItemEffectToBattlePokemon(session, action.target, action.effect, result, action.itemName);
+  else addTrainerItemProtocol(session, `|-message|${displayPokemonName(result.pokemon)} 使用了 ${item.name || item.itemID || item.itemId || "道具"}。`);
+  session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item] ${playerId} active=${action.requestActiveIndex} item=${action.itemId} target=${action.targetLocalPokemonId}`);
+  touch(session);
+}
+
+function installTrainerItemRunAction(session: RuntimeSession): void {
+  const battle = (session.stream as any).battle;
+  if (!battle || battle.__changeBattleV2TrainerItemPatch) return;
+  const originalRunAction = battle.runAction.bind(battle);
+  battle.runAction = (action: any) => {
+    if (action?.choice !== "trainerItem") return originalRunAction(action);
+    executeTrainerItemAction(session, action.playerId || "p1", action);
+    return undefined;
+  };
+  battle.__changeBattleV2TrainerItemPatch = true;
+}
+
+function battleSide(session: RuntimeSession, playerId: ShowdownPlayerIdV4): any | null {
+  const battle = (session.stream as any).battle;
+  const sideIndex = Number(playerId.slice(1)) - 1;
+  return battle?.sides?.[sideIndex] || null;
+}
+
+function resolveTrainerItemTarget(session: RuntimeSession, player: BattleServicePlayerInputV4, targetKey: string) {
+  const key = normalizeIdentityToken(targetKey);
+  const localTeam = player.draft.localTeam.pokemon;
+  const mapping = player.teamMapping?.find(entry =>
+    normalizeIdentityToken(entry.showdownIdentityToken) === key ||
+    normalizeIdentityToken(entry.showdownId) === key ||
+    normalizeIdentityToken(entry.pokeballId) === key ||
+    normalizeIdentityToken(entry.localPokemonId) === key
+  ) || null;
+  if (mapping) {
+    return {
+      localPokemon: localTeam.find(pokemon => pokemon.localPokemonId === mapping.localPokemonId) || localTeam[mapping.teamIndex] || null,
+      mapping,
+      teamIndex: mapping.teamIndex,
+    };
+  }
+  const teamIndex = localTeam.findIndex(pokemon =>
+    normalizeIdentityToken(pokemon.localPokemonId) === key ||
+    normalizeIdentityToken(pokemon.showdownIdentityToken) === key ||
+    normalizeIdentityToken(pokemon.showdownId) === key ||
+    normalizeIdentityToken(pokemon.pokeballId) === key
+  );
+  return {localPokemon: teamIndex >= 0 ? localTeam[teamIndex]! : null, mapping: null, teamIndex};
+}
+
+function findBattlePokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4, teamIndex: number, targetKey: string): any | null {
+  const battle = (session.stream as any).battle;
+  const sideIndex = Number(playerId.slice(1)) - 1;
+  const side = battle?.sides?.[sideIndex];
+  if (!side) return null;
+  const key = normalizeIdentityToken(targetKey);
+  return side.pokemon?.find((pokemon: any, index: number) => index === teamIndex || normalizeIdentityToken(pokemon.set?.pokeball) === key) || null;
+}
+
+function applyTrainerItemEffectToBattlePokemon(session: RuntimeSession, pokemon: any, effect: RecoveryEffect, result: Extract<ReturnType<typeof applyTrainerItemEffectToLocalPokemon>, {ok: true}>, itemName: string): void {
+  const battle = (session.stream as any).battle;
+  if (!battle || !pokemon) return;
+  battle.add("-message", `${displayBattlePokemonName(pokemon)} 使用了 ${itemName}。`);
+  if (effect.revive && pokemon.hp <= 0) {
+    pokemon.hp = Number(result.pokemon.entryHp || 1);
+    pokemon.fainted = false;
+    pokemon.faintQueued = false;
+    pokemon.status = "";
+    pokemon.statusState = {};
+    if (pokemon.side) {
+      pokemon.side.pokemonLeft = Math.max(Number(pokemon.side.pokemonLeft || 0), pokemon.side.pokemon.filter((entry: any) => !entry.fainted && entry.hp > 0).length);
+    }
+    battle.add("-heal", pokemon, `${Math.max(0, Number(pokemon.hp || 0))}/${Math.max(1, Number(pokemon.maxhp || result.pokemon.maxHp || 1))}`, `[from] item: ${itemName}`);
+  }
+  if (result.hpRecovered > 0 && pokemon.hp > 0) {
+    pokemon.hp = Math.min(pokemon.maxhp || result.pokemon.maxHp || pokemon.hp, Math.max(pokemon.hp, Number(result.pokemon.entryHp || pokemon.hp)));
+    if (pokemon.isActive) battle.add("-heal", pokemon, pokemon.getHealth, `[from] item: ${itemName}`);
+  }
+  if (result.statusCured && pokemon.status) {
+    pokemon.cureStatus?.();
+    pokemon.status = "";
+  }
+  if (result.ppRecovered > 0) {
+    syncBattlePokemonPp(pokemon, result.pokemon);
+    battle.add("-message", `${displayBattlePokemonName(pokemon)} 恢复了 ${result.ppRecovered} 点 PP。`);
+  }
+  battle.sendUpdates?.();
+}
+
+function addTrainerItemProtocol(session: RuntimeSession, line: string): void {
+  session.snapshot.rawLog.push(line);
+  applyRawChunk(session, line);
+}
+
+function syncBattlePokemonPp(battlePokemon: any, localPokemon: LocalPokemonLikeForBattleV4): void {
+  for (const localMove of localPokemon.moves || []) {
+    const slot = battlePokemon.moveSlots?.find((entry: any) => normalizeIdentityToken(entry.id || entry.move) === normalizeIdentityToken(localMove.moveId));
+    if (slot && typeof (localMove as any).remainingPp === "number") slot.pp = (localMove as any).remainingPp;
+  }
+}
+
+function applyTrainerItemEffectToLocalPokemon(pokemon: LocalPokemonLikeForBattleV4, effect: RecoveryEffect):
+  | {ok: true; pokemon: LocalPokemonLikeForBattleV4; hpRecovered: number; ppRecovered: number; statusCured: boolean}
+  | {ok: false; reason: string} {
+  const beforeHp = Number(pokemon.entryHp ?? pokemon.maxHp ?? 1);
+  const maxHp = Math.max(1, Number(pokemon.maxHp || beforeHp || 1));
+  const fainted = beforeHp <= 0;
+  let next = {...pokemon, moves: (pokemon.moves || []).map(move => ({...move}))};
+  let hpRecovered = 0;
+  let ppRecovered = 0;
+  let statusCured = false;
+  if (effect.revive) {
+    if (!fainted) return {ok: false, reason: "目标没有濒死，不能使用复活道具。"};
+    next.entryHp = effect.revive === "full" ? maxHp : Math.max(1, Math.floor(maxHp / 2));
+    next.entryStatus = "";
+    hpRecovered = next.entryHp;
+    statusCured = Boolean(pokemon.entryStatus);
+  } else if (effect.hp) {
+    if (fainted) return {ok: false, reason: "目标已经濒死，请使用复活道具。"};
+    const target = hpTargetForBattleEffect(effect.hp, beforeHp, maxHp);
+    next.entryHp = Math.min(maxHp, Math.max(beforeHp, target));
+    hpRecovered = Math.max(0, next.entryHp - beforeHp);
+  }
+  if (effect.cureStatus && statusMatchesBattle(effect.cureStatus, String(next.entryStatus || ""))) {
+    next.entryStatus = "";
+    statusCured = true;
+  }
+  if (effect.pp) {
+    const pp = applyBattlePpRecovery(next.moves as any[], effect.pp);
+    next.moves = pp.moves as any;
+    ppRecovered = pp.recovered;
+  }
+  if (hpRecovered <= 0 && ppRecovered <= 0 && !statusCured) return {ok: false, reason: "目标当前不需要这个道具。"};
+  return {ok: true, pokemon: next, hpRecovered, ppRecovered, statusCured};
+}
+
+function hpTargetForBattleEffect(effect: NonNullable<RecoveryEffect["hp"]>, hp: number, maxHp: number): number {
+  if (effect.kind === "full") return maxHp;
+  if (effect.kind === "fixed") return hp + effect.amount;
+  return hp + Math.max(1, Math.floor(maxHp * effect.numerator / Math.max(1, effect.denominator)));
+}
+
+function applyBattlePpRecovery(moves: any[], effect: NonNullable<RecoveryEffect["pp"]>): {moves: any[]; recovered: number} {
+  if (effect.scope === "all") {
+    let recovered = 0;
+    const nextMoves = moves.map(move => {
+      const maxPp = Number(move.maxPp || move.pp || 0);
+      const current = Number(move.remainingPp ?? maxPp);
+      const next = effect.full ? maxPp : Math.min(maxPp, current + Math.max(0, effect.amount || 0));
+      recovered += Math.max(0, next - current);
+      return {...move, remainingPp: next};
+    });
+    return {moves: nextMoves, recovered};
+  }
+  let bestIndex = -1;
+  let bestRatio = Number.POSITIVE_INFINITY;
+  moves.forEach((move, index) => {
+    const maxPp = Number(move.maxPp || move.pp || 0);
+    const current = Number(move.remainingPp ?? maxPp);
+    if (maxPp <= 0 || current >= maxPp) return;
+    const ratio = current / maxPp;
+    if (ratio < bestRatio) {
+      bestRatio = ratio;
+      bestIndex = index;
+    }
+  });
+  if (bestIndex < 0) return {moves, recovered: 0};
+  const picked = moves[bestIndex]!;
+  const maxPp = Number(picked.maxPp || picked.pp || 0);
+  const current = Number(picked.remainingPp ?? maxPp);
+  const next = effect.full ? maxPp : Math.min(maxPp, current + Math.max(0, effect.amount || 0));
+  return {moves: moves.map((move, index) => index === bestIndex ? {...move, remainingPp: next} : move), recovered: Math.max(0, next - current)};
+}
+
+function statusMatchesBattle(effect: NonNullable<RecoveryEffect["cureStatus"]>, status: string): boolean {
+  if (!status) return false;
+  if (effect === "all") return true;
+  return effect.includes(status);
+}
+
+function clearConsumedItemReference(pokemon: LocalPokemonLikeForBattleV4, item: {id?: string; itemID?: string; itemId?: string}): LocalPokemonLikeForBattleV4 {
+  const itemId = item.itemID || item.itemId || "";
+  if (pokemon.heldItemInstanceId === item.id || pokemon.itemId === itemId && !pokemon.heldItemInstanceId) {
+    return {...pokemon, itemId: "", heldItemInstanceId: undefined};
+  }
+  return pokemon;
+}
+
+function findBagItem(items: Array<{id?: string; itemID?: string; itemId?: string; [key: string]: unknown}>, itemInstanceId: string) {
+  return items.find(item => item.id === itemInstanceId || item.itemID === itemInstanceId || item.itemId === itemInstanceId) || null;
+}
+
+function displayPokemonName(pokemon: LocalPokemonLikeForBattleV4): string {
+  return pokemon.nameZh || pokemon.name || pokemon.speciesId;
+}
+
+function displayBattlePokemonName(pokemon: any): string {
+  return pokemon?.name || pokemon?.species?.name || pokemon?.baseSpecies?.name || "宝可梦";
+}
+
 function upsertActive(session: RuntimeSession, ident: string, details: string, condition: string): void {
   const parsed = parseIdent(ident);
   if (!parsed) return;
@@ -822,4 +1176,5 @@ export type {
   BattleServiceSessionInputV4,
   BattleServiceSnapshotV4,
   BattleServiceSubmitChoiceInputV4,
+  BattleServiceSubmitTrainerItemInputV4,
 } from "./types.js";

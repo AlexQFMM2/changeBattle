@@ -1,6 +1,7 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, type TrainingRunStorageAdapter} from "./training.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
+export * from "./itemEffects.js";
 
 export type TrainerCatalogEntryV2 = {
   id: string;

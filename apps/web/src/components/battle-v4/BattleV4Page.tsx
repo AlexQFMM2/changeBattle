@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemForChoiceV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, stringifyBattleCommandDraftV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
@@ -275,7 +275,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     };
   }, [api, busy, onRunChange, run, sessionId]);
 
-  async function submitChoice(choice: string) {
+  async function submitChoice(choice: string, trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"] = []) {
     if (!choice || busy || !sessionId) return;
     battleDebugLog(debugConfig, "submit", "submit-choice", {
       sessionId,
@@ -286,7 +286,9 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     setChoiceStatus(`提交中：${choice}`);
     setMessage(`提交指令：${choice}`);
     try {
-      const next = await api.battleService.submitChoice(sessionId, "p1", choice);
+      const next = trainerItems.length
+        ? await api.battleService.submitTrainerItem({sessionId, playerId: "p1", choice, trainerItems})
+        : await api.battleService.submitChoice(sessionId, "p1", choice);
       setSnapshot(next);
       setCommandDraft(null);
       setSwitchPanelOpen(false);
@@ -325,7 +327,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     if (inputKind === "switch") setSwitchPanelOpen(false);
     if (isBattleCommandDraftDoneV4(after)) {
       setCommandMode("command");
-      void submitChoice(finalChoice);
+      const split = splitBattleTrainerItemChoicesV4(after);
+      void submitChoice(split.choice, split.trainerItems);
       return;
     }
     setChoiceStatus(`选择 ${after.choices.filter(Boolean).length}/${after.requestLength} 完成`);
@@ -443,8 +446,11 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
           api={api}
           bag={activeBattleBag}
           snapshot={snapshot}
+          request={viewModel?.command.normalizedRequest || null}
+          commandDraft={commandDraft}
           onClose={() => setBattleBagOpen(false)}
           onUnavailable={setChoiceStatus}
+          onSubmitItemChoice={applyDraftChoice}
         />
       ) : null}
       {shouldShowResultPanel && snapshot ? (
@@ -798,20 +804,42 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   );
 }
 
-function BattleV4BagPanel({api, bag, snapshot, onClose, onUnavailable}: {
+function BattleV4BagPanel({api, bag, snapshot, request, commandDraft, onClose, onUnavailable, onSubmitItemChoice}: {
   api: ChangeBattleV2Api;
   bag: BagStateV4;
   snapshot: BattleSessionSnapshotV4 | null;
+  request: BattleNormalizedRequestV4 | null;
+  commandDraft: BattleCommandDraftV4 | null;
   onClose: () => void;
   onUnavailable: (message: string) => void;
+  onSubmitItemChoice: (choice: string) => void;
 }) {
   const targets = useMemo(() => snapshot ? buildBattleBagTargets(api, bag.items, snapshot) : [], [api, bag.items, snapshot]);
+  const [selection, setSelection] = useState<{item: PlayerItemInstanceV4 | null; target: PlayerBagPokemonTarget | null}>({item: null, target: null});
+  const selectedDetail = useMemo(() => selection.item ? safeItemDetail(api, selection.item.itemID) : null, [api, selection.item]);
+  const canUse = Boolean(request && selection.item && selection.target && canUseRecoveryItemV4(selection.item, selectedDetail));
   const actions: PlayerBagAction[] = [{
     key: "use",
     label: "立即使用",
-    disabled: true,
-    title: "道具使用后续开放",
-    onClick: () => onUnavailable("道具使用后续开放。"),
+    disabled: !canUse,
+    title: canUse ? "使用道具并占用当前行动" : "请选择可恢复道具和目标宝可梦。",
+    onClick: () => {
+      if (!request || !selection.item || !selection.target) {
+        onUnavailable("请选择可使用道具和目标宝可梦。");
+        return;
+      }
+      const draft = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(request), request);
+      if (draft.isDone) {
+        onUnavailable("当前回合指令已经完成。");
+        return;
+      }
+      onSubmitItemChoice(stringifyBattleTrainerItemChoiceV4({
+        kind: "traineritem",
+        itemInstanceId: selection.item.id,
+        targetKey: selection.target.key,
+      }));
+      onClose();
+    },
   }];
   return (
     <div className="battle-v4-player-bag-layer">
@@ -827,11 +855,22 @@ function BattleV4BagPanel({api, bag, snapshot, onClose, onUnavailable}: {
         actions={actions}
         emptyItemText="没有可战斗使用的道具"
         emptyTargetText="暂无可选择宝可梦"
-        footerNote="本批只展示战斗可用道具，使用效果后续开放。"
+        footerNote="使用道具会占用当前行动，并在本回合先手恢复。"
         onClose={onClose}
+        onSelectionChange={nextSelection => {
+          setSelection(current => current.item?.id === nextSelection.item?.id && current.target?.key === nextSelection.target?.key ? current : nextSelection);
+        }}
       />
     </div>
   );
+}
+
+function safeItemDetail(api: ChangeBattleV2Api, itemId: string) {
+  try {
+    return api.getItemDetail(itemId);
+  } catch {
+    return null;
+  }
 }
 
 function lockedSpecialSystemsForCommand(choices: unknown[]): Set<BattleSpecialSystemV4> {
