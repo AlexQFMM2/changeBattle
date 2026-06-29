@@ -251,7 +251,7 @@ function RoutedApp({runtime}: AppProps) {
       return;
     }
     if (current.restRunSnapshot) {
-      if (current.restRunSnapshot.status === "ended") {
+      if (current.restRunSnapshot.status === "ended" || isFormalRestRunComplete(current.restRunSnapshot)) {
         enterFormalSettlement(current.restRunSnapshot.result?.outcome === "loss" ? "loss" : "complete");
         return;
       }
@@ -614,8 +614,9 @@ function RoutedApp({runtime}: AppProps) {
         }}
         onSurrenderSettlement={() => enterFormalSettlement("surrender")}
         onBackToRest={() => {
-          if (formalRun?.restRunSnapshot?.status === "ended") {
-            enterFormalSettlement(formalRun.restRunSnapshot.result?.outcome === "loss" ? "loss" : "complete");
+          const restRunSnapshot = formalRun?.restRunSnapshot;
+          if (restRunSnapshot?.status === "ended" || isFormalRestRunComplete(restRunSnapshot)) {
+            enterFormalSettlement(restRunSnapshot?.result?.outcome === "loss" ? "loss" : "complete");
             return;
           }
           navigate("/formal/rest", {replace: true});
@@ -716,6 +717,10 @@ function formalModeLabel(mode: FormalGameModeV4): string {
 
 function parseSettlementReason(value: unknown): FormalSettlementReasonV4 {
   return value === "complete" || value === "loss" || value === "surrender" || value === "abandon" ? value : "loss";
+}
+
+function isFormalRestRunComplete(run: TrainingRunGameV4 | null | undefined): boolean {
+  return Boolean(run?.gameMap.length && run.gameMap.every(node => node.state === "won"));
 }
 
 function TrainingConfigBootstrap({onReady}: {onReady: () => void}) {
