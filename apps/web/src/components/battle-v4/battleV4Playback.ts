@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction} from "react";
 import type {AppDebugConfigV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
 import {battleDebugLog} from "@changebattle-v2/api";
 import {
@@ -10,6 +10,20 @@ import {
   type ShowdownAnimationTimelineV4,
   type ShowdownAnimationFidelityV4,
 } from "./battleV4ShowdownAnimationAdapter";
+import {createBattleV4MessageQueue, type BattleMessageQueueItemV4} from "./battleV4MessageFlow";
+import {executeBattleV4Protocol, type BattleRuntimeStateV4, type BattleSemanticEventV4} from "./battleV4ProtocolExecutor";
+import {
+  applyBattleV4HpTweenFrame,
+  applyBattleV4HpTweenTarget,
+  applyBattleV4PersistentFieldVisuals,
+  applyBattleV4PersistentSideConditionVisuals,
+  applyBattleV4VisualCommandSettle,
+  applyBattleV4VisualCommandStart,
+  createBattleV4VisualCommands,
+  visualSlotsFromRuntimeState,
+  type BattleHpTweenV4,
+  type BattleVisualCommandV4,
+} from "./battleV4VisualScene";
 
 export type BattleProtocolArgsV4 = [string, ...string[]];
 export type BattleProtocolKwArgsV4 = Record<string, string>;
@@ -197,6 +211,11 @@ export type BattlePlaybackDebugV4 = {
   activeTimelineStep: ShowdownAnimationStepV4 | null;
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
+  semanticEvents: BattleSemanticEventV4[];
+  runtimeState: BattleRuntimeStateV4 | null;
+  visualQueue: BattleVisualCommandV4[];
+  messageQueue: BattleMessageQueueItemV4[];
+  hpTweens: BattleHpTweenV4[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   timelineExecutionProbe: {
@@ -460,6 +479,34 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
   });
 }
 
+function runBattleV4HpTween(
+  command: BattleVisualCommandV4,
+  startedAt: number,
+  frameRef: MutableRefObject<number | null>,
+  setVisibleSlots: Dispatch<SetStateAction<BattleViewSlotV4[]>>,
+): void {
+  const event = command.semanticEvent;
+  if (event.kind !== "damage" && event.kind !== "heal") return;
+  const fromHp = event.oldHp;
+  const toHp = event.newHp;
+  const durationMs = 520;
+  const tick = (now: number) => {
+    const progress = Math.max(0, Math.min(1, (now - startedAt) / durationMs));
+    const eased = progress < 0.5
+      ? 2 * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+    const hp = fromHp + (toHp - fromHp) * eased;
+    setVisibleSlots(slots => applyBattleV4HpTweenFrame(slots, command, hp));
+    if (progress < 1) {
+      frameRef.current = window.requestAnimationFrame(tick);
+    } else {
+      setVisibleSlots(slots => applyBattleV4HpTweenTarget(slots, command));
+      frameRef.current = null;
+    }
+  };
+  frameRef.current = window.requestAnimationFrame(tick);
+}
+
 function isDuplicateSpecialFormeAnnouncement(previous: BattleProtocolEventV4 | undefined, event: BattleProtocolEventV4): boolean {
   if (!previous || !previous.seatExplicit || !event.seatExplicit || previous.seat !== event.seat) return false;
   return previous.eventType === "detailschange" || previous.eventType === "-formechange";
@@ -476,29 +523,38 @@ export function useBattleV4Playback(
   const [messageEvents, setMessageEvents] = useState<BattleMessageEventV4[]>([]);
   const [protocolEvents, setProtocolEvents] = useState<BattleProtocolEventV4[]>([]);
   const [animationEvents, setAnimationEvents] = useState<BattleAnimationEventV4[]>([]);
+  const [semanticEvents, setSemanticEvents] = useState<BattleSemanticEventV4[]>([]);
+  const [runtimeState, setRuntimeState] = useState<BattleRuntimeStateV4 | null>(null);
+  const [messageQueue, setMessageQueue] = useState<BattleMessageQueueItemV4[]>([]);
   const [animationConsumption, setAnimationConsumption] = useState<BattlePlaybackDebugV4["animationConsumption"]>([]);
   const [rawIncrements, setRawIncrements] = useState<BattlePlaybackDebugV4["rawIncrements"]>([]);
-  const [queue, setQueue] = useState<BattleAnimationEventV4[]>([]);
+  const [queue, setQueue] = useState<BattleVisualCommandV4[]>([]);
   const [activeAnimation, setActiveAnimation] = useState<BattleAnimationEventV4 | null>(null);
+  const [activeVisual, setActiveVisual] = useState<BattleVisualCommandV4 | null>(null);
   const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
   const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
   const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
   const [persistentFieldVisuals, setPersistentFieldVisuals] = useState<BattleV4PersistentFieldVisuals>(EMPTY_PERSISTENT_FIELD_VISUALS);
   const [persistentSideConditionVisuals, setPersistentSideConditionVisuals] = useState<BattleV4PersistentSideConditionVisuals>(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
+  const [hpTweens, setHpTweens] = useState<BattleHpTweenV4[]>([]);
   const [hasProtocolState, setHasProtocolState] = useState(false);
   const sessionRef = useRef("");
   const rawIndexRef = useRef(0);
   const seededSessionRef = useRef("");
   const playingRef = useRef(false);
-  const hasProtocolStateRef = useRef(false);
   const viewModelRef = useRef<BattleViewModelV4 | null>(viewModel);
   const snapshotRef = useRef<BattleSessionSnapshotV4 | null>(snapshot);
+  const hpTweenFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     viewModelRef.current = viewModel;
     snapshotRef.current = snapshot;
   }, [snapshot, viewModel]);
+
+  useEffect(() => () => {
+    if (hpTweenFrameRef.current !== null) window.cancelAnimationFrame(hpTweenFrameRef.current);
+  }, []);
 
   useEffect(() => {
     if (!snapshot || !viewModel) return;
@@ -510,9 +566,13 @@ export function useBattleV4Playback(
       setMessageEvents([]);
       setProtocolEvents([]);
       setAnimationEvents([]);
+      setSemanticEvents([]);
+      setRuntimeState(null);
+      setMessageQueue([]);
       setAnimationConsumption([]);
       setRawIncrements([]);
       setQueue([]);
+      setActiveVisual(null);
       setActiveAnimation(null);
       setActiveTimelineStep(null);
       setActiveTimelineStepIndex(-1);
@@ -520,21 +580,32 @@ export function useBattleV4Playback(
       setPersistentFieldVisuals(EMPTY_PERSISTENT_FIELD_VISUALS);
       setPersistentSideConditionVisuals(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
       setMessagebar(null);
+      setHpTweens([]);
       setHasProtocolState(false);
-      hasProtocolStateRef.current = false;
       playingRef.current = false;
+      if (hpTweenFrameRef.current !== null) {
+        window.cancelAnimationFrame(hpTweenFrameRef.current);
+        hpTweenFrameRef.current = null;
+      }
     }
     if (seededSessionRef.current !== snapshot.id) {
       seededSessionRef.current = snapshot.id;
       rawIndexRef.current = initialPlaybackRawIndex(snapshot.rawLog);
       setVisibleSlots([]);
-      if (snapshot.rawLog.length <= rawIndexRef.current) return;
     }
     const previousIndex = rawIndexRef.current;
-    if (snapshot.rawLog.length <= previousIndex) return;
-    const nextProtocolEvents = projectBattleProtocolEventsV4(snapshot.rawLog, previousIndex);
-    const nextMessageEvents = projectBattleMessageEventsV4(nextProtocolEvents);
-    const nextAnimationEvents = projectBattleAnimationEventsV4(nextProtocolEvents);
+    const execution = executeBattleV4Protocol(snapshot, viewModel, previousIndex);
+    setRuntimeState(execution.runtimeState);
+    setProtocolEvents(execution.protocolEvents.slice(-240));
+    if (snapshot.rawLog.length <= previousIndex) {
+      if (skipAnimations) setVisibleSlots(visualSlotsFromRuntimeState(execution.runtimeState));
+      return;
+    }
+    const nextProtocolEvents = execution.protocolEvents.filter(event => event.sequence >= previousIndex);
+    const nextSemanticEvents = execution.semanticEvents;
+    const nextMessageEvents = createBattleV4MessageQueue(nextSemanticEvents);
+    const nextVisualCommands = createBattleV4VisualCommands(nextSemanticEvents);
+    const nextAnimationEvents = nextVisualCommands.map(command => command.animationEvent).filter((event): event is BattleAnimationEventV4 => Boolean(event));
     const rawIncrement = {
       at: new Date().toISOString(),
       sessionId: snapshot.id,
@@ -548,12 +619,10 @@ export function useBattleV4Playback(
       selectedAnimationKeys: nextAnimationEvents.map(event => event.selectedAnimationKey),
     };
     setRawIncrements(items => [...items, rawIncrement].slice(-80));
-    if (nextProtocolEvents.length) {
-      hasProtocolStateRef.current = true;
-      setHasProtocolState(true);
-    }
+    if (nextProtocolEvents.length || nextSemanticEvents.length) setHasProtocolState(true);
     battleDebugLog(debugConfig, "protocol", "playback-raw-increment", {
       ...rawIncrement,
+      semanticEvents: nextSemanticEvents.map(event => ({kind: event.kind, rawLine: event.rawLine, sequence: event.sequence})),
       protocolEvents: nextProtocolEvents.map(event => ({
         sequence: event.sequence,
         eventType: event.eventType,
@@ -582,98 +651,120 @@ export function useBattleV4Playback(
       persistentFieldVisuals,
     });
     rawIndexRef.current = snapshot.rawLog.length;
-    if (nextProtocolEvents.length) setProtocolEvents(events => [...events, ...nextProtocolEvents].slice(-240));
+    if (nextSemanticEvents.length) setSemanticEvents(events => [...events, ...nextSemanticEvents].slice(-240));
     if (nextMessageEvents.length) {
       setMessageEvents(events => [...events, ...nextMessageEvents].slice(-240));
-      if (skipAnimations || !nextAnimationEvents.length) {
-        setMessagebar(nextMessageEvents[nextMessageEvents.length - 1] || null);
-      }
+      setMessageQueue(items => [...items, ...nextMessageEvents].slice(-120));
+      setMessagebar(nextMessageEvents[nextMessageEvents.length - 1] || null);
     }
-    if (nextAnimationEvents.length) {
+    if (nextVisualCommands.length) {
       setAnimationEvents(events => [...events, ...nextAnimationEvents].slice(-240));
       if (skipAnimations) {
-        setVisibleSlots(deriveSpecialSystemSlotsFromProtocol(viewModel.slots, nextProtocolEvents));
-        setPersistentFieldVisuals(current => derivePersistentFieldVisualsFromProtocol(nextProtocolEvents, current));
-        setPersistentSideConditionVisuals(current => derivePersistentSideConditionVisualsFromProtocol(nextProtocolEvents, current));
-        hasProtocolStateRef.current = true;
+        setVisibleSlots(visualSlotsFromRuntimeState(execution.runtimeState));
+        setPersistentFieldVisuals(current => nextVisualCommands.reduce(applyBattleV4PersistentFieldVisuals, current));
+        setPersistentSideConditionVisuals(current => nextVisualCommands.reduce(applyBattleV4PersistentSideConditionVisuals, current));
         setHasProtocolState(true);
         setAnimationConsumption(consumed => [
           ...consumed,
-          ...nextAnimationEvents.map(event => ({
-            checkpointId: event.checkpointId,
-            kind: event.kind,
-            rawLine: event.rawLine,
+          ...nextVisualCommands.map(command => ({
+            checkpointId: command.animationEvent?.checkpointId || command.id,
+            kind: command.animationEvent?.kind || "message",
+            rawLine: command.semanticEvent.rawLine,
             at: new Date().toISOString(),
-            selectedAnimationKey: event.selectedAnimationKey,
-            timelineSteps: event.timelineSteps,
-            consumedCheckpoints: event.animationTimeline.checkpoints,
+            selectedAnimationKey: command.animationEvent?.selectedAnimationKey,
+            timelineSteps: command.animationEvent?.timelineSteps,
+            consumedCheckpoints: command.animationEvent?.animationTimeline.checkpoints || [command.id],
           })),
         ].slice(-240));
       } else {
-        setQueue(items => [...items, ...nextAnimationEvents]);
+        setQueue(items => [...items, ...nextVisualCommands]);
       }
+    } else if (skipAnimations) {
+      setVisibleSlots(visualSlotsFromRuntimeState(execution.runtimeState));
     }
   }, [snapshot, viewModel, skipAnimations, debugConfig]);
 
   useEffect(() => {
     if (skipAnimations && viewModel) {
       setQueue([]);
+      setActiveVisual(null);
       setActiveAnimation(null);
       setActiveTimelineStep(null);
       setActiveTimelineStepIndex(-1);
       setRenderedTimelineSteps([]);
-      setPersistentFieldVisuals(derivePersistentFieldVisualsFromRawLog(snapshot?.rawLog || []));
-      setPersistentSideConditionVisuals(derivePersistentSideConditionVisualsFromRawLog(snapshot?.rawLog || []));
-      setVisibleSlots(deriveSpecialSystemSlotsFromRawLog(viewModel.slots, snapshot?.rawLog || []));
-      hasProtocolStateRef.current = true;
+      if (snapshot) {
+        const execution = executeBattleV4Protocol(snapshot, viewModel, 0);
+        setVisibleSlots(visualSlotsFromRuntimeState(execution.runtimeState));
+      } else {
+        setVisibleSlots(viewModel.slots);
+      }
       setHasProtocolState(true);
       playingRef.current = false;
     }
   }, [skipAnimations, viewModel, snapshot]);
 
   useEffect(() => {
-    if (playingRef.current || activeAnimation || skipAnimations || !queue.length) return;
-    const [event, ...rest] = queue;
-    if (!event) return;
+    if (playingRef.current || activeVisual || skipAnimations || !queue.length) return;
+    const [command, ...rest] = queue;
+    if (!command) return;
     playingRef.current = true;
     setQueue(rest);
+    setActiveVisual(command);
+    const event = command.animationEvent;
     setActiveAnimation(event);
     setActiveTimelineStepIndex(0);
-    setActiveTimelineStep(event.timelineSteps[0] || null);
+    setActiveTimelineStep(event?.timelineSteps[0] || null);
     setRenderedTimelineSteps([]);
-    battleDebugLog(debugConfig, "protocol", "playback-consume-animation", {
-      checkpointId: event.checkpointId,
-      kind: event.kind,
-      actorSeat: event.actorSeat,
-      targetSeat: event.targetSeat,
-      effectSprite: event.effectSprite,
-      selectedAnimationKey: event.selectedAnimationKey,
-      animationSource: event.animationSource,
-      timelineSteps: event.timelineSteps,
-      rawLine: event.rawLine,
-      remaining: rest.length,
-    });
-    if (event.message) {
-      setMessagebar({
-        sequence: event.sequence,
-        rawLine: event.rawLine,
-        args: [event.kind],
-        kwArgs: {},
-        eventType: event.kind,
-        message: event.message,
-        turn: 0,
+    setVisibleSlots(slots => applyBattleV4VisualCommandStart(slots, command));
+    if (command.semanticEvent.kind === "damage" || command.semanticEvent.kind === "heal") {
+      const tween: BattleHpTweenV4 = {
+        seat: command.semanticEvent.seat,
+        fromHp: command.semanticEvent.oldHp,
+        toHp: command.semanticEvent.newHp,
+        maxHp: command.semanticEvent.maxHp,
+        startedAt: new Date().toISOString(),
+        durationMs: 350,
+      };
+      setHpTweens(items => [...items, tween].slice(-80));
+      if (hpTweenFrameRef.current !== null) window.cancelAnimationFrame(hpTweenFrameRef.current);
+      hpTweenFrameRef.current = window.requestAnimationFrame(() => {
+        hpTweenFrameRef.current = window.requestAnimationFrame(startedAt => {
+          runBattleV4HpTween(command, startedAt, hpTweenFrameRef, setVisibleSlots);
+        });
       });
     }
-  }, [queue, activeAnimation, skipAnimations, debugConfig]);
+    battleDebugLog(debugConfig, "protocol", "playback-consume-animation", {
+      checkpointId: event?.checkpointId || command.id,
+      kind: event?.kind || command.semanticEvent.kind,
+      actorSeat: event?.actorSeat,
+      targetSeat: event?.targetSeat,
+      effectSprite: event?.effectSprite,
+      selectedAnimationKey: event?.selectedAnimationKey,
+      animationSource: event?.animationSource,
+      timelineSteps: event?.timelineSteps,
+      rawLine: command.semanticEvent.rawLine,
+      remaining: rest.length,
+    });
+    if (!event) {
+      setPersistentFieldVisuals(current => applyBattleV4PersistentFieldVisuals(current, command));
+      setPersistentSideConditionVisuals(current => applyBattleV4PersistentSideConditionVisuals(current, command));
+      setVisibleSlots(slots => applyBattleV4VisualCommandSettle(slots, command));
+      setActiveVisual(null);
+      playingRef.current = false;
+    }
+  }, [queue, activeVisual, skipAnimations, debugConfig]);
 
   useEffect(() => {
-    if (!activeAnimation || skipAnimations) return;
+    if (!activeVisual || !activeAnimation || skipAnimations) return;
+    const command = activeVisual;
     const event = activeAnimation;
     const steps = event.timelineSteps.length ? event.timelineSteps : event.animationTimeline.steps;
     const step = steps[activeTimelineStepIndex] || null;
     if (!step) {
       const releaseTimer = window.setTimeout(() => {
+        setVisibleSlots(slots => applyBattleV4VisualCommandSettle(slots, command));
         setActiveAnimation(null);
+        setActiveVisual(null);
         setActiveTimelineStep(null);
         setActiveTimelineStepIndex(-1);
         setRenderedTimelineSteps([]);
@@ -684,10 +775,10 @@ export function useBattleV4Playback(
     setActiveTimelineStep(step);
     setRenderedTimelineSteps(stepsSoFar => [...stepsSoFar, step].slice(-32));
     if (step.type === "checkpoint") {
-      setPersistentFieldVisuals(current => applyPersistentFieldCheckpoint(current, event));
-      setPersistentSideConditionVisuals(current => applyPersistentSideConditionCheckpoint(current, event));
+      setPersistentFieldVisuals(current => applyBattleV4PersistentFieldVisuals(current, command));
+      setPersistentSideConditionVisuals(current => applyBattleV4PersistentSideConditionVisuals(current, command));
       setVisibleSlots(slots => {
-        const nextSlots = applyAnimationCheckpoint(slots, event, viewModelRef.current, snapshotRef.current);
+        const nextSlots = applyBattleV4VisualCommandSettle(slots, command);
         setAnimationConsumption(consumed => [...consumed, {
           checkpointId: step.checkpointId,
           kind: event.kind,
@@ -708,7 +799,7 @@ export function useBattleV4Playback(
       setActiveTimelineStepIndex(index => index + 1);
     }, timelineStepDurationMs(step));
     return () => window.clearTimeout(stepTimer);
-  }, [activeAnimation, activeTimelineStepIndex, skipAnimations]);
+  }, [activeVisual, activeAnimation, activeTimelineStepIndex, skipAnimations]);
 
   const hasProtocolFacts = Boolean(snapshot && snapshot.rawLog.length > initialPlaybackRawIndex(snapshot.rawLog));
   const shouldUseProtocolState = hasProtocolState || hasProtocolFacts || skipAnimations;
@@ -733,6 +824,11 @@ export function useBattleV4Playback(
       protocolEvents,
       messageEvents,
       animationEvents,
+      semanticEvents,
+      runtimeState,
+      visualQueue: queue,
+      messageQueue,
+      hpTweens,
       animationConsumption,
       rawIncrements,
       renderProbe: {

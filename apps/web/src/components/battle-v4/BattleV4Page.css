@@ -1026,7 +1026,7 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #70ef62, #d8f34f);
-  transition: width .48s cubic-bezier(.2, .8, .2, 1);
+  will-change: width;
 }
 
 .battle-v4-hp-value-row span {

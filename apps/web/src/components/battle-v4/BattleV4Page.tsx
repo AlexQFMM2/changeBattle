@@ -2254,8 +2254,13 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
     playerStreamTail: snapshot?.debug.playerStreams.slice(-80) || [],
     rawLog: snapshot?.rawLog || [],
     protocolEvents: playbackDebug?.protocolEvents || [],
+    semanticEvents: playbackDebug?.semanticEvents || [],
+    runtimeState: playbackDebug?.runtimeState || null,
     messageEvents: playbackDebug?.messageEvents || [],
+    messageQueue: playbackDebug?.messageQueue || [],
     animationEvents: playbackDebug?.animationEvents || [],
+    visualQueue: playbackDebug?.visualQueue || [],
+    hpTweens: playbackDebug?.hpTweens || [],
     animationConsumption: playbackDebug?.animationConsumption || [],
     rawIncrements: playbackDebug?.rawIncrements || [],
     specialSystemState: playbackDebug?.renderProbe.visibleSlotSeats || [],
@@ -2276,6 +2281,11 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
       skipAnimations: playbackDebug.skipAnimations,
       currentAnimation: playbackDebug.currentAnimation,
       currentMessage: playbackDebug.currentMessage,
+      runtimeState: playbackDebug.runtimeState,
+      semanticEvents: playbackDebug.semanticEvents,
+      visualQueue: playbackDebug.visualQueue,
+      messageQueue: playbackDebug.messageQueue,
+      hpTweens: playbackDebug.hpTweens,
       activeTimelineId: playbackDebug.activeTimelineId,
       activeTimelineStep: playbackDebug.activeTimelineStep,
       activeTimelineStepIndex: playbackDebug.activeTimelineStepIndex,
@@ -2640,22 +2650,46 @@ function BattleV4DebugModal({snapshot, draft, playbackDebug, onClose}: {snapshot
             </article>
           ) : null}
           {tab === "protocol" ? (
-            <article>
-              <h3>Parsed Protocol Events</h3>
-              <pre>{playbackDebug?.protocolEvents.length ? JSON.stringify(playbackDebug.protocolEvents, null, 2) : "暂无 protocol events"}</pre>
-            </article>
+            <>
+              <article>
+                <h3>Parsed Protocol Events</h3>
+                <pre>{playbackDebug?.protocolEvents.length ? JSON.stringify(playbackDebug.protocolEvents, null, 2) : "暂无 protocol events"}</pre>
+              </article>
+              <article>
+                <h3>Semantic Events</h3>
+                <pre>{playbackDebug?.semanticEvents.length ? JSON.stringify(playbackDebug.semanticEvents, null, 2) : "暂无 semantic events"}</pre>
+              </article>
+              <article>
+                <h3>Runtime State</h3>
+                <pre>{playbackDebug?.runtimeState ? JSON.stringify(playbackDebug.runtimeState, null, 2) : "暂无 runtime state"}</pre>
+              </article>
+            </>
           ) : null}
           {tab === "message" ? (
-            <article>
-              <h3>Message Events</h3>
-              <pre>{playbackDebug?.messageEvents.length ? JSON.stringify(playbackDebug.messageEvents, null, 2) : "暂无 message events"}</pre>
-            </article>
+            <>
+              <article>
+                <h3>Message Events</h3>
+                <pre>{playbackDebug?.messageEvents.length ? JSON.stringify(playbackDebug.messageEvents, null, 2) : "暂无 message events"}</pre>
+              </article>
+              <article>
+                <h3>Message Queue</h3>
+                <pre>{playbackDebug?.messageQueue.length ? JSON.stringify(playbackDebug.messageQueue, null, 2) : "暂无 message queue"}</pre>
+              </article>
+            </>
           ) : null}
           {tab === "animation" ? (
             <>
               <article>
                 <h3>Animation Queue</h3>
                 <pre>{playbackDebug?.animationEvents.length ? JSON.stringify(playbackDebug.animationEvents, null, 2) : "暂无 animation events"}</pre>
+              </article>
+              <article>
+                <h3>Visual Queue</h3>
+                <pre>{playbackDebug?.visualQueue.length ? JSON.stringify(playbackDebug.visualQueue, null, 2) : "暂无 visual queue"}</pre>
+              </article>
+              <article>
+                <h3>HP Tweens</h3>
+                <pre>{playbackDebug?.hpTweens.length ? JSON.stringify(playbackDebug.hpTweens, null, 2) : "暂无 hp tweens"}</pre>
               </article>
               <article>
                 <h3>Raw Increments</h3>
