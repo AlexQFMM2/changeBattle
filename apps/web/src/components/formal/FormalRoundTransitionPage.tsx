@@ -3,11 +3,10 @@ import type {ChangeBattleV2Api, FormalGameRunV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalRoundTransitionPage({api, run, onRunReady, onBack}: {
+export function FormalRoundTransitionPage({api, run, onRunReady}: {
   api: ChangeBattleV2Api;
   run: FormalGameRunV4;
   onRunReady: (run: FormalGameRunV4) => void;
-  onBack: () => void;
 }) {
   const [transitionReady, setTransitionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +44,6 @@ export function FormalRoundTransitionPage({api, run, onRunReady, onBack}: {
         tip={error || "正在生成 NPC、队伍、队友、对手预览，并写入正式存档。"}
         onReady={() => setTransitionReady(true)}
       />
-      <button className="formal-game-transition-back" type="button" onClick={onBack}>返回主页</button>
     </section>
   );
 }

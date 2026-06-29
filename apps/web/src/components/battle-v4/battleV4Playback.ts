@@ -227,6 +227,7 @@ export type BattlePlaybackDebugV4 = {
   };
   queueLength: number;
   skipAnimations: boolean;
+  paused: boolean;
 };
 
 export type BattlePlaybackStateV4 = {
@@ -515,9 +516,10 @@ function isDuplicateSpecialFormeAnnouncement(previous: BattleProtocolEventV4 | u
 export function useBattleV4Playback(
   snapshot: BattleSessionSnapshotV4 | null,
   viewModel: BattleViewModelV4 | null,
-  options: {skipAnimations?: boolean; debugConfig?: AppDebugConfigV4} = {},
+  options: {skipAnimations?: boolean; debugConfig?: AppDebugConfigV4; paused?: boolean} = {},
 ): BattlePlaybackStateV4 {
   const skipAnimations = Boolean(options.skipAnimations);
+  const paused = Boolean(options.paused && !skipAnimations);
   const debugConfig = options.debugConfig;
   const [visibleSlots, setVisibleSlots] = useState<BattleViewSlotV4[]>([]);
   const [messageEvents, setMessageEvents] = useState<BattleMessageEventV4[]>([]);
@@ -593,6 +595,7 @@ export function useBattleV4Playback(
       rawIndexRef.current = initialPlaybackRawIndex(snapshot.rawLog);
       setVisibleSlots([]);
     }
+    if (paused) return;
     const previousIndex = rawIndexRef.current;
     const execution = executeBattleV4Protocol(snapshot, viewModel, previousIndex);
     setRuntimeState(execution.runtimeState);
@@ -682,7 +685,7 @@ export function useBattleV4Playback(
     } else if (skipAnimations) {
       setVisibleSlots(visualSlotsFromRuntimeState(execution.runtimeState));
     }
-  }, [snapshot, viewModel, skipAnimations, debugConfig]);
+  }, [snapshot, viewModel, skipAnimations, paused, debugConfig]);
 
   useEffect(() => {
     if (skipAnimations && viewModel) {
@@ -704,7 +707,7 @@ export function useBattleV4Playback(
   }, [skipAnimations, viewModel, snapshot]);
 
   useEffect(() => {
-    if (playingRef.current || activeVisual || skipAnimations || !queue.length) return;
+    if (paused || playingRef.current || activeVisual || skipAnimations || !queue.length) return;
     const [command, ...rest] = queue;
     if (!command) return;
     playingRef.current = true;
@@ -752,10 +755,10 @@ export function useBattleV4Playback(
       setActiveVisual(null);
       playingRef.current = false;
     }
-  }, [queue, activeVisual, skipAnimations, debugConfig]);
+  }, [queue, activeVisual, skipAnimations, paused, debugConfig]);
 
   useEffect(() => {
-    if (!activeVisual || !activeAnimation || skipAnimations) return;
+    if (paused || !activeVisual || !activeAnimation || skipAnimations) return;
     const command = activeVisual;
     const event = activeAnimation;
     const steps = event.timelineSteps.length ? event.timelineSteps : event.animationTimeline.steps;
@@ -799,7 +802,7 @@ export function useBattleV4Playback(
       setActiveTimelineStepIndex(index => index + 1);
     }, timelineStepDurationMs(step));
     return () => window.clearTimeout(stepTimer);
-  }, [activeVisual, activeAnimation, activeTimelineStepIndex, skipAnimations]);
+  }, [activeVisual, activeAnimation, activeTimelineStepIndex, skipAnimations, paused]);
 
   const hasProtocolFacts = Boolean(snapshot && snapshot.rawLog.length > initialPlaybackRawIndex(snapshot.rawLog));
   const shouldUseProtocolState = hasProtocolState || hasProtocolFacts || skipAnimations;
@@ -862,6 +865,7 @@ export function useBattleV4Playback(
       },
       queueLength: queue.length,
       skipAnimations,
+      paused,
     },
   };
 }

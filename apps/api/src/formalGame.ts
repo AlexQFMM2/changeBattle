@@ -69,6 +69,17 @@ export type FormalRoundPlanV4 = {
 type FormalBossTrainerCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "avatarAsset" | "bossProfile" | "presetTeamPreviews">;
 type FormalTrainerVisualCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "frontAsset" | "frontGifAsset" | "avatarAsset">;
 
+const PLAYER_BACK_IMAGES = [
+  "/npc/player-back/black-bw-touya-back-b2e0a77d.png",
+  "/npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
+  "/npc/player-back/ethan-hgss-gold-back-46e97197.png",
+  "/npc/player-back/lucas-pt-lucas-back-3199c0fb.png",
+  "/npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
+  "/npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
+  "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
+  "/npc/player-back/white-bw-touko-back-4156e303.png",
+];
+
 export type FormalStarterCandidateDiagnosticsV4 = {
   role: FormalStarterRoleV4;
   speciesRank: PokemonSpeciesRankV4;
@@ -770,6 +781,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const visual = boss ? null : selectTrainerVisual(input.rng, input.controller === "script");
     const name = boss?.nameZh || visual?.nameZh || normalNpcName(input.trainerType, input.controller === "script", input.rng);
     const avatar = boss?.avatarAsset || fullBodyTrainerAsset(visual) || DEFAULT_TRAINER_AVATAR;
+    const backImage = input.playerId === "p3" && input.alliance === "near" ? pickPlayerBackImage(input.rng) : undefined;
     const teamResult = boss
       ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, powerProfile, input.usedNpcSpecies, input.rng)
       : createNpcLocalTeam(input.run, {
@@ -802,6 +814,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         playerId: input.playerId,
         name,
         avatar,
+        ...(backImage ? {backImage} : {}),
         controller: input.controller,
         alliance: input.alliance,
         localTeam: teamResult.team,
@@ -1031,7 +1044,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     return Object.fromEntries(Object.entries(players).map(([playerId, player]) => {
       const typedPlayerId = normalizePlayerId(playerId);
       if (!player || typedPlayerId === "p1" || player.controller === "local") return [typedPlayerId, player];
-      return [typedPlayerId, {...player, avatar: normalizeNpcFullBodyAvatar(player.avatar, `${player.name}:${typedPlayerId}`)}];
+      const backImage = typedPlayerId === "p3" && player.alliance === "near"
+        ? player.backImage || pickPlayerBackImage(createRng(`player-back:${player.name}:${typedPlayerId}`))
+        : player.backImage;
+      return [typedPlayerId, {...player, avatar: normalizeNpcFullBodyAvatar(player.avatar, `${player.name}:${typedPlayerId}`), ...(backImage ? {backImage} : {})}];
     }).filter(([, player]) => Boolean(player))) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
   }
 
@@ -1039,6 +1055,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     if (avatar && !avatar.includes("/npc/avatars/")) return avatar;
     const visual = selectTrainerVisual(createRng(`npc-visual:${seed}`), false);
     return fullBodyTrainerAsset(visual) || avatar || DEFAULT_TRAINER_AVATAR;
+  }
+
+  function pickPlayerBackImage(rng: () => number): string {
+    return pickOne(PLAYER_BACK_IMAGES, rng) || PLAYER_BACK_IMAGES[0]!;
   }
 
   function selectBossTrainer(trainerType: FormalNpcTypeV4, rng: () => number): FormalBossTrainerCandidateV4 | null {

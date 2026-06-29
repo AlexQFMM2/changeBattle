@@ -14,6 +14,21 @@
   inset: 0;
 }
 
+.battle-v4-page.is-narrative .battle-v4-hud,
+.battle-v4-page.is-narrative .battle-v4-model-layer,
+.battle-v4-page.is-narrative .battle-v4-messagebar,
+.battle-v4-page.is-narrative .battle-v4-fx-layer,
+.battle-v4-page.is-narrative .battle-v4-result-pop,
+.battle-v4-page.is-narrative .battle-v4-enemy-panels,
+.battle-v4-page.is-narrative .battle-v4-player-panels,
+.battle-v4-page.is-narrative .battle-v4-persistent-field-layer,
+.battle-v4-page.is-narrative .battle-v4-side-condition-layer,
+.battle-v4-page.is-narrative .battle-v4-weather-layer {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .battle-v4-scene-overlay {
   position: absolute;
   inset: 0;

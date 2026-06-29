@@ -3,12 +3,11 @@ import type {ChangeBattleV2Api, CoopPartnerPreferenceV4, FormalGameModeV4, Forma
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalGameTransitionPage({api, profile, mode, onRunReady, onBack}: {
+export function FormalGameTransitionPage({api, profile, mode, onRunReady}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   mode: FormalGameModeV4;
   onRunReady: (run: FormalGameRunV4) => void;
-  onBack: () => void;
 }) {
   const [partnerPreference] = useState<CoopPartnerPreferenceV4>("balanced");
   const [preparedRun, setPreparedRun] = useState<FormalGameRunV4 | null>(null);
@@ -71,7 +70,6 @@ export function FormalGameTransitionPage({api, profile, mode, onRunReady, onBack
         tip={error || (mode === "coop" ? "合作模式本轮先记录 AI 队友偏好，后续进入 7 场计划时生成精英队友。" : "正在生成开局候选宝可梦。")}
         onReady={() => setTransitionReady(true)}
       />
-      <button className="formal-game-transition-back" type="button" onClick={onBack}>返回主页</button>
     </section>
   );
 }

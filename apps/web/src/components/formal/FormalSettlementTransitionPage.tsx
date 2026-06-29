@@ -3,13 +3,12 @@ import type {ChangeBattleV2Api, FormalGameRunV4, FormalSettlementReasonV4, UserP
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalSettlementTransitionPage({api, run, profile, reason, onSettled, onBack}: {
+export function FormalSettlementTransitionPage({api, run, profile, reason, onSettled}: {
   api: ChangeBattleV2Api;
   run: FormalGameRunV4;
   profile: UserProfileV2;
   reason: FormalSettlementReasonV4;
   onSettled: (run: FormalGameRunV4, profile: UserProfileV2) => void;
-  onBack: () => void;
 }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +56,6 @@ export function FormalSettlementTransitionPage({api, run, profile, reason, onSet
         tip={error || "正在计算 MVP、KDA、输出、承伤，并写入正式存档。"}
         onReady={() => setReady(true)}
       />
-      <button className="formal-game-transition-back" type="button" onClick={onBack}>返回主页</button>
     </section>
   );
 }

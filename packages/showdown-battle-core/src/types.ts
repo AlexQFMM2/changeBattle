@@ -29,6 +29,7 @@ export type TrainingPlayerDraftV4 = {
   playerId: ShowdownPlayerIdV4;
   name: string;
   avatar: string;
+  backImage?: string;
   controller: "local" | "ai" | "script";
   aiProfile?: BattleAiProfileV4;
   alliance: "near" | "far";

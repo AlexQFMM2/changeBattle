@@ -129,6 +129,7 @@ export type TrainingPlayerDraftV4 = {
   playerId: ShowdownPlayerIdV4;
   name: string;
   avatar: string;
+  backImage?: string;
   controller: TrainingControllerV4;
   alliance: TrainingAllianceV4;
   localTeam: LocalTeamV4;
@@ -319,6 +320,16 @@ const RANDOM_ITEMS = [
   "rockyhelmet", "eviolite", "expertbelt", "airballoon",
 ];
 const RANDOM_STATUS: TrainingStatusV4[] = ["", "", "", "", "brn", "par", "psn", "tox", "slp", "frz"];
+const PLAYER_BACK_IMAGES = [
+  "/npc/player-back/black-bw-touya-back-b2e0a77d.png",
+  "/npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
+  "/npc/player-back/ethan-hgss-gold-back-46e97197.png",
+  "/npc/player-back/lucas-pt-lucas-back-3199c0fb.png",
+  "/npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
+  "/npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
+  "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
+  "/npc/player-back/white-bw-touko-back-4156e303.png",
+];
 
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
@@ -529,7 +540,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     return [
       p1,
       p2,
-      createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", size, randomized ? ally.signatureSpeciesIds : undefined)),
+      createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", size, randomized ? ally.signatureSpeciesIds : undefined), randomPlayerBackImage()),
       createPlayer("p4", enemy2.name, enemy2.avatar, "ai", "far", randomizeTeam("p4", size, randomized ? enemy2.signatureSpeciesIds : undefined)),
     ];
   }
@@ -573,7 +584,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       const existing = playerMap.get(playerId);
       if (existing) return withRuleSetBag(normalizePlayer(existing, mode), ruleSet, battlePreference);
       if (playerId === "p1") return withRuleSetBag(createPlayer("p1", profile.name, profile.avatarAsset, "local", "near", randomizeTeam("p1", defaultTeamSize(mode))), ruleSet, battlePreference);
-      if (playerId === "p3") return withRuleSetBag(createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", defaultTeamSize(mode), ally.signatureSpeciesIds)), ruleSet, battlePreference);
+      if (playerId === "p3") return withRuleSetBag(createPlayer("p3", ally.name, ally.avatar, "script", "near", randomizeTeam("p3", defaultTeamSize(mode), ally.signatureSpeciesIds), randomPlayerBackImage()), ruleSet, battlePreference);
       const npc = playerId === "p4" ? pick(enemyNpcs()) : enemy;
       return withRuleSetBag(createPlayer(playerId, npc.name, npc.avatar, "ai", "far", randomizeTeam(playerId, defaultTeamSize(mode), npc.signatureSpeciesIds)), ruleSet, battlePreference);
     });
@@ -606,6 +617,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       playerId: player.playerId,
       name: player.name || player.playerId,
       avatar: player.avatar || "/npc/avatars/1-asset-18b76b7d.webp",
+      backImage: player.backImage,
       controller: player.controller || (player.playerId === "p1" ? "local" : "ai"),
       alliance: player.alliance || (player.playerId === "p1" || player.playerId === "p3" ? "near" : "far"),
       localTeam: {
@@ -640,8 +652,12 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     };
   }
 
-  function createPlayer(playerId: ShowdownPlayerIdV4, name: string, avatar: string, controller: TrainingControllerV4, alliance: TrainingAllianceV4, localTeam: LocalTeamV4): TrainingPlayerDraftV4 {
-    return {playerId, name, avatar, controller, alliance, localTeam, bag: normalizeBagStateV4(undefined)};
+  function createPlayer(playerId: ShowdownPlayerIdV4, name: string, avatar: string, controller: TrainingControllerV4, alliance: TrainingAllianceV4, localTeam: LocalTeamV4, backImage?: string): TrainingPlayerDraftV4 {
+    return {playerId, name, avatar, ...(backImage ? {backImage} : {}), controller, alliance, localTeam, bag: normalizeBagStateV4(undefined)};
+  }
+
+  function randomPlayerBackImage(): string {
+    return pick(PLAYER_BACK_IMAGES);
   }
 
   function createPokemon(speciesId: string, index: number, randomized = false): LocalPokemonV4 {
@@ -931,7 +947,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
         ? selectedEnemy
         : createPlayer("p2", enemyNpc?.name || selectedEnemy.name, enemyNpc?.avatar || selectedEnemy.avatar, "ai", "far", randomizeTeam("p2", defaultTeamSize(scenario.mode), enemyNpc?.signatureSpeciesIds));
       const nodeP3 = ids.includes("p3")
-        ? (index === 0 && selectedAlly ? selectedAlly : createPlayer("p3", allyNpc?.name || p3?.name || "队友", allyNpc?.avatar || p3?.avatar || "/npc/avatars/11-asset-fdb7e61e.webp", "script", "near", randomizeTeam("p3", defaultTeamSize(scenario.mode), allyNpc?.signatureSpeciesIds)))
+        ? (index === 0 && selectedAlly ? selectedAlly : createPlayer("p3", allyNpc?.name || p3?.name || "队友", allyNpc?.avatar || p3?.avatar || "/npc/avatars/11-asset-fdb7e61e.webp", "script", "near", randomizeTeam("p3", defaultTeamSize(scenario.mode), allyNpc?.signatureSpeciesIds), randomPlayerBackImage()))
         : undefined;
       const nodeP4 = ids.includes("p4")
         ? (index === 0 && selectedEnemy2 ? selectedEnemy2 : createPlayer("p4", enemy2Npc?.name || "对手", enemy2Npc?.avatar || "/npc/avatars/blue-asset-8ef926da.webp", "ai", "far", randomizeTeam("p4", defaultTeamSize(scenario.mode), enemy2Npc?.signatureSpeciesIds)))

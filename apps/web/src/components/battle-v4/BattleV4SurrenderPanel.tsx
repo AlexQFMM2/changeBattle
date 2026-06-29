@@ -11,6 +11,8 @@ export function BattleV4SurrenderPanel({
   approvedIds,
   remainingMs,
   durationMs,
+  submitRemainingMs,
+  submitDurationMs,
   submitting,
   onConfirm,
   onCancel,
@@ -19,11 +21,15 @@ export function BattleV4SurrenderPanel({
   approvedIds: Set<string>;
   remainingMs: number;
   durationMs: number;
+  submitRemainingMs?: number;
+  submitDurationMs?: number;
   submitting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const progress = Math.max(0, Math.min(100, durationMs ? remainingMs / durationMs * 100 : 0));
+  const activeRemainingMs = submitting ? submitRemainingMs ?? remainingMs : remainingMs;
+  const activeDurationMs = submitting ? submitDurationMs ?? durationMs : durationMs;
+  const progress = Math.max(0, Math.min(100, activeDurationMs ? activeRemainingMs / activeDurationMs * 100 : 0));
   const approvedCount = participants.filter(participant => approvedIds.has(participant.id)).length;
   return (
     <div className="battle-v4-surrender-panel" role="dialog" aria-label="投降确认">

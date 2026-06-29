@@ -1,0 +1,257 @@
+.battle-v4-trainer-narrative {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  overflow: hidden;
+  cursor: pointer;
+  outline: none;
+}
+
+.battle-v4-trainer-narrative:hover .battle-v4-trainer-dialogue,
+.battle-v4-trainer-narrative:focus-visible .battle-v4-trainer-dialogue {
+  border-color: #f0d987;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 50%), 0 0 0 1px rgb(255 246 189 / 28%) inset;
+}
+
+.battle-v4-trainer-narrative-scrim {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.battle-v4-trainer-narrative.phase-outro .battle-v4-trainer-narrative-scrim {
+  background: transparent;
+}
+
+.battle-v4-trainer-narrative-stands {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.battle-v4-trainer-stand {
+  --battle-v4-trainer-x: 0px;
+  --battle-v4-trainer-y: 0px;
+  --battle-v4-trainer-delay: 0ms;
+  position: absolute;
+  left: var(--battle-v4-trainer-x);
+  top: var(--battle-v4-trainer-y);
+  width: 128px;
+  height: 188px;
+  display: grid;
+  place-items: end center;
+  animation-delay: var(--battle-v4-trainer-delay);
+}
+
+.battle-v4-trainer-stand > i {
+  position: absolute;
+  left: 21px;
+  right: 21px;
+  bottom: 7px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(0 0 0 / 56%), transparent 72%);
+  filter: blur(1px);
+}
+
+.battle-v4-trainer-stand img,
+.battle-v4-trainer-stand b {
+  position: relative;
+  z-index: 1;
+  max-width: 118px;
+  max-height: 176px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 8px 4px rgb(0 0 0 / 46%));
+}
+
+.battle-v4-trainer-stand b {
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgb(255 236 155 / 72%);
+  border-radius: 50%;
+  background: rgb(11 20 27 / 82%);
+  color: #fff4bc;
+  font-size: 34px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.battle-v4-trainer-stand em {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 0;
+  min-width: 24px;
+  transform: translateX(-50%);
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 58%);
+  color: #d9f5ff;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+}
+
+.battle-v4-trainer-stand.side-near {
+  animation: battle-v4-trainer-near-in 1.32s cubic-bezier(.16, .86, .2, 1) both;
+}
+
+.battle-v4-trainer-stand.side-far {
+  animation: battle-v4-trainer-far-in 1.32s cubic-bezier(.16, .86, .2, 1) both;
+}
+
+.battle-v4-trainer-stand.seat-p1 {
+  --battle-v4-trainer-x: 22px;
+  --battle-v4-trainer-y: 92px;
+}
+
+.battle-v4-trainer-stand.seat-p3 {
+  --battle-v4-trainer-x: 126px;
+  --battle-v4-trainer-y: 70px;
+  --battle-v4-trainer-delay: 80ms;
+}
+
+.battle-v4-trainer-stand.seat-p2 {
+  --battle-v4-trainer-x: 490px;
+  --battle-v4-trainer-y: -10px;
+}
+
+.battle-v4-trainer-stand.seat-p4 {
+  --battle-v4-trainer-x: 380px;
+  --battle-v4-trainer-y: 0;
+  --battle-v4-trainer-delay: 80ms;
+}
+
+.battle-v4-trainer-dialogue {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 16px;
+  width: 392px;
+  min-height: 58px;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: minmax(0, auto) 1fr;
+  align-items: start;
+  gap: 5px 8px;
+  box-sizing: border-box;
+  padding: 8px 12px 9px;
+  border: 2px solid #c8a552;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 75%);
+  box-shadow: 0 8px 18px rgb(0 0 0 / 42%);
+  color: #fffdf5;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 72%);
+  animation: battle-v4-dialogue-in .32s cubic-bezier(.18, .84, .22, 1) both;
+}
+
+.battle-v4-trainer-dialogue strong {
+  min-width: 0;
+  max-width: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 1000;
+  line-height: 1.05;
+}
+
+.battle-v4-trainer-dialogue span {
+  justify-self: start;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 15%);
+  color: #ffe6a3;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.battle-v4-trainer-dialogue p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-right: 40px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.22;
+}
+
+.battle-v4-trainer-dialogue i {
+  position: absolute;
+  right: 11px;
+  bottom: 9px;
+  color: #ffe6a3;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 1000;
+  line-height: 1;
+  animation: battle-v4-dialogue-cue .78s ease-in-out infinite alternate;
+}
+
+@keyframes battle-v4-trainer-near-in {
+  0% {
+    opacity: 0;
+    transform: translate(-150px, 18px);
+  }
+  24% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+    transform: translate(8px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes battle-v4-trainer-far-in {
+  0% {
+    opacity: 0;
+    transform: translate(150px, -16px);
+  }
+  24% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+    transform: translate(-8px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes battle-v4-dialogue-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes battle-v4-dialogue-cue {
+  0% {
+    transform: translateY(0);
+    opacity: .68;
+  }
+  100% {
+    transform: translateY(2px);
+    opacity: 1;
+  }
+}

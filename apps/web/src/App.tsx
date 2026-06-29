@@ -486,6 +486,7 @@ function RoutedApp({runtime}: AppProps) {
         run={trainingRun}
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:battle-session`) || ""}
         debugConfig={APP_DEBUG_CONFIG_V4}
+        playerProfile={profile}
         onRunChange={setTrainingRun}
         onBackToRest={() => navigate("/training/rest", {replace: true})}
       />
@@ -504,7 +505,6 @@ function RoutedApp({runtime}: AppProps) {
         setFormalRun(run);
         navigate("/formal/starter-select", {replace: true});
       }}
-      onBack={() => navigate("/main", {replace: true})}
     />
   ) : <Navigate to="/" replace />;
 
@@ -539,7 +539,6 @@ function RoutedApp({runtime}: AppProps) {
           setFormalRun(run);
           navigate("/formal/rest", {replace: true});
         }}
-        onBack={() => navigate("/main", {replace: true})}
       />
     ) : (
       <Navigate to="/main" replace />
@@ -597,6 +596,8 @@ function RoutedApp({runtime}: AppProps) {
         run={formalRun.restRunSnapshot}
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
         debugConfig={APP_DEBUG_CONFIG_V4}
+        playerProfile={profile}
+        endFlow="auto-exit"
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
         onSaveRunSnapshot={async restRunSnapshot => {
           if (!formalRun) return restRunSnapshot;
@@ -638,7 +639,6 @@ function RoutedApp({runtime}: AppProps) {
           setProfile(nextProfile);
           navigate("/formal/settlement", {replace: true});
         }}
-        onBack={() => navigate("/main", {replace: true})}
       />
     ) : (
       <Navigate to="/main" replace />
