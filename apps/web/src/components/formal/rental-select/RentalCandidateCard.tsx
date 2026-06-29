@@ -13,10 +13,13 @@ export function RentalCandidateCard({pokemon, index, focused, selected, onFocus,
         className={`rental-candidate-card rental-candidate-card-thumbnail ${focused ? "focused" : ""} ${selected ? "selected" : ""} ${badges.length ? "special" : ""}`}
         type="button"
         onClick={() => {
-          onFocus();
+          if (!focused) {
+            onFocus();
+            return;
+          }
           onToggle?.();
         }}
-        aria-label={`选择 ${displayName(pokemon)}`}
+        aria-label={focused ? `加入队伍 ${displayName(pokemon)}` : `查看 ${displayName(pokemon)}`}
         title={[displayName(pokemon), ...badges].join(" / ")}
         layout
         layoutId={`rental-card-${rentalPokemonKey(pokemon, index)}`}

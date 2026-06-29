@@ -40,14 +40,29 @@ export function PokemonSprite({pokemon, alt, badge = false, className}: {pokemon
 }
 
 export function PokemonIcon({pokemon, alt, className}: {pokemon: RentalPokemon; alt: string; className?: string}) {
+  const classes = ["pokemon-icon", pokemon.shiny ? "shiny" : "", className || ""].filter(Boolean).join(" ");
   if (pokemon.sprite?.icon_style) {
-    return <span className={["pokemon-icon", "picon", className || ""].filter(Boolean).join(" ")} aria-label={alt} style={styleFromCss(pokemon.sprite.icon_style)} />;
+    return (
+      <span className={[classes, "picon"].join(" ")} aria-label={alt} style={styleFromCss(pokemon.sprite.icon_style)}>
+        {pokemon.shiny ? <i aria-hidden="true">★</i> : null}
+      </span>
+    );
   }
   const iconUrl = pokemon.sprite?.icon;
   if (iconUrl && !iconUrl.includes("pokemonicons-sheet")) {
-    return <span className={["pokemon-icon", className || ""].filter(Boolean).join(" ")}><img src={iconUrl} alt={alt} draggable={false} /></span>;
+    return (
+      <span className={classes}>
+        <img src={iconUrl} alt={alt} draggable={false} />
+        {pokemon.shiny ? <i aria-hidden="true">★</i> : null}
+      </span>
+    );
   }
-  return <span className={["pokemon-icon", "empty", className || ""].filter(Boolean).join(" ")} aria-label={alt}>{pokemon.species_zh?.slice(0, 1) || "?"}</span>;
+  return (
+    <span className={[classes, "empty"].join(" ")} aria-label={alt}>
+      {pokemon.species_zh?.slice(0, 1) || "?"}
+      {pokemon.shiny ? <i aria-hidden="true">★</i> : null}
+    </span>
+  );
 }
 
 function styleFromCss(css: string): CSSProperties {

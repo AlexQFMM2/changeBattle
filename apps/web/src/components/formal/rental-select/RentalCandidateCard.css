@@ -154,6 +154,8 @@
 
 .rental-candidate-card-thumbnail.focused {
   filter: brightness(1.08);
+  outline: 2px solid rgb(244 219 132 / 86%);
+  outline-offset: -3px;
 }
 
 .rental-candidate-card-thumbnail.selected {
