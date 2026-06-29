@@ -25,5 +25,18 @@
 - 正式游戏进度：[`formal-game/formal-game-v4-checklist.md`](formal-game/formal-game-v4-checklist.md)
 - 战斗页投降与演出：[`battle-v4/battle-v4-surrender-and-narrative-flow-plan.md`](battle-v4/battle-v4-surrender-and-narrative-flow-plan.md)
 - Battle V4 架构：[`battle-v4/architecture/battle-v4-architecture-plan.md`](battle-v4/architecture/battle-v4-architecture-plan.md)
+- Battle V4 动画完善：[`battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md)
 - NPC/队伍生成：[`battle-v4/team-generation/battle-v4-team-generator-plan.md`](battle-v4/team-generation/battle-v4-team-generator-plan.md)
 - 战斗 AI：[`battle-v4/ai/battle-v4-ai-decision-plan.md`](battle-v4/ai/battle-v4-ai-decision-plan.md)
+
+## 当前进度
+
+- 正式游戏主流程已经进入可跑通阶段：开局候选、星图扩展、选人、7 场计划生成、休整页复用、战斗页进入、投降失败结算、结算页和 BP 发放都已接入。
+- Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化，以及选人页两步选择交互；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
+- Plan 文档已按功能目录整理，后续新增计划优先进入对应目录 README，而不是堆在根目录。
+
+## 下一步
+
+- 下一步主线是完善 Battle V4 战斗流程动画：训练家立绘进场、台词推进、进入战斗，以及后续胜负后演出。
+- 入口计划见 [`battle-v4/battle-v4-surrender-and-narrative-flow-plan.md`](battle-v4/battle-v4-surrender-and-narrative-flow-plan.md)。
+- 播放/动画技术路线继续指向 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md) 和 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md)。
