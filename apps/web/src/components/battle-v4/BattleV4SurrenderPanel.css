@@ -1,0 +1,129 @@
+.battle-v4-surrender-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.battle-v4-surrender-panel > section {
+  width: 100px;
+  margin: 108px 0 0 16px;
+  padding: 3px 4px 4px;
+  pointer-events: auto;
+  border: 2px solid rgb(93 89 75 / 92%);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgb(25 39 40 / 96%), rgb(9 16 19 / 98%));
+  box-shadow:
+    0 3px 0 rgb(0 0 0 / 72%),
+    0 0 0 1px rgb(0 0 0 / 78%),
+    inset 0 0 0 1px rgb(174 200 171 / 12%);
+  animation: battle-v4-surrender-slide-in .18s steps(4, end) both;
+}
+
+.battle-v4-surrender-panel header {
+  display: grid;
+  place-items: center;
+  min-height: 9px;
+  color: #72e8cf;
+  font-size: 7px;
+  font-weight: 1000;
+  letter-spacing: 0;
+  text-shadow:
+    0 1px 0 #1a756e,
+    0 0 4px rgb(109 252 223 / 38%);
+}
+
+.battle-v4-surrender-votes {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.battle-v4-surrender-votes span {
+  height: 5px;
+  border: 1px solid rgb(0 0 0 / 78%);
+  background:
+    linear-gradient(180deg, rgb(52 59 59 / 94%), rgb(28 32 34 / 96%));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 7%),
+    0 1px 0 rgb(255 255 255 / 6%);
+}
+
+.battle-v4-surrender-votes span.approved {
+  background:
+    linear-gradient(180deg, #12c84c 0%, #079635 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(186 255 198 / 18%),
+    0 0 4px rgb(0 219 79 / 24%);
+}
+
+.battle-v4-surrender-progress {
+  height: 4px;
+  margin-top: 2px;
+  overflow: hidden;
+  border: 1px solid rgb(0 0 0 / 82%);
+  background: #05080b;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%);
+}
+
+.battle-v4-surrender-progress b {
+  display: block;
+  height: 100%;
+  background:
+    linear-gradient(180deg, #d2fff8 0%, #69f4e9 42%, #23b8c1 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 70%),
+    0 0 4px rgb(72 240 231 / 45%);
+  transition: width .18s linear;
+}
+
+.battle-v4-surrender-panel footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.battle-v4-surrender-panel footer button {
+  height: 10px;
+  border: 1px solid rgb(54 72 65 / 92%);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgb(36 51 48 / 94%), rgb(22 35 33 / 98%));
+  color: #d9e0bd;
+  font-size: 7px;
+  font-weight: 1000;
+  line-height: 8px;
+  padding: 0;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 86%);
+  box-shadow:
+    inset 0 0 0 1px rgb(166 220 186 / 9%),
+    0 2px 0 rgb(0 0 0 / 45%);
+}
+
+.battle-v4-surrender-panel footer button:not(:disabled):hover {
+  border-color: #65ddd1;
+  color: #f4ffd6;
+  box-shadow:
+    inset 0 0 0 1px rgb(129 255 224 / 22%),
+    0 0 10px rgb(78 246 219 / 28%),
+    0 2px 0 rgb(0 0 0 / 45%);
+}
+
+.battle-v4-surrender-panel footer button:disabled {
+  opacity: .56;
+}
+
+@keyframes battle-v4-surrender-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

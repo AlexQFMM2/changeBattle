@@ -2,7 +2,7 @@
 
 ## Status
 
-第一批已全部完成。背包实例、商店、战斗背包使用仍在 `system-items-and-bag-checklist.md` 后续批次追踪。
+第一批已全部完成。背包实例、商店、战斗背包使用仍在 `../items-and-bag/system-items-and-bag-checklist.md` 后续批次追踪。
 
 ## Count Verification
 

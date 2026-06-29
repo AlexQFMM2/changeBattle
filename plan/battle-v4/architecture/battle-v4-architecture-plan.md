@@ -1215,7 +1215,7 @@ type TrainingPlayerDraftV4 = {
 
 - `docs/showdown-sim-protocol.zh-CN.md`：官方 SIM-PROTOCOL 中文注释版。
 - `docs/showdown-client-battle-architecture-notes.md`：官方 client battle 架构笔记。
-- `plan/battle-v4-architecture-plan.md`：本文档。
+- `plan/battle-v4/architecture/battle-v4-architecture-plan.md`：本文档。
 - 官方研究目录索引：
   - `/home/alexqfmm/workPlace/pokemon/pokemonShowdownAbout/pokemonShowdown/sim/SIM-PROTOCOL.md`
   - `/home/alexqfmm/workPlace/pokemon/pokemonShowdownAbout/pokemonShowdown/sim/battle-stream.ts`

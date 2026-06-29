@@ -8,7 +8,7 @@
 
 配套执行清单：
 
-- `changeBattleV2/plan/battle-v4-showdown-animation-deep-sync-checklist.md`
+- `changeBattleV2/plan/battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md`
 
 ## Source Map
 

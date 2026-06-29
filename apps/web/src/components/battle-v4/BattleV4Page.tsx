@@ -1,8 +1,9 @@
-import {useEffect, useMemo, useState, type CSSProperties} from "react";
+import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, TrainingMoveSlotV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
+import {BattleV4SurrenderPanel, type BattleV4SurrenderParticipant} from "./BattleV4SurrenderPanel";
 import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
@@ -80,6 +81,9 @@ const STAT_ROWS: Array<[keyof LocalPokemonV4["evs"], string]> = [
   ["spd", "特防"],
   ["spe", "速度"],
 ];
+
+const SURRENDER_TIMEOUT_MS = 15000;
+const SURRENDER_SUBMIT_DELAY_MS = 3000;
 
 const BOOST_STAT_ROWS: Array<[BattleV4BoostStat, string]> = [
   ["atk", "攻击"],
@@ -190,8 +194,9 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [surrenderOpen, setSurrenderOpen] = useState(false);
   const [surrenderApproved, setSurrenderApproved] = useState(false);
   const [surrenderAllyApproved, setSurrenderAllyApproved] = useState(false);
-  const [surrenderRemainingMs, setSurrenderRemainingMs] = useState(30000);
+  const [surrenderRemainingMs, setSurrenderRemainingMs] = useState(SURRENDER_TIMEOUT_MS);
   const [surrenderSubmitting, setSurrenderSubmitting] = useState(false);
+  const surrenderSubmitTimerRef = useRef<number | null>(null);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
   const playback = useBattleV4Playback(snapshot, viewModel, {skipAnimations, debugConfig});
@@ -208,7 +213,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
   const activeBattleBag = api.normalizeBagState(run.players.p1?.bag);
   const battleBagEnabled = Boolean(run.battlePreference?.battleBagEnabled && activeBattleBag.battleBagEnabled);
-  const surrenderParticipants = useMemo(() => {
+  const surrenderParticipants = useMemo<BattleV4SurrenderParticipant[]>(() => {
     const player = run.players.p1;
     const ally = run.scenario.mode === "coop" ? run.players.p3 : null;
     return [
@@ -259,10 +264,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
 
   useEffect(() => {
     if (!surrenderOpen) return;
-    setSurrenderRemainingMs(30000);
+    setSurrenderRemainingMs(SURRENDER_TIMEOUT_MS);
     const startedAt = Date.now();
     const timer = window.setInterval(() => {
-      const remaining = Math.max(0, 30000 - (Date.now() - startedAt));
+      const remaining = Math.max(0, SURRENDER_TIMEOUT_MS - (Date.now() - startedAt));
       setSurrenderRemainingMs(remaining);
       if (remaining <= 0) {
         window.clearInterval(timer);
@@ -287,11 +292,15 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     if (!surrenderOpen || surrenderSubmitting || !surrenderApproved) return;
     if (run.scenario.mode === "coop" && !surrenderAllyApproved) return;
     setSurrenderSubmitting(true);
-    const timer = window.setTimeout(() => {
+    if (surrenderSubmitTimerRef.current !== null) window.clearTimeout(surrenderSubmitTimerRef.current);
+    surrenderSubmitTimerRef.current = window.setTimeout(() => {
       void submitSurrender();
-    }, 5000);
-    return () => window.clearTimeout(timer);
+    }, SURRENDER_SUBMIT_DELAY_MS);
   }, [run.scenario.mode, surrenderAllyApproved, surrenderApproved, surrenderOpen, surrenderSubmitting]);
+
+  useEffect(() => () => {
+    if (surrenderSubmitTimerRef.current !== null) window.clearTimeout(surrenderSubmitTimerRef.current);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -389,8 +398,12 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     if (!onSurrenderSettlement || snapshot?.status === "ended") return;
     setSurrenderApproved(false);
     setSurrenderAllyApproved(run.scenario.mode !== "coop");
-    setSurrenderRemainingMs(30000);
+    setSurrenderRemainingMs(SURRENDER_TIMEOUT_MS);
     setSurrenderSubmitting(false);
+    if (surrenderSubmitTimerRef.current !== null) {
+      window.clearTimeout(surrenderSubmitTimerRef.current);
+      surrenderSubmitTimerRef.current = null;
+    }
     setSurrenderOpen(true);
   }
 
@@ -572,13 +585,16 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         />
       ) : null}
       {surrenderOpen ? (
-        <BattleV4SurrenderDialog
+        <BattleV4SurrenderPanel
           participants={surrenderParticipants}
-          playerApproved={surrenderApproved}
-          allyApproved={surrenderAllyApproved}
+          approvedIds={new Set([
+            ...(surrenderApproved ? ["p1"] : []),
+            ...(surrenderAllyApproved ? ["p3"] : []),
+          ])}
           remainingMs={surrenderRemainingMs}
+          durationMs={SURRENDER_TIMEOUT_MS}
           submitting={surrenderSubmitting}
-          onTogglePlayer={() => setSurrenderApproved(value => !value)}
+          onConfirm={() => setSurrenderApproved(true)}
           onCancel={() => {
             if (surrenderSubmitting) return;
             setSurrenderOpen(false);
@@ -588,55 +604,6 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         />
       ) : null}
     </section>
-  );
-}
-
-function BattleV4SurrenderDialog({participants, playerApproved, allyApproved, remainingMs, submitting, onTogglePlayer, onCancel}: {
-  participants: Array<{id: string; name: string; avatar: string}>;
-  playerApproved: boolean;
-  allyApproved: boolean;
-  remainingMs: number;
-  submitting: boolean;
-  onTogglePlayer: () => void;
-  onCancel: () => void;
-}) {
-  const progress = Math.max(0, Math.min(100, remainingMs / 30000 * 100));
-  const approvedById = new Map<string, boolean>([["p1", playerApproved], ["p3", allyApproved]]);
-  const titleName = participants[0]?.name || "玩家";
-  return (
-    <div className="battle-v4-surrender-modal" role="dialog" aria-label="投降确认">
-      <section>
-        <header>
-          {participants[0]?.avatar ? <img src={participants[0].avatar} alt="" /> : <i />}
-          <strong>{titleName} 发起了投降</strong>
-        </header>
-        <div className="battle-v4-surrender-checks">
-          {participants.map(participant => {
-            const approved = Boolean(approvedById.get(participant.id));
-            return (
-              <button
-                type="button"
-                className={approved ? "approved" : ""}
-                disabled={participant.id !== "p1" || submitting}
-                onClick={participant.id === "p1" ? onTogglePlayer : undefined}
-                key={participant.id}
-              >
-                {participant.avatar ? <img src={participant.avatar} alt="" /> : <i />}
-                <span>{participant.name}</span>
-                <b>{approved ? "✓" : "○"}</b>
-              </button>
-            );
-          })}
-        </div>
-        <div className="battle-v4-surrender-progress" aria-label="投降确认倒计时">
-          <b style={{width: `${progress}%`}} />
-        </div>
-        <footer>
-          <span>{submitting ? "全员同意，5 秒后进入失败结算..." : `等待确认 ${Math.ceil(remainingMs / 1000)}s`}</span>
-          <button type="button" disabled={submitting} onClick={onCancel}>取消</button>
-        </footer>
-      </section>
-    </div>
   );
 }
 

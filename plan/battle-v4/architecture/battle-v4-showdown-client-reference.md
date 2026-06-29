@@ -134,13 +134,13 @@ V4 项目目录：
 V4 UI 参考：
 
 ```txt
-changeBattleV2/plan/ui-refences/参考ui.md
-changeBattleV2/plan/ui-refences/image.png      # 战斗准备页
-changeBattleV2/plan/ui-refences/image-1.png    # 技能选择页
-changeBattleV2/plan/ui-refences/image-2.png    # 攻击对象选择面板
-changeBattleV2/plan/ui-refences/image-3.png    # 战斗页详细拆解
-changeBattleV2/plan/ui-refences/image-4.png    # 对局详情/换人列表参考
-changeBattleV2/plan/ui-refences/image-5.png    # 带特殊系统技能选择
+changeBattleV2/plan/references/ui/ui-refences/参考ui.md
+changeBattleV2/plan/references/ui/ui-refences/image.png      # 战斗准备页
+changeBattleV2/plan/references/ui/ui-refences/image-1.png    # 技能选择页
+changeBattleV2/plan/references/ui/ui-refences/image-2.png    # 攻击对象选择面板
+changeBattleV2/plan/references/ui/ui-refences/image-3.png    # 战斗页详细拆解
+changeBattleV2/plan/references/ui/ui-refences/image-4.png    # 对局详情/换人列表参考
+changeBattleV2/plan/references/ui/ui-refences/image-5.png    # 带特殊系统技能选择
 ```
 
 V1 参考：
@@ -1447,7 +1447,7 @@ V1 参考位置：
   - `takeRunShowdownId()`
   - `takeReplacementRunShowdownId()`
   - `writePokemonShowdownId()`
-- `changeBattleV2/plan/battle-v4-architecture-plan.md`
+- `changeBattleV2/plan/battle-v4/architecture/battle-v4-architecture-plan.md`
   - `Pokeball / Showdown ID Mapping`
   - V4 文档中称为 `showdownIdentityToken`
 
