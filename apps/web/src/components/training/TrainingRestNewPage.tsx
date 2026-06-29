@@ -6,10 +6,21 @@ import {TrainingRestConfirmDialog} from "./TrainingRestConfirmDialog";
 import {TrainingRestNextPreviewPanel, type PreviewPokemonEntry} from "./TrainingRestNextPreviewPanel";
 import {TrainingRestNewActionBoard} from "./TrainingRestNewActionBoard";
 import {TrainingRestNewBagPanel} from "./TrainingRestNewBagPanel";
+import {TrainingRestShopRouteButton} from "./TrainingRestShopRouteButton";
+import {TrainingRestShopScene} from "./TrainingRestShopScene";
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
 import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
 import "./TrainingRestNewPage.css";
+import type {FormalRestShopV4} from "@changebattle-v2/api";
+
+export type TrainingRestShopController = {
+  shop: FormalRestShopV4 | null;
+  player: TrainingPlayerDraftV4 | null;
+  money: number;
+  onBuy: (slotId: string) => Promise<string> | string;
+  onSell: (itemInstanceIds: string[]) => Promise<string> | string;
+};
 
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
@@ -22,10 +33,12 @@ export type TrainingRestNewPageProps = {
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
   onAbandonRun?: () => void;
   moneyAmount?: number;
+  shopController?: TrainingRestShopController;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, shopController}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
+  const [restScene, setRestScene] = useState<"center" | "shop">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [bagPanelOpen, setBagPanelOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
@@ -111,16 +124,33 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   function selectAction(action: string) {
     setActiveAction(action);
     if (action === "我的队伍") {
+      setRestScene("center");
       setBagPanelOpen(false);
       setTeamPanelOpen(true);
       return;
     }
     if (action === "我的背包") {
+      setRestScene("center");
       setTeamPanelOpen(false);
       setBagPanelOpen(true);
       return;
     }
+    if (action === "商店") {
+      setActiveAction(action);
+      setTeamPanelOpen(false);
+      setBagPanelOpen(false);
+      if (!shopController) {
+        setRestScene("center");
+        setMessage("商店仅正式流程开放。");
+        showNotice("商店仅正式流程开放。");
+        return;
+      }
+      setRestScene("shop");
+      setMessage("欢迎光临，货架已经整理好了。");
+      return;
+    }
     if (["我的背包", "图鉴", "保存"].includes(action)) {
+      setRestScene("center");
       setTeamPanelOpen(false);
       setBagPanelOpen(false);
     }
@@ -128,7 +158,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       onOpenDex();
       return;
     }
-    if (["交换", "商店", "抽奖机", "培育屋爷爷", "教授奶奶"].includes(action)) {
+    if (["交换", "抽奖机", "培育屋爷爷", "教授奶奶"].includes(action)) {
       setMessage(`${action} 后续开放。`);
       showNotice(`${action} 后续开放。`);
       return;
@@ -152,53 +182,74 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       transition={{duration: 0.18}}
       aria-label="新休整页预览"
     >
-      <img className="training-rest-new-bg" src="/training/rest-center-bg.png" alt="休整中心背景预览" />
-      <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={setUnlockTarget} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
-      <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} />
-      {typeof moneyAmount === "number" ? (
-        <div className="training-rest-new-money-pill" aria-label="当前金币">
-          <img src="/aboutIcon/coin.png" alt="" />
-          <strong>{Math.max(0, Math.floor(moneyAmount)).toLocaleString()}</strong>
-        </div>
-      ) : null}
-      <TrainingRestBoardTitle side="left">休整菜单</TrainingRestBoardTitle>
-      <TrainingRestBoardTitle side="right">下一场预览</TrainingRestBoardTitle>
-      <TrainingRestSideBoard
-        side="left"
-        actions={[{label: "我的队伍"}, {label: "我的背包"}, {label: "保存"}]}
-        activeAction={activeAction}
-        onAction={selectAction}
-      />
-      <TrainingRestSideBoard
-        side="right"
-        actions={[{label: "结束休整", primary: true}, {label: "放弃比赛", danger: true}]}
-        activeAction={activeAction}
-        onAction={selectAction}
-      />
-      <div className="training-rest-new-save-message" role="status">{message}</div>
-      {teamPanelOpen || bagPanelOpen ? (
-        <button
-          className="training-rest-new-panel-scrim"
-          type="button"
-          aria-label="关闭当前面板"
-          onClick={closeFloatingPanels}
+      <div className="training-rest-new-stage" data-scene={restScene}>
+        <section className="training-rest-new-center-scene" aria-label="休整中心">
+          <img className="training-rest-new-bg" src="/training/rest-center-bg.png" alt="休整中心背景预览" />
+          <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={setUnlockTarget} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
+          <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} />
+          {typeof moneyAmount === "number" ? (
+            <div className="training-rest-new-money-pill" aria-label="当前金币">
+              <img src="/aboutIcon/coin.png" alt="" />
+              <strong>{Math.max(0, Math.floor(moneyAmount)).toLocaleString()}</strong>
+            </div>
+          ) : null}
+          <TrainingRestShopRouteButton
+            className="training-rest-new-shop-route"
+            label="去商店"
+            direction="right"
+            onClick={() => selectAction("商店")}
+          />
+          <TrainingRestBoardTitle side="left">休整菜单</TrainingRestBoardTitle>
+          <TrainingRestBoardTitle side="right">下一场预览</TrainingRestBoardTitle>
+          <TrainingRestSideBoard
+            side="left"
+            actions={[{label: "我的队伍"}, {label: "我的背包"}, {label: "保存"}]}
+            activeAction={activeAction}
+            onAction={selectAction}
+          />
+          <TrainingRestSideBoard
+            side="right"
+            actions={[{label: "结束休整", primary: true}, {label: "放弃比赛", danger: true}]}
+            activeAction={activeAction}
+            onAction={selectAction}
+          />
+          <div className="training-rest-new-save-message" role="status">{message}</div>
+          {teamPanelOpen || bagPanelOpen ? (
+            <button
+              className="training-rest-new-panel-scrim"
+              type="button"
+              aria-label="关闭当前面板"
+              onClick={closeFloatingPanels}
+            />
+          ) : null}
+          <TrainingRestNewTeamPanel
+            api={api}
+            open={teamPanelOpen}
+            localTeam={p1Team}
+            onClose={() => setTeamPanelOpen(false)}
+            onLocalTeamChange={updateP1Team}
+          />
+          <TrainingRestNewBagPanel
+            api={api}
+            open={bagPanelOpen}
+            run={run}
+            onClose={() => setBagPanelOpen(false)}
+            onRunDraftChange={updateRunGameDraft}
+            onNotice={showNotice}
+          />
+        </section>
+        <TrainingRestShopScene
+          api={api}
+          open={restScene === "shop"}
+          shop={shopController?.shop || null}
+          money={shopController?.money ?? moneyAmount ?? 0}
+          onBack={() => {
+            setRestScene("center");
+            setActiveAction("我的队伍");
+            setMessage("已返回休整中心。");
+          }}
         />
-      ) : null}
-      <TrainingRestNewTeamPanel
-        api={api}
-        open={teamPanelOpen}
-        localTeam={p1Team}
-        onClose={() => setTeamPanelOpen(false)}
-        onLocalTeamChange={updateP1Team}
-      />
-      <TrainingRestNewBagPanel
-        api={api}
-        open={bagPanelOpen}
-        run={run}
-        onClose={() => setBagPanelOpen(false)}
-        onRunDraftChange={updateRunGameDraft}
-        onNotice={showNotice}
-      />
+      </div>
       {toast ? (
         <TrainingRestToast
           key={toast.id}

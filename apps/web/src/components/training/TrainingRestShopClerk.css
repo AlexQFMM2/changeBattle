@@ -1,0 +1,41 @@
+.training-rest-shop-clerk {
+  --training-rest-shop-clerk-width: 122px;
+  --training-rest-shop-clerk-height: 187px;
+  --training-rest-shop-clerk-sepia: .08;
+  --training-rest-shop-clerk-saturate: .92;
+  --training-rest-shop-clerk-contrast: .9;
+  --training-rest-shop-clerk-brightness: 1.04;
+  --training-rest-shop-clerk-shadow-color: rgb(78 39 14 / 34%);
+  --training-rest-shop-clerk-soften: .12px;
+  width: var(--training-rest-shop-clerk-width);
+  height: var(--training-rest-shop-clerk-height);
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: 50% 92%;
+  filter:
+    sepia(var(--training-rest-shop-clerk-sepia))
+    saturate(var(--training-rest-shop-clerk-saturate))
+    contrast(var(--training-rest-shop-clerk-contrast))
+    brightness(var(--training-rest-shop-clerk-brightness))
+    drop-shadow(0 5px 5px var(--training-rest-shop-clerk-shadow-color));
+  animation: training-rest-shop-clerk-breathe 3.4s ease-in-out infinite;
+}
+
+.training-rest-shop-clerk .sprite-sequence-player {
+  display: block;
+}
+
+.training-rest-shop-clerk .sprite-sequence-player-strip {
+  filter: blur(var(--training-rest-shop-clerk-soften));
+}
+
+@keyframes training-rest-shop-clerk-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-1px);
+  }
+}

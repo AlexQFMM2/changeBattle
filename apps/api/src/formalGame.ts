@@ -1,5 +1,6 @@
 import type {
   DexMoveSummary,
+  DexItemDetail,
   DexPokemonDetail,
   DexSearchRow,
   DexStatId,
@@ -39,6 +40,29 @@ export type CoopPartnerPreferenceV4 = "offense" | "defense" | "support" | "balan
 export type FormalNpcTypeV4 = "rookie" | "normal" | "elite" | "gym" | "elite4" | "champion" | "villain";
 export type FormalNpcBattlePreferenceV4 = "offense" | "defense" | "support" | "balanced";
 export type FormalNpcTeamPreferenceV4 = "balanced" | "rain" | "sun" | "sand" | "snow" | "trick-room" | "tailwind" | "terrain" | "hazard-stack" | "poison-stall" | "setup-offense";
+export type FormalShopCategoryV4 = "recovery" | "berry" | "battle" | "tm" | "training";
+
+export type FormalShopItemV4 = {
+  slotId: string;
+  category: FormalShopCategoryV4;
+  itemID: string;
+  stock: number;
+  generatedAt: string;
+};
+
+export type FormalRestShopV4 = {
+  nodeId: string;
+  seed: string;
+  categories: Record<FormalShopCategoryV4, FormalShopItemV4[]>;
+  updatedAt: string;
+};
+
+export type FormalShopTransactionResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  message: string;
+  shop: FormalRestShopV4 | null;
+};
 
 export type FormalRoundNpcSnapshotV4 = {
   id: string;
@@ -79,6 +103,48 @@ const PLAYER_BACK_IMAGES = [
   "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
   "/npc/player-back/white-bw-touko-back-4156e303.png",
 ];
+
+const FORMAL_SHOP_CATEGORY_LABELS: Record<FormalShopCategoryV4, string> = {
+  recovery: "恢复药",
+  berry: "树果",
+  battle: "战斗道具",
+  tm: "技能机器",
+  training: "训练道具",
+};
+
+const FORMAL_SHOP_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "berry", "battle", "tm", "training"];
+
+const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
+  recovery: [
+    "potion", "superpotion", "hyperpotion", "maxpotion", "fullrestore",
+    "freshwater", "sodapop", "lemonade", "moomoomilk", "fullheal",
+    "healpowder", "antidote", "burnheal", "iceheal", "awakening",
+    "paralyzeheal", "energypowder", "energyroot", "revive", "maxrevive",
+    "revivalherb", "ether", "maxether", "elixir", "maxelixir",
+  ],
+  berry: [
+    "oranberry", "sitrusberry", "leppaberry", "lumberry",
+  ],
+  battle: [
+    "leftovers", "lifeorb", "choicescarf", "choiceband", "choicespecs",
+    "focussash", "assaultvest", "rockyhelmet", "eviolite", "expertbelt",
+    "airballoon", "heavydutyboots", "blacksludge", "shellbell",
+  ],
+  tm: [
+    "tm:protect", "tm:thunderbolt", "tm:icebeam", "tm:flamethrower", "tm:earthquake",
+    "tm:surf", "tm:psychic", "tm:shadowball", "tm:rockslide", "tm:calmmind",
+    "tm:swordsdance", "tm:substitute", "tm:willowisp", "tm:toxic", "tm:trickroom",
+  ],
+  training: [
+    "rarecandy", "hpup", "protein", "iron", "calcium", "zinc", "carbos",
+    "ppup", "ppmax", "abilitycapsule", "abilitypatch", "bottlecap",
+    "goldbottlecap", "graybottlecap", "adamantmint", "modestmint", "jollymint",
+    "timidmint", "calmmint", "boldmint",
+  ],
+};
+
+const FORMAL_SHOP_SLOTS_PER_CATEGORY = 3;
+const FORMAL_SHOP_SELL_RATE = 0.25;
 
 export type FormalStarterCandidateDiagnosticsV4 = {
   role: FormalStarterRoleV4;
@@ -133,6 +199,7 @@ export type FormalGameRunV4 = {
   restRunSnapshot: TrainingRunGameV4 | null;
   currentRoundIndex: number;
   money: number;
+  shopByNodeId?: Record<string, FormalRestShopV4>;
   settlement: FormalGameSettlementV4 | null;
 };
 
@@ -196,6 +263,9 @@ export type FormalGameRunApi = {
   appendCoinLogEntryV4(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4;
   appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4;
   prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
+  getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null;
+  buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
+  sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4;
   selectedCountForFormalMode(mode: FormalGameModeV4): number;
 };
 
@@ -592,6 +662,106 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     });
   }
 
+  function getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null {
+    const node = currentFormalRestNode(run);
+    if (!node) return null;
+    return ensureFormalRestShopFast(run, node.id);
+  }
+
+  function buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4 {
+    const node = currentFormalRestNode(run);
+    if (!node || !run.restRunSnapshot) return shopTransactionResult(false, run, "当前没有可用的正式休整商店。");
+    const shop = ensureFormalRestShopFast(run, node.id);
+    const located = findFormalShopItem(shop, slotId);
+    if (!located) return shopTransactionResult(false, {...run, shopByNodeId: {...(run.shopByNodeId || {}), [shop.nodeId]: shop}}, "商品不存在。", shop);
+    const {item, category, index} = located;
+    if (item.stock <= 0) return shopTransactionResult(false, {...run, shopByNodeId: {...(run.shopByNodeId || {}), [shop.nodeId]: shop}}, "该商品已经售罄。", shop);
+    const detail = getItemDetailSafe(item.itemID);
+    const price = Math.max(0, Math.floor(Number(detail?.cost || 0)));
+    if (!detail || price <= 0) return shopTransactionResult(false, run, "该商品暂不可购买。", shop);
+    if (run.money < price) return shopTransactionResult(false, run, "金币不足。", shop);
+    const p1 = run.restRunSnapshot.players.p1;
+    if (!p1) return shopTransactionResult(false, run, "缺少玩家背包。", shop);
+    const bag = normalizeFormalBag(p1.bag);
+    if (bag.items.length >= bag.maxSize) return shopTransactionResult(false, run, "背包已满。", shop);
+    const now = new Date().toISOString();
+    const nextItem = formalShopItemInstance(item.itemID, detail);
+    const nextP1 = {...p1, bag: {...bag, items: [...bag.items, nextItem]}};
+    const nextRestRun = patchFormalRestP1(run.restRunSnapshot, nextP1, now);
+    const replenishedItem = createFormalShopSlot(run, shop.nodeId, category, index, Date.now(), now, new Set(shop.categories[category].map(entry => entry.itemID)));
+    const nextShop = {
+      ...shop,
+      categories: {
+        ...shop.categories,
+        [category]: shop.categories[category].map((entry, entryIndex) => entryIndex === index ? replenishedItem : entry),
+      },
+      updatedAt: now,
+    };
+    const withPurchase = {
+      ...run,
+      restRunSnapshot: nextRestRun,
+      shopByNodeId: {...(run.shopByNodeId || {}), [shop.nodeId]: nextShop},
+      updatedAt: now,
+    };
+    const withLog = appendShopCoinLogFast(withPurchase, {
+      key: `shop-buy:${shop.nodeId}:${slotId}:${now}`,
+      amount: -price,
+      source: "shop",
+      label: `购买 ${detail.nameZh || detail.name}`,
+      roundIndex: node.index,
+      at: now,
+    });
+    return shopTransactionResult(true, withLog, `已购买 ${detail.nameZh || detail.name}。`, withLog.shopByNodeId?.[shop.nodeId] || nextShop);
+  }
+
+  function sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4 {
+    const node = currentFormalRestNode(run);
+    const restRunSnapshot = run.restRunSnapshot;
+    const p1 = restRunSnapshot?.players.p1;
+    if (!node || !restRunSnapshot || !p1) return shopTransactionResult(false, run, "当前没有可出售的玩家背包。");
+    const selectedIds = new Set(itemInstanceIds.filter(Boolean));
+    if (!selectedIds.size) return shopTransactionResult(false, run, "请选择要卖出的道具。", getFormalRestShop(run));
+    const bag = normalizeFormalBag(p1.bag);
+    const heldItemIds = formalHeldItemInstanceIds(p1);
+    let total = 0;
+    const soldNames: string[] = [];
+    const nextItems = bag.items.filter(item => {
+      if (!selectedIds.has(item.id)) return true;
+      const detail = getItemDetailSafe(item.itemID);
+      const price = formalShopSellPrice(item, detail);
+      if (!item.canSale || heldItemIds.has(item.id) || price <= 0) return true;
+      total += price;
+      soldNames.push(item.name || detail?.nameZh || detail?.name || item.itemID);
+      return false;
+    });
+    if (nextItems.length === bag.items.length || total <= 0) return shopTransactionResult(false, run, "选中的道具不可出售。", getFormalRestShop(run));
+    const now = new Date().toISOString();
+    const nextP1 = {...p1, bag: {...bag, items: nextItems}};
+    const nextRestRun = patchFormalRestP1(restRunSnapshot, nextP1, now);
+    const withSale = {
+      ...run,
+      restRunSnapshot: nextRestRun,
+      updatedAt: now,
+    };
+    const withLog = appendShopCoinLogFast(withSale, {
+      key: `shop-sell:${node.id}:${now}:${Array.from(selectedIds).join(",")}`,
+      amount: total,
+      source: "shop",
+      label: `出售 ${soldNames.slice(0, 2).join("、")}${soldNames.length > 2 ? ` 等 ${soldNames.length} 件` : ""}`,
+      roundIndex: node.index,
+      at: now,
+    });
+    return shopTransactionResult(true, withLog, `已卖出 ${soldNames.length} 件道具，获得 ${total} 金币。`, getFormalRestShop(withLog));
+  }
+
+  function getItemDetailSafe(itemID: string): DexItemDetail | null {
+    try {
+      return dex.getItemDetail(itemID);
+    } catch {
+      return null;
+    }
+  }
+
   function prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4 {
     const normalized = normalizeFormalRun(run);
     if (normalized.settlement) return normalized;
@@ -665,6 +835,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restRunSnapshot: run.restRunSnapshot ? normalizeFormalRestRunSnapshot(run.restRunSnapshot) : null,
       currentRoundIndex: clampInt(run.currentRoundIndex, 0, FORMAL_ROUND_COUNT - 1, 0),
       money: clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY),
+      shopByNodeId: normalizeFormalShopByNodeId(run.shopByNodeId, run),
       settlement: normalizeSettlement(run.settlement),
     };
   }
@@ -1142,6 +1313,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     appendCoinLogEntryV4,
     appendBattleLogEntriesFromSnapshotV4,
     prepareFormalSettlement,
+    getFormalRestShop,
+    buyFormalRestShopItem,
+    sellFormalRestBagItems,
     selectedCountForFormalMode,
   };
 }
@@ -1787,6 +1961,124 @@ function createFormalSystemItem(itemID: string): PlayerItemInstanceV4 {
   };
 }
 
+function currentFormalRestNode(run: FormalGameRunV4): TrainingRunGameNodeV4 | null {
+  const snapshot = run.restRunSnapshot;
+  if (!snapshot) return null;
+  return snapshot.gameMap.find(node => node.id === snapshot.currentNodeId) || snapshot.gameMap.find(node => node.state === "ready") || snapshot.gameMap[0] || null;
+}
+
+function ensureFormalRestShopFast(run: FormalGameRunV4, nodeId: string): FormalRestShopV4 {
+  return run.shopByNodeId?.[nodeId] || createFormalRestShop(run, nodeId);
+}
+
+function findFormalShopItem(shop: FormalRestShopV4, slotId: string): {category: FormalShopCategoryV4; item: FormalShopItemV4; index: number} | null {
+  for (const category of FORMAL_SHOP_CATEGORY_ORDER) {
+    const index = shop.categories[category].findIndex(item => item.slotId === slotId);
+    if (index >= 0) return {category, item: shop.categories[category][index]!, index};
+  }
+  return null;
+}
+
+function formalShopItemInstance(itemID: string, detail: DexItemDetail): PlayerItemInstanceV4 {
+  return {
+    id: createId("shop-item"),
+    itemID,
+    name: detail.nameZh || detail.name || itemID,
+    image: detail.iconUrl || "",
+    cost: Math.max(0, Math.floor(Number(detail.cost || 0))),
+    canSale: detail.canSale ?? true,
+    type: formalPlayerItemTypeFromDetail(detail),
+    canBattleUse: detail.canBattleUse ?? false,
+    canUse: detail.canUse ?? false,
+    canUseToPokemon: detail.canUseToPokemon ?? false,
+    canTake: detail.canTake ?? false,
+    effectRound: null,
+    getRound: 0,
+    maxUseCount: null,
+    useCount: 0,
+  };
+}
+
+function formalPlayerItemTypeFromDetail(detail: DexItemDetail): PlayerItemInstanceV4["type"] {
+  if (detail.kind === "system" || detail.kind === "system-battle") return detail.kind;
+  if (detail.kind === "recovery" || detail.kind === "revive" || detail.kind === "pp") return "medicine";
+  if (detail.kind === "tm") return "tm";
+  if (detail.kind === "berry") return "berry";
+  if (detail.kind === "training") return "training";
+  if (detail.kind === "battle" || detail.kind === "held") return detail.kind;
+  if (detail.kind === "special") return "misc";
+  return "misc";
+}
+
+function normalizeFormalBag(bag: BagStateV4 | undefined): BagStateV4 {
+  const maxSize = Math.max(1, Math.floor(Number(bag?.maxSize || 50)));
+  return {
+    maxSize,
+    items: (bag?.items || []).slice(0, maxSize),
+    battleBagEnabled: Boolean(bag?.battleBagEnabled),
+  };
+}
+
+function patchFormalRestP1(restRunSnapshot: TrainingRunGameV4, p1: TrainingPlayerDraftV4, updatedAt: string): TrainingRunGameV4 {
+  return {
+    ...restRunSnapshot,
+    players: {...restRunSnapshot.players, p1},
+    scenario: {
+      ...restRunSnapshot.scenario,
+      players: restRunSnapshot.scenario.players.map(player => player.playerId === "p1" ? p1 : player),
+    },
+    gameMap: restRunSnapshot.gameMap.map(node => node.id === restRunSnapshot.currentNodeId
+      ? {...node, participants: {...node.participants, p1}}
+      : node),
+    updatedAt,
+  };
+}
+
+function formalHeldItemInstanceIds(player: TrainingPlayerDraftV4): Set<string> {
+  return new Set(player.localTeam.pokemon.map(pokemon => pokemon.heldItemInstanceId).filter(Boolean) as string[]);
+}
+
+function formalShopSellPrice(item: PlayerItemInstanceV4, detail: DexItemDetail | null): number {
+  return Math.floor(Math.max(0, Number(item.cost || detail?.cost || 0)) * FORMAL_SHOP_SELL_RATE);
+}
+
+function appendShopCoinLogFast(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4 {
+  const restRunSnapshot = run.restRunSnapshot;
+  if (!restRunSnapshot) return run;
+  const amount = Math.round(Number(entry.amount || 0));
+  const balanceBefore = clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY);
+  const balanceAfter = clampInt(balanceBefore + amount, 0, 999999, balanceBefore);
+  const now = entry.at || new Date().toISOString();
+  const logEntry: TrainingCoinLogEntryV4 = {
+    id: createId("coin-log"),
+    key: entry.key || `${entry.source}:${entry.roundIndex ?? run.currentRoundIndex}:${now}:${amount}`,
+    at: now,
+    roundIndex: clampInt(entry.roundIndex, 0, FORMAL_ROUND_COUNT - 1, run.currentRoundIndex),
+    kind: amount > 0 ? "income" : amount < 0 ? "expense" : "adjustment",
+    amount,
+    balanceBefore,
+    balanceAfter,
+    source: entry.source || "formal",
+    label: entry.label || "金币变动",
+  };
+  const existingKeys = new Set((restRunSnapshot.coinLog || []).map(item => item.key));
+  const coinLog = existingKeys.has(logEntry.key) ? restRunSnapshot.coinLog || [] : [...(restRunSnapshot.coinLog || []), logEntry];
+  return {
+    ...run,
+    money: balanceAfter,
+    restRunSnapshot: {
+      ...restRunSnapshot,
+      coinLog,
+      updatedAt: now,
+    },
+    updatedAt: now,
+  };
+}
+
+function shopTransactionResult(ok: boolean, run: FormalGameRunV4, message: string, shop: FormalRestShopV4 | null = null): FormalShopTransactionResultV4 {
+  return {ok, run, message, shop};
+}
+
 function fullBodyTrainerAsset(trainer: FormalTrainerVisualCandidateV4 | null | undefined): string {
   return trainer?.frontGifAsset || trainer?.frontAsset || "";
 }
@@ -1923,6 +2215,89 @@ function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefin
     createdAt: settlement.createdAt || new Date().toISOString(),
     claimedAt: settlement.claimedAt || undefined,
   };
+}
+
+function normalizeFormalShopByNodeId(value: unknown, run: Partial<FormalGameRunV4>): Record<string, FormalRestShopV4> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value as Record<string, FormalRestShopV4>).flatMap(([nodeId, shop]) => {
+    const normalized = normalizeFormalShop(shop, run, nodeId);
+    return normalized ? [[nodeId, normalized]] : [];
+  }));
+}
+
+function normalizeFormalShop(shop: Partial<FormalRestShopV4> | null | undefined, run: Partial<FormalGameRunV4>, fallbackNodeId: string): FormalRestShopV4 | null {
+  if (!shop) return null;
+  const nodeId = String(shop.nodeId || fallbackNodeId || "");
+  if (!nodeId) return null;
+  const seed = String(shop.seed || `${run.seed || "formal-shop"}:${nodeId}`);
+  const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
+    const rawItems = Array.isArray(shop.categories?.[category]) ? shop.categories![category] : [];
+    const normalizedItems = rawItems.slice(0, FORMAL_SHOP_SLOTS_PER_CATEGORY).map((item, index) => normalizeFormalShopItem(item, category, index, nodeId, seed));
+    while (normalizedItems.length < FORMAL_SHOP_SLOTS_PER_CATEGORY) {
+      normalizedItems.push(createFormalShopSlot(run, nodeId, category, normalizedItems.length, normalizedItems.length, shop.updatedAt || new Date().toISOString(), new Set(normalizedItems.map(entry => entry.itemID))));
+    }
+    return [category, normalizedItems];
+  })) as Record<FormalShopCategoryV4, FormalShopItemV4[]>;
+  return {
+    nodeId,
+    seed,
+    categories,
+    updatedAt: shop.updatedAt || new Date().toISOString(),
+  };
+}
+
+function normalizeFormalShopItem(item: Partial<FormalShopItemV4>, category: FormalShopCategoryV4, index: number, nodeId: string, seed: string): FormalShopItemV4 {
+  const itemID = normalizeFormalShopPoolItemId(category, item.itemID) || pickFormalShopPoolItem(category, createRng(`${seed}:${category}:${index}`), new Set());
+  return {
+    slotId: item.slotId || `${nodeId}:${category}:${index}`,
+    category,
+    itemID,
+    stock: clampInt(item.stock, 0, 99, 1),
+    generatedAt: item.generatedAt || new Date().toISOString(),
+  };
+}
+
+function createFormalRestShop(run: Partial<FormalGameRunV4>, nodeId: string): FormalRestShopV4 {
+  const now = new Date().toISOString();
+  const seed = `${run.seed || "formal-shop"}:${nodeId}`;
+  const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
+    const used = new Set<string>();
+    const items = Array.from({length: FORMAL_SHOP_SLOTS_PER_CATEGORY}, (_, index) => {
+      const item = createFormalShopSlot(run, nodeId, category, index, index, now, used);
+      used.add(item.itemID);
+      return item;
+    });
+    return [category, items];
+  })) as Record<FormalShopCategoryV4, FormalShopItemV4[]>;
+  return {nodeId, seed, categories, updatedAt: now};
+}
+
+function createFormalShopSlot(run: Partial<FormalGameRunV4>, nodeId: string, category: FormalShopCategoryV4, index: number, rollIndex: number, now: string, used: Set<string>): FormalShopItemV4 {
+  const seed = `${run.seed || "formal-shop"}:${nodeId}:${category}:${index}:${rollIndex}:${used.size}`;
+  const itemID = pickFormalShopPoolItem(category, createRng(seed), used);
+  return {
+    slotId: `${nodeId}:${category}:${index}`,
+    category,
+    itemID,
+    stock: 1,
+    generatedAt: now,
+  };
+}
+
+function pickFormalShopPoolItem(category: FormalShopCategoryV4, rng: () => number, used: Set<string>): string {
+  const pool = FORMAL_SHOP_ITEM_POOL[category].filter(itemID => !used.has(itemID));
+  return pickOne(pool.length ? pool : FORMAL_SHOP_ITEM_POOL[category], rng) || FORMAL_SHOP_ITEM_POOL[category][0]!;
+}
+
+function normalizeFormalShopPoolItemId(category: FormalShopCategoryV4, value: unknown): string {
+  const itemID = normalizeShopItemID(value);
+  return FORMAL_SHOP_ITEM_POOL[category].includes(itemID) ? itemID : "";
+}
+
+function normalizeShopItemID(value: unknown): string {
+  const raw = String(value || "").trim().toLowerCase();
+  if (/^tm:/i.test(raw)) return `tm:${toID(raw.slice(3))}`;
+  return toID(raw);
 }
 
 function normalizeSettlementPokemonStats(stats: FormalSettlementPokemonStatsV4): FormalSettlementPokemonStatsV4 {

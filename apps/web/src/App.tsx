@@ -563,6 +563,25 @@ function RoutedApp({runtime}: AppProps) {
         onOpenDex={() => openDex()}
         onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
         moneyAmount={formalRun.money}
+        shopController={{
+          shop: api.getFormalRestShop(formalRun),
+          player: formalRun.restRunSnapshot.players.p1 || null,
+          money: formalRun.money,
+          onBuy: slotId => {
+            if (!formalRun) return "正式存档不存在。";
+            const result = api.buyFormalRestShopItem(formalRun, slotId);
+            if (!result.ok) throw new Error(result.message);
+            setFormalRun(result.run);
+            return result.message;
+          },
+          onSell: itemInstanceIds => {
+            if (!formalRun) return "正式存档不存在。";
+            const result = api.sellFormalRestBagItems(formalRun, itemInstanceIds);
+            if (!result.ok) throw new Error(result.message);
+            setFormalRun(result.run);
+            return result.message;
+          },
+        }}
       />
     ) : (
       <Navigate to="/main" replace />

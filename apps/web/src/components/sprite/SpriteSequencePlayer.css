@@ -1,0 +1,35 @@
+.sprite-sequence-player {
+  display: inline-block;
+  width: var(--sprite-sequence-player-frame-width);
+  height: var(--sprite-sequence-player-frame-height);
+  overflow: hidden;
+  line-height: 0;
+  vertical-align: top;
+}
+
+.sprite-sequence-player-strip {
+  display: block;
+  width: var(--sprite-sequence-player-sheet-width);
+  height: 100%;
+  background-image: var(--sprite-sequence-player-image);
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: var(--sprite-sequence-player-sheet-width) var(--sprite-sequence-player-frame-height);
+  image-rendering: auto;
+  will-change: transform;
+  animation-name: sprite-sequence-player-advance;
+  animation-duration: var(--sprite-sequence-player-duration);
+  animation-timing-function: steps(var(--sprite-sequence-player-step-count));
+  animation-iteration-count: var(--sprite-sequence-player-iteration-count);
+  animation-fill-mode: var(--sprite-sequence-player-fill-mode);
+}
+
+@keyframes sprite-sequence-player-advance {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(var(--sprite-sequence-player-sheet-shift-x) * -1));
+  }
+}

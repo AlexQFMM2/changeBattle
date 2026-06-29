@@ -1,0 +1,41 @@
+.training-rest-shop-preview-canvas {
+  position: relative;
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+  background: #201912;
+  color: #fff8e7;
+}
+
+.training-rest-shop-preview-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(31 22 15 / 18%), rgb(31 22 15 / 62%)),
+    url("/training/rest-center-bg.png") center / cover no-repeat;
+}
+
+.training-rest-shop-preview-controls {
+  position: absolute;
+  left: 18px;
+  top: 8px;
+  z-index: 7;
+  display: flex;
+  gap: 4px;
+}
+
+.training-rest-shop-preview-controls button {
+  height: 18px;
+  border: 1px solid rgb(236 207 134 / 68%);
+  border-radius: 4px;
+  background: rgb(38 31 24 / 88%);
+  color: #fff2bd;
+  padding: 0 7px;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-shop-preview-controls button.active {
+  background: #fff2bd;
+  color: #332313;
+}

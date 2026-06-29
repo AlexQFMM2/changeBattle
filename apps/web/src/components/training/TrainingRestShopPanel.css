@@ -1,0 +1,385 @@
+.training-rest-shop-panel {
+  --training-rest-shop-panel-width: 602px;
+  --training-rest-shop-panel-height: 258px;
+  --training-rest-shop-panel-left-width: 252px;
+  --training-rest-shop-panel-right-width: 282px;
+  --training-rest-shop-panel-top: 34px;
+  --training-rest-shop-panel-row-height: 34px;
+  position: absolute;
+  z-index: 5;
+  left: 19px;
+  top: var(--training-rest-shop-panel-top);
+  width: var(--training-rest-shop-panel-width);
+  height: var(--training-rest-shop-panel-height);
+  box-sizing: border-box;
+  border: 18px solid transparent;
+  border-image-source: url('/board/rest-panel-frame.png');
+  border-image-slice: 58 fill;
+  border-image-width: 18px;
+  border-image-repeat: stretch;
+  background:
+    linear-gradient(180deg, rgb(255 252 239 / 72%), rgb(226 206 166 / 78%));
+  color: #2b2118;
+  filter: drop-shadow(0 10px 18px rgb(0 0 0 / 34%));
+}
+
+.training-rest-shop-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.training-rest-shop-panel *,
+.training-rest-shop-panel *::before,
+.training-rest-shop-panel *::after {
+  box-sizing: border-box;
+}
+
+.training-rest-shop-bag,
+.training-rest-shop-store {
+  position: absolute;
+  top: 10px;
+  height: 202px;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid rgb(78 50 25 / 42%);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgb(255 253 240 / 82%), rgb(244 229 191 / 76%));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 42%);
+  overflow: hidden;
+}
+
+.training-rest-shop-bag {
+  left: 6px;
+  width: var(--training-rest-shop-panel-left-width);
+}
+
+.training-rest-shop-store {
+  right: 6px;
+  width: var(--training-rest-shop-panel-right-width);
+}
+
+.training-rest-shop-close {
+  position: absolute;
+  right: -16px;
+  top: -16px;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border: 3px solid #7e5130;
+  border-radius: 999px;
+  background: #f3ead8;
+  color: #2c241a;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 2px 0 rgb(57 39 22 / 32%);
+}
+
+.training-rest-shop-panel-header span {
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.training-rest-shop-panel-header {
+  height: 22px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 0 9px;
+  border-bottom: 1px solid rgb(78 50 25 / 55%);
+  color: #2b2118;
+}
+
+.training-rest-shop-panel-header strong {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.training-rest-shop-list,
+.training-rest-shop-store-list {
+  scrollbar-color: #6c5538 #e7d7ac;
+  scrollbar-width: thin;
+}
+
+.training-rest-shop-list::-webkit-scrollbar,
+.training-rest-shop-store-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.training-rest-shop-list::-webkit-scrollbar-track,
+.training-rest-shop-store-list::-webkit-scrollbar-track {
+  background: #e7d7ac;
+}
+
+.training-rest-shop-list::-webkit-scrollbar-thumb,
+.training-rest-shop-store-list::-webkit-scrollbar-thumb {
+  background: #6c5538;
+  border-radius: 6px;
+}
+
+.training-rest-shop-list {
+  position: absolute;
+  left: 7px;
+  top: 27px;
+  width: 237px;
+  height: 130px;
+  overflow: auto;
+  display: grid;
+  grid-auto-rows: var(--training-rest-shop-panel-row-height);
+  gap: 3px;
+  padding-right: 3px;
+}
+
+.training-rest-shop-list button,
+.training-rest-shop-stock {
+  min-width: 0;
+  height: var(--training-rest-shop-panel-row-height);
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgb(90 61 34 / 38%);
+  border-radius: 4px;
+  background: rgb(255 250 229 / 76%);
+  color: #2d241b;
+  padding: 3px 5px;
+  text-align: left;
+}
+
+.training-rest-shop-list button.selected {
+  border-color: #3d7d46;
+  background: #eef8da;
+  box-shadow: inset 0 0 0 1px rgb(61 125 70 / 34%);
+}
+
+.training-rest-shop-list button.disabled,
+.training-rest-shop-stock.disabled {
+  opacity: 0.58;
+}
+
+.training-rest-shop-icon {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: rgb(72 54 31 / 14%);
+  overflow: hidden;
+}
+
+.training-rest-shop-icon.large {
+  width: 31px;
+  height: 31px;
+}
+
+.training-rest-shop-icon img {
+  max-width: 21px;
+  max-height: 21px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.training-rest-shop-sprite-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  background-size: auto;
+  image-rendering: pixelated;
+}
+
+.training-rest-shop-icon.large img {
+  max-width: 28px;
+  max-height: 28px;
+}
+
+.training-rest-shop-list span,
+.training-rest-shop-stock span,
+.training-rest-shop-detail span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.training-rest-shop-list strong,
+.training-rest-shop-stock strong,
+.training-rest-shop-detail strong {
+  overflow: hidden;
+  color: #2d241b;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-shop-list small,
+.training-rest-shop-stock small,
+.training-rest-shop-detail small {
+  overflow: hidden;
+  color: #6f5638;
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-shop-list p,
+.training-rest-shop-empty {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  margin: 0;
+  color: #765c3c;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.training-rest-shop-sell-footer {
+  position: absolute;
+  left: 7px;
+  bottom: 7px;
+  width: 237px;
+  height: 29px;
+  display: grid;
+  grid-template-columns: 1fr 66px;
+  align-items: center;
+  gap: 5px;
+  border-top: 1px solid rgb(78 50 25 / 35%);
+  padding-top: 5px;
+}
+
+.training-rest-shop-sell-footer span {
+  overflow: hidden;
+  color: #372819;
+  font-size: 7px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-shop-sell-footer button,
+.training-rest-shop-stock button {
+  height: 20px;
+  border: 1px solid rgb(87 58 32 / 58%);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #fff7dc, #d9bd77);
+  color: #372413;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-shop-sell-footer button:disabled,
+.training-rest-shop-stock button:disabled {
+  opacity: 0.48;
+}
+
+.training-rest-shop-store-list {
+  position: absolute;
+  left: 7px;
+  top: 27px;
+  width: 268px;
+  height: 168px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.training-rest-shop-category {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 5px;
+}
+
+.training-rest-shop-category h3 {
+  height: 14px;
+  margin: 0;
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid rgb(86 58 33 / 34%);
+  color: #3a2918;
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.training-rest-shop-stock {
+  grid-template-columns: 26px minmax(0, 1fr) 34px 34px;
+  width: 100%;
+}
+
+.training-rest-shop-detail {
+  position: absolute;
+  left: 226px;
+  top: 21px;
+  z-index: 3;
+  width: 150px;
+  min-height: 112px;
+  border: 1px solid rgb(72 45 24 / 66%);
+  border-radius: 5px;
+  background: #fff8df;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 32%);
+  padding: 9px 8px 8px;
+}
+
+.training-rest-shop-detail > button {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  z-index: 2;
+  width: 17px;
+  height: 17px;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(92 55 27 / 62%);
+  border-radius: 4px;
+  background: #fff7dc;
+  color: #3a2315;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-shop-detail > div {
+  display: grid;
+  grid-template-columns: 31px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding-right: 14px;
+}
+
+.training-rest-shop-detail p {
+  max-height: 38px;
+  overflow: auto;
+  margin: 8px 0 5px;
+  color: #3b2b1b;
+  font-size: 6px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.training-rest-shop-detail em {
+  color: #6b3f16;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.training-rest-shop-message {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

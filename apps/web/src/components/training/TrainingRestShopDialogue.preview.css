@@ -1,0 +1,16 @@
+.training-rest-shop-dialogue-preview {
+  position: relative;
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+  background: #21140d;
+}
+
+.training-rest-shop-dialogue-preview-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(.72);
+}

@@ -17,10 +17,10 @@ export type TrainingRestNewActionBoardProps = {
 const DEFAULT_REST_ACTION_ENTRIES: TrainingRestNewActionEntry[] = [
   {label: "图鉴", iconSrc: "/ui/book.png", action: "图鉴"},
   {label: "交换", iconSrc: "/aboutIcon/exchange.png", action: "交换"},
-  {label: "商店", iconSrc: "/aboutIcon/shop.png", action: "商店"},
-  {label: "抽奖机", iconSrc: "/aboutIcon/lottery.png", action: "抽奖机"},
   {label: "遗传", iconSrc: "/aboutIcon/daycare-grandpa.png", action: "培育屋爷爷"},
   {label: "教授", iconSrc: "/aboutIcon/tutor-grandma.png", action: "教授奶奶"},
+  {label: "未开放", iconText: "?", disabled: true},
+  {label: "未开放", iconText: "?", disabled: true},
   {label: "未开放", iconText: "?", disabled: true},
   {label: "未开放", iconText: "?", disabled: true},
 ];
