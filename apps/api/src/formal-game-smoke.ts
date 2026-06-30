@@ -3,6 +3,7 @@ import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/b
 import {
   FORMAL_SHOP_COMMON_BERRY_POOL,
   FORMAL_SHOP_CONFUSION_BERRY_POOL,
+  FORMAL_SHOP_ITEM_BASE_WEIGHTS,
   FORMAL_ROUND_COUNT,
   FORMAL_SHOP_CATEGORY_ORDER,
   FORMAL_SHOP_ITEM_POOL,
@@ -14,7 +15,7 @@ import {
   STARTER_ROLE_PLAN,
   validateFormalShopCatalogV4,
 } from "@changebattle-v2/core";
-import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4} from "./formalGame.js";
+import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
   enableTestModeForProfileV4,
   normalizeStarChartV4,
@@ -460,6 +461,28 @@ assert(FORMAL_SHOP_ITEM_POOL.berry.every(itemID => [...FORMAL_SHOP_COMMON_BERRY_
 assert(formalShopItemPriceV4({category: "tm", itemID: "tm:trickroom"}, itemDetail("tm:trickroom"), moveDetail) === 100, "status TM should cost 100");
 assert(formalShopItemPriceV4({category: "tm", itemID: "tm:earthquake"}, itemDetail("tm:earthquake"), moveDetail) === 250, "100-power TM should cost 250");
 assert(formalShopItemPriceV4({category: "battle", itemID: "focussash"}, itemDetail("focussash"), moveDetail) === 900, "focus sash should use top battle price tier");
+assert(FORMAL_SHOP_ITEM_BASE_WEIGHTS.focussash < FORMAL_SHOP_ITEM_BASE_WEIGHTS.airballoon, "strong battle shop items should start rarer than light utility items");
+const calmRestockContext: FormalShopRestockContextV4 = {
+  roundIndex: 0,
+  money: FORMAL_STARTING_MONEY,
+  teamSize: 6,
+  hpPressure: 0,
+  faintedCount: 0,
+  statusCount: 0,
+  lowPpCount: 0,
+  emptyHeldItemSlots: 0,
+  physicalAttackers: 0,
+  specialAttackers: 0,
+  bulkyPokemon: 0,
+  poisonPokemon: 0,
+  lowLevelPokemon: 0,
+  imperfectIvPokemon: 0,
+};
+const injuredRestockContext: FormalShopRestockContextV4 = {...calmRestockContext, hpPressure: 2, faintedCount: 1, statusCount: 1, lowPpCount: 2};
+assert(formalShopRestockItemWeightV4("recovery", "potion", injuredRestockContext) > formalShopRestockItemWeightV4("recovery", "potion", calmRestockContext), "formal shop restock should favor HP recovery when team is injured");
+assert(formalShopRestockItemWeightV4("recovery", "revive", injuredRestockContext) > formalShopRestockItemWeightV4("recovery", "revive", calmRestockContext), "formal shop restock should favor revive items when pokemon faint");
+assert(formalShopRestockItemWeightV4("berry", "lumberry", injuredRestockContext) > formalShopRestockItemWeightV4("berry", "lumberry", calmRestockContext), "formal shop restock should favor status berries when pokemon have status");
+assert(formalShopRestockItemWeightV4("recovery", "ether", injuredRestockContext) > formalShopRestockItemWeightV4("recovery", "ether", calmRestockContext), "formal shop restock should favor PP recovery when moves run low");
 const boughtProduct = shopProducts.find(product => product.type === "berry") || shopProducts[0]!;
 const buyResult = api.buyFormalRestShopItem(roundPlanned, boughtProduct.slotId);
 assert(buyResult.ok, "formal shop buy should succeed for a displayed product");
