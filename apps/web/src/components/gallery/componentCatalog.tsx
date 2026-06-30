@@ -5,6 +5,7 @@ import {TrainingRestNewBagPanelPreview} from "../training/TrainingRestNewBagPane
 import {TrainingRestNewTeamPanelPreview} from "../training/TrainingRestNewTeamPanel.preview";
 import {TrainingRestShopDialoguePreview} from "../training/TrainingRestShopDialogue.preview";
 import {TrainingRestShopScenePreview} from "../training/TrainingRestShopScene.preview";
+import {TrainingRestTrainingGroundScenePreview} from "../training/TrainingRestTrainingGroundScene.preview";
 import {TrainingRestNextPreviewPanelPreview} from "../training/TrainingRestNextPreviewPanel.preview";
 
 export type ComponentPreviewEntry = {
@@ -32,6 +33,12 @@ export const COMPONENT_PREVIEWS: ComponentPreviewEntry[] = [
     title: "商店独立场景",
     description: "复合组件：商店背景、金币显示和常驻欢迎菜单。",
     render: () => <TrainingRestShopScenePreview />,
+  },
+  {
+    id: "training-rest-training-ground-scene",
+    title: "训练场独立场景",
+    description: "复合组件：训练场背景、课程对话、翻转面板、宝可梦选择、技能学习和自习结果。",
+    render: api => <TrainingRestTrainingGroundScenePreview api={api} />,
   },
   {
     id: "training-rest-shop-dialogue",

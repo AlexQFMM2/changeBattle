@@ -4,6 +4,7 @@ export function TrainingRestConfirmDialog({
   title,
   message,
   confirmLabel,
+  cancelLabel = "取消",
   danger = false,
   onCancel,
   onConfirm,
@@ -12,6 +13,7 @@ export function TrainingRestConfirmDialog({
   title: string;
   message: string;
   confirmLabel: string;
+  cancelLabel?: string;
   danger?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -23,7 +25,7 @@ export function TrainingRestConfirmDialog({
         <strong>{title}</strong>
         <span>{message}</span>
         <footer>
-          <button type="button" onClick={onCancel}>取消</button>
+          <button type="button" onClick={onCancel}>{cancelLabel}</button>
           <button type="button" className={danger ? "danger" : ""} onClick={onConfirm}>{confirmLabel}</button>
         </footer>
       </div>

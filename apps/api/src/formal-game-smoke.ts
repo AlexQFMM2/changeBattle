@@ -75,6 +75,12 @@ const api = createFormalGameRunApi({
   getPokemonSelfLearnSkills() {
     return ["tackle", "watergun", "protect", "raindance", "trickroom", "flamethrower"].map(moveDetail);
   },
+  getPokemonTutorSkills() {
+    return ["protect", "raindance", "thunderbolt"].map(moveDetail);
+  },
+  getPokemonEggSkills() {
+    return ["toxic", "willowisp", "substitute"].map(moveDetail);
+  },
   getMoveDetail(id: string) {
     return moveDetail(id);
   },
@@ -495,6 +501,55 @@ if (boughtItem) {
   assert(sellResult.ok, "formal shop sell should accept bought item");
   assert(sellResult.run.money === buyResult.run.money + sellPrice, "formal shop sell should derive value from formal shop price");
 }
+
+const trainingLesson = api.getFormalTrainingGroundLesson(roundPlanned);
+const trainingLessonAgain = api.getFormalTrainingGroundLesson(roundPlanned);
+assert(trainingLesson && trainingLesson.lessonId === trainingLessonAgain?.lessonId, "formal training ground lesson should be stable for same run node and roll");
+const nextTrainingRun = api.advanceFormalTrainingGroundLesson(roundPlanned);
+const nextTrainingLesson = api.getFormalTrainingGroundLesson(nextTrainingRun);
+assert((nextTrainingRun.trainingGroundByNodeId?.[roundPlanned.restRunSnapshot!.currentNodeId]?.lessonRoll || 0) === 1, "formal training ground advance should increment lessonRoll");
+assert(nextTrainingLesson && nextTrainingLesson.lessonId !== trainingLesson?.lessonId, "formal training ground advance should draw next lesson");
+const poorTrainingRun = {...roundPlanned, money: 0};
+const poorTrainingResult = api.applyFormalTrainingGroundLesson(poorTrainingRun, {pokemonId: roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.localPokemonId});
+assert(!poorTrainingResult.ok && poorTrainingResult.run.money === 0, "formal training ground should reject insufficient funds without changing money");
+let moveLessonRun = roundPlanned;
+let moveLesson = api.getFormalTrainingGroundLesson(moveLessonRun);
+for (let guard = 0; moveLesson && !["tutor", "egg"].includes(moveLesson.kind) && guard < 12; guard += 1) {
+  moveLessonRun = api.advanceFormalTrainingGroundLesson(moveLessonRun);
+  moveLesson = api.getFormalTrainingGroundLesson(moveLessonRun);
+}
+assert(moveLesson && ["tutor", "egg"].includes(moveLesson.kind), "formal training ground should be able to draw a tutor or egg move lesson");
+const moveLessonPokemon = moveLessonRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+const moveLessonCandidates = moveLesson.kind === "tutor"
+  ? ["thunderbolt", "protect", "raindance"]
+  : moveLesson.kind === "egg"
+    ? ["toxic", "willowisp", "substitute"]
+    : ["flamethrower", "trickroom", "watergun", "tackle"];
+let moveLessonMove = moveLessonCandidates[0]!;
+let moveTrainingResult = api.applyFormalTrainingGroundLesson(moveLessonRun, {pokemonId: moveLessonPokemon.localPokemonId, moveId: moveLessonMove, replaceMoveIndex: 0});
+for (const candidateMove of moveLessonCandidates.slice(1)) {
+  if (moveTrainingResult.ok) break;
+  moveLessonMove = candidateMove;
+  moveTrainingResult = api.applyFormalTrainingGroundLesson(moveLessonRun, {pokemonId: moveLessonPokemon.localPokemonId, moveId: moveLessonMove, replaceMoveIndex: 0});
+}
+assert(moveTrainingResult.ok, `formal training ground move lesson should apply a valid source move: ${moveLesson.kind}/${moveLessonMove}/${moveTrainingResult.message}`);
+assert(moveTrainingResult.run.money === moveLessonRun.money - moveLesson.fee, "formal training ground move lesson should deduct fee");
+assert(moveTrainingResult.run.restRunSnapshot?.players.p1?.localTeam.pokemon[0]?.moves[0]?.moveId === moveLessonMove, "formal training ground move lesson should replace selected move slot");
+let selfStudyRun = roundPlanned;
+let selfStudyLesson = api.getFormalTrainingGroundLesson(selfStudyRun);
+for (let guard = 0; selfStudyLesson?.kind !== "self-study" && guard < 8; guard += 1) {
+  selfStudyRun = api.advanceFormalTrainingGroundLesson(selfStudyRun);
+  selfStudyLesson = api.getFormalTrainingGroundLesson(selfStudyRun);
+}
+assert(selfStudyLesson?.kind === "self-study", "formal training ground should be able to draw a self-study lesson");
+const selfStudyPokemon = selfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+const selfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyRun, {pokemonId: selfStudyPokemon.localPokemonId});
+const selfStudyAfter = selfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+assert(selfStudyResult.ok, "formal training ground self-study should apply");
+assert(selfStudyResult.run.money === selfStudyRun.money - selfStudyLesson.fee, "formal training ground self-study should deduct fee");
+assert(selfStudyAfter.level >= 1 && selfStudyAfter.level <= 100, "formal training ground self-study should keep level in bounds");
+assert(Object.values(selfStudyAfter.ivs).every(value => inRange(value, 0, 31)), "formal training ground self-study should keep IVs in bounds");
+assert(Object.values(selfStudyAfter.evs).every(value => inRange(value, 0, 252)), "formal training ground self-study should keep EVs in bounds");
 
 const withCoinLog = api.appendCoinLogEntryV4(roundPlanned, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withCoinLog.money === roundPlanned.money - 10, "coin log should update formal money");

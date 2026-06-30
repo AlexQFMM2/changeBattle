@@ -582,6 +582,22 @@ function RoutedApp({runtime}: AppProps) {
             return result.message;
           },
         }}
+        trainingGroundController={{
+          lesson: api.getFormalTrainingGroundLesson(formalRun),
+          player: formalRun.restRunSnapshot.players.p1 || null,
+          money: formalRun.money,
+          onApply: input => {
+            if (!formalRun) throw new Error("正式存档不存在。");
+            const result = api.applyFormalTrainingGroundLesson(formalRun, input);
+            if (!result.ok) throw new Error(result.message);
+            setFormalRun(result.run);
+            return result;
+          },
+          onAdvance: () => {
+            if (!formalRun) return;
+            setFormalRun(api.advanceFormalTrainingGroundLesson(formalRun));
+          },
+        }}
       />
     ) : (
       <Navigate to="/main" replace />

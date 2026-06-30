@@ -4,6 +4,9 @@ import {
   REST_CENTER_LEFT_SIDE_ACTIONS_V4,
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   type ChangeBattleV2Api,
+  type FormalTrainingGroundApplyInputV4,
+  type FormalTrainingGroundLessonViewV4,
+  type FormalTrainingGroundResultV4,
   type TrainingPlayerDraftV4,
   type TrainingRunGameV4,
 } from "@changebattle-v2/api";
@@ -13,6 +16,7 @@ import {TrainingRestNextPreviewPanel, type PreviewPokemonEntry} from "./Training
 import {TrainingRestNewActionBoard} from "./TrainingRestNewActionBoard";
 import {TrainingRestNewBagPanel} from "./TrainingRestNewBagPanel";
 import {TrainingRestShopScene} from "./TrainingRestShopScene";
+import {TrainingRestTrainingGroundScene} from "./TrainingRestTrainingGroundScene";
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
 import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
@@ -27,6 +31,14 @@ export type TrainingRestShopController = {
   onSell: (itemInstanceIds: string[]) => Promise<string> | string;
 };
 
+export type TrainingRestTrainingGroundController = {
+  lesson: FormalTrainingGroundLessonViewV4 | null;
+  player: TrainingPlayerDraftV4 | null;
+  money: number;
+  onApply: (input: FormalTrainingGroundApplyInputV4) => Promise<FormalTrainingGroundResultV4> | FormalTrainingGroundResultV4;
+  onAdvance: () => Promise<void> | void;
+};
+
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
   run: TrainingRunGameV4;
@@ -39,14 +51,16 @@ export type TrainingRestNewPageProps = {
   onAbandonRun?: () => void;
   moneyAmount?: number;
   shopController?: TrainingRestShopController;
+  trainingGroundController?: TrainingRestTrainingGroundController;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, shopController}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, shopController, trainingGroundController}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
-  const [restScene, setRestScene] = useState<"center" | "shop">("center");
+  const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [bagPanelOpen, setBagPanelOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
+  const [lessonEndOpen, setLessonEndOpen] = useState(false);
   const [unlockTarget, setUnlockTarget] = useState<PreviewPokemonEntry | null>(null);
   const [message, setMessage] = useState("休整中心已就绪。");
   const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
@@ -156,6 +170,19 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       setMessage("欢迎光临，货架已经整理好了。");
       return;
     }
+    if (action === "训练场") {
+      setTeamPanelOpen(false);
+      setBagPanelOpen(false);
+      if (!trainingGroundController) {
+        setRestScene("center");
+        setMessage("训练场仅正式流程开放。");
+        showNotice("训练场仅正式流程开放。");
+        return;
+      }
+      setRestScene("training-ground");
+      setMessage("训练场课程已经开始。");
+      return;
+    }
     if (["我的背包", "图鉴", "保存"].includes(action)) {
       setRestScene("center");
       setTeamPanelOpen(false);
@@ -248,6 +275,23 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             setMessage("已返回休整中心。");
           }}
         />
+        <TrainingRestTrainingGroundScene
+          api={api}
+          open={restScene === "training-ground"}
+          lesson={trainingGroundController?.lesson}
+          player={trainingGroundController?.player}
+          money={trainingGroundController?.money ?? moneyAmount ?? 0}
+          onApply={trainingGroundController?.onApply}
+          onLessonComplete={nextMessage => {
+            setMessage(nextMessage);
+            setLessonEndOpen(true);
+          }}
+          onBack={() => {
+            setRestScene("center");
+            setActiveAction("我的队伍");
+            setMessage("已返回休整中心。");
+          }}
+        />
       </div>
       {toast ? (
         <TrainingRestToast
@@ -277,6 +321,28 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           ariaLabel="确认解锁预览"
           onCancel={() => setUnlockTarget(null)}
           onConfirm={() => unlockPreviewPokemon(unlockTarget)}
+        />
+      ) : null}
+      {lessonEndOpen ? (
+        <TrainingRestConfirmDialog
+          title="当前课程已结束"
+          message="是否等待下一堂课开始？"
+          confirmLabel="等待下一堂"
+          cancelLabel="返回休整中心"
+          ariaLabel="确认等待下一堂训练课"
+          onCancel={() => {
+            setLessonEndOpen(false);
+            setRestScene("center");
+            setActiveAction("我的队伍");
+            setMessage("已返回休整中心。");
+          }}
+          onConfirm={async () => {
+            setLessonEndOpen(false);
+            await trainingGroundController?.onAdvance();
+            setRestScene("training-ground");
+            setActiveAction("训练场");
+            setMessage("下一堂课开始了。");
+          }}
         />
       ) : null}
     </motion.section>

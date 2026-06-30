@@ -111,6 +111,52 @@ export type FormalShopTransactionResultV4 = {
 
 export type {FormalShopProductViewV4};
 
+export type FormalTrainingGroundLessonKindV4 = "tutor" | "egg" | "self-learn" | "self-study";
+
+export type FormalTrainingGroundLessonSourceV4 = "tutor" | "egg" | "levelup" | "self-study";
+
+export type FormalTrainingGroundStateV4 = {
+  nodeId: string;
+  lessonRoll: number;
+  updatedAt: string;
+};
+
+export type FormalTrainingGroundLessonViewV4 = {
+  lessonId: string;
+  kind: FormalTrainingGroundLessonKindV4;
+  teacherLabel: string;
+  introText: string;
+  completeText: string;
+  fee: number;
+  source: FormalTrainingGroundLessonSourceV4;
+};
+
+export type FormalTrainingGroundApplyInputV4 = {
+  pokemonId: string;
+  moveId?: string;
+  replaceMoveIndex?: number;
+};
+
+export type FormalTrainingGroundSelfStudyEventV4 = "sleep" | "normal" | "focused";
+
+export type FormalTrainingGroundSelfStudyChangeV4 = {
+  levelBefore: number;
+  levelAfter: number;
+  ivsBefore: StatTableV4;
+  ivsAfter: StatTableV4;
+  evsBefore: StatTableV4;
+  evsAfter: StatTableV4;
+};
+
+export type FormalTrainingGroundResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  message: string;
+  lesson: FormalTrainingGroundLessonViewV4 | null;
+  selfStudyEvent?: FormalTrainingGroundSelfStudyEventV4;
+  selfStudyChange?: FormalTrainingGroundSelfStudyChangeV4;
+};
+
 export type FormalRoundNpcSnapshotV4 = {
   id: string;
   trainerId: string;
@@ -235,6 +281,7 @@ export type FormalGameRunV4 = {
   currentRoundIndex: number;
   money: number;
   shopByNodeId?: Record<string, FormalRestShopV4>;
+  trainingGroundByNodeId?: Record<string, FormalTrainingGroundStateV4>;
   settlement: FormalGameSettlementV4 | null;
 };
 
@@ -302,6 +349,9 @@ export type FormalGameRunApi = {
   getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[];
   buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
   sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4;
+  getFormalTrainingGroundLesson(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4 | null;
+  advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4;
+  applyFormalTrainingGroundLesson(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundResultV4;
   selectedCountForFormalMode(mode: FormalGameModeV4): number;
 };
 
@@ -711,6 +761,195 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     return shopTransactionResult(true, withLog, `已卖出 ${soldNames.length} 件道具，获得 ${total} 金币。`, getFormalRestShop(withLog));
   }
 
+  function getFormalTrainingGroundLesson(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4 | null {
+    const normalized = normalizeFormalRun(run);
+    const node = currentFormalRestNode(normalized);
+    if (!node) return null;
+    const state = ensureFormalTrainingGroundState(normalized, node.id);
+    return createFormalTrainingGroundLesson(normalized, node.id, state.lessonRoll);
+  }
+
+  function advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4 {
+    const normalized = normalizeFormalRun(run);
+    const node = currentFormalRestNode(normalized);
+    if (!node) return normalized;
+    const now = new Date().toISOString();
+    const state = ensureFormalTrainingGroundState(normalized, node.id);
+    return normalizeFormalRun({
+      ...normalized,
+      trainingGroundByNodeId: {
+        ...(normalized.trainingGroundByNodeId || {}),
+        [node.id]: {
+          nodeId: node.id,
+          lessonRoll: state.lessonRoll + 1,
+          updatedAt: now,
+        },
+      },
+      updatedAt: now,
+    });
+  }
+
+  function applyFormalTrainingGroundLesson(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const node = currentFormalRestNode(normalized);
+    const lesson = getFormalTrainingGroundLesson(normalized);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    const p1 = restRunSnapshot?.players.p1;
+    if (!node || !lesson || !restRunSnapshot || !p1) return trainingGroundResult(false, normalized, "当前没有可用的训练场课程。", lesson);
+    if (normalized.money < lesson.fee) return trainingGroundResult(false, normalized, "金币不足，先去赚一点再来上课吧。", lesson);
+    const pokemonIndex = p1.localTeam.pokemon.findIndex(pokemon => pokemon.localPokemonId === input.pokemonId);
+    const pokemon = pokemonIndex >= 0 ? p1.localTeam.pokemon[pokemonIndex] : null;
+    if (!pokemon) return trainingGroundResult(false, normalized, "请选择要进入课堂的宝可梦。", lesson);
+    if (lesson.kind === "self-study") {
+      return applyFormalTrainingGroundSelfStudy(normalized, node, p1, pokemon, pokemonIndex, lesson);
+    }
+    return applyFormalTrainingGroundMoveLesson(normalized, node, p1, pokemon, pokemonIndex, lesson, input);
+  }
+
+  function applyFormalTrainingGroundMoveLesson(
+    run: FormalGameRunV4,
+    node: TrainingRunGameNodeV4,
+    p1: TrainingPlayerDraftV4,
+    pokemon: LocalPokemonV4,
+    pokemonIndex: number,
+    lesson: FormalTrainingGroundLessonViewV4,
+    input: FormalTrainingGroundApplyInputV4,
+  ): FormalTrainingGroundResultV4 {
+    const moveId = toID(input.moveId);
+    if (!moveId) return trainingGroundResult(false, run, "请选择要学习的招式。", lesson);
+    const movePool = formalTrainingGroundMovePool(lesson.kind, pokemon.speciesId);
+    const selectedMove = movePool.find(move => toID(move.id) === moveId) || null;
+    if (!selectedMove) return trainingGroundResult(false, run, "这堂课不能学习这个招式。", lesson);
+    if (pokemon.moves.some(move => toID(move.moveId) === moveId)) return trainingGroundResult(false, run, `${pokemon.nameZh || pokemon.name}已经会这个招式了。`, lesson);
+    const replaceMoveIndex = clampInt(input.replaceMoveIndex, 0, 3, -1);
+    if (replaceMoveIndex < 0 || replaceMoveIndex >= pokemon.moves.length) return trainingGroundResult(false, run, "请选择要替换的招式。", lesson);
+    if (pokemon.locks?.moves?.[replaceMoveIndex]) return trainingGroundResult(false, run, "这个招式槽被锁定，不能替换。", lesson);
+    const nextMove = moveSlotFromSummary(selectedMove);
+    const nextPokemon = {
+      ...pokemon,
+      moves: pokemon.moves.map((move, index) => index === replaceMoveIndex ? nextMove : move),
+    };
+    const message = `${pokemon.nameZh || pokemon.name}学会了${nextMove.nameZh || nextMove.name}。${lesson.completeText}`;
+    return commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message);
+  }
+
+  function applyFormalTrainingGroundSelfStudy(
+    run: FormalGameRunV4,
+    node: TrainingRunGameNodeV4,
+    p1: TrainingPlayerDraftV4,
+    pokemon: LocalPokemonV4,
+    pokemonIndex: number,
+    lesson: FormalTrainingGroundLessonViewV4,
+  ): FormalTrainingGroundResultV4 {
+    const state = ensureFormalTrainingGroundState(run, node.id);
+    const rng = createRng(`${run.seed}:${node.id}:training-ground:self-study:${state.lessonRoll}:${pokemon.localPokemonId}`);
+    const event = rollFormalTrainingGroundSelfStudyEvent(pokemon, rng);
+    const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
+    const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
+    const levelBefore = clampInt(pokemon.level, 1, 100, 50);
+    const delta = event === "sleep" ? -10 : event === "focused" ? 20 : 10;
+    const ivDelta = event === "sleep" ? -10 : event === "focused" ? 5 : 2;
+    const levelDelta = event === "sleep" ? -1 : event === "focused" ? 2 : 1;
+    const nextIvs = adjustStatTable(beforeIvs, ivDelta, 0, 31);
+    const nextEvs = adjustStatTable(beforeEvs, delta, 0, 252);
+    const levelAfter = clampInt(levelBefore + levelDelta, 1, 100, levelBefore);
+    const detail = safePokemon(pokemon.speciesId);
+    const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level: levelAfter, nature: pokemon.nature || "Serious", evs: nextEvs, ivs: nextIvs}).stats.hp;
+    const hpRatio = pokemon.maxHp > 0 ? pokemon.entryHp / pokemon.maxHp : 1;
+    const nextPokemon = {
+      ...pokemon,
+      speciesId: detail.id,
+      level: levelAfter,
+      ivs: nextIvs,
+      evs: nextEvs,
+      maxHp,
+      entryHp: clampInt(Math.round(maxHp * hpRatio), 0, maxHp, maxHp),
+    };
+    const eventText = event === "sleep"
+      ? "睡了一节课，状态反而松散了一点"
+      : event === "focused"
+        ? "认真学习了一整节课，进步很明显"
+        : "踏踏实实自习了一节课，稳稳有提升";
+    const message = `${pokemon.nameZh || pokemon.name}${eventText}。${lesson.completeText}`;
+    const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message);
+    return {
+      ...result,
+      selfStudyEvent: event,
+      selfStudyChange: {
+        levelBefore,
+        levelAfter,
+        ivsBefore: beforeIvs,
+        ivsAfter: nextIvs,
+        evsBefore: beforeEvs,
+        evsAfter: nextEvs,
+      },
+    };
+  }
+
+  function commitFormalTrainingGroundPokemonUpdate(
+    run: FormalGameRunV4,
+    node: TrainingRunGameNodeV4,
+    p1: TrainingPlayerDraftV4,
+    pokemonIndex: number,
+    nextPokemon: LocalPokemonV4,
+    lesson: FormalTrainingGroundLessonViewV4,
+    message: string,
+  ): FormalTrainingGroundResultV4 {
+    const restRunSnapshot = run.restRunSnapshot;
+    if (!restRunSnapshot) return trainingGroundResult(false, run, "当前没有可用的训练场课程。", lesson);
+    const now = new Date().toISOString();
+    const nextTeam = {
+      ...p1.localTeam,
+      pokemon: p1.localTeam.pokemon.map((pokemon, index) => index === pokemonIndex ? nextPokemon : pokemon),
+    };
+    const nextP1 = {...p1, localTeam: nextTeam};
+    const nextRestRun = patchFormalRestP1(restRunSnapshot, nextP1, now);
+    const withLesson = {
+      ...run,
+      restRunSnapshot: nextRestRun,
+      trainingGroundByNodeId: {
+        ...(run.trainingGroundByNodeId || {}),
+        [node.id]: ensureFormalTrainingGroundState(run, node.id),
+      },
+      updatedAt: now,
+    };
+    const withLog = appendShopCoinLogFast(withLesson, {
+      key: `training-ground:${node.id}:${lesson.lessonId}:${nextPokemon.localPokemonId}:${now}`,
+      amount: -lesson.fee,
+      source: "training-ground",
+      label: `训练场 ${lesson.teacherLabel}`,
+      roundIndex: node.index,
+      at: now,
+    });
+    return trainingGroundResult(true, normalizeFormalRun(withLog), message, lesson);
+  }
+
+  function formalTrainingGroundMovePool(kind: FormalTrainingGroundLessonKindV4, speciesId: string): DexMoveSummary[] {
+    try {
+      if (kind === "tutor") return dex.getPokemonTutorSkills(speciesId);
+      if (kind === "egg") return dex.getPokemonEggSkills(speciesId);
+      if (kind === "self-learn") return dex.getPokemonSelfLearnSkills(speciesId);
+    } catch {
+      return [];
+    }
+    return [];
+  }
+
+  function moveSlotFromSummary(move: DexMoveSummary): TrainingMoveSlotV4 {
+    return {
+      moveId: move.id,
+      name: move.name,
+      nameZh: move.nameZh,
+      type: move.type,
+      category: move.category,
+      power: move.power,
+      accuracy: move.accuracy,
+      pp: move.pp,
+      maxPp: move.pp,
+      remainingPp: move.pp,
+    };
+  }
+
   function getItemDetailSafe(itemID: string): DexItemDetail | null {
     try {
       return dex.getItemDetail(itemID);
@@ -801,6 +1040,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       currentRoundIndex: clampInt(run.currentRoundIndex, 0, FORMAL_ROUND_COUNT - 1, 0),
       money: clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY),
       shopByNodeId: normalizeFormalShopByNodeId(run.shopByNodeId, run),
+      trainingGroundByNodeId: normalizeFormalTrainingGroundByNodeId(run.trainingGroundByNodeId),
       settlement: normalizeSettlement(run.settlement),
     };
   }
@@ -1282,6 +1522,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     getFormalRestShopProducts,
     buyFormalRestShopItem,
     sellFormalRestBagItems,
+    getFormalTrainingGroundLesson,
+    advanceFormalTrainingGroundLesson,
+    applyFormalTrainingGroundLesson,
     selectedCountForFormalMode,
   };
 }
@@ -2070,6 +2313,88 @@ function currentFormalRestNode(run: FormalGameRunV4): TrainingRunGameNodeV4 | nu
   return snapshot.gameMap.find(node => node.id === snapshot.currentNodeId) || snapshot.gameMap.find(node => node.state === "ready") || snapshot.gameMap[0] || null;
 }
 
+function ensureFormalTrainingGroundState(run: FormalGameRunV4, nodeId: string): FormalTrainingGroundStateV4 {
+  const current = run.trainingGroundByNodeId?.[nodeId];
+  if (current) return normalizeFormalTrainingGroundState(current, nodeId);
+  return {
+    nodeId,
+    lessonRoll: 0,
+    updatedAt: run.updatedAt || run.createdAt || new Date().toISOString(),
+  };
+}
+
+function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, lessonRoll: number): FormalTrainingGroundLessonViewV4 {
+  const lessons: Array<Omit<FormalTrainingGroundLessonViewV4, "lessonId">> = [
+    {
+      kind: "tutor",
+      teacherLabel: "老奶奶",
+      introText: "一位年迈慈祥的奶奶正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
+      completeText: "教授课程结束了。",
+      fee: 200,
+      source: "tutor",
+    },
+    {
+      kind: "egg",
+      teacherLabel: "老爷爷",
+      introText: "一位沉稳严厉的爷爷正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
+      completeText: "蛋招式课程结束了。",
+      fee: 200,
+      source: "egg",
+    },
+    {
+      kind: "self-learn",
+      teacherLabel: "年轻小姐",
+      introText: "一位漂亮美丽的姐姐正在教学，是否让宝可梦进入学习？旁听费 500 金币。",
+      completeText: "自学招式课程结束了。",
+      fee: 500,
+      source: "levelup",
+    },
+    {
+      kind: "self-study",
+      teacherLabel: "自习课",
+      introText: "教室里现在没有老师，大家都在埋头自习，是否让宝可梦自主学习？座位费 400 金币。",
+      completeText: "自习课结束了。",
+      fee: 400,
+      source: "self-study",
+    },
+  ];
+  const rng = createRng(`${run.seed}:${nodeId}:training-ground:${lessonRoll}`);
+  const lesson = lessons[Math.floor(rng() * lessons.length)] || lessons[0]!;
+  return {
+    ...lesson,
+    lessonId: `${nodeId}:lesson:${lessonRoll}:${lesson.kind}`,
+  };
+}
+
+function trainingGroundResult(ok: boolean, run: FormalGameRunV4, message: string, lesson: FormalTrainingGroundLessonViewV4 | null): FormalTrainingGroundResultV4 {
+  return {ok, run, message, lesson};
+}
+
+function rollFormalTrainingGroundSelfStudyEvent(pokemon: LocalPokemonV4, rng: () => number): FormalTrainingGroundSelfStudyEventV4 {
+  const nature = toID(pokemon.nature);
+  const focusedNatures = new Set(["serious", "hardy", "adamant", "modest", "jolly", "timid", "bold", "calm", "careful", "impish"]);
+  const sleepyNatures = new Set(["relaxed", "lax", "gentle", "quiet", "docile", "naive"]);
+  let sleep = 0.2;
+  let focused = 0.25;
+  if (focusedNatures.has(nature)) {
+    sleep -= 0.05;
+    focused += 0.1;
+  } else if (sleepyNatures.has(nature)) {
+    sleep += 0.1;
+    focused -= 0.05;
+  }
+  sleep = Math.max(0.05, Math.min(0.4, sleep));
+  focused = Math.max(0.1, Math.min(0.45, focused));
+  const roll = rng();
+  if (roll < sleep) return "sleep";
+  if (roll > 1 - focused) return "focused";
+  return "normal";
+}
+
+function adjustStatTable(stats: StatTableV4, delta: number, min: number, max: number): StatTableV4 {
+  return Object.fromEntries(STAT_IDS.map(stat => [stat, clampInt(stats[stat] + delta, min, max, stats[stat])])) as StatTableV4;
+}
+
 function ensureFormalRestShopFast(run: FormalGameRunV4, nodeId: string): FormalRestShopV4 {
   return normalizeFormalShop(run.shopByNodeId?.[nodeId], run, nodeId) || createFormalRestShop(run, nodeId);
 }
@@ -2305,6 +2630,22 @@ function normalizeFormalShopByNodeId(value: unknown, run: Partial<FormalGameRunV
     const normalized = normalizeFormalShop(shop, run, nodeId);
     return normalized ? [[nodeId, normalized]] : [];
   }));
+}
+
+function normalizeFormalTrainingGroundByNodeId(value: unknown): Record<string, FormalTrainingGroundStateV4> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value as Record<string, FormalTrainingGroundStateV4>).map(([nodeId, state]) => [
+    nodeId,
+    normalizeFormalTrainingGroundState(state, nodeId),
+  ]));
+}
+
+function normalizeFormalTrainingGroundState(state: Partial<FormalTrainingGroundStateV4> | null | undefined, fallbackNodeId: string): FormalTrainingGroundStateV4 {
+  return {
+    nodeId: state?.nodeId || fallbackNodeId,
+    lessonRoll: Math.max(0, Math.floor(Number(state?.lessonRoll || 0))),
+    updatedAt: state?.updatedAt || new Date().toISOString(),
+  };
 }
 
 function normalizeFormalShop(shop: Partial<FormalRestShopV4> | null | undefined, run: Partial<FormalGameRunV4>, fallbackNodeId: string): FormalRestShopV4 | null {
