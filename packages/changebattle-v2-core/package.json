@@ -3,19 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./formalSpeciesRanks": {
       "types": "./src/formalSpeciesRanks.ts",
-      "default": "./src/formalSpeciesRanks.ts"
+      "import": "./dist/formalSpeciesRanks.js",
+      "default": "./dist/formalSpeciesRanks.js"
     }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
