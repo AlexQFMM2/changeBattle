@@ -241,6 +241,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           player={shopController?.player}
           money={shopController?.money ?? moneyAmount ?? 0}
           onBuy={shopController?.onBuy}
+          onSell={shopController?.onSell}
           onBack={() => {
             setRestScene("center");
             setActiveAction("我的队伍");

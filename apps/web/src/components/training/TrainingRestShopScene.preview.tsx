@@ -4,14 +4,25 @@ import {TrainingRestShopScene} from "./TrainingRestShopScene";
 import "./TrainingRestShopScene.preview.css";
 
 const PREVIEW_API = createChangeBattleV2Api();
+const PREVIEW_BAG_ITEMS = [
+  PREVIEW_API.createItemInstance("potion", {id: "preview-bag-potion", cost: 20}),
+  PREVIEW_API.createItemInstance("sitrusberry", {id: "preview-bag-sitrus", cost: 20}),
+  PREVIEW_API.createItemInstance("leftovers", {id: "preview-bag-leftovers", cost: 600}),
+  PREVIEW_API.createItemInstance("tm:protect", {id: "preview-bag-protect", cost: 100}),
+  PREVIEW_API.createItemInstance("system-mega-stone", {id: "preview-bag-system", canSale: false, cost: 0}),
+];
+const PREVIEW_TEAM = PREVIEW_API.randomizeTrainingTeam("p1", 3, ["venusaur", "charizard", "blastoise"]);
 const PREVIEW_PLAYER: TrainingPlayerDraftV4 = {
   playerId: "p1",
   name: "预览训练师",
   avatar: "/npc/avatars/6-asset-a73f3e71.webp",
   controller: "local",
   alliance: "near",
-  localTeam: PREVIEW_API.randomizeTrainingTeam("p1", 3, ["venusaur", "charizard", "blastoise"]),
-  bag: {maxSize: 50, items: [], battleBagEnabled: true},
+  localTeam: {
+    ...PREVIEW_TEAM,
+    pokemon: PREVIEW_TEAM.pokemon.map((pokemon, index) => index === 0 ? {...pokemon, heldItemInstanceId: "preview-bag-sitrus"} : pokemon),
+  },
+  bag: {maxSize: 50, items: PREVIEW_BAG_ITEMS, battleBagEnabled: true},
 };
 
 const PREVIEW_SHOP: FormalRestShopV4 = {
@@ -59,6 +70,7 @@ export function TrainingRestShopScenePreview() {
         money={3600}
         busy={!open}
         onBuy={slotId => `预览购买：${slotId}`}
+        onSell={itemIds => `预览售出 ${itemIds.length} 件道具。`}
         onBack={() => setOpen(current => !current)}
       />
       <div className="training-rest-shop-scene-preview-note" role="status">

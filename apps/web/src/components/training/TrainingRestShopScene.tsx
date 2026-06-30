@@ -1,8 +1,9 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, FormalRestShopV4, FormalShopProductViewV4, LocalPokemonV4, TrainingMoveSlotV4, TrainingPlayerDraftV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, FormalRestShopV4, FormalShopProductViewV4, LocalPokemonV4, PlayerItemInstanceV4, TrainingMoveSlotV4, TrainingPlayerDraftV4} from "@changebattle-v2/api";
 import {TrainingRestShopBuyList} from "./TrainingRestShopBuyList";
 import {TrainingRestShopDialogue} from "./TrainingRestShopDialogue";
 import {TrainingRestShopInteractionPanel, type TrainingRestShopInteractionMode} from "./TrainingRestShopInteractionPanel";
+import {TrainingRestShopSellList, sellPrice} from "./TrainingRestShopSellList";
 import "./TrainingRestShopScene.css";
 
 export type TrainingRestShopSceneProps = {
@@ -13,6 +14,7 @@ export type TrainingRestShopSceneProps = {
   money: number;
   busy?: boolean;
   onBuy?: (slotId: string) => Promise<string> | string;
+  onSell?: (itemInstanceIds: string[]) => Promise<string> | string;
   onBack: () => void;
 };
 
@@ -44,10 +46,12 @@ const SHOP_RESIST_BERRY_EFFECTS: Record<string, {attackType: string; attackTypeZ
   roseliberry: {attackType: "Fairy", attackTypeZh: "妖精", weakTo: ["Fighting", "Dragon", "Dark"]},
 };
 
-export function TrainingRestShopScene({api, open, shop, player, money, busy = false, onBuy, onBack}: TrainingRestShopSceneProps) {
+export function TrainingRestShopScene({api, open, shop, player, money, busy = false, onBuy, onSell, onBack}: TrainingRestShopSceneProps) {
   const [dialogueText, setDialogueText] = useState(SHOP_WELCOME_TEXT);
   const [interactionMode, setInteractionMode] = useState<TrainingRestShopInteractionMode | null>(null);
   const [selectedShopItem, setSelectedShopItem] = useState<FormalShopProductViewV4 | null>(null);
+  const [selectedSellIds, setSelectedSellIds] = useState<Set<string>>(() => new Set());
+  const [selling, setSelling] = useState(false);
   const [buyingSlotId, setBuyingSlotId] = useState<string | null>(null);
   const [breakingSlotId, setBreakingSlotId] = useState<string | null>(null);
   const [breakingProduct, setBreakingProduct] = useState<FormalShopProductViewV4 | null>(null);
@@ -56,6 +60,10 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
   const animationTimersRef = useRef<number[]>([]);
   const shopProducts = useMemo(() => api?.createFormalShopProductViews ? api.createFormalShopProductViews(shop) : [], [api, shop]);
   const slotItemIds = useMemo(() => new Map(shopProducts.map(product => [product.slotId, product.itemID])), [shopProducts]);
+  const sellItems = player?.bag.items || [];
+  const heldItemInstanceIds = useMemo(() => new Set((player?.localTeam.pokemon || []).map(pokemon => pokemon.heldItemInstanceId).filter(Boolean) as string[]), [player]);
+  const selectedSellItems = useMemo(() => sellItems.filter(item => selectedSellIds.has(item.id) && item.canSale && !heldItemInstanceIds.has(item.id) && sellPrice(item) > 0), [heldItemInstanceIds, selectedSellIds, sellItems]);
+  const selectedSellTotal = useMemo(() => selectedSellItems.reduce((sum, item) => sum + sellPrice(item), 0), [selectedSellItems]);
   const latestSlotItemIdsRef = useRef(slotItemIds);
 
   useEffect(() => {
@@ -96,6 +104,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
     setDialogueText(SHOP_WELCOME_TEXT);
     setInteractionMode(null);
     setSelectedShopItem(null);
+    setSelectedSellIds(new Set());
     setBreakingSlotId(null);
     setBreakingProduct(null);
     setRestockingSlotId(null);
@@ -106,12 +115,14 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
   function openInteractionMode(mode: TrainingRestShopInteractionMode) {
     setInteractionMode(mode);
     setSelectedShopItem(null);
+    setSelectedSellIds(new Set());
     setDialogueText(mode === "buy" ? SHOP_BUY_TEXT : SHOP_SELL_TEXT);
   }
 
   function closeInteractionMode() {
     setInteractionMode(null);
     setSelectedShopItem(null);
+    setSelectedSellIds(new Set());
     setDialogueText(SHOP_WELCOME_TEXT);
     setBreakingSlotId(null);
     setBreakingProduct(null);
@@ -155,6 +166,42 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
     }
   }
 
+  function toggleSellItem(item: PlayerItemInstanceV4) {
+    setSelectedSellIds(current => {
+      const next = new Set(current);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.add(item.id);
+      const selectedCount = next.size;
+      if (selectedCount <= 0) setDialogueText(SHOP_SELL_TEXT);
+      else {
+        const selectedTotal = sellItems.reduce((sum, entry) => next.has(entry.id) && entry.canSale && !heldItemInstanceIds.has(entry.id) ? sum + sellPrice(entry) : sum, 0);
+        setDialogueText(`已选择 ${selectedCount} 件道具，预计可获得 ${selectedTotal.toLocaleString()} 金币。`);
+      }
+      return next;
+    });
+  }
+
+  async function sellSelectedItems() {
+    if (!onSell) {
+      setDialogueText("售出功能正在整理中。");
+      return;
+    }
+    if (!selectedSellItems.length) {
+      setDialogueText("先选择想售出的道具吧。");
+      return;
+    }
+    setSelling(true);
+    try {
+      const message = await onSell(selectedSellItems.map(item => item.id));
+      setSelectedSellIds(new Set());
+      setDialogueText(message || `已售出道具，获得 ${selectedSellTotal.toLocaleString()} 金币。`);
+    } catch (error) {
+      setDialogueText(shopSellErrorMessage(error));
+    } finally {
+      setSelling(false);
+    }
+  }
+
   const selectedItemName = selectedShopItem?.name;
   const dialogueActions = selectedShopItem
     ? [
@@ -162,7 +209,12 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
         {label: "立即购买", primary: true, onClick: () => void buyShopItem(selectedShopItem)},
       ]
     : interactionMode
-    ? [{label: "返回", onClick: closeInteractionMode}]
+    ? interactionMode === "sell"
+      ? [
+          {label: "返回", onClick: closeInteractionMode},
+          {label: selling ? "处理中" : selectedSellItems.length ? `确认售出 +${selectedSellTotal.toLocaleString()}` : "确认售出", primary: true, onClick: () => void sellSelectedItems()},
+        ]
+      : [{label: "返回", onClick: closeInteractionMode}]
     : [
         {label: "离开", onClick: leaveShop},
         {label: "售出", onClick: () => openInteractionMode("sell")},
@@ -188,6 +240,15 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
             restockingSlotId={restockingSlotId}
             onDetail={showShopItemDetail}
             onBuy={item => void buyShopItem(item)}
+          />
+        ) : null}
+        {interactionMode === "sell" ? (
+          <TrainingRestShopSellList
+            api={api}
+            items={sellItems}
+            selectedIds={selectedSellIds}
+            heldItemInstanceIds={heldItemInstanceIds}
+            onToggle={toggleSellItem}
           />
         ) : null}
       </TrainingRestShopInteractionPanel>
@@ -482,4 +543,11 @@ function shopBuyErrorMessage(error: unknown): string {
   if (message.includes("金币不足")) return "噢，太可惜了，你的钱好像不太够。";
   if (message.includes("背包已满")) return "你的背包好像已经满了，先整理一下再来吧。";
   return message || "购买失败，请稍后再试。";
+}
+
+function shopSellErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (message.includes("不可出售")) return "这些道具暂时不能售出，换几件可以卖的吧。";
+  if (message.includes("请选择")) return "先选择想售出的道具吧。";
+  return message || "售出失败，请稍后再试。";
 }

@@ -1,0 +1,177 @@
+.training-rest-shop-sell-list {
+  --training-rest-shop-sell-columns: 5;
+  --training-rest-shop-sell-rows: 3;
+  --training-rest-shop-sell-padding-x: 2px;
+  --training-rest-shop-sell-padding-y: 2px;
+  --training-rest-shop-sell-gap-x: 3px;
+  --training-rest-shop-sell-gap-y: 4px;
+  --training-rest-shop-sell-card-width: calc(
+    (100% - (var(--training-rest-shop-sell-padding-x) * 2) - (var(--training-rest-shop-sell-gap-x) * 4)) /
+      var(--training-rest-shop-sell-columns)
+  );
+  --training-rest-shop-sell-card-height: calc(
+    (100% - (var(--training-rest-shop-sell-padding-y) * 2) - (var(--training-rest-shop-sell-gap-y) * 2)) /
+      var(--training-rest-shop-sell-rows)
+  );
+  --training-rest-shop-sell-icon-size: 26px;
+  --training-rest-shop-sell-icon-max-size: 24px;
+  --training-rest-shop-sell-name-height: 12px;
+  --training-rest-shop-sell-price-height: 11px;
+  --training-rest-shop-sell-button-height: 13px;
+  --training-rest-shop-sell-price-icon-size: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(5, var(--training-rest-shop-sell-card-width));
+  grid-template-rows: repeat(3, var(--training-rest-shop-sell-card-height));
+  grid-auto-flow: column;
+  gap: var(--training-rest-shop-sell-gap-y) var(--training-rest-shop-sell-gap-x);
+  padding: var(--training-rest-shop-sell-padding-y) var(--training-rest-shop-sell-padding-x);
+  overflow: visible;
+}
+
+.training-rest-shop-sell-list-empty {
+  display: grid;
+  place-items: center;
+  color: rgb(255 251 232 / 92%);
+  font-size: 11px;
+  font-weight: 950;
+  text-shadow: 0 1px 2px rgb(22 34 58 / 70%);
+}
+
+.training-rest-shop-sell-card {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--training-rest-shop-sell-icon-size) minmax(0, 1fr);
+  grid-template-rows:
+    var(--training-rest-shop-sell-name-height)
+    var(--training-rest-shop-sell-price-height)
+    var(--training-rest-shop-sell-button-height);
+  gap: 2px 5px;
+  align-items: center;
+  border: 1px solid rgb(112 75 37 / 58%);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 62%), rgb(239 220 178 / 76%)),
+    rgb(96 61 32 / 30%);
+  color: #3c2411;
+  padding: 3px;
+  overflow: visible;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 38%),
+    0 1px 2px rgb(44 25 10 / 24%);
+  cursor: pointer;
+}
+
+.training-rest-shop-sell-card[data-selected="true"] {
+  border-color: #43c9ee;
+  outline: 1px solid #fff3a8;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 76%), rgb(244 226 177 / 88%)),
+    rgb(74 154 204 / 30%);
+}
+
+.training-rest-shop-sell-card:hover,
+.training-rest-shop-sell-card:focus-visible {
+  filter: brightness(1.06);
+  outline: 1px solid #fff3a8;
+}
+
+.training-rest-shop-sell-icon {
+  grid-row: 1 / -1;
+  align-self: center;
+  width: var(--training-rest-shop-sell-icon-size);
+  height: var(--training-rest-shop-sell-icon-size);
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: rgb(255 251 232 / 72%);
+  overflow: hidden;
+}
+
+.training-rest-shop-sell-icon img,
+.training-rest-shop-sell-icon .image-fallback {
+  max-width: var(--training-rest-shop-sell-icon-max-size);
+  max-height: var(--training-rest-shop-sell-icon-max-size);
+  object-fit: contain;
+}
+
+.training-rest-shop-sell-sprite {
+  width: var(--training-rest-shop-sell-icon-max-size);
+  height: var(--training-rest-shop-sell-icon-max-size);
+  display: block;
+}
+
+.training-rest-shop-sell-fallback,
+.training-rest-shop-sell-icon .image-fallback {
+  color: #61401f;
+  font-size: 10px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.training-rest-shop-sell-card > strong {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  height: var(--training-rest-shop-sell-name-height);
+  overflow: hidden;
+  color: #3a2413;
+  font-size: 7px;
+  font-weight: 1000;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 68%);
+  white-space: nowrap;
+}
+
+.training-rest-shop-sell-price {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  height: var(--training-rest-shop-sell-price-height);
+  display: inline-grid;
+  grid-template-columns: var(--training-rest-shop-sell-price-icon-size) minmax(0, 1fr);
+  align-items: center;
+  gap: 2px;
+  color: #6d4017;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-shop-sell-price img {
+  width: var(--training-rest-shop-sell-price-icon-size);
+  height: var(--training-rest-shop-sell-price-icon-size);
+  object-fit: contain;
+}
+
+.training-rest-shop-sell-price span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-shop-sell-card > span {
+  grid-column: 2;
+  grid-row: 3;
+  height: var(--training-rest-shop-sell-button-height);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(91 57 25 / 72%);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #fff4c9, #c9954e);
+  color: #2f1d10;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-shop-sell-card[data-selected="true"] > span {
+  background: linear-gradient(180deg, #d7f8ff, #58b7d6);
+}
