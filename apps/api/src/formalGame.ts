@@ -7,6 +7,44 @@ import type {
   DexTrainerDetail,
   ShowdownDexService,
 } from "@changebattle-v2/showdown-dex-core";
+import {
+  DEFAULT_TRAINER_AVATAR,
+  FALLBACK_MOVES,
+  FALLBACK_SPECIES,
+  FORMAL_NPC_TEAM_PREFERENCE_LABELS,
+  FORMAL_ROUND_COUNT,
+  FORMAL_RUN_VERSION,
+  FORMAL_SHOP_CATEGORY_LABELS,
+  FORMAL_SHOP_CATEGORY_ORDER,
+  FORMAL_SHOP_ITEM_POOL,
+  FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER,
+  FORMAL_SHOP_SELL_RATE,
+  FORMAL_SHOP_SLOTS_PER_CATEGORY,
+  FORMAL_STARTER_ROLE_LABELS,
+  FORMAL_STARTER_SHINY_RATE,
+  FORMAL_STARTING_MONEY,
+  NATURES,
+  NATURE_ZH,
+  NORMAL_NPC_NAMES,
+  NPC_BATTLE_PREFERENCES,
+  NPC_BOSS_ITEMS,
+  NPC_ELITE_ITEMS,
+  NPC_NORMAL_ITEMS,
+  NPC_ROOKIE_ITEMS,
+  NPC_TEAM_PREFERENCES,
+  ROLE_TYPE_HINTS,
+  ROUND_DISTRIBUTIONS,
+  STARTER_MAX_LEGENDARY_CANDIDATES,
+  STARTER_ROLE_PLAN,
+  type CoopPartnerPreferenceV4,
+  type FormalNpcBattlePreferenceV4,
+  type FormalNpcTeamPreferenceV4,
+  type FormalNpcTypeV4,
+  type FormalShopProductViewV4,
+  type FormalShopCategoryV4,
+  type FormalStarterRoleV4,
+  type PokemonPowerProfileV4,
+} from "@changebattle-v2/core";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
 import {cloneStarChartV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
@@ -33,14 +71,17 @@ import type {BattleSessionSnapshotV4} from "./battle.js";
 
 export type FormalGameModeV4 = "singles" | "doubles" | "coop";
 export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "roundPlanning" | "resting" | "ended";
-export type FormalStarterRoleV4 = "weather" | "trick-room" | "offense" | "support" | "defense" | "speed-control" | "disruption" | "flex-offense" | "flex-defense" | "balanced";
 export type PokemonSpeciesRankV4 = FormalPokemonSpeciesRankData;
-export type PokemonPowerProfileV4 = "rookie" | "normal" | "elite" | "boss" | "champion";
-export type CoopPartnerPreferenceV4 = "offense" | "defense" | "support" | "balanced";
-export type FormalNpcTypeV4 = "rookie" | "normal" | "elite" | "gym" | "elite4" | "champion" | "villain";
-export type FormalNpcBattlePreferenceV4 = "offense" | "defense" | "support" | "balanced";
-export type FormalNpcTeamPreferenceV4 = "balanced" | "rain" | "sun" | "sand" | "snow" | "trick-room" | "tailwind" | "terrain" | "hazard-stack" | "poison-stall" | "setup-offense";
-export type FormalShopCategoryV4 = "recovery" | "berry" | "battle" | "tm" | "training";
+export type {
+  CoopPartnerPreferenceV4,
+  FormalNpcBattlePreferenceV4,
+  FormalNpcTeamPreferenceV4,
+  FormalNpcTypeV4,
+  FormalShopCategoryV4,
+  FormalStarterRoleV4,
+  PokemonPowerProfileV4,
+};
+export {FORMAL_STARTER_SHINY_RATE};
 
 export type FormalShopItemV4 = {
   slotId: string;
@@ -63,6 +104,8 @@ export type FormalShopTransactionResultV4 = {
   message: string;
   shop: FormalRestShopV4 | null;
 };
+
+export type {FormalShopProductViewV4};
 
 export type FormalRoundNpcSnapshotV4 = {
   id: string;
@@ -103,54 +146,6 @@ const PLAYER_BACK_IMAGES = [
   "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
   "/npc/player-back/white-bw-touko-back-4156e303.png",
 ];
-
-const FORMAL_SHOP_CATEGORY_LABELS: Record<FormalShopCategoryV4, string> = {
-  recovery: "恢复药",
-  berry: "树果",
-  battle: "战斗道具",
-  tm: "技能机器",
-  training: "训练道具",
-};
-
-const FORMAL_SHOP_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "berry", "battle", "tm", "training"];
-
-const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
-  recovery: [
-    "potion", "superpotion", "hyperpotion", "maxpotion", "fullrestore",
-    "freshwater", "sodapop", "lemonade", "moomoomilk", "fullheal",
-    "healpowder", "antidote", "burnheal", "iceheal", "awakening",
-    "paralyzeheal", "energypowder", "energyroot", "revive", "maxrevive",
-    "revivalherb", "ether", "maxether", "elixir", "maxelixir",
-  ],
-  berry: [
-    "oranberry", "sitrusberry", "leppaberry", "lumberry",
-  ],
-  battle: [
-    "leftovers", "lifeorb", "choicescarf", "choiceband", "choicespecs",
-    "focussash", "assaultvest", "rockyhelmet", "eviolite", "expertbelt",
-    "airballoon", "heavydutyboots", "blacksludge", "shellbell",
-  ],
-  tm: [
-    "tm:protect", "tm:thunderbolt", "tm:icebeam", "tm:flamethrower", "tm:earthquake",
-    "tm:surf", "tm:psychic", "tm:shadowball", "tm:rockslide", "tm:calmmind",
-    "tm:swordsdance", "tm:substitute", "tm:willowisp", "tm:toxic", "tm:trickroom",
-  ],
-  training: [
-    "rarecandy", "hpup", "protein", "iron", "calcium", "zinc", "carbos",
-    "ppup", "ppmax", "abilitycapsule", "abilitypatch", "bottlecap",
-    "goldbottlecap", "graybottlecap", "adamantmint", "modestmint", "jollymint",
-    "timidmint", "calmmint", "boldmint",
-  ],
-};
-
-const FORMAL_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number> = {
-  recovery: 3,
-  berry: 3,
-  battle: 3,
-  training: 3,
-  tm: 3,
-};
-const FORMAL_SHOP_SELL_RATE = 0.25;
 
 export type FormalStarterCandidateDiagnosticsV4 = {
   role: FormalStarterRoleV4;
@@ -270,6 +265,7 @@ export type FormalGameRunApi = {
   appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4;
   prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
   getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null;
+  getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[];
   buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
   sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4;
   selectedCountForFormalMode(mode: FormalGameModeV4): number;
@@ -353,98 +349,14 @@ export type FormalRentalPokemonViewV4 = {
   };
 };
 
-const FORMAL_RUN_VERSION = 1 as const;
 const DEFAULT_FORMAL_RUN_KEY = "changebattle-v2:web:formal-run";
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
-const STARTER_ROLE_PLAN: FormalStarterRoleV4[] = [
-  "weather",
-  "trick-room",
-  "offense",
-  "offense",
-  "support",
-  "defense",
-  "speed-control",
-  "disruption",
-  "flex-defense",
-  "flex-offense",
-];
 const STARTER_ALLOWED_RANKS = new Set<PokemonSpeciesRankV4>(["rank4", "rank5", "rank6"]);
-const STARTER_MAX_LEGENDARY_CANDIDATES = 1;
-export const FORMAL_STARTER_SHINY_RATE = 1 / 30;
-const FORMAL_ROUND_COUNT = 7;
-const FORMAL_STARTING_MONEY = 3000;
-const FALLBACK_SPECIES = ["lucario", "charizard", "gardevoir", "dragonite", "greninja", "venusaur", "arcanine", "lapras", "gyarados", "snorlax"];
-const FALLBACK_MOVES = ["tackle", "quickattack", "protect", "rest"];
-const NPC_ROOKIE_ITEMS = ["", "", "", "oranberry", "sitrusberry", "lumberry"];
-const NPC_NORMAL_ITEMS = ["oranberry", "sitrusberry", "lumberry", "leftovers", "rockyhelmet"];
-const NPC_ELITE_ITEMS = ["sitrusberry", "lumberry", "leftovers", "rockyhelmet", "expertbelt", "airballoon", "focussash"];
-const NPC_BOSS_ITEMS = ["leftovers", "choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "sitrusberry", "lumberry", "rockyhelmet", "assaultvest", "heavydutyboots"];
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
   gen7: ["system-mega-stone", "system-z-crystal"],
   gen8: ["system-dynamax-band"],
   gen9: ["system-tera-orb"],
-};
-const NPC_BATTLE_PREFERENCES: FormalNpcBattlePreferenceV4[] = ["offense", "defense", "support", "balanced"];
-const NPC_TEAM_PREFERENCES: FormalNpcTeamPreferenceV4[] = ["rain", "sun", "sand", "snow", "trick-room", "tailwind", "terrain", "hazard-stack", "poison-stall", "setup-offense", "balanced"];
-const ROUND_DISTRIBUTIONS: Record<"0" | "1" | "2" | "3", FormalNpcTypeV4[]> = {
-  "0": ["rookie", "normal", "gym", "normal", "normal", "elite", "gym"],
-  "1": ["normal", "elite", "gym", "elite", "gym", "elite", "elite4"],
-  "2": ["elite", "elite", "elite4", "elite", "gym", "elite4", "champion"],
-  "3": ["elite", "gym", "elite", "elite4", "elite4", "elite4", "champion"],
-};
-const NORMAL_NPC_NAMES = {
-  rookie: ["短裤少年", "迷你裙", "捕虫少年", "露营少年", "学生"],
-  normal: ["精英训练家", "宝可梦巡护员", "背包客", "空手道王", "大姐姐"],
-  elite: ["王牌训练家", "资深训练家", "战术教练", "对战女郎", "道馆助教"],
-  ally: ["精英队友", "战术搭档", "支援训练家", "合作专家", "双打拍档"],
-} as const;
-const DEFAULT_TRAINER_AVATAR = "/npc/avatars/1-asset-18b76b7d.webp";
-const NATURES = [
-  "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
-  "Bold", "Docile", "Relaxed", "Impish", "Lax",
-  "Timid", "Hasty", "Serious", "Jolly", "Naive",
-  "Modest", "Mild", "Quiet", "Bashful", "Rash",
-  "Calm", "Gentle", "Sassy", "Careful", "Quirky",
-];
-const NATURE_ZH: Record<string, string> = {
-  Hardy: "勤奋",
-  Lonely: "怕寂寞",
-  Brave: "勇敢",
-  Adamant: "固执",
-  Naughty: "顽皮",
-  Bold: "大胆",
-  Docile: "坦率",
-  Relaxed: "悠闲",
-  Impish: "淘气",
-  Lax: "乐天",
-  Timid: "胆小",
-  Hasty: "急躁",
-  Serious: "认真",
-  Jolly: "爽朗",
-  Naive: "天真",
-  Modest: "内敛",
-  Mild: "慢吞吞",
-  Quiet: "冷静",
-  Bashful: "害羞",
-  Rash: "马虎",
-  Calm: "温和",
-  Gentle: "温顺",
-  Sassy: "自大",
-  Careful: "慎重",
-  Quirky: "浮躁",
-};
-const ROLE_TYPE_HINTS: Record<FormalStarterRoleV4, string[]> = {
-  weather: ["Water", "Fire", "Rock", "Ice", "Ground", "Grass"],
-  "trick-room": ["Psychic", "Ghost", "Fairy", "Rock", "Steel"],
-  offense: ["Dragon", "Fire", "Electric", "Fighting", "Dark", "Flying"],
-  support: ["Fairy", "Grass", "Psychic", "Water", "Normal"],
-  defense: ["Steel", "Water", "Grass", "Poison", "Ground"],
-  "speed-control": ["Electric", "Flying", "Psychic", "Fairy", "Bug"],
-  disruption: ["Poison", "Ghost", "Dark", "Steel", "Ground", "Grass"],
-  "flex-defense": ["Steel", "Water", "Grass", "Poison", "Ground"],
-  "flex-offense": ["Dragon", "Fire", "Electric", "Fighting", "Dark", "Flying"],
-  balanced: [],
 };
 
 export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalGameRunStorageAdapter = createBrowserFormalGameRunAdapter()): FormalGameRunApi {
@@ -672,6 +584,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const node = currentFormalRestNode(run);
     if (!node) return null;
     return ensureFormalRestShopFast(run, node.id);
+  }
+
+  function getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[] {
+    return createFormalShopProductViewsV4(getFormalRestShop(run), getItemDetailSafe);
   }
 
   function buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4 {
@@ -1320,10 +1236,65 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     appendBattleLogEntriesFromSnapshotV4,
     prepareFormalSettlement,
     getFormalRestShop,
+    getFormalRestShopProducts,
     buyFormalRestShopItem,
     sellFormalRestBagItems,
     selectedCountForFormalMode,
   };
+}
+
+export function createFormalShopProductViewsV4(
+  shop: FormalRestShopV4 | null | undefined,
+  getItemDetail: (itemID: string) => DexItemDetail | null | undefined,
+): FormalShopProductViewV4[] {
+  if (!shop) return [];
+  const products: FormalShopProductViewV4[] = [];
+  for (const category of FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER) {
+    for (let index = 0; index < (FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3); index += 1) {
+      const item = shop.categories[category]?.[index] || null;
+      if (!item) continue;
+      const detail = safeFormalShopProductDetail(getItemDetail, item.itemID);
+      products.push({
+        slotId: item.slotId,
+        itemID: item.itemID,
+        type: category,
+        name: formalShopProductName(item, detail),
+        price: formalShopProductPrice(detail),
+        summary: formalShopProductSummary(detail),
+        stock: Math.max(0, Math.floor(Number(item.stock || 0))),
+        iconUrl: detail?.iconUrl || undefined,
+        iconStyle: detail?.iconStyle || undefined,
+      });
+    }
+  }
+  return products;
+}
+
+function safeFormalShopProductDetail(getItemDetail: (itemID: string) => DexItemDetail | null | undefined, itemID: string): DexItemDetail | null {
+  try {
+    return getItemDetail(itemID) || null;
+  } catch {
+    return null;
+  }
+}
+
+function formalShopProductName(item: FormalShopItemV4, detail: DexItemDetail | null): string {
+  if (item.category === "tm") {
+    return detail?.moveNameZh || detail?.moveName || stripFormalShopTmPrefix(detail?.nameZh || detail?.name || item.itemID);
+  }
+  return detail?.nameZh || detail?.name || item.itemID || "未知道具";
+}
+
+function formalShopProductPrice(detail: DexItemDetail | null): number {
+  return Math.max(0, Math.floor(Number(detail?.cost || 0)));
+}
+
+function formalShopProductSummary(detail: DexItemDetail | null): string {
+  return detail?.description || detail?.effectSummary || "这是很实用的道具，要带上吗？";
+}
+
+function stripFormalShopTmPrefix(name: string): string {
+  return name.replace(/^技能机器[：:]\s*/, "").replace(/^TM[：:]\s*/i, "") || name;
 }
 
 export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: {
@@ -2113,20 +2084,7 @@ function stableScore(value: string): number {
 }
 
 function teamPreferenceLabel(preference: FormalNpcTeamPreferenceV4): string {
-  const labels: Record<FormalNpcTeamPreferenceV4, string> = {
-    balanced: "平衡队",
-    rain: "雨天队",
-    sun: "晴天队",
-    sand: "沙暴队",
-    snow: "雪天队",
-    "trick-room": "空间队",
-    tailwind: "顺风队",
-    terrain: "场地队",
-    "hazard-stack": "撒场队",
-    "poison-stall": "消耗队",
-    "setup-offense": "强化攻队",
-  };
-  return labels[preference] || preference;
+  return FORMAL_NPC_TEAM_PREFERENCE_LABELS[preference] || preference;
 }
 
 function normalizeFormalMode(mode: unknown): FormalGameModeV4 {
@@ -2184,16 +2142,7 @@ function normalizeStats(stats: Record<string, number> | undefined, fallback: num
 }
 
 function starterRoleLabel(role: FormalStarterRoleV4): string {
-  if (role === "weather") return "天气组件";
-  if (role === "trick-room") return "空间组件";
-  if (role === "offense") return "进攻核心";
-  if (role === "support") return "辅助手";
-  if (role === "defense") return "防御手";
-  if (role === "speed-control") return "速度控制";
-  if (role === "disruption") return "干扰撒场";
-  if (role === "flex-defense") return "防辅补位";
-  if (role === "flex-offense") return "攻击补位";
-  return "平衡补位";
+  return FORMAL_STARTER_ROLE_LABELS[role] || role;
 }
 
 function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefined): FormalGameSettlementV4 | null {
@@ -2775,12 +2724,12 @@ function randomInt(min: number, max: number, rng: () => number): number {
   return Math.floor(rng() * (max - min + 1)) + min;
 }
 
-function pickOne<T>(values: T[], rng: () => number): T | undefined {
+function pickOne<T>(values: readonly T[], rng: () => number): T | undefined {
   if (!values.length) return undefined;
   return values[Math.floor(rng() * values.length)] || values[0];
 }
 
-function shuffle<T>(values: T[], rng: () => number): T[] {
+function shuffle<T>(values: readonly T[], rng: () => number): T[] {
   const next = [...values];
   for (let index = next.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(rng() * (index + 1));

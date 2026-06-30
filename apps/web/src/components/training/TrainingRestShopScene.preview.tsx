@@ -1,7 +1,9 @@
 import {useState} from "react";
-import type {FormalRestShopV4} from "@changebattle-v2/api";
+import {createChangeBattleV2Api, type FormalRestShopV4} from "@changebattle-v2/api";
 import {TrainingRestShopScene} from "./TrainingRestShopScene";
 import "./TrainingRestShopScene.preview.css";
+
+const PREVIEW_API = createChangeBattleV2Api();
 
 const PREVIEW_SHOP: FormalRestShopV4 = {
   nodeId: "preview-shop",
@@ -41,6 +43,7 @@ export function TrainingRestShopScenePreview() {
   return (
     <section className="training-rest-shop-scene-preview" aria-label="商店独立场景预览">
       <TrainingRestShopScene
+        api={PREVIEW_API}
         open={open}
         shop={PREVIEW_SHOP}
         money={3600}

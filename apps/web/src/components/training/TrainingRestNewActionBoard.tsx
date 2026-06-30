@@ -1,3 +1,4 @@
+import {REST_CENTER_PAPER_ACTIONS_V4} from "@changebattle-v2/api";
 import "./TrainingRestNewActionBoard.css";
 
 export type TrainingRestNewActionEntry = {
@@ -14,16 +15,13 @@ export type TrainingRestNewActionBoardProps = {
   entries?: TrainingRestNewActionEntry[];
 };
 
-const DEFAULT_REST_ACTION_ENTRIES: TrainingRestNewActionEntry[] = [
-  {label: "图鉴", iconSrc: "/ui/book.png", action: "图鉴"},
-  {label: "商店", iconSrc: "/aboutIcon/shop.png", action: "商店"},
-  {label: "未开放", iconText: "?", disabled: true},
-  {label: "未开放", iconText: "?", disabled: true},
-  {label: "未开放", iconText: "?", disabled: true},
-  {label: "未开放", iconText: "?", disabled: true},
-  {label: "未开放", iconText: "?", disabled: true},
-  {label: "未开放", iconText: "?", disabled: true},
-];
+const DEFAULT_REST_ACTION_ENTRIES: TrainingRestNewActionEntry[] = REST_CENTER_PAPER_ACTIONS_V4.map(entry => ({
+  label: entry.label,
+  iconSrc: entry.iconSrc,
+  iconText: entry.iconText,
+  disabled: entry.disabled,
+  action: entry.action,
+}));
 
 export function TrainingRestNewActionBoard({activeAction, onAction, entries = DEFAULT_REST_ACTION_ENTRIES}: TrainingRestNewActionBoardProps) {
   return (

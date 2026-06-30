@@ -1,0 +1,21 @@
+{
+  "name": "@changebattle-v2/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./formalSpeciesRanks": {
+      "types": "./src/formalSpeciesRanks.ts",
+      "default": "./src/formalSpeciesRanks.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

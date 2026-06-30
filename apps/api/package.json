@@ -14,6 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@changebattle-v2/core": "workspace:*",
     "@changebattle-v2/showdown-battle-core": "workspace:*",
     "@changebattle-v2/showdown-dex-core": "workspace:*",
     "react": "^19.0.0"

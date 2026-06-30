@@ -1,4 +1,13 @@
-import type {DexPokemonDetail, DexSearchRequest, DexSearchResult} from "@changebattle-v2/showdown-dex-core";
+import type {DexItemDetail, DexPokemonDetail, DexSearchRequest, DexSearchResult} from "@changebattle-v2/showdown-dex-core";
+import {
+  FORMAL_ROUND_COUNT,
+  FORMAL_SHOP_CATEGORY_ORDER,
+  FORMAL_SHOP_ITEM_POOL,
+  FORMAL_SHOP_SLOTS_PER_CATEGORY,
+  FORMAL_STARTING_MONEY,
+  STARTER_ROLE_PLAN,
+  validateFormalShopCatalogV4,
+} from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi} from "./formalGame.js";
 import {
   enableTestModeForProfileV4,
@@ -58,6 +67,9 @@ const api = createFormalGameRunApi({
   },
   getMoveDetail(id: string) {
     return moveDetail(id);
+  },
+  getItemDetail(id: string) {
+    return itemDetail(id);
   },
   calculatePokemonStats({level}: {level: number}) {
     return {stats: {hp: 100 + level, atk: 80, def: 80, spa: 80, spd: 80, spe: 80}};
@@ -134,6 +146,26 @@ function moveDetail(id: string) {
   };
 }
 
+function itemDetail(id: string): DexItemDetail {
+  const isTm = id.startsWith("tm:");
+  const moveId = isTm ? id.slice(3) : "";
+  return {
+    id,
+    name: isTm ? `TM: ${moveId}` : id,
+    nameZh: isTm ? `技能机器：${moveId}` : id,
+    kind: isTm ? "tm" : id.includes("berry") ? "berry" : "recovery",
+    kindLabel: isTm ? "技能机器" : "道具",
+    description: isTm ? "" : `${id} 描述`,
+    effectSummary: isTm ? `${moveId} 招式学习器` : `${id} 效果`,
+    cost: isTm ? 1000 : 300,
+    moveId: isTm ? moveId : undefined,
+    moveName: isTm ? moveId : undefined,
+    moveNameZh: isTm ? `${moveId}技能` : undefined,
+    iconUrl: `/items/${id}.png`,
+    iconStyle: "",
+  };
+}
+
 function allMoreChoicesChart(): StarChartStateV4 {
   return {
     nodes: {
@@ -171,6 +203,10 @@ const prepared = api.prepareFormalStarterCandidates(run);
 const preparedAgain = api.prepareFormalStarterCandidates(run);
 
 assert(prepared.starterCandidates.length === 6, "root-only star chart should default formal starter candidates to 6");
+assert(validateFormalShopCatalogV4().length === 0, "formal shop catalog should be valid");
+for (const category of FORMAL_SHOP_CATEGORY_ORDER) {
+  assert(FORMAL_SHOP_ITEM_POOL[category].length >= FORMAL_SHOP_SLOTS_PER_CATEGORY[category], `formal shop ${category} should have enough pool items`);
+}
 assert(api.prepareFormalStarterCandidates(run, {count: 12}).starterCandidates.length === 10, "random formal starter candidates should cap at 10");
 assert(api.selectedCountForFormalMode("singles") === 3, "singles should select 3");
 assert(api.selectedCountForFormalMode("doubles") === 4, "doubles should select 4");
@@ -185,6 +221,9 @@ assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.filte
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.filters.legendaryBattle === false), "starter diagnostics should preserve run legendary snapshot");
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.filters.ruleSet === "standard"), "starter diagnostics should preserve run rule set snapshot");
 assert(FORMAL_STARTER_SHINY_RATE === 1 / 30, "formal starter shiny rate should be 1/30");
+assert(FORMAL_ROUND_COUNT === 7, "formal round count should stay 7");
+assert(FORMAL_STARTING_MONEY === 3000, "formal starting money should stay 3000");
+assert(STARTER_ROLE_PLAN.slice(0, 6).join(",") === "weather,trick-room,offense,offense,support,defense", "starter role plan first 6 roles should stay stable");
 assert(prepared.starterCandidates.every(candidate => candidate.speciesRank !== "legendary"), "legendaryBattle false should exclude legendary rank");
 assert(prepared.starterCandidates.every(candidate => ["rank4", "rank5", "rank6"].includes(candidate.speciesRank)), "player starter candidates should only use rank4-rank6");
 assert(prepared.starterCandidates.every(candidate => !["squirtle", "charizardmegax", "charizardgmax", "walkingwake", "blacephalon"].includes(candidate.pokemon.speciesId)), "starter filters should remove low rank, legendary, mega, and gmax species");
@@ -297,6 +336,14 @@ assert(rookieOpponent.every(pokemon => !["choicescarf", "choiceband", "choicespe
 assert(normalOpponent.every(pokemon => pokemon.level <= 53 && inRange(statTotal(pokemon.ivs), 40, 70) && inRange(statTotal(pokemon.evs), 80, 200)), "normal NPC stats should stay in normal bounds");
 assert(eliteOpponent.every(pokemon => pokemon.level <= 55 && inRange(statTotal(pokemon.ivs), 60, 120) && inRange(statTotal(pokemon.evs), 180, 300)), "elite NPC stats should stay in elite bounds");
 assert(scaledGymOpponent.every(pokemon => pokemon.level <= 55 && statTotal(pokemon.ivs) <= 120 && statTotal(pokemon.evs) <= 300), "streak 0 gym should scale down instead of using boss rush values");
+
+const shop = api.getFormalRestShop(roundPlanned);
+const shopProducts = api.getFormalRestShopProducts(roundPlanned);
+assert(shopProducts.length === FORMAL_SHOP_CATEGORY_ORDER.length * 3, "formal shop product view should expose 5x3 products");
+assert(shopProducts.every(product => product.slotId && product.itemID && product.name && product.summary && product.price > 0), "formal shop product view should include display fields");
+assert(shopProducts.every(product => shop?.categories[product.type]?.some(item => item.slotId === product.slotId)), "formal shop product view should preserve slot mapping");
+const tmProduct = shopProducts.find(product => product.type === "tm");
+assert(tmProduct && !/^技能机器[：:]/.test(tmProduct.name), "formal shop TM product should display move name instead of TM item prefix");
 
 const withCoinLog = api.appendCoinLogEntryV4(roundPlanned, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withCoinLog.money === roundPlanned.money - 10, "coin log should update formal money");

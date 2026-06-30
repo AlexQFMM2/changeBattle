@@ -1,6 +1,12 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
+import {
+  REST_CENTER_LEFT_SIDE_ACTIONS_V4,
+  REST_CENTER_PAPER_ACTIONS_V4,
+  REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
+  type RestCenterActionEntryV4,
+} from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
-import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, type FormalGameRunStorageAdapter} from "./formalGame.js";
+import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {FormalGameSettlementV4} from "./formalGame.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
@@ -14,6 +20,8 @@ import {
   unlockStarChartNodeForProfileV4,
   type StarChartStateV4,
 } from "./starChart.js";
+export {REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4};
+export type {RestCenterActionEntryV4};
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
 export type {
@@ -204,6 +212,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     appendBattleLogEntriesFromSnapshotV4: formalRuns.appendBattleLogEntriesFromSnapshotV4,
     prepareFormalSettlement: formalRuns.prepareFormalSettlement,
     getFormalRestShop: formalRuns.getFormalRestShop,
+    getFormalRestShopProducts: formalRuns.getFormalRestShopProducts,
+    createFormalShopProductViews: (shop: Parameters<typeof createFormalShopProductViewsV4>[0]) => createFormalShopProductViewsV4(shop, itemID => dex.getItemDetail(itemID)),
     buyFormalRestShopItem: formalRuns.buyFormalRestShopItem,
     sellFormalRestBagItems: formalRuns.sellFormalRestBagItems,
     claimFormalSettlementBp: async (profile: UserProfileV2, settlement: FormalGameSettlementV4) => userProfiles.saveUserProfile(claimFormalSettlementBp(profile, settlement)),

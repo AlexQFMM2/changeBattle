@@ -1,6 +1,12 @@
 import {useState} from "react";
 import {motion} from "motion/react";
-import type {ChangeBattleV2Api, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import {
+  REST_CENTER_LEFT_SIDE_ACTIONS_V4,
+  REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
+  type ChangeBattleV2Api,
+  type TrainingPlayerDraftV4,
+  type TrainingRunGameV4,
+} from "@changebattle-v2/api";
 import {TrainingRestBoardTitle} from "./TrainingRestBoardTitle";
 import {TrainingRestConfirmDialog} from "./TrainingRestConfirmDialog";
 import {TrainingRestNextPreviewPanel, type PreviewPokemonEntry} from "./TrainingRestNextPreviewPanel";
@@ -45,6 +51,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [message, setMessage] = useState("休整中心已就绪。");
   const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
   const p1Team = run.players.p1?.localTeam || null;
+  const leftSideActions = REST_CENTER_LEFT_SIDE_ACTIONS_V4.map(action => ({label: action.label}));
+  const rightSideActions = REST_CENTER_RIGHT_SIDE_ACTIONS_V4.map(action => ({label: action.label, primary: action.primary, danger: action.danger}));
 
   function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
     const p1 = run.players.p1;
@@ -191,13 +199,13 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           <TrainingRestBoardTitle side="right">下一场预览</TrainingRestBoardTitle>
           <TrainingRestSideBoard
             side="left"
-            actions={[{label: "我的队伍"}, {label: "我的背包"}, {label: "保存"}]}
+            actions={leftSideActions}
             activeAction={activeAction}
             onAction={selectAction}
           />
           <TrainingRestSideBoard
             side="right"
-            actions={[{label: "结束休整", primary: true}, {label: "放弃比赛", danger: true}]}
+            actions={rightSideActions}
             activeAction={activeAction}
             onAction={selectAction}
           />

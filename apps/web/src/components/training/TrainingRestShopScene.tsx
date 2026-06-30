@@ -1,6 +1,6 @@
 import {useState} from "react";
-import type {ChangeBattleV2Api, FormalRestShopV4, FormalShopItemV4} from "@changebattle-v2/api";
-import {TrainingRestShopBuyList, getShopItemDetail, shopItemDescription, shopItemName} from "./TrainingRestShopBuyList";
+import type {ChangeBattleV2Api, FormalRestShopV4, FormalShopProductViewV4} from "@changebattle-v2/api";
+import {TrainingRestShopBuyList} from "./TrainingRestShopBuyList";
 import {TrainingRestShopDialogue} from "./TrainingRestShopDialogue";
 import {TrainingRestShopInteractionPanel, type TrainingRestShopInteractionMode} from "./TrainingRestShopInteractionPanel";
 import "./TrainingRestShopScene.css";
@@ -22,7 +22,7 @@ const SHOP_SELL_TEXT = "需要整理背包里的道具吗？";
 export function TrainingRestShopScene({api, open, shop, money, busy = false, onBuy, onBack}: TrainingRestShopSceneProps) {
   const [dialogueText, setDialogueText] = useState(SHOP_WELCOME_TEXT);
   const [interactionMode, setInteractionMode] = useState<TrainingRestShopInteractionMode | null>(null);
-  const [selectedShopItem, setSelectedShopItem] = useState<FormalShopItemV4 | null>(null);
+  const [selectedShopItem, setSelectedShopItem] = useState<FormalShopProductViewV4 | null>(null);
   const [buyingSlotId, setBuyingSlotId] = useState<string | null>(null);
 
   function leaveShop() {
@@ -44,10 +44,9 @@ export function TrainingRestShopScene({api, open, shop, money, busy = false, onB
     setDialogueText(SHOP_WELCOME_TEXT);
   }
 
-  function showShopItemDetail(item: FormalShopItemV4) {
-    const detail = getShopItemDetail(api, item);
+  function showShopItemDetail(item: FormalShopProductViewV4) {
     setSelectedShopItem(item);
-    setDialogueText(shopItemDescription(detail));
+    setDialogueText(item.summary);
   }
 
   function closeShopItemDetail() {
@@ -55,7 +54,7 @@ export function TrainingRestShopScene({api, open, shop, money, busy = false, onB
     setDialogueText(SHOP_BUY_TEXT);
   }
 
-  async function buyShopItem(item: FormalShopItemV4) {
+  async function buyShopItem(item: FormalShopProductViewV4) {
     if (!onBuy) {
       setDialogueText("购买功能正在整理中。");
       return;
@@ -72,8 +71,8 @@ export function TrainingRestShopScene({api, open, shop, money, busy = false, onB
     }
   }
 
-  const selectedDetail = getShopItemDetail(api, selectedShopItem);
-  const selectedItemName = selectedShopItem ? shopItemName(selectedShopItem, selectedDetail) : undefined;
+  const shopProducts = api?.createFormalShopProductViews ? api.createFormalShopProductViews(shop) : [];
+  const selectedItemName = selectedShopItem?.name;
   const dialogueActions = selectedShopItem
     ? [
         {label: "返回", onClick: closeShopItemDetail},
@@ -98,8 +97,7 @@ export function TrainingRestShopScene({api, open, shop, money, busy = false, onB
       <TrainingRestShopInteractionPanel mode={interactionMode}>
         {interactionMode === "buy" ? (
           <TrainingRestShopBuyList
-            api={api}
-            shop={shop}
+            products={shopProducts}
             selectedSlotId={selectedShopItem?.slotId}
             buyingSlotId={buyingSlotId}
             onDetail={showShopItemDetail}
