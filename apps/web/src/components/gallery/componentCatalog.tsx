@@ -4,8 +4,6 @@ import {TrainingRestNewActionBoardPreview} from "../training/TrainingRestNewActi
 import {TrainingRestNewBagPanelPreview} from "../training/TrainingRestNewBagPanel.preview";
 import {TrainingRestNewTeamPanelPreview} from "../training/TrainingRestNewTeamPanel.preview";
 import {TrainingRestShopDialoguePreview} from "../training/TrainingRestShopDialogue.preview";
-import {TrainingRestShopPanelPreview} from "../training/TrainingRestShopPanel.preview";
-import {TrainingRestShopPartsPreview} from "../training/TrainingRestShopParts.preview";
 import {TrainingRestShopScenePreview} from "../training/TrainingRestShopScene.preview";
 import {TrainingRestNextPreviewPanelPreview} from "../training/TrainingRestNextPreviewPanel.preview";
 
@@ -30,27 +28,15 @@ export const COMPONENT_PREVIEWS: ComponentPreviewEntry[] = [
     render: api => <TrainingRestNewBagPanelPreview api={api} />,
   },
   {
-    id: "training-rest-shop-panel",
-    title: "休整页商店",
-    description: "复合组件：背包多选卖出、分类商店货架、商品详情和单件购买。",
-    render: api => <TrainingRestShopPanelPreview api={api} />,
-  },
-  {
     id: "training-rest-shop-scene",
     title: "商店独立场景",
-    description: "复合组件：商店背景、服务员、柜台前景、右侧货架和返回按钮。",
-    render: api => <TrainingRestShopScenePreview api={api} />,
-  },
-  {
-    id: "training-rest-shop-parts",
-    title: "商店部件",
-    description: "独立部件：服务员 idle/intro sprite 与 24 格货架槽位。",
-    render: api => <TrainingRestShopPartsPreview api={api} />,
+    description: "复合组件：商店背景、金币显示和常驻欢迎菜单。",
+    render: () => <TrainingRestShopScenePreview />,
   },
   {
     id: "training-rest-shop-dialogue",
-    title: "商店商品对话",
-    description: "独立组件：左侧高清服务员、商品介绍台词和两个购买决策按钮。",
+    title: "商店菜单对话",
+    description: "独立组件：黑色半透明对话层、条纹边框和三按钮菜单。",
     render: () => <TrainingRestShopDialoguePreview />,
   },
   {

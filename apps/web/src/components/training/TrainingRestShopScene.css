@@ -1,135 +1,39 @@
 .training-rest-shop-scene {
-  /*
-   * 640x320 baseline tuning panel.
-   * back/shelf/counter are full-canvas layers exported from the same 1774x887 PSD.
-   * The clerk remains an animated sprite positioned by the PSD clerk bbox.
-   */
   --training-rest-shop-scene-width: 640px;
   --training-rest-shop-scene-height: 320px;
   --training-rest-shop-scene-bg-fit: cover;
-  --training-rest-shop-scene-back-z: 1;
-  --training-rest-shop-scene-shelf-layer-z: 2;
-  --training-rest-shop-scene-counter-layer-z: 5;
-
-  --training-rest-shop-scene-shelf-left: 260.83px;
-  --training-rest-shop-scene-shelf-top: 14.07px;
-  --training-rest-shop-scene-shelf-width: 375.2px;
-  --training-rest-shop-scene-shelf-height: 268.77px;
-  --training-rest-shop-scene-shelf-slots-left: 19px;
-  --training-rest-shop-scene-shelf-slots-top: 38px;
-  --training-rest-shop-scene-shelf-slot-size: 31px;
-  --training-rest-shop-scene-shelf-slot-gap-x: 29px;
-  --training-rest-shop-scene-shelf-slot-gap-y: 37px;
-  --training-rest-shop-scene-shelf-icon-size: 22px;
-  --training-rest-shop-scene-shelf-z: 4;
-
-  --training-rest-shop-scene-clerk-left: 120.14px;
-  --training-rest-shop-scene-clerk-top: 92.36px;
-  --training-rest-shop-scene-clerk-width: 122px;
-  --training-rest-shop-scene-clerk-height: 187px;
-  --training-rest-shop-scene-clerk-offset-y: 0px;
-  --training-rest-shop-scene-clerk-z: 3;
-
-  --training-rest-shop-scene-route-left: 8px;
-  --training-rest-shop-scene-route-top: 8px;
-  --training-rest-shop-scene-route-width: 90px;
-  --training-rest-shop-scene-route-height: 54px;
-  --training-rest-shop-scene-route-z: 8;
-
-  --training-rest-shop-scene-money-right: 15px;
+  --training-rest-shop-scene-money-left: 14px;
   --training-rest-shop-scene-money-top: 12px;
   --training-rest-shop-scene-money-min-width: 72px;
   --training-rest-shop-scene-money-height: 22px;
-  --training-rest-shop-scene-money-z: 8;
-
   --training-rest-shop-scene-busy-left: 260px;
   --training-rest-shop-scene-busy-bottom: 14px;
   --training-rest-shop-scene-busy-width: 120px;
   --training-rest-shop-scene-busy-height: 16px;
-  --training-rest-shop-scene-busy-z: 8;
   position: relative;
   width: var(--training-rest-shop-scene-width);
   height: var(--training-rest-shop-scene-height);
   overflow: hidden;
-  background: #20110b;
+  background: #1d150f;
   color: #fff4d6;
 }
 
 .training-rest-shop-scene-back {
   position: absolute;
   inset: 0;
-  z-index: var(--training-rest-shop-scene-back-z);
+  z-index: 1;
   width: 100%;
   height: 100%;
   object-fit: var(--training-rest-shop-scene-bg-fit);
   image-rendering: auto;
   pointer-events: none;
-}
-
-.training-rest-shop-scene-shelf-layer,
-.training-rest-shop-scene-counter-layer {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: var(--training-rest-shop-scene-bg-fit);
-  image-rendering: auto;
-  pointer-events: none;
-}
-
-.training-rest-shop-scene-shelf-layer {
-  z-index: var(--training-rest-shop-scene-shelf-layer-z);
-}
-
-.training-rest-shop-scene-counter-layer {
-  z-index: var(--training-rest-shop-scene-counter-layer-z);
-}
-
-.training-rest-shop-scene .training-rest-shop-shelf {
-  position: absolute;
-  left: var(--training-rest-shop-scene-shelf-left);
-  top: var(--training-rest-shop-scene-shelf-top);
-  z-index: var(--training-rest-shop-scene-shelf-z);
-  --training-rest-shop-shelf-width: var(--training-rest-shop-scene-shelf-width);
-  --training-rest-shop-shelf-height: var(--training-rest-shop-scene-shelf-height);
-  --training-rest-shop-shelf-slots-left: var(--training-rest-shop-scene-shelf-slots-left);
-  --training-rest-shop-shelf-slots-top: var(--training-rest-shop-scene-shelf-slots-top);
-  --training-rest-shop-shelf-slot-size: var(--training-rest-shop-scene-shelf-slot-size);
-  --training-rest-shop-shelf-slot-gap-x: var(--training-rest-shop-scene-shelf-slot-gap-x);
-  --training-rest-shop-shelf-slot-gap-y: var(--training-rest-shop-scene-shelf-slot-gap-y);
-  --training-rest-shop-shelf-icon-size: var(--training-rest-shop-scene-shelf-icon-size);
-}
-
-.training-rest-shop-scene-clerk {
-  position: absolute;
-  left: var(--training-rest-shop-scene-clerk-left);
-  top: var(--training-rest-shop-scene-clerk-top);
-  z-index: var(--training-rest-shop-scene-clerk-z);
-  width: var(--training-rest-shop-scene-clerk-width);
-  height: var(--training-rest-shop-scene-clerk-height);
-  pointer-events: none;
-}
-
-.training-rest-shop-scene-clerk .training-rest-shop-clerk {
-  --training-rest-shop-clerk-width: var(--training-rest-shop-scene-clerk-width);
-  --training-rest-shop-clerk-height: var(--training-rest-shop-scene-clerk-height);
-  margin-top: var(--training-rest-shop-scene-clerk-offset-y);
-}
-
-.training-rest-shop-scene-back-route {
-  position: absolute;
-  left: var(--training-rest-shop-scene-route-left);
-  top: var(--training-rest-shop-scene-route-top);
-  z-index: var(--training-rest-shop-scene-route-z);
-  --training-rest-shop-route-button-width: var(--training-rest-shop-scene-route-width);
-  --training-rest-shop-route-button-height: var(--training-rest-shop-scene-route-height);
 }
 
 .training-rest-shop-scene-money {
   position: absolute;
-  right: var(--training-rest-shop-scene-money-right);
+  left: var(--training-rest-shop-scene-money-left);
   top: var(--training-rest-shop-scene-money-top);
-  z-index: var(--training-rest-shop-scene-money-z);
+  z-index: 4;
   min-width: var(--training-rest-shop-scene-money-min-width);
   height: var(--training-rest-shop-scene-money-height);
   display: inline-grid;
@@ -173,7 +77,7 @@
   position: absolute;
   left: var(--training-rest-shop-scene-busy-left);
   bottom: var(--training-rest-shop-scene-busy-bottom);
-  z-index: var(--training-rest-shop-scene-busy-z);
+  z-index: 5;
   width: var(--training-rest-shop-scene-busy-width);
   height: var(--training-rest-shop-scene-busy-height);
   display: grid;

@@ -6,7 +6,6 @@ import {TrainingRestConfirmDialog} from "./TrainingRestConfirmDialog";
 import {TrainingRestNextPreviewPanel, type PreviewPokemonEntry} from "./TrainingRestNextPreviewPanel";
 import {TrainingRestNewActionBoard} from "./TrainingRestNewActionBoard";
 import {TrainingRestNewBagPanel} from "./TrainingRestNewBagPanel";
-import {TrainingRestShopRouteButton} from "./TrainingRestShopRouteButton";
 import {TrainingRestShopScene} from "./TrainingRestShopScene";
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
@@ -158,11 +157,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       onOpenDex();
       return;
     }
-    if (["交换", "抽奖机", "培育屋爷爷", "教授奶奶"].includes(action)) {
-      setMessage(`${action} 后续开放。`);
-      showNotice(`${action} 后续开放。`);
-      return;
-    }
     if (action === "保存") {
       void saveRunGameSnapshot();
       return;
@@ -193,12 +187,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               <strong>{Math.max(0, Math.floor(moneyAmount)).toLocaleString()}</strong>
             </div>
           ) : null}
-          <TrainingRestShopRouteButton
-            className="training-rest-new-shop-route"
-            label="去商店"
-            direction="right"
-            onClick={() => selectAction("商店")}
-          />
           <TrainingRestBoardTitle side="left">休整菜单</TrainingRestBoardTitle>
           <TrainingRestBoardTitle side="right">下一场预览</TrainingRestBoardTitle>
           <TrainingRestSideBoard
@@ -241,8 +229,9 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         <TrainingRestShopScene
           api={api}
           open={restScene === "shop"}
-          shop={shopController?.shop || null}
+          shop={shopController?.shop}
           money={shopController?.money ?? moneyAmount ?? 0}
+          onBuy={shopController?.onBuy}
           onBack={() => {
             setRestScene("center");
             setActiveAction("我的队伍");

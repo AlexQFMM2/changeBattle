@@ -1,0 +1,197 @@
+.training-rest-shop-buy-list {
+  --training-rest-shop-buy-columns: 5;
+  --training-rest-shop-buy-rows: 3;
+  --training-rest-shop-buy-padding-x: 2px;
+  --training-rest-shop-buy-padding-y: 2px;
+  --training-rest-shop-buy-gap-x: 3px;
+  --training-rest-shop-buy-gap-y: 4px;
+  --training-rest-shop-buy-card-width: calc(
+    (100% - (var(--training-rest-shop-buy-padding-x) * 2) - (var(--training-rest-shop-buy-gap-x) * 4)) /
+      var(--training-rest-shop-buy-columns)
+  );
+  --training-rest-shop-buy-card-height: calc(
+    (100% - (var(--training-rest-shop-buy-padding-y) * 2) - (var(--training-rest-shop-buy-gap-y) * 2)) /
+      var(--training-rest-shop-buy-rows)
+  );
+  --training-rest-shop-buy-card-radius: 5px;
+  --training-rest-shop-buy-card-padding: 3px;
+  --training-rest-shop-buy-card-inner-gap-x: 5px;
+  --training-rest-shop-buy-card-inner-gap-y: 2px;
+  --training-rest-shop-buy-icon-size: 26px;
+  --training-rest-shop-buy-icon-max-size: 24px;
+  --training-rest-shop-buy-name-height: 12px;
+  --training-rest-shop-buy-price-height: 11px;
+  --training-rest-shop-buy-button-height: 13px;
+  --training-rest-shop-buy-button-gap: 2px;
+  --training-rest-shop-buy-button-width: auto;
+  --training-rest-shop-buy-price-icon-size: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(5, var(--training-rest-shop-buy-card-width));
+  grid-template-rows: repeat(3, var(--training-rest-shop-buy-card-height));
+  grid-auto-flow: column;
+  gap: var(--training-rest-shop-buy-gap-y) var(--training-rest-shop-buy-gap-x);
+  padding: var(--training-rest-shop-buy-padding-y) var(--training-rest-shop-buy-padding-x);
+  overflow: visible;
+}
+
+.training-rest-shop-buy-card {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--training-rest-shop-buy-icon-size) minmax(0, 1fr);
+  grid-template-rows:
+    var(--training-rest-shop-buy-name-height)
+    var(--training-rest-shop-buy-price-height)
+    var(--training-rest-shop-buy-button-height);
+  gap: var(--training-rest-shop-buy-card-inner-gap-y) var(--training-rest-shop-buy-card-inner-gap-x);
+  align-items: center;
+  border: 1px solid rgb(112 75 37 / 58%);
+  border-radius: var(--training-rest-shop-buy-card-radius);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 62%), rgb(239 220 178 / 76%)),
+    rgb(96 61 32 / 30%);
+  color: #3c2411;
+  padding: var(--training-rest-shop-buy-card-padding);
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 38%),
+    0 1px 2px rgb(44 25 10 / 24%);
+}
+
+.training-rest-shop-buy-card[data-selected="true"] {
+  border-color: #43c9ee;
+  outline: 1px solid #fff3a8;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 74%), rgb(244 226 177 / 86%)),
+    rgb(74 154 204 / 28%);
+}
+
+.training-rest-shop-buy-card[data-empty="true"] {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  color: rgb(60 36 17 / 52%);
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.training-rest-shop-buy-icon {
+  grid-row: 1 / -1;
+  align-self: center;
+  width: var(--training-rest-shop-buy-icon-size);
+  height: var(--training-rest-shop-buy-icon-size);
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: rgb(255 251 232 / 72%);
+  overflow: hidden;
+}
+
+.training-rest-shop-buy-icon img,
+.training-rest-shop-buy-icon .image-fallback {
+  max-width: var(--training-rest-shop-buy-icon-max-size);
+  max-height: var(--training-rest-shop-buy-icon-max-size);
+  object-fit: contain;
+}
+
+.training-rest-shop-buy-sprite {
+  width: var(--training-rest-shop-buy-icon-max-size);
+  height: var(--training-rest-shop-buy-icon-max-size);
+  display: block;
+}
+
+.training-rest-shop-buy-fallback,
+.training-rest-shop-buy-icon .image-fallback {
+  color: #61401f;
+  font-size: 10px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.training-rest-shop-buy-card > strong {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  height: var(--training-rest-shop-buy-name-height);
+  overflow: hidden;
+  color: #3a2413;
+  font-size: 7px;
+  font-weight: 1000;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 68%);
+  white-space: nowrap;
+}
+
+.training-rest-shop-buy-price {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  height: var(--training-rest-shop-buy-price-height);
+  display: inline-grid;
+  grid-template-columns: var(--training-rest-shop-buy-price-icon-size) minmax(0, 1fr);
+  align-items: center;
+  gap: 2px;
+  color: #6d4017;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.training-rest-shop-buy-price img {
+  width: var(--training-rest-shop-buy-price-icon-size);
+  height: var(--training-rest-shop-buy-price-icon-size);
+  object-fit: contain;
+}
+
+.training-rest-shop-buy-price span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-shop-buy-actions {
+  grid-column: 2;
+  grid-row: 3;
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+  gap: var(--training-rest-shop-buy-button-gap);
+}
+
+.training-rest-shop-buy-actions button {
+  width: 100%;
+  height: var(--training-rest-shop-buy-button-height);
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(91 57 25 / 72%);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #fff4c9, #c9954e);
+  color: #2f1d10;
+  padding: 0 2px;
+  font-size: 6px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.training-rest-shop-buy-actions button:hover:not(:disabled),
+.training-rest-shop-buy-actions button:focus-visible:not(:disabled) {
+  filter: brightness(1.08);
+  outline: none;
+}
+
+.training-rest-shop-buy-actions button:disabled {
+  cursor: default;
+  filter: grayscale(.45);
+  opacity: .64;
+}

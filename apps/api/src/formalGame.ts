@@ -143,7 +143,13 @@ const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
   ],
 };
 
-const FORMAL_SHOP_SLOTS_PER_CATEGORY = 3;
+const FORMAL_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number> = {
+  recovery: 3,
+  berry: 3,
+  battle: 3,
+  training: 3,
+  tm: 3,
+};
 const FORMAL_SHOP_SELL_RATE = 0.25;
 
 export type FormalStarterCandidateDiagnosticsV4 = {
@@ -1968,7 +1974,7 @@ function currentFormalRestNode(run: FormalGameRunV4): TrainingRunGameNodeV4 | nu
 }
 
 function ensureFormalRestShopFast(run: FormalGameRunV4, nodeId: string): FormalRestShopV4 {
-  return run.shopByNodeId?.[nodeId] || createFormalRestShop(run, nodeId);
+  return normalizeFormalShop(run.shopByNodeId?.[nodeId], run, nodeId) || createFormalRestShop(run, nodeId);
 }
 
 function findFormalShopItem(shop: FormalRestShopV4, slotId: string): {category: FormalShopCategoryV4; item: FormalShopItemV4; index: number} | null {
@@ -2232,8 +2238,9 @@ function normalizeFormalShop(shop: Partial<FormalRestShopV4> | null | undefined,
   const seed = String(shop.seed || `${run.seed || "formal-shop"}:${nodeId}`);
   const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
     const rawItems = Array.isArray(shop.categories?.[category]) ? shop.categories![category] : [];
-    const normalizedItems = rawItems.slice(0, FORMAL_SHOP_SLOTS_PER_CATEGORY).map((item, index) => normalizeFormalShopItem(item, category, index, nodeId, seed));
-    while (normalizedItems.length < FORMAL_SHOP_SLOTS_PER_CATEGORY) {
+    const slotCount = formalShopSlotsForCategory(category);
+    const normalizedItems = rawItems.slice(0, slotCount).map((item, index) => normalizeFormalShopItem(item, category, index, nodeId, seed));
+    while (normalizedItems.length < slotCount) {
       normalizedItems.push(createFormalShopSlot(run, nodeId, category, normalizedItems.length, normalizedItems.length, shop.updatedAt || new Date().toISOString(), new Set(normalizedItems.map(entry => entry.itemID))));
     }
     return [category, normalizedItems];
@@ -2262,7 +2269,7 @@ function createFormalRestShop(run: Partial<FormalGameRunV4>, nodeId: string): Fo
   const seed = `${run.seed || "formal-shop"}:${nodeId}`;
   const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
     const used = new Set<string>();
-    const items = Array.from({length: FORMAL_SHOP_SLOTS_PER_CATEGORY}, (_, index) => {
+    const items = Array.from({length: formalShopSlotsForCategory(category)}, (_, index) => {
       const item = createFormalShopSlot(run, nodeId, category, index, index, now, used);
       used.add(item.itemID);
       return item;
@@ -2270,6 +2277,10 @@ function createFormalRestShop(run: Partial<FormalGameRunV4>, nodeId: string): Fo
     return [category, items];
   })) as Record<FormalShopCategoryV4, FormalShopItemV4[]>;
   return {nodeId, seed, categories, updatedAt: now};
+}
+
+function formalShopSlotsForCategory(category: FormalShopCategoryV4): number {
+  return FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3;
 }
 
 function createFormalShopSlot(run: Partial<FormalGameRunV4>, nodeId: string, category: FormalShopCategoryV4, index: number, rollIndex: number, now: string, used: Set<string>): FormalShopItemV4 {

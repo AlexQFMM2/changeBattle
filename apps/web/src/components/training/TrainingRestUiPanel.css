@@ -1,0 +1,27 @@
+.training-rest-ui-panel-frame {
+  --training-rest-ui-panel-width: auto;
+  --training-rest-ui-panel-height: auto;
+  --training-rest-ui-panel-padding: 15px;
+  box-sizing: border-box;
+  width: var(--training-rest-ui-panel-width);
+  height: var(--training-rest-ui-panel-height);
+  min-width: 0;
+  min-height: 0;
+  border: 18px solid transparent;
+  border-image-source: url('/board/rest-panel-frame.png');
+  border-image-slice: 58 fill;
+  border-image-width: 18px;
+  border-image-repeat: stretch;
+  padding: var(--training-rest-ui-panel-padding);
+  overflow: hidden;
+  filter: drop-shadow(0 4px 0 rgb(0 0 0 / 30%));
+}
+
+.training-rest-ui-panel-content {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
