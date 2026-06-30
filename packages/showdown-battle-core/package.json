@@ -17,6 +17,10 @@
     "./teamGenerator": {
       "types": "./src/teamGenerator.ts",
       "default": "./src/teamGenerator.ts"
+    },
+    "./battleProfiles": {
+      "types": "./src/battleProfiles.ts",
+      "default": "./src/battleProfiles.ts"
     }
   },
   "scripts": {

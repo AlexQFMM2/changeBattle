@@ -1,4 +1,5 @@
 import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
+import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {
   REST_CENTER_LEFT_SIDE_ACTIONS_V4,
   REST_CENTER_PAPER_ACTIONS_V4,
@@ -24,6 +25,7 @@ export {REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CEN
 export type {RestCenterActionEntryV4};
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
+export type {PokemonBattleProfileV4, PokemonBattleRoleTagV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 export type {
   DexTrainerDetail,
   DexTrainerBossProfile,
@@ -175,6 +177,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getPokemonTutorSkills: (speciesId: string) => dex.getPokemonTutorSkills(speciesId),
     getPokemonEggSkills: (speciesId: string) => dex.getPokemonEggSkills(speciesId),
     getPokemonMachineSkills: (speciesId: string) => dex.getPokemonMachineSkills(speciesId),
+    getPokemonBattleProfile: (speciesId: string) => getPokemonBattleProfileV4(speciesId),
     getTrainerCatalog: () => clone(TRAINER_CATALOG),
     loadUserProfile: () => userProfiles.loadUserProfile(),
     createUserProfile: async (draft: UserProfileDraftV2 = {}) => {

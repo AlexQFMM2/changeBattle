@@ -238,6 +238,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           api={api}
           open={restScene === "shop"}
           shop={shopController?.shop}
+          player={shopController?.player}
           money={shopController?.money ?? moneyAmount ?? 0}
           onBuy={shopController?.onBuy}
           onBack={() => {

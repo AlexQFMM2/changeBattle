@@ -16,7 +16,10 @@ import {
   FORMAL_RUN_VERSION,
   FORMAL_SHOP_CATEGORY_LABELS,
   FORMAL_SHOP_CATEGORY_ORDER,
+  FORMAL_SHOP_BATTLE_ITEM_PRICE_TIERS,
+  FORMAL_SHOP_PRICE_OVERRIDES,
   FORMAL_SHOP_ITEM_POOL,
+  FORMAL_SHOP_PRICE_LIMITS,
   FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER,
   FORMAL_SHOP_SELL_RATE,
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
@@ -587,7 +590,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   }
 
   function getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[] {
-    return createFormalShopProductViewsV4(getFormalRestShop(run), getItemDetailSafe);
+    return createFormalShopProductViewsV4(getFormalRestShop(run), getItemDetailSafe, {getMoveDetail: getMoveDetailSafe});
   }
 
   function buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4 {
@@ -599,7 +602,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const {item, category, index} = located;
     if (item.stock <= 0) return shopTransactionResult(false, {...run, shopByNodeId: {...(run.shopByNodeId || {}), [shop.nodeId]: shop}}, "该商品已经售罄。", shop);
     const detail = getItemDetailSafe(item.itemID);
-    const price = Math.max(0, Math.floor(Number(detail?.cost || 0)));
+    const price = formalShopItemPriceV4(item, detail, getMoveDetailSafe);
     if (!detail || price <= 0) return shopTransactionResult(false, run, "该商品暂不可购买。", shop);
     if (run.money < price) return shopTransactionResult(false, run, "金币不足。", shop);
     const p1 = run.restRunSnapshot.players.p1;
@@ -607,7 +610,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const bag = normalizeFormalBag(p1.bag);
     if (bag.items.length >= bag.maxSize) return shopTransactionResult(false, run, "背包已满。", shop);
     const now = new Date().toISOString();
-    const nextItem = formalShopItemInstance(item.itemID, detail);
+    const nextItem = formalShopItemInstance(item.itemID, detail, price);
     const nextP1 = {...p1, bag: {...bag, items: [...bag.items, nextItem]}};
     const nextRestRun = patchFormalRestP1(run.restRunSnapshot, nextP1, now);
     const replenishedItem = createFormalShopSlot(run, shop.nodeId, category, index, Date.now(), now, new Set(shop.categories[category].map(entry => entry.itemID)));
@@ -679,6 +682,14 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   function getItemDetailSafe(itemID: string): DexItemDetail | null {
     try {
       return dex.getItemDetail(itemID);
+    } catch {
+      return null;
+    }
+  }
+
+  function getMoveDetailSafe(moveId: string): DexMoveSummary | null {
+    try {
+      return dex.getMoveDetail(moveId);
     } catch {
       return null;
     }
@@ -1246,6 +1257,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
 export function createFormalShopProductViewsV4(
   shop: FormalRestShopV4 | null | undefined,
   getItemDetail: (itemID: string) => DexItemDetail | null | undefined,
+  options: {getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined} = {},
 ): FormalShopProductViewV4[] {
   if (!shop) return [];
   const products: FormalShopProductViewV4[] = [];
@@ -1259,7 +1271,7 @@ export function createFormalShopProductViewsV4(
         itemID: item.itemID,
         type: category,
         name: formalShopProductName(item, detail),
-        price: formalShopProductPrice(detail),
+        price: formalShopItemPriceV4(item, detail, options.getMoveDetail),
         summary: formalShopProductSummary(detail),
         stock: Math.max(0, Math.floor(Number(item.stock || 0))),
         iconUrl: detail?.iconUrl || undefined,
@@ -1285,12 +1297,94 @@ function formalShopProductName(item: FormalShopItemV4, detail: DexItemDetail | n
   return detail?.nameZh || detail?.name || item.itemID || "未知道具";
 }
 
-function formalShopProductPrice(detail: DexItemDetail | null): number {
-  return Math.max(0, Math.floor(Number(detail?.cost || 0)));
-}
-
 function formalShopProductSummary(detail: DexItemDetail | null): string {
   return detail?.description || detail?.effectSummary || "这是很实用的道具，要带上吗？";
+}
+
+export function formalShopItemPriceV4(
+  item: Pick<FormalShopItemV4, "category" | "itemID"> | {category?: FormalShopCategoryV4; itemID: string},
+  detail: DexItemDetail | null | undefined,
+  getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined,
+): number {
+  const itemID = toID(item.itemID);
+  const override = FORMAL_SHOP_PRICE_OVERRIDES[itemID];
+  if (Number.isFinite(override)) return Math.max(1, Math.floor(override));
+  const category = item.category || formalShopCategoryFromDetail(detail);
+  if (category === "tm" || detail?.kind === "tm") return formalShopTmPrice(detail, getMoveDetail);
+  if (category === "battle" || detail?.kind === "battle" || detail?.kind === "held") return formalShopBattlePrice(itemID);
+  if (category === "training" || detail?.kind === "training") return formalShopTrainingPrice(detail);
+  if (category === "recovery" || detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp") return formalShopRecoveryPrice(detail);
+  if (category === "berry" || detail?.kind === "berry") return clampFormalShopPrice(detail?.cost || FORMAL_SHOP_PRICE_LIMITS.berry.min, "berry");
+  return Math.max(1, Math.floor(Number(detail?.cost || 50)));
+}
+
+function formalShopCategoryFromDetail(detail: DexItemDetail | null | undefined): FormalShopCategoryV4 | undefined {
+  if (detail?.kind === "tm") return "tm";
+  if (detail?.kind === "battle" || detail?.kind === "held") return "battle";
+  if (detail?.kind === "training") return "training";
+  if (detail?.kind === "berry") return "berry";
+  if (detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp") return "recovery";
+  return undefined;
+}
+
+function formalShopTmPrice(detail: DexItemDetail | null | undefined, getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined): number {
+  const moveId = detail?.moveId || "";
+  const move = moveId && getMoveDetail ? safeFormalShopMoveDetail(getMoveDetail, moveId) : null;
+  const power = Math.max(0, Math.floor(Number(move?.power || 0)));
+  if (power <= 0) return 100;
+  if (power <= 60) return 150;
+  if (power <= 80) return 200;
+  if (power <= 100) return 250;
+  return 300;
+}
+
+function safeFormalShopMoveDetail(getMoveDetail: (moveId: string) => DexMoveSummary | null | undefined, moveId: string): DexMoveSummary | null {
+  try {
+    return getMoveDetail(moveId) || null;
+  } catch {
+    return null;
+  }
+}
+
+function formalShopBattlePrice(itemID: string): number {
+  for (const [rawPrice, itemIDs] of Object.entries(FORMAL_SHOP_BATTLE_ITEM_PRICE_TIERS)) {
+    if (itemIDs.includes(itemID)) return clampFormalShopPrice(rawPrice, "battle");
+  }
+  return 450;
+}
+
+function formalShopTrainingPrice(detail: DexItemDetail | null | undefined): number {
+  const effect = detail?.trainingEffect;
+  if (effect?.kind === "ev") {
+    const value = Math.abs(Number(effect.amount ?? effect.target ?? 0));
+    return clampFormalShopPrice(Math.max(10, value * 2), "training");
+  }
+  return 50;
+}
+
+function formalShopRecoveryPrice(detail: DexItemDetail | null | undefined): number {
+  const effect = detail?.recoveryEffect;
+  if (!effect) return clampFormalShopPrice(detail?.cost || FORMAL_SHOP_PRICE_LIMITS.recovery.min, "recovery");
+  if (effect.revive === "full") return 150;
+  if (effect.revive === "half") return 100;
+  if (effect.pp?.scope === "all" && effect.pp.full) return 150;
+  if (effect.pp?.scope === "all") return 100;
+  if (effect.pp?.scope === "one" && effect.pp.full) return 80;
+  if (effect.pp?.scope === "one") return 40;
+  if (effect.hp?.kind === "full" && effect.cureStatus) return 150;
+  if (effect.hp?.kind === "full") return 130;
+  if (effect.hp?.kind === "fixed") return clampFormalShopPrice(effect.hp.amount, "recovery");
+  if (effect.hp?.kind === "fraction") return 80;
+  if (effect.cureStatus === "all") return 30;
+  if (Array.isArray(effect.cureStatus) && effect.cureStatus.length) return 10;
+  return FORMAL_SHOP_PRICE_LIMITS.recovery.min;
+}
+
+function clampFormalShopPrice(value: unknown, category: keyof typeof FORMAL_SHOP_PRICE_LIMITS): number {
+  const limits = FORMAL_SHOP_PRICE_LIMITS[category];
+  const price = Math.floor(Number(value || 0));
+  if (!Number.isFinite(price)) return limits.min;
+  return Math.min(limits.max, Math.max(limits.min, price));
 }
 
 function stripFormalShopTmPrefix(name: string): string {
@@ -1956,13 +2050,13 @@ function findFormalShopItem(shop: FormalRestShopV4, slotId: string): {category: 
   return null;
 }
 
-function formalShopItemInstance(itemID: string, detail: DexItemDetail): PlayerItemInstanceV4 {
+function formalShopItemInstance(itemID: string, detail: DexItemDetail, price: number): PlayerItemInstanceV4 {
   return {
     id: createId("shop-item"),
     itemID,
     name: detail.nameZh || detail.name || itemID,
     image: detail.iconUrl || "",
-    cost: Math.max(0, Math.floor(Number(detail.cost || 0))),
+    cost: Math.max(0, Math.floor(Number(price || 0))),
     canSale: detail.canSale ?? true,
     type: formalPlayerItemTypeFromDetail(detail),
     canBattleUse: detail.canBattleUse ?? false,
@@ -2016,7 +2110,8 @@ function formalHeldItemInstanceIds(player: TrainingPlayerDraftV4): Set<string> {
 }
 
 function formalShopSellPrice(item: PlayerItemInstanceV4, detail: DexItemDetail | null): number {
-  return Math.floor(Math.max(0, Number(item.cost || detail?.cost || 0)) * FORMAL_SHOP_SELL_RATE);
+  const price = Math.max(0, Number(item.cost || formalShopItemPriceV4({itemID: item.itemID}, detail)));
+  return Math.floor(price * FORMAL_SHOP_SELL_RATE);
 }
 
 function appendShopCoinLogFast(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4 {

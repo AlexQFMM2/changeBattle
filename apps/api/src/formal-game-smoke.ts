@@ -1,14 +1,20 @@
 import type {DexItemDetail, DexPokemonDetail, DexSearchRequest, DexSearchResult} from "@changebattle-v2/showdown-dex-core";
+import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {
+  FORMAL_SHOP_COMMON_BERRY_POOL,
+  FORMAL_SHOP_CONFUSION_BERRY_POOL,
   FORMAL_ROUND_COUNT,
   FORMAL_SHOP_CATEGORY_ORDER,
   FORMAL_SHOP_ITEM_POOL,
+  FORMAL_SHOP_PRICE_LIMITS,
+  FORMAL_SHOP_RESIST_BERRY_POOL,
+  FORMAL_SHOP_SELL_RATE,
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
   FORMAL_STARTING_MONEY,
   STARTER_ROLE_PLAN,
   validateFormalShopCatalogV4,
 } from "@changebattle-v2/core";
-import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi} from "./formalGame.js";
+import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4} from "./formalGame.js";
 import {
   enableTestModeForProfileV4,
   normalizeStarChartV4,
@@ -43,6 +49,9 @@ const pokemonDetails = [
   mockPokemon("snorlax", "卡比兽", 143, ["Normal"], 540),
 ];
 const pokemonById = new Map(pokemonDetails.map(detail => [detail.id, detail]));
+const formalBattleItemIds = new Set(FORMAL_SHOP_ITEM_POOL.battle);
+const formalTrainingItemIds = new Set(FORMAL_SHOP_ITEM_POOL.training);
+const formalRecoveryItemIds = new Set(FORMAL_SHOP_ITEM_POOL.recovery);
 
 const api = createFormalGameRunApi({
   searchDex(request: DexSearchRequest = {}): DexSearchResult {
@@ -128,14 +137,33 @@ function moveDetail(id: string) {
     flamethrower: "火",
     protect: "一般",
   };
+  const movePowers: Record<string, number> = {
+    protect: 0,
+    raindance: 0,
+    trickroom: 0,
+    willowisp: 0,
+    toxic: 0,
+    calmmind: 0,
+    swordsdance: 0,
+    substitute: 0,
+    watergun: 40,
+    rockslide: 75,
+    thunderbolt: 90,
+    icebeam: 90,
+    flamethrower: 90,
+    psychic: 90,
+    shadowball: 80,
+    surf: 90,
+    earthquake: 100,
+  };
   const status = id === "protect" || id === "raindance" || id === "trickroom";
   return {
     id,
     name: id,
     nameZh: id,
     type: moveTypes[id] || "一般",
-    category: status ? "变化" : "特殊",
-    power: status ? 0 : 40,
+    category: status || movePowers[id] === 0 ? "变化" : "特殊",
+    power: movePowers[id] ?? (status ? 0 : 40),
     accuracy: status ? null : 100,
     pp: status ? 10 : 25,
     priority: 0,
@@ -149,21 +177,90 @@ function moveDetail(id: string) {
 function itemDetail(id: string): DexItemDetail {
   const isTm = id.startsWith("tm:");
   const moveId = isTm ? id.slice(3) : "";
+  const kind = isTm
+    ? "tm"
+    : id.endsWith("berry")
+      ? "berry"
+      : formalBattleItemIds.has(id)
+        ? "held"
+        : formalTrainingItemIds.has(id)
+          ? "training"
+          : formalRecoveryItemIds.has(id)
+            ? itemRecoveryKind(id)
+            : "recovery";
   return {
     id,
     name: isTm ? `TM: ${moveId}` : id,
     nameZh: isTm ? `技能机器：${moveId}` : id,
-    kind: isTm ? "tm" : id.includes("berry") ? "berry" : "recovery",
+    kind,
     kindLabel: isTm ? "技能机器" : "道具",
     description: isTm ? "" : `${id} 描述`,
     effectSummary: isTm ? `${moveId} 招式学习器` : `${id} 效果`,
-    cost: isTm ? 1000 : 300,
+    cost: isTm ? 12000 : 3000,
+    recoveryEffect: itemRecoveryEffect(id),
+    trainingEffect: itemTrainingEffect(id),
+    canBattleUse: kind === "berry" || kind === "recovery" || kind === "revive" || kind === "pp",
+    canTake: kind === "berry" || kind === "held",
     moveId: isTm ? moveId : undefined,
     moveName: isTm ? moveId : undefined,
     moveNameZh: isTm ? `${moveId}技能` : undefined,
     iconUrl: `/items/${id}.png`,
     iconStyle: "",
   };
+}
+
+function itemRecoveryKind(id: string): DexItemDetail["kind"] {
+  if (["revive", "maxrevive", "revivalherb"].includes(id)) return "revive";
+  if (["ether", "maxether", "elixir", "maxelixir"].includes(id)) return "pp";
+  return "recovery";
+}
+
+function itemRecoveryEffect(id: string): DexItemDetail["recoveryEffect"] {
+  const fixedHp: Record<string, number> = {
+    potion: 20,
+    freshwater: 30,
+    sodapop: 50,
+    superpotion: 60,
+    energypowder: 60,
+    lemonade: 70,
+    moomoomilk: 100,
+    hyperpotion: 120,
+    energyroot: 120,
+    oranberry: 10,
+  };
+  if (fixedHp[id]) return {hp: {kind: "fixed", amount: fixedHp[id]}};
+  if (id === "sitrusberry") return {hp: {kind: "fraction", numerator: 1, denominator: 4}};
+  if (id === "maxpotion") return {hp: {kind: "full"}};
+  if (id === "fullrestore") return {hp: {kind: "full"}, cureStatus: "all"};
+  if (id === "fullheal" || id === "healpowder" || id === "lumberry") return {cureStatus: "all"};
+  if (["antidote", "burnheal", "iceheal", "awakening", "paralyzeheal"].includes(id)) return {cureStatus: ["psn"]};
+  if (id === "revive") return {revive: "half"};
+  if (id === "maxrevive" || id === "revivalherb") return {revive: "full"};
+  if (id === "ether" || id === "leppaberry") return {pp: {scope: "one", amount: 10}};
+  if (id === "maxether") return {pp: {scope: "one", full: true}};
+  if (id === "elixir") return {pp: {scope: "all", amount: 10}};
+  if (id === "maxelixir") return {pp: {scope: "all", full: true}};
+  return undefined;
+}
+
+function itemTrainingEffect(id: string): DexItemDetail["trainingEffect"] {
+  const evStats: Record<string, "hp" | "atk" | "def" | "spa" | "spd" | "spe"> = {
+    hpup: "hp",
+    protein: "atk",
+    iron: "def",
+    calcium: "spa",
+    zinc: "spd",
+    carbos: "spe",
+  };
+  if (evStats[id]) return {kind: "ev", stat: evStats[id], mode: "add", target: 100};
+  if (id === "rarecandy") return {kind: "level", amount: 1};
+  if (id.endsWith("mint")) return {kind: "nature", nature: id.replace(/mint$/, "")};
+  if (id === "abilitycapsule") return {kind: "ability", mode: "capsule"};
+  if (id === "abilitypatch") return {kind: "ability", mode: "patch"};
+  if (id === "bottlecap") return {kind: "iv", mode: "silver"};
+  if (id === "goldbottlecap") return {kind: "iv", mode: "gold"};
+  if (id === "graybottlecap") return {kind: "iv", mode: "gray"};
+  return undefined;
 }
 
 function allMoreChoicesChart(): StarChartStateV4 {
@@ -208,6 +305,13 @@ for (const category of FORMAL_SHOP_CATEGORY_ORDER) {
   assert(FORMAL_SHOP_ITEM_POOL[category].length >= FORMAL_SHOP_SLOTS_PER_CATEGORY[category], `formal shop ${category} should have enough pool items`);
 }
 assert(api.prepareFormalStarterCandidates(run, {count: 12}).starterCandidates.length === 10, "random formal starter candidates should cap at 10");
+const venusaurBattleProfile = getPokemonBattleProfileV4("venusaur");
+assert(venusaurBattleProfile.roles.some(role => role.id === "Bulky Support"), "venusaur battle profile should include Bulky Support role");
+assert(venusaurBattleProfile.roles.some(role => role.id === "Bulky Attacker"), "venusaur battle profile should include Bulky Attacker role");
+assert(venusaurBattleProfile.roles.some(role => role.label === "耐久辅助"), "venusaur battle profile should map role label");
+const charizardBattleProfile = getPokemonBattleProfileV4("charizard");
+assert(charizardBattleProfile.roles.some(role => role.id === "Fast Attacker" || role.id === "Setup Sweeper"), "charizard battle profile should include offensive roles");
+assert(getPokemonBattleProfileV4("missingno-local-test").roles.length === 0, "missing species battle profile should be empty");
 assert(api.selectedCountForFormalMode("singles") === 3, "singles should select 3");
 assert(api.selectedCountForFormalMode("doubles") === 4, "doubles should select 4");
 assert(api.selectedCountForFormalMode("coop") === 2, "coop should select 2");
@@ -344,6 +448,30 @@ assert(shopProducts.every(product => product.slotId && product.itemID && product
 assert(shopProducts.every(product => shop?.categories[product.type]?.some(item => item.slotId === product.slotId)), "formal shop product view should preserve slot mapping");
 const tmProduct = shopProducts.find(product => product.type === "tm");
 assert(tmProduct && !/^技能机器[：:]/.test(tmProduct.name), "formal shop TM product should display move name instead of TM item prefix");
+assert(shopProducts.every(product => product.price > 0 && product.price <= 900), "formal shop products should use low formal prices instead of dex prices");
+assert(shopProducts.filter(product => product.type === "tm").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.tm.min, FORMAL_SHOP_PRICE_LIMITS.tm.max)), "formal shop TM prices should stay in 100-300 range");
+assert(shopProducts.filter(product => product.type === "battle").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.battle.min, FORMAL_SHOP_PRICE_LIMITS.battle.max)), "formal shop battle item prices should stay in 300-900 range");
+assert(shopProducts.filter(product => product.type === "training").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.training.min, FORMAL_SHOP_PRICE_LIMITS.training.max)), "formal shop training prices should stay in 10-400 range");
+assert(shopProducts.filter(product => product.type === "recovery").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.recovery.min, FORMAL_SHOP_PRICE_LIMITS.recovery.max)), "formal shop recovery prices should stay in 10-150 range");
+assert(shopProducts.filter(product => product.type === "berry").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.berry.min, FORMAL_SHOP_PRICE_LIMITS.berry.max)), "formal shop berry prices should stay in 5-30 range");
+assert([...FORMAL_SHOP_COMMON_BERRY_POOL, ...FORMAL_SHOP_RESIST_BERRY_POOL, ...FORMAL_SHOP_CONFUSION_BERRY_POOL].every(itemID => itemDetail(itemID).kind === "berry"), "formal shop berry pools should resolve as dex berry items");
+assert(new Set(FORMAL_SHOP_ITEM_POOL.berry).size === FORMAL_SHOP_ITEM_POOL.berry.length, "formal shop berry pool should not include duplicate items");
+assert(FORMAL_SHOP_ITEM_POOL.berry.every(itemID => [...FORMAL_SHOP_COMMON_BERRY_POOL, ...FORMAL_SHOP_RESIST_BERRY_POOL, ...FORMAL_SHOP_CONFUSION_BERRY_POOL].includes(itemID)), "formal shop berry pool should only include curated battle berries");
+assert(formalShopItemPriceV4({category: "tm", itemID: "tm:trickroom"}, itemDetail("tm:trickroom"), moveDetail) === 100, "status TM should cost 100");
+assert(formalShopItemPriceV4({category: "tm", itemID: "tm:earthquake"}, itemDetail("tm:earthquake"), moveDetail) === 250, "100-power TM should cost 250");
+assert(formalShopItemPriceV4({category: "battle", itemID: "focussash"}, itemDetail("focussash"), moveDetail) === 900, "focus sash should use top battle price tier");
+const boughtProduct = shopProducts.find(product => product.type === "berry") || shopProducts[0]!;
+const buyResult = api.buyFormalRestShopItem(roundPlanned, boughtProduct.slotId);
+assert(buyResult.ok, "formal shop buy should succeed for a displayed product");
+assert(buyResult.run.money === roundPlanned.money - boughtProduct.price, "formal shop buy should deduct displayed product price");
+const boughtItem = buyResult.run.restRunSnapshot?.players.p1?.bag.items.find(item => item.itemID === boughtProduct.itemID && item.cost === boughtProduct.price);
+assert(boughtItem, "formal shop bought item should enter bag with displayed product price");
+if (boughtItem) {
+  const sellPrice = Math.floor(boughtProduct.price * FORMAL_SHOP_SELL_RATE);
+  const sellResult = api.sellFormalRestBagItems(buyResult.run, [boughtItem.id]);
+  assert(sellResult.ok, "formal shop sell should accept bought item");
+  assert(sellResult.run.money === buyResult.run.money + sellPrice, "formal shop sell should derive value from formal shop price");
+}
 
 const withCoinLog = api.appendCoinLogEntryV4(roundPlanned, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withCoinLog.money === roundPlanned.money - 10, "coin log should update formal money");

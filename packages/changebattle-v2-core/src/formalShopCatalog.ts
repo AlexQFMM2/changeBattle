@@ -24,6 +24,55 @@ export const FORMAL_SHOP_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "
 
 export const FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "berry", "battle", "training", "tm"];
 
+export const FORMAL_SHOP_COMMON_BERRY_POOL = ["oranberry", "leppaberry", "sitrusberry", "lumberry"];
+
+export const FORMAL_SHOP_RESIST_BERRY_POOL = [
+  "occaberry", "passhoberry", "wacanberry", "rindoberry", "yacheberry", "chopleberry",
+  "kebiaberry", "shucaberry", "cobaberry", "payapaberry", "tangaberry", "chartiberry",
+  "kasibberry", "habanberry", "colburberry", "babiriberry", "chilanberry", "roseliberry",
+];
+
+export const FORMAL_SHOP_CONFUSION_BERRY_POOL = ["figyberry", "wikiberry", "magoberry", "aguavberry", "iapapaberry"];
+
+export const FORMAL_SHOP_PRICE_LIMITS = {
+  tm: {min: 100, max: 300},
+  battle: {min: 300, max: 900},
+  training: {min: 10, max: 400},
+  recovery: {min: 10, max: 150},
+  berry: {min: 5, max: 30},
+} as const;
+
+export const FORMAL_SHOP_BATTLE_ITEM_PRICE_TIERS: Record<number, string[]> = {
+  300: ["airballoon", "shellbell", "blacksludge"],
+  450: ["expertbelt", "rockyhelmet"],
+  600: ["leftovers", "eviolite", "assaultvest", "heavydutyboots"],
+  750: ["lifeorb", "choicescarf", "choiceband", "choicespecs"],
+  900: ["focussash"],
+};
+
+export const FORMAL_SHOP_PRICE_OVERRIDES: Record<string, number> = {
+  oranberry: 5,
+  leppaberry: 15,
+  sitrusberry: 20,
+  lumberry: 30,
+  ...Object.fromEntries(FORMAL_SHOP_RESIST_BERRY_POOL.map(itemID => [itemID, 15])),
+  ...Object.fromEntries(FORMAL_SHOP_CONFUSION_BERRY_POOL.map(itemID => [itemID, 25])),
+  rarecandy: 400,
+  goldbottlecap: 400,
+  bottlecap: 100,
+  graybottlecap: 100,
+  adamantmint: 50,
+  modestmint: 50,
+  jollymint: 50,
+  timidmint: 50,
+  calmmint: 50,
+  boldmint: 50,
+  abilitycapsule: 100,
+  abilitypatch: 200,
+  ppup: 100,
+  ppmax: 200,
+};
+
 export const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
   recovery: [
     "potion", "superpotion", "hyperpotion", "maxpotion", "fullrestore",
@@ -33,7 +82,9 @@ export const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
     "revivalherb", "ether", "maxether", "elixir", "maxelixir",
   ],
   berry: [
-    "oranberry", "sitrusberry", "leppaberry", "lumberry",
+    ...FORMAL_SHOP_COMMON_BERRY_POOL,
+    ...FORMAL_SHOP_RESIST_BERRY_POOL,
+    ...FORMAL_SHOP_CONFUSION_BERRY_POOL,
   ],
   battle: [
     "leftovers", "lifeorb", "choicescarf", "choiceband", "choicespecs",

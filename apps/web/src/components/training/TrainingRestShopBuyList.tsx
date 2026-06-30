@@ -7,34 +7,44 @@ export type TrainingRestShopBuyListProps = {
   products: FormalShopProductViewV4[];
   selectedSlotId?: string | null;
   buyingSlotId?: string | null;
+  breakingSlotId?: string | null;
+  breakingProduct?: FormalShopProductViewV4 | null;
+  restockingSlotId?: string | null;
   onDetail: (item: FormalShopProductViewV4) => void;
   onBuy: (item: FormalShopProductViewV4) => void;
 };
 
-export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId, onDetail, onBuy}: TrainingRestShopBuyListProps) {
+export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId, breakingSlotId, breakingProduct, restockingSlotId, onDetail, onBuy}: TrainingRestShopBuyListProps) {
   return (
     <div className="training-rest-shop-buy-list" aria-label="商店购买清单">
       {products.map(product => {
         const selected = product.slotId === selectedSlotId;
         const buying = product.slotId === buyingSlotId;
+        const breaking = product.slotId === breakingSlotId;
+        const restocking = product.slotId === restockingSlotId;
+        const disabled = buying || breaking;
+        const displayProduct = breaking && breakingProduct?.slotId === product.slotId ? breakingProduct : product;
         return (
           <article
             className="training-rest-shop-buy-card"
             data-selected={selected ? "true" : "false"}
+            data-buying={buying ? "true" : "false"}
+            data-breaking={breaking ? "true" : "false"}
+            data-restocking={restocking ? "true" : "false"}
             data-empty="false"
             key={product.slotId}
           >
             <div className="training-rest-shop-buy-icon">
-              <ShopItemIcon product={product} />
+              <ShopItemIcon product={displayProduct} />
             </div>
-            <strong title={product.name}>{product.name}</strong>
-            <div className="training-rest-shop-buy-price" aria-label={`价格 ${product.price}`}>
+            <strong title={displayProduct.name}>{displayProduct.name}</strong>
+            <div className="training-rest-shop-buy-price" aria-label={`价格 ${displayProduct.price}`}>
               <img src="/aboutIcon/coin.png" alt="" draggable={false} />
-              <span>{product.price.toLocaleString()}</span>
+              <span>{displayProduct.price.toLocaleString()}</span>
             </div>
             <div className="training-rest-shop-buy-actions">
-              <button type="button" onClick={() => onDetail(product)}>详情</button>
-              <button type="button" disabled={buying} onClick={() => onBuy(product)}>{buying ? "处理中" : "购买"}</button>
+              <button type="button" disabled={disabled} onClick={() => onDetail(displayProduct)}>详情</button>
+              <button type="button" disabled={disabled} onClick={() => onBuy(displayProduct)}>{buying ? "处理中" : "购买"}</button>
             </div>
           </article>
         );

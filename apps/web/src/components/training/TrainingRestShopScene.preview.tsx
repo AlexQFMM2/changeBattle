@@ -1,9 +1,18 @@
 import {useState} from "react";
-import {createChangeBattleV2Api, type FormalRestShopV4} from "@changebattle-v2/api";
+import {createChangeBattleV2Api, type FormalRestShopV4, type TrainingPlayerDraftV4} from "@changebattle-v2/api";
 import {TrainingRestShopScene} from "./TrainingRestShopScene";
 import "./TrainingRestShopScene.preview.css";
 
 const PREVIEW_API = createChangeBattleV2Api();
+const PREVIEW_PLAYER: TrainingPlayerDraftV4 = {
+  playerId: "p1",
+  name: "预览训练师",
+  avatar: "/npc/avatars/6-asset-a73f3e71.webp",
+  controller: "local",
+  alliance: "near",
+  localTeam: PREVIEW_API.randomizeTrainingTeam("p1", 3, ["venusaur", "charizard", "blastoise"]),
+  bag: {maxSize: 50, items: [], battleBagEnabled: true},
+};
 
 const PREVIEW_SHOP: FormalRestShopV4 = {
   nodeId: "preview-shop",
@@ -46,6 +55,7 @@ export function TrainingRestShopScenePreview() {
         api={PREVIEW_API}
         open={open}
         shop={PREVIEW_SHOP}
+        player={PREVIEW_PLAYER}
         money={3600}
         busy={!open}
         onBuy={slotId => `预览购买：${slotId}`}
