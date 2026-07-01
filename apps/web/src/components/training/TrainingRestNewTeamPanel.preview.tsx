@@ -43,10 +43,6 @@ function patchPreviewPokemon(pokemon: LocalPokemonV4, index: number): LocalPokem
     nameZh: longName ? "很长很长的宝可梦名字" : pokemon.nameZh,
     entryHp: lowHp ? Math.max(1, Math.floor(pokemon.maxHp * 0.28)) : pokemon.entryHp,
     entryStatus: index === 1 ? "brn" : pokemon.entryStatus,
-    locks: {
-      ivs: {hp: index === 0, atk: index === 0},
-      evs: {spe: index === 0},
-      moves: {0: index === 0, 2: index === 0},
-    },
+    locks: {moves: {0: index === 0, 2: index === 0}},
   };
 }

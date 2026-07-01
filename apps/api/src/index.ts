@@ -219,6 +219,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     createFormalShopProductViews: (shop: Parameters<typeof createFormalShopProductViewsV4>[0]) => createFormalShopProductViewsV4(shop, itemID => dex.getItemDetail(itemID)),
     buyFormalRestShopItem: formalRuns.buyFormalRestShopItem,
     sellFormalRestBagItems: formalRuns.sellFormalRestBagItems,
+    rerollFormalRestPokemonStats: formalRuns.rerollFormalRestPokemonStats,
     getFormalTrainingGroundLesson: formalRuns.getFormalTrainingGroundLesson,
     advanceFormalTrainingGroundLesson: formalRuns.advanceFormalTrainingGroundLesson,
     applyFormalTrainingGroundLesson: formalRuns.applyFormalTrainingGroundLesson,

@@ -4,6 +4,8 @@ import {
   REST_CENTER_LEFT_SIDE_ACTIONS_V4,
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   type ChangeBattleV2Api,
+  type DexStatId,
+  type FormalRestPokemonStatRerollResultV4,
   type FormalTrainingGroundApplyInputV4,
   type FormalTrainingGroundLessonViewV4,
   type FormalTrainingGroundResultV4,
@@ -39,6 +41,11 @@ export type TrainingRestTrainingGroundController = {
   onAdvance: () => Promise<void> | void;
 };
 
+export type TrainingRestTeamRerollController = {
+  money: number;
+  onRerollStats: (input: {pokemonId: string; part: "ivs" | "evs"; lockedStats: DexStatId[]}) => Promise<FormalRestPokemonStatRerollResultV4> | FormalRestPokemonStatRerollResultV4;
+};
+
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
   run: TrainingRunGameV4;
@@ -52,9 +59,10 @@ export type TrainingRestNewPageProps = {
   moneyAmount?: number;
   shopController?: TrainingRestShopController;
   trainingGroundController?: TrainingRestTrainingGroundController;
+  teamRerollController?: TrainingRestTeamRerollController;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, shopController, trainingGroundController}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, shopController, trainingGroundController, teamRerollController}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -251,6 +259,15 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             localTeam={p1Team}
             onClose={() => setTeamPanelOpen(false)}
             onLocalTeamChange={updateP1Team}
+            statRerollController={teamRerollController ? {
+              money: teamRerollController.money,
+              onRerollStats: async input => {
+                const result = await teamRerollController.onRerollStats(input);
+                setMessage(result.message);
+                showNotice(result.message, result.ok ? "normal" : "danger");
+                return result;
+              },
+            } : undefined}
           />
           <TrainingRestNewBagPanel
             api={api}

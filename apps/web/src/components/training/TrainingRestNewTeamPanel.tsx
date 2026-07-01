@@ -5,12 +5,21 @@ import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "../dex/MoveCard.css";
 import "./TrainingRestNewTeamPanel.css";
 
+type StatRerollPartV4 = "ivs" | "evs";
+type TemporaryStatLocksV4 = Partial<Record<string, Partial<Record<StatRerollPartV4, Partial<Record<DexStatId, boolean>>>>>>;
+
+export type TrainingRestNewTeamStatRerollController = {
+  money: number;
+  onRerollStats: (input: {pokemonId: string; part: StatRerollPartV4; lockedStats: DexStatId[]}) => Promise<{ok: boolean; message: string; cost: number}> | {ok: boolean; message: string; cost: number};
+};
+
 export type TrainingRestNewTeamPanelProps = {
   api: ChangeBattleV2Api;
   open: boolean;
   localTeam: TrainingPlayerDraftV4["localTeam"] | null;
   onClose: () => void;
   onLocalTeamChange: (localTeam: TrainingPlayerDraftV4["localTeam"]) => void;
+  statRerollController?: TrainingRestNewTeamStatRerollController;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -62,9 +71,10 @@ const NATURE_LABEL: Record<string, string> = {
 
 type LockKindV4 = "ivs" | "evs" | "moves";
 
-export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocalTeamChange}: TrainingRestNewTeamPanelProps) {
+export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocalTeamChange, statRerollController}: TrainingRestNewTeamPanelProps) {
   const team = localTeam?.pokemon || [];
   const [selectedPokemonId, setSelectedPokemonId] = useState(team[0]?.localPokemonId || "");
+  const [temporaryLocks, setTemporaryLocks] = useState<TemporaryStatLocksV4>({});
   const selectedPokemon = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || team[0] || null;
 
   useEffect(() => {
@@ -83,7 +93,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
     onLocalTeamChange({...localTeam, pokemon: nextPokemon});
   }
 
-  function randomizePart(part: "all" | "nature" | "ability" | "ivs" | "evs", pokemon: LocalPokemonV4) {
+  function randomizePart(part: "all" | "nature" | "ability" | "ivs" | "evs", pokemon: LocalPokemonV4, lockedStats: DexStatId[] = []) {
     updatePokemon(pokemon.localPokemonId, current => {
       const detail = api.getPokemonDetail(current.speciesId);
       const patch: Partial<LocalPokemonV4> = {};
@@ -94,20 +104,54 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
         patch.abilityName = ability?.name || current.abilityName;
         patch.abilityNameZh = ability?.nameZh || ability?.name || current.abilityNameZh;
       }
-      if (part === "all" || part === "ivs") patch.ivs = randomStatsWithinCap(current.ivs, current.ivTotalCap ?? 186, 31, current.locks?.ivs);
-      if (part === "all" || part === "evs") patch.evs = randomStatsWithinCap(current.evs, current.evTotalCap ?? 510, 252, current.locks?.evs);
+      if (part === "all" || part === "ivs") patch.ivs = randomStatsWithinCap(current.ivs, current.ivTotalCap ?? 186, 31, lockMapFromStats(lockedStats));
+      if (part === "all" || part === "evs") patch.evs = randomStatsWithinCap(current.evs, current.evTotalCap ?? 510, 252, lockMapFromStats(lockedStats));
       return {...current, ...patch};
     });
   }
 
+  async function rerollStats(pokemon: LocalPokemonV4, part: StatRerollPartV4) {
+    const lockedStats = lockedStatsForPokemon(temporaryLocks, pokemon.localPokemonId, part);
+    if (statRerollController) {
+      const result = await statRerollController.onRerollStats({pokemonId: pokemon.localPokemonId, part, lockedStats});
+      if (result.ok) clearTemporaryLocks(pokemon.localPokemonId, part);
+      return;
+    }
+    randomizePart(part, pokemon, lockedStats);
+    clearTemporaryLocks(pokemon.localPokemonId, part);
+  }
+
+  function clearTemporaryLocks(pokemonId: string, part: StatRerollPartV4) {
+    setTemporaryLocks(current => ({
+      ...current,
+      [pokemonId]: {
+        ...current[pokemonId],
+        [part]: {},
+      },
+    }));
+  }
+
   function toggleLock(pokemon: LocalPokemonV4, kind: LockKindV4, key: DexStatId | number) {
+    if (kind === "ivs" || kind === "evs") {
+      const stat = key as DexStatId;
+      setTemporaryLocks(current => ({
+        ...current,
+        [pokemon.localPokemonId]: {
+          ...current[pokemon.localPokemonId],
+          [kind]: {
+            ...current[pokemon.localPokemonId]?.[kind],
+            [stat]: !current[pokemon.localPokemonId]?.[kind]?.[stat],
+          },
+        },
+      }));
+      return;
+    }
     updatePokemon(pokemon.localPokemonId, current => {
       if (kind === "moves") {
         const moveKey = Number(key);
         return {...current, locks: {...current.locks, moves: {...current.locks?.moves, [moveKey]: !current.locks?.moves?.[moveKey]}}};
       }
-      const stat = key as DexStatId;
-      return {...current, locks: {...current.locks, [kind]: {...current.locks?.[kind], [stat]: !current.locks?.[kind]?.[stat]}}};
+      return current;
     });
   }
 
@@ -137,7 +181,9 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
             api={api}
             pokemon={selectedPokemon}
             onClose={onClose}
-            onRandomizePart={part => randomizePart(part, selectedPokemon)}
+            statRerollController={statRerollController}
+            temporaryLocks={temporaryLocks[selectedPokemon.localPokemonId] || {}}
+            onRandomizePart={part => void rerollStats(selectedPokemon, part)}
             onToggleLock={(kind, key) => toggleLock(selectedPokemon, kind, key)}
           />
         ) : <div className="training-rest-new-team-empty">当前队伍里还没有宝可梦。<button type="button" onClick={onClose}>关闭</button></div> : null}
@@ -234,13 +280,16 @@ function TrainingRestNewTeamSlot({
   );
 }
 
-function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, onToggleLock}: {
+function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollController, temporaryLocks, onRandomizePart, onToggleLock}: {
   api: ChangeBattleV2Api;
   pokemon: LocalPokemonV4;
   onClose: () => void;
-  onRandomizePart: (part: "all" | "nature" | "ability" | "ivs" | "evs") => void;
+  statRerollController?: TrainingRestNewTeamStatRerollController;
+  temporaryLocks: Partial<Record<StatRerollPartV4, Partial<Record<DexStatId, boolean>>>>;
+  onRandomizePart: (part: StatRerollPartV4) => void;
   onToggleLock: (kind: LockKindV4, key: DexStatId | number) => void;
 }) {
+  const [previewMoveId, setPreviewMoveId] = useState("");
   const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
   const detail = useMemo(() => api.getPokemonDetail(pokemon.speciesId), [api, pokemon.speciesId]);
   const statsResult = useMemo(() => api.dex.calculatePokemonStats({
@@ -257,9 +306,35 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, o
   const calculated = statsResult.stats;
   const maxPotentialStats = maxStatsResult.stats;
   const heldItemName = itemName(api, pokemon.itemId);
+  const previewMove = pokemon.moves.find(move => move.moveId === previewMoveId) || null;
+  const previewMoveDetail = useMemo(() => previewMove ? safeMoveDetail(api, previewMove.moveId) : null, [api, previewMove]);
+  const ivLockedStats = lockedStatsFromMap(temporaryLocks.ivs);
+  const evLockedStats = lockedStatsFromMap(temporaryLocks.evs);
+  const ivRerollCost = statRerollCost(ivLockedStats.length);
+  const evRerollCost = statRerollCost(evLockedStats.length);
+
+  useEffect(() => {
+    setPreviewMoveId("");
+  }, [pokemon.localPokemonId]);
+
   return (
     <article className="training-rest-new-pokemon-detail-card">
       <button className="training-rest-new-team-close" type="button" onClick={onClose} aria-label="关闭队伍面板">×</button>
+      <motion.aside
+        className={`training-rest-new-move-preview-drawer ${previewMove ? "open" : ""}`}
+        aria-hidden={!previewMove}
+        initial={false}
+        animate={previewMove ? {y: 0, opacity: 1} : {y: "-110%", opacity: 0}}
+        transition={{duration: 0.18, ease: "easeOut"}}
+      >
+        {previewMove ? (
+          <TrainingRestNewMovePreviewPanel
+            move={previewMove}
+            detail={previewMoveDetail}
+            onClose={() => setPreviewMoveId("")}
+          />
+        ) : null}
+      </motion.aside>
       <div className="training-rest-new-pokemon-top-grid">
         <section className="training-rest-new-pokemon-profile-area">
           <h3 className="training-rest-new-pokemon-title">{pokemon.nameZh || pokemon.name}<small>Lv.{pokemon.level}</small></h3>
@@ -299,8 +374,8 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, o
                     <span>{calculated[stat]}</span>
                     <i aria-hidden="true" />
                   </strong>
-                  <span>{pokemon.ivs[stat]}<LockButton locked={Boolean(pokemon.locks?.ivs?.[stat])} onClick={() => onToggleLock("ivs", stat)} /></span>
-                  <span>{pokemon.evs[stat]}<LockButton locked={Boolean(pokemon.locks?.evs?.[stat])} onClick={() => onToggleLock("evs", stat)} /></span>
+                  <span>{pokemon.ivs[stat]}<LockButton locked={Boolean(temporaryLocks.ivs?.[stat])} onClick={() => onToggleLock("ivs", stat)} /></span>
+                  <span>{pokemon.evs[stat]}<LockButton locked={Boolean(temporaryLocks.evs?.[stat])} onClick={() => onToggleLock("evs", stat)} /></span>
                 </dd>
               </div>
             );
@@ -311,13 +386,20 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, o
       <section className="training-rest-new-pokemon-move-area">
         <div className="training-rest-new-move-row">
           {pokemon.moves.map((move, index) => (
-            <TrainingRestNewMoveCard move={move} locked={Boolean(pokemon.locks?.moves?.[index])} onToggleLock={() => onToggleLock("moves", index)} key={`${move.moveId}-${index}`} />
+            <TrainingRestNewMoveCard
+              move={move}
+              locked={Boolean(pokemon.locks?.moves?.[index])}
+              selected={move.moveId === previewMoveId}
+              onPreview={() => setPreviewMoveId(current => current === move.moveId ? "" : move.moveId)}
+              onToggleLock={() => onToggleLock("moves", index)}
+              key={`${move.moveId}-${index}`}
+            />
           ))}
         </div>
       </section>
       <div className="training-rest-new-detail-actions">
-        <button type="button" onClick={() => onRandomizePart("ivs")}>🎲 随机个体（免费）</button>
-        <button type="button" onClick={() => onRandomizePart("evs")}>🎲 随机努力（免费）</button>
+        <button type="button" onClick={() => onRandomizePart("ivs")}>🎲 随机个体 {statRerollController ? ivRerollCost : "免费"}</button>
+        <button type="button" onClick={() => onRandomizePart("evs")}>🎲 随机努力 {statRerollController ? evRerollCost : "免费"}</button>
       </div>
     </article>
   );
@@ -325,16 +407,41 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, o
 
 function LockButton({locked, onClick}: {locked: boolean; onClick: () => void}) {
   return (
-    <button className={`training-rest-new-lock-button ${locked ? "locked" : ""}`} type="button" onClick={onClick} aria-label={locked ? "取消锁定" : "锁定"}>
+    <button
+      className={`training-rest-new-lock-button ${locked ? "locked" : ""}`}
+      type="button"
+      onClick={event => {
+        event.stopPropagation();
+        onClick();
+      }}
+      aria-label={locked ? "取消锁定" : "锁定"}
+    >
       <span aria-hidden="true" />
     </button>
   );
 }
 
-function TrainingRestNewMoveCard({move, locked, onToggleLock}: {move: TrainingMoveSlotV4; locked: boolean; onToggleLock: () => void}) {
+function TrainingRestNewMoveCard({move, locked, selected, onPreview, onToggleLock}: {
+  move: TrainingMoveSlotV4;
+  locked: boolean;
+  selected: boolean;
+  onPreview: () => void;
+  onToggleLock: () => void;
+}) {
   const typeId = moveTypeId(move.type) || "normal";
   return (
-    <div className={`training-rest-new-move-card move-card move-choice move-card-dex quick-dex-move-card move-type-${typeId}`}>
+    <div
+      className={`training-rest-new-move-card move-card move-choice move-card-dex quick-dex-move-card move-type-${typeId} ${selected ? "selected" : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={onPreview}
+      onKeyDown={event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onPreview();
+      }}
+    >
       <LockButton locked={locked} onClick={onToggleLock} />
       <span className="move-name-row">
         <strong>{move.nameZh || move.name || move.moveId}</strong>
@@ -346,6 +453,38 @@ function TrainingRestNewMoveCard({move, locked, onToggleLock}: {move: TrainingMo
         <em>命 {move.accuracy ?? "-"}</em>
         <em>PP {move.remainingPp}/{move.maxPp || move.pp || "-"}</em>
       </span>
+    </div>
+  );
+}
+
+function TrainingRestNewMovePreviewPanel({move, detail, onClose}: {
+  move: TrainingMoveSlotV4;
+  detail: ReturnType<ChangeBattleV2Api["getMoveDetail"]> | null;
+  onClose: () => void;
+}) {
+  const moveName = detail?.nameZh || move.nameZh || move.name || move.moveId;
+  const moveNameEn = detail?.name || move.name || move.moveId;
+  const flags = detail?.flagsText || detail?.flags || [];
+  return (
+    <div className="training-rest-new-move-preview-panel">
+      <header>
+        <div>
+          <strong>{moveName}</strong>
+          <span>{moveNameEn}</span>
+        </div>
+        <button type="button" onClick={onClose} aria-label="关闭技能说明">×</button>
+      </header>
+      <div className="training-rest-new-move-preview-badges">
+        <b className={`type-${moveTypeId(detail?.type || move.type) || "normal"}`}>{typeLabel(detail?.type || move.type || "?")}</b>
+        <em>{categoryLabel(detail?.category || move.category)}</em>
+        <em>威力 {detail?.power || move.power || "-"}</em>
+        <em>命中 {detail?.accuracy ?? move.accuracy ?? "-"}</em>
+        <em>PP {move.remainingPp}/{move.maxPp || move.pp || detail?.pp || "-"}</em>
+        {detail?.priority ? <em>优先 {detail.priority > 0 ? `+${detail.priority}` : detail.priority}</em> : null}
+      </div>
+      <p>{detail?.description || "暂无技能说明。"}</p>
+      {detail?.target ? <small>目标：{detail.target}</small> : null}
+      {flags.length ? <small>标签：{flags.slice(0, 5).join(" / ")}</small> : null}
     </div>
   );
 }
@@ -371,6 +510,14 @@ function itemName(api: ChangeBattleV2Api, itemId: string): string {
     return detail.nameZh || detail.name || itemId;
   } catch {
     return itemId;
+  }
+}
+
+function safeMoveDetail(api: ChangeBattleV2Api, moveId: string): ReturnType<ChangeBattleV2Api["getMoveDetail"]> | null {
+  try {
+    return api.getMoveDetail(moveId);
+  } catch {
+    return null;
   }
 }
 
@@ -474,6 +621,22 @@ function randomStatsWithinCap(current: Record<DexStatId, number>, totalCap: numb
     remaining -= value;
   }
   return next;
+}
+
+function lockedStatsForPokemon(locks: TemporaryStatLocksV4, pokemonId: string, part: StatRerollPartV4): DexStatId[] {
+  return lockedStatsFromMap(locks[pokemonId]?.[part]);
+}
+
+function lockedStatsFromMap(locks: Partial<Record<DexStatId, boolean>> | undefined): DexStatId[] {
+  return STAT_ROWS.map(([stat]) => stat).filter(stat => Boolean(locks?.[stat]));
+}
+
+function lockMapFromStats(stats: DexStatId[]): Partial<Record<DexStatId, boolean>> {
+  return Object.fromEntries(stats.map(stat => [stat, true])) as Partial<Record<DexStatId, boolean>>;
+}
+
+function statRerollCost(lockedCount: number): number {
+  return 10 + Math.max(0, Math.min(STAT_ROWS.length, Math.floor(Number(lockedCount || 0)))) * 5;
 }
 
 function pick<T>(entries: T[]): T | undefined {

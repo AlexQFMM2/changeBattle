@@ -515,6 +515,20 @@ if (boughtItem) {
   assert(sellResult.run.money === buyResult.run.money + sellPrice, "formal shop sell should derive value from formal shop price");
 }
 
+const statRerollPokemon = roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+const statRerollPoor = api.rerollFormalRestPokemonStats({...roundPlanned, money: 9}, {pokemonId: statRerollPokemon.localPokemonId, part: "ivs", lockedStats: []});
+assert(!statRerollPoor.ok && statRerollPoor.cost === 10 && statRerollPoor.run.money === 9, "formal stat reroll should reject insufficient funds without changing money");
+const statRerollBeforeHpIv = statRerollPokemon.ivs.hp;
+const statRerollBeforeAtkIv = statRerollPokemon.ivs.atk;
+const statRerollResult = api.rerollFormalRestPokemonStats(roundPlanned, {pokemonId: statRerollPokemon.localPokemonId, part: "ivs", lockedStats: ["hp", "atk"]});
+const statRerollAfter = statRerollResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+assert(statRerollResult.ok, "formal stat reroll should apply");
+assert(statRerollResult.cost === 20, "formal stat reroll should cost 10 plus 5 per lock");
+assert(statRerollResult.run.money === roundPlanned.money - 20, "formal stat reroll should deduct cost");
+assert(statRerollAfter.ivs.hp === statRerollBeforeHpIv && statRerollAfter.ivs.atk === statRerollBeforeAtkIv, "formal stat reroll should preserve locked stats");
+assert(statTotal(statRerollAfter.ivs) <= (statRerollAfter.ivTotalCap || 186), "formal stat reroll IV total should stay within cap");
+assert(statRerollResult.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "team-reroll" && entry.amount === -20), "formal stat reroll should append coin log");
+
 const trainingLesson = api.getFormalTrainingGroundLesson(roundPlanned);
 const trainingLessonAgain = api.getFormalTrainingGroundLesson(roundPlanned);
 assert(trainingLesson && trainingLesson.lessonId === trainingLessonAgain?.lessonId, "formal training ground lesson should be stable for same run node and roll");

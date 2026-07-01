@@ -111,6 +111,21 @@ export type FormalShopTransactionResultV4 = {
 
 export type {FormalShopProductViewV4};
 
+export type FormalRestPokemonStatRerollPartV4 = "ivs" | "evs";
+
+export type FormalRestPokemonStatRerollInputV4 = {
+  pokemonId: string;
+  part: FormalRestPokemonStatRerollPartV4;
+  lockedStats?: DexStatId[];
+};
+
+export type FormalRestPokemonStatRerollResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  message: string;
+  cost: number;
+};
+
 export type FormalTrainingGroundLessonKindV4 = "tutor" | "egg" | "self-learn" | "self-study";
 
 export type FormalTrainingGroundLessonSourceV4 = "tutor" | "egg" | "levelup" | "self-study";
@@ -351,6 +366,7 @@ export type FormalGameRunApi = {
   getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[];
   buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
   sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4;
+  rerollFormalRestPokemonStats(run: FormalGameRunV4, input: FormalRestPokemonStatRerollInputV4): FormalRestPokemonStatRerollResultV4;
   getFormalTrainingGroundLesson(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4 | null;
   advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4;
   applyFormalTrainingGroundLesson(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundResultV4;
@@ -761,6 +777,72 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       at: now,
     });
     return shopTransactionResult(true, withLog, `已卖出 ${soldNames.length} 件道具，获得 ${total} 金币。`, getFormalRestShop(withLog));
+  }
+
+  function rerollFormalRestPokemonStats(run: FormalGameRunV4, input: FormalRestPokemonStatRerollInputV4): FormalRestPokemonStatRerollResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const node = currentFormalRestNode(normalized);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    const p1 = restRunSnapshot?.players.p1;
+    if (!node || !restRunSnapshot || !p1) return statRerollResult(false, normalized, "当前没有可调整的队伍。", 0);
+    const part = input.part === "evs" ? "evs" : "ivs";
+    const lockedStats = normalizeStatLockList(input.lockedStats);
+    const cost = formalRestPokemonStatRerollCost(lockedStats.length);
+    if (normalized.money < cost) return statRerollResult(false, normalized, "金币不足。", cost);
+    const pokemonIndex = p1.localTeam.pokemon.findIndex(pokemon => pokemon.localPokemonId === input.pokemonId);
+    const pokemon = pokemonIndex >= 0 ? p1.localTeam.pokemon[pokemonIndex] : null;
+    if (!pokemon) return statRerollResult(false, normalized, "请选择要调整的宝可梦。", cost);
+    const now = new Date().toISOString();
+    const rng = createRng(`${normalized.seed}:${node.id}:rest-stat-reroll:${part}:${pokemon.localPokemonId}:${now}`);
+    const nextStats = rerollStatsWithinCap(
+      part === "ivs" ? pokemon.ivs : pokemon.evs,
+      part === "ivs" ? pokemon.ivTotalCap ?? 186 : pokemon.evTotalCap ?? 510,
+      part === "ivs" ? 31 : 252,
+      lockedStats,
+      rng,
+    );
+    const detail = safePokemon(pokemon.speciesId);
+    const nextIvs = part === "ivs" ? nextStats : pokemon.ivs;
+    const nextEvs = part === "evs" ? nextStats : pokemon.evs;
+    const maxHp = dex.calculatePokemonStats({
+      speciesId: detail.id,
+      level: pokemon.level,
+      nature: pokemon.nature || "Serious",
+      evs: nextEvs,
+      ivs: nextIvs,
+    }).stats.hp;
+    const hpRatio = pokemon.maxHp > 0 ? pokemon.entryHp / pokemon.maxHp : 1;
+    const nextPokemon = {
+      ...pokemon,
+      speciesId: detail.id,
+      ivs: nextIvs,
+      evs: nextEvs,
+      maxHp,
+      entryHp: clampInt(Math.round(maxHp * hpRatio), 0, maxHp, maxHp),
+    };
+    const nextP1 = {
+      ...p1,
+      localTeam: {
+        ...p1.localTeam,
+        pokemon: p1.localTeam.pokemon.map((entry, index) => index === pokemonIndex ? nextPokemon : entry),
+      },
+    };
+    const nextRestRun = patchFormalRestP1(restRunSnapshot, nextP1, now);
+    const withUpdate = {
+      ...normalized,
+      restRunSnapshot: nextRestRun,
+      updatedAt: now,
+    };
+    const label = part === "ivs" ? "随机个体值" : "随机努力值";
+    const withLog = appendShopCoinLogFast(withUpdate, {
+      key: `team-reroll:${node.id}:${pokemon.localPokemonId}:${part}:${now}`,
+      amount: -cost,
+      source: "team-reroll",
+      label: `${label} ${pokemon.nameZh || pokemon.name}`,
+      roundIndex: node.index,
+      at: now,
+    });
+    return statRerollResult(true, withLog, `花费 ${cost} 金币，${part === "ivs" ? "个体值" : "努力值"}已重新分配。`, cost);
   }
 
   function getFormalTrainingGroundLesson(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4 | null {
@@ -1542,6 +1624,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     getFormalRestShopProducts,
     buyFormalRestShopItem,
     sellFormalRestBagItems,
+    rerollFormalRestPokemonStats,
     getFormalTrainingGroundLesson,
     advanceFormalTrainingGroundLesson,
     applyFormalTrainingGroundLesson,
@@ -2445,6 +2528,39 @@ function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, 
 
 function trainingGroundResult(ok: boolean, run: FormalGameRunV4, message: string, lesson: FormalTrainingGroundLessonViewV4 | null): FormalTrainingGroundResultV4 {
   return {ok, run, message, lesson};
+}
+
+function statRerollResult(ok: boolean, run: FormalGameRunV4, message: string, cost: number): FormalRestPokemonStatRerollResultV4 {
+  return {ok, run, message, cost};
+}
+
+function formalRestPokemonStatRerollCost(lockedCount: number): number {
+  return 10 + Math.max(0, Math.min(STAT_IDS.length, Math.floor(Number(lockedCount || 0)))) * 5;
+}
+
+function normalizeStatLockList(stats: DexStatId[] | undefined): DexStatId[] {
+  const valid = new Set(STAT_IDS);
+  return Array.from(new Set((stats || []).filter((stat): stat is DexStatId => valid.has(stat))));
+}
+
+function rerollStatsWithinCap(current: StatTableV4, totalCap: number, statCap: number, lockedStats: DexStatId[], rng: () => number): StatTableV4 {
+  const locked = new Set(lockedStats);
+  const next = Object.fromEntries(STAT_IDS.map(stat => [stat, 0])) as StatTableV4;
+  const normalized = normalizeStats(current, 0, statCap);
+  const safeTotalCap = Math.max(0, Math.min(clampInt(totalCap, 0, statCap * STAT_IDS.length, statCap * STAT_IDS.length), statCap * STAT_IDS.length));
+  let remaining = safeTotalCap;
+  for (const stat of STAT_IDS) {
+    if (!locked.has(stat)) continue;
+    next[stat] = Math.max(0, Math.min(statCap, normalized[stat] || 0, remaining));
+    remaining -= next[stat];
+  }
+  for (const stat of shuffle(STAT_IDS.filter(stat => !locked.has(stat)), rng)) {
+    if (remaining <= 0) break;
+    const value = randomInt(0, Math.min(statCap, remaining), rng);
+    next[stat] = value;
+    remaining -= value;
+  }
+  return next;
 }
 
 function rollFormalTrainingGroundSelfStudyEvent(pokemon: LocalPokemonV4, rng: () => number): FormalTrainingGroundSelfStudyEventV4 {

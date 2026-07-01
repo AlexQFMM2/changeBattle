@@ -563,6 +563,15 @@ function RoutedApp({runtime}: AppProps) {
         onOpenDex={() => openDex()}
         onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
         moneyAmount={formalRun.money}
+        teamRerollController={{
+          money: formalRun.money,
+          onRerollStats: input => {
+            if (!formalRun) throw new Error("正式存档不存在。");
+            const result = api.rerollFormalRestPokemonStats(formalRun, input);
+            if (result.ok) setFormalRun(result.run);
+            return result;
+          },
+        }}
         shopController={{
           shop: api.getFormalRestShop(formalRun),
           player: formalRun.restRunSnapshot.players.p1 || null,
