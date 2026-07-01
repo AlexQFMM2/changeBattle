@@ -14,7 +14,10 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({exclude: bundledWorkspaceDeps})],
     build: {
       rollupOptions: {
-        input: resolve(__dirname, "electron/main.ts"),
+        input: {
+          main: resolve(__dirname, "electron/main.ts"),
+          formalComputeWorker: resolve(__dirname, "electron/formalComputeWorker.ts"),
+        },
       },
     },
   },

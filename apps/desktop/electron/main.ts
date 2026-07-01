@@ -1,11 +1,25 @@
 import {existsSync} from "node:fs";
 import {mkdir, readFile, rm, writeFile} from "node:fs/promises";
 import path from "node:path";
+import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, type IpcMainInvokeEvent} from "electron";
-import {createChangeBattleV2Api, type BattleSessionSnapshotV4, type CoopPartnerPreferenceV4, type FormalGameModeV4, type FormalGameRunV4, type FormalSettlementReasonV4, type UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, UserProfileV2} from "@changebattle-v2/api";
 
 let mainWindow: BrowserWindow | null = null;
-const formalComputeApi = createChangeBattleV2Api();
+let formalComputeWorker: Worker | null = null;
+let formalComputeRequestId = 0;
+const formalComputePending = new Map<number, {resolve: (value: any) => void; reject: (error: Error) => void}>();
+
+type FormalComputeMethodMap = {
+  createFormalGameWithStarterCandidates: {
+    args: [UserProfileV2, {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}];
+    result: FormalGameRunV4;
+  };
+  prepareFormalRoundPlan: {args: [FormalGameRunV4]; result: FormalGameRunV4};
+  prepareFormalBattleSession: {args: [FormalGameRunV4]; result: FormalBattleSessionPreparationV4};
+  prepareFormalSettlement: {args: [FormalGameRunV4, UserProfileV2, FormalSettlementReasonV4]; result: {run: FormalGameRunV4; profile: UserProfileV2}};
+  settleFormalBattleRound: {args: [FormalGameRunV4, BattleSessionSnapshotV4]; result: FormalGameRunV4};
+};
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -51,43 +65,71 @@ ipcMain.handle("userProfile:delete", async () => {
 ipcMain.handle("userProfile:path", async () => userProfilePath());
 
 ipcMain.handle("formalGame:createWithStarterCandidates", async (_event: IpcMainInvokeEvent, profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}) => {
-  const run = formalComputeApi.createFormalGameRun(profile, options);
-  return formalComputeApi.prepareFormalStarterCandidates(run);
+  return callFormalComputeWorker("createFormalGameWithStarterCandidates", profile, options);
 });
 
 ipcMain.handle("formalGame:prepareRoundPlan", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
-  return formalComputeApi.prepareFormalRoundPlan(run);
+  return callFormalComputeWorker("prepareFormalRoundPlan", run);
 });
 
 ipcMain.handle("formalGame:prepareBattleSession", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
-  return formalComputeApi.prepareFormalBattleSession(run);
+  return callFormalComputeWorker("prepareFormalBattleSession", run);
 });
 
 ipcMain.handle("formalGame:prepareSettlement", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4) => {
-  const prepared = formalComputeApi.prepareFormalSettlement(run, reason);
-  const nextProfile = prepared.settlement && !prepared.settlement.claimedAt
-    ? await formalComputeApi.claimFormalSettlementBp(profile, prepared.settlement)
-    : profile;
-  const nextRun = prepared.settlement && !prepared.settlement.claimedAt
-    ? {
-      ...prepared,
-      settlement: {...prepared.settlement, claimedAt: new Date().toISOString()},
-      updatedAt: new Date().toISOString(),
-    }
-    : prepared;
-  return {run: nextRun, profile: nextProfile};
+  return callFormalComputeWorker("prepareFormalSettlement", run, profile, reason);
 });
 
 ipcMain.handle("formalGame:settleBattleRound", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4) => {
-  return formalComputeApi.settleFormalBattleRoundV4(formalComputeApi.appendBattleLogEntriesFromSnapshotV4(run, snapshot));
+  return callFormalComputeWorker("settleFormalBattleRound", run, snapshot);
 });
 
 function userProfilePath(): string {
   return path.join(app.getPath("userData"), "profile", "user-profile.json");
 }
 
+function callFormalComputeWorker<TMethod extends keyof FormalComputeMethodMap>(
+  method: TMethod,
+  ...args: FormalComputeMethodMap[TMethod]["args"]
+): Promise<FormalComputeMethodMap[TMethod]["result"]> {
+  const worker = ensureFormalComputeWorker();
+  const id = ++formalComputeRequestId;
+  return new Promise((resolve, reject) => {
+    formalComputePending.set(id, {resolve, reject});
+    worker.postMessage({id, method, args});
+  }) as Promise<FormalComputeMethodMap[TMethod]["result"]>;
+}
+
+function ensureFormalComputeWorker(): Worker {
+  if (formalComputeWorker) return formalComputeWorker;
+  formalComputeWorker = new Worker(path.join(__dirname, "formalComputeWorker.js"));
+  formalComputeWorker.on("message", (message: {id?: number; ok?: boolean; result?: unknown; error?: string}) => {
+    const id = Number(message.id);
+    const pending = formalComputePending.get(id);
+    if (!pending) return;
+    formalComputePending.delete(id);
+    if (message.ok) pending.resolve(message.result);
+    else pending.reject(new Error(message.error || "正式流程计算失败。"));
+  });
+  formalComputeWorker.on("error", error => {
+    rejectFormalComputePending(error instanceof Error ? error : new Error("正式流程计算 worker 异常。"));
+    formalComputeWorker = null;
+  });
+  formalComputeWorker.on("exit", code => {
+    if (code !== 0) rejectFormalComputePending(new Error(`正式流程计算 worker 已退出：${code}`));
+    formalComputeWorker = null;
+  });
+  return formalComputeWorker;
+}
+
+function rejectFormalComputePending(error: Error) {
+  for (const pending of formalComputePending.values()) pending.reject(error);
+  formalComputePending.clear();
+}
+
 app.whenReady().then(createWindow);
 app.on("window-all-closed", () => {
+  formalComputeWorker?.terminate();
   if (process.platform !== "darwin") app.quit();
 });
 app.on("activate", () => {
