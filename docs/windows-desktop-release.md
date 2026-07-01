@@ -1,93 +1,104 @@
-# Windows Desktop Release
+# ChangeBattle V2 Windows Desktop Release
 
-This document covers the ChangeBattle V2 Windows desktop portable package only.
+本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器、自动更新或签名发布。
 
-## Artifact
+## Release Artifact
+
+发布产物命名：
 
 ```text
 ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
 ```
 
-Players unzip it and run:
+玩家解压后运行：
 
 ```text
 ChangeBattle-V2-Desk.cmd
 ```
 
-The player machine does not need Node.js, pnpm, Python, or source files.
+玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、前端静态资源和 Pokemon Showdown runtime vendor。
 
 ## Windows Build Host
 
+Windows 构建机：
+
 ```text
-ssh win10@172.16.10.41
+win10@172.16.10.41
 ```
 
-V2 uses its own Windows root so it does not disturb the V1 release environment:
+V2 使用独立目录，避免污染 V1 release 环境：
 
 ```text
-D:\changeBattleV2\changeBattleV2       source tree from git archive
-D:\changeBattleV2\release              source archives and portable zip output
+D:\changeBattleV2\changeBattleV2       从 git archive 解出的 V2 source tree
+D:\changeBattleV2\release              上传的源码包、资源包、最终 portable zip
 D:\changeBattleV2\electron-runtime     Windows Electron runtime
 ```
 
-The Electron runtime can be copied from the existing V1 release environment:
+Electron runtime 可以复用 V1 已准备好的 runtime：
 
 ```powershell
 Copy-Item -Recurse -Force D:\changeBattle\electron-runtime\electron D:\changeBattleV2\electron-runtime\electron
 ```
 
-The release script does not download Electron. If `D:\changeBattleV2\electron-runtime\electron\electron.exe` is missing, it stops.
+release 脚本不会临时下载 Electron。如果缺少：
 
-## First Release
+```text
+D:\changeBattleV2\electron-runtime\electron\electron.exe
+```
 
-From Linux:
+Windows 构建会直接失败。
+
+## One-Command Release
+
+Linux 侧从仓库根目录执行：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-git status --short
-pnpm --filter @changebattle-v2/core typecheck
-pnpm --filter @changebattle-v2/api typecheck
-pnpm --filter @changebattle-v2/web typecheck
-pnpm --filter @changebattle-v2/desktop typecheck
-pnpm --filter @changebattle-v2/api test:formal-game
-pnpm typecheck
-git diff --check
-git add <release files>
-git commit -m "Add v2 desktop release pipeline"
-tools/build_release_on_windows.sh 0.1.0
+./tools/build_release_on_windows.sh 0.1.0
 ```
 
-The script uploads a `git archive HEAD` source package to Windows, runs the Windows build script, and copies the zip back to:
+这个脚本会完成：
+
+1. 使用 `git archive HEAD` 生成源码包。
+2. 打包本地 `assets/`，因为资源目录不进入 git archive。
+3. 打包 Showdown runtime 的本地 `node_modules/ts-chacha20`。
+4. 上传到 Windows 构建机。
+5. 重建 `D:\changeBattleV2\changeBattleV2` source tree。
+6. 运行 Windows release checks。
+7. 构建 desktop。
+8. 生成 portable zip。
+9. 把 zip 拉回 Linux 本地：
 
 ```text
 changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
 ```
 
-Untracked local files such as `debug/` are not included in the source archive.
-
-`assets/` is intentionally ignored by git, so `tools/send_release_source_to_windows.sh` sends a second local assets archive:
+Windows 侧最终产物：
 
 ```text
-D:\changeBattleV2\release\changeBattleV2-assets-X.Y.Z.tgz
+D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-v0.1.0.zip
 ```
 
-The Showdown runtime dependency under `packages/showdown-battle-core/vendor/showdown/node_modules/ts-chacha20` is also ignored by git, so the script sends:
-
-```text
-D:\changeBattleV2\release\changeBattleV2-showdown-node-modules-X.Y.Z.tgz
-```
-
-The Windows source tree is rebuilt from `HEAD` plus these local runtime archives before `electron-vite` runs.
+未跟踪目录例如 `debug/`、`release/` 不会进入源码包，也不要提交。
 
 ## Manual Windows Build
 
-After running `tools/send_release_source_to_windows.sh X.Y.Z`, build on Windows:
+如果只想手动在 Windows 侧构建，先从 Linux 同步源码：
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattleV2\build-desk-release.ps1 -Version X.Y.Z
+```bash
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+./tools/send_release_source_to_windows.sh 0.1.0
 ```
 
-The script runs:
+然后在 Windows 构建机运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattleV2\build-desk-release.ps1 -Version 0.1.0
+```
+
+## Windows Release Checks
+
+Windows release 脚本会执行：
 
 ```text
 pnpm install
@@ -98,38 +109,247 @@ pnpm --filter @changebattle-v2/desktop typecheck
 pnpm --filter @changebattle-v2/api test:formal-game
 pnpm typecheck
 pnpm --filter @changebattle-v2/desktop build
+pnpm --filter @changebattle-v2/desktop test:ipc-bundle
+pnpm --filter @changebattle-v2/desktop test:renderer-assets
+pnpm --filter @changebattle-v2/desktop test:formal-worker
 python tools\package_desktop_release.py
 ```
 
-## Runtime Layout
+其中 desktop 专用检查含义如下：
 
-The portable package contains:
+- `test:ipc-bundle`
+  - 确认 `main.js` 包含 `formalGame:createWithStarterCandidates` IPC handler。
+  - 确认 `preload.cjs` 暴露 `createFormalGameWithStarterCandidates` bridge。
+  - 确认 `formalComputeWorker.js` 包含 `createFormalGameWithStarterCandidates` worker method。
+  - 禁止 desktop main/preload/worker bundle 中残留 `@changebattle-v2/...` runtime import。
+  - 禁止 worker bundle 中残留 `react` import，避免 portable 包运行时找不到 `react`。
+  - 禁止 `file:///D:/` 这类硬编码绝对路径。
+- `test:renderer-assets`
+  - 扫描 renderer HTML/JS/CSS，禁止 `/showdown/...`、`/npc/...` 等根路径资源引用。
+  - 禁止 `file:///D:/...` 资源引用。
+- `test:formal-worker`
+  - 直接启动 build 后的 `formalComputeWorker.js`。
+  - 调用 `createFormalGameWithStarterCandidates`。
+  - 确认正式开局候选生成成功。
+  - 确认返回的 sprite URL 不是根路径、Windows 绝对路径或 `file:` URL。
+
+这些检查用于防止“本地 dev 正常、portable 运行缺依赖或资源路径失效”的问题回归。
+
+## Portable Package Layout
+
+portable zip 内部结构：
 
 ```text
-ChangeBattle-V2-Desk.cmd
-RELEASE-README.md
-apps/desktop/package.json
-apps/desktop/out/main
-apps/desktop/out/preload
-apps/desktop/out/renderer
-runtime/electron
+ChangeBattle-V2-Desk-portable-vX.Y.Z/
+  ChangeBattle-V2-Desk.cmd
+  RELEASE-README.md
+  apps/
+    desktop/
+      package.json
+      out/
+        main/
+          main.js
+          formalComputeWorker.js
+        preload/
+          preload.cjs
+        renderer/
+          index.html
+          assets/
+          aboutIcon/
+          board/
+          npc/
+          showdown/
+          runtime/
+          ...
+  runtime/
+    electron/
+      electron.exe
+      ...
+  vendor/
+    pokemon-showdown/
+      sim/
+      data/
+      lib/
+      config/
+      node_modules/
+        ts-chacha20/
+```
+
+`ChangeBattle-V2-Desk.cmd` 使用 `%~dp0` 计算 portable root，不允许写死 `D:\...` 目录：
+
+```text
+APP_ROOT=<cmd 所在目录>
+ELECTRON_EXE=<APP_ROOT>\runtime\electron\electron.exe
+DESKTOP_APP=<APP_ROOT>\apps\desktop
+SHOWDOWN_VENDOR=<APP_ROOT>\vendor\pokemon-showdown
+```
+
+启动前会设置：
+
+```text
+CHANGEBATTLE_PROJECT_ROOT=<APP_ROOT>
+CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<APP_ROOT>\vendor\pokemon-showdown
+```
+
+## Resource Path Rules
+
+V2 Desk portable 必须支持移动解压目录后继续运行，因此资源路径规则是：
+
+- renderer 资源使用相对路径，例如 `./showdown/...`、`./npc/...`。
+- 不允许 renderer bundle 中出现 `/showdown/...`、`/npc/...` 这类根路径资源。
+- 不允许出现 `file:///D:/...`。
+- 不允许业务数据里写死 Windows 盘符。
+- CSS 里的资源也要走相对路径或构建后的 portable 资源路径。
+
+如果新增资源引用，优先使用 web 侧的 `assetUrl()` / `showdownAssetPrefix()` 等统一 helper。
+
+## Showdown Vendor
+
+Pokemon Showdown runtime 不直接 bundle 成单个 JS 文件，而是作为 vendor 目录随包发布：
+
+```text
 vendor/pokemon-showdown
 ```
 
-`ChangeBattle-V2-Desk.cmd` sets:
+原因是 Showdown sim 运行时会动态读取 sibling 文件，例如：
 
 ```text
-CHANGEBATTLE_PROJECT_ROOT=<portable root>
+sim/
+data/
+lib/
+config/
+node_modules/ts-chacha20/
+```
+
+release 下由环境变量定位：
+
+```text
 CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<portable root>\vendor\pokemon-showdown
 ```
 
-This lets the desktop main process load the bundled Showdown runtime instead of depending on source-tree paths.
+dev/source 下仍可 fallback 到：
 
-## Validation
+```text
+packages/showdown-battle-core/vendor/showdown
+```
 
-Before handing the zip to testers, unzip it on Windows and verify:
+## Workspace Package Bundling
 
-- `ChangeBattle-V2-Desk.cmd` opens the app.
-- Title screen, formal game creation, rest center, and battle creation work.
-- Creating a battle does not throw a Showdown vendor path error.
-- Saves are written to Electron userData, not the portable folder.
+`@changebattle-v2/api`、`@changebattle-v2/core`、`@changebattle-v2/showdown-battle-core`、`@changebattle-v2/showdown-dex-core` 是 workspace package。desktop build 配置会把它们打进 main/preload/worker bundle，不依赖 portable 包里的 `node_modules`。
+
+需要特别注意：Node worker 不应该通过 API 主入口间接带入 React。
+
+曾经出现的问题：
+
+```text
+Error invoking remote method 'formalGame:createWithStarterCandidates':
+Cannot find package 'react' imported from ...\formalComputeWorker.js
+```
+
+根因是 `apps/api/src/index.ts` 导出了 `useDexHook`，而 `useDexHook` 引入了 React。worker 从 API 主入口 import 时，bundle 顶部残留了：
+
+```js
+import "react";
+```
+
+portable 包没有 `node_modules/react`，所以正式游戏创建失败。修复原则：
+
+- API 主入口保持 runtime-safe，不导出 React hook。
+- React hook 使用专用入口文件，不进入 desktop worker 依赖链。
+- `test:ipc-bundle` 必须禁止 `react` 出现在 desktop main/preload/worker bundle 中。
+
+## Local Pre-Release Checklist
+
+发布前建议在 Linux 本地先跑：
+
+```bash
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+pnpm --filter @changebattle-v2/desktop build
+pnpm --filter @changebattle-v2/desktop test:ipc-bundle
+pnpm --filter @changebattle-v2/desktop test:renderer-assets
+pnpm --filter @changebattle-v2/desktop test:asset-resolver
+pnpm --filter @changebattle-v2/desktop test:formal-worker
+pnpm --filter @changebattle-v2/api test:formal-game
+pnpm typecheck
+git diff --check
+git status --short
+```
+
+如果这些通过，再提交代码并跑 Windows release。
+
+## Manual Verification
+
+拿到 zip 后，在 Windows 上手测：
+
+1. 解压到任意目录，不要求固定在 `D:\changeBattleV2`。
+2. 双击 `ChangeBattle-V2-Desk.cmd`。
+3. 标题页图片、按钮、背景正常显示。
+4. 创建正式游戏能生成开局候选。
+5. 进入休整中心，公告栏、队伍、商店、交换入口显示正常。
+6. 进入战斗，Pokemon sprite、背景、技能动画资源正常显示。
+7. 存档写入 Electron userData，不写入 portable 解压目录。
+
+若正式流程报错，打开 Electron 菜单：
+
+```text
+View -> Toggle Developer Tools
+```
+
+查看 Console 中：
+
+```text
+[changebattle-v2:web] formal game preparation failed
+[changebattle-v2:desktop] formal compute worker failed
+```
+
+这两类日志会打印 worker 返回的真实错误栈。
+
+## Common Troubleshooting
+
+### 图片或 sprite 不显示
+
+优先检查 renderer bundle 是否出现根路径或绝对路径：
+
+```bash
+pnpm --filter @changebattle-v2/desktop test:renderer-assets
+```
+
+### 正式游戏创建失败
+
+优先检查 worker 是否能独立运行：
+
+```bash
+pnpm --filter @changebattle-v2/desktop test:formal-worker
+```
+
+如果报 `Cannot find package 'react'`，说明 React 又漏进 worker bundle。检查：
+
+```bash
+pnpm --filter @changebattle-v2/desktop test:ipc-bundle
+```
+
+### Showdown vendor 找不到
+
+确认 portable 包内存在：
+
+```text
+vendor/pokemon-showdown/sim/index.js
+vendor/pokemon-showdown/node_modules/ts-chacha20/package.json
+```
+
+确认 `ChangeBattle-V2-Desk.cmd` 设置了：
+
+```text
+CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<portable root>\vendor\pokemon-showdown
+```
+
+### 运行的不是新版包
+
+因为 release 过程中 Windows 侧和 Linux 侧都有 zip，容易拿错。以这两个位置为准：
+
+```text
+D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
+changeBattleV2/release/ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
+```
+
+解压后可查看 `RELEASE-README.md` 中的 commit 信息确认版本。
