@@ -305,6 +305,12 @@ export type BattleSessionCreateInputV4 = {
   showdownIdPool: ShowdownIdPoolStateV4;
 };
 
+export type BattleSessionDraftInputV4 = {
+  runId: string;
+  node: TrainingRunGameNodeV4;
+  playersById: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+};
+
 export type BattleActivePokemonV4 = {
   ident: string;
   playerId: ShowdownPlayerIdV4;
@@ -498,30 +504,40 @@ export function createBattleServiceClient(baseUrl = DEFAULT_BATTLE_SERVICE_URL):
 }
 
 export function createBattleGameFromTrainingNode(run: TrainingRunGameV4, node: TrainingRunGameNodeV4): {battleGame: BattleGameV4; sessionInput: BattleSessionCreateInputV4} {
+  const playersById = Object.fromEntries(playerIdsForNode(node).map(playerId => [
+    playerId,
+    playerId === "p1"
+      ? run.players[playerId] || node.participants?.[playerId]
+      : node.participants?.[playerId] || run.players[playerId],
+  ])) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+  return createBattleGameFromNodeDraft({runId: run.id, node, playersById});
+}
+
+export function createBattleGameFromNodeDraft(input: BattleSessionDraftInputV4): {battleGame: BattleGameV4; sessionInput: BattleSessionCreateInputV4} {
   const now = new Date().toISOString();
   const showdownIdPool = createShowdownIdPoolState();
   const usedShowdownIdentityTokens = new Set(showdownIdPool.used);
-  const players = playerIdsForNode(node)
-    .map(playerId => playerId === "p1" ? run.players[playerId] || node.participants?.[playerId] : node.participants?.[playerId] || run.players[playerId])
+  const players = playerIdsForNode(input.node)
+    .map(playerId => input.playersById[playerId])
     .filter(Boolean)
-    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool, node.ruleSet));
+    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool, input.node.ruleSet));
   return {
     battleGame: {
       id: createId("battle-game"),
       sessionId: null,
-      runId: run.id,
-      nodeId: node.id,
+      runId: input.runId,
+      nodeId: input.node.id,
       status: "creating",
       createdAt: now,
       updatedAt: now,
       error: null,
     },
     sessionInput: {
-      runId: run.id,
-      nodeId: node.id,
-      mode: node.mode,
-      ruleSet: node.ruleSet,
-      seed: node.seed,
+      runId: input.runId,
+      nodeId: input.node.id,
+      mode: input.node.mode,
+      ruleSet: input.node.ruleSet,
+      seed: input.node.seed,
       players,
       showdownIdPool,
     },

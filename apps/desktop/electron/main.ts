@@ -2,9 +2,10 @@ import {existsSync} from "node:fs";
 import {mkdir, readFile, rm, writeFile} from "node:fs/promises";
 import path from "node:path";
 import {app, BrowserWindow, ipcMain, type IpcMainInvokeEvent} from "electron";
-import type {UserProfileV2} from "@changebattle-v2/api";
+import {createChangeBattleV2Api, type BattleSessionSnapshotV4, type CoopPartnerPreferenceV4, type FormalGameModeV4, type FormalGameRunV4, type FormalSettlementReasonV4, type UserProfileV2} from "@changebattle-v2/api";
 
 let mainWindow: BrowserWindow | null = null;
+const formalComputeApi = createChangeBattleV2Api();
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -48,6 +49,38 @@ ipcMain.handle("userProfile:delete", async () => {
 });
 
 ipcMain.handle("userProfile:path", async () => userProfilePath());
+
+ipcMain.handle("formalGame:createWithStarterCandidates", async (_event: IpcMainInvokeEvent, profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}) => {
+  const run = formalComputeApi.createFormalGameRun(profile, options);
+  return formalComputeApi.prepareFormalStarterCandidates(run);
+});
+
+ipcMain.handle("formalGame:prepareRoundPlan", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return formalComputeApi.prepareFormalRoundPlan(run);
+});
+
+ipcMain.handle("formalGame:prepareBattleSession", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return formalComputeApi.prepareFormalBattleSession(run);
+});
+
+ipcMain.handle("formalGame:prepareSettlement", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4) => {
+  const prepared = formalComputeApi.prepareFormalSettlement(run, reason);
+  const nextProfile = prepared.settlement && !prepared.settlement.claimedAt
+    ? await formalComputeApi.claimFormalSettlementBp(profile, prepared.settlement)
+    : profile;
+  const nextRun = prepared.settlement && !prepared.settlement.claimedAt
+    ? {
+      ...prepared,
+      settlement: {...prepared.settlement, claimedAt: new Date().toISOString()},
+      updatedAt: new Date().toISOString(),
+    }
+    : prepared;
+  return {run: nextRun, profile: nextProfile};
+});
+
+ipcMain.handle("formalGame:settleBattleRound", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4) => {
+  return formalComputeApi.settleFormalBattleRoundV4(formalComputeApi.appendBattleLogEntriesFromSnapshotV4(run, snapshot));
+});
 
 function userProfilePath(): string {
   return path.join(app.getPath("userData"), "profile", "user-profile.json");

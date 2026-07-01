@@ -828,13 +828,16 @@ const coopPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(
 const coopSelected = api.selectFormalStarterPokemon(coopPrepared, [0, 1]);
 const coopPlanned = api.prepareFormalRoundPlan(coopSelected);
 assert(coopPlanned.roundPlan.length === 7, "coop formal plan should still create seven rounds");
-assert(coopPlanned.roundPlan.flatMap(round => round.npcs).length === 21, "coop formal plan should create 14 opponents and 7 allies");
-assert(coopPlanned.roundPlan.every(round => round.participants.p2 && round.participants.p3 && round.participants.p4), "coop formal rounds should include p2/p3/p4");
+assert(coopPlanned.roundPlan.flatMap(round => round.npcs).length === 14, "coop formal plan should create 14 opponents before battle ally dispatch");
+assert(coopPlanned.roundPlan.every(round => round.participants.p2 && !round.participants.p3 && round.participants.p4), "coop formal rounds should defer p3 until battle transition");
 assert(coopPlanned.roundPlan.every(round =>
   (round.participants.p2?.localTeam.pokemon.length || 0) === 2
-  && (round.participants.p3?.localTeam.pokemon.length || 0) === 2
   && (round.participants.p4?.localTeam.pokemon.length || 0) === 2
-), "coop formal NPC participants should bring two pokemon each");
+), "coop formal opponent participants should bring two pokemon each");
+const coopBattlePrepared = api.prepareFormalBattleSession(coopPlanned);
+assert(coopBattlePrepared.restRunSnapshot.players.p3?.controller === "script", "coop battle preparation should dispatch script ally p3");
+assert(coopBattlePrepared.restRunSnapshot.gameMap[0]?.participants.p3?.localTeam.pokemon.length === 2, "coop battle ally should bring two pokemon");
+assert(coopBattlePrepared.sessionInput.players.some(player => player.playerId === "p3" && player.controller === "script"), "coop battle session input should include script ally p3");
 
 console.log("[formal-game-smoke] ok");
 

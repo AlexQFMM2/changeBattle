@@ -71,7 +71,7 @@ import {
   type TrainingStatusV4,
   type TrainingUserProfileInputV4,
 } from "./training.js";
-import type {BattleSessionSnapshotV4} from "./battle.js";
+import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4} from "./battle.js";
 
 export type FormalGameModeV4 = "singles" | "doubles" | "coop";
 export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "roundPlanning" | "resting" | "ended";
@@ -372,6 +372,7 @@ export type FormalGameRunApi = {
   prepareFormalStarterCandidates(run: FormalGameRunV4, options?: {count?: number; seed?: string}): FormalGameRunV4;
   selectFormalStarterPokemon(run: FormalGameRunV4, selectedIndexes: number[]): FormalGameRunV4;
   prepareFormalRoundPlan(run: FormalGameRunV4): FormalGameRunV4;
+  prepareFormalBattleSession(run: FormalGameRunV4): FormalBattleSessionPreparationV4;
   appendCoinLogEntryV4(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4;
   appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4;
   settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4;
@@ -385,6 +386,12 @@ export type FormalGameRunApi = {
   advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4;
   applyFormalTrainingGroundLesson(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundResultV4;
   selectedCountForFormalMode(mode: FormalGameModeV4): number;
+};
+
+export type FormalBattleSessionPreparationV4 = {
+  restRunSnapshot: TrainingRunGameV4;
+  battleGame: BattleGameV4;
+  sessionInput: BattleSessionCreateInputV4;
 };
 
 export type FormalCoinLogInputV4 = {
@@ -601,22 +608,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         diagnostics.push(...built.diagnostics);
       });
       if (normalized.mode === "coop") {
-        const built = createFormalNpcParticipant({
-          run: normalized,
-          trainerType: "elite",
-          playerId: "p3",
-          roundIndex: index,
-          slotIndex: 2,
-          alliance: "near",
-          controller: "script",
-          usedNpcSpecies,
-          rng: roundRng,
-          partnerPreference: normalized.coopPartnerPreference,
-        });
-        participants.p3 = built.player;
-        npcs.push(built.npc);
-        diagnostics.push("coop-ally:elite");
-        diagnostics.push(...built.diagnostics);
+        diagnostics.push("coop-ally:deferred-to-battle-transition");
       }
       return {
         id: `formal-round-${index + 1}`,
@@ -694,6 +686,46 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       },
       updatedAt: now,
     });
+  }
+
+  function prepareFormalBattleSession(run: FormalGameRunV4): FormalBattleSessionPreparationV4 {
+    const normalized = normalizeFormalRun(run);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    if (!restRunSnapshot) throw new Error("缺少正式休整快照。");
+    const node = currentFormalRestNode(normalized);
+    if (!node) throw new Error("当前没有可进入的正式战斗节点。");
+    const round = normalized.roundPlan.find(entry => entry.id === node.id) || normalized.roundPlan[node.index];
+    if (!round) throw new Error("缺少当前正式对局计划。");
+
+    let nextRestRunSnapshot = restRunSnapshot;
+    let nextNode = node;
+    if (normalized.mode === "coop" && !nextNode.participants.p3) {
+      const usedNpcSpecies = new Set<string>();
+      for (const npc of round.npcs) {
+        round.participants[npc.playerId]?.localTeam.pokemon.forEach(pokemon => usedNpcSpecies.add(baseSpeciesId(pokemon.speciesId)));
+      }
+      const built = createFormalNpcParticipant({
+        run: normalized,
+        trainerType: "elite",
+        playerId: "p3",
+        roundIndex: node.index,
+        slotIndex: 2,
+        alliance: "near",
+        controller: "script",
+        usedNpcSpecies,
+        rng: createRng(`${normalized.seed}:round:${node.index + 1}:coop-ally:${normalized.coopPartnerPreference || "balanced"}`),
+        partnerPreference: normalized.coopPartnerPreference,
+      });
+      nextRestRunSnapshot = patchFormalRestParticipant(restRunSnapshot, node.id, built.player);
+      nextNode = nextRestRunSnapshot.gameMap.find(entry => entry.id === node.id) || nextNode;
+    }
+
+    const {battleGame, sessionInput} = createBattleGameFromNodeDraft({
+      runId: nextRestRunSnapshot.id,
+      node: nextNode,
+      playersById: {...nextRestRunSnapshot.players, ...(nextNode.participants || {})},
+    });
+    return {restRunSnapshot: nextRestRunSnapshot, battleGame, sessionInput};
   }
 
   function settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4 {
@@ -1734,6 +1766,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     prepareFormalStarterCandidates,
     selectFormalStarterPokemon,
     prepareFormalRoundPlan,
+    prepareFormalBattleSession,
     appendCoinLogEntryV4,
     appendBattleLogEntriesFromSnapshotV4,
     settleFormalBattleRoundV4,
@@ -2876,6 +2909,27 @@ function patchFormalRestP1(restRunSnapshot: TrainingRunGameV4, p1: TrainingPlaye
     },
     gameMap: restRunSnapshot.gameMap.map(node => node.id === restRunSnapshot.currentNodeId
       ? {...node, participants: {...node.participants, p1}}
+      : node),
+    updatedAt,
+  };
+}
+
+function patchFormalRestParticipant(restRunSnapshot: TrainingRunGameV4, nodeId: string, player: TrainingPlayerDraftV4): TrainingRunGameV4 {
+  const updatedAt = new Date().toISOString();
+  const currentPlayers = {...restRunSnapshot.players, [player.playerId]: player};
+  const scenarioPlayers = restRunSnapshot.scenario.players.some(entry => entry.playerId === player.playerId)
+    ? restRunSnapshot.scenario.players.map(entry => entry.playerId === player.playerId ? player : entry)
+    : [...restRunSnapshot.scenario.players, player];
+  return {
+    ...restRunSnapshot,
+    players: currentPlayers,
+    scenario: {
+      ...restRunSnapshot.scenario,
+      selectedNpcIds: {...restRunSnapshot.scenario.selectedNpcIds, [player.playerId]: player.name},
+      players: scenarioPlayers,
+    },
+    gameMap: restRunSnapshot.gameMap.map(node => node.id === nodeId
+      ? {...node, participants: {...node.participants, [player.playerId]: player}}
       : node),
     updatedAt,
   };

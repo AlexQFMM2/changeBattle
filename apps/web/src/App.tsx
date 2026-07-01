@@ -7,6 +7,7 @@ import {
   createDesktopUserProfileAdapter,
   starChartHasSpecialTrainingLockV4,
   type AppDebugConfigV4,
+  type DesktopFormalGameBridge,
   type DesktopUserProfileBridge,
   type FormalGameModeV4,
   type FormalGameRunV4,
@@ -26,6 +27,7 @@ import {ComponentGalleryPage} from "./components/gallery/ComponentGalleryPage";
 import {FormalGamePendingPage} from "./components/formal/FormalGamePendingPage";
 import {FormalSettlementPage} from "./components/formal/FormalSettlementPage";
 import {FormalSettlementTransitionPage} from "./components/formal/FormalSettlementTransitionPage";
+import {FormalBattleTransitionPage} from "./components/formal/FormalBattleTransitionPage";
 import {FormalGameTransitionPage} from "./components/formal/FormalGameTransitionPage";
 import {FormalRoundTransitionPage} from "./components/formal/FormalRoundTransitionPage";
 import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPage";
@@ -55,6 +57,7 @@ const APP_DEBUG_CONFIG_V4: AppDebugConfigV4 = {
 
 type ChangeBattleV2Window = Window & {
   changeBattleV2?: {
+    formalGame?: DesktopFormalGameBridge;
     userProfile?: DesktopUserProfileBridge;
   };
 };
@@ -75,6 +78,9 @@ function RoutedApp({runtime}: AppProps) {
     trainingRunAdapter: createBrowserTrainingRunAdapter(`changebattle-v2:${runtime}:training-run`),
     battleServiceUrl: import.meta.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL,
   }), [runtime]);
+  const formalGameBridge = useMemo(() => runtime === "desktop" && typeof window !== "undefined"
+    ? (window as ChangeBattleV2Window).changeBattleV2?.formalGame
+    : undefined, [runtime]);
   const catalog = useMemo(() => api.getTrainerCatalog(), [api]);
   const [profile, setProfile] = useState<UserProfileV2 | null>(null);
   const [loading, setLoading] = useState(true);
@@ -511,6 +517,7 @@ function RoutedApp({runtime}: AppProps) {
   const formalTransitionPage = profile ? (
     <FormalGameTransitionPage
       api={api}
+      formalGameBridge={formalGameBridge}
       profile={profile}
       mode={formalMode}
       onRunReady={run => {
@@ -546,6 +553,7 @@ function RoutedApp({runtime}: AppProps) {
     formalRun?.playerTeam ? (
       <FormalRoundTransitionPage
         api={api}
+        formalGameBridge={formalGameBridge}
         run={formalRun}
         onRunReady={run => {
           setFormalRun(run);
@@ -630,11 +638,11 @@ function RoutedApp({runtime}: AppProps) {
 
   const formalBattleTransitionPage = profile ? (
     formalRun?.restRunSnapshot ? (
-      <TrainingBattleTransitionPage
+      <FormalBattleTransitionPage
         api={api}
-        run={formalRun.restRunSnapshot}
-        onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
-        onSaveRunSnapshot={saveFormalBattleRunSnapshot}
+        formalGameBridge={formalGameBridge}
+        run={formalRun}
+        onRunChange={setFormalRun}
         onReady={enterFormalBattle}
         onBackToRest={() => navigate("/formal/rest", {replace: true})}
       />
@@ -656,8 +664,10 @@ function RoutedApp({runtime}: AppProps) {
         onSaveRunSnapshot={saveFormalBattleRunSnapshot}
         onBattleSnapshot={async snapshot => {
           if (!formalRun) return null;
-          const withLog = api.appendBattleLogEntriesFromSnapshotV4(formalRun, snapshot);
-          const saved = await api.saveFormalGameRun(withLog);
+          const nextRun = formalGameBridge
+            ? await formalGameBridge.settleFormalBattleRound(formalRun, snapshot)
+            : api.appendBattleLogEntriesFromSnapshotV4(formalRun, snapshot);
+          const saved = await api.saveFormalGameRun(nextRun);
           setFormalRun(saved);
           return saved.restRunSnapshot;
         }}
@@ -681,6 +691,7 @@ function RoutedApp({runtime}: AppProps) {
     formalRun ? (
       <FormalSettlementTransitionPage
         api={api}
+        formalGameBridge={formalGameBridge}
         run={formalRun}
         profile={profile}
         reason={settlementReason}

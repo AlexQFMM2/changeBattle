@@ -8,7 +8,8 @@ import {
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
-import type {FormalGameSettlementV4} from "./formalGame.js";
+import type {CoopPartnerPreferenceV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalSettlementReasonV4} from "./formalGame.js";
+import type {BattleSessionSnapshotV4} from "./battle.js";
 import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -90,6 +91,17 @@ export type UserProfileStorageAdapter = {
 
 export type DesktopUserProfileBridge = UserProfileStorageAdapter & {
   getUserProfilePath?: () => Promise<string>;
+};
+
+export type DesktopFormalGameBridge = {
+  createFormalGameWithStarterCandidates(
+    profile: UserProfileV2,
+    options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string},
+  ): Promise<FormalGameRunV4>;
+  prepareFormalRoundPlan(run: FormalGameRunV4): Promise<FormalGameRunV4>;
+  prepareFormalBattleSession(run: FormalGameRunV4): Promise<FormalBattleSessionPreparationV4>;
+  prepareFormalSettlement(run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4): Promise<{run: FormalGameRunV4; profile: UserProfileV2}>;
+  settleFormalBattleRound(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): Promise<FormalGameRunV4>;
 };
 
 export type ChangeBattleV2ApiOptions = {
@@ -215,6 +227,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     prepareFormalStarterCandidates: formalRuns.prepareFormalStarterCandidates,
     selectFormalStarterPokemon: formalRuns.selectFormalStarterPokemon,
     prepareFormalRoundPlan: formalRuns.prepareFormalRoundPlan,
+    prepareFormalBattleSession: formalRuns.prepareFormalBattleSession,
     appendCoinLogEntryV4: formalRuns.appendCoinLogEntryV4,
     appendBattleLogEntriesFromSnapshotV4: formalRuns.appendBattleLogEntriesFromSnapshotV4,
     settleFormalBattleRoundV4: formalRuns.settleFormalBattleRoundV4,

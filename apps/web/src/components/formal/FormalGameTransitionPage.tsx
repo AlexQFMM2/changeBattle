@@ -1,10 +1,11 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, CoopPartnerPreferenceV4, FormalGameModeV4, FormalGameRunV4, UserProfileV2} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, CoopPartnerPreferenceV4, DesktopFormalGameBridge, FormalGameModeV4, FormalGameRunV4, UserProfileV2} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalGameTransitionPage({api, profile, mode, onRunReady}: {
+export function FormalGameTransitionPage({api, formalGameBridge, profile, mode, onRunReady}: {
   api: ChangeBattleV2Api;
+  formalGameBridge?: DesktopFormalGameBridge;
   profile: UserProfileV2;
   mode: FormalGameModeV4;
   onRunReady: (run: FormalGameRunV4) => void;
@@ -28,14 +29,20 @@ export function FormalGameTransitionPage({api, profile, mode, onRunReady}: {
     const firstFrame = window.requestAnimationFrame(() => {
       const secondFrame = window.requestAnimationFrame(() => {
         try {
-          const base = api.createFormalGameRun(profile, {
-            mode,
-            coopPartnerPreference: mode === "coop" ? partnerPreference : undefined,
-          });
-          const candidateCount = api.starterCandidateCountForStarChart(base.starChartSnapshot);
+          const options = {mode, coopPartnerPreference: mode === "coop" ? partnerPreference : undefined};
+          const base = formalGameBridge
+            ? null
+            : api.createFormalGameRun(profile, options);
+          const candidateCount = api.starterCandidateCountForStarChart(base?.starChartSnapshot || profile.starChart);
           if (!cancelled) setPlannedCandidateCount(candidateCount);
-          const prepared = api.prepareFormalStarterCandidates(base);
-          void api.saveFormalGameRun(prepared)
+          const preparedPromise = formalGameBridge
+            ? formalGameBridge.createFormalGameWithStarterCandidates(profile, options)
+            : Promise.resolve(api.prepareFormalStarterCandidates(base!));
+          void preparedPromise
+            .then(prepared => {
+              if (!cancelled) setPlannedCandidateCount(api.starterCandidateCountForStarChart(prepared.starChartSnapshot));
+              return api.saveFormalGameRun(prepared);
+            })
             .then(saved => {
               if (!cancelled) setPreparedRun(saved);
             })
@@ -54,7 +61,7 @@ export function FormalGameTransitionPage({api, profile, mode, onRunReady}: {
       window.cancelAnimationFrame(firstFrame);
       if (frameRefs.second !== null) window.cancelAnimationFrame(frameRefs.second);
     };
-  }, [api, mode, partnerPreference, profile]);
+  }, [api, formalGameBridge, mode, partnerPreference, profile]);
 
   useEffect(() => {
     if (!transitionReady || !preparedRun || readySentRef.current) return;
@@ -67,7 +74,7 @@ export function FormalGameTransitionPage({api, profile, mode, onRunReady}: {
       <TrainingRunTransitionPage
         title="准备正式游戏"
         detail={modeLabel(mode, plannedCandidateCount)}
-        tip={error || (mode === "coop" ? "合作模式本轮先记录 AI 队友偏好，后续进入 7 场计划时生成精英队友。" : "正在生成开局候选宝可梦。")}
+        tip={error || (mode === "coop" ? "合作模式会记录队友偏好，具体队友会在进入战斗时派遣。" : "正在生成开局候选宝可梦。")}
         onReady={() => setTransitionReady(true)}
       />
     </section>

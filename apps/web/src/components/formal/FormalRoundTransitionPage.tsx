@@ -1,10 +1,11 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, FormalGameRunV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalRoundTransitionPage({api, run, onRunReady}: {
+export function FormalRoundTransitionPage({api, formalGameBridge, run, onRunReady}: {
   api: ChangeBattleV2Api;
+  formalGameBridge?: DesktopFormalGameBridge;
   run: FormalGameRunV4;
   onRunReady: (run: FormalGameRunV4) => void;
 }) {
@@ -18,8 +19,11 @@ export function FormalRoundTransitionPage({api, run, onRunReady}: {
     let cancelled = false;
     const frame = window.requestAnimationFrame(() => {
       try {
-        const planned = api.prepareFormalRoundPlan(run);
-        void api.saveFormalGameRun(planned)
+        const plannedPromise = formalGameBridge
+          ? formalGameBridge.prepareFormalRoundPlan(run)
+          : Promise.resolve(api.prepareFormalRoundPlan(run));
+        void plannedPromise
+          .then(planned => api.saveFormalGameRun(planned))
           .then(saved => {
             if (!cancelled) onRunReady(saved);
           })
@@ -34,14 +38,14 @@ export function FormalRoundTransitionPage({api, run, onRunReady}: {
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [api, onRunReady, run, transitionReady]);
+  }, [api, formalGameBridge, onRunReady, run, transitionReady]);
 
   return (
     <section className="formal-game-transition-wrap">
       <TrainingRunTransitionPage
         title="生成正式赛程"
         detail={`${modeLabel(run.mode)} · 正在固化 7 场对局计划`}
-        tip={error || "正在生成 NPC、队伍、队友、对手预览，并写入正式存档。"}
+        tip={error || "正在生成 NPC、对手预览和休整快照，并写入正式存档。"}
         onReady={() => setTransitionReady(true)}
       />
     </section>
