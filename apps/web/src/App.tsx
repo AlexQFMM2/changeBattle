@@ -10,6 +10,7 @@ import {
   type DesktopUserProfileBridge,
   type FormalGameModeV4,
   type FormalGameRunV4,
+  type FormalRoundSettlementV4,
   type FormalSettlementReasonV4,
   type TrainingRunGameV4,
   type UserProfileDraftV2,
@@ -87,6 +88,7 @@ function RoutedApp({runtime}: AppProps) {
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
   const [battleSessionId, setBattleSessionId] = useState("");
+  const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -333,6 +335,15 @@ function RoutedApp({runtime}: AppProps) {
     setDexOpen(true);
   }
 
+  async function saveFormalBattleRunSnapshot(restRunSnapshot: TrainingRunGameV4): Promise<TrainingRunGameV4> {
+    if (!formalRun) return restRunSnapshot;
+    const withSnapshot = {...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()};
+    const settled = api.settleFormalBattleRoundV4(withSnapshot);
+    const saved = await api.saveFormalGameRun(settled);
+    setFormalRun(saved);
+    return saved.restRunSnapshot || restRunSnapshot;
+  }
+
   function openDexCard(seed: {category: Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items">; query: string; entry: DexSearchRow}) {
     setDexInitialPokemonId(null);
     setDexInitialCategory(seed.category);
@@ -564,6 +575,8 @@ function RoutedApp({runtime}: AppProps) {
         onOpenDex={() => openDex()}
         onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
         moneyAmount={formalRun.money}
+        roundSettlement={latestUnreadRoundSettlement(formalRun, seenRoundSettlementNodeIds)}
+        onRoundSettlementSeen={nodeId => setSeenRoundSettlementNodeIds(current => ({...current, [`${formalRun.id}:${nodeId}`]: true}))}
         teamRerollController={{
           money: formalRun.money,
           locksEnabled: starChartHasSpecialTrainingLockV4(formalRun.starChartSnapshot),
@@ -621,12 +634,7 @@ function RoutedApp({runtime}: AppProps) {
         api={api}
         run={formalRun.restRunSnapshot}
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
-        onSaveRunSnapshot={async restRunSnapshot => {
-          if (!formalRun) return restRunSnapshot;
-          const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
-          setFormalRun(saved);
-          return saved.restRunSnapshot || restRunSnapshot;
-        }}
+        onSaveRunSnapshot={saveFormalBattleRunSnapshot}
         onReady={enterFormalBattle}
         onBackToRest={() => navigate("/formal/rest", {replace: true})}
       />
@@ -645,12 +653,7 @@ function RoutedApp({runtime}: AppProps) {
         playerProfile={profile}
         endFlow="auto-exit"
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
-        onSaveRunSnapshot={async restRunSnapshot => {
-          if (!formalRun) return restRunSnapshot;
-          const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
-          setFormalRun(saved);
-          return saved.restRunSnapshot || restRunSnapshot;
-        }}
+        onSaveRunSnapshot={saveFormalBattleRunSnapshot}
         onBattleSnapshot={async snapshot => {
           if (!formalRun) return null;
           const withLog = api.appendBattleLogEntriesFromSnapshotV4(formalRun, snapshot);
@@ -828,4 +831,10 @@ function createUserProfileAdapter(runtime: AppProps["runtime"]) {
     };
   }
   return createBrowserUserProfileAdapter(`changebattle-v2:${runtime}:user-profile`);
+}
+
+function latestUnreadRoundSettlement(run: FormalGameRunV4, seen: Record<string, true>): FormalRoundSettlementV4 | null {
+  const settlements = Object.values(run.roundSettlementByNodeId || {});
+  settlements.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  return settlements.find(settlement => !seen[`${run.id}:${settlement.nodeId}`]) || null;
 }

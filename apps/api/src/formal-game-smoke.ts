@@ -12,6 +12,10 @@ import {
   FORMAL_SHOP_SELL_RATE,
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
   FORMAL_STARTING_MONEY,
+  BATTLE_PRACTICE_MASTERY_NODE_ID,
+  EMERGENCY_MEDICAL_CARE_NODE_ID,
+  FREE_MEDICAL_CARE_NODE_ID,
+  OUTPATIENT_MEDICAL_CARE_NODE_ID,
   STARTER_ROLE_PLAN,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
@@ -22,7 +26,11 @@ import {
   formalShopAutoRestockForStarChartV4,
   formalShopRowsForStarChartV4,
   normalizeStarChartV4,
+  starChartHasBattlePracticeMasteryV4,
   starChartHasEastAsiaEducationV4,
+  starChartHasEmergencyMedicalCareV4,
+  starChartHasFreeMedicalCareV4,
+  starChartHasOutpatientMedicalCareV4,
   starChartHasSpecialTrainingLockV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
@@ -396,6 +404,20 @@ starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_auto_restock");
 assert(starProfile.battlePoints === 80, "shop auto restock should cost 20 BP");
 assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should unlock purchase restocking");
+starProfile = {...starProfile, battlePoints: 100};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, FREE_MEDICAL_CARE_NODE_ID);
+assert(starProfile.battlePoints === 80, "free medical care should cost 20 BP");
+assert(starChartHasFreeMedicalCareV4(starProfile.starChart), "free medical care should unlock revive fee waiver");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, EMERGENCY_MEDICAL_CARE_NODE_ID);
+assert(starProfile.battlePoints === 55, "emergency medical care should cost 25 BP");
+assert(starChartHasEmergencyMedicalCareV4(starProfile.starChart), "emergency medical care should unlock half-hp revive");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, OUTPATIENT_MEDICAL_CARE_NODE_ID);
+assert(starProfile.battlePoints === 30, "outpatient medical care should cost 25 BP");
+assert(starChartHasOutpatientMedicalCareV4(starProfile.starChart), "outpatient medical care should unlock alive pokemon healing");
+starProfile = {...starProfile, battlePoints: 100};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, BATTLE_PRACTICE_MASTERY_NODE_ID);
+assert(starProfile.battlePoints === 70, "battle practice mastery should cost 30 BP");
+assert(starChartHasBattlePracticeMasteryV4(starProfile.starChart), "battle practice mastery should unlock battle level gain");
 
 const fullStarRun = api.createFormalGameRun(starProfile, {mode: "singles", seed: "formal-smoke-full-star-seed"});
 const fullStarPrepared = api.prepareFormalStarterCandidates(fullStarRun);
@@ -710,6 +732,68 @@ const withDuplicateBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withBatt
 assert(withDuplicateBattleLog.restRunSnapshot?.battleLog?.length === withBattleLog.restRunSnapshot?.battleLog?.length, "battle log should dedupe snapshot lines");
 const loggedDamage = (withBattleLog.restRunSnapshot?.battleLog || []).filter(entry => entry.eventType === "damage").reduce((sum, entry) => sum + (entry.damage || 0), 0);
 assert(loggedDamage === 100, "battle log should replay rawLog HP baseline and scale public percentage HP to true max HP");
+const battleLogP1Team = withBattleLog.restRunSnapshot!.players.p1!.localTeam.pokemon;
+const faintedSettlementRestRun = {
+  ...withBattleLog.restRunSnapshot!,
+  gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
+  players: {
+    ...withBattleLog.restRunSnapshot!.players,
+    p1: {
+      ...withBattleLog.restRunSnapshot!.players.p1!,
+      localTeam: {
+        ...withBattleLog.restRunSnapshot!.players.p1!.localTeam,
+        pokemon: battleLogP1Team.map((pokemon, index) => index === 0 ? {...pokemon, entryHp: 0} : pokemon),
+      },
+    },
+  },
+};
+const roundSettlementNoStar = api.settleFormalBattleRoundV4({...withBattleLog, restRunSnapshot: faintedSettlementRestRun});
+const noStarSettlement = roundSettlementNoStar.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id];
+assert(noStarSettlement?.rewardCoins === 500, "round settlement should award 500 coins");
+assert(noStarSettlement?.reviveCost === 50, "round settlement should charge 50 coins per fainted pokemon without free care");
+assert(noStarSettlement?.netCoins === 450, "round settlement should record net coins after medical fee");
+assert(roundSettlementNoStar.money === withBattleLog.money + 450, "round settlement should apply net coins to money");
+assert(roundSettlementNoStar.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.entryHp === 1, "round settlement should revive fainted pokemon to 1 HP without emergency care");
+const roundSettlementNoStarAgain = api.settleFormalBattleRoundV4(roundSettlementNoStar);
+assert(roundSettlementNoStarAgain.money === roundSettlementNoStar.money, "round settlement should be idempotent");
+assert(Object.keys(roundSettlementNoStarAgain.roundSettlementByNodeId || {}).length === Object.keys(roundSettlementNoStar.roundSettlementByNodeId || {}).length, "round settlement should not duplicate settlement records");
+const medicalBattlePokemon = battleLogP1Team.map((pokemon, index) => index === 0
+  ? {...pokemon, entryHp: 20, level: 50, maxHp: 150}
+  : index === 1
+    ? {...pokemon, entryHp: 0, level: 50, maxHp: 150}
+    : pokemon);
+const medicalSettlementRestRun = {
+  ...withBattleLog.restRunSnapshot!,
+  gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
+  players: {
+    ...withBattleLog.restRunSnapshot!.players,
+    p1: {
+      ...withBattleLog.restRunSnapshot!.players.p1!,
+      localTeam: {
+        ...withBattleLog.restRunSnapshot!.players.p1!.localTeam,
+        pokemon: medicalBattlePokemon,
+      },
+    },
+  },
+};
+const roundSettlementMedical = api.settleFormalBattleRoundV4({...withBattleLog, starChartSnapshot: starProfile.starChart, restRunSnapshot: medicalSettlementRestRun});
+const medicalSettlement = roundSettlementMedical.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id];
+assert(medicalSettlement?.reviveCost === 0, "free medical care should waive revive cost");
+assert(medicalSettlement?.emergencyHealedPokemonIds.length === 1, "emergency care should record half-hp revive targets");
+assert(medicalSettlement?.outpatientHealedPokemonIds.length === 1, "outpatient care should record alive healing targets");
+assert(medicalSettlement?.leveledPokemonIds.length === 1, "battle practice mastery should level alive direct damage dealers");
+assert(roundSettlementMedical.money === withBattleLog.money + 500, "free medical care settlement should keep full reward");
+const medicalAfterTeam = roundSettlementMedical.restRunSnapshot!.players.p1!.localTeam.pokemon;
+assert(medicalAfterTeam[1]!.entryHp === 75, "emergency care should revive fainted pokemon to half HP");
+assert(medicalAfterTeam[0]!.level === 51, "battle practice mastery should increase level by one");
+assert(medicalAfterTeam[0]!.entryHp > 20, "outpatient care should heal alive pokemon after level gain");
+const lostSettlementRestRun = {
+  ...withBattleLog.restRunSnapshot!,
+  gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "lost" as const} : node),
+};
+const lostRoundSettlement = api.settleFormalBattleRoundV4({...withBattleLog, restRunSnapshot: lostSettlementRestRun});
+assert(!lostRoundSettlement.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id], "round settlement should not run for lost battles");
+assert(lostRoundSettlement.money === withBattleLog.money, "lost battle should not grant round settlement coins");
 const wonRestRun = {
   ...withBattleLog.restRunSnapshot!,
   gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),

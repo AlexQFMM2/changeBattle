@@ -50,7 +50,7 @@ import {
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
-import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, starChartHasEastAsiaEducationV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, starChartHasBattlePracticeMasteryV4, starChartHasEastAsiaEducationV4, starChartHasEmergencyMedicalCareV4, starChartHasFreeMedicalCareV4, starChartHasOutpatientMedicalCareV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -299,7 +299,20 @@ export type FormalGameRunV4 = {
   money: number;
   shopByNodeId?: Record<string, FormalRestShopV4>;
   trainingGroundByNodeId?: Record<string, FormalTrainingGroundStateV4>;
+  roundSettlementByNodeId?: Record<string, FormalRoundSettlementV4>;
   settlement: FormalGameSettlementV4 | null;
+};
+
+export type FormalRoundSettlementV4 = {
+  nodeId: string;
+  rewardCoins: number;
+  reviveCost: number;
+  netCoins: number;
+  revivedPokemonIds: string[];
+  emergencyHealedPokemonIds: string[];
+  outpatientHealedPokemonIds: string[];
+  leveledPokemonIds: string[];
+  createdAt: string;
 };
 
 export type FormalSettlementReasonV4 = "complete" | "loss" | "surrender" | "abandon";
@@ -361,6 +374,7 @@ export type FormalGameRunApi = {
   prepareFormalRoundPlan(run: FormalGameRunV4): FormalGameRunV4;
   appendCoinLogEntryV4(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4;
   appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4;
+  settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4;
   prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
   getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null;
   getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[];
@@ -679,6 +693,105 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         updatedAt: now,
       },
       updatedAt: now,
+    });
+  }
+
+  function settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4 {
+    const normalized = normalizeFormalRun(run);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    if (!restRunSnapshot) return normalized;
+    const wonNode = [...restRunSnapshot.gameMap]
+      .filter(node => node.state === "won" && !normalized.roundSettlementByNodeId?.[node.id])
+      .sort((a, b) => b.index - a.index)[0];
+    if (!wonNode) return normalized;
+    const p1 = restRunSnapshot.players.p1;
+    if (!p1) return normalized;
+    const now = new Date().toISOString();
+    const hasFreeCare = starChartHasFreeMedicalCareV4(normalized.starChartSnapshot);
+    const hasEmergencyCare = starChartHasEmergencyMedicalCareV4(normalized.starChartSnapshot);
+    const hasOutpatientCare = starChartHasOutpatientMedicalCareV4(normalized.starChartSnapshot);
+    const hasPracticeMastery = starChartHasBattlePracticeMasteryV4(normalized.starChartSnapshot);
+    const damagedPokemonIds = hasPracticeMastery ? collectRoundDamageDealerPokemonIds(normalized, wonNode.id) : new Set<string>();
+    const revivedPokemonIds: string[] = [];
+    const emergencyHealedPokemonIds: string[] = [];
+    const outpatientHealedPokemonIds: string[] = [];
+    const leveledPokemonIds: string[] = [];
+    const nextPokemon = p1.localTeam.pokemon.map(pokemon => {
+      const maxHp = Math.max(1, Math.floor(Number(pokemon.maxHp || 1)));
+      const beforeHp = clampInt(pokemon.entryHp, 0, maxHp, maxHp);
+      const wasFainted = beforeHp <= 0;
+      let next = {...pokemon, entryHp: beforeHp, maxHp};
+      if (wasFainted) {
+        revivedPokemonIds.push(pokemon.localPokemonId);
+        const targetHp = hasEmergencyCare ? Math.ceil(maxHp / 2) : 1;
+        next = {...next, entryHp: clampInt(targetHp, 1, maxHp, 1)};
+        if (hasEmergencyCare) emergencyHealedPokemonIds.push(pokemon.localPokemonId);
+        return next;
+      }
+      if (hasPracticeMastery && damagedPokemonIds.has(settlementPokemonKey(pokemon))) {
+        const leveled = levelUpFormalPokemonAfterBattle(next, target => {
+          const detail = safePokemon(target.speciesId);
+          return dex.calculatePokemonStats({
+            speciesId: detail.id,
+            level: target.level,
+            nature: target.nature || "Serious",
+            evs: target.evs,
+            ivs: target.ivs,
+          }).stats.hp;
+        });
+        if (leveled.level > next.level) {
+          next = leveled;
+          leveledPokemonIds.push(pokemon.localPokemonId);
+        }
+      }
+      if (hasOutpatientCare && next.entryHp < next.maxHp) {
+        const healedHp = clampInt(next.entryHp + Math.ceil(next.maxHp / 4), 0, next.maxHp, next.entryHp);
+        if (healedHp > next.entryHp) {
+          next = {...next, entryHp: healedHp};
+          outpatientHealedPokemonIds.push(pokemon.localPokemonId);
+        }
+      }
+      return next;
+    });
+    const reviveCost = hasFreeCare ? 0 : revivedPokemonIds.length * 50;
+    const settlement: FormalRoundSettlementV4 = {
+      nodeId: wonNode.id,
+      rewardCoins: 500,
+      reviveCost,
+      netCoins: 500 - reviveCost,
+      revivedPokemonIds,
+      emergencyHealedPokemonIds,
+      outpatientHealedPokemonIds,
+      leveledPokemonIds,
+      createdAt: now,
+    };
+    const nextP1 = {...p1, localTeam: {...p1.localTeam, pokemon: nextPokemon}};
+    const nextRestRun = patchFormalRestP1(restRunSnapshot, nextP1, now);
+    const withSettlement = normalizeFormalRun({
+      ...normalized,
+      restRunSnapshot: nextRestRun,
+      roundSettlementByNodeId: {
+        ...(normalized.roundSettlementByNodeId || {}),
+        [wonNode.id]: settlement,
+      },
+      updatedAt: now,
+    });
+    const withReward = appendShopCoinLogFast(withSettlement, {
+      key: `round-settlement-reward:${wonNode.id}`,
+      amount: 500,
+      source: "round-settlement",
+      label: `第 ${wonNode.index + 1} 场胜利奖励`,
+      roundIndex: wonNode.index,
+      at: now,
+    });
+    if (reviveCost <= 0) return withReward;
+    return appendShopCoinLogFast(withReward, {
+      key: `round-settlement-medical:${wonNode.id}`,
+      amount: -reviveCost,
+      source: "round-settlement",
+      label: `第 ${wonNode.index + 1} 场工厂医疗`,
+      roundIndex: wonNode.index,
+      at: now,
     });
   }
 
@@ -1140,6 +1253,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       money: clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY),
       shopByNodeId: normalizeFormalShopByNodeId(run.shopByNodeId, run),
       trainingGroundByNodeId: normalizeFormalTrainingGroundByNodeId(run.trainingGroundByNodeId),
+      roundSettlementByNodeId: normalizeFormalRoundSettlementByNodeId(run.roundSettlementByNodeId),
       settlement: normalizeSettlement(run.settlement),
     };
   }
@@ -1622,6 +1736,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     prepareFormalRoundPlan,
     appendCoinLogEntryV4,
     appendBattleLogEntriesFromSnapshotV4,
+    settleFormalBattleRoundV4,
     prepareFormalSettlement,
     getFormalRestShop,
     getFormalRestShopProducts,
@@ -2599,6 +2714,79 @@ function partialTrainingTarget(currentTotal: number, cap: number, ratio: number,
   const remaining = Math.max(0, cap - currentTotal);
   if (remaining <= 0) return currentTotal;
   return Math.min(cap, currentTotal + Math.max(minimumGain, Math.ceil(remaining * ratio)));
+}
+
+function normalizeFormalRoundSettlementByNodeId(value: unknown): Record<string, FormalRoundSettlementV4> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value as Record<string, Partial<FormalRoundSettlementV4>>)
+    .filter(([nodeId]) => Boolean(nodeId))
+    .map(([nodeId, settlement]) => [nodeId, normalizeFormalRoundSettlement(settlement, nodeId)]));
+}
+
+function normalizeFormalRoundSettlement(settlement: Partial<FormalRoundSettlementV4> | undefined, nodeId: string): FormalRoundSettlementV4 {
+  return {
+    nodeId: String(settlement?.nodeId || nodeId),
+    rewardCoins: clampInt(settlement?.rewardCoins, 0, 999999, 0),
+    reviveCost: clampInt(settlement?.reviveCost, 0, 999999, 0),
+    netCoins: clampInt(settlement?.netCoins, -999999, 999999, 0),
+    revivedPokemonIds: normalizeStringList(settlement?.revivedPokemonIds),
+    emergencyHealedPokemonIds: normalizeStringList(settlement?.emergencyHealedPokemonIds),
+    outpatientHealedPokemonIds: normalizeStringList(settlement?.outpatientHealedPokemonIds),
+    leveledPokemonIds: normalizeStringList(settlement?.leveledPokemonIds),
+    createdAt: settlement?.createdAt || new Date().toISOString(),
+  };
+}
+
+function normalizeStringList(value: unknown): string[] {
+  return Array.isArray(value) ? Array.from(new Set(value.map(String).filter(Boolean))) : [];
+}
+
+function collectRoundDamageDealerPokemonIds(run: FormalGameRunV4, nodeId: string): Set<string> {
+  const localByBattleKey = buildCurrentRestPlayerBattleKeyMap(run);
+  const result = new Set<string>();
+  for (const entry of run.restRunSnapshot?.battleLog || []) {
+    if (entry.nodeId !== nodeId || entry.eventType !== "damage" || !entry.damage || entry.directness !== "direct") continue;
+    if (entry.sourcePlayerId !== "p1") continue;
+    const sourceKey = entry.sourcePokemonKey ? localByBattleKey.get(entry.sourcePokemonKey) : undefined;
+    if (sourceKey) result.add(sourceKey);
+  }
+  return result;
+}
+
+function buildCurrentRestPlayerBattleKeyMap(run: FormalGameRunV4): Map<string, string> {
+  const result = new Map<string, string>();
+  for (const pokemon of run.restRunSnapshot?.players.p1?.localTeam.pokemon || []) {
+    const settlementKey = settlementPokemonKey(pokemon);
+    const aliases = [
+      pokemon.nickname,
+      pokemon.nameZh,
+      pokemon.name,
+      pokemon.speciesId,
+      pokemon.localPokemonId,
+      pokemon.showdownIdentityToken,
+      pokemon.showdownId,
+      pokemon.pokeballId,
+    ].map(battleKeyNameId).filter(Boolean);
+    ["a", "b", "c", "d"].forEach(position => aliases.forEach(alias => result.set(`p1${position}:${alias}`, settlementKey)));
+    result.set(settlementKey, settlementKey);
+  }
+  return result;
+}
+
+function levelUpFormalPokemonAfterBattle(pokemon: LocalPokemonV4, calculateMaxHp: (pokemon: LocalPokemonV4) => number): LocalPokemonV4 {
+  const levelBefore = clampInt(pokemon.level, 1, 100, 50);
+  if (levelBefore >= 100) return pokemon;
+  const levelAfter = levelBefore + 1;
+  const oldMaxHp = Math.max(1, Math.floor(Number(pokemon.maxHp || 1)));
+  const oldEntryHp = clampInt(pokemon.entryHp, 0, oldMaxHp, oldMaxHp);
+  const maxHp = Math.max(1, Math.floor(Number(calculateMaxHp({...pokemon, level: levelAfter}) || oldMaxHp)));
+  const hpGain = Math.max(0, maxHp - oldMaxHp);
+  return {
+    ...pokemon,
+    level: levelAfter,
+    maxHp,
+    entryHp: clampInt(oldEntryHp + hpGain, oldEntryHp, maxHp, oldEntryHp),
+  };
 }
 
 function raiseStatTableToTotal(stats: StatTableV4, targetTotal: number, statCap: number, priority: DexStatId[], rng: () => number): StatTableV4 {

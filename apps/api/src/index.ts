@@ -17,6 +17,10 @@ import {
   getStarChartCatalogV4,
   normalizeBattlePointsV4,
   normalizeStarChartV4,
+  starChartHasBattlePracticeMasteryV4,
+  starChartHasEmergencyMedicalCareV4,
+  starChartHasFreeMedicalCareV4,
+  starChartHasOutpatientMedicalCareV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
   type StarChartStateV4,
@@ -213,6 +217,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     prepareFormalRoundPlan: formalRuns.prepareFormalRoundPlan,
     appendCoinLogEntryV4: formalRuns.appendCoinLogEntryV4,
     appendBattleLogEntriesFromSnapshotV4: formalRuns.appendBattleLogEntriesFromSnapshotV4,
+    settleFormalBattleRoundV4: formalRuns.settleFormalBattleRoundV4,
     prepareFormalSettlement: formalRuns.prepareFormalSettlement,
     getFormalRestShop: formalRuns.getFormalRestShop,
     getFormalRestShopProducts: formalRuns.getFormalRestShopProducts,
@@ -243,6 +248,13 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     battleService,
   };
 }
+
+export {
+  starChartHasBattlePracticeMasteryV4,
+  starChartHasEmergencyMedicalCareV4,
+  starChartHasFreeMedicalCareV4,
+  starChartHasOutpatientMedicalCareV4,
+};
 
 export function createDefaultUserProfile(draft: UserProfileDraftV2 = {}, now = new Date()): UserProfileV2 {
   const trainer = trainerFor(draft.trainerId);

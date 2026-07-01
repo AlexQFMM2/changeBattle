@@ -29,6 +29,10 @@ export const SPECIAL_TRAINING_LOCK_NODE_ID = "rest_special_training_lock" as con
 export const EAST_ASIA_EDUCATION_NODE_ID = "rest_east_asia_education" as const;
 export const SHOP_MORE_STOCK_NODE_IDS = ["shop_luxury_counter_1", "shop_luxury_counter_2"] as const;
 export const SHOP_AUTO_RESTOCK_NODE_ID = "shop_auto_restock" as const;
+export const FREE_MEDICAL_CARE_NODE_ID = "rest_free_medical_care" as const;
+export const EMERGENCY_MEDICAL_CARE_NODE_ID = "rest_emergency_medical_care" as const;
+export const OUTPATIENT_MEDICAL_CARE_NODE_ID = "rest_outpatient_medical_care" as const;
+export const BATTLE_PRACTICE_MASTERY_NODE_ID = "battle_practice_mastery" as const;
 
 export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
@@ -160,5 +164,57 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     kind: "talent",
     x: 175,
     y: -255,
+  },
+  {
+    id: FREE_MEDICAL_CARE_NODE_ID,
+    name: "免费医疗",
+    category: "医疗保障",
+    desc: "胜利后进入休整页时，工厂免费复活濒死宝可梦。",
+    max_level: 1,
+    costs: [20],
+    requires: [{id: "root_trainer_star"}],
+    effects: ["单局结算时免除濒死复活的 50 金币费用。"],
+    kind: "talent",
+    x: -175,
+    y: 95,
+  },
+  {
+    id: EMERGENCY_MEDICAL_CARE_NODE_ID,
+    name: "专业急诊",
+    category: "医疗保障",
+    desc: "胜利后复活濒死宝可梦时，恢复到半血。",
+    max_level: 1,
+    costs: [25],
+    requires: [{id: FREE_MEDICAL_CARE_NODE_ID}],
+    effects: ["濒死宝可梦复活目标从 1 HP 提升到半血。"],
+    kind: "talent",
+    x: -345,
+    y: 165,
+  },
+  {
+    id: OUTPATIENT_MEDICAL_CARE_NODE_ID,
+    name: "普通门诊",
+    category: "医疗保障",
+    desc: "胜利后，未濒死宝可梦也能获得基础治疗。",
+    max_level: 1,
+    costs: [25],
+    requires: [{id: EMERGENCY_MEDICAL_CARE_NODE_ID}],
+    effects: ["非濒死宝可梦恢复 1/4 最大生命值。"],
+    kind: "talent",
+    x: -515,
+    y: 235,
+  },
+  {
+    id: BATTLE_PRACTICE_MASTERY_NODE_ID,
+    name: "熟能生巧",
+    category: "养成改造",
+    desc: "胜利后，没有濒死且造成过伤害的宝可梦等级 +1。",
+    max_level: 1,
+    costs: [30],
+    requires: [{id: SPECIAL_TRAINING_LOCK_NODE_ID}],
+    effects: ["胜利后，出战并造成直接伤害且没有濒死的宝可梦等级 +1。"],
+    kind: "talent",
+    x: 530,
+    y: 235,
   },
 ];

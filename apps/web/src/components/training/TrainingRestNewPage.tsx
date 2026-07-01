@@ -5,6 +5,7 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   type ChangeBattleV2Api,
   type DexStatId,
+  type FormalRoundSettlementV4,
   type FormalRestPokemonStatRerollResultV4,
   type FormalTrainingGroundApplyInputV4,
   type FormalTrainingGroundLessonViewV4,
@@ -58,12 +59,14 @@ export type TrainingRestNewPageProps = {
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
   onAbandonRun?: () => void;
   moneyAmount?: number;
+  roundSettlement?: FormalRoundSettlementV4 | null;
+  onRoundSettlementSeen?: (nodeId: string) => void;
   shopController?: TrainingRestShopController;
   trainingGroundController?: TrainingRestTrainingGroundController;
   teamRerollController?: TrainingRestTeamRerollController;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, shopController, trainingGroundController, teamRerollController}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, teamRerollController}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -364,6 +367,29 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           }}
         />
       ) : null}
+      {roundSettlement ? (
+        <TrainingRestConfirmDialog
+          title="本局结算"
+          message={formatRoundSettlementMessage(roundSettlement)}
+          confirmLabel="知道了"
+          cancelLabel="关闭"
+          ariaLabel="本局战后结算"
+          onCancel={() => onRoundSettlementSeen?.(roundSettlement.nodeId)}
+          onConfirm={() => onRoundSettlementSeen?.(roundSettlement.nodeId)}
+        />
+      ) : null}
     </motion.section>
   );
+}
+
+function formatRoundSettlementMessage(settlement: FormalRoundSettlementV4): string {
+  const parts = [`胜利奖励 +${settlement.rewardCoins} 金币`];
+  if (settlement.revivedPokemonIds.length) {
+    parts.push(`复活 ${settlement.revivedPokemonIds.length} 只宝可梦${settlement.reviveCost > 0 ? `，医疗费 -${settlement.reviveCost} 金币` : "，医疗费已免除"}`);
+  }
+  if (settlement.emergencyHealedPokemonIds.length) parts.push(`专业急诊：${settlement.emergencyHealedPokemonIds.length} 只恢复到半血`);
+  if (settlement.outpatientHealedPokemonIds.length) parts.push(`普通门诊：${settlement.outpatientHealedPokemonIds.length} 只获得门诊恢复`);
+  if (settlement.leveledPokemonIds.length) parts.push(`熟能生巧：${settlement.leveledPokemonIds.length} 只宝可梦等级 +1`);
+  parts.push(`本局净收益 ${settlement.netCoins >= 0 ? "+" : ""}${settlement.netCoins} 金币。`);
+  return parts.join("。");
 }
