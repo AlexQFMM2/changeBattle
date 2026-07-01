@@ -7,9 +7,10 @@ import {BattleV4SurrenderPanel, type BattleV4SurrenderParticipant} from "./Battl
 import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
 import {BattleV4TrainerNarrativeOverlay, type BattleV4NarrativeDialogue, type BattleV4NarrativePhase, type BattleV4NarrativeTrainer} from "./BattleV4TrainerNarrativeOverlay";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
-import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
+import {getBattleV4ActiveTimelineActorVisuals, getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineResultVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineActorVisual, type BattleV4TimelineFxVisual, type BattleV4TimelineResultVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import {visualSeatClassForSeat} from "./battleV4VisualSeats";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
+import type {BattleV4ScheduledTimelineStep} from "./useBattleV4ShowdownTimelineRunner";
 import {PlayerBagPanel, type PlayerBagAction, type PlayerBagPokemonTarget} from "../training/PlayerBagPanel";
 import "./BattleV4Page.css";
 
@@ -638,6 +639,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         openingSwitchInSeats={playback.openingSwitchInSeats}
         activeTimelineStep={playback.activeTimelineStep}
         renderedTimelineSteps={playback.renderedTimelineSteps}
+        renderedTimelineHandles={playback.renderedTimelineHandles}
         persistentFieldVisuals={playback.persistentFieldVisuals}
         persistentSideConditionVisuals={playback.persistentSideConditionVisuals}
         api={api}
@@ -918,7 +920,7 @@ function battleV4PlayerWon(snapshot: BattleSessionSnapshotV4 | null): boolean {
   return snapshot?.winner === "p1" || snapshot?.winner === "p3";
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, openingSwitchInSeats = [], activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, openingSwitchInSeats = [], activeTimelineStep, renderedTimelineSteps = [], renderedTimelineHandles = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
@@ -927,6 +929,7 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
   openingSwitchInSeats?: BattleProtocolSeatV4[];
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
   renderedTimelineSteps?: ShowdownAnimationStepV4[];
+  renderedTimelineHandles?: BattleV4ScheduledTimelineStep[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   api: ChangeBattleV2Api;
@@ -934,7 +937,9 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
   const nearSlots = useMemo(() => sortSlotsForArena(near, "near"), [near]);
   const farSlots = useMemo(() => sortSlotsForArena(far, "far"), [far]);
   const visuals = useMemo(() => getBattleV4ActiveTimelineVisuals(activeAnimation || null, activeTimelineStep || null), [activeAnimation, activeTimelineStep]);
-  const fxVisuals = useMemo(() => getBattleV4ActiveTimelineFxVisuals(activeAnimation || null, renderedTimelineSteps), [activeAnimation, renderedTimelineSteps]);
+  const fxVisuals = useMemo(() => getBattleV4ActiveTimelineFxVisuals(activeAnimation || null, renderedTimelineSteps, renderedTimelineHandles), [activeAnimation, renderedTimelineSteps, renderedTimelineHandles]);
+  const resultVisuals = useMemo(() => getBattleV4ActiveTimelineResultVisuals(activeAnimation || null, activeTimelineStep || null, renderedTimelineHandles), [activeAnimation, activeTimelineStep, renderedTimelineHandles]);
+  const actorVisuals = useMemo(() => getBattleV4ActiveTimelineActorVisuals(activeAnimation || null, activeTimelineStep || null, renderedTimelineHandles), [activeAnimation, activeTimelineStep, renderedTimelineHandles]);
   return (
     <div className="battle-v4-arena" aria-label="战斗场地">
       <div className="battle-v4-scene-overlay" />
@@ -943,7 +948,7 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
       <BattleV4WeatherBurstLayer animation={activeAnimation || null} visuals={visuals} />
       <BattleV4Messagebar message={messagebar || ""} kind={activeAnimation?.kind || ""} />
       <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} fxVisuals={fxVisuals} />
-      <BattleV4ResultLayer animation={activeAnimation || null} visuals={visuals} api={api} key={`${activeAnimation?.checkpointId || "result-idle"}-${activeTimelineStep?.type || "none"}-result`} />
+      <BattleV4ResultLayer animation={activeAnimation || null} visuals={visuals} resultVisuals={resultVisuals} api={api} key={`${activeAnimation?.checkpointId || "result-idle"}-${activeTimelineStep?.type || "none"}-${resultVisuals.map(item => item.key).join("-")}-result`} />
       <div className="battle-v4-enemy-panels">
         {farSlots.map(slot => <BattleHpPanel slot={slot} compact key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
@@ -951,8 +956,8 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
         {nearSlots.map((slot, index) => <BattleHpPanel slot={slot} current={slot.active} commanding={index === commandActiveIndex} key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
       <div className="battle-v4-model-layer">
-        {farSlots.map(slot => <BattlePokemonSlot slot={slot} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
-        {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
+        {farSlots.map(slot => <BattlePokemonSlot slot={slot} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} actorVisuals={actorVisuals} key={`${slot.playerId}-${slot.position}`} />)}
+        {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} actorVisuals={actorVisuals} key={`${slot.playerId}-${slot.position}`} />)}
       </div>
     </div>
   );
@@ -1021,16 +1026,25 @@ function BattleV4WeatherBurstLayer({animation, visuals}: {animation: BattleAnima
   );
 }
 
-function BattleV4ResultLayer({animation, visuals, api}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals; api: ChangeBattleV2Api}) {
-  if (!animation || !visuals.result.visible) return null;
-  const text = localizeBattleV4ResultText(visuals.result.text, animation, api);
-  if (!text) return null;
-  const seat = visuals.result.targetSeat || animation.targetSeat || animation.actorSeat;
-  const targetClass = visualSeatClassForSeat(seat, "target-center");
+function BattleV4ResultLayer({animation, visuals, resultVisuals, api}: {animation: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals; resultVisuals: BattleV4TimelineResultVisual[]; api: ChangeBattleV2Api}) {
+  if (!animation) return null;
+  const activeResults = resultVisuals.length ? resultVisuals : visuals.result.visible ? [{...visuals.result, key: "active", animation}] : [];
+  if (!activeResults.length) return null;
   return (
-    <div className={`battle-v4-result-pop ${targetClass} tone-${visuals.result.tone || "neutral"} kind-${visuals.result.kind || animation.kind}`} aria-hidden="true">
-      {text}
-    </div>
+    <>
+      {activeResults.map(result => {
+        const event = result.animation || animation;
+        const text = localizeBattleV4ResultText(result.text, event, api);
+        if (!text) return null;
+        const seat = result.targetSeat || event.targetSeat || event.actorSeat;
+        const targetClass = visualSeatClassForSeat(seat, "target-center");
+        return (
+          <div className={`battle-v4-result-pop ${targetClass} tone-${result.tone || "neutral"} kind-${result.kind || event.kind}`} aria-hidden="true" key={result.key}>
+            {text}
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -1061,8 +1075,8 @@ function BattleV4FxLayer({animation, visuals, fxVisuals}: {animation: BattleAnim
   );
 }
 
-function BattlePokemonSlot({slot, commanding = false, animation, openingSwitchInSeats = [], visuals}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; openingSwitchInSeats?: BattleProtocolSeatV4[]; visuals: BattleV4TimelineVisuals}) {
-  const timelineActor = visuals.actor?.seat === slot.seat ? visuals.actor : null;
+function BattlePokemonSlot({slot, commanding = false, animation, openingSwitchInSeats = [], visuals, actorVisuals = []}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; openingSwitchInSeats?: BattleProtocolSeatV4[]; visuals: BattleV4TimelineVisuals; actorVisuals?: BattleV4TimelineActorVisual[]}) {
+  const timelineActor = [...actorVisuals].reverse().find(actor => actor.seat === slot.seat) || (visuals.actor?.seat === slot.seat ? visuals.actor : null);
   const animationClass = timelineActor?.className || (openingSwitchInSeats.includes(slot.seat as BattleProtocolSeatV4) ? "anim-switch-in" : battlePokemonAnimationClass(slot.seat, animation || null));
   const specialClass = slot.dynamaxActive ? "special-dynamax" : slot.terastallized ? "special-tera" : "";
   const displayName = battleSlotDisplayName(slot);

@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction} from "react";
 import type {AppDebugConfigV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
 import {battleDebugLog} from "@changebattle-v2/api";
 import {
@@ -10,6 +10,7 @@ import {
   type ShowdownAnimationTimelineV4,
   type ShowdownAnimationFidelityV4,
 } from "./battleV4ShowdownAnimationAdapter";
+import {useBattleV4ShowdownTimelineRunner, type BattleV4ScheduledTimelineStep, type BattleV4TimelineRunnerDebug} from "./useBattleV4ShowdownTimelineRunner";
 import {createBattleV4MessageQueue, type BattleMessageQueueItemV4} from "./battleV4MessageFlow";
 import {executeBattleV4Protocol, type BattleRuntimeStateV4, type BattleSemanticEventV4} from "./battleV4ProtocolExecutor";
 import {
@@ -236,6 +237,7 @@ export type BattlePlaybackDebugV4 = {
     renderedStepCount: number;
     consumedCheckpointCount: number;
   };
+  timelineRunnerDebug: BattleV4TimelineRunnerDebug;
   queueLength: number;
   skipAnimations: boolean;
   paused: boolean;
@@ -250,6 +252,7 @@ export type BattlePlaybackStateV4 = {
   activeTimelineStep: ShowdownAnimationStepV4 | null;
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
+  renderedTimelineHandles: BattleV4ScheduledTimelineStep[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   hasProtocolState: boolean;
@@ -300,8 +303,16 @@ const RAW_NO_DEFAULT_COMMANDS = new Set([
 
 const THREE_PART_COMMANDS = new Set(["c", "chat", "uhtml", "uhtmlchange", "queryresponse", "showteam"]);
 const FOUR_PART_COMMANDS = new Set(["c:", "pm"]);
-const ANIMATION_GAP_MS = 500;
-const TIMELINE_STEP_DEFAULT_MS = 700;
+const EMPTY_TIMELINE_RUNNER_DEBUG: BattleV4TimelineRunnerDebug = {
+  groupId: "",
+  groupStartedAt: "",
+  scheduledHandles: [],
+  blockingHandles: [],
+  expectedFinishMs: 0,
+  actualFinishAt: "",
+};
+const PREVIEW_ANIMATION_GAP_MS = 120;
+const PREVIEW_TIMELINE_STEP_DEFAULT_MS = 350;
 
 export const EMPTY_PERSISTENT_FIELD_VISUALS: BattleV4PersistentFieldVisuals = {
   weatherId: "",
@@ -545,10 +556,8 @@ export function useBattleV4Playback(
   const [queue, setQueue] = useState<BattleVisualCommandV4[]>([]);
   const [activeAnimation, setActiveAnimation] = useState<BattleAnimationEventV4 | null>(null);
   const [activeVisual, setActiveVisual] = useState<BattleVisualCommandV4 | null>(null);
-  const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
-  const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
+  const [activeCommandGroup, setActiveCommandGroup] = useState<BattleVisualCommandV4[]>([]);
   const [openingSwitchInSeats, setOpeningSwitchInSeats] = useState<BattleProtocolSeatV4[]>([]);
-  const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
   const [persistentFieldVisuals, setPersistentFieldVisuals] = useState<BattleV4PersistentFieldVisuals>(EMPTY_PERSISTENT_FIELD_VISUALS);
   const [persistentSideConditionVisuals, setPersistentSideConditionVisuals] = useState<BattleV4PersistentSideConditionVisuals>(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
@@ -561,6 +570,7 @@ export function useBattleV4Playback(
   const viewModelRef = useRef<BattleViewModelV4 | null>(viewModel);
   const snapshotRef = useRef<BattleSessionSnapshotV4 | null>(snapshot);
   const hpTweenFrameRef = useRef<number | null>(null);
+  const consumedCheckpointIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     viewModelRef.current = viewModel;
@@ -589,15 +599,14 @@ export function useBattleV4Playback(
       setQueue([]);
       setActiveVisual(null);
       setActiveAnimation(null);
+      setActiveCommandGroup([]);
       setOpeningSwitchInSeats([]);
-      setActiveTimelineStep(null);
-      setActiveTimelineStepIndex(-1);
-      setRenderedTimelineSteps([]);
       setPersistentFieldVisuals(EMPTY_PERSISTENT_FIELD_VISUALS);
       setPersistentSideConditionVisuals(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
       setMessagebar(null);
       setHpTweens([]);
       setHasProtocolState(false);
+      consumedCheckpointIdsRef.current = new Set();
       playingRef.current = false;
       if (hpTweenFrameRef.current !== null) {
         window.cancelAnimationFrame(hpTweenFrameRef.current);
@@ -706,10 +715,8 @@ export function useBattleV4Playback(
       setQueue([]);
       setActiveVisual(null);
       setActiveAnimation(null);
+      setActiveCommandGroup([]);
       setOpeningSwitchInSeats([]);
-      setActiveTimelineStep(null);
-      setActiveTimelineStepIndex(-1);
-      setRenderedTimelineSteps([]);
       if (snapshot) {
         const execution = executeBattleV4Protocol(snapshot, viewModel, 0);
         setVisibleSlots(visualSlotsFromRuntimeState(execution.runtimeState));
@@ -721,44 +728,9 @@ export function useBattleV4Playback(
     }
   }, [skipAnimations, viewModel, snapshot]);
 
-  useEffect(() => {
-    if (paused || playingRef.current || activeVisual || skipAnimations || !queue.length) return;
-    const [command, ...rest] = queue;
-    if (!command) return;
-    const openingSwitchInBatch = !visibleSlots.length ? leadingSwitchInCommands(queue) : [];
-    if (openingSwitchInBatch.length > 1) {
-      const primary = openingSwitchInBatch[0]!;
-      const event = primary.animationEvent;
-      const seats = openingSwitchInBatch.map(item => item.semanticEvent.seat);
-      playingRef.current = true;
-      setQueue(queue.slice(openingSwitchInBatch.length));
-      setActiveVisual(event ? primary : null);
-      setActiveAnimation(event);
-      setOpeningSwitchInSeats(event ? seats : []);
-      setActiveTimelineStepIndex(0);
-      setActiveTimelineStep(event?.timelineSteps[0] || null);
-      setRenderedTimelineSteps([]);
-      setVisibleSlots(slots => {
-        const startedSlots = openingSwitchInBatch.reduce(applyBattleV4VisualCommandStart, slots);
-        return event ? startedSlots : applyBattleV4OpeningSwitchInSettle(startedSlots, seats, primary);
-      });
-      battleDebugLog(debugConfig, "protocol", "playback-consume-opening-switch-batch", {
-        checkpointIds: openingSwitchInBatch.map(item => item.animationEvent?.checkpointId || item.id),
-        seats,
-        rawLines: openingSwitchInBatch.map(item => item.semanticEvent.rawLine),
-      });
-      if (!event) playingRef.current = false;
-      return;
-    }
-    playingRef.current = true;
-    setQueue(rest);
+  const startVisualCommand = useCallback((command: BattleVisualCommandV4) => {
     setActiveVisual(command);
-    const event = command.animationEvent;
-    setActiveAnimation(event);
-    setOpeningSwitchInSeats([]);
-    setActiveTimelineStepIndex(0);
-    setActiveTimelineStep(event?.timelineSteps[0] || null);
-    setRenderedTimelineSteps([]);
+    if (command.animationEvent) setActiveAnimation(command.animationEvent);
     setVisibleSlots(slots => applyBattleV4VisualCommandStart(slots, command));
     if (command.semanticEvent.kind === "damage" || command.semanticEvent.kind === "heal") {
       const tween: BattleHpTweenV4 = {
@@ -777,74 +749,111 @@ export function useBattleV4Playback(
         });
       });
     }
-    battleDebugLog(debugConfig, "protocol", "playback-consume-animation", {
-      checkpointId: event?.checkpointId || command.id,
-      kind: event?.kind || command.semanticEvent.kind,
-      actorSeat: event?.actorSeat,
-      targetSeat: event?.targetSeat,
-      effectSprite: event?.effectSprite,
-      selectedAnimationKey: event?.selectedAnimationKey,
-      animationSource: event?.animationSource,
-      timelineSteps: event?.timelineSteps,
-      rawLine: command.semanticEvent.rawLine,
-      remaining: rest.length,
-    });
-    if (!event) {
-      setPersistentFieldVisuals(current => applyBattleV4PersistentFieldVisuals(current, command));
-      setPersistentSideConditionVisuals(current => applyBattleV4PersistentSideConditionVisuals(current, command));
-      setVisibleSlots(slots => applyBattleV4VisualCommandSettle(slots, command));
-      setActiveVisual(null);
-      playingRef.current = false;
-    }
-  }, [queue, activeVisual, skipAnimations, paused, debugConfig, visibleSlots.length]);
+  }, []);
 
-  useEffect(() => {
-    if (paused || !activeVisual || !activeAnimation || skipAnimations) return;
-    const command = activeVisual;
-    const event = activeAnimation;
-    const steps = event.timelineSteps.length ? event.timelineSteps : event.animationTimeline.steps;
-    const step = steps[activeTimelineStepIndex] || null;
-    if (!step) {
-      const releaseTimer = window.setTimeout(() => {
-        setVisibleSlots(slots => applyBattleV4OpeningSwitchInSettle(slots, openingSwitchInSeats, command));
-        setActiveAnimation(null);
-        setActiveVisual(null);
-        setOpeningSwitchInSeats([]);
-        setActiveTimelineStep(null);
-        setActiveTimelineStepIndex(-1);
-        setRenderedTimelineSteps([]);
-        playingRef.current = false;
-      }, ANIMATION_GAP_MS);
-      return () => window.clearTimeout(releaseTimer);
-    }
-    setActiveTimelineStep(step);
-    setRenderedTimelineSteps(stepsSoFar => [...stepsSoFar, step].slice(-32));
-    if (step.type === "checkpoint") {
+  const {
+    activeTimelineStep,
+    activeTimelineStepIndex,
+    renderedTimelineSteps,
+    renderedTimelineHandles,
+    debug: timelineRunnerDebug,
+  } = useBattleV4ShowdownTimelineRunner({
+    activeCommands: activeCommandGroup,
+    paused,
+    skipAnimations,
+    enabled: Boolean(activeCommandGroup.length),
+    onEventStart: scheduled => {
+      startVisualCommand(scheduled.command);
+      battleDebugLog(debugConfig, "protocol", "playback-consume-animation", {
+        checkpointId: scheduled.eventCheckpointId,
+        kind: scheduled.eventKind,
+        selectedAnimationKey: scheduled.eventSelectedAnimationKey,
+        timelineSteps: scheduled.eventTimelineSteps,
+        rawLine: scheduled.eventRawLine,
+        groupId: activeCommandGroup.map(item => item.animationEvent?.checkpointId || item.id).join("|"),
+        offsetMs: scheduled.offsetMs,
+        remaining: queue.length,
+      });
+    },
+    onCheckpoint: (step, scheduled) => {
+      if (consumedCheckpointIdsRef.current.has(`${sessionRef.current}:${step.checkpointId}`)) return;
+      consumedCheckpointIdsRef.current.add(`${sessionRef.current}:${step.checkpointId}`);
+      const command = scheduled.command;
+      const event = command.animationEvent;
       setPersistentFieldVisuals(current => applyBattleV4PersistentFieldVisuals(current, command));
       setPersistentSideConditionVisuals(current => applyBattleV4PersistentSideConditionVisuals(current, command));
       setVisibleSlots(slots => {
         const nextSlots = applyBattleV4OpeningSwitchInSettle(slots, openingSwitchInSeats, command);
         setAnimationConsumption(consumed => [...consumed, {
           checkpointId: step.checkpointId,
-          kind: event.kind,
-          rawLine: event.rawLine,
+          kind: event?.kind || "message",
+          rawLine: command.semanticEvent.rawLine,
           at: new Date().toISOString(),
-          selectedAnimationKey: event.selectedAnimationKey,
-          timelineSteps: event.timelineSteps,
+          selectedAnimationKey: event?.selectedAnimationKey,
+          timelineSteps: event?.timelineSteps,
           consumedCheckpoints: openingSwitchInSeats.length ? openingSwitchInSeats.map(seat => `${seat}-opening-switchIn`) : [step.checkpointId],
-          activeTimelineStepIndex,
+          activeTimelineStepIndex: scheduled.index,
           activeTimelineStep: step,
           visibleSlotSeatsBefore: slots.map(formatVisibleSlotSeat),
           visibleSlotSeatsAfter: nextSlots.map(formatVisibleSlotSeat),
         }].slice(-240));
         return nextSlots;
       });
+    },
+    onFinish: () => {
+      setActiveAnimation(null);
+      setActiveVisual(null);
+      setActiveCommandGroup([]);
+      setOpeningSwitchInSeats([]);
+      playingRef.current = false;
+    },
+  });
+
+  useEffect(() => {
+    if (paused || playingRef.current || activeCommandGroup.length || skipAnimations || !queue.length) return;
+    const [command, ...rest] = queue;
+    if (!command) return;
+    const openingSwitchInBatch = !visibleSlots.length ? leadingSwitchInCommands(queue) : [];
+    if (openingSwitchInBatch.length > 1) {
+      const primary = openingSwitchInBatch[0]!;
+      const event = primary.animationEvent;
+      const seats = openingSwitchInBatch.map(item => item.semanticEvent.seat);
+      playingRef.current = true;
+      setQueue(queue.slice(openingSwitchInBatch.length));
+      setActiveVisual(event ? primary : null);
+      setActiveAnimation(event);
+      setActiveCommandGroup(event ? [primary] : []);
+      setOpeningSwitchInSeats(event ? seats : []);
+      setVisibleSlots(slots => {
+        const startedSlots = openingSwitchInBatch.reduce(applyBattleV4VisualCommandStart, slots);
+        return event ? startedSlots : applyBattleV4OpeningSwitchInSettle(startedSlots, seats, primary);
+      });
+      battleDebugLog(debugConfig, "protocol", "playback-consume-opening-switch-batch", {
+        checkpointIds: openingSwitchInBatch.map(item => item.animationEvent?.checkpointId || item.id),
+        seats,
+        rawLines: openingSwitchInBatch.map(item => item.semanticEvent.rawLine),
+      });
+      if (!event) playingRef.current = false;
+      return;
     }
-    const stepTimer = window.setTimeout(() => {
-      setActiveTimelineStepIndex(index => index + 1);
-    }, timelineStepDurationMs(step));
-    return () => window.clearTimeout(stepTimer);
-  }, [activeVisual, activeAnimation, activeTimelineStepIndex, skipAnimations, paused, openingSwitchInSeats]);
+    playingRef.current = true;
+    const group = leadingShowdownAnimationGroup(queue);
+    const primary = group[0] || command;
+    setQueue(queue.slice(group.length || 1));
+    setActiveVisual(primary);
+    const event = primary.animationEvent;
+    setActiveAnimation(event);
+    setActiveCommandGroup(group.length ? group : [primary]);
+    setOpeningSwitchInSeats([]);
+    if (!event) {
+      setPersistentFieldVisuals(current => applyBattleV4PersistentFieldVisuals(current, primary));
+      setPersistentSideConditionVisuals(current => applyBattleV4PersistentSideConditionVisuals(current, primary));
+      setVisibleSlots(slots => applyBattleV4VisualCommandSettle(slots, primary));
+      setActiveVisual(null);
+      setActiveCommandGroup([]);
+      playingRef.current = false;
+    }
+  }, [queue, activeCommandGroup.length, skipAnimations, paused, debugConfig, visibleSlots.length]);
 
   const hasProtocolFacts = Boolean(snapshot && snapshot.rawLog.length > initialPlaybackRawIndex(snapshot.rawLog));
   const shouldUseProtocolState = hasProtocolState || hasProtocolFacts || skipAnimations;
@@ -859,6 +868,7 @@ export function useBattleV4Playback(
     activeTimelineStep,
     activeTimelineStepIndex,
     renderedTimelineSteps,
+    renderedTimelineHandles,
     persistentFieldVisuals,
     persistentSideConditionVisuals,
     hasProtocolState: shouldUseProtocolState,
@@ -908,6 +918,7 @@ export function useBattleV4Playback(
         renderedStepCount: renderedTimelineSteps.length,
         consumedCheckpointCount: animationConsumption.reduce((count, item) => count + (item.consumedCheckpoints?.length || 0), 0),
       },
+      timelineRunnerDebug,
       queueLength: queue.length,
       skipAnimations,
       paused,
@@ -986,7 +997,7 @@ export function useBattleV4PreviewPlayback(
         setRenderedTimelineSteps([]);
         playingRef.current = false;
         if (!queue.length) setDone(true);
-      }, ANIMATION_GAP_MS);
+      }, PREVIEW_ANIMATION_GAP_MS);
       return () => window.clearTimeout(releaseTimer);
     }
     setActiveTimelineStep(step);
@@ -997,7 +1008,7 @@ export function useBattleV4PreviewPlayback(
     }
     const stepTimer = window.setTimeout(() => {
       setActiveTimelineStepIndex(index => index + 1);
-    }, timelineStepDurationMs(step));
+    }, previewTimelineStepDurationMs(step));
     return () => window.clearTimeout(stepTimer);
   }, [activeAnimation, activeTimelineStepIndex, queue.length]);
 
@@ -1084,14 +1095,41 @@ function leadingSwitchInCommands(queue: BattleVisualCommandV4[]): BattleSwitchIn
   return batch;
 }
 
-function timelineStepDurationMs(step: ShowdownAnimationStepV4): number {
+function leadingShowdownAnimationGroup(queue: BattleVisualCommandV4[]): BattleVisualCommandV4[] {
+  const first = queue[0];
+  if (!first) return [];
+  if (!first.animationEvent) return [first];
+  const group = [first];
+  if (!shouldGroupFollowingMinorEvents(first)) return group;
+  for (const command of queue.slice(1)) {
+    if (!command.animationEvent || !isShowdownMinorFollowup(command)) break;
+    group.push(command);
+  }
+  return group;
+}
+
+function shouldGroupFollowingMinorEvents(command: BattleVisualCommandV4): boolean {
+  return command.semanticEvent.kind === "move" ||
+    command.semanticEvent.kind === "result" ||
+    command.semanticEvent.kind === "damage" ||
+    command.semanticEvent.kind === "heal";
+}
+
+function isShowdownMinorFollowup(command: BattleVisualCommandV4): boolean {
+  return command.semanticEvent.kind === "result" ||
+    command.semanticEvent.kind === "damage" ||
+    command.semanticEvent.kind === "heal" ||
+    command.semanticEvent.kind === "status" ||
+    command.semanticEvent.kind === "cureStatus";
+}
+
+function previewTimelineStepDurationMs(step: ShowdownAnimationStepV4): number {
   if (step.type === "checkpoint") return 0;
   if (step.type === "wait" || step.type === "delay") return Math.max(0, step.durationMs);
-  if (step.type === "showEffect") return Math.max(60, typeof step.delayMs === "number" ? step.delayMs : step.durationMs);
-  if (step.type === "actorAnim" || step.type === "backgroundEffect") {
-    return Math.max(160, step.durationMs);
-  }
-  return TIMELINE_STEP_DEFAULT_MS;
+  if (step.type === "showEffect") return Math.max(60, (step.delayMs || 0) + step.durationMs);
+  if (step.type === "actorAnim" || step.type === "backgroundEffect") return Math.max(120, step.durationMs);
+  if (step.type === "resultAnim" || step.type === "damageAnim" || step.type === "healAnim") return 350;
+  return PREVIEW_TIMELINE_STEP_DEFAULT_MS;
 }
 
 function targetArgForEvent(eventType: string, args: BattleProtocolArgsV4): string {

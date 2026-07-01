@@ -390,7 +390,7 @@
   text-shadow: 0 1px 0 rgb(0 0 0 / 72%);
   pointer-events: none;
   transform: translate(-50%, -50%);
-  animation: battle-v4-result-pop .62s ease-out both;
+  animation: battle-v4-result-pop 1s ease-out both;
 }
 
 .battle-v4-result-pop.target-p1a { left: 86px; top: 151px; }

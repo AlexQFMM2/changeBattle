@@ -1,6 +1,7 @@
 import type {CSSProperties} from "react";
 import type {BattleAnimationEventV4, BattleProtocolSeatV4} from "./battleV4Playback";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
+import type {BattleV4ScheduledTimelineStep} from "./useBattleV4ShowdownTimelineRunner";
 
 export type BattleV4TimelineVisuals = {
   fx: {
@@ -35,6 +36,8 @@ export type BattleV4TimelineVisuals = {
 };
 
 export type BattleV4TimelineFxVisual = BattleV4TimelineVisuals["fx"] & {key: string};
+export type BattleV4TimelineResultVisual = BattleV4TimelineVisuals["result"] & {key: string; animation: BattleAnimationEventV4};
+export type BattleV4TimelineActorVisual = NonNullable<BattleV4TimelineVisuals["actor"]> & {key: string; animation: BattleAnimationEventV4};
 
 export function getBattleV4ActiveTimelineVisuals(
   animation: BattleAnimationEventV4 | null,
@@ -163,7 +166,26 @@ export function getBattleV4ActiveTimelineVisuals(
 export function getBattleV4ActiveTimelineFxVisuals(
   animation: BattleAnimationEventV4 | null,
   steps: ShowdownAnimationStepV4[],
+  handles: BattleV4ScheduledTimelineStep[] = [],
 ): BattleV4TimelineFxVisual[] {
+  if (handles.length) {
+    return handles.flatMap(handle => {
+      const step = handle.step;
+      const event = handle.command.animationEvent || animation;
+      if (!event || step.type !== "showEffect") return [];
+      const effectSprite = step.sprite.effectId || step.effectId || event.effectSprite || "impact";
+      return [{
+        key: handle.key,
+        visible: true,
+        targetSeat: step.to.seat || event.targetSeat || event.actorSeat,
+        kind: event.kind,
+        effectSprite,
+        durationMs: step.durationMs,
+        style: fxStyle(effectSprite, step.durationMs, step.from, step.to),
+        className: step.from.x !== step.to.x || step.from.y !== step.to.y ? "is-projectile" : "",
+      }];
+    }).slice(-8);
+  }
   if (!animation) return [];
   const visuals: BattleV4TimelineFxVisual[] = [];
   steps.forEach((step, index) => {
@@ -181,6 +203,40 @@ export function getBattleV4ActiveTimelineFxVisuals(
     });
   });
   return visuals.slice(-6);
+}
+
+export function getBattleV4ActiveTimelineResultVisuals(
+  animation: BattleAnimationEventV4 | null,
+  step: ShowdownAnimationStepV4 | null,
+  handles: BattleV4ScheduledTimelineStep[] = [],
+): BattleV4TimelineResultVisual[] {
+  if (handles.length) {
+    return handles.flatMap(handle => {
+      const event = handle.command.animationEvent || animation;
+      if (!event) return [];
+      const visual = resultVisualForStep(event, handle.step);
+      return visual ? [{...visual, key: handle.key, animation: event}] : [];
+    }).slice(-8);
+  }
+  if (!animation || !step) return [];
+  const visual = resultVisualForStep(animation, step);
+  return visual ? [{...visual, key: `${animation.checkpointId}-${step.type}`, animation}] : [];
+}
+
+export function getBattleV4ActiveTimelineActorVisuals(
+  animation: BattleAnimationEventV4 | null,
+  step: ShowdownAnimationStepV4 | null,
+  handles: BattleV4ScheduledTimelineStep[] = [],
+): BattleV4TimelineActorVisual[] {
+  if (handles.length) {
+    return handles.flatMap(handle => {
+      const event = handle.command.animationEvent || animation;
+      const actor = actorVisualForStep(handle.step);
+      return event && actor ? [{...actor, key: handle.key, animation: event}] : [];
+    }).slice(-8);
+  }
+  const actor = step ? actorVisualForStep(step) : null;
+  return animation && actor ? [{...actor, key: `${animation.checkpointId}-${step?.type || "actor"}`, animation}] : [];
 }
 
 function fxStyle(
@@ -226,6 +282,47 @@ function actorStyle(step: Extract<ShowdownAnimationStepV4, {type: "actorAnim"}>)
     "--battle-v4-actor-opacity": String(opacity),
     "--battle-v4-actor-duration": `${step.durationMs}ms`,
   } as CSSProperties;
+}
+
+function resultVisualForStep(animation: BattleAnimationEventV4, step: ShowdownAnimationStepV4): Omit<BattleV4TimelineResultVisual, "key" | "animation"> | null {
+  const fallbackSeat = animation.targetSeat || animation.actorSeat || "";
+  if (step.type === "resultAnim") {
+    return {
+      visible: Boolean(step.text || animation.resultText),
+      targetSeat: step.actor.seat || fallbackSeat,
+      kind: animation.kind,
+      text: step.text || animation.resultText,
+      tone: step.tone || animation.resultTone || "neutral",
+    };
+  }
+  if (step.type === "damageAnim") {
+    return {
+      visible: true,
+      targetSeat: step.actor.seat || fallbackSeat,
+      kind: animation.kind,
+      text: animation.resultText || "受到伤害",
+      tone: "bad",
+    };
+  }
+  if (step.type === "healAnim") {
+    return {
+      visible: true,
+      targetSeat: step.actor.seat || fallbackSeat,
+      kind: animation.kind,
+      text: animation.resultText || "恢复体力",
+      tone: "good",
+    };
+  }
+  return null;
+}
+
+function actorVisualForStep(step: ShowdownAnimationStepV4): Omit<BattleV4TimelineActorVisual, "key" | "animation"> | null {
+  if (step.type !== "actorAnim") return null;
+  return {
+    seat: step.actor.seat,
+    className: "anim-timeline-actor",
+    style: actorStyle(step),
+  };
 }
 
 function fallbackResultText(animation: BattleAnimationEventV4 | null): string {
