@@ -238,6 +238,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     buyFormalRestShopItem: formalRuns.buyFormalRestShopItem,
     sellFormalRestBagItems: formalRuns.sellFormalRestBagItems,
     rerollFormalRestPokemonStats: formalRuns.rerollFormalRestPokemonStats,
+    unlockFormalRestOpponentPreview: formalRuns.unlockFormalRestOpponentPreview,
     getFormalTrainingGroundLesson: formalRuns.getFormalTrainingGroundLesson,
     advanceFormalTrainingGroundLesson: formalRuns.advanceFormalTrainingGroundLesson,
     applyFormalTrainingGroundLesson: formalRuns.applyFormalTrainingGroundLesson,

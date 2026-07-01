@@ -5,6 +5,7 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   type ChangeBattleV2Api,
   type DexStatId,
+  type FormalRestOpponentPreviewUnlockResultV4,
   type FormalRoundSettlementV4,
   type FormalRestPokemonStatRerollResultV4,
   type FormalTrainingGroundApplyInputV4,
@@ -48,6 +49,12 @@ export type TrainingRestTeamRerollController = {
   onRerollStats: (input: {pokemonId: string; part: "ivs" | "evs"; lockedStats: DexStatId[]}) => Promise<FormalRestPokemonStatRerollResultV4> | FormalRestPokemonStatRerollResultV4;
 };
 
+export type TrainingRestOpponentPreviewController = {
+  enabled: boolean;
+  cost: number;
+  onUnlock: (input: {unlockKey: string}) => Promise<FormalRestOpponentPreviewUnlockResultV4> | FormalRestOpponentPreviewUnlockResultV4;
+};
+
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
   run: TrainingRunGameV4;
@@ -64,9 +71,10 @@ export type TrainingRestNewPageProps = {
   shopController?: TrainingRestShopController;
   trainingGroundController?: TrainingRestTrainingGroundController;
   teamRerollController?: TrainingRestTeamRerollController;
+  opponentPreviewController?: TrainingRestOpponentPreviewController;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, teamRerollController}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, teamRerollController, opponentPreviewController}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -143,7 +151,15 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     onStartBattle();
   }
 
-  function unlockPreviewPokemon(target: PreviewPokemonEntry) {
+  async function unlockPreviewPokemon(target: PreviewPokemonEntry) {
+    if (opponentPreviewController) {
+      const result = await opponentPreviewController.onUnlock({unlockKey: target.unlockKey});
+      if (result.ok) onRunChange(result.run.restRunSnapshot || run);
+      setUnlockTarget(null);
+      setMessage(result.message);
+      showNotice(result.message, result.ok ? "normal" : "danger");
+      return;
+    }
     const nextRun = {
       ...run,
       restPreviewUnlocks: {...(run.restPreviewUnlocks || {}), [target.unlockKey]: true as const},
@@ -152,6 +168,16 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     onRunChange(nextRun);
     setUnlockTarget(null);
     setMessage(`${target.pokemon.nameZh || target.pokemon.name} 已解锁，记得手动保存。`);
+  }
+
+  function onLockedPreviewPokemonClick(target: PreviewPokemonEntry) {
+    if (opponentPreviewController && !opponentPreviewController.enabled) {
+      const nextMessage = "需要点亮星图「小道消息」后才能打听对手情报。";
+      setMessage(nextMessage);
+      showNotice(nextMessage, "danger");
+      return;
+    }
+    setUnlockTarget(target);
   }
 
   function selectAction(action: string) {
@@ -226,7 +252,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       <div className="training-rest-new-stage" data-scene={restScene}>
         <section className="training-rest-new-center-scene" aria-label="休整中心">
           <img className="training-rest-new-bg" src="/training/rest-center-bg.png" alt="休整中心背景预览" />
-          <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={setUnlockTarget} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
+          <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={onLockedPreviewPokemonClick} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
           <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} />
           {typeof moneyAmount === "number" ? (
             <div className="training-rest-new-money-pill" aria-label="当前金币">
@@ -339,10 +365,10 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         <TrainingRestConfirmDialog
           title="是否解锁？"
           message="解锁后会显示这只宝可梦，并可打开图鉴详情。"
-          confirmLabel="解锁"
+          confirmLabel={opponentPreviewController ? `解锁（${opponentPreviewController.cost}金币）` : "解锁"}
           ariaLabel="确认解锁预览"
           onCancel={() => setUnlockTarget(null)}
-          onConfirm={() => unlockPreviewPokemon(unlockTarget)}
+          onConfirm={() => void unlockPreviewPokemon(unlockTarget)}
         />
       ) : null}
       {lessonEndOpen ? (

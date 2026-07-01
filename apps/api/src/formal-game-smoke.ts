@@ -15,6 +15,7 @@ import {
   BATTLE_PRACTICE_MASTERY_NODE_ID,
   EMERGENCY_MEDICAL_CARE_NODE_ID,
   FREE_MEDICAL_CARE_NODE_ID,
+  OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
   STARTER_ROLE_PLAN,
   validateFormalShopCatalogV4,
@@ -30,6 +31,7 @@ import {
   starChartHasEastAsiaEducationV4,
   starChartHasEmergencyMedicalCareV4,
   starChartHasFreeMedicalCareV4,
+  starChartHasOpponentRumorV4,
   starChartHasOutpatientMedicalCareV4,
   starChartHasSpecialTrainingLockV4,
   starterCandidateCountForStarChart,
@@ -404,6 +406,11 @@ starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_auto_restock");
 assert(starProfile.battlePoints === 80, "shop auto restock should cost 20 BP");
 assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should unlock purchase restocking");
+assert(!starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should be off before unlock");
+starProfile = {...starProfile, battlePoints: 100};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
+assert(starProfile.battlePoints === 90, "opponent rumor should cost 10 BP");
+assert(starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should unlock paid opponent preview");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, FREE_MEDICAL_CARE_NODE_ID);
 assert(starProfile.battlePoints === 80, "free medical care should cost 20 BP");
@@ -588,6 +595,27 @@ assert(statRerollResult.run.money === roundPlanned.money - 20, "formal stat rero
 assert(statRerollAfter.ivs.hp === statRerollBeforeHpIv && statRerollAfter.ivs.atk === statRerollBeforeAtkIv, "formal stat reroll should preserve locked stats");
 assert(statTotal(statRerollAfter.ivs) <= (statRerollAfter.ivTotalCap || 186), "formal stat reroll IV total should stay within cap");
 assert(statRerollResult.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "team-reroll" && entry.amount === -20), "formal stat reroll should append coin log");
+
+const previewNode = roundPlanned.restRunSnapshot!.gameMap.find(node => node.id === roundPlanned.restRunSnapshot!.currentNodeId)!;
+const previewOpponent = previewNode.participants.p2!.localTeam.pokemon[0]!;
+const previewUnlockKey = `${previewNode.id}:p2:${previewOpponent.localPokemonId}`;
+const previewWithoutStar = api.unlockFormalRestOpponentPreview(roundPlanned, {unlockKey: previewUnlockKey});
+assert(!previewWithoutStar.ok && previewWithoutStar.run.money === roundPlanned.money, "formal opponent preview should require opponent rumor star chart");
+const rumorProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, OPPONENT_RUMOR_NODE_ID);
+const rumorRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(rumorProfile, {mode: "singles", seed: "formal-smoke-opponent-rumor-seed"})), [0, 1, 2]));
+const rumorNode = rumorRun.restRunSnapshot!.gameMap.find(node => node.id === rumorRun.restRunSnapshot!.currentNodeId)!;
+const rumorPokemon = rumorNode.participants.p2!.localTeam.pokemon[0]!;
+const rumorUnlockKey = `${rumorNode.id}:p2:${rumorPokemon.localPokemonId}`;
+const poorRumorResult = api.unlockFormalRestOpponentPreview({...rumorRun, money: 9}, {unlockKey: rumorUnlockKey});
+assert(!poorRumorResult.ok && poorRumorResult.run.money === 9, "formal opponent preview should reject insufficient funds without changing money");
+const rumorResult = api.unlockFormalRestOpponentPreview(rumorRun, {unlockKey: rumorUnlockKey});
+assert(rumorResult.ok, "formal opponent preview should unlock with star chart");
+assert(rumorResult.cost === 10, "formal opponent preview should cost 10 coins");
+assert(rumorResult.run.money === rumorRun.money - 10, "formal opponent preview should deduct 10 coins");
+assert(rumorResult.run.restRunSnapshot?.restPreviewUnlocks?.[rumorUnlockKey], "formal opponent preview should persist unlock key");
+assert(rumorResult.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "opponent-rumor" && entry.amount === -10), "formal opponent preview should append coin log");
+const rumorAgain = api.unlockFormalRestOpponentPreview(rumorResult.run, {unlockKey: rumorUnlockKey});
+assert(rumorAgain.ok && rumorAgain.run.money === rumorResult.run.money && rumorAgain.cost === 0, "formal opponent preview should not charge repeated unlocks");
 
 const trainingLesson = api.getFormalTrainingGroundLesson(roundPlanned);
 const trainingLessonAgain = api.getFormalTrainingGroundLesson(roundPlanned);

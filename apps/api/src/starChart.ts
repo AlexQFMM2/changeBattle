@@ -5,6 +5,7 @@ import {
   EMERGENCY_MEDICAL_CARE_NODE_ID,
   EAST_ASIA_EDUCATION_NODE_ID,
   FREE_MEDICAL_CARE_NODE_ID,
+  OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
   SHOP_AUTO_RESTOCK_NODE_ID,
   SHOP_MORE_STOCK_NODE_IDS,
@@ -15,7 +16,7 @@ import {
   type StarChartStateV4,
 } from "@changebattle-v2/core";
 
-export {BATTLE_PRACTICE_MASTERY_NODE_ID, EMERGENCY_MEDICAL_CARE_NODE_ID, EAST_ASIA_EDUCATION_NODE_ID, FREE_MEDICAL_CARE_NODE_ID, MAX_BP_V4, MORE_CHOICES_NODE_IDS, OUTPATIENT_MEDICAL_CARE_NODE_ID, SHOP_AUTO_RESTOCK_NODE_ID, SHOP_MORE_STOCK_NODE_IDS, SPECIAL_TRAINING_LOCK_NODE_ID, STAR_CHART_NODES_V4};
+export {BATTLE_PRACTICE_MASTERY_NODE_ID, EMERGENCY_MEDICAL_CARE_NODE_ID, EAST_ASIA_EDUCATION_NODE_ID, FREE_MEDICAL_CARE_NODE_ID, MAX_BP_V4, MORE_CHOICES_NODE_IDS, OPPONENT_RUMOR_NODE_ID, OUTPATIENT_MEDICAL_CARE_NODE_ID, SHOP_AUTO_RESTOCK_NODE_ID, SHOP_MORE_STOCK_NODE_IDS, SPECIAL_TRAINING_LOCK_NODE_ID, STAR_CHART_NODES_V4};
 export type {StarChartNodeKindV4, StarChartNodeViewV4, StarChartStateV4};
 
 export type StarChartProfileInputV4 = {
@@ -123,6 +124,10 @@ export function starChartHasOutpatientMedicalCareV4(starChart?: StarChartStateV4
 
 export function starChartHasBattlePracticeMasteryV4(starChart?: StarChartStateV4 | null): boolean {
   return starChartNodeLevelV4(starChart, BATTLE_PRACTICE_MASTERY_NODE_ID) > 0;
+}
+
+export function starChartHasOpponentRumorV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, OPPONENT_RUMOR_NODE_ID) > 0;
 }
 
 export function unlockStarChartNodeForProfileV4<T extends StarChartProfileV4>(profile: T, nodeId: string, now = new Date()): T {

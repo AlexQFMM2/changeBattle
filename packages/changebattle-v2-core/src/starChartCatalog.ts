@@ -33,6 +33,7 @@ export const FREE_MEDICAL_CARE_NODE_ID = "rest_free_medical_care" as const;
 export const EMERGENCY_MEDICAL_CARE_NODE_ID = "rest_emergency_medical_care" as const;
 export const OUTPATIENT_MEDICAL_CARE_NODE_ID = "rest_outpatient_medical_care" as const;
 export const BATTLE_PRACTICE_MASTERY_NODE_ID = "battle_practice_mastery" as const;
+export const OPPONENT_RUMOR_NODE_ID = "rest_opponent_rumor" as const;
 
 export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
@@ -163,6 +164,19 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     effects: ["开启购买后的自动补货；未点亮时商品买完即售罄。"],
     kind: "talent",
     x: 175,
+    y: -255,
+  },
+  {
+    id: OPPONENT_RUMOR_NODE_ID,
+    name: "小道消息",
+    category: "情报筹备",
+    desc: "休整中心可以花金币打听下一场对手的一只宝可梦情报。",
+    max_level: 1,
+    costs: [10],
+    requires: [{id: "root_trainer_star"}],
+    effects: ["休整中心可花 10 金币解锁下一场对手的一只宝可梦预览。"],
+    kind: "talent",
+    x: -175,
     y: -255,
   },
   {

@@ -50,7 +50,7 @@ import {
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
-import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, starChartHasBattlePracticeMasteryV4, starChartHasEastAsiaEducationV4, starChartHasEmergencyMedicalCareV4, starChartHasFreeMedicalCareV4, starChartHasOutpatientMedicalCareV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, starChartHasBattlePracticeMasteryV4, starChartHasEastAsiaEducationV4, starChartHasEmergencyMedicalCareV4, starChartHasFreeMedicalCareV4, starChartHasOpponentRumorV4, starChartHasOutpatientMedicalCareV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -120,6 +120,17 @@ export type FormalRestPokemonStatRerollInputV4 = {
 };
 
 export type FormalRestPokemonStatRerollResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  message: string;
+  cost: number;
+};
+
+export type FormalRestOpponentPreviewUnlockInputV4 = {
+  unlockKey: string;
+};
+
+export type FormalRestOpponentPreviewUnlockResultV4 = {
   ok: boolean;
   run: FormalGameRunV4;
   message: string;
@@ -213,6 +224,7 @@ const PLAYER_BACK_IMAGES = [
 ];
 
 const POWER_PROFILE_ORDER: PokemonPowerProfileV4[] = ["rookie", "normal", "elite", "boss", "champion"];
+const FORMAL_OPPONENT_RUMOR_COST = 10;
 
 export type FormalShopRestockContextV4 = {
   roundIndex: number;
@@ -382,6 +394,7 @@ export type FormalGameRunApi = {
   buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
   sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4;
   rerollFormalRestPokemonStats(run: FormalGameRunV4, input: FormalRestPokemonStatRerollInputV4): FormalRestPokemonStatRerollResultV4;
+  unlockFormalRestOpponentPreview(run: FormalGameRunV4, input: FormalRestOpponentPreviewUnlockInputV4): FormalRestOpponentPreviewUnlockResultV4;
   getFormalTrainingGroundLesson(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4 | null;
   advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4;
   applyFormalTrainingGroundLesson(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundResultV4;
@@ -991,6 +1004,45 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       at: now,
     });
     return statRerollResult(true, withLog, `花费 ${cost} 金币，${part === "ivs" ? "个体值" : "努力值"}已重新分配。`, cost);
+  }
+
+  function unlockFormalRestOpponentPreview(run: FormalGameRunV4, input: FormalRestOpponentPreviewUnlockInputV4): FormalRestOpponentPreviewUnlockResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const node = currentFormalRestNode(normalized);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    const unlockKey = String(input.unlockKey || "").trim();
+    const cost = FORMAL_OPPONENT_RUMOR_COST;
+    if (!node || !restRunSnapshot) return opponentPreviewUnlockResult(false, normalized, "当前没有可打听的对手情报。", cost);
+    if (!unlockKey) return opponentPreviewUnlockResult(false, normalized, "请选择要打听的宝可梦。", cost);
+    if (restRunSnapshot.restPreviewUnlocks?.[unlockKey]) {
+      return opponentPreviewUnlockResult(true, normalized, "这只宝可梦的情报已经解锁。", 0);
+    }
+    if (!starChartHasOpponentRumorV4(normalized.starChartSnapshot)) {
+      return opponentPreviewUnlockResult(false, normalized, "需要点亮星图「小道消息」后才能打听对手情报。", cost);
+    }
+    if (normalized.money < cost) return opponentPreviewUnlockResult(false, normalized, "金币不足。", cost);
+    const now = new Date().toISOString();
+    const nextRun = {
+      ...normalized,
+      restRunSnapshot: {
+        ...restRunSnapshot,
+        restPreviewUnlocks: {
+          ...(restRunSnapshot.restPreviewUnlocks || {}),
+          [unlockKey]: true as const,
+        },
+        updatedAt: now,
+      },
+      updatedAt: now,
+    };
+    const withLog = appendShopCoinLogFast(nextRun, {
+      key: `opponent-rumor:${node.id}:${unlockKey}`,
+      amount: -cost,
+      source: "opponent-rumor",
+      label: "打听对手情报",
+      roundIndex: node.index,
+      at: now,
+    });
+    return opponentPreviewUnlockResult(true, withLog, `花费 ${cost} 金币，已了解这只宝可梦的情报。`, cost);
   }
 
   function getFormalTrainingGroundLesson(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4 | null {
@@ -1776,6 +1828,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     buyFormalRestShopItem,
     sellFormalRestBagItems,
     rerollFormalRestPokemonStats,
+    unlockFormalRestOpponentPreview,
     getFormalTrainingGroundLesson,
     advanceFormalTrainingGroundLesson,
     applyFormalTrainingGroundLesson,
@@ -2683,6 +2736,10 @@ function trainingGroundResult(ok: boolean, run: FormalGameRunV4, message: string
 }
 
 function statRerollResult(ok: boolean, run: FormalGameRunV4, message: string, cost: number): FormalRestPokemonStatRerollResultV4 {
+  return {ok, run, message, cost};
+}
+
+function opponentPreviewUnlockResult(ok: boolean, run: FormalGameRunV4, message: string, cost: number): FormalRestOpponentPreviewUnlockResultV4 {
   return {ok, run, message, cost};
 }
 

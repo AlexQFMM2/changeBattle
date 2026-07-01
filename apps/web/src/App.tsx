@@ -6,6 +6,7 @@ import {
   createChangeBattleV2Api,
   createDesktopUserProfileAdapter,
   starChartHasSpecialTrainingLockV4,
+  starChartHasOpponentRumorV4,
   type AppDebugConfigV4,
   type DesktopFormalGameBridge,
   type DesktopUserProfileBridge,
@@ -591,6 +592,16 @@ function RoutedApp({runtime}: AppProps) {
           onRerollStats: input => {
             if (!formalRun) throw new Error("正式存档不存在。");
             const result = api.rerollFormalRestPokemonStats(formalRun, input);
+            if (result.ok) setFormalRun(result.run);
+            return result;
+          },
+        }}
+        opponentPreviewController={{
+          enabled: starChartHasOpponentRumorV4(formalRun.starChartSnapshot),
+          cost: 10,
+          onUnlock: input => {
+            if (!formalRun) throw new Error("正式存档不存在。");
+            const result = api.unlockFormalRestOpponentPreview(formalRun, input);
             if (result.ok) setFormalRun(result.run);
             return result;
           },
