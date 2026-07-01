@@ -65,6 +65,14 @@ changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
 
 Untracked local files such as `debug/` are not included in the source archive.
 
+`assets/` is intentionally ignored by git, so `tools/send_release_source_to_windows.sh` sends a second local assets archive:
+
+```text
+D:\changeBattleV2\release\changeBattleV2-assets-X.Y.Z.tgz
+```
+
+The Windows source tree is rebuilt from `HEAD` plus this local `assets/` archive before `electron-vite` runs.
+
 ## Manual Windows Build
 
 After running `tools/send_release_source_to_windows.sh X.Y.Z`, build on Windows:
