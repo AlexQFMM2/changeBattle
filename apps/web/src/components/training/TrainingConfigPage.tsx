@@ -17,6 +17,7 @@ import type {
 } from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {TrainingDexSelect, type TrainingDexSelectOption} from "./TrainingDexSelect";
+import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./TrainingConfigPage.css";
 
 export type TrainingConfigPageProps = {
@@ -461,7 +462,7 @@ function styleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return {};
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

@@ -27,6 +27,7 @@ import {TrainingRestTrainingGroundScene} from "./TrainingRestTrainingGroundScene
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
 import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
+import {assetUrl} from "../../lib/assetUrl";
 import "./TrainingRestNewPage.css";
 import type {FormalRestShopV4} from "@changebattle-v2/api";
 
@@ -302,12 +303,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     >
       <div className="training-rest-new-stage" data-scene={restScene}>
         <section className="training-rest-new-center-scene" aria-label="休整中心">
-          <img className="training-rest-new-bg" src="/training/rest-center-bg.png" alt="休整中心背景预览" />
+          <img className="training-rest-new-bg" src={assetUrl("training/rest-center-bg.png")} alt="休整中心背景预览" />
           <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={onLockedPreviewPokemonClick} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
           <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} />
           {typeof moneyAmount === "number" ? (
             <div className="training-rest-new-money-pill" aria-label="当前金币">
-              <img src="/aboutIcon/coin.png" alt="" />
+              <img src={assetUrl("aboutIcon/coin.png")} alt="" />
               <strong>{Math.max(0, Math.floor(moneyAmount)).toLocaleString()}</strong>
             </div>
           ) : null}

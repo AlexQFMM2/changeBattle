@@ -2,6 +2,7 @@ import {useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode
 import {motion} from "motion/react";
 import type {ChangeBattleV2Api, DexItemDetail, PlayerItemInstanceV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./PlayerBagPanel.css";
 
 export type PlayerBagPokemonTarget = {
@@ -342,7 +343,7 @@ function spriteStyleFromCss(css: string): CSSProperties | null {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return null;
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

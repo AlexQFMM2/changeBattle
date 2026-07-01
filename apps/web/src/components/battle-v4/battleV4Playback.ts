@@ -25,6 +25,7 @@ import {
   type BattleHpTweenV4,
   type BattleVisualCommandV4,
 } from "./battleV4VisualScene";
+import {assetUrl} from "../../lib/assetUrl";
 
 export type BattleProtocolArgsV4 = [string, ...string[]];
 export type BattleProtocolKwArgsV4 = Record<string, string>;
@@ -1433,14 +1434,14 @@ function resourceFieldsForPersistentLayer(weatherId: string, activeId: string): 
 function persistentLayerResource(id: string, kind: "weather" | "field"): {path: string; kind: "video" | "image" | ""; missing: string} {
   if (kind === "weather") {
     const videoId = WEATHER_VIDEO_IDS[id];
-    if (videoId) return {path: `/showdown/fx/weather-gen6-${videoId}.webm`, kind: "video", missing: ""};
+    if (videoId) return {path: assetUrl(`showdown/fx/weather-gen6-${videoId}.webm`) || "", kind: "video", missing: ""};
     const image = WEATHER_IMAGE_IDS[id];
-    if (image) return {path: `/showdown/fx/${image}`, kind: "image", missing: ""};
-    return {path: "", kind: "", missing: `/showdown/fx/weather-${id}.png`};
+    if (image) return {path: assetUrl(`showdown/fx/${image}`) || "", kind: "image", missing: ""};
+    return {path: "", kind: "", missing: assetUrl(`showdown/fx/weather-${id}.png`) || ""};
   }
   const image = FIELD_IMAGE_IDS[id];
-  if (image) return {path: `/showdown/fx/${image}`, kind: "image", missing: ""};
-  return {path: "", kind: "", missing: `/showdown/fx/weather-${id}.png`};
+  if (image) return {path: assetUrl(`showdown/fx/${image}`) || "", kind: "image", missing: ""};
+  return {path: "", kind: "", missing: assetUrl(`showdown/fx/weather-${id}.png`) || ""};
 }
 
 function normalizeWeatherId(id: string): string {
@@ -1646,7 +1647,7 @@ function applySlotSpriteForme(slot: BattleVisibleSlotV4, speciesId: string, targ
     backSpriteUrl,
     frontShinySpriteUrl,
     backShinySpriteUrl,
-    iconUrl: target?.iconUrl || "/showdown/sprites/pokemonicons-sheet.png",
+    iconUrl: target?.iconUrl || assetUrl("showdown/sprites/pokemonicons-sheet.png") || "",
     iconStyle: target?.iconStyle || slot.iconStyle,
   };
 }
@@ -1667,10 +1668,10 @@ function spriteStateFromSlot(slot: BattleViewSlotV4): BattleSlotSpriteStateV4 {
 function spriteUrlsForSpecies(speciesId: string): Pick<BattleViewSlotV4, "frontSpriteUrl" | "backSpriteUrl" | "frontShinySpriteUrl" | "backShinySpriteUrl"> {
   const spriteId = showdownSpriteIdForSpecies(speciesId);
   return {
-    frontSpriteUrl: `/showdown/sprites/ani/${spriteId}.gif`,
-    backSpriteUrl: `/showdown/sprites/ani-back/${spriteId}.gif`,
-    frontShinySpriteUrl: `/showdown/sprites/ani-shiny/${spriteId}.gif`,
-    backShinySpriteUrl: `/showdown/sprites/ani-back-shiny/${spriteId}.gif`,
+    frontSpriteUrl: assetUrl(`showdown/sprites/ani/${spriteId}.gif`) || "",
+    backSpriteUrl: assetUrl(`showdown/sprites/ani-back/${spriteId}.gif`) || "",
+    frontShinySpriteUrl: assetUrl(`showdown/sprites/ani-shiny/${spriteId}.gif`) || "",
+    backShinySpriteUrl: assetUrl(`showdown/sprites/ani-back-shiny/${spriteId}.gif`) || "",
   };
 }
 

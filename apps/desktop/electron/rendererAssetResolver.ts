@@ -13,6 +13,7 @@ const rendererPublicDirs = new Set([
   "title",
   "training",
   "training-ground",
+  "runtime",
   "ui",
 ]);
 
@@ -25,8 +26,13 @@ export function rendererAssetFilePath(url: string, rendererRoot: string): string
   }
   if (parsed.protocol !== "file:") return null;
   const pathname = decodeURIComponent(parsed.pathname).replace(/\\/g, "/");
-  const parts = pathname.split("/").filter(Boolean);
+  const parts = normalizeFileAssetPathParts(pathname.split("/").filter(Boolean));
   const publicDir = parts[0];
   if (!publicDir || !rendererPublicDirs.has(publicDir)) return null;
   return path.join(rendererRoot, ...parts);
+}
+
+function normalizeFileAssetPathParts(parts: string[]): string[] {
+  if (/^[A-Za-z]:$/.test(parts[0] || "")) return parts.slice(1);
+  return parts;
 }

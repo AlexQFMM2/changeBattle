@@ -2,6 +2,7 @@ import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialChoiceOptionV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, applyBattleSessionToRun, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {BattleV4SurrenderPanel, type BattleV4SurrenderParticipant} from "./BattleV4SurrenderPanel";
 import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
@@ -1241,12 +1242,12 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
         </button>
       ) : null}
       <button className="battle-v4-main-command fight" type="button" disabled={busy || !moveActions.length} onClick={() => onCommandModeChange("moves")}>
-        <img src="/battle/command-buttons/fight.webp" alt="" />
+        <img src={assetUrl("battle/command-buttons/fight.webp")} alt="" />
         <span>战斗</span>
       </button>
       <div className="battle-v4-secondary-commands">
         <button className="battle-v4-main-command switch" type="button" disabled={busy || !canInspectSwitch} onClick={onOpenSwitch}>
-          <img src="/battle/command-buttons/switch.webp" alt="" />
+          <img src={assetUrl("battle/command-buttons/switch.webp")} alt="" />
           <span>宝可梦</span>
         </button>
         {battleBagEnabled ? (
@@ -2386,7 +2387,7 @@ function styleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return {};
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

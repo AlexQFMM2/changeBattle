@@ -1,6 +1,7 @@
 import {useState} from "react";
 import type {BattleCommandActionV4, BattleSpecialChoiceOptionV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleMoveRequestV4, DexMoveDetail} from "@changebattle-v2/api";
 import {battleSpecialSystemAllowedForRuleSetV4} from "@changebattle-v2/api";
+import {assetUrl} from "../../lib/assetUrl";
 import "./BattleV4SkillCommandPanel.css";
 
 type MoveActionV4 = Extract<BattleCommandActionV4, {kind: "move"}>;
@@ -45,10 +46,10 @@ export type BattleV4SkillCommandPanelProps = {
 };
 
 const SPECIAL_SYSTEM_BUTTONS: Array<{system: BattleSpecialSystemV4; label: string; icon: string; choices: BattleSpecialChoiceV4[]}> = [
-  {system: "mega", label: "mega", icon: "/specIcon/mega2.png", choices: ["mega", "megax", "megay", "ultra"]},
-  {system: "zmove", label: "Z招式", icon: "/specIcon/Z2.png", choices: ["zmove"]},
-  {system: "max", label: "极巨化", icon: "/specIcon/jjh2.png", choices: ["max"]},
-  {system: "terastallize", label: "太晶化", icon: "/specIcon/tjh2.png", choices: ["terastallize"]},
+  {system: "mega", label: "mega", icon: "specIcon/mega2.png", choices: ["mega", "megax", "megay", "ultra"]},
+  {system: "zmove", label: "Z招式", icon: "specIcon/Z2.png", choices: ["zmove"]},
+  {system: "max", label: "极巨化", icon: "specIcon/jjh2.png", choices: ["max"]},
+  {system: "terastallize", label: "太晶化", icon: "specIcon/tjh2.png", choices: ["terastallize"]},
 ];
 
 export function uniqueSpecialOptionsForActions(actions: MoveActionV4[]): BattleSpecialChoiceOptionV4[] {
@@ -209,7 +210,7 @@ function BattleV4SkillSpecialChoiceBar({options, selected, busy, lockedSystems, 
                 setExpanded(false);
               }}
             >
-              <img src={button.icon} alt="" />
+              <img src={assetUrl(button.icon)} alt="" />
               <span>{button.label}</span>
             </button>
           );

@@ -8,6 +8,7 @@
     "dev": "node scripts/electron-vite.mjs dev",
     "renderer:dev": "vite --host 127.0.0.1 --port 5181",
     "build": "tsc -p tsconfig.json --noEmit && node scripts/electron-vite.mjs build",
+    "test:renderer-assets": "node scripts/assert-renderer-relative-assets.mjs",
     "test:asset-resolver": "tsc -p tsconfig.asset-resolver-test.json && node out/asset-resolver-test/rendererAssetResolver.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

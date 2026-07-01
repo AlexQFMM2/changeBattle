@@ -1,5 +1,6 @@
 import type {BattleAnimationKindV4, BattleProtocolEventV4, BattleProtocolSeatV4} from "./battleV4Playback";
 import {visualAllianceForSeat, visualSeatForSeat} from "./battleV4VisualSeats";
+import {assetUrl} from "../../lib/assetUrl";
 
 export type ShowdownAnimationSourceV4 = "BattleMoveAnims" | "BattleOtherAnims" | "BattleStatusAnims" | "fallback" | "native";
 export type ShowdownAnimationFidelityV4 = "fallback" | "preset" | "native" | "exact";
@@ -3783,7 +3784,7 @@ function actorCoords(seat: BattleProtocolSeatV4): Pick<ShowdownSpriteActorV4, "x
 function effectSpriteFor(effectId: string, actor: ShowdownSpriteActorV4): ShowdownEffectSpriteV4 {
   return {
     effectId,
-    assetPath: `/showdown/fx/${effectId}.png`,
+    assetPath: assetUrl(`showdown/fx/${effectId}.png`) || "",
     x: actor.x,
     y: actor.y,
     z: actor.z + 10,
@@ -3902,7 +3903,7 @@ function missingFxAssetsForSteps(steps: ShowdownAnimationStepV4[]): string[] {
   for (const step of steps) {
     if (step.type !== "showEffect") continue;
     const id = step.sprite.effectId || step.effectId;
-    if (id && !KNOWN_FX_SPRITES.has(id)) missing.add(`/showdown/fx/${id}.png`);
+    if (id && !KNOWN_FX_SPRITES.has(id)) missing.add(`showdown/fx/${id}.png`);
   }
   return [...missing];
 }

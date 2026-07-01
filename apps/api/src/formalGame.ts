@@ -268,14 +268,14 @@ type FormalBossTrainerCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" 
 type FormalTrainerVisualCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "frontAsset" | "frontGifAsset" | "avatarAsset">;
 
 const PLAYER_BACK_IMAGES = [
-  "/npc/player-back/black-bw-touya-back-b2e0a77d.png",
-  "/npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
-  "/npc/player-back/ethan-hgss-gold-back-46e97197.png",
-  "/npc/player-back/lucas-pt-lucas-back-3199c0fb.png",
-  "/npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
-  "/npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
-  "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
-  "/npc/player-back/white-bw-touko-back-4156e303.png",
+  "npc/player-back/black-bw-touya-back-b2e0a77d.png",
+  "npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
+  "npc/player-back/ethan-hgss-gold-back-46e97197.png",
+  "npc/player-back/lucas-pt-lucas-back-3199c0fb.png",
+  "npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
+  "npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
+  "npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
+  "npc/player-back/white-bw-touko-back-4156e303.png",
 ];
 
 const POWER_PROFILE_ORDER: PokemonPowerProfileV4[] = ["rookie", "normal", "elite", "boss", "champion"];
@@ -1617,7 +1617,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     return {
       playerId: "p1",
       name: "玩家",
-      avatar: "/npc/avatars/6-asset-a73f3e71.webp",
+      avatar: "npc/avatars/6-asset-a73f3e71.webp",
       controller: "local",
       alliance: "near",
       localTeam: {
@@ -1927,7 +1927,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   }
 
   function normalizeNpcFullBodyAvatar(avatar: string, seed: string): string {
-    if (avatar && !avatar.includes("/npc/avatars/")) return avatar;
+    if (avatar && !avatar.includes("npc/avatars/")) return avatar;
     const visual = selectTrainerVisual(createRng(`npc-visual:${seed}`), false);
     return fullBodyTrainerAsset(visual) || avatar || DEFAULT_TRAINER_AVATAR;
   }

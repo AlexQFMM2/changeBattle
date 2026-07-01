@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {DexSystemBattleReforgeOption, LocalPokemonV4, PlayerItemInstanceV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./PokemonSystemReforgePanel.css";
 
 export type PokemonSystemReforgePanelProps = {
@@ -125,7 +126,7 @@ function spriteStyleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return {};
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

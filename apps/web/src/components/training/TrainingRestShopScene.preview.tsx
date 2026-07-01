@@ -15,7 +15,7 @@ const PREVIEW_TEAM = PREVIEW_API.randomizeTrainingTeam("p1", 3, ["venusaur", "ch
 const PREVIEW_PLAYER: TrainingPlayerDraftV4 = {
   playerId: "p1",
   name: "预览训练师",
-  avatar: "/npc/avatars/6-asset-a73f3e71.webp",
+  avatar: "npc/avatars/6-asset-a73f3e71.webp",
   controller: "local",
   alliance: "near",
   localTeam: {

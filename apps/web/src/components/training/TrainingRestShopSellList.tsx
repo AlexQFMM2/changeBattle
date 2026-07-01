@@ -1,6 +1,7 @@
 import type {CSSProperties} from "react";
 import type {ChangeBattleV2Api, PlayerItemInstanceV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import "./TrainingRestShopSellList.css";
 
 export type TrainingRestShopSellListProps = {
@@ -45,7 +46,7 @@ export function TrainingRestShopSellList({api, items, selectedIds, heldItemInsta
             </div>
             <strong title={name}>{name}</strong>
             <div className="training-rest-shop-sell-price" aria-label={`售出价格 ${sellPrice(item)}`}>
-              <img src="/aboutIcon/coin.png" alt="" draggable={false} />
+              <img src={assetUrl("aboutIcon/coin.png")} alt="" draggable={false} />
               <span>{sellPrice(item).toLocaleString()}</span>
             </div>
             <span>{selected ? "已选择" : "选择"}</span>
@@ -80,7 +81,7 @@ function spriteStyleFromCss(css: string): CSSProperties | null {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return null;
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

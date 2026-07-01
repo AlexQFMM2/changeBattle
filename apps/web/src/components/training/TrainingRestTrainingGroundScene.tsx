@@ -13,6 +13,7 @@ import type {
 import {MoveCard} from "../formal/move/MoveCard";
 import {TrainingRestShopDialogue} from "./TrainingRestShopDialogue";
 import {TrainingRestShopInteractionPanel} from "./TrainingRestShopInteractionPanel";
+import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import "./TrainingRestTrainingGroundScene.css";
 
 export type TrainingRestTrainingGroundSceneProps = {
@@ -250,7 +251,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
         <div className="training-rest-training-ground-floor" />
       </div>
       <div className="training-rest-training-ground-money" aria-label="当前金币">
-        <img src="/aboutIcon/coin.png" alt="" draggable={false} />
+        <img src={assetUrl("aboutIcon/coin.png")} alt="" draggable={false} />
         <strong>{Math.max(0, Math.floor(money)).toLocaleString()}</strong>
       </div>
       {lesson ? (
@@ -697,7 +698,7 @@ function spriteStyleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return {};
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

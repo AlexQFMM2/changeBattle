@@ -1,10 +1,12 @@
 import {useEffect, useState} from "react";
+import {assetUrl} from "../../lib/assetUrl";
 
 export function ImageWithFallback({src, alt, fallback = "?"}: {src?: string; alt: string; fallback?: string}) {
   const [failed, setFailed] = useState(false);
+  const resolvedSrc = assetUrl(src);
   useEffect(() => {
     setFailed(false);
-  }, [src]);
-  if (!src || failed) return <span className="image-fallback">{fallback}</span>;
-  return <img src={src} alt={alt} draggable={false} onError={() => setFailed(true)} />;
+  }, [resolvedSrc]);
+  if (!resolvedSrc || failed) return <span className="image-fallback">{fallback}</span>;
+  return <img src={resolvedSrc} alt={alt} draggable={false} onError={() => setFailed(true)} />;
 }

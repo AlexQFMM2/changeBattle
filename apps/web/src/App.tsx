@@ -41,6 +41,7 @@ import {TrainingConfigPage} from "./components/training/TrainingConfigPage";
 import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
 import {TrainingRestPage} from "./components/training/TrainingRestPage";
 import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
+import {showdownAssetPrefix} from "./lib/assetUrl";
 
 type AppProps = {
   runtime: "web" | "desktop";
@@ -78,6 +79,7 @@ function RoutedApp({runtime}: AppProps) {
     userProfileAdapter: createUserProfileAdapter(runtime),
     trainingRunAdapter: createBrowserTrainingRunAdapter(`changebattle-v2:${runtime}:training-run`),
     battleServiceUrl: import.meta.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL,
+    resourcePrefix: showdownAssetPrefix(),
   }), [runtime]);
   const formalGameBridge = useMemo(() => runtime === "desktop" && typeof window !== "undefined"
     ? (window as ChangeBattleV2Window).changeBattleV2?.formalGame

@@ -5,6 +5,7 @@ import {MainMenuCommandBar, type MainMenuCommandItem} from "./MainMenuCommandBar
 import {MainMenuHome} from "./MainMenuHome";
 import type {MainMenuQuickDexSeed} from "./mainMenuTypes";
 import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
+import {assetUrl} from "../../lib/assetUrl";
 import "./MainMenuPage.css";
 
 export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
@@ -98,7 +99,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   return (
     <AnimatedPage className="main-menu-page">
       <video className="main-menu-video-bg" autoPlay muted loop playsInline controls={false} aria-hidden="true">
-        <source src="/title/pokemon-room-bg.mp4" type="video/mp4" />
+        <source src={assetUrl("title/pokemon-room-bg.mp4")} type="video/mp4" />
       </video>
       <div className="video-startup-mask" aria-hidden="true" />
       <div className="main-menu-shade" aria-hidden="true" />

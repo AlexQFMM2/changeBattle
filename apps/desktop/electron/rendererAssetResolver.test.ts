@@ -10,13 +10,28 @@ assert.equal(
 );
 
 assert.equal(
+  rendererAssetFilePath("file:///D:/showdown/sprites/ani/buzzwole.gif", rendererRoot),
+  path.join(rendererRoot, "showdown", "sprites", "ani", "buzzwole.gif"),
+);
+
+assert.equal(
   rendererAssetFilePath("file:///npc/avatars/6-asset-a73f3e71.webp", rendererRoot),
+  path.join(rendererRoot, "npc", "avatars", "6-asset-a73f3e71.webp"),
+);
+
+assert.equal(
+  rendererAssetFilePath("file:///D:/npc/avatars/6-asset-a73f3e71.webp", rendererRoot),
   path.join(rendererRoot, "npc", "avatars", "6-asset-a73f3e71.webp"),
 );
 
 assert.equal(
   rendererAssetFilePath("file:///ui/button-gold.png", rendererRoot),
   path.join(rendererRoot, "ui", "button-gold.png"),
+);
+
+assert.equal(
+  rendererAssetFilePath("file:///D:/runtime/items/carbos/icon.png", rendererRoot),
+  path.join(rendererRoot, "runtime", "items", "carbos", "icon.png"),
 );
 
 assert.equal(

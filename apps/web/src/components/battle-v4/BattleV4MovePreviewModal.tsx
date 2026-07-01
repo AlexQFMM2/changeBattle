@@ -5,6 +5,7 @@ import {useBattleV4PreviewPlayback, type BattleAnimationEventV4, type BattleProt
 import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import {visualSeatClassForSeat} from "./battleV4VisualSeats";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
+import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import "./BattleV4Page.css";
 import "./BattleV4MovePreviewModal.css";
 
@@ -265,7 +266,7 @@ function PreviewPokemonSlot({slot, commanding = false, animation, visuals}: {
   const animationClass = timelineActor?.className || previewPokemonAnimationClass(slot.seat, animation);
   return (
     <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${typeIdFor(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${animationClass}`} style={timelineActor?.style}>
-      <ImageWithFallback src={slot.spriteUrl || slot.frontSpriteUrl || slot.iconUrl} fallback={slot.iconUrl || "/showdown/sprites/pokemonicons-sheet.png"} alt={slot.nameZh || slot.name} />
+      <ImageWithFallback src={slot.spriteUrl || slot.frontSpriteUrl || slot.iconUrl} fallback={slot.iconUrl || assetUrl("showdown/sprites/pokemonicons-sheet.png")} alt={slot.nameZh || slot.name} />
     </article>
   );
 }
@@ -332,12 +333,12 @@ function previewSlot(
     hp: 100,
     maxHp: 100,
     status: "",
-    spriteUrl: side === "near" ? `/showdown/sprites/ani-back/${speciesId}.gif` : `/showdown/sprites/ani/${speciesId}.gif`,
-    frontSpriteUrl: `/showdown/sprites/ani/${speciesId}.gif`,
-    backSpriteUrl: `/showdown/sprites/ani-back/${speciesId}.gif`,
-    frontShinySpriteUrl: `/showdown/sprites/ani-shiny/${speciesId}.gif`,
-    backShinySpriteUrl: `/showdown/sprites/ani-back-shiny/${speciesId}.gif`,
-    iconUrl: `/showdown/sprites/ani/${speciesId}.gif`,
+    spriteUrl: assetUrl(side === "near" ? `showdown/sprites/ani-back/${speciesId}.gif` : `showdown/sprites/ani/${speciesId}.gif`) || "",
+    frontSpriteUrl: assetUrl(`showdown/sprites/ani/${speciesId}.gif`) || "",
+    backSpriteUrl: assetUrl(`showdown/sprites/ani-back/${speciesId}.gif`) || "",
+    frontShinySpriteUrl: assetUrl(`showdown/sprites/ani-shiny/${speciesId}.gif`) || "",
+    backShinySpriteUrl: assetUrl(`showdown/sprites/ani-back-shiny/${speciesId}.gif`) || "",
+    iconUrl: assetUrl(`showdown/sprites/ani/${speciesId}.gif`) || "",
     teamBallStates: ["normal", "empty", "empty", "empty", "empty", "empty"],
   };
 }

@@ -4,6 +4,7 @@ import {TrainingRestShopBuyList} from "./TrainingRestShopBuyList";
 import {TrainingRestShopDialogue} from "./TrainingRestShopDialogue";
 import {TrainingRestShopInteractionPanel, type TrainingRestShopInteractionMode} from "./TrainingRestShopInteractionPanel";
 import {TrainingRestShopSellList, sellPrice} from "./TrainingRestShopSellList";
+import {assetUrl} from "../../lib/assetUrl";
 import "./TrainingRestShopScene.css";
 
 export type TrainingRestShopSceneProps = {
@@ -223,9 +224,9 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
 
   return (
     <section className="training-rest-shop-scene" data-open={open ? "true" : "false"} aria-label="休整商店场景" aria-hidden={!open}>
-      <img className="training-rest-shop-scene-back" src="/shop/rest-store/back-lounge-menu-v4-640.png" alt="" draggable={false} />
+      <img className="training-rest-shop-scene-back" src={assetUrl("shop/rest-store/back-lounge-menu-v4-640.png")} alt="" draggable={false} />
       <div className="training-rest-shop-scene-money" aria-label="当前金币">
-        <img src="/aboutIcon/coin.png" alt="" draggable={false} />
+        <img src={assetUrl("aboutIcon/coin.png")} alt="" draggable={false} />
         <strong>{Math.max(0, Math.floor(money)).toLocaleString()}</strong>
       </div>
       {busy ? <div className="training-rest-shop-scene-busy" role="status">整理商店中</div> : null}

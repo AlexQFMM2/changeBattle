@@ -124,41 +124,41 @@ const TRAINER_CATALOG: TrainerCatalogV2 = {
       id: "rosa",
       name: "鸣依",
       title: "合众训练师",
-      frontAsset: "/npc/player-front/rosa-spr-b2w2-rosa-b1af3eb8.png",
-      backAsset: "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
-      avatarAsset: "/npc/avatars/6-asset-a73f3e71.webp",
+      frontAsset: "npc/player-front/rosa-spr-b2w2-rosa-b1af3eb8.png",
+      backAsset: "npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
+      avatarAsset: "npc/avatars/6-asset-a73f3e71.webp",
     },
     {
       id: "nate",
       name: "共平",
       title: "合众训练师",
-      frontAsset: "/npc/player-front/nate-spr-b2w2-nate-88f1e9d2.png",
-      backAsset: "/npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
-      avatarAsset: "/npc/avatars/11-asset-fdb7e61e.webp",
+      frontAsset: "npc/player-front/nate-spr-b2w2-nate-88f1e9d2.png",
+      backAsset: "npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
+      avatarAsset: "npc/avatars/11-asset-fdb7e61e.webp",
     },
     {
       id: "dawn",
       name: "小光",
       title: "神奥训练师",
-      frontAsset: "/npc/player-front/dawn-dp-dawn-a35e5a63.png",
-      backAsset: "/npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
-      avatarAsset: "/npc/avatars/vsjasmine-79-vsjasmine-b8173b6d.png",
+      frontAsset: "npc/player-front/dawn-dp-dawn-a35e5a63.png",
+      backAsset: "npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
+      avatarAsset: "npc/avatars/vsjasmine-79-vsjasmine-b8173b6d.png",
     },
     {
       id: "ethan",
       name: "响",
       title: "城都训练师",
-      frontAsset: "/npc/player-front/ethan-hgss-ethan-6eefaecf.png",
-      backAsset: "/npc/player-back/ethan-hgss-gold-back-46e97197.png",
-      avatarAsset: "/npc/avatars/koga-vskoga-523872dc.png",
+      frontAsset: "npc/player-front/ethan-hgss-ethan-6eefaecf.png",
+      backAsset: "npc/player-back/ethan-hgss-gold-back-46e97197.png",
+      avatarAsset: "npc/avatars/koga-vskoga-523872dc.png",
     },
     {
       id: "lyra",
       name: "琴音",
       title: "城都训练师",
-      frontAsset: "/npc/player-front/lyra-hgss-lyra-fe4906cc.png",
-      backAsset: "/npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
-      avatarAsset: "/npc/avatars/alder-vsadeku-c7421c2b.png",
+      frontAsset: "npc/player-front/lyra-hgss-lyra-fe4906cc.png",
+      backAsset: "npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
+      avatarAsset: "npc/avatars/alder-vsadeku-c7421c2b.png",
     },
   ],
   avatars: [],
@@ -167,6 +167,7 @@ const TRAINER_CATALOG: TrainerCatalogV2 = {
 TRAINER_CATALOG.avatars = TRAINER_CATALOG.trainers;
 
 export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) {
+  const publicAssetPrefix = publicAssetPrefixFromShowdownPrefix(options.resourcePrefix);
   const dex = createShowdownDexService({
     dex: options.dex,
     resourcePrefix: options.resourcePrefix,
@@ -194,14 +195,17 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getPokemonEggSkills: (speciesId: string) => dex.getPokemonEggSkills(speciesId),
     getPokemonMachineSkills: (speciesId: string) => dex.getPokemonMachineSkills(speciesId),
     getPokemonBattleProfile: (speciesId: string) => getPokemonBattleProfileV4(speciesId),
-    getTrainerCatalog: () => clone(TRAINER_CATALOG),
-    loadUserProfile: () => userProfiles.loadUserProfile(),
+    getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
+    loadUserProfile: async () => {
+      const profile = await userProfiles.loadUserProfile();
+      return profile ? normalizeProfileAssets(profile, publicAssetPrefix) : null;
+    },
     createUserProfile: async (draft: UserProfileDraftV2 = {}) => {
-      const profile = createDefaultUserProfile(draft);
+      const profile = normalizeProfileAssets(createDefaultUserProfile(draft), publicAssetPrefix);
       return userProfiles.saveUserProfile(profile);
     },
     updateUserProfile: async (profile: UserProfileV2, draft: UserProfileDraftV2 = {}) => {
-      const next = updateUserProfile(profile, draft);
+      const next = normalizeProfileAssets(updateUserProfile(profile, draft), publicAssetPrefix);
       return userProfiles.saveUserProfile(next);
     },
     updateBattlePreference: async (profile: UserProfileV2, battlePreference: Partial<BattlePreferenceV4>) => {
@@ -358,6 +362,48 @@ export function createDesktopUserProfileAdapter(bridge: DesktopUserProfileBridge
 
 function trainerFor(id: string | undefined): TrainerCatalogEntryV2 {
   return TRAINER_CATALOG.trainers.find(trainer => trainer.id === id) || TRAINER_CATALOG.trainers[0]!;
+}
+
+function publicAssetPrefixFromShowdownPrefix(resourcePrefix?: string): string {
+  const prefix = resourcePrefix || "/showdown/";
+  const normalized = prefix.endsWith("/") ? prefix : `${prefix}/`;
+  return normalized.replace(/showdown\/$/, "");
+}
+
+function normalizePublicAssetPath(path: string | undefined, publicAssetPrefix: string): string | undefined {
+  if (!path) return undefined;
+  if (/^(https?:|data:|blob:|file:|capacitor:)/i.test(path)) return path;
+  if (path.startsWith("./") || path.startsWith("../")) return path;
+  const cleanPath = path.replace(/^\/+/, "").replace(/^assets\//, "");
+  return cleanPath ? `${publicAssetPrefix}${cleanPath}` : publicAssetPrefix;
+}
+
+function normalizeTrainerAssets(trainer: TrainerCatalogEntryV2, publicAssetPrefix: string): TrainerCatalogEntryV2 {
+  return {
+    ...trainer,
+    frontAsset: normalizePublicAssetPath(trainer.frontAsset, publicAssetPrefix) || "",
+    frontGifAsset: normalizePublicAssetPath(trainer.frontGifAsset, publicAssetPrefix),
+    backAsset: normalizePublicAssetPath(trainer.backAsset, publicAssetPrefix),
+    avatarAsset: normalizePublicAssetPath(trainer.avatarAsset, publicAssetPrefix) || "",
+  };
+}
+
+function normalizeTrainerCatalogAssets(catalog: TrainerCatalogV2, publicAssetPrefix: string): TrainerCatalogV2 {
+  const trainers = catalog.trainers.map(trainer => normalizeTrainerAssets(trainer, publicAssetPrefix));
+  const byId = new Map(trainers.map(trainer => [trainer.id, trainer]));
+  const avatars = catalog.avatars.map(trainer => byId.get(trainer.id) || normalizeTrainerAssets(trainer, publicAssetPrefix));
+  return {trainers, avatars};
+}
+
+function normalizeProfileAssets(profile: UserProfileV2, publicAssetPrefix: string): UserProfileV2 {
+  const next = normalizeProfile(profile);
+  return {
+    ...next,
+    avatarAsset: normalizePublicAssetPath(next.avatarAsset, publicAssetPrefix) || next.avatarAsset,
+    frontAsset: normalizePublicAssetPath(next.frontAsset, publicAssetPrefix) || next.frontAsset,
+    frontGifAsset: normalizePublicAssetPath(next.frontGifAsset, publicAssetPrefix),
+    backAsset: normalizePublicAssetPath(next.backAsset, publicAssetPrefix),
+  };
 }
 
 function normalizeName(name: string | undefined): string {

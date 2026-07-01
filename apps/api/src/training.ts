@@ -325,14 +325,14 @@ const RANDOM_ITEMS = [
 ];
 const RANDOM_STATUS: TrainingStatusV4[] = ["", "", "", "", "brn", "par", "psn", "tox", "slp", "frz"];
 const PLAYER_BACK_IMAGES = [
-  "/npc/player-back/black-bw-touya-back-b2e0a77d.png",
-  "/npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
-  "/npc/player-back/ethan-hgss-gold-back-46e97197.png",
-  "/npc/player-back/lucas-pt-lucas-back-3199c0fb.png",
-  "/npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
-  "/npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
-  "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
-  "/npc/player-back/white-bw-touko-back-4156e303.png",
+  "npc/player-back/black-bw-touya-back-b2e0a77d.png",
+  "npc/player-back/dawn-dp-dawn-back-65c7fd06.png",
+  "npc/player-back/ethan-hgss-gold-back-46e97197.png",
+  "npc/player-back/lucas-pt-lucas-back-3199c0fb.png",
+  "npc/player-back/lyra-hgss-kotone-back-d2d0db32.png",
+  "npc/player-back/nate-b2w2-nate-back-e0cef62f.png",
+  "npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
+  "npc/player-back/white-bw-touko-back-4156e303.png",
 ];
 
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
@@ -370,7 +370,7 @@ const NPC_CATALOG: TrainingNpcV4[] = [
     id: "blue",
     name: "小茂",
     title: "均衡型对手",
-    avatar: "/npc/avatars/blue-asset-8ef926da.webp",
+    avatar: "npc/avatars/blue-asset-8ef926da.webp",
     alliance: "far",
     preferredTypes: ["Fire", "Water", "Grass"],
     signatureSpeciesIds: ["charizard", "blastoise", "venusaur"],
@@ -379,7 +379,7 @@ const NPC_CATALOG: TrainingNpcV4[] = [
     id: "cynthia",
     name: "竹兰",
     title: "冠军级压测",
-    avatar: "/npc/avatars/cynthia-vscynthia-7b500adf.png",
+    avatar: "npc/avatars/cynthia-vscynthia-7b500adf.png",
     alliance: "far",
     preferredTypes: ["Dragon", "Ghost", "Ground"],
     signatureSpeciesIds: ["garchomp", "spiritomb", "roserade"],
@@ -388,7 +388,7 @@ const NPC_CATALOG: TrainingNpcV4[] = [
     id: "red",
     name: "赤红",
     title: "高强度轮换",
-    avatar: "/npc/boss/red-red-c813612f.gif",
+    avatar: "npc/boss/red-red-c813612f.gif",
     alliance: "far",
     preferredTypes: ["Electric", "Water", "Normal"],
     signatureSpeciesIds: ["pikachu", "snorlax", "lapras"],
@@ -397,7 +397,7 @@ const NPC_CATALOG: TrainingNpcV4[] = [
     id: "nate-ally",
     name: "共平",
     title: "合作队友",
-    avatar: "/npc/avatars/11-asset-fdb7e61e.webp",
+    avatar: "npc/avatars/11-asset-fdb7e61e.webp",
     alliance: "near",
     preferredTypes: ["Water", "Fighting", "Electric"],
     signatureSpeciesIds: ["blastoise", "lucario", "raichu"],
@@ -406,7 +406,7 @@ const NPC_CATALOG: TrainingNpcV4[] = [
     id: "rosa-ally",
     name: "鸣依",
     title: "支援队友",
-    avatar: "/npc/avatars/6-asset-a73f3e71.webp",
+    avatar: "npc/avatars/6-asset-a73f3e71.webp",
     alliance: "near",
     preferredTypes: ["Grass", "Fairy", "Fire"],
     signatureSpeciesIds: ["venusaur", "gardevoir", "arcanine"],
@@ -620,7 +620,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     return {
       playerId: player.playerId,
       name: player.name || player.playerId,
-      avatar: player.avatar || "/npc/avatars/1-asset-18b76b7d.webp",
+      avatar: player.avatar || "npc/avatars/1-asset-18b76b7d.webp",
       backImage: player.backImage,
       controller: player.controller || (player.playerId === "p1" ? "local" : "ai"),
       alliance: player.alliance || (player.playerId === "p1" || player.playerId === "p3" ? "near" : "far"),
@@ -924,7 +924,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
 
   function profileFromRun(run: Pick<TrainingRunGameV4, "profileId"> & Partial<TrainingRunGameV4>): Pick<TrainingUserProfileInputV4, "name" | "avatarAsset"> {
     const p1 = run.scenario?.players?.find(player => player.playerId === "p1");
-    return {name: p1?.name || "训练师", avatarAsset: p1?.avatar || "/npc/avatars/6-asset-a73f3e71.webp"};
+    return {name: p1?.name || "训练师", avatarAsset: p1?.avatar || "npc/avatars/6-asset-a73f3e71.webp"};
   }
 
   function createGameMapFromScenarioForRun(scenario: TrainingScenarioV4): TrainingRunGameNodeV4[] {
@@ -951,10 +951,10 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
         ? selectedEnemy
         : createPlayer("p2", enemyNpc?.name || selectedEnemy.name, enemyNpc?.avatar || selectedEnemy.avatar, "ai", "far", randomizeTeam("p2", defaultTeamSize(scenario.mode), enemyNpc?.signatureSpeciesIds));
       const nodeP3 = ids.includes("p3")
-        ? (index === 0 && selectedAlly ? selectedAlly : createPlayer("p3", allyNpc?.name || p3?.name || "队友", allyNpc?.avatar || p3?.avatar || "/npc/avatars/11-asset-fdb7e61e.webp", "script", "near", randomizeTeam("p3", defaultTeamSize(scenario.mode), allyNpc?.signatureSpeciesIds), randomPlayerBackImage()))
+        ? (index === 0 && selectedAlly ? selectedAlly : createPlayer("p3", allyNpc?.name || p3?.name || "队友", allyNpc?.avatar || p3?.avatar || "npc/avatars/11-asset-fdb7e61e.webp", "script", "near", randomizeTeam("p3", defaultTeamSize(scenario.mode), allyNpc?.signatureSpeciesIds), randomPlayerBackImage()))
         : undefined;
       const nodeP4 = ids.includes("p4")
-        ? (index === 0 && selectedEnemy2 ? selectedEnemy2 : createPlayer("p4", enemy2Npc?.name || "对手", enemy2Npc?.avatar || "/npc/avatars/blue-asset-8ef926da.webp", "ai", "far", randomizeTeam("p4", defaultTeamSize(scenario.mode), enemy2Npc?.signatureSpeciesIds)))
+        ? (index === 0 && selectedEnemy2 ? selectedEnemy2 : createPlayer("p4", enemy2Npc?.name || "对手", enemy2Npc?.avatar || "npc/avatars/blue-asset-8ef926da.webp", "ai", "far", randomizeTeam("p4", defaultTeamSize(scenario.mode), enemy2Npc?.signatureSpeciesIds)))
         : undefined;
       return createGameMapNode(scenario, index, {
         p1,

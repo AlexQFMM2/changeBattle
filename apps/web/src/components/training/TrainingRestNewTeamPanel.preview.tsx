@@ -24,7 +24,7 @@ function createPreviewTeam(api: ChangeBattleV2Api): TrainingPlayerDraftV4["local
   const run = api.createTrainingRunFromScenario(api.createTrainingRunGame({
     id: "team-preview-profile",
     name: "预览训练师",
-    avatarAsset: "/npc/avatars/6-asset-a73f3e71.webp",
+    avatarAsset: "npc/avatars/6-asset-a73f3e71.webp",
   }));
   const team = run.players.p1?.localTeam;
   const pokemon = (team?.pokemon || []).map((entry, index) => patchPreviewPokemon(entry, index));

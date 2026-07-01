@@ -15,6 +15,7 @@ import type {
 } from "@changebattle-v2/api";
 import {BattleV4MovePreviewModal, type BattleV4EnvironmentPreviewEntry} from "../battle-v4/BattleV4MovePreviewModal";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
+import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import "./DexCategoryTabs.css";
 import "./DexSearchBar.css";
 import "./DexResultList.css";
@@ -771,7 +772,7 @@ function DexItemIcon({iconUrl, iconStyle, className = ""}: {iconUrl?: string; ic
   const classNames = ["item-icon", className].filter(Boolean).join(" ");
   const spriteStyle = iconStyle ? spriteStyleFromCss(iconStyle) : null;
   if (spriteStyle) return <span className={classNames} style={spriteStyle} />;
-  if (iconUrl) return <img className={classNames} src={iconUrl} alt="" loading="lazy" style={styleOnlyFromCss(iconStyle)} />;
+  if (iconUrl) return <img className={classNames} src={assetUrl(iconUrl)} alt="" loading="lazy" style={styleOnlyFromCss(iconStyle)} />;
   return null;
 }
 
@@ -936,7 +937,7 @@ function styleFromCss(css: string): CSSProperties {
 function spriteStyleFromCss(css: string): CSSProperties | null {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return null;
-  return {backgroundImage: `url(${match[1]})`, backgroundPosition: `${match[2]}px ${match[3]}px`, backgroundRepeat: "no-repeat"};
+  return {backgroundImage: `url("${styleUrlAssetPath(match[1])}")`, backgroundPosition: `${match[2]}px ${match[3]}px`, backgroundRepeat: "no-repeat"};
 }
 
 function styleOnlyFromCss(css: string | undefined): CSSProperties | undefined {

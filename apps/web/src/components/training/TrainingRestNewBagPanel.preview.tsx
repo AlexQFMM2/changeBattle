@@ -66,7 +66,7 @@ function createPreviewRun(api: ChangeBattleV2Api, variant: BagPreviewVariant): T
   const base = api.createTrainingRunFromScenario(api.createTrainingRunGame({
     id: "component-preview-profile",
     name: "预览训练师",
-    avatarAsset: "/npc/avatars/6-asset-a73f3e71.webp",
+    avatarAsset: "npc/avatars/6-asset-a73f3e71.webp",
   }));
   const p1 = base.players.p1;
   if (!p1) return base;

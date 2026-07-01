@@ -1,4 +1,5 @@
 import {REST_CENTER_PAPER_ACTIONS_V4} from "@changebattle-v2/api";
+import {assetUrl} from "../../lib/assetUrl";
 import "./TrainingRestNewActionBoard.css";
 
 export type TrainingRestNewActionEntry = {
@@ -17,7 +18,7 @@ export type TrainingRestNewActionBoardProps = {
 
 const DEFAULT_REST_ACTION_ENTRIES: TrainingRestNewActionEntry[] = REST_CENTER_PAPER_ACTIONS_V4.map(entry => ({
   label: entry.label,
-  iconSrc: entry.id === "training-ground" ? "/aboutIcon/train.png" : entry.iconSrc,
+  iconSrc: assetUrl(entry.id === "training-ground" ? "aboutIcon/train.png" : entry.iconSrc),
   iconText: entry.iconText,
   disabled: entry.disabled,
   action: entry.action,

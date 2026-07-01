@@ -549,6 +549,7 @@ const TRAINER_TEAM_POOLS_BY_TRAINER = groupByTrainerTeamPools(TrainerTeamPools);
 export function createShowdownDexService(options: ShowdownDexServiceOptions = {}) {
   const dex = options.dex || createLocalShowdownDex();
   const resourcePrefix = normalizeResourcePrefix(options.resourcePrefix || DEFAULT_RESOURCE_PREFIX);
+  const publicAssetPrefix = resourcePrefix.replace(/showdown\/$/, "");
   const translate = options.translate || defaultTranslate;
 
   function requireDex(): ShowdownDexLike {
@@ -785,7 +786,15 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
 
   function resolveRegistryItemIcon(asset: string) {
     const path = asset.replace(/^assets\//, "").replace(/^\/+/, "");
-    return {url: `${resourcePrefix.replace(/showdown\/$/, "")}${path}`, style: undefined as string | undefined};
+    return {url: `${publicAssetPrefix}${path}`, style: undefined as string | undefined};
+  }
+
+  function resolvePublicAssetPath(asset: string | undefined): string | undefined {
+    if (!asset) return undefined;
+    if (/^(https?:|data:|blob:|file:|capacitor:)/i.test(asset)) return asset;
+    if (asset.startsWith("./") || asset.startsWith("../")) return asset;
+    const path = asset.replace(/^assets\//, "").replace(/^\/+/, "");
+    return path ? `${publicAssetPrefix}${path}` : publicAssetPrefix;
   }
 
   function resolvePokemonIcon(speciesId: string) {
@@ -840,10 +849,10 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       sourceTier: trainer.sourceTier,
       name: trainer.name,
       nameZh: trainer.nameZh,
-      frontAsset: trainer.frontAsset,
-      frontGifAsset: trainer.frontGifAsset || undefined,
-      backAsset: trainer.backAsset || undefined,
-      avatarAsset: trainer.avatarAsset || trainer.frontGifAsset || trainer.frontAsset,
+      frontAsset: resolvePublicAssetPath(trainer.frontAsset) || "",
+      frontGifAsset: resolvePublicAssetPath(trainer.frontGifAsset) || undefined,
+      backAsset: resolvePublicAssetPath(trainer.backAsset) || undefined,
+      avatarAsset: resolvePublicAssetPath(trainer.avatarAsset || trainer.frontGifAsset || trainer.frontAsset) || "",
       teamPoolIds: trainer.teamPoolIds,
       notes: trainer.notes,
       bossProfile: normalizeBossProfile(TrainerBossProfiles[trainer.id]),

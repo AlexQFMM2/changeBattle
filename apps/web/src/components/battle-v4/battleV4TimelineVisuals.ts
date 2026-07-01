@@ -2,6 +2,7 @@ import type {CSSProperties} from "react";
 import type {BattleAnimationEventV4, BattleProtocolSeatV4} from "./battleV4Playback";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import type {BattleV4ScheduledTimelineStep} from "./useBattleV4ShowdownTimelineRunner";
+import {cssAssetUrl} from "../../lib/assetUrl";
 
 export type BattleV4TimelineVisuals = {
   fx: {
@@ -252,7 +253,7 @@ function fxStyle(
   const fromOpacity = typeof from?.opacity === "number" ? from.opacity : 1;
   const toOpacity = typeof to?.opacity === "number" ? to.opacity : fromOpacity;
   return {
-    "--battle-v4-fx-image": `url("/showdown/fx/${effectSprite}.png")`,
+    "--battle-v4-fx-image": cssAssetUrl(`showdown/fx/${effectSprite}.png`),
     "--battle-v4-fx-duration": `${durationMs}ms`,
     "--battle-v4-fx-from-x": `${fromX}px`,
     "--battle-v4-fx-from-y": `${fromY}px`,

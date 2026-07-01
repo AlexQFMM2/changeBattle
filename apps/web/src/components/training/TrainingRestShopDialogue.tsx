@@ -1,4 +1,5 @@
 import type {CSSProperties} from "react";
+import {cssAssetUrl} from "../../lib/assetUrl";
 import "./TrainingRestShopDialogue.css";
 
 export type TrainingRestShopDialogueAction = {
@@ -17,7 +18,7 @@ export type TrainingRestShopDialogueProps = {
   onBackdropClick?: () => void;
 };
 
-const DEFAULT_DIALOGUE_PORTRAIT_SRC = "/shop/rest-store/clerk-buy-dialogue-v4.png";
+const DEFAULT_DIALOGUE_PORTRAIT_SRC = "shop/rest-store/clerk-buy-dialogue-v4.png";
 
 export function TrainingRestShopDialogue({speaker = "店员", text, itemName, portraitSrc = DEFAULT_DIALOGUE_PORTRAIT_SRC, actions = [], onBackdropClick}: TrainingRestShopDialogueProps) {
   return (
@@ -25,7 +26,7 @@ export function TrainingRestShopDialogue({speaker = "店员", text, itemName, po
       className="training-rest-shop-dialogue"
       role="dialog"
       aria-label="商店对话"
-      style={{"--training-rest-shop-dialogue-portrait-src": `url("${portraitSrc}")`} as CSSProperties}
+      style={{"--training-rest-shop-dialogue-portrait-src": cssAssetUrl(portraitSrc || DEFAULT_DIALOGUE_PORTRAIT_SRC)} as CSSProperties}
       onClick={event => {
         if (event.target === event.currentTarget) onBackdropClick?.();
       }}

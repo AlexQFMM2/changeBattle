@@ -15,10 +15,10 @@ export type RestCenterActionEntryV4 = {
 };
 
 export const REST_CENTER_PAPER_ACTIONS_V4: RestCenterActionEntryV4[] = [
-  {id: "pokedex", label: "图鉴", action: "图鉴", group: "paper", iconSrc: "/ui/book.png"},
-  {id: "shop", label: "商店", action: "商店", group: "paper", iconSrc: "/aboutIcon/shop.png"},
-  {id: "training-ground", label: "训练场", action: "训练场", group: "paper", iconSrc: "/aboutIcon/train.png"},
-  {id: "exchange", label: "交换", action: "交换", group: "paper", iconSrc: "/aboutIcon/exchange.png"},
+  {id: "pokedex", label: "图鉴", action: "图鉴", group: "paper", iconSrc: "ui/book.png"},
+  {id: "shop", label: "商店", action: "商店", group: "paper", iconSrc: "aboutIcon/shop.png"},
+  {id: "training-ground", label: "训练场", action: "训练场", group: "paper", iconSrc: "aboutIcon/train.png"},
+  {id: "exchange", label: "交换", action: "交换", group: "paper", iconSrc: "aboutIcon/exchange.png"},
   {id: "placeholder", label: "未开放", action: "未开放", group: "paper", iconText: "?", disabled: true},
   {id: "placeholder", label: "未开放", action: "未开放", group: "paper", iconText: "?", disabled: true},
   {id: "placeholder", label: "未开放", action: "未开放", group: "paper", iconText: "?", disabled: true},

@@ -1,5 +1,6 @@
 import type {RentalPokemon} from "./formalRentalTypes";
 import type {CSSProperties} from "react";
+import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./PokemonSprite.css";
 
 export const STAT_ROWS = [
@@ -69,7 +70,7 @@ function styleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return {};
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

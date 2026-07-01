@@ -1,6 +1,7 @@
 import type {CSSProperties} from "react";
 import type {ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
+import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./TrainingRestNextPreviewPanel.css";
 
 export type PreviewPokemon = NonNullable<TrainingPlayerDraftV4["localTeam"]["pokemon"][number]>;
@@ -168,7 +169,7 @@ function styleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return {};
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

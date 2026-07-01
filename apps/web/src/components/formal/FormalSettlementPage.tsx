@@ -1,5 +1,6 @@
 import {useMemo, useState, type CSSProperties} from "react";
 import type {FormalGameRunV4, FormalSettlementPokemonStatsV4, UserProfileV2} from "@changebattle-v2/api";
+import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import "./PokemonSprite.css";
 import "./FormalSettlementPage.css";
 
@@ -70,7 +71,7 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
             key={entry.pokemonKey}
           >
             <SettlementPokemonIcon entry={entry} />
-            {entry.isMvp ? <b><img src="/aboutIcon/mvp-crown.png" alt="" /></b> : null}
+            {entry.isMvp ? <b><img src={assetUrl("aboutIcon/mvp-crown.png")} alt="" /></b> : null}
           </button>
         ))}
       </section>
@@ -117,7 +118,7 @@ function styleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
   if (!match) return {};
   return {
-    backgroundImage: `url(${match[1]})`,
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
     backgroundPosition: `${match[2]}px ${match[3]}px`,
     backgroundRepeat: "no-repeat",
   };

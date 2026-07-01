@@ -1,6 +1,7 @@
 import type {CSSProperties} from "react";
 import {useEffect, useRef, useState} from "react";
 import {motion} from "motion/react";
+import {assetUrl} from "../../lib/assetUrl";
 import "./TrainingRunTransitionPage.css";
 
 export type TrainingRunTransitionPageProps = {
@@ -42,7 +43,7 @@ export function TrainingRunTransitionPage({
   return (
     <section className="training-transition-page" style={{"--training-transition-duration": `${TRANSITION_MS}ms`} as CSSProperties} aria-live="polite">
       <video ref={videoRef} className={`training-transition-video ${videoPlaying ? "playing" : ""}`} autoPlay muted loop playsInline preload="auto" controls={false} disablePictureInPicture controlsList="nodownload nofullscreen noplaybackrate" onLoadedMetadata={randomizePlaybackStart} onCanPlay={playVideo} aria-hidden="true">
-        <source src="/title/spritesaurus-transition.mp4" type="video/mp4" />
+        <source src={assetUrl("title/spritesaurus-transition.mp4")} type="video/mp4" />
       </video>
       <div className="training-transition-video-fallback" aria-hidden="true">
         <span />

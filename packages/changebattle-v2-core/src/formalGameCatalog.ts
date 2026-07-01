@@ -65,7 +65,7 @@ export const NORMAL_NPC_NAMES = {
   ally: ["精英队友", "战术搭档", "支援训练家", "合作专家", "双打拍档"],
 } as const;
 
-export const DEFAULT_TRAINER_AVATAR = "/npc/avatars/1-asset-18b76b7d.webp";
+export const DEFAULT_TRAINER_AVATAR = "npc/avatars/1-asset-18b76b7d.webp";
 
 export const NATURES = [
   "Hardy", "Lonely", "Brave", "Adamant", "Naughty",

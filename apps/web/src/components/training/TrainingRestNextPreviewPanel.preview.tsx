@@ -7,7 +7,7 @@ export function TrainingRestNextPreviewPanelPreview({api}: {api: ChangeBattleV2A
   const initialRun = useMemo(() => api.createTrainingRunFromScenario(api.createTrainingRunGame({
     id: "next-preview-profile",
     name: "预览训练师",
-    avatarAsset: "/npc/avatars/6-asset-a73f3e71.webp",
+    avatarAsset: "npc/avatars/6-asset-a73f3e71.webp",
   })), [api]);
   const [run, setRun] = useState(initialRun);
   function unlock(entry: PreviewPokemonEntry) {
