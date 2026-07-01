@@ -1,9 +1,11 @@
 import {existsSync} from "node:fs";
 import {mkdir, readFile, rm, writeFile} from "node:fs/promises";
 import path from "node:path";
+import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
-import {app, BrowserWindow, ipcMain, type IpcMainInvokeEvent} from "electron";
+import {app, BrowserWindow, ipcMain, protocol, type IpcMainInvokeEvent} from "electron";
 import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, UserProfileV2} from "@changebattle-v2/api";
+import {rendererAssetFilePath} from "./rendererAssetResolver.js";
 
 let mainWindow: BrowserWindow | null = null;
 let formalComputeWorker: Worker | null = null;
@@ -80,6 +82,13 @@ async function rendererUrlReady(rendererUrl: string): Promise<boolean> {
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function registerRendererAssetFileResolver() {
+  protocol.interceptFileProtocol("file", (request, callback) => {
+    const resolved = rendererAssetFilePath(request.url, path.join(__dirname, "../renderer"));
+    callback(resolved || fileURLToPath(request.url));
+  });
 }
 
 ipcMain.handle("userProfile:load", async () => {
@@ -166,7 +175,10 @@ function rejectFormalComputePending(error: Error) {
   formalComputePending.clear();
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerRendererAssetFileResolver();
+  return createWindow();
+});
 app.on("window-all-closed", () => {
   formalComputeWorker?.terminate();
   if (process.platform !== "darwin") app.quit();

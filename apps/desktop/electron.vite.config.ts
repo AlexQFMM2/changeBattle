@@ -35,6 +35,7 @@ export default defineConfig({
   },
   renderer: {
     root: __dirname,
+    base: "./",
     publicDir: resolve(__dirname, "../../assets"),
     plugins: [react()],
     build: {

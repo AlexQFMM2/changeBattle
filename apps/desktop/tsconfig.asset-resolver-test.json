@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "out/asset-resolver-test",
+    "types": ["node"]
+  },
+  "include": ["electron/rendererAssetResolver.ts", "electron/rendererAssetResolver.test.ts"]
+}
