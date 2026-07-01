@@ -16,7 +16,7 @@ type FormalComputeResponse = {
   error?: string;
 };
 
-const api = createChangeBattleV2Api();
+const api = createChangeBattleV2Api({resourcePrefix: "./showdown/"});
 
 parentPort?.on("message", async (request: FormalComputeRequest) => {
   const response = await handleRequest(request)
@@ -24,7 +24,7 @@ parentPort?.on("message", async (request: FormalComputeRequest) => {
     .catch(error => ({
       id: request.id,
       ok: false,
-      error: error instanceof Error ? error.message : "正式流程计算失败。",
+      error: formatFormalComputeError(request.method, error),
     }) satisfies FormalComputeResponse);
   parentPort?.postMessage(response);
 });
@@ -61,4 +61,12 @@ async function handleRequest(request: FormalComputeRequest): Promise<unknown> {
     return api.settleFormalBattleRoundV4(api.appendBattleLogEntriesFromSnapshotV4(run, snapshot));
   }
   throw new Error(`未知正式流程计算方法：${(request as {method?: string}).method || ""}`);
+}
+
+function formatFormalComputeError(method: FormalComputeRequest["method"], error: unknown): string {
+  if (error instanceof Error) {
+    const stack = error.stack && error.stack !== error.message ? `\n${error.stack}` : "";
+    return `[${method}] ${error.message}${stack}`;
+  }
+  return `[${method}] 正式流程计算失败。`;
 }

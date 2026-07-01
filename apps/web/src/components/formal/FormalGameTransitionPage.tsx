@@ -47,9 +47,11 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, mode, 
               if (!cancelled) setPreparedRun(saved);
             })
             .catch(caught => {
+              console.error("[changebattle-v2:web] formal game preparation failed", caught);
               if (!cancelled) setError(caught instanceof Error ? caught.message : "正式游戏准备失败。");
             });
         } catch (caught) {
+          console.error("[changebattle-v2:web] formal game preparation failed", caught);
           if (!cancelled) setError(caught instanceof Error ? caught.message : "正式游戏准备失败。");
         }
       });

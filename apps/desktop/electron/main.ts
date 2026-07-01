@@ -157,7 +157,11 @@ function ensureFormalComputeWorker(): Worker {
     if (!pending) return;
     formalComputePending.delete(id);
     if (message.ok) pending.resolve(message.result);
-    else pending.reject(new Error(message.error || "正式流程计算失败。"));
+    else {
+      const error = new Error(message.error || "正式流程计算失败。");
+      console.error("[changebattle-v2:desktop] formal compute worker failed", error.message);
+      pending.reject(error);
+    }
   });
   formalComputeWorker.on("error", error => {
     rejectFormalComputePending(error instanceof Error ? error : new Error("正式流程计算 worker 异常。"));

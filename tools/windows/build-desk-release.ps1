@@ -70,6 +70,9 @@ pnpm typecheck
 
 Write-Host "Building desktop..."
 pnpm --filter @changebattle-v2/desktop build
+pnpm --filter @changebattle-v2/desktop test:ipc-bundle
+pnpm --filter @changebattle-v2/desktop test:renderer-assets
+pnpm --filter @changebattle-v2/desktop test:formal-worker
 
 Write-Host "Packaging desktop release..."
 $env:ELECTRON_RUNTIME_PATH = $ElectronRuntimePath
