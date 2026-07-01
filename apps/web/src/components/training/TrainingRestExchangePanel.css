@@ -1,0 +1,530 @@
+.training-rest-exchange-panel {
+  /* 整个交换浮层：覆盖休整中心画布，左右挂板都相对它绝对定位。 */
+  --rest-exchange-x: 0px;
+  --rest-exchange-y: 0px;
+  --rest-exchange-w: 640px;
+  --rest-exchange-h: 320px;
+
+  /* 左侧“我的队伍”挂板：外层坐标和动画盒子尺寸。 */
+  --rest-exchange-source-left: 100px;
+  --rest-exchange-source-top: 0px;
+  --rest-exchange-source-w: 140px;
+  --rest-exchange-source-h: 252px;
+  /* 左侧挂板：纸板距离顶部支架的距离，以及纸板本体高度。 */
+  --rest-exchange-source-card-top: 13px;
+  --rest-exchange-source-frame-h: 216px;
+  /* 左侧挂板：纸板内部内容区的位置和大小。 */
+  --rest-exchange-source-inner-left: 12px;
+  --rest-exchange-source-inner-top: 12px;
+  --rest-exchange-source-inner-w: 140px;
+  --rest-exchange-source-inner-h: 170px;
+  /* 左侧挂板：左右两个支架距离挂板边缘的距离。 */
+  --rest-exchange-source-hanger-inset: 15px;
+
+  /* 右侧“上一场对手”挂板：外层坐标和动画盒子尺寸。 */
+  --rest-exchange-target-left: 400px;
+  --rest-exchange-target-top: 0px;
+  --rest-exchange-target-w: 140px;
+  --rest-exchange-target-h: 252px;
+  /* 右侧挂板：纸板距离顶部支架的距离，以及纸板本体高度。 */
+  --rest-exchange-target-card-top: 13px;
+  --rest-exchange-target-frame-h: 216px;
+  /* 右侧挂板：纸板内部内容区的位置和大小。 */
+  --rest-exchange-target-inner-left: 12px;
+  --rest-exchange-target-inner-top: 12px;
+  --rest-exchange-target-inner-w: 140px;
+  --rest-exchange-target-inner-h: 170px;
+  /* 右侧挂板：左右两个支架距离挂板边缘的距离。 */
+  --rest-exchange-target-hanger-inset: 15px;
+
+  /* 支架小木块尺寸，左右挂板共用。 */
+  --rest-exchange-hanger-w: 12px;
+  --rest-exchange-hanger-h: 14px;
+  /* 挂板翻入动画参数。 */
+  --rest-exchange-card-duration: 360ms;
+  --rest-exchange-card-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
+  /* 底部确认条的位置和大小。 */
+  --rest-exchange-footer-left: 90px;
+  --rest-exchange-footer-bottom: 0px;
+  --rest-exchange-footer-width: 464px;
+  --rest-exchange-footer-height: 66px;
+  --rest-exchange-footer-pair-w: 216px;
+  --rest-exchange-footer-mini-w: 86px;
+  --rest-exchange-footer-swap-size: 28px;
+  --rest-exchange-footer-actions-w: 126px;
+  /* 挂板里每一只宝可梦按钮的高度。 */
+  --rest-exchange-card-h: 34px;
+  position: absolute;
+  left: var(--rest-exchange-x);
+  top: var(--rest-exchange-y);
+  z-index: 7;
+  width: var(--rest-exchange-w);
+  height: var(--rest-exchange-h);
+  pointer-events: none;
+}
+
+.training-rest-exchange-panel.open {
+  pointer-events: none;
+}
+
+.training-rest-exchange-hanging-card {
+  position: absolute;
+  left: var(--rest-exchange-card-left);
+  top: var(--rest-exchange-card-panel-top);
+  z-index: 1;
+  width: var(--rest-exchange-card-panel-w);
+  height: var(--rest-exchange-card-panel-h);
+  overflow: visible;
+  isolation: isolate;
+  perspective: 720px;
+  transform: translateY(-8px) rotateX(-92deg);
+  transform-origin: top center;
+  backface-visibility: hidden;
+  opacity: 0;
+  transition:
+    transform var(--rest-exchange-card-duration) var(--rest-exchange-card-ease),
+    opacity 140ms ease;
+  will-change: transform, opacity;
+  pointer-events: auto;
+}
+
+.training-rest-exchange-hanging-card.source {
+  --rest-exchange-card-left: var(--rest-exchange-source-left);
+  --rest-exchange-card-panel-top: var(--rest-exchange-source-top);
+  --rest-exchange-card-panel-w: var(--rest-exchange-source-w);
+  --rest-exchange-card-panel-h: var(--rest-exchange-source-h);
+  --rest-exchange-card-top: var(--rest-exchange-source-card-top);
+  --rest-exchange-card-frame-h: var(--rest-exchange-source-frame-h);
+  --rest-exchange-card-inner-left: var(--rest-exchange-source-inner-left);
+  --rest-exchange-card-inner-top: var(--rest-exchange-source-inner-top);
+  --rest-exchange-card-inner-w: var(--rest-exchange-source-inner-w);
+  --rest-exchange-card-inner-h: var(--rest-exchange-source-inner-h);
+  --rest-exchange-hanger-inset: var(--rest-exchange-source-hanger-inset);
+}
+
+.training-rest-exchange-hanging-card.target {
+  --rest-exchange-card-left: var(--rest-exchange-target-left);
+  --rest-exchange-card-panel-top: var(--rest-exchange-target-top);
+  --rest-exchange-card-panel-w: var(--rest-exchange-target-w);
+  --rest-exchange-card-panel-h: var(--rest-exchange-target-h);
+  --rest-exchange-card-top: var(--rest-exchange-target-card-top);
+  --rest-exchange-card-frame-h: var(--rest-exchange-target-frame-h);
+  --rest-exchange-card-inner-left: var(--rest-exchange-target-inner-left);
+  --rest-exchange-card-inner-top: var(--rest-exchange-target-inner-top);
+  --rest-exchange-card-inner-w: var(--rest-exchange-target-inner-w);
+  --rest-exchange-card-inner-h: var(--rest-exchange-target-inner-h);
+  --rest-exchange-hanger-inset: var(--rest-exchange-target-hanger-inset);
+}
+
+.training-rest-exchange-panel.open .training-rest-exchange-hanging-card {
+  opacity: 1;
+  transform: translateY(0) rotateX(0deg);
+}
+
+.training-rest-exchange-hanger {
+  position: absolute;
+  top: 0;
+  z-index: 3;
+  width: var(--rest-exchange-hanger-w);
+  height: var(--rest-exchange-hanger-h);
+  border: 2px solid #5b2d10;
+  border-radius: 3px 3px 0 0;
+  background:
+    linear-gradient(90deg, rgb(255 228 171 / 34%), transparent 42%),
+    linear-gradient(180deg, #9d5c24, #4d260f);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 241 193 / 18%),
+    0 2px 2px rgb(0 0 0 / 34%);
+  transform-origin: top center;
+  pointer-events: none;
+}
+
+.training-rest-exchange-hanger.hanger-left {
+  left: var(--rest-exchange-hanger-inset);
+}
+
+.training-rest-exchange-hanger.hanger-right {
+  right: var(--rest-exchange-hanger-inset);
+}
+
+.training-rest-exchange-card-frame.training-rest-ui-panel-frame {
+  --training-rest-ui-panel-padding: 0px;
+  position: absolute;
+  left: 0;
+  top: var(--rest-exchange-card-top);
+  z-index: 2;
+  width: var(--rest-exchange-card-panel-w);
+  height: var(--rest-exchange-card-frame-h);
+  overflow: visible;
+}
+
+.training-rest-exchange-card-frame .training-rest-ui-panel-content {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.training-rest-exchange-card-inner {
+  position: absolute;
+  left: var(--rest-exchange-card-inner-left);
+  top: var(--rest-exchange-card-inner-top);
+  width: var(--rest-exchange-card-inner-w);
+  height: var(--rest-exchange-card-inner-h);
+  display: grid;
+  grid-template-rows: 32px minmax(0, 1fr);
+  color: #4d3015;
+  pointer-events: auto;
+}
+
+.training-rest-exchange-card-inner header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  align-content: center;
+  border-bottom: 1px solid rgb(98 58 24 / 18%);
+}
+
+.training-rest-exchange-card-inner header strong,
+.training-rest-exchange-card-inner header small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.training-rest-exchange-card-inner header strong {
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.training-rest-exchange-card-inner header small {
+  margin-top: 3px;
+  color: #7d5630;
+  font-size: 7px;
+  font-weight: 850;
+}
+
+.training-rest-exchange-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 5px;
+  overflow: auto;
+  padding-top: 4px;
+  scrollbar-width: none;
+}
+
+.training-rest-exchange-list::-webkit-scrollbar {
+  display: none;
+}
+
+.training-rest-exchange-list button {
+  --rest-exchange-hp-rate: 0%;
+  position: relative;
+  min-width: 0;
+  height: var(--rest-exchange-card-h);
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: 12px 9px 6px;
+  align-items: center;
+  gap: 1px 5px;
+  border: 1px solid rgb(183 138 70 / 72%);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 44%), transparent 46%), #fff8e4;
+  box-shadow: inset 0 0 0 1px rgb(255 245 199 / 62%);
+  color: #25332b;
+  padding: 4px 5px 3px 3px;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.training-rest-exchange-list button:hover,
+.training-rest-exchange-list button:focus-visible,
+.training-rest-exchange-list button.selected {
+  border-color: #43c9ee;
+  outline: 2px solid #64e179;
+  outline-offset: -1px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 50%), transparent 46%), #fffdf5;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 245 199 / 72%),
+    0 0 8px rgb(100 225 121 / 24%);
+  transform: translateY(-1px);
+}
+
+.training-rest-exchange-list button.fainted {
+  filter: grayscale(0.35);
+}
+
+.training-rest-exchange-index {
+  display: none;
+}
+
+.training-rest-exchange-list img,
+.training-rest-exchange-picon {
+  grid-row: 1 / 4;
+  grid-column: 1;
+  align-self: center;
+  justify-self: center;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.training-rest-exchange-picon {
+  transform: scale(0.62);
+  transform-origin: center;
+}
+
+.training-rest-exchange-list strong,
+.training-rest-exchange-list small {
+  grid-column: 2;
+  justify-self: start;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.training-rest-exchange-list strong {
+  grid-row: 1;
+  align-self: end;
+  color: #25332b;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.training-rest-exchange-list small {
+  grid-row: 2;
+  color: #596052;
+  font-size: 6px;
+  font-weight: 850;
+}
+
+.training-rest-exchange-list button > i {
+  position: relative;
+  grid-column: 2;
+  grid-row: 3;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #c8c0ad;
+}
+
+.training-rest-exchange-list button > i::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--rest-exchange-hp-rate);
+  background: linear-gradient(90deg, #62c276, #e1d45b);
+}
+
+.training-rest-exchange-empty {
+  display: grid;
+  place-items: center;
+  min-height: 128px;
+  color: #7a5733;
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.training-rest-exchange-footer {
+  position: absolute;
+  left: var(--rest-exchange-footer-left);
+  bottom: var(--rest-exchange-footer-bottom);
+  z-index: 2;
+  width: var(--rest-exchange-footer-width);
+  height: var(--rest-exchange-footer-height);
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--rest-exchange-footer-pair-w) minmax(0, 1fr) var(
+      --rest-exchange-footer-actions-w
+    );
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  gap: 0 10px;
+  border: 3px solid #7c5a37;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 250 220 / 20%), transparent 45%), rgb(38 29 20 / 94%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 232 171 / 30%),
+    0 4px 0 rgb(0 0 0 / 28%);
+  color: #fff0c8;
+  padding: 7px 8px 6px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  pointer-events: auto;
+}
+
+.training-rest-exchange-panel.open .training-rest-exchange-footer {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.training-rest-exchange-pair {
+  min-width: 0;
+  display: grid;
+  grid-template-columns:
+    var(--rest-exchange-footer-mini-w) var(--rest-exchange-footer-swap-size)
+    var(--rest-exchange-footer-mini-w);
+  justify-content: start;
+  align-items: center;
+  gap: 6px;
+}
+
+.training-rest-exchange-mini {
+  --rest-exchange-hp-rate: 0%;
+  position: relative;
+  min-width: 0;
+  height: 38px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: 16px 8px 6px;
+  align-items: center;
+  gap: 1px 5px;
+  border: 2px solid #b78a46;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 36%), transparent 46%), #fffaf0;
+  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 58%);
+  color: #25332b;
+  padding: 5px 6px 4px 4px;
+  overflow: hidden;
+}
+
+.training-rest-exchange-mini.empty {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  color: #596052;
+}
+
+.training-rest-exchange-mini img,
+.training-rest-exchange-mini .training-rest-exchange-picon {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  align-self: center;
+  justify-self: center;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.training-rest-exchange-mini .training-rest-exchange-picon {
+  transform: scale(0.62);
+  transform-origin: center;
+}
+
+.training-rest-exchange-mini strong {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-exchange-mini small {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: #596052;
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-exchange-mini > i {
+  position: relative;
+  grid-column: 2;
+  grid-row: 3;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border: 1px solid #25332b;
+  border-radius: 999px;
+  background: #c8c0ad;
+}
+
+.training-rest-exchange-mini > i::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--rest-exchange-hp-rate);
+  background: linear-gradient(90deg, #62c276, #e1d45b);
+}
+
+.training-rest-exchange-swap-button {
+  width: var(--rest-exchange-footer-swap-size);
+  height: var(--rest-exchange-footer-swap-size);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(255 229 164 / 48%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(255 248 213 / 24%), transparent 48%), rgb(66 45 24 / 92%);
+  color: #ffe07d;
+  font-size: 16px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.training-rest-exchange-swap-button:disabled {
+  opacity: 0.48;
+  filter: grayscale(0.4);
+}
+
+.training-rest-exchange-actions {
+  grid-column: 3;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.training-rest-exchange-actions button {
+  min-width: 0;
+  height: 16px;
+  border: 1px solid rgb(255 229 164 / 42%);
+  border-radius: 5px;
+  background: rgb(56 40 24 / 88%);
+  color: #fff2c7;
+  font-size: 6px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.training-rest-exchange-actions button:last-child {
+  border-color: rgb(255 219 79 / 70%);
+  background: linear-gradient(180deg, #f0c35c, #896128);
+  color: #261708;
+}
+
+.training-rest-exchange-actions button:disabled {
+  cursor: default;
+  opacity: 0.55;
+  filter: grayscale(0.25);
+}

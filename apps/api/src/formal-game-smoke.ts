@@ -13,10 +13,14 @@ import {
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
   FORMAL_STARTING_MONEY,
   BATTLE_PRACTICE_MASTERY_NODE_ID,
+  ELITE_EXCHANGE_EDUCATION_NODE_ID,
   EMERGENCY_MEDICAL_CARE_NODE_ID,
+  EXCHANGE_ITEM_STEAL_NODE_ID,
   FREE_MEDICAL_CARE_NODE_ID,
+  LOSSLESS_EXCHANGE_NODE_ID,
   OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
+  SECOND_EXCHANGE_NODE_ID,
   STARTER_ROLE_PLAN,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
@@ -29,10 +33,14 @@ import {
   normalizeStarChartV4,
   starChartHasBattlePracticeMasteryV4,
   starChartHasEastAsiaEducationV4,
+  starChartHasEliteExchangeEducationV4,
   starChartHasEmergencyMedicalCareV4,
+  starChartHasExchangeItemStealV4,
   starChartHasFreeMedicalCareV4,
+  starChartHasLosslessExchangeV4,
   starChartHasOpponentRumorV4,
   starChartHasOutpatientMedicalCareV4,
+  starChartHasSecondExchangeV4,
   starChartHasSpecialTrainingLockV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
@@ -411,6 +419,19 @@ starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
 assert(starProfile.battlePoints === 90, "opponent rumor should cost 10 BP");
 assert(starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should unlock paid opponent preview");
+starProfile = {...starProfile, battlePoints: 200};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, LOSSLESS_EXCHANGE_NODE_ID);
+assert(starProfile.battlePoints === 175, "lossless exchange should cost 25 BP");
+assert(starChartHasLosslessExchangeV4(starProfile.starChart), "lossless exchange should unlock full-hp exchange");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, ELITE_EXCHANGE_EDUCATION_NODE_ID);
+assert(starProfile.battlePoints === 145, "elite exchange education should cost 30 BP");
+assert(starChartHasEliteExchangeEducationV4(starProfile.starChart), "elite exchange education should unlock exchange power profile boost");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, EXCHANGE_ITEM_STEAL_NODE_ID);
+assert(starProfile.battlePoints === 115, "exchange item steal should cost 30 BP");
+assert(starChartHasExchangeItemStealV4(starProfile.starChart), "exchange item steal should keep exchanged held item");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, SECOND_EXCHANGE_NODE_ID);
+assert(starProfile.battlePoints === 75, "second exchange should cost 40 BP");
+assert(starChartHasSecondExchangeV4(starProfile.starChart), "second exchange should unlock paid second exchange");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, FREE_MEDICAL_CARE_NODE_ID);
 assert(starProfile.battlePoints === 80, "free medical care should cost 20 BP");
@@ -691,6 +712,75 @@ assert(withCoinLog.restRunSnapshot.coinLog[0]?.balanceBefore === roundPlanned.mo
 assert(withCoinLog.restRunSnapshot.coinLog[0]?.balanceAfter === withCoinLog.money, "coin log should record balance after");
 const withDuplicateCoinLog = api.appendCoinLogEntryV4(withCoinLog, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withDuplicateCoinLog.restRunSnapshot?.coinLog?.length === 1, "coin log should dedupe by key");
+
+const noExchangeView = api.getFormalRestExchangeView(roundPlanned);
+assert(!noExchangeView.available && noExchangeView.exchangeCount === 0, "formal exchange should be unavailable before any won round");
+assert(noExchangeView.opponent === null, "formal exchange should not show current opponent before a won round");
+const exchangeRestRun = {
+  ...withCoinLog.restRunSnapshot!,
+  currentNodeId: withCoinLog.restRunSnapshot!.gameMap[1]!.id,
+  gameMap: withCoinLog.restRunSnapshot!.gameMap.map((node, index) => index === 0
+    ? {...node, state: "won" as const}
+    : index === 1
+      ? {...node, state: "ready" as const}
+      : node),
+};
+const exchangeBaseRun = {...withCoinLog, restRunSnapshot: exchangeRestRun};
+const exchangeView = api.getFormalRestExchangeView(exchangeBaseRun);
+assert(exchangeView.available && exchangeView.nodeId === exchangeRestRun.gameMap[0]!.id, "formal exchange should target latest won round");
+const exchangeSource = exchangeView.player!.localTeam.pokemon[0]!;
+const exchangeTarget = exchangeView.opponent!.localTeam.pokemon[0]!;
+const exchangeResult = api.exchangeFormalRestPokemon(exchangeBaseRun, {sourcePokemonId: exchangeSource.localPokemonId, targetPokemonId: exchangeTarget.localPokemonId});
+const exchangedPokemon = exchangeResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+assert(exchangeResult.ok, "formal exchange should replace selected pokemon");
+assert(exchangeResult.cost === 0 && exchangeResult.run.money === exchangeBaseRun.money, "formal first exchange should be free");
+assert(exchangedPokemon.speciesId === exchangeTarget.speciesId, "formal exchange should receive target species");
+assert(exchangedPokemon.localPokemonId !== exchangeTarget.localPokemonId, "formal exchange should create a new local pokemon id");
+assert(exchangedPokemon.entryHp === Math.ceil(exchangedPokemon.maxHp / 2), "formal exchange should default to half HP");
+assert(exchangedPokemon.entryStatus === "", "formal exchange should clear status");
+assert(!exchangedPokemon.itemId && !exchangedPokemon.heldItemInstanceId, "formal exchange should drop item without star chart");
+const secondExchangeBlocked = api.exchangeFormalRestPokemon(exchangeResult.run, {
+  sourcePokemonId: exchangeResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[1]!.localPokemonId,
+  targetPokemonId: exchangeView.opponent!.localTeam.pokemon[1]!.localPokemonId,
+});
+assert(!secondExchangeBlocked.ok && secondExchangeBlocked.run.money === exchangeResult.run.money, "formal second exchange should require star chart");
+const exchangeStarProfile = unlockStarChartNodeForProfileV4(
+  unlockStarChartNodeForProfileV4(
+    unlockStarChartNodeForProfileV4(
+      unlockStarChartNodeForProfileV4({...profile, battlePoints: 300}, LOSSLESS_EXCHANGE_NODE_ID),
+      ELITE_EXCHANGE_EDUCATION_NODE_ID,
+    ),
+    EXCHANGE_ITEM_STEAL_NODE_ID,
+  ),
+  SECOND_EXCHANGE_NODE_ID,
+);
+const exchangeStarRun = {...exchangeBaseRun, starChartSnapshot: exchangeStarProfile.starChart};
+const exchangeStarView = api.getFormalRestExchangeView(exchangeStarRun);
+const exchangeStarTarget = {...exchangeStarView.opponent!.localTeam.pokemon[0]!, itemId: "leftovers", heldItemInstanceId: "npc-leftovers"};
+const exchangeStarRestRun = {
+  ...exchangeStarRun.restRunSnapshot!,
+  gameMap: exchangeStarRun.restRunSnapshot!.gameMap.map((node, index) => index === 0
+    ? {...node, participants: {...node.participants, p2: {...node.participants.p2!, localTeam: {...node.participants.p2!.localTeam, pokemon: node.participants.p2!.localTeam.pokemon.map((pokemon, pokemonIndex) => pokemonIndex === 0 ? exchangeStarTarget : pokemon)}}}}
+    : node),
+};
+const exchangeStarPrepared = {...exchangeStarRun, restRunSnapshot: exchangeStarRestRun};
+const exchangeStarFirst = api.exchangeFormalRestPokemon(exchangeStarPrepared, {sourcePokemonId: exchangeStarView.player!.localTeam.pokemon[0]!.localPokemonId, targetPokemonId: exchangeStarTarget.localPokemonId});
+const exchangeStarPokemon = exchangeStarFirst.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+assert(exchangeStarFirst.ok, "formal exchange star first exchange should apply");
+assert(exchangeStarPokemon.entryHp === exchangeStarPokemon.maxHp, "lossless exchange should receive full HP");
+assert(exchangeStarPokemon.itemId === "leftovers" && exchangeStarPokemon.heldItemInstanceId === "npc-leftovers", "exchange item steal should keep target item");
+assert(powerProfileIndex(exchangeStarPokemon.powerProfile || "rookie") >= powerProfileIndex(exchangeStarTarget.powerProfile || "rookie"), "elite exchange education should not lower power profile");
+const exchangeStarSecond = api.exchangeFormalRestPokemon(exchangeStarFirst.run, {
+  sourcePokemonId: exchangeStarFirst.run.restRunSnapshot!.players.p1!.localTeam.pokemon[1]!.localPokemonId,
+  targetPokemonId: exchangeStarView.opponent!.localTeam.pokemon[1]!.localPokemonId,
+});
+assert(exchangeStarSecond.ok && exchangeStarSecond.cost === 200 && exchangeStarSecond.run.money === exchangeStarFirst.run.money - 200, "second exchange star should allow paid second exchange");
+assert(exchangeStarSecond.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "pokemon-exchange" && entry.amount === -200), "paid exchange should append coin log");
+const poorSecondExchange = api.exchangeFormalRestPokemon({...exchangeStarFirst.run, money: 199}, {
+  sourcePokemonId: exchangeStarFirst.run.restRunSnapshot!.players.p1!.localTeam.pokemon[1]!.localPokemonId,
+  targetPokemonId: exchangeStarView.opponent!.localTeam.pokemon[1]!.localPokemonId,
+});
+assert(!poorSecondExchange.ok && poorSecondExchange.run.money === 199, "paid second exchange should reject insufficient funds");
 
 const firstPlayerPokemon = withCoinLog.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const firstEnemyPokemon = {...withCoinLog.roundPlan[0]!.participants.p2!.localTeam.pokemon[0]!, maxHp: 200};

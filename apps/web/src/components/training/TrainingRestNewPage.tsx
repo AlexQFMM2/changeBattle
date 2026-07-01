@@ -5,6 +5,8 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   type ChangeBattleV2Api,
   type DexStatId,
+  type FormalPokemonExchangeResultV4,
+  type FormalPokemonExchangeViewV4,
   type FormalRestOpponentPreviewUnlockResultV4,
   type FormalRoundSettlementV4,
   type FormalRestPokemonStatRerollResultV4,
@@ -16,6 +18,7 @@ import {
 } from "@changebattle-v2/api";
 import {TrainingRestBoardTitle} from "./TrainingRestBoardTitle";
 import {TrainingRestConfirmDialog} from "./TrainingRestConfirmDialog";
+import {TrainingRestExchangePanel} from "./TrainingRestExchangePanel";
 import {TrainingRestNextPreviewPanel, type PreviewPokemonEntry} from "./TrainingRestNextPreviewPanel";
 import {TrainingRestNewActionBoard} from "./TrainingRestNewActionBoard";
 import {TrainingRestNewBagPanel} from "./TrainingRestNewBagPanel";
@@ -55,6 +58,11 @@ export type TrainingRestOpponentPreviewController = {
   onUnlock: (input: {unlockKey: string}) => Promise<FormalRestOpponentPreviewUnlockResultV4> | FormalRestOpponentPreviewUnlockResultV4;
 };
 
+export type TrainingRestExchangeController = {
+  view: FormalPokemonExchangeViewV4 | null;
+  onExchange: (input: {sourcePokemonId: string; targetPokemonId: string}) => Promise<FormalPokemonExchangeResultV4> | FormalPokemonExchangeResultV4;
+};
+
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
   run: TrainingRunGameV4;
@@ -72,13 +80,17 @@ export type TrainingRestNewPageProps = {
   trainingGroundController?: TrainingRestTrainingGroundController;
   teamRerollController?: TrainingRestTeamRerollController;
   opponentPreviewController?: TrainingRestOpponentPreviewController;
+  exchangeController?: TrainingRestExchangeController;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, teamRerollController, opponentPreviewController}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, teamRerollController, opponentPreviewController, exchangeController}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [bagPanelOpen, setBagPanelOpen] = useState(false);
+  const [exchangePanelOpen, setExchangePanelOpen] = useState(false);
+  const [exchangeSelection, setExchangeSelection] = useState({sourcePokemonId: "", targetPokemonId: ""});
+  const [exchangeBusy, setExchangeBusy] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [lessonEndOpen, setLessonEndOpen] = useState(false);
   const [unlockTarget, setUnlockTarget] = useState<PreviewPokemonEntry | null>(null);
@@ -127,6 +139,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   function closeFloatingPanels() {
     setTeamPanelOpen(false);
     setBagPanelOpen(false);
+    setExchangePanelOpen(false);
   }
 
   function validateBattleLead(): string | null {
@@ -180,17 +193,39 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     setUnlockTarget(target);
   }
 
+  async function confirmExchangePokemon() {
+    if (!exchangeController || exchangeBusy) return;
+    setExchangeBusy(true);
+    try {
+      const result = await exchangeController.onExchange(exchangeSelection);
+      if (result.ok) {
+        onRunChange(result.run.restRunSnapshot || run);
+        setExchangeSelection({sourcePokemonId: "", targetPokemonId: ""});
+      }
+      setMessage(result.message);
+      showNotice(result.message, result.ok ? "normal" : "danger");
+    } catch (error) {
+      const nextMessage = error instanceof Error ? error.message : "交换失败。";
+      setMessage(nextMessage);
+      showNotice(nextMessage, "danger");
+    } finally {
+      setExchangeBusy(false);
+    }
+  }
+
   function selectAction(action: string) {
     setActiveAction(action);
     if (action === "我的队伍") {
       setRestScene("center");
       setBagPanelOpen(false);
+      setExchangePanelOpen(false);
       setTeamPanelOpen(true);
       return;
     }
     if (action === "我的背包") {
       setRestScene("center");
       setTeamPanelOpen(false);
+      setExchangePanelOpen(false);
       setBagPanelOpen(true);
       return;
     }
@@ -198,6 +233,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       setActiveAction(action);
       setTeamPanelOpen(false);
       setBagPanelOpen(false);
+      setExchangePanelOpen(false);
       if (!shopController) {
         setRestScene("center");
         setMessage("商店仅正式流程开放。");
@@ -211,6 +247,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     if (action === "训练场") {
       setTeamPanelOpen(false);
       setBagPanelOpen(false);
+      setExchangePanelOpen(false);
       if (!trainingGroundController) {
         setRestScene("center");
         setMessage("训练场仅正式流程开放。");
@@ -221,10 +258,24 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       setMessage("训练场课程已经开始。");
       return;
     }
+    if (action === "交换") {
+      setRestScene("center");
+      setTeamPanelOpen(false);
+      setBagPanelOpen(false);
+      if (!exchangeController) {
+        setMessage("交换仅正式流程开放。");
+        showNotice("交换仅正式流程开放。");
+        return;
+      }
+      setExchangePanelOpen(true);
+      setMessage(exchangeController.view?.message || "选择双方宝可梦后即可交换。");
+      return;
+    }
     if (["我的背包", "图鉴", "保存"].includes(action)) {
       setRestScene("center");
       setTeamPanelOpen(false);
       setBagPanelOpen(false);
+      setExchangePanelOpen(false);
     }
     if (action === "图鉴") {
       onOpenDex();
@@ -275,7 +326,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             onAction={selectAction}
           />
           <div className="training-rest-new-save-message" role="status">{message}</div>
-          {teamPanelOpen || bagPanelOpen ? (
+          {teamPanelOpen || bagPanelOpen || exchangePanelOpen ? (
             <button
               className="training-rest-new-panel-scrim"
               type="button"
@@ -283,6 +334,17 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               onClick={closeFloatingPanels}
             />
           ) : null}
+          <TrainingRestExchangePanel
+            open={exchangePanelOpen}
+            view={exchangeController?.view || null}
+            selectedSourceId={exchangeSelection.sourcePokemonId}
+            selectedTargetId={exchangeSelection.targetPokemonId}
+            busy={exchangeBusy}
+            onSelectSource={sourcePokemonId => setExchangeSelection(current => ({...current, sourcePokemonId}))}
+            onSelectTarget={targetPokemonId => setExchangeSelection(current => ({...current, targetPokemonId}))}
+            onConfirm={() => void confirmExchangePokemon()}
+            onClose={() => setExchangePanelOpen(false)}
+          />
           <TrainingRestNewTeamPanel
             api={api}
             open={teamPanelOpen}

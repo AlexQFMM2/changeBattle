@@ -34,6 +34,10 @@ export const EMERGENCY_MEDICAL_CARE_NODE_ID = "rest_emergency_medical_care" as c
 export const OUTPATIENT_MEDICAL_CARE_NODE_ID = "rest_outpatient_medical_care" as const;
 export const BATTLE_PRACTICE_MASTERY_NODE_ID = "battle_practice_mastery" as const;
 export const OPPONENT_RUMOR_NODE_ID = "rest_opponent_rumor" as const;
+export const LOSSLESS_EXCHANGE_NODE_ID = "rest_lossless_exchange" as const;
+export const ELITE_EXCHANGE_EDUCATION_NODE_ID = "rest_elite_exchange_education" as const;
+export const EXCHANGE_ITEM_STEAL_NODE_ID = "rest_exchange_item_steal" as const;
+export const SECOND_EXCHANGE_NODE_ID = "rest_second_exchange" as const;
 
 export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
@@ -178,6 +182,58 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     kind: "talent",
     x: -175,
     y: -255,
+  },
+  {
+    id: LOSSLESS_EXCHANGE_NODE_ID,
+    name: "无损交换",
+    category: "交换契约",
+    desc: "交换来的宝可梦以满血状态加入队伍。",
+    max_level: 1,
+    costs: [25],
+    requires: [{id: "root_trainer_star"}],
+    effects: ["交换来的宝可梦不再是半血，而是满血。"],
+    kind: "talent",
+    x: 175,
+    y: -340,
+  },
+  {
+    id: ELITE_EXCHANGE_EDUCATION_NODE_ID,
+    name: "精英教育",
+    category: "交换契约",
+    desc: "交换来的宝可梦会接受一次强化培养。",
+    max_level: 1,
+    costs: [30],
+    requires: [{id: LOSSLESS_EXCHANGE_NODE_ID}],
+    effects: ["交换来的宝可梦数值阶段提升 1 级。"],
+    kind: "talent",
+    x: 345,
+    y: -410,
+  },
+  {
+    id: EXCHANGE_ITEM_STEAL_NODE_ID,
+    name: "顺手牵羊",
+    category: "交换契约",
+    desc: "交换时连同对方携带的道具一起拿过来。",
+    max_level: 1,
+    costs: [30],
+    requires: [{id: LOSSLESS_EXCHANGE_NODE_ID}],
+    effects: ["交换来的宝可梦保留对手携带道具。"],
+    kind: "talent",
+    x: 345,
+    y: -310,
+  },
+  {
+    id: SECOND_EXCHANGE_NODE_ID,
+    name: "换一送一",
+    category: "交换契约",
+    desc: "每场胜利后可以花金币进行第二次交换。",
+    max_level: 1,
+    costs: [40],
+    requires: [{id: ELITE_EXCHANGE_EDUCATION_NODE_ID}, {id: EXCHANGE_ITEM_STEAL_NODE_ID}],
+    effects: ["允许花费 200 金币进行第二次交换。"],
+    kind: "talent",
+    x: 530,
+    y: -360,
   },
   {
     id: FREE_MEDICAL_CARE_NODE_ID,
