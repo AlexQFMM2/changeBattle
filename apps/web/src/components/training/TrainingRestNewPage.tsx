@@ -32,7 +32,8 @@ import "./TrainingRestNewPage.css";
 import type {FormalRestShopV4} from "@changebattle-v2/api";
 
 export type TrainingRestShopController = {
-  shop: FormalRestShopV4 | null;
+  shop?: FormalRestShopV4 | null;
+  getShop?: () => FormalRestShopV4 | null;
   player: TrainingPlayerDraftV4 | null;
   money: number;
   onBuy: (slotId: string) => Promise<string> | string;
@@ -40,7 +41,8 @@ export type TrainingRestShopController = {
 };
 
 export type TrainingRestTrainingGroundController = {
-  lesson: FormalTrainingGroundLessonViewV4 | null;
+  lesson?: FormalTrainingGroundLessonViewV4 | null;
+  getLesson?: () => FormalTrainingGroundLessonViewV4 | null;
   player: TrainingPlayerDraftV4 | null;
   money: number;
   onApply: (input: FormalTrainingGroundApplyInputV4) => Promise<FormalTrainingGroundResultV4> | FormalTrainingGroundResultV4;
@@ -60,7 +62,8 @@ export type TrainingRestOpponentPreviewController = {
 };
 
 export type TrainingRestExchangeController = {
-  view: FormalPokemonExchangeViewV4 | null;
+  view?: FormalPokemonExchangeViewV4 | null;
+  getView?: () => FormalPokemonExchangeViewV4 | null;
   onExchange: (input: {sourcePokemonId: string; targetPokemonId: string}) => Promise<FormalPokemonExchangeResultV4> | FormalPokemonExchangeResultV4;
 };
 
@@ -90,6 +93,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
   const [bagPanelOpen, setBagPanelOpen] = useState(false);
   const [exchangePanelOpen, setExchangePanelOpen] = useState(false);
+  const [exchangeView, setExchangeView] = useState<FormalPokemonExchangeViewV4 | null>(exchangeController?.view || null);
   const [exchangeSelection, setExchangeSelection] = useState({sourcePokemonId: "", targetPokemonId: ""});
   const [exchangeBusy, setExchangeBusy] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
@@ -105,16 +109,9 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     const p1 = run.players.p1;
     if (!p1) return;
     const nextP1 = {...p1, localTeam};
-    const nextPlayers = {...run.players, p1: nextP1};
-    const nextScenarioPlayers = run.scenario.players.map(player => player.playerId === "p1" ? nextP1 : player);
-    const nextGameMap = run.gameMap.map(node => node.id === run.currentNodeId
-      ? {...node, participants: {...node.participants, p1: nextP1}}
-      : node);
     const nextRun = {
       ...run,
-      players: nextPlayers,
-      scenario: {...run.scenario, players: nextScenarioPlayers},
-      gameMap: nextGameMap,
+      players: {...run.players, p1: nextP1},
       updatedAt: new Date().toISOString(),
     };
     onRunChange(nextRun);
@@ -202,6 +199,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       if (result.ok) {
         onRunChange(result.run.restRunSnapshot || run);
         setExchangeSelection({sourcePokemonId: "", targetPokemonId: ""});
+        setExchangeView(result.view);
       }
       setMessage(result.message);
       showNotice(result.message, result.ok ? "normal" : "danger");
@@ -268,8 +266,10 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         showNotice("交换仅正式流程开放。");
         return;
       }
+      const nextExchangeView = exchangeController.getView?.() || exchangeController.view || null;
+      setExchangeView(nextExchangeView);
       setExchangePanelOpen(true);
-      setMessage(exchangeController.view?.message || "选择双方宝可梦后即可交换。");
+      setMessage(nextExchangeView?.message || "选择双方宝可梦后即可交换。");
       return;
     }
     if (["我的背包", "图鉴", "保存"].includes(action)) {
@@ -337,7 +337,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           ) : null}
           <TrainingRestExchangePanel
             open={exchangePanelOpen}
-            view={exchangeController?.view || null}
+            view={exchangeView}
             selectedSourceId={exchangeSelection.sourcePokemonId}
             selectedTargetId={exchangeSelection.targetPokemonId}
             busy={exchangeBusy}
@@ -372,37 +372,41 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             onNotice={showNotice}
           />
         </section>
-        <TrainingRestShopScene
-          api={api}
-          open={restScene === "shop"}
-          shop={shopController?.shop}
-          player={shopController?.player}
-          money={shopController?.money ?? moneyAmount ?? 0}
-          onBuy={shopController?.onBuy}
-          onSell={shopController?.onSell}
-          onBack={() => {
-            setRestScene("center");
-            setActiveAction("我的队伍");
-            setMessage("已返回休整中心。");
-          }}
-        />
-        <TrainingRestTrainingGroundScene
-          api={api}
-          open={restScene === "training-ground"}
-          lesson={trainingGroundController?.lesson}
-          player={trainingGroundController?.player}
-          money={trainingGroundController?.money ?? moneyAmount ?? 0}
-          onApply={trainingGroundController?.onApply}
-          onLessonComplete={nextMessage => {
-            setMessage(nextMessage);
-            setLessonEndOpen(true);
-          }}
-          onBack={() => {
-            setRestScene("center");
-            setActiveAction("我的队伍");
-            setMessage("已返回休整中心。");
-          }}
-        />
+        {restScene === "shop" ? (
+          <TrainingRestShopScene
+            api={api}
+            open
+            shop={shopController?.getShop?.() || shopController?.shop || null}
+            player={shopController?.player}
+            money={shopController?.money ?? moneyAmount ?? 0}
+            onBuy={shopController?.onBuy}
+            onSell={shopController?.onSell}
+            onBack={() => {
+              setRestScene("center");
+              setActiveAction("我的队伍");
+              setMessage("已返回休整中心。");
+            }}
+          />
+        ) : null}
+        {restScene === "training-ground" ? (
+          <TrainingRestTrainingGroundScene
+            api={api}
+            open
+            lesson={trainingGroundController?.getLesson?.() || trainingGroundController?.lesson || null}
+            player={trainingGroundController?.player}
+            money={trainingGroundController?.money ?? moneyAmount ?? 0}
+            onApply={trainingGroundController?.onApply}
+            onLessonComplete={nextMessage => {
+              setMessage(nextMessage);
+              setLessonEndOpen(true);
+            }}
+            onBack={() => {
+              setRestScene("center");
+              setActiveAction("我的队伍");
+              setMessage("已返回休整中心。");
+            }}
+          />
+        ) : null}
       </div>
       {toast ? (
         <TrainingRestToast

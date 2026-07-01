@@ -97,7 +97,7 @@ export function PlayerBagPanel({
     if (lastSelectionSignatureRef.current === selectionSignature) return;
     lastSelectionSignatureRef.current = selectionSignature;
     onSelectionChange?.({item: selectedItem, target: selectedTarget});
-  }, [onSelectionChange, selectionSignature]);
+  }, [onSelectionChange, selectedItem, selectedTarget, selectionSignature]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(updateScrollState);
@@ -250,7 +250,7 @@ export function PlayerBagPanel({
                 <button
                   className={`${item.id === selectedItem?.id ? "selected" : ""} ${heldItemIds.has(item.id) ? "held" : ""} ${important ? "important" : ""}`}
                   type="button"
-                  onClick={() => setSelectedItemId(item.id)}
+                  onClick={() => selectBagItem(item.id)}
                   key={item.id}
                 >
                   <PlayerBagItemIcon api={api} item={item} />

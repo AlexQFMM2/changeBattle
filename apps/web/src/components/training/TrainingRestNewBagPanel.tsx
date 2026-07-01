@@ -32,7 +32,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const canUseTm = canUseTmItemV4(selectedItem, selectedDetail);
   const selectedMachineMoves = useMemo(() => selectedPokemon ? api.getPokemonMachineSkills(selectedPokemon.speciesId) : [], [api, selectedPokemon]);
   const tmFailureReason = canUseTm ? tmUseFailureReasonV4({item: selectedItem, detail: selectedDetail, pokemon: selectedPokemon, machineMoves: selectedMachineMoves}) : "";
-  const canUseItem = canUseRecovery || canUseTraining || (canUseTm && !tmFailureReason);
+  const canUseItemKind = canUseRecovery || canUseTraining || canUseTm;
   const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail));
   const selectedHeldItem = selectedPokemon ? itemForPokemon(api, bag.items, selectedPokemon) : null;
   const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId));
@@ -126,9 +126,23 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     onRunDraftChange(nextRun, "背包已更新，记得手动保存。");
   }
 
+  function noticeUseFailure(reason: string) {
+    const message = reason || "该道具当前不能立即使用。";
+    onNotice?.(message, "danger");
+    onRunDraftChange(run, message);
+  }
+
   function useSelectedItem() {
-    if (!p1 || !selectedItem || !selectedPokemon || !canUseItem) return;
+    if (!p1 || !selectedItem || !selectedPokemon) return;
+    if (!canUseItemKind) {
+      noticeUseFailure("该道具当前不能立即使用。");
+      return;
+    }
     if (canUseTm) {
+      if (tmFailureReason) {
+        noticeUseFailure(tmFailureReason);
+        return;
+      }
       setTmReplace({item: selectedItem, pokemonId: selectedPokemon.localPokemonId});
       return;
     }
@@ -149,7 +163,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
         calculateMaxHp: pokemon => calculateMaxHp(api, pokemon),
       });
     if (!result.ok) {
-      onRunDraftChange(run, result.reason);
+      noticeUseFailure(result.reason);
       return;
     }
     const consumedClearedTeam = clearConsumedItemFromTeamV4(p1.localTeam.pokemon, selectedItem);
@@ -173,6 +187,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       moveSlot,
     });
     if (!result.ok) {
+      onNotice?.(result.reason, "danger");
       onRunDraftChange(run, result.reason);
       return;
     }
@@ -205,8 +220,8 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     {
       key: "use",
       label: "立即使用",
-      disabled: !selectedItem || !selectedPokemon || !canUseItem,
-      title: canUseItem ? "对选中宝可梦立即使用" : tmFailureReason || "该道具当前不能立即使用。",
+      disabled: !selectedItem || !selectedPokemon || !canUseItemKind,
+      title: canUseItemKind ? tmFailureReason || "对选中宝可梦立即使用" : "该道具当前不能立即使用。",
       onClick: useSelectedItem,
     },
     {
@@ -222,7 +237,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       disabled: !selectedItem || !canDiscard,
       onClick: discardSelectedItem,
     },
-  ].filter(action => actionVisibleForItem(action.key, selectedItem, selectedDetail, {canUntake, canUseItem, canDiscard}));
+  ].filter(action => actionVisibleForItem(action.key, selectedItem, selectedDetail, {canUntake, canUseItem: canUseItemKind, canDiscard}));
 
   return (
     <>

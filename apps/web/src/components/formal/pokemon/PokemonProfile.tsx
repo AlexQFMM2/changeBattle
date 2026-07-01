@@ -91,6 +91,19 @@ const TYPE_ID_BY_ZH: Record<string, string> = {
 };
 
 function FormalPokemonStats({api, pokemon}: {api: ChangeBattleV2Api; pokemon: RentalPokemon}) {
+  const calculatedStats = useMemo(() => {
+    try {
+      return api.dex.calculatePokemonStats({
+        speciesId: pokemon.species_id,
+        level: pokemon.level,
+        nature: pokemon.nature || "Serious",
+        evs: pokemon.evs,
+        ivs: pokemon.ivs,
+      }).stats;
+    } catch {
+      return pokemon.stats || {};
+    }
+  }, [api, pokemon.evs, pokemon.ivs, pokemon.level, pokemon.nature, pokemon.species_id, pokemon.stats]);
   const maxPotentialStats = useMemo(() => {
     return api.dex.getPokemonMaxStats({
       speciesId: pokemon.species_id,
@@ -101,7 +114,7 @@ function FormalPokemonStats({api, pokemon}: {api: ChangeBattleV2Api; pokemon: Re
     <section className="formal-pokemon-stats-tab">
       <dl className="formal-pokemon-stat-list">
         {STAT_ROWS.map(([stat, label]) => {
-          const value = Number(pokemon.stats?.[stat] || 0);
+          const value = Number(calculatedStats?.[stat] || pokemon.stats?.[stat] || 0);
           const statMax = Math.max(Number(maxPotentialStats?.[stat] || value || 1), 1);
           const statRate = Math.max(4, Math.min(100, value / statMax * 100));
           return (

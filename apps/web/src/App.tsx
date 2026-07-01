@@ -614,7 +614,7 @@ function RoutedApp({runtime}: AppProps) {
           },
         }}
         exchangeController={{
-          view: api.getFormalRestExchangeView(formalRun),
+          getView: () => api.getFormalRestExchangeView(formalRun),
           onExchange: input => {
             if (!formalRun) throw new Error("正式存档不存在。");
             const result = api.exchangeFormalRestPokemon(formalRun, input);
@@ -623,7 +623,7 @@ function RoutedApp({runtime}: AppProps) {
           },
         }}
         shopController={{
-          shop: api.getFormalRestShop(formalRun),
+          getShop: () => api.getFormalRestShop(formalRun),
           player: formalRun.restRunSnapshot.players.p1 || null,
           money: formalRun.money,
           onBuy: slotId => {
@@ -642,7 +642,7 @@ function RoutedApp({runtime}: AppProps) {
           },
         }}
         trainingGroundController={{
-          lesson: api.getFormalTrainingGroundLesson(formalRun),
+          getLesson: () => api.getFormalTrainingGroundLesson(formalRun),
           player: formalRun.restRunSnapshot.players.p1 || null,
           money: formalRun.money,
           onApply: input => {

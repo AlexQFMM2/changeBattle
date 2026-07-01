@@ -25,7 +25,7 @@ import {
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
-import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, type FormalShopRestockContextV4} from "./formalGame.js";
+import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
   enableTestModeForProfileV4,
   formalShopAutoRestockForStarChartV4,
@@ -356,6 +356,12 @@ assert(prepared.battlePreference.ruleSet === "standard", "formal run should keep
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.filters.battleBagEnabled === true), "starter diagnostics should preserve run battle bag snapshot");
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.filters.legendaryBattle === false), "starter diagnostics should preserve run legendary snapshot");
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.filters.ruleSet === "standard"), "starter diagnostics should preserve run rule set snapshot");
+const starterStatCandidate = prepared.starterCandidates[0]!;
+const starterStatView = formalStarterCandidateToRentalPokemonV4(starterStatCandidate);
+const starterCalculatedStats = {hp: 100 + starterStatCandidate.pokemon.level, atk: 80, def: 80, spa: 80, spd: 80, spe: 80};
+assert(starterStatCandidate.display.stats?.atk === starterCalculatedStats.atk, "formal starter display stats should store calculated battle stats");
+assert(starterStatView.stats.atk === starterCalculatedStats.atk, "formal starter rental view should expose calculated battle stats");
+assert(starterStatView.stats.atk !== starterStatCandidate.pokemon.ivs.atk + starterStatCandidate.pokemon.evs.atk, "formal starter stats should not be IV plus EV");
 assert(FORMAL_STARTER_SHINY_RATE === 1 / 30, "formal starter shiny rate should be 1/30");
 assert(FORMAL_ROUND_COUNT === 7, "formal round count should stay 7");
 assert(FORMAL_STARTING_MONEY === 3000, "formal starting money should stay 3000");
@@ -647,6 +653,20 @@ const nextTrainingLesson = api.getFormalTrainingGroundLesson(nextTrainingRun);
 assert((nextTrainingRun.trainingGroundByNodeId?.[roundPlanned.restRunSnapshot!.currentNodeId]?.lessonRoll || 0) === 1, "formal training ground advance should increment lessonRoll");
 assert(nextTrainingLesson && nextTrainingLesson.lessonId !== trainingLesson?.lessonId, "formal training ground advance should draw next lesson");
 assert(!nextTrainingLesson || nextTrainingLesson.fee === expectedTrainingGroundLessonFee(nextTrainingLesson.kind), "formal training ground next lesson should use balanced fee table");
+let lessonDeckRun = roundPlanned;
+const firstCycleKinds: string[] = [];
+const firstEightKinds: string[] = [];
+for (let index = 0; index < 8; index += 1) {
+  const lesson = api.getFormalTrainingGroundLesson(lessonDeckRun);
+  assert(lesson, "formal training ground shuffle deck should draw a lesson");
+  firstEightKinds.push(lesson.kind);
+  if (index < 4) firstCycleKinds.push(lesson.kind);
+  lessonDeckRun = api.advanceFormalTrainingGroundLesson(lessonDeckRun);
+}
+assert(new Set(firstCycleKinds).size === 4, "formal training ground shuffle deck should cover every lesson kind once per cycle");
+for (let index = 1; index < firstEightKinds.length; index += 1) {
+  assert(firstEightKinds[index] !== firstEightKinds[index - 1], "formal training ground shuffle deck should avoid adjacent repeated lessons");
+}
 const poorTrainingRun = {...roundPlanned, money: 0};
 const poorTrainingResult = api.applyFormalTrainingGroundLesson(poorTrainingRun, {pokemonId: roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.localPokemonId});
 assert(!poorTrainingResult.ok && poorTrainingResult.run.money === 0, "formal training ground should reject insufficient funds without changing money");

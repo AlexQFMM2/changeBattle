@@ -338,6 +338,7 @@ export type FormalStarterCandidateV4 = {
     types: string[];
     typesZh: string[];
     baseStats: Record<string, number>;
+    stats?: Record<string, number>;
     heightm?: number;
     weightkg?: number;
   };
@@ -2203,13 +2204,21 @@ export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: 
       rng,
       seed: input.seed,
     });
+    const display = displayFromDetail(detail);
+    const calculatedStats = dex.calculatePokemonStats({
+      speciesId: detail.id,
+      level: pokemon.level,
+      nature: pokemon.nature,
+      evs: pokemon.evs,
+      ivs: pokemon.ivs,
+    }).stats;
     return {
       id: `starter-${index + 1}-${detail.id}`,
       role,
       speciesRank,
       powerProfile,
       pokemon,
-      display: displayFromDetail(detail),
+      display: {...display, stats: calculatedStats},
       diagnostics: {
         role,
         speciesRank,
@@ -2240,7 +2249,7 @@ export function selectedCountForFormalMode(mode: FormalGameModeV4): number {
 export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarterCandidateV4): FormalRentalPokemonViewV4 {
   const pokemon = candidate.pokemon;
   const baseStats = candidate.display?.baseStats || Object.fromEntries(STAT_IDS.map(stat => [stat, 0]));
-  const stats = {
+  const stats = candidate.display?.stats || {
     hp: pokemon.maxHp,
     atk: pokemon.evs.atk + pokemon.ivs.atk,
     def: pokemon.evs.def + pokemon.ivs.def,
@@ -2946,12 +2955,38 @@ function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, 
       source: "self-study",
     },
   ];
-  const rng = createRng(`${run.seed}:${nodeId}:training-ground:${lessonRoll}`);
-  const lesson = lessons[Math.floor(rng() * lessons.length)] || lessons[0]!;
+  const lesson = trainingGroundLessonForRoll(run.seed, nodeId, lessonRoll, lessons);
   return {
     ...lesson,
     lessonId: `${nodeId}:lesson:${lessonRoll}:${lesson.kind}`,
   };
+}
+
+function trainingGroundLessonForRoll(
+  seed: string,
+  nodeId: string,
+  lessonRoll: number,
+  lessons: Array<Omit<FormalTrainingGroundLessonViewV4, "lessonId">>,
+): Omit<FormalTrainingGroundLessonViewV4, "lessonId"> {
+  if (!lessons.length) throw new Error("training ground lesson table is empty");
+  const safeRoll = Math.max(0, Math.floor(Number(lessonRoll || 0)));
+  const cycleSize = lessons.length;
+  const cycleIndex = Math.floor(safeRoll / cycleSize);
+  const slotIndex = safeRoll % cycleSize;
+  const deck = shuffle(lessons, createRng(`${seed}:${nodeId}:training-ground-cycle:${cycleIndex}`));
+  if (cycleIndex > 0 && deck.length > 1) {
+    const previousDeck = shuffle(lessons, createRng(`${seed}:${nodeId}:training-ground-cycle:${cycleIndex - 1}`));
+    normalizeTrainingGroundDeckBoundary(deck, previousDeck);
+  }
+  return deck[slotIndex] || deck[0] || lessons[0]!;
+}
+
+function normalizeTrainingGroundDeckBoundary<T extends {kind: string}>(deck: T[], previousDeck: T[]) {
+  const previousLast = previousDeck[previousDeck.length - 1];
+  if (!previousLast || deck[0]?.kind !== previousLast.kind) return;
+  const swapIndex = deck.findIndex((lesson, index) => index > 0 && lesson.kind !== previousLast.kind);
+  if (swapIndex <= 0) return;
+  [deck[0], deck[swapIndex]] = [deck[swapIndex]!, deck[0]!];
 }
 
 function trainingGroundResult(ok: boolean, run: FormalGameRunV4, message: string, lesson: FormalTrainingGroundLessonViewV4 | null): FormalTrainingGroundResultV4 {

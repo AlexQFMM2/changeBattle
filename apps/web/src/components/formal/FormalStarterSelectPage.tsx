@@ -15,7 +15,23 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
   const [focusIndex, setFocusIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const requiredCount = api.selectedCountForFormalMode(run.mode);
-  const candidates = useMemo(() => run.starterCandidates.map(formalStarterCandidateToRentalPokemonV4), [run.starterCandidates]);
+  const candidates = useMemo(() => run.starterCandidates.map(candidate => {
+    const pokemon = formalStarterCandidateToRentalPokemonV4(candidate);
+    try {
+      return {
+        ...pokemon,
+        stats: api.dex.calculatePokemonStats({
+          speciesId: candidate.pokemon.speciesId,
+          level: candidate.pokemon.level,
+          nature: candidate.pokemon.nature,
+          evs: candidate.pokemon.evs,
+          ivs: candidate.pokemon.ivs,
+        }).stats,
+      };
+    } catch {
+      return pokemon;
+    }
+  }), [api, run.starterCandidates]);
 
   function toggle(index: number) {
     setError(null);
