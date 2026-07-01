@@ -8,6 +8,7 @@ import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4
 import {BattleV4TrainerNarrativeOverlay, type BattleV4NarrativeDialogue, type BattleV4NarrativePhase, type BattleV4NarrativeTrainer} from "./BattleV4TrainerNarrativeOverlay";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
+import {visualSeatClassForSeat} from "./battleV4VisualSeats";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import {PlayerBagPanel, type PlayerBagAction, type PlayerBagPokemonTarget} from "../training/PlayerBagPanel";
 import "./BattleV4Page.css";
@@ -634,6 +635,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         commandActiveIndex={viewModel?.command.activeIndex || 0}
         messagebar={playbackMessage}
         activeAnimation={playback.activeAnimation}
+        openingSwitchInSeats={playback.openingSwitchInSeats}
         activeTimelineStep={playback.activeTimelineStep}
         renderedTimelineSteps={playback.renderedTimelineSteps}
         persistentFieldVisuals={playback.persistentFieldVisuals}
@@ -916,12 +918,13 @@ function battleV4PlayerWon(snapshot: BattleSessionSnapshotV4 | null): boolean {
   return snapshot?.winner === "p1" || snapshot?.winner === "p3";
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, openingSwitchInSeats = [], activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
   messagebar?: string;
   activeAnimation?: BattleAnimationEventV4 | null;
+  openingSwitchInSeats?: BattleProtocolSeatV4[];
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
   renderedTimelineSteps?: ShowdownAnimationStepV4[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
@@ -948,8 +951,8 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
         {nearSlots.map((slot, index) => <BattleHpPanel slot={slot} current={slot.active} commanding={index === commandActiveIndex} key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
       <div className="battle-v4-model-layer">
-        {farSlots.map(slot => <BattlePokemonSlot slot={slot} animation={activeAnimation || null} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
-        {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
+        {farSlots.map(slot => <BattlePokemonSlot slot={slot} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
+        {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} key={`${slot.playerId}-${slot.position}`} />)}
       </div>
     </div>
   );
@@ -1023,7 +1026,7 @@ function BattleV4ResultLayer({animation, visuals, api}: {animation: BattleAnimat
   const text = localizeBattleV4ResultText(visuals.result.text, animation, api);
   if (!text) return null;
   const seat = visuals.result.targetSeat || animation.targetSeat || animation.actorSeat;
-  const targetClass = seat ? `target-${seat.toLowerCase()}` : "target-center";
+  const targetClass = visualSeatClassForSeat(seat, "target-center");
   return (
     <div className={`battle-v4-result-pop ${targetClass} tone-${visuals.result.tone || "neutral"} kind-${visuals.result.kind || animation.kind}`} aria-hidden="true">
       {text}
@@ -1047,7 +1050,7 @@ function BattleV4FxLayer({animation, visuals, fxVisuals}: {animation: BattleAnim
   return (
     <>
       {activeFx.map(fx => {
-        const targetClass = fx.targetSeat ? `target-${fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+        const targetClass = visualSeatClassForSeat(fx.targetSeat || animation.actorSeat, "target-center");
         return (
           <div className={`battle-v4-fx-layer ${targetClass} kind-${fx.kind || animation.kind} ${fx.className}`} aria-hidden="true" key={fx.key}>
             <i className="battle-v4-fx-sprite" style={fx.style} />
@@ -1058,9 +1061,9 @@ function BattleV4FxLayer({animation, visuals, fxVisuals}: {animation: BattleAnim
   );
 }
 
-function BattlePokemonSlot({slot, commanding = false, animation, visuals}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; visuals: BattleV4TimelineVisuals}) {
+function BattlePokemonSlot({slot, commanding = false, animation, openingSwitchInSeats = [], visuals}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; openingSwitchInSeats?: BattleProtocolSeatV4[]; visuals: BattleV4TimelineVisuals}) {
   const timelineActor = visuals.actor?.seat === slot.seat ? visuals.actor : null;
-  const animationClass = timelineActor?.className || battlePokemonAnimationClass(slot.seat, animation || null);
+  const animationClass = timelineActor?.className || (openingSwitchInSeats.includes(slot.seat as BattleProtocolSeatV4) ? "anim-switch-in" : battlePokemonAnimationClass(slot.seat, animation || null));
   const specialClass = slot.dynamaxActive ? "special-dynamax" : slot.terastallized ? "special-tera" : "";
   const displayName = battleSlotDisplayName(slot);
   return (
@@ -1077,7 +1080,7 @@ function battlePokemonAnimationClass(seat: BattleProtocolSeatV4, animation: Batt
   if (animation.kind === "ability" && animation.actorSeat === seat) return "anim-ability";
   if (animation.kind === "weather" && animation.actorSeat === seat) return "anim-ability";
   if (animation.kind === "transform" && animation.actorSeat === seat) return "anim-transform";
-  if ((animation.kind === "moveEffect" || animation.kind === "damage" || animation.kind === "status" || animation.kind === "result") && animation.targetSeat === seat) return `anim-target-${animation.kind}`;
+  if ((animation.kind === "moveEffect" || animation.kind === "damage" || animation.kind === "status") && animation.targetSeat === seat) return `anim-target-${animation.kind}`;
   if (animation.kind === "heal" && animation.actorSeat === seat) return "anim-heal";
   if (animation.kind === "faint" && animation.actorSeat === seat) return "anim-faint";
   if (animation.kind === "switchIn" && animation.actorSeat === seat) return "anim-switch-in";
@@ -1423,7 +1426,9 @@ function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit
 }) {
   const moveCard = useMemo(() => buildBattleV4MoveCard(action, api, viewModel.farTeam, specialChoiceFromChoiceString(action.choice)), [action, api, viewModel.farTeam]);
   const targetable = Boolean(viewModel.command.normalizedRequest?.targetable || request?.targetable);
-  const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, targetable, api), [viewModel, action, moveCard.detail, targetable, api]);
+  const explicitTarget = moveNeedsExplicitTargetForShowdown(moveCard.displayedMove.target || moveCard.detail?.target || action.move.target);
+  const shouldChooseTarget = explicitTarget && viewModel.nearTeam.filter(slot => slot.active && !slot.fainted).length > 1;
+  const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, shouldChooseTarget || targetable, api), [viewModel, action, moveCard.detail, shouldChooseTarget, targetable, api]);
   return (
     <section className="battle-v4-target-modal" aria-label="攻击对象选择">
       <div className="battle-v4-target-modal-top" />
@@ -1435,7 +1440,7 @@ function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit
             target={target}
             key={target.key}
             onSelect={next => {
-              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && moveNeedsExplicitTargetForShowdown(moveCard.displayedMove.target || moveCard.detail?.target || action.move.target, targetable));
+              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && shouldChooseTarget);
               const choice = shouldUseTargetSuffix ? withBattleMoveTargetSuffixV4(action.choice, next.choiceSuffix) : action.choice;
               onSubmit(choice);
             }}
@@ -1697,11 +1702,13 @@ function specialDisplayedMoveDisabled(card: BattleV4MoveCardView): boolean {
 
 function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActionV4, detail: DexMoveDetail | null, targetable: boolean, api: ChangeBattleV2Api): BattleV4TargetCardView[] {
   const active = viewModel.nearTeam[action.activeIndex] || viewModel.nearTeam.find(slot => slot.active) || viewModel.nearTeam[0] || null;
+  const visualFarTeam = sortSlotsForArena(viewModel.farTeam, "far");
+  const visualNearTeam = sortSlotsForArena(viewModel.nearTeam, "near");
   const slots: Array<BattleViewSlotV4 | null> = [
-    viewModel.farTeam[0] || null,
-    viewModel.farTeam[1] || null,
-    viewModel.nearTeam[0] || null,
-    viewModel.nearTeam[1] || null,
+    visualFarTeam[0] || null,
+    visualFarTeam[1] || null,
+    visualNearTeam[0] || null,
+    visualNearTeam[1] || null,
   ];
   const target = normalizeMoveTarget(detail?.target || action.move.target || "normal");
   return slots.map((slot, index) => {
@@ -1805,8 +1812,7 @@ function normalizeMoveTarget(value: string | undefined): string {
   return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
 }
 
-function moveNeedsExplicitTargetForShowdown(target: string | undefined, targetable: boolean): boolean {
-  if (!targetable) return false;
+function moveNeedsExplicitTargetForShowdown(target: string | undefined): boolean {
   const id = normalizeMoveTarget(target);
   return id === "normal" ||
     id === "any" ||

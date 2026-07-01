@@ -395,7 +395,7 @@ export type BattleCommandStateV4 = {
 };
 
 export type BattleViewSlotV4 = {
-  seat: "p1A" | "p1B" | "p2A" | "p2B";
+  seat: "p1A" | "p1B" | "p2A" | "p2B" | "p3A" | "p3B" | "p4A" | "p4B";
   playerId: ShowdownPlayerIdV4;
   side: "near" | "far";
   position: "A" | "B";
@@ -1485,17 +1485,17 @@ function playerIdsForNode(node: TrainingRunGameNodeV4): ShowdownPlayerIdV4[] {
 }
 
 function seatFor(playerId: ShowdownPlayerIdV4): BattleViewSlotV4["seat"] {
-  if (playerId === "p3") return "p1B";
+  if (playerId === "p3") return "p3A";
   if (playerId === "p2") return "p2A";
-  if (playerId === "p4") return "p2B";
+  if (playerId === "p4") return "p4A";
   return "p1A";
 }
 
 function seatForActive(playerId: ShowdownPlayerIdV4, active: BattleActivePokemonV4 | undefined, index: number): BattleViewSlotV4["seat"] {
-  if (playerId === "p3") return "p1B";
-  if (playerId === "p4") return "p2B";
   const slot = active?.slot.toLowerCase() || "";
   const isSecond = slot.endsWith("b") || index > 0;
+  if (playerId === "p3") return isSecond ? "p3B" : "p3A";
+  if (playerId === "p4") return isSecond ? "p4B" : "p4A";
   if (playerId === "p2") return isSecond ? "p2B" : "p2A";
   return isSecond ? "p1B" : "p1A";
 }

@@ -3,6 +3,7 @@ import type {BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail} from "@changeba
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {useBattleV4PreviewPlayback, type BattleAnimationEventV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals} from "./battleV4Playback";
 import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineFxVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
+import {visualSeatClassForSeat} from "./battleV4VisualSeats";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import "./BattleV4Page.css";
 import "./BattleV4MovePreviewModal.css";
@@ -231,7 +232,7 @@ function PreviewFx({animation, visuals, fxVisuals}: {animation: BattleAnimationE
   return (
     <>
       {activeFx.map(fx => {
-        const targetClass = fx.targetSeat ? `target-${fx.targetSeat.toLowerCase()}` : `target-${animation.actorSeat.toLowerCase()}`;
+        const targetClass = visualSeatClassForSeat(fx.targetSeat || animation.actorSeat, "target-center");
         return (
           <div className={`battle-v4-fx-layer ${targetClass} kind-${fx.kind || animation.kind} ${fx.className}`} aria-hidden="true" key={fx.key}>
             <i className="battle-v4-fx-sprite" style={fx.style} />
@@ -248,7 +249,7 @@ function PreviewResult({animation, visuals}: {animation: BattleAnimationEventV4 
   const text = visuals.result.text;
   if (!text) return null;
   return (
-    <div className={`battle-v4-result-pop target-${seat.toLowerCase() || "center"} tone-${visuals.result.tone || "neutral"} kind-${visuals.result.kind || animation.kind}`} aria-hidden="true">
+    <div className={`battle-v4-result-pop ${visualSeatClassForSeat(seat, "target-center")} tone-${visuals.result.tone || "neutral"} kind-${visuals.result.kind || animation.kind}`} aria-hidden="true">
       {text}
     </div>
   );
@@ -353,7 +354,7 @@ function previewPokemonAnimationClass(seat: BattleProtocolSeatV4, animation: Bat
   if (!animation || !seat) return "";
   if (animation.kind === "moveStart" && animation.actorSeat === seat) return "anim-move-start";
   if (animation.kind === "moveEffect" && animation.actorSeat === seat) return "anim-move-cast";
-  if ((animation.kind === "moveEffect" || animation.kind === "damage" || animation.kind === "status" || animation.kind === "result") && animation.targetSeat === seat) return `anim-target-${animation.kind}`;
+  if ((animation.kind === "moveEffect" || animation.kind === "damage" || animation.kind === "status") && animation.targetSeat === seat) return `anim-target-${animation.kind}`;
   if (animation.kind === "heal" && animation.actorSeat === seat) return "anim-heal";
   if (animation.kind === "switchIn" && animation.actorSeat === seat) return "anim-switch-in";
   return "";

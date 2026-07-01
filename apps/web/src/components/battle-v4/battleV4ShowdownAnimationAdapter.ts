@@ -1,4 +1,5 @@
 import type {BattleAnimationKindV4, BattleProtocolEventV4, BattleProtocolSeatV4} from "./battleV4Playback";
+import {visualAllianceForSeat, visualSeatForSeat} from "./battleV4VisualSeats";
 
 export type ShowdownAnimationSourceV4 = "BattleMoveAnims" | "BattleOtherAnims" | "BattleStatusAnims" | "fallback" | "native";
 export type ShowdownAnimationFidelityV4 = "fallback" | "preset" | "native" | "exact";
@@ -1378,10 +1379,11 @@ function stepsForAnimation(
       checkpoint,
     ];
   }
-  if (context.kind === "damage") return [showEffectStep("hitmark", target, target, 280, {spriteId: "impact", fade: "both"}), {type: "damageAnim", actor: target, damage: null}, checkpoint];
+  if (context.kind === "damage") return [{type: "damageAnim", actor: target, damage: null}, checkpoint];
   if (context.kind === "heal") return [...stepsForOtherAnimation("heal", actor, actor), {type: "healAnim", actor, heal: null}, checkpoint];
   if (context.kind === "status") return [...stepsForStatusAnimation(animationKey, actor, effectSprite), {type: "resultAnim", actor, text: context.resultText, tone: "status"}, checkpoint];
   if (context.kind === "result") {
+    if (textOnlyResultEvent(context.event)) return [{type: "resultAnim", actor: target, text: context.resultText, tone: context.resultTone}, waitStep(220), checkpoint];
     if (SUPPORTED_OTHER_ANIMS.has(animationKey)) return [...stepsForOtherAnimation(animationKey, target, target), {type: "resultAnim", actor: target, text: context.resultText, tone: context.resultTone}, checkpoint];
     return [{type: "resultAnim", actor: target, text: context.resultText, tone: context.resultTone}, waitStep(220), checkpoint];
   }
@@ -3719,8 +3721,11 @@ function fallbackMoveAnimationKey(event: BattleProtocolEventV4): string {
 
 function resultAnimationKeyForEvent(event: BattleProtocolEventV4): string {
   if (event.eventType === "-miss" || event.eventType === "-immune" || event.eventType === "-fail") return "shake";
-  if (event.eventType === "-supereffective" || event.eventType === "-crit") return "hitmark";
   return "lightstatus";
+}
+
+function textOnlyResultEvent(event: BattleProtocolEventV4): boolean {
+  return event.eventType === "-crit" || event.eventType === "-supereffective" || event.eventType === "-resisted";
 }
 
 function statusFallbackForEvent(event: BattleProtocolEventV4): string {
@@ -3752,10 +3757,11 @@ function effectSpriteForAnimationKey(animationKey: string, kind: BattleAnimation
 
 function actorForSeat(seat: BattleProtocolSeatV4, ident: string): ShowdownSpriteActorV4 {
   const coords = actorCoords(seat);
+  const side = visualAllianceForSeat(seat);
   return {
     seat,
     ident,
-    side: seat.startsWith("p1") ? "near" : seat.startsWith("p2") ? "far" : "",
+    side,
     slotIndex: seat.endsWith("B") ? 1 : 0,
     ...coords,
     scale: 1,
@@ -3766,10 +3772,11 @@ function actorForSeat(seat: BattleProtocolSeatV4, ident: string): ShowdownSprite
 }
 
 function actorCoords(seat: BattleProtocolSeatV4): Pick<ShowdownSpriteActorV4, "x" | "y" | "z"> {
-  if (seat === "p1A") return {x: 86, y: 191, z: 20};
-  if (seat === "p1B") return {x: 244, y: 191, z: 20};
-  if (seat === "p2A") return {x: 489, y: 95, z: 20};
-  if (seat === "p2B") return {x: 357, y: 95, z: 20};
+  const visualSeat = visualSeatForSeat(seat);
+  if (visualSeat === "p1A") return {x: 86, y: 191, z: 20};
+  if (visualSeat === "p1B") return {x: 244, y: 191, z: 20};
+  if (visualSeat === "p2A") return {x: 489, y: 95, z: 20};
+  if (visualSeat === "p2B") return {x: 357, y: 95, z: 20};
   return {x: 320, y: 132, z: 20};
 }
 

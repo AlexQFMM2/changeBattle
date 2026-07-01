@@ -27,7 +27,16 @@ import {
 
 export type BattleProtocolArgsV4 = [string, ...string[]];
 export type BattleProtocolKwArgsV4 = Record<string, string>;
-export type BattleProtocolSeatV4 = "p1A" | "p1B" | "p2A" | "p2B" | "";
+export type BattleProtocolSeatV4 =
+  | "p1A" | "p1B"
+  | "p2A" | "p2B"
+  | "p3A" | "p3B"
+  | "p4A" | "p4B"
+  | "";
+
+type BattleSwitchInVisualCommandV4 = BattleVisualCommandV4 & {
+  semanticEvent: BattleSemanticEventV4 & {kind: "switchIn"; seat: BattleProtocolSeatV4; rawLine: string};
+};
 
 type BattleVisibleSlotV4 = BattleViewSlotV4 & {
   baseSpeciesId?: string;
@@ -162,6 +171,7 @@ export type BattlePlaybackDebugV4 = {
   lastConsumedRawIndex: number;
   hasProtocolState: boolean;
   currentAnimation: BattleAnimationEventV4 | null;
+  openingSwitchInSeats: BattleProtocolSeatV4[];
   currentMessage: BattleMessageEventV4 | null;
   protocolEvents: BattleProtocolEventV4[];
   messageEvents: BattleMessageEventV4[];
@@ -200,6 +210,7 @@ export type BattlePlaybackDebugV4 = {
     activeTimelineId: string;
     activeTimelineStepIndex: number;
     activeTimelineStep: ShowdownAnimationStepV4 | null;
+    openingSwitchInSeats: BattleProtocolSeatV4[];
     renderedTimelineSteps: ShowdownAnimationStepV4[];
     persistentFieldVisuals: BattleV4PersistentFieldVisuals;
     persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
@@ -235,6 +246,7 @@ export type BattlePlaybackStateV4 = {
   farTeam: BattleViewSlotV4[];
   messagebar: BattleMessageEventV4 | null;
   activeAnimation: BattleAnimationEventV4 | null;
+  openingSwitchInSeats: BattleProtocolSeatV4[];
   activeTimelineStep: ShowdownAnimationStepV4 | null;
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
@@ -535,6 +547,7 @@ export function useBattleV4Playback(
   const [activeVisual, setActiveVisual] = useState<BattleVisualCommandV4 | null>(null);
   const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
   const [activeTimelineStepIndex, setActiveTimelineStepIndex] = useState(-1);
+  const [openingSwitchInSeats, setOpeningSwitchInSeats] = useState<BattleProtocolSeatV4[]>([]);
   const [renderedTimelineSteps, setRenderedTimelineSteps] = useState<ShowdownAnimationStepV4[]>([]);
   const [persistentFieldVisuals, setPersistentFieldVisuals] = useState<BattleV4PersistentFieldVisuals>(EMPTY_PERSISTENT_FIELD_VISUALS);
   const [persistentSideConditionVisuals, setPersistentSideConditionVisuals] = useState<BattleV4PersistentSideConditionVisuals>(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
@@ -576,6 +589,7 @@ export function useBattleV4Playback(
       setQueue([]);
       setActiveVisual(null);
       setActiveAnimation(null);
+      setOpeningSwitchInSeats([]);
       setActiveTimelineStep(null);
       setActiveTimelineStepIndex(-1);
       setRenderedTimelineSteps([]);
@@ -692,6 +706,7 @@ export function useBattleV4Playback(
       setQueue([]);
       setActiveVisual(null);
       setActiveAnimation(null);
+      setOpeningSwitchInSeats([]);
       setActiveTimelineStep(null);
       setActiveTimelineStepIndex(-1);
       setRenderedTimelineSteps([]);
@@ -710,11 +725,37 @@ export function useBattleV4Playback(
     if (paused || playingRef.current || activeVisual || skipAnimations || !queue.length) return;
     const [command, ...rest] = queue;
     if (!command) return;
+    const openingSwitchInBatch = !visibleSlots.length ? leadingSwitchInCommands(queue) : [];
+    if (openingSwitchInBatch.length > 1) {
+      const primary = openingSwitchInBatch[0]!;
+      const event = primary.animationEvent;
+      const seats = openingSwitchInBatch.map(item => item.semanticEvent.seat);
+      playingRef.current = true;
+      setQueue(queue.slice(openingSwitchInBatch.length));
+      setActiveVisual(event ? primary : null);
+      setActiveAnimation(event);
+      setOpeningSwitchInSeats(event ? seats : []);
+      setActiveTimelineStepIndex(0);
+      setActiveTimelineStep(event?.timelineSteps[0] || null);
+      setRenderedTimelineSteps([]);
+      setVisibleSlots(slots => {
+        const startedSlots = openingSwitchInBatch.reduce(applyBattleV4VisualCommandStart, slots);
+        return event ? startedSlots : applyBattleV4OpeningSwitchInSettle(startedSlots, seats, primary);
+      });
+      battleDebugLog(debugConfig, "protocol", "playback-consume-opening-switch-batch", {
+        checkpointIds: openingSwitchInBatch.map(item => item.animationEvent?.checkpointId || item.id),
+        seats,
+        rawLines: openingSwitchInBatch.map(item => item.semanticEvent.rawLine),
+      });
+      if (!event) playingRef.current = false;
+      return;
+    }
     playingRef.current = true;
     setQueue(rest);
     setActiveVisual(command);
     const event = command.animationEvent;
     setActiveAnimation(event);
+    setOpeningSwitchInSeats([]);
     setActiveTimelineStepIndex(0);
     setActiveTimelineStep(event?.timelineSteps[0] || null);
     setRenderedTimelineSteps([]);
@@ -755,7 +796,7 @@ export function useBattleV4Playback(
       setActiveVisual(null);
       playingRef.current = false;
     }
-  }, [queue, activeVisual, skipAnimations, paused, debugConfig]);
+  }, [queue, activeVisual, skipAnimations, paused, debugConfig, visibleSlots.length]);
 
   useEffect(() => {
     if (paused || !activeVisual || !activeAnimation || skipAnimations) return;
@@ -765,9 +806,10 @@ export function useBattleV4Playback(
     const step = steps[activeTimelineStepIndex] || null;
     if (!step) {
       const releaseTimer = window.setTimeout(() => {
-        setVisibleSlots(slots => applyBattleV4VisualCommandSettle(slots, command));
+        setVisibleSlots(slots => applyBattleV4OpeningSwitchInSettle(slots, openingSwitchInSeats, command));
         setActiveAnimation(null);
         setActiveVisual(null);
+        setOpeningSwitchInSeats([]);
         setActiveTimelineStep(null);
         setActiveTimelineStepIndex(-1);
         setRenderedTimelineSteps([]);
@@ -781,7 +823,7 @@ export function useBattleV4Playback(
       setPersistentFieldVisuals(current => applyBattleV4PersistentFieldVisuals(current, command));
       setPersistentSideConditionVisuals(current => applyBattleV4PersistentSideConditionVisuals(current, command));
       setVisibleSlots(slots => {
-        const nextSlots = applyBattleV4VisualCommandSettle(slots, command);
+        const nextSlots = applyBattleV4OpeningSwitchInSettle(slots, openingSwitchInSeats, command);
         setAnimationConsumption(consumed => [...consumed, {
           checkpointId: step.checkpointId,
           kind: event.kind,
@@ -789,7 +831,7 @@ export function useBattleV4Playback(
           at: new Date().toISOString(),
           selectedAnimationKey: event.selectedAnimationKey,
           timelineSteps: event.timelineSteps,
-          consumedCheckpoints: [step.checkpointId],
+          consumedCheckpoints: openingSwitchInSeats.length ? openingSwitchInSeats.map(seat => `${seat}-opening-switchIn`) : [step.checkpointId],
           activeTimelineStepIndex,
           activeTimelineStep: step,
           visibleSlotSeatsBefore: slots.map(formatVisibleSlotSeat),
@@ -802,7 +844,7 @@ export function useBattleV4Playback(
       setActiveTimelineStepIndex(index => index + 1);
     }, timelineStepDurationMs(step));
     return () => window.clearTimeout(stepTimer);
-  }, [activeVisual, activeAnimation, activeTimelineStepIndex, skipAnimations, paused]);
+  }, [activeVisual, activeAnimation, activeTimelineStepIndex, skipAnimations, paused, openingSwitchInSeats]);
 
   const hasProtocolFacts = Boolean(snapshot && snapshot.rawLog.length > initialPlaybackRawIndex(snapshot.rawLog));
   const shouldUseProtocolState = hasProtocolState || hasProtocolFacts || skipAnimations;
@@ -813,6 +855,7 @@ export function useBattleV4Playback(
     farTeam: visibleFarTeam,
     messagebar,
     activeAnimation,
+    openingSwitchInSeats,
     activeTimelineStep,
     activeTimelineStepIndex,
     renderedTimelineSteps,
@@ -823,6 +866,7 @@ export function useBattleV4Playback(
       lastConsumedRawIndex: rawIndexRef.current,
       hasProtocolState: shouldUseProtocolState,
       currentAnimation: activeAnimation,
+      openingSwitchInSeats,
       currentMessage: messagebar,
       protocolEvents,
       messageEvents,
@@ -843,6 +887,7 @@ export function useBattleV4Playback(
         activeTimelineId: activeAnimation?.animationTimeline.id || "",
         activeTimelineStepIndex,
         activeTimelineStep,
+        openingSwitchInSeats,
         renderedTimelineSteps,
         persistentFieldVisuals,
         persistentSideConditionVisuals,
@@ -1018,6 +1063,25 @@ function actorArgForEvent(eventType: string, args: BattleProtocolArgsV4, kwArgs:
   if (eventType === "-weather" || eventType === "-fieldstart" || eventType === "-fieldend") return kwArgs.of || args[1] || "";
   if (eventType === "custom" && toId(args[1]) === "endterastallize") return args[2] || "";
   return args[1] || "";
+}
+
+function applyBattleV4OpeningSwitchInSettle(
+  slots: BattleViewSlotV4[],
+  openingSwitchInSeats: BattleProtocolSeatV4[],
+  command: BattleVisualCommandV4,
+): BattleViewSlotV4[] {
+  if (!openingSwitchInSeats.length) return applyBattleV4VisualCommandSettle(slots, command);
+  const seats = new Set(openingSwitchInSeats);
+  return slots.map(slot => seats.has(slot.seat as BattleProtocolSeatV4) ? {...slot, active: true} : slot);
+}
+
+function leadingSwitchInCommands(queue: BattleVisualCommandV4[]): BattleSwitchInVisualCommandV4[] {
+  const batch: BattleSwitchInVisualCommandV4[] = [];
+  for (const command of queue) {
+    if (command.semanticEvent.kind !== "switchIn") break;
+    batch.push(command as BattleSwitchInVisualCommandV4);
+  }
+  return batch;
 }
 
 function timelineStepDurationMs(step: ShowdownAnimationStepV4): number {
@@ -1776,11 +1840,9 @@ function parsePokemonProtocolIdent(value: string): {playerId?: string; seat: Bat
 }
 
 function seatForProtocolSlot(playerId: string, position: string): BattleProtocolSeatV4 {
-  if (playerId === "p3") return "p1B";
-  if (playerId === "p4") return "p2B";
-  if (playerId === "p1") return position === "b" ? "p1B" : "p1A";
-  if (playerId === "p2") return position === "b" ? "p2B" : "p2A";
-  return "";
+  if (!/^p[1-4]$/.test(playerId)) return "";
+  const slot = position === "b" ? "B" : "A";
+  return `${playerId}${slot}` as BattleProtocolSeatV4;
 }
 
 function messageForProtocolEvent(event: BattleProtocolEventV4): string {

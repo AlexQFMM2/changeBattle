@@ -481,7 +481,7 @@ function teamBallStates(team: LocalPokemonV4[], activeLocalPokemonId: string): B
 }
 
 function sideConditionSideForSeat(seat: BattleProtocolSeatV4): "near" | "far" {
-  return seat.startsWith("p2") ? "far" : "near";
+  return seat.startsWith("p2") || seat.startsWith("p4") ? "far" : "near";
 }
 
 function resultTextForEvent(event: BattleProtocolEventV4): string {
