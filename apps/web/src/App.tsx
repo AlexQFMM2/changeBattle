@@ -5,6 +5,7 @@ import {
   createBrowserTrainingRunAdapter,
   createChangeBattleV2Api,
   createDesktopUserProfileAdapter,
+  starChartHasSpecialTrainingLockV4,
   type AppDebugConfigV4,
   type DesktopUserProfileBridge,
   type FormalGameModeV4,
@@ -565,6 +566,7 @@ function RoutedApp({runtime}: AppProps) {
         moneyAmount={formalRun.money}
         teamRerollController={{
           money: formalRun.money,
+          locksEnabled: starChartHasSpecialTrainingLockV4(formalRun.starChartSnapshot),
           onRerollStats: input => {
             if (!formalRun) throw new Error("正式存档不存在。");
             const result = api.rerollFormalRestPokemonStats(formalRun, input);

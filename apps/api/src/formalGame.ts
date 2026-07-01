@@ -50,7 +50,7 @@ import {
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
-import {cloneStarChartV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, starChartHasEastAsiaEducationV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -712,13 +712,16 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const nextItem = formalShopItemInstance(item.itemID, detail, price);
     const nextP1 = {...p1, bag: {...bag, items: [...bag.items, nextItem]}};
     const nextRestRun = patchFormalRestP1(run.restRunSnapshot, nextP1, now);
+    const autoRestock = formalShopAutoRestockForStarChartV4(run.starChartSnapshot);
     const restockContext = createFormalShopRestockContext({...run, money: run.money - price, restRunSnapshot: nextRestRun});
-    const replenishedItem = createFormalShopSlot(run, shop.nodeId, category, index, Date.now(), now, new Set(shop.categories[category].map(entry => entry.itemID)), restockContext);
+    const nextSlotItem = autoRestock
+      ? createFormalShopSlot(run, shop.nodeId, category, index, Date.now(), now, new Set(shop.categories[category].map(entry => entry.itemID)), restockContext)
+      : {...item, stock: 0, generatedAt: now};
     const nextShop = {
       ...shop,
       categories: {
         ...shop.categories,
-        [category]: shop.categories[category].map((entry, entryIndex) => entryIndex === index ? replenishedItem : entry),
+        [category]: shop.categories[category].map((entry, entryIndex) => entryIndex === index ? nextSlotItem : entry),
       },
       updatedAt: now,
     };
@@ -927,7 +930,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   ): FormalTrainingGroundResultV4 {
     const state = ensureFormalTrainingGroundState(run, node.id);
     const rng = createRng(`${run.seed}:${node.id}:training-ground:self-study:${state.lessonRoll}:${pokemon.localPokemonId}`);
-    const event = rollFormalTrainingGroundSelfStudyEvent(pokemon, rng);
+    const event = rollFormalTrainingGroundSelfStudyEvent(pokemon, rng, starChartHasEastAsiaEducationV4(run.starChartSnapshot));
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
     const levelBefore = clampInt(pokemon.level, 1, 100, 50);
@@ -1640,7 +1643,8 @@ export function createFormalShopProductViewsV4(
   if (!shop) return [];
   const products: FormalShopProductViewV4[] = [];
   for (const category of FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER) {
-    for (let index = 0; index < (FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3); index += 1) {
+    const slotCount = Math.max(shop.categories[category]?.length || 0, FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3);
+    for (let index = 0; index < slotCount; index += 1) {
       const item = shop.categories[category]?.[index] || null;
       if (!item) continue;
       const detail = safeFormalShopProductDetail(getItemDetail, item.itemID);
@@ -2563,27 +2567,28 @@ function rerollStatsWithinCap(current: StatTableV4, totalCap: number, statCap: n
   return next;
 }
 
-function rollFormalTrainingGroundSelfStudyEvent(pokemon: LocalPokemonV4, rng: () => number): FormalTrainingGroundSelfStudyEventV4 {
-  const weights = formalTrainingGroundSelfStudyEventWeights(pokemon);
+function rollFormalTrainingGroundSelfStudyEvent(pokemon: LocalPokemonV4, rng: () => number, eastAsiaEducation = false): FormalTrainingGroundSelfStudyEventV4 {
+  const weights = formalTrainingGroundSelfStudyEventWeights(pokemon, eastAsiaEducation);
   const roll = rng();
   if (roll < weights.playful) return "playful";
   if (roll >= 1 - weights.focused) return "focused";
   return "normal";
 }
 
-function formalTrainingGroundSelfStudyEventWeights(pokemon: LocalPokemonV4): {playful: number; normal: number; focused: number} {
+function formalTrainingGroundSelfStudyEventWeights(pokemon: LocalPokemonV4, eastAsiaEducation = false): {playful: number; normal: number; focused: number} {
   const nature = toID(pokemon.nature);
   const focusedNatures = new Set(["serious", "hardy", "adamant", "modest", "jolly", "timid", "bold", "calm", "careful", "impish"]);
   const playfulNatures = new Set(["relaxed", "lax", "gentle", "quiet", "docile", "naive"]);
   // Keep this as the single offset point for nature today and star chart bonuses later.
-  let playful = 0.3;
-  let focused = 0.1;
+  let playful = eastAsiaEducation ? 0.35 : 0.3;
+  let focused = eastAsiaEducation ? 0.15 : 0.1;
+  const natureScale = eastAsiaEducation ? 0.5 : 1;
   if (focusedNatures.has(nature)) {
-    playful -= 0.05;
-    focused += 0.05;
+    playful -= 0.05 * natureScale;
+    focused += 0.05 * natureScale;
   } else if (playfulNatures.has(nature)) {
-    playful += 0.08;
-    focused -= 0.03;
+    playful += 0.08 * natureScale;
+    focused -= 0.03 * natureScale;
   }
   playful = Math.max(0.15, Math.min(0.45, playful));
   focused = Math.max(0.05, Math.min(0.2, focused));
@@ -2881,7 +2886,7 @@ function normalizeFormalShop(shop: Partial<FormalRestShopV4> | null | undefined,
   const seed = String(shop.seed || `${run.seed || "formal-shop"}:${nodeId}`);
   const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
     const rawItems = Array.isArray(shop.categories?.[category]) ? shop.categories![category] : [];
-    const slotCount = formalShopSlotsForCategory(category);
+    const slotCount = formalShopSlotsForCategory(run, category);
     const normalizedItems = rawItems.slice(0, slotCount).map((item, index) => normalizeFormalShopItem(item, category, index, nodeId, seed));
     while (normalizedItems.length < slotCount) {
       normalizedItems.push(createFormalShopSlot(run, nodeId, category, normalizedItems.length, normalizedItems.length, shop.updatedAt || new Date().toISOString(), new Set(normalizedItems.map(entry => entry.itemID))));
@@ -2913,7 +2918,7 @@ function createFormalRestShop(run: Partial<FormalGameRunV4>, nodeId: string): Fo
   const restockContext = createFormalShopRestockContext(run);
   const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
     const used = new Set<string>();
-    const items = Array.from({length: formalShopSlotsForCategory(category)}, (_, index) => {
+    const items = Array.from({length: formalShopSlotsForCategory(run, category)}, (_, index) => {
       const item = createFormalShopSlot(run, nodeId, category, index, index, now, used, restockContext);
       used.add(item.itemID);
       return item;
@@ -2923,8 +2928,10 @@ function createFormalRestShop(run: Partial<FormalGameRunV4>, nodeId: string): Fo
   return {nodeId, seed, categories, updatedAt: now};
 }
 
-function formalShopSlotsForCategory(category: FormalShopCategoryV4): number {
-  return FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3;
+function formalShopSlotsForCategory(run: Partial<FormalGameRunV4>, category: FormalShopCategoryV4): number {
+  const maxSlots = FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3;
+  const rows = formalShopRowsForStarChartV4(run.starChartSnapshot);
+  return Math.max(1, Math.min(maxSlots, rows));
 }
 
 function createFormalShopSlot(run: Partial<FormalGameRunV4>, nodeId: string, category: FormalShopCategoryV4, index: number, rollIndex: number, now: string, used: Set<string>, restockContext = createFormalShopRestockContext(run)): FormalShopItemV4 {

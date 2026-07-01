@@ -2006,6 +2006,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.training-rest-new-pokemon-detail-card.locks-hidden .training-rest-new-stat-list dd > span {
+  grid-template-columns: var(--rest-new-stat-side-number-w);
+}
+
 .training-rest-new-lock-button {
   width: var(--rest-new-detail-lock-size);
   height: var(--rest-new-detail-lock-size);

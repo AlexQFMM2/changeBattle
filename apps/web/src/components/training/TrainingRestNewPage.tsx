@@ -43,6 +43,7 @@ export type TrainingRestTrainingGroundController = {
 
 export type TrainingRestTeamRerollController = {
   money: number;
+  locksEnabled?: boolean;
   onRerollStats: (input: {pokemonId: string; part: "ivs" | "evs"; lockedStats: DexStatId[]}) => Promise<FormalRestPokemonStatRerollResultV4> | FormalRestPokemonStatRerollResultV4;
 };
 
@@ -261,6 +262,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             onLocalTeamChange={updateP1Team}
             statRerollController={teamRerollController ? {
               money: teamRerollController.money,
+              locksEnabled: teamRerollController.locksEnabled,
               onRerollStats: async input => {
                 const result = await teamRerollController.onRerollStats(input);
                 setMessage(result.message);

@@ -10,6 +10,7 @@ type TemporaryStatLocksV4 = Partial<Record<string, Partial<Record<StatRerollPart
 
 export type TrainingRestNewTeamStatRerollController = {
   money: number;
+  locksEnabled?: boolean;
   onRerollStats: (input: {pokemonId: string; part: StatRerollPartV4; lockedStats: DexStatId[]}) => Promise<{ok: boolean; message: string; cost: number}> | {ok: boolean; message: string; cost: number};
 };
 
@@ -76,6 +77,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
   const [selectedPokemonId, setSelectedPokemonId] = useState(team[0]?.localPokemonId || "");
   const [temporaryLocks, setTemporaryLocks] = useState<TemporaryStatLocksV4>({});
   const selectedPokemon = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || team[0] || null;
+  const statLocksEnabled = statRerollController?.locksEnabled ?? !statRerollController;
 
   useEffect(() => {
     if (!team.length) {
@@ -133,6 +135,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
 
   function toggleLock(pokemon: LocalPokemonV4, kind: LockKindV4, key: DexStatId | number) {
     if (kind === "ivs" || kind === "evs") {
+      if (!statLocksEnabled) return;
       const stat = key as DexStatId;
       setTemporaryLocks(current => ({
         ...current,
@@ -182,6 +185,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
             pokemon={selectedPokemon}
             onClose={onClose}
             statRerollController={statRerollController}
+            statLocksEnabled={statLocksEnabled}
             temporaryLocks={temporaryLocks[selectedPokemon.localPokemonId] || {}}
             onRandomizePart={part => void rerollStats(selectedPokemon, part)}
             onToggleLock={(kind, key) => toggleLock(selectedPokemon, kind, key)}
@@ -280,11 +284,12 @@ function TrainingRestNewTeamSlot({
   );
 }
 
-function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollController, temporaryLocks, onRandomizePart, onToggleLock}: {
+function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollController, statLocksEnabled, temporaryLocks, onRandomizePart, onToggleLock}: {
   api: ChangeBattleV2Api;
   pokemon: LocalPokemonV4;
   onClose: () => void;
   statRerollController?: TrainingRestNewTeamStatRerollController;
+  statLocksEnabled: boolean;
   temporaryLocks: Partial<Record<StatRerollPartV4, Partial<Record<DexStatId, boolean>>>>;
   onRandomizePart: (part: StatRerollPartV4) => void;
   onToggleLock: (kind: LockKindV4, key: DexStatId | number) => void;
@@ -318,7 +323,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
   }, [pokemon.localPokemonId]);
 
   return (
-    <article className="training-rest-new-pokemon-detail-card">
+    <article className={`training-rest-new-pokemon-detail-card ${statLocksEnabled ? "locks-enabled" : "locks-hidden"}`}>
       <button className="training-rest-new-team-close" type="button" onClick={onClose} aria-label="关闭队伍面板">×</button>
       <motion.aside
         className={`training-rest-new-move-preview-drawer ${previewMove ? "open" : ""}`}
@@ -374,8 +379,8 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
                     <span>{calculated[stat]}</span>
                     <i aria-hidden="true" />
                   </strong>
-                  <span>{pokemon.ivs[stat]}<LockButton locked={Boolean(temporaryLocks.ivs?.[stat])} onClick={() => onToggleLock("ivs", stat)} /></span>
-                  <span>{pokemon.evs[stat]}<LockButton locked={Boolean(temporaryLocks.evs?.[stat])} onClick={() => onToggleLock("evs", stat)} /></span>
+                  <span>{pokemon.ivs[stat]}{statLocksEnabled ? <LockButton locked={Boolean(temporaryLocks.ivs?.[stat])} onClick={() => onToggleLock("ivs", stat)} /> : null}</span>
+                  <span>{pokemon.evs[stat]}{statLocksEnabled ? <LockButton locked={Boolean(temporaryLocks.evs?.[stat])} onClick={() => onToggleLock("evs", stat)} /> : null}</span>
                 </dd>
               </div>
             );

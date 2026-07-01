@@ -22,7 +22,8 @@ export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId,
         const buying = product.slotId === buyingSlotId;
         const breaking = product.slotId === breakingSlotId;
         const restocking = product.slotId === restockingSlotId;
-        const disabled = buying || breaking;
+        const soldOut = product.stock <= 0;
+        const disabled = buying || breaking || soldOut;
         const displayProduct = breaking && breakingProduct?.slotId === product.slotId ? breakingProduct : product;
         return (
           <article
@@ -31,6 +32,7 @@ export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId,
             data-buying={buying ? "true" : "false"}
             data-breaking={breaking ? "true" : "false"}
             data-restocking={restocking ? "true" : "false"}
+            data-soldout={soldOut ? "true" : "false"}
             data-empty="false"
             key={product.slotId}
           >
@@ -44,7 +46,7 @@ export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId,
             </div>
             <div className="training-rest-shop-buy-actions">
               <button type="button" disabled={disabled} onClick={() => onDetail(displayProduct)}>详情</button>
-              <button type="button" disabled={disabled} onClick={() => onBuy(displayProduct)}>{buying ? "处理中" : "购买"}</button>
+              <button type="button" disabled={disabled} onClick={() => onBuy(displayProduct)}>{soldOut ? "售罄" : buying ? "处理中" : "购买"}</button>
             </div>
           </article>
         );

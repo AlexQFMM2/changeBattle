@@ -119,6 +119,11 @@
   animation: training-rest-shop-buy-card-restock 720ms cubic-bezier(.16, 1.2, .28, 1) both;
 }
 
+.training-rest-shop-buy-card[data-soldout="true"] {
+  opacity: 0.58;
+  filter: grayscale(0.45);
+}
+
 .training-rest-shop-buy-card[data-empty="true"] {
   display: grid;
   place-items: center;

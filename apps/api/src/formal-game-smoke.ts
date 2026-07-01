@@ -19,7 +19,11 @@ import {
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
   enableTestModeForProfileV4,
+  formalShopAutoRestockForStarChartV4,
+  formalShopRowsForStarChartV4,
   normalizeStarChartV4,
+  starChartHasEastAsiaEducationV4,
+  starChartHasSpecialTrainingLockV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
   type StarChartStateV4,
@@ -372,6 +376,26 @@ assert(starterCandidateCountForStarChart(starProfile.starChart) === 9, "more cho
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_4");
 assert(starProfile.battlePoints === 43, "more choices IV should cost 20 BP");
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 10, "more choices IV should grant 10 starter candidates");
+assert(!starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should be off before unlock");
+starProfile = {...starProfile, battlePoints: 100};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_special_training_lock");
+assert(starProfile.battlePoints === 80, "special training lock should cost 20 BP");
+assert(starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should unlock ability locks");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_east_asia_education");
+assert(starProfile.battlePoints === 65, "east asia education should cost 15 BP");
+assert(starChartHasEastAsiaEducationV4(starProfile.starChart), "east asia education should unlock self-study probability tuning");
+assert(formalShopRowsForStarChartV4(starProfile.starChart) === 1, "shop rows should start at one row");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_1");
+assert(starProfile.battlePoints === 55, "luxury counter I should cost 10 BP");
+assert(formalShopRowsForStarChartV4(starProfile.starChart) === 2, "luxury counter I should unlock second shop row");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_2");
+assert(starProfile.battlePoints === 40, "luxury counter II should cost 15 BP");
+assert(formalShopRowsForStarChartV4(starProfile.starChart) === 3, "luxury counter II should unlock third shop row");
+assert(!formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should be off before unlock");
+starProfile = {...starProfile, battlePoints: 100};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_auto_restock");
+assert(starProfile.battlePoints === 80, "shop auto restock should cost 20 BP");
+assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should unlock purchase restocking");
 
 const fullStarRun = api.createFormalGameRun(starProfile, {mode: "singles", seed: "formal-smoke-full-star-seed"});
 const fullStarPrepared = api.prepareFormalStarterCandidates(fullStarRun);
@@ -463,9 +487,15 @@ scaledGymOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon,
 
 const shop = api.getFormalRestShop(roundPlanned);
 const shopProducts = api.getFormalRestShopProducts(roundPlanned);
-assert(shopProducts.length === FORMAL_SHOP_CATEGORY_ORDER.length * 3, "formal shop product view should expose 5x3 products");
+assert(shopProducts.length === FORMAL_SHOP_CATEGORY_ORDER.length, "formal shop product view should expose one row by default");
 assert(shopProducts.every(product => product.slotId && product.itemID && product.name && product.summary && product.price > 0), "formal shop product view should include display fields");
 assert(shopProducts.every(product => shop?.categories[product.type]?.some(item => item.slotId === product.slotId)), "formal shop product view should preserve slot mapping");
+const counterOneProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_luxury_counter_1");
+const counterOneRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterOneProfile, {mode: "singles", seed: "formal-smoke-counter-one-seed"})), [0, 1, 2]));
+assert(api.getFormalRestShopProducts(counterOneRun).length === FORMAL_SHOP_CATEGORY_ORDER.length * 2, "luxury counter I should expose two shop rows");
+const counterTwoProfile = unlockStarChartNodeForProfileV4(counterOneProfile, "shop_luxury_counter_2");
+const counterTwoRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterTwoProfile, {mode: "singles", seed: "formal-smoke-counter-two-seed"})), [0, 1, 2]));
+assert(api.getFormalRestShopProducts(counterTwoRun).length === FORMAL_SHOP_CATEGORY_ORDER.length * 3, "luxury counter II should expose three shop rows");
 const tmProduct = shopProducts.find(product => product.type === "tm");
 assert(tmProduct && !/^技能机器[：:]/.test(tmProduct.name), "formal shop TM product should display move name instead of TM item prefix");
 assert(shopProducts.every(product => product.price > 0 && product.price <= 900), "formal shop products should use low formal prices instead of dex prices");
@@ -506,6 +536,7 @@ const boughtProduct = shopProducts.find(product => product.type === "berry") || 
 const buyResult = api.buyFormalRestShopItem(roundPlanned, boughtProduct.slotId);
 assert(buyResult.ok, "formal shop buy should succeed for a displayed product");
 assert(buyResult.run.money === roundPlanned.money - boughtProduct.price, "formal shop buy should deduct displayed product price");
+assert(api.getFormalRestShopProducts(buyResult.run).find(product => product.slotId === boughtProduct.slotId)?.stock === 0, "formal shop should not auto restock before star chart unlock");
 const boughtItem = buyResult.run.restRunSnapshot?.players.p1?.bag.items.find(item => item.itemID === boughtProduct.itemID && item.cost === boughtProduct.price);
 assert(boughtItem, "formal shop bought item should enter bag with displayed product price");
 if (boughtItem) {
@@ -514,6 +545,13 @@ if (boughtItem) {
   assert(sellResult.ok, "formal shop sell should accept bought item");
   assert(sellResult.run.money === buyResult.run.money + sellPrice, "formal shop sell should derive value from formal shop price");
 }
+
+const autoRestockProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_auto_restock");
+const autoRestockRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(autoRestockProfile, {mode: "singles", seed: "formal-smoke-auto-restock-seed"})), [0, 1, 2]));
+const autoRestockProduct = api.getFormalRestShopProducts(autoRestockRun)[0]!;
+const autoRestockResult = api.buyFormalRestShopItem(autoRestockRun, autoRestockProduct.slotId);
+const autoRestockedProduct = api.getFormalRestShopProducts(autoRestockResult.run).find(product => product.slotId === autoRestockProduct.slotId);
+assert(autoRestockResult.ok && autoRestockedProduct && autoRestockedProduct.stock > 0, "formal shop should auto restock after star chart unlock");
 
 const statRerollPokemon = roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const statRerollPoor = api.rerollFormalRestPokemonStats({...roundPlanned, money: 9}, {pokemonId: statRerollPokemon.localPokemonId, part: "ivs", lockedStats: []});

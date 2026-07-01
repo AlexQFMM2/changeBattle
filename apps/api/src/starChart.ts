@@ -1,13 +1,17 @@
 import {
   MAX_BP_V4,
   MORE_CHOICES_NODE_IDS,
+  EAST_ASIA_EDUCATION_NODE_ID,
+  SHOP_AUTO_RESTOCK_NODE_ID,
+  SHOP_MORE_STOCK_NODE_IDS,
   STAR_CHART_NODES_V4,
+  SPECIAL_TRAINING_LOCK_NODE_ID,
   type StarChartNodeKindV4,
   type StarChartNodeViewV4,
   type StarChartStateV4,
 } from "@changebattle-v2/core";
 
-export {MAX_BP_V4, MORE_CHOICES_NODE_IDS, STAR_CHART_NODES_V4};
+export {EAST_ASIA_EDUCATION_NODE_ID, MAX_BP_V4, MORE_CHOICES_NODE_IDS, SHOP_AUTO_RESTOCK_NODE_ID, SHOP_MORE_STOCK_NODE_IDS, SPECIAL_TRAINING_LOCK_NODE_ID, STAR_CHART_NODES_V4};
 export type {StarChartNodeKindV4, StarChartNodeViewV4, StarChartStateV4};
 
 export type StarChartProfileInputV4 = {
@@ -81,6 +85,24 @@ export function starterCandidateCountForStarChart(starChart?: StarChartStateV4 |
   const normalized = normalizeStarChartV4(starChart);
   const extra = MORE_CHOICES_NODE_IDS.reduce((sum, id) => sum + (starChartNodeLevelV4(normalized, id) > 0 ? 1 : 0), 0);
   return Math.max(6, Math.min(10, 6 + extra));
+}
+
+export function starChartHasSpecialTrainingLockV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, SPECIAL_TRAINING_LOCK_NODE_ID) > 0;
+}
+
+export function starChartHasEastAsiaEducationV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, EAST_ASIA_EDUCATION_NODE_ID) > 0;
+}
+
+export function formalShopRowsForStarChartV4(starChart?: StarChartStateV4 | null): number {
+  const normalized = normalizeStarChartV4(starChart);
+  const extraRows = SHOP_MORE_STOCK_NODE_IDS.reduce((sum, id) => sum + (starChartNodeLevelV4(normalized, id) > 0 ? 1 : 0), 0);
+  return Math.max(1, Math.min(3, 1 + extraRows));
+}
+
+export function formalShopAutoRestockForStarChartV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, SHOP_AUTO_RESTOCK_NODE_ID) > 0;
 }
 
 export function unlockStarChartNodeForProfileV4<T extends StarChartProfileV4>(profile: T, nodeId: string, now = new Date()): T {
