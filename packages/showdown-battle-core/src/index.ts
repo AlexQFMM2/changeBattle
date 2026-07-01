@@ -1,6 +1,3 @@
-import {createRequire} from "node:module";
-import path from "node:path";
-import {fileURLToPath} from "node:url";
 import type {
   BattleServiceApiV4,
   BattleServiceCreateInputV4,
@@ -22,15 +19,14 @@ import type {
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
 import {filterShowdownChoiceForRuleSetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
 import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, normalizeBattleAiProfileV4, type BattleAiChoiceResultV4} from "./ai.js";
+import {loadShowdownSimV4} from "./showdownVendor.js";
 
 export * from "./showdownCommand.js";
 export * from "./ai.js";
 export * from "./teamGenerator.js";
 export * from "./battleProfiles.js";
 
-const require = createRequire(import.meta.url);
-const vendorRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../vendor/showdown");
-const showdown = require(path.join(vendorRoot, "sim/index.js")) as {
+type ShowdownRuntimeApiV4 = {
   BattleStream: new (options?: {keepAlive?: boolean; debug?: boolean}) => BattleStreamLike;
   Teams: {pack(team: BattleServicePokemonSetV4[]): string};
   getPlayerStreams(stream: BattleStreamLike): PlayerStreamsLike;
@@ -218,6 +214,7 @@ export function createInMemoryBattleService(): BattleServiceApiV4 {
 }
 
 export async function createBattleSession(input: BattleServiceCreateInputV4 | BattleServiceSessionInputV4): Promise<BattleServiceSnapshotV4> {
+  const showdown = await loadShowdownRuntimeApiV4();
   const compiled = compileBattleSessionInput(input);
   const id = createId("battle-session");
   const stream = new showdown.BattleStream({keepAlive: true, debug: true});
@@ -253,7 +250,7 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
   };
   sessions.set(id, session);
   attachReaders(session);
-  const startInput = buildStartInput(compiled);
+  const startInput = await buildStartInput(compiled);
   session.snapshot.debug.inputLog.push(startInput);
   await streams.omniscient.write(startInput);
   session.snapshot.status = "running";
@@ -1173,7 +1170,8 @@ function parseCondition(condition: string): {hp: number; maxHp: number; status: 
   return {hp, maxHp, status: statusText, fainted: hp <= 0};
 }
 
-function buildStartInput(input: BattleServiceSessionInputV4): string {
+async function buildStartInput(input: BattleServiceSessionInputV4): Promise<string> {
+  const showdown = await loadShowdownRuntimeApiV4();
   const spec = {
     formatid: formatId(input.ruleSet, input.mode),
   };
@@ -1182,6 +1180,10 @@ function buildStartInput(input: BattleServiceSessionInputV4): string {
     lines.push(`>player ${player.playerId} ${JSON.stringify({name: player.name, team: showdown.Teams.pack(player.team)})}`);
   }
   return lines.join("\n");
+}
+
+async function loadShowdownRuntimeApiV4(): Promise<ShowdownRuntimeApiV4> {
+  return loadShowdownSimV4() as Promise<ShowdownRuntimeApiV4>;
 }
 
 function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState(), ruleSet = "standard"): BattleServicePlayerInputV4 {

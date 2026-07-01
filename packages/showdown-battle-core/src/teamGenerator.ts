@@ -1,4 +1,5 @@
 import type {TrainingModeV4, TrainingRuleSetV4, ShowdownPlayerIdV4} from "./types.js";
+import {loadShowdownTeamsV4} from "./showdownVendor.js";
 
 export type ShowdownRandomTeamPokemonSetV4 = {
   name: string;
@@ -100,12 +101,7 @@ async function getShowdownTeams(): Promise<ShowdownTeamsApiV4["Teams"]> {
   if (typeof window !== "undefined") {
     throw new Error("Showdown 随机队伍生成器只能在 Node 环境运行；浏览器启动路径不会加载 vendor。");
   }
-  showdownTeamsPromise ||= import("../vendor/showdown/sim/index.js").then(module => {
-    const loaded = module as unknown as Partial<ShowdownTeamsApiV4> & {default?: Partial<ShowdownTeamsApiV4>};
-    if (loaded.default?.Teams) return loaded.default.Teams;
-    if (!loaded.Teams) throw new Error("Showdown Teams vendor 未加载。");
-    return loaded.Teams;
-  });
+  showdownTeamsPromise ||= loadShowdownTeamsV4() as Promise<ShowdownTeamsApiV4["Teams"]>;
   return showdownTeamsPromise;
 }
 
