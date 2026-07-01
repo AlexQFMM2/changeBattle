@@ -1,4 +1,5 @@
 import {useMemo, useState, type CSSProperties} from "react";
+import type {ChangeBattleV2Api} from "@changebattle-v2/api";
 import type {RentalPokemon} from "../formalRentalTypes";
 import {MoveCard} from "../move/MoveCard";
 import {PokemonSprite, displayName} from "../formalUi";
@@ -12,12 +13,11 @@ const STAT_ROWS = [
   ["spd", "特防"],
   ["spe", "速度"],
 ] as const;
-
 type DetailTab = "basic" | "stats" | "moves";
 
 export type PokemonProfileMovePresentation = "detail" | "card";
 
-export function PokemonProfile({pokemon, selected = false}: {pokemon: RentalPokemon; selected?: boolean; compact?: boolean; revealTraining?: boolean; movePresentation?: PokemonProfileMovePresentation}) {
+export function PokemonProfile({api, pokemon, selected = false}: {api: ChangeBattleV2Api; pokemon: RentalPokemon; selected?: boolean; compact?: boolean; revealTraining?: boolean; movePresentation?: PokemonProfileMovePresentation}) {
   const [tab, setTab] = useState<DetailTab>("basic");
   return (
     <article className="formal-pokemon-profile">
@@ -28,7 +28,7 @@ export function PokemonProfile({pokemon, selected = false}: {pokemon: RentalPoke
         {selected ? <span>已选中</span> : null}
       </header>
       {tab === "basic" ? <FormalPokemonBasic pokemon={pokemon} /> : null}
-      {tab === "stats" ? <FormalPokemonStats pokemon={pokemon} /> : null}
+      {tab === "stats" ? <FormalPokemonStats api={api} pokemon={pokemon} /> : null}
       {tab === "moves" ? <FormalPokemonMoves pokemon={pokemon} /> : null}
     </article>
   );
@@ -90,16 +90,20 @@ const TYPE_ID_BY_ZH: Record<string, string> = {
   妖精: "fairy",
 };
 
-function FormalPokemonStats({pokemon}: {pokemon: RentalPokemon}) {
-  const maxStats = useMemo(() => {
-    return STAT_ROWS.reduce((max, [stat]) => Math.max(max, Number(pokemon.stats?.[stat] || 0)), 1);
-  }, [pokemon.stats]);
+function FormalPokemonStats({api, pokemon}: {api: ChangeBattleV2Api; pokemon: RentalPokemon}) {
+  const maxPotentialStats = useMemo(() => {
+    return api.dex.getPokemonMaxStats({
+      speciesId: pokemon.species_id,
+      level: pokemon.level,
+    }).stats;
+  }, [api, pokemon.level, pokemon.species_id]);
   return (
     <section className="formal-pokemon-stats-tab">
       <dl className="formal-pokemon-stat-list">
         {STAT_ROWS.map(([stat, label]) => {
           const value = Number(pokemon.stats?.[stat] || 0);
-          const statRate = Math.max(4, Math.min(100, value / maxStats * 100));
+          const statMax = Math.max(Number(maxPotentialStats?.[stat] || value || 1), 1);
+          const statRate = Math.max(4, Math.min(100, value / statMax * 100));
           return (
             <div className={`formal-pokemon-stat-row stat-tone-${stat}`} key={stat}>
               <dt>{label}</dt>

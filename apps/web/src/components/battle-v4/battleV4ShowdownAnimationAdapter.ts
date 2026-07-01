@@ -2308,7 +2308,6 @@ function stepsForNativeMove(animationKey: string, actor: ShowdownSpriteActorV4, 
     return darkSlashSteps(actor, target, "rightslash");
   case "shadowclaw":
     return [{type: "backgroundEffect", color: "#000000", durationMs: 700, opacity: .3}, ...stepsForOtherAnimation("clawattack", actor, target)];
-  case "superfang":
   case "bugbite":
     return [...stepsForOtherAnimation("bite", actor, target), ...stepsForOtherAnimation("contactattack", actor, target)];
   case "crunch":

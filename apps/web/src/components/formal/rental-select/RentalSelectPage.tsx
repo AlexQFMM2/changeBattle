@@ -1,5 +1,6 @@
 import {useEffect} from "react";
 import {LayoutGroup} from "motion/react";
+import type {ChangeBattleV2Api} from "@changebattle-v2/api";
 import type {RentalPokemon} from "../formalRentalTypes";
 import {RentalActionBar} from "./RentalActionBar";
 import {RentalCandidateList} from "./RentalCandidateList";
@@ -10,6 +11,7 @@ import {rentalOriginLabel} from "./rentalSelectModel";
 import "./RentalSelectPage.css";
 
 export type RentalSelectPageProps = {
+  api: ChangeBattleV2Api;
   candidates: RentalPokemon[];
   selected: number[];
   focusIndex: number;
@@ -33,7 +35,7 @@ export type RentalSelectPageProps = {
   showScoutControls?: boolean;
 };
 
-export function RentalSelectPage({candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack, onReroll, onSingleReroll, onInspect, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false, inspected = false, requiredCount = 3, onRandomSelect, onClearSelected, showOriginLabel = true, showScoutControls = true}: RentalSelectPageProps) {
+export function RentalSelectPage({api, candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack, onReroll, onSingleReroll, onInspect, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false, inspected = false, requiredCount = 3, onRandomSelect, onClearSelected, showOriginLabel = true, showScoutControls = true}: RentalSelectPageProps) {
   const safeFocusIndex = candidates[focusIndex] ? focusIndex : 0;
   const focusedPokemon = candidates[safeFocusIndex] || null;
   const selectedEntries = selected.map(index => ({index, pokemon: candidates[index]})).filter((entry): entry is {index: number; pokemon: RentalPokemon} => Boolean(entry.pokemon)).slice(0, requiredCount);
@@ -47,7 +49,7 @@ export function RentalSelectPage({candidates, selected, focusIndex, setFocusInde
       <LayoutGroup id="rental-starter-selection">
         <RentalActionBar selectedCount={selectedEntries.length} candidateCount={candidates.length} focusIndex={safeFocusIndex} runSeed={runSeed} originLabel={rentalOriginLabel(focusedPokemon || undefined)} requiredCount={requiredCount} showOriginLabel={showOriginLabel} onStart={onStart} onRandomSelect={onRandomSelect} onClearSelected={onClearSelected} />
         <main className="rental-select-page-main">
-          <RentalPokemonDetail pokemon={focusedPokemon} selected={selected.includes(safeFocusIndex)} revealTraining={revealTraining} onToggle={() => focusedPokemon ? onToggle(safeFocusIndex) : undefined} />
+          <RentalPokemonDetail api={api} pokemon={focusedPokemon} selected={selected.includes(safeFocusIndex)} revealTraining={revealTraining} onToggle={() => focusedPokemon ? onToggle(safeFocusIndex) : undefined} />
           <aside className="rental-select-page-side">
             <RentalTeamPreview entries={selectedEntries} requiredCount={requiredCount} onToggle={onToggle} />
             {showScoutControls ? (

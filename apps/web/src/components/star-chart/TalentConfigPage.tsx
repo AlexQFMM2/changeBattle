@@ -70,7 +70,6 @@ export function TalentConfigPage({api, profile, onProfileChange, onBack, preview
   }
 
   function onWheel(event: WheelEvent<HTMLDivElement>) {
-    event.preventDefault();
     const delta = event.deltaY > 0 ? -0.08 : 0.08;
     zoomBy(delta);
   }

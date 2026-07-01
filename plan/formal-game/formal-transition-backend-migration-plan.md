@@ -35,11 +35,11 @@
 
 ### 1. 抽出正式流程后端 bridge
 
-- [ ] 新增 `DesktopFormalGameBridge` 类型。
-- [ ] Electron preload 暴露 `window.changeBattleV2.formalGame`。
-- [ ] Electron main 注册正式流程 IPC handler。
-- [ ] handler 内使用 API 层函数执行计算，避免 renderer 直接跑重逻辑。
-- [ ] Web runtime 没有 desktop bridge 时保留当前同步 API fallback，方便浏览器调试页继续可用。
+- [x] 新增 `DesktopFormalGameBridge` 类型。
+- [x] Electron preload 暴露 `window.changeBattleV2.formalGame`。
+- [x] Electron main 注册正式流程 IPC handler。
+- [x] handler 通过 desktop worker 执行 API 层计算，避免 renderer/main 直接跑重逻辑。
+- [x] Web runtime 没有 desktop bridge 时保留当前同步 API fallback，方便浏览器调试页继续可用。
 
 建议第一版 bridge 方法：
 
@@ -51,10 +51,10 @@
 
 ### 2. 迁移正式开局候选生成
 
-- [ ] `FormalGameTransitionPage` 改为优先调用 bridge。
-- [ ] renderer 不再直接执行 `prepareFormalStarterCandidates`。
-- [ ] 中转动画开始后立即发起异步计算，动画结束时如果结果未返回则继续等待。
-- [ ] 错误仍显示在当前中转页，不跳空页面。
+- [x] `FormalGameTransitionPage` 改为优先调用 bridge。
+- [x] renderer 不再直接执行 `prepareFormalStarterCandidates`。
+- [x] 中转动画开始后立即发起异步计算，动画结束时如果结果未返回则继续等待。
+- [x] 错误仍显示在当前中转页，不跳空页面。
 
 验收：
 
@@ -64,11 +64,11 @@
 
 ### 3. 拆分 7 场计划与 coop 队友生成
 
-- [ ] 修改 `prepareFormalRoundPlan`：coop 模式不再生成 `p3` 队友。
-- [ ] round plan 只包含本轮节点、对手预览、休整快照所需结构。
-- [ ] 休整页和对手预览不依赖已生成的 `p3`。
-- [ ] 更新文案：coop 队友不是“进入 7 场计划时生成”，而是“进入战斗时派遣/生成”。
-- [ ] 补兼容 normalize：旧存档里已有 `p3` 时不崩溃，新存档不写入 round plan 的队友。
+- [x] 修改 `prepareFormalRoundPlan`：coop 模式不再生成 `p3` 队友。
+- [x] round plan 只包含本轮节点、对手预览、休整快照所需结构。
+- [x] 休整页和对手预览不依赖已生成的 `p3`。
+- [x] 更新文案：coop 队友不是“进入 7 场计划时生成”，而是“进入战斗时派遣/生成”。
+- [x] 补兼容 normalize：旧存档里已有 `p3` 时不崩溃，新存档不写入 round plan 的队友。
 
 验收：
 
@@ -78,10 +78,10 @@
 
 ### 4. 迁移正式 round plan 生成到后端
 
-- [ ] `FormalRoundTransitionPage` 改为优先调用 bridge 的 `prepareFormalRoundPlan`。
-- [ ] renderer fallback 只用于 web 调试。
-- [ ] 保存 run 的职责保持清晰：要么 bridge 返回已保存 run，要么 renderer 只保存轻量返回结果，避免重复写。
-- [ ] 中转页 tip 区分“生成赛程”和“等待保存”。
+- [x] `FormalRoundTransitionPage` 改为优先调用 bridge 的 `prepareFormalRoundPlan`。
+- [x] renderer fallback 只用于 web 调试。
+- [x] 保存 run 的职责保持清晰：bridge 返回计算结果，renderer 沿用现有存档路径保存。
+- [x] 中转页 tip 区分“生成赛程”和“等待保存”。
 
 验收：
 
@@ -91,13 +91,13 @@
 
 ### 5. 正式战斗中转页生成 coop 队友
 
-- [ ] 新增正式专用战斗中转逻辑，不再完全复用训练模式 `createBattleGameFromTrainingNode(run, node)`。
-- [ ] 输入使用完整 `FormalGameRunV4`，不是只传 `restRunSnapshot`。
-- [ ] 根据当前节点和 run 状态生成本场 `p3`：
+- [x] 新增正式专用战斗中转逻辑，不再完全复用训练模式 `createBattleGameFromTrainingNode(run, node)`。
+- [x] 输入使用完整 `FormalGameRunV4`，不是只传 `restRunSnapshot`。
+- [x] 根据当前节点和 run 状态生成本场 `p3`：
   - 第一版仍可沿用现有 script/AI 生成器。
   - 后续接入招募队友时，从 run 的招募状态中选择队友。
-- [ ] 将生成的 `p3` 写入本场 battle session input，不提前固化到 7 场计划。
-- [ ] `p3` controller 继续为 `script`，并沿用已修复的自动出招流程。
+- [x] 将生成的 `p3` 写入本场 battle session input，不提前固化到 7 场计划。
+- [x] `p3` controller 继续为 `script`，并沿用已修复的自动出招流程。
 
 验收：
 
@@ -108,10 +108,10 @@
 
 ### 6. 迁移 battle session input 编译
 
-- [ ] 把正式战斗的 `sessionInput` 编译移到 bridge/backend。
-- [ ] 保留训练模式现有前端编译路径，或后续单独迁移训练模式。
-- [ ] 特殊系统准入继续由 run/node ruleSet + 背包专属道具决定。
-- [ ] bridge 返回创建 battle session 所需输入，或直接在后端调用 battle service 并返回 session id。
+- [x] 把正式战斗的 `sessionInput` 编译移到 bridge/backend。
+- [x] 保留训练模式现有前端编译路径，或后续单独迁移训练模式。
+- [x] 特殊系统准入继续由 run/node ruleSet + 背包专属道具决定。
+- [x] bridge 返回创建 battle session 所需输入；renderer 仍调用 battle service 创建 session。
 
 推荐分两步：
 
@@ -126,10 +126,10 @@
 
 ### 7. 迁移正式结算
 
-- [ ] `FormalSettlementTransitionPage` 改为调用 bridge 结算。
-- [ ] `prepareFormalSettlement`、`claimFormalSettlementBp`、保存 run/profile 的顺序在后端统一处理。
-- [ ] 战斗 snapshot 后的 `settleFormalBattleRoundV4` 也迁移到 bridge。
-- [ ] 保留幂等字段，避免刷新或重复事件导致重复发钱/升级/BP。
+- [x] `FormalSettlementTransitionPage` 改为调用 bridge 结算。
+- [x] `prepareFormalSettlement`、`claimFormalSettlementBp`、保存 run/profile 的顺序在 desktop worker 统一计算，renderer 负责保存。
+- [x] 战斗 snapshot 后的 `settleFormalBattleRoundV4` 也迁移到 bridge。
+- [x] 保留幂等字段，避免刷新或重复事件导致重复发钱/升级/BP。
 
 验收：
 
@@ -174,3 +174,12 @@
 - 第一版不重做 battle service 协议，只调整计算位置和正式流程职责。
 - 旧存档可能已有 coop `p3`，normalize 需要兼容，但新存档不再提前生成。
 - 训练模式是否迁移到后端另开计划，本计划聚焦正式流程。
+
+## Current Status
+
+- [x] 正式流程重计算已从 renderer 迁出。
+- [x] Electron desktop 通过 `formalComputeWorker` 执行正式流程计算，避免阻塞 renderer 和 main。
+- [x] Coop 队友已从 7 场计划阶段延后到正式战斗中转页生成。
+- [x] Desktop 启动页已增加静态 boot splash，窗口打开后立即显示启动反馈。
+- [x] Desktop 启动体验与正式流程重计算拆分已收口。
+- [ ] 后续正式玩法另开计划：交换、招募等功能完善，以及测试与修复 bug。

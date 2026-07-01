@@ -1,5 +1,13 @@
 .rental-pokemon-detail {
   --rental-pokemon-detail-width: 466px;
+  /* 详情蓝框定位：基于当前木框背景区域绝对定位，x/y 为左上角偏移，w/h 为蓝框宽高。 */
+  --rental-pokemon-detail-profile-x: 0px;
+  --rental-pokemon-detail-profile-y: 0px;
+  --rental-pokemon-detail-profile-w: 100%;
+  --rental-pokemon-detail-profile-h: 100%;
+  --rental-pokemon-detail-profile-bg: transparent;
+  --rental-pokemon-detail-stat-row-h: 13px;
+  --rental-pokemon-detail-stat-row-gap: 1px;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -8,11 +16,9 @@
   border-image-slice: 58 fill;
   border-image-width: 18px;
   border-image-repeat: stretch;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 58%), rgb(255 246 218 / 90%)),
-    #fff8df;
-  padding: 6px;
-  overflow: hidden;
+  background: linear-gradient(180deg, rgb(255 255 255 / 58%), rgb(255 246 218 / 90%)), #fff8df;
+  padding: 0;
+  overflow: visible;
 }
 
 .rental-pokemon-detail.empty {
@@ -20,9 +26,7 @@
   place-items: center;
   border: 1px solid rgb(79 57 31 / 36%);
   border-radius: 6px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 48%), rgb(255 246 218 / 86%)),
-    #fff8df;
+  background: linear-gradient(180deg, rgb(255 255 255 / 48%), rgb(255 246 218 / 86%)), #fff8df;
   padding: 12px;
   text-align: center;
 }
@@ -51,6 +55,15 @@
   font-size: 7px;
 }
 
+.rental-pokemon-detail > .formal-pokemon-profile {
+  position: absolute;
+  left: var(--rental-pokemon-detail-profile-x);
+  top: var(--rental-pokemon-detail-profile-y);
+  width: var(--rental-pokemon-detail-profile-w);
+  height: var(--rental-pokemon-detail-profile-h);
+  background: var(--rental-pokemon-detail-profile-bg);
+}
+
 .rental-pokemon-detail .pokemon-profile.compact {
   width: 100%;
   height: 100%;
@@ -62,11 +75,15 @@
 .rental-pokemon-detail .profile-info {
   border-width: 2px;
   border-radius: 6px;
-  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 36%), 0 4px 10px rgb(70 45 20 / 16%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 244 190 / 36%),
+    0 4px 10px rgb(70 45 20 / 16%);
 }
 
 .rental-pokemon-detail .pokemon-profile.special-profile .profile-card {
-  box-shadow: inset 0 0 0 1px rgb(255 244 190 / 46%), 0 0 15px rgb(238 189 46 / 38%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 244 190 / 46%),
+    0 0 15px rgb(238 189 46 / 38%);
 }
 
 .rental-pokemon-detail .profile-card {
@@ -103,17 +120,25 @@
 
 .rental-pokemon-detail .profile-info {
   padding: 24px 6px 6px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 62%), rgb(255 253 245 / 92%)),
-    #fffdf5;
+  background: transparent;
   color: #25332b;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .rental-pokemon-detail .profile-info h3 {
   margin-bottom: 4px;
   padding: 3px 6px;
   font-size: 8px;
+}
+
+.rental-pokemon-detail .formal-pokemon-stat-list {
+  grid-template-rows: repeat(6, var(--rental-pokemon-detail-stat-row-h));
+  gap: var(--rental-pokemon-detail-stat-row-gap);
+}
+
+.rental-pokemon-detail .formal-pokemon-stat-list div {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .rental-pokemon-detail .info-strip {
@@ -146,9 +171,8 @@
   border-radius: 4px;
   font-size: 6px;
   line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
 }
 
 .rental-pokemon-detail .stat-grid {

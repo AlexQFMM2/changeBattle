@@ -47,6 +47,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
     <section className="formal-starter-select-page">
       <button className="formal-starter-select-back" type="button" onClick={onBack}>返回主页</button>
       <RentalSelectPage
+        api={api}
         candidates={candidates}
         selected={selected}
         focusIndex={focusIndex}
