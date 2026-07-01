@@ -32,6 +32,9 @@ const requiredSnippets = [
 const forbiddenSnippets = [
   'from "@changebattle-v2/',
   'require("@changebattle-v2/',
+  'from "react"',
+  'import "react"',
+  'require("react")',
   "file:///D:/",
 ];
 
