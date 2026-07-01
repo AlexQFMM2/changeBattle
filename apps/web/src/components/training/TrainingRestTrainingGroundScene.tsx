@@ -427,13 +427,13 @@ function TrainingResultPanel({api, state}: {api: ChangeBattleV2Api; state: Train
 }
 
 function SelfStudyResultPanel({api, before, after, result}: {api: ChangeBattleV2Api; before: LocalPokemonV4; after: LocalPokemonV4; result: FormalTrainingGroundResultV4}) {
-  const eventText = result.selfStudyEvent === "sleep"
-    ? "睡了一节课"
+  const eventText = result.selfStudyEvent === "playful"
+    ? "贪玩"
     : result.selfStudyEvent === "focused"
       ? "认真学习"
       : "普通自习";
-  const summaryText = result.selfStudyEvent === "sleep"
-    ? "这次状态不太好，具体变化看右侧能力表。"
+  const summaryText = result.selfStudyEvent === "playful"
+    ? "这节课有点分心，但还是有收获。"
     : result.selfStudyEvent === "focused"
       ? "这堂课收获很明显，具体提升看右侧能力表。"
       : "完成了一节自习，具体变化看右侧能力表。";

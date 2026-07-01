@@ -1,3 +1,4 @@
+import type {CSSProperties} from "react";
 import "./TrainingRestShopDialogue.css";
 
 export type TrainingRestShopDialogueAction = {
@@ -11,16 +12,20 @@ export type TrainingRestShopDialogueProps = {
   speaker?: string;
   text: string;
   itemName?: string;
+  portraitSrc?: string;
   actions?: TrainingRestShopDialogueAction[];
   onBackdropClick?: () => void;
 };
 
-export function TrainingRestShopDialogue({speaker = "店员", text, itemName, actions = [], onBackdropClick}: TrainingRestShopDialogueProps) {
+const DEFAULT_DIALOGUE_PORTRAIT_SRC = "/shop/rest-store/clerk-buy-dialogue-v4.png";
+
+export function TrainingRestShopDialogue({speaker = "店员", text, itemName, portraitSrc = DEFAULT_DIALOGUE_PORTRAIT_SRC, actions = [], onBackdropClick}: TrainingRestShopDialogueProps) {
   return (
     <section
       className="training-rest-shop-dialogue"
       role="dialog"
       aria-label="商店对话"
+      style={{"--training-rest-shop-dialogue-portrait-src": `url("${portraitSrc}")`} as CSSProperties}
       onClick={event => {
         if (event.target === event.currentTarget) onBackdropClick?.();
       }}

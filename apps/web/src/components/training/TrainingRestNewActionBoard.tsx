@@ -17,7 +17,7 @@ export type TrainingRestNewActionBoardProps = {
 
 const DEFAULT_REST_ACTION_ENTRIES: TrainingRestNewActionEntry[] = REST_CENTER_PAPER_ACTIONS_V4.map(entry => ({
   label: entry.label,
-  iconSrc: entry.iconSrc,
+  iconSrc: entry.id === "training-ground" ? "/aboutIcon/train.png" : entry.iconSrc,
   iconText: entry.iconText,
   disabled: entry.disabled,
   action: entry.action,

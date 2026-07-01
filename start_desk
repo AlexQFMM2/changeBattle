@@ -63,6 +63,7 @@ stop_existing_battle_service() {
 }
 
 stop_existing_battle_service
+pnpm --filter @changebattle-v2/core build
 pnpm --filter @changebattle-v2/showdown-battle-core exec tsc -p tsconfig.json
 (
   cd "$BATTLE_SERVICE_DIR"

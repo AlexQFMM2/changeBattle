@@ -5,6 +5,7 @@ import type {
   DexStatId,
   ShowdownDexService,
 } from "@changebattle-v2/showdown-dex-core";
+import type {PokemonPowerProfileV4} from "@changebattle-v2/core";
 
 export type ShowdownPlayerIdV4 = "p1" | "p2" | "p3" | "p4";
 export type TrainingModeV4 = "singles" | "doubles" | "coop";
@@ -163,6 +164,9 @@ export type LocalPokemonV4 = {
   moves: TrainingMoveSlotV4[];
   evs: StatTableV4;
   ivs: StatTableV4;
+  powerProfile?: PokemonPowerProfileV4;
+  ivTotalCap?: number;
+  evTotalCap?: number;
   locks?: LocalPokemonLocksV4;
   entryHp: number;
   entryStatus: TrainingStatusV4;

@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import {motion} from "motion/react";
-import type {ChangeBattleV2Api, DexStatId, LocalPokemonV4, StatTableV4, TrainingMoveSlotV4, TrainingPlayerDraftV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DexStatId, LocalPokemonV4, TrainingMoveSlotV4, TrainingPlayerDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "../dex/MoveCard.css";
 import "./TrainingRestNewTeamPanel.css";
@@ -12,8 +12,6 @@ export type TrainingRestNewTeamPanelProps = {
   onClose: () => void;
   onLocalTeamChange: (localTeam: TrainingPlayerDraftV4["localTeam"]) => void;
 };
-
-type DexMoveSummaryV4 = ReturnType<ChangeBattleV2Api["getPokemonDetail"]>["learnset"][number];
 
 const STATUS_LABEL: Record<string, string> = {
   "": "正常",
@@ -62,7 +60,6 @@ const NATURE_LABEL: Record<string, string> = {
   Quirky: "浮躁",
 };
 
-const FALLBACK_MOVES = ["tackle", "quickattack", "protect", "rest"];
 type LockKindV4 = "ivs" | "evs" | "moves";
 
 export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocalTeamChange}: TrainingRestNewTeamPanelProps) {
@@ -97,15 +94,9 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
         patch.abilityName = ability?.name || current.abilityName;
         patch.abilityNameZh = ability?.nameZh || ability?.name || current.abilityNameZh;
       }
-      if (part === "all" || part === "ivs") patch.ivs = randomIvs(current.ivs, current.locks?.ivs);
-      if (part === "all" || part === "evs") patch.evs = randomEvs(current.evs, current.locks?.evs);
+      if (part === "all" || part === "ivs") patch.ivs = randomStatsWithinCap(current.ivs, current.ivTotalCap ?? 186, 31, current.locks?.ivs);
+      if (part === "all" || part === "evs") patch.evs = randomStatsWithinCap(current.evs, current.evTotalCap ?? 510, 252, current.locks?.evs);
       return {...current, ...patch};
-    });
-  }
-
-  function randomizeMoves(pokemon: LocalPokemonV4) {
-    updatePokemon(pokemon.localPokemonId, current => {
-      return {...current, moves: randomMoveSlots(api, api.getPokemonSelfLearnSkills(current.speciesId), current.moves, current.locks?.moves)};
     });
   }
 
@@ -147,7 +138,6 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
             pokemon={selectedPokemon}
             onClose={onClose}
             onRandomizePart={part => randomizePart(part, selectedPokemon)}
-            onRandomizeMoves={() => randomizeMoves(selectedPokemon)}
             onToggleLock={(kind, key) => toggleLock(selectedPokemon, kind, key)}
           />
         ) : <div className="training-rest-new-team-empty">当前队伍里还没有宝可梦。<button type="button" onClick={onClose}>关闭</button></div> : null}
@@ -244,12 +234,11 @@ function TrainingRestNewTeamSlot({
   );
 }
 
-function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, onRandomizeMoves, onToggleLock}: {
+function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, onToggleLock}: {
   api: ChangeBattleV2Api;
   pokemon: LocalPokemonV4;
   onClose: () => void;
   onRandomizePart: (part: "all" | "nature" | "ability" | "ivs" | "evs") => void;
-  onRandomizeMoves: () => void;
   onToggleLock: (kind: LockKindV4, key: DexStatId | number) => void;
 }) {
   const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
@@ -329,7 +318,6 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, onRandomizePart, o
       <div className="training-rest-new-detail-actions">
         <button type="button" onClick={() => onRandomizePart("ivs")}>🎲 随机个体（免费）</button>
         <button type="button" onClick={() => onRandomizePart("evs")}>🎲 随机努力（免费）</button>
-        <button type="button" onClick={onRandomizeMoves}>🎲 随机技能（免费）</button>
       </div>
     </article>
   );
@@ -473,53 +461,19 @@ function finalizePokemon(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): Local
   return {...pokemon, maxHp, entryHp: Math.max(0, Math.min(maxHp, pokemon.entryHp))};
 }
 
-function randomMoveSlots(api: ChangeBattleV2Api, learnset: DexMoveSummaryV4[], currentMoves: TrainingMoveSlotV4[] = [], locks: Record<number, boolean> = {}): TrainingMoveSlotV4[] {
-  const usable = shuffle(learnset.filter(move => move.id && move.pp > 0));
-  const selected = usable.slice(0, 4);
-  for (const moveId of FALLBACK_MOVES) {
-    if (selected.length >= 4) break;
-    try {
-      selected.push(api.getMoveDetail(moveId));
-    } catch {
-      // Ignore missing fallback.
-    }
-  }
-  const nextMoves = selected.slice(0, 4).map(moveSlot);
-  return Array.from({length: 4}, (_, index) => locks[index] && currentMoves[index] ? currentMoves[index] : nextMoves[index] || currentMoves[index] || nextMoves[0]).filter(Boolean);
-}
-
-function moveSlot(move: DexMoveSummaryV4): TrainingMoveSlotV4 {
-  return {
-    moveId: move.id,
-    name: move.name,
-    nameZh: move.nameZh,
-    type: move.type,
-    category: move.category,
-    power: move.power,
-    accuracy: move.accuracy,
-    pp: move.pp,
-    maxPp: move.pp,
-    remainingPp: move.pp,
-  };
-}
-
-function randomIvs(current: StatTableV4, locks: Partial<Record<DexStatId, boolean>> = {}): StatTableV4 {
-  return Object.fromEntries(STAT_ROWS.map(([stat]) => [stat, locks[stat] ? current[stat] : randomInt(0, 31)])) as StatTableV4;
-}
-
-function randomEvs(current: StatTableV4, locks: Partial<Record<DexStatId, boolean>> = {}): StatTableV4 {
-  const evs = Object.fromEntries(STAT_ROWS.map(([stat]) => [stat, 0])) as StatTableV4;
-  let remaining = 510 - STAT_ROWS.reduce((sum, [stat]) => sum + (locks[stat] ? current[stat] : 0), 0);
+function randomStatsWithinCap(current: Record<DexStatId, number>, totalCap: number, statCap: number, locks: Partial<Record<DexStatId, boolean>> = {}): Record<DexStatId, number> {
+  const next = Object.fromEntries(STAT_ROWS.map(([stat]) => [stat, 0])) as Record<DexStatId, number>;
+  let remaining = Math.max(0, Math.min(totalCap, statCap * STAT_ROWS.length) - STAT_ROWS.reduce((sum, [stat]) => sum + (locks[stat] ? Math.max(0, current[stat] || 0) : 0), 0));
   for (const [stat] of STAT_ROWS) {
-    if (locks[stat]) evs[stat] = current[stat];
+    if (locks[stat]) next[stat] = Math.max(0, Math.min(statCap, current[stat] || 0));
   }
   for (const [stat] of shuffle(STAT_ROWS.filter(([stat]) => !locks[stat]))) {
     if (remaining <= 0) break;
-    const value = randomInt(0, Math.min(252, remaining));
-    evs[stat] = value;
+    const value = randomInt(0, Math.min(statCap, remaining));
+    next[stat] = value;
     remaining -= value;
   }
-  return evs;
+  return next;
 }
 
 function pick<T>(entries: T[]): T | undefined {

@@ -137,7 +137,7 @@ export type FormalTrainingGroundApplyInputV4 = {
   replaceMoveIndex?: number;
 };
 
-export type FormalTrainingGroundSelfStudyEventV4 = "sleep" | "normal" | "focused";
+export type FormalTrainingGroundSelfStudyEventV4 = "playful" | "normal" | "focused";
 
 export type FormalTrainingGroundSelfStudyChangeV4 = {
   levelBefore: number;
@@ -196,6 +196,8 @@ const PLAYER_BACK_IMAGES = [
   "/npc/player-back/rosa-b2w2-rosa-back-405f562e.png",
   "/npc/player-back/white-bw-touko-back-4156e303.png",
 ];
+
+const POWER_PROFILE_ORDER: PokemonPowerProfileV4[] = ["rookie", "normal", "elite", "boss", "champion"];
 
 export type FormalShopRestockContextV4 = {
   roundIndex: number;
@@ -847,11 +849,20 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
     const levelBefore = clampInt(pokemon.level, 1, 100, 50);
-    const delta = event === "sleep" ? -10 : event === "focused" ? 20 : 10;
-    const ivDelta = event === "sleep" ? -10 : event === "focused" ? 5 : 2;
-    const levelDelta = event === "sleep" ? -1 : event === "focused" ? 2 : 1;
-    const nextIvs = adjustStatTable(beforeIvs, ivDelta, 0, 31);
-    const nextEvs = adjustStatTable(beforeEvs, delta, 0, 252);
+    const beforeProfile = normalizePokemonInstancePowerProfile(pokemon, beforeIvs, beforeEvs);
+    const oldIvCap = normalizePokemonIvTotalCap(pokemon.ivTotalCap, beforeProfile, statTotal(beforeIvs));
+    const oldEvCap = normalizePokemonEvTotalCap(pokemon.evTotalCap, beforeProfile, statTotal(beforeEvs));
+    const profileSteps = event === "focused" ? 2 : event === "normal" ? 1 : 0;
+    const nextProfile = advancePowerProfile(beforeProfile, profileSteps);
+    const rolledIvCap = profileSteps > 0 ? rollPowerProfileIvCap(nextProfile, rng) : oldIvCap;
+    const rolledEvCap = profileSteps > 0 ? rollPowerProfileEvCap(nextProfile, rng) : oldEvCap;
+    const nextIvCap = nextProfile === "champion" ? 186 : Math.max(oldIvCap, rolledIvCap, statTotal(beforeIvs));
+    const nextEvCap = nextProfile === "champion" ? 510 : Math.max(oldEvCap, rolledEvCap, statTotal(beforeEvs));
+    const nextIvTarget = event === "playful" ? partialTrainingTarget(statTotal(beforeIvs), nextIvCap, 0.25, 1) : nextIvCap;
+    const nextEvTarget = event === "playful" ? partialTrainingTarget(statTotal(beforeEvs), nextEvCap, 0.25, 8) : nextEvCap;
+    const levelDelta = event === "focused" ? 4 : event === "normal" ? 2 : 1;
+    const nextIvs = raiseStatTableToTotal(beforeIvs, nextIvTarget, 31, shuffledStats(rng), rng);
+    const nextEvs = raiseStatTableToTotal(beforeEvs, nextEvTarget, 252, shuffledStats(rng), rng);
     const levelAfter = clampInt(levelBefore + levelDelta, 1, 100, levelBefore);
     const detail = safePokemon(pokemon.speciesId);
     const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level: levelAfter, nature: pokemon.nature || "Serious", evs: nextEvs, ivs: nextIvs}).stats.hp;
@@ -862,14 +873,17 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       level: levelAfter,
       ivs: nextIvs,
       evs: nextEvs,
+      powerProfile: nextProfile,
+      ivTotalCap: nextIvCap,
+      evTotalCap: nextEvCap,
       maxHp,
       entryHp: clampInt(Math.round(maxHp * hpRatio), 0, maxHp, maxHp),
     };
-    const eventText = event === "sleep"
-      ? "睡了一节课，状态反而松散了一点"
+    const eventText = event === "playful"
+      ? "贪玩了一节课，但也学到了一点东西"
       : event === "focused"
-        ? "认真学习了一整节课，进步很明显"
-        : "踏踏实实自习了一节课，稳稳有提升";
+        ? "认真学习了一整节课，数值等级大幅提升"
+        : "踏踏实实自习了一节课，数值等级提升了";
     const message = `${pokemon.nameZh || pokemon.name}${eventText}。${lesson.completeText}`;
     const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message);
     return {
@@ -1084,6 +1098,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const nature = pokemon.nature || "Serious";
     const evs = normalizeStats(pokemon.evs, 0, 252);
     const ivs = normalizeStats(pokemon.ivs, 31, 31);
+    const powerProfile = normalizePokemonInstancePowerProfile(pokemon, ivs, evs);
+    const ivTotalCap = normalizePokemonIvTotalCap(pokemon.ivTotalCap, powerProfile, statTotal(ivs));
+    const evTotalCap = normalizePokemonEvTotalCap(pokemon.evTotalCap, powerProfile, statTotal(evs));
     const level = clampInt(pokemon.level, 1, 100, 50);
     const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level, nature, evs, ivs}).stats.hp;
     return {
@@ -1096,6 +1113,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       nature,
       evs,
       ivs,
+      powerProfile,
+      ivTotalCap,
+      evTotalCap,
       itemId: "",
       heldItemInstanceId: undefined,
       moves: normalizeMoves(dex, pokemon.moves?.map(move => move.moveId) || [], 4),
@@ -1929,8 +1949,10 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   const ability = pickOne(detail.abilities, options.rng) || detail.abilities[0];
   const level = levelForPowerProfile(options.powerProfile, options.rng);
   const nature = pickOne(NATURES, options.rng) || "Serious";
-  const evs = evsForPowerProfile(options.powerProfile, options.role, options.rng);
-  const ivs = ivsForPowerProfile(options.powerProfile, options.rng);
+  const ivTotalCap = rollPowerProfileIvCap(options.powerProfile, options.rng);
+  const evTotalCap = rollPowerProfileEvCap(options.powerProfile, options.rng);
+  const evs = evsForPowerProfileCap(evTotalCap, options.role, options.rng);
+  const ivs = distributeStatBudget(ivTotalCap, 31, STAT_IDS, options.rng);
   const moves = normalizeMovesForDetail(dex, detail, options.role, options.powerProfile, options.rng);
   const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level, nature, evs, ivs}).stats.hp;
   return {
@@ -1951,6 +1973,9 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
     moves,
     evs,
     ivs,
+    powerProfile: options.powerProfile,
+    ivTotalCap,
+    evTotalCap,
     entryHp: maxHp,
     entryStatus: "",
     maxHp,
@@ -2100,14 +2125,16 @@ function levelForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number)
 }
 
 function ivsForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): StatTableV4 {
-  const rule = powerProfileRule(profile);
-  const total = randomInt(rule.ivTotal[0], rule.ivTotal[1], rng);
+  const total = rollPowerProfileIvCap(profile, rng);
   return distributeStatBudget(total, 31, STAT_IDS, rng);
 }
 
 function evsForPowerProfile(profile: PokemonPowerProfileV4, role: FormalStarterRoleV4, rng: () => number): StatTableV4 {
-  const rule = powerProfileRule(profile);
-  const budget = randomInt(rule.evTotal[0], rule.evTotal[1], rng);
+  const budget = rollPowerProfileEvCap(profile, rng);
+  return evsForPowerProfileCap(budget, role, rng);
+}
+
+function evsForPowerProfileCap(evTotalCap: number, role: FormalStarterRoleV4, rng: () => number): StatTableV4 {
   const priority: DexStatId[] = role === "defense" || role === "flex-defense" || role === "support" || role === "disruption"
     ? ["hp", "def", "spd", "atk", "spa", "spe"]
     : role === "trick-room"
@@ -2115,15 +2142,65 @@ function evsForPowerProfile(profile: PokemonPowerProfileV4, role: FormalStarterR
       : role === "speed-control"
         ? ["spe", "hp", "def", "spd", "atk", "spa"]
       : ["spe", "atk", "spa", "hp", "def", "spd"];
-  return distributeStatBudget(budget, 252, priority, rng);
+  return distributeStatBudget(evTotalCap, 252, priority, rng);
 }
 
 function powerProfileRule(profile: PokemonPowerProfileV4): {level: [number, number]; ivTotal: [number, number]; evTotal: [number, number]} {
-  if (profile === "rookie") return {level: [45, 50], ivTotal: [0, 50], evTotal: [0, 100]};
-  if (profile === "normal") return {level: [49, 53], ivTotal: [40, 70], evTotal: [80, 200]};
-  if (profile === "elite") return {level: [52, 55], ivTotal: [60, 120], evTotal: [180, 300]};
-  if (profile === "boss") return {level: [56, 60], ivTotal: [120, 160], evTotal: [300, 420]};
+  if (profile === "rookie") return {level: [45, 50], ivTotal: [50, 90], evTotal: [100, 200]};
+  if (profile === "normal") return {level: [49, 53], ivTotal: [80, 120], evTotal: [80, 280]};
+  if (profile === "elite") return {level: [52, 55], ivTotal: [110, 150], evTotal: [260, 400]};
+  if (profile === "boss") return {level: [56, 60], ivTotal: [140, 180], evTotal: [390, 510]};
   return {level: [61, 65], ivTotal: [186, 186], evTotal: [510, 510]};
+}
+
+function rollPowerProfileIvCap(profile: PokemonPowerProfileV4, rng: () => number): number {
+  const rule = powerProfileRule(profile);
+  return randomInt(rule.ivTotal[0], rule.ivTotal[1], rng);
+}
+
+function rollPowerProfileEvCap(profile: PokemonPowerProfileV4, rng: () => number): number {
+  const rule = powerProfileRule(profile);
+  return randomInt(rule.evTotal[0], rule.evTotal[1], rng);
+}
+
+function powerProfileIndex(profile: PokemonPowerProfileV4): number {
+  return Math.max(0, POWER_PROFILE_ORDER.indexOf(profile));
+}
+
+function advancePowerProfile(profile: PokemonPowerProfileV4, steps: number): PokemonPowerProfileV4 {
+  return POWER_PROFILE_ORDER[Math.min(POWER_PROFILE_ORDER.length - 1, powerProfileIndex(profile) + Math.max(0, Math.floor(steps)))] || "rookie";
+}
+
+function normalizePokemonInstancePowerProfile(pokemon: Partial<LocalPokemonV4>, ivs: StatTableV4, evs: StatTableV4): PokemonPowerProfileV4 {
+  if (pokemon.powerProfile) return normalizePowerProfile(pokemon.powerProfile);
+  const ivTotal = statTotal(ivs);
+  const evTotal = statTotal(evs);
+  return inferPowerProfileForTotals(ivTotal, evTotal, "elite");
+}
+
+function inferPowerProfileForTotals(ivTotal: number, evTotal: number, maxProfile: PokemonPowerProfileV4 = "champion"): PokemonPowerProfileV4 {
+  const maxIndex = powerProfileIndex(maxProfile);
+  for (const profile of POWER_PROFILE_ORDER.slice(0, maxIndex + 1)) {
+    const rule = powerProfileRule(profile);
+    if (ivTotal <= rule.ivTotal[1] && evTotal <= rule.evTotal[1]) return profile;
+  }
+  return POWER_PROFILE_ORDER[maxIndex] || "elite";
+}
+
+function normalizePokemonIvTotalCap(value: unknown, profile: PokemonPowerProfileV4, currentTotal: number): number {
+  const rule = powerProfileRule(profile);
+  const fallback = Math.max(rule.ivTotal[1], currentTotal);
+  return clampInt(value, Math.max(rule.ivTotal[0], currentTotal), 186, fallback);
+}
+
+function normalizePokemonEvTotalCap(value: unknown, profile: PokemonPowerProfileV4, currentTotal: number): number {
+  const rule = powerProfileRule(profile);
+  const fallback = Math.max(rule.evTotal[1], currentTotal);
+  return clampInt(value, Math.max(rule.evTotal[0], currentTotal), 510, fallback);
+}
+
+function statTotal(stats: Record<string, number>): number {
+  return Object.values(stats).reduce((sum, value) => sum + Math.max(0, Math.floor(Number(value || 0))), 0);
 }
 
 function distributeStatBudget(total: number, statCap: number, priority: DexStatId[], rng: () => number): StatTableV4 {
@@ -2328,33 +2405,33 @@ function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, 
     {
       kind: "tutor",
       teacherLabel: "老奶奶",
-      introText: "一位年迈慈祥的奶奶正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
+      introText: "一位年迈慈祥的奶奶正在教学，是否让宝可梦进入学习？旁听费 100 金币。",
       completeText: "教授课程结束了。",
-      fee: 200,
+      fee: 100,
       source: "tutor",
     },
     {
       kind: "egg",
       teacherLabel: "老爷爷",
-      introText: "一位沉稳严厉的爷爷正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
+      introText: "一位沉稳严厉的爷爷正在教学，是否让宝可梦进入学习？旁听费 100 金币。",
       completeText: "蛋招式课程结束了。",
-      fee: 200,
+      fee: 100,
       source: "egg",
     },
     {
       kind: "self-learn",
       teacherLabel: "年轻小姐",
-      introText: "一位漂亮美丽的姐姐正在教学，是否让宝可梦进入学习？旁听费 500 金币。",
+      introText: "一位漂亮美丽的姐姐正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
       completeText: "自学招式课程结束了。",
-      fee: 500,
+      fee: 200,
       source: "levelup",
     },
     {
       kind: "self-study",
       teacherLabel: "自习课",
-      introText: "教室里现在没有老师，大家都在埋头自习，是否让宝可梦自主学习？座位费 400 金币。",
+      introText: "教室里现在没有老师，大家都在埋头自习，是否让宝可梦自主学习？座位费 200 金币。",
       completeText: "自习课结束了。",
-      fee: 400,
+      fee: 200,
       source: "self-study",
     },
   ];
@@ -2371,28 +2448,61 @@ function trainingGroundResult(ok: boolean, run: FormalGameRunV4, message: string
 }
 
 function rollFormalTrainingGroundSelfStudyEvent(pokemon: LocalPokemonV4, rng: () => number): FormalTrainingGroundSelfStudyEventV4 {
-  const nature = toID(pokemon.nature);
-  const focusedNatures = new Set(["serious", "hardy", "adamant", "modest", "jolly", "timid", "bold", "calm", "careful", "impish"]);
-  const sleepyNatures = new Set(["relaxed", "lax", "gentle", "quiet", "docile", "naive"]);
-  let sleep = 0.2;
-  let focused = 0.25;
-  if (focusedNatures.has(nature)) {
-    sleep -= 0.05;
-    focused += 0.1;
-  } else if (sleepyNatures.has(nature)) {
-    sleep += 0.1;
-    focused -= 0.05;
-  }
-  sleep = Math.max(0.05, Math.min(0.4, sleep));
-  focused = Math.max(0.1, Math.min(0.45, focused));
+  const weights = formalTrainingGroundSelfStudyEventWeights(pokemon);
   const roll = rng();
-  if (roll < sleep) return "sleep";
-  if (roll > 1 - focused) return "focused";
+  if (roll < weights.playful) return "playful";
+  if (roll >= 1 - weights.focused) return "focused";
   return "normal";
 }
 
-function adjustStatTable(stats: StatTableV4, delta: number, min: number, max: number): StatTableV4 {
-  return Object.fromEntries(STAT_IDS.map(stat => [stat, clampInt(stats[stat] + delta, min, max, stats[stat])])) as StatTableV4;
+function formalTrainingGroundSelfStudyEventWeights(pokemon: LocalPokemonV4): {playful: number; normal: number; focused: number} {
+  const nature = toID(pokemon.nature);
+  const focusedNatures = new Set(["serious", "hardy", "adamant", "modest", "jolly", "timid", "bold", "calm", "careful", "impish"]);
+  const playfulNatures = new Set(["relaxed", "lax", "gentle", "quiet", "docile", "naive"]);
+  // Keep this as the single offset point for nature today and star chart bonuses later.
+  let playful = 0.3;
+  let focused = 0.1;
+  if (focusedNatures.has(nature)) {
+    playful -= 0.05;
+    focused += 0.05;
+  } else if (playfulNatures.has(nature)) {
+    playful += 0.08;
+    focused -= 0.03;
+  }
+  playful = Math.max(0.15, Math.min(0.45, playful));
+  focused = Math.max(0.05, Math.min(0.2, focused));
+  return {playful, focused, normal: Math.max(0, 1 - playful - focused)};
+}
+
+function partialTrainingTarget(currentTotal: number, cap: number, ratio: number, minimumGain: number): number {
+  const remaining = Math.max(0, cap - currentTotal);
+  if (remaining <= 0) return currentTotal;
+  return Math.min(cap, currentTotal + Math.max(minimumGain, Math.ceil(remaining * ratio)));
+}
+
+function raiseStatTableToTotal(stats: StatTableV4, targetTotal: number, statCap: number, priority: DexStatId[], rng: () => number): StatTableV4 {
+  const next = normalizeStats(stats, 0, statCap);
+  let remaining = Math.max(0, Math.min(targetTotal, statCap * STAT_IDS.length) - statTotal(next));
+  const order = [...priority, ...STAT_IDS.filter(stat => !priority.includes(stat))];
+  while (remaining > 0) {
+    let progressed = false;
+    for (const stat of order) {
+      const open = statCap - next[stat];
+      if (open <= 0) continue;
+      const maxAdd = Math.min(open, remaining);
+      const add = maxAdd <= 8 ? maxAdd : randomInt(1, Math.min(maxAdd, 32), rng);
+      next[stat] += add;
+      remaining -= add;
+      progressed = true;
+      if (remaining <= 0) break;
+    }
+    if (!progressed) break;
+  }
+  return next;
+}
+
+function shuffledStats(rng: () => number): DexStatId[] {
+  return [...STAT_IDS].sort(() => rng() - 0.5);
 }
 
 function ensureFormalRestShopFast(run: FormalGameRunV4, nodeId: string): FormalRestShopV4 {

@@ -14,6 +14,7 @@ import {
   FORMAL_STARTING_MONEY,
   STARTER_ROLE_PLAN,
   validateFormalShopCatalogV4,
+  type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
@@ -324,6 +325,8 @@ assert(api.selectedCountForFormalMode("doubles") === 4, "doubles should select 4
 assert(api.selectedCountForFormalMode("coop") === 2, "coop should select 2");
 assert(prepared.starterCandidates.every(candidate => candidate.pokemon.itemId === ""), "player starters should not hold items");
 assert(prepared.starterCandidates.every(candidate => !candidate.pokemon.heldItemInstanceId), "player starters should not bind held item instances");
+assert(prepared.starterCandidates.every(candidate => ["rookie", "normal", "elite"].includes(candidate.pokemon.powerProfile || "")), "player starter power profile should not exceed elite");
+prepared.starterCandidates.forEach((candidate, index) => assertPokemonPowerProfile(candidate.pokemon, `starter candidate ${index + 1}`, ["rookie", "normal", "elite"]));
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.generation >= 1 && candidate.diagnostics.generation <= 3), "allowedGenerations should filter candidates");
 assert(prepared.battlePreference.battleBagEnabled === true, "formal run should keep battlePreference snapshot battle bag flag");
 assert(prepared.battlePreference.legendaryBattle === false, "formal run should keep battlePreference snapshot legendary flag");
@@ -338,12 +341,22 @@ assert(STARTER_ROLE_PLAN.slice(0, 6).join(",") === "weather,trick-room,offense,o
 assert(prepared.starterCandidates.every(candidate => candidate.speciesRank !== "legendary"), "legendaryBattle false should exclude legendary rank");
 assert(prepared.starterCandidates.every(candidate => ["rank4", "rank5", "rank6"].includes(candidate.speciesRank)), "player starter candidates should only use rank4-rank6");
 assert(prepared.starterCandidates.every(candidate => !["squirtle", "charizardmegax", "charizardgmax", "walkingwake", "blacephalon"].includes(candidate.pokemon.speciesId)), "starter filters should remove low rank, legendary, mega, and gmax species");
-assert(prepared.starterCandidates.some(candidate => candidate.pokemon.speciesId === "ninetalesalola"), "regional forms should be allowed");
 assert(prepared.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(",") === preparedAgain.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(","), "same seed should be stable");
 assert(prepared.starterCandidates.map(candidate => candidate.role).join(",") === "weather,trick-room,offense,offense,support,defense", "base six starter roles should match formal plan");
 for (const role of ["weather", "trick-room", "offense", "support", "defense"]) {
   assert(prepared.starterCandidates.some(candidate => candidate.role === role), `missing starter role ${role}`);
 }
+
+const regionalFormProfile = {
+  ...profile,
+  battlePreference: normalizeBattlePreferenceV4({
+    ...profile.battlePreference,
+    allowedGenerations: [1],
+  }),
+};
+const regionalFormRun = api.createFormalGameRun(regionalFormProfile, {mode: "singles", seed: "formal-smoke-regional-form-seed"});
+const regionalFormPrepared = api.prepareFormalStarterCandidates(regionalFormRun, {count: 10});
+assert(regionalFormPrepared.starterCandidates.some(candidate => candidate.pokemon.speciesId === "ninetalesalola"), "regional forms should be allowed");
 
 let starProfile = {...profile, battlePoints: 100, starChart: normalizeStarChartV4()};
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 6, "root-only star chart should grant 6 starter candidates");
@@ -442,11 +455,11 @@ assert(roundPlanned.roundPlan.every(round => {
   const team = round.participants.p2?.localTeam.pokemon || [];
   return new Set(team.map(pokemon => pokemon.speciesId)).size === team.length;
 }), "formal opponent teams should avoid internal duplicate species");
-assert(rookieOpponent.every(pokemon => pokemon.level <= 50 && statTotal(pokemon.ivs) <= 50 && statTotal(pokemon.evs) <= 100), "rookie NPC stats should stay in rookie bounds");
+rookieOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `rookie NPC ${index + 1}`, ["rookie"]));
 assert(rookieOpponent.every(pokemon => !["choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "assaultvest", "heavydutyboots"].includes(pokemon.itemId)), "rookie NPC should not hold strong battle items");
-assert(normalOpponent.every(pokemon => pokemon.level <= 53 && inRange(statTotal(pokemon.ivs), 40, 70) && inRange(statTotal(pokemon.evs), 80, 200)), "normal NPC stats should stay in normal bounds");
-assert(eliteOpponent.every(pokemon => pokemon.level <= 55 && inRange(statTotal(pokemon.ivs), 60, 120) && inRange(statTotal(pokemon.evs), 180, 300)), "elite NPC stats should stay in elite bounds");
-assert(scaledGymOpponent.every(pokemon => pokemon.level <= 55 && statTotal(pokemon.ivs) <= 120 && statTotal(pokemon.evs) <= 300), "streak 0 gym should scale down instead of using boss rush values");
+normalOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `normal NPC ${index + 1}`, ["normal"]));
+eliteOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `elite NPC ${index + 1}`, ["elite"]));
+scaledGymOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `streak 0 gym NPC ${index + 1}`, ["elite"]));
 
 const shop = api.getFormalRestShop(roundPlanned);
 const shopProducts = api.getFormalRestShopProducts(roundPlanned);
@@ -505,10 +518,12 @@ if (boughtItem) {
 const trainingLesson = api.getFormalTrainingGroundLesson(roundPlanned);
 const trainingLessonAgain = api.getFormalTrainingGroundLesson(roundPlanned);
 assert(trainingLesson && trainingLesson.lessonId === trainingLessonAgain?.lessonId, "formal training ground lesson should be stable for same run node and roll");
+assert(!trainingLesson || trainingLesson.fee === expectedTrainingGroundLessonFee(trainingLesson.kind), "formal training ground lesson should use balanced fee table");
 const nextTrainingRun = api.advanceFormalTrainingGroundLesson(roundPlanned);
 const nextTrainingLesson = api.getFormalTrainingGroundLesson(nextTrainingRun);
 assert((nextTrainingRun.trainingGroundByNodeId?.[roundPlanned.restRunSnapshot!.currentNodeId]?.lessonRoll || 0) === 1, "formal training ground advance should increment lessonRoll");
 assert(nextTrainingLesson && nextTrainingLesson.lessonId !== trainingLesson?.lessonId, "formal training ground advance should draw next lesson");
+assert(!nextTrainingLesson || nextTrainingLesson.fee === expectedTrainingGroundLessonFee(nextTrainingLesson.kind), "formal training ground next lesson should use balanced fee table");
 const poorTrainingRun = {...roundPlanned, money: 0};
 const poorTrainingResult = api.applyFormalTrainingGroundLesson(poorTrainingRun, {pokemonId: roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.localPokemonId});
 assert(!poorTrainingResult.ok && poorTrainingResult.run.money === 0, "formal training ground should reject insufficient funds without changing money");
@@ -519,6 +534,7 @@ for (let guard = 0; moveLesson && !["tutor", "egg"].includes(moveLesson.kind) &&
   moveLesson = api.getFormalTrainingGroundLesson(moveLessonRun);
 }
 assert(moveLesson && ["tutor", "egg"].includes(moveLesson.kind), "formal training ground should be able to draw a tutor or egg move lesson");
+assert(moveLesson.fee === 100, "formal tutor and egg lessons should cost 100");
 const moveLessonPokemon = moveLessonRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const moveLessonCandidates = moveLesson.kind === "tutor"
   ? ["thunderbolt", "protect", "raindance"]
@@ -542,14 +558,29 @@ for (let guard = 0; selfStudyLesson?.kind !== "self-study" && guard < 8; guard +
   selfStudyLesson = api.getFormalTrainingGroundLesson(selfStudyRun);
 }
 assert(selfStudyLesson?.kind === "self-study", "formal training ground should be able to draw a self-study lesson");
+assert(selfStudyLesson.fee === 200, "formal self-study lesson should cost 200");
 const selfStudyPokemon = selfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+const selfStudyBeforeIvTotal = statTotal(selfStudyPokemon.ivs);
+const selfStudyBeforeEvTotal = statTotal(selfStudyPokemon.evs);
+const selfStudyBeforeIvCap = selfStudyPokemon.ivTotalCap || selfStudyBeforeIvTotal;
+const selfStudyBeforeEvCap = selfStudyPokemon.evTotalCap || selfStudyBeforeEvTotal;
+const selfStudyBeforeProfileIndex = powerProfileIndex(selfStudyPokemon.powerProfile || "rookie");
 const selfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyRun, {pokemonId: selfStudyPokemon.localPokemonId});
 const selfStudyAfter = selfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 assert(selfStudyResult.ok, "formal training ground self-study should apply");
 assert(selfStudyResult.run.money === selfStudyRun.money - selfStudyLesson.fee, "formal training ground self-study should deduct fee");
+assert(selfStudyResult.selfStudyEvent === "playful" || selfStudyResult.selfStudyEvent === "normal" || selfStudyResult.selfStudyEvent === "focused", "formal training ground self-study should report known event");
 assert(selfStudyAfter.level >= 1 && selfStudyAfter.level <= 100, "formal training ground self-study should keep level in bounds");
 assert(Object.values(selfStudyAfter.ivs).every(value => inRange(value, 0, 31)), "formal training ground self-study should keep IVs in bounds");
 assert(Object.values(selfStudyAfter.evs).every(value => inRange(value, 0, 252)), "formal training ground self-study should keep EVs in bounds");
+assert((selfStudyAfter.ivTotalCap || 0) >= selfStudyBeforeIvCap, "formal training ground self-study should not lower IV cap");
+assert((selfStudyAfter.evTotalCap || 0) >= selfStudyBeforeEvCap, "formal training ground self-study should not lower EV cap");
+assert(statTotal(selfStudyAfter.ivs) >= selfStudyBeforeIvTotal, "formal training ground self-study should not lower IV total");
+assert(statTotal(selfStudyAfter.evs) >= selfStudyBeforeEvTotal, "formal training ground self-study should not lower EV total");
+assert(statTotal(selfStudyAfter.ivs) <= (selfStudyAfter.ivTotalCap || 186), "formal training ground self-study IV total should stay within cap");
+assert(statTotal(selfStudyAfter.evs) <= (selfStudyAfter.evTotalCap || 510), "formal training ground self-study EV total should stay within cap");
+assert(powerProfileIndex(selfStudyAfter.powerProfile || "rookie") >= selfStudyBeforeProfileIndex, "formal training ground self-study should not lower power profile");
+assertPokemonPowerProfile(selfStudyAfter, "self-study pokemon", undefined, {checkLevel: false});
 
 const withCoinLog = api.appendCoinLogEntryV4(roundPlanned, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withCoinLog.money === roundPlanned.money - 10, "coin log should update formal money");
@@ -655,7 +686,7 @@ const championPrepared = api.prepareFormalStarterCandidates(api.createFormalGame
 const championSelected = api.selectFormalStarterPokemon(championPrepared, [0, 1, 2]);
 const championPlanned = api.prepareFormalRoundPlan(championSelected);
 const championOpponent = championPlanned.roundPlan[6]!.participants.p2!.localTeam.pokemon;
-assert(championOpponent.every(pokemon => pokemon.level <= 65 && statTotal(pokemon.ivs) <= 186 && statTotal(pokemon.evs) <= 510), "late champion/villain should cap at formal boss-rush bounds");
+championOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `late champion/villain ${index + 1}`, ["champion"]));
 
 const coopPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "coop", seed: "formal-smoke-coop-seed"}));
 const coopSelected = api.selectFormalStarterPokemon(coopPrepared, [0, 1]);
@@ -677,4 +708,44 @@ function statTotal(stats: Record<string, number>): number {
 
 function inRange(value: number, min: number, max: number): boolean {
   return value >= min && value <= max;
+}
+
+function expectedTrainingGroundLessonFee(kind: string): number {
+  if (kind === "tutor" || kind === "egg") return 100;
+  return 200;
+}
+
+function assertPokemonPowerProfile(pokemon: {
+  powerProfile?: PokemonPowerProfileV4;
+  level: number;
+  ivs: Record<string, number>;
+  evs: Record<string, number>;
+  ivTotalCap?: number;
+  evTotalCap?: number;
+}, label: string, allowedProfiles?: PokemonPowerProfileV4[], options: {checkLevel?: boolean} = {}) {
+  const profile = pokemon.powerProfile || "rookie";
+  if (allowedProfiles) assert(allowedProfiles.includes(profile), `${label} should use ${allowedProfiles.join("/")} power profile`);
+  const rule = powerProfileRule(profile);
+  const ivTotal = statTotal(pokemon.ivs);
+  const evTotal = statTotal(pokemon.evs);
+  const ivCap = pokemon.ivTotalCap ?? ivTotal;
+  const evCap = pokemon.evTotalCap ?? evTotal;
+  if (options.checkLevel !== false) assert(inRange(pokemon.level, rule.level[0], rule.level[1]), `${label} level should stay in ${profile} bounds`);
+  assert(inRange(ivCap, rule.ivTotal[0], rule.ivTotal[1]), `${label} IV cap should stay in ${profile} bounds`);
+  assert(inRange(evCap, rule.evTotal[0], rule.evTotal[1]), `${label} EV cap should stay in ${profile} bounds`);
+  assert(ivTotal <= ivCap, `${label} IV total should not exceed instance cap`);
+  assert(evTotal <= evCap, `${label} EV total should not exceed instance cap`);
+}
+
+function powerProfileRule(profile: PokemonPowerProfileV4): {level: [number, number]; ivTotal: [number, number]; evTotal: [number, number]} {
+  if (profile === "rookie") return {level: [45, 50], ivTotal: [50, 90], evTotal: [100, 200]};
+  if (profile === "normal") return {level: [49, 53], ivTotal: [80, 120], evTotal: [80, 280]};
+  if (profile === "elite") return {level: [52, 55], ivTotal: [110, 150], evTotal: [260, 400]};
+  if (profile === "boss") return {level: [56, 60], ivTotal: [140, 180], evTotal: [390, 510]};
+  return {level: [61, 65], ivTotal: [186, 186], evTotal: [510, 510]};
+}
+
+function powerProfileIndex(profile: PokemonPowerProfileV4): number {
+  const order: PokemonPowerProfileV4[] = ["rookie", "normal", "elite", "boss", "champion"];
+  return Math.max(0, order.indexOf(profile));
 }
