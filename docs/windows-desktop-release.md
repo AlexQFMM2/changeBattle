@@ -71,7 +71,13 @@ Untracked local files such as `debug/` are not included in the source archive.
 D:\changeBattleV2\release\changeBattleV2-assets-X.Y.Z.tgz
 ```
 
-The Windows source tree is rebuilt from `HEAD` plus this local `assets/` archive before `electron-vite` runs.
+The Showdown runtime dependency under `packages/showdown-battle-core/vendor/showdown/node_modules/ts-chacha20` is also ignored by git, so the script sends:
+
+```text
+D:\changeBattleV2\release\changeBattleV2-showdown-node-modules-X.Y.Z.tgz
+```
+
+The Windows source tree is rebuilt from `HEAD` plus these local runtime archives before `electron-vite` runs.
 
 ## Manual Windows Build
 
