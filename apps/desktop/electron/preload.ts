@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, DesktopFormalGameBridge, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
   userProfile: {
@@ -19,5 +19,17 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("formalGame:prepareSettlement", run, profile, reason) as ReturnType<DesktopFormalGameBridge["prepareFormalSettlement"]>,
     settleFormalBattleRound: (run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4) =>
       ipcRenderer.invoke("formalGame:settleBattleRound", run, snapshot) as ReturnType<DesktopFormalGameBridge["settleFormalBattleRound"]>,
+  },
+  battleService: {
+    createBattleSession: (input: BattleSessionCreateInputV4) =>
+      ipcRenderer.invoke("battleService:createSession", input) as ReturnType<DesktopBattleServiceBridge["createBattleSession"]>,
+    submitChoice: (sessionId: string, playerId: ShowdownPlayerIdV4, choice: string) =>
+      ipcRenderer.invoke("battleService:submitChoice", sessionId, playerId, choice) as ReturnType<DesktopBattleServiceBridge["submitChoice"]>,
+    submitTrainerItem: (input: BattleTrainerItemSubmitV4) =>
+      ipcRenderer.invoke("battleService:submitTrainerItem", input) as ReturnType<DesktopBattleServiceBridge["submitTrainerItem"]>,
+    getSnapshot: (sessionId: string) =>
+      ipcRenderer.invoke("battleService:getSnapshot", sessionId) as ReturnType<DesktopBattleServiceBridge["getSnapshot"]>,
+    closeSession: (sessionId: string) =>
+      ipcRenderer.invoke("battleService:closeSession", sessionId) as ReturnType<DesktopBattleServiceBridge["closeSession"]>,
   },
 });

@@ -4,11 +4,14 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, type IpcMainInvokeEvent} from "electron";
-import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, UserProfileV2} from "@changebattle-v2/api";
+import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
+import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {rendererAssetFilePath} from "./rendererAssetResolver.js";
 
 let mainWindow: BrowserWindow | null = null;
 let formalComputeWorker: Worker | null = null;
+let battleService: BattleServiceApiV4 | null = null;
 let formalComputeRequestId = 0;
 const formalComputePending = new Map<number, {resolve: (value: any) => void; reject: (error: Error) => void}>();
 const rendererReadyRetryMs = 180;
@@ -132,8 +135,33 @@ ipcMain.handle("formalGame:settleBattleRound", async (_event: IpcMainInvokeEvent
   return callFormalComputeWorker("settleFormalBattleRound", run, snapshot);
 });
 
+ipcMain.handle("battleService:createSession", async (_event: IpcMainInvokeEvent, input: BattleSessionCreateInputV4) => {
+  return ensureBattleService().createBattleSession(input);
+});
+
+ipcMain.handle("battleService:submitChoice", async (_event: IpcMainInvokeEvent, sessionId: string, playerId: ShowdownPlayerIdV4, choice: string) => {
+  return ensureBattleService().submitChoice({sessionId, playerId, choice});
+});
+
+ipcMain.handle("battleService:submitTrainerItem", async (_event: IpcMainInvokeEvent, input: BattleTrainerItemSubmitV4) => {
+  return ensureBattleService().submitTrainerItem(input);
+});
+
+ipcMain.handle("battleService:getSnapshot", async (_event: IpcMainInvokeEvent, sessionId: string) => {
+  return ensureBattleService().getSnapshot(sessionId);
+});
+
+ipcMain.handle("battleService:closeSession", async (_event: IpcMainInvokeEvent, sessionId: string) => {
+  return ensureBattleService().closeSession(sessionId);
+});
+
 function userProfilePath(): string {
   return path.join(app.getPath("userData"), "profile", "user-profile.json");
+}
+
+function ensureBattleService(): BattleServiceApiV4 {
+  battleService ||= createInMemoryBattleService();
+  return battleService;
 }
 
 function callFormalComputeWorker<TMethod extends keyof FormalComputeMethodMap>(

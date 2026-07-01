@@ -8,6 +8,7 @@ import {
   starChartHasSpecialTrainingLockV4,
   starChartHasOpponentRumorV4,
   type AppDebugConfigV4,
+  type DesktopBattleServiceBridge,
   type DesktopFormalGameBridge,
   type DesktopUserProfileBridge,
   type FormalGameModeV4,
@@ -59,6 +60,7 @@ const APP_DEBUG_CONFIG_V4: AppDebugConfigV4 = {
 
 type ChangeBattleV2Window = Window & {
   changeBattleV2?: {
+    battleService?: DesktopBattleServiceBridge;
     formalGame?: DesktopFormalGameBridge;
     userProfile?: DesktopUserProfileBridge;
   };
@@ -75,15 +77,18 @@ export function App({runtime}: AppProps) {
 function RoutedApp({runtime}: AppProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const desktopBridgeRoot = useMemo(() => runtime === "desktop" && typeof window !== "undefined"
+    ? (window as ChangeBattleV2Window).changeBattleV2
+    : undefined, [runtime]);
+  const battleServiceBridge = desktopBridgeRoot?.battleService;
   const api = useMemo(() => createChangeBattleV2Api({
     userProfileAdapter: createUserProfileAdapter(runtime),
     trainingRunAdapter: createBrowserTrainingRunAdapter(`changebattle-v2:${runtime}:training-run`),
+    battleServiceClient: battleServiceBridge,
     battleServiceUrl: import.meta.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL,
     resourcePrefix: showdownAssetPrefix(),
-  }), [runtime]);
-  const formalGameBridge = useMemo(() => runtime === "desktop" && typeof window !== "undefined"
-    ? (window as ChangeBattleV2Window).changeBattleV2?.formalGame
-    : undefined, [runtime]);
+  }), [battleServiceBridge, runtime]);
+  const formalGameBridge = desktopBridgeRoot?.formalGame;
   const catalog = useMemo(() => api.getTrainerCatalog(), [api]);
   const [profile, setProfile] = useState<UserProfileV2 | null>(null);
   const [loading, setLoading] = useState(true);

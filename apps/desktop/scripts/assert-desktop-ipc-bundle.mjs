@@ -9,6 +9,8 @@ const requiredSnippets = [
     snippets: [
       'ipcMain.handle("formalGame:createWithStarterCandidates"',
       'callFormalComputeWorker("createFormalGameWithStarterCandidates"',
+      'ipcMain.handle("battleService:createSession"',
+      'ipcMain.handle("battleService:submitChoice"',
       "formalComputeWorker.js",
     ],
   },
@@ -17,6 +19,8 @@ const requiredSnippets = [
     snippets: [
       "createFormalGameWithStarterCandidates",
       'ipcRenderer.invoke("formalGame:createWithStarterCandidates"',
+      "createBattleSession",
+      'ipcRenderer.invoke("battleService:createSession"',
     ],
   },
   {

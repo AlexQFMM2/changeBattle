@@ -104,6 +104,8 @@ export type DesktopFormalGameBridge = {
   settleFormalBattleRound(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): Promise<FormalGameRunV4>;
 };
 
+export type DesktopBattleServiceBridge = BattleServiceClientV4;
+
 export type ChangeBattleV2ApiOptions = {
   dex?: ShowdownDexLike;
   resourcePrefix?: string;

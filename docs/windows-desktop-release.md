@@ -258,6 +258,30 @@ portable 包没有 `node_modules/react`，所以正式游戏创建失败。修�
 - React hook 使用专用入口文件，不进入 desktop worker 依赖链。
 - `test:ipc-bundle` 必须禁止 `react` 出现在 desktop main/preload/worker bundle 中。
 
+## Desktop Battle Runtime
+
+dev 模式下 `start_desk` 会先启动：
+
+```text
+http://127.0.0.1:5191
+```
+
+portable release 不能依赖这个外部 HTTP 服务。桌面端应通过 preload 暴露：
+
+```text
+window.changeBattleV2.battleService
+```
+
+renderer 中的 `api.battleService` 在 desktop runtime 下必须使用这个 IPC bridge，由 Electron main process 内置的 `createInMemoryBattleService()` 创建和维护 battle session。
+
+如果点击“结束休整”后 Console 出现：
+
+```text
+ERR_CONNECTION_REFUSED http://127.0.0.1:5191
+```
+
+说明 renderer 没有拿到 desktop battle service bridge，或者 `createChangeBattleV2Api()` 没有注入 `battleServiceClient`。
+
 ## Local Pre-Release Checklist
 
 发布前建议在 Linux 本地先跑：
@@ -269,6 +293,7 @@ pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 pnpm --filter @changebattle-v2/desktop test:renderer-assets
 pnpm --filter @changebattle-v2/desktop test:asset-resolver
 pnpm --filter @changebattle-v2/desktop test:formal-worker
+pnpm --filter @changebattle-v2/showdown-battle-core test
 pnpm --filter @changebattle-v2/api test:formal-game
 pnpm typecheck
 git diff --check
@@ -327,6 +352,23 @@ pnpm --filter @changebattle-v2/desktop test:formal-worker
 ```bash
 pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 ```
+
+### 结束休整后创建战斗失败
+
+如果 Console 里有：
+
+```text
+ERR_CONNECTION_REFUSED http://127.0.0.1:5191
+```
+
+说明 portable 包还在请求 dev battle service。检查：
+
+```bash
+pnpm --filter @changebattle-v2/desktop test:ipc-bundle
+pnpm --filter @changebattle-v2/showdown-battle-core test
+```
+
+并确认 `window.changeBattleV2.battleService` 已经由 preload 暴露，`App.tsx` 在 desktop runtime 下把它注入到 `createChangeBattleV2Api({battleServiceClient})`。
 
 ### Showdown vendor 找不到
 
