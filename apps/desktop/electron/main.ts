@@ -9,6 +9,11 @@ let mainWindow: BrowserWindow | null = null;
 let formalComputeWorker: Worker | null = null;
 let formalComputeRequestId = 0;
 const formalComputePending = new Map<number, {resolve: (value: any) => void; reject: (error: Error) => void}>();
+const rendererReadyRetryMs = 180;
+const rendererReadyTimeoutMs = 90_000;
+
+app.setName("ChangeBattle V2 Dex Desktop");
+app.setPath("userData", path.join(app.getPath("appData"), "@changebattle-v2", "desktop"));
 
 type FormalComputeMethodMap = {
   createFormalGameWithStarterCandidates: {
@@ -36,11 +41,45 @@ async function createWindow() {
     },
   });
 
-  if (process.env.ELECTRON_RENDERER_URL) {
+  if (process.env.ELECTRON_BOOT_RENDERER_URL) {
+    await loadBootPage(mainWindow);
+    void loadRendererWhenReady(mainWindow, process.env.ELECTRON_BOOT_RENDERER_URL);
+  } else if (process.env.ELECTRON_RENDERER_URL) {
     await mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
     await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
+}
+
+async function loadBootPage(window: BrowserWindow) {
+  const bootHtml = process.env.ELECTRON_BOOT_HTML || path.join(__dirname, "../renderer/index.html");
+  await window.loadFile(bootHtml);
+}
+
+async function loadRendererWhenReady(window: BrowserWindow, rendererUrl: string) {
+  const startedAt = Date.now();
+  while (!window.isDestroyed() && Date.now() - startedAt < rendererReadyTimeoutMs) {
+    if (await rendererUrlReady(rendererUrl)) {
+      if (!window.isDestroyed()) await window.loadURL(rendererUrl);
+      return;
+    }
+    await delay(rendererReadyRetryMs);
+  }
+  console.warn(`[changebattle-v2:desktop] renderer dev server was not ready after ${rendererReadyTimeoutMs}ms: ${rendererUrl}`);
+}
+
+async function rendererUrlReady(rendererUrl: string): Promise<boolean> {
+  try {
+    const response = await fetch(rendererUrl, {method: "GET"});
+    await response.body?.cancel();
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 ipcMain.handle("userProfile:load", async () => {
