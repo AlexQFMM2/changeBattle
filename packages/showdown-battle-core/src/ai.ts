@@ -8,6 +8,7 @@ import type {
   BattleServiceRequestV4,
   BattleServiceSnapshotV4,
   ShowdownPlayerIdV4,
+  BattleSpecialSystemV4,
 } from "./types.js";
 import {
   filterShowdownChoiceForRuleSetV4,
@@ -181,7 +182,7 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
   const candidates = generateTurnCandidates(request, context, profile, rng);
   const legalCandidates = candidates.map(candidate => ({
     ...candidate,
-    choice: sanitizeAiChoice(candidate.choice, context.snapshot.ruleSet, context.snapshot.mode),
+    choice: sanitizeAiChoice(candidate.choice, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(context)),
   })).filter(candidate => candidate.choice && choiceLooksParseable(candidate.choice));
   const fallback = fallbackLegalChoiceV4(request);
   const selected = selectCandidate(legalCandidates, profile, levelConfig, rng) || {
@@ -292,7 +293,7 @@ function generateMoveTurnCandidates(
     for (const entry of (active.moves || []).map((move, index) => ({move, index}))) {
       if (entry.move.disabled || (entry.move.pp ?? 1) <= 0) continue;
       const targets = targetSuffixesForMove(request, activeIndex, entry.move);
-      const specials = specialChoicesForMove(request, active, entry.index, context.snapshot.ruleSet, context.snapshot.mode);
+      const specials = specialChoicesForMove(request, active, entry.index, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(context));
       for (const special of specials) {
         for (const target of targets) {
           const parsed: ShowdownParsedChoiceV4 = {kind: "move", index: entry.index + 1, special: special || undefined, target: target || undefined};
@@ -528,11 +529,12 @@ function specialChoicesForMove(
   moveIndex: number,
   ruleSet: string,
   mode: string,
+  allowedSystems?: readonly BattleSpecialSystemV4[],
 ): Array<ShowdownSpecialChoiceV4 | null> {
   const choices: Array<ShowdownSpecialChoiceV4 | null> = [null];
   if (!active) return choices;
   const add = (choice: ShowdownSpecialChoiceV4, enabled: unknown) => {
-    if (enabled && showdownSpecialChoiceAllowedForRuleSetV4(choice, ruleSet, mode)) choices.push(choice);
+    if (enabled && showdownSpecialChoiceAllowedForRuleSetV4(choice, ruleSet, mode, allowedSystems)) choices.push(choice);
   };
   add("mega", active.canMegaEvo);
   add("megax", active.canMegaEvoX);
@@ -545,8 +547,12 @@ function specialChoicesForMove(
   return choices;
 }
 
-function sanitizeAiChoice(choice: string, ruleSet: string, mode: string): string {
-  return filterShowdownChoiceForRuleSetV4(choice, ruleSet, mode).trim();
+function sanitizeAiChoice(choice: string, ruleSet: string, mode: string, allowedSystems?: readonly BattleSpecialSystemV4[]): string {
+  return filterShowdownChoiceForRuleSetV4(choice, ruleSet, mode, allowedSystems).trim();
+}
+
+function allowedSpecialSystemsForPlayer(context: BattleAiChoiceContextV4): readonly BattleSpecialSystemV4[] | undefined {
+  return context.snapshot.players.find(player => player.playerId === context.playerId)?.allowedSpecialSystems;
 }
 
 function choiceLooksParseable(choice: string): boolean {

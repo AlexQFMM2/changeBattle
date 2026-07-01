@@ -17,6 +17,7 @@ import type {
   ShowdownTeamPokemonMappingV4,
   ShowdownPlayerIdV4,
   LocalPokemonLikeForBattleV4,
+  BattleSpecialSystemV4,
 } from "./types.js";
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
 import {filterShowdownChoiceForRuleSetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
@@ -138,22 +139,55 @@ const RECOVERY_EFFECTS: Record<string, RecoveryEffect> = {
   lumberry: {cureStatus: "all"},
 };
 
+const SYSTEM_ITEM_TO_SPECIAL_SYSTEM: Record<string, BattleSpecialSystemV4> = {
+  "system-mega-stone": "mega",
+  "system-z-crystal": "zmove",
+  "system-dynamax-band": "max",
+  "system-tera-orb": "terastallize",
+};
+
+function normalizeBattleServicePlayers(players: BattleServicePlayerInputV4[], ruleSet: string): BattleServicePlayerInputV4[] {
+  return players.map(player => ({
+    ...player,
+    allowedSpecialSystems: normalizeAllowedSpecialSystems(player.allowedSpecialSystems || specialSystemsFromBag(player.draft?.bag?.items || []), ruleSet),
+  }));
+}
+
+function specialSystemsFromBag(items: TrainingPlayerDraftV4["bag"]["items"] = []): BattleSpecialSystemV4[] {
+  const systems = new Set<BattleSpecialSystemV4>();
+  for (const item of items || []) {
+    const itemId = String(item.itemID || item.itemId || "");
+    const system = SYSTEM_ITEM_TO_SPECIAL_SYSTEM[itemId];
+    if (system) systems.add(system);
+  }
+  return [...systems];
+}
+
+function normalizeAllowedSpecialSystems(systems: readonly BattleSpecialSystemV4[] | undefined, ruleSet: string): BattleSpecialSystemV4[] {
+  return [...new Set(systems || [])].filter(system => showdownSpecialSystemAllowedForRuleSetV4(system, ruleSet));
+}
+
 export function compileBattleSessionInput(input: BattleServiceCreateInputV4 | BattleServiceSessionInputV4): BattleServiceSessionInputV4 {
-  if ("nodeId" in input) return input;
+  if ("nodeId" in input) {
+    return {
+      ...input,
+      players: normalizeBattleServicePlayers(input.players, input.ruleSet),
+    };
+  }
   const nodePlayers = input.node.participants || {};
   const showdownIdPool = createShowdownIdPoolState();
   const usedShowdownIdentityTokens = new Set(showdownIdPool.used);
   const players = playerIdsForNode(input.node)
     .map(playerId => nodePlayers[playerId] || input.players[playerId])
     .filter(Boolean)
-    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool));
+    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool, input.node.ruleSet));
   return {
     runId: input.runId,
     nodeId: input.node.id,
     mode: input.node.mode,
     ruleSet: input.node.ruleSet,
     seed: input.node.seed,
-    players,
+    players: normalizeBattleServicePlayers(players, input.node.ruleSet),
     showdownIdPool,
   };
 }
@@ -234,7 +268,8 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
 export async function submitChoice(input: BattleServiceSubmitChoiceInputV4): Promise<BattleServiceSnapshotV4> {
   const session = getSession(input.sessionId);
   if (session.snapshot.status === "ended") return clone(session.snapshot);
-  const choice = sanitizeChoiceForRuleSet(input.choice.trim(), session.snapshot.ruleSet, session.snapshot.mode);
+  const player = playerById(session, input.playerId);
+  const choice = sanitizeChoiceForRuleSet(input.choice.trim(), session.snapshot.ruleSet, session.snapshot.mode, player?.allowedSpecialSystems);
   if (!choice) throw new Error("choice 不能为空。");
   if (choice !== input.choice.trim()) {
     session.snapshot.debug.inputLog.push(`[BattleV4][ruleset-special-filter] ${session.snapshot.ruleSet} sanitized choice: ${input.choice.trim()} -> ${choice}`);
@@ -256,7 +291,8 @@ export async function submitChoice(input: BattleServiceSubmitChoiceInputV4): Pro
 export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInputV4): Promise<BattleServiceSnapshotV4> {
   const session = getSession(input.sessionId);
   if (session.snapshot.status === "ended") return clone(session.snapshot);
-  const choice = sanitizeChoiceForRuleSet(input.choice.trim(), session.snapshot.ruleSet, session.snapshot.mode);
+  const player = playerById(session, input.playerId);
+  const choice = sanitizeChoiceForRuleSet(input.choice.trim(), session.snapshot.ruleSet, session.snapshot.mode, player?.allowedSpecialSystems);
   if (!choice) throw new Error("choice 不能为空。");
   const trainerItems = input.trainerItems || [];
   if (!trainerItems.length) throw new Error("战斗道具指令无效。");
@@ -397,7 +433,7 @@ async function submitAiChoices(session: RuntimeSession): Promise<void> {
 function scheduleAiChoices(session: RuntimeSession): void {
   for (const player of session.snapshot.players) {
     const request = session.snapshot.requests[player.playerId];
-    if (!isAiPlayer(player) || !shouldAutoChoose(request)) {
+    if (!isAutoChoicePlayer(player) || !shouldAutoChoose(request)) {
       delete session.aiTasks[player.playerId];
       continue;
     }
@@ -457,7 +493,7 @@ function readyAiChoices(session: RuntimeSession): Array<{playerId: ShowdownPlaye
   for (const player of session.snapshot.players) {
     const request = session.snapshot.requests[player.playerId];
     const task = session.aiTasks[player.playerId];
-    if (!isAiPlayer(player) || !request || !task) continue;
+    if (!isAutoChoicePlayer(player) || !request || !task) continue;
     const requestKey = battleAiRequestKeyV4(player.playerId, request);
     if (task.requestKey !== requestKey) {
       delete session.aiTasks[player.playerId];
@@ -498,8 +534,8 @@ function appendAiDecisionDebug(session: RuntimeSession, debug: BattleAiDecisionD
   session.snapshot.debug.inputLog.push(`[BattleV4][ai-choice][${debug.playerId}] ${debug.selectedChoice} score=${debug.selectedScore} candidates=${debug.candidateCount} elapsed=${debug.elapsedMs}ms${debug.timedOut ? " timeout" : ""}`);
 }
 
-function isAiPlayer(player: BattleServicePlayerInputV4): boolean {
-  return player.controller === "ai";
+function isAutoChoicePlayer(player: BattleServicePlayerInputV4): boolean {
+  return player.controller === "ai" || player.controller === "script";
 }
 
 function isLocalPlayer(player: BattleServicePlayerInputV4): boolean {
@@ -567,16 +603,21 @@ async function submitTeamPreviewChoices(session: RuntimeSession): Promise<void> 
 }
 
 async function writePlayerChoice(session: RuntimeSession, playerId: ShowdownPlayerIdV4, choice: string, source: "human" | "ai" | "team-preview"): Promise<void> {
-  session.snapshot.debug.lastChoices.push({playerId, choice, at: new Date().toISOString()});
-  session.snapshot.debug.inputLog.push(`>${playerId} ${choice}`);
+  const player = playerById(session, playerId);
+  const sanitizedChoice = sanitizeChoiceForRuleSet(choice, session.snapshot.ruleSet, session.snapshot.mode, player?.allowedSpecialSystems);
+  if (sanitizedChoice !== choice) {
+    session.snapshot.debug.inputLog.push(`[BattleV4][ruleset-special-filter] ${session.snapshot.ruleSet} sanitized ${source} choice: ${choice} -> ${sanitizedChoice}`);
+  }
+  session.snapshot.debug.lastChoices.push({playerId, choice: sanitizedChoice, at: new Date().toISOString()});
+  session.snapshot.debug.inputLog.push(`>${playerId} ${sanitizedChoice}`);
   if (session.snapshot.requests[playerId]) session.lastRequests[playerId] = clone(session.snapshot.requests[playerId]);
   delete session.snapshot.requests[playerId];
   try {
-    await session.streams[playerId].write(choice);
+    await session.streams[playerId].write(sanitizedChoice);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     session.snapshot.status = "blocked";
-    session.snapshot.error = `[${source}] ${playerId} choice failed: ${choice}; ${message}`;
+    session.snapshot.error = `[${source}] ${playerId} choice failed: ${sanitizedChoice}; ${message}`;
     session.snapshot.debug.inputLog.push(`[BattleV4][error] ${session.snapshot.error}`);
     touch(session);
     throw error;
@@ -617,7 +658,8 @@ async function readPlayerStream(session: RuntimeSession, playerId: ShowdownPlaye
       const request = requestFromChunk(chunk);
       recordPlayerStreamChunk(session, playerId, chunk, Boolean(request));
       if (request) {
-        const sanitizedRequest = sanitizeRequestForRuleSet(request, session.snapshot.ruleSet, session.snapshot.mode);
+        const player = playerById(session, playerId);
+        const sanitizedRequest = sanitizeRequestForRuleSet(request, session.snapshot.ruleSet, session.snapshot.mode, player?.allowedSpecialSystems);
         session.snapshot.requests[playerId] = sanitizedRequest;
         session.lastRequests[playerId] = clone(sanitizedRequest);
         rememberLatestSidePokemon(session, playerId, sanitizedRequest);
@@ -697,13 +739,13 @@ function requestFromChunk(chunk: string): BattleServiceRequestV4 | null {
   }
 }
 
-function sanitizeRequestForRuleSet(request: BattleServiceRequestV4, ruleSet: string, mode: string): BattleServiceRequestV4 {
+function sanitizeRequestForRuleSet(request: BattleServiceRequestV4, ruleSet: string, mode: string, allowedSystems?: readonly BattleSpecialSystemV4[]): BattleServiceRequestV4 {
   if (!request.active?.length) return request;
   return {
     ...request,
     active: request.active.map(active => {
       if (!active) return active;
-      const allowed = allowedSpecialSystemsForRuleSet(ruleSet, mode);
+      const allowed = allowedSpecialSystemsForRuleSet(ruleSet, mode, allowedSystems);
       return {
         ...active,
         canMegaEvo: allowed.mega ? active.canMegaEvo : false,
@@ -721,16 +763,17 @@ function sanitizeRequestForRuleSet(request: BattleServiceRequestV4, ruleSet: str
   };
 }
 
-function sanitizeChoiceForRuleSet(choice: string, ruleSet: string, mode: string): string {
-  return filterShowdownChoiceForRuleSetV4(choice, ruleSet, mode);
+function sanitizeChoiceForRuleSet(choice: string, ruleSet: string, mode: string, allowedSystems?: readonly BattleSpecialSystemV4[]): string {
+  return filterShowdownChoiceForRuleSetV4(choice, ruleSet, mode, allowedSystems);
 }
 
-function allowedSpecialSystemsForRuleSet(ruleSet: string, mode: string): {mega: boolean; zmove: boolean; max: boolean; tera: boolean} {
+function allowedSpecialSystemsForRuleSet(ruleSet: string, mode: string, allowedSystems?: readonly BattleSpecialSystemV4[]): {mega: boolean; zmove: boolean; max: boolean; tera: boolean} {
+  const allow = (system: BattleSpecialSystemV4) => showdownSpecialSystemAllowedForRuleSetV4(system, ruleSet, mode) && Boolean(allowedSystems?.includes(system));
   return {
-    mega: showdownSpecialSystemAllowedForRuleSetV4("mega", ruleSet, mode),
-    zmove: showdownSpecialSystemAllowedForRuleSetV4("zmove", ruleSet, mode),
-    max: showdownSpecialSystemAllowedForRuleSetV4("max", ruleSet, mode),
-    tera: showdownSpecialSystemAllowedForRuleSetV4("terastallize", ruleSet, mode),
+    mega: allow("mega"),
+    zmove: allow("zmove"),
+    max: allow("max"),
+    tera: allow("terastallize"),
   };
 }
 
@@ -1141,7 +1184,7 @@ function buildStartInput(input: BattleServiceSessionInputV4): string {
   return lines.join("\n");
 }
 
-function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState()): BattleServicePlayerInputV4 {
+function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState(), ruleSet = "standard"): BattleServicePlayerInputV4 {
   const identity = createPlayerBattleIdentity(player, usedShowdownIdentityTokens, showdownIdPool);
   return {
     playerId: player.playerId,
@@ -1155,6 +1198,7 @@ function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens
       localTeam: identity.localTeam,
     },
     teamMapping: identity.teamMapping,
+    allowedSpecialSystems: normalizeAllowedSpecialSystems(specialSystemsFromBag(player.bag?.items || []), ruleSet),
   };
 }
 
@@ -1254,6 +1298,10 @@ function formatId(ruleSet: string, mode: string): string {
 
 function playerIdByName(players: BattleServicePlayerInputV4[], name: string): BattleServicePlayerIdV4 | null {
   return players.find(player => player.name === name)?.playerId || null;
+}
+
+function playerById(session: RuntimeSession, playerId: ShowdownPlayerIdV4): BattleServicePlayerInputV4 | undefined {
+  return session.snapshot.players.find(player => player.playerId === playerId);
 }
 
 function getSession(sessionId: string): RuntimeSession {

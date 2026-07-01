@@ -289,10 +289,91 @@ async function rulesetSpecialSystemFilterSmoke() {
     throw new Error(`gen8 request leaked Mega/Z options: ${JSON.stringify(active)}`);
   }
   const next = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: "move 1 mega"});
-  if (!next.debug.inputLog.some(line => line.includes("[BattleV4][ruleset-special-filter] gen8 sanitized choice: move 1 mega -> move 1"))) {
+  if (!next.debug.inputLog.some(line => line.includes("gen8 sanitized") && line.includes("move 1 mega -> move 1"))) {
     throw new Error("gen8 illegal Mega suffix was not sanitized");
   }
   console.log("showdown-battle-core ruleset special filter smoke ok");
+}
+
+async function specialSystemBagGateSmoke() {
+  const baseTeam = [{...pikachu, teraType: "Electric"}, eevee];
+  const noOrbInput: BattleServiceSessionInputV4 = {
+    runId: "test-run",
+    nodeId: "test-node-gen9-no-orb",
+    mode: "singles",
+    ruleSet: "gen9",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: baseTeam, draft: {bag: {items: []}} as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  };
+  const noOrb = await createBattleSession(noOrbInput);
+  if (noOrb.requests.p1?.active?.[0]?.canTerastallize) {
+    throw new Error(`gen9 without tera orb leaked tera request: ${JSON.stringify(noOrb.requests.p1?.active?.[0])}`);
+  }
+  const noOrbNext = await submitChoice({sessionId: noOrb.id, playerId: "p1", choice: "move 1 terastallize"});
+  if (noOrbNext.debug.lastChoices.some(entry => entry.playerId === "p1" && entry.choice.includes("terastallize"))) {
+    throw new Error("gen9 without tera orb submitted terastallize choice");
+  }
+
+  const withOrbInput: BattleServiceSessionInputV4 = {
+    ...noOrbInput,
+    nodeId: "test-node-gen9-with-orb",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: baseTeam, draft: {bag: {items: [{itemID: "system-tera-orb"}]}} as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  };
+  const withOrb = await createBattleSession(withOrbInput);
+  if (!withOrb.requests.p1?.active?.[0]?.canTerastallize) {
+    throw new Error(`gen9 with tera orb should expose tera request: ${JSON.stringify(withOrb.requests.p1?.active?.[0])}`);
+  }
+
+  const standardCoopInput: BattleServiceSessionInputV4 = {
+    runId: "test-run",
+    nodeId: "test-node-standard-coop",
+    mode: "coop",
+    ruleSet: "standard",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: baseTeam, draft: {bag: {items: [{itemID: "system-tera-orb"}]}} as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+      {playerId: "p3", name: "C", controller: "script", alliance: "near", team: [pikachu, eevee], draft: null as any},
+      {playerId: "p4", name: "D", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  };
+  const standardCoop = await createBattleSession(standardCoopInput);
+  if (standardCoop.requests.p1?.active?.[0]?.canTerastallize || standardCoop.requests.p3?.active?.[0]?.canTerastallize) {
+    throw new Error(`standard coop leaked tera request: ${JSON.stringify(standardCoop.requests)}`);
+  }
+  console.log("showdown-battle-core special system bag gate smoke ok");
+}
+
+async function scriptAllyAutoChoiceSmoke() {
+  const input: BattleServiceSessionInputV4 = {
+    runId: "test-run",
+    nodeId: "test-node-script-auto-choice",
+    mode: "coop",
+    ruleSet: "standard",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [pikachu, eevee], draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [bulbasaur, eevee], draft: null as any},
+      {playerId: "p3", name: "C", controller: "script", alliance: "near", team: [eevee, pikachu], draft: null as any},
+      {playerId: "p4", name: "D", controller: "ai", alliance: "far", team: [bulbasaur, eevee], draft: null as any},
+    ],
+  };
+  const snapshot = await createBattleSession(input);
+  if (!snapshot.requests.p1) throw new Error("missing p1 coop request");
+  const next = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: randomLegalChoice(snapshot.requests.p1)});
+  if (next.requests.p3 && !next.requests.p1) {
+    throw new Error(`script ally still pending after p1 choice: ${JSON.stringify(next.requests.p3)}`);
+  }
+  if (!next.debug.lastChoices.some(entry => entry.playerId === "p3")) {
+    throw new Error(`script ally did not submit a choice: ${JSON.stringify(next.debug.lastChoices)}`);
+  }
+  console.log("showdown-battle-core script ally auto choice smoke ok");
 }
 
 function showdownCommandReferenceSmoke() {
@@ -377,7 +458,7 @@ function aiSpecialSystemSmoke() {
   };
   const gen7 = chooseAiBattleChoiceV4({
     request: gen7Request,
-    snapshot: aiSnapshot("gen7", "singles", gen7Request),
+    snapshot: aiSnapshot("gen7", "singles", gen7Request, ["mega", "zmove"]),
     playerId: "p2",
     aiProfile: {level: "champion", preference: "offense"},
     rngSeed: "gen7-special",
@@ -507,7 +588,7 @@ async function randomTeamGeneratorSmoke() {
   console.log("showdown-battle-core random team generator smoke ok");
 }
 
-function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: BattleServiceSessionInputV4["mode"], request: BattleServiceRequestV4): BattleServiceSnapshotV4 {
+function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: BattleServiceSessionInputV4["mode"], request: BattleServiceRequestV4, allowedSpecialSystems?: BattleServiceSnapshotV4["players"][number]["allowedSpecialSystems"]): BattleServiceSnapshotV4 {
   return {
     id: "ai-test-session",
     runId: "ai-test-run",
@@ -520,7 +601,7 @@ function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: Battl
     error: null,
     players: [
       {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [pikachu, eevee], draft: null as any},
-      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any, allowedSpecialSystems},
     ],
     requests: {p2: request},
     active: [
@@ -544,6 +625,8 @@ void smoke()
   .then(residualStatusSmoke)
   .then(sleepCantMoveSmoke)
   .then(rulesetSpecialSystemFilterSmoke)
+  .then(specialSystemBagGateSmoke)
+  .then(scriptAllyAutoChoiceSmoke)
   .then(showdownCommandReferenceSmoke)
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)

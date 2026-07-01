@@ -1,6 +1,7 @@
 export type ShowdownPlayerIdV4 = "p1" | "p2" | "p3" | "p4";
 export type TrainingModeV4 = "singles" | "doubles" | "coop";
 export type TrainingRuleSetV4 = "standard" | "gen7" | "gen8" | "gen9";
+export type BattleSpecialSystemV4 = "mega" | "zmove" | "max" | "terastallize";
 export type BattleAiLevelV4 = "rookie" | "normal" | "elite" | "gymLeader" | "eliteFour" | "champion";
 export type BattleAiPreferenceV4 = "offense" | "defense" | "support" | "balanced";
 export type BattleAiProfileV4 = {
@@ -119,6 +120,7 @@ export type BattleServicePlayerInputV4 = {
   team: BattleServicePokemonSetV4[];
   draft: TrainingPlayerDraftV4;
   teamMapping?: ShowdownTeamPokemonMappingV4[];
+  allowedSpecialSystems?: BattleSpecialSystemV4[];
 };
 
 export type BattleServiceSessionInputV4 = {

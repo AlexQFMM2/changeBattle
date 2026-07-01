@@ -1,5 +1,6 @@
 export type ShowdownSpecialChoiceV4 = "mega" | "megax" | "megay" | "ultra" | "zmove" | "max" | "terastallize";
 export type ShowdownSpecialSystemV4 = "mega" | "zmove" | "max" | "terastallize";
+export type ShowdownAllowedSpecialSystemsV4 = Partial<Record<ShowdownSpecialSystemV4, boolean>> | readonly ShowdownSpecialSystemV4[];
 
 export type ShowdownParsedChoiceV4 =
   | {kind: "move"; index: number; target?: string; special?: ShowdownSpecialChoiceV4}
@@ -94,25 +95,35 @@ export function showdownSpecialSystemForChoiceV4(choice?: ShowdownSpecialChoiceV
   return null;
 }
 
-export function showdownSpecialSystemAllowedForRuleSetV4(system: ShowdownSpecialSystemV4, ruleSet?: string, mode?: string): boolean {
-  if (mode === "coop") return system === "terastallize";
+export function showdownSpecialSystemAllowedForRuleSetV4(system: ShowdownSpecialSystemV4, ruleSet?: string, _mode?: string): boolean {
   if (ruleSet === "gen7") return system === "mega" || system === "zmove";
   if (ruleSet === "gen8") return system === "max";
-  if (ruleSet === "gen9" || ruleSet === "standard") return system === "terastallize";
-  return system === "terastallize";
+  if (ruleSet === "gen9") return system === "terastallize";
+  return false;
 }
 
-export function showdownSpecialChoiceAllowedForRuleSetV4(choice: ShowdownSpecialChoiceV4, ruleSet?: string, mode?: string): boolean {
+export function showdownSpecialSystemAllowedV4(system: ShowdownSpecialSystemV4, ruleSet?: string, mode?: string, allowedSystems?: ShowdownAllowedSpecialSystemsV4): boolean {
+  if (!showdownSpecialSystemAllowedForRuleSetV4(system, ruleSet, mode)) return false;
+  if (!allowedSystems) return true;
+  if (allowedSystemsIsArray(allowedSystems)) return allowedSystems.includes(system);
+  return Boolean(allowedSystems[system]);
+}
+
+function allowedSystemsIsArray(value: ShowdownAllowedSpecialSystemsV4): value is readonly ShowdownSpecialSystemV4[] {
+  return Array.isArray(value);
+}
+
+export function showdownSpecialChoiceAllowedForRuleSetV4(choice: ShowdownSpecialChoiceV4, ruleSet?: string, mode?: string, allowedSystems?: ShowdownAllowedSpecialSystemsV4): boolean {
   const system = showdownSpecialSystemForChoiceV4(choice);
-  return Boolean(system && showdownSpecialSystemAllowedForRuleSetV4(system, ruleSet, mode));
+  return Boolean(system && showdownSpecialSystemAllowedV4(system, ruleSet, mode, allowedSystems));
 }
 
-export function filterShowdownChoiceForRuleSetV4(choice: string, ruleSet: string, mode: string): string {
+export function filterShowdownChoiceForRuleSetV4(choice: string, ruleSet: string, mode: string, allowedSystems?: ShowdownAllowedSpecialSystemsV4): string {
   return choice.split(",").map(part => {
     const trimmed = part.trim();
     const parsed = parseShowdownChoiceCommandV4(trimmed);
     if (!parsed || parsed.kind !== "move" || !parsed.special) return trimmed;
-    if (showdownSpecialChoiceAllowedForRuleSetV4(parsed.special, ruleSet, mode)) return stringifyShowdownChoiceCommandV4(parsed);
+    if (showdownSpecialChoiceAllowedForRuleSetV4(parsed.special, ruleSet, mode, allowedSystems)) return stringifyShowdownChoiceCommandV4(parsed);
     return stringifyShowdownChoiceCommandV4({...parsed, special: undefined});
   }).join(", ");
 }

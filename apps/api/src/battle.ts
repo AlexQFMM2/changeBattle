@@ -273,6 +273,7 @@ export type BattleServicePlayerInputV4 = {
   team: BattlePokemonSetV4[];
   draft: TrainingPlayerDraftV4;
   teamMapping?: ShowdownTeamPokemonMappingV4[];
+  allowedSpecialSystems?: BattleSpecialSystemV4[];
 };
 
 export type BattlePokemonSetV4 = {
@@ -503,7 +504,7 @@ export function createBattleGameFromTrainingNode(run: TrainingRunGameV4, node: T
   const players = playerIdsForNode(node)
     .map(playerId => playerId === "p1" ? run.players[playerId] || node.participants?.[playerId] : node.participants?.[playerId] || run.players[playerId])
     .filter(Boolean)
-    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool));
+    .map(player => compilePlayer(player!, usedShowdownIdentityTokens, showdownIdPool, node.ruleSet));
   return {
     battleGame: {
       id: createId("battle-game"),
@@ -1328,7 +1329,7 @@ function resolveLocalPokemonFromActive(active: BattleActivePokemonV4, mapping: S
   ) || null;
 }
 
-function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState()): BattleServicePlayerInputV4 {
+function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState(), ruleSet: TrainingRuleSetV4 = "standard"): BattleServicePlayerInputV4 {
   const identity = createPlayerBattleIdentity(player, usedShowdownIdentityTokens, showdownIdPool);
   const bagItems = player.bag?.items || [];
   const teraType = playerTeraTypeForBattle(bagItems);
@@ -1343,6 +1344,7 @@ function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens
       localTeam: identity.localTeam,
     },
     teamMapping: identity.teamMapping,
+    allowedSpecialSystems: allowedSpecialSystemsForBattle(bagItems, ruleSet),
   };
 }
 
@@ -1388,6 +1390,17 @@ function battleMappedHeldItemId(item: TrainingPlayerDraftV4["bag"]["items"][numb
 function playerTeraTypeForBattle(bagItems: TrainingPlayerDraftV4["bag"]["items"]): string {
   const teraOrb = bagItems.find(item => item.itemID === "system-tera-orb" && typeof item.mappedTeraType === "string" && item.mappedTeraType);
   return typeof teraOrb?.mappedTeraType === "string" ? teraOrb.mappedTeraType : "";
+}
+
+function allowedSpecialSystemsForBattle(bagItems: TrainingPlayerDraftV4["bag"]["items"], ruleSet: TrainingRuleSetV4): BattleSpecialSystemV4[] {
+  const systems = new Set<BattleSpecialSystemV4>();
+  for (const item of bagItems || []) {
+    if (item.itemID === "system-mega-stone") systems.add("mega");
+    if (item.itemID === "system-z-crystal") systems.add("zmove");
+    if (item.itemID === "system-dynamax-band") systems.add("max");
+    if (item.itemID === "system-tera-orb") systems.add("terastallize");
+  }
+  return [...systems].filter(system => showdownSpecialSystemAllowedForRuleSetV4(system, ruleSet));
 }
 
 function rawHeldItemIdForBattle(itemId: string): string {
