@@ -8,3 +8,11 @@ createRoot(document.getElementById("root")!).render(
     <App runtime="desktop" />
   </StrictMode>,
 );
+
+const bootSplash = document.getElementById("boot-splash");
+if (bootSplash) {
+  requestAnimationFrame(() => {
+    bootSplash.classList.add("leaving");
+    window.setTimeout(() => bootSplash.remove(), 220);
+  });
+}
