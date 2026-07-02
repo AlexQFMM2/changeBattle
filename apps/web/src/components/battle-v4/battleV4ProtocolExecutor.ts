@@ -593,12 +593,16 @@ function fieldLabel(id: string): string {
 }
 
 function sideConditionLabel(id: string): string {
-  if (id === "stealthrock") return "隐形岩";
+  if (id === "stealthrock") return "岩钉";
   if (id === "spikes") return "撒菱";
   if (id === "toxicspikes") return "毒菱";
   if (id === "stickyweb") return "黏黏网";
   if (id === "reflect") return "反射壁";
   if (id === "lightscreen") return "光墙";
+  if (id === "auroraveil") return "极光幕";
+  if (id === "safeguard") return "神秘守护";
+  if (id === "mist") return "白雾";
+  if (id === "tailwind") return "顺风";
   return id || "场地状态";
 }
 

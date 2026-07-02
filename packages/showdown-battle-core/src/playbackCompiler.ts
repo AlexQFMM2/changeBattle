@@ -10,7 +10,7 @@ import type {
   ShowdownPlaybackWaitModeV4,
 } from "./types.js";
 
-const COMPILER_VERSION = "showdown-client-playback-v1";
+const COMPILER_VERSION = "showdown-client-playback-v2";
 const SHOWDOWN_CLIENT_SCRIPT_ORDER = [
   "battle-dex-data.js",
   "battle-dex.js",
@@ -83,7 +83,7 @@ export function compileShowdownPlaybackTimelineFromRawLog(
   }
   if (guard >= 2000) throw new Error("Showdown playback compiler exceeded step guard.");
   const allCalls = calls.filter(call => PLAYBACK_SIGNAL_METHODS.has(call.method)).map((call, index) => normalizeSceneCall(call, index, normalizedRawLog));
-  const allGroups = mergeProtocolTransformGroups(
+  const allGroups = mergeProtocolStateGroups(
     assignRawIndicesToGroups(groupShowdownCalls(allCalls, normalizedRawLog), normalizedRawLog),
     normalizedRawLog,
   );
@@ -305,16 +305,20 @@ function sceneCallKind(method: string): ShowdownPlaybackSceneCallKindV4 {
   }
 }
 
-function mergeProtocolTransformGroups(groups: ShowdownPlaybackGroupV4[], rawLog: string[]): ShowdownPlaybackGroupV4[] {
+function mergeProtocolStateGroups(groups: ShowdownPlaybackGroupV4[], rawLog: string[]): ShowdownPlaybackGroupV4[] {
   const covered = new Set(groups.flatMap(group => group.rawIndices));
   const additions = rawLog
-    .map((rawLine, rawIndex) => ({rawLine, rawIndex, call: transformSceneCallForRawLine(rawLine, rawIndex)}))
+    .map((rawLine, rawIndex) => ({rawLine, rawIndex, call: protocolSceneCallForRawLine(rawLine, rawIndex)}))
     .filter((entry): entry is {rawLine: string; rawIndex: number; call: ShowdownPlaybackSceneCallV4} => Boolean(entry.call) && !covered.has(entry.rawIndex))
-    .map(entry => playbackGroupForProtocolTransform(entry.call, entry.rawLine, entry.rawIndex));
+    .map(entry => playbackGroupForProtocolState(entry.call, entry.rawLine, entry.rawIndex));
   if (!additions.length) return groups;
   return [...groups, ...additions]
     .sort((a, b) => groupSortIndex(a) - groupSortIndex(b))
     .map((group, index) => ({...group, index, id: `sd-${index}-${group.rawIndices.join("-") || "scene"}`}));
+}
+
+function protocolSceneCallForRawLine(rawLine: string, rawIndex: number): ShowdownPlaybackSceneCallV4 | null {
+  return transformSceneCallForRawLine(rawLine, rawIndex) || persistentFieldSceneCallForRawLine(rawLine, rawIndex);
 }
 
 function transformSceneCallForRawLine(rawLine: string, rawIndex: number): ShowdownPlaybackSceneCallV4 | null {
@@ -339,9 +343,28 @@ function transformSceneCallForRawLine(rawLine: string, rawIndex: number): Showdo
   };
 }
 
-function playbackGroupForProtocolTransform(call: ShowdownPlaybackSceneCallV4, rawLine: string, rawIndex: number): ShowdownPlaybackGroupV4 {
+function persistentFieldSceneCallForRawLine(rawLine: string, rawIndex: number): ShowdownPlaybackSceneCallV4 | null {
+  const args = protocolArgs(rawLine);
+  const command = args[0] || "";
+  if (command !== "-weather" && command !== "-fieldstart" && command !== "-fieldend") return null;
+  const effect = command === "-weather" ? toId(args[1] || "") : toId(cleanEffect(args[1] || ""));
   return {
-    id: `sd-transform-${rawIndex}`,
+    id: `call-protocol-field-${rawIndex}`,
+    kind: "weatherUpdate",
+    method: command === "-weather" ? "protocolWeather" : "protocolField",
+    rawStep: rawIndex,
+    turn: null,
+    args,
+    label: `${command === "-weather" ? "weather" : "field"} ${effect || command}`.trim(),
+    rawIndex,
+    rawLine,
+    effect,
+  };
+}
+
+function playbackGroupForProtocolState(call: ShowdownPlaybackSceneCallV4, rawLine: string, rawIndex: number): ShowdownPlaybackGroupV4 {
+  return {
+    id: `sd-protocol-${rawIndex}`,
     index: rawIndex,
     turn: call.turn,
     rawIndices: [rawIndex],
@@ -505,6 +528,10 @@ function protocolArgs(line: string): string[] {
   if (!line.startsWith("|")) return ["", line];
   if (line === "|") return ["done"];
   return line.slice(1).split("|");
+}
+
+function cleanEffect(value: string): string {
+  return String(value || "").replace(/^move:\s*/i, "").replace(/^item:\s*/i, "").replace(/^ability:\s*/i, "");
 }
 
 function rawLineMatchesPokemon(line: string, pokemon: string | undefined): boolean {

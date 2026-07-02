@@ -658,6 +658,35 @@ function showdownPlaybackTimelineSmoke() {
   if (!healGroup || !healGroup.rawLines.some(line => line.startsWith("|-heal|"))) {
     throw new Error("item heal should compile to other heal + heal animation group");
   }
+  const weatherRawLog = [
+    "|player|p1|A|",
+    "|player|p2|B|",
+    "|gametype|singles",
+    "|gen|9",
+    "|",
+    "|switch|p1a: Raichu|Raichu, L50|100/100",
+    "|switch|p2a: Fearow|Fearow, L50|100/100",
+    "|turn|1",
+    "|-weather|Hail",
+    "|-fieldstart|move: Grassy Terrain",
+    "|upkeep",
+    "|turn|2",
+  ];
+  const weatherTimeline = compileShowdownPlaybackTimelineFromRawLog(weatherRawLog, {sessionId: "timeline-weather", previousIndex: 0});
+  const weatherGroup = weatherTimeline.groups.find(group => group.rawLines.includes("|-weather|Hail"));
+  if (!weatherGroup || !weatherGroup.calls.some(call => call.kind === "weatherUpdate" && call.method === "protocolWeather" && call.effect === "hail")) {
+    throw new Error(`weather protocol line should compile to its own weather update group: ${JSON.stringify(weatherTimeline.groups)}`);
+  }
+  const fieldGroup = weatherTimeline.groups.find(group => group.rawLines.includes("|-fieldstart|move: Grassy Terrain"));
+  if (!fieldGroup || !fieldGroup.calls.some(call => call.kind === "weatherUpdate" && call.method === "protocolField" && call.effect === "grassyterrain")) {
+    throw new Error(`field protocol line should compile to its own field update group: ${JSON.stringify(weatherTimeline.groups)}`);
+  }
+  const upkeepIndex = weatherTimeline.groups.findIndex(group => group.rawLines.includes("|upkeep"));
+  const weatherIndex = weatherTimeline.groups.indexOf(weatherGroup);
+  const fieldIndex = weatherTimeline.groups.indexOf(fieldGroup);
+  if (!(weatherIndex >= 0 && fieldIndex >= 0 && upkeepIndex >= 0 && weatherIndex < upkeepIndex && fieldIndex < upkeepIndex)) {
+    throw new Error(`weather/field groups should appear before upkeep: ${weatherTimeline.groups.map(group => group.summary).join(" -> ")}`);
+  }
   const increment = compileShowdownPlaybackTimelineFromRawLog(rawLog, {sessionId: "timeline-smoke", previousIndex: 17});
   if (increment.groups.some(group => group.rawIndices.some(index => index < 17))) {
     throw new Error(`previousIndex should only return increment groups: ${JSON.stringify(increment.groups.map(group => group.rawIndices))}`);

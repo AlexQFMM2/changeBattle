@@ -2438,7 +2438,7 @@ function sideConditionLabel(condition: string): string {
     auroraveil: "极光幕",
     safeguard: "神秘守护",
     mist: "白雾",
-    stealthrock: "隐形岩",
+    stealthrock: "岩钉",
     spikes: "撒菱",
     toxicspikes: "毒菱",
     stickyweb: "黏黏网",

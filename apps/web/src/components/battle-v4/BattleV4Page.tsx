@@ -55,7 +55,8 @@ type BattleV4BoostStat = "atk" | "def" | "spa" | "spd" | "spe" | "accuracy" | "e
 type BattleV4FieldStatus = {
   id: string;
   label: string;
-  category: "weather" | "terrain" | "room" | "field";
+  category: "weather" | "terrain" | "room" | "field" | "side";
+  side?: "near" | "far";
   remaining: number | null;
   note: string;
 };
@@ -130,6 +131,19 @@ const FIELD_LABELS: Record<string, string> = {
   magicroom: "魔法空间",
   wonderroom: "奇妙空间",
   gravity: "重力",
+};
+
+const SIDE_CONDITION_LABELS: Record<string, string> = {
+  reflect: "反射壁",
+  lightscreen: "光墙",
+  auroraveil: "极光幕",
+  safeguard: "神秘守护",
+  mist: "白雾",
+  stealthrock: "岩钉",
+  spikes: "撒菱",
+  toxicspikes: "毒菱",
+  stickyweb: "黏黏网",
+  tailwind: "顺风",
 };
 
 const POKEMON_FORM_LABELS: Array<[RegExp, string]> = [
@@ -2801,9 +2815,9 @@ function BattleV4StatusModal({snapshot, slots, api, onClose}: {
             {fieldItems.length ? (
               <div className="battle-v4-status-field-list">
                 {fieldItems.map(item => (
-                  <span className={`battle-v4-status-field ${item.category}`} key={`${item.category}-${item.id}`}>
+                  <span className={`battle-v4-status-field ${item.category}`} key={`${item.category}-${item.side || "field"}-${item.id}`}>
                     <b>{item.label}</b>
-                    <small>{item.remaining === null ? item.note : `约 ${item.remaining} 回合`}</small>
+                    <small>{item.remaining === null ? item.note : `${item.side === "near" ? "我方 · " : item.side === "far" ? "对方 · " : ""}约 ${item.remaining} 回合`}</small>
                   </span>
                 ))}
               </div>
@@ -2912,6 +2926,27 @@ function projectBattleV4BattleStatus(snapshot: BattleSessionSnapshotV4 | null): 
       status.fields = status.fields.filter(item => item.id !== id);
       continue;
     }
+    if (command === "-sidestart") {
+      const id = normalizeSideConditionStatusId(protocolEffectId(args[2] || args[1]));
+      if (!id) continue;
+      const side = sideConditionStatusSide(args[1]);
+      status.fields = status.fields.filter(item => item.category !== "side" || item.id !== id || item.side !== side);
+      status.fields.push({
+        id,
+        label: sideConditionStatusLabel(id, args[2] || args[1]),
+        category: "side",
+        side,
+        remaining: defaultSideConditionTurns(id),
+        note: "持续中",
+      });
+      continue;
+    }
+    if (command === "-sideend") {
+      const id = normalizeSideConditionStatusId(protocolEffectId(args[2] || args[1]));
+      const side = sideConditionStatusSide(args[1]);
+      status.fields = status.fields.filter(item => item.category !== "side" || item.id !== id || item.side !== side);
+      continue;
+    }
     applyBoostProtocol(status.boostsBySeat, args);
   }
   return status;
@@ -2927,6 +2962,21 @@ function weatherStatusLabel(id: string, raw: unknown): string {
 
 function fieldStatusLabel(id: string, raw: unknown): string {
   return FIELD_LABELS[id] || normalizeProtocolDisplayName(String(raw || "")) || id;
+}
+
+function sideConditionStatusLabel(id: string, raw: unknown): string {
+  return SIDE_CONDITION_LABELS[id] || normalizeProtocolDisplayName(String(raw || "")) || id;
+}
+
+function normalizeSideConditionStatusId(id: string): string {
+  if (SIDE_CONDITION_LABELS[id]) return id;
+  return "";
+}
+
+function sideConditionStatusSide(value: string | undefined): "near" | "far" {
+  const seat = protocolSeatFromIdent(value || "");
+  if (seat.startsWith("p2") || seat.startsWith("p4")) return "far";
+  return "near";
 }
 
 function applyBoostProtocol(boostsBySeat: BattleV4BattleStatus["boostsBySeat"], args: string[]) {
@@ -3041,6 +3091,13 @@ function defaultFieldTurns(id: string, persistent: boolean): number | null {
   if (id.endsWith("terrain")) return persistent ? 8 : 5;
   if (id.endsWith("room")) return 5;
   if (id === "gravity") return 5;
+  return null;
+}
+
+function defaultSideConditionTurns(id: string): number | null {
+  if (id === "tailwind") return 4;
+  if (id === "reflect" || id === "lightscreen" || id === "auroraveil") return 5;
+  if (id === "safeguard" || id === "mist") return 5;
   return null;
 }
 

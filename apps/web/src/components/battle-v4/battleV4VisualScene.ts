@@ -5,6 +5,7 @@ import {
   selectShowdownAnimationKeyV4,
   type ShowdownAnimationStepV4,
 } from "./battleV4ShowdownAnimationAdapter";
+import {assetUrl} from "../../lib/assetUrl";
 import type {
   BattleAnimationEventV4,
   BattleAnimationKindV4,
@@ -35,6 +36,40 @@ const EMPTY_VISUAL_SIDE_CONDITION_STATE: BattleV4PersistentSideConditionVisuals 
   adapterFidelity: "fallback",
 };
 const BATTLE_V4_HP_ANIMATION_DURATION_MS = 720;
+
+const WEATHER_VIDEO_IDS: Record<string, string> = {
+  sunnyday: "sunnyday",
+  desolateland: "sunnyday",
+  raindance: "raindance",
+  primordialsea: "raindance",
+  sandstorm: "sandstorm",
+  hail: "hail",
+  snow: "hail",
+  snowscape: "hail",
+};
+
+const WEATHER_IMAGE_IDS: Record<string, string> = {
+  sunnyday: "weather-sunnyday.jpg",
+  desolateland: "weather-sunnyday.jpg",
+  raindance: "weather-raindance.jpg",
+  primordialsea: "weather-raindance.jpg",
+  sandstorm: "weather-sandstorm.png",
+  hail: "weather-hail.png",
+  snow: "weather-hail.png",
+  snowscape: "weather-hail.png",
+  deltastream: "weather-strongwind.png",
+};
+
+const FIELD_IMAGE_IDS: Record<string, string> = {
+  electricterrain: "weather-electricterrain.png",
+  grassyterrain: "weather-grassyterrain.png",
+  mistyterrain: "weather-mistyterrain.png",
+  psychicterrain: "weather-psychicterrain.png",
+  trickroom: "weather-trickroom.png",
+  magicroom: "weather-magicroom.png",
+  wonderroom: "weather-wonderroom.png",
+  gravity: "weather-gravity.png",
+};
 
 export type BattleHpTweenV4 = {
   seat: BattleProtocolSeatV4;
@@ -126,26 +161,67 @@ export function applyBattleV4VisualCommandSettle(slots: BattleViewSlotV4[], comm
 export function applyBattleV4PersistentFieldVisuals(current: BattleV4PersistentFieldVisuals, command: BattleVisualCommandV4): BattleV4PersistentFieldVisuals {
   const event = command.semanticEvent;
   if (event.kind === "weather") {
-    const weatherId = event.active ? event.id : "";
-    return {
+    const weatherId = event.active ? normalizeWeatherId(event.id) : "";
+    const next = {
       ...current,
       weatherId,
       sourceRawLine: event.rawLine,
-      renderedWeatherLayer: weatherId,
+      adapterFidelity: "native" as const,
     };
+    return refreshPersistentLayerResource(next);
   }
   if (event.kind === "field") {
-    const terrainId = event.id.includes("terrain") && event.active ? event.id : event.id.includes("terrain") ? "" : current.terrainId;
-    const roomId = event.id.includes("room") && event.active ? event.id : event.id.includes("room") ? "" : current.roomId;
-    return {
+    const fieldId = normalizeFieldId(event.id);
+    const terrainId = fieldId.includes("terrain") && event.active ? fieldId : fieldId.includes("terrain") ? "" : current.terrainId;
+    const roomId = fieldId.includes("room") && event.active ? fieldId : fieldId.includes("room") ? "" : current.roomId;
+    const next = {
       ...current,
       terrainId,
       roomId,
-      gravityActive: event.id === "gravity" ? event.active : current.gravityActive,
+      gravityActive: fieldId === "gravity" ? event.active : current.gravityActive,
       sourceRawLine: event.rawLine,
+      adapterFidelity: "native" as const,
     };
+    return refreshPersistentLayerResource(next);
   }
   return current;
+}
+
+function refreshPersistentLayerResource(state: BattleV4PersistentFieldVisuals): BattleV4PersistentFieldVisuals {
+  const activeId = state.weatherId || state.terrainId || state.roomId || (state.gravityActive ? "gravity" : "");
+  return {...state, ...resourceFieldsForPersistentLayer(state.weatherId, activeId), renderedWeatherLayer: activeId};
+}
+
+function resourceFieldsForPersistentLayer(weatherId: string, activeId: string): Pick<BattleV4PersistentFieldVisuals, "resourcePath" | "resourceKind" | "missingFxAssets"> {
+  if (!activeId) return {resourcePath: "", resourceKind: "", missingFxAssets: []};
+  const resource = persistentLayerResource(activeId, weatherId ? "weather" : "field");
+  return {resourcePath: resource.path, resourceKind: resource.kind, missingFxAssets: resource.missing ? [resource.missing] : []};
+}
+
+function persistentLayerResource(id: string, kind: "weather" | "field"): {path: string; kind: "video" | "image" | ""; missing: string} {
+  if (kind === "weather") {
+    const videoId = WEATHER_VIDEO_IDS[id];
+    if (videoId) return {path: assetUrl(`showdown/fx/weather-gen6-${videoId}.webm`) || "", kind: "video", missing: ""};
+    const image = WEATHER_IMAGE_IDS[id];
+    if (image) return {path: assetUrl(`showdown/fx/${image}`) || "", kind: "image", missing: ""};
+    return {path: "", kind: "", missing: assetUrl(`showdown/fx/weather-${id}.png`) || ""};
+  }
+  const image = FIELD_IMAGE_IDS[id];
+  if (image) return {path: assetUrl(`showdown/fx/${image}`) || "", kind: "image", missing: ""};
+  return {path: "", kind: "", missing: assetUrl(`showdown/fx/weather-${id}.png`) || ""};
+}
+
+function normalizeWeatherId(id: string): string {
+  if (id === "sun") return "sunnyday";
+  if (id === "rain") return "raindance";
+  if (id === "snow") return "snowscape";
+  return id;
+}
+
+function normalizeFieldId(id: string): string {
+  if (id === "electricterrain" || id === "grassyterrain" || id === "mistyterrain" || id === "psychicterrain") return id;
+  if (id === "trickroom" || id === "magicroom" || id === "wonderroom" || id === "gravity") return id;
+  return id;
 }
 
 export function applyBattleV4PersistentSideConditionVisuals(current: BattleV4PersistentSideConditionVisuals, command: BattleVisualCommandV4): BattleV4PersistentSideConditionVisuals {
