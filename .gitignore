@@ -10,3 +10,5 @@ coverage/
 
 # Local generated/copied assets; keep out of git.
 assets/
+debug/
+release/
