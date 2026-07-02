@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
   userProfile: {
@@ -15,10 +15,18 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("formalGame:prepareRoundPlan", run) as ReturnType<DesktopFormalGameBridge["prepareFormalRoundPlan"]>,
     prepareFormalBattleSession: (run: FormalGameRunV4) =>
       ipcRenderer.invoke("formalGame:prepareBattleSession", run) as ReturnType<DesktopFormalGameBridge["prepareFormalBattleSession"]>,
+    getFormalMedicalInsuranceOffer: (run: FormalGameRunV4) =>
+      ipcRenderer.invoke("formalGame:getMedicalInsuranceOffer", run) as ReturnType<DesktopFormalGameBridge["getFormalMedicalInsuranceOffer"]>,
+    chooseFormalMedicalInsurance: (run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4) =>
+      ipcRenderer.invoke("formalGame:chooseMedicalInsurance", run, choice) as ReturnType<DesktopFormalGameBridge["chooseFormalMedicalInsurance"]>,
+    formalMedicalInsuranceEffectsForRun: (run: FormalGameRunV4) =>
+      ipcRenderer.invoke("formalGame:medicalInsuranceEffectsForRun", run) as ReturnType<DesktopFormalGameBridge["formalMedicalInsuranceEffectsForRun"]>,
     prepareFormalSettlement: (run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4) =>
       ipcRenderer.invoke("formalGame:prepareSettlement", run, profile, reason) as ReturnType<DesktopFormalGameBridge["prepareFormalSettlement"]>,
-    settleFormalBattleRound: (run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4) =>
-      ipcRenderer.invoke("formalGame:settleBattleRound", run, snapshot) as ReturnType<DesktopFormalGameBridge["settleFormalBattleRound"]>,
+    settleFormalBattleRound: (run: FormalGameRunV4) =>
+      ipcRenderer.invoke("formalGame:settleBattleRound", run) as ReturnType<DesktopFormalGameBridge["settleFormalBattleRound"]>,
+    finalizeFormalBattleResult: (run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4) =>
+      ipcRenderer.invoke("formalGame:finalizeBattleResult", run, sessionId, reason) as ReturnType<DesktopFormalGameBridge["finalizeFormalBattleResult"]>,
   },
   battleService: {
     createBattleSession: (input: BattleSessionCreateInputV4) =>

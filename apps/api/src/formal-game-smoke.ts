@@ -13,21 +13,29 @@ import {
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
   FORMAL_STARTING_MONEY,
   BATTLE_PRACTICE_MASTERY_NODE_ID,
+  CHAMPION_FUND_NODE_ID,
+  ELITE_FUND_NODE_ID,
   ELITE_EXCHANGE_EDUCATION_NODE_ID,
+  EMERGENCY_BACKPACK_NODE_ID,
   EMERGENCY_MEDICAL_CARE_NODE_ID,
   EXCHANGE_ITEM_STEAL_NODE_ID,
   FREE_MEDICAL_CARE_NODE_ID,
+  LAUNCH_KIT_NODE_ID,
   LOSSLESS_EXCHANGE_NODE_ID,
+  MOVE_PREVIEW_NODE_ID,
   OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
   SECOND_EXCHANGE_NODE_ID,
   STARTER_ROLE_PLAN,
+  TRAVEL_FUND_NODE_ID,
+  VICTORY_DIVIDEND_NODE_ID,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
-import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, type FormalShopRestockContextV4} from "./formalGame.js";
+import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
   enableTestModeForProfileV4,
+  formalStartingMoneyForStarChartV4,
   formalShopAutoRestockForStarChartV4,
   formalShopRowsForStarChartV4,
   normalizeStarChartV4,
@@ -37,11 +45,16 @@ import {
   starChartHasEmergencyMedicalCareV4,
   starChartHasExchangeItemStealV4,
   starChartHasFreeMedicalCareV4,
+  starChartHasEmergencyBackpackV4,
+  starChartHasLaunchKitV4,
   starChartHasLosslessExchangeV4,
+  starChartHasMedicalInsuranceV4,
+  starChartHasMovePreviewV4,
   starChartHasOpponentRumorV4,
   starChartHasOutpatientMedicalCareV4,
   starChartHasSecondExchangeV4,
   starChartHasSpecialTrainingLockV4,
+  starChartHasVictoryDividendV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
   type StarChartStateV4,
@@ -65,6 +78,7 @@ const pokemonDetails = [
   mockPokemon("ninetalesalola", "九尾-阿罗拉", 38, ["Ice", "Fairy"], 505, {baseSpecies: "Ninetales", forme: "Alola"}),
   mockPokemon("lucario", "路卡利欧", 448, ["Fighting", "Steel"], 525),
   mockPokemon("greninja", "甲贺忍蛙", 658, ["Water", "Dark"], 530),
+  mockPokemon("greninjabond", "甲贺忍蛙（牵绊变身）", 658, ["Water", "Dark"], 530, {baseSpecies: "Greninja", forme: "Bond"}),
   mockPokemon("flygon", "沙漠蜻蜓", 330, ["Ground", "Dragon"], 520),
   mockPokemon("breloom", "斗笠菇", 286, ["Grass", "Fighting"], 460),
   mockPokemon("venusaur", "妙蛙花", 3, ["Grass", "Poison"], 525),
@@ -103,6 +117,9 @@ const api = createFormalGameRunApi({
   },
   getPokemonEggSkills() {
     return ["toxic", "willowisp", "substitute"].map(moveDetail);
+  },
+  getPokemonMachineSkills() {
+    return ["watergun", "thunderbolt", "icebeam", "flamethrower", "surf", "earthquake", "protect"].map(moveDetail);
   },
   getMoveDetail(id: string) {
     return moveDetail(id);
@@ -186,7 +203,7 @@ function moveDetail(id: string) {
     surf: 90,
     earthquake: 100,
   };
-  const status = id === "protect" || id === "raindance" || id === "trickroom";
+  const status = id === "protect" || id === "raindance" || id === "trickroom" || id === "willowisp" || id === "toxic" || id === "calmmind" || id === "swordsdance" || id === "substitute";
   return {
     id,
     name: id,
@@ -347,8 +364,14 @@ assert(api.selectedCountForFormalMode("doubles") === 4, "doubles should select 4
 assert(api.selectedCountForFormalMode("coop") === 2, "coop should select 2");
 assert(prepared.starterCandidates.every(candidate => candidate.pokemon.itemId === ""), "player starters should not hold items");
 assert(prepared.starterCandidates.every(candidate => !candidate.pokemon.heldItemInstanceId), "player starters should not bind held item instances");
-assert(prepared.starterCandidates.every(candidate => ["rookie", "normal", "elite"].includes(candidate.pokemon.powerProfile || "")), "player starter power profile should not exceed elite");
-prepared.starterCandidates.forEach((candidate, index) => assertPokemonPowerProfile(candidate.pokemon, `starter candidate ${index + 1}`, ["rookie", "normal", "elite"]));
+assert(prepared.starterCandidates.every(candidate => ["normal", "elite"].includes(candidate.pokemon.powerProfile || "")), "player starter power profile should be limited to normal or elite");
+assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "normal").length === 5, "starter candidates should roll about 80% normal power profile for base six");
+assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "elite").length === 1, "starter candidates should roll about 20% elite power profile for base six");
+prepared.starterCandidates.forEach((candidate, index) => {
+  const maxStarterIv = candidate.pokemon.powerProfile === "normal" ? 26 : 28;
+  assert(Object.values(candidate.pokemon.ivs).every(value => value <= maxStarterIv), `starter candidate ${index + 1} should leave IV growth room`);
+});
+prepared.starterCandidates.forEach((candidate, index) => assertPokemonPowerProfile(candidate.pokemon, `starter candidate ${index + 1}`, ["normal", "elite"]));
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.generation >= 1 && candidate.diagnostics.generation <= 3), "allowedGenerations should filter candidates");
 assert(prepared.battlePreference.battleBagEnabled === true, "formal run should keep battlePreference snapshot battle bag flag");
 assert(prepared.battlePreference.legendaryBattle === false, "formal run should keep battlePreference snapshot legendary flag");
@@ -364,11 +387,11 @@ assert(starterStatView.stats.atk === starterCalculatedStats.atk, "formal starter
 assert(starterStatView.stats.atk !== starterStatCandidate.pokemon.ivs.atk + starterStatCandidate.pokemon.evs.atk, "formal starter stats should not be IV plus EV");
 assert(FORMAL_STARTER_SHINY_RATE === 1 / 30, "formal starter shiny rate should be 1/30");
 assert(FORMAL_ROUND_COUNT === 7, "formal round count should stay 7");
-assert(FORMAL_STARTING_MONEY === 3000, "formal starting money should stay 3000");
+assert(FORMAL_STARTING_MONEY === 0, "formal base starting money should be star-chart driven");
 assert(STARTER_ROLE_PLAN.slice(0, 6).join(",") === "weather,trick-room,offense,offense,support,defense", "starter role plan first 6 roles should stay stable");
 assert(prepared.starterCandidates.every(candidate => candidate.speciesRank !== "legendary"), "legendaryBattle false should exclude legendary rank");
 assert(prepared.starterCandidates.every(candidate => ["rank4", "rank5", "rank6"].includes(candidate.speciesRank)), "player starter candidates should only use rank4-rank6");
-assert(prepared.starterCandidates.every(candidate => !["squirtle", "charizardmegax", "charizardgmax", "walkingwake", "blacephalon"].includes(candidate.pokemon.speciesId)), "starter filters should remove low rank, legendary, mega, and gmax species");
+assert(prepared.starterCandidates.every(candidate => !["squirtle", "charizardmegax", "charizardgmax", "walkingwake", "blacephalon", "greninjabond"].includes(candidate.pokemon.speciesId)), "starter filters should remove low rank, legendary, mega, gmax, and battle-only forms");
 assert(prepared.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(",") === preparedAgain.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(","), "same seed should be stable");
 assert(prepared.starterCandidates.map(candidate => candidate.role).join(",") === "weather,trick-room,offense,offense,support,defense", "base six starter roles should match formal plan");
 for (const role of ["weather", "trick-room", "offense", "support", "defense"]) {
@@ -384,7 +407,9 @@ const regionalFormProfile = {
 };
 const regionalFormRun = api.createFormalGameRun(regionalFormProfile, {mode: "singles", seed: "formal-smoke-regional-form-seed"});
 const regionalFormPrepared = api.prepareFormalStarterCandidates(regionalFormRun, {count: 10});
-assert(regionalFormPrepared.starterCandidates.some(candidate => candidate.pokemon.speciesId === "ninetalesalola"), "regional forms should be allowed");
+assert(regionalFormPrepared.starterCandidates.every(candidate => candidate.pokemon.speciesId !== "charizardmegax"), "starter filters should keep blocking mega forms");
+assert(isRandomGeneratableSpeciesFormV4("ninetalesalola", pokemonById.get("ninetalesalola")!), "regional forms should be allowed");
+assert(!isRandomGeneratableSpeciesFormV4("greninjabond", pokemonById.get("greninjabond")!), "battle bond Greninja form should not be random generatable");
 
 let starProfile = {...profile, battlePoints: 100, starChart: normalizeStarChartV4()};
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 6, "root-only star chart should grant 6 starter candidates");
@@ -420,6 +445,30 @@ starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_auto_restock");
 assert(starProfile.battlePoints === 80, "shop auto restock should cost 20 BP");
 assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should unlock purchase restocking");
+assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 0, "root-only star chart should start with zero formal money");
+starProfile = {...starProfile, battlePoints: 200};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, TRAVEL_FUND_NODE_ID);
+assert(starProfile.battlePoints === 190, "travel fund should cost 10 BP");
+assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 500, "travel fund should set formal starting money to 500");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, ELITE_FUND_NODE_ID);
+assert(starProfile.battlePoints === 172, "elite fund should cost 18 BP");
+assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 1000, "elite fund should set formal starting money to 1000");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, CHAMPION_FUND_NODE_ID);
+assert(starProfile.battlePoints === 144, "champion fund should cost 28 BP");
+assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 1500, "champion fund should set formal starting money to 1500");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, VICTORY_DIVIDEND_NODE_ID);
+assert(starProfile.battlePoints === 119, "victory dividend should cost 25 BP");
+assert(starChartHasVictoryDividendV4(starProfile.starChart), "victory dividend should unlock settlement BP bonus");
+starProfile = {...starProfile, battlePoints: 200};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, EMERGENCY_BACKPACK_NODE_ID);
+assert(starProfile.battlePoints === 190, "emergency backpack should cost 10 BP");
+assert(starChartHasEmergencyBackpackV4(starProfile.starChart), "emergency backpack should unlock starter super potions");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, LAUNCH_KIT_NODE_ID);
+assert(starProfile.battlePoints === 170, "launch kit should cost 20 BP");
+assert(starChartHasLaunchKitV4(starProfile.starChart), "launch kit should unlock starter held item gifts");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, MOVE_PREVIEW_NODE_ID);
+assert(starProfile.battlePoints === 145, "move preview should cost 25 BP");
+assert(starChartHasMovePreviewV4(starProfile.starChart), "move preview should unlock starter TM gifts");
 assert(!starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should be off before unlock");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
@@ -440,8 +489,9 @@ assert(starProfile.battlePoints === 75, "second exchange should cost 40 BP");
 assert(starChartHasSecondExchangeV4(starProfile.starChart), "second exchange should unlock paid second exchange");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, FREE_MEDICAL_CARE_NODE_ID);
-assert(starProfile.battlePoints === 80, "free medical care should cost 20 BP");
-assert(starChartHasFreeMedicalCareV4(starProfile.starChart), "free medical care should unlock revive fee waiver");
+assert(starProfile.battlePoints === 80, "medical insurance should cost 20 BP");
+assert(starChartHasFreeMedicalCareV4(starProfile.starChart), "legacy free medical helper should remain compatible");
+assert(starChartHasMedicalInsuranceV4(starProfile.starChart), "medical insurance should unlock the insurance offer");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, EMERGENCY_MEDICAL_CARE_NODE_ID);
 assert(starProfile.battlePoints === 55, "emergency medical care should cost 25 BP");
 assert(starChartHasEmergencyMedicalCareV4(starProfile.starChart), "emergency medical care should unlock half-hp revive");
@@ -519,33 +569,61 @@ assert(selected.playerTeam?.pokemon.length === 3, "selected player team should c
 assert(selected.playerTeam.pokemon.every(pokemon => pokemon.itemId === ""), "selected player team should stay itemless");
 
 const roundPlanned = api.prepareFormalRoundPlan(selected);
+const economyReadyRun = {...roundPlanned, money: 3000};
 const rookieOpponent = roundPlanned.roundPlan[0]!.participants.p2!.localTeam.pokemon;
-const normalOpponent = roundPlanned.roundPlan[1]!.participants.p2!.localTeam.pokemon;
-const scaledGymOpponent = roundPlanned.roundPlan[2]!.participants.p2!.localTeam.pokemon;
-const eliteOpponent = roundPlanned.roundPlan[5]!.participants.p2!.localTeam.pokemon;
 assert(roundPlanned.status === "resting", "formal round plan should enter resting status");
+assert(roundPlanned.money === 0, "root-only formal run should start with zero money");
 assert(roundPlanned.roundPlan.length === 7, "formal round plan should create seven rounds");
 assert(roundPlanned.restRunSnapshot?.gameMap.length === 7, "formal rest snapshot should expose seven map nodes");
+assert(roundPlanned.roundPlan[0]?.participants.p2?.localTeam.pokemon.length === 3, "formal round planning should generate the first opponent");
+assert(!roundPlanned.roundPlan[1]?.participants.p2, "formal round planning should defer the second opponent");
+assert(roundPlanned.restRunSnapshot?.gameMap[0]?.participants.p2?.localTeam.pokemon.length === 3, "formal rest snapshot should expose first opponent");
+assert(!roundPlanned.restRunSnapshot?.gameMap[1]?.participants.p2, "formal rest snapshot should hide future opponents");
 assert(Array.isArray(roundPlanned.restRunSnapshot?.coinLog) && roundPlanned.restRunSnapshot?.coinLog.length === 0, "formal rest snapshot should start with empty coinLog");
 assert(Array.isArray(roundPlanned.restRunSnapshot?.battleLog) && roundPlanned.restRunSnapshot?.battleLog.length === 0, "formal rest snapshot should start with empty battleLog");
 assert(roundPlanned.restRunSnapshot?.currentNodeId === roundPlanned.restRunSnapshot?.gameMap[0]?.id, "formal rest snapshot should point at first round");
 assert(roundPlanned.roundPlan[0]?.participants.p1?.localTeam.pokemon.every(pokemon => pokemon.itemId === ""), "formal player team should remain itemless in round plan");
-assert(roundPlanned.roundPlan.every(round => (round.participants.p2?.localTeam.pokemon.length || 0) === 3), "singles formal opponents should bring three pokemon");
-assert(roundPlanned.roundPlan.every(round => {
+const championFundProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, TRAVEL_FUND_NODE_ID), ELITE_FUND_NODE_ID), CHAMPION_FUND_NODE_ID);
+const championFundRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(championFundProfile, {mode: "singles", seed: "formal-smoke-champion-fund-seed"})), [0, 1, 2]));
+assert(championFundRun.money === 1500, "champion fund formal run should start with 1500 money");
+const giftProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, EMERGENCY_BACKPACK_NODE_ID), LAUNCH_KIT_NODE_ID), MOVE_PREVIEW_NODE_ID);
+const giftRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(giftProfile, {mode: "singles", seed: "formal-smoke-starter-gifts-seed"})), [0, 1, 2]));
+const giftItems = giftRun.restRunSnapshot!.players.p1!.bag.items;
+assert(giftItems.filter(item => item.itemID === "superpotion").length === 3, "emergency backpack should grant three super potions");
+assert(["muscleband", "wiseglasses", "shellbell"].every(itemID => giftItems.some(item => item.itemID === itemID)), "launch kit should grant all starter held items");
+const giftTms = giftItems.filter(item => item.itemID.startsWith("tm:"));
+assert(giftTms.length === giftRun.restRunSnapshot!.players.p1!.localTeam.pokemon.length, "move preview should grant one TM per selected pokemon");
+assert(giftTms.every(item => moveDetail(item.itemID.slice(3)).power > 0), "move preview TMs should be damaging moves");
+assert(roundPlanned.roundPlan.filter(round => round.participants.p2).every(round => (round.participants.p2?.localTeam.pokemon.length || 0) === 3), "generated singles formal opponents should bring three pokemon");
+assert(roundPlanned.roundPlan.filter(round => round.participants.p2).every(round => {
   const team = round.participants.p2?.localTeam.pokemon || [];
   return new Set(team.map(pokemon => pokemon.speciesId)).size === team.length;
 }), "formal opponent teams should avoid internal duplicate species");
 rookieOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `rookie NPC ${index + 1}`, ["rookie"]));
 assert(rookieOpponent.every(pokemon => !["choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "assaultvest", "heavydutyboots"].includes(pokemon.itemId)), "rookie NPC should not hold strong battle items");
-normalOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `normal NPC ${index + 1}`, ["normal"]));
-eliteOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `elite NPC ${index + 1}`, ["elite"]));
-scaledGymOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `streak 0 gym NPC ${index + 1}`, ["elite"]));
 
 const shop = api.getFormalRestShop(roundPlanned);
 const shopProducts = api.getFormalRestShopProducts(roundPlanned);
 assert(shopProducts.length === FORMAL_SHOP_CATEGORY_ORDER.length, "formal shop product view should expose one row by default");
 assert(shopProducts.every(product => product.slotId && product.itemID && product.name && product.summary && product.price > 0), "formal shop product view should include display fields");
 assert(shopProducts.every(product => shop?.categories[product.type]?.some(item => item.slotId === product.slotId)), "formal shop product view should preserve slot mapping");
+const insuranceBlocked = api.chooseFormalMedicalInsurance(roundPlanned, "basic");
+assert(!insuranceBlocked.ok && insuranceBlocked.run.money === roundPlanned.money, "medical insurance should require star chart unlock");
+const insuranceProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, FREE_MEDICAL_CARE_NODE_ID);
+const insuranceRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(insuranceProfile, {mode: "singles", seed: "formal-smoke-insurance-seed"})), [0, 1, 2]));
+const insurancePoor = api.chooseFormalMedicalInsurance({...insuranceRun, money: 199}, "basic");
+assert(!insurancePoor.ok && insurancePoor.run.money === 199, "medical insurance should reject insufficient money without deduction");
+const insuranceDeclined = api.chooseFormalMedicalInsurance({...insuranceRun, money: 500}, "decline");
+assert(insuranceDeclined.ok && insuranceDeclined.run.medicalInsuranceOfferSeen && !insuranceDeclined.run.medicalInsurance, "medical insurance decline should mark offer seen without purchase");
+const insuranceStandard = api.chooseFormalMedicalInsurance({...insuranceRun, money: 1000}, "standard");
+assert(insuranceStandard.ok && insuranceStandard.run.money === 500, "standard medical insurance should deduct 500 money");
+assert(insuranceStandard.run.medicalInsurance?.reviveCostPerPokemon === 15, "standard medical insurance should lower revive cost to 15");
+assert(insuranceStandard.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "medical-insurance" && entry.amount === -500), "medical insurance purchase should append coin log");
+const insuranceRecoveryProduct = api.getFormalRestShopProducts(insuranceStandard.run).find(product => product.type === "recovery");
+if (insuranceRecoveryProduct) {
+  const undiscounted = formalShopItemPriceV4({category: "recovery", itemID: insuranceRecoveryProduct.itemID}, itemDetail(insuranceRecoveryProduct.itemID), moveDetail);
+  assert(insuranceRecoveryProduct.price === Math.max(1, Math.floor(undiscounted * 0.5)), "standard medical insurance should halve recovery product price");
+}
 const counterOneProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_luxury_counter_1");
 const counterOneRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterOneProfile, {mode: "singles", seed: "formal-smoke-counter-one-seed"})), [0, 1, 2]));
 assert(api.getFormalRestShopProducts(counterOneRun).length === FORMAL_SHOP_CATEGORY_ORDER.length * 2, "luxury counter I should expose two shop rows");
@@ -589,9 +667,9 @@ assert(formalShopRestockItemWeightV4("recovery", "revive", injuredRestockContext
 assert(formalShopRestockItemWeightV4("berry", "lumberry", injuredRestockContext) > formalShopRestockItemWeightV4("berry", "lumberry", calmRestockContext), "formal shop restock should favor status berries when pokemon have status");
 assert(formalShopRestockItemWeightV4("recovery", "ether", injuredRestockContext) > formalShopRestockItemWeightV4("recovery", "ether", calmRestockContext), "formal shop restock should favor PP recovery when moves run low");
 const boughtProduct = shopProducts.find(product => product.type === "berry") || shopProducts[0]!;
-const buyResult = api.buyFormalRestShopItem(roundPlanned, boughtProduct.slotId);
+const buyResult = api.buyFormalRestShopItem(economyReadyRun, boughtProduct.slotId);
 assert(buyResult.ok, "formal shop buy should succeed for a displayed product");
-assert(buyResult.run.money === roundPlanned.money - boughtProduct.price, "formal shop buy should deduct displayed product price");
+assert(buyResult.run.money === economyReadyRun.money - boughtProduct.price, "formal shop buy should deduct displayed product price");
 assert(api.getFormalRestShopProducts(buyResult.run).find(product => product.slotId === boughtProduct.slotId)?.stock === 0, "formal shop should not auto restock before star chart unlock");
 const boughtItem = buyResult.run.restRunSnapshot?.players.p1?.bag.items.find(item => item.itemID === boughtProduct.itemID && item.cost === boughtProduct.price);
 assert(boughtItem, "formal shop bought item should enter bag with displayed product price");
@@ -605,7 +683,7 @@ if (boughtItem) {
 const autoRestockProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_auto_restock");
 const autoRestockRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(autoRestockProfile, {mode: "singles", seed: "formal-smoke-auto-restock-seed"})), [0, 1, 2]));
 const autoRestockProduct = api.getFormalRestShopProducts(autoRestockRun)[0]!;
-const autoRestockResult = api.buyFormalRestShopItem(autoRestockRun, autoRestockProduct.slotId);
+const autoRestockResult = api.buyFormalRestShopItem({...autoRestockRun, money: 3000}, autoRestockProduct.slotId);
 const autoRestockedProduct = api.getFormalRestShopProducts(autoRestockResult.run).find(product => product.slotId === autoRestockProduct.slotId);
 assert(autoRestockResult.ok && autoRestockedProduct && autoRestockedProduct.stock > 0, "formal shop should auto restock after star chart unlock");
 
@@ -614,11 +692,11 @@ const statRerollPoor = api.rerollFormalRestPokemonStats({...roundPlanned, money:
 assert(!statRerollPoor.ok && statRerollPoor.cost === 10 && statRerollPoor.run.money === 9, "formal stat reroll should reject insufficient funds without changing money");
 const statRerollBeforeHpIv = statRerollPokemon.ivs.hp;
 const statRerollBeforeAtkIv = statRerollPokemon.ivs.atk;
-const statRerollResult = api.rerollFormalRestPokemonStats(roundPlanned, {pokemonId: statRerollPokemon.localPokemonId, part: "ivs", lockedStats: ["hp", "atk"]});
+const statRerollResult = api.rerollFormalRestPokemonStats(economyReadyRun, {pokemonId: statRerollPokemon.localPokemonId, part: "ivs", lockedStats: ["hp", "atk"]});
 const statRerollAfter = statRerollResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 assert(statRerollResult.ok, "formal stat reroll should apply");
 assert(statRerollResult.cost === 20, "formal stat reroll should cost 10 plus 5 per lock");
-assert(statRerollResult.run.money === roundPlanned.money - 20, "formal stat reroll should deduct cost");
+assert(statRerollResult.run.money === economyReadyRun.money - 20, "formal stat reroll should deduct cost");
 assert(statRerollAfter.ivs.hp === statRerollBeforeHpIv && statRerollAfter.ivs.atk === statRerollBeforeAtkIv, "formal stat reroll should preserve locked stats");
 assert(statTotal(statRerollAfter.ivs) <= (statRerollAfter.ivTotalCap || 186), "formal stat reroll IV total should stay within cap");
 assert(statRerollResult.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "team-reroll" && entry.amount === -20), "formal stat reroll should append coin log");
@@ -629,7 +707,7 @@ const previewUnlockKey = `${previewNode.id}:p2:${previewOpponent.localPokemonId}
 const previewWithoutStar = api.unlockFormalRestOpponentPreview(roundPlanned, {unlockKey: previewUnlockKey});
 assert(!previewWithoutStar.ok && previewWithoutStar.run.money === roundPlanned.money, "formal opponent preview should require opponent rumor star chart");
 const rumorProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, OPPONENT_RUMOR_NODE_ID);
-const rumorRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(rumorProfile, {mode: "singles", seed: "formal-smoke-opponent-rumor-seed"})), [0, 1, 2]));
+const rumorRun = {...api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(rumorProfile, {mode: "singles", seed: "formal-smoke-opponent-rumor-seed"})), [0, 1, 2])), money: 100};
 const rumorNode = rumorRun.restRunSnapshot!.gameMap.find(node => node.id === rumorRun.restRunSnapshot!.currentNodeId)!;
 const rumorPokemon = rumorNode.participants.p2!.localTeam.pokemon[0]!;
 const rumorUnlockKey = `${rumorNode.id}:p2:${rumorPokemon.localPokemonId}`;
@@ -670,7 +748,7 @@ for (let index = 1; index < firstEightKinds.length; index += 1) {
 const poorTrainingRun = {...roundPlanned, money: 0};
 const poorTrainingResult = api.applyFormalTrainingGroundLesson(poorTrainingRun, {pokemonId: roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.localPokemonId});
 assert(!poorTrainingResult.ok && poorTrainingResult.run.money === 0, "formal training ground should reject insufficient funds without changing money");
-let moveLessonRun = roundPlanned;
+let moveLessonRun = economyReadyRun;
 let moveLesson = api.getFormalTrainingGroundLesson(moveLessonRun);
 for (let guard = 0; moveLesson && !["tutor", "egg"].includes(moveLesson.kind) && guard < 12; guard += 1) {
   moveLessonRun = api.advanceFormalTrainingGroundLesson(moveLessonRun);
@@ -694,7 +772,7 @@ for (const candidateMove of moveLessonCandidates.slice(1)) {
 assert(moveTrainingResult.ok, `formal training ground move lesson should apply a valid source move: ${moveLesson.kind}/${moveLessonMove}/${moveTrainingResult.message}`);
 assert(moveTrainingResult.run.money === moveLessonRun.money - moveLesson.fee, "formal training ground move lesson should deduct fee");
 assert(moveTrainingResult.run.restRunSnapshot?.players.p1?.localTeam.pokemon[0]?.moves[0]?.moveId === moveLessonMove, "formal training ground move lesson should replace selected move slot");
-let selfStudyRun = roundPlanned;
+let selfStudyRun = economyReadyRun;
 let selfStudyLesson = api.getFormalTrainingGroundLesson(selfStudyRun);
 for (let guard = 0; selfStudyLesson?.kind !== "self-study" && guard < 8; guard += 1) {
   selfStudyRun = api.advanceFormalTrainingGroundLesson(selfStudyRun);
@@ -725,10 +803,10 @@ assert(statTotal(selfStudyAfter.evs) <= (selfStudyAfter.evTotalCap || 510), "for
 assert(powerProfileIndex(selfStudyAfter.powerProfile || "rookie") >= selfStudyBeforeProfileIndex, "formal training ground self-study should not lower power profile");
 assertPokemonPowerProfile(selfStudyAfter, "self-study pokemon", undefined, {checkLevel: false});
 
-const withCoinLog = api.appendCoinLogEntryV4(roundPlanned, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
-assert(withCoinLog.money === roundPlanned.money - 10, "coin log should update formal money");
+const withCoinLog = api.appendCoinLogEntryV4(economyReadyRun, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
+assert(withCoinLog.money === economyReadyRun.money - 10, "coin log should update formal money");
 assert(withCoinLog.restRunSnapshot?.coinLog?.length === 1, "coin log should append one entry");
-assert(withCoinLog.restRunSnapshot.coinLog[0]?.balanceBefore === roundPlanned.money, "coin log should record balance before");
+assert(withCoinLog.restRunSnapshot.coinLog[0]?.balanceBefore === economyReadyRun.money, "coin log should record balance before");
 assert(withCoinLog.restRunSnapshot.coinLog[0]?.balanceAfter === withCoinLog.money, "coin log should record balance after");
 const withDuplicateCoinLog = api.appendCoinLogEntryV4(withCoinLog, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withDuplicateCoinLog.restRunSnapshot?.coinLog?.length === 1, "coin log should dedupe by key");
@@ -804,6 +882,16 @@ assert(!poorSecondExchange.ok && poorSecondExchange.run.money === 199, "paid sec
 
 const firstPlayerPokemon = withCoinLog.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const firstEnemyPokemon = {...withCoinLog.roundPlan[0]!.participants.p2!.localTeam.pokemon[0]!, maxHp: 200};
+const firstPlayerMapping = {
+  localPokemonId: firstPlayerPokemon.localPokemonId,
+  teamIndex: 0,
+  choiceIndex: 1,
+  showdownIdentityToken: firstPlayerPokemon.showdownIdentityToken || firstPlayerPokemon.showdownId || firstPlayerPokemon.pokeballId || firstPlayerPokemon.localPokemonId,
+  showdownId: firstPlayerPokemon.showdownId || firstPlayerPokemon.showdownIdentityToken || firstPlayerPokemon.localPokemonId,
+  pokeballId: firstPlayerPokemon.pokeballId || firstPlayerPokemon.showdownIdentityToken || firstPlayerPokemon.localPokemonId,
+  speciesId: firstPlayerPokemon.speciesId,
+  displayName: firstPlayerPokemon.name,
+};
 const battlePlayers = [
   {
     playerId: "p1",
@@ -812,6 +900,7 @@ const battlePlayers = [
     alliance: "near",
     team: [],
     draft: withCoinLog.restRunSnapshot!.players.p1!,
+    teamMapping: [firstPlayerMapping],
   },
   {
     playerId: "p2",
@@ -853,6 +942,34 @@ const battleSnapshotPartial = {
     `|-damage|p2a: ${firstEnemyPokemon.nameZh}|80/100`,
   ],
 } as never;
+const withRunningTeamState = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, {
+  ...battleSnapshotBase,
+  status: "running",
+  winner: null,
+  rawLog: [],
+  teamStateByPlayer: {
+    p1: {
+      updatedAt: new Date().toISOString(),
+      pokemonByToken: {
+        [firstPlayerMapping.showdownIdentityToken]: {
+          localPokemonId: firstPlayerMapping.localPokemonId,
+          showdownIdentityToken: firstPlayerMapping.showdownIdentityToken,
+          showdownId: firstPlayerMapping.showdownId,
+          pokeballId: firstPlayerMapping.pokeballId,
+          pokeball: firstPlayerMapping.showdownIdentityToken,
+          hp: 33,
+          maxHp: firstPlayerPokemon.maxHp,
+          status: "brn",
+          fainted: false,
+          moves: [{moveId: firstPlayerPokemon.moves[0]!.moveId, remainingPp: 4, maxPp: firstPlayerPokemon.moves[0]!.maxPp}],
+        },
+      },
+    },
+  },
+} as never);
+const runningTeamStatePokemon = withRunningTeamState.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+assert(runningTeamStatePokemon.entryHp === 33 && runningTeamStatePokemon.entryStatus === "brn", "formal append snapshot should persist running localTeam HP/status sync");
+assert(runningTeamStatePokemon.moves[0]?.remainingPp === 4, "formal append snapshot should persist running localTeam PP sync");
 const battleSnapshot = {
   ...battleSnapshotBase,
   rawLog: [
@@ -870,6 +987,16 @@ const withDuplicateBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withBatt
 assert(withDuplicateBattleLog.restRunSnapshot?.battleLog?.length === withBattleLog.restRunSnapshot?.battleLog?.length, "battle log should dedupe snapshot lines");
 const loggedDamage = (withBattleLog.restRunSnapshot?.battleLog || []).filter(entry => entry.eventType === "damage").reduce((sum, entry) => sum + (entry.damage || 0), 0);
 assert(loggedDamage === 100, "battle log should replay rawLog HP baseline and scale public percentage HP to true max HP");
+const finalizedBattleResult = api.finalizeFormalBattleResultV4(withPartialBattleLog, battleSnapshot);
+assert(finalizedBattleResult.destination === "rest", "formal battle finalize should route won non-final rounds back to rest");
+assert(finalizedBattleResult.run.money === withPartialBattleLog.money + 500, "formal battle finalize should apply round reward once");
+assert(finalizedBattleResult.run.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id], "formal battle finalize should write round settlement");
+assert((finalizedBattleResult.run.restRunSnapshot?.battleLog?.length || 0) >= 3, "formal battle finalize should append final battle log entries");
+const finalizedBattleResultAgain = api.finalizeFormalBattleResultV4(finalizedBattleResult.run, battleSnapshot);
+assert(finalizedBattleResultAgain.destination === "rest", "formal battle finalize retry should keep won non-final rounds on rest route");
+assert(finalizedBattleResultAgain.run.money === finalizedBattleResult.run.money, "formal battle finalize should not duplicate rewards on retry");
+assert(Object.keys(finalizedBattleResultAgain.run.roundSettlementByNodeId || {}).length === Object.keys(finalizedBattleResult.run.roundSettlementByNodeId || {}).length, "formal battle finalize should not duplicate settlement records on retry");
+assert(finalizedBattleResultAgain.run.restRunSnapshot?.battleLog?.length === finalizedBattleResult.run.restRunSnapshot?.battleLog?.length, "formal battle finalize should not duplicate battle logs on retry");
 const battleLogP1Team = withBattleLog.restRunSnapshot!.players.p1!.localTeam.pokemon;
 const faintedSettlementRestRun = {
   ...withBattleLog.restRunSnapshot!,
@@ -892,6 +1019,12 @@ assert(noStarSettlement?.reviveCost === 50, "round settlement should charge 50 c
 assert(noStarSettlement?.netCoins === 450, "round settlement should record net coins after medical fee");
 assert(roundSettlementNoStar.money === withBattleLog.money + 450, "round settlement should apply net coins to money");
 assert(roundSettlementNoStar.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.entryHp === 1, "round settlement should revive fainted pokemon to 1 HP without emergency care");
+assert(roundSettlementNoStar.currentRoundIndex === 1, "round settlement should advance to the next round index");
+assert(roundSettlementNoStar.restRunSnapshot!.currentNodeId === roundSettlementNoStar.restRunSnapshot!.gameMap[1]!.id, "round settlement should move current rest node to next round");
+assert(roundSettlementNoStar.roundPlan[1]!.participants.p2?.localTeam.pokemon.length === 3, "round settlement should generate the next opponent after a win");
+assert(roundSettlementNoStar.restRunSnapshot!.gameMap[1]!.participants.p2?.localTeam.pokemon.length === 3, "round settlement should expose generated next opponent in rest snapshot");
+const normalOpponent = roundSettlementNoStar.roundPlan[1]!.participants.p2!.localTeam.pokemon;
+normalOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `normal NPC ${index + 1}`, ["normal"]));
 const roundSettlementNoStarAgain = api.settleFormalBattleRoundV4(roundSettlementNoStar);
 assert(roundSettlementNoStarAgain.money === roundSettlementNoStar.money, "round settlement should be idempotent");
 assert(Object.keys(roundSettlementNoStarAgain.roundSettlementByNodeId || {}).length === Object.keys(roundSettlementNoStar.roundSettlementByNodeId || {}).length, "round settlement should not duplicate settlement records");
@@ -916,15 +1049,30 @@ const medicalSettlementRestRun = {
 };
 const roundSettlementMedical = api.settleFormalBattleRoundV4({...withBattleLog, starChartSnapshot: starProfile.starChart, restRunSnapshot: medicalSettlementRestRun});
 const medicalSettlement = roundSettlementMedical.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id];
-assert(medicalSettlement?.reviveCost === 0, "free medical care should waive revive cost");
+assert(medicalSettlement?.reviveCost === 50, "medical insurance star alone should not waive revive cost without purchase");
 assert(medicalSettlement?.emergencyHealedPokemonIds.length === 1, "emergency care should record half-hp revive targets");
 assert(medicalSettlement?.outpatientHealedPokemonIds.length === 1, "outpatient care should record alive healing targets");
 assert(medicalSettlement?.leveledPokemonIds.length === 1, "battle practice mastery should level alive direct damage dealers");
-assert(roundSettlementMedical.money === withBattleLog.money + 500, "free medical care settlement should keep full reward");
+assert(roundSettlementMedical.money === withBattleLog.money + 450, "medical route without insurance purchase should still charge revive cost");
 const medicalAfterTeam = roundSettlementMedical.restRunSnapshot!.players.p1!.localTeam.pokemon;
 assert(medicalAfterTeam[1]!.entryHp === 75, "emergency care should revive fainted pokemon to half HP");
 assert(medicalAfterTeam[0]!.level === 51, "battle practice mastery should increase level by one");
 assert(medicalAfterTeam[0]!.entryHp > 20, "outpatient care should heal alive pokemon after level gain");
+const premiumSettlementRun = api.settleFormalBattleRoundV4({
+  ...withBattleLog,
+  starChartSnapshot: starProfile.starChart,
+  medicalInsurance: {
+    tier: "premium",
+    cost: 1200,
+    reviveCostPerPokemon: 0,
+    recoveryShopPriceMultiplier: 0.3,
+    purchasedAt: new Date(0).toISOString(),
+  },
+  restRunSnapshot: medicalSettlementRestRun,
+});
+const premiumSettlement = premiumSettlementRun.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id];
+assert(premiumSettlement?.reviveCost === 0, "premium medical insurance should waive revive cost");
+assert(premiumSettlementRun.money === withBattleLog.money + 500, "premium medical insurance settlement should keep full reward");
 const lostSettlementRestRun = {
   ...withBattleLog.restRunSnapshot!,
   gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "lost" as const} : node),
@@ -942,13 +1090,18 @@ assert(settlementRun.settlement?.wonRounds === 1, "settlement should count won r
 assert(settlementRun.settlement?.bpGained === 1, "settlement should calculate BP from normal NPC coefficient at streak 0");
 assert(settlementRun.settlement?.pokemonStats[0]?.pokemonKey, "settlement should include pokemon stats and MVP");
 assert((settlementRun.settlement?.pokemonStats.length || 0) <= (selected.playerTeam?.pokemon.length || 0), "settlement stats should only include logged player pokemon");
+const dividendSettlementRun = api.prepareFormalSettlement({...withBattleLog, starChartSnapshot: starProfile.starChart, money: 1234, restRunSnapshot: wonRestRun}, "loss");
+assert(dividendSettlementRun.settlement?.bpGained === 13, "victory dividend should add floor(current money * 1%) BP");
+assert(dividendSettlementRun.money === 1234, "victory dividend should not consume money");
+assert(dividendSettlementRun.settlement?.diagnostics.some(entry => entry === "victory-dividend:+12bp"), "victory dividend should be recorded in settlement diagnostics");
 const settlementRunAgain = api.prepareFormalSettlement(settlementRun, "loss");
 assert(settlementRunAgain.settlement?.id === settlementRun.settlement?.id, "settlement should be idempotent once prepared");
 
 const doublesPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "doubles", seed: "formal-smoke-doubles-seed"}));
 const doublesSelected = api.selectFormalStarterPokemon(doublesPrepared, [0, 1, 2, 3]);
 const doublesPlanned = api.prepareFormalRoundPlan(doublesSelected);
-assert(doublesPlanned.roundPlan.every(round => (round.participants.p2?.localTeam.pokemon.length || 0) === 4), "doubles formal opponents should bring four pokemon");
+assert(doublesPlanned.roundPlan[0]?.participants.p2?.localTeam.pokemon.length === 4, "doubles formal first opponent should bring four pokemon");
+assert(!doublesPlanned.roundPlan[1]?.participants.p2, "doubles formal future opponents should be deferred");
 
 const gen9Profile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, ruleSet: "gen9"})};
 const gen9Prepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(gen9Profile, {mode: "singles", seed: "formal-smoke-gen9-seed"}));
@@ -959,19 +1112,20 @@ assert(gen9Planned.roundPlan[0]?.participants.p2?.bag.items.some(item => item.it
 const championPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 3, seed: "formal-smoke-champion-seed"}));
 const championSelected = api.selectFormalStarterPokemon(championPrepared, [0, 1, 2]);
 const championPlanned = api.prepareFormalRoundPlan(championSelected);
-const championOpponent = championPlanned.roundPlan[6]!.participants.p2!.localTeam.pokemon;
-championOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `late champion/villain ${index + 1}`, ["champion"]));
+assert(["champion", "villain"].includes(championPlanned.roundPlan[6]!.difficulty), "late formal skeleton should reserve champion/villain final battle");
 
 const coopPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "coop", seed: "formal-smoke-coop-seed"}));
 const coopSelected = api.selectFormalStarterPokemon(coopPrepared, [0, 1]);
 const coopPlanned = api.prepareFormalRoundPlan(coopSelected);
 assert(coopPlanned.roundPlan.length === 7, "coop formal plan should still create seven rounds");
-assert(coopPlanned.roundPlan.flatMap(round => round.npcs).length === 14, "coop formal plan should create 14 opponents before battle ally dispatch");
-assert(coopPlanned.roundPlan.every(round => round.participants.p2 && !round.participants.p3 && round.participants.p4), "coop formal rounds should defer p3 until battle transition");
-assert(coopPlanned.roundPlan.every(round =>
-  (round.participants.p2?.localTeam.pokemon.length || 0) === 2
-  && (round.participants.p4?.localTeam.pokemon.length || 0) === 2
-), "coop formal opponent participants should bring two pokemon each");
+assert(coopPlanned.roundPlan[0]!.npcs.length === 2, "coop formal first round should create two opponents before battle ally dispatch");
+assert(coopPlanned.roundPlan.slice(1).every(round => round.npcs.length === 0), "coop formal future opponents should be deferred");
+assert(coopPlanned.roundPlan[0]!.participants.p2 && !coopPlanned.roundPlan[0]!.participants.p3 && coopPlanned.roundPlan[0]!.participants.p4, "coop formal first round should defer p3 until battle transition");
+assert(
+  (coopPlanned.roundPlan[0]!.participants.p2?.localTeam.pokemon.length || 0) === 2
+  && (coopPlanned.roundPlan[0]!.participants.p4?.localTeam.pokemon.length || 0) === 2,
+  "coop formal first opponent participants should bring two pokemon each",
+);
 const coopBattlePrepared = api.prepareFormalBattleSession(coopPlanned);
 assert(coopBattlePrepared.restRunSnapshot.players.p3?.controller === "script", "coop battle preparation should dispatch script ally p3");
 assert(coopBattlePrepared.restRunSnapshot.gameMap[0]?.participants.p3?.localTeam.pokemon.length === 2, "coop battle ally should bring two pokemon");

@@ -329,6 +329,38 @@ export type BattleActivePokemonV4 = {
   fainted: boolean;
 };
 
+export type BattleTeamMoveStateV4 = {
+  moveId: string;
+  remainingPp: number;
+  maxPp: number;
+};
+
+export type BattleTeamPokemonStateV4 = {
+  localPokemonId?: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
+  pokeball?: string;
+  ident?: string;
+  details?: string;
+  hp: number;
+  maxHp: number;
+  status: string;
+  fainted: boolean;
+  moves?: BattleTeamMoveStateV4[];
+};
+
+export type BattleTeamStateV4 = {
+  pokemonByToken: Record<string, BattleTeamPokemonStateV4>;
+  updatedAt: string;
+};
+
+type BattleMovePpPatchV4 = {
+  moveId: string;
+  remainingPp: number;
+  maxPp: number;
+};
+
 export type BattleSessionSnapshotV4 = {
   id: string;
   runId: string;
@@ -343,6 +375,7 @@ export type BattleSessionSnapshotV4 = {
   showdownIdPool?: ShowdownIdPoolStateV4;
   requests: Partial<Record<ShowdownPlayerIdV4, BattleRequestV4>>;
   active: BattleActivePokemonV4[];
+  teamStateByPlayer?: Partial<Record<ShowdownPlayerIdV4, BattleTeamStateV4>>;
   rawLog: string[];
   debug: {
     inputLog: string[];
@@ -566,7 +599,8 @@ export function projectBattleViewModelV4(snapshot: BattleSessionSnapshotV4, loca
 
 export function applyBattleSessionToRun(run: TrainingRunGameV4, snapshot: BattleSessionSnapshotV4): TrainingRunGameV4 {
   const won = snapshot.winner === "p1" || snapshot.winner === "p3";
-  const syncedPlayers = snapshot.status === "ended" ? syncLocalTeamsFromBattleSnapshot(run.players, snapshot) : run.players;
+  const syncedRun = patchBattleRunLocalTeamsFromSnapshot(run, snapshot);
+  const syncedPlayers = syncedRun.players;
   const nextGameMap = run.gameMap.map(node => {
     if (node.id !== snapshot.nodeId) return node;
     return {
@@ -584,7 +618,7 @@ export function applyBattleSessionToRun(run: TrainingRunGameV4, snapshot: Battle
     nextGameMap[currentIndex + 1] = {...nextGameMap[currentIndex + 1]!, state: "ready"};
   }
   return {
-    ...run,
+    ...syncedRun,
     status: snapshot.status === "ended" ? (won ? "resting" : "ended") : "battling",
     players: syncedPlayers,
     currentNodeId: snapshot.status === "ended" && won ? (nextGameMap[currentIndex + 1]?.id || run.currentNodeId) : run.currentNodeId,
@@ -594,10 +628,21 @@ export function applyBattleSessionToRun(run: TrainingRunGameV4, snapshot: Battle
   };
 }
 
-function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"], snapshot: BattleSessionSnapshotV4): TrainingRunGameV4["players"] {
+export function patchBattleRunLocalTeamsFromSnapshot(
+  run: TrainingRunGameV4,
+  snapshot: BattleSessionSnapshotV4,
+  options: {players?: ShowdownPlayerIdV4[]} = {},
+): TrainingRunGameV4 {
+  const players = options.players || (snapshot.mode === "coop" ? ["p1", "p3"] : ["p1"]);
+  const nextPlayers = syncLocalTeamsFromBattleSnapshot(run.players, snapshot, new Set(players));
+  return nextPlayers === run.players ? run : {...run, players: nextPlayers, updatedAt: new Date().toISOString()};
+}
+
+function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"], snapshot: BattleSessionSnapshotV4, allowedPlayers?: Set<ShowdownPlayerIdV4>): TrainingRunGameV4["players"] {
   let changed = false;
   const nextPlayers = {...players};
   for (const snapshotPlayer of snapshot.players) {
+    if (allowedPlayers && !allowedPlayers.has(snapshotPlayer.playerId)) continue;
     const runPlayer = nextPlayers[snapshotPlayer.playerId];
     const rows = battleSyncRowsForPlayer(snapshot, snapshotPlayer);
     if (!runPlayer || !rows.length) continue;
@@ -605,12 +650,19 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
     const nextTeam = runPlayer.localTeam.pokemon.map(pokemon => {
       const snapshotPokemon = snapshotTeamById.get(pokemon.localPokemonId);
       if (!snapshotPokemon) return pokemon;
-      return {
+      const moves = localMoveSlotsEqual(snapshotPokemon.moves, pokemon.moves) ? pokemon.moves : snapshotPokemon.moves || pokemon.moves;
+      const nextPokemon = {
         ...pokemon,
-        moves: snapshotPokemon.moves || pokemon.moves,
+        moves,
         itemId: snapshotPokemon.itemId,
         heldItemInstanceId: snapshotPokemon.heldItemInstanceId,
       };
+      if (
+        nextPokemon.moves !== pokemon.moves ||
+        nextPokemon.itemId !== pokemon.itemId ||
+        nextPokemon.heldItemInstanceId !== pokemon.heldItemInstanceId
+      ) changed = true;
+      return nextPokemon;
     });
     rows.forEach(({row, source}, requestIndex) => {
       const resolved = resolveLocalPokemonFromRequestRow(row, snapshotPlayer.teamMapping, snapshotPlayer.draft.localTeam.pokemon, requestIndex);
@@ -637,14 +689,26 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
         });
         return;
       }
-      const parsed = parseSideCondition(row.condition, current.maxHp);
-      const syncedMoves = syncMovePpFromBattleRequest(current.moves, movePpRowsForPlayer(snapshot, snapshotPlayer, requestIndex, row));
+      const teamState = teamStateForResolvedPokemon(snapshot, snapshotPlayer.playerId, resolved.mapping, row);
+      const parsed = teamState ? {
+        hp: Math.max(0, Math.min(current.maxHp, scaleBattleTeamHpToLocalMax(teamState, current.maxHp))),
+        status: normalizeBattleStatus(teamState.status),
+      } : parseSideCondition(row.condition, current.maxHp);
+      const syncedMoves = syncMovePpFromPatches(
+        current.moves,
+        teamState?.moves || movePpPatchesFromBattleRequest(movePpRowsForPlayer(snapshot, snapshotPlayer, requestIndex, row)),
+      );
       const updated = {
         ...current,
         entryHp: parsed.hp,
         entryStatus: parsed.status,
         moves: syncedMoves,
       };
+      if (
+        current.entryHp === updated.entryHp &&
+        current.entryStatus === updated.entryStatus &&
+        current.moves === syncedMoves
+      ) return;
       nextTeam[targetIndex] = updated;
       changed = true;
       battleDebugLog(true, "mapping", "sync-local-team-after-battle", {
@@ -672,12 +736,54 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
   return changed ? nextPlayers : players;
 }
 
-function battleSyncRowsForPlayer(snapshot: BattleSessionSnapshotV4, snapshotPlayer: BattleServicePlayerInputV4): Array<{row: RequestSidePokemonV4; source: "request" | "latestSidePokemon" | "active-overlay"}> {
+function teamStateForResolvedPokemon(
+  snapshot: BattleSessionSnapshotV4,
+  playerId: ShowdownPlayerIdV4,
+  mapping: ShowdownTeamPokemonMappingV4,
+  row: RequestSidePokemonV4,
+): BattleTeamPokemonStateV4 | null {
+  const state = snapshot.teamStateByPlayer?.[playerId];
+  if (!state) return null;
+  const tokens = [
+    mapping.showdownIdentityToken,
+    mapping.showdownId,
+    mapping.pokeballId,
+    row.pokeball,
+  ].map(value => toId(value || "")).filter(Boolean);
+  for (const token of tokens) {
+    const entry = state.pokemonByToken[token];
+    if (entry) return entry;
+  }
+  return null;
+}
+
+function scaleBattleTeamHpToLocalMax(state: BattleTeamPokemonStateV4, localMaxHp: number): number {
+  if (state.fainted || state.hp <= 0) return 0;
+  if (!state.maxHp || state.maxHp === localMaxHp) return state.hp;
+  return Math.max(1, Math.round(state.hp / state.maxHp * localMaxHp));
+}
+
+function localMoveSlotsEqual(left: LocalPokemonV4["moves"] | undefined, right: LocalPokemonV4["moves"] | undefined): boolean {
+  if (left === right) return true;
+  if (!left || !right || left.length !== right.length) return false;
+  return left.every((move, index) => {
+    const other = right[index];
+    return Boolean(other) &&
+      move.moveId === other.moveId &&
+      move.maxPp === other.maxPp &&
+      move.remainingPp === other.remainingPp &&
+      move.pp === other.pp;
+  });
+}
+
+function battleSyncRowsForPlayer(snapshot: BattleSessionSnapshotV4, snapshotPlayer: BattleServicePlayerInputV4): Array<{row: RequestSidePokemonV4; source: "request" | "latestSidePokemon" | "team-state" | "active-overlay"}> {
   const requestRows = snapshot.requests[snapshotPlayer.playerId]?.side?.pokemon;
-  const baseSource: "request" | "latestSidePokemon" = requestRows?.length ? "request" : "latestSidePokemon";
-  const baseRows = requestRows?.length ? requestRows : snapshot.debug.latestSidePokemon?.[snapshotPlayer.playerId] || [];
+  const latestRows = snapshot.debug.latestSidePokemon?.[snapshotPlayer.playerId] || [];
+  const teamStateRows = teamStateRowsForPlayer(snapshot, snapshotPlayer);
+  const baseSource: "request" | "latestSidePokemon" | "team-state" = requestRows?.length ? "request" : latestRows.length ? "latestSidePokemon" : "team-state";
+  const baseRows = requestRows?.length ? requestRows : latestRows.length ? latestRows : teamStateRows;
   const rows = baseRows.map(row => ({...row}));
-  const sources: Array<"request" | "latestSidePokemon" | "active-overlay"> = rows.map(() => baseSource);
+  const sources: Array<"request" | "latestSidePokemon" | "team-state" | "active-overlay"> = rows.map(() => baseSource);
   const mapping = snapshotPlayer.teamMapping || [];
   const usedActiveRowIndices = new Set<number>();
   for (const active of snapshot.active.filter(entry => entry.playerId === snapshotPlayer.playerId)) {
@@ -718,6 +824,36 @@ function battleSyncRowsForPlayer(snapshot: BattleSessionSnapshotV4, snapshotPlay
   return rows.map((row, index) => ({row, source: sources[index] || baseSource}));
 }
 
+function teamStateRowsForPlayer(snapshot: BattleSessionSnapshotV4, snapshotPlayer: BattleServicePlayerInputV4): RequestSidePokemonV4[] {
+  const state = snapshot.teamStateByPlayer?.[snapshotPlayer.playerId];
+  if (!state) return [];
+  return (snapshotPlayer.teamMapping || []).map(mapping => {
+    const tokens = [
+      mapping.showdownIdentityToken,
+      mapping.showdownId,
+      mapping.pokeballId,
+    ].map(value => toId(value || "")).filter(Boolean);
+    const teamState = tokens.map(token => state.pokemonByToken[token]).find(Boolean);
+    if (!teamState) return null;
+    const localPokemon = snapshotPlayer.draft.localTeam.pokemon[mapping.teamIndex];
+    const condition = teamState.fainted || teamState.hp <= 0
+      ? "0 fnt"
+      : `${Math.max(0, teamState.hp)}/${Math.max(1, teamState.maxHp)}${teamState.status ? ` ${teamState.status}` : ""}`;
+    return {
+      ident: teamState.ident || `${snapshotPlayer.playerId}: ${localPokemon?.name || mapping.displayName}`,
+      details: teamState.details || `${localPokemon?.name || mapping.displayName}, L${localPokemon?.level || 50}`,
+      condition,
+      active: false,
+      moves: localPokemon?.moves.map(move => move.moveId) || [],
+      item: localPokemon?.itemId || "",
+      ability: localPokemon?.abilityId || "",
+      name: localPokemon?.name || mapping.displayName,
+      fainted: teamState.fainted || teamState.hp <= 0,
+      pokeball: mapping.showdownIdentityToken,
+    } satisfies RequestSidePokemonV4;
+  }).filter(Boolean) as RequestSidePokemonV4[];
+}
+
 function requestForPlayerSync(snapshot: BattleSessionSnapshotV4, playerId: ShowdownPlayerIdV4): BattleRequestV4 | undefined {
   return snapshot.requests[playerId] || snapshot.debug.latestRequests?.[playerId];
 }
@@ -735,15 +871,29 @@ function movePpRowsForPlayer(snapshot: BattleSessionSnapshotV4, snapshotPlayer: 
   return request?.active?.[activeIndex]?.moves || [];
 }
 
-function syncMovePpFromBattleRequest(moves: LocalPokemonV4["moves"], requestMoves: BattleMoveRequestV4[]): LocalPokemonV4["moves"] {
-  if (!requestMoves.length) return moves;
-  const byMoveId = new Map(requestMoves.map(move => [toId(move.id || move.move), move]));
+function movePpPatchesFromBattleRequest(requestMoves: BattleMoveRequestV4[]): BattleMovePpPatchV4[] {
+  return requestMoves
+    .filter(move => move.pp !== undefined)
+    .map(move => {
+      const maxPp = Math.max(0, Number(move.maxpp ?? move.pp ?? 0) || 0);
+      return {
+        moveId: toId(move.id || move.move),
+        remainingPp: Math.max(0, Math.min(maxPp, Number(move.pp) || 0)),
+        maxPp,
+      };
+    })
+    .filter(move => move.moveId);
+}
+
+function syncMovePpFromPatches(moves: LocalPokemonV4["moves"], ppPatches: BattleMovePpPatchV4[]): LocalPokemonV4["moves"] {
+  if (!ppPatches.length) return moves;
+  const byMoveId = new Map(ppPatches.map(move => [toId(move.moveId), move]));
   let changed = false;
   const nextMoves = moves.map(move => {
-    const requestMove = byMoveId.get(toId(move.moveId));
-    if (!requestMove || requestMove.pp === undefined) return move;
-    const maxPp = Math.max(0, Number(requestMove.maxpp ?? move.maxPp ?? move.pp ?? 0) || 0);
-    const remainingPp = Math.max(0, Math.min(maxPp, Number(requestMove.pp) || 0));
+    const ppPatch = byMoveId.get(toId(move.moveId));
+    if (!ppPatch) return move;
+    const maxPp = Math.max(0, Number(ppPatch.maxPp ?? move.maxPp ?? move.pp ?? 0) || 0);
+    const remainingPp = Math.max(0, Math.min(maxPp, Number(ppPatch.remainingPp) || 0));
     if (remainingPp === move.remainingPp && maxPp === move.maxPp) return move;
     changed = true;
     return {...move, maxPp, remainingPp};
@@ -1290,20 +1440,25 @@ function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {
         const row = rowIndex >= 0 ? requestRows[rowIndex]! : null;
         const resolved = row ? resolveLocalPokemonFromRequestRow(row, player.teamMapping, team, rowIndex) : null;
         const activePokemon = resolved?.localPokemon || resolveLocalPokemonFromActive(active, player.teamMapping, team);
-        return activePokemon ? pokemonToSlot(player.playerId, side, activePokemon, active, true, team, seatForActive(player.playerId, active, index), playerActives) : null;
+        return activePokemon ? pokemonToSlot(snapshot, player, side, activePokemon, active, true, team, seatForActive(player.playerId, active, index), playerActives) : null;
       }).filter(Boolean) as BattleViewSlotV4[];
     }
     const fallbackCount = snapshot.mode === "doubles" ? 2 : 1;
     return team.slice(0, fallbackCount).map((pokemon, index) => (
-      pokemonToSlot(player.playerId, side, pokemon, undefined, index === 0, team, seatForActive(player.playerId, undefined, index), playerActives)
+      pokemonToSlot(snapshot, player, side, pokemon, undefined, index === 0, team, seatForActive(player.playerId, undefined, index), playerActives)
     ));
   });
 }
 
-function pokemonToSlot(playerId: ShowdownPlayerIdV4, side: "near" | "far", pokemon: LocalPokemonV4, active: BattleActivePokemonV4 | undefined, isActive: boolean, team: LocalPokemonV4[], seat: BattleViewSlotV4["seat"], actives: BattleActivePokemonV4[]): BattleViewSlotV4 {
+function pokemonToSlot(snapshot: BattleSessionSnapshotV4, player: BattleServicePlayerInputV4, side: "near" | "far", pokemon: LocalPokemonV4, active: BattleActivePokemonV4 | undefined, isActive: boolean, team: LocalPokemonV4[], seat: BattleViewSlotV4["seat"], actives: BattleActivePokemonV4[]): BattleViewSlotV4 {
+  const teamState = teamStateForLocalPokemon(snapshot, player, pokemon);
+  const maxHp = teamState ? Math.max(1, teamState.maxHp || pokemon.maxHp) : active?.maxHp ?? pokemon.maxHp;
+  const hp = teamState ? scaleBattleTeamHpToLocalMax(teamState, pokemon.maxHp) : active?.hp ?? pokemon.entryHp;
+  const status = teamState ? normalizeBattleStatus(teamState.status) : active?.status || pokemon.entryStatus;
+  const fainted = teamState ? teamState.fainted || hp <= 0 : active?.fainted ?? pokemon.entryHp <= 0;
   return {
     seat,
-    playerId,
+    playerId: player.playerId,
     side,
     position: seat.endsWith("B") ? "B" : "A",
     localPokemonId: pokemon.localPokemonId,
@@ -1311,14 +1466,14 @@ function pokemonToSlot(playerId: ShowdownPlayerIdV4, side: "near" | "far", pokem
     showdownId: pokemon.showdownId,
     pokeballId: pokemon.pokeballId,
     active: isActive,
-    fainted: active?.fainted ?? pokemon.entryHp <= 0,
+    fainted,
     name: pokemon.name,
     nameZh: pokemon.nameZh,
     speciesId: pokemon.speciesId,
     level: pokemon.level,
-    hp: active?.hp ?? pokemon.entryHp,
-    maxHp: active?.maxHp ?? pokemon.maxHp,
-    status: active?.status || pokemon.entryStatus,
+    hp,
+    maxHp,
+    status,
     spriteUrl: side === "near"
       ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
       : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
@@ -1328,23 +1483,43 @@ function pokemonToSlot(playerId: ShowdownPlayerIdV4, side: "near" | "far", pokem
     backShinySpriteUrl: firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl),
     iconUrl: pokemon.iconUrl || pokemon.spriteUrl || "",
     iconStyle: pokemon.iconStyle,
-    teamBallStates: buildTeamBallStates(team, actives),
+    teamBallStates: buildTeamBallStates(snapshot, player, team, actives),
   };
 }
 
-function buildTeamBallStates(team: LocalPokemonV4[], actives: BattleActivePokemonV4[]): BattleViewSlotV4["teamBallStates"] {
+function buildTeamBallStates(snapshot: BattleSessionSnapshotV4, player: BattleServicePlayerInputV4, team: LocalPokemonV4[], actives: BattleActivePokemonV4[]): BattleViewSlotV4["teamBallStates"] {
   const states: BattleViewSlotV4["teamBallStates"] = team.slice(0, 6).map(pokemon => {
     const active = actives.find(entry =>
       protocolSpeciesTokensMatch(new Set([entry.species].map(value => toId(value)).filter(Boolean)), [pokemon.speciesId, pokemon.name, pokemon.nameZh])
     );
-    const hp = active ? active.hp : pokemon.entryHp;
-    const status = active ? active.status : pokemon.entryStatus;
-    if ((active && active.fainted) || hp <= 0 || status === "fnt") return "fainted" as const;
+    const teamState = teamStateForLocalPokemon(snapshot, player, pokemon);
+    const hp = teamState ? scaleBattleTeamHpToLocalMax(teamState, pokemon.maxHp) : active ? active.hp : pokemon.entryHp;
+    const status = teamState ? normalizeBattleStatus(teamState.status) : active ? active.status : pokemon.entryStatus;
+    if (teamState?.fainted || (active && active.fainted) || hp <= 0 || status === "fnt") return "fainted" as const;
     if (status) return "status" as const;
     return "normal" as const;
   });
   while (states.length < 6) states.push("empty");
   return states;
+}
+
+function teamStateForLocalPokemon(snapshot: BattleSessionSnapshotV4, player: BattleServicePlayerInputV4, pokemon: LocalPokemonV4): BattleTeamPokemonStateV4 | null {
+  const state = snapshot.teamStateByPlayer?.[player.playerId];
+  if (!state) return null;
+  const mapping = player.teamMapping?.find(entry => entry.localPokemonId === pokemon.localPokemonId);
+  const tokens = [
+    mapping?.showdownIdentityToken,
+    mapping?.showdownId,
+    mapping?.pokeballId,
+    pokemon.showdownIdentityToken,
+    pokemon.showdownId,
+    pokemon.pokeballId,
+  ].map(value => toId(value || "")).filter(Boolean);
+  for (const token of tokens) {
+    const entry = state.pokemonByToken[token];
+    if (entry) return entry;
+  }
+  return null;
 }
 
 function firstLargeSprite(...values: Array<string | undefined>): string {

@@ -30,6 +30,7 @@ export const EAST_ASIA_EDUCATION_NODE_ID = "rest_east_asia_education" as const;
 export const SHOP_MORE_STOCK_NODE_IDS = ["shop_luxury_counter_1", "shop_luxury_counter_2"] as const;
 export const SHOP_AUTO_RESTOCK_NODE_ID = "shop_auto_restock" as const;
 export const FREE_MEDICAL_CARE_NODE_ID = "rest_free_medical_care" as const;
+export const MEDICAL_INSURANCE_NODE_ID = FREE_MEDICAL_CARE_NODE_ID;
 export const EMERGENCY_MEDICAL_CARE_NODE_ID = "rest_emergency_medical_care" as const;
 export const OUTPATIENT_MEDICAL_CARE_NODE_ID = "rest_outpatient_medical_care" as const;
 export const BATTLE_PRACTICE_MASTERY_NODE_ID = "battle_practice_mastery" as const;
@@ -38,6 +39,13 @@ export const LOSSLESS_EXCHANGE_NODE_ID = "rest_lossless_exchange" as const;
 export const ELITE_EXCHANGE_EDUCATION_NODE_ID = "rest_elite_exchange_education" as const;
 export const EXCHANGE_ITEM_STEAL_NODE_ID = "rest_exchange_item_steal" as const;
 export const SECOND_EXCHANGE_NODE_ID = "rest_second_exchange" as const;
+export const TRAVEL_FUND_NODE_ID = "starter_travel_fund" as const;
+export const ELITE_FUND_NODE_ID = "starter_elite_fund" as const;
+export const CHAMPION_FUND_NODE_ID = "starter_champion_fund" as const;
+export const VICTORY_DIVIDEND_NODE_ID = "economy_victory_dividend" as const;
+export const EMERGENCY_BACKPACK_NODE_ID = "starter_emergency_backpack" as const;
+export const LAUNCH_KIT_NODE_ID = "starter_launch_kit" as const;
+export const MOVE_PREVIEW_NODE_ID = "starter_move_preview" as const;
 
 export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
@@ -171,6 +179,97 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     y: -255,
   },
   {
+    id: TRAVEL_FUND_NODE_ID,
+    name: "旅途基金",
+    category: "开局筹备",
+    desc: "正式流程初始金币设为 500。",
+    max_level: 1,
+    costs: [10],
+    requires: [{id: "root_trainer_star"}],
+    effects: ["正式流程初始金币设为 500。"],
+    kind: "talent",
+    x: -175,
+    y: -105,
+  },
+  {
+    id: ELITE_FUND_NODE_ID,
+    name: "精英基金",
+    category: "开局筹备",
+    desc: "正式流程初始金币设为 1000。",
+    max_level: 1,
+    costs: [18],
+    requires: [{id: TRAVEL_FUND_NODE_ID}],
+    effects: ["正式流程初始金币设为 1000。"],
+    kind: "talent",
+    x: -345,
+    y: -175,
+  },
+  {
+    id: CHAMPION_FUND_NODE_ID,
+    name: "冠军基金",
+    category: "开局筹备",
+    desc: "正式流程初始金币设为 1500。",
+    max_level: 1,
+    costs: [28],
+    requires: [{id: ELITE_FUND_NODE_ID}],
+    effects: ["正式流程初始金币设为 1500。"],
+    kind: "talent",
+    x: -515,
+    y: -245,
+  },
+  {
+    id: VICTORY_DIVIDEND_NODE_ID,
+    name: "胜利分红",
+    category: "经济运营",
+    desc: "最终结算时，根据剩余金币获得额外 BP。",
+    max_level: 1,
+    costs: [25],
+    requires: [{id: ELITE_FUND_NODE_ID}],
+    effects: ["最终结算额外获得 floor(当前金币 * 1%) BP，不消耗金币。"],
+    kind: "talent",
+    x: -515,
+    y: -130,
+  },
+  {
+    id: EMERGENCY_BACKPACK_NODE_ID,
+    name: "急救背包",
+    category: "开局筹备",
+    desc: "开局赠送 3 个好伤药。",
+    max_level: 1,
+    costs: [10],
+    requires: [{id: "root_trainer_star"}],
+    effects: ["开局背包获得好伤药 x3。"],
+    kind: "talent",
+    x: -175,
+    y: 320,
+  },
+  {
+    id: LAUNCH_KIT_NODE_ID,
+    name: "起航套装",
+    category: "开局筹备",
+    desc: "开局赠送力量头带、博识眼镜和贝壳之铃。",
+    max_level: 1,
+    costs: [20],
+    requires: [{id: EMERGENCY_BACKPACK_NODE_ID}],
+    effects: ["开局背包获得力量头带、博识眼镜、贝壳之铃各 1 个。"],
+    kind: "talent",
+    x: -345,
+    y: 390,
+  },
+  {
+    id: MOVE_PREVIEW_NODE_ID,
+    name: "招式预习",
+    category: "开局筹备",
+    desc: "开局根据队伍人数赠送可学习的伤害类技能机器。",
+    max_level: 1,
+    costs: [25],
+    requires: [{id: LAUNCH_KIT_NODE_ID}],
+    effects: ["开局获得 X 个可学习伤害类 TM，X 为选择宝可梦数量。"],
+    kind: "talent",
+    x: -515,
+    y: 460,
+  },
+  {
     id: OPPONENT_RUMOR_NODE_ID,
     name: "小道消息",
     category: "情报筹备",
@@ -237,13 +336,13 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   },
   {
     id: FREE_MEDICAL_CARE_NODE_ID,
-    name: "免费医疗",
+    name: "医疗保险",
     category: "医疗保障",
-    desc: "胜利后进入休整页时，工厂免费复活濒死宝可梦。",
+    desc: "开局时可以购买医疗保险，降低战后救助费用并解锁恢复品折扣。",
     max_level: 1,
     costs: [20],
     requires: [{id: "root_trainer_star"}],
-    effects: ["单局结算时免除濒死复活的 50 金币费用。"],
+    effects: ["开局可一次性购买 200 / 500 / 1200 金币三档医疗保险。"],
     kind: "talent",
     x: -175,
     y: 95,

@@ -5,7 +5,7 @@ import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {rendererAssetFilePath} from "./rendererAssetResolver.js";
 
@@ -27,8 +27,12 @@ type FormalComputeMethodMap = {
   };
   prepareFormalRoundPlan: {args: [FormalGameRunV4]; result: FormalGameRunV4};
   prepareFormalBattleSession: {args: [FormalGameRunV4]; result: FormalBattleSessionPreparationV4};
+  getFormalMedicalInsuranceOffer: {args: [FormalGameRunV4]; result: FormalMedicalInsuranceOfferV4};
+  chooseFormalMedicalInsurance: {args: [FormalGameRunV4, FormalMedicalInsuranceChoiceV4]; result: FormalMedicalInsuranceChoiceResultV4};
+  formalMedicalInsuranceEffectsForRun: {args: [FormalGameRunV4]; result: FormalMedicalInsuranceEffectsV4};
   prepareFormalSettlement: {args: [FormalGameRunV4, UserProfileV2, FormalSettlementReasonV4]; result: {run: FormalGameRunV4; profile: UserProfileV2}};
-  settleFormalBattleRound: {args: [FormalGameRunV4, BattleSessionSnapshotV4]; result: FormalGameRunV4};
+  settleFormalBattleRound: {args: [FormalGameRunV4]; result: FormalGameRunV4};
+  finalizeFormalBattleResult: {args: [FormalGameRunV4, BattleSessionSnapshotV4, FormalBattleResultFinalizeReasonV4 | undefined]; result: FormalBattleResultFinalizeResultV4};
 };
 
 async function createWindow() {
@@ -127,12 +131,29 @@ ipcMain.handle("formalGame:prepareBattleSession", async (_event: IpcMainInvokeEv
   return callFormalComputeWorker("prepareFormalBattleSession", run);
 });
 
+ipcMain.handle("formalGame:getMedicalInsuranceOffer", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return callFormalComputeWorker("getFormalMedicalInsuranceOffer", run);
+});
+
+ipcMain.handle("formalGame:chooseMedicalInsurance", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4) => {
+  return callFormalComputeWorker("chooseFormalMedicalInsurance", run, choice);
+});
+
+ipcMain.handle("formalGame:medicalInsuranceEffectsForRun", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return callFormalComputeWorker("formalMedicalInsuranceEffectsForRun", run);
+});
+
 ipcMain.handle("formalGame:prepareSettlement", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4) => {
   return callFormalComputeWorker("prepareFormalSettlement", run, profile, reason);
 });
 
-ipcMain.handle("formalGame:settleBattleRound", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4) => {
-  return callFormalComputeWorker("settleFormalBattleRound", run, snapshot);
+ipcMain.handle("formalGame:settleBattleRound", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return callFormalComputeWorker("settleFormalBattleRound", run);
+});
+
+ipcMain.handle("formalGame:finalizeBattleResult", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4) => {
+  const snapshot = await ensureBattleService().getSnapshot(sessionId) as unknown as BattleSessionSnapshotV4;
+  return callFormalComputeWorker("finalizeFormalBattleResult", run, snapshot, reason);
 });
 
 ipcMain.handle("battleService:createSession", async (_event: IpcMainInvokeEvent, input: BattleSessionCreateInputV4) => {

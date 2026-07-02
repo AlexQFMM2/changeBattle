@@ -11,8 +11,10 @@ import {
   type DesktopBattleServiceBridge,
   type DesktopFormalGameBridge,
   type DesktopUserProfileBridge,
+  type FormalBattleResultFinalizeReasonV4,
   type FormalGameModeV4,
   type FormalGameRunV4,
+  type FormalMedicalInsuranceChoiceV4,
   type FormalRoundSettlementV4,
   type FormalSettlementReasonV4,
   type TrainingRunGameV4,
@@ -27,8 +29,10 @@ import {BattleV4Page} from "./components/battle-v4/BattleV4Page";
 import {TrainingBattleTransitionPage} from "./components/battle-v4/TrainingBattleTransitionPage";
 import {ComponentGalleryPage} from "./components/gallery/ComponentGalleryPage";
 import {FormalGamePendingPage} from "./components/formal/FormalGamePendingPage";
+import {FormalMedicalInsuranceDialog} from "./components/formal/FormalMedicalInsuranceDialog";
 import {FormalSettlementPage} from "./components/formal/FormalSettlementPage";
 import {FormalSettlementTransitionPage} from "./components/formal/FormalSettlementTransitionPage";
+import {FormalBattleResultTransitionPage} from "./components/formal/FormalBattleResultTransitionPage";
 import {FormalBattleTransitionPage} from "./components/formal/FormalBattleTransitionPage";
 import {FormalGameTransitionPage} from "./components/formal/FormalGameTransitionPage";
 import {FormalRoundTransitionPage} from "./components/formal/FormalRoundTransitionPage";
@@ -39,6 +43,7 @@ import {MainMenuPage} from "./components/shell/MainMenuPage";
 import {TalentConfigPage} from "./components/star-chart/TalentConfigPage";
 import {TitlePage} from "./components/shell/TitlePage";
 import {TrainingConfigPage} from "./components/training/TrainingConfigPage";
+import {TrainingBattleResultTransitionPage} from "./components/training/TrainingBattleResultTransitionPage";
 import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
 import {TrainingRestPage} from "./components/training/TrainingRestPage";
 import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
@@ -103,6 +108,8 @@ function RoutedApp({runtime}: AppProps) {
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
   const [battleSessionId, setBattleSessionId] = useState("");
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
+  const [medicalInsuranceBusy, setMedicalInsuranceBusy] = useState(false);
+  const [medicalInsuranceError, setMedicalInsuranceError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -268,7 +275,11 @@ function RoutedApp({runtime}: AppProps) {
       return;
     }
     if (current.restRunSnapshot) {
-      if (current.restRunSnapshot.status === "ended" || isFormalRestRunComplete(current.restRunSnapshot)) {
+      if (hasUnsettledFormalWonRound(current)) {
+        navigate("/formal/battle-result-transition", {replace: true});
+        return;
+      }
+      if (current.restRunSnapshot.result?.outcome === "loss" || current.restRunSnapshot.status === "ended" || isFormalRestRunComplete(current.restRunSnapshot)) {
         enterFormalSettlement(current.restRunSnapshot.result?.outcome === "loss" ? "loss" : "complete");
         return;
       }
@@ -341,21 +352,33 @@ function RoutedApp({runtime}: AppProps) {
     navigate(`/formal/settlement-transition?reason=${reason}`, {replace: true});
   }
 
+  async function chooseMedicalInsurance(choice: FormalMedicalInsuranceChoiceV4) {
+    if (!formalRun || medicalInsuranceBusy) return;
+    setMedicalInsuranceBusy(true);
+    setMedicalInsuranceError(null);
+    try {
+      const result = formalGameBridge
+        ? await formalGameBridge.chooseFormalMedicalInsurance(formalRun, choice)
+        : api.chooseFormalMedicalInsurance(formalRun, choice);
+      if (!result.ok) {
+        setMedicalInsuranceError(result.message);
+        return;
+      }
+      const saved = await api.saveFormalGameRun(result.run);
+      setFormalRun(saved);
+    } catch (caught) {
+      setMedicalInsuranceError(caught instanceof Error ? caught.message : "医疗保险处理失败。");
+    } finally {
+      setMedicalInsuranceBusy(false);
+    }
+  }
+
   function openDex(initialPokemonId: string | null = null) {
     setDexInitialPokemonId(initialPokemonId);
     setDexInitialCategory(undefined);
     setDexInitialQuery(null);
     setDexInitialRow(null);
     setDexOpen(true);
-  }
-
-  async function saveFormalBattleRunSnapshot(restRunSnapshot: TrainingRunGameV4): Promise<TrainingRunGameV4> {
-    if (!formalRun) return restRunSnapshot;
-    const withSnapshot = {...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()};
-    const settled = api.settleFormalBattleRoundV4(withSnapshot);
-    const saved = await api.saveFormalGameRun(settled);
-    setFormalRun(saved);
-    return saved.restRunSnapshot || restRunSnapshot;
   }
 
   function openDexCard(seed: {category: Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items">; query: string; entry: DexSearchRow}) {
@@ -513,8 +536,29 @@ function RoutedApp({runtime}: AppProps) {
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:battle-session`) || ""}
         debugConfig={APP_DEBUG_CONFIG_V4}
         playerProfile={profile}
+        endFlow="auto-exit"
         onRunChange={setTrainingRun}
-        onBackToRest={() => navigate("/training/rest", {replace: true})}
+        onBackToRest={() => navigate("/training/battle-result-transition", {replace: true})}
+        onBattleComplete={result => {
+          if (result.sessionId) setBattleSessionId(result.sessionId);
+          navigate("/training/battle-result-transition", {replace: true});
+        }}
+      />
+    ) : (
+      <TrainingRunTransitionPage onReady={() => void enterTrainingRest()} />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const trainingBattleResultTransitionPage = profile ? (
+    trainingRun ? (
+      <TrainingBattleResultTransitionPage
+        api={api}
+        run={trainingRun}
+        sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:battle-session`) || ""}
+        onRestReady={run => {
+          setTrainingRun(run);
+          navigate("/training/rest-new", {replace: true});
+        }}
       />
     ) : (
       <TrainingRunTransitionPage onReady={() => void enterTrainingRest()} />
@@ -573,75 +617,84 @@ function RoutedApp({runtime}: AppProps) {
     )
   ) : <Navigate to="/" replace />;
 
+  const medicalInsuranceOffer = formalRun?.restRunSnapshot ? api.getFormalMedicalInsuranceOffer(formalRun) : null;
+  const shouldShowMedicalInsurance = Boolean(
+    formalRun?.restRunSnapshot
+    && formalRun.currentRoundIndex === 0
+    && medicalInsuranceOffer?.available
+    && !medicalInsuranceOffer.seen
+    && !medicalInsuranceOffer.purchased
+  );
   const formalRestPage = profile ? (
     formalRun?.restRunSnapshot ? (
-      <TrainingRestNewPage
-        api={api}
-        run={formalRun.restRunSnapshot}
-        onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
-        onSaveRunSnapshot={async restRunSnapshot => {
-          if (!formalRun) return restRunSnapshot;
-          const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
-          setFormalRun(saved);
-          return saved.restRunSnapshot || restRunSnapshot;
-        }}
-        onBackToConfig={() => navigate("/main", {replace: true})}
-        onAbandonRun={() => enterFormalSettlement("abandon")}
-        onStartBattle={startFormalBattleFromRest}
-        onOpenDex={() => openDex()}
-        onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
-        moneyAmount={formalRun.money}
-        roundSettlement={latestUnreadRoundSettlement(formalRun, seenRoundSettlementNodeIds)}
-        onRoundSettlementSeen={nodeId => setSeenRoundSettlementNodeIds(current => ({...current, [`${formalRun.id}:${nodeId}`]: true}))}
-        teamRerollController={{
-          money: formalRun.money,
-          locksEnabled: starChartHasSpecialTrainingLockV4(formalRun.starChartSnapshot),
-          onRerollStats: input => {
-            if (!formalRun) throw new Error("正式存档不存在。");
-            const result = api.rerollFormalRestPokemonStats(formalRun, input);
-            if (result.ok) setFormalRun(result.run);
-            return result;
-          },
-        }}
-        opponentPreviewController={{
-          enabled: starChartHasOpponentRumorV4(formalRun.starChartSnapshot),
-          cost: 10,
-          onUnlock: input => {
-            if (!formalRun) throw new Error("正式存档不存在。");
-            const result = api.unlockFormalRestOpponentPreview(formalRun, input);
-            if (result.ok) setFormalRun(result.run);
-            return result;
-          },
-        }}
-        exchangeController={{
-          getView: () => api.getFormalRestExchangeView(formalRun),
-          onExchange: input => {
-            if (!formalRun) throw new Error("正式存档不存在。");
-            const result = api.exchangeFormalRestPokemon(formalRun, input);
-            if (result.ok) setFormalRun(result.run);
-            return result;
-          },
-        }}
-        shopController={{
-          getShop: () => api.getFormalRestShop(formalRun),
-          player: formalRun.restRunSnapshot.players.p1 || null,
-          money: formalRun.money,
-          onBuy: slotId => {
-            if (!formalRun) return "正式存档不存在。";
-            const result = api.buyFormalRestShopItem(formalRun, slotId);
-            if (!result.ok) throw new Error(result.message);
-            setFormalRun(result.run);
-            return result.message;
-          },
-          onSell: itemInstanceIds => {
-            if (!formalRun) return "正式存档不存在。";
-            const result = api.sellFormalRestBagItems(formalRun, itemInstanceIds);
-            if (!result.ok) throw new Error(result.message);
-            setFormalRun(result.run);
-            return result.message;
-          },
-        }}
-        trainingGroundController={{
+      <div className="formal-rest-page-shell">
+        <TrainingRestNewPage
+          api={api}
+          run={formalRun.restRunSnapshot}
+          onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
+          onSaveRunSnapshot={async restRunSnapshot => {
+            if (!formalRun) return restRunSnapshot;
+            const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
+            setFormalRun(saved);
+            return saved.restRunSnapshot || restRunSnapshot;
+          }}
+          onBackToConfig={() => navigate("/main", {replace: true})}
+          onAbandonRun={() => enterFormalSettlement("abandon")}
+          onStartBattle={startFormalBattleFromRest}
+          onOpenDex={() => openDex()}
+          onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
+          moneyAmount={formalRun.money}
+          roundSettlement={latestUnreadRoundSettlement(formalRun, seenRoundSettlementNodeIds)}
+          onRoundSettlementSeen={nodeId => setSeenRoundSettlementNodeIds(current => ({...current, [`${formalRun.id}:${nodeId}`]: true}))}
+          teamRerollController={{
+            money: formalRun.money,
+            locksEnabled: starChartHasSpecialTrainingLockV4(formalRun.starChartSnapshot),
+            onRerollStats: input => {
+              if (!formalRun) throw new Error("正式存档不存在。");
+              const result = api.rerollFormalRestPokemonStats(formalRun, input);
+              if (result.ok) setFormalRun(result.run);
+              return result;
+            },
+          }}
+          opponentPreviewController={{
+            enabled: starChartHasOpponentRumorV4(formalRun.starChartSnapshot),
+            cost: 10,
+            onUnlock: input => {
+              if (!formalRun) throw new Error("正式存档不存在。");
+              const result = api.unlockFormalRestOpponentPreview(formalRun, input);
+              if (result.ok) setFormalRun(result.run);
+              return result;
+            },
+          }}
+          exchangeController={{
+            getView: () => api.getFormalRestExchangeView(formalRun),
+            onExchange: input => {
+              if (!formalRun) throw new Error("正式存档不存在。");
+              const result = api.exchangeFormalRestPokemon(formalRun, input);
+              if (result.ok) setFormalRun(result.run);
+              return result;
+            },
+          }}
+          shopController={{
+            getShop: () => api.getFormalRestShop(formalRun),
+            player: formalRun.restRunSnapshot.players.p1 || null,
+            money: formalRun.money,
+            onBuy: slotId => {
+              if (!formalRun) return "正式存档不存在。";
+              const result = api.buyFormalRestShopItem(formalRun, slotId);
+              if (!result.ok) throw new Error(result.message);
+              setFormalRun(result.run);
+              return result.message;
+            },
+            onSell: itemInstanceIds => {
+              if (!formalRun) return "正式存档不存在。";
+              const result = api.sellFormalRestBagItems(formalRun, itemInstanceIds);
+              if (!result.ok) throw new Error(result.message);
+              setFormalRun(result.run);
+              return result.message;
+            },
+          }}
+          trainingGroundController={{
           getLesson: () => api.getFormalTrainingGroundLesson(formalRun),
           player: formalRun.restRunSnapshot.players.p1 || null,
           money: formalRun.money,
@@ -656,8 +709,18 @@ function RoutedApp({runtime}: AppProps) {
             if (!formalRun) return;
             setFormalRun(api.advanceFormalTrainingGroundLesson(formalRun));
           },
-        }}
-      />
+          }}
+        />
+        {shouldShowMedicalInsurance && medicalInsuranceOffer ? (
+          <FormalMedicalInsuranceDialog
+            offer={medicalInsuranceOffer}
+            money={formalRun.money}
+            busy={medicalInsuranceBusy}
+            error={medicalInsuranceError}
+            onChoose={chooseMedicalInsurance}
+          />
+        ) : null}
+      </div>
     ) : (
       <Navigate to="/main" replace />
     )
@@ -688,24 +751,35 @@ function RoutedApp({runtime}: AppProps) {
         playerProfile={profile}
         endFlow="auto-exit"
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
-        onSaveRunSnapshot={saveFormalBattleRunSnapshot}
-        onBattleSnapshot={async snapshot => {
-          if (!formalRun) return null;
-          const nextRun = formalGameBridge
-            ? await formalGameBridge.settleFormalBattleRound(formalRun, snapshot)
-            : api.appendBattleLogEntriesFromSnapshotV4(formalRun, snapshot);
-          const saved = await api.saveFormalGameRun(nextRun);
-          setFormalRun(saved);
-          return saved.restRunSnapshot;
-        }}
-        onSurrenderSettlement={() => enterFormalSettlement("surrender")}
         onBackToRest={() => {
-          const restRunSnapshot = formalRun?.restRunSnapshot;
-          if (restRunSnapshot?.status === "ended" || isFormalRestRunComplete(restRunSnapshot)) {
-            enterFormalSettlement(restRunSnapshot?.result?.outcome === "loss" ? "loss" : "complete");
-            return;
-          }
+          navigate("/formal/battle-result-transition", {replace: true});
+        }}
+        onBattleComplete={result => {
+          if (result.sessionId) setBattleSessionId(result.sessionId);
+          const suffix = result.reason === "surrender" ? "?reason=surrender" : "";
+          navigate(`/formal/battle-result-transition${suffix}`, {replace: true});
+        }}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : <Navigate to="/" replace />;
+
+  const formalBattleResultTransitionPage = profile ? (
+    formalRun?.restRunSnapshot ? (
+      <FormalBattleResultTransitionPage
+        api={api}
+        formalGameBridge={formalGameBridge}
+        run={formalRun}
+        sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
+        reason={parseFormalBattleResultReason(new URLSearchParams(location.search).get("reason"))}
+        onRestReady={run => {
+          setFormalRun(run);
           navigate("/formal/rest", {replace: true});
+        }}
+        onSettlementReady={(run, reason) => {
+          setFormalRun(run);
+          enterFormalSettlement(reason);
         }}
       />
     ) : (
@@ -761,12 +835,14 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/rest-new" element={trainingRestNewPage} />
         <Route path="/training/battle-transition" element={trainingBattleTransitionPage} />
         <Route path="/training/battle" element={trainingBattlePage} />
+        <Route path="/training/battle-result-transition" element={trainingBattleResultTransitionPage} />
         <Route path="/formal/transition/:mode" element={formalTransitionPage} />
         <Route path="/formal/starter-select" element={formalStarterSelectPage} />
         <Route path="/formal/round-transition" element={formalRoundTransitionPage} />
         <Route path="/formal/rest" element={formalRestPage} />
         <Route path="/formal/battle-transition" element={formalBattleTransitionPage} />
         <Route path="/formal/battle" element={formalBattlePage} />
+        <Route path="/formal/battle-result-transition" element={formalBattleResultTransitionPage} />
         <Route path="/formal/settlement-transition" element={formalSettlementTransitionPage} />
         <Route path="/formal/settlement" element={formalSettlementPage} />
         <Route path="/formal/pending" element={formalPendingPage} />
@@ -806,8 +882,17 @@ function parseSettlementReason(value: unknown): FormalSettlementReasonV4 {
   return value === "complete" || value === "loss" || value === "surrender" || value === "abandon" ? value : "loss";
 }
 
+function parseFormalBattleResultReason(value: unknown): FormalBattleResultFinalizeReasonV4 | undefined {
+  return value === "surrender" || value === "loss" || value === "complete" ? value : undefined;
+}
+
 function isFormalRestRunComplete(run: TrainingRunGameV4 | null | undefined): boolean {
   return Boolean(run?.gameMap.length && run.gameMap.every(node => node.state === "won"));
+}
+
+function hasUnsettledFormalWonRound(run: FormalGameRunV4 | null | undefined): boolean {
+  const settledNodeIds = new Set(Object.keys(run?.roundSettlementByNodeId || {}));
+  return Boolean(run?.restRunSnapshot?.gameMap.some(node => node.state === "won" && !settledNodeIds.has(node.id)));
 }
 
 function TrainingConfigBootstrap({onReady}: {onReady: () => void}) {

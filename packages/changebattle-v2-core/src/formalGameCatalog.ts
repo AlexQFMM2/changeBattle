@@ -16,7 +16,7 @@ export const FORMAL_STARTER_SHINY_RATE = 1 / 30;
 
 export const FORMAL_ROUND_COUNT = 7;
 
-export const FORMAL_STARTING_MONEY = 3000;
+export const FORMAL_STARTING_MONEY = 0;
 
 export const FORMAL_SHOP_SELL_RATE = 0.25;
 

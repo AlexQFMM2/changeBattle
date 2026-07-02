@@ -42,7 +42,7 @@ async function runFastDev() {
     "--strictPort",
   ], {
     cwd: root,
-    stdio: "inherit",
+    stdio: ["ignore", "inherit", "inherit"],
     env,
     shell: process.platform === "win32",
   });
@@ -60,7 +60,7 @@ async function runFastDev() {
   ];
   const electronProcess = spawn(pnpm, electronArgs, {
     cwd: root,
-    stdio: "inherit",
+    stdio: ["ignore", "inherit", "inherit"],
     env: electronEnv,
     shell: process.platform === "win32",
   });

@@ -5,6 +5,7 @@ import {
   createBattleGameFromTrainingNode,
   isBattleCommandDraftDoneV4,
   normalizeBattleRequestV4,
+  patchBattleRunLocalTeamsFromSnapshot,
   projectBattleViewModelV4,
   stringifyBattleCommandDraftV4,
   appendBattleSpecialChoiceSuffixV4,
@@ -323,6 +324,40 @@ const ppSyncedTeam = ppSynced.players.p1?.localTeam.pokemon || [];
 assert(ppSyncedTeam[0]?.moves[0]?.remainingPp === 9, "battle PP cache should sync active move PP");
 assert(ppSyncedTeam[0]?.moves[1]?.remainingPp === 27, "battle PP cache should sync second move PP");
 assert(ppSyncedTeam[1]?.moves[0]?.remainingPp === 15, "battle PP sync should not touch pokemon without PP cache");
+
+const runningTeamStateSynced = patchBattleRunLocalTeamsFromSnapshot(run, {
+  ...endedSnapshot,
+  status: "running",
+  winner: null,
+  requests: {},
+  active: [],
+  teamStateByPlayer: {
+    p1: {
+      updatedAt: "2026-06-26T00:00:01.000Z",
+      pokemonByToken: {
+        [mapping[0]!.showdownIdentityToken]: {
+          localPokemonId: mapping[0]!.localPokemonId,
+          showdownIdentityToken: mapping[0]!.showdownIdentityToken,
+          showdownId: mapping[0]!.showdownId,
+          pokeballId: mapping[0]!.pokeballId,
+          pokeball: mapping[0]!.showdownIdentityToken,
+          hp: 44,
+          maxHp: 100,
+          status: "par",
+          fainted: false,
+          moves: [
+            {moveId: "thunderbolt", remainingPp: 8, maxPp: 15},
+            {moveId: "quickattack", remainingPp: 26, maxPp: 30},
+          ],
+        },
+      },
+    },
+  },
+  debug: {...endedSnapshot.debug, latestSidePokemon: {}, latestMovePpByPokemon: {}},
+});
+const runningTeamStatePokemon = runningTeamStateSynced.players.p1?.localTeam.pokemon[0];
+assert(runningTeamStatePokemon?.entryHp === 44 && runningTeamStatePokemon.entryStatus === "par", "running teamState should sync HP/status before battle end");
+assert(runningTeamStatePokemon?.moves[0]?.remainingPp === 8, "running teamState should sync move PP before battle end");
 
 const latestSidePokemonSnapshot: BattleSessionSnapshotV4 = {
   ...endedSnapshot,

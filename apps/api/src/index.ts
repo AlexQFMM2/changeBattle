@@ -8,9 +8,8 @@ import {
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
-import type {CoopPartnerPreferenceV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalSettlementReasonV4} from "./formalGame.js";
-import type {BattleSessionSnapshotV4} from "./battle.js";
-import {createBattleServiceClient, type BattleServiceClientV4} from "./battle.js";
+import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalSettlementReasonV4} from "./formalGame.js";
+import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 import {
@@ -21,6 +20,7 @@ import {
   starChartHasBattlePracticeMasteryV4,
   starChartHasEmergencyMedicalCareV4,
   starChartHasFreeMedicalCareV4,
+  starChartHasMedicalInsuranceV4,
   starChartHasOutpatientMedicalCareV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
@@ -100,8 +100,12 @@ export type DesktopFormalGameBridge = {
   ): Promise<FormalGameRunV4>;
   prepareFormalRoundPlan(run: FormalGameRunV4): Promise<FormalGameRunV4>;
   prepareFormalBattleSession(run: FormalGameRunV4): Promise<FormalBattleSessionPreparationV4>;
+  getFormalMedicalInsuranceOffer(run: FormalGameRunV4): Promise<FormalMedicalInsuranceOfferV4>;
+  chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): Promise<FormalMedicalInsuranceChoiceResultV4>;
+  formalMedicalInsuranceEffectsForRun(run: FormalGameRunV4): Promise<FormalMedicalInsuranceEffectsV4>;
   prepareFormalSettlement(run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4): Promise<{run: FormalGameRunV4; profile: UserProfileV2}>;
-  settleFormalBattleRound(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): Promise<FormalGameRunV4>;
+  settleFormalBattleRound(run: FormalGameRunV4): Promise<FormalGameRunV4>;
+  finalizeFormalBattleResult(run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4): Promise<FormalBattleResultFinalizeResultV4>;
 };
 
 export type DesktopBattleServiceBridge = BattleServiceClientV4;
@@ -225,6 +229,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     deleteUserProfile: () => userProfiles.deleteUserProfile(),
     loadTrainingRun: () => trainingRuns.loadTrainingRun(),
     saveTrainingRun: trainingRuns.saveTrainingRun,
+    patchBattleRunLocalTeamsFromSnapshot,
+    applyBattleSessionToRun,
     deleteTrainingRun: trainingRuns.deleteTrainingRun,
     loadFormalGameRun: () => formalRuns.loadFormalGameRun(),
     saveFormalGameRun: formalRuns.saveFormalGameRun,
@@ -237,7 +243,11 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     appendCoinLogEntryV4: formalRuns.appendCoinLogEntryV4,
     appendBattleLogEntriesFromSnapshotV4: formalRuns.appendBattleLogEntriesFromSnapshotV4,
     settleFormalBattleRoundV4: formalRuns.settleFormalBattleRoundV4,
+    finalizeFormalBattleResultV4: formalRuns.finalizeFormalBattleResultV4,
     prepareFormalSettlement: formalRuns.prepareFormalSettlement,
+    getFormalMedicalInsuranceOffer: formalRuns.getFormalMedicalInsuranceOffer,
+    chooseFormalMedicalInsurance: formalRuns.chooseFormalMedicalInsurance,
+    formalMedicalInsuranceEffectsForRun: formalRuns.formalMedicalInsuranceEffectsForRun,
     getFormalRestShop: formalRuns.getFormalRestShop,
     getFormalRestShopProducts: formalRuns.getFormalRestShopProducts,
     createFormalShopProductViews: (shop: Parameters<typeof createFormalShopProductViewsV4>[0]) => createFormalShopProductViewsV4(shop, itemID => dex.getItemDetail(itemID)),
@@ -275,6 +285,7 @@ export {
   starChartHasBattlePracticeMasteryV4,
   starChartHasEmergencyMedicalCareV4,
   starChartHasFreeMedicalCareV4,
+  starChartHasMedicalInsuranceV4,
   starChartHasOutpatientMedicalCareV4,
 };
 

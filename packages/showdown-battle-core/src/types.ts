@@ -204,6 +204,32 @@ export type BattleServiceActivePokemonV4 = {
   fainted: boolean;
 };
 
+export type BattleTeamMoveStateV4 = {
+  moveId: string;
+  remainingPp: number;
+  maxPp: number;
+};
+
+export type BattleTeamPokemonStateV4 = {
+  localPokemonId?: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
+  pokeball?: string;
+  ident?: string;
+  details?: string;
+  hp: number;
+  maxHp: number;
+  status: string;
+  fainted: boolean;
+  moves?: BattleTeamMoveStateV4[];
+};
+
+export type BattleTeamStateV4 = {
+  pokemonByToken: Record<string, BattleTeamPokemonStateV4>;
+  updatedAt: string;
+};
+
 export type BattleServiceSnapshotV4 = {
   id: string;
   runId: string;
@@ -218,6 +244,7 @@ export type BattleServiceSnapshotV4 = {
   showdownIdPool?: ShowdownIdPoolStateV4;
   requests: Partial<Record<ShowdownPlayerIdV4, BattleServiceRequestV4>>;
   active: BattleServiceActivePokemonV4[];
+  teamStateByPlayer?: Partial<Record<ShowdownPlayerIdV4, BattleTeamStateV4>>;
   rawLog: string[];
   debug: {
     inputLog: string[];

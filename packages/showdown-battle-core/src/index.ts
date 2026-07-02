@@ -15,6 +15,9 @@ import type {
   ShowdownPlayerIdV4,
   LocalPokemonLikeForBattleV4,
   BattleSpecialSystemV4,
+  BattleTeamPokemonStateV4,
+  BattleServiceActivePokemonV4,
+  BattleServiceSidePokemonV4,
 } from "./types.js";
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
 import {filterShowdownChoiceForRuleSetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
@@ -242,6 +245,7 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
       showdownIdPool: compiled.showdownIdPool,
       requests: {},
       active: [],
+      teamStateByPlayer: {},
       rawLog: [],
       debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, latestRequests: {}, latestMovePpByPokemon: {}, aiDecisions: []},
       createdAt: now,
@@ -678,12 +682,52 @@ function rememberLatestSidePokemon(session: RuntimeSession, playerId: ShowdownPl
     [playerId]: clone(request),
   };
   rememberLatestMovePp(session, playerId, request);
+  patchTeamStateFromRequest(session, playerId, request);
   const pokemon = request.side?.pokemon;
   if (!pokemon?.length) return;
   session.snapshot.debug.latestSidePokemon = {
     ...(session.snapshot.debug.latestSidePokemon || {}),
     [playerId]: clone(pokemon),
   };
+}
+
+function patchTeamStateFromRequest(session: RuntimeSession, playerId: ShowdownPlayerIdV4, request: BattleServiceRequestV4): void {
+  const rows = request.side?.pokemon || [];
+  if (!rows.length) return;
+  const activeRows = rows.filter(row => row.active);
+  rows.forEach(row => {
+    const token = teamStateTokenForRow(row);
+    if (!token) return;
+    const condition = parseCondition(row.condition || "");
+    upsertTeamPokemonState(session, playerId, token, {
+      ...identityForTeamState(session, playerId, token),
+      pokeball: row.pokeball || token,
+      ident: row.ident,
+      details: row.details,
+      hp: condition.hp,
+      maxHp: condition.maxHp,
+      status: condition.status,
+      fainted: Boolean(row.fainted || condition.fainted),
+    });
+  });
+  activeRows.forEach((row, activeIndex) => {
+    const token = teamStateTokenForRow(row);
+    const moves = request.active?.[activeIndex]?.moves || [];
+    if (!token || !moves.length) return;
+    upsertTeamPokemonState(session, playerId, token, {
+      ...identityForTeamState(session, playerId, token),
+      pokeball: row.pokeball || token,
+      ident: row.ident,
+      details: row.details,
+      moves: moves
+        .filter(move => move.id || move.move)
+        .map(move => ({
+          moveId: normalizeIdentityToken(move.id || move.move),
+          remainingPp: Math.max(0, Number(move.pp ?? 0) || 0),
+          maxPp: Math.max(0, Number(move.maxpp ?? move.pp ?? 0) || 0),
+        })),
+    });
+  });
 }
 
 function rememberLatestMovePp(session: RuntimeSession, playerId: ShowdownPlayerIdV4, request: BattleServiceRequestV4): void {
@@ -1111,6 +1155,18 @@ function upsertActive(session: RuntimeSession, ident: string, details: string, c
   session.snapshot.active = existing
     ? session.snapshot.active.map(active => active.slot === parsed.slot ? {...active, ...next} : active)
     : [...session.snapshot.active.filter(active => active.slot !== parsed.slot), next];
+  const token = teamStateTokenForIdentity(identity) || teamStateTokenForActive(next);
+  if (token) {
+    upsertTeamPokemonState(session, parsed.playerId, token, {
+      ...identity,
+      ident: parsed.ident,
+      details,
+      hp: hp.hp,
+      maxHp: hp.maxHp,
+      status: hp.status,
+      fainted: hp.fainted,
+    });
+  }
 }
 
 function activeIdentityFromRequest(session: RuntimeSession, playerId: ShowdownPlayerIdV4, slot: string): {
@@ -1162,17 +1218,105 @@ function patchActiveCondition(session: RuntimeSession, ident: string, condition:
   const parsed = parseIdent(ident);
   if (!parsed) return;
   const hp = parseCondition(condition);
+  let patchedActive: BattleServiceActivePokemonV4 | null = null;
   session.snapshot.active = session.snapshot.active.map(active => active.ident === parsed.ident || active.slot === parsed.slot
-    ? {...active, condition, hp: hp.hp, maxHp: hp.maxHp, status: hp.status || active.status, fainted: hp.fainted}
+    ? (patchedActive = {...active, condition, hp: hp.hp, maxHp: hp.maxHp, status: hp.status || active.status, fainted: hp.fainted})
     : active);
+  const identity = patchedActive || activeIdentityFromRequest(session, parsed.playerId, parsed.slot);
+  const token = teamStateTokenForIdentity(identity) || normalizeIdentityToken(parsed.ident);
+  if (token) {
+    upsertTeamPokemonState(session, parsed.playerId, token, {
+      ...identity,
+      ident: parsed.ident,
+      hp: hp.hp,
+      maxHp: hp.maxHp,
+      status: hp.status,
+      fainted: hp.fainted,
+    });
+  }
 }
 
 function patchActiveStatus(session: RuntimeSession, ident: string, status: string): void {
   const parsed = parseIdent(ident);
   if (!parsed) return;
+  let patchedActive: BattleServiceActivePokemonV4 | null = null;
   session.snapshot.active = session.snapshot.active.map(active => active.ident === parsed.ident || active.slot === parsed.slot
-    ? {...active, status}
+    ? (patchedActive = {...active, status})
     : active);
+  const identity = patchedActive || activeIdentityFromRequest(session, parsed.playerId, parsed.slot);
+  const token = teamStateTokenForIdentity(identity) || normalizeIdentityToken(parsed.ident);
+  if (token) {
+    upsertTeamPokemonState(session, parsed.playerId, token, {
+      ...identity,
+      ident: parsed.ident,
+      status,
+      fainted: status === "fnt" ? true : undefined,
+    });
+  }
+}
+
+function upsertTeamPokemonState(
+  session: RuntimeSession,
+  playerId: ShowdownPlayerIdV4,
+  token: string,
+  patch: Partial<BattleTeamPokemonStateV4>,
+): void {
+  const normalizedToken = normalizeIdentityToken(token);
+  if (!normalizedToken) return;
+  const previousByPlayer = session.snapshot.teamStateByPlayer || {};
+  const previous = previousByPlayer[playerId] || {pokemonByToken: {}, updatedAt: ""};
+  const current = previous.pokemonByToken[normalizedToken] || {hp: 0, maxHp: 1, status: "", fainted: false};
+  session.snapshot.teamStateByPlayer = {
+    ...previousByPlayer,
+    [playerId]: {
+      pokemonByToken: {
+        ...previous.pokemonByToken,
+        [normalizedToken]: {
+          ...current,
+          ...patch,
+          maxHp: Math.max(1, Number(patch.maxHp ?? current.maxHp ?? 1) || 1),
+          hp: Math.max(0, Number(patch.hp ?? current.hp ?? 0) || 0),
+          status: patch.status ?? current.status ?? "",
+          fainted: patch.fainted ?? current.fainted ?? false,
+        },
+      },
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+function identityForTeamState(session: RuntimeSession, playerId: ShowdownPlayerIdV4, token: string): Partial<BattleTeamPokemonStateV4> {
+  const normalizedToken = normalizeIdentityToken(token);
+  const player = playerById(session, playerId);
+  const mapping = player?.teamMapping?.find(entry =>
+    normalizeIdentityToken(entry.showdownIdentityToken) === normalizedToken ||
+    normalizeIdentityToken(entry.showdownId) === normalizedToken ||
+    normalizeIdentityToken(entry.pokeballId) === normalizedToken
+  );
+  return {
+    localPokemonId: mapping?.localPokemonId,
+    showdownIdentityToken: mapping?.showdownIdentityToken || normalizedToken,
+    showdownId: mapping?.showdownId || normalizedToken,
+    pokeballId: mapping?.pokeballId || normalizedToken,
+    pokeball: normalizedToken,
+  };
+}
+
+function teamStateTokenForRow(row: BattleServiceSidePokemonV4): string {
+  return normalizeIdentityToken(row.pokeball || row.ident || row.details);
+}
+
+function teamStateTokenForActive(active: BattleServiceActivePokemonV4): string {
+  return normalizeIdentityToken(active.pokeball || active.pokeballId || active.showdownIdentityToken || active.showdownId || active.ident);
+}
+
+function teamStateTokenForIdentity(identity: {
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
+  pokeball?: string;
+}): string {
+  return normalizeIdentityToken(identity.pokeball || identity.pokeballId || identity.showdownIdentityToken || identity.showdownId);
 }
 
 function parseIdent(ident: string): {ident: string; playerId: ShowdownPlayerIdV4; slot: string; name: string} | null {

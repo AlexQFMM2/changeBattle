@@ -1,0 +1,100 @@
+.formal-medical-insurance-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgb(18 13 9 / 50%);
+}
+
+.formal-medical-insurance-card {
+  width: min(520px, calc(100% - 48px));
+  display: grid;
+  gap: 14px;
+  border: 3px solid #9d744f;
+  border-radius: 8px;
+  background: #f4ead7;
+  color: #2d2418;
+  padding: 18px;
+  box-shadow: 0 8px 0 rgb(48 34 21 / 45%);
+}
+
+.formal-medical-insurance-card header {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.formal-medical-insurance-card header strong {
+  font-size: 19px;
+  font-weight: 950;
+}
+
+.formal-medical-insurance-card header span {
+  color: #5a4633;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.5;
+}
+
+.formal-medical-insurance-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.formal-medical-insurance-options button {
+  min-height: 84px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  border: 2px solid #a77a53;
+  border-radius: 7px;
+  background: #fff8e8;
+  color: #2d2418;
+  padding: 10px 8px;
+  font-weight: 900;
+}
+
+.formal-medical-insurance-options button:disabled {
+  filter: grayscale(0.5);
+  opacity: 0.55;
+}
+
+.formal-medical-insurance-options button strong {
+  font-size: 14px;
+}
+
+.formal-medical-insurance-options button span,
+.formal-medical-insurance-options button small {
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.formal-medical-insurance-options button small {
+  color: #6c563f;
+}
+
+.formal-medical-insurance-error {
+  margin: 0;
+  color: #9d2e26;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.formal-medical-insurance-card footer {
+  display: flex;
+  justify-content: center;
+}
+
+.formal-medical-insurance-card footer button {
+  min-width: 92px;
+  height: 30px;
+  border: 2px solid #8d6d4d;
+  border-radius: 6px;
+  background: #2d2418;
+  color: #f8eedb;
+  font-size: 11px;
+  font-weight: 950;
+}

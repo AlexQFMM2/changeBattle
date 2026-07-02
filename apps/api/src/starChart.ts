@@ -2,12 +2,18 @@ import {
   MAX_BP_V4,
   MORE_CHOICES_NODE_IDS,
   BATTLE_PRACTICE_MASTERY_NODE_ID,
+  CHAMPION_FUND_NODE_ID,
+  ELITE_FUND_NODE_ID,
   ELITE_EXCHANGE_EDUCATION_NODE_ID,
+  EMERGENCY_BACKPACK_NODE_ID,
   EMERGENCY_MEDICAL_CARE_NODE_ID,
   EAST_ASIA_EDUCATION_NODE_ID,
   EXCHANGE_ITEM_STEAL_NODE_ID,
   FREE_MEDICAL_CARE_NODE_ID,
+  LAUNCH_KIT_NODE_ID,
   LOSSLESS_EXCHANGE_NODE_ID,
+  MEDICAL_INSURANCE_NODE_ID,
+  MOVE_PREVIEW_NODE_ID,
   OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
   SECOND_EXCHANGE_NODE_ID,
@@ -15,12 +21,14 @@ import {
   SHOP_MORE_STOCK_NODE_IDS,
   STAR_CHART_NODES_V4,
   SPECIAL_TRAINING_LOCK_NODE_ID,
+  TRAVEL_FUND_NODE_ID,
+  VICTORY_DIVIDEND_NODE_ID,
   type StarChartNodeKindV4,
   type StarChartNodeViewV4,
   type StarChartStateV4,
 } from "@changebattle-v2/core";
 
-export {BATTLE_PRACTICE_MASTERY_NODE_ID, ELITE_EXCHANGE_EDUCATION_NODE_ID, EMERGENCY_MEDICAL_CARE_NODE_ID, EAST_ASIA_EDUCATION_NODE_ID, EXCHANGE_ITEM_STEAL_NODE_ID, FREE_MEDICAL_CARE_NODE_ID, LOSSLESS_EXCHANGE_NODE_ID, MAX_BP_V4, MORE_CHOICES_NODE_IDS, OPPONENT_RUMOR_NODE_ID, OUTPATIENT_MEDICAL_CARE_NODE_ID, SECOND_EXCHANGE_NODE_ID, SHOP_AUTO_RESTOCK_NODE_ID, SHOP_MORE_STOCK_NODE_IDS, SPECIAL_TRAINING_LOCK_NODE_ID, STAR_CHART_NODES_V4};
+export {BATTLE_PRACTICE_MASTERY_NODE_ID, CHAMPION_FUND_NODE_ID, ELITE_EXCHANGE_EDUCATION_NODE_ID, ELITE_FUND_NODE_ID, EMERGENCY_BACKPACK_NODE_ID, EMERGENCY_MEDICAL_CARE_NODE_ID, EAST_ASIA_EDUCATION_NODE_ID, EXCHANGE_ITEM_STEAL_NODE_ID, FREE_MEDICAL_CARE_NODE_ID, LAUNCH_KIT_NODE_ID, LOSSLESS_EXCHANGE_NODE_ID, MAX_BP_V4, MEDICAL_INSURANCE_NODE_ID, MORE_CHOICES_NODE_IDS, MOVE_PREVIEW_NODE_ID, OPPONENT_RUMOR_NODE_ID, OUTPATIENT_MEDICAL_CARE_NODE_ID, SECOND_EXCHANGE_NODE_ID, SHOP_AUTO_RESTOCK_NODE_ID, SHOP_MORE_STOCK_NODE_IDS, SPECIAL_TRAINING_LOCK_NODE_ID, STAR_CHART_NODES_V4, TRAVEL_FUND_NODE_ID, VICTORY_DIVIDEND_NODE_ID};
 export type {StarChartNodeKindV4, StarChartNodeViewV4, StarChartStateV4};
 
 export type StarChartProfileInputV4 = {
@@ -96,6 +104,13 @@ export function starterCandidateCountForStarChart(starChart?: StarChartStateV4 |
   return Math.max(6, Math.min(10, 6 + extra));
 }
 
+export function formalStartingMoneyForStarChartV4(starChart?: StarChartStateV4 | null): number {
+  if (starChartNodeLevelV4(starChart, CHAMPION_FUND_NODE_ID) > 0) return 1500;
+  if (starChartNodeLevelV4(starChart, ELITE_FUND_NODE_ID) > 0) return 1000;
+  if (starChartNodeLevelV4(starChart, TRAVEL_FUND_NODE_ID) > 0) return 500;
+  return 0;
+}
+
 export function starChartHasSpecialTrainingLockV4(starChart?: StarChartStateV4 | null): boolean {
   return starChartNodeLevelV4(starChart, SPECIAL_TRAINING_LOCK_NODE_ID) > 0;
 }
@@ -116,6 +131,38 @@ export function formalShopAutoRestockForStarChartV4(starChart?: StarChartStateV4
 
 export function starChartHasFreeMedicalCareV4(starChart?: StarChartStateV4 | null): boolean {
   return starChartNodeLevelV4(starChart, FREE_MEDICAL_CARE_NODE_ID) > 0;
+}
+
+export function starChartHasMedicalInsuranceV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, MEDICAL_INSURANCE_NODE_ID) > 0;
+}
+
+export function starChartHasTravelFundV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, TRAVEL_FUND_NODE_ID) > 0;
+}
+
+export function starChartHasEliteFundV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, ELITE_FUND_NODE_ID) > 0;
+}
+
+export function starChartHasChampionFundV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, CHAMPION_FUND_NODE_ID) > 0;
+}
+
+export function starChartHasVictoryDividendV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, VICTORY_DIVIDEND_NODE_ID) > 0;
+}
+
+export function starChartHasEmergencyBackpackV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, EMERGENCY_BACKPACK_NODE_ID) > 0;
+}
+
+export function starChartHasLaunchKitV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, LAUNCH_KIT_NODE_ID) > 0;
+}
+
+export function starChartHasMovePreviewV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartNodeLevelV4(starChart, MOVE_PREVIEW_NODE_ID) > 0;
 }
 
 export function starChartHasEmergencyMedicalCareV4(starChart?: StarChartStateV4 | null): boolean {

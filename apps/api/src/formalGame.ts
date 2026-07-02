@@ -50,7 +50,7 @@ import {
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
-import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, starChartHasBattlePracticeMasteryV4, starChartHasEastAsiaEducationV4, starChartHasEliteExchangeEducationV4, starChartHasEmergencyMedicalCareV4, starChartHasExchangeItemStealV4, starChartHasFreeMedicalCareV4, starChartHasLosslessExchangeV4, starChartHasOpponentRumorV4, starChartHasOutpatientMedicalCareV4, starChartHasSecondExchangeV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, starChartHasBattlePracticeMasteryV4, starChartHasEastAsiaEducationV4, starChartHasEliteExchangeEducationV4, starChartHasEmergencyBackpackV4, starChartHasEmergencyMedicalCareV4, starChartHasExchangeItemStealV4, starChartHasLaunchKitV4, starChartHasLosslessExchangeV4, starChartHasMedicalInsuranceV4, starChartHasMovePreviewV4, starChartHasOpponentRumorV4, starChartHasOutpatientMedicalCareV4, starChartHasSecondExchangeV4, starChartHasVictoryDividendV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -71,7 +71,7 @@ import {
   type TrainingStatusV4,
   type TrainingUserProfileInputV4,
 } from "./training.js";
-import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4} from "./battle.js";
+import {applyBattleSessionToRun, createBattleGameFromNodeDraft, patchBattleRunLocalTeamsFromSnapshot, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4} from "./battle.js";
 
 export type FormalGameModeV4 = "singles" | "doubles" | "coop";
 export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "roundPlanning" | "resting" | "ended";
@@ -110,6 +110,48 @@ export type FormalShopTransactionResultV4 = {
 };
 
 export type {FormalShopProductViewV4};
+
+export type FormalMedicalInsuranceTierV4 = "basic" | "standard" | "premium";
+
+export type FormalMedicalInsuranceStateV4 = {
+  tier: FormalMedicalInsuranceTierV4;
+  cost: number;
+  reviveCostPerPokemon: number;
+  recoveryShopPriceMultiplier: number;
+  purchasedAt: string;
+};
+
+export type FormalMedicalInsuranceTierViewV4 = {
+  tier: FormalMedicalInsuranceTierV4;
+  label: string;
+  cost: number;
+  reviveCostPerPokemon: number;
+  recoveryShopPriceMultiplier: number;
+};
+
+export type FormalMedicalInsuranceEffectsV4 = {
+  tier: FormalMedicalInsuranceTierV4 | "none";
+  cost: number;
+  reviveCostPerPokemon: number;
+  recoveryShopPriceMultiplier: number;
+};
+
+export type FormalMedicalInsuranceOfferV4 = {
+  available: boolean;
+  seen: boolean;
+  purchased: FormalMedicalInsuranceStateV4 | null;
+  tiers: FormalMedicalInsuranceTierViewV4[];
+  message: string;
+};
+
+export type FormalMedicalInsuranceChoiceV4 = FormalMedicalInsuranceTierV4 | "decline";
+
+export type FormalMedicalInsuranceChoiceResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  message: string;
+  offer: FormalMedicalInsuranceOfferV4;
+};
 
 export type FormalRestPokemonStatRerollPartV4 = "ivs" | "evs";
 
@@ -366,6 +408,8 @@ export type FormalGameRunV4 = {
   restRunSnapshot: TrainingRunGameV4 | null;
   currentRoundIndex: number;
   money: number;
+  medicalInsuranceOfferSeen?: boolean;
+  medicalInsurance?: FormalMedicalInsuranceStateV4 | null;
   shopByNodeId?: Record<string, FormalRestShopV4>;
   trainingGroundByNodeId?: Record<string, FormalTrainingGroundStateV4>;
   roundSettlementByNodeId?: Record<string, FormalRoundSettlementV4>;
@@ -386,6 +430,14 @@ export type FormalRoundSettlementV4 = {
 };
 
 export type FormalSettlementReasonV4 = "complete" | "loss" | "surrender" | "abandon";
+
+export type FormalBattleResultFinalizeReasonV4 = Extract<FormalSettlementReasonV4, "loss" | "surrender" | "complete">;
+export type FormalBattleResultDestinationV4 = "rest" | "settlement";
+export type FormalBattleResultFinalizeResultV4 = {
+  run: FormalGameRunV4;
+  destination: FormalBattleResultDestinationV4;
+  reason?: FormalBattleResultFinalizeReasonV4;
+};
 
 export type FormalGameSettlementV4 = {
   id: string;
@@ -446,7 +498,11 @@ export type FormalGameRunApi = {
   appendCoinLogEntryV4(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4;
   appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4;
   settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4;
+  finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4): FormalBattleResultFinalizeResultV4;
   prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
+  getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4;
+  chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): FormalMedicalInsuranceChoiceResultV4;
+  formalMedicalInsuranceEffectsForRun(run: FormalGameRunV4): FormalMedicalInsuranceEffectsV4;
   getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null;
   getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[];
   buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
@@ -554,6 +610,12 @@ const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   gen8: ["system-dynamax-band"],
   gen9: ["system-tera-orb"],
 };
+const FORMAL_MEDICAL_INSURANCE_TIERS: FormalMedicalInsuranceTierViewV4[] = [
+  {tier: "basic", label: "基础医疗保险", cost: 200, reviveCostPerPokemon: 25, recoveryShopPriceMultiplier: 1},
+  {tier: "standard", label: "标准医疗保险", cost: 500, reviveCostPerPokemon: 15, recoveryShopPriceMultiplier: 0.5},
+  {tier: "premium", label: "冠军医疗保险", cost: 1200, reviveCostPerPokemon: 0, recoveryShopPriceMultiplier: 0.3},
+];
+const FORMAL_STARTER_GIFT_ITEM_IDS = ["muscleband", "wiseglasses", "shellbell"] as const;
 
 export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalGameRunStorageAdapter = createBrowserFormalGameRunAdapter()): FormalGameRunApi {
   function createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4 {
@@ -579,7 +641,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       roundPlan: [],
       restRunSnapshot: null,
       currentRoundIndex: 0,
-      money: FORMAL_STARTING_MONEY,
+      money: formalStartingMoneyForStarChartV4(profile.starChart),
       settlement: null,
     };
     return normalizeFormalRun(run);
@@ -651,50 +713,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     if (!normalized.playerTeam?.pokemon.length) {
       throw new Error("需要先确认初始队伍。");
     }
-    const rng = createRng(`${normalized.seed}:round-plan:${normalized.mode}:${normalized.streak}`);
-    const usedNpcSpecies = new Set<string>();
     const player = createFormalPlayerDraft(normalized);
-    const distribution = roundDistributionForStreak(normalized.streak);
-    const roundPlan: FormalRoundPlanV4[] = distribution.map((difficulty, index) => {
-      const seed = `${normalized.seed}:round:${index + 1}`;
-      const roundRng = createRng(seed);
-      const roundDifficulty = maybeReplaceChampionWithVillain(difficulty, roundRng);
-      const participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> = {p1: player};
-      const npcs: FormalRoundNpcSnapshotV4[] = [];
-      const diagnostics: string[] = [];
-      const enemyTypes = normalized.mode === "coop" ? [roundDifficulty, roundDifficulty] : [roundDifficulty];
-      enemyTypes.forEach((trainerType, enemyIndex) => {
-        const playerId = enemyIndex === 0 ? "p2" : "p4";
-        const built = createFormalNpcParticipant({
-          run: normalized,
-          trainerType,
-          playerId,
-          roundIndex: index,
-          slotIndex: enemyIndex,
-          alliance: "far",
-          controller: "ai",
-          usedNpcSpecies,
-          rng: roundRng,
-        });
-        participants[playerId] = built.player;
-        npcs.push(built.npc);
-        diagnostics.push(...built.diagnostics);
-      });
-      if (normalized.mode === "coop") {
-        diagnostics.push("coop-ally:deferred-to-battle-transition");
-      }
-      return {
-        id: `formal-round-${index + 1}`,
-        index,
-        mode: normalized.mode,
-        ruleSet: normalized.battlePreference.ruleSet,
-        difficulty: roundDifficulty,
-        seed,
-        npcs,
-        participants,
-        diagnostics,
-      };
-    });
+    const roundPlan = createFormalRoundPlanSkeletons(normalized);
+    const firstRound = generateFormalRoundPlanAtIndex(normalized, player, roundPlan, 0);
+    roundPlan[0] = firstRound;
     const restRunSnapshot = createFormalRestRunSnapshot(normalized, player, roundPlan);
     return normalizeFormalRun({
       ...normalized,
@@ -702,9 +724,107 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       roundPlan,
       restRunSnapshot,
       currentRoundIndex: 0,
-      money: normalized.money || FORMAL_STARTING_MONEY,
+      money: Number.isFinite(Number(normalized.money)) ? normalized.money : formalStartingMoneyForStarChartV4(normalized.starChartSnapshot),
       settlement: null,
       updatedAt: new Date().toISOString(),
+    });
+  }
+
+  function createFormalRoundPlanSkeletons(run: FormalGameRunV4): FormalRoundPlanV4[] {
+    const distribution = roundDistributionForStreak(run.streak);
+    return distribution.map((difficulty, index) => {
+      const seed = `${run.seed}:round:${index + 1}`;
+      const roundRng = createRng(seed);
+      return {
+        id: `formal-round-${index + 1}`,
+        index,
+        mode: run.mode,
+        ruleSet: run.battlePreference.ruleSet,
+        difficulty: maybeReplaceChampionWithVillain(difficulty, roundRng),
+        seed,
+        npcs: [],
+        participants: {},
+        diagnostics: ["round-plan:pending"],
+      };
+    });
+  }
+
+  function generateFormalRoundPlanAtIndex(
+    run: FormalGameRunV4,
+    player: TrainingPlayerDraftV4,
+    roundPlan: FormalRoundPlanV4[],
+    index: number,
+  ): FormalRoundPlanV4 {
+    const base = roundPlan[index];
+    if (!base) throw new Error(`缺少第 ${index + 1} 场占位计划。`);
+    const usedNpcSpecies = collectGeneratedNpcSpecies(roundPlan, base.id);
+    const roundRng = createRng(base.seed);
+    const participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> = {p1: player};
+    const npcs: FormalRoundNpcSnapshotV4[] = [];
+    const diagnostics: string[] = [];
+    const enemyTypes = run.mode === "coop" ? [base.difficulty, base.difficulty] : [base.difficulty];
+    enemyTypes.forEach((trainerType, enemyIndex) => {
+      const playerId = enemyIndex === 0 ? "p2" : "p4";
+      const built = createFormalNpcParticipant({
+        run,
+        trainerType,
+        playerId,
+        roundIndex: index,
+        slotIndex: enemyIndex,
+        alliance: "far",
+        controller: "ai",
+        usedNpcSpecies,
+        rng: roundRng,
+      });
+      participants[playerId] = built.player;
+      npcs.push(built.npc);
+      diagnostics.push(...built.diagnostics);
+    });
+    if (run.mode === "coop") {
+      diagnostics.push("coop-ally:deferred-to-battle-transition");
+    }
+    return {
+      ...base,
+      npcs,
+      participants,
+      diagnostics,
+    };
+  }
+
+  function collectGeneratedNpcSpecies(roundPlan: FormalRoundPlanV4[], excludeRoundId = ""): Set<string> {
+    const used = new Set<string>();
+    roundPlan.forEach(round => {
+      if (round.id === excludeRoundId) return;
+      (["p2", "p4"] as ShowdownPlayerIdV4[]).forEach(playerId => {
+        round.participants[playerId]?.localTeam.pokemon.forEach(pokemon => used.add(baseSpeciesId(pokemon.speciesId)));
+      });
+    });
+    return used;
+  }
+
+  function advanceFormalRoundAfterSettlement(run: FormalGameRunV4, wonNode: TrainingRunGameNodeV4, updatedAt: string): FormalGameRunV4 {
+    const normalized = normalizeFormalRun(run);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    if (!restRunSnapshot) return normalized;
+    const nextIndex = wonNode.index + 1;
+    if (nextIndex >= FORMAL_ROUND_COUNT) {
+      return normalizeFormalRun({
+        ...normalized,
+        currentRoundIndex: wonNode.index,
+        updatedAt,
+      });
+    }
+    const player = restRunSnapshot.players.p1 || createFormalPlayerDraft(normalized);
+    const baseRoundPlan = normalized.roundPlan.length ? normalized.roundPlan : createFormalRoundPlanSkeletons(normalized);
+    const nextRound = generateFormalRoundPlanAtIndex(normalized, player, baseRoundPlan, nextIndex);
+    const nextRoundPlan = baseRoundPlan.map(round => round.index === nextIndex ? nextRound : round);
+    const nextRestRunSnapshot = patchFormalRestNextRound(restRunSnapshot, nextRound, player, updatedAt);
+    return normalizeFormalRun({
+      ...normalized,
+      roundPlan: nextRoundPlan,
+      restRunSnapshot: nextRestRunSnapshot,
+      currentRoundIndex: nextIndex,
+      updatedAt,
     });
   }
 
@@ -744,14 +864,19 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
 
   function appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4 {
     const normalized = normalizeFormalRun(run);
-    const restRunSnapshot = normalized.restRunSnapshot;
+    const restRunSnapshot = normalized.restRunSnapshot
+      ? patchBattleRunLocalTeamsFromSnapshot(normalized.restRunSnapshot, snapshot)
+      : null;
     if (!restRunSnapshot) return normalized;
+    const normalizedWithBattleState = restRunSnapshot === normalized.restRunSnapshot
+      ? normalized
+      : normalizeFormalRun({...normalized, restRunSnapshot, updatedAt: new Date().toISOString()});
     const existingKeys = new Set((restRunSnapshot.battleLog || []).map(entry => entry.key));
     const parsed = parseBattleLogEntriesFromSnapshot(snapshot, existingKeys);
-    if (!parsed.length) return normalized;
+    if (!parsed.length) return normalizedWithBattleState;
     const now = new Date().toISOString();
     return normalizeFormalRun({
-      ...normalized,
+      ...normalizedWithBattleState,
       restRunSnapshot: {
         ...restRunSnapshot,
         battleLog: [...(restRunSnapshot.battleLog || []), ...parsed],
@@ -812,7 +937,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const p1 = restRunSnapshot.players.p1;
     if (!p1) return normalized;
     const now = new Date().toISOString();
-    const hasFreeCare = starChartHasFreeMedicalCareV4(normalized.starChartSnapshot);
+    const insuranceEffects = formalMedicalInsuranceEffectsForRun(normalized);
     const hasEmergencyCare = starChartHasEmergencyMedicalCareV4(normalized.starChartSnapshot);
     const hasOutpatientCare = starChartHasOutpatientMedicalCareV4(normalized.starChartSnapshot);
     const hasPracticeMastery = starChartHasBattlePracticeMasteryV4(normalized.starChartSnapshot);
@@ -858,7 +983,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       }
       return next;
     });
-    const reviveCost = hasFreeCare ? 0 : revivedPokemonIds.length * 50;
+    const reviveCost = revivedPokemonIds.length * insuranceEffects.reviveCostPerPokemon;
     const settlement: FormalRoundSettlementV4 = {
       nodeId: wonNode.id,
       rewardCoins: 500,
@@ -889,15 +1014,122 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       roundIndex: wonNode.index,
       at: now,
     });
-    if (reviveCost <= 0) return withReward;
-    return appendShopCoinLogFast(withReward, {
+    if (reviveCost <= 0) return advanceFormalRoundAfterSettlement(withReward, wonNode, now);
+    return advanceFormalRoundAfterSettlement(appendShopCoinLogFast(withReward, {
       key: `round-settlement-medical:${wonNode.id}`,
       amount: -reviveCost,
       source: "round-settlement",
       label: `第 ${wonNode.index + 1} 场工厂医疗`,
       roundIndex: wonNode.index,
       at: now,
+    }), wonNode, now);
+  }
+
+  function finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4): FormalBattleResultFinalizeResultV4 {
+    const normalized = normalizeFormalRun(run);
+    if (!normalized.restRunSnapshot) {
+      return {run: normalized, destination: "settlement", reason: reason || "loss"};
+    }
+
+    const now = new Date().toISOString();
+    const restRunSnapshot = applyBattleSessionToRun(normalized.restRunSnapshot, snapshot);
+    const withSnapshot = normalizeFormalRun({
+      ...normalized,
+      restRunSnapshot,
+      updatedAt: now,
     });
+    const withLog = appendBattleLogEntriesFromSnapshotV4(withSnapshot, snapshot);
+    const finalReason = reason === "surrender"
+      ? "surrender"
+      : restRunSnapshot.result?.outcome === "loss"
+        ? "loss"
+        : undefined;
+
+    if (finalReason) {
+      return {run: withLog, destination: "settlement", reason: finalReason};
+    }
+
+    const settled = settleFormalBattleRoundV4(withLog);
+    const settledSnapshot = settled.restRunSnapshot;
+    const completed = Boolean(settledSnapshot?.gameMap.length && settledSnapshot.gameMap.every(node => node.state === "won"));
+    if (settledSnapshot?.status === "ended" || completed) {
+      return {run: settled, destination: "settlement", reason: "complete"};
+    }
+    return {run: settled, destination: "rest"};
+  }
+
+  function getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4 {
+    const normalized = normalizeFormalRun(run);
+    const available = starChartHasMedicalInsuranceV4(normalized.starChartSnapshot);
+    const purchased = normalized.medicalInsurance || null;
+    const seen = Boolean(normalized.medicalInsuranceOfferSeen || purchased);
+    return {
+      available,
+      seen,
+      purchased,
+      tiers: FORMAL_MEDICAL_INSURANCE_TIERS.map(tier => ({...tier})),
+      message: purchased
+        ? `已购买${insuranceTierLabel(purchased.tier)}。`
+        : available
+          ? "可以在第一场战斗前购买一次医疗保险。"
+          : "需要点亮星图「医疗保险」后才能购买。",
+    };
+  }
+
+  function chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): FormalMedicalInsuranceChoiceResultV4 {
+    const normalized = normalizeFormalRun(run);
+    if (!starChartHasMedicalInsuranceV4(normalized.starChartSnapshot)) {
+      return medicalInsuranceChoiceResult(false, normalized, "需要点亮星图「医疗保险」后才能购买。");
+    }
+    if (normalized.medicalInsurance) {
+      return medicalInsuranceChoiceResult(true, normalized, "本局已经购买过医疗保险。");
+    }
+    if (normalized.medicalInsuranceOfferSeen) {
+      return medicalInsuranceChoiceResult(false, normalized, "本局医疗保险机会已经处理过。");
+    }
+    if (choice === "decline") {
+      const declined = normalizeFormalRun({...normalized, medicalInsuranceOfferSeen: true, updatedAt: new Date().toISOString()});
+      return medicalInsuranceChoiceResult(true, declined, "已放弃本局医疗保险。");
+    }
+    const tier = FORMAL_MEDICAL_INSURANCE_TIERS.find(entry => entry.tier === choice);
+    if (!tier) return medicalInsuranceChoiceResult(false, normalized, "未知的医疗保险档位。");
+    if (!normalized.restRunSnapshot) return medicalInsuranceChoiceResult(false, normalized, "需要先生成赛程后才能购买医疗保险。");
+    if (normalized.money < tier.cost) return medicalInsuranceChoiceResult(false, normalized, "金币不足。");
+    const now = new Date().toISOString();
+    const withInsurance = normalizeFormalRun({
+      ...normalized,
+      medicalInsuranceOfferSeen: true,
+      medicalInsurance: {
+        tier: tier.tier,
+        cost: tier.cost,
+        reviveCostPerPokemon: tier.reviveCostPerPokemon,
+        recoveryShopPriceMultiplier: tier.recoveryShopPriceMultiplier,
+        purchasedAt: now,
+      },
+      updatedAt: now,
+    });
+    const withLog = appendShopCoinLogFast(withInsurance, {
+      key: "medical-insurance:purchase",
+      amount: -tier.cost,
+      source: "medical-insurance",
+      label: `购买${tier.label}`,
+      roundIndex: 0,
+      at: now,
+    });
+    return medicalInsuranceChoiceResult(true, withLog, `已购买${tier.label}。`);
+  }
+
+  function formalMedicalInsuranceEffectsForRun(run: FormalGameRunV4): FormalMedicalInsuranceEffectsV4 {
+    const insurance = normalizeFormalRun(run).medicalInsurance;
+    if (!insurance) {
+      return {tier: "none", cost: 0, reviveCostPerPokemon: 50, recoveryShopPriceMultiplier: 1};
+    }
+    return {
+      tier: insurance.tier,
+      cost: insurance.cost,
+      reviveCostPerPokemon: insurance.reviveCostPerPokemon,
+      recoveryShopPriceMultiplier: insurance.recoveryShopPriceMultiplier,
+    };
   }
 
   function getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null {
@@ -907,7 +1139,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   }
 
   function getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[] {
-    return createFormalShopProductViewsV4(getFormalRestShop(run), getItemDetailSafe, {getMoveDetail: getMoveDetailSafe});
+    return createFormalShopProductViewsV4(getFormalRestShop(run), getItemDetailSafe, {
+      getMoveDetail: getMoveDetailSafe,
+      medicalInsurance: formalMedicalInsuranceEffectsForRun(run),
+    });
   }
 
   function buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4 {
@@ -919,7 +1154,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const {item, category, index} = located;
     if (item.stock <= 0) return shopTransactionResult(false, {...run, shopByNodeId: {...(run.shopByNodeId || {}), [shop.nodeId]: shop}}, "该商品已经售罄。", shop);
     const detail = getItemDetailSafe(item.itemID);
-    const price = formalShopItemPriceV4(item, detail, getMoveDetailSafe);
+    const price = formalShopItemPriceV4(item, detail, getMoveDetailSafe, formalMedicalInsuranceEffectsForRun(run));
     if (!detail || price <= 0) return shopTransactionResult(false, run, "该商品暂不可购买。", shop);
     if (run.money < price) return shopTransactionResult(false, run, "金币不足。", shop);
     const p1 = run.restRunSnapshot.players.p1;
@@ -1471,11 +1706,15 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const expense = coinLog.filter(entry => entry.amount < 0).reduce((sum, entry) => sum + Math.abs(entry.amount), 0);
     const pokemonStats = buildSettlementPokemonStats(normalized);
     const mvp = pokemonStats[0] || null;
+    const baseBpGained = calculateSettlementBp(normalized);
+    const victoryDividendBp = starChartHasVictoryDividendV4(normalized.starChartSnapshot)
+      ? Math.floor(clampInt(normalized.money, 0, 999999, 0) * 0.01)
+      : 0;
     const settlement: FormalGameSettlementV4 = {
       id: createId("formal-settlement"),
       outcome,
       reason,
-      bpGained: calculateSettlementBp(normalized),
+      bpGained: baseBpGained + victoryDividendBp,
       wonRounds,
       coinSummary: {
         income,
@@ -1485,7 +1724,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       },
       pokemonStats,
       mvpPokemonKey: mvp?.pokemonKey || "",
-      diagnostics: pokemonStats.length ? [] : ["no-player-pokemon-stats"],
+      diagnostics: [
+        ...(pokemonStats.length ? [] : ["no-player-pokemon-stats"]),
+        ...(victoryDividendBp > 0 ? [`victory-dividend:+${victoryDividendBp}bp`] : []),
+      ],
       createdAt: now,
     };
     return normalizeFormalRun({
@@ -1530,7 +1772,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       roundPlan: Array.isArray(run.roundPlan) ? run.roundPlan.map(normalizeRoundPlan) : [],
       restRunSnapshot: run.restRunSnapshot ? normalizeFormalRestRunSnapshot(run.restRunSnapshot) : null,
       currentRoundIndex: clampInt(run.currentRoundIndex, 0, FORMAL_ROUND_COUNT - 1, 0),
-      money: clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY),
+      money: clampInt(run.money, 0, 999999, formalStartingMoneyForStarChartV4(run.starChartSnapshot)),
+      medicalInsuranceOfferSeen: Boolean(run.medicalInsuranceOfferSeen),
+      medicalInsurance: normalizeFormalMedicalInsuranceState(run.medicalInsurance),
       shopByNodeId: normalizeFormalShopByNodeId(run.shopByNodeId, run),
       trainingGroundByNodeId: normalizeFormalTrainingGroundByNodeId(run.trainingGroundByNodeId),
       roundSettlementByNodeId: normalizeFormalRoundSettlementByNodeId(run.roundSettlementByNodeId),
@@ -1615,24 +1859,34 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
 
   function createFormalPlayerDraft(run: FormalGameRunV4): TrainingPlayerDraftV4 {
     const team = run.playerTeam || {id: `formal-player-team-${run.id}`, name: "正式游戏初始队伍", pokemon: []};
+    const localTeam: LocalTeamV4 = {
+      ...team,
+      pokemon: team.pokemon.map((pokemon, index) => ({
+        ...pokemon,
+        localPokemonId: `formal-p1-${index + 1}-${pokemon.speciesId}`,
+        itemId: "",
+        heldItemInstanceId: undefined,
+        entryHp: pokemon.maxHp,
+        entryStatus: "" as TrainingStatusV4,
+      })),
+    };
     return {
       playerId: "p1",
       name: "玩家",
       avatar: "npc/avatars/6-asset-a73f3e71.webp",
       controller: "local",
       alliance: "near",
-      localTeam: {
-        ...team,
-        pokemon: team.pokemon.map((pokemon, index) => ({
-          ...pokemon,
-          localPokemonId: `formal-p1-${index + 1}-${pokemon.speciesId}`,
-          itemId: "",
-          heldItemInstanceId: undefined,
-          entryHp: pokemon.maxHp,
-          entryStatus: "",
-        })),
-      },
-      bag: createFormalBag(run.battlePreference.battleBagEnabled, run.battlePreference.ruleSet),
+      localTeam,
+      bag: createFormalBag(run.battlePreference.battleBagEnabled, run.battlePreference.ruleSet, run, localTeam, {
+        getItemDetail: getItemDetailSafe,
+        getMachineSkills: speciesId => {
+          try {
+            return dex.getPokemonMachineSkills(speciesId);
+          } catch {
+            return [];
+          }
+        },
+      }),
     };
   }
 
@@ -1712,10 +1966,12 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const ruleSetPreset = run.battlePreference.ruleSet === "standard" ? "none" : run.battlePreference.ruleSet;
     const previews = boss.presetTeamPreviews
       .filter(team => team.mode === run.mode && team.ruleSetPreset === ruleSetPreset)
-      .filter(team => team.pokemon.length >= 6)
-      .filter(team => run.battlePreference.legendaryBattle || team.pokemon.every(pokemon => speciesRankForDetail(safePokemon(pokemon.speciesId)) !== "legendary"))
-      .filter(team => team.pokemon.every(pokemon => run.battlePreference.allowedGenerations.includes(generationForDexNum(safePokemon(pokemon.speciesId).num))));
-    const candidates = previews.length ? previews : boss.presetTeamPreviews.filter(team => team.mode === run.mode).filter(team => team.pokemon.length >= 6);
+      .filter(team => bossPresetTeamIsRandomLegal(run, team));
+    const candidates = previews.length
+      ? previews
+      : boss.presetTeamPreviews
+        .filter(team => team.mode === run.mode)
+        .filter(team => bossPresetTeamIsRandomLegal(run, team));
     if (!previews.length) diagnostics.push("boss-static-filter-relaxed");
     const selected = [...candidates].sort((a, b) => {
       const overlapA = a.pokemon.filter(pokemon => usedNpcSpecies.has(baseSpeciesId(pokemon.speciesId))).length;
@@ -1818,6 +2074,16 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     };
   }
 
+  function bossPresetTeamIsRandomLegal(run: FormalGameRunV4, team: FormalBossTrainerCandidateV4["presetTeamPreviews"][number]): boolean {
+    if (team.pokemon.length < 6) return false;
+    return team.pokemon.every(pokemon => {
+      const detail = safePokemon(pokemon.speciesId);
+      if (!isRandomGeneratableSpeciesFormV4(detail.id, detail)) return false;
+      if (!run.battlePreference.legendaryBattle && speciesRankForDetail(detail) === "legendary") return false;
+      return run.battlePreference.allowedGenerations.includes(generationForDexNum(detail.num));
+    });
+  }
+
   function createFormalRestRunSnapshot(run: FormalGameRunV4, player: TrainingPlayerDraftV4, roundPlan: FormalRoundPlanV4[]): TrainingRunGameV4 {
     const first = roundPlan[0];
     const firstParticipants = first?.participants || {p1: player};
@@ -1833,21 +2099,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       selectedNpcIds: Object.fromEntries(roundPlan[0]?.npcs.map(npc => [npc.playerId, npc.trainerId]) || []) as Partial<Record<ShowdownPlayerIdV4, string>>,
       players: scenarioPlayers,
     };
-    const gameMap: TrainingRunGameNodeV4[] = roundPlan.map(round => ({
-      id: round.id,
-      index: round.index,
-      state: round.index === 0 ? "ready" : "locked",
-      p1: "p1",
-      p2: "p2",
-      p3: run.mode === "coop" ? "p3" : null,
-      p4: run.mode === "coop" ? "p4" : null,
-      mode: round.mode,
-      ruleSet: round.ruleSet,
-      seed: round.seed,
-      participants: round.participants,
-      battleGame: null,
-      createdAt: new Date().toISOString(),
-    }));
+    const gameMap: TrainingRunGameNodeV4[] = roundPlan.map(round => createFormalRestNodeFromRound(run, round, round.index === 0 ? "ready" : "locked"));
     return {
       version: 1,
       id: `formal-rest-${run.id}`,
@@ -1865,6 +2117,28 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restPreviewUnlocks: {},
       coinLog: [],
       battleLog: [],
+    };
+  }
+
+  function createFormalRestNodeFromRound(
+    run: FormalGameRunV4,
+    round: FormalRoundPlanV4,
+    state: TrainingRunGameNodeV4["state"],
+  ): TrainingRunGameNodeV4 {
+    return {
+      id: round.id,
+      index: round.index,
+      state,
+      p1: "p1",
+      p2: "p2",
+      p3: run.mode === "coop" ? "p3" : null,
+      p4: run.mode === "coop" ? "p4" : null,
+      mode: round.mode,
+      ruleSet: round.ruleSet,
+      seed: round.seed,
+      participants: state === "locked" && !round.npcs.length ? {} : round.participants,
+      battleGame: null,
+      createdAt: new Date().toISOString(),
     };
   }
 
@@ -2019,7 +2293,11 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     appendCoinLogEntryV4,
     appendBattleLogEntriesFromSnapshotV4,
     settleFormalBattleRoundV4,
+    finalizeFormalBattleResultV4,
     prepareFormalSettlement,
+    getFormalMedicalInsuranceOffer,
+    chooseFormalMedicalInsurance,
+    formalMedicalInsuranceEffectsForRun,
     getFormalRestShop,
     getFormalRestShopProducts,
     buyFormalRestShopItem,
@@ -2038,7 +2316,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
 export function createFormalShopProductViewsV4(
   shop: FormalRestShopV4 | null | undefined,
   getItemDetail: (itemID: string) => DexItemDetail | null | undefined,
-  options: {getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined} = {},
+  options: {getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined; medicalInsurance?: FormalMedicalInsuranceEffectsV4 | null} = {},
 ): FormalShopProductViewV4[] {
   if (!shop) return [];
   const products: FormalShopProductViewV4[] = [];
@@ -2053,7 +2331,7 @@ export function createFormalShopProductViewsV4(
         itemID: item.itemID,
         type: category,
         name: formalShopProductName(item, detail),
-        price: formalShopItemPriceV4(item, detail, options.getMoveDetail),
+        price: formalShopItemPriceV4(item, detail, options.getMoveDetail, options.medicalInsurance),
         summary: formalShopProductSummary(detail),
         stock: Math.max(0, Math.floor(Number(item.stock || 0))),
         iconUrl: detail?.iconUrl || undefined,
@@ -2087,6 +2365,7 @@ export function formalShopItemPriceV4(
   item: Pick<FormalShopItemV4, "category" | "itemID"> | {category?: FormalShopCategoryV4; itemID: string},
   detail: DexItemDetail | null | undefined,
   getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined,
+  medicalInsurance?: FormalMedicalInsuranceEffectsV4 | null,
 ): number {
   const itemID = toID(item.itemID);
   const override = FORMAL_SHOP_PRICE_OVERRIDES[itemID];
@@ -2095,7 +2374,7 @@ export function formalShopItemPriceV4(
   if (category === "tm" || detail?.kind === "tm") return formalShopTmPrice(detail, getMoveDetail);
   if (category === "battle" || detail?.kind === "battle" || detail?.kind === "held") return formalShopBattlePrice(itemID);
   if (category === "training" || detail?.kind === "training") return formalShopTrainingPrice(detail);
-  if (category === "recovery" || detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp") return formalShopRecoveryPrice(detail);
+  if (category === "recovery" || detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp") return applyFormalMedicalInsuranceShopDiscount(formalShopRecoveryPrice(detail), detail, medicalInsurance);
   if (category === "berry" || detail?.kind === "berry") return clampFormalShopPrice(detail?.cost || FORMAL_SHOP_PRICE_LIMITS.berry.min, "berry");
   return Math.max(1, Math.floor(Number(detail?.cost || 50)));
 }
@@ -2162,6 +2441,17 @@ function formalShopRecoveryPrice(detail: DexItemDetail | null | undefined): numb
   return FORMAL_SHOP_PRICE_LIMITS.recovery.min;
 }
 
+function applyFormalMedicalInsuranceShopDiscount(
+  price: number,
+  detail: DexItemDetail | null | undefined,
+  medicalInsurance?: FormalMedicalInsuranceEffectsV4 | null,
+): number {
+  if (!detail || !["recovery", "revive", "pp"].includes(detail.kind || "")) return Math.max(1, Math.floor(price));
+  const multiplier = Number(medicalInsurance?.recoveryShopPriceMultiplier ?? 1);
+  if (!Number.isFinite(multiplier) || multiplier >= 1) return Math.max(1, Math.floor(price));
+  return Math.max(1, Math.floor(price * Math.max(0, multiplier)));
+}
+
 function clampFormalShopPrice(value: unknown, category: keyof typeof FORMAL_SHOP_PRICE_LIMITS): number {
   const limits = FORMAL_SHOP_PRICE_LIMITS[category];
   const price = Math.floor(Number(value || 0));
@@ -2185,6 +2475,7 @@ export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: 
   const rng = createRng(`${input.seed}:${input.mode}:${input.streak}:${battlePreference.ruleSet}`);
   const rows = collectPokemonRows(dex, battlePreference);
   const roles = Array.from({length: count}, (_value, index) => STARTER_ROLE_PLAN[index] || "balanced");
+  const powerProfiles = starterPowerProfileDeck(input.seed, input.streak, count);
   const used = new Set<string>();
   let legendaryCount = 0;
   return roles.map((role, index) => {
@@ -2196,7 +2487,7 @@ export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: 
     if (selectedRow.rank === "legendary") legendaryCount += 1;
     const detail = safePokemonDetail(dex, selectedRow.id);
     const speciesRank = speciesRankForDetail(detail);
-    const powerProfile = powerProfileForStreak(input.streak, index);
+    const powerProfile = powerProfiles[index] || "elite";
     const pokemon = createStarterPokemon(dex, detail, {
       index,
       role,
@@ -2447,7 +2738,7 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   const ivTotalCap = rollPowerProfileIvCap(options.powerProfile, options.rng);
   const evTotalCap = rollPowerProfileEvCap(options.powerProfile, options.rng);
   const evs = evsForPowerProfileCap(evTotalCap, options.role, options.rng);
-  const ivs = distributeStatBudget(ivTotalCap, 31, STAT_IDS, options.rng);
+  const ivs = distributeStatBudget(ivTotalCap, starterIvStatCapForPowerProfile(options.powerProfile), STAT_IDS, options.rng);
   const moves = normalizeMovesForDetail(dex, detail, options.role, options.powerProfile, options.rng);
   const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level, nature, evs, ivs}).stats.hp;
   return {
@@ -2581,6 +2872,7 @@ function isAllowedRegionalOrStableVariant(forme: string): boolean {
 
 function isBlockedBattleForm(id: string, forme: string): boolean {
   const blockedFormes = [
+    "bond",
     "zen",
     "galarzen",
     "school",
@@ -2604,14 +2896,25 @@ function isBlockedBattleForm(id: string, forme: string): boolean {
     "stellar",
   ];
   if (blockedFormes.some(blocked => forme === blocked || forme.includes(blocked))) return true;
-  return id.includes("totem") || id.includes("eternamax") || id.includes("ultra") || id.includes("crowned");
+  return id.includes("totem") || id.includes("eternamax") || id.includes("ultra") || id.includes("crowned") || id.includes("bond");
 }
 
-function powerProfileForStreak(streak: number, index: number): PokemonPowerProfileV4 {
+function starterPowerProfileDeck(seed: string, streak: number, count: number): PokemonPowerProfileV4[] {
   const safeStreak = Math.max(0, Math.floor(Number(streak || 0)));
-  if (safeStreak <= 0) return index < 3 ? "rookie" : "normal";
-  if (safeStreak === 1) return index < 2 ? "normal" : "elite";
-  return "elite";
+  const safeCount = Math.max(0, Math.floor(Number(count || 0)));
+  if (safeStreak >= 2) return Array.from({length: safeCount}, () => "elite");
+  const normalCount = Math.max(0, Math.min(safeCount - 1, Math.ceil(safeCount * 0.8)));
+  const eliteCount = safeCount - normalCount;
+  return shuffle([
+    ...Array.from({length: normalCount}, () => "normal" as const),
+    ...Array.from({length: eliteCount}, () => "elite" as const),
+  ], createRng(`${seed}:starter-power-profile:${safeStreak}:${safeCount}`));
+}
+
+function starterIvStatCapForPowerProfile(profile: PokemonPowerProfileV4): number {
+  if (profile === "normal") return 26;
+  if (profile === "elite") return 28;
+  return 31;
 }
 
 function levelForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): number {
@@ -2847,9 +3150,74 @@ function pickNpcItemForPowerProfile(profile: PokemonPowerProfileV4, rng: () => n
   return pickOne(NPC_BOSS_ITEMS, rng) || "";
 }
 
-function createFormalBag(battleBagEnabled: boolean, ruleSet: TrainingRuleSetV4): BagStateV4 {
-  const items = DEFAULT_SYSTEM_ITEMS_BY_RULE_SET[ruleSet].map(createFormalSystemItem);
+function createFormalBag(battleBagEnabled: boolean, ruleSet: TrainingRuleSetV4, run?: FormalGameRunV4, team?: LocalTeamV4, context?: {
+  getItemDetail: (itemID: string) => DexItemDetail | null;
+  getMachineSkills: (speciesId: string) => DexMoveSummary[];
+}): BagStateV4 {
+  const items = [
+    ...DEFAULT_SYSTEM_ITEMS_BY_RULE_SET[ruleSet].map(createFormalSystemItem),
+    ...(run && team && context ? createFormalStarterGiftItems(run, team, context) : []),
+  ];
   return {maxSize: 50, items, battleBagEnabled};
+}
+
+function createFormalStarterGiftItems(run: FormalGameRunV4, team: LocalTeamV4, context: {
+  getItemDetail: (itemID: string) => DexItemDetail | null;
+  getMachineSkills: (speciesId: string) => DexMoveSummary[];
+}): PlayerItemInstanceV4[] {
+  const items: PlayerItemInstanceV4[] = [];
+  if (starChartHasEmergencyBackpackV4(run.starChartSnapshot)) {
+    for (let index = 0; index < 3; index += 1) addStarterGiftItem(items, "superpotion", `emergency-backpack-${index + 1}`, context);
+  }
+  if (starChartHasLaunchKitV4(run.starChartSnapshot)) {
+    FORMAL_STARTER_GIFT_ITEM_IDS.forEach(itemID => addStarterGiftItem(items, itemID, `launch-kit-${itemID}`, context));
+  }
+  if (starChartHasMovePreviewV4(run.starChartSnapshot)) {
+    createFormalStarterGiftTmIds(run, team, context).forEach((itemID, index) => addStarterGiftItem(items, itemID, `move-preview-${index + 1}`, context));
+  }
+  return items;
+}
+
+function addStarterGiftItem(items: PlayerItemInstanceV4[], itemID: string, key: string, context: {getItemDetail: (itemID: string) => DexItemDetail | null}) {
+  const detail = context.getItemDetail(itemID);
+  if (!detail) return;
+  items.push({
+    ...formalShopItemInstance(itemID, detail, 0),
+    id: `formal-star-gift-${key}`,
+    cost: 0,
+    getRound: 0,
+  });
+}
+
+function createFormalStarterGiftTmIds(run: FormalGameRunV4, team: LocalTeamV4, context: {getMachineSkills: (speciesId: string) => DexMoveSummary[]}): string[] {
+  const targetCount = Math.max(0, Math.min(6, team.pokemon.length));
+  if (!targetCount) return [];
+  const rng = createRng(`${run.seed}:starter-gift:tms`);
+  const selected: string[] = [];
+  const used = new Set<string>();
+  const perPokemon = team.pokemon.map(pokemon => {
+    const moves = context.getMachineSkills(pokemon.speciesId)
+      .filter(move => Math.max(0, Number(move.power || 0)) > 0)
+      .filter(move => toID(move.id));
+    return shuffle(uniqueById(moves), rng);
+  });
+  for (const moves of perPokemon) {
+    const move = moves.find(candidate => !used.has(toID(candidate.id))) || moves[0];
+    if (!move) continue;
+    const itemID = `tm:${toID(move.id)}`;
+    selected.push(itemID);
+    used.add(toID(move.id));
+    if (selected.length >= targetCount) return selected;
+  }
+  const allMoves = shuffle(uniqueById(perPokemon.flat()), rng);
+  for (const move of allMoves) {
+    const moveId = toID(move.id);
+    if (!moveId || used.has(moveId)) continue;
+    selected.push(`tm:${moveId}`);
+    used.add(moveId);
+    if (selected.length >= targetCount) break;
+  }
+  return selected.slice(0, targetCount);
 }
 
 function createFormalSystemItem(itemID: string): PlayerItemInstanceV4 {
@@ -3001,8 +3369,27 @@ function opponentPreviewUnlockResult(ok: boolean, run: FormalGameRunV4, message:
   return {ok, run, message, cost};
 }
 
+function medicalInsuranceChoiceResult(ok: boolean, run: FormalGameRunV4, message: string): FormalMedicalInsuranceChoiceResultV4 {
+  return {
+    ok,
+    run,
+    message,
+    offer: {
+      available: starChartHasMedicalInsuranceV4(run.starChartSnapshot),
+      seen: Boolean(run.medicalInsuranceOfferSeen || run.medicalInsurance),
+      purchased: run.medicalInsurance || null,
+      tiers: FORMAL_MEDICAL_INSURANCE_TIERS.map(tier => ({...tier})),
+      message,
+    },
+  };
+}
+
 function pokemonExchangeResult(ok: boolean, run: FormalGameRunV4, message: string, cost: number, view: FormalPokemonExchangeViewV4): FormalPokemonExchangeResultV4 {
   return {ok, run, message, cost, view};
+}
+
+function insuranceTierLabel(tier: FormalMedicalInsuranceTierV4): string {
+  return FORMAL_MEDICAL_INSURANCE_TIERS.find(entry => entry.tier === tier)?.label || "医疗保险";
 }
 
 function formalRestPokemonStatRerollCost(lockedCount: number): number {
@@ -3359,6 +3746,52 @@ function patchFormalRestParticipant(restRunSnapshot: TrainingRunGameV4, nodeId: 
   };
 }
 
+function patchFormalRestNextRound(
+  restRunSnapshot: TrainingRunGameV4,
+  round: FormalRoundPlanV4,
+  player: TrainingPlayerDraftV4,
+  updatedAt: string,
+): TrainingRunGameV4 {
+  const participants = {...round.participants, p1: player};
+  const selectedNpcIds = {
+    ...restRunSnapshot.scenario.selectedNpcIds,
+    ...Object.fromEntries(round.npcs.map(npc => [npc.playerId, npc.trainerId])),
+  } as Partial<Record<ShowdownPlayerIdV4, string>>;
+  const scenarioPlayers = mergeScenarioPlayers(restRunSnapshot.scenario.players, participants);
+  return {
+    ...restRunSnapshot,
+    status: "resting",
+    currentNodeId: round.id,
+    players: {...restRunSnapshot.players, ...participants},
+    scenario: {
+      ...restRunSnapshot.scenario,
+      selectedNpcIds,
+      players: scenarioPlayers,
+    },
+    gameMap: restRunSnapshot.gameMap.map(node => node.id === round.id
+      ? {
+        ...node,
+        state: "ready" as const,
+        participants,
+        battleGame: null,
+        createdAt: node.createdAt || updatedAt,
+      }
+      : node),
+    updatedAt,
+  };
+}
+
+function mergeScenarioPlayers(
+  current: TrainingPlayerDraftV4[],
+  participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>,
+): TrainingPlayerDraftV4[] {
+  const byId = new Map(current.map(player => [player.playerId, player]));
+  Object.values(participants).forEach(player => {
+    if (player) byId.set(player.playerId, player);
+  });
+  return Array.from(byId.values());
+}
+
 function formalHeldItemInstanceIds(player: TrainingPlayerDraftV4): Set<string> {
   return new Set(player.localTeam.pokemon.map(pokemon => pokemon.heldItemInstanceId).filter(Boolean) as string[]);
 }
@@ -3460,6 +3893,25 @@ function normalizeSpeciesRank(value: unknown): PokemonSpeciesRankV4 {
 
 function normalizePowerProfile(value: unknown): PokemonPowerProfileV4 {
   return value === "rookie" || value === "normal" || value === "elite" || value === "boss" || value === "champion" ? value : "normal";
+}
+
+function normalizeFormalMedicalInsuranceTier(value: unknown): FormalMedicalInsuranceTierV4 | null {
+  return value === "basic" || value === "standard" || value === "premium" ? value : null;
+}
+
+function normalizeFormalMedicalInsuranceState(value: unknown): FormalMedicalInsuranceStateV4 | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Partial<FormalMedicalInsuranceStateV4>;
+  const tier = normalizeFormalMedicalInsuranceTier(input.tier);
+  const catalog = tier ? FORMAL_MEDICAL_INSURANCE_TIERS.find(entry => entry.tier === tier) : null;
+  if (!tier || !catalog) return null;
+  return {
+    tier,
+    cost: clampInt(input.cost, 0, 999999, catalog.cost),
+    reviveCostPerPokemon: clampInt(input.reviveCostPerPokemon, 0, 50, catalog.reviveCostPerPokemon),
+    recoveryShopPriceMultiplier: clampNumber(input.recoveryShopPriceMultiplier, 0, 1, catalog.recoveryShopPriceMultiplier),
+    purchasedAt: input.purchasedAt || new Date(0).toISOString(),
+  };
 }
 
 function normalizeNpcType(value: unknown): FormalNpcTypeV4 {
@@ -4191,6 +4643,12 @@ function createId(prefix: string): string {
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   const next = Math.round(Number(value));
+  if (!Number.isFinite(next)) return fallback;
+  return Math.max(min, Math.min(max, next));
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  const next = Number(value);
   if (!Number.isFinite(next)) return fallback;
   return Math.max(min, Math.min(max, next));
 }
