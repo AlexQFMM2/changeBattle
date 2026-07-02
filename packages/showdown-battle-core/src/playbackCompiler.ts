@@ -83,7 +83,10 @@ export function compileShowdownPlaybackTimelineFromRawLog(
   }
   if (guard >= 2000) throw new Error("Showdown playback compiler exceeded step guard.");
   const allCalls = calls.filter(call => PLAYBACK_SIGNAL_METHODS.has(call.method)).map((call, index) => normalizeSceneCall(call, index, normalizedRawLog));
-  const allGroups = assignRawIndicesToGroups(groupShowdownCalls(allCalls, normalizedRawLog), normalizedRawLog);
+  const allGroups = mergeProtocolTransformGroups(
+    assignRawIndicesToGroups(groupShowdownCalls(allCalls, normalizedRawLog), normalizedRawLog),
+    normalizedRawLog,
+  );
   const previousIndex = clampPreviousIndex(options.previousIndex, normalizedRawLog.length);
   const groups = filterGroupsByPreviousIndex(allGroups, previousIndex).map((group, index) => ({...group, index, id: `sd-${index}-${group.rawIndices.join("-") || "scene"}`}));
   return {
@@ -302,6 +305,81 @@ function sceneCallKind(method: string): ShowdownPlaybackSceneCallKindV4 {
   }
 }
 
+function mergeProtocolTransformGroups(groups: ShowdownPlaybackGroupV4[], rawLog: string[]): ShowdownPlaybackGroupV4[] {
+  const covered = new Set(groups.flatMap(group => group.rawIndices));
+  const additions = rawLog
+    .map((rawLine, rawIndex) => ({rawLine, rawIndex, call: transformSceneCallForRawLine(rawLine, rawIndex)}))
+    .filter((entry): entry is {rawLine: string; rawIndex: number; call: ShowdownPlaybackSceneCallV4} => Boolean(entry.call) && !covered.has(entry.rawIndex))
+    .map(entry => playbackGroupForProtocolTransform(entry.call, entry.rawLine, entry.rawIndex));
+  if (!additions.length) return groups;
+  return [...groups, ...additions]
+    .sort((a, b) => groupSortIndex(a) - groupSortIndex(b))
+    .map((group, index) => ({...group, index, id: `sd-${index}-${group.rawIndices.join("-") || "scene"}`}));
+}
+
+function transformSceneCallForRawLine(rawLine: string, rawIndex: number): ShowdownPlaybackSceneCallV4 | null {
+  const args = protocolArgs(rawLine);
+  const command = args[0] || "";
+  if (!isTransformProtocolCommand(args)) return null;
+  const pokemon = transformPokemonArg(args);
+  const effect = transformEffectId(args);
+  return {
+    id: `call-protocol-transform-${rawIndex}`,
+    kind: "transform",
+    method: "protocolTransform",
+    rawStep: rawIndex,
+    turn: null,
+    args,
+    label: `transform ${effect || command} ${pokemon || ""}`.trim(),
+    rawIndex,
+    rawLine,
+    pokemon,
+    target: command === "-transform" ? args[2] || "" : pokemon,
+    effect,
+  };
+}
+
+function playbackGroupForProtocolTransform(call: ShowdownPlaybackSceneCallV4, rawLine: string, rawIndex: number): ShowdownPlaybackGroupV4 {
+  return {
+    id: `sd-transform-${rawIndex}`,
+    index: rawIndex,
+    turn: call.turn,
+    rawIndices: [rawIndex],
+    rawLines: [rawLine],
+    calls: [call],
+    waitMode: "wait",
+    summary: call.label,
+    finishStep: null,
+  };
+}
+
+function groupSortIndex(group: ShowdownPlaybackGroupV4): number {
+  return group.rawIndices[0] ?? Number.MAX_SAFE_INTEGER;
+}
+
+function isTransformProtocolCommand(args: string[]): boolean {
+  const command = args[0] || "";
+  if (command === "detailschange" || command === "-formechange" || command === "-transform") return true;
+  if (command === "-zpower" || command === "-mega" || command === "-primal" || command === "-burst" || command === "-terastallize") return true;
+  if (command === "-start" || command === "-end") return toId(args[2] || "") === "dynamax";
+  if (command === "custom") return toId(args[1] || "") === "endterastallize";
+  return false;
+}
+
+function transformPokemonArg(args: string[]): string {
+  if (args[0] === "custom" && toId(args[1] || "") === "endterastallize") return args[2] || "";
+  return args[1] || "";
+}
+
+function transformEffectId(args: string[]): string {
+  const command = args[0] || "";
+  if (command === "-start" || command === "-end") return toId(args[2] || "");
+  if (command === "custom" && toId(args[1] || "") === "endterastallize") return "terastallize";
+  if (command === "detailschange" || command === "-formechange") return toId(args[2] || "");
+  if (command === "-transform") return "transform";
+  return toId(command.replace(/^-/, ""));
+}
+
 function enrichSceneCall(call: ShowdownPlaybackSceneCallV4): void {
   if (call.kind === "switch" || call.kind === "switchOut" || call.kind === "dragIn" || call.kind === "dragOut" || call.kind === "damage" || call.kind === "heal" || call.kind === "statbar") {
     call.pokemon = String(call.args[0] || "");
@@ -396,6 +474,8 @@ function rawPredicatesForCall(call: ShowdownPlaybackSceneCallV4): Array<(line: s
     return [line => rawCommand(line) === "-status" || rawCommand(line) === "-curestatus" || rawCommand(line) === "cant"];
   case "ability":
     return [line => rawCommand(line) === "-ability" || rawCommand(line) === "-activate"];
+  case "transform":
+    return [line => isTransformProtocolCommand(protocolArgs(line)) && rawLineMatchesPokemon(line, call.pokemon)];
   case "weatherUpdate":
   case "statbar":
     return [line => rawCommand(line) === "upkeep"];
@@ -419,6 +499,12 @@ function rawCommand(line: string): string {
   if (!line.startsWith("|")) return "";
   const nextPipe = line.indexOf("|", 1);
   return nextPipe >= 0 ? line.slice(1, nextPipe) : line.slice(1);
+}
+
+function protocolArgs(line: string): string[] {
+  if (!line.startsWith("|")) return ["", line];
+  if (line === "|") return ["done"];
+  return line.slice(1).split("|");
 }
 
 function rawLineMatchesPokemon(line: string, pokemon: string | undefined): boolean {

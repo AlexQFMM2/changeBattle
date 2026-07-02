@@ -159,7 +159,7 @@ function BattleV4SkillSpecialChoiceBar({options, selected, busy, lockedSystems, 
     const locked = lockedSystems.has(button.system);
     const representative = available || systemOptions[0] || null;
     return {...button, ruleAllowed, available, representative, locked};
-  }).filter(button => button.representative);
+  });
   const selectedButton = buttons.find(button => selected && button.choices.includes(selected));
   const hasAvailable = buttons.some(button => button.available);
   if (!buttons.length) return null;

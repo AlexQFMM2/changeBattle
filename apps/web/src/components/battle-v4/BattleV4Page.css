@@ -1043,7 +1043,7 @@
   border-radius: inherit;
   background: linear-gradient(90deg, #70ef62, #d8f34f);
   transform-origin: left center;
-  transition: transform 525ms ease;
+  transition: transform 350ms ease;
   will-change: transform;
 }
 

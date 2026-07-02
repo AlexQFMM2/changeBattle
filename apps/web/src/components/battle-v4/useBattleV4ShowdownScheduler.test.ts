@@ -1,6 +1,12 @@
 import {createBattleV4ShowdownSchedulerPlan} from "./useBattleV4ShowdownScheduler.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "../../../../../packages/showdown-battle-core/src/playbackCompiler.js";
-import {BATTLE_V4_HP_TWEEN_DURATION_MS, BATTLE_V4_PLAYBACK_SPEED_SCALE, type BattlePlaybackStepV4} from "./battleV4Playback.js";
+import {
+  BATTLE_V4_FAST_PLAYBACK_SPEED_SCALE,
+  BATTLE_V4_HP_TWEEN_DURATION_MS,
+  BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE,
+  BATTLE_V4_RESULT_PLAYBACK_SPEED_SCALE,
+  type BattlePlaybackStepV4,
+} from "./battleV4Playback.js";
 import type {BattleVisualCommandV4} from "./battleV4VisualScene.js";
 
 const BASE_HP_TWEEN_MS = 350;
@@ -38,7 +44,11 @@ function smoke() {
     preferBackendGroups: true,
     allowOpeningSwitchBatch: true,
     hpTweenDurationMs: BATTLE_V4_HP_TWEEN_DURATION_MS,
-    playbackSpeedScale: BATTLE_V4_PLAYBACK_SPEED_SCALE,
+    playbackSpeed: {
+      move: BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE,
+      result: BATTLE_V4_RESULT_PLAYBACK_SPEED_SCALE,
+      fast: BATTLE_V4_FAST_PLAYBACK_SPEED_SCALE,
+    },
   });
   const signatures = plan.map(item => item.sceneCallSignature);
   assertEqual(signatures.join("|"), backendSignatures.join("|"), "scheduler scene call order must match Showdown client compiler groups");
@@ -49,12 +59,56 @@ function smoke() {
     if (item.expectedFinishMs < BATTLE_V4_HP_TWEEN_DURATION_MS) throw new Error(`${item.step.id} should wait for HP work: ${item.expectedFinishMs}`);
     assertEqual(item.finishReason, "visual", `${item.step.id} should finish as visual work`);
   }
-  assertEqual(BATTLE_V4_HP_TWEEN_DURATION_MS, Math.round(BASE_HP_TWEEN_MS * BATTLE_V4_PLAYBACK_SPEED_SCALE), "HP tween should be scaled by playback speed");
+  assertEqual(BATTLE_V4_HP_TWEEN_DURATION_MS, BASE_HP_TWEEN_MS, "HP tween should stay fast");
   const moveStep = plan.find(item => item.sceneCallSignature === "move");
-  if (!moveStep?.scheduledSteps.some(step => step.durationMs >= Math.round(BASE_HP_TWEEN_MS * BATTLE_V4_PLAYBACK_SPEED_SCALE))) {
-    throw new Error("scheduler should scale visual durations by playback speed");
+  if (!moveStep?.scheduledSteps.some(step => step.durationMs >= Math.round(BASE_HP_TWEEN_MS * BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE))) {
+    throw new Error("scheduler should slow move visual durations");
+  }
+  const switchStep = plan.find(item => item.sceneCallSignature === "switch");
+  if (!switchStep?.scheduledSteps.every(step => step.durationMs === BASE_HP_TWEEN_MS)) {
+    throw new Error("scheduler should keep switch-in animation fast");
+  }
+  const damageStep = plan.find(item => item.sceneCallSignature === "damage");
+  if (!damageStep?.scheduledSteps.every(step => step.durationMs === BATTLE_V4_HP_TWEEN_DURATION_MS)) {
+    throw new Error("scheduler should keep damage animation fast");
   }
   assertEqual(plan.find(item => item.sceneCallSignature === "turn")?.finishReason, "immediate", "turn should finish immediately");
+  const dynamaxRawLog = [
+    "|player|p1|A|",
+    "|player|p2|B|",
+    "|gametype|singles",
+    "|gen|8",
+    "|tier|[Gen 8] Custom Game",
+    "|",
+    "|switch|p1a: Lapras|Lapras, L50|100/100",
+    "|switch|p2a: Lucario|Lucario, L50|100/100",
+    "|turn|1",
+    "|-start|p1a: Lapras|Dynamax|",
+    "|-heal|p1a: Lapras|200/200|[silent]",
+    "|move|p1a: Lapras|Max Geyser|p2a: Lucario",
+    "|-damage|p2a: Lucario|10/100",
+    "|upkeep",
+    "|turn|2",
+  ];
+  const dynamaxTimeline = compileShowdownPlaybackTimelineFromRawLog(dynamaxRawLog, {sessionId: "scheduler-dynamax", previousIndex: 0});
+  const dynamaxSteps = dynamaxTimeline.groups.map(group => stepFromBackendGroup(group));
+  const dynamaxPlan = createBattleV4ShowdownSchedulerPlan(dynamaxSteps, {
+    preferBackendGroups: true,
+    allowOpeningSwitchBatch: true,
+    hpTweenDurationMs: BATTLE_V4_HP_TWEEN_DURATION_MS,
+    playbackSpeed: {
+      move: BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE,
+      result: BATTLE_V4_RESULT_PLAYBACK_SPEED_SCALE,
+      fast: BATTLE_V4_FAST_PLAYBACK_SPEED_SCALE,
+    },
+  });
+  const dynamaxSignatures = dynamaxPlan.map(item => item.sceneCallSignature);
+  const transformIndex = dynamaxSignatures.indexOf("transform");
+  const healIndex = dynamaxSignatures.findIndex(signature => signature.includes("heal"));
+  const moveIndex = dynamaxSignatures.indexOf("move");
+  if (transformIndex < 0 || healIndex < 0 || moveIndex < 0 || !(transformIndex < healIndex && healIndex < moveIndex)) {
+    throw new Error(`scheduler should consume dynamax transform before heal and max move: ${dynamaxSignatures.join(" -> ")}`);
+  }
   console.log("battle-v4 showdown scheduler parity smoke ok", signatures.join(" -> "));
 }
 
@@ -123,6 +177,7 @@ function playbackKindForGroup(group: ReturnType<typeof compileShowdownPlaybackTi
   if (group.calls.some(call => call.kind === "move")) return "move";
   if (group.calls.some(call => call.kind === "damage")) return "damage";
   if (group.calls.some(call => call.kind === "heal")) return "heal";
+  if (group.calls.some(call => call.kind === "transform")) return "transform";
   if (group.calls.some(call => call.kind === "result" || call.kind === "otherAnim")) return "result";
   if (group.calls.some(call => call.kind === "turn")) return "turn";
   return "message";
@@ -133,6 +188,7 @@ function semanticKindForCall(call: ReturnType<typeof compileShowdownPlaybackTime
   if (call.kind === "move") return "move";
   if (call.kind === "damage") return "damage";
   if (call.kind === "heal") return "heal";
+  if (call.kind === "transform") return "transform";
   if (call.kind === "result" || call.kind === "otherAnim") return "result";
   return "";
 }
@@ -142,6 +198,7 @@ function animationKindForSemanticKind(kind: string): string {
   if (kind === "move") return "moveEffect";
   if (kind === "damage") return "damage";
   if (kind === "heal") return "heal";
+  if (kind === "transform") return "transform";
   return "result";
 }
 
@@ -150,6 +207,7 @@ function timelineStepTypeForCall(call: ReturnType<typeof compileShowdownPlayback
   if (call.kind === "move") return "showEffect";
   if (call.kind === "damage") return "damageAnim";
   if (call.kind === "heal") return "healAnim";
+  if (call.kind === "transform") return "showEffect";
   return "resultAnim";
 }
 

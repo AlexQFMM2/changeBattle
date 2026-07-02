@@ -42,6 +42,8 @@ function semanticMessageText(event: BattleSemanticEventV4): string {
     return `${event.protocolEvent.actorName} 陷入${event.label}。`;
   case "cureStatus":
     return `${event.protocolEvent.actorName} 的${event.label}解除了。`;
+  case "transform":
+    return `${event.protocolEvent.actorName} ${event.label}！`;
   case "weather":
     return event.active ? `${event.label}开始了。` : "天气停止了。";
   case "field":

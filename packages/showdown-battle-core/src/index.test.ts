@@ -662,6 +662,35 @@ function showdownPlaybackTimelineSmoke() {
   if (increment.groups.some(group => group.rawIndices.some(index => index < 17))) {
     throw new Error(`previousIndex should only return increment groups: ${JSON.stringify(increment.groups.map(group => group.rawIndices))}`);
   }
+  const dynamaxRawLog = [
+    "|player|p1|A|",
+    "|player|p2|B|",
+    "|gametype|singles",
+    "|gen|8",
+    "|tier|[Gen 8] Custom Game",
+    "|",
+    "|switch|p1a: Lapras|Lapras, L50|100/100",
+    "|switch|p2a: Lucario|Lucario, L50|100/100",
+    "|turn|1",
+    "|-start|p1a: Lapras|Dynamax|",
+    "|-heal|p1a: Lapras|200/200|[silent]",
+    "|move|p1a: Lapras|Max Geyser|p2a: Lucario",
+    "|-damage|p2a: Lucario|10/100",
+    "|upkeep",
+    "|turn|2",
+  ];
+  const dynamaxTimeline = compileShowdownPlaybackTimelineFromRawLog(dynamaxRawLog, {sessionId: "timeline-dynamax", previousIndex: 0});
+  const dynamaxSignatures = dynamaxTimeline.groups.map(group => group.calls.map(call => call.kind).join("+"));
+  const transformIndex = dynamaxSignatures.indexOf("transform");
+  const healIndex = dynamaxSignatures.findIndex(signature => signature.includes("heal"));
+  const moveIndex = dynamaxSignatures.indexOf("move");
+  if (transformIndex < 0 || healIndex < 0 || moveIndex < 0 || !(transformIndex < healIndex && healIndex < moveIndex)) {
+    throw new Error(`dynamax transform should compile before heal and max move: ${dynamaxTimeline.groups.map(group => group.summary).join(" -> ")}`);
+  }
+  const transformGroup = dynamaxTimeline.groups[transformIndex]!;
+  if (!transformGroup.rawLines.includes("|-start|p1a: Lapras|Dynamax|")) {
+    throw new Error(`dynamax transform group should map raw line: ${JSON.stringify(transformGroup)}`);
+  }
   console.log("showdown playback timeline smoke ok");
 }
 

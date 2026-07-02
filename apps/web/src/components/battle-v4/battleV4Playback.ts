@@ -352,8 +352,15 @@ const PLAYBACK_MESSAGE_ONLY_MIN_MS = 420;
 const PLAYBACK_VISUAL_SETTLE_GAP_MS = 120;
 const PREVIEW_ANIMATION_GAP_MS = 120;
 const PREVIEW_TIMELINE_STEP_DEFAULT_MS = 350;
-export const BATTLE_V4_PLAYBACK_SPEED_SCALE = 1.5;
-export const BATTLE_V4_HP_TWEEN_DURATION_MS = Math.round(350 * BATTLE_V4_PLAYBACK_SPEED_SCALE);
+export const BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE = 1.5;
+export const BATTLE_V4_RESULT_PLAYBACK_SPEED_SCALE = 1.5;
+export const BATTLE_V4_FAST_PLAYBACK_SPEED_SCALE = 1;
+export const BATTLE_V4_HP_TWEEN_DURATION_MS = 350;
+const BATTLE_V4_PLAYBACK_SPEED = {
+  move: BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE,
+  result: BATTLE_V4_RESULT_PLAYBACK_SPEED_SCALE,
+  fast: BATTLE_V4_FAST_PLAYBACK_SPEED_SCALE,
+};
 
 export const EMPTY_PERSISTENT_FIELD_VISUALS: BattleV4PersistentFieldVisuals = {
   weatherId: "",
@@ -645,6 +652,7 @@ function playbackStepMatchesShowdownCall(step: BattlePlaybackStepV4, call: Showd
   if (call.kind === "damage") return step.kind === "damage";
   if (call.kind === "heal") return step.kind === "heal";
   if (call.kind === "status") return step.kind === "status" || step.kind === "cureStatus";
+  if (call.kind === "transform") return step.kind === "transform";
   if (call.kind === "weatherUpdate") return step.kind === "weather" || step.kind === "field";
   if (call.kind === "turn") return step.kind === "turn";
   if (call.kind === "otherAnim") {
@@ -1063,7 +1071,7 @@ export function useBattleV4Playback(
     preferBackendGroups: Boolean(playbackTimeline?.groups?.length),
     allowOpeningSwitchBatch: !visibleSlots.length,
     hpTweenDurationMs: BATTLE_V4_HP_TWEEN_DURATION_MS,
-    playbackSpeedScale: BATTLE_V4_PLAYBACK_SPEED_SCALE,
+    playbackSpeed: BATTLE_V4_PLAYBACK_SPEED,
     debugConfig,
     resetKey: snapshot?.id || "",
     onConsumeSteps: count => {
@@ -1358,6 +1366,7 @@ function applyBattleV4OpeningSwitchInSettle(
   openingSwitchInSeats: BattleProtocolSeatV4[],
   command: BattleVisualCommandV4,
 ): BattleViewSlotV4[] {
+  if (command.animationEvent?.kind === "transform") return applyAnimationCheckpoint(slots, command.animationEvent, null, null);
   if (!openingSwitchInSeats.length) return applyBattleV4VisualCommandSettle(slots, command);
   const seats = new Set(openingSwitchInSeats);
   return slots.map(slot => seats.has(slot.seat as BattleProtocolSeatV4) ? {...slot, active: true} : slot);

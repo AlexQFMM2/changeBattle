@@ -273,6 +273,7 @@ export type ShowdownPlaybackSceneCallKindV4 =
   | "heal"
   | "status"
   | "ability"
+  | "transform"
   | "weatherUpdate"
   | "turn"
   | "statbar"

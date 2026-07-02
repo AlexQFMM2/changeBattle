@@ -60,6 +60,13 @@ export type BattleV4ShowdownSchedulerPlanItem = {
   sceneCallSignature: string;
 };
 
+export type BattleV4PlaybackSpeedConfig = {
+  move: number;
+  result: number;
+  fast: number;
+  message?: number;
+};
+
 type UseBattleV4ShowdownSchedulerOptions = {
   stepQueue: BattlePlaybackStepV4[];
   activeStep: BattlePlaybackStepV4 | null;
@@ -68,7 +75,7 @@ type UseBattleV4ShowdownSchedulerOptions = {
   preferBackendGroups: boolean;
   allowOpeningSwitchBatch: boolean;
   hpTweenDurationMs: number;
-  playbackSpeedScale?: number;
+  playbackSpeed?: BattleV4PlaybackSpeedConfig;
   debugConfig?: AppDebugConfigV4;
   resetKey: string;
   onConsumeSteps: (count: number) => void;
@@ -92,7 +99,7 @@ export function useBattleV4ShowdownScheduler(options: UseBattleV4ShowdownSchedul
     preferBackendGroups,
     allowOpeningSwitchBatch,
     hpTweenDurationMs,
-    playbackSpeedScale = 1,
+    playbackSpeed,
     resetKey,
   } = options;
   const [activeTimelineStep, setActiveTimelineStep] = useState<ShowdownAnimationStepV4 | null>(null);
@@ -155,7 +162,7 @@ export function useBattleV4ShowdownScheduler(options: UseBattleV4ShowdownSchedul
       preferBackendGroups,
       allowOpeningSwitchBatch,
       hpTweenDurationMs,
-      playbackSpeedScale,
+      playbackSpeed,
       maxSteps: 1,
     })[0];
     if (!plan) return;
@@ -243,7 +250,7 @@ export function useBattleV4ShowdownScheduler(options: UseBattleV4ShowdownSchedul
     }
 
     animations ? animations.then(finish) : finish();
-  }, [stepQueue, activeStep, paused, skipAnimations, preferBackendGroups, allowOpeningSwitchBatch, hpTweenDurationMs, playbackSpeedScale]);
+  }, [stepQueue, activeStep, paused, skipAnimations, preferBackendGroups, allowOpeningSwitchBatch, hpTweenDurationMs, playbackSpeed]);
 
   return {
     activeTimelineStep,
@@ -291,7 +298,7 @@ export function createBattleV4ShowdownSchedulerPlan(
     preferBackendGroups: boolean;
     allowOpeningSwitchBatch: boolean;
     hpTweenDurationMs: number;
-    playbackSpeedScale?: number;
+    playbackSpeed?: BattleV4PlaybackSpeedConfig;
     maxSteps?: number;
   },
 ): BattleV4ShowdownSchedulerPlanItem[] {
@@ -307,10 +314,10 @@ export function createBattleV4ShowdownSchedulerPlan(
     const scheduledSteps = scheduleBattleV4AnimationGroupForScheduler(
       playbackStep.commands.filter(command => command.animationEvent),
       options.hpTweenDurationMs,
-      options.playbackSpeedScale ?? 1,
+      options.playbackSpeed,
     );
     const expectedFinishMs = scheduledSteps.reduce((max, item) => Math.max(max, item.offsetMs + (item.blocking ? item.durationMs : 0)), 0);
-    const scaledMinDurationMs = scaleBattleV4PlaybackMs(playbackStep.minDurationMs, options.playbackSpeedScale ?? 1);
+    const scaledMinDurationMs = scaleBattleV4PlaybackMs(playbackStep.minDurationMs, messagePlaybackScaleForStep(playbackStep, options.playbackSpeed));
     result.push({
       step: {...playbackStep, minDurationMs: scaledMinDurationMs},
       consumeCount: groupSteps.length || 1,
@@ -370,7 +377,7 @@ function isShowdownMinorFollowup(step: BattlePlaybackStepV4): boolean {
     step.kind === "cureStatus";
 }
 
-function scheduleBattleV4AnimationGroupForScheduler(commands: BattleVisualCommandV4[], hpTweenDurationMs: number, playbackSpeedScale: number): BattleV4ScheduledTimelineStep[] {
+function scheduleBattleV4AnimationGroupForScheduler(commands: BattleVisualCommandV4[], hpTweenDurationMs: number, playbackSpeed?: BattleV4PlaybackSpeedConfig): BattleV4ScheduledTimelineStep[] {
   const scheduled: BattleV4ScheduledTimelineStep[] = [];
   let groupOffsetMs = 0;
   const targetLocks = new Map<string, number>();
@@ -380,10 +387,10 @@ function scheduleBattleV4AnimationGroupForScheduler(commands: BattleVisualComman
     const eventSteps = event.timelineSteps.length ? event.timelineSteps : event.animationTimeline.steps;
     const targetKey = animationTargetKeyForScheduler(event);
     const eventOffsetMs = Math.max(groupOffsetMs, targetLocks.get(targetKey) || 0);
-    const eventScheduled = scheduleBattleV4TimelineStepsForScheduler(command, eventSteps, eventOffsetMs, hpTweenDurationMs, playbackSpeedScale);
+    const eventScheduled = scheduleBattleV4TimelineStepsForScheduler(command, eventSteps, eventOffsetMs, hpTweenDurationMs, playbackSpeed);
     scheduled.push(...eventScheduled);
     const eventFinishMs = eventScheduled.reduce((max, item) => Math.max(max, item.offsetMs + (item.blocking ? item.durationMs : 0)), eventOffsetMs);
-    targetLocks.set(targetKey, eventFinishMs + scaleBattleV4PlaybackMs(followupGapMsForScheduler(command), playbackSpeedScale));
+    targetLocks.set(targetKey, eventFinishMs + scaleBattleV4PlaybackMs(followupGapMsForScheduler(command), playbackScaleForCommand(command, playbackSpeed)));
     groupOffsetMs += waitForAnimationsModeForScheduler(command) === "simult" ? 0 : eventFinishMs - groupOffsetMs;
   }
   return scheduled;
@@ -394,12 +401,13 @@ function scheduleBattleV4TimelineStepsForScheduler(
   steps: ShowdownAnimationStepV4[],
   groupOffsetMs: number,
   hpTweenDurationMs: number,
-  playbackSpeedScale: number,
+  playbackSpeed: BattleV4PlaybackSpeedConfig | undefined,
 ): BattleV4ScheduledTimelineStep[] {
   const event = command.animationEvent;
   if (!event) return [];
   const scheduled: BattleV4ScheduledTimelineStep[] = [];
   const actorEndBySeat = new Map<string, number>();
+  const commandScale = playbackScaleForCommand(command, playbackSpeed);
   let timeOffset = 0;
   steps.forEach((step, index) => {
     const base = {
@@ -418,7 +426,7 @@ function scheduleBattleV4TimelineStepsForScheduler(
       return;
     }
     if (step.type === "wait" || step.type === "delay") {
-      const durationMs = scaleBattleV4PlaybackMs(step.durationMs, playbackSpeedScale);
+      const durationMs = scaleBattleV4PlaybackMs(step.durationMs, commandScale);
       scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs, blocking: true});
       timeOffset += durationMs;
       return;
@@ -426,32 +434,48 @@ function scheduleBattleV4TimelineStepsForScheduler(
     if (step.type === "actorAnim") {
       const actorKey = step.actor.seat || step.actor.ident || "actor";
       const offsetMs = Math.max(timeOffset, actorEndBySeat.get(actorKey) || 0);
-      const durationMs = Math.max(scaleBattleV4PlaybackMs(80, playbackSpeedScale), scaleBattleV4PlaybackMs(step.durationMs, playbackSpeedScale));
+      const durationMs = Math.max(scaleBattleV4PlaybackMs(80, commandScale), scaleBattleV4PlaybackMs(step.durationMs, commandScale));
       actorEndBySeat.set(actorKey, offsetMs + durationMs);
       scheduled.push({...base, offsetMs: groupOffsetMs + offsetMs, durationMs, blocking: true});
       return;
     }
     if (step.type === "showEffect") {
-      const offsetMs = timeOffset + scaleBattleV4PlaybackMs(step.delayMs || 0, playbackSpeedScale);
-      scheduled.push({...base, offsetMs: groupOffsetMs + offsetMs, durationMs: Math.max(scaleBattleV4PlaybackMs(60, playbackSpeedScale), scaleBattleV4PlaybackMs(step.durationMs, playbackSpeedScale)), blocking: true});
+      const offsetMs = timeOffset + scaleBattleV4PlaybackMs(step.delayMs || 0, commandScale);
+      scheduled.push({...base, offsetMs: groupOffsetMs + offsetMs, durationMs: Math.max(scaleBattleV4PlaybackMs(60, commandScale), scaleBattleV4PlaybackMs(step.durationMs, commandScale)), blocking: true});
       return;
     }
     if (step.type === "backgroundEffect") {
-      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: Math.max(scaleBattleV4PlaybackMs(120, playbackSpeedScale), scaleBattleV4PlaybackMs(step.durationMs, playbackSpeedScale)), blocking: true});
+      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: Math.max(scaleBattleV4PlaybackMs(120, commandScale), scaleBattleV4PlaybackMs(step.durationMs, commandScale)), blocking: true});
       return;
     }
     if (step.type === "resultAnim") {
-      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: scaleBattleV4PlaybackMs(560, playbackSpeedScale), blocking: true});
+      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: scaleBattleV4PlaybackMs(560, commandScale), blocking: true});
       return;
     }
     if (step.type === "damageAnim" || step.type === "healAnim") {
       scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: hpTweenDurationMs, blocking: true});
       return;
     }
-    scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: scaleBattleV4PlaybackMs(240, playbackSpeedScale), blocking: true});
+    scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: scaleBattleV4PlaybackMs(240, commandScale), blocking: true});
   });
   const eventFinishMs = scheduled.reduce((max, item) => item.step.type === "checkpoint" ? max : Math.max(max, item.offsetMs + (item.blocking ? item.durationMs : 0)), groupOffsetMs);
   return scheduled.map(item => item.step.type === "checkpoint" ? {...item, offsetMs: eventFinishMs} : item);
+}
+
+function playbackScaleForCommand(command: BattleVisualCommandV4, playbackSpeed?: BattleV4PlaybackSpeedConfig): number {
+  const eventKind = command.animationEvent?.kind || command.semanticEvent.kind;
+  if (eventKind === "moveStart" || eventKind === "moveEffect" || eventKind === "move") return playbackSpeed?.move ?? 1;
+  if (eventKind === "result" || command.semanticEvent.kind === "result") return playbackSpeed?.result ?? 1;
+  return playbackSpeed?.fast ?? 1;
+}
+
+function messagePlaybackScaleForStep(step: BattlePlaybackStepV4, playbackSpeed?: BattleV4PlaybackSpeedConfig): number {
+  if (step.commands.length) {
+    return Math.max(...step.commands.map(command => playbackScaleForCommand(command, playbackSpeed)));
+  }
+  if (step.kind === "message") return playbackSpeed?.message ?? playbackSpeed?.result ?? 1;
+  if (step.kind === "turn") return playbackSpeed?.fast ?? 1;
+  return playbackSpeed?.result ?? 1;
 }
 
 function scaleBattleV4PlaybackMs(durationMs: number, playbackSpeedScale: number): number {

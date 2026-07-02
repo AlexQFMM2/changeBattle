@@ -55,6 +55,7 @@ export type BattleSemanticEventV4 =
   | {kind: "damage" | "heal"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldHp: number; newHp: number; maxHp: number; delta: number; status: string; fainted: boolean; source: "move" | "status" | "item" | "ability" | "field" | "unknown"; label: string}
   | {kind: "faint"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
   | {kind: "status" | "cureStatus"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldStatus: string; newStatus: string; label: string}
+  | {kind: "transform"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; label: string}
   | {kind: "result"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; text: string; tone: "good" | "bad" | "neutral" | "status" | "weather" | ""}
   | {kind: "field" | "weather" | "sideCondition"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; id: string; active: boolean; label: string}
   | {kind: "turn"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; turn: number}
@@ -233,6 +234,27 @@ function applyProtocolEvent(
       newStatus,
       label: statusLabel(newStatus || oldStatus),
     }] : [];
+  }
+  case "detailschange":
+  case "-formechange":
+  case "-transform":
+  case "-zpower":
+  case "-mega":
+  case "-primal":
+  case "-burst":
+  case "-terastallize":
+  case "-start":
+  case "-end":
+  case "custom": {
+    if (!isTransformProtocolEvent(event)) return [];
+    return [{
+      kind: "transform",
+      sequence: event.sequence,
+      rawLine: event.rawLine,
+      protocolEvent: event,
+      seat: event.seat || event.targetSeat,
+      label: transformLabelForEvent(event),
+    }];
   }
   case "-supereffective":
   case "-crit":
@@ -513,6 +535,28 @@ function resultTextForEvent(event: BattleProtocolEventV4): string {
   if (event.eventType === "-fail") return "失败";
   if (event.eventType === "-enditem") return cleanEffect(event.args[2] || "道具");
   return cleanEffect(event.args[2] || event.args[1] || "");
+}
+
+function isTransformProtocolEvent(event: BattleProtocolEventV4): boolean {
+  if (event.eventType === "detailschange" || event.eventType === "-formechange" || event.eventType === "-transform") return true;
+  if (event.eventType === "-zpower" || event.eventType === "-mega" || event.eventType === "-primal" || event.eventType === "-burst" || event.eventType === "-terastallize") return true;
+  if ((event.eventType === "-start" || event.eventType === "-end") && toId(event.args[2] || "") === "dynamax") return true;
+  if (event.eventType === "custom" && toId(event.args[1] || "") === "endterastallize") return true;
+  return false;
+}
+
+function transformLabelForEvent(event: BattleProtocolEventV4): string {
+  if (event.eventType === "-mega") return "Mega 进化";
+  if (event.eventType === "-primal") return "原始回归";
+  if (event.eventType === "-burst") return "究极爆发";
+  if (event.eventType === "-terastallize") return `${event.args[2] || ""} 太晶`;
+  if (event.eventType === "-zpower") return "Z 力量";
+  if (event.eventType === "-start" && toId(event.args[2] || "") === "dynamax") return "极巨化";
+  if (event.eventType === "-end" && toId(event.args[2] || "") === "dynamax") return "极巨化结束";
+  if (event.eventType === "custom" && toId(event.args[1] || "") === "endterastallize") return "太晶化结束";
+  if (event.eventType === "detailschange" || event.eventType === "-formechange") return cleanEffect(event.args[2] || "形态变化");
+  if (event.eventType === "-transform") return "变身";
+  return "形态变化";
 }
 
 function resultToneForEvent(event: BattleProtocolEventV4): "good" | "bad" | "neutral" | "status" | "weather" | "" {
