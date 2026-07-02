@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "outDir": "dist-test",
+    "noEmit": false,
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "../../packages/showdown-battle-core/src/playbackCompiler.ts",
+    "../../packages/showdown-battle-core/src/types.ts",
+    "src/components/battle-v4/useBattleV4ShowdownScheduler.ts",
+    "src/components/battle-v4/useBattleV4ShowdownScheduler.test.ts"
+  ]
+}

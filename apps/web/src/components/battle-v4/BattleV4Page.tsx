@@ -1168,7 +1168,7 @@ function BattleHpPanel({slot, compact = false, current = false, commanding = fal
           {status ? <StatusBadge badge={status} /> : null}
           <em>Lv.{slot.level}</em>
         </div>
-        <div className="battle-v4-hp-bar"><b style={{width: `${hpRate}%`}} /></div>
+        <div className="battle-v4-hp-bar"><b style={{transform: `scaleX(${hpRate / 100})`}} /></div>
         <div className="battle-v4-hp-value-row">
           <span>{slot.side === "far" ? `${Math.round(hpRate)}%` : `${displayHp}/${slot.maxHp}`}</span>
           {identity ? <code>{identity}</code> : null}

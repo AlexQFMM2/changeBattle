@@ -128,3 +128,50 @@ move + damage
 - `playbackCompilerUnavailable`: 为 true 时说明正在使用前端 fallback parser。
 
 判断问题时先看 Showdown timeline 是否正确；如果 timeline 正确但视觉不对，问题通常在 frontend scene call 到现有 CSS 动画/HP tween 的映射层。
+
+## Scheduler Parity Test
+
+一致性拆成两层测：
+
+1. 后端 compiler parity：
+   `packages/showdown-battle-core/src/index.test.ts` 的 `showdownPlaybackTimelineSmoke` 用 Raichu/Fearow rawLog 直接跑 Showdown client compiler，断言 group 顺序：
+
+```txt
+switch
+switch
+turn
+move
+result+damage
+otherAnim:consume
+otherAnim:heal+heal
+move
+damage
+statbar+statbar
+turn
+```
+
+运行：
+
+```bash
+pnpm --filter @changebattle-v2/showdown-battle-core test
+```
+
+2. 前端 scheduler parity：
+   `apps/web/src/components/battle-v4/useBattleV4ShowdownScheduler.ts` 暴露纯函数：
+
+```ts
+createBattleV4ShowdownSchedulerPlan(stepQueue, {
+  preferBackendGroups: true,
+  allowOpeningSwitchBatch: true,
+  hpTweenDurationMs: 350,
+});
+```
+
+这个函数不依赖 React effect，不启动 timer，只输出前端调度器将消费的 step 顺序、`sceneCallSignature`、blocking work 数量和 `expectedFinishMs`。测试时把后端 `ShowdownPlaybackTimelineV4.groups` 转成 `playbackStepQueue` 后，断言：
+
+- `plan.map(item => item.sceneCallSignature)` 与后端 group signatures 一致。
+- 每个 backend group 只消费一次，`consumeCount` 不重复、不跳组。
+- damage/heal group 的 `blockingWorkCount > 0` 且 `expectedFinishMs >= hpTweenDurationMs`。
+- `finishReason` 与 step 类型一致：visual group 为 `visual`，turn/immediate 为 `immediate`，纯消息为 `message-only`。
+
+这层测试的目标不是证明 CSS 动画长得像 Showdown，而是证明前端播放器没有重排、重复消费、提前 finish。画面错但 plan 对时，继续查 scene call 到 React/CSS 的映射；plan 错时，先修 scheduler。
