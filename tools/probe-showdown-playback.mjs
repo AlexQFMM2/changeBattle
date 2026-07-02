@@ -1,35 +1,43 @@
-import fs from "node:fs";
-import path from "node:path";
-import {fileURLToPath, pathToFileURL} from "node:url";
+#!/usr/bin/env node
+import {
+  compileTimelineFromDiagnostics,
+  findTimelineWarnings,
+  parseProbeArgs,
+  printTableSummary,
+  readDiagnostics,
+  summarizeTimeline,
+} from "./battle-playback-probe-lib.mjs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "..");
-const diagnosticsPath = process.argv[2] ? path.resolve(process.cwd(), process.argv[2]) : "";
-const compilerPath = path.join(repoRoot, "packages", "showdown-battle-core", "dist", "playbackCompiler.js");
+async function main() {
+  const args = parseProbeArgs(process.argv.slice(2));
+  const {diagnostics, rawLog} = readDiagnostics(args.diagnosticsPath);
+  const timeline = await compileTimelineFromDiagnostics(diagnostics, rawLog, {useSavedTimeline: args.useSavedTimeline});
+  const groups = summarizeTimeline(timeline);
+  const warnings = findTimelineWarnings(timeline, rawLog);
 
-if (!diagnosticsPath) {
-  console.error("Usage: node tools/probe-showdown-playback.mjs <battle-v4-diagnostics.json>");
-  process.exit(1);
+  if (args.json || args.full) {
+    console.log(JSON.stringify({
+      diagnosticsPath: args.diagnosticsPath,
+      rawLogLength: rawLog.length,
+      timeline: args.full ? timeline : undefined,
+      groups,
+      warnings,
+    }, null, 2));
+    return;
+  }
+
+  console.log(`Diagnostics: ${args.diagnosticsPath}`);
+  console.log(`rawLogLength=${rawLog.length} timelineGroups=${timeline.groups.length} compiler=${timeline.compilerVersion || "unknown"}`);
+  printTableSummary("Backend Showdown Timeline Groups", groups.map(group => {
+    const raw = group.rawIndices.length ? group.rawIndices.join(",") : "scene";
+    return `${String(group.index).padStart(2, "0")} ${group.id.padEnd(14)} raw=${raw.padEnd(10)} wait=${group.waitMode.padEnd(9)} ${group.signature} :: ${group.summary}`;
+  }));
+  if (warnings.length) {
+    printTableSummary("Warnings", warnings.map(item => `! ${item}`));
+  }
 }
 
-if (!fs.existsSync(diagnosticsPath)) {
-  console.error(`Diagnostics file not found: ${diagnosticsPath}`);
+main().catch(error => {
+  console.error(error instanceof Error ? error.message : error);
   process.exit(1);
-}
-
-if (!fs.existsSync(compilerPath)) {
-  console.error("Playback compiler is not built. Run: pnpm --filter @changebattle-v2/showdown-battle-core build");
-  process.exit(1);
-}
-
-const diagnostics = JSON.parse(fs.readFileSync(diagnosticsPath, "utf8"));
-const rawLog = Array.isArray(diagnostics.rawLog) ? diagnostics.rawLog : [];
-const {compileShowdownPlaybackTimelineFromRawLog} = await import(pathToFileURL(compilerPath).href);
-const timeline = compileShowdownPlaybackTimelineFromRawLog(rawLog, {sessionId: diagnostics.sessionId || diagnostics.snapshot?.id || "diagnostics"});
-
-console.log(JSON.stringify({
-  diagnosticsPath,
-  rawLogLength: rawLog.length,
-  timeline,
-  currentPlaybackStepConsumption: diagnostics.playbackStepConsumption || diagnostics.playback?.playbackStepConsumption || [],
-}, null, 2));
+});

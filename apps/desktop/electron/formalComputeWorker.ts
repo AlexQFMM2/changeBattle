@@ -9,6 +9,8 @@ type FormalComputeRequest =
   | {id: number; method: "getFormalMedicalInsuranceOffer"; args: [FormalGameRunV4]}
   | {id: number; method: "chooseFormalMedicalInsurance"; args: [FormalGameRunV4, FormalMedicalInsuranceChoiceV4]}
   | {id: number; method: "formalMedicalInsuranceEffectsForRun"; args: [FormalGameRunV4]}
+  | {id: number; method: "healFormalRestTeam"; args: [FormalGameRunV4]}
+  | {id: number; method: "getFormalTrainingGroundLessons"; args: [FormalGameRunV4]}
   | {id: number; method: "prepareFormalSettlement"; args: [FormalGameRunV4, UserProfileV2, FormalSettlementReasonV4]}
   | {id: number; method: "settleFormalBattleRound"; args: [FormalGameRunV4]}
   | {id: number; method: "finalizeFormalBattleResult"; args: [FormalGameRunV4, BattleSessionSnapshotV4, FormalBattleResultFinalizeReasonV4 | undefined]};
@@ -54,6 +56,12 @@ async function handleRequest(request: FormalComputeRequest): Promise<unknown> {
   }
   if (request.method === "formalMedicalInsuranceEffectsForRun") {
     return api.formalMedicalInsuranceEffectsForRun(request.args[0]);
+  }
+  if (request.method === "healFormalRestTeam") {
+    return api.healFormalRestTeam(request.args[0]);
+  }
+  if (request.method === "getFormalTrainingGroundLessons") {
+    return api.getFormalTrainingGroundLessons(request.args[0]);
   }
   if (request.method === "prepareFormalSettlement") {
     const [run, profile, reason] = request.args;

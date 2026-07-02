@@ -250,6 +250,153 @@
   animation: battle-v4-messagebar-in .22s ease-out both;
 }
 
+.battle-v4-commentary {
+  position: absolute;
+  left: 10px;
+  top: 54px;
+  z-index: 66;
+  width: 160px;
+  max-height: 92px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 3px 1px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 230 150 / 42%) transparent;
+  pointer-events: auto;
+}
+
+.battle-v4-commentary::-webkit-scrollbar {
+  width: 3px;
+}
+
+.battle-v4-commentary::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.battle-v4-commentary::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(255 230 150 / 42%);
+}
+
+.battle-v4-commentary-item {
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  padding: 4px 6px 5px 7px;
+  border-left: 2px solid #f2d36a;
+  border-radius: 0 5px 5px 0;
+  background:
+    linear-gradient(90deg, rgb(7 14 24 / 82%), rgb(12 23 36 / 68%) 72%, rgb(12 23 36 / 10%)),
+    linear-gradient(180deg, rgb(255 255 255 / 10%), transparent 45%);
+  box-shadow:
+    0 3px 10px rgb(0 0 0 / 24%),
+    inset 0 0 0 1px rgb(255 255 255 / 12%);
+  color: #fffdf5;
+  transform-origin: left center;
+  animation: battle-v4-commentary-bullet-in .28s cubic-bezier(.16, .84, .2, 1) both;
+  opacity: .72;
+  overflow: visible;
+}
+
+.battle-v4-commentary-item.latest {
+  padding: 5px 7px 6px 8px;
+  border-left-width: 3px;
+  background:
+    linear-gradient(90deg, rgb(7 14 24 / 92%), rgb(12 23 36 / 80%) 72%, rgb(12 23 36 / 20%)),
+    linear-gradient(180deg, rgb(255 255 255 / 12%), transparent 45%);
+  box-shadow:
+    0 4px 14px rgb(0 0 0 / 34%),
+    inset 0 0 0 1px rgb(255 255 255 / 14%);
+  opacity: 1;
+}
+
+.battle-v4-commentary-item::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #fff0a8, #f3be34 50%, #8ee7ff);
+  box-shadow: 0 0 12px rgb(242 211 106 / 58%);
+}
+
+.battle-v4-commentary-item.latest::before {
+  left: -3px;
+  width: 3px;
+}
+
+.battle-v4-commentary-item strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 13px;
+  margin-bottom: 3px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 14%);
+  color: #ffe7a6;
+  overflow: hidden;
+  font-size: 6px;
+  font-weight: 1000;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 68%);
+}
+
+.battle-v4-commentary-item.latest strong {
+  min-height: 14px;
+  margin-bottom: 3px;
+  padding: 1px 5px;
+  font-size: 7px;
+}
+
+.battle-v4-commentary-item p {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+  display: block;
+  color: #f8fbff;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.28;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 74%);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.battle-v4-commentary-item.latest p {
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.battle-v4-commentary-item.tone-bad,
+.battle-v4-commentary-item.tone-damage {
+  border-left-color: #ff8174;
+}
+
+.battle-v4-commentary-item.tone-good,
+.battle-v4-commentary-item.tone-heal {
+  border-left-color: #75eba5;
+}
+
+.battle-v4-commentary-item.tone-status {
+  border-left-color: #bd94ff;
+}
+
+.battle-v4-commentary-item.tone-weather {
+  border-left-color: #8edcff;
+}
+
 .battle-v4-fx-layer {
   position: absolute;
   z-index: 62;
@@ -713,6 +860,19 @@
 @keyframes battle-v4-messagebar-in {
   from { opacity: 0; transform: translateY(8px) scale(.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes battle-v4-commentary-bullet-in {
+  from {
+    opacity: 0;
+    transform: translateX(-18px) scaleX(.94);
+    filter: blur(1px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scaleX(1);
+    filter: blur(0);
+  }
 }
 
 @keyframes battle-v4-fx-pop {

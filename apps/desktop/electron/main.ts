@@ -5,7 +5,7 @@ import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {rendererAssetFilePath} from "./rendererAssetResolver.js";
 
@@ -30,6 +30,8 @@ type FormalComputeMethodMap = {
   getFormalMedicalInsuranceOffer: {args: [FormalGameRunV4]; result: FormalMedicalInsuranceOfferV4};
   chooseFormalMedicalInsurance: {args: [FormalGameRunV4, FormalMedicalInsuranceChoiceV4]; result: FormalMedicalInsuranceChoiceResultV4};
   formalMedicalInsuranceEffectsForRun: {args: [FormalGameRunV4]; result: FormalMedicalInsuranceEffectsV4};
+  healFormalRestTeam: {args: [FormalGameRunV4]; result: FormalRestTeamHealResultV4};
+  getFormalTrainingGroundLessons: {args: [FormalGameRunV4]; result: FormalTrainingGroundLessonViewV4[]};
   prepareFormalSettlement: {args: [FormalGameRunV4, UserProfileV2, FormalSettlementReasonV4]; result: {run: FormalGameRunV4; profile: UserProfileV2}};
   settleFormalBattleRound: {args: [FormalGameRunV4]; result: FormalGameRunV4};
   finalizeFormalBattleResult: {args: [FormalGameRunV4, BattleSessionSnapshotV4, FormalBattleResultFinalizeReasonV4 | undefined]; result: FormalBattleResultFinalizeResultV4};
@@ -141,6 +143,14 @@ ipcMain.handle("formalGame:chooseMedicalInsurance", async (_event: IpcMainInvoke
 
 ipcMain.handle("formalGame:medicalInsuranceEffectsForRun", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
   return callFormalComputeWorker("formalMedicalInsuranceEffectsForRun", run);
+});
+
+ipcMain.handle("formalGame:healRestTeam", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return callFormalComputeWorker("healFormalRestTeam", run);
+});
+
+ipcMain.handle("formalGame:getTrainingGroundLessons", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return callFormalComputeWorker("getFormalTrainingGroundLessons", run);
 });
 
 ipcMain.handle("formalGame:prepareSettlement", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4) => {

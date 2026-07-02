@@ -440,11 +440,7 @@ assert(formalShopRowsForStarChartV4(starProfile.starChart) === 2, "luxury counte
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_2");
 assert(starProfile.battlePoints === 40, "luxury counter II should cost 15 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 3, "luxury counter II should unlock third shop row");
-assert(!formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should be off before unlock");
-starProfile = {...starProfile, battlePoints: 100};
-starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_auto_restock");
-assert(starProfile.battlePoints === 80, "shop auto restock should cost 20 BP");
-assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should unlock purchase restocking");
+assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should be enabled by default");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 0, "root-only star chart should start with zero formal money");
 starProfile = {...starProfile, battlePoints: 200};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, TRAVEL_FUND_NODE_ID);
@@ -618,12 +614,45 @@ assert(insuranceDeclined.ok && insuranceDeclined.run.medicalInsuranceOfferSeen &
 const insuranceStandard = api.chooseFormalMedicalInsurance({...insuranceRun, money: 1000}, "standard");
 assert(insuranceStandard.ok && insuranceStandard.run.money === 500, "standard medical insurance should deduct 500 money");
 assert(insuranceStandard.run.medicalInsurance?.reviveCostPerPokemon === 15, "standard medical insurance should lower revive cost to 15");
+assert(insuranceStandard.run.medicalInsurance?.recoveryShopPriceMultiplier === 0.8, "standard medical insurance should discount recovery prices to 80%");
 assert(insuranceStandard.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "medical-insurance" && entry.amount === -500), "medical insurance purchase should append coin log");
 const insuranceRecoveryProduct = api.getFormalRestShopProducts(insuranceStandard.run).find(product => product.type === "recovery");
 if (insuranceRecoveryProduct) {
   const undiscounted = formalShopItemPriceV4({category: "recovery", itemID: insuranceRecoveryProduct.itemID}, itemDetail(insuranceRecoveryProduct.itemID), moveDetail);
-  assert(insuranceRecoveryProduct.price === Math.max(1, Math.floor(undiscounted * 0.5)), "standard medical insurance should halve recovery product price");
+  assert(insuranceRecoveryProduct.price === Math.max(1, Math.floor(undiscounted * 0.8)), "standard medical insurance should discount recovery product price to 80%");
 }
+const basicInsurance = api.chooseFormalMedicalInsurance({...insuranceRun, money: 1000}, "basic");
+assert(basicInsurance.run.medicalInsurance?.recoveryShopPriceMultiplier === 0.9, "basic medical insurance should discount recovery prices to 90%");
+const premiumInsurance = api.chooseFormalMedicalInsurance({...insuranceRun, money: 2000}, "premium");
+assert(premiumInsurance.run.medicalInsurance?.recoveryShopPriceMultiplier === 0.5, "premium medical insurance should discount recovery prices to 50%");
+const damagedInsuranceRun = {
+  ...insuranceStandard.run,
+  money: 500,
+  restRunSnapshot: {
+    ...insuranceStandard.run.restRunSnapshot!,
+    players: {
+      ...insuranceStandard.run.restRunSnapshot!.players,
+      p1: {
+        ...insuranceStandard.run.restRunSnapshot!.players.p1!,
+        localTeam: {
+          ...insuranceStandard.run.restRunSnapshot!.players.p1!.localTeam,
+          pokemon: insuranceStandard.run.restRunSnapshot!.players.p1!.localTeam.pokemon.map((pokemon, index) => ({
+            ...pokemon,
+            entryHp: index === 0 ? 0 : Math.max(1, Math.floor(pokemon.maxHp / 3)),
+            entryStatus: index === 1 ? "brn" : pokemon.entryStatus,
+            moves: pokemon.moves.map(move => ({...move, remainingPp: 0})),
+          })),
+        },
+      },
+    },
+  },
+};
+const healResult = api.healFormalRestTeam(damagedInsuranceRun);
+assert(healResult.ok && healResult.cost === 200 && healResult.run.money === 300, "standard medical insurance should make full team heal cost 200");
+assert(healResult.run.restRunSnapshot?.players.p1?.localTeam.pokemon.every(pokemon => pokemon.entryHp === pokemon.maxHp && !pokemon.entryStatus && pokemon.moves.every(move => move.remainingPp === move.maxPp)), "formal full team heal should restore HP status and PP");
+assert(healResult.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "rest-heal" && entry.amount === -200), "formal full team heal should append coin log");
+const poorHealResult = api.healFormalRestTeam({...damagedInsuranceRun, money: 199});
+assert(!poorHealResult.ok && poorHealResult.run.money === 199, "formal full team heal should reject insufficient money without mutation");
 const counterOneProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_luxury_counter_1");
 const counterOneRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterOneProfile, {mode: "singles", seed: "formal-smoke-counter-one-seed"})), [0, 1, 2]));
 assert(api.getFormalRestShopProducts(counterOneRun).length === FORMAL_SHOP_CATEGORY_ORDER.length * 2, "luxury counter I should expose two shop rows");
@@ -670,7 +699,7 @@ const boughtProduct = shopProducts.find(product => product.type === "berry") || 
 const buyResult = api.buyFormalRestShopItem(economyReadyRun, boughtProduct.slotId);
 assert(buyResult.ok, "formal shop buy should succeed for a displayed product");
 assert(buyResult.run.money === economyReadyRun.money - boughtProduct.price, "formal shop buy should deduct displayed product price");
-assert(api.getFormalRestShopProducts(buyResult.run).find(product => product.slotId === boughtProduct.slotId)?.stock === 0, "formal shop should not auto restock before star chart unlock");
+assert((api.getFormalRestShopProducts(buyResult.run).find(product => product.slotId === boughtProduct.slotId)?.stock || 0) > 0, "formal shop should auto restock by default after purchase");
 const boughtItem = buyResult.run.restRunSnapshot?.players.p1?.bag.items.find(item => item.itemID === boughtProduct.itemID && item.cost === boughtProduct.price);
 assert(boughtItem, "formal shop bought item should enter bag with displayed product price");
 if (boughtItem) {
@@ -680,25 +709,25 @@ if (boughtItem) {
   assert(sellResult.run.money === buyResult.run.money + sellPrice, "formal shop sell should derive value from formal shop price");
 }
 
-const autoRestockProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_auto_restock");
-const autoRestockRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(autoRestockProfile, {mode: "singles", seed: "formal-smoke-auto-restock-seed"})), [0, 1, 2]));
+const autoRestockRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-auto-restock-seed"})), [0, 1, 2]));
 const autoRestockProduct = api.getFormalRestShopProducts(autoRestockRun)[0]!;
 const autoRestockResult = api.buyFormalRestShopItem({...autoRestockRun, money: 3000}, autoRestockProduct.slotId);
 const autoRestockedProduct = api.getFormalRestShopProducts(autoRestockResult.run).find(product => product.slotId === autoRestockProduct.slotId);
-assert(autoRestockResult.ok && autoRestockedProduct && autoRestockedProduct.stock > 0, "formal shop should auto restock after star chart unlock");
+assert(autoRestockResult.ok && autoRestockedProduct && autoRestockedProduct.stock > 0, "formal shop should auto restock by default");
 
 const statRerollPokemon = roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const statRerollPoor = api.rerollFormalRestPokemonStats({...roundPlanned, money: 9}, {pokemonId: statRerollPokemon.localPokemonId, part: "ivs", lockedStats: []});
 assert(!statRerollPoor.ok && statRerollPoor.cost === 10 && statRerollPoor.run.money === 9, "formal stat reroll should reject insufficient funds without changing money");
 const statRerollBeforeHpIv = statRerollPokemon.ivs.hp;
 const statRerollBeforeAtkIv = statRerollPokemon.ivs.atk;
+const statRerollBeforeIvTotal = statTotal(statRerollPokemon.ivs);
 const statRerollResult = api.rerollFormalRestPokemonStats(economyReadyRun, {pokemonId: statRerollPokemon.localPokemonId, part: "ivs", lockedStats: ["hp", "atk"]});
 const statRerollAfter = statRerollResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 assert(statRerollResult.ok, "formal stat reroll should apply");
 assert(statRerollResult.cost === 20, "formal stat reroll should cost 10 plus 5 per lock");
 assert(statRerollResult.run.money === economyReadyRun.money - 20, "formal stat reroll should deduct cost");
 assert(statRerollAfter.ivs.hp === statRerollBeforeHpIv && statRerollAfter.ivs.atk === statRerollBeforeAtkIv, "formal stat reroll should preserve locked stats");
-assert(statTotal(statRerollAfter.ivs) <= (statRerollAfter.ivTotalCap || 186), "formal stat reroll IV total should stay within cap");
+assert(statTotal(statRerollAfter.ivs) === statRerollBeforeIvTotal, "formal stat reroll IV total should preserve current total instead of old cap");
 assert(statRerollResult.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "team-reroll" && entry.amount === -20), "formal stat reroll should append coin log");
 
 const previewNode = roundPlanned.restRunSnapshot!.gameMap.find(node => node.id === roundPlanned.restRunSnapshot!.currentNodeId)!;
@@ -726,6 +755,9 @@ const trainingLesson = api.getFormalTrainingGroundLesson(roundPlanned);
 const trainingLessonAgain = api.getFormalTrainingGroundLesson(roundPlanned);
 assert(trainingLesson && trainingLesson.lessonId === trainingLessonAgain?.lessonId, "formal training ground lesson should be stable for same run node and roll");
 assert(!trainingLesson || trainingLesson.fee === expectedTrainingGroundLessonFee(trainingLesson.kind), "formal training ground lesson should use balanced fee table");
+const selectableLessons = api.getFormalTrainingGroundLessons(roundPlanned);
+assert(selectableLessons.length === 4, "formal training ground should expose all selectable lessons");
+assert(new Set(selectableLessons.map(lesson => lesson.kind)).size === 4, "formal training ground selectable lessons should cover every lesson kind");
 const nextTrainingRun = api.advanceFormalTrainingGroundLesson(roundPlanned);
 const nextTrainingLesson = api.getFormalTrainingGroundLesson(nextTrainingRun);
 assert((nextTrainingRun.trainingGroundByNodeId?.[roundPlanned.restRunSnapshot!.currentNodeId]?.lessonRoll || 0) === 1, "formal training ground advance should increment lessonRoll");
@@ -746,14 +778,10 @@ for (let index = 1; index < firstEightKinds.length; index += 1) {
   assert(firstEightKinds[index] !== firstEightKinds[index - 1], "formal training ground shuffle deck should avoid adjacent repeated lessons");
 }
 const poorTrainingRun = {...roundPlanned, money: 0};
-const poorTrainingResult = api.applyFormalTrainingGroundLesson(poorTrainingRun, {pokemonId: roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.localPokemonId});
+const poorTrainingResult = api.applyFormalTrainingGroundLesson(poorTrainingRun, {pokemonId: roundPlanned.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!.localPokemonId, lessonKind: "self-study"});
 assert(!poorTrainingResult.ok && poorTrainingResult.run.money === 0, "formal training ground should reject insufficient funds without changing money");
 let moveLessonRun = economyReadyRun;
-let moveLesson = api.getFormalTrainingGroundLesson(moveLessonRun);
-for (let guard = 0; moveLesson && !["tutor", "egg"].includes(moveLesson.kind) && guard < 12; guard += 1) {
-  moveLessonRun = api.advanceFormalTrainingGroundLesson(moveLessonRun);
-  moveLesson = api.getFormalTrainingGroundLesson(moveLessonRun);
-}
+let moveLesson = api.getFormalTrainingGroundLessons(moveLessonRun).find(lesson => ["tutor", "egg"].includes(lesson.kind));
 assert(moveLesson && ["tutor", "egg"].includes(moveLesson.kind), "formal training ground should be able to draw a tutor or egg move lesson");
 assert(moveLesson.fee === 100, "formal tutor and egg lessons should cost 100");
 const moveLessonPokemon = moveLessonRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
@@ -763,21 +791,17 @@ const moveLessonCandidates = moveLesson.kind === "tutor"
     ? ["toxic", "willowisp", "substitute"]
     : ["flamethrower", "trickroom", "watergun", "tackle"];
 let moveLessonMove = moveLessonCandidates[0]!;
-let moveTrainingResult = api.applyFormalTrainingGroundLesson(moveLessonRun, {pokemonId: moveLessonPokemon.localPokemonId, moveId: moveLessonMove, replaceMoveIndex: 0});
+let moveTrainingResult = api.applyFormalTrainingGroundLesson(moveLessonRun, {pokemonId: moveLessonPokemon.localPokemonId, moveId: moveLessonMove, replaceMoveIndex: 0, lessonId: moveLesson.lessonId});
 for (const candidateMove of moveLessonCandidates.slice(1)) {
   if (moveTrainingResult.ok) break;
   moveLessonMove = candidateMove;
-  moveTrainingResult = api.applyFormalTrainingGroundLesson(moveLessonRun, {pokemonId: moveLessonPokemon.localPokemonId, moveId: moveLessonMove, replaceMoveIndex: 0});
+  moveTrainingResult = api.applyFormalTrainingGroundLesson(moveLessonRun, {pokemonId: moveLessonPokemon.localPokemonId, moveId: moveLessonMove, replaceMoveIndex: 0, lessonId: moveLesson.lessonId});
 }
 assert(moveTrainingResult.ok, `formal training ground move lesson should apply a valid source move: ${moveLesson.kind}/${moveLessonMove}/${moveTrainingResult.message}`);
 assert(moveTrainingResult.run.money === moveLessonRun.money - moveLesson.fee, "formal training ground move lesson should deduct fee");
 assert(moveTrainingResult.run.restRunSnapshot?.players.p1?.localTeam.pokemon[0]?.moves[0]?.moveId === moveLessonMove, "formal training ground move lesson should replace selected move slot");
 let selfStudyRun = economyReadyRun;
-let selfStudyLesson = api.getFormalTrainingGroundLesson(selfStudyRun);
-for (let guard = 0; selfStudyLesson?.kind !== "self-study" && guard < 8; guard += 1) {
-  selfStudyRun = api.advanceFormalTrainingGroundLesson(selfStudyRun);
-  selfStudyLesson = api.getFormalTrainingGroundLesson(selfStudyRun);
-}
+let selfStudyLesson = api.getFormalTrainingGroundLessons(selfStudyRun).find(lesson => lesson.kind === "self-study");
 assert(selfStudyLesson?.kind === "self-study", "formal training ground should be able to draw a self-study lesson");
 assert(selfStudyLesson.fee === 200, "formal self-study lesson should cost 200");
 const selfStudyPokemon = selfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
@@ -786,7 +810,7 @@ const selfStudyBeforeEvTotal = statTotal(selfStudyPokemon.evs);
 const selfStudyBeforeIvCap = selfStudyPokemon.ivTotalCap || selfStudyBeforeIvTotal;
 const selfStudyBeforeEvCap = selfStudyPokemon.evTotalCap || selfStudyBeforeEvTotal;
 const selfStudyBeforeProfileIndex = powerProfileIndex(selfStudyPokemon.powerProfile || "rookie");
-const selfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyRun, {pokemonId: selfStudyPokemon.localPokemonId});
+const selfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyRun, {pokemonId: selfStudyPokemon.localPokemonId, lessonKind: "self-study"});
 const selfStudyAfter = selfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 assert(selfStudyResult.ok, "formal training ground self-study should apply");
 assert(selfStudyResult.run.money === selfStudyRun.money - selfStudyLesson.fee, "formal training ground self-study should deduct fee");
@@ -1065,7 +1089,7 @@ const premiumSettlementRun = api.settleFormalBattleRoundV4({
     tier: "premium",
     cost: 1200,
     reviveCostPerPokemon: 0,
-    recoveryShopPriceMultiplier: 0.3,
+    recoveryShopPriceMultiplier: 0.5,
     purchasedAt: new Date(0).toISOString(),
   },
   restRunSnapshot: medicalSettlementRestRun,

@@ -35,6 +35,7 @@ const PLAYBACK_SIGNAL_METHODS = new Set([
   "runStatusAnim",
   "damageAnim",
   "healAnim",
+  "animFaint",
   "resultAnim",
   "abilityActivateAnim",
   "updateStatbar",
@@ -46,6 +47,7 @@ const PLAYBACK_SIGNAL_METHODS = new Set([
 type ShowdownVmContextV4 = Record<string, any> & {
   Battle?: new (options: {log: string[]; paused?: boolean; isReplay?: boolean; debug?: boolean}) => ShowdownClientBattleLikeV4;
   BattleSceneStub?: new (...args: unknown[]) => unknown;
+  __changeBattlePlaybackRawStep?: number | null;
 };
 
 type ShowdownClientBattleLikeV4 = {
@@ -230,21 +232,39 @@ function parentDirectories(start: string): string[] {
 }
 
 function patchSceneProbe(context: ShowdownVmContextV4, calls: CapturedSceneCallV4[]): void {
+  patchBattleRunProbe(context);
   const sceneProto = context.BattleSceneStub?.prototype;
   if (!sceneProto) throw new Error("Showdown client BattleSceneStub unavailable.");
   for (const method of PLAYBACK_SIGNAL_METHODS) {
     const original = sceneProto[method];
     sceneProto[method] = function patchedSceneMethod(this: {battle?: ShowdownClientBattleLikeV4}, ...args: unknown[]) {
       calls.push({
-        rawStep: typeof this.battle?.currentStep === "number" ? this.battle.currentStep : null,
+        rawStep: typeof context.__changeBattlePlaybackRawStep === "number" ? context.__changeBattlePlaybackRawStep : typeof this.battle?.currentStep === "number" ? this.battle.currentStep : null,
         turn: typeof this.battle?.turn === "number" ? this.battle.turn : null,
         method,
         args: args.map(formatShowdownArg),
       });
-      if (method === "finishAnimations") return undefined;
       return original && original.apply(this, args);
     };
   }
+}
+
+function patchBattleRunProbe(context: ShowdownVmContextV4): void {
+  const battleProto = context.Battle?.prototype;
+  if (!battleProto?.run) throw new Error("Showdown client Battle.run unavailable.");
+  const originalRun = battleProto.run;
+  battleProto.run = function patchedBattleRun(this: ShowdownClientBattleLikeV4 & {stepQueue?: string[]}, str: string, preempt?: boolean) {
+    const previousRawStep = context.__changeBattlePlaybackRawStep ?? null;
+    const currentStep = typeof this.currentStep === "number" ? this.currentStep : -1;
+    const directMatch = currentStep >= 0 && this.stepQueue?.[currentStep] === str ? currentStep : -1;
+    const rawStep = directMatch >= 0 ? directMatch : Array.isArray(this.stepQueue) ? this.stepQueue.indexOf(str) : -1;
+    context.__changeBattlePlaybackRawStep = rawStep >= 0 ? rawStep : null;
+    try {
+      return originalRun.call(this, str, preempt);
+    } finally {
+      context.__changeBattlePlaybackRawStep = previousRawStep;
+    }
+  };
 }
 
 function formatShowdownArg(arg: unknown): unknown {
@@ -278,8 +298,7 @@ function normalizeSceneCall(call: CapturedSceneCallV4, index: number, rawLog: st
 function rawIndexForStep(rawLog: string[], rawStep: number | null): number {
   if (rawStep === null) return -1;
   if (rawStep >= 0 && rawStep < rawLog.length) return rawStep;
-  const shifted = rawStep - 1;
-  return shifted >= 0 && shifted < rawLog.length ? shifted : -1;
+  return -1;
 }
 
 function sceneCallKind(method: string): ShowdownPlaybackSceneCallKindV4 {
@@ -295,6 +314,7 @@ function sceneCallKind(method: string): ShowdownPlaybackSceneCallKindV4 {
   case "runStatusAnim": return "status";
   case "damageAnim": return "damage";
   case "healAnim": return "heal";
+  case "animFaint": return "faint";
   case "resultAnim": return "result";
   case "abilityActivateAnim": return "ability";
   case "updateWeather": return "weatherUpdate";
@@ -307,12 +327,32 @@ function sceneCallKind(method: string): ShowdownPlaybackSceneCallKindV4 {
 
 function mergeProtocolStateGroups(groups: ShowdownPlaybackGroupV4[], rawLog: string[]): ShowdownPlaybackGroupV4[] {
   const covered = new Set(groups.flatMap(group => group.rawIndices));
-  const additions = rawLog
+  const protocolGroups = rawLog
     .map((rawLine, rawIndex) => ({rawLine, rawIndex, call: protocolSceneCallForRawLine(rawLine, rawIndex)}))
-    .filter((entry): entry is {rawLine: string; rawIndex: number; call: ShowdownPlaybackSceneCallV4} => Boolean(entry.call) && !covered.has(entry.rawIndex))
+    .filter((entry): entry is {rawLine: string; rawIndex: number; call: ShowdownPlaybackSceneCallV4} => Boolean(entry.call));
+  const protocolCallsByRawIndex = new Map<number, ShowdownPlaybackSceneCallV4[]>();
+  for (const entry of protocolGroups) {
+    if (!covered.has(entry.rawIndex)) continue;
+    const calls = protocolCallsByRawIndex.get(entry.rawIndex) || [];
+    calls.push(entry.call);
+    protocolCallsByRawIndex.set(entry.rawIndex, calls);
+  }
+  const mergedGroups = groups.map(group => {
+    const protocolCalls = group.rawIndices.flatMap(index => protocolCallsByRawIndex.get(index) || []);
+    if (!protocolCalls.length) return group;
+    const calls = [...protocolCalls, ...group.calls.filter(call => !protocolCalls.some(protocolCall => protocolCall.kind === call.kind && protocolCall.rawIndex === call.rawIndex && protocolCall.effect === call.effect))];
+    return {
+      ...group,
+      calls,
+      waitMode: waitModeForGroup(calls),
+      summary: calls.map(call => call.label).filter(Boolean).join(" -> "),
+    };
+  });
+  const additions = protocolGroups
+    .filter(entry => !covered.has(entry.rawIndex))
     .map(entry => playbackGroupForProtocolState(entry.call, entry.rawLine, entry.rawIndex));
-  if (!additions.length) return groups;
-  return [...groups, ...additions]
+  if (!additions.length) return mergedGroups;
+  return [...mergedGroups, ...additions]
     .sort((a, b) => groupSortIndex(a) - groupSortIndex(b))
     .map((group, index) => ({...group, index, id: `sd-${index}-${group.rawIndices.join("-") || "scene"}`}));
 }
@@ -404,7 +444,7 @@ function transformEffectId(args: string[]): string {
 }
 
 function enrichSceneCall(call: ShowdownPlaybackSceneCallV4): void {
-  if (call.kind === "switch" || call.kind === "switchOut" || call.kind === "dragIn" || call.kind === "dragOut" || call.kind === "damage" || call.kind === "heal" || call.kind === "statbar") {
+  if (call.kind === "switch" || call.kind === "switchOut" || call.kind === "dragIn" || call.kind === "dragOut" || call.kind === "damage" || call.kind === "heal" || call.kind === "faint" || call.kind === "statbar") {
     call.pokemon = String(call.args[0] || "");
   }
   if (call.kind === "move" || call.kind === "prepare" || call.kind === "residual" || call.kind === "status" || call.kind === "otherAnim") {
@@ -444,12 +484,13 @@ function assignRawIndicesToGroups(groups: ShowdownPlaybackGroupV4[], rawLog: str
   return groups.map(group => {
     const rawIndices: number[] = [];
     for (const call of group.calls) {
-      const matched = findRawIndexForCall(call, rawLog, cursor);
+      const existingRawIndex = typeof call.rawIndex === "number" && call.rawIndex >= 0 ? call.rawIndex : -1;
+      const matched = existingRawIndex >= 0 ? existingRawIndex : findRawIndexForCall(call, rawLog, cursor);
       if (matched < 0) continue;
       rawIndices.push(matched);
       call.rawIndex = matched;
       call.rawLine = rawLog[matched];
-      cursor = Math.max(cursor, matched + 1);
+      if (existingRawIndex < 0) cursor = Math.max(cursor, matched + 1);
     }
     const uniqueRawIndices = [...new Set(rawIndices)].sort((a, b) => a - b);
     return {
@@ -489,6 +530,8 @@ function rawPredicatesForCall(call: ShowdownPlaybackSceneCallV4): Array<(line: s
     return [line => rawCommand(line) === "-damage" && rawLineMatchesPokemon(line, call.pokemon)];
   case "heal":
     return [line => rawCommand(line) === "-heal" && rawLineMatchesPokemon(line, call.pokemon)];
+  case "faint":
+    return [line => rawCommand(line) === "faint" && rawLineMatchesPokemon(line, call.pokemon)];
   case "otherAnim":
     if (call.effect === "consume") return [line => rawCommand(line) === "-enditem" && line.includes("[eat]")];
     if (call.effect === "heal") return [line => rawCommand(line) === "-heal"];
@@ -622,6 +665,8 @@ function sceneCallLabel(method: string, args: unknown[]): string {
     return `damage ${args[0] || ""} ${args[1] || ""}`;
   case "healAnim":
     return `heal ${args[0] || ""} ${args[1] || ""}`;
+  case "animFaint":
+    return `faint ${args[0] || ""}`;
   case "resultAnim":
     return `result ${args[1] || ""}`;
   case "abilityActivateAnim":

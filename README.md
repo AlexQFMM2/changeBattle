@@ -74,6 +74,14 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 
 参考图保留在 `plan/ui-refences/`。
 
+休整页里的“对话框”特指带角色立绘、底部文本框和操作按钮的 `TrainingRestShopDialogue` 组件：`apps/web/src/components/training/TrainingRestShopDialogue.tsx`，样式在同目录 `TrainingRestShopDialogue.css`。商店、训练场、治疗服务、类似 NPC 交互都应优先复用这个组件；不要把它误替换成 `TrainingRestConfirmDialog`、自定义浮层、空交互面板或其它临时 UI。`TrainingRestConfirmDialog` 只用于真正脱离 NPC 的系统二次确认，例如放弃比赛、本局结算提示等，不承担 NPC 讲解/选项对话。
+
+## Asset Rules
+
+运行时图片、音频、图标等共享资源统一放在仓库根目录的 `assets/` 下，例如 `assets/aboutIcon/coin.png`、`assets/shop/rest-store/...`、`assets/training-ground/learn.png`。前端组件通过 `assetUrl("...")` 引用这些资源，路径相对于 `assets/` 根目录，例如 `assetUrl("rest/heal.png")`。
+
+不要把这类资源临时放到 `apps/web/src/assets/` 或随意放进 `apps/web/public/`。`apps/web/src/assets/` 只适合真正需要被代码模块静态 import、并且已有明确局部打包约定的源码内资源；休整页、商店、训练场、战斗页等运行时 UI 资源默认都属于根目录 `assets/`。新增资源前先检查 `assets/` 里已有分类，优先复用/扩展现有目录，避免只为一个图标新开孤立资源体系。
+
 ## Commands
 
 ```bash
@@ -84,4 +92,43 @@ pnpm desktop:dev
 pnpm typecheck
 ```
 
-`./start_desk` 会自动尝试启动本地 battle service（默认 `127.0.0.1:5191`），再启动桌面端。Web 端手测真实战斗时需要另开一个终端运行 `pnpm battle:dev`。
+`./start_desk` 会自动清理本项目旧的 battle service、desktop dev、Electron 主进程和 renderer dev server（默认 `127.0.0.1:5181`），再启动本地 battle service（默认 `127.0.0.1:5191`）和桌面端。看到“代码改了但 UI 还是旧的”时，优先从 `pnpm desk:dev` / `./start_desk` 重新启动；不要直接复用旧的 5181 renderer。
+
+`pnpm desktop:dev` 只启动桌面端，不启动 battle service；但它也会在 dev 启动前清理本项目旧的 renderer/Electron 进程，避免接到 stale Vite 页面。Web 端手测真实战斗时需要另开一个终端运行 `pnpm battle:dev`。
+
+## Battle Playback Verification
+
+遇到“某只宝可梦替另一只播放死亡动画”“技能/伤害/换人顺序不对”“前端疑似重复消费”等问题时，先不要直接改动画层，先用 diagnostics rawLog 验证两层顺序：
+
+1. 后端 Showdown client compiler 顺序：
+
+```bash
+node tools/probe-showdown-playback.mjs debug/battle-v4-diagnostics-xxx.json
+```
+
+这个命令把 diagnostics 里的 `rawLog` 喂给正式 `packages/showdown-battle-core/dist/playbackCompiler.js`，输出 `ShowdownPlaybackTimelineV4.groups` 的简表：group id、raw index、waitMode、scene call signature 和 summary。若看到 `move/damage/faint/result` 变成 `scene-only` 且排在后续 `switch/turn` 后面，优先查后端 compiler 的 raw call mapping / grouping，不要先怀疑 React CSS 动画。
+
+2. 前端 scheduler 消费顺序：
+
+```bash
+pnpm --dir . --filter @changebattle-v2/web test:scheduler
+node tools/probe-battle-scheduler-parity.mjs debug/battle-v4-diagnostics-xxx.json
+```
+
+这个命令把同一份 backend groups 喂给前端 `createBattleV4ShowdownSchedulerPlan` 纯函数，检查：
+
+- `backend group order === scheduler step order`
+- `backend scheduler-signature === scheduler signature`
+- diagnostics 里实际 `playbackStepConsumption` 是否按 backend group 前缀消费
+
+判定顺序：
+
+- backend timeline 已经错：修 `packages/showdown-battle-core/src/playbackCompiler.ts`。
+- backend timeline 对、scheduler plan 错：修 `apps/web/src/components/battle-v4/useBattleV4ShowdownScheduler.ts`。
+- backend timeline 和 scheduler plan 都对，但画面错：修 scene call 到 React/CSS 动画、sprite instance、HP/statbar 映射。
+
+可选参数：
+
+- `--json`：输出摘要 JSON，方便 diff。
+- `--full`：带完整 timeline / plan。
+- `--saved`：直接读取 diagnostics 里保存的 `showdownPlaybackTimeline`，不重新编译 rawLog。

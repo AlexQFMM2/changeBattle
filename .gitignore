@@ -9,6 +9,9 @@ coverage/
 .DS_Store
 
 # Local generated/copied assets; keep out of git.
-assets/
+assets/*
+!assets/rest/
+assets/rest/*
+!assets/rest/heal.png
 debug/
 release/

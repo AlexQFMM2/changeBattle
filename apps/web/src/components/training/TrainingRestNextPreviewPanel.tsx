@@ -135,7 +135,7 @@ function buildNextOpponentPreview(run: TrainingRunGameV4): NextOpponentPreviewMo
   const mode = current?.mode || run.scenario.mode;
   const farIds = [current?.p2, current?.p4].filter(Boolean) as ShowdownPlayerIdV4[];
   const allies = farIds.map(playerId => current?.participants[playerId] || run.players[playerId]).filter(isPlayerDraft);
-  return {mode, trainer: allies[0] || null, allies, rank: aiRankLabel(current?.index || 0), nodeId: current?.id || run.currentNodeId || "preview"};
+  return {mode, trainer: allies[0] || null, allies, rank: formalRoundStageLabel(current?.index || 0), nodeId: current?.id || run.currentNodeId || "preview"};
 }
 
 function previewEntriesForPlayer(nodeId: string, player: TrainingPlayerDraftV4): PreviewPokemonEntry[] {
@@ -150,12 +150,16 @@ function isPlayerDraft(player: TrainingPlayerDraftV4 | undefined): player is Tra
   return Boolean(player);
 }
 
-function aiRankLabel(index: number): string {
-  if (index >= 5) return "冠军";
-  if (index >= 4) return "四天王";
-  if (index >= 3) return "馆主";
-  if (index >= 2) return "精英";
-  return "菜鸟";
+function formalRoundStageLabel(index: number): string {
+  return [
+    "小组赛揭幕战",
+    "小组赛出线战",
+    "十六强赛",
+    "八强赛",
+    "四强争夺战",
+    "半决赛",
+    "决赛",
+  ][Math.max(0, Math.min(6, index))] || `第 ${index + 1} 场`;
 }
 
 function TrainingRestNewPokemonIcon({pokemon}: {pokemon: PreviewPokemon}) {

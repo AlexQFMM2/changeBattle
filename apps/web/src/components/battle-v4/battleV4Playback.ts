@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction} from "react";
-import type {AppDebugConfigV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlaybackGroupV4, ShowdownPlaybackSceneCallV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, LocalPokemonV4, ShowdownPlaybackGroupV4, ShowdownPlaybackSceneCallV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
 import {battleDebugLog} from "@changebattle-v2/api";
 import {
   effectSpriteForShowdownAnimationV4,
@@ -26,6 +26,7 @@ import {
   type BattleVisualCommandV4,
 } from "./battleV4VisualScene";
 import {assetUrl} from "../../lib/assetUrl";
+import {buildBattleV4StepCommentaryIndex, type BattleV4CommentaryEntry, type BattleV4StepCommentaryIndex, type BattleV4VisibleCommentaryEntry} from "./battleV4Commentary";
 
 export type BattleProtocolArgsV4 = [string, ...string[]];
 export type BattleProtocolKwArgsV4 = Record<string, string>;
@@ -49,7 +50,7 @@ type BattleVisibleSlotV4 = BattleViewSlotV4 & {
 
 type BattleSlotSpriteStateV4 = Pick<
   BattleViewSlotV4,
-  "speciesId" | "spriteUrl" | "frontSpriteUrl" | "backSpriteUrl" | "frontShinySpriteUrl" | "backShinySpriteUrl" | "iconUrl" | "iconStyle"
+  "speciesId" | "spriteUrl" | "frontSpriteUrl" | "backSpriteUrl" | "frontShinySpriteUrl" | "backShinySpriteUrl" | "shiny" | "iconUrl" | "iconStyle"
 >;
 
 export type BattleProtocolEventV4 = {
@@ -300,6 +301,7 @@ export type BattlePlaybackStateV4 = {
   pendingBlockingAnimations: number;
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
+  commentaryItems: BattleV4VisibleCommentaryEntry[];
   hasProtocolState: boolean;
   debug: BattlePlaybackDebugV4;
 };
@@ -348,6 +350,7 @@ const RAW_NO_DEFAULT_COMMANDS = new Set([
 
 const THREE_PART_COMMANDS = new Set(["c", "chat", "uhtml", "uhtmlchange", "queryresponse", "showteam"]);
 const FOUR_PART_COMMANDS = new Set(["c:", "pm"]);
+const BATTLE_V4_COMMENTARY_MAX_ITEMS = 8;
 const PLAYBACK_MESSAGE_ONLY_MIN_MS = 420;
 const PLAYBACK_VISUAL_SETTLE_GAP_MS = 120;
 const PREVIEW_ANIMATION_GAP_MS = 120;
@@ -651,6 +654,7 @@ function playbackStepMatchesShowdownCall(step: BattlePlaybackStepV4, call: Showd
   if (call.kind === "result") return step.kind === "result";
   if (call.kind === "damage") return step.kind === "damage";
   if (call.kind === "heal") return step.kind === "heal";
+  if (call.kind === "faint") return step.kind === "faint";
   if (call.kind === "status") return step.kind === "status" || step.kind === "cureStatus";
   if (call.kind === "transform") return step.kind === "transform";
   if (call.kind === "weatherUpdate") return step.kind === "weather" || step.kind === "field";
@@ -732,11 +736,12 @@ function isDuplicateSpecialFormeAnnouncement(previous: BattleProtocolEventV4 | u
 export function useBattleV4Playback(
   snapshot: BattleSessionSnapshotV4 | null,
   viewModel: BattleViewModelV4 | null,
-  options: {skipAnimations?: boolean; debugConfig?: AppDebugConfigV4; paused?: boolean; playbackTimeline?: ShowdownPlaybackTimelineV4 | null; playbackTimelineUnavailable?: boolean} = {},
+  options: {skipAnimations?: boolean; debugConfig?: AppDebugConfigV4; paused?: boolean; playbackTimeline?: ShowdownPlaybackTimelineV4 | null; playbackTimelineUnavailable?: boolean; api?: ChangeBattleV2Api} = {},
 ): BattlePlaybackStateV4 {
   const skipAnimations = Boolean(options.skipAnimations);
   const paused = Boolean(options.paused && !skipAnimations);
   const debugConfig = options.debugConfig;
+  const api = options.api;
   const playbackTimeline = options.playbackTimeline || null;
   const playbackTimelineUnavailable = Boolean(options.playbackTimelineUnavailable);
   const [visibleSlots, setVisibleSlots] = useState<BattleViewSlotV4[]>([]);
@@ -759,6 +764,7 @@ export function useBattleV4Playback(
   const [persistentSideConditionVisuals, setPersistentSideConditionVisuals] = useState<BattleV4PersistentSideConditionVisuals>(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
   const [messagebar, setMessagebar] = useState<BattleMessageEventV4 | null>(null);
   const [hpTweens, setHpTweens] = useState<BattleHpTweenV4[]>([]);
+  const [commentaryItems, setCommentaryItems] = useState<BattleV4VisibleCommentaryEntry[]>([]);
   const [hasProtocolState, setHasProtocolState] = useState(false);
   const sessionRef = useRef("");
   const rawIndexRef = useRef(0);
@@ -770,6 +776,8 @@ export function useBattleV4Playback(
   const snapshotRef = useRef<BattleSessionSnapshotV4 | null>(snapshot);
   const hpTweenFrameRef = useRef<number | null>(null);
   const consumedCheckpointIdsRef = useRef<Set<string>>(new Set());
+  const commentaryIndexRef = useRef<BattleV4StepCommentaryIndex>({byCommandId: new Map(), immediate: []});
+  const shownCommentaryIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     viewModelRef.current = viewModel;
@@ -809,7 +817,10 @@ export function useBattleV4Playback(
       setPersistentSideConditionVisuals(EMPTY_PERSISTENT_SIDE_CONDITION_VISUALS);
       setMessagebar(null);
       setHpTweens([]);
+      setCommentaryItems([]);
       setHasProtocolState(false);
+      commentaryIndexRef.current = {byCommandId: new Map(), immediate: []};
+      shownCommentaryIdsRef.current = new Set();
       consumedCheckpointIdsRef.current = new Set();
       playingRef.current = false;
       activePlaybackStepRef.current = null;
@@ -980,6 +991,9 @@ export function useBattleV4Playback(
       setActiveAnimation(null);
       setActiveCommandGroup([]);
       setOpeningSwitchInSeats([]);
+      setCommentaryItems([]);
+      commentaryIndexRef.current = {byCommandId: new Map(), immediate: []};
+      shownCommentaryIdsRef.current = new Set();
       if (snapshot) {
         const execution = executeBattleV4Protocol(snapshot, viewModel, 0);
         setVisibleSlots(visualSlotsFromRuntimeState(execution.runtimeState));
@@ -992,6 +1006,20 @@ export function useBattleV4Playback(
       activePlaybackStepStartedAtRef.current = "";
     }
   }, [skipAnimations, viewModel, snapshot]);
+
+  const showBattleV4CommentaryEntries = useCallback((entries: BattleV4CommentaryEntry[]) => {
+    const nextEntries = entries.filter(entry => {
+      if (shownCommentaryIdsRef.current.has(entry.id)) return false;
+      shownCommentaryIdsRef.current.add(entry.id);
+      return true;
+    });
+    if (!nextEntries.length) return;
+    const shownAt = Date.now();
+    setCommentaryItems(items => [
+      ...nextEntries.map((entry, index) => ({...entry, shownAt: shownAt + index})),
+      ...items.filter(item => !nextEntries.some(entry => entry.id === item.id)),
+    ].slice(0, BATTLE_V4_COMMENTARY_MAX_ITEMS));
+  }, []);
 
   const startVisualCommand = useCallback((command: BattleVisualCommandV4) => {
     setActiveVisual(command);
@@ -1081,6 +1109,8 @@ export function useBattleV4Playback(
       playingRef.current = true;
       activePlaybackStepStartedAtRef.current = startedAt;
       activePlaybackStepRef.current = step;
+      commentaryIndexRef.current = api ? buildBattleV4StepCommentaryIndex(step, api) : {byCommandId: new Map(), immediate: []};
+      showBattleV4CommentaryEntries(commentaryIndexRef.current.immediate);
       setActivePlaybackStep(step);
       if (step.message) setMessagebar(step.message);
       setActiveCommandGroup(step.commands.filter(command => command.animationEvent));
@@ -1095,6 +1125,8 @@ export function useBattleV4Playback(
     onScheduledStep: (scheduled, step) => {
       const timedMessage = step.messages.find(message => message.sequence === scheduled.command.semanticEvent.sequence);
       if (timedMessage) setMessagebar(timedMessage);
+      const commentary = commentaryIndexRef.current.byCommandId.get(scheduled.command.id);
+      if (commentary) showBattleV4CommentaryEntries([commentary]);
       startVisualCommand(scheduled.command);
       battleDebugLog(debugConfig, "protocol", "playback-consume-animation", {
         checkpointId: scheduled.eventCheckpointId,
@@ -1149,6 +1181,7 @@ export function useBattleV4Playback(
     pendingBlockingAnimations,
     persistentFieldVisuals,
     persistentSideConditionVisuals,
+    commentaryItems,
     hasProtocolState: shouldUseProtocolState,
     debug: {
       lastConsumedRawIndex: rawIndexRef.current,
@@ -1935,14 +1968,18 @@ function applySlotSpriteForme(slot: BattleVisibleSlotV4, speciesId: string, targ
   const backSpriteUrl = firstLargeSprite(target?.backSpriteUrl, fallback.backSpriteUrl, target?.frontSpriteUrl, fallback.frontSpriteUrl);
   const frontShinySpriteUrl = firstLargeSprite(target?.frontShinySpriteUrl, fallback.frontShinySpriteUrl, frontSpriteUrl);
   const backShinySpriteUrl = firstLargeSprite(target?.backShinySpriteUrl, fallback.backShinySpriteUrl, backSpriteUrl);
+  const shiny = Boolean(slot.shiny);
   return {
     ...slot,
     speciesId,
-    spriteUrl: slot.side === "near" ? backSpriteUrl : frontSpriteUrl,
+    spriteUrl: shiny
+      ? slot.side === "near" ? backShinySpriteUrl : frontShinySpriteUrl
+      : slot.side === "near" ? backSpriteUrl : frontSpriteUrl,
     frontSpriteUrl,
     backSpriteUrl,
     frontShinySpriteUrl,
     backShinySpriteUrl,
+    shiny,
     iconUrl: target?.iconUrl || assetUrl("showdown/sprites/pokemonicons-sheet.png") || "",
     iconStyle: target?.iconStyle || slot.iconStyle,
   };
@@ -1956,6 +1993,7 @@ function spriteStateFromSlot(slot: BattleViewSlotV4): BattleSlotSpriteStateV4 {
     backSpriteUrl: slot.backSpriteUrl,
     frontShinySpriteUrl: slot.frontShinySpriteUrl,
     backShinySpriteUrl: slot.backShinySpriteUrl,
+    shiny: slot.shiny,
     iconUrl: slot.iconUrl,
     iconStyle: slot.iconStyle,
   };
@@ -2038,13 +2076,18 @@ function slotFromSwitchEvent(
     hp: conditionHp ?? pokemon.entryHp,
     maxHp: pokemon.maxHp || condition?.maxHp || 0,
     status: condition?.status || pokemon.entryStatus,
-    spriteUrl: side === "near"
-      ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
-      : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
+    spriteUrl: pokemon.shiny
+      ? side === "near"
+        ? firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl)
+        : firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl)
+      : side === "near"
+        ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
+        : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
     frontSpriteUrl: firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
     backSpriteUrl: firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl),
     frontShinySpriteUrl: firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl),
     backShinySpriteUrl: firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl),
+    shiny: Boolean(pokemon.shiny),
     iconUrl: pokemon.iconUrl || pokemon.spriteUrl || "",
     iconStyle: pokemon.iconStyle,
     teamBallStates: teamBallStates(team, pokemon.localPokemonId),

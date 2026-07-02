@@ -20,15 +20,19 @@ export type TrainingRestTrainingGroundSceneProps = {
   api: ChangeBattleV2Api;
   open: boolean;
   lesson?: FormalTrainingGroundLessonViewV4 | null;
+  lessonOptions?: FormalTrainingGroundLessonViewV4[];
   player?: TrainingPlayerDraftV4 | null;
   money: number;
   busy?: boolean;
   onApply?: (input: FormalTrainingGroundApplyInputV4) => Promise<FormalTrainingGroundResultV4> | FormalTrainingGroundResultV4;
   onBack: () => void;
+  onSelectLesson?: (lesson: FormalTrainingGroundLessonViewV4) => void;
+  onCancelLesson?: () => void;
   onLessonComplete?: (message: string) => void;
 };
 
 const TRAINING_GROUND_WELCOME_TEXT = "今天的课程已经排好了，要让哪只宝可梦进教室呢？";
+const TRAINING_GROUND_PICKER_TEXT = "今天教室都空出来了。先在上面的课程牌里选一门课，我会告诉你这堂课适合做什么。";
 const STAT_LABELS = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"} as const;
 const STAT_IDS = Object.keys(STAT_LABELS) as DexStatId[];
 const TYPE_ZH_BY_ID: Record<string, string> = {
@@ -90,7 +94,7 @@ type TrainingGroundResultState = {
   replacedMove?: TrainingMoveSlotV4;
 };
 
-export function TrainingRestTrainingGroundScene({api, open, lesson, player, money, busy = false, onApply, onBack, onLessonComplete}: TrainingRestTrainingGroundSceneProps) {
+export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOptions = [], player, money, busy = false, onApply, onBack, onSelectLesson, onCancelLesson, onLessonComplete}: TrainingRestTrainingGroundSceneProps) {
   const [step, setStep] = useState<TrainingGroundStep | null>(null);
   const [dialogueText, setDialogueText] = useState(TRAINING_GROUND_WELCOME_TEXT);
   const [selectedPokemonId, setSelectedPokemonId] = useState("");
@@ -98,9 +102,11 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
   const [replaceMoveIndex, setReplaceMoveIndex] = useState<number | null>(null);
   const [applying, setApplying] = useState(false);
   const [studying, setStudying] = useState(false);
+  const [selectedLessonId, setSelectedLessonId] = useState("");
   const [resultState, setResultState] = useState<TrainingGroundResultState | null>(null);
   const timersRef = useRef<number[]>([]);
   const team = player?.localTeam.pokemon || [];
+  const selectedLessonOption = lessonOptions.find(option => option.lessonId === selectedLessonId) || lessonOptions[0] || null;
   const selectedPokemon = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || team[0] || null;
   const movePool = useMemo(() => lesson && selectedPokemon ? lessonMovePool(api, lesson, selectedPokemon.speciesId) : [], [api, lesson, selectedPokemon]);
   const availableMoves = useMemo(() => {
@@ -111,14 +117,24 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
   useEffect(() => {
     if (!open) return;
     clearTimers();
-    setStep(null);
-    setDialogueText(lesson?.introText || TRAINING_GROUND_WELCOME_TEXT);
+    setStep(lesson ? "pokemon" : null);
+    setDialogueText(lesson ? trainingLessonStartText(team) : trainingLessonPickerText(lessonOptions));
+    setSelectedLessonId(lessonOptions[0]?.lessonId || "");
     setSelectedPokemonId(team[0]?.localPokemonId || "");
     setSelectedMoveId("");
     setReplaceMoveIndex(null);
     setStudying(false);
     setResultState(null);
-  }, [lesson?.lessonId, open]);
+  }, [lesson?.lessonId, lessonOptions.map(option => option.lessonId).join("|"), open]);
+
+  useEffect(() => {
+    if (lesson || !lessonOptions.length) return;
+    if (!selectedLessonOption) {
+      setSelectedLessonId(lessonOptions[0]?.lessonId || "");
+      return;
+    }
+    setDialogueText(courseDialogueText(selectedLessonOption));
+  }, [lesson, lessonOptions, selectedLessonOption?.lessonId]);
 
   useEffect(() => () => clearTimers(), []);
 
@@ -232,7 +248,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
     onBack: () => {
       setStep(null);
       setResultState(null);
-      setDialogueText(lesson?.introText || TRAINING_GROUND_WELCOME_TEXT);
+      setDialogueText(lesson?.introText || trainingLessonPickerText(lessonOptions));
     },
     onEnter: enterLesson,
     onProceedPokemon: proceedFromPokemon,
@@ -242,7 +258,20 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
       onLessonComplete?.(resultState?.result.message || "课程结束了。");
     },
     onLeave: leaveTrainingGround,
+    onCancelLesson: onCancelLesson ? () => {
+      clearTimers();
+      setStep(null);
+      setStudying(false);
+      setResultState(null);
+      setDialogueText(trainingLessonPickerText(lessonOptions));
+      onCancelLesson();
+    } : undefined,
+    lessonOptions,
+    selectedLessonOption,
+    onSelectLesson,
   });
+  const dialogueSpeaker = lesson ? lesson.teacherLabel : selectedLessonOption ? courseTeacherLabel(selectedLessonOption) : "训练场";
+  const dialogueItemName = step && selectedPokemon ? pokemonName(selectedPokemon) : lesson ? courseTitle(lesson) : selectedLessonOption ? courseTitle(selectedLessonOption) : undefined;
 
   return (
     <section className="training-rest-training-ground-scene" data-open={open ? "true" : "false"} aria-label="训练场场景" aria-hidden={!open}>
@@ -261,8 +290,22 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
         </div>
       ) : null}
       {busy ? <div className="training-rest-training-ground-busy" role="status">整理课堂中</div> : null}
-      <TrainingRestShopInteractionPanel mode={step ? "buy" : null}>
-        {step ? (
+      {!lesson && lessonOptions.length ? (
+        <TrainingRestShopInteractionPanel mode="buy">
+          <div className="training-rest-training-ground-panel">
+            <CoursePickerPanel
+              lessons={lessonOptions}
+              selectedLessonId={selectedLessonOption?.lessonId || ""}
+              onSelect={lessonOption => {
+                setSelectedLessonId(lessonOption.lessonId);
+                setDialogueText(courseDialogueText(lessonOption));
+              }}
+            />
+          </div>
+        </TrainingRestShopInteractionPanel>
+      ) : null}
+      {step ? (
+        <TrainingRestShopInteractionPanel mode="buy">
           <div className="training-rest-training-ground-panel">
             {step === "pokemon" ? (
               <PokemonSelectPanel
@@ -293,8 +336,8 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
               <TrainingResultPanel api={api} state={resultState} />
             ) : null}
           </div>
-        ) : null}
-      </TrainingRestShopInteractionPanel>
+        </TrainingRestShopInteractionPanel>
+      ) : null}
       {studying ? (
         <div className="training-rest-training-ground-study-modal" role="status" aria-label="学习中">
           <div>
@@ -304,12 +347,42 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, player, mone
         </div>
       ) : null}
       <TrainingRestShopDialogue
-        speaker={lesson?.teacherLabel || "训练场"}
-        itemName={step && selectedPokemon ? pokemonName(selectedPokemon) : undefined}
+        speaker={dialogueSpeaker}
+        itemName={dialogueItemName}
         text={dialogueText}
         actions={dialogueActions}
       />
     </section>
+  );
+}
+
+function CoursePickerPanel({lessons, selectedLessonId, onSelect}: {
+  lessons: FormalTrainingGroundLessonViewV4[];
+  selectedLessonId: string;
+  onSelect: (lesson: FormalTrainingGroundLessonViewV4) => void;
+}) {
+  return (
+    <div className="training-rest-training-ground-course-grid" role="list" aria-label="课程选择">
+      {lessons.slice(0, 4).map(lesson => {
+        const detail = courseDetail(lesson);
+        return (
+          <button
+            type="button"
+            className="training-rest-training-ground-course-card"
+            data-selected={lesson.lessonId === selectedLessonId ? "true" : "false"}
+            key={lesson.lessonId}
+            onClick={() => onSelect(lesson)}
+          >
+            <span className="training-rest-training-ground-course-head">
+              <strong>{detail.title}</strong>
+              <small>{lesson.fee.toLocaleString()} 金币</small>
+            </span>
+            <span className="training-rest-training-ground-course-teacher">{detail.teacher}</span>
+            <span className="training-rest-training-ground-course-desc">{detail.summary}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -545,6 +618,10 @@ function buildDialogueActions({
   onApply,
   onLessonComplete,
   onLeave,
+  onCancelLesson,
+  lessonOptions,
+  selectedLessonOption,
+  onSelectLesson,
 }: {
   step: TrainingGroundStep | null;
   lesson?: FormalTrainingGroundLessonViewV4 | null;
@@ -556,8 +633,23 @@ function buildDialogueActions({
   onApply: () => void;
   onLessonComplete: () => void;
   onLeave: () => void;
+  onCancelLesson?: () => void;
+  lessonOptions: FormalTrainingGroundLessonViewV4[];
+  selectedLessonOption?: FormalTrainingGroundLessonViewV4 | null;
+  onSelectLesson?: (lesson: FormalTrainingGroundLessonViewV4) => void;
 }) {
   if (!step) {
+    if (!lesson && lessonOptions.length && onSelectLesson) {
+      return [
+        {label: "返回", onClick: onLeave},
+        {
+          label: "确认上课",
+          meta: selectedLessonOption ? `${selectedLessonOption.fee.toLocaleString()} 金币` : undefined,
+          primary: true,
+          onClick: selectedLessonOption ? () => onSelectLesson(selectedLessonOption) : () => undefined,
+        },
+      ];
+    }
     return [
       {label: "返回", onClick: onLeave},
       {label: "进入学习", meta: lesson ? `${lesson.fee} 金币` : undefined, primary: true, onClick: onEnter},
@@ -565,7 +657,7 @@ function buildDialogueActions({
   }
   if (step === "pokemon") {
     return [
-      {label: "返回", onClick: onBack},
+      {label: "返回", onClick: onCancelLesson || onBack},
       {label: lesson?.kind === "self-study" ? "开始自习" : "下一步", primary: true, onClick: onProceedPokemon},
     ];
   }
@@ -594,6 +686,61 @@ function lessonMovePool(api: ChangeBattleV2Api, lesson: FormalTrainingGroundLess
     return [];
   }
   return [];
+}
+
+function trainingLessonPickerText(lessonOptions: FormalTrainingGroundLessonViewV4[]): string {
+  if (!lessonOptions.length) return TRAINING_GROUND_WELCOME_TEXT;
+  const firstLesson = lessonOptions[0];
+  return firstLesson ? courseDialogueText(firstLesson) : TRAINING_GROUND_PICKER_TEXT;
+}
+
+function trainingLessonStartText(team: LocalPokemonV4[]): string {
+  return team.length ? "先选择一只宝可梦进入课堂。" : "队伍里还没有可以上课的宝可梦。";
+}
+
+function courseTitle(lesson: FormalTrainingGroundLessonViewV4): string {
+  return courseDetail(lesson).title;
+}
+
+function courseTeacherLabel(lesson: FormalTrainingGroundLessonViewV4): string {
+  return courseDetail(lesson).teacher;
+}
+
+function courseDialogueText(lesson: FormalTrainingGroundLessonViewV4): string {
+  return courseDetail(lesson).dialogue;
+}
+
+function courseDetail(lesson: FormalTrainingGroundLessonViewV4): {title: string; teacher: string; summary: string; dialogue: string} {
+  if (lesson.kind === "egg") {
+    return {
+      title: "遗传学",
+      teacher: "老爷爷",
+      summary: "研究蛋招式和遗传来源，让宝可梦学习平时学不到的招式。",
+      dialogue: "老爷爷推了推眼镜：遗传学不是背书，是把血脉里藏着的可能性找出来。想让哪只宝可梦来试试？",
+    };
+  }
+  if (lesson.kind === "tutor") {
+    return {
+      title: "实践课",
+      teacher: "老奶奶",
+      summary: "由教授现场指导，学习导师招式来源的实战技巧。",
+      dialogue: "老奶奶把教鞭往桌上一点：实践课讲究当场上手，选好宝可梦，我们就开始练招。",
+    };
+  }
+  if (lesson.kind === "self-learn") {
+    return {
+      title: "冥想课",
+      teacher: "冥想导师",
+      summary: "整理自身招式记忆，学习升级或自学来源的招式。",
+      dialogue: "冥想导师放低声音：静下来，听听它自己记得什么。冥想课适合找回成长中能掌握的招式。",
+    };
+  }
+  return {
+    title: "自习课",
+    teacher: "自习监督",
+    summary: "自由训练，提升等级、个体和努力成长。",
+    dialogue: "自习监督翻开记录本：自习课不学新招式，但会踏实提升基础。准备好就选一只宝可梦入座。",
+  };
 }
 
 function findResultPokemon(result: FormalTrainingGroundResultV4, pokemonId: string): LocalPokemonV4 | null {

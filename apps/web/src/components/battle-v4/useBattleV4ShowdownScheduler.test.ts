@@ -1,15 +1,13 @@
 import {createBattleV4ShowdownSchedulerPlan} from "./useBattleV4ShowdownScheduler.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "../../../../../packages/showdown-battle-core/src/playbackCompiler.js";
-import {
-  BATTLE_V4_FAST_PLAYBACK_SPEED_SCALE,
-  BATTLE_V4_HP_TWEEN_DURATION_MS,
-  BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE,
-  BATTLE_V4_RESULT_PLAYBACK_SPEED_SCALE,
-  type BattlePlaybackStepV4,
-} from "./battleV4Playback.js";
+import type {BattlePlaybackStepV4} from "./battleV4Playback.js";
 import type {BattleVisualCommandV4} from "./battleV4VisualScene.js";
 
 const BASE_HP_TWEEN_MS = 350;
+const BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE = 1.5;
+const BATTLE_V4_RESULT_PLAYBACK_SPEED_SCALE = 1.5;
+const BATTLE_V4_FAST_PLAYBACK_SPEED_SCALE = 1;
+const BATTLE_V4_HP_TWEEN_DURATION_MS = 350;
 
 function smoke() {
   const rawLog = [
@@ -103,7 +101,7 @@ function smoke() {
     },
   });
   const dynamaxSignatures = dynamaxPlan.map(item => item.sceneCallSignature);
-  const transformIndex = dynamaxSignatures.indexOf("transform");
+  const transformIndex = dynamaxSignatures.findIndex(signature => signature.includes("transform"));
   const healIndex = dynamaxSignatures.findIndex(signature => signature.includes("heal"));
   const moveIndex = dynamaxSignatures.indexOf("move");
   if (transformIndex < 0 || healIndex < 0 || moveIndex < 0 || !(transformIndex < healIndex && healIndex < moveIndex)) {

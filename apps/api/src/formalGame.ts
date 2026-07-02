@@ -258,6 +258,8 @@ export type FormalTrainingGroundApplyInputV4 = {
   pokemonId: string;
   moveId?: string;
   replaceMoveIndex?: number;
+  lessonId?: string;
+  lessonKind?: FormalTrainingGroundLessonKindV4;
 };
 
 export type FormalTrainingGroundSelfStudyEventV4 = "playful" | "normal" | "focused";
@@ -278,6 +280,14 @@ export type FormalTrainingGroundResultV4 = {
   lesson: FormalTrainingGroundLessonViewV4 | null;
   selfStudyEvent?: FormalTrainingGroundSelfStudyEventV4;
   selfStudyChange?: FormalTrainingGroundSelfStudyChangeV4;
+};
+
+export type FormalRestTeamHealResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  message: string;
+  cost: number;
+  healedPokemonIds: string[];
 };
 
 export type FormalRoundNpcSnapshotV4 = {
@@ -503,6 +513,7 @@ export type FormalGameRunApi = {
   getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4;
   chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): FormalMedicalInsuranceChoiceResultV4;
   formalMedicalInsuranceEffectsForRun(run: FormalGameRunV4): FormalMedicalInsuranceEffectsV4;
+  healFormalRestTeam(run: FormalGameRunV4): FormalRestTeamHealResultV4;
   getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null;
   getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[];
   buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
@@ -511,6 +522,7 @@ export type FormalGameRunApi = {
   unlockFormalRestOpponentPreview(run: FormalGameRunV4, input: FormalRestOpponentPreviewUnlockInputV4): FormalRestOpponentPreviewUnlockResultV4;
   getFormalRestExchangeView(run: FormalGameRunV4, input?: {playerId?: ShowdownPlayerIdV4}): FormalPokemonExchangeViewV4;
   exchangeFormalRestPokemon(run: FormalGameRunV4, input: FormalPokemonExchangeInputV4): FormalPokemonExchangeResultV4;
+  getFormalTrainingGroundLessons(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4[];
   getFormalTrainingGroundLesson(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4 | null;
   advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4;
   applyFormalTrainingGroundLesson(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundResultV4;
@@ -611,10 +623,11 @@ const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   gen9: ["system-tera-orb"],
 };
 const FORMAL_MEDICAL_INSURANCE_TIERS: FormalMedicalInsuranceTierViewV4[] = [
-  {tier: "basic", label: "基础医疗保险", cost: 200, reviveCostPerPokemon: 25, recoveryShopPriceMultiplier: 1},
-  {tier: "standard", label: "标准医疗保险", cost: 500, reviveCostPerPokemon: 15, recoveryShopPriceMultiplier: 0.5},
-  {tier: "premium", label: "冠军医疗保险", cost: 1200, reviveCostPerPokemon: 0, recoveryShopPriceMultiplier: 0.3},
+  {tier: "basic", label: "基础医疗保险", cost: 200, reviveCostPerPokemon: 25, recoveryShopPriceMultiplier: 0.9},
+  {tier: "standard", label: "标准医疗保险", cost: 500, reviveCostPerPokemon: 15, recoveryShopPriceMultiplier: 0.8},
+  {tier: "premium", label: "冠军医疗保险", cost: 1200, reviveCostPerPokemon: 0, recoveryShopPriceMultiplier: 0.5},
 ];
+const FORMAL_REST_TEAM_HEAL_BASE_COST = 250;
 const FORMAL_STARTER_GIFT_ITEM_IDS = ["muscleband", "wiseglasses", "shellbell"] as const;
 
 export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalGameRunStorageAdapter = createBrowserFormalGameRunAdapter()): FormalGameRunApi {
@@ -1132,6 +1145,52 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     };
   }
 
+  function healFormalRestTeam(run: FormalGameRunV4): FormalRestTeamHealResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const node = currentFormalRestNode(normalized);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    const p1 = restRunSnapshot?.players.p1;
+    const cost = formalRestTeamHealCost(normalized);
+    if (!node || !restRunSnapshot || !p1) return formalRestTeamHealResult(false, normalized, "当前没有可治疗的正式队伍。", cost, []);
+    if (normalized.money < cost) return formalRestTeamHealResult(false, normalized, "金币不足，无法进行全队治疗。", cost, []);
+    const healedPokemonIds: string[] = [];
+    const nextPokemon = p1.localTeam.pokemon.map(pokemon => {
+      const maxHp = Math.max(1, Math.floor(Number(pokemon.maxHp || 1)));
+      const nextMoves = pokemon.moves.map(move => ({...move, remainingPp: Math.max(0, Math.floor(Number(move.maxPp || move.remainingPp || 0)))}));
+      const changed = pokemon.entryHp !== maxHp
+        || pokemon.entryStatus
+        || pokemon.moves.some((move, index) => move.remainingPp !== nextMoves[index]?.remainingPp);
+      if (changed) healedPokemonIds.push(pokemon.localPokemonId);
+      return {
+        ...pokemon,
+        maxHp,
+        entryHp: maxHp,
+        entryStatus: "" as TrainingStatusV4,
+        moves: nextMoves,
+      };
+    });
+    const now = new Date().toISOString();
+    const nextP1 = {...p1, localTeam: {...p1.localTeam, pokemon: nextPokemon}};
+    const nextRestRun = patchFormalRestP1(restRunSnapshot, nextP1, now);
+    const withUpdate = normalizeFormalRun({
+      ...normalized,
+      restRunSnapshot: nextRestRun,
+      updatedAt: now,
+    });
+    const withLog = appendShopCoinLogFast(withUpdate, {
+      key: `rest-heal:${node.id}:${now}`,
+      amount: -cost,
+      source: "rest-heal",
+      label: "休息室全队治疗",
+      roundIndex: node.index,
+      at: now,
+    });
+    const message = healedPokemonIds.length
+      ? `花费 ${cost} 金币，全队已恢复到满状态。`
+      : `花费 ${cost} 金币，全队状态已确认。`;
+    return formalRestTeamHealResult(true, withLog, message, cost, healedPokemonIds);
+  }
+
   function getFormalRestShop(run: FormalGameRunV4): FormalRestShopV4 | null {
     const node = currentFormalRestNode(run);
     if (!node) return null;
@@ -1252,7 +1311,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const rng = createRng(`${normalized.seed}:${node.id}:rest-stat-reroll:${part}:${pokemon.localPokemonId}:${now}`);
     const nextStats = rerollStatsWithinCap(
       part === "ivs" ? pokemon.ivs : pokemon.evs,
-      part === "ivs" ? pokemon.ivTotalCap ?? 186 : pokemon.evTotalCap ?? 510,
+      part === "ivs" ? statTotal(normalizeStats(pokemon.ivs, 31, 31)) : statTotal(normalizeStats(pokemon.evs, 0, 252)),
       part === "ivs" ? 31 : 252,
       lockedStats,
       rng,
@@ -1484,6 +1543,16 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     return createFormalTrainingGroundLesson(normalized, node.id, state.lessonRoll);
   }
 
+  function getFormalTrainingGroundLessons(run: FormalGameRunV4): FormalTrainingGroundLessonViewV4[] {
+    const normalized = normalizeFormalRun(run);
+    const node = currentFormalRestNode(normalized);
+    if (!node) return [];
+    return createFormalTrainingGroundLessonTable().map(lesson => ({
+      ...lesson,
+      lessonId: `${node.id}:lesson:${lesson.kind}`,
+    }));
+  }
+
   function advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4 {
     const normalized = normalizeFormalRun(run);
     const node = currentFormalRestNode(normalized);
@@ -1507,7 +1576,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   function applyFormalTrainingGroundLesson(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundResultV4 {
     const normalized = normalizeFormalRun(run);
     const node = currentFormalRestNode(normalized);
-    const lesson = getFormalTrainingGroundLesson(normalized);
+    const lesson = formalTrainingGroundLessonForInput(normalized, input);
     const restRunSnapshot = normalized.restRunSnapshot;
     const p1 = restRunSnapshot?.players.p1;
     if (!node || !lesson || !restRunSnapshot || !p1) return trainingGroundResult(false, normalized, "当前没有可用的训练场课程。", lesson);
@@ -2298,6 +2367,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     getFormalMedicalInsuranceOffer,
     chooseFormalMedicalInsurance,
     formalMedicalInsuranceEffectsForRun,
+    healFormalRestTeam,
     getFormalRestShop,
     getFormalRestShopProducts,
     buyFormalRestShopItem,
@@ -2306,6 +2376,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     unlockFormalRestOpponentPreview,
     getFormalRestExchangeView,
     exchangeFormalRestPokemon,
+    getFormalTrainingGroundLessons,
     getFormalTrainingGroundLesson,
     advanceFormalTrainingGroundLesson,
     applyFormalTrainingGroundLesson,
@@ -3289,7 +3360,15 @@ function ensureFormalTrainingGroundState(run: FormalGameRunV4, nodeId: string): 
 }
 
 function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, lessonRoll: number): FormalTrainingGroundLessonViewV4 {
-  const lessons: Array<Omit<FormalTrainingGroundLessonViewV4, "lessonId">> = [
+  const lesson = trainingGroundLessonForRoll(run.seed, nodeId, lessonRoll, createFormalTrainingGroundLessonTable());
+  return {
+    ...lesson,
+    lessonId: `${nodeId}:lesson:${lessonRoll}:${lesson.kind}`,
+  };
+}
+
+function createFormalTrainingGroundLessonTable(): Array<Omit<FormalTrainingGroundLessonViewV4, "lessonId">> {
+  return [
     {
       kind: "tutor",
       teacherLabel: "老奶奶",
@@ -3323,11 +3402,28 @@ function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, 
       source: "self-study",
     },
   ];
-  const lesson = trainingGroundLessonForRoll(run.seed, nodeId, lessonRoll, lessons);
-  return {
+}
+
+function formalTrainingGroundLessonForInput(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundLessonViewV4 | null {
+  const node = currentFormalRestNode(run);
+  if (!node) return null;
+  const lessons = createFormalTrainingGroundLessonTable().map(lesson => ({
     ...lesson,
-    lessonId: `${nodeId}:lesson:${lessonRoll}:${lesson.kind}`,
-  };
+    lessonId: `${node.id}:lesson:${lesson.kind}`,
+  }));
+  const requestedKind = input.lessonKind || kindFromFormalTrainingGroundLessonId(input.lessonId || "");
+  if (requestedKind) return lessons.find(lesson => lesson.kind === requestedKind) || null;
+  return getFallbackFormalTrainingGroundLesson(run, node.id);
+}
+
+function getFallbackFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string): FormalTrainingGroundLessonViewV4 {
+  const state = ensureFormalTrainingGroundState(run, nodeId);
+  return createFormalTrainingGroundLesson(run, nodeId, state.lessonRoll);
+}
+
+function kindFromFormalTrainingGroundLessonId(lessonId: string): FormalTrainingGroundLessonKindV4 | "" {
+  const suffix = String(lessonId || "").split(":").pop() || "";
+  return suffix === "tutor" || suffix === "egg" || suffix === "self-learn" || suffix === "self-study" ? suffix : "";
 }
 
 function trainingGroundLessonForRoll(
@@ -3359,6 +3455,16 @@ function normalizeTrainingGroundDeckBoundary<T extends {kind: string}>(deck: T[]
 
 function trainingGroundResult(ok: boolean, run: FormalGameRunV4, message: string, lesson: FormalTrainingGroundLessonViewV4 | null): FormalTrainingGroundResultV4 {
   return {ok, run, message, lesson};
+}
+
+function formalRestTeamHealCost(run: FormalGameRunV4): number {
+  const multiplier = Number(run.medicalInsurance?.recoveryShopPriceMultiplier ?? 1);
+  const safeMultiplier = Number.isFinite(multiplier) ? Math.max(0, multiplier) : 1;
+  return Math.max(1, Math.floor(FORMAL_REST_TEAM_HEAL_BASE_COST * safeMultiplier));
+}
+
+function formalRestTeamHealResult(ok: boolean, run: FormalGameRunV4, message: string, cost: number, healedPokemonIds: string[]): FormalRestTeamHealResultV4 {
+  return {ok, run, message, cost, healedPokemonIds};
 }
 
 function statRerollResult(ok: boolean, run: FormalGameRunV4, message: string, cost: number): FormalRestPokemonStatRerollResultV4 {
@@ -3409,14 +3515,23 @@ function rerollStatsWithinCap(current: StatTableV4, totalCap: number, statCap: n
   let remaining = safeTotalCap;
   for (const stat of STAT_IDS) {
     if (!locked.has(stat)) continue;
-    next[stat] = Math.max(0, Math.min(statCap, normalized[stat] || 0, remaining));
+    next[stat] = Math.max(0, Math.min(statCap, normalized[stat] || 0));
     remaining -= next[stat];
   }
-  for (const stat of shuffle(STAT_IDS.filter(stat => !locked.has(stat)), rng)) {
-    if (remaining <= 0) break;
-    const value = randomInt(0, Math.min(statCap, remaining), rng);
-    next[stat] = value;
-    remaining -= value;
+  if (remaining <= 0) return next;
+  const unlocked = STAT_IDS.filter(stat => !locked.has(stat));
+  while (remaining > 0) {
+    let progressed = false;
+    for (const stat of shuffle(unlocked, rng)) {
+      const open = statCap - next[stat];
+      if (open <= 0) continue;
+      const value = randomInt(1, Math.min(open, remaining), rng);
+      next[stat] += value;
+      remaining -= value;
+      progressed = true;
+      if (remaining <= 0) break;
+    }
+    if (!progressed) break;
   }
   return next;
 }

@@ -126,7 +126,7 @@ export function formalShopRowsForStarChartV4(starChart?: StarChartStateV4 | null
 }
 
 export function formalShopAutoRestockForStarChartV4(starChart?: StarChartStateV4 | null): boolean {
-  return starChartNodeLevelV4(starChart, SHOP_AUTO_RESTOCK_NODE_ID) > 0;
+  return true;
 }
 
 export function starChartHasFreeMedicalCareV4(starChart?: StarChartStateV4 | null): boolean {

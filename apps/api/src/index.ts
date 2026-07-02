@@ -8,7 +8,7 @@ import {
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
-import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalSettlementReasonV4} from "./formalGame.js";
+import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -103,6 +103,8 @@ export type DesktopFormalGameBridge = {
   getFormalMedicalInsuranceOffer(run: FormalGameRunV4): Promise<FormalMedicalInsuranceOfferV4>;
   chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): Promise<FormalMedicalInsuranceChoiceResultV4>;
   formalMedicalInsuranceEffectsForRun(run: FormalGameRunV4): Promise<FormalMedicalInsuranceEffectsV4>;
+  healFormalRestTeam(run: FormalGameRunV4): Promise<FormalRestTeamHealResultV4>;
+  getFormalTrainingGroundLessons(run: FormalGameRunV4): Promise<FormalTrainingGroundLessonViewV4[]>;
   prepareFormalSettlement(run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4): Promise<{run: FormalGameRunV4; profile: UserProfileV2}>;
   settleFormalBattleRound(run: FormalGameRunV4): Promise<FormalGameRunV4>;
   finalizeFormalBattleResult(run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4): Promise<FormalBattleResultFinalizeResultV4>;
@@ -248,6 +250,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getFormalMedicalInsuranceOffer: formalRuns.getFormalMedicalInsuranceOffer,
     chooseFormalMedicalInsurance: formalRuns.chooseFormalMedicalInsurance,
     formalMedicalInsuranceEffectsForRun: formalRuns.formalMedicalInsuranceEffectsForRun,
+    healFormalRestTeam: formalRuns.healFormalRestTeam,
     getFormalRestShop: formalRuns.getFormalRestShop,
     getFormalRestShopProducts: formalRuns.getFormalRestShopProducts,
     createFormalShopProductViews: (shop: Parameters<typeof createFormalShopProductViewsV4>[0]) => createFormalShopProductViewsV4(shop, itemID => dex.getItemDetail(itemID)),
@@ -258,6 +261,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getFormalRestExchangeView: formalRuns.getFormalRestExchangeView,
     exchangeFormalRestPokemon: formalRuns.exchangeFormalRestPokemon,
     getFormalTrainingGroundLesson: formalRuns.getFormalTrainingGroundLesson,
+    getFormalTrainingGroundLessons: formalRuns.getFormalTrainingGroundLessons,
     advanceFormalTrainingGroundLesson: formalRuns.advanceFormalTrainingGroundLesson,
     applyFormalTrainingGroundLesson: formalRuns.applyFormalTrainingGroundLesson,
     claimFormalSettlementBp: async (profile: UserProfileV2, settlement: FormalGameSettlementV4) => userProfiles.saveUserProfile(claimFormalSettlementBp(profile, settlement)),

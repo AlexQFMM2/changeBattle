@@ -107,8 +107,8 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
         patch.abilityName = ability?.name || current.abilityName;
         patch.abilityNameZh = ability?.nameZh || ability?.name || current.abilityNameZh;
       }
-      if (part === "all" || part === "ivs") patch.ivs = randomStatsWithinCap(current.ivs, current.ivTotalCap ?? 186, 31, lockMapFromStats(lockedStats));
-      if (part === "all" || part === "evs") patch.evs = randomStatsWithinCap(current.evs, current.evTotalCap ?? 510, 252, lockMapFromStats(lockedStats));
+      if (part === "all" || part === "ivs") patch.ivs = randomStatsWithinCap(current.ivs, Math.min(186, statTableTotal(current.ivs)), 31, lockMapFromStats(lockedStats));
+      if (part === "all" || part === "evs") patch.evs = randomStatsWithinCap(current.evs, Math.min(510, statTableTotal(current.evs)), 252, lockMapFromStats(lockedStats));
       return {...current, ...patch};
     });
   }
@@ -616,17 +616,29 @@ function finalizePokemon(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): Local
 
 function randomStatsWithinCap(current: Record<DexStatId, number>, totalCap: number, statCap: number, locks: Partial<Record<DexStatId, boolean>> = {}): Record<DexStatId, number> {
   const next = Object.fromEntries(STAT_ROWS.map(([stat]) => [stat, 0])) as Record<DexStatId, number>;
-  let remaining = Math.max(0, Math.min(totalCap, statCap * STAT_ROWS.length) - STAT_ROWS.reduce((sum, [stat]) => sum + (locks[stat] ? Math.max(0, current[stat] || 0) : 0), 0));
+  let remaining = Math.max(0, Math.min(totalCap, statCap * STAT_ROWS.length) - STAT_ROWS.reduce((sum, [stat]) => sum + (locks[stat] ? Math.max(0, Math.min(statCap, current[stat] || 0)) : 0), 0));
   for (const [stat] of STAT_ROWS) {
     if (locks[stat]) next[stat] = Math.max(0, Math.min(statCap, current[stat] || 0));
   }
-  for (const [stat] of shuffle(STAT_ROWS.filter(([stat]) => !locks[stat]))) {
-    if (remaining <= 0) break;
-    const value = randomInt(0, Math.min(statCap, remaining));
-    next[stat] = value;
-    remaining -= value;
+  const unlocked = STAT_ROWS.filter(([stat]) => !locks[stat]);
+  while (remaining > 0) {
+    let progressed = false;
+    for (const [stat] of shuffle(unlocked)) {
+      const open = statCap - next[stat];
+      if (open <= 0) continue;
+      const value = randomInt(1, Math.min(open, remaining));
+      next[stat] += value;
+      remaining -= value;
+      progressed = true;
+      if (remaining <= 0) break;
+    }
+    if (!progressed) break;
   }
   return next;
+}
+
+function statTableTotal(stats: Record<DexStatId, number>): number {
+  return STAT_ROWS.reduce((sum, [stat]) => sum + Math.max(0, Math.floor(Number(stats[stat] || 0))), 0);
 }
 
 function lockedStatsForPokemon(locks: TemporaryStatLocksV4, pokemonId: string, part: StatRerollPartV4): DexStatId[] {

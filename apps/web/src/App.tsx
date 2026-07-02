@@ -477,9 +477,9 @@ function RoutedApp({runtime}: AppProps) {
 
   const trainingRunTransitionPage = profile ? (
     <TrainingRunTransitionPage
-      title="进入休整区"
+      title="进入休息室"
       detail="正在整理训练流程"
-      tip="休整页会承接队伍、背包和下一场节点，BattleGame 稍后接入。"
+      tip="休息室会承接队伍、背包和下一场节点，BattleGame 稍后接入。"
       onReady={() => void enterTrainingRest()}
     />
   ) : <Navigate to="/" replace />;
@@ -646,6 +646,18 @@ function RoutedApp({runtime}: AppProps) {
           moneyAmount={formalRun.money}
           roundSettlement={latestUnreadRoundSettlement(formalRun, seenRoundSettlementNodeIds)}
           onRoundSettlementSeen={nodeId => setSeenRoundSettlementNodeIds(current => ({...current, [`${formalRun.id}:${nodeId}`]: true}))}
+          healController={{
+            money: formalRun.money,
+            cost: Math.max(1, Math.floor(250 * (api.formalMedicalInsuranceEffectsForRun(formalRun).recoveryShopPriceMultiplier || 1))),
+            onHeal: async () => {
+              if (!formalRun) throw new Error("正式存档不存在。");
+              const result = formalGameBridge
+                ? await formalGameBridge.healFormalRestTeam(formalRun)
+                : api.healFormalRestTeam(formalRun);
+              if (result.ok) setFormalRun(result.run);
+              return result;
+            },
+          }}
           teamRerollController={{
             money: formalRun.money,
             locksEnabled: starChartHasSpecialTrainingLockV4(formalRun.starChartSnapshot),
@@ -695,20 +707,21 @@ function RoutedApp({runtime}: AppProps) {
             },
           }}
           trainingGroundController={{
-          getLesson: () => api.getFormalTrainingGroundLesson(formalRun),
-          player: formalRun.restRunSnapshot.players.p1 || null,
-          money: formalRun.money,
-          onApply: input => {
-            if (!formalRun) throw new Error("正式存档不存在。");
-            const result = api.applyFormalTrainingGroundLesson(formalRun, input);
-            if (!result.ok) throw new Error(result.message);
-            setFormalRun(result.run);
-            return result;
-          },
-          onAdvance: () => {
-            if (!formalRun) return;
-            setFormalRun(api.advanceFormalTrainingGroundLesson(formalRun));
-          },
+            getLesson: () => api.getFormalTrainingGroundLesson(formalRun),
+            getLessons: () => api.getFormalTrainingGroundLessons(formalRun),
+            player: formalRun.restRunSnapshot.players.p1 || null,
+            money: formalRun.money,
+            onApply: input => {
+              if (!formalRun) throw new Error("正式存档不存在。");
+              const result = api.applyFormalTrainingGroundLesson(formalRun, input);
+              if (!result.ok) throw new Error(result.message);
+              setFormalRun(result.run);
+              return result;
+            },
+            onAdvance: () => {
+              if (!formalRun) return;
+              setFormalRun(api.advanceFormalTrainingGroundLesson(formalRun));
+            },
           }}
         />
         {shouldShowMedicalInsurance && medicalInsuranceOffer ? (

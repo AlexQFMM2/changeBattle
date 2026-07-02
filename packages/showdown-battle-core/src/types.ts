@@ -271,6 +271,7 @@ export type ShowdownPlaybackSceneCallKindV4 =
   | "result"
   | "damage"
   | "heal"
+  | "faint"
   | "status"
   | "ability"
   | "transform"

@@ -720,6 +720,46 @@ function showdownPlaybackTimelineSmoke() {
   if (!transformGroup.rawLines.includes("|-start|p1a: Lapras|Dynamax|")) {
     throw new Error(`dynamax transform group should map raw line: ${JSON.stringify(transformGroup)}`);
   }
+  const faintBeforeReplacementRawLog = [
+    "|player|p1|A|",
+    "|player|p2|B|",
+    "|gametype|doubles",
+    "|gen|8",
+    "|tier|[Gen 8] Doubles Custom Game",
+    "|clearpoke",
+    "|poke|p1|Tropius, L50, M|",
+    "|poke|p1|Mamoswine, L55, M|",
+    "|poke|p2|Sigilyph, L50, M|",
+    "|poke|p2|Gallade, L46, M|",
+    "|poke|p2|Kingdra, L49, F|",
+    "|teampreview",
+    "|",
+    "|teamsize|p1|2",
+    "|teamsize|p2|3",
+    "|start",
+    "|switch|p1a: Tropius|Tropius, L50, M|175/175",
+    "|switch|p1b: Mamoswine|Mamoswine, L55, M|208/208",
+    "|switch|p2a: Sigilyph|Sigilyph, L50, M|149/149",
+    "|switch|p2b: Gallade|Gallade, L46, M|125/125",
+    "|turn|1",
+    "|move|p1a: Tropius|Max Airstream|p2b: Gallade",
+    "|-supereffective|p2b: Gallade",
+    "|-damage|p2b: Gallade|0 fnt",
+    "|faint|p2b: Gallade",
+    "|upkeep",
+    "|switch|p2b: Kingdra|Kingdra, L49, F|147/147",
+    "|turn|2",
+  ];
+  const faintTimeline = compileShowdownPlaybackTimelineFromRawLog(faintBeforeReplacementRawLog, {sessionId: "timeline-faint-before-replacement", previousIndex: 0});
+  const faintIndex = faintTimeline.groups.findIndex(group => group.calls.some(call => call.kind === "faint"));
+  const replacementIndex = faintTimeline.groups.findIndex(group => group.rawLines.some(line => line.includes("|switch|p2b: Kingdra|")));
+  if (faintIndex < 0 || replacementIndex < 0 || !(faintIndex < replacementIndex)) {
+    throw new Error(`faint should compile before replacement switch: ${faintTimeline.groups.map(group => `${group.rawIndices.join(",") || "scene"} ${group.summary}`).join(" -> ")}`);
+  }
+  const faintGroup = faintTimeline.groups[faintIndex]!;
+  if (!faintGroup.rawLines.includes("|faint|p2b: Gallade")) {
+    throw new Error(`faint group should map raw faint line: ${JSON.stringify(faintGroup)}`);
+  }
   console.log("showdown playback timeline smoke ok");
 }
 

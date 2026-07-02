@@ -11,5 +11,6 @@
     "../../packages/showdown-battle-core/src/types.ts",
     "src/components/battle-v4/useBattleV4ShowdownScheduler.ts",
     "src/components/battle-v4/useBattleV4ShowdownScheduler.test.ts"
-  ]
+  ],
+  "exclude": []
 }

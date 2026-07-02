@@ -24,7 +24,7 @@ export function TrainingRestTrainingGroundScenePreview({api}: {api: ChangeBattle
         lesson={PREVIEW_LESSON}
         player={player}
         money={1800}
-        onBack={() => setMessage("预览：返回休整中心。")}
+        onBack={() => setMessage("预览：返回休息室。")}
         onLessonComplete={setMessage}
       />
       <div className="training-rest-training-ground-preview-note" role="status">{message}</div>

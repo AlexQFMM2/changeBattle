@@ -1,5 +1,5 @@
 .training-rest-exchange-panel {
-  /* 整个交换浮层：覆盖休整中心画布，左右挂板都相对它绝对定位。 */
+  /* 整个交换浮层：覆盖休息室画布，左右挂板都相对它绝对定位。 */
   --rest-exchange-x: 0px;
   --rest-exchange-y: 0px;
   --rest-exchange-w: 640px;

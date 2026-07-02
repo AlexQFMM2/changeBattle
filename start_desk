@@ -14,6 +14,8 @@ trap cleanup EXIT
 BATTLE_SERVICE_PORT="${CHANGEBATTLE_BATTLE_SERVICE_PORT:-5191}"
 BATTLE_SERVICE_DIR="$ROOT_DIR/packages/showdown-battle-core"
 BATTLE_SERVICE_ENTRY="$BATTLE_SERVICE_DIR/dist/server.js"
+DESKTOP_DEV_DIR="$ROOT_DIR/apps/desktop"
+RENDERER_DEV_PORT="${CHANGEBATTLE_RENDERER_DEV_PORT:-5181}"
 
 kill_pid_tree() {
   local pid="$1"
@@ -35,6 +37,30 @@ is_project_battle_process() {
   [[ "$cmd" == *"@changebattle-v2/showdown-battle-core dev"* ]] && return 0
   [[ "$cwd" == "$BATTLE_SERVICE_DIR"* && "$cmd" == *"node dist/server.js"* ]] && return 0
   [[ "$cmd" == *"$BATTLE_SERVICE_ENTRY"* ]] && return 0
+  return 1
+}
+
+is_project_desktop_process() {
+  local pid="$1"
+  local cwd cmd
+  cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
+  cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+  [[ "$cwd" == "$DESKTOP_DEV_DIR"* && "$cmd" == *"scripts/electron-vite.mjs dev"* ]] && return 0
+  [[ "$cwd" == "$DESKTOP_DEV_DIR"* && "$cmd" == *"vite --host 127.0.0.1 --port $RENDERER_DEV_PORT"* ]] && return 0
+  [[ "$cmd" == *"$DESKTOP_DEV_DIR/out/main/main.js"* ]] && return 0
+  return 1
+}
+
+wait_for_port_free() {
+  local port="$1"
+  local label="$2"
+  for _ in {1..50}; do
+    if ! nc -z 127.0.0.1 "$port" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  echo "Warning: $label port $port is still occupied after cleanup."
   return 1
 }
 
@@ -62,7 +88,42 @@ stop_existing_battle_service() {
   fi
 }
 
+stop_existing_desktop_dev() {
+  local pids=()
+  local port_pids
+  port_pids="$(ss -ltnp 2>/dev/null | awk -v port=":$RENDERER_DEV_PORT" '$4 ~ port {print $NF}' | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | sort -u)"
+  while read -r pid; do
+    [[ -n "$pid" ]] && is_project_desktop_process "$pid" && pids+=("$pid")
+  done <<< "$port_pids"
+
+  local pid
+  while read -r pid; do
+    [[ -n "$pid" ]] && is_project_desktop_process "$pid" && pids+=("$pid")
+  done < <(pgrep -f "(scripts/electron-vite.mjs dev|vite --host 127.0.0.1 --port $RENDERER_DEV_PORT|$DESKTOP_DEV_DIR/out/main/main.js)" 2>/dev/null || true)
+
+  if [[ "${#pids[@]}" -gt 0 ]]; then
+    local unique_pids
+    unique_pids="$(printf '%s\n' "${pids[@]}" | sort -u | tr '\n' ' ')"
+    echo "Stopping stale desktop dev process(es): $unique_pids"
+    for pid in $unique_pids; do
+      kill_pid_tree "$pid"
+    done
+    sleep 0.4
+    if ! wait_for_port_free "$RENDERER_DEV_PORT" "renderer dev"; then
+      echo "Force stopping stale desktop dev process(es): $unique_pids"
+      for pid in $unique_pids; do
+        kill -KILL "$pid" >/dev/null 2>&1 || true
+      done
+      sleep 0.2
+    fi
+  fi
+  wait_for_port_free "$RENDERER_DEV_PORT" "renderer dev" || true
+}
+
 stop_existing_battle_service
+if [[ "${1:-}" != "--battle-only" ]]; then
+  stop_existing_desktop_dev
+fi
 pnpm --filter @changebattle-v2/core build
 pnpm --filter @changebattle-v2/showdown-battle-core exec tsc -p tsconfig.json
 (

@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("formalGame:chooseMedicalInsurance", run, choice) as ReturnType<DesktopFormalGameBridge["chooseFormalMedicalInsurance"]>,
     formalMedicalInsuranceEffectsForRun: (run: FormalGameRunV4) =>
       ipcRenderer.invoke("formalGame:medicalInsuranceEffectsForRun", run) as ReturnType<DesktopFormalGameBridge["formalMedicalInsuranceEffectsForRun"]>,
+    healFormalRestTeam: (run: FormalGameRunV4) =>
+      ipcRenderer.invoke("formalGame:healRestTeam", run) as ReturnType<DesktopFormalGameBridge["healFormalRestTeam"]>,
+    getFormalTrainingGroundLessons: (run: FormalGameRunV4) =>
+      ipcRenderer.invoke("formalGame:getTrainingGroundLessons", run) as ReturnType<DesktopFormalGameBridge["getFormalTrainingGroundLessons"]>,
     prepareFormalSettlement: (run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4) =>
       ipcRenderer.invoke("formalGame:prepareSettlement", run, profile, reason) as ReturnType<DesktopFormalGameBridge["prepareFormalSettlement"]>,
     settleFormalBattleRound: (run: FormalGameRunV4) =>

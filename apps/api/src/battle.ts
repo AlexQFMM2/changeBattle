@@ -453,6 +453,7 @@ export type BattleViewSlotV4 = {
   backSpriteUrl: string;
   frontShinySpriteUrl: string;
   backShinySpriteUrl: string;
+  shiny: boolean;
   iconUrl: string;
   iconStyle?: string;
   teraType?: string;
@@ -1481,13 +1482,18 @@ function pokemonToSlot(snapshot: BattleSessionSnapshotV4, player: BattleServiceP
     hp,
     maxHp,
     status,
-    spriteUrl: side === "near"
-      ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
-      : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
+    spriteUrl: pokemon.shiny
+      ? side === "near"
+        ? firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl)
+        : firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl)
+      : side === "near"
+        ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
+        : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
     frontSpriteUrl: firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
     backSpriteUrl: firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl),
     frontShinySpriteUrl: firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl),
     backShinySpriteUrl: firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl),
+    shiny: Boolean(pokemon.shiny),
     iconUrl: pokemon.iconUrl || pokemon.spriteUrl || "",
     iconStyle: pokemon.iconStyle,
     teamBallStates: buildTeamBallStates(snapshot, player, team, actives),

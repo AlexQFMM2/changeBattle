@@ -338,6 +338,7 @@ function previewSlot(
     backSpriteUrl: assetUrl(`showdown/sprites/ani-back/${speciesId}.gif`) || "",
     frontShinySpriteUrl: assetUrl(`showdown/sprites/ani-shiny/${speciesId}.gif`) || "",
     backShinySpriteUrl: assetUrl(`showdown/sprites/ani-back-shiny/${speciesId}.gif`) || "",
+    shiny: false,
     iconUrl: assetUrl(`showdown/sprites/ani/${speciesId}.gif`) || "",
     teamBallStates: ["normal", "empty", "empty", "empty", "empty", "empty"],
   };

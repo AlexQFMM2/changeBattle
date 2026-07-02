@@ -41,7 +41,7 @@ export function TrainingRestShopDialogue({speaker = "店员", text, itemName, po
           <p>{text}</p>
         </div>
         <div className="training-rest-shop-dialogue-actions">
-          {actions.slice(0, 3).map(action => (
+          {actions.slice(0, 4).map(action => (
             <button className={action.primary ? "primary" : ""} type="button" onClick={action.onClick} key={action.label}>
               <strong>{action.label}</strong>
               {action.meta ? <small>{action.meta}</small> : null}

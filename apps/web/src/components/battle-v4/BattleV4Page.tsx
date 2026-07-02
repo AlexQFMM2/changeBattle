@@ -8,6 +8,7 @@ import {BattleV4SurrenderPanel, type BattleV4SurrenderParticipant} from "./Battl
 import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
 import {BattleV4TrainerNarrativeOverlay, type BattleV4NarrativeDialogue, type BattleV4NarrativePhase, type BattleV4NarrativeTrainer} from "./BattleV4TrainerNarrativeOverlay";
 import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
+import type {BattleV4VisibleCommentaryEntry} from "./battleV4Commentary";
 import {getBattleV4ActiveTimelineActorVisuals, getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineResultVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineActorVisual, type BattleV4TimelineFxVisual, type BattleV4TimelineResultVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import {visualSeatClassForSeat} from "./battleV4VisualSeats";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
@@ -102,6 +103,18 @@ const STAT_ROWS: Array<[keyof LocalPokemonV4["evs"], string]> = [
 
 const SURRENDER_TIMEOUT_MS = 15000;
 const SURRENDER_SUBMIT_DELAY_MS = 3000;
+const BATTLE_V4_NARRATIVE_FLOW_VERSION = "referee-dialogue-v2";
+const BATTLE_V4_REFEREE_PORTRAIT = "shop/rest-store/clerk-buy-dialogue-v4.png";
+
+const FORMAL_ROUND_STAGE_LABELS = [
+  "小组赛揭幕战",
+  "小组赛出线战",
+  "十六强赛",
+  "八强赛",
+  "四强争夺战",
+  "半决赛",
+  "决赛",
+];
 
 const BOOST_STAT_ROWS: Array<[BattleV4BoostStat, string]> = [
   ["atk", "攻击"],
@@ -240,14 +253,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const surrenderSubmitTimerRef = useRef<number | null>(null);
   const outroFallbackTimerRef = useRef<number | null>(null);
   const finalizedSessionRef = useRef("");
+  const narrativeSessionKey = useMemo(() => battleV4NarrativeSessionKey(sessionId), [sessionId]);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
-  const introNarrativePending = Boolean(sessionId && snapshot && viewModel && snapshot.status !== "ended" && introPlayedSessionId !== sessionId);
-  const narrativeDisplayPhase = narrativeState?.phase || (introNarrativePending ? "intro" : "");
-  const narrativeActive = Boolean(narrativeState || introNarrativePending);
+  const narrativeDisplayPhase = narrativeState?.phase || "";
+  const narrativeActive = Boolean(narrativeState);
   const narrativePhaseClass = narrativeDisplayPhase ? ` is-narrative is-narrative-${narrativeDisplayPhase}` : "";
   const introNarrativeActive = narrativeDisplayPhase === "intro";
-  const playback = useBattleV4Playback(snapshot, viewModel, {skipAnimations, debugConfig, paused: introNarrativeActive || playbackTimelinePending, playbackTimeline, playbackTimelineUnavailable});
+  const playback = useBattleV4Playback(snapshot, viewModel, {skipAnimations, debugConfig, paused: introNarrativeActive || playbackTimelinePending, playbackTimeline, playbackTimelineUnavailable, api});
   const playbackMessage = useMemo(
     () => localizeBattleV4PlaybackMessage(playback.messagebar?.message || "", playback.activeAnimation, api),
     [api, playback.activeAnimation, playback.messagebar?.message],
@@ -265,7 +278,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     submittedTurnPlaybackPending
   ));
   const commandsLocked = Boolean(narrativeActive || playbackBlockingCommands);
-  const shouldShowResultPanel = Boolean(endFlow === "result-panel" && snapshot?.status === "ended" && !playbackBlockingCommands && !narrativeActive && outroPlayedSessionId === sessionId);
+  const shouldShowResultPanel = Boolean(endFlow === "result-panel" && snapshot?.status === "ended" && !playbackBlockingCommands && !narrativeActive && outroPlayedSessionId === narrativeSessionKey);
   const shouldShowSwitchPanel = Boolean(!commandsLocked && snapshot && viewModel && (
     viewModel.command.requestType === "switch" || (switchPanelOpen && viewModel.command.requestType === "move")
   ));
@@ -273,9 +286,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const activeBattleBag = api.normalizeBagState(run.players.p1?.bag);
   const battleBagEnabled = Boolean(run.battlePreference?.battleBagEnabled && activeBattleBag.battleBagEnabled);
   const canSurrender = Boolean(onBattleComplete || endFlow === "auto-exit");
+  const battleStageLabel = useMemo(() => battleV4StageLabelForNode(run, snapshot?.nodeId), [run, snapshot?.nodeId]);
   const narrativeTrainers = useMemo(() => buildBattleV4NarrativeTrainers(api, run, playerProfile, snapshot?.nodeId), [api, playerProfile, run, snapshot?.nodeId]);
-  const introDialogue = useMemo(() => buildBattleV4IntroDialogue(narrativeTrainers), [narrativeTrainers]);
-  const outroDialogue = useMemo(() => buildBattleV4OutroDialogue(narrativeTrainers, snapshot), [narrativeTrainers, snapshot?.winner]);
+  const introDialogue = useMemo(() => buildBattleV4IntroDialogue(narrativeTrainers, battleStageLabel), [battleStageLabel, narrativeTrainers]);
+  const outroDialogue = useMemo(() => buildBattleV4OutroDialogue(narrativeTrainers, snapshot, battleStageLabel), [battleStageLabel, narrativeTrainers, snapshot?.winner]);
   const surrenderParticipants = useMemo<BattleV4SurrenderParticipant[]>(() => {
     const player = run.players.p1;
     const ally = run.scenario.mode === "coop" ? run.players.p3 : null;
@@ -307,22 +321,22 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
 
   useEffect(() => {
     if (!sessionId || !snapshot || !viewModel) return;
-    if (snapshot.status === "ended" || introPlayedSessionId === sessionId || narrativeState) return;
-    setIntroPlayedSessionId(sessionId);
+    if (snapshot.status === "ended" || introPlayedSessionId === narrativeSessionKey || narrativeState) return;
+    setIntroPlayedSessionId(narrativeSessionKey);
     setNarrativeState({phase: "intro", dialogueIndex: 0, dialogue: introDialogue});
-  }, [introDialogue, introPlayedSessionId, narrativeState, sessionId, snapshot, viewModel]);
+  }, [introDialogue, introPlayedSessionId, narrativeSessionKey, narrativeState, sessionId, snapshot, viewModel]);
 
   useEffect(() => {
     if (!sessionId || snapshot?.status !== "ended") return;
-    const outroReady = !playbackBlockingCommands || (outroFallbackReadySessionId === sessionId && !playback.activeAnimation && !playback.pendingBlockingAnimations);
+    const outroReady = !playbackBlockingCommands || (outroFallbackReadySessionId === narrativeSessionKey && !playback.activeAnimation && !playback.pendingBlockingAnimations);
     if (!outroReady) return;
-    if (outroPlayedSessionId === sessionId || narrativeState) return;
-    setOutroPlayedSessionId(sessionId);
+    if (outroPlayedSessionId === narrativeSessionKey || narrativeState) return;
+    setOutroPlayedSessionId(narrativeSessionKey);
     setNarrativeState({phase: "outro", dialogueIndex: 0, dialogue: outroDialogue});
-  }, [narrativeState, outroDialogue, outroFallbackReadySessionId, outroPlayedSessionId, playback.activeAnimation, playbackBlockingCommands, sessionId, snapshot?.status]);
+  }, [narrativeSessionKey, narrativeState, outroDialogue, outroFallbackReadySessionId, outroPlayedSessionId, playback.activeAnimation, playbackBlockingCommands, sessionId, snapshot?.status]);
 
   useEffect(() => {
-    if (!sessionId || snapshot?.status !== "ended" || outroPlayedSessionId === sessionId) {
+    if (!sessionId || snapshot?.status !== "ended" || outroPlayedSessionId === narrativeSessionKey) {
       if (outroFallbackTimerRef.current !== null) {
         window.clearTimeout(outroFallbackTimerRef.current);
         outroFallbackTimerRef.current = null;
@@ -337,12 +351,12 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       }
       return;
     }
-    if (outroFallbackReadySessionId === sessionId || outroFallbackTimerRef.current !== null) return;
+    if (outroFallbackReadySessionId === narrativeSessionKey || outroFallbackTimerRef.current !== null) return;
     outroFallbackTimerRef.current = window.setTimeout(() => {
       outroFallbackTimerRef.current = null;
-      setOutroFallbackReadySessionId(sessionId);
+      setOutroFallbackReadySessionId(narrativeSessionKey);
     }, 12000);
-  }, [outroFallbackReadySessionId, outroPlayedSessionId, playbackBlockingCommands, sessionId, snapshot?.status]);
+  }, [narrativeSessionKey, outroFallbackReadySessionId, outroPlayedSessionId, playbackBlockingCommands, sessionId, snapshot?.status]);
 
   useEffect(() => {
     if (!snapshot) return;
@@ -457,7 +471,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     let timer = 0;
     async function tick() {
       if (!sessionId) {
-        setMessage("缺少战斗 session，请从休整页重新进入。");
+        setMessage("缺少战斗 session，请从休息室重新进入。");
         return;
       }
       if (busy) {
@@ -612,7 +626,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
 
   function advanceNarrative() {
     if (!narrativeState) return;
-    const lineCount = Math.max(1, narrativeState.dialogue.lines.length);
+    const lineCount = Math.max(1, narrativeState.dialogue.entries?.length || narrativeState.dialogue.lines.length);
     if (narrativeState.dialogueIndex < lineCount - 1) {
       setNarrativeState(current => current ? {...current, dialogueIndex: current.dialogueIndex + 1} : current);
       return;
@@ -707,6 +721,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         renderedTimelineHandles={playback.renderedTimelineHandles}
         persistentFieldVisuals={playback.persistentFieldVisuals}
         persistentSideConditionVisuals={playback.persistentSideConditionVisuals}
+        commentaryItems={playback.commentaryItems}
         api={api}
       />
       <header className="battle-v4-hud">
@@ -786,8 +801,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       {shouldShowResultPanel && snapshot ? (
         <div className="battle-v4-result-panel">
           <strong>{snapshot.winner === "p1" || snapshot.winner === "p3" ? "训练胜利" : "训练失败"}</strong>
-          <span>节点状态已回写，返回休整区查看下一场。</span>
-          <button type="button" onClick={onBackToRest}>返回休整区</button>
+          <span>节点状态已回写，返回休息室查看下一场。</span>
+          <button type="button" onClick={onBackToRest}>返回休息室</button>
         </div>
       ) : null}
       {battleStatusOpen ? (
@@ -908,27 +923,80 @@ function normalizeNarrativeName(value: string | undefined): string {
   return (value || "").trim().toLowerCase();
 }
 
-function buildBattleV4IntroDialogue(trainers: BattleV4ResolvedNarrativeTrainer[]): BattleV4NarrativeDialogue {
+function buildBattleV4IntroDialogue(trainers: BattleV4ResolvedNarrativeTrainer[], stageLabel: string): BattleV4NarrativeDialogue {
   const trainer = firstEnemyNarrativeTrainer(trainers) || trainers[0] || fallbackNarrativeTrainer();
+  const referee = battleV4RefereeTrainer();
+  const nearNames = trainers.filter(item => item.side === "near").map(item => item.name).filter(Boolean);
+  const farNames = trainers.filter(item => item.side === "far").map(item => item.name).filter(Boolean);
+  const matchup = `${nearNames.join("、") || "玩家"}选手 对阵 ${farNames.join("、") || trainer.name}选手`;
   const lines = collectBossTrainerDialogueLines(trainer.detail, "intro", ["first_meeting", "default", "rematch"], 2);
+  const entries = [
+    {trainer: referee, text: `现在开始${stageLabel}，对战双方是：${matchup}。双方准备完毕，比赛开始！`},
+    ...(lines.length ? lines : [`${trainer.name} 前来挑战！`]).map(text => ({trainer, text})),
+  ];
   return {
     trainer,
-    lines: lines.length ? lines : [`${trainer.name} 前来挑战！`],
+    lines: entries.map(entry => entry.text),
+    entries,
   };
 }
 
-function buildBattleV4OutroDialogue(trainers: BattleV4ResolvedNarrativeTrainer[], snapshot: BattleSessionSnapshotV4 | null): BattleV4NarrativeDialogue {
+function buildBattleV4OutroDialogue(trainers: BattleV4ResolvedNarrativeTrainer[], snapshot: BattleSessionSnapshotV4 | null, stageLabel: string): BattleV4NarrativeDialogue {
   const trainer = firstEnemyNarrativeTrainer(trainers) || trainers[0] || fallbackNarrativeTrainer();
+  const referee = battleV4RefereeTrainer();
   const playerWon = battleV4PlayerWon(snapshot);
+  const winner = battleV4WinnerTrainerName(trainers, snapshot) || (playerWon ? "玩家" : trainer.name);
+  const fainted = battleV4LastFaintedPokemonName(snapshot) || "最后一只宝可梦";
   const kind: keyof DexTrainerDetail["dialogues"][string][number] = playerWon ? "defeat" : "victory";
   const states = playerWon
     ? ["after_player_win", "default", "rematch", "first_meeting"]
     : ["after_player_loss", "default", "rematch", "first_meeting"];
   const lines = collectBossTrainerDialogueLines(trainer.detail, kind, states, 2);
+  const entries = [
+    {trainer: referee, text: `${fainted}失去战斗能力！${stageLabel}的胜利者是 ${winner} 选手！`},
+    ...(lines.length ? lines : [playerWon ? "这场战斗，是你赢了。" : "这场胜利，我就收下了。"]).map(text => ({trainer, text})),
+  ];
   return {
     trainer,
-    lines: lines.length ? lines : [playerWon ? "这场战斗，是你赢了。" : "这场胜利，我就收下了。"],
+    lines: entries.map(entry => entry.text),
+    entries,
   };
+}
+
+function battleV4RefereeTrainer(): BattleV4ResolvedNarrativeTrainer {
+  return {
+    playerId: "p2",
+    name: "裁判",
+    title: "赛事裁判",
+    image: BATTLE_V4_REFEREE_PORTRAIT,
+    side: "far",
+    isReferee: true,
+    detail: null,
+    draft: null,
+  };
+}
+
+function battleV4StageLabelForNode(run: TrainingRunGameV4, nodeId?: string): string {
+  const node = (nodeId ? run.gameMap.find(entry => entry.id === nodeId) : null) || run.gameMap.find(entry => entry.id === run.currentNodeId) || null;
+  const index = Math.max(0, Math.min(FORMAL_ROUND_STAGE_LABELS.length - 1, node?.index ?? 0));
+  return FORMAL_ROUND_STAGE_LABELS[index] || `第 ${index + 1} 场`;
+}
+
+function battleV4NarrativeSessionKey(sessionId: string): string {
+  return `${sessionId}:${BATTLE_V4_NARRATIVE_FLOW_VERSION}`;
+}
+
+function battleV4WinnerTrainerName(trainers: BattleV4ResolvedNarrativeTrainer[], snapshot: BattleSessionSnapshotV4 | null): string {
+  const winner = snapshot?.winner;
+  if (!winner) return "";
+  return trainers.find(trainer => trainer.playerId === winner)?.name || "";
+}
+
+function battleV4LastFaintedPokemonName(snapshot: BattleSessionSnapshotV4 | null): string {
+  const line = [...(snapshot?.rawLog || [])].reverse().find(entry => entry.startsWith("|faint|"));
+  if (!line) return "";
+  const ident = line.split("|")[2] || "";
+  return normalizeProtocolDisplayName(ident.replace(/^p[1-4][a-z]?:\s*/i, ""));
 }
 
 function firstEnemyNarrativeTrainer(trainers: BattleV4ResolvedNarrativeTrainer[]): BattleV4ResolvedNarrativeTrainer | undefined {
@@ -987,7 +1055,7 @@ function battleV4PlayerWon(snapshot: BattleSessionSnapshotV4 | null): boolean {
   return snapshot?.winner === "p1" || snapshot?.winner === "p3";
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, openingSwitchInSeats = [], activeTimelineStep, renderedTimelineHandles = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, openingSwitchInSeats = [], activeTimelineStep, renderedTimelineHandles = [], persistentFieldVisuals, persistentSideConditionVisuals, commentaryItems, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
@@ -998,6 +1066,7 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
   renderedTimelineHandles?: BattleV4ScheduledTimelineStep[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
+  commentaryItems: BattleV4VisibleCommentaryEntry[];
   api: ChangeBattleV2Api;
 }) {
   const nearSlots = useMemo(() => sortSlotsForArena(near, "near"), [near]);
@@ -1012,9 +1081,8 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
       <BattleV4PersistentFieldLayer visuals={persistentFieldVisuals} />
       <BattleV4SideConditionLayer visuals={persistentSideConditionVisuals} />
       <BattleV4WeatherBurstLayer animation={activeAnimation || null} visuals={visuals} />
-      <BattleV4Messagebar message={messagebar || ""} kind={activeAnimation?.kind || ""} />
+      <BattleV4CommentaryPanel items={commentaryItems} />
       <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} fxVisuals={fxVisuals} />
-      <BattleV4ResultLayer animation={activeAnimation || null} visuals={visuals} resultVisuals={resultVisuals} api={api} key={`${activeAnimation?.checkpointId || "result-idle"}-${activeTimelineStep?.type || "none"}-${resultVisuals.map(item => item.key).join("-")}-result`} />
       <div className="battle-v4-enemy-panels">
         {farSlots.map(slot => <BattleHpPanel slot={slot} compact key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
@@ -1026,6 +1094,20 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
         {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} actorVisuals={actorVisuals} key={`${slot.playerId}-${slot.position}`} />)}
       </div>
     </div>
+  );
+}
+
+function BattleV4CommentaryPanel({items}: {items: BattleV4VisibleCommentaryEntry[]}) {
+  if (!items.length) return null;
+  return (
+    <aside className="battle-v4-commentary" role="log" aria-live="polite" aria-relevant="additions text">
+      {items.map((item, index) => item ? (
+        <article className={`battle-v4-commentary-item tone-${item.tone}${index === 0 ? " latest" : ""}`} key={`${item.id}:${item.shownAt}`}>
+          <strong>{item.speaker}</strong>
+          <p>{item.text}</p>
+        </article>
+      ) : null)}
+    </aside>
   );
 }
 

@@ -34,6 +34,12 @@ export const FORMAL_SHOP_RESIST_BERRY_POOL = [
 
 export const FORMAL_SHOP_CONFUSION_BERRY_POOL = ["figyberry", "wikiberry", "magoberry", "aguavberry", "iapapaberry"];
 
+const FORMAL_SHOP_EV_STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
+const FORMAL_SHOP_EV_SMALL_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [`ev${stat}small`, `ev${stat}downsmall`]);
+const FORMAL_SHOP_EV_COMMON_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [`ev${stat}plus`, `ev${stat}down`]);
+const FORMAL_SHOP_EV_RESET_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [`ev${stat}zero`, `ev${stat}downlarge`]);
+const FORMAL_SHOP_EV_LARGE_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [`ev${stat}large`, `ev${stat}max`]);
+
 export const FORMAL_SHOP_PRICE_LIMITS = {
   tm: {min: 100, max: 300},
   battle: {min: 300, max: 900},
@@ -119,20 +125,24 @@ export const FORMAL_SHOP_ITEM_BASE_WEIGHTS: Record<string, number> = {
   choiceband: 2,
   choicespecs: 2,
   focussash: 1,
-  hpup: 10,
-  protein: 10,
-  iron: 10,
-  calcium: 10,
-  zinc: 10,
-  carbos: 10,
+  ...Object.fromEntries(FORMAL_SHOP_EV_SMALL_ITEM_POOL.map(itemID => [itemID, 22])),
+  ...Object.fromEntries(FORMAL_SHOP_EV_COMMON_ITEM_POOL.map(itemID => [itemID, 18])),
+  ...Object.fromEntries(FORMAL_SHOP_EV_RESET_ITEM_POOL.map(itemID => [itemID, 12])),
+  ...Object.fromEntries(FORMAL_SHOP_EV_LARGE_ITEM_POOL.map(itemID => [itemID, 2])),
+  hpup: 2,
+  protein: 2,
+  iron: 2,
+  calcium: 2,
+  zinc: 2,
+  carbos: 2,
   ppup: 7,
   ppmax: 3,
   abilitycapsule: 5,
   abilitypatch: 2,
-  bottlecap: 5,
-  graybottlecap: 5,
+  bottlecap: 2,
+  graybottlecap: 3,
   goldbottlecap: 1,
-  rarecandy: 2,
+  rarecandy: 1,
   adamantmint: 7,
   modestmint: 7,
   jollymint: 7,
@@ -180,6 +190,10 @@ export const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
     "tm:swordsdance", "tm:substitute", "tm:willowisp", "tm:toxic", "tm:trickroom",
   ],
   training: [
+    ...FORMAL_SHOP_EV_SMALL_ITEM_POOL,
+    ...FORMAL_SHOP_EV_COMMON_ITEM_POOL,
+    ...FORMAL_SHOP_EV_RESET_ITEM_POOL,
+    ...FORMAL_SHOP_EV_LARGE_ITEM_POOL,
     "rarecandy", "hpup", "protein", "iron", "calcium", "zinc", "carbos",
     "ppup", "ppmax", "abilitycapsule", "abilitypatch", "bottlecap",
     "goldbottlecap", "graybottlecap", "adamantmint", "modestmint", "jollymint",

@@ -372,13 +372,18 @@ function slotFromSwitchProtocolEvent(snapshot: BattleSessionSnapshotV4, viewMode
     hp: condition?.hp ?? pokemon.entryHp,
     maxHp: pokemon.maxHp || condition?.maxHp || 0,
     status: condition?.status || pokemon.entryStatus,
-    spriteUrl: side === "near"
-      ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
-      : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
+    spriteUrl: pokemon.shiny
+      ? side === "near"
+        ? firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl)
+        : firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl)
+      : side === "near"
+        ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
+        : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
     frontSpriteUrl: firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
     backSpriteUrl: firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl),
     frontShinySpriteUrl: firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl),
     backShinySpriteUrl: firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl),
+    shiny: Boolean(pokemon.shiny),
     iconUrl: pokemon.iconUrl || pokemon.spriteUrl || "",
     iconStyle: pokemon.iconStyle,
     teamBallStates: teamBallStates(team, pokemon.localPokemonId),
