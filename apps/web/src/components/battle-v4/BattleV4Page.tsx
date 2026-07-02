@@ -40,6 +40,8 @@ type BattleV4StatusBadge = {
 
 type BattleV4MoveCardView = BattleV4SkillCommandMoveCardView;
 
+type BattleV4MoveDisplaySpecialChoice = BattleSpecialChoiceV4 | "active-max" | null;
+
 type BattleV4TargetCardView = {
   key: string;
   slot: BattleViewSlotV4 | null;
@@ -716,6 +718,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         <BattleCommandDock
           api={api}
           viewModel={viewModel}
+          visualNearTeam={playbackHasRuntimeState ? playback.nearTeam : viewModel?.nearTeam || []}
           snapshot={snapshot}
           busy={busy}
           message={choiceStatus || message}
@@ -748,6 +751,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         <BattleV4TargetPanel
           api={api}
           viewModel={viewModel}
+          visualNearTeam={playbackHasRuntimeState ? playback.nearTeam : viewModel.nearTeam}
           action={pendingMoveAction}
           request={viewModel.command.request}
           onClose={() => setPendingMoveAction(null)}
@@ -1207,9 +1211,10 @@ function SpecialSystemBadges({slot}: {slot: BattleViewSlotV4}) {
   );
 }
 
-function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, battleBag, battleBagEnabled, battleBagOpen, onOpenBattleBag, canUndoChoice, onUndoChoice, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
+function BattleCommandDock({api, viewModel, visualNearTeam, snapshot, busy, message, actions, mode, requestType, commandMode, onCommandModeChange, onOpenSwitch, battleBag, battleBagEnabled, battleBagOpen, onOpenBattleBag, canUndoChoice, onUndoChoice, onSubmit, onMoveDraft, onPreviewMove, onUnavailableSpecial}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4 | null;
+  visualNearTeam: BattleViewSlotV4[];
   snapshot: BattleSessionSnapshotV4 | null;
   busy: boolean;
   message: string;
@@ -1237,7 +1242,11 @@ function BattleCommandDock({api, viewModel, snapshot, busy, message, actions, mo
   const lockedSpecialSystems = useMemo(() => lockedSpecialSystemsForCommand(viewModel?.command.choices || []), [viewModel?.command.choices]);
   const selectedSystem = battleSpecialSystemForChoiceV4(selectedSpecial);
   const activeSpecial = selectedSystem && lockedSpecialSystems.has(selectedSystem) ? null : selectedSpecial;
-  const moveCards = useMemo(() => moveActions.map(action => buildBattleV4MoveCard(action, api, viewModel?.farTeam || [], selectedSpecialForAction(action, activeSpecial, lockedSpecialSystems))), [api, moveActions, viewModel?.farTeam, activeSpecial, lockedSpecialSystems]);
+  const moveCards = useMemo(() => moveActions.map(action => {
+    const selectedForAction = selectedSpecialForAction(action, activeSpecial, lockedSpecialSystems);
+    const displaySpecial = selectedForAction || activeMaxDisplaySpecialForAction(action, visualNearTeam, viewModel?.nearTeam || []);
+    return buildBattleV4MoveCard(action, api, viewModel?.farTeam || [], displaySpecial, selectedForAction);
+  }), [api, moveActions, viewModel?.farTeam, viewModel?.nearTeam, visualNearTeam, activeSpecial, lockedSpecialSystems]);
   const specialOptions = useMemo(() => uniqueSpecialOptionsForActions(moveActions), [moveActions]);
   const previewCard = moveCards.find(card => card.id === previewMoveId && card.detail) ||
     moveCards.find(card => card.detail && !isDisabledAction(card.action)) ||
@@ -1493,15 +1502,38 @@ function selectedSpecialForAction(action: MoveActionV4, selected: BattleSpecialC
   return action.specialOptions.some(option => option.id === selected && option.ruleAllowed && !option.disabled) ? selected : null;
 }
 
-function BattleV4TargetPanel({api, viewModel, action, request, onClose, onSubmit}: {
+function activeMaxDisplaySpecialForAction(action: MoveActionV4, visualNearTeam: BattleViewSlotV4[], requestNearTeam: BattleViewSlotV4[]): BattleV4MoveDisplaySpecialChoice {
+  if (!action.move.maxMove) return null;
+  if (action.move.maxMove && !action.specialOptions.some(option => option.id === "max")) return "active-max";
+  const visualActive = visualNearTeam[action.activeIndex] || null;
+  const requestActive = requestNearTeam[action.activeIndex] || null;
+  if (visualActive?.dynamaxActive && (!requestActive || sameBattleViewSlotIdentity(visualActive, requestActive))) return "active-max";
+  const requestMatchedVisual = requestActive ? visualNearTeam.find(slot => sameBattleViewSlotIdentity(slot, requestActive)) || null : null;
+  if (requestMatchedVisual?.dynamaxActive) return "active-max";
+  return null;
+}
+
+function sameBattleViewSlotIdentity(a: BattleViewSlotV4, b: BattleViewSlotV4): boolean {
+  if (a.localPokemonId && b.localPokemonId && a.localPokemonId === b.localPokemonId) return true;
+  if (a.showdownIdentityToken && b.showdownIdentityToken && a.showdownIdentityToken === b.showdownIdentityToken) return true;
+  if (a.showdownId && b.showdownId && a.showdownId === b.showdownId) return true;
+  return a.playerId === b.playerId && a.position === b.position && toId(a.speciesId || a.name) === toId(b.speciesId || b.name);
+}
+
+function BattleV4TargetPanel({api, viewModel, visualNearTeam, action, request, onClose, onSubmit}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4;
+  visualNearTeam: BattleViewSlotV4[];
   action: MoveActionV4;
   request: BattleRequestV4 | null;
   onClose: () => void;
   onSubmit: (choice: string) => void;
 }) {
-  const moveCard = useMemo(() => buildBattleV4MoveCard(action, api, viewModel.farTeam, specialChoiceFromChoiceString(action.choice)), [action, api, viewModel.farTeam]);
+  const moveCard = useMemo(() => {
+    const selectedSpecial = specialChoiceFromChoiceString(action.choice);
+    const displaySpecial = selectedSpecial || activeMaxDisplaySpecialForAction(action, visualNearTeam, viewModel.nearTeam);
+    return buildBattleV4MoveCard(action, api, viewModel.farTeam, displaySpecial, selectedSpecial);
+  }, [action, api, viewModel.farTeam, viewModel.nearTeam, visualNearTeam]);
   const targetable = Boolean(viewModel.command.normalizedRequest?.targetable || request?.targetable);
   const explicitTarget = moveNeedsExplicitTargetForShowdown(moveCard.displayedMove.target || moveCard.detail?.target || action.move.target);
   const shouldChooseTarget = explicitTarget && viewModel.nearTeam.filter(slot => slot.active && !slot.fainted).length > 1;
@@ -1738,8 +1770,8 @@ function typeShortLabel(type: string): string {
   return TYPE_SHORT_LABEL[id] || String(type || "?").slice(0, 1).toUpperCase();
 }
 
-function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, targetSlots: BattleViewSlotV4[], selectedSpecial: BattleSpecialChoiceV4 | null = null): BattleV4MoveCardView {
-  const displayedMove = displayedMoveForSpecial(action.move, selectedSpecial);
+function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, targetSlots: BattleViewSlotV4[], displaySpecial: BattleV4MoveDisplaySpecialChoice = null, selectedSpecial: BattleSpecialChoiceV4 | null = displaySpecial === "active-max" ? null : displaySpecial): BattleV4MoveCardView {
+  const displayedMove = displayedMoveForSpecial(action.move, displaySpecial);
   const detail = moveDetailFor(api, displayedMove);
   const id = toId(detail?.id || displayedMove.id || displayedMove.move || action.label);
   const typeId = typeIdFor(detail?.typeId || detail?.type || displayedMove.id || "");
@@ -1767,9 +1799,9 @@ function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, tar
   };
 }
 
-function displayedMoveForSpecial(move: BattleMoveRequestV4, selectedSpecial: BattleSpecialChoiceV4 | null): BattleMoveRequestV4 {
+function displayedMoveForSpecial(move: BattleMoveRequestV4, selectedSpecial: BattleV4MoveDisplaySpecialChoice): BattleMoveRequestV4 {
   if (selectedSpecial === "zmove" && move.zMove) return move.zMove;
-  if (selectedSpecial === "max" && move.maxMove) return move.maxMove;
+  if ((selectedSpecial === "max" || selectedSpecial === "active-max") && move.maxMove) return move.maxMove;
   return move;
 }
 
