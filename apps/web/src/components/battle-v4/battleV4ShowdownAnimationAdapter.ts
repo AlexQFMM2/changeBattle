@@ -1367,6 +1367,14 @@ function stepsForAnimation(
       checkpoint,
     ];
   }
+  if (context.kind === "switchIn") {
+    return [
+      showEffectStep("pokeball", {...target, scale: 1.8, opacity: .15}, {...target, scale: .35, opacity: .9}, 360, {fade: "both"}),
+      actorAnimStep(target, {scale: 1.08, opacity: 1}, 260, "easeOut"),
+      waitStep(120),
+      checkpoint,
+    ];
+  }
   if (context.kind === "moveEffect") {
     const projectedAnimationKey = resolveMoveAnimationProjectionKey(animationKey);
     const delegatedOther = MOVE_NATIVE_OTHER_MAP[projectedAnimationKey];

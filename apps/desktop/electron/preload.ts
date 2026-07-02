@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("battleService:submitTrainerItem", input) as ReturnType<DesktopBattleServiceBridge["submitTrainerItem"]>,
     getSnapshot: (sessionId: string) =>
       ipcRenderer.invoke("battleService:getSnapshot", sessionId) as ReturnType<DesktopBattleServiceBridge["getSnapshot"]>,
+    getPlaybackTimeline: (sessionId: string, previousIndex?: number) =>
+      ipcRenderer.invoke("battleService:getPlaybackTimeline", sessionId, previousIndex) as ReturnType<DesktopBattleServiceBridge["getPlaybackTimeline"]>,
     closeSession: (sessionId: string) =>
       ipcRenderer.invoke("battleService:closeSession", sessionId) as ReturnType<DesktopBattleServiceBridge["closeSession"]>,
   },

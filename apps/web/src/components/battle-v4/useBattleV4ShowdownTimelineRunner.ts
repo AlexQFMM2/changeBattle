@@ -123,8 +123,13 @@ export function useBattleV4ShowdownTimelineRunner(options: UseBattleV4ShowdownTi
         }
         setActiveTimelineStep(scheduled.step);
         setActiveTimelineStepIndex(scheduled.index);
-        setRenderedTimelineSteps(steps => [...steps, scheduled.step].slice(-32));
-        setRenderedTimelineHandles(handles => [...handles, scheduled].slice(-32));
+        setRenderedTimelineSteps(steps => [...steps, scheduled.step].slice(-8));
+        setRenderedTimelineHandles(handles => [...handles.filter(handle => handle.key !== scheduled.key), scheduled].slice(-16));
+        const clearTimer = window.setTimeout(() => {
+          if (cancelled) return;
+          setRenderedTimelineHandles(handles => handles.filter(handle => handle.key !== scheduled.key));
+        }, Math.max(80, scheduled.durationMs));
+        timers.push(clearTimer);
       }, scheduled.offsetMs);
       timers.push(timer);
     }
@@ -134,8 +139,6 @@ export function useBattleV4ShowdownTimelineRunner(options: UseBattleV4ShowdownTi
         if (cancelled) return;
         setActiveTimelineStep(checkpoint.step);
         setActiveTimelineStepIndex(checkpoint.index);
-        setRenderedTimelineSteps(steps => [...steps, checkpoint.step].slice(-32));
-        setRenderedTimelineHandles(handles => [...handles, checkpoint].slice(-32));
         onCheckpointRef.current(checkpoint.step, checkpoint);
       }, checkpoint.offsetMs);
       timers.push(timer);

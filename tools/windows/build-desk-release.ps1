@@ -4,6 +4,7 @@ param(
   [string]$ReleaseRoot = "D:\changeBattleV2\release",
   [string]$ElectronRuntimePath = "D:\changeBattleV2\electron-runtime\electron",
   [string]$ShowdownPath = "",
+  [string]$ShowdownClientPath = "",
   [string]$Commit = ""
 )
 
@@ -36,8 +37,16 @@ if ([string]::IsNullOrWhiteSpace($ShowdownPath)) {
   $ShowdownPath = Join-Path $SourceRoot "packages\showdown-battle-core\vendor\showdown"
 }
 
+if ([string]::IsNullOrWhiteSpace($ShowdownClientPath)) {
+  $ShowdownClientPath = Join-Path $SourceRoot "packages\showdown-battle-core\vendor\showdown-client"
+}
+
 if (-not (Test-Path (Join-Path $ShowdownPath "sim\index.js"))) {
   throw "Pokemon Showdown vendor missing: $ShowdownPath"
+}
+
+if (-not (Test-Path (Join-Path $ShowdownClientPath "js\battle.js"))) {
+  throw "Pokemon Showdown client playback vendor missing: $ShowdownClientPath"
 }
 
 if ([string]::IsNullOrWhiteSpace($Commit)) {
@@ -69,6 +78,8 @@ pnpm --filter @changebattle-v2/api test:formal-game
 pnpm typecheck
 
 Write-Host "Building desktop..."
+$env:CHANGEBATTLE_PROJECT_ROOT = $SourceRoot
+$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = Join-Path $ShowdownClientPath "js"
 pnpm --filter @changebattle-v2/desktop build
 pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 pnpm --filter @changebattle-v2/desktop test:renderer-assets
@@ -77,8 +88,9 @@ pnpm --filter @changebattle-v2/desktop test:formal-worker
 Write-Host "Packaging desktop release..."
 $env:ELECTRON_RUNTIME_PATH = $ElectronRuntimePath
 $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = $ShowdownPath
+$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = $ShowdownClientPath
 $env:CHANGEBATTLE_COMMIT = $Commit
-python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --showdown-path $ShowdownPath
+python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --showdown-path $ShowdownPath --showdown-client-path $ShowdownClientPath
 
 $ZipName = "ChangeBattle-V2-Desk-portable-v$Version.zip"
 $LocalZip = Join-Path $SourceRoot "release\$ZipName"
@@ -108,7 +120,9 @@ try {
     "$Prefix/apps/desktop/out/renderer/index.html",
     "$Prefix/runtime/electron/electron.exe",
     "$Prefix/vendor/pokemon-showdown/sim/index.js",
-    "$Prefix/vendor/pokemon-showdown/node_modules/ts-chacha20/package.json"
+    "$Prefix/vendor/pokemon-showdown/node_modules/ts-chacha20/package.json",
+    "$Prefix/vendor/showdown-client/js/battle.js",
+    "$Prefix/vendor/showdown-client/js/battle-scene-stub.js"
   )
   foreach ($Item in $Wanted) {
     if (-not $Names.Contains($Item)) {

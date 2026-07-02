@@ -10,6 +10,7 @@ import {
   submitChoice,
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
+import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
 import type {BattleAiLevelV4, BattleAiPreferenceV4, BattleServiceRequestV4, BattleServiceSessionInputV4, BattleServiceSnapshotV4} from "./types.js";
 
 const pikachu = {
@@ -615,6 +616,55 @@ function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: Battl
   };
 }
 
+function showdownPlaybackTimelineSmoke() {
+  const rawLog = [
+    "|player|p1|A|",
+    "|player|p2|B|",
+    "|gametype|singles",
+    "|gen|9",
+    "|tier|[Gen 9] Custom Game",
+    "|rated|",
+    "|rule|Species Clause: Limit one of each Pokemon",
+    "|rule|HP Percentage Mod: HP is shown in percentages",
+    "|rule|Cancel Mod: Prevents moves from locking in",
+    "|",
+    "|t:|1782889410",
+    "|switch|p1a: Raichu|Raichu, L50|100/100",
+    "|switch|p2a: Fearow|Fearow, L50|100/100",
+    "|turn|1",
+    "|move|p1a: Raichu|Spark|p2a: Fearow",
+    "|-supereffective|p2a: Fearow",
+    "|-damage|p2a: Fearow|34/100",
+    "|-enditem|p2a: Fearow|Oran Berry|[eat]",
+    "|-heal|p2a: Fearow|44/100|[from] item: Oran Berry",
+    "|move|p2a: Fearow|Pursuit|p1a: Raichu",
+    "|-damage|p1a: Raichu|72/100",
+    "|upkeep",
+    "|turn|2",
+  ];
+  const timeline = compileShowdownPlaybackTimelineFromRawLog(rawLog, {sessionId: "timeline-smoke", previousIndex: 0});
+  const signatures = timeline.groups.map(group => group.calls.map(call => call.kind === "otherAnim" ? `${call.kind}:${call.effect}` : call.kind).join("+"));
+  const expected = ["switch", "switch", "turn", "move", "result+damage", "otherAnim:consume", "otherAnim:heal+heal", "move", "damage", "statbar+statbar", "turn"];
+  for (let index = 0; index < expected.length; index += 1) {
+    if (signatures[index] !== expected[index]) {
+      throw new Error(`playback timeline group order mismatch at ${index}: expected=${expected[index]} actual=${signatures[index]}\n${timeline.groups.map(group => group.summary).join("\n")}`);
+    }
+  }
+  const consumeGroup = timeline.groups.find(group => group.calls.some(call => call.kind === "otherAnim" && call.effect === "consume"));
+  if (!consumeGroup || !consumeGroup.rawLines.some(line => line.includes("|-enditem|") && line.includes("[eat]"))) {
+    throw new Error("enditem eat should compile to independent consume animation group");
+  }
+  const healGroup = timeline.groups.find(group => group.calls.some(call => call.kind === "otherAnim" && call.effect === "heal") && group.calls.some(call => call.kind === "heal"));
+  if (!healGroup || !healGroup.rawLines.some(line => line.startsWith("|-heal|"))) {
+    throw new Error("item heal should compile to other heal + heal animation group");
+  }
+  const increment = compileShowdownPlaybackTimelineFromRawLog(rawLog, {sessionId: "timeline-smoke", previousIndex: 17});
+  if (increment.groups.some(group => group.rawIndices.some(index => index < 17))) {
+    throw new Error(`previousIndex should only return increment groups: ${JSON.stringify(increment.groups.map(group => group.rawIndices))}`);
+  }
+  console.log("showdown playback timeline smoke ok");
+}
+
 void smoke()
   .then(doublesSmoke)
   .then(rechargeChoiceSmoke)
@@ -631,4 +681,5 @@ void smoke()
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)
   .then(aiForceSwitchSmoke)
-  .then(randomTeamGeneratorSmoke);
+  .then(randomTeamGeneratorSmoke)
+  .then(showdownPlaybackTimelineSmoke);

@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
@@ -212,6 +212,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [surrenderRemainingMs, setSurrenderRemainingMs] = useState(SURRENDER_TIMEOUT_MS);
   const [surrenderSubmitRemainingMs, setSurrenderSubmitRemainingMs] = useState(SURRENDER_SUBMIT_DELAY_MS);
   const [surrenderSubmitting, setSurrenderSubmitting] = useState(false);
+  const [playbackTimeline, setPlaybackTimeline] = useState<ShowdownPlaybackTimelineV4 | null>(null);
+  const [playbackTimelinePending, setPlaybackTimelinePending] = useState(false);
+  const [playbackTimelineUnavailable, setPlaybackTimelineUnavailable] = useState(false);
+  const [submittedPlaybackLock, setSubmittedPlaybackLock] = useState<{sessionId: string; rawLength: number} | null>(null);
   const [narrativeState, setNarrativeState] = useState<BattleV4NarrativeState | null>(null);
   const [introPlayedSessionId, setIntroPlayedSessionId] = useState("");
   const [outroPlayedSessionId, setOutroPlayedSessionId] = useState("");
@@ -227,13 +231,23 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const narrativeActive = Boolean(narrativeState || introNarrativePending);
   const narrativePhaseClass = narrativeDisplayPhase ? ` is-narrative is-narrative-${narrativeDisplayPhase}` : "";
   const introNarrativeActive = narrativeDisplayPhase === "intro";
-  const playback = useBattleV4Playback(snapshot, viewModel, {skipAnimations, debugConfig, paused: introNarrativeActive});
+  const playback = useBattleV4Playback(snapshot, viewModel, {skipAnimations, debugConfig, paused: introNarrativeActive || playbackTimelinePending, playbackTimeline, playbackTimelineUnavailable});
   const playbackMessage = useMemo(
     () => localizeBattleV4PlaybackMessage(playback.messagebar?.message || "", playback.activeAnimation, api),
     [api, playback.activeAnimation, playback.messagebar?.message],
   );
   const playbackHasRuntimeState = playback.hasProtocolState;
-  const playbackBlockingCommands = Boolean(!skipAnimations && !playback.playbackComplete);
+  const submittedTurnPlaybackPending = Boolean(
+    submittedPlaybackLock &&
+    submittedPlaybackLock.sessionId === sessionId &&
+    (!snapshot || snapshot.rawLog.length <= submittedPlaybackLock.rawLength || !playback.playbackComplete)
+  );
+  const playbackBlockingCommands = Boolean(!skipAnimations && (
+    !playback.playbackComplete ||
+    playback.pendingBlockingAnimations > 0 ||
+    playbackTimelinePending ||
+    submittedTurnPlaybackPending
+  ));
   const commandsLocked = Boolean(narrativeActive || playbackBlockingCommands);
   const shouldShowResultPanel = Boolean(endFlow === "result-panel" && snapshot?.status === "ended" && !playbackBlockingCommands && !narrativeActive && outroPlayedSessionId === sessionId);
   const shouldShowSwitchPanel = Boolean(!commandsLocked && snapshot && viewModel && (
@@ -261,12 +275,19 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     setOutroPlayedSessionId("");
     setOutroFallbackReadySessionId("");
     setSurrenderSettlementSessionId("");
+    setSubmittedPlaybackLock(null);
     finalizedSessionRef.current = "";
     if (outroFallbackTimerRef.current !== null) {
       window.clearTimeout(outroFallbackTimerRef.current);
       outroFallbackTimerRef.current = null;
     }
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!submittedPlaybackLock || submittedPlaybackLock.sessionId !== sessionId) return;
+    if (!snapshot || snapshot.rawLog.length <= submittedPlaybackLock.rawLength || !playback.playbackComplete) return;
+    setSubmittedPlaybackLock(null);
+  }, [playback.playbackComplete, sessionId, snapshot?.rawLog.length, submittedPlaybackLock]);
 
   useEffect(() => {
     if (!sessionId || !snapshot || !viewModel) return;
@@ -451,6 +472,50 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     };
   }, [api, busy, onRunChange, run, sessionId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!snapshot || !sessionId) {
+      setPlaybackTimeline(null);
+      return;
+    }
+    const previousIndex = playbackTimeline?.sessionId === sessionId ? playbackTimeline.rawTo : 0;
+    if (snapshot.rawLog.length <= previousIndex && playbackTimeline?.sessionId === sessionId) return;
+    setPlaybackTimelinePending(true);
+    setPlaybackTimelineUnavailable(false);
+    api.battleService.getPlaybackTimeline(sessionId, previousIndex)
+      .then(timeline => {
+        if (cancelled) return;
+        setPlaybackTimelineUnavailable(false);
+        setPlaybackTimeline(current => {
+          if (!current || current.sessionId !== sessionId || previousIndex === 0) return timeline;
+          return {
+            ...timeline,
+            rawFrom: current.rawFrom,
+            groups: [...current.groups, ...timeline.groups],
+            debug: {
+              ...timeline.debug,
+              calls: [...current.debug.calls, ...timeline.debug.calls].slice(-400),
+            },
+          };
+        });
+      })
+      .catch(error => {
+        if (!cancelled) setPlaybackTimelineUnavailable(true);
+        battleDebugLog(debugConfig, "error", "playback-timeline-failed", {
+          sessionId,
+          previousIndex,
+          rawLogLength: snapshot.rawLog.length,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setPlaybackTimelinePending(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, debugConfig, playbackTimeline?.rawTo, playbackTimeline?.sessionId, sessionId, snapshot?.id, snapshot?.rawLog.length]);
+
   async function submitChoice(choice: string, trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"] = []) {
     if (!choice || busy || !sessionId) return;
     battleDebugLog(debugConfig, "submit", "submit-choice", {
@@ -459,6 +524,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       choice,
     });
     setBusy(true);
+    setSubmittedPlaybackLock({sessionId, rawLength: snapshot?.rawLog.length || 0});
     setChoiceStatus(`提交中：${choice}`);
     setMessage(`提交指令：${choice}`);
     try {
@@ -622,7 +688,6 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
         activeAnimation={playback.activeAnimation}
         openingSwitchInSeats={playback.openingSwitchInSeats}
         activeTimelineStep={playback.activeTimelineStep}
-        renderedTimelineSteps={playback.renderedTimelineSteps}
         renderedTimelineHandles={playback.renderedTimelineHandles}
         persistentFieldVisuals={playback.persistentFieldVisuals}
         persistentSideConditionVisuals={playback.persistentSideConditionVisuals}
@@ -904,7 +969,7 @@ function battleV4PlayerWon(snapshot: BattleSessionSnapshotV4 | null): boolean {
   return snapshot?.winner === "p1" || snapshot?.winner === "p3";
 }
 
-function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, openingSwitchInSeats = [], activeTimelineStep, renderedTimelineSteps = [], renderedTimelineHandles = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
+function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnimation, openingSwitchInSeats = [], activeTimelineStep, renderedTimelineHandles = [], persistentFieldVisuals, persistentSideConditionVisuals, api}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
   commandActiveIndex?: number;
@@ -912,7 +977,6 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
   activeAnimation?: BattleAnimationEventV4 | null;
   openingSwitchInSeats?: BattleProtocolSeatV4[];
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
-  renderedTimelineSteps?: ShowdownAnimationStepV4[];
   renderedTimelineHandles?: BattleV4ScheduledTimelineStep[];
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
@@ -921,7 +985,7 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
   const nearSlots = useMemo(() => sortSlotsForArena(near, "near"), [near]);
   const farSlots = useMemo(() => sortSlotsForArena(far, "far"), [far]);
   const visuals = useMemo(() => getBattleV4ActiveTimelineVisuals(activeAnimation || null, activeTimelineStep || null), [activeAnimation, activeTimelineStep]);
-  const fxVisuals = useMemo(() => getBattleV4ActiveTimelineFxVisuals(activeAnimation || null, renderedTimelineSteps, renderedTimelineHandles), [activeAnimation, renderedTimelineSteps, renderedTimelineHandles]);
+  const fxVisuals = useMemo(() => getBattleV4ActiveTimelineFxVisuals(activeAnimation || null, [], renderedTimelineHandles), [activeAnimation, renderedTimelineHandles]);
   const resultVisuals = useMemo(() => getBattleV4ActiveTimelineResultVisuals(activeAnimation || null, activeTimelineStep || null, renderedTimelineHandles), [activeAnimation, activeTimelineStep, renderedTimelineHandles]);
   const actorVisuals = useMemo(() => getBattleV4ActiveTimelineActorVisuals(activeAnimation || null, activeTimelineStep || null, renderedTimelineHandles), [activeAnimation, activeTimelineStep, renderedTimelineHandles]);
   return (
@@ -1091,6 +1155,7 @@ function BattleHpPanel({slot, compact = false, current = false, commanding = fal
   const status = statusBadge(slot.status);
   const identity = slotIdentityLabel(slot);
   const displayName = battleSlotDisplayName(slot);
+  const displayHp = Math.round(slot.hp);
   return (
     <section className={`battle-v4-hp-panel ${slot.side} ${slot.position.toLowerCase()} ${compact ? "compact" : ""} ${current ? "current" : ""} ${commanding ? "commanding" : ""}`} title={identity ? `ID: ${identity}` : undefined}>
       <div className="battle-v4-hp-portrait">
@@ -1105,7 +1170,7 @@ function BattleHpPanel({slot, compact = false, current = false, commanding = fal
         </div>
         <div className="battle-v4-hp-bar"><b style={{width: `${hpRate}%`}} /></div>
         <div className="battle-v4-hp-value-row">
-          <span>{slot.side === "far" ? `${Math.round(hpRate)}%` : `${slot.hp}/${slot.maxHp}`}</span>
+          <span>{slot.side === "far" ? `${Math.round(hpRate)}%` : `${displayHp}/${slot.maxHp}`}</span>
           {identity ? <code>{identity}</code> : null}
         </div>
       </div>
@@ -2642,6 +2707,11 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
     runtimeState: playbackDebug?.runtimeState || null,
     messageEvents: playbackDebug?.messageEvents || [],
     messageQueue: playbackDebug?.messageQueue || [],
+    playbackStepQueue: playbackDebug?.playbackStepQueue || [],
+    activePlaybackStep: playbackDebug?.activePlaybackStep || null,
+    playbackStepConsumption: playbackDebug?.playbackStepConsumption || [],
+    showdownPlaybackTimeline: playbackDebug?.showdownPlaybackTimeline || null,
+    playbackCompilerUnavailable: playbackDebug?.playbackCompilerUnavailable || false,
     animationEvents: playbackDebug?.animationEvents || [],
     visualQueue: playbackDebug?.visualQueue || [],
     hpTweens: playbackDebug?.hpTweens || [],
@@ -2669,6 +2739,11 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
       semanticEvents: playbackDebug.semanticEvents,
       visualQueue: playbackDebug.visualQueue,
       messageQueue: playbackDebug.messageQueue,
+      playbackStepQueue: playbackDebug.playbackStepQueue,
+      activePlaybackStep: playbackDebug.activePlaybackStep,
+      playbackStepConsumption: playbackDebug.playbackStepConsumption,
+      showdownPlaybackTimeline: playbackDebug.showdownPlaybackTimeline,
+      playbackCompilerUnavailable: playbackDebug.playbackCompilerUnavailable,
       hpTweens: playbackDebug.hpTweens,
       activeTimelineId: playbackDebug.activeTimelineId,
       activeTimelineStep: playbackDebug.activeTimelineStep,
@@ -3059,6 +3134,14 @@ function BattleV4DebugModal({snapshot, draft, playbackDebug, onClose}: {snapshot
                 <h3>Message Queue</h3>
                 <pre>{playbackDebug?.messageQueue.length ? JSON.stringify(playbackDebug.messageQueue, null, 2) : "暂无 message queue"}</pre>
               </article>
+              <article>
+                <h3>Playback Step Queue</h3>
+                <pre>{playbackDebug?.playbackStepQueue.length ? JSON.stringify(playbackDebug.playbackStepQueue, null, 2) : "暂无 playback step queue"}</pre>
+              </article>
+              <article>
+                <h3>Active Playback Step</h3>
+                <pre>{playbackDebug?.activePlaybackStep ? JSON.stringify(playbackDebug.activePlaybackStep, null, 2) : "暂无 active playback step"}</pre>
+              </article>
             </>
           ) : null}
           {tab === "animation" ? (
@@ -3086,6 +3169,10 @@ function BattleV4DebugModal({snapshot, draft, playbackDebug, onClose}: {snapshot
               <article>
                 <h3>Animation Consumption</h3>
                 <pre>{playbackDebug?.animationConsumption.length ? JSON.stringify(playbackDebug.animationConsumption, null, 2) : "暂无 consumption"}</pre>
+              </article>
+              <article>
+                <h3>Playback Step Consumption</h3>
+                <pre>{playbackDebug?.playbackStepConsumption.length ? JSON.stringify(playbackDebug.playbackStepConsumption, null, 2) : "暂无 playback step consumption"}</pre>
               </article>
             </>
           ) : null}

@@ -51,6 +51,8 @@ async function runFastDev() {
     ...env,
     ELECTRON_BOOT_RENDERER_URL: rendererUrl,
     ELECTRON_BOOT_HTML: path.join(root, "boot.html"),
+    CHANGEBATTLE_PROJECT_ROOT: path.resolve(root, "../.."),
+    CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: path.resolve(root, "../../packages/showdown-battle-core/vendor/showdown-client/js"),
   };
   const electronArgs = [
     "exec",

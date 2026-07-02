@@ -155,13 +155,13 @@
 .battle-v4-weather-layer {
   position: absolute;
   inset: 0;
-  z-index: 14;
+  z-index: 12;
   pointer-events: none;
   display: grid;
   place-items: start start;
   padding-top: 116px;
   padding-left: 36px;
-  opacity: .62;
+  opacity: .34;
   animation: battle-v4-weather-pulse var(--battle-v4-background-duration, .9s) ease-out both;
 }
 
@@ -170,9 +170,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 30%, rgb(255 245 144 / 46%) 0 16%, rgb(255 167 42 / 22%) 38%, transparent 74%),
+    radial-gradient(circle at 50% 30%, rgb(255 245 144 / 24%) 0 14%, rgb(255 167 42 / 10%) 36%, transparent 72%),
     linear-gradient(180deg, var(--battle-v4-background-color, #f3d45a), transparent);
-  opacity: var(--battle-v4-background-opacity, .42);
+  opacity: calc(var(--battle-v4-background-opacity, .42) * .42);
   mix-blend-mode: screen;
 }
 
@@ -182,18 +182,18 @@
   position: absolute;
   inset: -40px;
   background:
-    repeating-linear-gradient(112deg, transparent 0 28px, rgb(255 236 122 / 30%) 30px 34px, transparent 36px 74px);
+    repeating-linear-gradient(112deg, transparent 0 28px, rgb(255 236 122 / 14%) 30px 34px, transparent 36px 74px);
   transform: translateX(-22px);
   animation: battle-v4-sun-rays .9s ease-out both;
 }
 
 .battle-v4-weather-layer.weather-raindance::before,
 .battle-v4-weather-layer.weather-primordialsea::before {
-  background: linear-gradient(180deg, rgb(90 170 255 / 20%), rgb(40 85 160 / 32));
+  background: linear-gradient(180deg, rgb(90 170 255 / 10%), rgb(40 85 160 / 16));
 }
 
 .battle-v4-weather-layer.weather-sandstorm::before {
-  background: radial-gradient(circle, rgb(246 202 108 / 34%), rgb(151 104 51 / 32), transparent 72%);
+  background: radial-gradient(circle, rgb(246 202 108 / 16%), rgb(151 104 51 / 14%), transparent 72%);
 }
 
 .battle-v4-weather-layer span {
@@ -266,15 +266,15 @@
 
 .battle-v4-fx-sprite {
   position: absolute;
-  inset: 16px;
+  inset: 18px;
   display: block;
   border-radius: 999px;
   background:
     var(--battle-v4-fx-image) center / contain no-repeat,
-    radial-gradient(circle, rgb(255 255 255 / 95%) 0 18%, rgb(255 230 91 / 72%) 36%, rgb(255 92 75 / 38%) 55%, transparent 72%);
+    radial-gradient(circle, rgb(255 255 255 / 72%) 0 14%, rgb(255 230 91 / 40%) 34%, rgb(255 92 75 / 18%) 54%, transparent 72%);
   filter:
-    drop-shadow(0 0 6px rgb(255 255 255 / 70%))
-    drop-shadow(0 4px 8px rgb(0 0 0 / 35%));
+    drop-shadow(0 0 4px rgb(255 255 255 / 42%))
+    drop-shadow(0 4px 7px rgb(0 0 0 / 32%));
   opacity: var(--battle-v4-fx-opacity, 1);
   animation: battle-v4-fx-pop var(--battle-v4-fx-duration, .55s) ease-out both;
 }
@@ -289,20 +289,20 @@
 }
 
 .battle-v4-fx-layer::before {
-  border: 3px solid rgb(255 255 255 / 88%);
-  background: radial-gradient(circle, rgb(255 255 255 / 22%) 0 26%, rgb(255 229 95 / 25%) 42%, transparent 68%);
+  border: 2px solid rgb(255 255 255 / 52%);
+  background: radial-gradient(circle, rgb(255 255 255 / 10%) 0 22%, rgb(255 229 95 / 12%) 40%, transparent 68%);
   box-shadow:
-    0 0 18px rgb(255 255 255 / 72%),
-    0 0 32px rgb(255 218 73 / 48%);
+    0 0 12px rgb(255 255 255 / 38%),
+    0 0 22px rgb(255 218 73 / 24%);
   animation: battle-v4-fx-ring var(--battle-v4-fx-duration, .58s) ease-out both;
 }
 
 .battle-v4-fx-layer::after {
   inset: 28px;
-  background: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 58%);
   box-shadow:
-    0 0 22px rgb(255 255 255 / 85%),
-    0 0 46px rgb(255 99 72 / 70%);
+    0 0 14px rgb(255 255 255 / 48%),
+    0 0 28px rgb(255 99 72 / 34%);
   animation: battle-v4-fx-flash calc(var(--battle-v4-fx-duration, .58s) * .42) ease-out both;
 }
 
@@ -1041,6 +1041,7 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #70ef62, #d8f34f);
+  transition: width 350ms ease;
   will-change: width;
 }
 

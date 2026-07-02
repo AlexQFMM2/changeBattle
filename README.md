@@ -32,6 +32,7 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - 训练配置页：训练师、队伍、背包测试道具和训练场入口。
 - RunGame 存档入口：主页支持发现存档后继续游戏；重新开始训练场会清理旧 RunGame。
 - Battle V4 训练场/战斗页主体：Showdown BattleStream session、request/choice、战斗 UI 壳、核心 singles/doubles/coop 流程接入。
+- Battle V4 播放顺序：后端 Showdown Playback Compiler 用 client `Battle + BattleSceneStub` 编译 rawLog timeline，前端按 `docs/battle-playback-showdown-parity.md` 消费消息/动画 step。
 - 新休整页基础流程：我的队伍、我的背包、图鉴、下一场预览、结束休整、放弃比赛。
 - 休整页图鉴接入：左侧公告栏图鉴入口、下一场未知宝可梦解锁、已解锁后打开 QuickDex 对应详情。
 - 统一背包组件：休整页和 Battle V4 共用 `PlayerBagPanel`；休整页展示完整 `Player.bag`，战斗页只展示 `canBattleUse` 道具，并按页面注入不同宝可梦目标列表。

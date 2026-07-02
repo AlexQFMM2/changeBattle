@@ -172,6 +172,10 @@ ipcMain.handle("battleService:getSnapshot", async (_event: IpcMainInvokeEvent, s
   return ensureBattleService().getSnapshot(sessionId);
 });
 
+ipcMain.handle("battleService:getPlaybackTimeline", async (_event: IpcMainInvokeEvent, sessionId: string, previousIndex?: number) => {
+  return ensureBattleService().getPlaybackTimeline(sessionId, previousIndex);
+});
+
 ipcMain.handle("battleService:closeSession", async (_event: IpcMainInvokeEvent, sessionId: string) => {
   return ensureBattleService().closeSession(sessionId);
 });

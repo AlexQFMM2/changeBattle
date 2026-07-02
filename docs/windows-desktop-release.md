@@ -16,7 +16,7 @@ ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
 ChangeBattle-V2-Desk.cmd
 ```
 
-玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、前端静态资源和 Pokemon Showdown runtime vendor。
+玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、前端静态资源、Pokemon Showdown runtime vendor 和 Showdown client playback vendor。
 
 ## Windows Build Host
 
@@ -173,6 +173,11 @@ ChangeBattle-V2-Desk-portable-vX.Y.Z/
       config/
       node_modules/
         ts-chacha20/
+    showdown-client/
+      js/
+        battle.js
+        battle-scene-stub.js
+        ...
 ```
 
 `ChangeBattle-V2-Desk.cmd` 使用 `%~dp0` 计算 portable root，不允许写死 `D:\...` 目录：
@@ -182,6 +187,7 @@ APP_ROOT=<cmd 所在目录>
 ELECTRON_EXE=<APP_ROOT>\runtime\electron\electron.exe
 DESKTOP_APP=<APP_ROOT>\apps\desktop
 SHOWDOWN_VENDOR=<APP_ROOT>\vendor\pokemon-showdown
+SHOWDOWN_CLIENT_VENDOR=<APP_ROOT>\vendor\showdown-client\js
 ```
 
 启动前会设置：
@@ -189,6 +195,7 @@ SHOWDOWN_VENDOR=<APP_ROOT>\vendor\pokemon-showdown
 ```text
 CHANGEBATTLE_PROJECT_ROOT=<APP_ROOT>
 CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<APP_ROOT>\vendor\pokemon-showdown
+CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=<APP_ROOT>\vendor\showdown-client\js
 ```
 
 ## Resource Path Rules
@@ -231,6 +238,24 @@ dev/source 下仍可 fallback 到：
 
 ```text
 packages/showdown-battle-core/vendor/showdown
+```
+
+Battle playback timeline compiler 还需要 Showdown client replay 文件，作为另一个 vendor 目录随包发布：
+
+```text
+vendor/showdown-client/js
+```
+
+release 下由环境变量定位：
+
+```text
+CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=<portable root>\vendor\showdown-client\js
+```
+
+dev/source 下 fallback 到：
+
+```text
+packages/showdown-battle-core/vendor/showdown-client/js
 ```
 
 ## Workspace Package Bundling

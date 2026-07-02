@@ -34,6 +34,7 @@ const EMPTY_VISUAL_SIDE_CONDITION_STATE: BattleV4PersistentSideConditionVisuals 
   sourceRawLine: "",
   adapterFidelity: "fallback",
 };
+const BATTLE_V4_HP_ANIMATION_DURATION_MS = 720;
 
 export type BattleHpTweenV4 = {
   seat: BattleProtocolSeatV4;
@@ -101,7 +102,7 @@ export function applyBattleV4HpTweenTarget(slots: BattleViewSlotV4[], command: B
 export function applyBattleV4HpTweenFrame(slots: BattleViewSlotV4[], command: BattleVisualCommandV4, hp: number): BattleViewSlotV4[] {
   const event = command.semanticEvent;
   if (event.kind !== "damage" && event.kind !== "heal") return slots;
-  const nextHp = Math.max(0, Math.min(event.maxHp || Number.MAX_SAFE_INTEGER, Math.round(hp)));
+  const nextHp = Math.max(0, Math.min(event.maxHp || Number.MAX_SAFE_INTEGER, hp));
   return patchSlot(slots, event.seat, slot => ({
     ...slot,
     hp: nextHp,
@@ -268,7 +269,7 @@ function resultForSemanticEvent(event: BattleSemanticEventV4): {text: string; to
 
 function durationForKind(kind: BattleAnimationKindV4): number {
   if (kind === "switchIn") return 760;
-  if (kind === "damage" || kind === "heal") return 520;
+  if (kind === "damage" || kind === "heal") return BATTLE_V4_HP_ANIMATION_DURATION_MS;
   if (kind === "faint") return 820;
   if (kind === "moveEffect") return 720;
   if (kind === "weather") return 900;

@@ -259,6 +259,79 @@ export type BattleServiceSnapshotV4 = {
   updatedAt: string;
 };
 
+export type ShowdownPlaybackSceneCallKindV4 =
+  | "switch"
+  | "switchOut"
+  | "dragIn"
+  | "dragOut"
+  | "move"
+  | "otherAnim"
+  | "prepare"
+  | "residual"
+  | "result"
+  | "damage"
+  | "heal"
+  | "status"
+  | "ability"
+  | "weatherUpdate"
+  | "turn"
+  | "statbar"
+  | "message"
+  | "scene";
+
+export type ShowdownPlaybackWaitModeV4 = "wait" | "simult" | "immediate";
+
+export type ShowdownPlaybackSceneCallV4 = {
+  id: string;
+  kind: ShowdownPlaybackSceneCallKindV4;
+  method: string;
+  rawStep: number | null;
+  turn: number | null;
+  args: unknown[];
+  label: string;
+  rawLine?: string;
+  rawIndex?: number;
+  pokemon?: string;
+  target?: string;
+  move?: string;
+  effect?: string;
+  result?: string;
+  value?: string;
+};
+
+export type ShowdownPlaybackGroupV4 = {
+  id: string;
+  index: number;
+  turn: number | null;
+  rawIndices: number[];
+  rawLines: string[];
+  calls: ShowdownPlaybackSceneCallV4[];
+  waitMode: ShowdownPlaybackWaitModeV4;
+  summary: string;
+  finishStep: number | null;
+};
+
+export type ShowdownPlaybackTimelineV4 = {
+  sessionId?: string;
+  rawFrom: number;
+  rawTo: number;
+  rawLogLength: number;
+  groups: ShowdownPlaybackGroupV4[];
+  debug: {
+    calls: ShowdownPlaybackSceneCallV4[];
+    compilerElapsedMs: number;
+    guard: number;
+    currentStep: number | null;
+    atQueueEnd: boolean;
+  };
+  compilerVersion: string;
+};
+
+export type BattleServicePlaybackTimelineInputV4 = {
+  sessionId: string;
+  previousIndex?: number;
+};
+
 export type BattleServiceSubmitChoiceInputV4 = {
   sessionId: string;
   playerId: ShowdownPlayerIdV4;
@@ -281,6 +354,7 @@ export type BattleServiceApiV4 = {
   submitChoice(input: BattleServiceSubmitChoiceInputV4): Promise<BattleServiceSnapshotV4>;
   submitTrainerItem(input: BattleServiceSubmitTrainerItemInputV4): Promise<BattleServiceSnapshotV4>;
   getSnapshot(sessionId: string): Promise<BattleServiceSnapshotV4>;
+  getPlaybackTimeline(sessionId: string, previousIndex?: number): Promise<ShowdownPlaybackTimelineV4>;
   closeSession(sessionId: string): Promise<void>;
 };
 

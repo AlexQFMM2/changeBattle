@@ -46,6 +46,7 @@ export function getBattleV4ActiveTimelineVisuals(
 ): BattleV4TimelineVisuals {
   const fallbackSeat = animation?.targetSeat || animation?.actorSeat || "";
   const fallbackKind = animation?.kind || "";
+  const showResultText = shouldShowResultTextForKind(fallbackKind);
   const visuals: BattleV4TimelineVisuals = {
     fx: {
       visible: Boolean(animation && fallbackKind !== "turn" && fallbackKind !== "message"),
@@ -57,7 +58,7 @@ export function getBattleV4ActiveTimelineVisuals(
       className: "",
     },
     result: {
-      visible: Boolean(animation?.resultText || fallbackKind === "damage" || fallbackKind === "heal"),
+      visible: Boolean(showResultText && animation?.resultText),
       targetSeat: fallbackSeat,
       kind: fallbackKind,
       text: fallbackResultText(animation),
@@ -135,26 +136,14 @@ export function getBattleV4ActiveTimelineVisuals(
     return {
       ...visuals,
       fx: {...visuals.fx, visible: false},
-      result: {
-        visible: true,
-        targetSeat: step.actor.seat || fallbackSeat,
-        kind: animation.kind,
-        text: "受到伤害",
-        tone: "bad",
-      },
+      result: {...visuals.result, visible: false},
     };
   }
   if (step.type === "healAnim") {
     return {
       ...visuals,
       fx: {...visuals.fx, visible: false},
-      result: {
-        visible: true,
-        targetSeat: step.actor.seat || fallbackSeat,
-        kind: animation.kind,
-        text: animation.resultText || "恢复体力",
-        tone: "good",
-      },
+      result: {...visuals.result, visible: false},
     };
   }
   return {
@@ -169,8 +158,9 @@ export function getBattleV4ActiveTimelineFxVisuals(
   steps: ShowdownAnimationStepV4[],
   handles: BattleV4ScheduledTimelineStep[] = [],
 ): BattleV4TimelineFxVisual[] {
+  const activeHandles = activeTimelineHandles(handles);
   if (handles.length) {
-    return handles.flatMap(handle => {
+    return activeHandles.flatMap(handle => {
       const step = handle.step;
       const event = handle.command.animationEvent || animation;
       if (!event || step.type !== "showEffect") return [];
@@ -211,8 +201,9 @@ export function getBattleV4ActiveTimelineResultVisuals(
   step: ShowdownAnimationStepV4 | null,
   handles: BattleV4ScheduledTimelineStep[] = [],
 ): BattleV4TimelineResultVisual[] {
+  const activeHandles = activeTimelineHandles(handles);
   if (handles.length) {
-    return handles.flatMap(handle => {
+    return activeHandles.flatMap(handle => {
       const event = handle.command.animationEvent || animation;
       if (!event) return [];
       const visual = resultVisualForStep(event, handle.step);
@@ -229,8 +220,9 @@ export function getBattleV4ActiveTimelineActorVisuals(
   step: ShowdownAnimationStepV4 | null,
   handles: BattleV4ScheduledTimelineStep[] = [],
 ): BattleV4TimelineActorVisual[] {
+  const activeHandles = activeTimelineHandles(handles);
   if (handles.length) {
-    return handles.flatMap(handle => {
+    return activeHandles.flatMap(handle => {
       const event = handle.command.animationEvent || animation;
       const actor = actorVisualForStep(handle.step);
       return event && actor ? [{...actor, key: handle.key, animation: event}] : [];
@@ -297,22 +289,10 @@ function resultVisualForStep(animation: BattleAnimationEventV4, step: ShowdownAn
     };
   }
   if (step.type === "damageAnim") {
-    return {
-      visible: true,
-      targetSeat: step.actor.seat || fallbackSeat,
-      kind: animation.kind,
-      text: animation.resultText || "受到伤害",
-      tone: "bad",
-    };
+    return null;
   }
   if (step.type === "healAnim") {
-    return {
-      visible: true,
-      targetSeat: step.actor.seat || fallbackSeat,
-      kind: animation.kind,
-      text: animation.resultText || "恢复体力",
-      tone: "good",
-    };
+    return null;
   }
   return null;
 }
@@ -328,8 +308,15 @@ function actorVisualForStep(step: ShowdownAnimationStepV4): Omit<BattleV4Timelin
 
 function fallbackResultText(animation: BattleAnimationEventV4 | null): string {
   if (!animation) return "";
+  if (!shouldShowResultTextForKind(animation.kind)) return "";
   if (animation.resultText) return animation.resultText;
-  if (animation.kind === "damage") return "受到伤害";
-  if (animation.kind === "heal") return "恢复体力";
   return "";
+}
+
+function shouldShowResultTextForKind(kind: string): boolean {
+  return kind !== "damage" && kind !== "heal";
+}
+
+function activeTimelineHandles(handles: BattleV4ScheduledTimelineStep[]): BattleV4ScheduledTimelineStep[] {
+  return handles;
 }

@@ -38,6 +38,8 @@ REQUIRED_PATHS=(
   "assets/ui/button-gold.png"
   "packages/showdown-battle-core/vendor/showdown/sim/index.js"
   "packages/showdown-battle-core/vendor/showdown/node_modules/ts-chacha20/package.json"
+  "packages/showdown-battle-core/vendor/showdown-client/js/battle.js"
+  "packages/showdown-battle-core/vendor/showdown-client/js/battle-scene-stub.js"
 )
 for REQUIRED_PATH in "${REQUIRED_PATHS[@]}"; do
   if [[ ! -e "$REQUIRED_PATH" ]]; then

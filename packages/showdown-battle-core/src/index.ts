@@ -18,11 +18,13 @@ import type {
   BattleTeamPokemonStateV4,
   BattleServiceActivePokemonV4,
   BattleServiceSidePokemonV4,
+  ShowdownPlaybackTimelineV4,
 } from "./types.js";
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
 import {filterShowdownChoiceForRuleSetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
 import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, normalizeBattleAiProfileV4, type BattleAiChoiceResultV4} from "./ai.js";
 import {loadShowdownSimV4} from "./showdownVendor.js";
+import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
 
 export * from "./showdownCommand.js";
 export * from "./ai.js";
@@ -78,6 +80,7 @@ type RecoveryEffect = {
 };
 
 const sessions = new Map<string, RuntimeSession>();
+const playbackTimelineCache = new Map<string, ShowdownPlaybackTimelineV4>();
 const AI_THINK_TIME_MS = 10_000;
 const SHOWDOWN_ID_POOL_V4 = [
   "pokeball",
@@ -205,12 +208,16 @@ export function createInMemoryBattleService(): BattleServiceApiV4 {
     async getSnapshot(sessionId) {
       return getSnapshot(sessionId);
     },
+    async getPlaybackTimeline(sessionId, previousIndex) {
+      return getPlaybackTimeline(sessionId, previousIndex);
+    },
     async closeSession(sessionId) {
       const session = sessions.get(sessionId);
       if (session) {
         session.closed = true;
         session.aiTasks = {};
         sessions.delete(sessionId);
+        clearPlaybackTimelineCacheForSession(sessionId);
       }
     },
   };
@@ -342,12 +349,34 @@ export async function getSnapshot(sessionId: string): Promise<BattleServiceSnaps
   return clone(session.snapshot);
 }
 
+export async function getPlaybackTimeline(sessionId: string, previousIndex = 0): Promise<ShowdownPlaybackTimelineV4> {
+  const session = getSession(sessionId);
+  await flushReadyAutoChoices(session);
+  const rawLogLength = session.snapshot.rawLog.length;
+  const cacheKey = `${sessionId}:${rawLogLength}`;
+  let compiled = playbackTimelineCache.get(cacheKey);
+  if (!compiled) {
+    clearPlaybackTimelineCacheForSession(sessionId);
+    compiled = compileShowdownPlaybackTimelineFromRawLog(session.snapshot.rawLog, {sessionId, previousIndex: 0});
+    playbackTimelineCache.set(cacheKey, compiled);
+  }
+  const rawFrom = Math.max(0, Math.min(rawLogLength, Math.floor(Number(previousIndex) || 0)));
+  return clone({
+    ...compiled,
+    rawFrom,
+    groups: rawFrom
+      ? compiled.groups.filter(group => !group.rawIndices.length || group.rawIndices.some(index => index >= rawFrom))
+      : compiled.groups,
+  });
+}
+
 export async function closeSession(sessionId: string): Promise<void> {
   const session = sessions.get(sessionId);
   if (session) {
     session.closed = true;
     session.aiTasks = {};
     sessions.delete(sessionId);
+    clearPlaybackTimelineCacheForSession(sessionId);
   }
 }
 
@@ -1476,6 +1505,12 @@ function getSession(sessionId: string): RuntimeSession {
   const session = sessions.get(sessionId);
   if (!session) throw new Error(`Battle session 不存在：${sessionId}`);
   return session;
+}
+
+function clearPlaybackTimelineCacheForSession(sessionId: string): void {
+  for (const key of playbackTimelineCache.keys()) {
+    if (key.startsWith(`${sessionId}:`)) playbackTimelineCache.delete(key);
+  }
 }
 
 function touch(session: RuntimeSession): void {

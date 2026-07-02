@@ -26,10 +26,15 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     const sessionMatch = /^\/sessions\/([^/]+)$/.exec(url.pathname);
+    const playbackTimelineMatch = /^\/sessions\/([^/]+)\/playback-timeline$/.exec(url.pathname);
     const choiceMatch = /^\/sessions\/([^/]+)\/choice$/.exec(url.pathname);
     const trainerItemMatch = /^\/sessions\/([^/]+)\/trainer-item$/.exec(url.pathname);
     if (request.method === "GET" && sessionMatch) {
       sendJson(response, 200, await service.getSnapshot(decodeURIComponent(sessionMatch[1]!)));
+      return;
+    }
+    if (request.method === "GET" && playbackTimelineMatch) {
+      sendJson(response, 200, await service.getPlaybackTimeline(decodeURIComponent(playbackTimelineMatch[1]!), Number(url.searchParams.get("from") || 0)));
       return;
     }
     if (request.method === "DELETE" && sessionMatch) {

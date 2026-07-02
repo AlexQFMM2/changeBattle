@@ -3,6 +3,7 @@ import type {
   ShowdownSpecialSystemV4,
   ShowdownParsedChoiceV4,
 } from "@changebattle-v2/showdown-battle-core/showdownCommand";
+import type {ShowdownPlaybackTimelineV4} from "@changebattle-v2/showdown-battle-core/types";
 import {
   appendShowdownSpecialChoiceSuffixV4,
   parseShowdownChoiceCommandV4,
@@ -481,8 +482,11 @@ export type BattleServiceClientV4 = {
   submitChoice(sessionId: string, playerId: ShowdownPlayerIdV4, choice: string): Promise<BattleSessionSnapshotV4>;
   submitTrainerItem(input: BattleTrainerItemSubmitV4): Promise<BattleSessionSnapshotV4>;
   getSnapshot(sessionId: string): Promise<BattleSessionSnapshotV4>;
+  getPlaybackTimeline(sessionId: string, previousIndex?: number): Promise<ShowdownPlaybackTimelineV4>;
   closeSession(sessionId: string): Promise<void>;
 };
+
+export type {ShowdownPlaybackTimelineV4, ShowdownPlaybackGroupV4, ShowdownPlaybackSceneCallV4} from "@changebattle-v2/showdown-battle-core/types";
 
 export const DEFAULT_BATTLE_SERVICE_URL = "http://127.0.0.1:5191";
 
@@ -531,6 +535,9 @@ export function createBattleServiceClient(baseUrl = DEFAULT_BATTLE_SERVICE_URL):
     },
     async getSnapshot(sessionId) {
       return requestJson(`${root}/sessions/${encodeURIComponent(sessionId)}`);
+    },
+    async getPlaybackTimeline(sessionId, previousIndex = 0) {
+      return requestJson(`${root}/sessions/${encodeURIComponent(sessionId)}/playback-timeline?from=${encodeURIComponent(String(previousIndex))}`);
     },
     async closeSession(sessionId) {
       await requestJson(`${root}/sessions/${encodeURIComponent(sessionId)}`, {method: "DELETE"});

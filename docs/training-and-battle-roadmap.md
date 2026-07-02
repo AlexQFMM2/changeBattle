@@ -110,6 +110,8 @@ Showdown BattleStream raw output
 - UI 不参与身份判断。
 - `p1/p2/p3/p4` 不能压扁成 `p1/p2`。
 
+播放顺序、messagebar 和动画 step 分组以 `docs/battle-playback-showdown-parity.md` 的后端 Showdown Playback Compiler 为准，避免前端凭感觉调整节奏。
+
 详细设计继续以 `plan/battle-v4-architecture-plan.md` 为准。
 
 ## Next Step 3: V2 Battle UI
