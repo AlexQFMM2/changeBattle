@@ -224,6 +224,8 @@ export type BattleServiceSnapshotV4 = {
     lastChoices: Array<{playerId: ShowdownPlayerIdV4; choice: string; at: string}>;
     playerStreams: Array<{playerId: ShowdownPlayerIdV4; at: string; chunk: string; request: boolean; lines: string[]}>;
     latestSidePokemon?: Partial<Record<ShowdownPlayerIdV4, BattleServiceSidePokemonV4[]>>;
+    latestRequests?: Partial<Record<ShowdownPlayerIdV4, BattleServiceRequestV4>>;
+    latestMovePpByPokemon?: Partial<Record<ShowdownPlayerIdV4, Record<string, BattleServiceMoveRequestV4[]>>>;
     aiDecisions?: BattleAiDecisionDebugV4[];
   };
   createdAt: string;

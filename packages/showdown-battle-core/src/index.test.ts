@@ -609,7 +609,7 @@ function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: Battl
       {ident: "p2a: Pikachu", playerId: "p2", slot: "p2a", species: "Pikachu", details: "Pikachu, L50", condition: "80/100", hp: 80, maxHp: 100, status: "", fainted: false},
     ],
     rawLog: [],
-    debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, aiDecisions: []},
+    debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, latestRequests: {}, latestMovePpByPokemon: {}, aiDecisions: []},
     createdAt: "2026-06-28T00:00:00.000Z",
     updatedAt: "2026-06-28T00:00:00.000Z",
   };

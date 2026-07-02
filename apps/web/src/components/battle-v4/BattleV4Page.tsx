@@ -235,7 +235,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     [api, playback.activeAnimation, playback.messagebar?.message],
   );
   const playbackHasRuntimeState = playback.hasProtocolState;
-  const playbackBlockingCommands = Boolean(!skipAnimations && (playback.activeAnimation || playback.debug.queueLength || playback.debug.lastConsumedRawIndex < (snapshot?.rawLog.length || 0)));
+  const playbackBlockingCommands = Boolean(!skipAnimations && !playback.playbackComplete);
   const commandsLocked = Boolean(narrativeActive || playbackBlockingCommands);
   const shouldShowResultPanel = Boolean(endFlow === "result-panel" && snapshot?.status === "ended" && !playbackBlockingCommands && !narrativeActive && outroPlayedSessionId === sessionId);
   const shouldShowSwitchPanel = Boolean(!commandsLocked && snapshot && viewModel && (
@@ -278,7 +278,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
 
   useEffect(() => {
     if (!sessionId || snapshot?.status !== "ended") return;
-    const outroReady = !playbackBlockingCommands || (outroFallbackReadySessionId === sessionId && !playback.activeAnimation);
+    const outroReady = !playbackBlockingCommands || (outroFallbackReadySessionId === sessionId && !playback.activeAnimation && !playback.pendingBlockingAnimations);
     if (!outroReady) return;
     if (outroPlayedSessionId === sessionId || narrativeState) return;
     setOutroPlayedSessionId(sessionId);
@@ -305,7 +305,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     outroFallbackTimerRef.current = window.setTimeout(() => {
       outroFallbackTimerRef.current = null;
       setOutroFallbackReadySessionId(sessionId);
-    }, 3500);
+    }, 12000);
   }, [outroFallbackReadySessionId, outroPlayedSessionId, playbackBlockingCommands, sessionId, snapshot?.status]);
 
   useEffect(() => {
@@ -1859,6 +1859,7 @@ type SwitchCandidateV4 = {
   index: number;
   row: RequestPokemonV4 | null;
   localPokemon: LocalPokemonV4 | null;
+  known: boolean;
   action: SwitchActionV4 | null;
   relation: "self" | "ally" | "foe";
   label: string;
@@ -1994,7 +1995,8 @@ function BattleV4SwitchPartyCard({api, candidate, selected, onSelect}: {
   const status = statusBadge(candidate.status);
   const hpRate = candidate.maxHp ? Math.max(0, Math.min(100, candidate.hp / candidate.maxHp * 100)) : 0;
   const identity = switchCandidateIdentity(candidate);
-  const heldItemName = battleHeldItemName(api, pokemon, candidate.row);
+  const known = candidate.known;
+  const heldItemName = known ? battleHeldItemName(api, pokemon, candidate.row) : "未知";
   return (
     <button
       className={`battle-v4-switch-card ${candidate.relation} ${candidate.canSwitch ? "operable" : "readonly"} ${selected ? "selected" : ""} ${candidate.active ? "active" : ""} ${candidate.fainted ? "fainted" : ""} ${candidate.status && !candidate.fainted ? "statused" : ""}`}
@@ -2003,13 +2005,13 @@ function BattleV4SwitchPartyCard({api, candidate, selected, onSelect}: {
       title={[candidate.reason, identity ? `ID: ${identity}` : ""].filter(Boolean).join(" · ")}
     >
       <span className="battle-v4-switch-sprite">
-        <BattleV4Icon src={pokemon?.iconUrl || pokemon?.frontSpriteUrl || pokemon?.spriteUrl || ""} iconStyle={pokemon?.iconStyle} alt={candidate.label} />
+        <BattleV4Icon src={known ? pokemon?.iconUrl || pokemon?.frontSpriteUrl || pokemon?.spriteUrl || "" : ""} iconStyle={known ? pokemon?.iconStyle : ""} alt={candidate.label} />
       </span>
       <span className="battle-v4-switch-info">
         <strong>{candidate.label}</strong>
         <span className="battle-v4-switch-hp">
           <i><b style={{width: `${hpRate}%`}} /></i>
-          <b>{candidate.maxHp ? `${candidate.hp}/${candidate.maxHp}` : candidate.row?.condition || "--"}</b>
+          <b>{known ? candidate.maxHp ? `${candidate.hp}/${candidate.maxHp}` : candidate.row?.condition || "--" : "???"}</b>
         </span>
         <small>{heldItemName}</small>
       </span>
@@ -2044,13 +2046,13 @@ function BattleV4SwitchDetailPanel({api, candidate}: {api: ChangeBattleV2Api; ca
       return null;
     }
   }, [api, pokemon]);
-  if (!candidate || !pokemon) {
+  if (!candidate || !pokemon || !candidate.known) {
     return (
       <section className="battle-v4-switch-detail empty">
         <header><strong>能力</strong></header>
         <div className="battle-v4-switch-empty-detail">
           <strong>{candidate?.label || "请选择我方宝可梦"}</strong>
-          <span>{candidate?.row?.details || "暂无本地详情"}</span>
+          <span>{candidate?.known ? candidate?.row?.details || "暂无本地详情" : "尚未出场，资料未知"}</span>
         </div>
       </section>
     );
@@ -2176,6 +2178,7 @@ function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions:
       index,
       row,
       localPokemon,
+      known: true,
       action,
       relation: "self",
       label,
@@ -2227,18 +2230,26 @@ function buildReadonlySwitchCandidatesForPlayer(
   return Array.from({length: count}, (_, index) => {
     const row = rows[index] || null;
     const resolved = resolveLocalPokemonFromRequestRow(row, mapping, localTeam, index);
-    const localPokemon = resolved.localPokemon || localTeam[index] || null;
-    const label = localPokemon?.nameZh || localPokemon?.name || row?.name || row?.details?.split(",")[0] || row?.ident || `空位 ${index + 1}`;
-    const status = rowStatus(row) || localPokemon?.entryStatus || "";
-    const hp = hpFromCondition(row?.condition, localPokemon?.entryHp || 0);
-    const maxHp = maxHpFromCondition(row?.condition, localPokemon?.maxHp || 0);
+    const known = relation === "ally" || Boolean(
+      row?.active ||
+      row?.fainted ||
+      row?.condition?.includes("fnt") ||
+      activeEverContainsPokemon(snapshot, playerId, resolved.localPokemon || localTeam[index] || null, row) ||
+      pokemonSeenInRawLog(snapshot, playerId, resolved.localPokemon || localTeam[index] || null, row)
+    );
+    const localPokemon = known ? resolved.localPokemon || localTeam[index] || null : null;
+    const label = known ? localPokemon?.nameZh || localPokemon?.name || row?.name || row?.details?.split(",")[0] || row?.ident || `空位 ${index + 1}` : `未知 ${index + 1}`;
+    const status = known ? rowStatus(row) || localPokemon?.entryStatus || "" : "";
+    const hp = known ? hpFromCondition(row?.condition, localPokemon?.entryHp || 0) : 0;
+    const maxHp = known ? maxHpFromCondition(row?.condition, localPokemon?.maxHp || 0) : 0;
     const active = Boolean(row?.active || activeContainsPokemon(snapshot, playerId, localPokemon, row));
-    const fainted = Boolean(row?.fainted || row?.condition?.includes("fnt") || localPokemon && localPokemon.entryHp <= 0);
+    const fainted = Boolean(known && (row?.fainted || row?.condition?.includes("fnt") || activeFaintedContainsPokemon(snapshot, playerId, localPokemon, row) || localPokemon && localPokemon.entryHp <= 0));
     return {
       key: switchCandidateKey(playerId, index, row, localPokemon),
       index,
       row,
       localPokemon,
+      known,
       action: null,
       relation,
       label,
@@ -2248,7 +2259,7 @@ function buildReadonlySwitchCandidatesForPlayer(
       active,
       fainted,
       canSwitch: false,
-      reason: relation === "ally" ? "队友只读" : "对方只读",
+      reason: relation === "ally" ? "队友只读" : known ? "对方只读" : "尚未出场",
     };
   });
 }
@@ -2265,6 +2276,28 @@ function activeContainsPokemon(
     if (active.playerId !== playerId || active.fainted) return false;
     return strictActiveIdentityTokens(active).some(token => tokens.has(token));
   });
+}
+
+function activeEverContainsPokemon(
+  snapshot: BattleSessionSnapshotV4,
+  playerId: string,
+  pokemon: LocalPokemonV4 | null,
+  row: RequestPokemonV4 | null,
+): boolean {
+  const tokens = strictPokemonIdentityTokens(pokemon, row);
+  if (!tokens.size) return false;
+  return snapshot.active.some(active => active.playerId === playerId && strictActiveIdentityTokens(active).some(token => tokens.has(token)));
+}
+
+function activeFaintedContainsPokemon(
+  snapshot: BattleSessionSnapshotV4,
+  playerId: string,
+  pokemon: LocalPokemonV4 | null,
+  row: RequestPokemonV4 | null,
+): boolean {
+  const tokens = strictPokemonIdentityTokens(pokemon, row);
+  if (!tokens.size) return false;
+  return snapshot.active.some(active => active.playerId === playerId && active.fainted && strictActiveIdentityTokens(active).some(token => tokens.has(token)));
 }
 
 function strictPokemonIdentityTokens(pokemon: LocalPokemonV4 | null, row: RequestPokemonV4 | null): Set<string> {
@@ -2290,23 +2323,51 @@ function buildNonCoopEnemySwitchCandidates(snapshot: BattleSessionSnapshotV4): S
   const team = far?.draft.localTeam.pokemon || [];
   return Array.from({length: 6}, (_, index) => {
     const pokemon = team[index] || null;
-    const status = pokemon?.entryHp && pokemon.entryHp > 0 ? pokemon.entryStatus : pokemon ? "fnt" : "";
+    const known = Boolean(pokemon && (activeEverContainsPokemon(snapshot, "p2", pokemon, null) || pokemonSeenInRawLog(snapshot, "p2", pokemon, null)));
+    const status = known && pokemon?.entryHp && pokemon.entryHp > 0 ? pokemon.entryStatus : known && pokemon ? "fnt" : "";
     return {
       key: switchCandidateKey("p2", index, null, pokemon),
       index,
       row: null,
-      localPokemon: pokemon,
+      localPokemon: known ? pokemon : null,
+      known,
       action: null,
       relation: "foe",
-      label: pokemon?.nameZh || pokemon?.name || `未知 ${index + 1}`,
+      label: known ? pokemon?.nameZh || pokemon?.name || `未知 ${index + 1}` : `未知 ${index + 1}`,
       status,
-      hp: pokemon?.entryHp || 0,
-      maxHp: pokemon?.maxHp || 0,
+      hp: known ? pokemon?.entryHp || 0 : 0,
+      maxHp: known ? pokemon?.maxHp || 0 : 0,
       active: Boolean(pokemon && activeContainsPokemon(snapshot, "p2", pokemon, null)),
-      fainted: Boolean(pokemon && pokemon.entryHp <= 0),
+      fainted: Boolean(known && pokemon && (pokemon.entryHp <= 0 || activeFaintedContainsPokemon(snapshot, "p2", pokemon, null))),
       canSwitch: false,
-      reason: pokemon ? "对方只读" : "未知队伍",
+      reason: known ? "对方只读" : "尚未出场",
     };
+  });
+}
+
+function pokemonSeenInRawLog(
+  snapshot: BattleSessionSnapshotV4,
+  playerId: string,
+  pokemon: LocalPokemonV4 | null,
+  row: RequestPokemonV4 | null,
+): boolean {
+  const tokens = new Set([
+    pokemon?.speciesId,
+    pokemon?.name,
+    pokemon?.nameZh,
+    row?.name,
+    row?.details?.split(",")[0],
+    row?.ident?.split(":").pop(),
+  ].map(value => toId(value || "")).filter(Boolean));
+  if (!tokens.size) return false;
+  const playerPrefix = playerId;
+  return snapshot.rawLog.some(line => {
+    if (!line.startsWith("|switch|") && !line.startsWith("|drag|") && !line.startsWith("|faint|")) return false;
+    const parts = line.split("|");
+    if (!String(parts[2] || "").startsWith(playerPrefix)) return false;
+    const identName = parts[2]?.split(":").pop() || "";
+    const detailName = parts[3]?.split(",")[0] || "";
+    return tokens.has(toId(identName)) || tokens.has(toId(detailName));
   });
 }
 

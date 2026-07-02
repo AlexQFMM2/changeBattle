@@ -164,13 +164,18 @@ export function useBattleV4ShowdownTimelineRunner(options: UseBattleV4ShowdownTi
 function scheduleBattleV4AnimationGroup(commands: BattleVisualCommandV4[]): BattleV4ScheduledTimelineStep[] {
   const scheduled: BattleV4ScheduledTimelineStep[] = [];
   let groupOffsetMs = 0;
+  const targetLocks = new Map<string, number>();
   for (const command of commands) {
     const event = command.animationEvent;
     if (!event) continue;
     const eventSteps = event.timelineSteps.length ? event.timelineSteps : event.animationTimeline.steps;
-    const eventScheduled = scheduleBattleV4TimelineSteps(command, event, eventSteps, groupOffsetMs);
+    const targetKey = animationTargetKey(event);
+    const eventOffsetMs = Math.max(groupOffsetMs, targetLocks.get(targetKey) || 0);
+    const eventScheduled = scheduleBattleV4TimelineSteps(command, event, eventSteps, eventOffsetMs);
     scheduled.push(...eventScheduled);
-    groupOffsetMs += waitForAnimationsModeForEvent(event) === "simult" ? 0 : eventScheduled.reduce((max, item) => Math.max(max, item.offsetMs + (item.blocking ? item.durationMs : 0)), groupOffsetMs) - groupOffsetMs;
+    const eventFinishMs = eventScheduled.reduce((max, item) => Math.max(max, item.offsetMs + (item.blocking ? item.durationMs : 0)), eventOffsetMs);
+    targetLocks.set(targetKey, eventFinishMs + followupGapMsForEvent(event));
+    groupOffsetMs += waitForAnimationsModeForEvent(event) === "simult" ? 0 : eventFinishMs - groupOffsetMs;
   }
   return scheduled;
 }
@@ -219,11 +224,11 @@ function scheduleBattleV4TimelineSteps(command: BattleVisualCommandV4, event: Ba
       return;
     }
     if (step.type === "resultAnim") {
-      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: 1000, blocking: true});
+      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: 560, blocking: true});
       return;
     }
     if (step.type === "damageAnim" || step.type === "healAnim") {
-      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: 1000, blocking: true});
+      scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: 640, blocking: true});
       return;
     }
     scheduled.push({...base, offsetMs: groupOffsetMs + timeOffset, durationMs: 240, blocking: true});
@@ -238,4 +243,14 @@ function waitForAnimationsModeForEvent(event: BattleAnimationEventV4): true | fa
     if (eventType === "-crit" || eventType === "-supereffective" || eventType === "-resisted") return "simult";
   }
   return true;
+}
+
+function animationTargetKey(event: BattleAnimationEventV4): string {
+  return event.targetSeat || event.actorSeat || event.targetName || event.actorName || "field";
+}
+
+function followupGapMsForEvent(event: BattleAnimationEventV4): number {
+  if (event.kind === "result") return 80;
+  if (event.kind === "damage" || event.kind === "heal") return 60;
+  return 0;
 }

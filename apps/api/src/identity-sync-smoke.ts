@@ -206,6 +206,8 @@ const run: TrainingRunGameV4 = {
 const {sessionInput} = createBattleGameFromTrainingNode(run, node);
 const sessionP1 = sessionInput.players.find(entry => entry.playerId === "p1");
 assert(sessionP1, "missing p1 session player");
+const sessionP2 = sessionInput.players.find(entry => entry.playerId === "p2");
+assert(sessionP2, "missing p2 session player");
 const mapping = sessionP1.teamMapping || [];
 assert(mapping.length === 3, `expected 3 p1 mapping rows, got ${mapping.length}`);
 assert(new Set(mapping.map(entry => entry.showdownIdentityToken)).size === 3, "expected unique p1 tokens");
@@ -294,6 +296,33 @@ assert(syncedTeam.map(pokemon => pokemon.localPokemonId).join(",") === "pika-30,
 assert(syncedTeam[0]?.level === 30 && syncedTeam[0].entryHp === 25 && syncedTeam[0].entryStatus === "brn", "slot 1 sync mismatch");
 assert(syncedTeam[1]?.level === 40 && syncedTeam[1].entryHp === 50 && syncedTeam[1].entryStatus === "par", "slot 2 sync mismatch");
 assert(syncedTeam[2]?.level === 50 && syncedTeam[2].entryHp === 100 && syncedTeam[2].entryStatus === "slp", "slot 3 sync mismatch");
+
+const ppSynced = applyBattleSessionToRun(run, {
+  ...endedSnapshot,
+  requests: {},
+  debug: {
+    ...endedSnapshot.debug,
+    latestSidePokemon: {
+      p1: [
+        sidePokemon(mapping[0]!.showdownIdentityToken, "25/100 brn", true),
+        sidePokemon(mapping[1]!.showdownIdentityToken, "50/100 par", false),
+        sidePokemon(mapping[2]!.showdownIdentityToken, "100/100 slp", false),
+      ],
+    },
+    latestMovePpByPokemon: {
+      p1: {
+        [mapping[0]!.showdownIdentityToken]: [
+          {move: "Thunderbolt", id: "thunderbolt", pp: 9, maxpp: 15, target: "normal"},
+          {move: "Quick Attack", id: "quickattack", pp: 27, maxpp: 30, target: "normal"},
+        ],
+      },
+    },
+  },
+});
+const ppSyncedTeam = ppSynced.players.p1?.localTeam.pokemon || [];
+assert(ppSyncedTeam[0]?.moves[0]?.remainingPp === 9, "battle PP cache should sync active move PP");
+assert(ppSyncedTeam[0]?.moves[1]?.remainingPp === 27, "battle PP cache should sync second move PP");
+assert(ppSyncedTeam[1]?.moves[0]?.remainingPp === 15, "battle PP sync should not touch pokemon without PP cache");
 
 const latestSidePokemonSnapshot: BattleSessionSnapshotV4 = {
   ...endedSnapshot,
@@ -394,6 +423,50 @@ const protocolActiveSnapshot: BattleSessionSnapshotV4 = {
 };
 const activeNames = projectBattleViewModelV4(protocolActiveSnapshot, "p1").nearTeam.map(slot => slot.speciesId).join(",");
 assert(activeNames === "pikachu,raichu", `protocol active mapping should ignore empty requests, got ${activeNames}`);
+
+const formeProtocolSnapshot: BattleSessionSnapshotV4 = {
+  ...protocolActiveSnapshot,
+  mode: "singles",
+  active: [
+    {
+      ident: "p2a: Greninja",
+      playerId: "p2",
+      slot: "p2a",
+      species: "Greninja",
+      details: "Greninja, L45",
+      condition: "133/133",
+      hp: 133,
+      maxHp: 133,
+      status: "",
+      fainted: false,
+    },
+  ],
+  players: [{
+    ...sessionP2,
+    draft: {
+      ...sessionP2.draft,
+      localTeam: {
+        ...sessionP2.draft.localTeam,
+        pokemon: [
+          {...p2Team[0]!, localPokemonId: "enemy-greninja-bond", speciesId: "greninjabond", name: "Greninja-Bond", nameZh: "甲贺忍蛙（牵绊变身）", maxHp: 133, entryHp: 133},
+        ],
+      },
+    },
+    teamMapping: [{
+      playerId: "p2",
+      teamIndex: 0,
+      choiceIndex: 1,
+      localPokemonId: "enemy-greninja-bond",
+      showdownIdentityToken: "masterball",
+      showdownId: "masterball",
+      pokeballId: "masterball",
+      speciesId: "greninjabond",
+      displayName: "甲贺忍蛙（牵绊变身）",
+    }],
+  }],
+};
+const formeFarSpecies = projectBattleViewModelV4(formeProtocolSnapshot, "p1").farTeam.map(slot => slot.speciesId).join(",");
+assert(formeFarSpecies === "greninjabond", `protocol forme base species should map to battle-only local species, got ${formeFarSpecies}`);
 
 const singlesMove = normalizeBattleRequestV4(moveRequest(1), "p1", "singles", "standard");
 assert(singlesMove.requestType === "move", "singles move requestType mismatch");

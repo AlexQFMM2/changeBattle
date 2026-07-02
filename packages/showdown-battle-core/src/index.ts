@@ -243,7 +243,7 @@ export async function createBattleSession(input: BattleServiceCreateInputV4 | Ba
       requests: {},
       active: [],
       rawLog: [],
-      debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, aiDecisions: []},
+      debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, latestRequests: {}, latestMovePpByPokemon: {}, aiDecisions: []},
       createdAt: now,
       updatedAt: now,
     },
@@ -673,11 +673,33 @@ async function readPlayerStream(session: RuntimeSession, playerId: ShowdownPlaye
 }
 
 function rememberLatestSidePokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4, request: BattleServiceRequestV4): void {
+  session.snapshot.debug.latestRequests = {
+    ...(session.snapshot.debug.latestRequests || {}),
+    [playerId]: clone(request),
+  };
+  rememberLatestMovePp(session, playerId, request);
   const pokemon = request.side?.pokemon;
   if (!pokemon?.length) return;
   session.snapshot.debug.latestSidePokemon = {
     ...(session.snapshot.debug.latestSidePokemon || {}),
     [playerId]: clone(pokemon),
+  };
+}
+
+function rememberLatestMovePp(session: RuntimeSession, playerId: ShowdownPlayerIdV4, request: BattleServiceRequestV4): void {
+  const activeRows = request.side?.pokemon?.filter(row => row.active) || [];
+  if (!activeRows.length || !request.active?.length) return;
+  const previous = session.snapshot.debug.latestMovePpByPokemon?.[playerId] || {};
+  const next = {...previous};
+  activeRows.forEach((row, activeIndex) => {
+    const token = normalizeIdentityToken(row.pokeball || row.ident || row.details);
+    const moves = request.active?.[activeIndex]?.moves || [];
+    if (!token || !moves.length) return;
+    next[token] = clone(moves);
+  });
+  session.snapshot.debug.latestMovePpByPokemon = {
+    ...(session.snapshot.debug.latestMovePpByPokemon || {}),
+    [playerId]: next,
   };
 }
 

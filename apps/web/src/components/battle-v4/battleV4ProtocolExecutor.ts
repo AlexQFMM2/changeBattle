@@ -384,13 +384,7 @@ function parseSwitchDetails(event: BattleProtocolEventV4): {
 
 function resolveLocalPokemonForProtocolSwitch(parsed: ReturnType<typeof parseSwitchDetails>, team: LocalPokemonV4[]): LocalPokemonV4 | null {
   const species = toId(parsed.species);
-  const candidates = team.filter(pokemon =>
-    toId(pokemon.speciesId) === species ||
-    toId(pokemon.name) === species ||
-    toId(pokemon.nameZh) === species ||
-    toId(pokemon.nickname) === species
-  );
-  return candidates[0] || null;
+  return findTeamPokemonByProtocolSpecies(team, new Set([species]));
 }
 
 function parseProtocolCondition(condition: string, trueMaxHp = 0): {hp: number; maxHp: number; status: string; fainted: boolean} | null {
@@ -482,6 +476,32 @@ function teamBallStates(team: LocalPokemonV4[], activeLocalPokemonId: string): B
 
 function sideConditionSideForSeat(seat: BattleProtocolSeatV4): "near" | "far" {
   return seat.startsWith("p2") || seat.startsWith("p4") ? "far" : "near";
+}
+
+function findTeamPokemonByProtocolSpecies(team: LocalPokemonV4[], speciesTokens: Set<string>): LocalPokemonV4 | null {
+  const tokens = new Set(Array.from(speciesTokens).map(token => toId(token)).filter(Boolean));
+  if (!tokens.size) return null;
+  const exact = team.filter(pokemon => pokemonProtocolMatchIds(pokemon).some(id => tokens.has(id)));
+  if (exact.length) return exact[0] || null;
+  const baseTokens = new Set(Array.from(tokens).map(baseSpeciesIdForProtocolMatch).filter(Boolean));
+  const baseMatches = team.filter(pokemon => pokemonProtocolMatchIds(pokemon).some(id => baseTokens.has(baseSpeciesIdForProtocolMatch(id))));
+  return baseMatches.length === 1 ? baseMatches[0] || null : null;
+}
+
+function pokemonProtocolMatchIds(pokemon: LocalPokemonV4): string[] {
+  return [pokemon.speciesId, pokemon.name, pokemon.nameZh, pokemon.nickname].map(value => toId(value || "")).filter(Boolean);
+}
+
+function baseSpeciesIdForProtocolMatch(value: string): string {
+  const id = toId(value);
+  return id
+    .replace(/mega(x|y)?$/, "")
+    .replace(/gmax$/, "")
+    .replace(/alola$/, "")
+    .replace(/galar$/, "")
+    .replace(/hisui$/, "")
+    .replace(/paldea$/, "")
+    .replace(/bond$/, "");
 }
 
 function resultTextForEvent(event: BattleProtocolEventV4): string {

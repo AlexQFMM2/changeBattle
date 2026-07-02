@@ -240,6 +240,8 @@ export type BattlePlaybackDebugV4 = {
   };
   timelineRunnerDebug: BattleV4TimelineRunnerDebug;
   queueLength: number;
+  playbackComplete: boolean;
+  pendingBlockingAnimations: number;
   skipAnimations: boolean;
   paused: boolean;
 };
@@ -254,6 +256,8 @@ export type BattlePlaybackStateV4 = {
   activeTimelineStepIndex: number;
   renderedTimelineSteps: ShowdownAnimationStepV4[];
   renderedTimelineHandles: BattleV4ScheduledTimelineStep[];
+  playbackComplete: boolean;
+  pendingBlockingAnimations: number;
   persistentFieldVisuals: BattleV4PersistentFieldVisuals;
   persistentSideConditionVisuals: BattleV4PersistentSideConditionVisuals;
   hasProtocolState: boolean;
@@ -858,6 +862,12 @@ export function useBattleV4Playback(
 
   const hasProtocolFacts = Boolean(snapshot && snapshot.rawLog.length > initialPlaybackRawIndex(snapshot.rawLog));
   const shouldUseProtocolState = hasProtocolState || hasProtocolFacts || skipAnimations;
+  const pendingBlockingAnimations = skipAnimations ? 0 : queue.length + activeCommandGroup.length + (activeAnimation ? 1 : 0);
+  const playbackComplete = Boolean(!snapshot || skipAnimations || (
+    !paused &&
+    rawIndexRef.current >= snapshot.rawLog.length &&
+    pendingBlockingAnimations === 0
+  ));
   const visibleNearTeam = useMemo(() => visibleSlots.filter(slot => slot.side === "near"), [visibleSlots]);
   const visibleFarTeam = useMemo(() => visibleSlots.filter(slot => slot.side === "far"), [visibleSlots]);
   return {
@@ -870,6 +880,8 @@ export function useBattleV4Playback(
     activeTimelineStepIndex,
     renderedTimelineSteps,
     renderedTimelineHandles,
+    playbackComplete,
+    pendingBlockingAnimations,
     persistentFieldVisuals,
     persistentSideConditionVisuals,
     hasProtocolState: shouldUseProtocolState,
@@ -921,6 +933,8 @@ export function useBattleV4Playback(
       },
       timelineRunnerDebug,
       queueLength: queue.length,
+      playbackComplete,
+      pendingBlockingAnimations,
       skipAnimations,
       paused,
     },
@@ -1784,12 +1798,7 @@ function resolveLocalPokemonForProtocolSwitch(
 ): LocalPokemonV4 | null {
   const species = toId(parsed.species);
   const condition = parseCondition(parsed.condition || "");
-  const candidates = team.filter(pokemon =>
-    toId(pokemon.speciesId) === species ||
-    toId(pokemon.name) === species ||
-    toId(pokemon.nameZh) === species ||
-    toId(pokemon.nickname) === species
-  );
+  const candidates = findTeamPokemonCandidatesByProtocolSpecies(team, new Set([species]));
   if (!candidates.length) return null;
   const byCondition = candidates.find(pokemon => {
     const hpMatches = condition ? pokemon.entryHp === condition.hp || pokemon.maxHp === condition.maxHp : true;
@@ -1798,6 +1807,32 @@ function resolveLocalPokemonForProtocolSwitch(
     return hpMatches && statusMatches && faintMatches;
   });
   return byCondition || candidates[0] || null;
+}
+
+function findTeamPokemonCandidatesByProtocolSpecies(team: LocalPokemonV4[], speciesTokens: Set<string>): LocalPokemonV4[] {
+  const tokens = new Set(Array.from(speciesTokens).map(token => toId(token)).filter(Boolean));
+  if (!tokens.size) return [];
+  const exact = team.filter(pokemon => pokemonProtocolMatchIds(pokemon).some(id => tokens.has(id)));
+  if (exact.length) return exact;
+  const baseTokens = new Set(Array.from(tokens).map(baseSpeciesIdForProtocolMatch).filter(Boolean));
+  const baseMatches = team.filter(pokemon => pokemonProtocolMatchIds(pokemon).some(id => baseTokens.has(baseSpeciesIdForProtocolMatch(id))));
+  return baseMatches.length === 1 ? baseMatches : [];
+}
+
+function pokemonProtocolMatchIds(pokemon: LocalPokemonV4): string[] {
+  return [pokemon.speciesId, pokemon.name, pokemon.nameZh, pokemon.nickname].map(value => toId(value || "")).filter(Boolean);
+}
+
+function baseSpeciesIdForProtocolMatch(value: string): string {
+  const id = toId(value);
+  return id
+    .replace(/mega(x|y)?$/, "")
+    .replace(/gmax$/, "")
+    .replace(/alola$/, "")
+    .replace(/galar$/, "")
+    .replace(/hisui$/, "")
+    .replace(/paldea$/, "")
+    .replace(/bond$/, "");
 }
 
 function firstLargeSprite(...values: Array<string | undefined>): string {
