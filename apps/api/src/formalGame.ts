@@ -1,4 +1,5 @@
 import type {
+  DexSystemBattleReforgeOption,
   DexMoveSummary,
   DexItemDetail,
   DexPokemonDetail,
@@ -1992,7 +1993,11 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         usedNpcSpecies: input.usedNpcSpecies,
         rng: input.rng,
       });
+    const gen7TeamResult = ensureGen7NpcMegaCandidate(input.run, teamResult.team, powerProfile, input.usedNpcSpecies, input.rng);
+    const systemBagResult = createFormalNpcSystemBag(input.run.battlePreference.battleBagEnabled, input.run.battlePreference.ruleSet, gen7TeamResult.team, input.rng);
     diagnostics.push(...teamResult.diagnostics);
+    diagnostics.push(...gen7TeamResult.diagnostics);
+    diagnostics.push(...systemBagResult.diagnostics);
     const npc: FormalRoundNpcSnapshotV4 = {
       id: `formal-npc-${input.roundIndex + 1}-${input.playerId}`,
       trainerId: boss?.id || `generated:${input.trainerType}:${input.roundIndex + 1}:${input.playerId}`,
@@ -2016,9 +2021,160 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         ...(backImage ? {backImage} : {}),
         controller: input.controller,
         alliance: input.alliance,
-        localTeam: teamResult.team,
-        bag: createFormalBag(input.run.battlePreference.battleBagEnabled, input.run.battlePreference.ruleSet),
+        localTeam: systemBagResult.team,
+        bag: systemBagResult.bag,
       },
+    };
+  }
+
+  function createFormalNpcSystemBag(
+    battleBagEnabled: boolean,
+    ruleSet: TrainingRuleSetV4,
+    team: LocalTeamV4,
+    rng: () => number,
+  ): {team: LocalTeamV4; bag: BagStateV4; diagnostics: string[]} {
+    const bag = createFormalBag(battleBagEnabled, ruleSet);
+    if (ruleSet !== "gen7") return {team, bag, diagnostics: []};
+    const diagnostics: string[] = [];
+    let pokemon = [...team.pokemon];
+    const items = [...bag.items];
+    const usedPokemonIds = new Set<string>();
+
+    const bindSystemItem = (systemItemId: "system-mega-stone" | "system-z-crystal", preferUnused = true): boolean => {
+      const itemIndex = items.findIndex(item => item.itemID === systemItemId);
+      if (itemIndex < 0) return false;
+      const buildCandidates = (onlyUnused: boolean) => pokemon
+        .map((entry, index) => {
+          const options = getNpcSystemReforgeOptions(systemItemId, entry);
+          return {
+            entry,
+            index,
+            options,
+            preferredOptions: preferredNpcSystemReforgeOptions(systemItemId, options),
+          };
+        })
+        .filter(candidate => candidate.preferredOptions.length)
+        .filter(candidate => !onlyUnused || !usedPokemonIds.has(candidate.entry.localPokemonId));
+      const candidates = buildCandidates(preferUnused);
+      const fallbackCandidates = preferUnused ? buildCandidates(false) : candidates;
+      const candidate = pickOne(candidates.length ? candidates : fallbackCandidates, rng);
+      const option = pickOne(candidate?.preferredOptions || [], rng);
+      if (!candidate || !option?.mappedItemId) {
+        diagnostics.push(`npc-system:${systemItemId}:no-target`);
+        return false;
+      }
+      const item = reforgeFormalSystemItemForNpc(items[itemIndex]!, option);
+      items[itemIndex] = item;
+      const nextPokemon = systemItemId === "system-z-crystal"
+        ? ensurePokemonHasRequiredZMove(candidate.entry, option)
+        : candidate.entry;
+      pokemon = pokemon.map((entry, index) => index === candidate.index
+        ? {...nextPokemon, itemId: systemItemId, heldItemInstanceId: item.id}
+        : entry);
+      usedPokemonIds.add(candidate.entry.localPokemonId);
+      diagnostics.push(`npc-system:${systemItemId}:${candidate.entry.speciesId}:${option.mappedItemId}`);
+      return true;
+    };
+
+    bindSystemItem("system-mega-stone", true);
+    bindSystemItem("system-z-crystal", true);
+    return {
+      team: {...team, pokemon},
+      bag: {...bag, items},
+      diagnostics,
+    };
+  }
+
+  function ensureGen7NpcMegaCandidate(
+    run: FormalGameRunV4,
+    team: LocalTeamV4,
+    powerProfile: PokemonPowerProfileV4,
+    usedNpcSpecies: Set<string>,
+    rng: () => number,
+  ): {team: LocalTeamV4; diagnostics: string[]} {
+    if (run.battlePreference.ruleSet !== "gen7" || team.pokemon.some(pokemon => pokemonHasSystemReforgeOptions(dex, "system-mega-stone", pokemon))) {
+      return {team, diagnostics: []};
+    }
+    const rows = collectPokemonRows(dex, run.battlePreference)
+      .filter(row => !team.pokemon.some(pokemon => baseSpeciesId(pokemon.speciesId) === baseSpeciesId(row.id)))
+      .filter(row => !usedNpcSpecies.has(baseSpeciesId(row.id)))
+      .filter(row => pokemonHasSystemReforgeOptions(dex, "system-mega-stone", createSystemReforgeProbePokemon(safePokemon(row.id))));
+    const row = pickOne(rows.length ? rows : collectPokemonRows(dex, run.battlePreference).filter(candidate => pokemonHasSystemReforgeOptions(dex, "system-mega-stone", createSystemReforgeProbePokemon(safePokemon(candidate.id)))), rng);
+    if (!row || !team.pokemon.length) return {team, diagnostics: ["npc-gen7-mega-guarantee:no-candidate"]};
+    const replaceIndex = 0;
+    const detail = safePokemon(row.id);
+    const local = createStarterPokemon(dex, detail, {
+      index: replaceIndex,
+      role: roleForTeamPreference("balanced", replaceIndex),
+      powerProfile,
+      rng,
+      seed: `${run.seed}:npc-gen7-mega-guarantee`,
+    });
+    usedNpcSpecies.add(baseSpeciesId(detail.id));
+    return {
+      team: {
+        ...team,
+        pokemon: team.pokemon.map((pokemon, index) => index === replaceIndex
+          ? {...local, localPokemonId: `${pokemon.localPokemonId}-mega-${detail.id}`}
+          : pokemon),
+      },
+      diagnostics: [`npc-gen7-mega-guarantee:${detail.id}`],
+    };
+  }
+
+  function getNpcSystemReforgeOptions(systemItemId: "system-mega-stone" | "system-z-crystal", pokemon: LocalPokemonV4): DexSystemBattleReforgeOption[] {
+    try {
+      const moves = systemItemId === "system-z-crystal"
+        ? npcZReforgeProbeMoves(pokemon)
+        : pokemon.moves.map(move => ({moveId: move.moveId, type: move.type}));
+      return dex.getSystemBattleReforgeOptions(systemItemId, {
+        speciesId: pokemon.speciesId,
+        name: pokemon.name,
+        nameZh: pokemon.nameZh,
+        moves,
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  function npcZReforgeProbeMoves(pokemon: LocalPokemonV4): Array<{moveId?: string; id?: string; type?: string; typeId?: string}> {
+    const currentMoves = pokemon.moves.map(move => ({id: move.moveId, moveId: move.moveId, type: move.type}));
+    const extraMoves = uniqueById([
+      ...safeMoveList(() => dex.getPokemonSelfLearnSkills(pokemon.speciesId)),
+      ...safeMoveList(() => dex.getPokemonMachineSkills(pokemon.speciesId)),
+      ...safeMoveList(() => dex.getPokemonTutorSkills(pokemon.speciesId)),
+      ...safeMoveList(() => dex.getPokemonEggSkills(pokemon.speciesId)),
+    ]).map(move => ({id: move.id, moveId: move.id, type: move.type}));
+    return uniqueById([...currentMoves, ...extraMoves]);
+  }
+
+  function safeMoveList(read: () => DexMoveSummary[]): DexMoveSummary[] {
+    try {
+      return read();
+    } catch {
+      return [];
+    }
+  }
+
+  function preferredNpcSystemReforgeOptions(systemItemId: "system-mega-stone" | "system-z-crystal", options: DexSystemBattleReforgeOption[]): DexSystemBattleReforgeOption[] {
+    if (systemItemId !== "system-z-crystal") return options.filter(option => option.mappedItemId);
+    const exclusive = options.filter(option => option.mappedItemId && option.requiredMoveId);
+    if (exclusive.length) return exclusive;
+    return options.filter(option => option.mappedItemId && !option.requiredMoveId);
+  }
+
+  function ensurePokemonHasRequiredZMove(pokemon: LocalPokemonV4, option: DexSystemBattleReforgeOption): LocalPokemonV4 {
+    const requiredMoveId = toID(option.requiredMoveId);
+    if (!requiredMoveId || pokemon.moves.some(move => toID(move.moveId) === requiredMoveId)) return pokemon;
+    const nextMove = normalizeMoves(dex, [requiredMoveId], 1)[0];
+    if (!nextMove) return pokemon;
+    const replaceIndex = pokemon.moves.findIndex(move => move.power <= 0) >= 0
+      ? pokemon.moves.findIndex(move => move.power <= 0)
+      : Math.max(0, pokemon.moves.length - 1);
+    return {
+      ...pokemon,
+      moves: pokemon.moves.map((move, index) => index === replaceIndex ? nextMove : move),
     };
   }
 
@@ -2549,57 +2705,130 @@ export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: 
   const powerProfiles = starterPowerProfileDeck(input.seed, input.streak, count);
   const used = new Set<string>();
   let legendaryCount = 0;
-  return roles.map((role, index) => {
+  const candidates = roles.map((role, index) => {
     const rolePool = filterRowsForRole(rows, role);
     const pool = filterLegendaryQuota(rolePool.length ? rolePool : rows, battlePreference, legendaryCount);
     const unused = pool.filter(row => !used.has(row.id));
     const selectedRow = pickOne(unused.length ? unused : pool, rng) || fallbackRow(index);
     used.add(selectedRow.id);
     if (selectedRow.rank === "legendary") legendaryCount += 1;
-    const detail = safePokemonDetail(dex, selectedRow.id);
-    const speciesRank = speciesRankForDetail(detail);
     const powerProfile = powerProfiles[index] || "elite";
-    const pokemon = createStarterPokemon(dex, detail, {
+    return buildFormalStarterCandidate(dex, {
+      row: selectedRow,
       index,
       role,
       powerProfile,
       rng,
       seed: input.seed,
+      battlePreference,
+      poolSize: pool.length,
+      messages: [
+        rolePool.length ? `role-pool:${role}` : `role-pool-fallback:${role}`,
+        selectedRow.description || "",
+      ].filter(Boolean),
     });
-    const display = displayFromDetail(detail);
-    const calculatedStats = dex.calculatePokemonStats({
-      speciesId: detail.id,
-      level: pokemon.level,
-      nature: pokemon.nature,
-      evs: pokemon.evs,
-      ivs: pokemon.ivs,
-    }).stats;
-    return {
-      id: `starter-${index + 1}-${detail.id}`,
-      role,
-      speciesRank,
-      powerProfile,
-      pokemon,
-      display: {...display, stats: calculatedStats},
-      diagnostics: {
-        role,
-        speciesRank,
-        powerProfile,
-        generation: generationForDexNum(detail.num),
-        poolSize: pool.length,
-        filters: {
-          allowedGenerations: battlePreference.allowedGenerations,
-          legendaryBattle: battlePreference.legendaryBattle,
-          battleBagEnabled: battlePreference.battleBagEnabled,
-          ruleSet: battlePreference.ruleSet,
-        },
-        messages: [
-          rolePool.length ? `role-pool:${role}` : `role-pool-fallback:${role}`,
-          selectedRow.description || "",
-        ].filter(Boolean),
-      },
-    };
   });
+  return battlePreference.ruleSet === "gen7"
+    ? ensureGen7StarterMegaCandidates(dex, candidates, rows, roles, powerProfiles, input.seed, battlePreference, rng)
+    : candidates;
+}
+
+function buildFormalStarterCandidate(dex: ShowdownDexService, input: {
+  row: DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number};
+  index: number;
+  role: FormalStarterRoleV4;
+  powerProfile: PokemonPowerProfileV4;
+  rng: () => number;
+  seed: string;
+  battlePreference: BattlePreferenceV4;
+  poolSize: number;
+  messages: string[];
+}): FormalStarterCandidateV4 {
+  const detail = safePokemonDetail(dex, input.row.id);
+  const speciesRank = speciesRankForDetail(detail);
+  const pokemon = createStarterPokemon(dex, detail, {
+    index: input.index,
+    role: input.role,
+    powerProfile: input.powerProfile,
+    rng: input.rng,
+    seed: input.seed,
+  });
+  const display = displayFromDetail(detail);
+  const calculatedStats = dex.calculatePokemonStats({
+    speciesId: detail.id,
+    level: pokemon.level,
+    nature: pokemon.nature,
+    evs: pokemon.evs,
+    ivs: pokemon.ivs,
+  }).stats;
+  return {
+    id: `starter-${input.index + 1}-${detail.id}`,
+    role: input.role,
+    speciesRank,
+    powerProfile: input.powerProfile,
+    pokemon,
+    display: {...display, stats: calculatedStats},
+    diagnostics: {
+      role: input.role,
+      speciesRank,
+      powerProfile: input.powerProfile,
+      generation: generationForDexNum(detail.num),
+      poolSize: input.poolSize,
+      filters: {
+        allowedGenerations: input.battlePreference.allowedGenerations,
+        legendaryBattle: input.battlePreference.legendaryBattle,
+        battleBagEnabled: input.battlePreference.battleBagEnabled,
+        ruleSet: input.battlePreference.ruleSet,
+      },
+      messages: input.messages,
+    },
+  };
+}
+
+function ensureGen7StarterMegaCandidates(
+  dex: ShowdownDexService,
+  candidates: FormalStarterCandidateV4[],
+  rows: Array<DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number}>,
+  roles: FormalStarterRoleV4[],
+  powerProfiles: PokemonPowerProfileV4[],
+  seed: string,
+  battlePreference: BattlePreferenceV4,
+  rng: () => number,
+): FormalStarterCandidateV4[] {
+  const targetMegaCount = Math.min(2, candidates.length);
+  if (candidates.filter(candidate => pokemonHasSystemReforgeOptions(dex, "system-mega-stone", candidate.pokemon)).length >= targetMegaCount) {
+    return candidates;
+  }
+  const next = [...candidates];
+  const usedSpecies = new Set(next.map(candidate => baseSpeciesId(candidate.pokemon.speciesId)));
+  const megaRows = shuffle(rows.filter(row => {
+    if (usedSpecies.has(baseSpeciesId(row.id))) return false;
+    const detail = safePokemonDetail(dex, row.id);
+    if (!isRandomGeneratableSpeciesFormV4(detail.id, detail)) return false;
+    const probe = createSystemReforgeProbePokemon(detail);
+    return pokemonHasSystemReforgeOptions(dex, "system-mega-stone", probe);
+  }), rng);
+  let cursor = 0;
+  for (let index = 0; index < next.length && next.filter(candidate => pokemonHasSystemReforgeOptions(dex, "system-mega-stone", candidate.pokemon)).length < targetMegaCount; index += 1) {
+    if (pokemonHasSystemReforgeOptions(dex, "system-mega-stone", next[index]!.pokemon)) continue;
+    const row = megaRows[cursor++];
+    if (!row) break;
+    usedSpecies.add(baseSpeciesId(row.id));
+    const role = roles[index] || "balanced";
+    const powerProfile = powerProfiles[index] || next[index]!.powerProfile || "elite";
+    next[index] = buildFormalStarterCandidate(dex, {
+      row,
+      index,
+      role,
+      powerProfile,
+      rng,
+      seed,
+      battlePreference,
+      poolSize: megaRows.length,
+      messages: ["gen7-mega-starter-guarantee", row.description || ""].filter(Boolean),
+    });
+  }
+  return next;
 }
 
 export function selectedCountForFormalMode(mode: FormalGameModeV4): number {
@@ -2690,6 +2919,28 @@ function displayFromDetail(detail: DexPokemonDetail): FormalStarterCandidateV4["
     baseStats: detail.baseStats,
     heightm: detail.heightm,
     weightkg: detail.weightkg,
+  };
+}
+
+function pokemonHasSystemReforgeOptions(dex: ShowdownDexService, systemItemId: "system-mega-stone" | "system-z-crystal", pokemon: Pick<LocalPokemonV4, "speciesId" | "name" | "nameZh" | "moves">): boolean {
+  try {
+    return dex.getSystemBattleReforgeOptions(systemItemId, {
+      speciesId: pokemon.speciesId,
+      name: pokemon.name,
+      nameZh: pokemon.nameZh,
+      moves: pokemon.moves.map(move => ({moveId: move.moveId, type: move.type})),
+    }).some(option => option.mappedItemId);
+  } catch {
+    return false;
+  }
+}
+
+function createSystemReforgeProbePokemon(detail: DexPokemonDetail): Pick<LocalPokemonV4, "speciesId" | "name" | "nameZh" | "moves"> {
+  return {
+    speciesId: detail.id,
+    name: detail.name,
+    nameZh: detail.nameZh,
+    moves: [],
   };
 }
 
@@ -3315,6 +3566,19 @@ function createFormalSystemItem(itemID: string): PlayerItemInstanceV4 {
     maxUseCount: null,
     useCount: 0,
     systemReforgeKind: itemID === "system-mega-stone" ? "mega" : itemID === "system-z-crystal" ? "z-crystal" : itemID === "system-tera-orb" ? "tera" : undefined,
+  };
+}
+
+function reforgeFormalSystemItemForNpc(item: PlayerItemInstanceV4, option: DexSystemBattleReforgeOption): PlayerItemInstanceV4 {
+  return {
+    ...item,
+    mappedItemId: option.mappedItemId,
+    mappedItemName: option.name,
+    mappedItemNameZh: option.nameZh,
+    mappedItemIconUrl: option.iconUrl,
+    mappedTeraType: option.mappedTeraType,
+    mappedTeraTypeZh: option.mappedTeraTypeZh,
+    systemReforgeKind: option.kind,
   };
 }
 

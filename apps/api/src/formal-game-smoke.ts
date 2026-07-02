@@ -65,7 +65,10 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+const MOCK_MEGA_CAPABLE_SPECIES = new Set(["charizard", "venusaur", "blastoise"]);
+
 const pokemonDetails = [
+  mockPokemon("pikachu", "皮卡丘", 25, ["Electric"], 320),
   mockPokemon("squirtle", "杰尼龟", 7, ["Water"], 314),
   mockPokemon("charizardmegax", "超级喷火龙X", 6, ["Fire", "Dragon"], 634, {baseSpecies: "Charizard", forme: "Mega-X", isMega: true}),
   mockPokemon("charizardgmax", "超极巨喷火龙", 6, ["Fire", "Flying"], 534, {baseSpecies: "Charizard", forme: "Gmax"}),
@@ -119,13 +122,70 @@ const api = createFormalGameRunApi({
     return ["toxic", "willowisp", "substitute"].map(moveDetail);
   },
   getPokemonMachineSkills() {
-    return ["watergun", "thunderbolt", "icebeam", "flamethrower", "surf", "earthquake", "protect"].map(moveDetail);
+    return ["watergun", "thunderbolt", "volttackle", "icebeam", "flamethrower", "surf", "earthquake", "protect"].map(moveDetail);
   },
   getMoveDetail(id: string) {
     return moveDetail(id);
   },
   getItemDetail(id: string) {
     return itemDetail(id);
+  },
+  getSystemBattleReforgeOptions(itemId: string, pokemon: {speciesId?: string; moves?: Array<{moveId?: string; id?: string; type?: string; typeId?: string}>} | null | undefined) {
+    const megaStones: Record<string, {id: string; name: string; nameZh: string}> = {
+      charizard: {id: "charizarditex", name: "Charizardite X", nameZh: "喷火龙进化石Ｘ"},
+      venusaur: {id: "venusaurite", name: "Venusaurite", nameZh: "妙蛙花进化石"},
+      blastoise: {id: "blastoisinite", name: "Blastoisinite", nameZh: "水箭龟进化石"},
+    };
+    const megaStone = pokemon?.speciesId ? megaStones[pokemon.speciesId] : undefined;
+    if (itemId === "system-mega-stone" && megaStone) {
+      return [{
+        id: `mega:${megaStone.id}`,
+        kind: "mega",
+        name: megaStone.name,
+        nameZh: megaStone.nameZh,
+        description: "让宝可梦进行 Mega 进化。",
+        mappedItemId: megaStone.id,
+      }];
+    }
+    if (itemId === "system-z-crystal" && pokemon?.speciesId === "pikachu" && (pokemon?.moves || []).some(move => move.moveId === "volttackle" || move.id === "volttackle")) {
+      return [{
+        id: "z-crystal:pikaniumz",
+        kind: "z-crystal",
+        name: "Pikanium Z",
+        nameZh: "皮卡丘Ｚ",
+        description: "把伏特攻击转化为专属 Z 招式。",
+        mappedItemId: "pikaniumz",
+        requiredMoveId: "volttackle",
+        requiredMoveName: "Volt Tackle",
+        requiredMoveNameZh: "伏特攻击",
+        type: "Electric",
+        typeZh: "电",
+      }];
+    }
+    if (itemId === "system-z-crystal" && (pokemon?.moves || []).some(move => move.moveId === "flamethrower" || move.id === "flamethrower" || move.type === "火" || move.typeId === "fire")) {
+      return [{
+        id: "z-crystal:firiumz",
+        kind: "z-crystal",
+        name: "Firium Z",
+        nameZh: "火Ｚ",
+        description: "把火属性招式转化为 Z 招式。",
+        mappedItemId: "firiumz",
+        type: "Fire",
+        typeZh: "火",
+      }];
+    }
+    if (itemId === "system-tera-orb") {
+      return [{
+        id: "tera:fire",
+        kind: "tera",
+        name: "Fire Tera",
+        nameZh: "火太晶",
+        description: "调律为火属性太晶。",
+        mappedTeraType: "Fire",
+        mappedTeraTypeZh: "火",
+      }];
+    }
+    return [];
   },
   calculatePokemonStats({level}: {level: number}) {
     return {stats: {hp: 100 + level, atk: 80, def: 80, spa: 80, spd: 80, spe: 80}};
@@ -182,6 +242,8 @@ function moveDetail(id: string) {
     raindance: "水",
     trickroom: "超能力",
     flamethrower: "火",
+    thunderbolt: "电",
+    volttackle: "电",
     protect: "一般",
   };
   const movePowers: Record<string, number> = {
@@ -196,6 +258,7 @@ function moveDetail(id: string) {
     watergun: 40,
     rockslide: 75,
     thunderbolt: 90,
+    volttackle: 120,
     icebeam: 90,
     flamethrower: 90,
     psychic: 90,
@@ -1132,6 +1195,32 @@ const gen9Prepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(
 const gen9Selected = api.selectFormalStarterPokemon(gen9Prepared, [0, 1, 2]);
 const gen9Planned = api.prepareFormalRoundPlan(gen9Selected);
 assert(gen9Planned.roundPlan[0]?.participants.p2?.bag.items.some(item => item.itemID === "system-tera-orb"), "gen9 formal NPC should receive tera system item");
+const gen8Profile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, ruleSet: "gen8"})};
+const gen8Prepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(gen8Profile, {mode: "singles", seed: "formal-smoke-gen8-seed"}));
+const gen8Selected = api.selectFormalStarterPokemon(gen8Prepared, [0, 1, 2]);
+const gen8Planned = api.prepareFormalRoundPlan(gen8Selected);
+assert(gen8Planned.roundPlan[0]?.participants.p2?.bag.items.some(item => item.itemID === "system-dynamax-band"), "gen8 formal NPC should receive Dynamax Band");
+const gen7Profile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, ruleSet: "gen7"})};
+const gen7Prepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(gen7Profile, {mode: "singles", seed: "formal-smoke-gen7-seed"}));
+const gen7StarterMegaCount = gen7Prepared.starterCandidates.filter(candidate => MOCK_MEGA_CAPABLE_SPECIES.has(candidate.pokemon.speciesId)).length;
+assert(gen7StarterMegaCount >= 2, "gen7 formal starter candidates should include at least two Mega-capable pokemon");
+const gen7Selected = api.selectFormalStarterPokemon(gen7Prepared, [0, 1, 2]);
+const gen7Planned = api.prepareFormalRoundPlan(gen7Selected);
+const gen7NpcItems = gen7Planned.roundPlan[0]?.participants.p2?.bag.items || [];
+assert(gen7NpcItems.some(item => item.itemID === "system-mega-stone"), "gen7 formal NPC should receive Mega system item");
+assert(gen7NpcItems.some(item => item.itemID === "system-z-crystal"), "gen7 formal NPC should receive Z system item");
+const mappedGen7NpcItems = gen7NpcItems.filter(item => item.mappedItemId);
+const gen7NpcHeldInstanceIds = new Set((gen7Planned.roundPlan[0]?.participants.p2?.localTeam.pokemon || []).map(pokemon => pokemon.heldItemInstanceId).filter(Boolean));
+assert(mappedGen7NpcItems.every(item => gen7NpcHeldInstanceIds.has(item.id)), "mapped gen7 formal NPC system items should be held by a pokemon");
+const gen7NpcMegaItem = gen7NpcItems.find(item => item.itemID === "system-mega-stone");
+const gen7NpcMegaHolder = (gen7Planned.roundPlan[0]?.participants.p2?.localTeam.pokemon || []).find(pokemon => pokemon.heldItemInstanceId === gen7NpcMegaItem?.id);
+assert(gen7NpcMegaItem?.mappedItemId, "gen7 formal NPC Mega system item should be mapped to a concrete Mega Stone");
+assert(gen7NpcMegaHolder && MOCK_MEGA_CAPABLE_SPECIES.has(gen7NpcMegaHolder.speciesId), "gen7 formal NPC should hold Mega Stone on a Mega-capable pokemon");
+const gen7NpcZItem = gen7NpcItems.find(item => item.itemID === "system-z-crystal");
+const gen7NpcZHolder = (gen7Planned.roundPlan[0]?.participants.p2?.localTeam.pokemon || []).find(pokemon => pokemon.heldItemInstanceId === gen7NpcZItem?.id);
+if (gen7NpcZItem?.mappedItemId === "pikaniumz") {
+  assert(gen7NpcZHolder?.moves.some(move => move.moveId === "volttackle"), "exclusive Pikachu Z should add Volt Tackle to the holder");
+}
 
 const championPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 3, seed: "formal-smoke-champion-seed"}));
 const championSelected = api.selectFormalStarterPokemon(championPrepared, [0, 1, 2]);

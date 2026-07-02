@@ -331,6 +331,70 @@ async function specialSystemBagGateSmoke() {
     throw new Error(`gen9 with tera orb should expose tera request: ${JSON.stringify(withOrb.requests.p1?.active?.[0])}`);
   }
 
+  const gen8BaseTeam = [{...charizard, item: undefined}, eevee];
+  const noBandInput: BattleServiceSessionInputV4 = {
+    runId: "test-run",
+    nodeId: "test-node-gen8-no-band",
+    mode: "singles",
+    ruleSet: "gen8",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: gen8BaseTeam, draft: {bag: {items: []}} as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  };
+  const noBand = await createBattleSession(noBandInput);
+  if (noBand.requests.p1?.active?.[0]?.canDynamax || noBand.requests.p1?.active?.[0]?.maxMoves) {
+    throw new Error(`gen8 without Dynamax Band leaked max request: ${JSON.stringify(noBand.requests.p1?.active?.[0])}`);
+  }
+  const withBand = await createBattleSession({
+    ...noBandInput,
+    nodeId: "test-node-gen8-with-band",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: gen8BaseTeam, draft: {bag: {items: [{itemID: "system-dynamax-band"}]}} as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  });
+  const withBandMaxMoves = withBand.requests.p1?.active?.[0]?.maxMoves;
+  const withBandMaxMoveCount = Array.isArray(withBandMaxMoves) ? withBandMaxMoves.length : withBandMaxMoves?.maxMoves?.length || 0;
+  if (!withBand.requests.p1?.active?.[0]?.canDynamax || !withBandMaxMoveCount) {
+    throw new Error(`gen8 with Dynamax Band should expose max request: ${JSON.stringify(withBand.requests.p1?.active?.[0])}`);
+  }
+
+  const gen7Mega = await createBattleSession({
+    runId: "test-run",
+    nodeId: "test-node-gen7-mega",
+    mode: "singles",
+    ruleSet: "gen7",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [charizard, eevee], draft: {bag: {items: [{itemID: "system-mega-stone"}]}} as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  });
+  if (!gen7Mega.requests.p1?.active?.[0]?.canMegaEvo) {
+    throw new Error(`gen7 with mapped Mega Stone should expose Mega request: ${JSON.stringify(gen7Mega.requests.p1?.active?.[0])}`);
+  }
+  const pikachuWithZ = {
+    ...pikachu,
+    item: "Pikanium Z",
+    moves: ["Volt Tackle", "Thunderbolt", "Quick Attack", "Protect"],
+  };
+  const gen7Z = await createBattleSession({
+    runId: "test-run",
+    nodeId: "test-node-gen7-z",
+    mode: "singles",
+    ruleSet: "gen7",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [pikachuWithZ, eevee], draft: {bag: {items: [{itemID: "system-z-crystal"}]}} as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+  });
+  if (!gen7Z.requests.p1?.active?.[0]?.canZMove?.some(Boolean)) {
+    throw new Error(`gen7 with Z-Crystal and required move should expose Z request: ${JSON.stringify(gen7Z.requests.p1?.active?.[0])}`);
+  }
+
   const standardCoopInput: BattleServiceSessionInputV4 = {
     runId: "test-run",
     nodeId: "test-node-standard-coop",
@@ -457,6 +521,27 @@ function aiSpecialSystemSmoke() {
     ],
     side: {id: "p2", name: "B", pokemon: [{ident: "p2: Pikachu", details: "Pikachu, L50", condition: "100/100", active: true}]},
   };
+  const gen8Request: BattleServiceRequestV4 = {
+    rqid: 9,
+    active: [
+      {
+        canDynamax: true,
+        maxMoves: [{move: "Max Lightning", id: "maxlightning", pp: 10, maxpp: 10, target: "normal"}],
+        moves: [{move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"}],
+      },
+    ],
+    side: {id: "p2", name: "B", pokemon: [{ident: "p2: Pikachu", details: "Pikachu, L50", condition: "100/100", active: true}]},
+  };
+  const gen9Request: BattleServiceRequestV4 = {
+    rqid: 10,
+    active: [
+      {
+        canTerastallize: true,
+        moves: [{move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"}],
+      },
+    ],
+    side: {id: "p2", name: "B", pokemon: [{ident: "p2: Pikachu", details: "Pikachu, L50", condition: "100/100", active: true}]},
+  };
   const gen7 = chooseAiBattleChoiceV4({
     request: gen7Request,
     snapshot: aiSnapshot("gen7", "singles", gen7Request, ["mega", "zmove"]),
@@ -467,16 +552,42 @@ function aiSpecialSystemSmoke() {
   if (!gen7.debug.topCandidates.some(entry => entry.choice.includes("mega") || entry.choice.includes("zmove"))) {
     throw new Error(`AI did not generate Gen7 special candidates: ${JSON.stringify(gen7.debug.topCandidates)}`);
   }
+  if (!gen7.debug.selectedChoice.includes("mega") && !gen7.debug.selectedChoice.includes("zmove")) {
+    throw new Error(`AI did not select a Gen7 special choice: ${JSON.stringify(gen7.debug)}`);
+  }
 
   const gen8 = chooseAiBattleChoiceV4({
-    request: gen7Request,
-    snapshot: aiSnapshot("gen8", "singles", gen7Request),
+    request: gen8Request,
+    snapshot: aiSnapshot("gen8", "singles", gen8Request, ["max"]),
     playerId: "p2",
     aiProfile: {level: "champion", preference: "offense"},
-    rngSeed: "gen8-filter",
+    rngSeed: "gen8-special",
   });
-  if (gen8.debug.topCandidates.some(entry => entry.choice.includes("mega") || entry.choice.includes("zmove"))) {
+  if (!gen8.debug.topCandidates.some(entry => entry.choice.includes("max"))) {
+    throw new Error(`AI did not generate Gen8 max candidates: ${JSON.stringify(gen8.debug.topCandidates)}`);
+  }
+  if (!gen8.debug.selectedChoice.includes("max")) {
+    throw new Error(`AI did not select a Gen8 max choice: ${JSON.stringify(gen8.debug)}`);
+  }
+  if (gen8.debug.topCandidates.some(entry => entry.choice.includes("mega") || entry.choice.includes("zmove") || entry.choice.includes("terastallize"))) {
     throw new Error(`AI leaked Gen7 special candidates in Gen8: ${JSON.stringify(gen8.debug.topCandidates)}`);
+  }
+
+  const gen9 = chooseAiBattleChoiceV4({
+    request: gen9Request,
+    snapshot: aiSnapshot("gen9", "singles", gen9Request, ["terastallize"]),
+    playerId: "p2",
+    aiProfile: {level: "champion", preference: "offense"},
+    rngSeed: "gen9-special",
+  });
+  if (!gen9.debug.topCandidates.some(entry => entry.choice.includes("terastallize"))) {
+    throw new Error(`AI did not generate Gen9 tera candidates: ${JSON.stringify(gen9.debug.topCandidates)}`);
+  }
+  if (!gen9.debug.selectedChoice.includes("terastallize")) {
+    throw new Error(`AI did not select a Gen9 tera choice: ${JSON.stringify(gen9.debug)}`);
+  }
+  if (gen9.debug.topCandidates.some(entry => entry.choice.includes("mega") || entry.choice.includes("zmove") || entry.choice.includes("max"))) {
+    throw new Error(`AI leaked non-Gen9 special candidates in Gen9: ${JSON.stringify(gen9.debug.topCandidates)}`);
   }
   console.log("showdown-battle-core ai special system smoke ok");
 }
@@ -710,7 +821,7 @@ function showdownPlaybackTimelineSmoke() {
   ];
   const dynamaxTimeline = compileShowdownPlaybackTimelineFromRawLog(dynamaxRawLog, {sessionId: "timeline-dynamax", previousIndex: 0});
   const dynamaxSignatures = dynamaxTimeline.groups.map(group => group.calls.map(call => call.kind).join("+"));
-  const transformIndex = dynamaxSignatures.indexOf("transform");
+  const transformIndex = dynamaxSignatures.findIndex(signature => signature.includes("transform"));
   const healIndex = dynamaxSignatures.findIndex(signature => signature.includes("heal"));
   const moveIndex = dynamaxSignatures.indexOf("move");
   if (transformIndex < 0 || healIndex < 0 || moveIndex < 0 || !(transformIndex < healIndex && healIndex < moveIndex)) {
