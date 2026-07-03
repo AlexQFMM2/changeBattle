@@ -37,7 +37,7 @@ const rootPattern = assetRoots.join("|");
 const extPattern = extensions.join("|");
 const forbiddenPatterns = [
   new RegExp(String.raw`(?:["'\`(=]\s*)/(?:${rootPattern})/[^"'\`)\s]*\.(?:${extPattern})(?:[?#][^"'\`)\s]*)?`, "g"),
-  new RegExp(String.raw`url\(\s*["']?/(?:${rootPattern})/[^"')\s]*\.(?:${extPattern})(?:[?#][^"')\s]*)?`, "g"),
+  new RegExp(String.raw`url\(\s*["']?/(?:${rootPattern})/[^"'\`)\s]*\.(?:${extPattern})(?:[?#][^"'\`)\s]*)?`, "g"),
   /file:\/\/\/[A-Za-z]:\//g,
 ];
 

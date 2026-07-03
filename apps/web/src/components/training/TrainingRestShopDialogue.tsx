@@ -1,5 +1,4 @@
-import type {CSSProperties} from "react";
-import {cssAssetUrl} from "../../lib/assetUrl";
+import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "./TrainingRestShopDialogue.css";
 
 export type TrainingRestShopDialogueAction = {
@@ -22,17 +21,19 @@ export type TrainingRestShopDialogueProps = {
 const DEFAULT_DIALOGUE_PORTRAIT_SRC = "npc/staff/buy.png";
 
 export function TrainingRestShopDialogue({speaker = "店员", text, itemName, portraitSrc = DEFAULT_DIALOGUE_PORTRAIT_SRC, actions = [], onBackdropClick}: TrainingRestShopDialogueProps) {
+  const portrait = portraitSrc || DEFAULT_DIALOGUE_PORTRAIT_SRC;
   return (
     <section
       className="training-rest-shop-dialogue"
       role="dialog"
       aria-label="商店对话"
-      style={{"--training-rest-shop-dialogue-portrait-src": cssAssetUrl(portraitSrc || DEFAULT_DIALOGUE_PORTRAIT_SRC)} as CSSProperties}
       onClick={event => {
         if (event.target === event.currentTarget) onBackdropClick?.();
       }}
     >
-      <div className="training-rest-shop-dialogue-clerk" aria-hidden="true" />
+      <div className="training-rest-shop-dialogue-clerk" aria-hidden="true">
+        <ImageWithFallback src={portrait} alt="" fallback="" />
+      </div>
       <div className="training-rest-shop-dialogue-box">
         <div className="training-rest-shop-dialogue-text">
           <header>

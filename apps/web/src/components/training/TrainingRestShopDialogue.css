@@ -15,7 +15,6 @@
   --training-rest-shop-dialogue-corner-size: 12px;
   --training-rest-shop-dialogue-action-width: 86px;
   --training-rest-shop-dialogue-action-height: 26px;
-  --training-rest-shop-dialogue-portrait-src: url('/npc/staff/buy.png');
   --training-rest-shop-dialogue-ink: #3b2110;
   --training-rest-shop-dialogue-ink-soft: rgb(59 33 16 / 78%);
   --training-rest-shop-dialogue-line: rgb(88 54 23 / 82%);
@@ -35,11 +34,23 @@
   z-index: 13;
   width: var(--training-rest-shop-dialogue-clerk-width);
   height: var(--training-rest-shop-dialogue-clerk-height);
-  background: var(--training-rest-shop-dialogue-portrait-src) center bottom / contain no-repeat;
   filter: drop-shadow(0 4px 4px rgb(0 0 0 / 42%));
   transform: scaleX(-1);
   transform-origin: center bottom;
   pointer-events: none;
+}
+
+.training-rest-shop-dialogue-clerk img,
+.training-rest-shop-dialogue-clerk .image-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.training-rest-shop-dialogue-clerk .image-fallback {
+  visibility: hidden;
 }
 
 .training-rest-shop-dialogue-box {
