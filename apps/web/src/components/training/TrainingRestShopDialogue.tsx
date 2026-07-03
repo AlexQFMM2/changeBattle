@@ -19,7 +19,7 @@ export type TrainingRestShopDialogueProps = {
   onBackdropClick?: () => void;
 };
 
-const DEFAULT_DIALOGUE_PORTRAIT_SRC = "shop/rest-store/clerk-buy-dialogue-v4.png";
+const DEFAULT_DIALOGUE_PORTRAIT_SRC = "npc/staff/buy.png";
 
 export function TrainingRestShopDialogue({speaker = "店员", text, itemName, portraitSrc = DEFAULT_DIALOGUE_PORTRAIT_SRC, actions = [], onBackdropClick}: TrainingRestShopDialogueProps) {
   return (

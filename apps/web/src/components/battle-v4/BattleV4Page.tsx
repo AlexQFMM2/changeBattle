@@ -104,7 +104,7 @@ const STAT_ROWS: Array<[keyof LocalPokemonV4["evs"], string]> = [
 const SURRENDER_TIMEOUT_MS = 15000;
 const SURRENDER_SUBMIT_DELAY_MS = 3000;
 const BATTLE_V4_NARRATIVE_FLOW_VERSION = "referee-dialogue-v2";
-const BATTLE_V4_REFEREE_PORTRAIT = "shop/rest-store/clerk-buy-dialogue-v4.png";
+const BATTLE_V4_REFEREE_PORTRAIT = "npc/staff/judge.png";
 
 const FORMAL_ROUND_STAGE_LABELS = [
   "小组赛揭幕战",

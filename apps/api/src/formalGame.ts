@@ -1641,9 +1641,13 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const rolledEvCap = profileSteps > 0 ? rollPowerProfileEvCap(nextProfile, rng) : oldEvCap;
     const nextIvCap = nextProfile === "champion" ? 186 : Math.max(oldIvCap, rolledIvCap, statTotal(beforeIvs));
     const nextEvCap = nextProfile === "champion" ? 510 : Math.max(oldEvCap, rolledEvCap, statTotal(beforeEvs));
-    const nextIvTarget = event === "playful" ? partialTrainingTarget(statTotal(beforeIvs), nextIvCap, 0.25, 1) : nextIvCap;
-    const nextEvTarget = event === "playful" ? partialTrainingTarget(statTotal(beforeEvs), nextEvCap, 0.25, 8) : nextEvCap;
-    const levelDelta = event === "focused" ? 4 : event === "normal" ? 2 : 1;
+    const lessonRollSeed = rng();
+    const gainsStats = event === "focused" || lessonRollSeed < 0.5;
+    const gainsLevel = event === "focused" || !gainsStats;
+    const statGain = formalTrainingGroundSelfStudyStatGain(event);
+    const nextIvTarget = gainsStats ? Math.min(nextIvCap, statTotal(beforeIvs) + statGain.iv) : statTotal(beforeIvs);
+    const nextEvTarget = gainsStats ? Math.min(nextEvCap, 510, statTotal(beforeEvs) + statGain.ev) : statTotal(beforeEvs);
+    const levelDelta = gainsLevel ? 1 : 0;
     const nextIvs = raiseStatTableToTotal(beforeIvs, nextIvTarget, 31, shuffledStats(rng), rng);
     const nextEvs = raiseStatTableToTotal(beforeEvs, nextEvTarget, 252, shuffledStats(rng), rng);
     const levelAfter = clampInt(levelBefore + levelDelta, 1, 100, levelBefore);
@@ -1663,10 +1667,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       entryHp: clampInt(Math.round(maxHp * hpRatio), 0, maxHp, maxHp),
     };
     const eventText = event === "playful"
-      ? "贪玩了一节课，但也学到了一点东西"
+      ? `贪玩了一节课，但也${gainsStats ? "打磨了一点基础" : "积累了经验"}`
       : event === "focused"
-        ? "认真学习了一整节课，数值等级大幅提升"
-        : "踏踏实实自习了一节课，数值等级提升了";
+        ? "认真学习了一整节课，等级和数值都有提升"
+        : `踏踏实实自习了一节课，${gainsStats ? "数值稳步提升" : "等级提升了"}`;
     const message = `${pokemon.nameZh || pokemon.name}${eventText}。${lesson.completeText}`;
     const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message);
     return {
@@ -3055,7 +3059,7 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   seed: string;
 }): LocalPokemonV4 {
   const ability = pickOne(detail.abilities, options.rng) || detail.abilities[0];
-  const level = levelForPowerProfile(options.powerProfile, options.rng);
+  const level = 50;
   const nature = pickOne(NATURES, options.rng) || "Serious";
   const ivTotalCap = rollPowerProfileIvCap(options.powerProfile, options.rng);
   const evTotalCap = rollPowerProfileEvCap(options.powerProfile, options.rng);
@@ -3636,17 +3640,17 @@ function createFormalTrainingGroundLessonTable(): Array<Omit<FormalTrainingGroun
     {
       kind: "tutor",
       teacherLabel: "老奶奶",
-      introText: "一位年迈慈祥的奶奶正在教学，是否让宝可梦进入学习？旁听费 100 金币。",
+      introText: "一位年迈慈祥的奶奶正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
       completeText: "教授课程结束了。",
-      fee: 100,
+      fee: 200,
       source: "tutor",
     },
     {
       kind: "egg",
       teacherLabel: "老爷爷",
-      introText: "一位沉稳严厉的爷爷正在教学，是否让宝可梦进入学习？旁听费 100 金币。",
+      introText: "一位沉稳严厉的爷爷正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
       completeText: "蛋招式课程结束了。",
-      fee: 100,
+      fee: 200,
       source: "egg",
     },
     {
@@ -3806,6 +3810,12 @@ function rollFormalTrainingGroundSelfStudyEvent(pokemon: LocalPokemonV4, rng: ()
   if (roll < weights.playful) return "playful";
   if (roll >= 1 - weights.focused) return "focused";
   return "normal";
+}
+
+function formalTrainingGroundSelfStudyStatGain(event: FormalTrainingGroundSelfStudyEventV4): {iv: number; ev: number} {
+  if (event === "focused") return {iv: 20, ev: 50};
+  if (event === "normal") return {iv: 15, ev: 30};
+  return {iv: 10, ev: 10};
 }
 
 function formalTrainingGroundSelfStudyEventWeights(pokemon: LocalPokemonV4, eastAsiaEducation = false): {playful: number; normal: number; focused: number} {
@@ -4872,38 +4882,75 @@ function buildSettlementPokemonStats(run: FormalGameRunV4): FormalSettlementPoke
     stats.set(key, created);
     return created;
   };
+  const ensureBattleLogStat = (playerId: ShowdownPlayerIdV4 | undefined, pokemonKey: string | undefined, pokemonName: string | undefined) => {
+    if (playerId !== "p1") return null;
+    const alias = battleKeyNameId(pokemonKey || pokemonName || "");
+    if (!alias) return null;
+    const key = `battlelog:${alias}`;
+    const existing = stats.get(key);
+    if (existing) return existing;
+    const protocolName = String(pokemonKey || "").split(":").slice(1).join(":").trim();
+    const speciesAlias = battleKeyNameId(pokemonName) || battleKeyNameId(protocolName) || battleKeyNameId(pokemonKey) || alias;
+    const created: FormalSettlementPokemonStatsV4 = {
+      pokemonKey: key,
+      localPokemonId: key,
+      speciesId: speciesAlias || alias,
+      name: pokemonName || pokemonKey || alias,
+      nameZh: pokemonName || pokemonKey || alias,
+      iconUrl: "",
+      iconStyle: "",
+      spriteUrl: "",
+      shiny: false,
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      healing: 0,
+      usedRounds: [],
+      kdaScore: 0,
+      mvpScore: 0,
+      isMvp: false,
+    };
+    stats.set(key, created);
+    return created;
+  };
   const localByBattleKey = buildPlayerBattleKeyMap(run);
   for (const entry of run.restRunSnapshot?.battleLog || []) {
     const sourceKey = entry.sourcePokemonKey ? localByBattleKey.get(entry.sourcePokemonKey) : undefined;
     const targetKey = entry.targetPokemonKey ? localByBattleKey.get(entry.targetPokemonKey) : undefined;
     if (entry.eventType === "damage" && entry.damage) {
-      const sourceStat = ensureStat(sourceKey);
+      const sourceStat = ensureStat(sourceKey) || ensureBattleLogStat(entry.sourcePlayerId, entry.sourcePokemonKey, entry.sourcePokemonName);
       if (sourceStat) {
         const stat = sourceStat;
         stat.damageDealt += entry.directness === "direct" ? entry.damage : 0;
         addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
       }
-      const targetStat = ensureStat(targetKey);
+      const targetStat = ensureStat(targetKey) || ensureBattleLogStat(entry.targetPlayerId, entry.targetPokemonKey, entry.targetPokemonName);
       if (targetStat) {
         const stat = targetStat;
         stat.damageTaken += entry.damage;
         addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
       }
     }
-    const healingTargetStat = entry.eventType === "heal" && entry.healing ? ensureStat(targetKey) : null;
+    const healingTargetStat = entry.eventType === "heal" && entry.healing
+      ? ensureStat(targetKey) || ensureBattleLogStat(entry.targetPlayerId, entry.targetPokemonKey, entry.targetPokemonName)
+      : null;
     if (healingTargetStat && entry.healing) {
       const stat = healingTargetStat;
       stat.healing += entry.healing;
       addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
     }
     if (entry.eventType === "faint") {
-      const sourceStat = sourceKey !== targetKey ? ensureStat(sourceKey) : null;
+      const sourceStat = sourceKey !== targetKey
+        ? ensureStat(sourceKey) || ensureBattleLogStat(entry.sourcePlayerId, entry.sourcePokemonKey, entry.sourcePokemonName)
+        : null;
       if (sourceStat) {
         const stat = sourceStat;
         stat.kills += 1;
         addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
       }
-      const targetStat = ensureStat(targetKey);
+      const targetStat = ensureStat(targetKey) || ensureBattleLogStat(entry.targetPlayerId, entry.targetPokemonKey, entry.targetPokemonName);
       if (targetStat) {
         const stat = targetStat;
         stat.deaths += 1;

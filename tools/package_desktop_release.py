@@ -31,6 +31,10 @@ REQUIRED_DESKTOP_OUTPUTS = [
 REQUIRED_RENDERER_ASSETS = [
     "apps/desktop/out/renderer/aboutIcon/exchange.png",
     "apps/desktop/out/renderer/board/rest-panel-frame.png",
+    "apps/desktop/out/renderer/npc/staff/buy.png",
+    "apps/desktop/out/renderer/npc/staff/judge.png",
+    "apps/desktop/out/renderer/npc/staff/nurse.png",
+    "apps/desktop/out/renderer/npc/staff/teach.png",
     "apps/desktop/out/renderer/title/spritesaurus-transition.mp4",
     "apps/desktop/out/renderer/ui/button-gold.png",
 ]

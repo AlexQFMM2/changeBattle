@@ -2034,6 +2034,8 @@ function showdownSpriteIdForSpecies(speciesId: string): string {
     necrozmaultra: "necrozma-ultra",
   };
   if (known[speciesId]) return known[speciesId]!;
+  const megaZMatch = /^(.+?)megaz$/.exec(speciesId);
+  if (megaZMatch) return `${megaZMatch[1]}-megaz`;
   const megaMatch = /^(.+?)mega([xy])?$/.exec(speciesId);
   if (megaMatch) return `${megaMatch[1]}-mega${megaMatch[2] || ""}`;
   const gmaxMatch = /^(.+?)gmax$/.exec(speciesId);

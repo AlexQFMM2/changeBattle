@@ -349,6 +349,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
       <TrainingRestShopDialogue
         speaker={dialogueSpeaker}
         itemName={dialogueItemName}
+        portraitSrc="npc/staff/teach.png"
         text={dialogueText}
         actions={dialogueActions}
       />
@@ -657,7 +658,7 @@ function buildDialogueActions({
   }
   if (step === "pokemon") {
     return [
-      {label: "返回", onClick: onCancelLesson || onBack},
+      {label: onCancelLesson ? "返回课程选择" : "返回", onClick: onCancelLesson || onBack},
       {label: lesson?.kind === "self-study" ? "开始自习" : "下一步", primary: true, onClick: onProceedPokemon},
     ];
   }
@@ -715,31 +716,31 @@ function courseDetail(lesson: FormalTrainingGroundLessonViewV4): {title: string;
     return {
       title: "遗传学",
       teacher: "老爷爷",
-      summary: "研究蛋招式和遗传来源，让宝可梦学习平时学不到的招式。",
-      dialogue: "老爷爷推了推眼镜：遗传学不是背书，是把血脉里藏着的可能性找出来。想让哪只宝可梦来试试？",
+      summary: "由培育屋的老爷爷上课，能令宝可梦学会那些与生俱来的招式。",
+      dialogue: "培育屋的老爷爷会讲解招式的遗传来源，让宝可梦学会那些与生俱来的招式。想让哪只宝可梦来听课？",
     };
   }
   if (lesson.kind === "tutor") {
     return {
       title: "实践课",
       teacher: "老奶奶",
-      summary: "由教授现场指导，学习导师招式来源的实战技巧。",
-      dialogue: "老奶奶把教鞭往桌上一点：实践课讲究当场上手，选好宝可梦，我们就开始练招。",
+      summary: "由联盟来的老奶奶上课，能教授宝可梦难以学习的招式。",
+      dialogue: "联盟来的老奶奶会带来实战课程，教授宝可梦那些平时难以学习的招式。想让哪只宝可梦上课？",
     };
   }
   if (lesson.kind === "self-learn") {
     return {
       title: "冥想课",
-      teacher: "冥想导师",
-      summary: "整理自身招式记忆，学习升级或自学来源的招式。",
-      dialogue: "冥想导师放低声音：静下来，听听它自己记得什么。冥想课适合找回成长中能掌握的招式。",
+      teacher: "年轻姐姐",
+      summary: "由年轻的姐姐上课，能让宝可梦静下心来修炼，说不定能回忆一些招式。",
+      dialogue: "年轻的姐姐会引导宝可梦静下心来修炼，说不定能回忆起一些曾经掌握或能够领悟的招式。",
     };
   }
   return {
     title: "自习课",
-    teacher: "自习监督",
-    summary: "自由训练，提升等级、个体和努力成长。",
-    dialogue: "自习监督翻开记录本：自习课不学新招式，但会踏实提升基础。准备好就选一只宝可梦入座。",
+    teacher: "自主学习",
+    summary: "由宝可梦自主学习，可以靠努力自学突破自己的上限。",
+    dialogue: "自习课交给宝可梦自主学习。只要足够努力，它们就有机会靠训练突破自己的上限。",
   };
 }
 

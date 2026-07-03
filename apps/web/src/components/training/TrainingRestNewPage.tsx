@@ -534,6 +534,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           <TrainingRestShopDialogue
             speaker="医疗员"
             itemName="全队治疗"
+            portraitSrc="npc/staff/nurse.png"
             text={`需要花费 ${Math.max(1, Math.floor(Number(healController?.cost ?? 250))).toLocaleString()} 金币。治疗后全队会恢复满 HP，异常状态也会清除，PP 也会补满。要现在治疗吗？`}
             actions={[
               {label: "取消", onClick: () => setHealConfirmOpen(false)},

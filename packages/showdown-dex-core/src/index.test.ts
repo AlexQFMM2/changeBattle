@@ -23,6 +23,9 @@ assert.ok(venusaur.sprites.backUrl?.includes("venusaur"));
 assert.ok(venusaur.sprites.frontShinyUrl?.includes("venusaur"));
 assert.ok(venusaur.sprites.backShinyUrl?.includes("venusaur"));
 assert.ok(venusaur.cryUrl?.includes("venusaur"));
+const lucarioMegaZ = dex.resolvePokemonSprites({speciesId: "lucariomegaz"});
+assert.ok(lucarioMegaZ.frontUrl?.includes("lucario-megaz.gif"));
+assert.ok(lucarioMegaZ.backUrl?.includes("lucario-megaz.gif"));
 
 const level50 = dex.calculatePokemonStats({speciesId: "venusaur", level: 50});
 const level100 = dex.calculatePokemonStats({speciesId: "venusaur", level: 100});

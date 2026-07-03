@@ -750,7 +750,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
   function resolvePokemonSprites(input: {speciesId: string}): DexPokemonSprites {
     const species = requireDex().species.get(input.speciesId);
     const icon = resolvePokemonIcon(species?.id || input.speciesId);
-    const spriteId = species?.spriteid || species?.id || toID(input.speciesId);
+    const spriteId = showdownSpriteIdFromSpeciesId(species?.spriteid || species?.id || input.speciesId);
     return {
       resourcePrefix,
       spriteId,
@@ -1213,6 +1213,15 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
 
 export function toID(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function showdownSpriteIdFromSpeciesId(speciesId: string): string {
+  const id = toID(speciesId);
+  const megaZMatch = /^(.+?)megaz$/.exec(id);
+  if (megaZMatch) return `${megaZMatch[1]}-megaz`;
+  const megaMatch = /^(.+?)mega([xy])?$/.exec(id);
+  if (megaMatch) return `${megaMatch[1]}-mega${megaMatch[2] || ""}`;
+  return id;
 }
 
 function groupByTrainerTeamPools(teamPools: TrainerTeamPoolData[]): Map<string, TrainerTeamPoolData[]> {

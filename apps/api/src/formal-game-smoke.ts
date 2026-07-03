@@ -427,6 +427,7 @@ assert(api.selectedCountForFormalMode("doubles") === 4, "doubles should select 4
 assert(api.selectedCountForFormalMode("coop") === 2, "coop should select 2");
 assert(prepared.starterCandidates.every(candidate => candidate.pokemon.itemId === ""), "player starters should not hold items");
 assert(prepared.starterCandidates.every(candidate => !candidate.pokemon.heldItemInstanceId), "player starters should not bind held item instances");
+assert(prepared.starterCandidates.every(candidate => candidate.pokemon.level === 50), "formal starter candidates should all start at level 50");
 assert(prepared.starterCandidates.every(candidate => ["normal", "elite"].includes(candidate.pokemon.powerProfile || "")), "player starter power profile should be limited to normal or elite");
 assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "normal").length === 5, "starter candidates should roll about 80% normal power profile for base six");
 assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "elite").length === 1, "starter candidates should roll about 20% elite power profile for base six");
@@ -434,7 +435,7 @@ prepared.starterCandidates.forEach((candidate, index) => {
   const maxStarterIv = candidate.pokemon.powerProfile === "normal" ? 26 : 28;
   assert(Object.values(candidate.pokemon.ivs).every(value => value <= maxStarterIv), `starter candidate ${index + 1} should leave IV growth room`);
 });
-prepared.starterCandidates.forEach((candidate, index) => assertPokemonPowerProfile(candidate.pokemon, `starter candidate ${index + 1}`, ["normal", "elite"]));
+prepared.starterCandidates.forEach((candidate, index) => assertPokemonPowerProfile(candidate.pokemon, `starter candidate ${index + 1}`, ["normal", "elite"], {checkLevel: false}));
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.generation >= 1 && candidate.diagnostics.generation <= 3), "allowedGenerations should filter candidates");
 assert(prepared.battlePreference.battleBagEnabled === true, "formal run should keep battlePreference snapshot battle bag flag");
 assert(prepared.battlePreference.legendaryBattle === false, "formal run should keep battlePreference snapshot legendary flag");
@@ -846,7 +847,7 @@ assert(!poorTrainingResult.ok && poorTrainingResult.run.money === 0, "formal tra
 let moveLessonRun = economyReadyRun;
 let moveLesson = api.getFormalTrainingGroundLessons(moveLessonRun).find(lesson => ["tutor", "egg"].includes(lesson.kind));
 assert(moveLesson && ["tutor", "egg"].includes(moveLesson.kind), "formal training ground should be able to draw a tutor or egg move lesson");
-assert(moveLesson.fee === 100, "formal tutor and egg lessons should cost 100");
+assert(moveLesson.fee === 200, "formal tutor and egg lessons should cost 200");
 const moveLessonPokemon = moveLessonRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const moveLessonCandidates = moveLesson.kind === "tutor"
   ? ["thunderbolt", "protect", "raindance"]
@@ -885,8 +886,15 @@ assert((selfStudyAfter.ivTotalCap || 0) >= selfStudyBeforeIvCap, "formal trainin
 assert((selfStudyAfter.evTotalCap || 0) >= selfStudyBeforeEvCap, "formal training ground self-study should not lower EV cap");
 assert(statTotal(selfStudyAfter.ivs) >= selfStudyBeforeIvTotal, "formal training ground self-study should not lower IV total");
 assert(statTotal(selfStudyAfter.evs) >= selfStudyBeforeEvTotal, "formal training ground self-study should not lower EV total");
-assert(statTotal(selfStudyAfter.ivs) <= (selfStudyAfter.ivTotalCap || 186), "formal training ground self-study IV total should stay within cap");
-assert(statTotal(selfStudyAfter.evs) <= (selfStudyAfter.evTotalCap || 510), "formal training ground self-study EV total should stay within cap");
+const selfStudyMaxGain = selfStudyResult.selfStudyEvent === "focused"
+  ? {iv: 20, ev: 50}
+  : selfStudyResult.selfStudyEvent === "normal"
+    ? {iv: 15, ev: 30}
+    : {iv: 10, ev: 10};
+assert(statTotal(selfStudyAfter.ivs) - selfStudyBeforeIvTotal <= selfStudyMaxGain.iv, "formal training ground self-study IV gain should stay light");
+assert(statTotal(selfStudyAfter.evs) - selfStudyBeforeEvTotal <= selfStudyMaxGain.ev, "formal training ground self-study EV gain should stay light");
+assert(selfStudyAfter.level - selfStudyPokemon.level <= 1, "formal training ground self-study should gain at most one level");
+assert(statTotal(selfStudyAfter.evs) <= 510, "formal training ground self-study EV total should stay within rules");
 assert(powerProfileIndex(selfStudyAfter.powerProfile || "rookie") >= selfStudyBeforeProfileIndex, "formal training ground self-study should not lower power profile");
 assertPokemonPowerProfile(selfStudyAfter, "self-study pokemon", undefined, {checkLevel: false});
 
@@ -1074,6 +1082,34 @@ const withDuplicateBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withBatt
 assert(withDuplicateBattleLog.restRunSnapshot?.battleLog?.length === withBattleLog.restRunSnapshot?.battleLog?.length, "battle log should dedupe snapshot lines");
 const loggedDamage = (withBattleLog.restRunSnapshot?.battleLog || []).filter(entry => entry.eventType === "damage").reduce((sum, entry) => sum + (entry.damage || 0), 0);
 assert(loggedDamage === 100, "battle log should replay rawLog HP baseline and scale public percentage HP to true max HP");
+const withSettlementBattleLog = {
+  ...withBattleLog,
+  restRunSnapshot: {
+    ...withBattleLog.restRunSnapshot!,
+    battleLog: [
+      ...(withBattleLog.restRunSnapshot?.battleLog || []),
+      {
+        id: "formal-smoke:historical-raichu-damage",
+        key: "formal-smoke:historical-raichu-damage",
+        at: new Date(0).toISOString(),
+        sessionId: "formal-smoke-session",
+        nodeId: withBattleLog.roundPlan[0]!.id,
+        turn: 2,
+        rawLogIndex: 999,
+        eventType: "damage" as const,
+        damage: 123,
+        sourcePlayerId: "p1" as const,
+        sourcePokemonKey: "p1a: Raichu",
+        sourcePokemonName: "Raichu",
+        targetPlayerId: "p2" as const,
+        targetPokemonKey: "p2a: Test Target",
+        targetPokemonName: "Test Target",
+        directness: "direct" as const,
+        rawLine: "|-damage|p2a: Test Target|1/100|[from] move: Thunderbolt|[of] p1a: Raichu",
+      },
+    ],
+  },
+};
 const finalizedBattleResult = api.finalizeFormalBattleResultV4(withPartialBattleLog, battleSnapshot);
 assert(finalizedBattleResult.destination === "rest", "formal battle finalize should route won non-final rounds back to rest");
 assert(finalizedBattleResult.run.money === withPartialBattleLog.money + 500, "formal battle finalize should apply round reward once");
@@ -1168,15 +1204,16 @@ const lostRoundSettlement = api.settleFormalBattleRoundV4({...withBattleLog, res
 assert(!lostRoundSettlement.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id], "round settlement should not run for lost battles");
 assert(lostRoundSettlement.money === withBattleLog.money, "lost battle should not grant round settlement coins");
 const wonRestRun = {
-  ...withBattleLog.restRunSnapshot!,
-  gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
+  ...withSettlementBattleLog.restRunSnapshot!,
+  gameMap: withSettlementBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
 };
-const settlementRun = api.prepareFormalSettlement({...withBattleLog, restRunSnapshot: wonRestRun}, "loss");
+const settlementRun = api.prepareFormalSettlement({...withSettlementBattleLog, restRunSnapshot: wonRestRun}, "loss");
 assert(settlementRun.status === "ended", "settlement should end formal run");
 assert(settlementRun.settlement?.wonRounds === 1, "settlement should count won rounds");
 assert(settlementRun.settlement?.bpGained === 1, "settlement should calculate BP from normal NPC coefficient at streak 0");
 assert(settlementRun.settlement?.pokemonStats[0]?.pokemonKey, "settlement should include pokemon stats and MVP");
-assert((settlementRun.settlement?.pokemonStats.length || 0) <= (selected.playerTeam?.pokemon.length || 0), "settlement stats should only include logged player pokemon");
+const raichuSettlementStat = settlementRun.settlement?.pokemonStats.find(stat => stat.pokemonKey.includes("raichu") || stat.name.toLowerCase().includes("raichu") || stat.nameZh.includes("雷丘"));
+assert(raichuSettlementStat && raichuSettlementStat.damageDealt >= 123, "settlement stats should include player battleLog pokemon even when missing from final team");
 const dividendSettlementRun = api.prepareFormalSettlement({...withBattleLog, starChartSnapshot: starProfile.starChart, money: 1234, restRunSnapshot: wonRestRun}, "loss");
 assert(dividendSettlementRun.settlement?.bpGained === 13, "victory dividend should add floor(current money * 1%) BP");
 assert(dividendSettlementRun.money === 1234, "victory dividend should not consume money");
@@ -1255,7 +1292,6 @@ function inRange(value: number, min: number, max: number): boolean {
 }
 
 function expectedTrainingGroundLessonFee(kind: string): number {
-  if (kind === "tutor" || kind === "egg") return 100;
   return 200;
 }
 
