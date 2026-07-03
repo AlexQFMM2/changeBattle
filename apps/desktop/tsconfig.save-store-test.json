@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "out/save-store-test",
+    "types": ["node"]
+  },
+  "include": ["electron/desktopSaveStore.ts", "electron/desktopSaveStore.test.ts"]
+}

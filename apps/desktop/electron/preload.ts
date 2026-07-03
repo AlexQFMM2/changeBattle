@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, DesktopFormalGameRunBridge, DesktopTrainingRunBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
   userProfile: {
@@ -7,6 +7,22 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
     saveUserProfile: (profile: UserProfileV2): Promise<UserProfileV2> => ipcRenderer.invoke("userProfile:save", profile),
     deleteUserProfile: (): Promise<void> => ipcRenderer.invoke("userProfile:delete"),
     getUserProfilePath: (): Promise<string> => ipcRenderer.invoke("userProfile:path"),
+  },
+  trainingRun: {
+    loadTrainingRun: () =>
+      ipcRenderer.invoke("trainingRun:load") as ReturnType<DesktopTrainingRunBridge["loadTrainingRun"]>,
+    saveTrainingRun: (run: TrainingRunGameV4) =>
+      ipcRenderer.invoke("trainingRun:save", run) as ReturnType<DesktopTrainingRunBridge["saveTrainingRun"]>,
+    deleteTrainingRun: () =>
+      ipcRenderer.invoke("trainingRun:delete") as ReturnType<DesktopTrainingRunBridge["deleteTrainingRun"]>,
+  },
+  formalRun: {
+    loadFormalGameRun: () =>
+      ipcRenderer.invoke("formalRun:load") as ReturnType<DesktopFormalGameRunBridge["loadFormalGameRun"]>,
+    saveFormalGameRun: (run: FormalGameRunV4) =>
+      ipcRenderer.invoke("formalRun:save", run) as ReturnType<DesktopFormalGameRunBridge["saveFormalGameRun"]>,
+    deleteFormalGameRun: () =>
+      ipcRenderer.invoke("formalRun:delete") as ReturnType<DesktopFormalGameRunBridge["deleteFormalGameRun"]>,
   },
   formalGame: {
     createFormalGameWithStarterCandidates: (profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}) =>

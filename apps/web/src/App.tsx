@@ -2,14 +2,19 @@ import {useEffect, useMemo, useState} from "react";
 import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "react-router";
 import {
   createBrowserUserProfileAdapter,
+  createBrowserFormalGameRunAdapter,
   createBrowserTrainingRunAdapter,
   createChangeBattleV2Api,
+  createDesktopFormalGameRunAdapter,
+  createDesktopTrainingRunAdapter,
   createDesktopUserProfileAdapter,
   starChartHasSpecialTrainingLockV4,
   starChartHasOpponentRumorV4,
   type AppDebugConfigV4,
   type DesktopBattleServiceBridge,
   type DesktopFormalGameBridge,
+  type DesktopFormalGameRunBridge,
+  type DesktopTrainingRunBridge,
   type DesktopUserProfileBridge,
   type FormalBattleResultFinalizeReasonV4,
   type FormalGameModeV4,
@@ -69,6 +74,8 @@ type ChangeBattleV2Window = Window & {
   changeBattleV2?: {
     battleService?: DesktopBattleServiceBridge;
     formalGame?: DesktopFormalGameBridge;
+    formalRun?: DesktopFormalGameRunBridge;
+    trainingRun?: DesktopTrainingRunBridge;
     userProfile?: DesktopUserProfileBridge;
   };
 };
@@ -90,7 +97,8 @@ function RoutedApp({runtime}: AppProps) {
   const battleServiceBridge = desktopBridgeRoot?.battleService;
   const api = useMemo(() => createChangeBattleV2Api({
     userProfileAdapter: createUserProfileAdapter(runtime),
-    trainingRunAdapter: createBrowserTrainingRunAdapter(`changebattle-v2:${runtime}:training-run`),
+    trainingRunAdapter: createTrainingRunAdapter(runtime),
+    formalGameRunAdapter: createFormalRunAdapter(runtime),
     battleServiceClient: battleServiceBridge,
     battleServiceUrl: import.meta.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL,
     resourcePrefix: showdownAssetPrefix(),
@@ -204,6 +212,8 @@ function RoutedApp({runtime}: AppProps) {
 
   async function deleteProfile() {
     try {
+      await api.deleteTrainingRun();
+      await api.deleteFormalGameRun();
       await api.deleteUserProfile();
       setProfile(null);
       setEditingProfile(null);
@@ -998,6 +1008,92 @@ function createUserProfileAdapter(runtime: AppProps["runtime"]) {
     };
   }
   return createBrowserUserProfileAdapter(`changebattle-v2:${runtime}:user-profile`);
+}
+
+function createTrainingRunAdapter(runtime: AppProps["runtime"]) {
+  const bridge = typeof window === "undefined"
+    ? undefined
+    : (window as ChangeBattleV2Window).changeBattleV2?.trainingRun;
+  if (runtime === "desktop" && bridge) {
+    const desktopAdapter = createDesktopTrainingRunAdapter(bridge);
+    const staleFallbackAdapter = createBrowserTrainingRunAdapter("changebattle-v2:desktop:training-run");
+    return {
+      async loadTrainingRun() {
+        const desktopRun = await desktopAdapter.loadTrainingRun();
+        if (desktopRun) return desktopRun;
+        const staleRun = await staleFallbackAdapter.loadTrainingRun();
+        if (!staleRun) return null;
+        await desktopAdapter.saveTrainingRun(staleRun);
+        await staleFallbackAdapter.deleteTrainingRun();
+        return staleRun;
+      },
+      saveTrainingRun: desktopAdapter.saveTrainingRun,
+      async deleteTrainingRun() {
+        await desktopAdapter.deleteTrainingRun();
+        await staleFallbackAdapter.deleteTrainingRun();
+      },
+    };
+  }
+  if (runtime === "desktop") {
+    return {
+      async loadTrainingRun() {
+        throw new Error("桌面训练存档桥接未加载，请重启桌面端或检查 preload 配置。");
+      },
+      async saveTrainingRun() {
+        throw new Error("桌面训练存档桥接未加载，无法写入本地存档。");
+      },
+      async deleteTrainingRun() {
+        throw new Error("桌面训练存档桥接未加载，无法删除本地存档。");
+      },
+    };
+  }
+  return createBrowserTrainingRunAdapter(`changebattle-v2:${runtime}:training-run`);
+}
+
+function createFormalRunAdapter(runtime: AppProps["runtime"]) {
+  const bridge = typeof window === "undefined"
+    ? undefined
+    : (window as ChangeBattleV2Window).changeBattleV2?.formalRun;
+  if (runtime === "desktop" && bridge) {
+    const desktopAdapter = createDesktopFormalGameRunAdapter(bridge);
+    const staleFallbackAdapters = [
+      createBrowserFormalGameRunAdapter("changebattle-v2:web:formal-run"),
+      createBrowserFormalGameRunAdapter("changebattle-v2:desktop:formal-run"),
+    ];
+    return {
+      async loadFormalGameRun() {
+        const desktopRun = await desktopAdapter.loadFormalGameRun();
+        if (desktopRun) return desktopRun;
+        for (const staleFallbackAdapter of staleFallbackAdapters) {
+          const staleRun = await staleFallbackAdapter.loadFormalGameRun();
+          if (!staleRun) continue;
+          await desktopAdapter.saveFormalGameRun(staleRun);
+          await staleFallbackAdapter.deleteFormalGameRun();
+          return staleRun;
+        }
+        return null;
+      },
+      saveFormalGameRun: desktopAdapter.saveFormalGameRun,
+      async deleteFormalGameRun() {
+        await desktopAdapter.deleteFormalGameRun();
+        await Promise.all(staleFallbackAdapters.map(adapter => adapter.deleteFormalGameRun()));
+      },
+    };
+  }
+  if (runtime === "desktop") {
+    return {
+      async loadFormalGameRun() {
+        throw new Error("桌面正式流程存档桥接未加载，请重启桌面端或检查 preload 配置。");
+      },
+      async saveFormalGameRun() {
+        throw new Error("桌面正式流程存档桥接未加载，无法写入本地存档。");
+      },
+      async deleteFormalGameRun() {
+        throw new Error("桌面正式流程存档桥接未加载，无法删除本地存档。");
+      },
+    };
+  }
+  return createBrowserFormalGameRunAdapter();
 }
 
 function latestUnreadRoundSettlement(run: FormalGameRunV4, seen: Record<string, true>): FormalRoundSettlementV4 | null {

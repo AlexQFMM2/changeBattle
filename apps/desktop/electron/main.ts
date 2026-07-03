@@ -1,17 +1,17 @@
-import {existsSync} from "node:fs";
-import {mkdir, readFile, rm, writeFile} from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, ShowdownPlayerIdV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
+import {DesktopSaveStoreV2} from "./desktopSaveStore.js";
 import {rendererAssetFilePath} from "./rendererAssetResolver.js";
 
 let mainWindow: BrowserWindow | null = null;
 let formalComputeWorker: Worker | null = null;
 let battleService: BattleServiceApiV4 | null = null;
+let saveStore: DesktopSaveStoreV2 | null = null;
 let formalComputeRequestId = 0;
 const formalComputePending = new Map<number, {resolve: (value: any) => void; reject: (error: Error) => void}>();
 const rendererReadyRetryMs = 180;
@@ -101,25 +101,44 @@ function registerRendererAssetFileResolver() {
 }
 
 ipcMain.handle("userProfile:load", async () => {
-  const filePath = userProfilePath();
-  console.info(`[changebattle-v2:desktop] loading profile from ${filePath}`);
-  if (!existsSync(filePath)) return null;
-  return JSON.parse(await readFile(filePath, "utf8")) as UserProfileV2;
+  console.info(`[changebattle-v2:desktop] loading profile from ${ensureSaveStore().path()}`);
+  return ensureSaveStore().loadUserProfile();
 });
 
 ipcMain.handle("userProfile:save", async (_event: IpcMainInvokeEvent, profile: UserProfileV2) => {
-  const filePath = userProfilePath();
-  console.info(`[changebattle-v2:desktop] saving profile to ${filePath}`);
-  await mkdir(path.dirname(filePath), {recursive: true});
-  await writeFile(filePath, `${JSON.stringify(profile, null, 2)}\n`, "utf8");
-  return profile;
+  console.info(`[changebattle-v2:desktop] saving profile to ${ensureSaveStore().path()}`);
+  return ensureSaveStore().saveUserProfile(profile);
 });
 
 ipcMain.handle("userProfile:delete", async () => {
-  await rm(userProfilePath(), {force: true});
+  await ensureSaveStore().deleteAll();
 });
 
-ipcMain.handle("userProfile:path", async () => userProfilePath());
+ipcMain.handle("userProfile:path", async () => ensureSaveStore().path());
+
+ipcMain.handle("trainingRun:load", async () => {
+  return ensureSaveStore().loadTrainingRun();
+});
+
+ipcMain.handle("trainingRun:save", async (_event: IpcMainInvokeEvent, run: TrainingRunGameV4) => {
+  return ensureSaveStore().saveTrainingRun(run);
+});
+
+ipcMain.handle("trainingRun:delete", async () => {
+  await ensureSaveStore().deleteTrainingRun();
+});
+
+ipcMain.handle("formalRun:load", async () => {
+  return ensureSaveStore().loadFormalGameRun();
+});
+
+ipcMain.handle("formalRun:save", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {
+  return ensureSaveStore().saveFormalGameRun(run);
+});
+
+ipcMain.handle("formalRun:delete", async () => {
+  await ensureSaveStore().deleteFormalGameRun();
+});
 
 ipcMain.handle("formalGame:createWithStarterCandidates", async (_event: IpcMainInvokeEvent, profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}) => {
   return callFormalComputeWorker("createFormalGameWithStarterCandidates", profile, options);
@@ -190,13 +209,14 @@ ipcMain.handle("battleService:closeSession", async (_event: IpcMainInvokeEvent, 
   return ensureBattleService().closeSession(sessionId);
 });
 
-function userProfilePath(): string {
-  return path.join(app.getPath("userData"), "profile", "user-profile.json");
-}
-
 function ensureBattleService(): BattleServiceApiV4 {
   battleService ||= createInMemoryBattleService();
   return battleService;
+}
+
+function ensureSaveStore(): DesktopSaveStoreV2 {
+  saveStore ||= new DesktopSaveStoreV2(app.getPath("userData"));
+  return saveStore;
 }
 
 function callFormalComputeWorker<TMethod extends keyof FormalComputeMethodMap>(

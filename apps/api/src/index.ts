@@ -93,6 +93,9 @@ export type DesktopUserProfileBridge = UserProfileStorageAdapter & {
   getUserProfilePath?: () => Promise<string>;
 };
 
+export type DesktopTrainingRunBridge = TrainingRunStorageAdapter;
+export type DesktopFormalGameRunBridge = FormalGameRunStorageAdapter;
+
 export type DesktopFormalGameBridge = {
   createFormalGameWithStarterCandidates(
     profile: UserProfileV2,
@@ -373,6 +376,36 @@ export function createDesktopUserProfileAdapter(bridge: DesktopUserProfileBridge
     },
     async deleteUserProfile() {
       await bridge.deleteUserProfile();
+    },
+  };
+}
+
+export function createDesktopTrainingRunAdapter(bridge: DesktopTrainingRunBridge): TrainingRunStorageAdapter {
+  return {
+    async loadTrainingRun() {
+      const run = await bridge.loadTrainingRun();
+      return run ? clone(run) : null;
+    },
+    async saveTrainingRun(run) {
+      return clone(await bridge.saveTrainingRun(clone(run)));
+    },
+    async deleteTrainingRun() {
+      await bridge.deleteTrainingRun();
+    },
+  };
+}
+
+export function createDesktopFormalGameRunAdapter(bridge: DesktopFormalGameRunBridge): FormalGameRunStorageAdapter {
+  return {
+    async loadFormalGameRun() {
+      const run = await bridge.loadFormalGameRun();
+      return run ? clone(run) : null;
+    },
+    async saveFormalGameRun(run) {
+      return clone(await bridge.saveFormalGameRun(clone(run)));
+    },
+    async deleteFormalGameRun() {
+      await bridge.deleteFormalGameRun();
     },
   };
 }
