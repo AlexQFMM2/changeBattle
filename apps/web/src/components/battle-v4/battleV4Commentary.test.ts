@@ -1,5 +1,6 @@
 import {buildBattleV4StepCommentaryIndex} from "./battleV4Commentary.js";
 import type {BattlePlaybackStepV4, BattleProtocolEventV4} from "./battleV4Playback.js";
+import {executeBattleV4Protocol} from "./battleV4ProtocolExecutor.js";
 import type {BattleSemanticEventV4} from "./battleV4ProtocolExecutor.js";
 import type {BattleVisualCommandV4} from "./battleV4VisualScene.js";
 
@@ -122,6 +123,104 @@ function smoke() {
   assertIncludes(transforms, "老翁龙的形态改变了！", "detailschange should not leak level and gender details");
   assertIncludes(transforms, "小陨星变成了流星形态！", "formechange should describe the target form");
 
+  const contrary = commentaryTexts(step([
+    semantic("move", 13, "|move|p1a: Serperior|Leaf Storm|p2a: Empoleon", {
+      actorSeat: "p1A",
+      targetSeat: "p2A",
+      actorName: "Serperior",
+      targetName: "Empoleon",
+      moveId: "leafstorm",
+      moveName: "Leaf Storm",
+    }),
+    semantic("statChange", 14, "|-boost|p1a: Serperior|spa|2|[from] ability: Contrary", {
+      seat: "p1A",
+      stat: "spa",
+      statLabel: "特攻",
+      amount: 2,
+      direction: "up",
+      sourceKind: "ability",
+      sourceName: "Contrary",
+      sourcePokemonName: "Serperior",
+      label: "特攻 ↑↑",
+      protocolEvent: protocol(14, "|-boost|p1a: Serperior|spa|2|[from] ability: Contrary", "-boost", ["-boost", "p1a: Serperior", "spa", "2"], {from: "ability: Contrary"}),
+    }),
+  ]), api);
+  assertIncludes(contrary, "君主蛇使用了飞叶风暴，本应下降的特攻因为唱反调而大幅提升了！", "contrary boost should be merged into move commentary");
+
+  const intimidate = commentaryTexts(step([
+    semantic("statChange", 15, "|-unboost|p2a: Empoleon|atk|1|[from] ability: Intimidate|[of] p1a: Incineroar", {
+      seat: "p2A",
+      stat: "atk",
+      statLabel: "攻击",
+      amount: -1,
+      direction: "down",
+      sourceKind: "ability",
+      sourceName: "Intimidate",
+      sourcePokemonName: "Incineroar",
+      label: "攻击 ↓",
+      protocolEvent: protocol(15, "|-unboost|p2a: Empoleon|atk|1|[from] ability: Intimidate|[of] p1a: Incineroar", "-unboost", ["-unboost", "p2a: Empoleon", "atk", "1"], {from: "ability: Intimidate", of: "p1a: Incineroar"}),
+    }),
+  ]), api);
+  assertIncludes(intimidate, "咆哮虎的威吓降低了帝王拿波的攻击！", "intimidate should mention source ability and target stat");
+
+  const competitive = commentaryTexts(step([
+    semantic("statChange", 16, "|-boost|p2a: Empoleon|spa|2|[from] ability: Competitive", {
+      seat: "p2A",
+      stat: "spa",
+      statLabel: "特攻",
+      amount: 2,
+      direction: "up",
+      sourceKind: "ability",
+      sourceName: "Competitive",
+      sourcePokemonName: "Empoleon",
+      label: "特攻 ↑↑",
+      protocolEvent: protocol(16, "|-boost|p2a: Empoleon|spa|2|[from] ability: Competitive", "-boost", ["-boost", "p2a: Empoleon", "spa", "2"], {from: "ability: Competitive"}),
+    }),
+  ]), api);
+  assertIncludes(competitive, "帝王拿波的好胜被触发，特攻大幅提升了！", "competitive should be phrased as ability trigger");
+
+  const regularStats = commentaryTexts(step([
+    semantic("statChange", 17, "|-boost|p1a: Raichu|spe|1", {
+      seat: "p1A",
+      stat: "spe",
+      statLabel: "速度",
+      amount: 1,
+      direction: "up",
+      sourceKind: "unknown",
+      sourceName: "",
+      sourcePokemonName: "",
+      label: "速度 ↑",
+      protocolEvent: protocol(17, "|-boost|p1a: Raichu|spe|1", "-boost", ["-boost", "p1a: Raichu", "spe", "1"]),
+    }),
+    semantic("statChange", 18, "|-unboost|p1a: Raichu|def|2", {
+      seat: "p1A",
+      stat: "def",
+      statLabel: "防御",
+      amount: -2,
+      direction: "down",
+      sourceKind: "unknown",
+      sourceName: "",
+      sourcePokemonName: "",
+      label: "防御 ↓↓",
+      protocolEvent: protocol(18, "|-unboost|p1a: Raichu|def|2", "-unboost", ["-unboost", "p1a: Raichu", "def", "2"]),
+    }),
+  ]), api);
+  assertIncludes(regularStats, "雷丘的速度提升了！", "regular boost should be localized");
+  assertIncludes(regularStats, "雷丘的防御大幅下降了。", "regular unboost should be localized");
+
+  const protocolStats = executeBattleV4Protocol({
+    id: "stat-change-protocol",
+    rawLog: [
+      "|-boost|p1a: Serperior|spa|2|[from] ability: Contrary",
+      "|-unboost|p1a: Serperior|def|1",
+    ],
+  } as any, null, 0).semanticEvents.filter((event): event is SemanticEventByKind<"statChange"> => event.kind === "statChange");
+  assertEqual(protocolStats.length, 2, "boost/unboost protocol rows should create statChange visual commands");
+  assertEqual(protocolStats[0]?.label, "特攻 ↑↑", "boost semantic event should expose stat arrows");
+  assertEqual(protocolStats[0]?.direction, "up", "boost semantic event should be positive");
+  assertEqual(protocolStats[1]?.label, "防御 ↓", "unboost semantic event should expose stat arrows");
+  assertEqual(protocolStats[1]?.direction, "down", "unboost semantic event should be negative");
+
   console.log("battle-v4 commentary smoke ok");
 }
 
@@ -214,12 +313,20 @@ function createTestApi() {
     drampa: "老翁龙",
     minior: "小陨星",
     miniormeteor: "小陨星",
+    serperior: "君主蛇",
+    empoleon: "帝王拿波",
+    incineroar: "咆哮虎",
   };
   const moves: Record<string, string> = {
     rockslide: "岩崩",
+    leafstorm: "飞叶风暴",
   };
   const abilities: Record<string, string> = {
     drought: "日照",
+    contrary: "唱反调",
+    intimidate: "威吓",
+    competitive: "好胜",
+    defiant: "不服输",
   };
   const items: Record<string, string> = {
     sitrusberry: "文柚果",

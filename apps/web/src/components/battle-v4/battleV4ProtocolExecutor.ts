@@ -48,6 +48,8 @@ export type BattleRuntimeStateV4 = {
   winner: string;
 };
 
+export type BattleV4BoostStat = "atk" | "def" | "spa" | "spd" | "spe" | "accuracy" | "evasion";
+
 export type BattleSemanticEventV4 =
   | {kind: "switchIn" | "dragIn"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot: BattleViewSlotV4}
   | {kind: "switchOut"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
@@ -55,6 +57,7 @@ export type BattleSemanticEventV4 =
   | {kind: "damage" | "heal"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldHp: number; newHp: number; maxHp: number; delta: number; status: string; fainted: boolean; source: "move" | "status" | "item" | "ability" | "field" | "unknown"; label: string}
   | {kind: "faint"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
   | {kind: "status" | "cureStatus"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldStatus: string; newStatus: string; label: string}
+  | {kind: "statChange"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; stat: BattleV4BoostStat; statLabel: string; amount: number; direction: "up" | "down" | "neutral"; finalStage?: number; sourceKind: "ability" | "move" | "item" | "unknown"; sourceName: string; sourcePokemonName: string; label: string}
   | {kind: "transform"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; label: string}
   | {kind: "result"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; text: string; tone: "good" | "bad" | "neutral" | "status" | "weather" | ""}
   | {kind: "field" | "weather" | "sideCondition"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; id: string; active: boolean; label: string}
@@ -235,6 +238,17 @@ function applyProtocolEvent(
       label: statusLabel(newStatus || oldStatus),
     }] : [];
   }
+  case "-boost":
+  case "-unboost":
+  case "-setboost":
+  case "-clearboost":
+  case "-clearallboost":
+  case "-clearpositiveboost":
+  case "-clearnegativeboost":
+  case "-invertboost":
+  case "-swapboost":
+  case "-copyboost":
+    return statChangeEventsForProtocol(event, runtime);
   case "detailschange":
   case "-formechange":
   case "-transform":
@@ -442,6 +456,98 @@ function semanticDamageSource(event: BattleProtocolEventV4): BattleSemanticEvent
   if (event.kwArgs.from?.startsWith("item:")) return "item";
   if (event.kwArgs.from?.startsWith("ability:")) return "ability";
   return "unknown";
+}
+
+function statChangeEventsForProtocol(event: BattleProtocolEventV4, runtime: BattleRuntimeStateV4): BattleSemanticEventV4[] {
+  const command = event.eventType;
+  if (command === "-clearallboost") {
+    return Object.keys(runtime.slots).flatMap(seat => statResetEventForSeat(event, seat as BattleProtocolSeatV4));
+  }
+  if (command === "-clearboost") return statResetEventForSeat(event, event.seat);
+  if (command === "-clearpositiveboost" || command === "-clearnegativeboost") return statResetEventForSeat(event, event.seat);
+  if (command === "-invertboost") return statResetEventForSeat(event, event.seat, "能力变化反转");
+  if (command === "-swapboost" || command === "-copyboost") return statResetEventForSeat(event, event.seat, command === "-swapboost" ? "能力变化交换" : "能力变化复制");
+  const stat = normalizeBoostStat(event.args[2]);
+  if (!event.seat || !stat) return [];
+  const rawAmount = command === "-setboost"
+    ? Number(event.args[3] || 0) || 0
+    : Math.max(1, Number(event.args[3] || 1) || 1) * (command === "-unboost" ? -1 : 1);
+  const direction = rawAmount > 0 ? "up" : rawAmount < 0 ? "down" : "neutral";
+  const source = statChangeSource(event);
+  const amountAbs = Math.abs(rawAmount);
+  return [{
+    kind: "statChange",
+    sequence: event.sequence,
+    rawLine: event.rawLine,
+    protocolEvent: event,
+    seat: event.seat,
+    stat,
+    statLabel: boostStatLabel(stat),
+    amount: rawAmount,
+    direction,
+    finalStage: command === "-setboost" ? rawAmount : undefined,
+    sourceKind: source.kind,
+    sourceName: source.name,
+    sourcePokemonName: source.pokemonName,
+    label: statChangeLabel(stat, direction, amountAbs),
+  }];
+}
+
+function statResetEventForSeat(event: BattleProtocolEventV4, seat: BattleProtocolSeatV4, label = "能力变化复原"): BattleSemanticEventV4[] {
+  if (!seat) return [];
+  const source = statChangeSource(event);
+  return [{
+    kind: "statChange",
+    sequence: event.sequence,
+    rawLine: event.rawLine,
+    protocolEvent: event,
+    seat,
+    stat: "atk",
+    statLabel: "能力",
+    amount: 0,
+    direction: "neutral",
+    sourceKind: source.kind,
+    sourceName: source.name,
+    sourcePokemonName: source.pokemonName,
+    label,
+  }];
+}
+
+function statChangeSource(event: BattleProtocolEventV4): {kind: "ability" | "move" | "item" | "unknown"; name: string; pokemonName: string} {
+  const from = event.kwArgs.from || "";
+  const clean = cleanEffect(from);
+  const kind = from.startsWith("ability:") ? "ability" : from.startsWith("move:") ? "move" : from.startsWith("item:") ? "item" : "unknown";
+  const of = event.kwArgs.of || "";
+  return {kind, name: clean, pokemonName: parsePokemonProtocolIdent(of).name || of};
+}
+
+function normalizeBoostStat(value: string | undefined): BattleV4BoostStat | "" {
+  const id = toId(value || "");
+  if (id === "atk" || id === "attack") return "atk";
+  if (id === "def" || id === "defense") return "def";
+  if (id === "spa" || id === "spatk" || id === "specialattack") return "spa";
+  if (id === "spd" || id === "spdef" || id === "specialdefense") return "spd";
+  if (id === "spe" || id === "speed") return "spe";
+  if (id === "accuracy") return "accuracy";
+  if (id === "evasion" || id === "evasiveness") return "evasion";
+  return "";
+}
+
+function boostStatLabel(stat: BattleV4BoostStat): string {
+  if (stat === "atk") return "攻击";
+  if (stat === "def") return "防御";
+  if (stat === "spa") return "特攻";
+  if (stat === "spd") return "特防";
+  if (stat === "spe") return "速度";
+  if (stat === "accuracy") return "命中";
+  if (stat === "evasion") return "闪避";
+  return stat;
+}
+
+function statChangeLabel(stat: BattleV4BoostStat, direction: "up" | "down" | "neutral", amount: number): string {
+  if (direction === "neutral") return `${boostStatLabel(stat)}变化复原`;
+  const arrows = direction === "up" ? "↑".repeat(Math.min(3, Math.max(1, amount))) : "↓".repeat(Math.min(3, Math.max(1, amount)));
+  return `${boostStatLabel(stat)} ${arrows}`;
 }
 
 function actorArgForEvent(eventType: string, args: BattleProtocolArgsV4, kwArgs: BattleProtocolKwArgsV4): string {

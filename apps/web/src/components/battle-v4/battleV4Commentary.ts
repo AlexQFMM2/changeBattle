@@ -30,7 +30,7 @@ export type BattleV4StepCommentaryIndex = {
   immediate: BattleV4CommentaryEntry[];
 };
 
-const MOVE_FOLLOWUP_KINDS = new Set<BattleSemanticEventV4["kind"]>(["result", "damage", "heal", "status", "cureStatus", "faint"]);
+const MOVE_FOLLOWUP_KINDS = new Set<BattleSemanticEventV4["kind"]>(["result", "damage", "heal", "status", "cureStatus", "statChange", "faint"]);
 
 export function buildBattleV4StepCommentaryIndex(step: BattlePlaybackStepV4, api: ChangeBattleV2Api): BattleV4StepCommentaryIndex {
   const entries = step.commands
@@ -40,7 +40,7 @@ export function buildBattleV4StepCommentaryIndex(step: BattlePlaybackStepV4, api
   for (const command of step.commands) {
     if (command.semanticEvent.kind !== "move") continue;
     for (const followup of moveFollowupCommands(step, command)) {
-      if (followup.semanticEvent.kind === "result" || followup.semanticEvent.kind === "damage" || followup.semanticEvent.kind === "heal") {
+      if (followup.semanticEvent.kind === "result" || followup.semanticEvent.kind === "damage" || followup.semanticEvent.kind === "heal" || followup.semanticEvent.kind === "statChange") {
         coveredCommands.add(followup.id);
       }
     }
@@ -70,6 +70,7 @@ export function commentaryForBattleV4Command(
   if (event.kind === "heal") return baseEntry(step, command, healCommentary(event, api), "heal");
   if (event.kind === "damage") return baseEntry(step, command, damageCommentary(event, api), "bad");
   if (event.kind === "status" || event.kind === "cureStatus") return baseEntry(step, command, statusCommentary(event, api), "status");
+  if (event.kind === "statChange") return baseEntry(step, command, statChangeCommentary(event, api), statChangeTone(event));
   if (event.kind === "faint") return baseEntry(step, command, faintCommentary(event, api), "bad", "裁判");
   if (event.kind === "transform") return baseEntry(step, command, transformCommentary(event, api), "good");
   if (event.kind === "result") return baseEntry(step, command, resultCommentary(event, api), toneForResult(event));
@@ -143,6 +144,9 @@ function compactMoveResultPhrases(
     } else if (event.kind === "heal") {
       const targetName = targetNameForEvent(event, moveEvent, api);
       if (!targetEffects.has(targetName)) targetEffects.set(targetName, {target: targetName, effects: ["恢复了体力"]});
+    } else if (event.kind === "statChange") {
+      const phrase = statChangeMovePhrase(event, moveEvent, api);
+      if (phrase) phrases.push(phrase);
     }
   }
   if (missed) phrases.push("但没有命中");
@@ -218,6 +222,44 @@ function statusCommentary(event: SemanticEventByKind<"status" | "cureStatus">, a
   return `${target}陷入了${statusLabel(event.newStatus)}状态。`;
 }
 
+function statChangeCommentary(event: SemanticEventByKind<"statChange">, api: ChangeBattleV2Api): string {
+  const target = targetNameForEvent(event, null, api) || "场上的宝可梦";
+  if (event.direction === "neutral") return `${target}的${event.label}。`;
+  const ability = event.sourceKind === "ability" && event.sourceName ? localizeAbilityName(event.sourceName, api) : "";
+  const sourceActor = event.sourcePokemonName ? localizePokemonName(event.sourcePokemonName, api) : "";
+  const verb = statChangeVerb(event.amount);
+  if (ability && sourceActor && !sameBattleName(event.sourcePokemonName, event.protocolEvent.actorName || event.protocolEvent.targetName || target)) {
+    if (event.direction === "down") return `${sourceActor}的${ability}降低了${target}的${event.statLabel}！`;
+    return `${sourceActor}的${ability}提升了${target}的${event.statLabel}！`;
+  }
+  if (ability) return `${target}的${ability}被触发，${event.statLabel}${verb}！`;
+  return `${target}的${event.statLabel}${verb}${event.direction === "up" ? "！" : "。"}`;
+}
+
+function statChangeMovePhrase(
+  event: SemanticEventByKind<"statChange">,
+  moveEvent: SemanticEventByKind<"move">,
+  api: ChangeBattleV2Api,
+): string {
+  if (event.direction === "neutral") return "";
+  const target = targetNameForEvent(event, moveEvent, api);
+  const actor = localizePokemonName(moveEvent.actorName, api);
+  const rawTarget = event.protocolEvent.actorName || event.protocolEvent.targetName || moveEvent.targetName;
+  const ability = event.sourceKind === "ability" && event.sourceName ? localizeAbilityName(event.sourceName, api) : "";
+  const abilityId = toId(event.sourceName);
+  const verb = statChangeVerb(event.amount);
+  if (abilityId === "contrary" && event.direction === "up") {
+    return `本应下降的${event.statLabel}因为${ability || "唱反调"}而${verb}`;
+  }
+  if (ability) {
+    if (!target || sameBattleName(rawTarget, moveEvent.actorName || actor)) return `${ability}被触发，${event.statLabel}${verb}`;
+    if (event.direction === "down") return `${ability}降低了${target}的${event.statLabel}`;
+    return `${ability}提升了${target}的${event.statLabel}`;
+  }
+  if (!target || sameBattleName(rawTarget, moveEvent.actorName || actor)) return `${event.statLabel}${verb}`;
+  return `${target}的${event.statLabel}${verb}`;
+}
+
 function faintCommentary(event: SemanticEventByKind<"faint">, api: ChangeBattleV2Api): string {
   const name = event.slot ? event.slot.nameZh || event.slot.name : event.protocolEvent.actorName || event.protocolEvent.targetName;
   return `${localizePokemonName(name, api) || "宝可梦"}失去战斗能力！`;
@@ -282,9 +324,17 @@ function baseEntry(
 function moveTone(followups: BattleVisualCommandV4[]): BattleV4CommentaryTone {
   if (followups.some(command => command.semanticEvent.kind === "heal")) return "heal";
   if (followups.some(command => command.semanticEvent.kind === "faint")) return "bad";
+  if (followups.some(command => command.semanticEvent.kind === "statChange" && command.semanticEvent.direction === "down")) return "bad";
+  if (followups.some(command => command.semanticEvent.kind === "statChange" && command.semanticEvent.direction === "up")) return "good";
   if (followups.some(command => command.semanticEvent.kind === "result" && command.semanticEvent.tone === "bad")) return "bad";
   if (followups.some(command => command.semanticEvent.kind === "result" && command.semanticEvent.tone === "good")) return "good";
   return "move";
+}
+
+function statChangeTone(event: SemanticEventByKind<"statChange">): BattleV4CommentaryTone {
+  if (event.direction === "up") return "good";
+  if (event.direction === "down") return "bad";
+  return "status";
 }
 
 function toneForResult(event: SemanticEventByKind<"result">): BattleV4CommentaryTone {
@@ -303,7 +353,7 @@ function targetNameForEvent(
   if (event.kind === "damage" || event.kind === "heal" || event.kind === "status" || event.kind === "cureStatus" || event.kind === "faint") {
     return localizePokemonName(event.protocolEvent.actorName || event.protocolEvent.targetName, api);
   }
-  if (event.kind === "result") {
+  if (event.kind === "result" || event.kind === "statChange") {
     return localizePokemonName(event.protocolEvent.actorName || event.protocolEvent.targetName || moveEvent?.targetName || "", api);
   }
   return localizePokemonName(moveEvent?.targetName || event.protocolEvent.targetName || event.protocolEvent.actorName || "", api);
@@ -371,6 +421,14 @@ function statusLabel(status: string): string {
   if (normalized === "slp") return "睡眠";
   if (normalized === "frz") return "冰冻";
   return status || "异常";
+}
+
+function statChangeVerb(amount: number): string {
+  const abs = Math.abs(amount);
+  const direction = amount > 0 ? "提升" : "下降";
+  if (abs >= 3) return `巨幅${direction}了`;
+  if (abs >= 2) return `大幅${direction}了`;
+  return `${direction}了`;
 }
 
 function localizePokemonName(name: string, api: ChangeBattleV2Api): string {
@@ -489,6 +547,16 @@ function cleanSpeciesDetails(value: string): string {
 
 function cleanEffect(value: string): string {
   return String(value || "").replace(/^(move|ability|item):\s*/i, "").trim();
+}
+
+function sameBattleName(left: string, right: string): boolean {
+  const leftName = cleanProtocolDisplayName(left);
+  const rightName = cleanProtocolDisplayName(right);
+  if (!leftName || !rightName) return false;
+  const leftId = toId(leftName);
+  const rightId = toId(rightName);
+  if (leftId || rightId) return leftId === rightId;
+  return leftName === rightName;
 }
 
 function toId(value: unknown): string {

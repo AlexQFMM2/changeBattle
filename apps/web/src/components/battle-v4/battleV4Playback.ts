@@ -96,6 +96,7 @@ export type BattleAnimationKindV4 =
   | "transform"
   | "result"
   | "status"
+  | "statChange"
   | "faint"
   | "message"
   | "turn";
@@ -544,6 +545,17 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
     case "-curestatus":
     case "cant":
       return [animationEvent(event, "status", 760, message)];
+    case "-boost":
+    case "-unboost":
+    case "-setboost":
+    case "-clearboost":
+    case "-clearallboost":
+    case "-clearpositiveboost":
+    case "-clearnegativeboost":
+    case "-invertboost":
+    case "-swapboost":
+    case "-copyboost":
+      return [animationEvent(event, "statChange", 900, message)];
     case "faint":
       return [animationEvent(event, "faint", 980, message)];
     case "turn":
@@ -2317,6 +2329,18 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
     return `${name}${statusMessage(event.status)}。`;
   case "-curestatus":
     return `${name}的${resultTextForStatus(toId(event.args[2]))}解除了。`;
+  case "-boost":
+  case "-unboost":
+  case "-setboost":
+    return statChangeMessage(event, name);
+  case "-clearboost":
+  case "-clearallboost":
+  case "-clearpositiveboost":
+  case "-clearnegativeboost":
+  case "-invertboost":
+  case "-swapboost":
+  case "-copyboost":
+    return name ? `${name}的能力变化复原。` : "能力变化复原。";
   case "-immune":
     return `${name}没有受到影响。`;
   case "-miss":
@@ -2341,6 +2365,39 @@ function statusArgFor(args: BattleProtocolArgsV4, kwArgs: BattleProtocolKwArgsV4
   if (args[0] === "cant") return toId(args[2] || kwArgs.from || "");
   if (args[0] === "-damage" || args[0] === "-heal") return parseCondition(args[2] || "")?.status || "";
   return "";
+}
+
+function statChangeMessage(event: BattleProtocolEventV4, name: string): string {
+  const stat = boostStatLabel(event.args[2] || "");
+  const amount = Math.abs(Number(event.eventType === "-setboost" ? event.args[3] || 0 : event.args[3] || 1) || 1);
+  const direction = event.eventType === "-unboost" ? "down" : Number(event.args[3] || 0) < 0 ? "down" : "up";
+  const verb = statChangeVerb(direction, amount);
+  return name ? `${name}的${stat}${verb}。` : `${stat}${verb}。`;
+}
+
+function statChangeResultText(event: BattleProtocolEventV4): string {
+  const stat = boostStatLabel(event.args[2] || "");
+  const amount = Math.abs(Number(event.eventType === "-setboost" ? event.args[3] || 0 : event.args[3] || 1) || 1);
+  const direction = event.eventType === "-unboost" ? "down" : Number(event.args[3] || 0) < 0 ? "down" : "up";
+  const arrows = direction === "up" ? "↑".repeat(Math.min(3, Math.max(1, amount))) : "↓".repeat(Math.min(3, Math.max(1, amount)));
+  return `${stat} ${arrows}`;
+}
+
+function statChangeVerb(direction: "up" | "down", amount: number): string {
+  if (direction === "up") return amount >= 3 ? "巨幅提升了" : amount >= 2 ? "大幅提升了" : "提升了";
+  return amount >= 3 ? "巨幅下降了" : amount >= 2 ? "大幅下降了" : "下降了";
+}
+
+function boostStatLabel(stat: string): string {
+  const id = toId(stat);
+  if (id === "atk" || id === "attack") return "攻击";
+  if (id === "def" || id === "defense") return "防御";
+  if (id === "spa" || id === "spatk" || id === "specialattack") return "特攻";
+  if (id === "spd" || id === "spdef" || id === "specialdefense") return "特防";
+  if (id === "spe" || id === "speed") return "速度";
+  if (id === "accuracy") return "命中";
+  if (id === "evasion" || id === "evasiveness") return "闪避";
+  return stat || "能力";
 }
 
 function parseCondition(condition: string): {hp: number; maxHp: number; status: string; fainted: boolean} | null {
@@ -2405,6 +2462,18 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
     return {text: `${resultTextForStatus(toId(event.args[2]))}解除`, tone: "good"};
   case "cant":
     return {text: resultTextForStatus(toId(event.args[2])) || "无法行动", tone: "neutral"};
+  case "-boost":
+  case "-unboost":
+  case "-setboost":
+    return {text: statChangeResultText(event), tone: event.eventType === "-unboost" ? "bad" : "good"};
+  case "-clearboost":
+  case "-clearallboost":
+  case "-clearpositiveboost":
+  case "-clearnegativeboost":
+  case "-invertboost":
+  case "-swapboost":
+  case "-copyboost":
+    return {text: "能力变化", tone: "neutral"};
   case "-damage":
   case "-heal":
     return {text: healResultText(event), tone: event.eventType === "-heal" ? "good" : "bad"};

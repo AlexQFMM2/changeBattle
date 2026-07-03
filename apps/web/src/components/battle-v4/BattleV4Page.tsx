@@ -1230,13 +1230,33 @@ function BattleV4FxLayer({animation, visuals, fxVisuals}: {animation: BattleAnim
 function BattlePokemonSlot({api, slot, commanding = false, animation, openingSwitchInSeats = [], visuals, actorVisuals = []}: {api: ChangeBattleV2Api; slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; openingSwitchInSeats?: BattleProtocolSeatV4[]; visuals: BattleV4TimelineVisuals; actorVisuals?: BattleV4TimelineActorVisual[]}) {
   const timelineActor = [...actorVisuals].reverse().find(actor => actor.seat === slot.seat) || (visuals.actor?.seat === slot.seat ? visuals.actor : null);
   const animationClass = timelineActor?.className || (openingSwitchInSeats.includes(slot.seat as BattleProtocolSeatV4) ? "anim-switch-in" : battlePokemonAnimationClass(slot.seat, animation || null));
+  const statChange = statChangeVisualForSlot(slot.seat as BattleProtocolSeatV4, animation || null);
   const specialClass = slot.dynamaxActive ? "special-dynamax" : slot.terastallized ? "special-tera" : "";
   const displayName = battleSlotDisplayName(slot, api);
   return (
     <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${specialClass} ${animationClass}`} style={timelineActor?.style}>
       <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={displayName} />
+      {statChange ? <BattleV4StatChangeBurst visual={statChange} /> : null}
     </article>
   );
+}
+
+function BattleV4StatChangeBurst({visual}: {visual: {direction: "up" | "down" | "neutral"; label: string; amount: number}}) {
+  if (visual.direction === "neutral") return null;
+  const particles = Array.from({length: Math.max(4, Math.min(8, visual.amount + 4))});
+  return (
+    <div className={`battle-v4-stat-burst ${visual.direction}`} aria-hidden="true">
+      <span className="battle-v4-stat-label">{visual.label}</span>
+      {particles.map((_, index) => <i key={index} style={{"--particle-index": index} as CSSProperties} />)}
+    </div>
+  );
+}
+
+function statChangeVisualForSlot(seat: BattleProtocolSeatV4, animation: BattleAnimationEventV4 | null): {direction: "up" | "down" | "neutral"; label: string; amount: number} | null {
+  if (!animation || animation.kind !== "statChange" || !seat || animation.targetSeat !== seat) return null;
+  const direction = animation.resultTone === "bad" ? "down" : animation.resultTone === "good" ? "up" : "neutral";
+  const amount = Math.max(1, (animation.resultText.match(/[↑↓]/g) || []).length || 1);
+  return {direction, label: animation.resultText, amount};
 }
 
 function battlePokemonAnimationClass(seat: BattleProtocolSeatV4, animation: BattleAnimationEventV4 | null): string {
@@ -1247,6 +1267,7 @@ function battlePokemonAnimationClass(seat: BattleProtocolSeatV4, animation: Batt
   if (animation.kind === "weather" && animation.actorSeat === seat) return "anim-ability";
   if (animation.kind === "transform" && animation.actorSeat === seat) return "anim-transform";
   if ((animation.kind === "moveEffect" || animation.kind === "damage" || animation.kind === "status") && animation.targetSeat === seat) return `anim-target-${animation.kind}`;
+  if (animation.kind === "statChange" && animation.targetSeat === seat) return animation.resultTone === "bad" ? "anim-stat-down" : animation.resultTone === "good" ? "anim-stat-up" : "anim-stat-neutral";
   if (animation.kind === "heal" && animation.actorSeat === seat) return "anim-heal";
   if (animation.kind === "faint" && animation.actorSeat === seat) return "anim-faint";
   if (animation.kind === "switchIn" && animation.actorSeat === seat) return "anim-switch-in";

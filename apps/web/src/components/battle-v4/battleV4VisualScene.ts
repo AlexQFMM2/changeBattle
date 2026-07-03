@@ -274,6 +274,7 @@ function animationKindForSemanticEvent(event: BattleSemanticEventV4): BattleAnim
   if (event.kind === "heal") return "heal";
   if (event.kind === "faint") return "faint";
   if (event.kind === "status" || event.kind === "cureStatus") return "status";
+  if (event.kind === "statChange") return "statChange";
   if (event.kind === "transform") return "transform";
   if (event.kind === "result") return "result";
   if (event.kind === "weather" || event.kind === "field") return "weather";
@@ -339,6 +340,7 @@ function resultForSemanticEvent(event: BattleSemanticEventV4): {text: string; to
   if (event.kind === "heal") return {text: event.label, tone: "good"};
   if (event.kind === "result") return {text: event.text, tone: event.tone};
   if (event.kind === "status" || event.kind === "cureStatus") return {text: event.label, tone: "status"};
+  if (event.kind === "statChange") return {text: event.label, tone: event.direction === "down" ? "bad" : event.direction === "up" ? "good" : "neutral"};
   if (event.kind === "transform") return {text: event.label, tone: "good"};
   if (event.kind === "weather" || event.kind === "field" || event.kind === "sideCondition") return {text: event.label, tone: "weather"};
   if (event.kind === "win") return {text: event.winner, tone: "good"};
@@ -348,6 +350,7 @@ function resultForSemanticEvent(event: BattleSemanticEventV4): {text: string; to
 function durationForKind(kind: BattleAnimationKindV4): number {
   if (kind === "switchIn") return 760;
   if (kind === "damage" || kind === "heal") return BATTLE_V4_HP_ANIMATION_DURATION_MS;
+  if (kind === "statChange") return 900;
   if (kind === "faint") return 820;
   if (kind === "moveEffect") return 720;
   if (kind === "weather") return 900;

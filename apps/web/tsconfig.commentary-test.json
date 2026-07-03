@@ -7,6 +7,8 @@
     "types": ["vite/client", "node"]
   },
   "include": [
+    "src/components/battle-v4/battleV4Playback.ts",
+    "src/components/battle-v4/battleV4ProtocolExecutor.ts",
     "src/components/battle-v4/battleV4Commentary.ts",
     "src/components/battle-v4/battleV4Commentary.test.ts"
   ]
