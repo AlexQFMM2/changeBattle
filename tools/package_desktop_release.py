@@ -35,6 +35,10 @@ REQUIRED_RENDERER_ASSETS = [
     "apps/desktop/out/renderer/npc/staff/judge.png",
     "apps/desktop/out/renderer/npc/staff/nurse.png",
     "apps/desktop/out/renderer/npc/staff/teach.png",
+    "apps/desktop/out/renderer/music/battle/trainer.ogg",
+    "apps/desktop/out/renderer/music/boss/xyz.ogg",
+    "apps/desktop/out/renderer/music/nonbattle/yurenu-omoi.ogg",
+    "apps/desktop/out/renderer/music/rest/pokemon-center.ogg",
     "apps/desktop/out/renderer/title/spritesaurus-transition.mp4",
     "apps/desktop/out/renderer/ui/button-gold.png",
 ]

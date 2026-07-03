@@ -24,6 +24,8 @@ import {
   type DexCategory,
 } from "@changebattle-v2/api";
 import {QuickDexModal} from "./components/dex/QuickDexModal";
+import {BgmController} from "./components/audio/BgmController";
+import type {BgmSceneV2} from "./components/audio/musicManifest";
 import {BattlePreferencePage} from "./components/battle-preference/BattlePreferencePage";
 import {BattleV4Page} from "./components/battle-v4/BattleV4Page";
 import {TrainingBattleTransitionPage} from "./components/battle-v4/TrainingBattleTransitionPage";
@@ -832,8 +834,11 @@ function RoutedApp({runtime}: AppProps) {
     )
   ) : <Navigate to="/" replace />;
 
+  const bgmScene = bgmSceneForRoute(location.pathname, formalRun);
+
   return (
     <GameViewport showVersion={location.pathname === "/"}>
+      <BgmController scene={bgmScene} />
       <Routes>
         <Route path="/" element={titlePage} />
         <Route path="/main" element={mainPage} />
@@ -877,6 +882,32 @@ function RoutedApp({runtime}: AppProps) {
 
 function parseFormalMode(value: unknown): FormalGameModeV4 {
   return value === "doubles" || value === "coop" ? value : "singles";
+}
+
+function bgmSceneForRoute(pathname: string, formalRun: FormalGameRunV4 | null): BgmSceneV2 {
+  if (pathname === "/training/battle" || pathname === "/training/battle-transition") return "battle";
+  if (pathname === "/formal/battle" || pathname === "/formal/battle-transition") return isFormalBossRound(formalRun) ? "boss" : "battle";
+  if (
+    pathname === "/training/rest"
+    || pathname === "/training/rest-new"
+    || pathname === "/training/run-transition"
+    || pathname === "/training/battle-result-transition"
+    || pathname === "/formal/starter-select"
+    || pathname === "/formal/round-transition"
+    || pathname === "/formal/rest"
+    || pathname === "/formal/battle-result-transition"
+  ) {
+    return "rest";
+  }
+  return "nonBattle";
+}
+
+function isFormalBossRound(run: FormalGameRunV4 | null): boolean {
+  if (!run?.restRunSnapshot) return false;
+  const node = run.restRunSnapshot.gameMap.find(entry => entry.id === run.restRunSnapshot?.currentNodeId)
+    || run.restRunSnapshot.gameMap[run.currentRoundIndex]
+    || null;
+  return Boolean(node && node.index >= 5);
 }
 
 function continueGameLabelFor(formalRun: FormalGameRunV4 | null, trainingRun: TrainingRunGameV4 | null): string | undefined {

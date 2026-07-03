@@ -138,6 +138,132 @@ p {
   pointer-events: none;
 }
 
+.bgm-v2-control {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 170;
+  color: #fff8e8;
+  font-family: inherit;
+}
+
+.bgm-v2-floating-button {
+  width: 54px;
+  height: 24px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgb(255 236 158 / 68%);
+  border-radius: 5px;
+  background: rgb(25 27 35 / 72%);
+  color: #fff8e8;
+  padding: 2px 5px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 34%);
+  line-height: 1;
+}
+
+.bgm-v2-floating-button span {
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.bgm-v2-floating-button b {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bgm-v2-panel {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  width: 166px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgb(255 236 158 / 72%);
+  border-radius: 6px;
+  background: rgb(24 25 31 / 88%);
+  padding: 7px;
+  box-shadow: 0 10px 22px rgb(0 0 0 / 42%);
+  color: #fff8e8;
+}
+
+.bgm-v2-panel header,
+.bgm-v2-toggle-row,
+.bgm-v2-volume-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bgm-v2-panel header {
+  justify-content: space-between;
+}
+
+.bgm-v2-panel header strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bgm-v2-panel header button {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 10%);
+  color: #fff8e8;
+  padding: 0;
+  line-height: 1;
+}
+
+.bgm-v2-toggle-row,
+.bgm-v2-volume-row {
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.bgm-v2-toggle-row input {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: #f0cc61;
+}
+
+.bgm-v2-volume-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 28px;
+}
+
+.bgm-v2-volume-row input {
+  width: 100%;
+  accent-color: #f0cc61;
+}
+
+.bgm-v2-volume-row b {
+  font-size: 7px;
+  text-align: right;
+}
+
+.bgm-v2-resume {
+  height: 22px;
+  border: 1px solid #d2af49;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ffe899, #b8792f);
+  color: #2b1808;
+  padding: 0 8px;
+  font-size: 8px;
+  font-weight: 950;
+}
+
 .modal-layer {
   position: absolute;
   inset: 0;
