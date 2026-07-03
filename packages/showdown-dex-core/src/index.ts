@@ -383,6 +383,9 @@ export type ShowdownDexService = ReturnType<typeof createShowdownDexService>;
 
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_RESOURCE_PREFIX = "/showdown/";
+const SHOWDOWN_SPRITE_ID_OVERRIDES: Record<string, string> = {
+  zarudedada: "zarude-dada",
+};
 const TYPE_IDS = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
 const TYPE_ID_BY_ZH: Record<string, string> = {
   一般: "normal",
@@ -1217,6 +1220,8 @@ export function toID(value: unknown): string {
 
 function showdownSpriteIdFromSpeciesId(speciesId: string): string {
   const id = toID(speciesId);
+  const override = SHOWDOWN_SPRITE_ID_OVERRIDES[id];
+  if (override) return override;
   const megaZMatch = /^(.+?)megaz$/.exec(id);
   if (megaZMatch) return `${megaZMatch[1]}-megaz`;
   const megaMatch = /^(.+?)mega([xy])?$/.exec(id);

@@ -10,6 +10,7 @@ const tempRoot = await mkdtemp(path.join(os.tmpdir(), "changebattle-v2-save-stor
 try {
   await testRoundTripAndEncryption();
   await testTamperDetection();
+  await testBrokenManifestDoesNotBlockSave();
   await testLegacyProfileMigration();
   await testDeleteAll();
   console.info("[desktopSaveStore.test] ok");
@@ -49,6 +50,20 @@ async function testTamperDetection() {
   envelope.data = `${envelope.data.slice(0, -2)}xx`;
   await writeFile(profileDatPath, JSON.stringify(envelope), "utf8");
   await assert.rejects(() => store.loadUserProfile(), /损坏或被修改/);
+}
+
+async function testBrokenManifestDoesNotBlockSave() {
+  const userData = path.join(tempRoot, "broken-manifest");
+  const store = new DesktopSaveStoreV2(userData);
+  await store.saveUserProfile(sampleProfile("初始资料"));
+  await writeFile(path.join(store.path(), "manifest.json"), '{"version":1}\n{"broken":true}\n', "utf8");
+
+  const nextProfile = sampleProfile("重建资料");
+  await store.saveUserProfile(nextProfile);
+
+  assert.deepEqual(await store.loadUserProfile(), nextProfile);
+  const manifest = JSON.parse(await readFile(path.join(store.path(), "manifest.json"), "utf8")) as {display_name: string};
+  assert.equal(manifest.display_name, nextProfile.name);
 }
 
 async function testLegacyProfileMigration() {

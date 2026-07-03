@@ -26,6 +26,9 @@ assert.ok(venusaur.cryUrl?.includes("venusaur"));
 const lucarioMegaZ = dex.resolvePokemonSprites({speciesId: "lucariomegaz"});
 assert.ok(lucarioMegaZ.frontUrl?.includes("lucario-megaz.gif"));
 assert.ok(lucarioMegaZ.backUrl?.includes("lucario-megaz.gif"));
+const zarudeDada = dex.resolvePokemonSprites({speciesId: "zarudedada"});
+assert.ok(zarudeDada.frontUrl?.includes("zarude-dada.gif"));
+assert.ok(zarudeDada.backUrl?.includes("zarude-dada.gif"));
 
 const level50 = dex.calculatePokemonStats({speciesId: "venusaur", level: 50});
 const level100 = dex.calculatePokemonStats({speciesId: "venusaur", level: 100});
@@ -147,8 +150,8 @@ const brock = dex.getTrainerDetail("gym:关都地区:小刚:1");
 assert.equal(brock.nameZh, "小刚");
 assert.equal(brock.trainerType, "gym");
 assert.equal(brock.isBoss, true);
-assert.ok(brock.frontAsset.startsWith("npc/"));
-assert.ok(brock.avatarAsset.startsWith("npc/"));
+assertPortableNpcAsset(brock.frontAsset);
+assertPortableNpcAsset(brock.avatarAsset);
 assert.ok(Object.keys(brock.dialogues).length > 0);
 assert.ok(brock.representativePokemon.length > 0);
 assert.ok(brock.teamPools.length > 0);
@@ -219,3 +222,9 @@ for (const [trainerId, teams] of teamsByTrainer) {
 assert.equal(dex.getTrainerDetail("gym:关都地区:小刚:1").bossPresetMatrix?.generatedCount, 36);
 
 console.log("showdown-dex-core tests passed");
+
+function assertPortableNpcAsset(asset: string) {
+  assert.ok(asset.includes("npc/"));
+  assert.equal(asset.includes("file:///"), false);
+  assert.equal(/^[A-Z]:[\\/]/i.test(asset), false);
+}

@@ -166,11 +166,16 @@ export class DesktopSaveStoreV2 {
   private async readManifest(): Promise<SaveManifest | null> {
     const filePath = this.manifestPath();
     if (!existsSync(filePath)) return null;
-    const parsed = JSON.parse(await readFile(filePath, "utf8")) as SaveManifest;
-    if (parsed.version !== SPLIT_SAVE_VERSION) {
-      throw new Error(`不支持的 V2 存档版本: ${parsed.version}`);
+    try {
+      const parsed = JSON.parse(await readFile(filePath, "utf8")) as SaveManifest;
+      if (parsed.version !== SPLIT_SAVE_VERSION) {
+        throw new Error(`不支持的 V2 存档版本: ${parsed.version}`);
+      }
+      return parsed;
+    } catch {
+      await backupBrokenManifest(filePath);
+      return null;
     }
-    return parsed;
   }
 
   private tablePath(name: SaveTableName): string {
@@ -221,6 +226,15 @@ async function atomicWriteFile(filePath: string, text: string): Promise<void> {
   const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(tmpPath, text, "utf8");
   await rename(tmpPath, filePath);
+}
+
+async function backupBrokenManifest(filePath: string): Promise<void> {
+  const backupPath = `${filePath}.broken-${Date.now()}`;
+  try {
+    await copyFile(filePath, backupPath);
+  } catch {
+    // Manifest is only a plaintext index; table files remain authoritative.
+  }
 }
 
 function clone<T>(value: T): T {
