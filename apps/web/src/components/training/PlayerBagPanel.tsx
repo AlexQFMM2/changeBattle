@@ -129,10 +129,12 @@ export function PlayerBagPanel({
     setSelectedItemId(itemId);
     window.requestAnimationFrame(() => {
       const node = bagStripRef.current;
+      if (!node) return;
       const index = visibleItems.findIndex(item => item.id === itemId);
-      const target = index >= 0 ? node?.children.item(index) : null;
+      const target = index >= 0 ? node.children.item(index) : null;
       if (target instanceof HTMLElement) {
-        target.scrollIntoView({block: "nearest", inline: "center"});
+        const nextLeft = target.offsetLeft + target.offsetWidth / 2 - node.clientWidth / 2;
+        node.scrollLeft = Math.max(0, Math.min(nextLeft, node.scrollWidth - node.clientWidth));
         updateScrollState();
       }
     });
