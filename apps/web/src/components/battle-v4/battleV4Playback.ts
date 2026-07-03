@@ -38,11 +38,20 @@ export type BattleProtocolSeatV4 =
   | "p4A" | "p4B"
   | "";
 
+export type BattleV4TwoTurnMoveState = {
+  moveId: string;
+  moveName: string;
+  label: string;
+  tone: "ground" | "water" | "air" | "shadow" | "charge";
+  preparedAt: number;
+};
+
 type BattleVisibleSlotV4 = BattleViewSlotV4 & {
   baseSpeciesId?: string;
   volatileFormeSpeciesId?: string;
   transformedSpeciesId?: string;
   oldSpriteState?: BattleSlotSpriteStateV4;
+  twoTurnMoveState?: BattleV4TwoTurnMoveState;
   teraType?: string;
   terastallized?: boolean;
   dynamaxActive?: boolean;
@@ -1137,7 +1146,7 @@ export function useBattleV4Playback(
       if (noAnimationCommands.length) {
         setPersistentFieldVisuals(current => noAnimationCommands.reduce(applyBattleV4PersistentFieldVisuals, current));
         setPersistentSideConditionVisuals(current => noAnimationCommands.reduce(applyBattleV4PersistentSideConditionVisuals, current));
-        setVisibleSlots(slots => noAnimationCommands.reduce(applyBattleV4VisualCommandSettle, slots));
+        setVisibleSlots(slots => noAnimationCommands.reduce(applyBattleV4VisualCommandImmediate, slots));
       }
     },
     onScheduledStep: (scheduled, step) => {
@@ -1469,6 +1478,10 @@ function consumeBattleV4SchedulerCheckpoint({
     }].slice(-240));
     return nextSlots;
   });
+}
+
+function applyBattleV4VisualCommandImmediate(slots: BattleViewSlotV4[], command: BattleVisualCommandV4): BattleViewSlotV4[] {
+  return applyBattleV4VisualCommandSettle(applyBattleV4VisualCommandStart(slots, command), command);
 }
 
 function previewTimelineStepDurationMs(step: ShowdownAnimationStepV4): number {

@@ -7,7 +7,7 @@ import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
 import {BattleV4SurrenderPanel, type BattleV4SurrenderParticipant} from "./BattleV4SurrenderPanel";
 import {BattleV4SkillCommandPanel, uniqueSpecialOptionsForActions, type BattleV4SkillCommandMoveCardView} from "./BattleV4SkillCommandPanel";
 import {BattleV4TrainerNarrativeOverlay, type BattleV4NarrativeDialogue, type BattleV4NarrativePhase, type BattleV4NarrativeTrainer} from "./BattleV4TrainerNarrativeOverlay";
-import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4} from "./battleV4Playback";
+import {parseBattleProtocolLineV4, useBattleV4Playback, type BattleAnimationEventV4, type BattlePlaybackDebugV4, type BattleProtocolSeatV4, type BattleV4PersistentFieldVisuals, type BattleV4PersistentSideConditionVisuals, type BattleV4SideConditionVisualV4, type BattleV4TwoTurnMoveState} from "./battleV4Playback";
 import type {BattleV4VisibleCommentaryEntry} from "./battleV4Commentary";
 import {getBattleV4ActiveTimelineActorVisuals, getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineResultVisuals, getBattleV4ActiveTimelineVisuals, type BattleV4TimelineActorVisual, type BattleV4TimelineFxVisual, type BattleV4TimelineResultVisual, type BattleV4TimelineVisuals} from "./battleV4TimelineVisuals";
 import {visualSeatClassForSeat} from "./battleV4VisualSeats";
@@ -42,6 +42,10 @@ type BattleV4StatusBadge = {
 type BattleV4MoveCardView = BattleV4SkillCommandMoveCardView;
 
 type BattleV4MoveDisplaySpecialChoice = BattleSpecialChoiceV4 | "active-max" | null;
+
+type BattleV4VisibleSlot = BattleViewSlotV4 & {
+  twoTurnMoveState?: BattleV4TwoTurnMoveState;
+};
 
 type BattleV4TargetCardView = {
   key: string;
@@ -1311,9 +1315,15 @@ function BattlePokemonSlot({api, slot, commanding = false, animation, openingSwi
   const statChange = statChangeVisualForSlot(slot.seat as BattleProtocolSeatV4, animation || null);
   const specialClass = slot.dynamaxActive ? "special-dynamax" : slot.terastallized ? "special-tera" : "";
   const displayName = battleSlotDisplayName(slot, api);
+  const twoTurnState = (slot as BattleV4VisibleSlot).twoTurnMoveState;
   return (
     <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${specialClass} ${animationClass}`} style={timelineActor?.style}>
       <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={displayName} />
+      {twoTurnState ? (
+        <span className={`battle-v4-two-turn-marker tone-${twoTurnState.tone}`} title={twoTurnState.moveName}>
+          {twoTurnState.label}
+        </span>
+      ) : null}
       {statChange ? <BattleV4StatChangeBurst visual={statChange} /> : null}
     </article>
   );

@@ -19,7 +19,7 @@
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: 150px 1fr 72px;
+  grid-template-columns: 136px 1fr 116px;
   align-items: center;
   gap: 8px;
   height: 54px;
@@ -85,6 +85,12 @@
   color: #fff7d9;
   font-size: 11px;
   font-weight: 900;
+}
+
+.formal-settlement-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
 }
 
 .formal-settlement-card {

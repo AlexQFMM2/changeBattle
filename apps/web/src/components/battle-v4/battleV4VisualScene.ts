@@ -116,6 +116,12 @@ export function applyBattleV4VisualCommandStart(slots: BattleViewSlotV4[], comma
   if (event.kind === "switchIn" || event.kind === "dragIn") {
     return replaceSeat(slots, event.slot);
   }
+  if (event.kind === "twoTurnMove") {
+    return patchSlot(slots, event.seat, slot => ({...slot, twoTurnMoveState: event.state}));
+  }
+  if (event.kind === "move") {
+    return patchSlot(slots, event.actorSeat, slot => ({...slot, twoTurnMoveState: undefined}));
+  }
   if (event.kind === "damage" || event.kind === "heal") {
     return patchSlot(slots, event.seat, slot => ({
       ...slot,
@@ -123,6 +129,7 @@ export function applyBattleV4VisualCommandStart(slots: BattleViewSlotV4[], comma
       maxHp: event.maxHp || slot.maxHp,
       status: event.status === "fnt" ? slot.status : event.status || slot.status,
       fainted: false,
+      twoTurnMoveState: undefined,
     }));
   }
   return slots;
@@ -144,13 +151,17 @@ export function applyBattleV4HpTweenFrame(slots: BattleViewSlotV4[], command: Ba
     maxHp: event.maxHp || slot.maxHp,
     status: event.status === "fnt" ? slot.status : event.status || slot.status,
     fainted: false,
+    twoTurnMoveState: undefined,
   }));
 }
 
 export function applyBattleV4VisualCommandSettle(slots: BattleViewSlotV4[], command: BattleVisualCommandV4): BattleViewSlotV4[] {
   const event = command.semanticEvent;
+  if (event.kind === "switchOut") {
+    return patchSlot(slots, event.seat, slot => ({...slot, twoTurnMoveState: undefined}));
+  }
   if (event.kind === "faint") {
-    return patchSlot(slots, event.seat, slot => ({...slot, hp: 0, status: "fnt", fainted: true}));
+    return patchSlot(slots, event.seat, slot => ({...slot, hp: 0, status: "fnt", fainted: true, twoTurnMoveState: undefined}));
   }
   if (event.kind === "status" || event.kind === "cureStatus") {
     return patchSlot(slots, event.seat, slot => ({...slot, status: event.newStatus}));

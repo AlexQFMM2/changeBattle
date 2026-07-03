@@ -460,7 +460,7 @@
 .training-rest-training-ground-study-modal {
   position: absolute;
   inset: 0;
-  z-index: 30;
+  z-index: 80;
   display: grid;
   place-items: center;
   background: rgb(0 0 0 / 34%);

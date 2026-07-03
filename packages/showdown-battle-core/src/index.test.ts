@@ -6,6 +6,7 @@ import {
   generateShowdownRandomTeamV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
+  resolveBattleWinnerPlayerIdV4,
   resolveShowdownRandomTeamFormatV4,
   submitTrainerItem,
   submitChoice,
@@ -198,6 +199,20 @@ function duplicateForceSwitchChoiceSmoke() {
     throw new Error(`force switch should choose different bench slots: ${choice}`);
   }
   console.log("showdown-battle-core duplicate force switch choice smoke ok");
+}
+
+function coopWinnerNameSmoke() {
+  const players: BattleServiceSessionInputV4["players"] = [
+    {playerId: "p1", name: "P1", controller: "local", alliance: "near", team: [pikachu], draft: null as any},
+    {playerId: "p2", name: "P2", controller: "ai", alliance: "far", team: [eevee], draft: null as any},
+    {playerId: "p3", name: "P3", controller: "ai", alliance: "near", team: [bulbasaur], draft: null as any},
+    {playerId: "p4", name: "P4", controller: "ai", alliance: "far", team: [eevee], draft: null as any},
+  ];
+  const nearWinner = resolveBattleWinnerPlayerIdV4(players, "P1 & P3");
+  const farWinner = resolveBattleWinnerPlayerIdV4(players, "P2 & P4");
+  if (nearWinner !== "p1") throw new Error(`coop near winner should resolve to p1: ${nearWinner}`);
+  if (farWinner !== "p2") throw new Error(`coop far winner should resolve to p2: ${farWinner}`);
+  console.log("showdown-battle-core coop winner name smoke ok");
 }
 
 async function duplicateSpeciesDoublesSmoke() {
@@ -1056,6 +1071,7 @@ void smoke()
   .then(rechargeChoiceSmoke)
   .then(faintedDoublesActiveChoiceSmoke)
   .then(duplicateForceSwitchChoiceSmoke)
+  .then(coopWinnerNameSmoke)
   .then(duplicateSpeciesDoublesSmoke)
   .then(initialStateSmoke)
   .then(residualStatusSmoke)

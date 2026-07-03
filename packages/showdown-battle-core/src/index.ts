@@ -904,7 +904,7 @@ function applyRawChunk(session: RuntimeSession, chunk: string): void {
     }
     if (parts[1] === "win") {
       const winnerName = parts[2] || "";
-      session.snapshot.winner = playerIdByName(session.snapshot.players, winnerName);
+      session.snapshot.winner = resolveBattleWinnerPlayerIdV4(session.snapshot.players, winnerName);
       session.snapshot.status = "ended";
     }
     if (parts[1] === "tie") {
@@ -1589,6 +1589,20 @@ function formatId(ruleSet: string, mode: string): string {
 
 function playerIdByName(players: BattleServicePlayerInputV4[], name: string): BattleServicePlayerIdV4 | null {
   return players.find(player => player.name === name)?.playerId || null;
+}
+
+export function resolveBattleWinnerPlayerIdV4(players: BattleServicePlayerInputV4[], name: string): BattleServicePlayerIdV4 | null {
+  const direct = playerIdByName(players, name);
+  if (direct) return direct;
+  const names = name
+    .split(/\s*(?:&|,|\/|\+)\s*/g)
+    .map(part => part.trim())
+    .filter(Boolean);
+  for (const part of names) {
+    const playerId = playerIdByName(players, part);
+    if (playerId) return playerId;
+  }
+  return null;
 }
 
 function playerById(session: RuntimeSession, playerId: ShowdownPlayerIdV4): BattleServicePlayerInputV4 | undefined {

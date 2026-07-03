@@ -96,14 +96,15 @@ function RoutedApp({runtime}: AppProps) {
     ? (window as ChangeBattleV2Window).changeBattleV2
     : undefined, [runtime]);
   const battleServiceBridge = desktopBridgeRoot?.battleService;
+  const userProfileAdapter = useMemo(() => createUserProfileAdapter(runtime), [runtime]);
   const api = useMemo(() => createChangeBattleV2Api({
-    userProfileAdapter: createUserProfileAdapter(runtime),
+    userProfileAdapter,
     trainingRunAdapter: createTrainingRunAdapter(runtime),
     formalGameRunAdapter: createFormalRunAdapter(runtime),
     battleServiceClient: battleServiceBridge,
     battleServiceUrl: import.meta.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL,
     resourcePrefix: showdownAssetPrefix(),
-  }), [battleServiceBridge, runtime]);
+  }), [battleServiceBridge, runtime, userProfileAdapter]);
   const formalGameBridge = desktopBridgeRoot?.formalGame;
   const catalog = useMemo(() => api.getTrainerCatalog(), [api]);
   const [profile, setProfile] = useState<UserProfileV2 | null>(null);
@@ -844,6 +845,7 @@ function RoutedApp({runtime}: AppProps) {
         run={formalRun}
         profile={profile}
         reason={settlementReason}
+        onSaveProfile={userProfileAdapter.saveUserProfile}
         onSettled={(run, nextProfile) => {
           setFormalRun(run);
           setProfile(nextProfile);

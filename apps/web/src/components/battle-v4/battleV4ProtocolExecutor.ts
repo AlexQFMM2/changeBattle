@@ -1,6 +1,6 @@
 import type {BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
 import {localPokemonSpriteUrls} from "../../lib/showdownPokemonSpriteAdapter.js";
-import type {BattleProtocolArgsV4, BattleProtocolEventV4, BattleProtocolKwArgsV4, BattleProtocolSeatV4} from "./battleV4Playback";
+import type {BattleProtocolArgsV4, BattleProtocolEventV4, BattleProtocolKwArgsV4, BattleProtocolSeatV4, BattleV4TwoTurnMoveState} from "./battleV4Playback";
 
 const RAW_NO_DEFAULT_COMMANDS = new Set([
   "chatmsg",
@@ -55,6 +55,7 @@ export type BattleSemanticEventV4 =
   | {kind: "switchIn" | "dragIn"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot: BattleViewSlotV4}
   | {kind: "switchOut"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
   | {kind: "move"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; actorSeat: BattleProtocolSeatV4; targetSeat: BattleProtocolSeatV4; moveId: string; moveName: string; actorName: string; targetName: string}
+  | {kind: "twoTurnMove"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; state: BattleV4TwoTurnMoveState}
   | {kind: "damage" | "heal"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldHp: number; newHp: number; maxHp: number; delta: number; status: string; fainted: boolean; source: "move" | "status" | "item" | "ability" | "field" | "unknown"; label: string}
   | {kind: "faint"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
   | {kind: "status" | "cureStatus"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldStatus: string; newStatus: string; label: string}
@@ -181,6 +182,17 @@ function applyProtocolEvent(
       actorName: event.actorName,
       targetName: event.targetName,
     }];
+  }
+  case "-prepare": {
+    const state = twoTurnMoveStateForEvent(event);
+    return state && event.seat ? [{
+      kind: "twoTurnMove",
+      sequence: event.sequence,
+      rawLine: event.rawLine,
+      protocolEvent: event,
+      seat: event.seat,
+      state,
+    }] : [];
   }
   case "-damage":
   case "-heal":
@@ -550,6 +562,18 @@ function statChangeLabel(stat: BattleV4BoostStat, direction: "up" | "down" | "ne
   if (direction === "neutral") return `${boostStatLabel(stat)}变化复原`;
   const arrows = direction === "up" ? "↑".repeat(Math.min(3, Math.max(1, amount))) : "↓".repeat(Math.min(3, Math.max(1, amount)));
   return `${boostStatLabel(stat)} ${arrows}`;
+}
+
+function twoTurnMoveStateForEvent(event: BattleProtocolEventV4): BattleV4TwoTurnMoveState | null {
+  const moveName = event.args[2] || event.moveName || "";
+  const moveId = toId(moveName);
+  if (!moveId) return null;
+  if (moveId === "dig") return {moveId, moveName, label: "地下", tone: "ground", preparedAt: event.sequence};
+  if (moveId === "dive") return {moveId, moveName, label: "水下", tone: "water", preparedAt: event.sequence};
+  if (moveId === "fly" || moveId === "bounce" || moveId === "skydrop") return {moveId, moveName, label: "空中", tone: "air", preparedAt: event.sequence};
+  if (moveId === "shadowforce" || moveId === "phantomforce") return {moveId, moveName, label: "异次元", tone: "shadow", preparedAt: event.sequence};
+  if (moveId === "meteorbeam" || moveId === "solarbeam" || moveId === "solarblade" || moveId === "electroshot") return {moveId, moveName, label: "蓄力", tone: "charge", preparedAt: event.sequence};
+  return null;
 }
 
 function actorArgForEvent(eventType: string, args: BattleProtocolArgsV4, kwArgs: BattleProtocolKwArgsV4): string {

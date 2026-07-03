@@ -3,13 +3,14 @@ import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, Formal
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalSettlementTransitionPage({api, formalGameBridge, run, profile, reason, onSettled}: {
+export function FormalSettlementTransitionPage({api, formalGameBridge, run, profile, reason, onSettled, onSaveProfile}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
   run: FormalGameRunV4;
   profile: UserProfileV2;
   reason: FormalSettlementReasonV4;
   onSettled: (run: FormalGameRunV4, profile: UserProfileV2) => void;
+  onSaveProfile?: (profile: UserProfileV2) => Promise<UserProfileV2>;
 }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +32,9 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
     async function settleFormalRun() {
       if (formalGameBridge) {
         const prepared = await formalGameBridge.prepareFormalSettlement(run, profile, reason);
+        const savedProfile = onSaveProfile ? await onSaveProfile(prepared.profile) : prepared.profile;
         const saved = await api.saveFormalGameRun(prepared.run);
-        return {run: saved, profile: prepared.profile};
+        return {run: saved, profile: savedProfile};
       }
       const prepared = api.prepareFormalSettlement(run, reason);
       let nextProfile = profile;
@@ -52,7 +54,7 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [api, formalGameBridge, onSettled, profile, ready, reason, run]);
+  }, [api, formalGameBridge, onSaveProfile, onSettled, profile, ready, reason, run]);
 
   return (
     <section className="formal-game-transition-wrap">

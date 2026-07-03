@@ -254,6 +254,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   }
 
   function openTrainingGroundSelection() {
+    closeFloatingPanels();
     const lessons = currentTrainingLessons();
     if (!lessons.length) {
       setRestScene("center");
@@ -267,6 +268,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   }
 
   function enterTrainingLesson(lesson: FormalTrainingGroundLessonViewV4) {
+    closeFloatingPanels();
     setSelectedTrainingLesson(lesson);
     setRestScene("training-ground");
     setActiveAction("训练场");
@@ -291,9 +293,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     }
     if (action === "商店") {
       setActiveAction(action);
-      setTeamPanelOpen(false);
-      setBagPanelOpen(false);
-      setExchangePanelOpen(false);
+      closeFloatingPanels();
       if (!shopController) {
         setRestScene("center");
         setMessage("商店仅正式流程开放。");
@@ -305,9 +305,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     if (action === "训练场") {
-      setTeamPanelOpen(false);
-      setBagPanelOpen(false);
-      setExchangePanelOpen(false);
+      closeFloatingPanels();
       if (!trainingGroundController) {
         setRestScene("center");
         setMessage("训练场仅正式流程开放。");
@@ -331,8 +329,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     }
     if (action === "交换") {
       setRestScene("center");
-      setTeamPanelOpen(false);
-      setBagPanelOpen(false);
+      closeFloatingPanels();
       if (!exchangeController) {
         setMessage("交换仅正式流程开放。");
         showNotice("交换仅正式流程开放。");

@@ -41,7 +41,10 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
           <div><dt>胜场</dt><dd>{settlement.wonRounds}/7</dd></div>
           <div><dt>金币</dt><dd>{settlement.coinSummary.net >= 0 ? "+" : ""}{settlement.coinSummary.net}</dd></div>
         </dl>
-        <button type="button" onClick={onBackToMain}>返回主页</button>
+        <div className="formal-settlement-actions">
+          <button type="button" onClick={() => exportFormalSettlementDiagnostics(run, profile)}>导出</button>
+          <button type="button" onClick={onBackToMain}>返回主页</button>
+        </div>
       </section>
 
       {selected ? (
@@ -119,6 +122,48 @@ function SettlementPokemonIcon({entry}: {entry: FormalSettlementPokemonStatsV4})
 
 function settlementPokemonSprite(entry: FormalSettlementPokemonStatsV4): string {
   return entry.speciesId ? pokemonSpriteUrl({speciesId: entry.speciesId, facing: "front", shiny: Boolean(entry.shiny)}) : "";
+}
+
+function exportFormalSettlementDiagnostics(run: FormalGameRunV4, profile: UserProfileV2): void {
+  const diagnostics = {
+    exportedAt: new Date().toISOString(),
+    reason: "formal-settlement-diagnostics",
+    runId: run.id,
+    mode: run.mode,
+    status: run.status,
+    currentRoundIndex: run.currentRoundIndex,
+    profile: {
+      id: profile.id,
+      name: profile.name,
+      battlePoints: profile.battlePoints,
+      starChart: profile.starChart,
+    },
+    run: {
+      id: run.id,
+      seed: run.seed,
+      mode: run.mode,
+      status: run.status,
+      currentRoundIndex: run.currentRoundIndex,
+      selectedStarterIndexes: run.selectedStarterIndexes,
+      roundPlan: run.roundPlan,
+      roundSettlementByNodeId: run.roundSettlementByNodeId,
+      restRunSnapshot: run.restRunSnapshot,
+      restCoinLog: run.restRunSnapshot?.coinLog || [],
+      restBattleLog: run.restRunSnapshot?.battleLog || [],
+      settlement: run.settlement,
+      createdAt: run.createdAt,
+      updatedAt: run.updatedAt,
+    },
+  };
+  const blob = new Blob([JSON.stringify(diagnostics, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `formal-settlement-diagnostics-${run.id}-${Date.now()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function styleFromCss(css: string): CSSProperties {
