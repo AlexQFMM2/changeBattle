@@ -65,6 +65,10 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function toTestId(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 const MOCK_MEGA_CAPABLE_SPECIES = new Set(["charizard", "venusaur", "blastoise"]);
 
 const pokemonDetails = [
@@ -93,6 +97,10 @@ const pokemonById = new Map(pokemonDetails.map(detail => [detail.id, detail]));
 const formalBattleItemIds = new Set(FORMAL_SHOP_ITEM_POOL.battle);
 const formalTrainingItemIds = new Set(FORMAL_SHOP_ITEM_POOL.training);
 const formalRecoveryItemIds = new Set(FORMAL_SHOP_ITEM_POOL.recovery);
+const MOCK_SELF_LEARN_MOVE_IDS = ["tackle", "watergun", "protect", "raindance", "trickroom", "flamethrower", "hydropump", "waterfall", "gigadrain", "sludgebomb"];
+const MOCK_TUTOR_MOVE_IDS = ["protect", "raindance", "thunderbolt"];
+const MOCK_EGG_MOVE_IDS = ["toxic", "willowisp", "substitute"];
+const MOCK_MACHINE_MOVE_IDS = ["watergun", "hydropump", "waterfall", "thunderbolt", "volttackle", "icebeam", "flamethrower", "hurricane", "gigadrain", "sludgebomb", "energyball", "surf", "earthquake", "protect"];
 
 const api = createFormalGameRunApi({
   searchDex(request: DexSearchRequest = {}): DexSearchResult {
@@ -113,16 +121,16 @@ const api = createFormalGameRunApi({
     return pokemonById.get(id) || pokemonById.get("squirtle")!;
   },
   getPokemonSelfLearnSkills() {
-    return ["tackle", "watergun", "protect", "raindance", "trickroom", "flamethrower"].map(moveDetail);
+    return MOCK_SELF_LEARN_MOVE_IDS.map(moveDetail);
   },
   getPokemonTutorSkills() {
-    return ["protect", "raindance", "thunderbolt"].map(moveDetail);
+    return MOCK_TUTOR_MOVE_IDS.map(moveDetail);
   },
   getPokemonEggSkills() {
-    return ["toxic", "willowisp", "substitute"].map(moveDetail);
+    return MOCK_EGG_MOVE_IDS.map(moveDetail);
   },
   getPokemonMachineSkills() {
-    return ["watergun", "thunderbolt", "volttackle", "icebeam", "flamethrower", "surf", "earthquake", "protect"].map(moveDetail);
+    return MOCK_MACHINE_MOVE_IDS.map(moveDetail);
   },
   getMoveDetail(id: string) {
     return moveDetail(id);
@@ -239,9 +247,15 @@ function mockPokemon(id: string, nameZh: string, num: number, types: string[], b
 function moveDetail(id: string) {
   const moveTypes: Record<string, string> = {
     watergun: "水",
+    hydropump: "水",
+    waterfall: "水",
     raindance: "水",
     trickroom: "超能力",
     flamethrower: "火",
+    hurricane: "飞行",
+    gigadrain: "草",
+    sludgebomb: "毒",
+    energyball: "草",
     thunderbolt: "电",
     volttackle: "电",
     protect: "一般",
@@ -256,11 +270,17 @@ function moveDetail(id: string) {
     swordsdance: 0,
     substitute: 0,
     watergun: 40,
+    hydropump: 110,
+    waterfall: 80,
     rockslide: 75,
     thunderbolt: 90,
     volttackle: 120,
     icebeam: 90,
     flamethrower: 90,
+    hurricane: 110,
+    gigadrain: 75,
+    sludgebomb: 90,
+    energyball: 90,
     psychic: 90,
     shadowball: 80,
     surf: 90,
@@ -431,6 +451,20 @@ assert(prepared.starterCandidates.every(candidate => candidate.pokemon.level ===
 assert(prepared.starterCandidates.every(candidate => ["normal", "elite"].includes(candidate.pokemon.powerProfile || "")), "player starter power profile should be limited to normal or elite");
 assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "normal").length === 5, "starter candidates should roll about 80% normal power profile for base six");
 assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "elite").length === 1, "starter candidates should roll about 20% elite power profile for base six");
+const mockStarterLearnableMoveIds = new Set([
+  ...MOCK_SELF_LEARN_MOVE_IDS,
+  ...MOCK_MACHINE_MOVE_IDS,
+  ...MOCK_TUTOR_MOVE_IDS,
+  ...MOCK_EGG_MOVE_IDS,
+].map(toTestId));
+prepared.starterCandidates.forEach((candidate, index) => {
+  const profileIds = [candidate.pokemon.speciesId, pokemonById.get(candidate.pokemon.speciesId)?.baseSpecies || ""].map(toTestId).filter(Boolean);
+  const recommendedMoveIds = new Set(profileIds.flatMap(speciesId => getPokemonBattleProfileV4(speciesId).suggestedMoveIds.map(toTestId)));
+  const learnableRecommendedMoveIds = Array.from(recommendedMoveIds).filter(moveId => mockStarterLearnableMoveIds.has(moveId));
+  if (!learnableRecommendedMoveIds.length) return;
+  const generatedMoveIds = new Set(candidate.pokemon.moves.map(move => toTestId(move.moveId)));
+  assert(learnableRecommendedMoveIds.some(moveId => generatedMoveIds.has(moveId)), `starter candidate ${index + 1} should keep one recommended learnable move`);
+});
 prepared.starterCandidates.forEach((candidate, index) => {
   const maxStarterIv = candidate.pokemon.powerProfile === "normal" ? 26 : 28;
   assert(Object.values(candidate.pokemon.ivs).every(value => value <= maxStarterIv), `starter candidate ${index + 1} should leave IV growth room`);
@@ -508,16 +542,16 @@ assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto re
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 0, "root-only star chart should start with zero formal money");
 starProfile = {...starProfile, battlePoints: 200};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, TRAVEL_FUND_NODE_ID);
-assert(starProfile.battlePoints === 190, "travel fund should cost 10 BP");
+assert(starProfile.battlePoints === 197, "travel fund should cost 3 BP");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 500, "travel fund should set formal starting money to 500");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, ELITE_FUND_NODE_ID);
-assert(starProfile.battlePoints === 172, "elite fund should cost 18 BP");
+assert(starProfile.battlePoints === 190, "elite fund should cost 7 BP");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 1000, "elite fund should set formal starting money to 1000");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, CHAMPION_FUND_NODE_ID);
-assert(starProfile.battlePoints === 144, "champion fund should cost 28 BP");
+assert(starProfile.battlePoints === 175, "champion fund should cost 15 BP");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 1500, "champion fund should set formal starting money to 1500");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, VICTORY_DIVIDEND_NODE_ID);
-assert(starProfile.battlePoints === 119, "victory dividend should cost 25 BP");
+assert(starProfile.battlePoints === 150, "victory dividend should cost 25 BP");
 assert(starChartHasVictoryDividendV4(starProfile.starChart), "victory dividend should unlock settlement BP bonus");
 starProfile = {...starProfile, battlePoints: 200};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, EMERGENCY_BACKPACK_NODE_ID);
@@ -897,6 +931,12 @@ assert(selfStudyAfter.level - selfStudyPokemon.level <= 1, "formal training grou
 assert(statTotal(selfStudyAfter.evs) <= 510, "formal training ground self-study EV total should stay within rules");
 assert(powerProfileIndex(selfStudyAfter.powerProfile || "rookie") >= selfStudyBeforeProfileIndex, "formal training ground self-study should not lower power profile");
 assertPokemonPowerProfile(selfStudyAfter, "self-study pokemon", undefined, {checkLevel: false});
+const selfStudyNodeId = selfStudyRun.restRunSnapshot!.currentNodeId!;
+assert((selfStudyResult.run.trainingGroundByNodeId?.[selfStudyNodeId]?.selfStudyRoll || 0) === 1, "formal training ground self-study should advance self-study roll after first study");
+const secondSelfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyResult.run, {pokemonId: selfStudyPokemon.localPokemonId, lessonKind: "self-study"});
+assert(secondSelfStudyResult.ok, "formal training ground should allow a second self-study on the same pokemon");
+assert((secondSelfStudyResult.run.trainingGroundByNodeId?.[selfStudyNodeId]?.selfStudyRoll || 0) === 2, "formal training ground self-study should use a fresh roll for every study");
+assert(secondSelfStudyResult.run.money === selfStudyResult.run.money - selfStudyLesson.fee, "formal training ground second self-study should deduct fee");
 
 const withCoinLog = api.appendCoinLogEntryV4(economyReadyRun, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withCoinLog.money === economyReadyRun.money - 10, "coin log should update formal money");

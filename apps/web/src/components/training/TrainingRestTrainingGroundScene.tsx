@@ -427,7 +427,7 @@ function MoveLessonPanel({moves, selectedMoveId, onMove}: {
 }) {
   return (
     <div className="training-rest-training-ground-move-list" data-layout="single">
-      {moves.length ? moves.slice(0, 12).map(move => (
+      {moves.length ? moves.map(move => (
         <MoveCard
           className="training-rest-training-ground-move-card"
           size="sheet"

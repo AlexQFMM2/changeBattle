@@ -1227,15 +1227,16 @@ function BattleV4SideConditionGroup({side, items}: {side: "near" | "far"; items:
 function BattleV4PersistentFieldLayer({visuals}: {visuals: BattleV4PersistentFieldVisuals}) {
   const activeId = visuals.weatherId || visuals.terrainId || visuals.roomId || (visuals.gravityActive ? "gravity" : "");
   if (!activeId || !visuals.resourcePath) return null;
+  const resourceKey = `${activeId}:${visuals.resourceKind}:${visuals.resourcePath}`;
   return (
-    <div className={`battle-v4-persistent-field-layer field-${activeId} fidelity-${visuals.adapterFidelity}`} aria-hidden="true">
+    <div key={resourceKey} className={`battle-v4-persistent-field-layer field-${activeId} fidelity-${visuals.adapterFidelity}`} aria-hidden="true">
       {visuals.resourceKind === "video" ? (
-        <video muted autoPlay loop playsInline>
+        <video key={resourceKey} muted autoPlay loop playsInline>
           <source src={visuals.resourcePath} type="video/webm" />
           <source src={visuals.resourcePath.replace(/\.webm$/i, ".mp4")} type="video/mp4" />
         </video>
       ) : (
-        <i style={{backgroundImage: `url("${visuals.resourcePath}")`}} />
+        <i key={resourceKey} style={{backgroundImage: `url("${visuals.resourcePath}")`}} />
       )}
     </div>
   );

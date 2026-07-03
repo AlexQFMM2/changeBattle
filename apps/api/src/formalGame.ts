@@ -50,6 +50,7 @@ import {
   type FormalStarterRoleV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
+import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
 import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, starChartHasBattlePracticeMasteryV4, starChartHasEastAsiaEducationV4, starChartHasEliteExchangeEducationV4, starChartHasEmergencyBackpackV4, starChartHasEmergencyMedicalCareV4, starChartHasExchangeItemStealV4, starChartHasLaunchKitV4, starChartHasLosslessExchangeV4, starChartHasMedicalInsuranceV4, starChartHasMovePreviewV4, starChartHasOpponentRumorV4, starChartHasOutpatientMedicalCareV4, starChartHasSecondExchangeV4, starChartHasVictoryDividendV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
@@ -242,6 +243,7 @@ export type FormalTrainingGroundLessonSourceV4 = "tutor" | "egg" | "levelup" | "
 export type FormalTrainingGroundStateV4 = {
   nodeId: string;
   lessonRoll: number;
+  selfStudyRoll: number;
   updatedAt: string;
 };
 
@@ -1567,6 +1569,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         [node.id]: {
           nodeId: node.id,
           lessonRoll: state.lessonRoll + 1,
+          selfStudyRoll: state.selfStudyRoll,
           updatedAt: now,
         },
       },
@@ -1627,7 +1630,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     lesson: FormalTrainingGroundLessonViewV4,
   ): FormalTrainingGroundResultV4 {
     const state = ensureFormalTrainingGroundState(run, node.id);
-    const rng = createRng(`${run.seed}:${node.id}:training-ground:self-study:${state.lessonRoll}:${pokemon.localPokemonId}`);
+    const rng = createRng(`${run.seed}:${node.id}:training-ground:self-study:${state.lessonRoll}:${state.selfStudyRoll}:${pokemon.localPokemonId}`);
     const event = rollFormalTrainingGroundSelfStudyEvent(pokemon, rng, starChartHasEastAsiaEducationV4(run.starChartSnapshot));
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
@@ -1672,7 +1675,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         ? "认真学习了一整节课，等级和数值都有提升"
         : `踏踏实实自习了一节课，${gainsStats ? "数值稳步提升" : "等级提升了"}`;
     const message = `${pokemon.nameZh || pokemon.name}${eventText}。${lesson.completeText}`;
-    const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message);
+    const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message, {selfStudyRollDelta: 1});
     return {
       ...result,
       selfStudyEvent: event,
@@ -1695,6 +1698,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     nextPokemon: LocalPokemonV4,
     lesson: FormalTrainingGroundLessonViewV4,
     message: string,
+    options: {selfStudyRollDelta?: number} = {},
   ): FormalTrainingGroundResultV4 {
     const restRunSnapshot = run.restRunSnapshot;
     if (!restRunSnapshot) return trainingGroundResult(false, run, "当前没有可用的训练场课程。", lesson);
@@ -1705,12 +1709,17 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     };
     const nextP1 = {...p1, localTeam: nextTeam};
     const nextRestRun = patchFormalRestP1(restRunSnapshot, nextP1, now);
+    const trainingGroundState = ensureFormalTrainingGroundState(run, node.id);
     const withLesson = {
       ...run,
       restRunSnapshot: nextRestRun,
       trainingGroundByNodeId: {
         ...(run.trainingGroundByNodeId || {}),
-        [node.id]: ensureFormalTrainingGroundState(run, node.id),
+        [node.id]: {
+          ...trainingGroundState,
+          selfStudyRoll: trainingGroundState.selfStudyRoll + Math.max(0, Math.floor(Number(options.selfStudyRollDelta || 0))),
+          updatedAt: now,
+        },
       },
       updatedAt: now,
     };
@@ -3103,22 +3112,65 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
 }
 
 function normalizeMovesForDetail(dex: ShowdownDexService, detail: DexPokemonDetail, role: FormalStarterRoleV4, powerProfile: PokemonPowerProfileV4, rng: () => number): TrainingMoveSlotV4[] {
-  const learnset = dex.getPokemonSelfLearnSkills(detail.id);
-  const roleMoves = preferredMovesForRole(learnset, role, rng);
-  const fallbackPool = learnset.length ? learnset : FALLBACK_MOVES.map(moveId => safeMove(dex, moveId));
+  const learnset = safePokemonMovePool(() => dex.getPokemonSelfLearnSkills(detail.id));
+  const learnablePool = starterLearnableMovePool(dex, detail);
+  const fallbackPool = learnablePool.length ? learnablePool : learnset.length ? learnset : FALLBACK_MOVES.map(moveId => safeMove(dex, moveId));
+  const recommendedPool = recommendedMovesForDetail(detail, fallbackPool);
+  const roleMoves = preferredMovesForRole(fallbackPool, role, rng);
+  const lockedRecommendedMove = pickOne(preferredMovesForRole(recommendedPool, role, rng), rng);
   let selected: DexMoveSummary[];
   if (powerProfile === "rookie") {
-    selected = shuffle(fallbackPool, rng).slice(0, 4);
+    selected = fillMoveSelection(lockedRecommendedMove ? [lockedRecommendedMove] : [], fallbackPool, rng, 4);
   } else if (powerProfile === "normal") {
     const goodCount = randomInt(1, 2, rng);
     const goodMoves = roleMoves.slice(0, goodCount);
-    const randomMoves = shuffle(fallbackPool.filter(move => !goodMoves.some(good => good.id === move.id)), rng).slice(0, 4 - goodMoves.length);
-    selected = [...goodMoves, ...randomMoves];
+    selected = fillMoveSelection(lockedRecommendedMove ? [lockedRecommendedMove, ...goodMoves] : goodMoves, fallbackPool, rng, 4);
   } else {
-    selected = roleMoves.slice(0, 4);
+    selected = fillMoveSelection(lockedRecommendedMove ? [lockedRecommendedMove, ...roleMoves.slice(0, 3)] : roleMoves.slice(0, 4), fallbackPool, rng, 4);
   }
   const moveIds = uniqueById(selected).map(move => move.id);
   return normalizeMoves(dex, moveIds, 4);
+}
+
+function starterLearnableMovePool(dex: ShowdownDexService, detail: DexPokemonDetail): DexMoveSummary[] {
+  return uniqueById([
+    ...safePokemonMovePool(() => dex.getPokemonSelfLearnSkills(detail.id)),
+    ...safePokemonMovePool(() => dex.getPokemonMachineSkills(detail.id)),
+    ...safePokemonMovePool(() => dex.getPokemonTutorSkills(detail.id)),
+    ...safePokemonMovePool(() => dex.getPokemonEggSkills(detail.id)),
+  ]);
+}
+
+function safePokemonMovePool(read: () => DexMoveSummary[]): DexMoveSummary[] {
+  try {
+    return read();
+  } catch {
+    return [];
+  }
+}
+
+function recommendedMovesForDetail(detail: DexPokemonDetail, learnablePool: DexMoveSummary[]): DexMoveSummary[] {
+  const profileIds = uniqueStrings([detail.id, detail.baseSpecies || ""].map(toID).filter(Boolean));
+  const recommendedIds = new Set(profileIds.flatMap(speciesId => getPokemonBattleProfileV4(speciesId).suggestedMoveIds.map(toID)));
+  if (!recommendedIds.size) return [];
+  return learnablePool.filter(move => recommendedIds.has(toID(move.id)));
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter(value => {
+    if (!value || seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
+}
+
+function fillMoveSelection(primary: DexMoveSummary[], preferredPool: DexMoveSummary[], rng: () => number, count: number, fallbackPool: DexMoveSummary[] = preferredPool): DexMoveSummary[] {
+  const selected = uniqueById(primary).slice(0, count);
+  const selectedIds = new Set(selected.map(move => move.id));
+  const candidates = uniqueById([...shuffle(preferredPool, rng), ...shuffle(fallbackPool, rng)])
+    .filter(move => !selectedIds.has(move.id));
+  return [...selected, ...candidates.slice(0, Math.max(0, count - selected.length))];
 }
 
 function preferredMovesForRole(moves: DexMoveSummary[], role: FormalStarterRoleV4, rng: () => number): DexMoveSummary[] {
@@ -3623,6 +3675,7 @@ function ensureFormalTrainingGroundState(run: FormalGameRunV4, nodeId: string): 
   return {
     nodeId,
     lessonRoll: 0,
+    selfStudyRoll: 0,
     updatedAt: run.updatedAt || run.createdAt || new Date().toISOString(),
   };
 }
@@ -4382,6 +4435,7 @@ function normalizeFormalTrainingGroundState(state: Partial<FormalTrainingGroundS
   return {
     nodeId: state?.nodeId || fallbackNodeId,
     lessonRoll: Math.max(0, Math.floor(Number(state?.lessonRoll || 0))),
+    selfStudyRoll: Math.max(0, Math.floor(Number(state?.selfStudyRoll || 0))),
     updatedAt: state?.updatedAt || new Date().toISOString(),
   };
 }
