@@ -17,7 +17,8 @@ export function cssAssetUrl(path?: string | null): string | undefined {
 }
 
 export function publicAssetBase(): string {
-  const base = import.meta.env.BASE_URL || "/";
+  const meta = import.meta as ImportMeta & {env?: {BASE_URL?: string}};
+  const base = meta.env?.BASE_URL || "/";
   if (base === "./" || base === ".") return "./";
   return base.endsWith("/") ? base : `${base}/`;
 }

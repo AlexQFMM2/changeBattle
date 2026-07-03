@@ -8,5 +8,8 @@ export function ImageWithFallback({src, alt, fallback = "?"}: {src?: string; alt
     setFailed(false);
   }, [resolvedSrc]);
   if (!resolvedSrc || failed) return <span className="image-fallback">{fallback}</span>;
-  return <img src={resolvedSrc} alt={alt} draggable={false} onError={() => setFailed(true)} />;
+  return <img src={resolvedSrc} alt={alt} draggable={false} onError={() => {
+    console.error("[ImageWithFallback] image failed", {src, resolvedSrc, alt});
+    setFailed(true);
+  }} />;
 }

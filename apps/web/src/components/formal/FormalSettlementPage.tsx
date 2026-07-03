@@ -1,6 +1,7 @@
 import {useMemo, useState, type CSSProperties} from "react";
 import type {FormalGameRunV4, FormalSettlementPokemonStatsV4, UserProfileV2} from "@changebattle-v2/api";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
+import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./PokemonSprite.css";
 import "./FormalSettlementPage.css";
 
@@ -47,7 +48,9 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
         <section className={`formal-settlement-card ${selected.isMvp ? "is-mvp" : ""}`}>
           {selected.isMvp ? <div className="formal-settlement-rays" aria-hidden="true" /> : null}
           <div className="formal-settlement-pokemon">
-            <img src={selected.spriteUrl || selected.iconUrl} alt={selected.nameZh || selected.name} />
+            <img src={settlementPokemonSprite(selected)} alt={selected.nameZh || selected.name} onError={() => {
+              console.error("[FormalSettlementPage] pokemon sprite failed", {speciesId: selected.speciesId, src: settlementPokemonSprite(selected)});
+            }} />
             <strong>{selected.nameZh || selected.name}</strong>
             <span>{selected.isMvp ? "本局 MVP" : "队伍成员"}</span>
           </div>
@@ -109,9 +112,13 @@ function SettlementPokemonIcon({entry}: {entry: FormalSettlementPokemonStatsV4})
   if (entry.iconStyle) {
     return <span className="formal-settlement-roster-icon picon" aria-label={alt} style={styleFromCss(entry.iconStyle)} />;
   }
-  const src = entry.iconUrl || entry.spriteUrl;
+  const src = entry.iconUrl || settlementPokemonSprite(entry);
   if (src) return <span className="formal-settlement-roster-icon"><img src={src} alt={alt} /></span>;
   return <span className="formal-settlement-roster-icon empty" aria-label={alt}>{alt.slice(0, 1) || "?"}</span>;
+}
+
+function settlementPokemonSprite(entry: FormalSettlementPokemonStatsV4): string {
+  return entry.speciesId ? pokemonSpriteUrl({speciesId: entry.speciesId, facing: "front", shiny: Boolean(entry.shiny)}) : "";
 }
 
 function styleFromCss(css: string): CSSProperties {

@@ -18,6 +18,7 @@ import type {
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {TrainingDexSelect, type TrainingDexSelectOption} from "./TrainingDexSelect";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
+import {localPokemonFrontSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./TrainingConfigPage.css";
 
 export type TrainingConfigPageProps = {
@@ -605,7 +606,7 @@ function TrainingPokemonEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api;
       </nav>
       <div className="training-editor-body">
         <div className="training-editor-preview">
-          <ImageWithFallback src={(pokemon.shiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl) || pokemon.iconUrl || ""} alt={pokemon.nameZh} />
+          <ImageWithFallback src={localPokemonFrontSpriteUrl(pokemon)} alt={pokemon.nameZh} />
           <label>
             <span>等级</span>
             <input type="number" min={1} max={100} value={pokemon.level} onChange={event => onPatch({level: Number(event.target.value)})} />

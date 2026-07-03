@@ -226,6 +226,21 @@ const TYPE_SHORT_LABEL: Record<string, string> = {
   fairy: "妖",
 };
 
+type BattleSubmitErrorV4 = {
+  at: string;
+  reason: string;
+  sessionId: string;
+  playerId: "p1";
+  choice: string;
+  trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"];
+  busy: boolean;
+  commandsLocked: boolean;
+  playbackBlockingCommands: boolean;
+  commandDraft: BattleCommandDraftV4 | null;
+  normalizedRequest: BattleNormalizedRequestV4 | null;
+  error?: string;
+};
+
 export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest, onBattleComplete, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
@@ -237,6 +252,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const [pendingMoveAction, setPendingMoveAction] = useState<MoveActionV4 | null>(null);
   const [commandDraft, setCommandDraft] = useState<BattleCommandDraftV4 | null>(null);
   const [choiceStatus, setChoiceStatus] = useState("");
+  const [lastSubmitError, setLastSubmitError] = useState<BattleSubmitErrorV4 | null>(null);
   const skipAnimations = false;
   const [previewMove, setPreviewMove] = useState<DexMoveDetail | null>(null);
   const [surrenderOpen, setSurrenderOpen] = useState(false);
@@ -257,6 +273,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   const surrenderSubmitTimerRef = useRef<number | null>(null);
   const outroFallbackTimerRef = useRef<number | null>(null);
   const finalizedSessionRef = useRef("");
+  const trainerItemAutoSubmitKeyRef = useRef("");
   const narrativeSessionKey = useMemo(() => battleV4NarrativeSessionKey(sessionId), [sessionId]);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
@@ -310,6 +327,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     setOutroFallbackReadySessionId("");
     setSurrenderSettlementSessionId("");
     setSubmittedPlaybackLock(null);
+    trainerItemAutoSubmitKeyRef.current = "";
     finalizedSessionRef.current = "";
     if (outroFallbackTimerRef.current !== null) {
       window.clearTimeout(outroFallbackTimerRef.current);
@@ -401,6 +419,34 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     if (!playbackBlockingCommands) return;
     setPendingMoveAction(null);
   }, [playbackBlockingCommands]);
+
+  useEffect(() => {
+    if (!commandDraft || !commandDraft.isDone || busy || !sessionId) return;
+    if (!commandDraft.choices.some(choice => choice.trim().startsWith("traineritem "))) return;
+    const split = splitBattleTrainerItemChoicesV4(commandDraft);
+    if (!split.trainerItems.length) return;
+    const autoSubmitKey = `${sessionId}:${commandDraft.rqid || ""}:${commandDraft.choices.join("|")}`;
+    if (trainerItemAutoSubmitKeyRef.current === autoSubmitKey) return;
+    trainerItemAutoSubmitKeyRef.current = autoSubmitKey;
+    battleDebugLog(debugConfig, "submit", "submit-completed-trainer-item-draft", {
+      sessionId,
+      choice: split.choice,
+      trainerItems: split.trainerItems,
+      commandsLocked,
+      playbackBlockingCommands,
+    });
+    if (commandsLocked) {
+      console.error("[BattleV4][submit] trainer item draft completed while commands are locked; submitting anyway", {
+        sessionId,
+        choice: split.choice,
+        trainerItems: split.trainerItems,
+        commandDraft,
+        commandsLocked,
+        playbackBlockingCommands,
+      });
+    }
+    void submitChoice(split.choice, split.trainerItems);
+  }, [busy, commandDraft, commandsLocked, debugConfig, playbackBlockingCommands, sessionId]);
 
   useEffect(() => {
     if (!narrativeActive) return;
@@ -550,13 +596,49 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     };
   }, [api, debugConfig, playbackTimeline?.rawTo, playbackTimeline?.sessionId, sessionId, snapshot?.id, snapshot?.rawLog.length]);
 
+  function reportSubmitError(input: {reason: string; choice: string; trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"]; error?: unknown}) {
+    const payload: BattleSubmitErrorV4 = {
+      at: new Date().toISOString(),
+      reason: input.reason,
+      sessionId: sessionId || "",
+      playerId: "p1",
+      choice: input.choice,
+      trainerItems: input.trainerItems,
+      busy,
+      commandsLocked,
+      playbackBlockingCommands,
+      commandDraft,
+      normalizedRequest: viewModel?.command.normalizedRequest || null,
+      error: input.error instanceof Error ? input.error.message : input.error ? String(input.error) : undefined,
+    };
+    setLastSubmitError(payload);
+    console.error("[BattleV4][submit] submit choice failed", payload);
+    battleDebugLog(debugConfig, "error", "submit-choice-failed", payload);
+  }
+
   async function submitChoice(choice: string, trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"] = []) {
-    if (!choice || busy || !sessionId) return;
+    if (!choice) {
+      reportSubmitError({reason: "empty-choice", choice, trainerItems});
+      return;
+    }
+    if (!sessionId) {
+      reportSubmitError({reason: "missing-session-id", choice, trainerItems});
+      return;
+    }
+    if (busy) {
+      reportSubmitError({reason: "submit-busy", choice, trainerItems});
+      return;
+    }
     battleDebugLog(debugConfig, "submit", "submit-choice", {
       sessionId,
       playerId: "p1",
       choice,
+      trainerItems,
+      commandDraft,
+      commandsLocked,
+      playbackBlockingCommands,
     });
+    setLastSubmitError(null);
     setBusy(true);
     setSubmittedPlaybackLock({sessionId, rawLength: snapshot?.rawLog.length || 0});
     setChoiceStatus(`提交中：${choice}`);
@@ -572,12 +654,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       setMessage("");
       battleDebugLog(debugConfig, "snapshot", "after-submit", snapshotDebugSummary(next));
     } catch (error) {
-      battleDebugLog(debugConfig, "error", "submit-choice-failed", {
-        sessionId,
-        playerId: "p1",
-        choice,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      reportSubmitError({reason: trainerItems.length ? "submit-trainer-item-threw" : "submit-choice-threw", choice, trainerItems, error});
       setMessage(error instanceof Error ? error.message : "提交指令失败。");
     } finally {
       setBusy(false);
@@ -730,7 +807,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       />
       <header className="battle-v4-hud">
         <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
-        <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug)} disabled={!snapshot}>导出诊断</button>
+        <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug, lastSubmitError)} disabled={!snapshot}>导出诊断</button>
         {canSurrender ? <button className="danger" type="button" onClick={openSurrenderDialog} disabled={!snapshot || surrenderOpen || narrativeActive}>投降</button> : null}
       </header>
       {!commandsLocked ? (
@@ -1460,11 +1537,24 @@ function BattleV4BagPanel({api, bag, snapshot, request, commandDraft, onClose, o
     title: canUse ? "使用道具并占用当前行动" : "请选择可恢复道具和目标宝可梦。",
     onClick: () => {
       if (!request || !selection.item || !selection.target) {
+        console.error("[BattleV4][bag] trainer item cannot be used: missing request/item/target", {
+          hasRequest: Boolean(request),
+          item: selection.item,
+          target: selection.target,
+          commandDraft,
+        });
         onUnavailable("请选择可使用道具和目标宝可梦。");
         return;
       }
       const draft = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(request), request);
       if (draft.isDone) {
+        console.error("[BattleV4][bag] trainer item cannot be used: command draft is already done", {
+          request,
+          commandDraft,
+          normalizedDraft: draft,
+          item: selection.item,
+          target: selection.target,
+        });
         onUnavailable("当前回合指令已经完成。");
         return;
       }
@@ -2837,11 +2927,12 @@ function battleV4StallDiagnosis(snapshot: BattleSessionSnapshotV4 | null): strin
   return diagnosis.length ? diagnosis : ["no-obvious-stall-signal"];
 }
 
-function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null) {
+function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null, lastSubmitError?: BattleSubmitErrorV4 | null) {
   const command = snapshot ? projectBattleViewModelV4(snapshot, "p1", draft).command : null;
   return {
     exportedAt: new Date().toISOString(),
     diagnosis: battleV4StallDiagnosis(snapshot),
+    lastSubmitError: lastSubmitError || null,
     snapshotSummary: snapshot ? snapshotDebugSummary(snapshot) : null,
     draft,
     p1RawRequest: command?.request || null,
@@ -2852,6 +2943,8 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
       controller: player.controller,
       alliance: player.alliance,
       teamMapping: player.teamMapping || [],
+      draftBag: player.draft?.bag || null,
+      draftLocalTeam: player.draft?.localTeam || null,
       team: player.team.map((pokemon, index) => ({
         index,
         species: pokemon.species,
@@ -2922,9 +3015,9 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
   };
 }
 
-function exportBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null) {
+function exportBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null, lastSubmitError?: BattleSubmitErrorV4 | null) {
   if (!snapshot) return;
-  const diagnostics = buildBattleV4Diagnostics(snapshot, draft, playbackDebug);
+  const diagnostics = buildBattleV4Diagnostics(snapshot, draft, playbackDebug, lastSubmitError);
   const blob = new Blob([JSON.stringify(diagnostics, null, 2)], {type: "application/json"});
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

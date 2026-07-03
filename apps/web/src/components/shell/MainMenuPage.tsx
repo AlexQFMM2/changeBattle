@@ -8,7 +8,7 @@ import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import {assetUrl} from "../../lib/assetUrl";
 import "./MainMenuPage.css";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -20,6 +20,8 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   onFormalGame: (mode: FormalGameModeV4) => void;
   onContinueGame?: () => void;
   onStarChart: () => void;
+  onTrainerVaultBag: () => void;
+  onTrainerVaultPokemon: () => void;
   onTestMode: () => void;
   onBattlePreference: () => void;
   onUserInfo: () => void;
@@ -33,6 +35,8 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   const mainMenuItems: MainMenuCommandItem[] = [
     ...(continueGameLabel && onContinueGame ? [{label: continueGameLabel, action: onContinueGame}] : []),
     {label: "开始新游戏", action: () => setGameMenuOpen(true), instant: true},
+    {label: "我的背包", action: onTrainerVaultBag},
+    {label: "我的宝可梦", action: onTrainerVaultPokemon},
     {label: "训练家星图", action: onStarChart},
     {label: "对局偏好", action: onBattlePreference},
     {label: "玩家设置", action: onUserInfo},

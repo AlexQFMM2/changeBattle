@@ -26,6 +26,7 @@ import {
   type BattleVisualCommandV4,
 } from "./battleV4VisualScene";
 import {assetUrl} from "../../lib/assetUrl";
+import {localPokemonSpriteUrls, pokemonSpriteResourceUrls} from "../../lib/showdownPokemonSpriteAdapter.js";
 import {buildBattleV4StepCommentaryIndex, type BattleV4CommentaryEntry, type BattleV4StepCommentaryIndex, type BattleV4VisibleCommentaryEntry} from "./battleV4Commentary";
 
 export type BattleProtocolArgsV4 = [string, ...string[]];
@@ -468,9 +469,14 @@ export function projectBattleProtocolEventsV4(rawLines: string[], previousIndex 
 }
 
 export function projectBattleMessageEventsV4(events: BattleProtocolEventV4[]): BattleMessageEventV4[] {
+  let lastWeatherId = "";
   return events
     .map(event => {
-      const message = messageForProtocolEvent(event);
+      const message = messageForProtocolEvent(event, lastWeatherId);
+      if (event.eventType === "-weather") {
+        const nextWeather = toId(event.args[1] || "");
+        lastWeatherId = nextWeather && nextWeather !== "none" ? nextWeather : "";
+      }
       return message ? {
         sequence: event.sequence,
         rawLine: event.rawLine,
@@ -1976,10 +1982,10 @@ function restoreSlotFormeState(slot: BattleVisibleSlotV4): BattleVisibleSlotV4 {
 function applySlotSpriteForme(slot: BattleVisibleSlotV4, speciesId: string, targetSlot?: BattleViewSlotV4): BattleViewSlotV4 {
   const fallback = spriteUrlsForSpecies(speciesId);
   const target = targetSlot ? ensureVisibleSlotState(targetSlot) : undefined;
-  const frontSpriteUrl = firstLargeSprite(target?.frontSpriteUrl, fallback.frontSpriteUrl);
-  const backSpriteUrl = firstLargeSprite(target?.backSpriteUrl, fallback.backSpriteUrl, target?.frontSpriteUrl, fallback.frontSpriteUrl);
-  const frontShinySpriteUrl = firstLargeSprite(target?.frontShinySpriteUrl, fallback.frontShinySpriteUrl, frontSpriteUrl);
-  const backShinySpriteUrl = firstLargeSprite(target?.backShinySpriteUrl, fallback.backShinySpriteUrl, backSpriteUrl);
+  const frontSpriteUrl = fallback.frontSpriteUrl;
+  const backSpriteUrl = fallback.backSpriteUrl;
+  const frontShinySpriteUrl = fallback.frontShinySpriteUrl;
+  const backShinySpriteUrl = fallback.backShinySpriteUrl;
   const shiny = Boolean(slot.shiny);
   return {
     ...slot,
@@ -2012,53 +2018,13 @@ function spriteStateFromSlot(slot: BattleViewSlotV4): BattleSlotSpriteStateV4 {
 }
 
 function spriteUrlsForSpecies(speciesId: string): Pick<BattleViewSlotV4, "frontSpriteUrl" | "backSpriteUrl" | "frontShinySpriteUrl" | "backShinySpriteUrl"> {
-  const spriteId = showdownSpriteIdForSpecies(speciesId);
-  return {
-    frontSpriteUrl: assetUrl(`showdown/sprites/ani/${spriteId}.gif`) || "",
-    backSpriteUrl: assetUrl(`showdown/sprites/ani-back/${spriteId}.gif`) || "",
-    frontShinySpriteUrl: assetUrl(`showdown/sprites/ani-shiny/${spriteId}.gif`) || "",
-    backShinySpriteUrl: assetUrl(`showdown/sprites/ani-back-shiny/${spriteId}.gif`) || "",
-  };
+  return pokemonSpriteResourceUrls(speciesId);
 }
 
 function currentSpeciesForme(slot?: BattleViewSlotV4): string {
   if (!slot) return "";
   const state = ensureVisibleSlotState(slot);
   return state.volatileFormeSpeciesId || state.transformedSpeciesId || state.speciesId;
-}
-
-function showdownSpriteIdForSpecies(speciesId: string): string {
-  const known: Record<string, string> = {
-    cherrimsunshine: "cherrim-sunshine",
-    castformsunny: "castform-sunny",
-    castformrainy: "castform-rainy",
-    castformsnowy: "castform-snowy",
-    aegislashblade: "aegislash-blade",
-    wishiwashischool: "wishiwashi-school",
-    mimikyubusted: "mimikyu-busted",
-    mimikyutotem: "mimikyu-totem",
-    mimikyubustedtotem: "mimikyu-busted-totem",
-    miniormeteor: "minior-meteor",
-    darmanitanzen: "darmanitan-zen",
-    palafinhero: "palafin-hero",
-    kyogreprimal: "kyogre-primal",
-    groudonprimal: "groudon-primal",
-    necrozmaultra: "necrozma-ultra",
-  };
-  if (known[speciesId]) return known[speciesId]!;
-  const megaZMatch = /^(.+?)megaz$/.exec(speciesId);
-  if (megaZMatch) return `${megaZMatch[1]}-megaz`;
-  const megaMatch = /^(.+?)mega([xy])?$/.exec(speciesId);
-  if (megaMatch) return `${megaMatch[1]}-mega${megaMatch[2] || ""}`;
-  const gmaxMatch = /^(.+?)gmax$/.exec(speciesId);
-  if (gmaxMatch) return `${gmaxMatch[1]}-gmax`;
-  const primalMatch = /^(.+?)primal$/.exec(speciesId);
-  if (primalMatch) return `${primalMatch[1]}-primal`;
-  const ultraMatch = /^(.+?)ultra$/.exec(speciesId);
-  if (ultraMatch) return `${ultraMatch[1]}-ultra`;
-  const formeMatch = /^(.+?)(bustedtotem|busted|totem|meteor|school|blade|shield|sunshine|sunny|rainy|snowy|zen|hero|complete|origin)$/.exec(speciesId);
-  if (formeMatch) return `${formeMatch[1]}-${formeMatch[2]}`;
-  return speciesId.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 }
 
 function slotFromSwitchEvent(
@@ -2078,6 +2044,7 @@ function slotFromSwitchEvent(
   if (!pokemon) return viewModel?.slots.find(slot => slot.seat === event.actorSeat) || null;
   const condition = parseCondition(parsed.condition || "");
   const conditionHp = condition ? scaleProtocolHpForMaxHp(condition, pokemon.maxHp) : null;
+  const spriteUrls = localPokemonSpriteUrls(pokemon, side);
   return {
     seat: event.actorSeat,
     playerId,
@@ -2096,17 +2063,11 @@ function slotFromSwitchEvent(
     hp: conditionHp ?? pokemon.entryHp,
     maxHp: pokemon.maxHp || condition?.maxHp || 0,
     status: condition?.status || pokemon.entryStatus,
-    spriteUrl: pokemon.shiny
-      ? side === "near"
-        ? firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl)
-        : firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl)
-      : side === "near"
-        ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
-        : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
-    frontSpriteUrl: firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
-    backSpriteUrl: firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl),
-    frontShinySpriteUrl: firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl),
-    backShinySpriteUrl: firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl),
+    spriteUrl: spriteUrls.spriteUrl,
+    frontSpriteUrl: spriteUrls.frontSpriteUrl,
+    backSpriteUrl: spriteUrls.backSpriteUrl,
+    frontShinySpriteUrl: spriteUrls.frontShinySpriteUrl,
+    backShinySpriteUrl: spriteUrls.backShinySpriteUrl,
     shiny: Boolean(pokemon.shiny),
     iconUrl: pokemon.iconUrl || pokemon.spriteUrl || "",
     iconStyle: pokemon.iconStyle,
@@ -2178,10 +2139,6 @@ function baseSpeciesIdForProtocolMatch(value: string): string {
     .replace(/hisui$/, "")
     .replace(/paldea$/, "")
     .replace(/bond$/, "");
-}
-
-function firstLargeSprite(...values: Array<string | undefined>): string {
-  return values.find(value => value && !value.includes("pokemonicons-sheet")) || "";
 }
 
 function teamBallStates(team: LocalPokemonV4[], activeLocalPokemonId: string): BattleViewSlotV4["teamBallStates"] {
@@ -2264,7 +2221,7 @@ function seatForProtocolSlot(playerId: string, position: string): BattleProtocol
   return `${playerId}${slot}` as BattleProtocolSeatV4;
 }
 
-function messageForProtocolEvent(event: BattleProtocolEventV4): string {
+function messageForProtocolEvent(event: BattleProtocolEventV4, previousWeatherId = ""): string {
   const name = event.actorName || event.args[1] || "";
   const target = event.targetName || event.args[3] || "";
   const forme = event.args[2] || "";
@@ -2285,12 +2242,14 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
     return `${name}受到了伤害。`;
   case "-heal":
     return healMessage(event, name);
+  case "-message":
+    return event.args[1] || "";
   case "-enditem":
     return endItemMessage(event, name);
   case "-ability":
     return `${name}的${cleanEffect(event.args[2] || "特性")}发动了！`;
   case "-weather":
-    return weatherMessage(event);
+    return weatherMessage(event, previousWeatherId);
   case "-fieldstart":
     return fieldStartMessage(event);
   case "-fieldend":
@@ -2505,14 +2464,19 @@ function healSourceText(event: BattleProtocolEventV4): string {
   return cleanEffect(from);
 }
 
-function weatherMessage(event: BattleProtocolEventV4): string {
+function weatherMessage(event: BattleProtocolEventV4, previousWeatherId = ""): string {
   const weather = toId(event.args[1]);
   const source = event.actorName;
+  const label = weatherLabel(weather);
+  if (!weather || weather === "none") {
+    const previousLabel = weatherLabel(previousWeatherId);
+    return previousWeatherId ? `${previousLabel}停止了。` : "天气恢复了正常。";
+  }
+  if (event.kwArgs.upkeep) return `${label}还在继续。`;
   if (weather === "sunnyday") return source ? `${source}的日照让阳光变强了！` : "阳光变强了！";
-  if (weather === "raindance") return "开始下雨了！";
+  if (weather === "raindance") return source ? `${source}的降雨，开始下雨了！` : "开始下雨了！";
   if (weather === "sandstorm") return "沙暴刮起来了！";
   if (weather === "hail" || weather === "snow") return "开始下雪了！";
-  if (!weather || weather === "none") return "天气恢复了正常。";
   return `${weatherLabel(weather)}开始了！`;
 }
 

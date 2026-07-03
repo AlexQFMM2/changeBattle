@@ -6,6 +6,7 @@ import {getBattleV4ActiveTimelineFxVisuals, getBattleV4ActiveTimelineVisuals, ty
 import {visualSeatClassForSeat} from "./battleV4VisualSeats";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
+import {pokemonSpriteResourceUrls} from "../../lib/showdownPokemonSpriteAdapter";
 import "./BattleV4Page.css";
 import "./BattleV4MovePreviewModal.css";
 
@@ -315,6 +316,7 @@ function previewSlot(
   name: string,
   nameZh: string,
 ): BattleViewSlotV4 {
+  const sprites = pokemonSpriteResourceUrls(speciesId);
   return {
     seat: seat as BattleViewSlotV4["seat"],
     playerId,
@@ -333,11 +335,11 @@ function previewSlot(
     hp: 100,
     maxHp: 100,
     status: "",
-    spriteUrl: assetUrl(side === "near" ? `showdown/sprites/ani-back/${speciesId}.gif` : `showdown/sprites/ani/${speciesId}.gif`) || "",
-    frontSpriteUrl: assetUrl(`showdown/sprites/ani/${speciesId}.gif`) || "",
-    backSpriteUrl: assetUrl(`showdown/sprites/ani-back/${speciesId}.gif`) || "",
-    frontShinySpriteUrl: assetUrl(`showdown/sprites/ani-shiny/${speciesId}.gif`) || "",
-    backShinySpriteUrl: assetUrl(`showdown/sprites/ani-back-shiny/${speciesId}.gif`) || "",
+    spriteUrl: side === "near" ? sprites.backSpriteUrl : sprites.frontSpriteUrl,
+    frontSpriteUrl: sprites.frontSpriteUrl,
+    backSpriteUrl: sprites.backSpriteUrl,
+    frontShinySpriteUrl: sprites.frontShinySpriteUrl,
+    backShinySpriteUrl: sprites.backShinySpriteUrl,
     shiny: false,
     iconUrl: assetUrl(`showdown/sprites/ani/${speciesId}.gif`) || "",
     teamBallStates: ["normal", "empty", "empty", "empty", "empty", "empty"],

@@ -45,13 +45,25 @@ export function buildBattleV4StepCommentaryIndex(step: BattlePlaybackStepV4, api
       }
     }
   }
+  for (const command of step.commands) {
+    if (command.semanticEvent.kind !== "message") continue;
+    const entry = trainerItemCommentary(step, command, api);
+    if (!entry) continue;
+    entries.push(entry);
+    for (const followup of trainerItemFollowupCommands(step, command)) {
+      coveredCommands.add(followup.id);
+    }
+  }
   const byCommandId = new Map<string, BattleV4CommentaryEntry>();
   const immediate: BattleV4CommentaryEntry[] = [];
   for (const entry of entries) {
     if (coveredCommands.has(entry.commandId)) continue;
     byCommandId.set(entry.commandId, entry);
     const command = step.commands.find(item => item.id === entry.commandId);
-    if (command && !command.animationEvent) immediate.push(entry);
+    if (command && !command.animationEvent) {
+      immediate.push(entry);
+      byCommandId.delete(entry.commandId);
+    }
   }
   return {byCommandId, immediate};
 }
@@ -109,6 +121,75 @@ function moveFollowupCommands(step: BattlePlaybackStepV4, moveCommand: BattleVis
     result.push(command);
   }
   return result;
+}
+
+function trainerItemFollowupCommands(step: BattlePlaybackStepV4, messageCommand: BattleVisualCommandV4): BattleVisualCommandV4[] {
+  const startIndex = step.commands.findIndex(command => command.id === messageCommand.id);
+  if (startIndex < 0) return [];
+  const result: BattleVisualCommandV4[] = [];
+  for (let index = startIndex + 1; index < step.commands.length; index += 1) {
+    const command = step.commands[index];
+    if (!command) continue;
+    if (command.semanticEvent.kind === "turn" || command.semanticEvent.kind === "move" || command.semanticEvent.kind === "switchIn" || command.semanticEvent.kind === "switchOut") break;
+    if (command.semanticEvent.kind === "message" || command.semanticEvent.kind === "heal" || command.semanticEvent.kind === "cureStatus" || command.semanticEvent.kind === "faint") {
+      result.push(command);
+    }
+    if (command.semanticEvent.kind === "message" && messageMeansTrainerItemNoEffect(command.semanticEvent.text)) break;
+  }
+  return result;
+}
+
+function trainerItemCommentary(step: BattlePlaybackStepV4, command: BattleVisualCommandV4, api: ChangeBattleV2Api): BattleV4CommentaryEntry | null {
+  const event = command.semanticEvent;
+  if (event.kind !== "message") return null;
+  const used = parseTrainerItemUseMessage(event.text);
+  if (!used) return null;
+  const followups = trainerItemFollowupCommands(step, command);
+  const noEffect = followups.some(item => item.semanticEvent.kind === "message" && messageMeansTrainerItemNoEffect(item.semanticEvent.text));
+  const revive = followups.find(item => item.semanticEvent.kind === "heal" && item.semanticEvent.oldHp <= 0 && item.semanticEvent.newHp > 0)?.semanticEvent;
+  const heal = followups.find(item => item.semanticEvent.kind === "heal" && item.semanticEvent.delta > 0)?.semanticEvent;
+  const cure = followups.find(item => item.semanticEvent.kind === "cureStatus")?.semanticEvent;
+  const ppMessage = followups.find(item => item.semanticEvent.kind === "message" && /恢复了\s*\d+\s*点\s*PP/i.test(item.semanticEvent.text))?.semanticEvent;
+  const actor = localizePokemonName(used.actor, api) || used.actor || "宝可梦";
+  const item = localizeItemName(used.item, api) || used.item || "道具";
+  let text = `${actor}使用了${item}`;
+  if (noEffect) {
+    text += "，可惜没有效果。";
+  } else if (revive && revive.kind === "heal") {
+    const target = targetNameForEvent(revive, null, api) || actor;
+    text += `，复活了${target}。`;
+  } else if (heal && heal.kind === "heal") {
+    const target = targetNameForEvent(heal, null, api) || actor;
+    const amount = Math.max(0, heal.delta);
+    text += target === actor ? `，恢复了${amount}点体力。` : `，让${target}恢复了${amount}点体力。`;
+  } else if (cure && cure.kind === "cureStatus") {
+    const target = targetNameForEvent(cure, null, api) || actor;
+    text += target === actor ? "，解除了异常状态。" : `，解除了${target}的异常状态。`;
+  } else if (ppMessage && ppMessage.kind === "message") {
+    const amount = ppMessage.text.match(/恢复了\s*(\d+)\s*点\s*PP/i)?.[1] || "";
+    text += amount ? `，恢复了${amount}点PP。` : "，恢复了PP。";
+  } else {
+    text += "。";
+  }
+  return baseEntry(
+    step,
+    command,
+    text,
+    noEffect ? "neutral" : "heal",
+    "赛事解说",
+    [event.rawLine, ...followups.map(item => item.semanticEvent.rawLine)].filter(Boolean),
+  );
+}
+
+function parseTrainerItemUseMessage(text: string): {actor: string; item: string} | null {
+  const normalized = text.trim().replace(/[。.!！]+$/g, "");
+  const match = /^(.+?)\s*使用了\s*(.+)$/.exec(normalized);
+  if (!match) return null;
+  return {actor: match[1]!.trim(), item: match[2]!.trim()};
+}
+
+function messageMeansTrainerItemNoEffect(text: string): boolean {
+  return /没有效果/.test(text);
 }
 
 function compactMoveResultPhrases(
@@ -175,7 +256,8 @@ function resultEffectPhrase(event: SemanticEventByKind<"result">): string {
 
 function weatherCommentary(event: SemanticEventByKind<"weather">, api: ChangeBattleV2Api): string {
   const weather = weatherLabel(event.id);
-  if (!event.active) return `${weather}停止了。`;
+  if (!event.active || event.phase === "end") return `${weather}停止了。`;
+  if (event.phase === "upkeep") return `${weather}还在继续。`;
   const from = cleanEffect(event.protocolEvent.kwArgs.from || "");
   const of = event.protocolEvent.kwArgs.of || event.protocolEvent.actorName || "";
   const ability = from && event.protocolEvent.kwArgs.from?.startsWith("ability:") ? localizeAbilityName(from, api) : "";
@@ -469,6 +551,7 @@ function localizeAbilityName(name: string, api: ChangeBattleV2Api): string {
 
 function localizeItemName(name: string, api: ChangeBattleV2Api): string {
   const normalizedName = cleanEffect(name);
+  if (/[\u4e00-\u9fff]/.test(normalizedName)) return normalizedName;
   const id = toId(normalizedName);
   if (!id) return normalizedName || name;
   try {

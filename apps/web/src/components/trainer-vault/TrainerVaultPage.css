@@ -1,0 +1,255 @@
+.trainer-vault-page {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 58px 34px minmax(0, 1fr);
+  gap: 8px;
+  padding: 18px 28px 24px;
+  background: #121512;
+  color: #fff;
+}
+
+.trainer-vault-video-bg,
+.trainer-vault-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.trainer-vault-video-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: saturate(.9) brightness(.74);
+}
+
+.trainer-vault-backdrop {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(5 8 7 / 30%), rgb(5 8 7 / 82%)),
+    linear-gradient(90deg, rgb(0 0 0 / 32%), transparent 45%, rgb(0 0 0 / 26%));
+  pointer-events: none;
+}
+
+.trainer-vault-page > *:not(.trainer-vault-backdrop):not(.trainer-vault-video-bg) {
+  position: relative;
+  z-index: 2;
+}
+
+.trainer-vault-header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 14px;
+}
+
+.trainer-vault-header div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.trainer-vault-header span,
+.trainer-vault-summary span,
+.trainer-vault-item span,
+.trainer-vault-pokemon span,
+.trainer-vault-empty span {
+  color: rgb(255 255 255 / 72%);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.trainer-vault-header strong {
+  min-width: 0;
+  color: #fff6ce;
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 2px 0 rgb(0 0 0 / 58%);
+}
+
+.trainer-vault-header button,
+.trainer-vault-tabs button {
+  min-width: 0;
+  border: 2px solid rgb(255 244 188 / 58%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 20%), rgb(255 255 255 / 6%)), rgb(42 37 30 / 86%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+  padding: 8px 10px;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 62%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%), 0 3px 0 rgb(0 0 0 / 26%);
+  cursor: pointer;
+}
+
+.trainer-vault-header button:hover,
+.trainer-vault-header button:focus-visible,
+.trainer-vault-tabs button:hover,
+.trainer-vault-tabs button:focus-visible {
+  border-color: #7ce7ff;
+  outline: 0;
+}
+
+.trainer-vault-tabs {
+  justify-self: start;
+  display: grid;
+  grid-template-columns: 108px 108px;
+  gap: 8px;
+}
+
+.trainer-vault-tabs button {
+  padding: 7px 10px;
+}
+
+.trainer-vault-tabs button.active {
+  border-color: #61e388;
+  background: linear-gradient(180deg, rgb(255 255 255 / 24%), rgb(255 255 255 / 8%)), rgb(31 66 49 / 88%);
+}
+
+.trainer-vault-content {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.trainer-vault-summary {
+  justify-self: start;
+  min-width: 148px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 2px solid rgb(255 244 188 / 42%);
+  border-radius: 8px;
+  background: rgb(20 24 22 / 78%);
+  padding: 6px 10px;
+}
+
+.trainer-vault-summary strong {
+  color: #7ce7ff;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.trainer-vault-grid {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 2px 4px 8px 0;
+}
+
+.trainer-vault-grid.bag {
+  grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
+}
+
+.trainer-vault-grid.pokemon {
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+}
+
+.trainer-vault-item,
+.trainer-vault-pokemon,
+.trainer-vault-empty {
+  min-width: 0;
+  border: 2px solid rgb(255 244 188 / 42%);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 6%)),
+    rgb(28 31 30 / 86%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 9%), 0 3px 0 rgb(0 0 0 / 24%);
+}
+
+.trainer-vault-item,
+.trainer-vault-pokemon {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 58px;
+  padding: 8px;
+}
+
+.trainer-vault-item > div,
+.trainer-vault-pokemon > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.trainer-vault-item strong,
+.trainer-vault-pokemon strong,
+.trainer-vault-empty strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff6ce;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-vault-pokemon {
+  position: relative;
+}
+
+.trainer-vault-pokemon img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.trainer-vault-pokemon em {
+  position: absolute;
+  right: 7px;
+  top: 6px;
+  color: #ffe46f;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 950;
+  text-shadow: 0 1px 0 rgb(70 40 0 / 82%);
+}
+
+.trainer-vault-empty {
+  align-self: start;
+  justify-self: center;
+  width: min(420px, 100%);
+  display: grid;
+  place-items: center;
+  gap: 9px;
+  margin-top: 28px;
+  padding: 28px 22px;
+  text-align: center;
+}
+
+.trainer-vault-empty strong {
+  font-size: 18px;
+  white-space: normal;
+}
+
+@media (max-width: 680px) {
+  .trainer-vault-page {
+    padding: 16px 16px 20px;
+  }
+
+  .trainer-vault-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .trainer-vault-header button {
+    justify-self: start;
+  }
+}

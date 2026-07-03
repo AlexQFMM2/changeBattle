@@ -1,6 +1,7 @@
 import type {RentalPokemon} from "./formalRentalTypes";
 import type {CSSProperties} from "react";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
+import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./PokemonSprite.css";
 
 export const STAT_ROWS = [
@@ -31,10 +32,13 @@ export function moveDescription(move: RentalPokemon["moves"][number]): string {
 }
 
 export function PokemonSprite({pokemon, alt, badge = false, className}: {pokemon: RentalPokemon; alt: string; badge?: boolean | "full"; className?: string}) {
-  const spriteUrl = pokemon.shiny ? pokemon.sprite?.front_shiny || pokemon.sprite?.front_default : pokemon.sprite?.front_default;
+  const speciesId = pokemon.species_id || pokemon.species || pokemon.name;
+  const spriteUrl = pokemonSpriteUrl({speciesId, facing: "front", shiny: Boolean(pokemon.shiny)});
   return (
     <span className={["pokemon-sprite", badge === "full" ? "pokemon-sprite-full" : "", className || ""].filter(Boolean).join(" ")}>
-      {spriteUrl ? <img src={spriteUrl} alt={alt} draggable={false} /> : <span>{pokemon.species_zh?.slice(0, 1) || "?"}</span>}
+      {spriteUrl ? <img src={spriteUrl} alt={alt} draggable={false} onError={() => {
+        console.error("[formalUi] pokemon sprite failed", {speciesId, src: spriteUrl, alt});
+      }} /> : <span>{pokemon.species_zh?.slice(0, 1) || "?"}</span>}
       {badge ? <i>{pokemon.level}</i> : null}
     </span>
   );

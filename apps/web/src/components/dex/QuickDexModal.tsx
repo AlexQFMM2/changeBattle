@@ -16,6 +16,7 @@ import type {
 import {BattleV4MovePreviewModal, type BattleV4EnvironmentPreviewEntry} from "../battle-v4/BattleV4MovePreviewModal";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
+import {pokemonSpriteResourceUrls} from "../../lib/showdownPokemonSpriteAdapter";
 import "./DexCategoryTabs.css";
 import "./DexSearchBar.css";
 import "./DexResultList.css";
@@ -398,6 +399,7 @@ function PokemonDetail({
   onMoveClick: (id: string) => void;
   onPlayCry: () => void;
 }) {
+  const spriteUrls = pokemonSpriteResourceUrls(detail.id);
   const moveGroups: Record<string, DexMoveSummary[]> = {
     levelup: api.getPokemonSelfLearnSkills(detail.id),
     tutor: api.getPokemonTutorSkills(detail.id),
@@ -417,8 +419,8 @@ function PokemonDetail({
       {tab === "summary" ? (
         <div className="quick-dex-pokemon-tab-panel quick-dex-pokemon-info">
           <div className="quick-dex-pokemon-identity">
-            <img src={detail.sprites.animatedFrontUrl || detail.sprites.frontUrl} alt={detail.name} onError={event => {
-              if (detail.sprites.frontUrl && event.currentTarget.src !== detail.sprites.frontUrl) event.currentTarget.src = detail.sprites.frontUrl;
+            <img src={spriteUrls.frontSpriteUrl} alt={detail.name} onError={() => {
+              console.error("[QuickDexModal] pokemon sprite failed", {speciesId: detail.id, src: spriteUrls.frontSpriteUrl});
             }} />
             <div>
               <h3>{detail.nameZh || detail.name}</h3>
@@ -477,18 +479,19 @@ function pokemonLinkToRow(pokemon: DexPokemonLink): DexSearchRow {
 }
 
 function SpriteGrid({detail}: {detail: DexPokemonDetail}) {
+  const spriteUrls = pokemonSpriteResourceUrls(detail.id);
   const sprites = [
-    ["正面", detail.sprites.animatedFrontUrl, detail.sprites.frontUrl],
-    ["背面", detail.sprites.animatedBackUrl, detail.sprites.backUrl],
-    ["异色正面", detail.sprites.animatedFrontShinyUrl, detail.sprites.frontShinyUrl],
-    ["异色背面", detail.sprites.animatedBackShinyUrl, detail.sprites.backShinyUrl],
+    ["正面", spriteUrls.frontSpriteUrl],
+    ["背面", spriteUrls.backSpriteUrl],
+    ["异色正面", spriteUrls.frontShinySpriteUrl],
+    ["异色背面", spriteUrls.backShinySpriteUrl],
   ];
   return (
     <div className="quick-dex-sprite-grid">
-      {sprites.map(([label, url, fallback]) => (
+      {sprites.map(([label, url]) => (
         <figure key={label}>
-          <img src={url || fallback} alt={`${detail.name} ${label}`} onError={event => {
-            if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+          <img src={url} alt={`${detail.name} ${label}`} onError={() => {
+            console.error("[QuickDexModal] pokemon sprite failed", {speciesId: detail.id, label, src: url});
           }} />
           <figcaption>{label}</figcaption>
         </figure>

@@ -7,6 +7,7 @@ import {
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
   resolveShowdownRandomTeamFormatV4,
+  submitTrainerItem,
   submitChoice,
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
@@ -39,6 +40,40 @@ const bulbasaur = {
   ability: "Overgrow",
   moves: ["Tackle", "Growl", "Protect", "Rest"],
 };
+
+function localPokemonFromSet(set: typeof pikachu, overrides: Record<string, unknown> = {}) {
+  return {
+    localPokemonId: `${set.name.toLowerCase()}-local`,
+    speciesId: set.species.toLowerCase(),
+    name: set.name,
+    nameZh: set.name,
+    level: set.level,
+    gender: "M" as const,
+    shiny: false,
+    itemId: "",
+    abilityId: set.ability.toLowerCase().replace(/[^a-z0-9]+/g, ""),
+    moves: set.moves.map(move => ({moveId: move.toLowerCase().replace(/[^a-z0-9]+/g, "")})),
+    nature: set.nature,
+    evs: set.evs,
+    ivs: set.ivs,
+    maxHp: 100,
+    entryHp: 100,
+    entryStatus: "",
+    ...overrides,
+  };
+}
+
+function trainerItemDraft(playerId: "p1" | "p2", pokemon: ReturnType<typeof localPokemonFromSet>[], items: Array<Record<string, unknown>> = []) {
+  return {
+    playerId,
+    name: playerId,
+    avatar: "",
+    controller: playerId === "p1" ? "local" as const : "ai" as const,
+    alliance: playerId === "p1" ? "near" as const : "far" as const,
+    localTeam: {id: `${playerId}-team`, name: `${playerId} team`, pokemon},
+    bag: {items},
+  };
+}
 
 const charizard = {
   ...pikachu,
@@ -269,6 +304,148 @@ async function sleepCantMoveSmoke() {
     throw new Error("sleep did not prevent move");
   }
   console.log("showdown-battle-core sleep cant move smoke ok");
+}
+
+async function trainerItemSmoke() {
+  const p1 = trainerItemDraft("p1", [
+    localPokemonFromSet(pikachu, {entryHp: 50, maxHp: 100}),
+    localPokemonFromSet(eevee),
+  ], [{id: "potion-1", itemID: "potion", name: "回复药", canBattleUse: true}]);
+  const p2 = trainerItemDraft("p2", [
+    localPokemonFromSet(bulbasaur, {moves: [{moveId: "sleeptalk"}, {moveId: "growl"}, {moveId: "protect"}, {moveId: "rest"}]}),
+    localPokemonFromSet(eevee),
+  ]);
+  const snapshot = await createBattleSession({
+    runId: "test-run",
+    node: {
+      id: "test-node-trainer-item",
+      mode: "singles",
+      ruleSet: "gen9",
+      seed: "test-seed",
+      p1: "p1",
+      p2: "p2",
+      p3: null,
+      p4: null,
+      participants: {p1, p2},
+    },
+    players: {p1, p2},
+  });
+  if (!snapshot.requests.p1?.active?.length) throw new Error("missing trainer item request");
+  const next = await submitTrainerItem({
+    sessionId: snapshot.id,
+    playerId: "p1",
+    choice: "pass",
+    trainerItems: [{activeIndex: 0, itemInstanceId: "potion-1", targetKey: "pokeball"}],
+  });
+  if (!next.debug.inputLog.some(line => line.includes("[trainer-item]"))) {
+    throw new Error(`trainer item input log missing: ${JSON.stringify(next.debug.inputLog)}`);
+  }
+  if (!next.rawLog.some(line => line.includes("|-heal|p1a: Pikachu|") && line.includes("[from] item: 回复药"))) {
+    throw new Error(`trainer item heal protocol missing: ${next.rawLog.join("\n")}`);
+  }
+  const player = next.players.find(entry => entry.playerId === "p1");
+  if (player?.draft.bag.items.some(item => item.id === "potion-1")) {
+    throw new Error("trainer item was not consumed from bag");
+  }
+  const healed = player?.draft.localTeam.pokemon[0];
+  if (!healed || Number(healed.entryHp || 0) <= 50) {
+    throw new Error(`trainer item did not heal local pokemon: ${JSON.stringify(healed)}`);
+  }
+  console.log("showdown-battle-core trainer item smoke ok");
+}
+
+async function trainerItemNoEffectSmoke() {
+  const p1 = trainerItemDraft("p1", [
+    localPokemonFromSet(pikachu, {entryHp: 100, maxHp: 100}),
+    localPokemonFromSet(eevee),
+  ], [{id: "potion-full-hp", itemID: "potion", name: "回复药", canBattleUse: true}]);
+  const p2 = trainerItemDraft("p2", [
+    localPokemonFromSet(bulbasaur),
+    localPokemonFromSet(eevee),
+  ]);
+  const snapshot = await createBattleSession({
+    runId: "test-run",
+    node: {
+      id: "test-node-trainer-item-no-effect",
+      mode: "singles",
+      ruleSet: "gen9",
+      seed: "test-seed",
+      p1: "p1",
+      p2: "p2",
+      p3: null,
+      p4: null,
+      participants: {p1, p2},
+    },
+    players: {p1, p2},
+  });
+  if (!snapshot.requests.p1?.active?.length) throw new Error("missing no-effect trainer item request");
+  const next = await submitTrainerItem({
+    sessionId: snapshot.id,
+    playerId: "p1",
+    choice: "pass",
+    trainerItems: [{activeIndex: 0, itemInstanceId: "potion-full-hp", targetKey: "pokeball"}],
+  });
+  if (!next.rawLog.some(line => line.includes("|-message|但是没有效果。"))) {
+    throw new Error(`trainer item no-effect protocol missing: ${next.rawLog.join("\n")}`);
+  }
+  if (!next.debug.inputLog.some(line => line.includes("[trainer-item]") && line.includes("noEffect=true"))) {
+    throw new Error(`trainer item no-effect input log missing: ${JSON.stringify(next.debug.inputLog)}`);
+  }
+  const player = next.players.find(entry => entry.playerId === "p1");
+  if (player?.draft.bag.items.some(item => item.id === "potion-full-hp")) {
+    throw new Error("no-effect trainer item should still be consumed");
+  }
+  console.log("showdown-battle-core trainer item no-effect smoke ok");
+}
+
+async function trainerItemDoublesPlaceholderTargetSmoke() {
+  const p1 = trainerItemDraft("p1", [
+    localPokemonFromSet({...pikachu, species: "Skuntank", name: "Skuntank", ability: "Keen Eye", moves: ["Sucker Punch", "Screech", "Explosion", "Bite"]}, {entryHp: 100, maxHp: 100}),
+    localPokemonFromSet({...pikachu, species: "Sigilyph", name: "Sigilyph", ability: "Tinted Lens", moves: ["Psybeam", "Confusion", "Synchronoise", "Psywave"]}),
+    localPokemonFromSet(eevee),
+    localPokemonFromSet({...eevee, species: "Jolteon", name: "Jolteon"}),
+  ], [{id: "potion-doubles-placeholder", itemID: "potion", name: "回复药", canBattleUse: true}]);
+  const p2 = trainerItemDraft("p2", [
+    localPokemonFromSet(bulbasaur),
+    localPokemonFromSet(eevee),
+    localPokemonFromSet({...pikachu, species: "Raichu", name: "Raichu"}),
+    localPokemonFromSet({...eevee, species: "Vaporeon", name: "Vaporeon"}),
+  ]);
+  const snapshot = await createBattleSession({
+    runId: "test-run",
+    node: {
+      id: "test-node-trainer-item-doubles-placeholder",
+      mode: "doubles",
+      ruleSet: "gen8",
+      seed: "test-seed",
+      p1: "p1",
+      p2: "p2",
+      p3: null,
+      p4: null,
+      participants: {p1, p2},
+    },
+    players: {p1, p2},
+  });
+  if ((snapshot.requests.p1?.active || []).length !== 2) throw new Error("missing doubles trainer item request");
+  const next = await submitTrainerItem({
+    sessionId: snapshot.id,
+    playerId: "p1",
+    choice: "pass, move 1 +1",
+    trainerItems: [{activeIndex: 0, itemInstanceId: "potion-doubles-placeholder", targetKey: "pokeball"}],
+  });
+  if (next.error?.includes("needs a target") || next.debug.inputLog.some(line => line.includes("needs a target"))) {
+    throw new Error(`trainer item placeholder should include target: ${JSON.stringify(next.debug.inputLog)}`);
+  }
+  if (!next.debug.inputLog.some(line => line.includes("[trainer-item-placeholder]") && line.includes("move 1 +1"))) {
+    throw new Error(`trainer item placeholder target log missing: ${JSON.stringify(next.debug.inputLog)}`);
+  }
+  if (!next.debug.inputLog.some(line => line.includes("[trainer-item]"))) {
+    throw new Error(`trainer item did not execute after placeholder target: ${JSON.stringify(next.debug.inputLog)}`);
+  }
+  if (next.rawLog.some(line => line.includes("|move|p1a: Skuntank|Sucker Punch|"))) {
+    throw new Error(`trainer item placeholder move should not execute: ${next.rawLog.join("\n")}`);
+  }
+  console.log("showdown-battle-core trainer item doubles placeholder target smoke ok");
 }
 
 async function rulesetSpecialSystemFilterSmoke() {
@@ -883,6 +1060,9 @@ void smoke()
   .then(initialStateSmoke)
   .then(residualStatusSmoke)
   .then(sleepCantMoveSmoke)
+  .then(trainerItemSmoke)
+  .then(trainerItemNoEffectSmoke)
+  .then(trainerItemDoublesPlaceholderTargetSmoke)
   .then(rulesetSpecialSystemFilterSmoke)
   .then(specialSystemBagGateSmoke)
   .then(scriptAllyAutoChoiceSmoke)

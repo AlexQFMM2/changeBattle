@@ -98,6 +98,10 @@
   pointer-events: auto;
 }
 
+.training-rest-new-floating-panel-layer {
+  isolation: isolate;
+}
+
 .training-rest-new-center-scene {
   position: relative;
   width: 640px;

@@ -13,6 +13,7 @@ import type {
 } from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
+import {localPokemonFrontSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "../dex/MoveCard.css";
 import "./TrainingRestPage.css";
 
@@ -353,7 +354,7 @@ function TrainingRestPokemonSprite({pokemon, kind}: {pokemon: LocalPokemonV4; ki
     return <span className="training-rest-pokemon-icon picon" aria-hidden="true" style={styleFromCss(pokemon.iconStyle)} />;
   }
   const src = kind === "front"
-    ? ((pokemon.shiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl) || pokemon.iconUrl || "")
+    ? (localPokemonFrontSpriteUrl(pokemon) || pokemon.iconUrl || "")
     : (pokemon.spriteUrl || pokemon.iconUrl || "");
   return <ImageWithFallback src={src} alt={pokemon.nameZh} fallback={pokemon.nameZh.slice(0, 1) || "?"} />;
 }

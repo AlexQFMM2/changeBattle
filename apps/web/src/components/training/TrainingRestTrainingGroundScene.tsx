@@ -14,6 +14,7 @@ import {MoveCard} from "../formal/move/MoveCard";
 import {TrainingRestShopDialogue} from "./TrainingRestShopDialogue";
 import {TrainingRestShopInteractionPanel} from "./TrainingRestShopInteractionPanel";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
+import {localPokemonFrontSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./TrainingRestTrainingGroundScene.css";
 
 export type TrainingRestTrainingGroundSceneProps = {
@@ -595,7 +596,7 @@ function TrainingGroundPokemonDetailCard({api, before, after, headline, summary}
 }
 
 function TrainingGroundDetailSprite({pokemon}: {pokemon: LocalPokemonV4}) {
-  const src = pokemon.frontSpriteUrl || pokemon.spriteUrl || pokemon.iconUrl || "";
+  const src = localPokemonFrontSpriteUrl(pokemon);
   if (!src && pokemon.iconStyle) {
     return <span className="training-rest-training-ground-detail-sprite" aria-label={pokemonName(pokemon)} style={spriteStyleFromCss(pokemon.iconStyle)} />;
   }

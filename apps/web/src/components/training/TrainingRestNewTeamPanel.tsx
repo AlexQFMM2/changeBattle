@@ -3,6 +3,7 @@ import {motion} from "motion/react";
 import type {ChangeBattleV2Api, DexStatId, LocalPokemonV4, TrainingMoveSlotV4, TrainingPlayerDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
+import {localPokemonFrontSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "../dex/MoveCard.css";
 import "./TrainingRestNewTeamPanel.css";
 
@@ -500,8 +501,8 @@ function TrainingRestNewPokemonSprite({pokemon, kind}: {pokemon: LocalPokemonV4;
     return <span className="training-rest-new-pokemon-icon picon" aria-hidden="true" style={styleFromCss(pokemon.iconStyle)} />;
   }
   const src = kind === "front"
-    ? ((pokemon.shiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl) || pokemon.iconUrl || "")
-    : (pokemon.spriteUrl || pokemon.iconUrl || "");
+    ? (localPokemonFrontSpriteUrl(pokemon) || pokemon.iconUrl || "")
+    : (pokemon.iconUrl || pokemon.spriteUrl || "");
   return <ImageWithFallback src={src} alt={pokemon.nameZh} fallback={pokemon.nameZh.slice(0, 1) || "?"} />;
 }
 

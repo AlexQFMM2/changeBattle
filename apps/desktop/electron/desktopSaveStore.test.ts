@@ -116,5 +116,10 @@ function sampleProfile(name: string): UserProfileV2 {
     },
     battlePoints: 0,
     starChart: {nodes: {root_trainer_star: 1}},
+    trainerVault: {
+      version: 1,
+      bag: {maxSize: 80, items: [], battleBagEnabled: false},
+      pokemonBox: [],
+    },
   };
 }

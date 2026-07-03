@@ -49,7 +49,7 @@ export async function loadShowdownSimV4(): Promise<ShowdownSimModuleV4> {
 export async function loadShowdownTeamsV4(): Promise<ShowdownSimModuleV4["Teams"]> {
   const runtime = await loadNodeRuntimeV4();
   cachedTeamsPromise ||= showdownVendorRootV4()
-    .then(root => import(runtime.pathToFileURL(runtime.path.join(root, "sim", "index.js")).href))
+    .then(root => import(/* @vite-ignore */ runtime.pathToFileURL(runtime.path.join(root, "sim", "index.js")).href))
     .then(module => {
       const loaded = module as unknown as Partial<ShowdownSimModuleV4> & {default?: Partial<ShowdownSimModuleV4>};
       const teams = loaded.default?.Teams || loaded.Teams;
@@ -96,10 +96,10 @@ function parentDirectories(runtime: NodeRuntimeV4, start: string): string[] {
 async function loadNodeRuntimeV4(): Promise<NodeRuntimeV4> {
   if (typeof window !== "undefined") throw new Error("Showdown vendor 只能在 Node 环境加载。");
   nodeRuntimePromise ||= Promise.all([
-    import(nodeBuiltinSpecifierV4("fs")),
-    import(nodeBuiltinSpecifierV4("module")),
-    import(nodeBuiltinSpecifierV4("path")),
-    import(nodeBuiltinSpecifierV4("url")),
+    import(/* @vite-ignore */ nodeBuiltinSpecifierV4("fs")),
+    import(/* @vite-ignore */ nodeBuiltinSpecifierV4("module")),
+    import(/* @vite-ignore */ nodeBuiltinSpecifierV4("path")),
+    import(/* @vite-ignore */ nodeBuiltinSpecifierV4("url")),
   ]).then(([fsModule, moduleModule, pathModule, urlModule]) => ({
     existsSync: (fsModule as {existsSync: NodeRuntimeV4["existsSync"]}).existsSync,
     createRequire: (moduleModule as {createRequire: NodeRuntimeV4["createRequire"]}).createRequire,

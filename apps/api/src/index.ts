@@ -6,7 +6,7 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   type RestCenterActionEntryV4,
 } from "@changebattle-v2/core";
-import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
+import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BagStateV4, type BattlePreferenceV4, type LocalPokemonV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4} from "./battle.js";
@@ -61,6 +61,12 @@ export type TrainerCatalogV2 = {
   avatars: TrainerCatalogEntryV2[];
 };
 
+export type TrainerVaultV2 = {
+  version: 1;
+  bag: BagStateV4;
+  pokemonBox: LocalPokemonV4[];
+};
+
 export type UserProfileV2 = {
   version: 1;
   id: string;
@@ -75,6 +81,7 @@ export type UserProfileV2 = {
   battlePreference: BattlePreferenceV4;
   battlePoints: number;
   starChart: StarChartStateV4;
+  trainerVault: TrainerVaultV2;
 };
 
 export type UserProfileDraftV2 = {
@@ -313,6 +320,7 @@ export function createDefaultUserProfile(draft: UserProfileDraftV2 = {}, now = n
     battlePreference: normalizeBattlePreferenceV4(),
     battlePoints: 0,
     starChart: normalizeStarChartV4(),
+    trainerVault: normalizeTrainerVault(),
   };
 }
 
@@ -332,6 +340,7 @@ export function updateUserProfile(profile: UserProfileV2, draft: UserProfileDraf
     battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
     battlePoints: normalizeBattlePointsV4(profile.battlePoints),
     starChart: normalizeStarChartV4(profile.starChart),
+    trainerVault: normalizeTrainerVault(profile.trainerVault),
   };
 }
 
@@ -477,7 +486,31 @@ function normalizeProfile(profile: UserProfileV2): UserProfileV2 {
     battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
     battlePoints: normalizeBattlePointsV4(profile.battlePoints),
     starChart: normalizeStarChartV4(profile.starChart),
+    trainerVault: normalizeTrainerVault(profile.trainerVault),
   };
+}
+
+function normalizeTrainerVault(value?: unknown): TrainerVaultV2 {
+  const raw = isPlainRecord(value) ? value : {};
+  const rawBag = isPlainRecord(raw.bag) ? raw.bag : {};
+  const maxSize = Math.max(1, Math.floor(Number(rawBag.maxSize || 80)));
+  const rawItems = Array.isArray(rawBag.items) ? rawBag.items : [];
+  const pokemonBox = Array.isArray(raw.pokemonBox)
+    ? raw.pokemonBox.filter(isPlainRecord).map(pokemon => clone(pokemon) as LocalPokemonV4)
+    : [];
+  return {
+    version: 1,
+    bag: {
+      maxSize,
+      items: rawItems.filter(isPlainRecord).map(item => clone(item) as BagStateV4["items"][number]).slice(0, maxSize),
+      battleBagEnabled: Boolean(rawBag.battleBagEnabled),
+    },
+    pokemonBox,
+  };
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function createId(): string {

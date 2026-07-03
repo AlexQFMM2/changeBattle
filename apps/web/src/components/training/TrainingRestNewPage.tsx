@@ -417,39 +417,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             onAction={selectAction}
           />
           <div className="training-rest-new-save-message" role="status">{message}</div>
-          {teamPanelOpen || bagPanelOpen ? (
-            <button
-              className="training-rest-new-panel-scrim"
-              type="button"
-              aria-label="关闭当前面板"
-              onClick={closeFloatingPanels}
-            />
-          ) : null}
-          <TrainingRestNewTeamPanel
-            api={api}
-            open={teamPanelOpen}
-            localTeam={p1Team}
-            onClose={() => setTeamPanelOpen(false)}
-            onLocalTeamChange={updateP1Team}
-            statRerollController={teamRerollController ? {
-              money: teamRerollController.money,
-              locksEnabled: teamRerollController.locksEnabled,
-              onRerollStats: async input => {
-                const result = await teamRerollController.onRerollStats(input);
-                setMessage(result.message);
-                showNotice(result.message, result.ok ? "normal" : "danger");
-                return result;
-              },
-            } : undefined}
-          />
-          <TrainingRestNewBagPanel
-            api={api}
-            open={bagPanelOpen}
-            run={run}
-            onClose={() => setBagPanelOpen(false)}
-            onRunDraftChange={updateRunGameDraft}
-            onNotice={showNotice}
-          />
         </section>
         {restScene === "training-ground" ? (
           <TrainingRestTrainingGroundScene
@@ -486,6 +453,41 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           <section className="training-rest-new-scene-placeholder" aria-hidden="true" />
         )}
       </div>
+      {teamPanelOpen || bagPanelOpen ? (
+        <div className="training-rest-new-modal-layer training-rest-new-floating-panel-layer" role="presentation">
+          <button
+            className="training-rest-new-panel-scrim"
+            type="button"
+            aria-label="关闭当前面板"
+            onClick={closeFloatingPanels}
+          />
+          <TrainingRestNewTeamPanel
+            api={api}
+            open={teamPanelOpen}
+            localTeam={p1Team}
+            onClose={() => setTeamPanelOpen(false)}
+            onLocalTeamChange={updateP1Team}
+            statRerollController={teamRerollController ? {
+              money: teamRerollController.money,
+              locksEnabled: teamRerollController.locksEnabled,
+              onRerollStats: async input => {
+                const result = await teamRerollController.onRerollStats(input);
+                setMessage(result.message);
+                showNotice(result.message, result.ok ? "normal" : "danger");
+                return result;
+              },
+            } : undefined}
+          />
+          <TrainingRestNewBagPanel
+            api={api}
+            open={bagPanelOpen}
+            run={run}
+            onClose={() => setBagPanelOpen(false)}
+            onRunDraftChange={updateRunGameDraft}
+            onNotice={showNotice}
+          />
+        </div>
+      ) : null}
       {exchangePanelOpen ? (
         <TrainingRestExchangePanel
           open

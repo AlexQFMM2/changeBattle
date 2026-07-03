@@ -316,7 +316,11 @@ export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInp
   side.clearChoice();
   let accepted = side.choose(choice);
   if (!accepted && choice.split(",").some(part => part.trim() === "pass")) {
-    const fallbackChoice = choice.split(",").map((part, index) => part.trim() === "pass" && actions.some(action => action.requestActiveIndex === index) ? "move 1" : part.trim()).join(", ");
+    const fallbackChoice = choice.split(",").map((part, index) =>
+      part.trim() === "pass" && actions.some(action => action.requestActiveIndex === index)
+        ? trainerItemPlaceholderChoice(request, index)
+        : part.trim()
+    ).join(", ");
     side.clearChoice();
     accepted = side.choose(fallbackChoice);
     if (accepted) session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item-placeholder] ${choice} -> ${fallbackChoice}`);
@@ -341,6 +345,14 @@ export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInp
   await submitAiChoices(session);
   await waitForRequests(session, 700);
   return clone(session.snapshot);
+}
+
+function trainerItemPlaceholderChoice(request: BattleServiceRequestV4, activeIndex: number): string {
+  const active = request.active?.[activeIndex];
+  const moveIndex = active?.moves?.findIndex(move => !move.disabled) ?? -1;
+  if (!active || moveIndex < 0) return "pass";
+  const move = active.moves![moveIndex]!;
+  return `move ${moveIndex + 1}${defaultTargetSuffix(request, activeIndex, move, Boolean(request.targetable || (request.active || []).length > 1))}`;
 }
 
 export async function getSnapshot(sessionId: string): Promise<BattleServiceSnapshotV4> {
@@ -919,8 +931,7 @@ function buildTrainerItemAction(session: RuntimeSession, playerId: ShowdownPlaye
   const resolved = resolveTrainerItemTarget(session, player, action.targetKey);
   if (!resolved.localPokemon) throw new Error("找不到目标宝可梦。");
   const battlePokemon = findBattlePokemon(session, playerId, resolved.mapping?.teamIndex ?? resolved.teamIndex, action.targetKey);
-  const validation = applyTrainerItemEffectToLocalPokemon(resolved.localPokemon, effect);
-  if (!validation.ok) throw new Error(validation.reason);
+  syncTrainerItemTargetLocalPokemon(session, playerId, player, resolved.localPokemon, resolved.mapping?.teamIndex ?? resolved.teamIndex, action.targetKey, battlePokemon);
   return {
     choice: "trainerItem",
     requestActiveIndex: activeIndex,
@@ -932,7 +943,7 @@ function buildTrainerItemAction(session: RuntimeSession, playerId: ShowdownPlaye
     itemName: item.name || item.itemID || item.itemId || "道具",
     effect,
     playerId,
-    order: 102,
+    order: 4,
     priority: 0,
     speed: 1,
   };
@@ -946,7 +957,6 @@ function executeTrainerItemAction(session: RuntimeSession, playerId: ShowdownPla
   const localPokemon = player.draft.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === action.targetLocalPokemonId);
   if (!localPokemon) throw new Error("找不到目标宝可梦。");
   const result = applyTrainerItemEffectToLocalPokemon(localPokemon, action.effect);
-  if (!result.ok) throw new Error(result.reason);
 
   const nextTeam = player.draft.localTeam.pokemon.map(pokemon => {
     const cleared = clearConsumedItemReference(pokemon, item);
@@ -964,7 +974,7 @@ function executeTrainerItemAction(session: RuntimeSession, playerId: ShowdownPla
 
   if (action.target) applyTrainerItemEffectToBattlePokemon(session, action.target, action.effect, result, action.itemName);
   else addTrainerItemProtocol(session, `|-message|${displayPokemonName(result.pokemon)} 使用了 ${item.name || item.itemID || item.itemId || "道具"}。`);
-  session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item] ${playerId} active=${action.requestActiveIndex} item=${action.itemId} target=${action.targetLocalPokemonId}`);
+  session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item] ${playerId} active=${action.requestActiveIndex} item=${action.itemId} target=${action.targetLocalPokemonId}${result.noEffect ? " noEffect=true" : ""}`);
   touch(session);
 }
 
@@ -1011,6 +1021,84 @@ function resolveTrainerItemTarget(session: RuntimeSession, player: BattleService
   return {localPokemon: teamIndex >= 0 ? localTeam[teamIndex]! : null, mapping: null, teamIndex};
 }
 
+function syncTrainerItemTargetLocalPokemon(
+  session: RuntimeSession,
+  playerId: ShowdownPlayerIdV4,
+  player: BattleServicePlayerInputV4,
+  localPokemon: LocalPokemonLikeForBattleV4,
+  teamIndex: number,
+  targetKey: string,
+  battlePokemon: any | null,
+): LocalPokemonLikeForBattleV4 {
+  const key = normalizeIdentityToken(targetKey);
+  const rows = session.snapshot.requests[playerId]?.side?.pokemon || session.snapshot.debug.latestSidePokemon?.[playerId] || [];
+  const row = rows.find((entry, index) =>
+    normalizeIdentityToken(entry.pokeball) === key ||
+    normalizeIdentityToken(entry.ident) === key ||
+    index === teamIndex
+  ) || null;
+  const condition = row?.condition ? parseCondition(row.condition) : null;
+  const battleHp = battlePokemon ? {
+    hp: Math.max(0, Number(battlePokemon.hp ?? localPokemon.entryHp ?? 0) || 0),
+    maxHp: Math.max(1, Number(battlePokemon.maxhp ?? localPokemon.maxHp ?? localPokemon.entryHp ?? 1) || 1),
+    status: String(battlePokemon.status || localPokemon.entryStatus || ""),
+    fainted: Boolean(battlePokemon.fainted) || Number(battlePokemon.hp || 0) <= 0,
+  } : null;
+  const hp = condition?.hp ?? battleHp?.hp ?? Number(localPokemon.entryHp ?? localPokemon.maxHp ?? 1);
+  const maxHp = condition?.maxHp ?? battleHp?.maxHp ?? Math.max(1, Number(localPokemon.maxHp || hp || 1));
+  const status = condition?.status ?? battleHp?.status ?? String(localPokemon.entryStatus || "");
+  const fainted = condition?.fainted ?? battleHp?.fainted ?? hp <= 0;
+  const moves = syncTrainerItemTargetMoves(session, playerId, row, localPokemon, battlePokemon);
+  const synced = {
+    ...localPokemon,
+    moves,
+    entryHp: Math.max(0, hp),
+    maxHp: Math.max(1, maxHp),
+    entryStatus: fainted ? "fnt" : status,
+  };
+  player.draft = {
+    ...player.draft,
+    localTeam: {
+      ...player.draft.localTeam,
+      pokemon: player.draft.localTeam.pokemon.map(pokemon => pokemon.localPokemonId === synced.localPokemonId ? synced : pokemon),
+    },
+  };
+  session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item-sync] ${playerId} target=${targetKey} hp=${synced.entryHp}/${synced.maxHp} status=${synced.entryStatus || ""}`);
+  return synced;
+}
+
+function syncTrainerItemTargetMoves(
+  session: RuntimeSession,
+  playerId: ShowdownPlayerIdV4,
+  row: BattleServiceSidePokemonV4 | null,
+  localPokemon: LocalPokemonLikeForBattleV4,
+  battlePokemon: any | null,
+): LocalPokemonLikeForBattleV4["moves"] {
+  const battleSlots = (battlePokemon?.moveSlots || []) as Array<{id?: string; move?: string; pp?: number; maxpp?: number; maxPp?: number}>;
+  const key = row ? normalizeIdentityToken(row.pokeball || row.ident || row.details) : "";
+  const latestMoves = key ? session.snapshot.debug.latestMovePpByPokemon?.[playerId]?.[key] || [] : [];
+  return (localPokemon.moves || []).map(move => {
+    const moveId = normalizeIdentityToken(move.moveId);
+    const battleSlot = battleSlots.find(slot => normalizeIdentityToken(slot.id || slot.move) === moveId);
+    if (battleSlot) {
+      return {
+        ...move,
+        remainingPp: Math.max(0, Number(battleSlot.pp ?? (move as any).remainingPp ?? 0) || 0),
+        maxPp: Math.max(0, Number(battleSlot.maxpp ?? battleSlot.maxPp ?? (move as any).maxPp ?? battleSlot.pp ?? 0) || 0),
+      } as any;
+    }
+    const latestMove = latestMoves.find(entry => normalizeIdentityToken(entry.id || entry.move) === moveId);
+    if (latestMove) {
+      return {
+        ...move,
+        remainingPp: Math.max(0, Number(latestMove.pp ?? (move as any).remainingPp ?? 0) || 0),
+        maxPp: Math.max(0, Number(latestMove.maxpp ?? (move as any).maxPp ?? latestMove.pp ?? 0) || 0),
+      } as any;
+    }
+    return {...move};
+  });
+}
+
 function findBattlePokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4, teamIndex: number, targetKey: string): any | null {
   const battle = (session.stream as any).battle;
   const sideIndex = Number(playerId.slice(1)) - 1;
@@ -1020,10 +1108,15 @@ function findBattlePokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4
   return side.pokemon?.find((pokemon: any, index: number) => index === teamIndex || normalizeIdentityToken(pokemon.set?.pokeball) === key) || null;
 }
 
-function applyTrainerItemEffectToBattlePokemon(session: RuntimeSession, pokemon: any, effect: RecoveryEffect, result: Extract<ReturnType<typeof applyTrainerItemEffectToLocalPokemon>, {ok: true}>, itemName: string): void {
+function applyTrainerItemEffectToBattlePokemon(session: RuntimeSession, pokemon: any, effect: RecoveryEffect, result: ReturnType<typeof applyTrainerItemEffectToLocalPokemon>, itemName: string): void {
   const battle = (session.stream as any).battle;
   if (!battle || !pokemon) return;
   battle.add("-message", `${displayBattlePokemonName(pokemon)} 使用了 ${itemName}。`);
+  if (result.noEffect) {
+    battle.add("-message", "但是没有效果。");
+    battle.sendUpdates?.();
+    return;
+  }
   if (effect.revive && pokemon.hp <= 0) {
     pokemon.hp = Number(result.pokemon.entryHp || 1);
     pokemon.fainted = false;
@@ -1063,8 +1156,7 @@ function syncBattlePokemonPp(battlePokemon: any, localPokemon: LocalPokemonLikeF
 }
 
 function applyTrainerItemEffectToLocalPokemon(pokemon: LocalPokemonLikeForBattleV4, effect: RecoveryEffect):
-  | {ok: true; pokemon: LocalPokemonLikeForBattleV4; hpRecovered: number; ppRecovered: number; statusCured: boolean}
-  | {ok: false; reason: string} {
+  {pokemon: LocalPokemonLikeForBattleV4; hpRecovered: number; ppRecovered: number; statusCured: boolean; noEffect: boolean} {
   const beforeHp = Number(pokemon.entryHp ?? pokemon.maxHp ?? 1);
   const maxHp = Math.max(1, Number(pokemon.maxHp || beforeHp || 1));
   const fainted = beforeHp <= 0;
@@ -1073,16 +1165,18 @@ function applyTrainerItemEffectToLocalPokemon(pokemon: LocalPokemonLikeForBattle
   let ppRecovered = 0;
   let statusCured = false;
   if (effect.revive) {
-    if (!fainted) return {ok: false, reason: "目标没有濒死，不能使用复活道具。"};
-    next.entryHp = effect.revive === "full" ? maxHp : Math.max(1, Math.floor(maxHp / 2));
-    next.entryStatus = "";
-    hpRecovered = next.entryHp;
-    statusCured = Boolean(pokemon.entryStatus);
+    if (fainted) {
+      next.entryHp = effect.revive === "full" ? maxHp : Math.max(1, Math.floor(maxHp / 2));
+      next.entryStatus = "";
+      hpRecovered = next.entryHp;
+      statusCured = Boolean(pokemon.entryStatus);
+    }
   } else if (effect.hp) {
-    if (fainted) return {ok: false, reason: "目标已经濒死，请使用复活道具。"};
-    const target = hpTargetForBattleEffect(effect.hp, beforeHp, maxHp);
-    next.entryHp = Math.min(maxHp, Math.max(beforeHp, target));
-    hpRecovered = Math.max(0, next.entryHp - beforeHp);
+    if (!fainted) {
+      const target = hpTargetForBattleEffect(effect.hp, beforeHp, maxHp);
+      next.entryHp = Math.min(maxHp, Math.max(beforeHp, target));
+      hpRecovered = Math.max(0, next.entryHp - beforeHp);
+    }
   }
   if (effect.cureStatus && statusMatchesBattle(effect.cureStatus, String(next.entryStatus || ""))) {
     next.entryStatus = "";
@@ -1093,8 +1187,7 @@ function applyTrainerItemEffectToLocalPokemon(pokemon: LocalPokemonLikeForBattle
     next.moves = pp.moves as any;
     ppRecovered = pp.recovered;
   }
-  if (hpRecovered <= 0 && ppRecovered <= 0 && !statusCured) return {ok: false, reason: "目标当前不需要这个道具。"};
-  return {ok: true, pokemon: next, hpRecovered, ppRecovered, statusCured};
+  return {pokemon: next, hpRecovered, ppRecovered, statusCured, noEffect: hpRecovered <= 0 && ppRecovered <= 0 && !statusCured};
 }
 
 function hpTargetForBattleEffect(effect: NonNullable<RecoveryEffect["hp"]>, hp: number, maxHp: number): number {
@@ -1137,6 +1230,7 @@ function applyBattlePpRecovery(moves: any[], effect: NonNullable<RecoveryEffect[
 
 function statusMatchesBattle(effect: NonNullable<RecoveryEffect["cureStatus"]>, status: string): boolean {
   if (!status) return false;
+  if (status === "fnt") return false;
   if (effect === "all") return true;
   return effect.includes(status);
 }

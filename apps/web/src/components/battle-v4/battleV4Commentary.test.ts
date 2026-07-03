@@ -18,10 +18,33 @@ function smoke() {
       id: "sunnyday",
       active: true,
       label: "晴天",
+      phase: "start",
       protocolEvent: protocol(1, "|-weather|SunnyDay|[from] ability: Drought|[of] p1a: Torkoal", "-weather", ["-weather", "SunnyDay"], {from: "ability: Drought", of: "p1a: Torkoal"}),
     }),
   ]), api);
   assertIncludes(weather, "煤炭龟的日照让天气变成了晴天！", "weather from ability should be factual");
+
+  const weatherUpkeep = commentaryTexts(step([
+    semantic("weather", 19, "|-weather|RainDance|[upkeep]", {
+      id: "raindance",
+      active: true,
+      label: "雨天",
+      phase: "upkeep",
+      protocolEvent: protocol(19, "|-weather|RainDance|[upkeep]", "-weather", ["-weather", "RainDance"], {upkeep: "true"}),
+    }),
+  ]), api);
+  assertIncludes(weatherUpkeep, "雨天还在继续。", "weather upkeep should not look like a new weather start");
+
+  const weatherEnd = commentaryTexts(step([
+    semantic("weather", 20, "|-weather|none", {
+      id: "raindance",
+      active: false,
+      label: "雨天",
+      phase: "end",
+      protocolEvent: protocol(20, "|-weather|none", "-weather", ["-weather", "none"]),
+    }),
+  ]), api);
+  assertIncludes(weatherEnd, "雨天停止了。", "weather end should mention the stopped weather");
 
   const rockSlide = commentaryTexts(step([
     semantic("move", 2, "|move|p1a: Lycanroc|Rock Slide|p2a: Heracross", {
@@ -208,6 +231,72 @@ function smoke() {
   assertIncludes(regularStats, "雷丘的速度提升了！", "regular boost should be localized");
   assertIncludes(regularStats, "雷丘的防御大幅下降了。", "regular unboost should be localized");
 
+  const trainerItemHeal = commentaryTexts(step([
+    semantic("message", 21, "|-message|Pikachu 使用了 回复药。", {
+      text: "Pikachu 使用了 回复药。",
+      protocolEvent: protocol(21, "|-message|Pikachu 使用了 回复药。", "-message", ["-message", "Pikachu 使用了 回复药。"]),
+    }),
+    semantic("heal", 22, "|-heal|p1a: Pikachu|70/100|[from] item: 回复药", {
+      seat: "p1A",
+      oldHp: 50,
+      newHp: 70,
+      maxHp: 100,
+      delta: 20,
+      status: "",
+      fainted: false,
+      source: "item",
+      label: "20/100",
+      protocolEvent: protocol(22, "|-heal|p1a: Pikachu|70/100|[from] item: 回复药", "-heal", ["-heal", "p1a: Pikachu", "70/100"], {from: "item: 回复药"}),
+    }),
+  ]), api);
+  assertIncludes(trainerItemHeal, "皮卡丘使用了回复药，恢复了20点体力。", "trainer item heal should be merged into one commentary");
+  assertEqual(trainerItemHeal.length, 1, "trainer item heal followup should not produce duplicate commentary");
+
+  const trainerItemRevive = commentaryTexts(step([
+    semantic("message", 23, "|-message|Pikachu 使用了 活力碎片。", {
+      text: "Pikachu 使用了 活力碎片。",
+      protocolEvent: protocol(23, "|-message|Pikachu 使用了 活力碎片。", "-message", ["-message", "Pikachu 使用了 活力碎片。"]),
+    }),
+    semantic("heal", 24, "|-heal|p1a: Raichu|50/100|[from] item: 活力碎片", {
+      seat: "p1A",
+      oldHp: 0,
+      newHp: 50,
+      maxHp: 100,
+      delta: 50,
+      status: "",
+      fainted: false,
+      source: "item",
+      label: "50/100",
+      protocolEvent: protocol(24, "|-heal|p1a: Raichu|50/100|[from] item: 活力碎片", "-heal", ["-heal", "p1a: Raichu", "50/100"], {from: "item: 活力碎片"}),
+    }),
+  ]), api);
+  assertIncludes(trainerItemRevive, "皮卡丘使用了活力碎片，复活了雷丘。", "trainer item revive should say revive target");
+
+  const trainerItemPp = commentaryTexts(step([
+    semantic("message", 25, "|-message|Pikachu 使用了 PP单项小补剂。", {
+      text: "Pikachu 使用了 PP单项小补剂。",
+      protocolEvent: protocol(25, "|-message|Pikachu 使用了 PP单项小补剂。", "-message", ["-message", "Pikachu 使用了 PP单项小补剂。"]),
+    }),
+    semantic("message", 26, "|-message|Pikachu 恢复了 10 点 PP。", {
+      text: "Pikachu 恢复了 10 点 PP。",
+      protocolEvent: protocol(26, "|-message|Pikachu 恢复了 10 点 PP。", "-message", ["-message", "Pikachu 恢复了 10 点 PP。"]),
+    }),
+  ]), api);
+  assertIncludes(trainerItemPp, "皮卡丘使用了PP单项小补剂，恢复了10点PP。", "trainer item PP recovery should be merged");
+
+  const trainerItemNoEffect = commentaryTexts(step([
+    semantic("message", 27, "|-message|Pikachu 使用了 回复药。", {
+      text: "Pikachu 使用了 回复药。",
+      protocolEvent: protocol(27, "|-message|Pikachu 使用了 回复药。", "-message", ["-message", "Pikachu 使用了 回复药。"]),
+    }),
+    semantic("message", 28, "|-message|但是没有效果。", {
+      text: "但是没有效果。",
+      protocolEvent: protocol(28, "|-message|但是没有效果。", "-message", ["-message", "但是没有效果。"]),
+    }),
+  ]), api);
+  assertIncludes(trainerItemNoEffect, "皮卡丘使用了回复药，可惜没有效果。", "trainer item no-effect should be phrased by commentary");
+  assertEqual(trainerItemNoEffect.length, 1, "trainer item no-effect followup should not produce duplicate commentary");
+
   const protocolStats = executeBattleV4Protocol({
     id: "stat-change-protocol",
     rawLog: [
@@ -308,6 +397,7 @@ function createTestApi() {
     lycanroc: "鬃岩狼人",
     heracross: "赫拉克罗斯",
     skarmory: "盔甲鸟",
+    pikachu: "皮卡丘",
     raichu: "雷丘",
     gengar: "耿鬼",
     drampa: "老翁龙",
@@ -330,6 +420,9 @@ function createTestApi() {
   };
   const items: Record<string, string> = {
     sitrusberry: "文柚果",
+    "回复药": "回复药",
+    "活力碎片": "活力碎片",
+    "PP单项小补剂": "PP单项小补剂",
   };
   return {
     getPokemonDetail: (id: string) => ({id, name: id, nameZh: pokemon[toId(id)] || id}),

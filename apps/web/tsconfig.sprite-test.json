@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "outDir": "dist-sprite-test",
+    "noEmit": false,
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "../../packages/showdown-dex-core/src/data/pokedex.ts",
+    "src/lib/assetUrl.ts",
+    "src/lib/showdownPokemonSpriteAdapter.ts",
+    "src/lib/showdownPokemonSpriteAdapter.test.ts"
+  ]
+}

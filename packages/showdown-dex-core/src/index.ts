@@ -384,6 +384,13 @@ export type ShowdownDexService = ReturnType<typeof createShowdownDexService>;
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_RESOURCE_PREFIX = "/showdown/";
 const SHOWDOWN_SPRITE_ID_OVERRIDES: Record<string, string> = {
+  ogerponcornerstonetera: "ogerpon-cornerstonetera",
+  ogerponhearthflametera: "ogerpon-hearthflametera",
+  ogerpontealtera: "ogerpon-tealtera",
+  ogerponwellspringtera: "ogerpon-wellspringtera",
+  taurospaldeaaqua: "tauros-paldeaaqua",
+  taurospaldeablaze: "tauros-paldeablaze",
+  taurospaldeacombat: "tauros-paldeacombat",
   zarudedada: "zarude-dada",
 };
 const TYPE_IDS = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"];
@@ -753,7 +760,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
   function resolvePokemonSprites(input: {speciesId: string}): DexPokemonSprites {
     const species = requireDex().species.get(input.speciesId);
     const icon = resolvePokemonIcon(species?.id || input.speciesId);
-    const spriteId = showdownSpriteIdFromSpeciesId(species?.spriteid || species?.id || input.speciesId);
+    const spriteId = showdownSpriteIdFromSpecies(species, input.speciesId);
     return {
       resourcePrefix,
       spriteId,
@@ -1218,15 +1225,26 @@ export function toID(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function showdownSpriteIdFromSpeciesId(speciesId: string): string {
-  const id = toID(speciesId);
+function showdownSpriteIdFromSpecies(species: any, fallbackSpeciesId: string): string {
+  const rawId = species?.spriteid || species?.id || fallbackSpeciesId;
+  const id = toID(rawId);
   const override = SHOWDOWN_SPRITE_ID_OVERRIDES[id];
   if (override) return override;
   const megaZMatch = /^(.+?)megaz$/.exec(id);
   if (megaZMatch) return `${megaZMatch[1]}-megaz`;
   const megaMatch = /^(.+?)mega([xy])?$/.exec(id);
   if (megaMatch) return `${megaMatch[1]}-mega${megaMatch[2] || ""}`;
+  const nameId = showdownSpriteIdFromSpeciesName(species?.name);
+  if (nameId) return nameId;
   return id;
+}
+
+function showdownSpriteIdFromSpeciesName(name: unknown): string {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function groupByTrainerTeamPools(teamPools: TrainerTeamPoolData[]): Map<string, TrainerTeamPoolData[]> {

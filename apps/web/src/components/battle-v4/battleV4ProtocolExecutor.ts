@@ -1,4 +1,5 @@
 import type {BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
+import {localPokemonSpriteUrls} from "../../lib/showdownPokemonSpriteAdapter.js";
 import type {BattleProtocolArgsV4, BattleProtocolEventV4, BattleProtocolKwArgsV4, BattleProtocolSeatV4} from "./battleV4Playback";
 
 const RAW_NO_DEFAULT_COMMANDS = new Set([
@@ -60,7 +61,8 @@ export type BattleSemanticEventV4 =
   | {kind: "statChange"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; stat: BattleV4BoostStat; statLabel: string; amount: number; direction: "up" | "down" | "neutral"; finalStage?: number; sourceKind: "ability" | "move" | "item" | "unknown"; sourceName: string; sourcePokemonName: string; label: string}
   | {kind: "transform"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; label: string}
   | {kind: "result"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; text: string; tone: "good" | "bad" | "neutral" | "status" | "weather" | ""}
-  | {kind: "field" | "weather" | "sideCondition"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; id: string; active: boolean; label: string}
+  | {kind: "field" | "sideCondition"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; id: string; active: boolean; label: string}
+  | {kind: "weather"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; id: string; active: boolean; label: string; phase: "start" | "upkeep" | "end"}
   | {kind: "turn"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; turn: number}
   | {kind: "message"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; text: string}
   | {kind: "win"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; winner: string};
@@ -288,9 +290,12 @@ function applyProtocolEvent(
       tone: resultToneForEvent(event),
     }];
   case "-weather": {
-    const id = toId(event.args[1] || "");
-    runtime.weatherId = id;
-    return [{kind: "weather", sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, id, active: Boolean(id && id !== "none"), label: weatherLabel(id)}];
+    const nextId = toId(event.args[1] || "");
+    const previousId = runtime.weatherId;
+    const phase = !nextId || nextId === "none" ? "end" : event.kwArgs.upkeep ? "upkeep" : "start";
+    const id = phase === "end" ? previousId || nextId : nextId;
+    runtime.weatherId = phase === "end" ? "" : nextId;
+    return [{kind: "weather", sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, id, active: phase !== "end" && Boolean(nextId && nextId !== "none"), label: weatherLabel(id), phase}];
   }
   case "-fieldstart":
   case "-fieldend": {
@@ -316,6 +321,8 @@ function applyProtocolEvent(
     runtime.turn = Number(event.args[1] || event.turn) || event.turn;
     runtime.lastMove = null;
     return [{kind: "turn", sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, turn: runtime.turn}];
+  case "-message":
+    return [{kind: "message", sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, text: event.args[1] || ""}];
   case "win":
     runtime.winner = event.args[1] || "";
     return [{kind: "win", sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, winner: runtime.winner}];
@@ -368,6 +375,7 @@ function slotFromSwitchProtocolEvent(snapshot: BattleSessionSnapshotV4, viewMode
   const pokemon = resolveLocalPokemonForProtocolSwitch(parsed, team);
   if (!pokemon) return viewModel?.slots.find(slot => slot.seat === event.seat) || null;
   const condition = parseProtocolCondition(parsed.condition || "", pokemon.maxHp);
+  const spriteUrls = localPokemonSpriteUrls(pokemon, side);
   return {
     seat: event.seat,
     playerId,
@@ -386,17 +394,11 @@ function slotFromSwitchProtocolEvent(snapshot: BattleSessionSnapshotV4, viewMode
     hp: condition?.hp ?? pokemon.entryHp,
     maxHp: pokemon.maxHp || condition?.maxHp || 0,
     status: condition?.status || pokemon.entryStatus,
-    spriteUrl: pokemon.shiny
-      ? side === "near"
-        ? firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl)
-        : firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl)
-      : side === "near"
-        ? firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl)
-        : firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
-    frontSpriteUrl: firstLargeSprite(pokemon.frontSpriteUrl, pokemon.spriteUrl),
-    backSpriteUrl: firstLargeSprite(pokemon.backSpriteUrl, pokemon.spriteUrl),
-    frontShinySpriteUrl: firstLargeSprite(pokemon.frontShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.frontSpriteUrl, pokemon.spriteUrl),
-    backShinySpriteUrl: firstLargeSprite(pokemon.backShinySpriteUrl, pokemon.shinySpriteUrl, pokemon.backSpriteUrl, pokemon.spriteUrl),
+    spriteUrl: spriteUrls.spriteUrl,
+    frontSpriteUrl: spriteUrls.frontSpriteUrl,
+    backSpriteUrl: spriteUrls.backSpriteUrl,
+    frontShinySpriteUrl: spriteUrls.frontShinySpriteUrl,
+    backShinySpriteUrl: spriteUrls.backShinySpriteUrl,
     shiny: Boolean(pokemon.shiny),
     iconUrl: pokemon.iconUrl || pokemon.spriteUrl || "",
     iconStyle: pokemon.iconStyle,
@@ -590,10 +592,6 @@ function parsePokemonProtocolIdent(value: string): {playerId?: string; seat: Bat
   const slot = (match[2] || "a").toUpperCase();
   const seat = `${playerId}${slot}` as BattleProtocolSeatV4;
   return {playerId, seat, seatExplicit: Boolean(match[2]), name: match[3] || ""};
-}
-
-function firstLargeSprite(...values: Array<string | undefined>): string {
-  return values.find(value => value && !value.includes("pokemonicons-sheet")) || "";
 }
 
 function teamBallStates(team: LocalPokemonV4[], activeLocalPokemonId: string): BattleViewSlotV4["teamBallStates"] {

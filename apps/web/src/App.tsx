@@ -49,6 +49,7 @@ import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
 import {TalentConfigPage} from "./components/star-chart/TalentConfigPage";
 import {TitlePage} from "./components/shell/TitlePage";
+import {TrainerVaultPage} from "./components/trainer-vault/TrainerVaultPage";
 import {TrainingConfigPage} from "./components/training/TrainingConfigPage";
 import {TrainingBattleResultTransitionPage} from "./components/training/TrainingBattleResultTransitionPage";
 import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
@@ -428,6 +429,8 @@ function RoutedApp({runtime}: AppProps) {
         onFormalGame={startFormalGame}
         onContinueGame={continueGameLabel ? () => void continueSavedRunGame() : undefined}
         onStarChart={() => navigate("/star-chart")}
+        onTrainerVaultBag={() => navigate("/trainer-vault/bag")}
+        onTrainerVaultPokemon={() => navigate("/trainer-vault/pokemon")}
         onTestMode={() => void enableTestMode()}
         onBattlePreference={() => navigate("/battle-preference")}
         onUserInfo={startEdit}
@@ -468,6 +471,26 @@ function RoutedApp({runtime}: AppProps) {
       api={api}
       profile={profile}
       onProfileChange={setProfile}
+      onBack={() => navigate("/main", {replace: true})}
+    />
+  ) : <Navigate to="/" replace />;
+
+  const trainerVaultBagPage = profile ? (
+    <TrainerVaultPage
+      api={api}
+      profile={profile}
+      tab="bag"
+      onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
+      onBack={() => navigate("/main", {replace: true})}
+    />
+  ) : <Navigate to="/" replace />;
+
+  const trainerVaultPokemonPage = profile ? (
+    <TrainerVaultPage
+      api={api}
+      profile={profile}
+      tab="pokemon"
+      onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
       onBack={() => navigate("/main", {replace: true})}
     />
   ) : <Navigate to="/" replace />;
@@ -855,6 +878,8 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/components" element={componentGalleryPage} />
         <Route path="/user" element={settingsPage} />
         <Route path="/star-chart" element={starChartPage} />
+        <Route path="/trainer-vault/bag" element={trainerVaultBagPage} />
+        <Route path="/trainer-vault/pokemon" element={trainerVaultPokemonPage} />
         <Route path="/battle-preference" element={battlePreferencePage} />
         <Route path="/training/transition" element={<Navigate to="/training/config" replace />} />
         <Route path="/training/config" element={trainingConfigPage} />
