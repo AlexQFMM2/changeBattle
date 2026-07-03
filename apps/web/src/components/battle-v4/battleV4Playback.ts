@@ -2023,6 +2023,10 @@ function showdownSpriteIdForSpecies(speciesId: string): string {
     castformsnowy: "castform-snowy",
     aegislashblade: "aegislash-blade",
     wishiwashischool: "wishiwashi-school",
+    mimikyubusted: "mimikyu-busted",
+    mimikyutotem: "mimikyu-totem",
+    mimikyubustedtotem: "mimikyu-busted-totem",
+    miniormeteor: "minior-meteor",
     darmanitanzen: "darmanitan-zen",
     palafinhero: "palafin-hero",
     kyogreprimal: "kyogre-primal",
@@ -2038,6 +2042,8 @@ function showdownSpriteIdForSpecies(speciesId: string): string {
   if (primalMatch) return `${primalMatch[1]}-primal`;
   const ultraMatch = /^(.+?)ultra$/.exec(speciesId);
   if (ultraMatch) return `${ultraMatch[1]}-ultra`;
+  const formeMatch = /^(.+?)(bustedtotem|busted|totem|meteor|school|blade|shield|sunshine|sunny|rainy|snowy|zen|hero|complete|origin)$/.exec(speciesId);
+  if (formeMatch) return `${formeMatch[1]}-${formeMatch[2]}`;
   return speciesId.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 }
 
@@ -2280,15 +2286,15 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
   case "-sideend":
     return `${sideConditionLabel(normalizeSideConditionId(toId(cleanEffect(event.args[2] || event.args[1]))))}消失了。`;
   case "-zpower":
-    return `${name}释放了 Z 力量！`;
+    return `${name}聚集了Z力量！`;
   case "-mega":
-    return `${name}进行了 Mega 进化！`;
+    return `${name}Mega进化了！`;
   case "-primal":
-    return `${name}发生了原始回归！`;
+    return `${name}原始回归了！`;
   case "-burst":
-    return `${name}进行了究极爆发！`;
+    return `${name}究极爆发了！`;
   case "-terastallize":
-    return `${name}太晶化成${event.args[2] || "未知"}属性！`;
+    return event.args[2] ? `${name}太晶化成${event.args[2]}属性了！` : `${name}太晶化了！`;
   case "-start":
     return toId(event.args[2]) === "dynamax" ? `${name}极巨化了！` : "";
   case "-end":
@@ -2296,7 +2302,7 @@ function messageForProtocolEvent(event: BattleProtocolEventV4): string {
   case "detailschange":
     return `${name}的样子改变了！`;
   case "-formechange":
-    return forme ? `${name}变成了${forme}！` : `${name}的样子改变了！`;
+    return forme ? `${name}变成了${cleanSpeciesForme(forme)}形态！` : `${name}的样子改变了！`;
   case "-transform":
     return `${name}变身了！`;
   case "-crit":
@@ -2374,7 +2380,7 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
   case "-formechange":
     return {text: cleanSpeciesForme(event.args[2] || "形态变化"), tone: "good"};
   case "-transform":
-    return {text: "Transformed", tone: "good"};
+    return {text: "变身", tone: "good"};
   case "-crit":
     return {text: "击中要害", tone: "bad"};
   case "-supereffective":

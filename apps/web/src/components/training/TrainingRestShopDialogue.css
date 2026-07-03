@@ -187,8 +187,23 @@
   outline: none;
 }
 
+.training-rest-shop-dialogue-actions button:disabled {
+  cursor: default;
+  opacity: 0.52;
+  filter: grayscale(0.25);
+}
+
+.training-rest-shop-dialogue-actions button:disabled:hover,
+.training-rest-shop-dialogue-actions button:disabled:focus-visible {
+  filter: grayscale(0.25);
+}
+
 .training-rest-shop-dialogue-actions button:active {
   transform: translateY(1px);
+}
+
+.training-rest-shop-dialogue-actions button:disabled:active {
+  transform: none;
 }
 
 .training-rest-shop-dialogue-actions strong,

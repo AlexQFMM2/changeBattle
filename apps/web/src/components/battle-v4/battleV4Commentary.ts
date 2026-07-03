@@ -225,8 +225,24 @@ function faintCommentary(event: SemanticEventByKind<"faint">, api: ChangeBattleV
 
 function transformCommentary(event: SemanticEventByKind<"transform">, api: ChangeBattleV2Api): string {
   const actor = localizePokemonName(event.protocolEvent.actorName || event.protocolEvent.targetName, api) || "场上的宝可梦";
-  const label = event.label || "形态变化";
-  return `${actor}完成了${label}！`;
+  const eventType = event.protocolEvent.eventType;
+  if (eventType === "-mega") return `${actor}Mega进化了！`;
+  if (eventType === "-primal") return `${actor}原始回归了！`;
+  if (eventType === "-burst") return `${actor}究极爆发了！`;
+  if (eventType === "-zpower") return `${actor}聚集了Z力量！`;
+  if (eventType === "-terastallize") {
+    const type = cleanEffect(event.protocolEvent.args[2] || "");
+    return type ? `${actor}太晶化成${type}属性了！` : `${actor}太晶化了！`;
+  }
+  if (eventType === "-start" && toId(event.protocolEvent.args[2]) === "dynamax") return `${actor}极巨化了！`;
+  if (eventType === "-end" && toId(event.protocolEvent.args[2]) === "dynamax") return `${actor}恢复了原本大小。`;
+  if (eventType === "custom" && toId(event.protocolEvent.args[1]) === "endterastallize") return `${actor}的太晶化结束了。`;
+  if (eventType === "-transform") return `${actor}变身了！`;
+  if (eventType === "detailschange" || eventType === "-formechange") {
+    const form = transformTargetFormLabel(event, actor, api);
+    return form ? `${actor}变成了${formNamePhrase(form)}！` : `${actor}的形态改变了！`;
+  }
+  return `${actor}的形态改变了！`;
 }
 
 function resultCommentary(event: SemanticEventByKind<"result">, api: ChangeBattleV2Api): string {
@@ -405,11 +421,70 @@ function localizeItemName(name: string, api: ChangeBattleV2Api): string {
   }
 }
 
+function transformTargetFormLabel(event: SemanticEventByKind<"transform">, actor: string, api: ChangeBattleV2Api): string {
+  const rawSpecies = cleanSpeciesDetails(event.protocolEvent.args[2] || event.label || "");
+  if (!rawSpecies || toId(rawSpecies) === "formechange") return "";
+  const rawActor = cleanProtocolDisplayName(event.protocolEvent.actorName || event.protocolEvent.targetName);
+  if (toId(rawSpecies) === toId(rawActor)) return "";
+  const localized = localizePokemonName(rawSpecies, api);
+  const fromLocalized = stripActorFromFormName(localized, actor);
+  if (fromLocalized) return fromLocalized;
+  const fromRaw = formSuffixFromRawSpecies(rawSpecies);
+  if (fromRaw) return fromRaw;
+  return localized && localized !== actor ? localized : "";
+}
+
+function stripActorFromFormName(formName: string, actor: string): string {
+  const normalized = String(formName || "").trim();
+  if (!normalized || normalized === actor) return "";
+  if (!normalized.startsWith(actor)) return normalized;
+  return normalized
+    .slice(actor.length)
+    .replace(/^[\s\-_:：·（(]+/g, "")
+    .replace(/[）)]$/g, "")
+    .trim();
+}
+
+function formSuffixFromRawSpecies(rawSpecies: string): string {
+  const parts = String(rawSpecies || "").split("-").map(part => part.trim()).filter(Boolean);
+  if (parts.length <= 1) return "";
+  const suffix = parts.slice(1).join("-");
+  const labels: Record<string, string> = {
+    meteor: "流星",
+    core: "核心",
+    shield: "盾牌",
+    blade: "刀剑",
+    school: "鱼群",
+    solo: "单独",
+    complete: "完全体",
+    origin: "起源",
+    altered: "别种",
+    zen: "达摩",
+    galar: "伽勒尔",
+    alola: "阿罗拉",
+    hisui: "洗翠",
+    paldea: "帕底亚",
+  };
+  return labels[toId(suffix)] || suffix;
+}
+
+function formNamePhrase(form: string): string {
+  const normalized = String(form || "").trim();
+  if (!normalized) return "";
+  if (/形态|样子|模式|状态$/.test(normalized)) return normalized;
+  return `${normalized}形态`;
+}
+
 function cleanProtocolDisplayName(name: string): string {
   return cleanEffect(name)
     .replace(/^p[1-4][a-z]?:\s*/i, "")
+    .split(",")[0]!
     .replace(/\s*\([^)]*\)\s*$/g, "")
     .trim();
+}
+
+function cleanSpeciesDetails(value: string): string {
+  return cleanEffect(value).split(",")[0]!.trim();
 }
 
 function cleanEffect(value: string): string {

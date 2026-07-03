@@ -172,6 +172,10 @@ const POKEMON_FORM_LABELS: Array<[RegExp, string]> = [
 ];
 
 const POKEMON_FORM_ID_SUFFIXES: Array<[string, string]> = [
+  ["bustedtotem", "现形的样子霸主"],
+  ["busted", "现形的样子"],
+  ["totem", "霸主"],
+  ["meteor", "流星"],
   ["megax", "Mega X"],
   ["megay", "Mega Y"],
   ["mega", "Mega"],
@@ -1084,14 +1088,14 @@ function BattleArena({near, far, commandActiveIndex = 0, messagebar, activeAnima
       <BattleV4CommentaryPanel items={commentaryItems} />
       <BattleV4FxLayer animation={activeAnimation || null} visuals={visuals} fxVisuals={fxVisuals} />
       <div className="battle-v4-enemy-panels">
-        {farSlots.map(slot => <BattleHpPanel slot={slot} compact key={`${slot.playerId}-${slot.position}-hp`} />)}
+        {farSlots.map(slot => <BattleHpPanel api={api} slot={slot} compact key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
       <div className="battle-v4-player-panels">
-        {nearSlots.map((slot, index) => <BattleHpPanel slot={slot} current={slot.active} commanding={index === commandActiveIndex} key={`${slot.playerId}-${slot.position}-hp`} />)}
+        {nearSlots.map((slot, index) => <BattleHpPanel api={api} slot={slot} current={slot.active} commanding={index === commandActiveIndex} key={`${slot.playerId}-${slot.position}-hp`} />)}
       </div>
       <div className="battle-v4-model-layer">
-        {farSlots.map(slot => <BattlePokemonSlot slot={slot} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} actorVisuals={actorVisuals} key={`${slot.playerId}-${slot.position}`} />)}
-        {nearSlots.map((slot, index) => <BattlePokemonSlot slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} actorVisuals={actorVisuals} key={`${slot.playerId}-${slot.position}`} />)}
+        {farSlots.map(slot => <BattlePokemonSlot api={api} slot={slot} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} actorVisuals={actorVisuals} key={`${slot.playerId}-${slot.position}`} />)}
+        {nearSlots.map((slot, index) => <BattlePokemonSlot api={api} slot={slot} commanding={index === commandActiveIndex} animation={activeAnimation || null} openingSwitchInSeats={openingSwitchInSeats} visuals={visuals} actorVisuals={actorVisuals} key={`${slot.playerId}-${slot.position}`} />)}
       </div>
     </div>
   );
@@ -1223,11 +1227,11 @@ function BattleV4FxLayer({animation, visuals, fxVisuals}: {animation: BattleAnim
   );
 }
 
-function BattlePokemonSlot({slot, commanding = false, animation, openingSwitchInSeats = [], visuals, actorVisuals = []}: {slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; openingSwitchInSeats?: BattleProtocolSeatV4[]; visuals: BattleV4TimelineVisuals; actorVisuals?: BattleV4TimelineActorVisual[]}) {
+function BattlePokemonSlot({api, slot, commanding = false, animation, openingSwitchInSeats = [], visuals, actorVisuals = []}: {api: ChangeBattleV2Api; slot: BattleViewSlotV4; commanding?: boolean; animation?: BattleAnimationEventV4 | null; openingSwitchInSeats?: BattleProtocolSeatV4[]; visuals: BattleV4TimelineVisuals; actorVisuals?: BattleV4TimelineActorVisual[]}) {
   const timelineActor = [...actorVisuals].reverse().find(actor => actor.seat === slot.seat) || (visuals.actor?.seat === slot.seat ? visuals.actor : null);
   const animationClass = timelineActor?.className || (openingSwitchInSeats.includes(slot.seat as BattleProtocolSeatV4) ? "anim-switch-in" : battlePokemonAnimationClass(slot.seat, animation || null));
   const specialClass = slot.dynamaxActive ? "special-dynamax" : slot.terastallized ? "special-tera" : "";
-  const displayName = battleSlotDisplayName(slot);
+  const displayName = battleSlotDisplayName(slot, api);
   return (
     <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${specialClass} ${animationClass}`} style={timelineActor?.style}>
       <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={displayName} />
@@ -1250,11 +1254,11 @@ function battlePokemonAnimationClass(seat: BattleProtocolSeatV4, animation: Batt
   return "";
 }
 
-function BattleHpPanel({slot, compact = false, current = false, commanding = false}: {slot: BattleViewSlotV4; compact?: boolean; current?: boolean; commanding?: boolean}) {
+function BattleHpPanel({api, slot, compact = false, current = false, commanding = false}: {api: ChangeBattleV2Api; slot: BattleViewSlotV4; compact?: boolean; current?: boolean; commanding?: boolean}) {
   const hpRate = slot.maxHp ? Math.max(0, Math.min(100, slot.hp / slot.maxHp * 100)) : 0;
   const status = statusBadge(slot.status);
   const identity = slotIdentityLabel(slot);
-  const displayName = battleSlotDisplayName(slot);
+  const displayName = battleSlotDisplayName(slot, api);
   const displayHp = Math.round(slot.hp);
   return (
     <section className={`battle-v4-hp-panel ${slot.side} ${slot.position.toLowerCase()} ${compact ? "compact" : ""} ${current ? "current" : ""} ${commanding ? "commanding" : ""}`} title={identity ? `ID: ${identity}` : undefined}>
@@ -1628,6 +1632,7 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, action, request, o
       <div className="battle-v4-target-grid">
         {targets.map(target => (
           <BattleV4TargetCard
+            api={api}
             target={target}
             key={target.key}
             onSelect={next => {
@@ -1643,12 +1648,12 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, action, request, o
   );
 }
 
-function BattleV4TargetCard({target, onSelect}: {target: BattleV4TargetCardView; onSelect: (target: BattleV4TargetCardView) => void}) {
+function BattleV4TargetCard({api, target, onSelect}: {api: ChangeBattleV2Api; target: BattleV4TargetCardView; onSelect: (target: BattleV4TargetCardView) => void}) {
   const slot = target.slot;
   if (!slot) return <button className="battle-v4-target-card empty" type="button" disabled />;
   const hpRate = slot.maxHp ? Math.max(0, Math.min(100, slot.hp / slot.maxHp * 100)) : 0;
   const status = statusBadge(slot.status);
-  const displayName = battleSlotDisplayName(slot);
+  const displayName = battleSlotDisplayName(slot, api);
   return (
     <button
       className={`battle-v4-target-card side-${slot.side} effect-${target.effectivenessTone} ${target.affected ? "affected" : ""} ${target.selectable ? "selectable" : "not-selectable"}`}
@@ -1809,11 +1814,11 @@ function localizeProtocolPokemonFormName(name: string, api: ChangeBattleV2Api): 
   return null;
 }
 
-function battleSlotDisplayName(slot: BattleViewSlotV4): string {
-  return localizePokemonFormDisplayName(slot.nameZh || slot.name, slot.speciesId || slot.name);
+function battleSlotDisplayName(slot: BattleViewSlotV4, api: ChangeBattleV2Api): string {
+  return localizePokemonFormDisplayName(slot.nameZh || slot.name, slot.speciesId || slot.name, api);
 }
 
-function localizePokemonFormDisplayName(preferredName: string, speciesName: string): string {
+function localizePokemonFormDisplayName(preferredName: string, speciesName: string, api: ChangeBattleV2Api): string {
   const normalizedSpecies = normalizeProtocolDisplayName(speciesName);
   const normalizedPreferred = normalizeProtocolDisplayName(preferredName);
   for (const [pattern, formLabel] of POKEMON_FORM_LABELS) {
@@ -1827,9 +1832,22 @@ function localizePokemonFormDisplayName(preferredName: string, speciesName: stri
   for (const [suffix, formLabel] of POKEMON_FORM_ID_SUFFIXES) {
     if (!speciesId.endsWith(suffix)) continue;
     if (new RegExp(`${formLabel.replace(/\s+/g, "[-\\s]?")}$`, "i").test(normalizedPreferred)) return normalizedPreferred;
-    return `${normalizedPreferred || preferredName || speciesName} ${formLabel}`;
+    const baseId = speciesId.slice(0, -suffix.length);
+    const baseName = baseId ? localizePokemonSpeciesId(baseId, normalizedPreferred || preferredName || speciesName, api) : normalizedPreferred || preferredName || speciesName;
+    return `${baseName}-${formLabel}`;
   }
   return normalizedPreferred || preferredName || speciesName;
+}
+
+function localizePokemonSpeciesId(speciesId: string, fallback: string, api: ChangeBattleV2Api): string {
+  const id = toId(speciesId);
+  if (!id) return fallback;
+  try {
+    const detail = api.getPokemonDetail(id);
+    return detail.nameZh || detail.name || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function localizeProtocolAbilityName(name: string, api: ChangeBattleV2Api): string {
@@ -2944,7 +2962,7 @@ function BattleV4StatusModal({snapshot, slots, api, onClose}: {
                 const boosts = status.boostsBySeat[slot.seat] || {};
                 const visibleBoosts = BOOST_STAT_ROWS.filter(([stat]) => boosts[stat]);
                 const badge = statusBadge(slot.fainted ? "fnt" : slot.status);
-                const displayName = battleSlotDisplayName(slot);
+                const displayName = battleSlotDisplayName(slot, api);
                 return (
                   <section className={`battle-v4-status-slot ${slot.side}`} key={`${slot.seat}-${slot.localPokemonId}`}>
                     <div className="battle-v4-status-slot-head">

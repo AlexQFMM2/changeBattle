@@ -2,7 +2,9 @@
 
 ## Summary
 
-下一阶段顺序固定：
+本文最初记录 V2 从训练页迁移到 Battle V4 的启动路线。该路线的主体已经完成：训练页、Battle V4、正式 GameRun、休息室和 Windows Desktop portable release 都已接入。后续只把本文作为历史背景和回归边界参考，不再从“搬训练页”重新开始。
+
+已完成的启动顺序：
 
 ```txt
 搬训练页
@@ -11,13 +13,15 @@
 -> singles / doubles / multi 三模式协议验证
 -> V2 战斗页 UI 接入
 -> 正式 GameRun 接入
+-> 正式休息室/商店/训练场/治疗/赛程叙事
+-> Windows Desktop portable release
 ```
 
 目标不是回到旧项目继续堆功能，而是在 V2 的干净边界里复用 V1 已经好看的 UI。
 
 ## Current Base
 
-已完成基础：
+当前基础：
 
 - V1 风格 `GameViewport` / 首屏 / 首页 / 玩家设置。
 - 最小用户资料存档。
@@ -25,6 +29,8 @@
 - `apps/api` 作为 Web/Desktop 共用函数入口。
 - `packages/showdown-dex-core` 作为 Dex 数据唯一事实源。
 - V1 QuickDex 风格图鉴弹窗已接 Showdown Dex、中文数据、本地 sprite。
+- Battle V4 使用 Showdown BattleStream 和 Showdown client playback timeline；前端使用 scheduler 消费 backend groups。
+- 正式 GameRun 已有休息室、商店、自由选课训练场、治疗服务、7 场赛程、结算和 Windows Desktop portable release。
 
 ## Next Step 1: Training Page Migration
 
@@ -167,11 +173,9 @@ pnpm --filter @changebattle-v2/battle-v4 test
 pnpm --filter @changebattle-v2/web test:training-smoke
 ```
 
-## Immediate TODO
+## Current TODO
 
-- 从 V1 找训练页组件和依赖树。
-- 列出可直接搬的 UI 组件和必须重写的业务依赖。
-- 在 `apps/api` 新增 training scenario DTO 和固定样例。
-- 首页新增 `训练` 入口。
-- 建立 Battle V4 training route/page 空壳。
-- 再开始接 Showdown BattleStream debug/runtime。
+- Battle V4 回归：形态变化、濒死/换人、天气场地、HP/PP/状态继承、双打/合作 seat 映射。
+- 正式 GameRun 打磨：NPC 配队质量、特殊系统、商店/训练经济、赛程叙事、结算体验。
+- Desktop portable 稳定性：继续保证离线运行、相对资源路径、worker bundle 无 React/runtime import、内置 battle service。
+- 后续可评估 `ChangeBattle-V2-Desk.exe` launcher；安装器、签名、自动更新仍不在当前范围。

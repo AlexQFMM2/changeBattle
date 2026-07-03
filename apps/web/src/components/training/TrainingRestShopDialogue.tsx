@@ -6,6 +6,7 @@ export type TrainingRestShopDialogueAction = {
   label: string;
   meta?: string;
   primary?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 };
 
@@ -42,7 +43,7 @@ export function TrainingRestShopDialogue({speaker = "店员", text, itemName, po
         </div>
         <div className="training-rest-shop-dialogue-actions">
           {actions.slice(0, 4).map(action => (
-            <button className={action.primary ? "primary" : ""} type="button" onClick={action.onClick} key={action.label}>
+            <button className={action.primary ? "primary" : ""} type="button" disabled={action.disabled} onClick={action.onClick} key={action.label}>
               <strong>{action.label}</strong>
               {action.meta ? <small>{action.meta}</small> : null}
             </button>

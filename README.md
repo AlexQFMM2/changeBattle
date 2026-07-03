@@ -1,6 +1,6 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经完成 V1 风格首屏/首页、训练配置页、Battle V4 战斗页主体接入、正式 GameRun 新休整页和正式休整商店。
+一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、Windows Desktop portable release 都已经接入。
 
 ## Repository / Branch
 
@@ -32,39 +32,44 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - 训练配置页：训练师、队伍、背包测试道具和训练场入口。
 - RunGame 存档入口：主页支持发现存档后继续游戏；重新开始训练场会清理旧 RunGame。
 - Battle V4 训练场/战斗页主体：Showdown BattleStream session、request/choice、战斗 UI 壳、核心 singles/doubles/coop 流程接入。
-- Battle V4 播放顺序：后端 Showdown Playback Compiler 用 client `Battle + BattleSceneStub` 编译 rawLog timeline，前端按 `docs/battle-playback-showdown-parity.md` 消费消息/动画 step。
-- 新休整页基础流程：我的队伍、我的背包、图鉴、下一场预览、结束休整、放弃比赛。
+- Battle V4 播放顺序：后端 Showdown Playback Compiler 用 client `Battle + BattleSceneStub` 编译 rawLog timeline，前端使用 Showdown 风格 scheduler 顺序消费 `stepQueue/currentStep/scene work`，详见 `docs/battle-playback-showdown-parity.md`。
+- Battle V4 展示层：闪光立绘、天气/场地/墙/钉子状态、形态变化、极巨化 timeline、左侧事实解说列表、裁判/训练家开场和结束对话框都已接入或进入回归验证。
+- 新休息室基础流程：我的队伍、我的背包、图鉴、下一场预览、治疗、训练场、结束休整、放弃比赛。
 - 休整页图鉴接入：左侧公告栏图鉴入口、下一场未知宝可梦解锁、已解锁后打开 QuickDex 对应详情。
 - 统一背包组件：休整页和 Battle V4 共用 `PlayerBagPanel`；休整页展示完整 `Player.bag`，战斗页只展示 `canBattleUse` 道具，并按页面注入不同宝可梦目标列表。
 - 休整页背包：测试背包生成、道具详情、队伍选择、携带/更替/卸下、普通道具丢弃、恢复道具、PP 药、复活/异常恢复、树果恢复、训练道具和技能机器立即使用均已接入；成功后消耗实例，只更新内存草稿，不自动保存。
 - Battle V4 背包：恢复类战斗道具已能占用当前行动槽，先于普通行动结算并消耗 `Player.bag` 实例；场上 HP 恢复会输出 heal 事件供现有时间线播放。
 - 图鉴技能来源接口：自学、教授、遗传、技能机器来源已沉为 API；休整页随机技能只从自学池抽取，TM 合法性使用技能机器池判断。
-- 训练道具：EV 增减药、25 种性格薄荷、特性胶囊/膏药、神奇糖果、银色/金色/灰色王冠已接入结构化效果；Mega/Z/太晶重铸仍保留入口但未实现。
+- 训练道具：EV 增减药、25 种性格薄荷、特性胶囊/膏药、神奇糖果、银色/金色/灰色王冠已接入结构化效果；药剂仍遵守 EV 510/单项 252，但不再被旧数值等级 cap 额外阻挡。
 - 休整页手动保存策略：队伍、背包、预览解锁等交互只更新内存草稿，只有小黑板“保存”写入 RunGame 快照。
 - 休整页组件边界规范化：队伍、背包、公告栏、下一场预览、小黑板、标题牌、确认弹窗均拆为独立组件和独立 CSS，并接入组件预览目录。
 - 休整页体验补齐：队伍底部排序按钮、背包/队伍底部宽选择区、背包成功 toast、弹层背景点击关闭、结束休整首发濒死校验。
-- 正式休整商店：购买/售出双向交易、5 类 5x3 商品板、正式低价经济、按实例 `cost / 4` 售出、购买碎裂/补货动画、加权补货和队伍状态推荐话术均已接入。
+- 正式休整商店：购买/售出双向交易、5 类 5x3 商品板、正式低价经济、按实例 `cost / 4` 售出、购买碎裂/补货动画、加权补货和队伍状态推荐话术均已接入；自动补货默认开启，不再依赖星图节点。
+- 正式休息室治疗：公告栏治疗按钮使用 `TrainingRestShopDialogue` 对话框确认，基础 250 金币，医保 basic/standard/premium 分别 9/8/5 折，成功后全队 HP/异常/PP 恢复。
+- 正式训练场：从随机课程改为自由选课，课程选择使用 NPC 对话框和 2x2 课程面板；遗传学、实践课、自学招式、自习课四类课程由用户选择后进入。
+- 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
+- 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
+- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通，当前 release 产物为 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`。
 
 当前明确不做：
 
 - app 端。
-- 完整 roguelike 奖励扩展、训练场设施和长期循环平衡。
+- 完整 roguelike 奖励扩展、长期循环平衡和安装器/签名/自动更新。
 - 旧 `dexSearch` 兼容。
 
 当前 Battle V4 / Rest V4 进度：
 
 - 训练场休整页可以进入真实 Battle V4 中转页。
 - Battle service 使用 Showdown `BattleStream` 创建 session，保留 raw protocol/request/debug。
-- 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志。
-- 单打已打通核心 smoke；双打/合作使用同一 session API 和合法随机 AI 推进，后续继续补完整目标选择与动画。
-- 当前主要工作点已经从商店转到正式训练场设施：传授技能、蛋技能和自主训练。
+- 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志/解说和裁判对话。
+- 单打、双打、合作使用同一 session API 和合法随机 AI 推进；特殊系统 gate 和 AI 选择已有 core smoke 覆盖。
+- 当前主要工作点已经从“打通流程”转到正式游戏内容打磨、战斗演出稳定性、NPC 队伍质量和 Windows portable 体验。
 
 下一步：
 
-- 实现正式训练场：教授传授来源技能、教授蛋技能、自主训练随机个体值和努力值。
-- 继续完善休整页队伍与图鉴联动，并继续按 `docs/ui-design.md` 拆组件、补 preview。
-- 补战斗结束后的 HP/异常/PP/携带道具消耗精准继承与更多战斗背包用例。
-- 继续把旧 `battle-v2` 的目标选择、换人面板、日志弹窗、倍速/调试按钮细节迁到 `battle-v4`。
+- 继续回归 Battle V4：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择和双打 seat 映射。
+- 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事和结算体验。
+- Windows release 后续可做 `ChangeBattle-V2-Desk.exe` launcher，替代当前 `.cmd` 启动入口；安装器、签名、自动更新仍不在当前范围。
 
 详细路线见 `docs/training-and-battle-roadmap.md`。
 
@@ -95,6 +100,31 @@ pnpm typecheck
 `./start_desk` 会自动清理本项目旧的 battle service、desktop dev、Electron 主进程和 renderer dev server（默认 `127.0.0.1:5181`），再启动本地 battle service（默认 `127.0.0.1:5191`）和桌面端。看到“代码改了但 UI 还是旧的”时，优先从 `pnpm desk:dev` / `./start_desk` 重新启动；不要直接复用旧的 5181 renderer。
 
 `pnpm desktop:dev` 只启动桌面端，不启动 battle service；但它也会在 dev 启动前清理本项目旧的 renderer/Electron 进程，避免接到 stale Vite 页面。Web 端手测真实战斗时需要另开一个终端运行 `pnpm battle:dev`。
+
+## Desktop Release
+
+当前发布形态是 Windows Desktop portable zip，而不是安装器：
+
+```txt
+release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
+```
+
+玩家解压后运行：
+
+```txt
+ChangeBattle-V2-Desk.cmd
+```
+
+`.cmd` 不是业务运行时，只是 portable launcher：用 `%~dp0` 计算解压目录，设置 `CHANGEBATTLE_PROJECT_ROOT`、Showdown runtime vendor、Showdown client vendor 等环境变量，然后调用包内 `runtime/electron/electron.exe` 启动 `apps/desktop`。VSCode 那种可见 `.exe` 也是 Electron，但走了更完整的应用打包/launcher/安装器体系；V2 现在先保留已验证的 portable 目录结构，后续如果要美化启动入口，优先做一个小型 `ChangeBattle-V2-Desk.exe` launcher 来替代 `.cmd`，而不是立刻重做完整安装器。
+
+生成 release 按：
+
+```bash
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+./tools/build_release_on_windows.sh 0.1.0
+```
+
+详细流程、Windows 构建机、检查项和排错见 `docs/windows-desktop-release.md`。
 
 ## Battle Playback Verification
 

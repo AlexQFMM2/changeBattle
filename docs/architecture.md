@@ -2,10 +2,11 @@
 
 ## Summary
 
-V2 是从旧项目拆出的干净新基座。当前核心目标有两条：
+V2 是从旧项目拆出的干净新基座。当前核心目标有三条：
 
 - 保留 V1 已经打磨好的 UI 体验：`640 x 320` 游戏视口、首屏、首页、弹窗风格、动效节奏。
-- 重建数据和运行时边界：Web/Desktop 共用 `apps/api` 与 `packages/showdown-dex-core`，后续训练页和 Battle V4 都不能回到旧的耦合结构。
+- 重建数据和运行时边界：Web/Desktop 共用 `apps/api`、`packages/showdown-dex-core`、`packages/showdown-battle-core`，训练、正式 GameRun 和 Battle V4 都不能回到旧的耦合结构。
+- 保持 Desktop portable 可发布：release 包必须离线运行，不能依赖 dev battle service、外部 node_modules 或写死路径。
 
 ## Repository Policy
 
@@ -82,6 +83,25 @@ apps/desktop
 - QuickDex 使用 V1 弹窗/分页/左右栏视觉壳，但数据只走 V2 API。
 - 进化链、其他形态、学习者、特性拥有者均显示 Pokemon 小图。
 
+### Formal Game / Rest
+
+- 正式 GameRun 已有 7 场赛程、休息室、商店、训练场、治疗、交换、结算和下一场预览。
+- 商店支持购买/售出、加权补货、自动补货和医保折扣；治疗服务通过 NPC 对话框确认并恢复全队 HP/异常/PP。
+- 训练场从随机课改为自由选课，课程面板和宝可梦选择都按紧凑 2x2 布局组织。
+- gen7/gen8/gen9 系统资源按规则集生成：gen7 保障玩家初始 Mega 候选和 NPC Mega/Z 可用条件，gen8 NPC 获得极巨手环，gen9 NPC 获得太晶珠。
+
+### Battle V4
+
+- Battle service 使用 Showdown `BattleStream`，raw protocol/request/debug 仍是事实源。
+- 播放顺序由 Showdown client playback compiler 生成 timeline，前端 Showdown 风格 scheduler 消费 backend groups，不再自研消息队列决定顺序。
+- 战斗页使用 V2 壳展示场景、HP、sprite、指令、左侧事实解说和裁判/训练家开场结束对话。
+- 当前重点是继续回归形态变化、濒死/换人、天气场地、HP/PP/状态继承和双打/合作 seat 映射。
+
+### Desktop Release
+
+- Windows Desktop portable release 链路已跑通，`ChangeBattle-V2-Desk-portable-v0.1.0.zip` 已能从 Windows 构建机生成并拉回 Linux。
+- 当前 launcher 是 `ChangeBattle-V2-Desk.cmd`，负责设置 portable 环境变量并启动包内 Electron runtime；后续可增加 `.exe` launcher，但安装器/签名/自动更新不在当前边界。
+
 ### Sprite Resource Policy
 
 - 主资源来自本地 Showdown 镜像：`assets/showdown/sprites`。
@@ -122,4 +142,8 @@ V2 UI 继续吃 V1 的 UI 约束：所有页面按 `640 x 320` 游戏视口设�
 
 ## Next Boundary
 
-下一阶段迁训练页。训练页可以复用 V1 UI 组件、动效、布局，但公共状态和业务函数必须放到 `apps/api`。训练页稳定后再接 Battle V4；Battle V4 必须遵守 `plan/battle-v4-architecture-plan.md` 的红线：训练场优先，raw protocol 是事实源，request 是指令 UI 源。
+下一阶段不再是“迁训练页”，而是正式游戏打磨和 release 稳定性：
+
+- Battle V4 继续按 Showdown timeline / scheduler parity 查问题，禁止回到前端凭感觉重排动画。
+- 正式 GameRun 继续打磨 NPC 配队、特殊系统、商店/训练经济、赛程叙事和结算体验。
+- Desktop portable 继续保持离线运行、相对资源路径、worker bundle 无 React/runtime import、内置 battle service。

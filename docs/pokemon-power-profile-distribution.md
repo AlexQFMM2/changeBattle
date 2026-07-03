@@ -8,7 +8,7 @@
 type PokemonPowerProfileV4 = "rookie" | "normal" | "elite" | "boss" | "champion";
 ```
 
-`powerProfile` 决定等级、IV/EV 上限区间、性格策略和基础养成强度。每只宝可梦实例会保存自己的 `powerProfile`、`ivTotalCap`、`evTotalCap`；队伍页随机只能在实例上限内重新分配，训练场自主学习可以提升上限阶段。携带道具不写死在数值档里，而由 owner 与正式游戏规则决定：
+`powerProfile` 决定等级、IV/EV 初始生成区间、性格策略和基础养成强度。每只宝可梦实例会保存自己的 `powerProfile`、`ivTotalCap`、`evTotalCap` 作为成长记录；随机重分配按当前 IV/EV 实际总和重新分配，不再用旧数值等级 cap 截断当前成长。训练场自习和药剂可以提高当前数值，但仍遵守宝可梦规则上限：IV 单项 31，EV 单项 252，EV 总和 510。携带道具不写死在数值档里，而由 owner 与正式游戏规则决定：
 
 - `owner=player`：生成宝可梦默认不携带道具。
 - `owner=npc`：可按 NPC 类型、道具池、规则系统和正式游戏配置携带道具。
@@ -81,7 +81,9 @@ NPC 侧：
 
 - NPC 宝可梦可以在生成时拥有携带道具。
 - NPC 携带物不需要创建玩家背包实例。
-- Mega 石、Z 纯晶、太晶等系统资源必须按 `battlePreference.ruleSet` 和正式游戏规则生成。
+- Mega 石、Z 纯晶、极巨手环、太晶珠等系统资源必须按 `battlePreference.ruleSet` 和正式游戏规则生成。
+- gen7 环境必须保障 NPC 队伍至少有 1 个可 Mega 宝可梦并持有映射 Mega 石；Z 纯晶专属 Z 优先，并在需要时补齐 `requiredMoveId`。
+- gen8 环境 NPC 默认获得极巨手环；gen9 环境 NPC 默认获得太晶珠。
 - 交换时 Mega 石和 Z 纯晶不随宝可梦带走。
 
 ## Distribution Usage

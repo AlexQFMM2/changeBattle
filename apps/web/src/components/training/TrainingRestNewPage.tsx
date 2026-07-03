@@ -374,6 +374,24 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       aria-label="新休整页预览"
     >
       <div className="training-rest-new-stage" data-scene={restScene}>
+        {restScene === "shop" ? (
+          <TrainingRestShopScene
+            api={api}
+            open
+            shop={shopController?.getShop?.() || shopController?.shop || null}
+            player={shopController?.player}
+            money={shopController?.money ?? moneyAmount ?? 0}
+            onBuy={shopController?.onBuy}
+            onSell={shopController?.onSell}
+            onBack={() => {
+              setRestScene("center");
+              setActiveAction("我的队伍");
+              setMessage("已返回休息室。");
+            }}
+          />
+        ) : (
+          <section className="training-rest-new-scene-placeholder" aria-hidden="true" />
+        )}
         <section className="training-rest-new-center-scene" aria-label="休息室">
           <img className="training-rest-new-bg" src={assetUrl("training/rest-center-bg.png")} alt="休息室背景预览" />
           <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={onLockedPreviewPokemonClick} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
@@ -399,7 +417,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             onAction={selectAction}
           />
           <div className="training-rest-new-save-message" role="status">{message}</div>
-          {teamPanelOpen || bagPanelOpen || exchangePanelOpen ? (
+          {teamPanelOpen || bagPanelOpen ? (
             <button
               className="training-rest-new-panel-scrim"
               type="button"
@@ -407,17 +425,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               onClick={closeFloatingPanels}
             />
           ) : null}
-          <TrainingRestExchangePanel
-            open={exchangePanelOpen}
-            view={exchangeView}
-            selectedSourceId={exchangeSelection.sourcePokemonId}
-            selectedTargetId={exchangeSelection.targetPokemonId}
-            busy={exchangeBusy}
-            onSelectSource={sourcePokemonId => setExchangeSelection(current => ({...current, sourcePokemonId}))}
-            onSelectTarget={targetPokemonId => setExchangeSelection(current => ({...current, targetPokemonId}))}
-            onConfirm={() => void confirmExchangePokemon()}
-            onClose={() => setExchangePanelOpen(false)}
-          />
           <TrainingRestNewTeamPanel
             api={api}
             open={teamPanelOpen}
@@ -444,51 +451,54 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             onNotice={showNotice}
           />
         </section>
-        <TrainingRestShopScene
-          api={api}
-          open={restScene === "shop"}
-          shop={shopController?.getShop?.() || shopController?.shop || null}
-          player={shopController?.player}
-          money={shopController?.money ?? moneyAmount ?? 0}
-          onBuy={shopController?.onBuy}
-          onSell={shopController?.onSell}
-          onBack={() => {
-            setRestScene("center");
-            setActiveAction("我的队伍");
-            setMessage("已返回休息室。");
-          }}
-        />
-        <TrainingRestTrainingGroundScene
-          api={api}
-          open={restScene === "training-ground"}
-          lesson={selectedTrainingLesson}
-          lessonOptions={selectedTrainingLesson ? [] : currentTrainingLessons()}
-          player={trainingGroundController?.player}
-          money={trainingGroundController?.money ?? moneyAmount ?? 0}
-          onApply={trainingGroundController?.onApply ? input => trainingGroundController.onApply({
-            ...input,
-            lessonId: selectedTrainingLesson?.lessonId,
-            lessonKind: selectedTrainingLesson?.kind,
-          }) : undefined}
-          onLessonComplete={nextMessage => {
-            setMessage(nextMessage);
-            setLessonEndOpen(true);
-          }}
-          onSelectLesson={enterTrainingLesson}
-          onCancelLesson={() => {
-            setSelectedTrainingLesson(null);
-            setRestScene("training-ground");
-            setActiveAction("训练场");
-            setMessage("重新选择课程。");
-          }}
-          onBack={() => {
-            setSelectedTrainingLesson(null);
-            setRestScene("center");
-            setActiveAction("我的队伍");
-            setMessage("已返回休息室。");
-          }}
-        />
+        {restScene === "training-ground" ? (
+          <TrainingRestTrainingGroundScene
+            api={api}
+            open
+            lesson={selectedTrainingLesson}
+            lessonOptions={selectedTrainingLesson ? [] : currentTrainingLessons()}
+            player={trainingGroundController?.player}
+            money={trainingGroundController?.money ?? moneyAmount ?? 0}
+            onApply={trainingGroundController?.onApply ? input => trainingGroundController.onApply({
+              ...input,
+              lessonId: selectedTrainingLesson?.lessonId,
+              lessonKind: selectedTrainingLesson?.kind,
+            }) : undefined}
+            onLessonComplete={nextMessage => {
+              setMessage(nextMessage);
+              setLessonEndOpen(true);
+            }}
+            onSelectLesson={enterTrainingLesson}
+            onCancelLesson={() => {
+              setSelectedTrainingLesson(null);
+              setRestScene("training-ground");
+              setActiveAction("训练场");
+              setMessage("重新选择课程。");
+            }}
+            onBack={() => {
+              setSelectedTrainingLesson(null);
+              setRestScene("center");
+              setActiveAction("我的队伍");
+              setMessage("已返回休息室。");
+            }}
+          />
+        ) : (
+          <section className="training-rest-new-scene-placeholder" aria-hidden="true" />
+        )}
       </div>
+      {exchangePanelOpen ? (
+        <TrainingRestExchangePanel
+          open
+          view={exchangeView}
+          selectedSourceId={exchangeSelection.sourcePokemonId}
+          selectedTargetId={exchangeSelection.targetPokemonId}
+          busy={exchangeBusy}
+          onSelectSource={sourcePokemonId => setExchangeSelection(current => ({...current, sourcePokemonId}))}
+          onSelectTarget={targetPokemonId => setExchangeSelection(current => ({...current, targetPokemonId}))}
+          onConfirm={() => void confirmExchangePokemon()}
+          onClose={() => setExchangePanelOpen(false)}
+        />
+      ) : null}
       {toast ? (
         <TrainingRestToast
           key={toast.id}
@@ -520,24 +530,25 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         />
       ) : null}
       {healConfirmOpen ? (
-        <TrainingRestShopDialogue
-          speaker="医疗员"
-          itemName="全队治疗"
-          text={`需要花费 ${Math.max(1, Math.floor(Number(healController?.cost ?? 250))).toLocaleString()} 金币。治疗后全队会恢复满 HP，异常状态也会清除，PP 也会补满。要现在治疗吗？`}
-          actions={[
-            {label: "取消", onClick: () => setHealConfirmOpen(false)},
-            {
-              label: "治疗",
-              meta: `${Math.max(1, Math.floor(Number(healController?.cost ?? 250))).toLocaleString()} 金币`,
-              primary: true,
-              onClick: () => {
-                setHealConfirmOpen(false);
-                void healTeam();
+        <div className="training-rest-new-modal-layer" role="presentation">
+          <TrainingRestShopDialogue
+            speaker="医疗员"
+            itemName="全队治疗"
+            text={`需要花费 ${Math.max(1, Math.floor(Number(healController?.cost ?? 250))).toLocaleString()} 金币。治疗后全队会恢复满 HP，异常状态也会清除，PP 也会补满。要现在治疗吗？`}
+            actions={[
+              {label: "取消", onClick: () => setHealConfirmOpen(false)},
+              {
+                label: "治疗",
+                meta: `${Math.max(1, Math.floor(Number(healController?.cost ?? 250))).toLocaleString()} 金币`,
+                primary: true,
+                onClick: () => {
+                  setHealConfirmOpen(false);
+                  void healTeam();
+                },
               },
-            },
-          ]}
-          onBackdropClick={() => setHealConfirmOpen(false)}
-        />
+            ]}
+          />
+        </div>
       ) : null}
       {lessonEndOpen ? (
         <TrainingRestConfirmDialog

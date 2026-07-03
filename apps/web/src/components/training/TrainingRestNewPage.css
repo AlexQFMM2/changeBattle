@@ -64,17 +64,38 @@
   height: 320px;
   display: grid;
   grid-template-columns: 640px 640px 640px;
-  transform: translateX(0);
+  transform: translateX(-640px);
   transition: transform .38s cubic-bezier(.22, 1, .36, 1);
   will-change: transform;
 }
 
 .training-rest-new-stage[data-scene="shop"] {
+  transform: translateX(0);
+}
+
+.training-rest-new-stage[data-scene="center"] {
   transform: translateX(-640px);
 }
 
 .training-rest-new-stage[data-scene="training-ground"] {
   transform: translateX(-1280px);
+}
+
+.training-rest-new-scene-placeholder {
+  position: relative;
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.training-rest-new-modal-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  width: 640px;
+  height: 320px;
+  pointer-events: auto;
 }
 
 .training-rest-new-center-scene {

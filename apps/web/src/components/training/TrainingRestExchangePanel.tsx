@@ -1,7 +1,8 @@
-import type {CSSProperties, ReactNode} from "react";
+import type {CSSProperties} from "react";
 import type {FormalPokemonExchangeViewV4, LocalPokemonV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {TrainingRestUiPanel} from "./TrainingRestUiPanel";
+import {TrainingRestShopDialogue} from "./TrainingRestShopDialogue";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./TrainingRestExchangePanel.css";
 
@@ -43,67 +44,76 @@ export function TrainingRestExchangePanel({
           : "";
   const canConfirm = open && !busy && !disabledReason;
   const confirmText = view?.nextCost ? `交换（${view.nextCost}金币）` : "交换（免费）";
+  const dialogueText = disabledReason
+    ? disabledReason
+    : `${selectedSource?.nameZh || selectedSource?.name || "我方宝可梦"} 与 ${selectedTarget?.nameZh || selectedTarget?.name || "对手宝可梦"} 将进行交换。确认后会立即生效。`;
   return (
     <section className={`training-rest-exchange-panel ${open ? "open" : ""}`} aria-label="宝可梦交换面板" aria-hidden={!open}>
-      <ExchangeHangingCard
-        side="source"
-        title="我的队伍"
-        subtitle={view?.player?.name || "P1"}
+      <TrainingRestUiPanel
+        className="training-rest-exchange-main-panel"
+        contentClassName="training-rest-exchange-main-inner"
+        width="var(--rest-exchange-main-w)"
+        height="var(--rest-exchange-main-h)"
       >
-        <PokemonExchangeList pokemon={sourceTeam} selectedId={selectedSourceId} side="source" onSelect={onSelectSource} emptyText="暂无可交换宝可梦" />
-      </ExchangeHangingCard>
-      <ExchangeHangingCard
-        side="target"
-        title="上一场对手"
-        subtitle={view?.opponent?.name || view?.message || "暂无记录"}
-      >
-        <PokemonExchangeList pokemon={targetTeam} selectedId={selectedTargetId} side="target" onSelect={onSelectTarget} emptyText="还没有可交换的上一场对手" />
-      </ExchangeHangingCard>
-      <footer className="training-rest-exchange-footer">
-        <div className="training-rest-exchange-pair">
-          <PokemonMiniSummary pokemon={selectedSource} fallback="我方" />
-          <button className="training-rest-exchange-swap-button" type="button" disabled={!selectedSource || !selectedTarget} aria-label="交换选择">
-            ⇄
-          </button>
-          <PokemonMiniSummary pokemon={selectedTarget} fallback="对手" />
+        <div className="training-rest-exchange-columns">
+          <ExchangeTeamColumn
+            title="我的队伍"
+            subtitle={view?.player?.name || "玩家"}
+            pokemon={sourceTeam}
+            selectedId={selectedSourceId}
+            side="source"
+            onSelect={onSelectSource}
+            emptyText="暂无可交换宝可梦"
+          />
+          <ExchangeTeamColumn
+            title="上一场对手"
+            subtitle={view?.opponent?.name || "对手"}
+            pokemon={targetTeam}
+            selectedId={selectedTargetId}
+            side="target"
+            onSelect={onSelectTarget}
+            emptyText="还没有可交换的上一场对手"
+          />
         </div>
-        <div className="training-rest-exchange-actions">
-          <button type="button" onClick={onClose}>关闭</button>
-          <button type="button" disabled={!canConfirm} onClick={onConfirm}>{busy ? "交换中" : confirmText}</button>
-        </div>
-      </footer>
+      </TrainingRestUiPanel>
+      <TrainingRestShopDialogue
+        speaker="交换员"
+        itemName="队伍交换"
+        text={dialogueText}
+        actions={[
+          {label: "关闭", onClick: onClose},
+          {label: busy ? "交换中" : "确认交换", meta: confirmText.replace(/^交换（|）$/g, ""), primary: true, disabled: !canConfirm, onClick: onConfirm},
+        ]}
+      />
     </section>
   );
 }
 
-function ExchangeHangingCard({
-  side,
+function ExchangeTeamColumn({
   title,
   subtitle,
-  children,
+  pokemon,
+  selectedId,
+  side,
+  onSelect,
+  emptyText,
 }: {
-  side: "source" | "target";
   title: string;
   subtitle: string;
-  children: ReactNode;
+  pokemon: LocalPokemonV4[];
+  selectedId: string;
+  side: "source" | "target";
+  onSelect: (pokemonId: string) => void;
+  emptyText: string;
 }) {
   return (
-    <div className={`training-rest-exchange-hanging-card ${side}`}>
-      <span className="training-rest-exchange-hanger hanger-left" aria-hidden="true" />
-      <span className="training-rest-exchange-hanger hanger-right" aria-hidden="true" />
-      <TrainingRestUiPanel
-        className="training-rest-exchange-card-frame"
-        contentClassName="training-rest-exchange-card-inner"
-        width="100%"
-        height="var(--rest-exchange-card-frame-h)"
-      >
-        <header>
-          <strong>{title}</strong>
-          <small>{subtitle}</small>
-        </header>
-        {children}
-      </TrainingRestUiPanel>
-    </div>
+    <section className={`training-rest-exchange-column ${side}`}>
+      <header>
+        <strong>{title}</strong>
+        <small>{subtitle}</small>
+      </header>
+      <PokemonExchangeList pokemon={pokemon} selectedId={selectedId} side={side} onSelect={onSelect} emptyText={emptyText} />
+    </section>
   );
 }
 
@@ -142,20 +152,6 @@ function PokemonExchangeList({
       );
       })}
     </div>
-  );
-}
-
-function PokemonMiniSummary({pokemon, fallback}: {pokemon: LocalPokemonV4 | null; fallback: string}) {
-  const hpRate = pokemon
-    ? `${Math.max(0, Math.min(100, Math.round((Math.max(0, pokemon.entryHp) / Math.max(1, pokemon.maxHp)) * 100)))}%`
-    : "0%";
-  return (
-    <span className={`training-rest-exchange-mini ${pokemon ? "" : "empty"}`} style={{"--rest-exchange-hp-rate": hpRate} as CSSProperties}>
-      {pokemon ? <PokemonIcon pokemon={pokemon} /> : null}
-      <strong>{pokemon ? pokemon.nameZh || pokemon.name : fallback}</strong>
-      {pokemon ? <small>Lv.{pokemon.level}</small> : null}
-      {pokemon ? <i aria-hidden="true" /> : null}
-    </span>
   );
 }
 

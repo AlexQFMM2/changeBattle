@@ -2,6 +2,13 @@
 
 本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器、自动更新或签名发布。
 
+当前已验证 release：
+
+```text
+ChangeBattle-V2-Desk-portable-v0.1.0.zip
+commit: a940e60e feat: guarantee gen7 special-system teams
+```
+
 ## Release Artifact
 
 发布产物命名：
@@ -17,6 +24,16 @@ ChangeBattle-V2-Desk.cmd
 ```
 
 玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、前端静态资源、Pokemon Showdown runtime vendor 和 Showdown client playback vendor。
+
+## Launcher Shape
+
+当前 portable 包用 `ChangeBattle-V2-Desk.cmd` 作为启动入口。它只负责：
+
+- 使用 `%~dp0` 定位 portable root。
+- 设置 `CHANGEBATTLE_PROJECT_ROOT`、`CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT`、`CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT`。
+- 调用包内 `runtime\electron\electron.exe` 启动 `apps\desktop`。
+
+这不代表 Electron 不能做 `.exe`。VSCode 也是 Electron，但它使用完整应用 launcher/安装器/签名链路，所以用户看到的是 `Code.exe`。V2 当前选择 `.cmd` 是为了先稳定 portable 目录结构、vendor 路径和离线运行。后续如果只想隐藏 `.cmd`，优先做小型 `ChangeBattle-V2-Desk.exe` launcher 复用同一套目录结构；安装器、签名、自动更新仍不属于本文档当前 release 范围。
 
 ## Windows Build Host
 
@@ -335,7 +352,7 @@ git status --short
 2. 双击 `ChangeBattle-V2-Desk.cmd`。
 3. 标题页图片、按钮、背景正常显示。
 4. 创建正式游戏能生成开局候选。
-5. 进入休整中心，公告栏、队伍、商店、交换入口显示正常。
+5. 进入休息室/休整页，公告栏、队伍、商店、训练场、治疗和交换入口显示正常。
 6. 进入战斗，Pokemon sprite、背景、技能动画资源正常显示。
 7. 存档写入 Electron userData，不写入 portable 解压目录。
 

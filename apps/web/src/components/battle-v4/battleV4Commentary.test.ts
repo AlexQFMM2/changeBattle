@@ -101,6 +101,27 @@ function smoke() {
   assertIncludes(sideCondition, "我方展开了顺风！", "tailwind should be localized");
   assertIncludes(sideCondition, "对方撒下了隐形岩！", "stealth rock should be localized");
 
+  const transforms = commentaryTexts(step([
+    semantic("transform", 10, "|-mega|p1a: Gengar|Gengar-Mega", {
+      seat: "p1A",
+      label: "Mega 进化",
+      protocolEvent: protocol(10, "|-mega|p1a: Gengar|Gengar-Mega", "-mega", ["-mega", "p1a: Gengar", "Gengar-Mega"]),
+    }),
+    semantic("transform", 11, "|detailschange|p2a: Drampa|Drampa, L46, M|100/100", {
+      seat: "p2A",
+      label: "Drampa, L46, M",
+      protocolEvent: protocol(11, "|detailschange|p2a: Drampa|Drampa, L46, M|100/100", "detailschange", ["detailschange", "p2a: Drampa", "Drampa, L46, M", "100/100"]),
+    }),
+    semantic("transform", 12, "|-formechange|p1a: Minior|Minior-Meteor", {
+      seat: "p1A",
+      label: "Minior-Meteor",
+      protocolEvent: protocol(12, "|-formechange|p1a: Minior|Minior-Meteor", "-formechange", ["-formechange", "p1a: Minior", "Minior-Meteor"]),
+    }),
+  ]), api);
+  assertIncludes(transforms, "耿鬼Mega进化了！", "mega commentary should be concise");
+  assertIncludes(transforms, "老翁龙的形态改变了！", "detailschange should not leak level and gender details");
+  assertIncludes(transforms, "小陨星变成了流星形态！", "formechange should describe the target form");
+
   console.log("battle-v4 commentary smoke ok");
 }
 
@@ -189,6 +210,10 @@ function createTestApi() {
     heracross: "赫拉克罗斯",
     skarmory: "盔甲鸟",
     raichu: "雷丘",
+    gengar: "耿鬼",
+    drampa: "老翁龙",
+    minior: "小陨星",
+    miniormeteor: "小陨星",
   };
   const moves: Record<string, string> = {
     rockslide: "岩崩",
