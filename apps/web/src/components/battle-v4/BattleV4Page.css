@@ -1547,28 +1547,6 @@
   pointer-events: none;
 }
 
-.battle-v4-player-bag-layer .training-rest-new-bag-panel {
-  --training-rest-new-bag-panel-left: 48px;
-  --training-rest-new-bag-panel-top: 24px;
-}
-
-.battle-v4-player-bag-layer .training-rest-new-bag-drawer {
-  top: 254px;
-}
-
-.battle-v4-player-bag-layer .training-rest-new-bag-footer-note {
-  position: absolute;
-  left: 50%;
-  bottom: -12px;
-  width: 260px;
-  transform: translateX(-50%);
-  color: #6a563e;
-  font-size: 6px;
-  font-weight: 850;
-  line-height: 1;
-  text-align: center;
-}
-
 .battle-v4-move-type {
   height: 24px;
   display: grid;

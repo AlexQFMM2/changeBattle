@@ -27,6 +27,18 @@
   filter: drop-shadow(0 4px 0 rgb(0 0 0 / 30%));
 }
 
+.training-rest-new-bag-panel[data-layout="modal"] {
+  --training-rest-new-bag-panel-left: 52px;
+  --training-rest-new-bag-panel-top: 18px;
+  --training-rest-new-bag-panel-width: 536px;
+  --training-rest-new-bag-panel-height: 224px;
+}
+
+.training-rest-new-bag-panel[data-layout="battle"] {
+  --training-rest-new-bag-panel-left: 48px;
+  --training-rest-new-bag-panel-top: 24px;
+}
+
 .training-rest-new-bag-shell {
   position: relative;
   box-sizing: border-box;
@@ -468,6 +480,32 @@
   box-shadow:
     inset 0 0 0 1px rgb(255 225 154 / 30%),
     0 -3px 0 rgb(0 0 0 / 28%);
+}
+
+.training-rest-new-bag-drawer[data-layout="modal"] {
+  left: 52px;
+  top: 242px;
+  width: 536px;
+  height: 62px;
+  border-top-width: 2px;
+  border-radius: 0 0 8px 8px;
+}
+
+.training-rest-new-bag-drawer[data-layout="battle"] {
+  top: 254px;
+}
+
+.training-rest-new-bag-panel[data-layout="battle"] .training-rest-new-bag-footer-note {
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: 260px;
+  transform: translateX(-50%);
+  color: #6a563e;
+  font-size: 6px;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
 }
 
 .training-rest-new-bag-strip-wrap {

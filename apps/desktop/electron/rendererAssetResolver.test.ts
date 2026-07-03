@@ -20,6 +20,11 @@ assert.equal(
 );
 
 assert.equal(
+  rendererAssetFilePath("file:///rest/heal.png", rendererRoot),
+  path.join(rendererRoot, "rest", "heal.png"),
+);
+
+assert.equal(
   rendererAssetFilePath("file:///D:/npc/avatars/6-asset-a73f3e71.webp", rendererRoot),
   path.join(rendererRoot, "npc", "avatars", "6-asset-a73f3e71.webp"),
 );

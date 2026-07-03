@@ -7,6 +7,7 @@ const rendererPublicDirs = new Set([
   "board",
   "music",
   "npc",
+  "rest",
   "shop",
   "showdown",
   "specIcon",

@@ -244,6 +244,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       <PlayerBagPanel
         api={api}
         open={open}
+        layout="modal"
         items={bag.items}
         maxSize={bag.maxSize}
         pokemonTargets={targets}

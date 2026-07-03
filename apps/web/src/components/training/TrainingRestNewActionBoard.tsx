@@ -18,7 +18,7 @@ export type TrainingRestNewActionBoardProps = {
 
 const DEFAULT_REST_ACTION_ENTRIES: TrainingRestNewActionEntry[] = REST_CENTER_PAPER_ACTIONS_V4.map(entry => ({
   label: entry.label,
-  iconSrc: assetUrl(entry.id === "training-ground" ? "aboutIcon/train.png" : entry.iconSrc),
+  iconSrc: entry.id === "training-ground" ? "aboutIcon/train.png" : entry.iconSrc,
   iconText: entry.iconText,
   disabled: entry.disabled,
   action: entry.action,
@@ -57,9 +57,10 @@ function RestPaperAction({
   disabled?: boolean;
   onClick?: () => void;
 }) {
+  const resolvedIconSrc = assetUrl(iconSrc);
   return (
     <button className={active ? "active" : ""} type="button" onClick={onClick} disabled={disabled}>
-      {iconSrc ? <img src={iconSrc} alt="" draggable={false} /> : <span>{iconText || "?"}</span>}
+      {resolvedIconSrc ? <img src={resolvedIconSrc} alt="" draggable={false} /> : <span>{iconText || "?"}</span>}
       <strong>{label}</strong>
     </button>
   );

@@ -32,6 +32,7 @@ export type PlayerBagAction = {
 export type PlayerBagPanelProps = {
   api: ChangeBattleV2Api;
   open: boolean;
+  layout?: "scene" | "modal" | "battle";
   title?: string;
   items: PlayerItemInstanceV4[];
   maxSize: number;
@@ -49,6 +50,7 @@ export type PlayerBagPanelProps = {
 export function PlayerBagPanel({
   api,
   open,
+  layout = "scene",
   title = "我的背包",
   items,
   maxSize,
@@ -140,6 +142,7 @@ export function PlayerBagPanel({
     <>
       <motion.section
         className={`training-rest-new-bag-panel training-rest-ui-panel ${open ? "open" : ""}`}
+        data-layout={layout}
         aria-label={title}
         initial={false}
         animate={open ? {opacity: 1, y: 0, scale: 1} : {opacity: 0, y: 8, scale: 0.985}}
@@ -237,6 +240,7 @@ export function PlayerBagPanel({
       </motion.section>
       <motion.section
         className={`training-rest-new-bag-drawer ${open ? "open" : ""}`}
+        data-layout={layout}
         aria-label="背包道具列表"
         initial={false}
         animate={open ? {y: 0, opacity: 1} : {y: "110%", opacity: 0}}

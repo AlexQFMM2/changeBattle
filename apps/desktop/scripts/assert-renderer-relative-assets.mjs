@@ -9,6 +9,7 @@ const assetRoots = [
   "board",
   "music",
   "npc",
+  "rest",
   "runtime",
   "shop",
   "showdown",
