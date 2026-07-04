@@ -69,6 +69,9 @@ export type TrainerVaultV2 = {
 export type PlayerItemRecordV4 = {
   itemId: string;
   quantity: number;
+  boxKind?: "prep" | "storage";
+  storagePageIndex?: number;
+  slotIndex?: number;
 };
 
 export type PlayerPokemonMoveRecordV4 = {
@@ -96,6 +99,14 @@ export type PlayerVaultV4 = {
   version: 1;
   items: PlayerItemRecordV4[];
   pokemon: PlayerPokemonRecordV4[];
+  itemStoragePageCount: number;
+  pokemonStoragePageCount: number;
+};
+
+export type PlayerVaultMergeResultV4 = {
+  vault: PlayerVaultV4;
+  depositedItemCount: number;
+  rejectedItemCount: number;
 };
 
 export type UserProfileV2 = {
@@ -260,6 +271,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     deletePlayerVault: () => playerVaults.deletePlayerVault(),
     normalizePlayerVault,
     mergeFormalRunBagIntoPlayerVault,
+    playerVaultUnlockedStoragePageCountV4,
+    playerVaultStorageCapacityV4,
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
     loadUserProfile: async () => {
       const profile = await userProfiles.loadUserProfile();
@@ -592,35 +605,83 @@ function normalizeTrainerVault(value?: unknown): TrainerVaultV2 {
 
 export function normalizePlayerVault(value?: unknown): PlayerVaultV4 {
   const raw = isPlainRecord(value) ? value : {};
-  const itemTotals = new Map<string, number>();
+  const itemStoragePageCount = normalizePlayerVaultStoragePageCount(raw.itemStoragePageCount ?? raw.unlockedStoragePageCount);
+  const pokemonStoragePageCount = normalizePlayerVaultStoragePageCount(raw.pokemonStoragePageCount ?? raw.unlockedStoragePageCount);
+  const itemRecords = new Map<string, PlayerItemRecordV4>();
   const rawItems = Array.isArray(raw.items) ? raw.items : [];
+  let fallbackStorageIndex = 0;
   for (const item of rawItems) {
-    const record = normalizePlayerItemRecord(item);
+    let record = normalizePlayerItemRecord(item);
     if (!record) continue;
-    itemTotals.set(record.itemId, (itemTotals.get(record.itemId) || 0) + record.quantity);
+    if (!Number.isFinite(record.slotIndex)) {
+      record = {
+        ...record,
+        boxKind: "storage",
+        storagePageIndex: Math.floor(fallbackStorageIndex / PLAYER_VAULT_PAGE_SIZE_V4),
+        slotIndex: fallbackStorageIndex % PLAYER_VAULT_PAGE_SIZE_V4,
+      };
+      fallbackStorageIndex += 1;
+    }
+    const key = playerItemRecordKey(record);
+    const current = itemRecords.get(key);
+    itemRecords.set(key, current ? {...current, quantity: current.quantity + record.quantity} : record);
   }
   const pokemon = (Array.isArray(raw.pokemon) ? raw.pokemon : [])
     .map(normalizePlayerPokemonRecord)
     .filter((entry): entry is PlayerPokemonRecordV4 => Boolean(entry));
   return {
     version: 1,
-    items: Array.from(itemTotals.entries()).map(([itemId, quantity]) => ({itemId, quantity})),
+    items: Array.from(itemRecords.values()).sort(comparePlayerItemRecords),
     pokemon,
+    itemStoragePageCount,
+    pokemonStoragePageCount,
   };
 }
 
-export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefined | null, run: FormalGameRunV4 | undefined | null): PlayerVaultV4 {
+const PLAYER_VAULT_PAGE_SIZE_V4 = 24;
+const DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4 = 2;
+
+export function playerVaultUnlockedStoragePageCountV4(vault?: PlayerVaultV4 | null, kind: "item" | "pokemon" = "item"): number {
+  const normalized = vault ? normalizePlayerVault(vault) : null;
+  return kind === "pokemon"
+    ? normalizePlayerVaultStoragePageCount(normalized?.pokemonStoragePageCount)
+    : normalizePlayerVaultStoragePageCount(normalized?.itemStoragePageCount);
+}
+
+export function playerVaultStorageCapacityV4(vault?: PlayerVaultV4 | null, kind: "item" | "pokemon" = "item"): number {
+  return PLAYER_VAULT_PAGE_SIZE_V4 * playerVaultUnlockedStoragePageCountV4(vault, kind);
+}
+
+export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefined | null, run: FormalGameRunV4 | undefined | null): PlayerVaultMergeResultV4 {
   const next = normalizePlayerVault(vault);
-  const itemTotals = new Map(next.items.map(item => [item.itemId, item.quantity]));
+  const items = next.items.map(item => ({...item}));
+  let depositedItemCount = 0;
+  let rejectedItemCount = 0;
   for (const item of run?.restRunSnapshot?.players.p1?.bag.items || []) {
     const itemId = normalizeNonEmptyText(item.itemID);
     if (!itemId || item.type === "system" || item.type === "system-battle") continue;
-    itemTotals.set(itemId, (itemTotals.get(itemId) || 0) + 1);
+    const existing = items.find(entry => entry.itemId === itemId && (entry.boxKind || "storage") === "storage");
+    if (existing) {
+      existing.quantity += 1;
+      depositedItemCount += 1;
+      continue;
+    }
+    const openSlot = firstOpenPlayerVaultStorageSlot(items, next.itemStoragePageCount);
+    if (!openSlot) {
+      rejectedItemCount += 1;
+      continue;
+    }
+    items.push({itemId, quantity: 1, boxKind: "storage", storagePageIndex: openSlot.storagePageIndex, slotIndex: openSlot.slotIndex});
+    depositedItemCount += 1;
   }
-  return normalizePlayerVault({
-    ...next,
-    items: Array.from(itemTotals.entries()).map(([itemId, quantity]) => ({itemId, quantity})),
-  });
+  return {
+    vault: normalizePlayerVault({
+      ...next,
+      items,
+    }),
+    depositedItemCount,
+    rejectedItemCount,
+  };
 }
 
 function normalizePlayerItemRecord(value: unknown): PlayerItemRecordV4 | null {
@@ -628,7 +689,41 @@ function normalizePlayerItemRecord(value: unknown): PlayerItemRecordV4 | null {
   const itemId = normalizeNonEmptyText(value.itemId ?? value.itemID ?? value.id);
   if (!itemId) return null;
   const quantity = clampInt(value.quantity, 1, 999999, 1);
-  return {itemId, quantity};
+  const boxKind = value.boxKind === "prep" ? "prep" : "storage";
+  const storagePageIndex = boxKind === "storage" ? clampInt(value.storagePageIndex, 0, 999, 0) : undefined;
+  const slotIndex = Number.isFinite(Number(value.slotIndex)) ? clampInt(value.slotIndex, 0, PLAYER_VAULT_PAGE_SIZE_V4 - 1, 0) : undefined;
+  return {itemId, quantity, boxKind, storagePageIndex, slotIndex};
+}
+
+function normalizePlayerVaultStoragePageCount(value: unknown): number {
+  return clampInt(value, 1, 999, DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4);
+}
+
+function playerItemRecordKey(record: PlayerItemRecordV4): string {
+  return `${record.boxKind || "storage"}:${record.storagePageIndex || 0}:${record.slotIndex || 0}:${record.itemId}`;
+}
+
+function comparePlayerItemRecords(a: PlayerItemRecordV4, b: PlayerItemRecordV4): number {
+  const aKind = a.boxKind || "storage";
+  const bKind = b.boxKind || "storage";
+  if (aKind !== bKind) return aKind === "prep" ? -1 : 1;
+  const pageDelta = (a.storagePageIndex || 0) - (b.storagePageIndex || 0);
+  if (pageDelta) return pageDelta;
+  const slotDelta = (a.slotIndex || 0) - (b.slotIndex || 0);
+  if (slotDelta) return slotDelta;
+  return a.itemId.localeCompare(b.itemId);
+}
+
+function firstOpenPlayerVaultStorageSlot(items: PlayerItemRecordV4[], storagePageCount: number): {storagePageIndex: number; slotIndex: number} | null {
+  const occupied = new Set(items
+    .filter(item => (item.boxKind || "storage") === "storage")
+    .map(item => `${item.storagePageIndex || 0}:${item.slotIndex || 0}`));
+  for (let pageIndex = 0; pageIndex < normalizePlayerVaultStoragePageCount(storagePageCount); pageIndex += 1) {
+    for (let slotIndex = 0; slotIndex < PLAYER_VAULT_PAGE_SIZE_V4; slotIndex += 1) {
+      if (!occupied.has(`${pageIndex}:${slotIndex}`)) return {storagePageIndex: pageIndex, slotIndex};
+    }
+  }
+  return null;
 }
 
 function normalizePlayerPokemonRecord(value: unknown): PlayerPokemonRecordV4 | null {

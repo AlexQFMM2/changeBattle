@@ -125,6 +125,7 @@ function RoutedApp({runtime}: AppProps) {
   const [dexInitialQuery, setDexInitialQuery] = useState<string | null>(null);
   const [dexInitialRow, setDexInitialRow] = useState<DexSearchRow | null>(null);
   const [playerVault, setPlayerVault] = useState<PlayerVaultV4>(() => api.normalizePlayerVault());
+  const [playerVaultDirty, setPlayerVaultDirty] = useState(false);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
   const [manualSaveState, setManualSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -173,6 +174,7 @@ function RoutedApp({runtime}: AppProps) {
   useEffect(() => {
     if (!profile) {
       setPlayerVault(api.normalizePlayerVault());
+      setPlayerVaultDirty(false);
       setTrainingRun(null);
       setFormalRun(null);
       return;
@@ -193,17 +195,22 @@ function RoutedApp({runtime}: AppProps) {
   useEffect(() => {
     if (!profile) {
       setPlayerVault(api.normalizePlayerVault());
+      setPlayerVaultDirty(false);
       return;
     }
     let cancelled = false;
     api.loadPlayerVault()
       .then(next => {
-        if (!cancelled) setPlayerVault(next);
+        if (!cancelled) {
+          setPlayerVault(next);
+          setPlayerVaultDirty(false);
+        }
       })
       .catch(error => {
         if (!cancelled) {
           console.error("[changebattle-v2] load player vault failed", error);
           setPlayerVault(api.normalizePlayerVault());
+          setPlayerVaultDirty(false);
         }
       });
     return () => {
@@ -252,6 +259,7 @@ function RoutedApp({runtime}: AppProps) {
       await api.deleteUserProfile();
       setProfile(null);
       setPlayerVault(api.normalizePlayerVault());
+      setPlayerVaultDirty(false);
       setEditingProfile(null);
       setMessage("本地资料已删除。");
       navigate("/", {replace: true});
@@ -317,6 +325,7 @@ function RoutedApp({runtime}: AppProps) {
       }
       setProfile(savedProfile);
       setPlayerVault(savedVault);
+      setPlayerVaultDirty(false);
       setManualSaveState("saved");
       setMessage("存档完成。");
       window.setTimeout(() => setManualSaveState(current => current === "saved" ? "idle" : current), 1400);
@@ -325,6 +334,30 @@ function RoutedApp({runtime}: AppProps) {
       setManualSaveState("error");
       setMessage(error instanceof Error ? `存档失败：${error.message}` : "存档失败。");
     }
+  }
+
+  async function unlockPlayerVaultStoragePage(tab: "bag" | "pokemon") {
+    if (!profile) throw new Error("还没有训练师资料。");
+    const cost = 24;
+    if ((profile.battlePoints || 0) < cost) {
+      throw new Error(`BP 不足，需要 ${cost} BP。`);
+    }
+    const normalizedVault = api.normalizePlayerVault(playerVault);
+    const nextVault = api.normalizePlayerVault(tab === "bag"
+      ? {...normalizedVault, itemStoragePageCount: normalizedVault.itemStoragePageCount + 1}
+      : {...normalizedVault, pokemonStoragePageCount: normalizedVault.pokemonStoragePageCount + 1});
+    const nextProfile = {
+      ...profile,
+      battlePoints: Math.max(0, Math.floor(Number(profile.battlePoints || 0)) - cost),
+      updatedAt: new Date().toISOString(),
+    };
+    const savedVault = await api.savePlayerVault(nextVault);
+    const savedProfile = await userProfileAdapter.saveUserProfile(nextProfile);
+    setPlayerVault(savedVault);
+    setPlayerVaultDirty(false);
+    setProfile(savedProfile);
+    setMessage(`已花费 ${cost} BP 解锁箱子。`);
+    return savedVault;
   }
 
   async function continueTrainingRun() {
@@ -542,7 +575,13 @@ function RoutedApp({runtime}: AppProps) {
     <TrainerVaultPage
       api={api}
       playerVault={playerVault}
+      playerVaultDirty={playerVaultDirty}
+      profileBattlePoints={profile.battlePoints}
       tab="bag"
+      onPlayerVaultChange={setPlayerVault}
+      onPlayerVaultDirtyChange={setPlayerVaultDirty}
+      onSavePlayerVault={api.savePlayerVault}
+      onUnlockStoragePage={unlockPlayerVaultStoragePage}
       onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
       onBack={() => navigate("/main", {replace: true})}
     />
@@ -552,7 +591,13 @@ function RoutedApp({runtime}: AppProps) {
     <TrainerVaultPage
       api={api}
       playerVault={playerVault}
+      playerVaultDirty={playerVaultDirty}
+      profileBattlePoints={profile.battlePoints}
       tab="pokemon"
+      onPlayerVaultChange={setPlayerVault}
+      onPlayerVaultDirtyChange={setPlayerVaultDirty}
+      onSavePlayerVault={api.savePlayerVault}
+      onUnlockStoragePage={unlockPlayerVaultStoragePage}
       onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
       onBack={() => navigate("/main", {replace: true})}
     />
@@ -914,6 +959,7 @@ function RoutedApp({runtime}: AppProps) {
           setFormalRun(run);
           setProfile(nextProfile);
           setPlayerVault(nextPlayerVault);
+          setPlayerVaultDirty(false);
           navigate("/formal/settlement", {replace: true});
         }}
       />

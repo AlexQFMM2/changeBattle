@@ -1,4 +1,4 @@
-import {useMemo, useState} from "react";
+import {useState} from "react";
 import type {ChangeBattleV2Api, PlayerVaultV4} from "@changebattle-v2/api";
 import {TrainerVaultPage} from "./TrainerVaultPage";
 import "./TrainerVaultPage.preview.css";
@@ -24,7 +24,8 @@ const PREVIEW_BAG_ITEM_IDS = [
 
 export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
   const [tab, setTab] = useState<TrainerVaultPreviewTab>("bag");
-  const playerVault = useMemo<PlayerVaultV4>(() => {
+  const [playerVaultDirty, setPlayerVaultDirty] = useState(false);
+  const [playerVault, setPlayerVault] = useState<PlayerVaultV4>(() => {
     const trainingRun = api.createTrainingRunFromScenario(api.createTrainingRunGame({
       id: "trainer-vault-preview-profile",
       name: "预览训练师",
@@ -52,14 +53,30 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
         honors: index === 0 ? ["preview-first-partner"] : [],
       })),
     });
-  }, [api]);
+  });
 
   return (
     <section className="trainer-vault-preview-canvas" aria-label="训练家仓库页面预览">
       <TrainerVaultPage
         api={api}
         playerVault={playerVault}
+        playerVaultDirty={playerVaultDirty}
+        profileBattlePoints={999}
         tab={tab}
+        onPlayerVaultChange={setPlayerVault}
+        onPlayerVaultDirtyChange={setPlayerVaultDirty}
+        onSavePlayerVault={async (vault) => {
+          setPlayerVaultDirty(false);
+          return api.normalizePlayerVault(vault);
+        }}
+        onUnlockStoragePage={async (targetTab) => {
+          const nextVault = api.normalizePlayerVault(targetTab === "bag"
+            ? {...playerVault, itemStoragePageCount: playerVault.itemStoragePageCount + 1}
+            : {...playerVault, pokemonStoragePageCount: playerVault.pokemonStoragePageCount + 1});
+          setPlayerVault(nextVault);
+          setPlayerVaultDirty(false);
+          return nextVault;
+        }}
         onTabChange={setTab}
         onBack={() => undefined}
       />

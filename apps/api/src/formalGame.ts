@@ -472,6 +472,8 @@ export type FormalGameSettlementV4 = {
   createdAt: string;
   claimedAt?: string;
   playerVaultItemsClaimedAt?: string;
+  playerVaultItemsClaimedCount?: number;
+  playerVaultItemsRejectedCount?: number;
 };
 
 export type FormalSettlementPokemonStatsV4 = {
@@ -4333,6 +4335,8 @@ function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefin
     createdAt: settlement.createdAt || new Date().toISOString(),
     claimedAt: settlement.claimedAt || undefined,
     playerVaultItemsClaimedAt: settlement.playerVaultItemsClaimedAt || undefined,
+    playerVaultItemsClaimedCount: clampInt(settlement.playerVaultItemsClaimedCount, 0, 999999, 0),
+    playerVaultItemsRejectedCount: clampInt(settlement.playerVaultItemsRejectedCount, 0, 999999, 0),
   };
 }
 

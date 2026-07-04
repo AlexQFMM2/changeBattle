@@ -39,7 +39,10 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
         <dl>
           <div><dt>获得 BP</dt><dd>{settlement.bpGained}</dd></div>
           <div><dt>胜场</dt><dd>{settlement.wonRounds}/7</dd></div>
-          <div><dt>净收益</dt><dd>{settlement.coinSummary.net >= 0 ? "+" : ""}{settlement.coinSummary.net}</dd></div>
+          <div>
+            <dt>{settlement.playerVaultItemsRejectedCount ? "箱子已满" : "道具入库"}</dt>
+            <dd>{settlement.playerVaultItemsRejectedCount ? `${settlement.playerVaultItemsRejectedCount} 未入` : `+${settlement.playerVaultItemsClaimedCount || 0}`}</dd>
+          </div>
           <div><dt>余额</dt><dd>{settlement.coinSummary.balance}</dd></div>
         </dl>
         <div className="formal-settlement-actions">
@@ -67,7 +70,12 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
             <Metric label="出场" value={`${selected.usedRounds.length || 0} 场`} />
           </div>
         </section>
-      ) : null}
+      ) : (
+        <section className="formal-settlement-card formal-settlement-card-empty">
+          <strong>暂无战斗统计</strong>
+          <span>可以导出结算数据查看本局明细。</span>
+        </section>
+      )}
 
       <section className="formal-settlement-roster" aria-label="本局使用过的宝可梦">
         {stats.map(entry => (

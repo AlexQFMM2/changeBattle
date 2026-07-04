@@ -19,7 +19,7 @@
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: 136px 1fr 116px;
+  grid-template-columns: 128px minmax(0, 1fr) 136px;
   align-items: center;
   gap: 8px;
   height: 54px;
@@ -53,8 +53,8 @@
 
 .formal-settlement-header dl {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
   margin: 0;
 }
 
@@ -71,26 +71,50 @@
 .formal-settlement-header dd {
   margin: 0;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 1000;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .formal-settlement-header button,
 .formal-settlement-empty button {
   min-height: 26px;
+  padding: 0 8px;
   border: 1px solid rgb(255 231 160 / 58%);
   border-radius: 4px;
   background: linear-gradient(180deg, rgb(113 82 40), rgb(57 39 28));
   color: #fff7d9;
   font-size: 11px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .formal-settlement-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
+}
+
+.formal-settlement-card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.formal-settlement-card-empty strong {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 1000;
+}
+
+.formal-settlement-card-empty span {
+  color: rgb(255 241 191 / 76%);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .formal-settlement-card {

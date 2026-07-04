@@ -57,8 +57,8 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
     }
     async function claimPlayerVaultItems(nextRun: FormalGameRunV4): Promise<{run: FormalGameRunV4; playerVault: PlayerVaultV4}> {
       if (!nextRun.settlement || nextRun.settlement.playerVaultItemsClaimedAt) return {run: nextRun, playerVault};
-      const nextVault = api.mergeFormalRunBagIntoPlayerVault(playerVault, nextRun);
-      const savedVault = onSavePlayerVault ? await onSavePlayerVault(nextVault) : await api.savePlayerVault(nextVault);
+      const mergeResult = api.mergeFormalRunBagIntoPlayerVault(playerVault, nextRun);
+      const savedVault = onSavePlayerVault ? await onSavePlayerVault(mergeResult.vault) : await api.savePlayerVault(mergeResult.vault);
       const claimedAt = new Date().toISOString();
       return {
         run: {
@@ -66,6 +66,8 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
           settlement: {
             ...nextRun.settlement,
             playerVaultItemsClaimedAt: claimedAt,
+            playerVaultItemsClaimedCount: mergeResult.depositedItemCount,
+            playerVaultItemsRejectedCount: mergeResult.rejectedItemCount,
           },
           updatedAt: claimedAt,
         },
@@ -83,7 +85,7 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
       <TrainingRunTransitionPage
         title="结算本局"
         detail="正在整理 BP、金币流水、背包资产和宝可梦战绩"
-        tip={error || "正在计算 MVP、KDA、输出、承伤，并把本局背包道具写入玩家资产。"}
+        tip={error || "正在计算 MVP、KDA、输出、承伤，并把本局背包道具写入道具存储箱。"}
         onReady={() => setReady(true)}
       />
     </section>
