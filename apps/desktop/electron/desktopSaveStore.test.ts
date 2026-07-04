@@ -146,6 +146,8 @@ function sampleProfile(name: string): UserProfileV2 {
 function samplePlayerVault(): PlayerVaultV4 {
   return {
     version: 1,
+    itemStoragePageCount: 2,
+    pokemonStoragePageCount: 2,
     items: [
       {itemId: "potion", quantity: 3},
       {itemId: "leftovers", quantity: 1},

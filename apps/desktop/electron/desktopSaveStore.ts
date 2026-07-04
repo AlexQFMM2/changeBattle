@@ -82,20 +82,22 @@ export class DesktopSaveStoreV2 {
 
   async loadPlayerVault(): Promise<PlayerVaultV4 | null> {
     const [itemsTable, pokemonTable] = await Promise.all([
-      this.readNullableTable<Pick<PlayerVaultV4, "version" | "items">>("playerItem"),
-      this.readNullableTable<Pick<PlayerVaultV4, "version" | "pokemon">>("playerPokemon"),
+      this.readNullableTable<Pick<PlayerVaultV4, "version" | "items" | "itemStoragePageCount">>("playerItem"),
+      this.readNullableTable<Pick<PlayerVaultV4, "version" | "pokemon" | "pokemonStoragePageCount">>("playerPokemon"),
     ]);
     if (!itemsTable && !pokemonTable) return null;
     return {
       version: 1,
       items: itemsTable?.items || [],
       pokemon: pokemonTable?.pokemon || [],
+      itemStoragePageCount: itemsTable?.itemStoragePageCount || 2,
+      pokemonStoragePageCount: pokemonTable?.pokemonStoragePageCount || 2,
     };
   }
 
   async savePlayerVault(vault: PlayerVaultV4): Promise<PlayerVaultV4> {
-    await this.writeTable("playerItem", {version: 1, items: vault.items});
-    await this.writeTable("playerPokemon", {version: 1, pokemon: vault.pokemon});
+    await this.writeTable("playerItem", {version: 1, items: vault.items, itemStoragePageCount: vault.itemStoragePageCount});
+    await this.writeTable("playerPokemon", {version: 1, pokemon: vault.pokemon, pokemonStoragePageCount: vault.pokemonStoragePageCount});
     return clone(vault);
   }
 
