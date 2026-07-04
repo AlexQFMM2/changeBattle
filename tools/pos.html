@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>星图坐标打点工具</title>
+    <style>
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          'Noto Sans',
+          'PingFang SC',
+          'Hiragino Sans GB',
+          'Microsoft YaHei',
+          sans-serif;
+        background: #f6f7fb;
+        color: #111827;
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 20px auto;
+        padding: 0 16px;
+      }
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      button {
+        appearance: none;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      label {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      input[type='range'] {
+        width: 120px;
+      }
+      input[type='number'] {
+        width: 70px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 8px;
+        font: inherit;
+      }
+      button:hover {
+        background: #f3f4f6;
+      }
+      .meta {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+      canvas {
+        width: 100%;
+        max-width: 900px;
+        height: auto;
+        border-radius: 14px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+        display: block;
+      }
+      .panel {
+        margin-top: 12px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 12px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        resize: vertical;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+          monospace;
+        font-size: 13px;
+      }
+      .small {
+        font-size: 12px;
+        opacity: 0.75;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="toolbar">
+        <button id="exportBtn">导出并清空</button>
+        <button id="undoBtn">撤销</button>
+        <button id="clearBtn">清空</button>
+        <label><input id="imageToggle" type="checkbox" checked /> 叠底图</label>
+        <label><input id="lineToggle" type="checkbox" checked /> 连线</label>
+        <label><input id="snapToggle" type="checkbox" checked /> 吸附网格</label>
+        <label>图片透明度 <input id="opacityInput" type="range" min="0" max="1" step="0.05" value="0.45" /></label>
+        <label>缩放导出 <input id="scaleInput" type="number" min="0.1" step="0.1" value="1" /></label>
+        <div class="meta">点击画布记录坐标。坐标系原点在<strong>中心</strong>，X 向右为正，Y 向下为正，和星图 catalog 的 x/y 更接近。</div>
+      </div>
+
+      <canvas id="c" width="800" height="800"></canvas>
+
+      <div class="panel">
+        <div class="meta">导出结果（会自动清空本次记录）：</div>
+        <textarea
+          id="out"
+          readonly
+          placeholder="点击“导出”后，这里会显示坐标数组和 starChartCatalog 可粘贴片段"
+        ></textarea>
+        <div class="small">说明：默认参考图路径为 ../../ui-refrence/star.png；如果文件位置变了，改脚本里的 imageSrc 即可。</div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('c')
+      const ctx = canvas.getContext('2d')
+      const exportBtn = document.getElementById('exportBtn')
+      const undoBtn = document.getElementById('undoBtn')
+      const clearBtn = document.getElementById('clearBtn')
+      const out = document.getElementById('out')
+      const imageToggle = document.getElementById('imageToggle')
+      const lineToggle = document.getElementById('lineToggle')
+      const snapToggle = document.getElementById('snapToggle')
+      const opacityInput = document.getElementById('opacityInput')
+      const scaleInput = document.getElementById('scaleInput')
+
+      // ===== 配置：坐标系与网格 =====
+      const grid = 20 // 每格像素大小；坐标步长也会是 1（取整后的格点坐标）
+      const axisColor = '#111827'
+      const gridColor = '#e5e7eb'
+      const pointColor = '#ef4444'
+      const lineColor = '#2563eb'
+      const imageSrc = '../../ui-refrence/star.png'
+      const center = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+      }
+      const referenceImage = new Image()
+      referenceImage.onload = draw
+      referenceImage.src = imageSrc
+
+      // 记录点：使用星图式坐标，中心为原点，X 向右为正，Y 向下为正。
+      let points = []
+
+      function drawReferenceImage() {
+        if (!imageToggle.checked || !referenceImage.complete || !referenceImage.naturalWidth) return
+        const scale = Math.min(canvas.width / referenceImage.naturalWidth, canvas.height / referenceImage.naturalHeight)
+        const width = referenceImage.naturalWidth * scale
+        const height = referenceImage.naturalHeight * scale
+        const x = (canvas.width - width) / 2
+        const y = (canvas.height - height) / 2
+        ctx.save()
+        ctx.globalAlpha = Number(opacityInput.value || 0.45)
+        ctx.globalCompositeOperation = 'multiply'
+        ctx.drawImage(referenceImage, x, y, width, height)
+        ctx.restore()
+      }
+
+      // 把记录点画出来
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.fillStyle = '#fff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        drawReferenceImage()
+
+        // 背景网格
+        ctx.save()
+        ctx.strokeStyle = gridColor
+        ctx.lineWidth = 1
+
+        for (let x = 0; x <= canvas.width; x += grid) {
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, canvas.height)
+          ctx.stroke()
+        }
+        for (let y = 0; y <= canvas.height; y += grid) {
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(canvas.width, y)
+          ctx.stroke()
+        }
+        ctx.restore()
+
+        // 坐标轴：中心为原点。
+        ctx.save()
+        ctx.strokeStyle = axisColor
+        ctx.lineWidth = 2
+
+        // X轴
+        ctx.beginPath()
+        ctx.moveTo(0, center.y)
+        ctx.lineTo(canvas.width, center.y)
+        ctx.stroke()
+
+        // Y轴
+        ctx.beginPath()
+        ctx.moveTo(center.x, 0)
+        ctx.lineTo(center.x, canvas.height)
+        ctx.stroke()
+
+        // 轴箭头（可选）
+        // X箭头
+        ctx.beginPath()
+        ctx.moveTo(canvas.width, center.y)
+        ctx.lineTo(canvas.width - 12, center.y - 6)
+        ctx.lineTo(canvas.width - 12, center.y + 6)
+        ctx.closePath()
+        ctx.fillStyle = axisColor
+        ctx.fill()
+
+        // Y箭头，星图坐标 Y 向下为正。
+        ctx.beginPath()
+        ctx.moveTo(center.x, canvas.height)
+        ctx.lineTo(center.x - 6, canvas.height - 12)
+        ctx.lineTo(center.x + 6, canvas.height - 12)
+        ctx.closePath()
+        ctx.fillStyle = axisColor
+        ctx.fill()
+
+        ctx.restore()
+
+        // 在角上标注坐标系提示
+        ctx.save()
+        ctx.fillStyle = '#111827'
+        ctx.font =
+          "14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+        ctx.fillText('中心原点(0,0)', center.x + 8, center.y - 8)
+        ctx.fillText(`网格:${grid}px`, 8, 18)
+        ctx.restore()
+
+        if (lineToggle.checked && points.length > 1) {
+          ctx.save()
+          ctx.strokeStyle = lineColor
+          ctx.lineWidth = 3
+          ctx.setLineDash([8, 6])
+          ctx.beginPath()
+          points.forEach(([x, y], index) => {
+            const px = center.x + x
+            const py = center.y + y
+            if (index === 0) ctx.moveTo(px, py)
+            else ctx.lineTo(px, py)
+          })
+          ctx.stroke()
+          ctx.restore()
+        }
+
+        // 画已记录点
+        for (const [index, [x, y]] of points.entries()) {
+          const px = center.x + x
+          const py = center.y + y
+
+          // 点
+          ctx.save()
+          ctx.fillStyle = pointColor
+          ctx.strokeStyle = '#7f1d1d'
+          ctx.lineWidth = 2
+
+          ctx.beginPath()
+          ctx.arc(px, py, 5, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.stroke()
+
+          // 标注
+          ctx.font =
+            "13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+          ctx.fillStyle = '#991b1b'
+          ctx.fillText(`${index + 1}: (${x},${y})`, px + 8, py - 8)
+          ctx.restore()
+        }
+      }
+
+      function getCoordFromMouseEvent(e) {
+        const rect = canvas.getBoundingClientRect()
+        const mx = e.clientX - rect.left
+        const my = e.clientY - rect.top
+
+        const scaleX = canvas.width / rect.width
+        const scaleY = canvas.height / rect.height
+        const px = mx * scaleX
+        const py = my * scaleY
+
+        let x = px - center.x
+        let y = py - center.y
+
+        if (snapToggle.checked) {
+          x = Math.round(x / grid) * grid
+          y = Math.round(y / grid) * grid
+        } else {
+          x = Math.round(x)
+          y = Math.round(y)
+        }
+
+        return [x, y]
+      }
+
+      canvas.addEventListener('click', (e) => {
+        const [x, y] = getCoordFromMouseEvent(e)
+        points.push([x, y])
+        draw()
+      })
+
+      exportBtn.addEventListener('click', () => {
+        const scale = Math.max(0.1, Number(scaleInput.value || 1))
+        const scaledPoints = points.map(([x, y]) => [Math.round(x / scale), Math.round(y / scale)])
+        const tupleText = '[' + scaledPoints.map(([x, y]) => `(${x},${y})`).join(',') + ']'
+        const objectText = JSON.stringify(scaledPoints.map(([x, y]) => ({x, y})), null, 2)
+        const catalogText = scaledPoints.map(([x, y], index) => `// point ${index + 1}\nx: ${x},\ny: ${y},`).join('\n\n')
+
+        out.value = [
+          `tuples = ${tupleText}`,
+          '',
+          `objects = ${objectText}`,
+          '',
+          `starChartCatalog snippets:`,
+          catalogText,
+        ].join('\n')
+
+        // 清空记录数组
+        points = []
+        draw()
+      })
+
+      undoBtn.addEventListener('click', () => {
+        points.pop()
+        draw()
+      })
+
+      clearBtn.addEventListener('click', () => {
+        points = []
+        draw()
+      })
+
+      for (const control of [imageToggle, lineToggle, snapToggle, opacityInput, scaleInput]) {
+        control.addEventListener('input', draw)
+        control.addEventListener('change', draw)
+      }
+
+      // 初始化画面
+      draw()
+    </script>
+  </body>
+</html>

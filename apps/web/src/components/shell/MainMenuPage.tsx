@@ -10,7 +10,7 @@ import "./MainMenuPage.css";
 
 export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onManualSave, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onManualSave, onBattlePreference, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -26,7 +26,6 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   onTrainerVaultBag: () => void;
   onTrainerVaultPokemon: () => void;
   onManualSave: () => void;
-  onTestMode: () => void;
   onBattlePreference: () => void;
   onUserInfo: () => void;
   onTitle: () => void;
@@ -39,14 +38,13 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   const mainMenuItems: MainMenuCommandItem[] = [
     ...(continueGameLabel && onContinueGame ? [{label: continueGameLabel, action: onContinueGame}] : []),
     {label: "开始新游戏", action: () => setGameMenuOpen(true), instant: true},
-    {label: "我的背包", action: onTrainerVaultBag},
-    {label: "我的宝可梦", action: onTrainerVaultPokemon},
-    {label: manualSaveLabel(manualSaveState), action: onManualSave, instant: true},
+    {label: "图鉴", action: onOpenDex, instant: true},
     {label: "训练家星图", action: onStarChart},
     {label: "对局偏好", action: onBattlePreference},
+    {label: "我的背包", action: onTrainerVaultBag},
+    {label: "我的宝可梦", action: onTrainerVaultPokemon},
     {label: "玩家设置", action: onUserInfo},
-    {label: "图鉴", action: onOpenDex, instant: true},
-    {label: "测试模式", action: enableTestMode, instant: true},
+    {label: manualSaveLabel(manualSaveState), action: onManualSave, instant: true},
     {label: "回到主页", action: onTitle},
   ];
   const gameMenuItems: MainMenuCommandItem[] = [
@@ -98,11 +96,6 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
     setNotice(message);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     noticeTimerRef.current = window.setTimeout(() => setNotice(null), 1400);
-  }
-
-  function enableTestMode() {
-    onTestMode();
-    showNotice("测试模式已开启：BP 99999");
   }
 
   return (

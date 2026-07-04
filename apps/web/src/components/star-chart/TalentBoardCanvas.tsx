@@ -1,6 +1,6 @@
 import type {CSSProperties, PointerEvent, WheelEvent} from "react";
 import type {StarChartNodeViewV4} from "@changebattle-v2/api";
-import {talentCategoryHubs, talentGraphBounds, talentLinkPath, talentNodeLevel, talentNodePoint, talentNodeState, talentRouteClass, type TalentViewState} from "./talentGraph";
+import {talentGraphBounds, talentLinkPath, talentNodeLevel, talentNodePoint, talentNodeState, talentRouteClass, type TalentViewState} from "./talentGraph";
 import "./TalentBoardCanvas.css";
 
 export function TalentBoardCanvas({catalog, selectedId, view, onSelectNode, onPointerDown, onPointerMove, onPointerUp, onWheel}: {catalog: StarChartNodeViewV4[]; selectedId: string; view: TalentViewState; onSelectNode: (node: StarChartNodeViewV4) => void; onPointerDown: (event: PointerEvent<HTMLDivElement>) => void; onPointerMove: (event: PointerEvent<HTMLDivElement>) => void; onPointerUp: (event: PointerEvent<HTMLDivElement>) => void; onWheel: (event: WheelEvent<HTMLDivElement>) => void}) {
@@ -8,8 +8,6 @@ export function TalentBoardCanvas({catalog, selectedId, view, onSelectNode, onPo
   const graphBounds = talentGraphBounds(catalog);
   const graphWidth = graphBounds.maxX - graphBounds.minX;
   const graphHeight = graphBounds.maxY - graphBounds.minY;
-  const categoryHubs = talentCategoryHubs(catalog);
-  const root = catalog.find(node => node.id === "root_trainer_star");
   const nodePoints = new Map(catalog.map((node, index) => [node.id, talentNodePoint(catalog, node, index)]));
 
   return (
@@ -25,17 +23,19 @@ export function TalentBoardCanvas({catalog, selectedId, view, onSelectNode, onPo
         }}
       >
         <svg className="talent-board-links" viewBox={`${graphBounds.minX} ${graphBounds.minY} ${graphWidth} ${graphHeight}`} aria-hidden="true">
-          {root ? Array.from(categoryHubs.values()).map(hub => (
-            <path className={`trunk ${hub.active ? "active" : "available"}`} d={talentLinkPath(nodePoints.get(root.id) || root, hub)} key={`trunk-${hub.category}`} />
-          )) : null}
           {catalog.flatMap(node => (node.requires || []).map(requirement => {
             const from = nodeById.get(requirement.id);
             if (!from) return null;
-            const hub = requirement.id === "root_trainer_star" ? categoryHubs.get(node.category) : null;
             const requirementMet = talentNodeLevel(nodeById, from.id) >= Math.max(1, Number(requirement.level || 1));
             const childActive = talentNodeLevel(nodeById, node.id) > 0;
             const stateClass = childActive ? "active" : requirementMet ? "available" : "locked";
-            return <path className={`${stateClass} ${hub ? "branch" : ""}`} d={talentLinkPath(hub || nodePoints.get(from.id) || from, nodePoints.get(node.id) || node)} key={`${from.id}-${node.id}-${requirement.level || 1}`} />;
+            return (
+              <path
+                className={`${stateClass} ${requirement.id === "root_trainer_star" ? "trunk" : "branch"}`}
+                d={talentLinkPath(nodePoints.get(from.id) || from, nodePoints.get(node.id) || node)}
+                key={`${from.id}-${node.id}-${requirement.level || 1}`}
+              />
+            );
           }))}
         </svg>
         {catalog.map(node => {

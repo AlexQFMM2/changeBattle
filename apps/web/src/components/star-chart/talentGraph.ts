@@ -35,7 +35,7 @@ export type TalentDetailModel = {
 
 export const TALENT_INITIAL_VIEW: TalentViewState = {x: 0, y: 0, scale: 0.78};
 
-const TALENT_CATEGORY_ORDER = ["开局筹备", "整备器械", "情报规划", "交换筑队", "养成改造", "经济运营", "奇遇预留"];
+const TALENT_CATEGORY_ORDER = ["开局筹备", "情报筹备", "交换契约", "医疗保障", "养成改造", "经济运营", "整备器械", "奇遇预留"];
 
 export function talentNodePoint(catalog: StarChartNodeViewV4[], node: StarChartNodeViewV4, index = catalog.indexOf(node)): {x: number; y: number} {
   const hasExplicitPosition = node.x !== undefined || node.y !== undefined;
@@ -84,8 +84,9 @@ export function talentNodeState(nodeById: Map<string, StarChartNodeViewV4>, node
 export function talentRouteClass(category?: string): string {
   if (category === "开局筹备") return "starter";
   if (category === "整备器械") return "gear";
-  if (category === "情报规划") return "intel";
-  if (category === "交换筑队") return "exchange";
+  if (category === "情报规划" || category === "情报筹备") return "intel";
+  if (category === "交换筑队" || category === "交换契约") return "exchange";
+  if (category === "医疗保障") return "medical";
   if (category === "养成改造") return "growth";
   if (category === "经济运营") return "economy";
   if (category === "奇遇预留") return "event";
@@ -148,12 +149,7 @@ export function talentLinkPath(from: {x?: number; y?: number}, to: {x?: number; 
   const y1 = Number(from.y || 0);
   const x2 = Number(to.x || 0);
   const y2 = Number(to.y || 0);
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const bend = Math.max(-70, Math.min(70, (Math.abs(dx) - Math.abs(dy)) * 0.12));
-  const cx = x1 + dx * 0.52 - dy * 0.08;
-  const cy = y1 + dy * 0.52 + bend;
-  return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+  return `M ${x1} ${y1} L ${x2} ${y2}`;
 }
 
 export function talentDetailModel(nodeById: Map<string, StarChartNodeViewV4>, selected: StarChartNodeViewV4 | undefined, bp: number): TalentDetailModel {

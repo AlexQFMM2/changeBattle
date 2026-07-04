@@ -495,7 +495,6 @@ function RoutedApp({runtime}: AppProps) {
         onTrainerVaultPokemon={() => navigate("/trainer-vault/pokemon")}
         onManualSave={() => void saveAllCurrentState()}
         manualSaveState={manualSaveState}
-        onTestMode={() => void enableTestMode()}
         onBattlePreference={() => navigate("/battle-preference")}
         onUserInfo={startEdit}
         onTitle={() => navigate("/", {replace: true})}

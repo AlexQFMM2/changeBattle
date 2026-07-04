@@ -58,11 +58,11 @@
 }
 
 .talent-board-links path.trunk {
-  stroke-width: 10;
+  stroke-width: 8;
 }
 
 .talent-board-links path.branch {
-  stroke-width: 6;
+  stroke-width: 5;
 }
 
 .talent-board-links path.available {
@@ -203,6 +203,7 @@
 .talent-board-node.gear { --node-color: #4ad86c; }
 .talent-board-node.intel { --node-color: #62c7ff; }
 .talent-board-node.exchange { --node-color: #54e0c8; }
+.talent-board-node.medical { --node-color: #ff7fb2; }
 .talent-board-node.growth { --node-color: #bb80ff; }
 .talent-board-node.economy { --node-color: #ff8658; }
 .talent-board-node.event { --node-color: #b8b0a4; }
