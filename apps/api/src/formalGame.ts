@@ -428,6 +428,8 @@ export type FormalGameRunV4 = {
   roundSettlementByNodeId?: Record<string, FormalRoundSettlementV4>;
   exchangeByNodeId?: Record<string, FormalPokemonExchangeStateV4>;
   settlement: FormalGameSettlementV4 | null;
+  settled: boolean;
+  settledAt?: string;
 };
 
 export type FormalRoundSettlementV4 = {
@@ -469,6 +471,7 @@ export type FormalGameSettlementV4 = {
   diagnostics: string[];
   createdAt: string;
   claimedAt?: string;
+  playerVaultItemsClaimedAt?: string;
 };
 
 export type FormalSettlementPokemonStatsV4 = {
@@ -672,6 +675,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       currentRoundIndex: 0,
       money: formalStartingMoneyForStarChartV4(profile.starChart),
       settlement: null,
+      settled: false,
+      settledAt: undefined,
     };
     return normalizeFormalRun(run);
   }
@@ -697,6 +702,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restRunSnapshot: null,
       currentRoundIndex: 0,
       settlement: null,
+      settled: false,
+      settledAt: undefined,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -733,6 +740,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restRunSnapshot: null,
       currentRoundIndex: 0,
       settlement: null,
+      settled: false,
+      settledAt: undefined,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -755,6 +764,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       currentRoundIndex: 0,
       money: Number.isFinite(Number(normalized.money)) ? normalized.money : formalStartingMoneyForStarChartV4(normalized.starChartSnapshot),
       settlement: null,
+      settled: false,
+      settledAt: undefined,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -1792,6 +1803,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
 
   function prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4 {
     const normalized = normalizeFormalRun(run);
+    if (normalized.settled) return normalized;
     if (normalized.settlement) return normalized;
     const restRunSnapshot = normalized.restRunSnapshot;
     const now = new Date().toISOString();
@@ -1831,6 +1843,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       ...normalized,
       status: "ended",
       settlement,
+      settled: true,
+      settledAt: now,
       restRunSnapshot: restRunSnapshot ? {
         ...restRunSnapshot,
         status: "ended",
@@ -1849,6 +1863,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const battlePreference = normalizeBattlePreferenceV4(run.battlePreference);
     const starterCandidates = Array.isArray(run.starterCandidates) ? run.starterCandidates.map(normalizeStarterCandidate) : [];
     const selectedStarterIndexes = Array.isArray(run.selectedStarterIndexes) ? Array.from(new Set(run.selectedStarterIndexes.map(index => Math.floor(Number(index))).filter(index => index >= 0 && index < starterCandidates.length))) : [];
+    const settlement = normalizeSettlement(run.settlement);
+    const hasSettledFlag = typeof (run as FormalGameRunV4 & {settled?: unknown}).settled === "boolean";
+    const settled = hasSettledFlag ? Boolean((run as FormalGameRunV4 & {settled?: boolean}).settled) : true;
     return {
       version: FORMAL_RUN_VERSION,
       id: run.id || createId("formal-run"),
@@ -1876,7 +1893,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       trainingGroundByNodeId: normalizeFormalTrainingGroundByNodeId(run.trainingGroundByNodeId),
       roundSettlementByNodeId: normalizeFormalRoundSettlementByNodeId(run.roundSettlementByNodeId),
       exchangeByNodeId: normalizeFormalPokemonExchangeByNodeId(run.exchangeByNodeId),
-      settlement: normalizeSettlement(run.settlement),
+      settlement,
+      settled,
+      settledAt: settled ? run.settledAt || settlement?.createdAt || undefined : undefined,
     };
   }
 
@@ -4455,6 +4474,7 @@ function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefin
     diagnostics: Array.isArray(settlement.diagnostics) ? settlement.diagnostics.map(String) : [],
     createdAt: settlement.createdAt || new Date().toISOString(),
     claimedAt: settlement.claimedAt || undefined,
+    playerVaultItemsClaimedAt: settlement.playerVaultItemsClaimedAt || undefined,
   };
 }
 

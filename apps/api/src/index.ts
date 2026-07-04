@@ -260,6 +260,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     savePlayerVault: async (vault: PlayerVaultV4) => playerVaults.savePlayerVault(normalizePlayerVault(vault)),
     deletePlayerVault: () => playerVaults.deletePlayerVault(),
     normalizePlayerVault,
+    mergeFormalRunBagIntoPlayerVault,
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
     loadUserProfile: async () => {
       const profile = await userProfiles.loadUserProfile();
@@ -608,6 +609,20 @@ export function normalizePlayerVault(value?: unknown): PlayerVaultV4 {
     items: Array.from(itemTotals.entries()).map(([itemId, quantity]) => ({itemId, quantity})),
     pokemon,
   };
+}
+
+export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefined | null, run: FormalGameRunV4 | undefined | null): PlayerVaultV4 {
+  const next = normalizePlayerVault(vault);
+  const itemTotals = new Map(next.items.map(item => [item.itemId, item.quantity]));
+  for (const item of run?.restRunSnapshot?.players.p1?.bag.items || []) {
+    const itemId = normalizeNonEmptyText(item.itemID);
+    if (!itemId || item.type === "system" || item.type === "system-battle") continue;
+    itemTotals.set(itemId, (itemTotals.get(itemId) || 0) + 1);
+  }
+  return normalizePlayerVault({
+    ...next,
+    items: Array.from(itemTotals.entries()).map(([itemId, quantity]) => ({itemId, quantity})),
+  });
 }
 
 function normalizePlayerItemRecord(value: unknown): PlayerItemRecordV4 | null {

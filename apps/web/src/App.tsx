@@ -344,11 +344,11 @@ function RoutedApp({runtime}: AppProps) {
       setMessage("没有可继续的正式游戏存档。");
       return;
     }
-    setFormalRun(current);
-    if (current.settlement) {
-      navigate("/formal/settlement", {replace: true});
+    if (!isFormalRunContinuable(current)) {
+      setMessage("正式游戏存档已结算，请开始新游戏。");
       return;
     }
+    setFormalRun(current);
     if (current.restRunSnapshot) {
       if (hasUnsettledFormalWonRound(current)) {
         navigate("/formal/battle-result-transition", {replace: true});
@@ -373,7 +373,7 @@ function RoutedApp({runtime}: AppProps) {
   }
 
   async function continueSavedRunGame() {
-    if (formalRun) {
+    if (isFormalRunContinuable(formalRun)) {
       await continueFormalRun();
       return;
     }
@@ -906,11 +906,14 @@ function RoutedApp({runtime}: AppProps) {
         formalGameBridge={formalGameBridge}
         run={formalRun}
         profile={profile}
+        playerVault={playerVault}
         reason={settlementReason}
         onSaveProfile={userProfileAdapter.saveUserProfile}
-        onSettled={(run, nextProfile) => {
+        onSavePlayerVault={api.savePlayerVault}
+        onSettled={(run, nextProfile, nextPlayerVault) => {
           setFormalRun(run);
           setProfile(nextProfile);
+          setPlayerVault(nextPlayerVault);
           navigate("/formal/settlement", {replace: true});
         }}
       />
@@ -1010,9 +1013,13 @@ function isFormalBossRound(run: FormalGameRunV4 | null): boolean {
 }
 
 function continueGameLabelFor(formalRun: FormalGameRunV4 | null, trainingRun: TrainingRunGameV4 | null): string | undefined {
-  if (formalRun) return `继续游戏（${formalModeLabel(formalRun.mode)}）`;
+  if (isFormalRunContinuable(formalRun)) return `继续游戏（${formalModeLabel(formalRun.mode)}）`;
   if (trainingRun) return "继续游戏（训练场）";
   return undefined;
+}
+
+function isFormalRunContinuable(run: FormalGameRunV4 | null | undefined): run is FormalGameRunV4 {
+  return Boolean(run && run.settled === false);
 }
 
 function formalModeLabel(mode: FormalGameModeV4): string {

@@ -154,15 +154,18 @@ export function starChartHasVictoryDividendV4(starChart?: StarChartStateV4 | nul
 }
 
 export function starChartHasEmergencyBackpackV4(starChart?: StarChartStateV4 | null): boolean {
-  return starChartNodeLevelV4(starChart, EMERGENCY_BACKPACK_NODE_ID) > 0;
+  void starChart;
+  return false;
 }
 
 export function starChartHasLaunchKitV4(starChart?: StarChartStateV4 | null): boolean {
-  return starChartNodeLevelV4(starChart, LAUNCH_KIT_NODE_ID) > 0;
+  void starChart;
+  return false;
 }
 
 export function starChartHasMovePreviewV4(starChart?: StarChartStateV4 | null): boolean {
-  return starChartNodeLevelV4(starChart, MOVE_PREVIEW_NODE_ID) > 0;
+  void starChart;
+  return false;
 }
 
 export function starChartHasEmergencyMedicalCareV4(starChart?: StarChartStateV4 | null): boolean {
@@ -174,7 +177,8 @@ export function starChartHasOutpatientMedicalCareV4(starChart?: StarChartStateV4
 }
 
 export function starChartHasBattlePracticeMasteryV4(starChart?: StarChartStateV4 | null): boolean {
-  return starChartNodeLevelV4(starChart, BATTLE_PRACTICE_MASTERY_NODE_ID) > 0;
+  void starChart;
+  return false;
 }
 
 export function starChartHasOpponentRumorV4(starChart?: StarChartStateV4 | null): boolean {

@@ -65,6 +65,7 @@ async function handleRequest(request: FormalComputeRequest): Promise<unknown> {
   }
   if (request.method === "prepareFormalSettlement") {
     const [run, profile, reason] = request.args;
+    if (run.settled !== false) return {run, profile};
     const prepared = api.prepareFormalSettlement(run, reason);
     const nextProfile = prepared.settlement && !prepared.settlement.claimedAt
       ? await api.claimFormalSettlementBp(profile, prepared.settlement)

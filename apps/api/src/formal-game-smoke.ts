@@ -26,6 +26,7 @@ import {
   OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
   SECOND_EXCHANGE_NODE_ID,
+  SHOP_AUTO_RESTOCK_NODE_ID,
   STARTER_ROLE_PLAN,
   TRAVEL_FUND_NODE_ID,
   VICTORY_DIVIDEND_NODE_ID,
@@ -512,91 +513,90 @@ assert(!isRandomGeneratableSpeciesFormV4("greninjabond", pokemonById.get("grenin
 let starProfile = {...profile, battlePoints: 100, starChart: normalizeStarChartV4()};
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 6, "root-only star chart should grant 6 starter candidates");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_1");
-assert(starProfile.battlePoints === 90, "more choices I should cost 10 BP");
+assert(starProfile.battlePoints === 97, "more choices I should cost 3 BP");
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 7, "more choices I should grant 7 starter candidates");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_2");
-assert(starProfile.battlePoints === 78, "more choices II should cost 12 BP");
+assert(starProfile.battlePoints === 93, "more choices II should cost 4 BP");
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 8, "more choices II should grant 8 starter candidates");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_3");
-assert(starProfile.battlePoints === 63, "more choices III should cost 15 BP");
+assert(starProfile.battlePoints === 88, "more choices III should cost 5 BP");
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 9, "more choices III should grant 9 starter candidates");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_4");
-assert(starProfile.battlePoints === 43, "more choices IV should cost 20 BP");
+assert(starProfile.battlePoints === 81, "more choices IV should cost 7 BP");
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 10, "more choices IV should grant 10 starter candidates");
 assert(!starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should be off before unlock");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_special_training_lock");
-assert(starProfile.battlePoints === 80, "special training lock should cost 20 BP");
+assert(starProfile.battlePoints === 94, "special training lock should cost 6 BP");
 assert(starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should unlock ability locks");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_east_asia_education");
-assert(starProfile.battlePoints === 65, "east asia education should cost 15 BP");
+assert(starProfile.battlePoints === 89, "east asia education should cost 5 BP");
 assert(starChartHasEastAsiaEducationV4(starProfile.starChart), "east asia education should unlock self-study probability tuning");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 1, "shop rows should start at one row");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_1");
-assert(starProfile.battlePoints === 55, "luxury counter I should cost 10 BP");
+assert(starProfile.battlePoints === 85, "luxury counter I should cost 4 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 2, "luxury counter I should unlock second shop row");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_2");
-assert(starProfile.battlePoints === 40, "luxury counter II should cost 15 BP");
+assert(starProfile.battlePoints === 80, "luxury counter II should cost 5 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 3, "luxury counter II should unlock third shop row");
 assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should be enabled by default");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 0, "root-only star chart should start with zero formal money");
 starProfile = {...starProfile, battlePoints: 200};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, TRAVEL_FUND_NODE_ID);
-assert(starProfile.battlePoints === 197, "travel fund should cost 3 BP");
+assert(starProfile.battlePoints === 199, "travel fund should cost 1 BP");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 500, "travel fund should set formal starting money to 500");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, ELITE_FUND_NODE_ID);
-assert(starProfile.battlePoints === 190, "elite fund should cost 7 BP");
+assert(starProfile.battlePoints === 196, "elite fund should cost 3 BP");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 1000, "elite fund should set formal starting money to 1000");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, CHAMPION_FUND_NODE_ID);
-assert(starProfile.battlePoints === 175, "champion fund should cost 15 BP");
+assert(starProfile.battlePoints === 191, "champion fund should cost 5 BP");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 1500, "champion fund should set formal starting money to 1500");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, VICTORY_DIVIDEND_NODE_ID);
-assert(starProfile.battlePoints === 150, "victory dividend should cost 25 BP");
+assert(starProfile.battlePoints === 182, "victory dividend should cost 9 BP");
 assert(starChartHasVictoryDividendV4(starProfile.starChart), "victory dividend should unlock settlement BP bonus");
 starProfile = {...starProfile, battlePoints: 200};
-starProfile = unlockStarChartNodeForProfileV4(starProfile, EMERGENCY_BACKPACK_NODE_ID);
-assert(starProfile.battlePoints === 190, "emergency backpack should cost 10 BP");
-assert(starChartHasEmergencyBackpackV4(starProfile.starChart), "emergency backpack should unlock starter super potions");
-starProfile = unlockStarChartNodeForProfileV4(starProfile, LAUNCH_KIT_NODE_ID);
-assert(starProfile.battlePoints === 170, "launch kit should cost 20 BP");
-assert(starChartHasLaunchKitV4(starProfile.starChart), "launch kit should unlock starter held item gifts");
-starProfile = unlockStarChartNodeForProfileV4(starProfile, MOVE_PREVIEW_NODE_ID);
-assert(starProfile.battlePoints === 145, "move preview should cost 25 BP");
-assert(starChartHasMovePreviewV4(starProfile.starChart), "move preview should unlock starter TM gifts");
+for (const removedNodeId of [SHOP_AUTO_RESTOCK_NODE_ID, EMERGENCY_BACKPACK_NODE_ID, LAUNCH_KIT_NODE_ID, MOVE_PREVIEW_NODE_ID, BATTLE_PRACTICE_MASTERY_NODE_ID]) {
+  let failedDisabledGiftUnlock = false;
+  try {
+    unlockStarChartNodeForProfileV4(starProfile, removedNodeId);
+  } catch {
+    failedDisabledGiftUnlock = true;
+  }
+  assert(failedDisabledGiftUnlock, `${removedNodeId} should be removed from star chart unlocks`);
+}
+assert(!starChartHasEmergencyBackpackV4(starProfile.starChart), "emergency backpack should be disabled for starter gifts");
+assert(!starChartHasLaunchKitV4(starProfile.starChart), "launch kit should be disabled for starter gifts");
+assert(!starChartHasMovePreviewV4(starProfile.starChart), "move preview should be disabled for starter gifts");
+assert(!starChartHasBattlePracticeMasteryV4(starProfile.starChart), "battle practice mastery should be removed");
 assert(!starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should be off before unlock");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
-assert(starProfile.battlePoints === 90, "opponent rumor should cost 10 BP");
+assert(starProfile.battlePoints === 96, "opponent rumor should cost 4 BP");
 assert(starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should unlock paid opponent preview");
 starProfile = {...starProfile, battlePoints: 200};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, LOSSLESS_EXCHANGE_NODE_ID);
-assert(starProfile.battlePoints === 175, "lossless exchange should cost 25 BP");
+assert(starProfile.battlePoints === 192, "lossless exchange should cost 8 BP");
 assert(starChartHasLosslessExchangeV4(starProfile.starChart), "lossless exchange should unlock full-hp exchange");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, ELITE_EXCHANGE_EDUCATION_NODE_ID);
-assert(starProfile.battlePoints === 145, "elite exchange education should cost 30 BP");
+assert(starProfile.battlePoints === 182, "elite exchange education should cost 10 BP");
 assert(starChartHasEliteExchangeEducationV4(starProfile.starChart), "elite exchange education should unlock exchange power profile boost");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, EXCHANGE_ITEM_STEAL_NODE_ID);
-assert(starProfile.battlePoints === 115, "exchange item steal should cost 30 BP");
+assert(starProfile.battlePoints === 172, "exchange item steal should cost 10 BP");
 assert(starChartHasExchangeItemStealV4(starProfile.starChart), "exchange item steal should keep exchanged held item");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, SECOND_EXCHANGE_NODE_ID);
-assert(starProfile.battlePoints === 75, "second exchange should cost 40 BP");
+assert(starProfile.battlePoints === 159, "second exchange should cost 13 BP");
 assert(starChartHasSecondExchangeV4(starProfile.starChart), "second exchange should unlock paid second exchange");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, FREE_MEDICAL_CARE_NODE_ID);
-assert(starProfile.battlePoints === 80, "medical insurance should cost 20 BP");
+assert(starProfile.battlePoints === 94, "medical insurance should cost 6 BP");
 assert(starChartHasFreeMedicalCareV4(starProfile.starChart), "legacy free medical helper should remain compatible");
 assert(starChartHasMedicalInsuranceV4(starProfile.starChart), "medical insurance should unlock the insurance offer");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, EMERGENCY_MEDICAL_CARE_NODE_ID);
-assert(starProfile.battlePoints === 55, "emergency medical care should cost 25 BP");
+assert(starProfile.battlePoints === 86, "emergency medical care should cost 8 BP");
 assert(starChartHasEmergencyMedicalCareV4(starProfile.starChart), "emergency medical care should unlock half-hp revive");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OUTPATIENT_MEDICAL_CARE_NODE_ID);
-assert(starProfile.battlePoints === 30, "outpatient medical care should cost 25 BP");
+assert(starProfile.battlePoints === 78, "outpatient medical care should cost 8 BP");
 assert(starChartHasOutpatientMedicalCareV4(starProfile.starChart), "outpatient medical care should unlock alive pokemon healing");
-starProfile = {...starProfile, battlePoints: 100};
-starProfile = unlockStarChartNodeForProfileV4(starProfile, BATTLE_PRACTICE_MASTERY_NODE_ID);
-assert(starProfile.battlePoints === 70, "battle practice mastery should cost 30 BP");
-assert(starChartHasBattlePracticeMasteryV4(starProfile.starChart), "battle practice mastery should unlock battle level gain");
-
 const fullStarRun = api.createFormalGameRun(starProfile, {mode: "singles", seed: "formal-smoke-full-star-seed"});
 const fullStarPrepared = api.prepareFormalStarterCandidates(fullStarRun);
 assert(fullStarPrepared.starterCandidates.length === 10, "full more choices star chart should prepare 10 candidates");
@@ -680,14 +680,12 @@ assert(roundPlanned.roundPlan[0]?.participants.p1?.localTeam.pokemon.every(pokem
 const championFundProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, TRAVEL_FUND_NODE_ID), ELITE_FUND_NODE_ID), CHAMPION_FUND_NODE_ID);
 const championFundRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(championFundProfile, {mode: "singles", seed: "formal-smoke-champion-fund-seed"})), [0, 1, 2]));
 assert(championFundRun.money === 1500, "champion fund formal run should start with 1500 money");
-const giftProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, EMERGENCY_BACKPACK_NODE_ID), LAUNCH_KIT_NODE_ID), MOVE_PREVIEW_NODE_ID);
-const giftRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(giftProfile, {mode: "singles", seed: "formal-smoke-starter-gifts-seed"})), [0, 1, 2]));
+const giftRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-starter-gifts-seed"})), [0, 1, 2]));
 const giftItems = giftRun.restRunSnapshot!.players.p1!.bag.items;
-assert(giftItems.filter(item => item.itemID === "superpotion").length === 3, "emergency backpack should grant three super potions");
-assert(["muscleband", "wiseglasses", "shellbell"].every(itemID => giftItems.some(item => item.itemID === itemID)), "launch kit should grant all starter held items");
+assert(giftItems.filter(item => item.itemID === "superpotion").length === 0, "starter gift super potions should be removed");
+assert(["muscleband", "wiseglasses", "shellbell"].every(itemID => !giftItems.some(item => item.itemID === itemID)), "starter held item gifts should be removed");
 const giftTms = giftItems.filter(item => item.itemID.startsWith("tm:"));
-assert(giftTms.length === giftRun.restRunSnapshot!.players.p1!.localTeam.pokemon.length, "move preview should grant one TM per selected pokemon");
-assert(giftTms.every(item => moveDetail(item.itemID.slice(3)).power > 0), "move preview TMs should be damaging moves");
+assert(giftTms.length === 0, "starter TM gifts should be removed");
 assert(roundPlanned.roundPlan.filter(round => round.participants.p2).every(round => (round.participants.p2?.localTeam.pokemon.length || 0) === 3), "generated singles formal opponents should bring three pokemon");
 assert(roundPlanned.roundPlan.filter(round => round.participants.p2).every(round => {
   const team = round.participants.p2?.localTeam.pokemon || [];
@@ -1215,12 +1213,12 @@ const medicalSettlement = roundSettlementMedical.roundSettlementByNodeId?.[withB
 assert(medicalSettlement?.reviveCost === 50, "medical insurance star alone should not waive revive cost without purchase");
 assert(medicalSettlement?.emergencyHealedPokemonIds.length === 1, "emergency care should record half-hp revive targets");
 assert(medicalSettlement?.outpatientHealedPokemonIds.length === 1, "outpatient care should record alive healing targets");
-assert(medicalSettlement?.leveledPokemonIds.length === 1, "battle practice mastery should level alive direct damage dealers");
+assert(medicalSettlement?.leveledPokemonIds.length === 0, "removed battle practice mastery should not level alive direct damage dealers");
 assert(roundSettlementMedical.money === withBattleLog.money + 450, "medical route without insurance purchase should still charge revive cost");
 const medicalAfterTeam = roundSettlementMedical.restRunSnapshot!.players.p1!.localTeam.pokemon;
 assert(medicalAfterTeam[1]!.entryHp === 75, "emergency care should revive fainted pokemon to half HP");
-assert(medicalAfterTeam[0]!.level === 51, "battle practice mastery should increase level by one");
-assert(medicalAfterTeam[0]!.entryHp > 20, "outpatient care should heal alive pokemon after level gain");
+assert(medicalAfterTeam[0]!.level === medicalBattlePokemon[0]!.level, "removed battle practice mastery should keep level unchanged");
+assert(medicalAfterTeam[0]!.entryHp > 20, "outpatient care should still heal alive pokemon");
 const premiumSettlementRun = api.settleFormalBattleRoundV4({
   ...withBattleLog,
   starChartSnapshot: starProfile.starChart,
