@@ -54,9 +54,10 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - 玩家长期仓库：玩家道具/宝可梦已从 profile 中拆到独立 player vault，背包仓库支持预备箱/存储箱、移动、丢弃和解锁箱页；正式结算会把本局背包道具放入长期存储箱。
 - 休整页弹窗栈：背包触发的技能学习替换、Mega/Z/太晶系统道具重铸等二级弹窗已提升到背包上方，关闭上层弹窗不会误关闭背包。
 - 通用弹窗组件：`AppModal` 已作为统一遮罩层 + 居中弹窗组件接入，后续系统弹窗优先复用它，避免局部 z-index/绝对定位造成层级错乱。
+- Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通；2026-07-04 已基于 `v2` 分支 `f8ec6aac` 重新生成 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`，大小约 597 MiB。
+- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通；2026-07-05 已基于 `v2` 分支 `2b600e22` 重新生成 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`，大小约 597 MiB。
 
 当前明确不做：
 
@@ -115,8 +116,8 @@ pnpm typecheck
 
 ```txt
 release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
-source: v2@f8ec6aac
-generated: 2026-07-04 18:37 Asia/Shanghai
+source: v2@2b600e22
+generated: 2026-07-05 00:23 Asia/Shanghai
 size: 597 MiB
 ```
 

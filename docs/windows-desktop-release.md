@@ -6,8 +6,8 @@
 
 ```text
 ChangeBattle-V2-Desk-portable-v0.1.0.zip
-source: v2@f8ec6aac
-generated: 2026-07-04 18:37 Asia/Shanghai
+source: v2@2b600e22
+generated: 2026-07-05 00:23 Asia/Shanghai
 size: 597 MiB
 ```
 
