@@ -1,6 +1,6 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、Windows Desktop portable release 都已经接入。
+一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化和 Windows Desktop portable release 都已经接入。
 
 ## Repository / Branch
 
@@ -49,10 +49,14 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - 正式休息室治疗：公告栏治疗按钮使用 `TrainingRestShopDialogue` 对话框确认，基础 250 金币，医保 basic/standard/premium 分别 9/8/5 折，成功后全队 HP/异常/PP 恢复。
 - 正式训练场：从随机课程改为自由选课，课程选择使用 NPC 对话框和 2x2 课程面板；遗传学、实践课、自学招式、自习课四类课程由用户选择后进入。
 - 正式流程稳定化：NPC 等级改为按玩家队伍最高等级动态计算，究极异兽在正式候选中统一归入神兽分类，自习收益改为等级/数值约 3:7，并继续使用逐次自习随机种子。
+- 星图天赋静态化：节点 catalog 同时声明展示文案和 `runtimeEffects`，业务侧显式读取效果；新增/移除天赋时维护静态节点、对应业务分支和 smoke 断言即可。
+- 星图新天赋“随身携带”：点亮后，每个正式 run 第一次进入休整页时，会从玩家长期仓库的预备背包随机带入最多 3 种道具，每种 1 个，并扣减预备背包库存；run 内只触发一次。
+- 玩家长期仓库：玩家道具/宝可梦已从 profile 中拆到独立 player vault，背包仓库支持预备箱/存储箱、移动、丢弃和解锁箱页；正式结算会把本局背包道具放入长期存储箱。
 - 休整页弹窗栈：背包触发的技能学习替换、Mega/Z/太晶系统道具重铸等二级弹窗已提升到背包上方，关闭上层弹窗不会误关闭背包。
+- 通用弹窗组件：`AppModal` 已作为统一遮罩层 + 居中弹窗组件接入，后续系统弹窗优先复用它，避免局部 z-index/绝对定位造成层级错乱。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通，当前 release 产物为 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`。
+- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通；2026-07-04 已基于 `v2` 分支 `f8ec6aac` 重新生成 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`，大小约 597 MiB。
 
 当前明确不做：
 
@@ -107,10 +111,13 @@ pnpm typecheck
 
 ## Desktop Release
 
-当前发布形态是 Windows Desktop portable zip，而不是安装器：
+当前发布形态是 Windows Desktop portable zip，而不是安装器。最新已验证产物：
 
 ```txt
 release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
+source: v2@f8ec6aac
+generated: 2026-07-04 18:37 Asia/Shanghai
+size: 597 MiB
 ```
 
 玩家解压后运行：

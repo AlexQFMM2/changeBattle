@@ -6,7 +6,9 @@
 
 ```text
 ChangeBattle-V2-Desk-portable-v0.1.0.zip
-source: release 构建时的 v2 分支 HEAD
+source: v2@f8ec6aac
+generated: 2026-07-04 18:37 Asia/Shanghai
+size: 597 MiB
 ```
 
 ## Release Artifact
@@ -95,6 +97,14 @@ Windows 侧最终产物：
 ```text
 D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-v0.1.0.zip
 ```
+
+2026-07-04 重新验证的包同时已拉回 Linux：
+
+```text
+/home/alexqfmm/workPlace/pokemon/changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
+```
+
+本次 release 在首次构建时暴露了 desktop player vault split table 缺少 `itemStoragePageCount/pokemonStoragePageCount` 的类型问题；已在 `f8ec6aac` 修复，并通过 Windows release checks、desktop build、IPC bundle、renderer assets 和 formal worker smoke。
 
 未跟踪目录例如 `debug/`、`release/` 不会进入源码包，也不要提交。
 
