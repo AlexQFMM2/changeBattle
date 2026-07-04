@@ -243,6 +243,9 @@ type BattleSubmitErrorV4 = {
   playbackBlockingCommands: boolean;
   commandDraft: BattleCommandDraftV4 | null;
   normalizedRequest: BattleNormalizedRequestV4 | null;
+  draftBefore?: BattleCommandDraftV4;
+  draftAfter?: BattleCommandDraftV4;
+  finalChoice?: string;
   error?: string;
 };
 
@@ -601,7 +604,15 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     };
   }, [api, debugConfig, playbackTimeline?.rawTo, playbackTimeline?.sessionId, sessionId, snapshot?.id, snapshot?.rawLog.length]);
 
-  function reportSubmitError(input: {reason: string; choice: string; trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"]; error?: unknown}) {
+  function reportSubmitError(input: {
+    reason: string;
+    choice: string;
+    trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"];
+    error?: unknown;
+    draftBefore?: BattleCommandDraftV4;
+    draftAfter?: BattleCommandDraftV4;
+    finalChoice?: string;
+  }) {
     const payload: BattleSubmitErrorV4 = {
       at: new Date().toISOString(),
       reason: input.reason,
@@ -614,11 +625,22 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       playbackBlockingCommands,
       commandDraft,
       normalizedRequest: viewModel?.command.normalizedRequest || null,
+      draftBefore: input.draftBefore,
+      draftAfter: input.draftAfter,
+      finalChoice: input.finalChoice,
       error: input.error instanceof Error ? input.error.message : input.error ? String(input.error) : undefined,
     };
     setLastSubmitError(payload);
-    console.error("[BattleV4][submit] submit choice failed", payload);
+    console.error(`[BattleV4][submit] p1 指令提交失败：${input.reason}`, payload);
     battleDebugLog(debugConfig, "error", "submit-choice-failed", payload);
+  }
+
+  function logSubmitInfo(label: string, payload: Record<string, unknown>) {
+    console.info(`[BattleV4][submit] ${label}`, {
+      playerId: "p1",
+      sessionId: sessionId || "",
+      ...payload,
+    });
   }
 
   async function submitChoice(choice: string, trainerItems: ReturnType<typeof splitBattleTrainerItemChoicesV4>["trainerItems"] = []) {
@@ -634,6 +656,12 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       reportSubmitError({reason: "submit-busy", choice, trainerItems});
       return;
     }
+    logSubmitInfo("p1 提交了指令", {
+      choice,
+      trainerItems,
+      commandsLocked,
+      playbackBlockingCommands,
+    });
     battleDebugLog(debugConfig, "submit", "submit-choice", {
       sessionId,
       playerId: "p1",
@@ -657,6 +685,13 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       setSwitchPanelOpen(false);
       setChoiceStatus(`提交成功：${choice}`);
       setMessage("");
+      logSubmitInfo("p1 指令提交成功", {
+        choice,
+        trainerItems,
+        nextStatus: next.status,
+        nextTurn: next.turn,
+        rawLogLength: next.rawLog.length,
+      });
       battleDebugLog(debugConfig, "snapshot", "after-submit", snapshotDebugSummary(next));
     } catch (error) {
       reportSubmitError({reason: trainerItems.length ? "submit-trainer-item-threw" : "submit-choice-threw", choice, trainerItems, error});
@@ -746,8 +781,33 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     if (isBattleCommandDraftDoneV4(after)) {
       setCommandMode("command");
       const split = splitBattleTrainerItemChoicesV4(after);
+      logSubmitInfo("p1 指令草稿完成，准备提交", {
+        input,
+        finalChoice,
+        trainerItems: split.trainerItems,
+        requestType: after.requestType,
+        progress: `${after.choices.filter(Boolean).length}/${after.requestLength}`,
+      });
       void submitChoice(split.choice, split.trainerItems);
       return;
+    }
+    if (before.currentMove && after.currentMove) {
+      reportSubmitError({
+        reason: "draft-choice-incomplete-after-submit",
+        choice: input,
+        trainerItems: [],
+        draftBefore: before,
+        draftAfter: after,
+        finalChoice,
+      });
+    } else {
+      logSubmitInfo("p1 指令等待补全", {
+        input,
+        finalChoice,
+        requestType: after.requestType,
+        progress: `${after.choices.filter(Boolean).length}/${after.requestLength}`,
+        currentMove: after.currentMove,
+      });
     }
     setChoiceStatus(`选择 ${after.choices.filter(Boolean).length}/${after.requestLength} 完成`);
     setCommandMode(after.requestType === "move" ? "moves" : "command");
@@ -1749,6 +1809,7 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, action, request, o
   const targetable = Boolean(viewModel.command.normalizedRequest?.targetable || request?.targetable);
   const explicitTarget = moveNeedsExplicitTargetForShowdown(moveCard.displayedMove.target || moveCard.detail?.target || action.move.target);
   const shouldChooseTarget = explicitTarget && viewModel.nearTeam.filter(slot => slot.active && !slot.fainted).length > 1;
+  const shouldSubmitTargetSuffix = explicitTarget && targetable;
   const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, shouldChooseTarget || targetable, api), [viewModel, action, moveCard.detail, shouldChooseTarget, targetable, api]);
   return (
     <section className="battle-v4-target-modal" aria-label="攻击对象选择">
@@ -1762,7 +1823,7 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, action, request, o
             target={target}
             key={target.key}
             onSelect={next => {
-              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && shouldChooseTarget);
+              const shouldUseTargetSuffix = Boolean(next.choiceSuffix && shouldSubmitTargetSuffix);
               const choice = shouldUseTargetSuffix ? withBattleMoveTargetSuffixV4(action.choice, next.choiceSuffix) : action.choice;
               onSubmit(choice);
             }}

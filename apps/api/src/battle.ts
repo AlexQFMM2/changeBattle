@@ -720,18 +720,6 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
       ) return;
       nextTeam[targetIndex] = updated;
       changed = true;
-      battleDebugLog(true, "mapping", "sync-local-team-after-battle", {
-        playerId: snapshotPlayer.playerId,
-        teamIndex: targetIndex,
-        localPokemonId: current.localPokemonId,
-        showdownIdentityToken: resolved.mapping.showdownIdentityToken,
-        before: {hp: current.entryHp, status: current.entryStatus},
-        after: {hp: updated.entryHp, status: updated.entryStatus},
-        pp: syncedMoves.map(move => ({moveId: move.moveId, remainingPp: move.remainingPp, maxPp: move.maxPp})),
-        sourceCondition: row.condition,
-        source,
-        fallbackReason: resolved.fallbackReason,
-      });
     });
     nextPlayers[snapshotPlayer.playerId] = {
       ...runPlayer,
