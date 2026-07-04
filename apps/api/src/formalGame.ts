@@ -427,6 +427,8 @@ export type FormalGameRunV4 = {
   trainingGroundByNodeId?: Record<string, FormalTrainingGroundStateV4>;
   roundSettlementByNodeId?: Record<string, FormalRoundSettlementV4>;
   exchangeByNodeId?: Record<string, FormalPokemonExchangeStateV4>;
+  portableItemsClaimedAt?: string;
+  portableItemIds?: string[];
   settlement: FormalGameSettlementV4 | null;
   settled: boolean;
   settledAt?: string;
@@ -1875,6 +1877,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       trainingGroundByNodeId: normalizeFormalTrainingGroundByNodeId(run.trainingGroundByNodeId),
       roundSettlementByNodeId: normalizeFormalRoundSettlementByNodeId(run.roundSettlementByNodeId),
       exchangeByNodeId: normalizeFormalPokemonExchangeByNodeId(run.exchangeByNodeId),
+      portableItemsClaimedAt: normalizeOptionalText(run.portableItemsClaimedAt),
+      portableItemIds: Array.isArray(run.portableItemIds)
+        ? Array.from(new Set(run.portableItemIds.map(normalizeOptionalText).filter((itemId): itemId is string => Boolean(itemId))))
+        : [],
       settlement,
       settled,
       settledAt: settled ? run.settledAt || settlement?.createdAt || undefined : undefined,
@@ -5044,6 +5050,11 @@ function createId(prefix: string): string {
   const cryptoApi = globalThis.crypto;
   if (cryptoApi?.randomUUID) return `${prefix}-${cryptoApi.randomUUID()}`;
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeOptionalText(value: unknown): string | undefined {
+  const text = String(value || "").trim();
+  return text || undefined;
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {

@@ -18,7 +18,8 @@ export type StarChartTalentEffectIdV4 =
   | "second_exchange"
   | "medical_insurance"
   | "post_battle_revive_half_hp"
-  | "post_battle_heal_alive_quarter_hp";
+  | "post_battle_heal_alive_quarter_hp"
+  | "carry_prep_items";
 
 export type StarChartTalentEffectV4 = {
   id: StarChartTalentEffectIdV4;
@@ -63,6 +64,7 @@ export const TRAVEL_FUND_NODE_ID = "starter_travel_fund" as const;
 export const ELITE_FUND_NODE_ID = "starter_elite_fund" as const;
 export const CHAMPION_FUND_NODE_ID = "starter_champion_fund" as const;
 export const VICTORY_DIVIDEND_NODE_ID = "economy_victory_dividend" as const;
+export const CARRY_PREP_ITEMS_NODE_ID = "economy_carry_prep_items" as const;
 
 export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
@@ -189,6 +191,20 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     kind: "talent",
     x: 320,
     y: -300,
+  },
+  {
+    id: CARRY_PREP_ITEMS_NODE_ID,
+    name: "随身携带",
+    category: "经济运营",
+    desc: "第一次进入正式休整页时，从预备背包随机携带少量道具。",
+    max_level: 1,
+    costs: [6],
+    requires: [{id: SHOP_MORE_STOCK_NODE_IDS[0]}],
+    effects: ["第一次进入正式休整页时，从预备背包随机携带最多 3 种道具，每种 1 个。"],
+    runtimeEffects: [{id: "carry_prep_items", value: 3}],
+    kind: "talent",
+    x: 320,
+    y: -180,
   },
   {
     id: TRAVEL_FUND_NODE_ID,

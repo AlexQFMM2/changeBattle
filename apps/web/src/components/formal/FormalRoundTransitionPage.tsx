@@ -1,13 +1,15 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, PlayerVaultV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalRoundTransitionPage({api, formalGameBridge, run, onRunReady}: {
+export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVault, onSavePlayerVault, onRunReady}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
   run: FormalGameRunV4;
-  onRunReady: (run: FormalGameRunV4) => void;
+  playerVault: PlayerVaultV4;
+  onSavePlayerVault: (vault: PlayerVaultV4) => Promise<PlayerVaultV4>;
+  onRunReady: (run: FormalGameRunV4, playerVault: PlayerVaultV4) => void;
 }) {
   const [transitionReady, setTransitionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +25,14 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, onRunRead
           ? formalGameBridge.prepareFormalRoundPlan(run)
           : Promise.resolve(api.prepareFormalRoundPlan(run));
         void plannedPromise
-          .then(planned => api.saveFormalGameRun(planned))
-          .then(saved => {
-            if (!cancelled) onRunReady(saved);
+          .then(async planned => {
+            const carryResult = api.applyFormalCarryPrepItems(planned, playerVault);
+            const savedVault = await onSavePlayerVault(carryResult.playerVault);
+            const savedRun = await api.saveFormalGameRun(carryResult.run);
+            return {savedRun, savedVault};
+          })
+          .then(({savedRun, savedVault}) => {
+            if (!cancelled) onRunReady(savedRun, savedVault);
           })
           .catch(caught => {
             if (!cancelled) setError(caught instanceof Error ? caught.message : "正式 7 场计划保存失败。");
@@ -38,7 +45,7 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, onRunRead
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [api, formalGameBridge, onRunReady, run, transitionReady]);
+  }, [api, formalGameBridge, onRunReady, onSavePlayerVault, playerVault, run, transitionReady]);
 
   return (
     <section className="formal-game-transition-wrap">

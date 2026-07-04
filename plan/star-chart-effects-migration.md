@@ -20,6 +20,7 @@
 | 专项特训 | `special_training_lock` | 休整页能力锁 UI | `formal-game-smoke` helper 与 runtime effect |
 | 东亚教育 | `self_study_probability_tuning` | 训练场自习概率 | `formal-game-smoke` helper |
 | 琳琅柜台 I-II | `shop_row_bonus: 1` | 商店每类商品行数 | `formal-game-smoke` 商店行数 1 到 3 |
+| 随身携带 | `carry_prep_items: 3` | `FormalRoundTransitionPage -> applyFormalCarryPrepItems` | `formal-game-smoke` helper 与 runtime effect |
 | 胜利分红 | `settlement_bp_dividend: 0.01` | 最终结算额外 BP | `formal-game-smoke` helper |
 | 小道消息 | `opponent_preview_unlock` | 休整页对手情报 | `formal-game-smoke` helper |
 | 无损交换 | `exchange_full_hp` | 胜利后交换 | `formal-game-smoke` helper |

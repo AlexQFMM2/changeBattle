@@ -31,8 +31,10 @@ import {
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
+  CARRY_PREP_ITEMS_NODE_ID,
   enableTestModeForProfileV4,
   FORMAL_SHOP_AUTO_RESTOCK_ENABLED,
+  formalCarryPrepItemCountForStarChartV4,
   formalStartingMoneyForStarChartV4,
   formalShopRowsForStarChartV4,
   getUnlockedStarChartRuntimeEffectsV4,
@@ -532,6 +534,10 @@ assert(formalShopRowsForStarChartV4(starProfile.starChart) === 1, "shop rows sho
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_1");
 assert(starProfile.battlePoints === 85, "luxury counter I should cost 4 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 2, "luxury counter I should unlock second shop row");
+const carryStarProfile = unlockStarChartNodeForProfileV4({...starProfile, battlePoints: 100}, CARRY_PREP_ITEMS_NODE_ID);
+assert(carryStarProfile.battlePoints === 94, "carry prep items should cost 6 BP");
+assert(formalCarryPrepItemCountForStarChartV4(carryStarProfile.starChart) === 3, "carry prep items should carry three item kinds");
+assert(starChartHasRuntimeEffectV4(carryStarProfile.starChart, "carry_prep_items"), "carry prep items should be declared as a runtime effect");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_2");
 assert(starProfile.battlePoints === 80, "luxury counter II should cost 5 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 3, "luxury counter II should unlock third shop row");

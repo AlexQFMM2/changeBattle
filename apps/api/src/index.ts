@@ -1,4 +1,4 @@
-import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
+import {createShowdownDexService, type DexItemDetail, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {
   REST_CENTER_LEFT_SIDE_ACTIONS_V4,
@@ -6,7 +6,7 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   type RestCenterActionEntryV4,
 } from "@changebattle-v2/core";
-import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BagStateV4, type BattlePreferenceV4, type LocalPokemonV4, type TrainingRunStorageAdapter} from "./training.js";
+import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BagStateV4, type BattlePreferenceV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerItemTypeV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4} from "./battle.js";
@@ -14,6 +14,7 @@ import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} 
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 import {
   enableTestModeForProfileV4,
+  formalCarryPrepItemCountForStarChartV4,
   getStarChartCatalogV4,
   normalizeBattlePointsV4,
   normalizeStarChartV4,
@@ -107,6 +108,12 @@ export type PlayerVaultMergeResultV4 = {
   vault: PlayerVaultV4;
   depositedItemCount: number;
   rejectedItemCount: number;
+};
+
+export type FormalCarryPrepItemsResultV4 = {
+  run: FormalGameRunV4;
+  playerVault: PlayerVaultV4;
+  carriedItemIds: string[];
 };
 
 export type UserProfileV2 = {
@@ -271,6 +278,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     deletePlayerVault: () => playerVaults.deletePlayerVault(),
     normalizePlayerVault,
     mergeFormalRunBagIntoPlayerVault,
+    applyFormalCarryPrepItems,
     playerVaultUnlockedStoragePageCountV4,
     playerVaultStorageCapacityV4,
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
@@ -353,6 +361,99 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     ensureDefaultSystemItemsForRuleSet: trainingRuns.ensureDefaultSystemItemsForRuleSet,
     battleService,
   };
+
+  function applyFormalCarryPrepItems(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null): FormalCarryPrepItemsResultV4 {
+    const normalizedVault = normalizePlayerVault(playerVault);
+    const carryCount = formalCarryPrepItemCountForStarChartV4(run.starChartSnapshot);
+    const restRunSnapshot = run.restRunSnapshot;
+    const p1 = restRunSnapshot?.players.p1;
+    if (carryCount <= 0 || !restRunSnapshot || !p1 || run.portableItemsClaimedAt) {
+      return {run, playerVault: normalizedVault, carriedItemIds: []};
+    }
+
+    const openSlots = Math.max(0, p1.bag.maxSize - p1.bag.items.length);
+    if (openSlots <= 0) {
+      const claimedAt = new Date().toISOString();
+      return {
+        run: {...run, portableItemsClaimedAt: claimedAt, portableItemIds: [], updatedAt: claimedAt},
+        playerVault: normalizedVault,
+        carriedItemIds: [],
+      };
+    }
+
+    const items = normalizedVault.items.map(item => ({...item}));
+    const prepRecords = items
+      .map((item, index) => ({item, index}))
+      .filter(entry => (entry.item.boxKind || "storage") === "prep" && entry.item.quantity > 0);
+    const firstByItemId = new Map<string, {item: PlayerItemRecordV4; index: number}>();
+    for (const entry of prepRecords) {
+      if (!firstByItemId.has(entry.item.itemId)) firstByItemId.set(entry.item.itemId, entry);
+    }
+
+    const shuffled = shuffleDeterministic(
+      Array.from(firstByItemId.values()),
+      `${run.seed}:carry-prep-items:${run.id}`,
+    );
+    const selected = shuffled.slice(0, Math.min(carryCount, openSlots, shuffled.length));
+    const carriedItemIds = selected.map(entry => entry.item.itemId);
+    const carriedItems = carriedItemIds.map((itemId, index) => createPortableItemInstance(itemId, run.id, index));
+    const claimedAt = new Date().toISOString();
+    const nextP1: TrainingPlayerDraftV4 = {
+      ...p1,
+      bag: {
+        ...p1.bag,
+        items: [...p1.bag.items, ...carriedItems].slice(0, p1.bag.maxSize),
+      },
+    };
+    const nextRestRunSnapshot = patchTrainingRestPlayer(restRunSnapshot, nextP1, claimedAt);
+    const selectedIndexes = new Set(selected.map(entry => entry.index));
+    const nextVault = normalizePlayerVault({
+      ...normalizedVault,
+      items: items
+        .map((item, index) => selectedIndexes.has(index) ? {...item, quantity: item.quantity - 1} : item)
+        .filter(item => item.quantity > 0),
+    });
+    return {
+      run: {
+        ...run,
+        restRunSnapshot: nextRestRunSnapshot,
+        portableItemsClaimedAt: claimedAt,
+        portableItemIds: carriedItemIds,
+        updatedAt: claimedAt,
+      },
+      playerVault: nextVault,
+      carriedItemIds,
+    };
+  }
+
+  function createPortableItemInstance(itemId: string, runId: string, index: number): PlayerItemInstanceV4 {
+    const detail = getItemDetailSafe(itemId);
+    return {
+      id: `formal-carry-${runId}-${index + 1}-${itemId}`,
+      itemID: itemId,
+      name: detail?.nameZh || detail?.name || itemId,
+      image: detail?.iconUrl || "",
+      cost: 0,
+      canSale: detail?.canSale ?? true,
+      type: playerItemTypeFromDetail(detail),
+      canBattleUse: detail?.canBattleUse ?? false,
+      canUse: detail?.canUse ?? false,
+      canUseToPokemon: detail?.canUseToPokemon ?? false,
+      canTake: detail?.canTake ?? false,
+      effectRound: null,
+      getRound: 0,
+      maxUseCount: null,
+      useCount: 0,
+    };
+  }
+
+  function getItemDetailSafe(itemId: string) {
+    try {
+      return dex.getItemDetail(itemId) || null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export {
@@ -681,6 +782,60 @@ export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefine
     }),
     depositedItemCount,
     rejectedItemCount,
+  };
+}
+
+function patchTrainingRestPlayer(restRunSnapshot: TrainingRunGameV4, player: TrainingPlayerDraftV4, updatedAt: string): TrainingRunGameV4 {
+  const nodeId = restRunSnapshot.currentNodeId || "";
+  return {
+    ...restRunSnapshot,
+    players: {...restRunSnapshot.players, [player.playerId]: player},
+    scenario: {
+      ...restRunSnapshot.scenario,
+      players: restRunSnapshot.scenario.players.some(entry => entry.playerId === player.playerId)
+        ? restRunSnapshot.scenario.players.map(entry => entry.playerId === player.playerId ? player : entry)
+        : [...restRunSnapshot.scenario.players, player],
+    },
+    gameMap: restRunSnapshot.gameMap.map(node => node.id === nodeId
+      ? {...node, participants: {...node.participants, [player.playerId]: player}}
+      : node),
+    updatedAt,
+  };
+}
+
+function playerItemTypeFromDetail(detail: DexItemDetail | null): PlayerItemTypeV4 {
+  if (!detail) return "misc";
+  if (detail.kind === "system" || detail.kind === "system-battle") return detail.kind;
+  if (detail.kind === "recovery" || detail.kind === "revive" || detail.kind === "pp") return "medicine";
+  if (detail.kind === "tm") return "tm";
+  if (detail.kind === "berry") return "berry";
+  if (detail.kind === "training") return "training";
+  if (detail.kind === "battle" || detail.kind === "held") return detail.kind;
+  return "misc";
+}
+
+function shuffleDeterministic<T>(items: T[], seed: string): T[] {
+  const next = [...items];
+  const rng = createSeededRng(seed);
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
+function createSeededRng(seed: string): () => number {
+  let state = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    state ^= seed.charCodeAt(index);
+    state = Math.imul(state, 16777619);
+  }
+  return () => {
+    state += 0x6D2B79F5;
+    let next = state;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
   };
 }
 

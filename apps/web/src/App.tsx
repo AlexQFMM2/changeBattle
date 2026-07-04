@@ -750,8 +750,12 @@ function RoutedApp({runtime}: AppProps) {
         api={api}
         formalGameBridge={formalGameBridge}
         run={formalRun}
-        onRunReady={run => {
+        playerVault={playerVault}
+        onSavePlayerVault={api.savePlayerVault}
+        onRunReady={(run, nextPlayerVault) => {
           setFormalRun(run);
+          setPlayerVault(nextPlayerVault);
+          setPlayerVaultDirty(false);
           navigate("/formal/rest", {replace: true});
         }}
       />
