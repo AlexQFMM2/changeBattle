@@ -209,7 +209,15 @@ function applyProtocolEvent(
         label: "替身",
       }];
     }
-    return [];
+    if (!isTransformProtocolEvent(event)) return [];
+    return [{
+      kind: "transform",
+      sequence: event.sequence,
+      rawLine: event.rawLine,
+      protocolEvent: event,
+      seat: event.seat || event.targetSeat,
+      label: transformLabelForEvent(event),
+    }];
   }
   case "-damage":
   case "-heal":
@@ -288,8 +296,6 @@ function applyProtocolEvent(
   case "-primal":
   case "-burst":
   case "-terastallize":
-  case "-start":
-  case "-end":
   case "custom": {
     if (!isTransformProtocolEvent(event)) return [];
     return [{
