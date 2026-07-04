@@ -4,6 +4,27 @@ export type StarChartStateV4 = {
 
 export type StarChartNodeKindV4 = "talent" | "starter_upgrade" | "event_preview" | "root" | "badge";
 
+export type StarChartTalentEffectIdV4 =
+  | "starter_candidate_bonus"
+  | "starting_money"
+  | "special_training_lock"
+  | "self_study_probability_tuning"
+  | "shop_row_bonus"
+  | "settlement_bp_dividend"
+  | "opponent_preview_unlock"
+  | "exchange_full_hp"
+  | "exchange_power_boost"
+  | "exchange_keep_item"
+  | "second_exchange"
+  | "medical_insurance"
+  | "post_battle_revive_half_hp"
+  | "post_battle_heal_alive_quarter_hp";
+
+export type StarChartTalentEffectV4 = {
+  id: StarChartTalentEffectIdV4;
+  value?: number;
+};
+
 export type StarChartNodeViewV4 = {
   id: string;
   name: string;
@@ -16,6 +37,7 @@ export type StarChartNodeViewV4 = {
   costs?: number[];
   requires?: Array<{id: string; level?: number}>;
   effects?: string[];
+  runtimeEffects?: StarChartTalentEffectV4[];
   kind?: StarChartNodeKindV4;
   x?: number;
   y?: number;
@@ -28,12 +50,10 @@ export const MORE_CHOICES_NODE_IDS = ["starter_more_choices_1", "starter_more_ch
 export const SPECIAL_TRAINING_LOCK_NODE_ID = "rest_special_training_lock" as const;
 export const EAST_ASIA_EDUCATION_NODE_ID = "rest_east_asia_education" as const;
 export const SHOP_MORE_STOCK_NODE_IDS = ["shop_luxury_counter_1", "shop_luxury_counter_2"] as const;
-export const SHOP_AUTO_RESTOCK_NODE_ID = "shop_auto_restock" as const;
 export const FREE_MEDICAL_CARE_NODE_ID = "rest_free_medical_care" as const;
 export const MEDICAL_INSURANCE_NODE_ID = FREE_MEDICAL_CARE_NODE_ID;
 export const EMERGENCY_MEDICAL_CARE_NODE_ID = "rest_emergency_medical_care" as const;
 export const OUTPATIENT_MEDICAL_CARE_NODE_ID = "rest_outpatient_medical_care" as const;
-export const BATTLE_PRACTICE_MASTERY_NODE_ID = "battle_practice_mastery" as const;
 export const OPPONENT_RUMOR_NODE_ID = "rest_opponent_rumor" as const;
 export const LOSSLESS_EXCHANGE_NODE_ID = "rest_lossless_exchange" as const;
 export const ELITE_EXCHANGE_EDUCATION_NODE_ID = "rest_elite_exchange_education" as const;
@@ -43,9 +63,6 @@ export const TRAVEL_FUND_NODE_ID = "starter_travel_fund" as const;
 export const ELITE_FUND_NODE_ID = "starter_elite_fund" as const;
 export const CHAMPION_FUND_NODE_ID = "starter_champion_fund" as const;
 export const VICTORY_DIVIDEND_NODE_ID = "economy_victory_dividend" as const;
-export const EMERGENCY_BACKPACK_NODE_ID = "starter_emergency_backpack" as const;
-export const LAUNCH_KIT_NODE_ID = "starter_launch_kit" as const;
-export const MOVE_PREVIEW_NODE_ID = "starter_move_preview" as const;
 
 export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
@@ -70,6 +87,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [3],
     requires: [{id: "root_trainer_star"}],
     effects: ["初始宝可梦候选数量 +1。"],
+    runtimeEffects: [{id: "starter_candidate_bonus", value: 1}],
     kind: "starter_upgrade",
     x: -160,
     y: -360,
@@ -83,6 +101,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [4],
     requires: [{id: "starter_more_choices_1"}],
     effects: ["初始宝可梦候选数量再 +1。"],
+    runtimeEffects: [{id: "starter_candidate_bonus", value: 1}],
     kind: "starter_upgrade",
     x: -320,
     y: -360,
@@ -96,6 +115,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [5],
     requires: [{id: "starter_more_choices_2"}],
     effects: ["初始宝可梦候选数量再 +1。"],
+    runtimeEffects: [{id: "starter_candidate_bonus", value: 1}],
     kind: "starter_upgrade",
     x: -480,
     y: -360,
@@ -109,6 +129,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [7],
     requires: [{id: "starter_more_choices_3"}],
     effects: ["初始宝可梦候选数量再 +1。"],
+    runtimeEffects: [{id: "starter_candidate_bonus", value: 1}],
     kind: "starter_upgrade",
     x: -640,
     y: -360,
@@ -122,6 +143,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [6],
     requires: [{id: "root_trainer_star"}],
     effects: ["队伍详情页显示能力锁；锁住的能力不会参与本次随机。"],
+    runtimeEffects: [{id: "special_training_lock"}],
     kind: "talent",
     x: 160,
     y: 120,
@@ -135,6 +157,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [5],
     requires: [{id: SPECIAL_TRAINING_LOCK_NODE_ID}],
     effects: ["自学基础概率变为：贪玩 35%、认真 15%、一般 50%；性格偏移减半。"],
+    runtimeEffects: [{id: "self_study_probability_tuning"}],
     kind: "talent",
     x: 320,
     y: 60,
@@ -148,6 +171,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [4],
     requires: [{id: "root_trainer_star"}],
     effects: ["商店每类商品从 1 件提升到 2 件。"],
+    runtimeEffects: [{id: "shop_row_bonus", value: 1}],
     kind: "talent",
     x: 160,
     y: -300,
@@ -161,6 +185,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [5],
     requires: [{id: SHOP_MORE_STOCK_NODE_IDS[0]}],
     effects: ["商店每类商品从 2 件提升到 3 件。"],
+    runtimeEffects: [{id: "shop_row_bonus", value: 1}],
     kind: "talent",
     x: 320,
     y: -300,
@@ -174,6 +199,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [1],
     requires: [{id: "root_trainer_star"}],
     effects: ["正式流程初始金币设为 500。"],
+    runtimeEffects: [{id: "starting_money", value: 500}],
     kind: "talent",
     x: -160,
     y: -160,
@@ -187,6 +213,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [3],
     requires: [{id: TRAVEL_FUND_NODE_ID}],
     effects: ["正式流程初始金币设为 1000。"],
+    runtimeEffects: [{id: "starting_money", value: 1000}],
     kind: "talent",
     x: -320,
     y: -160,
@@ -200,6 +227,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [5],
     requires: [{id: ELITE_FUND_NODE_ID}],
     effects: ["正式流程初始金币设为 1500。"],
+    runtimeEffects: [{id: "starting_money", value: 1500}],
     kind: "talent",
     x: -480,
     y: -160,
@@ -213,6 +241,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [9],
     requires: [{id: ELITE_FUND_NODE_ID}],
     effects: ["最终结算额外获得 floor(当前金币 * 1%) BP，不消耗金币。"],
+    runtimeEffects: [{id: "settlement_bp_dividend", value: 0.01}],
     kind: "talent",
     x: -480,
     y: -260,
@@ -226,6 +255,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [4],
     requires: [{id: "root_trainer_star"}],
     effects: ["休息室可花 10 金币解锁下一场对手的一只宝可梦预览。"],
+    runtimeEffects: [{id: "opponent_preview_unlock"}],
     kind: "talent",
     x: 160,
     y: -100,
@@ -239,6 +269,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [8],
     requires: [{id: "root_trainer_star"}],
     effects: ["交换来的宝可梦不再是半血，而是满血。"],
+    runtimeEffects: [{id: "exchange_full_hp"}],
     kind: "talent",
     x: 160,
     y: 340,
@@ -252,6 +283,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [10],
     requires: [{id: LOSSLESS_EXCHANGE_NODE_ID}],
     effects: ["交换来的宝可梦数值阶段提升 1 级。"],
+    runtimeEffects: [{id: "exchange_power_boost", value: 1}],
     kind: "talent",
     x: 320,
     y: 280,
@@ -265,6 +297,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [10],
     requires: [{id: LOSSLESS_EXCHANGE_NODE_ID}],
     effects: ["交换来的宝可梦保留对手携带道具。"],
+    runtimeEffects: [{id: "exchange_keep_item"}],
     kind: "talent",
     x: 320,
     y: 400,
@@ -278,6 +311,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [13],
     requires: [{id: ELITE_EXCHANGE_EDUCATION_NODE_ID}, {id: EXCHANGE_ITEM_STEAL_NODE_ID}],
     effects: ["允许花费 200 金币进行第二次交换。"],
+    runtimeEffects: [{id: "second_exchange"}],
     kind: "talent",
     x: 500,
     y: 340,
@@ -291,6 +325,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [6],
     requires: [{id: "root_trainer_star"}],
     effects: ["开局可一次性购买 200 / 500 / 1200 金币三档医疗保险。"],
+    runtimeEffects: [{id: "medical_insurance"}],
     kind: "talent",
     x: -160,
     y: 300,
@@ -304,6 +339,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [8],
     requires: [{id: FREE_MEDICAL_CARE_NODE_ID}],
     effects: ["濒死宝可梦复活目标从 1 HP 提升到半血。"],
+    runtimeEffects: [{id: "post_battle_revive_half_hp"}],
     kind: "talent",
     x: -320,
     y: 300,
@@ -317,6 +353,7 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     costs: [8],
     requires: [{id: EMERGENCY_MEDICAL_CARE_NODE_ID}],
     effects: ["非濒死宝可梦恢复 1/4 最大生命值。"],
+    runtimeEffects: [{id: "post_battle_heal_alive_quarter_hp", value: 0.25}],
     kind: "talent",
     x: -480,
     y: 300,

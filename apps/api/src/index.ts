@@ -17,7 +17,6 @@ import {
   getStarChartCatalogV4,
   normalizeBattlePointsV4,
   normalizeStarChartV4,
-  starChartHasBattlePracticeMasteryV4,
   starChartHasEmergencyMedicalCareV4,
   starChartHasFreeMedicalCareV4,
   starChartHasMedicalInsuranceV4,
@@ -344,7 +343,6 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
 }
 
 export {
-  starChartHasBattlePracticeMasteryV4,
   starChartHasEmergencyMedicalCareV4,
   starChartHasFreeMedicalCareV4,
   starChartHasMedicalInsuranceV4,

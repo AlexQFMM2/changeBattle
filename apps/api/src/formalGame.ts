@@ -52,7 +52,7 @@ import {
 } from "@changebattle-v2/core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
-import {cloneStarChartV4, formalShopAutoRestockForStarChartV4, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, starChartHasBattlePracticeMasteryV4, starChartHasEastAsiaEducationV4, starChartHasEliteExchangeEducationV4, starChartHasEmergencyBackpackV4, starChartHasEmergencyMedicalCareV4, starChartHasExchangeItemStealV4, starChartHasLaunchKitV4, starChartHasLosslessExchangeV4, starChartHasMedicalInsuranceV4, starChartHasMovePreviewV4, starChartHasOpponentRumorV4, starChartHasOutpatientMedicalCareV4, starChartHasSecondExchangeV4, starChartHasVictoryDividendV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -647,7 +647,6 @@ const FORMAL_MEDICAL_INSURANCE_TIERS: FormalMedicalInsuranceTierViewV4[] = [
   {tier: "premium", label: "冠军医疗保险", cost: 1200, reviveCostPerPokemon: 0, recoveryShopPriceMultiplier: 0.5},
 ];
 const FORMAL_REST_TEAM_HEAL_BASE_COST = 250;
-const FORMAL_STARTER_GIFT_ITEM_IDS = ["muscleband", "wiseglasses", "shellbell"] as const;
 
 export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalGameRunStorageAdapter = createBrowserFormalGameRunAdapter()): FormalGameRunApi {
   function createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4 {
@@ -980,10 +979,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     if (!p1) return normalized;
     const now = new Date().toISOString();
     const insuranceEffects = formalMedicalInsuranceEffectsForRun(normalized);
-    const hasEmergencyCare = starChartHasEmergencyMedicalCareV4(normalized.starChartSnapshot);
-    const hasOutpatientCare = starChartHasOutpatientMedicalCareV4(normalized.starChartSnapshot);
-    const hasPracticeMastery = starChartHasBattlePracticeMasteryV4(normalized.starChartSnapshot);
-    const damagedPokemonIds = hasPracticeMastery ? collectRoundDamageDealerPokemonIds(normalized, wonNode.id) : new Set<string>();
+    const hasEmergencyCare = starChartHasRuntimeEffectV4(normalized.starChartSnapshot, "post_battle_revive_half_hp");
+    const hasOutpatientCare = starChartHasRuntimeEffectV4(normalized.starChartSnapshot, "post_battle_heal_alive_quarter_hp");
     const revivedPokemonIds: string[] = [];
     const emergencyHealedPokemonIds: string[] = [];
     const outpatientHealedPokemonIds: string[] = [];
@@ -999,22 +996,6 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         next = {...next, entryHp: clampInt(targetHp, 1, maxHp, 1)};
         if (hasEmergencyCare) emergencyHealedPokemonIds.push(pokemon.localPokemonId);
         return next;
-      }
-      if (hasPracticeMastery && damagedPokemonIds.has(settlementPokemonKey(pokemon))) {
-        const leveled = levelUpFormalPokemonAfterBattle(next, target => {
-          const detail = safePokemon(target.speciesId);
-          return dex.calculatePokemonStats({
-            speciesId: detail.id,
-            level: target.level,
-            nature: target.nature || "Serious",
-            evs: target.evs,
-            ivs: target.ivs,
-          }).stats.hp;
-        });
-        if (leveled.level > next.level) {
-          next = leveled;
-          leveledPokemonIds.push(pokemon.localPokemonId);
-        }
       }
       if (hasOutpatientCare && next.entryHp < next.maxHp) {
         const healedHp = clampInt(next.entryHp + Math.ceil(next.maxHp / 4), 0, next.maxHp, next.entryHp);
@@ -1253,9 +1234,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const nextItem = formalShopItemInstance(item.itemID, detail, price);
     const nextP1 = {...p1, bag: {...bag, items: [...bag.items, nextItem]}};
     const nextRestRun = patchFormalRestP1(run.restRunSnapshot, nextP1, now);
-    const autoRestock = formalShopAutoRestockForStarChartV4(run.starChartSnapshot);
     const restockContext = createFormalShopRestockContext({...run, money: run.money - price, restRunSnapshot: nextRestRun});
-    const nextSlotItem = autoRestock
+    const nextSlotItem = FORMAL_SHOP_AUTO_RESTOCK_ENABLED
       ? createFormalShopSlot(run, shop.nodeId, category, index, Date.now(), now, new Set(shop.categories[category].map(entry => entry.itemID)), restockContext)
       : {...item, stock: 0, generatedAt: now};
     const nextShop = {
@@ -1400,7 +1380,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     if (restRunSnapshot.restPreviewUnlocks?.[unlockKey]) {
       return opponentPreviewUnlockResult(true, normalized, "这只宝可梦的情报已经解锁。", 0);
     }
-    if (!starChartHasOpponentRumorV4(normalized.starChartSnapshot)) {
+    if (!starChartHasRuntimeEffectV4(normalized.starChartSnapshot, "opponent_preview_unlock")) {
       return opponentPreviewUnlockResult(false, normalized, "需要点亮星图「小道消息」后才能打听对手情报。", cost);
     }
     if (normalized.money < cost) return opponentPreviewUnlockResult(false, normalized, "金币不足。", cost);
@@ -1657,7 +1637,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   ): FormalTrainingGroundResultV4 {
     const state = ensureFormalTrainingGroundState(run, node.id);
     const rng = createRng(`${run.seed}:${node.id}:training-ground:self-study:${state.lessonRoll}:${state.selfStudyRoll}:${pokemon.localPokemonId}`);
-    const event = rollFormalTrainingGroundSelfStudyEvent(pokemon, rng, starChartHasEastAsiaEducationV4(run.starChartSnapshot));
+    const event = rollFormalTrainingGroundSelfStudyEvent(pokemon, rng, starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_probability_tuning"));
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
     const levelBefore = clampInt(pokemon.level, 1, 100, 50);
@@ -1816,7 +1796,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const pokemonStats = buildSettlementPokemonStats(normalized);
     const mvp = pokemonStats[0] || null;
     const baseBpGained = calculateSettlementBp(normalized);
-    const victoryDividendBp = starChartHasVictoryDividendV4(normalized.starChartSnapshot)
+    const victoryDividendBp = starChartHasRuntimeEffectV4(normalized.starChartSnapshot, "settlement_bp_dividend")
       ? Math.floor(clampInt(normalized.money, 0, 999999, 0) * 0.01)
       : 0;
     const settlement: FormalGameSettlementV4 = {
@@ -1993,16 +1973,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       controller: "local",
       alliance: "near",
       localTeam,
-      bag: createFormalBag(run.battlePreference.battleBagEnabled, run.battlePreference.ruleSet, run, localTeam, {
-        getItemDetail: getItemDetailSafe,
-        getMachineSkills: speciesId => {
-          try {
-            return dex.getPokemonMachineSkills(speciesId);
-          } catch {
-            return [];
-          }
-        },
-      }),
+      bag: createFormalBag(run.battlePreference.battleBagEnabled, run.battlePreference.ruleSet),
     };
   }
 
@@ -3590,74 +3561,9 @@ function pickNpcItemForPowerProfile(profile: PokemonPowerProfileV4, rng: () => n
   return pickOne(NPC_BOSS_ITEMS, rng) || "";
 }
 
-function createFormalBag(battleBagEnabled: boolean, ruleSet: TrainingRuleSetV4, run?: FormalGameRunV4, team?: LocalTeamV4, context?: {
-  getItemDetail: (itemID: string) => DexItemDetail | null;
-  getMachineSkills: (speciesId: string) => DexMoveSummary[];
-}): BagStateV4 {
-  const items = [
-    ...DEFAULT_SYSTEM_ITEMS_BY_RULE_SET[ruleSet].map(createFormalSystemItem),
-    ...(run && team && context ? createFormalStarterGiftItems(run, team, context) : []),
-  ];
+function createFormalBag(battleBagEnabled: boolean, ruleSet: TrainingRuleSetV4): BagStateV4 {
+  const items = DEFAULT_SYSTEM_ITEMS_BY_RULE_SET[ruleSet].map(createFormalSystemItem);
   return {maxSize: 50, items, battleBagEnabled};
-}
-
-function createFormalStarterGiftItems(run: FormalGameRunV4, team: LocalTeamV4, context: {
-  getItemDetail: (itemID: string) => DexItemDetail | null;
-  getMachineSkills: (speciesId: string) => DexMoveSummary[];
-}): PlayerItemInstanceV4[] {
-  const items: PlayerItemInstanceV4[] = [];
-  if (starChartHasEmergencyBackpackV4(run.starChartSnapshot)) {
-    for (let index = 0; index < 3; index += 1) addStarterGiftItem(items, "superpotion", `emergency-backpack-${index + 1}`, context);
-  }
-  if (starChartHasLaunchKitV4(run.starChartSnapshot)) {
-    FORMAL_STARTER_GIFT_ITEM_IDS.forEach(itemID => addStarterGiftItem(items, itemID, `launch-kit-${itemID}`, context));
-  }
-  if (starChartHasMovePreviewV4(run.starChartSnapshot)) {
-    createFormalStarterGiftTmIds(run, team, context).forEach((itemID, index) => addStarterGiftItem(items, itemID, `move-preview-${index + 1}`, context));
-  }
-  return items;
-}
-
-function addStarterGiftItem(items: PlayerItemInstanceV4[], itemID: string, key: string, context: {getItemDetail: (itemID: string) => DexItemDetail | null}) {
-  const detail = context.getItemDetail(itemID);
-  if (!detail) return;
-  items.push({
-    ...formalShopItemInstance(itemID, detail, 0),
-    id: `formal-star-gift-${key}`,
-    cost: 0,
-    getRound: 0,
-  });
-}
-
-function createFormalStarterGiftTmIds(run: FormalGameRunV4, team: LocalTeamV4, context: {getMachineSkills: (speciesId: string) => DexMoveSummary[]}): string[] {
-  const targetCount = Math.max(0, Math.min(6, team.pokemon.length));
-  if (!targetCount) return [];
-  const rng = createRng(`${run.seed}:starter-gift:tms`);
-  const selected: string[] = [];
-  const used = new Set<string>();
-  const perPokemon = team.pokemon.map(pokemon => {
-    const moves = context.getMachineSkills(pokemon.speciesId)
-      .filter(move => Math.max(0, Number(move.power || 0)) > 0)
-      .filter(move => toID(move.id));
-    return shuffle(uniqueById(moves), rng);
-  });
-  for (const moves of perPokemon) {
-    const move = moves.find(candidate => !used.has(toID(candidate.id))) || moves[0];
-    if (!move) continue;
-    const itemID = `tm:${toID(move.id)}`;
-    selected.push(itemID);
-    used.add(toID(move.id));
-    if (selected.length >= targetCount) return selected;
-  }
-  const allMoves = shuffle(uniqueById(perPokemon.flat()), rng);
-  for (const move of allMoves) {
-    const moveId = toID(move.id);
-    if (!moveId || used.has(moveId)) continue;
-    selected.push(`tm:${moveId}`);
-    used.add(moveId);
-    if (selected.length >= targetCount) break;
-  }
-  return selected.slice(0, targetCount);
 }
 
 function createFormalSystemItem(itemID: string): PlayerItemInstanceV4 {
@@ -3724,10 +3630,10 @@ function exchangeOpponentPlayerId(playerId: ShowdownPlayerIdV4): ShowdownPlayerI
 
 function formalPokemonExchangeFlags(run: FormalGameRunV4): FormalPokemonExchangeFlagsV4 {
   return {
-    lossless: starChartHasLosslessExchangeV4(run.starChartSnapshot),
-    eliteEducation: starChartHasEliteExchangeEducationV4(run.starChartSnapshot),
-    itemSteal: starChartHasExchangeItemStealV4(run.starChartSnapshot),
-    secondExchange: starChartHasSecondExchangeV4(run.starChartSnapshot),
+    lossless: starChartHasRuntimeEffectV4(run.starChartSnapshot, "exchange_full_hp"),
+    eliteEducation: starChartHasRuntimeEffectV4(run.starChartSnapshot, "exchange_power_boost"),
+    itemSteal: starChartHasRuntimeEffectV4(run.starChartSnapshot, "exchange_keep_item"),
+    secondExchange: starChartHasRuntimeEffectV4(run.starChartSnapshot, "second_exchange"),
   };
 }
 
@@ -4016,54 +3922,6 @@ function normalizeFormalPokemonExchangeRecord(record: Partial<FormalPokemonExcha
 
 function normalizeStringList(value: unknown): string[] {
   return Array.isArray(value) ? Array.from(new Set(value.map(String).filter(Boolean))) : [];
-}
-
-function collectRoundDamageDealerPokemonIds(run: FormalGameRunV4, nodeId: string): Set<string> {
-  const localByBattleKey = buildCurrentRestPlayerBattleKeyMap(run);
-  const result = new Set<string>();
-  for (const entry of run.restRunSnapshot?.battleLog || []) {
-    if (entry.nodeId !== nodeId || entry.eventType !== "damage" || !entry.damage || entry.directness !== "direct") continue;
-    if (entry.sourcePlayerId !== "p1") continue;
-    const sourceKey = entry.sourcePokemonKey ? localByBattleKey.get(entry.sourcePokemonKey) : undefined;
-    if (sourceKey) result.add(sourceKey);
-  }
-  return result;
-}
-
-function buildCurrentRestPlayerBattleKeyMap(run: FormalGameRunV4): Map<string, string> {
-  const result = new Map<string, string>();
-  for (const pokemon of run.restRunSnapshot?.players.p1?.localTeam.pokemon || []) {
-    const settlementKey = settlementPokemonKey(pokemon);
-    const aliases = [
-      pokemon.nickname,
-      pokemon.nameZh,
-      pokemon.name,
-      pokemon.speciesId,
-      pokemon.localPokemonId,
-      pokemon.showdownIdentityToken,
-      pokemon.showdownId,
-      pokemon.pokeballId,
-    ].map(battleKeyNameId).filter(Boolean);
-    ["a", "b", "c", "d"].forEach(position => aliases.forEach(alias => result.set(`p1${position}:${alias}`, settlementKey)));
-    result.set(settlementKey, settlementKey);
-  }
-  return result;
-}
-
-function levelUpFormalPokemonAfterBattle(pokemon: LocalPokemonV4, calculateMaxHp: (pokemon: LocalPokemonV4) => number): LocalPokemonV4 {
-  const levelBefore = clampInt(pokemon.level, 1, 100, 50);
-  if (levelBefore >= 100) return pokemon;
-  const levelAfter = levelBefore + 1;
-  const oldMaxHp = Math.max(1, Math.floor(Number(pokemon.maxHp || 1)));
-  const oldEntryHp = clampInt(pokemon.entryHp, 0, oldMaxHp, oldMaxHp);
-  const maxHp = Math.max(1, Math.floor(Number(calculateMaxHp({...pokemon, level: levelAfter}) || oldMaxHp)));
-  const hpGain = Math.max(0, maxHp - oldMaxHp);
-  return {
-    ...pokemon,
-    level: levelAfter,
-    maxHp,
-    entryHp: clampInt(oldEntryHp + hpGain, oldEntryHp, maxHp, oldEntryHp),
-  };
 }
 
 function prepareExchangedPokemon(

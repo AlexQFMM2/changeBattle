@@ -12,21 +12,17 @@ import {
   FORMAL_SHOP_SELL_RATE,
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
   FORMAL_STARTING_MONEY,
-  BATTLE_PRACTICE_MASTERY_NODE_ID,
   CHAMPION_FUND_NODE_ID,
   ELITE_FUND_NODE_ID,
   ELITE_EXCHANGE_EDUCATION_NODE_ID,
-  EMERGENCY_BACKPACK_NODE_ID,
   EMERGENCY_MEDICAL_CARE_NODE_ID,
   EXCHANGE_ITEM_STEAL_NODE_ID,
   FREE_MEDICAL_CARE_NODE_ID,
-  LAUNCH_KIT_NODE_ID,
   LOSSLESS_EXCHANGE_NODE_ID,
-  MOVE_PREVIEW_NODE_ID,
   OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
   SECOND_EXCHANGE_NODE_ID,
-  SHOP_AUTO_RESTOCK_NODE_ID,
+  STAR_CHART_NODES_V4,
   STARTER_ROLE_PLAN,
   TRAVEL_FUND_NODE_ID,
   VICTORY_DIVIDEND_NODE_ID,
@@ -36,23 +32,21 @@ import {
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
   enableTestModeForProfileV4,
+  FORMAL_SHOP_AUTO_RESTOCK_ENABLED,
   formalStartingMoneyForStarChartV4,
-  formalShopAutoRestockForStarChartV4,
   formalShopRowsForStarChartV4,
+  getUnlockedStarChartRuntimeEffectsV4,
   normalizeStarChartV4,
-  starChartHasBattlePracticeMasteryV4,
   starChartHasEastAsiaEducationV4,
   starChartHasEliteExchangeEducationV4,
   starChartHasEmergencyMedicalCareV4,
   starChartHasExchangeItemStealV4,
   starChartHasFreeMedicalCareV4,
-  starChartHasEmergencyBackpackV4,
-  starChartHasLaunchKitV4,
   starChartHasLosslessExchangeV4,
   starChartHasMedicalInsuranceV4,
-  starChartHasMovePreviewV4,
   starChartHasOpponentRumorV4,
   starChartHasOutpatientMedicalCareV4,
+  starChartHasRuntimeEffectV4,
   starChartHasSecondExchangeV4,
   starChartHasSpecialTrainingLockV4,
   starChartHasVictoryDividendV4,
@@ -524,11 +518,13 @@ assert(starterCandidateCountForStarChart(starProfile.starChart) === 9, "more cho
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "starter_more_choices_4");
 assert(starProfile.battlePoints === 81, "more choices IV should cost 7 BP");
 assert(starterCandidateCountForStarChart(starProfile.starChart) === 10, "more choices IV should grant 10 starter candidates");
+assert(getUnlockedStarChartRuntimeEffectsV4(starProfile.starChart).filter(effect => effect.id === "starter_candidate_bonus").length === 4, "more choices should expose four starter candidate runtime effects");
 assert(!starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should be off before unlock");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_special_training_lock");
 assert(starProfile.battlePoints === 94, "special training lock should cost 6 BP");
 assert(starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should unlock ability locks");
+assert(starChartHasRuntimeEffectV4(starProfile.starChart, "special_training_lock"), "special training lock should be declared as a runtime effect");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_east_asia_education");
 assert(starProfile.battlePoints === 89, "east asia education should cost 5 BP");
 assert(starChartHasEastAsiaEducationV4(starProfile.starChart), "east asia education should unlock self-study probability tuning");
@@ -539,7 +535,7 @@ assert(formalShopRowsForStarChartV4(starProfile.starChart) === 2, "luxury counte
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_2");
 assert(starProfile.battlePoints === 80, "luxury counter II should cost 5 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 3, "luxury counter II should unlock third shop row");
-assert(formalShopAutoRestockForStarChartV4(starProfile.starChart), "shop auto restock should be enabled by default");
+assert(FORMAL_SHOP_AUTO_RESTOCK_ENABLED, "shop auto restock should be enabled by default");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 0, "root-only star chart should start with zero formal money");
 starProfile = {...starProfile, battlePoints: 200};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, TRAVEL_FUND_NODE_ID);
@@ -555,7 +551,8 @@ starProfile = unlockStarChartNodeForProfileV4(starProfile, VICTORY_DIVIDEND_NODE
 assert(starProfile.battlePoints === 182, "victory dividend should cost 9 BP");
 assert(starChartHasVictoryDividendV4(starProfile.starChart), "victory dividend should unlock settlement BP bonus");
 starProfile = {...starProfile, battlePoints: 200};
-for (const removedNodeId of [SHOP_AUTO_RESTOCK_NODE_ID, EMERGENCY_BACKPACK_NODE_ID, LAUNCH_KIT_NODE_ID, MOVE_PREVIEW_NODE_ID, BATTLE_PRACTICE_MASTERY_NODE_ID]) {
+for (const removedNodeId of ["shop_auto_restock", "starter_emergency_backpack", "starter_launch_kit", "starter_move_preview", "battle_practice_mastery"]) {
+  assert(!STAR_CHART_NODES_V4.some(node => node.id === removedNodeId), `${removedNodeId} should be removed from star chart catalog`);
   let failedDisabledGiftUnlock = false;
   try {
     unlockStarChartNodeForProfileV4(starProfile, removedNodeId);
@@ -564,10 +561,6 @@ for (const removedNodeId of [SHOP_AUTO_RESTOCK_NODE_ID, EMERGENCY_BACKPACK_NODE_
   }
   assert(failedDisabledGiftUnlock, `${removedNodeId} should be removed from star chart unlocks`);
 }
-assert(!starChartHasEmergencyBackpackV4(starProfile.starChart), "emergency backpack should be disabled for starter gifts");
-assert(!starChartHasLaunchKitV4(starProfile.starChart), "launch kit should be disabled for starter gifts");
-assert(!starChartHasMovePreviewV4(starProfile.starChart), "move preview should be disabled for starter gifts");
-assert(!starChartHasBattlePracticeMasteryV4(starProfile.starChart), "battle practice mastery should be removed");
 assert(!starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should be off before unlock");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
