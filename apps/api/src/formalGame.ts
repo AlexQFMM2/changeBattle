@@ -1870,7 +1870,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const coinLog = restRunSnapshot?.coinLog || [];
     const income = coinLog.filter(entry => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0);
     const expense = coinLog.filter(entry => entry.amount < 0).reduce((sum, entry) => sum + Math.abs(entry.amount), 0);
-    const pokemonStats = buildSettlementPokemonStats(normalized);
+    const pokemonStats = buildSettlementPokemonStats(normalized, safePokemon);
     const mvp = pokemonStats[0] || null;
     const baseBpGained = calculateSettlementBp(normalized);
     const victoryDividendBp = starChartHasRuntimeEffectV4(normalized.starChartSnapshot, "settlement_bp_dividend")
@@ -5255,7 +5255,7 @@ function hpStateFromProtocol(condition: string, trueMaxHp?: number): {hp: number
   return {hp: protocolHp, maxHp: protocolMaxHp};
 }
 
-function buildSettlementPokemonStats(run: FormalGameRunV4): FormalSettlementPokemonStatsV4[] {
+function buildSettlementPokemonStats(run: FormalGameRunV4, getPokemonDetail: (speciesId: string) => DexPokemonDetail): FormalSettlementPokemonStatsV4[] {
   const playerPokemon = collectPlayerSettlementPokemon(run);
   const pokemonByKey = new Map<string, LocalPokemonV4>();
   playerPokemon.forEach(pokemon => pokemonByKey.set(settlementPokemonKey(pokemon), pokemon));
@@ -5323,10 +5323,16 @@ function buildSettlementPokemonStats(run: FormalGameRunV4): FormalSettlementPoke
     stats.set(key, created);
     return created;
   };
-  const localByBattleKey = buildPlayerBattleKeyMap(run);
+  const localByBattleKey = buildPlayerBattleKeyMap(run, getPokemonDetail);
+  const localByNodeBattleKey = buildPlayerBattleKeyMapByNode(run, getPokemonDetail);
+  const resolveBattleKey = (nodeId: string, battleKey: string | undefined) => {
+    if (!battleKey) return undefined;
+    const normalizedKey = normalizeBattlePokemonKey(battleKey);
+    return localByNodeBattleKey.get(nodeId)?.get(normalizedKey) || localByBattleKey.get(normalizedKey);
+  };
   for (const entry of run.restRunSnapshot?.battleLog || []) {
-    const sourceKey = entry.sourcePokemonKey ? localByBattleKey.get(entry.sourcePokemonKey) : undefined;
-    const targetKey = entry.targetPokemonKey ? localByBattleKey.get(entry.targetPokemonKey) : undefined;
+    const sourceKey = resolveBattleKey(entry.nodeId, entry.sourcePokemonKey);
+    const targetKey = resolveBattleKey(entry.nodeId, entry.targetPokemonKey);
     if (entry.eventType === "damage" && entry.damage) {
       const sourceStat = ensureStat(sourceKey) || ensureBattleLogStat(entry.sourcePlayerId, entry.sourcePokemonKey, entry.sourcePokemonName);
       if (sourceStat) {
@@ -5382,30 +5388,18 @@ function collectPlayerSettlementPokemon(run: FormalGameRunV4): LocalPokemonV4[] 
     if (!pokemon) return;
     byId.set(pokemon.localPokemonId || pokemon.speciesId, pokemon);
   };
-  const selectedPokemon = run.playerTeam?.pokemon || [];
-  const sourcePokemon = selectedPokemon.length ? selectedPokemon : (run.restRunSnapshot?.players.p1?.localTeam.pokemon || []);
-  sourcePokemon.forEach(add);
+  run.playerTeam?.pokemon.forEach(add);
+  run.roundPlan.forEach(round => round.participants.p1?.localTeam.pokemon.forEach(add));
+  run.restRunSnapshot?.gameMap.forEach(node => node.participants.p1?.localTeam.pokemon.forEach(add));
+  run.restRunSnapshot?.scenario.players.find(player => player.playerId === "p1")?.localTeam.pokemon.forEach(add);
+  run.restRunSnapshot?.players.p1?.localTeam.pokemon.forEach(add);
   return Array.from(byId.values());
 }
 
-function buildPlayerBattleKeyMap(run: FormalGameRunV4): Map<string, string> {
+function buildPlayerBattleKeyMap(run: FormalGameRunV4, getPokemonDetail: (speciesId: string) => DexPokemonDetail): Map<string, string> {
   const result = new Map<string, string>();
   const playerPokemon = collectPlayerSettlementPokemon(run);
-  const add = (pokemon: LocalPokemonV4 | undefined, settlementKey = pokemon ? settlementPokemonKey(pokemon) : "") => {
-    if (!pokemon) return;
-    const aliases = [
-      pokemon.nickname,
-      pokemon.nameZh,
-      pokemon.name,
-      pokemon.speciesId,
-      pokemon.localPokemonId,
-      pokemon.showdownIdentityToken,
-      pokemon.showdownId,
-      pokemon.pokeballId,
-    ].map(battleKeyNameId).filter(Boolean);
-    ["a", "b", "c", "d"].forEach(position => aliases.forEach(alias => result.set(`p1${position}:${alias}`, settlementKey)));
-    result.set(settlementKey, settlementKey);
-  };
+  const add = (pokemon: LocalPokemonV4 | undefined, settlementKey = pokemon ? settlementPokemonKey(pokemon) : "") => addPlayerBattleKeyAliases(result, pokemon, settlementKey, getPokemonDetail);
   playerPokemon.forEach(pokemon => add(pokemon));
   const unused = new Set(playerPokemon.map(pokemon => settlementPokemonKey(pokemon)));
   const mapSnapshotPokemon = (pokemon: LocalPokemonV4 | undefined, index: number) => {
@@ -5421,6 +5415,43 @@ function buildPlayerBattleKeyMap(run: FormalGameRunV4): Map<string, string> {
   };
   run.restRunSnapshot?.players.p1?.localTeam.pokemon.forEach(mapSnapshotPokemon);
   return result;
+}
+
+function buildPlayerBattleKeyMapByNode(run: FormalGameRunV4, getPokemonDetail: (speciesId: string) => DexPokemonDetail): Map<string, Map<string, string>> {
+  const result = new Map<string, Map<string, string>>();
+  const addTeam = (nodeId: string, team: LocalTeamV4 | undefined) => {
+    if (!nodeId || !team) return;
+    const map = result.get(nodeId) || new Map<string, string>();
+    team.pokemon.forEach(pokemon => addPlayerBattleKeyAliases(map, pokemon, undefined, getPokemonDetail));
+    result.set(nodeId, map);
+  };
+  run.roundPlan.forEach(round => addTeam(round.id, round.participants.p1?.localTeam));
+  run.restRunSnapshot?.gameMap.forEach(node => addTeam(node.id, node.participants.p1?.localTeam));
+  return result;
+}
+
+function addPlayerBattleKeyAliases(result: Map<string, string>, pokemon: LocalPokemonV4 | undefined, settlementKey = pokemon ? settlementPokemonKey(pokemon) : "", getPokemonDetail?: (speciesId: string) => DexPokemonDetail): void {
+  if (!pokemon || !settlementKey) return;
+  const detail = getPokemonDetail ? getPokemonDetail(pokemon.speciesId) : null;
+  const aliases = [
+    pokemon.nickname,
+    pokemon.nameZh,
+    pokemon.name,
+    pokemon.speciesId,
+    pokemon.localPokemonId,
+    pokemon.showdownIdentityToken,
+    pokemon.showdownId,
+    pokemon.pokeballId,
+    baseSpeciesId(pokemon.speciesId),
+    baseSpeciesId(pokemon.showdownId || ""),
+    baseSpeciesId(pokemon.showdownIdentityToken || ""),
+    detail?.id,
+    detail?.name,
+    detail?.nameZh,
+    detail?.baseSpecies,
+  ].map(battleKeyNameId).filter(Boolean);
+  ["a", "b", "c", "d"].forEach(position => aliases.forEach(alias => result.set(`p1${position}:${alias}`, settlementKey)));
+  result.set(settlementKey, settlementKey);
 }
 
 function settlementPokemonKey(pokemon: LocalPokemonV4): string {

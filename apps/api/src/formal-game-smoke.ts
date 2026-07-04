@@ -1259,6 +1259,96 @@ assert(settlementRun.settlement?.bpGained === 1, "settlement should calculate BP
 assert(settlementRun.settlement?.pokemonStats[0]?.pokemonKey, "settlement should include pokemon stats and MVP");
 const raichuSettlementStat = settlementRun.settlement?.pokemonStats.find(stat => stat.pokemonKey.includes("raichu") || stat.name.toLowerCase().includes("raichu") || stat.nameZh.includes("雷丘"));
 assert(raichuSettlementStat && raichuSettlementStat.damageDealt >= 123, "settlement stats should include player battleLog pokemon even when missing from final team");
+const historicalNinetales = {
+  ...withBattleLog.roundPlan[0]!.participants.p1!.localTeam.pokemon[0]!,
+  localPokemonId: "historical-ninetales-alola",
+  speciesId: "ninetalesalola",
+  showdownId: "ninetalesalola",
+  name: "Ninetales-Alola",
+  nameZh: "九尾-阿罗拉",
+};
+const historicalDelphox = {
+  ...withBattleLog.roundPlan[0]!.participants.p1!.localTeam.pokemon[1]!,
+  localPokemonId: "historical-delphox",
+  speciesId: "delphox",
+  showdownId: "delphox",
+  name: "Delphox",
+  nameZh: "妖火红狐",
+};
+const historicalP1 = {
+  ...withBattleLog.roundPlan[0]!.participants.p1!,
+  localTeam: {
+    ...withBattleLog.roundPlan[0]!.participants.p1!.localTeam,
+    pokemon: [historicalNinetales, historicalDelphox, ...withBattleLog.roundPlan[0]!.participants.p1!.localTeam.pokemon.slice(2)],
+  },
+};
+const historicalWonRestRun = {
+  ...wonRestRun,
+  players: {
+    ...wonRestRun.players,
+    p1: {
+      ...wonRestRun.players.p1!,
+      localTeam: {
+        ...wonRestRun.players.p1!.localTeam,
+        pokemon: wonRestRun.players.p1!.localTeam.pokemon.slice(2),
+      },
+    },
+  },
+  gameMap: wonRestRun.gameMap.map((node, index) => index === 0
+    ? {...node, participants: {...node.participants, p1: historicalP1}, state: "won" as const}
+    : node),
+  battleLog: [
+    ...(wonRestRun.battleLog || []),
+    {
+      id: "formal-smoke:historical-ninetales-damage",
+      key: "formal-smoke:historical-ninetales-damage",
+      at: new Date(0).toISOString(),
+      sessionId: "formal-smoke-session",
+      nodeId: withBattleLog.roundPlan[0]!.id,
+      turn: 3,
+      rawLogIndex: 1001,
+      eventType: "damage" as const,
+      damage: 222,
+      sourcePlayerId: "p1" as const,
+      sourcePokemonKey: "p1a: Ninetales",
+      sourcePokemonName: "Ninetales",
+      targetPlayerId: "p2" as const,
+      targetPokemonKey: "p2a: Test Target",
+      targetPokemonName: "Test Target",
+      directness: "direct" as const,
+      rawLine: "|-damage|p2a: Test Target|1/100|[from] move: Moonblast|[of] p1a: Ninetales",
+    },
+    {
+      id: "formal-smoke:historical-delphox-damage",
+      key: "formal-smoke:historical-delphox-damage",
+      at: new Date(0).toISOString(),
+      sessionId: "formal-smoke-session",
+      nodeId: withBattleLog.roundPlan[0]!.id,
+      turn: 4,
+      rawLogIndex: 1002,
+      eventType: "damage" as const,
+      damage: 333,
+      sourcePlayerId: "p1" as const,
+      sourcePokemonKey: "p1a: Delphox",
+      sourcePokemonName: "Delphox",
+      targetPlayerId: "p2" as const,
+      targetPokemonKey: "p2a: Test Target",
+      targetPokemonName: "Test Target",
+      directness: "direct" as const,
+      rawLine: "|-damage|p2a: Test Target|1/100|[from] move: Flamethrower|[of] p1a: Delphox",
+    },
+  ],
+};
+const historicalSettlementRun = api.prepareFormalSettlement({
+  ...withSettlementBattleLog,
+  playerTeam: null,
+  roundPlan: withSettlementBattleLog.roundPlan.map((round, index) => index === 0 ? {...round, participants: {...round.participants, p1: historicalP1}} : round),
+  restRunSnapshot: historicalWonRestRun,
+}, "loss");
+const historicalNinetalesStat = historicalSettlementRun.settlement?.pokemonStats.find(stat => stat.localPokemonId === "historical-ninetales-alola");
+const historicalDelphoxStat = historicalSettlementRun.settlement?.pokemonStats.find(stat => stat.localPokemonId === "historical-delphox");
+assert(historicalNinetalesStat && historicalNinetalesStat.damageDealt >= 222, "settlement stats should map historical base-form battle keys back to player pokemon");
+assert(historicalDelphoxStat && historicalDelphoxStat.damageDealt >= 333, "settlement stats should include historical player pokemon even when final players.p1 omits them");
 const dividendSettlementRun = api.prepareFormalSettlement({...withBattleLog, starChartSnapshot: starProfile.starChart, money: 1234, restRunSnapshot: wonRestRun}, "loss");
 assert(dividendSettlementRun.settlement?.bpGained === 13, "victory dividend should add floor(current money * 1%) BP");
 assert(dividendSettlementRun.money === 1234, "victory dividend should not consume money");
