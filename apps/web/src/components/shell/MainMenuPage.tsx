@@ -8,12 +8,15 @@ import {TrainerSummaryPanel} from "./TrainerSummaryPanel";
 import {assetUrl} from "../../lib/assetUrl";
 import "./MainMenuPage.css";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
+export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
+
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onManualSave, onTestMode, onBattlePreference, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
   trainingRun: TrainingRunGameV4 | null;
   continueGameLabel?: string;
+  manualSaveState?: MainMenuManualSaveState;
   onOpenDex: () => void;
   onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
@@ -22,6 +25,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   onStarChart: () => void;
   onTrainerVaultBag: () => void;
   onTrainerVaultPokemon: () => void;
+  onManualSave: () => void;
   onTestMode: () => void;
   onBattlePreference: () => void;
   onUserInfo: () => void;
@@ -37,6 +41,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
     {label: "开始新游戏", action: () => setGameMenuOpen(true), instant: true},
     {label: "我的背包", action: onTrainerVaultBag},
     {label: "我的宝可梦", action: onTrainerVaultPokemon},
+    {label: manualSaveLabel(manualSaveState), action: onManualSave, instant: true},
     {label: "训练家星图", action: onStarChart},
     {label: "对局偏好", action: onBattlePreference},
     {label: "玩家设置", action: onUserInfo},
@@ -113,4 +118,11 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
       {notice ? <div className="main-menu-notice" role="status">{notice}</div> : null}
     </AnimatedPage>
   );
+}
+
+function manualSaveLabel(state: MainMenuManualSaveState): string {
+  if (state === "saving") return "存档中...";
+  if (state === "saved") return "存档完成";
+  if (state === "error") return "存档失败";
+  return "保存";
 }

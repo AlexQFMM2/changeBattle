@@ -7,6 +7,7 @@ import {TrainingRestShopDialoguePreview} from "../training/TrainingRestShopDialo
 import {TrainingRestShopScenePreview} from "../training/TrainingRestShopScene.preview";
 import {TrainingRestTrainingGroundScenePreview} from "../training/TrainingRestTrainingGroundScene.preview";
 import {TrainingRestNextPreviewPanelPreview} from "../training/TrainingRestNextPreviewPanel.preview";
+import {TrainerVaultPagePreview} from "../trainer-vault/TrainerVaultPage.preview";
 
 export type ComponentPreviewEntry = {
   id: string;
@@ -57,5 +58,11 @@ export const COMPONENT_PREVIEWS: ComponentPreviewEntry[] = [
     title: "休整功能公告栏",
     description: "休整页左侧大公告栏：图鉴入口和预留功能按钮。",
     render: () => <TrainingRestNewActionBoardPreview />,
+  },
+  {
+    id: "trainer-vault-page",
+    title: "训练家仓库",
+    description: "复合页面：我的背包、我的宝可梦、4x6 宫格分页和右侧详情卡。",
+    render: api => <TrainerVaultPagePreview api={api} />,
   },
 ];

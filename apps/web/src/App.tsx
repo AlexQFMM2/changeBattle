@@ -3,9 +3,11 @@ import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "rea
 import {
   createBrowserUserProfileAdapter,
   createBrowserFormalGameRunAdapter,
+  createBrowserPlayerVaultAdapter,
   createBrowserTrainingRunAdapter,
   createChangeBattleV2Api,
   createDesktopFormalGameRunAdapter,
+  createDesktopPlayerVaultAdapter,
   createDesktopTrainingRunAdapter,
   createDesktopUserProfileAdapter,
   starChartHasSpecialTrainingLockV4,
@@ -14,6 +16,8 @@ import {
   type DesktopBattleServiceBridge,
   type DesktopFormalGameBridge,
   type DesktopFormalGameRunBridge,
+  type DesktopPlayerVaultBridge,
+  type PlayerVaultStorageAdapter,
   type DesktopTrainingRunBridge,
   type DesktopUserProfileBridge,
   type FormalBattleResultFinalizeReasonV4,
@@ -25,6 +29,7 @@ import {
   type TrainingRunGameV4,
   type UserProfileDraftV2,
   type UserProfileV2,
+  type PlayerVaultV4,
   type DexSearchRow,
   type DexCategory,
 } from "@changebattle-v2/api";
@@ -76,6 +81,7 @@ type ChangeBattleV2Window = Window & {
     battleService?: DesktopBattleServiceBridge;
     formalGame?: DesktopFormalGameBridge;
     formalRun?: DesktopFormalGameRunBridge;
+    playerVault?: DesktopPlayerVaultBridge;
     trainingRun?: DesktopTrainingRunBridge;
     userProfile?: DesktopUserProfileBridge;
   };
@@ -97,14 +103,16 @@ function RoutedApp({runtime}: AppProps) {
     : undefined, [runtime]);
   const battleServiceBridge = desktopBridgeRoot?.battleService;
   const userProfileAdapter = useMemo(() => createUserProfileAdapter(runtime), [runtime]);
+  const playerVaultAdapter = useMemo(() => createPlayerVaultAdapter(runtime), [runtime]);
   const api = useMemo(() => createChangeBattleV2Api({
     userProfileAdapter,
+    playerVaultAdapter,
     trainingRunAdapter: createTrainingRunAdapter(runtime),
     formalGameRunAdapter: createFormalRunAdapter(runtime),
     battleServiceClient: battleServiceBridge,
     battleServiceUrl: import.meta.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL,
     resourcePrefix: showdownAssetPrefix(),
-  }), [battleServiceBridge, runtime, userProfileAdapter]);
+  }), [battleServiceBridge, playerVaultAdapter, runtime, userProfileAdapter]);
   const formalGameBridge = desktopBridgeRoot?.formalGame;
   const catalog = useMemo(() => api.getTrainerCatalog(), [api]);
   const [profile, setProfile] = useState<UserProfileV2 | null>(null);
@@ -116,8 +124,10 @@ function RoutedApp({runtime}: AppProps) {
   const [dexInitialCategory, setDexInitialCategory] = useState<Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items"> | undefined>(undefined);
   const [dexInitialQuery, setDexInitialQuery] = useState<string | null>(null);
   const [dexInitialRow, setDexInitialRow] = useState<DexSearchRow | null>(null);
+  const [playerVault, setPlayerVault] = useState<PlayerVaultV4>(() => api.normalizePlayerVault());
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
+  const [manualSaveState, setManualSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [battleSessionId, setBattleSessionId] = useState("");
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
   const [medicalInsuranceBusy, setMedicalInsuranceBusy] = useState(false);
@@ -162,6 +172,7 @@ function RoutedApp({runtime}: AppProps) {
 
   useEffect(() => {
     if (!profile) {
+      setPlayerVault(api.normalizePlayerVault());
       setTrainingRun(null);
       setFormalRun(null);
       return;
@@ -173,6 +184,27 @@ function RoutedApp({runtime}: AppProps) {
       })
       .catch(() => {
         if (!cancelled) setTrainingRun(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, profile]);
+
+  useEffect(() => {
+    if (!profile) {
+      setPlayerVault(api.normalizePlayerVault());
+      return;
+    }
+    let cancelled = false;
+    api.loadPlayerVault()
+      .then(next => {
+        if (!cancelled) setPlayerVault(next);
+      })
+      .catch(error => {
+        if (!cancelled) {
+          console.error("[changebattle-v2] load player vault failed", error);
+          setPlayerVault(api.normalizePlayerVault());
+        }
       });
     return () => {
       cancelled = true;
@@ -216,8 +248,10 @@ function RoutedApp({runtime}: AppProps) {
     try {
       await api.deleteTrainingRun();
       await api.deleteFormalGameRun();
+      await api.deletePlayerVault();
       await api.deleteUserProfile();
       setProfile(null);
+      setPlayerVault(api.normalizePlayerVault());
       setEditingProfile(null);
       setMessage("本地资料已删除。");
       navigate("/", {replace: true});
@@ -263,6 +297,33 @@ function RoutedApp({runtime}: AppProps) {
       setMessage("测试模式已开启：BP 99999。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "测试模式开启失败。");
+    }
+  }
+
+  async function saveAllCurrentState() {
+    if (!profile || manualSaveState === "saving") return;
+    setManualSaveState("saving");
+    setMessage("存档中...");
+    try {
+      const savedProfile = await userProfileAdapter.saveUserProfile(profile);
+      const savedVault = await api.savePlayerVault(playerVault);
+      if (trainingRun) {
+        const savedTrainingRun = await api.saveTrainingRun(trainingRun);
+        setTrainingRun(savedTrainingRun);
+      }
+      if (formalRun) {
+        const savedFormalRun = await api.saveFormalGameRun(formalRun);
+        setFormalRun(savedFormalRun);
+      }
+      setProfile(savedProfile);
+      setPlayerVault(savedVault);
+      setManualSaveState("saved");
+      setMessage("存档完成。");
+      window.setTimeout(() => setManualSaveState(current => current === "saved" ? "idle" : current), 1400);
+    } catch (error) {
+      console.error("[changebattle-v2] manual save failed", error);
+      setManualSaveState("error");
+      setMessage(error instanceof Error ? `存档失败：${error.message}` : "存档失败。");
     }
   }
 
@@ -432,6 +493,8 @@ function RoutedApp({runtime}: AppProps) {
         onStarChart={() => navigate("/star-chart")}
         onTrainerVaultBag={() => navigate("/trainer-vault/bag")}
         onTrainerVaultPokemon={() => navigate("/trainer-vault/pokemon")}
+        onManualSave={() => void saveAllCurrentState()}
+        manualSaveState={manualSaveState}
         onTestMode={() => void enableTestMode()}
         onBattlePreference={() => navigate("/battle-preference")}
         onUserInfo={startEdit}
@@ -479,7 +542,7 @@ function RoutedApp({runtime}: AppProps) {
   const trainerVaultBagPage = profile ? (
     <TrainerVaultPage
       api={api}
-      profile={profile}
+      playerVault={playerVault}
       tab="bag"
       onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
       onBack={() => navigate("/main", {replace: true})}
@@ -489,7 +552,7 @@ function RoutedApp({runtime}: AppProps) {
   const trainerVaultPokemonPage = profile ? (
     <TrainerVaultPage
       api={api}
-      profile={profile}
+      playerVault={playerVault}
       tab="pokemon"
       onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
       onBack={() => navigate("/main", {replace: true})}
@@ -1035,6 +1098,29 @@ function createUserProfileAdapter(runtime: AppProps["runtime"]) {
     };
   }
   return createBrowserUserProfileAdapter(`changebattle-v2:${runtime}:user-profile`);
+}
+
+function createPlayerVaultAdapter(runtime: AppProps["runtime"]): PlayerVaultStorageAdapter {
+  const bridge = typeof window === "undefined"
+    ? undefined
+    : (window as ChangeBattleV2Window).changeBattleV2?.playerVault;
+  if (runtime === "desktop" && bridge) {
+    return createDesktopPlayerVaultAdapter(bridge);
+  }
+  if (runtime === "desktop") {
+    return {
+      async loadPlayerVault() {
+        throw new Error("桌面玩家资产桥接未加载，请重启桌面端或检查 preload 配置。");
+      },
+      async savePlayerVault(_vault: PlayerVaultV4) {
+        throw new Error("桌面玩家资产桥接未加载，无法写入本地存档。");
+      },
+      async deletePlayerVault() {
+        throw new Error("桌面玩家资产桥接未加载，无法删除本地存档。");
+      },
+    };
+  }
+  return createBrowserPlayerVaultAdapter(`changebattle-v2:${runtime}:player-vault`);
 }
 
 function createTrainingRunAdapter(runtime: AppProps["runtime"]) {

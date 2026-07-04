@@ -3,7 +3,7 @@ import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, PlayerVaultV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {DesktopSaveStoreV2} from "./desktopSaveStore.js";
 import {rendererAssetFilePath} from "./rendererAssetResolver.js";
@@ -115,6 +115,18 @@ ipcMain.handle("userProfile:delete", async () => {
 });
 
 ipcMain.handle("userProfile:path", async () => ensureSaveStore().path());
+
+ipcMain.handle("playerVault:load", async () => {
+  return ensureSaveStore().loadPlayerVault();
+});
+
+ipcMain.handle("playerVault:save", async (_event: IpcMainInvokeEvent, vault: PlayerVaultV4) => {
+  return ensureSaveStore().savePlayerVault(vault);
+});
+
+ipcMain.handle("playerVault:delete", async () => {
+  await ensureSaveStore().deletePlayerVault();
+});
 
 ipcMain.handle("trainingRun:load", async () => {
   return ensureSaveStore().loadTrainingRun();

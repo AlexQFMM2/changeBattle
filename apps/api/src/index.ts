@@ -67,6 +67,38 @@ export type TrainerVaultV2 = {
   pokemonBox: LocalPokemonV4[];
 };
 
+export type PlayerItemRecordV4 = {
+  itemId: string;
+  quantity: number;
+};
+
+export type PlayerPokemonMoveRecordV4 = {
+  moveId: string;
+  remainingPp?: number;
+  maxPp?: number;
+};
+
+export type PlayerPokemonRecordV4 = {
+  playerPokemonId: string;
+  speciesId: string;
+  gender: LocalPokemonV4["gender"];
+  nature: string;
+  abilityId: string;
+  evs: LocalPokemonV4["evs"];
+  ivs: LocalPokemonV4["ivs"];
+  moves: PlayerPokemonMoveRecordV4[];
+  friendship: number;
+  shiny: boolean;
+  metAt: string;
+  honors: string[];
+};
+
+export type PlayerVaultV4 = {
+  version: 1;
+  items: PlayerItemRecordV4[];
+  pokemon: PlayerPokemonRecordV4[];
+};
+
 export type UserProfileV2 = {
   version: 1;
   id: string;
@@ -96,9 +128,17 @@ export type UserProfileStorageAdapter = {
   deleteUserProfile(): Promise<void>;
 };
 
+export type PlayerVaultStorageAdapter = {
+  loadPlayerVault(): Promise<PlayerVaultV4 | null>;
+  savePlayerVault(vault: PlayerVaultV4): Promise<PlayerVaultV4>;
+  deletePlayerVault(): Promise<void>;
+};
+
 export type DesktopUserProfileBridge = UserProfileStorageAdapter & {
   getUserProfilePath?: () => Promise<string>;
 };
+
+export type DesktopPlayerVaultBridge = PlayerVaultStorageAdapter;
 
 export type DesktopTrainingRunBridge = TrainingRunStorageAdapter;
 export type DesktopFormalGameRunBridge = FormalGameRunStorageAdapter;
@@ -127,6 +167,7 @@ export type ChangeBattleV2ApiOptions = {
   resourcePrefix?: string;
   translate?: (table: string, value: string) => string;
   userProfileAdapter?: UserProfileStorageAdapter;
+  playerVaultAdapter?: PlayerVaultStorageAdapter;
   trainingRunAdapter?: TrainingRunStorageAdapter;
   formalGameRunAdapter?: FormalGameRunStorageAdapter;
   battleServiceClient?: BattleServiceClientV4;
@@ -135,6 +176,7 @@ export type ChangeBattleV2ApiOptions = {
 
 const USER_PROFILE_VERSION = 1 as const;
 const DEFAULT_BROWSER_PROFILE_KEY = "changebattle-v2:user-profile";
+const DEFAULT_BROWSER_PLAYER_VAULT_KEY = "changebattle-v2:player-vault";
 
 const TRAINER_CATALOG: TrainerCatalogV2 = {
   trainers: [
@@ -192,6 +234,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     translate: options.translate,
   });
   const userProfiles = options.userProfileAdapter || createBrowserUserProfileAdapter();
+  const playerVaults = options.playerVaultAdapter || createBrowserPlayerVaultAdapter();
   const trainingRuns = createTrainingRunApi(dex, options.trainingRunAdapter || createBrowserTrainingRunAdapter());
   const formalRuns = createFormalGameRunApi(dex, options.formalGameRunAdapter || createBrowserFormalGameRunAdapter());
   const battleService = options.battleServiceClient || createBattleServiceClient(options.battleServiceUrl);
@@ -213,6 +256,10 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getPokemonEggSkills: (speciesId: string) => dex.getPokemonEggSkills(speciesId),
     getPokemonMachineSkills: (speciesId: string) => dex.getPokemonMachineSkills(speciesId),
     getPokemonBattleProfile: (speciesId: string) => getPokemonBattleProfileV4(speciesId),
+    loadPlayerVault: async () => normalizePlayerVault(await playerVaults.loadPlayerVault()),
+    savePlayerVault: async (vault: PlayerVaultV4) => playerVaults.savePlayerVault(normalizePlayerVault(vault)),
+    deletePlayerVault: () => playerVaults.deletePlayerVault(),
+    normalizePlayerVault,
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
     loadUserProfile: async () => {
       const profile = await userProfiles.loadUserProfile();
@@ -374,6 +421,27 @@ export function createBrowserUserProfileAdapter(storageKey = DEFAULT_BROWSER_PRO
   };
 }
 
+export function createBrowserPlayerVaultAdapter(storageKey = DEFAULT_BROWSER_PLAYER_VAULT_KEY): PlayerVaultStorageAdapter {
+  return {
+    async loadPlayerVault() {
+      if (!hasBrowserStorage()) return null;
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return null;
+      return normalizePlayerVault(JSON.parse(raw));
+    },
+    async savePlayerVault(vault) {
+      const next = normalizePlayerVault(vault);
+      if (hasBrowserStorage()) {
+        window.localStorage.setItem(storageKey, JSON.stringify(next, null, 2));
+      }
+      return clone(next);
+    },
+    async deletePlayerVault() {
+      if (hasBrowserStorage()) window.localStorage.removeItem(storageKey);
+    },
+  };
+}
+
 export function createDesktopUserProfileAdapter(bridge: DesktopUserProfileBridge): UserProfileStorageAdapter {
   return {
     async loadUserProfile() {
@@ -385,6 +453,20 @@ export function createDesktopUserProfileAdapter(bridge: DesktopUserProfileBridge
     },
     async deleteUserProfile() {
       await bridge.deleteUserProfile();
+    },
+  };
+}
+
+export function createDesktopPlayerVaultAdapter(bridge: DesktopPlayerVaultBridge): PlayerVaultStorageAdapter {
+  return {
+    async loadPlayerVault() {
+      return normalizePlayerVault(await bridge.loadPlayerVault());
+    },
+    async savePlayerVault(vault) {
+      return normalizePlayerVault(await bridge.savePlayerVault(normalizePlayerVault(vault)));
+    },
+    async deletePlayerVault() {
+      await bridge.deletePlayerVault();
     },
   };
 }
@@ -507,6 +589,110 @@ function normalizeTrainerVault(value?: unknown): TrainerVaultV2 {
     },
     pokemonBox,
   };
+}
+
+export function normalizePlayerVault(value?: unknown): PlayerVaultV4 {
+  const raw = isPlainRecord(value) ? value : {};
+  const itemTotals = new Map<string, number>();
+  const rawItems = Array.isArray(raw.items) ? raw.items : [];
+  for (const item of rawItems) {
+    const record = normalizePlayerItemRecord(item);
+    if (!record) continue;
+    itemTotals.set(record.itemId, (itemTotals.get(record.itemId) || 0) + record.quantity);
+  }
+  const pokemon = (Array.isArray(raw.pokemon) ? raw.pokemon : [])
+    .map(normalizePlayerPokemonRecord)
+    .filter((entry): entry is PlayerPokemonRecordV4 => Boolean(entry));
+  return {
+    version: 1,
+    items: Array.from(itemTotals.entries()).map(([itemId, quantity]) => ({itemId, quantity})),
+    pokemon,
+  };
+}
+
+function normalizePlayerItemRecord(value: unknown): PlayerItemRecordV4 | null {
+  if (!isPlainRecord(value)) return null;
+  const itemId = normalizeNonEmptyText(value.itemId ?? value.itemID ?? value.id);
+  if (!itemId) return null;
+  const quantity = clampInt(value.quantity, 1, 999999, 1);
+  return {itemId, quantity};
+}
+
+function normalizePlayerPokemonRecord(value: unknown): PlayerPokemonRecordV4 | null {
+  if (!isPlainRecord(value)) return null;
+  const playerPokemonId = normalizeNonEmptyText(value.playerPokemonId ?? value.localPokemonId);
+  const speciesId = normalizeNonEmptyText(value.speciesId);
+  if (!playerPokemonId || !speciesId) return null;
+  return {
+    playerPokemonId,
+    speciesId,
+    gender: normalizeGender(value.gender),
+    nature: normalizeNonEmptyText(value.nature) || "Hardy",
+    abilityId: normalizeNonEmptyText(value.abilityId),
+    evs: normalizeStatTable(value.evs, 0),
+    ivs: normalizeStatTable(value.ivs, 31),
+    moves: normalizePlayerPokemonMoves(value.moves),
+    friendship: clampInt(value.friendship, 0, 255, 0),
+    shiny: Boolean(value.shiny),
+    metAt: normalizeIsoText(value.metAt) || new Date().toISOString(),
+    honors: Array.isArray(value.honors)
+      ? Array.from(new Set(value.honors.map(normalizeNonEmptyText).filter(Boolean)))
+      : [],
+  };
+}
+
+function normalizePlayerPokemonMoves(value: unknown): PlayerPokemonMoveRecordV4[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(move => {
+    if (!isPlainRecord(move)) return [];
+    const moveId = normalizeNonEmptyText(move.moveId ?? move.id);
+    if (!moveId) return [];
+    const remainingPp = optionalNonNegativeInt(move.remainingPp);
+    const maxPp = optionalNonNegativeInt(move.maxPp);
+    return [{
+      moveId,
+      ...(remainingPp === undefined ? {} : {remainingPp}),
+      ...(maxPp === undefined ? {} : {maxPp}),
+    }];
+  }).slice(0, 4);
+}
+
+function normalizeStatTable(value: unknown, fallback: number): LocalPokemonV4["evs"] {
+  const raw = isPlainRecord(value) ? value : {};
+  return {
+    hp: clampInt(raw.hp, 0, 252, fallback),
+    atk: clampInt(raw.atk, 0, 252, fallback),
+    def: clampInt(raw.def, 0, 252, fallback),
+    spa: clampInt(raw.spa, 0, 252, fallback),
+    spd: clampInt(raw.spd, 0, 252, fallback),
+    spe: clampInt(raw.spe, 0, 252, fallback),
+  };
+}
+
+function normalizeGender(value: unknown): LocalPokemonV4["gender"] {
+  return value === "M" || value === "F" || value === "N" ? value : "N";
+}
+
+function normalizeNonEmptyText(value: unknown): string {
+  return String(value || "").trim();
+}
+
+function normalizeIsoText(value: unknown): string {
+  const text = normalizeNonEmptyText(value);
+  if (!text) return "";
+  const time = Date.parse(text);
+  return Number.isFinite(time) ? new Date(time).toISOString() : "";
+}
+
+function optionalNonNegativeInt(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  return clampInt(value, 0, 999, 0);
+}
+
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const next = Math.floor(Number(value));
+  if (!Number.isFinite(next)) return fallback;
+  return Math.max(min, Math.min(max, next));
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

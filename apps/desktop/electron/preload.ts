@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, DesktopFormalGameRunBridge, DesktopTrainingRunBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, DesktopFormalGameRunBridge, DesktopPlayerVaultBridge, DesktopTrainingRunBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, PlayerVaultV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
   userProfile: {
@@ -7,6 +7,14 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
     saveUserProfile: (profile: UserProfileV2): Promise<UserProfileV2> => ipcRenderer.invoke("userProfile:save", profile),
     deleteUserProfile: (): Promise<void> => ipcRenderer.invoke("userProfile:delete"),
     getUserProfilePath: (): Promise<string> => ipcRenderer.invoke("userProfile:path"),
+  },
+  playerVault: {
+    loadPlayerVault: () =>
+      ipcRenderer.invoke("playerVault:load") as ReturnType<DesktopPlayerVaultBridge["loadPlayerVault"]>,
+    savePlayerVault: (vault: PlayerVaultV4) =>
+      ipcRenderer.invoke("playerVault:save", vault) as ReturnType<DesktopPlayerVaultBridge["savePlayerVault"]>,
+    deletePlayerVault: () =>
+      ipcRenderer.invoke("playerVault:delete") as ReturnType<DesktopPlayerVaultBridge["deletePlayerVault"]>,
   },
   trainingRun: {
     loadTrainingRun: () =>

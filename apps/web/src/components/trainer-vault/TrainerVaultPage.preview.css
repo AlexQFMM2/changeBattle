@@ -1,0 +1,9 @@
+.trainer-vault-preview-canvas {
+  position: absolute;
+  inset: 0;
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+  background: #101411;
+  color: #fff;
+}

@@ -1,0 +1,68 @@
+import {useMemo, useState} from "react";
+import type {ChangeBattleV2Api, PlayerVaultV4} from "@changebattle-v2/api";
+import {TrainerVaultPage} from "./TrainerVaultPage";
+import "./TrainerVaultPage.preview.css";
+
+type TrainerVaultPreviewTab = "bag" | "pokemon";
+
+const PREVIEW_BAG_ITEM_IDS = [
+  "potion",
+  "superpotion",
+  "ether",
+  "revive",
+  "rarecandy",
+  "leftovers",
+  "lifeorb",
+  "sitrusberry",
+  "lumberry",
+  "tm:protect",
+  "tm:thunderbolt",
+  "system-mega-stone",
+  "system-z-crystal",
+  "system-tera-orb",
+];
+
+export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
+  const [tab, setTab] = useState<TrainerVaultPreviewTab>("bag");
+  const playerVault = useMemo<PlayerVaultV4>(() => {
+    const trainingRun = api.createTrainingRunFromScenario(api.createTrainingRunGame({
+      id: "trainer-vault-preview-profile",
+      name: "预览训练师",
+      avatarAsset: "npc/avatars/6-asset-a73f3e71.webp",
+    }));
+    const p1 = trainingRun.players.p1;
+    return api.normalizePlayerVault({
+      version: 1,
+      items: PREVIEW_BAG_ITEM_IDS.map((itemId, index) => ({
+        itemId,
+        quantity: index % 3 === 0 ? 2 + index : 1,
+      })),
+      pokemon: (p1?.localTeam.pokemon || []).slice(0, 6).map((pokemon, index) => ({
+        playerPokemonId: `trainer-vault-preview-pokemon-${index + 1}`,
+        speciesId: pokemon.speciesId,
+        gender: pokemon.gender,
+        nature: pokemon.nature,
+        abilityId: pokemon.abilityId,
+        evs: pokemon.evs,
+        ivs: pokemon.ivs,
+        moves: pokemon.moves.map(move => ({moveId: move.moveId, remainingPp: move.remainingPp, maxPp: move.maxPp})),
+        friendship: 80 + index,
+        shiny: index === 1 ? true : pokemon.shiny,
+        metAt: new Date(2026, 0, index + 1).toISOString(),
+        honors: index === 0 ? ["preview-first-partner"] : [],
+      })),
+    });
+  }, [api]);
+
+  return (
+    <section className="trainer-vault-preview-canvas" aria-label="训练家仓库页面预览">
+      <TrainerVaultPage
+        api={api}
+        playerVault={playerVault}
+        tab={tab}
+        onTabChange={setTab}
+        onBack={() => undefined}
+      />
+    </section>
+  );
+}

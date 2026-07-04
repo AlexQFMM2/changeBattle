@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import {copyFile, mkdir, readFile, rename, rm, writeFile} from "node:fs/promises";
 import path from "node:path";
 import {gunzipSync, gzipSync} from "node:zlib";
-import type {FormalGameRunV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {FormalGameRunV4, PlayerVaultV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 
 const SPLIT_SAVE_VERSION = 1 as const;
 const DEFAULT_SLOT_ID = "slot-001";
@@ -11,6 +11,8 @@ const APP_SAVE_SECRET = "changebattle-v2-local-save-v1";
 
 const TABLE_FILES = {
   profile: "profile.dat",
+  playerItem: "player_item.dat",
+  playerPokemon: "player_pokemon.dat",
   trainingRun: "training_run.dat",
   formalRun: "formal_run.dat",
 } as const;
@@ -76,6 +78,30 @@ export class DesktopSaveStoreV2 {
 
   async deleteUserProfile(): Promise<void> {
     await this.deleteTable("profile");
+  }
+
+  async loadPlayerVault(): Promise<PlayerVaultV4 | null> {
+    const [itemsTable, pokemonTable] = await Promise.all([
+      this.readNullableTable<Pick<PlayerVaultV4, "version" | "items">>("playerItem"),
+      this.readNullableTable<Pick<PlayerVaultV4, "version" | "pokemon">>("playerPokemon"),
+    ]);
+    if (!itemsTable && !pokemonTable) return null;
+    return {
+      version: 1,
+      items: itemsTable?.items || [],
+      pokemon: pokemonTable?.pokemon || [],
+    };
+  }
+
+  async savePlayerVault(vault: PlayerVaultV4): Promise<PlayerVaultV4> {
+    await this.writeTable("playerItem", {version: 1, items: vault.items});
+    await this.writeTable("playerPokemon", {version: 1, pokemon: vault.pokemon});
+    return clone(vault);
+  }
+
+  async deletePlayerVault(): Promise<void> {
+    await this.deleteTable("playerItem");
+    await this.deleteTable("playerPokemon");
   }
 
   async loadTrainingRun(): Promise<TrainingRunGameV4 | null> {
