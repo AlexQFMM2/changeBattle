@@ -134,6 +134,36 @@ async function doublesSmoke() {
   console.log("showdown-battle-core doubles smoke ok");
 }
 
+async function gen7CoopFormatSmoke() {
+  const input: BattleServiceSessionInputV4 = {
+    runId: "test-run",
+    nodeId: "test-node-gen7-coop-format",
+    mode: "coop",
+    ruleSet: "gen7",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [pikachu, eevee], draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [bulbasaur, eevee], draft: null as any},
+      {playerId: "p3", name: "C", controller: "script", alliance: "near", team: [eevee, pikachu], draft: null as any},
+      {playerId: "p4", name: "D", controller: "ai", alliance: "far", team: [bulbasaur, eevee], draft: null as any},
+    ],
+  };
+  const snapshot = await createBattleSession(input);
+  if (!snapshot.rawLog.some(line => line === "|gametype|multi")) {
+    throw new Error(`gen7 coop should start as multi, status=${snapshot.status}, error=${snapshot.error}, input=${JSON.stringify(snapshot.debug.inputLog)}, streams=${JSON.stringify(snapshot.debug.playerStreams)}, raw log: ${snapshot.rawLog.join("\n")}`);
+  }
+  if (snapshot.rawLog.some(line => line === "|gametype|singles")) {
+    throw new Error(`gen7 coop leaked singles gametype: ${snapshot.rawLog.join("\n")}`);
+  }
+  if (!snapshot.rawLog.some(line => line.includes("|player|p3|")) || !snapshot.rawLog.some(line => line.includes("|player|p4|"))) {
+    throw new Error(`gen7 coop should register p3/p4 players: ${snapshot.rawLog.join("\n")}`);
+  }
+  if (!snapshot.requests.p1?.active?.length) {
+    throw new Error(`gen7 coop should expose an actionable p1 request: ${JSON.stringify(snapshot.requests)}`);
+  }
+  console.log("showdown-battle-core gen7 coop format smoke ok");
+}
+
 function rechargeChoiceSmoke() {
   const request: BattleServiceRequestV4 = {
     targetable: true,
@@ -1068,6 +1098,7 @@ function showdownPlaybackTimelineSmoke() {
 
 void smoke()
   .then(doublesSmoke)
+  .then(gen7CoopFormatSmoke)
   .then(rechargeChoiceSmoke)
   .then(faintedDoublesActiveChoiceSmoke)
   .then(duplicateForceSwitchChoiceSmoke)

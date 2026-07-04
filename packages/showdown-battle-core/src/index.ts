@@ -37,6 +37,19 @@ type ShowdownRuntimeApiV4 = {
   getPlayerStreams(stream: BattleStreamLike): PlayerStreamsLike;
 };
 
+type ShowdownStartFormatSpecV4 = {
+  id: string;
+  name: string;
+  mod: string;
+  gameType?: "singles" | "doubles" | "multi";
+  playerCount: number;
+  debug: boolean;
+  ruleset: string[];
+  banlist: string[];
+  restricted: string[];
+  unbanlist: string[];
+};
+
 type StreamLike = {
   write(chunk: string): Promise<void> | void;
   [Symbol.asyncIterator](): AsyncIterableIterator<string>;
@@ -1482,14 +1495,34 @@ function parseCondition(condition: string): {hp: number; maxHp: number; status: 
 
 async function buildStartInput(input: BattleServiceSessionInputV4): Promise<string> {
   const showdown = await loadShowdownRuntimeApiV4();
-  const spec = {
-    formatid: formatId(input.ruleSet, input.mode),
-  };
+  const spec = startSpec(input.ruleSet, input.mode);
   const lines = [`>start ${JSON.stringify(spec)}`];
   for (const player of input.players) {
     lines.push(`>player ${player.playerId} ${JSON.stringify({name: player.name, team: showdown.Teams.pack(player.team)})}`);
   }
   return lines.join("\n");
+}
+
+function startSpec(ruleSet: string, mode: string): {formatid: string} | {format: ShowdownStartFormatSpecV4} {
+  const format = customFormatForRuleSetMode(ruleSet, mode);
+  return format ? {format} : {formatid: formatId(ruleSet, mode)};
+}
+
+function customFormatForRuleSetMode(ruleSet: string, mode: string): ShowdownStartFormatSpecV4 | null {
+  if (mode !== "coop") return null;
+  const gen = ruleSet === "gen7" ? "gen7" : ruleSet === "gen8" ? "gen8" : "gen9";
+  return {
+    id: `changbattlev2${ruleSet}multicustomgame`,
+    name: `[ChangeBattle V2 ${ruleSet.toUpperCase()}] Multi Custom Game`,
+    mod: gen,
+    gameType: "multi",
+    playerCount: 4,
+    debug: true,
+    ruleset: ["Team Preview", "Cancel Mod", "Max Team Size = 24", "Max Move Count = 24", "Max Level = 9999", "Default Level = 100"],
+    banlist: [],
+    restricted: [],
+    unbanlist: [],
+  };
 }
 
 async function loadShowdownRuntimeApiV4(): Promise<ShowdownRuntimeApiV4> {
@@ -1614,7 +1647,6 @@ function formatId(ruleSet: string, mode: string): string {
   const suffix = mode === "doubles" ? "doublescustomgame" : "customgame";
   if (ruleSet === "gen7") return `gen7${suffix}`;
   if (ruleSet === "gen8") return `gen8${suffix}`;
-  if (mode === "coop") return "gen9multirandombattle";
   if (ruleSet === "gen9" || ruleSet === "standard") return `gen9${suffix}`;
   return "gen9customgame";
 }
