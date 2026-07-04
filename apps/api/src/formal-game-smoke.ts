@@ -1119,6 +1119,12 @@ const withDuplicateBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withBatt
 assert(withDuplicateBattleLog.restRunSnapshot?.battleLog?.length === withBattleLog.restRunSnapshot?.battleLog?.length, "battle log should dedupe snapshot lines");
 const loggedDamage = (withBattleLog.restRunSnapshot?.battleLog || []).filter(entry => entry.eventType === "damage").reduce((sum, entry) => sum + (entry.damage || 0), 0);
 assert(loggedDamage === 100, "battle log should replay rawLog HP baseline and scale public percentage HP to true max HP");
+const loggedMove = (withBattleLog.restRunSnapshot?.battleLog || []).find(entry => entry.eventType === "move" && entry.moveId === "tackle");
+assert(Boolean(loggedMove?.moveType) && Boolean(loggedMove?.moveCategory) && loggedMove?.moveEffectKind === "damage", "battle log move entries should include move metadata");
+const loggedMoveDamage = (withBattleLog.restRunSnapshot?.battleLog || []).find(entry => entry.eventType === "damage" && entry.moveId === "tackle");
+assert(Boolean(loggedMoveDamage?.moveType) && Boolean(loggedMoveDamage?.moveCategory) && loggedMoveDamage?.moveEffectKind === "damage", "battle log damage entries should inherit move metadata");
+const loggedMoveFaint = (withBattleLog.restRunSnapshot?.battleLog || []).find(entry => entry.eventType === "faint" && entry.moveId === "tackle");
+assert(Boolean(loggedMoveFaint?.moveType) && Boolean(loggedMoveFaint?.moveCategory) && loggedMoveFaint?.moveEffectKind === "damage", "battle log faint entries should inherit move metadata");
 const withSettlementBattleLog = {
   ...withBattleLog,
   restRunSnapshot: {
@@ -1183,6 +1189,8 @@ assert(roundSettlementNoStar.currentRoundIndex === 1, "round settlement should a
 assert(roundSettlementNoStar.restRunSnapshot!.currentNodeId === roundSettlementNoStar.restRunSnapshot!.gameMap[1]!.id, "round settlement should move current rest node to next round");
 assert(roundSettlementNoStar.roundPlan[1]!.participants.p2?.localTeam.pokemon.length === 3, "round settlement should generate the next opponent after a win");
 assert(roundSettlementNoStar.restRunSnapshot!.gameMap[1]!.participants.p2?.localTeam.pokemon.length === 3, "round settlement should expose generated next opponent in rest snapshot");
+assert(!roundSettlementNoStar.restRunSnapshot!.gameMap[1]!.participants.p2?.localTeam.pokemon.some(pokemon => pokemon.moves.some(move => !move.moveId)), "targeted generation should keep generated opponent moves valid");
+assert(!roundSettlementNoStar.roundPlan.flatMap(round => round.diagnostics).some(message => message.includes("target")), "targeted generation should not expose targeting diagnostics");
 const normalOpponent = roundSettlementNoStar.roundPlan[1]!.participants.p2!.localTeam.pokemon;
 normalOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `normal NPC ${index + 1}`, ["normal"]));
 const roundSettlementNoStarAgain = api.settleFormalBattleRoundV4(roundSettlementNoStar);

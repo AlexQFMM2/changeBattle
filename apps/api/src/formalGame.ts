@@ -321,6 +321,20 @@ export type FormalRoundPlanV4 = {
 
 type FormalBossTrainerCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "avatarAsset" | "bossProfile" | "presetTeamPreviews">;
 type FormalTrainerVisualCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "frontAsset" | "frontGifAsset" | "avatarAsset">;
+type FormalProfileTypeWeightsV4 = Record<string, number>;
+type FormalPlayerTeamProfileV4 = {
+  weaknessTypes: FormalProfileTypeWeightsV4;
+  moveTypes: FormalProfileTypeWeightsV4;
+  attackStyle: "physical" | "special" | "mixed" | "status";
+  speedStyle: "slow" | "fast" | "balanced";
+  effectWeights: Partial<Record<FormalMoveEffectKindV4, number>>;
+  hasMoveUsage: boolean;
+};
+type FormalNpcTargetingContextV4 = {
+  profile: FormalPlayerTeamProfileV4;
+  trainerType: FormalNpcTypeV4;
+  targetedTypeUsage: Record<string, number>;
+};
 
 const PLAYER_BACK_IMAGES = [
   "npc/player-back/black-bw-touya-back-b2e0a77d.png",
@@ -651,6 +665,58 @@ const FORMAL_MEDICAL_INSURANCE_TIERS: FormalMedicalInsuranceTierViewV4[] = [
   {tier: "premium", label: "冠军医疗保险", cost: 1200, reviveCostPerPokemon: 0, recoveryShopPriceMultiplier: 0.5},
 ];
 const FORMAL_REST_TEAM_HEAL_BASE_COST = 250;
+const POKEMON_TYPES_V4 = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"] as const;
+const POKEMON_TYPE_ALIASES_V4: Record<string, string> = {
+  一般: "Normal",
+  普通: "Normal",
+  火: "Fire",
+  水: "Water",
+  电: "Electric",
+  電: "Electric",
+  草: "Grass",
+  冰: "Ice",
+  格斗: "Fighting",
+  格鬥: "Fighting",
+  毒: "Poison",
+  地面: "Ground",
+  飞行: "Flying",
+  飛行: "Flying",
+  超能力: "Psychic",
+  超能: "Psychic",
+  虫: "Bug",
+  蟲: "Bug",
+  岩石: "Rock",
+  幽灵: "Ghost",
+  幽靈: "Ghost",
+  鬼: "Ghost",
+  龙: "Dragon",
+  龍: "Dragon",
+  恶: "Dark",
+  惡: "Dark",
+  钢: "Steel",
+  鋼: "Steel",
+  妖精: "Fairy",
+};
+const TYPE_EFFECTIVENESS_V4: Record<string, {super?: string[]; resist?: string[]; immune?: string[]}> = {
+  Normal: {resist: ["Rock", "Steel"], immune: ["Ghost"]},
+  Fire: {super: ["Grass", "Ice", "Bug", "Steel"], resist: ["Fire", "Water", "Rock", "Dragon"]},
+  Water: {super: ["Fire", "Ground", "Rock"], resist: ["Water", "Grass", "Dragon"]},
+  Electric: {super: ["Water", "Flying"], resist: ["Electric", "Grass", "Dragon"], immune: ["Ground"]},
+  Grass: {super: ["Water", "Ground", "Rock"], resist: ["Fire", "Grass", "Poison", "Flying", "Bug", "Dragon", "Steel"]},
+  Ice: {super: ["Grass", "Ground", "Flying", "Dragon"], resist: ["Fire", "Water", "Ice", "Steel"]},
+  Fighting: {super: ["Normal", "Ice", "Rock", "Dark", "Steel"], resist: ["Poison", "Flying", "Psychic", "Bug", "Fairy"], immune: ["Ghost"]},
+  Poison: {super: ["Grass", "Fairy"], resist: ["Poison", "Ground", "Rock", "Ghost"], immune: ["Steel"]},
+  Ground: {super: ["Fire", "Electric", "Poison", "Rock", "Steel"], resist: ["Grass", "Bug"], immune: ["Flying"]},
+  Flying: {super: ["Grass", "Fighting", "Bug"], resist: ["Electric", "Rock", "Steel"]},
+  Psychic: {super: ["Fighting", "Poison"], resist: ["Psychic", "Steel"], immune: ["Dark"]},
+  Bug: {super: ["Grass", "Psychic", "Dark"], resist: ["Fire", "Fighting", "Poison", "Flying", "Ghost", "Steel", "Fairy"]},
+  Rock: {super: ["Fire", "Ice", "Flying", "Bug"], resist: ["Fighting", "Ground", "Steel"]},
+  Ghost: {super: ["Psychic", "Ghost"], resist: ["Dark"], immune: ["Normal"]},
+  Dragon: {super: ["Dragon"], resist: ["Steel"], immune: ["Fairy"]},
+  Dark: {super: ["Psychic", "Ghost"], resist: ["Fighting", "Dark", "Fairy"]},
+  Steel: {super: ["Ice", "Rock", "Fairy"], resist: ["Fire", "Water", "Electric", "Steel"]},
+  Fairy: {super: ["Fighting", "Dragon", "Dark"], resist: ["Fire", "Poison", "Steel"]},
+};
 
 export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalGameRunStorageAdapter = createBrowserFormalGameRunAdapter()): FormalGameRunApi {
   function createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4 {
@@ -805,9 +871,15 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> = {p1: player};
     const npcs: FormalRoundNpcSnapshotV4[] = [];
     const diagnostics: string[] = [];
+    const playerProfile = createCombinedFormalPlayerProfile(dex, player.localTeam, run.restRunSnapshot?.battleLog || [], base.id);
     const enemyTypes = run.mode === "coop" ? [base.difficulty, base.difficulty] : [base.difficulty];
     enemyTypes.forEach((trainerType, enemyIndex) => {
       const playerId = enemyIndex === 0 ? "p2" : "p4";
+      const targetingContext: FormalNpcTargetingContextV4 = {
+        profile: playerProfile,
+        trainerType,
+        targetedTypeUsage: {},
+      };
       const built = createFormalNpcParticipant({
         run,
         trainerType,
@@ -819,6 +891,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         usedNpcSpecies,
         rng: roundRng,
         targetLevel: formalNpcTargetLevelForTeam(player.localTeam.pokemon, trainerType),
+        targetingContext,
       });
       participants[playerId] = built.player;
       npcs.push(built.npc);
@@ -916,7 +989,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       ? normalized
       : normalizeFormalRun({...normalized, restRunSnapshot, updatedAt: new Date().toISOString()});
     const existingKeys = new Set((restRunSnapshot.battleLog || []).map(entry => entry.key));
-    const parsed = parseBattleLogEntriesFromSnapshot(snapshot, existingKeys);
+    const parsed = parseBattleLogEntriesFromSnapshot(snapshot, existingKeys, getMoveDetailSafe);
     if (!parsed.length) return normalizedWithBattleState;
     const now = new Date().toISOString();
     return normalizeFormalRun({
@@ -1997,6 +2070,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     rng: () => number;
     partnerPreference?: CoopPartnerPreferenceV4;
     targetLevel?: number;
+    targetingContext?: FormalNpcTargetingContextV4;
   }): {player: TrainingPlayerDraftV4; npc: FormalRoundNpcSnapshotV4; diagnostics: string[]} {
     const diagnostics: string[] = [];
     const isBoss = isBossTrainerType(input.trainerType);
@@ -2010,7 +2084,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const avatar = boss?.avatarAsset || fullBodyTrainerAsset(visual) || DEFAULT_TRAINER_AVATAR;
     const backImage = input.playerId === "p3" && input.alliance === "near" ? pickPlayerBackImage(input.rng) : undefined;
     const teamResult = boss
-      ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, powerProfile, input.usedNpcSpecies, input.rng, targetLevel)
+      ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, powerProfile, input.usedNpcSpecies, input.rng, targetLevel, input.targetingContext)
       : createNpcLocalTeam(input.run, {
         playerId: input.playerId,
         teamPreference,
@@ -2020,6 +2094,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         level: targetLevel,
         usedNpcSpecies: input.usedNpcSpecies,
         rng: input.rng,
+        targetingContext: input.targetingContext,
       });
     const gen7TeamResult = ensureGen7NpcMegaCandidate(input.run, teamResult.team, powerProfile, input.usedNpcSpecies, input.rng, targetLevel);
     const systemBagResult = createFormalNpcSystemBag(input.run.battlePreference.battleBagEnabled, input.run.battlePreference.ruleSet, gen7TeamResult.team, input.rng);
@@ -2120,6 +2195,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     usedNpcSpecies: Set<string>,
     rng: () => number,
     level: number,
+    targetingContext?: FormalNpcTargetingContextV4,
   ): {team: LocalTeamV4; diagnostics: string[]} {
     if (run.battlePreference.ruleSet !== "gen7" || team.pokemon.some(pokemon => pokemonHasSystemReforgeOptions(dex, "system-mega-stone", pokemon))) {
       return {team, diagnostics: []};
@@ -2217,6 +2293,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     usedNpcSpecies: Set<string>,
     rng: () => number,
     level: number,
+    targetingContext?: FormalNpcTargetingContextV4,
   ): {team: LocalTeamV4; diagnostics: string[]} {
     const diagnostics: string[] = [`boss:${boss.id}`];
     const ruleSetPreset = run.battlePreference.ruleSet === "standard" ? "none" : run.battlePreference.ruleSet;
@@ -2233,6 +2310,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       const overlapA = a.pokemon.filter(pokemon => usedNpcSpecies.has(baseSpeciesId(pokemon.speciesId))).length;
       const overlapB = b.pokemon.filter(pokemon => usedNpcSpecies.has(baseSpeciesId(pokemon.speciesId))).length;
       if (overlapA !== overlapB) return overlapA - overlapB;
+      const targetScoreDelta = scoreBossPresetForPlayerProfile(dex, b, targetingContext) - scoreBossPresetForPlayerProfile(dex, a, targetingContext);
+      if (Math.abs(targetScoreDelta) > 0.001) return targetScoreDelta;
       return stableScore(`${a.trainerId}:${a.ruleSetPreset}:${a.mode}:${a.variantIndex}`) - stableScore(`${b.trainerId}:${b.ruleSetPreset}:${b.mode}:${b.variantIndex}`);
     })[0];
     if (!selected) {
@@ -2246,6 +2325,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         level,
         usedNpcSpecies,
         rng,
+        targetingContext,
       });
     }
     const battleTeamSize = selectedCountForFormalMode(run.mode);
@@ -2286,6 +2366,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     level: number;
     usedNpcSpecies: Set<string>;
     rng: () => number;
+    targetingContext?: FormalNpcTargetingContextV4;
   }): {team: LocalTeamV4; diagnostics: string[]} {
     const diagnostics = [`npc-theme:${input.teamPreference}`, `npc-ai:${input.battlePreference}`];
     const rows = collectPokemonRows(dex, run.battlePreference);
@@ -2301,11 +2382,18 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         .filter(row => !usedInTeam.has(baseSpeciesId(row.id)))
         .filter(row => !input.usedNpcSpecies.has(baseSpeciesId(row.id)));
       const relaxed = (rolePool.length ? rolePool : pool).filter(row => !usedInTeam.has(baseSpeciesId(row.id)));
-      const picked = pickOne(candidates.length ? candidates : relaxed, input.rng) || fallbackRow(index);
+      const picked = weightedPickNpcCandidate(candidates.length ? candidates : relaxed, {
+        dex,
+        role,
+        trainerType: input.trainerType,
+        targetingContext: input.targetingContext,
+        rng: input.rng,
+      }) || fallbackRow(index);
       if (!candidates.length) diagnostics.push(`species-dedupe-relaxed:${index + 1}`);
       selected.push(picked);
       usedInTeam.add(baseSpeciesId(picked.id));
       input.usedNpcSpecies.add(baseSpeciesId(picked.id));
+      recordTargetedCandidateType(dex, picked, input.targetingContext);
     }
     const pokemon = selected.map((row, index) => {
       const detail = safePokemon(row.id);
@@ -3454,6 +3542,271 @@ function safeMove(dex: ShowdownDexService, moveId: string): DexMoveSummary {
   }
 }
 
+function createCombinedFormalPlayerProfile(dex: ShowdownDexService, team: LocalTeamV4, battleLog: TrainingBattleLogEntryV4[], nextNodeId: string): FormalPlayerTeamProfileV4 {
+  const teamProfile = createFormalPlayerTeamProfileV4(dex, team);
+  const moveProfile = createFormalPlayerMoveUsageProfileV4(battleLog, previousFormalNodeId(nextNodeId));
+  return combineFormalPlayerProfilesV4(teamProfile, moveProfile);
+}
+
+function createFormalPlayerTeamProfileV4(dex: ShowdownDexService, team: LocalTeamV4): FormalPlayerTeamProfileV4 {
+  const weaknessTypes: FormalProfileTypeWeightsV4 = {};
+  const moveTypes: FormalProfileTypeWeightsV4 = {};
+  let physical = 0;
+  let special = 0;
+  let status = 0;
+  let speedTotal = 0;
+  for (const pokemon of team.pokemon || []) {
+    const detail = safePokemonDetailFromLocal(dex, pokemon);
+    const types = detail.types?.length ? detail.types : [];
+    for (const attackType of POKEMON_TYPES_V4) {
+      const multiplier = typeEffectivenessAgainst(attackType, types);
+      if (multiplier > 1) weaknessTypes[attackType] = (weaknessTypes[attackType] || 0) + Math.min(2, multiplier / 2);
+    }
+    speedTotal += Math.max(0, Number(detail.baseStats?.spe || pokemon.level || 50));
+    for (const move of pokemon.moves || []) {
+      if (move.type) moveTypes[normalizeTypeName(move.type)] = (moveTypes[normalizeTypeName(move.type)] || 0) + Math.max(1, Number(move.power || 0) / 80);
+      const category = normalizeMoveCategory(move.category);
+      if (category === "Physical") physical += 1;
+      else if (category === "Special") special += 1;
+      else status += 1;
+    }
+  }
+  const averageSpeed = team.pokemon.length ? speedTotal / team.pokemon.length : 80;
+  return normalizeFormalPlayerProfile({
+    weaknessTypes,
+    moveTypes,
+    attackStyle: attackStyleFromCounts(physical, special, status),
+    speedStyle: averageSpeed <= 65 ? "slow" : averageSpeed >= 95 ? "fast" : "balanced",
+    effectWeights: {},
+    hasMoveUsage: false,
+  });
+}
+
+function createFormalPlayerMoveUsageProfileV4(battleLog: TrainingBattleLogEntryV4[], nodeId: string): FormalPlayerTeamProfileV4 | null {
+  if (!nodeId) return null;
+  const entries = battleLog.filter(entry => entry.nodeId === nodeId && entry.sourcePlayerId === "p1" && entry.eventType === "move");
+  if (!entries.length) return null;
+  const moveTypes: FormalProfileTypeWeightsV4 = {};
+  const effectWeights: Partial<Record<FormalMoveEffectKindV4, number>> = {};
+  let physical = 0;
+  let special = 0;
+  let status = 0;
+  for (const entry of entries) {
+    const moveType = normalizeTypeName(entry.moveType || "");
+    if (moveType) moveTypes[moveType] = (moveTypes[moveType] || 0) + 1;
+    const category = normalizeMoveCategory(entry.moveCategory || "");
+    if (category === "Physical") physical += 1;
+    else if (category === "Special") special += 1;
+    else status += 1;
+    const kind = entry.moveEffectKind || "other";
+    effectWeights[kind] = (effectWeights[kind] || 0) + 1;
+  }
+  return normalizeFormalPlayerProfile({
+    weaknessTypes: {},
+    moveTypes,
+    attackStyle: attackStyleFromCounts(physical, special, status),
+    speedStyle: "balanced",
+    effectWeights,
+    hasMoveUsage: true,
+  });
+}
+
+function combineFormalPlayerProfilesV4(teamProfile: FormalPlayerTeamProfileV4, moveUsageProfile: FormalPlayerTeamProfileV4 | null): FormalPlayerTeamProfileV4 {
+  if (!moveUsageProfile?.hasMoveUsage) return teamProfile;
+  return normalizeFormalPlayerProfile({
+    weaknessTypes: scaleTypeWeights(teamProfile.weaknessTypes, 0.6),
+    moveTypes: mergeTypeWeights(scaleTypeWeights(teamProfile.moveTypes, 0.6), scaleTypeWeights(moveUsageProfile.moveTypes, 0.4)),
+    attackStyle: moveUsageProfile.attackStyle === "mixed" || moveUsageProfile.attackStyle === "status" ? teamProfile.attackStyle : moveUsageProfile.attackStyle,
+    speedStyle: teamProfile.speedStyle,
+    effectWeights: mergeEffectWeights(scaleEffectWeights(teamProfile.effectWeights, 0.6), scaleEffectWeights(moveUsageProfile.effectWeights, 0.4)),
+    hasMoveUsage: true,
+  });
+}
+
+function weightedPickNpcCandidate<T extends DexSearchRow & {rank: PokemonSpeciesRankV4}>(rows: T[], input: {
+  dex: ShowdownDexService;
+  role: FormalStarterRoleV4;
+  trainerType: FormalNpcTypeV4;
+  targetingContext?: FormalNpcTargetingContextV4;
+  rng: () => number;
+}): T | undefined {
+  if (!rows.length) return undefined;
+  const weights = rows.map(row => Math.max(0.1, scoreNpcCandidateForPlayerProfile(input.dex, row, input.role, input.trainerType, input.targetingContext)));
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  let roll = input.rng() * total;
+  for (let index = 0; index < rows.length; index += 1) {
+    roll -= weights[index] || 0;
+    if (roll <= 0) return rows[index];
+  }
+  return rows[rows.length - 1];
+}
+
+function scoreNpcCandidateForPlayerProfile(dex: ShowdownDexService, row: DexSearchRow & {rank: PokemonSpeciesRankV4}, role: FormalStarterRoleV4, trainerType: FormalNpcTypeV4, targetingContext?: FormalNpcTargetingContextV4): number {
+  if (!targetingContext) return 1;
+  const detail = safePokemonDetailFromRow(dex, row);
+  const intensity = targetingIntensityForTrainerType(trainerType);
+  let score = 1;
+  const candidateTypes = detail.types || row.tags.filter(tag => POKEMON_TYPES_V4.includes(tag as (typeof POKEMON_TYPES_V4)[number]));
+  for (const type of candidateTypes) {
+    const normalizedType = normalizeTypeName(type);
+    const usage = targetingContext.targetedTypeUsage[normalizedType] || 0;
+    const capMultiplier = usage >= 2 ? 0.25 : 1;
+    score += (targetingContext.profile.weaknessTypes[normalizedType] || 0) * intensity * 0.45 * capMultiplier;
+  }
+  const speed = Number(detail.baseStats?.spe || 80);
+  if (targetingContext.profile.speedStyle === "slow" && speed >= 90) score += intensity * 0.35;
+  if (targetingContext.profile.speedStyle === "fast" && (role === "trick-room" || role === "disruption" || speed <= 60)) score += intensity * 0.35;
+  if (targetingContext.profile.attackStyle === "physical" && ["defense", "disruption", "support"].includes(role)) score += intensity * 0.25;
+  if (targetingContext.profile.attackStyle === "special" && ["defense", "support", "disruption"].includes(role)) score += intensity * 0.25;
+  if ((targetingContext.profile.effectWeights.setup || 0) > 0.25 && ["disruption", "support"].includes(role)) score += intensity * 0.3;
+  if ((targetingContext.profile.effectWeights.recovery || 0) > 0.25 && ["setup-offense", "offense", "disruption"].includes(role)) score += intensity * 0.2;
+  for (const [moveType, weight] of Object.entries(targetingContext.profile.moveTypes)) {
+    const multiplier = typeEffectivenessAgainst(moveType, candidateTypes);
+    if (multiplier === 0) score += weight * intensity * 0.45;
+    else if (multiplier < 1) score += weight * intensity * 0.28;
+    else if (multiplier > 1) score -= weight * intensity * 0.16;
+  }
+  return Math.max(0.1, score);
+}
+
+function scoreBossPresetForPlayerProfile(dex: ShowdownDexService, team: FormalBossTrainerCandidateV4["presetTeamPreviews"][number], targetingContext?: FormalNpcTargetingContextV4): number {
+  if (!targetingContext) return 0;
+  return team.pokemon.reduce((sum, pokemon, index) => {
+    const row = pokemonRowFromSpeciesId(dex, pokemon.speciesId);
+    return sum + scoreNpcCandidateForPlayerProfile(dex, row, roleForTeamPreference(team.teamArchetype as FormalNpcTeamPreferenceV4, index), targetingContext.trainerType, targetingContext);
+  }, 0);
+}
+
+function recordTargetedCandidateType(dex: ShowdownDexService, row: DexSearchRow & {rank: PokemonSpeciesRankV4}, targetingContext?: FormalNpcTargetingContextV4): void {
+  if (!targetingContext) return;
+  const detail = safePokemonDetailFromRow(dex, row);
+  const bestType = (detail.types || [])
+    .map(type => normalizeTypeName(type))
+    .sort((a, b) => (targetingContext.profile.weaknessTypes[b] || 0) - (targetingContext.profile.weaknessTypes[a] || 0))[0];
+  if (bestType && (targetingContext.profile.weaknessTypes[bestType] || 0) > 0) {
+    targetingContext.targetedTypeUsage[bestType] = (targetingContext.targetedTypeUsage[bestType] || 0) + 1;
+  }
+}
+
+function previousFormalNodeId(nextNodeId: string): string {
+  const match = nextNodeId.match(/formal-round-(\d+)/);
+  const roundNumber = Math.max(0, Math.floor(Number(match?.[1] || 0)));
+  const previous = roundNumber - 1;
+  return previous >= 1 ? `formal-round-${previous}` : "";
+}
+
+function normalizeFormalPlayerProfile(profile: FormalPlayerTeamProfileV4): FormalPlayerTeamProfileV4 {
+  return {
+    weaknessTypes: normalizeTypeWeights(profile.weaknessTypes),
+    moveTypes: normalizeTypeWeights(profile.moveTypes),
+    attackStyle: profile.attackStyle,
+    speedStyle: profile.speedStyle,
+    effectWeights: normalizeEffectWeights(profile.effectWeights),
+    hasMoveUsage: Boolean(profile.hasMoveUsage),
+  };
+}
+
+function normalizeTypeWeights(weights: FormalProfileTypeWeightsV4): FormalProfileTypeWeightsV4 {
+  const entries = Object.entries(weights).filter(([, value]) => value > 0);
+  const max = Math.max(1, ...entries.map(([, value]) => value));
+  return Object.fromEntries(entries.map(([key, value]) => [normalizeTypeName(key), value / max]).filter(([key]) => Boolean(key))) as FormalProfileTypeWeightsV4;
+}
+
+function normalizeEffectWeights(weights: Partial<Record<FormalMoveEffectKindV4, number>>): Partial<Record<FormalMoveEffectKindV4, number>> {
+  const entries = Object.entries(weights).filter(([, value]) => Number(value) > 0) as Array<[FormalMoveEffectKindV4, number]>;
+  const max = Math.max(1, ...entries.map(([, value]) => value));
+  return Object.fromEntries(entries.map(([key, value]) => [key, value / max])) as Partial<Record<FormalMoveEffectKindV4, number>>;
+}
+
+function scaleTypeWeights(weights: FormalProfileTypeWeightsV4, scale: number): FormalProfileTypeWeightsV4 {
+  return Object.fromEntries(Object.entries(weights).map(([key, value]) => [key, value * scale]));
+}
+
+function scaleEffectWeights(weights: Partial<Record<FormalMoveEffectKindV4, number>>, scale: number): Partial<Record<FormalMoveEffectKindV4, number>> {
+  return Object.fromEntries(Object.entries(weights).map(([key, value]) => [key, Number(value || 0) * scale])) as Partial<Record<FormalMoveEffectKindV4, number>>;
+}
+
+function mergeTypeWeights(a: FormalProfileTypeWeightsV4, b: FormalProfileTypeWeightsV4): FormalProfileTypeWeightsV4 {
+  const next: FormalProfileTypeWeightsV4 = {...a};
+  Object.entries(b).forEach(([key, value]) => {
+    next[key] = (next[key] || 0) + value;
+  });
+  return next;
+}
+
+function mergeEffectWeights(a: Partial<Record<FormalMoveEffectKindV4, number>>, b: Partial<Record<FormalMoveEffectKindV4, number>>): Partial<Record<FormalMoveEffectKindV4, number>> {
+  const next = {...a};
+  Object.entries(b).forEach(([key, value]) => {
+    const kind = key as FormalMoveEffectKindV4;
+    next[kind] = (next[kind] || 0) + Number(value || 0);
+  });
+  return next;
+}
+
+function attackStyleFromCounts(physical: number, special: number, status: number): FormalPlayerTeamProfileV4["attackStyle"] {
+  const total = physical + special + status;
+  if (total <= 0 || status / total >= 0.55) return "status";
+  if (physical >= special * 1.5) return "physical";
+  if (special >= physical * 1.5) return "special";
+  return "mixed";
+}
+
+function targetingIntensityForTrainerType(type: FormalNpcTypeV4): number {
+  if (type === "champion") return 1.15;
+  if (type === "gym" || type === "elite4" || type === "villain") return 0.95;
+  if (type === "elite") return 0.7;
+  return 0.55;
+}
+
+function typeEffectivenessAgainst(attackType: string, defenderTypes: string[]): number {
+  const attack = normalizeTypeName(attackType);
+  return defenderTypes.reduce((multiplier, defenderType) => {
+    const defender = normalizeTypeName(defenderType);
+    const chart = TYPE_EFFECTIVENESS_V4[attack];
+    if (!chart) return multiplier;
+    if (chart.immune?.includes(defender)) return 0;
+    if (chart.super?.includes(defender)) return multiplier * 2;
+    if (chart.resist?.includes(defender)) return multiplier * 0.5;
+    return multiplier;
+  }, 1);
+}
+
+function normalizeTypeName(type: string): string {
+  const raw = String(type || "").trim();
+  if (POKEMON_TYPE_ALIASES_V4[raw]) return POKEMON_TYPE_ALIASES_V4[raw]!;
+  return POKEMON_TYPES_V4.find(candidate => candidate.toLowerCase() === raw.toLowerCase()) || raw;
+}
+
+function normalizeMoveCategory(category: string): "Physical" | "Special" | "Status" {
+  const raw = String(category || "").toLowerCase();
+  if (raw === "physical" || raw === "物理") return "Physical";
+  if (raw === "special" || raw === "特殊") return "Special";
+  return "Status";
+}
+
+function safePokemonDetailFromLocal(dex: ShowdownDexService, pokemon: LocalPokemonV4): DexPokemonDetail {
+  return safePokemonDetailFromRow(dex, pokemonRowFromSpeciesId(dex, pokemon.speciesId));
+}
+
+function safePokemonDetailFromRow(dex: ShowdownDexService, row: Pick<DexSearchRow, "id">): DexPokemonDetail {
+  return safePokemonDetail(dex, row.id);
+}
+
+function pokemonRowFromSpeciesId(dex: ShowdownDexService, speciesId: string): DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number} {
+  const detail = safePokemonDetail(dex, speciesId);
+  return {
+    id: detail.id,
+    category: "pokemon",
+    name: detail.name,
+    nameZh: detail.nameZh,
+    subtitle: (detail.types || []).join(" / "),
+    description: "",
+    tags: [detail.id, detail.name, detail.nameZh, ...(detail.types || [])],
+    rank: speciesRankForDetail(detail),
+    generation: generationForDexNum(detail.num),
+  };
+}
+
 function fallbackRow(index: number): DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number} {
   const id = FALLBACK_SPECIES[index % FALLBACK_SPECIES.length]!;
   return {
@@ -4589,9 +4942,26 @@ function normalizeSettlementReason(reason: unknown): FormalSettlementReasonV4 {
   return reason === "complete" || reason === "loss" || reason === "surrender" || reason === "abandon" ? reason : "loss";
 }
 
-function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, existingKeys: Set<string>): TrainingBattleLogEntryV4[] {
+type FormalMoveEffectKindV4 = NonNullable<TrainingBattleLogEntryV4["moveEffectKind"]>;
+type FormalBattleMoveContextV4 = {
+  playerId?: ShowdownPlayerIdV4;
+  pokemonKey?: string;
+  pokemonName?: string;
+  moveId?: string;
+  moveName?: string;
+  moveType?: string;
+  moveCategory?: string;
+  movePower?: number;
+  moveEffectKind?: FormalMoveEffectKindV4;
+};
+
+function parseBattleLogEntriesFromSnapshot(
+  snapshot: BattleSessionSnapshotV4,
+  existingKeys: Set<string>,
+  getMoveDetail: (moveId: string) => DexMoveSummary | null,
+): TrainingBattleLogEntryV4[] {
   const entries: TrainingBattleLogEntryV4[] = [];
-  let currentMove: {playerId?: ShowdownPlayerIdV4; pokemonKey?: string; pokemonName?: string; moveId?: string; moveName?: string} | null = null;
+  let currentMove: FormalBattleMoveContextV4 | null = null;
   const hpMaxByBattleKey = buildBattleHpMaxMap(snapshot);
   const hpByBattleKey = new Map<string, {hp: number; maxHp: number}>();
   const maybePush = (entry: TrainingBattleLogEntryV4) => {
@@ -4609,20 +4979,24 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
     if (command === "move") {
       const actor = parseBattleIdent(parts[2]);
       const moveName = parts[3] || "";
+      const moveId = toID(moveName);
+      const moveMetadata = battleLogMoveMetadata(moveId, getMoveDetail);
       currentMove = {
         playerId: actor.playerId,
         pokemonKey: actor.key,
         pokemonName: actor.name,
-        moveId: toID(moveName),
+        moveId,
         moveName,
+        ...moveMetadata,
       };
       maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "move",
         sourcePlayerId: actor.playerId,
         sourcePokemonKey: actor.key,
         sourcePokemonName: actor.name,
-        moveId: toID(moveName),
+        moveId,
         moveName,
+        ...moveMetadata,
         directness: "direct",
       }));
       continue;
@@ -4653,6 +5027,10 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
         targetPokemonName: target.name,
         moveId: currentMove?.moveId,
         moveName: currentMove?.moveName,
+        moveType: currentMove?.moveType,
+        moveCategory: currentMove?.moveCategory,
+        movePower: currentMove?.movePower,
+        moveEffectKind: currentMove?.moveEffectKind,
         directness: currentMove ? "direct" : "indirect",
       }));
       continue;
@@ -4672,6 +5050,12 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
         targetPlayerId: target.playerId,
         targetPokemonKey: target.key,
         targetPokemonName: target.name,
+        moveId: currentMove?.moveId,
+        moveName: currentMove?.moveName,
+        moveType: currentMove?.moveType,
+        moveCategory: currentMove?.moveCategory,
+        movePower: currentMove?.movePower,
+        moveEffectKind: currentMove?.moveEffectKind,
         directness: "unknown",
       }));
       continue;
@@ -4687,6 +5071,12 @@ function parseBattleLogEntriesFromSnapshot(snapshot: BattleSessionSnapshotV4, ex
         targetPlayerId: target.playerId,
         targetPokemonKey: target.key,
         targetPokemonName: target.name,
+        moveId: currentMove?.moveId,
+        moveName: currentMove?.moveName,
+        moveType: currentMove?.moveType,
+        moveCategory: currentMove?.moveCategory,
+        movePower: currentMove?.movePower,
+        moveEffectKind: currentMove?.moveEffectKind,
         directness: currentMove ? "direct" : "indirect",
       }));
       continue;
@@ -4782,9 +5172,42 @@ function createBattleLogEntry(
     targetPokemonName: patch.targetPokemonName,
     moveId: patch.moveId,
     moveName: patch.moveName,
+    moveType: patch.moveType,
+    moveCategory: patch.moveCategory,
+    movePower: patch.movePower,
+    moveEffectKind: patch.moveEffectKind,
     directness: patch.directness,
     rawLine,
   };
+}
+
+function battleLogMoveMetadata(moveId: string, getMoveDetail: (moveId: string) => DexMoveSummary | null): Pick<TrainingBattleLogEntryV4, "moveType" | "moveCategory" | "movePower" | "moveEffectKind"> {
+  if (!moveId) return {moveEffectKind: "other"};
+  const move = getMoveDetail(moveId);
+  if (!move) return {moveEffectKind: "other"};
+  return {
+    moveType: move.type || move.typeId,
+    moveCategory: move.category || move.categoryId,
+    movePower: Math.max(0, Math.floor(Number(move.power || 0))),
+    moveEffectKind: classifyMoveEffectKind(move),
+  };
+}
+
+function classifyMoveEffectKind(move: DexMoveSummary | TrainingMoveSlotV4 | TrainingBattleLogEntryV4 | null | undefined): FormalMoveEffectKindV4 {
+  const record = (move || {}) as Record<string, unknown>;
+  const power = Math.max(0, Math.floor(Number(record.power ?? record.movePower ?? 0)));
+  const category = String(record.category ?? record.moveCategory ?? "").toLowerCase();
+  const id = toID(record.id ?? record.moveId);
+  const description = String(record.description || "").toLowerCase();
+  const flags = Array.isArray(record.flags) ? record.flags.map(flag => String(flag).toLowerCase()) : [];
+  if (power > 0 || category === "physical" || category === "special" || category === "物理" || category === "特殊") return "damage";
+  if (["protect", "detect", "spikyshield", "kingsshield", "banefulbunker", "silktrap", "burningbulwark"].includes(id) || flags.includes("protect")) return "protect";
+  if (["recover", "roost", "softboiled", "moonlight", "synthesis", "morningsun", "rest", "wish", "lifedew", "healorder", "milkdrink", "slackoff"].includes(id) || description.includes("heal") || description.includes("restore")) return "recovery";
+  if (["swordsdance", "dragondance", "nastyplot", "calmmind", "bulkup", "coil", "shellsmash", "quiverdance", "agility", "rockpolish", "growth", "workup"].includes(id) || description.includes("raises") || description.includes("boost")) return "setup";
+  if (["stealthrock", "spikes", "toxicspikes", "stickyweb", "tailwind", "trickroom", "reflect", "lightscreen", "auroraveil", "raindance", "sunnyday", "sandstorm", "snowscape", "electricterrain", "grassyterrain", "mistyterrain", "psychicterrain"].includes(id)) return "field";
+  if (["uturn", "voltswitch", "flipturn", "partingshot", "teleport", "batonpass"].includes(id)) return "pivot";
+  if (category === "status" || category === "变化") return "status";
+  return "other";
 }
 
 function parseBattleIdent(value: string | undefined): {playerId?: ShowdownPlayerIdV4; key: string; name: string} {

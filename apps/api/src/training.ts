@@ -84,6 +84,10 @@ export type TrainingBattleLogEntryV4 = {
   targetPokemonName?: string;
   moveId?: string;
   moveName?: string;
+  moveType?: string;
+  moveCategory?: string;
+  movePower?: number;
+  moveEffectKind?: "damage" | "setup" | "recovery" | "status" | "field" | "protect" | "pivot" | "other";
   directness?: "direct" | "indirect" | "unknown";
   rawLine: string;
 };
@@ -1171,10 +1175,20 @@ function normalizeBattleLog(value: unknown): TrainingBattleLogEntryV4[] {
       targetPokemonName: normalizeOptionalText(entry.targetPokemonName),
       moveId: normalizeOptionalId(entry.moveId),
       moveName: normalizeOptionalText(entry.moveName),
+      moveType: normalizeOptionalText(entry.moveType),
+      moveCategory: normalizeOptionalText(entry.moveCategory),
+      movePower: normalizeOptionalPositiveNumber(entry.movePower),
+      moveEffectKind: normalizeMoveEffectKind(entry.moveEffectKind),
       directness,
       rawLine: String(entry.rawLine || ""),
     }];
   });
+}
+
+function normalizeMoveEffectKind(value: unknown): TrainingBattleLogEntryV4["moveEffectKind"] | undefined {
+  const text = String(value || "");
+  if (["damage", "setup", "recovery", "status", "field", "protect", "pivot", "other"].includes(text)) return text as TrainingBattleLogEntryV4["moveEffectKind"];
+  return undefined;
 }
 
 function defaultTeamSize(mode: TrainingModeV4): number {
