@@ -34,11 +34,13 @@
 - 正式游戏主流程已经进入可持续测试阶段：开局候选、星图扩展、选人、7 场计划、休整页、战斗页、单局战后结算、最终结算和 BP 发放都已接入。
 - 正式休整商店和训练场已经完成第一版闭环：购买/售出、加权补货、课程学习、自主训练、费用、金币流水和课后流程均已接入。
 - 正式流程重计算已经迁出 renderer；desktop 通过 `formalComputeWorker` 执行正式计算，并用静态 boot splash 改善启动白屏体感。
-- Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化，以及选人页两步选择交互；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
+- Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化、天气持久层资源重载、Substitute 持续标记，以及选人页两步选择交互；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
+- 正式模式稳定性继续收口：敌方 NPC 等级按玩家最高等级动态计算，究极异兽归入神兽候选，自习收益改为等级/数值约 3:7，战斗入场同步本地 PP。
+- 休整页弹窗栈已补齐：背包打开时，技能学习替换和 Mega/Z/太晶系统道具重铸面板会显示在背包之上。
 - Plan 文档已按功能目录整理，后续新增计划优先进入对应目录 README，而不是堆在根目录。
 
 ## 下一步
 
-- 下一步正式玩法主线是交换、招募等功能完善，以及围绕正式流程的测试与 bug 修复。
+- 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并在稳定后再评估交换、招募等功能扩展。
 - Battle V4 演出仍按 [`battle-v4/battle-v4-surrender-and-narrative-flow-plan.md`](battle-v4/battle-v4-surrender-and-narrative-flow-plan.md) 推进。
 - 播放/动画技术路线继续指向 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md) 和 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md)。

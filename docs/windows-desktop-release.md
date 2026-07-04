@@ -6,7 +6,7 @@
 
 ```text
 ChangeBattle-V2-Desk-portable-v0.1.0.zip
-commit: dd9f01f9 Fix staff dialogue portraits in desktop release
+source: release 构建时的 v2 分支 HEAD
 ```
 
 ## Release Artifact

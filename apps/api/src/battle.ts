@@ -287,6 +287,7 @@ export type BattlePokemonSetV4 = {
   item?: string;
   ability: string;
   moves: string[];
+  movePp?: Array<{moveId: string; remainingPp: number; maxPp: number}>;
   nature: string;
   evs: Record<string, number>;
   ivs: Record<string, number>;
@@ -1629,6 +1630,14 @@ function compilePokemon(pokemon: LocalPokemonV4, bagItems: TrainingPlayerDraftV4
     item: heldItem || undefined,
     ability: pokemon.abilityId || "No Ability",
     moves: pokemon.moves.map(move => move.moveId).filter(Boolean).slice(0, 4),
+    movePp: pokemon.moves
+      .filter(move => move.moveId && (typeof move.remainingPp === "number" || typeof move.maxPp === "number" || typeof move.pp === "number"))
+      .slice(0, 4)
+      .map(move => ({
+        moveId: move.moveId,
+        remainingPp: Math.max(0, Math.floor(Number(move.remainingPp ?? move.maxPp ?? move.pp ?? 0))),
+        maxPp: Math.max(0, Math.floor(Number(move.maxPp ?? move.pp ?? move.remainingPp ?? 0))),
+      })),
     nature: pokemon.nature || "Serious",
     evs: pokemon.evs,
     ivs: pokemon.ivs,

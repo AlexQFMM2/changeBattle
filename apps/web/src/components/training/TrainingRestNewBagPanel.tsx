@@ -262,23 +262,27 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
           });
         }}
       />
-      {open && tmReplacePokemon && tmReplaceMove ? (
-        <PokemonMoveReplacePanel
-          pokemon={tmReplacePokemon}
-          newMove={tmReplaceMove}
-          onCancel={() => setTmReplace(null)}
-          onConfirm={confirmTmReplace}
-        />
-      ) : null}
-      {open && systemReforgeItem && systemReforgePokemon ? (
-        <PokemonSystemReforgePanel
-          pokemon={systemReforgePokemon}
-          item={systemReforgeItem}
-          options={systemReforgeOptions}
-          emptyReason={systemReforgeEmptyReason(systemReforgeItem)}
-          onCancel={() => setSystemReforge(null)}
-          onConfirm={confirmSystemReforge}
-        />
+      {open && (tmReplacePokemon && tmReplaceMove || systemReforgeItem && systemReforgePokemon) ? (
+        <div className="training-rest-new-secondary-modal-layer" role="presentation">
+          {tmReplacePokemon && tmReplaceMove ? (
+            <PokemonMoveReplacePanel
+              pokemon={tmReplacePokemon}
+              newMove={tmReplaceMove}
+              onCancel={() => setTmReplace(null)}
+              onConfirm={confirmTmReplace}
+            />
+          ) : null}
+          {systemReforgeItem && systemReforgePokemon ? (
+            <PokemonSystemReforgePanel
+              pokemon={systemReforgePokemon}
+              item={systemReforgeItem}
+              options={systemReforgeOptions}
+              emptyReason={systemReforgeEmptyReason(systemReforgeItem)}
+              onCancel={() => setSystemReforge(null)}
+              onConfirm={confirmSystemReforge}
+            />
+          ) : null}
+        </div>
       ) : null}
     </>
   );

@@ -39,7 +39,8 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
         <dl>
           <div><dt>获得 BP</dt><dd>{settlement.bpGained}</dd></div>
           <div><dt>胜场</dt><dd>{settlement.wonRounds}/7</dd></div>
-          <div><dt>金币</dt><dd>{settlement.coinSummary.net >= 0 ? "+" : ""}{settlement.coinSummary.net}</dd></div>
+          <div><dt>净收益</dt><dd>{settlement.coinSummary.net >= 0 ? "+" : ""}{settlement.coinSummary.net}</dd></div>
+          <div><dt>余额</dt><dd>{settlement.coinSummary.balance}</dd></div>
         </dl>
         <div className="formal-settlement-actions">
           <button type="button" onClick={() => exportFormalSettlementDiagnostics(run, profile)}>导出</button>

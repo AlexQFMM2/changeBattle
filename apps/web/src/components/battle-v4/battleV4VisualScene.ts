@@ -119,6 +119,9 @@ export function applyBattleV4VisualCommandStart(slots: BattleViewSlotV4[], comma
   if (event.kind === "twoTurnMove") {
     return patchSlot(slots, event.seat, slot => ({...slot, twoTurnMoveState: event.state}));
   }
+  if (event.kind === "volatileMarker" && event.marker === "substitute") {
+    return patchSlot(slots, event.seat, slot => ({...slot, substituteActive: event.active}));
+  }
   if (event.kind === "move") {
     return patchSlot(slots, event.actorSeat, slot => ({...slot, twoTurnMoveState: undefined}));
   }
@@ -130,6 +133,7 @@ export function applyBattleV4VisualCommandStart(slots: BattleViewSlotV4[], comma
       status: event.status === "fnt" ? slot.status : event.status || slot.status,
       fainted: false,
       twoTurnMoveState: undefined,
+      substituteActive: event.status === "fnt" ? false : (slot as BattleViewSlotV4 & {substituteActive?: boolean}).substituteActive,
     }));
   }
   return slots;
@@ -152,16 +156,17 @@ export function applyBattleV4HpTweenFrame(slots: BattleViewSlotV4[], command: Ba
     status: event.status === "fnt" ? slot.status : event.status || slot.status,
     fainted: false,
     twoTurnMoveState: undefined,
+    substituteActive: event.status === "fnt" ? false : (slot as BattleViewSlotV4 & {substituteActive?: boolean}).substituteActive,
   }));
 }
 
 export function applyBattleV4VisualCommandSettle(slots: BattleViewSlotV4[], command: BattleVisualCommandV4): BattleViewSlotV4[] {
   const event = command.semanticEvent;
   if (event.kind === "switchOut") {
-    return patchSlot(slots, event.seat, slot => ({...slot, twoTurnMoveState: undefined}));
+    return patchSlot(slots, event.seat, slot => ({...slot, twoTurnMoveState: undefined, substituteActive: false}));
   }
   if (event.kind === "faint") {
-    return patchSlot(slots, event.seat, slot => ({...slot, hp: 0, status: "fnt", fainted: true, twoTurnMoveState: undefined}));
+    return patchSlot(slots, event.seat, slot => ({...slot, hp: 0, status: "fnt", fainted: true, twoTurnMoveState: undefined, substituteActive: false}));
   }
   if (event.kind === "status" || event.kind === "cureStatus") {
     return patchSlot(slots, event.seat, slot => ({...slot, status: event.newStatus}));
@@ -290,6 +295,7 @@ function animationKindForSemanticEvent(event: BattleSemanticEventV4): BattleAnim
   if (event.kind === "result") return "result";
   if (event.kind === "weather" || event.kind === "field") return "weather";
   if (event.kind === "sideCondition") return "result";
+  if (event.kind === "volatileMarker") return "status";
   if (event.kind === "win") return "result";
   return "";
 }
@@ -351,6 +357,7 @@ function resultForSemanticEvent(event: BattleSemanticEventV4): {text: string; to
   if (event.kind === "heal") return {text: event.label, tone: "good"};
   if (event.kind === "result") return {text: event.text, tone: event.tone};
   if (event.kind === "status" || event.kind === "cureStatus") return {text: event.label, tone: "status"};
+  if (event.kind === "volatileMarker") return {text: event.label, tone: "status"};
   if (event.kind === "statChange") return {text: event.label, tone: event.direction === "down" ? "bad" : event.direction === "up" ? "good" : "neutral"};
   if (event.kind === "transform") return {text: event.label, tone: "good"};
   if (event.kind === "weather" || event.kind === "field" || event.kind === "sideCondition") return {text: event.label, tone: "weather"};

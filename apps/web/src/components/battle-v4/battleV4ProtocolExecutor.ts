@@ -56,6 +56,7 @@ export type BattleSemanticEventV4 =
   | {kind: "switchOut"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
   | {kind: "move"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; actorSeat: BattleProtocolSeatV4; targetSeat: BattleProtocolSeatV4; moveId: string; moveName: string; actorName: string; targetName: string}
   | {kind: "twoTurnMove"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; state: BattleV4TwoTurnMoveState}
+  | {kind: "volatileMarker"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; marker: "substitute"; active: boolean; label: string}
   | {kind: "damage" | "heal"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldHp: number; newHp: number; maxHp: number; delta: number; status: string; fainted: boolean; source: "move" | "status" | "item" | "ability" | "field" | "unknown"; label: string}
   | {kind: "faint"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
   | {kind: "status" | "cureStatus"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldStatus: string; newStatus: string; label: string}
@@ -193,6 +194,22 @@ function applyProtocolEvent(
       seat: event.seat,
       state,
     }] : [];
+  }
+  case "-start":
+  case "-end": {
+    if (toId(event.args[2]) === "substitute" && event.seat) {
+      return [{
+        kind: "volatileMarker",
+        sequence: event.sequence,
+        rawLine: event.rawLine,
+        protocolEvent: event,
+        seat: event.seat,
+        marker: "substitute",
+        active: event.eventType === "-start",
+        label: "替身",
+      }];
+    }
+    return [];
   }
   case "-damage":
   case "-heal":

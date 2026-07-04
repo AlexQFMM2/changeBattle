@@ -618,6 +618,19 @@ export type FormalRentalPokemonViewV4 = {
 
 const DEFAULT_FORMAL_RUN_KEY = "changebattle-v2:web:formal-run";
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
+const FORMAL_ULTRA_BEAST_IDS = new Set([
+  "nihilego",
+  "buzzwole",
+  "pheromosa",
+  "xurkitree",
+  "celesteela",
+  "kartana",
+  "guzzlord",
+  "stakataka",
+  "blacephalon",
+  "poipole",
+  "naganadel",
+]);
 const STARTER_ALLOWED_RANKS = new Set<PokemonSpeciesRankV4>(["rank4", "rank5", "rank6"]);
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
@@ -791,6 +804,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         controller: "ai",
         usedNpcSpecies,
         rng: roundRng,
+        targetLevel: formalNpcTargetLevelForTeam(player.localTeam.pokemon, trainerType),
       });
       participants[playerId] = built.player;
       npcs.push(built.npc);
@@ -929,6 +943,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         usedNpcSpecies,
         rng: createRng(`${normalized.seed}:round:${node.index + 1}:coop-ally:${normalized.coopPartnerPreference || "balanced"}`),
         partnerPreference: normalized.coopPartnerPreference,
+        targetLevel: 50,
       });
       nextRestRunSnapshot = patchFormalRestParticipant(restRunSnapshot, node.id, built.player);
       nextNode = nextRestRunSnapshot.gameMap.find(entry => entry.id === node.id) || nextNode;
@@ -1644,9 +1659,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const rolledEvCap = profileSteps > 0 ? rollPowerProfileEvCap(nextProfile, rng) : oldEvCap;
     const nextIvCap = nextProfile === "champion" ? 186 : Math.max(oldIvCap, rolledIvCap, statTotal(beforeIvs));
     const nextEvCap = nextProfile === "champion" ? 510 : Math.max(oldEvCap, rolledEvCap, statTotal(beforeEvs));
-    const lessonRollSeed = rng();
-    const gainsStats = event === "focused" || lessonRollSeed < 0.5;
-    const gainsLevel = event === "focused" || !gainsStats;
+    const gainsLevel = rng() < 0.3;
+    const gainsStats = !gainsLevel;
     const statGain = formalTrainingGroundSelfStudyStatGain(event);
     const nextIvTarget = gainsStats ? Math.min(nextIvCap, statTotal(beforeIvs) + statGain.iv) : statTotal(beforeIvs);
     const nextEvTarget = gainsStats ? Math.min(nextEvCap, 510, statTotal(beforeEvs) + statGain.ev) : statTotal(beforeEvs);
@@ -1672,7 +1686,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const eventText = event === "playful"
       ? `贪玩了一节课，但也${gainsStats ? "打磨了一点基础" : "积累了经验"}`
       : event === "focused"
-        ? "认真学习了一整节课，等级和数值都有提升"
+        ? `认真学习了一整节课，${gainsStats ? "数值明显提升" : "等级提升了"}`
         : `踏踏实实自习了一节课，${gainsStats ? "数值稳步提升" : "等级提升了"}`;
     const message = `${pokemon.nameZh || pokemon.name}${eventText}。${lesson.completeText}`;
     const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message, {selfStudyRollDelta: 1});
@@ -1984,29 +1998,32 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     usedNpcSpecies: Set<string>;
     rng: () => number;
     partnerPreference?: CoopPartnerPreferenceV4;
+    targetLevel?: number;
   }): {player: TrainingPlayerDraftV4; npc: FormalRoundNpcSnapshotV4; diagnostics: string[]} {
     const diagnostics: string[] = [];
     const isBoss = isBossTrainerType(input.trainerType);
     const battlePreference = input.partnerPreference || pickOne(NPC_BATTLE_PREFERENCES, input.rng) || "balanced";
     const teamPreference = teamPreferenceForNpc(input.trainerType, battlePreference, input.rng);
     const powerProfile = powerProfileForFormalRoundNpc(input.trainerType, input.run.streak, input.roundIndex, input.controller === "script");
+    const targetLevel = clampInt(input.targetLevel, 1, 100, input.controller === "script" ? 50 : formalNpcTargetLevel(input.run, input.trainerType));
     const boss = isBoss ? selectBossTrainer(input.trainerType, input.rng) : null;
     const visual = boss ? null : selectTrainerVisual(input.rng, input.controller === "script");
     const name = boss?.nameZh || visual?.nameZh || normalNpcName(input.trainerType, input.controller === "script", input.rng);
     const avatar = boss?.avatarAsset || fullBodyTrainerAsset(visual) || DEFAULT_TRAINER_AVATAR;
     const backImage = input.playerId === "p3" && input.alliance === "near" ? pickPlayerBackImage(input.rng) : undefined;
     const teamResult = boss
-      ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, powerProfile, input.usedNpcSpecies, input.rng)
+      ? createBossLocalTeam(input.run, boss, input.playerId, teamPreference, powerProfile, input.usedNpcSpecies, input.rng, targetLevel)
       : createNpcLocalTeam(input.run, {
         playerId: input.playerId,
         teamPreference,
         battlePreference,
         trainerType: input.trainerType,
         powerProfile,
+        level: targetLevel,
         usedNpcSpecies: input.usedNpcSpecies,
         rng: input.rng,
       });
-    const gen7TeamResult = ensureGen7NpcMegaCandidate(input.run, teamResult.team, powerProfile, input.usedNpcSpecies, input.rng);
+    const gen7TeamResult = ensureGen7NpcMegaCandidate(input.run, teamResult.team, powerProfile, input.usedNpcSpecies, input.rng, targetLevel);
     const systemBagResult = createFormalNpcSystemBag(input.run.battlePreference.battleBagEnabled, input.run.battlePreference.ruleSet, gen7TeamResult.team, input.rng);
     diagnostics.push(...teamResult.diagnostics);
     diagnostics.push(...gen7TeamResult.diagnostics);
@@ -2104,6 +2121,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     powerProfile: PokemonPowerProfileV4,
     usedNpcSpecies: Set<string>,
     rng: () => number,
+    level: number,
   ): {team: LocalTeamV4; diagnostics: string[]} {
     if (run.battlePreference.ruleSet !== "gen7" || team.pokemon.some(pokemon => pokemonHasSystemReforgeOptions(dex, "system-mega-stone", pokemon))) {
       return {team, diagnostics: []};
@@ -2122,6 +2140,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       powerProfile,
       rng,
       seed: `${run.seed}:npc-gen7-mega-guarantee`,
+      level,
     });
     usedNpcSpecies.add(baseSpeciesId(detail.id));
     return {
@@ -2199,6 +2218,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     powerProfile: PokemonPowerProfileV4,
     usedNpcSpecies: Set<string>,
     rng: () => number,
+    level: number,
   ): {team: LocalTeamV4; diagnostics: string[]} {
     const diagnostics: string[] = [`boss:${boss.id}`];
     const ruleSetPreset = run.battlePreference.ruleSet === "standard" ? "none" : run.battlePreference.ruleSet;
@@ -2225,6 +2245,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         battlePreference: boss.bossProfile?.battlePreference || "balanced",
         trainerType: boss.trainerType as FormalNpcTypeV4,
         powerProfile,
+        level,
         usedNpcSpecies,
         rng,
       });
@@ -2239,6 +2260,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         powerProfile,
         rng,
         seed: `${run.seed}:${boss.id}:${selected.variantIndex}`,
+        level,
       });
       const item = itemIdFromName(entry.item) || pickOne(NPC_BOSS_ITEMS, rng) || "";
       usedNpcSpecies.add(baseSpeciesId(detail.id));
@@ -2263,6 +2285,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     battlePreference: FormalNpcBattlePreferenceV4;
     trainerType: FormalNpcTypeV4;
     powerProfile: PokemonPowerProfileV4;
+    level: number;
     usedNpcSpecies: Set<string>;
     rng: () => number;
   }): {team: LocalTeamV4; diagnostics: string[]} {
@@ -2294,6 +2317,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         powerProfile: input.powerProfile,
         rng: input.rng,
         seed: `${run.seed}:${input.playerId}:${input.teamPreference}`,
+        level: input.level,
       });
       return {
         ...local,
@@ -3066,9 +3090,10 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   powerProfile: PokemonPowerProfileV4;
   rng: () => number;
   seed: string;
+  level?: number;
 }): LocalPokemonV4 {
   const ability = pickOne(detail.abilities, options.rng) || detail.abilities[0];
-  const level = 50;
+  const level = clampInt(options.level, 1, 100, 50);
   const nature = pickOne(NATURES, options.rng) || "Serious";
   const ivTotalCap = rollPowerProfileIvCap(options.powerProfile, options.rng);
   const evTotalCap = rollPowerProfileEvCap(options.powerProfile, options.rng);
@@ -3225,9 +3250,12 @@ function preferMoves(moves: DexMoveSummary[], preferredIds: string[], rng: () =>
 }
 
 function speciesRankForDetail(detail: DexPokemonDetail): PokemonSpeciesRankV4 {
+  const detailId = toID(detail.id);
+  if (FORMAL_ULTRA_BEAST_IDS.has(detailId)) return "legendary";
   const direct = FormalPokemonSpeciesRankById[detail.id];
   if (direct) return direct;
   const baseId = toID(detail.baseSpecies || detail.name);
+  if (FORMAL_ULTRA_BEAST_IDS.has(baseId)) return "legendary";
   return FormalPokemonSpeciesRankById[baseId] || "rank4";
 }
 
@@ -3457,6 +3485,21 @@ function maybeReplaceChampionWithVillain(type: FormalNpcTypeV4, rng: () => numbe
 
 function isBossTrainerType(type: FormalNpcTypeV4): boolean {
   return type === "gym" || type === "elite4" || type === "champion" || type === "villain";
+}
+
+function formalNpcTargetLevel(run: FormalGameRunV4, trainerType: FormalNpcTypeV4): number {
+  const team = run.restRunSnapshot?.players.p1?.localTeam.pokemon || [];
+  return formalNpcTargetLevelForTeam(team, trainerType);
+}
+
+function formalNpcTargetLevelForTeam(team: LocalPokemonV4[], trainerType: FormalNpcTypeV4): number {
+  const playerMaxLevel = team.reduce((max, pokemon) => Math.max(max, Math.floor(Number(pokemon.level || 0))), 50);
+  const bonus = trainerType === "champion"
+    ? 4
+    : trainerType === "gym" || trainerType === "elite4" || trainerType === "villain"
+      ? 2
+      : 0;
+  return clampInt(playerMaxLevel + bonus, 1, 100, 50);
 }
 
 function powerProfileForFormalRoundNpc(type: FormalNpcTypeV4, streak: number, roundIndex: number, isCoopAlly = false): PokemonPowerProfileV4 {

@@ -593,6 +593,8 @@ async function applyInitialPokemonState(session: RuntimeSession, input: BattleSe
       if (hp !== null) commands.push(`>editbattle hp ${player.playerId}, ${slot}, ${hp}`);
       const status = normalizeInitialStatus(pokemon.entryStatus);
       if (status) commands.push(`>eval ${initialStatusEval(player.playerId, slot, status)}`);
+      const ppEval = initialMovePpEval(player.playerId, slot, pokemon.movePp);
+      if (ppEval) commands.push(`>eval ${ppEval}`);
     }
   }
   if (!commands.length) return;
@@ -624,6 +626,25 @@ function initialStatusEval(playerId: ShowdownPlayerIdV4, slot: number, status: s
     `p.status = '${status}'`,
     `p.statusState = battle.initEffectState({id: '${status}', target: p})${duration}`,
     `if (p.isActive) battle.add('-status', p, '${status}', '[silent]')`,
+    "'ok'",
+  ].join("; ");
+}
+
+function initialMovePpEval(playerId: ShowdownPlayerIdV4, slot: number, movePp: BattleServicePokemonSetV4["movePp"] | undefined): string {
+  const patches = (movePp || [])
+    .map(move => ({
+      id: normalizeIdentityToken(move.moveId),
+      pp: Math.max(0, Math.floor(Number(move.remainingPp ?? move.maxPp ?? 0) || 0)),
+    }))
+    .filter(move => move.id);
+  if (!patches.length) return "";
+  const sideIndex = Number(playerId.slice(1)) - 1;
+  const pokemonIndex = Math.max(0, slot - 1);
+  return [
+    `const p = battle.sides[${sideIndex}]?.pokemon?.[${pokemonIndex}]`,
+    `const patches = ${JSON.stringify(patches)}`,
+    "const norm = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '')",
+    "if (p?.moveSlots) for (const patch of patches) { const slot = p.moveSlots.find(m => norm(m.id || m.move) === patch.id); if (slot) slot.pp = Math.max(0, Math.min(Number(slot.maxpp ?? slot.pp ?? patch.pp) || patch.pp, patch.pp)); }",
     "'ok'",
   ].join("; ");
 }
@@ -1504,6 +1525,17 @@ function compilePokemonSet(pokemon: LocalPokemonLikeForBattleV4): BattleServiceP
     item: pokemon.itemId || undefined,
     ability: pokemon.abilityId || "No Ability",
     moves: pokemon.moves.map((move: {moveId: string}) => move.moveId).filter(Boolean).slice(0, 4),
+    movePp: (pokemon.moves || [])
+      .filter((move: {moveId: string; remainingPp?: number; maxPp?: number; pp?: number}) => (
+        move.moveId &&
+        (typeof move.remainingPp === "number" || typeof move.maxPp === "number" || typeof move.pp === "number")
+      ))
+      .slice(0, 4)
+      .map((move: {moveId: string; remainingPp?: number; maxPp?: number; pp?: number}) => ({
+        moveId: move.moveId,
+        remainingPp: Math.max(0, Number(move.remainingPp ?? move.maxPp ?? move.pp ?? 0) || 0),
+        maxPp: Math.max(0, Number(move.maxPp ?? move.pp ?? move.remainingPp ?? 0) || 0),
+      })),
     nature: pokemon.nature || "Serious",
     evs: pokemon.evs,
     ivs: pokemon.ivs,

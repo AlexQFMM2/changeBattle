@@ -45,6 +45,7 @@ type BattleV4MoveDisplaySpecialChoice = BattleSpecialChoiceV4 | "active-max" | n
 
 type BattleV4VisibleSlot = BattleViewSlotV4 & {
   twoTurnMoveState?: BattleV4TwoTurnMoveState;
+  substituteActive?: boolean;
 };
 
 type BattleV4TargetCardView = {
@@ -1316,6 +1317,7 @@ function BattlePokemonSlot({api, slot, commanding = false, animation, openingSwi
   const specialClass = slot.dynamaxActive ? "special-dynamax" : slot.terastallized ? "special-tera" : "";
   const displayName = battleSlotDisplayName(slot, api);
   const twoTurnState = (slot as BattleV4VisibleSlot).twoTurnMoveState;
+  const substituteActive = Boolean((slot as BattleV4VisibleSlot).substituteActive);
   return (
     <article className={`battle-v4-pokemon ${slot.side} ${slot.position.toLowerCase()} species-${toId(slot.speciesId)} ${commanding ? "commanding" : ""} ${slot.fainted ? "fainted" : ""} ${specialClass} ${animationClass}`} style={timelineActor?.style}>
       <ImageWithFallback src={slot.spriteUrl || slot.iconUrl} alt={displayName} />
@@ -1324,6 +1326,7 @@ function BattlePokemonSlot({api, slot, commanding = false, animation, openingSwi
           {twoTurnState.label}
         </span>
       ) : null}
+      {substituteActive ? <span className="battle-v4-substitute-marker" title="替身">替身</span> : null}
       {statChange ? <BattleV4StatChangeBurst visual={statChange} /> : null}
     </article>
   );

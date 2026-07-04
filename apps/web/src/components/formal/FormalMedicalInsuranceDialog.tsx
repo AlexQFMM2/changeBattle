@@ -19,14 +19,14 @@ export function FormalMedicalInsuranceDialog({
       <div className="formal-medical-insurance-card">
         <header>
           <strong>医疗保险</strong>
-          <span>第一场战斗前可购买一次，降低之后胜利结算时的救助费用。</span>
+          <span>第一场战斗前可购买一次，降低战后救助费、休整治疗费，并给恢复/复活/PP 道具折扣。</span>
         </header>
         <div className="formal-medical-insurance-options">
           {offer.tiers.map(tier => {
             const affordable = money >= tier.cost;
             const reviveText = tier.reviveCostPerPokemon <= 0 ? "救助免费" : `救助 ${tier.reviveCostPerPokemon} 金币/只`;
             const discountText = tier.recoveryShopPriceMultiplier < 1
-              ? `恢复药 ${Math.round(tier.recoveryShopPriceMultiplier * 10)}折`
+              ? `治疗/恢复品 ${Math.round(tier.recoveryShopPriceMultiplier * 10)}折`
               : "无商店折扣";
             return (
               <button

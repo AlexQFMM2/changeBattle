@@ -102,6 +102,15 @@
   isolation: isolate;
 }
 
+.training-rest-new-secondary-modal-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  width: 640px;
+  height: 320px;
+  pointer-events: auto;
+}
+
 .training-rest-new-center-scene {
   position: relative;
   width: 640px;

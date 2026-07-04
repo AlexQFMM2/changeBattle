@@ -719,6 +719,30 @@
   color: #fff5b8;
 }
 
+.battle-v4-substitute-marker {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 17px;
+  padding: 0 7px;
+  border: 1px solid rgb(134 231 172 / 72%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(22 52 38 / 92%), rgb(9 27 20 / 92%));
+  box-shadow: 0 2px 6px rgb(0 0 0 / 34%), inset 0 0 0 1px rgb(255 255 255 / 10%);
+  color: #d7ffe5;
+  font-size: 10px;
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 52%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .battle-v4-pokemon.fainted {
   opacity: .45;
   filter: grayscale(1);

@@ -85,6 +85,7 @@ export type BattleServicePokemonSetV4 = {
   item?: string;
   ability: string;
   moves: string[];
+  movePp?: BattleTeamMoveStateV4[];
   nature: string;
   evs: Record<string, number>;
   ivs: Record<string, number>;
@@ -374,7 +375,7 @@ export type LocalPokemonLikeForBattleV4 = {
   shiny: boolean;
   itemId: string;
   abilityId: string;
-  moves: Array<{moveId: string}>;
+  moves: Array<{moveId: string; remainingPp?: number; maxPp?: number; pp?: number}>;
   nature: string;
   evs: Record<string, number>;
   ivs: Record<string, number>;

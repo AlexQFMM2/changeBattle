@@ -52,6 +52,7 @@ type BattleVisibleSlotV4 = BattleViewSlotV4 & {
   transformedSpeciesId?: string;
   oldSpriteState?: BattleSlotSpriteStateV4;
   twoTurnMoveState?: BattleV4TwoTurnMoveState;
+  substituteActive?: boolean;
   teraType?: string;
   terastallized?: boolean;
   dynamaxActive?: boolean;
