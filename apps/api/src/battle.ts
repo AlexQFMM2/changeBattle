@@ -394,7 +394,7 @@ export type BattleSessionSnapshotV4 = {
 export type BattleCommandActionV4 =
   | {kind: "team"; label: string; choice: string; pokemonIndex: number; disabled?: boolean}
   | {kind: "move"; label: string; choice: string; activeIndex: number; moveIndex: number; move: BattleMoveRequestV4; specialOptions: BattleSpecialChoiceOptionV4[]}
-  | {kind: "switch"; label: string; choice: string; pokemonIndex: number; disabled?: boolean};
+  | {kind: "switch"; label: string; choice: string; pokemonIndex: number; disabled?: boolean; disabledReason?: string};
 
 export type BattleTrainerItemChoiceV4 = {
   kind: "traineritem";
@@ -1041,6 +1041,9 @@ export function addBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: B
   if (parsed.kind === "switch" && normalized.alreadySwitchingIn.includes(parsed.index)) {
     return normalized;
   }
+  if (parsed.kind === "switch" && switchDisabledReason(request, parsed.index - 1, selectedSwitchIndexes(normalized.choices), normalized.activeIndex)) {
+    return normalized;
+  }
   const choices = [...normalized.choices];
   const activeIndex = normalized.activeIndex;
   choices[activeIndex] = stringifyParsedChoice(parsed);
@@ -1060,7 +1063,7 @@ export function undoBattleCommandChoiceV4(draft: BattleCommandDraftV4, request: 
   if (normalized.currentMove) return {...normalized, currentMove: null};
   const choices = normalized.choices.slice();
   for (let index = Math.min(choices.length, request.requestLength) - 1; index >= 0; index -= 1) {
-    if (!choices[index] || shouldAutoPassChoiceSlot(request, index)) continue;
+    if (!choices[index] || shouldAutoPassChoiceSlot(request, index, choices)) continue;
     choices[index] = "";
     return fillBattleCommandPassesV4({
       ...normalized,
@@ -1092,7 +1095,7 @@ export function fillBattleCommandPassesV4(draft: BattleCommandDraftV4, request: 
     changed = false;
     for (let index = 0; index < request.requestLength; index += 1) {
       if (choices[index]) continue;
-      if (shouldAutoPassChoiceSlot(request, index)) {
+      if (shouldAutoPassChoiceSlot(request, index, choices)) {
         choices[index] = "pass";
         changed = true;
       }
@@ -1252,23 +1255,36 @@ function normalizeChoiceTarget(value: string | undefined): string {
   return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
 }
 
-function shouldAutoPassChoiceSlot(request: BattleNormalizedRequestV4, index: number): boolean {
+function shouldAutoPassChoiceSlot(request: BattleNormalizedRequestV4, index: number, choices: string[] = []): boolean {
   if (request.requestType === "wait") return true;
-  if (request.requestType === "switch") return request.forceSwitch[index] === false;
+  if (request.requestType === "switch") return request.forceSwitch[index] === false || forceSwitchSlotShouldPass(request, index, choices);
   if (request.requestType === "move") return !request.activeRequests[index];
   return false;
 }
 
+function forceSwitchSlotShouldPass(request: BattleNormalizedRequestV4, index: number, choices: string[]): boolean {
+  if (!request.forceSwitch[index]) return true;
+  const picked = selectedSwitchIndexes(choices);
+  const pending = request.forceSwitch
+    .map((mustSwitch, activeIndex) => ({mustSwitch, activeIndex}))
+    .filter(entry => entry.mustSwitch && !choices[entry.activeIndex] && activeSlotNeedsReplacement(request, entry.activeIndex));
+  if (!pending.length) return true;
+  const available = switchableBenchIndexes(request, picked);
+  const pendingPosition = pending.findIndex(entry => entry.activeIndex === index);
+  if (pendingPosition < 0) return true;
+  return pendingPosition >= available.length;
+}
+
 function firstPendingChoiceIndex(choices: string[], request: BattleNormalizedRequestV4): number {
   for (let index = 0; index < request.requestLength; index += 1) {
-    if (!choices[index] && !shouldAutoPassChoiceSlot(request, index)) return index;
+    if (!choices[index] && !shouldAutoPassChoiceSlot(request, index, choices)) return index;
   }
   return Math.max(0, request.requestLength - 1);
 }
 
 function firstPendingSwitchIndex(choices: string[], request: BattleNormalizedRequestV4): number {
   for (let index = 0; index < request.requestLength; index += 1) {
-    if (!choices[index] && request.forceSwitch[index]) return index;
+    if (!choices[index] && request.forceSwitch[index] && !shouldAutoPassChoiceSlot(request, index, choices)) return index;
   }
   return firstPendingChoiceIndex(choices, request);
 }
@@ -1406,21 +1422,60 @@ function buildMoveChoice(request: BattleNormalizedRequestV4, moveIndex: number):
 }
 
 function buildSwitchActions(request: BattleNormalizedRequestV4, draft?: BattleCommandDraftV4 | null): Array<Extract<BattleCommandActionV4, {kind: "switch"}>> {
-  const requestLength = request.requestLength || 1;
-  const trapped = request.activeRequests[request.activeIndex]?.trapped;
   const sidePokemon = request.sidePokemon;
-  const hasActiveFlags = sidePokemon.some(pokemon => pokemon.active);
-  return sidePokemon.map((pokemon, index) => ({
-    kind: "switch" as const,
-    label: pokemon.name || pokemon.details.split(",")[0] || pokemon.ident,
-    choice: buildSwitchChoice(request, index),
-    pokemonIndex: index,
-    disabled: Boolean(trapped || draft?.alreadySwitchingIn.includes(index + 1) || (hasActiveFlags ? pokemon.active : index < requestLength) || pokemon.fainted || pokemon.condition.includes("fnt")),
-  })).filter(action => !action.disabled);
+  const reserved = new Set(draft?.alreadySwitchingIn || []);
+  const activeIndex = draft?.activeIndex ?? request.activeIndex;
+  return sidePokemon.map((pokemon, index) => {
+    const disabledReason = switchDisabledReason(request, index, reserved, activeIndex);
+    return {
+      kind: "switch" as const,
+      label: pokemon.name || pokemon.details.split(",")[0] || pokemon.ident,
+      choice: buildSwitchChoice(request, index),
+      pokemonIndex: index,
+      disabled: Boolean(disabledReason),
+      disabledReason,
+    };
+  });
 }
 
 function buildSwitchChoice(request: BattleNormalizedRequestV4, switchIndex: number): string {
   return `switch ${switchIndex + 1}`;
+}
+
+function switchDisabledReason(request: BattleNormalizedRequestV4, teamIndex: number, reservedSwitches = new Set<number>(), activeIndex = request.activeIndex): string {
+  const pokemon = request.sidePokemon[teamIndex];
+  if (!pokemon) return "空位";
+  if (reservedSwitches.has(teamIndex + 1)) return "本回合已选择换上";
+  if (pokemonIsActiveForSwitch(request, teamIndex)) return conditionIsFainted(pokemon.condition) || pokemon.fainted ? "当前场上位置已倒下" : "当前出战";
+  if (pokemon.fainted || conditionIsFainted(pokemon.condition)) return "已经倒下";
+  const active = request.activeRequests[activeIndex];
+  if (request.requestType !== "switch" && active?.trapped) return "被束缚，无法换下";
+  if (request.requestType !== "switch" && active?.maybeTrapped) return "可能被束缚，暂不能换人";
+  return "";
+}
+
+function activeSlotNeedsReplacement(request: BattleNormalizedRequestV4, activeIndex: number): boolean {
+  const pokemon = request.sidePokemon[activeIndex];
+  return Boolean(request.forceSwitch[activeIndex] && pokemon);
+}
+
+function switchableBenchIndexes(request: BattleNormalizedRequestV4, reservedSwitches = new Set<number>()): number[] {
+  return request.sidePokemon
+    .map((pokemon, index) => ({pokemon, index}))
+    .filter(entry => !switchDisabledReason(request, entry.index, reservedSwitches))
+    .map(entry => entry.index + 1);
+}
+
+function selectedSwitchIndexes(choices: string[]): Set<number> {
+  return new Set(choices
+    .map(choice => parseBattleCommandChoiceV4(choice))
+    .filter((choice): choice is Extract<ParsedBattleCommandChoiceV4, {kind: "switch"}> => choice?.kind === "switch")
+    .map(choice => choice.index));
+}
+
+function pokemonIsActiveForSwitch(request: BattleNormalizedRequestV4, teamIndex: number): boolean {
+  const activeSlotCount = Math.max(1, request.rawRequest.forceSwitch?.length || request.rawRequest.active?.length || request.activeRequests.length || request.requestLength || 1);
+  return teamIndex < activeSlotCount;
 }
 
 function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {

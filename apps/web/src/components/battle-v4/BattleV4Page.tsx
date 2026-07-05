@@ -2525,7 +2525,6 @@ function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions:
   const mapping = player?.teamMapping || [];
   const actionByIndex = new Map(switchActions.map(action => [action.pokemonIndex, action]));
   const requestLength = request?.forceSwitch?.length || request?.active?.length || 1;
-  const trapped = Boolean(request?.active?.[0]?.trapped && !request?.forceSwitch);
   const hasActiveFlags = rows.some(row => row.active);
   const count = Math.max(6, rows.length, localTeam.length);
   return Array.from({length: count}, (_, index) => {
@@ -2551,9 +2550,9 @@ function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions:
     const fainted = Boolean(teamState?.fainted || hp <= 0 || row?.fainted || row?.condition?.includes("fnt") || localPokemon && localPokemon.entryHp <= 0);
     let reason = "";
     if (!row && !localPokemon) reason = "空位";
+    else if (action?.disabledReason) reason = action.disabledReason;
     else if (active) reason = "当前出战";
     else if (fainted) reason = "已经倒下";
-    else if (trapped) reason = "无法逃脱";
     else if (!action) reason = "无法定位";
     return {
       key: switchCandidateKey("p1", index, row, localPokemon),
@@ -2569,7 +2568,7 @@ function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions:
       maxHp,
       active,
       fainted,
-      canSwitch: Boolean(action && !reason),
+      canSwitch: Boolean(action && !action.disabled && !reason),
       reason,
     };
   });

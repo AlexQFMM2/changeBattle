@@ -600,11 +600,62 @@ const forceSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(for
 assert(isBattleCommandDraftDoneV4(forceSwitchDraft), "forceSwitch [true,false] should be done");
 assert(stringifyBattleCommandDraftV4(forceSwitchDraft) === "switch 3, pass", "forceSwitch pass choice mismatch");
 
-const doubleForceSwitch = normalizeBattleRequestV4({...moveRequest(2), active: undefined, forceSwitch: [true, true]}, "p1", "doubles", "standard");
+const doubleForceSwitch = normalizeBattleRequestV4({
+  ...moveRequest(2),
+  active: undefined,
+  forceSwitch: [true, true],
+  side: {
+    id: "p1",
+    name: "P1",
+    pokemon: [
+      sidePokemon("token-1", "0 fnt", true),
+      sidePokemon("token-2", "0 fnt", true),
+      sidePokemon("token-3", "90/100", false),
+      sidePokemon("token-4", "80/100", false),
+    ],
+  },
+}, "p1", "doubles", "standard");
 let repeatedSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(doubleForceSwitch), doubleForceSwitch, "switch 3");
 repeatedSwitchDraft = addBattleCommandChoiceV4(repeatedSwitchDraft, doubleForceSwitch, "switch 3");
 assert(!isBattleCommandDraftDoneV4(repeatedSwitchDraft), "repeated switch should be blocked");
 assert(repeatedSwitchDraft.choices.join(", ") === "switch 3", "repeated switch choices mismatch");
+
+const oneBenchDoubleForceSwitch = normalizeBattleRequestV4({
+  ...moveRequest(2),
+  active: undefined,
+  forceSwitch: [true, true],
+  side: {
+    id: "p1",
+    name: "P1",
+    pokemon: [
+      sidePokemon("token-1", "0 fnt", true),
+      sidePokemon("token-2", "0 fnt", true),
+      sidePokemon("token-3", "90/100", false),
+    ],
+  },
+}, "p1", "doubles", "standard");
+const oneBenchForceSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(oneBenchDoubleForceSwitch), oneBenchDoubleForceSwitch, "switch 3");
+assert(isBattleCommandDraftDoneV4(oneBenchForceSwitchDraft), "double forceSwitch with one bench should auto-pass remaining slot");
+assert(stringifyBattleCommandDraftV4(oneBenchForceSwitchDraft) === "switch 3, pass", "double forceSwitch with one bench final choice mismatch");
+
+const firstSlotTrappedMove = normalizeBattleRequestV4({
+  ...moveRequest(2),
+  active: [
+    {trapped: true, moves: [{move: "Shadow Punch", id: "shadowpunch", pp: 20, maxpp: 20, target: "normal"}]},
+    {moves: [{move: "Aqua Tail", id: "aquatail", pp: 16, maxpp: 16, target: "normal"}]},
+  ],
+}, "p1", "doubles", "standard");
+let secondSlotSwitchDraft = addBattleCommandChoiceV4(createBattleCommandDraftV4(firstSlotTrappedMove), firstSlotTrappedMove, "move 1 +1");
+assert(secondSlotSwitchDraft.activeIndex === 1, "second slot should become active after first trapped slot moves");
+const secondSlotSwitchView = projectBattleViewModelV4({
+  ...protocolActiveSnapshot,
+  requests: {p1: firstSlotTrappedMove.rawRequest},
+}, "p1", secondSlotSwitchDraft);
+const benchSwitchAction = secondSlotSwitchView.command.switchActions.find(action => action.pokemonIndex === 2);
+assert(benchSwitchAction && !benchSwitchAction.disabled, "second active slot should still be able to switch when first slot is trapped");
+secondSlotSwitchDraft = addBattleCommandChoiceV4(secondSlotSwitchDraft, firstSlotTrappedMove, "switch 3");
+assert(isBattleCommandDraftDoneV4(secondSlotSwitchDraft), "second slot switch should complete draft");
+assert(stringifyBattleCommandDraftV4(secondSlotSwitchDraft) === "move 1 +1, switch 3", "second slot switch final choice mismatch");
 
 const waitDraft = createBattleCommandDraftV4(waitRequest);
 assert(isBattleCommandDraftDoneV4(waitDraft), "wait draft should be done");
