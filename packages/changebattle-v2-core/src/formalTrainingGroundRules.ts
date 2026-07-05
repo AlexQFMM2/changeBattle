@@ -25,6 +25,9 @@ export type FormalTrainingGroundSelfStudyGainRuleV4 = {
   ev: readonly [number, number];
 };
 
+export const FORMAL_TRAINING_GROUND_GROUP_STAGE_DISCOUNT_ROUNDS_V4 = 2;
+export const FORMAL_TRAINING_GROUND_SELF_STUDY_NATURE_RISK_TARGETS_V4 = ["Lonely", "Timid", "Modest", "Mild", "Gentle"] as const;
+
 export function formalTrainingGroundLessonTableV4(): FormalTrainingGroundLessonRuleV4[] {
   return [
     {
@@ -89,8 +92,8 @@ export function formalTrainingGroundLessonKindFromIdV4(lessonId: string): Formal
   return suffix === "tutor" || suffix === "egg" || suffix === "self-learn" || suffix === "self-study" ? suffix : "";
 }
 
-export function formalRollTrainingGroundSelfStudyEventV4(input: {nature?: string}, rng: () => number, eastAsiaEducation = false): FormalTrainingGroundSelfStudyEventV4 {
-  const weights = formalTrainingGroundSelfStudyEventWeightsV4(input, eastAsiaEducation);
+export function formalRollTrainingGroundSelfStudyEventV4(input: {nature?: string}, rng: () => number): FormalTrainingGroundSelfStudyEventV4 {
+  const weights = formalTrainingGroundSelfStudyEventWeightsV4(input);
   const roll = rng();
   if (roll < weights.playful) return "playful";
   if (roll >= 1 - weights.focused) return "focused";
@@ -103,19 +106,33 @@ export function formalTrainingGroundSelfStudyGainRuleV4(event: FormalTrainingGro
   return {iv: [-5, 10], ev: [-10, 15]};
 }
 
-export function formalTrainingGroundSelfStudyEventWeightsV4(input: {nature?: string}, eastAsiaEducation = false): FormalTrainingGroundSelfStudyWeightsV4 {
+export function formalTrainingGroundStableSelfStudyGainRuleV4(rule: FormalTrainingGroundSelfStudyGainRuleV4): FormalTrainingGroundSelfStudyGainRuleV4 {
+  return {
+    iv: [Math.ceil((rule.iv[0] + rule.iv[1]) / 2), rule.iv[1]],
+    ev: [Math.ceil((rule.ev[0] + rule.ev[1]) / 2), rule.ev[1]],
+  };
+}
+
+export function formalTrainingGroundLessonFeeV4(baseFee: number, input: {roundIndex?: number; groupStageDiscount?: number | false | null} = {}): number {
+  const fee = Math.max(0, Math.floor(Number(baseFee || 0)));
+  const roundIndex = Math.max(0, Math.floor(Number(input.roundIndex ?? 0)));
+  const discount = Number(input.groupStageDiscount || 0);
+  if (roundIndex >= FORMAL_TRAINING_GROUND_GROUP_STAGE_DISCOUNT_ROUNDS_V4 || !Number.isFinite(discount) || discount <= 0 || discount >= 1) return fee;
+  return Math.max(1, Math.floor(fee * discount));
+}
+
+export function formalTrainingGroundSelfStudyEventWeightsV4(input: {nature?: string}): FormalTrainingGroundSelfStudyWeightsV4 {
   const nature = formalToIdV4(input.nature);
   const focusedNatures = new Set(["serious", "hardy", "adamant", "modest", "jolly", "timid", "bold", "calm", "careful", "impish"]);
   const playfulNatures = new Set(["relaxed", "lax", "gentle", "quiet", "docile", "naive"]);
-  let playful = eastAsiaEducation ? 0.35 : 0.3;
-  let focused = eastAsiaEducation ? 0.15 : 0.1;
-  const natureScale = eastAsiaEducation ? 0.5 : 1;
+  let playful = 0.3;
+  let focused = 0.1;
   if (focusedNatures.has(nature)) {
-    playful -= 0.05 * natureScale;
-    focused += 0.05 * natureScale;
+    playful -= 0.05;
+    focused += 0.05;
   } else if (playfulNatures.has(nature)) {
-    playful += 0.08 * natureScale;
-    focused -= 0.03 * natureScale;
+    playful += 0.08;
+    focused -= 0.03;
   }
   playful = Math.max(0.15, Math.min(0.45, playful));
   focused = Math.max(0.05, Math.min(0.2, focused));

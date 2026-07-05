@@ -61,10 +61,13 @@ import {
   formalTargetingIntensityForTrainerTypeV4,
   formalTeamPreferenceForNpcV4,
   formalTeamPreferenceTypeHintsV4,
+  FORMAL_TRAINING_GROUND_SELF_STUDY_NATURE_RISK_TARGETS_V4,
   formalRollTrainingGroundSelfStudyEventV4,
+  formalTrainingGroundLessonFeeV4,
   formalTrainingGroundLessonForRollV4,
   formalTrainingGroundLessonKindFromIdV4,
   formalTrainingGroundLessonTableV4,
+  formalTrainingGroundStableSelfStudyGainRuleV4,
   formalTrainingGroundSelfStudyGainRuleV4,
   isFormalRandomGeneratableSpeciesV4,
   isFormalStarterAllowedRankV4,
@@ -84,7 +87,7 @@ import {
   type FormalMoveQualityRuleV4,
 } from "@changebattle-v2/core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
-import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   type BattlePreferenceV4,
@@ -296,6 +299,8 @@ export type FormalTrainingGroundApplyInputV4 = {
 export type FormalTrainingGroundSelfStudyChangeV4 = {
   levelBefore: number;
   levelAfter: number;
+  natureBefore?: string;
+  natureAfter?: string;
   ivsBefore: StatTableV4;
   ivsAfter: StatTableV4;
   evsBefore: StatTableV4;
@@ -1637,10 +1642,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const normalized = normalizeFormalRun(run);
     const node = currentFormalRestNode(normalized);
     if (!node) return [];
-    return formalTrainingGroundLessonTableV4().map(lesson => ({
-      ...lesson,
-      lessonId: `${node.id}:lesson:${lesson.kind}`,
-    }));
+    return formalTrainingGroundLessonTableV4().map(lesson => formalTrainingGroundLessonView(normalized, node.id, lesson, `${node.id}:lesson:${lesson.kind}`));
   }
 
   function advanceFormalTrainingGroundLesson(run: FormalGameRunV4): FormalGameRunV4 {
@@ -1718,14 +1720,17 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   ): FormalTrainingGroundResultV4 {
     const state = ensureFormalTrainingGroundState(run, node.id);
     const rng = createRng(`${run.seed}:${node.id}:training-ground:self-study:${state.lessonRoll}:${state.selfStudyRoll}:${pokemon.localPokemonId}`);
-    const event = formalRollTrainingGroundSelfStudyEventV4(pokemon, rng, starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_probability_tuning"));
+    const event = formalRollTrainingGroundSelfStudyEventV4(pokemon, rng);
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
     const levelBefore = clampInt(pokemon.level, 1, 100, 50);
     const beforeProfile = normalizePokemonInstancePowerProfile(pokemon, beforeIvs, beforeEvs);
     const oldIvCap = normalizePokemonIvTotalCap(pokemon.ivTotalCap, beforeProfile, statTotal(beforeIvs));
     const oldEvCap = normalizePokemonEvTotalCap(pokemon.evTotalCap, beforeProfile, statTotal(beforeEvs));
-    const selfStudyRule = formalTrainingGroundSelfStudyGainRuleV4(event);
+    const baseSelfStudyRule = formalTrainingGroundSelfStudyGainRuleV4(event);
+    const selfStudyRule = starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_stable_range")
+      ? formalTrainingGroundStableSelfStudyGainRuleV4(baseSelfStudyRule)
+      : baseSelfStudyRule;
     const ivDelta = randomInt(selfStudyRule.iv[0], selfStudyRule.iv[1], rng);
     const evDelta = randomInt(selfStudyRule.ev[0], selfStudyRule.ev[1], rng);
     const nextIvCap = oldIvCap;
@@ -1735,13 +1740,21 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const nextIvs = adjustStatTableToTotal(beforeIvs, nextIvTarget, 31, shuffledStats(rng), rng);
     const nextEvs = adjustStatTableToTotal(beforeEvs, nextEvTarget, 252, shuffledStats(rng), rng);
     const levelAfter = levelBefore;
+    const natureBefore = pokemon.nature || "Serious";
+    const natureRisk = starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_nature_risk")
+      ? Math.max(0, Math.min(1, Math.max(...starChartRuntimeEffectValuesV4(run.starChartSnapshot, "self_study_nature_risk"))))
+      : 0;
+    const natureAfter = natureRisk > 0 && rng() < natureRisk
+      ? pickOne(FORMAL_TRAINING_GROUND_SELF_STUDY_NATURE_RISK_TARGETS_V4, rng) || natureBefore
+      : natureBefore;
     const detail = safePokemon(pokemon.speciesId);
-    const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level: levelAfter, nature: pokemon.nature || "Serious", evs: nextEvs, ivs: nextIvs}).stats.hp;
+    const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level: levelAfter, nature: natureAfter, evs: nextEvs, ivs: nextIvs}).stats.hp;
     const hpRatio = pokemon.maxHp > 0 ? pokemon.entryHp / pokemon.maxHp : 1;
     const nextPokemon = {
       ...pokemon,
       speciesId: detail.id,
       level: levelAfter,
+      nature: natureAfter,
       ivs: nextIvs,
       evs: nextEvs,
       powerProfile: pokemon.powerProfile,
@@ -1763,6 +1776,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       selfStudyChange: {
         levelBefore,
         levelAfter,
+        natureBefore,
+        natureAfter,
         ivsBefore: beforeIvs,
         ivsAfter: nextIvs,
         evsBefore: beforeEvs,
@@ -3893,19 +3908,24 @@ function ensureFormalTrainingGroundState(run: FormalGameRunV4, nodeId: string): 
 
 function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, lessonRoll: number): FormalTrainingGroundLessonViewV4 {
   const lesson = formalTrainingGroundLessonForRollV4(run.seed, nodeId, lessonRoll);
+  return formalTrainingGroundLessonView(run, nodeId, lesson, `${nodeId}:lesson:${lessonRoll}:${lesson.kind}`);
+}
+
+function formalTrainingGroundLessonView(run: FormalGameRunV4, nodeId: string, lesson: Omit<FormalTrainingGroundLessonViewV4, "lessonId">, lessonId: string): FormalTrainingGroundLessonViewV4 {
   return {
     ...lesson,
-    lessonId: `${nodeId}:lesson:${lessonRoll}:${lesson.kind}`,
+    lessonId,
+    fee: formalTrainingGroundLessonFeeV4(lesson.fee, {
+      roundIndex: currentFormalRestNode(run)?.index ?? run.currentRoundIndex,
+      groupStageDiscount: formalTrainingGroundDiscountForStarChartV4(run.starChartSnapshot),
+    }),
   };
 }
 
 function formalTrainingGroundLessonForInput(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundLessonViewV4 | null {
   const node = currentFormalRestNode(run);
   if (!node) return null;
-  const lessons = formalTrainingGroundLessonTableV4().map(lesson => ({
-    ...lesson,
-    lessonId: `${node.id}:lesson:${lesson.kind}`,
-  }));
+  const lessons = formalTrainingGroundLessonTableV4().map(lesson => formalTrainingGroundLessonView(run, node.id, lesson, `${node.id}:lesson:${lesson.kind}`));
   const requestedKind = input.lessonKind || formalTrainingGroundLessonKindFromIdV4(input.lessonId || "");
   if (requestedKind) return lessons.find(lesson => lesson.kind === requestedKind) || null;
   return getFallbackFormalTrainingGroundLesson(run, node.id);

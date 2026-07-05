@@ -32,12 +32,14 @@ import {
   formalPowerProfileRuleV4,
   formalTrainingGroundSelfStudyEventWeightsV4,
   formalTrainingGroundSelfStudyGainRuleV4,
+  formalTrainingGroundStableSelfStudyGainRuleV4,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
+  COMPULSORY_EDUCATION_NODE_ID,
   enableTestModeForProfileV4,
   FORMAL_SHOP_AUTO_RESTOCK_ENABLED,
   formalCarryPrepItemCountForStarChartV4,
@@ -545,19 +547,31 @@ starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_special_trainin
 assert(starProfile.battlePoints === 94, "special training lock should cost 6 BP");
 assert(starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should unlock ability locks");
 assert(starChartHasRuntimeEffectV4(starProfile.starChart, "special_training_lock"), "special training lock should be declared as a runtime effect");
+let failedEastAsiaWithoutCompulsory = false;
+try {
+  unlockStarChartNodeForProfileV4(starProfile, "rest_east_asia_education");
+} catch {
+  failedEastAsiaWithoutCompulsory = true;
+}
+assert(failedEastAsiaWithoutCompulsory, "east asia education should require compulsory education first");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, COMPULSORY_EDUCATION_NODE_ID);
+assert(starProfile.battlePoints === 91, "compulsory education should cost 3 BP");
+assert(starChartHasRuntimeEffectV4(starProfile.starChart, "training_ground_group_stage_discount"), "compulsory education should unlock group-stage lesson discount");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_east_asia_education");
-assert(starProfile.battlePoints === 89, "east asia education should cost 5 BP");
-assert(starChartHasEastAsiaEducationV4(starProfile.starChart), "east asia education should unlock self-study probability tuning");
+assert(starProfile.battlePoints === 86, "east asia education should cost 5 BP");
+assert(starChartHasEastAsiaEducationV4(starProfile.starChart), "east asia education should unlock self-study stable range and nature risk");
+assert(starChartHasRuntimeEffectV4(starProfile.starChart, "self_study_stable_range"), "east asia education should unlock stable self-study ranges");
+assert(starChartHasRuntimeEffectV4(starProfile.starChart, "self_study_nature_risk"), "east asia education should unlock self-study nature risk");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 1, "shop rows should start at one row");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_1");
-assert(starProfile.battlePoints === 85, "luxury counter I should cost 4 BP");
+assert(starProfile.battlePoints === 82, "luxury counter I should cost 4 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 2, "luxury counter I should unlock second shop row");
 const carryStarProfile = unlockStarChartNodeForProfileV4({...starProfile, battlePoints: 100}, CARRY_PREP_ITEMS_NODE_ID);
 assert(carryStarProfile.battlePoints === 94, "carry prep items should cost 6 BP");
 assert(formalCarryPrepItemCountForStarChartV4(carryStarProfile.starChart) === 3, "carry prep items should carry three item kinds");
 assert(starChartHasRuntimeEffectV4(carryStarProfile.starChart, "carry_prep_items"), "carry prep items should be declared as a runtime effect");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_2");
-assert(starProfile.battlePoints === 80, "luxury counter II should cost 5 BP");
+assert(starProfile.battlePoints === 77, "luxury counter II should cost 5 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 3, "luxury counter II should unlock third shop row");
 assert(FORMAL_SHOP_AUTO_RESTOCK_ENABLED, "shop auto restock should be enabled by default");
 assert(formalStartingMoneyForStarChartV4(starProfile.starChart) === 0, "root-only star chart should start with zero formal money");
@@ -782,7 +796,7 @@ const tmProduct = shopProducts.find(product => product.type === "tm");
 assert(tmProduct && !/^技能机器[：:]/.test(tmProduct.name), "formal shop TM product should display move name instead of TM item prefix");
 assert(shopProducts.every(product => product.price > 0 && product.price <= 900), "formal shop products should use low formal prices instead of dex prices");
 assert(shopProducts.filter(product => product.type === "tm").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.tm.min, FORMAL_SHOP_PRICE_LIMITS.tm.max)), "formal shop TM prices should stay in 100-300 range");
-assert(shopProducts.filter(product => product.type === "battle").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.battle.min, FORMAL_SHOP_PRICE_LIMITS.battle.max)), "formal shop battle item prices should stay in 300-900 range");
+assert(shopProducts.filter(product => product.type === "battle").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.battle.min, FORMAL_SHOP_PRICE_LIMITS.battle.max)), "formal shop battle item prices should stay in 150-450 range");
 assert(shopProducts.filter(product => product.type === "training").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.training.min, FORMAL_SHOP_PRICE_LIMITS.training.max)), "formal shop training prices should stay in 10-400 range");
 assert(shopProducts.filter(product => product.type === "recovery").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.recovery.min, FORMAL_SHOP_PRICE_LIMITS.recovery.max)), "formal shop recovery prices should stay in 10-150 range");
 assert(shopProducts.filter(product => product.type === "berry").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.berry.min, FORMAL_SHOP_PRICE_LIMITS.berry.max)), "formal shop berry prices should stay in 5-30 range");
@@ -791,7 +805,7 @@ assert(new Set(FORMAL_SHOP_ITEM_POOL.berry).size === FORMAL_SHOP_ITEM_POOL.berry
 assert(FORMAL_SHOP_ITEM_POOL.berry.every(itemID => [...FORMAL_SHOP_COMMON_BERRY_POOL, ...FORMAL_SHOP_RESIST_BERRY_POOL, ...FORMAL_SHOP_CONFUSION_BERRY_POOL].includes(itemID)), "formal shop berry pool should only include curated battle berries");
 assert(formalShopItemPriceV4({category: "tm", itemID: "tm:trickroom"}, itemDetail("tm:trickroom"), moveDetail) === 100, "status TM should cost 100");
 assert(formalShopItemPriceV4({category: "tm", itemID: "tm:earthquake"}, itemDetail("tm:earthquake"), moveDetail) === 250, "100-power TM should cost 250");
-assert(formalShopItemPriceV4({category: "battle", itemID: "focussash"}, itemDetail("focussash"), moveDetail) === 900, "focus sash should use top battle price tier");
+assert(formalShopItemPriceV4({category: "battle", itemID: "focussash"}, itemDetail("focussash"), moveDetail) === 450, "focus sash should use discounted top battle price tier");
 assert(FORMAL_SHOP_ITEM_BASE_WEIGHTS.focussash < FORMAL_SHOP_ITEM_BASE_WEIGHTS.airballoon, "strong battle shop items should start rarer than light utility items");
 const calmRestockContext: FormalShopRestockContextV4 = {
   roundIndex: 0,
@@ -882,6 +896,25 @@ const nextTrainingLesson = api.getFormalTrainingGroundLesson(nextTrainingRun);
 assert((nextTrainingRun.trainingGroundByNodeId?.[roundPlanned.restRunSnapshot!.currentNodeId]?.lessonRoll || 0) === 1, "formal training ground advance should increment lessonRoll");
 assert(nextTrainingLesson && nextTrainingLesson.lessonId !== trainingLesson?.lessonId, "formal training ground advance should draw next lesson");
 assert(!nextTrainingLesson || nextTrainingLesson.fee === expectedTrainingGroundLessonFee(nextTrainingLesson.kind), "formal training ground next lesson should use balanced fee table");
+const compulsoryProfile = unlockStarChartNodeForProfileV4(
+  unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "rest_special_training_lock"),
+  COMPULSORY_EDUCATION_NODE_ID,
+);
+const compulsoryRun = {...api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(compulsoryProfile, {mode: "singles", seed: "formal-smoke-compulsory-education-seed"})), [0, 1, 2])), money: 500};
+const compulsoryLesson = api.getFormalTrainingGroundLesson(compulsoryRun);
+assert(compulsoryLesson?.fee === 100, "compulsory education should halve group-stage lesson display fee");
+const compulsorySelfStudyPokemon = compulsoryRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+const compulsorySelfStudyResult = api.applyFormalTrainingGroundLesson(compulsoryRun, {pokemonId: compulsorySelfStudyPokemon.localPokemonId, lessonKind: "self-study"});
+assert(compulsorySelfStudyResult.ok && compulsorySelfStudyResult.run.money === 400, "compulsory education should halve actual lesson cost");
+const compulsoryRoundThreeRun = {
+  ...compulsoryRun,
+  currentRoundIndex: 2,
+  restRunSnapshot: {
+    ...compulsoryRun.restRunSnapshot!,
+    currentNodeId: compulsoryRun.restRunSnapshot!.gameMap[2]!.id,
+  },
+};
+assert(api.getFormalTrainingGroundLesson(compulsoryRoundThreeRun)?.fee === 200, "compulsory education should not discount lessons after group stage");
 let lessonDeckRun = roundPlanned;
 const firstCycleKinds: string[] = [];
 const firstEightKinds: string[] = [];
@@ -924,11 +957,17 @@ let selfStudyLesson = api.getFormalTrainingGroundLessons(selfStudyRun).find(less
 assert(selfStudyLesson?.kind === "self-study", "formal training ground should be able to draw a self-study lesson");
 assert(selfStudyLesson.fee === 200, "formal self-study lesson should cost 200");
 const selfStudyFocusedWeights = formalTrainingGroundSelfStudyEventWeightsV4({nature: "Serious"});
-const selfStudyFocusedEastAsiaWeights = formalTrainingGroundSelfStudyEventWeightsV4({nature: "Serious"}, true);
-assert(selfStudyFocusedEastAsiaWeights.focused > selfStudyFocusedWeights.focused, "east asia education should improve focused self-study weight");
+const selfStudyFocusedEastAsiaWeights = formalTrainingGroundSelfStudyEventWeightsV4({nature: "Serious"});
+assert(selfStudyFocusedEastAsiaWeights.focused === selfStudyFocusedWeights.focused, "east asia education should no longer change self-study event weights");
 assert(formalTrainingGroundSelfStudyGainRuleV4("playful").iv.join(",") === "-5,10" && formalTrainingGroundSelfStudyGainRuleV4("playful").ev.join(",") === "-10,15", "playful self-study gains should stay in core rules");
 assert(formalTrainingGroundSelfStudyGainRuleV4("normal").iv.join(",") === "5,15" && formalTrainingGroundSelfStudyGainRuleV4("normal").ev.join(",") === "12,40", "normal self-study gains should stay in core rules");
 assert(formalTrainingGroundSelfStudyGainRuleV4("focused").iv.join(",") === "12,30" && formalTrainingGroundSelfStudyGainRuleV4("focused").ev.join(",") === "35,50", "focused self-study gains should stay in core rules");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("playful")).iv.join(",") === "3,10", "stable playful self-study IV range should start at the ceiling midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("playful")).ev.join(",") === "3,15", "stable playful self-study EV range should start at the ceiling midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("normal")).iv.join(",") === "10,15", "stable normal self-study IV range should start at the ceiling midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("normal")).ev.join(",") === "26,40", "stable normal self-study EV range should start at the ceiling midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("focused")).iv.join(",") === "21,30", "stable focused self-study IV range should start at the ceiling midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("focused")).ev.join(",") === "43,50", "stable focused self-study EV range should start at the ceiling midpoint");
 const selfStudyPokemon = selfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const selfStudyBeforeIvTotal = statTotal(selfStudyPokemon.ivs);
 const selfStudyBeforeEvTotal = statTotal(selfStudyPokemon.evs);
@@ -960,6 +999,25 @@ const secondSelfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyResul
 assert(secondSelfStudyResult.ok, "formal training ground should allow a second self-study on the same pokemon");
 assert((secondSelfStudyResult.run.trainingGroundByNodeId?.[selfStudyNodeId]?.selfStudyRoll || 0) === 2, "formal training ground self-study should use a fresh roll for every study");
 assert(secondSelfStudyResult.run.money === selfStudyResult.run.money - selfStudyLesson.fee, "formal training ground second self-study should deduct fee");
+const eastAsiaProfile = unlockStarChartNodeForProfileV4(compulsoryProfile, "rest_east_asia_education");
+const eastAsiaSelfStudyRun = {...api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(eastAsiaProfile, {mode: "singles", seed: "formal-smoke-east-asia-self-study-seed"})), [0, 1, 2])), money: 500};
+const eastAsiaSelfStudyPokemon = eastAsiaSelfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+const eastAsiaSelfStudyBeforeIvTotal = statTotal(eastAsiaSelfStudyPokemon.ivs);
+const eastAsiaSelfStudyBeforeEvTotal = statTotal(eastAsiaSelfStudyPokemon.evs);
+const eastAsiaSelfStudyResult = api.applyFormalTrainingGroundLesson(eastAsiaSelfStudyRun, {pokemonId: eastAsiaSelfStudyPokemon.localPokemonId, lessonKind: "self-study"});
+assert(eastAsiaSelfStudyResult.ok, "east asia education self-study should apply");
+assert(eastAsiaSelfStudyResult.selfStudyChange?.natureBefore === eastAsiaSelfStudyPokemon.nature, "east asia education self-study should record nature before");
+assert(eastAsiaSelfStudyResult.selfStudyChange?.natureAfter, "east asia education self-study should record nature after");
+if (eastAsiaSelfStudyResult.selfStudyChange?.natureAfter !== eastAsiaSelfStudyResult.selfStudyChange?.natureBefore) {
+  assert(["Lonely", "Timid", "Modest", "Mild", "Gentle"].includes(eastAsiaSelfStudyResult.selfStudyChange!.natureAfter!), "east asia education nature risk should pick a configured nature");
+}
+const eastAsiaSelfStudyAfter = eastAsiaSelfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
+assert(eastAsiaSelfStudyResult.selfStudyEvent, "east asia education self-study should report an event");
+const eastAsiaGainRule = formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4(eastAsiaSelfStudyResult.selfStudyEvent));
+const eastAsiaIvRoom = Math.max(0, (eastAsiaSelfStudyPokemon.ivTotalCap || eastAsiaSelfStudyBeforeIvTotal) - eastAsiaSelfStudyBeforeIvTotal);
+const eastAsiaEvRoom = Math.max(0, Math.min(eastAsiaSelfStudyPokemon.evTotalCap || eastAsiaSelfStudyBeforeEvTotal, 510) - eastAsiaSelfStudyBeforeEvTotal);
+assert(statTotal(eastAsiaSelfStudyAfter.ivs) - eastAsiaSelfStudyBeforeIvTotal >= Math.min(eastAsiaGainRule.iv[0], eastAsiaIvRoom), "east asia education should use stable IV gain minimum within cap room");
+assert(statTotal(eastAsiaSelfStudyAfter.evs) - eastAsiaSelfStudyBeforeEvTotal >= Math.min(eastAsiaGainRule.ev[0], eastAsiaEvRoom), "east asia education should use stable EV gain minimum within cap room");
 
 const withCoinLog = api.appendCoinLogEntryV4(economyReadyRun, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withCoinLog.money === economyReadyRun.money - 10, "coin log should update formal money");

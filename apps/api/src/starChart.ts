@@ -1,5 +1,6 @@
 import {
   CARRY_PREP_ITEMS_NODE_ID,
+  COMPULSORY_EDUCATION_NODE_ID,
   MAX_BP_V4,
   CHAMPION_FUND_NODE_ID,
   ELITE_FUND_NODE_ID,
@@ -26,7 +27,7 @@ import {
   type StarChartTalentEffectV4,
 } from "@changebattle-v2/core";
 
-export {CARRY_PREP_ITEMS_NODE_ID, CHAMPION_FUND_NODE_ID, ELITE_EXCHANGE_EDUCATION_NODE_ID, ELITE_FUND_NODE_ID, EMERGENCY_MEDICAL_CARE_NODE_ID, EAST_ASIA_EDUCATION_NODE_ID, EXCHANGE_ITEM_STEAL_NODE_ID, FREE_MEDICAL_CARE_NODE_ID, LOSSLESS_EXCHANGE_NODE_ID, MAX_BP_V4, MEDICAL_INSURANCE_NODE_ID, MORE_CHOICES_NODE_IDS, OPPONENT_RUMOR_NODE_ID, OUTPATIENT_MEDICAL_CARE_NODE_ID, SECOND_EXCHANGE_NODE_ID, SHOP_MORE_STOCK_NODE_IDS, SPECIAL_TRAINING_LOCK_NODE_ID, STAR_CHART_NODES_V4, TRAVEL_FUND_NODE_ID, VICTORY_DIVIDEND_NODE_ID};
+export {CARRY_PREP_ITEMS_NODE_ID, CHAMPION_FUND_NODE_ID, COMPULSORY_EDUCATION_NODE_ID, ELITE_EXCHANGE_EDUCATION_NODE_ID, ELITE_FUND_NODE_ID, EMERGENCY_MEDICAL_CARE_NODE_ID, EAST_ASIA_EDUCATION_NODE_ID, EXCHANGE_ITEM_STEAL_NODE_ID, FREE_MEDICAL_CARE_NODE_ID, LOSSLESS_EXCHANGE_NODE_ID, MAX_BP_V4, MEDICAL_INSURANCE_NODE_ID, MORE_CHOICES_NODE_IDS, OPPONENT_RUMOR_NODE_ID, OUTPATIENT_MEDICAL_CARE_NODE_ID, SECOND_EXCHANGE_NODE_ID, SHOP_MORE_STOCK_NODE_IDS, SPECIAL_TRAINING_LOCK_NODE_ID, STAR_CHART_NODES_V4, TRAVEL_FUND_NODE_ID, VICTORY_DIVIDEND_NODE_ID};
 export type {StarChartNodeKindV4, StarChartNodeViewV4, StarChartStateV4, StarChartTalentEffectIdV4, StarChartTalentEffectV4};
 
 export type StarChartProfileInputV4 = {
@@ -126,7 +127,13 @@ export function starChartHasSpecialTrainingLockV4(starChart?: StarChartStateV4 |
 }
 
 export function starChartHasEastAsiaEducationV4(starChart?: StarChartStateV4 | null): boolean {
-  return starChartHasRuntimeEffectV4(starChart, "self_study_probability_tuning");
+  return starChartHasRuntimeEffectV4(starChart, "self_study_stable_range") || starChartHasRuntimeEffectV4(starChart, "self_study_nature_risk");
+}
+
+export function formalTrainingGroundDiscountForStarChartV4(starChart?: StarChartStateV4 | null): number {
+  const values = starChartRuntimeEffectValuesV4(starChart, "training_ground_group_stage_discount")
+    .filter(value => value > 0 && value < 1);
+  return values.length ? Math.min(...values) : 0;
 }
 
 export function formalShopRowsForStarChartV4(starChart?: StarChartStateV4 | null): number {

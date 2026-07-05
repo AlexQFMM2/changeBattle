@@ -42,18 +42,18 @@ const FORMAL_SHOP_EV_LARGE_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [
 
 export const FORMAL_SHOP_PRICE_LIMITS = {
   tm: {min: 100, max: 300},
-  battle: {min: 300, max: 900},
+  battle: {min: 150, max: 450},
   training: {min: 10, max: 400},
   recovery: {min: 10, max: 150},
   berry: {min: 5, max: 30},
 } as const;
 
 export const FORMAL_SHOP_BATTLE_ITEM_PRICE_TIERS: Record<number, string[]> = {
-  300: ["airballoon", "shellbell", "blacksludge"],
-  450: ["expertbelt", "rockyhelmet"],
-  600: ["leftovers", "eviolite", "assaultvest", "heavydutyboots"],
-  750: ["lifeorb", "choicescarf", "choiceband", "choicespecs"],
-  900: ["focussash"],
+  150: ["airballoon", "shellbell", "blacksludge"],
+  220: ["expertbelt", "rockyhelmet"],
+  300: ["leftovers", "eviolite", "assaultvest", "heavydutyboots"],
+  380: ["lifeorb", "choicescarf", "choiceband", "choicespecs"],
+  450: ["focussash"],
 };
 
 export const FORMAL_SHOP_PRICE_OVERRIDES: Record<string, number> = {

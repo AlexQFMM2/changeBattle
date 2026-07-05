@@ -8,7 +8,9 @@ export type StarChartTalentEffectIdV4 =
   | "starter_candidate_bonus"
   | "starting_money"
   | "special_training_lock"
-  | "self_study_probability_tuning"
+  | "training_ground_group_stage_discount"
+  | "self_study_stable_range"
+  | "self_study_nature_risk"
   | "shop_row_bonus"
   | "settlement_bp_dividend"
   | "opponent_preview_unlock"
@@ -49,6 +51,7 @@ export const MAX_BP_V4 = 99999;
 export const MORE_CHOICES_NODE_IDS = ["starter_more_choices_1", "starter_more_choices_2", "starter_more_choices_3", "starter_more_choices_4"] as const;
 
 export const SPECIAL_TRAINING_LOCK_NODE_ID = "rest_special_training_lock" as const;
+export const COMPULSORY_EDUCATION_NODE_ID = "rest_compulsory_education" as const;
 export const EAST_ASIA_EDUCATION_NODE_ID = "rest_east_asia_education" as const;
 export const SHOP_MORE_STOCK_NODE_IDS = ["shop_luxury_counter_1", "shop_luxury_counter_2"] as const;
 export const FREE_MEDICAL_CARE_NODE_ID = "rest_free_medical_care" as const;
@@ -151,17 +154,31 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     y: 120,
   },
   {
+    id: COMPULSORY_EDUCATION_NODE_ID,
+    name: "义务教育",
+    category: "养成改造",
+    desc: "小组赛阶段训练场课程费用减半。",
+    max_level: 1,
+    costs: [3],
+    requires: [{id: SPECIAL_TRAINING_LOCK_NODE_ID}],
+    effects: ["小组赛阶段（第 1、2 回合）训练场所有课程费用减半。"],
+    runtimeEffects: [{id: "training_ground_group_stage_discount", value: 0.5}],
+    kind: "talent",
+    x: 320,
+    y: 90,
+  },
+  {
     id: EAST_ASIA_EDUCATION_NODE_ID,
     name: "东亚教育",
     category: "养成改造",
-    desc: "训练场自学时，性格影响被压低，课堂表现更容易走向极端。",
+    desc: "训练场自习收益更稳定，但有概率改变性格。",
     max_level: 1,
     costs: [5],
-    requires: [{id: SPECIAL_TRAINING_LOCK_NODE_ID}],
-    effects: ["自学基础概率变为：贪玩 35%、认真 15%、一般 50%；性格偏移减半。"],
-    runtimeEffects: [{id: "self_study_probability_tuning"}],
+    requires: [{id: COMPULSORY_EDUCATION_NODE_ID}],
+    effects: ["自习收益范围改为中位数～最大值；每次自习后有 10% 概率变为怕寂寞、胆小、内敛、慢吞吞、温顺之一。"],
+    runtimeEffects: [{id: "self_study_stable_range"}, {id: "self_study_nature_risk", value: 0.1}],
     kind: "talent",
-    x: 320,
+    x: 480,
     y: 60,
   },
   {
