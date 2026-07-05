@@ -148,38 +148,27 @@ p {
 }
 
 .bgm-v2-floating-button {
-  width: 54px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  align-items: center;
-  gap: 3px;
+  place-items: center;
   border: 1px solid rgb(255 236 158 / 68%);
-  border-radius: 5px;
+  border-radius: 50%;
   background: rgb(25 27 35 / 72%);
   color: #fff8e8;
-  padding: 2px 5px;
+  padding: 0;
   box-shadow: 0 4px 12px rgb(0 0 0 / 34%);
   line-height: 1;
 }
 
 .bgm-v2-floating-button span {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 950;
-}
-
-.bgm-v2-floating-button b {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 8px;
-  font-weight: 950;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .bgm-v2-panel {
   position: absolute;
-  top: 28px;
+  top: 32px;
   right: 0;
   width: 166px;
   display: grid;

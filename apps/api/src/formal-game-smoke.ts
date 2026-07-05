@@ -7,6 +7,7 @@ import {
   FORMAL_ROUND_COUNT,
   FORMAL_SHOP_CATEGORY_ORDER,
   FORMAL_SHOP_ITEM_POOL,
+  FORMAL_SHOP_PRICE_OVERRIDES,
   FORMAL_SHOP_PRICE_LIMITS,
   FORMAL_SHOP_RESIST_BERRY_POOL,
   FORMAL_SHOP_SELL_RATE,
@@ -33,6 +34,7 @@ import {
   formalTrainingGroundSelfStudyEventWeightsV4,
   formalTrainingGroundSelfStudyGainRuleV4,
   formalTrainingGroundStableSelfStudyGainRuleV4,
+  getNatureEffectsV4,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
@@ -436,6 +438,11 @@ const preparedAgain = api.prepareFormalStarterCandidates(run);
 
 assert(prepared.starterCandidates.length === 6, "root-only star chart should default formal starter candidates to 6");
 assert(validateFormalShopCatalogV4().length === 0, "formal shop catalog should be valid");
+const natureEffects = getNatureEffectsV4();
+assert(natureEffects.length === 25, "nature catalog should include 25 standard natures");
+assert(natureEffects.find(nature => nature.id === "Adamant")?.plus === "atk" && natureEffects.find(nature => nature.id === "Adamant")?.minus === "spa", "Adamant should boost attack and lower special attack");
+assert(natureEffects.find(nature => nature.id === "Brave")?.plus === "atk" && natureEffects.find(nature => nature.id === "Brave")?.minus === "spe", "Brave should boost attack and lower speed");
+assert(natureEffects.find(nature => nature.id === "Serious")?.plus === "" && natureEffects.find(nature => nature.id === "Serious")?.minus === "", "Serious should be neutral");
 for (const category of FORMAL_SHOP_CATEGORY_ORDER) {
   assert(FORMAL_SHOP_ITEM_POOL[category].length >= FORMAL_SHOP_SLOTS_PER_CATEGORY[category], `formal shop ${category} should have enough pool items`);
 }
@@ -795,7 +802,8 @@ assert(api.getFormalRestShopProducts(counterTwoRun).length === FORMAL_SHOP_CATEG
 const tmProduct = shopProducts.find(product => product.type === "tm");
 assert(tmProduct && !/^技能机器[：:]/.test(tmProduct.name), "formal shop TM product should display move name instead of TM item prefix");
 assert(shopProducts.every(product => product.price > 0 && product.price <= 900), "formal shop products should use low formal prices instead of dex prices");
-assert(shopProducts.filter(product => product.type === "tm").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.tm.min, FORMAL_SHOP_PRICE_LIMITS.tm.max)), "formal shop TM prices should stay in 100-300 range");
+assert(Object.entries(FORMAL_SHOP_ITEM_POOL).every(([category, itemIDs]) => itemIDs.every(itemID => Number.isFinite(FORMAL_SHOP_PRICE_OVERRIDES[itemID]) && inRange(FORMAL_SHOP_PRICE_OVERRIDES[itemID]!, FORMAL_SHOP_PRICE_LIMITS[category as keyof typeof FORMAL_SHOP_PRICE_LIMITS].min, FORMAL_SHOP_PRICE_LIMITS[category as keyof typeof FORMAL_SHOP_PRICE_LIMITS].max))), "formal shop pool items should all have explicit core prices inside category ranges");
+assert(shopProducts.filter(product => product.type === "tm").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.tm.min, FORMAL_SHOP_PRICE_LIMITS.tm.max)), "formal shop TM prices should stay in 50-200 range");
 assert(shopProducts.filter(product => product.type === "battle").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.battle.min, FORMAL_SHOP_PRICE_LIMITS.battle.max)), "formal shop battle item prices should stay in 150-450 range");
 assert(shopProducts.filter(product => product.type === "training").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.training.min, FORMAL_SHOP_PRICE_LIMITS.training.max)), "formal shop training prices should stay in 10-400 range");
 assert(shopProducts.filter(product => product.type === "recovery").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.recovery.min, FORMAL_SHOP_PRICE_LIMITS.recovery.max)), "formal shop recovery prices should stay in 10-150 range");
@@ -803,9 +811,30 @@ assert(shopProducts.filter(product => product.type === "berry").every(product =>
 assert([...FORMAL_SHOP_COMMON_BERRY_POOL, ...FORMAL_SHOP_RESIST_BERRY_POOL, ...FORMAL_SHOP_CONFUSION_BERRY_POOL].every(itemID => itemDetail(itemID).kind === "berry"), "formal shop berry pools should resolve as dex berry items");
 assert(new Set(FORMAL_SHOP_ITEM_POOL.berry).size === FORMAL_SHOP_ITEM_POOL.berry.length, "formal shop berry pool should not include duplicate items");
 assert(FORMAL_SHOP_ITEM_POOL.berry.every(itemID => [...FORMAL_SHOP_COMMON_BERRY_POOL, ...FORMAL_SHOP_RESIST_BERRY_POOL, ...FORMAL_SHOP_CONFUSION_BERRY_POOL].includes(itemID)), "formal shop berry pool should only include curated battle berries");
-assert(formalShopItemPriceV4({category: "tm", itemID: "tm:trickroom"}, itemDetail("tm:trickroom"), moveDetail) === 100, "status TM should cost 100");
-assert(formalShopItemPriceV4({category: "tm", itemID: "tm:earthquake"}, itemDetail("tm:earthquake"), moveDetail) === 250, "100-power TM should cost 250");
+assert(formalShopItemPriceV4({category: "tm", itemID: "tm:protect"}, itemDetail("tm:protect"), moveDetail) === 50, "protect TM should cost 50");
+assert(formalShopItemPriceV4({category: "tm", itemID: "tm:psychic"}, itemDetail("tm:psychic"), moveDetail) === 150, "psychic TM should cost 150");
+assert(formalShopItemPriceV4({category: "tm", itemID: "tm:earthquake"}, itemDetail("tm:earthquake"), moveDetail) === 200, "earthquake TM should cost 200");
 assert(formalShopItemPriceV4({category: "battle", itemID: "focussash"}, itemDetail("focussash"), moveDetail) === 450, "focus sash should use discounted top battle price tier");
+const psychicShop = api.getFormalRestShop(roundPlanned)!;
+const psychicSlot = {...psychicShop.categories.tm[0]!, itemID: "tm:psychic", stock: 1};
+const psychicRun = {
+  ...roundPlanned,
+  money: 150,
+  shopByNodeId: {
+    ...(roundPlanned.shopByNodeId || {}),
+    [psychicShop.nodeId]: {
+      ...psychicShop,
+      categories: {
+        ...psychicShop.categories,
+        tm: [psychicSlot, ...psychicShop.categories.tm.slice(1)],
+      },
+    },
+  },
+};
+const psychicProduct = api.getFormalRestShopProducts(psychicRun).find(product => product.slotId === psychicSlot.slotId);
+assert(psychicProduct?.price === 150, "psychic TM display price should come from the core static price table");
+const psychicPurchase = api.buyFormalRestShopItem(psychicRun, psychicSlot.slotId);
+assert(psychicPurchase.ok && psychicPurchase.run.money === 0, "150 money should buy psychic TM for 150 and leave zero");
 assert(FORMAL_SHOP_ITEM_BASE_WEIGHTS.focussash < FORMAL_SHOP_ITEM_BASE_WEIGHTS.airballoon, "strong battle shop items should start rarer than light utility items");
 const calmRestockContext: FormalShopRestockContextV4 = {
   roundIndex: 0,

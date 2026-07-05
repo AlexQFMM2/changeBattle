@@ -32,13 +32,13 @@
 }
 
 .dex-category-tabs.quick {
-  --dex-category-tabs-height: 20px;
+  --dex-category-tabs-height: 18px;
 }
 
 .quick-dex-mega-tabs {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 3px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
 }
 
 .dex-category-tabs.quick button {
@@ -52,7 +52,7 @@
   border-radius: 4px;
   background: rgb(255 255 255 / 7%);
   color: #d9ffe0;
-  padding: 2px 4px;
+  padding: 1px 3px;
   overflow: hidden;
 }
 
@@ -72,7 +72,7 @@
 }
 
 .quick-dex-mega-tabs button span {
-  font-size: 7px;
+  font-size: 6px;
   font-weight: 950;
 }
 

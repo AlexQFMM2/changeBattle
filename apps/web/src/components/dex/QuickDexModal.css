@@ -585,6 +585,38 @@
   background: rgb(89 222 123 / 18%);
 }
 
+.quick-dex-nature-info {
+  align-content: start;
+}
+
+.quick-dex-nature-effect-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quick-dex-nature-effect-grid span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgb(142 227 119 / 24%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 6%);
+  padding: 9px;
+}
+
+.quick-dex-nature-effect-grid b {
+  color: #bff3c9;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.quick-dex-nature-effect-grid strong {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 950;
+}
+
 .quick-dex-link-card strong,
 .quick-dex-link-card small {
   min-width: 0;

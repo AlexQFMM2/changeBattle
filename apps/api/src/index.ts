@@ -4,6 +4,7 @@ import {
   REST_CENTER_LEFT_SIDE_ACTIONS_V4,
   REST_CENTER_PAPER_ACTIONS_V4,
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
+  getNatureEffectsV4,
   type RestCenterActionEntryV4,
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BagStateV4, type BattlePreferenceV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerItemTypeV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type TrainingRunStorageAdapter} from "./training.js";
@@ -27,6 +28,7 @@ import {
   type StarChartStateV4,
 } from "./starChart.js";
 export {REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4};
+export type {NatureEffectV4} from "@changebattle-v2/core";
 export type {RestCenterActionEntryV4};
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
@@ -332,6 +334,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getFormalRestShop: formalRuns.getFormalRestShop,
     getFormalRestShopProducts: formalRuns.getFormalRestShopProducts,
     createFormalShopProductViews: (shop: Parameters<typeof createFormalShopProductViewsV4>[0]) => createFormalShopProductViewsV4(shop, itemID => dex.getItemDetail(itemID)),
+    getNatureEffects: getNatureEffectsV4,
     buyFormalRestShopItem: formalRuns.buyFormalRestShopItem,
     sellFormalRestBagItems: formalRuns.sellFormalRestBagItems,
     rerollFormalRestPokemonStats: formalRuns.rerollFormalRestPokemonStats,

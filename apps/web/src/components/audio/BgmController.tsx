@@ -209,8 +209,7 @@ export function BgmController({scene}: {scene: BgmSceneV2}) {
   return (
     <div className="bgm-v2-control" data-open={open ? "true" : "false"}>
       <button className="bgm-v2-floating-button" type="button" aria-label="音乐设置" onClick={() => setOpen(value => !value)}>
-        <span>{settings.enabled ? "♪" : "×"}</span>
-        <b>{BGM_SCENE_LABELS_V2[scene]}</b>
+        <span title={`${settings.enabled ? "音乐开启" : "音乐关闭"} · ${BGM_SCENE_LABELS_V2[scene]}`}>{settings.enabled ? "♪" : "×"}</span>
       </button>
       {open ? (
         <div className="bgm-v2-panel" role="dialog" aria-label="音乐设置">

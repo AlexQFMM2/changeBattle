@@ -7,6 +7,7 @@ export * from "./formalSpeciesRanks.js";
 export * from "./formalSpeciesRules.js";
 export * from "./formalTeamGenerationRules.js";
 export * from "./formalTrainingGroundRules.js";
+export * from "./natureCatalog.js";
 export * from "./playerHonorCatalog.js";
 export * from "./restCenterCatalog.js";
 export * from "./starChartCatalog.js";

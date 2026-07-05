@@ -2740,11 +2740,19 @@ export function formalShopItemPriceV4(
   getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined,
   medicalInsurance?: FormalMedicalInsuranceEffectsV4 | null,
 ): number {
-  const itemID = toID(item.itemID);
-  const override = FORMAL_SHOP_PRICE_OVERRIDES[itemID];
-  if (Number.isFinite(override)) return Math.max(1, Math.floor(override));
+  const itemID = normalizeShopItemID(item.itemID);
+  void getMoveDetail;
   const category = item.category || formalShopCategoryFromDetail(detail);
-  if (category === "tm" || detail?.kind === "tm") return formalShopTmPrice(detail, getMoveDetail);
+  const override = FORMAL_SHOP_PRICE_OVERRIDES[itemID];
+  if (Number.isFinite(override)) {
+    const price = category && FORMAL_SHOP_PRICE_LIMITS[category]
+      ? clampFormalShopPrice(override, category)
+      : Math.max(1, Math.floor(override));
+    return category === "recovery" || detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp"
+      ? applyFormalMedicalInsuranceShopDiscount(price, detail, medicalInsurance)
+      : price;
+  }
+  if (category === "tm" || detail?.kind === "tm") return formalShopTmPrice(detail);
   if (category === "battle" || detail?.kind === "battle" || detail?.kind === "held") return formalShopBattlePrice(itemID);
   if (category === "training" || detail?.kind === "training") return formalShopTrainingPrice(detail);
   if (category === "recovery" || detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp") return applyFormalMedicalInsuranceShopDiscount(formalShopRecoveryPrice(detail), detail, medicalInsurance);
@@ -2761,23 +2769,8 @@ function formalShopCategoryFromDetail(detail: DexItemDetail | null | undefined):
   return undefined;
 }
 
-function formalShopTmPrice(detail: DexItemDetail | null | undefined, getMoveDetail?: (moveId: string) => DexMoveSummary | null | undefined): number {
-  const moveId = detail?.moveId || "";
-  const move = moveId && getMoveDetail ? safeFormalShopMoveDetail(getMoveDetail, moveId) : null;
-  const power = Math.max(0, Math.floor(Number(move?.power || 0)));
-  if (power <= 0) return 100;
-  if (power <= 60) return 150;
-  if (power <= 80) return 200;
-  if (power <= 100) return 250;
-  return 300;
-}
-
-function safeFormalShopMoveDetail(getMoveDetail: (moveId: string) => DexMoveSummary | null | undefined, moveId: string): DexMoveSummary | null {
-  try {
-    return getMoveDetail(moveId) || null;
-  } catch {
-    return null;
-  }
+function formalShopTmPrice(detail: DexItemDetail | null | undefined): number {
+  return clampFormalShopPrice(detail?.cost || FORMAL_SHOP_PRICE_LIMITS.tm.min, "tm");
 }
 
 function formalShopBattlePrice(itemID: string): number {

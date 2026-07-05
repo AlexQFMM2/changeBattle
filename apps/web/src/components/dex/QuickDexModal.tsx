@@ -12,6 +12,7 @@ import type {
   DexSearchRow,
   DexStatsResult,
   DexTrainerDetail,
+  NatureEffectV4,
 } from "@changebattle-v2/api";
 import {BattleV4MovePreviewModal, type BattleV4EnvironmentPreviewEntry} from "../battle-v4/BattleV4MovePreviewModal";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
@@ -26,7 +27,7 @@ import "./MoveCard.css";
 import "./QuickDexModal.css";
 
 type QuickDexBaseCategory = Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items" | "trainers">;
-type QuickDexCategory = QuickDexBaseCategory | "environment";
+type QuickDexCategory = QuickDexBaseCategory | "environment" | "natures";
 type PokemonTabId = (typeof POKEMON_TABS)[number]["id"];
 type TrainerFilterId = (typeof TRAINER_FILTERS)[number]["id"];
 type TrainerDetailTabId = (typeof TRAINER_DETAIL_TABS)[number]["id"];
@@ -37,13 +38,15 @@ type DetailState =
   | {category: "abilities"; detail: DexAbilityDetail}
   | {category: "items"; detail: DexItemDetail}
   | {category: "trainers"; detail: DexTrainerDetail}
-  | {category: "environment"; detail: BattleV4EnvironmentPreviewEntry; moveDetail?: DexMoveDetail};
+  | {category: "environment"; detail: BattleV4EnvironmentPreviewEntry; moveDetail?: DexMoveDetail}
+  | {category: "natures"; detail: NatureEffectV4};
 
 const CATEGORIES: Array<{id: QuickDexCategory; label: string; hint: string}> = [
   {id: "pokemon", label: "宝可梦", hint: "属性、能力、形态、学习面"},
   {id: "moves", label: "技能", hint: "威力、命中、目标、学习者"},
   {id: "abilities", label: "特性", hint: "效果说明与拥有者"},
   {id: "items", label: "战斗道具", hint: "Showdown 道具说明"},
+  {id: "natures", label: "性格", hint: "性格对能力的提升与降低"},
   {id: "trainers", label: "训练师", hint: "馆主 / 四天王 / 冠军 / 反派头目"},
   {id: "environment", label: "环境", hint: "天气、场地、空间与战场环境"},
 ];
@@ -165,6 +168,14 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
           setSelected(current => result.rows.find(row => row.id === current?.id) || result.rows[0] || null);
           return;
         }
+        if (category === "natures") {
+          const result = searchNatureEntries(api, query, page * PAGE_SIZE, PAGE_SIZE);
+          if (cancelled) return;
+          setRows(result.rows);
+          setTotal(result.total);
+          setSelected(current => result.rows.find(row => row.id === current?.id) || result.rows[0] || null);
+          return;
+        }
         const result = api.searchDex({category, query: searchQueryForCategory(category, query, trainerFilter), offset: page * PAGE_SIZE, limit: PAGE_SIZE});
         if (cancelled) return;
         setRows(result.rows);
@@ -216,6 +227,13 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
   }
 
   function jumpTo(row: DexSearchRow) {
+    if (row.category === "items" && row.tags.includes("nature")) {
+      setCategory("natures");
+      setQuery(row.id);
+      setPage(0);
+      setSelected(row);
+      return;
+    }
     if (row.category === "trainers" && row.tags.includes("environment")) {
       setCategory("environment");
       setQuery(row.id);
@@ -318,6 +336,7 @@ export function QuickDexModal({api, initialPokemonId = null, initialCategory, in
               {detail?.category === "abilities" ? <AbilityDetail detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} /> : null}
               {detail?.category === "items" ? <ItemDetail detail={detail.detail} /> : null}
               {detail?.category === "trainers" ? <TrainerDetail api={api} detail={detail.detail} onPokemonClick={id => jump("pokemon", id)} /> : null}
+              {detail?.category === "natures" ? <NatureDetail detail={detail.detail} /> : null}
               {detail?.category === "environment" ? (
                 <EnvironmentDetail
                   detail={detail.detail}
@@ -357,6 +376,10 @@ function loadDetail(api: ChangeBattleV2Api, row: DexSearchRow, level: number): D
       }
     }
     return {category: "environment", detail: environment, moveDetail};
+  }
+  if (row.category === "items" && row.tags.includes("nature")) {
+    const nature = api.getNatureEffects().find(entry => entry.id === row.id) || api.getNatureEffects()[0]!;
+    return {category: "natures", detail: nature};
   }
   if (row.category === "pokemon") {
     return {category: "pokemon", detail: api.getPokemonDetail(row.id), stats: api.dex.calculatePokemonStats({speciesId: row.id, level})};
@@ -826,6 +849,34 @@ function EnvironmentDetail({
   );
 }
 
+function NatureDetail({detail}: {detail: NatureEffectV4}) {
+  const neutral = !detail.plus && !detail.minus;
+  return (
+    <div className="quick-dex-pokemon-info quick-dex-nature-info">
+      <DetailTitle
+        title={detail.nameZh}
+        eyebrow={detail.name}
+        tags={neutral ? ["无能力修正"] : [`+${natureStatLabel(detail.plus)}`, `-${natureStatLabel(detail.minus)}`]}
+      />
+      <div className="quick-dex-nature-effect-grid">
+        <span>
+          <b>提升</b>
+          <strong>{neutral ? "无" : natureStatLabel(detail.plus)}</strong>
+        </span>
+        <span>
+          <b>降低</b>
+          <strong>{neutral ? "无" : natureStatLabel(detail.minus)}</strong>
+        </span>
+      </div>
+      <p className="quick-dex-description">
+        {neutral
+          ? `${detail.nameZh}性格不会改变攻击、防御、特攻、特防或速度。`
+          : `${detail.nameZh}性格会提升${natureStatLabel(detail.plus)}，降低${natureStatLabel(detail.minus)}。`}
+      </p>
+    </div>
+  );
+}
+
 function MoveGrid({moves, onMoveClick, emptyLabel}: {moves: DexMoveSummary[]; onMoveClick: (id: string) => void; emptyLabel: string}) {
   if (!moves.length) return <p className="quick-dex-description">{emptyLabel}</p>;
   return <div className="quick-dex-learnset"><div className="quick-dex-learnset-group"><div>{moves.map(move => <MoveCardButton move={move} onClick={() => onMoveClick(move.id)} key={move.id} />)}</div></div></div>;
@@ -853,6 +904,7 @@ function categoryIcon(category: DexCategory): string {
 }
 
 function categoryIconForRow(row: DexSearchRow): string {
+  if (row.category === "items" && row.tags.includes("nature")) return "性";
   if (row.category === "trainers" && row.tags.includes("environment")) {
     const group = ENVIRONMENT_ENTRIES.find(entry => entry.id === row.id)?.group;
     if (group === "weather") return "天";
@@ -861,6 +913,31 @@ function categoryIconForRow(row: DexSearchRow): string {
     return "环";
   }
   return categoryIcon(row.category);
+}
+
+function searchNatureEntries(api: ChangeBattleV2Api, query: string, offset: number, limit: number): {rows: DexSearchRow[]; total: number} {
+  const normalized = normalizeSearchText(query);
+  const entries = api.getNatureEffects().filter(entry => {
+    if (!normalized) return true;
+    return [entry.id, entry.name, entry.nameZh, natureStatLabel(entry.plus), natureStatLabel(entry.minus)].some(value => normalizeSearchText(value).includes(normalized));
+  });
+  return {
+    rows: entries.slice(offset, offset + limit).map(natureToSearchRow),
+    total: entries.length,
+  };
+}
+
+function natureToSearchRow(entry: NatureEffectV4): DexSearchRow {
+  const neutral = !entry.plus && !entry.minus;
+  return {
+    id: entry.id,
+    category: "items",
+    name: entry.name,
+    nameZh: entry.nameZh,
+    subtitle: neutral ? "无能力修正" : `+${natureStatLabel(entry.plus)} / -${natureStatLabel(entry.minus)}`,
+    description: neutral ? "无能力修正" : `提升${natureStatLabel(entry.plus)}，降低${natureStatLabel(entry.minus)}`,
+    tags: ["nature", entry.name, entry.nameZh, entry.plus, entry.minus].filter(Boolean),
+  };
 }
 
 function environmentEntry(
@@ -915,6 +992,11 @@ function searchQueryForCategory(category: QuickDexCategory, query: string, train
   if (category !== "trainers") return query;
   const filter = TRAINER_FILTERS.find(item => item.id === trainerFilter)?.query || "";
   return [filter, query].filter(Boolean).join(" ");
+}
+
+function natureStatLabel(stat: NatureEffectV4["plus"]): string {
+  const labels: Record<NatureEffectV4["plus"], string> = {atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度", "": "无"};
+  return labels[stat] || "无";
 }
 
 function environmentToSearchRow(entry: BattleV4EnvironmentPreviewEntry): DexSearchRow {
