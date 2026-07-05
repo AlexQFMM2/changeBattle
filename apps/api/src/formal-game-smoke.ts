@@ -31,8 +31,8 @@ import {
   formalNpcLevelBonusForTypeV4,
   formalNpcPowerProfileForTypeV4,
   formalPowerProfileRuleV4,
+  formalTrainingGroundDynamicSelfStudyGainRuleV4,
   formalTrainingGroundSelfStudyEventWeightsV4,
-  formalTrainingGroundSelfStudyGainRuleV4,
   formalTrainingGroundStableSelfStudyGainRuleV4,
   getNatureEffectsV4,
   validateFormalShopCatalogV4,
@@ -550,10 +550,6 @@ assert(starterCandidateCountForStarChart(starProfile.starChart) === 10, "more ch
 assert(getUnlockedStarChartRuntimeEffectsV4(starProfile.starChart).filter(effect => effect.id === "starter_candidate_bonus").length === 4, "more choices should expose four starter candidate runtime effects");
 assert(!starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should be off before unlock");
 starProfile = {...starProfile, battlePoints: 100};
-starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_special_training_lock");
-assert(starProfile.battlePoints === 94, "special training lock should cost 6 BP");
-assert(starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should unlock ability locks");
-assert(starChartHasRuntimeEffectV4(starProfile.starChart, "special_training_lock"), "special training lock should be declared as a runtime effect");
 let failedEastAsiaWithoutCompulsory = false;
 try {
   unlockStarChartNodeForProfileV4(starProfile, "rest_east_asia_education");
@@ -561,14 +557,25 @@ try {
   failedEastAsiaWithoutCompulsory = true;
 }
 assert(failedEastAsiaWithoutCompulsory, "east asia education should require compulsory education first");
+let failedSpecialTrainingWithoutEastAsia = false;
+try {
+  unlockStarChartNodeForProfileV4(starProfile, "rest_special_training_lock");
+} catch {
+  failedSpecialTrainingWithoutEastAsia = true;
+}
+assert(failedSpecialTrainingWithoutEastAsia, "special training lock should require east asia education first");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, COMPULSORY_EDUCATION_NODE_ID);
-assert(starProfile.battlePoints === 91, "compulsory education should cost 3 BP");
+assert(starProfile.battlePoints === 97, "compulsory education should cost 3 BP");
 assert(starChartHasRuntimeEffectV4(starProfile.starChart, "training_ground_group_stage_discount"), "compulsory education should unlock group-stage lesson discount");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_east_asia_education");
-assert(starProfile.battlePoints === 86, "east asia education should cost 5 BP");
+assert(starProfile.battlePoints === 92, "east asia education should cost 5 BP");
 assert(starChartHasEastAsiaEducationV4(starProfile.starChart), "east asia education should unlock self-study stable range and nature risk");
 assert(starChartHasRuntimeEffectV4(starProfile.starChart, "self_study_stable_range"), "east asia education should unlock stable self-study ranges");
 assert(starChartHasRuntimeEffectV4(starProfile.starChart, "self_study_nature_risk"), "east asia education should unlock self-study nature risk");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, "rest_special_training_lock");
+assert(starProfile.battlePoints === 86, "special training lock should cost 6 BP");
+assert(starChartHasSpecialTrainingLockV4(starProfile.starChart), "special training lock should unlock ability locks");
+assert(starChartHasRuntimeEffectV4(starProfile.starChart, "special_training_lock"), "special training lock should be declared as a runtime effect");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 1, "shop rows should start at one row");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_1");
 assert(starProfile.battlePoints === 82, "luxury counter I should cost 4 BP");
@@ -925,10 +932,7 @@ const nextTrainingLesson = api.getFormalTrainingGroundLesson(nextTrainingRun);
 assert((nextTrainingRun.trainingGroundByNodeId?.[roundPlanned.restRunSnapshot!.currentNodeId]?.lessonRoll || 0) === 1, "formal training ground advance should increment lessonRoll");
 assert(nextTrainingLesson && nextTrainingLesson.lessonId !== trainingLesson?.lessonId, "formal training ground advance should draw next lesson");
 assert(!nextTrainingLesson || nextTrainingLesson.fee === expectedTrainingGroundLessonFee(nextTrainingLesson.kind), "formal training ground next lesson should use balanced fee table");
-const compulsoryProfile = unlockStarChartNodeForProfileV4(
-  unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "rest_special_training_lock"),
-  COMPULSORY_EDUCATION_NODE_ID,
-);
+const compulsoryProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, COMPULSORY_EDUCATION_NODE_ID);
 const compulsoryRun = {...api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(compulsoryProfile, {mode: "singles", seed: "formal-smoke-compulsory-education-seed"})), [0, 1, 2])), money: 500};
 const compulsoryLesson = api.getFormalTrainingGroundLesson(compulsoryRun);
 assert(compulsoryLesson?.fee === 100, "compulsory education should halve group-stage lesson display fee");
@@ -988,15 +992,21 @@ assert(selfStudyLesson.fee === 200, "formal self-study lesson should cost 200");
 const selfStudyFocusedWeights = formalTrainingGroundSelfStudyEventWeightsV4({nature: "Serious"});
 const selfStudyFocusedEastAsiaWeights = formalTrainingGroundSelfStudyEventWeightsV4({nature: "Serious"});
 assert(selfStudyFocusedEastAsiaWeights.focused === selfStudyFocusedWeights.focused, "east asia education should no longer change self-study event weights");
-assert(formalTrainingGroundSelfStudyGainRuleV4("playful").iv.join(",") === "-5,10" && formalTrainingGroundSelfStudyGainRuleV4("playful").ev.join(",") === "-10,15", "playful self-study gains should stay in core rules");
-assert(formalTrainingGroundSelfStudyGainRuleV4("normal").iv.join(",") === "5,15" && formalTrainingGroundSelfStudyGainRuleV4("normal").ev.join(",") === "12,40", "normal self-study gains should stay in core rules");
-assert(formalTrainingGroundSelfStudyGainRuleV4("focused").iv.join(",") === "12,30" && formalTrainingGroundSelfStudyGainRuleV4("focused").ev.join(",") === "35,50", "focused self-study gains should stay in core rules");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("playful")).iv.join(",") === "3,10", "stable playful self-study IV range should start at the ceiling midpoint");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("playful")).ev.join(",") === "3,15", "stable playful self-study EV range should start at the ceiling midpoint");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("normal")).iv.join(",") === "10,15", "stable normal self-study IV range should start at the ceiling midpoint");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("normal")).ev.join(",") === "26,40", "stable normal self-study EV range should start at the ceiling midpoint");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("focused")).iv.join(",") === "21,30", "stable focused self-study IV range should start at the ceiling midpoint");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4("focused")).ev.join(",") === "43,50", "stable focused self-study EV range should start at the ceiling midpoint");
+const lowSelfStudyRule = formalTrainingGroundDynamicSelfStudyGainRuleV4("normal", {ivTotal: 90, evTotal: 120});
+const highSelfStudyRule = formalTrainingGroundDynamicSelfStudyGainRuleV4("normal", {ivTotal: 170, evTotal: 470});
+assert(lowSelfStudyRule.iv[0] === 11 && lowSelfStudyRule.iv[1] === 17, "low IV totals should get larger normal self-study catch-up gains");
+assert(lowSelfStudyRule.ev[0] === 55 && lowSelfStudyRule.ev[1] === 78, "low EV totals should get larger normal self-study catch-up gains");
+assert(highSelfStudyRule.iv.join(",") === "8,8", "high IV totals should use minimum normal self-study gains within remaining room");
+assert(highSelfStudyRule.ev.join(",") === "28,28", "high EV totals should use minimum normal self-study gains within remaining room");
+assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("focused", {ivTotal: 180, evTotal: 509}).iv.join(",") === "1,1", "near-target IV self-study should clamp to remaining target room");
+assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("focused", {ivTotal: 180, evTotal: 509}).ev.join(",") === "1,1", "near-target EV self-study should clamp to remaining target room");
+assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("playful", {ivTotal: 181, evTotal: 510}).iv.join(",") === "0,0", "target IV total should stop self-study IV gain");
+assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("playful", {ivTotal: 181, evTotal: 510}).ev.join(",") === "0,0", "target EV total should stop self-study EV gain");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(lowSelfStudyRule).iv.join(",") === "14,17", "stable self-study should start at the dynamic IV midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(lowSelfStudyRule).ev.join(",") === "67,78", "stable self-study should start at the dynamic EV midpoint");
+const sevenStudyTarget = simulateSelfStudyCatchUpTotals(100, 120, ["normal", "normal", "focused", "normal", "focused", "normal", "focused"], true);
+assert(sevenStudyTarget.iv >= 176 && sevenStudyTarget.iv <= 181, "seven mixed self-study sessions should bring IV total close to the 181 target");
+assert(sevenStudyTarget.ev === 510, "seven mixed self-study sessions should be able to reach the EV target");
 const selfStudyPokemon = selfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const selfStudyBeforeIvTotal = statTotal(selfStudyPokemon.ivs);
 const selfStudyBeforeEvTotal = statTotal(selfStudyPokemon.evs);
@@ -1011,13 +1021,16 @@ assert(Object.values(selfStudyAfter.ivs).every(value => inRange(value, 0, 31)), 
 assert(Object.values(selfStudyAfter.evs).every(value => inRange(value, 0, 252)), "formal training ground self-study should keep EVs in bounds");
 assert(selfStudyAfter.ivTotalCap === selfStudyPokemon.ivTotalCap, "formal training ground self-study should leave stored IV cap metadata unchanged");
 assert(selfStudyAfter.evTotalCap === selfStudyPokemon.evTotalCap, "formal training ground self-study should leave stored EV cap metadata unchanged");
-const selfStudyGainRule = formalTrainingGroundSelfStudyGainRuleV4(selfStudyResult.selfStudyEvent);
+const selfStudyGainRule = formalTrainingGroundDynamicSelfStudyGainRuleV4(selfStudyResult.selfStudyEvent, {
+  ivTotal: selfStudyBeforeIvTotal,
+  evTotal: selfStudyBeforeEvTotal,
+});
 const selfStudyIvDelta = statTotal(selfStudyAfter.ivs) - selfStudyBeforeIvTotal;
 const selfStudyEvDelta = statTotal(selfStudyAfter.evs) - selfStudyBeforeEvTotal;
 assert(selfStudyIvDelta >= selfStudyGainRule.iv[0] && selfStudyIvDelta <= selfStudyGainRule.iv[1], "formal training ground self-study IV delta should stay in event range");
 assert(selfStudyEvDelta >= selfStudyGainRule.ev[0] && selfStudyEvDelta <= selfStudyGainRule.ev[1], "formal training ground self-study EV delta should stay in event range");
 assert(selfStudyAfter.level === selfStudyPokemon.level, "formal training ground self-study should not change level");
-assert(statTotal(selfStudyAfter.ivs) <= 31 * 6, "formal training ground self-study IV total should stay within global rules");
+assert(statTotal(selfStudyAfter.ivs) <= 181, "formal training ground self-study IV total should stay within target rules");
 assert(statTotal(selfStudyAfter.evs) <= 510, "formal training ground self-study EV total should stay within rules");
 assert((selfStudyAfter.powerProfile || "normal") === selfStudyBeforePowerProfile, "formal training ground self-study should keep power profile unchanged");
 const selfStudyNodeId = selfStudyRun.restRunSnapshot!.currentNodeId!;
@@ -1040,8 +1053,11 @@ if (eastAsiaSelfStudyResult.selfStudyChange?.natureAfter !== eastAsiaSelfStudyRe
 }
 const eastAsiaSelfStudyAfter = eastAsiaSelfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 assert(eastAsiaSelfStudyResult.selfStudyEvent, "east asia education self-study should report an event");
-const eastAsiaGainRule = formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4(eastAsiaSelfStudyResult.selfStudyEvent));
-const eastAsiaIvRoom = Math.max(0, 31 * 6 - eastAsiaSelfStudyBeforeIvTotal);
+const eastAsiaGainRule = formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundDynamicSelfStudyGainRuleV4(eastAsiaSelfStudyResult.selfStudyEvent, {
+  ivTotal: eastAsiaSelfStudyBeforeIvTotal,
+  evTotal: eastAsiaSelfStudyBeforeEvTotal,
+}));
+const eastAsiaIvRoom = Math.max(0, 181 - eastAsiaSelfStudyBeforeIvTotal);
 const eastAsiaEvRoom = Math.max(0, 510 - eastAsiaSelfStudyBeforeEvTotal);
 assert(statTotal(eastAsiaSelfStudyAfter.ivs) - eastAsiaSelfStudyBeforeIvTotal >= Math.min(eastAsiaGainRule.iv[0], eastAsiaIvRoom), "east asia education should use stable IV gain minimum within global room");
 assert(statTotal(eastAsiaSelfStudyAfter.evs) - eastAsiaSelfStudyBeforeEvTotal >= Math.min(eastAsiaGainRule.ev[0], eastAsiaEvRoom), "east asia education should use stable EV gain minimum within global room");
@@ -1536,6 +1552,18 @@ function statTotal(stats: Record<string, number>): number {
 
 function inRange(value: number, min: number, max: number): boolean {
   return value >= min && value <= max;
+}
+
+function simulateSelfStudyCatchUpTotals(ivTotal: number, evTotal: number, events: Array<"playful" | "normal" | "focused">, stable: boolean) {
+  let iv = ivTotal;
+  let ev = evTotal;
+  for (const event of events) {
+    const baseRule = formalTrainingGroundDynamicSelfStudyGainRuleV4(event, {ivTotal: iv, evTotal: ev});
+    const rule = stable ? formalTrainingGroundStableSelfStudyGainRuleV4(baseRule) : baseRule;
+    iv += rule.iv[1];
+    ev += rule.ev[1];
+  }
+  return {iv, ev};
 }
 
 function expectedTrainingGroundLessonFee(kind: string): number {

@@ -148,21 +148,21 @@ p {
 }
 
 .bgm-v2-floating-button {
-  width: 28px;
-  height: 28px;
+  width: 14px;
+  height: 14px;
   display: grid;
   place-items: center;
-  border: 1px solid rgb(255 236 158 / 68%);
+  border: 1px solid rgb(255 236 158 / 58%);
   border-radius: 50%;
   background: rgb(25 27 35 / 72%);
   color: #fff8e8;
   padding: 0;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 34%);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
   line-height: 1;
 }
 
 .bgm-v2-floating-button span {
-  font-size: 16px;
+  font-size: 10px;
   font-weight: 950;
 }
 

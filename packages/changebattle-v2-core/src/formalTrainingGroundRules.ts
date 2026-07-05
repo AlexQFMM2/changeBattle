@@ -25,7 +25,14 @@ export type FormalTrainingGroundSelfStudyGainRuleV4 = {
   ev: readonly [number, number];
 };
 
+export type FormalTrainingGroundDynamicSelfStudyInputV4 = {
+  ivTotal?: number;
+  evTotal?: number;
+};
+
 export const FORMAL_TRAINING_GROUND_GROUP_STAGE_DISCOUNT_ROUNDS_V4 = 2;
+export const FORMAL_TRAINING_GROUND_SELF_STUDY_IV_TARGET_V4 = 181;
+export const FORMAL_TRAINING_GROUND_SELF_STUDY_EV_TARGET_V4 = 510;
 export const FORMAL_TRAINING_GROUND_SELF_STUDY_NATURE_RISK_TARGETS_V4 = ["Lonely", "Timid", "Modest", "Mild", "Gentle"] as const;
 
 export function formalTrainingGroundLessonTableV4(): FormalTrainingGroundLessonRuleV4[] {
@@ -100,10 +107,15 @@ export function formalRollTrainingGroundSelfStudyEventV4(input: {nature?: string
   return "normal";
 }
 
-export function formalTrainingGroundSelfStudyGainRuleV4(event: FormalTrainingGroundSelfStudyEventV4): FormalTrainingGroundSelfStudyGainRuleV4 {
-  if (event === "focused") return {iv: [12, 30], ev: [35, 50]};
-  if (event === "normal") return {iv: [5, 15], ev: [12, 40]};
-  return {iv: [-5, 10], ev: [-10, 15]};
+export function formalTrainingGroundDynamicSelfStudyGainRuleV4(
+  event: FormalTrainingGroundSelfStudyEventV4,
+  input: FormalTrainingGroundDynamicSelfStudyInputV4,
+): FormalTrainingGroundSelfStudyGainRuleV4 {
+  const rule = selfStudyDynamicRuleForEvent(event);
+  return {
+    iv: dynamicSelfStudyRange(input.ivTotal, FORMAL_TRAINING_GROUND_SELF_STUDY_IV_TARGET_V4, rule.iv),
+    ev: dynamicSelfStudyRange(input.evTotal, FORMAL_TRAINING_GROUND_SELF_STUDY_EV_TARGET_V4, rule.ev),
+  };
 }
 
 export function formalTrainingGroundStableSelfStudyGainRuleV4(rule: FormalTrainingGroundSelfStudyGainRuleV4): FormalTrainingGroundSelfStudyGainRuleV4 {
@@ -111,6 +123,26 @@ export function formalTrainingGroundStableSelfStudyGainRuleV4(rule: FormalTraini
     iv: [Math.ceil((rule.iv[0] + rule.iv[1]) / 2), rule.iv[1]],
     ev: [Math.ceil((rule.ev[0] + rule.ev[1]) / 2), rule.ev[1]],
   };
+}
+
+function selfStudyDynamicRuleForEvent(event: FormalTrainingGroundSelfStudyEventV4) {
+  if (event === "focused") return {iv: {minRate: 0.22, maxRate: 0.3, minimum: 14}, ev: {minRate: 0.24, maxRate: 0.32, minimum: 55}};
+  if (event === "normal") return {iv: {minRate: 0.12, maxRate: 0.18, minimum: 8}, ev: {minRate: 0.14, maxRate: 0.2, minimum: 28}};
+  return {iv: {minRate: 0.06, maxRate: 0.1, minimum: 4}, ev: {minRate: 0.06, maxRate: 0.1, minimum: 12}};
+}
+
+function dynamicSelfStudyRange(
+  currentTotal: unknown,
+  targetTotal: number,
+  rule: {minRate: number; maxRate: number; minimum: number},
+): readonly [number, number] {
+  const current = Math.max(0, Math.floor(Number(currentTotal || 0)));
+  const missing = Math.max(0, Math.floor(targetTotal) - current);
+  if (missing <= 0) return [0, 0];
+  if (missing <= rule.minimum) return [missing, missing];
+  const min = Math.min(missing, Math.max(rule.minimum, Math.ceil(missing * rule.minRate)));
+  const max = Math.min(missing, Math.max(min, Math.ceil(missing * rule.maxRate)));
+  return [min, max];
 }
 
 export function formalTrainingGroundLessonFeeV4(baseFee: number, input: {roundIndex?: number; groupStageDiscount?: number | false | null} = {}): number {

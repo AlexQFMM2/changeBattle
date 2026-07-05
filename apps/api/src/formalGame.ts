@@ -62,13 +62,13 @@ import {
   formalTeamPreferenceForNpcV4,
   formalTeamPreferenceTypeHintsV4,
   FORMAL_TRAINING_GROUND_SELF_STUDY_NATURE_RISK_TARGETS_V4,
+  formalTrainingGroundDynamicSelfStudyGainRuleV4,
   formalRollTrainingGroundSelfStudyEventV4,
   formalTrainingGroundLessonFeeV4,
   formalTrainingGroundLessonForRollV4,
   formalTrainingGroundLessonKindFromIdV4,
   formalTrainingGroundLessonTableV4,
   formalTrainingGroundStableSelfStudyGainRuleV4,
-  formalTrainingGroundSelfStudyGainRuleV4,
   isFormalRandomGeneratableSpeciesV4,
   isFormalStarterAllowedRankV4,
   type CoopPartnerPreferenceV4,
@@ -1724,7 +1724,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
     const levelBefore = clampInt(pokemon.level, 1, 100, 50);
-    const baseSelfStudyRule = formalTrainingGroundSelfStudyGainRuleV4(event);
+    const baseSelfStudyRule = formalTrainingGroundDynamicSelfStudyGainRuleV4(event, {
+      ivTotal: statTotal(beforeIvs),
+      evTotal: statTotal(beforeEvs),
+    });
     const selfStudyRule = starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_stable_range")
       ? formalTrainingGroundStableSelfStudyGainRuleV4(baseSelfStudyRule)
       : baseSelfStudyRule;
