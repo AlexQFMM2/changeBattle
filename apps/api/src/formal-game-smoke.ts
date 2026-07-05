@@ -1000,8 +1000,6 @@ assert(formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStu
 const selfStudyPokemon = selfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const selfStudyBeforeIvTotal = statTotal(selfStudyPokemon.ivs);
 const selfStudyBeforeEvTotal = statTotal(selfStudyPokemon.evs);
-const selfStudyBeforeIvCap = selfStudyPokemon.ivTotalCap || selfStudyBeforeIvTotal;
-const selfStudyBeforeEvCap = selfStudyPokemon.evTotalCap || selfStudyBeforeEvTotal;
 const selfStudyBeforePowerProfile = selfStudyPokemon.powerProfile || "normal";
 const selfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyRun, {pokemonId: selfStudyPokemon.localPokemonId, lessonKind: "self-study"});
 const selfStudyAfter = selfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
@@ -1011,17 +1009,17 @@ assert(selfStudyResult.selfStudyEvent === "playful" || selfStudyResult.selfStudy
 assert(selfStudyAfter.level >= 1 && selfStudyAfter.level <= 100, "formal training ground self-study should keep level in bounds");
 assert(Object.values(selfStudyAfter.ivs).every(value => inRange(value, 0, 31)), "formal training ground self-study should keep IVs in bounds");
 assert(Object.values(selfStudyAfter.evs).every(value => inRange(value, 0, 252)), "formal training ground self-study should keep EVs in bounds");
-assert(selfStudyAfter.ivTotalCap === selfStudyBeforeIvCap, "formal training ground self-study should keep IV cap unchanged");
-assert(selfStudyAfter.evTotalCap === selfStudyBeforeEvCap, "formal training ground self-study should keep EV cap unchanged");
+assert(selfStudyAfter.ivTotalCap === selfStudyPokemon.ivTotalCap, "formal training ground self-study should leave stored IV cap metadata unchanged");
+assert(selfStudyAfter.evTotalCap === selfStudyPokemon.evTotalCap, "formal training ground self-study should leave stored EV cap metadata unchanged");
 const selfStudyGainRule = formalTrainingGroundSelfStudyGainRuleV4(selfStudyResult.selfStudyEvent);
 const selfStudyIvDelta = statTotal(selfStudyAfter.ivs) - selfStudyBeforeIvTotal;
 const selfStudyEvDelta = statTotal(selfStudyAfter.evs) - selfStudyBeforeEvTotal;
 assert(selfStudyIvDelta >= selfStudyGainRule.iv[0] && selfStudyIvDelta <= selfStudyGainRule.iv[1], "formal training ground self-study IV delta should stay in event range");
 assert(selfStudyEvDelta >= selfStudyGainRule.ev[0] && selfStudyEvDelta <= selfStudyGainRule.ev[1], "formal training ground self-study EV delta should stay in event range");
 assert(selfStudyAfter.level === selfStudyPokemon.level, "formal training ground self-study should not change level");
+assert(statTotal(selfStudyAfter.ivs) <= 31 * 6, "formal training ground self-study IV total should stay within global rules");
 assert(statTotal(selfStudyAfter.evs) <= 510, "formal training ground self-study EV total should stay within rules");
 assert((selfStudyAfter.powerProfile || "normal") === selfStudyBeforePowerProfile, "formal training ground self-study should keep power profile unchanged");
-assertPokemonPowerProfile(selfStudyAfter, "self-study pokemon", undefined, {checkLevel: false});
 const selfStudyNodeId = selfStudyRun.restRunSnapshot!.currentNodeId!;
 assert((selfStudyResult.run.trainingGroundByNodeId?.[selfStudyNodeId]?.selfStudyRoll || 0) === 1, "formal training ground self-study should advance self-study roll after first study");
 const secondSelfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyResult.run, {pokemonId: selfStudyPokemon.localPokemonId, lessonKind: "self-study"});
@@ -1043,10 +1041,10 @@ if (eastAsiaSelfStudyResult.selfStudyChange?.natureAfter !== eastAsiaSelfStudyRe
 const eastAsiaSelfStudyAfter = eastAsiaSelfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 assert(eastAsiaSelfStudyResult.selfStudyEvent, "east asia education self-study should report an event");
 const eastAsiaGainRule = formalTrainingGroundStableSelfStudyGainRuleV4(formalTrainingGroundSelfStudyGainRuleV4(eastAsiaSelfStudyResult.selfStudyEvent));
-const eastAsiaIvRoom = Math.max(0, (eastAsiaSelfStudyPokemon.ivTotalCap || eastAsiaSelfStudyBeforeIvTotal) - eastAsiaSelfStudyBeforeIvTotal);
-const eastAsiaEvRoom = Math.max(0, Math.min(eastAsiaSelfStudyPokemon.evTotalCap || eastAsiaSelfStudyBeforeEvTotal, 510) - eastAsiaSelfStudyBeforeEvTotal);
-assert(statTotal(eastAsiaSelfStudyAfter.ivs) - eastAsiaSelfStudyBeforeIvTotal >= Math.min(eastAsiaGainRule.iv[0], eastAsiaIvRoom), "east asia education should use stable IV gain minimum within cap room");
-assert(statTotal(eastAsiaSelfStudyAfter.evs) - eastAsiaSelfStudyBeforeEvTotal >= Math.min(eastAsiaGainRule.ev[0], eastAsiaEvRoom), "east asia education should use stable EV gain minimum within cap room");
+const eastAsiaIvRoom = Math.max(0, 31 * 6 - eastAsiaSelfStudyBeforeIvTotal);
+const eastAsiaEvRoom = Math.max(0, 510 - eastAsiaSelfStudyBeforeEvTotal);
+assert(statTotal(eastAsiaSelfStudyAfter.ivs) - eastAsiaSelfStudyBeforeIvTotal >= Math.min(eastAsiaGainRule.iv[0], eastAsiaIvRoom), "east asia education should use stable IV gain minimum within global room");
+assert(statTotal(eastAsiaSelfStudyAfter.evs) - eastAsiaSelfStudyBeforeEvTotal >= Math.min(eastAsiaGainRule.ev[0], eastAsiaEvRoom), "east asia education should use stable EV gain minimum within global room");
 
 const withCoinLog = api.appendCoinLogEntryV4(economyReadyRun, {amount: -10, source: "preview-unlock", label: "解锁预览", key: "coin:preview:1"});
 assert(withCoinLog.money === economyReadyRun.money - 10, "coin log should update formal money");

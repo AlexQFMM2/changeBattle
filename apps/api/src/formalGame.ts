@@ -1404,7 +1404,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     if (!pokemon) return statRerollResult(false, normalized, "请选择要调整的宝可梦。", cost);
     const now = new Date().toISOString();
     const rng = createRng(`${normalized.seed}:${node.id}:rest-stat-reroll:${part}:${pokemon.localPokemonId}:${now}`);
-    const nextStats = rerollStatsWithinCap(
+    const nextStats = rerollStatsWithinTotal(
       part === "ivs" ? pokemon.ivs : pokemon.evs,
       part === "ivs" ? statTotal(normalizeStats(pokemon.ivs, 31, 31)) : statTotal(normalizeStats(pokemon.evs, 0, 252)),
       part === "ivs" ? 31 : 252,
@@ -1724,19 +1724,14 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
     const levelBefore = clampInt(pokemon.level, 1, 100, 50);
-    const beforeProfile = normalizePokemonInstancePowerProfile(pokemon, beforeIvs, beforeEvs);
-    const oldIvCap = normalizePokemonIvTotalCap(pokemon.ivTotalCap, beforeProfile, statTotal(beforeIvs));
-    const oldEvCap = normalizePokemonEvTotalCap(pokemon.evTotalCap, beforeProfile, statTotal(beforeEvs));
     const baseSelfStudyRule = formalTrainingGroundSelfStudyGainRuleV4(event);
     const selfStudyRule = starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_stable_range")
       ? formalTrainingGroundStableSelfStudyGainRuleV4(baseSelfStudyRule)
       : baseSelfStudyRule;
     const ivDelta = randomInt(selfStudyRule.iv[0], selfStudyRule.iv[1], rng);
     const evDelta = randomInt(selfStudyRule.ev[0], selfStudyRule.ev[1], rng);
-    const nextIvCap = oldIvCap;
-    const nextEvCap = oldEvCap;
-    const nextIvTarget = clampInt(statTotal(beforeIvs) + ivDelta, 0, nextIvCap, statTotal(beforeIvs));
-    const nextEvTarget = clampInt(statTotal(beforeEvs) + evDelta, 0, Math.min(nextEvCap, 510), statTotal(beforeEvs));
+    const nextIvTarget = clampInt(statTotal(beforeIvs) + ivDelta, 0, 31 * STAT_IDS.length, statTotal(beforeIvs));
+    const nextEvTarget = clampInt(statTotal(beforeEvs) + evDelta, 0, 510, statTotal(beforeEvs));
     const nextIvs = adjustStatTableToTotal(beforeIvs, nextIvTarget, 31, shuffledStats(rng), rng);
     const nextEvs = adjustStatTableToTotal(beforeEvs, nextEvTarget, 252, shuffledStats(rng), rng);
     const levelAfter = levelBefore;
@@ -1758,8 +1753,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       ivs: nextIvs,
       evs: nextEvs,
       powerProfile: pokemon.powerProfile,
-      ivTotalCap: nextIvCap,
-      evTotalCap: nextEvCap,
+      ivTotalCap: pokemon.ivTotalCap,
+      evTotalCap: pokemon.evTotalCap,
       maxHp,
       entryHp: clampInt(Math.round(maxHp * hpRatio), 0, maxHp, maxHp),
     };
@@ -3983,12 +3978,12 @@ function normalizeStatLockList(stats: DexStatId[] | undefined): DexStatId[] {
   return Array.from(new Set((stats || []).filter((stat): stat is DexStatId => valid.has(stat))));
 }
 
-function rerollStatsWithinCap(current: StatTableV4, totalCap: number, statCap: number, lockedStats: DexStatId[], rng: () => number): StatTableV4 {
+function rerollStatsWithinTotal(current: StatTableV4, totalValue: number, statCap: number, lockedStats: DexStatId[], rng: () => number): StatTableV4 {
   const locked = new Set(lockedStats);
   const next = Object.fromEntries(STAT_IDS.map(stat => [stat, 0])) as StatTableV4;
   const normalized = normalizeStats(current, 0, statCap);
-  const safeTotalCap = Math.max(0, Math.min(clampInt(totalCap, 0, statCap * STAT_IDS.length, statCap * STAT_IDS.length), statCap * STAT_IDS.length));
-  let remaining = safeTotalCap;
+  const safeTotal = Math.max(0, Math.min(clampInt(totalValue, 0, statCap * STAT_IDS.length, statCap * STAT_IDS.length), statCap * STAT_IDS.length));
+  let remaining = safeTotal;
   for (const stat of STAT_IDS) {
     if (!locked.has(stat)) continue;
     next[stat] = Math.max(0, Math.min(statCap, normalized[stat] || 0));
@@ -4010,12 +4005,6 @@ function rerollStatsWithinCap(current: StatTableV4, totalCap: number, statCap: n
     if (!progressed) break;
   }
   return next;
-}
-
-function partialTrainingTarget(currentTotal: number, cap: number, ratio: number, minimumGain: number): number {
-  const remaining = Math.max(0, cap - currentTotal);
-  if (remaining <= 0) return currentTotal;
-  return Math.min(cap, currentTotal + Math.max(minimumGain, Math.ceil(remaining * ratio)));
 }
 
 function normalizeFormalRoundSettlementByNodeId(value: unknown): Record<string, FormalRoundSettlementV4> {

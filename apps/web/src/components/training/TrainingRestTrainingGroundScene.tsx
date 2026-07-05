@@ -740,8 +740,8 @@ function courseDetail(lesson: FormalTrainingGroundLessonViewV4): {title: string;
   return {
     title: "自习课",
     teacher: "自主学习",
-    summary: "由宝可梦自主学习，可以靠努力自学突破自己的上限。",
-    dialogue: "自习课交给宝可梦自主学习。只要足够努力，它们就有机会靠训练突破自己的上限。",
+    summary: "由宝可梦自主学习，根据课堂状态调整个体值和努力值。",
+    dialogue: "自习课交给宝可梦自主学习。它们会根据课堂状态调整个体值和努力值。",
   };
 }
 
