@@ -36,22 +36,54 @@ import {
   NPC_ELITE_ITEMS,
   NPC_NORMAL_ITEMS,
   NPC_ROOKIE_ITEMS,
-  NPC_TEAM_PREFERENCES,
   ROLE_TYPE_HINTS,
   ROUND_DISTRIBUTIONS,
   STARTER_MAX_LEGENDARY_CANDIDATES,
   STARTER_ROLE_PLAN,
+  formalAdvancePowerProfileV4,
+  formalAttackStyleFromCountsV4,
+  formalCombinePlayerProfilesV4,
+  formalInferPowerProfileForTotalsV4,
+  formalMoveQualityRuleForSourceV4,
+  formalNormalizePlayerProfileV4,
+  formalNormalizePowerProfileV4,
+  formalNpcLevelBonusForTypeV4,
+  formalNpcPowerProfileForTypeV4,
+  formalPowerProfileIndexV4,
+  formalPowerProfileRuleV4,
+  formalRoleForTeamPreferenceV4,
+  formalRolePreferredMoveIdsV4,
+  formalRollPowerProfileEvCapV4,
+  formalRollPowerProfileIvCapV4,
+  formalSpeciesRankForIdsV4,
+  formalStarterIvStatCapForPowerProfileV4,
+  formalStarterPowerProfileDeckV4,
+  formalTargetingIntensityForTrainerTypeV4,
+  formalTeamPreferenceForNpcV4,
+  formalTeamPreferenceTypeHintsV4,
+  formalRollTrainingGroundSelfStudyEventV4,
+  formalTrainingGroundLessonForRollV4,
+  formalTrainingGroundLessonKindFromIdV4,
+  formalTrainingGroundLessonTableV4,
+  formalTrainingGroundSelfStudyGainRuleV4,
+  isFormalRandomGeneratableSpeciesV4,
+  isFormalStarterAllowedRankV4,
   type CoopPartnerPreferenceV4,
+  type FormalTrainingGroundLessonKindV4,
+  type FormalTrainingGroundLessonSourceV4,
+  type FormalTrainingGroundSelfStudyEventV4,
   type FormalNpcBattlePreferenceV4,
   type FormalNpcTeamPreferenceV4,
   type FormalNpcTypeV4,
   type FormalShopProductViewV4,
   type FormalShopCategoryV4,
   type FormalStarterRoleV4,
+  type FormalPlayerProfileRuleInputV4,
   type PokemonPowerProfileV4,
+  type FormalPokemonSpeciesRankData,
+  type FormalMoveQualityRuleV4,
 } from "@changebattle-v2/core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
-import {FormalPokemonSpeciesRankById, type FormalPokemonSpeciesRankData} from "./formalSpeciesRanks.js";
 import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
@@ -236,10 +268,6 @@ export type FormalPokemonExchangeResultV4 = {
   view: FormalPokemonExchangeViewV4;
 };
 
-export type FormalTrainingGroundLessonKindV4 = "tutor" | "egg" | "self-learn" | "self-study";
-
-export type FormalTrainingGroundLessonSourceV4 = "tutor" | "egg" | "levelup" | "self-study";
-
 export type FormalTrainingGroundStateV4 = {
   nodeId: string;
   lessonRoll: number;
@@ -264,8 +292,6 @@ export type FormalTrainingGroundApplyInputV4 = {
   lessonId?: string;
   lessonKind?: FormalTrainingGroundLessonKindV4;
 };
-
-export type FormalTrainingGroundSelfStudyEventV4 = "playful" | "normal" | "focused";
 
 export type FormalTrainingGroundSelfStudyChangeV4 = {
   levelBefore: number;
@@ -322,14 +348,7 @@ export type FormalRoundPlanV4 = {
 type FormalBossTrainerCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "avatarAsset" | "bossProfile" | "presetTeamPreviews">;
 type FormalTrainerVisualCandidateV4 = Pick<DexTrainerDetail, "id" | "trainerType" | "nameZh" | "frontAsset" | "frontGifAsset" | "avatarAsset">;
 type FormalProfileTypeWeightsV4 = Record<string, number>;
-type FormalPlayerTeamProfileV4 = {
-  weaknessTypes: FormalProfileTypeWeightsV4;
-  moveTypes: FormalProfileTypeWeightsV4;
-  attackStyle: "physical" | "special" | "mixed" | "status";
-  speedStyle: "slow" | "fast" | "balanced";
-  effectWeights: Partial<Record<FormalMoveEffectKindV4, number>>;
-  hasMoveUsage: boolean;
-};
+type FormalPlayerTeamProfileV4 = FormalPlayerProfileRuleInputV4;
 type FormalNpcTargetingContextV4 = {
   profile: FormalPlayerTeamProfileV4;
   trainerType: FormalNpcTypeV4;
@@ -347,7 +366,6 @@ const PLAYER_BACK_IMAGES = [
   "npc/player-back/white-bw-touko-back-4156e303.png",
 ];
 
-const POWER_PROFILE_ORDER: PokemonPowerProfileV4[] = ["rookie", "normal", "elite", "boss", "champion"];
 const FORMAL_OPPONENT_RUMOR_COST = 10;
 const FORMAL_SECOND_EXCHANGE_COST = 200;
 
@@ -639,20 +657,6 @@ export type FormalRentalPokemonViewV4 = {
 
 const DEFAULT_FORMAL_RUN_KEY = "changebattle-v2:web:formal-run";
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
-const FORMAL_ULTRA_BEAST_IDS = new Set([
-  "nihilego",
-  "buzzwole",
-  "pheromosa",
-  "xurkitree",
-  "celesteela",
-  "kartana",
-  "guzzlord",
-  "stakataka",
-  "blacephalon",
-  "poipole",
-  "naganadel",
-]);
-const STARTER_ALLOWED_RANKS = new Set<PokemonSpeciesRankV4>(["rank4", "rank5", "rank6"]);
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
   gen7: ["system-mega-stone", "system-z-crystal"],
@@ -1633,7 +1637,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const normalized = normalizeFormalRun(run);
     const node = currentFormalRestNode(normalized);
     if (!node) return [];
-    return createFormalTrainingGroundLessonTable().map(lesson => ({
+    return formalTrainingGroundLessonTableV4().map(lesson => ({
       ...lesson,
       lessonId: `${node.id}:lesson:${lesson.kind}`,
     }));
@@ -1714,28 +1718,23 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   ): FormalTrainingGroundResultV4 {
     const state = ensureFormalTrainingGroundState(run, node.id);
     const rng = createRng(`${run.seed}:${node.id}:training-ground:self-study:${state.lessonRoll}:${state.selfStudyRoll}:${pokemon.localPokemonId}`);
-    const event = rollFormalTrainingGroundSelfStudyEvent(pokemon, rng, starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_probability_tuning"));
+    const event = formalRollTrainingGroundSelfStudyEventV4(pokemon, rng, starChartHasRuntimeEffectV4(run.starChartSnapshot, "self_study_probability_tuning"));
     const beforeIvs = normalizeStats(pokemon.ivs, 31, 31);
     const beforeEvs = normalizeStats(pokemon.evs, 0, 252);
     const levelBefore = clampInt(pokemon.level, 1, 100, 50);
     const beforeProfile = normalizePokemonInstancePowerProfile(pokemon, beforeIvs, beforeEvs);
     const oldIvCap = normalizePokemonIvTotalCap(pokemon.ivTotalCap, beforeProfile, statTotal(beforeIvs));
     const oldEvCap = normalizePokemonEvTotalCap(pokemon.evTotalCap, beforeProfile, statTotal(beforeEvs));
-    const profileSteps = event === "focused" ? 2 : event === "normal" ? 1 : 0;
-    const nextProfile = advancePowerProfile(beforeProfile, profileSteps);
-    const rolledIvCap = profileSteps > 0 ? rollPowerProfileIvCap(nextProfile, rng) : oldIvCap;
-    const rolledEvCap = profileSteps > 0 ? rollPowerProfileEvCap(nextProfile, rng) : oldEvCap;
-    const nextIvCap = nextProfile === "champion" ? 186 : Math.max(oldIvCap, rolledIvCap, statTotal(beforeIvs));
-    const nextEvCap = nextProfile === "champion" ? 510 : Math.max(oldEvCap, rolledEvCap, statTotal(beforeEvs));
-    const gainsLevel = rng() < 0.3;
-    const gainsStats = !gainsLevel;
-    const statGain = formalTrainingGroundSelfStudyStatGain(event);
-    const nextIvTarget = gainsStats ? Math.min(nextIvCap, statTotal(beforeIvs) + statGain.iv) : statTotal(beforeIvs);
-    const nextEvTarget = gainsStats ? Math.min(nextEvCap, 510, statTotal(beforeEvs) + statGain.ev) : statTotal(beforeEvs);
-    const levelDelta = gainsLevel ? 1 : 0;
-    const nextIvs = raiseStatTableToTotal(beforeIvs, nextIvTarget, 31, shuffledStats(rng), rng);
-    const nextEvs = raiseStatTableToTotal(beforeEvs, nextEvTarget, 252, shuffledStats(rng), rng);
-    const levelAfter = clampInt(levelBefore + levelDelta, 1, 100, levelBefore);
+    const selfStudyRule = formalTrainingGroundSelfStudyGainRuleV4(event);
+    const ivDelta = randomInt(selfStudyRule.iv[0], selfStudyRule.iv[1], rng);
+    const evDelta = randomInt(selfStudyRule.ev[0], selfStudyRule.ev[1], rng);
+    const nextIvCap = oldIvCap;
+    const nextEvCap = oldEvCap;
+    const nextIvTarget = clampInt(statTotal(beforeIvs) + ivDelta, 0, nextIvCap, statTotal(beforeIvs));
+    const nextEvTarget = clampInt(statTotal(beforeEvs) + evDelta, 0, Math.min(nextEvCap, 510), statTotal(beforeEvs));
+    const nextIvs = adjustStatTableToTotal(beforeIvs, nextIvTarget, 31, shuffledStats(rng), rng);
+    const nextEvs = adjustStatTableToTotal(beforeEvs, nextEvTarget, 252, shuffledStats(rng), rng);
+    const levelAfter = levelBefore;
     const detail = safePokemon(pokemon.speciesId);
     const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level: levelAfter, nature: pokemon.nature || "Serious", evs: nextEvs, ivs: nextIvs}).stats.hp;
     const hpRatio = pokemon.maxHp > 0 ? pokemon.entryHp / pokemon.maxHp : 1;
@@ -1745,17 +1744,17 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       level: levelAfter,
       ivs: nextIvs,
       evs: nextEvs,
-      powerProfile: nextProfile,
+      powerProfile: pokemon.powerProfile,
       ivTotalCap: nextIvCap,
       evTotalCap: nextEvCap,
       maxHp,
       entryHp: clampInt(Math.round(maxHp * hpRatio), 0, maxHp, maxHp),
     };
     const eventText = event === "playful"
-      ? `贪玩了一节课，但也${gainsStats ? "打磨了一点基础" : "积累了经验"}`
+      ? "贪玩了一节课，基础训练有些起伏"
       : event === "focused"
-        ? `认真学习了一整节课，${gainsStats ? "数值明显提升" : "等级提升了"}`
-        : `踏踏实实自习了一节课，${gainsStats ? "数值稳步提升" : "等级提升了"}`;
+        ? "认真学习了一整节课，数值明显提升"
+        : "踏踏实实自习了一节课，数值稳步提升";
     const message = `${pokemon.nameZh || pokemon.name}${eventText}。${lesson.completeText}`;
     const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message, {selfStudyRollDelta: 1});
     return {
@@ -2076,7 +2075,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const isBoss = isBossTrainerType(input.trainerType);
     const battlePreference = input.partnerPreference || pickOne(NPC_BATTLE_PREFERENCES, input.rng) || "balanced";
     const teamPreference = teamPreferenceForNpc(input.trainerType, battlePreference, input.rng);
-    const powerProfile = powerProfileForFormalRoundNpc(input.trainerType, input.run.streak, input.roundIndex, input.controller === "script");
+    const powerProfile = formalNpcPowerProfileForTypeV4(input.trainerType, input.run.streak, input.roundIndex, input.controller === "script");
     const targetLevel = clampInt(input.targetLevel, 1, 100, input.controller === "script" ? 50 : formalNpcTargetLevel(input.run, input.trainerType));
     const boss = isBoss ? selectBossTrainer(input.trainerType, input.rng) : null;
     const visual = boss ? null : selectTrainerVisual(input.rng, input.controller === "script");
@@ -2212,6 +2211,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       index: replaceIndex,
       role: roleForTeamPreference("balanced", replaceIndex),
       powerProfile,
+      moveRule: formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "gym"}),
       rng,
       seed: `${run.seed}:npc-gen7-mega-guarantee`,
       level,
@@ -2336,6 +2336,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         index,
         role,
         powerProfile,
+        moveRule: formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: boss.trainerType as FormalNpcTypeV4, preset: true}),
+        presetMoveIds: presetPreviewMoveIds(entry),
         rng,
         seed: `${run.seed}:${boss.id}:${selected.variantIndex}`,
         level,
@@ -2401,6 +2403,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         index,
         role: roleForTeamPreference(input.teamPreference, index),
         powerProfile: input.powerProfile,
+        moveRule: formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: input.trainerType}),
         rng: input.rng,
         seed: `${run.seed}:${input.playerId}:${input.teamPreference}`,
         level: input.level,
@@ -2420,6 +2423,11 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         pokemon,
       },
     };
+  }
+
+  function presetPreviewMoveIds(entry: FormalBossTrainerCandidateV4["presetTeamPreviews"][number]["pokemon"][number]): string[] {
+    const moves = (entry as {moves?: unknown}).moves;
+    return Array.isArray(moves) ? moves.map(move => toID(move)).filter(Boolean) : [];
   }
 
   function bossPresetTeamIsRandomLegal(run: FormalGameRunV4, team: FormalBossTrainerCandidateV4["presetTeamPreviews"][number]): boolean {
@@ -3141,7 +3149,7 @@ function collectPokemonRows(dex: ShowdownDexService, battlePreference: BattlePre
     if (!isRandomGeneratableSpeciesFormV4(row.id, detail)) return [];
     if (!allowedGenerations.has(generation)) return [];
     if (!battlePreference.legendaryBattle && rank === "legendary") return [];
-    if (rank !== "legendary" && !STARTER_ALLOWED_RANKS.has(rank)) return [];
+    if (rank !== "legendary" && !isFormalStarterAllowedRankV4(rank)) return [];
     return [{...row, rank, generation}];
   });
 }
@@ -3149,7 +3157,7 @@ function collectPokemonRows(dex: ShowdownDexService, battlePreference: BattlePre
 function filterRowsForRole<T extends DexSearchRow & {rank: PokemonSpeciesRankV4}>(rows: T[], role: FormalStarterRoleV4): T[] {
   const typeHints = ROLE_TYPE_HINTS[role] || [];
   return rows.filter(row => {
-    const rankOk = row.rank === "legendary" || STARTER_ALLOWED_RANKS.has(row.rank);
+    const rankOk = row.rank === "legendary" || isFormalStarterAllowedRankV4(row.rank);
     const typeOk = !typeHints.length || typeHints.some(type => row.tags.includes(type) || row.tags.includes(type.toLowerCase()));
     if (role === "trick-room") return rankOk && typeOk;
     if (role === "support") return rankOk && typeOk;
@@ -3174,6 +3182,8 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   index: number;
   role: FormalStarterRoleV4;
   powerProfile: PokemonPowerProfileV4;
+  moveRule?: FormalMoveQualityRuleV4;
+  presetMoveIds?: string[];
   rng: () => number;
   seed: string;
   level?: number;
@@ -3181,11 +3191,11 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   const ability = pickOne(detail.abilities, options.rng) || detail.abilities[0];
   const level = clampInt(options.level, 1, 100, 50);
   const nature = pickOne(NATURES, options.rng) || "Serious";
-  const ivTotalCap = rollPowerProfileIvCap(options.powerProfile, options.rng);
-  const evTotalCap = rollPowerProfileEvCap(options.powerProfile, options.rng);
+  const ivTotalCap = formalRollPowerProfileIvCapV4(options.powerProfile, options.rng);
+  const evTotalCap = formalRollPowerProfileEvCapV4(options.powerProfile, options.rng);
   const evs = evsForPowerProfileCap(evTotalCap, options.role, options.rng);
-  const ivs = distributeStatBudget(ivTotalCap, starterIvStatCapForPowerProfile(options.powerProfile), STAT_IDS, options.rng);
-  const moves = normalizeMovesForDetail(dex, detail, options.role, options.powerProfile, options.rng);
+  const ivs = distributeStatBudget(ivTotalCap, formalStarterIvStatCapForPowerProfileV4(options.powerProfile), STAT_IDS, options.rng);
+  const moves = normalizeMovesForDetail(dex, detail, options.role, options.powerProfile, options.rng, options.moveRule, options.presetMoveIds);
   const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level, nature, evs, ivs}).stats.hp;
   return {
     localPokemonId: `formal-starter-${options.index + 1}-${detail.id}`,
@@ -3222,25 +3232,50 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   };
 }
 
-function normalizeMovesForDetail(dex: ShowdownDexService, detail: DexPokemonDetail, role: FormalStarterRoleV4, powerProfile: PokemonPowerProfileV4, rng: () => number): TrainingMoveSlotV4[] {
+function normalizeMovesForDetail(
+  dex: ShowdownDexService,
+  detail: DexPokemonDetail,
+  role: FormalStarterRoleV4,
+  powerProfile: PokemonPowerProfileV4,
+  rng: () => number,
+  moveRule: FormalMoveQualityRuleV4 = formalMoveQualityRuleForSourceV4({kind: "player-starter"}),
+  presetMoveIds: string[] = [],
+): TrainingMoveSlotV4[] {
   const learnset = safePokemonMovePool(() => dex.getPokemonSelfLearnSkills(detail.id));
   const learnablePool = starterLearnableMovePool(dex, detail);
   const fallbackPool = learnablePool.length ? learnablePool : learnset.length ? learnset : FALLBACK_MOVES.map(moveId => safeMove(dex, moveId));
   const recommendedPool = recommendedMovesForDetail(detail, fallbackPool);
   const roleMoves = preferredMovesForRole(fallbackPool, role, rng);
-  const lockedRecommendedMove = pickOne(preferredMovesForRole(recommendedPool, role, rng), rng);
+  const recommendedMoves = preferredMovesForRole(recommendedPool, role, rng).slice(0, Math.max(0, moveRule.correctMoveCount));
+  const presetMoves = moveRule.preferPresetMoves ? presetMovesForDetail(dex, presetMoveIds, fallbackPool) : [];
   let selected: DexMoveSummary[];
-  if (powerProfile === "rookie") {
-    selected = fillMoveSelection(lockedRecommendedMove ? [lockedRecommendedMove] : [], fallbackPool, rng, 4);
+  if (presetMoves.length) {
+    selected = fillMoveSelection([...presetMoves, ...recommendedMoves], roleMoves, rng, 4, fallbackPool);
+  } else if (powerProfile === "rookie") {
+    selected = fillMoveSelection(recommendedMoves, fallbackPool, rng, 4);
   } else if (powerProfile === "normal") {
     const goodCount = randomInt(1, 2, rng);
     const goodMoves = roleMoves.slice(0, goodCount);
-    selected = fillMoveSelection(lockedRecommendedMove ? [lockedRecommendedMove, ...goodMoves] : goodMoves, fallbackPool, rng, 4);
+    selected = fillMoveSelection([...recommendedMoves, ...goodMoves], fallbackPool, rng, 4);
   } else {
-    selected = fillMoveSelection(lockedRecommendedMove ? [lockedRecommendedMove, ...roleMoves.slice(0, 3)] : roleMoves.slice(0, 4), fallbackPool, rng, 4);
+    selected = fillMoveSelection([...recommendedMoves, ...roleMoves.slice(0, 3)], fallbackPool, rng, 4);
   }
   const moveIds = uniqueById(selected).map(move => move.id);
   return normalizeMoves(dex, moveIds, 4);
+}
+
+function presetMovesForDetail(dex: ShowdownDexService, moveIds: string[], learnablePool: DexMoveSummary[]): DexMoveSummary[] {
+  if (!moveIds.length) return [];
+  const learnableIds = new Set(learnablePool.map(move => toID(move.id)));
+  return uniqueStrings(moveIds.map(toID).filter(Boolean))
+    .filter(moveId => learnableIds.has(moveId))
+    .flatMap(moveId => {
+      try {
+        return [dex.getMoveDetail(moveId)];
+      } catch {
+        return [];
+      }
+    });
 }
 
 function starterLearnableMovePool(dex: ShowdownDexService, detail: DexPokemonDetail): DexMoveSummary[] {
@@ -3289,11 +3324,11 @@ function preferredMovesForRole(moves: DexMoveSummary[], role: FormalStarterRoleV
   const support = moves.filter(move => move.power === 0 && move.pp > 0);
   if (role === "offense" || role === "flex-offense") return uniqueById([...shuffle(damaging, rng).slice(0, 3), ...shuffle(support, rng).slice(0, 1), ...shuffle(moves, rng)]);
   if (role === "defense" || role === "flex-defense") return uniqueById([...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2), ...shuffle(moves, rng)]);
-  if (role === "support") return uniqueById([...preferMoves(moves, ["protect", "wish", "healbell", "aromatherapy", "helpinghand", "reflect", "lightscreen"], rng).slice(0, 3), ...shuffle(damaging, rng).slice(0, 1), ...shuffle(moves, rng)]);
-  if (role === "speed-control") return uniqueById([...preferMoves(moves, ["tailwind", "thunderwave", "icywind", "electroweb", "trickroom"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
-  if (role === "disruption") return uniqueById([...preferMoves(moves, ["stealthrock", "spikes", "toxicspikes", "stickyweb", "toxic", "willowisp", "taunt"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
-  if (role === "trick-room") return uniqueById([...preferMoves(moves, ["trickroom", "protect"], rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
-  if (role === "weather") return uniqueById([...preferMoves(moves, ["raindance", "sunnyday", "sandstorm", "snowscape", "hail"], rng).slice(0, 1), ...shuffle(damaging, rng).slice(0, 3), ...shuffle(moves, rng)]);
+  if (role === "support") return uniqueById([...preferMoves(moves, formalRolePreferredMoveIdsV4(role), rng).slice(0, 3), ...shuffle(damaging, rng).slice(0, 1), ...shuffle(moves, rng)]);
+  if (role === "speed-control") return uniqueById([...preferMoves(moves, formalRolePreferredMoveIdsV4(role), rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
+  if (role === "disruption") return uniqueById([...preferMoves(moves, formalRolePreferredMoveIdsV4(role), rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
+  if (role === "trick-room") return uniqueById([...preferMoves(moves, formalRolePreferredMoveIdsV4(role), rng).slice(0, 2), ...shuffle(damaging, rng).slice(0, 2), ...shuffle(moves, rng)]);
+  if (role === "weather") return uniqueById([...preferMoves(moves, formalRolePreferredMoveIdsV4(role), rng).slice(0, 1), ...shuffle(damaging, rng).slice(0, 3), ...shuffle(moves, rng)]);
   return uniqueById([...shuffle(damaging, rng).slice(0, 2), ...shuffle(support, rng).slice(0, 2), ...shuffle(moves, rng)]);
 }
 
@@ -3336,91 +3371,43 @@ function preferMoves(moves: DexMoveSummary[], preferredIds: string[], rng: () =>
 }
 
 function speciesRankForDetail(detail: DexPokemonDetail): PokemonSpeciesRankV4 {
-  const detailId = toID(detail.id);
-  if (FORMAL_ULTRA_BEAST_IDS.has(detailId)) return "legendary";
-  const direct = FormalPokemonSpeciesRankById[detail.id];
-  if (direct) return direct;
-  const baseId = toID(detail.baseSpecies || detail.name);
-  if (FORMAL_ULTRA_BEAST_IDS.has(baseId)) return "legendary";
-  return FormalPokemonSpeciesRankById[baseId] || "rank4";
+  return formalSpeciesRankForIdsV4({id: detail.id, name: detail.name, baseSpecies: detail.baseSpecies});
 }
 
 export function isRandomGeneratableSpeciesFormV4(speciesId: string, detail: DexPokemonDetail): boolean {
-  const id = toID(speciesId || detail.id);
-  const forme = toID(detail.forme || "");
-  if (!id || detail.num <= 0) return false;
-  if (detail.isNonstandard && detail.isNonstandard !== "Past" && detail.isNonstandard !== "Future") return false;
-  if (detail.isMega || forme.includes("mega") || id.endsWith("mega") || id.includes("megax") || id.includes("megay")) return false;
-  if (forme.includes("gmax") || id.endsWith("gmax") || id.includes("gmax")) return false;
-  if (detail.battleOnly || forme.includes("ultra") || forme.includes("totem") || forme.includes("tera") || forme.includes("terastal") || forme.includes("stellar")) return false;
-  if (detail.changesFrom && !isAllowedRegionalOrStableVariant(forme)) return false;
-  if (isBlockedBattleForm(id, forme)) return false;
-  return true;
-}
-
-function isAllowedRegionalOrStableVariant(forme: string): boolean {
-  return forme === "alola" || forme === "galar" || forme === "hisui" || forme === "paldea";
-}
-
-function isBlockedBattleForm(id: string, forme: string): boolean {
-  const blockedFormes = [
-    "bond",
-    "zen",
-    "galarzen",
-    "school",
-    "blade",
-    "busted",
-    "complete",
-    "ash",
-    "sunshine",
-    "sunny",
-    "rainy",
-    "snowy",
-    "meteor",
-    "gulping",
-    "gorging",
-    "hangry",
-    "noice",
-    "hero",
-    "crowned",
-    "eternamax",
-    "terastal",
-    "stellar",
-  ];
-  if (blockedFormes.some(blocked => forme === blocked || forme.includes(blocked))) return true;
-  return id.includes("totem") || id.includes("eternamax") || id.includes("ultra") || id.includes("crowned") || id.includes("bond");
+  return isFormalRandomGeneratableSpeciesV4({
+    id: speciesId || detail.id,
+    name: detail.name,
+    baseSpecies: detail.baseSpecies,
+    forme: detail.forme,
+    num: detail.num,
+    isNonstandard: detail.isNonstandard,
+    isMega: detail.isMega,
+    battleOnly: detail.battleOnly,
+    changesFrom: detail.changesFrom,
+  });
 }
 
 function starterPowerProfileDeck(seed: string, streak: number, count: number): PokemonPowerProfileV4[] {
-  const safeStreak = Math.max(0, Math.floor(Number(streak || 0)));
-  const safeCount = Math.max(0, Math.floor(Number(count || 0)));
-  if (safeStreak >= 2) return Array.from({length: safeCount}, () => "elite");
-  const normalCount = Math.max(0, Math.min(safeCount - 1, Math.ceil(safeCount * 0.8)));
-  const eliteCount = safeCount - normalCount;
-  return shuffle([
-    ...Array.from({length: normalCount}, () => "normal" as const),
-    ...Array.from({length: eliteCount}, () => "elite" as const),
-  ], createRng(`${seed}:starter-power-profile:${safeStreak}:${safeCount}`));
+  return formalStarterPowerProfileDeckV4(seed, streak, count);
 }
 
 function starterIvStatCapForPowerProfile(profile: PokemonPowerProfileV4): number {
-  if (profile === "normal") return 26;
-  if (profile === "elite") return 28;
-  return 31;
+  return formalStarterIvStatCapForPowerProfileV4(profile);
 }
 
 function levelForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): number {
-  const rule = powerProfileRule(profile);
+  const rule = formalPowerProfileRuleV4(profile);
   return randomInt(rule.level[0], rule.level[1], rng);
 }
 
 function ivsForPowerProfile(profile: PokemonPowerProfileV4, rng: () => number): StatTableV4 {
-  const total = rollPowerProfileIvCap(profile, rng);
+  const total = formalRollPowerProfileIvCapV4(profile, rng);
   return distributeStatBudget(total, 31, STAT_IDS, rng);
 }
 
 function evsForPowerProfile(profile: PokemonPowerProfileV4, role: FormalStarterRoleV4, rng: () => number): StatTableV4 {
-  const budget = rollPowerProfileEvCap(profile, rng);
+  const budget = formalRollPowerProfileEvCapV4(profile, rng);
   return evsForPowerProfileCap(budget, role, rng);
 }
 
@@ -3436,29 +3423,24 @@ function evsForPowerProfileCap(evTotalCap: number, role: FormalStarterRoleV4, rn
 }
 
 function powerProfileRule(profile: PokemonPowerProfileV4): {level: [number, number]; ivTotal: [number, number]; evTotal: [number, number]} {
-  if (profile === "rookie") return {level: [45, 50], ivTotal: [50, 90], evTotal: [100, 200]};
-  if (profile === "normal") return {level: [49, 53], ivTotal: [80, 120], evTotal: [80, 280]};
-  if (profile === "elite") return {level: [52, 55], ivTotal: [110, 150], evTotal: [260, 400]};
-  if (profile === "boss") return {level: [56, 60], ivTotal: [140, 180], evTotal: [390, 510]};
-  return {level: [61, 65], ivTotal: [186, 186], evTotal: [510, 510]};
+  const rule = formalPowerProfileRuleV4(profile);
+  return {level: [...rule.level] as [number, number], ivTotal: [...rule.ivTotal] as [number, number], evTotal: [...rule.evTotal] as [number, number]};
 }
 
 function rollPowerProfileIvCap(profile: PokemonPowerProfileV4, rng: () => number): number {
-  const rule = powerProfileRule(profile);
-  return randomInt(rule.ivTotal[0], rule.ivTotal[1], rng);
+  return formalRollPowerProfileIvCapV4(profile, rng);
 }
 
 function rollPowerProfileEvCap(profile: PokemonPowerProfileV4, rng: () => number): number {
-  const rule = powerProfileRule(profile);
-  return randomInt(rule.evTotal[0], rule.evTotal[1], rng);
+  return formalRollPowerProfileEvCapV4(profile, rng);
 }
 
 function powerProfileIndex(profile: PokemonPowerProfileV4): number {
-  return Math.max(0, POWER_PROFILE_ORDER.indexOf(profile));
+  return formalPowerProfileIndexV4(profile);
 }
 
 function advancePowerProfile(profile: PokemonPowerProfileV4, steps: number): PokemonPowerProfileV4 {
-  return POWER_PROFILE_ORDER[Math.min(POWER_PROFILE_ORDER.length - 1, powerProfileIndex(profile) + Math.max(0, Math.floor(steps)))] || "rookie";
+  return formalAdvancePowerProfileV4(profile, steps);
 }
 
 function normalizePokemonInstancePowerProfile(pokemon: Partial<LocalPokemonV4>, ivs: StatTableV4, evs: StatTableV4): PokemonPowerProfileV4 {
@@ -3469,12 +3451,7 @@ function normalizePokemonInstancePowerProfile(pokemon: Partial<LocalPokemonV4>, 
 }
 
 function inferPowerProfileForTotals(ivTotal: number, evTotal: number, maxProfile: PokemonPowerProfileV4 = "champion"): PokemonPowerProfileV4 {
-  const maxIndex = powerProfileIndex(maxProfile);
-  for (const profile of POWER_PROFILE_ORDER.slice(0, maxIndex + 1)) {
-    const rule = powerProfileRule(profile);
-    if (ivTotal <= rule.ivTotal[1] && evTotal <= rule.evTotal[1]) return profile;
-  }
-  return POWER_PROFILE_ORDER[maxIndex] || "elite";
+  return formalInferPowerProfileForTotalsV4(ivTotal, evTotal, maxProfile);
 }
 
 function normalizePokemonIvTotalCap(value: unknown, profile: PokemonPowerProfileV4, currentTotal: number): number {
@@ -3572,7 +3549,7 @@ function createFormalPlayerTeamProfileV4(dex: ShowdownDexService, team: LocalTea
     }
   }
   const averageSpeed = team.pokemon.length ? speedTotal / team.pokemon.length : 80;
-  return normalizeFormalPlayerProfile({
+  return formalNormalizePlayerProfileV4({
     weaknessTypes,
     moveTypes,
     attackStyle: attackStyleFromCounts(physical, special, status),
@@ -3601,7 +3578,7 @@ function createFormalPlayerMoveUsageProfileV4(battleLog: TrainingBattleLogEntryV
     const kind = entry.moveEffectKind || "other";
     effectWeights[kind] = (effectWeights[kind] || 0) + 1;
   }
-  return normalizeFormalPlayerProfile({
+  return formalNormalizePlayerProfileV4({
     weaknessTypes: {},
     moveTypes,
     attackStyle: attackStyleFromCounts(physical, special, status),
@@ -3612,15 +3589,7 @@ function createFormalPlayerMoveUsageProfileV4(battleLog: TrainingBattleLogEntryV
 }
 
 function combineFormalPlayerProfilesV4(teamProfile: FormalPlayerTeamProfileV4, moveUsageProfile: FormalPlayerTeamProfileV4 | null): FormalPlayerTeamProfileV4 {
-  if (!moveUsageProfile?.hasMoveUsage) return teamProfile;
-  return normalizeFormalPlayerProfile({
-    weaknessTypes: scaleTypeWeights(teamProfile.weaknessTypes, 0.6),
-    moveTypes: mergeTypeWeights(scaleTypeWeights(teamProfile.moveTypes, 0.6), scaleTypeWeights(moveUsageProfile.moveTypes, 0.4)),
-    attackStyle: moveUsageProfile.attackStyle === "mixed" || moveUsageProfile.attackStyle === "status" ? teamProfile.attackStyle : moveUsageProfile.attackStyle,
-    speedStyle: teamProfile.speedStyle,
-    effectWeights: mergeEffectWeights(scaleEffectWeights(teamProfile.effectWeights, 0.6), scaleEffectWeights(moveUsageProfile.effectWeights, 0.4)),
-    hasMoveUsage: true,
-  });
+  return formalCombinePlayerProfilesV4(teamProfile, moveUsageProfile);
 }
 
 function weightedPickNpcCandidate<T extends DexSearchRow & {rank: PokemonSpeciesRankV4}>(rows: T[], input: {
@@ -3695,67 +3664,12 @@ function previousFormalNodeId(nextNodeId: string): string {
   return previous >= 1 ? `formal-round-${previous}` : "";
 }
 
-function normalizeFormalPlayerProfile(profile: FormalPlayerTeamProfileV4): FormalPlayerTeamProfileV4 {
-  return {
-    weaknessTypes: normalizeTypeWeights(profile.weaknessTypes),
-    moveTypes: normalizeTypeWeights(profile.moveTypes),
-    attackStyle: profile.attackStyle,
-    speedStyle: profile.speedStyle,
-    effectWeights: normalizeEffectWeights(profile.effectWeights),
-    hasMoveUsage: Boolean(profile.hasMoveUsage),
-  };
-}
-
-function normalizeTypeWeights(weights: FormalProfileTypeWeightsV4): FormalProfileTypeWeightsV4 {
-  const entries = Object.entries(weights).filter(([, value]) => value > 0);
-  const max = Math.max(1, ...entries.map(([, value]) => value));
-  return Object.fromEntries(entries.map(([key, value]) => [normalizeTypeName(key), value / max]).filter(([key]) => Boolean(key))) as FormalProfileTypeWeightsV4;
-}
-
-function normalizeEffectWeights(weights: Partial<Record<FormalMoveEffectKindV4, number>>): Partial<Record<FormalMoveEffectKindV4, number>> {
-  const entries = Object.entries(weights).filter(([, value]) => Number(value) > 0) as Array<[FormalMoveEffectKindV4, number]>;
-  const max = Math.max(1, ...entries.map(([, value]) => value));
-  return Object.fromEntries(entries.map(([key, value]) => [key, value / max])) as Partial<Record<FormalMoveEffectKindV4, number>>;
-}
-
-function scaleTypeWeights(weights: FormalProfileTypeWeightsV4, scale: number): FormalProfileTypeWeightsV4 {
-  return Object.fromEntries(Object.entries(weights).map(([key, value]) => [key, value * scale]));
-}
-
-function scaleEffectWeights(weights: Partial<Record<FormalMoveEffectKindV4, number>>, scale: number): Partial<Record<FormalMoveEffectKindV4, number>> {
-  return Object.fromEntries(Object.entries(weights).map(([key, value]) => [key, Number(value || 0) * scale])) as Partial<Record<FormalMoveEffectKindV4, number>>;
-}
-
-function mergeTypeWeights(a: FormalProfileTypeWeightsV4, b: FormalProfileTypeWeightsV4): FormalProfileTypeWeightsV4 {
-  const next: FormalProfileTypeWeightsV4 = {...a};
-  Object.entries(b).forEach(([key, value]) => {
-    next[key] = (next[key] || 0) + value;
-  });
-  return next;
-}
-
-function mergeEffectWeights(a: Partial<Record<FormalMoveEffectKindV4, number>>, b: Partial<Record<FormalMoveEffectKindV4, number>>): Partial<Record<FormalMoveEffectKindV4, number>> {
-  const next = {...a};
-  Object.entries(b).forEach(([key, value]) => {
-    const kind = key as FormalMoveEffectKindV4;
-    next[kind] = (next[kind] || 0) + Number(value || 0);
-  });
-  return next;
-}
-
 function attackStyleFromCounts(physical: number, special: number, status: number): FormalPlayerTeamProfileV4["attackStyle"] {
-  const total = physical + special + status;
-  if (total <= 0 || status / total >= 0.55) return "status";
-  if (physical >= special * 1.5) return "physical";
-  if (special >= physical * 1.5) return "special";
-  return "mixed";
+  return formalAttackStyleFromCountsV4(physical, special, status);
 }
 
 function targetingIntensityForTrainerType(type: FormalNpcTypeV4): number {
-  if (type === "champion") return 1.15;
-  if (type === "gym" || type === "elite4" || type === "villain") return 0.95;
-  if (type === "elite") return 0.7;
-  return 0.55;
+  return formalTargetingIntensityForTrainerTypeV4(type);
 }
 
 function typeEffectivenessAgainst(attackType: string, defenderTypes: string[]): number {
@@ -3845,47 +3759,20 @@ function formalNpcTargetLevel(run: FormalGameRunV4, trainerType: FormalNpcTypeV4
 
 function formalNpcTargetLevelForTeam(team: LocalPokemonV4[], trainerType: FormalNpcTypeV4): number {
   const playerMaxLevel = team.reduce((max, pokemon) => Math.max(max, Math.floor(Number(pokemon.level || 0))), 50);
-  const bonus = trainerType === "champion"
-    ? 4
-    : trainerType === "gym" || trainerType === "elite4" || trainerType === "villain"
-      ? 2
-      : 0;
+  const bonus = formalNpcLevelBonusForTypeV4(trainerType);
   return clampInt(playerMaxLevel + bonus, 1, 100, 50);
 }
 
 function powerProfileForFormalRoundNpc(type: FormalNpcTypeV4, streak: number, roundIndex: number, isCoopAlly = false): PokemonPowerProfileV4 {
-  if (isCoopAlly) return "elite";
-  if (type === "rookie") return "rookie";
-  if (type === "normal") return "normal";
-  if (type === "elite") return "elite";
-  const safeStreak = Math.max(0, Math.floor(Number(streak || 0)));
-  if (safeStreak <= 0) return "elite";
-  if (safeStreak === 1) return type === "gym" ? "elite" : "boss";
-  if (safeStreak === 2) return "boss";
-  if (type === "champion" || type === "villain") return "champion";
-  if (roundIndex >= 5 && type === "elite4") return "champion";
-  return "boss";
+  return formalNpcPowerProfileForTypeV4(type, streak, roundIndex, isCoopAlly);
 }
 
 function teamPreferenceForNpc(type: FormalNpcTypeV4, battlePreference: FormalNpcBattlePreferenceV4, rng: () => number): FormalNpcTeamPreferenceV4 {
-  if (type === "champion") return pickOne(["balanced", "setup-offense", "tailwind", "terrain"], rng) || "balanced";
-  if (type === "villain") return pickOne(["poison-stall", "hazard-stack", "setup-offense", "balanced"], rng) || "balanced";
-  if (type === "gym") return pickOne(["rain", "sun", "sand", "snow", "terrain", "balanced"], rng) || "balanced";
-  if (type === "elite4") return pickOne(["trick-room", "tailwind", "hazard-stack", "setup-offense", "balanced"], rng) || "balanced";
-  if (battlePreference === "offense") return pickOne(["setup-offense", "tailwind", "rain", "sun"], rng) || "setup-offense";
-  if (battlePreference === "defense") return pickOne(["sand", "snow", "poison-stall", "balanced"], rng) || "balanced";
-  if (battlePreference === "support") return pickOne(["trick-room", "terrain", "hazard-stack", "tailwind"], rng) || "balanced";
-  return pickOne(NPC_TEAM_PREFERENCES, rng) || "balanced";
+  return formalTeamPreferenceForNpcV4(type, battlePreference, values => pickOne(values, rng));
 }
 
 function roleForTeamPreference(teamPreference: FormalNpcTeamPreferenceV4, index: number): FormalStarterRoleV4 {
-  if (teamPreference === "trick-room") return index < 2 ? "trick-room" : index < 4 ? "offense" : "defense";
-  if (teamPreference === "tailwind") return index === 0 ? "speed-control" : index < 4 ? "offense" : "support";
-  if (teamPreference === "hazard-stack" || teamPreference === "poison-stall") return index < 2 ? "disruption" : index < 4 ? "defense" : "offense";
-  if (teamPreference === "setup-offense") return index < 4 ? "offense" : index === 4 ? "speed-control" : "support";
-  if (teamPreference === "rain" || teamPreference === "sun" || teamPreference === "sand" || teamPreference === "snow") return index === 0 ? "weather" : index < 4 ? "offense" : "defense";
-  if (teamPreference === "terrain") return index === 0 ? "support" : index < 4 ? "offense" : "defense";
-  return index < 2 ? "offense" : index < 4 ? "defense" : "support";
+  return formalRoleForTeamPreferenceV4(teamPreference, index);
 }
 
 function filterRowsForNpcTeam<T extends DexSearchRow & {rank: PokemonSpeciesRankV4}>(rows: T[], teamPreference: FormalNpcTeamPreferenceV4, battlePreference: FormalNpcBattlePreferenceV4): T[] {
@@ -3900,12 +3787,7 @@ function filterRowsForNpcTeam<T extends DexSearchRow & {rank: PokemonSpeciesRank
 }
 
 function teamPreferenceTypeHints(teamPreference: FormalNpcTeamPreferenceV4): string[] {
-  if (teamPreference === "rain") return ["Water", "Electric", "Flying", "Grass"];
-  if (teamPreference === "sun") return ["Fire", "Grass", "Ground", "Dragon"];
-  if (teamPreference === "sand") return ["Rock", "Ground", "Steel"];
-  if (teamPreference === "snow") return ["Ice", "Water", "Steel"];
-  if (teamPreference === "terrain") return ["Electric", "Grass", "Psychic", "Fairy"];
-  return [];
+  return formalTeamPreferenceTypeHintsV4(teamPreference);
 }
 
 function normalNpcName(type: FormalNpcTypeV4, ally: boolean, rng: () => number): string {
@@ -4010,58 +3892,21 @@ function ensureFormalTrainingGroundState(run: FormalGameRunV4, nodeId: string): 
 }
 
 function createFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string, lessonRoll: number): FormalTrainingGroundLessonViewV4 {
-  const lesson = trainingGroundLessonForRoll(run.seed, nodeId, lessonRoll, createFormalTrainingGroundLessonTable());
+  const lesson = formalTrainingGroundLessonForRollV4(run.seed, nodeId, lessonRoll);
   return {
     ...lesson,
     lessonId: `${nodeId}:lesson:${lessonRoll}:${lesson.kind}`,
   };
 }
 
-function createFormalTrainingGroundLessonTable(): Array<Omit<FormalTrainingGroundLessonViewV4, "lessonId">> {
-  return [
-    {
-      kind: "tutor",
-      teacherLabel: "老奶奶",
-      introText: "一位年迈慈祥的奶奶正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
-      completeText: "教授课程结束了。",
-      fee: 200,
-      source: "tutor",
-    },
-    {
-      kind: "egg",
-      teacherLabel: "老爷爷",
-      introText: "一位沉稳严厉的爷爷正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
-      completeText: "蛋招式课程结束了。",
-      fee: 200,
-      source: "egg",
-    },
-    {
-      kind: "self-learn",
-      teacherLabel: "年轻小姐",
-      introText: "一位漂亮美丽的姐姐正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
-      completeText: "自学招式课程结束了。",
-      fee: 200,
-      source: "levelup",
-    },
-    {
-      kind: "self-study",
-      teacherLabel: "自习课",
-      introText: "教室里现在没有老师，大家都在埋头自习，是否让宝可梦自主学习？座位费 200 金币。",
-      completeText: "自习课结束了。",
-      fee: 200,
-      source: "self-study",
-    },
-  ];
-}
-
 function formalTrainingGroundLessonForInput(run: FormalGameRunV4, input: FormalTrainingGroundApplyInputV4): FormalTrainingGroundLessonViewV4 | null {
   const node = currentFormalRestNode(run);
   if (!node) return null;
-  const lessons = createFormalTrainingGroundLessonTable().map(lesson => ({
+  const lessons = formalTrainingGroundLessonTableV4().map(lesson => ({
     ...lesson,
     lessonId: `${node.id}:lesson:${lesson.kind}`,
   }));
-  const requestedKind = input.lessonKind || kindFromFormalTrainingGroundLessonId(input.lessonId || "");
+  const requestedKind = input.lessonKind || formalTrainingGroundLessonKindFromIdV4(input.lessonId || "");
   if (requestedKind) return lessons.find(lesson => lesson.kind === requestedKind) || null;
   return getFallbackFormalTrainingGroundLesson(run, node.id);
 }
@@ -4069,38 +3914,6 @@ function formalTrainingGroundLessonForInput(run: FormalGameRunV4, input: FormalT
 function getFallbackFormalTrainingGroundLesson(run: FormalGameRunV4, nodeId: string): FormalTrainingGroundLessonViewV4 {
   const state = ensureFormalTrainingGroundState(run, nodeId);
   return createFormalTrainingGroundLesson(run, nodeId, state.lessonRoll);
-}
-
-function kindFromFormalTrainingGroundLessonId(lessonId: string): FormalTrainingGroundLessonKindV4 | "" {
-  const suffix = String(lessonId || "").split(":").pop() || "";
-  return suffix === "tutor" || suffix === "egg" || suffix === "self-learn" || suffix === "self-study" ? suffix : "";
-}
-
-function trainingGroundLessonForRoll(
-  seed: string,
-  nodeId: string,
-  lessonRoll: number,
-  lessons: Array<Omit<FormalTrainingGroundLessonViewV4, "lessonId">>,
-): Omit<FormalTrainingGroundLessonViewV4, "lessonId"> {
-  if (!lessons.length) throw new Error("training ground lesson table is empty");
-  const safeRoll = Math.max(0, Math.floor(Number(lessonRoll || 0)));
-  const cycleSize = lessons.length;
-  const cycleIndex = Math.floor(safeRoll / cycleSize);
-  const slotIndex = safeRoll % cycleSize;
-  const deck = shuffle(lessons, createRng(`${seed}:${nodeId}:training-ground-cycle:${cycleIndex}`));
-  if (cycleIndex > 0 && deck.length > 1) {
-    const previousDeck = shuffle(lessons, createRng(`${seed}:${nodeId}:training-ground-cycle:${cycleIndex - 1}`));
-    normalizeTrainingGroundDeckBoundary(deck, previousDeck);
-  }
-  return deck[slotIndex] || deck[0] || lessons[0]!;
-}
-
-function normalizeTrainingGroundDeckBoundary<T extends {kind: string}>(deck: T[], previousDeck: T[]) {
-  const previousLast = previousDeck[previousDeck.length - 1];
-  if (!previousLast || deck[0]?.kind !== previousLast.kind) return;
-  const swapIndex = deck.findIndex((lesson, index) => index > 0 && lesson.kind !== previousLast.kind);
-  if (swapIndex <= 0) return;
-  [deck[0], deck[swapIndex]] = [deck[swapIndex]!, deck[0]!];
 }
 
 function trainingGroundResult(ok: boolean, run: FormalGameRunV4, message: string, lesson: FormalTrainingGroundLessonViewV4 | null): FormalTrainingGroundResultV4 {
@@ -4184,40 +3997,6 @@ function rerollStatsWithinCap(current: StatTableV4, totalCap: number, statCap: n
     if (!progressed) break;
   }
   return next;
-}
-
-function rollFormalTrainingGroundSelfStudyEvent(pokemon: LocalPokemonV4, rng: () => number, eastAsiaEducation = false): FormalTrainingGroundSelfStudyEventV4 {
-  const weights = formalTrainingGroundSelfStudyEventWeights(pokemon, eastAsiaEducation);
-  const roll = rng();
-  if (roll < weights.playful) return "playful";
-  if (roll >= 1 - weights.focused) return "focused";
-  return "normal";
-}
-
-function formalTrainingGroundSelfStudyStatGain(event: FormalTrainingGroundSelfStudyEventV4): {iv: number; ev: number} {
-  if (event === "focused") return {iv: 20, ev: 50};
-  if (event === "normal") return {iv: 15, ev: 30};
-  return {iv: 10, ev: 10};
-}
-
-function formalTrainingGroundSelfStudyEventWeights(pokemon: LocalPokemonV4, eastAsiaEducation = false): {playful: number; normal: number; focused: number} {
-  const nature = toID(pokemon.nature);
-  const focusedNatures = new Set(["serious", "hardy", "adamant", "modest", "jolly", "timid", "bold", "calm", "careful", "impish"]);
-  const playfulNatures = new Set(["relaxed", "lax", "gentle", "quiet", "docile", "naive"]);
-  // Keep this as the single offset point for nature today and star chart bonuses later.
-  let playful = eastAsiaEducation ? 0.35 : 0.3;
-  let focused = eastAsiaEducation ? 0.15 : 0.1;
-  const natureScale = eastAsiaEducation ? 0.5 : 1;
-  if (focusedNatures.has(nature)) {
-    playful -= 0.05 * natureScale;
-    focused += 0.05 * natureScale;
-  } else if (playfulNatures.has(nature)) {
-    playful += 0.08 * natureScale;
-    focused -= 0.03 * natureScale;
-  }
-  playful = Math.max(0.15, Math.min(0.45, playful));
-  focused = Math.max(0.05, Math.min(0.2, focused));
-  return {playful, focused, normal: Math.max(0, 1 - playful - focused)};
 }
 
 function partialTrainingTarget(currentTotal: number, cap: number, ratio: number, minimumGain: number): number {
@@ -4363,6 +4142,30 @@ function raiseStatTableToTotal(stats: StatTableV4, targetTotal: number, statCap:
       const add = maxAdd <= 8 ? maxAdd : randomInt(1, Math.min(maxAdd, 32), rng);
       next[stat] += add;
       remaining -= add;
+      progressed = true;
+      if (remaining <= 0) break;
+    }
+    if (!progressed) break;
+  }
+  return next;
+}
+
+function adjustStatTableToTotal(stats: StatTableV4, targetTotal: number, statCap: number, priority: DexStatId[], rng: () => number): StatTableV4 {
+  const next = normalizeStats(stats, 0, statCap);
+  const safeTarget = clampInt(targetTotal, 0, statCap * STAT_IDS.length, statTotal(next));
+  const currentTotal = statTotal(next);
+  if (safeTarget >= currentTotal) return raiseStatTableToTotal(next, safeTarget, statCap, priority, rng);
+  let remaining = currentTotal - safeTarget;
+  const order = [...priority, ...STAT_IDS.filter(stat => !priority.includes(stat))];
+  while (remaining > 0) {
+    let progressed = false;
+    for (const stat of order) {
+      const open = next[stat];
+      if (open <= 0) continue;
+      const maxRemove = Math.min(open, remaining);
+      const remove = maxRemove <= 8 ? maxRemove : randomInt(1, Math.min(maxRemove, 32), rng);
+      next[stat] -= remove;
+      remaining -= remove;
       progressed = true;
       if (remaining <= 0) break;
     }
@@ -4615,7 +4418,7 @@ function normalizeSpeciesRank(value: unknown): PokemonSpeciesRankV4 {
 }
 
 function normalizePowerProfile(value: unknown): PokemonPowerProfileV4 {
-  return value === "rookie" || value === "normal" || value === "elite" || value === "boss" || value === "champion" ? value : "normal";
+  return formalNormalizePowerProfileV4(value);
 }
 
 function normalizeFormalMedicalInsuranceTier(value: unknown): FormalMedicalInsuranceTierV4 | null {

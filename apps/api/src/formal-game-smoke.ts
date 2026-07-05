@@ -26,6 +26,12 @@ import {
   STARTER_ROLE_PLAN,
   TRAVEL_FUND_NODE_ID,
   VICTORY_DIVIDEND_NODE_ID,
+  formalMoveQualityRuleForSourceV4,
+  formalNpcLevelBonusForTypeV4,
+  formalNpcPowerProfileForTypeV4,
+  formalPowerProfileRuleV4,
+  formalTrainingGroundSelfStudyEventWeightsV4,
+  formalTrainingGroundSelfStudyGainRuleV4,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
@@ -448,6 +454,18 @@ assert(prepared.starterCandidates.every(candidate => candidate.pokemon.level ===
 assert(prepared.starterCandidates.every(candidate => ["normal", "elite"].includes(candidate.pokemon.powerProfile || "")), "player starter power profile should be limited to normal or elite");
 assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "normal").length === 5, "starter candidates should roll about 80% normal power profile for base six");
 assert(prepared.starterCandidates.filter(candidate => candidate.pokemon.powerProfile === "elite").length === 1, "starter candidates should roll about 20% elite power profile for base six");
+assert(formalNpcPowerProfileForTypeV4("rookie", 0, 0) === "rookie", "core NPC rules should map rookie to rookie profile");
+assert(formalNpcPowerProfileForTypeV4("normal", 0, 1) === "normal", "core NPC rules should map normal to normal profile");
+assert(formalNpcPowerProfileForTypeV4("elite", 0, 2) === "elite", "core NPC rules should map elite to elite profile");
+assert(formalNpcPowerProfileForTypeV4("villain", 3, 6) === "champion", "core NPC rules should map villain to champion profile late run");
+assert(formalNpcLevelBonusForTypeV4("rookie") === -2 && formalNpcLevelBonusForTypeV4("normal") === -1, "core NPC rules should soften early trainer levels");
+assert(formalNpcLevelBonusForTypeV4("elite") === 0, "core NPC rules should keep elite trainers at player max level");
+assert(formalNpcLevelBonusForTypeV4("gym") === 1 && formalNpcLevelBonusForTypeV4("elite4") === 1, "core NPC rules should give boss-tier trainers +1 level");
+assert(formalNpcLevelBonusForTypeV4("champion") === 2 && formalNpcLevelBonusForTypeV4("villain") === 2, "core NPC rules should give champion-tier trainers +2 levels");
+assert(formalMoveQualityRuleForSourceV4({kind: "player-starter"}).correctMoveCount === 1, "core move rules should require one correct player starter move");
+assert(formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "normal"}).correctMoveCount === 2, "core move rules should require two correct normal NPC moves");
+assert(formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "elite"}).correctMoveCount === 3, "core move rules should require three correct elite NPC moves");
+assert(formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "villain", preset: true}).correctMoveCount === 4, "core move rules should let villain presets refill to four correct moves");
 const mockStarterLearnableMoveIds = new Set([
   ...MOCK_SELF_LEARN_MOVE_IDS,
   ...MOCK_MACHINE_MOVE_IDS,
@@ -691,7 +709,13 @@ assert(roundPlanned.roundPlan.filter(round => round.participants.p2).every(round
   return new Set(team.map(pokemon => pokemon.speciesId)).size === team.length;
 }), "formal opponent teams should avoid internal duplicate species");
 rookieOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `rookie NPC ${index + 1}`, ["rookie"]));
+rookieOpponent.forEach((pokemon, index) => assert(pokemon.level === 48, `rookie NPC ${index + 1} should use player max level minus two`));
 assert(rookieOpponent.every(pokemon => !["choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "assaultvest", "heavydutyboots"].includes(pokemon.itemId)), "rookie NPC should not hold strong battle items");
+const eliteNpcRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 2, seed: "formal-smoke-elite-npc-seed"})), [0, 1, 2]));
+const eliteOpponent = eliteNpcRun.roundPlan[0]!.participants.p2!.localTeam.pokemon;
+eliteOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `elite NPC ${index + 1}`, ["elite"], {checkLevel: false}));
+eliteOpponent.forEach((pokemon, index) => assert(pokemon.level === 50, `elite NPC ${index + 1} should use player max level without a dynamic level bonus`));
+eliteOpponent.forEach((pokemon, index) => assertRecommendedMoveCount(pokemon, 3, `elite NPC ${index + 1}`));
 
 const shop = api.getFormalRestShop(roundPlanned);
 const shopProducts = api.getFormalRestShopProducts(roundPlanned);
@@ -899,12 +923,18 @@ let selfStudyRun = economyReadyRun;
 let selfStudyLesson = api.getFormalTrainingGroundLessons(selfStudyRun).find(lesson => lesson.kind === "self-study");
 assert(selfStudyLesson?.kind === "self-study", "formal training ground should be able to draw a self-study lesson");
 assert(selfStudyLesson.fee === 200, "formal self-study lesson should cost 200");
+const selfStudyFocusedWeights = formalTrainingGroundSelfStudyEventWeightsV4({nature: "Serious"});
+const selfStudyFocusedEastAsiaWeights = formalTrainingGroundSelfStudyEventWeightsV4({nature: "Serious"}, true);
+assert(selfStudyFocusedEastAsiaWeights.focused > selfStudyFocusedWeights.focused, "east asia education should improve focused self-study weight");
+assert(formalTrainingGroundSelfStudyGainRuleV4("playful").iv.join(",") === "-5,10" && formalTrainingGroundSelfStudyGainRuleV4("playful").ev.join(",") === "-10,15", "playful self-study gains should stay in core rules");
+assert(formalTrainingGroundSelfStudyGainRuleV4("normal").iv.join(",") === "5,15" && formalTrainingGroundSelfStudyGainRuleV4("normal").ev.join(",") === "12,40", "normal self-study gains should stay in core rules");
+assert(formalTrainingGroundSelfStudyGainRuleV4("focused").iv.join(",") === "12,30" && formalTrainingGroundSelfStudyGainRuleV4("focused").ev.join(",") === "35,50", "focused self-study gains should stay in core rules");
 const selfStudyPokemon = selfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const selfStudyBeforeIvTotal = statTotal(selfStudyPokemon.ivs);
 const selfStudyBeforeEvTotal = statTotal(selfStudyPokemon.evs);
 const selfStudyBeforeIvCap = selfStudyPokemon.ivTotalCap || selfStudyBeforeIvTotal;
 const selfStudyBeforeEvCap = selfStudyPokemon.evTotalCap || selfStudyBeforeEvTotal;
-const selfStudyBeforeProfileIndex = powerProfileIndex(selfStudyPokemon.powerProfile || "rookie");
+const selfStudyBeforePowerProfile = selfStudyPokemon.powerProfile || "normal";
 const selfStudyResult = api.applyFormalTrainingGroundLesson(selfStudyRun, {pokemonId: selfStudyPokemon.localPokemonId, lessonKind: "self-study"});
 const selfStudyAfter = selfStudyResult.run.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 assert(selfStudyResult.ok, "formal training ground self-study should apply");
@@ -913,20 +943,16 @@ assert(selfStudyResult.selfStudyEvent === "playful" || selfStudyResult.selfStudy
 assert(selfStudyAfter.level >= 1 && selfStudyAfter.level <= 100, "formal training ground self-study should keep level in bounds");
 assert(Object.values(selfStudyAfter.ivs).every(value => inRange(value, 0, 31)), "formal training ground self-study should keep IVs in bounds");
 assert(Object.values(selfStudyAfter.evs).every(value => inRange(value, 0, 252)), "formal training ground self-study should keep EVs in bounds");
-assert((selfStudyAfter.ivTotalCap || 0) >= selfStudyBeforeIvCap, "formal training ground self-study should not lower IV cap");
-assert((selfStudyAfter.evTotalCap || 0) >= selfStudyBeforeEvCap, "formal training ground self-study should not lower EV cap");
-assert(statTotal(selfStudyAfter.ivs) >= selfStudyBeforeIvTotal, "formal training ground self-study should not lower IV total");
-assert(statTotal(selfStudyAfter.evs) >= selfStudyBeforeEvTotal, "formal training ground self-study should not lower EV total");
-const selfStudyMaxGain = selfStudyResult.selfStudyEvent === "focused"
-  ? {iv: 20, ev: 50}
-  : selfStudyResult.selfStudyEvent === "normal"
-    ? {iv: 15, ev: 30}
-    : {iv: 10, ev: 10};
-assert(statTotal(selfStudyAfter.ivs) - selfStudyBeforeIvTotal <= selfStudyMaxGain.iv, "formal training ground self-study IV gain should stay light");
-assert(statTotal(selfStudyAfter.evs) - selfStudyBeforeEvTotal <= selfStudyMaxGain.ev, "formal training ground self-study EV gain should stay light");
-assert(selfStudyAfter.level - selfStudyPokemon.level <= 1, "formal training ground self-study should gain at most one level");
+assert(selfStudyAfter.ivTotalCap === selfStudyBeforeIvCap, "formal training ground self-study should keep IV cap unchanged");
+assert(selfStudyAfter.evTotalCap === selfStudyBeforeEvCap, "formal training ground self-study should keep EV cap unchanged");
+const selfStudyGainRule = formalTrainingGroundSelfStudyGainRuleV4(selfStudyResult.selfStudyEvent);
+const selfStudyIvDelta = statTotal(selfStudyAfter.ivs) - selfStudyBeforeIvTotal;
+const selfStudyEvDelta = statTotal(selfStudyAfter.evs) - selfStudyBeforeEvTotal;
+assert(selfStudyIvDelta >= selfStudyGainRule.iv[0] && selfStudyIvDelta <= selfStudyGainRule.iv[1], "formal training ground self-study IV delta should stay in event range");
+assert(selfStudyEvDelta >= selfStudyGainRule.ev[0] && selfStudyEvDelta <= selfStudyGainRule.ev[1], "formal training ground self-study EV delta should stay in event range");
+assert(selfStudyAfter.level === selfStudyPokemon.level, "formal training ground self-study should not change level");
 assert(statTotal(selfStudyAfter.evs) <= 510, "formal training ground self-study EV total should stay within rules");
-assert(powerProfileIndex(selfStudyAfter.powerProfile || "rookie") >= selfStudyBeforeProfileIndex, "formal training ground self-study should not lower power profile");
+assert((selfStudyAfter.powerProfile || "normal") === selfStudyBeforePowerProfile, "formal training ground self-study should keep power profile unchanged");
 assertPokemonPowerProfile(selfStudyAfter, "self-study pokemon", undefined, {checkLevel: false});
 const selfStudyNodeId = selfStudyRun.restRunSnapshot!.currentNodeId!;
 assert((selfStudyResult.run.trainingGroundByNodeId?.[selfStudyNodeId]?.selfStudyRoll || 0) === 1, "formal training ground self-study should advance self-study roll after first study");
@@ -1193,6 +1219,7 @@ assert(!roundSettlementNoStar.restRunSnapshot!.gameMap[1]!.participants.p2?.loca
 assert(!roundSettlementNoStar.roundPlan.flatMap(round => round.diagnostics).some(message => message.includes("target")), "targeted generation should not expose targeting diagnostics");
 const normalOpponent = roundSettlementNoStar.roundPlan[1]!.participants.p2!.localTeam.pokemon;
 normalOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `normal NPC ${index + 1}`, ["normal"]));
+normalOpponent.forEach((pokemon, index) => assertRecommendedMoveCount(pokemon, 2, `normal NPC ${index + 1}`));
 const roundSettlementNoStarAgain = api.settleFormalBattleRoundV4(roundSettlementNoStar);
 assert(roundSettlementNoStarAgain.money === roundSettlementNoStar.money, "round settlement should be idempotent");
 assert(Object.keys(roundSettlementNoStarAgain.roundSettlementByNodeId || {}).length === Object.keys(roundSettlementNoStar.roundSettlementByNodeId || {}).length, "round settlement should not duplicate settlement records");
@@ -1453,14 +1480,26 @@ function assertPokemonPowerProfile(pokemon: {
 }
 
 function powerProfileRule(profile: PokemonPowerProfileV4): {level: [number, number]; ivTotal: [number, number]; evTotal: [number, number]} {
-  if (profile === "rookie") return {level: [45, 50], ivTotal: [50, 90], evTotal: [100, 200]};
-  if (profile === "normal") return {level: [49, 53], ivTotal: [80, 120], evTotal: [80, 280]};
-  if (profile === "elite") return {level: [52, 55], ivTotal: [110, 150], evTotal: [260, 400]};
-  if (profile === "boss") return {level: [56, 60], ivTotal: [140, 180], evTotal: [390, 510]};
-  return {level: [61, 65], ivTotal: [186, 186], evTotal: [510, 510]};
+  const rule = formalPowerProfileRuleV4(profile);
+  return {level: [...rule.level] as [number, number], ivTotal: [...rule.ivTotal] as [number, number], evTotal: [...rule.evTotal] as [number, number]};
 }
 
 function powerProfileIndex(profile: PokemonPowerProfileV4): number {
   const order: PokemonPowerProfileV4[] = ["rookie", "normal", "elite", "boss", "champion"];
   return Math.max(0, order.indexOf(profile));
+}
+
+function assertRecommendedMoveCount(pokemon: {speciesId: string; moves: Array<{moveId?: string}>}, min: number, label: string) {
+  const learnableRecommendedMoveIds = learnableRecommendedMoveIdsForPokemon(pokemon.speciesId);
+  const expected = Math.min(min, learnableRecommendedMoveIds.length, 4);
+  if (expected <= 0) return;
+  const generatedMoveIds = new Set(pokemon.moves.map(move => toTestId(move.moveId)));
+  const count = learnableRecommendedMoveIds.filter(moveId => generatedMoveIds.has(moveId)).length;
+  assert(count >= expected, `${label} should keep ${expected} recommended learnable moves`);
+}
+
+function learnableRecommendedMoveIdsForPokemon(speciesId: string): string[] {
+  const profileIds = [speciesId, pokemonById.get(speciesId)?.baseSpecies || ""].map(toTestId).filter(Boolean);
+  const recommendedMoveIds = new Set(profileIds.flatMap(id => getPokemonBattleProfileV4(id).suggestedMoveIds.map(toTestId)));
+  return Array.from(recommendedMoveIds).filter(moveId => mockStarterLearnableMoveIds.has(moveId));
 }
