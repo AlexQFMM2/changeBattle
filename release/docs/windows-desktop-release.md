@@ -80,10 +80,13 @@ Windows 构建会直接失败。
 ```text
 release 分支 -> stable 正式通道 -> http://119.45.240.157/changebattle/
 v2 分支      -> beta 测试通道   -> http://119.45.240.157/changebattle-beta/
+hotfix/*    -> 从 release 临时切出，通常先 beta 验证，再回 release 发 stable
 update 分支  -> 更新系统/发布流程专项分支，验证后合回 v2
 ```
 
 构建时通过 `CHANGEBATTLE_RELEASE_CHANNEL=stable|beta` 选择通道。portable 包的 `ChangeBattle-V2-Desk.cmd` 会写入对应 `CHANGEBATTLE_UPDATE_MANIFEST_URLS`，所以 stable 包不会吃 beta 更新，beta 包也不会影响正式玩家。
+
+不要维护长期 `debug` 分支。正式版修复测试用 `hotfix/*` 临时分支，并用 beta 通道发测试包。
 
 ## One-Command Release
 

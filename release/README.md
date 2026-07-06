@@ -34,8 +34,11 @@ server root:   /home/ubuntu/webApp/
 ```text
 release 分支 -> stable 正式通道 -> /changebattle/
 v2 分支      -> beta 测试通道   -> /changebattle-beta/
+hotfix/*    -> 从 release 临时切出，通常先 beta 验证，再回 release 发 stable
 update 分支  -> 更新系统/发布流程专项分支，验证后合回 v2
 ```
+
+不要维护长期 `debug` 分支。测试包由 `CHANGEBATTLE_RELEASE_CHANNEL=beta` 决定；分支来源可以是 `v2`，也可以是某个临时 `hotfix/*`。
 
 `CHANGEBATTLE_RELEASE_CHANNEL` 控制构建和发布通道：
 
@@ -111,6 +114,14 @@ Electron runtime、launcher、updater 或目录结构变化，一律发布完整
 4. 在 `release` 分支发 stable 通道。
 5. 上传完整 zip 到网盘/GitHub。
 6. 重新生成并发布含下载镜像的 `latest.json/index.html`。
+
+正式版紧急修复流程：
+
+1. 从 `release` 切 `hotfix/<name>`。
+2. 修复并本地验证。
+3. 必要时从 `hotfix/<name>` 发 beta 包给测试者。
+4. 验证通过后合回 `release`，发 stable 补丁。
+5. 再合回 `v2`，删除 `hotfix/<name>`。
 
 ### Beta Test Release
 

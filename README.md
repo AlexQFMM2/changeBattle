@@ -17,11 +17,12 @@ GitHub default branch: release
 
 ```txt
 release   正式发布分支，对应 stable 更新通道
-v2        日常开发分支，对应 beta 测试通道
-update    更新系统/发布流程专项分支，验证后合回 v2
+v2        日常开发 / 新功能测试主线，对应 beta 测试通道
+update    更新系统 / 发布流程专项分支，验证后合回 v2
+hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 ```
 
-详细分支流见 `docs/gitAbout.md`。
+权威开发和发布流程见 `docs/gitAbout.md`。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
 - `apps/api`：Web/Desktop 共用的应用层 API facade，后续公共函数都放这里。
