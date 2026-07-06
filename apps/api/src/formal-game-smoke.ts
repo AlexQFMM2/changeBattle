@@ -1252,6 +1252,77 @@ const loggedMoveDamage = (withBattleLog.restRunSnapshot?.battleLog || []).find(e
 assert(Boolean(loggedMoveDamage?.moveType) && Boolean(loggedMoveDamage?.moveCategory) && loggedMoveDamage?.moveEffectKind === "damage", "battle log damage entries should inherit move metadata");
 const loggedMoveFaint = (withBattleLog.restRunSnapshot?.battleLog || []).find(entry => entry.eventType === "faint" && entry.moveId === "tackle");
 assert(Boolean(loggedMoveFaint?.moveType) && Boolean(loggedMoveFaint?.moveCategory) && loggedMoveFaint?.moveEffectKind === "damage", "battle log faint entries should inherit move metadata");
+const timelineSessionId = "formal-smoke-timeline-session";
+const timelineRawLog = [
+  `|move|p1a: ${firstPlayerPokemon.nameZh}|Tackle|p2a: ${firstEnemyPokemon.nameZh}`,
+  `|-damage|p2a: ${firstEnemyPokemon.nameZh}|80/100`,
+  `|-damage|p2a: ${firstEnemyPokemon.nameZh}|70/100|[from] brn`,
+  `|-heal|p2a: ${firstEnemyPokemon.nameZh}|90/100|[from] item: Oran Berry`,
+  `|-damage|p2a: ${firstEnemyPokemon.nameZh}|0 fnt|[from] psn`,
+  `|faint|p2a: ${firstEnemyPokemon.nameZh}`,
+  "|win|P1",
+];
+const timelineSnapshot = {
+  ...battleSnapshotBase,
+  id: timelineSessionId,
+  rawLog: timelineRawLog,
+} as never;
+const timeline = {
+  sessionId: timelineSessionId,
+  rawFrom: 0,
+  rawTo: timelineRawLog.length,
+  rawLogLength: timelineRawLog.length,
+  groups: timelineRawLog.map((rawLine: string, rawIndex: number) => ({
+    id: `timeline-group-${rawIndex}`,
+    index: rawIndex,
+    turn: 1,
+    rawIndices: [rawIndex],
+    rawLines: [rawLine],
+    calls: [{
+      id: `timeline-call-${rawIndex}`,
+      kind: rawLine.startsWith("|move|")
+        ? "move"
+        : rawLine.startsWith("|-damage|")
+          ? "damage"
+          : rawLine.startsWith("|-heal|")
+            ? "heal"
+            : rawLine.startsWith("|faint|")
+              ? "faint"
+              : rawLine.startsWith("|win|")
+                ? "message"
+                : "scene",
+      method: "smoke",
+      rawStep: rawIndex,
+      turn: 1,
+      args: [],
+      label: rawLine,
+      rawLine,
+      rawIndex,
+    }],
+    waitMode: "wait",
+    summary: rawLine,
+    finishStep: null,
+  })),
+  debug: {calls: [], compilerElapsedMs: 0, guard: 0, currentStep: null, atQueueEnd: true},
+  compilerVersion: "formal-smoke",
+} as const;
+const withTimelineBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, timelineSnapshot, {playbackTimeline: timeline as never});
+const timelineEntries = withTimelineBattleLog.restRunSnapshot?.battleLog || [];
+const timelineDirectDamage = timelineEntries.find(entry => entry.eventType === "damage" && entry.moveId === "tackle");
+const timelineResidualDamage = timelineEntries.find(entry => entry.eventType === "damage" && entry.rawLine.includes("[from] brn"));
+const timelineResidualFaint = timelineEntries.find(entry => entry.eventType === "faint");
+const timelineHeal = timelineEntries.find(entry => entry.eventType === "heal");
+assert(timelineDirectDamage?.damage === 40 && timelineDirectDamage.directness === "direct", "timeline direct damage should inherit move context");
+assert(timelineResidualDamage?.damage === 20 && timelineResidualDamage.directness === "indirect" && !timelineResidualDamage.sourcePlayerId, "timeline residual damage should not inherit previous move context");
+assert(timelineHeal?.healing === 40, "timeline heal should use ordered HP delta");
+assert(timelineResidualFaint?.directness === "indirect" && !timelineResidualFaint.sourcePlayerId, "timeline residual faint should not credit previous move kill");
+const timelineWonRestRun = {
+  ...withTimelineBattleLog.restRunSnapshot!,
+  gameMap: withTimelineBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
+};
+const timelineSettlementRun = api.prepareFormalSettlement({...withTimelineBattleLog, restRunSnapshot: timelineWonRestRun}, "loss");
+const timelineP1Stat = timelineSettlementRun.settlement?.pokemonStats.find(stat => stat.localPokemonId === firstPlayerPokemon.localPokemonId);
+assert(timelineP1Stat?.damageDealt === 40 && timelineP1Stat.kills === 0, "timeline settlement should only credit direct damage and no residual kill");
 const withSettlementBattleLog = {
   ...withBattleLog,
   restRunSnapshot: {

@@ -19,6 +19,12 @@
 release zip + files.json -> 网盘/GitHub -> latest.json + index.html -> 线上网站
 ```
 
+## 当前发版记录
+
+```text
+0.1.4  修复出招面板禁用技能槽位显示；结算统计优先按后端播放流程归因。
+```
+
 ## 1. 生成 Release
 
 在仓库根目录执行：

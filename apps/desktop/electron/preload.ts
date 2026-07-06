@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopAppBridge, DesktopBattleServiceBridge, DesktopFormalGameBridge, DesktopFormalGameRunBridge, DesktopPlayerVaultBridge, DesktopTrainingRunBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, PlayerVaultV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopAppBridge, DesktopBattleServiceBridge, DesktopFormalGameBridge, DesktopFormalGameRunBridge, DesktopPlayerVaultBridge, DesktopTrainingRunBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, PlayerVaultV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
   app: {
@@ -66,8 +66,8 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("formalGame:prepareSettlement", run, profile, reason) as ReturnType<DesktopFormalGameBridge["prepareFormalSettlement"]>,
     settleFormalBattleRound: (run: FormalGameRunV4) =>
       ipcRenderer.invoke("formalGame:settleBattleRound", run) as ReturnType<DesktopFormalGameBridge["settleFormalBattleRound"]>,
-    finalizeFormalBattleResult: (run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4) =>
-      ipcRenderer.invoke("formalGame:finalizeBattleResult", run, sessionId, reason) as ReturnType<DesktopFormalGameBridge["finalizeFormalBattleResult"]>,
+    finalizeFormalBattleResult: (run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4, options?: {playbackTimeline?: ShowdownPlaybackTimelineV4 | null}) =>
+      ipcRenderer.invoke("formalGame:finalizeBattleResult", run, sessionId, reason, options) as ReturnType<DesktopFormalGameBridge["finalizeFormalBattleResult"]>,
   },
   battleService: {
     createBattleSession: (input: BattleSessionCreateInputV4) =>

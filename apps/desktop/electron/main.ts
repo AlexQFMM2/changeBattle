@@ -5,7 +5,7 @@ import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, shell, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopUpdateStatusV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, PlayerVaultV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopUpdateStatusV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, PlayerVaultV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4, changeBattleDesktopUpdateIsNewerV4, changeBattleDesktopUpdateManifestUrlsV4, changeBattleDesktopUpdateOfficialSiteUrlV4, compareDesktopUpdateFileManifestsV4, isDesktopUpdateIncrementalManagedPathV4, normalizeChangeBattleDesktopVersionV4, parseChangeBattleDesktopUpdateManifestV4, parseDesktopUpdateFileManifestV4, validateDesktopUpdateManagedPathV4, type ChangeBattleDesktopUpdateCheckResultV4, type ChangeBattleDesktopUpdateManifestV4, type DesktopUpdateFileManifestV4, type DesktopUpdateManagedFileV4} from "@changebattle-v2/core";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {DesktopSaveStoreV2} from "./desktopSaveStore.js";
@@ -47,7 +47,7 @@ type FormalComputeMethodMap = {
   getFormalTrainingGroundLessons: {args: [FormalGameRunV4]; result: FormalTrainingGroundLessonViewV4[]};
   prepareFormalSettlement: {args: [FormalGameRunV4, UserProfileV2, FormalSettlementReasonV4]; result: {run: FormalGameRunV4; profile: UserProfileV2}};
   settleFormalBattleRound: {args: [FormalGameRunV4]; result: FormalGameRunV4};
-  finalizeFormalBattleResult: {args: [FormalGameRunV4, BattleSessionSnapshotV4, FormalBattleResultFinalizeReasonV4 | undefined]; result: FormalBattleResultFinalizeResultV4};
+  finalizeFormalBattleResult: {args: [FormalGameRunV4, BattleSessionSnapshotV4, FormalBattleResultFinalizeReasonV4 | undefined, {playbackTimeline?: ShowdownPlaybackTimelineV4 | null} | undefined]; result: FormalBattleResultFinalizeResultV4};
 };
 
 async function createWindow() {
@@ -215,9 +215,11 @@ ipcMain.handle("formalGame:settleBattleRound", async (_event: IpcMainInvokeEvent
   return callFormalComputeWorker("settleFormalBattleRound", run);
 });
 
-ipcMain.handle("formalGame:finalizeBattleResult", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4) => {
-  const snapshot = await ensureBattleService().getSnapshot(sessionId) as unknown as BattleSessionSnapshotV4;
-  return callFormalComputeWorker("finalizeFormalBattleResult", run, snapshot, reason);
+ipcMain.handle("formalGame:finalizeBattleResult", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4, options?: {playbackTimeline?: ShowdownPlaybackTimelineV4 | null}) => {
+  const service = ensureBattleService();
+  const snapshot = await service.getSnapshot(sessionId) as unknown as BattleSessionSnapshotV4;
+  const playbackTimeline = options?.playbackTimeline ?? await loadDesktopPlaybackTimeline(service, sessionId);
+  return callFormalComputeWorker("finalizeFormalBattleResult", run, snapshot, reason, {playbackTimeline});
 });
 
 ipcMain.handle("battleService:createSession", async (_event: IpcMainInvokeEvent, input: BattleSessionCreateInputV4) => {
@@ -247,6 +249,18 @@ ipcMain.handle("battleService:closeSession", async (_event: IpcMainInvokeEvent, 
 function ensureBattleService(): BattleServiceApiV4 {
   battleService ||= createInMemoryBattleService();
   return battleService;
+}
+
+async function loadDesktopPlaybackTimeline(service: BattleServiceApiV4, sessionId: string): Promise<ShowdownPlaybackTimelineV4 | null> {
+  try {
+    return await service.getPlaybackTimeline(sessionId, 0) as unknown as ShowdownPlaybackTimelineV4;
+  } catch (error) {
+    console.warn("[changebattle-v2:desktop] playback timeline unavailable, fallback to rawLog settlement", {
+      sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 function ensureSaveStore(): DesktopSaveStoreV2 {
