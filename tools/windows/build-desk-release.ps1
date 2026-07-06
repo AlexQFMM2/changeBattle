@@ -5,7 +5,9 @@ param(
   [string]$ElectronRuntimePath = "D:\changeBattleV2\electron-runtime\electron",
   [string]$ShowdownPath = "",
   [string]$ShowdownClientPath = "",
-  [string]$Commit = ""
+  [string]$Commit = "",
+  [ValidateSet("stable", "beta")]
+  [string]$Channel = "stable"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +18,12 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
   throw "Version must look like X.Y.Z, got: $Version"
+}
+
+$DefaultUpdateManifestUrl = if ($Channel -eq "beta") {
+  "http://119.45.240.157/changebattle-beta/latest.json"
+} else {
+  "http://119.45.240.157/changebattle/latest.json"
 }
 
 if (-not (Test-Path $SourceRoot)) {
@@ -90,6 +98,10 @@ $env:ELECTRON_RUNTIME_PATH = $ElectronRuntimePath
 $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = $ShowdownPath
 $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = $ShowdownClientPath
 $env:CHANGEBATTLE_COMMIT = $Commit
+$env:CHANGEBATTLE_RELEASE_CHANNEL = $Channel
+if ([string]::IsNullOrWhiteSpace($env:CHANGEBATTLE_UPDATE_MANIFEST_URLS)) {
+  $env:CHANGEBATTLE_UPDATE_MANIFEST_URLS = $DefaultUpdateManifestUrl
+}
 python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --showdown-path $ShowdownPath --showdown-client-path $ShowdownClientPath
 
 $ZipName = "ChangeBattle-V2-Desk-portable-v$Version.zip"

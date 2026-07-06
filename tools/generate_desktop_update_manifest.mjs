@@ -22,7 +22,8 @@ const sha256 = existsSync(zipPath) ? sha256File(zipPath) : "";
 const zipSize = existsSync(zipPath) ? statSync(zipPath).size : undefined;
 const commit = git(["rev-parse", "--short", "HEAD"]) || "";
 const date = formatLocalDate(new Date());
-const officialSiteUrl = withTrailingSlash(options.officialSiteUrl || process.env.CHANGEBATTLE_OFFICIAL_SITE_URL || options.downloadPageUrl || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_URL || "https://65h26i.top/changebattle/");
+const channel = normalizeReleaseChannel(options.channel || process.env.CHANGEBATTLE_RELEASE_CHANNEL || "stable");
+const officialSiteUrl = withTrailingSlash(options.officialSiteUrl || process.env.CHANGEBATTLE_OFFICIAL_SITE_URL || options.downloadPageUrl || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_URL || defaultOfficialSiteUrlForChannel(channel));
 const downloadPageUrl = officialSiteUrl;
 const downloadPageTemplatePath = options.template || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_TEMPLATE || path.join(rootDir, "tools", "release", "download-page-template.html");
 const downloadPageImageDir = process.env.CHANGEBATTLE_DOWNLOAD_PAGE_IMAGE_DIR || path.join(rootDir, "tools", "release", "download-page-images");
@@ -33,7 +34,7 @@ const requiresFullPackage = options.requiresFullPackage || parseBooleanEnv(proce
 
 const manifest = {
   manifestVersion: 1,
-  channel: options.channel || process.env.CHANGEBATTLE_RELEASE_CHANNEL || "stable",
+  channel,
   version,
   date,
   title: options.title || `ChangeBattle V2 Desk v${version}`,
@@ -162,6 +163,18 @@ function formatLocalDate(date) {
 
 function withTrailingSlash(url) {
   return url.endsWith("/") ? url : `${url}/`;
+}
+
+function defaultOfficialSiteUrlForChannel(channel) {
+  return channel === "beta"
+    ? "http://119.45.240.157/changebattle-beta/"
+    : "http://119.45.240.157/changebattle/";
+}
+
+function normalizeReleaseChannel(value) {
+  const channel = String(value || "stable").trim().toLowerCase();
+  if (channel !== "stable" && channel !== "beta") fail(`Release channel must be stable or beta, got: ${value}`);
+  return channel;
 }
 
 function parseBooleanEnv(value) {

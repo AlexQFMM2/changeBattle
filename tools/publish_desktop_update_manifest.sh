@@ -4,8 +4,26 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${1:-}"
 UPDATE_HOST="${CHANGEBATTLE_UPDATE_HOST:-ubuntu@119.45.240.157}"
-UPDATE_WEB_ROOT="${CHANGEBATTLE_UPDATE_WEB_ROOT:-/home/ubuntu/webApp/changebattle}"
 REMOTE_TMP_DIR="${CHANGEBATTLE_UPDATE_REMOTE_TMP_DIR:-/tmp/changebattle-update-manifest}"
+CHANNEL="${CHANGEBATTLE_RELEASE_CHANNEL:-stable}"
+
+if [[ "$CHANNEL" != "stable" && "$CHANNEL" != "beta" ]]; then
+  echo "CHANGEBATTLE_RELEASE_CHANNEL must be stable or beta, got: $CHANNEL" >&2
+  exit 1
+fi
+
+if [[ "$CHANNEL" == "beta" ]]; then
+  DEFAULT_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle-beta"
+  DEFAULT_OFFICIAL_SITE_URL="http://119.45.240.157/changebattle-beta/"
+else
+  DEFAULT_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle"
+  DEFAULT_OFFICIAL_SITE_URL="http://119.45.240.157/changebattle/"
+fi
+
+UPDATE_WEB_ROOT="${CHANGEBATTLE_UPDATE_WEB_ROOT:-$DEFAULT_UPDATE_WEB_ROOT}"
+OFFICIAL_SITE_URL="${CHANGEBATTLE_OFFICIAL_SITE_URL:-$DEFAULT_OFFICIAL_SITE_URL}"
+export CHANGEBATTLE_RELEASE_CHANNEL="$CHANNEL"
+export CHANGEBATTLE_OFFICIAL_SITE_URL="$OFFICIAL_SITE_URL"
 
 cd "$ROOT_DIR"
 
@@ -13,7 +31,7 @@ if [[ -z "$VERSION" ]]; then
   VERSION="$(node -p "require('./package.json').version")"
 fi
 
-node tools/generate_desktop_update_manifest.mjs "$VERSION"
+node tools/generate_desktop_update_manifest.mjs "$VERSION" --channel "$CHANNEL" --official-site-url "$OFFICIAL_SITE_URL"
 
 LOCAL_DIR="$ROOT_DIR/release/changebattle"
 if [[ ! -f "$LOCAL_DIR/latest.json" || ! -f "$LOCAL_DIR/index.html" ]]; then
@@ -52,5 +70,5 @@ echo "Publishing update metadata to $UPDATE_WEB_ROOT..."
 ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' && if [ -d '$REMOTE_TMP_DIR/image' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/image' && sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'; fi && if [ -d '$REMOTE_TMP_DIR/manifests' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/manifests' && sudo cp -a '$REMOTE_TMP_DIR/manifests/.' '$UPDATE_WEB_ROOT/manifests/'; fi && if [ -d '$REMOTE_TMP_DIR/files' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/files' && sudo cp -a '$REMOTE_TMP_DIR/files/.' '$UPDATE_WEB_ROOT/files/'; fi && sudo install -m 0644 '$REMOTE_TMP_DIR/latest.json' '$UPDATE_WEB_ROOT/latest.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/index.html' '$UPDATE_WEB_ROOT/index.html'"
 
 echo "Published:"
-echo "  https://65h26i.top/changebattle/latest.json"
-echo "  https://65h26i.top/changebattle/"
+echo "  ${OFFICIAL_SITE_URL%/}/latest.json"
+echo "  $OFFICIAL_SITE_URL"

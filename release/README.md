@@ -6,6 +6,13 @@
 
 ## 日常发版流程
 
+发布通道分两套：
+
+```text
+release 分支 -> stable 正式通道 -> http://119.45.240.157/changebattle/
+v2 分支      -> beta 测试通道   -> http://119.45.240.157/changebattle-beta/
+```
+
 推荐顺序：
 
 1. 生成 Windows portable release，同时生成文件级增量清单。
@@ -25,7 +32,7 @@ release zip + files.json -> 网盘/GitHub -> latest.json + index.html -> 线上�
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_on_windows.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.2
 ```
 
 产物会拉回到：
@@ -37,6 +44,13 @@ release/changebattle/files/v0.1.0/
 ```
 
 portable 包根目录会包含 `update-manifest.json`。Desk 启动后会用它和远端 `files.json` 对比，常规游戏代码/资源变化会自动下载增量文件、校验、替换，并提示重启后生效。
+
+构建脚本会把对应通道的更新地址写进 `ChangeBattle-V2-Desk.cmd`：
+
+```text
+stable -> CHANGEBATTLE_UPDATE_MANIFEST_URLS=http://119.45.240.157/changebattle/latest.json
+beta   -> CHANGEBATTLE_UPDATE_MANIFEST_URLS=http://119.45.240.157/changebattle-beta/latest.json
+```
 
 ## 2. 上传下载镜像
 
@@ -60,7 +74,7 @@ export CHANGEBATTLE_RELEASE_MIRRORS=$'百度网盘=https://example.com/baidu\nGi
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-node tools/generate_desktop_update_manifest.mjs 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta node tools/generate_desktop_update_manifest.mjs 0.1.2
 ```
 
 生成文件：
@@ -94,14 +108,14 @@ export CHANGEBATTLE_RELEASE_NOTES=$'新增标题页手动检查更新\n下载页
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/publish_desktop_update_manifest.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/publish_desktop_update_manifest.sh 0.1.2
 ```
 
 线上地址：
 
 ```text
-https://65h26i.top/changebattle/
-https://update.65h26i.top/changebattle/latest.json
+stable: http://119.45.240.157/changebattle/
+beta:   http://119.45.240.157/changebattle-beta/
 ```
 
 发布脚本只上传小文件和截图，不上传 600 MiB 左右的 zip。
@@ -113,10 +127,18 @@ https://update.65h26i.top/changebattle/latest.json
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_and_publish_update.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_and_publish_update.sh 0.1.2
 ```
 
 这个命令会先生成 release zip，再发布 `latest.json` 和下载页。
+
+正式发布通常在 `release` 分支执行：
+
+```bash
+git switch release
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.2
+```
 
 ## 下载页预览
 

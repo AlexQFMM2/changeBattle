@@ -73,7 +73,7 @@ Linux 侧从仓库根目录执行：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_on_windows.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.2
 ```
 
 这个脚本会完成：
@@ -109,11 +109,18 @@ D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-v0.1.0.zip
 
 未跟踪目录例如 `debug/`、`release/` 不会进入源码包，也不要提交。
 
+发布通道约定：
+
+```text
+release 分支 -> stable 正式通道 -> http://119.45.240.157/changebattle/
+v2 分支      -> beta 测试通道   -> http://119.45.240.157/changebattle-beta/
+```
+
 如果要在生成 portable zip 后同步更新提示清单，使用：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_and_publish_update.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_and_publish_update.sh 0.1.2
 ```
 
 这个命令会先执行普通 release，然后生成并发布：
@@ -128,8 +135,8 @@ release/changebattle/files/vX.Y.Z/
 到更新服务器：
 
 ```text
-https://65h26i.top/changebattle/latest.json
-https://65h26i.top/changebattle/
+stable: http://119.45.240.157/changebattle/latest.json
+beta:   http://119.45.240.157/changebattle-beta/latest.json
 ```
 
 发布脚本只上传 `latest.json`、游戏官网页面、截图、`manifests/` 和 `files/`，不上传约 600 MiB 的 portable zip。真实完整包下载链接应放到 `officialSiteUrl`、`fullPackage` 或 `mirrors`，例如网盘、GitHub Release 或其它下载页。
@@ -137,12 +144,21 @@ https://65h26i.top/changebattle/
 常用环境变量：
 
 ```bash
-CHANGEBATTLE_OFFICIAL_SITE_URL="https://65h26i.top/changebattle/"
+CHANGEBATTLE_RELEASE_CHANNEL="beta"
+CHANGEBATTLE_OFFICIAL_SITE_URL="http://119.45.240.157/changebattle-beta/"
 CHANGEBATTLE_RELEASE_MIRRORS="123网盘=https://example.com/pan-link"
 CHANGEBATTLE_RELEASE_NOTES=$'修复战斗流程问题\n调整正式模式平衡'
 CHANGEBATTLE_FULL_PACKAGE_URL="https://github.com/xxx/releases/download/v0.1.0/ChangeBattle-V2-Desk-portable-v0.1.0.zip"
 CHANGEBATTLE_UPDATE_HOST="ubuntu@119.45.240.157"
-CHANGEBATTLE_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle"
+CHANGEBATTLE_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle-beta"
+```
+
+正式发布通常在 `release` 分支执行：
+
+```bash
+git switch release
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.2
 ```
 
 如果本次包含 Electron runtime、launcher、updater 等不能增量替换的变化，生成清单时加：
@@ -154,13 +170,13 @@ node tools/generate_desktop_update_manifest.mjs 0.1.0 --requires-full-package --
 如果只想重新生成/发布更新清单，不重新打包：
 
 ```bash
-./tools/publish_desktop_update_manifest.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/publish_desktop_update_manifest.sh 0.1.2
 ```
 
 如果只想本地生成清单并检查内容：
 
 ```bash
-node tools/generate_desktop_update_manifest.mjs 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=beta node tools/generate_desktop_update_manifest.mjs 0.1.2
 ```
 
 ## Manual Windows Build
@@ -280,18 +296,21 @@ SHOWDOWN_CLIENT_VENDOR=<APP_ROOT>\vendor\showdown-client\js
 CHANGEBATTLE_PROJECT_ROOT=<APP_ROOT>
 CHANGEBATTLE_PORTABLE_ROOT=<APP_ROOT>
 CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1
+CHANGEBATTLE_RELEASE_CHANNEL=<stable|beta>
+CHANGEBATTLE_UPDATE_MANIFEST_URLS=<channel latest.json>
 CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<APP_ROOT>\vendor\pokemon-showdown
 CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=<APP_ROOT>\vendor\showdown-client\js
 ```
 
-`CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1` 只在正式 portable 包里设置。dev 环境即使拉到远端更新，也不会替换仓库文件。
+`CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1` 只在 portable 包里设置。dev 环境即使拉到远端更新，也不会替换仓库文件。stable 包追正式 `latest.json`，beta 包追测试 `latest.json`。
 
 ## Incremental Update Layout
 
 发布端会同步以下目录到服务器：
 
 ```text
-/home/ubuntu/webApp/changebattle/
+/home/ubuntu/webApp/changebattle/       stable
+/home/ubuntu/webApp/changebattle-beta/  beta
   latest.json
   index.html
   manifests/vX.Y.Z/files.json

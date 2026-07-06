@@ -83,12 +83,32 @@ release -> hotfix/* -> release -> v2
 Git 分支和更新通道是两件事，但建议保持对应关系：
 
 ```text
-release 分支 -> stable 正式通道
-v2 分支      -> beta/test 测试通道
+release 分支 -> stable 正式通道 -> /changebattle/
+v2 分支      -> beta 测试通道   -> /changebattle-beta/
 feature 分支 -> 不直接给玩家
 ```
 
-当前桌面端支持通过 `CHANGEBATTLE_UPDATE_MANIFEST_URLS` 指定更新清单地址。正式包默认使用正式清单；测试包可以在启动脚本或构建参数中指向测试清单。
+当前桌面端支持通过 `CHANGEBATTLE_UPDATE_MANIFEST_URLS` 指定更新清单地址。正式包默认使用 stable 清单；测试包默认使用 beta 清单。
+
+常用发布命令：
+
+```bash
+# 测试通道：通常在 v2 分支执行
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/publish_desktop_update_manifest.sh 0.1.2
+
+# 正式通道：通常在 release 分支执行
+git switch release
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.2
+```
+
+默认地址：
+
+```text
+stable latest: http://119.45.240.157/changebattle/latest.json
+beta latest:   http://119.45.240.157/changebattle-beta/latest.json
+```
 
 ## Current Baseline
 

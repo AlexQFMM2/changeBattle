@@ -16,6 +16,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RELEASE_DIR = PROJECT_ROOT / "release"
 ELECTRON_PLATFORM = "win32"
 ELECTRON_ARCH = "x64"
+DEFAULT_UPDATE_BASE_URLS = {
+    "stable": "http://119.45.240.157/changebattle/",
+    "beta": "http://119.45.240.157/changebattle-beta/",
+}
 
 PROJECT_PATHS = [
     "apps/desktop/out",
@@ -104,6 +108,21 @@ def write_text(path: Path, text: str, newline: str = "\n") -> None:
     path.write_text(text.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8", newline=newline)
 
 
+def release_channel() -> str:
+    channel = (os.environ.get("CHANGEBATTLE_RELEASE_CHANNEL") or "stable").strip().lower()
+    if channel not in DEFAULT_UPDATE_BASE_URLS:
+        raise RuntimeError(f"CHANGEBATTLE_RELEASE_CHANNEL must be stable or beta, got: {channel}")
+    return channel
+
+
+def desktop_update_manifest_urls() -> str:
+    explicit = (os.environ.get("CHANGEBATTLE_UPDATE_MANIFEST_URLS") or "").strip()
+    if explicit:
+        return explicit
+    base_url = DEFAULT_UPDATE_BASE_URLS[release_channel()]
+    return base_url.rstrip("/") + "/latest.json"
+
+
 def copy_path(src: Path, dst: Path) -> None:
     if not src.exists():
         return
@@ -183,6 +202,7 @@ def copy_electron_runtime(runtime_root: Path, dst_root: Path) -> None:
 
 
 def write_windows_scripts(stage_dir: Path) -> None:
+    update_manifest_urls = desktop_update_manifest_urls()
     cmd = rf"""@echo off
 setlocal
 set "APP_DIR=%~dp0"
@@ -219,6 +239,8 @@ set "CHANGEBATTLE_PROJECT_ROOT=%APP_ROOT%"
 set "CHANGEBATTLE_DESKTOP_VERSION={package_version()}"
 set "CHANGEBATTLE_PORTABLE_ROOT=%APP_ROOT%"
 set "CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1"
+set "CHANGEBATTLE_RELEASE_CHANNEL={release_channel()}"
+set "CHANGEBATTLE_UPDATE_MANIFEST_URLS={update_manifest_urls}"
 set "CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=%SHOWDOWN_VENDOR%"
 set "CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=%SHOWDOWN_CLIENT_VENDOR%"
 start "ChangeBattle V2 Desk" /D "%APP_ROOT%" "%ELECTRON_EXE%" "%DESKTOP_APP%"
@@ -230,6 +252,8 @@ def write_release_notes(stage_dir: Path, showdown_root: Path, electron_runtime_v
     text = f"""# ChangeBattle V2 Desk Windows Release
 
 Version: {package_version()}
+Channel: {release_channel()}
+Update manifest: {desktop_update_manifest_urls()}
 
 ## Start
 
