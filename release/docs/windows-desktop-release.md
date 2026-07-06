@@ -2,13 +2,19 @@
 
 本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器或签名发布。桌面端支持启动时检查远端 `latest.json`：常规游戏代码/资源变化会自动下载增量文件、校验、替换，并提示玩家重启后生效；运行时和启动器变化仍要求下载完整包。
 
-当前已验证 release：
+当前已验证 release 基线：
 
 ```text
-ChangeBattle-V2-Desk-portable-v0.1.0.zip
-source: v2@2b600e22
-generated: 2026-07-05 00:23 Asia/Shanghai
-size: 597 MiB
+0.1.1  增量更新初始化版本，旧正式包默认追 stable。
+0.1.2  已验证 0.1.1 -> 0.1.2 自动增量更新。
+0.1.3  已验证 0.1.2 -> 0.1.3 自动增量更新；当前 stable latest。
+source: v2@1c8bd4e6
+generated: 2026-07-06 Asia/Shanghai
+size: 约 598 MiB
+stable latest: http://119.45.240.157/changebattle/latest.json
+stable site:   http://119.45.240.157/changebattle/
+beta latest:   http://119.45.240.157/changebattle-beta/latest.json
+beta site:     http://119.45.240.157/changebattle-beta/
 ```
 
 ## Release Artifact
@@ -35,7 +41,7 @@ ChangeBattle-V2-Desk.cmd
 - 设置 `CHANGEBATTLE_PROJECT_ROOT`、`CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT`、`CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT`。
 - 调用包内 `runtime\electron\electron.exe` 启动 `apps\desktop`。
 
-这不代表 Electron 不能做 `.exe`。VSCode 也是 Electron，但它使用完整应用 launcher/安装器/签名链路，所以用户看到的是 `Code.exe`。V2 当前选择 `.cmd` 是为了先稳定 portable 目录结构、vendor 路径和离线运行。后续如果只想隐藏 `.cmd`，优先做小型 `ChangeBattle-V2-Desk.exe` launcher 复用同一套目录结构；安装器、签名、自动更新仍不属于本文档当前 release 范围。
+这不代表 Electron 不能做 `.exe`。VSCode 也是 Electron，但它使用完整应用 launcher/安装器/签名链路，所以用户看到的是 `Code.exe`。V2 当前选择 `.cmd` 是为了先稳定 portable 目录结构、vendor 路径和离线运行。后续如果只想隐藏 `.cmd`，优先做小型 `ChangeBattle-V2-Desk.exe` launcher 复用同一套目录结构；安装器、签名、安装器级自动更新仍不属于本文档当前 release 范围。
 
 ## Windows Build Host
 
@@ -67,13 +73,25 @@ D:\changeBattleV2\electron-runtime\electron\electron.exe
 
 Windows 构建会直接失败。
 
+## Branch / Channel
+
+长期分支和更新通道：
+
+```text
+release 分支 -> stable 正式通道 -> http://119.45.240.157/changebattle/
+v2 分支      -> beta 测试通道   -> http://119.45.240.157/changebattle-beta/
+update 分支  -> 更新系统/发布流程专项分支，验证后合回 v2
+```
+
+构建时通过 `CHANGEBATTLE_RELEASE_CHANNEL=stable|beta` 选择通道。portable 包的 `ChangeBattle-V2-Desk.cmd` 会写入对应 `CHANGEBATTLE_UPDATE_MANIFEST_URLS`，所以 stable 包不会吃 beta 更新，beta 包也不会影响正式玩家。
+
 ## One-Command Release
 
 Linux 侧从仓库根目录执行：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.4
 ```
 
 这个脚本会完成：
@@ -90,37 +108,24 @@ CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.2
 10. 把 zip 拉回 Linux 本地：
 
 ```text
-changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
+changeBattleV2/release/ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
+changeBattleV2/release/changebattle/manifests/vX.Y.Z/files.json
+changeBattleV2/release/changebattle/files/vX.Y.Z/
 ```
 
 Windows 侧最终产物：
 
 ```text
-D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-v0.1.0.zip
+D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
 ```
-
-2026-07-04 重新验证的包同时已拉回 Linux：
-
-```text
-/home/alexqfmm/workPlace/pokemon/changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
-```
-
-本次 release 在首次构建时暴露了 desktop player vault split table 缺少 `itemStoragePageCount/pokemonStoragePageCount` 的类型问题；已在 `f8ec6aac` 修复，并通过 Windows release checks、desktop build、IPC bundle、renderer assets 和 formal worker smoke。
 
 未跟踪目录例如 `debug/`、`release/` 不会进入源码包，也不要提交。
-
-发布通道约定：
-
-```text
-release 分支 -> stable 正式通道 -> http://119.45.240.157/changebattle/
-v2 分支      -> beta 测试通道   -> http://119.45.240.157/changebattle-beta/
-```
 
 如果要在生成 portable zip 后同步更新提示清单，使用：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_and_publish_update.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_and_publish_update.sh 0.1.4
 ```
 
 这个命令会先执行普通 release，然后生成并发布：
@@ -141,6 +146,18 @@ beta:   http://119.45.240.157/changebattle-beta/latest.json
 
 发布脚本只上传 `latest.json`、游戏官网页面、截图、`manifests/` 和 `files/`，不上传约 600 MiB 的 portable zip。真实完整包下载链接应放到 `officialSiteUrl`、`fullPackage` 或 `mirrors`，例如网盘、GitHub Release 或其它下载页。
 
+服务器目录：
+
+```text
+/home/ubuntu/webApp/changebattle/       stable
+/home/ubuntu/webApp/changebattle-beta/  beta
+  latest.json
+  index.html
+  image/
+  manifests/vX.Y.Z/files.json
+  files/vX.Y.Z/...
+```
+
 常用环境变量：
 
 ```bash
@@ -148,7 +165,7 @@ CHANGEBATTLE_RELEASE_CHANNEL="beta"
 CHANGEBATTLE_OFFICIAL_SITE_URL="http://119.45.240.157/changebattle-beta/"
 CHANGEBATTLE_RELEASE_MIRRORS="123网盘=https://example.com/pan-link"
 CHANGEBATTLE_RELEASE_NOTES=$'修复战斗流程问题\n调整正式模式平衡'
-CHANGEBATTLE_FULL_PACKAGE_URL="https://github.com/xxx/releases/download/v0.1.0/ChangeBattle-V2-Desk-portable-v0.1.0.zip"
+CHANGEBATTLE_FULL_PACKAGE_URL="https://github.com/xxx/releases/download/v0.1.4/ChangeBattle-V2-Desk-portable-v0.1.4.zip"
 CHANGEBATTLE_UPDATE_HOST="ubuntu@119.45.240.157"
 CHANGEBATTLE_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle-beta"
 ```
@@ -157,26 +174,33 @@ CHANGEBATTLE_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle-beta"
 
 ```bash
 git switch release
-CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.2
-CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.4
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.4
 ```
 
 如果本次包含 Electron runtime、launcher、updater 等不能增量替换的变化，生成清单时加：
 
 ```bash
-node tools/generate_desktop_update_manifest.mjs 0.1.0 --requires-full-package --requires-full-package-reason "本版本包含启动器或运行时更新"
+node tools/generate_desktop_update_manifest.mjs 0.1.4 --requires-full-package --requires-full-package-reason "本版本包含启动器或运行时更新"
 ```
 
 如果只想重新生成/发布更新清单，不重新打包：
 
 ```bash
-CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/publish_desktop_update_manifest.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/publish_desktop_update_manifest.sh 0.1.4
 ```
 
 如果只想本地生成清单并检查内容：
 
 ```bash
-CHANGEBATTLE_RELEASE_CHANNEL=beta node tools/generate_desktop_update_manifest.mjs 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=beta node tools/generate_desktop_update_manifest.mjs 0.1.4
+```
+
+如果只想更新完整包下载链接，不想重传 `files/`，先用 `CHANGEBATTLE_RELEASE_MIRRORS` 重新生成 `latest.json/index.html`，然后只覆盖服务器两个入口文件：
+
+```bash
+scp release/changebattle/latest.json release/changebattle/index.html ubuntu@119.45.240.157:/tmp/changebattle-update-manifest/
+ssh ubuntu@119.45.240.157 "sudo install -m 0644 /tmp/changebattle-update-manifest/latest.json /home/ubuntu/webApp/changebattle/latest.json && sudo install -m 0644 /tmp/changebattle-update-manifest/index.html /home/ubuntu/webApp/changebattle/index.html"
 ```
 
 ## Manual Windows Build
@@ -185,13 +209,13 @@ CHANGEBATTLE_RELEASE_CHANNEL=beta node tools/generate_desktop_update_manifest.mj
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/send_release_source_to_windows.sh 0.1.0
+./tools/send_release_source_to_windows.sh 0.1.4
 ```
 
 然后在 Windows 构建机运行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattleV2\build-desk-release.ps1 -Version 0.1.0
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattleV2\build-desk-release.ps1 -Version 0.1.4 -Channel beta
 ```
 
 ## Windows Release Checks

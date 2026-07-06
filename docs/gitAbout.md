@@ -94,13 +94,13 @@ feature 分支 -> 不直接给玩家
 
 ```bash
 # 测试通道：通常在 v2 分支执行
-CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.2
-CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/publish_desktop_update_manifest.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.4
+CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/publish_desktop_update_manifest.sh 0.1.4
 
 # 正式通道：通常在 release 分支执行
 git switch release
-CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.2
-CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.2
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.4
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.4
 ```
 
 默认地址：
@@ -112,7 +112,7 @@ beta latest:   http://119.45.240.157/changebattle-beta/latest.json
 
 ## Current Baseline
 
-当前三个长期分支应保持在同一个初始化提交点：
+当前长期分支已经建立：
 
 ```text
 release
@@ -120,4 +120,13 @@ v2
 update
 ```
 
-`0.1.1` 是桌面端文件级增量更新的初始化版本。这个版本之后，普通游戏代码和资源更新可以走增量；Electron runtime、launcher、updater 等变化仍要求完整包。
+当前状态：
+
+```text
+current working branch: v2
+stable latest:          0.1.3
+stable site:            http://119.45.240.157/changebattle/
+beta site:              http://119.45.240.157/changebattle-beta/
+```
+
+`0.1.1` 是桌面端文件级增量更新的初始化版本。`0.1.2` 和 `0.1.3` 已验证普通游戏代码和资源更新可以走增量；Electron runtime、launcher、updater 等变化仍要求完整包。

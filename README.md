@@ -1,19 +1,27 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化和 Windows Desktop portable release 都已经接入。
+一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、Windows Desktop portable release 和桌面端文件级增量更新都已经接入。
 
 ## Repository / Branch
 
-V2 不是长期独立仓库；它属于原 ChangeBattle 仓库的 `v2` 分支。
+V2 仍在原 ChangeBattle 仓库内维护。当前本地工作目录是独立 checkout/worktree：
 
 ```txt
-canonical repo: /home/alexqfmm/workPlace/pokemon/changeBattle
+repo: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 remote: git@github.com:AlexQFMM2/changeBattle.git
-branch: v2
-current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
+current branch: v2
+GitHub default branch: release
 ```
 
-提交时应提交到原仓库的 `v2` 分支。`changeBattleV2` 目录如果还没有 `.git`，需要先把它整理为原仓库 `v2` 分支的 worktree，或把当前 V2 文件作为 `v2` 分支根目录内容提交；不要把它当成新项目新仓库处理。
+长期分支约定：
+
+```txt
+release   正式发布分支，对应 stable 更新通道
+v2        日常开发分支，对应 beta 测试通道
+update    更新系统/发布流程专项分支，验证后合回 v2
+```
+
+详细分支流见 `docs/gitAbout.md`。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
 - `apps/api`：Web/Desktop 共用的应用层 API facade，后续公共函数都放这里。
@@ -57,12 +65,12 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通；2026-07-05 已基于 `v2` 分支 `2b600e22` 重新生成 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`，大小约 597 MiB。桌面端已支持启动时检查远端 `latest.json` 并用系统弹窗提示下载，不做 Web 端更新 UI，也不自动覆盖安装。
+- Windows Desktop portable release：一键 Windows 构建链路已跑通；`0.1.1` 是文件级增量更新初始化版本，`0.1.2` / `0.1.3` 已验证从旧包启动后自动下载增量、校验、替换并提示重启。当前 stable latest 是 `0.1.3`。
 
 当前明确不做：
 
 - app 端。
-- 完整 roguelike 奖励扩展、长期循环平衡和安装器/签名/自动更新。
+- 完整 roguelike 奖励扩展、长期循环平衡和安装器/签名。
 - 旧 `dexSearch` 兼容。
 
 当前 Battle V4 / Rest V4 进度：
@@ -78,7 +86,7 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 
 - 继续回归 Battle V4：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择和双打 seat 映射。
 - 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事和结算体验。
-- Windows release 后续可做 `ChangeBattle-V2-Desk.exe` launcher，替代当前 `.cmd` 启动入口；安装器、签名、自动更新仍不在当前范围。
+- Windows release 后续可做 `ChangeBattle-V2-Desk.exe` launcher，替代当前 `.cmd` 启动入口；安装器、签名仍不在当前范围。
 
 详细路线见 `docs/training-and-battle-roadmap.md`。
 
@@ -112,13 +120,17 @@ pnpm typecheck
 
 ## Desktop Release
 
-当前发布形态是 Windows Desktop portable zip，而不是安装器。最新已验证产物：
+当前发布形态是 Windows Desktop portable zip，而不是安装器。当前 stable 已发布：
 
 ```txt
-release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
-source: v2@2b600e22
-generated: 2026-07-05 00:23 Asia/Shanghai
-size: 597 MiB
+release/ChangeBattle-V2-Desk-portable-v0.1.3.zip
+source: v2@1c8bd4e6
+generated: 2026-07-06 Asia/Shanghai
+size: 约 598 MiB
+stable latest: http://119.45.240.157/changebattle/latest.json
+stable site:   http://119.45.240.157/changebattle/
+beta latest:   http://119.45.240.157/changebattle-beta/latest.json
+beta site:     http://119.45.240.157/changebattle-beta/
 ```
 
 玩家解压后运行：
@@ -129,30 +141,45 @@ ChangeBattle-V2-Desk.cmd
 
 `.cmd` 不是业务运行时，只是 portable launcher：用 `%~dp0` 计算解压目录，设置 `CHANGEBATTLE_PROJECT_ROOT`、Showdown runtime vendor、Showdown client vendor 等环境变量，然后调用包内 `runtime/electron/electron.exe` 启动 `apps/desktop`。VSCode 那种可见 `.exe` 也是 Electron，但走了更完整的应用打包/launcher/安装器体系；V2 现在先保留已验证的 portable 目录结构，后续如果要美化启动入口，优先做一个小型 `ChangeBattle-V2-Desk.exe` launcher 来替代 `.cmd`，而不是立刻重做完整安装器。
 
+桌面端更新能力：
+
+- 启动后后台读取当前通道的 `latest.json`。
+- 普通游戏代码/资源变化会自动下载增量文件、校验、替换，并提示重启后生效。
+- 右下角版本徽标可手动检查更新，已是最新时显示“当前已是最新版本”。
+- Electron runtime、launcher、updater 或 portable 目录结构变化仍要求完整包。
+
+正式/测试通道：
+
+```txt
+release 分支 -> stable -> http://119.45.240.157/changebattle/
+v2 分支      -> beta   -> http://119.45.240.157/changebattle-beta/
+```
+
 只生成 release 按：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_on_windows.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.4
 ```
 
 生成 release 并同步更新提示清单按：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_and_publish_update.sh 0.1.0
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_and_publish_update.sh 0.1.4
 ```
 
-更新服务器只托管小文件：
+更新服务器只托管小文件和增量文件：
 
 ```txt
-https://65h26i.top/changebattle/latest.json
-https://65h26i.top/changebattle/
+http://119.45.240.157/changebattle/latest.json
+http://119.45.240.157/changebattle/manifests/vX.Y.Z/files.json
+http://119.45.240.157/changebattle/files/vX.Y.Z/...
 ```
 
-`latest.json`、版本比较和默认 manifest 地址的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、弹原生提示和打开外部下载页。脚本只发布 manifest/download page，不上传约 600 MiB 的 portable zip；下载镜像通过 `CHANGEBATTLE_RELEASE_MIRRORS` 或下载页维护。
+`latest.json`、版本比较、channel URL、文件清单对比和增量路径校验的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、下载增量、校验和替换文件。脚本只发布 manifest/download page/incremental files，不上传约 600 MiB 的 portable zip；完整包下载镜像通过 `CHANGEBATTLE_RELEASE_MIRRORS` 写入 `latest.json` 和游戏官网。
 
-详细流程、Windows 构建机、检查项和排错见 `docs/windows-desktop-release.md`。
+详细流程、服务器目录、Windows 构建机、检查项和排错见 `release/README.md` 和 `release/docs/windows-desktop-release.md`。
 
 ## Battle Playback Verification
 
