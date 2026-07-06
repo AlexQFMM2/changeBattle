@@ -18,6 +18,7 @@ import {
   type DesktopFormalGameBridge,
   type DesktopFormalGameRunBridge,
   type DesktopPlayerVaultBridge,
+  type DesktopUpdateStatusV4,
   type PlayerVaultStorageAdapter,
   type DesktopTrainingRunBridge,
   type DesktopUserProfileBridge,
@@ -53,6 +54,7 @@ import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPa
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
+import {DesktopUpdateModal, desktopUpdateStatusVisible} from "./components/shell/DesktopUpdateModal";
 import {TalentConfigPage} from "./components/star-chart/TalentConfigPage";
 import {TitlePage} from "./components/shell/TitlePage";
 import {TrainerVaultPage} from "./components/trainer-vault/TrainerVaultPage";
@@ -136,6 +138,8 @@ function RoutedApp({runtime}: AppProps) {
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
   const [medicalInsuranceBusy, setMedicalInsuranceBusy] = useState(false);
   const [medicalInsuranceError, setMedicalInsuranceError] = useState<string | null>(null);
+  const [desktopUpdateStatus, setDesktopUpdateStatus] = useState<DesktopUpdateStatusV4 | null>(null);
+  const [desktopUpdateModalDismissed, setDesktopUpdateModalDismissed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +177,27 @@ function RoutedApp({runtime}: AppProps) {
       cancelled = true;
     };
   }, [runtime, profile]);
+
+  useEffect(() => {
+    if (!desktopAppBridge) return;
+    let cancelled = false;
+    desktopAppBridge.getUpdateStatus()
+      .then(status => {
+        if (!cancelled) setDesktopUpdateStatus(status);
+      })
+      .catch(() => undefined);
+    const unsubscribe = desktopAppBridge.onUpdateStatus(status => {
+      if (cancelled) return;
+      setDesktopUpdateStatus(status);
+      if (desktopUpdateStatusVisible(status) && status.phase !== "downloading") {
+        setDesktopUpdateModalDismissed(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [desktopAppBridge]);
 
   useEffect(() => {
     if (!profile) {
@@ -509,7 +534,7 @@ function RoutedApp({runtime}: AppProps) {
       onLoad={() => navigate(profile ? "/main" : "/", {replace: true})}
       onCreate={startCreate}
       onDelete={deleteProfile}
-      onCheckForUpdates={desktopAppBridge ? () => desktopAppBridge.checkForUpdates() : undefined}
+      onOpenOfficialSite={desktopAppBridge ? () => desktopAppBridge.openOfficialSite() : undefined}
     />
   );
 
@@ -1030,6 +1055,14 @@ function RoutedApp({runtime}: AppProps) {
           initialQuery={dexInitialQuery}
           initialRow={dexInitialRow}
           onClose={() => setDexOpen(false)}
+        />
+      ) : null}
+      {desktopAppBridge && desktopUpdateStatus && !desktopUpdateModalDismissed ? (
+        <DesktopUpdateModal
+          status={desktopUpdateStatus}
+          onClose={() => setDesktopUpdateModalDismissed(true)}
+          onCancel={() => desktopAppBridge.cancelUpdate()}
+          onOpenOfficialSite={() => desktopAppBridge.openOfficialSite()}
         />
       ) : null}
     </GameViewport>

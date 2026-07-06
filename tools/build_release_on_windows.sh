@@ -26,5 +26,10 @@ mkdir -p "$ROOT_DIR/release"
 echo "Downloading release zip..."
 scp "${WINDOWS_HOST}:${WINDOWS_ROOT}/release/ChangeBattle-V2-Desk-portable-v${VERSION}.zip" "$ROOT_DIR/release/"
 
+echo "Downloading incremental update files..."
+mkdir -p "$ROOT_DIR/release/changebattle"
+scp -r "${WINDOWS_HOST}:${WINDOWS_ROOT}/changeBattleV2/release/changebattle/manifests" "$ROOT_DIR/release/changebattle/" || true
+scp -r "${WINDOWS_HOST}:${WINDOWS_ROOT}/changeBattleV2/release/changebattle/files" "$ROOT_DIR/release/changebattle/" || true
+
 echo "Release copied to:"
 ls -lh "$ROOT_DIR/release/ChangeBattle-V2-Desk-portable-v${VERSION}.zip"

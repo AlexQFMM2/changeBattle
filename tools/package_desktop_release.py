@@ -217,6 +217,8 @@ if not exist "%SHOWDOWN_CLIENT_VENDOR%\battle.js" (
 )
 set "CHANGEBATTLE_PROJECT_ROOT=%APP_ROOT%"
 set "CHANGEBATTLE_DESKTOP_VERSION={package_version()}"
+set "CHANGEBATTLE_PORTABLE_ROOT=%APP_ROOT%"
+set "CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1"
 set "CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=%SHOWDOWN_VENDOR%"
 set "CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=%SHOWDOWN_CLIENT_VENDOR%"
 start "ChangeBattle V2 Desk" /D "%APP_ROOT%" "%ELECTRON_EXE%" "%DESKTOP_APP%"
@@ -273,6 +275,7 @@ def validate_zip(zip_path: Path, version: str) -> None:
     required = [
         f"{prefix}/ChangeBattle-V2-Desk.cmd",
         f"{prefix}/RELEASE-README.md",
+        f"{prefix}/update-manifest.json",
         f"{prefix}/apps/desktop/out/main/main.js",
         f"{prefix}/apps/desktop/out/main/formalComputeWorker.js",
         f"{prefix}/apps/desktop/out/preload/preload.cjs",
@@ -322,6 +325,10 @@ def main() -> int:
     copy_electron_runtime(electron_runtime_root, stage_dir / "runtime" / "electron")
     write_windows_scripts(stage_dir)
     write_release_notes(stage_dir, showdown_root, runtime_version)
+    subprocess.check_call(
+        ["node", "tools/generate_desktop_file_manifest.mjs", version, "--portable-root", str(stage_dir)],
+        cwd=PROJECT_ROOT,
+    )
     zip_dir(stage_dir, zip_path)
     validate_zip(zip_path, version)
 

@@ -1,6 +1,6 @@
 # ChangeBattle V2 Windows Desktop Release
 
-本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器、签名发布或自动覆盖安装。桌面端支持启动时检查远端 `latest.json` 并提示玩家打开下载页，但不会在本机自动下载/替换程序。
+本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器或签名发布。桌面端支持启动时检查远端 `latest.json`：常规游戏代码/资源变化会自动下载增量文件、校验、替换，并提示玩家重启后生效；运行时和启动器变化仍要求下载完整包。
 
 当前已验证 release：
 
@@ -86,7 +86,8 @@ cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
 6. 运行 Windows release checks。
 7. 构建 desktop。
 8. 生成 portable zip。
-9. 把 zip 拉回 Linux 本地：
+9. 生成 `update-manifest.json`、`files.json` 和增量文件目录。
+10. 把 zip 拉回 Linux 本地：
 
 ```text
 changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
@@ -120,6 +121,8 @@ cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
 ```text
 release/changebattle/latest.json
 release/changebattle/index.html
+release/changebattle/manifests/vX.Y.Z/files.json
+release/changebattle/files/vX.Y.Z/
 ```
 
 到更新服务器：
@@ -129,16 +132,23 @@ https://65h26i.top/changebattle/latest.json
 https://65h26i.top/changebattle/
 ```
 
-发布脚本只上传 `latest.json` 和下载页，不上传约 600 MiB 的 portable zip。真实下载链接应放到 `downloadPageUrl` 或 `mirrors`，例如网盘、GitHub Release 或其它下载页。
+发布脚本只上传 `latest.json`、游戏官网页面、截图、`manifests/` 和 `files/`，不上传约 600 MiB 的 portable zip。真实完整包下载链接应放到 `officialSiteUrl`、`fullPackage` 或 `mirrors`，例如网盘、GitHub Release 或其它下载页。
 
 常用环境变量：
 
 ```bash
-CHANGEBATTLE_DOWNLOAD_PAGE_URL="https://65h26i.top/changebattle/"
+CHANGEBATTLE_OFFICIAL_SITE_URL="https://65h26i.top/changebattle/"
 CHANGEBATTLE_RELEASE_MIRRORS="123网盘=https://example.com/pan-link"
 CHANGEBATTLE_RELEASE_NOTES=$'修复战斗流程问题\n调整正式模式平衡'
+CHANGEBATTLE_FULL_PACKAGE_URL="https://github.com/xxx/releases/download/v0.1.0/ChangeBattle-V2-Desk-portable-v0.1.0.zip"
 CHANGEBATTLE_UPDATE_HOST="ubuntu@119.45.240.157"
 CHANGEBATTLE_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle"
+```
+
+如果本次包含 Electron runtime、launcher、updater 等不能增量替换的变化，生成清单时加：
+
+```bash
+node tools/generate_desktop_update_manifest.mjs 0.1.0 --requires-full-package --requires-full-package-reason "本版本包含启动器或运行时更新"
 ```
 
 如果只想重新生成/发布更新清单，不重新打包：
@@ -216,6 +226,7 @@ portable zip 内部结构：
 ChangeBattle-V2-Desk-portable-vX.Y.Z/
   ChangeBattle-V2-Desk.cmd
   RELEASE-README.md
+  update-manifest.json
   apps/
     desktop/
       package.json
@@ -267,9 +278,58 @@ SHOWDOWN_CLIENT_VENDOR=<APP_ROOT>\vendor\showdown-client\js
 
 ```text
 CHANGEBATTLE_PROJECT_ROOT=<APP_ROOT>
+CHANGEBATTLE_PORTABLE_ROOT=<APP_ROOT>
+CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1
 CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<APP_ROOT>\vendor\pokemon-showdown
 CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=<APP_ROOT>\vendor\showdown-client\js
 ```
+
+`CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1` 只在正式 portable 包里设置。dev 环境即使拉到远端更新，也不会替换仓库文件。
+
+## Incremental Update Layout
+
+发布端会同步以下目录到服务器：
+
+```text
+/home/ubuntu/webApp/changebattle/
+  latest.json
+  index.html
+  manifests/vX.Y.Z/files.json
+  files/vX.Y.Z/...
+```
+
+第一版允许增量管理：
+
+```text
+apps/
+assets/
+vendor/
+package.json
+```
+
+第一版禁止增量管理：
+
+```text
+runtime/electron/
+ChangeBattle-V2-Desk.exe
+ChangeBattle-V2-Desk.cmd
+ChangeBattle-V2-Debug.cmd
+ChangeBattle-V2-Updater.exe
+ChangeBattle-V2-Updater.cmd
+```
+
+Desk 更新流程：
+
+1. 启动后后台读取 `latest.json`。
+2. 读取本地 `update-manifest.json` 和远端 `files.json`。
+3. 根据 sha256 计算变化文件和增量大小。
+4. 下载到 `.update-staging/`。
+5. 校验 sha256。
+6. 替换前备份到 `.update-backup/`。
+7. 替换成功后写入新的 `update-manifest.json`。
+8. 提示玩家重启游戏后生效。
+
+如果缺少本地基线、远端标记 `requiresFullPackage`、校验失败或替换失败，桌面端会提示去游戏官网下载完整包。
 
 ## Resource Path Rules
 

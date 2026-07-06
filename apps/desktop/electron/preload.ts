@@ -3,8 +3,17 @@ import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerP
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
   app: {
-    checkForUpdates: () =>
-      ipcRenderer.invoke("desktopApp:checkForUpdates") as ReturnType<DesktopAppBridge["checkForUpdates"]>,
+    openOfficialSite: () =>
+      ipcRenderer.invoke("desktopApp:openOfficialSite") as ReturnType<DesktopAppBridge["openOfficialSite"]>,
+    getUpdateStatus: () =>
+      ipcRenderer.invoke("desktopApp:getUpdateStatus") as ReturnType<DesktopAppBridge["getUpdateStatus"]>,
+    cancelUpdate: () =>
+      ipcRenderer.invoke("desktopApp:cancelUpdate") as ReturnType<DesktopAppBridge["cancelUpdate"]>,
+    onUpdateStatus: (listener: Parameters<DesktopAppBridge["onUpdateStatus"]>[0]) => {
+      const wrapped = (_event: unknown, status: Parameters<typeof listener>[0]) => listener(status);
+      ipcRenderer.on("desktopApp:updateStatus", wrapped);
+      return () => ipcRenderer.off("desktopApp:updateStatus", wrapped);
+    },
   },
   userProfile: {
     loadUserProfile: (): Promise<UserProfileV2 | null> => ipcRenderer.invoke("userProfile:load"),

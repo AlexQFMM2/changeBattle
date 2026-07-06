@@ -162,8 +162,71 @@ export type DesktopPlayerVaultBridge = PlayerVaultStorageAdapter;
 export type DesktopTrainingRunBridge = TrainingRunStorageAdapter;
 export type DesktopFormalGameRunBridge = FormalGameRunStorageAdapter;
 
+export type DesktopUpdateStatusV4 =
+  | {phase: "idle"; currentVersion: string; officialSiteUrl: string}
+  | {phase: "checking"; currentVersion: string; officialSiteUrl: string}
+  | {phase: "up-to-date"; currentVersion: string; officialSiteUrl: string}
+  | {
+      phase: "available";
+      currentVersion: string;
+      remoteVersion: string;
+      officialSiteUrl: string;
+      notes?: string[];
+      incrementalSize?: number;
+      fullPackageSize?: number;
+    }
+  | {
+      phase: "full-package-required";
+      currentVersion: string;
+      remoteVersion: string;
+      officialSiteUrl: string;
+      reason?: string;
+      notes?: string[];
+      fullPackageSize?: number;
+    }
+  | {
+      phase: "downloading";
+      currentVersion: string;
+      remoteVersion: string;
+      officialSiteUrl: string;
+      downloadedSize: number;
+      totalSize: number;
+      notes?: string[];
+      fullPackageSize?: number;
+    }
+  | {
+      phase: "verifying" | "replacing";
+      currentVersion: string;
+      remoteVersion: string;
+      officialSiteUrl: string;
+      totalSize: number;
+      notes?: string[];
+      fullPackageSize?: number;
+    }
+  | {
+      phase: "complete";
+      currentVersion: string;
+      remoteVersion: string;
+      officialSiteUrl: string;
+      totalSize: number;
+      notes?: string[];
+      fullPackageSize?: number;
+    }
+  | {
+      phase: "failed" | "cancelled";
+      currentVersion: string;
+      remoteVersion?: string;
+      officialSiteUrl: string;
+      reason: string;
+      notes?: string[];
+      fullPackageSize?: number;
+    };
+
 export type DesktopAppBridge = {
-  checkForUpdates(): Promise<{ok: boolean; updateAvailable: boolean; currentVersion: string; remoteVersion?: string; reason?: string}>;
+  openOfficialSite(): Promise<void>;
+  getUpdateStatus(): Promise<DesktopUpdateStatusV4>;
+  cancelUpdate(): Promise<void>;
+  onUpdateStatus(listener: (status: DesktopUpdateStatusV4) => void): () => void;
 };
 
 export type DesktopFormalGameBridge = {

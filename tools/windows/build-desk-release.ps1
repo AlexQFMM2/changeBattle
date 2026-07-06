@@ -114,6 +114,7 @@ try {
   $Wanted = @(
     "$Prefix/ChangeBattle-V2-Desk.cmd",
     "$Prefix/RELEASE-README.md",
+    "$Prefix/update-manifest.json",
     "$Prefix/apps/desktop/out/main/main.js",
     "$Prefix/apps/desktop/out/main/formalComputeWorker.js",
     "$Prefix/apps/desktop/out/preload/preload.cjs",

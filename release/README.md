@@ -1,6 +1,6 @@
 # ChangeBattle V2 Release Workspace
 
-这里是本地发版工作台，放 Windows desktop portable 包、更新清单、下载页和发版说明。
+这里是本地发版工作台，放 Windows desktop portable 包、更新清单、增量文件、官网页面和发版说明。
 
 `release/` 目前是本地生成目录，默认不进 git。正式流程和长期文档仍以 `docs/windows-desktop-release.md` 为准；这里放一份常用流程，方便每次发版时直接看。
 
@@ -8,15 +8,15 @@
 
 推荐顺序：
 
-1. 生成 Windows portable release。
+1. 生成 Windows portable release，同时生成文件级增量清单。
 2. 手动把 zip 上传到百度网盘、GitHub Release 或其它镜像。
-3. 用镜像链接生成 `latest.json` 和下载页。
-4. 发布 `latest.json`、下载页和截图到线上网站。
+3. 用镜像链接生成 `latest.json` 和游戏官网页面。
+4. 发布 `latest.json`、官网页面、截图、`manifests/` 和 `files/` 到线上网站。
 
 也就是：
 
 ```text
-release zip -> 网盘/GitHub -> latest.json + index.html -> 线上网站
+release zip + files.json -> 网盘/GitHub -> latest.json + index.html -> 线上网站
 ```
 
 ## 1. 生成 Release
@@ -32,7 +32,11 @@ cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
 
 ```text
 release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
+release/changebattle/manifests/v0.1.0/files.json
+release/changebattle/files/v0.1.0/
 ```
+
+portable 包根目录会包含 `update-manifest.json`。Desk 启动后会用它和远端 `files.json` 对比，常规游戏代码/资源变化会自动下载增量文件、校验、替换，并提示重启后生效。
 
 ## 2. 上传下载镜像
 
@@ -50,7 +54,7 @@ release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
 export CHANGEBATTLE_RELEASE_MIRRORS=$'百度网盘=https://example.com/baidu\nGitHub Release=https://github.com/xxx/releases/download/v0.1.0/ChangeBattle-V2-Desk-portable-v0.1.0.zip'
 ```
 
-## 3. 生成 latest.json 和下载页
+## 3. 生成 latest.json 和官网页面
 
 只本地生成、不发布：
 
@@ -65,14 +69,18 @@ node tools/generate_desktop_update_manifest.mjs 0.1.0
 release/changebattle/latest.json
 release/changebattle/index.html
 release/changebattle/image/
+release/changebattle/manifests/
+release/changebattle/files/
 ```
 
 说明：
 
-- `latest.json` 给桌面端启动自检和标题页“检查更新”使用。
-- `index.html` 是玩家打开的下载页。
+- `latest.json` 给桌面端启动自检使用。
+- `index.html` 是玩家打开的游戏官网。
 - `image/` 是下载页轮播截图。
+- `manifests/` 和 `files/` 是桌面端自动增量更新使用的直链资源。
 - SHA-256 会从本地 zip 自动计算。
+- 标题页按钮是“前往游戏官网”，不会触发手动检查更新。
 
 可选更新说明：
 
@@ -97,6 +105,7 @@ https://update.65h26i.top/changebattle/latest.json
 ```
 
 发布脚本只上传小文件和截图，不上传 600 MiB 左右的 zip。
+发布脚本会上传当前本地已有的 `manifests/` 和 `files/`，但不会删除线上旧版本目录。
 
 ## 一键打包并发布清单
 

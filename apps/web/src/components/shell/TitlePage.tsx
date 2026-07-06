@@ -9,7 +9,7 @@ import {TitleVideoBackground} from "./TitleVideoBackground";
 import {TrainerAvatar} from "./TrainerAvatar";
 import "./TitlePage.css";
 
-export function TitlePage({profile, catalog, loading, message, onLoad, onCreate, onDelete, onCheckForUpdates}: {
+export function TitlePage({profile, catalog, loading, message, onLoad, onCreate, onDelete, onOpenOfficialSite}: {
   profile: UserProfileV2 | null;
   catalog: TrainerCatalogEntryV2[];
   loading: boolean;
@@ -17,24 +17,13 @@ export function TitlePage({profile, catalog, loading, message, onLoad, onCreate,
   onLoad: () => void;
   onCreate: () => void;
   onDelete: () => void | Promise<void>;
-  onCheckForUpdates?: () => Promise<unknown>;
+  onOpenOfficialSite?: () => void | Promise<void>;
 }) {
   const [savePickerOpen, setSavePickerOpen] = useState(false);
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   function loadProfile() {
     if (profile) onLoad();
     else setSavePickerOpen(true);
-  }
-
-  async function checkForUpdates() {
-    if (!onCheckForUpdates || checkingUpdate) return;
-    setCheckingUpdate(true);
-    try {
-      await onCheckForUpdates();
-    } finally {
-      setCheckingUpdate(false);
-    }
   }
 
   return (
@@ -60,10 +49,9 @@ export function TitlePage({profile, catalog, loading, message, onLoad, onCreate,
             <TitleCommandMenu
               hasProfile={Boolean(profile)}
               loading={loading}
-              checkingUpdate={checkingUpdate}
               onLoadProfile={loadProfile}
               onCreateProfile={onCreate}
-              onCheckForUpdates={onCheckForUpdates ? checkForUpdates : undefined}
+              onOpenOfficialSite={onOpenOfficialSite}
             />
             <div className="title-save-strip">
               <span><TrainerAvatar profile={profile} /></span>

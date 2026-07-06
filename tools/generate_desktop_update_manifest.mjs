@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import {createHash} from "node:crypto";
-import {cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs";
+import {cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {execFileSync} from "node:child_process";
@@ -19,13 +19,17 @@ if (!/^\d+\.\d+\.\d+$/.test(version)) {
 
 const zipPath = path.join(releaseDir, `ChangeBattle-V2-Desk-portable-v${version}.zip`);
 const sha256 = existsSync(zipPath) ? sha256File(zipPath) : "";
+const zipSize = existsSync(zipPath) ? statSync(zipPath).size : undefined;
 const commit = git(["rev-parse", "--short", "HEAD"]) || "";
 const date = formatLocalDate(new Date());
-const downloadPageUrl = options.downloadPageUrl || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_URL || "https://65h26i.top/changebattle/";
+const officialSiteUrl = withTrailingSlash(options.officialSiteUrl || process.env.CHANGEBATTLE_OFFICIAL_SITE_URL || options.downloadPageUrl || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_URL || "https://65h26i.top/changebattle/");
+const downloadPageUrl = officialSiteUrl;
 const downloadPageTemplatePath = options.template || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_TEMPLATE || path.join(rootDir, "tools", "release", "download-page-template.html");
 const downloadPageImageDir = process.env.CHANGEBATTLE_DOWNLOAD_PAGE_IMAGE_DIR || path.join(rootDir, "tools", "release", "download-page-images");
 const mirrors = options.mirrors.length ? options.mirrors : parseMirrors(process.env.CHANGEBATTLE_RELEASE_MIRRORS || "");
 const notes = options.notes.length ? options.notes : parseNotes(process.env.CHANGEBATTLE_RELEASE_NOTES || "");
+const fullPackageUrl = options.fullPackageUrl || process.env.CHANGEBATTLE_FULL_PACKAGE_URL || mirrors.find(mirror => mirror.url)?.url || "";
+const requiresFullPackage = options.requiresFullPackage || parseBooleanEnv(process.env.CHANGEBATTLE_REQUIRES_FULL_PACKAGE);
 
 const manifest = {
   manifestVersion: 1,
@@ -35,9 +39,23 @@ const manifest = {
   title: options.title || `ChangeBattle V2 Desk v${version}`,
   notes: notes.length ? notes : [
     "桌面端有新版本可用。",
-    "请打开下载页获取最新 portable 包。",
+    "请打开游戏官网获取最新 portable 包，或等待桌面端自动增量更新。",
   ],
+  officialSiteUrl,
   downloadPageUrl,
+  ...(fullPackageUrl
+    ? {
+        fullPackage: {
+          url: fullPackageUrl,
+          ...(sha256 ? {sha256} : {}),
+          ...(zipSize !== undefined ? {size: zipSize} : {}),
+        },
+      }
+    : {}),
+  fileManifestUrl: new URL(`manifests/v${version}/files.json`, officialSiteUrl).toString(),
+  incrementalBaseUrl: new URL(`files/v${version}/`, officialSiteUrl).toString(),
+  requiresFullPackage,
+  ...(options.requiresFullPackageReason ? {requiresFullPackageReason: options.requiresFullPackageReason} : {}),
   mirrors,
   sha256,
   mandatory: options.mandatory,
@@ -58,10 +76,14 @@ function parseArgs(argv) {
     channel: "",
     title: "",
     downloadPageUrl: "",
+    officialSiteUrl: "",
+    fullPackageUrl: "",
     mirrors: [],
     notes: [],
     template: "",
     mandatory: false,
+    requiresFullPackage: false,
+    requiresFullPackageReason: "",
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -73,6 +95,10 @@ function parseArgs(argv) {
       parsed.title = argv[++index] || "";
     } else if (arg === "--download-page-url") {
       parsed.downloadPageUrl = argv[++index] || "";
+    } else if (arg === "--official-site-url") {
+      parsed.officialSiteUrl = argv[++index] || "";
+    } else if (arg === "--full-package-url") {
+      parsed.fullPackageUrl = argv[++index] || "";
     } else if (arg === "--mirror") {
       const mirror = parseMirror(argv[++index] || "");
       if (mirror) parsed.mirrors.push(mirror);
@@ -83,6 +109,10 @@ function parseArgs(argv) {
       parsed.template = argv[++index] || "";
     } else if (arg === "--mandatory") {
       parsed.mandatory = true;
+    } else if (arg === "--requires-full-package") {
+      parsed.requiresFullPackage = true;
+    } else if (arg === "--requires-full-package-reason") {
+      parsed.requiresFullPackageReason = argv[++index] || "";
     } else {
       fail(`Unknown argument: ${arg}`);
     }
@@ -128,6 +158,14 @@ function formatLocalDate(date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function withTrailingSlash(url) {
+  return url.endsWith("/") ? url : `${url}/`;
+}
+
+function parseBooleanEnv(value) {
+  return value === "1" || value === "true" || value === "yes";
 }
 
 function renderDownloadPage(manifest, commit) {

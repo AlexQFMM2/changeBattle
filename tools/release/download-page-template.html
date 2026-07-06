@@ -541,6 +541,26 @@
       return item.src || screenshotFallback(item.title);
     }
 
+    function retryableSrc(src, attempt) {
+      if (!attempt || src.startsWith("data:")) return src;
+      const joiner = src.includes("?") ? "&" : "?";
+      return `${src}${joiner}retry=${attempt}`;
+    }
+
+    function setImageWithRetry(img, item, attempt = 0) {
+      const src = currentScreenshotSrc(item);
+      img.alt = item.title;
+      img.onerror = () => {
+        if (attempt < 3 && item.src) {
+          window.setTimeout(() => setImageWithRetry(img, item, attempt + 1), 500 * (attempt + 1));
+          return;
+        }
+        img.onerror = null;
+        img.src = screenshotFallback(item.title);
+      };
+      img.src = retryableSrc(src, attempt);
+    }
+
     function setStatus() {
       carouselStatus.textContent = `第 ${index + 1} / ${screenshots.length} 张`;
     }
@@ -553,12 +573,9 @@
         btn.className = "thumb-button";
         btn.setAttribute("aria-label", `切换到${item.title}`);
         const img = document.createElement("img");
-        img.src = currentScreenshotSrc(item);
-        img.alt = item.title;
-        img.onerror = () => {
-          img.onerror = null;
-          img.src = screenshotFallback(item.title);
-        };
+        img.loading = "lazy";
+        img.decoding = "async";
+        setImageWithRetry(img, item);
         btn.appendChild(img);
         btn.addEventListener("click", () => goTo(i, true));
         thumbRow.appendChild(btn);
@@ -575,15 +592,10 @@
     function fadeTo(item) {
       heroImg.style.opacity = "0";
       window.setTimeout(() => {
-        heroImg.src = currentScreenshotSrc(item);
-        heroImg.alt = item.title;
-        heroImg.onerror = () => {
-          heroImg.onerror = null;
-          heroImg.src = screenshotFallback(item.title);
-        };
         heroImg.onload = () => {
           heroImg.style.opacity = "1";
         };
+        setImageWithRetry(heroImg, item);
       }, 140);
     }
 
@@ -660,11 +672,8 @@
     renderDownloads();
     renderReleaseNotes();
     setStatus();
-    heroImg.src = currentScreenshotSrc(screenshots[0]);
-    heroImg.onerror = () => {
-      heroImg.onerror = null;
-      heroImg.src = screenshotFallback(screenshots[0].title);
-    };
+    heroImg.decoding = "async";
+    setImageWithRetry(heroImg, screenshots[0]);
     start();
   </script>
 </body>

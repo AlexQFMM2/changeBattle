@@ -1,12 +1,11 @@
 import "./TitleCommandMenu.css";
 
-export function TitleCommandMenu({hasProfile, loading, checkingUpdate = false, onLoadProfile, onCreateProfile, onCheckForUpdates}: {
+export function TitleCommandMenu({hasProfile, loading, onLoadProfile, onCreateProfile, onOpenOfficialSite}: {
   hasProfile: boolean;
   loading: boolean;
-  checkingUpdate?: boolean;
   onLoadProfile: () => void;
   onCreateProfile: () => void;
-  onCheckForUpdates?: () => void | Promise<void>;
+  onOpenOfficialSite?: () => void | Promise<void>;
 }) {
   return (
     <nav className="title-command-menu" aria-label="标题菜单">
@@ -16,9 +15,9 @@ export function TitleCommandMenu({hasProfile, loading, checkingUpdate = false, o
       <button className="title-menu-item" type="button" onClick={onCreateProfile}>
         <span>开始新游戏</span>
       </button>
-      {onCheckForUpdates ? (
-        <button className="title-menu-item" type="button" disabled={checkingUpdate} onClick={() => void onCheckForUpdates()}>
-          <span>{checkingUpdate ? "检查中..." : "检查更新"}</span>
+      {onOpenOfficialSite ? (
+        <button className="title-menu-item" type="button" onClick={() => void onOpenOfficialSite()}>
+          <span>前往游戏官网</span>
         </button>
       ) : null}
       <button className="title-menu-item quiet" type="button" onClick={() => window.close()}>
