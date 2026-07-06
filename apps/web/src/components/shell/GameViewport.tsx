@@ -10,7 +10,7 @@ export function GameViewport({children, viewportClassName = "", screenClassName 
       <section className={screenClasses} ref={responsiveCanvas.ref} style={{...responsiveCanvas.style, ...style}}>
         <div className={viewportClasses}>
           {children}
-          {showVersion ? <span className="game-version-badge" aria-label="版本 0.1.0">v0.1.0</span> : null}
+          {showVersion ? <span className="game-version-badge" aria-label="release 0.1.4">release 0.1.4</span> : null}
         </div>
       </section>
     </main>
