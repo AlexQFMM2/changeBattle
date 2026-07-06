@@ -183,7 +183,7 @@ def copy_electron_runtime(runtime_root: Path, dst_root: Path) -> None:
 
 
 def write_windows_scripts(stage_dir: Path) -> None:
-    cmd = r"""@echo off
+    cmd = rf"""@echo off
 setlocal
 set "APP_DIR=%~dp0"
 set "APP_ROOT=%APP_DIR:~0,-1%"
@@ -216,6 +216,7 @@ if not exist "%SHOWDOWN_CLIENT_VENDOR%\battle.js" (
   exit /b 1
 )
 set "CHANGEBATTLE_PROJECT_ROOT=%APP_ROOT%"
+set "CHANGEBATTLE_DESKTOP_VERSION={package_version()}"
 set "CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=%SHOWDOWN_VENDOR%"
 set "CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=%SHOWDOWN_CLIENT_VENDOR%"
 start "ChangeBattle V2 Desk" /D "%APP_ROOT%" "%ELECTRON_EXE%" "%DESKTOP_APP%"

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@changebattle-v2/api": "workspace:*",
+    "@changebattle-v2/core": "workspace:*",
     "@changebattle-v2/showdown-battle-core": "workspace:*",
     "@vitejs/plugin-react": "^5.0.0",
     "electron": "^38.0.0",

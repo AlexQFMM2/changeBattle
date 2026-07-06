@@ -57,7 +57,7 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通；2026-07-05 已基于 `v2` 分支 `2b600e22` 重新生成 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`，大小约 597 MiB。
+- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通；2026-07-05 已基于 `v2` 分支 `2b600e22` 重新生成 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`，大小约 597 MiB。桌面端已支持启动时检查远端 `latest.json` 并用系统弹窗提示下载，不做 Web 端更新 UI，也不自动覆盖安装。
 
 当前明确不做：
 
@@ -129,12 +129,28 @@ ChangeBattle-V2-Desk.cmd
 
 `.cmd` 不是业务运行时，只是 portable launcher：用 `%~dp0` 计算解压目录，设置 `CHANGEBATTLE_PROJECT_ROOT`、Showdown runtime vendor、Showdown client vendor 等环境变量，然后调用包内 `runtime/electron/electron.exe` 启动 `apps/desktop`。VSCode 那种可见 `.exe` 也是 Electron，但走了更完整的应用打包/launcher/安装器体系；V2 现在先保留已验证的 portable 目录结构，后续如果要美化启动入口，优先做一个小型 `ChangeBattle-V2-Desk.exe` launcher 来替代 `.cmd`，而不是立刻重做完整安装器。
 
-生成 release 按：
+只生成 release 按：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
 ./tools/build_release_on_windows.sh 0.1.0
 ```
+
+生成 release 并同步更新提示清单按：
+
+```bash
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+./tools/build_release_and_publish_update.sh 0.1.0
+```
+
+更新服务器只托管小文件：
+
+```txt
+https://65h26i.top/changebattle/latest.json
+https://65h26i.top/changebattle/
+```
+
+`latest.json`、版本比较和默认 manifest 地址的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、弹原生提示和打开外部下载页。脚本只发布 manifest/download page，不上传约 600 MiB 的 portable zip；下载镜像通过 `CHANGEBATTLE_RELEASE_MIRRORS` 或下载页维护。
 
 详细流程、Windows 构建机、检查项和排错见 `docs/windows-desktop-release.md`。
 

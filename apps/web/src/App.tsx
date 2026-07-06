@@ -14,6 +14,7 @@ import {
   starChartHasOpponentRumorV4,
   type AppDebugConfigV4,
   type DesktopBattleServiceBridge,
+  type DesktopAppBridge,
   type DesktopFormalGameBridge,
   type DesktopFormalGameRunBridge,
   type DesktopPlayerVaultBridge,
@@ -78,6 +79,7 @@ const APP_DEBUG_CONFIG_V4: AppDebugConfigV4 = {
 
 type ChangeBattleV2Window = Window & {
   changeBattleV2?: {
+    app?: DesktopAppBridge;
     battleService?: DesktopBattleServiceBridge;
     formalGame?: DesktopFormalGameBridge;
     formalRun?: DesktopFormalGameRunBridge;
@@ -102,6 +104,7 @@ function RoutedApp({runtime}: AppProps) {
     ? (window as ChangeBattleV2Window).changeBattleV2
     : undefined, [runtime]);
   const battleServiceBridge = desktopBridgeRoot?.battleService;
+  const desktopAppBridge = desktopBridgeRoot?.app;
   const userProfileAdapter = useMemo(() => createUserProfileAdapter(runtime), [runtime]);
   const playerVaultAdapter = useMemo(() => createPlayerVaultAdapter(runtime), [runtime]);
   const api = useMemo(() => createChangeBattleV2Api({
@@ -506,6 +509,7 @@ function RoutedApp({runtime}: AppProps) {
       onLoad={() => navigate(profile ? "/main" : "/", {replace: true})}
       onCreate={startCreate}
       onDelete={deleteProfile}
+      onCheckForUpdates={desktopAppBridge ? () => desktopAppBridge.checkForUpdates() : undefined}
     />
   );
 

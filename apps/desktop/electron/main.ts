@@ -1,9 +1,10 @@
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
-import {app, BrowserWindow, ipcMain, protocol, type IpcMainInvokeEvent} from "electron";
+import {app, BrowserWindow, dialog, ipcMain, protocol, shell, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
 import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, PlayerVaultV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import {CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4, changeBattleDesktopUpdateIsNewerV4, changeBattleDesktopUpdateManifestUrlsV4, changeBattleDesktopUpdatePrimaryDownloadUrlV4, normalizeChangeBattleDesktopVersionV4, parseChangeBattleDesktopUpdateManifestV4, type ChangeBattleDesktopUpdateCheckResultV4} from "@changebattle-v2/core";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {DesktopSaveStoreV2} from "./desktopSaveStore.js";
 import {rendererAssetFilePath} from "./rendererAssetResolver.js";
@@ -16,6 +17,8 @@ let formalComputeRequestId = 0;
 const formalComputePending = new Map<number, {resolve: (value: any) => void; reject: (error: Error) => void}>();
 const rendererReadyRetryMs = 180;
 const rendererReadyTimeoutMs = 90_000;
+const desktopUpdateCheckDelayMs = 1_200;
+const desktopUpdateFetchTimeoutMs = 6_000;
 
 app.setName("ChangeBattle V2 Dex Desktop");
 app.setPath("userData", path.join(app.getPath("appData"), "@changebattle-v2", "desktop"));
@@ -115,6 +118,12 @@ ipcMain.handle("userProfile:delete", async () => {
 });
 
 ipcMain.handle("userProfile:path", async () => ensureSaveStore().path());
+
+ipcMain.handle("desktopApp:checkForUpdates", async () => {
+  const result = await checkDesktopUpdate();
+  await showDesktopUpdatePrompt(result, {manual: true});
+  return desktopUpdateBridgeResult(result);
+});
 
 ipcMain.handle("playerVault:load", async () => {
   return ensureSaveStore().loadPlayerVault();
@@ -274,9 +283,153 @@ function rejectFormalComputePending(error: Error) {
   formalComputePending.clear();
 }
 
+function scheduleDesktopUpdateCheck() {
+  if (process.env.CHANGEBATTLE_DISABLE_UPDATE_CHECK === "1") {
+    console.info("[changebattle-v2:desktop] desktop update check disabled by CHANGEBATTLE_DISABLE_UPDATE_CHECK=1");
+    return;
+  }
+  setTimeout(() => {
+    void checkDesktopUpdate().then(result => showDesktopUpdatePrompt(result, {manual: false})).catch(error => {
+      console.warn("[changebattle-v2:desktop] desktop update check failed", error instanceof Error ? error.message : error);
+    });
+  }, desktopUpdateCheckDelayMs);
+}
+
+async function checkDesktopUpdate(): Promise<ChangeBattleDesktopUpdateCheckResultV4> {
+  const currentVersion = desktopAppVersion();
+  const manifestUrls = changeBattleDesktopUpdateManifestUrlsV4(process.env.CHANGEBATTLE_UPDATE_MANIFEST_URLS);
+  let lastReason = "没有可用的更新地址。";
+
+  for (const manifestUrl of manifestUrls) {
+    try {
+      const json = await fetchDesktopUpdateJson(manifestUrl);
+      const manifest = parseChangeBattleDesktopUpdateManifestV4(json);
+      if (!manifest) {
+        lastReason = `更新清单格式无效：${manifestUrl}`;
+        continue;
+      }
+      const updateAvailable = changeBattleDesktopUpdateIsNewerV4(currentVersion, manifest.version);
+      return {
+        ok: true,
+        currentVersion,
+        manifestUrl,
+        manifest,
+        updateAvailable,
+        downloadUrl: changeBattleDesktopUpdatePrimaryDownloadUrlV4(manifest),
+      };
+    } catch (error) {
+      lastReason = `${manifestUrl}: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  return {ok: false, currentVersion, reason: lastReason};
+}
+
+async function fetchDesktopUpdateJson(manifestUrl: string): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), desktopUpdateFetchTimeoutMs);
+  try {
+    const response = await fetch(manifestUrl, {
+      headers: {"Accept": "application/json"},
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function showDesktopUpdatePrompt(result: ChangeBattleDesktopUpdateCheckResultV4, options: {manual: boolean}) {
+  if (!result.ok) {
+    console.warn(`[changebattle-v2:desktop] desktop update check unavailable: ${result.reason}`);
+    if (options.manual) {
+      await showDesktopUpdateMessage({
+        title: "ChangeBattle V2 更新",
+        message: "检查更新失败",
+        detail: `当前版本：${result.currentVersion}\n失败原因：${result.reason}`,
+        downloadUrl: CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4,
+        type: "warning",
+      });
+    }
+    return;
+  }
+  if (!result.updateAvailable) {
+    console.info(`[changebattle-v2:desktop] desktop is up to date: ${result.currentVersion}`);
+    if (options.manual) {
+      await showDesktopUpdateMessage({
+        title: "ChangeBattle V2 更新",
+        message: "当前已是最新版本",
+        detail: `当前版本：${result.currentVersion}`,
+        downloadUrl: result.downloadUrl,
+        type: "info",
+      });
+    }
+    return;
+  }
+
+  const {manifest, currentVersion, downloadUrl} = result;
+  const notes = manifest.notes?.length ? `\n\n更新内容：\n${manifest.notes.map((note: string) => `- ${note}`).join("\n")}` : "";
+  const detail = `当前版本：${currentVersion}\n最新版本：${manifest.version}${notes}`;
+  await showDesktopUpdateMessage({
+    title: "ChangeBattle V2 更新",
+    message: manifest.title || `目前有最新版本：${manifest.version}`,
+    detail,
+    downloadUrl,
+    type: manifest.mandatory ? "warning" : "info",
+  });
+}
+
+async function showDesktopUpdateMessage(input: {title: string; message: string; detail: string; downloadUrl: string; type: "info" | "warning"}) {
+  const buttons = input.downloadUrl ? ["前往下载页", "稍后"] : ["知道了"];
+  const response = mainWindow
+    ? await dialog.showMessageBox(mainWindow, {
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        detail: input.detail,
+        buttons,
+        defaultId: 0,
+        cancelId: buttons.length - 1,
+        noLink: true,
+      })
+    : await dialog.showMessageBox({
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        detail: input.detail,
+        buttons,
+        defaultId: 0,
+        cancelId: buttons.length - 1,
+        noLink: true,
+      });
+
+  if (input.downloadUrl && response.response === 0) {
+    await shell.openExternal(input.downloadUrl);
+  }
+}
+
+function desktopUpdateBridgeResult(result: ChangeBattleDesktopUpdateCheckResultV4) {
+  if (!result.ok) {
+    return {ok: false, updateAvailable: false, currentVersion: result.currentVersion, reason: result.reason};
+  }
+  return {
+    ok: true,
+    updateAvailable: result.updateAvailable,
+    currentVersion: result.currentVersion,
+    remoteVersion: result.manifest.version,
+  };
+}
+
+function desktopAppVersion(): string {
+  return normalizeChangeBattleDesktopVersionV4(process.env.CHANGEBATTLE_DESKTOP_VERSION || app.getVersion());
+}
+
 app.whenReady().then(() => {
   registerRendererAssetFileResolver();
-  return createWindow();
+  return createWindow().then(() => {
+    scheduleDesktopUpdateCheck();
+  });
 });
 app.on("window-all-closed", () => {
   formalComputeWorker?.terminate();

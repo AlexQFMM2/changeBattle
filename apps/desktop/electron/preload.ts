@@ -1,7 +1,11 @@
 import {contextBridge, ipcRenderer} from "electron";
-import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopBattleServiceBridge, DesktopFormalGameBridge, DesktopFormalGameRunBridge, DesktopPlayerVaultBridge, DesktopTrainingRunBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, PlayerVaultV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopAppBridge, DesktopBattleServiceBridge, DesktopFormalGameBridge, DesktopFormalGameRunBridge, DesktopPlayerVaultBridge, DesktopTrainingRunBridge, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, PlayerVaultV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
+  app: {
+    checkForUpdates: () =>
+      ipcRenderer.invoke("desktopApp:checkForUpdates") as ReturnType<DesktopAppBridge["checkForUpdates"]>,
+  },
   userProfile: {
     loadUserProfile: (): Promise<UserProfileV2 | null> => ipcRenderer.invoke("userProfile:load"),
     saveUserProfile: (profile: UserProfileV2): Promise<UserProfileV2> => ipcRenderer.invoke("userProfile:save", profile),

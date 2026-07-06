@@ -162,6 +162,10 @@ export type DesktopPlayerVaultBridge = PlayerVaultStorageAdapter;
 export type DesktopTrainingRunBridge = TrainingRunStorageAdapter;
 export type DesktopFormalGameRunBridge = FormalGameRunStorageAdapter;
 
+export type DesktopAppBridge = {
+  checkForUpdates(): Promise<{ok: boolean; updateAvailable: boolean; currentVersion: string; remoteVersion?: string; reason?: string}>;
+};
+
 export type DesktopFormalGameBridge = {
   createFormalGameWithStarterCandidates(
     profile: UserProfileV2,

@@ -39,6 +39,9 @@ importers:
       '@changebattle-v2/api':
         specifier: workspace:*
         version: link:../api
+      '@changebattle-v2/core':
+        specifier: workspace:*
+        version: link:../../packages/changebattle-v2-core
       '@changebattle-v2/showdown-battle-core':
         specifier: workspace:*
         version: link:../../packages/showdown-battle-core

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {execFileSync, spawn} from "node:child_process";
 import {readdir, readFile, readlink, stat} from "node:fs/promises";
+import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import {build as viteBuild} from "vite";
@@ -12,6 +13,7 @@ const root = process.cwd();
 const rendererHost = "127.0.0.1";
 const rendererPort = 5181;
 const rendererUrl = `http://${rendererHost}:${rendererPort}/`;
+const desktopVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version || "0.0.0";
 
 const env = {...process.env};
 delete env.ELECTRON_RUN_AS_NODE;
@@ -52,6 +54,7 @@ async function runFastDev() {
     ...env,
     ELECTRON_BOOT_RENDERER_URL: rendererUrl,
     ELECTRON_BOOT_HTML: path.join(root, "boot.html"),
+    CHANGEBATTLE_DESKTOP_VERSION: desktopVersion,
     CHANGEBATTLE_PROJECT_ROOT: path.resolve(root, "../.."),
     CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: path.resolve(root, "../../packages/showdown-battle-core/vendor/showdown-client/js"),
   };

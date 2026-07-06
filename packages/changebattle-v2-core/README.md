@@ -33,6 +33,7 @@
 - `restCenterCatalog.ts`：休息中心服务 catalog。
 - `playerHonorCatalog.ts`：玩家荣誉 catalog/types 预留。
 - `natureCatalog.ts`：标准性格中文名和能力修正表。
+- `desktopUpdateCatalog.ts`：桌面端更新 manifest 类型、默认检查地址、版本比较和下载链接选择规则。
 
 ### 队伍生成
 
@@ -115,6 +116,7 @@ API 再负责真正执行：
 - 玩家/NPC 正确技能数量。
 - 物种 rank 和随机池过滤。
 - 星图节点成本、前置和 runtime effect 声明。
+- 桌面端更新清单 schema、版本比较、默认 manifest 地址。
 
 如果发现同类常量散落在 `apps/api/src/formalGame.ts` 或 React 组件里，应优先考虑迁回 core。
 

@@ -8,6 +8,7 @@ const requiredSnippets = [
     file: "main/main.js",
     snippets: [
       'ipcMain.handle("formalGame:createWithStarterCandidates"',
+      'ipcMain.handle("desktopApp:checkForUpdates"',
       'callFormalComputeWorker("createFormalGameWithStarterCandidates"',
       'ipcMain.handle("battleService:createSession"',
       'ipcMain.handle("battleService:submitChoice"',
@@ -17,12 +18,17 @@ const requiredSnippets = [
       "training_run.dat",
       "formal_run.dat",
       "formalComputeWorker.js",
+      "desktop update check",
+      "showMessageBox",
+      "当前已是最新版本",
     ],
   },
   {
     file: "preload/preload.cjs",
     snippets: [
       "createFormalGameWithStarterCandidates",
+      "checkForUpdates",
+      'ipcRenderer.invoke("desktopApp:checkForUpdates"',
       'ipcRenderer.invoke("formalGame:createWithStarterCandidates"',
       'ipcRenderer.invoke("trainingRun:load"',
       'ipcRenderer.invoke("formalRun:load"',
