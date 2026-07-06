@@ -22,24 +22,30 @@ if [[ ! -f "$LOCAL_DIR/latest.json" || ! -f "$LOCAL_DIR/index.html" ]]; then
 fi
 
 echo "Preparing update directory on $UPDATE_HOST..."
-ssh "$UPDATE_HOST" "mkdir -p '$REMOTE_TMP_DIR'"
+ssh "$UPDATE_HOST" "rm -rf '$REMOTE_TMP_DIR' && mkdir -p '$REMOTE_TMP_DIR'"
 
 echo "Uploading latest.json and index.html..."
 scp "$LOCAL_DIR/latest.json" "$LOCAL_DIR/index.html" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/"
 if [[ -d "$LOCAL_DIR/image" ]]; then
   echo "Uploading download page screenshots..."
-  ssh "$UPDATE_HOST" "rm -rf '$REMOTE_TMP_DIR/image' && mkdir -p '$REMOTE_TMP_DIR/image'"
-  scp "$LOCAL_DIR/image/"* "${UPDATE_HOST}:${REMOTE_TMP_DIR}/image/"
+  tar -C "$LOCAL_DIR" -czf "$REMOTE_TMP_DIR-image.tar.gz" image
+  scp "$REMOTE_TMP_DIR-image.tar.gz" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/image.tar.gz"
+  rm -f "$REMOTE_TMP_DIR-image.tar.gz"
+  ssh "$UPDATE_HOST" "cd '$REMOTE_TMP_DIR' && tar -xzf image.tar.gz"
 fi
 if [[ -d "$LOCAL_DIR/manifests" ]]; then
   echo "Uploading file manifests..."
-  ssh "$UPDATE_HOST" "rm -rf '$REMOTE_TMP_DIR/manifests' && mkdir -p '$REMOTE_TMP_DIR'"
-  scp -r "$LOCAL_DIR/manifests" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/"
+  tar -C "$LOCAL_DIR" -czf "$REMOTE_TMP_DIR-manifests.tar.gz" manifests
+  scp "$REMOTE_TMP_DIR-manifests.tar.gz" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/manifests.tar.gz"
+  rm -f "$REMOTE_TMP_DIR-manifests.tar.gz"
+  ssh "$UPDATE_HOST" "cd '$REMOTE_TMP_DIR' && tar -xzf manifests.tar.gz"
 fi
 if [[ -d "$LOCAL_DIR/files" ]]; then
   echo "Uploading incremental files..."
-  ssh "$UPDATE_HOST" "rm -rf '$REMOTE_TMP_DIR/files' && mkdir -p '$REMOTE_TMP_DIR'"
-  scp -r "$LOCAL_DIR/files" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/"
+  tar -C "$LOCAL_DIR" -czf "$REMOTE_TMP_DIR-files.tar.gz" files
+  scp "$REMOTE_TMP_DIR-files.tar.gz" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/files.tar.gz"
+  rm -f "$REMOTE_TMP_DIR-files.tar.gz"
+  ssh "$UPDATE_HOST" "cd '$REMOTE_TMP_DIR' && tar -xzf files.tar.gz"
 fi
 
 echo "Publishing update metadata to $UPDATE_WEB_ROOT..."
