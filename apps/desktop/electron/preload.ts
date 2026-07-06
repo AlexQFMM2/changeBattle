@@ -3,6 +3,8 @@ import type {BattleSessionCreateInputV4, BattleTrainerItemSubmitV4, CoopPartnerP
 
 contextBridge.exposeInMainWorld("changeBattleV2", {
   app: {
+    checkForUpdates: () =>
+      ipcRenderer.invoke("desktopApp:checkForUpdates") as ReturnType<DesktopAppBridge["checkForUpdates"]>,
     openOfficialSite: () =>
       ipcRenderer.invoke("desktopApp:openOfficialSite") as ReturnType<DesktopAppBridge["openOfficialSite"]>,
     getUpdateStatus: () =>

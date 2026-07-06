@@ -140,6 +140,8 @@ function RoutedApp({runtime}: AppProps) {
   const [medicalInsuranceError, setMedicalInsuranceError] = useState<string | null>(null);
   const [desktopUpdateStatus, setDesktopUpdateStatus] = useState<DesktopUpdateStatusV4 | null>(null);
   const [desktopUpdateModalDismissed, setDesktopUpdateModalDismissed] = useState(false);
+  const [desktopUpdateChecking, setDesktopUpdateChecking] = useState(false);
+  const [desktopManualUpdateCheckActive, setDesktopManualUpdateCheckActive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +191,7 @@ function RoutedApp({runtime}: AppProps) {
     const unsubscribe = desktopAppBridge.onUpdateStatus(status => {
       if (cancelled) return;
       setDesktopUpdateStatus(status);
-      if (desktopUpdateStatusVisible(status) && status.phase !== "downloading") {
+      if (desktopUpdateStatusVisible(status) && status.phase !== "downloading" && status.phase !== "up-to-date") {
         setDesktopUpdateModalDismissed(false);
       }
     });
@@ -523,6 +525,24 @@ function RoutedApp({runtime}: AppProps) {
     setDexInitialQuery(seed.query);
     setDexInitialRow(seed.entry);
     setDexOpen(true);
+  }
+
+  async function checkDesktopUpdatesFromVersionBadge() {
+    if (!desktopAppBridge || desktopUpdateChecking) return;
+    setDesktopUpdateChecking(true);
+    setDesktopManualUpdateCheckActive(true);
+    setDesktopUpdateModalDismissed(false);
+    try {
+      const status = await desktopAppBridge.checkForUpdates();
+      setDesktopUpdateStatus(status);
+      setDesktopUpdateModalDismissed(false);
+      if (status.phase !== "up-to-date") setDesktopManualUpdateCheckActive(false);
+    } catch (error) {
+      console.error("[changebattle-v2] manual desktop update check failed", error);
+      setDesktopManualUpdateCheckActive(false);
+    } finally {
+      setDesktopUpdateChecking(false);
+    }
   }
 
   const titlePage = (
@@ -1014,9 +1034,15 @@ function RoutedApp({runtime}: AppProps) {
   ) : <Navigate to="/" replace />;
 
   const bgmScene = bgmSceneForRoute(location.pathname, formalRun);
+  const versionBadgeLabel = desktopVersionBadgeLabel();
 
   return (
-    <GameViewport showVersion={location.pathname === "/"}>
+    <GameViewport
+      showVersion={location.pathname === "/"}
+      versionLabel={versionBadgeLabel}
+      versionChecking={desktopUpdateChecking}
+      onVersionClick={runtime === "desktop" && desktopAppBridge ? checkDesktopUpdatesFromVersionBadge : undefined}
+    >
       <BgmController scene={bgmScene} />
       <Routes>
         <Route path="/" element={titlePage} />
@@ -1057,10 +1083,13 @@ function RoutedApp({runtime}: AppProps) {
           onClose={() => setDexOpen(false)}
         />
       ) : null}
-      {desktopAppBridge && desktopUpdateStatus && !desktopUpdateModalDismissed ? (
+      {desktopAppBridge && desktopUpdateStatus && !desktopUpdateModalDismissed && (desktopUpdateStatus.phase !== "up-to-date" || desktopManualUpdateCheckActive) ? (
         <DesktopUpdateModal
           status={desktopUpdateStatus}
-          onClose={() => setDesktopUpdateModalDismissed(true)}
+          onClose={() => {
+            setDesktopUpdateModalDismissed(true);
+            if (desktopUpdateStatus.phase === "up-to-date") setDesktopManualUpdateCheckActive(false);
+          }}
           onCancel={() => desktopAppBridge.cancelUpdate()}
           onOpenOfficialSite={() => desktopAppBridge.openOfficialSite()}
         />
@@ -1089,6 +1118,12 @@ function bgmSceneForRoute(pathname: string, formalRun: FormalGameRunV4 | null): 
     return "rest";
   }
   return "nonBattle";
+}
+
+function desktopVersionBadgeLabel(): string {
+  const version = String(import.meta.env.VITE_CHANGEBATTLE_DESKTOP_VERSION || "0.1.0").trim() || "0.1.0";
+  const channel = String(import.meta.env.VITE_CHANGEBATTLE_RELEASE_CHANNEL || "stable").trim().toLowerCase();
+  return `${channel === "beta" ? "debug" : "release"} ${version}`;
 }
 
 function isFormalBossRound(run: FormalGameRunV4 | null): boolean {

@@ -8,6 +8,7 @@ const requiredSnippets = [
     file: "main/main.js",
     snippets: [
       'ipcMain.handle("formalGame:createWithStarterCandidates"',
+      'ipcMain.handle("desktopApp:checkForUpdates"',
       'ipcMain.handle("desktopApp:openOfficialSite"',
       'ipcMain.handle("desktopApp:getUpdateStatus"',
       'ipcMain.handle("desktopApp:cancelUpdate"',
@@ -30,6 +31,8 @@ const requiredSnippets = [
     file: "preload/preload.cjs",
     snippets: [
       "createFormalGameWithStarterCandidates",
+      "checkForUpdates",
+      'ipcRenderer.invoke("desktopApp:checkForUpdates"',
       "openOfficialSite",
       "getUpdateStatus",
       "cancelUpdate",

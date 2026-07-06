@@ -127,6 +127,7 @@ p {
   right: 8px;
   bottom: 5px;
   z-index: 80;
+  font-family: inherit;
   color: rgb(37 51 43 / 68%);
   background: rgb(255 253 245 / 72%);
   border: 1px solid rgb(38 53 45 / 30%);
@@ -135,7 +136,26 @@ p {
   font-size: 7px;
   font-weight: 950;
   line-height: 1.2;
+}
+
+span.game-version-badge {
   pointer-events: none;
+}
+
+button.game-version-badge {
+  cursor: pointer;
+}
+
+button.game-version-badge:hover,
+button.game-version-badge:focus-visible {
+  color: rgb(21 38 29 / 90%);
+  background: rgb(255 253 245 / 88%);
+  outline: 1px solid rgb(137 227 111 / 70%);
+}
+
+button.game-version-badge:disabled {
+  cursor: wait;
+  opacity: .78;
 }
 
 .bgm-v2-control {

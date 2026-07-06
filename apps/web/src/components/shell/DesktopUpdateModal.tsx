@@ -80,6 +80,11 @@ export function DesktopUpdateModal({
                 <button type="button" onClick={() => requestClose(true)}>我知道了</button>
                 <button type="button" onClick={() => void onOpenOfficialSite()}>前往游戏官网</button>
               </>
+            ) : status.phase === "up-to-date" ? (
+              <>
+                <button type="button" onClick={() => requestClose(true)}>我知道了</button>
+                <button type="button" onClick={() => void onOpenOfficialSite()}>前往游戏官网</button>
+              </>
             ) : status.phase === "full-package-required" ? (
               <>
                 <button type="button" onClick={() => void onOpenOfficialSite()}>前往游戏官网</button>
@@ -101,11 +106,12 @@ export function DesktopUpdateModal({
 }
 
 export function desktopUpdateStatusVisible(status: DesktopUpdateStatusV4): boolean {
-  return status.phase !== "idle" && status.phase !== "checking" && status.phase !== "up-to-date";
+  return status.phase !== "idle" && status.phase !== "checking";
 }
 
 function desktopUpdateTitle(status: DesktopUpdateStatusV4): string {
   switch (status.phase) {
+    case "up-to-date": return "当前已是最新版本";
     case "available": return "发现新版本";
     case "full-package-required": return "该版本需要完整包";
     case "downloading": return "下载中";
@@ -119,6 +125,7 @@ function desktopUpdateTitle(status: DesktopUpdateStatusV4): string {
 }
 
 function desktopUpdateDetail(status: DesktopUpdateStatusV4): string {
+  if (status.phase === "up-to-date") return "已经是当前更新通道的最新版本。";
   if (status.phase === "full-package-required") return status.reason || "该版本包含启动器或运行时变化，需要下载完整包。";
   if (status.phase === "failed" || status.phase === "cancelled") return status.reason;
   if (status.phase === "complete") return "文件已经替换完成，关闭并重新启动游戏后生效。";

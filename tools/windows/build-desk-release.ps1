@@ -87,6 +87,7 @@ pnpm typecheck
 
 Write-Host "Building desktop..."
 $env:CHANGEBATTLE_PROJECT_ROOT = $SourceRoot
+$env:CHANGEBATTLE_RELEASE_CHANNEL = $Channel
 $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = Join-Path $ShowdownClientPath "js"
 pnpm --filter @changebattle-v2/desktop build
 pnpm --filter @changebattle-v2/desktop test:ipc-bundle
@@ -98,7 +99,6 @@ $env:ELECTRON_RUNTIME_PATH = $ElectronRuntimePath
 $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = $ShowdownPath
 $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = $ShowdownClientPath
 $env:CHANGEBATTLE_COMMIT = $Commit
-$env:CHANGEBATTLE_RELEASE_CHANNEL = $Channel
 if ([string]::IsNullOrWhiteSpace($env:CHANGEBATTLE_UPDATE_MANIFEST_URLS)) {
   $env:CHANGEBATTLE_UPDATE_MANIFEST_URLS = $DefaultUpdateManifestUrl
 }

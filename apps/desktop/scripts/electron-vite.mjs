@@ -10,12 +10,16 @@ import {resolveConfig} from "electron-vite";
 const command = process.argv[2] || "dev";
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const root = process.cwd();
+const workspaceRoot = path.resolve(root, "../..");
 const rendererHost = "127.0.0.1";
 const rendererPort = 5181;
 const rendererUrl = `http://${rendererHost}:${rendererPort}/`;
-const desktopVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version || "0.0.0";
+const desktopVersion = readPackageVersion(path.join(workspaceRoot, "package.json")) || readPackageVersion(path.join(root, "package.json")) || "0.0.0";
+const releaseChannel = process.env.CHANGEBATTLE_RELEASE_CHANNEL || "stable";
 
 const env = {...process.env};
+env.VITE_CHANGEBATTLE_DESKTOP_VERSION = env.VITE_CHANGEBATTLE_DESKTOP_VERSION || desktopVersion;
+env.VITE_CHANGEBATTLE_RELEASE_CHANNEL = env.VITE_CHANGEBATTLE_RELEASE_CHANNEL || releaseChannel;
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.ELECTRON_NO_ATTACH_CONSOLE;
 
@@ -29,6 +33,14 @@ if (command !== "dev") {
   forwardExit(child);
 } else {
   await runFastDev();
+}
+
+function readPackageVersion(packageJsonPath) {
+  try {
+    return JSON.parse(fs.readFileSync(packageJsonPath, "utf8")).version || "";
+  } catch {
+    return "";
+  }
 }
 
 async function runFastDev() {
@@ -55,8 +67,9 @@ async function runFastDev() {
     ELECTRON_BOOT_RENDERER_URL: rendererUrl,
     ELECTRON_BOOT_HTML: path.join(root, "boot.html"),
     CHANGEBATTLE_DESKTOP_VERSION: desktopVersion,
-    CHANGEBATTLE_PROJECT_ROOT: path.resolve(root, "../.."),
-    CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: path.resolve(root, "../../packages/showdown-battle-core/vendor/showdown-client/js"),
+    CHANGEBATTLE_RELEASE_CHANNEL: releaseChannel,
+    CHANGEBATTLE_PROJECT_ROOT: workspaceRoot,
+    CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: path.resolve(workspaceRoot, "packages/showdown-battle-core/vendor/showdown-client/js"),
   };
   const electronArgs = [
     "exec",

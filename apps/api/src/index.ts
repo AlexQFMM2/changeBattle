@@ -223,6 +223,7 @@ export type DesktopUpdateStatusV4 =
     };
 
 export type DesktopAppBridge = {
+  checkForUpdates(): Promise<DesktopUpdateStatusV4>;
   openOfficialSite(): Promise<void>;
   getUpdateStatus(): Promise<DesktopUpdateStatusV4>;
   cancelUpdate(): Promise<void>;
