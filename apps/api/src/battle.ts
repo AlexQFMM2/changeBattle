@@ -974,7 +974,7 @@ function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPl
       moveIndex,
       move,
       specialOptions: buildSpecialChoiceOptions(normalizedRequest, activeIndex, moveIndex),
-    })).filter(action => !action.move.disabled && (action.move.pp ?? 1) > 0),
+    })),
   };
 }
 

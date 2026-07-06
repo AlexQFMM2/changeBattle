@@ -108,7 +108,7 @@ import {
   type TrainingStatusV4,
   type TrainingUserProfileInputV4,
 } from "./training.js";
-import {applyBattleSessionToRun, createBattleGameFromNodeDraft, patchBattleRunLocalTeamsFromSnapshot, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4} from "./battle.js";
+import {applyBattleSessionToRun, createBattleGameFromNodeDraft, patchBattleRunLocalTeamsFromSnapshot, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 
 export type FormalGameModeV4 = "singles" | "doubles" | "coop";
 export type FormalGameStatusV4 = "starterPreparing" | "starterSelecting" | "starterSelected" | "roundPlanPending" | "roundPlanning" | "resting" | "ended";
@@ -543,6 +543,10 @@ export type FormalGameRunStorageAdapter = {
   deleteFormalGameRun(): Promise<void>;
 };
 
+export type FormalBattleLogAppendOptionsV4 = {
+  playbackTimeline?: ShowdownPlaybackTimelineV4 | null;
+};
+
 export type FormalGameRunApi = {
   loadFormalGameRun(): Promise<FormalGameRunV4 | null>;
   saveFormalGameRun(run: FormalGameRunV4): Promise<FormalGameRunV4>;
@@ -553,9 +557,9 @@ export type FormalGameRunApi = {
   prepareFormalRoundPlan(run: FormalGameRunV4): FormalGameRunV4;
   prepareFormalBattleSession(run: FormalGameRunV4): FormalBattleSessionPreparationV4;
   appendCoinLogEntryV4(run: FormalGameRunV4, entry: FormalCoinLogInputV4): FormalGameRunV4;
-  appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4;
+  appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, options?: FormalBattleLogAppendOptionsV4): FormalGameRunV4;
   settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4;
-  finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4): FormalBattleResultFinalizeResultV4;
+  finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4, options?: FormalBattleLogAppendOptionsV4): FormalBattleResultFinalizeResultV4;
   prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
   getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4;
   chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): FormalMedicalInsuranceChoiceResultV4;
@@ -988,7 +992,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     });
   }
 
-  function appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4): FormalGameRunV4 {
+  function appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, options: FormalBattleLogAppendOptionsV4 = {}): FormalGameRunV4 {
     const normalized = normalizeFormalRun(run);
     const restRunSnapshot = normalized.restRunSnapshot
       ? patchBattleRunLocalTeamsFromSnapshot(normalized.restRunSnapshot, snapshot)
@@ -998,7 +1002,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       ? normalized
       : normalizeFormalRun({...normalized, restRunSnapshot, updatedAt: new Date().toISOString()});
     const existingKeys = new Set((restRunSnapshot.battleLog || []).map(entry => entry.key));
-    const parsed = parseBattleLogEntriesFromSnapshot(snapshot, existingKeys, getMoveDetailSafe);
+    const timelineParsed = options.playbackTimeline?.groups?.length
+      ? parseBattleLogEntriesFromTimeline(snapshot, options.playbackTimeline, existingKeys, getMoveDetailSafe)
+      : [];
+    const parsed = timelineParsed.length ? timelineParsed : parseBattleLogEntriesFromSnapshot(snapshot, existingKeys, getMoveDetailSafe);
     if (!parsed.length) return normalizedWithBattleState;
     const now = new Date().toISOString();
     return normalizeFormalRun({
@@ -1134,7 +1141,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     }), wonNode, now);
   }
 
-  function finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4): FormalBattleResultFinalizeResultV4 {
+  function finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4, options: FormalBattleLogAppendOptionsV4 = {}): FormalBattleResultFinalizeResultV4 {
     const normalized = normalizeFormalRun(run);
     if (!normalized.restRunSnapshot) {
       return {run: normalized, destination: "settlement", reason: reason || "loss"};
@@ -1147,7 +1154,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       restRunSnapshot,
       updatedAt: now,
     });
-    const withLog = appendBattleLogEntriesFromSnapshotV4(withSnapshot, snapshot);
+    const withLog = appendBattleLogEntriesFromSnapshotV4(withSnapshot, snapshot, options);
     const finalReason = reason === "surrender"
       ? "surrender"
       : restRunSnapshot.result?.outcome === "loss"
@@ -4763,24 +4770,70 @@ type FormalBattleMoveContextV4 = {
   moveEffectKind?: FormalMoveEffectKindV4;
 };
 
+type FormalBattleRawLogEntryV4 = {
+  rawIndex: number;
+  rawLine: string;
+};
+
 function parseBattleLogEntriesFromSnapshot(
   snapshot: BattleSessionSnapshotV4,
   existingKeys: Set<string>,
   getMoveDetail: (moveId: string) => DexMoveSummary | null,
 ): TrainingBattleLogEntryV4[] {
+  return parseBattleLogEntriesFromOrderedRawLines(
+    snapshot,
+    snapshot.rawLog.map((rawLine, rawIndex) => ({rawIndex, rawLine})),
+    existingKeys,
+    getMoveDetail,
+  );
+}
+
+function parseBattleLogEntriesFromTimeline(
+  snapshot: BattleSessionSnapshotV4,
+  timeline: ShowdownPlaybackTimelineV4,
+  existingKeys: Set<string>,
+  getMoveDetail: (moveId: string) => DexMoveSummary | null,
+): TrainingBattleLogEntryV4[] {
+  const byIndex = new Map<number, FormalBattleRawLogEntryV4>();
+  const addRawIndex = (rawIndex: number) => {
+    if (rawIndex < 0 || rawIndex >= snapshot.rawLog.length || byIndex.has(rawIndex)) return;
+    byIndex.set(rawIndex, {rawIndex, rawLine: snapshot.rawLog[rawIndex] || ""});
+  };
+  timeline.groups.forEach(group => {
+    group.rawIndices.forEach(addRawIndex);
+    group.calls.forEach(call => {
+      if (typeof call.rawIndex === "number") addRawIndex(call.rawIndex);
+    });
+  });
+  snapshot.rawLog.forEach((rawLine, rawIndex) => {
+    const command = rawLine.split("|")[1] || "";
+    if (command === "win") addRawIndex(rawIndex);
+  });
+  const ordered = Array.from(byIndex.values()).sort((a, b) => a.rawIndex - b.rawIndex);
+  return parseBattleLogEntriesFromOrderedRawLines(snapshot, ordered, existingKeys, getMoveDetail);
+}
+
+function parseBattleLogEntriesFromOrderedRawLines(
+  snapshot: BattleSessionSnapshotV4,
+  rawEntries: FormalBattleRawLogEntryV4[],
+  existingKeys: Set<string>,
+  getMoveDetail: (moveId: string) => DexMoveSummary | null,
+): TrainingBattleLogEntryV4[] {
   const entries: TrainingBattleLogEntryV4[] = [];
   let currentMove: FormalBattleMoveContextV4 | null = null;
+  const lastDirectDamageByTarget = new Map<string, FormalBattleMoveContextV4>();
   const hpMaxByBattleKey = buildBattleHpMaxMap(snapshot);
   const hpByBattleKey = new Map<string, {hp: number; maxHp: number}>();
   const maybePush = (entry: TrainingBattleLogEntryV4) => {
     if (!existingKeys.has(entry.key)) entries.push(entry);
   };
-  for (let index = 0; index < snapshot.rawLog.length; index += 1) {
-    const rawLine = snapshot.rawLog[index] || "";
+  for (const rawEntry of rawEntries) {
+    const index = rawEntry.rawIndex;
+    const rawLine = rawEntry.rawLine || "";
     const key = `${snapshot.id}:${index}:${rawLine}`;
     const parts = rawLine.split("|");
     const command = parts[1] || "";
-    if (command === "turn") {
+    if (command === "turn" || command === "upkeep") {
       currentMove = null;
       continue;
     }
@@ -4810,6 +4863,7 @@ function parseBattleLogEntriesFromSnapshot(
       continue;
     }
     if (command === "switch" || command === "drag") {
+      currentMove = null;
       const target = parseBattleIdent(parts[2]);
       const hpState = hpStateFromProtocol(parts[4] || "", target.key ? hpMaxByBattleKey.get(target.key) : undefined);
       if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
@@ -4824,22 +4878,27 @@ function parseBattleLogEntriesFromSnapshot(
         ? previousHp === undefined ? Math.max(0, hpState.maxHp - hpState.hp) : Math.max(0, previousHp - hpState.hp)
         : parts[3]?.includes("fnt") ? 1 : 0;
       if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
+      const directMove = currentMove && battleLogDamageCanUseCurrentMove(parts) ? currentMove : null;
+      if (target.key) {
+        if (directMove) lastDirectDamageByTarget.set(target.key, directMove);
+        else lastDirectDamageByTarget.delete(target.key);
+      }
       maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "damage",
         damage,
-        sourcePlayerId: currentMove?.playerId,
-        sourcePokemonKey: currentMove?.pokemonKey,
-        sourcePokemonName: currentMove?.pokemonName,
+        sourcePlayerId: directMove?.playerId,
+        sourcePokemonKey: directMove?.pokemonKey,
+        sourcePokemonName: directMove?.pokemonName,
         targetPlayerId: target.playerId,
         targetPokemonKey: target.key,
         targetPokemonName: target.name,
-        moveId: currentMove?.moveId,
-        moveName: currentMove?.moveName,
-        moveType: currentMove?.moveType,
-        moveCategory: currentMove?.moveCategory,
-        movePower: currentMove?.movePower,
-        moveEffectKind: currentMove?.moveEffectKind,
-        directness: currentMove ? "direct" : "indirect",
+        moveId: directMove?.moveId,
+        moveName: directMove?.moveName,
+        moveType: directMove?.moveType,
+        moveCategory: directMove?.moveCategory,
+        movePower: directMove?.movePower,
+        moveEffectKind: directMove?.moveEffectKind,
+        directness: directMove ? "direct" : "indirect",
       }));
       continue;
     }
@@ -4871,21 +4930,23 @@ function parseBattleLogEntriesFromSnapshot(
     if (command === "faint") {
       const target = parseBattleIdent(parts[2]);
       if (target.key) hpByBattleKey.set(target.key, {hp: 0, maxHp: hpByBattleKey.get(target.key)?.maxHp || hpMaxByBattleKey.get(target.key) || 0});
+      const directMove = target.key ? lastDirectDamageByTarget.get(target.key) || null : null;
+      if (target.key) lastDirectDamageByTarget.delete(target.key);
       maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "faint",
-        sourcePlayerId: currentMove?.playerId,
-        sourcePokemonKey: currentMove?.pokemonKey,
-        sourcePokemonName: currentMove?.pokemonName,
+        sourcePlayerId: directMove?.playerId,
+        sourcePokemonKey: directMove?.pokemonKey,
+        sourcePokemonName: directMove?.pokemonName,
         targetPlayerId: target.playerId,
         targetPokemonKey: target.key,
         targetPokemonName: target.name,
-        moveId: currentMove?.moveId,
-        moveName: currentMove?.moveName,
-        moveType: currentMove?.moveType,
-        moveCategory: currentMove?.moveCategory,
-        movePower: currentMove?.movePower,
-        moveEffectKind: currentMove?.moveEffectKind,
-        directness: currentMove ? "direct" : "indirect",
+        moveId: directMove?.moveId,
+        moveName: directMove?.moveName,
+        moveType: directMove?.moveType,
+        moveCategory: directMove?.moveCategory,
+        movePower: directMove?.movePower,
+        moveEffectKind: directMove?.moveEffectKind,
+        directness: directMove ? "direct" : "indirect",
       }));
       continue;
     }
@@ -4894,6 +4955,13 @@ function parseBattleLogEntriesFromSnapshot(
     }
   }
   return entries;
+}
+
+function battleLogDamageCanUseCurrentMove(parts: string[]): boolean {
+  const source = parts.slice(4).find(part => part.startsWith("[from]"));
+  if (!source) return true;
+  const normalized = source.toLowerCase();
+  return normalized.startsWith("[from] move:");
 }
 
 function buildBattleHpMaxMap(snapshot: BattleSessionSnapshotV4): Map<string, number> {

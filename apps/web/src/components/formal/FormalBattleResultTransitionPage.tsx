@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
@@ -35,9 +35,10 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, se
         routeFormalBattleResult(saved, onRestReady, onSettlementReady);
         return;
       }
+      const timeline = await loadFormalBattlePlaybackTimeline(api, sessionId);
       const result = formalGameBridge
-        ? await formalGameBridge.finalizeFormalBattleResult(run, sessionId, reason)
-        : api.finalizeFormalBattleResultV4(run, await api.battleService.getSnapshot(sessionId), reason);
+        ? await formalGameBridge.finalizeFormalBattleResult(run, sessionId, reason, {playbackTimeline: timeline})
+        : api.finalizeFormalBattleResultV4(run, await api.battleService.getSnapshot(sessionId), reason, {playbackTimeline: timeline});
       const saved = await api.saveFormalGameRun(result.run);
       if (cancelled) return;
       if (result.destination === "settlement") {
@@ -63,6 +64,18 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, se
       />
     </section>
   );
+}
+
+async function loadFormalBattlePlaybackTimeline(api: ChangeBattleV2Api, sessionId: string): Promise<ShowdownPlaybackTimelineV4 | null> {
+  try {
+    return await api.battleService.getPlaybackTimeline(sessionId, 0);
+  } catch (error) {
+    console.warn("[FormalBattleResultTransitionPage] playback timeline unavailable, fallback to rawLog settlement", {
+      sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 function routeFormalBattleResult(

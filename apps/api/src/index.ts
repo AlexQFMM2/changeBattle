@@ -10,7 +10,7 @@ import {
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BagStateV4, type BattlePreferenceV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerItemTypeV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
-import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4} from "./battle.js";
+import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 import {
@@ -244,7 +244,7 @@ export type DesktopFormalGameBridge = {
   getFormalTrainingGroundLessons(run: FormalGameRunV4): Promise<FormalTrainingGroundLessonViewV4[]>;
   prepareFormalSettlement(run: FormalGameRunV4, profile: UserProfileV2, reason: FormalSettlementReasonV4): Promise<{run: FormalGameRunV4; profile: UserProfileV2}>;
   settleFormalBattleRound(run: FormalGameRunV4): Promise<FormalGameRunV4>;
-  finalizeFormalBattleResult(run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4): Promise<FormalBattleResultFinalizeResultV4>;
+  finalizeFormalBattleResult(run: FormalGameRunV4, sessionId: string, reason?: FormalBattleResultFinalizeReasonV4, options?: {playbackTimeline?: ShowdownPlaybackTimelineV4 | null}): Promise<FormalBattleResultFinalizeResultV4>;
 };
 
 export type DesktopBattleServiceBridge = BattleServiceClientV4;

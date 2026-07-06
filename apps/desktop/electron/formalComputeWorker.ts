@@ -1,6 +1,6 @@
 import {parentPort} from "node:worker_threads";
 import {createChangeBattleV2Api} from "@changebattle-v2/api";
-import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, ShowdownPlaybackTimelineV4, UserProfileV2} from "@changebattle-v2/api";
 
 type FormalComputeRequest =
   | {id: number; method: "createFormalGameWithStarterCandidates"; args: [UserProfileV2, {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}]}
@@ -13,7 +13,7 @@ type FormalComputeRequest =
   | {id: number; method: "getFormalTrainingGroundLessons"; args: [FormalGameRunV4]}
   | {id: number; method: "prepareFormalSettlement"; args: [FormalGameRunV4, UserProfileV2, FormalSettlementReasonV4]}
   | {id: number; method: "settleFormalBattleRound"; args: [FormalGameRunV4]}
-  | {id: number; method: "finalizeFormalBattleResult"; args: [FormalGameRunV4, BattleSessionSnapshotV4, FormalBattleResultFinalizeReasonV4 | undefined]};
+  | {id: number; method: "finalizeFormalBattleResult"; args: [FormalGameRunV4, BattleSessionSnapshotV4, FormalBattleResultFinalizeReasonV4 | undefined, {playbackTimeline?: ShowdownPlaybackTimelineV4 | null} | undefined]};
 
 type FormalComputeResponse = {
   id: number;
@@ -84,8 +84,8 @@ async function handleRequest(request: FormalComputeRequest): Promise<unknown> {
     return api.settleFormalBattleRoundV4(run);
   }
   if (request.method === "finalizeFormalBattleResult") {
-    const [run, snapshot, reason] = request.args;
-    return api.finalizeFormalBattleResultV4(run, snapshot, reason);
+    const [run, snapshot, reason, options] = request.args;
+    return api.finalizeFormalBattleResultV4(run, snapshot, reason, options);
   }
   throw new Error(`未知正式流程计算方法：${(request as {method?: string}).method || ""}`);
 }

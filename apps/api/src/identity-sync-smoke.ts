@@ -509,6 +509,27 @@ assert(singlesMove.requestLength === 1, "singles move requestLength mismatch");
 assert(singlesMove.activeIndex === 0, "singles move activeIndex mismatch");
 assert(singlesMove.choiceIndexByTeamIndex[1] === 2, "singles choice index mapping mismatch");
 
+const disabledMoveView = projectBattleViewModelV4({
+  ...protocolActiveSnapshot,
+  requests: {
+    p1: {
+      ...moveRequest(1),
+      active: [{
+        moves: [
+          {move: "Thunderbolt", id: "thunderbolt", pp: 0, maxpp: 15, target: "normal"},
+          {move: "Quick Attack", id: "quickattack", pp: 30, maxpp: 30, target: "normal"},
+          {move: "Iron Tail", id: "irontail", pp: 15, maxpp: 15, target: "normal", disabled: true},
+          {move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"},
+        ],
+      }],
+    },
+  },
+}, "p1");
+const disabledMoveActions = disabledMoveView.command.actions.filter(action => action.kind === "move");
+assert(disabledMoveActions.length === 4, "disabled or empty-PP moves should stay visible as command actions");
+assert(disabledMoveActions[0]?.moveIndex === 0 && disabledMoveActions[0].move.pp === 0, "first PP0 move should keep slot index");
+assert(disabledMoveActions[2]?.moveIndex === 2 && disabledMoveActions[2].move.disabled, "disabled move should keep slot index");
+
 const doublesMove = normalizeBattleRequestV4(moveRequest(2), "p1", "doubles", "standard");
 assert(doublesMove.requestType === "move", "doubles move requestType mismatch");
 assert(doublesMove.requestLength === 2, "doubles move requestLength mismatch");
