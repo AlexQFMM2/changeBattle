@@ -52,5 +52,5 @@ echo "Publishing update metadata to $UPDATE_WEB_ROOT..."
 ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' && if [ -d '$REMOTE_TMP_DIR/image' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/image' && sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'; fi && if [ -d '$REMOTE_TMP_DIR/manifests' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/manifests' && sudo cp -a '$REMOTE_TMP_DIR/manifests/.' '$UPDATE_WEB_ROOT/manifests/'; fi && if [ -d '$REMOTE_TMP_DIR/files' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/files' && sudo cp -a '$REMOTE_TMP_DIR/files/.' '$UPDATE_WEB_ROOT/files/'; fi && sudo install -m 0644 '$REMOTE_TMP_DIR/latest.json' '$UPDATE_WEB_ROOT/latest.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/index.html' '$UPDATE_WEB_ROOT/index.html'"
 
 echo "Published:"
-echo "  https://65h26i.top/changebattle/latest.json"
-echo "  https://65h26i.top/changebattle/"
+echo "  http://119.45.240.157/changebattle/latest.json"
+echo "  http://119.45.240.157/changebattle/"

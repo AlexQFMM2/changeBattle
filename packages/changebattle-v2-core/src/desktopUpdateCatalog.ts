@@ -66,12 +66,12 @@ export type ChangeBattleDesktopUpdateCheckResultV4 =
 export const CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4 = 1;
 
 export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_MANIFEST_URLS_V4 = [
+  "http://119.45.240.157/changebattle/latest.json",
   "https://update.65h26i.top/changebattle/latest.json",
   "https://65h26i.top/changebattle/latest.json",
-  "http://119.45.240.157/changebattle/latest.json",
 ] as const;
 
-export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4 = "https://65h26i.top/changebattle/";
+export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4 = "http://119.45.240.157/changebattle/";
 export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4 = CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4;
 
 export const DESKTOP_UPDATE_ALLOWED_PATH_PREFIXES_V4 = ["apps/", "assets/", "vendor/"] as const;
