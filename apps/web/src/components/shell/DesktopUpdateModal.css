@@ -1,19 +1,24 @@
 .pokopia-layer[data-phase="expand"] .pokopia-shell.app-modal.desktop-update-modal,
 .pokopia-layer[data-phase="exit"] .pokopia-shell.app-modal.desktop-update-modal,
 .pokopia-content.app-modal.desktop-update-modal {
-  width: min(420px, calc(100vw - 28px));
-  min-height: 220px;
+  width: var(--desktop-update-modal-width, 332px);
+  min-height: var(--desktop-update-modal-min-height, 168px);
+  max-height: var(--desktop-update-modal-max-height, 236px);
 }
 
 .desktop-update-card {
+  min-width: 0;
+  max-height: var(--desktop-update-modal-card-max-height, 236px);
   display: grid;
-  gap: 14px;
-  border: 2px solid rgb(137 227 111 / 58%);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: var(--desktop-update-modal-gap, 7px);
+  overflow: hidden;
+  border: var(--desktop-update-modal-border-width, 2px) solid rgb(137 227 111 / 58%);
   border-radius: 15px;
   background: linear-gradient(180deg, rgb(11 20 16 / 98%), rgb(6 10 9 / 98%));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 18px 42px rgb(0 0 0 / 38%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 10px 22px rgb(0 0 0 / 34%);
   box-sizing: border-box;
-  padding: 18px;
+  padding: var(--desktop-update-modal-padding, 12px);
 }
 
 .desktop-update-card header,
@@ -26,52 +31,55 @@
 
 .desktop-update-card small {
   color: #d8ffe0;
-  font-size: 11px;
+  font-size: 7px;
   font-weight: 950;
+  line-height: 1;
 }
 
 .desktop-update-card h2 {
-  margin-top: 5px;
+  margin-top: 4px;
   color: #fff7dc;
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 1000;
-  line-height: 1.15;
+  line-height: 1.05;
 }
 
 .desktop-update-card dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 5px;
 }
 
 .desktop-update-card dl div {
   min-width: 0;
   border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgb(255 255 255 / 6%);
-  padding: 8px;
+  padding: 5px 6px;
 }
 
 .desktop-update-card dt {
   color: rgb(255 255 255 / 58%);
-  font-size: 10px;
+  font-size: 6px;
   font-weight: 850;
+  line-height: 1;
 }
 
 .desktop-update-card dd {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: #fff;
-  font-size: 13px;
+  font-size: 9px;
   font-weight: 950;
+  line-height: 1.1;
   overflow-wrap: anywhere;
 }
 
 .desktop-update-progress {
   position: relative;
-  height: 20px;
+  height: 13px;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgb(255 255 255 / 8%);
 }
 
@@ -90,40 +98,62 @@
   height: 100%;
   place-items: center;
   color: #fff;
-  font-size: 11px;
+  font-size: 7px;
   font-weight: 1000;
 }
 
 .desktop-update-card p,
 .desktop-update-card li {
   color: rgb(255 255 255 / 78%);
-  font-size: 12px;
+  font-size: 7px;
   font-weight: 780;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .desktop-update-card ul {
   display: grid;
-  gap: 5px;
-  padding-left: 18px;
+  min-height: 0;
+  max-height: 44px;
+  gap: 3px;
+  overflow: auto;
+  padding-left: 12px;
+  scrollbar-color: rgb(85 125 96 / 85%) rgb(255 255 255 / 8%);
+  scrollbar-width: thin;
+}
+
+.desktop-update-card ul::-webkit-scrollbar {
+  width: 8px;
+}
+
+.desktop-update-card ul::-webkit-scrollbar-track {
+  background: rgb(255 255 255 / 8%);
+  border-radius: 999px;
+}
+
+.desktop-update-card ul::-webkit-scrollbar-thumb {
+  background: rgb(85 125 96 / 85%);
+  border-radius: 999px;
 }
 
 .desktop-update-card footer {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-auto-columns: minmax(72px, auto);
+  grid-auto-flow: column;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .desktop-update-card button {
-  min-height: 30px;
+  min-width: 0;
+  height: 22px;
   border: 1px solid rgb(255 255 255 / 18%);
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgb(255 255 255 / 10%);
   color: #fff;
-  font-size: 12px;
+  font-size: 8px;
   font-weight: 950;
-  padding: 0 12px;
+  line-height: 1;
+  padding: 0 8px;
   cursor: pointer;
 }
 
