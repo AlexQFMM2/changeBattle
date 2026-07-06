@@ -300,8 +300,8 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
             zf.write(path, relative)
 
 
-def validate_zip(zip_path: Path, version: str) -> None:
-    prefix = f"ChangeBattle-V2-Desk-portable-v{version}"
+def validate_zip(zip_path: Path, package_name: str) -> None:
+    prefix = package_name
     required = [
         f"{prefix}/ChangeBattle-V2-Desk.cmd",
         f"{prefix}/RELEASE-README.md",
@@ -361,7 +361,7 @@ def main() -> int:
         cwd=PROJECT_ROOT,
     )
     zip_dir(stage_dir, zip_path)
-    validate_zip(zip_path, version)
+    validate_zip(zip_path, package_name)
 
     size_mb = zip_path.stat().st_size / 1024 / 1024
     print(f"wrote {zip_path}")
