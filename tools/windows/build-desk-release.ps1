@@ -104,7 +104,12 @@ if ([string]::IsNullOrWhiteSpace($env:CHANGEBATTLE_UPDATE_MANIFEST_URLS)) {
 }
 python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --showdown-path $ShowdownPath --showdown-client-path $ShowdownClientPath
 
-$ZipName = "ChangeBattle-V2-Desk-portable-v$Version.zip"
+$PackageName = if ($Channel -eq "beta") {
+  "ChangeBattle-V2-Desk-portable-debug-v$Version"
+} else {
+  "ChangeBattle-V2-Desk-portable-v$Version"
+}
+$ZipName = "$PackageName.zip"
 $LocalZip = Join-Path $SourceRoot "release\$ZipName"
 $ReleaseZip = Join-Path $ReleaseRoot $ZipName
 
@@ -122,7 +127,7 @@ try {
   foreach ($Entry in $Zip.Entries) {
     [void]$Names.Add($Entry.FullName)
   }
-  $Prefix = "ChangeBattle-V2-Desk-portable-v$Version"
+  $Prefix = $PackageName
   $Wanted = @(
     "$Prefix/ChangeBattle-V2-Desk.cmd",
     "$Prefix/RELEASE-README.md",

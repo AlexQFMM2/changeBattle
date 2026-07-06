@@ -12,17 +12,17 @@ const args = process.argv.slice(2);
 const options = parseArgs(args);
 const packageJson = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const version = options.version || packageJson.version;
+const channel = normalizeReleaseChannel(options.channel || process.env.CHANGEBATTLE_RELEASE_CHANNEL || "stable");
 
 if (!/^\d+\.\d+\.\d+$/.test(version)) {
   fail(`Version must look like X.Y.Z, got: ${version}`);
 }
 
-const zipPath = path.join(releaseDir, `ChangeBattle-V2-Desk-portable-v${version}.zip`);
+const zipPath = path.join(releaseDir, `${portablePackageName(version, channel)}.zip`);
 const sha256 = existsSync(zipPath) ? sha256File(zipPath) : "";
 const zipSize = existsSync(zipPath) ? statSync(zipPath).size : undefined;
 const commit = git(["rev-parse", "--short", "HEAD"]) || "";
 const date = formatLocalDate(new Date());
-const channel = normalizeReleaseChannel(options.channel || process.env.CHANGEBATTLE_RELEASE_CHANNEL || "stable");
 const officialSiteUrl = withTrailingSlash(options.officialSiteUrl || process.env.CHANGEBATTLE_OFFICIAL_SITE_URL || options.downloadPageUrl || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_URL || defaultOfficialSiteUrlForChannel(channel));
 const downloadPageUrl = officialSiteUrl;
 const downloadPageTemplatePath = options.template || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_TEMPLATE || path.join(rootDir, "tools", "release", "download-page-template.html");
@@ -169,6 +169,10 @@ function defaultOfficialSiteUrlForChannel(channel) {
   return channel === "beta"
     ? "http://119.45.240.157/changebattle-beta/"
     : "http://119.45.240.157/changebattle/";
+}
+
+function portablePackageName(version, channel) {
+  return `ChangeBattle-V2-Desk-portable${channel === "beta" ? "-debug" : ""}-v${version}`;
 }
 
 function normalizeReleaseChannel(value) {

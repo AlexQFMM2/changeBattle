@@ -28,8 +28,12 @@ echo "Building $CHANNEL release on Windows..."
 ssh "$WINDOWS_HOST" "powershell -NoProfile -ExecutionPolicy Bypass -File D:\\changeBattleV2\\build-desk-release.ps1 -Version $VERSION -Channel $CHANNEL"
 
 mkdir -p "$ROOT_DIR/release"
+PACKAGE_NAME="ChangeBattle-V2-Desk-portable-v${VERSION}"
+if [[ "$CHANNEL" == "beta" ]]; then
+  PACKAGE_NAME="ChangeBattle-V2-Desk-portable-debug-v${VERSION}"
+fi
 echo "Downloading release zip..."
-scp "${WINDOWS_HOST}:${WINDOWS_ROOT}/release/ChangeBattle-V2-Desk-portable-v${VERSION}.zip" "$ROOT_DIR/release/"
+scp "${WINDOWS_HOST}:${WINDOWS_ROOT}/release/${PACKAGE_NAME}.zip" "$ROOT_DIR/release/"
 
 echo "Downloading incremental update files..."
 mkdir -p "$ROOT_DIR/release/changebattle"
@@ -37,4 +41,4 @@ scp -r "${WINDOWS_HOST}:${WINDOWS_ROOT}/changeBattleV2/release/changebattle/mani
 scp -r "${WINDOWS_HOST}:${WINDOWS_ROOT}/changeBattleV2/release/changebattle/files" "$ROOT_DIR/release/changebattle/" || true
 
 echo "Release copied to:"
-ls -lh "$ROOT_DIR/release/ChangeBattle-V2-Desk-portable-v${VERSION}.zip"
+ls -lh "$ROOT_DIR/release/${PACKAGE_NAME}.zip"

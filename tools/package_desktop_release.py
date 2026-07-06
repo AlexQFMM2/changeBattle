@@ -123,6 +123,12 @@ def desktop_update_manifest_urls() -> str:
     return base_url.rstrip("/") + "/latest.json"
 
 
+def portable_package_name(version: str) -> str:
+    channel = release_channel()
+    channel_part = "-debug" if channel == "beta" else ""
+    return f"ChangeBattle-V2-Desk-portable{channel_part}-v{version}"
+
+
 def copy_path(src: Path, dst: Path) -> None:
     if not src.exists():
         return
@@ -335,8 +341,9 @@ def main() -> int:
     showdown_client_root = normalize_showdown_client_root(args.showdown_client_path)
 
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
-    stage_dir = RELEASE_DIR / f"ChangeBattle-V2-Desk-portable-v{version}"
-    zip_path = RELEASE_DIR / f"ChangeBattle-V2-Desk-portable-v{version}.zip"
+    package_name = portable_package_name(version)
+    stage_dir = RELEASE_DIR / package_name
+    zip_path = RELEASE_DIR / f"{package_name}.zip"
     if stage_dir.exists():
         shutil.rmtree(stage_dir)
     stage_dir.mkdir(parents=True, exist_ok=True)
