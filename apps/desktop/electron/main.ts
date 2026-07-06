@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import {promises as fs} from "node:fs";
+import {readFileSync, promises as fs} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
@@ -684,7 +684,19 @@ function isAbortError(error: unknown): boolean {
 }
 
 function desktopAppVersion(): string {
+  const localManifestVersion = readDesktopLocalFileManifestVersionSync();
+  if (localManifestVersion) return localManifestVersion;
   return normalizeChangeBattleDesktopVersionV4(process.env.CHANGEBATTLE_DESKTOP_VERSION || app.getVersion());
+}
+
+function readDesktopLocalFileManifestVersionSync(): string {
+  try {
+    const text = readFileSync(path.join(desktopPortableRoot(), "update-manifest.json"), "utf8");
+    const manifest = parseDesktopUpdateFileManifestV4(JSON.parse(text));
+    return manifest?.version ? normalizeChangeBattleDesktopVersionV4(manifest.version) : "";
+  } catch {
+    return "";
+  }
 }
 
 app.whenReady().then(() => {
