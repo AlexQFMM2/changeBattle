@@ -6,8 +6,8 @@ import {
   REST_CENTER_PAPER_ACTIONS_V4,
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   getNatureEffectsV4,
-  normalizePlayerVaultV4,
   normalizeProfileNameV2,
+  normalizeSaveTableV4,
   normalizeTrainerVaultV2,
   normalizeUserProfileV2,
   playerVaultStorageCapacityV4,
@@ -663,10 +663,12 @@ function normalizeProfileAssets(profile: UserProfileV2, publicAssetPrefix: strin
 
 function normalizeProfile(profile: UserProfileV2): UserProfileV2 {
   const trainer = trainerFor(profile.trainerId);
-  return normalizeUserProfileV2(profile, trainer);
+  return normalizeSaveTableV4("profile", profile, {trainerDefaults: trainer}).value;
 }
 
-export const normalizePlayerVault = normalizePlayerVaultV4;
+export function normalizePlayerVault(value?: unknown): PlayerVaultV4 {
+  return normalizeSaveTableV4("playerVault", value).value;
+}
 
 export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefined | null, run: FormalGameRunV4 | undefined | null): PlayerVaultMergeResultV4 {
   const next = normalizePlayerVault(vault);
