@@ -72,6 +72,9 @@ import {
   formalTrainingGroundStableSelfStudyGainRuleV4,
   isFormalRandomGeneratableSpeciesV4,
   isFormalStarterAllowedRankV4,
+  normalizeFormalGameSettlementV4,
+  normalizeFormalRoundSettlementV4,
+  normalizeFormalSettlementReasonV4,
   summarizeBattleLogByPokemonV4,
   summarizeCoinLogV4,
   type CoopPartnerPreferenceV4,
@@ -81,6 +84,10 @@ import {
   type FormalNpcBattlePreferenceV4,
   type FormalNpcTeamPreferenceV4,
   type FormalNpcTypeV4,
+  type FormalGameSettlementV4,
+  type FormalRoundSettlementV4,
+  type FormalSettlementPokemonStatsV4,
+  type FormalSettlementReasonV4,
   type FormalShopProductViewV4,
   type FormalShopCategoryV4,
   type FormalStarterRoleV4,
@@ -123,6 +130,10 @@ export type {
   FormalNpcBattlePreferenceV4,
   FormalNpcTeamPreferenceV4,
   FormalNpcTypeV4,
+  FormalGameSettlementV4,
+  FormalRoundSettlementV4,
+  FormalSettlementPokemonStatsV4,
+  FormalSettlementReasonV4,
   FormalShopCategoryV4,
   FormalStarterRoleV4,
   PokemonPowerProfileV4,
@@ -477,71 +488,12 @@ export type FormalGameRunV4 = {
   settledAt?: string;
 };
 
-export type FormalRoundSettlementV4 = {
-  nodeId: string;
-  rewardCoins: number;
-  reviveCost: number;
-  netCoins: number;
-  revivedPokemonIds: string[];
-  emergencyHealedPokemonIds: string[];
-  outpatientHealedPokemonIds: string[];
-  leveledPokemonIds: string[];
-  createdAt: string;
-};
-
-export type FormalSettlementReasonV4 = "complete" | "loss" | "surrender" | "abandon";
-
 export type FormalBattleResultFinalizeReasonV4 = Extract<FormalSettlementReasonV4, "loss" | "surrender" | "complete">;
 export type FormalBattleResultDestinationV4 = "rest" | "settlement";
 export type FormalBattleResultFinalizeResultV4 = {
   run: FormalGameRunV4;
   destination: FormalBattleResultDestinationV4;
   reason?: FormalBattleResultFinalizeReasonV4;
-};
-
-export type FormalGameSettlementV4 = {
-  id: string;
-  outcome: "win" | "loss" | "abandoned";
-  reason: FormalSettlementReasonV4;
-  bpGained: number;
-  wonRounds: number;
-  totalRounds: number;
-  coinSummary: {
-    income: number;
-    expense: number;
-    net: number;
-    balance: number;
-  };
-  pokemonStats: FormalSettlementPokemonStatsV4[];
-  mvpPokemonKey: string;
-  diagnostics: string[];
-  createdAt: string;
-  claimedAt?: string;
-  playerVaultItemsClaimedAt?: string;
-  playerVaultItemsClaimedCount?: number;
-  playerVaultItemsRejectedCount?: number;
-};
-
-export type FormalSettlementPokemonStatsV4 = {
-  pokemonKey: string;
-  localPokemonId: string;
-  speciesId: string;
-  name: string;
-  nameZh: string;
-  iconUrl?: string;
-  iconStyle?: string;
-  spriteUrl?: string;
-  shiny: boolean;
-  kills: number;
-  deaths: number;
-  assists: number;
-  damageDealt: number;
-  damageTaken: number;
-  healing: number;
-  usedRounds: number[];
-  kdaScore: number;
-  mvpScore: number;
-  isMvp: boolean;
 };
 
 export type FormalGameRunStorageAdapter = {
@@ -4065,21 +4017,7 @@ function normalizeFormalRoundSettlementByNodeId(value: unknown): Record<string, 
   if (!value || typeof value !== "object") return {};
   return Object.fromEntries(Object.entries(value as Record<string, Partial<FormalRoundSettlementV4>>)
     .filter(([nodeId]) => Boolean(nodeId))
-    .map(([nodeId, settlement]) => [nodeId, normalizeFormalRoundSettlement(settlement, nodeId)]));
-}
-
-function normalizeFormalRoundSettlement(settlement: Partial<FormalRoundSettlementV4> | undefined, nodeId: string): FormalRoundSettlementV4 {
-  return {
-    nodeId: String(settlement?.nodeId || nodeId),
-    rewardCoins: clampInt(settlement?.rewardCoins, 0, 999999, 0),
-    reviveCost: clampInt(settlement?.reviveCost, 0, 999999, 0),
-    netCoins: clampInt(settlement?.netCoins, -999999, 999999, 0),
-    revivedPokemonIds: normalizeStringList(settlement?.revivedPokemonIds),
-    emergencyHealedPokemonIds: normalizeStringList(settlement?.emergencyHealedPokemonIds),
-    outpatientHealedPokemonIds: normalizeStringList(settlement?.outpatientHealedPokemonIds),
-    leveledPokemonIds: normalizeStringList(settlement?.leveledPokemonIds),
-    createdAt: settlement?.createdAt || new Date().toISOString(),
-  };
+    .map(([nodeId, settlement]) => [nodeId, normalizeFormalRoundSettlementV4(settlement, nodeId)]));
 }
 
 function normalizeFormalPokemonExchangeByNodeId(value: unknown): Record<string, FormalPokemonExchangeStateV4> {
@@ -4528,34 +4466,11 @@ function starterRoleLabel(role: FormalStarterRoleV4): string {
 }
 
 function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefined): FormalGameSettlementV4 | null {
-  if (!settlement) return null;
-  const reason = normalizeSettlementReason(settlement.reason);
-  const outcome = settlement.outcome === "win" || settlement.outcome === "loss" || settlement.outcome === "abandoned"
-    ? settlement.outcome
-    : reason === "abandon" ? "abandoned" : "loss";
-  const pokemonStats = Array.isArray(settlement.pokemonStats) ? settlement.pokemonStats.map(normalizeSettlementPokemonStats) : [];
-  return {
-    id: settlement.id || createId("formal-settlement"),
-    outcome,
-    reason,
-    bpGained: clampInt(settlement.bpGained, 0, 999999, 0),
-    wonRounds: clampInt(settlement.wonRounds, 0, FORMAL_ROUND_COUNT, 0),
-    totalRounds: clampInt(settlement.totalRounds, 1, 999999, settlement.wonRounds || FORMAL_ROUND_COUNT),
-    coinSummary: {
-      income: clampInt(settlement.coinSummary?.income, 0, 999999, 0),
-      expense: clampInt(settlement.coinSummary?.expense, 0, 999999, 0),
-      net: clampInt(settlement.coinSummary?.net, -999999, 999999, 0),
-      balance: clampInt(settlement.coinSummary?.balance, 0, 999999, 0),
-    },
-    pokemonStats,
-    mvpPokemonKey: settlement.mvpPokemonKey || pokemonStats[0]?.pokemonKey || "",
-    diagnostics: Array.isArray(settlement.diagnostics) ? settlement.diagnostics.map(String) : [],
-    createdAt: settlement.createdAt || new Date().toISOString(),
-    claimedAt: settlement.claimedAt || undefined,
-    playerVaultItemsClaimedAt: settlement.playerVaultItemsClaimedAt || undefined,
-    playerVaultItemsClaimedCount: clampInt(settlement.playerVaultItemsClaimedCount, 0, 999999, 0),
-    playerVaultItemsRejectedCount: clampInt(settlement.playerVaultItemsRejectedCount, 0, 999999, 0),
-  };
+  return normalizeFormalGameSettlementV4(settlement, {
+    idFallback: createId("formal-settlement"),
+    totalRoundsFallback: FORMAL_ROUND_COUNT,
+    createdAtFallback: new Date().toISOString(),
+  });
 }
 
 function normalizeFormalShopByNodeId(value: unknown, run: Partial<FormalGameRunV4>): Record<string, FormalRestShopV4> {
@@ -4773,32 +4688,8 @@ function normalizeShopItemID(value: unknown): string {
   return toID(raw);
 }
 
-function normalizeSettlementPokemonStats(stats: FormalSettlementPokemonStatsV4): FormalSettlementPokemonStatsV4 {
-  return {
-    pokemonKey: String(stats.pokemonKey || stats.localPokemonId || stats.speciesId || createId("pokemon-stat")),
-    localPokemonId: String(stats.localPokemonId || ""),
-    speciesId: String(stats.speciesId || ""),
-    name: String(stats.name || stats.nameZh || stats.speciesId || ""),
-    nameZh: String(stats.nameZh || stats.name || stats.speciesId || ""),
-    iconUrl: stats.iconUrl || undefined,
-    iconStyle: stats.iconStyle || undefined,
-    spriteUrl: stats.spriteUrl || undefined,
-    shiny: Boolean(stats.shiny),
-    kills: clampInt(stats.kills, 0, 999, 0),
-    deaths: clampInt(stats.deaths, 0, 999, 0),
-    assists: clampInt(stats.assists, 0, 999, 0),
-    damageDealt: clampInt(stats.damageDealt, 0, 999999, 0),
-    damageTaken: clampInt(stats.damageTaken, 0, 999999, 0),
-    healing: clampInt(stats.healing, 0, 999999, 0),
-    usedRounds: Array.isArray(stats.usedRounds) ? Array.from(new Set(stats.usedRounds.map(round => clampInt(round, 0, FORMAL_ROUND_COUNT - 1, 0)))) : [],
-    kdaScore: Number.isFinite(Number(stats.kdaScore)) ? Number(stats.kdaScore) : 0,
-    mvpScore: Number.isFinite(Number(stats.mvpScore)) ? Number(stats.mvpScore) : 0,
-    isMvp: Boolean(stats.isMvp),
-  };
-}
-
 function normalizeSettlementReason(reason: unknown): FormalSettlementReasonV4 {
-  return reason === "complete" || reason === "loss" || reason === "surrender" || reason === "abandon" ? reason : "loss";
+  return normalizeFormalSettlementReasonV4(reason);
 }
 
 type FormalMoveEffectKindV4 = NonNullable<TrainingBattleLogEntryV4["moveEffectKind"]>;
