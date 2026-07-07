@@ -16,11 +16,14 @@ const normalized = normalizeBattlePreferenceV4({
 });
 assert(JSON.stringify(normalized.allowedGenerations) === JSON.stringify([1, 3, 9]), "generations should be unique and sorted");
 assert(JSON.stringify(normalized.enabledBattleSystems) === JSON.stringify(["mega", "zmove"]), "gen7 should enable mega and zmove");
+assert(normalized.competitionMode === "standard", "competition mode should default to standard");
 assert(normalized.legendaryBattle === true, "legendaryBattle should persist");
 assert(normalized.battleBagEnabled === false, "battleBagEnabled false should persist");
 
 const fallback = normalizeBattlePreferenceV4({allowedGenerations: [9], ruleSet: "gen9"});
 assert(JSON.stringify(fallback.allowedGenerations) === JSON.stringify([1, 2, 3, 4, 5, 6, 7]), "less than three generations should fall back");
+assert(normalizeBattlePreferenceV4({competitionMode: "single"}).competitionMode === "single", "single competition mode should persist");
+assert(normalizeBattlePreferenceV4({competitionMode: "leagueLoop"}).competitionMode === "leagueLoop", "league loop competition mode should normalize for future use");
 assert(JSON.stringify(battleSystemsForRuleSetV4("gen8")) === JSON.stringify(["dynamax"]), "gen8 should enable dynamax");
 assert(JSON.stringify(battleSystemsForRuleSetV4("gen9")) === JSON.stringify(["terastal"]), "gen9 should enable terastal");
 assert(JSON.stringify(battleSystemsForRuleSetV4("standard")) === JSON.stringify([]), "standard should not enable special systems");
@@ -102,6 +105,7 @@ const run = api.createTrainingRunGame({
   battlePreference: normalizeBattlePreferenceV4({ruleSet: "gen9", battleBagEnabled: false}),
 });
 assert(run.battlePreference.ruleSet === "gen9", "run should snapshot profile ruleSet");
+assert(run.battlePreference.competitionMode === "standard", "training run should keep default competition mode");
 assert(run.scenario.ruleSet === "gen9", "scenario should follow preference ruleSet");
 assert(run.players.p1?.bag.battleBagEnabled === false, "player bag should follow battle bag preference");
 assert(run.players.p1?.bag.items.some(item => item.itemID === "system-tera-orb"), "gen9 run should include tera orb");

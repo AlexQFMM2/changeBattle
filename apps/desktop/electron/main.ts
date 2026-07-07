@@ -134,6 +134,7 @@ ipcMain.handle("desktopApp:openOfficialSite", async () => {
 });
 
 ipcMain.handle("desktopApp:checkForUpdates", async () => {
+  if (desktopUpdateDisabledForRuntime()) return desktopUpdateDisabledStatus();
   return runDesktopBackgroundUpdate({manual: true});
 });
 
@@ -316,6 +317,10 @@ function rejectFormalComputePending(error: Error) {
 }
 
 function scheduleDesktopUpdateCheck() {
+  if (desktopUpdateDisabledForRuntime()) {
+    console.info("[changebattle-v2:desktop] desktop update check skipped in dev/non-portable runtime");
+    return;
+  }
   if (process.env.CHANGEBATTLE_DISABLE_UPDATE_CHECK === "1") {
     console.info("[changebattle-v2:desktop] desktop update check disabled by CHANGEBATTLE_DISABLE_UPDATE_CHECK=1");
     return;
@@ -378,6 +383,7 @@ async function fetchDesktopUpdateJson(manifestUrl: string, parentSignal?: AbortS
 }
 
 async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Promise<DesktopUpdateStatusV4> {
+  if (desktopUpdateDisabledForRuntime()) return desktopUpdateDisabledStatus();
   if (desktopUpdateRunning) return desktopUpdateStatus;
   desktopUpdateRunning = true;
   const controller = new AbortController();
@@ -677,6 +683,18 @@ function desktopPortableRoot(): string {
 
 function desktopPortableUpdateEnabled(): boolean {
   return process.env.CHANGEBATTLE_PORTABLE_UPDATE_ENABLED === "1";
+}
+
+function desktopUpdateDisabledForRuntime(): boolean {
+  return !desktopPortableUpdateEnabled() || process.env.CHANGEBATTLE_DISABLE_UPDATE_CHECK === "1";
+}
+
+function desktopUpdateDisabledStatus(): DesktopUpdateStatusV4 {
+  return {
+    phase: "idle",
+    currentVersion: desktopAppVersion(),
+    officialSiteUrl: desktopUpdateStatus.officialSiteUrl || CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
+  };
 }
 
 function isAbortError(error: unknown): boolean {

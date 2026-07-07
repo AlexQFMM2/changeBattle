@@ -714,6 +714,8 @@ assert(roundPlanned.status === "resting", "formal round plan should enter restin
 assert(roundPlanned.money === 0, "root-only formal run should start with zero money");
 assert(roundPlanned.roundPlan.length === 7, "formal round plan should create seven rounds");
 assert(roundPlanned.restRunSnapshot?.gameMap.length === 7, "formal rest snapshot should expose seven map nodes");
+assert(roundPlanned.competitionMode === "standard", "formal run should default to standard competition mode");
+assert(roundPlanned.restRunSnapshot?.competitionMode === "standard", "formal rest snapshot should keep competition mode");
 assert(roundPlanned.roundPlan[0]?.participants.p2?.localTeam.pokemon.length === 3, "formal round planning should generate the first opponent");
 assert(!roundPlanned.roundPlan[1]?.participants.p2, "formal round planning should defer the second opponent");
 assert(roundPlanned.restRunSnapshot?.gameMap[0]?.participants.p2?.localTeam.pokemon.length === 3, "formal rest snapshot should expose first opponent");
@@ -722,6 +724,13 @@ assert(Array.isArray(roundPlanned.restRunSnapshot?.coinLog) && roundPlanned.rest
 assert(Array.isArray(roundPlanned.restRunSnapshot?.battleLog) && roundPlanned.restRunSnapshot?.battleLog.length === 0, "formal rest snapshot should start with empty battleLog");
 assert(roundPlanned.restRunSnapshot?.currentNodeId === roundPlanned.restRunSnapshot?.gameMap[0]?.id, "formal rest snapshot should point at first round");
 assert(roundPlanned.roundPlan[0]?.participants.p1?.localTeam.pokemon.every(pokemon => pokemon.itemId === ""), "formal player team should remain itemless in round plan");
+const singleProfile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, competitionMode: "single"})};
+const singleSelected = api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(singleProfile, {mode: "singles", seed: "formal-smoke-single-mode-seed"})), [0, 1, 2]);
+const singlePlanned = api.prepareFormalRoundPlan(singleSelected);
+assert(singlePlanned.competitionMode === "single", "single formal run should snapshot competition mode");
+assert(singlePlanned.roundPlan.length === 1, "single formal run should create one round");
+assert(singlePlanned.restRunSnapshot?.gameMap.length === 1, "single formal rest snapshot should expose one map node");
+assert(singlePlanned.restRunSnapshot?.scenario.battleCount === 1, "single formal rest scenario should expose one battle");
 const championFundProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, TRAVEL_FUND_NODE_ID), ELITE_FUND_NODE_ID), CHAMPION_FUND_NODE_ID);
 const championFundRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(championFundProfile, {mode: "singles", seed: "formal-smoke-champion-fund-seed"})), [0, 1, 2]));
 assert(championFundRun.money === 1500, "champion fund formal run should start with 1500 money");
@@ -1252,6 +1261,47 @@ const loggedMoveDamage = (withBattleLog.restRunSnapshot?.battleLog || []).find(e
 assert(Boolean(loggedMoveDamage?.moveType) && Boolean(loggedMoveDamage?.moveCategory) && loggedMoveDamage?.moveEffectKind === "damage", "battle log damage entries should inherit move metadata");
 const loggedMoveFaint = (withBattleLog.restRunSnapshot?.battleLog || []).find(entry => entry.eventType === "faint" && entry.moveId === "tackle");
 assert(Boolean(loggedMoveFaint?.moveType) && Boolean(loggedMoveFaint?.moveCategory) && loggedMoveFaint?.moveEffectKind === "damage", "battle log faint entries should inherit move metadata");
+const exactHpBattleSnapshot = {
+  ...battleSnapshotBase,
+  id: "formal-smoke-exact-hp-session",
+  rawLog: [
+    "|switch|p2a: Raichu|Raichu, L50, M|240/240",
+    `|move|p1a: ${firstPlayerPokemon.nameZh}|Leaf Blade|p2a: Raichu`,
+    "|-damage|p2a: Raichu|152/240",
+    `|move|p1a: ${firstPlayerPokemon.nameZh}|Leaf Blade|p2a: Raichu`,
+    "|-damage|p2a: Raichu|68/240",
+  ],
+} as never;
+const exactHpBattleLog = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, exactHpBattleSnapshot).restRunSnapshot?.battleLog || [];
+const exactHpDamage = exactHpBattleLog.filter(entry => entry.eventType === "damage").reduce((sum, entry) => sum + (entry.damage || 0), 0);
+assert(exactHpDamage === 172, "battle log should trust exact protocol HP values such as 240 -> 152 -> 68");
+const protocolAttributionSnapshot = {
+  ...battleSnapshotBase,
+  id: "formal-smoke-protocol-attribution-session",
+  rawLog: [
+    "|switch|p2a: Raichu|Raichu, L50, M|240/240",
+    `|move|p1a: ${firstPlayerPokemon.nameZh}|Leaf Blade|p2a: Raichu`,
+    `|-damage|p2a: Raichu|200/240|[from] move: Leaf Blade|[of] p1a: ${firstPlayerPokemon.nameZh}`,
+    `|-damage|p2a: Raichu|170/240|[from] brn|[of] p1a: ${firstPlayerPokemon.nameZh}`,
+    `|-damage|p2a: Raichu|0 fnt|[from] psn|[of] p1a: ${firstPlayerPokemon.nameZh}`,
+    "|faint|p2a: Raichu",
+  ],
+} as never;
+const protocolAttributionRun = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, protocolAttributionSnapshot);
+const protocolAttributionEntries = protocolAttributionRun.restRunSnapshot?.battleLog || [];
+const protocolDirectDamage = protocolAttributionEntries.find(entry => entry.eventType === "damage" && entry.rawLine.includes("[from] move: Leaf Blade"));
+const protocolResidualDamageWithSource = protocolAttributionEntries.find(entry => entry.eventType === "damage" && entry.rawLine.includes("[from] brn"));
+const protocolResidualFaint = protocolAttributionEntries.find(entry => entry.eventType === "faint");
+assert(protocolDirectDamage?.damage === 40 && protocolDirectDamage.directness === "direct" && protocolDirectDamage.sourcePlayerId === "p1", "protocol move damage should use current move and [of] source as direct attribution");
+assert(protocolResidualDamageWithSource?.damage === 30 && protocolResidualDamageWithSource.directness === "indirect" && protocolResidualDamageWithSource.sourcePlayerId === "p1", "protocol residual damage may retain [of] source but must stay indirect");
+assert(protocolResidualFaint?.directness === "indirect" && !protocolResidualFaint.sourcePlayerId, "protocol residual faint should not inherit prior direct damage");
+const protocolAttributionWonRun = {
+  ...protocolAttributionRun.restRunSnapshot!,
+  gameMap: protocolAttributionRun.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
+};
+const protocolAttributionSettlement = api.prepareFormalSettlement({...protocolAttributionRun, restRunSnapshot: protocolAttributionWonRun}, "loss");
+const protocolAttributionP1Stat = protocolAttributionSettlement.settlement?.pokemonStats.find(stat => stat.localPokemonId === firstPlayerPokemon.localPokemonId);
+assert(protocolAttributionP1Stat?.damageDealt === 40 && protocolAttributionP1Stat.kills === 0, "protocol settlement should count only direct move damage and no residual kill");
 const timelineSessionId = "formal-smoke-timeline-session";
 const timelineRawLog = [
   `|move|p1a: ${firstPlayerPokemon.nameZh}|Tackle|p2a: ${firstEnemyPokemon.nameZh}`,
@@ -1454,6 +1504,7 @@ const wonRestRun = {
 const settlementRun = api.prepareFormalSettlement({...withSettlementBattleLog, restRunSnapshot: wonRestRun}, "loss");
 assert(settlementRun.status === "ended", "settlement should end formal run");
 assert(settlementRun.settlement?.wonRounds === 1, "settlement should count won rounds");
+assert(settlementRun.settlement?.totalRounds === 7, "standard settlement should expose total round count");
 assert(settlementRun.settlement?.bpGained === 1, "settlement should calculate BP from normal NPC coefficient at streak 0");
 assert(settlementRun.settlement?.pokemonStats[0]?.pokemonKey, "settlement should include pokemon stats and MVP");
 const raichuSettlementStat = settlementRun.settlement?.pokemonStats.find(stat => stat.pokemonKey.includes("raichu") || stat.name.toLowerCase().includes("raichu") || stat.nameZh.includes("雷丘"));

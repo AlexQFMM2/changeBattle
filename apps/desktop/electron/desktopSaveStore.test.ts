@@ -130,6 +130,7 @@ function sampleProfile(name: string): UserProfileV2 {
       allowedGenerations: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       ruleSet: "gen9",
       enabledBattleSystems: ["terastal"],
+      competitionMode: "standard",
       legendaryBattle: false,
       battleBagEnabled: true,
     },

@@ -10,6 +10,7 @@ import type {PokemonPowerProfileV4} from "@changebattle-v2/core";
 export type ShowdownPlayerIdV4 = "p1" | "p2" | "p3" | "p4";
 export type TrainingModeV4 = "singles" | "doubles" | "coop";
 export type TrainingRuleSetV4 = "standard" | "gen7" | "gen8" | "gen9";
+export type FormalCompetitionModeV4 = "standard" | "single" | "leagueLoop";
 export type TrainingControllerV4 = "local" | "ai" | "script";
 export type TrainingAllianceV4 = "near" | "far";
 export type TrainingGenderV4 = "M" | "F" | "N";
@@ -22,6 +23,7 @@ export type BattlePreferenceV4 = {
   allowedGenerations: number[];
   ruleSet: TrainingRuleSetV4;
   enabledBattleSystems: BattleSystemPreferenceV4[];
+  competitionMode: FormalCompetitionModeV4;
   legendaryBattle: boolean;
   battleBagEnabled: boolean;
 };
@@ -47,6 +49,7 @@ export type TrainingRunGameV4 = {
   gameMap: TrainingRunGameNodeV4[];
   result: TrainingRunResultV4 | null;
   battlePreference: BattlePreferenceV4;
+  competitionMode?: FormalCompetitionModeV4;
   restPreviewUnlocks?: Record<string, true>;
   coinLog?: TrainingCoinLogEntryV4[];
   battleLog?: TrainingBattleLogEntryV4[];
@@ -304,6 +307,7 @@ export const DEFAULT_BATTLE_PREFERENCE_V4: BattlePreferenceV4 = {
   allowedGenerations: [1, 2, 3, 4, 5, 6, 7],
   ruleSet: "standard",
   enabledBattleSystems: [],
+  competitionMode: "standard",
   legendaryBattle: false,
   battleBagEnabled: true,
 };
@@ -360,13 +364,19 @@ export function normalizeBattlePreferenceV4(input?: Partial<BattlePreferenceV4> 
   const ruleSet = BATTLE_RULE_PRESET_OPTIONS_V4.some(option => option.id === input?.ruleSet)
     ? input!.ruleSet as TrainingRuleSetV4
     : DEFAULT_BATTLE_PREFERENCE_V4.ruleSet;
+  const competitionMode = normalizeFormalCompetitionModeV4(input?.competitionMode);
   return {
     allowedGenerations: allowedGenerations.length >= 3 ? allowedGenerations : [...DEFAULT_BATTLE_PREFERENCE_V4.allowedGenerations],
     ruleSet,
     enabledBattleSystems: battleSystemsForRuleSetV4(ruleSet),
+    competitionMode,
     legendaryBattle: Boolean(input?.legendaryBattle),
     battleBagEnabled: typeof input?.battleBagEnabled === "boolean" ? input.battleBagEnabled : DEFAULT_BATTLE_PREFERENCE_V4.battleBagEnabled,
   };
+}
+
+export function normalizeFormalCompetitionModeV4(value: unknown): FormalCompetitionModeV4 {
+  return value === "single" || value === "leagueLoop" ? value : "standard";
 }
 
 const NPC_CATALOG: TrainingNpcV4[] = [
@@ -576,6 +586,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       gameMap,
       result: run.result || null,
       battlePreference: {...battlePreference, ruleSet: scenario.ruleSet, enabledBattleSystems: battleSystemsForRuleSetV4(scenario.ruleSet)},
+      competitionMode: normalizeFormalCompetitionModeV4(run.competitionMode || battlePreference.competitionMode),
       restPreviewUnlocks: normalizeRestPreviewUnlocks(run.restPreviewUnlocks),
       coinLog: normalizeCoinLog(run.coinLog),
       battleLog: normalizeBattleLog(run.battleLog),

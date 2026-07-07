@@ -38,7 +38,7 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
         </div>
         <dl>
           <div><dt>获得 BP</dt><dd>{settlement.bpGained}</dd></div>
-          <div><dt>胜场</dt><dd>{settlement.wonRounds}/7</dd></div>
+          <div><dt>胜场</dt><dd>{settlement.wonRounds}/{Math.max(1, settlement.totalRounds || run.restRunSnapshot?.gameMap.length || 7)}</dd></div>
           <div>
             <dt>{settlement.playerVaultItemsRejectedCount ? "箱子已满" : "道具入库"}</dt>
             <dd>{settlement.playerVaultItemsRejectedCount ? `${settlement.playerVaultItemsRejectedCount} 未入` : `+${settlement.playerVaultItemsClaimedCount || 0}`}</dd>

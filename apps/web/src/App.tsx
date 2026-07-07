@@ -69,6 +69,9 @@ type AppProps = {
   runtime: "web" | "desktop";
 };
 
+const IS_DEV_BUILD = import.meta.env.DEV;
+const RELEASE_CHANNEL = String(import.meta.env.VITE_CHANGEBATTLE_RELEASE_CHANNEL || "stable").trim().toLowerCase();
+const DEBUG_FEATURE_ENABLED = IS_DEV_BUILD || RELEASE_CHANNEL === "beta";
 const isDebug = true;
 const APP_DEBUG_CONFIG_V4: AppDebugConfigV4 = {
   isDebug,
@@ -107,6 +110,7 @@ function RoutedApp({runtime}: AppProps) {
     : undefined, [runtime]);
   const battleServiceBridge = desktopBridgeRoot?.battleService;
   const desktopAppBridge = desktopBridgeRoot?.app;
+  const desktopUpdatesEnabled = runtime === "desktop" && !IS_DEV_BUILD && Boolean(desktopAppBridge);
   const userProfileAdapter = useMemo(() => createUserProfileAdapter(runtime), [runtime]);
   const playerVaultAdapter = useMemo(() => createPlayerVaultAdapter(runtime), [runtime]);
   const api = useMemo(() => createChangeBattleV2Api({
@@ -181,7 +185,7 @@ function RoutedApp({runtime}: AppProps) {
   }, [runtime, profile]);
 
   useEffect(() => {
-    if (!desktopAppBridge) return;
+    if (!desktopUpdatesEnabled || !desktopAppBridge) return;
     let cancelled = false;
     desktopAppBridge.getUpdateStatus()
       .then(status => {
@@ -199,7 +203,7 @@ function RoutedApp({runtime}: AppProps) {
       cancelled = true;
       unsubscribe();
     };
-  }, [desktopAppBridge]);
+  }, [desktopAppBridge, desktopUpdatesEnabled]);
 
   useEffect(() => {
     if (!profile) {
@@ -606,6 +610,7 @@ function RoutedApp({runtime}: AppProps) {
     <BattlePreferencePage
       api={api}
       profile={profile}
+      debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
       onProfileChange={setProfile}
       onBack={() => navigate("/main", {replace: true})}
     />
@@ -1041,7 +1046,7 @@ function RoutedApp({runtime}: AppProps) {
       showVersion={location.pathname === "/"}
       versionLabel={versionBadgeLabel}
       versionChecking={desktopUpdateChecking}
-      onVersionClick={runtime === "desktop" && desktopAppBridge ? checkDesktopUpdatesFromVersionBadge : undefined}
+      onVersionClick={desktopUpdatesEnabled ? checkDesktopUpdatesFromVersionBadge : undefined}
     >
       <BgmController scene={bgmScene} />
       <Routes>
@@ -1122,8 +1127,8 @@ function bgmSceneForRoute(pathname: string, formalRun: FormalGameRunV4 | null): 
 
 function desktopVersionBadgeLabel(): string {
   const version = String(import.meta.env.VITE_CHANGEBATTLE_DESKTOP_VERSION || "0.1.0").trim() || "0.1.0";
-  const channel = String(import.meta.env.VITE_CHANGEBATTLE_RELEASE_CHANNEL || "stable").trim().toLowerCase();
-  return `${channel === "beta" ? "debug" : "release"} ${version}`;
+  if (IS_DEV_BUILD) return `dev ${version}`;
+  return `${RELEASE_CHANNEL === "beta" ? "debug" : "release"} ${version}`;
 }
 
 function isFormalBossRound(run: FormalGameRunV4 | null): boolean {

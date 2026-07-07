@@ -90,8 +90,10 @@ import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/b
 import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
+  normalizeFormalCompetitionModeV4,
   type BattlePreferenceV4,
   type BagStateV4,
+  type FormalCompetitionModeV4,
   type TrainingBattleLogEntryV4,
   type TrainingCoinLogEntryV4,
   type LocalPokemonV4,
@@ -442,6 +444,7 @@ export type FormalGameRunV4 = {
   id: string;
   source: "formal";
   mode: FormalGameModeV4;
+  competitionMode: FormalCompetitionModeV4;
   status: FormalGameStatusV4;
   profileId: string;
   createdAt: string;
@@ -499,6 +502,7 @@ export type FormalGameSettlementV4 = {
   reason: FormalSettlementReasonV4;
   bpGained: number;
   wonRounds: number;
+  totalRounds: number;
   coinSummary: {
     income: number;
     expense: number;
@@ -735,18 +739,20 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   function createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4 {
     const now = new Date().toISOString();
     const mode = normalizeFormalMode(options.mode);
+    const battlePreference = normalizeBattlePreferenceV4(profile.battlePreference);
     const run: FormalGameRunV4 = {
       version: FORMAL_RUN_VERSION,
       id: createId("formal-run"),
       source: "formal",
       mode,
+      competitionMode: battlePreference.competitionMode,
       status: "starterPreparing",
       profileId: profile.id,
       createdAt: now,
       updatedAt: now,
       seed: options.seed || createId("formal-seed"),
       streak: Math.max(0, Math.floor(Number(options.streak || 0))),
-      battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
+      battlePreference,
       starChartSnapshot: cloneStarChartV4(profile.starChart),
       coopPartnerPreference: mode === "coop" ? normalizeCoopPartnerPreference(options.coopPartnerPreference) : undefined,
       starterCandidates: [],
@@ -853,7 +859,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   }
 
   function createFormalRoundPlanSkeletons(run: FormalGameRunV4): FormalRoundPlanV4[] {
-    const distribution = roundDistributionForStreak(run.streak);
+    const distribution = roundDistributionForRun(run);
     return distribution.map((difficulty, index) => {
       const seed = `${run.seed}:round:${index + 1}`;
       const roundRng = createRng(seed);
@@ -937,7 +943,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const restRunSnapshot = normalized.restRunSnapshot;
     if (!restRunSnapshot) return normalized;
     const nextIndex = wonNode.index + 1;
-    if (nextIndex >= FORMAL_ROUND_COUNT) {
+    if (nextIndex >= formalRoundCountForRun(normalized)) {
       return normalizeFormalRun({
         ...normalized,
         currentRoundIndex: wonNode.index,
@@ -970,7 +976,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       id: createId("coin-log"),
       key: entry.key || `${entry.source}:${entry.roundIndex ?? normalized.currentRoundIndex}:${now}:${amount}`,
       at: now,
-      roundIndex: clampInt(entry.roundIndex, 0, FORMAL_ROUND_COUNT - 1, normalized.currentRoundIndex),
+      roundIndex: clampInt(entry.roundIndex, 0, formalRoundCountForRun(normalized) - 1, normalized.currentRoundIndex),
       kind: amount > 0 ? "income" : amount < 0 ? "expense" : "adjustment",
       amount,
       balanceBefore,
@@ -1884,6 +1890,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const restRunSnapshot = normalized.restRunSnapshot;
     const now = new Date().toISOString();
     const wonRounds = restRunSnapshot?.gameMap.filter(node => node.state === "won").length || 0;
+    const totalRounds = Math.max(1, restRunSnapshot?.gameMap.length || formalRoundCountForRun(normalized));
     const completedAll = Boolean(restRunSnapshot?.gameMap.length && wonRounds >= restRunSnapshot.gameMap.length);
     const outcome = reason === "abandon" ? "abandoned" : completedAll ? "win" : "loss";
     const coinLog = restRunSnapshot?.coinLog || [];
@@ -1901,6 +1908,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       reason,
       bpGained: baseBpGained + victoryDividendBp,
       wonRounds,
+      totalRounds,
       coinSummary: {
         income,
         expense,
@@ -1937,6 +1945,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
   function normalizeFormalRun(run: FormalGameRunV4): FormalGameRunV4 {
     const mode = normalizeFormalMode(run.mode);
     const battlePreference = normalizeBattlePreferenceV4(run.battlePreference);
+    const competitionMode = normalizeFormalCompetitionModeV4(run.competitionMode || battlePreference.competitionMode);
     const starterCandidates = Array.isArray(run.starterCandidates) ? run.starterCandidates.map(normalizeStarterCandidate) : [];
     const selectedStarterIndexes = Array.isArray(run.selectedStarterIndexes) ? Array.from(new Set(run.selectedStarterIndexes.map(index => Math.floor(Number(index))).filter(index => index >= 0 && index < starterCandidates.length))) : [];
     const settlement = normalizeSettlement(run.settlement);
@@ -1947,13 +1956,14 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       id: run.id || createId("formal-run"),
       source: "formal",
       mode,
+      competitionMode,
       status: normalizeFormalStatus(run.status, starterCandidates.length),
       profileId: run.profileId || "profile",
       createdAt: run.createdAt || new Date().toISOString(),
       updatedAt: run.updatedAt || new Date().toISOString(),
       seed: run.seed || createId("formal-seed"),
       streak: Math.max(0, Math.floor(Number(run.streak || 0))),
-      battlePreference,
+      battlePreference: {...battlePreference, competitionMode},
       starChartSnapshot: cloneStarChartV4(run.starChartSnapshot),
       coopPartnerPreference: mode === "coop" ? normalizeCoopPartnerPreference(run.coopPartnerPreference) : undefined,
       starterCandidates,
@@ -1961,7 +1971,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       playerTeam: run.playerTeam ? normalizePlayerTeam(run.playerTeam) : null,
       roundPlan: Array.isArray(run.roundPlan) ? run.roundPlan.map(normalizeRoundPlan) : [],
       restRunSnapshot: run.restRunSnapshot ? normalizeFormalRestRunSnapshot(run.restRunSnapshot) : null,
-      currentRoundIndex: clampInt(run.currentRoundIndex, 0, FORMAL_ROUND_COUNT - 1, 0),
+      currentRoundIndex: clampInt(run.currentRoundIndex, 0, formalRoundCountForCompetitionMode(competitionMode) - 1, 0),
       money: clampInt(run.money, 0, 999999, formalStartingMoneyForStarChartV4(run.starChartSnapshot)),
       medicalInsuranceOfferSeen: Boolean(run.medicalInsuranceOfferSeen),
       medicalInsurance: normalizeFormalMedicalInsuranceState(run.medicalInsurance),
@@ -2471,7 +2481,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       name: "正式游戏",
       mode: run.mode,
       ruleSet: run.battlePreference.ruleSet,
-      battleCount: FORMAL_ROUND_COUNT,
+      battleCount: formalRoundCountForRun(run),
       selectedNpcIds: Object.fromEntries(roundPlan[0]?.npcs.map(npc => [npc.playerId, npc.trainerId]) || []) as Partial<Record<ShowdownPlayerIdV4, string>>,
       players: scenarioPlayers,
     };
@@ -2490,6 +2500,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       gameMap,
       result: null,
       battlePreference: run.battlePreference,
+      competitionMode: run.competitionMode,
       restPreviewUnlocks: {},
       coinLog: [],
       battleLog: [],
@@ -3756,6 +3767,21 @@ function roundDistributionForStreak(streak: number): FormalNpcTypeV4[] {
   return ROUND_DISTRIBUTIONS["3"];
 }
 
+function roundDistributionForRun(run: Pick<FormalGameRunV4, "competitionMode" | "streak">): FormalNpcTypeV4[] {
+  const distribution = roundDistributionForStreak(run.streak);
+  return run.competitionMode === "single" ? distribution.slice(0, 1) : distribution;
+}
+
+function formalRoundCountForCompetitionMode(competitionMode: FormalCompetitionModeV4): number {
+  return competitionMode === "single" ? 1 : FORMAL_ROUND_COUNT;
+}
+
+function formalRoundCountForRun(run: Pick<FormalGameRunV4, "competitionMode" | "roundPlan" | "restRunSnapshot">): number {
+  if (run.restRunSnapshot?.gameMap.length) return run.restRunSnapshot.gameMap.length;
+  if (run.roundPlan?.length) return run.roundPlan.length;
+  return formalRoundCountForCompetitionMode(run.competitionMode);
+}
+
 function maybeReplaceChampionWithVillain(type: FormalNpcTypeV4, rng: () => number): FormalNpcTypeV4 {
   if (type !== "champion") return type;
   return rng() < 0.25 ? "villain" : "champion";
@@ -4350,7 +4376,7 @@ function appendShopCoinLogFast(run: FormalGameRunV4, entry: FormalCoinLogInputV4
     id: createId("coin-log"),
     key: entry.key || `${entry.source}:${entry.roundIndex ?? run.currentRoundIndex}:${now}:${amount}`,
     at: now,
-    roundIndex: clampInt(entry.roundIndex, 0, FORMAL_ROUND_COUNT - 1, run.currentRoundIndex),
+    roundIndex: clampInt(entry.roundIndex, 0, formalRoundCountForRun(run) - 1, run.currentRoundIndex),
     kind: amount > 0 ? "income" : amount < 0 ? "expense" : "adjustment",
     amount,
     balanceBefore,
@@ -4497,6 +4523,7 @@ function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefin
     reason,
     bpGained: clampInt(settlement.bpGained, 0, 999999, 0),
     wonRounds: clampInt(settlement.wonRounds, 0, FORMAL_ROUND_COUNT, 0),
+    totalRounds: clampInt(settlement.totalRounds, 1, 999999, settlement.wonRounds || FORMAL_ROUND_COUNT),
     coinSummary: {
       income: clampInt(settlement.coinSummary?.income, 0, 999999, 0),
       expense: clampInt(settlement.coinSummary?.expense, 0, 999999, 0),
@@ -4621,7 +4648,7 @@ function createFormalShopRestockContext(run: Partial<FormalGameRunV4>): FormalSh
     return sum + Math.max(0, 1 - Math.max(0, Math.min(maxHp, pokemon.entryHp)) / maxHp);
   }, 0);
   return {
-    roundIndex: clampInt(run.currentRoundIndex, 0, FORMAL_ROUND_COUNT - 1, 0),
+    roundIndex: clampInt(run.currentRoundIndex, 0, formalRoundCountForCompetitionMode(normalizeFormalCompetitionModeV4(run.competitionMode)) - 1, 0),
     money: clampInt(run.money, 0, 999999, FORMAL_STARTING_MONEY),
     teamSize: team.length,
     hpPressure,
@@ -4874,31 +4901,30 @@ function parseBattleLogEntriesFromOrderedRawLines(
       const maxHp = target.key ? hpMaxByBattleKey.get(target.key) : undefined;
       const hpState = hpStateFromProtocol(parts[3] || "", maxHp);
       const previousHp = target.key ? hpByBattleKey.get(target.key)?.hp : undefined;
-      const damage = hpState
-        ? previousHp === undefined ? Math.max(0, hpState.maxHp - hpState.hp) : Math.max(0, previousHp - hpState.hp)
-        : parts[3]?.includes("fnt") ? 1 : 0;
+      const damage = battleLogHpDelta(parts[3] || "", hpState, previousHp);
       if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
-      const directMove = currentMove && battleLogDamageCanUseCurrentMove(parts) ? currentMove : null;
+      const attribution = resolveBattleLogEffectAttribution(currentMove, parts, 4, getMoveDetail);
+      const sourceMove = attribution.context;
       if (target.key) {
-        if (directMove) lastDirectDamageByTarget.set(target.key, directMove);
+        if (sourceMove && attribution.directness === "direct" && damage > 0) lastDirectDamageByTarget.set(target.key, sourceMove);
         else lastDirectDamageByTarget.delete(target.key);
       }
       maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "damage",
         damage,
-        sourcePlayerId: directMove?.playerId,
-        sourcePokemonKey: directMove?.pokemonKey,
-        sourcePokemonName: directMove?.pokemonName,
+        sourcePlayerId: sourceMove?.playerId,
+        sourcePokemonKey: sourceMove?.pokemonKey,
+        sourcePokemonName: sourceMove?.pokemonName,
         targetPlayerId: target.playerId,
         targetPokemonKey: target.key,
         targetPokemonName: target.name,
-        moveId: directMove?.moveId,
-        moveName: directMove?.moveName,
-        moveType: directMove?.moveType,
-        moveCategory: directMove?.moveCategory,
-        movePower: directMove?.movePower,
-        moveEffectKind: directMove?.moveEffectKind,
-        directness: directMove ? "direct" : "indirect",
+        moveId: sourceMove?.moveId,
+        moveName: sourceMove?.moveName,
+        moveType: sourceMove?.moveType,
+        moveCategory: sourceMove?.moveCategory,
+        movePower: sourceMove?.movePower,
+        moveEffectKind: sourceMove?.moveEffectKind,
+        directness: attribution.directness,
       }));
       continue;
     }
@@ -4911,19 +4937,24 @@ function parseBattleLogEntriesFromOrderedRawLines(
         ? previousHp === undefined ? 0 : Math.max(0, hpState.hp - previousHp)
         : 0;
       if (hpState && target.key) hpByBattleKey.set(target.key, hpState);
+      const attribution = resolveBattleLogEffectAttribution(currentMove, parts, 4, getMoveDetail);
+      const sourceMove = attribution.context;
       maybePush(createBattleLogEntry(snapshot, index, rawLine, key, {
         eventType: "heal",
         healing,
+        sourcePlayerId: sourceMove?.playerId,
+        sourcePokemonKey: sourceMove?.pokemonKey,
+        sourcePokemonName: sourceMove?.pokemonName,
         targetPlayerId: target.playerId,
         targetPokemonKey: target.key,
         targetPokemonName: target.name,
-        moveId: currentMove?.moveId,
-        moveName: currentMove?.moveName,
-        moveType: currentMove?.moveType,
-        moveCategory: currentMove?.moveCategory,
-        movePower: currentMove?.movePower,
-        moveEffectKind: currentMove?.moveEffectKind,
-        directness: "unknown",
+        moveId: sourceMove?.moveId,
+        moveName: sourceMove?.moveName,
+        moveType: sourceMove?.moveType,
+        moveCategory: sourceMove?.moveCategory,
+        movePower: sourceMove?.movePower,
+        moveEffectKind: sourceMove?.moveEffectKind,
+        directness: attribution.directness,
       }));
       continue;
     }
@@ -4957,11 +4988,76 @@ function parseBattleLogEntriesFromOrderedRawLines(
   return entries;
 }
 
-function battleLogDamageCanUseCurrentMove(parts: string[]): boolean {
-  const source = parts.slice(4).find(part => part.startsWith("[from]"));
-  if (!source) return true;
-  const normalized = source.toLowerCase();
-  return normalized.startsWith("[from] move:");
+function battleLogHpDelta(condition: string, hpState: {hp: number; maxHp: number} | null, previousHp: number | undefined): number {
+  if (!hpState) return condition.includes("fnt") ? 1 : 0;
+  if (previousHp !== undefined) return Math.max(0, previousHp - hpState.hp);
+  if (hpState.maxHp > 0) return Math.max(0, hpState.maxHp - hpState.hp);
+  return condition.includes("fnt") ? 1 : 0;
+}
+
+type BattleLogProtocolTagsV4 = {
+  from?: string;
+  fromKind?: string;
+  fromId?: string;
+  fromName?: string;
+  of?: ReturnType<typeof parseBattleIdent>;
+};
+
+function parseBattleLogProtocolTags(parts: string[], startIndex: number): BattleLogProtocolTagsV4 {
+  const tags: BattleLogProtocolTagsV4 = {};
+  for (const part of parts.slice(startIndex)) {
+    const text = String(part || "").trim();
+    if (text.startsWith("[from]")) {
+      const value = text.replace(/^\[from\]\s*/, "").trim();
+      const match = value.match(/^([^:]+):\s*(.+)$/);
+      tags.from = value;
+      tags.fromKind = toID(match?.[1] || value);
+      tags.fromName = (match?.[2] || value).trim();
+      tags.fromId = toID(match?.[2] || value);
+    } else if (text.startsWith("[of]")) {
+      const value = text.replace(/^\[of\]\s*/, "").trim();
+      tags.of = parseBattleIdent(value);
+    }
+  }
+  return tags;
+}
+
+function resolveBattleLogEffectAttribution(
+  currentMove: FormalBattleMoveContextV4 | null,
+  parts: string[],
+  tagStartIndex: number,
+  getMoveDetail: (moveId: string) => DexMoveSummary | null,
+): {context: FormalBattleMoveContextV4 | null; directness: NonNullable<TrainingBattleLogEntryV4["directness"]>} {
+  const tags = parseBattleLogProtocolTags(parts, tagStartIndex);
+  if (!tags.from) {
+    return currentMove ? {context: currentMove, directness: "direct"} : {context: null, directness: "unknown"};
+  }
+
+  const explicitSource = tags.of ? battleLogContextFromIdent(tags.of, tags.fromKind === "move" ? tags.fromName : undefined, getMoveDetail) : null;
+  if (tags.fromKind === "move") {
+    const sameCurrentMove = Boolean(currentMove && (!tags.fromId || tags.fromId === currentMove.moveId));
+    const sameCurrentSource = Boolean(currentMove && (!tags.of || normalizeBattlePokemonKey(tags.of.key) === normalizeBattlePokemonKey(currentMove.pokemonKey || "")));
+    if (currentMove && sameCurrentMove && sameCurrentSource) return {context: currentMove, directness: "direct"};
+    return {context: explicitSource, directness: explicitSource ? "indirect" : "unknown"};
+  }
+
+  return {context: explicitSource, directness: explicitSource ? "indirect" : "indirect"};
+}
+
+function battleLogContextFromIdent(
+  ident: ReturnType<typeof parseBattleIdent>,
+  moveName: string | undefined,
+  getMoveDetail: (moveId: string) => DexMoveSummary | null,
+): FormalBattleMoveContextV4 {
+  const moveId = toID(moveName);
+  return {
+    playerId: ident.playerId,
+    pokemonKey: ident.key,
+    pokemonName: ident.name,
+    moveId: moveId || undefined,
+    moveName: moveName || undefined,
+    ...(moveId ? battleLogMoveMetadata(moveId, getMoveDetail) : {}),
+  };
 }
 
 function buildBattleHpMaxMap(snapshot: BattleSessionSnapshotV4): Map<string, number> {
@@ -5114,7 +5210,7 @@ function battleKeyNameId(value: unknown): string {
 function hpStateFromProtocol(condition: string, trueMaxHp?: number): {hp: number; maxHp: number} | null {
   if (condition.includes("fnt")) {
     const maxHp = Math.max(0, Math.round(Number(trueMaxHp || 0)));
-    return maxHp > 0 ? {hp: 0, maxHp} : null;
+    return {hp: 0, maxHp};
   }
   const match = condition.match(/^(\d+)\/(\d+)/);
   if (!match) return null;
@@ -5122,7 +5218,7 @@ function hpStateFromProtocol(condition: string, trueMaxHp?: number): {hp: number
   const protocolMaxHp = Number(match[2]);
   if (!Number.isFinite(protocolHp) || !Number.isFinite(protocolMaxHp) || protocolMaxHp <= 0) return null;
   const maxHp = Math.round(Number(trueMaxHp || 0));
-  if (maxHp > 0 && maxHp !== protocolMaxHp) {
+  if (protocolMaxHp === 100 && maxHp > 0 && maxHp !== protocolMaxHp) {
     return {
       hp: Math.max(0, Math.min(maxHp, Math.round(protocolHp / protocolMaxHp * maxHp))),
       maxHp,
@@ -5232,7 +5328,7 @@ function buildSettlementPokemonStats(run: FormalGameRunV4, getPokemonDetail: (sp
       addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
     }
     if (entry.eventType === "faint") {
-      const sourceStat = sourceKey !== targetKey
+      const sourceStat = entry.directness === "direct" && sourceKey !== targetKey
         ? ensureStat(sourceKey) || ensureBattleLogStat(entry.sourcePlayerId, entry.sourcePokemonKey, entry.sourcePokemonName)
         : null;
       if (sourceStat) {

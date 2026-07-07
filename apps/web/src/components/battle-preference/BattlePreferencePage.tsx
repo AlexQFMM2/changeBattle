@@ -1,5 +1,5 @@
 import {useMemo, useState} from "react";
-import type {BattlePreferenceV4, ChangeBattleV2Api, TrainingRuleSetV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattlePreferenceV4, ChangeBattleV2Api, FormalCompetitionModeV4, TrainingRuleSetV4, UserProfileV2} from "@changebattle-v2/api";
 import {
   BATTLE_GENERATION_OPTIONS_V4,
   BATTLE_RULE_PRESET_OPTIONS_V4,
@@ -8,12 +8,13 @@ import {
 } from "@changebattle-v2/api";
 import "./BattlePreferencePage.css";
 
-type BattlePreferenceTab = "regions" | "systems" | "legendary" | "bag";
+type BattlePreferenceTab = "regions" | "systems" | "competition" | "legendary" | "bag";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 const TABS: Array<{id: BattlePreferenceTab; label: string}> = [
   {id: "regions", label: "地区专爱"},
   {id: "systems", label: "战斗系统"},
+  {id: "competition", label: "比赛类型"},
   {id: "legendary", label: "神战"},
   {id: "bag", label: "战斗背包"},
 ];
@@ -25,9 +26,16 @@ const RULE_DETAIL: Record<TrainingRuleSetV4, {summary: string; detail: string}> 
   gen9: {summary: "太晶化", detail: "开放太晶珠。每场战斗每方可太晶化一次，太晶属性来自太晶珠配置。"},
 };
 
-export function BattlePreferencePage({api, profile, onProfileChange, onBack}: {
+const COMPETITION_DETAIL: Record<FormalCompetitionModeV4, {label: string; summary: string; detail: string}> = {
+  standard: {label: "普通赛事", summary: "7 场", detail: "默认正式流程，连续完成 7 场挑战后进入结算。"},
+  single: {label: "单局模式", summary: "1 场", detail: "只打一场就进入结算链路，适合本地调试战斗、奖励和收服流程。"},
+  leagueLoop: {label: "联盟循环赛", summary: "后续", detail: "无尽循环赛预留模式，当前版本暂不开放。"},
+};
+
+export function BattlePreferencePage({api, profile, debugFeatureEnabled = false, onProfileChange, onBack}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
+  debugFeatureEnabled?: boolean;
   onProfileChange: (profile: UserProfileV2) => void;
   onBack: () => void;
 }) {
@@ -108,6 +116,20 @@ export function BattlePreferencePage({api, profile, onProfileChange, onBack}: {
                 </button>
               ))
             ) : null}
+            {activeTab === "competition" ? (
+              <>
+                <button className={preference.competitionMode === "standard" ? "selected" : ""} type="button" onClick={() => apply({competitionMode: "standard"})}>
+                  <strong>{COMPETITION_DETAIL.standard.label}</strong>
+                  <span>{COMPETITION_DETAIL.standard.summary}</span>
+                </button>
+                {debugFeatureEnabled ? (
+                  <button className={preference.competitionMode === "single" ? "selected" : ""} type="button" onClick={() => apply({competitionMode: "single"})}>
+                    <strong>{COMPETITION_DETAIL.single.label}</strong>
+                    <span>{COMPETITION_DETAIL.single.summary}</span>
+                  </button>
+                ) : null}
+              </>
+            ) : null}
             {activeTab === "legendary" ? (
               <>
                 <button className={!preference.legendaryBattle ? "selected" : ""} type="button" onClick={() => apply({legendaryBattle: false})}>
@@ -154,20 +176,24 @@ function BattlePreferenceDetail({activeTab, preference, selectedRule}: {
     .map(system => BATTLE_SYSTEM_OPTIONS_V4.find(option => option.id === system)?.name || system)
     .join(" / ") || "无";
   const title = activeTab === "regions" ? "地区专爱" : activeTab === "systems" ? selectedRule.name : activeTab === "legendary" ? "神战" : "战斗背包";
+  const competition = COMPETITION_DETAIL[preference.competitionMode] || COMPETITION_DETAIL.standard;
   const text = activeTab === "regions"
     ? `已选择 ${preference.allowedGenerations.length}/9 个地区。正式队伍生成会优先使用这些世代的宝可梦。`
     : activeTab === "systems"
       ? RULE_DETAIL[selectedRule.id].detail
-      : activeTab === "legendary"
+      : activeTab === "competition"
+        ? competition.detail
+        : activeTab === "legendary"
         ? (preference.legendaryBattle ? "神战开启：正式生成池允许神兽与幻兽进入。" : "神战关闭：正式生成池会排除神兽与幻兽。")
         : (preference.battleBagEnabled ? "战斗背包开启：战斗中可以打开背包，使用恢复类战斗道具。" : "战斗背包关闭：战斗页隐藏背包入口。");
-  const strong = activeTab === "systems" ? `启用系统：${systemNames}` : activeTab === "regions" ? "配置有效" : "会写入新游戏";
+  const detailTitle = activeTab === "competition" ? "比赛类型" : title;
+  const strong = activeTab === "systems" ? `启用系统：${systemNames}` : activeTab === "regions" ? "配置有效" : activeTab === "competition" ? competition.label : "会写入新游戏";
   return (
     <aside className="battle-preference-detail">
-      <span>{title}</span>
+      <span>{detailTitle}</span>
       <strong>{strong}</strong>
       <p>{text}</p>
-      <small>地区 {preference.allowedGenerations.length}/9 · 规则 {selectedRule.name} · 背包 {preference.battleBagEnabled ? "开" : "关"}</small>
+      <small>地区 {preference.allowedGenerations.length}/9 · 规则 {selectedRule.name} · 赛事 {competition.label} · 背包 {preference.battleBagEnabled ? "开" : "关"}</small>
     </aside>
   );
 }

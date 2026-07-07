@@ -57,7 +57,7 @@
 .battle-preference-tabs {
   height: var(--battle-preference-page-tab-height);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
 }
 
@@ -74,8 +74,8 @@
 
 .battle-preference-tabs button {
   height: var(--battle-preference-page-tab-height);
-  padding: 0 5px;
-  font-size: 8px;
+  padding: 0 3px;
+  font-size: 7px;
   font-weight: 900;
   line-height: 1;
 }
