@@ -13,6 +13,7 @@ export * from "./formalTrainingGroundRules.js";
 export * from "./itemInstance.js";
 export * from "./natureCatalog.js";
 export * from "./playerHonorCatalog.js";
+export * from "./playerVault.js";
 export * from "./pokemonInstance.js";
 export * from "./restCenterCatalog.js";
 export * from "./starChartCatalog.js";

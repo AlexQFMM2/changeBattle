@@ -1,10 +1,19 @@
 import {createShowdownDexService, type DexItemDetail, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {
+  firstOpenPlayerVaultStorageSlotV4,
   REST_CENTER_LEFT_SIDE_ACTIONS_V4,
   REST_CENTER_PAPER_ACTIONS_V4,
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   getNatureEffectsV4,
+  normalizePlayerVaultV4,
+  playerVaultStorageCapacityV4,
+  playerVaultUnlockedStoragePageCountV4,
+  type PlayerItemRecordV4,
+  type PlayerPokemonMoveRecordV4,
+  type PlayerPokemonRecordV4,
+  type PlayerVaultMergeResultV4,
+  type PlayerVaultV4,
   type RestCenterActionEntryV4,
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BagStateV4, type BattlePreferenceV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerItemTypeV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type TrainingRunStorageAdapter} from "./training.js";
@@ -29,7 +38,7 @@ import {
 } from "./starChart.js";
 export {REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4};
 export type {NatureEffectV4} from "@changebattle-v2/core";
-export type {RestCenterActionEntryV4};
+export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultV4, RestCenterActionEntryV4};
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
 export type {PokemonBattleProfileV4, PokemonBattleRoleTagV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
@@ -67,53 +76,6 @@ export type TrainerVaultV2 = {
   version: 1;
   bag: BagStateV4;
   pokemonBox: LocalPokemonV4[];
-};
-
-/** 玩家全局道具背包中的聚合道具记录，用于局外仓库持久化，不是局内背包的单个道具实例。 */
-export type PlayerItemRecordV4 = {
-  itemId: string;
-  quantity: number;
-  boxKind?: "prep" | "storage";
-  storagePageIndex?: number;
-  slotIndex?: number;
-};
-
-/** 玩家全局宝可梦箱子中宝可梦携带的招式记录。 */
-export type PlayerPokemonMoveRecordV4 = {
-  moveId: string;
-  remainingPp?: number;
-  maxPp?: number;
-};
-
-/** 玩家全局宝可梦箱子中的长期宝可梦记录，用于局外养成和后续带入局内。 */
-export type PlayerPokemonRecordV4 = {
-  playerPokemonId: string;
-  speciesId: string;
-  gender: LocalPokemonV4["gender"];
-  nature: string;
-  abilityId: string;
-  evs: LocalPokemonV4["evs"];
-  ivs: LocalPokemonV4["ivs"];
-  moves: PlayerPokemonMoveRecordV4[];
-  friendship: number;
-  shiny: boolean;
-  metAt: string;
-  honors: string[];
-};
-
-/** 玩家全局仓库，包含局外道具背包和局外宝可梦箱子。 */
-export type PlayerVaultV4 = {
-  version: 1;
-  items: PlayerItemRecordV4[];
-  pokemon: PlayerPokemonRecordV4[];
-  itemStoragePageCount: number;
-  pokemonStoragePageCount: number;
-};
-
-export type PlayerVaultMergeResultV4 = {
-  vault: PlayerVaultV4;
-  depositedItemCount: number;
-  rejectedItemCount: number;
 };
 
 export type FormalCarryPrepItemsResultV4 = {
@@ -779,54 +741,7 @@ function normalizeTrainerVault(value?: unknown): TrainerVaultV2 {
   };
 }
 
-export function normalizePlayerVault(value?: unknown): PlayerVaultV4 {
-  const raw = isPlainRecord(value) ? value : {};
-  const itemStoragePageCount = normalizePlayerVaultStoragePageCount(raw.itemStoragePageCount ?? raw.unlockedStoragePageCount);
-  const pokemonStoragePageCount = normalizePlayerVaultStoragePageCount(raw.pokemonStoragePageCount ?? raw.unlockedStoragePageCount);
-  const itemRecords = new Map<string, PlayerItemRecordV4>();
-  const rawItems = Array.isArray(raw.items) ? raw.items : [];
-  let fallbackStorageIndex = 0;
-  for (const item of rawItems) {
-    let record = normalizePlayerItemRecord(item);
-    if (!record) continue;
-    if (!Number.isFinite(record.slotIndex)) {
-      record = {
-        ...record,
-        boxKind: "storage",
-        storagePageIndex: Math.floor(fallbackStorageIndex / PLAYER_VAULT_PAGE_SIZE_V4),
-        slotIndex: fallbackStorageIndex % PLAYER_VAULT_PAGE_SIZE_V4,
-      };
-      fallbackStorageIndex += 1;
-    }
-    const key = playerItemRecordKey(record);
-    const current = itemRecords.get(key);
-    itemRecords.set(key, current ? {...current, quantity: current.quantity + record.quantity} : record);
-  }
-  const pokemon = (Array.isArray(raw.pokemon) ? raw.pokemon : [])
-    .map(normalizePlayerPokemonRecord)
-    .filter((entry): entry is PlayerPokemonRecordV4 => Boolean(entry));
-  return {
-    version: 1,
-    items: Array.from(itemRecords.values()).sort(comparePlayerItemRecords),
-    pokemon,
-    itemStoragePageCount,
-    pokemonStoragePageCount,
-  };
-}
-
-const PLAYER_VAULT_PAGE_SIZE_V4 = 24;
-const DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4 = 2;
-
-export function playerVaultUnlockedStoragePageCountV4(vault?: PlayerVaultV4 | null, kind: "item" | "pokemon" = "item"): number {
-  const normalized = vault ? normalizePlayerVault(vault) : null;
-  return kind === "pokemon"
-    ? normalizePlayerVaultStoragePageCount(normalized?.pokemonStoragePageCount)
-    : normalizePlayerVaultStoragePageCount(normalized?.itemStoragePageCount);
-}
-
-export function playerVaultStorageCapacityV4(vault?: PlayerVaultV4 | null, kind: "item" | "pokemon" = "item"): number {
-  return PLAYER_VAULT_PAGE_SIZE_V4 * playerVaultUnlockedStoragePageCountV4(vault, kind);
-}
+export const normalizePlayerVault = normalizePlayerVaultV4;
 
 export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefined | null, run: FormalGameRunV4 | undefined | null): PlayerVaultMergeResultV4 {
   const next = normalizePlayerVault(vault);
@@ -842,7 +757,7 @@ export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefine
       depositedItemCount += 1;
       continue;
     }
-    const openSlot = firstOpenPlayerVaultStorageSlot(items, next.itemStoragePageCount);
+    const openSlot = firstOpenPlayerVaultStorageSlotV4(items, next.itemStoragePageCount);
     if (!openSlot) {
       rejectedItemCount += 1;
       continue;
@@ -914,123 +829,8 @@ function createSeededRng(seed: string): () => number {
   };
 }
 
-function normalizePlayerItemRecord(value: unknown): PlayerItemRecordV4 | null {
-  if (!isPlainRecord(value)) return null;
-  const itemId = normalizeNonEmptyText(value.itemId ?? value.itemID ?? value.id);
-  if (!itemId) return null;
-  const quantity = clampInt(value.quantity, 1, 999999, 1);
-  const boxKind = value.boxKind === "prep" ? "prep" : "storage";
-  const storagePageIndex = boxKind === "storage" ? clampInt(value.storagePageIndex, 0, 999, 0) : undefined;
-  const slotIndex = Number.isFinite(Number(value.slotIndex)) ? clampInt(value.slotIndex, 0, PLAYER_VAULT_PAGE_SIZE_V4 - 1, 0) : undefined;
-  return {itemId, quantity, boxKind, storagePageIndex, slotIndex};
-}
-
-function normalizePlayerVaultStoragePageCount(value: unknown): number {
-  return clampInt(value, 1, 999, DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4);
-}
-
-function playerItemRecordKey(record: PlayerItemRecordV4): string {
-  return `${record.boxKind || "storage"}:${record.storagePageIndex || 0}:${record.slotIndex || 0}:${record.itemId}`;
-}
-
-function comparePlayerItemRecords(a: PlayerItemRecordV4, b: PlayerItemRecordV4): number {
-  const aKind = a.boxKind || "storage";
-  const bKind = b.boxKind || "storage";
-  if (aKind !== bKind) return aKind === "prep" ? -1 : 1;
-  const pageDelta = (a.storagePageIndex || 0) - (b.storagePageIndex || 0);
-  if (pageDelta) return pageDelta;
-  const slotDelta = (a.slotIndex || 0) - (b.slotIndex || 0);
-  if (slotDelta) return slotDelta;
-  return a.itemId.localeCompare(b.itemId);
-}
-
-function firstOpenPlayerVaultStorageSlot(items: PlayerItemRecordV4[], storagePageCount: number): {storagePageIndex: number; slotIndex: number} | null {
-  const occupied = new Set(items
-    .filter(item => (item.boxKind || "storage") === "storage")
-    .map(item => `${item.storagePageIndex || 0}:${item.slotIndex || 0}`));
-  for (let pageIndex = 0; pageIndex < normalizePlayerVaultStoragePageCount(storagePageCount); pageIndex += 1) {
-    for (let slotIndex = 0; slotIndex < PLAYER_VAULT_PAGE_SIZE_V4; slotIndex += 1) {
-      if (!occupied.has(`${pageIndex}:${slotIndex}`)) return {storagePageIndex: pageIndex, slotIndex};
-    }
-  }
-  return null;
-}
-
-function normalizePlayerPokemonRecord(value: unknown): PlayerPokemonRecordV4 | null {
-  if (!isPlainRecord(value)) return null;
-  const playerPokemonId = normalizeNonEmptyText(value.playerPokemonId ?? value.localPokemonId);
-  const speciesId = normalizeNonEmptyText(value.speciesId);
-  if (!playerPokemonId || !speciesId) return null;
-  return {
-    playerPokemonId,
-    speciesId,
-    gender: normalizeGender(value.gender),
-    nature: normalizeNonEmptyText(value.nature) || "Hardy",
-    abilityId: normalizeNonEmptyText(value.abilityId),
-    evs: normalizeStatTable(value.evs, 0),
-    ivs: normalizeStatTable(value.ivs, 31),
-    moves: normalizePlayerPokemonMoves(value.moves),
-    friendship: clampInt(value.friendship, 0, 255, 0),
-    shiny: Boolean(value.shiny),
-    metAt: normalizeIsoText(value.metAt) || new Date().toISOString(),
-    honors: Array.isArray(value.honors)
-      ? Array.from(new Set(value.honors.map(normalizeNonEmptyText).filter(Boolean)))
-      : [],
-  };
-}
-
-function normalizePlayerPokemonMoves(value: unknown): PlayerPokemonMoveRecordV4[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap(move => {
-    if (!isPlainRecord(move)) return [];
-    const moveId = normalizeNonEmptyText(move.moveId ?? move.id);
-    if (!moveId) return [];
-    const remainingPp = optionalNonNegativeInt(move.remainingPp);
-    const maxPp = optionalNonNegativeInt(move.maxPp);
-    return [{
-      moveId,
-      ...(remainingPp === undefined ? {} : {remainingPp}),
-      ...(maxPp === undefined ? {} : {maxPp}),
-    }];
-  }).slice(0, 4);
-}
-
-function normalizeStatTable(value: unknown, fallback: number): LocalPokemonV4["evs"] {
-  const raw = isPlainRecord(value) ? value : {};
-  return {
-    hp: clampInt(raw.hp, 0, 252, fallback),
-    atk: clampInt(raw.atk, 0, 252, fallback),
-    def: clampInt(raw.def, 0, 252, fallback),
-    spa: clampInt(raw.spa, 0, 252, fallback),
-    spd: clampInt(raw.spd, 0, 252, fallback),
-    spe: clampInt(raw.spe, 0, 252, fallback),
-  };
-}
-
-function normalizeGender(value: unknown): LocalPokemonV4["gender"] {
-  return value === "M" || value === "F" || value === "N" ? value : "N";
-}
-
 function normalizeNonEmptyText(value: unknown): string {
   return String(value || "").trim();
-}
-
-function normalizeIsoText(value: unknown): string {
-  const text = normalizeNonEmptyText(value);
-  if (!text) return "";
-  const time = Date.parse(text);
-  return Number.isFinite(time) ? new Date(time).toISOString() : "";
-}
-
-function optionalNonNegativeInt(value: unknown): number | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
-  return clampInt(value, 0, 999, 0);
-}
-
-function clampInt(value: unknown, min: number, max: number, fallback: number): number {
-  const next = Math.floor(Number(value));
-  if (!Number.isFinite(next)) return fallback;
-  return Math.max(min, Math.min(max, next));
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
