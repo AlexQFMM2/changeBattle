@@ -7,6 +7,9 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   getNatureEffectsV4,
   normalizePlayerVaultV4,
+  normalizeProfileNameV2,
+  normalizeTrainerVaultV2,
+  normalizeUserProfileV2,
   playerVaultStorageCapacityV4,
   playerVaultUnlockedStoragePageCountV4,
   type PlayerItemRecordV4,
@@ -15,8 +18,11 @@ import {
   type PlayerVaultMergeResultV4,
   type PlayerVaultV4,
   type RestCenterActionEntryV4,
+  type TrainerVaultV2,
+  type UserProfileDraftV2,
+  type UserProfileV2,
 } from "@changebattle-v2/core";
-import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BagStateV4, type BattlePreferenceV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerItemTypeV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type TrainingRunStorageAdapter} from "./training.js";
+import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type PlayerItemInstanceV4, type PlayerItemTypeV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
@@ -27,18 +33,16 @@ import {
   formalCarryPrepItemCountForStarChartV4,
   getStarChartCatalogV4,
   normalizeBattlePointsV4,
-  normalizeStarChartV4,
   starChartHasEmergencyMedicalCareV4,
   starChartHasFreeMedicalCareV4,
   starChartHasMedicalInsuranceV4,
   starChartHasOutpatientMedicalCareV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
-  type StarChartStateV4,
 } from "./starChart.js";
 export {REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4};
 export type {NatureEffectV4} from "@changebattle-v2/core";
-export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultV4, RestCenterActionEntryV4};
+export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultV4, RestCenterActionEntryV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
 export type {PokemonBattleProfileV4, PokemonBattleRoleTagV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
@@ -72,39 +76,10 @@ export type TrainerCatalogV2 = {
   avatars: TrainerCatalogEntryV2[];
 };
 
-export type TrainerVaultV2 = {
-  version: 1;
-  bag: BagStateV4;
-  pokemonBox: LocalPokemonV4[];
-};
-
 export type FormalCarryPrepItemsResultV4 = {
   run: FormalGameRunV4;
   playerVault: PlayerVaultV4;
   carriedItemIds: string[];
-};
-
-export type UserProfileV2 = {
-  version: 1;
-  id: string;
-  name: string;
-  trainerId: string;
-  avatarAsset: string;
-  frontAsset: string;
-  frontGifAsset?: string;
-  backAsset?: string;
-  createdAt: string;
-  updatedAt: string;
-  battlePreference: BattlePreferenceV4;
-  battlePoints: number;
-  starChart: StarChartStateV4;
-  trainerVault: TrainerVaultV2;
-};
-
-export type UserProfileDraftV2 = {
-  name?: string;
-  trainerId?: string;
-  avatarAsset?: string;
 };
 
 export type UserProfileStorageAdapter = {
@@ -227,7 +202,6 @@ export type ChangeBattleV2ApiOptions = {
   battleServiceUrl?: string;
 };
 
-const USER_PROFILE_VERSION = 1 as const;
 const DEFAULT_BROWSER_PROFILE_KEY = "changebattle-v2:user-profile";
 const DEFAULT_BROWSER_PLAYER_VAULT_KEY = "changebattle-v2:player-vault";
 
@@ -503,11 +477,9 @@ export {
 export function createDefaultUserProfile(draft: UserProfileDraftV2 = {}, now = new Date()): UserProfileV2 {
   const trainer = trainerFor(draft.trainerId);
   const createdAt = now.toISOString();
-  return {
-    version: USER_PROFILE_VERSION,
+  return normalizeUserProfileV2({
     id: createId(),
-    name: normalizeName(draft.name),
-    trainerId: trainer.id,
+    name: normalizeProfileNameV2(draft.name),
     avatarAsset: draft.avatarAsset || trainer.avatarAsset,
     frontAsset: trainer.frontAsset,
     frontGifAsset: trainer.frontGifAsset,
@@ -515,30 +487,22 @@ export function createDefaultUserProfile(draft: UserProfileDraftV2 = {}, now = n
     createdAt,
     updatedAt: createdAt,
     battlePreference: normalizeBattlePreferenceV4(),
-    battlePoints: 0,
-    starChart: normalizeStarChartV4(),
-    trainerVault: normalizeTrainerVault(),
-  };
+  }, trainer, createdAt);
 }
 
 export function updateUserProfile(profile: UserProfileV2, draft: UserProfileDraftV2 = {}, now = new Date()): UserProfileV2 {
   const trainer = trainerFor(draft.trainerId || profile.trainerId);
-  return {
-    version: USER_PROFILE_VERSION,
+  return normalizeUserProfileV2({
+    ...profile,
     id: profile.id,
-    name: normalizeName(draft.name ?? profile.name),
-    trainerId: trainer.id,
+    name: normalizeProfileNameV2(draft.name ?? profile.name),
     avatarAsset: draft.avatarAsset || profile.avatarAsset || trainer.avatarAsset,
     frontAsset: trainer.frontAsset,
     frontGifAsset: trainer.frontGifAsset,
     backAsset: trainer.backAsset,
     createdAt: profile.createdAt,
     updatedAt: now.toISOString(),
-    battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
-    battlePoints: normalizeBattlePointsV4(profile.battlePoints),
-    starChart: normalizeStarChartV4(profile.starChart),
-    trainerVault: normalizeTrainerVault(profile.trainerVault),
-  };
+  }, trainer, now.toISOString());
 }
 
 export function claimFormalSettlementBp(profile: UserProfileV2, settlement: FormalGameSettlementV4, now = new Date()): UserProfileV2 {
@@ -697,48 +661,9 @@ function normalizeProfileAssets(profile: UserProfileV2, publicAssetPrefix: strin
   };
 }
 
-function normalizeName(name: string | undefined): string {
-  const next = (name || "").trim();
-  return next || "训练师";
-}
-
 function normalizeProfile(profile: UserProfileV2): UserProfileV2 {
   const trainer = trainerFor(profile.trainerId);
-  return {
-    version: USER_PROFILE_VERSION,
-    id: profile.id || createId(),
-    name: normalizeName(profile.name),
-    trainerId: trainer.id,
-    avatarAsset: profile.avatarAsset || trainer.avatarAsset,
-    frontAsset: profile.frontAsset || trainer.frontAsset,
-    frontGifAsset: profile.frontGifAsset || trainer.frontGifAsset,
-    backAsset: profile.backAsset || trainer.backAsset,
-    createdAt: profile.createdAt || new Date().toISOString(),
-    updatedAt: profile.updatedAt || profile.createdAt || new Date().toISOString(),
-    battlePreference: normalizeBattlePreferenceV4(profile.battlePreference),
-    battlePoints: normalizeBattlePointsV4(profile.battlePoints),
-    starChart: normalizeStarChartV4(profile.starChart),
-    trainerVault: normalizeTrainerVault(profile.trainerVault),
-  };
-}
-
-function normalizeTrainerVault(value?: unknown): TrainerVaultV2 {
-  const raw = isPlainRecord(value) ? value : {};
-  const rawBag = isPlainRecord(raw.bag) ? raw.bag : {};
-  const maxSize = Math.max(1, Math.floor(Number(rawBag.maxSize || 80)));
-  const rawItems = Array.isArray(rawBag.items) ? rawBag.items : [];
-  const pokemonBox = Array.isArray(raw.pokemonBox)
-    ? raw.pokemonBox.filter(isPlainRecord).map(pokemon => clone(pokemon) as LocalPokemonV4)
-    : [];
-  return {
-    version: 1,
-    bag: {
-      maxSize,
-      items: rawItems.filter(isPlainRecord).map(item => clone(item) as BagStateV4["items"][number]).slice(0, maxSize),
-      battleBagEnabled: Boolean(rawBag.battleBagEnabled),
-    },
-    pokemonBox,
-  };
+  return normalizeUserProfileV2(profile, trainer);
 }
 
 export const normalizePlayerVault = normalizePlayerVaultV4;
