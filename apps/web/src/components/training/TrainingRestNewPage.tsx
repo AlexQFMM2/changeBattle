@@ -87,6 +87,7 @@ export type TrainingRestNewPageProps = {
   onOpenPokemonDex: (speciesId: string) => void;
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
   onAbandonRun?: () => void;
+  onProceedToSettlement?: () => void;
   moneyAmount?: number;
   roundSettlement?: FormalRoundSettlementV4 | null;
   onRoundSettlementSeen?: (nodeId: string) => void;
@@ -98,7 +99,12 @@ export type TrainingRestNewPageProps = {
   exchangeController?: TrainingRestExchangeController;
 };
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController}: TrainingRestNewPageProps) {
+const PENDING_SETTLEMENT_CAPTURE_ACTIONS = [
+  {label: "收服", iconText: "捕", disabled: false},
+  {label: "商店", iconSrc: "aboutIcon/shop.png", disabled: false},
+];
+
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -115,8 +121,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [message, setMessage] = useState("休息室已就绪。");
   const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
   const p1Team = run.players.p1?.localTeam || null;
+  const pendingSettlement = run.status === "battleEndedPendingSettlement";
   const leftSideActions = REST_CENTER_LEFT_SIDE_ACTIONS_V4.map(action => ({label: action.label}));
-  const rightSideActions = REST_CENTER_RIGHT_SIDE_ACTIONS_V4.map(action => ({label: action.label, primary: action.primary, danger: action.danger}));
+  const rightSideActions = pendingSettlement
+    ? [{label: "去结算", primary: true}]
+    : REST_CENTER_RIGHT_SIDE_ACTIONS_V4.map(action => ({label: action.label, primary: action.primary, danger: action.danger}));
 
   function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
     const p1 = run.players.p1;
@@ -277,6 +286,24 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   function selectAction(action: string) {
     setActiveAction(action);
+    if (action === "收服") {
+      setRestScene("center");
+      closeFloatingPanels();
+      setMessage("收服功能开发中。");
+      showNotice("收服功能开发中。");
+      return;
+    }
+    if (action === "去结算") {
+      setRestScene("center");
+      closeFloatingPanels();
+      if (onProceedToSettlement) {
+        onProceedToSettlement();
+        return;
+      }
+      setMessage("结算入口暂不可用。");
+      showNotice("结算入口暂不可用。", "danger");
+      return;
+    }
     if (action === "我的队伍") {
       setRestScene("center");
       setBagPanelOpen(false);
@@ -391,8 +418,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         )}
         <section className="training-rest-new-center-scene" aria-label="休息室">
           <img className="training-rest-new-bg" src={assetUrl("training/rest-center-bg.png")} alt="休息室背景预览" />
-          <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={onLockedPreviewPokemonClick} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
-          <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} />
+          {pendingSettlement ? (
+            <section className="training-rest-new-next-preview-empty" aria-label="下一场预览" />
+          ) : (
+            <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={onLockedPreviewPokemonClick} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
+          )}
+          <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} entries={pendingSettlement ? PENDING_SETTLEMENT_CAPTURE_ACTIONS : undefined} />
           {typeof moneyAmount === "number" ? (
             <div className="training-rest-new-money-pill" aria-label="当前金币">
               <img src={assetUrl("aboutIcon/coin.png")} alt="" />
@@ -400,7 +431,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             </div>
           ) : null}
           <TrainingRestBoardTitle side="left">休息室菜单</TrainingRestBoardTitle>
-          <TrainingRestBoardTitle side="right">下一场预览</TrainingRestBoardTitle>
+          <TrainingRestBoardTitle side="right">{pendingSettlement ? "" : "下一场预览"}</TrainingRestBoardTitle>
           <TrainingRestSideBoard
             side="left"
             actions={leftSideActions}

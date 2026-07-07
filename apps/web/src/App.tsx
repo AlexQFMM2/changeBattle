@@ -417,6 +417,10 @@ function RoutedApp({runtime}: AppProps) {
     }
     setFormalRun(current);
     if (current.restRunSnapshot) {
+      if (isFormalPendingSettlementRestRun(current.restRunSnapshot)) {
+        navigate("/formal/rest", {replace: true});
+        return;
+      }
       if (hasUnsettledFormalWonRound(current)) {
         navigate("/formal/battle-result-transition", {replace: true});
         return;
@@ -841,6 +845,7 @@ function RoutedApp({runtime}: AppProps) {
           }}
           onBackToConfig={() => navigate("/main", {replace: true})}
           onAbandonRun={() => enterFormalSettlement("abandon")}
+          onProceedToSettlement={() => enterFormalSettlement("complete")}
           onStartBattle={startFormalBattleFromRest}
           onOpenDex={() => openDex()}
           onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
@@ -1164,12 +1169,18 @@ function parseFormalBattleResultReason(value: unknown): FormalBattleResultFinali
 }
 
 function isFormalRestRunComplete(run: TrainingRunGameV4 | null | undefined): boolean {
+  if (isFormalPendingSettlementRestRun(run)) return false;
   return Boolean(run?.gameMap.length && run.gameMap.every(node => node.state === "won"));
 }
 
 function hasUnsettledFormalWonRound(run: FormalGameRunV4 | null | undefined): boolean {
+  if (isFormalPendingSettlementRestRun(run?.restRunSnapshot)) return false;
   const settledNodeIds = new Set(Object.keys(run?.roundSettlementByNodeId || {}));
   return Boolean(run?.restRunSnapshot?.gameMap.some(node => node.state === "won" && !settledNodeIds.has(node.id)));
+}
+
+function isFormalPendingSettlementRestRun(run: TrainingRunGameV4 | null | undefined): boolean {
+  return run?.status === "battleEndedPendingSettlement";
 }
 
 function TrainingConfigBootstrap({onReady}: {onReady: () => void}) {

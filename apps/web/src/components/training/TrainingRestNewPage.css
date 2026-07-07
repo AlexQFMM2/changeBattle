@@ -129,6 +129,16 @@
   image-rendering: auto;
 }
 
+.training-rest-new-next-preview-empty {
+  position: absolute;
+  z-index: 2;
+  left: var(--rest-new-notice-right-x);
+  top: var(--rest-new-notice-right-y);
+  width: var(--rest-new-notice-right-w);
+  height: var(--rest-new-notice-right-h);
+  pointer-events: none;
+}
+
 .training-rest-new-save-message {
   position: absolute;
   left: 224px;

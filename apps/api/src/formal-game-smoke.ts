@@ -1411,6 +1411,27 @@ assert(finalizedBattleResultAgain.destination === "rest", "formal battle finaliz
 assert(finalizedBattleResultAgain.run.money === finalizedBattleResult.run.money, "formal battle finalize should not duplicate rewards on retry");
 assert(Object.keys(finalizedBattleResultAgain.run.roundSettlementByNodeId || {}).length === Object.keys(finalizedBattleResult.run.roundSettlementByNodeId || {}).length, "formal battle finalize should not duplicate settlement records on retry");
 assert(finalizedBattleResultAgain.run.restRunSnapshot?.battleLog?.length === finalizedBattleResult.run.restRunSnapshot?.battleLog?.length, "formal battle finalize should not duplicate battle logs on retry");
+const singleBattleSnapshot = {
+  ...battleSnapshotBase,
+  id: "formal-smoke-single-final-session",
+  runId: singlePlanned.restRunSnapshot!.id,
+  nodeId: singlePlanned.roundPlan[0]!.id,
+  rawLog: [
+    `|move|p1a: ${firstPlayerPokemon.nameZh}|Tackle|p2a: ${firstEnemyPokemon.nameZh}`,
+    `|-damage|p2a: ${firstEnemyPokemon.nameZh}|80/100`,
+    `|-damage|p2a: ${firstEnemyPokemon.nameZh}|50/100`,
+    `|faint|p2a: ${firstEnemyPokemon.nameZh}`,
+    "|win|P1",
+  ],
+} as never;
+const singleFinalizedBattleResult = api.finalizeFormalBattleResultV4(singlePlanned, singleBattleSnapshot);
+assert(singleFinalizedBattleResult.destination === "rest", "final formal battle should route to pending settlement rest page");
+assert(singleFinalizedBattleResult.run.restRunSnapshot?.status === "battleEndedPendingSettlement", "final formal battle should mark rest snapshot as pending settlement");
+assert(singleFinalizedBattleResult.run.roundSettlementByNodeId?.[singlePlanned.roundPlan[0]!.id], "final formal battle should write round settlement before pending settlement rest");
+assert(singleFinalizedBattleResult.run.money === singlePlanned.money + 500, "final formal battle should apply round reward before pending settlement rest");
+assert(singleFinalizedBattleResult.run.settled === false && !singleFinalizedBattleResult.run.settlement, "final formal battle should not create final settlement before player confirms");
+const singlePendingSettlement = api.prepareFormalSettlement(singleFinalizedBattleResult.run, "complete");
+assert(singlePendingSettlement.status === "ended" && singlePendingSettlement.settlement?.outcome === "win", "pending settlement rest should still enter final settlement");
 const battleLogP1Team = withBattleLog.restRunSnapshot!.players.p1!.localTeam.pokemon;
 const faintedSettlementRestRun = {
   ...withBattleLog.restRunSnapshot!,

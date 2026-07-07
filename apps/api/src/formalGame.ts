@@ -946,6 +946,12 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     if (nextIndex >= formalRoundCountForRun(normalized)) {
       return normalizeFormalRun({
         ...normalized,
+        restRunSnapshot: {
+          ...restRunSnapshot,
+          status: "battleEndedPendingSettlement",
+          currentNodeId: wonNode.id,
+          updatedAt,
+        },
         currentRoundIndex: wonNode.index,
         updatedAt,
       });
@@ -1174,8 +1180,20 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const settled = settleFormalBattleRoundV4(withLog);
     const settledSnapshot = settled.restRunSnapshot;
     const completed = Boolean(settledSnapshot?.gameMap.length && settledSnapshot.gameMap.every(node => node.state === "won"));
-    if (settledSnapshot?.status === "ended" || completed) {
+    if (settledSnapshot?.status === "ended") {
       return {run: settled, destination: "settlement", reason: "complete"};
+    }
+    if (completed) {
+      const pendingRun = normalizeFormalRun({
+        ...settled,
+        restRunSnapshot: settledSnapshot ? {
+          ...settledSnapshot,
+          status: "battleEndedPendingSettlement",
+          updatedAt: now,
+        } : settledSnapshot,
+        updatedAt: now,
+      });
+      return {run: pendingRun, destination: "rest"};
     }
     return {run: settled, destination: "rest"};
   }
@@ -2568,7 +2586,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       ...snapshot,
       version: 1,
       source: "training",
-      status: "resting",
+      status: snapshot.status === "battleEndedPendingSettlement" ? "battleEndedPendingSettlement" : "resting",
       currentNodeId: snapshot.currentNodeId || gameMap[0]?.id || null,
       gameMap,
       players,

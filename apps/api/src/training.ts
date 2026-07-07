@@ -15,7 +15,7 @@ export type TrainingControllerV4 = "local" | "ai" | "script";
 export type TrainingAllianceV4 = "near" | "far";
 export type TrainingGenderV4 = "M" | "F" | "N";
 export type TrainingStatusV4 = "" | "brn" | "par" | "psn" | "tox" | "slp" | "frz";
-export type TrainingRunStatusV4 = "configuring" | "resting" | "battlePreparing" | "battling" | "settling" | "ended" | "blocked";
+export type TrainingRunStatusV4 = "configuring" | "resting" | "battlePreparing" | "battling" | "settling" | "battleEndedPendingSettlement" | "ended" | "blocked";
 export type TrainingRunNodeStateV4 = "locked" | "ready" | "preparing" | "running" | "won" | "lost" | "skipped" | "blocked";
 export type BattleSystemPreferenceV4 = "mega" | "zmove" | "dynamax" | "terastal";
 
@@ -568,7 +568,11 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     const scenario = normalizeScenario(run.scenario, profileFromRun(run), battlePreference);
     const players = normalizePlayersRecord(run.players, scenario);
     const hasGameMap = Array.isArray(run.gameMap) && run.gameMap.length > 0;
-    const gameMap = hasGameMap ? normalizeGameMap(run.gameMap, scenario) : [];
+    const normalizedGameMap = hasGameMap ? normalizeGameMap(run.gameMap, scenario) : [];
+    const pendingSettlement = run.status === "battleEndedPendingSettlement";
+    const gameMap = pendingSettlement
+      ? normalizedGameMap.map((node, index) => run.gameMap[index]?.state === "won" ? {...node, state: "won" as const} : node)
+      : normalizedGameMap;
     const currentNodeId = run.currentNodeId && gameMap.some(node => node.id === run.currentNodeId)
       ? run.currentNodeId
       : gameMap.find(node => node.state === "ready" || node.state === "running" || node.state === "preparing")?.id || null;
@@ -1110,7 +1114,7 @@ function normalizeNodeParticipants(
 }
 
 function normalizeRunStatus(status: unknown, gameMap: TrainingRunGameNodeV4[]): TrainingRunStatusV4 {
-  if (["configuring", "resting", "battlePreparing", "battling", "settling", "ended", "blocked"].includes(String(status))) return status as TrainingRunStatusV4;
+  if (["configuring", "resting", "battlePreparing", "battling", "settling", "battleEndedPendingSettlement", "ended", "blocked"].includes(String(status))) return status as TrainingRunStatusV4;
   return gameMap.length ? "resting" : "configuring";
 }
 

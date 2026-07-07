@@ -84,6 +84,10 @@ function routeFormalBattleResult(
   onSettlementReady: (run: FormalGameRunV4, reason: FormalBattleResultFinalizeReasonV4) => void,
 ) {
   const restRunSnapshot = run.restRunSnapshot;
+  if (restRunSnapshot?.status === "battleEndedPendingSettlement") {
+    onRestReady(run);
+    return;
+  }
   if (restRunSnapshot?.result?.outcome === "loss" || restRunSnapshot?.status === "ended" || isFormalRestRunComplete(restRunSnapshot)) {
     onSettlementReady(run, restRunSnapshot?.result?.outcome === "loss" ? "loss" : "complete");
     return;
