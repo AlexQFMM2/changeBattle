@@ -50,6 +50,7 @@ const requiredSnippets = [
   },
   {
     file: "main/formalComputeWorker.js",
+    includeSiblingChunks: true,
     snippets: [
       'request.method === "createFormalGameWithStarterCandidates"',
       "STAR_CHART_NODES_V4",
@@ -75,7 +76,7 @@ for (const entry of requiredSnippets) {
     failures.push(`${entry.file}: missing output file`);
     continue;
   }
-  const text = fs.readFileSync(filePath, "utf8");
+  const text = readBundleText(filePath, Boolean(entry.includeSiblingChunks));
   for (const snippet of entry.snippets) {
     if (!text.includes(snippet)) failures.push(`${entry.file}: missing ${snippet}`);
   }
@@ -91,3 +92,14 @@ if (failures.length) {
 }
 
 console.info("[assert-desktop-ipc-bundle] ok");
+
+function readBundleText(filePath, includeSiblingChunks) {
+  const textParts = [fs.readFileSync(filePath, "utf8")];
+  if (!includeSiblingChunks) return textParts.join("\n");
+  const chunksDir = path.join(path.dirname(filePath), "chunks");
+  if (!fs.existsSync(chunksDir)) return textParts.join("\n");
+  for (const entry of fs.readdirSync(chunksDir)) {
+    if (entry.endsWith(".js")) textParts.push(fs.readFileSync(path.join(chunksDir, entry), "utf8"));
+  }
+  return textParts.join("\n");
+}
