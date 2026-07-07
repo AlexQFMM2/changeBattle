@@ -16,7 +16,6 @@
 | [formal-game](formal-game/README.md) | 当前主线 | 正式游戏稳定化、最终休整、灵魂伴侣下版本计划 |
 | [battle-v4](battle-v4/README.md) | 部分完成 | Battle V4 架构、投降、AI、队伍生成、Showdown 播放与动画 |
 | [references](references/README.md) | 参考资料 | UI 参考图和设计拆解素材 |
-| [archive](archive/) | 历史归档 | 已完成或明显落后的施工计划，保留用于查历史设计 |
 
 ## 当前最常用入口
 
@@ -35,7 +34,7 @@
 - Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化、天气持久层资源重载、Substitute 持续标记，以及选人页两步选择交互；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
 - 正式模式稳定性继续收口：敌方 NPC 等级按玩家最高等级动态计算，究极异兽归入神兽候选，自习收益改为等级/数值约 3:7，战斗入场同步本地 PP。
 - 休整页弹窗栈已补齐：背包打开时，技能学习替换和 Mega/Z/太晶系统道具重铸面板会显示在背包之上。
-- Plan 文档已按功能目录整理，后续新增计划优先进入对应目录 README，而不是堆在根目录。
+- Plan 文档已按功能目录整理，已完成或明显落后的旧计划已移除；后续新增计划优先进入对应目录 README，而不是堆在根目录。
 
 ## 下一步
 
