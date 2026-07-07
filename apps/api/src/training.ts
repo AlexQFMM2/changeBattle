@@ -11,6 +11,8 @@ import {
   BATTLE_SYSTEM_OPTIONS_V4,
   DEFAULT_BATTLE_PREFERENCE_V4,
   battleSystemsForRuleSetV4,
+  getCurrentTrainingNodeV4,
+  getNextTrainingNodeV4,
   getPokemonDisplayNameV4,
   getPokemonIdentityKeyV4,
   normalizeBagStateV4 as normalizeCoreBagStateV4,
@@ -19,6 +21,8 @@ import {
   normalizeLocalPokemonV4,
   normalizeLocalTeamV4,
   normalizePlayerItemInstanceV4,
+  normalizeTrainingRunNodeStateV4,
+  normalizeTrainingRunStatusV4,
   type BattlePreferenceV4,
   type BattleSystemPreferenceV4,
   type BagStateV4,
@@ -29,11 +33,24 @@ import {
   type PlayerItemInstanceV4,
   type PlayerItemTypeV4,
   type PokemonPowerProfileV4,
+  type ShowdownPlayerIdV4,
   type StatTableV4,
+  type TrainingAllianceV4,
+  type TrainingBattleGamePlaceholderV4,
+  type TrainingBattleLogEntryV4,
+  type TrainingCoinLogEntryV4,
+  type TrainingControllerV4,
   type TrainingGenderV4,
   type TrainingModeV4,
   type TrainingMoveSlotV4,
+  type TrainingPlayerDraftV4,
+  type TrainingRunGameNodeV4,
+  type TrainingRunGameV4,
+  type TrainingRunNodeStateV4,
+  type TrainingRunResultV4,
+  type TrainingRunStatusV4,
   type TrainingRuleSetV4,
+  type TrainingScenarioV4,
   type TrainingStatusV4,
 } from "@changebattle-v2/core";
 
@@ -43,6 +60,8 @@ export {
   BATTLE_SYSTEM_OPTIONS_V4,
   DEFAULT_BATTLE_PREFERENCE_V4,
   battleSystemsForRuleSetV4,
+  getCurrentTrainingNodeV4,
+  getNextTrainingNodeV4,
   getPokemonDisplayNameV4,
   getPokemonIdentityKeyV4,
   normalizeCoreBagStateV4 as normalizeBagStateV4,
@@ -51,6 +70,8 @@ export {
   normalizeLocalPokemonV4,
   normalizeLocalTeamV4,
   normalizePlayerItemInstanceV4,
+  normalizeTrainingRunNodeStateV4,
+  normalizeTrainingRunStatusV4,
   type BattlePreferenceV4,
   type BattleSystemPreferenceV4,
   type BagStateV4,
@@ -60,133 +81,32 @@ export {
   type LocalTeamV4,
   type PlayerItemInstanceV4,
   type PlayerItemTypeV4,
+  type ShowdownPlayerIdV4,
   type StatTableV4,
+  type TrainingAllianceV4,
+  type TrainingBattleGamePlaceholderV4,
+  type TrainingBattleLogEntryV4,
+  type TrainingCoinLogEntryV4,
+  type TrainingControllerV4,
   type TrainingGenderV4,
   type TrainingModeV4,
   type TrainingMoveSlotV4,
+  type TrainingPlayerDraftV4,
+  type TrainingRunGameNodeV4,
+  type TrainingRunGameV4,
+  type TrainingRunNodeStateV4,
+  type TrainingRunResultV4,
+  type TrainingRunStatusV4,
   type TrainingRuleSetV4,
+  type TrainingScenarioV4,
   type TrainingStatusV4,
 };
 
-export type ShowdownPlayerIdV4 = "p1" | "p2" | "p3" | "p4";
-export type TrainingControllerV4 = "local" | "ai" | "script";
-export type TrainingAllianceV4 = "near" | "far";
-export type TrainingRunStatusV4 = "configuring" | "resting" | "battlePreparing" | "battling" | "settling" | "battleEndedPendingSettlement" | "ended" | "blocked";
-export type TrainingRunNodeStateV4 = "locked" | "ready" | "preparing" | "running" | "won" | "lost" | "skipped" | "blocked";
 export type TrainingUserProfileInputV4 = {
   id: string;
   name: string;
   avatarAsset: string;
   battlePreference?: Partial<BattlePreferenceV4>;
-};
-
-export type TrainingRunGameV4 = {
-  version: 1;
-  id: string;
-  source: "training";
-  status: TrainingRunStatusV4;
-  profileId: string;
-  createdAt: string;
-  updatedAt: string;
-  scenario: TrainingScenarioV4;
-  players: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
-  currentNodeId: string | null;
-  gameMap: TrainingRunGameNodeV4[];
-  result: TrainingRunResultV4 | null;
-  battlePreference: BattlePreferenceV4;
-  competitionMode?: FormalCompetitionModeV4;
-  restPreviewUnlocks?: Record<string, true>;
-  coinLog?: TrainingCoinLogEntryV4[];
-  battleLog?: TrainingBattleLogEntryV4[];
-};
-
-export type TrainingCoinLogEntryV4 = {
-  id: string;
-  key: string;
-  at: string;
-  roundIndex: number;
-  kind: "income" | "expense" | "adjustment";
-  amount: number;
-  balanceBefore: number;
-  balanceAfter: number;
-  source: string;
-  label: string;
-};
-
-export type TrainingBattleLogEntryV4 = {
-  id: string;
-  key: string;
-  at: string;
-  sessionId: string;
-  nodeId: string;
-  turn: number;
-  rawLogIndex: number;
-  eventType: "move" | "damage" | "heal" | "faint" | "win" | "other";
-  damage?: number;
-  healing?: number;
-  sourcePlayerId?: ShowdownPlayerIdV4;
-  sourcePokemonKey?: string;
-  sourcePokemonName?: string;
-  targetPlayerId?: ShowdownPlayerIdV4;
-  targetPokemonKey?: string;
-  targetPokemonName?: string;
-  moveId?: string;
-  moveName?: string;
-  moveType?: string;
-  moveCategory?: string;
-  movePower?: number;
-  moveEffectKind?: "damage" | "setup" | "recovery" | "status" | "field" | "protect" | "pivot" | "other";
-  directness?: "direct" | "indirect" | "unknown";
-  rawLine: string;
-};
-
-export type TrainingBattleGamePlaceholderV4 = {
-  id: string;
-  status: "creating" | "running" | "ended" | "blocked";
-} | null;
-
-export type TrainingRunGameNodeV4 = {
-  id: string;
-  index: number;
-  state: TrainingRunNodeStateV4;
-  p1: ShowdownPlayerIdV4 | null;
-  p2: ShowdownPlayerIdV4 | null;
-  p3: ShowdownPlayerIdV4 | null;
-  p4: ShowdownPlayerIdV4 | null;
-  mode: TrainingModeV4;
-  ruleSet: TrainingRuleSetV4;
-  seed: string;
-  participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
-  battleGame: TrainingBattleGamePlaceholderV4;
-  createdAt?: string;
-  startedAt?: string;
-  endedAt?: string;
-};
-
-export type TrainingRunResultV4 = {
-  outcome: "win" | "loss" | "abandoned";
-  reason: string;
-} | null;
-
-export type TrainingScenarioV4 = {
-  id: string;
-  name: string;
-  mode: TrainingModeV4;
-  ruleSet: TrainingRuleSetV4;
-  battleCount: number;
-  players: TrainingPlayerDraftV4[];
-  selectedNpcIds: Partial<Record<ShowdownPlayerIdV4, string>>;
-};
-
-export type TrainingPlayerDraftV4 = {
-  playerId: ShowdownPlayerIdV4;
-  name: string;
-  avatar: string;
-  backImage?: string;
-  controller: TrainingControllerV4;
-  alliance: TrainingAllianceV4;
-  localTeam: LocalTeamV4;
-  bag: BagStateV4;
 };
 
 export type TrainingNpcV4 = {
@@ -402,13 +322,12 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
 
   function getCurrentTrainingNode(run: TrainingRunGameV4): TrainingRunGameNodeV4 | null {
     const normalized = normalizeRun(run);
-    return normalized.gameMap.find(node => node.id === normalized.currentNodeId) || normalized.gameMap.find(node => node.state === "ready") || null;
+    return getCurrentTrainingNodeV4(normalized);
   }
 
   function getNextTrainingNode(run: TrainingRunGameV4): TrainingRunGameNodeV4 | null {
     const normalized = normalizeRun(run);
-    const current = getCurrentTrainingNode(normalized);
-    return normalized.gameMap.find(node => node.index > (current?.index ?? -1) && node.state === "locked") || null;
+    return getNextTrainingNodeV4(normalized);
   }
 
   function randomizeTrainingScenario(run: TrainingRunGameV4, options: {includeRuleSet?: boolean; includeMode?: boolean} = {}): TrainingRunGameV4 {
@@ -468,7 +387,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       version: TRAINING_RUN_VERSION,
       id: run.id || createId("training-run"),
       source: "training",
-      status: normalizeRunStatus(run.status, gameMap),
+      status: normalizeTrainingRunStatusV4(run.status, gameMap),
       profileId: run.profileId || "",
       createdAt: run.createdAt || new Date().toISOString(),
       updatedAt: run.updatedAt || run.createdAt || new Date().toISOString(),
@@ -951,7 +870,7 @@ function normalizeGameMap(nodes: TrainingRunGameNodeV4[], scenario: TrainingScen
   const normalized: TrainingRunGameNodeV4[] = nodes.slice(0, scenario.battleCount).map((node, index) => ({
     id: node.id || createId(`training-node-${index + 1}`),
     index,
-    state: normalizeNodeState(node.state, index),
+    state: normalizeTrainingRunNodeStateV4(node.state, index),
     p1: "p1" as ShowdownPlayerIdV4,
     p2: "p2" as ShowdownPlayerIdV4,
     p3: ids.includes("p3") ? "p3" as ShowdownPlayerIdV4 : null,
@@ -1006,18 +925,8 @@ function normalizeNodeParticipants(
   return Object.fromEntries(ids.map(playerId => [playerId, participants?.[playerId] || fallback[playerId]]).filter(([, player]) => Boolean(player))) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
 }
 
-function normalizeRunStatus(status: unknown, gameMap: TrainingRunGameNodeV4[]): TrainingRunStatusV4 {
-  if (["configuring", "resting", "battlePreparing", "battling", "settling", "battleEndedPendingSettlement", "ended", "blocked"].includes(String(status))) return status as TrainingRunStatusV4;
-  return gameMap.length ? "resting" : "configuring";
-}
-
 function normalizeBattleCount(value: unknown): number {
   return clampInt(value, 1, 7, 1);
-}
-
-function normalizeNodeState(state: unknown, index: number): TrainingRunNodeStateV4 {
-  if (["locked", "ready", "preparing", "running", "won", "lost", "skipped", "blocked"].includes(String(state))) return state as TrainingRunNodeStateV4;
-  return index === 0 ? "ready" : "locked";
 }
 
 function normalizeRestPreviewUnlocks(value: unknown): Record<string, true> {

@@ -16,6 +16,7 @@ export * from "./playerHonorCatalog.js";
 export * from "./playerVault.js";
 export * from "./pokemonInstance.js";
 export * from "./restCenterCatalog.js";
+export * from "./runGame.js";
 export * from "./starChartCatalog.js";
 export * from "./starChartRules.js";
 export * from "./userProfile.js";
