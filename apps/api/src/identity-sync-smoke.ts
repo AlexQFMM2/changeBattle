@@ -110,12 +110,13 @@ const p2 = player("p2", p2Team);
 const trainingApi = createTrainingRunApi({
   getItemDetail(id: string) {
     const system = id.startsWith("system-");
+    const evolution = id === "linking-cord" || id === "linkingcord" || id === "universal-evolution-stone" || id === "universalevolutionstone";
     return {
       id,
       name: id,
       nameZh: id,
-      kind: system ? "system-battle" : "recovery",
-      categoryLabel: system ? "系统战斗道具" : "恢复道具",
+      kind: system ? "system-battle" : evolution ? "evolution" : "recovery",
+      categoryLabel: system ? "系统战斗道具" : evolution ? "进化道具" : "恢复道具",
       source: system ? "system" : "v1-game",
       description: id,
       effectSummary: id,
@@ -136,6 +137,8 @@ assert(normalizedEmptyBag.maxSize === 50, "bag default maxSize mismatch");
 const duplicatedA = trainingApi.createItemInstance("potion");
 const duplicatedB = trainingApi.createItemInstance("potion");
 assert(duplicatedA.itemID === duplicatedB.itemID && duplicatedA.id !== duplicatedB.id, "same itemID instances must not stack");
+const linkingCord = trainingApi.createItemInstance("linking-cord");
+assert(linkingCord.type === "evolution", "linking-cord should create evolution item instances");
 const gen7Bag = trainingApi.normalizeBagState({maxSize: 50, items: []}, "gen7");
 assert(gen7Bag.items.some(item => item.itemID === "system-mega-stone"), "gen7 missing default Mega system item");
 assert(gen7Bag.items.some(item => item.itemID === "system-z-crystal"), "gen7 missing default Z system item");

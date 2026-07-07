@@ -6,6 +6,7 @@ import {
   REST_CENTER_PAPER_ACTIONS_V4,
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   getNatureEffectsV4,
+  normalizeSoulmateEvolutionRequirementV4,
   normalizeProfileNameV2,
   normalizeSaveTableV4,
   normalizeTrainerVaultV2,
@@ -28,7 +29,7 @@ import {
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
-import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
+import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -51,8 +52,9 @@ import {
 } from "./starChart.js";
 export {FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4, createSoulmateCandidateListV4, formalShopSlotsForCategoryV4};
 export type {NatureEffectV4} from "@changebattle-v2/core";
-export {showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
+export {showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
 export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
+export type {FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4};
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
 export type {PokemonBattleProfileV4, PokemonBattleRoleTagV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
@@ -90,6 +92,18 @@ export type FormalCarryPrepItemsResultV4 = {
   run: FormalGameRunV4;
   playerVault: PlayerVaultV4;
   carriedItemIds: string[];
+};
+
+export type PlayerVaultPokemonDetailViewV4 = {
+  title: string;
+  speciesName: string;
+  subtitle: string;
+  spriteUrl: string;
+  shiny: boolean;
+  overview: Array<{label: string; value: string}>;
+  stats: Array<{id: string; label: string; actual: number; iv: number; ev: number}>;
+  moves: Array<{slot: number; id: string; name: string; type: string; category: string; power: string; pp: string}>;
+  evolutions: Array<{from: string; to: string; method: string}>;
 };
 
 export type UserProfileStorageAdapter = {
@@ -301,6 +315,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     applyFormalCarryPrepItems,
     playerVaultUnlockedStoragePageCountV4,
     playerVaultStorageCapacityV4,
+    createPlayerVaultPokemonDetailView: (pokemon: PlayerPokemonRecordV4) => createPlayerVaultPokemonDetailView(dex, pokemon),
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
     loadUserProfile: async () => {
       const profile = await userProfiles.loadUserProfile();
@@ -355,6 +370,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     getNatureEffects: getNatureEffectsV4,
     buyFormalRestShopItem: formalRuns.buyFormalRestShopItem,
     sellFormalRestBagItems: formalRuns.sellFormalRestBagItems,
+    prepareFormalSoulmateEggHatch: formalRuns.prepareFormalSoulmateEggHatch,
+    claimFormalSoulmateEgg: formalRuns.claimFormalSoulmateEgg,
     rerollFormalRestPokemonStats: formalRuns.rerollFormalRestPokemonStats,
     unlockFormalRestOpponentPreview: formalRuns.unlockFormalRestOpponentPreview,
     getFormalRestExchangeView: formalRuns.getFormalRestExchangeView,
@@ -606,6 +623,40 @@ export function normalizePlayerVault(value?: unknown): PlayerVaultV4 {
   return normalizeSaveTableV4("playerVault", value).value;
 }
 
+export function createPlayerVaultPokemonDetailView(dex: ReturnType<typeof createShowdownDexService>, pokemon: PlayerPokemonRecordV4): PlayerVaultPokemonDetailViewV4 {
+  const detail = safePokemonDetailForVault(dex, pokemon.speciesId);
+  const speciesName = detail?.nameZh || detail?.name || pokemon.speciesId;
+  const title = pokemon.nickname ? `${pokemon.nickname}（${speciesName}）` : speciesName;
+  const ability = detail?.abilities.find(entry => entry.id === pokemon.abilityId);
+  const abilityName = ability?.nameZh || ability?.name || pokemon.abilityId || "特性未知";
+  const level = Math.max(1, Math.min(100, Math.floor(Number(pokemon.level || 50))));
+  const nature = natureViewForVault(pokemon.nature);
+  const stats = vaultStatRows(dex, pokemon, level);
+  const moves = pokemon.moves.slice(0, 4).map((move, index) => vaultMoveView(dex, move, index));
+  const evolutions = vaultEvolutionViews(dex, pokemon.speciesId);
+  return {
+    title,
+    speciesName,
+    subtitle: `Lv.${level} · ${pokemon.gender || "N"} · ${abilityName}${pokemon.shiny ? " · ★ 闪光" : ""}`,
+    spriteUrl: pokemon.shiny
+      ? detail?.sprites.frontShinyUrl || detail?.sprites.fallbackFrontShinyUrl || detail?.sprites.frontUrl || detail?.sprites.fallbackFrontUrl || detail?.sprites.iconUrl || ""
+      : detail?.sprites.frontUrl || detail?.sprites.fallbackFrontUrl || detail?.sprites.iconUrl || "",
+    shiny: Boolean(pokemon.shiny),
+    overview: [
+      {label: "来源", value: pokemon.originKind === "soulmate" ? "灵魂伴侣" : "宝可梦存储箱"},
+      {label: "等级", value: `Lv.${level}`},
+      {label: "性格", value: nature},
+      {label: "特性", value: abilityName},
+      {label: "亲密", value: String(Math.max(0, Math.floor(Number(pokemon.friendship || 0))))},
+      {label: "相遇", value: formatVaultDate(pokemon.metAt)},
+      ...(pokemon.originKind === "soulmate" ? [{label: "标记", value: "灵魂伴侣"}] : []),
+    ],
+    stats,
+    moves,
+    evolutions,
+  };
+}
+
 export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefined | null, run: FormalGameRunV4 | undefined | null): PlayerVaultMergeResultV4 {
   const next = normalizePlayerVault(vault);
   const items = next.items.map(item => ({...item}));
@@ -643,6 +694,92 @@ export function mergeFormalRunBagIntoPlayerVault(vault: PlayerVaultV4 | undefine
 
 function normalizeNonEmptyText(value: unknown): string {
   return String(value || "").trim();
+}
+
+function safePokemonDetailForVault(dex: ReturnType<typeof createShowdownDexService>, speciesId: string) {
+  try {
+    return dex.getPokemonDetail(speciesId);
+  } catch {
+    return null;
+  }
+}
+
+function natureViewForVault(natureId: string): string {
+  const nature = getNatureEffectsV4().find(entry => entry.id === natureId || entry.name === natureId || entry.nameZh === natureId);
+  if (!nature) return natureId || "未知";
+  const neutral = !nature.plus && !nature.minus;
+  return `${nature.id} · ${neutral ? "无修正" : `+${vaultStatLabel(nature.plus)} / -${vaultStatLabel(nature.minus)}`}`;
+}
+
+function vaultStatRows(dex: ReturnType<typeof createShowdownDexService>, pokemon: PlayerPokemonRecordV4, level: number): PlayerVaultPokemonDetailViewV4["stats"] {
+  const statIds = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
+  let actual: Record<string, number> = {};
+  try {
+    actual = dex.calculatePokemonStats({speciesId: pokemon.speciesId, level, nature: pokemon.nature, ivs: pokemon.ivs, evs: pokemon.evs}).stats;
+  } catch {
+    actual = {};
+  }
+  return statIds.map(id => ({
+    id,
+    label: vaultStatLabel(id),
+    actual: Math.max(0, Math.floor(Number(actual[id] || 0))),
+    iv: Math.max(0, Math.floor(Number(pokemon.ivs[id] || 0))),
+    ev: Math.max(0, Math.floor(Number(pokemon.evs[id] || 0))),
+  }));
+}
+
+function vaultMoveView(dex: ReturnType<typeof createShowdownDexService>, move: PlayerPokemonMoveRecordV4, index: number): PlayerVaultPokemonDetailViewV4["moves"][number] {
+  try {
+    const detail = dex.getMoveDetail(move.moveId);
+    return {
+      slot: index + 1,
+      id: detail.id,
+      name: detail.nameZh || detail.name || move.moveId,
+      type: detail.type || "",
+      category: detail.category || "",
+      power: detail.power > 0 ? String(detail.power) : "-",
+      pp: `${move.remainingPp ?? detail.pp}/${move.maxPp ?? detail.pp}`,
+    };
+  } catch {
+    return {slot: index + 1, id: move.moveId, name: move.moveId || "未知招式", type: "-", category: "-", power: "-", pp: `${move.remainingPp ?? "-"}/${move.maxPp ?? "-"}`};
+  }
+}
+
+function vaultEvolutionViews(dex: ReturnType<typeof createShowdownDexService>, speciesId: string): PlayerVaultPokemonDetailViewV4["evolutions"] {
+  try {
+    const tree = dex.getPokemonEvolutionTree(speciesId);
+    const edges = tree.edges.filter(edge => edge.fromSpeciesId === speciesId || edge.toSpeciesId === speciesId);
+    return edges.map(edge => ({
+      from: edge.fromSpeciesNameZh || edge.fromSpeciesName || edge.fromSpeciesId,
+      to: edge.toSpeciesNameZh || edge.toSpeciesName || edge.toSpeciesId,
+      method: vaultEvolutionMethod(edge),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function vaultEvolutionMethod(edge: Parameters<typeof normalizeSoulmateEvolutionRequirementV4>[0] & {evoLevel?: number; evoMove?: string; evoCondition?: string; evoRegion?: string}): string {
+  const requirement = normalizeSoulmateEvolutionRequirementV4(edge);
+  if (requirement.requirementKind === "linking-cord") return "使用 通讯绳";
+  if (requirement.requirementKind === "specific-item") return `使用 ${edge?.evoItem || requirement.itemId}`;
+  const parts = ["使用 通用进化石"];
+  if (edge?.evoLevel) parts.push(`原条件 Lv.${edge.evoLevel}`);
+  if (edge?.evoMove) parts.push(`原条件 学会 ${edge.evoMove}`);
+  if (edge?.evoCondition) parts.push(edge.evoCondition);
+  if (edge?.evoRegion) parts.push(edge.evoRegion);
+  return parts.join(" · ");
+}
+
+function vaultStatLabel(statId: string | undefined): string {
+  const labels: Record<string, string> = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
+  return statId ? labels[statId] || statId : "";
+}
+
+function formatVaultDate(value: unknown): string {
+  const time = Date.parse(String(value || ""));
+  if (!Number.isFinite(time)) return "未知";
+  return new Date(time).toLocaleDateString("zh-CN");
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import type {ChangeBattleV2Api, PlayerItemInstanceV4, PlayerItemRecordV4, PlayerPokemonRecordV4, PlayerVaultV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, PlayerItemInstanceV4, PlayerItemRecordV4, PlayerPokemonRecordV4, PlayerVaultPokemonDetailViewV4, PlayerVaultV4} from "@changebattle-v2/api";
 import {AppConfirmModal} from "../shared/AppModal";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {PlayerBagItemIcon} from "../training/PlayerBagPanel";
@@ -8,6 +8,7 @@ import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./TrainerVaultPage.css";
 
 type TrainerVaultTab = "bag" | "pokemon";
+type TrainerVaultPokemonDetailTab = "overview" | "stats" | "moves" | "evolution";
 type VaultPageKind = "prep" | "storage";
 type VaultPageEntry =
   | {kind: "item"; key: string; item: PlayerItemRecordV4; pageKind: VaultPageKind; storagePageIndex: number; slotIndex: number}
@@ -371,6 +372,11 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
   onDiscard: () => void;
 }) {
   const pageLabel = vaultPageLabel(tab, pageKind, storagePageIndex);
+  const selectedPokemonId = entry?.kind === "pokemon" ? entry.pokemon.playerPokemonId : "";
+  const [pokemonDetailTab, setPokemonDetailTab] = useState<TrainerVaultPokemonDetailTab>("overview");
+  useEffect(() => {
+    setPokemonDetailTab("overview");
+  }, [selectedPokemonId]);
   if (pageLocked) {
     return (
       <aside className="trainer-vault-detail locked" aria-label="锁定箱子详情">
@@ -420,29 +426,88 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
     );
   }
   const pokemon = entry.pokemon;
-  const pokemonView = pokemonRecordView(api, pokemon);
+  const pokemonView = api.createPlayerVaultPokemonDetailView(pokemon);
   return (
     <aside className="trainer-vault-detail" aria-label="宝可梦详情">
       <small>{pageLabel} · {count}</small>
       <div className="trainer-vault-detail-hero pokemon">
-        <ImageWithFallback src={pokemonView.spriteUrl} alt={pokemonView.name} fallback={pokemonView.name.slice(0, 1) || "?"} />
+        <ImageWithFallback src={pokemonView.spriteUrl} alt={pokemonView.title} fallback={pokemonView.title.slice(0, 1) || "?"} />
         <div>
-          <strong>{pokemonView.name}</strong>
-          <span>{pokemon.gender} · {pokemonView.abilityName}</span>
+          <strong>{pokemonView.title}</strong>
+          <span>{pokemonView.subtitle}</span>
         </div>
       </div>
-      <dl>
-        <div><dt>来源</dt><dd>{pageKind === "prep" ? "预备宝可梦" : "宝可梦存储箱"}</dd></div>
-        <div><dt>性格</dt><dd>{pokemon.nature}</dd></div>
-        <div><dt>相遇</dt><dd>{formatDate(pokemon.metAt)}</dd></div>
-      </dl>
-      <p>{pokemon.moves.slice(0, 4).map((move) => move.moveId).join(" / ") || "详情卡片占位，后续可接入完整能力、招式、培养记录。"}</p>
+      <div className="trainer-vault-pokemon-tabs" role="tablist" aria-label="宝可梦详情分页">
+        {POKEMON_DETAIL_TABS.map(detailTab => (
+          <button className={pokemonDetailTab === detailTab.id ? "active" : ""} type="button" role="tab" aria-selected={pokemonDetailTab === detailTab.id} onClick={() => setPokemonDetailTab(detailTab.id)} key={detailTab.id}>
+            {detailTab.label}
+          </button>
+        ))}
+      </div>
+      <PokemonDetailTabPanel view={pokemonView} tab={pokemonDetailTab} />
     </aside>
   );
 }
 
 function isSelectableEntry(entry: VaultPageEntry): entry is SelectableVaultPageEntry {
   return entry.kind !== "empty";
+}
+
+const POKEMON_DETAIL_TABS: Array<{id: TrainerVaultPokemonDetailTab; label: string}> = [
+  {id: "overview", label: "概览"},
+  {id: "stats", label: "数值"},
+  {id: "moves", label: "技能"},
+  {id: "evolution", label: "进化"},
+];
+
+function PokemonDetailTabPanel({view, tab}: {view: PlayerVaultPokemonDetailViewV4; tab: TrainerVaultPokemonDetailTab}) {
+  if (tab === "overview") {
+    return (
+      <div className="trainer-vault-pokemon-tab-panel">
+        <dl className="trainer-vault-pokemon-overview">
+          {view.overview.map(row => <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}
+        </dl>
+      </div>
+    );
+  }
+  if (tab === "stats") {
+    return (
+      <div className="trainer-vault-pokemon-tab-panel">
+        <table className="trainer-vault-pokemon-stat-table">
+          <thead><tr><th>能力</th><th>实数</th><th>个体</th><th>努力</th></tr></thead>
+          <tbody>
+            {view.stats.map(row => <tr key={row.id}><td>{row.label}</td><td>{row.actual}</td><td>{row.iv}</td><td>{row.ev}</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+  if (tab === "moves") {
+    return (
+      <div className="trainer-vault-pokemon-tab-panel">
+        <div className="trainer-vault-pokemon-move-list">
+          {view.moves.length ? view.moves.map(move => (
+            <article key={`${move.slot}:${move.id}`}>
+              <strong>{move.slot}. {move.name}</strong>
+              <span>{move.type} · {move.category} · 威力 {move.power} · PP {move.pp}</span>
+            </article>
+          )) : <p>暂无技能记录。</p>}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="trainer-vault-pokemon-tab-panel">
+      <div className="trainer-vault-pokemon-evolution-list">
+        {view.evolutions.length ? view.evolutions.map((edge, index) => (
+          <article key={`${edge.from}:${edge.to}:${index}`}>
+            <strong>{edge.from} → {edge.to}</strong>
+            <span>{edge.method}</span>
+          </article>
+        )) : <p>当前形态暂无可用进化。</p>}
+      </div>
+    </div>
+  );
 }
 
 function buildPageEntries(playerVault: PlayerVaultV4, tab: TrainerVaultTab, pageKind: VaultPageKind, storagePageIndex: number): VaultPageEntry[] {

@@ -18,6 +18,7 @@ import {
   stringifyShowdownChoiceCommandV4,
   showdownMoveNeedsExplicitTargetV4,
   showdownNormalizeMoveTargetV4,
+  validateShowdownChoiceCommandV4,
   type ShowdownParsedChoiceV4,
   type ShowdownSpecialChoiceV4,
 } from "./showdownCommand.js";
@@ -185,7 +186,7 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
   const legalCandidates = candidates.map(candidate => ({
     ...candidate,
     choice: sanitizeAiChoice(candidate.choice, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(context)),
-  })).filter(candidate => candidate.choice && choiceLooksParseable(candidate.choice));
+  })).filter(candidate => candidate.choice && choiceLooksParseable(candidate.choice) && validateShowdownChoiceCommandV4({request, choice: candidate.choice}).ok);
   const fallback = fallbackLegalChoiceV4(request);
   const selected = selectCandidate(legalCandidates, profile, levelConfig, rng) || {
     choice: fallback,
@@ -240,7 +241,8 @@ export function fallbackLegalChoiceV4(request: BattleServiceRequestV4 | undefine
       if (!active) return "pass";
       const move = firstUsableMove(active.moves || []);
       if (!move) return "move 1";
-      return `move ${move.index + 1}${defaultTargetSuffix(request, activeIndex, move.move, Boolean(request.targetable || (request.active || []).length > 1))}`;
+      const targetMove = moveRequestForSpecialChoice(active, move.index, move.move, null);
+      return `move ${move.index + 1}${defaultTargetSuffix(request, activeIndex, targetMove, Boolean(request.targetable || (request.active || []).length > 1))}`;
     }).join(", ");
   }
   return "pass";
@@ -555,7 +557,13 @@ function moveRequestForSpecialChoice(
   baseMove: BattleServiceMoveRequestV4,
   special: ShowdownSpecialChoiceV4 | null,
 ): BattleServiceMoveRequestV4 {
-  if (!active || !special) return baseMove;
+  if (!active) return baseMove;
+  if (!special && !active.canDynamax) {
+    const maxMoves = Array.isArray(active.maxMoves) ? active.maxMoves : active.maxMoves?.maxMoves;
+    if (maxMoves?.[moveIndex]) return maxMoves[moveIndex] || baseMove;
+    return baseMove;
+  }
+  if (!special) return baseMove;
   if (special === "max") {
     const maxMoves = Array.isArray(active.maxMoves) ? active.maxMoves : active.maxMoves?.maxMoves;
     return maxMoves?.[moveIndex] || baseMove;

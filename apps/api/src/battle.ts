@@ -1249,6 +1249,7 @@ function moveChoiceNeedsExplicitTarget(request: BattleNormalizedRequestV4, activ
 function moveRequestForChoice(active: BattleActiveRequestV4 | null | undefined, choice: Extract<ParsedBattleCommandChoiceV4, {kind: "move"}>): BattleMoveRequestV4 | undefined {
   const moveIndex = choice.index - 1;
   const baseMove = active?.moves?.[moveIndex];
+  if (!choice.special && !active?.canDynamax) return active?.maxMoves?.[moveIndex] || baseMove;
   if (choice.special === "max") return active?.maxMoves?.[moveIndex] || baseMove;
   if (choice.special === "zmove") return active?.zMoves?.[moveIndex] || active?.canZMove?.[moveIndex] || baseMove;
   return baseMove;

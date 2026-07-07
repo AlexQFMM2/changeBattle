@@ -1,4 +1,4 @@
-export type PlayerItemTypeV4 = "system" | "system-battle" | "held" | "medicine" | "berry" | "training" | "battle" | "tm" | "key" | "misc";
+export type PlayerItemTypeV4 = "system" | "system-battle" | "held" | "medicine" | "berry" | "training" | "evolution" | "battle" | "tm" | "key" | "misc";
 
 export type PlayerItemInstanceV4 = {
   id: string;
@@ -25,7 +25,7 @@ export type PlayerItemInstanceV4 = {
   systemReforgeKind?: "mega" | "z-crystal" | "tera";
 };
 
-export const PLAYER_ITEM_TYPES_V4: PlayerItemTypeV4[] = ["system", "system-battle", "held", "medicine", "berry", "training", "battle", "tm", "key", "misc"];
+export const PLAYER_ITEM_TYPES_V4: PlayerItemTypeV4[] = ["system", "system-battle", "held", "medicine", "berry", "training", "evolution", "battle", "tm", "key", "misc"];
 
 export function normalizePlayerItemTypeV4(value: unknown): PlayerItemTypeV4 | undefined {
   return PLAYER_ITEM_TYPES_V4.includes(value as PlayerItemTypeV4) ? value as PlayerItemTypeV4 : undefined;
@@ -38,7 +38,7 @@ export function normalizeSystemReforgeKindV4(value: unknown): PlayerItemInstance
 export function normalizeItemIdV4(value: unknown): string {
   const raw = String(value || "").trim();
   if (/^tm:/i.test(raw)) return `tm:${toID(raw.slice(3))}`;
-  if (/^system-/i.test(raw)) return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "");
+  if (shouldKeepHyphenatedItemIdV4(raw)) return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "");
   return toID(raw);
 }
 
@@ -46,7 +46,12 @@ export function normalizeOptionalItemIdV4(value: unknown): string | undefined {
   const raw = String(value || "").trim();
   if (!raw) return undefined;
   if (/^tm:/i.test(raw)) return `tm:${toID(raw.slice(3))}`;
+  if (shouldKeepHyphenatedItemIdV4(raw)) return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "");
   return toID(raw);
+}
+
+function shouldKeepHyphenatedItemIdV4(value: string): boolean {
+  return /^system-/i.test(value) || /^universal-evolution-stone$/i.test(value) || /^linking-cord$/i.test(value);
 }
 
 export function normalizePlayerItemInstanceV4(item: unknown, fallback: Partial<PlayerItemInstanceV4> = {}): PlayerItemInstanceV4 | null {

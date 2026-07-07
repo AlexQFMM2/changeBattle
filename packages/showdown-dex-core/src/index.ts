@@ -42,7 +42,7 @@ export type {BossTrainerPresetMatrixSummaryData, BossTrainerPresetTeamData, Boss
 export type DexCategory = "pokemon" | "moves" | "abilities" | "items" | "trainers";
 export type DexStatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
 export type DexLearnSource = "levelup" | "machine" | "tutor" | "egg" | "event" | "transfer" | "other";
-export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "system" | "system-battle" | "valuable" | "special" | "held" | "battle" | "other";
+export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "evolution" | "system" | "system-battle" | "valuable" | "special" | "held" | "battle" | "other";
 export type DexItemSource = "showdown" | "v1-game" | "overlay" | "system";
 export type DexItemRecoveryEffect = {
   hp?: {kind: "fixed"; amount: number} | {kind: "full"} | {kind: "fraction"; numerator: number; denominator: number};
@@ -139,11 +139,31 @@ export type DexPokemonDetail = {
   abilities: Array<{id: string; name: string; nameZh: string; hidden?: boolean; description?: string}>;
   eggGroups: string[];
   evolutionChain: DexPokemonLink[];
+  evolutionEdges: DexPokemonEvolutionEdge[];
   formes: DexPokemonLink[];
   cryUrl?: string;
   sprites: DexPokemonSprites;
   learnset: DexMoveSummary[];
   learnsetGroups: Record<DexLearnSource, DexMoveSummary[]>;
+};
+
+export type DexPokemonEvolutionType = "trade" | "useItem" | "levelMove" | "levelExtra" | "levelFriendship" | "levelHold" | "other";
+
+export type DexPokemonEvolutionEdge = {
+  fromSpeciesId: string;
+  fromSpeciesName: string;
+  fromSpeciesNameZh: string;
+  toSpeciesId: string;
+  toSpeciesName: string;
+  toSpeciesNameZh: string;
+  evoType?: DexPokemonEvolutionType;
+  evoLevel?: number;
+  evoItem?: string;
+  evoItemId?: string;
+  evoMove?: string;
+  evoMoveId?: string;
+  evoCondition?: string;
+  evoRegion?: "Alola" | "Galar";
 };
 
 export type DexPokemonLink = {
@@ -422,6 +442,7 @@ const ITEM_KIND_LABEL: Record<DexItemKind, string> = {
   pp: "PP 道具",
   tm: "技能机器",
   training: "训练道具",
+  evolution: "进化道具",
   system: "系统道具",
   "system-battle": "系统战斗道具",
   valuable: "贵重/剧情道具",
@@ -490,7 +511,66 @@ const NATURE_MINT_ENTRIES = NATURE_MINT_ITEMS.map(({nature, label}) =>
   v1Item(`${toID(nature)}mint`, `${nature} Mint`, `${label}薄荷`, "training", `把宝可梦性格调整为${label}。`, {cost: 12000, trainingEffect: {kind: "nature", nature}, iconAsset: natureMintIconAsset(nature)})
 );
 
+const SHOWDOWN_EVOLUTION_ITEM_NAMES = [
+  "Auspicious Armor",
+  "Black Augurite",
+  "Chipped Pot",
+  "Cracked Pot",
+  "Dawn Stone",
+  "Deep Sea Scale",
+  "Deep Sea Tooth",
+  "Dragon Scale",
+  "Dubious Disc",
+  "Dusk Stone",
+  "Electirizer",
+  "Fire Stone",
+  "Galarica Cuff",
+  "Galarica Wreath",
+  "Ice Stone",
+  "King's Rock",
+  "Leaf Stone",
+  "Linking Cord",
+  "Magmarizer",
+  "Malicious Armor",
+  "Masterpiece Teacup",
+  "Metal Alloy",
+  "Metal Coat",
+  "Moon Stone",
+  "Oval Stone",
+  "Peat Block",
+  "Prism Scale",
+  "Protector",
+  "Razor Claw",
+  "Razor Fang",
+  "Reaper Cloth",
+  "Sachet",
+  "Shiny Stone",
+  "Sun Stone",
+  "Sweet Apple",
+  "Syrupy Apple",
+  "Tart Apple",
+  "Thunder Stone",
+  "Unremarkable Teacup",
+  "Up-Grade",
+  "Water Stone",
+  "Whipped Dream",
+].map(name => ({id: toID(name), name}));
+
+const SHOWDOWN_EVOLUTION_ITEM_ENTRIES = SHOWDOWN_EVOLUTION_ITEM_NAMES.map(({id, name}) =>
+  v1Item(id, name, defaultTranslate("items", name), "evolution", "用于让特定宝可梦进化的道具。", {
+    source: "overlay",
+    effectSummary: "可在灵魂伴侣养成中用于满足对应的进化条件。",
+    canBattleUse: false,
+    canUse: true,
+    canUseToPokemon: true,
+    canTake: true,
+    cost: 3000,
+    tags: ["进化", "进化道具", name, defaultTranslate("items", name)],
+  })
+);
+
 const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
+  ...SHOWDOWN_EVOLUTION_ITEM_ENTRIES,
   v1Item("potion", "Potion", "回复药", "recovery", "恢复 20 点 HP。", {cost: 300, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 20}}}),
   v1Item("superpotion", "Super Potion", "好伤药", "recovery", "恢复 60 点 HP。", {cost: 700, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 60}}}),
   v1Item("hyperpotion", "Hyper Potion", "绝好伤药", "recovery", "恢复 120 点 HP。", {cost: 1200, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 120}}}),
@@ -536,6 +616,8 @@ const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   v1Item("bottlecap", "Bottle Cap", "银色王冠", "training", "休整页使用，指定 1 项个体值提升到 31。", {cost: 12000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "silver"}}),
   v1Item("goldbottlecap", "Gold Bottle Cap", "金色王冠", "training", "休整页使用，全部个体值提升到 31。", {cost: 30000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "gold"}}),
   v1Item("graybottlecap", "Gray Bottle Cap", "灰色王冠", "training", "休整页使用，使 1 项个体值降低到 0。", {cost: 8000, canBattleUse: false, trainingEffect: {kind: "iv", mode: "gray"}, iconAsset: "runtime/items/goldbottlecap/icon.png"}),
+  v1Item("universal-evolution-stone", "Universal Evolution Stone", "通用进化石", "evolution", "工厂调制的通用进化石，可让满足亲密度要求的灵魂伴侣完成普通进化。", {source: "system", effectSummary: "用于普通等级、亲密度、招式、携带升级或特殊条件进化的归一化进化道具。", canUse: true, canUseToPokemon: true, canBattleUse: false, canTake: true, cost: 3000, tags: ["进化", "通用进化石", "灵魂伴侣"]}),
+  v1Item("linking-cord", "Linking Cord", "通讯绳", "evolution", "模拟通信交换能量的绳结，可让原本需要交换的灵魂伴侣进化。", {source: "system", effectSummary: "用于原版交换进化的归一化进化道具。", canUse: true, canUseToPokemon: true, canBattleUse: false, canTake: true, cost: 3000, tags: ["进化", "通讯绳", "交换进化", "灵魂伴侣"]}),
   v1Item("system-mega-stone", "Universal Mega Ore", "通用Mega石", "system-battle", "工厂制造的幻之 Mega 石，只要对你的宝可梦使用，就能回应你的心。", {source: "system", effectSummary: "重铸并使用后，可让一只适合的宝可梦携带专属 Mega 石。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/mega2.png", tags: ["Mega", "mega进化", "超级进化", "系统战斗道具"]}),
   v1Item("system-z-crystal", "Universal Z-Crystal", "通用Z纯晶", "system-battle", "工厂制造的幻之 Z 纯晶，可以让宝可梦发挥出任何能用的 Z 招式。", {source: "system", effectSummary: "重铸并使用后，可让一只适合的宝可梦携带对应 Z 纯晶。", canUse: true, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/Z2.png", tags: ["Z招式", "Z-Move", "纯晶", "系统战斗道具"]}),
   v1Item("system-dynamax-band", "Prototype Dynamax Band", "极巨化手环", "system-battle", "工厂和加勒尔联盟合作的极巨化手环，蕴含在任何地区都能极巨化的能量。", {source: "system", effectSummary: "拥有后，可在支持极巨化的规则中使用极巨化。", canUse: false, canUseToPokemon: false, canTake: false, canSale: false, cost: 0, iconAsset: "specIcon/jjh2.png", tags: ["极巨化", "Dynamax", "Max", "系统战斗道具"]}),
@@ -613,6 +695,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       color: species.color || "",
       eggGroups: species.eggGroups || [],
       evolutionChain: evolutionChain(species.id),
+      evolutionEdges: evolutionEdgesForTree(species.id),
       formes: formesFor(species.id),
       cryUrl: resolvePokemonCry(species.id),
       sprites: resolvePokemonSprites({speciesId: species.id}),
@@ -690,6 +773,28 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     if (normalized === "systemzcrystal") return zCrystalReforgeOptions(pokemon);
     if (normalized === "systemteraorb") return teraReforgeOptions();
     return [];
+  }
+
+  function getPokemonEvolutionRoot(speciesId: string): DexPokemonLink | null {
+    const root = rootEvolutionSpecies(speciesId);
+    return root ? pokemonLink(root) : null;
+  }
+
+  function getPokemonEvolutionEdges(speciesId: string): DexPokemonEvolutionEdge[] {
+    const activeDex = requireDex();
+    const species = activeDex.species.get(speciesId);
+    if (!species?.exists) return [];
+    return (species.evos || [])
+      .map((evo: string) => evolutionEdge(species, activeDex.species.get(evo)))
+      .filter((edge: DexPokemonEvolutionEdge | null): edge is DexPokemonEvolutionEdge => Boolean(edge));
+  }
+
+  function getPokemonEvolutionTree(speciesId: string): {root: DexPokemonLink | null; chain: DexPokemonLink[]; edges: DexPokemonEvolutionEdge[]} {
+    return {
+      root: getPokemonEvolutionRoot(speciesId),
+      chain: evolutionChain(speciesId),
+      edges: evolutionEdgesForTree(speciesId),
+    };
   }
 
   function getPokemonLearnset(speciesId: string): DexMoveSummary[] {
@@ -1159,6 +1264,9 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     getAbilityDetail,
     getItemDetail,
     getTmItemDetail,
+    getPokemonEvolutionRoot,
+    getPokemonEvolutionEdges,
+    getPokemonEvolutionTree,
     getTrainerDetail,
     getSystemBattleReforgeOptions,
     getPokemonLearnset,
@@ -1178,17 +1286,9 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
   };
 
   function evolutionChain(speciesId: string): DexPokemonLink[] {
+    const root = rootEvolutionSpecies(speciesId);
+    if (!root) return [];
     const activeDex = requireDex();
-    const start = activeDex.species.get(speciesId);
-    if (!start?.exists) return [];
-    let root = start;
-    const visited = new Set<string>();
-    while (root.prevo && !visited.has(root.id)) {
-      visited.add(root.id);
-      const prevo = activeDex.species.get(root.prevo);
-      if (!prevo?.exists) break;
-      root = prevo;
-    }
     const result: DexPokemonLink[] = [];
     const walk = (current: any) => {
       if (!current?.exists || result.some(entry => entry.id === current.id)) return;
@@ -1197,6 +1297,69 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     };
     walk(root);
     return result;
+  }
+
+  function evolutionEdgesForTree(speciesId: string): DexPokemonEvolutionEdge[] {
+    const root = rootEvolutionSpecies(speciesId);
+    if (!root) return [];
+    const activeDex = requireDex();
+    const result: DexPokemonEvolutionEdge[] = [];
+    const visited = new Set<string>();
+    const walk = (current: any) => {
+      if (!current?.exists || visited.has(current.id)) return;
+      visited.add(current.id);
+      for (const evoName of current.evos || []) {
+        const evo = activeDex.species.get(evoName);
+        const edge = evolutionEdge(current, evo);
+        if (edge) result.push(edge);
+        walk(evo);
+      }
+    };
+    walk(root);
+    return result;
+  }
+
+  function rootEvolutionSpecies(speciesId: string): any | null {
+    const activeDex = requireDex();
+    const start = activeDex.species.get(speciesId);
+    if (!start?.exists) return null;
+    let root = start;
+    const visited = new Set<string>();
+    while (root.prevo && !visited.has(root.id)) {
+      visited.add(root.id);
+      const prevo = activeDex.species.get(root.prevo);
+      if (!prevo?.exists) break;
+      root = prevo;
+    }
+    return root;
+  }
+
+  function evolutionEdge(fromSpecies: any, toSpecies: any): DexPokemonEvolutionEdge | null {
+    if (!fromSpecies?.exists || !toSpecies?.exists) return null;
+    const evoItem = String(toSpecies.evoItem || "").trim();
+    const evoMove = String(toSpecies.evoMove || "").trim();
+    const evoType = normalizeEvolutionType(toSpecies.evoType);
+    return {
+      fromSpeciesId: fromSpecies.id,
+      fromSpeciesName: fromSpecies.name,
+      fromSpeciesNameZh: translate("pokemon", fromSpecies.name),
+      toSpeciesId: toSpecies.id,
+      toSpeciesName: toSpecies.name,
+      toSpeciesNameZh: translate("pokemon", toSpecies.name),
+      ...(evoType ? {evoType} : {}),
+      ...(Number.isFinite(Number(toSpecies.evoLevel || 0)) && Number(toSpecies.evoLevel || 0) > 0 ? {evoLevel: Number(toSpecies.evoLevel)} : {}),
+      ...(evoItem ? {evoItem, evoItemId: toID(evoItem)} : {}),
+      ...(evoMove ? {evoMove, evoMoveId: toID(evoMove)} : {}),
+      ...(toSpecies.evoCondition ? {evoCondition: String(toSpecies.evoCondition)} : {}),
+      ...(toSpecies.evoRegion === "Alola" || toSpecies.evoRegion === "Galar" ? {evoRegion: toSpecies.evoRegion} : {}),
+    };
+  }
+
+  function normalizeEvolutionType(value: unknown): DexPokemonEvolutionType | undefined {
+    const text = String(value || "");
+    return text === "trade" || text === "useItem" || text === "levelMove" || text === "levelExtra" || text === "levelFriendship" || text === "levelHold" || text === "other"
+      ? text
+      : undefined;
   }
 
   function formesFor(speciesId: string): DexPokemonLink[] {
@@ -1417,6 +1580,7 @@ function categoryOrder(category: DexCategory): number {
 
 function itemKind(item: any): DexItemKind {
   const id = toID(item?.id || item?.name);
+  if (SHOWDOWN_EVOLUTION_ITEM_NAMES.some(entry => entry.id === id)) return "evolution";
   if (item?.isBerry || id.endsWith("berry")) return "berry";
   if (/revive|revivalherb|sacredash/.test(id)) return "revive";
   if (/ether|elixir|ppup|ppmax/.test(id)) return "pp";
@@ -1479,6 +1643,9 @@ function factoryItemDescription(nameZh: string, kind: DexItemKind, description: 
   }
   if (kind === "training") {
     return `工厂训练部配发的 ${nameZh}，用于训练场休整；使用后可以${action}。`;
+  }
+  if (kind === "evolution") {
+    return `工厂培育部登记的 ${nameZh}，用于灵魂伴侣养成；使用后可以${action}。`;
   }
   if (kind === "battle") {
     return `工厂战术部准备的 ${nameZh}，用于短时间调整战斗节奏；使用后可以${action}。`;

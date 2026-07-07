@@ -895,6 +895,21 @@ function RoutedApp({runtime}: AppProps) {
             },
           }}
           soulmateRewardEnabled={starChartHasSoulmateRewardV4(formalRun.starChartSnapshot)}
+          onSoulmateEggPrepare={input => {
+            if (!formalRun) throw new Error("正式存档不存在。");
+            return api.prepareFormalSoulmateEggHatch(formalRun, input.candidateId);
+          }}
+          onSoulmateEggClaim={async input => {
+            if (!formalRun) throw new Error("正式存档不存在。");
+            const result = api.claimFormalSoulmateEgg(formalRun, playerVault, input.candidateId, input.nickname);
+            if (!result.ok) return result;
+            const savedVault = await api.savePlayerVault(result.playerVault);
+            const savedRun = await api.saveFormalGameRun(result.run);
+            setPlayerVault(savedVault);
+            setPlayerVaultDirty(false);
+            setFormalRun(savedRun);
+            return {...result, run: savedRun, playerVault: savedVault};
+          }}
           shopController={{
             getShop: () => api.getFormalRestShop(formalRun),
             player: formalRun.restRunSnapshot.players.p1 || null,

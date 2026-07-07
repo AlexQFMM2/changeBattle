@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
@@ -817,26 +817,32 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
   function draftMoveAction(action: MoveActionV4, selectedSpecial?: BattleSpecialChoiceV4 | null) {
     const normalizedRequest = viewModel?.command.normalizedRequest;
     if (!normalizedRequest) return;
-    const choice = appendBattleSpecialChoiceSuffixV4(action.choice, selectedSpecial || null);
+    const visualNearTeamForAction = playbackHasRuntimeState ? playback.nearTeam : viewModel.nearTeam;
+    const displaySpecial = selectedSpecial || activeMaxDisplaySpecialForAction(action, visualNearTeamForAction, viewModel.nearTeam);
+    const commandSpecial = displaySpecial === "active-max" ? null : selectedSpecial || null;
+    const choice = appendBattleSpecialChoiceSuffixV4(action.choice, commandSpecial);
     const draftedAction = {...action, choice};
     if (isUntargetedLockedMove(action.move)) {
       applyDraftChoice(choice);
       return;
     }
     const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
-    const displayedMove = displayedMoveForSpecial(action.move, selectedSpecial || null);
-    const requiresTarget = showdownMoveNeedsExplicitTargetV4(displayedMove, normalizedRequest.targetable);
-    if (!requiresTarget) {
+    const displayedMove = displayedMoveForSpecial(action.move, displaySpecial);
+    const shouldOpenTargetPanel = moveShouldOpenBattleV4TargetPanel(displayedMove, normalizedRequest);
+    if (!shouldOpenTargetPanel) {
       applyDraftChoice(choice);
       return;
     }
-    const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget, selectedSpecial || null);
+    const requiresTarget = moveNeedsBattleV4SubmittedTarget(displayedMove, normalizedRequest);
+    const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget, commandSpecial);
     battleDebugLog(debugConfig, "draft", "current-move", {
       before,
       input: choice,
       after,
       requiresTarget,
+      shouldOpenTargetPanel,
       selectedSpecial,
+      displaySpecial,
     });
     setCommandDraft(after);
     setPendingMoveAction(draftedAction);
@@ -1811,11 +1817,9 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, action, request, o
     const displaySpecial = selectedSpecial || activeMaxDisplaySpecialForAction(action, visualNearTeam, viewModel.nearTeam);
     return buildBattleV4MoveCard(action, api, viewModel.farTeam, displaySpecial, selectedSpecial);
   }, [action, api, viewModel.farTeam, viewModel.nearTeam, visualNearTeam]);
-  const targetable = Boolean(viewModel.command.normalizedRequest?.targetable || request?.targetable);
-  const explicitTarget = showdownMoveNeedsExplicitTargetV4(moveCard.displayedMove, targetable);
-  const shouldChooseTarget = explicitTarget && viewModel.nearTeam.filter(slot => slot.active && !slot.fainted).length > 1;
-  const shouldSubmitTargetSuffix = explicitTarget && targetable;
-  const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, shouldChooseTarget || targetable, api), [viewModel, action, moveCard.detail, shouldChooseTarget, targetable, api]);
+  const normalizedRequest = viewModel.command.normalizedRequest;
+  const shouldSubmitTargetSuffix = normalizedRequest ? moveNeedsBattleV4SubmittedTarget(moveCard.displayedMove, normalizedRequest) : false;
+  const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api), [viewModel, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api]);
   return (
     <section className="battle-v4-target-modal" aria-label="攻击对象选择">
       <div className="battle-v4-target-modal-top" />
@@ -2097,11 +2101,24 @@ function displayedMoveForSpecial(move: BattleMoveRequestV4, selectedSpecial: Bat
   return move;
 }
 
+function moveNeedsBattleV4SubmittedTarget(move: BattleMoveRequestV4, request: BattleNormalizedRequestV4): boolean {
+  const target = showdownNormalizeMoveTargetV4(move.target);
+  return request.activeRequests.length > 1 && showdownTargetTypeAllowsChoiceV4(target);
+}
+
+function moveShouldOpenBattleV4TargetPanel(move: BattleMoveRequestV4, request: BattleNormalizedRequestV4): boolean {
+  if (moveNeedsBattleV4SubmittedTarget(move, request)) return true;
+  const target = showdownNormalizeMoveTargetV4(move.target);
+  return request.activeRequests.length > 1 && !NON_INTERACTIVE_TARGET_PANEL_TYPES.has(target);
+}
+
+const NON_INTERACTIVE_TARGET_PANEL_TYPES = new Set(["self", "all", "field", "allyside", "allyteam"]);
+
 function specialDisplayedMoveDisabled(card: BattleV4MoveCardView): boolean {
   return Boolean(card.selectedSpecial && card.displayedMove.disabled);
 }
 
-function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActionV4, detail: DexMoveDetail | null, targetable: boolean, api: ChangeBattleV2Api): BattleV4TargetCardView[] {
+function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActionV4, displayedMove: BattleMoveRequestV4, detail: DexMoveDetail | null, submitTargetSuffix: boolean, api: ChangeBattleV2Api): BattleV4TargetCardView[] {
   const active = viewModel.nearTeam[action.activeIndex] || viewModel.nearTeam.find(slot => slot.active) || viewModel.nearTeam[0] || null;
   const visualFarTeam = sortSlotsForArena(viewModel.farTeam, "far");
   const visualNearTeam = sortSlotsForArena(viewModel.nearTeam, "near");
@@ -2111,7 +2128,7 @@ function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActi
     visualNearTeam[0] || null,
     visualNearTeam[1] || null,
   ];
-  const target = showdownNormalizeMoveTargetV4(detail?.target || action.move.target || "normal");
+  const target = showdownNormalizeMoveTargetV4(displayedMove.target || detail?.target || action.move.target || "normal");
   return slots.map((slot, index) => {
     if (!slot) {
       return {key: `empty-${index}`, slot: null, selectable: false, affected: false, choiceSuffix: "", effectivenessLabel: "效果一般", effectivenessTone: "normal"};
@@ -2124,7 +2141,7 @@ function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActi
       slot,
       selectable: state.selectable,
       affected: state.affected,
-      choiceSuffix: targetable ? targetChoiceSuffix(active, slot, viewModel) : "",
+      choiceSuffix: submitTargetSuffix ? targetChoiceSuffix(active, slot, viewModel) : "",
       effectivenessLabel: effectiveness.label,
       effectivenessTone: effectiveness.tone,
     };

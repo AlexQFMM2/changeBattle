@@ -11,6 +11,8 @@ import {
   type FormalPokemonExchangeResultV4,
   type FormalPokemonExchangeViewV4,
   type FormalRestOpponentPreviewUnlockResultV4,
+  type FormalSoulmateEggClaimResultV4,
+  type FormalSoulmateEggHatchResultV4,
   type FormalRoundSettlementV4,
   type FormalRestPokemonStatRerollResultV4,
   type FormalTrainingGroundApplyInputV4,
@@ -102,13 +104,23 @@ export type TrainingRestNewPageProps = {
   opponentPreviewController?: TrainingRestOpponentPreviewController;
   exchangeController?: TrainingRestExchangeController;
   soulmateRewardEnabled?: boolean;
+  onSoulmateEggPrepare?: (input: {candidateId: string}) => Promise<FormalSoulmateEggHatchResultV4> | FormalSoulmateEggHatchResultV4;
+  onSoulmateEggClaim?: (input: {candidateId: string; nickname?: string}) => Promise<FormalSoulmateEggClaimResultV4> | FormalSoulmateEggClaimResultV4;
 };
 
 const PENDING_SETTLEMENT_CAPTURE_ACTIONS = [
   {label: "商店", iconSrc: "aboutIcon/shop.png", disabled: false},
 ];
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, soulmateRewardEnabled}: TrainingRestNewPageProps) {
+type SoulmateHatchState =
+  | {phase: "idle"}
+  | {phase: "hatching"; candidateId: string; prepare?: FormalSoulmateEggHatchResultV4; error?: string}
+  | {phase: "naming"; candidateId: string; prepare: FormalSoulmateEggHatchResultV4; nickname: string; error?: string}
+  | {phase: "saving"; candidateId: string; prepare: FormalSoulmateEggHatchResultV4; nickname?: string}
+  | {phase: "done"; result: FormalSoulmateEggClaimResultV4}
+  | {phase: "error"; message: string};
+
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -125,6 +137,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [soulmateDialogOpen, setSoulmateDialogOpen] = useState(false);
   const [soulmateDialogDismissed, setSoulmateDialogDismissed] = useState(false);
   const [selectedSoulmateCandidateId, setSelectedSoulmateCandidateId] = useState("");
+  const [soulmateHatch, setSoulmateHatch] = useState<SoulmateHatchState>({phase: "idle"});
   const [message, setMessage] = useState("休息室已就绪。");
   const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
   const p1Team = run.players.p1?.localTeam || null;
@@ -140,12 +153,13 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     setSoulmateDialogDismissed(false);
     setSoulmateDialogOpen(false);
     setSelectedSoulmateCandidateId("");
+    setSoulmateHatch({phase: "idle"});
   }, [run.id, run.status]);
 
   useEffect(() => {
-    if (!pendingSettlement || !soulmateRewardEnabled || soulmateDialogDismissed || roundSettlement || !soulmateCandidates.length) return;
+    if (!pendingSettlement || !soulmateRewardEnabled || soulmateDialogDismissed || roundSettlement || soulmateHatch.phase !== "idle" || !soulmateCandidates.length) return;
     setSoulmateDialogOpen(true);
-  }, [pendingSettlement, roundSettlement, soulmateCandidates.length, soulmateDialogDismissed, soulmateRewardEnabled]);
+  }, [pendingSettlement, roundSettlement, soulmateCandidates.length, soulmateDialogDismissed, soulmateHatch.phase, soulmateRewardEnabled]);
 
   function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
     const p1 = run.players.p1;
@@ -174,6 +188,70 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   function showNotice(nextMessage: string, tone: TrainingRestToastTone = "normal") {
     setToast({id: Date.now(), message: nextMessage, tone});
+  }
+
+  async function startSoulmateEggHatch(candidate: SoulmateCandidateV4) {
+    setSoulmateDialogOpen(false);
+    setSoulmateDialogDismissed(true);
+    setSoulmateHatch({phase: "hatching", candidateId: candidate.candidateId});
+    setMessage("宝可梦蛋开始晃动了。");
+    const minAnimation = delay(1800);
+    try {
+      const preparePromise = Promise.resolve(onSoulmateEggPrepare
+        ? onSoulmateEggPrepare({candidateId: candidate.candidateId})
+        : {ok: false, run: undefined as never, message: "灵魂伴侣孵化入口暂不可用。"});
+      const [prepare] = await Promise.all([preparePromise, minAnimation]);
+      if (!prepare.ok) {
+        setSoulmateHatch({phase: "error", message: prepare.message});
+        setMessage(prepare.message);
+        showNotice(prepare.message, "danger");
+        return;
+      }
+      setSoulmateHatch({phase: "naming", candidateId: candidate.candidateId, prepare, nickname: ""});
+      setMessage(`${prepare.display?.nameZh || prepare.display?.name || "宝可梦"} 孵化了。`);
+    } catch (error) {
+      await minAnimation.catch(() => undefined);
+      const nextMessage = error instanceof Error ? error.message : "宝可梦蛋孵化失败。";
+      setSoulmateHatch({phase: "error", message: nextMessage});
+      setMessage(nextMessage);
+      showNotice(nextMessage, "danger");
+    }
+  }
+
+  async function claimSoulmateEgg(nickname?: string) {
+    if (soulmateHatch.phase !== "naming") return;
+    if (!onSoulmateEggClaim) {
+      const nextMessage = "灵魂伴侣入库入口暂不可用。";
+      setSoulmateHatch({...soulmateHatch, error: nextMessage});
+      setMessage(nextMessage);
+      showNotice(nextMessage, "danger");
+      return;
+    }
+    const normalizedNickname = normalizeSoulmateNickname(nickname);
+    if (nickname && !normalizedNickname) {
+      const nextMessage = "名字不能为空。";
+      setSoulmateHatch({...soulmateHatch, error: nextMessage});
+      return;
+    }
+    setSoulmateHatch({phase: "saving", candidateId: soulmateHatch.candidateId, prepare: soulmateHatch.prepare, nickname: normalizedNickname});
+    try {
+      const result = await onSoulmateEggClaim({candidateId: soulmateHatch.candidateId, nickname: normalizedNickname});
+      if (!result.ok) {
+        setSoulmateHatch({phase: "naming", candidateId: soulmateHatch.candidateId, prepare: soulmateHatch.prepare, nickname: normalizedNickname || "", error: result.message});
+        setMessage(result.message);
+        showNotice(result.message, "danger");
+        return;
+      }
+      onRunChange(result.run.restRunSnapshot || run);
+      setSoulmateHatch({phase: "done", result});
+      setMessage(result.message);
+      showNotice(result.message);
+    } catch (error) {
+      const nextMessage = error instanceof Error ? error.message : "灵魂伴侣入库失败。";
+      setSoulmateHatch({phase: "naming", candidateId: soulmateHatch.candidateId, prepare: soulmateHatch.prepare, nickname: normalizedNickname || "", error: nextMessage});
+      setMessage(nextMessage);
+      showNotice(nextMessage, "danger");
+    }
   }
 
   function closeFloatingPanels() {
@@ -655,15 +733,28 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
                 primary: true,
                 disabled: !selectedSoulmateCandidate,
                 onClick: () => {
-                  setSoulmateDialogOpen(false);
-                  setSoulmateDialogDismissed(true);
-                  setMessage("结伴功能开发中。");
-                  showNotice("结伴功能开发中。");
+                  if (selectedSoulmateCandidate) void startSoulmateEggHatch(selectedSoulmateCandidate);
                 },
               },
             ]}
           />
         </div>
+      ) : null}
+      {soulmateHatch.phase !== "idle" ? (
+        <SoulmateEggHatchDialog
+          state={soulmateHatch}
+          onNicknameChange={nickname => {
+            if (soulmateHatch.phase === "naming") setSoulmateHatch({...soulmateHatch, nickname: normalizeSoulmateNickname(nickname) || ""});
+          }}
+          onSkipNickname={() => void claimSoulmateEgg()}
+          onConfirmNickname={() => {
+            if (soulmateHatch.phase === "naming") void claimSoulmateEgg(soulmateHatch.nickname);
+          }}
+          onClose={() => {
+            if (soulmateHatch.phase === "hatching" || soulmateHatch.phase === "saving") return;
+            setSoulmateHatch({phase: "idle"});
+          }}
+        />
       ) : null}
       {roundSettlement ? (
         <TrainingRestConfirmDialog
@@ -699,6 +790,99 @@ function formatRoundSettlementMessage(settlement: FormalRoundSettlementV4): stri
   return parts.join("。");
 }
 
+function SoulmateEggHatchDialog({
+  state,
+  onNicknameChange,
+  onSkipNickname,
+  onConfirmNickname,
+  onClose,
+}: {
+  state: SoulmateHatchState;
+  onNicknameChange: (nickname: string) => void;
+  onSkipNickname: () => void;
+  onConfirmNickname: () => void;
+  onClose: () => void;
+}) {
+  const display = state.phase === "naming" || state.phase === "saving"
+    ? state.prepare.display
+    : state.phase === "done"
+      ? state.result.display
+      : undefined;
+  const nickname = state.phase === "naming" ? state.nickname : "";
+  const busy = state.phase === "hatching" || state.phase === "saving";
+  const title = state.phase === "hatching"
+    ? "宝可梦蛋正在孵化"
+    : state.phase === "naming"
+      ? "要给它起名字吗？"
+      : state.phase === "saving"
+        ? "正在送入箱子"
+        : state.phase === "done"
+          ? "已送入宝可梦箱子"
+          : "孵化失败";
+  const message = state.phase === "hatching"
+    ? "蛋壳正在发出温暖的光。"
+    : state.phase === "naming"
+      ? `${display?.nameZh || display?.name || "宝可梦"} 孵化了。`
+      : state.phase === "saving"
+        ? "护士正在登记这只新伙伴。"
+        : state.phase === "done"
+          ? state.result.message
+          : state.phase === "error"
+            ? state.message
+            : "";
+  const spriteSrc = state.phase === "done" && state.result.pokemon?.shiny
+    ? display?.shinySpriteUrl || display?.spriteUrl || ""
+    : display?.spriteUrl || "";
+  return (
+    <div className="training-rest-new-modal-layer training-rest-new-hatch-layer" role="presentation">
+      <section className="training-rest-new-hatch-dialog" role="dialog" aria-label="灵魂伴侣孵化">
+        <div className="training-rest-new-hatch-stage">
+          {state.phase === "hatching" ? (
+            <div className="training-rest-new-egg-animation" aria-hidden="true" />
+          ) : display ? (
+            <span className="training-rest-new-hatch-pokemon">
+              <ImageWithFallback src={spriteSrc} alt={display.nameZh || display.name} fallback={display.nameZh || display.name} />
+            </span>
+          ) : (
+            <div className="training-rest-new-hatch-error-mark">!</div>
+          )}
+        </div>
+        <div className="training-rest-new-hatch-panel">
+          <header>
+            <strong>{title}</strong>
+            <span>{display?.speciesId || "soulmate"}</span>
+          </header>
+          <p>{message}</p>
+          {state.phase === "naming" ? (
+            <label className="training-rest-new-hatch-name">
+              <span>名字</span>
+              <input
+                value={nickname}
+                maxLength={12}
+                placeholder={display?.nameZh || display?.name || "宝可梦"}
+                onChange={event => onNicknameChange(event.target.value)}
+              />
+            </label>
+          ) : null}
+          {state.phase === "naming" && state.error ? <small className="training-rest-new-hatch-error">{state.error}</small> : null}
+          <div className="training-rest-new-hatch-actions">
+            {state.phase === "naming" ? (
+              <>
+                <button type="button" onClick={onSkipNickname}>不用起名</button>
+                <button className="primary" type="button" onClick={onConfirmNickname}>确认名字</button>
+              </>
+            ) : (
+              <button className={state.phase === "done" ? "primary" : ""} type="button" disabled={busy} onClick={onClose}>
+                {busy ? "请稍候" : "知道了"}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function createRestSoulmateCandidates(run: TrainingRunGameV4): SoulmateCandidateV4[] {
   const team = run.players.p1?.localTeam;
   if (!team || !run.battleLog?.length) return [];
@@ -732,6 +916,15 @@ function resolveSoulmateCandidateTeamKey(rawKey: string, team: NonNullable<Train
 
 function normalizeSoulmateKey(value: unknown): string {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5:]+/g, "");
+}
+
+function normalizeSoulmateNickname(value: unknown): string | undefined {
+  const text = String(value || "").trim();
+  return text ? Array.from(text).slice(0, 12).join("") : undefined;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
 }
 
 function renderSoulmateCandidateIcon(candidate: SoulmateCandidateV4) {

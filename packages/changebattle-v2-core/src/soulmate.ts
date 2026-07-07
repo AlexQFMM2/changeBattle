@@ -48,6 +48,33 @@ export type SoulmateRenameInputV4 = {
   nickname?: string;
 };
 
+export type SoulmateEvolutionEdgeInputV4 = {
+  evoType?: string;
+  evoItem?: string;
+  evoItemId?: string;
+};
+
+export type SoulmateEvolutionRequirementV4 = {
+  itemId: string;
+  requirementKind: "specific-item" | "linking-cord" | "universal-stone";
+};
+
+export const SOULMATE_UNIVERSAL_EVOLUTION_STONE_ITEM_ID_V4 = "universal-evolution-stone";
+
+export const SOULMATE_LINKING_CORD_ITEM_ID_V4 = "linking-cord";
+
+export function normalizeSoulmateEvolutionRequirementV4(edge: SoulmateEvolutionEdgeInputV4 | null | undefined): SoulmateEvolutionRequirementV4 {
+  const evoType = normalizeOptionalText(edge?.evoType);
+  const evoItemId = normalizeItemIdText(edge?.evoItemId || edge?.evoItem);
+  if (evoType === "trade") {
+    return {itemId: SOULMATE_LINKING_CORD_ITEM_ID_V4, requirementKind: "linking-cord"};
+  }
+  if (evoType === "useItem" && evoItemId) {
+    return {itemId: evoItemId, requirementKind: "specific-item"};
+  }
+  return {itemId: SOULMATE_UNIVERSAL_EVOLUTION_STONE_ITEM_ID_V4, requirementKind: "universal-stone"};
+}
+
 export function createSoulmateCandidateListV4(input: {
   battleLog: TrainingBattleLogEntryV4[];
   team: LocalTeamV4;
@@ -209,6 +236,17 @@ function normalizeBattleKeyText(value: unknown): string {
 function normalizeOptionalText(value: unknown): string | undefined {
   const text = String(value || "").trim();
   return text || undefined;
+}
+
+function normalizeItemIdText(value: unknown): string {
+  const text = String(value || "").trim();
+  if (/^tm:/i.test(text)) return `tm:${toIdText(text.slice(3))}`;
+  if (/^system-/i.test(text) || /^universal-/i.test(text) || /^linking-/i.test(text)) return text.toLowerCase().replace(/[^a-z0-9-]+/g, "");
+  return toIdText(text);
+}
+
+function toIdText(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function normalizeIsoText(value: unknown): string {

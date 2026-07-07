@@ -245,6 +245,7 @@ function fakePokemonDetail(): DexPokemonDetail {
     ],
     eggGroups: [],
     evolutionChain: [],
+    evolutionEdges: [],
     formes: [],
     sprites: {resourcePrefix: ""},
     learnset: [],

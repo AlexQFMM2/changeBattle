@@ -13,6 +13,7 @@
 
 - 运行时数据标准化迁移：[`runtime-data-standardization-migration-plan.md`](runtime-data-standardization-migration-plan.md)
 - 正式游戏当前主线：[`formal-game/README.md`](formal-game/README.md)
+- 灵魂伴侣蛋孵化施工计划：[`formal-game/formal-soulmate-egg-hatch-and-growth-plan.md`](formal-game/formal-soulmate-egg-hatch-and-growth-plan.md)
 - 灵魂伴侣下版本：[`formal-game/formal-soulmate-next-version-plan.md`](formal-game/formal-soulmate-next-version-plan.md)
 
 ## 当前进度
@@ -27,5 +28,5 @@
 
 ## 下一步
 
-- 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并围绕胜利后最终休整页推进“结伴/灵魂伴侣”功能。
+- 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并围绕胜利后最终休整页推进“灵魂伴侣”蛋孵化、生成实例和玩家宝可梦箱子写入功能。
 - 在实现完整结伴 UI 前，优先按迁移计划把 Pokemon/Item/Bag/Vault/Log 等存档级结构标准化到 `packages/changebattle-v2-core`。

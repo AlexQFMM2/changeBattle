@@ -11,6 +11,7 @@ import {
   showdownMoveNeedsExplicitTargetV4,
   submitTrainerItem,
   submitChoice,
+  validateShowdownChoiceCommandV4,
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
@@ -208,6 +209,147 @@ function faintedDoublesActiveChoiceSmoke() {
     throw new Error(`fainted doubles active should pass and target from live slot: ${choice}`);
   }
   console.log("showdown-battle-core fainted doubles active choice smoke ok");
+}
+
+function allAdjacentDoublesTargetChoiceSmoke() {
+  const request: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [{move: "Surf", id: "surf", pp: 14, maxpp: 24, target: "allAdjacent"}]},
+      {moves: [{move: "Brick Break", id: "brickbreak", pp: 14, maxpp: 24, target: "normal"}]},
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Starmie", details: "Starmie, L50", condition: "266/266", active: true},
+        {ident: "p1: Breloom", details: "Breloom, L50", condition: "137/137", active: true},
+      ],
+    },
+  };
+  const choice = randomLegalChoice(request);
+  if (!/^move 1, move 1 \+\d$/.test(choice)) {
+    throw new Error(`allAdjacent doubles move should not include manual target loc: ${choice}`);
+  }
+  console.log("showdown-battle-core all-adjacent doubles target choice smoke ok");
+}
+
+function showdownChoiceValidationSmoke() {
+  const request: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [
+        {move: "Surf", id: "surf", pp: 14, maxpp: 24, target: "allAdjacent"},
+        {move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 24, target: "normal"},
+        {move: "Heal Pulse", id: "healpulse", pp: 10, maxpp: 16, target: "adjacentAlly"},
+        {move: "Protect", id: "protect", pp: 10, maxpp: 16, target: "self"},
+      ]},
+      {moves: [
+        {move: "Aura Sphere", id: "aurasphere", pp: 14, maxpp: 24, target: "any"},
+        {move: "Helping Hand", id: "helpinghand", pp: 20, maxpp: 32, target: "adjacentAllyOrSelf"},
+        {move: "Snarl", id: "snarl", pp: 15, maxpp: 24, target: "allAdjacentFoes"},
+        {move: "Rain Dance", id: "raindance", pp: 5, maxpp: 8, target: "all"},
+      ]},
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Starmie", details: "Starmie, L50", condition: "266/266", active: true},
+        {ident: "p1: Breloom", details: "Breloom, L50", condition: "137/137", active: true},
+        {ident: "p1: Jolteon", details: "Jolteon, L50", condition: "140/140", active: false},
+      ],
+    },
+  };
+  const cases: Array<{choice: string; ok: boolean; reason?: string}> = [
+    {choice: "move 4 +1, move 4", ok: false, reason: "forbidden-target"},
+    {choice: "move 4, move 4", ok: true},
+    {choice: "move 1 +1, move 4", ok: false, reason: "forbidden-target"},
+    {choice: "move 1, move 4", ok: true},
+    {choice: "move 2, move 4", ok: false, reason: "missing-target"},
+    {choice: "move 2 +1, move 4", ok: true},
+    {choice: "move 3 +1, move 4", ok: false, reason: "invalid-target"},
+    {choice: "move 3 -2, move 4", ok: true},
+    {choice: "move 2 +1, move 1 -1", ok: true},
+    {choice: "move 2 +1, move 1 -2", ok: false, reason: "invalid-target"},
+    {choice: "move 2 +1, move 2 +1", ok: false, reason: "invalid-target"},
+    {choice: "move 2 +1, move 2 -2", ok: true},
+    {choice: "move 2 +1, move 3 +1", ok: false, reason: "forbidden-target"},
+    {choice: "move 2 +1, move 3", ok: true},
+  ];
+  for (const entry of cases) {
+    const result = validateShowdownChoiceCommandV4({request, choice: entry.choice});
+    if (result.ok !== entry.ok || (!result.ok && entry.reason && result.reason !== entry.reason)) {
+      throw new Error(`choice validation mismatch for ${entry.choice}: ${JSON.stringify(result)}`);
+    }
+  }
+  const maxRequest: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {
+        moves: [{move: "Protect", id: "protect", pp: 10, maxpp: 16, target: "self"}],
+        maxMoves: [{move: "Max Guard", id: "maxguard", target: "self"}],
+      },
+      null,
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Pikachu", details: "Pikachu, L50", condition: "100/100", active: true},
+        {ident: "p1: Eevee", details: "Eevee, L50", condition: "0 fnt", active: true, fainted: true},
+      ],
+    },
+  };
+  const maxNoTarget = validateShowdownChoiceCommandV4({request: maxRequest, choice: "move 1 max, pass"});
+  const maxWithTarget = validateShowdownChoiceCommandV4({request: maxRequest, choice: "move 1 max +1, pass"});
+  if (!maxNoTarget.ok || maxWithTarget.ok || (!maxWithTarget.ok && maxWithTarget.reason !== "forbidden-target")) {
+    throw new Error(`max guard target validation mismatch: ${JSON.stringify({maxNoTarget, maxWithTarget})}`);
+  }
+  console.log("showdown-battle-core choice validation smoke ok");
+}
+
+function activeMaxMoveTargetValidationSmoke() {
+  const request: BattleServiceRequestV4 = {
+    targetable: false,
+    active: [
+      {
+        moves: [
+          {move: "Surf", id: "surf", pp: 14, maxpp: 24, target: "allAdjacent"},
+        ],
+        maxMoves: {
+          maxMoves: [
+            {move: "Max Geyser", id: "maxgeyser", target: "adjacentFoe"},
+          ],
+        },
+      },
+      {
+        moves: [
+          {move: "Brick Break", id: "brickbreak", pp: 14, maxpp: 24, target: "normal"},
+        ],
+      },
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Starmie", details: "Starmie, L50", condition: "266/266", active: true},
+        {ident: "p1: Breloom", details: "Breloom, L50", condition: "137/137", active: true},
+      ],
+    },
+  };
+  const missingTarget = validateShowdownChoiceCommandV4({request, choice: "move 1, move 1 +1"});
+  const withTarget = validateShowdownChoiceCommandV4({request, choice: "move 1 +2, move 1 +1"});
+  const fallback = randomLegalChoice(request);
+  const fallbackValidation = validateShowdownChoiceCommandV4({request, choice: fallback});
+  if (missingTarget.ok || (!missingTarget.ok && missingTarget.reason !== "missing-target")) {
+    throw new Error(`active max move without target should be rejected: ${JSON.stringify(missingTarget)}`);
+  }
+  if (!withTarget.ok) throw new Error(`active max move with target should be accepted: ${JSON.stringify(withTarget)}`);
+  if (!/^move 1 \+\d, move 1 \+\d$/.test(fallback) || !fallbackValidation.ok) {
+    throw new Error(`active max fallback should include legal target: ${fallback}; ${JSON.stringify(fallbackValidation)}`);
+  }
+  console.log("showdown-battle-core active max move target validation smoke ok");
 }
 
 function duplicateForceSwitchChoiceSmoke() {
@@ -662,6 +804,45 @@ async function scriptAllyAutoChoiceSmoke() {
     throw new Error(`script ally did not submit a choice: ${JSON.stringify(next.debug.lastChoices)}`);
   }
   console.log("showdown-battle-core script ally auto choice smoke ok");
+}
+
+async function humanInvalidChoicePreflightSmoke() {
+  const team = [
+    {...pikachu, name: "Starmie", species: "Starmie", moves: ["Surf", "Protect", "Recover", "Thunderbolt"]},
+    {...eevee, name: "Breloom", species: "Breloom", moves: ["Brick Break", "Protect", "Spore", "Tackle"]},
+    {...pikachu, name: "Raichu", species: "Raichu"},
+    {...eevee, name: "Jolteon", species: "Jolteon"},
+  ];
+  const snapshot = await createBattleSession({
+    runId: "test-run",
+    nodeId: "test-node-human-invalid-choice",
+    mode: "doubles",
+    ruleSet: "gen9",
+    seed: "test-seed",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team, draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team, draft: null as any},
+    ],
+  });
+  const beforeRequest = snapshot.requests.p1;
+  if (!beforeRequest?.active?.length) throw new Error("missing p1 request for invalid choice smoke");
+  let threw = false;
+  try {
+    await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: "move 1 +1, move 1 +1"});
+  } catch (error) {
+    threw = true;
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("不能手动选择目标")) {
+      throw new Error(`unexpected invalid choice message: ${message}`);
+    }
+  }
+  if (!threw) throw new Error("invalid player choice should throw before stream write");
+  const after = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: randomLegalChoice(beforeRequest)});
+  if (after.status === "blocked") throw new Error(`session blocked after recoverable invalid player choice: ${after.error}`);
+  if (!after.debug.inputLog.some(line => line.includes("[BattleV4][invalid-choice][human][p1]"))) {
+    throw new Error(`missing preflight invalid choice debug line: ${JSON.stringify(after.debug.inputLog.slice(-8))}`);
+  }
+  console.log("showdown-battle-core human invalid choice preflight smoke ok");
 }
 
 function showdownCommandReferenceSmoke() {
@@ -1151,6 +1332,7 @@ void smoke()
   .then(gen7CoopFormatSmoke)
   .then(rechargeChoiceSmoke)
   .then(faintedDoublesActiveChoiceSmoke)
+  .then(allAdjacentDoublesTargetChoiceSmoke)
   .then(duplicateForceSwitchChoiceSmoke)
   .then(coopWinnerNameSmoke)
   .then(duplicateSpeciesDoublesSmoke)
@@ -1164,6 +1346,9 @@ void smoke()
   .then(specialSystemBagGateSmoke)
   .then(scriptAllyAutoChoiceSmoke)
   .then(showdownCommandReferenceSmoke)
+  .then(showdownChoiceValidationSmoke)
+  .then(activeMaxMoveTargetValidationSmoke)
+  .then(humanInvalidChoicePreflightSmoke)
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)
   .then(aiMaxGuardTargetSmoke)

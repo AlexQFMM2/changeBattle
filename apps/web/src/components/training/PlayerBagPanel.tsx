@@ -337,6 +337,7 @@ function itemTypeLabel(type: PlayerItemInstanceV4["type"]): string {
     medicine: "回复道具",
     berry: "树果",
     training: "训练道具",
+    evolution: "进化道具",
     battle: "战斗道具",
     tm: "技能机器",
     key: "重要道具",

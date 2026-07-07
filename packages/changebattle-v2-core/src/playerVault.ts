@@ -20,6 +20,12 @@ export type PlayerPokemonMoveRecordV4 = {
 export type PlayerPokemonRecordV4 = {
   playerPokemonId: string;
   speciesId: string;
+  nickname?: string;
+  level?: number;
+  originKind?: "soulmate";
+  rootSpeciesId?: string;
+  sourceRunId?: string;
+  sourcePokemonKey?: string;
   gender: LocalPokemonV4["gender"];
   nature: string;
   abilityId: string;
@@ -105,6 +111,12 @@ export function normalizePlayerPokemonRecordV4(value: unknown, nowIso = new Date
   return {
     playerPokemonId,
     speciesId,
+    nickname: normalizeNonEmptyText(value.nickname) || undefined,
+    level: optionalPositiveInt(value.level),
+    originKind: value.originKind === "soulmate" ? "soulmate" : undefined,
+    rootSpeciesId: normalizeNonEmptyText(value.rootSpeciesId) || undefined,
+    sourceRunId: normalizeNonEmptyText(value.sourceRunId) || undefined,
+    sourcePokemonKey: normalizeNonEmptyText(value.sourcePokemonKey) || undefined,
     gender: normalizeTrainingGenderV4(value.gender),
     nature: normalizeNonEmptyText(value.nature) || "Hardy",
     abilityId: normalizeNonEmptyText(value.abilityId),
@@ -221,6 +233,11 @@ function normalizeIsoText(value: unknown): string {
 function optionalNonNegativeInt(value: unknown): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   return clampInt(value, 0, 999, 0);
+}
+
+function optionalPositiveInt(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  return clampInt(value, 1, 100, 1);
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {

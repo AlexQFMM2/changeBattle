@@ -76,6 +76,11 @@ import {
   normalizeFormalGameSettlementV4,
   normalizeFormalRoundSettlementV4,
   normalizeFormalSettlementReasonV4,
+  normalizePlayerPokemonRecordV4,
+  normalizePlayerVaultV4,
+  playerVaultStorageCapacityV4,
+  addPlayerVaultPokemonV4,
+  createSoulmateCandidateListV4,
   summarizeBattleLogByPokemonV4,
   summarizeCoinLogV4,
   type CoopPartnerPreferenceV4,
@@ -96,9 +101,12 @@ import {
   type PokemonPowerProfileV4,
   type FormalPokemonSpeciesRankData,
   type FormalMoveQualityRuleV4,
+  type PlayerPokemonRecordV4,
+  type PlayerVaultV4,
+  type SoulmateCandidateV4,
 } from "@changebattle-v2/core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
-import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasPendingSettlementPurchaseBonusV4, starChartHasPendingSettlementShopExportV4, starChartHasRuntimeEffectV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, soulmateBaseFriendshipForStarChartV4, soulmateShinyRateForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasPendingSettlementPurchaseBonusV4, starChartHasPendingSettlementShopExportV4, starChartHasRuntimeEffectV4, starChartHasSoulmateRewardV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   normalizeFormalCompetitionModeV4,
@@ -164,6 +172,35 @@ export type FormalShopTransactionResultV4 = {
 };
 
 export type {FormalShopProductViewV4};
+
+export type FormalSoulmateEggPokemonDisplayV4 = {
+  speciesId: string;
+  name: string;
+  nameZh: string;
+  spriteUrl?: string;
+  shinySpriteUrl?: string;
+  iconUrl?: string;
+  iconStyle?: string;
+};
+
+export type FormalSoulmateEggHatchResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  message: string;
+  candidate?: SoulmateCandidateV4;
+  pokemon?: PlayerPokemonRecordV4;
+  display?: FormalSoulmateEggPokemonDisplayV4;
+};
+
+export type FormalSoulmateEggClaimResultV4 = {
+  ok: boolean;
+  run: FormalGameRunV4;
+  playerVault: PlayerVaultV4;
+  message: string;
+  candidate?: SoulmateCandidateV4;
+  pokemon?: PlayerPokemonRecordV4;
+  display?: FormalSoulmateEggPokemonDisplayV4;
+};
 
 export type FormalMedicalInsuranceTierV4 = "basic" | "standard" | "premium";
 
@@ -486,6 +523,9 @@ export type FormalGameRunV4 = {
   portableItemIds?: string[];
   pendingSettlementPurchaseBonusClaimedAt?: string;
   pendingSettlementExportItemInstanceIds?: string[];
+  soulmateEggClaimedAt?: string;
+  soulmateEggCandidateId?: string;
+  soulmatePlayerPokemonId?: string;
   settlement: FormalGameSettlementV4 | null;
   settled: boolean;
   settledAt?: string;
@@ -531,6 +571,8 @@ export type FormalGameRunApi = {
   getFormalRestShopProducts(run: FormalGameRunV4): FormalShopProductViewV4[];
   buyFormalRestShopItem(run: FormalGameRunV4, slotId: string): FormalShopTransactionResultV4;
   sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4;
+  prepareFormalSoulmateEggHatch(run: FormalGameRunV4, candidateId: string): FormalSoulmateEggHatchResultV4;
+  claimFormalSoulmateEgg(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null, candidateId: string, nickname?: string): FormalSoulmateEggClaimResultV4;
   rerollFormalRestPokemonStats(run: FormalGameRunV4, input: FormalRestPokemonStatRerollInputV4): FormalRestPokemonStatRerollResultV4;
   unlockFormalRestOpponentPreview(run: FormalGameRunV4, input: FormalRestOpponentPreviewUnlockInputV4): FormalRestOpponentPreviewUnlockResultV4;
   getFormalRestExchangeView(run: FormalGameRunV4, input?: {playerId?: ShowdownPlayerIdV4}): FormalPokemonExchangeViewV4;
@@ -1354,6 +1396,64 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     return shopTransactionResult(true, withBonus, `已购买 ${detail.nameZh || detail.name}。${bonusMessage}`, withBonus.shopByNodeId?.[shop.nodeId] || nextShop);
   }
 
+  function prepareFormalSoulmateEggHatch(run: FormalGameRunV4, candidateId: string): FormalSoulmateEggHatchResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const prepared = buildFormalSoulmateEggPokemon(normalized, candidateId);
+    if (!prepared.ok) return {ok: false, run: normalized, message: prepared.message};
+    return {
+      ok: true,
+      run: normalized,
+      message: `${prepared.display.nameZh || prepared.display.name} 的蛋正在孵化。`,
+      candidate: prepared.candidate,
+      pokemon: prepared.pokemon,
+      display: prepared.display,
+    };
+  }
+
+  function claimFormalSoulmateEgg(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null, candidateId: string, nickname?: string): FormalSoulmateEggClaimResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const vault = normalizePlayerVaultV4(playerVault);
+    const claimedPokemonId = normalizeOptionalText(normalized.soulmatePlayerPokemonId);
+    if (normalized.soulmateEggClaimedAt) {
+      const existing = claimedPokemonId ? vault.pokemon.find(pokemon => pokemon.playerPokemonId === claimedPokemonId) : null;
+      return existing
+        ? {
+          ok: true,
+          run: normalized,
+          playerVault: vault,
+          message: `${existing.nickname || existing.speciesId} 已在玩家的宝可梦箱子中。`,
+          pokemon: existing,
+          display: displayForSoulmatePokemon(existing),
+        }
+        : {ok: false, run: normalized, playerVault: vault, message: "本局灵魂伴侣奖励已经领取过。"};
+    }
+    if (vault.pokemon.length >= playerVaultStorageCapacityV4(vault, "pokemon")) {
+      return {ok: false, run: normalized, playerVault: vault, message: "玩家的宝可梦箱子已满。"};
+    }
+    const prepared = buildFormalSoulmateEggPokemon(normalized, candidateId, {nickname});
+    if (!prepared.ok) return {ok: false, run: normalized, playerVault: vault, message: prepared.message};
+    const nextVault = addPlayerVaultPokemonV4(vault, prepared.pokemon);
+    const storedPokemon = nextVault.pokemon.find(pokemon => pokemon.playerPokemonId === prepared.pokemon.playerPokemonId) || prepared.pokemon;
+    const now = new Date().toISOString();
+    const nextRun = normalizeFormalRun({
+      ...normalized,
+      soulmateEggClaimedAt: now,
+      soulmateEggCandidateId: prepared.candidate.candidateId,
+      soulmatePlayerPokemonId: prepared.pokemon.playerPokemonId,
+      updatedAt: now,
+    });
+    const displayName = storedPokemon.nickname || prepared.display.nameZh || prepared.display.name;
+    return {
+      ok: true,
+      run: nextRun,
+      playerVault: nextVault,
+      message: `蛋孵化了！${displayName} 已送入玩家的宝可梦箱子。`,
+      candidate: prepared.candidate,
+      pokemon: storedPokemon,
+      display: displayForSoulmatePokemon(storedPokemon),
+    };
+  }
+
   function sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4 {
     const node = currentFormalRestNode(run);
     const restRunSnapshot = run.restRunSnapshot;
@@ -1977,6 +2077,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       pendingSettlementExportItemInstanceIds: Array.isArray(run.pendingSettlementExportItemInstanceIds)
         ? Array.from(new Set(run.pendingSettlementExportItemInstanceIds.map(normalizeOptionalText).filter((itemId): itemId is string => Boolean(itemId))))
         : [],
+      soulmateEggClaimedAt: normalizeOptionalText(run.soulmateEggClaimedAt),
+      soulmateEggCandidateId: normalizeOptionalText(run.soulmateEggCandidateId),
+      soulmatePlayerPokemonId: normalizeOptionalText(run.soulmatePlayerPokemonId),
       settlement,
       settled,
       settledAt: settled ? run.settledAt || settlement?.createdAt || undefined : undefined,
@@ -2659,6 +2762,97 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     }
   }
 
+  function buildFormalSoulmateEggPokemon(run: FormalGameRunV4, candidateId: string, options: {nickname?: string} = {}): {ok: true; candidate: SoulmateCandidateV4; pokemon: PlayerPokemonRecordV4; display: FormalSoulmateEggPokemonDisplayV4} | {ok: false; message: string} {
+    const restRun = run.restRunSnapshot;
+    const team = restRun?.players.p1?.localTeam || null;
+    if (!restRun || !team) return {ok: false, message: "当前没有可领取的灵魂伴侣奖励。"};
+    if (restRun.status !== "battleEndedPendingSettlement") return {ok: false, message: "只有最终胜利后的待结算休整页可以领取灵魂伴侣奖励。"};
+    if (!starChartHasSoulmateRewardV4(run.starChartSnapshot)) return {ok: false, message: "尚未点亮灵魂伴侣星图节点。"};
+    if (run.soulmateEggClaimedAt) return {ok: false, message: "本局灵魂伴侣奖励已经领取过。"};
+    const candidates = createSoulmateCandidateListV4({
+      battleLog: restRun.battleLog || [],
+      team,
+      resolvePokemonKey: summary => resolveFormalSoulmateCandidateTeamKey(summary.pokemonKey, team),
+    });
+    const candidate = candidates.find(entry => entry.candidateId === candidateId || entry.localPokemonId === candidateId || entry.pokemonKey === candidateId) || null;
+    if (!candidate) return {ok: false, message: "请选择本局有同行记录的宝可梦。"};
+    const rootSpeciesId = formalSoulmateRootSpeciesId(candidate.speciesId);
+    const detail = safePokemon(rootSpeciesId || candidate.speciesId);
+    const rngSeed = `${run.id}:${candidate.candidateId}:${candidate.localPokemonId}:soulmate-egg`;
+    const rng = createRng(rngSeed);
+    const shiny = rng() < soulmateShinyRateForStarChartV4(run.starChartSnapshot);
+    const moveIds = safePokemonMovePool(() => dex.getPokemonSelfLearnSkills(detail.id)).map(move => move.id);
+    const fallbackMoveIds = candidate.pokemon.moves.map(move => move.moveId).filter(Boolean);
+    const moves = normalizeMoves(dex, moveIds.length ? moveIds : fallbackMoveIds, 4).map(move => ({moveId: move.moveId, remainingPp: move.remainingPp, maxPp: move.maxPp}));
+    const ability = detail.abilities[0];
+    const nickname = normalizeNickname(options.nickname);
+    const pokemon = normalizePlayerPokemonRecordV4({
+      playerPokemonId: `soulmate-${hashStableText(`${run.id}:${candidate.localPokemonId}:${candidate.pokemonKey}`)}`,
+      speciesId: detail.id,
+      nickname,
+      level: 50,
+      originKind: "soulmate",
+      rootSpeciesId: detail.id,
+      sourceRunId: run.id,
+      sourcePokemonKey: candidate.pokemonKey,
+      gender: candidate.pokemon.gender,
+      nature: candidate.pokemon.nature,
+      abilityId: ability?.id || candidate.pokemon.abilityId || "",
+      evs: normalizeZeroStats(),
+      ivs: candidate.pokemon.ivs,
+      moves,
+      friendship: soulmateBaseFriendshipForStarChartV4(run.starChartSnapshot),
+      shiny,
+      metAt: new Date().toISOString(),
+      honors: ["灵魂伴侣"],
+    });
+    if (!pokemon) return {ok: false, message: "宝可梦蛋孵化失败。"};
+    return {ok: true, candidate, pokemon, display: displayForSoulmatePokemon(pokemon)};
+  }
+
+  function resolveFormalSoulmateCandidateTeamKey(rawKey: string, team: LocalTeamV4): string | null {
+    const normalizedRawKey = normalizeSoulmateCandidateKey(rawKey);
+    const rawName = normalizedRawKey.replace(/^p[1-4][a-d]?/, "").replace(/^:/, "");
+    for (const pokemon of team.pokemon || []) {
+      const aliases = [
+        pokemon.localPokemonId,
+        pokemon.pokeballId,
+        pokemon.speciesId,
+        pokemon.showdownId,
+        pokemon.showdownIdentityToken,
+        pokemon.name,
+        pokemon.nameZh,
+        pokemon.nickname,
+      ].map(normalizeSoulmateCandidateKey).filter(Boolean);
+      if (aliases.some(alias => alias === normalizedRawKey || alias === rawName || normalizedRawKey.endsWith(`:${alias}`))) {
+        return pokemon.localPokemonId || pokemon.showdownId || pokemon.speciesId;
+      }
+    }
+    return null;
+  }
+
+  function formalSoulmateRootSpeciesId(speciesId: string): string {
+    try {
+      const root = dex.getPokemonEvolutionRoot(speciesId);
+      return typeof root === "string" ? root || speciesId : root?.id || speciesId;
+    } catch {
+      return speciesId;
+    }
+  }
+
+  function displayForSoulmatePokemon(pokemon: PlayerPokemonRecordV4): FormalSoulmateEggPokemonDisplayV4 {
+    const detail = safePokemon(pokemon.speciesId);
+    return {
+      speciesId: detail.id,
+      name: detail.name,
+      nameZh: pokemon.nickname || detail.nameZh || detail.name,
+      spriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      shinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+      iconUrl: detail.sprites.iconUrl,
+      iconStyle: detail.sprites.iconStyle,
+    };
+  }
+
   return {
     loadFormalGameRun: async () => {
       const run = await storage.loadFormalGameRun();
@@ -2684,6 +2878,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     getFormalRestShopProducts,
     buyFormalRestShopItem,
     sellFormalRestBagItems,
+    prepareFormalSoulmateEggHatch,
+    claimFormalSoulmateEgg,
     rerollFormalRestPokemonStats,
     unlockFormalRestOpponentPreview,
     getFormalRestExchangeView,
@@ -5400,6 +5596,28 @@ function createId(prefix: string): string {
 function normalizeOptionalText(value: unknown): string | undefined {
   const text = String(value || "").trim();
   return text || undefined;
+}
+
+function normalizeNickname(value: unknown): string | undefined {
+  const text = String(value || "").trim();
+  return text ? Array.from(text).slice(0, 12).join("") : undefined;
+}
+
+function normalizeSoulmateCandidateKey(value: unknown): string {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5:]+/g, "");
+}
+
+function normalizeZeroStats(): StatTableV4 {
+  return {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
+}
+
+function hashStableText(seed: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36).padStart(7, "0");
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {

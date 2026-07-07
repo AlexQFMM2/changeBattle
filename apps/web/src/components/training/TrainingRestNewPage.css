@@ -282,9 +282,9 @@
   min-width: 0;
   height: 54px;
   display: grid;
-  grid-template-rows: 24px 11px 9px;
+  grid-template-rows: 30px 9px 7px;
   place-items: center;
-  gap: 2px;
+  gap: 1px;
   border: 1px solid rgb(94 63 27 / 58%);
   border-radius: 6px;
   background:
@@ -294,7 +294,7 @@
     0 1px 0 rgb(77 44 18 / 28%),
     inset 0 0 0 1px rgb(255 255 255 / 38%);
   color: #3b2110;
-  padding: 3px;
+  padding: 2px 3px;
   cursor: pointer;
 }
 
@@ -316,8 +316,8 @@
 }
 
 .training-rest-new-soulmate-icon {
-  width: 28px;
-  height: 24px;
+  width: 40px;
+  height: 30px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -325,17 +325,19 @@
 
 .training-rest-new-soulmate-icon img,
 .training-rest-new-soulmate-icon .image-fallback {
-  max-width: 28px;
-  max-height: 24px;
+  max-width: 40px;
+  max-height: 30px;
   object-fit: contain;
+  image-rendering: pixelated;
 }
 
 .training-rest-new-soulmate-picon {
-  display: inline-block;
+  display: block;
   width: 40px;
   height: 30px;
-  transform: scale(1.15);
-  transform-origin: center;
+  overflow: hidden;
+  background-size: auto;
+  image-rendering: auto;
 }
 
 .training-rest-new-soulmate-card strong,
@@ -358,6 +360,194 @@
   font-size: 6px;
   font-weight: 850;
   color: rgb(59 33 16 / 70%);
+}
+
+.training-rest-new-hatch-layer {
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: rgb(22 16 13 / 46%);
+}
+
+.training-rest-new-hatch-dialog {
+  width: 520px;
+  height: 238px;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 14px;
+  border: 2px solid rgb(134 104 35 / 88%);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 82%), rgb(247 222 155 / 78%)),
+    rgb(61 38 24 / 70%);
+  box-shadow:
+    0 10px 24px rgb(15 8 4 / 48%),
+    inset 0 0 0 1px rgb(255 255 255 / 50%);
+  padding: 14px;
+  pointer-events: auto;
+}
+
+.training-rest-new-hatch-stage {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(255 250 196 / 80%), rgb(227 184 94 / 30%) 36%, transparent 64%),
+    linear-gradient(180deg, rgb(88 55 28 / 18%), rgb(44 27 18 / 22%));
+  overflow: hidden;
+}
+
+.training-rest-new-egg-animation {
+  width: 132px;
+  height: 244px;
+  background-image: url("/assets/runtime/soulmate/egg-hatch-sheet.png");
+  background-size: 528px 732px;
+  image-rendering: pixelated;
+  animation: training-rest-new-egg-hatch 1.8s steps(1) infinite;
+  transform: translateY(-2px);
+}
+
+@keyframes training-rest-new-egg-hatch {
+  0% { background-position: 0 0; }
+  8.333% { background-position: -132px 0; }
+  16.666% { background-position: -264px 0; }
+  25% { background-position: -396px 0; }
+  33.333% { background-position: 0 -244px; }
+  41.666% { background-position: -132px -244px; }
+  50% { background-position: -264px -244px; }
+  58.333% { background-position: -396px -244px; }
+  66.666% { background-position: 0 -488px; }
+  75% { background-position: -132px -488px; }
+  83.333% { background-position: -264px -488px; }
+  91.666%, 100% { background-position: -396px -488px; }
+}
+
+.training-rest-new-hatch-pokemon,
+.training-rest-new-hatch-pokemon .image-fallback {
+  max-width: 168px;
+  max-height: 168px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 8px rgb(38 22 12 / 36%));
+}
+
+.training-rest-new-hatch-error-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #8e2f2f;
+  color: #fff6dd;
+  font-size: 28px;
+  font-weight: 1000;
+}
+
+.training-rest-new-hatch-panel {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(42px, auto) auto minmax(0, 1fr) auto;
+  align-content: center;
+  gap: 9px;
+  color: #3a2110;
+}
+
+.training-rest-new-hatch-panel header {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  line-height: 1;
+}
+
+.training-rest-new-hatch-panel header strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.training-rest-new-hatch-panel header span {
+  flex: 0 0 auto;
+  max-width: 86px;
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 900;
+  color: rgb(58 33 16 / 58%);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-rest-new-hatch-panel p {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.training-rest-new-hatch-name {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.training-rest-new-hatch-name input {
+  min-width: 0;
+  height: 28px;
+  border: 1px solid rgb(95 64 30 / 58%);
+  border-radius: 6px;
+  background: rgb(255 252 234 / 88%);
+  color: #2f1b0d;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 8px;
+  outline: none;
+}
+
+.training-rest-new-hatch-name input:focus {
+  border-color: #1f7d4d;
+  box-shadow: 0 0 0 2px rgb(45 143 82 / 20%);
+}
+
+.training-rest-new-hatch-error {
+  min-height: 11px;
+  color: #8e2f2f;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.training-rest-new-hatch-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.training-rest-new-hatch-actions button {
+  min-width: 74px;
+  height: 30px;
+  border: 1px solid rgb(82 54 24 / 68%);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #fff2c4, #d9aa62);
+  color: #3a2110;
+  font-size: 9px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.training-rest-new-hatch-actions button.primary {
+  border-color: rgb(33 96 57 / 80%);
+  background: linear-gradient(180deg, #dfffc8, #73c47e);
+}
+
+.training-rest-new-hatch-actions button:disabled {
+  cursor: wait;
+  filter: grayscale(0.35);
+  opacity: 0.7;
 }
 
 .training-rest-new-region {

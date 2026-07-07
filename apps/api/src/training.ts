@@ -681,6 +681,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
     if (detail.kind === "berry") return "berry";
     if (detail.kind === "recovery" || detail.kind === "revive" || detail.kind === "pp") return "medicine";
     if (detail.kind === "training") return "training";
+    if (detail.kind === "evolution") return "evolution";
     if (detail.kind === "tm") return "tm";
     if (detail.kind === "held" || detail.kind === "special") return "held";
     if (detail.kind === "battle") return "battle";
@@ -994,8 +995,12 @@ function isRecord(value: unknown): value is Record<string, any> {
 function normalizeItemID(value: unknown): string {
   const raw = String(value || "").trim();
   if (/^tm:/i.test(raw)) return `tm:${toID(raw.slice(3))}`;
-  if (/^system-/i.test(raw)) return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "");
+  if (shouldKeepHyphenatedItemID(raw)) return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "");
   return toID(raw);
+}
+
+function shouldKeepHyphenatedItemID(value: string): boolean {
+  return /^system-/i.test(value) || /^universal-evolution-stone$/i.test(value) || /^linking-cord$/i.test(value);
 }
 
 function normalizeOptionalId(value: unknown): string | undefined {
@@ -1020,7 +1025,7 @@ function toID(value: unknown): string {
 
 function normalizePlayerItemType(value: unknown): PlayerItemTypeV4 | undefined {
   const text = String(value || "");
-  const allowed: PlayerItemTypeV4[] = ["system", "system-battle", "held", "medicine", "berry", "training", "battle", "tm", "key", "misc"];
+  const allowed: PlayerItemTypeV4[] = ["system", "system-battle", "held", "medicine", "berry", "training", "evolution", "battle", "tm", "key", "misc"];
   return allowed.includes(text as PlayerItemTypeV4) ? text as PlayerItemTypeV4 : undefined;
 }
 

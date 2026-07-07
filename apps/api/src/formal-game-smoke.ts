@@ -41,6 +41,7 @@ import {
   formalTrainingGroundSelfStudyEventWeightsV4,
   formalTrainingGroundStableSelfStudyGainRuleV4,
   createSoulmateCandidateListV4,
+  normalizeSoulmateEvolutionRequirementV4,
   getNatureEffectsV4,
   normalizePlayerVaultV4,
   validateFormalShopCatalogV4,
@@ -112,6 +113,7 @@ const pokemonDetails = [
   mockPokemon("blastoise", "水箭龟", 9, ["Water"], 530),
   mockPokemon("gyarados", "暴鲤龙", 130, ["Water", "Flying"], 540),
   mockPokemon("snorlax", "卡比兽", 143, ["Normal"], 540),
+  mockPokemon("charmander", "小火龙", 4, ["Fire"], 309),
 ];
 const pokemonById = new Map(pokemonDetails.map(detail => [detail.id, detail]));
 const formalBattleItemIds = new Set(FORMAL_SHOP_ITEM_POOL.battle);
@@ -122,7 +124,21 @@ const MOCK_TUTOR_MOVE_IDS = ["protect", "raindance", "thunderbolt"];
 const MOCK_EGG_MOVE_IDS = ["toxic", "willowisp", "substitute"];
 const MOCK_MACHINE_MOVE_IDS = ["watergun", "hydropump", "waterfall", "thunderbolt", "volttackle", "icebeam", "flamethrower", "hurricane", "gigadrain", "sludgebomb", "energyball", "surf", "earthquake", "protect"];
 
-const api = createFormalGameRunApi({
+function mockEvolutionRoot(speciesId: string) {
+  if (toTestId(speciesId) === "charizard") return {id: "charmander", name: "charmander", nameZh: "小火龙"};
+  return {id: toTestId(speciesId), name: String(speciesId), nameZh: String(speciesId)};
+}
+
+function mockEvolutionEdges(speciesId: string) {
+  if (toTestId(speciesId) === "charmander") return [
+    {fromSpeciesId: "charmander", fromSpeciesName: "charmander", fromSpeciesNameZh: "小火龙", toSpeciesId: "charizard", toSpeciesName: "charizard", toSpeciesNameZh: "喷火龙", evoLevel: 16},
+    {fromSpeciesId: "charmander", fromSpeciesName: "charmander", fromSpeciesNameZh: "小火龙", toSpeciesId: "scyther", toSpeciesName: "scyther", toSpeciesNameZh: "飞天螳螂", evoType: "trade" as const},
+    {fromSpeciesId: "charmander", fromSpeciesName: "charmander", fromSpeciesNameZh: "小火龙", toSpeciesId: "lapras", toSpeciesName: "lapras", toSpeciesNameZh: "拉普拉斯", evoType: "useItem" as const, evoItem: "Fire Stone", evoItemId: "firestone"},
+  ];
+  return [];
+}
+
+const mockDex = {
   searchDex(request: DexSearchRequest = {}): DexSearchResult {
     const offset = Number(request.offset || 0);
     const limit = Number(request.limit || 20);
@@ -139,6 +155,15 @@ const api = createFormalGameRunApi({
   },
   getPokemonDetail(id: string) {
     return pokemonById.get(id) || pokemonById.get("squirtle")!;
+  },
+  getPokemonEvolutionRoot(speciesId: string) {
+    return mockEvolutionRoot(speciesId);
+  },
+  getPokemonEvolutionEdges(speciesId: string) {
+    return mockEvolutionEdges(speciesId);
+  },
+  getPokemonEvolutionTree(speciesId: string) {
+    return {root: mockEvolutionRoot(speciesId), chain: [mockEvolutionRoot(speciesId)].filter(Boolean), edges: mockEvolutionEdges(speciesId)};
   },
   getPokemonSelfLearnSkills() {
     return MOCK_SELF_LEARN_MOVE_IDS.map(moveDetail);
@@ -218,7 +243,9 @@ const api = createFormalGameRunApi({
   calculatePokemonStats({level}: {level: number}) {
     return {stats: {hp: 100 + level, atk: 80, def: 80, spa: 80, spd: 80, spe: 80}};
   },
-} as never, {
+} as never;
+
+const api = createFormalGameRunApi(mockDex, {
   async loadFormalGameRun() {
     return null;
   },
@@ -244,6 +271,7 @@ function mockPokemon(id: string, nameZh: string, num: number, types: string[], b
     abilities: [{id: "overgrow", name: "Overgrow", nameZh: "茂盛"}],
     eggGroups: [],
     evolutionChain: [],
+    evolutionEdges: [],
     formes: [],
     sprites: {
       resourcePrefix: "",
@@ -650,6 +678,92 @@ const soulmateGrowthStarProfile = unlockStarChartNodeForProfileV4(unlockStarChar
 assert(soulmateShinyRateForStarChartV4(soulmateGrowthStarProfile.starChart) === 1 / 8, "european parents should raise soulmate shiny rate to 1/8");
 const soulmateFriendshipStarProfile = unlockStarChartNodeForProfileV4(soulmateGrowthStarProfile, SOULMATE_BASE_FRIENDSHIP_BONUS_NODE_ID);
 assert(soulmateBaseFriendshipForStarChartV4(soulmateFriendshipStarProfile.starChart) === 120, "love at first sight should raise base friendship to 120");
+const soulmateRun = api.createFormalGameRun(soulmateFriendshipStarProfile, {mode: "singles", seed: "soulmate-smoke-seed"});
+const soulmateRestRun = {
+  id: "soulmate-rest-run",
+  source: "training" as const,
+  status: "battleEndedPendingSettlement" as const,
+  scenario: {mode: "singles" as const},
+  players: {
+    p1: {
+      id: "p1",
+      name: "玩家",
+      controller: "human" as const,
+      alliance: "player" as const,
+      localTeam: {
+        id: "soulmate-team",
+        name: "灵魂伴侣测试队",
+        pokemon: [{
+          localPokemonId: "formal-p1-1-charizard",
+          showdownId: "charizard",
+          speciesId: "charizard",
+          name: "charizard",
+          nameZh: "喷火龙",
+          level: 50,
+          gender: "M" as const,
+          shiny: false,
+          abilityId: "blaze",
+          nature: "Hardy",
+          moves: [{moveId: "flamethrower", pp: 15, maxPp: 15, remainingPp: 15}],
+          evs: {hp: 20, atk: 20, def: 20, spa: 20, spd: 20, spe: 20},
+          ivs: {hp: 31, atk: 30, def: 29, spa: 28, spd: 27, spe: 26},
+          entryHp: 150,
+          maxHp: 150,
+          entryStatus: "",
+        }],
+      },
+      bag: {items: [], maxSize: 20},
+    },
+  },
+  battleLog: [{
+    id: "soulmate-log-1",
+    key: "soulmate-log-1",
+    at: "2026-01-01T00:00:00.000Z",
+    sessionId: "battle-1",
+    nodeId: "final",
+    turn: 1,
+    rawLogIndex: 1,
+    eventType: "move" as const,
+    sourcePlayerId: "p1" as const,
+    sourcePokemonKey: "p1a: Charizard",
+    sourcePokemonName: "喷火龙",
+    targetPokemonKey: "foe-blastoise",
+    moveId: "flamethrower",
+    rawLine: "|move|p1a: Charizard|Flamethrower|p2a: Blastoise",
+  }],
+} as never;
+const soulmatePendingRun: FormalGameRunV4 = {...soulmateRun, restRunSnapshot: soulmateRestRun, status: "resting"};
+const soulmatePrepare = api.prepareFormalSoulmateEggHatch(soulmatePendingRun, "soulmate-candidate-formal-p1-1-charizard");
+assert(soulmatePrepare.ok, `soulmate egg prepare should succeed: ${soulmatePrepare.message}`);
+assert(soulmatePrepare.pokemon?.speciesId === "charmander", "soulmate egg should hatch evolution root species");
+assert(soulmatePrepare.pokemon?.level === 50, "soulmate egg should hatch at level 50");
+assert(soulmatePrepare.pokemon?.friendship === 120, "soulmate egg should use star chart friendship bonus");
+assert(soulmatePrepare.pokemon?.originKind === "soulmate", "soulmate egg should mark origin kind");
+assert(Object.values(soulmatePrepare.pokemon?.evs || {}).every(value => value === 0), "soulmate egg should reset EVs");
+const soulmateClaim = api.claimFormalSoulmateEgg(soulmatePendingRun, normalizePlayerVaultV4(), "soulmate-candidate-formal-p1-1-charizard", "小焰");
+assert(soulmateClaim.ok, `soulmate egg claim should succeed: ${soulmateClaim.message}`);
+assert(soulmateClaim.playerVault.pokemon.length === 1, "soulmate egg claim should deposit one pokemon");
+assert(soulmateClaim.pokemon?.nickname === "小焰", "soulmate egg claim should persist nickname");
+assert(Boolean(soulmateClaim.run.soulmateEggClaimedAt), "soulmate egg claim should mark run claimed");
+const soulmateClaimAgain = api.claimFormalSoulmateEgg(soulmateClaim.run, soulmateClaim.playerVault, "soulmate-candidate-formal-p1-1-charizard", "重复");
+assert(soulmateClaimAgain.ok, "soulmate duplicate claim should be idempotent when vault still has pokemon");
+assert(soulmateClaimAgain.playerVault.pokemon.length === 1, "soulmate duplicate claim should not duplicate pokemon");
+const fullVault = normalizePlayerVaultV4({pokemonStoragePageCount: 1, pokemon: Array.from({length: 24}, (_, index) => ({
+  playerPokemonId: `box-${index}`,
+  speciesId: "pikachu",
+  gender: "N",
+  nature: "Hardy",
+  abilityId: "static",
+  evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0},
+  ivs: {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31},
+  moves: [{moveId: "tackle"}],
+  friendship: 70,
+  shiny: false,
+  metAt: "2026-01-01T00:00:00.000Z",
+  honors: [],
+}))});
+const soulmateFullClaim = api.claimFormalSoulmateEgg(soulmatePendingRun, fullVault, "soulmate-candidate-formal-p1-1-charizard");
+assert(!soulmateFullClaim.ok && !soulmateFullClaim.run.soulmateEggClaimedAt, "soulmate claim should fail without marking run when vault is full");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
 assert(starProfile.battlePoints === 96, "opponent rumor should cost 4 BP");
@@ -1354,6 +1468,10 @@ const soulmateCandidateSmoke = createSoulmateCandidateListV4({
 });
 assert(soulmateCandidateSmoke.length === 1, "soulmate candidates should include only p1 battleLog participants");
 assert(soulmateCandidateSmoke[0]!.localPokemonId === firstPlayerPokemon.localPokemonId, "soulmate candidate should map battleLog participant to local pokemon");
+assert(normalizeSoulmateEvolutionRequirementV4({evoLevel: 16} as never).itemId === "universal-evolution-stone", "level evolution should require universal evolution stone");
+assert(normalizeSoulmateEvolutionRequirementV4({evoType: "levelFriendship"}).itemId === "universal-evolution-stone", "friendship evolution should require universal evolution stone");
+assert(normalizeSoulmateEvolutionRequirementV4({evoType: "useItem", evoItem: "Fire Stone"}).itemId === "firestone", "item evolution should require exact evo item");
+assert(normalizeSoulmateEvolutionRequirementV4({evoType: "trade"}).itemId === "linking-cord", "trade evolution should require linking cord");
 const withRunningTeamState = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, {
   ...battleSnapshotBase,
   status: "running",

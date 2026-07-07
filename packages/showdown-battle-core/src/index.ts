@@ -1,6 +1,7 @@
 import type {
   BattleServiceApiV4,
   BattleServiceCreateInputV4,
+  BattleServiceMoveRequestV4,
   BattleServicePlayerIdV4,
   BattleServicePlayerInputV4,
   BattleServicePokemonSetV4,
@@ -21,7 +22,7 @@ import type {
   ShowdownPlaybackTimelineV4,
 } from "./types.js";
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
-import {filterShowdownChoiceForRuleSetV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
+import {filterShowdownChoiceForRuleSetV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownSpecialSystemAllowedForRuleSetV4, validateShowdownChoiceCommandV4, type ShowdownChoiceValidationResultV4} from "./showdownCommand.js";
 import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, normalizeBattleAiProfileV4, type BattleAiChoiceResultV4} from "./ai.js";
 import {loadShowdownSimV4} from "./showdownVendor.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
@@ -334,6 +335,7 @@ export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInp
         ? trainerItemPlaceholderChoice(request, index)
         : part.trim()
     ).join(", ");
+    assertChoiceValidForSession(session, input.playerId, fallbackChoice, "human");
     side.clearChoice();
     accepted = side.choose(fallbackChoice);
     if (accepted) session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item-placeholder] ${choice} -> ${fallbackChoice}`);
@@ -364,7 +366,7 @@ function trainerItemPlaceholderChoice(request: BattleServiceRequestV4, activeInd
   const active = request.active?.[activeIndex];
   const moveIndex = active?.moves?.findIndex(move => !move.disabled) ?? -1;
   if (!active || moveIndex < 0) return "pass";
-  const move = active.moves![moveIndex]!;
+  const move = moveRequestForRuntimeChoice(active, moveIndex);
   return `move ${moveIndex + 1}${defaultTargetSuffix(request, activeIndex, move, Boolean(request.targetable || (request.active || []).length > 1))}`;
 }
 
@@ -431,6 +433,15 @@ function defaultTargetSuffix(request: BattleServiceRequestV4, activeIndex: numbe
   }
   const foeCount = Math.max(1, request.active?.length || 1);
   return ` +${Math.min(activeIndex + 1, foeCount)}`;
+}
+
+function moveRequestForRuntimeChoice(active: NonNullable<BattleServiceRequestV4["active"]>[number], moveIndex: number): BattleServiceMoveRequestV4 {
+  const baseMove = active?.moves?.[moveIndex];
+  if (!active?.canDynamax) {
+    const maxMoves = Array.isArray(active?.maxMoves) ? active?.maxMoves : active?.maxMoves?.maxMoves;
+    return maxMoves?.[moveIndex] || baseMove || {move: "", id: ""};
+  }
+  return baseMove || {move: "", id: ""};
 }
 
 function legalSwitchChoice(request: BattleServiceRequestV4, reservedSwitches = new Set<number>()): string {
@@ -665,10 +676,12 @@ async function submitTeamPreviewChoices(session: RuntimeSession): Promise<void> 
 
 async function writePlayerChoice(session: RuntimeSession, playerId: ShowdownPlayerIdV4, choice: string, source: "human" | "ai" | "team-preview"): Promise<void> {
   const player = playerById(session, playerId);
-  const sanitizedChoice = sanitizeChoiceForRuleSet(choice, session.snapshot.ruleSet, session.snapshot.mode, player?.allowedSpecialSystems);
-  if (sanitizedChoice !== choice) {
-    session.snapshot.debug.inputLog.push(`[BattleV4][ruleset-special-filter] ${session.snapshot.ruleSet} sanitized ${source} choice: ${choice} -> ${sanitizedChoice}`);
+  const initialChoice = sanitizeChoiceForRuleSet(choice, session.snapshot.ruleSet, session.snapshot.mode, player?.allowedSpecialSystems);
+  if (initialChoice !== choice) {
+    session.snapshot.debug.inputLog.push(`[BattleV4][ruleset-special-filter] ${session.snapshot.ruleSet} sanitized ${source} choice: ${choice} -> ${initialChoice}`);
   }
+  const sanitizedChoice = resolveValidChoiceForWrite(session, playerId, initialChoice, source);
+  if (!sanitizedChoice) return;
   session.snapshot.debug.lastChoices.push({playerId, choice: sanitizedChoice, at: new Date().toISOString()});
   session.snapshot.debug.inputLog.push(`>${playerId} ${sanitizedChoice}`);
   if (session.snapshot.requests[playerId]) session.lastRequests[playerId] = clone(session.snapshot.requests[playerId]);
@@ -683,6 +696,64 @@ async function writePlayerChoice(session: RuntimeSession, playerId: ShowdownPlay
     touch(session);
     throw error;
   }
+}
+
+function assertChoiceValidForSession(session: RuntimeSession, playerId: ShowdownPlayerIdV4, choice: string, source: "human" | "ai" | "team-preview"): void {
+  const validation = validateChoiceForSession(session, playerId, choice);
+  if (validation.ok) return;
+  recordPreflightInvalidChoice(session, playerId, source, validation);
+  throw new Error(validation.playerMessage);
+}
+
+function resolveValidChoiceForWrite(session: RuntimeSession, playerId: ShowdownPlayerIdV4, choice: string, source: "human" | "ai" | "team-preview"): string | null {
+  const validation = validateChoiceForSession(session, playerId, choice);
+  if (validation.ok) return validation.choice;
+  recordPreflightInvalidChoice(session, playerId, source, validation);
+  if (source === "human") throw new Error(validation.playerMessage);
+  const fallback = fallbackLegalChoiceV4(session.snapshot.requests[playerId]);
+  const fallbackValidation = validateChoiceForSession(session, playerId, fallback);
+  if (fallback && fallbackValidation.ok) {
+    session.snapshot.debug.inputLog.push(`[BattleV4][${source}-fallback][${playerId}] ${choice} -> ${fallback}; reason=${validation.reason}`);
+    return fallbackValidation.choice;
+  }
+  session.snapshot.status = "blocked";
+  session.snapshot.error = `[${source}-invalid-choice] ${playerId}: ${validation.message}; fallback=${fallback || "(empty)"}; ${fallbackValidation.ok ? "" : fallbackValidation.message}`;
+  session.snapshot.debug.inputLog.push(`[BattleV4][blocked] ${session.snapshot.error}; request=${choiceValidationRequestDebug(session, playerId)}`);
+  delete session.aiTasks[playerId];
+  touch(session);
+  return null;
+}
+
+function validateChoiceForSession(session: RuntimeSession, playerId: ShowdownPlayerIdV4, choice: string): ShowdownChoiceValidationResultV4 {
+  return validateShowdownChoiceCommandV4({
+    request: session.snapshot.requests[playerId],
+    choice,
+  });
+}
+
+function recordPreflightInvalidChoice(session: RuntimeSession, playerId: ShowdownPlayerIdV4, source: string, validation: Exclude<ShowdownChoiceValidationResultV4, {ok: true}>): void {
+  session.snapshot.debug.inputLog.push(`[BattleV4][invalid-choice][${source}][${playerId}] reason=${validation.reason} choice=${validation.choice}; ${validation.message}; request=${choiceValidationRequestDebug(session, playerId)}`);
+  touch(session);
+}
+
+function choiceValidationRequestDebug(session: RuntimeSession, playerId: ShowdownPlayerIdV4): string {
+  const request = session.snapshot.requests[playerId] || session.lastRequests[playerId];
+  if (!request) return "missing";
+  return JSON.stringify({
+    rqid: request.rqid,
+    wait: request.wait,
+    teamPreview: request.teamPreview,
+    targetable: request.targetable,
+    forceSwitch: request.forceSwitch,
+    active: request.active?.map((active, index) => ({
+      exists: Boolean(active),
+      condition: request.side?.pokemon?.[index]?.condition,
+      active: request.side?.pokemon?.[index]?.active,
+      moves: active?.moves?.map(move => ({id: move.id, move: move.move, target: move.target, disabled: move.disabled, pp: move.pp})),
+      maxMoves: Array.isArray(active?.maxMoves) ? active?.maxMoves?.map(move => ({id: move.id, move: move.move, target: move.target, disabled: move.disabled, pp: move.pp})) : active?.maxMoves?.maxMoves?.map(move => ({id: move.id, move: move.move, target: move.target, disabled: move.disabled, pp: move.pp})),
+      zMoves: active?.zMoves?.map(move => move ? ({id: move.id, move: move.move, target: move.target, disabled: move.disabled, pp: move.pp}) : null),
+    })),
+  });
 }
 
 function shouldAutoChoose(request: BattleServiceRequestV4 | undefined): boolean {
