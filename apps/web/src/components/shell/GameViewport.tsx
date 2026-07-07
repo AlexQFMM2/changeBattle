@@ -7,7 +7,7 @@ export function GameViewport({
   screenClassName = "",
   style,
   showVersion = false,
-  versionLabel = "release 0.1.4",
+  versionLabel = "release 0.1.5",
   versionChecking = false,
   onVersionClick,
 }: {
