@@ -1,5 +1,5 @@
 import {getPokemonDisplayNameV4, normalizeLocalPokemonV4, type LocalPokemonV4, type LocalTeamV4} from "./pokemonInstance.js";
-import {getPokemonEligibleForSoulmateV4, type BattleLogPokemonSummaryV4, type TrainingBattleLogEntryV4} from "./battleLog.js";
+import {getPokemonEligibleForSoulmateV4, getPokemonParticipantsForSoulmateV4, type BattleLogPokemonSummaryV4, type TrainingBattleLogEntryV4} from "./battleLog.js";
 
 export type PlayerSoulmatePokemonRecordV4 = {
   soulmateId: string;
@@ -52,28 +52,15 @@ export function createSoulmateCandidateListV4(input: {
   battleLog: TrainingBattleLogEntryV4[];
   team: LocalTeamV4;
   resolvePokemonKey?: (summary: BattleLogPokemonSummaryV4) => string | null | undefined;
+  requireDamageDealt?: boolean;
 }): SoulmateCandidateV4[] {
   const teamByKey = buildTeamKeyMapV4(input.team);
-  return getPokemonEligibleForSoulmateV4(input.battleLog, {
-    playerId: "p1",
-    resolvePokemonKey: entry => input.resolvePokemonKey?.({
-      pokemonKey: entry.sourcePokemonKey || entry.targetPokemonKey || "",
-      playerId: entry.sourcePlayerId || entry.targetPlayerId,
-      pokemonName: entry.sourcePokemonName || entry.targetPokemonName,
-      kills: 0,
-      deaths: 0,
-      assists: 0,
-      damageDealt: 0,
-      damageTaken: 0,
-      healing: 0,
-      usedRounds: [],
-      kdaScore: 0,
-      mvpScore: 0,
-    }),
-  }).flatMap(summary => {
-    const pokemon = teamByKey.get(summary.pokemonKey);
+  const summarize = input.requireDamageDealt ? getPokemonEligibleForSoulmateV4 : getPokemonParticipantsForSoulmateV4;
+  return summarize(input.battleLog, {playerId: "p1"}).flatMap(summary => {
+    const resolvedKey = input.resolvePokemonKey?.(summary) || summary.pokemonKey;
+    const pokemon = teamByKey.get(normalizeBattleKeyText(resolvedKey));
     if (!pokemon) return [];
-    return [createCandidateFromSummaryV4(summary, pokemon)];
+    return [createCandidateFromSummaryV4({...summary, pokemonKey: resolvedKey}, pokemon)];
   });
 }
 

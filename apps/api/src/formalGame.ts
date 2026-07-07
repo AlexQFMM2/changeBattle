@@ -47,6 +47,7 @@ import {
   formalInferPowerProfileForTotalsV4,
   formalMoveQualityRuleForSourceV4,
   formalNormalizePlayerProfileV4,
+  formalShopSlotsForCategoryV4,
   formalNormalizePowerProfileV4,
   formalNpcLevelBonusForTypeV4,
   formalNpcPowerProfileForTypeV4,
@@ -97,7 +98,7 @@ import {
   type FormalMoveQualityRuleV4,
 } from "@changebattle-v2/core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
-import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasPendingSettlementPurchaseBonusV4, starChartHasPendingSettlementShopExportV4, starChartHasRuntimeEffectV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   normalizeFormalCompetitionModeV4,
@@ -483,6 +484,8 @@ export type FormalGameRunV4 = {
   exchangeByNodeId?: Record<string, FormalPokemonExchangeStateV4>;
   portableItemsClaimedAt?: string;
   portableItemIds?: string[];
+  pendingSettlementPurchaseBonusClaimedAt?: string;
+  pendingSettlementExportItemInstanceIds?: string[];
   settlement: FormalGameSettlementV4 | null;
   settled: boolean;
   settledAt?: string;
@@ -1321,6 +1324,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       ...run,
       restRunSnapshot: nextRestRun,
       shopByNodeId: {...(run.shopByNodeId || {}), [shop.nodeId]: nextShop},
+      pendingSettlementExportItemInstanceIds: shouldMarkPendingSettlementExportItem(run)
+        ? Array.from(new Set([...(run.pendingSettlementExportItemInstanceIds || []), nextItem.id]))
+        : run.pendingSettlementExportItemInstanceIds || [],
       updatedAt: now,
     };
     const withLog = appendShopCoinLogFast(withPurchase, {
@@ -1331,7 +1337,21 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       roundIndex: node.index,
       at: now,
     });
-    return shopTransactionResult(true, withLog, `已购买 ${detail.nameZh || detail.name}。`, withLog.shopByNodeId?.[shop.nodeId] || nextShop);
+    const withBonus = shouldGrantPendingSettlementPurchaseBonus(withLog)
+      ? appendShopCoinLogFast({
+          ...withLog,
+          pendingSettlementPurchaseBonusClaimedAt: now,
+        }, {
+          key: `soulmate-childcare-fund:${withLog.id}:${now}`,
+          amount: pendingSettlementPurchaseBonusAmount(withLog),
+          source: "soulmate",
+          label: "育儿基金",
+          roundIndex: node.index,
+          at: now,
+        })
+      : withLog;
+    const bonusMessage = withBonus !== withLog ? "育儿基金额外发放 500 金币。" : "";
+    return shopTransactionResult(true, withBonus, `已购买 ${detail.nameZh || detail.name}。${bonusMessage}`, withBonus.shopByNodeId?.[shop.nodeId] || nextShop);
   }
 
   function sellFormalRestBagItems(run: FormalGameRunV4, itemInstanceIds: string[]): FormalShopTransactionResultV4 {
@@ -1952,6 +1972,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       portableItemsClaimedAt: normalizeOptionalText(run.portableItemsClaimedAt),
       portableItemIds: Array.isArray(run.portableItemIds)
         ? Array.from(new Set(run.portableItemIds.map(normalizeOptionalText).filter((itemId): itemId is string => Boolean(itemId))))
+        : [],
+      pendingSettlementPurchaseBonusClaimedAt: normalizeOptionalText(run.pendingSettlementPurchaseBonusClaimedAt),
+      pendingSettlementExportItemInstanceIds: Array.isArray(run.pendingSettlementExportItemInstanceIds)
+        ? Array.from(new Set(run.pendingSettlementExportItemInstanceIds.map(normalizeOptionalText).filter((itemId): itemId is string => Boolean(itemId))))
         : [],
       settlement,
       settled,
@@ -4215,6 +4239,24 @@ function formalPlayerItemTypeFromDetail(detail: DexItemDetail): PlayerItemInstan
   return "misc";
 }
 
+function isPendingSettlementRestShopRun(run: Partial<FormalGameRunV4>): boolean {
+  return run.restRunSnapshot?.status === "battleEndedPendingSettlement";
+}
+
+function shouldMarkPendingSettlementExportItem(run: Partial<FormalGameRunV4>): boolean {
+  return isPendingSettlementRestShopRun(run) && starChartHasPendingSettlementShopExportV4(run.starChartSnapshot);
+}
+
+function shouldGrantPendingSettlementPurchaseBonus(run: Partial<FormalGameRunV4>): boolean {
+  return isPendingSettlementRestShopRun(run)
+    && starChartHasPendingSettlementPurchaseBonusV4(run.starChartSnapshot)
+    && !run.pendingSettlementPurchaseBonusClaimedAt;
+}
+
+function pendingSettlementPurchaseBonusAmount(run: Partial<FormalGameRunV4>): number {
+  return Math.max(0, ...starChartRuntimeEffectValuesV4(run.starChartSnapshot, "pending_settlement_purchase_bonus").map(value => Math.floor(value)));
+}
+
 function normalizeFormalBag(bag: BagStateV4 | undefined): BagStateV4 {
   const maxSize = Math.max(1, Math.floor(Number(bag?.maxSize || 50)));
   return {
@@ -4548,9 +4590,9 @@ function createFormalRestShop(run: Partial<FormalGameRunV4>, nodeId: string): Fo
 }
 
 function formalShopSlotsForCategory(run: Partial<FormalGameRunV4>, category: FormalShopCategoryV4): number {
-  const maxSlots = FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3;
+  const pendingSettlement = run.restRunSnapshot?.status === "battleEndedPendingSettlement";
   const rows = formalShopRowsForStarChartV4(run.starChartSnapshot);
-  return Math.max(1, Math.min(maxSlots, rows));
+  return formalShopSlotsForCategoryV4(category, pendingSettlement, rows);
 }
 
 function createFormalShopSlot(run: Partial<FormalGameRunV4>, nodeId: string, category: FormalShopCategoryV4, index: number, rollIndex: number, now: string, used: Set<string>, restockContext = createFormalShopRestockContext(run)): FormalShopItemV4 {

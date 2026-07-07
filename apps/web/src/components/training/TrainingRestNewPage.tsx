@@ -1,8 +1,10 @@
-import {useState} from "react";
+import {useEffect, useMemo, useState} from "react";
+import type {CSSProperties} from "react";
 import {motion} from "motion/react";
 import {
   REST_CENTER_LEFT_SIDE_ACTIONS_V4,
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
+  createSoulmateCandidateListV4,
   type ChangeBattleV2Api,
   type DexStatId,
   type FormalRestTeamHealResultV4,
@@ -14,6 +16,7 @@ import {
   type FormalTrainingGroundApplyInputV4,
   type FormalTrainingGroundLessonViewV4,
   type FormalTrainingGroundResultV4,
+  type SoulmateCandidateV4,
   type TrainingPlayerDraftV4,
   type TrainingRunGameV4,
 } from "@changebattle-v2/api";
@@ -30,6 +33,7 @@ import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
 import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
 import {assetUrl} from "../../lib/assetUrl";
+import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "./TrainingRestNewPage.css";
 import type {FormalRestShopV4} from "@changebattle-v2/api";
 
@@ -97,14 +101,14 @@ export type TrainingRestNewPageProps = {
   teamRerollController?: TrainingRestTeamRerollController;
   opponentPreviewController?: TrainingRestOpponentPreviewController;
   exchangeController?: TrainingRestExchangeController;
+  soulmateRewardEnabled?: boolean;
 };
 
 const PENDING_SETTLEMENT_CAPTURE_ACTIONS = [
-  {label: "结伴", iconText: "伴", disabled: false},
   {label: "商店", iconSrc: "aboutIcon/shop.png", disabled: false},
 ];
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, soulmateRewardEnabled}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -118,14 +122,30 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [lessonEndOpen, setLessonEndOpen] = useState(false);
   const [selectedTrainingLesson, setSelectedTrainingLesson] = useState<FormalTrainingGroundLessonViewV4 | null>(null);
   const [unlockTarget, setUnlockTarget] = useState<PreviewPokemonEntry | null>(null);
+  const [soulmateDialogOpen, setSoulmateDialogOpen] = useState(false);
+  const [soulmateDialogDismissed, setSoulmateDialogDismissed] = useState(false);
+  const [selectedSoulmateCandidateId, setSelectedSoulmateCandidateId] = useState("");
   const [message, setMessage] = useState("休息室已就绪。");
   const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
   const p1Team = run.players.p1?.localTeam || null;
   const pendingSettlement = run.status === "battleEndedPendingSettlement";
+  const soulmateCandidates = useMemo(() => createRestSoulmateCandidates(run), [run]);
+  const selectedSoulmateCandidate = soulmateCandidates.find(candidate => candidate.candidateId === selectedSoulmateCandidateId) || null;
   const leftSideActions = REST_CENTER_LEFT_SIDE_ACTIONS_V4.map(action => ({label: action.label}));
   const rightSideActions = pendingSettlement
     ? [{label: "去结算", primary: true}]
     : REST_CENTER_RIGHT_SIDE_ACTIONS_V4.map(action => ({label: action.label, primary: action.primary, danger: action.danger}));
+
+  useEffect(() => {
+    setSoulmateDialogDismissed(false);
+    setSoulmateDialogOpen(false);
+    setSelectedSoulmateCandidateId("");
+  }, [run.id, run.status]);
+
+  useEffect(() => {
+    if (!pendingSettlement || !soulmateRewardEnabled || soulmateDialogDismissed || roundSettlement || !soulmateCandidates.length) return;
+    setSoulmateDialogOpen(true);
+  }, [pendingSettlement, roundSettlement, soulmateCandidates.length, soulmateDialogDismissed, soulmateRewardEnabled]);
 
   function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
     const p1 = run.players.p1;
@@ -286,13 +306,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   function selectAction(action: string) {
     setActiveAction(action);
-    if (action === "结伴") {
-      setRestScene("center");
-      closeFloatingPanels();
-      setMessage("结伴功能开发中。");
-      showNotice("结伴功能开发中。");
-      return;
-    }
     if (action === "去结算") {
       setRestScene("center");
       closeFloatingPanels();
@@ -600,6 +613,58 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           }}
         />
       ) : null}
+      {soulmateDialogOpen ? (
+        <div className="training-rest-new-modal-layer training-rest-new-soulmate-layer" role="presentation">
+          <section className="training-rest-new-soulmate-candidates" aria-label="选择宝可梦蛋原型">
+            <header>
+              <strong>同行记录</strong>
+              <span>{soulmateCandidates.length} 只宝可梦</span>
+            </header>
+            <div className="training-rest-new-soulmate-grid">
+              {soulmateCandidates.map(candidate => (
+                <button
+                  className="training-rest-new-soulmate-card"
+                  data-selected={candidate.candidateId === selectedSoulmateCandidateId}
+                  type="button"
+                  key={candidate.candidateId}
+                  onClick={() => setSelectedSoulmateCandidateId(candidate.candidateId)}
+                >
+                  <span className="training-rest-new-soulmate-icon">{renderSoulmateCandidateIcon(candidate)}</span>
+                  <strong>{candidate.displayName}</strong>
+                  <small>{candidate.usedRounds.length ? `记录 ${candidate.usedRounds.length}` : "本局同行"}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+          <TrainingRestShopDialogue
+            speaker="护士"
+            itemName={selectedSoulmateCandidate?.displayName || "宝可梦蛋"}
+            portraitSrc="npc/staff/nurse.png"
+            text="宝可梦们很喜欢你呢，你真是一位出色的训练师。作为奖励工厂允许你选择一只宝可梦蛋带走培养；请选择吧"
+            actions={[
+              {
+                label: "不用了",
+                onClick: () => {
+                  setSoulmateDialogOpen(false);
+                  setSoulmateDialogDismissed(true);
+                  setSelectedSoulmateCandidateId("");
+                },
+              },
+              {
+                label: "就决定是你了",
+                primary: true,
+                disabled: !selectedSoulmateCandidate,
+                onClick: () => {
+                  setSoulmateDialogOpen(false);
+                  setSoulmateDialogDismissed(true);
+                  setMessage("结伴功能开发中。");
+                  showNotice("结伴功能开发中。");
+                },
+              },
+            ]}
+          />
+        </div>
+      ) : null}
       {roundSettlement ? (
         <TrainingRestConfirmDialog
           title="本局结算"
@@ -632,4 +697,60 @@ function formatRoundSettlementMessage(settlement: FormalRoundSettlementV4): stri
   if (settlement.leveledPokemonIds.length) parts.push(`熟能生巧：${settlement.leveledPokemonIds.length} 只宝可梦等级 +1`);
   parts.push(`本局净收益 ${settlement.netCoins >= 0 ? "+" : ""}${settlement.netCoins} 金币。`);
   return parts.join("。");
+}
+
+function createRestSoulmateCandidates(run: TrainingRunGameV4): SoulmateCandidateV4[] {
+  const team = run.players.p1?.localTeam;
+  if (!team || !run.battleLog?.length) return [];
+  return createSoulmateCandidateListV4({
+    battleLog: run.battleLog,
+    team,
+    resolvePokemonKey: summary => resolveSoulmateCandidateTeamKey(summary.pokemonKey, team),
+  });
+}
+
+function resolveSoulmateCandidateTeamKey(rawKey: string, team: NonNullable<TrainingPlayerDraftV4["localTeam"]>): string | null {
+  const normalizedRawKey = normalizeSoulmateKey(rawKey);
+  const rawName = normalizedRawKey.replace(/^p[1-4][a-d]?/, "").replace(/^:/, "");
+  for (const pokemon of team.pokemon || []) {
+    const aliases = [
+      pokemon.localPokemonId,
+      pokemon.pokeballId,
+      pokemon.showdownId,
+      pokemon.showdownIdentityToken,
+      pokemon.speciesId,
+      pokemon.name,
+      pokemon.nameZh,
+      pokemon.nickname,
+    ].map(normalizeSoulmateKey).filter(Boolean);
+    if (aliases.some(alias => alias === normalizedRawKey || alias === rawName || normalizedRawKey.endsWith(`:${alias}`))) {
+      return pokemon.localPokemonId || pokemon.showdownId || pokemon.speciesId;
+    }
+  }
+  return null;
+}
+
+function normalizeSoulmateKey(value: unknown): string {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5:]+/g, "");
+}
+
+function renderSoulmateCandidateIcon(candidate: SoulmateCandidateV4) {
+  const alt = candidate.displayName || candidate.pokemon.nameZh || candidate.pokemon.name || "";
+  if (candidate.iconStyle) {
+    return <span className="training-rest-new-soulmate-picon picon" aria-label={alt} style={styleFromCss(candidate.iconStyle)} />;
+  }
+  return <ImageWithFallback src={candidate.iconUrl || candidate.pokemon.spriteUrl || ""} alt={alt} fallback={alt.slice(0, 1) || "?"} />;
+}
+
+function styleFromCss(cssText: string): CSSProperties {
+  const style: CSSProperties = {};
+  cssText.split(";").forEach(part => {
+    const [rawKey, rawValue] = part.split(":");
+    const key = rawKey?.trim();
+    const value = rawValue?.trim();
+    if (!key || !value) return;
+    const camelKey = key.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+    (style as Record<string, string>)[camelKey] = value;
+  });
+  return style;
 }

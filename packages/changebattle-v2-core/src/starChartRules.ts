@@ -1,25 +1,6 @@
 import {
-  CARRY_PREP_ITEMS_NODE_ID,
-  COMPULSORY_EDUCATION_NODE_ID,
   MAX_BP_V4,
-  CHAMPION_FUND_NODE_ID,
-  ELITE_FUND_NODE_ID,
-  ELITE_EXCHANGE_EDUCATION_NODE_ID,
-  EMERGENCY_MEDICAL_CARE_NODE_ID,
-  EAST_ASIA_EDUCATION_NODE_ID,
-  EXCHANGE_ITEM_STEAL_NODE_ID,
-  FREE_MEDICAL_CARE_NODE_ID,
-  LOSSLESS_EXCHANGE_NODE_ID,
-  MEDICAL_INSURANCE_NODE_ID,
-  MORE_CHOICES_NODE_IDS,
-  OPPONENT_RUMOR_NODE_ID,
-  OUTPATIENT_MEDICAL_CARE_NODE_ID,
-  SECOND_EXCHANGE_NODE_ID,
-  SHOP_MORE_STOCK_NODE_IDS,
   STAR_CHART_NODES_V4,
-  SPECIAL_TRAINING_LOCK_NODE_ID,
-  TRAVEL_FUND_NODE_ID,
-  VICTORY_DIVIDEND_NODE_ID,
   type StarChartNodeKindV4,
   type StarChartNodeViewV4,
   type StarChartStateV4,
@@ -182,6 +163,30 @@ export function starChartHasExchangeItemStealV4(starChart?: StarChartStateV4 | n
 
 export function starChartHasSecondExchangeV4(starChart?: StarChartStateV4 | null): boolean {
   return starChartHasRuntimeEffectV4(starChart, "second_exchange");
+}
+
+export function starChartHasSoulmateRewardV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartHasRuntimeEffectV4(starChart, "soulmate_egg_reward");
+}
+
+export function starChartHasPendingSettlementShopExportV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartHasRuntimeEffectV4(starChart, "pending_settlement_shop_export");
+}
+
+export function starChartHasPendingSettlementPurchaseBonusV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartHasRuntimeEffectV4(starChart, "pending_settlement_purchase_bonus");
+}
+
+export function starChartHasSoulmateHeldItemEntryV4(starChart?: StarChartStateV4 | null): boolean {
+  return starChartHasRuntimeEffectV4(starChart, "soulmate_held_item_entry");
+}
+
+export function soulmateShinyRateForStarChartV4(starChart?: StarChartStateV4 | null): number {
+  return starChartHasRuntimeEffectV4(starChart, "soulmate_shiny_rate_bonus") ? 1 / 8 : 1 / 30;
+}
+
+export function soulmateBaseFriendshipForStarChartV4(starChart?: StarChartStateV4 | null): number {
+  return Math.max(70, ...starChartRuntimeEffectValuesV4(starChart, "soulmate_base_friendship_bonus").map(value => Math.floor(value)));
 }
 
 export function unlockStarChartNodeForProfileV4<T extends StarChartProfileV4>(profile: T, nodeId: string, now = new Date()): T {

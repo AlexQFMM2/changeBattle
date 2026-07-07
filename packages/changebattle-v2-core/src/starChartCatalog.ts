@@ -21,7 +21,13 @@ export type StarChartTalentEffectIdV4 =
   | "medical_insurance"
   | "post_battle_revive_half_hp"
   | "post_battle_heal_alive_quarter_hp"
-  | "carry_prep_items";
+  | "carry_prep_items"
+  | "soulmate_egg_reward"
+  | "pending_settlement_shop_export"
+  | "pending_settlement_purchase_bonus"
+  | "soulmate_held_item_entry"
+  | "soulmate_shiny_rate_bonus"
+  | "soulmate_base_friendship_bonus";
 
 export type StarChartTalentEffectV4 = {
   id: StarChartTalentEffectIdV4;
@@ -68,6 +74,12 @@ export const ELITE_FUND_NODE_ID = "starter_elite_fund" as const;
 export const CHAMPION_FUND_NODE_ID = "starter_champion_fund" as const;
 export const VICTORY_DIVIDEND_NODE_ID = "economy_victory_dividend" as const;
 export const CARRY_PREP_ITEMS_NODE_ID = "economy_carry_prep_items" as const;
+export const SOULMATE_REWARD_NODE_ID = "bond_soulmate_egg" as const;
+export const PENDING_SETTLEMENT_SHOP_EXPORT_NODE_ID = "bond_imported_formula" as const;
+export const PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID = "bond_childcare_fund" as const;
+export const SOULMATE_HELD_ITEM_ENTRY_NODE_ID = CARRY_PREP_ITEMS_NODE_ID;
+export const SOULMATE_SHINY_RATE_BONUS_NODE_ID = "bond_european_parents" as const;
+export const SOULMATE_BASE_FRIENDSHIP_BONUS_NODE_ID = "bond_love_at_first_sight" as const;
 
 export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
@@ -210,18 +222,18 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     y: -300,
   },
   {
-    id: CARRY_PREP_ITEMS_NODE_ID,
-    name: "随身携带",
-    category: "经济运营",
-    desc: "第一次进入正式休整页时，从预备背包随机携带少量道具。",
+    id: SOULMATE_REWARD_NODE_ID,
+    name: "灵魂伴侣",
+    category: "羁绊养成",
+    desc: "最终胜利后，工厂允许训练家从本局同行的宝可梦中选择一枚宝可梦蛋带走培养。",
     max_level: 1,
-    costs: [6],
-    requires: [{id: SHOP_MORE_STOCK_NODE_IDS[0]}],
-    effects: ["第一次进入正式休整页时，从预备背包随机携带最多 3 种道具，每种 1 个。"],
-    runtimeEffects: [{id: "carry_prep_items", value: 3}],
+    costs: [8],
+    requires: [{id: "root_trainer_star"}],
+    effects: ["最终胜利进入待结算休整页时，触发宝可梦蛋选择入口。"],
+    runtimeEffects: [{id: "soulmate_egg_reward"}],
     kind: "talent",
-    x: 320,
-    y: -180,
+    x: 160,
+    y: 520,
   },
   {
     id: TRAVEL_FUND_NODE_ID,
@@ -390,5 +402,75 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     kind: "talent",
     x: -480,
     y: 300,
+  },
+  {
+    id: PENDING_SETTLEMENT_SHOP_EXPORT_NODE_ID,
+    name: "进口奶粉",
+    category: "羁绊养成",
+    desc: "待结算休整页商店购买的道具，可以作为养成物资带出工厂。",
+    max_level: 1,
+    costs: [6],
+    requires: [{id: SOULMATE_REWARD_NODE_ID}],
+    effects: ["最终结算时，待结算休整页商店购买的道具会进入全局道具背包。"],
+    runtimeEffects: [{id: "pending_settlement_shop_export"}],
+    kind: "talent",
+    x: 340,
+    y: 460,
+  },
+  {
+    id: PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID,
+    name: "育儿基金",
+    category: "羁绊养成",
+    desc: "待结算休整页第一次购买养成物资时，系统额外发放一笔育儿基金。",
+    max_level: 1,
+    costs: [8],
+    requires: [{id: PENDING_SETTLEMENT_SHOP_EXPORT_NODE_ID}],
+    effects: ["每局待结算休整页第一次购买商店道具时，额外获得 500 金币。"],
+    runtimeEffects: [{id: "pending_settlement_purchase_bonus", value: 500}],
+    kind: "talent",
+    x: 520,
+    y: 420,
+  },
+  {
+    id: SOULMATE_HELD_ITEM_ENTRY_NODE_ID,
+    name: "爱不释手",
+    category: "羁绊养成",
+    desc: "后续允许灵魂伴侣携带全局道具进入战斗。",
+    max_level: 1,
+    costs: [10],
+    requires: [{id: PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID}],
+    effects: ["灵魂伴侣携带道具进入战斗的入口占位，后续版本开放。"],
+    runtimeEffects: [{id: "soulmate_held_item_entry"}],
+    kind: "talent",
+    x: 700,
+    y: 380,
+  },
+  {
+    id: SOULMATE_SHINY_RATE_BONUS_NODE_ID,
+    name: "欧洲父母",
+    category: "羁绊养成",
+    desc: "后续孵化时，宝可梦蛋出现闪光的概率提高。",
+    max_level: 1,
+    costs: [8],
+    requires: [{id: SOULMATE_REWARD_NODE_ID}],
+    effects: ["孵化闪光率从默认 1/30 提升到 1/8。"],
+    runtimeEffects: [{id: "soulmate_shiny_rate_bonus", value: 0.125}],
+    kind: "talent",
+    x: 340,
+    y: 600,
+  },
+  {
+    id: SOULMATE_BASE_FRIENDSHIP_BONUS_NODE_ID,
+    name: "一眼万年",
+    category: "羁绊养成",
+    desc: "后续孵化后，灵魂伴侣的基础亲密度提高。",
+    max_level: 1,
+    costs: [8],
+    requires: [{id: SOULMATE_SHINY_RATE_BONUS_NODE_ID}],
+    effects: ["孵化后基础亲密度从默认 70 提升到 120。"],
+    runtimeEffects: [{id: "soulmate_base_friendship_bonus", value: 120}],
+    kind: "talent",
+    x: 520,
+    y: 640,
   },
 ];

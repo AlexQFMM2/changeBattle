@@ -317,6 +317,20 @@ export const FORMAL_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number
   tm: 3,
 };
 
+export const FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number> = {
+  recovery: 0,
+  berry: 0,
+  battle: 1,
+  training: 2,
+  tm: 2,
+};
+
+export function formalShopSlotsForCategoryV4(category: FormalShopCategoryV4, pendingSettlement = false, rows = 1): number {
+  if (pendingSettlement) return Math.max(0, FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY[category] || 0);
+  const maxSlots = FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3;
+  return Math.max(1, Math.min(maxSlots, rows));
+}
+
 export function validateFormalShopCatalogV4(): string[] {
   const messages: string[] = [];
   const expectedCategories = Object.keys(FORMAL_SHOP_ITEM_POOL) as FormalShopCategoryV4[];

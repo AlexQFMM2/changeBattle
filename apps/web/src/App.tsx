@@ -12,6 +12,7 @@ import {
   createDesktopUserProfileAdapter,
   starChartHasSpecialTrainingLockV4,
   starChartHasOpponentRumorV4,
+  starChartHasSoulmateRewardV4,
   type AppDebugConfigV4,
   type DesktopBattleServiceBridge,
   type DesktopAppBridge,
@@ -893,6 +894,7 @@ function RoutedApp({runtime}: AppProps) {
               return result;
             },
           }}
+          soulmateRewardEnabled={starChartHasSoulmateRewardV4(formalRun.starChartSnapshot)}
           shopController={{
             getShop: () => api.getFormalRestShop(formalRun),
             player: formalRun.restRunSnapshot.players.p1 || null,

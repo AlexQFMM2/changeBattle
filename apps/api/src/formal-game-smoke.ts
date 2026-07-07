@@ -22,7 +22,13 @@ import {
   LOSSLESS_EXCHANGE_NODE_ID,
   OPPONENT_RUMOR_NODE_ID,
   OUTPATIENT_MEDICAL_CARE_NODE_ID,
+  PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID,
+  PENDING_SETTLEMENT_SHOP_EXPORT_NODE_ID,
   SECOND_EXCHANGE_NODE_ID,
+  SOULMATE_BASE_FRIENDSHIP_BONUS_NODE_ID,
+  SOULMATE_HELD_ITEM_ENTRY_NODE_ID,
+  SOULMATE_REWARD_NODE_ID,
+  SOULMATE_SHINY_RATE_BONUS_NODE_ID,
   STAR_CHART_NODES_V4,
   STARTER_ROLE_PLAN,
   TRAVEL_FUND_NODE_ID,
@@ -34,17 +40,18 @@ import {
   formalTrainingGroundDynamicSelfStudyGainRuleV4,
   formalTrainingGroundSelfStudyEventWeightsV4,
   formalTrainingGroundStableSelfStudyGainRuleV4,
+  createSoulmateCandidateListV4,
   getNatureEffectsV4,
+  normalizePlayerVaultV4,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
-import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalShopRestockContextV4} from "./formalGame.js";
+import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
   COMPULSORY_EDUCATION_NODE_ID,
   enableTestModeForProfileV4,
   FORMAL_SHOP_AUTO_RESTOCK_ENABLED,
-  formalCarryPrepItemCountForStarChartV4,
   formalStartingMoneyForStarChartV4,
   formalShopRowsForStarChartV4,
   getUnlockedStarChartRuntimeEffectsV4,
@@ -60,8 +67,14 @@ import {
   starChartHasOutpatientMedicalCareV4,
   starChartHasRuntimeEffectV4,
   starChartHasSecondExchangeV4,
+  starChartHasPendingSettlementPurchaseBonusV4,
+  starChartHasPendingSettlementShopExportV4,
+  starChartHasSoulmateHeldItemEntryV4,
+  starChartHasSoulmateRewardV4,
   starChartHasSpecialTrainingLockV4,
   starChartHasVictoryDividendV4,
+  soulmateBaseFriendshipForStarChartV4,
+  soulmateShinyRateForStarChartV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
   type StarChartStateV4,
@@ -580,10 +593,13 @@ assert(formalShopRowsForStarChartV4(starProfile.starChart) === 1, "shop rows sho
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_1");
 assert(starProfile.battlePoints === 82, "luxury counter I should cost 4 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 2, "luxury counter I should unlock second shop row");
-const carryStarProfile = unlockStarChartNodeForProfileV4({...starProfile, battlePoints: 100}, CARRY_PREP_ITEMS_NODE_ID);
-assert(carryStarProfile.battlePoints === 94, "carry prep items should cost 6 BP");
-assert(formalCarryPrepItemCountForStarChartV4(carryStarProfile.starChart) === 3, "carry prep items should carry three item kinds");
-assert(starChartHasRuntimeEffectV4(carryStarProfile.starChart, "carry_prep_items"), "carry prep items should be declared as a runtime effect");
+let failedHeldItemWithoutFund = false;
+try {
+  unlockStarChartNodeForProfileV4({...starProfile, battlePoints: 100}, CARRY_PREP_ITEMS_NODE_ID);
+} catch {
+  failedHeldItemWithoutFund = true;
+}
+assert(failedHeldItemWithoutFund, "love-to-hold should require the soulmate item branch first");
 starProfile = unlockStarChartNodeForProfileV4(starProfile, "shop_luxury_counter_2");
 assert(starProfile.battlePoints === 77, "luxury counter II should cost 5 BP");
 assert(formalShopRowsForStarChartV4(starProfile.starChart) === 3, "luxury counter II should unlock third shop row");
@@ -614,6 +630,26 @@ for (const removedNodeId of ["shop_auto_restock", "starter_emergency_backpack", 
   assert(failedDisabledGiftUnlock, `${removedNodeId} should be removed from star chart unlocks`);
 }
 assert(!starChartHasOpponentRumorV4(starProfile.starChart), "opponent rumor should be off before unlock");
+assert(!starChartHasSoulmateRewardV4(starProfile.starChart), "soulmate reward should be off before unlock");
+starProfile = {...starProfile, battlePoints: 100};
+starProfile = unlockStarChartNodeForProfileV4(starProfile, SOULMATE_REWARD_NODE_ID);
+assert(starProfile.battlePoints === 92, "soulmate reward should cost 8 BP");
+assert(starChartHasSoulmateRewardV4(starProfile.starChart), "soulmate reward should unlock pending settlement egg dialogue");
+assert(soulmateShinyRateForStarChartV4(starProfile.starChart) === 1 / 30, "soulmate shiny rate should default to 1/30");
+assert(soulmateBaseFriendshipForStarChartV4(starProfile.starChart) === 70, "soulmate base friendship should default to 70");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, PENDING_SETTLEMENT_SHOP_EXPORT_NODE_ID);
+assert(starProfile.battlePoints === 86, "imported formula should cost 6 BP");
+assert(starChartHasPendingSettlementShopExportV4(starProfile.starChart), "imported formula should unlock pending settlement shop export");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID);
+assert(starProfile.battlePoints === 78, "childcare fund should cost 8 BP");
+assert(starChartHasPendingSettlementPurchaseBonusV4(starProfile.starChart), "childcare fund should unlock one purchase bonus");
+starProfile = unlockStarChartNodeForProfileV4(starProfile, SOULMATE_HELD_ITEM_ENTRY_NODE_ID);
+assert(starProfile.battlePoints === 68, "love-to-hold should cost 10 BP");
+assert(starChartHasSoulmateHeldItemEntryV4(starProfile.starChart), "love-to-hold should unlock held item entry placeholder");
+const soulmateGrowthStarProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, SOULMATE_REWARD_NODE_ID), SOULMATE_SHINY_RATE_BONUS_NODE_ID);
+assert(soulmateShinyRateForStarChartV4(soulmateGrowthStarProfile.starChart) === 1 / 8, "european parents should raise soulmate shiny rate to 1/8");
+const soulmateFriendshipStarProfile = unlockStarChartNodeForProfileV4(soulmateGrowthStarProfile, SOULMATE_BASE_FRIENDSHIP_BONUS_NODE_ID);
+assert(soulmateBaseFriendshipForStarChartV4(soulmateFriendshipStarProfile.starChart) === 120, "love at first sight should raise base friendship to 120");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
 assert(starProfile.battlePoints === 96, "opponent rumor should cost 4 BP");
@@ -759,6 +795,20 @@ const shopProducts = api.getFormalRestShopProducts(roundPlanned);
 assert(shopProducts.length === FORMAL_SHOP_CATEGORY_ORDER.length, "formal shop product view should expose one row by default");
 assert(shopProducts.every(product => product.slotId && product.itemID && product.name && product.summary && product.price > 0), "formal shop product view should include display fields");
 assert(shopProducts.every(product => shop?.categories[product.type]?.some(item => item.slotId === product.slotId)), "formal shop product view should preserve slot mapping");
+const pendingShopRun = {
+  ...roundPlanned,
+  money: 3000,
+  restRunSnapshot: {
+    ...roundPlanned.restRunSnapshot!,
+    status: "battleEndedPendingSettlement" as const,
+  },
+  shopByNodeId: {},
+};
+const pendingShopProducts = api.getFormalRestShopProducts(pendingShopRun);
+assert(pendingShopProducts.filter(product => product.type === "training").length === 2, "pending settlement shop should expose two training products");
+assert(pendingShopProducts.filter(product => product.type === "tm").length === 2, "pending settlement shop should expose two TM products");
+assert(pendingShopProducts.filter(product => product.type === "battle").length === 1, "pending settlement shop should expose one battle product");
+assert(!pendingShopProducts.some(product => product.type === "recovery" || product.type === "berry"), "pending settlement shop should hide recovery and berry products");
 const insuranceBlocked = api.chooseFormalMedicalInsurance(roundPlanned, "basic");
 assert(!insuranceBlocked.ok && insuranceBlocked.run.money === roundPlanned.money, "medical insurance should require star chart unlock");
 const insuranceProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, FREE_MEDICAL_CARE_NODE_ID);
@@ -886,6 +936,42 @@ if (boughtItem) {
   assert(sellResult.ok, "formal shop sell should accept bought item");
   assert(sellResult.run.money === buyResult.run.money + sellPrice, "formal shop sell should derive value from formal shop price");
 }
+
+const pendingNoExportProduct = pendingShopProducts[0]!;
+const pendingNoExportBuy = api.buyFormalRestShopItem(pendingShopRun, pendingNoExportProduct.slotId);
+assert(pendingNoExportBuy.ok, "pending settlement shop buy should work without export unlock");
+assert(!pendingNoExportBuy.run.pendingSettlementExportItemInstanceIds?.length, "pending settlement shop buy should not export items without imported formula");
+const noExportVaultMerge = smokeMergeFormalRunBagIntoPlayerVault(pendingNoExportBuy.run);
+assert(noExportVaultMerge.depositedItemCount === 0, "pending settlement shop item should not enter vault without export ids");
+const legacyPrepVault = normalizePlayerVaultV4({items: [{itemId: "potion", quantity: 1, boxKind: "prep", slotIndex: 0}]});
+assert(legacyPrepVault.items[0]?.boxKind === "storage", "legacy prep vault items should normalize to storage");
+
+const pendingExportProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, SOULMATE_REWARD_NODE_ID), PENDING_SETTLEMENT_SHOP_EXPORT_NODE_ID);
+const pendingExportRun = {
+  ...pendingShopRun,
+  starChartSnapshot: pendingExportProfile.starChart,
+  shopByNodeId: {},
+};
+const pendingExportProduct = api.getFormalRestShopProducts(pendingExportRun)[0]!;
+const pendingExportBuy = api.buyFormalRestShopItem(pendingExportRun, pendingExportProduct.slotId);
+assert(pendingExportBuy.ok && pendingExportBuy.run.pendingSettlementExportItemInstanceIds?.length === 1, "imported formula should mark pending settlement shop item for export");
+const exportVaultMerge = smokeMergeFormalRunBagIntoPlayerVault(pendingExportBuy.run);
+assert(exportVaultMerge.depositedItemCount === 1, "imported formula should deposit pending settlement shop item into player vault");
+
+const pendingFundProfile = unlockStarChartNodeForProfileV4(pendingExportProfile, PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID);
+const pendingFundRun = {
+  ...pendingShopRun,
+  starChartSnapshot: pendingFundProfile.starChart,
+  shopByNodeId: {},
+};
+const pendingFundProduct = api.getFormalRestShopProducts(pendingFundRun)[0]!;
+const pendingFundBuy = api.buyFormalRestShopItem(pendingFundRun, pendingFundProduct.slotId);
+assert(pendingFundBuy.ok, "childcare fund first purchase should succeed");
+assert(pendingFundBuy.run.money === pendingFundRun.money - pendingFundProduct.price + 500, "childcare fund should grant 500 money on first pending settlement purchase");
+assert(Boolean(pendingFundBuy.run.pendingSettlementPurchaseBonusClaimedAt), "childcare fund should mark the run bonus as claimed");
+const pendingFundSecondProduct = api.getFormalRestShopProducts(pendingFundBuy.run).find(product => product.slotId !== pendingFundProduct.slotId) || api.getFormalRestShopProducts(pendingFundBuy.run)[0]!;
+const pendingFundSecondBuy = api.buyFormalRestShopItem(pendingFundBuy.run, pendingFundSecondProduct.slotId);
+assert(pendingFundSecondBuy.ok && pendingFundSecondBuy.run.money === pendingFundBuy.run.money - pendingFundSecondProduct.price, "childcare fund should not trigger twice in one run");
 
 const autoRestockRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-auto-restock-seed"})), [0, 1, 2]));
 const autoRestockProduct = api.getFormalRestShopProducts(autoRestockRun)[0]!;
@@ -1210,6 +1296,64 @@ const battleSnapshotPartial = {
     `|-damage|p2a: ${firstEnemyPokemon.nameZh}|80/100`,
   ],
 } as never;
+const soulmateCandidateSmoke = createSoulmateCandidateListV4({
+  battleLog: [
+    {
+      id: "soulmate-log-p1-source",
+      key: "soulmate-log-p1-source",
+      at: new Date(0).toISOString(),
+      sessionId: "soulmate-session",
+      nodeId: withCoinLog.roundPlan[0]!.id,
+      turn: 1,
+      rawLogIndex: 1,
+      eventType: "move",
+      sourcePlayerId: "p1",
+      sourcePokemonKey: `p1a:${firstPlayerPokemon.name}`,
+      sourcePokemonName: firstPlayerPokemon.name,
+      rawLine: "",
+    },
+    {
+      id: "soulmate-log-p1-target",
+      key: "soulmate-log-p1-target",
+      at: new Date(0).toISOString(),
+      sessionId: "soulmate-session",
+      nodeId: withCoinLog.roundPlan[0]!.id,
+      turn: 1,
+      rawLogIndex: 2,
+      eventType: "damage",
+      damage: 10,
+      sourcePlayerId: "p2",
+      sourcePokemonKey: `p2a:${firstEnemyPokemon.name}`,
+      sourcePokemonName: firstEnemyPokemon.name,
+      targetPlayerId: "p1",
+      targetPokemonKey: `p1a:${firstPlayerPokemon.name}`,
+      targetPokemonName: firstPlayerPokemon.name,
+      directness: "direct",
+      rawLine: "",
+    },
+    {
+      id: "soulmate-log-p2-only",
+      key: "soulmate-log-p2-only",
+      at: new Date(0).toISOString(),
+      sessionId: "soulmate-session",
+      nodeId: withCoinLog.roundPlan[0]!.id,
+      turn: 1,
+      rawLogIndex: 3,
+      eventType: "move",
+      sourcePlayerId: "p2",
+      sourcePokemonKey: `p2a:${firstEnemyPokemon.name}`,
+      sourcePokemonName: firstEnemyPokemon.name,
+      rawLine: "",
+    },
+  ],
+  team: withCoinLog.restRunSnapshot!.players.p1!.localTeam,
+  resolvePokemonKey: summary => {
+    const raw = String(summary.pokemonKey || "").toLowerCase().replace(/^p[1-4][a-d]?:/, "");
+    return raw === firstPlayerPokemon.name.toLowerCase() ? firstPlayerPokemon.localPokemonId : null;
+  },
+});
+assert(soulmateCandidateSmoke.length === 1, "soulmate candidates should include only p1 battleLog participants");
+assert(soulmateCandidateSmoke[0]!.localPokemonId === firstPlayerPokemon.localPokemonId, "soulmate candidate should map battleLog participant to local pokemon");
 const withRunningTeamState = api.appendBattleLogEntriesFromSnapshotV4(withCoinLog, {
   ...battleSnapshotBase,
   status: "running",
@@ -1711,6 +1855,24 @@ function simulateSelfStudyCatchUpTotals(ivTotal: number, evTotal: number, events
 
 function expectedTrainingGroundLessonFee(kind: string): number {
   return 200;
+}
+
+function smokeMergeFormalRunBagIntoPlayerVault(run: FormalGameRunV4) {
+  const exportIds = new Set(run.pendingSettlementExportItemInstanceIds || []);
+  const exportedItems = (run.restRunSnapshot?.players.p1?.bag.items || []).filter(item => exportIds.has(item.id));
+  return {
+    vault: normalizePlayerVaultV4({
+      items: exportedItems.map((item, index) => ({
+        itemId: item.itemID,
+        quantity: 1,
+        boxKind: "storage",
+        storagePageIndex: 0,
+        slotIndex: index,
+      })),
+    }),
+    depositedItemCount: exportedItems.length,
+    rejectedItemCount: 0,
+  };
 }
 
 function assertPokemonPowerProfile(pokemon: {

@@ -35,7 +35,7 @@ export type TalentDetailModel = {
 
 export const TALENT_INITIAL_VIEW: TalentViewState = {x: 0, y: 0, scale: 0.78};
 
-const TALENT_CATEGORY_ORDER = ["开局筹备", "情报筹备", "交换契约", "医疗保障", "养成改造", "经济运营", "整备器械", "奇遇预留"];
+const TALENT_CATEGORY_ORDER = ["开局筹备", "情报筹备", "交换契约", "医疗保障", "养成改造", "羁绊养成", "经济运营", "整备器械", "奇遇预留"];
 
 export function talentNodePoint(catalog: StarChartNodeViewV4[], node: StarChartNodeViewV4, index = catalog.indexOf(node)): {x: number; y: number} {
   const hasExplicitPosition = node.x !== undefined || node.y !== undefined;
@@ -88,6 +88,7 @@ export function talentRouteClass(category?: string): string {
   if (category === "交换筑队" || category === "交换契约") return "exchange";
   if (category === "医疗保障") return "medical";
   if (category === "养成改造") return "growth";
+  if (category === "羁绊养成") return "growth";
   if (category === "经济运营") return "economy";
   if (category === "奇遇预留") return "event";
   return "root";

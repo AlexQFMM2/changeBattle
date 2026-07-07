@@ -91,8 +91,8 @@ export function normalizePlayerItemRecordV4(value: unknown): PlayerItemRecordV4 
   const itemId = normalizeNonEmptyText(value.itemId ?? value.itemID ?? value.id);
   if (!itemId) return null;
   const quantity = clampInt(value.quantity, 1, 999999, 1);
-  const boxKind = value.boxKind === "prep" ? "prep" : "storage";
-  const storagePageIndex = boxKind === "storage" ? clampInt(value.storagePageIndex, 0, 999, 0) : undefined;
+  const boxKind = "storage";
+  const storagePageIndex = clampInt(value.storagePageIndex, 0, 999, 0);
   const slotIndex = Number.isFinite(Number(value.slotIndex)) ? clampInt(value.slotIndex, 0, PLAYER_VAULT_PAGE_SIZE_V4 - 1, 0) : undefined;
   return {itemId, quantity, boxKind, storagePageIndex, slotIndex};
 }

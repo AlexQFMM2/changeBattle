@@ -131,6 +131,10 @@ export function summarizeBattleLogByPokemonV4(log: unknown, options: BattleLogSu
     if (!summary.usedRounds.includes(normalizedRoundIndex)) summary.usedRounds.push(normalizedRoundIndex);
   };
   for (const entry of normalizeBattleLogV4(log)) {
+    if (entry.eventType === "move") {
+      const source = ensureSummary(entry, "source");
+      if (source) markRound(source, entry);
+    }
     if (entry.eventType === "damage" && entry.damage) {
       const source = ensureSummary(entry, "source");
       if (source) {
@@ -174,6 +178,10 @@ export function summarizeBattleLogByPokemonV4(log: unknown, options: BattleLogSu
 
 export function getBattleLogParticipantKeysV4(log: unknown, options: Pick<BattleLogSummaryOptionsV4, "playerId" | "resolvePokemonKey"> = {}): string[] {
   return summarizeBattleLogByPokemonV4(log, options).map(summary => summary.pokemonKey);
+}
+
+export function getPokemonParticipantsForSoulmateV4(log: unknown, options: Pick<BattleLogSummaryOptionsV4, "playerId" | "resolvePokemonKey" | "getRoundIndex"> = {}): BattleLogPokemonSummaryV4[] {
+  return summarizeBattleLogByPokemonV4(log, options).filter(summary => summary.usedRounds.length > 0);
 }
 
 export function getPokemonEligibleForSoulmateV4(log: unknown, options: Pick<BattleLogSummaryOptionsV4, "playerId" | "resolvePokemonKey" | "getRoundIndex"> = {}): BattleLogPokemonSummaryV4[] {
