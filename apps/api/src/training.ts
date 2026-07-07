@@ -15,6 +15,7 @@ import {
   getNextTrainingNodeV4,
   getPokemonDisplayNameV4,
   getPokemonIdentityKeyV4,
+  normalizeBattleLogV4,
   normalizeCoinLogV4,
   normalizeBagStateV4 as normalizeCoreBagStateV4,
   normalizeBattlePreferenceV4,
@@ -65,6 +66,7 @@ export {
   getNextTrainingNodeV4,
   getPokemonDisplayNameV4,
   getPokemonIdentityKeyV4,
+  normalizeBattleLogV4,
   normalizeCoinLogV4,
   normalizeCoreBagStateV4 as normalizeBagStateV4,
   normalizeBattlePreferenceV4,
@@ -402,7 +404,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       competitionMode: normalizeFormalCompetitionModeV4(run.competitionMode || battlePreference.competitionMode),
       restPreviewUnlocks: normalizeRestPreviewUnlocks(run.restPreviewUnlocks),
       coinLog: normalizeCoinLogV4(run.coinLog),
-      battleLog: normalizeBattleLog(run.battleLog),
+      battleLog: normalizeBattleLogV4(run.battleLog),
     };
   }
 
@@ -936,54 +938,6 @@ function normalizeRestPreviewUnlocks(value: unknown): Record<string, true> {
   return Object.fromEntries(Object.entries(value).filter(([, unlocked]) => unlocked).map(([key]) => [key, true])) as Record<string, true>;
 }
 
-function normalizeBattleLog(value: unknown): TrainingBattleLogEntryV4[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((entry, index) => {
-    if (!isRecord(entry)) return [];
-    const eventType = ["move", "damage", "heal", "faint", "win", "other"].includes(String(entry.eventType))
-      ? entry.eventType as TrainingBattleLogEntryV4["eventType"]
-      : "other";
-    const sourcePlayerId = normalizeShowdownPlayerId(entry.sourcePlayerId);
-    const targetPlayerId = normalizeShowdownPlayerId(entry.targetPlayerId);
-    const directness = entry.directness === "direct" || entry.directness === "indirect" || entry.directness === "unknown"
-      ? entry.directness
-      : undefined;
-    const key = String(entry.key || entry.id || `battle-${index}`).trim();
-    return [{
-      id: String(entry.id || key || createId("battle-log")),
-      key: key || createId("battle-log-key"),
-      at: String(entry.at || new Date().toISOString()),
-      sessionId: String(entry.sessionId || ""),
-      nodeId: String(entry.nodeId || ""),
-      turn: clampInt(entry.turn, 0, 999, 0),
-      rawLogIndex: clampInt(entry.rawLogIndex, 0, 99999, index),
-      eventType,
-      damage: normalizeOptionalPositiveNumber(entry.damage),
-      healing: normalizeOptionalPositiveNumber(entry.healing),
-      sourcePlayerId,
-      sourcePokemonKey: normalizeOptionalText(entry.sourcePokemonKey),
-      sourcePokemonName: normalizeOptionalText(entry.sourcePokemonName),
-      targetPlayerId,
-      targetPokemonKey: normalizeOptionalText(entry.targetPokemonKey),
-      targetPokemonName: normalizeOptionalText(entry.targetPokemonName),
-      moveId: normalizeOptionalId(entry.moveId),
-      moveName: normalizeOptionalText(entry.moveName),
-      moveType: normalizeOptionalText(entry.moveType),
-      moveCategory: normalizeOptionalText(entry.moveCategory),
-      movePower: normalizeOptionalPositiveNumber(entry.movePower),
-      moveEffectKind: normalizeMoveEffectKind(entry.moveEffectKind),
-      directness,
-      rawLine: String(entry.rawLine || ""),
-    }];
-  });
-}
-
-function normalizeMoveEffectKind(value: unknown): TrainingBattleLogEntryV4["moveEffectKind"] | undefined {
-  const text = String(value || "");
-  if (["damage", "setup", "recovery", "status", "field", "protect", "pivot", "other"].includes(text)) return text as TrainingBattleLogEntryV4["moveEffectKind"];
-  return undefined;
-}
-
 function defaultTeamSize(mode: TrainingModeV4): number {
   if (mode === "singles") return 3;
   if (mode === "doubles") return 4;
@@ -1058,16 +1012,6 @@ function normalizeOptionalText(value: unknown): string | undefined {
 
 function normalizeSystemReforgeKind(value: unknown): PlayerItemInstanceV4["systemReforgeKind"] {
   return value === "mega" || value === "z-crystal" || value === "tera" ? value : undefined;
-}
-
-function normalizeShowdownPlayerId(value: unknown): ShowdownPlayerIdV4 | undefined {
-  return value === "p1" || value === "p2" || value === "p3" || value === "p4" ? value : undefined;
-}
-
-function normalizeOptionalPositiveNumber(value: unknown): number | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
-  const next = Math.max(0, Math.round(Number(value)));
-  return Number.isFinite(next) ? next : undefined;
 }
 
 function toID(value: unknown): string {

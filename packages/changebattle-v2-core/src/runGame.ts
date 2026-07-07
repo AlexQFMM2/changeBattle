@@ -1,5 +1,6 @@
 import type {BattlePreferenceV4, FormalCompetitionModeV4, TrainingModeV4, TrainingRuleSetV4} from "./battlePreference.js";
 import type {BagStateV4} from "./bagState.js";
+import type {TrainingBattleLogEntryV4} from "./battleLog.js";
 import type {TrainingCoinLogEntryV4} from "./coinLog.js";
 import type {LocalTeamV4} from "./pokemonInstance.js";
 
@@ -31,33 +32,6 @@ export type TrainingRunGameV4 = {
   restPreviewUnlocks?: Record<string, true>;
   coinLog?: TrainingCoinLogEntryV4[];
   battleLog?: TrainingBattleLogEntryV4[];
-};
-
-export type TrainingBattleLogEntryV4 = {
-  id: string;
-  key: string;
-  at: string;
-  sessionId: string;
-  nodeId: string;
-  turn: number;
-  rawLogIndex: number;
-  eventType: "move" | "damage" | "heal" | "faint" | "win" | "other";
-  damage?: number;
-  healing?: number;
-  sourcePlayerId?: ShowdownPlayerIdV4;
-  sourcePokemonKey?: string;
-  sourcePokemonName?: string;
-  targetPlayerId?: ShowdownPlayerIdV4;
-  targetPokemonKey?: string;
-  targetPokemonName?: string;
-  moveId?: string;
-  moveName?: string;
-  moveType?: string;
-  moveCategory?: string;
-  movePower?: number;
-  moveEffectKind?: "damage" | "setup" | "recovery" | "status" | "field" | "protect" | "pivot" | "other";
-  directness?: "direct" | "indirect" | "unknown";
-  rawLine: string;
 };
 
 export type TrainingBattleGamePlaceholderV4 = {

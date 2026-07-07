@@ -72,6 +72,7 @@ import {
   formalTrainingGroundStableSelfStudyGainRuleV4,
   isFormalRandomGeneratableSpeciesV4,
   isFormalStarterAllowedRankV4,
+  summarizeBattleLogByPokemonV4,
   summarizeCoinLogV4,
   type CoopPartnerPreferenceV4,
   type FormalTrainingGroundLessonKindV4,
@@ -5247,52 +5248,36 @@ function buildSettlementPokemonStats(run: FormalGameRunV4, getPokemonDetail: (sp
   const playerPokemon = collectPlayerSettlementPokemon(run);
   const pokemonByKey = new Map<string, LocalPokemonV4>();
   playerPokemon.forEach(pokemon => pokemonByKey.set(settlementPokemonKey(pokemon), pokemon));
-  const stats = new Map<string, FormalSettlementPokemonStatsV4>();
-  const ensureStat = (key: string | undefined) => {
-    if (!key) return null;
-    const pokemon = pokemonByKey.get(key);
-    if (!pokemon) return null;
-    const existing = stats.get(key);
-    if (existing) return existing;
-    const created: FormalSettlementPokemonStatsV4 = {
-      pokemonKey: key,
-      localPokemonId: pokemon.localPokemonId,
-      speciesId: pokemon.speciesId,
-      name: pokemon.name,
-      nameZh: pokemon.nameZh || pokemon.name,
-      iconUrl: pokemon.iconUrl,
-      iconStyle: pokemon.iconStyle,
-      spriteUrl: pokemon.frontSpriteUrl || pokemon.spriteUrl || pokemon.iconUrl,
-      shiny: Boolean(pokemon.shiny),
-      kills: 0,
-      deaths: 0,
-      assists: 0,
-      damageDealt: 0,
-      damageTaken: 0,
-      healing: 0,
-      usedRounds: [],
-      kdaScore: 0,
-      mvpScore: 0,
-      isMvp: false,
-    };
-    stats.set(key, created);
-    return created;
-  };
-  const ensureBattleLogStat = (playerId: ShowdownPlayerIdV4 | undefined, pokemonKey: string | undefined, pokemonName: string | undefined) => {
-    if (playerId !== "p1") return null;
-    const alias = battleKeyNameId(pokemonKey || pokemonName || "");
-    if (!alias) return null;
-    const key = `battlelog:${alias}`;
-    const existing = stats.get(key);
-    if (existing) return existing;
+  const createLocalStat = (key: string, pokemon: LocalPokemonV4): FormalSettlementPokemonStatsV4 => ({
+    pokemonKey: key,
+    localPokemonId: pokemon.localPokemonId,
+    speciesId: pokemon.speciesId,
+    name: pokemon.name,
+    nameZh: pokemon.nameZh || pokemon.name,
+    iconUrl: pokemon.iconUrl,
+    iconStyle: pokemon.iconStyle,
+    spriteUrl: pokemon.frontSpriteUrl || pokemon.spriteUrl || pokemon.iconUrl,
+    shiny: Boolean(pokemon.shiny),
+    kills: 0,
+    deaths: 0,
+    assists: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    healing: 0,
+    usedRounds: [],
+    kdaScore: 0,
+    mvpScore: 0,
+    isMvp: false,
+  });
+  const createBattleLogStat = (key: string, pokemonKey: string | undefined, pokemonName: string | undefined): FormalSettlementPokemonStatsV4 => {
     const protocolName = String(pokemonKey || "").split(":").slice(1).join(":").trim();
-    const speciesAlias = battleKeyNameId(pokemonName) || battleKeyNameId(protocolName) || battleKeyNameId(pokemonKey) || alias;
-    const created: FormalSettlementPokemonStatsV4 = {
+    const speciesAlias = battleKeyNameId(pokemonName) || battleKeyNameId(protocolName) || battleKeyNameId(pokemonKey) || key.replace(/^battlelog:/, "");
+    return {
       pokemonKey: key,
       localPokemonId: key,
-      speciesId: speciesAlias || alias,
-      name: pokemonName || pokemonKey || alias,
-      nameZh: pokemonName || pokemonKey || alias,
+      speciesId: speciesAlias || key,
+      name: pokemonName || pokemonKey || key,
+      nameZh: pokemonName || pokemonKey || key,
       iconUrl: "",
       iconStyle: "",
       spriteUrl: "",
@@ -5308,8 +5293,10 @@ function buildSettlementPokemonStats(run: FormalGameRunV4, getPokemonDetail: (sp
       mvpScore: 0,
       isMvp: false,
     };
-    stats.set(key, created);
-    return created;
+  };
+  const statTemplateForSummary = (key: string, pokemonKey: string | undefined, pokemonName: string | undefined): FormalSettlementPokemonStatsV4 | null => {
+    const pokemon = pokemonByKey.get(key);
+    return pokemon ? createLocalStat(key, pokemon) : createBattleLogStat(key, pokemonKey, pokemonName);
   };
   const localByBattleKey = buildPlayerBattleKeyMap(run, getPokemonDetail);
   const localByNodeBattleKey = buildPlayerBattleKeyMapByNode(run, getPokemonDetail);
@@ -5318,56 +5305,39 @@ function buildSettlementPokemonStats(run: FormalGameRunV4, getPokemonDetail: (sp
     const normalizedKey = normalizeBattlePokemonKey(battleKey);
     return localByNodeBattleKey.get(nodeId)?.get(normalizedKey) || localByBattleKey.get(normalizedKey);
   };
-  for (const entry of run.restRunSnapshot?.battleLog || []) {
-    const sourceKey = resolveBattleKey(entry.nodeId, entry.sourcePokemonKey);
-    const targetKey = resolveBattleKey(entry.nodeId, entry.targetPokemonKey);
-    if (entry.eventType === "damage" && entry.damage) {
-      const sourceStat = ensureStat(sourceKey) || ensureBattleLogStat(entry.sourcePlayerId, entry.sourcePokemonKey, entry.sourcePokemonName);
-      if (sourceStat) {
-        const stat = sourceStat;
-        stat.damageDealt += entry.directness === "direct" ? entry.damage : 0;
-        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
-      }
-      const targetStat = ensureStat(targetKey) || ensureBattleLogStat(entry.targetPlayerId, entry.targetPokemonKey, entry.targetPokemonName);
-      if (targetStat) {
-        const stat = targetStat;
-        stat.damageTaken += entry.damage;
-        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
-      }
-    }
-    const healingTargetStat = entry.eventType === "heal" && entry.healing
-      ? ensureStat(targetKey) || ensureBattleLogStat(entry.targetPlayerId, entry.targetPokemonKey, entry.targetPokemonName)
-      : null;
-    if (healingTargetStat && entry.healing) {
-      const stat = healingTargetStat;
-      stat.healing += entry.healing;
-      addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
-    }
-    if (entry.eventType === "faint") {
-      const sourceStat = entry.directness === "direct" && sourceKey !== targetKey
-        ? ensureStat(sourceKey) || ensureBattleLogStat(entry.sourcePlayerId, entry.sourcePokemonKey, entry.sourcePokemonName)
-        : null;
-      if (sourceStat) {
-        const stat = sourceStat;
-        stat.kills += 1;
-        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
-      }
-      const targetStat = ensureStat(targetKey) || ensureBattleLogStat(entry.targetPlayerId, entry.targetPokemonKey, entry.targetPokemonName);
-      if (targetStat) {
-        const stat = targetStat;
-        stat.deaths += 1;
-        addUsedRound(stat, roundIndexForNode(run, entry.nodeId));
-      }
-    }
-  }
-  const values = Array.from(stats.values());
-  values.forEach(stat => {
-    stat.kdaScore = (stat.kills + stat.assists * 0.5 + 1) / Math.max(1, stat.deaths);
-    stat.mvpScore = stat.kills * 120 + stat.assists * 40 - stat.deaths * 35 + stat.damageDealt + stat.damageTaken * 0.35 + stat.healing * 0.25 + stat.usedRounds.length * 10;
+  const battleLogSummaries = summarizeBattleLogByPokemonV4(run.restRunSnapshot?.battleLog || [], {
+    playerId: "p1",
+    resolvePokemonKey: (entry, role) => {
+      const rawKey = role === "source" ? entry.sourcePokemonKey : entry.targetPokemonKey;
+      const rawName = role === "source" ? entry.sourcePokemonName : entry.targetPokemonName;
+      return resolveBattleKey(entry.nodeId, rawKey) || battleLogFallbackPokemonKey(rawKey, rawName);
+    },
+    getRoundIndex: entry => roundIndexForNode(run, entry.nodeId),
+  });
+  const values = battleLogSummaries.flatMap(summary => {
+    const template = statTemplateForSummary(summary.pokemonKey, summary.pokemonKey, summary.pokemonName);
+    if (!template) return [];
+    return [{
+      ...template,
+      kills: summary.kills,
+      deaths: summary.deaths,
+      assists: summary.assists,
+      damageDealt: summary.damageDealt,
+      damageTaken: summary.damageTaken,
+      healing: summary.healing,
+      usedRounds: summary.usedRounds,
+      kdaScore: summary.kdaScore,
+      mvpScore: summary.mvpScore,
+    }];
   });
   values.sort((a, b) => b.mvpScore - a.mvpScore || b.damageDealt - a.damageDealt || b.damageTaken - a.damageTaken || a.nameZh.localeCompare(b.nameZh));
   if (values[0]) values[0].isMvp = true;
   return values;
+}
+
+function battleLogFallbackPokemonKey(pokemonKey: string | undefined, pokemonName: string | undefined): string | undefined {
+  const alias = battleKeyNameId(pokemonKey || pokemonName || "");
+  return alias ? `battlelog:${alias}` : undefined;
 }
 
 function collectPlayerSettlementPokemon(run: FormalGameRunV4): LocalPokemonV4[] {
