@@ -11,14 +11,30 @@ import {
   BATTLE_SYSTEM_OPTIONS_V4,
   DEFAULT_BATTLE_PREFERENCE_V4,
   battleSystemsForRuleSetV4,
+  getPokemonDisplayNameV4,
+  getPokemonIdentityKeyV4,
+  normalizeBagStateV4 as normalizeCoreBagStateV4,
   normalizeBattlePreferenceV4,
   normalizeFormalCompetitionModeV4,
+  normalizeLocalPokemonV4,
+  normalizeLocalTeamV4,
+  normalizePlayerItemInstanceV4,
   type BattlePreferenceV4,
   type BattleSystemPreferenceV4,
+  type BagStateV4,
   type FormalCompetitionModeV4,
+  type LocalPokemonLocksV4,
+  type LocalPokemonV4,
+  type LocalTeamV4,
+  type PlayerItemInstanceV4,
+  type PlayerItemTypeV4,
   type PokemonPowerProfileV4,
+  type StatTableV4,
+  type TrainingGenderV4,
   type TrainingModeV4,
+  type TrainingMoveSlotV4,
   type TrainingRuleSetV4,
+  type TrainingStatusV4,
 } from "@changebattle-v2/core";
 
 export {
@@ -27,20 +43,34 @@ export {
   BATTLE_SYSTEM_OPTIONS_V4,
   DEFAULT_BATTLE_PREFERENCE_V4,
   battleSystemsForRuleSetV4,
+  getPokemonDisplayNameV4,
+  getPokemonIdentityKeyV4,
+  normalizeCoreBagStateV4 as normalizeBagStateV4,
   normalizeBattlePreferenceV4,
   normalizeFormalCompetitionModeV4,
+  normalizeLocalPokemonV4,
+  normalizeLocalTeamV4,
+  normalizePlayerItemInstanceV4,
   type BattlePreferenceV4,
   type BattleSystemPreferenceV4,
+  type BagStateV4,
   type FormalCompetitionModeV4,
+  type LocalPokemonLocksV4,
+  type LocalPokemonV4,
+  type LocalTeamV4,
+  type PlayerItemInstanceV4,
+  type PlayerItemTypeV4,
+  type StatTableV4,
+  type TrainingGenderV4,
   type TrainingModeV4,
+  type TrainingMoveSlotV4,
   type TrainingRuleSetV4,
+  type TrainingStatusV4,
 };
 
 export type ShowdownPlayerIdV4 = "p1" | "p2" | "p3" | "p4";
 export type TrainingControllerV4 = "local" | "ai" | "script";
 export type TrainingAllianceV4 = "near" | "far";
-export type TrainingGenderV4 = "M" | "F" | "N";
-export type TrainingStatusV4 = "" | "brn" | "par" | "psn" | "tox" | "slp" | "frz";
 export type TrainingRunStatusV4 = "configuring" | "resting" | "battlePreparing" | "battling" | "settling" | "battleEndedPendingSettlement" | "ended" | "blocked";
 export type TrainingRunNodeStateV4 = "locked" | "ready" | "preparing" | "running" | "won" | "lost" | "skipped" | "blocked";
 export type TrainingUserProfileInputV4 = {
@@ -157,104 +187,6 @@ export type TrainingPlayerDraftV4 = {
   alliance: TrainingAllianceV4;
   localTeam: LocalTeamV4;
   bag: BagStateV4;
-};
-
-export type LocalTeamV4 = {
-  id: string;
-  name: string;
-  pokemon: LocalPokemonV4[];
-};
-
-export type LocalPokemonV4 = {
-  localPokemonId: string;
-  showdownIdentityToken?: string;
-  showdownId?: string;
-  pokeballId?: string;
-  speciesId: string;
-  name: string;
-  nameZh: string;
-  nickname?: string;
-  level: number;
-  gender: TrainingGenderV4;
-  shiny: boolean;
-  itemId: string;
-  heldItemInstanceId?: string;
-  abilityId: string;
-  abilityName: string;
-  abilityNameZh: string;
-  nature: string;
-  moves: TrainingMoveSlotV4[];
-  evs: StatTableV4;
-  ivs: StatTableV4;
-  powerProfile?: PokemonPowerProfileV4;
-  ivTotalCap?: number;
-  evTotalCap?: number;
-  locks?: LocalPokemonLocksV4;
-  entryHp: number;
-  entryStatus: TrainingStatusV4;
-  maxHp: number;
-  spriteUrl?: string;
-  shinySpriteUrl?: string;
-  frontSpriteUrl?: string;
-  backSpriteUrl?: string;
-  frontShinySpriteUrl?: string;
-  backShinySpriteUrl?: string;
-  iconUrl?: string;
-  iconStyle?: string;
-};
-
-export type LocalPokemonLocksV4 = {
-  ivs?: Partial<Record<DexStatId, boolean>>;
-  evs?: Partial<Record<DexStatId, boolean>>;
-  moves?: Record<number, boolean>;
-};
-
-export type TrainingMoveSlotV4 = {
-  moveId: string;
-  name: string;
-  nameZh: string;
-  type: string;
-  category: string;
-  power: number;
-  accuracy: number | null;
-  pp: number;
-  maxPp: number;
-  remainingPp: number;
-};
-
-export type StatTableV4 = Record<DexStatId, number>;
-
-export type PlayerItemTypeV4 = "system" | "system-battle" | "held" | "medicine" | "berry" | "training" | "battle" | "tm" | "key" | "misc";
-
-export type PlayerItemInstanceV4 = {
-  id: string;
-  itemID: string;
-  name: string;
-  image: string;
-  cost: number;
-  canSale: boolean;
-  type: PlayerItemTypeV4;
-  canBattleUse: boolean;
-  canUse: boolean;
-  canUseToPokemon: boolean;
-  canTake: boolean;
-  effectRound: number | null;
-  getRound: number;
-  maxUseCount: number | null;
-  useCount: number;
-  mappedItemId?: string;
-  mappedItemName?: string;
-  mappedItemNameZh?: string;
-  mappedItemIconUrl?: string;
-  mappedTeraType?: string;
-  mappedTeraTypeZh?: string;
-  systemReforgeKind?: "mega" | "z-crystal" | "tera";
-};
-
-export type BagStateV4 = {
-  maxSize: number;
-  items: PlayerItemInstanceV4[];
-  battleBagEnabled?: boolean;
 };
 
 export type TrainingNpcV4 = {
@@ -755,10 +687,10 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
   }
 
   function normalizeBagStateV4(bag: unknown, ruleSet?: TrainingRuleSetV4): BagStateV4 {
-    const raw = isRecord(bag) ? bag : {};
-    const maxSize = Math.max(1, Math.floor(Number(raw.maxSize || DEFAULT_BAG_MAX_SIZE)));
-    const items = normalizeBagItems(raw.items).slice(0, maxSize);
-    const normalized: BagStateV4 = {maxSize, items, battleBagEnabled: Boolean(raw.battleBagEnabled)};
+    const normalized = normalizeCoreBagStateV4(bag, {
+      defaultMaxSize: DEFAULT_BAG_MAX_SIZE,
+      itemNormalizer: normalizeBagItem,
+    });
     return ruleSet ? ensureDefaultSystemItemsForRuleSetV4(normalized, ruleSet) : normalized;
   }
 
@@ -777,32 +709,37 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
   function normalizeBagItems(items: unknown): PlayerItemInstanceV4[] {
     if (!Array.isArray(items)) return [];
     return items.flatMap((item, index) => {
-      if (!isRecord(item)) return [];
-      const instanceItemID = normalizeItemID(item.itemID);
-      if (!instanceItemID) return [];
-      return [createItemInstanceV4(instanceItemID, {
-        id: typeof item.id === "string" && item.id ? item.id : createId(`item-${index + 1}`),
-        name: typeof item.name === "string" ? item.name : undefined,
-        image: typeof item.image === "string" ? item.image : undefined,
-        cost: normalizeNullableNumber(item.cost, undefined) ?? undefined,
-        canSale: typeof item.canSale === "boolean" ? item.canSale : undefined,
-        type: normalizePlayerItemType(item.type),
-        canBattleUse: typeof item.canBattleUse === "boolean" ? item.canBattleUse : undefined,
-        canUse: typeof item.canUse === "boolean" ? item.canUse : undefined,
-        canUseToPokemon: typeof item.canUseToPokemon === "boolean" ? item.canUseToPokemon : undefined,
-        canTake: typeof item.canTake === "boolean" ? item.canTake : undefined,
-        effectRound: normalizeNullableNumber(item.effectRound, null),
-        getRound: normalizeNullableNumber(item.getRound, 0) ?? 0,
-        maxUseCount: normalizeNullableNumber(item.maxUseCount, null),
-        useCount: normalizeNullableNumber(item.useCount, 0) ?? 0,
-        mappedItemId: typeof item.mappedItemId === "string" ? item.mappedItemId : undefined,
-        mappedItemName: typeof item.mappedItemName === "string" ? item.mappedItemName : undefined,
-        mappedItemNameZh: typeof item.mappedItemNameZh === "string" ? item.mappedItemNameZh : undefined,
-        mappedItemIconUrl: typeof item.mappedItemIconUrl === "string" ? item.mappedItemIconUrl : undefined,
-        mappedTeraType: typeof item.mappedTeraType === "string" ? item.mappedTeraType : undefined,
-        mappedTeraTypeZh: typeof item.mappedTeraTypeZh === "string" ? item.mappedTeraTypeZh : undefined,
-        systemReforgeKind: normalizeSystemReforgeKind(item.systemReforgeKind),
-      })];
+      const normalized = normalizeBagItem(item, index);
+      return normalized ? [normalized] : [];
+    });
+  }
+
+  function normalizeBagItem(item: unknown, index: number): PlayerItemInstanceV4 | null {
+    if (!isRecord(item)) return null;
+    const instanceItemID = normalizeItemID(item.itemID);
+    if (!instanceItemID) return null;
+    return createItemInstanceV4(instanceItemID, {
+      id: typeof item.id === "string" && item.id ? item.id : createId(`item-${index + 1}`),
+      name: typeof item.name === "string" ? item.name : undefined,
+      image: typeof item.image === "string" ? item.image : undefined,
+      cost: normalizeNullableNumber(item.cost, undefined) ?? undefined,
+      canSale: typeof item.canSale === "boolean" ? item.canSale : undefined,
+      type: normalizePlayerItemType(item.type),
+      canBattleUse: typeof item.canBattleUse === "boolean" ? item.canBattleUse : undefined,
+      canUse: typeof item.canUse === "boolean" ? item.canUse : undefined,
+      canUseToPokemon: typeof item.canUseToPokemon === "boolean" ? item.canUseToPokemon : undefined,
+      canTake: typeof item.canTake === "boolean" ? item.canTake : undefined,
+      effectRound: normalizeNullableNumber(item.effectRound, null),
+      getRound: normalizeNullableNumber(item.getRound, 0) ?? 0,
+      maxUseCount: normalizeNullableNumber(item.maxUseCount, null),
+      useCount: normalizeNullableNumber(item.useCount, 0) ?? 0,
+      mappedItemId: typeof item.mappedItemId === "string" ? item.mappedItemId : undefined,
+      mappedItemName: typeof item.mappedItemName === "string" ? item.mappedItemName : undefined,
+      mappedItemNameZh: typeof item.mappedItemNameZh === "string" ? item.mappedItemNameZh : undefined,
+      mappedItemIconUrl: typeof item.mappedItemIconUrl === "string" ? item.mappedItemIconUrl : undefined,
+      mappedTeraType: typeof item.mappedTeraType === "string" ? item.mappedTeraType : undefined,
+      mappedTeraTypeZh: typeof item.mappedTeraTypeZh === "string" ? item.mappedTeraTypeZh : undefined,
+      systemReforgeKind: normalizeSystemReforgeKind(item.systemReforgeKind),
     });
   }
 

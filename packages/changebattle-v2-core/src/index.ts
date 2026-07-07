@@ -1,3 +1,4 @@
+export * from "./bagState.js";
 export * from "./battlePreference.js";
 export * from "./desktopUpdateCatalog.js";
 export * from "./formalGameCatalog.js";
@@ -9,7 +10,9 @@ export * from "./formalSpeciesRanks.js";
 export * from "./formalSpeciesRules.js";
 export * from "./formalTeamGenerationRules.js";
 export * from "./formalTrainingGroundRules.js";
+export * from "./itemInstance.js";
 export * from "./natureCatalog.js";
 export * from "./playerHonorCatalog.js";
+export * from "./pokemonInstance.js";
 export * from "./restCenterCatalog.js";
 export * from "./starChartCatalog.js";
