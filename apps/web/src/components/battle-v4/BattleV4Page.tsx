@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
@@ -824,7 +824,12 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       return;
     }
     const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
-    const requiresTarget = true;
+    const displayedMove = displayedMoveForSpecial(action.move, selectedSpecial || null);
+    const requiresTarget = showdownMoveNeedsExplicitTargetV4(displayedMove, normalizedRequest.targetable);
+    if (!requiresTarget) {
+      applyDraftChoice(choice);
+      return;
+    }
     const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget, selectedSpecial || null);
     battleDebugLog(debugConfig, "draft", "current-move", {
       before,
@@ -1807,7 +1812,7 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, action, request, o
     return buildBattleV4MoveCard(action, api, viewModel.farTeam, displaySpecial, selectedSpecial);
   }, [action, api, viewModel.farTeam, viewModel.nearTeam, visualNearTeam]);
   const targetable = Boolean(viewModel.command.normalizedRequest?.targetable || request?.targetable);
-  const explicitTarget = moveNeedsExplicitTargetForShowdown(moveCard.displayedMove.target || moveCard.detail?.target || action.move.target);
+  const explicitTarget = showdownMoveNeedsExplicitTargetV4(moveCard.displayedMove, targetable);
   const shouldChooseTarget = explicitTarget && viewModel.nearTeam.filter(slot => slot.active && !slot.fainted).length > 1;
   const shouldSubmitTargetSuffix = explicitTarget && targetable;
   const targets = useMemo(() => buildBattleV4TargetCards(viewModel, action, moveCard.detail, shouldChooseTarget || targetable, api), [viewModel, action, moveCard.detail, shouldChooseTarget, targetable, api]);
@@ -2106,7 +2111,7 @@ function buildBattleV4TargetCards(viewModel: BattleViewModelV4, action: MoveActi
     visualNearTeam[0] || null,
     visualNearTeam[1] || null,
   ];
-  const target = normalizeMoveTarget(detail?.target || action.move.target || "normal");
+  const target = showdownNormalizeMoveTargetV4(detail?.target || action.move.target || "normal");
   return slots.map((slot, index) => {
     if (!slot) {
       return {key: `empty-${index}`, slot: null, selectable: false, affected: false, choiceSuffix: "", effectivenessLabel: "效果一般", effectivenessTone: "normal"};
@@ -2202,19 +2207,6 @@ function targetChoiceSuffix(active: BattleViewSlotV4 | null, target: BattleViewS
   const activeTargets = sideSlots.filter(slot => slot.active);
   const position = Math.max(1, activeTargets.findIndex(slot => slot.seat === target.seat) + 1 || (target.position === "B" ? 2 : 1));
   return target.side === active.side ? `-${position}` : `+${position}`;
-}
-
-function normalizeMoveTarget(value: string | undefined): string {
-  return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
-}
-
-function moveNeedsExplicitTargetForShowdown(target: string | undefined): boolean {
-  const id = normalizeMoveTarget(target);
-  return id === "normal" ||
-    id === "any" ||
-    id === "adjacentally" ||
-    id === "adjacentallyorself" ||
-    id === "adjacentfoe";
 }
 
 function isUntargetedLockedMove(move: BattleMoveRequestV4): boolean {

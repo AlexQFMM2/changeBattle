@@ -21,7 +21,7 @@ import type {
   ShowdownPlaybackTimelineV4,
 } from "./types.js";
 import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
-import {filterShowdownChoiceForRuleSetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
+import {filterShowdownChoiceForRuleSetV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownSpecialSystemAllowedForRuleSetV4} from "./showdownCommand.js";
 import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, normalizeBattleAiProfileV4, type BattleAiChoiceResultV4} from "./ai.js";
 import {loadShowdownSimV4} from "./showdownVendor.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
@@ -423,29 +423,14 @@ function conditionIsFainted(condition: string | undefined): boolean {
 }
 
 function defaultTargetSuffix(request: BattleServiceRequestV4, activeIndex: number, move: {id?: string; target?: string}, targetable: boolean): string {
-  if (!targetable || !moveNeedsExplicitTarget(move.target)) return "";
-  if (normalizeMoveTarget(move.id) === "recharge") return "";
-  const target = normalizeMoveTarget(move.target);
+  if (!showdownMoveNeedsExplicitTargetV4(move, targetable)) return "";
+  const target = showdownNormalizeMoveTargetV4(move.target);
   if (target === "adjacentally" || target === "adjacentallyorself") {
     const allyIndex = request.active?.findIndex((active, index) => index !== activeIndex && Boolean(active)) ?? -1;
     return allyIndex >= 0 ? ` -${allyIndex + 1}` : "";
   }
   const foeCount = Math.max(1, request.active?.length || 1);
   return ` +${Math.min(activeIndex + 1, foeCount)}`;
-}
-
-function moveNeedsExplicitTarget(target: string | undefined): boolean {
-  if (!target) return false;
-  const id = normalizeMoveTarget(target);
-  return id === "normal" ||
-    id === "any" ||
-    id === "adjacentally" ||
-    id === "adjacentallyorself" ||
-    id === "adjacentfoe";
-}
-
-function normalizeMoveTarget(value: string | undefined): string {
-  return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
 }
 
 function legalSwitchChoice(request: BattleServiceRequestV4, reservedSwitches = new Set<number>()): string {

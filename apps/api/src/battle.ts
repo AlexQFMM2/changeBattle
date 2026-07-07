@@ -11,6 +11,7 @@ import {
   showdownSpecialChoiceSuffixV4,
   showdownSpecialSystemAllowedForRuleSetV4,
   showdownSpecialSystemForChoiceV4,
+  showdownMoveNeedsExplicitTargetV4,
   stringifyShowdownChoiceCommandV4,
   withShowdownMoveTargetSuffixV4,
 } from "@changebattle-v2/showdown-battle-core/showdownCommand";
@@ -1241,18 +1242,16 @@ function draftMatchesRequest(draft: BattleCommandDraftV4, request: BattleNormali
 
 function moveChoiceNeedsExplicitTarget(request: BattleNormalizedRequestV4, activeIndex: number, choice: Extract<ParsedBattleCommandChoiceV4, {kind: "move"}>): boolean {
   if (!request.targetable || choice.target) return false;
-  const move = request.activeRequests[activeIndex]?.moves?.[choice.index - 1];
-  if (!move?.target || toId(move.id) === "recharge") return false;
-  const target = normalizeChoiceTarget(move.target);
-  return target === "normal" ||
-    target === "any" ||
-    target === "adjacentally" ||
-    target === "adjacentallyorself" ||
-    target === "adjacentfoe";
+  const move = moveRequestForChoice(request.activeRequests[activeIndex], choice);
+  return showdownMoveNeedsExplicitTargetV4(move, request.targetable);
 }
 
-function normalizeChoiceTarget(value: string | undefined): string {
-  return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
+function moveRequestForChoice(active: BattleActiveRequestV4 | null | undefined, choice: Extract<ParsedBattleCommandChoiceV4, {kind: "move"}>): BattleMoveRequestV4 | undefined {
+  const moveIndex = choice.index - 1;
+  const baseMove = active?.moves?.[moveIndex];
+  if (choice.special === "max") return active?.maxMoves?.[moveIndex] || baseMove;
+  if (choice.special === "zmove") return active?.zMoves?.[moveIndex] || active?.canZMove?.[moveIndex] || baseMove;
+  return baseMove;
 }
 
 function shouldAutoPassChoiceSlot(request: BattleNormalizedRequestV4, index: number, choices: string[] = []): boolean {

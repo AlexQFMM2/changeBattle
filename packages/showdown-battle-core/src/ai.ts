@@ -16,6 +16,8 @@ import {
   showdownSpecialSystemForChoiceV4,
   showdownSpecialChoiceAllowedForRuleSetV4,
   stringifyShowdownChoiceCommandV4,
+  showdownMoveNeedsExplicitTargetV4,
+  showdownNormalizeMoveTargetV4,
   type ShowdownParsedChoiceV4,
   type ShowdownSpecialChoiceV4,
 } from "./showdownCommand.js";
@@ -292,16 +294,17 @@ function generateMoveTurnCandidates(
     const actions: AiCandidate[] = [];
     for (const entry of (active.moves || []).map((move, index) => ({move, index}))) {
       if (entry.move.disabled || (entry.move.pp ?? 1) <= 0) continue;
-      const targets = targetSuffixesForMove(request, activeIndex, entry.move);
       const specials = specialChoicesForMove(request, active, entry.index, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(context));
       for (const special of specials) {
+        const targetMove = moveRequestForSpecialChoice(active, entry.index, entry.move, special);
+        const targets = targetSuffixesForMove(request, activeIndex, targetMove);
         for (const target of targets) {
           const parsed: ShowdownParsedChoiceV4 = {kind: "move", index: entry.index + 1, special: special || undefined, target: target || undefined};
           actions.push(scoreCandidate({
             choice: stringifyShowdownChoiceCommandV4(parsed),
             kind: "move",
             activeIndex,
-            features: featuresForMove(request, activeIndex, entry.move, special, target, context.snapshot),
+            features: featuresForMove(request, activeIndex, targetMove, special, target, context.snapshot),
           }, context, profile, rng));
         }
       }
@@ -496,8 +499,8 @@ function indexIsSwitchableBench(index: number, reservedActiveSlots: number, poke
 
 function targetSuffixesForMove(request: BattleServiceRequestV4, activeIndex: number, move: BattleServiceMoveRequestV4): string[] {
   const targetable = Boolean(request.targetable || (request.active || []).length > 1);
-  if (!targetable || !moveNeedsExplicitTarget(move.target) || normalizeMoveTarget(move.id) === "recharge") return [""];
-  const target = normalizeMoveTarget(move.target);
+  if (!showdownMoveNeedsExplicitTargetV4(move, targetable)) return [""];
+  const target = showdownNormalizeMoveTargetV4(move.target);
   const activeCount = Math.max(1, request.active?.length || 1);
   if (target === "adjacentally" || target === "adjacentallyorself") {
     const allies = Array.from({length: activeCount}, (_, index) => index).filter(index => index !== activeIndex && request.active?.[index]);
@@ -512,9 +515,8 @@ function targetSuffixesForMove(request: BattleServiceRequestV4, activeIndex: num
 }
 
 function defaultTargetSuffix(request: BattleServiceRequestV4, activeIndex: number, move: {id?: string; target?: string}, targetable: boolean): string {
-  if (!targetable || !moveNeedsExplicitTarget(move.target)) return "";
-  if (normalizeMoveTarget(move.id) === "recharge") return "";
-  const target = normalizeMoveTarget(move.target);
+  if (!showdownMoveNeedsExplicitTargetV4(move, targetable)) return "";
+  const target = showdownNormalizeMoveTargetV4(move.target);
   if (target === "adjacentally" || target === "adjacentallyorself") {
     const allyIndex = request.active?.findIndex((active, index) => index !== activeIndex && Boolean(active)) ?? -1;
     return allyIndex >= 0 ? ` -${allyIndex + 1}` : "";
@@ -547,6 +549,24 @@ function specialChoicesForMove(
   return choices;
 }
 
+function moveRequestForSpecialChoice(
+  active: NonNullable<BattleServiceRequestV4["active"]>[number],
+  moveIndex: number,
+  baseMove: BattleServiceMoveRequestV4,
+  special: ShowdownSpecialChoiceV4 | null,
+): BattleServiceMoveRequestV4 {
+  if (!active || !special) return baseMove;
+  if (special === "max") {
+    const maxMoves = Array.isArray(active.maxMoves) ? active.maxMoves : active.maxMoves?.maxMoves;
+    return maxMoves?.[moveIndex] || baseMove;
+  }
+  if (special === "zmove") {
+    const zMoves = active.zMoves || active.canZMove || [];
+    return zMoves[moveIndex] || baseMove;
+  }
+  return baseMove;
+}
+
 function sanitizeAiChoice(choice: string, ruleSet: string, mode: string, allowedSystems?: readonly BattleSpecialSystemV4[]): string {
   return filterShowdownChoiceForRuleSetV4(choice, ruleSet, mode, allowedSystems).trim();
 }
@@ -557,20 +577,6 @@ function allowedSpecialSystemsForPlayer(context: BattleAiChoiceContextV4): reado
 
 function choiceLooksParseable(choice: string): boolean {
   return choice.split(",").every(part => Boolean(parseShowdownChoiceCommandV4(part.trim())));
-}
-
-function moveNeedsExplicitTarget(target: string | undefined): boolean {
-  if (!target) return false;
-  const id = normalizeMoveTarget(target);
-  return id === "normal" ||
-    id === "any" ||
-    id === "adjacentally" ||
-    id === "adjacentallyorself" ||
-    id === "adjacentfoe";
-}
-
-function normalizeMoveTarget(value: string | undefined): string {
-  return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
 }
 
 function activeRow(request: BattleServiceRequestV4, activeIndex: number): NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number] | undefined {

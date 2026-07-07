@@ -51,6 +51,7 @@ import {
 } from "./starChart.js";
 export {FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4, createSoulmateCandidateListV4, formalShopSlotsForCategoryV4};
 export type {NatureEffectV4} from "@changebattle-v2/core";
+export {showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
 export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};

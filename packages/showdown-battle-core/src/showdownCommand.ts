@@ -127,3 +127,18 @@ export function filterShowdownChoiceForRuleSetV4(choice: string, ruleSet: string
     return stringifyShowdownChoiceCommandV4({...parsed, special: undefined});
   }).join(", ");
 }
+
+export function showdownMoveNeedsExplicitTargetV4(move: {id?: string; target?: string} | undefined | null, targetable = true): boolean {
+  if (!targetable || !move?.target) return false;
+  if (showdownNormalizeMoveTargetV4(move.id) === "recharge") return false;
+  const target = showdownNormalizeMoveTargetV4(move.target);
+  return target === "normal" ||
+    target === "any" ||
+    target === "adjacentally" ||
+    target === "adjacentallyorself" ||
+    target === "adjacentfoe";
+}
+
+export function showdownNormalizeMoveTargetV4(value: string | undefined): string {
+  return String(value || "normal").replace(/[^a-z]/gi, "").toLowerCase() || "normal";
+}

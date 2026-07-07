@@ -8,6 +8,7 @@ import {
   randomLegalChoice,
   resolveBattleWinnerPlayerIdV4,
   resolveShowdownRandomTeamFormatV4,
+  showdownMoveNeedsExplicitTargetV4,
   submitTrainerItem,
   submitChoice,
   withShowdownMoveTargetSuffixV4,
@@ -677,6 +678,9 @@ function showdownCommandReferenceSmoke() {
   if (withTarget !== "move 1 zmove +1") throw new Error(`unexpected target order: ${withTarget}`);
   const filtered = filterShowdownChoiceForRuleSetV4("move 1 mega +1, move 2", "gen8", "doubles");
   if (filtered !== "move 1 +1, move 2") throw new Error(`unexpected gen8 filtered choice: ${filtered}`);
+  if (showdownMoveNeedsExplicitTargetV4({id: "maxguard", target: "self"})) {
+    throw new Error("self-targeting max guard should not require explicit target");
+  }
   console.log("showdown command reference smoke ok");
 }
 
@@ -812,6 +816,52 @@ function aiSpecialSystemSmoke() {
     throw new Error(`AI leaked non-Gen9 special candidates in Gen9: ${JSON.stringify(gen9.debug.topCandidates)}`);
   }
   console.log("showdown-battle-core ai special system smoke ok");
+}
+
+function aiMaxGuardTargetSmoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 11,
+    targetable: true,
+    active: [
+      {
+        moves: [
+          {move: "Protect", id: "protect", pp: 6, maxpp: 16, target: "self"},
+          {move: "Scald", id: "scald", pp: 14, maxpp: 24, target: "normal"},
+          {move: "Attract", id: "attract", pp: 15, maxpp: 24, target: "normal"},
+          {move: "Mirror Coat", id: "mirrorcoat", pp: 20, maxpp: 32, target: "scripted"},
+        ],
+        canDynamax: true,
+        maxMoves: {
+          maxMoves: [
+            {move: "Max Guard", id: "maxguard", target: "self"},
+            {move: "Max Geyser", id: "maxgeyser", target: "adjacentFoe"},
+            {move: "Max Guard", id: "maxguard", target: "self"},
+            {move: "Max Mindstorm", id: "maxmindstorm", target: "adjacentFoe"},
+          ],
+        },
+      },
+      null,
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Alomomola", details: "Alomomola, L48, M", condition: "55/466", active: true},
+        {ident: "p2: Togedemaru", details: "Togedemaru, L48, F", condition: "0 fnt", active: true, fainted: true},
+      ],
+    },
+  };
+  const result = chooseAiBattleChoiceV4({
+    request,
+    snapshot: aiSnapshot("gen8", "doubles", request, ["max"]),
+    playerId: "p2",
+    aiProfile: {level: "champion", preference: "support"},
+    rngSeed: "max-guard-target",
+  });
+  if (result.debug.topCandidates.some(candidate => candidate.choice.includes("move 3 max +"))) {
+    throw new Error(`AI generated illegal target suffix for Max Guard: ${JSON.stringify(result.debug.topCandidates)}`);
+  }
+  console.log("showdown-battle-core ai max guard target smoke ok");
 }
 
 function aiForceSwitchSmoke() {
@@ -1116,6 +1166,7 @@ void smoke()
   .then(showdownCommandReferenceSmoke)
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)
+  .then(aiMaxGuardTargetSmoke)
   .then(aiForceSwitchSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);
