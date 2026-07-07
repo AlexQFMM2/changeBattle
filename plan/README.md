@@ -11,6 +11,7 @@
 
 ## 当前最常用入口
 
+- 运行时数据标准化迁移：[`runtime-data-standardization-migration-plan.md`](runtime-data-standardization-migration-plan.md)
 - 正式游戏当前主线：[`formal-game/README.md`](formal-game/README.md)
 - 灵魂伴侣下版本：[`formal-game/formal-soulmate-next-version-plan.md`](formal-game/formal-soulmate-next-version-plan.md)
 
@@ -22,8 +23,9 @@
 - Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化、天气持久层资源重载、Substitute 持续标记，以及选人页两步选择交互；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
 - 正式模式稳定性继续收口：敌方 NPC 等级按玩家最高等级动态计算，究极异兽归入神兽候选，自习收益改为等级/数值约 3:7，战斗入场同步本地 PP。
 - 休整页弹窗栈已补齐：背包打开时，技能学习替换和 Mega/Z/太晶系统道具重铸面板会显示在背包之上。
-- Plan 文档已收敛到当前主线；后续新增计划优先进入对应目录 README，而不是堆在根目录。
+- Plan 文档已收敛到当前主线；运行时标准化这类跨模块迁移保留在根目录，玩法计划优先进入对应目录 README。
 
 ## 下一步
 
 - 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并围绕胜利后最终休整页推进“结伴/灵魂伴侣”功能。
+- 在实现完整结伴 UI 前，优先按迁移计划把 Pokemon/Item/Bag/Vault/Log 等存档级结构标准化到 `packages/changebattle-v2-core`。

@@ -69,6 +69,7 @@ export type TrainerVaultV2 = {
   pokemonBox: LocalPokemonV4[];
 };
 
+/** 玩家全局道具背包中的聚合道具记录，用于局外仓库持久化，不是局内背包的单个道具实例。 */
 export type PlayerItemRecordV4 = {
   itemId: string;
   quantity: number;
@@ -77,12 +78,14 @@ export type PlayerItemRecordV4 = {
   slotIndex?: number;
 };
 
+/** 玩家全局宝可梦箱子中宝可梦携带的招式记录。 */
 export type PlayerPokemonMoveRecordV4 = {
   moveId: string;
   remainingPp?: number;
   maxPp?: number;
 };
 
+/** 玩家全局宝可梦箱子中的长期宝可梦记录，用于局外养成和后续带入局内。 */
 export type PlayerPokemonRecordV4 = {
   playerPokemonId: string;
   speciesId: string;
@@ -98,6 +101,7 @@ export type PlayerPokemonRecordV4 = {
   honors: string[];
 };
 
+/** 玩家全局仓库，包含局外道具背包和局外宝可梦箱子。 */
 export type PlayerVaultV4 = {
   version: 1;
   items: PlayerItemRecordV4[];
