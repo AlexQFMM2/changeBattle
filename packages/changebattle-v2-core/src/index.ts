@@ -1,3 +1,4 @@
+export * from "./battlePreference.js";
 export * from "./desktopUpdateCatalog.js";
 export * from "./formalGameCatalog.js";
 export * from "./formalMoveGenerationRules.js";
