@@ -6,6 +6,18 @@
 
 当前问题不是“前端完全自己定义数据”，而是大量运行时结构集中在 `apps/api`，前端和 desktop 通过 `@changebattle-v2/api` 间接使用。随着正式流程、商店、战斗记录、金币流水、局外养成继续增加，`apps/api` 会越来越像 domain core。下一步需要把“存档级结构 + 标准 helper”迁到 `packages/changebattle-v2-core`，`apps/api` 只负责编排流程和调用 helper。
 
+## Current Progress
+
+- [x] Loop 1 / Battle Preference：已迁到 `packages/changebattle-v2-core/src/battlePreference.ts`，`apps/api` 保持兼容 re-export。
+- [x] Loop 2 / Pokemon、Item、Bag Instance：已迁到 `pokemonInstance.ts`、`itemInstance.ts`、`bagState.ts`；Dex 驱动创建和补全仍留在 `apps/api`。
+- [x] Loop 3 / Player Vault：已迁到 `playerVault.ts`；正式赛背包并入仓库流程仍留在 `apps/api`。
+- [x] Loop 4 / User Profile + Star Chart Pure Rules：已迁到 `userProfile.ts` 和 `starChartRules.ts`；profile 存储 adapter 和训练师资源 catalog 仍留在 `apps/api`。
+- [ ] Loop 5 / Save Data Normalize：暂缓直接迁移。`trainingRun/formalRun` normalize 仍深度依赖 API 运行时流程，建议先做 RunGame Snapshot 标准化后再回头统一 saveData。
+- [ ] Loop 6 / RunGame Snapshot：未开始。
+- [ ] Loop 7 / CoinLog / BattleLog：未开始。
+- [ ] Loop 8 / Formal Settlement Schema：未开始。
+- [ ] Loop 9 / Soulmate Core Schema：未开始。
+
 ## Layer Contract
 
 这是本计划的硬边界，后续迁移和 AI agent 执行都必须先按这组规则判断。
@@ -184,18 +196,19 @@ return clone(next);
 新增或调整 `packages/changebattle-v2-core/src/`：
 
 ```text
-battlePreference.ts
-userProfile.ts
-runGame.ts
-pokemonInstance.ts
-itemInstance.ts
-bagState.ts
-coinLog.ts
-battleLog.ts
-playerVault.ts
-formalSettlement.ts
-soulmate.ts
-saveData.ts
+[x] battlePreference.ts
+[x] userProfile.ts
+[x] starChartRules.ts
+[ ] runGame.ts
+[x] pokemonInstance.ts
+[x] itemInstance.ts
+[x] bagState.ts
+[ ] coinLog.ts
+[ ] battleLog.ts
+[x] playerVault.ts
+[ ] formalSettlement.ts
+[ ] soulmate.ts
+[ ] saveData.ts
 ```
 
 并在 `packages/changebattle-v2-core/src/index.ts` 统一导出。
@@ -258,7 +271,7 @@ saveData.ts
 
 ## Migration Phases
 
-### Phase 0: Guardrails
+### [x] Phase 0: Guardrails
 
 - 不改变玩家可见行为。
 - 不改存档文件路径。
@@ -266,7 +279,7 @@ saveData.ts
 - 每迁一个结构，先在 core 导出类型和 helper，再让 `apps/api` 从 core import。
 - Web 端禁止新增复杂结构判断；必要展示逻辑优先补 core helper。
 
-### Phase 1: BattlePreference / UserProfile / PlayerVault
+### [x] Phase 1: BattlePreference / UserProfile / PlayerVault
 
 目标：先迁全局长期存档入口和偏好结构，建立 package 作为 schema 来源。
 
@@ -298,7 +311,7 @@ saveData.ts
 - Desktop split save `profile.dat` / `player_item.dat` / `player_pokemon.dat` 可读写。
 - 对局偏好页、正式 run 创建、single/standard 模式显示不变。
 
-### Phase 2: Pokemon / Item / Bag 基础实例
+### [x] Phase 2: Pokemon / Item / Bag 基础实例
 
 目标：先把最常用、最容易被灵魂伴侣复用的实例结构抽到 core。
 
@@ -329,9 +342,15 @@ saveData.ts
 - `pnpm --dir changeBattleV2 --filter @changebattle-v2/web typecheck`
 - 旧存档能正常打开休整页、背包、队伍页、战斗页。
 
-### Phase 3: Save/Load Normalize 标准化
+### [ ] Phase 3: Save/Load Normalize 标准化
 
 目标：Web 和 Desktop 读写仍保持现有机制，但所有存档进出都走 core normalize。
+
+当前状态：
+
+- [x] `profile` 和 `playerVault` 的 schema/normalize 已进入 core。
+- [ ] `trainingRun/formalRun` 的完整 normalize 仍在 API，原因是当前 normalize 会补 NPC、队伍、Dex 道具和正式赛运行时字段，不适合直接搬进 core。
+- [ ] 建议先完成 Phase 4 `RunGame Snapshot`，再回头做 `saveData.ts` 的统一入口。
 
 步骤：
 
@@ -359,7 +378,7 @@ saveData.ts
 - `trainingRun/formalRun` 读取后能补齐 `battleEndedPendingSettlement`、`competitionMode`、`coinLog/battleLog` 等默认字段。
 - 保存前后 JSON schema 稳定，不出现 UI 临时字段。
 
-### Phase 4: RunGame Snapshot 标准化
+### [ ] Phase 4: RunGame Snapshot 标准化
 
 目标：把 `TrainingRunGameV4` 的顶层 schema 和状态 helper 固化到 core，但创建/推进 run 的流程继续留在 API。
 
@@ -393,7 +412,7 @@ saveData.ts
 - 普通赛事前几场仍进入普通休整，最后胜利进入待结算休整。
 - 失败/投降仍进入结算。
 
-### Phase 5: CoinLog / BattleLog 标准化
+### [ ] Phase 5: CoinLog / BattleLog 标准化
 
 目标：金币流水、战斗流水、结算统计、灵魂伴侣候选统一口径。
 
@@ -415,7 +434,7 @@ saveData.ts
 - 战后 500 奖励和濒死救助扣费不变。
 - 最终结算输出/承伤/治疗/KDA/评分不回退。
 
-### Phase 6: Formal Settlement Schema
+### [ ] Phase 6: Formal Settlement Schema
 
 目标：只迁正式结算 schema 和 summary helper，不迁正式流程编排。
 
@@ -438,7 +457,7 @@ saveData.ts
 - Desktop formal worker 类型不爆。
 - settlement smoke 测试通过。
 
-### Phase 7: Soulmate First-Class Model
+### [ ] Phase 7: Soulmate First-Class Model
 
 目标：灵魂伴侣从第一天就是 core 标准结构，不写散。
 
@@ -466,7 +485,7 @@ saveData.ts
 - 可改名，展示走 display helper。
 - 点击“去结算”后局外 vault 能保存长期伙伴。
 
-### Phase 8: Facilities And LeagueLoop Pure Schema
+### [ ] Phase 8: Facilities And LeagueLoop Pure Schema
 
 目标：仅在灵魂伴侣主线稳定后，再迁正式设施和联盟循环赛需要的 schema/纯 helper。
 
