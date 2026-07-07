@@ -50,6 +50,39 @@ beta   -> CHANGEBATTLE_UPDATE_MANIFEST_URLS=http://119.45.240.157/changebattle-b
 
 portable 包构建时会把通道地址写入 `ChangeBattle-V2-Desk.cmd`。因此 stable 包只吃 stable 更新，beta 包只吃 beta 更新。
 
+## Local Worktree Policy
+
+正式发布必须用 `git worktree` 隔离工作区，不要手动复制项目目录。
+
+推荐固定目录：
+
+```text
+/home/alexqfmm/workPlace/pokemon/changeBattleV2          v2 日常开发工作区
+/home/alexqfmm/workPlace/pokemon/changeBattleV2-release  release 正式发布工作区
+```
+
+临时紧急修复目录按需创建，用完删除：
+
+```bash
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
+```
+
+硬规范：
+
+- `changeBattleV2` 只做 `v2` 新功能和 beta/debug 验证。
+- `changeBattleV2-release` 只做 stable 正式发布，不做日常开发。
+- `changeBattleV2-hotfix-*` 只做正式版紧急修复，修完合回 `release` 后必须同步回 `v2`，然后删除临时 worktree。
+- `release/` 是发版产物目录，不等于 `release` 分支，也不能当独立代码工作区使用。
+- 不要用复制目录代替 worktree；复制目录容易带走 `node_modules`、构建产物、旧 `release/` 文件和未提交改动，导致发版来源不清。
+
+已建立的本地工作区：
+
+```text
+/home/alexqfmm/workPlace/pokemon/changeBattleV2          v2
+/home/alexqfmm/workPlace/pokemon/changeBattleV2-release  release
+```
+
 ## Server Layout
 
 服务器固定目录：
@@ -105,6 +138,56 @@ ChangeBattle-V2-Updater.cmd
 
 Electron runtime、launcher、updater 或目录结构变化，一律发布完整包，并在生成清单时标记 `requiresFullPackage`。
 
+## Version Source Policy
+
+版本号是 release 安全边界，不能写散。
+
+权威版本源：
+
+```text
+package.json                         构建和发布脚本校验版本
+release/changebattle/latest.json      远端通道版本
+release/changebattle/manifests/vX.Y.Z/files.json  文件级增量版本
+portable/update-manifest.json         已安装客户端的本地真实版本
+```
+
+桌面端运行时必须优先读取 `portable/update-manifest.json.version` 作为当前版本。`CHANGEBATTLE_DESKTOP_VERSION` 和 Electron `app.getVersion()` 只能作为 fallback，不能作为增量更新后的权威版本。
+
+禁止事项：
+
+- 禁止在 UI 中硬编码旧版本号，例如 `v0.1.0`。
+- 禁止让 `apps/desktop/package.json` 的包版本冒充 release 版本。
+- 禁止把 `.cmd` 中的 `CHANGEBATTLE_DESKTOP_VERSION` 当成增量更新后的真实版本，因为 `.cmd` 不参与增量替换。
+- 禁止同版本覆盖作为常规修复方式；只有在客户端仍把自己识别成旧版本时，才允许用同版本 manifest 补救一次。
+
+0.1.4 事故复盘：
+
+```text
+现象：增量更新后右下角显示 v0.1.0。
+原因 1：前端版本 badge 曾经硬编码 v0.1.0。
+原因 2：桌面端版本读取链路曾经优先读 CHANGEBATTLE_DESKTOP_VERSION/app.getVersion()。
+原因 3：ChangeBattle-V2-Desk.cmd 不参与增量更新，旧包里的环境变量会残留。
+修复：版本 badge 显示 release 0.1.4；桌面端优先读取 update-manifest.json.version；官网和更新链接在域名未就绪前使用 http+ip。
+```
+
+每次 release 前必须检查：
+
+```bash
+node -p "require('./package.json').version"
+rg -n "v0\\.1\\.0|release 0\\.1\\.0|0\\.1\\.0" apps/web apps/desktop packages tools
+node --check tools/generate_desktop_update_manifest.mjs
+bash -n tools/build_release_on_windows.sh
+bash -n tools/publish_desktop_update_manifest.sh
+```
+
+构建后必须检查本地产物：
+
+```bash
+rg -n '"version": "0.1.4"' release/changebattle/latest.json release/changebattle/manifests/v0.1.4/files.json
+rg -n "release 0.1.4" release/changebattle/files/v0.1.4/apps/desktop/out/renderer/assets/*.js
+rg -n "update-manifest\\.json" release/changebattle/files/v0.1.4/apps/desktop/out/main/main.js
+```
+
 ## Release Flow
 
 推荐正式流程：
@@ -118,11 +201,49 @@ Electron runtime、launcher、updater 或目录结构变化，一律发布完整
 
 正式版紧急修复流程：
 
-1. 从 `release` 切 `hotfix/<name>`。
-2. 修复并本地验证。
-3. 必要时从 `hotfix/<name>` 发 beta 包给测试者。
-4. 验证通过后合回 `release`，发 stable 补丁。
-5. 再合回 `v2`，删除 `hotfix/<name>`。
+1. 从 `release` 临时切 `hotfix/<name>`，推荐单独 worktree。
+2. 在 hotfix 工作区修改。
+3. 本地测试通过。
+4. 必要时从 hotfix 发 beta/debug 包给测试者验证。
+5. 验证通过后合并回 `release`。
+6. 在 `changeBattleV2-release` 工作区重新 release stable 正式版。
+7. 将 hotfix 合并或 cherry-pick 回 `v2`，防止下次新功能覆盖正式修复。
+8. 删除临时 hotfix worktree。
+
+紧急修复命令模板：
+
+```bash
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
+
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2-hotfix-<name>
+# 修改代码
+pnpm --filter @changebattle-v2/api test:formal-game
+pnpm --filter @changebattle-v2/web typecheck
+pnpm --filter @changebattle-v2/desktop typecheck
+git add <files>
+git commit -m "fix <name>"
+
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2-release
+git merge --no-ff hotfix/<name>
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh X.Y.Z
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh X.Y.Z
+
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+git merge --no-ff hotfix/<name>
+git worktree remove ../changeBattleV2-hotfix-<name>
+git branch -d hotfix/<name>
+```
+
+新功能流程：
+
+1. 在 `v2` 工作区开发。
+2. 本地测试通过。
+3. 从 `v2` 生成 beta/debug 版本。
+4. 测试通过后合并到 `release`。
+5. 在 `changeBattleV2-release` 工作区重新 release stable 正式版。
+
+新功能不能直接在 `release` 分支开发；`release` 只能接收已经验证过的提交。
 
 ### Beta Test Release
 
