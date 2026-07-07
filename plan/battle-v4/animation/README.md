@@ -2,8 +2,6 @@
 
 | 文档 | 状态 | 说明 |
 | --- | --- | --- |
-| [battle-v4-showdown-animation-adapter-plan.md](battle-v4-showdown-animation-adapter-plan.md) | 已完成 | 第一阶段 adapter 设计记录。当前保留为历史设计和边界说明。 |
-| [battle-v4-showdown-animation-checklist.md](battle-v4-showdown-animation-checklist.md) | 已完成 | 第一阶段全量 key registry、fallback/preset 可播放与基础 diagnostics 已完成。 |
 | [battle-v4-showdown-animation-deep-sync-plan.md](battle-v4-showdown-animation-deep-sync-plan.md) | 下一步 | Showdown 动画保真度同步计划。下一步在这里承接完整战斗流程动画。 |
 | [battle-v4-showdown-animation-deep-sync-checklist.md](battle-v4-showdown-animation-deep-sync-checklist.md) | 下一步 | deep sync 执行清单当前无未勾选项；训练家入场/台词和胜负演出任务需要追加到这里。 |
 

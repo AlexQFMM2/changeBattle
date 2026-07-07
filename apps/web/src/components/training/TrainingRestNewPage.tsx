@@ -100,7 +100,7 @@ export type TrainingRestNewPageProps = {
 };
 
 const PENDING_SETTLEMENT_CAPTURE_ACTIONS = [
-  {label: "收服", iconText: "捕", disabled: false},
+  {label: "结伴", iconText: "伴", disabled: false},
   {label: "商店", iconSrc: "aboutIcon/shop.png", disabled: false},
 ];
 
@@ -286,11 +286,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   function selectAction(action: string) {
     setActiveAction(action);
-    if (action === "收服") {
+    if (action === "结伴") {
       setRestScene("center");
       closeFloatingPanels();
-      setMessage("收服功能开发中。");
-      showNotice("收服功能开发中。");
+      setMessage("结伴功能开发中。");
+      showNotice("结伴功能开发中。");
       return;
     }
     if (action === "去结算") {

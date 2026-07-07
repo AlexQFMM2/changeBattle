@@ -27,7 +27,7 @@ request 只更新 command state，不进入动画队列
 
 配套清单见：
 
-- `changeBattleV2/plan/battle-v4/animation/battle-v4-showdown-animation-checklist.md`
+- [`battle-v4-showdown-animation-checklist.md`](battle-v4-showdown-animation-checklist.md)
 
 ## Source Map
 

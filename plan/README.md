@@ -13,21 +13,19 @@
 
 | 目录 | 状态 | 内容 |
 | --- | --- | --- |
-| [formal-game](formal-game/README.md) | 部分完成 | 正式游戏主流程、对局偏好、星图、7 场计划、休整、结算、设施规则 |
+| [formal-game](formal-game/README.md) | 当前主线 | 正式游戏稳定化、最终休整、灵魂伴侣下版本计划 |
 | [battle-v4](battle-v4/README.md) | 部分完成 | Battle V4 架构、投降、AI、队伍生成、Showdown 播放与动画 |
-| [items-and-bag](items-and-bag/README.md) | 已完成/收口 | 系统战斗道具、背包实例、休整页道具、战斗背包 |
-| [dex-resources](dex-resources/README.md) | 已完成 | V1 道具/图标资源迁移、QuickDex 道具扩展 |
 | [references](references/README.md) | 参考资料 | UI 参考图和设计拆解素材 |
+| [archive](archive/) | 历史归档 | 已完成或明显落后的施工计划，保留用于查历史设计 |
 
 ## 当前最常用入口
 
-- 正式游戏整体：[`formal-game/formal-game-v4-plan.md`](formal-game/formal-game-v4-plan.md)
-- 正式游戏进度：[`formal-game/formal-game-v4-checklist.md`](formal-game/formal-game-v4-checklist.md)
+- 正式游戏当前主线：[`formal-game/README.md`](formal-game/README.md)
+- 灵魂伴侣下版本：[`formal-game/formal-soulmate-next-version-plan.md`](formal-game/formal-soulmate-next-version-plan.md)
 - 战斗页投降与演出：[`battle-v4/battle-v4-surrender-and-narrative-flow-plan.md`](battle-v4/battle-v4-surrender-and-narrative-flow-plan.md)
 - Battle V4 架构：[`battle-v4/architecture/battle-v4-architecture-plan.md`](battle-v4/architecture/battle-v4-architecture-plan.md)
 - Battle V4 动画完善：[`battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md)
 - NPC/队伍生成：[`battle-v4/team-generation/battle-v4-team-generator-plan.md`](battle-v4/team-generation/battle-v4-team-generator-plan.md)
-- 战斗 AI：[`battle-v4/ai/battle-v4-ai-decision-plan.md`](battle-v4/ai/battle-v4-ai-decision-plan.md)
 
 ## 当前进度
 
@@ -41,6 +39,6 @@
 
 ## 下一步
 
-- 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并在稳定后再评估交换、招募等功能扩展。
+- 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并围绕胜利后最终休整页推进“结伴/灵魂伴侣”功能。
 - Battle V4 演出仍按 [`battle-v4/battle-v4-surrender-and-narrative-flow-plan.md`](battle-v4/battle-v4-surrender-and-narrative-flow-plan.md) 推进。
 - 播放/动画技术路线继续指向 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md) 和 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md)。

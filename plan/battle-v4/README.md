@@ -1,11 +1,10 @@
 # Battle V4 Plans
 
-Battle V4 相关文档集中在这里。子目录按内核架构、AI、队伍生成和动画播放拆开。
+Battle V4 相关文档集中在这里。当前目录只保留仍会指导下一步开发的架构参考、队伍生成和动画播放计划；AI 决策器主体计划已归档。
 
 | 文档/目录 | 状态 | 说明 |
 | --- | --- | --- |
 | [architecture](architecture/README.md) | 部分完成 | Showdown protocol runtime、choice 指令、client 参考和战斗页架构。 |
-| [ai](ai/README.md) | 已完成/调参中 | AI 决策器主体完成，剩余 fixture 与调参文档。 |
 | [team-generation](team-generation/README.md) | 部分完成 | Showdown 随机队伍、正式随机池、NPC/Boss 队伍生成规则。 |
 | [animation](animation/README.md) | 下一步 | Showdown 动画 adapter、deep sync 清单与播放保真度迭代；下一步接完整战斗流程动画。 |
 | [battle-v4-surrender-and-narrative-flow-plan.md](battle-v4-surrender-and-narrative-flow-plan.md) | 下一步 | 投降框组件化已落地；下一步接训练家立绘进场与台词。 |
