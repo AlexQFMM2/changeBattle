@@ -27,9 +27,19 @@ const officialSiteUrl = withTrailingSlash(options.officialSiteUrl || process.env
 const downloadPageUrl = officialSiteUrl;
 const downloadPageTemplatePath = options.template || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_TEMPLATE || path.join(rootDir, "tools", "release", "download-page-template.html");
 const downloadPageImageDir = process.env.CHANGEBATTLE_DOWNLOAD_PAGE_IMAGE_DIR || path.join(rootDir, "tools", "release", "download-page-images");
-const mirrors = options.mirrors.length ? options.mirrors : parseMirrors(process.env.CHANGEBATTLE_RELEASE_MIRRORS || "");
+const previousManifest = readPreviousManifest(options.previousLatestJson || process.env.CHANGEBATTLE_PREVIOUS_LATEST_JSON || path.join(changebattleReleaseDir, "latest.json"), channel);
+const envMirrors = parseMirrors(process.env.CHANGEBATTLE_RELEASE_MIRRORS || "");
+const explicitMirrors = options.mirrors.length ? options.mirrors : envMirrors;
+const mirrors = explicitMirrors.length ? explicitMirrors : previousManifest?.mirrors || [];
 const notes = options.notes.length ? options.notes : parseNotes(process.env.CHANGEBATTLE_RELEASE_NOTES || "");
-const fullPackageUrl = options.fullPackageUrl || process.env.CHANGEBATTLE_FULL_PACKAGE_URL || mirrors.find(mirror => mirror.url)?.url || "";
+const explicitFullPackageUrl = options.fullPackageUrl || process.env.CHANGEBATTLE_FULL_PACKAGE_URL || "";
+const fullPackage = buildFullPackage({
+  explicitUrl: explicitFullPackageUrl,
+  explicitMirrorUrl: explicitMirrors.find(mirror => mirror.url)?.url || "",
+  previousFullPackage: previousManifest?.fullPackage,
+  sha256,
+  zipSize,
+});
 const requiresFullPackage = options.requiresFullPackage || parseBooleanEnv(process.env.CHANGEBATTLE_REQUIRES_FULL_PACKAGE);
 
 const manifest = {
@@ -44,15 +54,7 @@ const manifest = {
   ],
   officialSiteUrl,
   downloadPageUrl,
-  ...(fullPackageUrl
-    ? {
-        fullPackage: {
-          url: fullPackageUrl,
-          ...(sha256 ? {sha256} : {}),
-          ...(zipSize !== undefined ? {size: zipSize} : {}),
-        },
-      }
-    : {}),
+  ...(fullPackage ? {fullPackage} : {}),
   fileManifestUrl: new URL(`manifests/v${version}/files.json`, officialSiteUrl).toString(),
   incrementalBaseUrl: new URL(`files/v${version}/`, officialSiteUrl).toString(),
   requiresFullPackage,
@@ -82,6 +84,7 @@ function parseArgs(argv) {
     mirrors: [],
     notes: [],
     template: "",
+    previousLatestJson: "",
     mandatory: false,
     requiresFullPackage: false,
     requiresFullPackageReason: "",
@@ -108,6 +111,8 @@ function parseArgs(argv) {
       if (note) parsed.notes.push(note);
     } else if (arg === "--template") {
       parsed.template = argv[++index] || "";
+    } else if (arg === "--previous-latest-json") {
+      parsed.previousLatestJson = argv[++index] || "";
     } else if (arg === "--mandatory") {
       parsed.mandatory = true;
     } else if (arg === "--requires-full-package") {
@@ -138,6 +143,30 @@ function parseMirror(raw) {
 
 function parseNotes(raw) {
   return raw.split(/\n/).map(note => note.trim()).filter(Boolean);
+}
+
+function readPreviousManifest(filePath, channel) {
+  if (!filePath || !existsSync(filePath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8"));
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.channel && parsed.channel !== channel) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildFullPackage(input) {
+  const url = input.explicitUrl || input.explicitMirrorUrl;
+  if (url) {
+    return {
+      url,
+      ...(input.sha256 ? {sha256: input.sha256} : {}),
+      ...(input.zipSize !== undefined ? {size: input.zipSize} : {}),
+    };
+  }
+  return input.previousFullPackage || null;
 }
 
 function sha256File(filePath) {

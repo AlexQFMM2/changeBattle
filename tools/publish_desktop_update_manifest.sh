@@ -31,6 +31,18 @@ if [[ -z "$VERSION" ]]; then
   VERSION="$(node -p "require('./package.json').version")"
 fi
 
+mkdir -p "$ROOT_DIR/release/changebattle"
+PREVIOUS_LATEST_JSON="$ROOT_DIR/release/changebattle/previous-latest-$CHANNEL.json"
+rm -f "$PREVIOUS_LATEST_JSON"
+if curl -fsSL "${OFFICIAL_SITE_URL%/}/latest.json" -o "$PREVIOUS_LATEST_JSON"; then
+  export CHANGEBATTLE_PREVIOUS_LATEST_JSON="$PREVIOUS_LATEST_JSON"
+  echo "Fetched previous latest.json for $CHANNEL link inheritance."
+else
+  rm -f "$PREVIOUS_LATEST_JSON"
+  unset CHANGEBATTLE_PREVIOUS_LATEST_JSON
+  echo "Previous latest.json unavailable; download mirrors must be supplied explicitly if needed."
+fi
+
 node tools/generate_desktop_update_manifest.mjs "$VERSION" --channel "$CHANNEL" --official-site-url "$OFFICIAL_SITE_URL"
 
 LOCAL_DIR="$ROOT_DIR/release/changebattle"

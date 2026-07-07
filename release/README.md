@@ -101,6 +101,14 @@ git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
 
 发布脚本会上传 `latest.json`、`index.html`、`image/`、`manifests/` 和 `files/`，但不会上传约 600 MiB 的 zip。完整包需要手动上传到百度网盘、GitHub Release 或其它镜像，再把链接写进 `CHANGEBATTLE_RELEASE_MIRRORS`。
 
+下载链接继承规则：
+
+- 发布脚本生成新 `latest.json/index.html` 前，会先读取当前通道线上旧版 `latest.json`。
+- 如果本次没有显式设置 `CHANGEBATTLE_RELEASE_MIRRORS`、`CHANGEBATTLE_FULL_PACKAGE_URL` 或 `--mirror/--full-package-url`，则继承旧版 `mirrors` 和 `fullPackage`。
+- 如果本次显式设置了新镜像，则以新镜像为准，并用本次 zip 计算新的 `sha256/size`。
+- 常规增量修复可以不重新上传 600 MiB 完整包，下载页继续展示上一版可用完整包链接。
+- 如果本次必须玩家下载完整包，例如 runtime、launcher、updater、目录结构变化，必须上传新完整包并显式设置镜像链接，不能依赖继承旧链接。
+
 ## Incremental Update
 
 桌面端更新流程：
@@ -333,6 +341,15 @@ CHANGEBATTLE_RELEASE_CHANNEL=stable node tools/generate_desktop_update_manifest.
 只发布入口文件和现有增量目录：
 
 ```bash
+CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.4
+```
+
+如果只是代码/资源增量修复，没有重新上传完整包，可以不设置 `CHANGEBATTLE_RELEASE_MIRRORS`。发布脚本会继承当前线上 `latest.json` 中已有的下载镜像，避免下载页被清空。
+
+如果已经上传了新的完整包，必须显式设置新链接：
+
+```bash
+export CHANGEBATTLE_RELEASE_MIRRORS=$'百度网盘=https://pan.baidu.com/s/xxx?pwd=xxxx'
 CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0.1.4
 ```
 
