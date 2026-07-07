@@ -40,6 +40,7 @@ import {
   ROUND_DISTRIBUTIONS,
   STARTER_MAX_LEGENDARY_CANDIDATES,
   STARTER_ROLE_PLAN,
+  appendCoinLogEntryV4 as appendCoreCoinLogEntryV4,
   formalAdvancePowerProfileV4,
   formalAttackStyleFromCountsV4,
   formalCombinePlayerProfilesV4,
@@ -71,6 +72,7 @@ import {
   formalTrainingGroundStableSelfStudyGainRuleV4,
   isFormalRandomGeneratableSpeciesV4,
   isFormalStarterAllowedRankV4,
+  summarizeCoinLogV4,
   type CoopPartnerPreferenceV4,
   type FormalTrainingGroundLessonKindV4,
   type FormalTrainingGroundLessonSourceV4,
@@ -990,8 +992,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       source: entry.source || "formal",
       label: entry.label || "金币变动",
     };
-    const existingKeys = new Set((restRunSnapshot.coinLog || []).map(item => item.key));
-    const coinLog = existingKeys.has(logEntry.key) ? restRunSnapshot.coinLog || [] : [...(restRunSnapshot.coinLog || []), logEntry];
+    const coinLog = appendCoreCoinLogEntryV4(restRunSnapshot.coinLog || [], logEntry);
     return normalizeFormalRun({
       ...normalized,
       money: balanceAfter,
@@ -1911,9 +1912,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const totalRounds = Math.max(1, restRunSnapshot?.gameMap.length || formalRoundCountForRun(normalized));
     const completedAll = Boolean(restRunSnapshot?.gameMap.length && wonRounds >= restRunSnapshot.gameMap.length);
     const outcome = reason === "abandon" ? "abandoned" : completedAll ? "win" : "loss";
-    const coinLog = restRunSnapshot?.coinLog || [];
-    const income = coinLog.filter(entry => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0);
-    const expense = coinLog.filter(entry => entry.amount < 0).reduce((sum, entry) => sum + Math.abs(entry.amount), 0);
+    const coinSummary = summarizeCoinLogV4(restRunSnapshot?.coinLog || []);
     const pokemonStats = buildSettlementPokemonStats(normalized, safePokemon);
     const mvp = pokemonStats[0] || null;
     const baseBpGained = calculateSettlementBp(normalized);
@@ -1928,9 +1927,9 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       wonRounds,
       totalRounds,
       coinSummary: {
-        income,
-        expense,
-        net: income - expense,
+        income: coinSummary.income,
+        expense: coinSummary.expense,
+        net: coinSummary.net,
         balance: normalized.money,
       },
       pokemonStats,
@@ -4402,8 +4401,7 @@ function appendShopCoinLogFast(run: FormalGameRunV4, entry: FormalCoinLogInputV4
     source: entry.source || "formal",
     label: entry.label || "金币变动",
   };
-  const existingKeys = new Set((restRunSnapshot.coinLog || []).map(item => item.key));
-  const coinLog = existingKeys.has(logEntry.key) ? restRunSnapshot.coinLog || [] : [...(restRunSnapshot.coinLog || []), logEntry];
+  const coinLog = appendCoreCoinLogEntryV4(restRunSnapshot.coinLog || [], logEntry);
   return {
     ...run,
     money: balanceAfter,

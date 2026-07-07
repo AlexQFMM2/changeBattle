@@ -1,5 +1,6 @@
 export * from "./bagState.js";
 export * from "./battlePreference.js";
+export * from "./coinLog.js";
 export * from "./desktopUpdateCatalog.js";
 export * from "./formalGameCatalog.js";
 export * from "./formalMoveGenerationRules.js";

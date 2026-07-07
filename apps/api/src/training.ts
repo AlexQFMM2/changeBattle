@@ -15,6 +15,7 @@ import {
   getNextTrainingNodeV4,
   getPokemonDisplayNameV4,
   getPokemonIdentityKeyV4,
+  normalizeCoinLogV4,
   normalizeBagStateV4 as normalizeCoreBagStateV4,
   normalizeBattlePreferenceV4,
   normalizeFormalCompetitionModeV4,
@@ -64,6 +65,7 @@ export {
   getNextTrainingNodeV4,
   getPokemonDisplayNameV4,
   getPokemonIdentityKeyV4,
+  normalizeCoinLogV4,
   normalizeCoreBagStateV4 as normalizeBagStateV4,
   normalizeBattlePreferenceV4,
   normalizeFormalCompetitionModeV4,
@@ -399,7 +401,7 @@ export function createTrainingRunApi(dex: ShowdownDexService, storage: TrainingR
       battlePreference: {...battlePreference, ruleSet: scenario.ruleSet, enabledBattleSystems: battleSystemsForRuleSetV4(scenario.ruleSet)},
       competitionMode: normalizeFormalCompetitionModeV4(run.competitionMode || battlePreference.competitionMode),
       restPreviewUnlocks: normalizeRestPreviewUnlocks(run.restPreviewUnlocks),
-      coinLog: normalizeCoinLog(run.coinLog),
+      coinLog: normalizeCoinLogV4(run.coinLog),
       battleLog: normalizeBattleLog(run.battleLog),
     };
   }
@@ -932,32 +934,6 @@ function normalizeBattleCount(value: unknown): number {
 function normalizeRestPreviewUnlocks(value: unknown): Record<string, true> {
   if (!isRecord(value)) return {};
   return Object.fromEntries(Object.entries(value).filter(([, unlocked]) => unlocked).map(([key]) => [key, true])) as Record<string, true>;
-}
-
-function normalizeCoinLog(value: unknown): TrainingCoinLogEntryV4[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((entry, index) => {
-    if (!isRecord(entry)) return [];
-    const amount = Math.round(Number(entry.amount || 0));
-    const balanceBefore = Math.round(Number(entry.balanceBefore || 0));
-    const balanceAfter = Math.round(Number(entry.balanceAfter ?? balanceBefore + amount));
-    const kind = entry.kind === "income" || entry.kind === "expense" || entry.kind === "adjustment"
-      ? entry.kind
-      : amount < 0 ? "expense" : amount > 0 ? "income" : "adjustment";
-    const key = String(entry.key || entry.id || `coin-${index}`).trim();
-    return [{
-      id: String(entry.id || key || createId("coin-log")),
-      key: key || createId("coin-log-key"),
-      at: String(entry.at || new Date().toISOString()),
-      roundIndex: clampInt(entry.roundIndex, 0, 999, 0),
-      kind,
-      amount,
-      balanceBefore,
-      balanceAfter,
-      source: String(entry.source || "unknown"),
-      label: String(entry.label || "金币变动"),
-    }];
-  });
 }
 
 function normalizeBattleLog(value: unknown): TrainingBattleLogEntryV4[] {

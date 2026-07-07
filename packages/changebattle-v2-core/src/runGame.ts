@@ -1,5 +1,6 @@
 import type {BattlePreferenceV4, FormalCompetitionModeV4, TrainingModeV4, TrainingRuleSetV4} from "./battlePreference.js";
 import type {BagStateV4} from "./bagState.js";
+import type {TrainingCoinLogEntryV4} from "./coinLog.js";
 import type {LocalTeamV4} from "./pokemonInstance.js";
 
 export type ShowdownPlayerIdV4 = "p1" | "p2" | "p3" | "p4";
@@ -30,19 +31,6 @@ export type TrainingRunGameV4 = {
   restPreviewUnlocks?: Record<string, true>;
   coinLog?: TrainingCoinLogEntryV4[];
   battleLog?: TrainingBattleLogEntryV4[];
-};
-
-export type TrainingCoinLogEntryV4 = {
-  id: string;
-  key: string;
-  at: string;
-  roundIndex: number;
-  kind: "income" | "expense" | "adjustment";
-  amount: number;
-  balanceBefore: number;
-  balanceAfter: number;
-  source: string;
-  label: string;
 };
 
 export type TrainingBattleLogEntryV4 = {
