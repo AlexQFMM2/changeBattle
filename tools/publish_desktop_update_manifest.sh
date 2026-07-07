@@ -6,6 +6,7 @@ VERSION="${1:-}"
 UPDATE_HOST="${CHANGEBATTLE_UPDATE_HOST:-ubuntu@119.45.240.157}"
 UPDATE_WEB_ROOT="${CHANGEBATTLE_UPDATE_WEB_ROOT:-/home/ubuntu/webApp/changebattle}"
 REMOTE_TMP_DIR="${CHANGEBATTLE_UPDATE_REMOTE_TMP_DIR:-/tmp/changebattle-update-manifest}"
+OFFICIAL_SITE_URL="${CHANGEBATTLE_OFFICIAL_SITE_URL:-http://119.45.240.157/changebattle/}"
 
 cd "$ROOT_DIR"
 
@@ -13,7 +14,19 @@ if [[ -z "$VERSION" ]]; then
   VERSION="$(node -p "require('./package.json').version")"
 fi
 
-node tools/generate_desktop_update_manifest.mjs "$VERSION"
+mkdir -p "$ROOT_DIR/release/changebattle"
+PREVIOUS_LATEST_JSON="$ROOT_DIR/release/changebattle/previous-latest-stable.json"
+rm -f "$PREVIOUS_LATEST_JSON"
+if curl -fsSL "${OFFICIAL_SITE_URL%/}/latest.json" -o "$PREVIOUS_LATEST_JSON"; then
+  export CHANGEBATTLE_PREVIOUS_LATEST_JSON="$PREVIOUS_LATEST_JSON"
+  echo "Fetched previous latest.json for stable link inheritance."
+else
+  rm -f "$PREVIOUS_LATEST_JSON"
+  unset CHANGEBATTLE_PREVIOUS_LATEST_JSON
+  echo "Previous latest.json unavailable; download mirrors must be supplied explicitly if needed."
+fi
+
+node tools/generate_desktop_update_manifest.mjs "$VERSION" --channel stable --official-site-url "$OFFICIAL_SITE_URL"
 
 LOCAL_DIR="$ROOT_DIR/release/changebattle"
 if [[ ! -f "$LOCAL_DIR/latest.json" || ! -f "$LOCAL_DIR/index.html" ]]; then
