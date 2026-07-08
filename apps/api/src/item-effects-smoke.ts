@@ -1,5 +1,6 @@
 import {strict as assert} from "node:assert";
 import type {DexMoveSummary, DexPokemonDetail} from "@changebattle-v2/showdown-dex-core";
+import {releasePlayerVaultPokemonV4} from "@changebattle-v2/core";
 import {createBattleCommandDraftV4, normalizeBattleRequestV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4} from "./battle.js";
 import {applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultNumericItemUseV4, tmUseFailureReasonV4, unequipPlayerVaultHeldItemV4} from "./itemEffects.js";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4} from "./training.js";
@@ -225,6 +226,7 @@ assert.equal(illegalTmVaultView.ok, true);
 if (illegalTmVaultView.ok) {
   assert.deepEqual(illegalTmVaultView.moves, []);
   assert.match(illegalTmVaultView.unavailableReason || "", /无法通过技能机器/);
+  assert.equal(illegalTmVaultView.unavailableMove?.id, "earthquake");
 }
 const illegalTmVaultResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:0:10:tm:earthquake", pokemonId: "vault-pokemon-1", moveId: "earthquake", moveSlot: 0});
 assert.equal(illegalTmVaultResult.ok, false);
@@ -276,6 +278,40 @@ if (heldResult.ok) {
 const unequipEmptyResult = unequipPlayerVaultHeldItemV4(vaultDex as any, {vault, pokemonId: "vault-pokemon-1"});
 assert.equal(unequipEmptyResult.ok, false);
 assert.match(unequipEmptyResult.ok ? "" : unequipEmptyResult.reason, /没有携带道具/);
+const releasePlainResult = releasePlayerVaultPokemonV4(vault, "vault-pokemon-1");
+assert.equal(releasePlainResult.ok, true);
+if (releasePlainResult.ok) {
+  assert.equal(releasePlainResult.vault.pokemon.some(entry => entry.playerPokemonId === "vault-pokemon-1"), false);
+  assert.equal(releasePlainResult.returnedHeldItemId, undefined);
+}
+const releaseHeldResult = releasePlayerVaultPokemonV4({
+  ...vault,
+  pokemon: [{...vault.pokemon[0]!, heldItemId: "choicescarf"}],
+}, "vault-pokemon-1");
+assert.equal(releaseHeldResult.ok, true);
+if (releaseHeldResult.ok) {
+  assert.equal(releaseHeldResult.vault.pokemon.some(entry => entry.playerPokemonId === "vault-pokemon-1"), false);
+  assert.equal(releaseHeldResult.returnedHeldItemId, "choicescarf");
+  assert.equal(releaseHeldResult.vault.items.find(entry => entry.itemId === "choicescarf")?.quantity, 1);
+}
+const fullItems = Array.from({length: 48}, (_, index) => ({
+  itemId: `fullitem${index}`,
+  quantity: 1,
+  boxKind: "storage" as const,
+  storagePageIndex: Math.floor(index / 24),
+  slotIndex: index % 24,
+}));
+const releaseFullResult = releasePlayerVaultPokemonV4({
+  ...vault,
+  items: fullItems,
+  itemStoragePageCount: 2,
+  pokemon: [{...vault.pokemon[0]!, heldItemId: "choicescarf"}],
+}, "vault-pokemon-1");
+assert.equal(releaseFullResult.ok, false);
+assert.match(releaseFullResult.ok ? "" : releaseFullResult.reason, /道具箱已满/);
+assert.equal(releaseFullResult.vault.pokemon.some(entry => entry.playerPokemonId === "vault-pokemon-1"), true);
+const releaseMissingResult = releasePlayerVaultPokemonV4(vault, "missing-pokemon");
+assert.equal(releaseMissingResult.ok, false);
 const maxFriendshipResult = applyPlayerVaultFriendshipItemV4(vaultDex as any, {
   vault: {...vault, items: [{itemId: "soothebell", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 5}], pokemon: [{...vault.pokemon[0]!, friendship: 255}]},
   itemKey: "storage:0:5:soothebell",

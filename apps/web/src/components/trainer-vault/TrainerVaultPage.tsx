@@ -9,6 +9,7 @@ import {TrainerVaultDebugAddModal, type TrainerVaultDebugAddState} from "./Train
 import {VaultMoveReplaceModal, type VaultMoveReplaceMove, type VaultMoveReplaceState} from "./VaultMoveReplaceModal";
 import {VaultMoveSelectModal, type VaultMoveSelectState} from "./VaultMoveSelectModal";
 import {VaultNumericPreviewModal, type VaultNumericPreviewModalState} from "./VaultNumericPreviewModal";
+import {VaultUseNotice, type VaultUseNoticeState, type VaultUseNoticeTone} from "./VaultUseNotice";
 import "./TrainerVaultPage.css";
 
 type TrainerVaultTab = "bag" | "pokemon";
@@ -69,6 +70,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   const [numericPreview, setNumericPreview] = useState<VaultNumericPreviewState | null>(null);
   const [activeUseItem, setActiveUseItem] = useState<VaultActiveUseItem | null>(null);
   const [debugAdd, setDebugAdd] = useState<TrainerVaultDebugAddState | null>(null);
+  const [useNotice, setUseNotice] = useState<VaultUseNoticeState | null>(null);
   const unlockedStoragePageCount = api.playerVaultUnlockedStoragePageCountV4(playerVault, tab === "bag" ? "item" : "pokemon");
   const hasPrepPage = tab === "pokemon";
   const totalPageCount = (hasPrepPage ? 1 : 0) + unlockedStoragePageCount + 1;
@@ -112,6 +114,10 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     onPlayerVaultChange(api.normalizePlayerVault(nextVault));
     onPlayerVaultDirtyChange(true);
     setVaultMessage(message);
+  }
+
+  function showUseNotice(message: string, tone: VaultUseNoticeTone = "danger") {
+    setUseNotice({id: Date.now(), message, tone});
   }
 
   function openDebugAdd() {
@@ -297,7 +303,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   function startUsingVaultItem(entry: Extract<SelectableVaultPageEntry, {kind: "item"}>) {
     const detail = safeItemDetail(api, entry.item.itemId);
     if (!detail || !isVaultUsableItemDetail(detail)) {
-      setVaultMessage("该道具当前不能在仓库中使用。");
+      showUseNotice("该道具当前不能在仓库中使用。");
       return;
     }
     setMovingItemKey("");
@@ -328,22 +334,23 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       moveSlot,
     });
     if (!result.ok) {
-      setVaultMessage(result.reason);
+      showUseNotice(result.reason);
       return;
     }
     setMoveSelect(null);
     setMoveReplace(null);
+    showUseNotice(result.message, "normal");
     updateVaultAfterUse(result.vault, result.message);
   }
 
   function openMoveSelectForTarget(itemKey: string, pokemon: PlayerPokemonRecordV4) {
     const view = api.getPlayerVaultMoveTeachingView(playerVault, itemKey, pokemon.playerPokemonId, "");
     if (!view.ok) {
-      setVaultMessage(view.reason);
+      showUseNotice(view.reason);
       return;
     }
     if (view.unavailableReason || !view.moves.length) {
-      setVaultMessage(view.unavailableReason || "没有可学习的技能。");
+      showUseNotice(moveTeachingUnavailableMessage(view));
       return;
     }
     setMoveReplace(null);
@@ -365,12 +372,13 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     if (!activeUseItem) return;
     if (tab !== "pokemon") return;
     if (entry.kind !== "pokemon") {
-      setVaultMessage("请选择一个宝可梦作为目标。");
+      showUseNotice("请选择一个宝可梦作为目标。");
       return;
     }
     const detail = safeItemDetail(api, activeUseItem.itemId);
     if (!detail || !isVaultUsableItemDetail(detail)) {
-      finishUseMode("该道具当前不能继续使用。");
+      showUseNotice("该道具当前不能继续使用。");
+      finishUseMode("已结束使用。");
       return;
     }
     const pokemonName = playerPokemonDisplayName(api, entry.pokemon);
@@ -378,7 +386,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     if (detail.friendshipEffect || detail.trainingEffect) {
       const preview = api.previewPlayerVaultNumericItemUse({vault: playerVault, itemKey: activeUseItem.itemKey, pokemonId: entry.pokemon.playerPokemonId});
       if (!preview.ok) {
-        setVaultMessage(preview.reason);
+        showUseNotice(preview.reason);
         return;
       }
       setNumericPreview(preview);
@@ -390,12 +398,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       return;
     }
     if (detail.kind === "evolution") {
-      setConfirmDialog({
-        title: "进化功能待完善",
-        message: "进化弹窗和动画会后续单独开放，本次不会消耗道具。",
-        confirmLabel: "知道了",
-        onConfirm: () => setVaultMessage("进化功能稍后开放。"),
-      });
+      showUseNotice("进化功能稍后开放，这个道具现在没有效果。");
       return;
     }
     if (detail.kind === "battle" || detail.kind === "held") {
@@ -423,10 +426,11 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       pokemonId: numericPreview.pokemon.playerPokemonId,
     });
     if (!result.ok) {
-      setVaultMessage(result.reason);
+      showUseNotice(result.reason);
       return;
     }
     setNumericPreview(null);
+    showUseNotice(result.message, "normal");
     updateVaultAfterUse(result.vault, result.message);
   }
 
@@ -438,9 +442,10 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       pokemonId,
     });
     if (!result.ok) {
-      setVaultMessage(result.reason);
+      showUseNotice(result.reason);
       return;
     }
+    showUseNotice(result.message, "normal");
     updateVaultAfterUse(result.vault, result.message);
   }
 
@@ -448,10 +453,36 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     if (activeUseItem) return;
     const result = api.unequipPlayerVaultHeldItem({vault: playerVault, pokemonId});
     if (!result.ok) {
-      setVaultMessage(result.reason);
+      showUseNotice(result.reason);
       return;
     }
+    showUseNotice(result.message, "normal");
     updateVaultDraft(result.vault, `${result.message} 返回主页时保存。`);
+  }
+
+  function releaseSelectedPokemon(pokemon: PlayerPokemonRecordV4) {
+    if (activeUseItem) return;
+    const pokemonName = playerPokemonDisplayName(api, pokemon);
+    setConfirmDialog({
+      title: "放生宝可梦",
+      message: `确认放生 ${pokemonName}？该操作不可撤销。${pokemon.heldItemId ? " 携带道具会尝试放回道具箱。" : ""}`,
+      confirmLabel: "放生",
+      danger: true,
+      onConfirm: () => applyReleaseSelectedPokemon(pokemon.playerPokemonId),
+    });
+  }
+
+  function applyReleaseSelectedPokemon(pokemonId: string) {
+    const result = api.releasePlayerVaultPokemon({vault: playerVault, pokemonId});
+    if (!result.ok) {
+      showUseNotice(result.reason);
+      return;
+    }
+    onPlayerVaultChange(api.normalizePlayerVault(result.vault));
+    onPlayerVaultDirtyChange(true);
+    setSelectedKey("");
+    showUseNotice(result.message, "normal");
+    setVaultMessage(`${result.message} 返回主页时保存。`);
   }
 
   function updateVaultAfterUse(nextVault: PlayerVaultV4, message: string) {
@@ -516,6 +547,14 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
         <source src={assetUrl("title/pokemon-room-bg.mp4")} type="video/mp4" />
       </video>
       <div className="trainer-vault-backdrop" aria-hidden="true" />
+      {useNotice ? (
+        <VaultUseNotice
+          key={useNotice.id}
+          message={useNotice.message}
+          tone={useNotice.tone}
+          onDone={() => setUseNotice(current => current?.id === useNotice.id ? null : current)}
+        />
+      ) : null}
       <header className="trainer-vault-header">
         <div>
           <span>训练家仓库</span>
@@ -580,6 +619,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
           }}
           onDiscard={discardSelectedItem}
           onUnequipHeldItem={unequipHeldItemFromPokemon}
+          onReleasePokemon={releaseSelectedPokemon}
         />
       </main>
       {confirmDialog ? (
@@ -673,7 +713,7 @@ function VaultGridCell({api, entry, cellView, selected, moving, movingSource, us
     : <span className={`trainer-vault-cell empty ${entry.pageKind}`} aria-hidden="true" />;
 }
 
-function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocked, count, movingItemName, saving, useModeActive, message, onStartMove, onUseItem, onCancelMove, onDiscard, onUnequipHeldItem}: {
+function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocked, count, movingItemName, saving, useModeActive, message, onStartMove, onUseItem, onCancelMove, onDiscard, onUnequipHeldItem, onReleasePokemon}: {
   api: ChangeBattleV2Api;
   tab: TrainerVaultTab;
   entry: SelectableVaultPageEntry | null;
@@ -690,6 +730,7 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
   onCancelMove: () => void;
   onDiscard: () => void;
   onUnequipHeldItem: (pokemonId: string) => void;
+  onReleasePokemon: (pokemon: PlayerPokemonRecordV4) => void;
 }) {
   const pageLabel = vaultPageLabel(tab, pageKind, storagePageIndex);
   const selectedPokemonId = entry?.kind === "pokemon" ? entry.pokemon.playerPokemonId : "";
@@ -761,8 +802,14 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
   const pokemon = entry.pokemon;
   if (!pokemonView) return null;
   return (
-    <aside className="trainer-vault-detail" aria-label="宝可梦详情">
+    <aside className="trainer-vault-detail pokemon-detail" aria-label="宝可梦详情">
       <small>{pageLabel} · {count}</small>
+      {!useModeActive ? (
+        <div className="trainer-vault-pokemon-top-actions" aria-label="宝可梦操作">
+          {pokemon.heldItemId ? <button type="button" onClick={() => onUnequipHeldItem(pokemon.playerPokemonId)} disabled={saving}>卸下道具</button> : null}
+          <button className="danger" type="button" onClick={() => onReleasePokemon(pokemon)} disabled={saving}>放生</button>
+        </div>
+      ) : null}
       <div className="trainer-vault-detail-hero pokemon">
         <ImageWithFallback src={pokemonView.spriteUrl} alt={pokemonView.title} fallback={pokemonView.title.slice(0, 1) || "?"} />
         <div>
@@ -777,11 +824,6 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
           </button>
         ))}
       </div>
-      {!useModeActive && pokemon.heldItemId ? (
-        <div className="trainer-vault-detail-actions pokemon-actions">
-          <button type="button" onClick={() => onUnequipHeldItem(pokemon.playerPokemonId)} disabled={saving}>卸下道具</button>
-        </div>
-      ) : null}
       <PokemonDetailTabPanel view={pokemonView} tab={pokemonDetailTab} />
     </aside>
   );
@@ -1012,6 +1054,13 @@ function isVaultUsableItemDetail(detail: ReturnType<typeof safeItemDetail>): boo
     detail?.kind === "battle" ||
     detail?.kind === "held",
   );
+}
+
+function moveTeachingUnavailableMessage(view: Extract<ReturnType<ChangeBattleV2Api["getPlayerVaultMoveTeachingView"]>, {ok: true}>): string {
+  const moveName = view.unavailableMove?.nameZh || view.unavailableMove?.name || "";
+  if (view.unavailableReason?.includes("已经学会") && moveName) return `${view.pokemonName} 已经学会「${moveName}」了。`;
+  if (view.unavailableReason?.includes("无法通过技能机器") && moveName) return `「${moveName}」${view.pokemonName}学不会。`;
+  return view.unavailableReason || "这只宝可梦没有可学习的技能。";
 }
 
 function playerPokemonDisplayName(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV4): string {

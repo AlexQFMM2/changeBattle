@@ -15,7 +15,7 @@ export type TmItemApplyResultV4 =
   | {ok: false; reason: string};
 
 export type PlayerVaultMoveTeachingViewResultV4 =
-  | {ok: true; item: PlayerItemRecordV4; itemName: string; pokemon: PlayerPokemonRecordV4; pokemonName: string; sourceLabel: string; oncePerPokemon: boolean; alreadyUsed: boolean; unavailableReason?: string; moves: DexMoveSummary[]}
+  | {ok: true; item: PlayerItemRecordV4; itemName: string; pokemon: PlayerPokemonRecordV4; pokemonName: string; sourceLabel: string; oncePerPokemon: boolean; alreadyUsed: boolean; unavailableReason?: string; unavailableMove?: DexMoveSummary; moves: DexMoveSummary[]}
   | {ok: false; reason: string};
 
 export type PlayerVaultMoveTeachingApplyResultV4 =
@@ -309,6 +309,7 @@ export function getPlayerVaultMoveTeachingViewV4(
       oncePerPokemon: false,
       alreadyUsed: Boolean(unavailableReason),
       unavailableReason,
+      unavailableMove: unavailableReason ? move : undefined,
       moves: unavailableReason ? [] : [move],
     };
   }

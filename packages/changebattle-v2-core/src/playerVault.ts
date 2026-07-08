@@ -58,6 +58,10 @@ export type PlayerVaultMergeResultV4 = {
   rejectedItemCount: number;
 };
 
+export type PlayerVaultPokemonReleaseResultV4 =
+  | {ok: true; vault: PlayerVaultV4; releasedPokemon: PlayerPokemonRecordV4; returnedHeldItemId?: string}
+  | {ok: false; reason: string; vault: PlayerVaultV4};
+
 export const PLAYER_VAULT_PAGE_SIZE_V4 = 24;
 
 export const DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4 = 2;
@@ -214,6 +218,30 @@ export function addPlayerVaultPokemonV4(vault: PlayerVaultV4 | undefined | null,
   const pokemonList = next.pokemon.filter(entry => entry.playerPokemonId !== record.playerPokemonId);
   pokemonList.push(record);
   return normalizePlayerVaultV4({...next, pokemon: pokemonList});
+}
+
+export function releasePlayerVaultPokemonV4(vault: PlayerVaultV4 | undefined | null, pokemonId: string): PlayerVaultPokemonReleaseResultV4 {
+  const next = normalizePlayerVaultV4(vault);
+  const releasedPokemon = next.pokemon.find(entry => entry.playerPokemonId === pokemonId);
+  if (!releasedPokemon) return {ok: false, reason: "请选择要放生的宝可梦。", vault: next};
+  let releasedVault = normalizePlayerVaultV4({
+    ...next,
+    pokemon: next.pokemon.filter(entry => entry.playerPokemonId !== pokemonId),
+  });
+  if (!releasedPokemon.heldItemId) {
+    return {ok: true, vault: releasedVault, releasedPokemon};
+  }
+  const returned = addPlayerVaultItemV4(releasedVault, {itemId: releasedPokemon.heldItemId, quantity: 1, boxKind: "storage"});
+  if (returned.rejectedItemCount > 0) {
+    return {ok: false, reason: "道具箱已满，无法放回携带道具。请先卸下或整理道具。", vault: next};
+  }
+  releasedVault = returned.vault;
+  return {
+    ok: true,
+    vault: releasedVault,
+    releasedPokemon,
+    returnedHeldItemId: releasedPokemon.heldItemId,
+  };
 }
 
 export function firstOpenPlayerVaultStorageSlotV4(items: PlayerItemRecordV4[], storagePageCount: number): {storagePageIndex: number; slotIndex: number} | null {

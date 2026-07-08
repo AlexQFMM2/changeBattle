@@ -14,6 +14,7 @@ import {
   normalizeUserProfileV2,
   playerVaultStorageCapacityV4,
   playerVaultUnlockedStoragePageCountV4,
+  releasePlayerVaultPokemonV4,
   createSoulmateCandidateListV4,
   formalShopSlotsForCategoryV4,
   FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY,
@@ -21,6 +22,7 @@ import {
   type PlayerPokemonMoveRecordV4,
   type PlayerPokemonRecordV4,
   type PlayerVaultMergeResultV4,
+  type PlayerVaultPokemonReleaseResultV4,
   type PlayerVaultV4,
   type RestCenterActionEntryV4,
   type SoulmateCandidateV4,
@@ -67,7 +69,7 @@ export {
 export type {NatureEffectV4} from "@changebattle-v2/core";
 export {showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
 export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
-export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
+export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultPokemonReleaseResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
 export type {FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4};
 export type {DebugPlayerVaultItemAddResultV4, DebugPlayerVaultPokemonAddResultV4} from "./debugVault.js";
 export * from "./itemEffects.js";
@@ -128,6 +130,9 @@ export type PlayerVaultNumericPreviewResultV4 = PlayerVaultNumericItemPreviewRes
 export type PlayerVaultNumericApplyResultV4 = PlayerVaultNumericItemApplyResultV4;
 export type PlayerVaultHeldApplyResultV4 = PlayerVaultHeldItemApplyResultV4;
 export type PlayerVaultHeldUnequipResultV4 = PlayerVaultHeldItemUnequipResultV4;
+export type PlayerVaultPokemonReleaseViewResultV4 =
+  | {ok: true; vault: PlayerVaultV4; releasedPokemon: PlayerPokemonRecordV4; message: string; returnedHeldItemId?: string}
+  | {ok: false; reason: string; vault: PlayerVaultV4};
 
 export type UserProfileStorageAdapter = {
   loadUserProfile(): Promise<UserProfileV2 | null>;
@@ -350,6 +355,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     applyPlayerVaultFriendshipItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => applyPlayerVaultFriendshipItemV4(dex, input),
     applyPlayerVaultHeldItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => applyPlayerVaultHeldItemV4(dex, input),
     unequipPlayerVaultHeldItem: (input: {vault: PlayerVaultV4; pokemonId: string}) => unequipPlayerVaultHeldItemV4(dex, input),
+    releasePlayerVaultPokemon: (input: {vault: PlayerVaultV4; pokemonId: string}) => releasePlayerVaultPokemon(dex, input),
     addDebugPlayerVaultItem: (vault: PlayerVaultV4, itemId: string, quantity = 1) => addDebugPlayerVaultItemV4(dex, vault, itemId, quantity),
     addDebugPlayerVaultPokemon: (vault: PlayerVaultV4, speciesId: string) => addDebugPlayerVaultPokemonV4(dex, vault, speciesId),
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
@@ -693,6 +699,21 @@ export function createPlayerVaultPokemonDetailView(dex: ReturnType<typeof create
     stats,
     moves,
     evolutions,
+  };
+}
+
+export function releasePlayerVaultPokemon(
+  dex: ReturnType<typeof createShowdownDexService>,
+  input: {vault: PlayerVaultV4 | undefined | null; pokemonId: string},
+): PlayerVaultPokemonReleaseViewResultV4 {
+  const result = releasePlayerVaultPokemonV4(input.vault, input.pokemonId);
+  if (!result.ok) return result;
+  const pokemonName = createPlayerVaultPokemonDetailView(dex, result.releasedPokemon).title;
+  return {
+    ...result,
+    message: result.returnedHeldItemId
+      ? `已放生 ${pokemonName}。携带道具已放回道具箱。`
+      : `已放生 ${pokemonName}。`,
   };
 }
 
