@@ -17,6 +17,7 @@ import {
   FORMAL_SHOP_ITEM_POOL,
   formalTrainingGroundLessonTableV4,
   soulmateEvolutionFriendshipRequirementV4,
+  createPlayerVaultEggPokemonRecordV4,
 } from "./index.js";
 
 assert.equal(formalRoundStageLabelV4(0), "小组赛揭幕战");
@@ -53,6 +54,47 @@ assert.deepEqual(formalShopItemPoolForCategoryV4("recovery", true), []);
 assert.deepEqual(formalShopItemPoolForCategoryV4("berry", true), []);
 assert.equal(formalShopItemPoolForCategoryV4("training", true), FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL);
 assert.equal(formalShopItemPoolForCategoryV4("training", false), FORMAL_SHOP_ITEM_POOL.training);
+
+const eggPokemon = createPlayerVaultEggPokemonRecordV4({
+  dex: {
+    getPokemonDetail: id => ({id, abilities: [{id: "blaze"}]}),
+    getPokemonEvolutionRoot: id => id === "charizard" ? {id: "charmander"} : {id},
+    getPokemonSelfLearnSkills: id => id === "charmander" ? [{id: "scratch", pp: 35}, {id: "growl", pp: 40}] : [],
+    getMoveDetail: id => ({id, pp: id === "scratch" ? 35 : 40}),
+  },
+  speciesId: "charizard",
+  originKind: "debug-custom",
+  seed: "debug-charizard",
+});
+assert.equal(eggPokemon?.speciesId, "charmander");
+assert.equal(eggPokemon?.originKind, "debug-custom");
+assert.equal(eggPokemon?.level, 50);
+assert.equal(eggPokemon?.nature, "Hardy");
+assert.equal(eggPokemon?.gender, "N");
+assert.equal(eggPokemon?.abilityId, "blaze");
+assert.deepEqual(eggPokemon?.evs, {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0});
+assert.deepEqual(eggPokemon?.ivs, {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31});
+assert.deepEqual(eggPokemon?.moves.map(move => move.moveId), ["scratch", "growl"]);
+
+const fallbackEggPokemon = createPlayerVaultEggPokemonRecordV4({
+  dex: {
+    getPokemonDetail: id => ({id, abilities: [{id: "torrent"}]}),
+    getPokemonSelfLearnSkills: () => [],
+    getMoveDetail: id => ({id, pp: 10}),
+  },
+  speciesId: "squirtle",
+  originKind: "soulmate",
+  seed: "fallback-squirtle",
+  inherited: {
+    gender: "F",
+    nature: "Modest",
+    fallbackMoveIds: ["watergun"],
+  },
+});
+assert.equal(fallbackEggPokemon?.originKind, "soulmate");
+assert.equal(fallbackEggPokemon?.gender, "F");
+assert.equal(fallbackEggPokemon?.nature, "Modest");
+assert.deepEqual(fallbackEggPokemon?.moves.map(move => move.moveId), ["watergun"]);
 
 const lessons = formalTrainingGroundLessonTableV4();
 assert.equal(lessons.length, 4);

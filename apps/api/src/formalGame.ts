@@ -80,10 +80,10 @@ import {
   normalizeFormalGameSettlementV4,
   normalizeFormalRoundSettlementV4,
   normalizeFormalSettlementReasonV4,
-  normalizePlayerPokemonRecordV4,
   normalizePlayerVaultV4,
   playerVaultStorageCapacityV4,
   addPlayerVaultPokemonV4,
+  createPlayerVaultEggPokemonRecordV4,
   createSoulmateCandidateListV4,
   summarizeBattleLogByPokemonV4,
   summarizeCoinLogV4,
@@ -2782,35 +2782,25 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     });
     const candidate = candidates.find(entry => entry.candidateId === candidateId || entry.localPokemonId === candidateId || entry.pokemonKey === candidateId) || null;
     if (!candidate) return {ok: false, message: "请选择本局有同行记录的宝可梦。"};
-    const rootSpeciesId = formalSoulmateRootSpeciesId(candidate.speciesId);
-    const detail = safePokemon(rootSpeciesId || candidate.speciesId);
-    const rngSeed = `${run.id}:${candidate.candidateId}:${candidate.localPokemonId}:soulmate-egg`;
-    const rng = createRng(rngSeed);
-    const shiny = rng() < soulmateShinyRateForStarChartV4(run.starChartSnapshot);
-    const moveIds = safePokemonMovePool(() => dex.getPokemonSelfLearnSkills(detail.id)).map(move => move.id);
     const fallbackMoveIds = candidate.pokemon.moves.map(move => move.moveId).filter(Boolean);
-    const moves = normalizeMoves(dex, moveIds.length ? moveIds : fallbackMoveIds, 4).map(move => ({moveId: move.moveId, remainingPp: move.remainingPp, maxPp: move.maxPp}));
-    const ability = detail.abilities[0];
     const nickname = normalizeNickname(options.nickname);
-    const pokemon = normalizePlayerPokemonRecordV4({
-      playerPokemonId: `soulmate-${hashStableText(`${run.id}:${candidate.localPokemonId}:${candidate.pokemonKey}`)}`,
-      speciesId: detail.id,
+    const pokemon = createPlayerVaultEggPokemonRecordV4({
+      dex,
+      speciesId: candidate.speciesId,
+      seed: `${run.id}:${candidate.localPokemonId}:${candidate.pokemonKey}`,
       nickname,
       level: 50,
       originKind: "soulmate",
-      rootSpeciesId: detail.id,
       sourceRunId: run.id,
       sourcePokemonKey: candidate.pokemonKey,
-      gender: candidate.pokemon.gender,
-      nature: candidate.pokemon.nature,
-      abilityId: ability?.id || candidate.pokemon.abilityId || "",
-      evs: normalizeZeroStats(),
-      ivs: candidate.pokemon.ivs,
-      moves,
       friendship: soulmateBaseFriendshipForStarChartV4(run.starChartSnapshot),
-      shiny,
-      metAt: new Date().toISOString(),
-      honors: ["灵魂伴侣"],
+      shinyRate: soulmateShinyRateForStarChartV4(run.starChartSnapshot),
+      inherited: {
+        gender: candidate.pokemon.gender,
+        nature: candidate.pokemon.nature,
+        ivs: candidate.pokemon.ivs,
+        fallbackMoveIds,
+      },
     });
     if (!pokemon) return {ok: false, message: "宝可梦蛋孵化失败。"};
     return {ok: true, candidate, pokemon, display: displayForSoulmatePokemon(pokemon)};
@@ -2835,15 +2825,6 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       }
     }
     return null;
-  }
-
-  function formalSoulmateRootSpeciesId(speciesId: string): string {
-    try {
-      const root = dex.getPokemonEvolutionRoot(speciesId);
-      return typeof root === "string" ? root || speciesId : root?.id || speciesId;
-    } catch {
-      return speciesId;
-    }
   }
 
   function displayForSoulmatePokemon(pokemon: PlayerPokemonRecordV4): FormalSoulmateEggPokemonDisplayV4 {
@@ -5563,19 +5544,6 @@ function normalizeNickname(value: unknown): string | undefined {
 
 function normalizeSoulmateCandidateKey(value: unknown): string {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5:]+/g, "");
-}
-
-function normalizeZeroStats(): StatTableV4 {
-  return {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
-}
-
-function hashStableText(seed: string): string {
-  let hash = 2166136261;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36).padStart(7, "0");
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {

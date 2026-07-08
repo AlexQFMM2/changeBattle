@@ -48,6 +48,7 @@ import {
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopRestockContextV4} from "./formalGame.js";
+import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
   COMPULSORY_EDUCATION_NODE_ID,
@@ -139,6 +140,9 @@ function mockEvolutionEdges(speciesId: string) {
 }
 
 const mockDex = {
+  toDexId(value: unknown) {
+    return toTestId(value);
+  },
   searchDex(request: DexSearchRequest = {}): DexSearchResult {
     const offset = Number(request.offset || 0);
     const limit = Number(request.limit || 20);
@@ -764,6 +768,20 @@ const fullVault = normalizePlayerVaultV4({pokemonStoragePageCount: 1, pokemon: A
 }))});
 const soulmateFullClaim = api.claimFormalSoulmateEgg(soulmatePendingRun, fullVault, "soulmate-candidate-formal-p1-1-charizard");
 assert(!soulmateFullClaim.ok && !soulmateFullClaim.run.soulmateEggClaimedAt, "soulmate claim should fail without marking run when vault is full");
+const debugItemAdd = addDebugPlayerVaultItemV4(mockDex as any, normalizePlayerVaultV4(), "potion", 3);
+assert(debugItemAdd.ok, `debug item add should succeed: ${debugItemAdd.ok ? debugItemAdd.message : debugItemAdd.reason}`);
+if (debugItemAdd.ok) {
+  assert(debugItemAdd.vault.items[0]?.sourceKind === "debug", "debug item should mark source kind");
+  assert(debugItemAdd.vault.items[0]?.quantity === 3, "debug item should keep requested quantity");
+}
+const debugPokemonAdd = addDebugPlayerVaultPokemonV4(mockDex as any, normalizePlayerVaultV4(), "charizard");
+assert(debugPokemonAdd.ok, `debug pokemon add should succeed: ${debugPokemonAdd.ok ? debugPokemonAdd.message : debugPokemonAdd.reason}`);
+if (debugPokemonAdd.ok) {
+  assert(debugPokemonAdd.pokemon.originKind === "debug-custom", "debug pokemon should mark origin kind");
+  assert(debugPokemonAdd.pokemon.speciesId === "charmander", "debug pokemon should use egg root species");
+}
+const debugPokemonFullAdd = addDebugPlayerVaultPokemonV4(mockDex as any, fullVault, "pikachu");
+assert(!debugPokemonFullAdd.ok, "debug pokemon add should fail when vault is full");
 starProfile = {...starProfile, battlePoints: 100};
 starProfile = unlockStarChartNodeForProfileV4(starProfile, OPPONENT_RUMOR_NODE_ID);
 assert(starProfile.battlePoints === 96, "opponent rumor should cost 4 BP");

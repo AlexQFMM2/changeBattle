@@ -65,14 +65,14 @@ import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
 import {TrainingRestPage} from "./components/training/TrainingRestPage";
 import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
 import {showdownAssetPrefix} from "./lib/assetUrl";
+import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
 
 type AppProps = {
   runtime: "web" | "desktop";
 };
 
 const IS_DEV_BUILD = import.meta.env.DEV;
-const RELEASE_CHANNEL = String(import.meta.env.VITE_CHANGEBATTLE_RELEASE_CHANNEL || "stable").trim().toLowerCase();
-const DEBUG_FEATURE_ENABLED = IS_DEV_BUILD || RELEASE_CHANNEL === "beta";
+const DEBUG_FEATURE_ENABLED = CHANGE_BATTLE_DEBUG_FEATURES_ENABLED;
 const isDebug = true;
 const APP_DEBUG_CONFIG_V4: AppDebugConfigV4 = {
   isDebug,
@@ -587,6 +587,8 @@ function RoutedApp({runtime}: AppProps) {
         onManualSave={() => void saveAllCurrentState()}
         manualSaveState={manualSaveState}
         onBattlePreference={() => navigate("/battle-preference")}
+        debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
+        onEnableTestMode={() => void enableTestMode()}
         onUserInfo={startEdit}
         onTitle={() => navigate("/", {replace: true})}
       />
@@ -637,6 +639,7 @@ function RoutedApp({runtime}: AppProps) {
       playerVaultDirty={playerVaultDirty}
       profileBattlePoints={profile.battlePoints}
       tab="bag"
+      debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
       onPlayerVaultChange={setPlayerVault}
       onPlayerVaultDirtyChange={setPlayerVaultDirty}
       onSavePlayerVault={api.savePlayerVault}
@@ -653,6 +656,7 @@ function RoutedApp({runtime}: AppProps) {
       playerVaultDirty={playerVaultDirty}
       profileBattlePoints={profile.battlePoints}
       tab="pokemon"
+      debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
       onPlayerVaultChange={setPlayerVault}
       onPlayerVaultDirtyChange={setPlayerVaultDirty}
       onSavePlayerVault={api.savePlayerVault}
@@ -1150,7 +1154,7 @@ function bgmSceneForRoute(pathname: string, formalRun: FormalGameRunV4 | null): 
 function desktopVersionBadgeLabel(): string {
   const version = String(import.meta.env.VITE_CHANGEBATTLE_DESKTOP_VERSION || "0.1.0").trim() || "0.1.0";
   if (IS_DEV_BUILD) return `dev ${version}`;
-  return `${RELEASE_CHANNEL === "beta" ? "debug" : "release"} ${version}`;
+  return `${CHANGE_BATTLE_RELEASE_CHANNEL === "beta" ? "debug" : "release"} ${version}`;
 }
 
 function isFormalBossRound(run: FormalGameRunV4 | null): boolean {

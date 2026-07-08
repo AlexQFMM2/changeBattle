@@ -59,7 +59,7 @@ export const FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL = [
   "bottlecap", "goldbottlecap", "graybottlecap", "adamantmint", "modestmint",
   "jollymint", "timidmint", "calmmint", "boldmint",
 ];
-export const FORMAL_SHOP_PARENTING_ITEM_POOL = ["heartscale", "standardtextbook", "redthread", "lostmanual", "forbiddenmanual"];
+export const FORMAL_SHOP_PARENTING_ITEM_POOL = ["heartscale", "standardtextbook", "redthread", "soothebell", "lostmanual", "forbiddenmanual"];
 export const FORMAL_SHOP_EVOLUTION_ITEM_POOL = [
   "universal-evolution-stone", "linking-cord", "firestone", "waterstone", "thunderstone",
   "leafstone", "moonstone", "sunstone", "shinystone", "duskstone", "dawnstone",
@@ -206,6 +206,7 @@ export const FORMAL_SHOP_PRICE_OVERRIDES: Record<string, number> = {
   heartscale: 120,
   standardtextbook: 180,
   redthread: 220,
+  soothebell: 250,
   lostmanual: 360,
   forbiddenmanual: 800,
   "universal-evolution-stone": 180,
@@ -328,6 +329,7 @@ export const FORMAL_SHOP_ITEM_BASE_WEIGHTS: Record<string, number> = {
   heartscale: 12,
   standardtextbook: 10,
   redthread: 8,
+  soothebell: 8,
   lostmanual: 4,
   forbiddenmanual: 1,
   "universal-evolution-stone": 10,

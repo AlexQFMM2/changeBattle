@@ -127,6 +127,11 @@ assert.ok(heartScale.description.includes("工厂"));
 const forbiddenManual = dex.getItemDetail("forbiddenmanual");
 assert.equal(forbiddenManual.kind, "parenting");
 assert.deepEqual(forbiddenManual.moveTeachingEffect, {kind: "any", oncePerPokemon: true});
+const sootheBell = dex.getItemDetail("soothebell");
+assert.equal(sootheBell.nameZh, "安抚之铃");
+assert.equal(sootheBell.kind, "parenting");
+assert.deepEqual(sootheBell.friendshipEffect, {amount: 50, max: 255});
+assert.ok(sootheBell.description.includes("工厂"));
 
 const potion = dex.getItemDetail("potion");
 assert.equal(potion.nameZh, "回复药");

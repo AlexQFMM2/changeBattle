@@ -1,0 +1,129 @@
+.vault-move-select-modal-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 36px 24px 22px;
+  box-sizing: border-box;
+  background: rgb(2 6 6 / 68%);
+  backdrop-filter: blur(4px);
+}
+
+.vault-move-select-modal {
+  width: min(420px, 100%);
+  max-height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  border: 2px solid rgb(255 244 188 / 52%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 14%), rgb(255 255 255 / 5%)), rgb(18 26 24 / 92%);
+  padding: 12px;
+  box-shadow: 0 12px 34px rgb(0 0 0 / 44%);
+}
+
+.vault-move-select-modal header,
+.vault-move-select-modal footer {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vault-move-select-modal header div,
+.vault-move-select-modal-body,
+.vault-move-select-modal label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.vault-move-select-modal header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff5cf;
+  font-size: 12px;
+  font-weight: 1000;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-move-select-modal header span,
+.vault-move-select-modal footer span,
+.vault-move-select-modal label span,
+.vault-move-select-modal p {
+  margin: 0;
+  color: rgb(255 255 255 / 72%);
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.vault-move-select-modal header button,
+.vault-move-select-modal footer button,
+.vault-move-select-modal input {
+  border: 2px solid rgb(255 244 188 / 42%);
+  border-radius: 7px;
+  background: rgb(13 19 18 / 88%);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.vault-move-select-modal input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 7px 8px;
+}
+
+.vault-move-select-modal header button,
+.vault-move-select-modal footer button {
+  min-width: 34px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.vault-move-select-modal-body {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+  gap: 8px;
+}
+
+.vault-move-select-modal-grid {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(99 139 110 / 82%) rgb(23 29 25 / 72%);
+}
+
+.vault-move-select-card.move-card-sheet.move-choice,
+.vault-move-select-card.move-card-sheet.move-choice:nth-child(2n) {
+  --move-card-height: 34px;
+  --move-card-name-row-height: 20px;
+  --move-card-meta-row-height: 12px;
+  --move-card-border-radius: 5px;
+  --move-card-name-font-size: 7px;
+  --move-card-meta-font-size: 6px;
+}
+
+.vault-move-select-card:hover,
+.vault-move-select-card:focus-visible {
+  border-color: #f5f0cf;
+  outline: 2px solid rgb(120 232 255 / 66%);
+}
+
+.vault-move-select-card:disabled,
+.vault-move-select-modal input:disabled {
+  opacity: .5;
+  cursor: default;
+}

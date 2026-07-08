@@ -1,0 +1,178 @@
+.trainer-vault-debug-add-modal-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 300px;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 24px 22px;
+  box-sizing: border-box;
+  background: rgb(2 6 6 / 68%);
+  backdrop-filter: blur(4px);
+}
+
+.trainer-vault-debug-add-modal {
+  min-width: 0;
+  width: 300px;
+  height: 236px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 32px minmax(0, 1fr) 25px;
+  gap: 7px;
+  border: 2px solid rgb(255 244 188 / 56%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 14%), rgb(255 255 255 / 5%)), rgb(18 26 24 / 94%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 42%);
+  box-sizing: border-box;
+  padding: 9px;
+}
+
+.trainer-vault-debug-add-modal header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px;
+  align-items: start;
+  gap: 7px;
+}
+
+.trainer-vault-debug-add-modal header div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.trainer-vault-debug-add-modal strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff5cf;
+  font-size: 10px;
+  font-weight: 1000;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-vault-debug-add-modal span,
+.trainer-vault-debug-add-modal p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: rgb(255 255 255 / 72%);
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-vault-debug-add-modal button,
+.trainer-vault-debug-add-modal input {
+  border: 1px solid rgb(255 244 188 / 44%);
+  border-radius: 5px;
+  background: rgb(13 19 18 / 88%);
+  color: #fff;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.trainer-vault-debug-add-modal header button {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.trainer-vault-debug-add-modal-form {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 5px;
+}
+
+.trainer-vault-debug-add-modal-form label {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.trainer-vault-debug-add-modal-form input {
+  width: 100%;
+  height: 22px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 7px;
+}
+
+.trainer-vault-debug-add-modal footer {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.trainer-vault-debug-add-modal footer button {
+  height: 22px;
+  min-width: 42px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.trainer-vault-debug-add-modal footer button:disabled {
+  opacity: .48;
+  cursor: default;
+}
+
+.trainer-vault-debug-add-modal footer span {
+  text-align: center;
+}
+
+.trainer-vault-debug-add-modal-results {
+  grid-row: 3;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(99 139 110 / 82%) rgb(23 29 25 / 72%);
+}
+
+.trainer-vault-debug-add-modal-results::-webkit-scrollbar {
+  width: 8px;
+}
+
+.trainer-vault-debug-add-modal-results::-webkit-scrollbar-track {
+  background: rgb(23 29 25 / 72%);
+  border-radius: 999px;
+}
+
+.trainer-vault-debug-add-modal-results::-webkit-scrollbar-thumb {
+  background: rgb(99 139 110 / 82%);
+  border-radius: 999px;
+}
+
+.trainer-vault-debug-add-modal-results button {
+  min-width: 0;
+  height: 34px;
+  display: grid;
+  gap: 3px;
+  padding: 5px 7px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trainer-vault-debug-add-modal-results button.selected {
+  border-color: #78e8ff;
+  background: rgb(22 70 76 / 88%);
+}
+
+.trainer-vault-debug-add-modal-error {
+  grid-row: 4;
+  color: #ffb3a8 !important;
+}

@@ -11,10 +11,12 @@ const PREVIEW_BAG_ITEM_IDS = [
   "ether",
   "revive",
   "rarecandy",
+  "soothebell",
   "leftovers",
   "lifeorb",
   "sitrusberry",
   "lumberry",
+  "tm:earthquake",
   "tm:protect",
   "tm:thunderbolt",
   "system-mega-stone",
@@ -44,6 +46,7 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
         gender: pokemon.gender,
         nature: pokemon.nature,
         abilityId: pokemon.abilityId,
+        heldItemId: index === 0 ? "leftovers" : undefined,
         evs: pokemon.evs,
         ivs: pokemon.ivs,
         moves: pokemon.moves.map(move => ({moveId: move.moveId, remainingPp: move.remainingPp, maxPp: move.maxPp})),
@@ -63,6 +66,7 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
         playerVaultDirty={playerVaultDirty}
         profileBattlePoints={999}
         tab={tab}
+        debugFeatureEnabled
         onPlayerVaultChange={setPlayerVault}
         onPlayerVaultDirtyChange={setPlayerVaultDirty}
         onSavePlayerVault={async (vault) => {

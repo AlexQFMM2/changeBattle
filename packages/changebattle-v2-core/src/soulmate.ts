@@ -1,5 +1,6 @@
 import {getPokemonDisplayNameV4, normalizeLocalPokemonV4, type LocalPokemonV4, type LocalTeamV4} from "./pokemonInstance.js";
 import {getPokemonEligibleForSoulmateV4, getPokemonParticipantsForSoulmateV4, type BattleLogPokemonSummaryV4, type TrainingBattleLogEntryV4} from "./battleLog.js";
+import {normalizePlayerPokemonRecordV4, type PlayerPokemonMoveRecordV4, type PlayerPokemonRecordV4} from "./playerVault.js";
 
 export type PlayerSoulmatePokemonRecordV4 = {
   soulmateId: string;
@@ -59,6 +60,43 @@ export type SoulmateEvolutionRequirementV4 = {
   requirementKind: "specific-item" | "linking-cord" | "universal-stone";
 };
 
+export type PlayerVaultEggPokemonDexV4 = {
+  getPokemonDetail: (speciesId: string) => PlayerVaultEggPokemonDetailV4;
+  getPokemonEvolutionRoot?: (speciesId: string) => string | {id?: string; speciesId?: string} | null | undefined;
+  getPokemonSelfLearnSkills?: (speciesId: string) => PlayerVaultEggMoveDetailV4[];
+  getMoveDetail?: (moveId: string) => PlayerVaultEggMoveDetailV4;
+};
+
+export type PlayerVaultEggPokemonDetailV4 = {
+  id: string;
+  abilities?: Array<{id?: string; name?: string}>;
+};
+
+export type PlayerVaultEggMoveDetailV4 = {
+  id: string;
+  pp?: number;
+};
+
+export type PlayerVaultEggPokemonRecordInputV4 = {
+  dex: PlayerVaultEggPokemonDexV4;
+  speciesId: string;
+  originKind: NonNullable<PlayerPokemonRecordV4["originKind"]>;
+  seed: string | number;
+  nickname?: string;
+  sourceRunId?: string;
+  sourcePokemonKey?: string;
+  inherited?: {
+    gender?: LocalPokemonV4["gender"];
+    nature?: string;
+    ivs?: LocalPokemonV4["ivs"];
+    fallbackMoveIds?: string[];
+  };
+  level?: number;
+  friendship?: number;
+  shinyRate?: number;
+  nowIso?: string;
+};
+
 export const SOULMATE_UNIVERSAL_EVOLUTION_STONE_ITEM_ID_V4 = "universal-evolution-stone";
 
 export const SOULMATE_LINKING_CORD_ITEM_ID_V4 = "linking-cord";
@@ -80,6 +118,36 @@ export function normalizeSoulmateEvolutionRequirementV4(edge: SoulmateEvolutionE
     return {itemId: evoItemId, requirementKind: "specific-item"};
   }
   return {itemId: SOULMATE_UNIVERSAL_EVOLUTION_STONE_ITEM_ID_V4, requirementKind: "universal-stone"};
+}
+
+export function createPlayerVaultEggPokemonRecordV4(input: PlayerVaultEggPokemonRecordInputV4): PlayerPokemonRecordV4 | null {
+  const rootSpeciesId = playerVaultEggRootSpeciesIdV4(input.dex, input.speciesId);
+  const detail = safePlayerVaultEggPokemonDetailV4(input.dex, rootSpeciesId || input.speciesId);
+  if (!detail?.id) return null;
+  const seed = String(input.seed || `${input.originKind}:${detail.id}`);
+  const moveIds = playerVaultEggMoveIdsV4(input.dex, detail.id, input.inherited?.fallbackMoveIds);
+  const moves = playerVaultEggMoveRecordsV4(input.dex, moveIds);
+  const abilityId = detail.abilities?.find(ability => normalizeOptionalText(ability.id))?.id || "";
+  return normalizePlayerPokemonRecordV4({
+    playerPokemonId: `${input.originKind}-${hashSoulmateSeedV4(seed)}`,
+    speciesId: detail.id,
+    nickname: normalizeOptionalText(input.nickname),
+    level: clampSoulmateInt(input.level, 1, 100, 50),
+    originKind: input.originKind,
+    rootSpeciesId: detail.id,
+    sourceRunId: normalizeOptionalText(input.sourceRunId),
+    sourcePokemonKey: normalizeOptionalText(input.sourcePokemonKey),
+    gender: input.inherited?.gender || "N",
+    nature: normalizeOptionalText(input.inherited?.nature) || "Hardy",
+    abilityId,
+    evs: zeroSoulmateStatsV4(),
+    ivs: input.inherited?.ivs || maxSoulmateStatsV4(),
+    moves,
+    friendship: clampSoulmateInt(input.friendship, 0, 255, 100),
+    shiny: seededFractionV4(`${seed}:shiny`) < Math.max(0, Math.min(1, Number(input.shinyRate || 0))),
+    metAt: normalizeIsoText(input.nowIso) || new Date().toISOString(),
+    honors: input.originKind === "soulmate" ? ["灵魂伴侣"] : ["调试创建"],
+  });
 }
 
 export function createSoulmateCandidateListV4(input: {
@@ -232,6 +300,71 @@ function seededFractionV4(seed: string | number | undefined): number {
 
 function hashSoulmateSeedV4(seed: string): string {
   return Math.floor(seededFractionV4(seed) * 0xffffffff).toString(36).padStart(6, "0");
+}
+
+function playerVaultEggRootSpeciesIdV4(dex: PlayerVaultEggPokemonDexV4, speciesId: string): string {
+  const normalizedSpeciesId = normalizeOptionalText(speciesId) || "pikachu";
+  try {
+    const root = dex.getPokemonEvolutionRoot?.(normalizedSpeciesId);
+    if (typeof root === "string") return normalizeOptionalText(root) || normalizedSpeciesId;
+    return normalizeOptionalText(root?.id || root?.speciesId) || normalizedSpeciesId;
+  } catch {
+    return normalizedSpeciesId;
+  }
+}
+
+function safePlayerVaultEggPokemonDetailV4(dex: PlayerVaultEggPokemonDexV4, speciesId: string): PlayerVaultEggPokemonDetailV4 | null {
+  try {
+    return dex.getPokemonDetail(speciesId);
+  } catch {
+    return null;
+  }
+}
+
+function playerVaultEggMoveIdsV4(dex: PlayerVaultEggPokemonDexV4, speciesId: string, fallbackMoveIds: string[] | undefined): string[] {
+  const ids: string[] = [];
+  try {
+    for (const move of dex.getPokemonSelfLearnSkills?.(speciesId) || []) {
+      const moveId = normalizeItemIdText(move.id);
+      if (moveId && !ids.includes(moveId)) ids.push(moveId);
+      if (ids.length >= 4) break;
+    }
+  } catch {
+    // Fall through to fallback moves.
+  }
+  for (const moveId of fallbackMoveIds || []) {
+    const normalizedMoveId = normalizeItemIdText(moveId);
+    if (normalizedMoveId && !ids.includes(normalizedMoveId)) ids.push(normalizedMoveId);
+    if (ids.length >= 4) break;
+  }
+  if (!ids.length) ids.push("tackle");
+  return ids.slice(0, 4);
+}
+
+function playerVaultEggMoveRecordsV4(dex: PlayerVaultEggPokemonDexV4, moveIds: string[]): PlayerPokemonMoveRecordV4[] {
+  return moveIds.map(moveId => {
+    let pp = 1;
+    try {
+      pp = Math.max(1, Math.floor(Number(dex.getMoveDetail?.(moveId)?.pp || 1)));
+    } catch {
+      pp = 1;
+    }
+    return {moveId, remainingPp: pp, maxPp: pp};
+  });
+}
+
+function zeroSoulmateStatsV4() {
+  return {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
+}
+
+function maxSoulmateStatsV4() {
+  return {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
+}
+
+function clampSoulmateInt(value: unknown, min: number, max: number, fallback: number): number {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
 }
 
 function normalizeBattleKeyText(value: unknown): string {

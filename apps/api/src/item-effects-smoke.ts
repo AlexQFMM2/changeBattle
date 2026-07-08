@@ -1,7 +1,7 @@
 import {strict as assert} from "node:assert";
 import type {DexMoveSummary, DexPokemonDetail} from "@changebattle-v2/showdown-dex-core";
 import {createBattleCommandDraftV4, normalizeBattleRequestV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4} from "./battle.js";
-import {applyPlayerVaultMoveTeachingItemV4, applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, getPlayerVaultMoveTeachingViewV4, tmUseFailureReasonV4} from "./itemEffects.js";
+import {applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultNumericItemUseV4, tmUseFailureReasonV4, unequipPlayerVaultHeldItemV4} from "./itemEffects.js";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4} from "./training.js";
 
 const pokemon = makePokemon();
@@ -165,6 +165,12 @@ const vault = {
     {itemId: "redthread", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 2},
     {itemId: "lostmanual", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 3},
     {itemId: "forbiddenmanual", quantity: 2, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 4},
+    {itemId: "soothebell", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 5},
+    {itemId: "adamantmint", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 6},
+    {itemId: "tm:surf", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 7},
+    {itemId: "leftovers", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 8},
+    {itemId: "choicescarf", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 9},
+    {itemId: "tm:earthquake", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 10},
   ],
   pokemon: [{
     playerPokemonId: "vault-pokemon-1",
@@ -184,6 +190,18 @@ const vault = {
   itemStoragePageCount: 2,
   pokemonStoragePageCount: 2,
 };
+const friendshipPreview = previewPlayerVaultNumericItemUseV4(vaultDex as any, {vault, itemKey: "storage:0:5:soothebell", pokemonId: "vault-pokemon-1"});
+assert.equal(friendshipPreview.ok, true);
+if (friendshipPreview.ok) assert.deepEqual(friendshipPreview.changes, [{label: "亲密度", before: "70", after: "120"}]);
+const mintPreview = previewPlayerVaultNumericItemUseV4(vaultDex as any, {vault, itemKey: "storage:0:6:adamantmint", pokemonId: "vault-pokemon-1"});
+assert.equal(mintPreview.ok, true);
+if (mintPreview.ok) assert.deepEqual(mintPreview.changes, [{label: "性格", before: "认真", after: "固执"}]);
+const mintApply = applyPlayerVaultNumericItemV4(vaultDex as any, {vault, itemKey: "storage:0:6:adamantmint", pokemonId: "vault-pokemon-1"});
+assert.equal(mintApply.ok, true);
+if (mintApply.ok) {
+  assert.equal(mintApply.pokemon.nature, "Adamant");
+  assert.equal(mintApply.vault.items.some(entry => entry.itemId === "adamantmint"), false);
+}
 const heartView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:0:heartscale", "vault-pokemon-1");
 assert.equal(heartView.ok, true);
 if (heartView.ok) assert.deepEqual(heartView.moves.map(move => move.id), ["electroball"]);
@@ -196,6 +214,27 @@ if (redThreadView.ok) assert.deepEqual(redThreadView.moves.map(move => move.id),
 const lostManualView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:3:lostmanual", "vault-pokemon-1");
 assert.equal(lostManualView.ok, true);
 if (lostManualView.ok) assert.deepEqual(lostManualView.moves.map(move => move.id), ["celebrate", "refresh", "holdhands"]);
+const tmVaultView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:7:tm:surf", "vault-pokemon-1");
+assert.equal(tmVaultView.ok, true);
+if (tmVaultView.ok) {
+  assert.deepEqual(tmVaultView.moves.map(move => move.id), ["surf"]);
+  assert.equal(tmVaultView.unavailableReason, undefined);
+}
+const illegalTmVaultView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:10:tm:earthquake", "vault-pokemon-1");
+assert.equal(illegalTmVaultView.ok, true);
+if (illegalTmVaultView.ok) {
+  assert.deepEqual(illegalTmVaultView.moves, []);
+  assert.match(illegalTmVaultView.unavailableReason || "", /无法通过技能机器/);
+}
+const illegalTmVaultResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:0:10:tm:earthquake", pokemonId: "vault-pokemon-1", moveId: "earthquake", moveSlot: 0});
+assert.equal(illegalTmVaultResult.ok, false);
+assert.match(illegalTmVaultResult.ok ? "" : illegalTmVaultResult.reason, /无法通过技能机器/);
+const tmVaultResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:0:7:tm:surf", pokemonId: "vault-pokemon-1", moveId: "surf", moveSlot: 3});
+assert.equal(tmVaultResult.ok, true);
+if (tmVaultResult.ok) {
+  assert.equal(tmVaultResult.pokemon.moves[3]!.moveId, "surf");
+  assert.equal(tmVaultResult.vault.items.some(entry => entry.itemId === "tm:surf"), false);
+}
 const forbiddenResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:0:4:forbiddenmanual", pokemonId: "vault-pokemon-1", moveId: "flamethrower", moveSlot: 1});
 assert.equal(forbiddenResult.ok, true);
 if (forbiddenResult.ok) {
@@ -206,6 +245,44 @@ if (forbiddenResult.ok) {
   assert.equal(secondForbidden.ok, false);
   assert.match(secondForbidden.ok ? "" : secondForbidden.reason, /已经使用过/);
 }
+const friendshipResult = applyPlayerVaultFriendshipItemV4(vaultDex as any, {vault, itemKey: "storage:0:5:soothebell", pokemonId: "vault-pokemon-1"});
+assert.equal(friendshipResult.ok, true);
+if (friendshipResult.ok) {
+  assert.equal(friendshipResult.pokemon.friendship, 120);
+  assert.equal(friendshipResult.friendshipDelta, 50);
+  assert.equal(friendshipResult.vault.items.some(entry => entry.itemId === "soothebell"), false);
+}
+const heldResult = applyPlayerVaultHeldItemV4(vaultDex as any, {vault, itemKey: "storage:0:8:leftovers", pokemonId: "vault-pokemon-1"});
+assert.equal(heldResult.ok, true);
+if (heldResult.ok) {
+  assert.equal(heldResult.pokemon.heldItemId, "leftovers");
+  assert.equal(heldResult.vault.items.some(entry => entry.itemId === "leftovers"), false);
+  const swapResult = applyPlayerVaultHeldItemV4(vaultDex as any, {vault: heldResult.vault, itemKey: "storage:0:9:choicescarf", pokemonId: "vault-pokemon-1"});
+  assert.equal(swapResult.ok, true);
+  if (swapResult.ok) {
+    assert.equal(swapResult.pokemon.heldItemId, "choicescarf");
+    assert.equal(swapResult.replacedItemId, "leftovers");
+    assert.equal(swapResult.vault.items.some(entry => entry.itemId === "choicescarf"), false);
+    assert.equal(swapResult.vault.items.find(entry => entry.itemId === "leftovers")?.quantity, 1);
+    const unequipResult = unequipPlayerVaultHeldItemV4(vaultDex as any, {vault: swapResult.vault, pokemonId: "vault-pokemon-1"});
+    assert.equal(unequipResult.ok, true);
+    if (unequipResult.ok) {
+      assert.equal(unequipResult.pokemon.heldItemId, undefined);
+      assert.equal(unequipResult.unequippedItemId, "choicescarf");
+      assert.equal(unequipResult.vault.items.find(entry => entry.itemId === "choicescarf")?.quantity, 1);
+    }
+  }
+}
+const unequipEmptyResult = unequipPlayerVaultHeldItemV4(vaultDex as any, {vault, pokemonId: "vault-pokemon-1"});
+assert.equal(unequipEmptyResult.ok, false);
+assert.match(unequipEmptyResult.ok ? "" : unequipEmptyResult.reason, /没有携带道具/);
+const maxFriendshipResult = applyPlayerVaultFriendshipItemV4(vaultDex as any, {
+  vault: {...vault, items: [{itemId: "soothebell", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 5}], pokemon: [{...vault.pokemon[0]!, friendship: 255}]},
+  itemKey: "storage:0:5:soothebell",
+  pokemonId: "vault-pokemon-1",
+});
+assert.equal(maxFriendshipResult.ok, false);
+assert.match(maxFriendshipResult.ok ? "" : maxFriendshipResult.reason, /上限/);
 
 console.log("item effects smoke ok");
 
@@ -314,6 +391,7 @@ function fakeVaultDex() {
     ["holdhands", moveSummary("holdhands", {nameZh: "牵手", learnSources: ["other"]})],
     ["flamethrower", moveSummary("flamethrower", {nameZh: "喷射火焰"})],
     ["surf", moveSummary("surf", {nameZh: "冲浪"})],
+    ["earthquake", moveSummary("earthquake", {nameZh: "地震"})],
   ]);
   const itemEffects = new Map([
     ["heartscale", {kind: "learn-source", sources: ["levelup"]}],
@@ -322,11 +400,33 @@ function fakeVaultDex() {
     ["lostmanual", {kind: "learn-source", sources: ["event", "transfer", "other"]}],
     ["forbiddenmanual", {kind: "any", oncePerPokemon: true}],
   ]);
+  const friendshipEffects = new Map([
+    ["soothebell", {amount: 50, max: 255}],
+  ]);
+  const trainingEffects = new Map([
+    ["adamantmint", {kind: "nature", nature: "Adamant"}],
+  ]);
   return {
     toDexId: (value: string) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, ""),
-    getItemDetail: (id: string) => ({id, name: id, nameZh: id, kind: "parenting", kindLabel: "养育道具", description: "", moveTeachingEffect: itemEffects.get(id)}),
-    getPokemonDetail: (id: string) => ({id, name: id, nameZh: id, sprites: {}}),
+    getItemDetail: (id: string) => ({
+      id,
+      name: id,
+      nameZh: id,
+      kind: id.startsWith("tm:") ? "tm" : id === "leftovers" || id === "choicescarf" ? "battle" : trainingEffects.has(id) ? "training" : "parenting",
+      kindLabel: id.startsWith("tm:") ? "技能机器" : id === "leftovers" || id === "choicescarf" ? "战斗道具" : trainingEffects.has(id) ? "训练道具" : "养育道具",
+      description: "",
+      moveId: id === "tm:surf" ? "surf" : id === "tm:earthquake" ? "earthquake" : undefined,
+      moveTeachingEffect: itemEffects.get(id),
+      friendshipEffect: friendshipEffects.get(id),
+      trainingEffect: trainingEffects.get(id),
+    }),
+    getPokemonDetail: (id: string) => fakePokemonDetail(),
+    translateDexLabel: (table: "stats" | "natures", value: string) => {
+      const labels: Record<string, string> = {Serious: "认真", Adamant: "固执", hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
+      return labels[value] || value;
+    },
     getPokemonSkillsBySource: (_speciesId: string, source: string) => Array.from(moveById.values()).filter(move => move.learnSources?.includes(source as any)),
+    getPokemonMachineSkills: (_speciesId: string) => [moveById.get("surf")!],
     searchDex: ({query = "", limit = 40}: {query?: string; limit?: number}) => ({
       rows: Array.from(moveById.values())
         .filter(move => !query || [move.id, move.nameZh].some(value => String(value).includes(query)))
@@ -334,5 +434,6 @@ function fakeVaultDex() {
         .map(move => ({id: move.id})),
     }),
     getMoveDetail: (id: string) => moveById.get(id),
+    calculatePokemonStats: () => ({stats: {hp: 100, atk: 100, def: 100, spa: 100, spd: 100, spe: 100}}),
   };
 }

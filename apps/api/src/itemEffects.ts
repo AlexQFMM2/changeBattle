@@ -1,5 +1,5 @@
 import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexMoveSummary, DexPokemonDetail, DexStatId} from "@changebattle-v2/showdown-dex-core";
-import {normalizePlayerVaultV4, type PlayerItemRecordV4, type PlayerPokemonRecordV4, type PlayerVaultV4} from "@changebattle-v2/core";
+import {addPlayerVaultItemV4, normalizePlayerVaultV4, type PlayerItemRecordV4, type PlayerPokemonRecordV4, type PlayerVaultV4} from "@changebattle-v2/core";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4, StatTableV4, TrainingMoveSlotV4, TrainingStatusV4} from "./training.js";
 
 export type ConsumableItemApplyResultV4 =
@@ -15,20 +15,43 @@ export type TmItemApplyResultV4 =
   | {ok: false; reason: string};
 
 export type PlayerVaultMoveTeachingViewResultV4 =
-  | {ok: true; item: PlayerItemRecordV4; itemName: string; pokemon: PlayerPokemonRecordV4; pokemonName: string; sourceLabel: string; oncePerPokemon: boolean; alreadyUsed: boolean; moves: DexMoveSummary[]}
+  | {ok: true; item: PlayerItemRecordV4; itemName: string; pokemon: PlayerPokemonRecordV4; pokemonName: string; sourceLabel: string; oncePerPokemon: boolean; alreadyUsed: boolean; unavailableReason?: string; moves: DexMoveSummary[]}
   | {ok: false; reason: string};
 
 export type PlayerVaultMoveTeachingApplyResultV4 =
   | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; message: string}
   | {ok: false; reason: string};
 
+export type PlayerVaultFriendshipItemApplyResultV4 =
+  | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; message: string; friendshipDelta: number}
+  | {ok: false; reason: string};
+
+export type PlayerVaultNumericItemPreviewResultV4 =
+  | {ok: true; item: PlayerItemRecordV4; itemName: string; pokemon: PlayerPokemonRecordV4; pokemonName: string; changes: Array<{label: string; before: string; after: string}>}
+  | {ok: false; reason: string};
+
+export type PlayerVaultNumericItemApplyResultV4 =
+  | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; message: string; changes: Array<{label: string; before: string; after: string}>}
+  | {ok: false; reason: string};
+
+export type PlayerVaultHeldItemApplyResultV4 =
+  | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; message: string; replacedItemId?: string}
+  | {ok: false; reason: string};
+
+export type PlayerVaultHeldItemUnequipResultV4 =
+  | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; message: string; unequippedItemId: string}
+  | {ok: false; reason: string};
+
 type PlayerVaultMoveTeachingDexV4 = {
   toDexId(value: string): string;
   getItemDetail(itemId: string): DexItemDetail;
-  getPokemonDetail(speciesId: string): {name?: string; nameZh?: string} | null;
+  getPokemonDetail(speciesId: string): DexPokemonDetail | null;
+  translateDexLabel?: (table: "stats" | "natures", value: string) => string;
   getPokemonSkillsBySource(speciesId: string, source: string): DexMoveSummary[];
+  getPokemonMachineSkills?(speciesId: string): DexMoveSummary[];
   searchDex(request: {category: "moves"; query?: string; limit?: number}): {rows: Array<{id: string}>};
   getMoveDetail(moveId: string): DexMoveSummary;
+  calculatePokemonStats?: (input: {speciesId: string; level?: number; nature?: string; evs?: StatTableV4; ivs?: StatTableV4}) => {stats: Record<string, number>};
 };
 
 const RECOVERABLE_STATUS = new Set<TrainingStatusV4>(["brn", "par", "psn", "tox", "slp", "frz"]);
@@ -268,6 +291,27 @@ export function getPlayerVaultMoveTeachingViewV4(
   const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === pokemonId);
   if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
   const detail = safeVaultItemDetailV4(dex, item.itemId);
+  if (detail?.kind === "tm" && detail.moveId) {
+    const move = safeVaultMoveDetailV4(dex, detail.moveId);
+    if (!move) return {ok: false, reason: "技能机器对应技能不存在。"};
+    const learned = new Set(pokemon.moves.map(entry => dex.toDexId(entry.moveId)));
+    const canLearn = dex.getPokemonMachineSkills?.(pokemon.speciesId).some(entry => dex.toDexId(entry.id) === dex.toDexId(move.id)) ?? true;
+    const unavailableReason = learned.has(dex.toDexId(move.id))
+      ? "目标已经学会这个招式。"
+      : canLearn ? undefined : "目标无法通过技能机器学习这个招式。";
+    return {
+      ok: true,
+      item,
+      itemName: detail.nameZh || detail.name || item.itemId,
+      pokemon,
+      pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+      sourceLabel: "技能机器",
+      oncePerPokemon: false,
+      alreadyUsed: Boolean(unavailableReason),
+      unavailableReason,
+      moves: unavailableReason ? [] : [move],
+    };
+  }
   const effect = detail?.moveTeachingEffect;
   if (!effect) return {ok: false, reason: "该道具不能用于学习技能。"};
   const moves = playerVaultMoveTeachingPoolV4(dex, pokemon, effect, query);
@@ -294,6 +338,15 @@ export function applyPlayerVaultMoveTeachingItemV4(
   const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
   if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
   const detail = safeVaultItemDetailV4(dex, item.itemId);
+  if (detail?.kind === "tm" && detail.moveId) {
+    const move = safeVaultMoveDetailV4(dex, detail.moveId);
+    if (!move) return {ok: false, reason: "技能机器对应技能不存在。"};
+    const learned = new Set(pokemon.moves.map(entry => dex.toDexId(entry.moveId)));
+    if (learned.has(dex.toDexId(move.id))) return {ok: false, reason: "目标已经学会这个招式。"};
+    const canLearn = dex.getPokemonMachineSkills?.(pokemon.speciesId).some(entry => dex.toDexId(entry.id) === dex.toDexId(move.id)) ?? true;
+    if (!canLearn) return {ok: false, reason: "目标无法通过技能机器学习这个招式。"};
+    return applyPlayerVaultMoveRecordV4(dex, normalized, item, pokemon, move, input.moveSlot, false);
+  }
   const effect = detail?.moveTeachingEffect;
   if (!effect) return {ok: false, reason: "该道具不能用于学习技能。"};
   if (effect.kind === "any" && effect.oncePerPokemon && pokemon.growthFlags?.forbiddenManualUsedAt) {
@@ -303,33 +356,138 @@ export function applyPlayerVaultMoveTeachingItemV4(
   const move = playerVaultMoveTeachingPoolV4(dex, pokemon, effect, "").find(entry => dex.toDexId(entry.id) === moveId);
   if (!move) return {ok: false, reason: "目标无法通过这个道具学习该技能。"};
   if (pokemon.moves.some(entry => dex.toDexId(entry.moveId) === moveId)) return {ok: false, reason: "目标已经学会这个招式。"};
-  const moveSlot = Math.max(0, Math.min(3, Math.floor(Number(input.moveSlot || 0))));
-  const nextMoves = Array.from({length: 4}, (_, index) => pokemon.moves[index] || {moveId: ""})
-    .map((entry, index) => index === moveSlot ? {moveId: move.id, remainingPp: move.pp, maxPp: move.pp} : entry)
-    .filter(entry => Boolean(entry.moveId));
-  const nextPokemon: PlayerPokemonRecordV4 = {
-    ...pokemon,
-    moves: nextMoves,
-    growthFlags: effect.kind === "any" && effect.oncePerPokemon
-      ? {...pokemon.growthFlags, forbiddenManualUsedAt: new Date().toISOString()}
-      : pokemon.growthFlags,
+  return applyPlayerVaultMoveRecordV4(dex, normalized, item, pokemon, move, input.moveSlot, effect.kind === "any" && Boolean(effect.oncePerPokemon));
+}
+
+export function previewPlayerVaultNumericItemUseV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string},
+): PlayerVaultNumericItemPreviewResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const item = findPlayerVaultItemByKeyV4(normalized, input.itemKey);
+  if (!item) return {ok: false, reason: "道具不存在。"};
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  const preview = previewPlayerVaultNumericItemRecordV4(dex, item, pokemon);
+  if (!preview.ok) return preview;
+  return {
+    ok: true,
+    item,
+    itemName: preview.itemName,
+    pokemon,
+    pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+    changes: preview.changes,
   };
-  const targetKey = playerVaultItemRecordKeyV4(item);
-  const nextItems = normalized.items.flatMap(entry => {
-    if (playerVaultItemRecordKeyV4(entry) !== targetKey) return [entry];
-    if (entry.quantity <= 1) return [];
-    return [{...entry, quantity: entry.quantity - 1}];
-  });
+}
+
+export function applyPlayerVaultNumericItemV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string},
+): PlayerVaultNumericItemApplyResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const item = findPlayerVaultItemByKeyV4(normalized, input.itemKey);
+  if (!item) return {ok: false, reason: "道具不存在。"};
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  const preview = previewPlayerVaultNumericItemRecordV4(dex, item, pokemon);
+  if (!preview.ok) return preview;
+  const nextItems = consumePlayerVaultItemRecordV4(normalized.items, item);
   const nextVault = normalizePlayerVaultV4({
     ...normalized,
     items: nextItems,
-    pokemon: normalized.pokemon.map(entry => entry.playerPokemonId === nextPokemon.playerPokemonId ? nextPokemon : entry),
+    pokemon: normalized.pokemon.map(entry => entry.playerPokemonId === preview.pokemon.playerPokemonId ? preview.pokemon : entry),
   });
   return {
     ok: true,
     vault: nextVault,
+    pokemon: preview.pokemon,
+    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 使用了 ${preview.itemName}。`,
+    changes: preview.changes,
+  };
+}
+
+export function applyPlayerVaultFriendshipItemV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string},
+): PlayerVaultFriendshipItemApplyResultV4 {
+  const result = applyPlayerVaultNumericItemV4(dex, input);
+  if (!result.ok) return result;
+  const friendshipChange = result.changes.find(entry => entry.label === "亲密度");
+  const friendshipDelta = Math.max(0, Number(friendshipChange?.after || 0) - Number(friendshipChange?.before || 0));
+  return {
+    ok: true,
+    vault: result.vault,
+    pokemon: result.pokemon,
+    message: friendshipDelta > 0
+      ? `${playerVaultPokemonDisplayNameV4(dex, result.pokemon)} 亲密度提升 ${friendshipDelta} 点。`
+      : result.message,
+    friendshipDelta,
+  };
+}
+
+export function applyPlayerVaultHeldItemV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string},
+): PlayerVaultHeldItemApplyResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const item = findPlayerVaultItemByKeyV4(normalized, input.itemKey);
+  if (!item) return {ok: false, reason: "道具不存在。"};
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  const detail = safeVaultItemDetailV4(dex, item.itemId);
+  if (detail?.kind !== "battle" && detail?.kind !== "held") return {ok: false, reason: "该道具不能作为携带道具。"};
+  if (pokemon.heldItemId === item.itemId) return {ok: false, reason: "这只宝可梦已经携带该道具。"};
+  const nextPokemon: PlayerPokemonRecordV4 = {
+    ...pokemon,
+    heldItemId: item.itemId,
+  };
+  let nextVault = normalizePlayerVaultV4({
+    ...normalized,
+    items: consumePlayerVaultItemRecordV4(normalized.items, item),
+    pokemon: normalized.pokemon.map(entry => entry.playerPokemonId === nextPokemon.playerPokemonId ? nextPokemon : entry),
+  });
+  if (pokemon.heldItemId) {
+    nextVault = addPlayerVaultItemV4(nextVault, {itemId: pokemon.heldItemId, quantity: 1, boxKind: "storage"}).vault;
+  }
+  const itemName = detail.nameZh || detail.name || item.itemId;
+  const replacedName = pokemon.heldItemId ? safeVaultItemDetailV4(dex, pokemon.heldItemId)?.nameZh || pokemon.heldItemId : "";
+  return {
+    ok: true,
+    vault: nextVault,
     pokemon: nextPokemon,
-    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 学会了 ${move.nameZh || move.name || move.id}。`,
+    message: replacedName
+      ? `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 将 ${replacedName} 替换为 ${itemName}。`
+      : `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 携带了 ${itemName}。`,
+    replacedItemId: pokemon.heldItemId,
+  };
+}
+
+export function unequipPlayerVaultHeldItemV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; pokemonId: string},
+): PlayerVaultHeldItemUnequipResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  if (!pokemon.heldItemId) return {ok: false, reason: "这只宝可梦没有携带道具。"};
+  const unequippedItemId = pokemon.heldItemId;
+  const nextPokemon: PlayerPokemonRecordV4 = {
+    ...pokemon,
+    heldItemId: undefined,
+  };
+  const added = addPlayerVaultItemV4({
+    ...normalized,
+    pokemon: normalized.pokemon.map(entry => entry.playerPokemonId === nextPokemon.playerPokemonId ? nextPokemon : entry),
+  }, {itemId: unequippedItemId, quantity: 1, boxKind: "storage"});
+  if (added.rejectedItemCount > 0) return {ok: false, reason: "道具箱已满，无法卸下携带道具。"};
+  const detail = safeVaultItemDetailV4(dex, unequippedItemId);
+  const itemName = detail?.nameZh || detail?.name || unequippedItemId;
+  return {
+    ok: true,
+    vault: added.vault,
+    pokemon: nextPokemon,
+    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 卸下了 ${itemName}。`,
+    unequippedItemId,
   };
 }
 
@@ -364,9 +522,59 @@ function playerVaultItemRecordKeyV4(item: PlayerItemRecordV4): string {
   return `${item.boxKind || "storage"}:${item.storagePageIndex || 0}:${item.slotIndex || 0}:${item.itemId}`;
 }
 
+function consumePlayerVaultItemRecordV4(items: PlayerItemRecordV4[], target: PlayerItemRecordV4): PlayerItemRecordV4[] {
+  const targetKey = playerVaultItemRecordKeyV4(target);
+  return items.flatMap(entry => {
+    if (playerVaultItemRecordKeyV4(entry) !== targetKey) return [entry];
+    if (entry.quantity <= 1) return [];
+    return [{...entry, quantity: entry.quantity - 1}];
+  });
+}
+
+function applyPlayerVaultMoveRecordV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  normalized: PlayerVaultV4,
+  item: PlayerItemRecordV4,
+  pokemon: PlayerPokemonRecordV4,
+  move: DexMoveSummary,
+  moveSlotInput: number,
+  markForbiddenManualUsed: boolean,
+): PlayerVaultMoveTeachingApplyResultV4 {
+  const moveSlot = Math.max(0, Math.min(3, Math.floor(Number(moveSlotInput || 0))));
+  const nextMoves = Array.from({length: 4}, (_, index) => pokemon.moves[index] || {moveId: ""})
+    .map((entry, index) => index === moveSlot ? {moveId: move.id, remainingPp: move.pp, maxPp: move.pp} : entry)
+    .filter(entry => Boolean(entry.moveId));
+  const nextPokemon: PlayerPokemonRecordV4 = {
+    ...pokemon,
+    moves: nextMoves,
+    growthFlags: markForbiddenManualUsed
+      ? {...pokemon.growthFlags, forbiddenManualUsedAt: new Date().toISOString()}
+      : pokemon.growthFlags,
+  };
+  const nextVault = normalizePlayerVaultV4({
+    ...normalized,
+    items: consumePlayerVaultItemRecordV4(normalized.items, item),
+    pokemon: normalized.pokemon.map(entry => entry.playerPokemonId === nextPokemon.playerPokemonId ? nextPokemon : entry),
+  });
+  return {
+    ok: true,
+    vault: nextVault,
+    pokemon: nextPokemon,
+    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 学会了 ${move.nameZh || move.name || move.id}。`,
+  };
+}
+
 function safeVaultItemDetailV4(dex: PlayerVaultMoveTeachingDexV4, itemId: string): DexItemDetail | null {
   try {
     return dex.getItemDetail(itemId);
+  } catch {
+    return null;
+  }
+}
+
+function safeVaultMoveDetailV4(dex: PlayerVaultMoveTeachingDexV4, moveId: string): DexMoveSummary | null {
+  try {
+    return dex.getMoveDetail(moveId);
   } catch {
     return null;
   }
@@ -381,6 +589,144 @@ function playerVaultPokemonDisplayNameV4(dex: PlayerVaultMoveTeachingDexV4, poke
     speciesName = pokemon.speciesId;
   }
   return pokemon.nickname ? `${pokemon.nickname}（${speciesName}）` : speciesName;
+}
+
+function previewPlayerVaultNumericItemRecordV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  item: PlayerItemRecordV4,
+  pokemon: PlayerPokemonRecordV4,
+): {ok: true; itemName: string; pokemon: PlayerPokemonRecordV4; changes: Array<{label: string; before: string; after: string}>} | {ok: false; reason: string} {
+  const detail = safeVaultItemDetailV4(dex, item.itemId);
+  const itemName = detail?.nameZh || detail?.name || item.itemId;
+  if (detail?.friendshipEffect) {
+    const maxFriendship = Math.max(0, Math.floor(Number(detail.friendshipEffect.max ?? 255)));
+    const beforeFriendship = Math.max(0, Math.floor(Number(pokemon.friendship || 0)));
+    const nextFriendship = Math.min(maxFriendship, beforeFriendship + Math.max(0, Math.floor(Number(detail.friendshipEffect.amount || 0))));
+    if (nextFriendship <= beforeFriendship) return {ok: false, reason: "这只宝可梦的亲密度已经达到上限。"};
+    return {
+      ok: true,
+      itemName,
+      pokemon: {...pokemon, friendship: nextFriendship},
+      changes: [{label: "亲密度", before: String(beforeFriendship), after: String(nextFriendship)}],
+    };
+  }
+  if (detail?.trainingEffect) {
+    const localPokemon = playerVaultPokemonToLocalPokemonV4(dex, pokemon);
+    const result = applyTrainingItemToPokemonV4({
+      item: playerVaultItemRecordToInstanceV4(item, detail),
+      detail,
+      pokemon: localPokemon,
+      bag: {maxSize: 1, items: [playerVaultItemRecordToInstanceV4(item, detail)]},
+      pokemonDetail: safePokemonDetailV4(dex, pokemon.speciesId),
+      calculateMaxHp: next => dex.calculatePokemonStats?.({speciesId: next.speciesId, level: next.level, nature: next.nature, evs: next.evs, ivs: next.ivs}).stats.hp || next.maxHp,
+      translateDexLabel: dex.translateDexLabel,
+    });
+    if (!result.ok) return result;
+    const nextPokemon = localPokemonToPlayerVaultPokemonV4(pokemon, result.pokemon);
+    const changes = numericChangesForPlayerVaultPokemonV4(dex, pokemon, nextPokemon);
+    if (!changes.length) return {ok: false, reason: "目标当前不需要这个道具。"};
+    return {ok: true, itemName, pokemon: nextPokemon, changes};
+  }
+  return {ok: false, reason: "该道具没有可预览的数值变化。"};
+}
+
+function playerVaultPokemonToLocalPokemonV4(dex: PlayerVaultMoveTeachingDexV4, pokemon: PlayerPokemonRecordV4): LocalPokemonV4 {
+  const detail = safePokemonDetailV4(dex, pokemon.speciesId);
+  const speciesName = detail?.name || pokemon.speciesId;
+  const speciesNameZh = detail?.nameZh || speciesName;
+  const ability = detail?.abilities.find(entry => entry.id === pokemon.abilityId);
+  const level = Math.max(1, Math.min(100, Math.floor(Number(pokemon.level || 50))));
+  const maxHp = dex.calculatePokemonStats?.({speciesId: pokemon.speciesId, level, nature: pokemon.nature, evs: pokemon.evs, ivs: pokemon.ivs}).stats.hp || 1;
+  return {
+    localPokemonId: pokemon.playerPokemonId,
+    speciesId: pokemon.speciesId,
+    name: pokemon.nickname || speciesName,
+    nameZh: pokemon.nickname || speciesNameZh,
+    level,
+    gender: pokemon.gender,
+    shiny: pokemon.shiny,
+    itemId: pokemon.heldItemId || "",
+    heldItemInstanceId: undefined,
+    abilityId: pokemon.abilityId,
+    abilityName: ability?.name || pokemon.abilityId,
+    abilityNameZh: ability?.nameZh || ability?.name || pokemon.abilityId,
+    nature: pokemon.nature,
+    moves: pokemon.moves.map(move => playerVaultMoveToLocalMoveV4(dex, move.moveId)),
+    evs: pokemon.evs,
+    ivs: pokemon.ivs,
+    entryHp: maxHp,
+    entryStatus: "",
+    maxHp,
+  };
+}
+
+function localPokemonToPlayerVaultPokemonV4(base: PlayerPokemonRecordV4, local: LocalPokemonV4): PlayerPokemonRecordV4 {
+  return {
+    ...base,
+    level: local.level,
+    nature: local.nature,
+    abilityId: local.abilityId,
+    evs: local.evs,
+    ivs: local.ivs,
+  };
+}
+
+function playerVaultMoveToLocalMoveV4(dex: PlayerVaultMoveTeachingDexV4, moveId: string): TrainingMoveSlotV4 {
+  const move = safeVaultMoveDetailV4(dex, moveId);
+  return move ? moveSlotFromDexMove(move) : {moveId, name: moveId, nameZh: moveId, type: "-", category: "-", power: 0, accuracy: null, pp: 0, maxPp: 0, remainingPp: 0};
+}
+
+function playerVaultItemRecordToInstanceV4(item: PlayerItemRecordV4, detail: DexItemDetail): PlayerItemInstanceV4 {
+  return {
+    id: playerVaultItemRecordKeyV4(item),
+    itemID: item.itemId,
+    name: detail.nameZh || detail.name || item.itemId,
+    image: detail.iconUrl || "",
+    cost: detail.cost || 0,
+    canSale: Boolean(detail.canSale),
+    type: playerItemTypeForDexKindV4(detail.kind),
+    canBattleUse: Boolean(detail.canBattleUse),
+    canUse: Boolean(detail.canUse),
+    canUseToPokemon: Boolean(detail.canUseToPokemon),
+    canTake: Boolean(detail.canTake),
+    effectRound: null,
+    getRound: 0,
+    maxUseCount: null,
+    useCount: 0,
+  };
+}
+
+function playerItemTypeForDexKindV4(kind: DexItemDetail["kind"]): PlayerItemInstanceV4["type"] {
+  if (kind === "recovery" || kind === "revive" || kind === "pp") return "medicine";
+  if (kind === "valuable") return "key";
+  if (kind === "parenting" || kind === "special" || kind === "other") return "misc";
+  return kind;
+}
+
+function safePokemonDetailV4(dex: PlayerVaultMoveTeachingDexV4, speciesId: string): DexPokemonDetail | null {
+  try {
+    return dex.getPokemonDetail(speciesId);
+  } catch {
+    return null;
+  }
+}
+
+function numericChangesForPlayerVaultPokemonV4(dex: PlayerVaultMoveTeachingDexV4, before: PlayerPokemonRecordV4, after: PlayerPokemonRecordV4): Array<{label: string; before: string; after: string}> {
+  const changes: Array<{label: string; before: string; after: string}> = [];
+  if ((before.level || 50) !== (after.level || 50)) changes.push({label: "等级", before: `Lv.${before.level || 50}`, after: `Lv.${after.level || 50}`});
+  if (before.nature !== after.nature) changes.push({label: "性格", before: dex.translateDexLabel?.("natures", before.nature) || before.nature, after: dex.translateDexLabel?.("natures", after.nature) || after.nature});
+  if (before.abilityId !== after.abilityId) changes.push({label: "特性", before: abilityLabelV4(dex, before), after: abilityLabelV4(dex, after)});
+  for (const stat of STAT_IDS) {
+    if (before.evs[stat] !== after.evs[stat]) changes.push({label: `${dex.translateDexLabel?.("stats", stat) || stat}努力`, before: String(before.evs[stat]), after: String(after.evs[stat])});
+    if (before.ivs[stat] !== after.ivs[stat]) changes.push({label: `${dex.translateDexLabel?.("stats", stat) || stat}个体`, before: String(before.ivs[stat]), after: String(after.ivs[stat])});
+  }
+  return changes;
+}
+
+function abilityLabelV4(dex: PlayerVaultMoveTeachingDexV4, pokemon: PlayerPokemonRecordV4): string {
+  const detail = safePokemonDetailV4(dex, pokemon.speciesId);
+  const ability = detail?.abilities.find(entry => entry.id === pokemon.abilityId);
+  return ability?.nameZh || ability?.name || pokemon.abilityId || "未知";
 }
 
 function playerVaultMoveTeachingPoolV4(

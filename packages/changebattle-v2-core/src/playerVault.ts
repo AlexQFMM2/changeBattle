@@ -4,6 +4,7 @@ import {normalizeStatTableV4, normalizeTrainingGenderV4, type LocalPokemonV4} fr
 export type PlayerItemRecordV4 = {
   itemId: string;
   quantity: number;
+  sourceKind?: "debug";
   boxKind?: "prep" | "storage";
   storagePageIndex?: number;
   slotIndex?: number;
@@ -22,13 +23,14 @@ export type PlayerPokemonRecordV4 = {
   speciesId: string;
   nickname?: string;
   level?: number;
-  originKind?: "soulmate";
+  originKind?: "soulmate" | "debug-custom";
   rootSpeciesId?: string;
   sourceRunId?: string;
   sourcePokemonKey?: string;
   gender: LocalPokemonV4["gender"];
   nature: string;
   abilityId: string;
+  heldItemId?: string;
   evs: LocalPokemonV4["evs"];
   ivs: LocalPokemonV4["ivs"];
   moves: PlayerPokemonMoveRecordV4[];
@@ -103,7 +105,14 @@ export function normalizePlayerItemRecordV4(value: unknown): PlayerItemRecordV4 
   const boxKind = "storage";
   const storagePageIndex = clampInt(value.storagePageIndex, 0, 999, 0);
   const slotIndex = Number.isFinite(Number(value.slotIndex)) ? clampInt(value.slotIndex, 0, PLAYER_VAULT_PAGE_SIZE_V4 - 1, 0) : undefined;
-  return {itemId, quantity, boxKind, storagePageIndex, slotIndex};
+  return {
+    itemId,
+    quantity,
+    sourceKind: value.sourceKind === "debug" ? "debug" : undefined,
+    boxKind,
+    storagePageIndex,
+    slotIndex,
+  };
 }
 
 export function normalizePlayerPokemonRecordV4(value: unknown, nowIso = new Date().toISOString()): PlayerPokemonRecordV4 | null {
@@ -116,13 +125,14 @@ export function normalizePlayerPokemonRecordV4(value: unknown, nowIso = new Date
     speciesId,
     nickname: normalizeNonEmptyText(value.nickname) || undefined,
     level: optionalPositiveInt(value.level),
-    originKind: value.originKind === "soulmate" ? "soulmate" : undefined,
+    originKind: normalizePlayerPokemonOriginKindV4(value.originKind),
     rootSpeciesId: normalizeNonEmptyText(value.rootSpeciesId) || undefined,
     sourceRunId: normalizeNonEmptyText(value.sourceRunId) || undefined,
     sourcePokemonKey: normalizeNonEmptyText(value.sourcePokemonKey) || undefined,
     gender: normalizeTrainingGenderV4(value.gender),
     nature: normalizeNonEmptyText(value.nature) || "Hardy",
     abilityId: normalizeNonEmptyText(value.abilityId),
+    heldItemId: normalizeNonEmptyText(value.heldItemId ?? value.itemId) || undefined,
     evs: normalizeStatTableV4(value.evs, 0),
     ivs: normalizeStatTableV4(value.ivs, 31),
     moves: normalizePlayerPokemonMovesV4(value.moves),
@@ -134,6 +144,10 @@ export function normalizePlayerPokemonRecordV4(value: unknown, nowIso = new Date
       : [],
     growthFlags: normalizePlayerPokemonGrowthFlagsV4(value.growthFlags),
   };
+}
+
+export function normalizePlayerPokemonOriginKindV4(value: unknown): PlayerPokemonRecordV4["originKind"] {
+  return value === "soulmate" || value === "debug-custom" ? value : undefined;
 }
 
 export function normalizePlayerPokemonGrowthFlagsV4(value: unknown): PlayerPokemonRecordV4["growthFlags"] {

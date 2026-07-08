@@ -10,13 +10,14 @@ import "./MainMenuPage.css";
 
 export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onManualSave, onBattlePreference, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
   trainingRun: TrainingRunGameV4 | null;
   continueGameLabel?: string;
   manualSaveState?: MainMenuManualSaveState;
+  debugFeatureEnabled?: boolean;
   onOpenDex: () => void;
   onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
@@ -27,6 +28,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   onTrainerVaultPokemon: () => void;
   onManualSave: () => void;
   onBattlePreference: () => void;
+  onEnableTestMode?: () => void;
   onUserInfo: () => void;
   onTitle: () => void;
 }) {
@@ -44,6 +46,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
     {label: "我的背包", action: onTrainerVaultBag},
     {label: "我的宝可梦", action: onTrainerVaultPokemon},
     {label: "玩家设置", action: onUserInfo},
+    ...(debugFeatureEnabled && onEnableTestMode ? [{label: "测试模式", action: onEnableTestMode, instant: true}] : []),
     {label: manualSaveLabel(manualSaveState), action: onManualSave, instant: true},
     {label: "回到主页", action: onTitle},
   ];

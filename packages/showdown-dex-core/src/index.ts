@@ -77,6 +77,7 @@ export type DexItemTrainingEffect =
 export type DexItemMoveTeachingEffect =
   | {kind: "learn-source"; sources: DexLearnSource[]}
   | {kind: "any"; oncePerPokemon?: boolean};
+export type DexItemFriendshipEffect = {amount: number; max?: number};
 
 export type DexSearchRequest = {
   category?: DexCategory | "all";
@@ -239,6 +240,7 @@ export type DexItemDetail = {
   recoveryEffect?: DexItemRecoveryEffect;
   trainingEffect?: DexItemTrainingEffect;
   moveTeachingEffect?: DexItemMoveTeachingEffect;
+  friendshipEffect?: DexItemFriendshipEffect;
   canBattleUse?: boolean;
   canUse?: boolean;
   canUseToPokemon?: boolean;
@@ -534,6 +536,7 @@ type ItemRegistryEntry = {
   recoveryEffect?: DexItemRecoveryEffect;
   trainingEffect?: DexItemTrainingEffect;
   moveTeachingEffect?: DexItemMoveTeachingEffect;
+  friendshipEffect?: DexItemFriendshipEffect;
   iconAsset?: string;
   canBattleUse: boolean;
   canUse: boolean;
@@ -657,7 +660,7 @@ const PARENTING_MOVE_TEACHING_ITEM_ENTRIES: ItemRegistryEntry[] = [
     canUseToPokemon: true,
     canTake: false,
     cost: 3000,
-    iconAsset: "runtime/items/tmnormal/icon.png",
+    iconAsset: "runtime/items/standardtextbook/icon.png",
     tags: ["养育", "技能学习", "教授技能", "普通教材"],
   }),
   v1Item("redthread", "Red Thread", "红线", "parenting", "对宝可梦使用后，可以学习遗传技能。", {
@@ -669,7 +672,7 @@ const PARENTING_MOVE_TEACHING_ITEM_ENTRIES: ItemRegistryEntry[] = [
     canUseToPokemon: true,
     canTake: false,
     cost: 3500,
-    iconAsset: "runtime/items/destinyknot/icon.png",
+    iconAsset: "runtime/items/redthread/icon.png",
     tags: ["养育", "技能学习", "遗传技能", "红线"],
   }),
   v1Item("lostmanual", "Lost Manual", "失落的秘籍", "parenting", "对宝可梦使用后，可以学习非正常途径学习的技能。", {
@@ -681,7 +684,7 @@ const PARENTING_MOVE_TEACHING_ITEM_ENTRIES: ItemRegistryEntry[] = [
     canUseToPokemon: true,
     canTake: false,
     cost: 5000,
-    iconAsset: "runtime/items/tmdark/icon.png",
+    iconAsset: "runtime/items/lostmanual/icon.png",
     tags: ["养育", "技能学习", "特殊技能", "失落的秘籍"],
   }),
   v1Item("forbiddenmanual", "Forbidden Manual", "禁断的秘籍", "parenting", "对宝可梦使用后，可以学习任意技能。每只宝可梦只能使用一次。", {
@@ -693,8 +696,20 @@ const PARENTING_MOVE_TEACHING_ITEM_ENTRIES: ItemRegistryEntry[] = [
     canUseToPokemon: true,
     canTake: false,
     cost: 12000,
-    iconAsset: "runtime/items/tmghost/icon.png",
+    iconAsset: "runtime/items/forbiddenmanual/icon.png",
     tags: ["养育", "技能学习", "任意技能", "禁断的秘籍"],
+  }),
+  v1Item("soothebell", "Soothe Bell", "安抚之铃", "parenting", "对宝可梦使用后，可以提升 50 点亲密度。", {
+    source: "overlay",
+    effectSummary: "亲密度 +50。",
+    friendshipEffect: {amount: 50, max: 255},
+    canBattleUse: false,
+    canUse: true,
+    canUseToPokemon: true,
+    canTake: false,
+    cost: 2500,
+    iconAsset: "runtime/items/soothebell/icon.png",
+    tags: ["养育", "亲密度", "安抚之铃", "安抚铃铛", "Soothe Bell"],
   }),
 ];
 
@@ -1205,6 +1220,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       recoveryEffect: overlay?.recoveryEffect,
       trainingEffect: overlay?.trainingEffect,
       moveTeachingEffect: overlay?.moveTeachingEffect,
+      friendshipEffect: overlay?.friendshipEffect,
       canBattleUse: overlay?.canBattleUse ?? false,
       canUse: overlay?.canUse ?? false,
       canUseToPokemon: overlay?.canUseToPokemon ?? false,
@@ -1232,6 +1248,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       recoveryEffect: entry.recoveryEffect,
       trainingEffect: entry.trainingEffect,
       moveTeachingEffect: entry.moveTeachingEffect,
+      friendshipEffect: entry.friendshipEffect,
       canBattleUse: entry.canBattleUse,
       canUse: entry.canUse,
       canUseToPokemon: entry.canUseToPokemon,
@@ -1808,6 +1825,7 @@ function v1Item(
     recoveryEffect: options.recoveryEffect,
     trainingEffect: options.trainingEffect,
     moveTeachingEffect: options.moveTeachingEffect,
+    friendshipEffect: options.friendshipEffect,
     iconAsset: options.iconAsset || `runtime/items/${id}/icon.png`,
     canBattleUse: options.canBattleUse ?? false,
     canUse: options.canUse ?? true,

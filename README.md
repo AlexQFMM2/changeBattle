@@ -126,6 +126,12 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 
 不要把这类资源临时放到 `apps/web/src/assets/` 或随意放进 `apps/web/public/`。`apps/web/src/assets/` 只适合真正需要被代码模块静态 import、并且已有明确局部打包约定的源码内资源；休整页、商店、训练场、战斗页等运行时 UI 资源默认都属于根目录 `assets/`。新增资源前先检查 `assets/` 里已有分类，优先复用/扩展现有目录，避免只为一个图标新开孤立资源体系。
 
+`assets/` 是运行时资源源目录，但它不是 git 源码目录。图片、音频、精灵图、批量复制/生成的道具图标体积大、更新频繁，所以默认不提交进 git；这不是说这些资源只服务本机预览，也不是临时目录。git 负责提交代码、catalog、道具/物种等记录里的资源相对路径；实际资源文件通过独立 assets 包、assetsURL、桌面包或更新管线同步和分发。
+
+代码里记录资源路径时使用相对 `assets/` 的路径，例如 `runtime/items/redthread/icon.png`，不要写成本机绝对路径、`file://`、硬编码 `/assets/...`，也不要为了让 `git status` 看到文件就搬进 `apps/web/public/`。Web 渲染时用 `assetUrl("runtime/items/redthread/icon.png")`，或者使用内部已经调用 `assetUrl` 的共享图片组件；`assetUrl("assets/runtime/items/redthread/icon.png")` 会被兼容归一化，但新增代码优先不要带 `assets/` 前缀。`assetUrl(...)` 是 Web dev、desktop dev、portable release、beta/stable 更新包共用的资源入口，尤其用于保证桌面 release 解包或更新后仍能按统一规则读取图片，不是单纯的字符串拼接工具。
+
+新增或复制运行时图片时，直接放到既有资源分类下，例如道具图标放 `assets/runtime/items/<itemId>/icon.png`。因为 `assets/` 被忽略，`git status` 不显示这些文件是预期行为；需要检查缺图时，用本地 UI、资源缺失审计脚本或对应 catalog 里的 icon 路径验证。发布/更新时，源码可以走 `git archive`，资源必须走单独 assets 打包/同步链路，避免把大资源塞进 git。
+
 ## Commands
 
 ```bash
