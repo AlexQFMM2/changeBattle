@@ -355,6 +355,14 @@
   image-rendering: pixelated;
 }
 
+.trainer-vault-cell-pokemon-icon {
+  display: block;
+  width: 40px;
+  height: 30px;
+  transform: scale(1.35);
+  transform-origin: center;
+}
+
 .trainer-vault-cell .image-fallback {
   display: grid;
   place-items: center;
@@ -365,62 +373,74 @@
   font-weight: 1000;
 }
 
-.trainer-vault-cell .training-rest-new-bag-item-icon,
-.trainer-vault-cell .training-rest-new-bag-detail-icon {
+.trainer-vault-cell-held-item {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  background: transparent;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 80%)) drop-shadow(0 0 2px rgb(0 0 0 / 72%));
+  pointer-events: none;
+}
+
+.trainer-vault-cell-item-icon,
+.trainer-vault-cell-held-item-icon {
+  display: grid;
+  place-items: center;
+  overflow: visible;
+}
+
+.trainer-vault-cell-item-icon {
   width: 28px;
   height: 28px;
+}
+
+.trainer-vault-cell-held-item-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.trainer-vault-cell-item-icon .training-rest-new-bag-item-icon,
+.trainer-vault-cell-item-icon .training-rest-new-bag-detail-icon,
+.trainer-vault-cell-held-item-icon .training-rest-new-bag-item-icon,
+.trainer-vault-cell-held-item-icon .training-rest-new-bag-detail-icon {
+  width: 24px;
+  height: 24px;
   border: 0;
   background: transparent;
   box-shadow: none;
   overflow: visible;
 }
 
-.trainer-vault-cell .training-rest-new-bag-sprite-icon {
-  width: 22px;
-  height: 22px;
+.trainer-vault-cell-item-icon .training-rest-new-bag-sprite-icon,
+.trainer-vault-cell-held-item-icon .training-rest-new-bag-sprite-icon {
+  width: 24px;
+  height: 24px;
 }
 
-.trainer-vault-cell .training-rest-new-bag-item-icon img,
-.trainer-vault-cell .training-rest-new-bag-detail-icon img {
+.trainer-vault-cell-item-icon .training-rest-new-bag-item-icon,
+.trainer-vault-cell-item-icon .training-rest-new-bag-detail-icon {
+  transform: scale(.92);
+  transform-origin: center;
+}
+
+.trainer-vault-cell-held-item-icon .training-rest-new-bag-item-icon,
+.trainer-vault-cell-held-item-icon .training-rest-new-bag-detail-icon {
+  transform: scale(.58);
+  transform-origin: center;
+}
+
+.trainer-vault-cell-item-icon .training-rest-new-bag-item-icon img,
+.trainer-vault-cell-item-icon .training-rest-new-bag-detail-icon img,
+.trainer-vault-cell-held-item-icon .training-rest-new-bag-item-icon img,
+.trainer-vault-cell-held-item-icon .training-rest-new-bag-detail-icon img {
   width: auto;
   height: auto;
-  max-width: 22px;
-  max-height: 22px;
-  object-fit: contain;
-}
-
-.trainer-vault-cell-held-item {
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border: 1px solid rgb(255 244 188 / 72%);
-  border-radius: 5px;
-  background: rgb(12 18 16 / 88%);
-  box-shadow: 0 1px 0 rgb(0 0 0 / 34%);
-}
-
-.trainer-vault-cell-held-item .training-rest-new-bag-item-icon,
-.trainer-vault-cell-held-item .training-rest-new-bag-detail-icon {
-  width: 12px;
-  height: 12px;
-  overflow: visible;
-}
-
-.trainer-vault-cell-held-item .training-rest-new-bag-sprite-icon {
-  width: 10px;
-  height: 10px;
-}
-
-.trainer-vault-cell-held-item .training-rest-new-bag-item-icon img,
-.trainer-vault-cell-held-item .training-rest-new-bag-detail-icon img {
-  width: auto;
-  height: auto;
-  max-width: 10px;
-  max-height: 10px;
+  max-width: 24px;
+  max-height: 24px;
   object-fit: contain;
 }
 

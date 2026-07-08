@@ -1,9 +1,9 @@
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {ChangeBattleV2Api, DexMoveSummary, PlayerItemInstanceV4, PlayerItemRecordV4, PlayerPokemonRecordV4, PlayerVaultPokemonDetailViewV4, PlayerVaultV4} from "@changebattle-v2/api";
 import {AppConfirmModal} from "../shared/AppModal";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {PlayerBagItemIcon} from "../training/PlayerBagPanel";
-import {assetUrl} from "../../lib/assetUrl";
+import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import {TrainerVaultDebugAddModal, type TrainerVaultDebugAddState} from "./TrainerVaultDebugAddModal";
 import {VaultMoveReplaceModal, type VaultMoveReplaceMove, type VaultMoveReplaceState} from "./VaultMoveReplaceModal";
@@ -58,7 +58,9 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   onTabChange: (tab: TrainerVaultTab) => void;
   onBack: () => void;
 }) {
-  const [pageIndex, setPageIndex] = useState(0);
+  const [draftVault, setDraftVault] = useState(() => api.normalizePlayerVault(playerVault));
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [pageIndex, setPageIndex] = useState(() => tab === "pokemon" ? 1 : 0);
   const [selectedKey, setSelectedKey] = useState("");
   const [movingItemKey, setMovingItemKey] = useState("");
   const [vaultMessage, setVaultMessage] = useState("");
@@ -71,20 +73,20 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   const [activeUseItem, setActiveUseItem] = useState<VaultActiveUseItem | null>(null);
   const [debugAdd, setDebugAdd] = useState<TrainerVaultDebugAddState | null>(null);
   const [useNotice, setUseNotice] = useState<VaultUseNoticeState | null>(null);
-  const unlockedStoragePageCount = api.playerVaultUnlockedStoragePageCountV4(playerVault, tab === "bag" ? "item" : "pokemon");
+  const unlockedStoragePageCount = api.playerVaultUnlockedStoragePageCountV4(draftVault, tab === "bag" ? "item" : "pokemon");
   const hasPrepPage = tab === "pokemon";
   const totalPageCount = (hasPrepPage ? 1 : 0) + unlockedStoragePageCount + 1;
   const pageKind: VaultPageKind = hasPrepPage && pageIndex <= 0 ? "prep" : "storage";
   const storagePageIndex = pageKind === "storage" ? pageIndex - (hasPrepPage ? 1 : 0) : -1;
   const pageLocked = pageKind === "storage" && storagePageIndex >= unlockedStoragePageCount;
-  const pageEntries = useMemo(() => pageLocked ? createEmptyEntries(pageKind, storagePageIndex) : buildPageEntries(playerVault, tab, pageKind, storagePageIndex), [pageLocked, playerVault, tab, pageKind, storagePageIndex]);
+  const pageEntries = useMemo(() => pageLocked ? createEmptyEntries(pageKind, storagePageIndex) : buildPageEntries(draftVault, tab, pageKind, storagePageIndex), [pageLocked, draftVault, tab, pageKind, storagePageIndex]);
   const selectableEntries = useMemo(() => pageEntries.filter(isSelectableEntry), [pageEntries]);
   const selectableEntryKeys = useMemo(() => selectableEntries.map(entry => entry.key).join("|"), [selectableEntries]);
   const selectedEntry = useMemo(() => selectableEntries.find(entry => entry.key === selectedKey) || selectableEntries[0] || null, [selectableEntries, selectedKey]);
   const cellViewByKey = useMemo(() => {
     const views = new Map<string, VaultCellView>();
     for (const entry of pageEntries) {
-      if (entry.kind === "item") views.set(entry.key, {kind: "item", view: itemRecordView(api, entry.item)});
+      if (entry.kind === "item") views.set(entry.key, {kind: "item", view: itemRecordView(api, entry.item, {preferSpriteIcon: true})});
       if (entry.kind === "pokemon") views.set(entry.key, {kind: "pokemon", view: pokemonRecordView(api, entry.pokemon)});
     }
     return views;
@@ -97,6 +99,11 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   }, [tab]);
 
   useEffect(() => {
+    if (draftDirty) return;
+    setDraftVault(api.normalizePlayerVault(playerVault));
+  }, [api, playerVault, draftDirty]);
+
+  useEffect(() => {
     if (!selectableEntries.length) {
       setSelectedKey("");
       return;
@@ -106,13 +113,13 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
 
   const title = tab === "bag" ? "我的背包" : "我的宝可梦";
   const pageLabel = vaultPageLabel(tab, pageKind, storagePageIndex);
-  const movingItem = movingItemKey ? pageEntries.find(entry => entry.kind === "item" && entry.key === movingItemKey) || findItemEntryByKey(playerVault, movingItemKey) : null;
-  const activeUseItemRecord = activeUseItem ? findPlayerVaultItemRecordByKey(playerVault, activeUseItem.itemKey) : null;
+  const movingItem = movingItemKey ? pageEntries.find(entry => entry.kind === "item" && entry.key === movingItemKey) || findItemEntryByKey(draftVault, movingItemKey) : null;
+  const activeUseItemRecord = activeUseItem ? findPlayerVaultItemRecordByKey(draftVault, activeUseItem.itemKey) : null;
   const activeUseItemQuantity = activeUseItemRecord?.quantity ?? activeUseItem?.quantity ?? 0;
 
   function updateVaultDraft(nextVault: PlayerVaultV4, message: string) {
-    onPlayerVaultChange(api.normalizePlayerVault(nextVault));
-    onPlayerVaultDirtyChange(true);
+    setDraftVault(api.normalizePlayerVault(nextVault));
+    setDraftDirty(true);
     setVaultMessage(message);
   }
 
@@ -134,7 +141,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       setNumericPreview(null);
       setVaultMessage("已结束使用。");
     }
-    setPageIndex(0);
+    setPageIndex(nextTab === "pokemon" ? 1 : 0);
     setSelectedKey("");
     setMovingItemKey("");
     if (!activeUseItem) setVaultMessage("");
@@ -148,8 +155,8 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       return;
     }
     const result = debugAdd.kind === "bag"
-      ? api.addDebugPlayerVaultItem(playerVault, debugAdd.selectedId, debugAdd.quantity)
-      : api.addDebugPlayerVaultPokemon(playerVault, debugAdd.selectedId);
+      ? api.addDebugPlayerVaultItem(draftVault, debugAdd.selectedId, debugAdd.quantity)
+      : api.addDebugPlayerVaultPokemon(draftVault, debugAdd.selectedId);
     if (!result.ok) {
       setDebugAdd({...debugAdd, error: result.reason});
       return;
@@ -160,14 +167,16 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
 
   async function saveAndBack() {
     if (saving) return;
-    if (!playerVaultDirty) {
+    if (!draftDirty && !playerVaultDirty) {
       onBack();
       return;
     }
     setSaving(true);
     setVaultMessage("保存中...");
     try {
-      const saved = await onSavePlayerVault(api.normalizePlayerVault(playerVault));
+      const saved = await onSavePlayerVault(api.normalizePlayerVault(draftVault));
+      setDraftVault(api.normalizePlayerVault(saved));
+      setDraftDirty(false);
       onPlayerVaultChange(saved);
       onPlayerVaultDirtyChange(false);
       setVaultMessage("保存完成。");
@@ -197,7 +206,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   }
 
   function moveSelectedItemTo(target: VaultPageEntry) {
-    const source = findItemEntryByKey(playerVault, movingItemKey);
+    const source = findItemEntryByKey(draftVault, movingItemKey);
     if (!source) {
       setMovingItemKey("");
       setVaultMessage("移动的道具不存在。");
@@ -225,12 +234,12 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   }
 
   function applyMoveSelectedItemTo(target: VaultPageEntry) {
-    const source = findItemEntryByKey(playerVault, movingItemKey);
+    const source = findItemEntryByKey(draftVault, movingItemKey);
     if (!source || target.kind === "pokemon") return;
     const targetLocation = entryLocation(target);
     const sourceLocation = entryLocation(source);
     const targetItem = target.kind === "item" ? target : null;
-    const nextItems = playerVault.items.map(item => {
+    const nextItems = draftVault.items.map(item => {
       const currentKey = itemRecordKey(item);
       if (currentKey === source.key) return applyItemLocation(item, targetLocation);
       if (targetItem && currentKey === targetItem.key) return applyItemLocation(item, sourceLocation);
@@ -238,11 +247,15 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     });
     setMovingItemKey("");
     setSelectedKey(itemRecordKey(applyItemLocation(source.item, targetLocation)));
-    updateVaultDraft({...playerVault, items: nextItems}, targetItem ? "已交换道具位置，返回主页时保存。" : "已移动道具，返回主页时保存。");
+    updateVaultDraft({...draftVault, items: nextItems}, targetItem ? "已交换道具位置，返回主页时保存。" : "已移动道具，返回主页时保存。");
   }
 
   async function unlockAndMoveSelectedItemTo(target: VaultPageEntry) {
     if (!pageLocked || target.kind === "pokemon" || unlocking || saving) return;
+    if (draftDirty) {
+      showUseNotice("请先保存当前整理结果，再解锁箱子。");
+      return;
+    }
     if (profileBattlePoints < STORAGE_BOX_UNLOCK_BP_COST) {
       setVaultMessage(`BP 不足，需要 ${STORAGE_BOX_UNLOCK_BP_COST} BP。`);
       return;
@@ -294,10 +307,10 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   }
 
   function applyDiscardSelectedItem(entryKey: string) {
-    const nextItems = playerVault.items.filter(item => itemRecordKey(item) !== entryKey);
+    const nextItems = draftVault.items.filter(item => itemRecordKey(item) !== entryKey);
     setMovingItemKey("");
     setSelectedKey("");
-    updateVaultDraft({...playerVault, items: nextItems}, "已丢弃道具，返回主页时保存。");
+    updateVaultDraft({...draftVault, items: nextItems}, "已丢弃道具，返回主页时保存。");
   }
 
   function startUsingVaultItem(entry: Extract<SelectableVaultPageEntry, {kind: "item"}>) {
@@ -327,7 +340,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   function applyMoveTeaching(moveSlot: number) {
     if (!moveReplace) return;
     const result = api.applyPlayerVaultMoveTeachingItem({
-      vault: playerVault,
+      vault: draftVault,
       itemKey: moveReplace.itemKey,
       pokemonId: moveReplace.pokemon.playerPokemonId,
       moveId: moveReplace.move.id,
@@ -344,7 +357,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   }
 
   function openMoveSelectForTarget(itemKey: string, pokemon: PlayerPokemonRecordV4) {
-    const view = api.getPlayerVaultMoveTeachingView(playerVault, itemKey, pokemon.playerPokemonId, "");
+    const view = api.getPlayerVaultMoveTeachingView(draftVault, itemKey, pokemon.playerPokemonId, "");
     if (!view.ok) {
       showUseNotice(view.reason);
       return;
@@ -384,7 +397,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     const pokemonName = playerPokemonDisplayName(api, entry.pokemon);
     setSelectedKey(entry.key);
     if (detail.friendshipEffect || detail.trainingEffect) {
-      const preview = api.previewPlayerVaultNumericItemUse({vault: playerVault, itemKey: activeUseItem.itemKey, pokemonId: entry.pokemon.playerPokemonId});
+      const preview = api.previewPlayerVaultNumericItemUse({vault: draftVault, itemKey: activeUseItem.itemKey, pokemonId: entry.pokemon.playerPokemonId});
       if (!preview.ok) {
         showUseNotice(preview.reason);
         return;
@@ -421,7 +434,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   function applyNumericItem() {
     if (!activeUseItem || !numericPreview) return;
     const result = api.applyPlayerVaultNumericItem({
-      vault: playerVault,
+      vault: draftVault,
       itemKey: activeUseItem.itemKey,
       pokemonId: numericPreview.pokemon.playerPokemonId,
     });
@@ -437,7 +450,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   function applyHeldItemToPokemon(pokemonId: string) {
     if (!activeUseItem) return;
     const result = api.applyPlayerVaultHeldItem({
-      vault: playerVault,
+      vault: draftVault,
       itemKey: activeUseItem.itemKey,
       pokemonId,
     });
@@ -451,7 +464,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
 
   function unequipHeldItemFromPokemon(pokemonId: string) {
     if (activeUseItem) return;
-    const result = api.unequipPlayerVaultHeldItem({vault: playerVault, pokemonId});
+    const result = api.unequipPlayerVaultHeldItem({vault: draftVault, pokemonId});
     if (!result.ok) {
       showUseNotice(result.reason);
       return;
@@ -473,23 +486,21 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   }
 
   function applyReleaseSelectedPokemon(pokemonId: string) {
-    const result = api.releasePlayerVaultPokemon({vault: playerVault, pokemonId});
+    const result = api.releasePlayerVaultPokemon({vault: draftVault, pokemonId});
     if (!result.ok) {
       showUseNotice(result.reason);
       return;
     }
-    onPlayerVaultChange(api.normalizePlayerVault(result.vault));
-    onPlayerVaultDirtyChange(true);
     setSelectedKey("");
     showUseNotice(result.message, "normal");
-    setVaultMessage(`${result.message} 返回主页时保存。`);
+    updateVaultDraft(result.vault, `${result.message} 返回主页时保存。`);
   }
 
   function updateVaultAfterUse(nextVault: PlayerVaultV4, message: string) {
     const normalized = api.normalizePlayerVault(nextVault);
     const nextItem = activeUseItem ? findPlayerVaultItemRecordByKey(normalized, activeUseItem.itemKey) : null;
-    onPlayerVaultChange(normalized);
-    onPlayerVaultDirtyChange(true);
+    setDraftVault(normalized);
+    setDraftDirty(true);
     if (activeUseItem && nextItem) {
       setActiveUseItem({...activeUseItem, quantity: nextItem.quantity});
       setVaultMessage(`${message} 可继续选择目标。`);
@@ -498,7 +509,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     finishUseMode(`${message} 道具已用完。`, normalized);
   }
 
-  function finishUseMode(message = "已结束使用。", nextVault: PlayerVaultV4 = playerVault) {
+  function finishUseMode(message = "已结束使用。", nextVault: PlayerVaultV4 = draftVault) {
     const useItem = activeUseItem;
     setActiveUseItem(null);
     setMoveSelect(null);
@@ -515,6 +526,10 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
 
   async function unlockCurrentStoragePage() {
     if (!pageLocked || unlocking || saving) return;
+    if (draftDirty) {
+      showUseNotice("请先保存当前整理结果，再解锁箱子。");
+      return;
+    }
     if (profileBattlePoints < STORAGE_BOX_UNLOCK_BP_COST) {
       setVaultMessage(`BP 不足，需要 ${STORAGE_BOX_UNLOCK_BP_COST} BP。`);
       return;
@@ -531,7 +546,9 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     setUnlocking(true);
     setVaultMessage("解锁中...");
     try {
-      await onUnlockStoragePage(tab);
+      const unlockedVault = await onUnlockStoragePage(tab);
+      setDraftVault(api.normalizePlayerVault(unlockedVault));
+      setDraftDirty(false);
       setVaultMessage("箱子已解锁。");
     } catch (error) {
       console.error("[TrainerVaultPage] unlock storage page failed", error);
@@ -560,7 +577,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
           <span>训练家仓库</span>
           <strong>{title}</strong>
         </div>
-        <button type="button" onClick={() => void saveAndBack()} disabled={saving}>{saving ? "保存中..." : playerVaultDirty ? "保存并返回" : "返回主页"}</button>
+        <button type="button" onClick={() => void saveAndBack()} disabled={saving}>{saving ? "保存中..." : draftDirty || playerVaultDirty ? "保存并返回" : "返回主页"}</button>
       </header>
       <main className="trainer-vault-layout">
         <section className={`trainer-vault-left-panel ${activeUseItem ? "using-item" : ""}`} aria-label={`${title}列表`}>
@@ -639,7 +656,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       {moveSelect && !moveReplace ? (
         <VaultMoveSelectModal
           api={api}
-          vault={playerVault}
+          vault={draftVault}
           state={moveSelect}
           onStateChange={setMoveSelect}
           onCancel={() => setMoveSelect(null)}
@@ -689,22 +706,22 @@ function VaultGridCell({api, entry, cellView, selected, moving, movingSource, us
   onSelect: () => void;
 }) {
   if (entry.kind === "item") {
-    const itemView = cellView?.kind === "item" ? cellView.view : itemRecordView(api, entry.item);
+    const itemView = cellView?.kind === "item" ? cellView.view : itemRecordView(api, entry.item, {preferSpriteIcon: true});
     return (
       <button className={`trainer-vault-cell ${entry.pageKind} ${selected ? "selected" : ""} ${movingSource ? "moving-source" : ""} ${moving ? "move-target" : ""}`} type="button" title={itemView.name} onClick={onSelect}>
-        <PlayerBagItemIcon api={api} item={itemView.iconItem} />
+        <span className="trainer-vault-cell-item-icon"><PlayerBagItemIcon api={api} item={itemView.iconItem} /></span>
         {entry.item.quantity > 1 ? <i>{entry.item.quantity}</i> : null}
       </button>
     );
   }
   if (entry.kind === "pokemon") {
     const pokemonView = cellView?.kind === "pokemon" ? cellView.view : pokemonRecordView(api, entry.pokemon);
-    const heldItemView = entry.pokemon.heldItemId ? itemRecordView(api, {itemId: entry.pokemon.heldItemId, quantity: 1}) : null;
+    const heldItemView = entry.pokemon.heldItemId ? itemRecordView(api, {itemId: entry.pokemon.heldItemId, quantity: 1}, {preferSpriteIcon: true}) : null;
     return (
       <button className={`trainer-vault-cell pokemon ${entry.pageKind} ${selected ? "selected" : ""} ${useTarget ? "use-target" : ""}`} type="button" title={pokemonView.name} onClick={onSelect}>
-        <ImageWithFallback src={pokemonView.spriteUrl} alt={pokemonView.name} fallback={pokemonView.name.slice(0, 1) || "?"} />
+        <VaultPokemonCellIcon view={pokemonView} />
         {entry.pokemon.shiny ? <em>★</em> : null}
-        {heldItemView ? <span className="trainer-vault-cell-held-item"><PlayerBagItemIcon api={api} item={heldItemView.iconItem} /></span> : null}
+        {heldItemView ? <span className="trainer-vault-cell-held-item"><span className="trainer-vault-cell-held-item-icon"><PlayerBagItemIcon api={api} item={heldItemView.iconItem} /></span></span> : null}
       </button>
     );
   }
@@ -827,6 +844,12 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
       <PokemonDetailTabPanel view={pokemonView} tab={pokemonDetailTab} />
     </aside>
   );
+}
+
+function VaultPokemonCellIcon({view}: {view: ReturnType<typeof pokemonRecordView>}) {
+  const iconStyle = view.iconStyle ? spriteStyleFromCss(view.iconStyle) : null;
+  if (iconStyle) return <span className="trainer-vault-cell-pokemon-icon picon" aria-label={view.name} style={iconStyle} />;
+  return <ImageWithFallback src={view.iconUrl || ""} alt={view.name} fallback={view.name.slice(0, 1) || "?"} />;
 }
 
 function isSelectableEntry(entry: VaultPageEntry): entry is SelectableVaultPageEntry {
@@ -985,7 +1008,7 @@ function storagePageEmptyText(tab: TrainerVaultTab): string {
     : "当前存储箱没有宝可梦。后续获得宝可梦时会从这里开始入库。";
 }
 
-function itemRecordView(api: ChangeBattleV2Api, item: PlayerItemRecordV4): {name: string; kindLabel: string; description: string; iconItem: PlayerItemInstanceV4} {
+function itemRecordView(api: ChangeBattleV2Api, item: PlayerItemRecordV4, options: {preferSpriteIcon?: boolean} = {}): {name: string; kindLabel: string; description: string; iconItem: PlayerItemInstanceV4} {
   try {
     const detail = api.getItemDetail(item.itemId);
     return {
@@ -998,7 +1021,7 @@ function itemRecordView(api: ChangeBattleV2Api, item: PlayerItemRecordV4): {name
         name: detail.nameZh || detail.name || item.itemId,
         type: itemTypeFromDetailKind(detail.kind),
         useCount: item.quantity,
-        image: detail.iconUrl || "",
+        image: options.preferSpriteIcon ? "" : detail.iconUrl || "",
         canBattleUse: Boolean(detail.canBattleUse),
         canUse: Boolean(detail.canUse),
         canUseToPokemon: Boolean(detail.canUseToPokemon),
@@ -1093,7 +1116,7 @@ function safePokemonDetail(api: ChangeBattleV2Api, speciesId: string) {
   }
 }
 
-function pokemonRecordView(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV4): {name: string; abilityName: string; spriteUrl: string} {
+function pokemonRecordView(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV4): {name: string; abilityName: string; spriteUrl: string; iconUrl: string; iconStyle: string} {
   try {
     const detail = api.getPokemonDetail(pokemon.speciesId);
     const ability = detail.abilities.find(entry => entry.id === pokemon.abilityId);
@@ -1101,14 +1124,28 @@ function pokemonRecordView(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV
       name: detail.nameZh || detail.name || pokemon.speciesId,
       abilityName: ability?.nameZh || ability?.name || pokemon.abilityId || "特性未知",
       spriteUrl: pokemonSpriteUrl({speciesId: pokemon.speciesId, shiny: pokemon.shiny}),
+      iconUrl: detail.sprites.iconUrl || "",
+      iconStyle: detail.sprites.iconStyle || "",
     };
   } catch {
     return {
       name: pokemon.speciesId,
       abilityName: pokemon.abilityId || "特性未知",
       spriteUrl: pokemonSpriteUrl({speciesId: pokemon.speciesId, shiny: pokemon.shiny}),
+      iconUrl: "",
+      iconStyle: "",
     };
   }
+}
+
+function spriteStyleFromCss(css: string): CSSProperties | null {
+  const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
+  if (!match) return null;
+  return {
+    backgroundImage: `url("${styleUrlAssetPath(match[1])}")`,
+    backgroundPosition: `${match[2]}px ${match[3]}px`,
+    backgroundRepeat: "no-repeat",
+  };
 }
 
 function itemTypeFromDetailKind(kind: string): PlayerItemInstanceV4["type"] {
