@@ -1,16 +1,15 @@
 .trainer-vault-page {
-  --trainer-vault-page-pad-x: 20px;
-  --trainer-vault-page-pad-y: 10px;
-  --trainer-vault-left-width: 338px;
-  --trainer-vault-detail-width: 244px;
-  --trainer-vault-cell-size: 44px;
+  --trainer-vault-page-pad-x: 14px;
+  --trainer-vault-page-pad-y: 9px;
+  --trainer-vault-page-bag-width: 246px;
+  --trainer-vault-page-pokemon-width: 318px;
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
   display: grid;
-  grid-template-rows: 28px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-rows: 27px minmax(0, 1fr);
+  gap: 7px;
   padding: var(--trainer-vault-page-pad-y) var(--trainer-vault-page-pad-x);
   box-sizing: border-box;
   background: #101411;
@@ -28,19 +27,18 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center center;
-  filter: saturate(.92) brightness(.58);
+  filter: saturate(.9) brightness(.56);
 }
 
 .trainer-vault-backdrop {
   z-index: 1;
   background:
-    linear-gradient(180deg, rgb(5 8 7 / 28%), rgb(5 8 7 / 78%)),
-    linear-gradient(90deg, rgb(0 0 0 / 42%), transparent 52%, rgb(0 0 0 / 36%));
+    linear-gradient(180deg, rgb(5 8 7 / 28%), rgb(5 8 7 / 80%)),
+    linear-gradient(90deg, rgb(0 0 0 / 44%), transparent 52%, rgb(0 0 0 / 38%));
   pointer-events: none;
 }
 
-.trainer-vault-page > *:not(.trainer-vault-backdrop):not(.trainer-vault-video-bg):not(.vault-use-notice):not(.trainer-vault-debug-add-modal-layer):not(.vault-move-select-modal-layer):not(.vault-move-replace-modal-layer):not(.vault-numeric-preview-modal-layer):not(.modal-layer) {
+.trainer-vault-page > *:not(.trainer-vault-backdrop):not(.trainer-vault-video-bg):not(.vault-use-notice):not(.trainer-vault-debug-add-modal-layer):not(.vault-move-select-modal-layer):not(.vault-move-replace-modal-layer):not(.vault-numeric-preview-modal-layer):not(.modal-layer):not(.game-drawer-layer) {
   position: relative;
   z-index: 2;
 }
@@ -48,22 +46,18 @@
 .trainer-vault-header {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 104px;
+  grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-.trainer-vault-header div {
+.trainer-vault-header div:first-child {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
 
-.trainer-vault-header span,
-.trainer-vault-detail small,
-.trainer-vault-detail span,
-.trainer-vault-detail dt,
-.trainer-vault-pagination span {
+.trainer-vault-header span {
   color: rgb(255 255 255 / 72%);
   font-size: 6px;
   font-weight: 900;
@@ -71,45 +65,41 @@
 }
 
 .trainer-vault-header strong {
-  min-width: 0;
-  overflow: hidden;
   color: #fff5cf;
   font-size: 14px;
   font-weight: 1000;
   line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   text-shadow: 0 2px 0 rgb(0 0 0 / 58%);
 }
 
-.trainer-vault-header button,
-.trainer-vault-tabs button,
-.trainer-vault-pagination button {
+.trainer-vault-header-actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.trainer-vault-header button {
   min-width: 0;
-  border: 2px solid rgb(255 244 188 / 58%);
-  border-radius: 7px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 20%), rgb(255 255 255 / 6%)), rgb(42 37 30 / 86%);
+  height: 22px;
+  border: 1px solid rgb(255 244 188 / 58%);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 6%)), rgb(42 37 30 / 86%);
   color: #fff;
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 950;
   line-height: 1;
-  padding: 6px 8px;
-  text-shadow: 0 1px 0 rgb(0 0 0 / 62%);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%), 0 3px 0 rgb(0 0 0 / 26%);
+  padding: 0 6px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 1px 0 rgb(0 0 0 / 24%);
   cursor: pointer;
 }
 
 .trainer-vault-header button:hover,
-.trainer-vault-header button:focus-visible,
-.trainer-vault-tabs button:hover,
-.trainer-vault-tabs button:focus-visible,
-.trainer-vault-pagination button:hover,
-.trainer-vault-pagination button:focus-visible {
+.trainer-vault-header button:focus-visible {
   border-color: #78e8ff;
   outline: 0;
 }
 
-.trainer-vault-pagination button:disabled {
+.trainer-vault-header button:disabled {
   opacity: .45;
   cursor: default;
 }
@@ -118,749 +108,8 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--trainer-vault-left-width) var(--trainer-vault-detail-width);
-  gap: 18px;
+  grid-template-columns: var(--trainer-vault-page-bag-width) var(--trainer-vault-page-pokemon-width);
+  justify-content: center;
   align-items: stretch;
-}
-
-.trainer-vault-left-panel {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: 22px minmax(0, 1fr) 24px;
-  gap: 7px;
-}
-
-.trainer-vault-left-panel.using-item {
-  grid-template-rows: 22px 24px minmax(0, 1fr) 24px;
-}
-
-.trainer-vault-tabs {
-  display: grid;
-  grid-template-columns: max-content max-content max-content;
-  justify-content: start;
-  gap: 6px;
-  align-items: center;
-}
-
-.trainer-vault-tabs button {
-  height: 22px;
-  border-width: 1px;
-  border-radius: 5px;
-  padding: 0 7px;
-  font-size: 7px;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 1px 0 rgb(0 0 0 / 22%);
-}
-
-.trainer-vault-tabs button.active {
-  border-color: #61e388;
-  background: linear-gradient(180deg, rgb(255 255 255 / 24%), rgb(255 255 255 / 8%)), rgb(31 66 49 / 88%);
-}
-
-.trainer-vault-tabs button.debug {
-  border-color: rgb(120 232 255 / 72%);
-  background: linear-gradient(180deg, rgb(120 232 255 / 24%), rgb(255 255 255 / 7%)), rgb(25 49 58 / 88%);
-  color: #dff9ff;
-  padding: 0 6px;
-}
-
-.trainer-vault-use-banner {
-  min-width: 0;
-  height: 24px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid rgb(255 228 111 / 58%);
-  border-radius: 6px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 5%)),
-    rgb(54 44 24 / 88%);
-  padding: 0 5px 0 7px;
-  box-sizing: border-box;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 1px 0 rgb(0 0 0 / 24%);
-}
-
-.trainer-vault-use-banner span {
-  min-width: 0;
-  overflow: hidden;
-  color: #fff5cf;
-  font-size: 7px;
-  font-weight: 1000;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-use-banner button {
-  height: 18px;
-  border: 1px solid rgb(120 232 255 / 72%);
-  border-radius: 5px;
-  background: rgb(24 54 58 / 82%);
-  color: #dff9ff;
-  font-size: 6px;
-  font-weight: 1000;
-  line-height: 1;
-  padding: 0 4px;
-  cursor: pointer;
-}
-
-.trainer-vault-grid {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(6, var(--trainer-vault-cell-size));
-  grid-template-rows: repeat(4, var(--trainer-vault-cell-size));
-  gap: 4px;
-  align-content: start;
-  justify-content: start;
-  padding: 2px;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.trainer-vault-grid.locked {
-  filter: saturate(.72);
-}
-
-.trainer-vault-lock-badge {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  z-index: 2;
-  border: 2px solid rgb(255 228 111 / 72%);
-  border-radius: 7px;
-  background: rgb(28 24 18 / 88%);
-  color: #ffe46f;
-  font-size: 7px;
-  font-weight: 1000;
-  line-height: 1;
-  padding: 5px 7px;
-  pointer-events: none;
-  box-shadow: 0 2px 0 rgb(0 0 0 / 30%);
-}
-
-.trainer-vault-cell {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  width: var(--trainer-vault-cell-size);
-  height: var(--trainer-vault-cell-size);
-  display: grid;
-  place-items: center;
-  border: 2px solid rgb(255 244 188 / 44%);
-  border-radius: 6px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 16%), transparent 48%),
-    rgb(20 24 22 / 78%);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 2px 0 rgb(0 0 0 / 24%);
-  color: #fff5cf;
-  padding: 0;
-  overflow: hidden;
-}
-
-.trainer-vault-cell.prep {
-  border-color: rgb(93 232 143 / 58%);
-  background:
-    linear-gradient(180deg, rgb(222 255 219 / 18%), transparent 48%),
-    rgb(20 64 40 / 74%);
-  box-shadow: inset 0 0 0 1px rgb(196 255 207 / 12%), 0 2px 0 rgb(0 0 0 / 24%);
-}
-
-.trainer-vault-cell:not(.empty) {
-  cursor: pointer;
-}
-
-.trainer-vault-cell:hover,
-.trainer-vault-cell:focus-visible,
-.trainer-vault-cell.selected {
-  border-color: #61e388;
-  outline: 0;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 24%), transparent 48%),
-    rgb(31 66 49 / 86%);
-}
-
-.trainer-vault-cell.empty {
-  opacity: .44;
-  border-style: dashed;
-  background: rgb(8 12 10 / 40%);
-}
-
-.trainer-vault-cell.empty.prep {
-  opacity: .72;
-  background:
-    linear-gradient(180deg, rgb(222 255 219 / 10%), transparent 48%),
-    rgb(14 48 31 / 58%);
-}
-
-.trainer-vault-grid.locked .trainer-vault-cell {
-  border-color: rgb(255 228 111 / 42%);
-  background:
-    linear-gradient(180deg, rgb(255 228 111 / 12%), transparent 48%),
-    rgb(46 39 27 / 62%);
-}
-
-.trainer-vault-grid.locked .trainer-vault-cell.empty {
-  opacity: .62;
-}
-
-.trainer-vault-cell.move-target {
-  cursor: pointer;
-  border-color: rgb(120 232 255 / 72%);
-}
-
-.trainer-vault-cell.move-target:hover,
-.trainer-vault-cell.move-target:focus-visible {
-  border-color: #ffe46f;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 22%), transparent 48%),
-    rgb(41 71 76 / 86%);
-}
-
-.trainer-vault-cell.moving-source {
-  border-color: #ffe46f;
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 12%),
-    0 0 0 2px rgb(255 228 111 / 28%),
-    0 2px 0 rgb(0 0 0 / 24%);
-}
-
-.trainer-vault-cell.use-target {
-  border-color: rgb(255 228 111 / 78%);
-  cursor: crosshair;
-  background:
-    linear-gradient(180deg, rgb(255 245 169 / 24%), transparent 48%),
-    rgb(59 48 25 / 82%);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 12%),
-    0 0 0 2px rgb(255 228 111 / 20%),
-    0 2px 0 rgb(0 0 0 / 24%);
-}
-
-.trainer-vault-cell.use-target:hover,
-.trainer-vault-cell.use-target:focus-visible {
-  border-color: #78e8ff;
-  outline: 0;
-  background:
-    linear-gradient(180deg, rgb(120 232 255 / 24%), transparent 48%),
-    rgb(36 68 71 / 88%);
-}
-
-.trainer-vault-cell img {
-  max-width: 34px;
-  max-height: 34px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.trainer-vault-cell-pokemon-icon {
-  display: block;
-  width: 40px;
-  height: 30px;
-  transform: scale(1.35);
-  transform-origin: center;
-}
-
-.trainer-vault-cell .image-fallback {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  color: #fff5cf;
-  font-size: 12px;
-  font-weight: 1000;
-}
-
-.trainer-vault-cell-held-item {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  display: grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
-  background: transparent;
-  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 80%)) drop-shadow(0 0 2px rgb(0 0 0 / 72%));
-  pointer-events: none;
-}
-
-.trainer-vault-cell-item-icon,
-.trainer-vault-cell-held-item-icon {
-  display: grid;
-  place-items: center;
-  overflow: visible;
-}
-
-.trainer-vault-cell-item-icon {
-  width: 28px;
-  height: 28px;
-}
-
-.trainer-vault-cell-held-item-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.trainer-vault-cell-item-icon .training-rest-new-bag-item-icon,
-.trainer-vault-cell-item-icon .training-rest-new-bag-detail-icon,
-.trainer-vault-cell-held-item-icon .training-rest-new-bag-item-icon,
-.trainer-vault-cell-held-item-icon .training-rest-new-bag-detail-icon {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: visible;
-}
-
-.trainer-vault-cell-item-icon .training-rest-new-bag-sprite-icon,
-.trainer-vault-cell-held-item-icon .training-rest-new-bag-sprite-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.trainer-vault-cell-item-icon .training-rest-new-bag-item-icon,
-.trainer-vault-cell-item-icon .training-rest-new-bag-detail-icon {
-  transform: scale(.92);
-  transform-origin: center;
-}
-
-.trainer-vault-cell-held-item-icon .training-rest-new-bag-item-icon,
-.trainer-vault-cell-held-item-icon .training-rest-new-bag-detail-icon {
-  transform: scale(.58);
-  transform-origin: center;
-}
-
-.trainer-vault-cell-item-icon .training-rest-new-bag-item-icon img,
-.trainer-vault-cell-item-icon .training-rest-new-bag-detail-icon img,
-.trainer-vault-cell-held-item-icon .training-rest-new-bag-item-icon img,
-.trainer-vault-cell-held-item-icon .training-rest-new-bag-detail-icon img {
-  width: auto;
-  height: auto;
-  max-width: 24px;
-  max-height: 24px;
-  object-fit: contain;
-}
-
-.trainer-vault-cell i,
-.trainer-vault-cell em {
-  position: absolute;
-  right: 4px;
-  top: 3px;
-  display: grid;
-  place-items: center;
-  min-width: 13px;
-  height: 13px;
-  border-radius: 999px;
-  background: rgb(26 20 12 / 84%);
-  color: #ffe46f;
-  font-size: 7px;
-  font-style: normal;
-  font-weight: 1000;
-  line-height: 1;
-  text-shadow: 0 1px 0 rgb(70 40 0 / 82%);
-}
-
-.trainer-vault-pagination {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) 62px;
-  align-items: center;
-  gap: 8px;
-}
-
-.trainer-vault-pagination button {
-  height: 24px;
-  padding: 0 7px;
-}
-
-.trainer-vault-pagination .unlock-box {
-  border-color: rgb(255 228 111 / 70%);
-  background: linear-gradient(180deg, rgb(255 255 255 / 22%), rgb(255 255 255 / 7%)), rgb(70 52 24 / 88%);
-  color: #fff5cf;
-}
-
-.trainer-vault-pagination span {
-  min-width: 0;
-  overflow: hidden;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-detail {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: 14px 52px auto minmax(0, 1fr);
-  gap: 7px;
-  border: 3px solid rgb(255 244 188 / 52%);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 16%), transparent 38%),
-    rgb(21 24 23 / 86%);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 9%), 0 4px 0 rgb(0 0 0 / 28%);
-  padding: 10px 11px;
-  box-sizing: border-box;
-  color: #fff;
-}
-
-.trainer-vault-detail > strong {
-  color: #fff5cf;
-  font-size: 12px;
-  font-weight: 1000;
-  line-height: 1.1;
-}
-
-.trainer-vault-detail.locked {
-  border-color: rgb(255 228 111 / 58%);
-  background:
-    linear-gradient(180deg, rgb(255 228 111 / 14%), transparent 38%),
-    rgb(31 27 22 / 88%);
-}
-
-.trainer-vault-detail.pokemon-detail > small {
-  max-width: 108px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-detail.item {
-  grid-template-rows: 14px 52px auto auto auto minmax(0, 1fr);
-}
-
-.trainer-vault-detail.item .trainer-vault-message {
-  grid-row: 5;
-}
-
-.trainer-vault-detail.item > p {
-  grid-row: 6;
-}
-
-.trainer-vault-detail-hero {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.trainer-vault-detail-hero > img {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.trainer-vault-detail-hero .training-rest-new-bag-item-icon,
-.trainer-vault-detail-hero .training-rest-new-bag-detail-icon {
-  width: 40px;
-  height: 40px;
-}
-
-.trainer-vault-detail-hero div {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-
-.trainer-vault-detail-hero strong {
-  min-width: 0;
-  overflow: hidden;
-  color: #fff5cf;
-  font-size: 11px;
-  font-weight: 1000;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-detail dl {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-  margin: 0;
-}
-
-.trainer-vault-detail dl div {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 7px;
-}
-
-.trainer-vault-detail dd {
-  min-width: 0;
-  overflow: hidden;
-  margin: 0;
-  color: #fff9dd;
-  font-size: 7px;
-  font-weight: 900;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-detail-actions {
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  align-content: flex-start;
-  gap: 6px;
-}
-
-.trainer-vault-detail-actions button {
-  min-width: 48px;
-  height: 24px;
-  border: 2px solid rgb(255 244 188 / 52%);
-  border-radius: 7px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 6%)), rgb(37 45 40 / 88%);
-  color: #fff;
-  font-size: 7px;
-  font-weight: 950;
-  line-height: 1;
-  padding: 0 8px;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 2px 0 rgb(0 0 0 / 24%);
-  cursor: pointer;
-}
-
-.trainer-vault-detail-actions button:hover,
-.trainer-vault-detail-actions button:focus-visible {
-  border-color: #78e8ff;
-  outline: 0;
-}
-
-.trainer-vault-detail-actions button:disabled {
-  opacity: .5;
-  cursor: default;
-}
-
-.trainer-vault-pokemon-top-actions {
-  position: absolute;
-  z-index: 3;
-  top: 8px;
-  right: 9px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-  max-width: 126px;
-}
-
-.trainer-vault-pokemon-top-actions button {
-  min-width: 0;
-  height: 18px;
-  border: 1px solid rgb(255 244 188 / 48%);
-  border-radius: 5px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 16%), rgb(255 255 255 / 5%)), rgb(36 42 38 / 90%);
-  color: #fff;
-  font-size: 6px;
-  font-weight: 950;
-  line-height: 1;
-  padding: 0 5px;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%), 0 1px 0 rgb(0 0 0 / 22%);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.trainer-vault-pokemon-top-actions button:hover,
-.trainer-vault-pokemon-top-actions button:focus-visible {
-  border-color: #78e8ff;
-  outline: 0;
-}
-
-.trainer-vault-pokemon-top-actions button.danger {
-  border-color: rgb(255 125 111 / 70%);
-  background: linear-gradient(180deg, rgb(255 255 255 / 14%), rgb(255 255 255 / 4%)), rgb(92 31 30 / 92%);
-  color: #fff4e7;
-}
-
-.trainer-vault-pokemon-top-actions button:disabled {
-  opacity: .5;
-  cursor: default;
-}
-
-.trainer-vault-message {
-  min-width: 0;
-  display: block;
-  overflow: hidden;
-  border: 1px solid rgb(120 232 255 / 35%);
-  border-radius: 6px;
-  background: rgb(24 54 58 / 58%);
-  color: #d8fbff;
-  font-size: 7px;
-  font-weight: 900;
-  line-height: 1.25;
-  padding: 5px 6px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-detail p {
-  min-width: 0;
-  min-height: 0;
-  margin: 0;
-  overflow: auto;
-  color: rgb(255 255 255 / 76%);
-  font-size: 7px;
-  font-weight: 850;
-  line-height: 1.45;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(99 139 110 / 82%) rgb(23 29 25 / 72%);
-}
-
-.trainer-vault-detail p::-webkit-scrollbar {
-  width: 8px;
-}
-
-.trainer-vault-detail p::-webkit-scrollbar-track {
-  background: rgb(23 29 25 / 72%);
-  border-radius: 999px;
-}
-
-.trainer-vault-detail p::-webkit-scrollbar-thumb {
-  background: rgb(99 139 110 / 82%);
-  border-radius: 999px;
-}
-
-.trainer-vault-pokemon-tabs {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.trainer-vault-pokemon-tabs button {
-  min-width: 0;
-  height: 20px;
-  border: 1px solid rgb(255 244 188 / 42%);
-  border-radius: 5px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 14%), rgb(255 255 255 / 5%)), rgb(34 38 35 / 88%);
-  color: rgb(255 255 255 / 78%);
-  font-size: 6px;
-  font-weight: 950;
-  line-height: 1;
-  padding: 0 3px;
-  cursor: pointer;
-}
-
-.trainer-vault-pokemon-tabs button.active {
-  border-color: #61e388;
-  background: linear-gradient(180deg, rgb(255 255 255 / 20%), rgb(255 255 255 / 7%)), rgb(31 66 49 / 88%);
-  color: #fff5cf;
-}
-
-.trainer-vault-pokemon-tab-panel {
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(99 139 110 / 82%) rgb(23 29 25 / 72%);
-}
-
-.trainer-vault-pokemon-tab-panel::-webkit-scrollbar {
-  width: 8px;
-}
-
-.trainer-vault-pokemon-tab-panel::-webkit-scrollbar-track {
-  background: rgb(23 29 25 / 72%);
-  border-radius: 999px;
-}
-
-.trainer-vault-pokemon-tab-panel::-webkit-scrollbar-thumb {
-  background: rgb(99 139 110 / 82%);
-  border-radius: 999px;
-}
-
-.trainer-vault-pokemon-overview {
-  min-width: 0;
-  display: grid;
-  gap: 5px;
-  margin: 0;
-}
-
-.trainer-vault-pokemon-overview div {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 7px;
-}
-
-.trainer-vault-pokemon-stat-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  color: #fff9dd;
-}
-
-.trainer-vault-pokemon-stat-table th,
-.trainer-vault-pokemon-stat-table td {
-  overflow: hidden;
-  border-bottom: 1px solid rgb(255 244 188 / 12%);
-  font-size: 6px;
-  font-weight: 900;
-  line-height: 1;
-  padding: 4px 2px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-pokemon-stat-table th:first-child,
-.trainer-vault-pokemon-stat-table td:first-child {
-  text-align: left;
-}
-
-.trainer-vault-pokemon-stat-table th {
-  color: rgb(255 255 255 / 64%);
-}
-
-.trainer-vault-pokemon-move-list,
-.trainer-vault-pokemon-evolution-list {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.trainer-vault-pokemon-move-list article,
-.trainer-vault-pokemon-evolution-list article {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-  border: 1px solid rgb(255 244 188 / 14%);
-  border-radius: 5px;
-  background: rgb(255 255 255 / 5%);
-  padding: 5px 6px;
-}
-
-.trainer-vault-pokemon-move-list strong,
-.trainer-vault-pokemon-evolution-list strong {
-  min-width: 0;
-  overflow: hidden;
-  color: #fff5cf;
-  font-size: 7px;
-  font-weight: 1000;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.trainer-vault-pokemon-move-list span,
-.trainer-vault-pokemon-evolution-list span,
-.trainer-vault-pokemon-move-list p,
-.trainer-vault-pokemon-evolution-list p {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: rgb(255 255 255 / 72%);
-  font-size: 6px;
-  font-weight: 850;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: 16px;
 }

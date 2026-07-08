@@ -774,6 +774,12 @@ if (debugItemAdd.ok) {
   assert(debugItemAdd.vault.items[0]?.sourceKind === "debug", "debug item should mark source kind");
   assert(debugItemAdd.vault.items[0]?.quantity === 3, "debug item should keep requested quantity");
 }
+const debugTmItemAdd = addDebugPlayerVaultItemV4(mockDex as any, normalizePlayerVaultV4(), "tm:surf", 1);
+assert(debugTmItemAdd.ok, `debug TM item add should preserve virtual item id: ${debugTmItemAdd.ok ? debugTmItemAdd.message : debugTmItemAdd.reason}`);
+if (debugTmItemAdd.ok) {
+  assert(debugTmItemAdd.vault.items[0]?.itemId === "tm:surf", "debug TM item should keep tm:move item id");
+  assert(debugTmItemAdd.vault.items[0]?.sourceKind === "debug", "debug TM item should mark source kind");
+}
 const debugPokemonAdd = addDebugPlayerVaultPokemonV4(mockDex as any, normalizePlayerVaultV4(), "charizard");
 assert(debugPokemonAdd.ok, `debug pokemon add should succeed: ${debugPokemonAdd.ok ? debugPokemonAdd.message : debugPokemonAdd.reason}`);
 if (debugPokemonAdd.ok) {

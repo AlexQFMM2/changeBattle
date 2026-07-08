@@ -8,6 +8,7 @@ import {TrainingRestShopScenePreview} from "../training/TrainingRestShopScene.pr
 import {TrainingRestTrainingGroundScenePreview} from "../training/TrainingRestTrainingGroundScene.preview";
 import {TrainingRestNextPreviewPanelPreview} from "../training/TrainingRestNextPreviewPanel.preview";
 import {TrainerVaultPagePreview} from "../trainer-vault/TrainerVaultPage.preview";
+import {GameDrawerPreview} from "../shared/GameDrawer.preview";
 
 export type ComponentPreviewEntry = {
   id: string;
@@ -62,7 +63,13 @@ export const COMPONENT_PREVIEWS: ComponentPreviewEntry[] = [
   {
     id: "trainer-vault-page",
     title: "训练家仓库",
-    description: "复合页面：我的背包、我的宝可梦、4x6 宫格分页和右侧详情卡。",
+    description: "复合页面：同屏背包列表、宝可梦箱、通用浮层抽屉和局外道具使用流程。",
     render: api => <TrainerVaultPagePreview api={api} />,
+  },
+  {
+    id: "game-drawer",
+    title: "通用抽屉",
+    description: "全局组件：motion 滑入抽屉、默认阻塞遮罩、四方向 placement。",
+    render: () => <GameDrawerPreview />,
   },
 ];

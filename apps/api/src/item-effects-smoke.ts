@@ -167,11 +167,11 @@ const vault = {
     {itemId: "lostmanual", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 3},
     {itemId: "forbiddenmanual", quantity: 2, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 4},
     {itemId: "soothebell", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 5},
-    {itemId: "adamantmint", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 6},
-    {itemId: "tm:surf", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 7},
-    {itemId: "leftovers", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 8},
-    {itemId: "choicescarf", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 9},
-    {itemId: "tm:earthquake", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 10},
+    {itemId: "adamantmint", quantity: 1, boxKind: "storage" as const, storagePageIndex: 1, slotIndex: 0},
+    {itemId: "tm:surf", quantity: 1, boxKind: "storage" as const, storagePageIndex: 1, slotIndex: 1},
+    {itemId: "leftovers", quantity: 1, boxKind: "storage" as const, storagePageIndex: 1, slotIndex: 2},
+    {itemId: "choicescarf", quantity: 1, boxKind: "storage" as const, storagePageIndex: 1, slotIndex: 3},
+    {itemId: "tm:earthquake", quantity: 1, boxKind: "storage" as const, storagePageIndex: 1, slotIndex: 4},
   ],
   pokemon: [{
     playerPokemonId: "vault-pokemon-1",
@@ -194,10 +194,10 @@ const vault = {
 const friendshipPreview = previewPlayerVaultNumericItemUseV4(vaultDex as any, {vault, itemKey: "storage:0:5:soothebell", pokemonId: "vault-pokemon-1"});
 assert.equal(friendshipPreview.ok, true);
 if (friendshipPreview.ok) assert.deepEqual(friendshipPreview.changes, [{label: "亲密度", before: "70", after: "120"}]);
-const mintPreview = previewPlayerVaultNumericItemUseV4(vaultDex as any, {vault, itemKey: "storage:0:6:adamantmint", pokemonId: "vault-pokemon-1"});
+const mintPreview = previewPlayerVaultNumericItemUseV4(vaultDex as any, {vault, itemKey: "storage:1:0:adamantmint", pokemonId: "vault-pokemon-1"});
 assert.equal(mintPreview.ok, true);
 if (mintPreview.ok) assert.deepEqual(mintPreview.changes, [{label: "性格", before: "认真", after: "固执"}]);
-const mintApply = applyPlayerVaultNumericItemV4(vaultDex as any, {vault, itemKey: "storage:0:6:adamantmint", pokemonId: "vault-pokemon-1"});
+const mintApply = applyPlayerVaultNumericItemV4(vaultDex as any, {vault, itemKey: "storage:1:0:adamantmint", pokemonId: "vault-pokemon-1"});
 assert.equal(mintApply.ok, true);
 if (mintApply.ok) {
   assert.equal(mintApply.pokemon.nature, "Adamant");
@@ -215,23 +215,23 @@ if (redThreadView.ok) assert.deepEqual(redThreadView.moves.map(move => move.id),
 const lostManualView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:3:lostmanual", "vault-pokemon-1");
 assert.equal(lostManualView.ok, true);
 if (lostManualView.ok) assert.deepEqual(lostManualView.moves.map(move => move.id), ["celebrate", "refresh", "holdhands"]);
-const tmVaultView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:7:tm:surf", "vault-pokemon-1");
+const tmVaultView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:1:1:tm:surf", "vault-pokemon-1");
 assert.equal(tmVaultView.ok, true);
 if (tmVaultView.ok) {
   assert.deepEqual(tmVaultView.moves.map(move => move.id), ["surf"]);
   assert.equal(tmVaultView.unavailableReason, undefined);
 }
-const illegalTmVaultView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:10:tm:earthquake", "vault-pokemon-1");
+const illegalTmVaultView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:1:4:tm:earthquake", "vault-pokemon-1");
 assert.equal(illegalTmVaultView.ok, true);
 if (illegalTmVaultView.ok) {
   assert.deepEqual(illegalTmVaultView.moves, []);
   assert.match(illegalTmVaultView.unavailableReason || "", /无法通过技能机器/);
   assert.equal(illegalTmVaultView.unavailableMove?.id, "earthquake");
 }
-const illegalTmVaultResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:0:10:tm:earthquake", pokemonId: "vault-pokemon-1", moveId: "earthquake", moveSlot: 0});
+const illegalTmVaultResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:1:4:tm:earthquake", pokemonId: "vault-pokemon-1", moveId: "earthquake", moveSlot: 0});
 assert.equal(illegalTmVaultResult.ok, false);
 assert.match(illegalTmVaultResult.ok ? "" : illegalTmVaultResult.reason, /无法通过技能机器/);
-const tmVaultResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:0:7:tm:surf", pokemonId: "vault-pokemon-1", moveId: "surf", moveSlot: 3});
+const tmVaultResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:1:1:tm:surf", pokemonId: "vault-pokemon-1", moveId: "surf", moveSlot: 3});
 assert.equal(tmVaultResult.ok, true);
 if (tmVaultResult.ok) {
   assert.equal(tmVaultResult.pokemon.moves[3]!.moveId, "surf");
@@ -254,12 +254,12 @@ if (friendshipResult.ok) {
   assert.equal(friendshipResult.friendshipDelta, 50);
   assert.equal(friendshipResult.vault.items.some(entry => entry.itemId === "soothebell"), false);
 }
-const heldResult = applyPlayerVaultHeldItemV4(vaultDex as any, {vault, itemKey: "storage:0:8:leftovers", pokemonId: "vault-pokemon-1"});
+const heldResult = applyPlayerVaultHeldItemV4(vaultDex as any, {vault, itemKey: "storage:1:2:leftovers", pokemonId: "vault-pokemon-1"});
 assert.equal(heldResult.ok, true);
 if (heldResult.ok) {
   assert.equal(heldResult.pokemon.heldItemId, "leftovers");
   assert.equal(heldResult.vault.items.some(entry => entry.itemId === "leftovers"), false);
-  const swapResult = applyPlayerVaultHeldItemV4(vaultDex as any, {vault: heldResult.vault, itemKey: "storage:0:9:choicescarf", pokemonId: "vault-pokemon-1"});
+  const swapResult = applyPlayerVaultHeldItemV4(vaultDex as any, {vault: heldResult.vault, itemKey: "storage:1:3:choicescarf", pokemonId: "vault-pokemon-1"});
   assert.equal(swapResult.ok, true);
   if (swapResult.ok) {
     assert.equal(swapResult.pokemon.heldItemId, "choicescarf");
@@ -294,17 +294,17 @@ if (releaseHeldResult.ok) {
   assert.equal(releaseHeldResult.returnedHeldItemId, "choicescarf");
   assert.equal(releaseHeldResult.vault.items.find(entry => entry.itemId === "choicescarf")?.quantity, 1);
 }
-const fullItems = Array.from({length: 48}, (_, index) => ({
+const fullItems = Array.from({length: 18}, (_, index) => ({
   itemId: `fullitem${index}`,
   quantity: 1,
   boxKind: "storage" as const,
-  storagePageIndex: Math.floor(index / 24),
-  slotIndex: index % 24,
+  storagePageIndex: Math.floor(index / 6),
+  slotIndex: index % 6,
 }));
 const releaseFullResult = releasePlayerVaultPokemonV4({
   ...vault,
   items: fullItems,
-  itemStoragePageCount: 2,
+  itemStoragePageCount: 3,
   pokemon: [{...vault.pokemon[0]!, heldItemId: "choicescarf"}],
 }, "vault-pokemon-1");
 assert.equal(releaseFullResult.ok, false);

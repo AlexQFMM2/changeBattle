@@ -19,17 +19,14 @@ export type DebugPlayerVaultPokemonAddResultV4 =
 
 export function addDebugPlayerVaultItemV4(dex: ShowdownDexService, vault: PlayerVaultV4 | undefined | null, itemId: string, quantity = 1): DebugPlayerVaultItemAddResultV4 {
   const normalizedVault = normalizePlayerVaultV4(vault);
-  const normalizedItemId = dex.toDexId(itemId);
-  if (!normalizedItemId) return {ok: false, reason: "请选择道具。"};
-  let detail: ReturnType<ShowdownDexService["getItemDetail"]>;
-  try {
-    detail = dex.getItemDetail(normalizedItemId);
-  } catch {
+  const detail = getDebugVaultItemDetail(dex, itemId);
+  if (!detail) {
+    if (!String(itemId || "").trim()) return {ok: false, reason: "请选择道具。"};
     return {ok: false, reason: "没有找到这个道具。"};
   }
   const amount = Math.max(1, Math.min(999, Math.floor(Number(quantity || 1))));
   const result = addPlayerVaultItemV4(normalizedVault, {
-    itemId: detail.id || normalizedItemId,
+    itemId: detail.id || String(itemId || "").trim(),
     quantity: amount,
     sourceKind: "debug",
     boxKind: "storage",
@@ -40,6 +37,20 @@ export function addDebugPlayerVaultItemV4(dex: ShowdownDexService, vault: Player
     vault: result.vault,
     message: `已添加调试道具：${detail.nameZh || detail.name || detail.id} x${amount}。`,
   };
+}
+
+function getDebugVaultItemDetail(dex: ShowdownDexService, itemId: string): ReturnType<ShowdownDexService["getItemDetail"]> | null {
+  const rawItemId = String(itemId || "").trim();
+  if (!rawItemId) return null;
+  for (const candidate of [rawItemId, dex.toDexId(rawItemId)]) {
+    if (!candidate) continue;
+    try {
+      return dex.getItemDetail(candidate);
+    } catch {
+      // Try the next normalized form. Search results may include virtual ids such as tm:surf.
+    }
+  }
+  return null;
 }
 
 export function addDebugPlayerVaultPokemonV4(dex: ShowdownDexService, vault: PlayerVaultV4 | undefined | null, speciesId: string): DebugPlayerVaultPokemonAddResultV4 {

@@ -62,14 +62,18 @@ export type PlayerVaultPokemonReleaseResultV4 =
   | {ok: true; vault: PlayerVaultV4; releasedPokemon: PlayerPokemonRecordV4; returnedHeldItemId?: string}
   | {ok: false; reason: string; vault: PlayerVaultV4};
 
-export const PLAYER_VAULT_PAGE_SIZE_V4 = 24;
+export const PLAYER_VAULT_ITEM_PAGE_SIZE_V4 = 6;
+export const PLAYER_VAULT_POKEMON_PAGE_SIZE_V4 = 24;
+export const PLAYER_VAULT_PAGE_SIZE_V4 = PLAYER_VAULT_POKEMON_PAGE_SIZE_V4;
 
-export const DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4 = 2;
+export const DEFAULT_PLAYER_VAULT_ITEM_STORAGE_PAGE_COUNT_V4 = 3;
+export const DEFAULT_PLAYER_VAULT_POKEMON_STORAGE_PAGE_COUNT_V4 = 2;
+export const DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4 = DEFAULT_PLAYER_VAULT_POKEMON_STORAGE_PAGE_COUNT_V4;
 
 export function normalizePlayerVaultV4(value?: unknown): PlayerVaultV4 {
   const raw = isPlainRecord(value) ? value : {};
-  const itemStoragePageCount = normalizePlayerVaultStoragePageCountV4(raw.itemStoragePageCount ?? raw.unlockedStoragePageCount);
-  const pokemonStoragePageCount = normalizePlayerVaultStoragePageCountV4(raw.pokemonStoragePageCount ?? raw.unlockedStoragePageCount);
+  const itemStoragePageCount = normalizePlayerVaultStoragePageCountV4(raw.itemStoragePageCount ?? raw.unlockedStoragePageCount, "item");
+  const pokemonStoragePageCount = normalizePlayerVaultStoragePageCountV4(raw.pokemonStoragePageCount ?? raw.unlockedStoragePageCount, "pokemon");
   const itemRecords = new Map<string, PlayerItemRecordV4>();
   const rawItems = Array.isArray(raw.items) ? raw.items : [];
   let fallbackStorageIndex = 0;
@@ -80,8 +84,8 @@ export function normalizePlayerVaultV4(value?: unknown): PlayerVaultV4 {
       record = {
         ...record,
         boxKind: "storage",
-        storagePageIndex: Math.floor(fallbackStorageIndex / PLAYER_VAULT_PAGE_SIZE_V4),
-        slotIndex: fallbackStorageIndex % PLAYER_VAULT_PAGE_SIZE_V4,
+        storagePageIndex: Math.floor(fallbackStorageIndex / PLAYER_VAULT_ITEM_PAGE_SIZE_V4),
+        slotIndex: fallbackStorageIndex % PLAYER_VAULT_ITEM_PAGE_SIZE_V4,
       };
       fallbackStorageIndex += 1;
     }
@@ -108,7 +112,7 @@ export function normalizePlayerItemRecordV4(value: unknown): PlayerItemRecordV4 
   const quantity = clampInt(value.quantity, 1, 999999, 1);
   const boxKind = "storage";
   const storagePageIndex = clampInt(value.storagePageIndex, 0, 999, 0);
-  const slotIndex = Number.isFinite(Number(value.slotIndex)) ? clampInt(value.slotIndex, 0, PLAYER_VAULT_PAGE_SIZE_V4 - 1, 0) : undefined;
+  const slotIndex = Number.isFinite(Number(value.slotIndex)) ? clampInt(value.slotIndex, 0, PLAYER_VAULT_ITEM_PAGE_SIZE_V4 - 1, 0) : undefined;
   return {
     itemId,
     quantity,
@@ -176,19 +180,20 @@ export function normalizePlayerPokemonMovesV4(value: unknown): PlayerPokemonMove
   }).slice(0, 4);
 }
 
-export function normalizePlayerVaultStoragePageCountV4(value: unknown): number {
-  return clampInt(value, 1, 999, DEFAULT_PLAYER_VAULT_UNLOCKED_STORAGE_PAGE_COUNT_V4);
+export function normalizePlayerVaultStoragePageCountV4(value: unknown, kind: "item" | "pokemon" = "pokemon"): number {
+  const fallback = kind === "item" ? DEFAULT_PLAYER_VAULT_ITEM_STORAGE_PAGE_COUNT_V4 : DEFAULT_PLAYER_VAULT_POKEMON_STORAGE_PAGE_COUNT_V4;
+  return clampInt(value, kind === "item" ? DEFAULT_PLAYER_VAULT_ITEM_STORAGE_PAGE_COUNT_V4 : 1, 999, fallback);
 }
 
 export function playerVaultUnlockedStoragePageCountV4(vault?: PlayerVaultV4 | null, kind: "item" | "pokemon" = "item"): number {
   const normalized = vault ? normalizePlayerVaultV4(vault) : null;
   return kind === "pokemon"
-    ? normalizePlayerVaultStoragePageCountV4(normalized?.pokemonStoragePageCount)
-    : normalizePlayerVaultStoragePageCountV4(normalized?.itemStoragePageCount);
+    ? normalizePlayerVaultStoragePageCountV4(normalized?.pokemonStoragePageCount, "pokemon")
+    : normalizePlayerVaultStoragePageCountV4(normalized?.itemStoragePageCount, "item");
 }
 
 export function playerVaultStorageCapacityV4(vault?: PlayerVaultV4 | null, kind: "item" | "pokemon" = "item"): number {
-  return PLAYER_VAULT_PAGE_SIZE_V4 * playerVaultUnlockedStoragePageCountV4(vault, kind);
+  return (kind === "item" ? PLAYER_VAULT_ITEM_PAGE_SIZE_V4 : PLAYER_VAULT_POKEMON_PAGE_SIZE_V4) * playerVaultUnlockedStoragePageCountV4(vault, kind);
 }
 
 export function addPlayerVaultItemV4(vault: PlayerVaultV4 | undefined | null, item: PlayerItemRecordV4): PlayerVaultMergeResultV4 {
@@ -248,8 +253,8 @@ export function firstOpenPlayerVaultStorageSlotV4(items: PlayerItemRecordV4[], s
   const occupied = new Set(items
     .filter(item => (item.boxKind || "storage") === "storage")
     .map(item => `${item.storagePageIndex || 0}:${item.slotIndex || 0}`));
-  for (let pageIndex = 0; pageIndex < normalizePlayerVaultStoragePageCountV4(storagePageCount); pageIndex += 1) {
-    for (let slotIndex = 0; slotIndex < PLAYER_VAULT_PAGE_SIZE_V4; slotIndex += 1) {
+  for (let pageIndex = 0; pageIndex < normalizePlayerVaultStoragePageCountV4(storagePageCount, "item"); pageIndex += 1) {
+    for (let slotIndex = 0; slotIndex < PLAYER_VAULT_ITEM_PAGE_SIZE_V4; slotIndex += 1) {
       if (!occupied.has(`${pageIndex}:${slotIndex}`)) return {storagePageIndex: pageIndex, slotIndex};
     }
   }

@@ -1,0 +1,83 @@
+.game-drawer-preview {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: #101411;
+}
+
+.game-drawer-preview-stage {
+  position: relative;
+  width: 640px;
+  height: 320px;
+  display: grid;
+  grid-template-rows: 34px 30px minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden;
+  padding: 12px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 10%), transparent 38%),
+    #151d18;
+  color: #fff;
+}
+
+.game-drawer-preview-stage header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-drawer-preview-stage strong {
+  color: #fff5cf;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.game-drawer-preview-stage button,
+.game-drawer-preview-content button {
+  height: 22px;
+  border: 1px solid rgb(255 244 188 / 58%);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 6%)), rgb(42 37 30 / 86%);
+  color: #fff;
+  font-size: 7px;
+  font-weight: 950;
+  line-height: 1;
+  padding: 0 7px;
+}
+
+.game-drawer-preview-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.game-drawer-preview-controls button.active {
+  border-color: #61e388;
+  background: rgb(31 66 49 / 88%);
+}
+
+.game-drawer-preview-stage p {
+  margin: 0;
+  color: rgb(255 255 255 / 72%);
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.game-drawer-preview-content {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.game-drawer-preview-content strong {
+  font-size: 12px;
+}
+
+.game-drawer-preview-content span {
+  color: rgb(255 255 255 / 72%);
+  font-size: 8px;
+  line-height: 1.45;
+}

@@ -3,8 +3,6 @@ import type {ChangeBattleV2Api, PlayerVaultV4} from "@changebattle-v2/api";
 import {TrainerVaultPage} from "./TrainerVaultPage";
 import "./TrainerVaultPage.preview.css";
 
-type TrainerVaultPreviewTab = "bag" | "pokemon";
-
 const PREVIEW_BAG_ITEM_IDS = [
   "potion",
   "superpotion",
@@ -25,7 +23,6 @@ const PREVIEW_BAG_ITEM_IDS = [
 ];
 
 export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
-  const [tab, setTab] = useState<TrainerVaultPreviewTab>("bag");
   const [playerVaultDirty, setPlayerVaultDirty] = useState(false);
   const [playerVault, setPlayerVault] = useState<PlayerVaultV4>(() => {
     const trainingRun = api.createTrainingRunFromScenario(api.createTrainingRunGame({
@@ -39,6 +36,7 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
       items: PREVIEW_BAG_ITEM_IDS.map((itemId, index) => ({
         itemId,
         quantity: index % 3 === 0 ? 2 + index : 1,
+        sourceKind: index === 1 ? "debug" : undefined,
       })),
       pokemon: (p1?.localTeam.pokemon || []).slice(0, 6).map((pokemon, index) => ({
         playerPokemonId: `trainer-vault-preview-pokemon-${index + 1}`,
@@ -65,7 +63,7 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
         playerVault={playerVault}
         playerVaultDirty={playerVaultDirty}
         profileBattlePoints={999}
-        tab={tab}
+        tab="bag"
         debugFeatureEnabled
         onPlayerVaultChange={setPlayerVault}
         onPlayerVaultDirtyChange={setPlayerVaultDirty}
@@ -81,7 +79,7 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
           setPlayerVaultDirty(false);
           return nextVault;
         }}
-        onTabChange={setTab}
+        onTabChange={() => undefined}
         onBack={() => undefined}
       />
     </section>
