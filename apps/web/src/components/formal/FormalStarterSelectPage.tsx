@@ -16,7 +16,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
   const [error, setError] = useState<string | null>(null);
   const requiredCount = api.selectedCountForFormalMode(run.mode);
   const candidates = useMemo(() => run.starterCandidates.map(candidate => {
-    const pokemon = formalStarterCandidateToRentalPokemonV4(candidate);
+    const pokemon = formalStarterCandidateToRentalPokemonV4(candidate, api.dex);
     try {
       return {
         ...pokemon,

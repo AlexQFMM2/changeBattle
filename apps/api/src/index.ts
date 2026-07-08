@@ -1,4 +1,4 @@
-import {createShowdownDexService, type DexItemDetail, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
+import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {
   firstOpenPlayerVaultStorageSlotV4,
@@ -7,6 +7,7 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   getNatureEffectsV4,
   normalizeSoulmateEvolutionRequirementV4,
+  soulmateEvolutionFriendshipRequirementV4,
   normalizeProfileNameV2,
   normalizeSaveTableV4,
   normalizeTrainerVaultV2,
@@ -33,6 +34,7 @@ import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, Formal
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
+import {applyPlayerVaultMoveTeachingItemV4, getPlayerVaultMoveTeachingViewV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4} from "./itemEffects.js";
 import {
   enableTestModeForProfileV4,
   getStarChartCatalogV4,
@@ -116,6 +118,9 @@ export type PlayerVaultPokemonDetailViewV4 = {
   moves: Array<{slot: number; id: string; name: string; type: string; category: string; power: string; pp: string}>;
   evolutions: Array<{from: string; to: string; method: string}>;
 };
+
+export type PlayerVaultMoveTeachingViewV4 = PlayerVaultMoveTeachingViewResultV4;
+export type PlayerVaultMoveTeachingApplyResultV4 = PlayerVaultMoveTeachingApplyResultFromItemEffectsV4;
 
 export type UserProfileStorageAdapter = {
   loadUserProfile(): Promise<UserProfileV2 | null>;
@@ -331,6 +336,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     playerVaultUnlockedStoragePageCountV4,
     playerVaultStorageCapacityV4,
     createPlayerVaultPokemonDetailView: (pokemon: PlayerPokemonRecordV4) => createPlayerVaultPokemonDetailView(dex, pokemon),
+    getPlayerVaultMoveTeachingView: (vault: PlayerVaultV4, itemKey: string, pokemonId: string, query = "") => getPlayerVaultMoveTeachingViewV4(dex, vault, itemKey, pokemonId, query),
+    applyPlayerVaultMoveTeachingItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string; moveId: string; moveSlot: number}) => applyPlayerVaultMoveTeachingItemV4(dex, input),
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
     loadUserProfile: async () => {
       const profile = await userProfiles.loadUserProfile();
@@ -768,23 +775,45 @@ function vaultEvolutionViews(dex: ReturnType<typeof createShowdownDexService>, s
     return edges.map(edge => ({
       from: edge.fromSpeciesNameZh || edge.fromSpeciesName || edge.fromSpeciesId,
       to: edge.toSpeciesNameZh || edge.toSpeciesName || edge.toSpeciesId,
-      method: vaultEvolutionMethod(edge),
+      method: vaultEvolutionMethod(dex, edge, vaultEvolutionIndexForEdge(tree.edges, edge)),
     }));
   } catch {
     return [];
   }
 }
 
-function vaultEvolutionMethod(edge: Parameters<typeof normalizeSoulmateEvolutionRequirementV4>[0] & {evoLevel?: number; evoMove?: string; evoCondition?: string; evoRegion?: string}): string {
+function vaultEvolutionMethod(dex: ReturnType<typeof createShowdownDexService>, edge: Parameters<typeof normalizeSoulmateEvolutionRequirementV4>[0] & {evoLevel?: number; evoMove?: string; evoCondition?: string; evoRegion?: string}, evolutionIndex: number): string {
   const requirement = normalizeSoulmateEvolutionRequirementV4(edge);
-  if (requirement.requirementKind === "linking-cord") return "使用 通讯绳";
-  if (requirement.requirementKind === "specific-item") return `使用 ${edge?.evoItem || requirement.itemId}`;
-  const parts = ["使用 通用进化石"];
+  const itemLabel = requirement.requirementKind === "linking-cord"
+    ? "通讯绳"
+    : requirement.requirementKind === "specific-item"
+      ? dex.translateDexLabel("items", edge?.evoItem || requirement.itemId)
+      : "通用进化石";
+  const friendshipRequirement = soulmateEvolutionFriendshipRequirementV4(evolutionIndex);
+  const parts = [
+    friendshipRequirement === null
+      ? "亲密度达到后续开放门槛后"
+      : `亲密度达到 ${friendshipRequirement} 后`,
+    `使用 ${itemLabel}进化`,
+  ];
   if (edge?.evoLevel) parts.push(`原条件 Lv.${edge.evoLevel}`);
-  if (edge?.evoMove) parts.push(`原条件 学会 ${edge.evoMove}`);
+  if (edge?.evoMove) parts.push(`原条件 学会 ${dex.translateDexLabel("moves", edge.evoMove)}`);
   if (edge?.evoCondition) parts.push(edge.evoCondition);
   if (edge?.evoRegion) parts.push(edge.evoRegion);
   return parts.join(" · ");
+}
+
+function vaultEvolutionIndexForEdge(edges: Array<{fromSpeciesId: string; toSpeciesId: string}>, target: {fromSpeciesId: string; toSpeciesId: string}): number {
+  const incoming = new Map(edges.map(edge => [edge.toSpeciesId, edge.fromSpeciesId]));
+  let index = 0;
+  let cursor = target.fromSpeciesId;
+  const visited = new Set<string>();
+  while (incoming.has(cursor) && !visited.has(cursor)) {
+    visited.add(cursor);
+    index += 1;
+    cursor = incoming.get(cursor)!;
+  }
+  return index;
 }
 
 function formatVaultDate(value: unknown): string {

@@ -920,9 +920,12 @@ const pendingShopRun = {
 };
 const pendingShopProducts = api.getFormalRestShopProducts(pendingShopRun);
 assert(pendingShopProducts.filter(product => product.type === "training").length === 2, "pending settlement shop should expose two training products");
+assert(pendingShopProducts.filter(product => product.type === "parenting").length === 2, "pending settlement shop should expose two parenting products");
+assert(pendingShopProducts.filter(product => product.type === "evolution").length === 2, "pending settlement shop should expose two evolution products");
 assert(pendingShopProducts.filter(product => product.type === "tm").length === 2, "pending settlement shop should expose two TM products");
 assert(pendingShopProducts.filter(product => product.type === "battle").length === 1, "pending settlement shop should expose one battle product");
 assert(!pendingShopProducts.some(product => product.type === "recovery" || product.type === "berry"), "pending settlement shop should hide recovery and berry products");
+assert(!pendingShopProducts.some(product => ["rarecandy", "ppup", "ppmax", "abilitycapsule", "abilitypatch"].includes(product.itemID)), "pending settlement training products should stay focused on mints, caps, and EV medicine");
 const insuranceBlocked = api.chooseFormalMedicalInsurance(roundPlanned, "basic");
 assert(!insuranceBlocked.ok && insuranceBlocked.run.money === roundPlanned.money, "medical insurance should require star chart unlock");
 const insuranceProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, FREE_MEDICAL_CARE_NODE_ID);
@@ -986,6 +989,8 @@ assert(Object.entries(FORMAL_SHOP_ITEM_POOL).every(([category, itemIDs]) => item
 assert(shopProducts.filter(product => product.type === "tm").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.tm.min, FORMAL_SHOP_PRICE_LIMITS.tm.max)), "formal shop TM prices should stay in 50-200 range");
 assert(shopProducts.filter(product => product.type === "battle").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.battle.min, FORMAL_SHOP_PRICE_LIMITS.battle.max)), "formal shop battle item prices should stay in 150-450 range");
 assert(shopProducts.filter(product => product.type === "training").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.training.min, FORMAL_SHOP_PRICE_LIMITS.training.max)), "formal shop training prices should stay in 10-400 range");
+assert(shopProducts.filter(product => product.type === "parenting").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.parenting.min, FORMAL_SHOP_PRICE_LIMITS.parenting.max)), "formal shop parenting prices should stay in 80-800 range");
+assert(shopProducts.filter(product => product.type === "evolution").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.evolution.min, FORMAL_SHOP_PRICE_LIMITS.evolution.max)), "formal shop evolution prices should stay in 120-300 range");
 assert(shopProducts.filter(product => product.type === "recovery").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.recovery.min, FORMAL_SHOP_PRICE_LIMITS.recovery.max)), "formal shop recovery prices should stay in 10-150 range");
 assert(shopProducts.filter(product => product.type === "berry").every(product => inRange(product.price, FORMAL_SHOP_PRICE_LIMITS.berry.min, FORMAL_SHOP_PRICE_LIMITS.berry.max)), "formal shop berry prices should stay in 5-30 range");
 assert([...FORMAL_SHOP_COMMON_BERRY_POOL, ...FORMAL_SHOP_RESIST_BERRY_POOL, ...FORMAL_SHOP_CONFUSION_BERRY_POOL].every(itemID => itemDetail(itemID).kind === "berry"), "formal shop berry pools should resolve as dex berry items");

@@ -1,4 +1,3 @@
-import {createShowdownDexService} from "@changebattle-v2/showdown-dex-core";
 import type {
   DexSystemBattleReforgeOption,
   DexMoveSummary,
@@ -22,6 +21,7 @@ import {
   FORMAL_SHOP_ITEM_BASE_WEIGHTS,
   FORMAL_SHOP_PRICE_OVERRIDES,
   FORMAL_SHOP_ITEM_POOL,
+  formalShopItemPoolForCategoryV4,
   FORMAL_SHOP_PRICE_LIMITS,
   FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER,
   FORMAL_SHOP_SELL_RATE,
@@ -676,8 +676,11 @@ export type FormalRentalPokemonViewV4 = {
 };
 
 const DEFAULT_FORMAL_RUN_KEY = "changebattle-v2:web:formal-run";
-const FORMAL_DEX_TRANSLATOR = createShowdownDexService();
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
+type FormalDexLabelTranslatorV4 = Pick<ShowdownDexService, "translateDexLabel">;
+function translateFormalDexLabelV4(translator: Partial<FormalDexLabelTranslatorV4> | null | undefined, table: string, value: string): string {
+  return translator?.translateDexLabel?.(table, value) || value;
+}
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
   gen7: ["system-mega-stone", "system-z-crystal"],
@@ -2964,6 +2967,8 @@ export function formalShopItemPriceV4(
   if (category === "tm" || detail?.kind === "tm") return formalShopTmPrice(detail);
   if (category === "battle" || detail?.kind === "battle" || detail?.kind === "held") return formalShopBattlePrice(itemID);
   if (category === "training" || detail?.kind === "training") return formalShopTrainingPrice(detail);
+  if (category === "parenting" || detail?.kind === "parenting") return clampFormalShopPrice(detail?.cost || FORMAL_SHOP_PRICE_LIMITS.parenting.min, "parenting");
+  if (category === "evolution" || detail?.kind === "evolution") return clampFormalShopPrice(detail?.cost || FORMAL_SHOP_PRICE_LIMITS.evolution.min, "evolution");
   if (category === "recovery" || detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp") return applyFormalMedicalInsuranceShopDiscount(formalShopRecoveryPrice(detail), detail, medicalInsurance);
   if (category === "berry" || detail?.kind === "berry") return clampFormalShopPrice(detail?.cost || FORMAL_SHOP_PRICE_LIMITS.berry.min, "berry");
   return Math.max(1, Math.floor(Number(detail?.cost || 50)));
@@ -2973,6 +2978,8 @@ function formalShopCategoryFromDetail(detail: DexItemDetail | null | undefined):
   if (detail?.kind === "tm") return "tm";
   if (detail?.kind === "battle" || detail?.kind === "held") return "battle";
   if (detail?.kind === "training") return "training";
+  if (detail?.kind === "parenting") return "parenting";
+  if (detail?.kind === "evolution") return "evolution";
   if (detail?.kind === "berry") return "berry";
   if (detail?.kind === "recovery" || detail?.kind === "revive" || detail?.kind === "pp") return "recovery";
   return undefined;
@@ -3185,7 +3192,7 @@ export function selectedCountForFormalMode(mode: FormalGameModeV4): number {
   return 3;
 }
 
-export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarterCandidateV4): FormalRentalPokemonViewV4 {
+export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarterCandidateV4, translator?: FormalDexLabelTranslatorV4): FormalRentalPokemonViewV4 {
   const pokemon = candidate.pokemon;
   const baseStats = candidate.display?.baseStats || Object.fromEntries(STAT_IDS.map(stat => [stat, 0]));
   const stats = candidate.display?.stats || {
@@ -3224,9 +3231,9 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
       name: move.name,
       name_zh: move.nameZh,
       type: move.type,
-      type_zh: FORMAL_DEX_TRANSLATOR.translateDexLabel("types", move.type),
+      type_zh: translateFormalDexLabelV4(translator, "types", move.type),
       category: move.category,
-      category_zh: FORMAL_DEX_TRANSLATOR.translateDexLabel("categories", move.category),
+      category_zh: translateFormalDexLabelV4(translator, "categories", move.category),
       power: move.power,
       accuracy: move.accuracy,
       pp: move.pp,
@@ -3241,7 +3248,7 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
     evs: pokemon.evs,
     ivs: pokemon.ivs,
     nature: pokemon.nature,
-    nature_zh: FORMAL_DEX_TRANSLATOR.translateDexLabel("natures", pokemon.nature),
+    nature_zh: translateFormalDexLabelV4(translator, "natures", pokemon.nature),
     nature_plus: "",
     nature_minus: "",
     role: candidate.role,
@@ -3263,7 +3270,7 @@ function displayFromDetail(dex: ShowdownDexService, detail: DexPokemonDetail): F
   return {
     nationalDex: detail.num,
     types: detail.types || [],
-    typesZh: (detail.types || []).map(type => dex.translateDexLabel("types", type)),
+    typesZh: (detail.types || []).map(type => translateFormalDexLabelV4(dex, "types", type)),
     baseStats: detail.baseStats,
     heightm: detail.heightm,
     weightkg: detail.weightkg,
@@ -4698,7 +4705,7 @@ function normalizeFormalShop(shop: Partial<FormalRestShopV4> | null | undefined,
   const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
     const rawItems = Array.isArray(shop.categories?.[category]) ? shop.categories![category] : [];
     const slotCount = formalShopSlotsForCategory(run, category);
-    const normalizedItems = rawItems.slice(0, slotCount).map((item, index) => normalizeFormalShopItem(item, category, index, nodeId, seed));
+    const normalizedItems = rawItems.slice(0, slotCount).map((item, index) => normalizeFormalShopItem(item, category, index, nodeId, seed, run));
     while (normalizedItems.length < slotCount) {
       normalizedItems.push(createFormalShopSlot(run, nodeId, category, normalizedItems.length, normalizedItems.length, shop.updatedAt || new Date().toISOString(), new Set(normalizedItems.map(entry => entry.itemID))));
     }
@@ -4712,8 +4719,10 @@ function normalizeFormalShop(shop: Partial<FormalRestShopV4> | null | undefined,
   };
 }
 
-function normalizeFormalShopItem(item: Partial<FormalShopItemV4>, category: FormalShopCategoryV4, index: number, nodeId: string, seed: string): FormalShopItemV4 {
-  const itemID = normalizeFormalShopPoolItemId(category, item.itemID) || pickFormalShopPoolItem(category, createRng(`${seed}:${category}:${index}`), new Set(), createFormalShopRestockContext({seed}));
+function normalizeFormalShopItem(item: Partial<FormalShopItemV4>, category: FormalShopCategoryV4, index: number, nodeId: string, seed: string, run: Partial<FormalGameRunV4>): FormalShopItemV4 {
+  const pendingSettlement = isPendingSettlementRestShopRun(run);
+  const restockContext = createFormalShopRestockContext({...run, seed});
+  const itemID = normalizeFormalShopPoolItemId(category, item.itemID, pendingSettlement) || pickFormalShopPoolItem(category, createRng(`${seed}:${category}:${index}`), new Set(), restockContext, pendingSettlement);
   return {
     slotId: item.slotId || `${nodeId}:${category}:${index}`,
     category,
@@ -4726,11 +4735,12 @@ function normalizeFormalShopItem(item: Partial<FormalShopItemV4>, category: Form
 function createFormalRestShop(run: Partial<FormalGameRunV4>, nodeId: string): FormalRestShopV4 {
   const now = new Date().toISOString();
   const seed = `${run.seed || "formal-shop"}:${nodeId}`;
+  const pendingSettlement = isPendingSettlementRestShopRun(run);
   const restockContext = createFormalShopRestockContext(run);
   const categories = Object.fromEntries(FORMAL_SHOP_CATEGORY_ORDER.map(category => {
     const used = new Set<string>();
     const items = Array.from({length: formalShopSlotsForCategory(run, category)}, (_, index) => {
-      const item = createFormalShopSlot(run, nodeId, category, index, index, now, used, restockContext);
+      const item = createFormalShopSlot(run, nodeId, category, index, index, now, used, restockContext, pendingSettlement);
       used.add(item.itemID);
       return item;
     });
@@ -4745,9 +4755,9 @@ function formalShopSlotsForCategory(run: Partial<FormalGameRunV4>, category: For
   return formalShopSlotsForCategoryV4(category, pendingSettlement, rows);
 }
 
-function createFormalShopSlot(run: Partial<FormalGameRunV4>, nodeId: string, category: FormalShopCategoryV4, index: number, rollIndex: number, now: string, used: Set<string>, restockContext = createFormalShopRestockContext(run)): FormalShopItemV4 {
+function createFormalShopSlot(run: Partial<FormalGameRunV4>, nodeId: string, category: FormalShopCategoryV4, index: number, rollIndex: number, now: string, used: Set<string>, restockContext = createFormalShopRestockContext(run), pendingSettlement = isPendingSettlementRestShopRun(run)): FormalShopItemV4 {
   const seed = `${run.seed || "formal-shop"}:${nodeId}:${category}:${index}:${rollIndex}:${used.size}`;
-  const itemID = pickFormalShopPoolItem(category, createRng(seed), used, restockContext);
+  const itemID = pickFormalShopPoolItem(category, createRng(seed), used, restockContext, pendingSettlement);
   return {
     slotId: `${nodeId}:${category}:${index}`,
     category,
@@ -4757,10 +4767,11 @@ function createFormalShopSlot(run: Partial<FormalGameRunV4>, nodeId: string, cat
   };
 }
 
-function pickFormalShopPoolItem(category: FormalShopCategoryV4, rng: () => number, used: Set<string>, restockContext: FormalShopRestockContextV4): string {
-  const pool = FORMAL_SHOP_ITEM_POOL[category].filter(itemID => !used.has(itemID));
-  const fallbackPool = pool.length ? pool : FORMAL_SHOP_ITEM_POOL[category];
-  return pickWeightedFormalShopItem(category, fallbackPool, rng, restockContext) || FORMAL_SHOP_ITEM_POOL[category][0]!;
+function pickFormalShopPoolItem(category: FormalShopCategoryV4, rng: () => number, used: Set<string>, restockContext: FormalShopRestockContextV4, pendingSettlement = false): string {
+  const sourcePool = formalShopItemPoolForCategoryV4(category, pendingSettlement);
+  const pool = sourcePool.filter(itemID => !used.has(itemID));
+  const fallbackPool = pool.length ? pool : sourcePool;
+  return pickWeightedFormalShopItem(category, fallbackPool, rng, restockContext) || sourcePool[0]!;
 }
 
 function createFormalShopRestockContext(run: Partial<FormalGameRunV4>): FormalShopRestockContextV4 {
@@ -4869,9 +4880,9 @@ function countMoveCategory(pokemon: LocalPokemonV4, category: "physical" | "spec
   }).length;
 }
 
-function normalizeFormalShopPoolItemId(category: FormalShopCategoryV4, value: unknown): string {
+function normalizeFormalShopPoolItemId(category: FormalShopCategoryV4, value: unknown, pendingSettlement = false): string {
   const itemID = normalizeShopItemID(value);
-  return FORMAL_SHOP_ITEM_POOL[category].includes(itemID) ? itemID : "";
+  return formalShopItemPoolForCategoryV4(category, pendingSettlement).includes(itemID) ? itemID : "";
 }
 
 function normalizeShopItemID(value: unknown): string {

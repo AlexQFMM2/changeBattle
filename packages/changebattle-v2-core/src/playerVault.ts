@@ -36,6 +36,9 @@ export type PlayerPokemonRecordV4 = {
   shiny: boolean;
   metAt: string;
   honors: string[];
+  growthFlags?: {
+    forbiddenManualUsedAt?: string;
+  };
 };
 
 /** 玩家全局仓库，包含局外道具背包和局外宝可梦箱子。 */
@@ -129,7 +132,14 @@ export function normalizePlayerPokemonRecordV4(value: unknown, nowIso = new Date
     honors: Array.isArray(value.honors)
       ? Array.from(new Set(value.honors.map(normalizeNonEmptyText).filter(Boolean)))
       : [],
+    growthFlags: normalizePlayerPokemonGrowthFlagsV4(value.growthFlags),
   };
+}
+
+export function normalizePlayerPokemonGrowthFlagsV4(value: unknown): PlayerPokemonRecordV4["growthFlags"] {
+  if (!isPlainRecord(value)) return undefined;
+  const forbiddenManualUsedAt = normalizeIsoText(value.forbiddenManualUsedAt);
+  return forbiddenManualUsedAt ? {forbiddenManualUsedAt} : undefined;
 }
 
 export function normalizePlayerPokemonMovesV4(value: unknown): PlayerPokemonMoveRecordV4[] {

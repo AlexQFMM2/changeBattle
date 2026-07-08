@@ -50,6 +50,16 @@ const PREVIEW_SHOP: FormalRestShopV4 = {
       {slotId: "preview-shop:training:1", category: "training", itemID: "protein", stock: 1, generatedAt: new Date(0).toISOString()},
       {slotId: "preview-shop:training:2", category: "training", itemID: "bottlecap", stock: 1, generatedAt: new Date(0).toISOString()},
     ],
+    parenting: [
+      {slotId: "preview-shop:parenting:0", category: "parenting", itemID: "heartscale", stock: 1, generatedAt: new Date(0).toISOString()},
+      {slotId: "preview-shop:parenting:1", category: "parenting", itemID: "standardtextbook", stock: 1, generatedAt: new Date(0).toISOString()},
+      {slotId: "preview-shop:parenting:2", category: "parenting", itemID: "redthread", stock: 1, generatedAt: new Date(0).toISOString()},
+    ],
+    evolution: [
+      {slotId: "preview-shop:evolution:0", category: "evolution", itemID: "universal-evolution-stone", stock: 1, generatedAt: new Date(0).toISOString()},
+      {slotId: "preview-shop:evolution:1", category: "evolution", itemID: "linking-cord", stock: 1, generatedAt: new Date(0).toISOString()},
+      {slotId: "preview-shop:evolution:2", category: "evolution", itemID: "waterstone", stock: 1, generatedAt: new Date(0).toISOString()},
+    ],
     tm: [
       {slotId: "preview-shop:tm:0", category: "tm", itemID: "tm:protect", stock: 1, generatedAt: new Date(0).toISOString()},
       {slotId: "preview-shop:tm:1", category: "tm", itemID: "tm:thunderbolt", stock: 1, generatedAt: new Date(0).toISOString()},

@@ -1,8 +1,9 @@
 import {useEffect, useMemo, useState} from "react";
-import type {ChangeBattleV2Api, PlayerItemInstanceV4, PlayerItemRecordV4, PlayerPokemonRecordV4, PlayerVaultPokemonDetailViewV4, PlayerVaultV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DexMoveSummary, LocalPokemonV4, PlayerItemInstanceV4, PlayerItemRecordV4, PlayerPokemonRecordV4, PlayerVaultPokemonDetailViewV4, PlayerVaultV4} from "@changebattle-v2/api";
 import {AppConfirmModal} from "../shared/AppModal";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {PlayerBagItemIcon} from "../training/PlayerBagPanel";
+import {PokemonMoveReplacePanel} from "../training/PokemonMoveReplacePanel";
 import {assetUrl} from "../../lib/assetUrl";
 import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./TrainerVaultPage.css";
@@ -22,6 +23,12 @@ type VaultConfirmDialog = {
   confirmLabel: string;
   danger?: boolean;
   onConfirm: () => void | Promise<void>;
+};
+type VaultMoveTeachingState = {
+  itemKey: string;
+  pokemonId: string;
+  query: string;
+  selectedMoveId: string;
 };
 
 const GRID_SLOT_COUNT = 24;
@@ -47,6 +54,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   const [saving, setSaving] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<VaultConfirmDialog | null>(null);
+  const [moveTeaching, setMoveTeaching] = useState<VaultMoveTeachingState | null>(null);
   const unlockedStoragePageCount = api.playerVaultUnlockedStoragePageCountV4(playerVault, tab === "bag" ? "item" : "pokemon");
   const hasPrepPage = tab === "pokemon";
   const totalPageCount = (hasPrepPage ? 1 : 0) + unlockedStoragePageCount + 1;
@@ -220,6 +228,32 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     updateVaultDraft({...playerVault, items: nextItems}, "已丢弃道具，返回主页时保存。");
   }
 
+  function openMoveTeaching(entry: Extract<SelectableVaultPageEntry, {kind: "item"}>) {
+    const detail = safeItemDetail(api, entry.item.itemId);
+    if (!detail?.moveTeachingEffect) {
+      setVaultMessage("该道具当前不能用于学习技能。");
+      return;
+    }
+    setMoveTeaching({itemKey: entry.key, pokemonId: playerVault.pokemon[0]?.playerPokemonId || "", query: "", selectedMoveId: ""});
+  }
+
+  function applyMoveTeaching(moveSlot: number) {
+    if (!moveTeaching) return;
+    const result = api.applyPlayerVaultMoveTeachingItem({
+      vault: playerVault,
+      itemKey: moveTeaching.itemKey,
+      pokemonId: moveTeaching.pokemonId,
+      moveId: moveTeaching.selectedMoveId,
+      moveSlot,
+    });
+    if (!result.ok) {
+      setVaultMessage(result.reason);
+      return;
+    }
+    setMoveTeaching(null);
+    updateVaultDraft(result.vault, `${result.message} 返回主页时保存。`);
+  }
+
   async function unlockCurrentStoragePage() {
     if (!pageLocked || unlocking || saving) return;
     if (profileBattlePoints < STORAGE_BOX_UNLOCK_BP_COST) {
@@ -301,6 +335,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
           saving={saving}
           message={vaultMessage}
           onStartMove={() => selectedEntry?.kind === "item" ? setMovingItemKey(selectedEntry.key) : undefined}
+          onUseItem={() => selectedEntry?.kind === "item" ? openMoveTeaching(selectedEntry) : undefined}
           onCancelMove={() => {
             setMovingItemKey("");
             setVaultMessage("已取消移动。");
@@ -320,6 +355,16 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
             setConfirmDialog(null);
             void action();
           }}
+        />
+      ) : null}
+      {moveTeaching ? (
+        <VaultMoveTeachingModal
+          api={api}
+          vault={playerVault}
+          state={moveTeaching}
+          onStateChange={setMoveTeaching}
+          onCancel={() => setMoveTeaching(null)}
+          onConfirm={applyMoveTeaching}
         />
       ) : null}
     </section>
@@ -357,7 +402,7 @@ function VaultGridCell({api, entry, selected, moving, movingSource, onSelect}: {
     : <span className={`trainer-vault-cell empty ${entry.pageKind}`} aria-hidden="true" />;
 }
 
-function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocked, count, movingItemName, saving, message, onStartMove, onCancelMove, onDiscard}: {
+function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocked, count, movingItemName, saving, message, onStartMove, onUseItem, onCancelMove, onDiscard}: {
   api: ChangeBattleV2Api;
   tab: TrainerVaultTab;
   entry: SelectableVaultPageEntry | null;
@@ -369,6 +414,7 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
   saving: boolean;
   message: string;
   onStartMove: () => void;
+  onUseItem: () => void;
   onCancelMove: () => void;
   onDiscard: () => void;
 }) {
@@ -402,6 +448,7 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
   if (entry.kind === "item") {
     const item = entry.item;
     const itemView = itemRecordView(api, item);
+    const canUseToTeachMove = Boolean(safeItemDetail(api, item.itemId)?.moveTeachingEffect);
     return (
       <aside className="trainer-vault-detail" aria-label="道具详情">
         <small>{pageLabel} · {count}</small>
@@ -419,6 +466,7 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
         </dl>
         <div className="trainer-vault-detail-actions">
           {movingItemName ? <button type="button" onClick={onCancelMove} disabled={saving}>取消移动</button> : <button type="button" onClick={onStartMove} disabled={saving}>移动</button>}
+          {canUseToTeachMove ? <button type="button" onClick={onUseItem} disabled={saving}>使用</button> : null}
           <button type="button" onClick={onDiscard} disabled={saving}>丢弃</button>
         </div>
         {movingItemName ? <span className="trainer-vault-message">选择目标格移动「{movingItemName}」。</span> : message ? <span className="trainer-vault-message">{message}</span> : null}
@@ -447,6 +495,79 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
       </div>
       <PokemonDetailTabPanel view={pokemonView} tab={pokemonDetailTab} />
     </aside>
+  );
+}
+
+function VaultMoveTeachingModal({api, vault, state, onStateChange, onCancel, onConfirm}: {
+  api: ChangeBattleV2Api;
+  vault: PlayerVaultV4;
+  state: VaultMoveTeachingState;
+  onStateChange: (state: VaultMoveTeachingState) => void;
+  onCancel: () => void;
+  onConfirm: (moveSlot: number) => void;
+}) {
+  const view = api.getPlayerVaultMoveTeachingView(vault, state.itemKey, state.pokemonId, state.query);
+  const selectedMove = view.ok ? view.moves.find(move => move.id === state.selectedMoveId) || null : null;
+  const selectedPokemon = view.ok ? view.pokemon : vault.pokemon.find(pokemon => pokemon.playerPokemonId === state.pokemonId) || null;
+  const replacePokemon = selectedPokemon && selectedMove ? playerPokemonToLocalPokemon(api, selectedPokemon) : null;
+  return (
+    <div className="trainer-vault-modal-layer" role="presentation">
+      <section className="trainer-vault-move-teaching" aria-label="使用养育道具">
+        <header>
+          <div>
+            <strong>{view.ok ? view.itemName : "使用道具"}</strong>
+            <span>{view.ok ? `${view.sourceLabel} · ${view.pokemonName}` : view.reason}</span>
+          </div>
+          <button type="button" onClick={onCancel} aria-label="关闭">×</button>
+        </header>
+        <div className="trainer-vault-move-teaching-body">
+          <label>
+            <span>目标</span>
+            <select
+              value={state.pokemonId}
+              onChange={event => onStateChange({...state, pokemonId: event.target.value, selectedMoveId: ""})}
+            >
+              {vault.pokemon.map(pokemon => <option value={pokemon.playerPokemonId} key={pokemon.playerPokemonId}>{playerPokemonDisplayName(api, pokemon)}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>搜索</span>
+            <input
+              value={state.query}
+              onChange={event => onStateChange({...state, query: event.target.value, selectedMoveId: ""})}
+              placeholder={view.ok && view.oncePerPokemon ? "禁断秘籍可搜索任意技能" : "筛选可学习技能"}
+            />
+          </label>
+          {view.ok && view.alreadyUsed ? <p>这只宝可梦已经使用过禁断的秘籍。</p> : null}
+          <div className="trainer-vault-move-grid">
+            {view.ok && view.moves.length ? view.moves.map(move => (
+              <button
+                className={state.selectedMoveId === move.id ? "selected" : ""}
+                type="button"
+                disabled={view.alreadyUsed}
+                onClick={() => onStateChange({...state, selectedMoveId: move.id})}
+                key={move.id}
+              >
+                <strong>{move.nameZh || move.name}</strong>
+                <span>{move.type} · {move.category} · 威力 {move.power || "-"}</span>
+              </button>
+            )) : <p>{view.ok ? "没有可学习的技能。" : view.reason}</p>}
+          </div>
+        </div>
+        <footer>
+          <button type="button" onClick={onCancel}>取消</button>
+          <span>{selectedMove ? "在右侧选择要替换的技能槽。" : "请选择要学习的技能。"}</span>
+        </footer>
+      </section>
+      {replacePokemon && selectedMove ? (
+        <PokemonMoveReplacePanel
+          pokemon={replacePokemon}
+          newMove={selectedMove}
+          onCancel={() => onStateChange({...state, selectedMoveId: ""})}
+          onConfirm={onConfirm}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -653,6 +774,74 @@ function itemRecordView(api: ChangeBattleV2Api, item: PlayerItemRecordV4): {name
   }
 }
 
+function safeItemDetail(api: ChangeBattleV2Api, itemId: string) {
+  try {
+    return api.getItemDetail(itemId);
+  } catch {
+    return null;
+  }
+}
+
+function playerPokemonDisplayName(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV4): string {
+  const view = pokemonRecordView(api, pokemon);
+  return pokemon.nickname ? `${pokemon.nickname}（${view.name}）` : view.name;
+}
+
+function playerPokemonToLocalPokemon(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV4): LocalPokemonV4 {
+  const detail = safePokemonDetail(api, pokemon.speciesId);
+  const speciesName = detail?.name || pokemon.speciesId;
+  const speciesNameZh = detail?.nameZh || speciesName;
+  const ability = detail?.abilities.find(entry => entry.id === pokemon.abilityId);
+  return {
+    localPokemonId: pokemon.playerPokemonId,
+    speciesId: pokemon.speciesId,
+    name: pokemon.nickname || speciesName,
+    nameZh: pokemon.nickname || speciesNameZh,
+    level: pokemon.level || 50,
+    gender: pokemon.gender,
+    shiny: pokemon.shiny,
+    itemId: "",
+    abilityId: pokemon.abilityId,
+    abilityName: ability?.name || pokemon.abilityId,
+    abilityNameZh: ability?.nameZh || ability?.name || pokemon.abilityId,
+    nature: pokemon.nature,
+    moves: pokemon.moves.map(move => playerMoveToLocalMove(api, move.moveId)),
+    evs: pokemon.evs,
+    ivs: pokemon.ivs,
+    entryHp: 1,
+    entryStatus: "",
+    maxHp: 1,
+  };
+}
+
+function playerMoveToLocalMove(api: ChangeBattleV2Api, moveId: string): LocalPokemonV4["moves"][number] {
+  try {
+    const detail = api.getMoveDetail(moveId);
+    return {
+      moveId: detail.id,
+      name: detail.name,
+      nameZh: detail.nameZh || detail.name,
+      type: detail.type,
+      category: detail.category,
+      power: detail.power,
+      accuracy: detail.accuracy,
+      pp: detail.pp,
+      maxPp: detail.pp,
+      remainingPp: detail.pp,
+    };
+  } catch {
+    return {moveId, name: moveId, nameZh: moveId, type: "Normal", category: "Physical", power: 0, accuracy: null, pp: 1, maxPp: 1, remainingPp: 1};
+  }
+}
+
+function safePokemonDetail(api: ChangeBattleV2Api, speciesId: string) {
+  try {
+    return api.getPokemonDetail(speciesId);
+  } catch {
+    return null;
+  }
+}
+
 function pokemonRecordView(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV4): {name: string; abilityName: string; spriteUrl: string} {
   try {
     const detail = api.getPokemonDetail(pokemon.speciesId);
@@ -676,6 +865,7 @@ function itemTypeFromDetailKind(kind: string): PlayerItemInstanceV4["type"] {
   if (kind === "recovery" || kind === "revive" || kind === "pp") return "medicine";
   if (kind === "tm") return "tm";
   if (kind === "training") return "training";
+  if (kind === "parenting" || kind === "evolution") return "misc";
   if (kind === "system") return "system";
   if (kind === "system-battle") return "system-battle";
   if (kind === "held") return "held";

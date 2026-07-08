@@ -20,6 +20,8 @@ const FORBIDDEN_PATTERNS = [
   ["function modeLabel(", /\bfunction\s+modeLabel\s*\(/],
   ["const BATTLE_SYSTEM_LABELS", /\bconst\s+BATTLE_SYSTEM_LABELS\b/],
   ["outcomeLabel(", /\boutcomeLabel\s*\(/],
+  ["direct evoItem display", /使用\s+\$\{(?![^}]*translateDexLabel\s*\(\s*["']items["'])[^}]*\bevoItem\b[^}]*\}/],
+  ["direct evoMove display", /学会\s+\$\{(?![^}]*translateDexLabel\s*\(\s*["']moves["'])[^}]*\bevoMove\b[^}]*\}/],
 ];
 
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
@@ -30,7 +32,7 @@ for (const target of TARGETS) {
 }
 
 if (findings.length) {
-  console.error("Shared ChangeBattle gameplay copy must use core/domain catalog helpers, not local API/Web dictionaries.");
+  console.error("Shared labels and Dex factual values must use their centralized helpers, not local API/Web display strings.");
   for (const finding of findings) {
     console.error(`- ${finding.file}:${finding.line}: ${finding.name}`);
   }

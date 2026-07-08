@@ -1,4 +1,5 @@
-import {translateDexLabel, type DexItemDetail, type DexItemRecoveryEffect, type DexItemTrainingEffect, type DexMoveSummary, type DexPokemonDetail, type DexStatId} from "@changebattle-v2/showdown-dex-core";
+import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexMoveSummary, DexPokemonDetail, DexStatId} from "@changebattle-v2/showdown-dex-core";
+import {normalizePlayerVaultV4, type PlayerItemRecordV4, type PlayerPokemonRecordV4, type PlayerVaultV4} from "@changebattle-v2/core";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4, StatTableV4, TrainingMoveSlotV4, TrainingStatusV4} from "./training.js";
 
 export type ConsumableItemApplyResultV4 =
@@ -12,6 +13,23 @@ export type TrainingItemApplyResultV4 =
 export type TmItemApplyResultV4 =
   | {ok: true; pokemon: LocalPokemonV4; bag: BagStateV4; message: string; moveSlot: number}
   | {ok: false; reason: string};
+
+export type PlayerVaultMoveTeachingViewResultV4 =
+  | {ok: true; item: PlayerItemRecordV4; itemName: string; pokemon: PlayerPokemonRecordV4; pokemonName: string; sourceLabel: string; oncePerPokemon: boolean; alreadyUsed: boolean; moves: DexMoveSummary[]}
+  | {ok: false; reason: string};
+
+export type PlayerVaultMoveTeachingApplyResultV4 =
+  | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; message: string}
+  | {ok: false; reason: string};
+
+type PlayerVaultMoveTeachingDexV4 = {
+  toDexId(value: string): string;
+  getItemDetail(itemId: string): DexItemDetail;
+  getPokemonDetail(speciesId: string): {name?: string; nameZh?: string} | null;
+  getPokemonSkillsBySource(speciesId: string, source: string): DexMoveSummary[];
+  searchDex(request: {category: "moves"; query?: string; limit?: number}): {rows: Array<{id: string}>};
+  getMoveDetail(moveId: string): DexMoveSummary;
+};
 
 const RECOVERABLE_STATUS = new Set<TrainingStatusV4>(["brn", "par", "psn", "tox", "slp", "frz"]);
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
@@ -125,6 +143,7 @@ export function applyTrainingItemToPokemonV4(input: {
   bag: BagStateV4;
   pokemonDetail?: DexPokemonDetail | null;
   calculateMaxHp?: (pokemon: LocalPokemonV4) => number;
+  translateDexLabel?: (table: "stats" | "natures", value: string) => string;
 }): TrainingItemApplyResultV4 {
   const effect = trainingEffectForItemV4(input.item, input.detail);
   if (!effect) return {ok: false, reason: "该道具当前不能训练使用。"};
@@ -134,14 +153,14 @@ export function applyTrainingItemToPokemonV4(input: {
 
   if (effect.kind === "ev") {
     const nextEvs = applyEvEffect(before.evs, effect);
-    const statLabel = translateDexLabel("stats", effect.stat);
+    const statLabel = input.translateDexLabel?.("stats", effect.stat) || effect.stat;
     if (!nextEvs) return {ok: false, reason: `${statLabel}努力值当前不需要这个道具。`};
     next = {...next, evs: nextEvs};
     message = `${before.nameZh || before.name} 的${statLabel}努力值变为 ${nextEvs[effect.stat]}。`;
   } else if (effect.kind === "nature") {
     if (before.nature === effect.nature) return {ok: false, reason: "目标已经是这个性格。"};
     next = {...next, nature: effect.nature};
-    message = `${before.nameZh || before.name} 的性格调整为 ${translateDexLabel("natures", effect.nature)}。`;
+    message = `${before.nameZh || before.name} 的性格调整为 ${input.translateDexLabel?.("natures", effect.nature) || effect.nature}。`;
   } else if (effect.kind === "ability") {
     const ability = nextAbilityForEffect(before, input.pokemonDetail || null, effect.mode);
     if (!ability) return {ok: false, reason: effect.mode === "patch" ? "目标没有可切换的隐藏特性。" : "目标没有可切换的普通特性。"};
@@ -236,6 +255,84 @@ export function applyTmItemToPokemonV4(input: {
   };
 }
 
+export function getPlayerVaultMoveTeachingViewV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  vault: PlayerVaultV4 | undefined | null,
+  itemKey: string,
+  pokemonId: string,
+  query = "",
+): PlayerVaultMoveTeachingViewResultV4 {
+  const normalized = normalizePlayerVaultV4(vault);
+  const item = findPlayerVaultItemByKeyV4(normalized, itemKey);
+  if (!item) return {ok: false, reason: "道具不存在。"};
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  const detail = safeVaultItemDetailV4(dex, item.itemId);
+  const effect = detail?.moveTeachingEffect;
+  if (!effect) return {ok: false, reason: "该道具不能用于学习技能。"};
+  const moves = playerVaultMoveTeachingPoolV4(dex, pokemon, effect, query);
+  return {
+    ok: true,
+    item,
+    itemName: detail?.nameZh || detail?.name || item.itemId,
+    pokemon,
+    pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+    sourceLabel: playerVaultMoveTeachingSourceLabelV4(effect),
+    oncePerPokemon: effect.kind === "any" && Boolean(effect.oncePerPokemon),
+    alreadyUsed: effect.kind === "any" && Boolean(effect.oncePerPokemon && pokemon.growthFlags?.forbiddenManualUsedAt),
+    moves,
+  };
+}
+
+export function applyPlayerVaultMoveTeachingItemV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string; moveId: string; moveSlot: number},
+): PlayerVaultMoveTeachingApplyResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const item = findPlayerVaultItemByKeyV4(normalized, input.itemKey);
+  if (!item) return {ok: false, reason: "道具不存在。"};
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  const detail = safeVaultItemDetailV4(dex, item.itemId);
+  const effect = detail?.moveTeachingEffect;
+  if (!effect) return {ok: false, reason: "该道具不能用于学习技能。"};
+  if (effect.kind === "any" && effect.oncePerPokemon && pokemon.growthFlags?.forbiddenManualUsedAt) {
+    return {ok: false, reason: "这只宝可梦已经使用过禁断的秘籍。"};
+  }
+  const moveId = dex.toDexId(input.moveId);
+  const move = playerVaultMoveTeachingPoolV4(dex, pokemon, effect, "").find(entry => dex.toDexId(entry.id) === moveId);
+  if (!move) return {ok: false, reason: "目标无法通过这个道具学习该技能。"};
+  if (pokemon.moves.some(entry => dex.toDexId(entry.moveId) === moveId)) return {ok: false, reason: "目标已经学会这个招式。"};
+  const moveSlot = Math.max(0, Math.min(3, Math.floor(Number(input.moveSlot || 0))));
+  const nextMoves = Array.from({length: 4}, (_, index) => pokemon.moves[index] || {moveId: ""})
+    .map((entry, index) => index === moveSlot ? {moveId: move.id, remainingPp: move.pp, maxPp: move.pp} : entry)
+    .filter(entry => Boolean(entry.moveId));
+  const nextPokemon: PlayerPokemonRecordV4 = {
+    ...pokemon,
+    moves: nextMoves,
+    growthFlags: effect.kind === "any" && effect.oncePerPokemon
+      ? {...pokemon.growthFlags, forbiddenManualUsedAt: new Date().toISOString()}
+      : pokemon.growthFlags,
+  };
+  const targetKey = playerVaultItemRecordKeyV4(item);
+  const nextItems = normalized.items.flatMap(entry => {
+    if (playerVaultItemRecordKeyV4(entry) !== targetKey) return [entry];
+    if (entry.quantity <= 1) return [];
+    return [{...entry, quantity: entry.quantity - 1}];
+  });
+  const nextVault = normalizePlayerVaultV4({
+    ...normalized,
+    items: nextItems,
+    pokemon: normalized.pokemon.map(entry => entry.playerPokemonId === nextPokemon.playerPokemonId ? nextPokemon : entry),
+  });
+  return {
+    ok: true,
+    vault: nextVault,
+    pokemon: nextPokemon,
+    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 学会了 ${move.nameZh || move.name || move.id}。`,
+  };
+}
+
 function applyPpRecovery(moves: TrainingMoveSlotV4[], effect: NonNullable<DexItemRecoveryEffect["pp"]>): {moves: TrainingMoveSlotV4[]; recovered: number; moveIndex: number | null} {
   if (effect.scope === "all") {
     let recovered = 0;
@@ -258,6 +355,78 @@ function applyPpRecovery(moves: TrainingMoveSlotV4[], effect: NonNullable<DexIte
     moveIndex,
   };
 }
+
+function findPlayerVaultItemByKeyV4(vault: PlayerVaultV4, itemKey: string): PlayerItemRecordV4 | null {
+  return vault.items.find(item => playerVaultItemRecordKeyV4(item) === itemKey || item.itemId === itemKey) || null;
+}
+
+function playerVaultItemRecordKeyV4(item: PlayerItemRecordV4): string {
+  return `${item.boxKind || "storage"}:${item.storagePageIndex || 0}:${item.slotIndex || 0}:${item.itemId}`;
+}
+
+function safeVaultItemDetailV4(dex: PlayerVaultMoveTeachingDexV4, itemId: string): DexItemDetail | null {
+  try {
+    return dex.getItemDetail(itemId);
+  } catch {
+    return null;
+  }
+}
+
+function playerVaultPokemonDisplayNameV4(dex: PlayerVaultMoveTeachingDexV4, pokemon: PlayerPokemonRecordV4): string {
+  let speciesName = pokemon.speciesId;
+  try {
+    const detail = dex.getPokemonDetail(pokemon.speciesId);
+    speciesName = detail?.nameZh || detail?.name || pokemon.speciesId;
+  } catch {
+    speciesName = pokemon.speciesId;
+  }
+  return pokemon.nickname ? `${pokemon.nickname}（${speciesName}）` : speciesName;
+}
+
+function playerVaultMoveTeachingPoolV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  pokemon: PlayerPokemonRecordV4,
+  effect: NonNullable<DexItemDetail["moveTeachingEffect"]>,
+  query: string,
+): DexMoveSummary[] {
+  const byId = new Map<string, DexMoveSummary>();
+  const push = (moves: DexMoveSummary[]) => {
+    for (const move of moves) byId.set(dex.toDexId(move.id), move);
+  };
+  if (effect.kind === "any") {
+    for (const row of dex.searchDex({category: "moves", query, limit: query.trim() ? 80 : 40}).rows) {
+      try {
+        const move = dex.getMoveDetail(row.id);
+        byId.set(dex.toDexId(move.id), move);
+      } catch {
+        // Ignore stale search rows.
+      }
+    }
+  } else {
+    for (const source of effect.sources) push(dex.getPokemonSkillsBySource(pokemon.speciesId, source));
+  }
+  const learned = new Set(pokemon.moves.map(move => dex.toDexId(move.moveId)));
+  const needle = query.trim().toLowerCase();
+  return Array.from(byId.values())
+    .filter(move => !learned.has(dex.toDexId(move.id)))
+    .filter(move => !needle || [move.id, move.name, move.nameZh, move.type, move.category].some(value => String(value || "").toLowerCase().includes(needle)))
+    .slice(0, effect.kind === "any" ? 80 : 200);
+}
+
+function playerVaultMoveTeachingSourceLabelV4(effect: NonNullable<DexItemDetail["moveTeachingEffect"]>): string {
+  if (effect.kind === "any") return "任意技能";
+  const labels: Record<string, string> = {
+    levelup: "自学技能",
+    tutor: "教授技能",
+    egg: "遗传技能",
+    event: "活动技能",
+    transfer: "迁移技能",
+    other: "特殊来源技能",
+    machine: "技能机器",
+  };
+  return effect.sources.map(source => labels[source] || source).join(" / ");
+}
+
 
 function moveSlotFromDexMove(move: DexMoveSummary): TrainingMoveSlotV4 {
   return {

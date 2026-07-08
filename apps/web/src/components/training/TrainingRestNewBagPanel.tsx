@@ -30,9 +30,10 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const canUseRecovery = canUseRecoveryItemV4(selectedItem, selectedDetail);
   const canUseTraining = canUseTrainingItemV4(selectedItem, selectedDetail);
   const canUseTm = canUseTmItemV4(selectedItem, selectedDetail);
+  const canUseInFormalRest = selectedDetail?.kind !== "parenting" && selectedDetail?.kind !== "evolution";
   const selectedMachineMoves = useMemo(() => selectedPokemon ? api.getPokemonMachineSkills(selectedPokemon.speciesId) : [], [api, selectedPokemon]);
   const tmFailureReason = canUseTm ? tmUseFailureReasonV4({item: selectedItem, detail: selectedDetail, pokemon: selectedPokemon, machineMoves: selectedMachineMoves}) : "";
-  const canUseItemKind = canUseRecovery || canUseTraining || canUseTm;
+  const canUseItemKind = canUseInFormalRest && (canUseRecovery || canUseTraining || canUseTm);
   const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail));
   const selectedHeldItem = selectedPokemon ? itemForPokemon(api, bag.items, selectedPokemon) : null;
   const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId));
@@ -135,7 +136,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   function useSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon) return;
     if (!canUseItemKind) {
-      noticeUseFailure("该道具当前不能立即使用。");
+      noticeUseFailure(selectedDetail?.kind === "parenting" || selectedDetail?.kind === "evolution" ? "灵魂伴侣养成道具请在训练家仓库中使用。" : "该道具当前不能立即使用。");
       return;
     }
     if (canUseTm) {
@@ -161,6 +162,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
         bag,
         pokemonDetail: pokemonDetailFor(api, selectedPokemon),
         calculateMaxHp: pokemon => calculateMaxHp(api, pokemon),
+        translateDexLabel: api.translateDexLabel,
       });
     if (!result.ok) {
       noticeUseFailure(result.reason);

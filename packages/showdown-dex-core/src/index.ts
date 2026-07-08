@@ -60,7 +60,7 @@ export type DexTranslateTable =
   | "sideConditions"
   | "gender";
 export type DexLearnSource = "levelup" | "machine" | "tutor" | "egg" | "event" | "transfer" | "other";
-export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "evolution" | "system" | "system-battle" | "valuable" | "special" | "held" | "battle" | "other";
+export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "parenting" | "evolution" | "system" | "system-battle" | "valuable" | "special" | "held" | "battle" | "other";
 export type DexItemSource = "showdown" | "v1-game" | "overlay" | "system";
 export type DexItemRecoveryEffect = {
   hp?: {kind: "fixed"; amount: number} | {kind: "full"} | {kind: "fraction"; numerator: number; denominator: number};
@@ -74,6 +74,9 @@ export type DexItemTrainingEffect =
   | {kind: "ability"; mode: "capsule" | "patch"}
   | {kind: "iv"; mode: "silver" | "gold" | "gray"}
   | {kind: "level"; amount: number};
+export type DexItemMoveTeachingEffect =
+  | {kind: "learn-source"; sources: DexLearnSource[]}
+  | {kind: "any"; oncePerPokemon?: boolean};
 
 export type DexSearchRequest = {
   category?: DexCategory | "all";
@@ -235,6 +238,7 @@ export type DexItemDetail = {
   effectSummary?: string;
   recoveryEffect?: DexItemRecoveryEffect;
   trainingEffect?: DexItemTrainingEffect;
+  moveTeachingEffect?: DexItemMoveTeachingEffect;
   canBattleUse?: boolean;
   canUse?: boolean;
   canUseToPokemon?: boolean;
@@ -460,6 +464,7 @@ const ITEM_KIND_LABEL: Record<DexItemKind, string> = {
   pp: "PP 道具",
   tm: "技能机器",
   training: "训练道具",
+  parenting: "养育道具",
   evolution: "进化道具",
   system: "系统道具",
   "system-battle": "系统战斗道具",
@@ -528,6 +533,7 @@ type ItemRegistryEntry = {
   effectSummary?: string;
   recoveryEffect?: DexItemRecoveryEffect;
   trainingEffect?: DexItemTrainingEffect;
+  moveTeachingEffect?: DexItemMoveTeachingEffect;
   iconAsset?: string;
   canBattleUse: boolean;
   canUse: boolean;
@@ -629,8 +635,72 @@ const SHOWDOWN_EVOLUTION_ITEM_ENTRIES = SHOWDOWN_EVOLUTION_ITEM_NAMES.map(({id, 
   })
 );
 
+const PARENTING_MOVE_TEACHING_ITEM_ENTRIES: ItemRegistryEntry[] = [
+  v1Item("heartscale", "Heart Scale", "心之鳞片", "parenting", "对宝可梦使用后，可以回忆自学技能。", {
+    source: "system",
+    effectSummary: "学习来源：自学技能。",
+    moveTeachingEffect: {kind: "learn-source", sources: ["levelup"]},
+    canBattleUse: false,
+    canUse: true,
+    canUseToPokemon: true,
+    canTake: false,
+    cost: 2000,
+    iconAsset: "runtime/items/heartscale/icon.png",
+    tags: ["养育", "技能学习", "自学技能", "心之鳞片"],
+  }),
+  v1Item("standardtextbook", "Standard Textbook", "普通教材", "parenting", "对宝可梦使用后，可以学习教授技能。", {
+    source: "system",
+    effectSummary: "学习来源：教授技能。",
+    moveTeachingEffect: {kind: "learn-source", sources: ["tutor"]},
+    canBattleUse: false,
+    canUse: true,
+    canUseToPokemon: true,
+    canTake: false,
+    cost: 3000,
+    iconAsset: "runtime/items/tmnormal/icon.png",
+    tags: ["养育", "技能学习", "教授技能", "普通教材"],
+  }),
+  v1Item("redthread", "Red Thread", "红线", "parenting", "对宝可梦使用后，可以学习遗传技能。", {
+    source: "system",
+    effectSummary: "学习来源：遗传技能。",
+    moveTeachingEffect: {kind: "learn-source", sources: ["egg"]},
+    canBattleUse: false,
+    canUse: true,
+    canUseToPokemon: true,
+    canTake: false,
+    cost: 3500,
+    iconAsset: "runtime/items/destinyknot/icon.png",
+    tags: ["养育", "技能学习", "遗传技能", "红线"],
+  }),
+  v1Item("lostmanual", "Lost Manual", "失落的秘籍", "parenting", "对宝可梦使用后，可以学习非正常途径学习的技能。", {
+    source: "system",
+    effectSummary: "学习来源：活动、迁移或其他特殊来源。",
+    moveTeachingEffect: {kind: "learn-source", sources: ["event", "transfer", "other"]},
+    canBattleUse: false,
+    canUse: true,
+    canUseToPokemon: true,
+    canTake: false,
+    cost: 5000,
+    iconAsset: "runtime/items/tmdark/icon.png",
+    tags: ["养育", "技能学习", "特殊技能", "失落的秘籍"],
+  }),
+  v1Item("forbiddenmanual", "Forbidden Manual", "禁断的秘籍", "parenting", "对宝可梦使用后，可以学习任意技能。每只宝可梦只能使用一次。", {
+    source: "system",
+    effectSummary: "学习来源：任意技能。每只宝可梦只能使用一次。",
+    moveTeachingEffect: {kind: "any", oncePerPokemon: true},
+    canBattleUse: false,
+    canUse: true,
+    canUseToPokemon: true,
+    canTake: false,
+    cost: 12000,
+    iconAsset: "runtime/items/tmghost/icon.png",
+    tags: ["养育", "技能学习", "任意技能", "禁断的秘籍"],
+  }),
+];
+
 const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   ...SHOWDOWN_EVOLUTION_ITEM_ENTRIES,
+  ...PARENTING_MOVE_TEACHING_ITEM_ENTRIES,
   v1Item("potion", "Potion", "回复药", "recovery", "恢复 20 点 HP。", {cost: 300, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 20}}}),
   v1Item("superpotion", "Super Potion", "好伤药", "recovery", "恢复 60 点 HP。", {cost: 700, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 60}}}),
   v1Item("hyperpotion", "Hyper Potion", "绝好伤药", "recovery", "恢复 120 点 HP。", {cost: 1200, canBattleUse: true, recoveryEffect: {hp: {kind: "fixed", amount: 120}}}),
@@ -1134,6 +1204,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       effectSummary: overlay?.effectSummary || description,
       recoveryEffect: overlay?.recoveryEffect,
       trainingEffect: overlay?.trainingEffect,
+      moveTeachingEffect: overlay?.moveTeachingEffect,
       canBattleUse: overlay?.canBattleUse ?? false,
       canUse: overlay?.canUse ?? false,
       canUseToPokemon: overlay?.canUseToPokemon ?? false,
@@ -1160,6 +1231,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
       effectSummary: entry.effectSummary || entry.description,
       recoveryEffect: entry.recoveryEffect,
       trainingEffect: entry.trainingEffect,
+      moveTeachingEffect: entry.moveTeachingEffect,
       canBattleUse: entry.canBattleUse,
       canUse: entry.canUse,
       canUseToPokemon: entry.canUseToPokemon,
@@ -1735,6 +1807,7 @@ function v1Item(
     effectSummary: options.effectSummary || description,
     recoveryEffect: options.recoveryEffect,
     trainingEffect: options.trainingEffect,
+    moveTeachingEffect: options.moveTeachingEffect,
     iconAsset: options.iconAsset || `runtime/items/${id}/icon.png`,
     canBattleUse: options.canBattleUse ?? false,
     canUse: options.canUse ?? true,
@@ -1756,6 +1829,9 @@ function factoryItemDescription(nameZh: string, kind: DexItemKind, description: 
   }
   if (kind === "training") {
     return `工厂训练部配发的 ${nameZh}，用于训练场休整；使用后可以${action}。`;
+  }
+  if (kind === "parenting") {
+    return `工厂培育部处理的 ${nameZh}，用于局外灵魂伴侣养成；使用后可以${action}。`;
   }
   if (kind === "evolution") {
     return `工厂培育部登记的 ${nameZh}，用于灵魂伴侣养成；使用后可以${action}。`;

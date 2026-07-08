@@ -63,6 +63,13 @@ export const SOULMATE_UNIVERSAL_EVOLUTION_STONE_ITEM_ID_V4 = "universal-evolutio
 
 export const SOULMATE_LINKING_CORD_ITEM_ID_V4 = "linking-cord";
 
+export const SOULMATE_EVOLUTION_FRIENDSHIP_REQUIREMENTS_V4 = [100, 200] as const;
+
+export function soulmateEvolutionFriendshipRequirementV4(evolutionIndex: number): number | null {
+  const index = Math.max(0, Math.floor(Number(evolutionIndex || 0)));
+  return SOULMATE_EVOLUTION_FRIENDSHIP_REQUIREMENTS_V4[index] ?? null;
+}
+
 export function normalizeSoulmateEvolutionRequirementV4(edge: SoulmateEvolutionEdgeInputV4 | null | undefined): SoulmateEvolutionRequirementV4 {
   const evoType = normalizeOptionalText(edge?.evoType);
   const evoItemId = normalizeItemIdText(edge?.evoItemId || edge?.evoItem);

@@ -11,6 +11,7 @@ assert.equal(dex.translateDexLabel("categories", "Special"), "特殊");
 assert.equal(dex.translateDexLabel("stats", "spa"), "特攻");
 assert.equal(dex.translateDexLabel("stats", "hp"), "HP");
 assert.equal(dex.translateDexLabel("moves", "Surf"), "冲浪");
+assert.equal(dex.translateDexLabel("items", "Water Stone"), "水之石");
 assert.notEqual(dex.translateDexDescription("moves", "Surf", "fallback"), "fallback");
 assert.ok(dex.translateDexDescription("moves", "Surf", "fallback").includes("宝可梦"));
 assert.equal(dex.dexLabelToId("types", "水"), "water");
@@ -117,6 +118,15 @@ assert.ok(choiceScarf.description.length > 0);
 
 const oranBerry = dex.getItemDetail("oranberry");
 assert.equal(oranBerry.kindLabel, "树果");
+const heartScale = dex.getItemDetail("heartscale");
+assert.equal(heartScale.nameZh, "心之鳞片");
+assert.equal(heartScale.kind, "parenting");
+assert.equal(heartScale.kindLabel, "养育道具");
+assert.deepEqual(heartScale.moveTeachingEffect, {kind: "learn-source", sources: ["levelup"]});
+assert.ok(heartScale.description.includes("工厂"));
+const forbiddenManual = dex.getItemDetail("forbiddenmanual");
+assert.equal(forbiddenManual.kind, "parenting");
+assert.deepEqual(forbiddenManual.moveTeachingEffect, {kind: "any", oncePerPokemon: true});
 
 const potion = dex.getItemDetail("potion");
 assert.equal(potion.nameZh, "回复药");

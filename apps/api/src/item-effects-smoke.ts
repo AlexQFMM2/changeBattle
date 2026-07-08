@@ -1,7 +1,7 @@
 import {strict as assert} from "node:assert";
 import type {DexMoveSummary, DexPokemonDetail} from "@changebattle-v2/showdown-dex-core";
 import {createBattleCommandDraftV4, normalizeBattleRequestV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4} from "./battle.js";
-import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, tmUseFailureReasonV4} from "./itemEffects.js";
+import {applyPlayerVaultMoveTeachingItemV4, applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, getPlayerVaultMoveTeachingViewV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4} from "./training.js";
 
 const pokemon = makePokemon();
@@ -156,6 +156,57 @@ assert.equal(split.choice, "pass");
 assert.equal(split.trainerItems[0]?.itemInstanceId, "item-1");
 assert.equal(split.trainerItems[0]?.targetKey, "pokeball");
 
+const vaultDex = fakeVaultDex();
+const vault = {
+  version: 1 as const,
+  items: [
+    {itemId: "heartscale", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 0},
+    {itemId: "standardtextbook", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 1},
+    {itemId: "redthread", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 2},
+    {itemId: "lostmanual", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 3},
+    {itemId: "forbiddenmanual", quantity: 2, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 4},
+  ],
+  pokemon: [{
+    playerPokemonId: "vault-pokemon-1",
+    speciesId: "pikachu",
+    level: 50,
+    gender: "N" as const,
+    nature: "Serious",
+    abilityId: "static",
+    evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0},
+    ivs: {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31},
+    moves: [{moveId: "thunderbolt"}, {moveId: "quickattack"}, {moveId: "irontail"}, {moveId: "protect"}],
+    friendship: 70,
+    shiny: false,
+    metAt: "2026-01-01T00:00:00.000Z",
+    honors: [],
+  }],
+  itemStoragePageCount: 2,
+  pokemonStoragePageCount: 2,
+};
+const heartView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:0:heartscale", "vault-pokemon-1");
+assert.equal(heartView.ok, true);
+if (heartView.ok) assert.deepEqual(heartView.moves.map(move => move.id), ["electroball"]);
+const textbookView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:1:standardtextbook", "vault-pokemon-1");
+assert.equal(textbookView.ok, true);
+if (textbookView.ok) assert.deepEqual(textbookView.moves.map(move => move.id), ["signalbeam"]);
+const redThreadView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:2:redthread", "vault-pokemon-1");
+assert.equal(redThreadView.ok, true);
+if (redThreadView.ok) assert.deepEqual(redThreadView.moves.map(move => move.id), ["wish"]);
+const lostManualView = getPlayerVaultMoveTeachingViewV4(vaultDex as any, vault, "storage:0:3:lostmanual", "vault-pokemon-1");
+assert.equal(lostManualView.ok, true);
+if (lostManualView.ok) assert.deepEqual(lostManualView.moves.map(move => move.id), ["celebrate", "refresh", "holdhands"]);
+const forbiddenResult = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault, itemKey: "storage:0:4:forbiddenmanual", pokemonId: "vault-pokemon-1", moveId: "flamethrower", moveSlot: 1});
+assert.equal(forbiddenResult.ok, true);
+if (forbiddenResult.ok) {
+  assert.equal(forbiddenResult.pokemon.moves[1]!.moveId, "flamethrower");
+  assert.equal(forbiddenResult.pokemon.growthFlags?.forbiddenManualUsedAt?.startsWith("20"), true);
+  assert.equal(forbiddenResult.vault.items.find(entry => entry.itemId === "forbiddenmanual")?.quantity, 1);
+  const secondForbidden = applyPlayerVaultMoveTeachingItemV4(vaultDex as any, {vault: forbiddenResult.vault, itemKey: "storage:0:4:forbiddenmanual", pokemonId: "vault-pokemon-1", moveId: "surf", moveSlot: 2});
+  assert.equal(secondForbidden.ok, false);
+  assert.match(secondForbidden.ok ? "" : secondForbidden.reason, /已经使用过/);
+}
+
 console.log("item effects smoke ok");
 
 function item(itemID: string, name: string, options: Partial<PlayerItemInstanceV4> = {}): PlayerItemInstanceV4 {
@@ -250,5 +301,38 @@ function fakePokemonDetail(): DexPokemonDetail {
     sprites: {resourcePrefix: ""},
     learnset: [],
     learnsetGroups: {levelup: [], machine: [], tutor: [], egg: [], event: [], transfer: [], other: []},
+  };
+}
+
+function fakeVaultDex() {
+  const moveById = new Map([
+    ["electroball", moveSummary("electroball", {nameZh: "电球", learnSources: ["levelup"]})],
+    ["signalbeam", moveSummary("signalbeam", {nameZh: "信号光束", learnSources: ["tutor"]})],
+    ["wish", moveSummary("wish", {nameZh: "祈愿", learnSources: ["egg"]})],
+    ["celebrate", moveSummary("celebrate", {nameZh: "庆祝", learnSources: ["event"]})],
+    ["refresh", moveSummary("refresh", {nameZh: "焕然一新", learnSources: ["transfer"]})],
+    ["holdhands", moveSummary("holdhands", {nameZh: "牵手", learnSources: ["other"]})],
+    ["flamethrower", moveSummary("flamethrower", {nameZh: "喷射火焰"})],
+    ["surf", moveSummary("surf", {nameZh: "冲浪"})],
+  ]);
+  const itemEffects = new Map([
+    ["heartscale", {kind: "learn-source", sources: ["levelup"]}],
+    ["standardtextbook", {kind: "learn-source", sources: ["tutor"]}],
+    ["redthread", {kind: "learn-source", sources: ["egg"]}],
+    ["lostmanual", {kind: "learn-source", sources: ["event", "transfer", "other"]}],
+    ["forbiddenmanual", {kind: "any", oncePerPokemon: true}],
+  ]);
+  return {
+    toDexId: (value: string) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, ""),
+    getItemDetail: (id: string) => ({id, name: id, nameZh: id, kind: "parenting", kindLabel: "养育道具", description: "", moveTeachingEffect: itemEffects.get(id)}),
+    getPokemonDetail: (id: string) => ({id, name: id, nameZh: id, sprites: {}}),
+    getPokemonSkillsBySource: (_speciesId: string, source: string) => Array.from(moveById.values()).filter(move => move.learnSources?.includes(source as any)),
+    searchDex: ({query = "", limit = 40}: {query?: string; limit?: number}) => ({
+      rows: Array.from(moveById.values())
+        .filter(move => !query || [move.id, move.nameZh].some(value => String(value).includes(query)))
+        .slice(0, limit)
+        .map(move => ({id: move.id})),
+    }),
+    getMoveDetail: (id: string) => moveById.get(id),
   };
 }

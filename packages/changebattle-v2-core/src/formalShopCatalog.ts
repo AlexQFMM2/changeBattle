@@ -1,4 +1,4 @@
-export type FormalShopCategoryV4 = "recovery" | "berry" | "battle" | "tm" | "training";
+export type FormalShopCategoryV4 = "recovery" | "berry" | "battle" | "tm" | "training" | "parenting" | "evolution";
 
 export type FormalShopProductViewV4 = {
   slotId: string;
@@ -12,17 +12,28 @@ export type FormalShopProductViewV4 = {
   iconStyle?: string;
 };
 
+export type FormalShopGenerationRuleIdV4 = "standard" | "pendingSettlement";
+
+export type FormalShopGenerationRuleV4 = {
+  id: FormalShopGenerationRuleIdV4;
+  itemPools: Record<FormalShopCategoryV4, string[]>;
+  slotsPerCategory: Record<FormalShopCategoryV4, number>;
+  fixedSlots: boolean;
+};
+
 export const FORMAL_SHOP_CATEGORY_LABELS: Record<FormalShopCategoryV4, string> = {
   recovery: "恢复药",
   berry: "树果",
   battle: "战斗道具",
   tm: "技能机器",
   training: "训练道具",
+  parenting: "养育道具",
+  evolution: "进化道具",
 };
 
-export const FORMAL_SHOP_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "berry", "battle", "tm", "training"];
+export const FORMAL_SHOP_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "berry", "battle", "tm", "training", "parenting", "evolution"];
 
-export const FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "berry", "battle", "training", "tm"];
+export const FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER: FormalShopCategoryV4[] = ["recovery", "berry", "battle", "training", "parenting", "evolution", "tm"];
 
 export const FORMAL_SHOP_COMMON_BERRY_POOL = ["oranberry", "leppaberry", "sitrusberry", "lumberry"];
 
@@ -39,11 +50,33 @@ const FORMAL_SHOP_EV_SMALL_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [
 const FORMAL_SHOP_EV_COMMON_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [`ev${stat}plus`, `ev${stat}down`]);
 const FORMAL_SHOP_EV_RESET_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [`ev${stat}zero`, `ev${stat}downlarge`]);
 const FORMAL_SHOP_EV_LARGE_ITEM_POOL = FORMAL_SHOP_EV_STAT_IDS.flatMap(stat => [`ev${stat}large`, `ev${stat}max`]);
+export const FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL = [
+  ...FORMAL_SHOP_EV_SMALL_ITEM_POOL,
+  ...FORMAL_SHOP_EV_COMMON_ITEM_POOL,
+  ...FORMAL_SHOP_EV_RESET_ITEM_POOL,
+  ...FORMAL_SHOP_EV_LARGE_ITEM_POOL,
+  "hpup", "protein", "iron", "calcium", "zinc", "carbos",
+  "bottlecap", "goldbottlecap", "graybottlecap", "adamantmint", "modestmint",
+  "jollymint", "timidmint", "calmmint", "boldmint",
+];
+export const FORMAL_SHOP_PARENTING_ITEM_POOL = ["heartscale", "standardtextbook", "redthread", "lostmanual", "forbiddenmanual"];
+export const FORMAL_SHOP_EVOLUTION_ITEM_POOL = [
+  "universal-evolution-stone", "linking-cord", "firestone", "waterstone", "thunderstone",
+  "leafstone", "moonstone", "sunstone", "shinystone", "duskstone", "dawnstone",
+  "icestone", "kingsrock", "metalcoat", "dragonscale", "upgrade", "dubiousdisc",
+  "protector", "electirizer", "magmarizer", "razorclaw", "razorfang", "reapercloth",
+  "prismscale", "sachet", "whippeddream", "sweetapple", "tartapple", "syrupyapple",
+  "blackaugurite", "peatblock", "auspiciousarmor", "maliciousarmor", "galaricacuff",
+  "galaricawreath", "chippedpot", "crackedpot", "unremarkableteacup", "masterpieceteacup",
+  "metalalloy",
+];
 
 export const FORMAL_SHOP_PRICE_LIMITS = {
   tm: {min: 50, max: 200},
   battle: {min: 150, max: 450},
   training: {min: 10, max: 400},
+  parenting: {min: 80, max: 800},
+  evolution: {min: 120, max: 300},
   recovery: {min: 10, max: 150},
   berry: {min: 5, max: 30},
 } as const;
@@ -170,6 +203,53 @@ export const FORMAL_SHOP_PRICE_OVERRIDES: Record<string, number> = {
   abilitypatch: 200,
   ppup: 100,
   ppmax: 200,
+  heartscale: 120,
+  standardtextbook: 180,
+  redthread: 220,
+  lostmanual: 360,
+  forbiddenmanual: 800,
+  "universal-evolution-stone": 180,
+  "linking-cord": 220,
+  linkingcord: 220,
+  firestone: 150,
+  waterstone: 150,
+  thunderstone: 150,
+  leafstone: 150,
+  moonstone: 150,
+  sunstone: 150,
+  shinystone: 180,
+  duskstone: 180,
+  dawnstone: 180,
+  icestone: 180,
+  kingsrock: 180,
+  metalcoat: 180,
+  dragonscale: 180,
+  upgraded: 180,
+  upgrade: 180,
+  dubiousdisc: 200,
+  protector: 200,
+  electirizer: 200,
+  magmarizer: 200,
+  razorclaw: 200,
+  razorfang: 200,
+  reapercloth: 200,
+  prismscale: 200,
+  sachet: 200,
+  whippeddream: 200,
+  sweetapple: 150,
+  tartapple: 150,
+  syrupyapple: 200,
+  blackaugurite: 220,
+  peatblock: 220,
+  auspiciousarmor: 220,
+  maliciousarmor: 220,
+  galaricacuff: 220,
+  galaricawreath: 220,
+  chippedpot: 180,
+  crackedpot: 150,
+  unremarkableteacup: 180,
+  masterpieceteacup: 240,
+  metalalloy: 220,
   "tm:protect": 50,
   "tm:substitute": 80,
   "tm:willowisp": 80,
@@ -245,6 +325,14 @@ export const FORMAL_SHOP_ITEM_BASE_WEIGHTS: Record<string, number> = {
   carbos: 2,
   ppup: 7,
   ppmax: 3,
+  heartscale: 12,
+  standardtextbook: 10,
+  redthread: 8,
+  lostmanual: 4,
+  forbiddenmanual: 1,
+  "universal-evolution-stone": 10,
+  "linking-cord": 8,
+  ...Object.fromEntries(FORMAL_SHOP_EVOLUTION_ITEM_POOL.filter(itemID => !["universal-evolution-stone", "linking-cord"].includes(itemID)).map(itemID => [itemID, 5])),
   abilitycapsule: 5,
   abilitypatch: 2,
   bottlecap: 2,
@@ -307,6 +395,19 @@ export const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
     "goldbottlecap", "graybottlecap", "adamantmint", "modestmint", "jollymint",
     "timidmint", "calmmint", "boldmint",
   ],
+  parenting: FORMAL_SHOP_PARENTING_ITEM_POOL,
+  evolution: FORMAL_SHOP_EVOLUTION_ITEM_POOL,
+};
+
+export const FORMAL_PENDING_SETTLEMENT_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
+  ...FORMAL_SHOP_ITEM_POOL,
+  recovery: [],
+  berry: [],
+  battle: FORMAL_SHOP_ITEM_POOL.battle,
+  training: FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL,
+  parenting: FORMAL_SHOP_PARENTING_ITEM_POOL,
+  evolution: FORMAL_SHOP_EVOLUTION_ITEM_POOL,
+  tm: FORMAL_SHOP_ITEM_POOL.tm,
 };
 
 export const FORMAL_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number> = {
@@ -314,6 +415,8 @@ export const FORMAL_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number
   berry: 3,
   battle: 3,
   training: 3,
+  parenting: 3,
+  evolution: 3,
   tm: 3,
 };
 
@@ -322,12 +425,37 @@ export const FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY: Record<FormalSho
   berry: 0,
   battle: 1,
   training: 2,
+  parenting: 2,
+  evolution: 2,
   tm: 2,
 };
 
+export const FORMAL_STANDARD_SHOP_GENERATION_RULE_V4: FormalShopGenerationRuleV4 = {
+  id: "standard",
+  itemPools: FORMAL_SHOP_ITEM_POOL,
+  slotsPerCategory: FORMAL_SHOP_SLOTS_PER_CATEGORY,
+  fixedSlots: false,
+};
+
+export const FORMAL_PENDING_SETTLEMENT_SHOP_GENERATION_RULE_V4: FormalShopGenerationRuleV4 = {
+  id: "pendingSettlement",
+  itemPools: FORMAL_PENDING_SETTLEMENT_SHOP_ITEM_POOL,
+  slotsPerCategory: FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY,
+  fixedSlots: true,
+};
+
+export function formalShopGenerationRuleV4(pendingSettlement = false): FormalShopGenerationRuleV4 {
+  return pendingSettlement ? FORMAL_PENDING_SETTLEMENT_SHOP_GENERATION_RULE_V4 : FORMAL_STANDARD_SHOP_GENERATION_RULE_V4;
+}
+
+export function formalShopItemPoolForCategoryV4(category: FormalShopCategoryV4, pendingSettlement = false): string[] {
+  return formalShopGenerationRuleV4(pendingSettlement).itemPools[category] || [];
+}
+
 export function formalShopSlotsForCategoryV4(category: FormalShopCategoryV4, pendingSettlement = false, rows = 1): number {
-  if (pendingSettlement) return Math.max(0, FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY[category] || 0);
-  const maxSlots = FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3;
+  const rule = formalShopGenerationRuleV4(pendingSettlement);
+  const maxSlots = rule.slotsPerCategory[category] || 0;
+  if (rule.fixedSlots) return Math.max(0, maxSlots);
   return Math.max(1, Math.min(maxSlots, rows));
 }
 
